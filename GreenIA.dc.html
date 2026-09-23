@@ -283,6 +283,14 @@
                 </span>
                 <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
                   <div style="background:#FBF9F2;border:1px solid #E9E0CD;border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 'Hanken Grotesk';color:#16241D;white-space:pre-wrap;">{{ m.text }}<sc-if value="{{ m.caret }}"><span style="display:inline-block;width:8px;height:18px;background:#1F8A5B;margin-left:2px;vertical-align:-3px;animation:giaBlink 1s steps(1) infinite;"></span></sc-if></div>
+                  <sc-if value="{{ m.canRetry }}">
+                    <div>
+                      <button onClick="{{ m.onRetry }}" style="display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid #D9CFB6;color:#16241D;border-radius:999px;padding:8px 15px;font:500 14px 'Hanken Grotesk';cursor:pointer;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>
+                        Tentar de novo
+                      </button>
+                    </div>
+                  </sc-if>
                   <sc-if value="{{ m.hasSources }}">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-left:2px;">
                       <span style="font:600 11px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:#6E6C62;">Da base</span>
@@ -757,10 +765,31 @@ class Component extends DCLogic {
     } else {
       convos = this._updateConvoMessages(convos, convoId, ms => [...ms, userMsg]);
     }
-    const msgs = convos.find(c => c.id === convoId).messages;
-    this._requestId = requestId;
     this._forceScroll = true;
-    this.setState({ convos, activeId: convoId, input: '', blocked: null, pending: { convoId, requestId, phase: 'thinking' } });
+    this.setState({ convos, activeId: convoId, input: '', blocked: null });
+    this._request(convoId, requestId);
+  }
+
+  // Reenvia a última pergunta de uma conversa cuja resposta falhou, sem duplicá-la.
+  retry(convoId) {
+    if (this.state.pending) return;
+    const convo = this.state.convos.find(c => c.id === convoId);
+    const last = convo && convo.messages[convo.messages.length - 1];
+    if (!last || !last.error) return;
+    const requestId = 'r' + Date.now() + Math.random().toString(36).slice(2);
+    this._forceScroll = true;
+    this.setState(s => ({ convos: this._updateConvoMessages(s.convos, convoId, ms => ms.slice(0, -1)) }));
+    this._request(convoId, requestId);
+  }
+
+  // Pede a resposta para a última pergunta da conversa `convoId` e grava só nela.
+  async _request(convoId, requestId) {
+    this._requestId = requestId;
+    this.setState({ pending: { convoId, requestId, phase: 'thinking' } });
+
+    // Mensagens de erro não vão para o modelo.
+    const msgs = this.state.convos.find(c => c.id === convoId).messages.filter(m => !m.error);
+    const text = msgs[msgs.length - 1].text;
 
     // Busca na base; pergunta de seguimento soma a mensagem anterior do usuário.
     const userTexts = msgs.filter(m => m.role === 'user').map(m => m.text);
@@ -770,7 +799,14 @@ class Component extends DCLogic {
       { role: 'user', content: this.PERSONA },
       { role: 'assistant', content: 'Entendi. Sou a GreenIA. Vou ajudar com tarefas leves, em português, com frases curtas. Como posso ajudar?' }
     ];
-    const apiConvo = msgs.map(m => ({ role: m.role, content: m.text }));
+    // Junta mensagens seguidas do mesmo papel (acontece quando uma resposta falhou
+    // e a pessoa seguiu sem tentar de novo), para manter a alternância.
+    const apiConvo = [];
+    for (const m of msgs) {
+      const prev = apiConvo[apiConvo.length - 1];
+      if (prev && prev.role === m.role) prev.content += '\n\n' + m.text;
+      else apiConvo.push({ role: m.role, content: m.text });
+    }
     const li = apiConvo.length - 1;
     if (hits.length) {
       const ctx = hits.map((d, i) => `[${i + 1}] ${d.title}: ${d.text}`).join('\n');
@@ -780,17 +816,27 @@ class Component extends DCLogic {
     }
 
     let reply = '';
+    let errorText = '';
     try {
       reply = await window.claude.complete({ messages: [...seed, ...apiConvo] });
-      if (!reply) reply = 'Não consegui responder agora. Quer tentar de novo?';
+      if (!reply) errorText = 'Não consegui responder agora. Quer tentar de novo?';
     } catch (e) {
-      reply = 'Ops, isso não funcionou agora. Tenta de novo daqui a pouco?';
+      errorText = 'Ops, isso não funcionou agora. Quer tentar de novo?';
     }
 
     // Saiu, ou a requisição foi invalidada enquanto esperava: descarta a resposta.
     if (this._requestId !== requestId) return;
     const convo = this.state.convos.find(c => c.id === convoId);
     if (!convo) return;
+
+    if (errorText) {
+      this._requestId = null;
+      this.setState(s => ({
+        convos: this._updateConvoMessages(s.convos, convoId, ms => [...ms, { role: 'assistant', text: errorText, error: true }]),
+        pending: null,
+      }));
+      return;
+    }
 
     const sources = hits.map(d => d.title);
     const index = convo.messages.length;
@@ -834,9 +880,14 @@ class Component extends DCLogic {
     const active = convos.find(c => c.id === activeId);
     const messages = active ? active.messages : [];
     const sending = !!pending;
-    const mapped = messages.map(m => ({
+    const last = messages.length - 1;
+    const mapped = messages.map((m, i) => ({
       isUser: m.role === 'user',
       isAI: m.role === 'assistant',
+      isError: !!m.error,
+      // Só a última mensagem de erro pode ser reenviada, e só sem geração em curso.
+      canRetry: !!m.error && i === last && !pending,
+      onRetry: () => this.retry(activeId),
       text: m.text,
       caret: !!m.typing,
       sources: m.sources || [],

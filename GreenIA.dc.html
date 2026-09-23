@@ -14,7 +14,7 @@
 <style>
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:#FAF7EF;}
-  input{font-family:inherit;}
+  input,textarea{font-family:inherit;}
   ::placeholder{color:#6E6C62;opacity:1;}
   ::-webkit-scrollbar{width:10px;height:10px;}
   ::-webkit-scrollbar-thumb{background:#E9E0CD;border-radius:999px;border:3px solid #FAF7EF;}
@@ -320,7 +320,7 @@
             </sc-for>
           </div>
           <div style="display:flex;align-items:flex-end;gap:10px;background:#FBF9F2;border:1px solid #D9CFB6;border-radius:24px;padding:8px 8px 8px 20px;">
-            <input type="text" value="{{ input }}" onInput="{{ onInput }}" onKeyDown="{{ onKeyDown }}" placeholder="Pergunte alguma coisa…" aria-label="Mensagem" style="flex:1;border:none;background:none;outline:none;font:400 17px 'Hanken Grotesk';color:#16241D;padding:11px 0;"></input>
+            <textarea ref="{{ inputRef }}" rows="1" value="{{ input }}" onInput="{{ onInput }}" onKeyDown="{{ onKeyDown }}" placeholder="Pergunte alguma coisa…" aria-label="Mensagem" style="flex:1;display:block;min-width:0;border:none;background:none;outline:none;resize:none;font:400 17px/1.5 'Hanken Grotesk';color:#16241D;padding:10px 0;max-height:calc(8 * 1.5em + 20px);overflow-y:hidden;"></textarea>
             <button onClick="{{ send }}" disabled="{{ sendDisabled }}" aria-label="Enviar" style="flex:none;width:44px;height:44px;border-radius:999px;background:{{ sendBg }};border:none;display:flex;align-items:center;justify-content:center;cursor:{{ sendCursor }};" style-hover="{{ btnHover }}">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FAF7EF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="M5 12l7-7 7 7"></path></svg>
             </button>
@@ -387,6 +387,7 @@ class Component extends DCLogic {
       kbOn: true,
     };
     this.msgRef = React.createRef();
+    this._inputRef = el => { this._inputEl = el; };
   }
 
   PERSONA = [
@@ -424,6 +425,18 @@ class Component extends DCLogic {
   componentDidUpdate() {
     const el = this.msgRef.current;
     if (el && this.state.screen === 'chat') el.scrollTop = el.scrollHeight;
+    if (this.state.input !== this._sizedFor) this._autosize();
+  }
+
+  // Campo cresce de 1 até ~8 linhas (max-height no CSS); depois rola por dentro.
+  _autosize() {
+    const el = this._inputEl;
+    if (!el) return;
+    this._sizedFor = this.state.input;
+    el.style.height = 'auto';
+    const max = parseFloat(getComputedStyle(el).maxHeight) || Infinity;
+    el.style.height = Math.min(el.scrollHeight, max) + 'px';
+    el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
   }
 
   goLanding() { this.setState({ screen: 'landing', policyOpen: false }); }
@@ -483,10 +496,21 @@ class Component extends DCLogic {
   }
 
   setInput(v) { this.setState({ input: v }); }
-  useSuggestion(fill) { this.setState({ input: fill }); }
+  useSuggestion(fill) {
+    this.setState({ input: fill }, () => {
+      const el = this._inputEl;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(fill.length, fill.length);
+    });
+  }
 
+  // Enter envia; Shift+Enter quebra a linha. Durante composição de IME, Enter é do IME.
   onKeyDown(e) {
-    if (e.key === 'Enter') { e.preventDefault(); this.send(); }
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    if ((e.nativeEvent && e.nativeEvent.isComposing) || e.keyCode === 229) return;
+    e.preventDefault();
+    this.send();
   }
 
   async send() {
@@ -642,6 +666,7 @@ class Component extends DCLogic {
       openPolicy: () => this.openPolicy(),
       closePolicy: () => this.closePolicy(),
       stop: (e) => e.stopPropagation(),
+      inputRef: this._inputRef,
       onInput: (e) => this.setInput(e.target.value),
       onKeyDown: (e) => this.onKeyDown(e),
       send: () => this.send(),

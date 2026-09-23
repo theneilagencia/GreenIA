@@ -515,6 +515,71 @@ function describeSensitive(types) {
   if (names.length <= 1) return names.join('');
   return names.slice(0, -1).join(', ') + ' e ' + names[names.length - 1];
 }
+
+// ---- Busca na base de conhecimento --------------------------------------------
+
+const KB_STOPWORDS = new Set([
+  'a', 'o', 'os', 'as', 'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'um', 'uma', 'para', 'por', 'com',
+  'no', 'na', 'nos', 'nas', 'que', 'se', 'ao', 'aos', 'como', 'qual', 'quais', 'quanto', 'quantos',
+  'quantas', 'quando', 'onde', 'meu', 'minha', 'sobre', 'ou', 'mais', 'tem', 'ser', 'fazer', 'posso',
+  'quero', 'preciso', 'pode', 'sao', 'esta', 'isso', 'essa', 'esse', 'ela', 'ele', 'voce', 'nao',
+]);
+
+// Stemming leve de plural em português. Aplicado à consulta e aos documentos.
+function stemPt(t) {
+  if (t.length <= 3) return t;
+  if (t.endsWith('oes')) return t.slice(0, -3) + 'ao';   // aprovações -> aprovacao
+  if (t.endsWith('ais')) return t.slice(0, -3) + 'al';   // gerais -> geral
+  if (t.endsWith('eis')) return t.slice(0, -3) + 'el';   // papéis -> papel
+  if (t.endsWith('ns')) return t.slice(0, -2) + 'm';     // viagens -> viagem
+  if (/[rsz]es$/.test(t)) return t.slice(0, -2);         // gestores -> gestor, meses -> mes
+  if (t.endsWith('s') && !t.endsWith('ss')) return t.slice(0, -1); // dias -> dia
+  return t;
+}
+
+// Minúsculas, sem acento, sem stopwords, tokens de 3+ letras, com stemming.
+function tokenizePt(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length > 2 && !KB_STOPWORDS.has(t))
+    .map(stemPt);
+}
+
+const KB_TITLE_WEIGHT = 3;
+const KB_BODY_WEIGHT = 1;
+// Um termo só no corpo não basta; precisa de dois no corpo ou um no título.
+const KB_MIN_SCORE = 2;
+
+// Documentos relevantes para a consulta, do mais para o menos relevante (até 3).
+// Compara por token inteiro, então "dia" não casa com "diária".
+function retrieve(kb, query) {
+  const terms = [...new Set(tokenizePt(query))];
+  if (!terms.length) return [];
+  return kb
+    .map(d => {
+      const title = new Set(tokenizePt(d.title));
+      const body = new Set(tokenizePt(d.text));
+      let score = 0;
+      for (const t of terms) {
+        if (title.has(t)) score += KB_TITLE_WEIGHT;
+        if (body.has(t)) score += KB_BODY_WEIGHT;
+      }
+      return { d, score };
+    })
+    .filter(x => x.score >= KB_MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(x => x.d);
+}
+
+// Pergunta de seguimento ("e para internacional?"): se a última mensagem sozinha
+// não achar nada, busca de novo somando a mensagem anterior do usuário.
+function retrieveForTurn(kb, lastUserText, previousUserText) {
+  const hits = retrieve(kb, lastUserText);
+  if (hits.length || !previousUserText) return hits;
+  return retrieve(kb, previousUserText + ' ' + lastUserText);
+}
 // <<< greenia-core
 
 class Component extends DCLogic {
@@ -561,21 +626,6 @@ class Component extends DCLogic {
     { title: "Férias e ausências", text: "As férias são de 30 dias por período aquisitivo de 12 meses. O pedido deve ser feito com no mínimo 30 dias de antecedência e aprovação do gestor. É possível dividir em até três períodos, um deles com pelo menos 14 dias. Faltas justificadas precisam de atestado enviado ao RH em até 48 horas." },
     { title: "Suporte de TI (DIT)", text: "Para abrir um chamado, use o portal de suporte da DIT. O reset de senha é feito no autoatendimento ou pelo ramal 4000. O atendimento é das 8h às 18h em dias úteis. Equipamentos novos são solicitados pelo gestor com aprovação da diretoria. Para acesso a sistemas, abra um chamado com a justificativa da área." }
   ];
-
-  _norm(s) { return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
-
-  retrieve(query) {
-    const stop = new Set(["a","o","os","as","de","da","do","das","dos","e","em","um","uma","para","por","com","no","na","nos","nas","que","se","ao","aos","como","qual","quais","quanto","quando","onde","meu","minha","sobre","ou","mais","tem","ser","fazer","posso","quero","preciso"]);
-    const terms = this._norm(query).split(/[^a-z0-9]+/).filter(t => t.length > 2 && !stop.has(t));
-    if (!terms.length) return [];
-    const scored = this.KB.map(d => {
-      const body = this._norm(d.text), title = this._norm(d.title);
-      let s = 0;
-      terms.forEach(t => { if (body.includes(t)) s += 1; if (title.includes(t)) s += 2; });
-      return { d, s };
-    });
-    return scored.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 3).map(x => x.d);
-  }
 
   toggleKb() { this.setState(s => ({ kbOn: !s.kbOn })); }
 
@@ -712,7 +762,9 @@ class Component extends DCLogic {
     this._forceScroll = true;
     this.setState({ convos, activeId: convoId, input: '', blocked: null, pending: { convoId, requestId, phase: 'thinking' } });
 
-    const hits = this.state.kbOn ? this.retrieve(text) : [];
+    // Busca na base; pergunta de seguimento soma a mensagem anterior do usuário.
+    const userTexts = msgs.filter(m => m.role === 'user').map(m => m.text);
+    const hits = this.state.kbOn ? retrieveForTurn(this.KB, text, userTexts[userTexts.length - 2]) : [];
 
     const seed = [
       { role: 'user', content: this.PERSONA },

@@ -1,0 +1,10 @@
+{
+  "name": "greenia-prototipo",
+  "private": true,
+  "description": "Protótipo da GreenIA (formato .dc.html do Claude Design) e testes das funções puras.",
+  "scripts": {
+    "test": "node --test && node scripts/check-sync.mjs",
+    "check-sync": "node scripts/check-sync.mjs",
+    "sync": "node scripts/check-sync.mjs --write"
+  }
+}

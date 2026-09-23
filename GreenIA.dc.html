@@ -369,6 +369,28 @@
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+// Funções puras copiadas de lib/greenia-core.js (testadas em tests/).
+// Não edite aqui: edite a lib e rode `node scripts/check-sync.mjs --write`.
+// >>> greenia-core
+// ---- Typewriter -------------------------------------------------------------
+const TYPEWRITER_MAX_MS = 1200;
+const TYPEWRITER_FRAME_MS = 1000 / 60;
+
+// Caracteres por quadro para que o texto inteiro apareça em ~maxMs.
+function typewriterChunk(length, maxMs = TYPEWRITER_MAX_MS, frameMs = TYPEWRITER_FRAME_MS) {
+  const frames = Math.max(1, Math.floor(maxMs / frameMs));
+  return Math.max(1, Math.ceil(length / frames));
+}
+
+// Quantos caracteres mostrar após `elapsed` ms, tendo mostrado `shown`.
+// Avança ao menos um bloco por quadro e nunca fica atrás do relógio, então
+// mesmo com quadros lentos o total não passa de maxMs.
+function typewriterNext(length, shown, elapsed, chunk, maxMs = TYPEWRITER_MAX_MS) {
+  const byClock = Math.ceil(length * Math.min(1, elapsed / maxMs));
+  return Math.min(length, Math.max(shown + chunk, byClock));
+}
+// <<< greenia-core
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -452,7 +474,7 @@ class Component extends DCLogic {
   // Invalida a requisição em curso e para o typewriter: nada chega depois disso.
   _cancelGeneration() {
     this._requestId = null;
-    clearTimeout(this._t);
+    cancelAnimationFrame(this._raf);
   }
 
   goChat() {
@@ -570,13 +592,18 @@ class Component extends DCLogic {
     this._typewriter(convoId, index, reply, requestId);
   }
 
-  // Escreve só a mensagem `index` da conversa `convoId`.
+  // Escreve só a mensagem `index` da conversa `convoId`, em no máximo ~1,2 s
+  // qualquer que seja o tamanho. Com prefers-reduced-motion, mostra tudo de uma vez.
   _typewriter(convoId, index, full, requestId) {
-    clearTimeout(this._t);
+    cancelAnimationFrame(this._raf);
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const chunk = typewriterChunk(full.length);
+    let start = null;
     let i = 0;
-    const step = () => {
+    const step = (now) => {
       if (this._requestId !== requestId) return;
-      i = Math.min(full.length, i + 2);
+      if (start === null) start = now;
+      i = reduce ? full.length : typewriterNext(full.length, i, now - start, chunk);
       const shown = full.slice(0, i);
       const done = i >= full.length;
       this.setState(s => ({
@@ -585,9 +612,9 @@ class Component extends DCLogic {
         ...(done ? { pending: null } : {}),
       }));
       if (done) this._requestId = null;
-      else this._t = setTimeout(step, 14);
+      else this._raf = requestAnimationFrame(step);
     };
-    step();
+    this._raf = requestAnimationFrame(step);
   }
 
   renderVals() {

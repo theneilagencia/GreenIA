@@ -378,8 +378,9 @@ class Component extends DCLogic {
       loggingIn: false,
       pendingTarget: 'chat',
       input: '',
-      sending: false,
-      messages: [],
+      // Geração em andamento: { convoId, requestId, phase: 'thinking' | 'typing' } ou null.
+      // Só uma por vez, em qualquer conversa. As mensagens vivem em convos[].messages.
+      pending: null,
       convos: [],
       activeId: null,
       policyOpen: false,
@@ -428,10 +429,17 @@ class Component extends DCLogic {
   goLanding() { this.setState({ screen: 'landing', policyOpen: false }); }
 
   logout() {
+    this._cancelGeneration();
     this.setState({
       authed: false, screen: 'landing', policyOpen: false,
-      messages: [], convos: [], activeId: null, input: '', sending: false,
+      convos: [], activeId: null, input: '', pending: null,
     });
+  }
+
+  // Invalida a requisição em curso e para o typewriter: nada chega depois disso.
+  _cancelGeneration() {
+    this._requestId = null;
+    clearTimeout(this._t);
   }
 
   goChat() {
@@ -460,12 +468,18 @@ class Component extends DCLogic {
     }, 1100);
   }
 
-  newConvo() { this.setState({ activeId: null, messages: [], input: '', sending: false }); }
+  // Trocar ou criar conversa não mexe em `pending`: a geração em andamento
+  // termina em segundo plano, gravando só na conversa dela.
+  newConvo() { this.setState({ activeId: null, input: '' }); }
 
   loadConvo(id) {
-    const c = this.state.convos.find(x => x.id === id);
-    if (!c) return;
-    this.setState({ activeId: id, messages: [...c.messages], input: '', sending: false });
+    if (!this.state.convos.some(x => x.id === id)) return;
+    this.setState({ activeId: id, input: '' });
+  }
+
+  // Aplica `fn` às mensagens de uma conversa específica, nunca à lista ativa.
+  _updateConvoMessages(convos, convoId, fn) {
+    return convos.map(c => c.id === convoId ? { ...c, messages: fn(c.messages) } : c);
   }
 
   setInput(v) { this.setState({ input: v }); }
@@ -475,29 +489,25 @@ class Component extends DCLogic {
     if (e.key === 'Enter') { e.preventDefault(); this.send(); }
   }
 
-  _syncConvo(messages) {
-    const { activeId } = this.state;
-    if (!activeId) return;
-    this.setState(s => ({
-      convos: s.convos.map(c => c.id === activeId ? { ...c, messages: [...messages] } : c)
-    }));
-  }
-
   async send() {
     const text = (this.state.input || '').trim();
-    if (!text || this.state.sending) return;
+    if (!text || this.state.pending) return;
 
-    const msgs = [...this.state.messages, { role: 'user', text }];
+    // Conversa alvo e id da requisição ficam fixos a partir daqui.
+    const requestId = 'r' + Date.now() + Math.random().toString(36).slice(2);
+    let convoId = this.state.activeId;
     let convos = this.state.convos;
-    let activeId = this.state.activeId;
-    if (!activeId) {
-      activeId = 'c' + Date.now();
+    const userMsg = { role: 'user', text };
+    if (!convoId) {
+      convoId = 'c' + Date.now();
       const title = text.length > 42 ? text.slice(0, 42) + '…' : text;
-      convos = [{ id: activeId, title, messages: msgs }, ...convos];
+      convos = [{ id: convoId, title, messages: [userMsg] }, ...convos];
     } else {
-      convos = convos.map(c => c.id === activeId ? { ...c, messages: msgs } : c);
+      convos = this._updateConvoMessages(convos, convoId, ms => [...ms, userMsg]);
     }
-    this.setState({ messages: msgs, convos, activeId, input: '', sending: true });
+    const msgs = convos.find(c => c.id === convoId).messages;
+    this._requestId = requestId;
+    this.setState({ convos, activeId: convoId, input: '', pending: { convoId, requestId, phase: 'thinking' } });
 
     const hits = this.state.kbOn ? this.retrieve(text) : [];
 
@@ -522,48 +532,57 @@ class Component extends DCLogic {
       reply = 'Ops, isso não funcionou agora. Tenta de novo daqui a pouco?';
     }
 
+    // Saiu, ou a requisição foi invalidada enquanto esperava: descarta a resposta.
+    if (this._requestId !== requestId) return;
+    const convo = this.state.convos.find(c => c.id === convoId);
+    if (!convo) return;
+
     const sources = hits.map(d => d.title);
-    this.setState(s => ({ messages: [...s.messages, { role: 'assistant', text: '', sources }] }));
-    this._typewriter(reply);
+    const index = convo.messages.length;
+    this.setState(s => ({
+      convos: this._updateConvoMessages(s.convos, convoId, ms => [...ms, { role: 'assistant', text: '', sources, typing: true }]),
+      pending: { convoId, requestId, phase: 'typing' },
+    }));
+    this._typewriter(convoId, index, reply, requestId);
   }
 
-  _typewriter(full) {
+  // Escreve só a mensagem `index` da conversa `convoId`.
+  _typewriter(convoId, index, full, requestId) {
     clearTimeout(this._t);
     let i = 0;
     const step = () => {
+      if (this._requestId !== requestId) return;
       i = Math.min(full.length, i + 2);
       const shown = full.slice(0, i);
-      this.setState(s => {
-        const m = [...s.messages];
-        m[m.length - 1] = { ...m[m.length - 1], role: 'assistant', text: shown };
-        return { messages: m };
-      });
-      if (i < full.length) {
-        this._t = setTimeout(step, 14);
-      } else {
-        this.setState(s => {
-          this._syncConvo(s.messages);
-          return { sending: false };
-        });
-      }
+      const done = i >= full.length;
+      this.setState(s => ({
+        convos: this._updateConvoMessages(s.convos, convoId, ms =>
+          ms.map((m, k) => k === index ? { ...m, text: shown, typing: !done } : m)),
+        ...(done ? { pending: null } : {}),
+      }));
+      if (done) this._requestId = null;
+      else this._t = setTimeout(step, 14);
     };
     step();
   }
 
   renderVals() {
-    const { screen, messages, sending, convos, activeId, input, loggingIn, kbOn } = this.state;
+    const { screen, pending, convos, activeId, input, loggingIn, kbOn } = this.state;
     const hero = this.props.heroLayout || 'Editorial centralizado';
 
-    const last = messages.length - 1;
-    const mapped = messages.map((m, i) => ({
+    // Mensagens da conversa ativa, derivadas de convos (fonte da verdade).
+    const active = convos.find(c => c.id === activeId);
+    const messages = active ? active.messages : [];
+    const sending = !!pending;
+    const mapped = messages.map(m => ({
       isUser: m.role === 'user',
       isAI: m.role === 'assistant',
       text: m.text,
-      caret: m.role === 'assistant' && sending && i === last,
+      caret: !!m.typing,
       sources: m.sources || [],
       hasSources: !!(m.sources && m.sources.length),
     }));
-    const thinking = sending && messages.length > 0 && messages[last].role === 'user';
+    const thinking = !!pending && pending.convoId === activeId && pending.phase === 'thinking';
 
     const sugg = [
       { label: 'Resumir texto', fill: 'Resumir este texto: ' },

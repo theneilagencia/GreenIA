@@ -682,7 +682,6 @@ class Component extends DCLogic {
       screen: 'landing',
       authed: false,
       loggingIn: false,
-      pendingTarget: 'chat',
       input: '',
       // Geração em andamento: { convoId, requestId, phase: 'thinking' | 'typing' } ou null.
       // Só uma por vez, em qualquer conversa. As mensagens vivem em convos[].messages.
@@ -809,13 +808,13 @@ class Component extends DCLogic {
 
   goChat() {
     if (this.state.authed) this.setState({ screen: 'chat' });
-    else this.setState({ screen: 'login', pendingTarget: 'chat' });
+    else this.setState({ screen: 'login' });
   }
 
   openPolicy() {
+    // A política é o argumento de confiança da landing: abre sem login.
     this._rememberOpener();
-    if (this.state.authed) this.setState({ policyOpen: true });
-    else this.setState({ screen: 'login', pendingTarget: 'policy' });
+    this.setState({ policyOpen: true });
   }
 
   closePolicy() { this.setState({ policyOpen: false }); }
@@ -829,13 +828,7 @@ class Component extends DCLogic {
     if (this.state.loggingIn) return;
     this.setState({ loggingIn: true });
     setTimeout(() => {
-      const target = this.state.pendingTarget;
-      this.setState({
-        authed: true,
-        loggingIn: false,
-        screen: 'chat',
-        policyOpen: target === 'policy',
-      });
+      this.setState({ authed: true, loggingIn: false, screen: 'chat' });
     }, 1100);
   }
 

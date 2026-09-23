@@ -456,7 +456,10 @@
         </div>
         <div>
           <div style="font:500 17px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:4px;">Suas conversas são da sessão</div>
-          <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nada fica salvo em banco de dados. Ao fechar, o histórico vai embora com a sessão.</p>
+          <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">{{ privacyNote }}</p>
+          <sc-if value="{{ privacyDetail }}">
+            <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:8px 0 0;">{{ privacyDetail }}</p>
+          </sc-if>
         </div>
         <div>
           <div style="font:500 17px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:4px;">Na dúvida, pergunte</div>
@@ -474,7 +477,7 @@
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyNote&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyNote&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyDetail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 // Funções puras copiadas de lib/greenia-core.js (testadas em tests/).
 // Não edite aqui: edite a lib e rode `node scripts/check-sync.mjs --write`.
 // >>> greenia-core
@@ -1071,9 +1074,11 @@ class Component extends DCLogic {
       policyUrl: this.props.policyUrl || 'Política%20GreenIA.dc.html',
       keyUser,
 
-      // Texto provisório: precisa de validação da Segurança da Informação
-      // (não pode soar como garantia de que nada fica retido no provedor da API).
+      // Uma fonte só para o login e o modal da política. Texto provisório: precisa
+      // de validação da Segurança da Informação (não pode soar como garantia de que
+      // nada fica retido no provedor da API). privacyDetail só aparece se preenchido.
       privacyNote: this.props.privacyNote || 'Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.',
+      privacyDetail: (this.props.privacyDetail || '').trim(),
 
       userName: this.props.userName || 'Marina Souza',
       userEmail: this.props.userEmail || 'marina.souza@grupo.com.br',

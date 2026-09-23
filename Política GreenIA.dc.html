@@ -338,13 +338,11 @@
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;chatUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUserUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;mailto:keyuser@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;chatUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUserUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;mailto:keyuser@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 class Component extends DCLogic {
   renderVals() {
     return {
       chatUrl: this.props.chatUrl || 'GreenIA.dc.html',
-      // Mesmo padrão do modal em GreenIA.dc.html. Hoje nenhum link desta página usa o prop.
-      policyUrl: this.props.policyUrl || 'Política%20GreenIA.dc.html',
       keyUserUrl: this.props.keyUserUrl || 'mailto:keyuser@grupo.com.br',
       printDoc: () => window.print(),
     };

@@ -12,22 +12,48 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..400&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* ---- Cores da GreenIA. Use sempre estes tokens, não hexadecimais soltos. ---- */
+  :root{
+    --gia-forest:#1F8A5B; /* verde principal: botões, links, destaques */
+    --gia-forest-hover:#1A7A50; /* hover do verde principal */
+    --gia-deep:#0F3A2A;   /* verde profundo: sidebar, login, rodapé */
+    --gia-spark:#B9E85A;  /* verde-limão de destaque sobre fundo escuro */
+    --gia-spark-hover:#A9D84A; /* hover do verde-limão */
+    --gia-leaf:#3FAE74;   /* verde folha: status, numerais, pontos */
+    --gia-mint:#E6F0E7;   /* verde claro de fundo: chips, bolha do usuário */
+    --gia-paper:#FAF7EF;  /* fundo principal (creme) */
+    --gia-surface:#FBF9F2; /* superfície clara: bolha da GreenIA, campo */
+    --gia-sand:#F1EAD9;   /* fundo areia de seção */
+    --gia-sand-hover:#EFE6D2; /* hover sobre areia */
+    --gia-ink:#16241D;    /* texto principal */
+    --gia-muted:#66645A;  /* texto secundário (4,5:1 ou mais nos fundos claros) */
+    --gia-line:#E9E0CD;   /* linhas e bordas suaves */
+    --gia-line-strong:#D9CFB6; /* bordas de chips e campo */
+    --gia-stone:#C9BFA6;  /* bordas de botões secundários */
+    --gia-sage:#9DB6A6;   /* texto secundário sobre fundo escuro */
+    --gia-surface-hover:#F3EEE0; /* hover do botão Microsoft */
+    --gia-disabled:#9CC9B2; /* botão de enviar desabilitado */
+    --gia-amber:#C28A2C;  /* cor Amarela (marcador) */
+    --gia-amber-text:#A77523; /* cor Amarela (texto) */
+    --gia-red:#A6452F;    /* cor Vermelha (marcador) */
+    --gia-red-text:#9B4029; /* cor Vermelha (texto) */
+  }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:#FAF7EF;}
+  html,body{margin:0;padding:0;background:var(--gia-paper);}
   input,textarea{font-family:inherit;}
-  ::placeholder{color:#66645A;opacity:1;}
+  ::placeholder{color:var(--gia-muted);opacity:1;}
   ::-webkit-scrollbar{width:10px;height:10px;}
-  ::-webkit-scrollbar-thumb{background:#E9E0CD;border-radius:999px;border:3px solid #FAF7EF;}
+  ::-webkit-scrollbar-thumb{background:var(--gia-line);border-radius:999px;border:3px solid var(--gia-paper);}
   @keyframes giaBlink{0%,100%{opacity:1}50%{opacity:0}}
   @keyframes giaDot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
   @keyframes giaUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   @keyframes giaSpin{to{transform:rotate(360deg)}}
 
   /* ---- Foco visível ---- */
-  button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid #1F8A5B;outline-offset:2px;}
-  .gia-sidebar button:focus-visible,footer button:focus-visible,.gia-login button:focus-visible{outline-color:#B9E85A;}
-  .gia-login-card button:focus-visible{outline-color:#1F8A5B;}
-  .gia-composer-box:focus-within{border-color:#1F8A5B !important;box-shadow:0 0 0 3px rgba(31,138,91,0.18);}
+  button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--gia-forest);outline-offset:2px;}
+  .gia-sidebar button:focus-visible,footer button:focus-visible,.gia-login button:focus-visible{outline-color:var(--gia-spark);}
+  .gia-login-card button:focus-visible{outline-color:var(--gia-forest);}
+  .gia-composer-box:focus-within{border-color:var(--gia-forest) !important;box-shadow:0 0 0 3px rgba(31,138,91,0.18);}
   .gia-sr{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
   /* ---- Responsivo. Os estilos são inline, por isso as regras usam !important. ---- */
@@ -72,11 +98,11 @@
   }
 </style>
 </helmet>
-<div style="min-height:100vh;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#16241D;-webkit-font-smoothing:antialiased;">
+<div style="min-height:100vh;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--gia-ink);-webkit-font-smoothing:antialiased;">
 
   <!-- ============================== LANDING ============================== -->
   <sc-if value="{{ showLanding }}" hint-placeholder-val="{{ true }}">
-  <div style="position:relative;overflow:hidden;background:#FAF7EF;">
+  <div style="position:relative;overflow:hidden;background:var(--gia-paper);">
 
     <div style="position:absolute;top:-120px;right:-140px;width:560px;height:560px;opacity:0.09;pointer-events:none;z-index:0;">
       <img src="assets/greenia-symbol-forest.svg" width="560" height="560" alt="" aria-hidden="true">
@@ -85,18 +111,18 @@
     <header class="gia-land-header" style="position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 32px 28px;display:flex;align-items:center;justify-content:space-between;">
       <div style="display:flex;align-items:center;gap:12px;">
         <img src="assets/greenia-symbol-forest.svg" width="34" height="34" alt="" aria-hidden="true">
-        <span style="font:600 24px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:#16241D;">Green</span><span style="color:#1F8A5B;">IA</span></span>
+        <span style="font:600 24px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:var(--gia-ink);">Green</span><span style="color:var(--gia-forest);">IA</span></span>
       </div>
-      <button onClick="{{ openPolicy }}" style="background:none;border:none;color:#1F8A5B;font:500 15px 'Hanken Grotesk';cursor:pointer;padding:8px;border-radius:8px;" style-hover="{{ linkHover }}">Ver a política</button>
+      <button onClick="{{ openPolicy }}" style="background:none;border:none;color:var(--gia-forest);font:500 15px 'Hanken Grotesk';cursor:pointer;padding:8px;border-radius:8px;" style-hover="{{ linkHover }}">Ver a política</button>
     </header>
 
     <sc-if value="{{ heroCentered }}" hint-placeholder-val="{{ true }}">
     <section class="gia-hero" style="position:relative;z-index:1;max-width:880px;margin:0 auto;padding:56px 32px 72px;text-align:center;">
-      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:24px;">A IA do dia a dia do Grupo</div>
-      <h1 style="font:300 clamp(40px,6.4vw,66px)/1.06 'Newsreader';letter-spacing:-0.01em;color:#16241D;margin:0 0 22px;text-wrap:balance;">IA para todos,<br>com segurança.</h1>
-      <p style="font:400 clamp(18px,2vw,21px)/1.6 'Hanken Grotesk';color:#66645A;max-width:560px;margin:0 auto 36px;text-wrap:pretty;">Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.</p>
-      <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:#1F8A5B;color:#FAF7EF;border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;" style-hover="{{ btnHover }}">Entrar no chat
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAF7EF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest);margin-bottom:24px;">A IA do dia a dia do Grupo</div>
+      <h1 style="font:300 clamp(40px,6.4vw,66px)/1.06 'Newsreader';letter-spacing:-0.01em;color:var(--gia-ink);margin:0 0 22px;text-wrap:balance;">IA para todos,<br>com segurança.</h1>
+      <p style="font:400 clamp(18px,2vw,21px)/1.6 'Hanken Grotesk';color:var(--gia-muted);max-width:560px;margin:0 auto 36px;text-wrap:pretty;">Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.</p>
+      <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:var(--gia-forest);color:var(--gia-paper);border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;" style-hover="{{ btnHover }}">Entrar no chat
+        <svg style="color:var(--gia-paper);" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
       </button>
     </section>
     </sc-if>
@@ -104,99 +130,99 @@
     <sc-if value="{{ heroSplit }}">
     <section class="gia-hero-split" style="position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:48px 32px 72px;display:grid;grid-template-columns:1.1fr 0.9fr;gap:48px;align-items:center;">
       <div>
-        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:24px;">A IA do dia a dia do Grupo</div>
-        <h1 style="font:300 clamp(40px,5.4vw,62px)/1.06 'Newsreader';letter-spacing:-0.01em;color:#16241D;margin:0 0 22px;text-wrap:balance;">IA para todos, com segurança.</h1>
-        <p style="font:400 21px/1.6 'Hanken Grotesk';color:#66645A;max-width:480px;margin:0 0 36px;text-wrap:pretty;">Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.</p>
-        <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:#1F8A5B;color:#FAF7EF;border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;" style-hover="{{ btnHover }}">Entrar no chat
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAF7EF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest);margin-bottom:24px;">A IA do dia a dia do Grupo</div>
+        <h1 style="font:300 clamp(40px,5.4vw,62px)/1.06 'Newsreader';letter-spacing:-0.01em;color:var(--gia-ink);margin:0 0 22px;text-wrap:balance;">IA para todos, com segurança.</h1>
+        <p style="font:400 21px/1.6 'Hanken Grotesk';color:var(--gia-muted);max-width:480px;margin:0 0 36px;text-wrap:pretty;">Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.</p>
+        <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:var(--gia-forest);color:var(--gia-paper);border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;" style-hover="{{ btnHover }}">Entrar no chat
+          <svg style="color:var(--gia-paper);" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
         </button>
       </div>
       <div style="display:flex;justify-content:center;align-items:center;">
-        <div class="gia-hero-art" style="width:300px;height:300px;border-radius:24px;background:#E6F0E7;display:flex;align-items:center;justify-content:center;">
+        <div class="gia-hero-art" style="width:300px;height:300px;border-radius:24px;background:var(--gia-mint);display:flex;align-items:center;justify-content:center;">
           <img src="assets/greenia-symbol-forest.svg" width="180" height="180" alt="" aria-hidden="true">
         </div>
       </div>
     </section>
     </sc-if>
 
-    <section style="background:#F1EAD9;">
+    <section style="background:var(--gia-sand);">
       <div class="gia-what" style="max-width:1080px;margin:0 auto;padding:64px 32px;display:grid;grid-template-columns:0.7fr 1.3fr;gap:48px;align-items:start;">
-        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;padding-top:8px;">O que é a GreenIA</div>
-        <p style="font:300 clamp(24px,3vw,32px)/1.45 'Newsreader';color:#16241D;margin:0;text-wrap:pretty;">A GreenIA é a IA do dia a dia do Grupo. Qualquer pessoa entra com o login corporativo, sem licença. Serve para tarefas leves: resumir textos, rascunhar emails, organizar anotações. É o convite para usar IA do jeito certo.</p>
+        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest);padding-top:8px;">O que é a GreenIA</div>
+        <p style="font:300 clamp(24px,3vw,32px)/1.45 'Newsreader';color:var(--gia-ink);margin:0;text-wrap:pretty;">A GreenIA é a IA do dia a dia do Grupo. Qualquer pessoa entra com o login corporativo, sem licença. Serve para tarefas leves: resumir textos, rascunhar emails, organizar anotações. É o convite para usar IA do jeito certo.</p>
       </div>
     </section>
 
     <section class="gia-section" style="max-width:1080px;margin:0 auto;padding:72px 32px 24px;">
-      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:14px;">As três cores</div>
-      <h2 style="font:300 clamp(28px,3.4vw,40px)/1.12 'Newsreader';color:#16241D;margin:0 0 12px;max-width:620px;text-wrap:balance;">A GreenIA é o ambiente Verde.</h2>
-      <p style="font:400 18px/1.55 'Hanken Grotesk';color:#66645A;max-width:560px;margin:0 0 40px;">Amarela e Vermelha existem, mas seguem outro caminho, com a proteção certa, fora daqui.</p>
+      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest);margin-bottom:14px;">As três cores</div>
+      <h2 style="font:300 clamp(28px,3.4vw,40px)/1.12 'Newsreader';color:var(--gia-ink);margin:0 0 12px;max-width:620px;text-wrap:balance;">A GreenIA é o ambiente Verde.</h2>
+      <p style="font:400 18px/1.55 'Hanken Grotesk';color:var(--gia-muted);max-width:560px;margin:0 0 40px;">Amarela e Vermelha existem, mas seguem outro caminho, com a proteção certa, fora daqui.</p>
       <div class="gia-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
-        <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:28px;">
-          <span style="display:inline-block;width:18px;height:18px;border-radius:6px;background:#1F8A5B;margin-bottom:18px;"></span>
-          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:#1F8A5B;margin-bottom:8px;">Verde</div>
-          <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">Uso livre</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Tarefas leves e do dia a dia. É o que circula na GreenIA.</p>
+        <div style="background:var(--gia-paper);border:1px solid var(--gia-line);border-radius:16px;padding:28px;">
+          <span style="display:inline-block;width:18px;height:18px;border-radius:6px;background:var(--gia-forest);margin-bottom:18px;"></span>
+          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:var(--gia-forest);margin-bottom:8px;">Verde</div>
+          <div style="font:500 19px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:8px;">Uso livre</div>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Tarefas leves e do dia a dia. É o que circula na GreenIA.</p>
         </div>
-        <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:28px;">
-          <span style="display:inline-block;width:18px;height:18px;border-radius:6px;background:#C28A2C;margin-bottom:18px;"></span>
-          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:#A77523;margin-bottom:8px;">Amarela</div>
-          <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">Proteção média</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Dado interno mais delicado. Segue o caminho com proteção e não entra aqui.</p>
+        <div style="background:var(--gia-paper);border:1px solid var(--gia-line);border-radius:16px;padding:28px;">
+          <span style="display:inline-block;width:18px;height:18px;border-radius:6px;background:var(--gia-amber);margin-bottom:18px;"></span>
+          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:var(--gia-amber-text);margin-bottom:8px;">Amarela</div>
+          <div style="font:500 19px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:8px;">Proteção média</div>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Dado interno mais delicado. Segue o caminho com proteção e não entra aqui.</p>
         </div>
-        <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:28px;">
-          <span style="display:inline-block;width:18px;height:18px;border-radius:6px;background:#A6452F;margin-bottom:18px;"></span>
-          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:#9B4029;margin-bottom:8px;">Vermelha</div>
-          <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">ZDR</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Dado sensível ou regulado. Tem ambiente próprio. Nunca na GreenIA.</p>
+        <div style="background:var(--gia-paper);border:1px solid var(--gia-line);border-radius:16px;padding:28px;">
+          <span style="display:inline-block;width:18px;height:18px;border-radius:6px;background:var(--gia-red);margin-bottom:18px;"></span>
+          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:var(--gia-red-text);margin-bottom:8px;">Vermelha</div>
+          <div style="font:500 19px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:8px;">ZDR</div>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Dado sensível ou regulado. Tem ambiente próprio. Nunca na GreenIA.</p>
         </div>
       </div>
     </section>
 
     <section class="gia-section" style="max-width:1080px;margin:0 auto;padding:72px 32px;">
-      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:14px;">Como usar</div>
-      <h2 style="font:300 clamp(28px,3.4vw,40px)/1.12 'Newsreader';color:#16241D;margin:0 0 40px;max-width:520px;text-wrap:balance;">Três passos. Sem mistério.</h2>
+      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest);margin-bottom:14px;">Como usar</div>
+      <h2 style="font:300 clamp(28px,3.4vw,40px)/1.12 'Newsreader';color:var(--gia-ink);margin:0 0 40px;max-width:520px;text-wrap:balance;">Três passos. Sem mistério.</h2>
       <div class="gia-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:48px;">
         <div>
-          <div style="width:38px;height:38px;border-radius:999px;background:#E6F0E7;color:#1F8A5B;display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">1</div>
-          <div style="font:500 18px 'Hanken Grotesk';color:#16241D;margin-bottom:6px;">Entre no chat</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Seu login do Grupo já é o suficiente.</p>
+          <div style="width:38px;height:38px;border-radius:999px;background:var(--gia-mint);color:var(--gia-forest);display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">1</div>
+          <div style="font:500 18px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:6px;">Entre no chat</div>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Seu login do Grupo já é o suficiente.</p>
         </div>
         <div>
-          <div style="width:38px;height:38px;border-radius:999px;background:#E6F0E7;color:#1F8A5B;display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">2</div>
-          <div style="font:500 18px 'Hanken Grotesk';color:#16241D;margin-bottom:6px;">Peça em palavras simples</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Cole um texto, descreva a tarefa. Sem comando especial.</p>
+          <div style="width:38px;height:38px;border-radius:999px;background:var(--gia-mint);color:var(--gia-forest);display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">2</div>
+          <div style="font:500 18px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:6px;">Peça em palavras simples</div>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Cole um texto, descreva a tarefa. Sem comando especial.</p>
         </div>
         <div>
-          <div style="width:38px;height:38px;border-radius:999px;background:#E6F0E7;color:#1F8A5B;display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">3</div>
-          <div style="font:500 18px 'Hanken Grotesk';color:#16241D;margin-bottom:6px;">Ajuste e siga</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Peça mais curto, outro tom. A conversa continua.</p>
+          <div style="width:38px;height:38px;border-radius:999px;background:var(--gia-mint);color:var(--gia-forest);display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">3</div>
+          <div style="font:500 18px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:6px;">Ajuste e siga</div>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Peça mais curto, outro tom. A conversa continua.</p>
         </div>
       </div>
       <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div style="background:#E6F0E7;border-radius:16px;padding:28px;">
-          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:#1F8A5B;margin-bottom:18px;">Boas tarefas</div>
+        <div style="background:var(--gia-mint);border-radius:16px;padding:28px;">
+          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:var(--gia-forest);margin-bottom:18px;">Boas tarefas</div>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
-            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:#16241D;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M20 6L9 17l-5-5"></path></svg>Resumir um texto longo em poucos pontos</li>
-            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:#16241D;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M20 6L9 17l-5-5"></path></svg>Rascunhar um email e ajustar o tom</li>
-            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:#16241D;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M20 6L9 17l-5-5"></path></svg>Organizar anotações soltas em uma lista</li>
+            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:var(--gia-ink);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-forest);"><path d="M20 6L9 17l-5-5"></path></svg>Resumir um texto longo em poucos pontos</li>
+            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:var(--gia-ink);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-forest);"><path d="M20 6L9 17l-5-5"></path></svg>Rascunhar um email e ajustar o tom</li>
+            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:var(--gia-ink);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-forest);"><path d="M20 6L9 17l-5-5"></path></svg>Organizar anotações soltas em uma lista</li>
           </ul>
         </div>
-        <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:28px;">
-          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:#66645A;margin-bottom:18px;">O que evitar</div>
+        <div style="background:var(--gia-paper);border:1px solid var(--gia-line);border-radius:16px;padding:28px;">
+          <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.14em;text-transform:uppercase;color:var(--gia-muted);margin-bottom:18px;">O que evitar</div>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
-            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:#66645A;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#66645A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Dados de clientes, CPF ou contratos</li>
-            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:#66645A;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#66645A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Números financeiros confidenciais</li>
-            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:#66645A;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#66645A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Qualquer coisa sigilosa ou regulada</li>
+            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:var(--gia-muted);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-muted);"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Dados de clientes, CPF ou contratos</li>
+            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:var(--gia-muted);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-muted);"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Números financeiros confidenciais</li>
+            <li style="display:flex;gap:12px;align-items:flex-start;font:400 17px/1.4 'Hanken Grotesk';color:var(--gia-muted);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-muted);"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Qualquer coisa sigilosa ou regulada</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <footer style="background:#0F3A2A;color:#E9E0CD;">
+    <footer style="background:var(--gia-deep);color:var(--gia-line);">
       <div class="gia-footer-inner" style="max-width:1080px;margin:0 auto;padding:64px 32px calc(64px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;align-items:center;">
-        <p style="font:300 clamp(22px,2.6vw,28px)/1.4 'Newsreader';color:#FAF7EF;margin:0;max-width:560px;text-wrap:pretty;">Dado sensível não entra aqui. Tarefas amarelas e vermelhas seguem o caminho com a proteção certa.</p>
-        <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:#B9E85A;color:#0F3A2A;border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;flex:none;" style-hover="{{ sparkHover }}">Entrar no chat
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F3A2A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+        <p style="font:300 clamp(22px,2.6vw,28px)/1.4 'Newsreader';color:var(--gia-paper);margin:0;max-width:560px;text-wrap:pretty;">Dado sensível não entra aqui. Tarefas amarelas e vermelhas seguem o caminho com a proteção certa.</p>
+        <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:var(--gia-spark);color:var(--gia-deep);border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;flex:none;" style-hover="{{ sparkHover }}">Entrar no chat
+          <svg style="color:var(--gia-deep);" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
         </button>
       </div>
     </footer>
@@ -206,23 +232,23 @@
 
   <!-- ============================== LOGIN (SSO) ============================== -->
   <sc-if value="{{ showLogin }}">
-  <div class="gia-login" style="position:relative;overflow:hidden;min-height:100vh;background:#0F3A2A;display:flex;align-items:center;justify-content:center;padding:32px;">
+  <div class="gia-login" style="position:relative;overflow:hidden;min-height:100vh;background:var(--gia-deep);display:flex;align-items:center;justify-content:center;padding:32px;">
     <div style="position:absolute;bottom:-160px;left:-160px;width:520px;height:520px;opacity:0.10;pointer-events:none;">
       <img src="assets/greenia-symbol-spark.svg" width="520" height="520" alt="" aria-hidden="true">
     </div>
 
-    <div class="gia-login-card" style="position:relative;z-index:1;width:100%;max-width:440px;background:#FAF7EF;border-radius:20px;padding:44px 40px;">
+    <div class="gia-login-card" style="position:relative;z-index:1;width:100%;max-width:440px;background:var(--gia-paper);border-radius:20px;padding:44px 40px;">
       <div style="display:flex;align-items:center;gap:11px;margin-bottom:32px;">
         <img src="assets/greenia-symbol-forest.svg" width="32" height="32" alt="" aria-hidden="true">
-        <span style="font:600 22px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:#16241D;">Green</span><span style="color:#1F8A5B;">IA</span></span>
+        <span style="font:600 22px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:var(--gia-ink);">Green</span><span style="color:var(--gia-forest);">IA</span></span>
       </div>
 
-      <h1 style="font:300 30px/1.2 'Newsreader';color:#16241D;margin:0 0 10px;">Entre com sua conta do Grupo.</h1>
-      <p style="font:400 16px/1.55 'Hanken Grotesk';color:#66645A;margin:0 0 28px;">A GreenIA é interna. O acesso é feito pelo login único da Microsoft, só com o email corporativo.</p>
+      <h1 style="font:300 30px/1.2 'Newsreader';color:var(--gia-ink);margin:0 0 10px;">Entre com sua conta do Grupo.</h1>
+      <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 28px;">A GreenIA é interna. O acesso é feito pelo login único da Microsoft, só com o email corporativo.</p>
 
-      <button onClick="{{ doLogin }}" disabled="{{ loggingIn }}" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:#FBF9F2;border:1px solid #C9BFA6;border-radius:12px;padding:15px 18px;font:500 16px 'Hanken Grotesk';color:#16241D;cursor:pointer;" style-hover="{{ msHover }}">
+      <button onClick="{{ doLogin }}" disabled="{{ loggingIn }}" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:var(--gia-surface);border:1px solid var(--gia-stone);border-radius:12px;padding:15px 18px;font:500 16px 'Hanken Grotesk';color:var(--gia-ink);cursor:pointer;" style-hover="{{ msHover }}">
         <sc-if value="{{ loggingIn }}">
-          <span style="width:18px;height:18px;border:2px solid #C9BFA6;border-top-color:#1F8A5B;border-radius:999px;display:inline-block;animation:giaSpin .7s linear infinite;"></span>
+          <span style="width:18px;height:18px;border:2px solid var(--gia-stone);border-top-color:var(--gia-forest);border-radius:999px;display:inline-block;animation:giaSpin .7s linear infinite;"></span>
           Conectando…
         </sc-if>
         <sc-if value="{{ notLoggingIn }}">
@@ -231,13 +257,13 @@
         </sc-if>
       </button>
 
-      <div style="display:flex;align-items:flex-start;gap:10px;margin-top:24px;padding-top:22px;border-top:1px solid #E9E0CD;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
-        <p style="font:400 14px/1.5 'Hanken Grotesk';color:#66645A;margin:0;">Suas conversas ficam só na sua sessão. Nada é guardado em banco de dados.</p>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-top:24px;padding-top:22px;border-top:1px solid var(--gia-line);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-forest);"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Suas conversas ficam só na sua sessão. Nada é guardado em banco de dados.</p>
       </div>
 
-      <button onClick="{{ goLanding }}" style="background:none;border:none;color:#66645A;font:500 14px 'Hanken Grotesk';cursor:pointer;padding:18px 0 0;display:inline-flex;align-items:center;gap:7px;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#66645A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg>
+      <button onClick="{{ goLanding }}" style="background:none;border:none;color:var(--gia-muted);font:500 14px 'Hanken Grotesk';cursor:pointer;padding:18px 0 0;display:inline-flex;align-items:center;gap:7px;">
+        <svg style="color:var(--gia-muted);" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg>
         Voltar à apresentação
       </button>
     </div>
@@ -246,72 +272,72 @@
 
   <!-- ============================== CHAT ============================== -->
   <sc-if value="{{ showChat }}">
-  <div class="gia-chat" style="display:flex;height:100vh;background:#FAF7EF;">
+  <div class="gia-chat" style="display:flex;height:100vh;background:var(--gia-paper);">
 
     <sc-if value="{{ sidebarOpen }}">
       <div class="gia-backdrop" onClick="{{ closeSidebar }}" style="display:none;position:fixed;inset:0;z-index:35;background:rgba(15,58,42,0.45);"></div>
     </sc-if>
 
-    <aside id="gia-sidebar" class="gia-sidebar {{ sidebarClass }}" style="width:284px;flex:none;background:#0F3A2A;color:#E9E0CD;display:flex;flex-direction:column;padding:24px 18px;">
+    <aside id="gia-sidebar" class="gia-sidebar {{ sidebarClass }}" style="width:284px;flex:none;background:var(--gia-deep);color:var(--gia-line);display:flex;flex-direction:column;padding:24px 18px;">
       <button onClick="{{ goLanding }}" aria-label="GreenIA, voltar à apresentação" style="display:flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;padding:6px 6px 0;margin-bottom:28px;">
         <img src="assets/greenia-symbol-spark.svg" width="30" height="30" alt="" aria-hidden="true">
-        <span style="font:600 21px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:#FAF7EF;">Green</span><span style="color:#B9E85A;">IA</span></span>
+        <span style="font:600 21px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:var(--gia-paper);">Green</span><span style="color:var(--gia-spark);">IA</span></span>
       </button>
 
-      <button onClick="{{ newConvo }}" style="display:flex;align-items:center;gap:10px;width:100%;background:#1F8A5B;color:#FAF7EF;border:none;border-radius:12px;padding:13px 16px;font:500 15px 'Hanken Grotesk';cursor:pointer;margin-bottom:28px;" style-hover="{{ btnHover }}">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAF7EF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+      <button onClick="{{ newConvo }}" style="display:flex;align-items:center;gap:10px;width:100%;background:var(--gia-forest);color:var(--gia-paper);border:none;border-radius:12px;padding:13px 16px;font:500 15px 'Hanken Grotesk';cursor:pointer;margin-bottom:28px;" style-hover="{{ btnHover }}">
+        <svg style="color:var(--gia-paper);" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
         Nova conversa
       </button>
 
-      <div style="font:600 12px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#3FAE74;padding:0 6px;margin-bottom:12px;">Recentes</div>
+      <div style="font:600 12px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-leaf);padding:0 6px;margin-bottom:12px;">Recentes</div>
       <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;">
         <sc-if value="{{ noConvos }}">
-          <div style="font:400 14px/1.5 'Hanken Grotesk';color:#9DB6A6;padding:6px;">Suas conversas desta sessão aparecem aqui.</div>
+          <div style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-sage);padding:6px;">Suas conversas desta sessão aparecem aqui.</div>
         </sc-if>
         <sc-for list="{{ convos }}" as="c" hint-placeholder-count="0">
-          <button onClick="{{ c.onClick }}" style="text-align:left;width:100%;background:{{ c.bg }};border:none;color:#E9E0CD;border-radius:8px;padding:10px 12px;font:400 14px 'Hanken Grotesk';cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" style-hover="{{ convoHover }}">{{ c.title }}</button>
+          <button onClick="{{ c.onClick }}" style="text-align:left;width:100%;background:{{ c.bg }};border:none;color:var(--gia-line);border-radius:8px;padding:10px 12px;font:400 14px 'Hanken Grotesk';cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" style-hover="{{ convoHover }}">{{ c.title }}</button>
         </sc-for>
       </div>
 
       <div style="padding:14px 6px 4px;border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <span style="display:flex;align-items:center;gap:9px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FAE74" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4a1 1 0 0 1 1-1h8l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"></path><path d="M14 3v5h5"></path></svg>
-            <span style="font:500 13px 'Hanken Grotesk';color:#E9E0CD;">Base do Grupo</span>
+            <svg style="color:var(--gia-leaf);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4a1 1 0 0 1 1-1h8l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"></path><path d="M14 3v5h5"></path></svg>
+            <span style="font:500 13px 'Hanken Grotesk';color:var(--gia-line);">Base do Grupo</span>
           </span>
           <button onClick="{{ toggleKb }}" role="switch" aria-checked="{{ kbChecked }}" aria-label="Usar base do Grupo" style="position:relative;width:38px;height:22px;border-radius:999px;border:none;cursor:pointer;flex:none;background:{{ kbTrackBg }};transition:background .15s;">
-            <span style="position:absolute;top:3px;left:{{ kbKnobLeft }};width:16px;height:16px;border-radius:999px;background:#FAF7EF;transition:left .15s;"></span>
+            <span style="position:absolute;top:3px;left:{{ kbKnobLeft }};width:16px;height:16px;border-radius:999px;background:var(--gia-paper);transition:left .15s;"></span>
           </button>
         </div>
-        <div style="font:400 12px 'Hanken Grotesk';color:#9DB6A6;margin-top:6px;padding-left:25px;">{{ kbStatus }}</div>
+        <div style="font:400 12px 'Hanken Grotesk';color:var(--gia-sage);margin-top:6px;padding-left:25px;">{{ kbStatus }}</div>
       </div>
 
-      <button onClick="{{ openPolicy }}" style="text-align:left;background:none;border:none;color:#B9E85A;font:500 14px 'Hanken Grotesk';cursor:pointer;padding:10px 6px;margin-top:8px;">Ver a política</button>
+      <button onClick="{{ openPolicy }}" style="text-align:left;background:none;border:none;color:var(--gia-spark);font:500 14px 'Hanken Grotesk';cursor:pointer;padding:10px 6px;margin-top:8px;">Ver a política</button>
       <div style="display:flex;align-items:center;gap:10px;padding:12px 6px 2px;border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;">
-        <span style="width:9px;height:9px;border-radius:999px;background:#3FAE74;flex:none;"></span>
-        <span style="font:400 13px 'Hanken Grotesk';color:#9DB6A6;">Modo Verde · uso livre</span>
+        <span style="width:9px;height:9px;border-radius:999px;background:var(--gia-leaf);flex:none;"></span>
+        <span style="font:400 13px 'Hanken Grotesk';color:var(--gia-sage);">Modo Verde · uso livre</span>
       </div>
     </aside>
 
     <main style="flex:1;display:flex;flex-direction:column;min-width:0;">
-      <header class="gia-chat-header" style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top)) 32px 20px;border-bottom:1px solid #E9E0CD;">
+      <header class="gia-chat-header" style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top)) 32px 20px;border-bottom:1px solid var(--gia-line);">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <button class="gia-menu-btn" onClick="{{ toggleSidebar }}" aria-label="Abrir conversas" aria-controls="gia-sidebar" aria-expanded="{{ sidebarExpanded }}" style="display:none;flex:none;align-items:center;justify-content:center;width:40px;height:40px;margin-left:-8px;background:none;border:none;border-radius:8px;cursor:pointer;color:#16241D;">
+          <button class="gia-menu-btn" onClick="{{ toggleSidebar }}" aria-label="Abrir conversas" aria-controls="gia-sidebar" aria-expanded="{{ sidebarExpanded }}" style="display:none;flex:none;align-items:center;justify-content:center;width:40px;height:40px;margin-left:-8px;background:none;border:none;border-radius:8px;cursor:pointer;color:var(--gia-ink);">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>
           </button>
-          <h1 class="gia-chat-title" style="font:600 21px 'Hanken Grotesk';color:#16241D;margin:0;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Assistente do dia a dia</h1>
+          <h1 class="gia-chat-title" style="font:600 21px 'Hanken Grotesk';color:var(--gia-ink);margin:0;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Assistente do dia a dia</h1>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex:none;">
-          <span class="gia-chip-green" style="display:inline-flex;align-items:center;gap:8px;background:#E6F0E7;color:#1F8A5B;border-radius:999px;padding:8px 16px;font:500 14px 'Hanken Grotesk';">
-            <span style="width:8px;height:8px;border-radius:999px;background:#1F8A5B;"></span>Tarefa verde
+          <span class="gia-chip-green" style="display:inline-flex;align-items:center;gap:8px;background:var(--gia-mint);color:var(--gia-forest);border-radius:999px;padding:8px 16px;font:500 14px 'Hanken Grotesk';">
+            <span style="width:8px;height:8px;border-radius:999px;background:var(--gia-forest);"></span>Tarefa verde
           </span>
-          <div class="gia-user" style="display:flex;align-items:center;gap:11px;padding-left:16px;border-left:1px solid #E9E0CD;">
-            <span style="width:34px;height:34px;border-radius:999px;background:#0F3A2A;color:#B9E85A;display:flex;align-items:center;justify-content:center;font:500 13px 'Hanken Grotesk';flex:none;">{{ userInitials }}</span>
+          <div class="gia-user" style="display:flex;align-items:center;gap:11px;padding-left:16px;border-left:1px solid var(--gia-line);">
+            <span style="width:34px;height:34px;border-radius:999px;background:var(--gia-deep);color:var(--gia-spark);display:flex;align-items:center;justify-content:center;font:500 13px 'Hanken Grotesk';flex:none;">{{ userInitials }}</span>
             <div class="gia-user-meta" style="display:flex;flex-direction:column;">
-              <span style="font:500 14px/1.2 'Hanken Grotesk';color:#16241D;">{{ userName }}</span>
-              <span style="font:400 12px/1.2 'Hanken Grotesk';color:#66645A;">{{ userEmail }}</span>
+              <span style="font:500 14px/1.2 'Hanken Grotesk';color:var(--gia-ink);">{{ userName }}</span>
+              <span style="font:400 12px/1.2 'Hanken Grotesk';color:var(--gia-muted);">{{ userEmail }}</span>
             </div>
-            <button onClick="{{ logout }}" aria-label="Sair" title="Sair" style="background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:#66645A;display:flex;align-items:center;" style-hover="{{ chipHover }}">
+            <button onClick="{{ logout }}" aria-label="Sair" title="Sair" style="background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--gia-muted);display:flex;align-items:center;" style-hover="{{ chipHover }}">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
             </button>
           </div>
@@ -324,25 +350,25 @@
           <sc-if value="{{ showWelcome }}">
             <div style="text-align:center;padding:48px 0 8px;">
               <img src="assets/greenia-symbol-forest.svg" width="56" height="56" alt="" aria-hidden="true" style="margin-bottom:20px;">
-              <h2 style="font:300 32px/1.2 'Newsreader';color:#16241D;margin:0 0 10px;">Olá. Sou a GreenIA.</h2>
-              <p style="font:400 18px/1.5 'Hanken Grotesk';color:#66645A;margin:0;">Posso resumir, rascunhar, organizar e traduzir. Por onde começamos?</p>
+              <h2 style="font:300 32px/1.2 'Newsreader';color:var(--gia-ink);margin:0 0 10px;">Olá. Sou a GreenIA.</h2>
+              <p style="font:400 18px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Posso resumir, rascunhar, organizar e traduzir. Por onde começamos?</p>
             </div>
           </sc-if>
 
           <sc-for list="{{ messages }}" as="m" hint-placeholder-count="0">
             <sc-if value="{{ m.isUser }}">
-              <div style="align-self:flex-end;max-width:78%;background:#E6F0E7;color:#16241D;border-radius:16px 16px 4px 16px;padding:14px 18px;font:400 17px/1.55 'Hanken Grotesk';white-space:pre-wrap;animation:giaUp .25s ease both;">{{ m.text }}</div>
+              <div style="align-self:flex-end;max-width:78%;background:var(--gia-mint);color:var(--gia-ink);border-radius:16px 16px 4px 16px;padding:14px 18px;font:400 17px/1.55 'Hanken Grotesk';white-space:pre-wrap;animation:giaUp .25s ease both;">{{ m.text }}</div>
             </sc-if>
             <sc-if value="{{ m.isAI }}">
               <div style="display:flex;gap:14px;align-items:flex-start;max-width:90%;animation:giaUp .25s ease both;">
-                <span style="flex:none;width:30px;height:30px;border-radius:999px;background:#E6F0E7;display:flex;align-items:center;justify-content:center;margin-top:2px;">
+                <span style="flex:none;width:30px;height:30px;border-radius:999px;background:var(--gia-mint);display:flex;align-items:center;justify-content:center;margin-top:2px;">
                   <img src="assets/greenia-symbol-forest.svg" width="18" height="18" alt="" aria-hidden="true">
                 </span>
                 <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
-                  <div style="background:#FBF9F2;border:1px solid #E9E0CD;border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 'Hanken Grotesk';color:#16241D;white-space:pre-wrap;">{{ m.text }}<sc-if value="{{ m.caret }}"><span style="display:inline-block;width:8px;height:18px;background:#1F8A5B;margin-left:2px;vertical-align:-3px;animation:giaBlink 1s steps(1) infinite;"></span></sc-if></div>
+                  <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 'Hanken Grotesk';color:var(--gia-ink);white-space:pre-wrap;">{{ m.text }}<sc-if value="{{ m.caret }}"><span style="display:inline-block;width:8px;height:18px;background:var(--gia-forest);margin-left:2px;vertical-align:-3px;animation:giaBlink 1s steps(1) infinite;"></span></sc-if></div>
                   <sc-if value="{{ m.canRetry }}">
                     <div>
-                      <button onClick="{{ m.onRetry }}" style="display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid #D9CFB6;color:#16241D;border-radius:999px;padding:8px 15px;font:500 14px 'Hanken Grotesk';cursor:pointer;">
+                      <button onClick="{{ m.onRetry }}" style="display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid var(--gia-line-strong);color:var(--gia-ink);border-radius:999px;padding:8px 15px;font:500 14px 'Hanken Grotesk';cursor:pointer;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>
                         Tentar de novo
                       </button>
@@ -350,9 +376,9 @@
                   </sc-if>
                   <sc-if value="{{ m.hasSources }}">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-left:2px;">
-                      <span style="font:600 11px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:#66645A;">Da base</span>
+                      <span style="font:600 11px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:var(--gia-muted);">Da base</span>
                       <sc-for list="{{ m.sources }}" as="src" hint-placeholder-count="0">
-                        <span style="display:inline-flex;align-items:center;gap:6px;background:#E6F0E7;color:#1F8A5B;border-radius:999px;padding:4px 11px;font:500 12.5px 'Hanken Grotesk';"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"></path><path d="M15 2v5h5"></path></svg>{{ src }}</span>
+                        <span style="display:inline-flex;align-items:center;gap:6px;background:var(--gia-mint);color:var(--gia-forest);border-radius:999px;padding:4px 11px;font:500 12.5px 'Hanken Grotesk';"><svg style="color:var(--gia-forest);" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"></path><path d="M15 2v5h5"></path></svg>{{ src }}</span>
                       </sc-for>
                     </div>
                   </sc-if>
@@ -363,10 +389,10 @@
 
           <sc-if value="{{ showBlocked }}">
             <div style="display:flex;gap:14px;align-items:flex-start;max-width:90%;animation:giaUp .25s ease both;">
-              <span style="flex:none;width:30px;height:30px;border-radius:999px;background:#E6F0E7;display:flex;align-items:center;justify-content:center;margin-top:2px;">
+              <span style="flex:none;width:30px;height:30px;border-radius:999px;background:var(--gia-mint);display:flex;align-items:center;justify-content:center;margin-top:2px;">
                 <img src="assets/greenia-symbol-forest.svg" width="18" height="18" alt="" aria-hidden="true">
               </span>
-              <div style="background:#FBF9F2;border:1px solid #E9E0CD;border-left:3px solid #C28A2C;border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 'Hanken Grotesk';color:#16241D;white-space:pre-wrap;">{{ blockedText }}</div>
+              <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-left:3px solid var(--gia-amber);border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 'Hanken Grotesk';color:var(--gia-ink);white-space:pre-wrap;">{{ blockedText }}</div>
             </div>
           </sc-if>
 
@@ -374,13 +400,13 @@
 
           <sc-if value="{{ thinking }}">
             <div style="display:flex;gap:14px;align-items:center;">
-              <span style="flex:none;width:30px;height:30px;border-radius:999px;background:#E6F0E7;display:flex;align-items:center;justify-content:center;">
+              <span style="flex:none;width:30px;height:30px;border-radius:999px;background:var(--gia-mint);display:flex;align-items:center;justify-content:center;">
                 <img src="assets/greenia-symbol-forest.svg" width="18" height="18" alt="" aria-hidden="true">
               </span>
-              <span style="display:inline-flex;gap:5px;align-items:center;background:#FBF9F2;border:1px solid #E9E0CD;border-radius:16px;padding:14px 18px;">
-                <span style="width:7px;height:7px;border-radius:999px;background:#3FAE74;animation:giaDot 1.2s infinite;"></span>
-                <span style="width:7px;height:7px;border-radius:999px;background:#3FAE74;animation:giaDot 1.2s infinite .2s;"></span>
-                <span style="width:7px;height:7px;border-radius:999px;background:#3FAE74;animation:giaDot 1.2s infinite .4s;"></span>
+              <span style="display:inline-flex;gap:5px;align-items:center;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:16px;padding:14px 18px;">
+                <span style="width:7px;height:7px;border-radius:999px;background:var(--gia-leaf);animation:giaDot 1.2s infinite;"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:var(--gia-leaf);animation:giaDot 1.2s infinite .2s;"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:var(--gia-leaf);animation:giaDot 1.2s infinite .4s;"></span>
               </span>
             </div>
           </sc-if>
@@ -388,20 +414,20 @@
         </div>
       </div>
 
-      <div class="gia-composer" style="flex:none;padding:0 32px calc(26px + env(safe-area-inset-bottom));background:#FAF7EF;">
+      <div class="gia-composer" style="flex:none;padding:0 32px calc(26px + env(safe-area-inset-bottom));background:var(--gia-paper);">
         <div style="max-width:760px;margin:0 auto;">
           <div class="gia-sugg" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
             <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="4">
-              <button onClick="{{ s.onClick }}" style="background:none;border:1px solid #D9CFB6;color:#16241D;border-radius:999px;padding:9px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;" style-hover="{{ chipHover }}">{{ s.label }}</button>
+              <button onClick="{{ s.onClick }}" style="background:none;border:1px solid var(--gia-line-strong);color:var(--gia-ink);border-radius:999px;padding:9px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;" style-hover="{{ chipHover }}">{{ s.label }}</button>
             </sc-for>
           </div>
-          <div class="gia-composer-box" style="display:flex;align-items:flex-end;gap:10px;background:#FBF9F2;border:1px solid #D9CFB6;border-radius:24px;padding:8px 8px 8px 20px;">
-            <textarea ref="{{ inputRef }}" rows="1" value="{{ input }}" onInput="{{ onInput }}" onKeyDown="{{ onKeyDown }}" placeholder="Pergunte alguma coisa…" aria-label="Mensagem" style="flex:1;display:block;min-width:0;border:none;background:none;outline:none;resize:none;font:400 17px/1.5 'Hanken Grotesk';color:#16241D;padding:10px 0;max-height:calc(8 * 1.5em + 20px);overflow-y:hidden;"></textarea>
+          <div class="gia-composer-box" style="display:flex;align-items:flex-end;gap:10px;background:var(--gia-surface);border:1px solid var(--gia-line-strong);border-radius:24px;padding:8px 8px 8px 20px;">
+            <textarea ref="{{ inputRef }}" rows="1" value="{{ input }}" onInput="{{ onInput }}" onKeyDown="{{ onKeyDown }}" placeholder="Pergunte alguma coisa…" aria-label="Mensagem" style="flex:1;display:block;min-width:0;border:none;background:none;outline:none;resize:none;font:400 17px/1.5 'Hanken Grotesk';color:var(--gia-ink);padding:10px 0;max-height:calc(8 * 1.5em + 20px);overflow-y:hidden;"></textarea>
             <button onClick="{{ send }}" disabled="{{ sendDisabled }}" aria-label="Enviar" style="flex:none;width:44px;height:44px;border-radius:999px;background:{{ sendBg }};border:none;display:flex;align-items:center;justify-content:center;cursor:{{ sendCursor }};" style-hover="{{ btnHover }}">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FAF7EF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="M5 12l7-7 7 7"></path></svg>
+              <svg style="color:var(--gia-paper);" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="M5 12l7-7 7 7"></path></svg>
             </button>
           </div>
-          <p style="text-align:center;font:400 12.5px 'Hanken Grotesk';color:#66645A;margin:12px 0 0;">Só tarefa verde. Dado sensível não entra aqui.</p>
+          <p style="text-align:center;font:400 12.5px 'Hanken Grotesk';color:var(--gia-muted);margin:12px 0 0;">Só tarefa verde. Dado sensível não entra aqui.</p>
         </div>
       </div>
     </main>
@@ -411,31 +437,31 @@
   <!-- ============================== POLICY MODAL ============================== -->
   <sc-if value="{{ policyOpen }}">
   <div class="gia-modal-wrap" onClick="{{ closePolicy }}" style="position:fixed;inset:0;z-index:50;background:rgba(15,58,42,0.5);display:flex;align-items:center;justify-content:center;padding:24px;">
-    <div class="gia-modal" ref="{{ policyRef }}" role="dialog" aria-modal="true" aria-labelledby="gia-policy-title" tabIndex="-1" onClick="{{ stop }}" style="background:#FAF7EF;border-radius:18px;max-width:620px;width:100%;max-height:84vh;overflow-y:auto;padding:40px;">
+    <div class="gia-modal" ref="{{ policyRef }}" role="dialog" aria-modal="true" aria-labelledby="gia-policy-title" tabIndex="-1" onClick="{{ stop }}" style="background:var(--gia-paper);border-radius:18px;max-width:620px;width:100%;max-height:84vh;overflow-y:auto;padding:40px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;">A política, em resumo</div>
-        <button onClick="{{ closePolicy }}" aria-label="Fechar" style="background:none;border:none;cursor:pointer;padding:4px;color:#66645A;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#66645A" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest);">A política, em resumo</div>
+        <button onClick="{{ closePolicy }}" aria-label="Fechar" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--gia-muted);">
+          <svg style="color:var(--gia-muted);" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
         </button>
       </div>
-      <h2 id="gia-policy-title" style="font:300 30px/1.2 'Newsreader';color:#16241D;margin:0 0 22px;">Como usar a GreenIA com segurança</h2>
+      <h2 id="gia-policy-title" style="font:300 30px/1.2 'Newsreader';color:var(--gia-ink);margin:0 0 22px;">Como usar a GreenIA com segurança</h2>
       <div style="display:flex;flex-direction:column;gap:18px;">
         <div>
-          <div style="font:500 17px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Só tarefa verde</div>
-          <p style="font:400 16px/1.6 'Hanken Grotesk';color:#66645A;margin:0;">A GreenIA é para tarefas leves do dia a dia. Dado pessoal, de cliente, financeiro confidencial ou regulado não entra. Isso segue o caminho com a proteção certa.</p>
+          <div style="font:500 17px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:4px;">Só tarefa verde</div>
+          <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">A GreenIA é para tarefas leves do dia a dia. Dado pessoal, de cliente, financeiro confidencial ou regulado não entra. Isso segue o caminho com a proteção certa.</p>
         </div>
         <div>
-          <div style="font:500 17px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Suas conversas são da sessão</div>
-          <p style="font:400 16px/1.6 'Hanken Grotesk';color:#66645A;margin:0;">Nada fica salvo em banco de dados. Ao fechar, o histórico vai embora com a sessão.</p>
+          <div style="font:500 17px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:4px;">Suas conversas são da sessão</div>
+          <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nada fica salvo em banco de dados. Ao fechar, o histórico vai embora com a sessão.</p>
         </div>
         <div>
-          <div style="font:500 17px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Na dúvida, pergunte</div>
-          <p style="font:400 16px/1.6 'Hanken Grotesk';color:#66645A;margin:0;">O key user da sua área ajuda a decidir o que pode e o que segue por outro caminho.</p>
+          <div style="font:500 17px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:4px;">Na dúvida, pergunte</div>
+          <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">O key user da sua área ajuda a decidir o que pode e o que segue por outro caminho.</p>
         </div>
       </div>
-      <div style="margin-top:26px;padding-top:22px;border-top:1px solid #E9E0CD;">
-        <a href="{{ policyUrl }}" style="font:500 16px 'Hanken Grotesk';color:#1F8A5B;text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Abrir a política completa
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"></path><path d="M9 7h8v8"></path></svg>
+      <div style="margin-top:26px;padding-top:22px;border-top:1px solid var(--gia-line);">
+        <a href="{{ policyUrl }}" style="font:500 16px 'Hanken Grotesk';color:var(--gia-forest);text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Abrir a política completa
+          <svg style="color:var(--gia-forest);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"></path><path d="M9 7h8v8"></path></svg>
         </a>
       </div>
     </div>
@@ -1034,7 +1060,7 @@ class Component extends DCLogic {
       input,
       sending,
       sendDisabled,
-      sendBg: sendDisabled ? '#9CC9B2' : '#1F8A5B',
+      sendBg: sendDisabled ? 'var(--gia-disabled)' : 'var(--gia-forest)',
       sendCursor: sendDisabled ? 'default' : 'pointer',
 
       convos: convos.map(c => ({
@@ -1057,7 +1083,7 @@ class Component extends DCLogic {
       kbOn,
       kbChecked: kbOn ? 'true' : 'false',
       kbStatus: kbOn ? ('Conectada · ' + this.KB.length + ' documentos') : 'Desligada',
-      kbTrackBg: kbOn ? '#3FAE74' : 'rgba(255,255,255,0.18)',
+      kbTrackBg: kbOn ? 'var(--gia-leaf)' : 'rgba(255,255,255,0.18)',
       kbKnobLeft: kbOn ? '19px' : '3px',
       toggleKb: () => this.toggleKb(),
 
@@ -1082,12 +1108,12 @@ class Component extends DCLogic {
       onKeyDown: (e) => this.onKeyDown(e),
       send: () => this.send(),
 
-      btnHover: { background: '#1a7a50' },
-      sparkHover: { background: '#a9d84a' },
-      linkHover: { background: '#EFE6D2' },
-      chipHover: { background: '#F1EAD9' },
+      btnHover: { background: 'var(--gia-forest-hover)' },
+      sparkHover: { background: 'var(--gia-spark-hover)' },
+      linkHover: { background: 'var(--gia-sand-hover)' },
+      chipHover: { background: 'var(--gia-sand)' },
       convoHover: { background: 'rgba(255,255,255,0.07)' },
-      msHover: { background: '#F3EEE0' },
+      msHover: { background: 'var(--gia-surface-hover)' },
     };
   }
 }

@@ -18,6 +18,10 @@
   ::-webkit-scrollbar-thumb{background:#E9E0CD;border-radius:999px;border:3px solid #FAF7EF;}
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
+  /* ---- Foco visível ---- */
+  a:focus-visible,button:focus-visible{outline:2px solid #1F8A5B;outline-offset:2px;}
+  #entrar a:focus-visible,#entrar button:focus-visible{outline-color:#B9E85A;}
+
   /* ---- Responsivo. Os estilos são inline, por isso as regras usam !important. ---- */
   @media (max-width:860px){
     .gia-top{padding:calc(10px + env(safe-area-inset-top)) 16px 10px !important;gap:12px !important;}
@@ -63,7 +67,7 @@
       <div style="max-width:760px;">
         <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:26px;">Política de Governança &amp; Uso de IA · V1.0</div>
         <h1 style="font:300 clamp(42px,6.6vw,68px)/1.05 'Newsreader';letter-spacing:-0.01em;color:#16241D;margin:0 0 24px;text-wrap:balance;">IA para todos, com <em style="font-style:italic;font-weight:400;color:#1F8A5B;">segurança.</em></h1>
-        <p style="font:400 clamp(18px,2.1vw,22px)/1.6 'Hanken Grotesk';color:#6E6C62;max-width:600px;margin:0 0 36px;text-wrap:pretty;">A GreenIA é a porta de entrada para a inteligência artificial no Grupo. Esta página explica, em poucos minutos, como usar a IA do jeito certo: o que pode, o que não pode, e por quê.</p>
+        <p style="font:400 clamp(18px,2.1vw,22px)/1.6 'Hanken Grotesk';color:#66645A;max-width:600px;margin:0 0 36px;text-wrap:pretty;">A GreenIA é a porta de entrada para a inteligência artificial no Grupo. Esta página explica, em poucos minutos, como usar a IA do jeito certo: o que pode, o que não pode, e por quê.</p>
         <div style="display:flex;flex-wrap:wrap;gap:14px;">
           <a href="{{ chatUrl }}" style="display:inline-flex;align-items:center;gap:10px;background:#1F8A5B;color:#FAF7EF;border:none;border-radius:999px;padding:16px 28px;font:500 17px 'Hanken Grotesk';cursor:pointer;text-decoration:none;" style-hover="{{ btnHover }}">Entrar no chat
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAF7EF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
@@ -84,22 +88,22 @@
         <div style="background:#FAF7EF;border-radius:16px;padding:26px;">
           <span style="display:flex;width:44px;height:44px;border-radius:999px;background:#3FAE74;align-items:center;justify-content:center;margin-bottom:18px;"><img src="assets/greenia-symbol-deep.svg" width="24" height="24" alt="" aria-hidden="true"></span>
           <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">Acessível</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Para todos, sem licença e sem barreira técnica. Convida em vez de intimidar.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Para todos, sem licença e sem barreira técnica. Convida em vez de intimidar.</p>
         </div>
         <div style="background:#FAF7EF;border-radius:16px;padding:26px;">
           <span style="display:flex;width:44px;height:44px;border-radius:999px;background:#3FAE74;align-items:center;justify-content:center;margin-bottom:18px;"><img src="assets/greenia-symbol-deep.svg" width="24" height="24" alt="" aria-hidden="true"></span>
           <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">Humana</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Fala como gente: calma, clara e sem jargão. Trata o erro como parte de aprender.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Fala como gente: calma, clara e sem jargão. Trata o erro como parte de aprender.</p>
         </div>
         <div style="background:#FAF7EF;border-radius:16px;padding:26px;">
           <span style="display:flex;width:44px;height:44px;border-radius:999px;background:#3FAE74;align-items:center;justify-content:center;margin-bottom:18px;"><img src="assets/greenia-symbol-deep.svg" width="24" height="24" alt="" aria-hidden="true"></span>
           <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">Segura</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Liberdade dentro de trilhos. A cor do dado guia o que pode e o que não pode.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Liberdade dentro de trilhos. A cor do dado guia o que pode e o que não pode.</p>
         </div>
         <div style="background:#FAF7EF;border-radius:16px;padding:26px;">
           <span style="display:flex;width:44px;height:44px;border-radius:999px;background:#3FAE74;align-items:center;justify-content:center;margin-bottom:18px;"><img src="assets/greenia-symbol-deep.svg" width="24" height="24" alt="" aria-hidden="true"></span>
           <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:8px;">Clara</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Mostra, não enrola. Cada tela diz, em poucas palavras, o que fazer ali.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Mostra, não enrola. Cada tela diz, em poucas palavras, o que fazer ali.</p>
         </div>
       </div>
     </div>
@@ -110,25 +114,25 @@
     <div class="gia-sec" style="max-width:1120px;margin:0 auto;padding:80px 32px;">
       <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:14px;">As três cores</div>
       <h2 style="font:300 clamp(30px,3.8vw,44px)/1.1 'Newsreader';color:#16241D;margin:0 0 22px;max-width:640px;text-wrap:balance;">A cor do dado guia a proteção</h2>
-      <p style="font:400 18px/1.6 'Hanken Grotesk';color:#6E6C62;max-width:720px;margin:0 0 48px;text-wrap:pretty;">Toda tarefa de IA recebe uma cor, conforme o dado que usa e o impacto se algo der errado. Para descobrir a cor, faça uma pergunta: “Se este trabalho vazasse ou parasse de funcionar amanhã, qual seria o estrago?”</p>
+      <p style="font:400 18px/1.6 'Hanken Grotesk';color:#66645A;max-width:720px;margin:0 0 48px;text-wrap:pretty;">Toda tarefa de IA recebe uma cor, conforme o dado que usa e o impacto se algo der errado. Para descobrir a cor, faça uma pergunta: “Se este trabalho vazasse ou parasse de funcionar amanhã, qual seria o estrago?”</p>
       <div class="gia-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:32px;">
         <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:30px;">
           <span style="display:block;width:30px;height:30px;border-radius:999px;background:#1F8A5B;margin-bottom:20px;"></span>
           <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:#1F8A5B;margin-bottom:6px;">Verde · Uso livre</div>
           <p style="font:400 16px/1.55 'Hanken Grotesk';color:#16241D;margin:0 0 14px;">Uso individual; dado público ou interno sem sigilo.</p>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Liberado na hora, sem pedir nada. É a maioria do dia a dia, e o ambiente da GreenIA.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Liberado na hora, sem pedir nada. É a maioria do dia a dia, e o ambiente da GreenIA.</p>
         </div>
         <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:30px;">
           <span style="display:block;width:30px;height:30px;border-radius:999px;background:#C8881C;margin-bottom:20px;"></span>
           <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:#A1700F;margin-bottom:6px;">Amarela · Proteção média</div>
           <p style="font:400 16px/1.55 'Hanken Grotesk';color:#16241D;margin:0 0 14px;">Compartilhado por algumas pessoas; toca dado interno.</p>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">A conversa pode ser guardada por um prazo e depois apagada. A DIT liga, e a tarefa é registrada.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">A conversa pode ser guardada por um prazo e depois apagada. A DIT liga, e a tarefa é registrada.</p>
         </div>
         <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:30px;">
           <span style="display:block;width:30px;height:30px;border-radius:999px;background:#A8432F;margin-bottom:20px;"></span>
           <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:#9B3D2A;margin-bottom:6px;">Vermelha · Proteção máxima · ZDR</div>
           <p style="font:400 16px/1.55 'Hanken Grotesk';color:#16241D;margin:0 0 14px;">Toca dado regulado, financeiro ou pessoal sensível.</p>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">A IA não guarda nada. Exige responsável e aval da Segurança antes de qualquer dado real.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">A IA não guarda nada. Exige responsável e aval da Segurança antes de qualquer dado real.</p>
         </div>
       </div>
       <div style="background:#E6F0E7;border-radius:12px;padding:22px 26px;">
@@ -142,13 +146,13 @@
     <div class="gia-sec" style="max-width:1120px;margin:0 auto;padding:80px 32px;">
       <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:#1F8A5B;margin-bottom:14px;">Quem liga cada proteção</div>
       <h2 style="font:300 clamp(30px,3.8vw,44px)/1.1 'Newsreader';color:#16241D;margin:0 0 22px;max-width:560px;text-wrap:balance;">Cada cor, mãos diferentes</h2>
-      <p style="font:400 18px/1.6 'Hanken Grotesk';color:#6E6C62;max-width:720px;margin:0 0 40px;text-wrap:pretty;">As três cores não são ligadas pelas mesmas mãos. Saber disso evita achar que tudo depende só da equipe de tecnologia.</p>
+      <p style="font:400 18px/1.6 'Hanken Grotesk';color:#66645A;max-width:720px;margin:0 0 40px;text-wrap:pretty;">As três cores não são ligadas pelas mesmas mãos. Saber disso evita achar que tudo depende só da equipe de tecnologia.</p>
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div style="background:#FAF7EF;border-radius:14px;padding:24px 26px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
           <span style="flex:none;width:22px;height:22px;border-radius:999px;background:#1F8A5B;"></span>
           <div class="gia-who-text" style="flex:1;min-width:260px;">
             <div style="font:600 16px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Verde</div>
-            <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Ninguém precisa ligar nada, é uso livre, sem proteção especial. A própria GreenIA já é o ambiente Verde, construído pela DIT.</p>
+            <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Ninguém precisa ligar nada, é uso livre, sem proteção especial. A própria GreenIA já é o ambiente Verde, construído pela DIT.</p>
           </div>
           <span style="flex:none;background:#E6F0E7;color:#1F8A5B;border-radius:999px;padding:8px 16px;font:500 13px 'Hanken Grotesk';">Não depende de fora</span>
         </div>
@@ -156,7 +160,7 @@
           <span style="flex:none;width:22px;height:22px;border-radius:999px;background:#C8881C;"></span>
           <div class="gia-who-text" style="flex:1;min-width:260px;">
             <div style="font:600 16px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Amarela</div>
-            <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">A própria DIT liga, sozinha: a retenção é um ajuste no painel de administração (define-se o prazo, mínimo de 30 dias).</p>
+            <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">A própria DIT liga, sozinha: a retenção é um ajuste no painel de administração (define-se o prazo, mínimo de 30 dias).</p>
           </div>
           <span style="flex:none;background:#E6F0E7;color:#1F8A5B;border-radius:999px;padding:8px 16px;font:500 13px 'Hanken Grotesk';">Não depende de fora</span>
         </div>
@@ -164,7 +168,7 @@
           <span style="flex:none;width:22px;height:22px;border-radius:999px;background:#A8432F;"></span>
           <div class="gia-who-text" style="flex:1;min-width:260px;">
             <div style="font:600 16px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Vermelha</div>
-            <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Três mãos: a Anthropic ativa o ZDR na conta; depois a DIT aplica ao ambiente da área; e a Segurança da Informação aprova antes de qualquer dado real entrar.</p>
+            <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Três mãos: a Anthropic ativa o ZDR na conta; depois a DIT aplica ao ambiente da área; e a Segurança da Informação aprova antes de qualquer dado real entrar.</p>
           </div>
           <span style="flex:none;background:#F6E3DE;color:#A8432F;border-radius:999px;padding:8px 16px;font:500 13px 'Hanken Grotesk';">Depende da Anthropic</span>
         </div>
@@ -181,17 +185,17 @@
         <div style="background:#F1EAD9;border-radius:16px;padding:28px;">
           <div style="width:38px;height:38px;border-radius:999px;background:#FAF7EF;color:#1F8A5B;display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:18px;">1</div>
           <div style="font:500 18px 'Hanken Grotesk';color:#16241D;margin-bottom:6px;">Entre com seu login</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Use o login corporativo. Sem licença, sem instalação, sem pedir acesso.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Use o login corporativo. Sem licença, sem instalação, sem pedir acesso.</p>
         </div>
         <div style="background:#F1EAD9;border-radius:16px;padding:28px;">
           <div style="width:38px;height:38px;border-radius:999px;background:#FAF7EF;color:#1F8A5B;display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:18px;">2</div>
           <div style="font:500 18px 'Hanken Grotesk';color:#16241D;margin-bottom:6px;">Peça em linguagem simples</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Escreva o que precisa como falaria com um colega. Pode pedir para encurtar, mudar o tom, refazer.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Escreva o que precisa como falaria com um colega. Pode pedir para encurtar, mudar o tom, refazer.</p>
         </div>
         <div style="background:#F1EAD9;border-radius:16px;padding:28px;">
           <div style="width:38px;height:38px;border-radius:999px;background:#FAF7EF;color:#1F8A5B;display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:18px;">3</div>
           <div style="font:500 18px 'Hanken Grotesk';color:#16241D;margin-bottom:6px;">Revise e use</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">A IA ajuda a começar; a palavra final é sua. Confira antes de enviar ou publicar.</p>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">A IA ajuda a começar; a palavra final é sua. Confira antes de enviar ou publicar.</p>
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:32px;">
@@ -222,14 +226,14 @@
         <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:30px;">
           <div style="font:300 40px/1 'Newsreader';color:#3FAE74;margin-bottom:16px;">02</div>
           <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Key users</div>
-          <div style="font:400 14px 'Hanken Grotesk';color:#6E6C62;margin-bottom:12px;">Uma pessoa por área</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Organiza a demanda da área, ajuda os colegas e usa até o modelo intermediário. É o ponto de apoio local.</p>
+          <div style="font:400 14px 'Hanken Grotesk';color:#66645A;margin-bottom:12px;">Uma pessoa por área</div>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Organiza a demanda da área, ajuda os colegas e usa até o modelo intermediário. É o ponto de apoio local.</p>
         </div>
         <div style="background:#FAF7EF;border:1px solid #E9E0CD;border-radius:16px;padding:30px;">
           <div style="font:300 40px/1 'Newsreader';color:#3FAE74;margin-bottom:16px;">03</div>
           <div style="font:500 19px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Geral</div>
-          <div style="font:400 14px 'Hanken Grotesk';color:#6E6C62;margin-bottom:12px;">Todas as demais pessoas</div>
-          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;">Usa a GreenIA para o dia a dia. Recebe licença própria só quando o uso justifica.</p>
+          <div style="font:400 14px 'Hanken Grotesk';color:#66645A;margin-bottom:12px;">Todas as demais pessoas</div>
+          <p style="font:400 15px/1.55 'Hanken Grotesk';color:#66645A;margin:0;">Usa a GreenIA para o dia a dia. Recebe licença própria só quando o uso justifica.</p>
         </div>
       </div>
     </div>
@@ -243,23 +247,23 @@
       <div style="display:flex;flex-direction:column;">
         <div class="gia-rule" style="display:grid;grid-template-columns:80px 1fr;gap:24px;align-items:baseline;padding:24px 0;border-top:1px solid #E9E0CD;">
           <div style="font:300 44px/1 'Newsreader';color:#3FAE74;">1</div>
-          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Ferramenta única</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;max-width:680px;">Dado de trabalho só no Claude Enterprise. Nenhuma outra IA, nenhuma conta pessoal.</p></div>
+          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Ferramenta única</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#66645A;margin:0;max-width:680px;">Dado de trabalho só no Claude Enterprise. Nenhuma outra IA, nenhuma conta pessoal.</p></div>
         </div>
         <div class="gia-rule" style="display:grid;grid-template-columns:80px 1fr;gap:24px;align-items:baseline;padding:24px 0;border-top:1px solid #E9E0CD;">
           <div style="font:300 44px/1 'Newsreader';color:#3FAE74;">2</div>
-          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Proteção antes do uso</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;max-width:680px;">Dado sensível só entra depois que a proteção certa está ligada.</p></div>
+          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Proteção antes do uso</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#66645A;margin:0;max-width:680px;">Dado sensível só entra depois que a proteção certa está ligada.</p></div>
         </div>
         <div class="gia-rule" style="display:grid;grid-template-columns:80px 1fr;gap:24px;align-items:baseline;padding:24px 0;border-top:1px solid #E9E0CD;">
           <div style="font:300 44px/1 'Newsreader';color:#3FAE74;">3</div>
-          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Processo antes de IA</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;max-width:680px;">Primeiro arrumar o processo, depois automatizar. Caos automatizado é pior que caos.</p></div>
+          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Processo antes de IA</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#66645A;margin:0;max-width:680px;">Primeiro arrumar o processo, depois automatizar. Caos automatizado é pior que caos.</p></div>
         </div>
         <div class="gia-rule" style="display:grid;grid-template-columns:80px 1fr;gap:24px;align-items:baseline;padding:24px 0;border-top:1px solid #E9E0CD;">
           <div style="font:300 44px/1 'Newsreader';color:#3FAE74;">4</div>
-          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Teto de gasto sempre</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;max-width:680px;">Nenhuma área opera sem um limite de gasto configurado.</p></div>
+          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Teto de gasto sempre</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#66645A;margin:0;max-width:680px;">Nenhuma área opera sem um limite de gasto configurado.</p></div>
         </div>
         <div class="gia-rule" style="display:grid;grid-template-columns:80px 1fr;gap:24px;align-items:baseline;padding:24px 0;border-top:1px solid #E9E0CD;border-bottom:1px solid #E9E0CD;">
           <div style="font:300 44px/1 'Newsreader';color:#3FAE74;">5</div>
-          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Acesso por necessidade</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#6E6C62;margin:0;max-width:680px;">Licença é dada a quem precisa; o resto usa a GreenIA.</p></div>
+          <div><div style="font:500 20px 'Hanken Grotesk';color:#16241D;margin-bottom:4px;">Acesso por necessidade</div><p style="font:400 17px/1.55 'Hanken Grotesk';color:#66645A;margin:0;max-width:680px;">Licença é dada a quem precisa; o resto usa a GreenIA.</p></div>
         </div>
       </div>
     </div>

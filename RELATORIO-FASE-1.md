@@ -191,3 +191,129 @@ Este teste é necessário porque só o preview do Claude Design tem o `window.cl
 ---
 
 Fase 1 concluída. Aguardo sua confirmação para começar a Fase 2.
+
+---
+
+# Fase 1B: fechamento da Fase 1
+
+Um commit por item, com mensagem explicando o que mudou e por quê (`git log e080c46..HEAD`).
+
+## Resumo
+
+- Os oito itens foram feitos.
+- **Três decisões ficam pendentes:**
+  - os numerais em verde folha da política estão abaixo até do mínimo para texto grande;
+  - o texto de privacidade;
+  - a suficiência do filtro.
+  As duas últimas estão em `PENDENCIAS-SEGURANCA.md`.
+- **Resultado dos testes:** 68 unitários, 10 de ponta a ponta, sincronia ok, templates ok e contraste ok (57 pares).
+
+## O que foi feito em cada item
+
+**1B.1: testes de regressão para hover e rolagem.**
+- `scripts/check-dc-templates.mjs` roda no `npm test` e falha se:
+  - algum `style-<pseudo>` usar `{{ }}`;
+  - o template usar valor, handler ou ref que não sai de `renderVals()`, não é prop declarado nem variável de `<sc-for>`.
+- Também avisa quando um hover redefine uma propriedade do estilo inline sem `!important`, porque nesse caso o inline venceria.
+- Rodando contra o `GreenIA.dc.html` original, o script acusa os 10 hovers e o `msgRef`.
+- Testes do próprio script em `tests/check-dc-templates.test.mjs`.
+- No navegador:
+  - o hover muda o fundo de um botão em cada página;
+  - a lista rola até o fim quando chega resposta;
+  - a lista não rola se a pessoa subiu mais de 80 px.
+- Com `msgRef` fora de `renderVals()`, o teste de rolagem falha ("faltam 3005 px").
+
+**Limites da checagem estática:**
+- Ela é textual e olha só o primeiro identificador de cada expressão: em `m.onRetry` confere `m`, não `onRetry`.
+- Não sabe se o valor é do tipo certo (uma string no lugar de uma função passa).
+- Lê as chaves de `renderVals()` contando `{` e `}` por linha, então supõe que o objeto retornado não tem chaves dentro de strings.
+- Não enxerga valores que o runtime injeta de outra forma.
+- Os testes no navegador cobrem o comportamento que a checagem estática não alcança.
+
+**1B.2: URL da política.**
+- Os dois lugares apontam para o arquivo local.
+- O prop `policyUrl`, sem uso, saiu da página de política.
+- Não sobrou referência à intranet no código.
+
+**1B.3: pasta `_ds/`.**
+- Conferi de novo que nada a referencia.
+- Removida com `git rm -r _ds` num commit só: nove arquivos do Oren Design System. Pode ser revertida com `git revert`.
+
+**1B.4: contraste das cores de marca.**
+- Os valores de partida não passavam em todos os fundos, então escureci cada um no mesmo matiz até passar em todos, com margem.
+
+| Token | Valor final | Uso | Pior caso | No creme `#FAF7EF` |
+|---|---|---|---|---|
+| `--gia-forest-text` | `#19704A` | texto verde menor que 24 px | 4,63:1 sobre `#E9E0CD` | 5,67:1 |
+| `--gia-amber-text` | `#845C1B` | texto Amarela | 4,54:1 sobre `#E9E0CD` | 5,56:1 |
+| `--gia-forest-strong` | `#1B7950` | fundo de botão verde com texto claro | 5,03:1 (creme sobre ele) | |
+| `--gia-forest-strong-hover` | `#155F3D` | hover desse botão | 7,17:1 | |
+
+- Pontos de partida e onde falhavam:
+  - `#1B7950` (verde): 4,49:1 sobre `#F1EAD9` e 4,11:1 sobre `#E9E0CD`. Matiz final 154°.
+  - `#8C621D` (âmbar): 4,13:1 sobre `#E9E0CD`. Matiz final 37°.
+- Fundos conferidos: `#FAF7EF`, `#FFFFFF`, `#F1EDE2`, `#E6F0E7`, `#FBF9F2`, `#F1EAD9`, `#E9E0CD`, mais `#EFE6D2` (hover do link) e `#F3EEE0` (hover do botão Microsoft).
+- Trocados para a variante: 15 textos pequenos na página principal e 14 na política. São rótulos de seção, links, o selo "Tarefa verde", as fontes da base, os numerais dos passos e os selos "Não depende de fora".
+- Ficam na cor de marca: ícones (a exigência para ícone é 3:1, e passa com 4,05), o título grande "segurança." e o logotipo "GreenIA" (logotipo não entra na exigência de contraste).
+- O âmbar de texto passou a ser o mesmo nas duas páginas. Antes era `#A77523` numa e `#A1700F` na outra, ambos abaixo de 4,5:1.
+- **Texto claro sobre fundo colorido:**
+  - Sobre `#1F8A5B`, dava 4,05:1. Os quatro botões verdes com texto (Entrar no chat nas duas páginas, Nova conversa e o botão do topo da política) passaram para o fundo `--gia-forest-strong`, com 5,03:1.
+  - O botão de enviar mantém o verde de marca, porque só tem ícone.
+  - Não há texto sobre `#3FAE74` nem sobre `#C28A2C`: esses fundos só aparecem em marcadores, no toggle e em ícones.
+- `scripts/check-contrast.mjs` roda no `npm test`. Ele tem os 57 pares texto × fundo levantados no navegador em todas as telas, inclusive os estados de hover, e lê as cores do `:root` de cada página.
+- **Decisão pendente:** os numerais em verde folha `#3FAE74` da política ("02", "03" e os das cinco regras) ficam em 2,61:1. Isso está abaixo até do mínimo de 3:1 para texto grande. Não mudei, por ser cor de marca em texto grande. O par está registrado como exceção e aparece como aviso no `npm test`. Se quiserem corrigir, basta trocar a cor desses numerais por `--gia-forest` (4,05:1).
+
+**1B.5: textos de privacidade.**
+- O modal passou a usar o mesmo prop `privacyNote` do login, com o mesmo padrão.
+- Novo prop `privacyDetail`, com padrão vazio, que só aparece no modal se estiver preenchido.
+- O texto final continua pendente da Segurança da Informação.
+
+**1B.6: cobertura do filtro.**
+- **Tipos novos:** email, telefone brasileiro, CEP em contexto de endereço, endereço, nome de pessoa depois de marcador e lista com dados pessoais.
+- **Política:** `DATA_POLICY` e `decideAction`, com quatro ações e precedência bloquear > avisar > mascarar > permitir. Credencial é sempre bloqueada, e ação desconhecida vira bloquear.
+- **`DATA_POLICY` não existia no código da Fase 1.** O prompt o cita como existente, com `bloquear`, `permitir` e `mascarar`. Criei agora, com as quatro ações, e implementei o `mascarar` (`maskSensitive`, que troca o valor por `[TIPO]`), embora nenhum tipo o use nos padrões.
+- **Na interface:** o `avisar` mostra "Seu texto parece conter [tipo]. Enviar mesmo assim?", com "Revisar texto" e "Enviar".
+  - O botão "Enviar" tem nome acessível "Enviar mesmo assim", para não colidir com o botão de envio do campo.
+  - Se a pessoa editar o texto depois do aviso, o filtro roda de novo.
+- **Decisões minhas:**
+  - Telefone fixo sem DDD ("3456-7890") só conta perto de "tel", "fone", "celular", "contato" etc., para não casar intervalos como "2024-2025".
+  - Telefone de 10 dígitos sem máscara e sem +55 não é detectado, para não casar números de pedido.
+  - Nome depois de marcador é ignorado se tiver palavra de empresa (Ltda, S.A., Soluções, Ambientais, Comércio etc.).
+  - "tv" não conta como abreviação de travessa ("tv de 55 polegadas").
+- **Limites conhecidos:**
+  - Nome solto em texto livre ("A Maria Souza pediu férias") não é detectado. A segunda camada fica para a Fase 2.
+  - Código no formato de celular ("98765-4321") gera aviso. Só pede confirmação.
+  - Endereço sem número ("Rua Nova") e nome com uma palavra só ("Sr. Silva") não disparam.
+- **Mudança em testes da Fase 1:** os de telefone esperavam nenhuma detecção. Agora esperam `telefone`, e nunca cartão ou CPF.
+
+**1B.7: documento para a Segurança da Informação.** `PENDENCIAS-SEGURANCA.md`, com:
+- o texto de privacidade e a pergunta;
+- a tabela de tipos e ações, o que não é detectado e a pergunta;
+- o que acontece ao confirmar um aviso;
+- o que muda na Fase 2.
+
+## Resultado dos testes
+
+| Verificação | Resultado |
+|---|---|
+| `npm test`: `node --test` | 68 de 68 passando |
+| `scripts/check-sync.mjs` | bloco `greenia-core` em sincronia |
+| `scripts/check-dc-templates.mjs` | ok nas duas páginas |
+| `scripts/check-contrast.mjs` | ok, 57 pares; 1 aviso (numerais em verde folha, decisão pendente) |
+| `npm run test:e2e` (Playwright, `support.js` real) | 10 de 10 passando |
+
+Os testes de ponta a ponta:
+1. fluxo landing → login → chat;
+2. troca de conversa durante a resposta;
+3. CPF bloqueado;
+4. a 6. sem rolagem horizontal em 360, 768 e 1280 px;
+7. hover nas duas páginas;
+8. rolagem automática;
+9. avisar só envia com confirmação;
+10. bloquear sem opção de envio.
+
+Como na Fase 1, todos os testes usam um `window.claude.complete` simulado, e o React 18.3.1 foi servido do pacote npm via `REACT_UMD_DIR`, porque o unpkg.com está bloqueado neste ambiente.
+
+---
+
+Fase 1B concluída. Aguardo sua confirmação para começar a Fase 2.

@@ -259,7 +259,7 @@
 
       <div style="display:flex;align-items:flex-start;gap:10px;margin-top:24px;padding-top:22px;border-top:1px solid var(--gia-line);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-forest);"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
-        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Suas conversas ficam só na sua sessão. Nada é guardado em banco de dados.</p>
+        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">{{ privacyNote }}</p>
       </div>
 
       <button onClick="{{ goLanding }}" style="background:none;border:none;color:var(--gia-muted);font:500 14px 'Hanken Grotesk';cursor:pointer;padding:18px 0 0;display:inline-flex;align-items:center;gap:7px;">
@@ -470,7 +470,7 @@
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyNote&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 // Funções puras copiadas de lib/greenia-core.js (testadas em tests/).
 // Não edite aqui: edite a lib e rode `node scripts/check-sync.mjs --write`.
 // >>> greenia-core
@@ -1067,6 +1067,10 @@ class Component extends DCLogic {
       policyOpen: this.state.policyOpen,
       policyUrl: this.props.policyUrl || 'Política%20GreenIA.dc.html',
       keyUser,
+
+      // Texto provisório: precisa de validação da Segurança da Informação
+      // (não pode soar como garantia de que nada fica retido no provedor da API).
+      privacyNote: this.props.privacyNote || 'Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.',
 
       userName: this.props.userName || 'Marina Souza',
       userEmail: this.props.userEmail || 'marina.souza@grupo.com.br',

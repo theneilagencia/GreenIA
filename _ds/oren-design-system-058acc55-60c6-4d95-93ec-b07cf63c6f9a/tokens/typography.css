@@ -1,0 +1,61 @@
+/* Oren — Typography tokens (§6)
+   Single family: Inter. Measures in pt to match document production.
+   Headlines weight 400 with negative tracking; eyebrows 500 with positive tracking. */
+
+:root {
+  /* font stacks */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; /* @kind font */
+  --font-internal: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* @kind font */
+
+  /* ---- Weights (avoid 700/900 in institutional docs) ---- */
+  --fw-light: 300;    /* @kind font */
+  --fw-regular: 400;  /* @kind font */
+  --fw-medium: 500;   /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold: 700;     /* @kind font */
+  --fw-black: 900;    /* @kind font */
+
+  /* ---- Display / headline scale (decks) ---- */
+  --fs-headline-xxl: 64pt;  /* @kind font */
+  --lh-headline-xxl: 0.98;  /* @kind font */
+  --ls-headline-xxl: -0.03em; /* @kind font */
+  --fs-headline-xl: 50pt;   /* @kind font */
+  --lh-headline-xl: 1.02;   /* @kind font */
+  --ls-headline-xl: -0.025em; /* @kind font */
+  --fs-headline-l: 36pt;    /* @kind font */
+  --lh-headline-l: 1.05;    /* @kind font */
+  --ls-headline-l: -0.018em; /* @kind font */
+
+  /* ---- Title scale (A4) ---- */
+  --fs-brief-title: 30pt;   /* @kind font */
+  --lh-brief-title: 1.06;   /* @kind font */
+  --ls-brief-title: -0.022em; /* @kind font */
+  --fs-brief-subtitle: 12.5pt; /* @kind font */
+  --lh-brief-subtitle: 1.4; /* @kind font */
+  --ls-brief-subtitle: -0.005em; /* @kind font */
+
+  /* ---- Section / body ---- */
+  --fs-section: 14pt;       /* @kind font */
+  --ls-section: -0.012em;   /* @kind font */
+  --fs-body-deck: 11.5pt;   /* @kind font */
+  --lh-body: 1.5;           /* @kind font */
+  --fs-lede: 10.5pt;        /* @kind font */
+  --lh-lede: 1.48;          /* @kind font */
+  --fs-body: 10pt;          /* @kind font */
+  --fs-sub: 10.5pt;         /* @kind font */
+  --lh-sub: 1.45;           /* @kind font */
+
+  /* ---- Labels / meta ---- */
+  --fs-eyebrow: 9pt;        /* @kind font */
+  --ls-eyebrow: 0.14em;     /* @kind font */
+  --fs-house: 7.5pt;        /* @kind font */
+  --ls-house: 0.08em;       /* @kind font */
+  --fs-footer: 7.5pt;       /* @kind font */
+  --ls-footer: 0.04em;      /* @kind font */
+  --fs-stat: 22pt;          /* @kind font */
+  --ls-stat: -0.022em;      /* @kind font */
+  --fs-stat-deck: 30pt;     /* @kind font */
+
+  /* ---- Numerics ---- */
+  --tnum: "tnum";           /* @kind other */
+}

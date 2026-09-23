@@ -1,0 +1,58 @@
+/* Oren — Spacing tokens (§7)
+   Modular system anchored in mm. Documents live in physical units. */
+
+:root {
+  /* ---- Base scale (mm anchors) ---- */
+  --space-2: 2mm;
+  --space-4: 4mm;
+  --space-6: 6mm;
+  --space-9: 9mm;
+  --space-14: 14mm;
+  --space-18: 18mm;
+  --space-20: 20mm;
+  --space-22: 22mm;
+
+  /* fine-grain in-between values used in components */
+  --space-1: 1mm;
+  --space-3: 3mm;
+  --space-5: 5mm;
+  --space-7: 7mm;
+
+  /* ---- Page geometry ---- */
+  --page-w-a4: 210mm;   /* @kind spacing */
+  --page-h-a4: 297mm;   /* @kind spacing */
+  --page-w-deck: 297mm; /* @kind spacing */
+  --page-h-deck: 167mm; /* @kind spacing */
+
+  --margin-a4: 20mm 18mm 20mm 18mm;   /* TRBL — .sheet padding */
+  --inset-side-a4: 18mm;
+  --inset-top-a4: 22mm;               /* body top inset */
+  --inset-bottom-a4: 20mm;            /* body bottom inset */
+
+  --inset-side-deck: 14mm;
+  --inset-top-deck: 18mm;
+  --inset-bottom-deck: 21mm;
+  --margin-top-deck: 9mm;
+
+  /* ---- Component rhythm ---- */
+  --gap-section: 6mm;        /* h2.section → paragraph */
+  --gap-paragraph: 3mm;      /* between <p> */
+  --gap-list: 2.2mm;         /* between <li> */
+  --gap-card: 6mm;           /* between cards in a row (5–7mm) */
+  --gap-card-4: 5mm;         /* 4-up rows */
+
+  --card-pad-full: 7mm 6mm;
+  --card-pad-compact: 5mm 5mm;
+  --card-h-full: 78mm;     /* @kind spacing */
+  --card-h-compact: 50mm;  /* @kind spacing */
+
+  /* ---- Radii / borders ---- *
+   Oren uses square corners and hairline rules — no rounded cards.
+   The only circle is the numbered step badge. */
+  --radius-none: 0;
+  --radius-pill: 999px;
+  --border-hair: 0.4px;      /* footer dividers */
+  --border-thin: 0.6px;      /* stat top-rules, table heads */
+  --border-callout: 1.5px;   /* callout border-left */
+  --border-phase: 2.5px;     /* phase box border-left */
+}

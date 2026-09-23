@@ -1,0 +1,71 @@
+/* Oren — Color tokens (§5)
+   Four functional primaries + neutral auxiliaries.
+   Base values first, then semantic aliases. */
+
+:root {
+  /* ---- Primary palette ---- */
+  --oren-deep: #092d29;   /* Verde Oren profundo — dark covers/slides, h1/h2 on white */
+  --oren-mid: #0e5351;    /* Verde Itaville — card bg, callout border, eyebrows */
+  --oren-light: #affa57;  /* Verde luz — accents/eyebrows on dark, card labels */
+  --oren-cream: #e8f3e8;  /* Title/text on dark backgrounds */
+
+  /* ---- Platform pillar colors (branded house) ----
+     The core greens above remain the default for any Oren-Corp document.
+     Each pillar additionally owns one signature green, used for its symbol/
+     lockup, section eyebrows, and accent rules in pillar-scoped material. */
+  --oren-payments: #affa57;   /* Oren Payments — verde luz (shares --oren-light) */
+  --oren-capital: #62cc6d;    /* Oren Capital — verde-folha */
+  --oren-governance: #1da688; /* Oren Governance — jade (legado BTS Global) */
+
+  /* ---- Neutral auxiliaries ---- */
+  --bg-page: #f3f3f1;     /* Between-page preview bg (A4) — not in final PDF */
+  --bg-page-deck: #ebebe9;/* Between-slide preview bg (deck) */
+  --bg-sheet: #ffffff;    /* A4 sheet / light slide bg */
+
+  --text-primary: #1a1a1a;   /* Body on white */
+  --text-secondary: #2a3733; /* Alternate body, dense text */
+  --text-muted: #4a564f;     /* Subtitles, secondary labels, stat captions */
+  --text-light: #6b7672;     /* Footer text, source notes, header eyebrow */
+
+  --rule: #d4d8d4;        /* Thin dividers (footer border-top) */
+  --rule-faint: #e3e6e3;  /* Bottom borders in lists/tables */
+
+  --card-body: #c8d8d2;   /* Body text inside dark-green cards */
+  --card-muted: #a8bcb4;  /* Muted body on dark */
+  --on-dark-muted: #8aa39d;/* Header/footer meta on dark surfaces */
+
+  --surface-alt: #f3f6f3; /* Tech-band, inactive phase boxes */
+  --surface-soft: #fafaf8;/* Alternating table rows */
+
+  /* ---- Internal-doc semantic (PT guides only, never external) ---- */
+  --signal-no: #b00020;   /* "não fazer" — internal docs only */
+  --signal-yes: #1a6e3a;  /* "fazer" — internal docs only */
+
+  /* ---- Semantic aliases ---- */
+  --surface-canvas: var(--bg-page);
+  --surface-sheet: var(--bg-sheet);
+  --surface-dark: var(--oren-deep);
+  --surface-card: var(--oren-mid);
+
+  --text-body: var(--text-primary);
+  --text-heading: var(--oren-deep);
+  --text-eyebrow: var(--oren-mid);
+  --text-eyebrow-dark: var(--oren-light);
+  --text-on-dark: var(--oren-cream);
+  --text-on-card: var(--card-body);
+  --text-source: var(--text-light);
+
+  --accent: var(--oren-light);
+
+  /* Pillar accent — set --pillar on a document root to retheme accents
+     (eyebrows, rules, labels). Defaults to the core light green. */
+  --pillar: var(--oren-light);
+  --pillar-payments: var(--oren-payments);
+  --pillar-capital: var(--oren-capital);
+  --pillar-governance: var(--oren-governance);
+
+  --border-divider: var(--rule);
+  --border-list: var(--rule-faint);
+  --border-accent: var(--oren-mid);
+  --border-active: var(--oren-light);
+}

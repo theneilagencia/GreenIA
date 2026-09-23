@@ -215,3 +215,33 @@ test('lista rola para o fim quando chega resposta, e não rola se a pessoa subiu
   assert.deepEqual(errors, []);
   await page.close();
 });
+
+test('avisar não envia sem confirmação; com confirmação envia', async () => {
+  const { page, errors } = await openPage('GreenIA.dc.html');
+  await login(page);
+  const box = page.getByLabel('Mensagem');
+  await box.fill('Escreva um email para ana@grupo.com.br sobre a reunião');
+  await box.press('Enter');
+  await bubble(page, /Seu texto parece conter email\. Enviar mesmo assim\?/).waitFor();
+  assert.equal(await page.evaluate(() => window.__calls.length), 0, 'enviou sem confirmação');
+  await page.getByRole('button', { name: 'Enviar mesmo assim' }).click();
+  await bubble(page, 'Resposta #1').waitFor({ timeout: 5000 });
+  assert.equal(await page.evaluate(() => window.__calls.length), 1);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('bloquear não oferece opção de envio', async () => {
+  const { page, errors } = await openPage('GreenIA.dc.html');
+  await login(page);
+  const box = page.getByLabel('Mensagem');
+  await box.fill('Confere o CPF 529.982.247-25 e o email ana@grupo.com.br');
+  await box.press('Enter');
+  await bubble(page, /Parece que o texto tem CPF/).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Enviar mesmo assim' }).count(), 0);
+  await box.press('Enter');
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => window.__calls.length), 0);
+  assert.deepEqual(errors, []);
+  await page.close();
+});

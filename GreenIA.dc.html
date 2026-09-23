@@ -402,6 +402,21 @@
 
           <div class="gia-sr" aria-live="polite" aria-atomic="true">{{ liveText }}</div>
 
+          <sc-if value="{{ showWarned }}">
+            <div style="display:flex;gap:14px;align-items:flex-start;max-width:90%;animation:giaUp .25s ease both;">
+              <span style="flex:none;width:30px;height:30px;border-radius:999px;background:var(--gia-mint);display:flex;align-items:center;justify-content:center;margin-top:2px;">
+                <img src="assets/greenia-symbol-forest.svg" width="18" height="18" alt="" aria-hidden="true">
+              </span>
+              <div style="display:flex;flex-direction:column;gap:10px;min-width:0;">
+                <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-left:3px solid var(--gia-amber);border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 'Hanken Grotesk';color:var(--gia-ink);white-space:pre-wrap;">{{ warnedText }}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                  <button onClick="{{ reviewWarned }}" style="background:none;border:1px solid var(--gia-line-strong);color:var(--gia-ink);border-radius:999px;padding:8px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;" style-hover="background:var(--gia-sand) !important">Revisar texto</button>
+                  <button onClick="{{ confirmWarned }}" aria-label="Enviar mesmo assim" style="background:var(--gia-forest-strong);border:none;color:var(--gia-paper);border-radius:999px;padding:8px 18px;font:500 14px 'Hanken Grotesk';cursor:pointer;" style-hover="background:var(--gia-forest-strong-hover) !important">Enviar</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
           <sc-if value="{{ thinking }}">
             <div style="display:flex;gap:14px;align-items:center;">
               <span style="flex:none;width:30px;height:30px;border-radius:999px;background:var(--gia-mint);display:flex;align-items:center;justify-content:center;">
@@ -511,7 +526,39 @@ const SENSITIVE_LABELS = {
   pix: 'chave PIX',
   credencial: 'senha ou credencial',
   rg: 'RG',
+  lista: 'lista com dados pessoais',
+  email: 'email',
+  telefone: 'telefone',
+  cep: 'CEP',
+  endereco: 'endereço',
+  nome: 'nome de pessoa',
 };
+
+// O que fazer com cada tipo antes de enviar ao modelo:
+// - bloquear: não envia; a pessoa precisa tirar o dado.
+// - avisar: pergunta "Enviar mesmo assim?"; só envia com confirmação.
+// - mascarar: troca o valor por [TIPO] e envia.
+// - permitir: envia como está.
+// Email e telefone ficam em avisar porque aparecem em tarefas Verdes comuns,
+// como redigir um email para um colega.
+const DATA_ACTIONS = ['bloquear', 'avisar', 'mascarar', 'permitir'];
+const DATA_POLICY = {
+  cpf: 'bloquear',
+  cnpj: 'bloquear',
+  cartao: 'bloquear',
+  bancario: 'bloquear',
+  pix: 'bloquear',
+  credencial: 'bloquear',
+  rg: 'bloquear',
+  lista: 'bloquear',
+  email: 'avisar',
+  telefone: 'avisar',
+  cep: 'avisar',
+  endereco: 'avisar',
+  nome: 'avisar',
+};
+// Credenciais são bloqueadas em qualquer política.
+const ALWAYS_BLOCKED = ['credencial'];
 
 function _digits(s) { return String(s).replace(/\D/g, ''); }
 function _allSame(d) { return /^(\d)\1*$/.test(d); }
@@ -554,8 +601,17 @@ function isValidLuhn(value) {
   return sum % 10 === 0;
 }
 
-// Minúsculas e sem acento, para casar palavras-chave ("agência", "é").
-function _plain(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+// Minúsculas e sem acento, para casar palavras-chave ("agência", "é"). Mantém um
+// caractere para cada caractere do original, para as posições valerem nos dois.
+function _plain(s) {
+  let out = '';
+  for (const c of String(s || '')) {
+    const d = c.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const low = (d || ' ').toLowerCase();
+    out += low.length === c.length ? low : (c.toLowerCase().length === c.length ? c.toLowerCase() : c);
+  }
+  return out;
+}
 
 const _RE = {
   // Delimitadores evitam casar pedaço de um número maior.
@@ -564,49 +620,154 @@ const _RE = {
   // 13 a 19 dígitos, com espaço ou hífen opcional entre eles. Não começa após "+"
   // (telefone internacional).
   cartao: /(?<![\d.\/+-])\d(?:[ -]?\d){12,18}(?![\d\/]|[.-]\d)/g,
-  agencia: /\bagencia\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*\d{3,5}(?:-?[\dx])?\b/,
+  agencia: /\bagencia\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*\d{3,5}(?:-?[\dx])?\b/g,
   // "ag" sozinho é ambíguo ("ag 2024"): só conta com dígito verificador.
-  agCurta: /\bag\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*\d{3,5}-[\dx]\b/,
-  conta: /\b(?:conta(?:\s+corrente|\s+poupanca)?|c\/c|cc)\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*(?:\d{3,12}-[\dx]|\d{5,12})\b/,
+  agCurta: /\bag\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*\d{3,5}-[\dx]\b/g,
+  conta: /\b(?:conta(?:\s+corrente|\s+poupanca)?|c\/c|cc)\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*(?:\d{3,12}-[\dx]|\d{5,12})\b/g,
   uuid: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g,
   pix: /\bpix\b/,
   // Palavra de credencial + separador + valor com dígito ou símbolo (ou 16+ letras).
-  credencial: /\b(?:senha|password|passwd|pwd|token|api[\s_-]?key|secret|segredo|chave de api)\b\s*(?:[:=]|\s(?:e|eh)\s)?\s*(?:(?=\S*[^a-z\s])\S{4,}|[a-z]{16,})/,
-  rg: /\brg\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*(\d[\d.]{5,11}(?:-?[\dx])?)\b/,
+  credencial: /\b(?:senha|password|passwd|pwd|token|api[\s_-]?key|secret|segredo|chave de api)\b\s*(?:[:=]|\s(?:e|eh)\s)?\s*(?:(?=\S*[^a-z\s])\S{4,}|[a-z]{16,})/g,
+  rg: /\brg\b\.?\s*(?:n[o°º.]*\s*)?[:\-]?\s*(\d[\d.]{5,11}(?:-?[\dx])?)\b/g,
+  email: /(?<![\w.+-])[a-z0-9][\w.+-]*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![\w-])/gi,
+  // Telefone brasileiro. Formas aceitas:
+  //  - com +55: +55 11 98765-4321, +5511987654321, +55 (11) 3456-7890
+  //  - com DDD separado: (11) 98765-4321, 11 98765-4321, (11)3456-7890, 11 3456-7890
+  //  - celular sem máscara com DDD: 11987654321 (11 dígitos, terceiro dígito 9)
+  //  - celular sem DDD com hífen: 98765-4321
+  // Fixo sem DDD (3456-7890) só conta perto de "tel", "fone", "celular" etc.,
+  // para não casar intervalos como "2024-2025".
+  telefone: new RegExp([
+    String.raw`\+55[\s-]?\(?[1-9]\d\)?[\s-]?9?\d{4}[\s-]?\d{4}`,
+    String.raw`\([1-9]\d\)\s?9?\d{4}[\s-]?\d{4}`,
+    String.raw`[1-9]\d[\s-]9?\d{4}[\s-]\d{4}`,
+    String.raw`[1-9]\d9\d{8}`,
+    String.raw`9\d{4}-\d{4}`,
+  ].map(p => String.raw`(?<![\w+(])` + p + String.raw`(?![\w-])`).join('|'), 'g'),
+  telefoneFixo: /\b(?:tel|telefone|fone|celular|cel|whats(?:app)?|contato)\b[^\d\n]{0,12}([2-5]\d{3}-\d{4})(?![\w-])/g,
+  cep: /(?<![\d.-])\d{5}-?\d{3}(?![\d-])/g,
+  cepContexto: /\b(?:cep|rua|avenida|av|bairro|endereco|logradouro|cidade)\b/,
+  // Logradouro + nome + número ("Rua das Flores, 120", "Av. Paulista 1000").
+  endereco: /\b(?:rua|r\.|avenida|av\.?|travessa|trav\.|rodovia|rod\.|alameda|al\.|praca|pca\.?|estrada|largo)\s+(?=[^\n,]*[a-z])[a-z0-9][^\n,\d]{1,60}?,?\s*(?:n[o°º.]*\s*)?\d{1,5}\b/g,
+  // Marcadores de nome de pessoa (o nome em si é conferido com maiúsculas no texto original).
+  nomeMarcador: /(?:\bnome(?:\s+completo)?\s*:|\b(?:colaborador|colaboradora|funcionario|funcionaria|cliente|paciente|candidato|candidata)\b\s*:?|\b(?:sr|sra|srta)\.)/g,
 };
 
-// Lista os tipos de dado sensível encontrados, sem repetir. Não devolve os valores.
-function detectSensitive(text) {
+// Duas ou mais palavras com inicial maiúscula, aceitando "de", "da", "dos"... no meio.
+const _NOME = /^\s*((?:[A-ZÀ-Ý][a-zà-ÿ']+)(?:\s+(?:(?:de|da|do|das|dos|e)\s+)?[A-ZÀ-Ý][a-zà-ÿ']+)+)/;
+// Palavras que indicam empresa, não pessoa ("cliente Repet Soluções Ambientais").
+const _EMPRESA = /\b(?:ltda|s\.?a\.?|sa|me|eireli|inc|corp|group|grupo|holding|solucoes|ambientais|industria|industrias|comercio|servicos|tecnologia|engenharia|consultoria|transportes|logistica|construtora|associacao|instituto|fundacao|banco|cooperativa|companhia|cia)\b/;
+
+// Lista de ocorrências { type, start, end } (posições no texto original).
+function findSensitive(text) {
   const raw = String(text || '');
   const plain = _plain(raw);
-  const found = new Set();
+  const out = [];
+  const add = (type, start, end) => out.push({ type, start, end });
 
-  const cnpjSpans = [];
+  const cnpjDigits = [];
   for (const m of raw.matchAll(_RE.cnpj)) {
-    if (isValidCNPJ(m[0])) { found.add('cnpj'); cnpjSpans.push(_digits(m[0])); }
+    if (isValidCNPJ(m[0])) { add('cnpj', m.index, m.index + m[0].length); cnpjDigits.push(_digits(m[0])); }
   }
+  const cpfSpans = [];
   for (const m of raw.matchAll(_RE.cpf)) {
-    if (isValidCPF(m[0])) found.add('cpf');
+    if (isValidCPF(m[0])) { add('cpf', m.index, m.index + m[0].length); cpfSpans.push(m.index); }
   }
   for (const m of raw.matchAll(_RE.cartao)) {
     const d = _digits(m[0]);
-    if (cnpjSpans.includes(d)) continue; // CNPJ sem máscara também tem 14 dígitos
+    if (cnpjDigits.includes(d)) continue; // CNPJ sem máscara também tem 14 dígitos
     if ((d.length === 12 || d.length === 13) && d.startsWith('55')) continue; // telefone com DDI 55
-    if (isValidLuhn(d)) found.add('cartao');
+    if (isValidLuhn(d)) add('cartao', m.index, m.index + m[0].length);
   }
-  if (_RE.agencia.test(plain) || _RE.agCurta.test(plain) || _RE.conta.test(plain)) found.add('bancario');
+  for (const re of [_RE.agencia, _RE.agCurta, _RE.conta]) {
+    for (const m of plain.matchAll(re)) add('bancario', m.index, m.index + m[0].length);
+  }
   for (const m of plain.matchAll(_RE.uuid)) {
     const around = plain.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60);
-    if (_RE.pix.test(around)) found.add('pix');
+    if (_RE.pix.test(around)) add('pix', m.index, m.index + m[0].length);
   }
-  if (_RE.credencial.test(plain)) found.add('credencial');
-  const rg = plain.match(_RE.rg);
-  if (rg) {
-    const n = _digits(rg[1]).length;
-    if (n >= 7 && n <= 10) found.add('rg');
+  for (const m of plain.matchAll(_RE.credencial)) add('credencial', m.index, m.index + m[0].length);
+  for (const m of plain.matchAll(_RE.rg)) {
+    const n = _digits(m[1]).length;
+    if (n >= 7 && n <= 10) add('rg', m.index, m.index + m[0].length);
+  }
+  for (const m of raw.matchAll(_RE.email)) add('email', m.index, m.index + m[0].length);
+  for (const m of raw.matchAll(_RE.telefone)) {
+    if (cpfSpans.includes(m.index)) continue; // 11 dígitos que são CPF válido: fica como CPF
+    add('telefone', m.index, m.index + m[0].length);
+  }
+  for (const m of plain.matchAll(_RE.telefoneFixo)) {
+    const start = m.index + m[0].length - m[1].length;
+    add('telefone', start, m.index + m[0].length);
+  }
+  for (const m of raw.matchAll(_RE.cep)) {
+    if (cpfSpans.includes(m.index)) continue;
+    const before = plain.slice(Math.max(0, m.index - 40), m.index);
+    if (_RE.cepContexto.test(before)) add('cep', m.index, m.index + m[0].length);
+  }
+  for (const m of plain.matchAll(_RE.endereco)) add('endereco', m.index, m.index + m[0].length);
+  for (const m of plain.matchAll(_RE.nomeMarcador)) {
+    const after = m.index + m[0].length;
+    const n = raw.slice(after).match(_NOME);
+    if (!n) continue;
+    if (_EMPRESA.test(_plain(n[1]))) continue;
+    const start = after + n[0].length - n[1].length;
+    add('nome', start, start + n[1].length);
   }
 
+  // Texto colado que parece tabela (3+ linhas com o mesmo separador, na mesma
+  // quantidade) e contém algum dado pessoal: vira "lista com dados pessoais".
+  if (out.length && _looksLikeTable(raw)) add('lista', 0, raw.length);
+  return out;
+}
+
+function _looksLikeTable(raw) {
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 3) return false;
+  for (const sep of ['\t', ';', '|', ',']) {
+    const counts = lines.map(l => l.split(sep).length - 1).filter(c => c > 0);
+    if (counts.length < 3) continue;
+    const freq = {};
+    for (const c of counts) freq[c] = (freq[c] || 0) + 1;
+    if (Math.max(...Object.values(freq)) >= 3) return true;
+  }
+  return false;
+}
+
+// Lista os tipos de dado sensível encontrados, sem repetir, em ordem fixa.
+// Não devolve os valores.
+function detectSensitive(text) {
+  const found = new Set(findSensitive(text).map(f => f.type));
   return Object.keys(SENSITIVE_LABELS).filter(k => found.has(k));
+}
+
+// Decide o que fazer com o texto a partir dos tipos detectados e da política.
+// Precedência: bloquear > avisar > mascarar > permitir.
+function decideAction(types, policy = DATA_POLICY) {
+  const by = { bloquear: [], avisar: [], mascarar: [], permitir: [] };
+  for (const t of types) {
+    let a = ALWAYS_BLOCKED.includes(t) ? 'bloquear' : (policy[t] || 'bloquear');
+    if (!DATA_ACTIONS.includes(a)) a = 'bloquear'; // política inválida: o mais seguro
+    by[a].push(t);
+  }
+  const action = by.bloquear.length ? 'bloquear' : by.avisar.length ? 'avisar' : by.mascarar.length ? 'mascarar' : 'permitir';
+  return { action, block: by.bloquear, warn: by.avisar, mask: by.mascarar, allow: by.permitir };
+}
+
+// Troca os valores dos tipos pedidos por [TIPO] ("[CPF]", "[EMAIL]").
+function maskSensitive(text, types) {
+  const raw = String(text || '');
+  const spans = findSensitive(raw)
+    .filter(f => types.includes(f.type) && f.type !== 'lista')
+    .sort((a, b) => a.start - b.start || b.end - a.end);
+  let out = '';
+  let pos = 0;
+  for (const f of spans) {
+    if (f.start < pos) continue; // sobreposto a um trecho já mascarado
+    out += raw.slice(pos, f.start) + '[' + (SENSITIVE_LABELS[f.type] || f.type).toUpperCase() + ']';
+    pos = f.end;
+  }
+  return out + raw.slice(pos);
 }
 
 // "CPF", "CPF e RG", "CPF, RG e chave PIX".
@@ -695,6 +856,8 @@ class Component extends DCLogic {
       pending: null,
       // Envio barrado pelo filtro de dados sensíveis: { convoId, types }. Não entra no histórico.
       blocked: null,
+      // Envio parado pela ação "avisar": { convoId, types, text }. Só segue com confirmação.
+      warned: null,
       convos: [],
       activeId: null,
       policyOpen: false,
@@ -803,7 +966,7 @@ class Component extends DCLogic {
     this._cancelGeneration();
     this.setState({
       authed: false, screen: 'landing', policyOpen: false, sidebarOpen: false,
-      convos: [], activeId: null, input: '', pending: null, blocked: null,
+      convos: [], activeId: null, input: '', pending: null, blocked: null, warned: null,
     });
   }
 
@@ -841,12 +1004,12 @@ class Component extends DCLogic {
 
   // Trocar ou criar conversa não mexe em `pending`: a geração em andamento
   // termina em segundo plano, gravando só na conversa dela.
-  newConvo() { this._forceScroll = true; this.setState({ activeId: null, input: '', blocked: null, sidebarOpen: false }); }
+  newConvo() { this._forceScroll = true; this.setState({ activeId: null, input: '', blocked: null, warned: null, sidebarOpen: false }); }
 
   loadConvo(id) {
     if (!this.state.convos.some(x => x.id === id)) return;
     this._forceScroll = true;
-    this.setState({ activeId: id, input: '', blocked: null, sidebarOpen: false });
+    this.setState({ activeId: id, input: '', blocked: null, warned: null, sidebarOpen: false });
   }
 
   // Aplica `fn` às mensagens de uma conversa específica, nunca à lista ativa.
@@ -872,18 +1035,26 @@ class Component extends DCLogic {
     this.send();
   }
 
-  async send() {
-    const text = (this.state.input || '').trim();
-    if (!text || this.state.pending) return;
+  async send(opts = {}) {
+    const raw = (this.state.input || '').trim();
+    if (!raw || this.state.pending) return;
 
-    // Primeira camada: dado sensível não sai do navegador. O texto fica no campo
+    // Primeira camada: o filtro decide antes de qualquer chamada ao modelo
+    // (DATA_POLICY). Bloqueado ou à espera de confirmação, o texto fica no campo
     // para a pessoa editar, e nada é gravado no histórico.
-    const types = detectSensitive(text);
-    if (types.length) {
+    const decision = decideAction(detectSensitive(raw));
+    if (decision.action === 'bloquear') {
       this._forceScroll = true;
-      this.setState({ blocked: { convoId: this.state.activeId, types }, liveText: '' });
+      this.setState({ blocked: { convoId: this.state.activeId, types: decision.block }, warned: null, liveText: '' });
       return;
     }
+    if (decision.action === 'avisar' && !opts.confirmed) {
+      this._forceScroll = true;
+      this.setState({ warned: { convoId: this.state.activeId, types: decision.warn, text: raw }, blocked: null, liveText: '' });
+      return;
+    }
+    // Tipos em "mascarar" saem trocados por [TIPO], no envio e no histórico.
+    const text = decision.mask.length ? maskSensitive(raw, decision.mask) : raw;
 
     // Conversa alvo e id da requisição ficam fixos a partir daqui.
     const requestId = 'r' + Date.now() + Math.random().toString(36).slice(2);
@@ -898,8 +1069,26 @@ class Component extends DCLogic {
       convos = this._updateConvoMessages(convos, convoId, ms => [...ms, userMsg]);
     }
     this._forceScroll = true;
-    this.setState({ convos, activeId: convoId, input: '', blocked: null });
+    this.setState({ convos, activeId: convoId, input: '', blocked: null, warned: null });
     this._request(convoId, requestId);
+  }
+
+  // "Enviar" no aviso: segue só se o texto ainda é o mesmo que foi avisado.
+  // Se a pessoa editou, o filtro roda de novo.
+  confirmWarned() {
+    const w = this.state.warned;
+    if (w && (this.state.input || '').trim() === w.text) this.send({ confirmed: true });
+    else { this.setState({ warned: null }); this.send(); }
+  }
+
+  // "Revisar texto": fecha o aviso e devolve o foco ao campo, com o cursor no fim.
+  reviewWarned() {
+    this.setState({ warned: null }, () => {
+      const el = this._inputEl;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    });
   }
 
   // Reenvia a última pergunta de uma conversa cuja resposta falhou, sem duplicá-la.
@@ -1028,6 +1217,7 @@ class Component extends DCLogic {
     }));
     const thinking = !!pending && pending.convoId === activeId && pending.phase === 'thinking';
     const blocked = this.state.blocked && this.state.blocked.convoId === activeId ? this.state.blocked : null;
+    const warned = this.state.warned && this.state.warned.convoId === activeId ? this.state.warned : null;
     const keyUser = this.props.keyUser || 'Ana Ribeiro · ana.ribeiro@grupo.com.br';
 
     const sugg = [
@@ -1050,9 +1240,15 @@ class Component extends DCLogic {
       notLoggingIn: !loggingIn,
 
       messages: mapped,
-      showWelcome: messages.length === 0 && !blocked,
+      showWelcome: messages.length === 0 && !blocked && !warned,
       showBlocked: !!blocked,
-      liveText: blocked ? 'Mensagem não enviada. ' + describeSensitive(blocked.types) + ' não pode entrar na GreenIA.' : this.state.liveText,
+      showWarned: !!warned,
+      warnedText: warned ? 'Seu texto parece conter ' + describeSensitive(warned.types) + '. Enviar mesmo assim?' : '',
+      reviewWarned: () => this.reviewWarned(),
+      confirmWarned: () => this.confirmWarned(),
+      liveText: blocked ? 'Mensagem não enviada. ' + describeSensitive(blocked.types) + ' não pode entrar na GreenIA.'
+        : warned ? 'Seu texto parece conter ' + describeSensitive(warned.types) + '. Enviar mesmo assim?'
+        : this.state.liveText,
       blockedText: blocked
         ? 'Parece que o texto tem ' + describeSensitive(blocked.types) + '. Esse tipo de dado não pode entrar na GreenIA, então não enviei a mensagem. Tire essa parte e tente de novo. Na dúvida, fale com o key user da sua área: ' + keyUser + '.'
         : '',

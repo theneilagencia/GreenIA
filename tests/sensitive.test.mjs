@@ -53,17 +53,21 @@ test('número de 16 dígitos que falha em Luhn não é detectado como cartão', 
   assert.equal(has('4111111111111112', 'cartao'), false);
 });
 
-test('data e telefone não são detectados', () => {
+test('data não é detectada', () => {
+  for (const text of ['Reunião em 12/05/2026 às 14h', 'A entrega foi em 2026-05-12.', 'Planejamento 2024-2025']) {
+    assert.deepEqual(detectSensitive(text), [], text);
+  }
+});
+
+test('telefone é detectado como telefone, nunca como cartão ou CPF', () => {
   for (const text of [
-    'Reunião em 12/05/2026 às 14h',
-    'A entrega foi em 2026-05-12.',
     'Ligue para (11) 98765-4321',
     'Meu ramal é 4000 e o celular 11 98765-4321',
     '+55 11 3456-7890',
     '+55 21 99876-5432',
     '55 21 99876-5432',
   ]) {
-    assert.deepEqual(detectSensitive(text), [], text);
+    assert.deepEqual(detectSensitive(text), ['telefone'], text);
   }
 });
 

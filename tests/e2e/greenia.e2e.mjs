@@ -161,3 +161,57 @@ for (const width of [360, 768, 1280]) {
     await pol.page.close();
   });
 }
+
+// Regressão da Fase 1: os hovers geravam regras vazias e nada mudava.
+test('hover muda o estilo de um botão em cada página', async () => {
+  const bg = loc => loc.evaluate(e => getComputedStyle(e).backgroundColor);
+  const { page, errors } = await openPage('GreenIA.dc.html');
+  const cta = page.getByRole('button', { name: 'Entrar no chat' }).first();
+  const before = await bg(cta);
+  await cta.hover();
+  await page.waitForTimeout(50);
+  assert.notEqual(await bg(cta), before, 'hover da landing não mudou o fundo');
+  assert.deepEqual(errors, []);
+  await page.close();
+
+  const pol = await openPage('Política GreenIA.dc.html');
+  const link = pol.page.getByRole('link', { name: 'Entrar no chat' }).first();
+  const b2 = await bg(link);
+  await link.hover();
+  await pol.page.waitForTimeout(50);
+  assert.notEqual(await bg(link), b2, 'hover da política não mudou o fundo');
+  await pol.page.close();
+});
+
+// Regressão da Fase 1: a rolagem automática nunca funcionou (msgRef fora de renderVals()).
+test('lista rola para o fim quando chega resposta, e não rola se a pessoa subiu', async () => {
+  const { page, errors } = await openPage('GreenIA.dc.html', { delay: 50, reply: 'linha\n'.repeat(60) });
+  await login(page);
+  const box = page.getByLabel('Mensagem');
+  const list = page.locator('.gia-msgs');
+  const gap = () => list.evaluate(e => Math.round(e.scrollHeight - e.scrollTop - e.clientHeight));
+  // Resposta n chegou e o typewriter terminou (sem cursor piscando).
+  const answered = n => page.waitForFunction(
+    n => document.querySelector('.gia-msgs').innerText.includes('#' + n) && !document.querySelector('.gia-msgs [style*="giaBlink"]'),
+    n, { timeout: 5000 });
+  for (const [i, q] of ['pergunta 1', 'pergunta 2'].entries()) {
+    await box.fill(q);
+    await box.press('Enter');
+    await answered(i + 1);
+    await page.waitForTimeout(100);
+  }
+  assert.ok(await list.evaluate(e => e.scrollHeight > e.clientHeight + 200), 'a lista precisa ser rolável para o teste valer');
+  assert.ok(await gap() <= 2, `não rolou até o fim (faltam ${await gap()} px)`);
+
+  // A pessoa sobe mais de 80 px enquanto a resposta chega: a posição fica.
+  await box.fill('pergunta 3');
+  await box.press('Enter');
+  await page.waitForTimeout(20);
+  await list.evaluate(e => { e.scrollTop = e.scrollHeight - e.clientHeight - 300; e.dispatchEvent(new Event('scroll')); });
+  const top = await list.evaluate(e => e.scrollTop);
+  await answered(3);
+  await page.waitForTimeout(100);
+  assert.equal(await list.evaluate(e => e.scrollTop), top, 'rolou mesmo com a pessoa lendo mais acima');
+  assert.deepEqual(errors, []);
+  await page.close();
+});

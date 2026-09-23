@@ -261,7 +261,7 @@
         </div>
       </header>
 
-      <div ref="{{ msgRef }}" style="flex:1;overflow-y:auto;padding:32px;">
+      <div ref="{{ msgRef }}" onScroll="{{ onMsgScroll }}" style="flex:1;overflow-y:auto;padding:32px;">
         <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:24px;">
 
           <sc-if value="{{ showWelcome }}">
@@ -408,8 +408,10 @@ class Component extends DCLogic {
       policyOpen: false,
       kbOn: true,
     };
-    this.msgRef = React.createRef();
+    this._msgRef = el => { this._msgEl = el; };
     this._inputRef = el => { this._inputEl = el; };
+    this._nearBottom = true;   // a pessoa está a até 80 px do fim da lista?
+    this._forceScroll = false; // rolar até o fim no próximo update, de qualquer jeito
   }
 
   PERSONA = [
@@ -444,10 +446,21 @@ class Component extends DCLogic {
 
   toggleKb() { this.setState(s => ({ kbOn: !s.kbOn })); }
 
+  // Só acompanha o fim da conversa se a pessoa já estava perto dele (80 px),
+  // para não arrancar a leitura de quem subiu. Mensagem própria rola sempre.
   componentDidUpdate() {
-    const el = this.msgRef.current;
-    if (el && this.state.screen === 'chat') el.scrollTop = el.scrollHeight;
+    const el = this._msgEl;
+    if (el && this.state.screen === 'chat' && (this._forceScroll || this._nearBottom)) {
+      el.scrollTop = el.scrollHeight;
+      this._nearBottom = true;
+    }
+    this._forceScroll = false;
     if (this.state.input !== this._sizedFor) this._autosize();
+  }
+
+  onMsgScroll(e) {
+    const el = e.currentTarget;
+    this._nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
   }
 
   // Campo cresce de 1 até ~8 linhas (max-height no CSS); depois rola por dentro.
@@ -505,10 +518,11 @@ class Component extends DCLogic {
 
   // Trocar ou criar conversa não mexe em `pending`: a geração em andamento
   // termina em segundo plano, gravando só na conversa dela.
-  newConvo() { this.setState({ activeId: null, input: '' }); }
+  newConvo() { this._forceScroll = true; this.setState({ activeId: null, input: '' }); }
 
   loadConvo(id) {
     if (!this.state.convos.some(x => x.id === id)) return;
+    this._forceScroll = true;
     this.setState({ activeId: id, input: '' });
   }
 
@@ -553,6 +567,7 @@ class Component extends DCLogic {
     }
     const msgs = convos.find(c => c.id === convoId).messages;
     this._requestId = requestId;
+    this._forceScroll = true;
     this.setState({ convos, activeId: convoId, input: '', pending: { convoId, requestId, phase: 'thinking' } });
 
     const hits = this.state.kbOn ? this.retrieve(text) : [];
@@ -694,6 +709,8 @@ class Component extends DCLogic {
       closePolicy: () => this.closePolicy(),
       stop: (e) => e.stopPropagation(),
       inputRef: this._inputRef,
+      msgRef: this._msgRef,
+      onMsgScroll: (e) => this.onMsgScroll(e),
       onInput: (e) => this.setInput(e.target.value),
       onKeyDown: (e) => this.onKeyDown(e),
       send: () => this.send(),

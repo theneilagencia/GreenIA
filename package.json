@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test && node scripts/check-sync.mjs",
     "check-sync": "node scripts/check-sync.mjs",
-    "sync": "node scripts/check-sync.mjs --write"
+    "sync": "node scripts/check-sync.mjs --write",
+    "test:e2e": "node --test tests/e2e/greenia.e2e.mjs"
   }
 }

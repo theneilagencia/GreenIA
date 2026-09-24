@@ -125,3 +125,13 @@ test('describeSensitive monta a lista em português', () => {
   assert.equal(describeSensitive(['cpf', 'rg']), 'CPF e RG');
   assert.equal(describeSensitive(['cpf', 'rg', 'pix']), 'CPF, RG e chave PIX');
 });
+
+// Decisão de 24/09/2026: prenome sozinho não dispara aviso. Só nome com
+// sobrenome (depois de um marcador) conta como nome de pessoa.
+test('prenome sozinho não é nome de pessoa; nome com sobrenome é', () => {
+  for (const t of ['A Maria pediu o relatório.', 'Nome: Maria', 'Paciente: João', 'Sr. Pedro chegou.', 'Nome: MARIA']) {
+    assert.equal(has(t, 'nome'), false, t);
+  }
+  assert.ok(has('Nome: Maria Souza', 'nome'));
+  assert.ok(has('Paciente: João da Silva', 'nome'));
+});

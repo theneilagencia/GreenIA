@@ -35,6 +35,9 @@ if (process.argv.includes('--spacy')) {
   systems['C. spaCy pt_core_news_lg (PER)'] = text => byText.get(text) || [];
 }
 
+// Prenome sozinho não é nome de pessoa (decisão de 24/09/2026): os conjuntos
+// não o rotulam, e o sistema que marca "Maria" sozinha conta como aviso indevido.
+// Uma segunda camada adotada precisa descartar entidades de uma palavra só.
 // Um nome esperado conta como achado se algum trecho detectado o contém ou está contido nele.
 const overlaps = (a, b) => norm(a).includes(norm(b)) || norm(b).includes(norm(a));
 

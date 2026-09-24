@@ -60,19 +60,23 @@ async function loadAuth(app: FastifyInstance, req: FastifyRequest): Promise<Auth
   const s = rows[0];
   if (!s) return null;
   return withTenant(app.deps.db, { tenantId: s.tenant_id, userId: s.user_id }, async tx => {
-    const u = (await tx.query(`select email, name from users where id = $1`, [s.user_id])).rows[0];
-    const m = (await tx.query(
-      `select m.role, m.area_id, a.slug, a.name from memberships m left join areas a on a.id = m.area_id where m.user_id = $1`,
-      [s.user_id])).rows;
     await tx.query(`update sessions set last_seen_at = now() where id = $1 and last_seen_at < now() - interval '5 minutes'`, [s.session_id]);
-    const roles = m.filter(r => !r.area_id).map(r => r.role as Role);
-    const areaRoles = m.filter(r => r.area_id).map(r => ({ areaId: r.area_id, slug: r.slug, name: r.name, role: r.role as Role }));
-    const allAreas = roles.includes('admin_cliente') || roles.includes('admin_theneil');
-    return {
-      sessionId: s.session_id, tenantId: s.tenant_id, userId: s.user_id, email: u.email, name: u.name,
-      roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas, csrfToken: s.csrf_token,
-    };
+    const m = await loadMembership(tx, s.user_id);
+    return { sessionId: s.session_id, tenantId: s.tenant_id, userId: s.user_id, csrfToken: s.csrf_token, ...m };
   });
+}
+
+// Papéis e áreas de uma pessoa (a transação já está no contexto do tenant).
+// Usado pela sessão e pelas tarefas na fila, que agem em nome de quem pediu.
+export async function loadMembership(tx: Tx, userId: string) {
+  const u = (await tx.query(`select email, name from users where id = $1`, [userId])).rows[0] ?? { email: '', name: '' };
+  const m = (await tx.query(
+    `select m.role, m.area_id, a.slug, a.name from memberships m left join areas a on a.id = m.area_id where m.user_id = $1`,
+    [userId])).rows;
+  const roles = m.filter(r => !r.area_id).map(r => r.role as Role);
+  const areaRoles = m.filter(r => r.area_id).map(r => ({ areaId: r.area_id as string, slug: r.slug as string, name: r.name as string, role: r.role as Role }));
+  const allAreas = roles.includes('admin_cliente') || roles.includes('admin_theneil');
+  return { email: u.email as string, name: u.name as string, roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas };
 }
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);

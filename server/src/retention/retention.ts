@@ -7,6 +7,7 @@ import { tenantCtx } from '../auth/session.ts';
 import type { ChatStep } from '../chat/hooks.ts';
 import type { AssistantDefinition } from '../assistants/schema.ts';
 import type { KnowledgeHit } from '../kb/knowledge.ts';
+import { tenantPrefix, type ObjectStore } from '../storage/object-store.ts';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
@@ -27,8 +28,9 @@ export const retentionStep: ChatStep = {
   },
 };
 
-// Tarefa periódica: apaga as saídas vencidas (em lotes) e devolve o total.
-export function makeRetentionSweep(db: Db) {
+// Tarefa periódica: apaga as saídas vencidas (em lotes) e as execuções vencidas
+// (primeiro os arquivos no armazenamento, depois as linhas). Devolve o total.
+export function makeRetentionSweep(db: Db, objects?: ObjectStore) {
   return async () => {
     let total = 0;
     for (let i = 0; i < 100; i++) {
@@ -36,6 +38,14 @@ export function makeRetentionSweep(db: Db) {
       const n = rows.reduce((s, r) => s + Number(r.apagadas), 0);
       total += n;
       if (n < 5000) break;
+    }
+    for (let i = 0; i < 100; i++) {
+      const expired = (await db.query(`select * from expired_runs(500)`)).rows as { tenant_id: string; run_id: string }[];
+      if (!expired.length) break;
+      if (objects) for (const r of expired) await objects.deletePrefix(`${tenantPrefix(r.tenant_id)}runs/${r.run_id}/`);
+      const gone = (await db.query(`select * from purge_runs($1)`, [expired.map(r => r.run_id)])).rows;
+      total += gone.reduce((s, r) => s + Number(r.apagadas), 0);
+      if (expired.length < 500) break;
     }
     return total;
   };

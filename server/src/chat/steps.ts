@@ -21,6 +21,8 @@ export const assistantStep: ChatStep = {
       return { status: 404, body: { error: 'assistente_nao_encontrado' } };
     }
     const definition = assistantDefinitionSchema.parse(row.definition);
+    // Assistente com pipeline de blocos roda por execução (/api/runs), com revisão.
+    if (definition.pipeline.length) return { status: 409, body: { error: 'assistente_de_execucao' } };
     state.assistant = { id: row.id, slug: row.slug, version: row.version, areaId: row.area_id, definition };
     if (definition.instructions) state.systemExtra = definition.instructions;
   },

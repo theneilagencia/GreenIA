@@ -16,6 +16,8 @@ import { assistantStep, dataPolicyStep } from './chat/steps.ts';
 import { assistantRoutes } from './assistants/routes.ts';
 import { kbRoutes } from './kb/routes.ts';
 import { auditRoutes } from './audit/routes.ts';
+import { runRoutes } from './runs/routes.ts';
+import { makeRunExecutor } from './runs/executor.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
 import { retentionStep, makeRetentionSweep } from './retention/retention.ts';
@@ -79,13 +81,15 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(assistantRoutes);
   await app.register(kbRoutes);
   await app.register(auditRoutes);
+  await app.register(runRoutes);
 
   // Frontend (mesma origem da API). Registrado por último: as rotas da API têm prioridade.
   await app.register(staticRoutes);
 
   // Tarefas da fila.
   deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects));
-  const sweep = makeRetentionSweep(deps.db);
+  deps.queue.register('run:execute', makeRunExecutor(app));
+  const sweep = makeRetentionSweep(deps.db, deps.objects);
   deps.queue.register('retention:sweep', async () => { await sweep(); });
 
   return app;

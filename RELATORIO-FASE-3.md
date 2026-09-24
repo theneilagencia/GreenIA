@@ -2,6 +2,8 @@
 
 Situação em 24/09/2026, branch `claude/descompactar-enviar-arquivos-hkx9is`. Atualizado no mesmo dia com as quatro decisões da revisão (seção "Decisões aplicadas depois da revisão"). Os 11 itens da Fase 3 foram entregues, com um commit por item e as telas em dois commits. Os quatro assistentes de referência rodam só por configuração. Dois blocos precisaram ser generalizados no caminho, e isso está registrado abaixo. A próxima etapa só começa depois da sua confirmação.
 
+> **Depois da Fase 3B (generalização).** A GreenIA é uma plataforma para qualquer empresa; a Repet é o primeiro cliente, não o molde. Os quatro assistentes de referência viraram modelos do catálogo da TheNeil (`server/catalog/modelos/`), as áreas são do cliente (com subáreas e compartilhamento), NF-e e DANFE viraram leitores ligados por tenant, e a medição saiu do assistente e foi para o quick win. O checklist da seção "Checklist de implantação" passou a ser genérico (`docs/IMPLANTACAO.md`), com os dados da Repet em `implantacoes/repet/`. Detalhes em `RELATORIO-FASE-3B.md`.
+
 ## Resumo
 
 - Um assistente é uma **definição versionada** (JSON validado por zod), com uma lista de **blocos genéricos**. Nenhum dos quatro assistentes de referência tem código próprio.
@@ -20,7 +22,7 @@ Situação em 24/09/2026, branch `claude/descompactar-enviar-arquivos-hkx9is`. A
   | e2e do protótipo no navegador (modo demonstração) | 10/10 |
   | `tsc --noEmit` do servidor | sem erros |
 
-  Os testes rodam com o **provedor simulado**. Nenhum assistente foi rodado com o modelo real nem com documento real da Repet.
+  Os testes rodam com o **provedor simulado**. Nenhum assistente foi rodado com o modelo real nem com documento real de cliente.
 
 ## O que cada item cobre
 
@@ -69,6 +71,7 @@ Cada bloco tem teste próprio (`server/test/blocks-*.test.ts`).
 - Indicadores automáticos: tempo de processamento, tempo até a revisão, aprovação sem edição, divergências e pendências por execução, custo por execução, volume e pessoas ativas.
 - Painel por assistente com antes, depois e a origem de cada número, e um campo de decisão (manter, descartar ou ampliar), com data, responsável e justificativa. Relatório em PDF e XLSX.
 - **Sem linha de base, o painel mostra "sem ponto de partida"** e não calcula ganho.
+- *Fase 3B:* a medição foi para o quick win, que junta o automático das execuções dos assistentes vinculados (só nas áreas do quick win) com indicadores lançados à mão. A regra do ponto de partida continua a mesma.
 - O tempo automático mede só o processamento, não a revisão humana. Comparado com o tempo manual, aparece como "comparação parcial" e não vira horas economizadas. O ganho acumulado só é calculado quando o "depois" também é medido ou informado por uma pessoa.
 
 ### 3.5 Auditoria com hash encadeado
@@ -96,6 +99,7 @@ Cada bloco tem teste próprio (`server/test/blocks-*.test.ts`).
 - Guia rápido por assistente em PDF e Markdown, gerado da definição e da política.
 - Roteiro guiado no primeiro acesso, no chat e na página de assistentes.
 - Tenant de demonstração com os quatro assistentes e amostras fictícias (`seed-demo.ts`).
+- *Fase 3B:* tenant novo começa sem áreas (ou com um modelo de áreas do catálogo). Segundo tenant de demonstração, uma construtora, montado só pela API (`server/test/second-tenant.test.ts`).
 
 ### 3.9 Portabilidade
 - Exportação completa do tenant em ZIP: dados em JSON e CSV, arquivos originais, auditoria com a verificação da cadeia e um manifesto com hashes.
@@ -103,7 +107,7 @@ Cada bloco tem teste próprio (`server/test/blocks-*.test.ts`).
 - Teste: depois da exclusão, nenhuma linha do tenant no banco e nenhum objeto no armazenamento.
 
 ### 3.10 Assistentes de referência
-Definições em `server/deploy/demo/assistentes/`. Cada uma roda de ponta a ponta nos testes, com as amostras fictícias.
+Na Fase 3 as definições ficavam em `server/deploy/demo/assistentes/`; desde a Fase 3B são modelos do catálogo (`server/catalog/modelos/`), e o tenant de demonstração cria os seus a partir deles. Cada um roda de ponta a ponta nos testes, com as amostras fictícias.
 
 | Assistente | Pipeline | Resultado com as amostras |
 |---|---|---|
@@ -138,9 +142,9 @@ Além deles: isolamento entre tenants e áreas nas execuções, revisão (autor,
 | DOC, XLS antigos e ODT/ODS | Convertidos no servidor (LibreOffice sem interface, cerca de 1 s por arquivo). Macro não roda; fórmula de XLS vem com o último valor salvo. | Nada a fazer. |
 | PDF com senha | Não é lido: a execução avisa ou termina em erro. | Remover a senha antes. |
 | DANFE em PDF | Só a chave de acesso é lida. Com o XML da mesma chave na execução, a nota vem do XML; sem ele, a nota fica como "pedir o XML ao fornecedor". Nenhum campo é extraído do texto impresso. | Enviar o XML junto; o fornecedor é obrigado a entregá-lo. |
-| NFS-e, CT-e e outros XML fiscais | Não têm parser: viram texto. | Novo leitor, se a Repet precisar. |
+| NFS-e, CT-e e outros XML fiscais | Não têm parser: viram texto. | Novo leitor no registro (`server/src/readers/`), quando um cliente precisar. |
 | Planilha com várias tabelas na mesma aba, células mescladas ou cabeçalho em duas linhas | O cabeçalho é a primeira linha, entre as 20 primeiras, com pelo menos 60% das colunas preenchidas. Fora desse padrão, a leitura pode errar as colunas. | Uma tabela por aba, ou aba chave-valor. |
-| CSV | O leitor é próprio, simples (RFC 4180, `;` ou `,`). Quebra de linha dentro de campo entre aspas funciona. Arquivo com outro separador (tab, pipe) não. | Suficiente para o CSV exportado do SyGeCom testado. |
+| CSV | O leitor é próprio, simples (RFC 4180, `;` ou `,`). Quebra de linha dentro de campo entre aspas funciona. Arquivo com outro separador (tab, pipe) não. | Suficiente para os CSV de exportação de ERP testados (um deles, o layout do SyGeCom). |
 | PDF acima de `paginasMax` (padrão 50) | Lê só as primeiras páginas e avisa. | Aumentar o limite no assistente (até 500), com custo proporcional. |
 
 ### Outros limites
@@ -196,54 +200,13 @@ Os tempos foram medidos nos testes, com provedor simulado, banco local e armazen
 
 | O quê | Por quê | O que destrava |
 |---|---|---|
-| Rodar com o modelo real e documentos reais | Não há chave do modelo nem documentos da Repet neste ambiente. | Piloto no ambiente da TheNeil, com a chave e uma amostra real de cada área. |
+| Rodar com o modelo real e documentos reais | Não há chave do modelo nem documentos de cliente neste ambiente. | Piloto no ambiente da TheNeil, com a chave e uma amostra real de cada área. |
 | Medir embeddings e o NER BERTimbau | HuggingFace segue bloqueado no proxy do ambiente (mesmos quatro hosts da Fase 2). | Liberar os hosts nas configurações de rede do ambiente. |
 | `docker build` | Docker Hub continua respondendo 429. O `public.ecr.aws` responde (manifesto e token), mas as camadas das imagens vêm de `d2glxqk2uabbnd.cloudfront.net`, que o proxy recusa (403). | Liberar `d2glxqk2uabbnd.cloudfront.net` junto com `public.ecr.aws`, ou construir numa máquina fora deste ambiente. |
 
-## Checklist para colocar a Repet no ar
+## Checklist de implantação
 
-### Contrato e SI
-- [ ] Contrato com a Repet: TheNeil como operadora, Anthropic e AWS como suboperadoras, regiões, transferência internacional para o processamento do modelo (`PENDENCIAS-SEGURANCA.md`, seção 6).
-- [ ] Contrato comercial com a Anthropic com retenção mínima e acordo de processamento de dados, antes de liberar a classe Amarela.
-- [ ] SI da Repet revisou as seções 4 e 8 de `PENDENCIAS-SEGURANCA.md`, em especial a visão do modelo para escaneados e o acesso da TheNeil aos incidentes.
-- [ ] Prazo dos backups comunicado ao cliente (a exclusão e a retenção não alcançam backups antes de expirarem).
-
-### Infraestrutura (AWS sa-east-1)
-- [ ] `docker build` validado e imagem publicada no ECR.
-- [ ] RDS Postgres 16, ElastiCache Redis com TLS, bucket S3 com SSE-KMS e chave própria, SES com SPF, DKIM e DMARC no domínio de envio.
-- [ ] Segredos no Secrets Manager: chave do modelo, segredos OIDC, senhas do banco.
-- [ ] Migrações aplicadas (`001` a `013`) e o worker da fila rodando (indexação, execuções, retenção, exportação).
-- [ ] `PLATFORM_SUPPORT_EMAIL` apontando para a caixa de suporte da TheNeil.
-- [ ] `/health/ready` com `ocr`, `imagens` e `office` em `ok` na imagem publicada (confirmar que o ImageMagick do Debian lê HEIC).
-- [ ] Conta AWS separada com o bucket de âncoras (Object Lock, compliance) e o papel de publicação; primeira âncora de cada tenant publicada (roteiro no `README.md`).
-- [ ] Logs no CloudWatch com retenção definida; alarmes de erro 5xx e de fila parada.
-- [ ] Teste de restauração de backup feito uma vez.
-
-### Tenant da Repet
-- [ ] Tenant criado por `create-tenant.ts`, com host próprio, domínios de email e marca.
-- [ ] Login pelo provedor da Repet (Entra ID ou Google) registrado e testado com uma conta real.
-- [ ] Áreas (Fiscal, RH/DP, Financeiro, LGPD) e key user de cada uma.
-- [ ] Pessoas importadas por CSV, primeiro com "simular".
-- [ ] Política de Uso de IA da Repet publicada, com termos restritos, e ciência das pessoas do piloto.
-- [ ] Política de dados e retenção revisadas pela SI da Repet.
-- [ ] Documentos de procedimento importados em lote na base de cada área, com o relatório de erros resolvido.
-- [ ] Cota mensal e preço vigente conferidos na tabela de preços.
-
-### Assistentes
-- [ ] Os quatro assistentes criados a partir de `server/deploy/demo/assistentes/` e ajustados com a Repet:
-  - Fiscal: colunas reais do pedido exportado do SyGeCom, tolerâncias de quantidade e preço, prazo de emissão;
-  - RH: lista real de documentos de admissão e sinônimos usados pelo DP;
-  - Financeiro: tópicos e indicadores do resumo mensal;
-  - LGPD: taxonomia de evidências e padrão de nome.
-- [ ] Uma rodada com documentos reais de cada área, revisada pelo key user, antes de mudar o status para piloto.
-- [ ] Linha de base registrada para cada indicador (medida ou informada, com origem). Sem isso, o painel mostra "sem ponto de partida" e não há comparação.
-- [ ] Guia rápido de cada assistente gerado e enviado às pessoas do piloto.
-
-### Operação do piloto
-- [ ] Reunião de abertura com os key users: fluxo de revisão, Reportar incidente e o roteiro do primeiro acesso.
-- [ ] Verificação da auditoria (`/api/audit/verify`) no primeiro dia e semanalmente.
-- [ ] Relatório mensal de consumo conferido com o simulador no fim do primeiro mês.
-- [ ] Data da decisão por assistente (manter, descartar ou ampliar), registrada no painel.
+O checklist ficou genérico e vale para qualquer cliente: `docs/IMPLANTACAO.md` (contrato e SI, infraestrutura, tenant, áreas, pessoas e políticas, bases, assistentes, oportunidades e quick wins, operação do piloto). O que é próprio de cada cliente fica no arquivo de implantação dele. Para a Repet, o primeiro cliente: `implantacoes/repet/` (`tenant.json` para o `create-tenant.ts` e `README.md` com as áreas, os leitores e os ajustes de cada assistente, como as colunas do pedido exportado do SyGeCom).
 
 ## Decisões aplicadas depois da revisão
 

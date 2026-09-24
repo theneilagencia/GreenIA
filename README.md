@@ -1,8 +1,10 @@
 # GreenIA
 
-A IA do dia a dia, multi-cliente. O repositório tem duas partes:
+A IA do dia a dia, multi-cliente. A GreenIA é uma plataforma para qualquer empresa: cada cliente define as próprias áreas, as bases de conhecimento de cada uma, os próprios assistentes e os próprios quick wins. Nenhum cliente, área ou setor está escrito no código (um teste falha se estiver: `server/test/genericity.test.ts`).
 
-- **Frontend**: `GreenIA.dc.html` e `Política GreenIA.dc.html`, que rodam no runtime `support.js`. A lógica compartilhada fica em `lib/greenia-core.js`, que é copiada para dentro das páginas por `npm run sync`.
+O repositório tem duas partes:
+
+- **Frontend**: `GreenIA.dc.html` (chat), `Assistentes GreenIA.dc.html` (assistentes, revisão, quick wins e administração) e `Política GreenIA.dc.html`, que rodam no runtime `support.js`. A lógica compartilhada fica em `lib/greenia-core.js`, que é copiada para dentro das páginas por `npm run sync`.
 - **Servidor** (`server/`): Node 24 + Fastify + Postgres com RLS. Ele atende a API, entrega o frontend e processa a fila no mesmo processo.
 
 Sem `backendUrl`, as páginas continuam funcionando como protótipo (modo demonstração). Quando entregues pelo servidor, elas recebem `window.__GREENIA__ = { backendUrl: "/" }`. Nesse modo, todo o chat passa pelo servidor. Não há volta silenciosa para o modelo do navegador: se o servidor falha, a tela mostra o erro.
@@ -124,14 +126,38 @@ Veja o exemplo em `server/deploy/tenant-local.json`. Para login corporativo, os 
 - O tenant é escolhido pelo host da requisição (`hosts`). Fora de produção, também pelo parâmetro `?tenant=<slug>`. Em produção, esse parâmetro é ignorado, para que o host de um cliente não abra o login de outro.
 - As cores da marca que não passam em contraste AA são escurecidas automaticamente, e o script mostra os ajustes.
 
-### Tenant de demonstração (Fase 3)
+O tenant novo começa vazio: sem áreas, sem assistentes. As áreas vêm da lista `areas` do arquivo, de um modelo de áreas do catálogo (`modeloAreas`) ou do painel depois. O checklist de implantação de qualquer cliente está em `docs/IMPLANTACAO.md`. O que é próprio de um cliente fica em `implantacoes/<cliente>/` (arquivo do tenant e ajustes dos assistentes), fora do código; `npm test` do servidor valida esses arquivos.
+
+## O que cada cliente configura
+
+| O quê | Onde | Observação |
+|---|---|---|
+| Áreas e subáreas | Administração › Áreas | Nome, descrição, área mãe, herança de permissão, ordem, desativação. Key users e revisores por área |
+| Bases de conhecimento | Administração › Base de conhecimento | Uma por área; cada documento pode ser compartilhado com outras áreas ou com a empresa toda |
+| Assistentes | Administração › Assistentes | Do zero, a partir de um modelo do catálogo da TheNeil ou duplicando outro. Compartilháveis entre áreas |
+| Tipos de dado próprios | Administração › Tipos de dado e leitores | Padrão, validação opcional (CPF, CNPJ, Luhn, módulo 11) e ação padrão, além dos de fábrica |
+| Leitores especializados | Administração › Tipos de dado e leitores | Formatos de um setor (hoje: XML de NF-e e chave de DANFE), ligados só no cliente que usa |
+| Critérios de avaliação | Administração › Critérios de avaliação | Padrão Valor, Complexidade, Risco e Dependências; escala, pesos e critérios editáveis |
+| Oportunidades e quick wins | aba Quick wins | Portfólio por área, ciclo com motivo em cada etapa, indicadores escolhidos pelo cliente, relatórios em PDF e XLSX |
+
+## Catálogo de modelos (TheNeil)
+
+Os arquivos em `server/catalog/modelos/` (assistentes) e `server/catalog/areas/` (modelos de áreas) são publicados na tabela `catalog_templates` pelo migrador. Versão publicada não muda; versão nova entra com número maior (`POST /api/platform/catalog`). Um assistente criado a partir de um modelo é do cliente: não muda quando o modelo muda, o painel só avisa que há versão nova.
+
+## Quick wins
+
+Um quick win é do processo, não da ferramenta. Nasce de uma oportunidade registrada pelo key user ou admin na área (processo, problema, quem executa hoje, volume, evidência comprovada ou hipótese), avaliada pelos critérios do cliente e selecionada. Ciclo: identificada → avaliada → selecionada → em implantação → em medição → decisão (manter, descartar, ampliar) → encerrada; toda mudança vai para a auditoria com quem e por quê. A medição junta o automático das execuções dos assistentes vinculados (volume, tempo, revisão, divergências, consumo) com indicadores lançados à mão, sempre com origem e período. Sem valor "antes", não há comparação. Ampliar cria outro quick win em outra área, unidade ou processo, com os mesmos recursos, baseline próprio e vínculo registrado. Não há limite na plataforma; a cota, se houver, é do plano (`PUT /api/platform/tenants/<slug>/quick-wins-quota`).
+
+### Tenants de demonstração
 
 ```sh
-DATABASE_OWNER_URL=... node src/scripts/seed-demo.ts              # cria o tenant demo com os 4 assistentes de referência
+DATABASE_OWNER_URL=... node src/scripts/seed-demo.ts              # cria o tenant demo (empresa de serviços) com 4 assistentes do catálogo
 node src/scripts/seed-demo.ts --amostras ./amostras               # só grava os arquivos de exemplo em disco
 ```
 
-O tenant `demo` abre pelo host `demo.localhost`. As definições dos assistentes estão em `server/deploy/demo/assistentes/` e podem ser coladas no editor de assistentes, na aba Administração da página `Assistentes GreenIA.dc.html`, para criar o mesmo assistente em outro tenant.
+O tenant `demo` abre pelo host `demo.localhost`. Os dados dele estão em `server/deploy/demo/tenant-demo.json` (áreas e assistentes criados a partir do catálogo).
+
+O segundo tenant de demonstração, uma construtora, é montado só pela API em `server/test/second-tenant.test.ts`: áreas com subárea, tipo de dado próprio, quatro assistentes, duas bases, seis oportunidades, três quick wins (um com dois assistentes, um só com a base e um ampliado) e os dois relatórios. Com `GREENIA_RELATORIOS_DIR=<pasta>`, o teste grava os relatórios; a última saída está em `docs/fase-3b/relatorios-construtora/`.
 
 ## Produção na AWS (sa-east-1)
 

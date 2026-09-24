@@ -61,7 +61,7 @@ const membershipSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   name: z.string().trim().max(200).optional(),
   areaSlug: z.string().optional(),
-  role: z.enum(['usuario', 'revisor', 'key_user', 'admin_cliente']),
+  role: z.enum(['usuario', 'revisor', 'key_user', 'patrocinador', 'admin_cliente']),
 });
 
 async function tenantConfig(tx: Tx, tenantId: string) {
@@ -318,7 +318,7 @@ export async function adminRoutes(app: FastifyInstance) {
         if (!domains.has(email.split('@')[1])) { fail('domínio não permitido neste cliente'); continue; }
         const area = areaTxt ? areas.find(x => normPt(x.slug) === areaTxt || normPt(x.name) === areaTxt) : null;
         if (areaTxt && !area) { fail(`área não encontrada: ${r.area}`); continue; }
-        if (!['usuario', 'revisor', 'key_user', 'admin_cliente'].includes(papel)) { fail(`papel inválido: ${r.papel}`); continue; }
+        if (!['usuario', 'revisor', 'key_user', 'patrocinador', 'admin_cliente'].includes(papel)) { fail(`papel inválido: ${r.papel}`); continue; }
         const areaId = area?.id ?? null;
         if (!can(a, 'people.manage', areaId) || !assignableRoles(a, areaId).includes(papel as Role)) { fail(`sem permissão para dar o papel ${papel}${area ? ` na área ${area.name}` : ' no tenant todo'}`); continue; }
         if (p.data.simular) { vinculos++; continue; }

@@ -1,6 +1,7 @@
 // Execuções de assistentes: enviar (texto e arquivos), acompanhar e consultar.
 // O envio confere entradas, limites e a política de dados antes de aceitar;
 // o pipeline roda na fila e a saída nasce como rascunho para revisão.
+import { activeQuickWinsFor, resolveRunQuickWin } from '../quickwins/context.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -12,7 +13,7 @@ import { parseTenantConfig } from '../tenants/config.ts';
 import { assistantDefinitionSchema, type AssistantDefinition } from '../assistants/schema.ts';
 import { effectivePolicy, inspect } from '../policy/data-policy.ts';
 import { applyFloor, policyState, restrictedHits } from '../policy/usage-policy.ts';
-import { runAreaFor } from '../areas/sharing.ts';
+import { eligibleRunAreas, runAreaFor } from '../areas/sharing.ts';
 import { detectKind, readFile } from '../blocks/ler.ts';
 import { enabledReaders } from '../readers/registry.ts';
 import { typeLabels } from '../policy/detectors.ts';
@@ -32,6 +33,7 @@ const createSchema = z.object({
     mime: z.string().max(120).default('application/octet-stream'),
   })).max(500).default([]),
   areaSlug: z.string().max(60).optional(),               // assistente compartilhado: por qual área a pessoa o usa
+  quickWinId: z.uuid().nullable().optional(),            // assistente em mais de um quick win ativo: em qual conta esta execução
   confirmedWarnings: z.array(z.string()).max(20).default([]),
 });
 
@@ -76,11 +78,16 @@ export async function runRoutes(app: FastifyInstance) {
         `select a.id, a.slug, a.name, a.status, a.area_id, a.company_wide, a.current_version, v.definition from assistants a
          join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version where a.slug = $1`, [body.assistant])).rows[0];
       // Assistente compartilhado: a execução fica na área pela qual a pessoa o usa (e a revisão segue essa área).
-      const runArea = row ? await runAreaFor(tx, row, a.areaIds, a.allAreas, body.areaSlug) : null;
-      return { config: parseTenantConfig(t?.config).config, row, usage, runArea };
+      let runArea = row ? await runAreaFor(tx, row, a.areaIds, a.allAreas, body.areaSlug) : null;
+      const context = row && runArea !== undefined
+        ? resolveRunQuickWin(await activeQuickWinsFor(tx, row.id), runArea, body.quickWinId, await eligibleRunAreas(tx, row, a.areaIds, a.allAreas))
+        : { quickWinId: null };
+      if (!('error' in context) && context.areaId) runArea = context.areaId;
+      return { config: parseTenantConfig(t?.config).config, row, usage, runArea, context };
     });
-    const { config, row, usage, runArea } = loaded;
+    const { config, row, usage, runArea, context } = loaded;
     if (runArea === undefined) return reply.code(400).send({ error: 'area_nao_serve', detalhe: 'o assistente não é usado por esta área' });
+    if ('error' in context) return reply.code(409).send({ error: context.error, detalhe: 'o assistente está em mais de um quick win: escolha em qual esta execução conta', opcoes: context.opcoes });
     if (!usage.acked) return reply.code(428).send({ error: 'ciencia_da_politica_pendente', version: usage.policy!.version });
     if (!row || !['piloto', 'ativo'].includes(row.status)) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
     const def = assistantDefinitionSchema.parse(row.definition);
@@ -157,22 +164,22 @@ export async function runRoutes(app: FastifyInstance) {
     try {
       await withTenant(app.deps.db, tenantCtx(a), async tx => {
         await tx.query(
-          `insert into runs (id, tenant_id, assistant_id, assistant_version, area_id, user_id, input_text, input_sha256, confirmed_warnings, expires_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + make_interval(days => $10))`,
-          [runId, a.tenantId, row.id, row.current_version, runArea, a.userId, text, inputSha, body.confirmedWarnings, days]);
+          `insert into runs (id, tenant_id, assistant_id, assistant_version, area_id, user_id, input_text, input_sha256, confirmed_warnings, expires_at, quick_win_id)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + make_interval(days => $10), $11)`,
+          [runId, a.tenantId, row.id, row.current_version, runArea, a.userId, text, inputSha, body.confirmedWarnings, days, context.quickWinId]);
         for (const [i, f] of files.entries()) {
           await tx.query(`insert into run_files (id, tenant_id, run_id, name, mime, bytes, sha256, object_key) values ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [f.id, a.tenantId, runId, f.name, f.mime, f.bytes.length, f.sha256, keys[i]]);
         }
         await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'execucao_iniciada', target: `execucao:${runId}`,
-          details: { assistente: row.slug, versao: row.current_version, entradas: files.map(f => ({ nome: f.name, sha256: f.sha256 })) } });
+          details: { assistente: row.slug, versao: row.current_version, quickWin: context.quickWinId, entradas: files.map(f => ({ nome: f.name, sha256: f.sha256 })) } });
       });
     } catch (e) {
       await app.deps.objects.deletePrefix(`${tenantPrefix(a.tenantId)}runs/${runId}/`).catch(() => {}); // sem arquivo órfão
       throw e;
     }
     await app.deps.queue.enqueue('run:execute', { runId, tenantId: a.tenantId });
-    return reply.code(202).send({ runId, status: 'processando' });
+    return reply.code(202).send({ runId, status: 'processando', quickWinId: context.quickWinId });
   });
 
   app.get('/api/runs', async (req, reply) => {

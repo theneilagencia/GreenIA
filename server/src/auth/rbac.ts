@@ -3,7 +3,8 @@
 //
 // usuario        usa o chat e consulta a base das suas áreas.
 // revisor        + aprova saídas de assistentes da área (Fase 3).
-// key_user       + administra a área: base de conhecimento e pessoas (usuario, revisor).
+// key_user       + administra a área: base de conhecimento e pessoas (usuario, revisor); propõe oportunidades.
+// patrocinador   seleciona oportunidades como quick win e registra a decisão final (no tenant ou numa área).
 // admin_cliente  + administra o tenant: áreas, pessoas, papéis, configuração, auditoria.
 // admin_theneil  + operações de plataforma (criar tenant), só no tenant interno da TheNeil.
 import type { AuthContext, Role } from './session.ts';
@@ -17,14 +18,16 @@ export type Permission =
   | 'areas.manage'
   | 'tenant.configure'
   | 'audit.read'
-  | 'platform.tenants';
+  | 'platform.tenants'
+  | 'qw.decide';
 
 const TENANT_WIDE: Record<Role, Permission[]> = {
   usuario: ['chat.use', 'kb.read'],
   revisor: ['chat.use', 'kb.read', 'outputs.review'],
   key_user: ['chat.use', 'kb.read', 'kb.manage', 'people.manage', 'outputs.review', 'audit.read'],
-  admin_cliente: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read'],
-  admin_theneil: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'platform.tenants'],
+  patrocinador: ['chat.use', 'kb.read', 'qw.decide'],
+  admin_cliente: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'qw.decide'],
+  admin_theneil: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'platform.tenants', 'qw.decide'],
 };
 
 // Permissões que um papel dá dentro de uma área específica.
@@ -32,6 +35,7 @@ const IN_AREA: Record<Role, Permission[]> = {
   usuario: ['chat.use', 'kb.read'],
   revisor: ['chat.use', 'kb.read', 'outputs.review'],
   key_user: ['chat.use', 'kb.read', 'kb.manage', 'people.manage', 'outputs.review', 'audit.read'],
+  patrocinador: ['chat.use', 'kb.read', 'qw.decide'],
   admin_cliente: [],
   admin_theneil: [],
 };
@@ -49,7 +53,7 @@ export function can(auth: AuthContext, perm: Permission, areaId?: string | null)
 // Papéis que cada um pode atribuir a outras pessoas.
 export function assignableRoles(auth: AuthContext, areaId: string | null): Role[] {
   if (auth.roles.includes('admin_theneil') || auth.roles.includes('admin_cliente')) {
-    return areaId ? ['usuario', 'revisor', 'key_user'] : ['usuario', 'admin_cliente'];
+    return areaId ? ['usuario', 'revisor', 'key_user', 'patrocinador'] : ['usuario', 'patrocinador', 'admin_cliente'];
   }
   if (areaId && auth.areaRoles.some(a => a.areaId === areaId && a.role === 'key_user')) return ['usuario', 'revisor'];
   return [];

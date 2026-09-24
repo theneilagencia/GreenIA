@@ -141,6 +141,14 @@
                   <sc-for list="{{ runFiles }}" as="f" hint-placeholder-count="0"><li>{{ f.label }}</li></sc-for>
                 </ul>
               </sc-if>
+              <sc-if value="{{ hasRunQwChoice }}">
+                <label for="gia-run-qw" style="display:block;font:500 14px 'Hanken Grotesk';margin:14px 0 6px;">Esta execução conta em qual quick win?</label>
+                <select id="gia-run-qw" class="gia-field" value="{{ runQw }}" onChange="{{ onRunQw }}">
+                  <option value="">Pela área de quem executa</option>
+                  <sc-for list="{{ runQwOptions }}" as="q" hint-placeholder-count="0"><option value="{{ q.id }}">{{ q.label }}</option></sc-for>
+                  <option value="nenhum">Nenhum (fora dos quick wins)</option>
+                </select>
+              </sc-if>
               <sc-if value="{{ runWarn }}">
                 <div role="alert" style="margin-top:14px;background:var(--gia-sand);border-radius:10px;padding:12px 14px;font:400 14px/1.5 'Hanken Grotesk';">
                   <p style="margin:0 0 8px;color:var(--gia-amber-text);font-weight:600;">{{ runWarnText }}</p>
@@ -325,7 +333,7 @@
           <div>
             <label for="gia-opp-fs" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Situação</label>
             <select id="gia-opp-fs" class="gia-field" value="{{ oppFilter.status }}" onChange="{{ onOppFilter.status }}">
-              <option value="">Todas</option><option value="identificada">identificada</option><option value="avaliada">avaliada</option><option value="selecionada">selecionada</option>
+              <option value="">Todas</option><option value="registrada">registrada</option><option value="avaliada">avaliada</option><option value="selecionada">selecionada</option><option value="roadmap">enviada ao roadmap</option><option value="arquivada">arquivada</option>
             </select>
           </div>
           <div>
@@ -403,16 +411,41 @@
                 <button onClick="{{ evaluateOpp }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Avaliar</button>
               </sc-if>
 
+              <sc-if value="{{ oppView.canPark }}">
+                <h3 style="font:600 14px 'Hanken Grotesk';margin:16px 0 8px;">Enviar ao roadmap ou arquivar</h3>
+                <p style="font:400 13px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 6px;">Roadmap: grande ou complexa demais para quick win. Arquivar: não vai ser feita. O motivo é obrigatório.</p>
+                <textarea class="gia-field" aria-label="Motivo" placeholder="Motivo" rows="2" value="{{ devMotivo }}" onInput="{{ onDevMotivo }}"></textarea>
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                  <button onClick="{{ sendRoadmap }}" style="background:transparent;color:var(--gia-ink);border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Enviar ao roadmap</button>
+                  <button onClick="{{ archiveOpp }}" style="background:transparent;color:var(--gia-ink);border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Arquivar</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ oppView.canReopen }}">
+                <h3 style="font:600 14px 'Hanken Grotesk';margin:16px 0 8px;">Reabrir</h3>
+                <textarea class="gia-field" aria-label="Motivo" placeholder="Por que reabrir" rows="2" value="{{ devMotivo }}" onInput="{{ onDevMotivo }}"></textarea>
+                <button onClick="{{ reopenOpp }}" style="margin-top:8px;background:transparent;color:var(--gia-ink);border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Reabrir no portfólio</button>
+              </sc-if>
+              <sc-if value="{{ oppView.waitSponsor }}">
+                <p role="note" style="font:500 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:16px 0 0;">Avaliada. A seleção como quick win é do patrocinador da área ou do admin do cliente.</p>
+              </sc-if>
               <sc-if value="{{ oppView.canSelect }}">
-                <h3 style="font:600 14px 'Hanken Grotesk';margin:16px 0 8px;">Devolver ao portfólio</h3>
-                <textarea class="gia-field" aria-label="Motivo da devolução" placeholder="Motivo da devolução" rows="2" value="{{ devMotivo }}" onInput="{{ onDevMotivo }}"></textarea>
-                <button onClick="{{ returnOpp }}" style="margin-top:8px;background:transparent;color:var(--gia-ink);border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Devolver ao portfólio</button>
-
                 <h3 style="font:600 14px 'Hanken Grotesk';margin:16px 0 8px;">Selecionar como quick win</h3>
                 <textarea class="gia-field" aria-label="Objetivo" placeholder="Objetivo" rows="2" value="{{ selForm.objetivo }}" onInput="{{ onSelForm.objetivo }}"></textarea>
                 <input class="gia-field" aria-label="Responsável (email)" placeholder="Responsável (email)" value="{{ selForm.responsavel }}" onInput="{{ onSelForm.responsavel }}" style="margin-top:8px;">
                 <input type="date" class="gia-field" aria-label="Prazo" value="{{ selForm.prazo }}" onInput="{{ onSelForm.prazo }}" style="margin-top:8px;">
                 <input class="gia-field" aria-label="Revisores (emails separados por vírgula)" placeholder="Revisores (emails separados por vírgula)" value="{{ selForm.revisores }}" onInput="{{ onSelForm.revisores }}" style="margin-top:8px;">
+                <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Janela do ponto de partida</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input type="date" class="gia-field" aria-label="Início do ponto de partida" value="{{ selForm.baseIni }}" onInput="{{ onSelForm.baseIni }}" style="width:auto;">
+                  <input type="date" class="gia-field" aria-label="Fim do ponto de partida" value="{{ selForm.baseFim }}" onInput="{{ onSelForm.baseFim }}" style="width:auto;">
+                  <input class="gia-field" aria-label="Volume no ponto de partida" placeholder="Volume" inputmode="decimal" value="{{ selForm.baseVol }}" onInput="{{ onSelForm.baseVol }}" style="width:110px;">
+                </div>
+                <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Janela de medição</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input type="date" class="gia-field" aria-label="Início da medição" value="{{ selForm.medIni }}" onInput="{{ onSelForm.medIni }}" style="width:auto;">
+                  <input type="date" class="gia-field" aria-label="Fim da medição" value="{{ selForm.medFim }}" onInput="{{ onSelForm.medFim }}" style="width:auto;">
+                  <input class="gia-field" aria-label="O que é um item" placeholder="O que é um item (ex.: guia)" value="{{ selForm.unidade }}" onInput="{{ onSelForm.unidade }}" style="width:200px;">
+                </div>
                 <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Assistentes</p>
                 <sc-if value="{{ noSelAssistants }}"><p style="font:400 13px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nenhum assistente disponível.</p></sc-if>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -430,6 +463,7 @@
                     <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
                       <input class="gia-field" aria-label="{{ r.unitAria }}" placeholder="Unidade" value="{{ r.unit }}" onInput="{{ r.onUnit }}" style="width:110px;">
                       <select class="gia-field" aria-label="{{ r.dirAria }}" value="{{ r.direction }}" onChange="{{ r.onDirection }}" style="width:auto;"><option value="menor_melhor">menor é melhor</option><option value="maior_melhor">maior é melhor</option></select>
+                      <select class="gia-field" aria-label="{{ r.cmpAria }}" value="{{ r.comparacao }}" onChange="{{ r.onComparacao }}" style="width:auto;"><option value="valor">comparar o valor</option><option value="por_mes">comparar por mês</option><option value="por_item">comparar por item</option></select>
                       <select class="gia-field" aria-label="{{ r.autoAria }}" value="{{ r.auto }}" onChange="{{ r.onAuto }}" style="width:auto;">
                         <option value="">lançado à mão</option>
                         <sc-for list="{{ autoOptions }}" as="x" hint-placeholder-count="0"><option value="{{ x.key }}">{{ x.label }}</option></sc-for>
@@ -473,6 +507,7 @@
             <h2 style="font:600 18px 'Hanken Grotesk';margin:0 0 6px;">{{ met.titulo }}</h2>
             <p style="font:500 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">{{ met.meta }}</p>
             <sc-for list="{{ met.lines }}" as="l" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 6px;">{{ l }}</p></sc-for>
+            <sc-for list="{{ met.windowWarnings }}" as="w" hint-placeholder-count="0"><p role="note" style="font:500 14px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);margin:6px 0 0;">{{ w }}</p></sc-for>
           </div>
           <sc-if value="{{ met.aviso }}"><p role="note" style="font:600 15px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);background:var(--gia-sand);border-radius:10px;padding:12px 14px;">{{ met.aviso }}</p></sc-if>
           <div style="overflow-x:auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;margin-bottom:18px;">
@@ -495,6 +530,12 @@
                 <textarea class="gia-field" aria-label="Motivo da mudança de etapa" placeholder="Motivo da mudança de etapa" rows="2" value="{{ stageNote }}" onInput="{{ onStageNote }}"></textarea>
                 <button onClick="{{ advanceStage }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ met.advanceLabel }}</button>
               </sc-if>
+              <sc-if value="{{ met.canRoadmap }}">
+                <h3 style="font:600 14px 'Hanken Grotesk';margin:14px 0 8px;">Complexo demais? Voltar ao roadmap</h3>
+                <textarea class="gia-field" aria-label="Motivo da volta ao roadmap" placeholder="Motivo" rows="2" value="{{ qwRoadmapNote }}" onInput="{{ onQwRoadmapNote }}"></textarea>
+                <button onClick="{{ qwToRoadmap }}" style="margin-top:8px;background:transparent;color:var(--gia-ink);border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Voltar ao roadmap</button>
+              </sc-if>
+              <sc-if value="{{ met.waitSponsor }}"><p role="note" style="font:500 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:14px 0 0;">A decisão final é do patrocinador ou do admin do cliente.</p></sc-if>
               <sc-if value="{{ met.canDecide }}">
                 <h3 style="font:600 14px 'Hanken Grotesk';margin:14px 0 8px;">Registrar decisão</h3>
                 <select class="gia-field" aria-label="Decisão" value="{{ decForm.decisao }}" onChange="{{ onDec.decisao }}"><option value="manter">manter</option><option value="descartar">descartar</option><option value="ampliar">ampliar</option></select>
@@ -510,10 +551,30 @@
                 <input class="gia-field" aria-label="Título do novo quick win" placeholder="Título do novo quick win" value="{{ ampForm.titulo }}" onInput="{{ onAmp.titulo }}" style="margin-top:8px;">
                 <input class="gia-field" aria-label="Objetivo do novo quick win" placeholder="Objetivo" value="{{ ampForm.objetivo }}" onInput="{{ onAmp.objetivo }}" style="margin-top:8px;">
                 <input class="gia-field" aria-label="Responsável pelo novo quick win (email)" placeholder="Responsável (email)" value="{{ ampForm.responsavel }}" onInput="{{ onAmp.responsavel }}" style="margin-top:8px;">
+                <select class="gia-field" aria-label="Recursos do novo quick win" value="{{ ampForm.recursos }}" onChange="{{ onAmp.recursos }}" style="margin-top:8px;"><option value="compartilhar">compartilhar os mesmos assistentes e documentos</option><option value="duplicar">duplicar (cópia independente na área nova)</option></select>
                 <textarea class="gia-field" aria-label="Por que ampliar" placeholder="Por que ampliar" rows="2" value="{{ ampForm.nota }}" onInput="{{ onAmp.nota }}" style="margin-top:8px;"></textarea>
                 <button onClick="{{ amplify }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Criar quick win ampliado</button>
               </sc-if>
             </div>
+            <sc-if value="{{ met.canEditWindows }}">
+              <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+                <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Janelas</h2>
+                <p style="font:500 14px 'Hanken Grotesk';margin:0 0 6px;">Ponto de partida</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input type="date" class="gia-field" aria-label="Início da janela do ponto de partida" value="{{ winForm.baseIni }}" onInput="{{ onWin.baseIni }}" style="width:auto;">
+                  <input type="date" class="gia-field" aria-label="Fim da janela do ponto de partida" value="{{ winForm.baseFim }}" onInput="{{ onWin.baseFim }}" style="width:auto;">
+                  <input class="gia-field" aria-label="Volume da janela do ponto de partida" placeholder="Volume" inputmode="decimal" value="{{ winForm.baseVol }}" onInput="{{ onWin.baseVol }}" style="width:110px;">
+                </div>
+                <p style="font:500 14px 'Hanken Grotesk';margin:10px 0 6px;">Medição</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input type="date" class="gia-field" aria-label="Início da janela de medição" value="{{ winForm.medIni }}" onInput="{{ onWin.medIni }}" style="width:auto;">
+                  <input type="date" class="gia-field" aria-label="Fim da janela de medição" value="{{ winForm.medFim }}" onInput="{{ onWin.medFim }}" style="width:auto;">
+                  <input class="gia-field" aria-label="Volume da janela de medição" placeholder="Volume (vazio: execuções)" inputmode="decimal" value="{{ winForm.medVol }}" onInput="{{ onWin.medVol }}" style="width:180px;">
+                </div>
+                <input class="gia-field" aria-label="O que é um item do processo" placeholder="O que é um item (ex.: guia)" value="{{ winForm.unidade }}" onInput="{{ onWin.unidade }}" style="margin-top:8px;">
+                <button onClick="{{ saveWindows }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar janelas</button>
+              </div>
+            </sc-if>
             <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
               <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Registrar valor de indicador</h2>
               <sc-if value="{{ met.noIndicators }}"><p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 8px;">Defina os indicadores do quick win para registrar valores.</p></sc-if>
@@ -748,7 +809,7 @@
       <sc-if value="{{ admPeople }}">
         <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
           <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Importar pessoas por CSV</h2>
-          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Colunas: email; nome; área; papel (usuario, revisor, key_user ou admin_cliente). Área vazia vale para o cliente todo.</p>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Colunas: email; nome; área; papel (usuario, revisor, key_user, patrocinador ou admin_cliente). Área vazia vale para o cliente todo. O patrocinador seleciona oportunidades como quick win e registra a decisão final.</p>
           <input type="file" aria-label="Arquivo CSV" onChange="{{ onCsvFile }}" style="font:400 14px 'Hanken Grotesk';margin-bottom:8px;">
           <textarea class="gia-field" aria-label="Conteúdo do CSV" rows="8" value="{{ csvText }}" onInput="{{ onCsvText }}" style="font:400 13px/1.45 ui-monospace,Menlo,monospace;"></textarea>
           <div style="display:flex;gap:10px;margin-top:10px;">
@@ -1066,10 +1127,12 @@ const AUTO_LABEL = {
   consumo: 'consumo de IA (R$)', volume: 'execuções concluídas', usuarios_ativos: 'pessoas que usaram',
 };
 const ORIGEM_LABEL = { medido: 'medido', informado: 'informado', automatico: 'automático' };
-const STAGE_NAMES = { identificada: 'identificada', avaliada: 'avaliada', selecionada: 'selecionada', em_implantacao: 'em implantação', em_medicao: 'em medição', decisao: 'decisão', encerrada: 'encerrada' };
+const STAGE_NAMES = { registrada: 'registrada', avaliada: 'avaliada', selecionada: 'selecionada', roadmap: 'enviado ao roadmap', arquivada: 'arquivada', em_implantacao: 'em implantação', em_medicao: 'em medição', decisao: 'decisão', encerrada: 'encerrado' };
 const EMPTY_OPP = { area: '', titulo: '', processo: '', problema: '', executorAtual: '', volume: '', evidencia: 'hipotese', evidenciaNota: '' };
-const EMPTY_SEL = { objetivo: '', responsavel: '', prazo: '', revisores: '', nota: '' };
-const EMPTY_AMP = { area: '', titulo: '', objetivo: '', responsavel: '', nota: '' };
+const EMPTY_SEL = { objetivo: '', responsavel: '', prazo: '', revisores: '', nota: '', baseIni: '', baseFim: '', baseVol: '', medIni: '', medFim: '', unidade: '' };
+const EMPTY_WIN = { baseIni: '', baseFim: '', baseVol: '', medIni: '', medFim: '', medVol: '', unidade: '' };
+const EMPTY_AMP = { area: '', titulo: '', objetivo: '', responsavel: '', nota: '', recursos: 'compartilhar' };
+const winText = (w, u) => w && w.inicio && w.fim ? w.inicio + ' a ' + w.fim + ' (' + w.dias + ' dias' + (w.volume ? ', ' + fmtNum(w.volume) + ' ' + (u || 'itens') : '') + ')' : 'sem datas';
 const slugKey = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
 
 class Component extends DCLogic {
@@ -1078,12 +1141,12 @@ class Component extends DCLogic {
     this.state = {
       tab: 'executar', adminTab: 'assistentes',
       tenant: null, session: null, booted: false, bootMessage: '',
-      assistants: [], selected: null, runText: '', runFiles: [], runBusy: false, runMsg: '', runWarn: null,
+      assistants: [], selected: null, runText: '', runFiles: [], runBusy: false, runMsg: '', runWarn: null, runQw: '',
       currentRun: null, myRuns: [],
       queue: [], review: null, reviewEdit: null, selItem: null, rejectOpen: false, rejectReason: '', reviewBusy: false, reviewMsg: '',
       qwTab: 'portfolio', crit: null, opps: [], oppFilter: { area: '', status: '', criterio: '', min: '' }, oppForm: { ...EMPTY_OPP }, opp: null,
       evalNotas: {}, evalNota: '', devMotivo: '', selForm: { ...EMPTY_SEL }, selAssist: [], selDocs: [], selInd: [], kbDocs: [],
-      qws: [], qwId: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), qwMsg: '', qwOk: true, stageNote: '', ampForm: { ...EMPTY_AMP },
+      qws: [], qwId: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), qwMsg: '', qwOk: true, stageNote: '', ampForm: { ...EMPTY_AMP }, winForm: { ...EMPTY_WIN }, qwRoadmapNote: '',
       valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '' },
       decForm: { decisao: 'manter', justificativa: '' }, critEdit: null,
       adminMsg: '', adminOk: true, editor: null, areas: [], readers: [], catalog: [], areaModels: [], areaModel: '', detectors: null, allReaders: [], detForm: { label: '', pattern: '', validation: 'nenhuma', context: '', cls: 'amarela', action: 'avisar' }, detTest: '', detTestResult: '', areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
@@ -1170,13 +1233,14 @@ class Component extends DCLogic {
   // ---- Papéis -------------------------------------------------------------------
   _roles() {
     const s = this.state.session;
-    if (!s) return { reviewer: false, manager: false, admin: false };
+    if (!s) return { reviewer: false, manager: false, admin: false, sponsor: false };
     const tenantWide = s.roles || [];
     const inArea = (s.areas || []).map(a => a.role);
     const admin = tenantWide.includes('admin_cliente') || tenantWide.includes('admin_theneil');
     const manager = admin || inArea.includes('key_user');
     const reviewer = manager || tenantWide.includes('revisor') || inArea.includes('revisor');
-    return { reviewer, manager, admin };
+    const sponsor = admin || tenantWide.includes('patrocinador') || inArea.includes('patrocinador');
+    return { reviewer, manager, admin, sponsor };
   }
 
   setTab(tab) {
@@ -1189,7 +1253,7 @@ class Component extends DCLogic {
   // ---- Executar -----------------------------------------------------------------
   async selectAssistant(slug) {
     const r = await this._fetch('/api/assistants/' + encodeURIComponent(slug));
-    if (r.ok) this.setState({ selected: r.data, runText: '', runFiles: [], runMsg: '', runWarn: null });
+    if (r.ok) this.setState({ selected: r.data, runText: '', runFiles: [], runMsg: '', runWarn: null, runQw: '' });
   }
 
   onRunFiles(e) {
@@ -1206,6 +1270,7 @@ class Component extends DCLogic {
     if (!sel || this.state.runBusy) return;
     this.setState({ runBusy: true, runMsg: 'Enviando...', runWarn: null });
     const body = { assistant: sel.slug, text: this.state.runText, files: this.state.runFiles.map(f => ({ name: f.name, mime: f.mime, contentBase64: f.b64 })), confirmedWarnings: confirmed || [] };
+    if (this.state.runQw) body.quickWinId = this.state.runQw === 'nenhum' ? null : this.state.runQw;
     const r = await this._fetch('/api/runs', { method: 'POST', body });
     if (r.status === 409 && r.data.error === 'confirmacao_necessaria') {
       this.setState({ runBusy: false, runMsg: '', runWarn: { types: r.data.types, rotulos: r.data.rotulos || {} } });
@@ -1228,6 +1293,8 @@ class Component extends DCLogic {
     if (e === 'arquivo_obrigatorio') return 'Envie pelo menos um arquivo.';
     if (e === 'texto_obrigatorio') return 'Escreva o texto pedido.';
     if (e === 'cota_mensal_esgotada') return 'A cota de consumo do mês acabou. Fale com o administrador.';
+    if (e === 'escolha_o_quick_win') return 'Este assistente está em mais de um quick win. Escolha acima em qual esta execução conta.';
+    if (e === 'quick_win_nao_serve') return 'O quick win escolhido não usa este assistente.';
     if (e === 'muitas_requisicoes' || e === 'muitas_requisicoes_no_cliente') return 'Muitos envios seguidos. Tente de novo em instantes.';
     if (r.data.detalhes) return 'Não foi possível: ' + r.data.detalhes.join('; ');
     return 'Não foi possível agora (' + (e || r.status) + '). Tente de novo.';
@@ -1411,20 +1478,28 @@ class Component extends DCLogic {
     this._qwMsg('Oportunidade avaliada. Nota ' + fmtNum(r.data.nota, 1) + '.');
     this.loadOpps();
   }
-  async returnOpp() {
-    const r = await this._fetch('/api/opportunities/' + this.state.opp.id + '/devolver', { method: 'POST', body: { motivo: this.state.devMotivo } });
-    if (!r.ok) { this._qwMsg('Não devolvida: ' + (r.data.error === 'dados_invalidos' ? 'escreva o motivo.' : this._err(r)), false); return; }
-    this._qwMsg('Oportunidade devolvida ao portfólio.');
+  // Roadmap, arquivo e reabertura: sempre com motivo.
+  async moveOpp(path, done) {
+    const r = await this._fetch('/api/opportunities/' + this.state.opp.id + '/' + path, { method: 'POST', body: { motivo: this.state.devMotivo } });
+    if (!r.ok) { this._qwMsg('Não registrado: ' + (r.data.error === 'dados_invalidos' ? 'escreva o motivo.' : this._err(r)), false); return; }
+    this.setState({ devMotivo: '' });
+    this._qwMsg(done);
     this.loadOpps();
+  }
+  _windows(f, withMedVol) {
+    const num = v => String(v || '').trim() === '' ? null : Number(String(v).replace(',', '.'));
+    const j = { pontoDePartida: { inicio: f.baseIni || null, fim: f.baseFim || null, volume: num(f.baseVol) }, medicao: { inicio: f.medIni || null, fim: f.medFim || null }, unidadeVolume: f.unidade || '' };
+    if (withMedVol) j.medicao.volume = num(f.medVol);
+    return j;
   }
   async selectOpp() {
     const f = this.state.selForm;
-    const indicadores = this.state.selInd.filter(i => i.label.trim()).map(i => ({ key: slugKey(i.label), label: i.label.trim(), unit: i.unit.trim(), direction: i.direction, auto: i.auto || null }));
+    const indicadores = this.state.selInd.filter(i => i.label.trim()).map(i => ({ key: slugKey(i.label), label: i.label.trim(), unit: i.unit.trim(), direction: i.direction, auto: i.auto || null, comparacao: i.comparacao || 'valor' }));
     const body = { objetivo: f.objetivo, responsavel: f.responsavel, prazo: f.prazo || undefined, revisores: f.revisores.split(',').map(x => x.trim()).filter(Boolean), nota: f.nota,
-      recursos: { assistentes: this.state.selAssist, documentos: this.state.selDocs }, indicadores };
+      recursos: { assistentes: this.state.selAssist, documentos: this.state.selDocs }, indicadores, janelas: this._windows(f, false) };
     const r = await this._fetch('/api/opportunities/' + this.state.opp.id + '/selecionar', { method: 'POST', body });
     if (!r.ok) {
-      this._qwMsg(r.data.error === 'cota_de_quick_wins' ? 'Cota do plano atingida: ' + r.data.maximo + ' quick wins em andamento. Encerre um ou fale com a TheNeil.' : 'Quick win não criado: ' + this._err(r), false);
+      this._qwMsg(r.data.error === 'cota_de_quick_wins' ? 'Cota do plano atingida: ' + r.data.maximo + ' quick wins em andamento. Encerre um ou fale com a TheNeil.' : r.data.error === 'so_patrocinador_ou_admin' ? 'Só o patrocinador ou o admin do cliente seleciona.' : 'Quick win não criado: ' + this._err(r), false);
       return;
     }
     this._qwMsg('Quick win criado.' + (r.data.aviso ? ' ' + r.data.aviso : ''));
@@ -1436,13 +1511,29 @@ class Component extends DCLogic {
     if (this.state.qwId) this.loadMetrics();
   }
   openQw(id) {
-    this.setState({ qwTab: 'quickwins', qwId: id, metrics: null, stageNote: '', ampForm: { ...EMPTY_AMP }, decForm: { decisao: 'manter', justificativa: '' } }, () => this.loadQws());
+    this.setState({ qwTab: 'quickwins', qwId: id, metrics: null, stageNote: '', qwRoadmapNote: '', ampForm: { ...EMPTY_AMP }, winForm: { ...EMPTY_WIN }, decForm: { decisao: 'manter', justificativa: '' } }, () => this.loadQws());
   }
   async loadMetrics() {
     const id = this.state.qwId;
     if (!id) return;
     const r = await this._fetch('/api/quick-wins/' + id + '?de=' + this.state.metricsFrom + '&ate=' + this.state.metricsTo);
-    this.setState(r.ok ? { metrics: r.data } : { metrics: null, qwMsg: 'Não foi possível carregar o quick win.', qwOk: false });
+    if (!r.ok) { this.setState({ metrics: null, qwMsg: 'Não foi possível carregar o quick win.', qwOk: false }); return; }
+    const j = r.data.janelas, v = x => x === null || x === undefined ? '' : String(x);
+    this.setState({ metrics: r.data, winForm: { baseIni: v(j.pontoDePartida.inicio), baseFim: v(j.pontoDePartida.fim), baseVol: v(j.pontoDePartida.volume),
+      medIni: v(j.medicao.inicio), medFim: v(j.medicao.fim), medVol: j.medicao.volumeOrigem === 'informado' ? v(j.medicao.volume) : '', unidade: v(j.unidadeVolume) } });
+  }
+  async saveWindows() {
+    const r = await this._fetch('/api/quick-wins/' + this.state.qwId, { method: 'PATCH', body: { janelas: this._windows(this.state.winForm, true) } });
+    if (!r.ok) { this._qwMsg('Janelas não salvas: ' + this._err(r), false); return; }
+    this._qwMsg('Janelas salvas.' + ((r.data.avisosDasJanelas || []).length ? ' ' + r.data.avisosDasJanelas.join(' ') : ''));
+    this.loadMetrics();
+  }
+  async qwToRoadmap() {
+    const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/roadmap', { method: 'POST', body: { motivo: this.state.qwRoadmapNote } });
+    if (!r.ok) { this._qwMsg('Não voltou ao roadmap: ' + (r.data.error === 'dados_invalidos' ? 'escreva o motivo.' : this._err(r)), false); return; }
+    this.setState({ qwRoadmapNote: '' });
+    this._qwMsg('Quick win enviado ao roadmap. A oportunidade voltou ao portfólio; outra pode ser selecionada no lugar.');
+    this.loadQws();
   }
   async saveValue() {
     const f = this.state.valForm;
@@ -1463,15 +1554,15 @@ class Component extends DCLogic {
   }
   async saveDecision() {
     const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/decisao', { method: 'POST', body: this.state.decForm });
-    if (!r.ok) { this._qwMsg('Não registrada: ' + (r.data.error === 'dados_invalidos' ? 'a justificativa precisa de pelo menos 10 caracteres.' : this._err(r)), false); return; }
+    if (!r.ok) { this._qwMsg('Não registrada: ' + (r.data.error === 'dados_invalidos' ? 'a justificativa precisa de pelo menos 10 caracteres.' : r.data.error === 'so_patrocinador_ou_admin' ? 'só o patrocinador ou o admin do cliente decide.' : this._err(r)), false); return; }
     this._qwMsg('Decisão registrada.');
     this.loadQws();
   }
   async amplify() {
     const f = this.state.ampForm;
-    const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/ampliar', { method: 'POST', body: { areas: f.area ? [f.area] : [], titulo: f.titulo, objetivo: f.objetivo, responsavel: f.responsavel, nota: f.nota } });
+    const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/ampliar', { method: 'POST', body: { areas: f.area ? [f.area] : [], titulo: f.titulo, objetivo: f.objetivo, responsavel: f.responsavel, nota: f.nota, recursos: f.recursos } });
     if (!r.ok) { this._qwMsg('Ampliação não criada: ' + this._err(r), false); return; }
-    this._qwMsg('Quick win ampliado criado, com baseline próprio.' + (r.data.aviso ? ' ' + r.data.aviso : ''));
+    this._qwMsg('Quick win ampliado criado, com baseline próprio e recursos ' + r.data.recursos + '.' + (r.data.aviso ? ' ' + r.data.aviso : ''));
     this.openQw(r.data.id);
   }
   setInd(i, k, v) { const rows = clone(this.state.selInd); rows[i][k] = v; this.setState({ selInd: rows }); }
@@ -1782,7 +1873,7 @@ class Component extends DCLogic {
     const backend = this._api() !== null;
     const authed = !!st.session;
     const roles = this._roles();
-    const tabDefs = [['executar', 'Assistentes', true], ['revisar', 'Revisão', roles.reviewer], ['resultados', 'Quick wins', roles.manager], ['admin', 'Administração', roles.manager]];
+    const tabDefs = [['executar', 'Assistentes', true], ['revisar', 'Revisão', roles.reviewer], ['resultados', 'Quick wins', roles.manager || roles.sponsor], ['admin', 'Administração', roles.manager]];
     const tabs = authed ? tabDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.tab === t[0] ? 'page' : 'false', bg: st.tab === t[0] ? 'rgba(255,255,255,0.16)' : 'transparent', onClick: () => this.setTab(t[0]) })) : [];
     const chatHref = this._url('/GreenIA.dc.html');
 
@@ -1833,16 +1924,20 @@ class Component extends DCLogic {
     const o = st.opp;
     const oppView = o ? {
       titulo: o.titulo,
-      meta: o.area + ' · ' + o.status + ' · nota ' + fmtNum(o.nota, 1) + ' · evidência ' + evid(o.evidencia),
+      meta: o.area + ' · ' + (STAGE_NAMES[o.status] || o.status) + ' · nota ' + fmtNum(o.nota, 1) + ' · evidência ' + evid(o.evidencia),
       lines: [
         'Processo: ' + o.processo, 'Problema: ' + o.problema, 'Quem executa hoje: ' + (o.executorAtual || '—'), 'Volume: ' + (o.volume || '—'),
         o.evidenciaNota ? 'Sobre a evidência: ' + o.evidenciaNota : '',
+        o.motivo ? 'Motivo (' + (STAGE_NAMES[o.status] || o.status) + '): ' + o.motivo : '',
         o.notas ? 'Notas: ' + (o.criteriosUsados ? o.criteriosUsados.criterios : critList).map(c => c.label + ' ' + fmtNum(o.notas[c.key])).join(' · ') : '',
         o.quickWin ? 'Quick win: ' + (STAGE_NAMES[o.quickWin.etapa] || o.quickWin.etapa) : '',
-        o.ultimoRegistro ? 'Último registro: ' + o.ultimoRegistro : '',
+        !o.motivo && o.ultimoRegistro ? 'Último registro: ' + o.ultimoRegistro : '',
       ].filter(Boolean),
-      canEvaluate: o.status !== 'selecionada',
-      canSelect: o.status === 'avaliada',
+      canEvaluate: !!o.podePropor && (o.status === 'registrada' || o.status === 'avaliada'),
+      canPark: !!o.podePropor && (o.status === 'registrada' || o.status === 'avaliada'),
+      canReopen: !!o.podePropor && (o.status === 'roadmap' || o.status === 'arquivada'),
+      canSelect: !!o.podeDecidir && o.status === 'avaliada',
+      waitSponsor: !o.podeDecidir && o.status === 'avaliada',
       canOpenQw: !!o.quickWin,
       openQw: () => this.openQw(o.quickWin.id),
     } : null;
@@ -1858,6 +1953,7 @@ class Component extends DCLogic {
         m.quickWin.oportunidade ? 'Oportunidade: ' + m.quickWin.oportunidade + (m.quickWin.notaDaOportunidade !== null ? ' (nota ' + fmtNum(m.quickWin.notaDaOportunidade, 1) + ')' : '') : '',
         'Recursos: ' + (m.quickWin.recursos.map(x => x.tipo + ' ' + x.nome).join('; ') || 'nenhum'),
         'Revisores: ' + ((m.revisores || []).join(', ') || 'nenhum'),
+        'Janela do ponto de partida: ' + winText(m.janelas.pontoDePartida, m.janelas.unidadeVolume) + '. Janela de medição: ' + winText(m.janelas.medicao, m.janelas.unidadeVolume) + '.',
         m.trajetoria.origem.length ? 'Ampliado de: ' + m.trajetoria.origem.map(x => x.titulo + ' (' + x.areas + ')').join(' → ') : '',
         m.trajetoria.ampliacoes.length ? 'Ampliado para: ' + m.trajetoria.ampliacoes.map(x => x.titulo + ' (' + x.areas + ')').join('; ') : '',
       ].filter(Boolean),
@@ -1884,11 +1980,16 @@ class Component extends DCLogic {
       history: (m.historico || []).map(h => ({ head: fmtDate(h.at) + ' · ' + (h.stage_from ? (STAGE_NAMES[h.stage_from] || h.stage_from) + ' → ' : '') + (STAGE_NAMES[h.stage_to] || h.stage_to) + ' · ' + h.actor, text: h.note })),
       etapaText: 'Etapa atual: ' + m.quickWin.etapaNome + '.' + (m.quickWin.decisao ? ' Decisão: ' + m.quickWin.decisao.decisao.toUpperCase() + ', ' + m.quickWin.decisao.justificativa : ''),
       canAdvance: !!(m.podeGerenciar && next),
+      canRoadmap: !!(m.podeGerenciar && m.quickWin.etapa === 'em_implantacao'),
+      canEditWindows: !!((m.podeGerenciar || m.podeDecidir) && m.quickWin.etapa !== 'encerrada' && m.quickWin.etapa !== 'roadmap'),
+      waitSponsor: !m.podeDecidir && m.quickWin.etapa === 'em_medicao',
+      windowWarnings: (m.janelas && m.janelas.avisos) || [],
       advanceLabel: next ? 'Passar para ' + STAGE_NAMES[next] : '',
-      canDecide: !!(m.podeGerenciar && m.quickWin.etapa === 'em_medicao'),
-      canAmplify: !!(m.podeGerenciar && m.quickWin.decisao && m.quickWin.decisao.decisao === 'ampliar' && m.quickWin.etapa === 'decisao'),
+      canDecide: !!(m.podeDecidir && m.quickWin.etapa === 'em_medicao'),
+      canAmplify: !!(m.podeDecidir && m.quickWin.decisao && m.quickWin.decisao.decisao === 'ampliar' && m.quickWin.etapa === 'decisao'),
     } : null;
-    const onOppForm = {}, onOppFilter = {}, onSelForm = {}, onAmp = {};
+    const onOppForm = {}, onOppFilter = {}, onSelForm = {}, onAmp = {}, onWin = {};
+    Object.keys(st.winForm).forEach(k => { onWin[k] = e => this.setState({ winForm: { ...this.state.winForm, [k]: e.target.value } }); });
     Object.keys(st.oppForm).forEach(k => { onOppForm[k] = e => this.setState({ oppForm: { ...this.state.oppForm, [k]: e.target.value } }); });
     Object.keys(st.oppFilter).forEach(k => { onOppFilter[k] = e => this.setState({ oppFilter: { ...this.state.oppFilter, [k]: e.target.value } }); });
     Object.keys(st.selForm).forEach(k => { onSelForm[k] = e => this.setState({ selForm: { ...this.state.selForm, [k]: e.target.value } }); });
@@ -1939,6 +2040,10 @@ class Component extends DCLogic {
       confirmRun: () => this.submitRun(st.runWarn ? st.runWarn.types : []),
       cancelWarn: () => this.setState({ runWarn: null }),
       submitRun: () => this.submitRun([]),
+      hasRunQwChoice: !!(sel && (sel.quickWins || []).length > 1),
+      runQwOptions: sel ? (sel.quickWins || []).map(q => ({ id: q.id, label: q.titulo + (q.areas ? ' (' + q.areas + ')' : '') })) : [],
+      runQw: st.runQw,
+      onRunQw: e => this.setState({ runQw: e.target.value }),
       runBusy: st.runBusy,
       runMsg: st.runMsg,
       hasRunView: !!runView,
@@ -1992,18 +2097,20 @@ class Component extends DCLogic {
       evaluateOpp: () => this.evaluateOpp(),
       devMotivo: st.devMotivo,
       onDevMotivo: e => this.setState({ devMotivo: e.target.value }),
-      returnOpp: () => this.returnOpp(),
+      sendRoadmap: () => this.moveOpp('roadmap', 'Oportunidade enviada ao roadmap.'),
+      archiveOpp: () => this.moveOpp('arquivar', 'Oportunidade arquivada.'),
+      reopenOpp: () => this.moveOpp('reabrir', 'Oportunidade reaberta no portfólio.'),
       selForm: st.selForm,
       onSelForm,
       noSelAssistants: !st.assistants.length,
       selAssistantButtons: st.assistants.map(x => pill(st.selAssist.includes(x.slug), x.name, () => this.toggleIn('selAssist', x.slug))),
       noSelDocs: !st.kbDocs.length,
       selDocButtons: st.kbDocs.map(x => pill(st.selDocs.includes(x.id), x.title, () => this.toggleIn('selDocs', x.id))),
-      indRows: st.selInd.map((r, i) => ({ ...r, labelAria: 'Nome do indicador ' + (i + 1), unitAria: 'Unidade do indicador ' + (i + 1), dirAria: 'Sentido do indicador ' + (i + 1), autoAria: 'Medição do indicador ' + (i + 1),
+      indRows: st.selInd.map((r, i) => ({ ...r, labelAria: 'Nome do indicador ' + (i + 1), unitAria: 'Unidade do indicador ' + (i + 1), dirAria: 'Sentido do indicador ' + (i + 1), autoAria: 'Medição do indicador ' + (i + 1), cmpAria: 'Comparação do indicador ' + (i + 1), onComparacao: e => this.setInd(i, 'comparacao', e.target.value),
         onLabel: e => this.setInd(i, 'label', e.target.value), onUnit: e => this.setInd(i, 'unit', e.target.value), onDirection: e => this.setInd(i, 'direction', e.target.value), onAuto: e => this.setInd(i, 'auto', e.target.value),
         onRemove: () => this.setState({ selInd: this.state.selInd.filter((_, j) => j !== i) }) })),
       autoOptions: Object.keys(AUTO_LABEL).map(k => ({ key: k, label: 'automático: ' + AUTO_LABEL[k] })),
-      addIndicator: () => this.setState({ selInd: this.state.selInd.concat([{ label: '', unit: '', direction: 'menor_melhor', auto: '' }]) }),
+      addIndicator: () => this.setState({ selInd: this.state.selInd.concat([{ label: '', unit: '', direction: 'menor_melhor', auto: '', comparacao: 'valor' }]) }),
       selectOpp: () => this.selectOpp(),
       metricsFrom: st.metricsFrom,
       onMetricsFrom: e => this.setState({ metricsFrom: e.target.value }),
@@ -2021,6 +2128,12 @@ class Component extends DCLogic {
       onStageNote: e => this.setState({ stageNote: e.target.value }),
       advanceStage: () => this.advanceStage(),
       ampForm: st.ampForm,
+      winForm: st.winForm,
+      onWin,
+      saveWindows: () => this.saveWindows(),
+      qwRoadmapNote: st.qwRoadmapNote,
+      onQwRoadmapNote: e => this.setState({ qwRoadmapNote: e.target.value }),
+      qwToRoadmap: () => this.qwToRoadmap(),
       onAmp,
       amplify: () => this.amplify(),
       valForm: st.valForm,

@@ -9,7 +9,7 @@ import type { QwCriteria } from './criteria.ts';
 import { STAGE_LABEL } from './service.ts';
 
 const num = (n: number | null | undefined, unit = '') => n === null || n === undefined ? '—' : `${String(n).replace('.', ',')}${unit ? ' ' + unit : ''}`;
-const STATUS: Record<string, string> = { identificada: 'identificada', avaliada: 'avaliada', selecionada: 'selecionada' };
+const STATUS: Record<string, string> = { registrada: 'registrada', avaliada: 'avaliada', selecionada: 'selecionada', roadmap: 'enviada ao roadmap', arquivada: 'arquivada' };
 const ORIGEM: Record<string, string> = { medido: 'medido', informado: 'informado', automatico: 'automático' };
 const stage = (s: string) => STAGE_LABEL[s] ?? s;
 
@@ -41,14 +41,14 @@ function portfolioRows(rows: PortfolioRow[], crit: QwCriteria) {
     'Área': r.area, Oportunidade: r.titulo, Processo: r.processo, Problema: r.problema, 'Quem executa hoje': r.executorAtual, Volume: r.volume,
     'Evidência': r.evidencia === 'comprovado' ? 'comprovada' : 'hipótese',
     ...Object.fromEntries(crit.criterios.map(c => [c.label, r.notas ? num(r.notas[c.key]) : '—'])),
-    Nota: num(r.nota), 'Situação': STATUS[r.status] ?? r.status, 'Quick win': r.quickWin ? stage(r.quickWin.etapa) : '—', 'Último registro': r.ultimoRegistro ?? '',
+    Nota: num(r.nota), 'Situação': STATUS[r.status] ?? r.status, Motivo: r.motivo ?? '', 'Quick win': r.quickWin ? stage(r.quickWin.etapa) : '—', 'Último registro': r.ultimoRegistro ?? '',
   }));
 }
 
 export async function portfolioXlsx(tenant: string, rows: PortfolioRow[], crit: QwCriteria): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'GreenIA';
-  const cols = ['Área', 'Oportunidade', 'Processo', 'Problema', 'Quem executa hoje', 'Volume', 'Evidência', ...crit.criterios.map(c => c.label), 'Nota', 'Situação', 'Quick win', 'Último registro'];
+  const cols = ['Área', 'Oportunidade', 'Processo', 'Problema', 'Quem executa hoje', 'Volume', 'Evidência', ...crit.criterios.map(c => c.label), 'Nota', 'Situação', 'Motivo', 'Quick win', 'Último registro'];
   sheet(wb, 'Portfólio', cols, portfolioRows(rows, crit));
   const c = wb.addWorksheet('Critérios');
   c.addRow([`Portfólio de oportunidades: ${tenant}`]);
@@ -65,6 +65,8 @@ export function portfolioPdf(tenant: string, rows: PortfolioRow[], crit: QwCrite
     doc.font('Helvetica').fontSize(9).fillColor('#444444')
       .text(`${rows.length} oportunidades. Critérios: ${crit.criterios.map(c => `${c.label} (peso ${c.peso}, ${c.sentido === 'maior_melhor' ? 'maior é melhor' : 'menor é melhor'})`).join('; ')}. Escala de ${crit.escala.min} a ${crit.escala.max}.`)
       .fillColor('#000000');
+    const count = (st: string) => rows.filter(r => r.status === st).length;
+    doc.fillColor('#444444').text(`Registradas: ${count('registrada')} · avaliadas: ${count('avaliada')} · selecionadas: ${count('selecionada')} · no roadmap: ${count('roadmap')} · arquivadas: ${count('arquivada')}.`).fillColor('#000000');
     const byArea = new Map<string, PortfolioRow[]>();
     for (const r of rows) byArea.set(r.area, [...(byArea.get(r.area) ?? []), r]);
     if (!rows.length) doc.moveDown().text('Nenhuma oportunidade registrada.');
@@ -75,18 +77,25 @@ export function portfolioPdf(tenant: string, rows: PortfolioRow[], crit: QwCrite
         doc.text(`Processo: ${r.processo}. Problema: ${r.problema}`);
         doc.text(`Quem executa hoje: ${r.executorAtual || '—'}. Volume: ${r.volume || '—'}. Evidência: ${r.evidencia === 'comprovado' ? 'comprovada' : 'hipótese'}${r.evidenciaNota ? ` (${r.evidenciaNota})` : ''}.`);
         if (r.notas) doc.text(crit.criterios.map(c => `${c.label}: ${num(r.notas![c.key])}`).join(' · '));
-        if (r.ultimoRegistro) doc.text(`Último registro: ${r.ultimoRegistro}`);
+        if (r.motivo) doc.font('Helvetica-Bold').text(`Motivo (${STATUS[r.status]}): ${r.motivo}`).font('Helvetica');
+        else if (r.ultimoRegistro) doc.text(`Último registro: ${r.ultimoRegistro}`);
       }
     }
   });
 }
 
 // ---- Resultados dos quick wins ------------------------------------------------------------------
+const windowText = (w: { inicio: string | null; fim: string | null; dias: number | null; volume: number | null }, unit: string) =>
+  w.inicio && w.fim ? `${w.inicio} a ${w.fim} (${w.dias} dias${w.volume ? `, ${num(w.volume)} ${unit || 'itens'}` : ''})` : 'sem datas';
+
+const side = (v: { valor: number; comparavel: number | null } | null | undefined, por: string) =>
+  !v ? '—' : v.comparavel !== null && v.comparavel !== v.valor ? `${num(v.valor)} (= ${num(v.comparavel)} ${por})` : num(v.valor);
+
 function indicatorRows(r: QuickWinResults) {
   return r.indicadores.map(i => ({
-    'Quick win': r.quickWin.titulo, Indicador: i.label, Unidade: i.unit,
-    Antes: num(i.antes?.valor), 'Origem (antes)': i.antes ? `${ORIGEM[i.antes.origem.tipo]}: ${i.antes.origem.detalhe}` : 'sem ponto de partida',
-    Depois: num(i.depois?.valor), 'Origem (depois)': i.depois ? `${ORIGEM[i.depois.origem.tipo]}: ${i.depois.origem.detalhe}` : 'sem medição',
+    'Quick win': r.quickWin.titulo, Indicador: i.label, Unidade: i.unit, 'Comparado em': i.comparacaoPor,
+    Antes: side(i.antes, i.comparacaoPor), 'Origem (antes)': i.antes ? `${ORIGEM[i.antes.origem.tipo]}: ${i.antes.origem.detalhe}` : 'sem ponto de partida',
+    Depois: side(i.depois, i.comparacaoPor), 'Origem (depois)': i.depois ? `${ORIGEM[i.depois.origem.tipo]}: ${i.depois.origem.detalhe}` : 'sem medição',
     'Diferença': i.comparacao ? `${num(i.comparacao.diferenca)}${i.comparacao.percentual !== null ? ` (${num(i.comparacao.percentual)}%)` : ''}` : '—',
     'Situação': i.lacuna ?? (i.comparacao?.melhorou ? 'melhorou' : 'não melhorou'),
     'Acumulado no período': i.acumuladoNoPeriodo ? `${num(i.acumuladoNoPeriodo.valor)} h = ${i.acumuladoNoPeriodo.calculo}` : '—',
@@ -103,13 +112,15 @@ const trajectoryText = (r: QuickWinResults) => {
 export async function resultsXlsx(tenant: string, all: QuickWinResults[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'GreenIA';
-  sheet(wb, 'Quick wins', ['Quick win', 'Áreas', 'Etapa', 'Responsável', 'Recursos', 'Decisão', 'Justificativa', 'Ponto de partida', 'Trajetória'], all.map(r => ({
+  sheet(wb, 'Quick wins', ['Quick win', 'Áreas', 'Etapa', 'Responsável', 'Recursos', 'Janela do ponto de partida', 'Janela de medição', 'Avisos das janelas', 'Decisão', 'Justificativa', 'Ponto de partida', 'Trajetória'], all.map(r => ({
     'Quick win': r.quickWin.titulo, 'Áreas': r.quickWin.areas.join(', '), Etapa: r.quickWin.etapaNome, 'Responsável': r.quickWin.responsavel,
     Recursos: r.quickWin.recursos.map(x => `${x.tipo}: ${x.nome}`).join('; ') || '—',
+    'Janela do ponto de partida': windowText(r.janelas.pontoDePartida, r.janelas.unidadeVolume), 'Janela de medição': windowText(r.janelas.medicao, r.janelas.unidadeVolume),
+    'Avisos das janelas': r.janelas.avisos.join(' ') || '—',
     'Decisão': r.quickWin.decisao?.decisao ?? '—', Justificativa: r.quickWin.decisao?.justificativa ?? '—',
     'Ponto de partida': r.semPontoDePartida ? 'sem ponto de partida' : 'registrado', 'Trajetória': trajectoryText(r),
   })));
-  sheet(wb, 'Antes × depois', ['Quick win', 'Indicador', 'Unidade', 'Antes', 'Origem (antes)', 'Depois', 'Origem (depois)', 'Diferença', 'Situação', 'Acumulado no período'], all.flatMap(indicatorRows));
+  sheet(wb, 'Antes × depois', ['Quick win', 'Indicador', 'Unidade', 'Comparado em', 'Antes', 'Origem (antes)', 'Depois', 'Origem (depois)', 'Diferença', 'Situação', 'Acumulado no período'], all.flatMap(indicatorRows));
   sheet(wb, 'Valores registrados', ['quickWin', 'indicator', 'phase', 'value', 'unit', 'origin', 'periodStart', 'periodEnd', 'method', 'informedBy', 'notes', 'recordedBy', 'createdAt'],
     all.flatMap(r => r.valores.map(v => ({ quickWin: r.quickWin.titulo, ...v }))));
   const c = wb.addWorksheet('Sobre');
@@ -129,9 +140,11 @@ export function resultsPdf(tenant: string, all: QuickWinResults[]): Promise<Buff
       doc.text(`Áreas: ${q.areas.join(', ')} · etapa: ${q.etapaNome} · responsável: ${q.responsavel}${q.prazo ? ` · prazo: ${q.prazo}` : ''}`);
       doc.text(`Objetivo: ${q.objetivo}`);
       doc.text(`Recursos: ${q.recursos.map(x => `${x.tipo} ${x.nome}`).join('; ') || '—'}`);
+      doc.text(`Janela do ponto de partida: ${windowText(r.janelas.pontoDePartida, r.janelas.unidadeVolume)} · janela de medição: ${windowText(r.janelas.medicao, r.janelas.unidadeVolume)}`);
+      for (const w of r.janelas.avisos) doc.fillColor('#8C3A1B').text(`Aviso: ${w}`).fillColor('#000000');
       if (r.aviso) doc.font('Helvetica-Bold').fillColor('#8C3A1B').text(r.aviso).fillColor('#000000').font('Helvetica');
       for (const i of indicatorRows(r)) {
-        doc.moveDown(0.2).font('Helvetica-Bold').text(`${i.Indicador}${i.Unidade ? ` (${i.Unidade})` : ''}`).font('Helvetica');
+        doc.moveDown(0.2).font('Helvetica-Bold').text(`${i.Indicador}${i.Unidade ? ` (${i.Unidade})` : ''} · comparado em ${i['Comparado em']}`).font('Helvetica');
         doc.text(`Antes: ${i.Antes} — ${i['Origem (antes)']}`).text(`Depois: ${i.Depois} — ${i['Origem (depois)']}`).text(`Diferença: ${i['Diferença']} · ${i['Situação']}`);
       }
       doc.moveDown(0.2).text(`Decisão: ${q.decisao ? `${q.decisao.decisao.toUpperCase()} — ${q.decisao.justificativa}` : 'ainda não decidido'}`);

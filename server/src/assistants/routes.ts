@@ -1,6 +1,7 @@
 // Administração de assistentes: criar, publicar nova versão, mudar status,
 // consultar versões e exportar o pacote portátil. Toda alteração gera nova
 // versão; as anteriores ficam guardadas.
+import { activeQuickWinsFor } from '../quickwins/context.ts';
 import type { FastifyInstance } from 'fastify';
 import { z, ZodError } from 'zod';
 import { setShares, shareSchema, sharesOf } from '../areas/sharing.ts';
@@ -117,15 +118,17 @@ export async function assistantRoutes(app: FastifyInstance) {
     if (!a) return;
     const { slug } = req.params as { slug: string };
     const row = await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
-      `select a.slug, a.name, a.status, a.current_version as version, ar.name as area, v.definition
+      `select a.id, a.slug, a.name, a.status, a.current_version as version, ar.name as area, v.definition
        from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
-       left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug]).then(r => r.rows[0]));
+       left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug]).then(async r => r.rows[0] && { ...r.rows[0], quickWins: await activeQuickWinsFor(tx, r.rows[0].id) }));
     if (!row) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
     const d = assistantDefinitionSchema.parse(row.definition);
     return { slug: row.slug, name: row.name, status: row.status, version: row.version, area: row.area,
       tipo: d.pipeline.length ? 'execucao' : 'conversa', description: d.description, objective: d.objective,
       inputs: d.inputs, output: { format: d.output.format, files: d.output.files }, etapas: d.pipeline.map(s => ({ bloco: s.bloco, titulo: s.titulo ?? null })),
-      review: { required: d.review.required, reviewers: d.review.reviewers, checklist: d.review.checklist } };
+      review: { required: d.review.required, reviewers: d.review.reviewers, checklist: d.review.checklist },
+      // Quick wins ativos que usam o assistente: com mais de um, a pessoa escolhe em qual a execução conta.
+      quickWins: row.quickWins.map((q: { id: string; titulo: string; areas: string }) => ({ id: q.id, titulo: q.titulo, areas: q.areas })) };
   });
 
   app.post('/api/admin/assistants', async (req, reply) => {

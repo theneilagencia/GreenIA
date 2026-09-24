@@ -39,11 +39,17 @@ export async function sharesOf(tx: Tx, kind: Kind, objectId: string): Promise<{ 
 // Área em que uma execução acontece: a pedida (se a pessoa usa o assistente por
 // ela), senão a dona, senão a primeira área compartilhada da pessoa; para
 // assistente da empresa, a primeira área da pessoa. A revisão segue essa área.
-export async function runAreaFor(tx: Tx, assistant: { id: string; area_id: string | null; company_wide: boolean }, userAreaIds: string[], allAreas: boolean, requested?: string): Promise<string | null | undefined> {
+// Áreas pelas quais a pessoa pode usar o assistente.
+export async function eligibleRunAreas(tx: Tx, assistant: { id: string; area_id: string | null; company_wide: boolean }, userAreaIds: string[], allAreas: boolean): Promise<string[]> {
   const shared = (await tx.query(`select area_id from assistant_shares where assistant_id = $1`, [assistant.id])).rows.map(r => r.area_id as string);
   const mine = (id: string | null) => id === null || allAreas || userAreaIds.includes(id);
   const eligible = [assistant.area_id, ...shared].filter((id, i, arr) => id && arr.indexOf(id) === i && mine(id)) as string[];
   if (assistant.company_wide) for (const id of userAreaIds) if (!eligible.includes(id)) eligible.push(id);
+  return eligible;
+}
+
+export async function runAreaFor(tx: Tx, assistant: { id: string; area_id: string | null; company_wide: boolean }, userAreaIds: string[], allAreas: boolean, requested?: string): Promise<string | null | undefined> {
+  const eligible = await eligibleRunAreas(tx, assistant, userAreaIds, allAreas);
   if (requested) {
     const id = (await tx.query(`select id from areas where slug = $1`, [requested])).rows[0]?.id as string | undefined;
     return id && eligible.includes(id) ? id : undefined;                // undefined: área pedida não serve

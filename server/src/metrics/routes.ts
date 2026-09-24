@@ -34,8 +34,8 @@ const valueSchema = z.object({
   if (v.origem === 'informado' && !v.informadoPor) ctx.addIssue({ code: 'custom', path: ['informadoPor'], message: 'valor informado precisa de quem informou' });
 });
 
-const canManageArea = (a: AuthContext, areaId: string | null) => can(a, 'people.manage', areaId);
-const canReadReports = (a: AuthContext) => a.allAreas || a.areaRoles.some(r => r.role === 'key_user' || r.role === 'revisor');
+const canManageArea = (a: AuthContext, areaId: string | null) => can(a, 'people.manage', areaId) || can(a, 'qw.decide', areaId);
+const canReadReports = (a: AuthContext) => a.qwAll || a.areaRoles.some(r => r.role === 'key_user' || r.role === 'revisor' || r.role === 'patrocinador');
 const formatSchema = z.object({ format: z.enum(['json', 'pdf', 'xlsx']).default('json') });
 
 export async function metricsRoutes(app: FastifyInstance) {

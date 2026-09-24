@@ -6,7 +6,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { preAuth, withTenant, type TenantContext, type Tx } from '../db/pool.ts';
 
-export type Role = 'usuario' | 'revisor' | 'key_user' | 'admin_cliente' | 'admin_theneil';
+export type Role = 'usuario' | 'revisor' | 'key_user' | 'patrocinador' | 'admin_cliente' | 'admin_theneil';
 
 export interface AreaRole { areaId: string; slug: string; name: string; role: Role; inherited?: boolean }
 
@@ -20,6 +20,7 @@ export interface AuthContext {
   areaRoles: AreaRole[];
   areaIds: string[];
   allAreas: boolean;                           // admin do cliente ou da TheNeil vê todas as áreas
+  qwAll: boolean;                              // vê oportunidades e quick wins de todas as áreas (admin ou patrocinador do tenant)
   onboardingDone: boolean;                     // já passou pelo roteiro de primeiro acesso
   csrfToken: string;
 }
@@ -36,7 +37,7 @@ export function cookieName(secure: boolean) {
 export const hashToken = (token: string) => createHash('sha256').update(token).digest();
 
 export function tenantCtx(auth: AuthContext): TenantContext {
-  return { tenantId: auth.tenantId, userId: auth.userId, areaIds: auth.areaIds, allAreas: auth.allAreas };
+  return { tenantId: auth.tenantId, userId: auth.userId, areaIds: auth.areaIds, allAreas: auth.allAreas, qwAll: auth.qwAll };
 }
 
 // Cria a sessão (dentro do contexto do tenant) e grava o cookie.
@@ -99,7 +100,7 @@ export async function loadMembership(tx: Tx, userId: string) {
     };
     walk(null, []);
   }
-  return { email: u.email as string, name: u.name as string, roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas, onboardingDone: !!u.onboarding_done_at };
+  return { email: u.email as string, name: u.name as string, roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas, qwAll: allAreas || roles.includes('patrocinador'), onboardingDone: !!u.onboarding_done_at };
 }
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);

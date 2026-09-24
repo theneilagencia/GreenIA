@@ -31,6 +31,7 @@ before(async () => {
   u.key = await id('key.fiscal@demonstracao.com.br');
   u.admin = await id('admin@demonstracao.com.br');
   u.user = await addPerson(db, tenantId, 'pessoa.fiscal@demonstracao.com.br', 'usuario', 'fiscal');
+  u.sponsor = await addPerson(db, tenantId, 'diretoria.fiscal@demonstracao.com.br', 'patrocinador', 'fiscal');
   await app.listen({ port: 0, host: '127.0.0.1' });
   base = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
   (app.deps.config as { PUBLIC_URL: string }).PUBLIC_URL = base;
@@ -111,26 +112,52 @@ test('key user revisa lado a lado: origem de cada divergência, edição e expor
   await context.close();
 });
 
-test('quick wins: oportunidade registrada, avaliada e selecionada; sem ponto de partida até registrar o valor "antes"', async () => {
-  const { page, errors, context } = await openAs(u.key);
+test('quick wins: key user registra, avalia e envia ao roadmap; o patrocinador da área seleciona com janelas; sem ponto de partida até registrar o valor "antes"', async () => {
+  let { page, errors, context } = await openAs(u.key);
   await page.getByRole('button', { name: 'Quick wins' }).first().click();
   await page.getByRole('button', { name: 'Portfólio de oportunidades' }).waitFor();
-  await page.getByLabel('Área da oportunidade').selectOption('fiscal');
-  await page.getByLabel('Título da oportunidade').fill('Conferência de notas contra pedidos');
-  await page.getByLabel('Processo').fill('Entrada de notas de compra');
-  await page.getByLabel('Problema observado').fill('Conferência manual, item a item, com retrabalho.');
-  await page.getByLabel('Quem executa hoje').fill('Duas pessoas do fiscal');
-  await page.getByLabel('Volume', { exact: true }).fill('400 notas por mês');
-  await page.getByLabel('Evidência', { exact: true }).selectOption('comprovado');
-  await page.getByRole('button', { name: 'Registrar oportunidade' }).click();
-  await page.getByText('Oportunidade registrada.').waitFor();
+  const register = async (titulo: string) => {
+    await page.getByLabel('Área da oportunidade').selectOption('fiscal');
+    await page.getByLabel('Título da oportunidade').fill(titulo);
+    await page.getByLabel('Processo').fill('Entrada de notas de compra');
+    await page.getByLabel('Problema observado').fill('Conferência manual, item a item, com retrabalho.');
+    await page.getByLabel('Quem executa hoje').fill('Duas pessoas do fiscal');
+    await page.getByLabel('Volume', { exact: true }).fill('400 notas por mês');
+    await page.getByLabel('Evidência', { exact: true }).selectOption('comprovado');
+    await page.getByRole('button', { name: 'Registrar oportunidade' }).click();
+    await page.getByText('Oportunidade registrada.').waitFor();
+  };
+  await register('Conferência de notas contra pedidos');
+  await register('Integração fiscal com o ERP');
+  await page.getByRole('button', { name: 'Integração fiscal com o ERP' }).click();
+  await page.getByLabel('Motivo', { exact: true }).fill('Integração com o ERP é projeto de meses, não quick win.');
+  await page.getByRole('button', { name: 'Enviar ao roadmap' }).click();
+  await page.getByText('Oportunidade enviada ao roadmap.').waitFor();
+  await page.getByText(/Motivo \(enviado ao roadmap\): Integração com o ERP é projeto de meses/).waitFor();
+  await page.getByRole('button', { name: 'Fechar' }).click();
   await page.getByRole('button', { name: 'Conferência de notas contra pedidos' }).click();
   for (const [c, n] of [['Valor', '5'], ['Complexidade', '2'], ['Risco', '2'], ['Dependências', '1']]) await page.getByLabel(new RegExp('^' + c + ' \\(peso')).selectOption(n);
   await page.getByLabel('Por que essa avaliação').fill('Volume alto e conferência repetitiva.');
   await page.getByRole('button', { name: 'Avaliar', exact: true }).click();
   await page.getByText(/Oportunidade avaliada\. Nota/).waitFor();
+  await page.getByText(/A seleção como quick win é do patrocinador da área ou do admin do cliente/).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Criar quick win' }).count(), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+
+  // Patrocinador da área: seleciona e decide.
+  ({ page, errors, context } = await openAs(u.sponsor));
+  await firstAccess(page);
+  await page.getByRole('button', { name: 'Quick wins' }).first().click();
+  await page.getByRole('button', { name: 'Conferência de notas contra pedidos' }).click();
   await page.getByLabel('Objetivo', { exact: true }).fill('Conferir as notas sem retrabalho');
   await page.getByLabel('Responsável (email)').fill('key.fiscal@demonstracao.com.br');
+  await page.getByLabel('Início do ponto de partida').fill('2026-06-01');
+  await page.getByLabel('Fim do ponto de partida').fill('2026-06-30');
+  await page.getByLabel('Volume no ponto de partida').fill('400');
+  await page.getByLabel('Início da medição').fill('2026-09-01');
+  await page.getByLabel('Fim da medição').fill('2026-09-30');
+  await page.getByLabel('O que é um item', { exact: true }).fill('notas');
   await page.getByRole('button', { name: 'Conferência de NF-e de entrada × pedido' }).click();
   await page.getByRole('button', { name: 'Acrescentar indicador' }).click();
   await page.getByLabel('Nome do indicador 1').fill('Tempo por nota');
@@ -140,20 +167,23 @@ test('quick wins: oportunidade registrada, avaliada e selecionada; sem ponto de 
   await page.getByRole('button', { name: 'Criar quick win' }).click();
   await page.getByText(/Quick win criado\./).waitFor();
   await page.getByText(/Sem ponto de partida/).waitFor();
+  await page.getByText(/Janela do ponto de partida: 2026-06-01 a 2026-06-30 \(30 dias, 400 notas\)/).waitFor();
   await page.getByLabel('Indicador', { exact: true }).selectOption('tempo_por_nota');
   await page.getByLabel('Valor', { exact: true }).fill('12');
   await page.getByLabel('Quem informou').fill('Coordenação fiscal (Discovery)');
   await page.getByRole('button', { name: 'Registrar valor' }).click();
   await page.getByText('Valor registrado.').waitFor();
   await page.getByText(/informado: informado por Coordenação fiscal/).waitFor();
-  // O automático mede só o processamento: a comparação de tempo aparece como parcial, sem ganho acumulado.
-  await page.getByText(/comparação parcial/).first().waitFor();
+  // Execuções anteriores ao quick win não contam: ainda não há "depois".
+  await page.getByText('sem medição depois').first().waitFor();
   assert.equal(await page.getByText(/h no período/).count(), 0);
-  // Etapa com motivo, e o histórico mostra quem mudou e por quê.
-  await page.getByLabel('Motivo da mudança de etapa').fill('Assistente publicado para a equipe.');
-  await page.getByRole('button', { name: 'Passar para em implantação' }).click();
+  // Na implantação, a volta ao roadmap está disponível; a etapa muda com motivo e aparece no histórico.
+  await page.getByRole('button', { name: 'Voltar ao roadmap' }).waitFor();
+  await page.getByLabel('Motivo da mudança de etapa').fill('Assistente publicado e equipe treinada.');
+  await page.getByRole('button', { name: 'Passar para em medição' }).click();
   await page.getByText('Etapa registrada.').waitFor();
-  await page.getByText('Assistente publicado para a equipe.').waitFor();
+  await page.getByText('Assistente publicado e equipe treinada.').waitFor();
+  await page.getByRole('button', { name: 'Registrar decisão' }).waitFor();                 // o patrocinador decide
   assert.ok(await page.getByRole('link', { name: 'Resultados em PDF' }).getAttribute('href'));
   assert.deepEqual(errors, []);
   await context.close();

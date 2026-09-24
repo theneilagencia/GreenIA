@@ -189,14 +189,18 @@ test('LGPD & Compliance: organização de evidências com índice, busca por doc
   assert.equal(xlsx.statusCode, 200);
 });
 
-test('medição fica no quick win que usa o assistente: sem ponto de partida até o baseline ser registrado', async () => {
+test('medição fica no quick win que usa o assistente: sem ponto de partida até o baseline ser registrado; execução anterior ao quick win não conta', async () => {
   const o = (await post(u.key_fiscal, '/api/opportunities', { areaSlug: 'fiscal', titulo: 'Conferência de notas contra pedidos', processo: 'Entrada de notas', problema: 'Conferência manual', evidencia: 'hipotese' })).json();
   await post(u.key_fiscal, `/api/opportunities/${o.id}/avaliar`, { notas: { valor: 4, complexidade: 2, risco: 2, dependencias: 2 }, nota: 'Avaliada pelo key user.' });
-  const s = await post(u.key_fiscal, `/api/opportunities/${o.id}/selecionar`, { objetivo: 'Conferir notas sem retrabalho', responsavel: 'key.fiscal@demonstracao.com.br', recursos: { assistentes: ['conferencia-nfe'] }, nota: 'Selecionada para medir.',
+  assert.equal((await post(u.key_fiscal, `/api/opportunities/${o.id}/selecionar`, { objetivo: 'Conferir notas', responsavel: 'key.fiscal@demonstracao.com.br', nota: 'Tentativa do key user.' })).statusCode, 403);   // key user propõe, não seleciona
+  const admin = (await db.owner.query(`select id from users where tenant_id = $1 and email = 'admin@demonstracao.com.br'`, [tenantId])).rows[0].id;
+  const s = await post(admin, `/api/opportunities/${o.id}/selecionar`, { objetivo: 'Conferir notas sem retrabalho', responsavel: 'key.fiscal@demonstracao.com.br', recursos: { assistentes: ['conferencia-nfe'] }, nota: 'Selecionada para medir.',
     indicadores: [{ key: 'tempo', label: 'Tempo por nota', unit: 'min', direction: 'menor_melhor', auto: 'tempo_processamento' }] });
   assert.equal(s.statusCode, 201, s.body);
   const r = (await get(u.key_fiscal, `/api/quick-wins/${s.json().id}`)).json();
   assert.equal(r.semPontoDePartida, true);
-  assert.equal(r.execucoes.execucoes, 2);                              // conferência + a execução com DANFE
+  assert.equal(r.execucoes.execucoes, 0);                               // as execuções de antes não tinham quick win
+  await runWith(u.fiscal, 'conferencia-nfe');                            // a próxima, sim: a área de quem executa aponta um só
+  assert.equal((await get(u.key_fiscal, `/api/quick-wins/${s.json().id}`)).json().execucoes.execucoes, 1);
   assert.equal((await get(u.key_lgpd, '/api/audit/verify')).json().ok, true);
 });

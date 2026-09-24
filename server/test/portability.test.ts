@@ -41,12 +41,12 @@ async function populate(t: Awaited<ReturnType<typeof seedTenant>>, key: string, 
   const opp = await ok(post(key, '/api/opportunities', { areaSlug: 'fiscal', titulo: 'Conferência de notas', processo: 'Entrada de notas', problema: 'Conferência manual', evidencia: 'comprovado' }), 201);
   const oppId = JSON.parse(opp.body).id;
   await ok(post(key, `/api/opportunities/${oppId}/avaliar`, { notas: { valor: 5, complexidade: 2, risco: 2, dependencias: 2 }, nota: 'Avaliada.' }), 200);
-  const qw = await ok(post(key, `/api/opportunities/${oppId}/selecionar`, { objetivo: 'Conferir mais rápido', responsavel: key === user ? 'x@x.com' : (await db.owner.query(`select email from users where id = $1`, [key])).rows[0].email,
+  const qw = await ok(post(t.userId, `/api/opportunities/${oppId}/selecionar`, { objetivo: 'Conferir mais rápido', responsavel: key === user ? 'x@x.com' : (await db.owner.query(`select email from users where id = $1`, [key])).rows[0].email,
     indicadores: [{ key: 'tempo', label: 'Tempo por nota', unit: 'min' }], recursos: { assistentes: ['conferencia'] }, nota: 'Selecionada.' }), 201);
   const qwId = JSON.parse(qw.body).id;
   await ok(post(key, `/api/quick-wins/${qwId}/valores`, { indicador: 'tempo', fase: 'antes', valor: 12, origem: 'informado', informadoPor: 'Coordenação fiscal' }), 201);
-  for (const etapa of ['em_implantacao', 'em_medicao']) await ok(post(key, `/api/quick-wins/${qwId}/etapa`, { etapa, nota: 'Avanço.' }), 200);
-  await ok(post(key, `/api/quick-wins/${qwId}/decisao`, { decisao: 'manter', justificativa: 'Piloto funcionou bem no fiscal.' }), 200);
+  await ok(post(key, `/api/quick-wins/${qwId}/etapa`, { etapa: 'em_medicao', nota: 'Avanço.' }), 200);
+  await ok(post(t.userId, `/api/quick-wins/${qwId}/decisao`, { decisao: 'manter', justificativa: 'Piloto funcionou bem no fiscal.' }), 200);
   await ok(post(user, '/api/incidents', { tipo: 'resposta_errada', descricao: 'A conferência apontou item que estava certo.' }), 201);
   await ok(post(user, '/api/chat', { messages: [{ role: 'user', content: 'Resuma: reunião na quinta.' }] }), 200);
   return runId;

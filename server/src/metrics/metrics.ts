@@ -11,7 +11,15 @@ import type { Tx } from '../db/pool.ts';
 export const AUTO_METRICS = ['tempo_processamento', 'tempo_ate_revisao', 'aprovacao_sem_edicao', 'taxa_revisao', 'divergencias', 'pendencias', 'consumo', 'volume', 'usuarios_ativos'] as const;
 export type AutoMetric = typeof AUTO_METRICS[number];
 
-export interface Indicator { key: string; label: string; unit: string; direction: 'menor_melhor' | 'maior_melhor'; auto?: string | null }
+// comparison: como antes e depois são comparados. 'valor' compara como está
+// (o indicador já é uma taxa, ex. minutos por nota); 'por_mes' divide o total
+// pelos meses do período; 'por_item' divide o total pelo volume da janela.
+export interface Indicator { key: string; label: string; unit: string; direction: 'menor_melhor' | 'maior_melhor'; auto?: string | null; comparison?: 'valor' | 'por_mes' | 'por_item' }
+
+// Janelas do quick win: ponto de partida e medição, com datas e volume de itens do processo.
+export interface Window { inicio: string | null; fim: string | null; volume: number | null; volumeInformado?: boolean }
+export interface Windows { pontoDePartida: Window; medicao: Window; unidadeVolume: string }
+export const NO_WINDOWS: Windows = { pontoDePartida: { inicio: null, fim: null, volume: null }, medicao: { inicio: null, fim: null, volume: null }, unidadeVolume: '' };
 
 export interface Period { de: string; ate: string }     // datas (AAAA-MM-DD), inclusive
 
@@ -25,8 +33,9 @@ export interface Origem { tipo: 'medido' | 'informado' | 'automatico'; detalhe: 
 
 export interface IndicatorResult {
   key: string; label: string; unit: string; direction: 'menor_melhor' | 'maior_melhor'; auto: string | null;
-  antes: { valor: number; origem: Origem } | null;
-  depois: { valor: number; origem: Origem } | null;
+  antes: { valor: number; origem: Origem; comparavel: number | null } | null;
+  depois: { valor: number; origem: Origem; comparavel: number | null } | null;
+  comparacaoPor: string;                        // em que unidade antes e depois foram comparados
   automatico: number | null;
   comparacao: { diferenca: number; percentual: number | null; melhorou: boolean; parcial: boolean } | null;
   acumuladoNoPeriodo: { valor: number; unidade: string; calculo: string } | null;
@@ -44,11 +53,11 @@ function origemDe(v: MetricValue): Origem {
     : { tipo: 'informado', detalhe: `informado por ${v.informedBy} em ${v.createdAt.slice(0, 10)}` };
 }
 
-// Execuções dos assistentes do período, opcionalmente só nas áreas indicadas.
-const RUNS_WHERE = `assistant_id = any($1::uuid[]) and ($4::uuid[] is null or area_id = any($4::uuid[])) and created_at >= $2::date and created_at < $3::date + 1`;
+// Execuções de um quick win no período (função quick_win_runs: só números,
+// para quem enxerga o quick win). Cada execução pertence a no máximo um quick win.
+const RUNS = `quick_win_runs($1::uuid, $2::date, $3::date)`;
 
-// Medições automáticas das execuções do período (todas as versões dos assistentes).
-export async function autoMetrics(tx: Tx, assistantIds: string[], p: Period, areaIds: string[] | null = null) {
+export async function autoMetrics(tx: Tx, quickWinId: string, p: Period) {
   const r = (await tx.query(
     `select count(*)::int as execucoes,
             count(*) filter (where status <> 'processando')::int as concluidas,
@@ -66,8 +75,8 @@ export async function autoMetrics(tx: Tx, assistantIds: string[], p: Period, are
             coalesce(sum(cost_brl), 0) as custo, coalesce(sum(pages), 0)::int as paginas,
             coalesce(sum(input_tokens), 0)::bigint as tin, coalesce(sum(output_tokens), 0)::bigint as tout,
             array_agg(distinct assistant_version order by assistant_version) as versoes
-     from runs where ${RUNS_WHERE}`,
-    [assistantIds, p.de, p.ate, areaIds])).rows[0];
+     from ${RUNS}`,
+    [quickWinId, p.de, p.ate])).rows[0];
   const revisadas = r.aprovadas + r.editadas + r.rejeitadas;
   const concl = r.concluidas - r.erros;
   return {
@@ -107,36 +116,55 @@ function autoValue(auto: string, a: AutoMetrics, unit: string): { valor: number;
   return null;
 }
 
-export function indicatorResults(indicators: Indicator[], values: MetricValue[], auto: AutoMetrics, p: Period): IndicatorResult[] {
+const DAY = 86400000;
+export const daysOf = (inicio: string | null, fim: string | null) => inicio && fim ? Math.round((Date.parse(fim) - Date.parse(inicio)) / DAY) + 1 : null;
+
+export function indicatorResults(indicators: Indicator[], values: MetricValue[], auto: AutoMetrics, p: Period, win: Windows = NO_WINDOWS): IndicatorResult[] {
   const latest = (key: string, phase: 'antes' | 'depois') => values.filter(v => v.indicator === key && v.phase === phase).sort((x, y) => y.createdAt.localeCompare(x.createdAt))[0];
   return indicators.map(ind => {
     const a = latest(ind.key, 'antes');
     const d = latest(ind.key, 'depois');
     const av = ind.auto ? autoValue(ind.auto, auto, ind.unit) : null;
-    const antes = a ? { valor: Number(a.value), origem: origemDe(a) } : null;
-    const depois = d ? { valor: Number(d.value), origem: origemDe(d) }
-      : av ? { valor: av.valor, origem: { tipo: 'automatico' as const, detalhe: `média das execuções de ${p.de} a ${p.ate} (${auto.concluidas} concluídas)${ind.auto === 'tempo_processamento' ? '; mede o processamento, não o tempo de revisão humana' : ''}` } }
+    const mode = ind.comparison ?? 'valor';
+    // Valor na unidade de comparação: por mês (meses do período do valor, ou da janela) ou por item (volume da janela).
+    let falta: string | null = null;
+    const norm = (valor: number, side: 'pontoDePartida' | 'medicao', ini: string | null, fim: string | null): number | null => {
+      if (mode === 'valor') return valor;
+      const w = win[side];
+      if (mode === 'por_mes') {
+        const dias = daysOf(ini ?? w.inicio, fim ?? w.fim);
+        if (!dias) { falta = 'sem período para comparar por mês'; return null; }
+        return round(valor / (dias / 30.44));
+      }
+      if (!w.volume) { falta = `sem volume na janela ${side === 'pontoDePartida' ? 'do ponto de partida' : 'de medição'} para comparar por item`; return null; }
+      return round(valor / w.volume, 4);
+    };
+    const antes = a ? { valor: Number(a.value), origem: origemDe(a), comparavel: norm(Number(a.value), 'pontoDePartida', a.periodStart, a.periodEnd) } : null;
+    const depois = d ? { valor: Number(d.value), origem: origemDe(d), comparavel: norm(Number(d.value), 'medicao', d.periodStart, d.periodEnd) }
+      : av ? { valor: av.valor, origem: { tipo: 'automatico' as const, detalhe: `média das execuções de ${p.de} a ${p.ate} (${auto.concluidas} concluídas)${ind.auto === 'tempo_processamento' ? '; mede o processamento, não o tempo de revisão humana' : ''}` },
+               comparavel: norm(av.valor, 'medicao', p.de, p.ate) }
         : null;
+    const comparacaoPor = mode === 'por_mes' ? `${ind.unit || 'valor'} por mês` : mode === 'por_item' ? `${ind.unit || 'valor'} por ${win.unidadeVolume || 'item'}` : (ind.unit || 'valor');
     let comparacao: IndicatorResult['comparacao'] = null;
     let acumulado: IndicatorResult['acumuladoNoPeriodo'] = null;
     // Tempo medido pela plataforma é só o processamento: comparado ao tempo do
     // processo manual, mostra a comparação como parcial e não vira ganho acumulado.
     const f = toSeconds(ind.unit);
     const parcial = !!f && depois?.origem.tipo === 'automatico';
-    if (antes && depois) {
-      const diferenca = round(depois.valor - antes.valor);
-      comparacao = { diferenca, percentual: antes.valor !== 0 ? round(diferenca / antes.valor * 100, 1) : null, melhorou: ind.direction === 'menor_melhor' ? diferenca < 0 : diferenca > 0, parcial };
+    if (antes && depois && antes.comparavel !== null && depois.comparavel !== null) {
+      const diferenca = round(depois.comparavel - antes.comparavel, mode === 'por_item' ? 4 : 2);
+      comparacao = { diferenca, percentual: antes.comparavel !== 0 ? round(diferenca / antes.comparavel * 100, 1) : null, melhorou: ind.direction === 'menor_melhor' ? diferenca < 0 : diferenca > 0, parcial };
       // Diferença acumulada só para tempo por execução, com os dois lados medidos ou informados por pessoas.
-      const volume = auto.concluidas - auto.erros;
-      if (f && !parcial && ind.direction === 'menor_melhor' && volume > 0) {
+      const volume = win.medicao.volume ?? (auto.concluidas - auto.erros);
+      if (mode === 'valor' && f && !parcial && ind.direction === 'menor_melhor' && volume > 0) {
         const horas = round((antes.valor - depois.valor) * f * volume / 3600, 1);
-        acumulado = { valor: horas, unidade: 'h', calculo: `(${antes.valor} − ${depois.valor}) ${ind.unit} × ${volume} execuções concluídas no período` };
+        acumulado = { valor: horas, unidade: 'h', calculo: `(${antes.valor} − ${depois.valor}) ${ind.unit} × ${volume} ${win.medicao.volumeInformado ? (win.unidadeVolume || 'itens') + ' na janela de medição' : 'execuções concluídas no período'}` };
       }
     }
     return {
       key: ind.key, label: ind.label, unit: ind.unit, direction: ind.direction, auto: ind.auto ?? null,
-      antes, depois, automatico: av?.valor ?? null, comparacao, acumuladoNoPeriodo: acumulado,
-      lacuna: !antes ? 'sem ponto de partida' : !depois ? 'sem medição depois' : parcial ? 'comparação parcial: o automático mede só o processamento; registre o tempo "depois" medido com a revisão' : null,
+      antes, depois, comparacaoPor, automatico: av?.valor ?? null, comparacao, acumuladoNoPeriodo: acumulado,
+      lacuna: !antes ? 'sem ponto de partida' : !depois ? 'sem medição depois' : falta ? falta : parcial ? 'comparação parcial: o automático mede só o processamento; registre o tempo "depois" medido com a revisão' : null,
     };
   });
 }
@@ -151,7 +179,7 @@ export async function loadValues(tx: Tx, quickWinId: string): Promise<MetricValu
   }));
 }
 
-export async function monthly(tx: Tx, assistantIds: string[], p: Period, areaIds: string[] | null = null) {
+export async function monthly(tx: Tx, quickWinId: string, p: Period) {
   return (await tx.query(
     `select to_char(date_trunc('month', created_at at time zone 'America/Sao_Paulo'), 'YYYY-MM') as mes,
             count(*)::int as execucoes, count(distinct user_id)::int as usuarios,
@@ -159,6 +187,6 @@ export async function monthly(tx: Tx, assistantIds: string[], p: Period, areaIds
             count(*) filter (where status = 'aprovado_com_edicao')::int as aprovadas_com_edicao,
             count(*) filter (where status = 'rejeitado')::int as rejeitadas,
             coalesce(sum(cost_brl), 0)::float as custo_brl
-     from runs where ${RUNS_WHERE}
-     group by 1 order by 1`, [assistantIds, p.de, p.ate, areaIds])).rows;
+     from ${RUNS}
+     group by 1 order by 1`, [quickWinId, p.de, p.ate])).rows;
 }

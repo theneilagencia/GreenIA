@@ -14,6 +14,7 @@ export interface TenantContext {
   userId?: string | null;
   areaIds?: string[];
   allAreas?: boolean;
+  qwAll?: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,8 +29,8 @@ export async function withTenant<T>(db: Db, ctx: TenantContext, fn: (tx: Tx) => 
     await tx.query('begin');
     await tx.query(
       `select set_config('app.tenant_id', $1, true), set_config('app.user_id', $2, true),
-              set_config('app.area_ids', $3, true), set_config('app.all_areas', $4, true)`,
-      [ctx.tenantId, ctx.userId || '', '{' + areas.join(',') + '}', ctx.allAreas ? 'on' : 'off'],
+              set_config('app.area_ids', $3, true), set_config('app.all_areas', $4, true), set_config('app.qw_all', $5, true)`,
+      [ctx.tenantId, ctx.userId || '', '{' + areas.join(',') + '}', ctx.allAreas ? 'on' : 'off', ctx.qwAll || ctx.allAreas ? 'on' : 'off'],
     );
     const out = await fn(tx);
     await tx.query('commit');

@@ -396,6 +396,58 @@
       </div>
       <sc-if value="{{ adminMsg }}"><p role="status" style="font:500 14px/1.5 'Hanken Grotesk';color:{{ adminMsgColor }};white-space:pre-wrap;">{{ adminMsg }}</p></sc-if>
 
+      <!-- Áreas -->
+      <sc-if value="{{ admAreas }}">
+        <div class="gia-split" style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start;">
+          <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;overflow-x:auto;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Áreas da empresa</h2>
+            <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Cada área tem key users, revisores, base de conhecimento e assistentes próprios. Papel numa área vale nas subáreas, a menos que a subárea não herde.</p>
+            <table class="gia-table"><thead><tr><th>Área</th><th>Situação</th><th>Key users</th><th>Revisores</th><th>Base</th><th>Assistentes</th></tr></thead><tbody>
+              <sc-for list="{{ areaRows }}" as="a" hint-placeholder-count="0"><tr onClick="{{ a.onClick }}" style="cursor:pointer;"><td style="padding-left:{{ a.indent }};">{{ a.name }}</td><td>{{ a.situacao }}</td><td>{{ a.keyUsers }}</td><td>{{ a.revisores }}</td><td>{{ a.documentos }}</td><td>{{ a.assistentes }}</td></tr></sc-for>
+            </tbody></table>
+            <h3 style="font:600 15px 'Hanken Grotesk';margin:18px 0 8px;">Nova área</h3>
+            <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <input class="gia-field" aria-label="Nome da nova área" placeholder="Nome (ex.: Atendimento ao cliente)" value="{{ areaForm.name }}" onInput="{{ onAreaForm.name }}">
+              <select class="gia-field" aria-label="Área mãe da nova área" value="{{ areaForm.parent }}" onChange="{{ onAreaForm.parent }}">
+                <option value="">Primeiro nível</option>
+                <sc-for list="{{ areaParentOptions }}" as="o" hint-placeholder-count="0"><option value="{{ o.slug }}">{{ o.label }}</option></sc-for>
+              </select>
+            </div>
+            <textarea class="gia-field" aria-label="Descrição da nova área" placeholder="Descrição (opcional)" rows="2" value="{{ areaForm.description }}" onInput="{{ onAreaForm.description }}" style="margin-top:8px;"></textarea>
+            <select class="gia-field" aria-label="Permissões da nova área" value="{{ areaForm.inherit }}" onChange="{{ onAreaForm.inherit }}" style="margin-top:8px;max-width:420px;">
+              <option value="sim">Herda as permissões da área mãe</option>
+              <option value="nao">Não herda: só quem tiver papel nesta área</option>
+            </select>
+            <div style="margin-top:10px;"><button onClick="{{ createArea }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Criar área</button></div>
+          </section>
+          <sc-if value="{{ hasAreaEdit }}">
+            <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+              <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 8px;">{{ areaEdit.title }}</h2>
+              <input class="gia-field" aria-label="Nome da área" value="{{ areaEdit.name }}" onInput="{{ onAreaEdit.name }}">
+              <textarea class="gia-field" aria-label="Descrição da área" rows="3" value="{{ areaEdit.description }}" onInput="{{ onAreaEdit.description }}" style="margin-top:8px;"></textarea>
+              <select class="gia-field" aria-label="Área mãe" value="{{ areaEdit.parent }}" onChange="{{ onAreaEdit.parent }}" style="margin-top:8px;">
+                <option value="">Primeiro nível</option>
+                <sc-for list="{{ areaEditParents }}" as="o" hint-placeholder-count="0"><option value="{{ o.slug }}">{{ o.label }}</option></sc-for>
+              </select>
+              <select class="gia-field" aria-label="Permissões da área" value="{{ areaEdit.inherit }}" onChange="{{ onAreaEdit.inherit }}" style="margin-top:8px;">
+                <option value="sim">Herda as permissões da área mãe</option>
+                <option value="nao">Não herda</option>
+              </select>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                <button onClick="{{ saveArea }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar</button>
+                <button onClick="{{ areaUp }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Subir</button>
+                <button onClick="{{ areaDown }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Descer</button>
+                <button onClick="{{ toggleArea }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ areaEdit.toggleLabel }}</button>
+              </div>
+              <sc-for list="{{ areaEdit.lists }}" as="l" hint-placeholder-count="0">
+                <p style="font:600 14px 'Hanken Grotesk';margin:14px 0 4px;">{{ l.label }}</p>
+                <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">{{ l.text }}</p>
+              </sc-for>
+            </section>
+          </sc-if>
+        </div>
+      </sc-if>
+
       <!-- Assistentes -->
       <sc-if value="{{ admAssistants }}">
         <div class="gia-split" style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;">
@@ -410,11 +462,16 @@
           <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
             <sc-if value="{{ hasEditor }}">
               <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <input class="gia-field" aria-label="Identificador" placeholder="identificador (ex.: conferencia-nfe)" value="{{ editor.slug }}" onInput="{{ onEditor.slug }}" disabled="{{ editorExisting }}">
+                <input class="gia-field" aria-label="Identificador" placeholder="identificador (ex.: resumo-de-proposta)" value="{{ editor.slug }}" onInput="{{ onEditor.slug }}" disabled="{{ editorExisting }}">
                 <input class="gia-field" aria-label="Nome" placeholder="Nome" value="{{ editor.name }}" onInput="{{ onEditor.name }}">
                 <input class="gia-field" aria-label="Área" placeholder="área (slug)" value="{{ editor.area }}" onInput="{{ onEditor.area }}" disabled="{{ editorExisting }}">
                 <select class="gia-field" aria-label="Status" value="{{ editor.status }}" onChange="{{ onEditor.status }}"><option value="rascunho">rascunho</option><option value="piloto">piloto</option><option value="ativo">ativo</option><option value="pausado">pausado</option><option value="descartado">descartado</option></select>
               </div>
+              <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Compartilhar com outras áreas</p>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <sc-for list="{{ shareButtons }}" as="b" hint-placeholder-count="0"><button onClick="{{ b.onClick }}" aria-pressed="{{ b.pressed }}" style="background:{{ b.bg }};color:{{ b.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:6px 12px;font:500 13px 'Hanken Grotesk';cursor:pointer;">{{ b.label }}</button></sc-for>
+              </div>
+              <sc-if value="{{ editorExisting }}"><button onClick="{{ saveShares }}" style="margin-top:8px;background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar compartilhamento</button></sc-if>
               <label for="gia-def" style="display:block;font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Definição (JSON validado pelo servidor; cada gravação vira uma nova versão)</label>
               <textarea id="gia-def" class="gia-field" rows="22" value="{{ editor.json }}" onInput="{{ onEditor.json }}" style="font:400 13px/1.45 ui-monospace,Menlo,monospace;"></textarea>
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;">
@@ -675,6 +732,23 @@ function leituraLabel(x) {
   if (x.convertidoDe) parts.push('convertido de ' + x.convertidoDe);
   return parts.join('; ');
 }
+// Painel de edição de uma área: campos e listas do detalhe.
+function areaEditView(e) {
+  if (!e) return {};
+  const d = e.detail || {};
+  const names = l => (l || []).map(p => p.name || p.email).join(', ') || 'ninguém ainda';
+  const own = (l, key) => (l || []).map(x => x[key] + (x.daArea ? '' : ' (compartilhado)') + (x.empresa ? ' (empresa toda)' : '')).join(', ') || 'nenhum ainda';
+  return { title: 'Área ' + (d.name || e.name), name: e.name, description: e.description, parent: e.parent, inherit: e.inherit, toggleLabel: e.active ? 'Desativar' : 'Reativar',
+    lists: [{ label: 'Key users', text: names(d.keyUsers) }, { label: 'Revisores', text: names(d.revisores) }, { label: 'Base de conhecimento', text: own(d.documentos, 'titulo') }, { label: 'Assistentes', text: own(d.assistentes, 'nome') }] };
+}
+// Botões de compartilhamento do assistente: cada área (menos a dona) e a empresa toda.
+function shareButtonsView(ed, areas, toggle) {
+  if (!ed) return [];
+  const sh = ed.shares || { areas: [], empresa: false };
+  const pill = (label, on, onClick) => ({ label, pressed: on ? 'true' : 'false', bg: on ? 'var(--gia-deep)' : 'var(--gia-surface)', color: on ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick });
+  return areas.filter(a => a.slug !== ed.area).map(a => pill(a.caminho, sh.areas.includes(a.slug), () => toggle(a.slug)))
+    .concat([pill('Toda a empresa', sh.empresa, () => toggle('*'))]);
+}
 // Resultado da verificação da cadeia, com a comparação com a âncora externa.
 function auditText(v, anchors) {
   if (!v) return 'Verificando…';
@@ -731,7 +805,7 @@ class Component extends DCLogic {
       metricSlug: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), metricsMsg: '',
       valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '' },
       decForm: { decisao: 'manter', data: today(), responsavel: '', justificativa: '' },
-      adminMsg: '', adminOk: true, editor: null, areas: [],
+      adminMsg: '', adminOk: true, editor: null, areas: [], areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
       csvText: '', csvReport: null, kbArea: '', kbFiles: [], kbBatch: null,
       policyForm: { title: '', body: '', rules: '{\n  "restrictedTerms": [],\n  "allowedClasses": ["verde", "amarela", "vermelha"]\n}' }, acks: null,
       incidents: [], incident: null, incStatus: '', incNote: '', incEscNote: '',
@@ -1033,23 +1107,20 @@ class Component extends DCLogic {
   async setAdminTab(adminTab) {
     this.setState({ adminTab, adminMsg: '' });
     if (adminTab === 'assistentes') this._loadAssistants();
-    if (adminTab === 'base' || adminTab === 'assistentes') {
-      const r = await this._fetch('/api/admin/areas');
-      if (r.ok) this.setState({ areas: r.data });
-    }
+    if (adminTab === 'base' || adminTab === 'assistentes' || adminTab === 'areas') this._loadAreas();
     if (adminTab === 'politica') this._loadAcks();
     if (adminTab === 'incidentes') this._loadIncidents();
     if (adminTab === 'exportacao') this._loadExports();
     if (adminTab === 'auditoria') { this._loadAnchors(); this.verifyAudit(); }
   }
   newAssistant() {
-    this.setState({ editor: { existing: false, slug: '', name: '', area: '', status: 'rascunho', json: JSON.stringify(NEW_ASSISTANT, null, 2), versions: '' } });
+    this.setState({ editor: { existing: false, slug: '', name: '', area: '', status: 'rascunho', json: JSON.stringify(NEW_ASSISTANT, null, 2), versions: '', shares: { areas: [], empresa: false } } });
   }
   async editAssistant(slug) {
     const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(slug));
     if (!r.ok) { this._msg('Sem permissão para editar este assistente.', false); return; }
     const d = r.data;
-    this.setState({ editor: { existing: true, slug: d.slug, name: d.name, area: d.area || '', status: d.status, json: JSON.stringify(d.definition, null, 2),
+    this.setState({ editor: { existing: true, slug: d.slug, name: d.name, area: d.area || '', status: d.status, json: JSON.stringify(d.definition, null, 2), shares: d.compartilhamento || { areas: [], empresa: false },
       versions: 'Versão atual: ' + d.version + '. Histórico: ' + d.versions.map(v => 'v' + v.version + ' (' + fmtDate(v.created_at) + ')').join(', ') + '.' }, adminMsg: '' });
   }
   async saveAssistant() {
@@ -1058,12 +1129,67 @@ class Component extends DCLogic {
     try { definition = JSON.parse(ed.json); } catch (e) { this._msg('A definição não é um JSON válido: ' + e.message, false); return; }
     const r = ed.existing
       ? await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/versions', { method: 'POST', body: { definition, name: ed.name, status: ed.status } })
-      : await this._fetch('/api/admin/assistants', { method: 'POST', body: { slug: ed.slug, name: ed.name, areaSlug: ed.area || undefined, status: ed.status, definition } });
+      : await this._fetch('/api/admin/assistants', { method: 'POST', body: { slug: ed.slug, name: ed.name, areaSlug: ed.area || undefined, status: ed.status, definition, compartilhar: ed.shares } });
     if (!r.ok) { this._msg('Não gravado: ' + ((r.data.detalhes || []).join('\n') || r.data.error || r.status), false); return; }
     this._msg('Gravado como versão ' + r.data.version + '.');
     this.editAssistant(r.data.slug);
     this._loadAssistants();
   }
+  toggleShare(slug) {
+    const ed = this.state.editor;
+    const sh = ed.shares || { areas: [], empresa: false };
+    const next = slug === '*' ? { areas: sh.areas, empresa: !sh.empresa }
+      : { areas: sh.areas.includes(slug) ? sh.areas.filter(x => x !== slug) : sh.areas.concat([slug]), empresa: sh.empresa };
+    this.setState({ editor: { ...ed, shares: next } });
+  }
+  async saveShares() {
+    const ed = this.state.editor;
+    const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/areas', { method: 'PUT', body: ed.shares });
+    this._msg(r.ok ? 'Compartilhamento salvo.' : 'Não salvo: ' + r.data.error, r.ok);
+  }
+
+  // ---- Áreas ---------------------------------------------------------------------------------
+  async _loadAreas() {
+    const r = await this._fetch('/api/admin/areas');
+    if (r.ok) this.setState({ areas: r.data });
+  }
+  async createArea() {
+    const f = this.state.areaForm;
+    if (!f.name.trim()) { this._msg('Dê um nome para a área.', false); return; }
+    const r = await this._fetch('/api/admin/areas', { method: 'POST', body: { name: f.name.trim(), description: f.description.trim(), parentSlug: f.parent || undefined, inheritPermissions: f.inherit === 'sim' } });
+    if (!r.ok) { this._msg(r.data.error === 'area_ja_existe' ? 'Já existe uma área com esse nome.' : 'Área não criada: ' + r.data.error, false); return; }
+    this._msg('Área criada.');
+    this.setState({ areaForm: { name: '', description: '', parent: '', inherit: 'sim' } });
+    this._loadAreas();
+  }
+  async openArea(slug) {
+    const row = this.state.areas.find(a => a.slug === slug);
+    const r = await this._fetch('/api/admin/areas/' + encodeURIComponent(slug));
+    if (!r.ok || !row) { this._msg('Não foi possível abrir a área.', false); return; }
+    const d = r.data;
+    this.setState({ areaEdit: { slug, name: d.name, description: d.description, parent: d.areaMae ? d.areaMae.slug : '', inherit: d.inheritPermissions ? 'sim' : 'nao', active: d.active, position: row.position, detail: d } });
+  }
+  async _patchArea(body, done) {
+    const e = this.state.areaEdit;
+    const r = await this._fetch('/api/admin/areas/' + encodeURIComponent(e.slug), { method: 'PATCH', body });
+    if (!r.ok) { this._msg(r.data.error === 'hierarquia_invalida' ? 'Uma área não pode ficar dentro dela mesma nem de uma subárea sua.' : 'Não salvo: ' + r.data.error, false); return; }
+    this._msg(done);
+    await this._loadAreas();
+    this.openArea(e.slug);
+  }
+  saveArea() {
+    const e = this.state.areaEdit;
+    return this._patchArea({ name: e.name.trim(), description: e.description.trim(), parentSlug: e.parent || null, inheritPermissions: e.inherit === 'sim' }, 'Área salva.');
+  }
+  moveArea(delta) {
+    const e = this.state.areaEdit;
+    return this._patchArea({ position: Math.max(0, (e.position || 0) + delta) }, 'Ordem alterada.');
+  }
+  toggleArea() {
+    const e = this.state.areaEdit;
+    return this._patchArea({ active: !e.active }, e.active ? 'Área desativada. Quem é só dela perde o acesso.' : 'Área reativada.');
+  }
+
   async changeStatus() {
     const ed = this.state.editor;
     const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/status', { method: 'POST', body: { status: ed.status } });
@@ -1280,7 +1406,7 @@ class Component extends DCLogic {
     Object.keys(st.incForm).forEach(k => { onIncForm[k] = e => this.setState({ incForm: { ...this.state.incForm, [k]: e.target.value } }); });
 
     // Administração
-    const adminDefs = [['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
+    const adminDefs = [['areas', 'Áreas', roles.admin], ['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
       ['politica', 'Política de Uso', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin]];
     const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
     const ed = st.editor;
@@ -1373,6 +1499,22 @@ class Component extends DCLogic {
       admUsage: st.adminTab === 'consumo',
       admExport: st.adminTab === 'exportacao',
       admAudit: st.adminTab === 'auditoria',
+      admAreas: st.adminTab === 'areas',
+      areaRows: st.areas.map(a => ({ name: a.name, indent: (10 + a.depth * 22) + 'px', situacao: a.efetivamenteAtiva ? 'ativa' : 'desativada', keyUsers: a.keyUsers, revisores: a.revisores, documentos: a.documentos, assistentes: a.assistentes, onClick: () => this.openArea(a.slug) })),
+      areaParentOptions: st.areas.map(a => ({ slug: a.slug, label: a.caminho })),
+      areaForm: st.areaForm,
+      onAreaForm: { name: e => this.setState({ areaForm: { ...st.areaForm, name: e.target.value } }), description: e => this.setState({ areaForm: { ...st.areaForm, description: e.target.value } }), parent: e => this.setState({ areaForm: { ...st.areaForm, parent: e.target.value } }), inherit: e => this.setState({ areaForm: { ...st.areaForm, inherit: e.target.value } }) },
+      createArea: () => this.createArea(),
+      hasAreaEdit: !!st.areaEdit,
+      areaEdit: areaEditView(st.areaEdit),
+      areaEditParents: st.areaEdit ? st.areas.filter(a => a.slug !== st.areaEdit.slug && !a.caminho.startsWith(((st.areas.find(x => x.slug === st.areaEdit.slug) || {}).caminho || '\u0000') + ' > ')).map(a => ({ slug: a.slug, label: a.caminho })) : [],
+      onAreaEdit: { name: e => this.setState({ areaEdit: { ...st.areaEdit, name: e.target.value } }), description: e => this.setState({ areaEdit: { ...st.areaEdit, description: e.target.value } }), parent: e => this.setState({ areaEdit: { ...st.areaEdit, parent: e.target.value } }), inherit: e => this.setState({ areaEdit: { ...st.areaEdit, inherit: e.target.value } }) },
+      saveArea: () => this.saveArea(),
+      areaUp: () => this.moveArea(-1),
+      areaDown: () => this.moveArea(1),
+      toggleArea: () => this.toggleArea(),
+      shareButtons: shareButtonsView(st.editor, st.areas, slug => this.toggleShare(slug)),
+      saveShares: () => this.saveShares(),
       auditStatus: auditText(st.auditCheck, st.anchors),
       auditColor: st.auditCheck && !st.auditCheck.ok ? 'var(--gia-red-text)' : 'var(--gia-forest-text)',
       verifyAudit: () => this.verifyAudit(),

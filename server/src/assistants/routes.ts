@@ -3,6 +3,7 @@
 // versão; as anteriores ficam guardadas.
 import type { FastifyInstance } from 'fastify';
 import { z, ZodError } from 'zod';
+import { setShares, shareSchema, sharesOf } from '../areas/sharing.ts';
 import { withTenant } from '../db/pool.ts';
 import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
@@ -13,6 +14,11 @@ import { applyFloor, classConflicts, currentPolicy } from '../policy/usage-polic
 import { effectivePolicy } from '../policy/data-policy.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { guideMarkdown, guidePdf } from './guide.ts';
+
+class ShareError extends Error {
+  missing: string[];
+  constructor(missing: string[]) { super('áreas não encontradas'); this.missing = missing; }
+}
 import type { Tx } from '../db/pool.ts';
 
 // Assistente em piloto ou ativo só aceita as classes de dado que a Política de Uso de IA permite.
@@ -30,6 +36,7 @@ const createSchema = z.object({
   areaSlug: z.string().optional(),
   status: z.enum(['rascunho', 'piloto', 'ativo', 'pausado', 'descartado']).default('rascunho'),
   definition: z.unknown(),
+  compartilhar: shareSchema.optional(),      // outras áreas ou toda a empresa
 });
 
 const versionSchema = z.object({
@@ -48,12 +55,13 @@ export async function assistantRoutes(app: FastifyInstance) {
     const a = requireAuth(req, reply);
     if (!a) return;
     const rows = await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
-      `select a.slug, a.name, a.status, a.current_version as version, ar.slug as area, ar.name as area_name, a.area_id, v.definition
+      `select a.slug, a.name, a.status, a.current_version as version, ar.slug as area, ar.name as area_name, a.area_id, a.company_wide, v.definition,
+              coalesce((select array_agg(x.slug order by x.slug) from assistant_shares s join areas x on x.id = s.area_id where s.assistant_id = a.id), '{}') as shared
        from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
        left join areas ar on ar.id = a.area_id order by a.name`).then(r => r.rows));
     return rows.map(r => {
       const def = assistantDefinitionSchema.parse(r.definition);
-      return { slug: r.slug, name: r.name, status: r.status, version: r.version, area: r.area, areaName: r.area_name,
+      return { slug: r.slug, name: r.name, status: r.status, version: r.version, area: r.area, areaName: r.area_name, compartilhadoCom: r.shared, empresa: r.company_wide,
         tipo: def.pipeline.length ? 'execucao' : 'conversa', description: def.description, podeGerenciar: can(a, 'kb.manage', r.area_id) };
     });
   });
@@ -94,10 +102,15 @@ export async function assistantRoutes(app: FastifyInstance) {
           [a.tenantId, p.data.slug, p.data.name, areaId, p.data.status])).rows[0];
         await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`,
           [a.tenantId, row.id, def.data, a.userId]);
-        await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_criado', target: `assistente:${p.data.slug}@1` });
+        if (p.data.compartilhar) {
+          const { missing } = await setShares(tx, 'assistente', a.tenantId, row.id, p.data.compartilhar);
+          if (missing.length) throw new ShareError(missing);
+        }
+        await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_criado', target: `assistente:${p.data.slug}@1`, details: p.data.compartilhar ? { compartilhado: p.data.compartilhar } : undefined });
         return { status: 201, body: { slug: p.data.slug, version: 1 } };
       } catch (e) {
         if ((e as { code?: string }).code === '23505') return { status: 409, body: { error: 'assistente_ja_existe' } };
+        if (e instanceof ShareError) return { status: 404, body: { error: 'area_nao_encontrada', areas: e.missing } };
         throw e;
       }
     });
@@ -145,7 +158,7 @@ export async function assistantRoutes(app: FastifyInstance) {
         `select v.version, v.created_at, u.email as created_by from assistant_versions v left join users u on u.id = v.created_by
          where v.assistant_id = $1 order by v.version desc`, [cur.id])).rows;
       return { slug: cur.slug, name: cur.name, status: cur.status, area: cur.area, version: cur.version,
-        definition: assistantDefinitionSchema.parse(cur.definition), versions };
+        definition: assistantDefinitionSchema.parse(cur.definition), versions, compartilhamento: await sharesOf(tx, 'assistente', cur.id) };
     });
   });
 
@@ -192,6 +205,25 @@ export async function assistantRoutes(app: FastifyInstance) {
   });
 
   // Pacote portátil (ZIP com Markdown e JSON, ou um único Markdown).
+  // Compartilha com outras áreas ou com toda a empresa (quem administra a área dona).
+  app.put('/api/admin/assistants/:slug/areas', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const { slug } = req.params as { slug: string };
+    const p = shareSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const cur = (await tx.query(`select id, area_id from assistants where slug = $1 for update`, [slug])).rows[0];
+      if (!cur) return { status: 404, body: { error: 'nao_encontrado' } };
+      if (!can(a, 'kb.manage', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
+      const { missing } = await setShares(tx, 'assistente', a.tenantId, cur.id, p.data);
+      if (missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: missing } };
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_compartilhado', target: `assistente:${slug}`, details: p.data });
+      return { status: 200, body: { slug, ...p.data } };
+    });
+    return reply.code(out.status).send(out.body);
+  });
+
   app.get('/api/admin/assistants/:slug/package', async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;

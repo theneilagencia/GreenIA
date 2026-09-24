@@ -8,6 +8,8 @@ import { preAuth, withTenant, type TenantContext, type Tx } from '../db/pool.ts'
 
 export type Role = 'usuario' | 'revisor' | 'key_user' | 'admin_cliente' | 'admin_theneil';
 
+export interface AreaRole { areaId: string; slug: string; name: string; role: Role; inherited?: boolean }
+
 export interface AuthContext {
   sessionId: string;
   tenantId: string;
@@ -15,7 +17,7 @@ export interface AuthContext {
   email: string;
   name: string;
   roles: Role[];                               // papéis no tenant todo
-  areaRoles: { areaId: string; slug: string; name: string; role: Role }[];
+  areaRoles: AreaRole[];
   areaIds: string[];
   allAreas: boolean;                           // admin do cliente ou da TheNeil vê todas as áreas
   onboardingDone: boolean;                     // já passou pelo roteiro de primeiro acesso
@@ -69,14 +71,34 @@ async function loadAuth(app: FastifyInstance, req: FastifyRequest): Promise<Auth
 
 // Papéis e áreas de uma pessoa (a transação já está no contexto do tenant).
 // Usado pela sessão e pelas tarefas na fila, que agem em nome de quem pediu.
+// Papel numa área vale nas subáreas (herdado), exceto quando a subárea não
+// herda (inherit_permissions falso) ou quando a pessoa tem papel próprio nela,
+// que sobrescreve o herdado. Área desativada (ou abaixo de uma desativada) não
+// dá acesso; o admin do cliente continua vendo todas.
 export async function loadMembership(tx: Tx, userId: string) {
   const u = (await tx.query(`select email, name, onboarding_done_at from users where id = $1`, [userId])).rows[0] ?? { email: '', name: '', onboarding_done_at: null };
-  const m = (await tx.query(
-    `select m.role, m.area_id, a.slug, a.name from memberships m left join areas a on a.id = m.area_id where m.user_id = $1`,
-    [userId])).rows;
-  const roles = m.filter(r => !r.area_id).map(r => r.role as Role);
-  const areaRoles = m.filter(r => r.area_id).map(r => ({ areaId: r.area_id as string, slug: r.slug as string, name: r.name as string, role: r.role as Role }));
+  const m = (await tx.query(`select role, area_id from memberships where user_id = $1`, [userId])).rows as { role: Role; area_id: string | null }[];
+  const roles = m.filter(r => !r.area_id).map(r => r.role);
   const allAreas = roles.includes('admin_cliente') || roles.includes('admin_theneil');
+  const areaRoles: AreaRole[] = [];
+  if (m.some(r => r.area_id)) {
+    const areas = (await tx.query(`select id, slug, name, parent_id, active, inherit_permissions from areas order by position, name`)).rows as
+      { id: string; slug: string; name: string; parent_id: string | null; active: boolean; inherit_permissions: boolean }[];
+    const explicit = new Map<string, Role[]>();
+    for (const r of m.filter(r => r.area_id)) explicit.set(r.area_id!, [...(explicit.get(r.area_id!) ?? []), r.role]);
+    const children = new Map<string | null, typeof areas>();
+    for (const a of areas) children.set(a.parent_id, [...(children.get(a.parent_id) ?? []), a]);
+    const walk = (parent: string | null, inherited: Role[]) => {
+      for (const a of children.get(parent) ?? []) {
+        if (!a.active) continue;                                      // desativada: ela e as de baixo ficam sem acesso
+        const own = explicit.get(a.id);
+        const eff = own ?? (a.inherit_permissions ? inherited : []);
+        for (const role of eff) areaRoles.push({ areaId: a.id, slug: a.slug, name: a.name, role, inherited: !own });
+        walk(a.id, eff);
+      }
+    };
+    walk(null, []);
+  }
   return { email: u.email as string, name: u.name as string, roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas, onboardingDone: !!u.onboarding_done_at };
 }
 

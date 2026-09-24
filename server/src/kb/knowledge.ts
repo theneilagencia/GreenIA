@@ -13,7 +13,7 @@ export interface KnowledgeHit {
 
 export interface SearchOptions {
   previousUserText?: string; // pergunta de seguimento: soma a mensagem anterior se a última não achar nada
-  areaId?: string | null;    // restringe à área (mais os documentos gerais)
+  areaId?: string | null;    // restringe à área: documentos dela e das subáreas, os compartilhados com elas e os da empresa (a RLS ainda filtra o que a pessoa vê)
   limit?: number;
 }
 
@@ -44,7 +44,8 @@ export class KeywordKnowledgeSource implements KnowledgeSource {
       `select c.document_id, c.version, c.title, c.text
        from kb_chunks c join kb_documents d on d.id = c.document_id and d.current_version = c.version
        where c.tsv @@ to_tsquery('simple', $1)
-         and ($2::uuid is null or c.area_id is null or c.area_id = $2::uuid)
+         and ($2::uuid is null or d.company_wide or d.area_id is null or d.area_id = any(area_subtree($2::uuid))
+              or exists (select 1 from kb_document_shares s where s.document_id = d.id and s.area_id = any(area_subtree($2::uuid))))
        limit 200`,
       [terms.join(' | '), opts.areaId ?? null])).rows;
     const docs = rows.map(r => ({ documentId: r.document_id as string, version: r.version as number, title: r.title as string, text: r.text as string }));

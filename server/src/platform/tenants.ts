@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { usageRulesSchema } from '../policy/usage-policy.ts';
 import type { Db } from '../db/pool.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
+import { slugify } from '../admin/routes.ts';
 
 export const newTenantSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/),
@@ -12,7 +13,13 @@ export const newTenantSchema = z.object({
   config: z.unknown().optional(),
   domains: z.array(z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/)).min(1),
   hosts: z.array(z.string().trim().toLowerCase()).default([]),
-  areas: z.array(z.object({ slug: z.string().regex(/^[a-z0-9][a-z0-9-]{0,40}$/), name: z.string().min(1).max(80) })).default([]),
+  // Áreas do cliente. Sem áreas, o tenant começa vazio e o admin cria pelo painel.
+  areas: z.array(z.object({
+    slug: z.string().regex(/^[a-z0-9][a-z0-9-]{0,40}$/).optional(),
+    name: z.string().min(1).max(80),
+    description: z.string().max(1000).default(''),
+    parent: z.string().optional(),                     // slug da área mãe (declarada antes na lista)
+  })).default([]),
   providers: z.array(z.object({
     kind: z.enum(['entra', 'google', 'email_code', 'oidc']),
     label: z.string().min(1).max(80),
@@ -29,12 +36,13 @@ export type NewTenant = z.infer<typeof newTenantSchema>;
 
 export async function createTenant(ownerDb: Db, input: unknown, actor?: { tenantId: string; userId: string }) {
   const t = newTenantSchema.parse(input);
+  const areas = t.areas.map(a => ({ ...a, slug: a.slug ?? slugify(a.name) }));
   const { config, theme } = parseTenantConfig(t.config);
   for (const a of [...t.admins, ...t.keyUsers.map(k => k.email)]) {
     if (!t.domains.includes(a.split('@')[1])) throw new Error(`pessoa ${a} fora dos domínios do tenant`);
   }
   for (const k of t.keyUsers) {
-    if (!t.areas.some(ar => ar.slug === k.area)) throw new Error(`área ${k.area} do key user ${k.email} não existe no tenant`);
+    if (!areas.some(ar => ar.slug === k.area)) throw new Error(`área ${k.area} do key user ${k.email} não existe no tenant`);
   }
   const rules = t.policy ? usageRulesSchema.parse(t.policy.rules ?? {}) : null;
   for (const p of t.providers) {
@@ -46,7 +54,13 @@ export async function createTenant(ownerDb: Db, input: unknown, actor?: { tenant
     const id = (await client.query(`insert into tenants (slug, name, config) values ($1, $2, $3) returning id`, [t.slug, t.name, config])).rows[0].id;
     for (const d of t.domains) await client.query(`insert into tenant_domains (tenant_id, domain) values ($1, $2)`, [id, d]);
     for (const h of t.hosts) await client.query(`insert into tenant_hosts (host, tenant_id) values ($1, $2)`, [h, id]);
-    for (const a of t.areas) await client.query(`insert into areas (tenant_id, slug, name) values ($1, $2, $3)`, [id, a.slug, a.name]);
+    const areaIds = new Map<string, string>();
+    for (const [i, a] of areas.entries()) {
+      if (a.parent && !areaIds.has(a.parent)) throw new Error(`área mãe ${a.parent} da área ${a.slug} não existe no tenant (declare antes)`);
+      const r = await client.query(`insert into areas (tenant_id, slug, name, description, parent_id, position) values ($1, $2, $3, $4, $5, $6) returning id`,
+        [id, a.slug, a.name, a.description, a.parent ? areaIds.get(a.parent) : null, i]);
+      areaIds.set(a.slug, r.rows[0].id);
+    }
     for (const p of t.providers) {
       await client.query(`insert into auth_providers (tenant_id, kind, label, config) values ($1, $2, $3, $4)`, [id, p.kind, p.label, p.config]);
     }

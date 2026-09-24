@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { setShares, shareSchema } from '../areas/sharing.ts';
 import { withTenant } from '../db/pool.ts';
 import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
@@ -20,6 +21,7 @@ const contentSchema = z.object({
 const createSchema = contentSchema.and(z.object({
   title: z.string().trim().min(1).max(200),
   areaSlug: z.string().optional(),
+  compartilhar: shareSchema.optional(),      // outras áreas ou toda a empresa
 }));
 
 function bytesOf(c: z.infer<typeof contentSchema>) {
@@ -50,8 +52,13 @@ export async function kbRoutes(app: FastifyInstance) {
       const areaId = p.data.areaSlug ? (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id : null;
       if (p.data.areaSlug && !areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
       if (!can(a, 'kb.manage', areaId)) return { status: 403, body: { error: 'sem_permissao' } };
+      const wanted = p.data.compartilhar?.areas ?? [];
+      const found = wanted.length ? (await tx.query(`select slug from areas where slug = any($1)`, [wanted])).rows.map(r => r.slug) : [];
+      const missing = wanted.filter(w => !found.includes(w));
+      if (missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: missing } };
       const doc = (await tx.query(`insert into kb_documents (tenant_id, area_id, title, created_by) values ($1, $2, $3, $4) returning id`,
         [a.tenantId, areaId, p.data.title, a.userId])).rows[0];
+      if (p.data.compartilhar) await setShares(tx, 'documento', a.tenantId, doc.id, p.data.compartilhar);
       const { key, sha } = await storeVersion(a.tenantId, a.userId, doc.id, 1, body, p.data.contentType);
       await tx.query(`insert into kb_document_versions (tenant_id, document_id, version, object_key, sha256, mime, bytes, created_by) values ($1, $2, 1, $3, $4, $5, $6, $7)`,
         [a.tenantId, doc.id, key, sha, p.data.contentType, body.length, a.userId]);
@@ -90,17 +97,42 @@ export async function kbRoutes(app: FastifyInstance) {
     const a = requireAuth(req, reply);
     if (!a) return;
     return withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
-      `select d.id, d.title, d.current_version as version, ar.slug as area,
+      `select d.id, d.title, d.current_version as version, ar.slug as area, d.company_wide as empresa,
+              coalesce((select array_agg(x.slug order by x.slug) from kb_document_shares s join areas x on x.id = s.area_id where s.document_id = d.id), '{}') as "compartilhadoCom",
               (select v.status from kb_document_versions v where v.document_id = d.id order by v.version desc limit 1) as ultimo_status
        from kb_documents d left join areas ar on ar.id = d.area_id order by d.title`).then(r => r.rows));
+  });
+
+  // Compartilha o documento com outras áreas ou com toda a empresa.
+  app.put('/api/kb/documents/:id/areas', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const { id } = req.params as { id: string };
+    const p = shareSchema.safeParse(req.body);
+    if (!z.uuid().safeParse(id).success || !p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const doc = (await tx.query(`select id, area_id from kb_documents where id = $1 for update`, [id])).rows[0];
+      if (!doc) return { status: 404, body: { error: 'nao_encontrado' } };
+      if (!can(a, 'kb.manage', doc.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
+      const { missing } = await setShares(tx, 'documento', a.tenantId, doc.id, p.data);
+      if (missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: missing } };
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'documento_compartilhado', target: `documento:${id}`, details: p.data });
+      return { status: 200, body: { id, ...p.data } };
+    });
+    return reply.code(out.status).send(out.body);
   });
 
   app.get('/api/kb/search', async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;
     const q = String((req.query as Record<string, unknown>).q || '').slice(0, 500);
-    return withTenant(app.deps.db, tenantCtx(a), async tx =>
-      (await app.deps.knowledge.search(tx, q)).map(h => ({ documentId: h.documentId, version: h.version, title: h.title, trecho: h.text.slice(0, 300) })));
+    const area = String((req.query as Record<string, unknown>).area || '').slice(0, 60);
+    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+      // Com área: documentos dela e das subáreas, compartilhados com elas e os da empresa.
+      const areaId = area ? (await tx.query(`select id from areas where slug = $1`, [area])).rows[0]?.id ?? null : null;
+      if (area && !areaId) return [];
+      return (await app.deps.knowledge.search(tx, q, { areaId, limit: 10 })).map(h => ({ documentId: h.documentId, version: h.version, title: h.title, trecho: h.text.slice(0, 300) }));
+    });
   });
 
   // Importação em lote (implantação): cada arquivo vira um documento, indexado

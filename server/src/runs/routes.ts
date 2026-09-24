@@ -12,6 +12,7 @@ import { parseTenantConfig } from '../tenants/config.ts';
 import { assistantDefinitionSchema, type AssistantDefinition } from '../assistants/schema.ts';
 import { effectivePolicy, inspect } from '../policy/data-policy.ts';
 import { applyFloor, policyState, restrictedHits } from '../policy/usage-policy.ts';
+import { runAreaFor } from '../areas/sharing.ts';
 import { detectKind, readFile } from '../blocks/ler.ts';
 import type { BlockEnv, InputFile } from '../blocks/types.ts';
 import { checkLimits } from '../usage/record.ts';
@@ -28,6 +29,7 @@ const createSchema = z.object({
     contentBase64: z.string().min(1),
     mime: z.string().max(120).default('application/octet-stream'),
   })).max(500).default([]),
+  areaSlug: z.string().max(60).optional(),               // assistente compartilhado: por qual área a pessoa o usa
   confirmedWarnings: z.array(z.string()).max(20).default([]),
 });
 
@@ -69,11 +71,14 @@ export async function runRoutes(app: FastifyInstance) {
       const usage = await policyState(tx, a.userId);
       const t = (await tx.query(`select config from tenants where id = $1`, [a.tenantId])).rows[0];
       const row = (await tx.query(
-        `select a.id, a.slug, a.name, a.status, a.area_id, a.current_version, v.definition from assistants a
+        `select a.id, a.slug, a.name, a.status, a.area_id, a.company_wide, a.current_version, v.definition from assistants a
          join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version where a.slug = $1`, [body.assistant])).rows[0];
-      return { config: parseTenantConfig(t?.config).config, row, usage };
+      // Assistente compartilhado: a execução fica na área pela qual a pessoa o usa (e a revisão segue essa área).
+      const runArea = row ? await runAreaFor(tx, row, a.areaIds, a.allAreas, body.areaSlug) : null;
+      return { config: parseTenantConfig(t?.config).config, row, usage, runArea };
     });
-    const { config, row, usage } = loaded;
+    const { config, row, usage, runArea } = loaded;
+    if (runArea === undefined) return reply.code(400).send({ error: 'area_nao_serve', detalhe: 'o assistente não é usado por esta área' });
     if (!usage.acked) return reply.code(428).send({ error: 'ciencia_da_politica_pendente', version: usage.policy!.version });
     if (!row || !['piloto', 'ativo'].includes(row.status)) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
     const def = assistantDefinitionSchema.parse(row.definition);
@@ -149,7 +154,7 @@ export async function runRoutes(app: FastifyInstance) {
         await tx.query(
           `insert into runs (id, tenant_id, assistant_id, assistant_version, area_id, user_id, input_text, input_sha256, confirmed_warnings, expires_at)
            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + make_interval(days => $10))`,
-          [runId, a.tenantId, row.id, row.current_version, row.area_id, a.userId, text, inputSha, body.confirmedWarnings, days]);
+          [runId, a.tenantId, row.id, row.current_version, runArea, a.userId, text, inputSha, body.confirmedWarnings, days]);
         for (const [i, f] of files.entries()) {
           await tx.query(`insert into run_files (id, tenant_id, run_id, name, mime, bytes, sha256, object_key) values ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [f.id, a.tenantId, runId, f.name, f.mime, f.bytes.length, f.sha256, keys[i]]);

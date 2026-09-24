@@ -165,3 +165,27 @@ test('incidente: o key user lê a descrição e escala para a TheNeil', async ()
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test('áreas: o admin cria área e subárea, renomeia e desativa pelo painel', async () => {
+  const { page, errors, context } = await openAs(u.admin);            // ciência e roteiro já feitos
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: 'Áreas', exact: true }).click();
+  await page.getByLabel('Nome da nova área').fill('Atendimento ao cliente');
+  await page.getByRole('button', { name: 'Criar área' }).click();
+  await page.getByText('Área criada.').waitFor();
+  await page.getByLabel('Nome da nova área').fill('Ouvidoria');
+  await page.getByLabel('Área mãe da nova área').selectOption({ label: 'Atendimento ao cliente' });
+  await page.getByRole('button', { name: 'Criar área' }).click();
+  await page.getByRole('cell', { name: 'Ouvidoria' }).waitFor();
+  await page.getByRole('cell', { name: 'Ouvidoria' }).click();
+  await page.getByRole('heading', { name: 'Área Ouvidoria' }).waitFor();
+  await page.getByLabel('Nome da área').fill('Ouvidoria e reclamações');
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await page.getByText('Área salva.').waitFor();
+  await page.getByRole('button', { name: 'Desativar' }).click();
+  await page.getByText(/Área desativada/).waitFor();
+  const row = page.getByRole('row', { name: /Ouvidoria e reclamações/ });
+  await row.getByRole('cell', { name: 'desativada' }).waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});

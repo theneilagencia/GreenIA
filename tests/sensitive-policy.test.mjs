@@ -106,6 +106,17 @@ test('credencial é bloqueada mesmo se a política disser outra coisa', () => {
   assert.deepEqual(d.block, ['credencial']);
 });
 
+test('permitir_com_registro envia e lista os tipos a registrar', () => {
+  const d = decideAction(['email', 'telefone'], { ...DATA_POLICY, email: 'permitir_com_registro', telefone: 'permitir' });
+  assert.equal(d.action, 'permitir_com_registro');
+  assert.deepEqual(d.log, ['email']);
+  assert.deepEqual(d.allow, ['telefone']);
+});
+
+test('mascarar prevalece sobre permitir_com_registro', () => {
+  assert.equal(decideAction(['email', 'nome'], { email: 'mascarar', nome: 'permitir_com_registro' }).action, 'mascarar');
+});
+
 test('ação desconhecida na política vira bloquear', () => {
   assert.equal(decideAction(['email'], { email: 'talvez' }).action, 'bloquear');
 });

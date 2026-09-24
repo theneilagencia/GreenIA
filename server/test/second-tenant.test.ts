@@ -162,9 +162,9 @@ test('seis oportunidades em áreas diferentes, avaliadas; uma enviada ao roadmap
   assert.deepEqual(seguras.map(o => o.titulo).sort(), ['Dúvidas de trabalho em altura sem esperar o técnico', 'Resumo semanal do diário de obra']);
 });
 
-// Janela de medição dos últimos 30 dias: as execuções do teste acontecem hoje.
+// Janela de medição dos últimos 20 dias: as execuções do teste acontecem hoje.
 const day = (offset: number) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
-const TODAY = day(0), MED_START = day(-29);
+const TODAY = day(0), MED_START = day(-19);
 const JANELAS = (base: [string, string, number], med: [string, string, number | null], unidadeVolume: string) =>
   ({ pontoDePartida: { inicio: base[0], fim: base[1], volume: base[2] }, medicao: { inicio: med[0], fim: med[1], volume: med[2] }, unidadeVolume });
 
@@ -175,7 +175,7 @@ test('três quick wins, selecionados pelo patrocinador: dois assistentes, só a 
     indicadores: [
       { key: 'compras_refeitas', label: 'Compras refeitas', unit: 'compras', direction: 'menor_melhor', comparacao: 'por_mes' },
       { key: 'tempo_por_cotacao', label: 'Tempo por cotação conferida', unit: 'min', direction: 'menor_melhor', auto: 'tempo_ate_revisao' },
-    ], janelas: JANELAS(['2026-06-01', '2026-08-31', 360], [MED_START, TODAY, null], 'cotações'), nota: 'Maior nota do portfólio e evidência comprovada.' };
+    ], janelas: JANELAS(['2026-06-01', '2026-08-31', 360], [MED_START, TODAY, 80], 'cotações'), nota: 'Maior nota do portfólio e evidência comprovada.' };
   assert.equal((await call('keySup', 'POST', `/api/opportunities/${opp.sup}/selecionar`, sup)).json().error, 'so_patrocinador_ou_admin');   // key user propõe
   qw.sup = (await ok('diretoria', 'POST', `/api/opportunities/${opp.sup}/selecionar`, sup)).id;
   qw.seg = (await ok('diretoria', 'POST', `/api/opportunities/${opp.seg}/selecionar`, {
@@ -189,7 +189,7 @@ test('três quick wins, selecionados pelo patrocinador: dois assistentes, só a 
     indicadores: [
       { key: 'horas_leitura', label: 'Horas de leitura do diário por semana', unit: 'h', direction: 'menor_melhor' },
       { key: 'aprovacao', label: 'Resumos aprovados sem edição', unit: '%', direction: 'maior_melhor', auto: 'aprovacao_sem_edicao' },
-    ], janelas: JANELAS(['2026-08-01', '2026-08-15', 12], [MED_START, TODAY, null], 'semanas de canteiro'), nota: 'Rápido de implantar e com impacto na segurança do canteiro.' })).id;
+    ], janelas: JANELAS(['2026-08-01', '2026-08-15', 12], [MED_START, TODAY, 18], 'semanas de canteiro'), /* item não é execução: volume informado */ nota: 'Rápido de implantar e com impacto na segurança do canteiro.' })).id;
   const list = (await call('admin', 'GET', '/api/quick-wins')).json() as { titulo: string; etapa: string; assistentes: number; documentos: number }[];
   assert.deepEqual(list.map(q => [q.assistentes, q.documentos]).sort(), [[0, 1], [2, 0], [2, 1]]);
   assert.ok(list.every(q => q.etapa === 'em_implantacao'));
@@ -248,8 +248,8 @@ test('ciclo com medição: execuções reais do assistente, ponto de partida e d
   assert.deepEqual(r.indicadores.find((i: { key: string }) => i.key === 'horas_leitura').comparacao, { diferenca: -3.2, percentual: -80, melhorou: true, parcial: false });
   const s = (await call('keySup', 'GET', `/api/quick-wins/${qw.sup}`)).json();
   const c = s.indicadores.find((i: { key: string }) => i.key === 'compras_refeitas');
-  assert.deepEqual([c.comparacaoPor, c.antes.comparavel, c.depois.comparavel], ['compras por mês', 1.32, 0]);   // 4 em 92 dias × 0 em 30 dias
-  assert.ok(s.janelas.avisos.some((w: string) => /duração muito diferente: 92 dias no ponto de partida e 30 dias/.test(w)));
+  assert.deepEqual([c.comparacaoPor, c.antes.comparavel, c.depois.comparavel], ['compras por mês', 1.32, 0]);   // 4 em 92 dias × 0 no mês de setembro
+  assert.ok(s.janelas.avisos.some((w: string) => /duração muito diferente: 92 dias no ponto de partida e 20 dias/.test(w)));
   assert.equal((await call('keyEng', 'POST', `/api/quick-wins/${qw.obra}/decisao`, { decisao: 'ampliar', justificativa: 'Key user não decide.' })).json().error, 'so_patrocinador_ou_admin');
   await ok('diretoria', 'POST', `/api/quick-wins/${qw.obra}/decisao`, { decisao: 'ampliar', justificativa: 'Leitura caiu de 4 h para menos de 1 h por semana; a Segurança do trabalho quer o mesmo para as inspeções.' });
   await ok('diretoria', 'POST', `/api/quick-wins/${qw.sup}/decisao`, { decisao: 'manter', justificativa: 'Nenhuma compra refeita no período medido.' });

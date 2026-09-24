@@ -204,7 +204,7 @@ Pedida depois da aprovação dos ajustes. Nenhum nome de sistema, layout, nome d
 - Patrocinador do tenant não duplica documento de área que não enxerga: compartilha (com aprovação), ou pede ao key user da área.
 - O segundo tenant existe como teste executável, não como seed no ambiente de demonstração.
 - A desmontagem dos testes às vezes encerrava conexões ainda abertas e derrubava o arquivo (visto no `audit-chain` e no `retention`); o pool de teste agora tem ouvinte de erro.
-- O chat com assistente de conversa já consulta a base no contexto da pessoa (sem vazamento), mas ainda não mostra o aviso de fonte indisponível; o aviso vale para os blocos das execuções (consulta e busca).
+- Resolvido na Fase 4: o chat com assistente de conversa consulta as bases vinculadas ∩ o que a pessoa lê e mostra o mesmo aviso ("fonte não disponível para você: base de X") na resposta, sem conteúdo nem título, com registro na auditoria. O modelo também recebe a informação de que a fonte ficou de fora. A página do chat não tem seletor de assistente: o assistente de conversa entra pela API ou pelo endereço `?assistente=<identificador>`.
 - A18 (vocabulário de setor na avaliação de nomes) continua como estava: é avaliação, fora do núcleo.
 
 ## Parada

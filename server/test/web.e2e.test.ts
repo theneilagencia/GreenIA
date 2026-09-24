@@ -132,6 +132,34 @@ test('a decisão é do servidor: com o filtro do navegador permissivo, CPF volta
   await page.close();
 });
 
+test('chat com assistente de conversa: base vinculada fora do alcance aparece como aviso na resposta', async () => {
+  const q = async (sql: string, p: unknown[] = []) => (await db.owner.query(sql, p)).rows;
+  const [{ id: tid }] = await q(`select id from tenants where slug = 'repet'`);
+  const [{ id: pessoas }] = await q(`insert into areas (tenant_id, slug, name) values ($1, 'pessoas', 'Pessoas') returning id`, [tid]);
+  const [{ id: comercial }] = await q(`insert into areas (tenant_id, slug, name) values ($1, 'comercial', 'Comercial') returning id`, [tid]);
+  const [{ id: uid }] = await q(`insert into users (tenant_id, email) values ($1, 'vendas@repet.com.br') returning id`, [tid]);
+  await q(`insert into memberships (tenant_id, user_id, area_id, role) values ($1, $2, $3, 'usuario')`, [tid, uid, comercial]);
+  const [{ id: doc }] = await q(`insert into kb_documents (tenant_id, area_id, title, current_version) values ($1, $2, 'Tabela salarial', 1) returning id`, [tid, pessoas]);
+  await q(`insert into kb_chunks (tenant_id, document_id, version, ord, title, text, search_terms) values ($1, $2, 1, 0, 'Tabela salarial', 'Analista pleno: R$ 9.800.', 'tabela salarial analista pleno')`, [tid, doc]);
+  const [{ id: aid }] = await q(`insert into assistants (tenant_id, slug, name, area_id, status) values ($1, 'duvidas-pessoas', 'Dúvidas de pessoas', $2, 'ativo') returning id`, [tid, pessoas]);
+  await q(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`, [tid, aid, { schemaVersion: 2, inputs: { knowledge: { enabled: true } } }, uid]);
+  await q(`insert into assistant_shares (tenant_id, assistant_id, area_id) values ($1, $2, $3)`, [tid, aid, comercial]);
+  const page = await browser.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await page.goto(base + '/GreenIA.dc.html?tenant=repet&assistente=duvidas-pessoas');
+  await login(page, 'vendas@repet.com.br');
+  fake.reply = () => 'Essa informação não está disponível para você.';
+  await page.getByLabel('Mensagem').fill('qual a tabela salarial do analista pleno?');
+  await page.getByLabel('Mensagem').press('Enter');
+  await page.getByRole('note').getByText('fonte não disponível para você: base de Pessoas').waitFor({ timeout: 5000 });
+  assert.equal(await page.getByText('R$ 9.800').count(), 0);
+  assert.ok(!JSON.stringify(fake.requests.at(-1)).includes('9.800'));
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
 test('backend fora do ar: mostra erro, sem fallback para window.claude.complete', async () => {
   const { page } = await openApp();
   await login(page, 'caio@repet.com.br');

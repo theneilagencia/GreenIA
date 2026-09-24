@@ -410,6 +410,13 @@
                       </button>
                     </div>
                   </sc-if>
+                  <sc-if value="{{ m.hasNotices }}">
+                    <div role="note" style="display:flex;flex-direction:column;gap:4px;padding-left:2px;">
+                      <sc-for list="{{ m.notices }}" as="nt" hint-placeholder-count="0">
+                        <span style="display:inline-flex;align-items:center;gap:6px;font:500 13px/1.4 'Hanken Grotesk';color:var(--gia-ink);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path></svg>{{ nt }}</span>
+                      </sc-for>
+                    </div>
+                  </sc-if>
                   <sc-if value="{{ m.hasSources }}">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-left:2px;">
                       <span style="font:600 11px 'Hanken Grotesk';letter-spacing:0.1em;text-transform:uppercase;color:var(--gia-muted);">Da base</span>
@@ -1057,6 +1064,11 @@ class Component extends DCLogic {
     }
   }
 
+  _assistantSlug() {
+    const v = new URLSearchParams(location.search).get('assistente');
+    return v && /^[a-z0-9][a-z0-9-]{0,60}$/.test(v) ? v : null;
+  }
+
   // Cores do tenant (já validadas para contraste no servidor).
   _applyTheme(tokens) {
     for (const [k, v] of Object.entries(tokens)) {
@@ -1485,7 +1497,8 @@ class Component extends DCLogic {
     try {
       res = await this._fetch('/api/chat', {
         method: 'POST', signal: this._abort.signal,
-        body: { messages: apiConvo, confirmedWarnings: convo.confirmed || [], useKnowledge: this.state.kbOn },
+        // ?assistente=<slug>: conversa com um assistente de conversa (instruções e bases dele).
+        body: Object.assign({ messages: apiConvo, confirmedWarnings: convo.confirmed || [], useKnowledge: this.state.kbOn }, this._assistantSlug() ? { assistant: this._assistantSlug() } : {}),
       });
     } catch (e) {
       if (this._requestId === requestId) failWith('Não consegui falar com o servidor agora. Quer tentar de novo?');
@@ -1548,6 +1561,7 @@ class Component extends DCLogic {
           let data = null;
           try { data = JSON.parse((block.match(/^data: (.*)$/m) || [])[1] || 'null'); } catch (e) { data = null; }
           if (ev === 'meta' && data && data.sources) setMsg(m => ({ ...m, sources: data.sources.map(x => x.title) }));
+          if (ev === 'meta' && data && data.avisos) setMsg(m => ({ ...m, notices: data.avisos }));
           else if (ev === 'delta' && data) { full += data.text; setMsg(m => ({ ...m, text: full })); }
           else if (ev === 'done') {
             finished = true;
@@ -1615,6 +1629,8 @@ class Component extends DCLogic {
       caret: !!m.typing,
       sources: m.sources || [],
       hasSources: !!(m.sources && m.sources.length),
+      notices: m.notices || [],
+      hasNotices: !!(m.notices && m.notices.length),
     }));
     const thinking = !!pending && pending.convoId === activeId && pending.phase === 'thinking';
     const blocked = this.state.blocked && this.state.blocked.convoId === activeId ? this.state.blocked : null;

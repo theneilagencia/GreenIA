@@ -89,6 +89,27 @@ test('usuário da área de destino executa: nenhum trecho da base restrita, e o 
   assert.ok(sentToModel().includes(SEGREDO));
 });
 
+test('chat com assistente de conversa: base vinculada fora do alcance vira aviso na resposta, sem conteúdo', async () => {
+  const def = { inputs: { text: { enabled: true }, files: { enabled: false }, knowledge: { enabled: true } }, instructions: 'Responda dúvidas de pessoas.' };
+  assert.equal((await call('admin', 'POST', '/api/admin/assistants', { slug: 'duvidas-pessoas', name: 'Dúvidas de pessoas', areaSlug: 'pessoas', status: 'ativo', definition: def })).statusCode, 201);
+  assert.deepEqual((await call('keyRh', 'PUT', '/api/admin/assistants/duvidas-pessoas/areas', { areas: ['comercial'] })).json().aplicados, ['comercial']);
+  const chat = (who: string) => call(who, 'POST', '/api/chat', { assistant: 'duvidas-pessoas', messages: [{ role: 'user', content: 'Qual a tabela salarial do analista pleno?' }] });
+  const before = fake.requests.length;
+  const r = await chat('userCom');
+  assert.equal(r.statusCode, 200, r.body);
+  assert.match(r.body, /event: meta\ndata: \{"avisos":\["fonte não disponível para você: base de Pessoas"\]\}/);
+  assert.ok(!r.body.includes(SEGREDO) && !r.body.includes('Tabela salarial'));
+  const req = fake.requests.slice(before).map(x => JSON.stringify(x)).join('\n');
+  assert.ok(!req.includes(SEGREDO), 'nada da base restrita foi ao modelo');
+  assert.match(req, /base de Pessoas/);                                            // o modelo sabe que a fonte ficou de fora
+  const gaps = (await db.owner.query(`select details from audit_log where tenant_id = $1 and action = 'fonte_indisponivel_para_a_pessoa' and target like 'assistente:duvidas-pessoas%'`, [T.tenantId])).rows;
+  assert.deepEqual(gaps.map(g => g.details), [{ area: 'Pessoas', canal: 'chat' }]);
+  // Controle: quem é da área dona recebe a base e nenhum aviso.
+  const own = await chat('userRh');
+  assert.ok(!own.body.includes('avisos'));
+  assert.match(own.body, /"sources":\[\{"title":"Tabela salarial"/);
+});
+
 test('key user da área dona compartilha direto; retirar vale na hora; documento pedido pelo patrocinador fica pendente', async () => {
   let r = await call('keyRh', 'PUT', '/api/admin/assistants/consulta-rh/areas', { areas: ['comercial', 'financeiro'] });
   assert.deepEqual([r.json().aplicados, r.json().pendentes], [['financeiro'], []]);

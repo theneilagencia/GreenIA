@@ -90,6 +90,10 @@ Exemplos: `server/.env.example` (produção, AWS) e `.env.local.example` (compos
 | `PLATFORM_SUPPORT_EMAIL` | não | suporte da TheNeil: recebe o aviso de cada incidente reportado, sem a descrição |
 | `SESSION_TTL_HOURS` | não | duração da sessão (padrão 12 h) |
 | `COOKIE_SECURE` | não | `true` por padrão. Com `false` (só local), o cookie perde o prefixo `__Host-` |
+| `AUDIT_ANCHOR_BUCKET` | não (sim em produção) | bucket com Object Lock, na conta AWS separada, para a âncora diária da auditoria. Sem valor, a publicação fica desligada |
+| `AUDIT_ANCHOR_ROLE_ARN`, `AUDIT_ANCHOR_EXTERNAL_ID` | não | papel na conta separada (sts:AssumeRole) e o ExternalId dele |
+| `AUDIT_ANCHOR_REGION`, `AUDIT_ANCHOR_PREFIX` | não | região do bucket (padrão `sa-east-1`) e prefixo das chaves (padrão `greenia/`) |
+| `AUDIT_ANCHOR_RETENTION_DAYS` | não | retenção em modo compliance de cada âncora (padrão 1825 dias, 5 anos) |
 | `OCRMYPDF_CMD`, `OCR_LANG` | não | OCR local: comando do OCRmyPDF (padrão `ocrmypdf`) e idioma do Tesseract (padrão `por`) |
 | `MAGICK_CMD`, `SOFFICE_CMD` | não | ImageMagick (padrão `convert`; TIFF, HEIC) e LibreOffice (padrão `soffice`; DOC, XLS, ODT, ODS) |
 | `CONVERT_TIMEOUT_S` | não | tempo máximo base de cada OCR ou conversão (padrão 120 s, mais 20 s por página) |
@@ -146,6 +150,27 @@ O código não depende da AWS: cada peça fica atrás de uma interface (`ObjectS
 - **Rede**: o banco, o Redis e as tarefas ficam em sub-redes privadas, e só o ALB é público. As saídas necessárias são `api.anthropic.com` (modelo), SES, S3 e os provedores OIDC dos clientes (`login.microsoftonline.com`, `accounts.google.com`).
 - **Modelo e região**: o processamento do modelo acontece fora do Brasil. A API da Anthropic não tem região Brasil. O Bedrock também não tem perfil de inferência no Brasil: veja `docs/fase-2/bedrock-regiao-brasil.md`. Os dados em repouso (banco, documentos, filas) ficam em sa-east-1. É um ponto jurídico (transferência internacional), registrado em `PENDENCIAS-SEGURANCA.md`.
 - **Migrações no deploy**: rode uma tarefa avulsa com a mesma imagem, com `node src/db/migrate.ts`, antes de atualizar o serviço. As migrações são aditivas e registradas em `schema_migrations`.
+
+## Âncora da auditoria (conta AWS separada)
+
+Todo dia, o hash final da cadeia de auditoria de cada tenant vai para um bucket S3 com Object Lock em modo compliance, numa conta AWS que não é a de produção. Nem a conta de produção nem o dono do banco conseguem apagar ou mudar uma âncora antes do fim da retenção. `GET /api/audit/verify` refaz a cadeia e compara com a última âncora lida do bucket; o admin do cliente vê e exporta o histórico na aba Administração › Auditoria.
+
+Na conta separada (uma vez):
+
+1. Criar o bucket em sa-east-1 com Object Lock ligado na criação (o versionamento liga junto). Não é preciso retenção padrão: cada âncora já vai com `COMPLIANCE` e a data de retenção.
+2. Criar o papel `greenia-ancora-auditoria`, confiando só na conta de produção (com `ExternalId`), com esta política:
+
+   ```json
+   { "Version": "2012-10-17", "Statement": [
+     { "Effect": "Allow", "Action": ["s3:PutObject", "s3:PutObjectRetention", "s3:GetObject", "s3:GetObjectVersion"],
+       "Resource": "arn:aws:s3:::<BUCKET>/greenia/*" } ] }
+   ```
+
+   Sem `s3:DeleteObject*`, `s3:BypassGovernanceRetention` nem `s3:PutBucketObjectLockConfiguration`.
+3. Na produção, liberar `sts:AssumeRole` nesse papel para o papel da aplicação e definir `AUDIT_ANCHOR_BUCKET`, `AUDIT_ANCHOR_ROLE_ARN` e `AUDIT_ANCHOR_EXTERNAL_ID`.
+4. Conferir com `POST /api/platform/audit/anchors/run` (TheNeil): cada tenant deve voltar `publicada`, e a segunda chamada no mesmo dia, `ja_publicada`.
+
+A tarefa roda de hora em hora e publica uma âncora por tenant por dia. Cadeia quebrada não é ancorada: vira registro `ancora_nao_publicada` na auditoria do tenant e erro no log.
 
 ## Email: SPF, DKIM e DMARC
 

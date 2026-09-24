@@ -129,6 +129,11 @@ export async function deleteTenant(ownerDb: Db, objects: ObjectStore, tenantId: 
   const tables = await tenantTables(ownerDb);
   const before = await countRows(ownerDb, tables, tenantId);
   const head = (await ownerDb.query(`select hash from audit_log where tenant_id = $1 order by seq desc limit 1`, [tenantId])).rows[0]?.hash ?? null;
+  // Âncoras no bucket externo (Object Lock): não podem ser apagadas antes do fim
+  // da retenção. Só têm identificador, número de registro e hash, sem conteúdo.
+  const anc = (await ownerDb.query(`select count(*)::int as n, max(retain_until) as ate, min(bucket) as bucket from audit_anchors where tenant_id = $1`, [tenantId])).rows[0];
+  const externalAnchors = anc.n ? { quantidade: anc.n, bucket: anc.bucket, retidasAte: new Date(anc.ate).toISOString(),
+    observacao: 'âncoras da auditoria (identificador do tenant, número do registro e hash, sem conteúdo) ficam no bucket com Object Lock até o fim da retenção' } : null;
 
   // 1) Armazenamento: tudo que está no prefixo do tenant.
   const prefix = tenantPrefix(tenantId);
@@ -155,7 +160,7 @@ export async function deleteTenant(ownerDb: Db, objects: ObjectStore, tenantId: 
   const remainingRows = Object.values(after).reduce((a, b) => a + b, 0);
   const remainingObjects = (await objects.list(prefix)).length;
   const verification = { linhasRestantes: remainingRows, objetosRestantes: remainingObjects, porTabela: after, ok: remainingRows === 0 && remainingObjects === 0 };
-  const body = { tenantId, slug: t.slug, nome: t.name, solicitadoPor: who.email, motivo: who.reason, registros: before, objetosApagados: objectsBefore, auditoria: { registros: before.audit_log ?? 0, hashFinal: head }, verificacao: verification, em: new Date().toISOString() };
+  const body = { tenantId, slug: t.slug, nome: t.name, solicitadoPor: who.email, motivo: who.reason, registros: before, objetosApagados: objectsBefore, auditoria: { registros: before.audit_log ?? 0, hashFinal: head, ancorasExternas: externalAnchors }, verificacao: verification, em: new Date().toISOString() };
   const receiptSha = sha(JSON.stringify(body));
   const id = (await ownerDb.query(
     `insert into tenant_deletions (former_tenant_id, tenant_slug, tenant_name, requested_by, reason, counts, objects_deleted, audit_records, audit_head_hash, verification, receipt_sha256)

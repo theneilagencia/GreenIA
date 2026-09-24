@@ -35,6 +35,7 @@ import type { JobQueue } from './jobs/queue.ts';
 import type { KnowledgeSource } from './kb/knowledge.ts';
 import type { LlmProvider } from './llm/provider.ts';
 import { LocalConverter, type Converter } from './convert/converter.ts';
+import { S3AnchorStore, makeAnchorJob, type AnchorStore } from './audit/anchor.ts';
 
 export interface Deps {
   config: Config;
@@ -48,12 +49,14 @@ export interface Deps {
   knowledge: KnowledgeSource;
   rateLimiter: RateLimiter;
   converter: Converter;              // OCR e conversões (ferramentas do sistema)
+  anchors?: AnchorStore;             // âncora diária da auditoria (bucket com Object Lock); ausente: desligada
   ping?: { redis?: () => Promise<unknown> };
 }
 
 export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { chatHooks?: ChatHooks; converter?: Converter }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, converter: input.converter ?? new LocalConverter(input.config), chatHooks: input.chatHooks ?? composeSteps([usagePolicyStep, usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
+  const deps: Deps = { ...input, converter: input.converter ?? new LocalConverter(input.config),
+    anchors: 'anchors' in input ? input.anchors : input.config.AUDIT_ANCHOR_BUCKET ? new S3AnchorStore(input.config) : undefined, chatHooks: input.chatHooks ?? composeSteps([usagePolicyStep, usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -107,6 +110,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { 
   deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects, deps.converter));
   deps.queue.register('run:execute', makeRunExecutor(app));
   deps.queue.register('tenant:export', makeExportJob(app));
+  deps.queue.register('audit:anchor', async () => { await makeAnchorJob(app)(); });
   const sweep = makeRetentionSweep(deps.db, deps.objects);
   deps.queue.register('retention:sweep', async () => { await sweep(); });
 

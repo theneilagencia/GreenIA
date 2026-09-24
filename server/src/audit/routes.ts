@@ -9,6 +9,7 @@ import { requireAuth, tenantCtx, type AuthContext } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { toCsv } from '../util/csv.ts';
+import { checkLatestAnchor } from './anchor.ts';
 
 const COLUMNS = ['seq', 'at', 'actor_email', 'action', 'target', 'details', 'prev_hash', 'hash'];
 
@@ -49,8 +50,34 @@ export async function auditRoutes(app: FastifyInstance) {
     const a = requireAuth(req, reply);
     if (!a) return;
     if (!canReadAudit(a)) return reply.code(403).send({ error: 'sem_permissao' });
-    const r = await withTenant(app.deps.db, tenantCtx(a), verifyChain);
-    return { ok: r.ok, registros: Number(r.registros), primeiroQuebrado: r.primeiro_quebrado ? Number(r.primeiro_quebrado) : null, motivo: r.motivo, hashFinal: r.hash_final };
+    // A cadeia é refeita no banco e comparada com a última âncora publicada no
+    // bucket externo: reescrever a cadeia inteira não passa despercebido.
+    const { r, ancora } = await withTenant(app.deps.db, tenantCtx(a), async tx => ({ r: await verifyChain(tx), ancora: await checkLatestAnchor(tx, app.deps.anchors) }));
+    const ok = r.ok && ancora.status !== 'diverge';
+    return { ok, registros: Number(r.registros), primeiroQuebrado: r.primeiro_quebrado ? Number(r.primeiro_quebrado) : null,
+      motivo: r.motivo ?? (ancora.status === 'diverge' ? ancora.motivo : null), hashFinal: r.hash_final, ancora };
+  });
+
+  // Histórico das âncoras publicadas (admin do cliente), em JSON ou CSV.
+  app.get('/api/audit/anchors', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!can(a, 'tenant.configure')) return reply.code(403).send({ error: 'sem_permissao' });
+    const q = z.object({ format: z.enum(['json', 'csv']).default('json') }).safeParse(req.query);
+    if (!q.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const rows = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const list = (await tx.query(`select anchor_date, seq, hash, records, bucket, object_key, version_id, retain_until, published_at from audit_anchors order by anchor_date desc limit 3660`)).rows;
+      if (q.data.format === 'csv') await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'ancoras_exportadas', details: { quantidade: list.length } });
+      return list.map(r => ({
+        data: r.anchor_date instanceof Date ? r.anchor_date.toISOString().slice(0, 10) : String(r.anchor_date), seq: Number(r.seq), hash: r.hash, registros: Number(r.records),
+        bucket: r.bucket, chave: r.object_key, versao: r.version_id, retidaAte: new Date(r.retain_until).toISOString(), publicadaEm: new Date(r.published_at).toISOString(),
+      }));
+    });
+    if (q.data.format === 'csv') {
+      return reply.type('text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="ancoras-auditoria.csv"')
+        .send(toCsv(rows, ['data', 'seq', 'hash', 'registros', 'bucket', 'chave', 'versao', 'retidaAte', 'publicadaEm']));
+    }
+    return { ligada: !!app.deps.anchors, ancoras: rows };
   });
 
   // Histórico de um documento da base, de uma execução de assistente ou de um

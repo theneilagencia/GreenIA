@@ -40,6 +40,15 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   // Câmbio para o custo em reais (a tabela de preços está em US$).
   USD_BRL: z.coerce.number().positive().default(5.5),
+  // Âncora diária da auditoria: bucket S3 com Object Lock (modo compliance) numa
+  // conta AWS separada da produção. Sem bucket, a publicação fica desligada.
+  AUDIT_ANCHOR_BUCKET: z.string().optional(),
+  AUDIT_ANCHOR_REGION: z.string().default('sa-east-1'),
+  AUDIT_ANCHOR_ROLE_ARN: z.string().optional(),            // papel na outra conta (sts:AssumeRole); sem valor, credenciais do ambiente
+  AUDIT_ANCHOR_EXTERNAL_ID: z.string().optional(),
+  AUDIT_ANCHOR_RETENTION_DAYS: z.coerce.number().int().min(1).max(36500).default(1825),
+  AUDIT_ANCHOR_PREFIX: z.string().default('greenia/'),
+  AUDIT_ANCHOR_ENDPOINT: z.string().optional(),            // só fora da AWS (testes locais)
   // OCR e conversões no servidor (ferramentas do sistema; veja src/convert/converter.ts).
   OCRMYPDF_CMD: z.string().default('ocrmypdf'),
   OCR_LANG: z.string().default('por'),

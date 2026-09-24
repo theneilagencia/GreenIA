@@ -7,6 +7,7 @@ import { can } from '../auth/rbac.ts';
 import { createTenant } from './tenants.ts';
 import type { AuthContext } from '../auth/session.ts';
 import { INCIDENT_STATUS, NEXT, code, platformMayRead } from '../incidents/routes.ts';
+import { makeAnchorJob } from '../audit/anchor.ts';
 import { simulate, simulateSchema } from '../usage/simulate.ts';
 
 const priceSchema = z.object({
@@ -41,6 +42,15 @@ export async function platformRoutes(app: FastifyInstance) {
       if (e instanceof Error && /fora dos domínios|segredo não vai|não existe no tenant/.test(e.message)) return reply.code(400).send({ error: e.message });
       throw e;
     }
+  });
+
+  // Publica agora a âncora do dia de cada tenant (a tarefa diária faz o mesmo).
+  app.post('/api/platform/audit/anchors/run', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!(await isPlatformAdmin(app, a))) return reply.code(403).send({ error: 'sem_permissao' });
+    if (!app.deps.anchors) return reply.code(409).send({ error: 'ancora_desligada', detalhe: 'configure AUDIT_ANCHOR_BUCKET' });
+    return { resultados: await makeAnchorJob(app)() };
   });
 
   // Incidentes de todos os clientes, para o suporte da TheNeil acompanhar:

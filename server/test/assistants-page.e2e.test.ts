@@ -143,6 +143,10 @@ test('administração: editor da definição do assistente e incidente reportado
   // O admin vê o incidente, mas a descrição fica com o key user da área.
   await page.getByText('A descrição fica só com o key user da área.').waitFor();
   assert.equal(await page.getByText('A nota apontou palete sem pedido, mas é retornável.').count(), 0);
+  // Auditoria: verificação da cadeia e estado das âncoras (desligadas neste ambiente de teste).
+  await page.getByRole('button', { name: 'Auditoria' }).click();
+  await page.getByText(/Cadeia íntegra: [\d.]+ registros\. A publicação de âncoras não está ligada neste ambiente\./).waitFor();
+  assert.ok(await page.getByRole('link', { name: 'Exportar âncoras (CSV)' }).isVisible());
   assert.deepEqual(errors, []);
   await context.close();
 });

@@ -585,6 +585,22 @@
           </tbody></table>
         </section>
       </sc-if>
+
+      <!-- Auditoria: verificação e âncoras -->
+      <sc-if value="{{ admAudit }}">
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;overflow-x:auto;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Auditoria</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Todo dia, o hash final da cadeia de auditoria é publicado num cofre externo que ninguém consegue alterar. A verificação refaz a cadeia e compara com a última âncora.</p>
+          <p role="status" style="font:500 14px/1.5 'Hanken Grotesk';color:{{ auditColor }};margin:0 0 10px;">{{ auditStatus }}</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+            <button onClick="{{ verifyAudit }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Verificar agora</button>
+            <a href="{{ anchorsCsv }}" style="border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';text-decoration:none;">Exportar âncoras (CSV)</a>
+          </div>
+          <table class="gia-table"><thead><tr><th>Dia</th><th>Registro</th><th>Hash</th><th>Retida até</th></tr></thead><tbody>
+            <sc-for list="{{ anchorRows }}" as="x" hint-placeholder-count="0"><tr><td>{{ x.data }}</td><td>{{ x.seq }}</td><td style="font-family:ui-monospace,monospace;font-size:13px;">{{ x.hash }}</td><td>{{ x.retida }}</td></tr></sc-for>
+          </tbody></table>
+        </section>
+      </sc-if>
     </sc-if>
   </main>
 
@@ -659,6 +675,18 @@ function leituraLabel(x) {
   if (x.convertidoDe) parts.push('convertido de ' + x.convertidoDe);
   return parts.join('; ');
 }
+// Resultado da verificação da cadeia, com a comparação com a âncora externa.
+function auditText(v, anchors) {
+  if (!v) return 'Verificando…';
+  if (!v.ok) return 'Cadeia com problema: ' + (v.motivo || 'registro ' + v.primeiroQuebrado) + '. Avise a TheNeil e o jurídico.';
+  const a = v.ancora || {};
+  const base = 'Cadeia íntegra: ' + fmtNum(v.registros, 0) + ' registros.';
+  if (a.status === 'confere') return base + ' Confere com a âncora de ' + a.data + ' (registro ' + a.seq + ').';
+  if (a.status === 'sem_ancora') return base + ' Ainda não há âncora publicada.';
+  if (a.status === 'indisponivel') return base + ' A âncora não pôde ser lida agora: ' + a.motivo + '.';
+  if (anchors && !anchors.ligada) return base + ' A publicação de âncoras não está ligada neste ambiente.';
+  return base;
+}
 const danfeLabel = x => x.danfe ? 'DANFE: ' + (x.danfe.xml ? 'XML ' + x.danfe.xml : x.danfe.situacao) : '';
 const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'DOCX, DOC, ODT', xlsx: 'XLSX, XLS, ODS', csv: 'CSV', nfe_xml: 'XML da NF-e', texto: 'TXT' };
 const TYPE_LABEL = {
@@ -709,7 +737,7 @@ class Component extends DCLogic {
       incidents: [], incident: null, incStatus: '', incNote: '', incEscNote: '',
       usageMonth: today().slice(0, 7), usage: null,
       simRows: [{ nome: 'Assistente 1', assistente: '', execucoes: '100', paginas: '2', digitalizado: '0' }], simMensal: '0', sim: null,
-      exports: [],
+      exports: [], anchors: null, auditCheck: null,
       policy: null, policyAcked: true,
       incidentOpen: false, incForm: { tipo: 'resposta_errada', descricao: '' }, incMsg: '',
       tourStep: null,
@@ -1012,6 +1040,7 @@ class Component extends DCLogic {
     if (adminTab === 'politica') this._loadAcks();
     if (adminTab === 'incidentes') this._loadIncidents();
     if (adminTab === 'exportacao') this._loadExports();
+    if (adminTab === 'auditoria') { this._loadAnchors(); this.verifyAudit(); }
   }
   newAssistant() {
     this.setState({ editor: { existing: false, slug: '', name: '', area: '', status: 'rascunho', json: JSON.stringify(NEW_ASSISTANT, null, 2), versions: '' } });
@@ -1144,6 +1173,14 @@ class Component extends DCLogic {
       if (r.data.some(x => x.status === 'processando')) this._later(() => this._loadExports(), 2500);
     }
   }
+  async _loadAnchors() {
+    const r = await this._fetch('/api/audit/anchors');
+    if (r.ok) this.setState({ anchors: r.data });
+  }
+  async verifyAudit() {
+    const r = await this._fetch('/api/audit/verify');
+    if (r.ok) this.setState({ auditCheck: r.data });
+  }
   async requestExport() {
     const r = await this._fetch('/api/admin/exports', { method: 'POST', body: {} });
     this._msg(r.ok ? 'Exportação pedida. O arquivo aparece na lista quando ficar pronto.' : 'Não foi possível pedir a exportação.', r.ok);
@@ -1244,7 +1281,7 @@ class Component extends DCLogic {
 
     // Administração
     const adminDefs = [['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
-      ['politica', 'Política de Uso', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin]];
+      ['politica', 'Política de Uso', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin]];
     const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
     const ed = st.editor;
     const u = st.usage;
@@ -1335,6 +1372,12 @@ class Component extends DCLogic {
       admIncidents: st.adminTab === 'incidentes',
       admUsage: st.adminTab === 'consumo',
       admExport: st.adminTab === 'exportacao',
+      admAudit: st.adminTab === 'auditoria',
+      auditStatus: auditText(st.auditCheck, st.anchors),
+      auditColor: st.auditCheck && !st.auditCheck.ok ? 'var(--gia-red-text)' : 'var(--gia-forest-text)',
+      verifyAudit: () => this.verifyAudit(),
+      anchorsCsv: this._url('/api/audit/anchors?format=csv'),
+      anchorRows: st.anchors ? st.anchors.ancoras.map(x => ({ data: x.data, seq: x.seq, hash: x.hash.slice(0, 16) + '…', retida: x.retidaAte.slice(0, 10) })) : [],
       newAssistant: () => this.newAssistant(),
       adminAssistants: st.assistants.filter(a => a.podeGerenciar).map(a => ({ name: a.name, meta: (a.areaName || 'Geral') + ' · ' + a.status + ' · v' + a.version + ' · ' + a.tipo, onClick: () => this.editAssistant(a.slug) })),
       hasEditor: !!ed,

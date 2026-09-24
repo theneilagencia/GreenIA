@@ -1,0 +1,209 @@
+{
+  "versao": 1,
+  "proporcao": 0.6,
+  "regra": "Lote = frente/procedência. Unidade = caso (em Suprimentos, a especificação). Estratos = tipo de caso, formato e origem. Variações herdam o conjunto do caso de origem. Semente fixa, sem olhar resultados.",
+  "lotes": {
+    "juridico/gerado": {
+      "semente": 851922463,
+      "unidades": 25,
+      "desenvolvimento": 15,
+      "reservado": 10,
+      "casos": {
+        "juridico-contrato-01": "desenvolvimento",
+        "juridico-contrato-02": "desenvolvimento",
+        "juridico-contrato-03": "reservado",
+        "juridico-contrato-04": "reservado",
+        "juridico-contrato-05": "desenvolvimento",
+        "juridico-contrato-06": "desenvolvimento",
+        "juridico-contrato-07": "reservado",
+        "juridico-contrato-08": "desenvolvimento",
+        "juridico-contrato-09": "desenvolvimento",
+        "juridico-contrato-10": "desenvolvimento",
+        "juridico-contrato-11": "reservado",
+        "juridico-contrato-12": "desenvolvimento",
+        "juridico-contrato-13": "desenvolvimento",
+        "juridico-contrato-14": "reservado",
+        "juridico-contrato-15": "reservado",
+        "juridico-contrato-16": "reservado",
+        "juridico-contrato-17": "reservado",
+        "juridico-contrato-18": "reservado",
+        "juridico-contrato-19": "desenvolvimento",
+        "juridico-contrato-20": "desenvolvimento",
+        "juridico-contrato-21": "desenvolvimento",
+        "juridico-contrato-22": "desenvolvimento",
+        "juridico-contrato-23": "desenvolvimento",
+        "juridico-contrato-24": "desenvolvimento",
+        "juridico-contrato-25": "reservado"
+      },
+      "distribuicao": {
+        "formato:docx": {
+          "desenvolvimento": 5,
+          "reservado": 4
+        },
+        "formato:pdf": {
+          "desenvolvimento": 10,
+          "reservado": 6
+        },
+        "origem:digital": {
+          "desenvolvimento": 15,
+          "reservado": 10
+        },
+        "tipo:completo": {
+          "desenvolvimento": 10,
+          "reservado": 7
+        },
+        "tipo:faltante": {
+          "desenvolvimento": 5,
+          "reservado": 3
+        }
+      }
+    },
+    "rh/gerado": {
+      "semente": -478357426,
+      "unidades": 15,
+      "desenvolvimento": 9,
+      "reservado": 6,
+      "casos": {
+        "rh-pasta-01": "desenvolvimento",
+        "rh-pasta-02": "reservado",
+        "rh-pasta-03": "reservado",
+        "rh-pasta-04": "desenvolvimento",
+        "rh-pasta-05": "reservado",
+        "rh-pasta-06": "desenvolvimento",
+        "rh-pasta-07": "desenvolvimento",
+        "rh-pasta-08": "reservado",
+        "rh-pasta-09": "desenvolvimento",
+        "rh-pasta-10": "reservado",
+        "rh-pasta-11": "desenvolvimento",
+        "rh-pasta-12": "reservado",
+        "rh-pasta-13": "desenvolvimento",
+        "rh-pasta-14": "desenvolvimento",
+        "rh-pasta-15": "desenvolvimento"
+      },
+      "distribuicao": {
+        "formato:misto": {
+          "desenvolvimento": 9,
+          "reservado": 6
+        },
+        "origem:digital": {
+          "desenvolvimento": 9,
+          "reservado": 6
+        },
+        "tipo:ausente": {
+          "desenvolvimento": 8,
+          "reservado": 6
+        },
+        "tipo:completo": {
+          "desenvolvimento": 1,
+          "reservado": 0
+        },
+        "tipo:duvidoso": {
+          "desenvolvimento": 4,
+          "reservado": 3
+        }
+      }
+    },
+    "suprimentos/gerado": {
+      "semente": 1996199952,
+      "unidades": 20,
+      "desenvolvimento": 12,
+      "reservado": 8,
+      "casos": {
+        "suprimentos-01-1": "desenvolvimento",
+        "suprimentos-01-2": "desenvolvimento",
+        "suprimentos-01-3": "desenvolvimento",
+        "suprimentos-02-1": "desenvolvimento",
+        "suprimentos-02-2": "desenvolvimento",
+        "suprimentos-02-3": "desenvolvimento",
+        "suprimentos-03-1": "reservado",
+        "suprimentos-03-2": "reservado",
+        "suprimentos-03-3": "reservado",
+        "suprimentos-04-1": "desenvolvimento",
+        "suprimentos-04-2": "desenvolvimento",
+        "suprimentos-04-3": "desenvolvimento",
+        "suprimentos-05-1": "reservado",
+        "suprimentos-05-2": "reservado",
+        "suprimentos-05-3": "reservado",
+        "suprimentos-06-1": "desenvolvimento",
+        "suprimentos-06-2": "desenvolvimento",
+        "suprimentos-06-3": "desenvolvimento",
+        "suprimentos-07-1": "reservado",
+        "suprimentos-07-2": "reservado",
+        "suprimentos-07-3": "reservado",
+        "suprimentos-08-1": "desenvolvimento",
+        "suprimentos-08-2": "desenvolvimento",
+        "suprimentos-08-3": "desenvolvimento",
+        "suprimentos-09-1": "reservado",
+        "suprimentos-09-2": "reservado",
+        "suprimentos-09-3": "reservado",
+        "suprimentos-10-1": "reservado",
+        "suprimentos-10-2": "reservado",
+        "suprimentos-10-3": "reservado",
+        "suprimentos-11-1": "desenvolvimento",
+        "suprimentos-11-2": "desenvolvimento",
+        "suprimentos-11-3": "desenvolvimento",
+        "suprimentos-12-1": "desenvolvimento",
+        "suprimentos-12-2": "desenvolvimento",
+        "suprimentos-12-3": "desenvolvimento",
+        "suprimentos-13-1": "reservado",
+        "suprimentos-13-2": "reservado",
+        "suprimentos-13-3": "reservado",
+        "suprimentos-14-1": "desenvolvimento",
+        "suprimentos-14-2": "desenvolvimento",
+        "suprimentos-14-3": "desenvolvimento",
+        "suprimentos-15-1": "reservado",
+        "suprimentos-15-2": "reservado",
+        "suprimentos-15-3": "reservado",
+        "suprimentos-16-1": "desenvolvimento",
+        "suprimentos-16-2": "desenvolvimento",
+        "suprimentos-16-3": "desenvolvimento",
+        "suprimentos-17-1": "desenvolvimento",
+        "suprimentos-17-2": "desenvolvimento",
+        "suprimentos-17-3": "desenvolvimento",
+        "suprimentos-18-1": "reservado",
+        "suprimentos-18-2": "reservado",
+        "suprimentos-18-3": "reservado",
+        "suprimentos-19-1": "desenvolvimento",
+        "suprimentos-19-2": "desenvolvimento",
+        "suprimentos-19-3": "desenvolvimento",
+        "suprimentos-20-1": "desenvolvimento",
+        "suprimentos-20-2": "desenvolvimento",
+        "suprimentos-20-3": "desenvolvimento"
+      },
+      "distribuicao": {
+        "formato:docx": {
+          "desenvolvimento": 22,
+          "reservado": 15
+        },
+        "formato:pdf": {
+          "desenvolvimento": 14,
+          "reservado": 9
+        },
+        "origem:digital": {
+          "desenvolvimento": 36,
+          "reservado": 24
+        },
+        "tipo:completo": {
+          "desenvolvimento": 12,
+          "reservado": 8
+        },
+        "tipo:faltante_na_cotacao": {
+          "desenvolvimento": 13,
+          "reservado": 8
+        },
+        "tipo:quantidade": {
+          "desenvolvimento": 14,
+          "reservado": 9
+        },
+        "tipo:sem_especificacao": {
+          "desenvolvimento": 8,
+          "reservado": 6
+        },
+        "tipo:unidade": {
+          "desenvolvimento": 13,
+          "reservado": 9
+        }
+      }
+    }
+  }
+}

@@ -43,7 +43,31 @@ Um `gabarito.json` por caso, ao lado dos arquivos:
   - Fiscal, financeiro e LGPD: formatos definidos no schema; os geradores dessas frentes vêm a seguir.
 - `conferencia`: 20% dos casos marcados como amostra para a segunda pessoa conferir (`por`, `em`, `divergencias`).
 
-## Linha de base sem modelo (RH)
+## Divisão: desenvolvimento e reservado
+
+`dividir.ts` separa cada lote (frente + procedência: `gerado`, depois `pncp`) em desenvolvimento (60%) e reservado (40%). O resultado fica congelado em `divisao.json`, com o sha256 em `divisao.sha256`. O teste `fase4-divisao.test.ts` confere o hash, a cobertura de todos os gabaritos e que a divisão refeita dá o mesmo resultado.
+
+- Unidade: o caso. Em Suprimentos, a especificação inteira (todas as cotações dela), porque as cotações dividem a mesma planilha.
+- Estratos: tipo de caso (completo, ausente, duvidoso, cada tipo de divergência, cláusula faltante), formato e origem (digital, escaneado, foto).
+- As variações escaneada (`-sintetica`) e fotografada (`-fotos`) herdam o conjunto do caso de origem. Cada origem fica com a mesma proporção.
+- A divisão usa só o gabarito congelado e uma semente fixa (4401). Não olha resultado.
+- Lote congelado não é refeito. Casos novos (construtora, PNCP, fiscal, financeiro, LGPD) entram em lotes próprios.
+- O reservado só roda com `--conjunto reservado --rodada-final sim`. Cada uso fica em `resultados/uso-do-reservado.log`, e a saída traz só números agregados.
+
+Resultado: RH 9 casos no desenvolvimento e 6 no reservado; Suprimentos 12 especificações (36 cotações) e 8 (24); Jurídico 15 e 10 contratos.
+
+Ressalva: a linha de base abaixo, com resultado por caso dos 15 casos, foi gravada antes da divisão. As categorias de erro foram vistas em todos os casos. As correções seguem estas categorias gerais e são medidas só no desenvolvimento; nenhum caso do reservado é aberto para corrigir.
+
+### Linha de base por conjunto (antes das correções)
+
+| Conjunto | Casos | Itens | Acerto | Erros graves |
+|---|---|---|---|---|
+| Desenvolvimento | 9 | 63 | 84,1% | 1 |
+| Reservado | 6 | 42 | 78,6% | 3 |
+
+Arquivos: `resultados/rh-linha-de-base-desenvolvimento.json` (por caso) e `resultados/rh-linha-de-base-reservado.json` (só o resumo). O uso do reservado para esta linha de base foi pedido e está no registro.
+
+## Linha de base sem modelo (RH), antes da divisão
 
 `resultados/rh-linha-de-base-sem-modelo.json`: os 15 casos digitais pelo checklist por regras, sem chamar o modelo. Acerto de 81,9% dos itens e 4 erros graves. Os erros apontam o que a rodada com o modelo precisa medir:
 

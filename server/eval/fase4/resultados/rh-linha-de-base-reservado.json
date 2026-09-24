@@ -1,0 +1,9 @@
+{
+  "conjunto": "reservado",
+  "resumo": {
+    "casos": 6,
+    "itens": 42,
+    "acerto": 78.6,
+    "errosGraves": 3
+  }
+}

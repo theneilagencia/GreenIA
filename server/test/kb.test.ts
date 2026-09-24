@@ -78,7 +78,7 @@ test('só key user da área (ou admin) envia documento na área', async () => {
   assert.equal((await upload(people.fin, { title: 'X', areaSlug: 'financeiro', contentType: 'text/plain', text: 'x' })).statusCode, 403);
   assert.equal((await upload(people.keyFin, { title: 'X', areaSlug: 'rh', contentType: 'text/plain', text: 'x' })).statusCode, 403);
   assert.equal((await upload(people.keyFin, { title: 'X', contentType: 'text/plain', text: 'x' })).statusCode, 403);
-  assert.equal((await upload(people.keyFin, { title: 'X', areaSlug: 'financeiro', contentType: 'application/pdf', text: 'x' })).statusCode, 415);
+  assert.equal((await upload(people.keyFin, { title: 'X', areaSlug: 'financeiro', contentType: 'application/zip', text: 'x' })).statusCode, 415);   // PDF passou a ser aceito na Fase 3
 });
 
 test('chat usa a base: trechos na pergunta, fontes no meta e documento/versão na auditoria', async () => {

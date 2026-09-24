@@ -22,7 +22,7 @@ export interface IndicatorResult {
   antes: { valor: number; origem: Origem } | null;
   depois: { valor: number; origem: Origem } | null;
   automatico: number | null;
-  comparacao: { diferenca: number; percentual: number | null; melhorou: boolean } | null;
+  comparacao: { diferenca: number; percentual: number | null; melhorou: boolean; parcial: boolean } | null;
   acumuladoNoPeriodo: { valor: number; unidade: string; calculo: string } | null;
   lacuna: string | null;
 }
@@ -107,13 +107,16 @@ export function indicatorResults(def: AssistantDefinition, values: MetricValue[]
         : null;
     let comparacao: IndicatorResult['comparacao'] = null;
     let acumulado: IndicatorResult['acumuladoNoPeriodo'] = null;
+    // Tempo medido pela plataforma é só o processamento: comparado ao tempo do
+    // processo manual, mostra a comparação como parcial e não vira ganho acumulado.
+    const f = toSeconds(ind.unit);
+    const parcial = !!f && depois?.origem.tipo === 'automatico';
     if (antes && depois) {
       const diferenca = round(depois.valor - antes.valor);
-      comparacao = { diferenca, percentual: antes.valor !== 0 ? round(diferenca / antes.valor * 100, 1) : null, melhorou: ind.direction === 'menor_melhor' ? diferenca < 0 : diferenca > 0 };
-      // Diferença acumulada só para tempo por execução, com os dois lados medidos ou informados.
-      const f = toSeconds(ind.unit);
+      comparacao = { diferenca, percentual: antes.valor !== 0 ? round(diferenca / antes.valor * 100, 1) : null, melhorou: ind.direction === 'menor_melhor' ? diferenca < 0 : diferenca > 0, parcial };
+      // Diferença acumulada só para tempo por execução, com os dois lados medidos ou informados por pessoas.
       const volume = auto.concluidas - auto.erros;
-      if (f && ind.direction === 'menor_melhor' && volume > 0) {
+      if (f && !parcial && ind.direction === 'menor_melhor' && volume > 0) {
         const horas = round((antes.valor - depois.valor) * f * volume / 3600, 1);
         acumulado = { valor: horas, unidade: 'h', calculo: `(${antes.valor} − ${depois.valor}) ${ind.unit} × ${volume} execuções concluídas no período` };
       }
@@ -121,7 +124,7 @@ export function indicatorResults(def: AssistantDefinition, values: MetricValue[]
     return {
       key: ind.key, label: ind.label, unit: ind.unit, direction: ind.direction, auto: ind.auto ?? null,
       antes, depois, automatico: av?.valor ?? null, comparacao, acumuladoNoPeriodo: acumulado,
-      lacuna: !antes ? 'sem ponto de partida' : !depois ? 'sem medição depois' : null,
+      lacuna: !antes ? 'sem ponto de partida' : !depois ? 'sem medição depois' : parcial ? 'comparação parcial: o automático mede só o processamento; registre o tempo "depois" medido com a revisão' : null,
     };
   });
 }

@@ -80,8 +80,9 @@ test('antes × depois com origem visível; automático das execuções; diferen�
   assert.match(t.antes.origem.detalhe, /medido de 2026-06-01 a 2026-06-30; método: cronometragem/);
   assert.deepEqual([t.depois.valor, t.depois.origem.tipo], [0.5, 'automatico']);                       // 30 s em minutos
   assert.match(t.depois.origem.detalhe, /não o tempo de revisão humana/);
-  assert.deepEqual(t.comparacao, { diferenca: -11.5, percentual: -95.8, melhorou: true });
-  assert.deepEqual(t.acumuladoNoPeriodo, { valor: 0.8, unidade: 'h', calculo: '(12 − 0.5) min × 4 execuções concluídas no período' });
+  assert.deepEqual(t.comparacao, { diferenca: -11.5, percentual: -95.8, melhorou: true, parcial: true });
+  assert.equal(t.acumuladoNoPeriodo, null);                                                             // processamento não é tempo de trabalho
+  assert.match(t.lacuna, /^comparação parcial/);
   const ap = res.indicadores.find((i: { key: string }) => i.key === 'aprovacao');
   assert.equal(ap.lacuna, 'sem ponto de partida');                                                     // automático, mas sem "antes"
   assert.equal(ap.automatico, 66.7);
@@ -94,7 +95,8 @@ test('antes × depois com origem visível; automático das execuções; diferen�
   await post(people.key, '/api/metrics/assistants/conferencia-nfe/values', { indicador: 'tempo_por_nota', fase: 'depois', valor: 3, origem: 'medido', periodoInicio: '2026-09-01', periodoFim: '2026-09-20', metodo: 'cronometragem de 20 notas com revisão' });
   const t2 = (await results()).indicadores.find((i: { key: string }) => i.key === 'tempo_por_nota');
   assert.deepEqual([t2.depois.valor, t2.depois.origem.tipo, t2.automatico], [3, 'medido', 0.5]);
-  assert.equal(t2.acumuladoNoPeriodo.valor, 0.6);                                                       // (12 − 3) × 4 / 60
+  assert.equal(t2.lacuna, null);
+  assert.deepEqual(t2.acumuladoNoPeriodo, { valor: 0.6, unidade: 'h', calculo: '(12 − 3) min × 4 execuções concluídas no período' });
 });
 
 test('decisão (manter, descartar, ampliar) com data, responsável e justificativa; relatório XLSX', async () => {

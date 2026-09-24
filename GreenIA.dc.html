@@ -342,6 +342,9 @@
       </div>
 
       <button onClick="{{ openPolicy }}" style="text-align:left;background:none;border:none;color:var(--gia-spark);font:500 14px 'Hanken Grotesk';cursor:pointer;padding:10px 6px;margin-top:8px;">Ver a política</button>
+      <sc-if value="{{ showAssistantsLink }}">
+        <a href="{{ assistantsHref }}" style="display:block;color:var(--gia-spark);font:500 14px 'Hanken Grotesk';text-decoration:none;padding:4px 6px 10px;">Assistentes da área</a>
+      </sc-if>
       <div style="display:flex;align-items:center;gap:10px;padding:12px 6px 2px;border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;">
         <span style="width:9px;height:9px;border-radius:999px;background:var(--gia-leaf);flex:none;"></span>
         <span style="font:400 13px 'Hanken Grotesk';color:var(--gia-sage);">Modo Verde · uso livre</span>
@@ -361,6 +364,9 @@
           <span class="gia-chip-green" style="display:inline-flex;align-items:center;gap:8px;background:var(--gia-mint);color:var(--gia-forest-text);border-radius:999px;padding:8px 16px;font:500 14px 'Hanken Grotesk';">
             <span style="width:8px;height:8px;border-radius:999px;background:var(--gia-forest);"></span>Tarefa verde
           </span>
+          <sc-if value="{{ backendMode }}">
+            <button onClick="{{ openIncident }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-forest-text);border-radius:999px;padding:7px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;white-space:nowrap;" style-hover="background:var(--gia-sand-hover) !important">Reportar incidente</button>
+          </sc-if>
           <div class="gia-user" style="display:flex;align-items:center;gap:11px;padding-left:16px;border-left:1px solid var(--gia-line);">
             <span style="width:34px;height:34px;border-radius:999px;background:var(--gia-deep);color:var(--gia-spark);display:flex;align-items:center;justify-content:center;font:500 13px 'Hanken Grotesk';flex:none;">{{ userInitials }}</span>
             <div class="gia-user-meta" style="display:flex;flex-direction:column;">
@@ -514,6 +520,53 @@
       </div>
     </div>
   </div>
+  </sc-if>
+
+  <!-- ============================== MODO BACKEND: INCIDENTE, POLÍTICA DE USO, ROTEIRO ============================== -->
+  <sc-if value="{{ incidentOpen }}">
+    <div onClick="{{ closeIncident }}" class="gia-modal-wrap" style="position:fixed;inset:0;background:rgba(15,58,42,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;">
+      <div role="dialog" aria-modal="true" aria-labelledby="gia-inc-title" onClick="{{ stop }}" class="gia-modal" style="background:var(--gia-paper);border-radius:16px;padding:24px;width:min(520px,100%);">
+        <h2 id="gia-inc-title" style="font:400 24px/1.2 'Newsreader',serif;margin:0 0 10px;">Reportar incidente</h2>
+        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">O key user da área e a TheNeil recebem o aviso. Descreva o que aconteceu; não repita o dado enviado por engano.</p>
+        <select aria-label="Tipo" value="{{ incForm.tipo }}" onChange="{{ onIncTipo }}" style="width:100%;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:10px;padding:10px 12px;font:400 15px 'Hanken Grotesk';color:var(--gia-ink);">
+          <option value="dado_indevido">Dado enviado indevidamente</option>
+          <option value="resposta_errada">Resposta errada</option>
+          <option value="resposta_inadequada">Resposta inadequada</option>
+          <option value="outro">Outro</option>
+        </select>
+        <textarea aria-label="Descrição" rows="5" value="{{ incForm.descricao }}" onInput="{{ onIncDescricao }}" style="width:100%;margin-top:8px;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:10px;padding:10px 12px;font:400 15px 'Hanken Grotesk';color:var(--gia-ink);"></textarea>
+        <sc-if value="{{ incMsg }}"><p role="status" style="font:500 14px 'Hanken Grotesk';color:var(--gia-forest-text);margin:8px 0 0;">{{ incMsg }}</p></sc-if>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+          <button onClick="{{ closeIncident }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:10px;padding:10px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Fechar</button>
+          <button onClick="{{ sendIncident }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:10px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ usagePolicyPending }}">
+    <div class="gia-modal-wrap" style="position:fixed;inset:0;background:rgba(15,58,42,0.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:70;">
+      <div role="dialog" aria-modal="true" aria-labelledby="gia-upol-title" class="gia-modal" style="background:var(--gia-paper);border-radius:16px;padding:26px;width:min(680px,100%);max-height:90vh;display:flex;flex-direction:column;">
+        <h2 id="gia-upol-title" style="font:400 26px/1.2 'Newsreader',serif;margin:0 0 6px;">{{ usagePolicyTitle }}</h2>
+        <p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">Versão {{ usagePolicyVersion }}. Leia e registre sua ciência para continuar.</p>
+        <div style="flex:1;overflow:auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:10px;padding:14px;font:400 15px/1.6 'Hanken Grotesk';white-space:pre-wrap;">{{ usagePolicyBody }}</div>
+        <button onClick="{{ ackUsagePolicy }}" style="margin-top:14px;align-self:flex-end;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:11px 18px;font:500 15px 'Hanken Grotesk';cursor:pointer;">Li e estou ciente</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ tourOpen }}">
+    <div class="gia-modal-wrap" style="position:fixed;inset:0;background:rgba(15,58,42,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:65;">
+      <div role="dialog" aria-modal="true" aria-labelledby="gia-tour-title" class="gia-modal" style="background:var(--gia-paper);border-radius:16px;padding:26px;width:min(520px,100%);">
+        <p style="font:500 13px 'Hanken Grotesk';color:var(--gia-forest-text);margin:0 0 6px;">{{ tourStepLabel }}</p>
+        <h2 id="gia-tour-title" style="font:400 26px/1.2 'Newsreader',serif;margin:0 0 10px;">{{ tourTitle }}</h2>
+        <p style="font:400 16px/1.6 'Hanken Grotesk';margin:0 0 18px;">{{ tourText }}</p>
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <button onClick="{{ tourSkip }}" style="background:none;border:none;color:var(--gia-muted);font:500 14px 'Hanken Grotesk';cursor:pointer;">Pular</button>
+          <button onClick="{{ tourNext }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:10px 16px;font:500 15px 'Hanken Grotesk';cursor:pointer;">{{ tourNextLabel }}</button>
+        </div>
+      </div>
+    </div>
   </sc-if>
 
 </div>
@@ -902,6 +955,13 @@ class Component extends DCLogic {
       loginBusy: false,
       loginMessage: '',
       kbCount: null,
+      // Fase 3 (modo backend): Política de Uso do cliente, incidente e roteiro de primeiro acesso.
+      usagePolicy: null,
+      usagePolicyAcked: true,
+      incidentOpen: false,
+      incForm: { tipo: 'resposta_errada', descricao: '' },
+      incMsg: '',
+      tourStep: null,
     };
     this._msgRef = el => { this._msgEl = el; };
     this._inputRef = el => { this._inputEl = el; };
@@ -929,6 +989,13 @@ class Component extends DCLogic {
     { title: "Reembolso de despesas", text: "Despesas de viagem e representação são reembolsadas mediante nota fiscal. O pedido é feito no portal de despesas em até 30 dias após o gasto. O pagamento sai no quinto dia útil após a aprovação do gestor. Despesas sem comprovante não são reembolsadas. O limite de refeição em viagem nacional é de R$ 90 por dia." },
     { title: "Férias e ausências", text: "As férias são de 30 dias por período aquisitivo de 12 meses. O pedido deve ser feito com no mínimo 30 dias de antecedência e aprovação do gestor. É possível dividir em até três períodos, um deles com pelo menos 14 dias. Faltas justificadas precisam de atestado enviado ao RH em até 48 horas." },
     { title: "Suporte de TI (DIT)", text: "Para abrir um chamado, use o portal de suporte da DIT. O reset de senha é feito no autoatendimento ou pelo ramal 4000. O atendimento é das 8h às 18h em dias úteis. Equipamentos novos são solicitados pelo gestor com aprovação da diretoria. Para acesso a sistemas, abra um chamado com a justificativa da área." }
+  ];
+
+  // Roteiro de primeiro acesso (modo backend), uma vez por pessoa.
+  TOUR = [
+    { title: 'Boas-vindas à GreenIA', text: 'No chat você resolve tarefas do dia a dia. Os assistentes da sua área fazem trabalhos específicos, como conferir notas ou organizar documentos: o link fica no menu lateral.' },
+    { title: 'Toda saída de assistente passa por revisão', text: 'O que um assistente entrega chega como rascunho. Uma pessoa confere, aprova, edita ou rejeita antes de usar.' },
+    { title: 'Algo deu errado?', text: 'Use Reportar incidente, no topo da tela: dado enviado sem querer, resposta errada ou inadequada. O key user da área acompanha até o fim.' },
   ];
 
   componentDidMount() {
@@ -1002,8 +1069,9 @@ class Component extends DCLogic {
       if (r.status === 401) { this.setState({ session: null, authed: false }); return false; }
       if (!r.ok) throw new Error('sessão ' + r.status);
       const session = await r.json();
-      this.setState({ session, authed: true });
+      this.setState({ session, authed: true, tourStep: session.onboardingDone ? null : 0 });
       this._loadKbCount();
+      this._loadUsagePolicy();
       return true;
     } catch (e) {
       this.setState({ loginMessage: 'Não consegui falar com o servidor agora. Tente de novo em instantes.' });
@@ -1016,6 +1084,40 @@ class Component extends DCLogic {
       const r = await this._fetch('/api/kb/documents');
       if (r.ok) this.setState({ kbCount: (await r.json()).length });
     } catch (e) { /* o contador é só informativo */ }
+  }
+
+  // Política de Uso de IA do cliente: sem ciência da versão vigente, o servidor
+  // recusa (428); a página mostra o texto e registra a ciência.
+  async _loadUsagePolicy() {
+    try {
+      const r = await this._fetch('/api/policy');
+      if (!r.ok) return;
+      const d = await r.json();
+      this.setState({ usagePolicy: d.policy, usagePolicyAcked: d.acked });
+    } catch (e) { /* tenta de novo no próximo envio */ }
+  }
+
+  async ackUsagePolicy() {
+    const p = this.state.usagePolicy;
+    if (!p) return;
+    const r = await this._fetch('/api/policy/ack', { method: 'POST', body: { version: p.version } }).catch(() => null);
+    if (r && r.ok) this.setState({ usagePolicyAcked: true });
+  }
+
+  async sendIncident() {
+    const f = this.state.incForm;
+    const r = await this._fetch('/api/incidents', { method: 'POST', body: { tipo: f.tipo, descricao: f.descricao, tela: 'chat' } }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok) {
+      this.setState({ incMsg: d.error === 'dados_invalidos' ? 'Descreva o que aconteceu (pelo menos 10 caracteres).' : 'Não foi possível enviar agora.' });
+      return;
+    }
+    this.setState({ incMsg: 'Incidente ' + d.codigo + ' registrado. O key user da área vai acompanhar.', incForm: { tipo: 'resposta_errada', descricao: '' } });
+  }
+
+  tourDone() {
+    this.setState({ tourStep: null });
+    this._fetch('/api/me/onboarding', { method: 'POST', body: {} }).catch(() => {});
   }
 
   startOidc(providerId) {
@@ -1394,6 +1496,11 @@ class Component extends DCLogic {
       this.setState({ pending: null, authed: false, session: null, screen: 'login', loginMessage: 'Sua sessão terminou. Entre de novo para continuar.' });
       return;
     }
+    if (res.status === 428) {
+      undoSend(() => ({ liveText: 'Registre ciência da Política de Uso de IA para continuar.' }));
+      this._loadUsagePolicy();
+      return;
+    }
     if (res.status === 422 || res.status === 409) {
       const body = await res.json().catch(() => ({}));
       const types = Array.isArray(body.types) ? body.types : [];
@@ -1510,6 +1617,11 @@ class Component extends DCLogic {
     const blocked = this.state.blocked && this.state.blocked.convoId === activeId ? this.state.blocked : null;
     const warned = this.state.warned && this.state.warned.convoId === activeId ? this.state.warned : null;
     const backend = this._api() !== null;
+    // "restrito" vem do servidor (Política de Uso do cliente); não é um tipo do filtro do navegador.
+    const describe = types => describeSensitive(types.map(t => t === 'restrito' ? 'informação restrita pela Política de Uso de IA' : t));
+    const tq = this._tenantQuery();
+    const usagePolicy = this.state.usagePolicy;
+    const tour = this.state.tourStep !== null ? this.TOUR[this.state.tourStep] : null;
     const tenant = this.state.tenant;
     const session = this.state.session;
     const texts = (tenant && tenant.texts) || {};
@@ -1542,14 +1654,14 @@ class Component extends DCLogic {
       showWelcome: messages.length === 0 && !blocked && !warned,
       showBlocked: !!blocked,
       showWarned: !!warned,
-      warnedText: warned ? 'Seu texto parece conter ' + describeSensitive(warned.types) + '. Enviar mesmo assim?' : '',
+      warnedText: warned ? 'Seu texto parece conter ' + describe(warned.types) + '. Enviar mesmo assim?' : '',
       reviewWarned: () => this.reviewWarned(),
       confirmWarned: () => this.confirmWarned(),
-      liveText: blocked ? 'Mensagem não enviada. ' + describeSensitive(blocked.types) + ' não pode entrar na GreenIA.'
-        : warned ? 'Seu texto parece conter ' + describeSensitive(warned.types) + '. Enviar mesmo assim?'
+      liveText: blocked ? 'Mensagem não enviada. ' + describe(blocked.types) + ' não pode entrar na GreenIA.'
+        : warned ? 'Seu texto parece conter ' + describe(warned.types) + '. Enviar mesmo assim?'
         : this.state.liveText,
       blockedText: blocked
-        ? 'Parece que o texto tem ' + describeSensitive(blocked.types) + '. Esse tipo de dado não pode entrar na GreenIA, então não enviei a mensagem. Tire essa parte e tente de novo. Na dúvida, fale com o key user da sua área: ' + keyUser + '.'
+        ? 'Parece que o texto tem ' + describe(blocked.types) + '. Esse tipo de dado não pode entrar na GreenIA, então não enviei a mensagem. Tire essa parte e tente de novo. Na dúvida, fale com o key user da sua área: ' + keyUser + '.'
         : '',
       thinking,
       input,
@@ -1630,6 +1742,30 @@ class Component extends DCLogic {
       onInput: (e) => this.setInput(e.target.value),
       onKeyDown: (e) => this.onKeyDown(e),
       send: () => this.send(),
+
+      backendMode: backend,
+      showAssistantsLink: backend && !!session,
+      assistantsHref: (this._api() || '') + '/Assistentes%20GreenIA.dc.html' + (tq ? '?' + tq : ''),
+      openIncident: () => this.setState({ incidentOpen: true, incMsg: '' }),
+      incidentOpen: this.state.incidentOpen,
+      closeIncident: () => this.setState({ incidentOpen: false }),
+      incForm: this.state.incForm,
+      onIncTipo: (e) => this.setState({ incForm: { ...this.state.incForm, tipo: e.target.value } }),
+      onIncDescricao: (e) => this.setState({ incForm: { ...this.state.incForm, descricao: e.target.value } }),
+      incMsg: this.state.incMsg,
+      sendIncident: () => this.sendIncident(),
+      usagePolicyPending: backend && !!session && !!usagePolicy && !this.state.usagePolicyAcked,
+      usagePolicyTitle: usagePolicy ? usagePolicy.title : '',
+      usagePolicyVersion: usagePolicy ? usagePolicy.version : '',
+      usagePolicyBody: usagePolicy ? usagePolicy.body : '',
+      ackUsagePolicy: () => this.ackUsagePolicy(),
+      tourOpen: backend && !!session && screen === 'chat' && !!tour && this.state.usagePolicyAcked,
+      tourStepLabel: tour ? 'Passo ' + (this.state.tourStep + 1) + ' de ' + this.TOUR.length : '',
+      tourTitle: tour ? tour.title : '',
+      tourText: tour ? tour.text : '',
+      tourNextLabel: this.state.tourStep === this.TOUR.length - 1 ? 'Começar' : 'Próximo',
+      tourNext: () => (this.state.tourStep >= this.TOUR.length - 1 ? this.tourDone() : this.setState({ tourStep: this.state.tourStep + 1 })),
+      tourSkip: () => this.tourDone(),
     };
   }
 }

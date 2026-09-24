@@ -61,6 +61,11 @@ async function login(page: import('playwright').Page, addr = 'ana@repet.com.br')
   await page.getByLabel(/Código de 6 dígitos/).fill(code);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByLabel('Mensagem').waitFor();
+  // Primeiro acesso: roteiro (testado à parte); aqui é pulado.
+  const tour = page.getByRole('dialog', { name: 'Boas-vindas à GreenIA' });
+  if (await tour.isVisible().catch(() => false) || await tour.waitFor({ timeout: 1500 }).then(() => true, () => false)) {
+    await page.getByRole('button', { name: 'Pular' }).click();
+  }
 }
 
 const bubbles = (page: import('playwright').Page) => page.locator('.gia-msgs > div > :not(.gia-sr)');
@@ -145,5 +150,55 @@ test('sair encerra a sessão no servidor', async () => {
   await page.waitForTimeout(300);
   const r = await page.evaluate(async () => (await fetch('/api/session', { credentials: 'include' })).status);
   assert.equal(r, 401);
+  await page.close();
+});
+
+test('Fase 3 no chat: roteiro no primeiro acesso, link para os assistentes e Reportar incidente', async () => {
+  const { page, errors } = await openApp();
+  await page.getByRole('button', { name: 'Entrar no chat' }).first().click();
+  await page.getByLabel('Email corporativo').fill('eva@repet.com.br');
+  await page.getByRole('button', { name: 'Receber código por email' }).click();
+  await page.getByLabel(/Código de 6 dígitos/).waitFor();
+  await page.getByLabel(/Código de 6 dígitos/).fill(email.sent.at(-1)!.text.match(/\b(\d{6})\b/)![1]);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Boas-vindas à GreenIA' }).waitFor();
+  await page.getByRole('button', { name: 'Próximo' }).click();
+  await page.getByRole('dialog', { name: 'Toda saída de assistente passa por revisão' }).waitFor();
+  await page.getByRole('button', { name: 'Próximo' }).click();
+  await page.getByRole('button', { name: 'Começar' }).click();
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  assert.equal((await page.evaluate(async () => (await (await fetch('/api/session?tenant=repet', { credentials: 'include' })).json()).onboardingDone)), true);
+  assert.match(await page.getByRole('link', { name: 'Assistentes da área' }).getAttribute('href') ?? '', /Assistentes%20GreenIA\.dc\.html\?tenant=repet$/);
+  await page.getByRole('button', { name: 'Reportar incidente' }).click();
+  await page.getByRole('dialog', { name: 'Reportar incidente' }).getByLabel('Descrição').fill('A resposta citou um prazo que não existe no procedimento.');
+  await page.getByRole('dialog', { name: 'Reportar incidente' }).getByRole('button', { name: 'Enviar' }).click();
+  await page.getByText(/Incidente [0-9A-F]{8} registrado/).waitFor();
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('Fase 3 no chat: sem ciência da Política de Uso, o envio volta e a política aparece', async () => {
+  const t = (await db.owner.query(`select id from tenants where slug = 'repet'`)).rows[0].id;
+  const admin = (await db.owner.query(`select id from users where tenant_id = $1 order by created_at limit 1`, [t])).rows[0].id;
+  await db.owner.query(`insert into usage_policies (tenant_id, version, title, body, body_sha256, published_by) values ($1, 1, 'Política de Uso de IA da Repet', 'Use a IA para tarefas do dia a dia. Não envie dados de clientes.', 'x', $2)`, [t, admin]);
+  const { page, errors } = await openApp();
+  await login(page, 'fabi@repet.com.br');
+  await page.getByRole('dialog', { name: 'Política de Uso de IA da Repet' }).waitFor();
+  await page.getByRole('button', { name: 'Li e estou ciente' }).click();
+  fake.reply = () => 'Pronto.';
+  await page.getByLabel('Mensagem').fill('Resuma: reunião na quinta.');
+  await page.getByLabel('Mensagem').press('Enter');
+  await bubbles(page).getByText('Pronto.').waitFor({ timeout: 5000 });
+  // Nova versão publicada no meio da sessão: o servidor recusa (428) e a política volta.
+  await db.owner.query(`insert into usage_policies (tenant_id, version, title, body, body_sha256, published_by) values ($1, 2, 'Política de Uso de IA da Repet', 'Versão 2: não envie dados de clientes nem de projetos sigilosos.', 'y', $2)`, [t, admin]);
+  await page.getByLabel('Mensagem').fill('Outro resumo, por favor.');
+  await page.getByLabel('Mensagem').press('Enter');
+  await page.getByRole('dialog', { name: 'Política de Uso de IA da Repet' }).waitFor();
+  assert.match(await page.getByRole('dialog').innerText(), /Versão 2/);
+  assert.equal(await page.getByLabel('Mensagem').inputValue(), 'Outro resumo, por favor.');
+  await page.getByRole('button', { name: 'Li e estou ciente' }).click();
+  await page.getByLabel('Mensagem').press('Enter');
+  await bubbles(page).getByText('Pronto.').nth(1).waitFor({ timeout: 5000 });
+  assert.deepEqual(errors, []);
   await page.close();
 });

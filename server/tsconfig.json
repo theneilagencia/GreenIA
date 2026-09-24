@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": false,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "allowJs": false
+  },
+  "include": ["src", "test", "../lib/greenia-core.d.ts"]
+}

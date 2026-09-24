@@ -3,7 +3,8 @@
 //
 // usuario        usa o chat e consulta a base das suas áreas.
 // revisor        + aprova saídas de assistentes da área (Fase 3).
-// key_user       + administra a área: base de conhecimento e pessoas (usuario, revisor); propõe oportunidades.
+// key_user       + administra a área: base de conhecimento e pessoas (usuario, revisor); propõe oportunidades;
+//                  cria e testa mapeamentos de importação (configuração do tenant).
 // patrocinador   seleciona oportunidades como quick win e registra a decisão final (no tenant ou numa área).
 // admin_cliente  + administra o tenant: áreas, pessoas, papéis, configuração, auditoria.
 // admin_theneil  + operações de plataforma (criar tenant), só no tenant interno da TheNeil.
@@ -19,22 +20,23 @@ export type Permission =
   | 'tenant.configure'
   | 'audit.read'
   | 'platform.tenants'
-  | 'qw.decide';
+  | 'qw.decide'
+  | 'imports.manage';
 
 const TENANT_WIDE: Record<Role, Permission[]> = {
   usuario: ['chat.use', 'kb.read'],
   revisor: ['chat.use', 'kb.read', 'outputs.review'],
-  key_user: ['chat.use', 'kb.read', 'kb.manage', 'people.manage', 'outputs.review', 'audit.read'],
+  key_user: ['chat.use', 'kb.read', 'kb.manage', 'people.manage', 'outputs.review', 'audit.read', 'imports.manage'],
   patrocinador: ['chat.use', 'kb.read', 'qw.decide'],
-  admin_cliente: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'qw.decide'],
-  admin_theneil: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'platform.tenants', 'qw.decide'],
+  admin_cliente: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'qw.decide', 'imports.manage'],
+  admin_theneil: ['chat.use', 'kb.read', 'kb.manage', 'outputs.review', 'people.manage', 'areas.manage', 'tenant.configure', 'audit.read', 'platform.tenants', 'qw.decide', 'imports.manage'],
 };
 
 // Permissões que um papel dá dentro de uma área específica.
 const IN_AREA: Record<Role, Permission[]> = {
   usuario: ['chat.use', 'kb.read'],
   revisor: ['chat.use', 'kb.read', 'outputs.review'],
-  key_user: ['chat.use', 'kb.read', 'kb.manage', 'people.manage', 'outputs.review', 'audit.read'],
+  key_user: ['chat.use', 'kb.read', 'kb.manage', 'people.manage', 'outputs.review', 'audit.read', 'imports.manage'],
   patrocinador: ['chat.use', 'kb.read', 'qw.decide'],
   admin_cliente: [],
   admin_theneil: [],

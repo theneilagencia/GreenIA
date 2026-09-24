@@ -1,5 +1,7 @@
 // Criação de tenant (operação de plataforma da TheNeil). Roda com a conexão do
 // dono das tabelas, numa transação, e fica registrada na auditoria do tenant novo.
+import { mapeamentoConfigSchema } from '../imports/schema.ts';
+import { criarMapeamento } from '../imports/service.ts';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { usageRulesSchema } from '../policy/usage-policy.ts';
@@ -34,6 +36,13 @@ export const newTenantSchema = z.object({
   keyUsers: z.array(z.object({ email: z.string().trim().toLowerCase().pipe(z.email()), area: z.string() })).default([]),
   // Política de Uso de IA inicial (versão 1), opcional.
   policy: z.object({ title: z.string().trim().min(3).max(200), body: z.string().trim().min(20), rules: z.unknown().optional() }).optional(),
+  // Mapeamentos de importação da implantação (arquivos exportados dos sistemas do cliente).
+  mapeamentosImportacao: z.array(z.object({
+    slug: z.string().regex(/^[a-z0-9][a-z0-9-]{0,60}$/).optional(),
+    nome: z.string().trim().min(2).max(120),
+    descricao: z.string().max(1000).default(''),
+    config: mapeamentoConfigSchema,
+  })).default([]),
 });
 
 export type NewTenant = z.infer<typeof newTenantSchema>;
@@ -88,8 +97,9 @@ export async function createTenant(ownerDb: Db, input: unknown, actor?: { tenant
       await client.query(`insert into usage_policies (tenant_id, version, title, body, body_sha256, rules, published_by) values ($1, 1, $2, $3, $4, $5, $6)`,
         [id, t.policy.title, t.policy.body, createHash('sha256').update(t.policy.body).digest('hex'), rules, await person(t.admins[0])]);
     }
+    for (const m of t.mapeamentosImportacao) await criarMapeamento(client, id, null, { ...m, nota: 'implantação' });
     await client.query(`insert into audit_log (tenant_id, actor_user_id, action, details) values ($1, $2, 'tenant_criado', $3)`,
-      [id, actor?.userId || null, { porTenant: actor?.tenantId || 'cli', ajustesDeCor: theme.adjustments, keyUsers: t.keyUsers.length, politica: !!t.policy, modeloAreas: t.modeloAreas ?? null, areasDoModelo: fromTemplate }]);
+      [id, actor?.userId || null, { porTenant: actor?.tenantId || 'cli', ajustesDeCor: theme.adjustments, keyUsers: t.keyUsers.length, politica: !!t.policy, mapeamentosImportacao: t.mapeamentosImportacao.map(m => m.nome), modeloAreas: t.modeloAreas ?? null, areasDoModelo: fromTemplate }]);
     await client.query('commit');
     return { id, slug: t.slug, themeAdjustments: theme.adjustments };
   } catch (e) {

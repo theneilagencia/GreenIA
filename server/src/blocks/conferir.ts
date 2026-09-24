@@ -40,6 +40,18 @@ export function resolveDataset(ctx: RunContext, ref: DatasetRef): Registro[] {
       return v && typeof v === 'object' ? [{ dados: v as Record<string, unknown>, origem: `${d.name}${ref.caminho ? ' › ' + ref.caminho : ''}` }] : [];
     });
   }
+  if (ref.de === 'importacao') {
+    // Registros normalizados pelo mapeamento de importação, com a origem de cada campo.
+    return ctx.docs.filter(d => d.importado?.[ref.conjunto!] && globMatch(ref.arquivo, d.name)).flatMap(d => {
+      const regs = d.importado![ref.conjunto!].registros;
+      if (ref.registro === 'cada' || !regs.length) return regs.map(r => ({ dados: r.dados as Record<string, unknown>, origem: r.origem, origemCampo: (c: string) => r.origens[c] ?? null }));
+      const [p] = regs;
+      const dados: Record<string, unknown> = { ...p.dados };
+      for (const s of ref.somar) dados[s.em] = Math.round(regs.reduce((n, r) => n + (parseNumberBr(r.dados[s.campo]) ?? 0), 0) * 1e6) / 1e6;
+      const somas = new Set(ref.somar.map(s => s.em));
+      return [{ dados, origem: `${d.name}`, origemCampo: (c: string) => somas.has(c) ? `${d.name} › soma de ${regs.length} linhas` : p.origens[c] ?? null }];
+    });
+  }
   if (ref.de === 'tabela') {
     return ctx.docs.filter(d => d.sheets?.length && globMatch(ref.arquivo, d.name)).flatMap(d => {
       const sheet = ref.planilha ? d.sheets!.find(s => normPt(s.name) === normPt(ref.planilha!)) : d.sheets!.find(s => s.rows.length);

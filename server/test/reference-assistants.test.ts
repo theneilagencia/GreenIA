@@ -81,7 +81,7 @@ test('os quatro assistentes vêm de modelos do catálogo (JSON) e validam no mes
   assert.deepEqual([...blocks].sort(), ['buscar', 'checklist', 'classificar', 'conferir', 'exportar', 'extrair', 'ler', 'resumir']);
   const list = (await get(u.key_fiscal, '/api/assistants')).json();
   assert.ok(list.some((a: { slug: string; status: string }) => a.slug === 'conferencia-nfe' && a.status === 'piloto'));
-  assert.deepEqual(list.find((a: { slug: string }) => a.slug === 'conferencia-nfe').origem, { tipo: 'modelo', modelo: { slug: 'conferencia-nota-pedido', versao: 1, versaoNova: null } });
+  assert.deepEqual(list.find((a: { slug: string }) => a.slug === 'conferencia-nfe').origem, { tipo: 'modelo', modelo: { slug: 'conferencia-nota-pedido', versao: 2, versaoNova: null } });
 });
 
 test('Fiscal: NF-e de entrada (XML) × pedido de compra (XLSX), com divergências e origem', async () => {

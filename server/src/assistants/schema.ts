@@ -11,6 +11,7 @@ import { Ajv } from 'ajv';
 import { dataPolicySchema } from '../tenants/config.ts';
 import { checkPolicyAgainstClasses } from '../policy/data-policy.ts';
 import { fileKindSchema, pipelineStepSchema } from '../blocks/params.ts';
+import { conjuntoDadosSchema } from '../imports/schema.ts';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 
@@ -51,6 +52,10 @@ export const assistantDefinitionSchema = z.preprocess(upgrade, z.object({
       areas: z.array(z.string()).default([]),               // vazio: a área do assistente (mais os documentos gerais)
     }).prefault({}),
   }).prefault({}),
+  // Conjuntos de dados normalizados que o assistente espera (ex.: itens de um
+  // pedido). Arquivos exportados de qualquer sistema chegam neles pelos
+  // mapeamentos de importação do tenant; o assistente nunca cita o sistema de origem.
+  dados: z.array(conjuntoDadosSchema).max(10).default([]),
   // Política de dados e retenção das saídas.
   dataClasses: z.array(z.enum(['verde', 'amarela', 'vermelha'])).min(1).default(['verde']),
   dataPolicy: dataPolicySchema.default({}),
@@ -97,6 +102,22 @@ export const assistantDefinitionSchema = z.preprocess(upgrade, z.object({
     if (s.bloco === 'extrair') {
       const e = jsonSchemaProblem(s.params.schema);
       if (e) ctx.addIssue({ code: 'custom', path: ['pipeline', i, 'params', 'schema'], message: e });
+    }
+  });
+  // Conjuntos de dados: ids únicos; a conferência só usa conjuntos e campos declarados.
+  const conjuntos = new Map(d.dados.map(c => [c.id, new Set(c.campos.map(f => f.campo))]));
+  if (conjuntos.size !== d.dados.length) ctx.addIssue({ code: 'custom', path: ['dados'], message: 'id de conjunto repetido' });
+  d.pipeline.forEach((s, i) => {
+    if (s.bloco !== 'conferir') return;
+    const p = s.params as { esquerda: { de: string; conjunto?: string; somar?: { em: string }[] }; direita: { de: string; conjunto?: string; somar?: { em: string }[] }; chave?: { esquerda: string; direita: string }; regras: { esquerda: string; direita: string }[] };
+    for (const lado of ['esquerda', 'direita'] as const) {
+      const ref = p[lado];
+      if (ref.de !== 'importacao') continue;
+      const campos = conjuntos.get(ref.conjunto!);
+      if (!campos) { ctx.addIssue({ code: 'custom', path: ['pipeline', i, 'params', lado, 'conjunto'], message: `conjunto ${ref.conjunto} não declarado em dados` }); continue; }
+      const ok = new Set([...campos, ...(ref.somar ?? []).map(x => x.em)]);
+      const usados = [...p.regras.map(r => r[lado]), ...(p.chave ? [p.chave[lado]] : [])];
+      for (const u of usados) if (!ok.has(u)) ctx.addIssue({ code: 'custom', path: ['pipeline', i, 'params'], message: `campo ${u} não existe no conjunto ${ref.conjunto}` });
     }
   });
   const needsFiles = d.pipeline.some(s => ['ler', 'extrair', 'checklist', 'classificar'].includes(s.bloco));

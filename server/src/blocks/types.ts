@@ -7,6 +7,8 @@ import type { ContentPart, LlmCompletion } from '../llm/provider.ts';
 import type { KnowledgeHit } from '../kb/knowledge.ts';
 import type { Converter } from '../convert/converter.ts';
 import type { Reader } from '../readers/registry.ts';
+import type { MapeamentoAtivo } from '../imports/schema.ts';
+import type { Importado } from '../imports/match.ts';
 
 export interface InputFile { id: string; name: string; mime: string; bytes: Uint8Array; sha256: string }
 
@@ -32,6 +34,7 @@ export interface ReadDoc {
   semExtracao?: string;                             // o leitor pede que a extração pelo modelo pule o documento (motivo)
   periodo?: string | null;                          // AAAA-MM, quando um leitor sabe a data do documento
   situacao?: string;                                // situação dada por um leitor (ex.: DANFE sem o XML)
+  importado?: Record<string, Importado>;            // registros normalizados por conjunto de dados, pelo mapeamento de importação
   warnings: string[];
 }
 
@@ -61,6 +64,7 @@ export interface BlockEnv {
   now: () => Date;
   converter?: Converter;                            // OCR e conversões; ausente: indisponível
   readers?: Reader[];                               // leitores especializados ligados no tenant
+  importMappings?: MapeamentoAtivo[];               // mapeamentos de importação do tenant (versão atual)
   visionAllowedByPolicy?: boolean;                  // Política de Uso do cliente (padrão: permite)
   // Confere textos contra a política sem enviar nada; devolve os tipos que impedem
   // enviar a imagem correspondente (bloqueio, aviso não confirmado ou mascaramento).

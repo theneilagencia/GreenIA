@@ -8,7 +8,10 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestDb, type TestDb } from './helpers.ts';
 import { migrate, migrateDown } from '../src/db/migrate.ts';
-import { seedDemo } from '../src/demo/seed.ts';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DEMO_DIR, seedDemo } from '../src/demo/seed.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
 
 let db: TestDb;
@@ -21,7 +24,13 @@ const q = async (sql: string, params: unknown[] = []) => (await db.owner.query(s
 
 before(async () => {
   db = await createTestDb({ upTo: '019' });
-  tenantId = (await seedDemo(db.owner, new MemoryObjectStore())).tenantId;
+  // A demonstração de hoje traz mapeamentos de importação (023); aqui o banco está na 019.
+  const demo = mkdtempSync(join(tmpdir(), 'demo-019-'));
+  cpSync(DEMO_DIR, demo, { recursive: true });
+  const tj = JSON.parse(readFileSync(join(demo, 'tenant-demo.json'), 'utf8'));
+  delete tj.mapeamentosImportacao;
+  writeFileSync(join(demo, 'tenant-demo.json'), JSON.stringify(tj));
+  tenantId = (await seedDemo(db.owner, new MemoryObjectStore(), demo)).tenantId;
   for (const r of await q(`select id, slug, area_id from assistants where tenant_id = $1`, [tenantId])) A[r.slug] = r.id;
   const user = (await q(`select id from users where tenant_id = $1 and email = 'key.fiscal@demonstracao.com.br'`, [tenantId]))[0].id;
   const area = (await q(`select area_id from assistants where id = $1`, [A['conferencia-nfe']]))[0].area_id;
@@ -51,7 +60,7 @@ before(async () => {
       (select decision from assistant_decisions where assistant_id = $1 order by created_at desc limit 1) as ultima`, [id]);
     before022[slug] = { execucoes: r.execucoes, antes: r.antes, antesSoma: r.antes_soma, depois: r.depois, decisoes: r.decisoes, ultimaDecisao: r.ultima };
   }
-  await migrate(db.ownerUrl);                                                 // 020, 021, 022 e as seguintes
+  await migrate(db.ownerUrl, { upTo: '022' });                                // 020, 021 e 022
 });
 after(async () => { await db?.drop(); });
 
@@ -89,7 +98,13 @@ test('a 022 removeu as tabelas antigas; a volta recria e a ida remove de novo', 
   const back = await exists();
   assert.ok(back.m && back.d);
   assert.equal((await q(`select count(*)::int as n from metric_values`))[0].n, 0);     // estrutura volta, vazia
-  await migrate(db.ownerUrl);
+  await migrate(db.ownerUrl, { upTo: '022' });
   assert.deepEqual(await exists(), { m: null, d: null });
   await assert.rejects(migrateDown(db.ownerUrl, '021_compartilhamento_aprovado.sql'), /só a última migração aplicada volta/);
+  // As seguintes também têm volta (023: mapeamentos de importação).
+  await migrate(db.ownerUrl);
+  await migrateDown(db.ownerUrl, '023_mapeamentos_importacao.sql');
+  assert.equal((await q(`select to_regclass('import_mappings') as m`))[0].m, null);
+  await migrate(db.ownerUrl);
+  assert.ok((await q(`select to_regclass('import_mappings') as m`))[0].m);
 });

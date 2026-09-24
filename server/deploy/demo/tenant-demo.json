@@ -112,5 +112,78 @@
       "area": "financeiro",
       "status": "piloto"
     }
+  ],
+  "mapeamentosImportacao": [
+    {
+      "slug": "planilha-de-pedido-demonstracao",
+      "nome": "Planilha de pedido (demonstração)",
+      "descricao": "Pedido em XLSX com a planilha Itens e a planilha Cabeçalho (campo | valor). Dados fictícios.",
+      "config": {
+        "formato": "xlsx",
+        "planilha": "Itens",
+        "data": "aaaa-mm-dd",
+        "numero": {
+          "decimal": ",",
+          "milhar": "."
+        },
+        "campos": [
+          {
+            "campo": "pedido",
+            "daPlanilha": {
+              "planilha": "Cabeçalho",
+              "chave": "Número do pedido"
+            },
+            "obrigatorio": true
+          },
+          {
+            "campo": "cnpjFornecedor",
+            "daPlanilha": {
+              "planilha": "Cabeçalho",
+              "chave": "CNPJ do fornecedor"
+            },
+            "obrigatorio": true
+          },
+          {
+            "campo": "dataPedido",
+            "daPlanilha": {
+              "planilha": "Cabeçalho",
+              "chave": "Data do pedido"
+            },
+            "tipo": "data",
+            "obrigatorio": true
+          },
+          {
+            "campo": "totalPedido",
+            "daPlanilha": {
+              "planilha": "Cabeçalho",
+              "chave": "Valor total"
+            },
+            "tipo": "numero"
+          },
+          {
+            "campo": "codigo",
+            "origem": "Código",
+            "obrigatorio": true
+          },
+          {
+            "campo": "descricao",
+            "origem": "Descrição",
+            "obrigatorio": true
+          },
+          {
+            "campo": "quantidade",
+            "origem": "Quantidade",
+            "tipo": "numero",
+            "obrigatorio": true
+          },
+          {
+            "campo": "valorUnitario",
+            "origem": "Preço unitário",
+            "tipo": "numero",
+            "obrigatorio": true
+          }
+        ]
+      }
+    }
   ]
 }

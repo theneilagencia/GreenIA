@@ -15,18 +15,26 @@ export const fileKindSchema = z.string().max(40).refine(k => (FILE_KINDS as read
 //             orientacao 'chave_valor' para planilha de duas colunas Campo | Valor,
 //             como o cabeçalho de um pedido: vira um único registro)
 //   extraido  saída do bloco de extração (bloco: id do bloco; caminho opcional dentro do JSON)
+//   importacao registros normalizados de um conjunto de dados do assistente, vindos
+//             de arquivos exportados de qualquer sistema pelos mapeamentos do tenant
 export const datasetRefSchema = z.preprocess(
   // Definições anteriores escreviam o leitor em "de": vira { de: 'leitor', leitor }.
   v => v && typeof v === 'object' && LEGACY_DATASET_SOURCES.includes((v as { de?: string }).de ?? '') ? { ...v, de: 'leitor', leitor: (v as { de: string }).de } : v,
   z.object({
-  de: z.enum(['leitor', 'tabela', 'extraido']),
+  de: z.enum(['leitor', 'tabela', 'extraido', 'importacao']),
   leitor: z.string().max(40).optional(),
+  conjunto: z.string().max(60).optional(),                 // importacao: id do conjunto de dados declarado no assistente
+  // importacao: 'primeiro' junta os registros de cada arquivo em um (cabeçalho
+  // repetido nas linhas), com as somas pedidas.
+  registro: z.enum(['cada', 'primeiro']).default('cada'),
+  somar: z.array(z.object({ campo: z.string().max(60), em: z.string().max(60) })).max(10).default([]),
   arquivo: z.string().max(200).optional(),
   planilha: z.string().max(100).optional(),
   bloco: z.string().max(60).optional(),
   caminho: z.string().max(200).optional(),
   orientacao: z.enum(['linhas', 'chave_valor']).default('linhas'),
-}).refine(r => r.de !== 'leitor' || (!!r.leitor && !!readerById(r.leitor)), { message: 'informe um leitor registrado (leitor)' }));
+}).refine(r => r.de !== 'leitor' || (!!r.leitor && !!readerById(r.leitor)), { message: 'informe um leitor registrado (leitor)' })
+  .refine(r => r.de !== 'importacao' || !!r.conjunto, { message: 'informe o conjunto de dados (conjunto)' }));
 export type DatasetRef = z.infer<typeof datasetRefSchema>;
 
 const jsonSchemaObject = z.record(z.string(), z.unknown()).refine(s => s.type === 'object', 'o schema precisa ser do tipo object');

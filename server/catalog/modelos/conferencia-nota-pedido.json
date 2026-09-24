@@ -1,16 +1,16 @@
 {
   "kind": "assistente",
   "slug": "conferencia-nota-pedido",
-  "version": 1,
+  "version": 2,
   "name": "Conferência de nota fiscal de entrada × pedido de compra",
-  "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do ERP (XLSX) e lista as divergências.",
+  "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do sistema de compras e lista as divergências. O pedido entra por um mapeamento de importação do cliente (CSV, XLSX, texto de largura fixa, JSON ou XML).",
   "areaSugerida": "Compras, fiscal ou recebimento",
   "leitores": [
     "nfe",
     "danfe"
   ],
   "definition": {
-    "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do ERP (XLSX) e lista as divergências.",
+    "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do sistema de compras e lista as divergências. O pedido entra por um mapeamento de importação do cliente (CSV, XLSX, texto de largura fixa, JSON ou XML).",
     "objective": "Encontrar divergências de quantidade, preço, descrição e cabeçalho antes do lançamento da nota.",
     "instructions": "",
     "inputs": {
@@ -24,12 +24,74 @@
           "nfe_xml",
           "pdf",
           "xlsx",
-          "csv"
+          "csv",
+          "texto"
         ],
         "maxFiles": 10,
         "maxFileMb": 10
       }
     },
+    "dados": [
+      {
+        "id": "pedido",
+        "nome": "Pedido de compra",
+        "campos": [
+          {
+            "campo": "pedido",
+            "nome": "Número do pedido",
+            "tipo": "texto"
+          },
+          {
+            "campo": "cnpjFornecedor",
+            "nome": "CNPJ do fornecedor",
+            "tipo": "texto"
+          },
+          {
+            "campo": "dataPedido",
+            "nome": "Data do pedido",
+            "tipo": "data"
+          },
+          {
+            "campo": "totalPedido",
+            "nome": "Valor total do pedido",
+            "tipo": "numero",
+            "obrigatorio": false
+          },
+          {
+            "campo": "codigo",
+            "nome": "Código do item",
+            "tipo": "texto"
+          },
+          {
+            "campo": "descricao",
+            "nome": "Descrição",
+            "tipo": "texto"
+          },
+          {
+            "campo": "quantidade",
+            "nome": "Quantidade",
+            "tipo": "numero"
+          },
+          {
+            "campo": "unidade",
+            "nome": "Unidade",
+            "tipo": "texto",
+            "obrigatorio": false
+          },
+          {
+            "campo": "valorUnitario",
+            "nome": "Valor unitário",
+            "tipo": "numero"
+          },
+          {
+            "campo": "valorTotal",
+            "nome": "Valor total do item",
+            "tipo": "numero",
+            "obrigatorio": false
+          }
+        ]
+      }
+    ],
     "dataClasses": [
       "verde",
       "amarela"
@@ -60,9 +122,8 @@
             "caminho": "itens"
           },
           "direita": {
-            "de": "tabela",
-            "arquivo": "*pedido*",
-            "planilha": "Itens"
+            "de": "importacao",
+            "conjunto": "pedido"
           },
           "rotulos": {
             "esquerda": "Nota",
@@ -70,19 +131,19 @@
           },
           "chave": {
             "esquerda": "codigo",
-            "direita": "Código"
+            "direita": "codigo"
           },
           "regras": [
             {
               "campo": "Quantidade",
               "esquerda": "quantidade",
-              "direita": "Quantidade",
+              "direita": "quantidade",
               "tipo": "numero"
             },
             {
               "campo": "Valor unitário",
               "esquerda": "valorUnitario",
-              "direita": "Preço unitário",
+              "direita": "valorUnitario",
               "tipo": "numero",
               "tolerancia": {
                 "percentual": 1
@@ -91,7 +152,7 @@
             {
               "campo": "Descrição",
               "esquerda": "descricao",
-              "direita": "Descrição",
+              "direita": "descricao",
               "tipo": "texto"
             }
           ]
@@ -106,10 +167,9 @@
             "de": "nfe"
           },
           "direita": {
-            "de": "tabela",
-            "arquivo": "*pedido*",
-            "planilha": "Cabeçalho",
-            "orientacao": "chave_valor"
+            "de": "importacao",
+            "conjunto": "pedido",
+            "registro": "primeiro"
           },
           "rotulos": {
             "esquerda": "Nota",
@@ -119,19 +179,19 @@
             {
               "campo": "Número do pedido",
               "esquerda": "pedido",
-              "direita": "Número do pedido",
+              "direita": "pedido",
               "tipo": "igual"
             },
             {
               "campo": "CNPJ do fornecedor",
               "esquerda": "emitente.cnpj",
-              "direita": "CNPJ do fornecedor",
+              "direita": "cnpjFornecedor",
               "tipo": "igual"
             },
             {
               "campo": "Emissão dentro do prazo de entrega",
               "esquerda": "dataEmissao",
-              "direita": "Data do pedido",
+              "direita": "dataPedido",
               "tipo": "data",
               "prazoDias": 30,
               "referencia": "direita"
@@ -139,7 +199,7 @@
             {
               "campo": "Valor total",
               "esquerda": "totais.nota",
-              "direita": "Valor total",
+              "direita": "totalPedido",
               "tipo": "numero",
               "tolerancia": {
                 "absoluta": 1

@@ -21,6 +21,7 @@ import { effectivePolicy, inspect, maskText } from '../policy/data-policy.ts';
 import { applyFloor, currentPolicy, restrictedHits } from '../policy/usage-policy.ts';
 import { runBlock } from '../blocks/index.ts';
 import { enabledReaders } from '../readers/registry.ts';
+import { mapeamentosAtivos } from '../imports/service.ts';
 import type { BlockEnv, InputFile, RunContext, Section } from '../blocks/types.ts';
 import type { ContentPart, LlmUsage } from '../llm/provider.ts';
 import type { KnowledgeHit } from '../kb/knowledge.ts';
@@ -59,7 +60,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
     const v = (await tx.query(`select definition from assistant_versions where assistant_id = $1 and version = $2`, [run.assistant_id, run.assistant_version])).rows[0];
     const files = (await tx.query(`select * from run_files where run_id = $1 order by name`, [runId])).rows;
     await tx.query(`update runs set started_at = now() where id = $1`, [runId]);
-    return { config: parseTenantConfig(t?.config).config, def: assistantDefinitionSchema.parse(v.definition), files, usage: await currentPolicy(tx) };
+    return { config: parseTenantConfig(t?.config).config, def: assistantDefinitionSchema.parse(v.definition), files, usage: await currentPolicy(tx), maps: await mapeamentosAtivos(tx) };
   });
   const { config, def } = loaded;
   const rules = loaded.usage?.rules;
@@ -93,6 +94,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
     now: () => new Date(),
     converter: app.deps.converter,
     readers: enabledReaders(config.readers),
+    importMappings: loaded.maps,
     visionAllowedByPolicy: rules?.allowVisionFallback ?? true,
     // Imagem não tem como ser mascarada: tipo a mascarar também impede o fallback de visão.
     async screen(texts) { const c = check(texts); return [...c.blocked, ...((c.decision?.mask ?? []) as string[])]; },

@@ -17,6 +17,7 @@
 import { extractText, getDocumentProxy } from 'unpdf';
 import mammoth from 'mammoth';
 import ExcelJS from 'exceljs';
+import { importarConjuntos } from '../imports/match.ts';
 import type { FileKind, PipelineStep } from './params.ts';
 import { lerParams } from './params.ts';
 import { parseCsv } from '../util/csv.ts';
@@ -111,7 +112,7 @@ function sheetFromRows(name: string, rows: (string | number | null)[][], firstRo
   return out;
 }
 
-function cellValue(v: ExcelJS.CellValue): string | number | null {
+export function cellValue(v: ExcelJS.CellValue): string | number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === 'number' || typeof v === 'string') return v;
   if (typeof v === 'boolean') return v ? 'sim' : 'não';
@@ -357,6 +358,10 @@ export async function lerBlock(ctx: RunContext, step: PipelineStep): Promise<Sec
       if (l.pendencia) { pendencias++; flags.push({ reason: l.pendencia, ref: d.name }); }
     }
   }
+  // Arquivos exportados de outros sistemas viram registros normalizados pelos
+  // mapeamentos de importação do tenant (os conjuntos que o assistente declara).
+  const imp = ctx.def.dados.length ? await importarConjuntos(ctx.def.dados, ctx.files, read, ctx.env.importMappings ?? []) : { flags: [], resumo: [] };
+  flags.push(...imp.flags);
   const summaries = (d: ReadDoc) => Object.fromEntries((ctx.env.readers ?? []).filter(r => d.dados?.[r.id] !== undefined)
     .map(r => [r.id, r.summary ? r.summary(d.dados![r.id], d) : true]));
   const ocrConf = (d: ReadDoc) => {
@@ -373,6 +378,7 @@ export async function lerBlock(ctx: RunContext, step: PipelineStep): Promise<Sec
       planilhas: d.sheets?.map(s => ({ nome: s.name, linhas: s.rows.length })),
       ...summaries(d),
       situacao: d.situacao,
+      importacao: imp.resumo.filter(r => r.arquivo === d.name).map(({ arquivo: _a, ...r }) => r),
       avisos: d.warnings,
     })),
   };

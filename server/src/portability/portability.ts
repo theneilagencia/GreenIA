@@ -48,6 +48,8 @@ const DATASETS: Record<string, string> = {
   'quick-wins-indicadores': `select quick_win_id, key, label, unit, direction, auto, comparison, position from quick_win_indicators`,
   'medicoes': `select id, quick_win_id, indicator, phase, value, unit, origin, period_start, period_end, method, informed_by, notes, recorded_by, created_at from quick_win_values`,
   'quick-wins-historico': `select opportunity_id, quick_win_id, at, actor, stage_from, stage_to, note from quick_win_events`,
+  'mapeamentos-de-importacao': `select id, slug, name, description, current_version, archived_at, created_by, created_at, updated_at from import_mappings`,
+  'mapeamentos-de-importacao-versoes': `select mapping_id, version, config, note, created_by, created_at from import_mapping_versions`,
   'auditoria-ancoras': `select anchor_date, seq, hash, records, bucket, object_key, version_id, retain_until, published_at from audit_anchors`,
   'consumo': `select id, user_id, assistant_id, run_id, provider, model, input_tokens, output_tokens, pages, cost_brl, price_id, at from usage_events`,
   'alertas-de-cota': `select month, threshold, created_at from quota_alerts`,

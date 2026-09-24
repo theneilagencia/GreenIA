@@ -15,6 +15,7 @@ import { composeSteps, type ChatHooks } from './chat/hooks.ts';
 import { assistantStep, dataPolicyStep } from './chat/steps.ts';
 import { assistantRoutes } from './assistants/routes.ts';
 import { kbRoutes } from './kb/routes.ts';
+import { auditRoutes } from './audit/routes.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
 import { retentionStep, makeRetentionSweep } from './retention/retention.ts';
@@ -77,6 +78,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(chatRoutes);
   await app.register(assistantRoutes);
   await app.register(kbRoutes);
+  await app.register(auditRoutes);
 
   // Frontend (mesma origem da API). Registrado por último: as rotas da API têm prioridade.
   await app.register(staticRoutes);

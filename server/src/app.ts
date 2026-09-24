@@ -18,6 +18,7 @@ import { kbRoutes } from './kb/routes.ts';
 import { auditRoutes } from './audit/routes.ts';
 import { runRoutes } from './runs/routes.ts';
 import { reviewRoutes } from './runs/review.ts';
+import { metricsRoutes } from './metrics/routes.ts';
 import { makeRunExecutor } from './runs/executor.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
@@ -84,6 +85,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(auditRoutes);
   await app.register(runRoutes);
   await app.register(reviewRoutes);
+  await app.register(metricsRoutes);
 
   // Frontend (mesma origem da API). Registrado por último: as rotas da API têm prioridade.
   await app.register(staticRoutes);

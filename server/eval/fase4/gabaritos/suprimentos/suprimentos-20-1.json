@@ -1,0 +1,97 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-20-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-20.xlsx",
+      "sha256": "cd8a2a83d46166e155e30780699e0761f6776e24bdcfbff58f8d0b4b18178b67",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6478
+    },
+    {
+      "nome": "cotacao-20-1.docx",
+      "sha256": "f3989be38669c56f8954f25ef477e008456214b2ec7c29c4710654c6d158131f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8834
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-20-1.docx",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "23/10/2026",
+      "itens": [
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 280,
+          "unidade": "rl",
+          "preco_unitario": 252.46
+        },
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 235,
+          "unidade": "br",
+          "preco_unitario": 534.94
+        },
+        {
+          "codigo": "IMP-ASF",
+          "descricao": "Manta asfáltica 4 mm, rolo 10 m²",
+          "quantidade": 195,
+          "unidade": "rl",
+          "preco_unitario": 249.48
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 17,
+          "unidade": "m³",
+          "preco_unitario": 185.54
+        },
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 20,
+          "unidade": "ch",
+          "preco_unitario": 218.12
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 70,
+          "unidade": "sc",
+          "preco_unitario": 736.7
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 10,
+          "unidade": "cx",
+          "preco_unitario": 346.57
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 40,
+          "unidade": "br",
+          "preco_unitario": 88.13
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

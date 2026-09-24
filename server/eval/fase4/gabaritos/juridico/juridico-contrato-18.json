@@ -1,0 +1,54 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-18",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "docx, 9 páginas",
+  "arquivos": [
+    {
+      "nome": "contrato-18.docx",
+      "sha256": "1a667cff53516ea1521a108c33e244ff9499641cb40f097e032c279fa7582085",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 9371
+    }
+  ],
+  "esperado": {
+    "contrato": "contrato-18.docx",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Madeireira Teste Ltda."
+      },
+      "vigencia": {
+        "clausula": "Cláusula 15ª",
+        "trecho": "vigorará por 12 meses"
+      },
+      "reajuste": null,
+      "multa": {
+        "clausula": "Cláusula 6ª",
+        "trecho": "multa de 0,33% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 12ª",
+        "trecho": "aviso prévio de 15 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 3ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 9ª",
+        "trecho": "comarca de Curitiba-PR"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de instalações elétricas prediais. Sem cláusula de reajuste: o esperado é nulo.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

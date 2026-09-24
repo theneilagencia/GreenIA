@@ -1,0 +1,91 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-09",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "cpf.pdf",
+      "sha256": "c5a9a58051a7992e1f258c7721240358132fe8494027c5119939a940524995a5",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2119
+    },
+    {
+      "nome": "ctps-digital.pdf",
+      "sha256": "35069c80c542d979afb4926e7b734d4f4b3fea2ad3df0e640ff0dfbbb6923c22",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2085
+    },
+    {
+      "nome": "aso-admissional.pdf",
+      "sha256": "95ee44700b9ccdf33ee19f249d56d64b6712cf8692d9193475ed79d4d53b78a5",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2151
+    },
+    {
+      "nome": "comprovante-conta-salario.pdf",
+      "sha256": "565e4a0793ac3211d6d2b44df60b3aeefbb540f4762d11565769fa97e2b06708",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2075
+    },
+    {
+      "nome": "ficha-de-admissao.pdf",
+      "sha256": "fe868caa9f07c1a9f92e534cc65e6d3b151bc514bfbecce36d563e099d29ec01",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2099
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "cpf",
+        "situacao": "presente",
+        "arquivo": "cpf.pdf"
+      },
+      {
+        "item": "residencia",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "ctps-digital.pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "presente",
+        "arquivo": "aso-admissional.pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "duvidoso",
+        "arquivo": "ficha-de-admissao.pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "presente",
+        "arquivo": "comprovante-conta-salario.pdf"
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Hugo Guimarães Modelo). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

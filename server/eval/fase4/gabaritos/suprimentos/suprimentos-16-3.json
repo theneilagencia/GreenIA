@@ -1,0 +1,95 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-16-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-16.xlsx",
+      "sha256": "ad731fca6df0e9c9155333d25a5d588981b3ba3c2c7d9a9ca3695aeae8b9a17d",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6360
+    },
+    {
+      "nome": "cotacao-16-3.pdf",
+      "sha256": "7469930b362447f0b217fd96c35b541bdd0f8e8092d44c272312ba8f5404b661",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2484
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-16-3.pdf",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "18/10/2026",
+      "itens": [
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 288,
+          "unidade": "br",
+          "preco_unitario": 356.64
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 115,
+          "unidade": "br",
+          "preco_unitario": 323.93
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 190,
+          "unidade": "kg",
+          "preco_unitario": 490.91
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 90,
+          "unidade": "cx",
+          "preco_unitario": 718.67
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 47,
+          "unidade": "m³",
+          "preco_unitario": 705.16
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "TUB-100",
+        "tipo": "quantidade",
+        "especificado": 260,
+        "cotado": 288
+      },
+      {
+        "codigo": "FOR-COM",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 75,
+        "cotado": null
+      },
+      {
+        "codigo": "CIM-032",
+        "tipo": "unidade",
+        "especificado": "sc",
+        "cotado": "kg"
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Residencial Jardim das Acácias. 3 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

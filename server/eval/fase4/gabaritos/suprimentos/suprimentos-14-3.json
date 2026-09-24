@@ -1,0 +1,102 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-14-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-14.xlsx",
+      "sha256": "2fe4babb4e365d3ddc95811980ce03dd167ff5509bbebeee158598a756c6854c",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6414
+    },
+    {
+      "nome": "cotacao-14-3.docx",
+      "sha256": "52d9f2d3b1be0b39c340f5560b1956b607da5a0345488c4706c6b3b4907de94e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8742
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-14-3.docx",
+      "fornecedor": "Madeireira Teste Ltda.",
+      "validade": "26/10/2026",
+      "itens": [
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 40,
+          "unidade": "ch",
+          "preco_unitario": 38.43
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 260,
+          "unidade": "cx",
+          "preco_unitario": 94.45
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 55,
+          "unidade": "sc",
+          "preco_unitario": 764.37
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 6,
+          "unidade": "m³",
+          "preco_unitario": 884.1
+        },
+        {
+          "codigo": "IMP-ASF",
+          "descricao": "Manta asfáltica 4 mm, rolo 10 m²",
+          "quantidade": 100,
+          "unidade": "rl",
+          "preco_unitario": 776.57
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 14,
+          "unidade": "mil",
+          "preco_unitario": 129.64
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "ARE-MED",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 46,
+        "cotado": null
+      },
+      {
+        "codigo": "CAB-006",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 60,
+        "cotado": null
+      },
+      {
+        "codigo": "TIJ-009",
+        "tipo": "sem_especificacao",
+        "especificado": null,
+        "cotado": 14
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. 3 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

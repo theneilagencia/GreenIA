@@ -1,0 +1,104 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-02-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-02.xlsx",
+      "sha256": "5a745a3009cf589afa1e7daad0501a65c645cda3c69fcd48dd4c75baaeebdf7e",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6512
+    },
+    {
+      "nome": "cotacao-02-1.pdf",
+      "sha256": "6a35ce340bf83951bab1af55490fb6979d97f8f69104d771c32fc9ea59209728",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2683
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-02-1.pdf",
+      "fornecedor": "Elétrica Exemplo Comércio Ltda.",
+      "validade": "11/10/2026",
+      "itens": [
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 25,
+          "unidade": "m³",
+          "preco_unitario": 837.93
+        },
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 265,
+          "unidade": "pç",
+          "preco_unitario": 184.87
+        },
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 105,
+          "unidade": "br",
+          "preco_unitario": 192.71
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 40,
+          "unidade": "br",
+          "preco_unitario": 450.41
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 215,
+          "unidade": "cx",
+          "preco_unitario": 366.55
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 165,
+          "unidade": "mil",
+          "preco_unitario": 486.35
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 30,
+          "unidade": "un",
+          "preco_unitario": 709.44
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 150,
+          "unidade": "sc",
+          "preco_unitario": 858.39
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 145,
+          "unidade": "sc",
+          "preco_unitario": 242.58
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

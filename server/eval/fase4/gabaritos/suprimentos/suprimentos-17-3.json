@@ -1,0 +1,110 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-17-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-17.xlsx",
+      "sha256": "d5b2b3c204af740f690400bf0f602c59c3f748bb670493ad23e2d2fb83d3f543",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6407
+    },
+    {
+      "nome": "cotacao-17-3.docx",
+      "sha256": "a881a6afc80fdf84abe796319636b1d3894449eb4b6d746a9ff461e3f3fe74d1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8807
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-17-3.docx",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "26/10/2026",
+      "itens": [
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 10,
+          "unidade": "br",
+          "preco_unitario": 622.64
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 20,
+          "unidade": "mil",
+          "preco_unitario": 801.71
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 165,
+          "unidade": "sc",
+          "preco_unitario": 672.81
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 135,
+          "unidade": "un",
+          "preco_unitario": 275.74
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 100,
+          "unidade": "rl",
+          "preco_unitario": 869.1
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 300,
+          "unidade": "br",
+          "preco_unitario": 471.53
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 5,
+          "unidade": "m³",
+          "preco_unitario": 56.55
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 20,
+          "unidade": "sc",
+          "preco_unitario": 124.73
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "TIJ-009",
+        "tipo": "quantidade",
+        "especificado": 25,
+        "cotado": 20
+      },
+      {
+        "codigo": "CIM-032",
+        "tipo": "sem_especificacao",
+        "especificado": null,
+        "cotado": 20
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. 2 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

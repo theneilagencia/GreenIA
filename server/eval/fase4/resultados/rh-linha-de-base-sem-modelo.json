@@ -1,0 +1,735 @@
+{
+  "resumo": {
+    "casos": 15,
+    "itens": 105,
+    "acerto": 81.9,
+    "errosGraves": [
+      "rh-pasta-02:cpf",
+      "rh-pasta-03:cpf",
+      "rh-pasta-05:cpf",
+      "rh-pasta-11:cpf"
+    ],
+    "porItem": {
+      "rg": {
+        "acertos": 13,
+        "total": 15
+      },
+      "cpf": {
+        "acertos": 11,
+        "total": 15
+      },
+      "residencia": {
+        "acertos": 14,
+        "total": 15
+      },
+      "ctps": {
+        "acertos": 13,
+        "total": 15
+      },
+      "aso": {
+        "acertos": 14,
+        "total": 15
+      },
+      "titulo": {
+        "acertos": 6,
+        "total": 15
+      },
+      "banco": {
+        "acertos": 15,
+        "total": 15
+      }
+    },
+    "confusao": {
+      "presente→presente": 66,
+      "presente→ausente": 8,
+      "ausente→presente": 4,
+      "ausente→ausente": 20,
+      "duvidoso→presente": 7
+    }
+  },
+  "casos": [
+    {
+      "caso": "rh-pasta-01",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.141
+    },
+    {
+      "caso": "rh-pasta-02",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "ausente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [
+        "cpf"
+      ],
+      "segundos": 0.022
+    },
+    {
+      "caso": "rh-pasta-03",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "ausente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [
+        "cpf"
+      ],
+      "segundos": 0.018
+    },
+    {
+      "caso": "rh-pasta-04",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.018
+    },
+    {
+      "caso": "rh-pasta-05",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "ausente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        }
+      ],
+      "acertos": 4,
+      "total": 7,
+      "errosGraves": [
+        "cpf"
+      ],
+      "segundos": 0.013
+    },
+    {
+      "caso": "rh-pasta-06",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        }
+      ],
+      "acertos": 7,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.019
+    },
+    {
+      "caso": "rh-pasta-07",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.018
+    },
+    {
+      "caso": "rh-pasta-08",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.011
+    },
+    {
+      "caso": "rh-pasta-09",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.013
+    },
+    {
+      "caso": "rh-pasta-10",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.018
+    },
+    {
+      "caso": "rh-pasta-11",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "ausente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 4,
+      "total": 7,
+      "errosGraves": [
+        "cpf"
+      ],
+      "segundos": 0.011
+    },
+    {
+      "caso": "rh-pasta-12",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 7,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.013
+    },
+    {
+      "caso": "rh-pasta-13",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        }
+      ],
+      "acertos": 7,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.015
+    },
+    {
+      "caso": "rh-pasta-14",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "presente",
+          "obtido": "presente"
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.01
+    },
+    {
+      "caso": "rh-pasta-15",
+      "variacao": "digital",
+      "itens": [
+        {
+          "item": "rg",
+          "esperado": "duvidoso",
+          "obtido": "presente"
+        },
+        {
+          "item": "cpf",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "residencia",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "ctps",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "aso",
+          "esperado": "presente",
+          "obtido": "presente"
+        },
+        {
+          "item": "titulo",
+          "esperado": "presente",
+          "obtido": "ausente"
+        },
+        {
+          "item": "banco",
+          "esperado": "ausente",
+          "obtido": "ausente"
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.013
+    }
+  ]
+}

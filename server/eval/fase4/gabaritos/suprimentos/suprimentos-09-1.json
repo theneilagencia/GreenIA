@@ -1,0 +1,97 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-09-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-09.xlsx",
+      "sha256": "ea951d731a4a23b8e4e63fdde28833bf922e6ad3f03c96ccfd5b2fce7018eae0",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6478
+    },
+    {
+      "nome": "cotacao-09-1.docx",
+      "sha256": "f9e061819c576eafe24ef096067db42416be49ce95c3679e02672effec2a8b2d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8836
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-09-1.docx",
+      "fornecedor": "Elétrica Exemplo Comércio Ltda.",
+      "validade": "16/10/2026",
+      "itens": [
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 300,
+          "unidade": "pç",
+          "preco_unitario": 196.39
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 145,
+          "unidade": "br",
+          "preco_unitario": 789.18
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 110,
+          "unidade": "un",
+          "preco_unitario": 290.9
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 160,
+          "unidade": "rl",
+          "preco_unitario": 350.62
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 60,
+          "unidade": "sc",
+          "preco_unitario": 672.22
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 45,
+          "unidade": "sc",
+          "preco_unitario": 826.5
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 8,
+          "unidade": "m³",
+          "preco_unitario": 175.3
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 250,
+          "unidade": "mil",
+          "preco_unitario": 895.76
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

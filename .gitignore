@@ -1,3 +1,4 @@
 node_modules/
 server/.env
 dump.rdb
+server/eval/fase4/saida/

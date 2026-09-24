@@ -1,0 +1,19 @@
+{
+  "versao": 1,
+  "sementes": {
+    "rh": {
+      "pastas": 15,
+      "semente": 4101
+    },
+    "suprimentos": {
+      "especificacoes": 20,
+      "semente": 4201
+    },
+    "juridico": {
+      "contratos": 25,
+      "semente": 4201
+    }
+  },
+  "casos": 100,
+  "descricao": "Gabaritos congelados do corpus gerado. O corpus fica fora do repositório; rode congelar.ts para gerar de novo e conferir os sha256."
+}

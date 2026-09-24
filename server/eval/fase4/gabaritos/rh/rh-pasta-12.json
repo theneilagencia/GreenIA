@@ -1,0 +1,98 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-12",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "rg.pdf",
+      "sha256": "1bde9fe983dd5e828bfe1fb4dcd6af580c16f39ad0dc32ef57c8ac7f24ebd497",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2175
+    },
+    {
+      "nome": "cpf.pdf",
+      "sha256": "d3d740af071e98231abe14b340c8faf38b2f12fc224a3bdc9ddecb0d30a6689b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2121
+    },
+    {
+      "nome": "conta-de-luz.pdf",
+      "sha256": "033731be2d3fb555e60fa50901cdc538009ad5c7994c1b50f7760308ec9bf790",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2117
+    },
+    {
+      "nome": "ctps-digital.pdf",
+      "sha256": "9ed7823896856805fcf2a52f0ebec1d91c88edb70a0f247a2fd3bdb72ea6fbbb",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2085
+    },
+    {
+      "nome": "comprovante-conta-salario.pdf",
+      "sha256": "37b10d768ce3b0caee665aaf39d69b6bc9b41a1b3f326fe887c0d654cc4a7a1b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2072
+    },
+    {
+      "nome": "ficha-de-admissao.pdf",
+      "sha256": "e9c0581dbc8130389562d8b43933459a718d8edaa8847eedeb682858a80b9ade",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2028
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "presente",
+        "arquivo": "rg.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "presente",
+        "arquivo": "cpf.pdf"
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "conta-de-luz.pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "ctps-digital.pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "titulo",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "banco",
+        "situacao": "presente",
+        "arquivo": "comprovante-conta-salario.pdf"
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Fábio Cardoso Modelo). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

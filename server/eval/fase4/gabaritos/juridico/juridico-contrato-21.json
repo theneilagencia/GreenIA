@@ -1,0 +1,57 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-21",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "pdf, 26 páginas",
+  "arquivos": [
+    {
+      "nome": "contrato-21.pdf",
+      "sha256": "64ff46f8ad4d1efc34ae7c42836a4bd5b797098ea7e0b521d9ff6623ac742eb5",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 22345
+    }
+  ],
+  "esperado": {
+    "contrato": "contrato-21.pdf",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Hidráulica Fictícia Ltda."
+      },
+      "vigencia": {
+        "clausula": "Cláusula 29ª",
+        "trecho": "vigorará por 6 meses"
+      },
+      "reajuste": {
+        "clausula": "Cláusula 44ª",
+        "trecho": "variação do IGP-M"
+      },
+      "multa": {
+        "clausula": "Cláusula 14ª",
+        "trecho": "multa de 1% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 37ª",
+        "trecho": "aviso prévio de 60 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 7ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 22ª",
+        "trecho": "comarca de Campinas-SP"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de locação de equipamentos (grua e andaimes).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

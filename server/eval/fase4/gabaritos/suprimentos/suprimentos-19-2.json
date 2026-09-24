@@ -1,0 +1,104 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-19-2",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-19.xlsx",
+      "sha256": "be806256335f9ed02a377f54555f8fd63daf77357a1c7d7dd5f778617643a36f",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6454
+    },
+    {
+      "nome": "cotacao-19-2.pdf",
+      "sha256": "ad06f4891860436a1214102aa9de4330c01a307872cb58466f34957ed003c753",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2639
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-19-2.pdf",
+      "fornecedor": "Madeireira Teste Ltda.",
+      "validade": "25/10/2026",
+      "itens": [
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 163,
+          "unidade": "sc",
+          "preco_unitario": 603.33
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 3,
+          "unidade": "m³",
+          "preco_unitario": 36.56
+        },
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 60,
+          "unidade": "br",
+          "preco_unitario": 115.14
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 250,
+          "unidade": "sc",
+          "preco_unitario": 230.05
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 275,
+          "unidade": "mil",
+          "preco_unitario": 677.18
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 10,
+          "unidade": "m³",
+          "preco_unitario": 504.73
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 85,
+          "unidade": "rl",
+          "preco_unitario": 138.9
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 40,
+          "unidade": "br",
+          "preco_unitario": 176.7
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "CIM-032",
+        "tipo": "quantidade",
+        "especificado": 155,
+        "cotado": 163
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Residencial Jardim das Acácias. 1 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

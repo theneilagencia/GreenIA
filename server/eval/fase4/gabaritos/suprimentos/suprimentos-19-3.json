@@ -1,0 +1,122 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-19-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-19.xlsx",
+      "sha256": "be806256335f9ed02a377f54555f8fd63daf77357a1c7d7dd5f778617643a36f",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6454
+    },
+    {
+      "nome": "cotacao-19-3.docx",
+      "sha256": "767b12a1e289d3f3e821b820f3dece5bf04dad6ce6bf08ac10d980935466d3c8",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8811
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-19-3.docx",
+      "fornecedor": "Casa do Construtor Exemplo Ltda.",
+      "validade": "28/10/2026",
+      "itens": [
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 2,
+          "unidade": "m³",
+          "preco_unitario": 898.08
+        },
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 60,
+          "unidade": "br",
+          "preco_unitario": 205.38
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 250,
+          "unidade": "sc",
+          "preco_unitario": 365.81
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 275,
+          "unidade": "mil",
+          "preco_unitario": 234.52
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 10,
+          "unidade": "m³",
+          "preco_unitario": 755.37
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 85,
+          "unidade": "rl",
+          "preco_unitario": 623.49
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 40,
+          "unidade": "kg",
+          "preco_unitario": 185.29
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 4,
+          "unidade": "sc",
+          "preco_unitario": 181.46
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "CIM-032",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 155,
+        "cotado": null
+      },
+      {
+        "codigo": "ARE-MED",
+        "tipo": "quantidade",
+        "especificado": 3,
+        "cotado": 2
+      },
+      {
+        "codigo": "ACO-060",
+        "tipo": "unidade",
+        "especificado": "br",
+        "cotado": "kg"
+      },
+      {
+        "codigo": "ARG-AC3",
+        "tipo": "sem_especificacao",
+        "especificado": null,
+        "cotado": 4
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Residencial Jardim das Acácias. 4 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

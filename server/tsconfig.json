@@ -13,5 +13,5 @@
     "types": ["node"],
     "allowJs": false
   },
-  "include": ["src", "test", "../lib/greenia-core.d.ts", "../lib/contrast.d.mts"]
+  "include": ["src", "test", "eval", "../lib/greenia-core.d.ts", "../lib/contrast.d.mts"]
 }

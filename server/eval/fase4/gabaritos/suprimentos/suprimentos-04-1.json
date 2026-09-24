@@ -1,0 +1,90 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-04-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-04.xlsx",
+      "sha256": "049bf8ca321fd9e58d65345caa8123a2214b8c17e92d00bcdcca880ec3b6a059",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6408
+    },
+    {
+      "nome": "cotacao-04-1.pdf",
+      "sha256": "8bb16ebe4eaa558f931236d7acf8938d0b9ec0ddc71e699524f5c0b41681b5c7",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2601
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-04-1.pdf",
+      "fornecedor": "Aços Modelo Distribuidora Ltda.",
+      "validade": "04/10/2026",
+      "itens": [
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 220,
+          "unidade": "br",
+          "preco_unitario": 762.51
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 30,
+          "unidade": "mil",
+          "preco_unitario": 113.01
+        },
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 130,
+          "unidade": "ch",
+          "preco_unitario": 512.28
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 20,
+          "unidade": "sc",
+          "preco_unitario": 601.44
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 105,
+          "unidade": "br",
+          "preco_unitario": 248.77
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 20,
+          "unidade": "un",
+          "preco_unitario": 434.94
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 48,
+          "unidade": "m³",
+          "preco_unitario": 881.49
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Residencial Jardim das Acácias. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

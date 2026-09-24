@@ -1,0 +1,98 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-10",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "cpf.pdf",
+      "sha256": "c1b11799c4ecc4f1edf447ded2cf950716e4e4fd641c386eb71ae576db0eb43a",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2121
+    },
+    {
+      "nome": "conta-de-luz.pdf",
+      "sha256": "5f131b039c97cc5204f99262c3a27e6d4a6847193274012977ae54e2f476bf0c",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2120
+    },
+    {
+      "nome": "ctps-digital.pdf",
+      "sha256": "08b349b0e7242d379511888ddb023e57c8788afd46b3e8063af970e5f50e2a2b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2088
+    },
+    {
+      "nome": "titulo-eleitor.pdf",
+      "sha256": "43a98a3893b45a7a9230456fc49cadffeba14ef5ed9b92b4c0cbc27183876f67",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2005
+    },
+    {
+      "nome": "comprovante-conta-salario.pdf",
+      "sha256": "04b85adb7d701f759f3db1401082d39e550c34b596f24271b90856cc21fa21a1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2076
+    },
+    {
+      "nome": "ficha-de-admissao.pdf",
+      "sha256": "73f3187c7bc1b87566d4997c30cb655ddddc69e07ca7d835f1e77e92317d1c92",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2124
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "duvidoso",
+        "arquivo": "ficha-de-admissao.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "presente",
+        "arquivo": "cpf.pdf"
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "conta-de-luz.pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "ctps-digital.pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "titulo",
+        "situacao": "presente",
+        "arquivo": "titulo-eleitor.pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "presente",
+        "arquivo": "comprovante-conta-salario.pdf"
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Isabela Guimarães Modelo). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento.",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

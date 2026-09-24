@@ -1,0 +1,54 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-12",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "docx, 13 páginas",
+  "arquivos": [
+    {
+      "nome": "contrato-12.docx",
+      "sha256": "0f62226545bfd42bc58df3c78b59e35147e7d1985598d129fd71cb905aaa6a2c",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 9503
+    }
+  ],
+  "esperado": {
+    "contrato": "contrato-12.docx",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Madeireira Teste Ltda."
+      },
+      "vigencia": {
+        "clausula": "Cláusula 8ª",
+        "trecho": "vigorará por 12 meses"
+      },
+      "reajuste": null,
+      "multa": {
+        "clausula": "Cláusula 13ª",
+        "trecho": "multa de 0,33% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 17ª",
+        "trecho": "aviso prévio de 30 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 4ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 21ª",
+        "trecho": "comarca de Goiânia-GO"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de fornecimento de aço cortado e dobrado. Sem cláusula de reajuste: o esperado é nulo.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

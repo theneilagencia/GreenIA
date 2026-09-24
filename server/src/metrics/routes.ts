@@ -11,7 +11,7 @@ import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { buildResults, loadQuickWin, period } from '../quickwins/service.ts';
-import { portfolio } from '../quickwins/routes.ts';
+import { MEASURING, portfolio, recordChange } from '../quickwins/routes.ts';
 import { portfolioPdf, portfolioXlsx, resultsPdf, resultsXlsx } from '../quickwins/reports.ts';
 
 const valueSchema = z.object({
@@ -25,6 +25,7 @@ const valueSchema = z.object({
   metodo: z.string().trim().max(1000).optional(),
   informadoPor: z.string().trim().max(200).optional(),
   observacao: z.string().trim().max(1000).optional(),
+  motivo: z.string().trim().max(2000).optional(),          // obrigatório para mudar o ponto de partida depois de iniciada a medição
 }).superRefine((v, ctx) => {
   if (v.origem === 'medido') {
     if (!v.periodoInicio || !v.periodoFim) ctx.addIssue({ code: 'custom', path: ['periodoInicio'], message: 'valor medido precisa do período' });
@@ -54,6 +55,9 @@ export async function metricsRoutes(app: FastifyInstance) {
       const ind = loaded.indicators.find(i => i.key === p.data.indicador);
       if (!ind) return { status: 400, body: { error: 'indicador_nao_definido', detalhe: 'defina o indicador no quick win antes de registrar valores' } };
       const v = p.data;
+      // Ponto de partida registrado ou mudado depois de iniciada a medição: só com motivo, e fica no relatório.
+      const baselineChange = v.fase === 'antes' && MEASURING.includes(loaded.q.stage);
+      if (baselineChange && (!v.motivo || v.motivo.length < 3)) return { status: 400, body: { error: 'motivo_obrigatorio', detalhe: 'a medição já começou: diga por que o ponto de partida muda' } };
       const row = (await tx.query(
         `insert into quick_win_values (tenant_id, quick_win_id, indicator, phase, value, unit, origin, period_start, period_end, method, informed_by, notes, recorded_by)
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning id`,
@@ -61,6 +65,7 @@ export async function metricsRoutes(app: FastifyInstance) {
          v.metodo ?? null, v.informadoPor ?? null, v.observacao ?? null, a.userId])).rows[0];
       await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'valor_de_indicador_registrado', target: `quick_win:${id}`,
         details: { indicador: v.indicador, fase: v.fase, valor: v.valor, origem: v.origem } });
+      if (baselineChange) await recordChange(tx, a, id, loaded.q.stage, `ponto de partida de ${ind.label}: ${v.valor}${v.unidade ?? ind.unit ? ' ' + (v.unidade ?? ind.unit) : ''}`, v.motivo!);
       return { status: 201, body: { id: row.id } };
     });
     return reply.code(out.status).send(out.body);

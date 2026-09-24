@@ -119,6 +119,9 @@ export async function buildResults(tx: Tx, loaded: LoadedQuickWin, query: Period
     valores: values,
     trajetoria: await trajectory(tx, q.id),
     historico: loaded.events,
+    // Mudanças de indicador, ponto de partida ou janela depois de iniciada a medição.
+    alteracoes: (await tx.query(`select at, actor, stage, what, reason from quick_win_changes where quick_win_id = $1 order by id`, [q.id])).rows
+      .map(r => ({ em: new Date(r.at).toISOString(), por: r.actor as string, etapa: STAGE_LABEL[r.stage] ?? r.stage, oQue: r.what as string, motivo: r.reason as string })),
   };
 }
 export type QuickWinResults = Awaited<ReturnType<typeof buildResults>>;

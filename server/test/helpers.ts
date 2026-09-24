@@ -56,6 +56,9 @@ export async function createTestDb(opts: { upTo?: string } = {}): Promise<TestDb
   const appUrl = withUser(withDb(ADMIN, name), APP_ROLE, PASS);
   const app = createPool(appUrl, 5);
   const owner = createPool(ownerUrl, 3);
+  // Na desmontagem, o drop com force encerra conexões ainda abertas por tarefas
+  // assíncronas do teste; sem ouvinte, o erro do pool derruba o arquivo de teste.
+  for (const pool of [app, owner]) (pool as unknown as { on(e: string, f: () => void): void }).on('error', () => {});
   return {
     name, ownerUrl, appUrl, app, owner,
     async drop() {

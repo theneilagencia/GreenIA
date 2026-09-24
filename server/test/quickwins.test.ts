@@ -145,7 +145,10 @@ test('na implantação, complexo demais: volta ao roadmap com motivo, e outra op
 });
 
 test('ampliar: patrocinador da área nova; recursos compartilhados ou duplicados; baseline próprio; trajetória nos dois sentidos', async () => {
-  await call(u.eng, 'POST', `/api/quick-wins/${ids.qw}/valores`, { indicador: 'tempo_orcamento', fase: 'antes', valor: 16, origem: 'informado', informadoPor: 'Coordenação de engenharia' });
+  // Ponto de partida depois de iniciada a medição: só com motivo, e fica registrado.
+  const base = { indicador: 'tempo_orcamento', fase: 'antes', valor: 16, origem: 'informado', informadoPor: 'Coordenação de engenharia' };
+  assert.equal((await call(u.eng, 'POST', `/api/quick-wins/${ids.qw}/valores`, base)).json().error, 'motivo_obrigatorio');
+  assert.equal((await call(u.eng, 'POST', `/api/quick-wins/${ids.qw}/valores`, { ...base, motivo: 'O levantamento do Discovery chegou depois do início da medição.' })).statusCode, 201);
   const body = { titulo: 'Orçamento de compras de suprimentos', objetivo: 'Mesmo ganho nas compras', responsavel: 'key.sup@construtora.com.br', areas: ['suprimentos'], nota: 'Decisão de ampliar do comitê.' };
   assert.equal((await call(u.patEng, 'POST', `/api/quick-wins/${ids.qw}/ampliar`, body)).json().error, 'so_patrocinador_ou_admin');
   let r = await call(u.patGeral, 'POST', `/api/quick-wins/${ids.qw}/ampliar`, body);
@@ -169,6 +172,29 @@ test('ampliar: patrocinador da área nova; recursos compartilhados ou duplicados
   const orig = (await call(u.eng, 'GET', `/api/quick-wins/${ids.qw}`)).json();
   assert.deepEqual(orig.trajetoria.ampliacoes.map((o: { titulo: string; areas: string }) => [o.titulo, o.areas]).sort(), [['Orçamento de compras de suprimentos', 'Suprimentos'], ['Orçamento de reformas', 'Obras']]);
   assert.equal((await call(u.eng, 'GET', `/api/quick-wins/${ids.amp}`)).statusCode, 404);   // engenharia não enxerga suprimentos
+});
+
+test('depois de iniciada a medição, mudar indicador ou janela exige motivo e fica no quick win', async () => {
+  const d = (await call(u.eng, 'GET', `/api/quick-wins/${ids.qw}`)).json();
+  const inds = d.indicadoresDefinidos.map((i: { key: string; label: string; unit: string; direction: string; auto: string | null; comparison: string }) =>
+    ({ key: i.key, label: i.label, unit: i.unit, direction: i.direction, auto: i.auto, comparacao: i.comparison }));
+  const changed = [...inds, { key: 'retrabalho', label: 'Revisões do orçamento por projeto', unit: 'revisões', direction: 'menor_melhor' }];
+  let r = await call(u.eng, 'PATCH', `/api/quick-wins/${ids.qw}`, { indicadores: changed });
+  assert.deepEqual([r.statusCode, r.json().error, r.json().mudancas], [400, 'motivo_obrigatorio', ['indicadores; incluído: Revisões do orçamento por projeto']]);
+  assert.equal((await call(u.eng, 'PATCH', `/api/quick-wins/${ids.qw}`, { revisores: ['key.eng@construtora.com.br'] })).statusCode, 200);   // revisor muda sem motivo
+  r = await call(u.eng, 'PATCH', `/api/quick-wins/${ids.qw}`, { indicadores: changed, motivo: 'O comitê pediu para acompanhar também as revisões.' });
+  assert.equal(r.statusCode, 200, r.body);
+  const x = (await call(u.eng, 'GET', `/api/quick-wins/${ids.qw}`)).json();
+  assert.deepEqual(x.alteracoes.map((a: { oQue: string; motivo: string }) => [a.oQue, a.motivo]), [
+    ['ponto de partida de Tempo para montar um orçamento: 16 h', 'O levantamento do Discovery chegou depois do início da medição.'],
+    ['indicadores; incluído: Revisões do orçamento por projeto', 'O comitê pediu para acompanhar também as revisões.'],
+  ]);
+  const acts = (await db.owner.query(`select details from audit_log where action = 'quick_win_alterado_na_medicao' and target = $1 order by seq`, [`quick_win:${ids.qw}`])).rows;
+  assert.deepEqual(acts.map(a => [a.details.motivo, a.details.por]), [['O levantamento do Discovery chegou depois do início da medição.', 'key.eng@construtora.com.br'], ['O comitê pediu para acompanhar também as revisões.', 'key.eng@construtora.com.br']]);
+  // Na implantação, ajuste de indicador não pede motivo.
+  const impl = (await call(u.eng, 'GET', `/api/quick-wins/${ids.diarioQw}`)).json();
+  assert.equal(impl.quickWin.etapa, 'em_implantacao');
+  assert.equal((await call(u.eng, 'PATCH', `/api/quick-wins/${ids.diarioQw}`, { indicadores: [{ key: 'tempo_diario', label: 'Tempo por diário', unit: 'min' }] })).statusCode, 200);
 });
 
 test('patrocinador do tenant enxerga oportunidades e quick wins de todas as áreas, mas não a base das áreas', async () => {
@@ -215,12 +241,16 @@ test('relatórios: portfólio com motivos de roadmap e arquivo; resultados com j
   const rx = await call(T.userId, 'GET', '/api/quick-wins/relatorios/resultados?format=xlsx');
   const wb2 = new ExcelJS.Workbook();
   await wb2.xlsx.load(rx.rawPayload as unknown as ArrayBuffer);
-  assert.deepEqual(wb2.worksheets.map(w => w.name), ['Quick wins', 'Antes × depois', 'Valores registrados', 'Sobre']);
+  assert.deepEqual(wb2.worksheets.map(w => w.name), ['Quick wins', 'Antes × depois', 'Alterações na medição', 'Valores registrados', 'Sobre']);
+  assert.equal(wb2.getWorksheet('Alterações na medição')!.rowCount, 3);          // cabeçalho + ponto de partida + indicador
   const rows = wb2.getWorksheet('Quick wins')!.getSheetValues().slice(2).map(v => (v as string[])[1]);
   assert.ok(rows.includes('Orçamento de compras de suprimentos'));
   const rtext = await pdfText((await call(T.userId, 'GET', '/api/quick-wins/relatorios/resultados?format=pdf')).rawPayload);
   assert.match(rtext, /Janela do ponto de partida: 2026-06-01 a 2026-06-30 \(30 dias, 12 orçamentos\)/);
   assert.match(rtext, /ampliado para: /);
   assert.match(rtext, /AMPLIAR — Tempo por orçamento caiu/);
+  assert.match(rtext, /Houve alteração depois do início da medição \(2\)/);
+  assert.match(rtext, /ponto de partida de Tempo para montar um orçamento: 16 h · key\.eng@construtora\.com\.br/);
+  assert.match(rtext.replace(/\s+/g, ' '), /motivo: O levantamento do Discovery/);
   assert.equal((await call(u.mestre, 'GET', '/api/quick-wins/relatorios/portfolio')).statusCode, 403);
 });

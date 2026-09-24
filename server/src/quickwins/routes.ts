@@ -352,6 +352,7 @@ export async function quickWinRoutes(app: FastifyInstance) {
       objetivo: z.string().trim().min(3).max(2000).optional(), responsavel: z.string().trim().toLowerCase().pipe(z.email()).optional(), prazo: z.iso.date().nullable().optional(),
       indicadores: z.array(indicatorSchema).max(30).optional(), janelas: windowsSchema.optional(), recursos: resourcesFields.optional(),   // sem o campo: recursos ficam como estão
       revisores: z.array(z.string().trim().toLowerCase().pipe(z.email())).max(50).optional(),
+      motivo: z.string().trim().max(2000).optional(),          // obrigatório para mudar indicador ou janela depois de iniciada a medição
     }).superRefine((b, ctx) => uniqueKeys(b.indicadores, ctx)).safeParse(req.body);
     if (!z.uuid().safeParse(id).success || !p.success) return reply.code(400).send({ error: 'dados_invalidos', detalhes: p.success ? [] : p.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) });
     const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
@@ -360,14 +361,35 @@ export async function quickWinRoutes(app: FastifyInstance) {
       if (!canWork(a, loaded.areas.map(ar => ar.id as string))) return { status: 403, body: { error: 'sem_permissao' } };
       if (['encerrada', 'roadmap'].includes(loaded.q.stage)) return { status: 409, body: { error: 'quick_win_fechado' } };
       const d = p.data;
+      // Depois de iniciada a medição, indicador e janela só mudam com motivo, e a mudança fica registrada.
+      const changes: string[] = [];
+      if (MEASURING.includes(loaded.q.stage)) {
+        const norm = (list: { key: string; label: string; unit: string; direction: string; auto?: string | null; comparison?: string; comparacao?: string }[]) =>
+          JSON.stringify(list.map(i => [i.key, i.label, i.unit, i.direction, i.auto ?? null, i.comparison ?? i.comparacao ?? 'valor']));
+        if (d.indicadores && norm(d.indicadores) !== norm(loaded.indicators as never)) {
+          const before = new Map(loaded.indicators.map(i => [i.key, i]));
+          const now = new Map(d.indicadores.map(i => [i.key, i]));
+          const added = d.indicadores.filter(i => !before.has(i.key)).map(i => i.label);
+          const removed = loaded.indicators.filter(i => !now.has(i.key)).map(i => i.label);
+          const edited = d.indicadores.filter(i => before.has(i.key) && norm([i]) !== norm([before.get(i.key) as never])).map(i => i.label);
+          changes.push(['indicadores', added.length ? `incluído: ${added.join(', ')}` : '', removed.length ? `retirado: ${removed.join(', ')}` : '', edited.length ? `alterado: ${edited.join(', ')}` : ''].filter(Boolean).join('; '));
+        }
+        const w = windowsOf(loaded.q);
+        const j = d.janelas;
+        const diff = (side: 'pontoDePartida' | 'medicao') => !!j?.[side] && (['inicio', 'fim', 'volume'] as const).some(k => j[side]![k] !== undefined && (j[side]![k] ?? null) !== (w[side][k] ?? null));
+        if (diff('pontoDePartida')) changes.push('janela do ponto de partida');
+        if (diff('medicao')) changes.push('janela de medição');
+        if (changes.length && (!d.motivo || d.motivo.length < 3)) return { status: 400, body: { error: 'motivo_obrigatorio', detalhe: 'a medição já começou: diga por que o indicador ou a janela mudam', mudancas: changes } };
+      }
       await tx.query(`update quick_wins set objective = $2, owner_email = $3, deadline = $4, updated_at = now() where id = $1`,
         [id, d.objetivo ?? loaded.q.objective, d.responsavel ?? loaded.q.owner_email, d.prazo === undefined ? loaded.q.deadline : d.prazo]);
       const err = await setParts(tx, a.tenantId, id, { recursos: d.recursos, revisores: d.revisores, indicadores: d.indicadores });
       if (err) throw new PartError(err);
       await setWindows(tx, id, d.janelas);
       const after = (await tx.query(`select * from quick_wins where id = $1`, [id])).rows[0];
-      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'quick_win_alterado', target: `quick_win:${id}`, details: { campos: Object.keys(d) } });
-      return { status: 200, body: { id, avisosDasJanelas: windowWarnings(windowsOf(after)) } };
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'quick_win_alterado', target: `quick_win:${id}`, details: { campos: Object.keys(d).filter(k => k !== 'motivo') } });
+      for (const what of changes) await recordChange(tx, a, id, loaded.q.stage, what, d.motivo!);
+      return { status: 200, body: { id, avisosDasJanelas: windowWarnings(windowsOf(after)), alteracoesRegistradas: changes } };
     }).catch(e => { if (e instanceof PartError) return { status: 400, body: { error: 'dados_invalidos', detalhe: e.message } }; throw e; });
     return reply.code(out.status).send(out.body);
   });
@@ -532,6 +554,15 @@ export async function quickWinRoutes(app: FastifyInstance) {
 }
 
 class PartError extends Error {}
+
+// Etapas em que a medição já começou.
+export const MEASURING = ['em_medicao', 'decisao'];
+
+// Alteração depois de iniciada a medição: registro próprio (aparece no relatório) e auditoria, com motivo.
+export async function recordChange(tx: Tx, a: AuthContext, qwId: string, stage: string, what: string, reason: string) {
+  await tx.query(`insert into quick_win_changes (tenant_id, quick_win_id, actor, stage, what, reason) values ($1, $2, $3, $4, $5, $6)`, [a.tenantId, qwId, a.email, stage, what, reason]);
+  await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'quick_win_alterado_na_medicao', target: `quick_win:${qwId}`, details: { etapa: stage, alteracao: what, motivo: reason, por: a.email } });
+}
 
 // Cópia independente de um assistente na área nova (slug e nome com a área).
 type Resource = { assistant_slug: string | null; assistant_name: string | null; assistant_status: string | null; assistant_definition: unknown; template_slug: string | null; template_version: number | null };

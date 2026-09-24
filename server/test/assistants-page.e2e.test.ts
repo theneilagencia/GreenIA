@@ -184,6 +184,17 @@ test('quick wins: key user registra, avalia e envia ao roadmap; o patrocinador d
   await page.getByText('Etapa registrada.').waitFor();
   await page.getByText('Assistente publicado e equipe treinada.').waitFor();
   await page.getByRole('button', { name: 'Registrar decisão' }).waitFor();                 // o patrocinador decide
+  // Depois de iniciada a medição: indicador novo só com motivo, e a alteração aparece no quick win.
+  await page.getByRole('button', { name: 'Acrescentar indicador ao quick win' }).click();
+  await page.getByLabel('Indicador 2 do quick win: nome').fill('Notas devolvidas ao fornecedor');
+  await page.getByLabel('Indicador 2 do quick win: unidade').fill('notas');
+  await page.getByRole('button', { name: 'Salvar alterações' }).click();
+  await page.getByText(/A medição já começou: escreva o motivo da alteração/).waitFor();
+  await page.getByLabel('Motivo da alteração').fill('O comitê pediu para acompanhar as devoluções.');
+  await page.getByRole('button', { name: 'Salvar alterações' }).click();
+  await page.getByText(/Alterações salvas\. Registradas no relatório/).waitFor();
+  await page.getByText('Houve alteração depois do início da medição:').waitFor();
+  await page.getByText(/motivo: O comitê pediu para acompanhar as devoluções\./).waitFor();
   assert.ok(await page.getByRole('link', { name: 'Resultados em PDF' }).getAttribute('href'));
   assert.deepEqual(errors, []);
   await context.close();

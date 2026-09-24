@@ -198,6 +198,13 @@ test('três quick wins, selecionados pelo patrocinador: dois assistentes, só a 
 });
 
 test('assistente em dois quick wins ativos: a área de quem executa decide; sem área, a pessoa escolhe; nenhuma execução contada duas vezes', async () => {
+  // Ponto de partida registrado na implantação, antes de começar a medição.
+  const baselines: [string, string, object][] = [
+    ['sup', 'keySup', { indicador: 'compras_refeitas', fase: 'antes', valor: 4, origem: 'medido', periodoInicio: '2026-06-01', periodoFim: '2026-08-31', metodo: 'contagem das compras refeitas no ERP' }],
+    ['sup', 'keySup', { indicador: 'tempo_por_cotacao', fase: 'antes', valor: 25, origem: 'informado', informadoPor: 'Coordenação de suprimentos' }],
+    ['obra', 'keyEng', { indicador: 'horas_leitura', fase: 'antes', valor: 4, origem: 'medido', periodoInicio: '2026-08-01', periodoFim: '2026-08-15', metodo: 'cronometragem de dois engenheiros' }],
+  ];
+  for (const [k, who, v] of baselines) await ok(who, 'POST', `/api/quick-wins/${qw[k]}/valores`, v);
   for (const k of ['sup', 'obra']) await ok(k === 'sup' ? 'keySup' : 'keyEng', 'POST', `/api/quick-wins/${qw[k]}/etapa`, { etapa: 'em_medicao', nota: 'Duas semanas de uso; começa a medição.' });
   const contrato = Buffer.from(await docx(['Contrato de fornecimento de aço CA-50.', 'Cláusula 7: multa de 2% por atraso.', 'Cláusula 9: reajuste anual pelo INCC.'])).toString('base64');
   const run = (who: string, extra: object = {}) => call(who, 'POST', '/api/runs', { assistant: 'clausulas-fornecedores', files: [{ name: 'contrato.docx', contentBase64: contrato }], ...extra });
@@ -235,11 +242,10 @@ test('ciclo com medição: execuções reais do assistente, ponto de partida e d
     await ok('keyEng', 'POST', `/api/runs/${r.runId}/review`, body);
   }
   const values: [string, string, object][] = [
-    ['sup', 'keySup', { indicador: 'compras_refeitas', fase: 'antes', valor: 4, origem: 'medido', periodoInicio: '2026-06-01', periodoFim: '2026-08-31', metodo: 'contagem das compras refeitas no ERP' }],
     ['sup', 'keySup', { indicador: 'compras_refeitas', fase: 'depois', valor: 0, origem: 'medido', periodoInicio: '2026-09-01', periodoFim: '2026-09-30', metodo: 'contagem das compras refeitas no ERP' }],
-    ['sup', 'keySup', { indicador: 'tempo_por_cotacao', fase: 'antes', valor: 25, origem: 'informado', informadoPor: 'Coordenação de suprimentos' }],
+    // Correção do ponto de partida durante a medição: só com motivo, e aparece no relatório de resultados.
+    ['sup', 'keySup', { indicador: 'tempo_por_cotacao', fase: 'antes', valor: 32, origem: 'medido', periodoInicio: '2026-08-01', periodoFim: '2026-08-31', metodo: 'cronometragem de 30 cotações', motivo: 'O valor informado não contava a conferência da unidade; foi medido de novo.' }],
     ['seg', 'keySeg', { indicador: 'ligacoes_tecnico', fase: 'antes', valor: 25, origem: 'medido', periodoInicio: '2026-09-01', periodoFim: '2026-09-07', metodo: 'registro de chamados do técnico' }],
-    ['obra', 'keyEng', { indicador: 'horas_leitura', fase: 'antes', valor: 4, origem: 'medido', periodoInicio: '2026-08-01', periodoFim: '2026-08-15', metodo: 'cronometragem de dois engenheiros' }],
     ['obra', 'keyEng', { indicador: 'horas_leitura', fase: 'depois', valor: 0.8, origem: 'medido', periodoInicio: '2026-09-08', periodoFim: '2026-09-22', metodo: 'cronometragem de dois engenheiros, com revisão' }],
   ];
   for (const [k, who, v] of values) await ok(who, 'POST', `/api/quick-wins/${qw[k]}/valores`, v);
@@ -302,6 +308,7 @@ test('os dois relatórios do tenant, em PDF e XLSX, com as áreas criadas pelo c
   assert.match(rPdf, /Janela do ponto de partida: 2026-06-01 a 2026-08-31 \(92 dias, 360 cotações\)/);
   assert.match(rPdf, /Aviso: Janelas com duração muito diferente/);
   assert.match(rPdf, /enviado ao roadmap/);
+  assert.match(rPdf, /Houve alteração depois do início da medição \(1\)/);
   const rX = new ExcelJS.Workbook();
   await rX.xlsx.load(await get('/api/quick-wins/relatorios/resultados?format=xlsx&de=2026-01-01&ate=2026-12-31', 'resultados-quick-wins.xlsx') as unknown as ArrayBuffer);
   assert.equal(rX.getWorksheet('Quick wins')!.rowCount, 6);                  // cabeçalho + 5 quick wins (um deles voltou ao roadmap)

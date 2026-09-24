@@ -112,15 +112,18 @@ const trajectoryText = (r: QuickWinResults) => {
 export async function resultsXlsx(tenant: string, all: QuickWinResults[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'GreenIA';
-  sheet(wb, 'Quick wins', ['Quick win', 'Áreas', 'Etapa', 'Responsável', 'Recursos', 'Janela do ponto de partida', 'Janela de medição', 'Avisos das janelas', 'Decisão', 'Justificativa', 'Ponto de partida', 'Trajetória'], all.map(r => ({
+  sheet(wb, 'Quick wins', ['Quick win', 'Áreas', 'Etapa', 'Responsável', 'Recursos', 'Janela do ponto de partida', 'Janela de medição', 'Avisos das janelas', 'Alterações na medição', 'Decisão', 'Justificativa', 'Ponto de partida', 'Trajetória'], all.map(r => ({
     'Quick win': r.quickWin.titulo, 'Áreas': r.quickWin.areas.join(', '), Etapa: r.quickWin.etapaNome, 'Responsável': r.quickWin.responsavel,
     Recursos: r.quickWin.recursos.map(x => `${x.tipo}: ${x.nome}`).join('; ') || '—',
     'Janela do ponto de partida': windowText(r.janelas.pontoDePartida, r.janelas.unidadeVolume), 'Janela de medição': windowText(r.janelas.medicao, r.janelas.unidadeVolume),
     'Avisos das janelas': r.janelas.avisos.join(' ') || '—',
+    'Alterações na medição': r.alteracoes.length ? r.alteracoes.map(x => `${x.em.slice(0, 10)} ${x.oQue} (${x.por}): ${x.motivo}`).join(' | ') : 'nenhuma',
     'Decisão': r.quickWin.decisao?.decisao ?? '—', Justificativa: r.quickWin.decisao?.justificativa ?? '—',
     'Ponto de partida': r.semPontoDePartida ? 'sem ponto de partida' : 'registrado', 'Trajetória': trajectoryText(r),
   })));
   sheet(wb, 'Antes × depois', ['Quick win', 'Indicador', 'Unidade', 'Comparado em', 'Antes', 'Origem (antes)', 'Depois', 'Origem (depois)', 'Diferença', 'Situação', 'Acumulado no período'], all.flatMap(indicatorRows));
+  sheet(wb, 'Alterações na medição', ['Quick win', 'Data', 'Etapa', 'O que mudou', 'Motivo', 'Quem'],
+    all.flatMap(r => r.alteracoes.map(x => ({ 'Quick win': r.quickWin.titulo, Data: x.em.slice(0, 10), Etapa: x.etapa, 'O que mudou': x.oQue, Motivo: x.motivo, Quem: x.por }))));
   sheet(wb, 'Valores registrados', ['quickWin', 'indicator', 'phase', 'value', 'unit', 'origin', 'periodStart', 'periodEnd', 'method', 'informedBy', 'notes', 'recordedBy', 'createdAt'],
     all.flatMap(r => r.valores.map(v => ({ quickWin: r.quickWin.titulo, ...v }))));
   const c = wb.addWorksheet('Sobre');
@@ -142,6 +145,11 @@ export function resultsPdf(tenant: string, all: QuickWinResults[]): Promise<Buff
       doc.text(`Recursos: ${q.recursos.map(x => `${x.tipo} ${x.nome}`).join('; ') || '—'}`);
       doc.text(`Janela do ponto de partida: ${windowText(r.janelas.pontoDePartida, r.janelas.unidadeVolume)} · janela de medição: ${windowText(r.janelas.medicao, r.janelas.unidadeVolume)}`);
       for (const w of r.janelas.avisos) doc.fillColor('#8C3A1B').text(`Aviso: ${w}`).fillColor('#000000');
+      if (r.alteracoes.length) {
+        doc.font('Helvetica-Bold').fillColor('#8C3A1B').text(`Houve alteração depois do início da medição (${r.alteracoes.length}):`).font('Helvetica');
+        for (const x of r.alteracoes) doc.text(`${x.em.slice(0, 10)} · ${x.oQue} · ${x.por} · motivo: ${x.motivo}`);
+        doc.fillColor('#000000');
+      }
       if (r.aviso) doc.font('Helvetica-Bold').fillColor('#8C3A1B').text(r.aviso).fillColor('#000000').font('Helvetica');
       for (const i of indicatorRows(r)) {
         doc.moveDown(0.2).font('Helvetica-Bold').text(`${i.Indicador}${i.Unidade ? ` (${i.Unidade})` : ''} · comparado em ${i['Comparado em']}`).font('Helvetica');

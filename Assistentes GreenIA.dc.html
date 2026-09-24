@@ -508,6 +508,10 @@
             <p style="font:500 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">{{ met.meta }}</p>
             <sc-for list="{{ met.lines }}" as="l" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 6px;">{{ l }}</p></sc-for>
             <sc-for list="{{ met.windowWarnings }}" as="w" hint-placeholder-count="0"><p role="note" style="font:500 14px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);margin:6px 0 0;">{{ w }}</p></sc-for>
+            <sc-if value="{{ met.hasChanges }}">
+              <p role="note" style="font:600 14px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);margin:10px 0 4px;">Houve alteração depois do início da medição:</p>
+              <sc-for list="{{ met.changes }}" as="c" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 4px;">{{ c }}</p></sc-for>
+            </sc-if>
           </div>
           <sc-if value="{{ met.aviso }}"><p role="note" style="font:600 15px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);background:var(--gia-sand);border-radius:10px;padding:12px 14px;">{{ met.aviso }}</p></sc-if>
           <div style="overflow-x:auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;margin-bottom:18px;">
@@ -556,6 +560,39 @@
                 <button onClick="{{ amplify }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Criar quick win ampliado</button>
               </sc-if>
             </div>
+            <sc-if value="{{ met.canEditParts }}">
+              <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+                <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Indicadores, recursos e revisores</h2>
+                <sc-if value="{{ met.measuring }}"><p role="note" style="font:500 14px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);margin:0 0 10px;">A medição já começou: mudar indicador pede motivo, e a mudança aparece no relatório de resultados.</p></sc-if>
+                <sc-for list="{{ editIndRows }}" as="r" hint-placeholder-count="0">
+                  <div style="border:1px solid var(--gia-line);border-radius:10px;padding:8px;margin-bottom:8px;">
+                    <input class="gia-field" aria-label="{{ r.labelAria }}" placeholder="Nome do indicador" value="{{ r.label }}" onInput="{{ r.onLabel }}">
+                    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+                      <input class="gia-field" aria-label="{{ r.unitAria }}" placeholder="Unidade" value="{{ r.unit }}" onInput="{{ r.onUnit }}" style="width:110px;">
+                      <select class="gia-field" aria-label="{{ r.dirAria }}" value="{{ r.direction }}" onChange="{{ r.onDirection }}" style="width:auto;"><option value="menor_melhor">menor é melhor</option><option value="maior_melhor">maior é melhor</option></select>
+                      <select class="gia-field" aria-label="{{ r.cmpAria }}" value="{{ r.comparacao }}" onChange="{{ r.onComparacao }}" style="width:auto;"><option value="valor">comparar o valor</option><option value="por_mes">comparar por mês</option><option value="por_item">comparar por item</option></select>
+                      <select class="gia-field" aria-label="{{ r.autoAria }}" value="{{ r.auto }}" onChange="{{ r.onAuto }}" style="width:auto;">
+                        <option value="">lançado à mão</option>
+                        <sc-for list="{{ autoOptions }}" as="x" hint-placeholder-count="0"><option value="{{ x.key }}">{{ x.label }}</option></sc-for>
+                      </select>
+                      <button onClick="{{ r.onRemove }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:6px 10px;font:500 13px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Remover</button>
+                    </div>
+                  </div>
+                </sc-for>
+                <button onClick="{{ addEditIndicator }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:6px 10px;font:500 13px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Acrescentar indicador ao quick win</button>
+                <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Assistentes</p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <sc-for list="{{ editAssistButtons }}" as="b" hint-placeholder-count="0"><button onClick="{{ b.onClick }}" aria-pressed="{{ b.pressed }}" style="background:{{ b.bg }};color:{{ b.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:6px 12px;font:500 13px 'Hanken Grotesk';cursor:pointer;">{{ b.label }}</button></sc-for>
+                </div>
+                <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Documentos da base</p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <sc-for list="{{ editDocButtons }}" as="b" hint-placeholder-count="0"><button onClick="{{ b.onClick }}" aria-pressed="{{ b.pressed }}" style="background:{{ b.bg }};color:{{ b.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:6px 12px;font:500 13px 'Hanken Grotesk';cursor:pointer;">{{ b.label }}</button></sc-for>
+                </div>
+                <input class="gia-field" aria-label="Revisores do quick win (emails separados por vírgula)" placeholder="Revisores (emails separados por vírgula)" value="{{ editQw.revisores }}" onInput="{{ onEditRevisores }}" style="margin-top:12px;">
+                <textarea class="gia-field" aria-label="Motivo da alteração" placeholder="Motivo da alteração (obrigatório depois de iniciada a medição)" rows="2" value="{{ editQw.motivo }}" onInput="{{ onEditMotivo }}" style="margin-top:8px;"></textarea>
+                <button onClick="{{ saveQwParts }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar alterações</button>
+              </div>
+            </sc-if>
             <sc-if value="{{ met.canEditWindows }}">
               <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
                 <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Janelas</h2>
@@ -572,6 +609,7 @@
                   <input class="gia-field" aria-label="Volume da janela de medição" placeholder="Volume (vazio: execuções)" inputmode="decimal" value="{{ winForm.medVol }}" onInput="{{ onWin.medVol }}" style="width:180px;">
                 </div>
                 <input class="gia-field" aria-label="O que é um item do processo" placeholder="O que é um item (ex.: guia)" value="{{ winForm.unidade }}" onInput="{{ onWin.unidade }}" style="margin-top:8px;">
+                <sc-if value="{{ met.measuring }}"><textarea class="gia-field" aria-label="Motivo da mudança das janelas" placeholder="Motivo (obrigatório depois de iniciada a medição)" rows="2" value="{{ winForm.motivo }}" onInput="{{ onWin.motivo }}" style="margin-top:8px;"></textarea></sc-if>
                 <button onClick="{{ saveWindows }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar janelas</button>
               </div>
             </sc-if>
@@ -596,6 +634,9 @@
               </sc-if>
               <sc-if value="{{ valInformado }}">
                 <input class="gia-field" aria-label="Quem informou" placeholder="Quem informou" value="{{ valForm.informadoPor }}" onInput="{{ onVal.informadoPor }}" style="margin-top:8px;">
+              </sc-if>
+              <sc-if value="{{ valMotivo }}">
+                <textarea class="gia-field" aria-label="Motivo da mudança do ponto de partida" placeholder="A medição já começou: por que o ponto de partida muda?" rows="2" value="{{ valForm.motivo }}" onInput="{{ onVal.motivo }}" style="margin-top:8px;"></textarea>
               </sc-if>
               <button onClick="{{ saveValue }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Registrar valor</button>
             </div>
@@ -1152,7 +1193,7 @@ const ORIGEM_LABEL = { medido: 'medido', informado: 'informado', automatico: 'au
 const STAGE_NAMES = { registrada: 'registrada', avaliada: 'avaliada', selecionada: 'selecionada', roadmap: 'enviado ao roadmap', arquivada: 'arquivada', em_implantacao: 'em implantação', em_medicao: 'em medição', decisao: 'decisão', encerrada: 'encerrado' };
 const EMPTY_OPP = { area: '', titulo: '', processo: '', problema: '', executorAtual: '', volume: '', evidencia: 'hipotese', evidenciaNota: '' };
 const EMPTY_SEL = { objetivo: '', responsavel: '', prazo: '', revisores: '', nota: '', baseIni: '', baseFim: '', baseVol: '', medIni: '', medFim: '', unidade: '' };
-const EMPTY_WIN = { baseIni: '', baseFim: '', baseVol: '', medIni: '', medFim: '', medVol: '', unidade: '' };
+const EMPTY_WIN = { baseIni: '', baseFim: '', baseVol: '', medIni: '', medFim: '', medVol: '', unidade: '', motivo: '' };
 const EMPTY_AMP = { area: '', titulo: '', objetivo: '', responsavel: '', nota: '', recursos: 'compartilhar' };
 const winText = (w, u) => w && w.inicio && w.fim ? w.inicio + ' a ' + w.fim + ' (' + w.dias + ' dias' + (w.volume ? ', ' + fmtNum(w.volume) + ' ' + (u || 'itens') : '') + ')' : 'sem datas';
 const slugKey = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
@@ -1169,7 +1210,8 @@ class Component extends DCLogic {
       qwTab: 'portfolio', crit: null, opps: [], oppFilter: { area: '', status: '', criterio: '', min: '' }, oppForm: { ...EMPTY_OPP }, opp: null,
       evalNotas: {}, evalNota: '', devMotivo: '', selForm: { ...EMPTY_SEL }, selAssist: [], selDocs: [], selInd: [], kbDocs: [],
       qws: [], qwId: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), qwMsg: '', qwOk: true, stageNote: '', ampForm: { ...EMPTY_AMP }, winForm: { ...EMPTY_WIN }, qwRoadmapNote: '',
-      valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '' },
+      valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '', motivo: '' },
+      editQw: null,
       decForm: { decisao: 'manter', justificativa: '' }, critEdit: null,
       adminMsg: '', adminOk: true, editor: null, areas: [], readers: [], catalog: [], areaModels: [], areaModel: '', detectors: null, allReaders: [], detForm: { label: '', pattern: '', validation: 'nenhuma', context: '', cls: 'amarela', action: 'avisar' }, detTest: '', detTestResult: '', areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
       csvText: '', csvReport: null, kbArea: '', kbFiles: [], kbBatch: null,
@@ -1460,11 +1502,10 @@ class Component extends DCLogic {
     this._loadAreas();
     const c = await this._fetch('/api/quick-wins/criterios');
     if (c.ok) this.setState({ crit: c.data });
-    if (qwTab === 'portfolio') {
-      this.loadOpps();
-      const k = await this._fetch('/api/kb/documents');
-      if (k.ok) this.setState({ kbDocs: k.data });
-    } else this.loadQws();
+    const k = await this._fetch('/api/kb/documents');
+    if (k.ok) this.setState({ kbDocs: k.data });
+    if (qwTab === 'portfolio') this.loadOpps();
+    else this.loadQws();
   }
   _oppQuery() {
     const f = this.state.oppFilter;
@@ -1542,14 +1583,29 @@ class Component extends DCLogic {
     if (!r.ok) { this.setState({ metrics: null, qwMsg: 'Não foi possível carregar o quick win.', qwOk: false }); return; }
     const j = r.data.janelas, v = x => x === null || x === undefined ? '' : String(x);
     this.setState({ metrics: r.data, winForm: { baseIni: v(j.pontoDePartida.inicio), baseFim: v(j.pontoDePartida.fim), baseVol: v(j.pontoDePartida.volume),
-      medIni: v(j.medicao.inicio), medFim: v(j.medicao.fim), medVol: j.medicao.volumeOrigem === 'informado' ? v(j.medicao.volume) : '', unidade: v(j.unidadeVolume) } });
+      medIni: v(j.medicao.inicio), medFim: v(j.medicao.fim), medVol: j.medicao.volumeOrigem === 'informado' ? v(j.medicao.volume) : '', unidade: v(j.unidadeVolume), motivo: '' },
+      editQw: { ind: (r.data.indicadoresDefinidos || []).map(i => ({ key: i.key, label: i.label, unit: i.unit || '', direction: i.direction, auto: i.auto || '', comparacao: i.comparison || 'valor' })),
+        assist: r.data.quickWin.recursos.filter(x => x.tipo === 'assistente').map(x => x.slug), docs: r.data.quickWin.recursos.filter(x => x.tipo === 'documento').map(x => x.id),
+        revisores: (r.data.revisores || []).join(', '), motivo: '' } });
   }
   async saveWindows() {
-    const r = await this._fetch('/api/quick-wins/' + this.state.qwId, { method: 'PATCH', body: { janelas: this._windows(this.state.winForm, true) } });
-    if (!r.ok) { this._qwMsg('Janelas não salvas: ' + this._err(r), false); return; }
+    const r = await this._fetch('/api/quick-wins/' + this.state.qwId, { method: 'PATCH', body: { janelas: this._windows(this.state.winForm, true), motivo: this.state.winForm.motivo || undefined } });
+    if (!r.ok) { this._qwMsg('Janelas não salvas: ' + (r.data.error === 'motivo_obrigatorio' ? 'a medição já começou; escreva o motivo.' : this._err(r)), false); return; }
     this._qwMsg('Janelas salvas.' + ((r.data.avisosDasJanelas || []).length ? ' ' + r.data.avisosDasJanelas.join(' ') : ''));
     this.loadMetrics();
   }
+  // Indicadores, recursos e revisores de um quick win já criado.
+  async saveQwParts() {
+    const e = this.state.editQw;
+    const indicadores = e.ind.filter(i => i.label.trim()).map(i => ({ key: i.key || slugKey(i.label), label: i.label.trim(), unit: i.unit.trim(), direction: i.direction, auto: i.auto || null, comparacao: i.comparacao || 'valor' }));
+    const body = { indicadores, recursos: { assistentes: e.assist, documentos: e.docs }, revisores: e.revisores.split(',').map(x => x.trim()).filter(Boolean), motivo: e.motivo || undefined };
+    const r = await this._fetch('/api/quick-wins/' + this.state.qwId, { method: 'PATCH', body });
+    if (!r.ok) { this._qwMsg(r.data.error === 'motivo_obrigatorio' ? 'A medição já começou: escreva o motivo da alteração (' + (r.data.mudancas || []).join('; ') + ').' : 'Não salvo: ' + this._err(r), false); return; }
+    this._qwMsg('Alterações salvas.' + ((r.data.alteracoesRegistradas || []).length ? ' Registradas no relatório: ' + r.data.alteracoesRegistradas.join('; ') + '.' : ''));
+    this.loadMetrics();
+  }
+  setEditInd(i, k, v) { const e = clone(this.state.editQw); e.ind[i][k] = v; this.setState({ editQw: e }); }
+  toggleQwPart(key, v) { const e = clone(this.state.editQw); e[key] = e[key].includes(v) ? e[key].filter(x => x !== v) : e[key].concat([v]); this.setState({ editQw: e }); }
   async qwToRoadmap() {
     const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/roadmap', { method: 'POST', body: { motivo: this.state.qwRoadmapNote } });
     if (!r.ok) { this._qwMsg('Não voltou ao roadmap: ' + (r.data.error === 'dados_invalidos' ? 'escreva o motivo.' : this._err(r)), false); return; }
@@ -1559,11 +1615,11 @@ class Component extends DCLogic {
   }
   async saveValue() {
     const f = this.state.valForm;
-    const body = { indicador: f.indicador, fase: f.fase, valor: Number(String(f.valor).replace(',', '.')), origem: f.origem };
+    const body = { indicador: f.indicador, fase: f.fase, valor: Number(String(f.valor).replace(',', '.')), origem: f.origem, motivo: f.motivo || undefined };
     if (f.origem === 'medido') Object.assign(body, { periodoInicio: f.periodoInicio || undefined, periodoFim: f.periodoFim || undefined, metodo: f.metodo || undefined });
     else body.informadoPor = f.informadoPor || undefined;
     const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/valores', { method: 'POST', body });
-    this._qwMsg(r.ok ? 'Valor registrado.' : 'Não registrado: ' + this._err(r), r.ok);
+    this._qwMsg(r.ok ? 'Valor registrado.' : r.data.error === 'motivo_obrigatorio' ? 'Não registrado: a medição já começou; escreva o motivo da mudança do ponto de partida.' : 'Não registrado: ' + this._err(r), r.ok);
     if (r.ok) this.loadMetrics();
   }
   async advanceStage() {
@@ -2020,6 +2076,10 @@ class Component extends DCLogic {
       etapaText: 'Etapa atual: ' + m.quickWin.etapaNome + '.' + (m.quickWin.decisao ? ' Decisão: ' + m.quickWin.decisao.decisao.toUpperCase() + ', ' + m.quickWin.decisao.justificativa : ''),
       canAdvance: !!(m.podeGerenciar && next),
       canRoadmap: !!(m.podeGerenciar && m.quickWin.etapa === 'em_implantacao'),
+      canEditParts: !!((m.podeGerenciar || m.podeDecidir) && m.quickWin.etapa !== 'encerrada' && m.quickWin.etapa !== 'roadmap' && st.editQw),
+      measuring: m.quickWin.etapa === 'em_medicao' || m.quickWin.etapa === 'decisao',
+      hasChanges: !!(m.alteracoes && m.alteracoes.length),
+      changes: (m.alteracoes || []).map(x => fmtDate(x.em) + ' · ' + x.oQue + ' · ' + x.por + ' · motivo: ' + x.motivo),
       canEditWindows: !!((m.podeGerenciar || m.podeDecidir) && m.quickWin.etapa !== 'encerrada' && m.quickWin.etapa !== 'roadmap'),
       waitSponsor: !m.podeDecidir && m.quickWin.etapa === 'em_medicao',
       windowWarnings: (m.janelas && m.janelas.avisos) || [],
@@ -2170,6 +2230,18 @@ class Component extends DCLogic {
       winForm: st.winForm,
       onWin,
       saveWindows: () => this.saveWindows(),
+      editQw: st.editQw || {},
+      editIndRows: st.editQw ? st.editQw.ind.map((r, i) => ({ ...r, labelAria: 'Indicador ' + (i + 1) + ' do quick win: nome', unitAria: 'Indicador ' + (i + 1) + ' do quick win: unidade', dirAria: 'Indicador ' + (i + 1) + ' do quick win: sentido',
+        cmpAria: 'Indicador ' + (i + 1) + ' do quick win: comparação', autoAria: 'Indicador ' + (i + 1) + ' do quick win: medição',
+        onLabel: e => this.setEditInd(i, 'label', e.target.value), onUnit: e => this.setEditInd(i, 'unit', e.target.value), onDirection: e => this.setEditInd(i, 'direction', e.target.value),
+        onComparacao: e => this.setEditInd(i, 'comparacao', e.target.value), onAuto: e => this.setEditInd(i, 'auto', e.target.value),
+        onRemove: () => this.setState({ editQw: { ...this.state.editQw, ind: this.state.editQw.ind.filter((_, j) => j !== i) } }) })) : [],
+      addEditIndicator: () => this.setState({ editQw: { ...this.state.editQw, ind: this.state.editQw.ind.concat([{ key: '', label: '', unit: '', direction: 'menor_melhor', auto: '', comparacao: 'valor' }]) } }),
+      editAssistButtons: st.editQw ? [...new Set(st.assistants.map(x => x.slug).concat(st.editQw.assist))].map(slug => { const x = st.assistants.find(y => y.slug === slug); return pill(st.editQw.assist.includes(slug), x ? x.name : slug, () => this.toggleQwPart('assist', slug)); }) : [],
+      editDocButtons: st.editQw ? [...new Set(st.kbDocs.map(x => x.id).concat(st.editQw.docs))].map(id => { const x = st.kbDocs.find(y => y.id === id); const t = m && m.quickWin.recursos.find(y => y.id === id); return pill(st.editQw.docs.includes(id), x ? x.title : (t ? t.nome : 'documento'), () => this.toggleQwPart('docs', id)); }) : [],
+      onEditRevisores: e => this.setState({ editQw: { ...this.state.editQw, revisores: e.target.value } }),
+      onEditMotivo: e => this.setState({ editQw: { ...this.state.editQw, motivo: e.target.value } }),
+      saveQwParts: () => this.saveQwParts(),
       qwRoadmapNote: st.qwRoadmapNote,
       onQwRoadmapNote: e => this.setState({ qwRoadmapNote: e.target.value }),
       qwToRoadmap: () => this.qwToRoadmap(),
@@ -2179,6 +2251,7 @@ class Component extends DCLogic {
       onVal,
       valMedido: st.valForm.origem === 'medido',
       valInformado: st.valForm.origem === 'informado',
+      valMotivo: !!(m && (m.quickWin.etapa === 'em_medicao' || m.quickWin.etapa === 'decisao') && st.valForm.fase === 'antes'),
       decForm: st.decForm,
       onDec,
       saveValue: () => this.saveValue(),

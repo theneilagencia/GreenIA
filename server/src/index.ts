@@ -30,6 +30,7 @@ const app = await buildApp({
 });
 // Este processo também processa a fila. Em escala, pode rodar um processo só de fila.
 queue.startWorker();
+await queue.repeat('retention:sweep', 60 * 60 * 1000); // de hora em hora
 
 const stop = async () => {
   await app.close();

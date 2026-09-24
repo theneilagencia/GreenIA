@@ -17,6 +17,7 @@ import { assistantRoutes } from './assistants/routes.ts';
 import { kbRoutes } from './kb/routes.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
+import { retentionStep, makeRetentionSweep } from './retention/retention.ts';
 import type { ObjectStore } from './storage/object-store.ts';
 import type { JobQueue } from './jobs/queue.ts';
 import type { KnowledgeSource } from './kb/knowledge.ts';
@@ -37,7 +38,7 @@ export interface Deps {
 
 export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([assistantStep, dataPolicyStep, knowledgeStep]) };
+  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -75,6 +76,8 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
 
   // Tarefas da fila.
   deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects));
+  const sweep = makeRetentionSweep(deps.db);
+  deps.queue.register('retention:sweep', async () => { await sweep(); });
 
   return app;
 }

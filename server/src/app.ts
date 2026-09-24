@@ -20,6 +20,7 @@ import { makeIndexer } from './kb/indexer.ts';
 import { retentionStep, makeRetentionSweep } from './retention/retention.ts';
 import { usageStep } from './usage/step.ts';
 import type { RateLimiter } from './usage/rate-limit.ts';
+import { staticRoutes } from './web/static.ts';
 import type { ObjectStore } from './storage/object-store.ts';
 import type { JobQueue } from './jobs/queue.ts';
 import type { KnowledgeSource } from './kb/knowledge.ts';
@@ -76,6 +77,9 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(chatRoutes);
   await app.register(assistantRoutes);
   await app.register(kbRoutes);
+
+  // Frontend (mesma origem da API). Registrado por último: as rotas da API têm prioridade.
+  await app.register(staticRoutes);
 
   // Tarefas da fila.
   deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects));

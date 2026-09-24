@@ -121,9 +121,9 @@
 
     <sc-if value="{{ heroCentered }}" hint-placeholder-val="{{ true }}">
     <section class="gia-hero" style="position:relative;z-index:1;max-width:880px;margin:0 auto;padding:56px 32px 72px;text-align:center;">
-      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest-text);margin-bottom:24px;">A IA do dia a dia do Grupo</div>
+      <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest-text);margin-bottom:24px;">{{ tagline }}</div>
       <h1 style="font:300 clamp(40px,6.4vw,66px)/1.06 'Newsreader';letter-spacing:-0.01em;color:var(--gia-ink);margin:0 0 22px;text-wrap:balance;">IA para todos,<br>com segurança.</h1>
-      <p style="font:400 clamp(18px,2vw,21px)/1.6 'Hanken Grotesk';color:var(--gia-muted);max-width:560px;margin:0 auto 36px;text-wrap:pretty;">Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.</p>
+      <p style="font:400 clamp(18px,2vw,21px)/1.6 'Hanken Grotesk';color:var(--gia-muted);max-width:560px;margin:0 auto 36px;text-wrap:pretty;">{{ heroSubtitle }}</p>
       <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;" style-hover="background:var(--gia-forest-strong-hover) !important">Entrar no chat
         <svg style="color:var(--gia-paper);" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
       </button>
@@ -133,9 +133,9 @@
     <sc-if value="{{ heroSplit }}">
     <section class="gia-hero-split" style="position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:48px 32px 72px;display:grid;grid-template-columns:1.1fr 0.9fr;gap:48px;align-items:center;">
       <div>
-        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest-text);margin-bottom:24px;">A IA do dia a dia do Grupo</div>
+        <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest-text);margin-bottom:24px;">{{ tagline }}</div>
         <h1 style="font:300 clamp(40px,5.4vw,62px)/1.06 'Newsreader';letter-spacing:-0.01em;color:var(--gia-ink);margin:0 0 22px;text-wrap:balance;">IA para todos, com segurança.</h1>
-        <p style="font:400 21px/1.6 'Hanken Grotesk';color:var(--gia-muted);max-width:480px;margin:0 0 36px;text-wrap:pretty;">Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.</p>
+        <p style="font:400 21px/1.6 'Hanken Grotesk';color:var(--gia-muted);max-width:480px;margin:0 0 36px;text-wrap:pretty;">{{ heroSubtitle }}</p>
         <button onClick="{{ goChat }}" style="display:inline-flex;align-items:center;gap:10px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:999px;padding:17px 30px;font:500 17px 'Hanken Grotesk';cursor:pointer;" style-hover="background:var(--gia-forest-strong-hover) !important">Entrar no chat
           <svg style="color:var(--gia-paper);" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
         </button>
@@ -151,7 +151,7 @@
     <section style="background:var(--gia-sand);">
       <div class="gia-what" style="max-width:1080px;margin:0 auto;padding:64px 32px;display:grid;grid-template-columns:0.7fr 1.3fr;gap:48px;align-items:start;">
         <div style="font:600 13px 'Hanken Grotesk';letter-spacing:0.16em;text-transform:uppercase;color:var(--gia-forest-text);padding-top:8px;">O que é a GreenIA</div>
-        <p style="font:300 clamp(24px,3vw,32px)/1.45 'Newsreader';color:var(--gia-ink);margin:0;text-wrap:pretty;">A GreenIA é a IA do dia a dia do Grupo. Qualquer pessoa entra com o login corporativo, sem licença. Serve para tarefas leves: resumir textos, rascunhar emails, organizar anotações. É o convite para usar IA do jeito certo.</p>
+        <p style="font:300 clamp(24px,3vw,32px)/1.45 'Newsreader';color:var(--gia-ink);margin:0;text-wrap:pretty;">{{ whatIs }}</p>
       </div>
     </section>
 
@@ -188,7 +188,7 @@
         <div>
           <div style="width:38px;height:38px;border-radius:999px;background:var(--gia-mint);color:var(--gia-forest-text);display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">1</div>
           <div style="font:500 18px 'Hanken Grotesk';color:var(--gia-ink);margin-bottom:6px;">Entre no chat</div>
-          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Seu login do Grupo já é o suficiente.</p>
+          <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Seu login do {{ orgName }} já é o suficiente.</p>
         </div>
         <div>
           <div style="width:38px;height:38px;border-radius:999px;background:var(--gia-mint);color:var(--gia-forest-text);display:flex;align-items:center;justify-content:center;font:500 17px 'Hanken Grotesk';margin-bottom:16px;">2</div>
@@ -246,9 +246,10 @@
         <span style="font:600 22px/1 'Hanken Grotesk';letter-spacing:-0.01em;"><span style="color:var(--gia-ink);">Green</span><span style="color:var(--gia-forest);">IA</span></span>
       </div>
 
-      <h1 style="font:300 30px/1.2 'Newsreader';color:var(--gia-ink);margin:0 0 10px;">Entre com sua conta do Grupo.</h1>
-      <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 28px;">A GreenIA é interna. O acesso é feito pelo login único da Microsoft, só com o email corporativo.</p>
+      <h1 style="font:300 30px/1.2 'Newsreader';color:var(--gia-ink);margin:0 0 10px;">Entre com sua conta do {{ orgName }}.</h1>
+      <p style="font:400 16px/1.55 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 28px;">{{ loginSubtitle }}</p>
 
+      <sc-if value="{{ showDemoLogin }}">
       <button onClick="{{ doLogin }}" disabled="{{ loggingIn }}" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:var(--gia-surface);border:1px solid var(--gia-stone);border-radius:12px;padding:15px 18px;font:500 16px 'Hanken Grotesk';color:var(--gia-ink);cursor:pointer;" style-enabled:hover="background:var(--gia-surface-hover) !important">
         <sc-if value="{{ loggingIn }}">
           <span style="width:18px;height:18px;border:2px solid var(--gia-stone);border-top-color:var(--gia-forest);border-radius:999px;display:inline-block;animation:giaSpin .7s linear infinite;"></span>
@@ -259,6 +260,31 @@
           Entrar com Microsoft
         </sc-if>
       </button>
+      </sc-if>
+
+      <sc-if value="{{ showBackendLogin }}">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ oidcProviders }}" as="p" hint-placeholder-count="0">
+            <button onClick="{{ p.onClick }}" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:var(--gia-surface);border:1px solid var(--gia-stone);border-radius:12px;padding:15px 18px;font:500 16px 'Hanken Grotesk';color:var(--gia-ink);cursor:pointer;" style-hover="background:var(--gia-surface-hover) !important">
+              <sc-if value="{{ p.isMicrosoft }}"><svg width="18" height="18" viewBox="0 0 23 23" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#F25022"></rect><rect x="12" y="1" width="10" height="10" fill="#7FBA00"></rect><rect x="1" y="12" width="10" height="10" fill="#00A4EF"></rect><rect x="12" y="12" width="10" height="10" fill="#FFB900"></rect></svg></sc-if>
+              {{ p.label }}
+            </button>
+          </sc-for>
+          <sc-if value="{{ showEmailStep }}">
+            <label for="gia-login-email" style="font:500 14px 'Hanken Grotesk';color:var(--gia-ink);margin-top:4px;">Email corporativo</label>
+            <input id="gia-login-email" type="email" autocomplete="email" value="{{ loginEmail }}" onInput="{{ onLoginEmail }}" onKeyDown="{{ onLoginKey }}" style="width:100%;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:12px;padding:13px 14px;font:400 16px 'Hanken Grotesk';color:var(--gia-ink);"></input>
+            <button onClick="{{ sendLoginCode }}" disabled="{{ loginBusy }}" style="width:100%;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:12px;padding:14px 18px;font:500 16px 'Hanken Grotesk';cursor:pointer;" style-enabled:hover="background:var(--gia-forest-strong-hover) !important">Receber código por email</button>
+          </sc-if>
+          <sc-if value="{{ showCodeStep }}">
+            <label for="gia-login-code" style="font:500 14px 'Hanken Grotesk';color:var(--gia-ink);margin-top:4px;">Código de 6 dígitos enviado para {{ loginEmail }}</label>
+            <input id="gia-login-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" value="{{ loginCode }}" onInput="{{ onLoginCode }}" onKeyDown="{{ onLoginKey }}" style="width:100%;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:12px;padding:13px 14px;font:500 20px 'Hanken Grotesk';letter-spacing:0.3em;color:var(--gia-ink);"></input>
+            <button onClick="{{ verifyLoginCode }}" disabled="{{ loginBusy }}" style="width:100%;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:12px;padding:14px 18px;font:500 16px 'Hanken Grotesk';cursor:pointer;" style-enabled:hover="background:var(--gia-forest-strong-hover) !important">Entrar</button>
+          </sc-if>
+          <sc-if value="{{ loginMessage }}">
+            <p role="status" style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">{{ loginMessage }}</p>
+          </sc-if>
+        </div>
+      </sc-if>
 
       <div style="display:flex;align-items:flex-start;gap:10px;margin-top:24px;padding-top:22px;border-top:1px solid var(--gia-line);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;color:var(--gia-forest);"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
@@ -306,9 +332,9 @@
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <span style="display:flex;align-items:center;gap:9px;">
             <svg style="color:var(--gia-leaf);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4a1 1 0 0 1 1-1h8l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"></path><path d="M14 3v5h5"></path></svg>
-            <span style="font:500 13px 'Hanken Grotesk';color:var(--gia-line);">Base do Grupo</span>
+            <span style="font:500 13px 'Hanken Grotesk';color:var(--gia-line);">Base do {{ orgName }}</span>
           </span>
-          <button onClick="{{ toggleKb }}" role="switch" aria-checked="{{ kbChecked }}" aria-label="Usar base do Grupo" style="position:relative;width:38px;height:22px;border-radius:999px;border:none;cursor:pointer;flex:none;background:{{ kbTrackBg }};transition:background .15s;">
+          <button onClick="{{ toggleKb }}" role="switch" aria-checked="{{ kbChecked }}" aria-label="Usar base do {{ orgName }}" style="position:relative;width:38px;height:22px;border-radius:999px;border:none;cursor:pointer;flex:none;background:{{ kbTrackBg }};transition:background .15s;">
             <span style="position:absolute;top:3px;left:{{ kbKnobLeft }};width:16px;height:16px;border-radius:999px;background:var(--gia-paper);transition:left .15s;"></span>
           </button>
         </div>
@@ -492,7 +518,7 @@
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyNote&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyDetail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;heroLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Editorial centralizado&quot;,&quot;Dividido com símbolo&quot;],&quot;default&quot;:&quot;Editorial centralizado&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;policyUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Política%20GreenIA.dc.html&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;keyUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ana Ribeiro · ana.ribeiro@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marina Souza&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;marina.souza@grupo.com.br&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyNote&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;privacyDetail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;backendUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;tenantSlug&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 // Funções puras copiadas de lib/greenia-core.js (testadas em tests/).
 // Não edite aqui: edite a lib e rode `node scripts/check-sync.mjs --write`.
 // >>> greenia-core
@@ -867,6 +893,15 @@ class Component extends DCLogic {
       sidebarOpen: false, // painel de conversas no celular (abaixo de 860 px)
       kbOn: true,
       liveText: '', // texto para leitores de tela (aria-live), só com a resposta completa
+      // Modo backend (prop backendUrl): configuração pública do tenant e sessão.
+      tenant: null,
+      session: null,
+      loginStep: 'email',   // login por código: 'email' | 'code'
+      loginEmail: '',
+      loginCode: '',
+      loginBusy: false,
+      loginMessage: '',
+      kbCount: null,
     };
     this._msgRef = el => { this._msgEl = el; };
     this._inputRef = el => { this._inputEl = el; };
@@ -896,10 +931,132 @@ class Component extends DCLogic {
     { title: "Suporte de TI (DIT)", text: "Para abrir um chamado, use o portal de suporte da DIT. O reset de senha é feito no autoatendimento ou pelo ramal 4000. O atendimento é das 8h às 18h em dias úteis. Equipamentos novos são solicitados pelo gestor com aprovação da diretoria. Para acesso a sistemas, abra um chamado com a justificativa da área." }
   ];
 
-  componentDidMount() { document.addEventListener('keydown', this._onDocKeyDown); }
+  componentDidMount() {
+    document.addEventListener('keydown', this._onDocKeyDown);
+    if (this._api() !== null) this._boot();
+  }
   componentWillUnmount() {
     document.removeEventListener('keydown', this._onDocKeyDown);
     this._cancelGeneration();
+  }
+
+  // ---- Modo backend ------------------------------------------------------------
+  // Com backendUrl (prop, ou window.__GREENIA__ quando o servidor entrega a página),
+  // tudo passa pelo servidor: configuração, login, chat. Não há fallback para
+  // window.claude.complete: se o servidor falhar, a tela mostra o erro.
+
+  // Base das rotas da API, ou null no modo demonstração.
+  _api() {
+    const cfg = (typeof window !== 'undefined' && window.__GREENIA__) || {};
+    const url = (this.props.backendUrl || cfg.backendUrl || '').trim();
+    if (!url) return null;
+    return url === '/' ? '' : url.replace(/\/$/, '');
+  }
+
+  // Tenant pelo host em produção; em ambiente local, ?tenant= da própria página ou o prop.
+  _tenantQuery() {
+    const fromUrl = new URLSearchParams(location.search).get('tenant');
+    const slug = this.props.tenantSlug || fromUrl || '';
+    return slug ? 'tenant=' + encodeURIComponent(slug) : '';
+  }
+
+  async _fetch(path, opts = {}) {
+    const headers = { ...(opts.body ? { 'content-type': 'application/json' } : {}), ...(opts.headers || {}) };
+    const csrf = this.state.session && this.state.session.csrfToken;
+    if (opts.method && opts.method !== 'GET' && csrf) headers['x-csrf-token'] = csrf;
+    const q = this._tenantQuery();
+    const url = this._api() + path + (q ? (path.includes('?') ? '&' : '?') + q : '');
+    return fetch(url, { credentials: 'include', ...opts, headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  }
+
+  async _boot() {
+    try {
+      const r = await this._fetch('/api/tenant/config');
+      if (!r.ok) throw new Error('config ' + r.status);
+      const tenant = await r.json();
+      this._applyTheme(tenant.theme || {});
+      this.setState({ tenant });
+    } catch (e) {
+      this.setState({ loginMessage: 'Não consegui carregar a GreenIA agora. Recarregue a página em instantes.' });
+      return;
+    }
+    await this._loadSession();
+    const params = new URLSearchParams(location.search);
+    if (this.state.session && params.get('entrar') === 'chat') {
+      params.delete('entrar');
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''));
+      this.setState({ screen: 'chat' });
+    }
+  }
+
+  // Cores do tenant (já validadas para contraste no servidor).
+  _applyTheme(tokens) {
+    for (const [k, v] of Object.entries(tokens)) {
+      if (/^--gia-[a-z-]+$/.test(k) && /^#[0-9A-Fa-f]{6}$/.test(v)) document.documentElement.style.setProperty(k, v);
+    }
+  }
+
+  async _loadSession() {
+    try {
+      const r = await this._fetch('/api/session');
+      if (r.status === 401) { this.setState({ session: null, authed: false }); return false; }
+      if (!r.ok) throw new Error('sessão ' + r.status);
+      const session = await r.json();
+      this.setState({ session, authed: true });
+      this._loadKbCount();
+      return true;
+    } catch (e) {
+      this.setState({ loginMessage: 'Não consegui falar com o servidor agora. Tente de novo em instantes.' });
+      return false;
+    }
+  }
+
+  async _loadKbCount() {
+    try {
+      const r = await this._fetch('/api/kb/documents');
+      if (r.ok) this.setState({ kbCount: (await r.json()).length });
+    } catch (e) { /* o contador é só informativo */ }
+  }
+
+  startOidc(providerId) {
+    const q = this._tenantQuery();
+    const back = location.pathname + '?entrar=chat' + (q ? '&' + q : '');
+    location.href = this._api() + '/api/auth/oidc/' + encodeURIComponent(providerId) + '/start?returnTo=' + encodeURIComponent(back) + (q ? '&' + q : '');
+  }
+
+  async sendLoginCode() {
+    const email = this.state.loginEmail.trim();
+    if (!email || this.state.loginBusy) return;
+    this.setState({ loginBusy: true, loginMessage: '' });
+    try {
+      const r = await this._fetch('/api/auth/email/start', { method: 'POST', body: { email } });
+      if (r.status === 400) { this.setState({ loginBusy: false, loginMessage: 'Confira o email e tente de novo.' }); return; }
+      if (!r.ok) throw new Error(String(r.status));
+      this.setState({ loginBusy: false, loginStep: 'code', loginCode: '', loginMessage: 'Se o email for do domínio da empresa, o código chega em instantes. Ele vale por 10 minutos.' });
+    } catch (e) {
+      this.setState({ loginBusy: false, loginMessage: 'Não consegui enviar o código agora. Tente de novo em instantes.' });
+    }
+  }
+
+  async verifyLoginCode() {
+    const code = this.state.loginCode.trim();
+    if (!/^\d{6}$/.test(code) || this.state.loginBusy) { this.setState({ loginMessage: 'O código tem 6 números.' }); return; }
+    this.setState({ loginBusy: true, loginMessage: '' });
+    try {
+      const r = await this._fetch('/api/auth/email/verify', { method: 'POST', body: { email: this.state.loginEmail.trim(), code } });
+      if (r.status === 401) { this.setState({ loginBusy: false, loginMessage: 'Código inválido ou vencido. Confira ou peça outro.' }); return; }
+      if (!r.ok) throw new Error(String(r.status));
+      this.setState({ loginBusy: false, loginStep: 'email', loginCode: '', loginMessage: '' });
+      if (await this._loadSession()) this.setState({ screen: 'chat' });
+    } catch (e) {
+      this.setState({ loginBusy: false, loginMessage: 'Não consegui entrar agora. Tente de novo em instantes.' });
+    }
+  }
+
+  onLoginKey(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (this.state.loginStep === 'code') this.verifyLoginCode(); else this.sendLoginCode();
   }
 
   // Esc fecha o modal (ou o painel de conversas); Tab fica preso dentro do modal.
@@ -967,7 +1124,11 @@ class Component extends DCLogic {
 
   logout() {
     this._cancelGeneration();
+    if (this._api() !== null && this.state.session) {
+      this._fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    }
     this.setState({
+      session: null, kbCount: null,
       authed: false, screen: 'landing', policyOpen: false, sidebarOpen: false,
       convos: [], activeId: null, input: '', pending: null, blocked: null, warned: null,
     });
@@ -977,6 +1138,7 @@ class Component extends DCLogic {
   _cancelGeneration() {
     this._requestId = null;
     cancelAnimationFrame(this._raf);
+    if (this._abort) { this._abort.abort(); this._abort = null; }
   }
 
   goChat() {
@@ -1045,13 +1207,18 @@ class Component extends DCLogic {
     // Primeira camada: o filtro decide antes de qualquer chamada ao modelo
     // (DATA_POLICY). Bloqueado ou à espera de confirmação, o texto fica no campo
     // para a pessoa editar, e nada é gravado no histórico.
-    const decision = decideAction(detectSensitive(raw));
+    // No modo backend, este filtro é só aviso antecipado com a política do tenant;
+    // a decisão é do servidor (ele responde 422 ou 409, tratados em _requestBackend).
+    const policy = this.state.tenant ? this.state.tenant.dataPolicy : undefined;
+    const decision = decideAction(detectSensitive(raw), policy);
+    const convoNow = this.state.convos.find(c => c.id === this.state.activeId);
+    const already = new Set((convoNow && convoNow.confirmed) || []);
     if (decision.action === 'bloquear') {
       this._forceScroll = true;
       this.setState({ blocked: { convoId: this.state.activeId, types: decision.block }, warned: null, liveText: '' });
       return;
     }
-    if (decision.action === 'avisar' && !opts.confirmed) {
+    if (decision.action === 'avisar' && !opts.confirmed && !decision.warn.every(t => already.has(t))) {
       this._forceScroll = true;
       this.setState({ warned: { convoId: this.state.activeId, types: decision.warn, text: raw }, blocked: null, liveText: '' });
       return;
@@ -1064,12 +1231,16 @@ class Component extends DCLogic {
     let convoId = this.state.activeId;
     let convos = this.state.convos;
     const userMsg = { role: 'user', text };
+    // Tipos confirmados no aviso valem para o resto da conversa (o servidor confere de novo).
+    const confirmedNow = opts.confirmed ? (opts.types || (this.state.warned && this.state.warned.types) || decision.warn) : [];
     if (!convoId) {
       convoId = 'c' + Date.now();
       const title = text.length > 42 ? text.slice(0, 42) + '…' : text;
-      convos = [{ id: convoId, title, messages: [userMsg] }, ...convos];
+      convos = [{ id: convoId, title, messages: [userMsg], confirmed: [...confirmedNow] }, ...convos];
     } else {
-      convos = this._updateConvoMessages(convos, convoId, ms => [...ms, userMsg]);
+      convos = convos.map(c => c.id === convoId
+        ? { ...c, messages: [...c.messages, userMsg], confirmed: [...new Set([...(c.confirmed || []), ...confirmedNow])] }
+        : c);
     }
     this._forceScroll = true;
     this.setState({ convos, activeId: convoId, input: '', blocked: null, warned: null });
@@ -1080,7 +1251,7 @@ class Component extends DCLogic {
   // Se a pessoa editou, o filtro roda de novo.
   confirmWarned() {
     const w = this.state.warned;
-    if (w && (this.state.input || '').trim() === w.text) this.send({ confirmed: true });
+    if (w && (this.state.input || '').trim() === w.text) this.send({ confirmed: true, types: w.types });
     else { this.setState({ warned: null }); this.send(); }
   }
 
@@ -1110,6 +1281,7 @@ class Component extends DCLogic {
   async _request(convoId, requestId) {
     this._requestId = requestId;
     this.setState({ pending: { convoId, requestId, phase: 'thinking' } });
+    if (this._api() !== null) return this._requestBackend(convoId, requestId);
 
     // Mensagens de erro não vão para o modelo.
     const msgs = this.state.convos.find(c => c.id === convoId).messages.filter(m => !m.error);
@@ -1172,6 +1344,122 @@ class Component extends DCLogic {
     this._typewriter(convoId, index, reply, requestId);
   }
 
+  // Modo backend: POST /api/chat e leitura do streaming (SSE). Sem fallback.
+  async _requestBackend(convoId, requestId) {
+    const convo = this.state.convos.find(c => c.id === convoId);
+    const msgs = convo.messages.filter(m => !m.error);
+    const apiConvo = [];
+    for (const m of msgs) {
+      const prev = apiConvo[apiConvo.length - 1];
+      if (prev && prev.role === m.role) prev.content += '\n\n' + m.text;
+      else apiConvo.push({ role: m.role, content: m.text });
+    }
+    const failWith = (text) => {
+      if (this._requestId !== requestId) return;
+      this._requestId = null;
+      this.setState(s => ({
+        convos: this._updateConvoMessages(s.convos, convoId, ms => [...ms.filter(m => !(m.typing && !m.text)).map(m => m.typing ? { ...m, typing: false } : m), { role: 'assistant', text, error: true }]),
+        pending: null,
+        liveText: s.activeId === convoId ? text : s.liveText,
+      }));
+    };
+    // O servidor recusou antes de responder (dado bloqueado ou aviso): a mensagem
+    // volta para o campo e sai do histórico, como no filtro do navegador.
+    const undoSend = (patch) => {
+      this._requestId = null;
+      const lastUser = msgs[msgs.length - 1];
+      this.setState(s => {
+        const c = s.convos.find(x => x.id === convoId);
+        const rest = c ? c.messages.slice(0, -1) : [];
+        const convos = rest.length ? this._updateConvoMessages(s.convos, convoId, () => rest) : s.convos.filter(x => x.id !== convoId);
+        const keep = rest.length ? convoId : null;
+        return { convos, activeId: s.activeId === convoId ? keep : s.activeId, pending: null, input: lastUser.text, ...patch(keep) };
+      });
+    };
+
+    this._abort = new AbortController();
+    let res;
+    try {
+      res = await this._fetch('/api/chat', {
+        method: 'POST', signal: this._abort.signal,
+        body: { messages: apiConvo, confirmedWarnings: convo.confirmed || [], useKnowledge: this.state.kbOn },
+      });
+    } catch (e) {
+      if (this._requestId === requestId) failWith('Não consegui falar com o servidor agora. Quer tentar de novo?');
+      return;
+    }
+    if (this._requestId !== requestId) return;
+    if (res.status === 401) {
+      this._requestId = null;
+      this.setState({ pending: null, authed: false, session: null, screen: 'login', loginMessage: 'Sua sessão terminou. Entre de novo para continuar.' });
+      return;
+    }
+    if (res.status === 422 || res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      const types = Array.isArray(body.types) ? body.types : [];
+      this._forceScroll = true;
+      if (res.status === 422) undoSend(keep => ({ blocked: { convoId: keep, types }, warned: null, liveText: '' }));
+      else undoSend(keep => ({ warned: { convoId: keep, types, text: msgs[msgs.length - 1].text }, blocked: null, liveText: '' }));
+      return;
+    }
+    if (!res.ok || !res.body) {
+      const body = await res.json().catch(() => ({}));
+      const msg = res.status === 429 && body.error === 'cota_mensal_esgotada' ? 'O limite de uso deste mês acabou. Fale com o key user da sua área.'
+        : res.status === 429 ? 'Muitas mensagens em pouco tempo. Espere um minuto e tente de novo.'
+        : res.status === 413 ? 'A mensagem ficou longa demais. Divida o texto em partes e tente de novo.'
+        : 'Não consegui responder agora. Quer tentar de novo?';
+      failWith(msg);
+      return;
+    }
+
+    // Resposta em streaming: meta (fontes), delta, done, error.
+    const index = convo.messages.length;
+    this.setState(s => ({
+      convos: this._updateConvoMessages(s.convos, convoId, ms => [...ms, { role: 'assistant', text: '', sources: [], typing: true }]),
+      pending: { convoId, requestId, phase: 'typing' },
+    }));
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let full = '';
+    let finished = false;
+    const setMsg = (fn) => this.setState(s => ({ convos: this._updateConvoMessages(s.convos, convoId, ms => ms.map((m, k) => k === index ? fn(m) : m)) }));
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (this._requestId !== requestId) { reader.cancel(); return; }
+        buf += decoder.decode(value, { stream: true });
+        let cut;
+        while ((cut = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, cut);
+          buf = buf.slice(cut + 2);
+          const ev = (block.match(/^event: (.*)$/m) || [])[1];
+          let data = null;
+          try { data = JSON.parse((block.match(/^data: (.*)$/m) || [])[1] || 'null'); } catch (e) { data = null; }
+          if (ev === 'meta' && data && data.sources) setMsg(m => ({ ...m, sources: data.sources.map(x => x.title) }));
+          else if (ev === 'delta' && data) { full += data.text; setMsg(m => ({ ...m, text: full })); }
+          else if (ev === 'done') {
+            finished = true;
+            this._requestId = null;
+            this.setState(s => ({
+              convos: this._updateConvoMessages(s.convos, convoId, ms => ms.map((m, k) => k === index ? { ...m, typing: false } : m)),
+              pending: null,
+              liveText: s.activeId === convoId ? full : s.liveText,
+            }));
+          } else if (ev === 'error') {
+            finished = true;
+            failWith(data && data.retryable ? 'O serviço de IA está ocupado agora. Quer tentar de novo?' : 'Não consegui terminar a resposta. Quer tentar de novo?');
+          }
+        }
+      }
+    } catch (e) {
+      if (this._requestId === requestId) failWith('A conexão caiu no meio da resposta. Quer tentar de novo?');
+      return;
+    }
+    if (!finished && this._requestId === requestId) failWith('A resposta chegou incompleta. Quer tentar de novo?');
+  }
+
   // Escreve só a mensagem `index` da conversa `convoId`, em no máximo ~1,2 s
   // qualquer que seja o tamanho. Com prefers-reduced-motion, mostra tudo de uma vez.
   _typewriter(convoId, index, full, requestId) {
@@ -1221,7 +1509,15 @@ class Component extends DCLogic {
     const thinking = !!pending && pending.convoId === activeId && pending.phase === 'thinking';
     const blocked = this.state.blocked && this.state.blocked.convoId === activeId ? this.state.blocked : null;
     const warned = this.state.warned && this.state.warned.convoId === activeId ? this.state.warned : null;
-    const keyUser = this.props.keyUser || 'Ana Ribeiro · ana.ribeiro@grupo.com.br';
+    const backend = this._api() !== null;
+    const tenant = this.state.tenant;
+    const session = this.state.session;
+    const texts = (tenant && tenant.texts) || {};
+    const orgName = (tenant && tenant.branding && tenant.branding.orgName) || 'Grupo';
+    const keyUser = (tenant && tenant.keyUserContact) || this.props.keyUser || 'Ana Ribeiro · ana.ribeiro@grupo.com.br';
+    const providers = (tenant && tenant.providers) || [];
+    const userName = backend ? ((session && (session.user.name || session.user.email.split('@')[0])) || '') : (this.props.userName || 'Marina Souza');
+    const userEmail = backend ? ((session && session.user.email) || '') : (this.props.userEmail || 'marina.souza@grupo.com.br');
 
     const sugg = [
       { label: 'Resumir texto', fill: 'Resumir este texto: ' },
@@ -1270,22 +1566,47 @@ class Component extends DCLogic {
       suggestions: sugg,
 
       policyOpen: this.state.policyOpen,
-      policyUrl: this.props.policyUrl || 'Política%20GreenIA.dc.html',
+      policyUrl: (tenant && tenant.policyUrl) || this.props.policyUrl || 'Política%20GreenIA.dc.html',
+      orgName,
+      tagline: texts.tagline || 'A IA do dia a dia do ' + orgName,
+      heroSubtitle: texts.heroSubtitle || 'Simples e segura. Entre com seu login do ' + orgName + ' e use para o que aparece no dia: resumir, rascunhar, organizar.',
+      whatIs: texts.whatIs || 'A GreenIA é a IA do dia a dia do ' + orgName + '. Qualquer pessoa entra com o login corporativo, sem licença. Serve para tarefas leves: resumir textos, rascunhar emails, organizar anotações. É o convite para usar IA do jeito certo.',
+      loginSubtitle: backend && !(providers.length === 1 && providers[0].kind === 'entra')
+        ? 'A GreenIA é interna. O acesso é feito só com o seu login corporativo.'
+        : 'A GreenIA é interna. O acesso é feito pelo login único da Microsoft, só com o email corporativo.',
+      showDemoLogin: !backend,
+      showBackendLogin: backend,
+      oidcProviders: providers.filter(p => p.kind !== 'email_code').map(p => ({
+        label: p.label, isMicrosoft: p.kind === 'entra', onClick: () => this.startOidc(p.id),
+      })),
+      showEmailStep: backend && providers.some(p => p.kind === 'email_code') && this.state.loginStep === 'email',
+      showCodeStep: backend && providers.some(p => p.kind === 'email_code') && this.state.loginStep === 'code',
+      loginEmail: this.state.loginEmail,
+      loginCode: this.state.loginCode,
+      loginBusy: this.state.loginBusy,
+      loginMessage: this.state.loginMessage,
+      onLoginEmail: (e) => this.setState({ loginEmail: e.target.value }),
+      onLoginCode: (e) => this.setState({ loginCode: e.target.value.replace(/\D/g, '').slice(0, 6) }),
+      onLoginKey: (e) => this.onLoginKey(e),
+      sendLoginCode: () => this.sendLoginCode(),
+      verifyLoginCode: () => this.verifyLoginCode(),
       keyUser,
 
       // Uma fonte só para o login e o modal da política. Texto provisório: precisa
       // de validação da Segurança da Informação (não pode soar como garantia de que
       // nada fica retido no provedor da API). privacyDetail só aparece se preenchido.
-      privacyNote: this.props.privacyNote || 'Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.',
-      privacyDetail: (this.props.privacyDetail || '').trim(),
+      privacyNote: (tenant && tenant.privacyNote) || this.props.privacyNote || 'Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.',
+      privacyDetail: ((tenant && tenant.privacyDetail) || this.props.privacyDetail || '').trim(),
 
-      userName: this.props.userName || 'Marina Souza',
-      userEmail: this.props.userEmail || 'marina.souza@grupo.com.br',
-      userInitials: (this.props.userName || 'Marina Souza').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(),
+      userName,
+      userEmail,
+      userInitials: (userName || '?').split(/[\s.]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(),
       logout: () => this.logout(),
 
       kbChecked: kbOn ? 'true' : 'false',
-      kbStatus: kbOn ? ('Conectada · ' + this.KB.length + ' documentos') : 'Desligada',
+      kbStatus: !kbOn ? 'Desligada'
+        : backend ? (this.state.kbCount === null ? 'Conectada' : 'Conectada · ' + this.state.kbCount + ' documentos')
+        : ('Conectada · ' + this.KB.length + ' documentos'),
       kbTrackBg: kbOn ? 'var(--gia-leaf)' : 'rgba(255,255,255,0.18)',
       kbKnobLeft: kbOn ? '19px' : '3px',
       toggleKb: () => this.toggleKb(),

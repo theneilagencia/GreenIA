@@ -47,9 +47,32 @@ export async function assistantRoutes(app: FastifyInstance) {
   app.get('/api/assistants', async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;
-    return withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
-      `select a.slug, a.name, a.status, a.current_version as version, ar.slug as area
-       from assistants a left join areas ar on ar.id = a.area_id order by a.name`).then(r => r.rows));
+    const rows = await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
+      `select a.slug, a.name, a.status, a.current_version as version, ar.slug as area, ar.name as area_name, a.area_id, v.definition
+       from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
+       left join areas ar on ar.id = a.area_id order by a.name`).then(r => r.rows));
+    return rows.map(r => {
+      const def = assistantDefinitionSchema.parse(r.definition);
+      return { slug: r.slug, name: r.name, status: r.status, version: r.version, area: r.area, areaName: r.area_name,
+        tipo: def.pipeline.length ? 'execucao' : 'conversa', description: def.description, podeGerenciar: can(a, 'kb.manage', r.area_id) };
+    });
+  });
+
+  // Resumo do assistente para quem vai usar: o que faz, o que enviar, o que sai.
+  app.get('/api/assistants/:slug', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const { slug } = req.params as { slug: string };
+    const row = await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
+      `select a.slug, a.name, a.status, a.current_version as version, ar.name as area, v.definition
+       from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
+       left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug]).then(r => r.rows[0]));
+    if (!row) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
+    const d = assistantDefinitionSchema.parse(row.definition);
+    return { slug: row.slug, name: row.name, status: row.status, version: row.version, area: row.area,
+      tipo: d.pipeline.length ? 'execucao' : 'conversa', description: d.description, objective: d.objective,
+      inputs: d.inputs, output: { format: d.output.format, files: d.output.files }, etapas: d.pipeline.map(s => ({ bloco: s.bloco, titulo: s.titulo ?? null })),
+      review: { required: d.review.required, reviewers: d.review.reviewers, checklist: d.review.checklist } };
   });
 
   app.post('/api/admin/assistants', async (req, reply) => {

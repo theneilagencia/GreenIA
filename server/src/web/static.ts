@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 // Raiz do frontend: a raiz do repositório (ou FRONTEND_DIR, no contêiner).
 const ROOT = process.env.FRONTEND_DIR || fileURLToPath(new URL('../../../', import.meta.url));
 
-const PAGES = new Set(['GreenIA.dc.html', 'Política GreenIA.dc.html']);
+const PAGES = new Set(['GreenIA.dc.html', 'Política GreenIA.dc.html', 'Assistentes GreenIA.dc.html']);
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.svg': 'image/svg+xml',
 };

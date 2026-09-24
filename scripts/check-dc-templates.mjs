@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const FILES = ['GreenIA.dc.html', 'Política GreenIA.dc.html'];
+const FILES = ['GreenIA.dc.html', 'Política GreenIA.dc.html', 'Assistentes GreenIA.dc.html'];
 const LITERALS = new Set(['true', 'false', 'null', 'undefined']);
 
 function decodeEntities(s) {

@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..400&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---- Cores da GreenIA (mesmos tokens das outras páginas). ---- */
+  :root{
+    --gia-forest:#1F8A5B;
+    --gia-forest-text:#19704A;
+    --gia-forest-strong:#1B7950;
+    --gia-forest-strong-hover:#155F3D;
+    --gia-deep:#0F3A2A;
+    --gia-spark:#B9E85A;
+    --gia-leaf:#3FAE74;
+    --gia-mint:#E6F0E7;
+    --gia-paper:#FAF7EF;
+    --gia-surface:#FBF9F2;
+    --gia-sand:#F1EAD9;
+    --gia-sand-hover:#EFE6D2;
+    --gia-ink:#16241D;
+    --gia-muted:#66645A;
+    --gia-line:#E9E0CD;
+    --gia-line-strong:#D9CFB6;
+    --gia-stone:#C9BFA6;
+    --gia-sage:#9DB6A6;
+    --gia-amber-text:#845C1B;
+    --gia-red-text:#9B4029;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--gia-paper);}
+  input,textarea,select{font-family:inherit;}
+  ::placeholder{color:var(--gia-muted);opacity:1;}
+  button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--gia-forest);outline-offset:2px;}
+  .gia-top button:focus-visible,.gia-top a:focus-visible{outline-color:var(--gia-spark);}
+  .gia-field{width:100%;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:10px;padding:10px 12px;font:400 15px 'Hanken Grotesk';color:var(--gia-ink);}
+  .gia-table{width:100%;border-collapse:collapse;font:400 14px/1.45 'Hanken Grotesk';}
+  .gia-table th{text-align:left;font-weight:600;color:var(--gia-ink);border-bottom:1px solid var(--gia-line-strong);padding:8px 10px;background:var(--gia-sand);}
+  .gia-table td{border-bottom:1px solid var(--gia-line);padding:8px 10px;vertical-align:top;color:var(--gia-ink);}
+  .gia-table tr.is-selected td{background:var(--gia-mint);}
+  .gia-sr{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  @media (max-width:900px){
+    .gia-top{padding:calc(12px + env(safe-area-inset-top)) 16px 12px !important;flex-wrap:wrap;}
+    .gia-main{padding:20px 16px 48px !important;}
+    .gia-split{grid-template-columns:1fr !important;}
+    .gia-grid-2{grid-template-columns:1fr !important;}
+    .gia-tabs{overflow-x:auto;flex-wrap:nowrap !important;}
+    .gia-tabs > button{flex:none;}
+  }
+</style>
+</helmet>
+<div style="min-height:100vh;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--gia-ink);background:var(--gia-paper);-webkit-font-smoothing:antialiased;">
+
+  <!-- ============================== TOPO ============================== -->
+  <header class="gia-top" style="background:var(--gia-deep);color:var(--gia-paper);padding:calc(14px + env(safe-area-inset-top)) 32px 14px;display:flex;align-items:center;gap:18px;">
+    <a href="{{ chatHref }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--gia-paper);">
+      <img src="assets/greenia-symbol-spark.svg" width="28" height="28" alt="" aria-hidden="true">
+      <span style="font:600 20px/1 'Hanken Grotesk';"><span>Green</span><span style="color:var(--gia-spark);">IA</span></span>
+    </a>
+    <nav class="gia-tabs" aria-label="Seções" style="display:flex;gap:4px;flex:1;flex-wrap:wrap;">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.onClick }}" aria-current="{{ t.current }}" style="background:{{ t.bg }};color:var(--gia-paper);border:none;border-radius:8px;padding:8px 14px;font:500 15px 'Hanken Grotesk';cursor:pointer;" style-hover="background:rgba(255,255,255,0.12) !important">{{ t.label }}</button>
+      </sc-for>
+    </nav>
+    <sc-if value="{{ authed }}">
+      <button onClick="{{ openIncident }}" style="background:none;border:1px solid var(--gia-sage);color:var(--gia-paper);border-radius:8px;padding:7px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;" style-hover="background:rgba(255,255,255,0.12) !important">Reportar incidente</button>
+      <span style="font:400 14px 'Hanken Grotesk';color:var(--gia-sage);">{{ userEmail }}</span>
+    </sc-if>
+  </header>
+
+  <main class="gia-main" style="max-width:1240px;margin:0 auto;padding:28px 32px 64px;">
+
+    <!-- Sem servidor (preview do Claude Design) -->
+    <sc-if value="{{ noBackend }}" hint-placeholder-val="{{ true }}">
+      <section style="max-width:640px;margin:48px auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:16px;padding:32px;">
+        <h1 style="font:400 30px/1.2 'Newsreader',serif;margin:0 0 12px;">Assistentes da GreenIA</h1>
+        <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Esta página funciona com o servidor da GreenIA: execução de assistentes, revisão das saídas, resultados e administração. No preview, abra a página de chat.</p>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ bootMessage }}">
+      <p role="alert" style="font:500 15px 'Hanken Grotesk';color:var(--gia-red-text);background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:12px;padding:14px 16px;">{{ bootMessage }}</p>
+    </sc-if>
+
+    <sc-if value="{{ needLogin }}">
+      <section style="max-width:560px;margin:48px auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:16px;padding:32px;">
+        <h1 style="font:400 28px/1.2 'Newsreader',serif;margin:0 0 12px;">Entre para continuar</h1>
+        <p style="font:400 16px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 18px;">Faça login na página inicial e volte para os assistentes.</p>
+        <a href="{{ chatHref }}" style="display:inline-block;background:var(--gia-forest-strong);color:var(--gia-paper);text-decoration:none;border-radius:10px;padding:12px 18px;font:500 15px 'Hanken Grotesk';">Ir para o login</a>
+      </section>
+    </sc-if>
+
+    <!-- ============================== EXECUTAR ============================== -->
+    <sc-if value="{{ showRun }}">
+      <div class="gia-split" style="display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start;">
+        <aside style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Assistentes</h2>
+          <sc-if value="{{ noAssistants }}"><p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nenhum assistente disponível para você ainda.</p></sc-if>
+          <sc-for list="{{ assistantList }}" as="a" hint-placeholder-count="3">
+            <button onClick="{{ a.onClick }}" aria-pressed="{{ a.pressed }}" style="display:block;width:100%;text-align:left;background:{{ a.bg }};border:1px solid var(--gia-line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;color:var(--gia-ink);" style-hover="border-color:var(--gia-forest) !important">
+              <span style="display:block;font:600 14px 'Hanken Grotesk';">{{ a.name }}</span>
+              <span style="display:block;font:400 13px 'Hanken Grotesk';color:var(--gia-muted);">{{ a.meta }}</span>
+            </button>
+          </sc-for>
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:18px 0 10px;">Minhas execuções</h2>
+          <sc-for list="{{ myRuns }}" as="r" hint-placeholder-count="0">
+            <button onClick="{{ r.onClick }}" style="display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--gia-line);padding:8px 2px;cursor:pointer;color:var(--gia-ink);font:400 13px/1.4 'Hanken Grotesk';">
+              <span style="font-weight:600;">{{ r.assistant }}</span> · <span style="color:var(--gia-muted);">{{ r.when }}</span><br><span style="color:{{ r.statusColor }};">{{ r.status }}</span>
+            </button>
+          </sc-for>
+        </aside>
+
+        <section>
+          <sc-if value="{{ noSelection }}">
+            <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:28px;">
+              <h1 style="font:400 28px/1.2 'Newsreader',serif;margin:0 0 8px;">Escolha um assistente</h1>
+              <p style="font:400 15px/1.6 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Cada assistente é uma melhoria da sua área. Envie o texto e os arquivos pedidos; a saída chega como rascunho para revisão.</p>
+            </div>
+          </sc-if>
+          <sc-if value="{{ selected }}">
+            <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:24px;">
+              <h1 style="font:400 28px/1.2 'Newsreader',serif;margin:0 0 6px;">{{ sel.name }}</h1>
+              <p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">{{ sel.meta }}</p>
+              <p style="font:400 15px/1.6 'Hanken Grotesk';margin:0 0 16px;">{{ sel.description }}</p>
+              <sc-if value="{{ sel.textEnabled }}">
+                <label for="gia-run-text" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">{{ sel.textLabel }}</label>
+                <textarea id="gia-run-text" class="gia-field" rows="3" value="{{ runText }}" onInput="{{ onRunText }}"></textarea>
+              </sc-if>
+              <sc-if value="{{ sel.filesEnabled }}">
+                <label for="gia-run-files" style="display:block;font:500 14px 'Hanken Grotesk';margin:14px 0 6px;">Arquivos ({{ sel.accept }})</label>
+                <input id="gia-run-files" type="file" multiple="multiple" onChange="{{ onRunFiles }}" style="font:400 14px 'Hanken Grotesk';">
+                <ul style="margin:8px 0 0;padding-left:18px;font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);">
+                  <sc-for list="{{ runFiles }}" as="f" hint-placeholder-count="0"><li>{{ f.label }}</li></sc-for>
+                </ul>
+              </sc-if>
+              <sc-if value="{{ runWarn }}">
+                <div role="alert" style="margin-top:14px;background:var(--gia-sand);border-radius:10px;padding:12px 14px;font:400 14px/1.5 'Hanken Grotesk';">
+                  <p style="margin:0 0 8px;color:var(--gia-amber-text);font-weight:600;">{{ runWarnText }}</p>
+                  <button onClick="{{ confirmRun }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:8px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Enviar mesmo assim</button>
+                  <button onClick="{{ cancelWarn }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:8px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;margin-left:8px;">Revisar</button>
+                </div>
+              </sc-if>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:16px;">
+                <button onClick="{{ submitRun }}" disabled="{{ runBusy }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:12px 18px;font:500 15px 'Hanken Grotesk';cursor:pointer;" style-enabled:hover="background:var(--gia-forest-strong-hover) !important">Enviar</button>
+                <a href="{{ sel.guideHref }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Guia rápido (PDF)</a>
+                <span role="status" style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);">{{ runMsg }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ hasRunView }}">
+            <div style="margin-top:20px;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:24px;">
+              <h2 style="font:600 18px 'Hanken Grotesk';margin:0 0 4px;">{{ runView.title }}</h2>
+              <p style="font:400 14px 'Hanken Grotesk';color:{{ runView.statusColor }};margin:0 0 14px;">{{ runView.status }}</p>
+              <sc-if value="{{ runView.error }}"><p role="alert" style="font:400 14px 'Hanken Grotesk';color:var(--gia-red-text);">{{ runView.error }}</p></sc-if>
+              <sc-for list="{{ runView.sections }}" as="s" hint-placeholder-count="0">
+                <div style="margin-bottom:22px;">
+                  <h3 style="font:600 16px 'Hanken Grotesk';margin:0 0 8px;">{{ s.title }}</h3>
+                  <sc-for list="{{ s.paragraphs }}" as="p" hint-placeholder-count="0"><p style="font:400 15px/1.6 'Hanken Grotesk';margin:0 0 8px;white-space:pre-wrap;">{{ p }}</p></sc-for>
+                  <sc-for list="{{ s.flags }}" as="fl" hint-placeholder-count="0"><p style="font:400 13px 'Hanken Grotesk';color:var(--gia-amber-text);margin:0 0 4px;">Atenção: {{ fl }}</p></sc-for>
+                  <sc-if value="{{ s.hasRows }}">
+                    <div style="overflow-x:auto;">
+                      <table class="gia-table">
+                        <thead><tr><sc-for list="{{ s.columns }}" as="c" hint-placeholder-count="0"><th>{{ c }}</th></sc-for></tr></thead>
+                        <tbody>
+                          <sc-for list="{{ s.rows }}" as="row" hint-placeholder-count="0">
+                            <tr><sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="0"><td>{{ cell.text }}</td></sc-for></tr>
+                          </sc-for>
+                        </tbody>
+                      </table>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <sc-if value="{{ runView.canOpenReview }}">
+                <button onClick="{{ runView.openReview }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:10px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Abrir na revisão</button>
+              </sc-if>
+              <sc-for list="{{ runView.exports }}" as="x" hint-placeholder-count="0">
+                <a href="{{ x.href }}" style="display:inline-block;margin:6px 10px 0 0;color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Baixar {{ x.label }}</a>
+              </sc-for>
+            </div>
+          </sc-if>
+        </section>
+      </div>
+    </sc-if>
+
+    <!-- ============================== REVISÃO ============================== -->
+    <sc-if value="{{ showReview }}">
+      <sc-if value="{{ noReviewOpen }}">
+        <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:24px;">
+          <h1 style="font:400 28px/1.2 'Newsreader',serif;margin:0 0 12px;">Saídas para revisar</h1>
+          <sc-if value="{{ queueEmpty }}"><p style="font:400 15px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nada aguardando revisão.</p></sc-if>
+          <sc-for list="{{ queue }}" as="q" hint-placeholder-count="0">
+            <button onClick="{{ q.onClick }}" style="display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--gia-line);padding:12px 4px;cursor:pointer;color:var(--gia-ink);font:400 14px/1.4 'Hanken Grotesk';" style-hover="background:var(--gia-sand-hover) !important">
+              <span><strong>{{ q.assistant }}</strong> · {{ q.user }}</span>
+              <span style="color:var(--gia-muted);">{{ q.meta }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ reviewOpen }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+          <div>
+            <button onClick="{{ closeReview }}" style="background:none;border:none;color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';cursor:pointer;padding:0;">Voltar à lista</button>
+            <h1 style="font:400 26px/1.2 'Newsreader',serif;margin:6px 0 2px;">{{ rv.title }}</h1>
+            <p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">{{ rv.meta }}</p>
+          </div>
+          <sc-if value="{{ rv.canDecide }}">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onClick="{{ approve }}" disabled="{{ reviewBusy }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:10px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ rv.approveLabel }}</button>
+              <button onClick="{{ toggleEdit }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:10px;padding:10px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ rv.editLabel }}</button>
+              <button onClick="{{ openReject }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-red-text);border-radius:10px;padding:10px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Rejeitar</button>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ rejectOpen }}">
+          <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:12px;padding:14px;margin-bottom:14px;">
+            <label for="gia-reject" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Motivo da rejeição</label>
+            <textarea id="gia-reject" class="gia-field" rows="2" value="{{ rejectReason }}" onInput="{{ onRejectReason }}"></textarea>
+            <button onClick="{{ reject }}" disabled="{{ reviewBusy }}" style="margin-top:8px;background:var(--gia-red-text);color:var(--gia-paper);border:none;border-radius:8px;padding:8px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Confirmar rejeição</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ reviewMsg }}"><p role="status" style="font:500 14px 'Hanken Grotesk';color:var(--gia-forest-text);margin:0 0 12px;">{{ reviewMsg }}</p></sc-if>
+
+        <div class="gia-split" style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start;">
+          <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:20px;min-width:0;">
+            <sc-for list="{{ rv.sections }}" as="s" hint-placeholder-count="0">
+              <div style="margin-bottom:24px;">
+                <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 8px;">{{ s.title }}</h2>
+                <sc-for list="{{ s.paragraphs }}" as="p" hint-placeholder-count="0"><p style="font:400 15px/1.6 'Hanken Grotesk';margin:0 0 8px;white-space:pre-wrap;">{{ p }}</p></sc-for>
+                <sc-if value="{{ s.hasRows }}">
+                  <div style="overflow-x:auto;">
+                    <table class="gia-table">
+                      <thead><tr><sc-for list="{{ s.columns }}" as="c" hint-placeholder-count="0"><th>{{ c }}</th></sc-for><sc-if value="{{ s.removable }}"><th><span class="gia-sr">Ações</span></th></sc-if></tr></thead>
+                      <tbody>
+                        <sc-for list="{{ s.rows }}" as="row" hint-placeholder-count="0">
+                          <tr class="{{ row.cls }}" onClick="{{ row.onSelect }}" style="cursor:pointer;">
+                            <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="0">
+                              <td>
+                                <sc-if value="{{ cell.isText }}">{{ cell.text }}</sc-if>
+                                <sc-if value="{{ cell.isInput }}"><input class="gia-field" aria-label="{{ cell.label }}" value="{{ cell.value }}" onInput="{{ cell.onInput }}" onClick="{{ stop }}" style="padding:6px 8px;font-size:14px;"></sc-if>
+                                <sc-if value="{{ cell.isArea }}"><textarea class="gia-field" aria-label="{{ cell.label }}" rows="3" value="{{ cell.value }}" onInput="{{ cell.onInput }}" onClick="{{ stop }}" style="font-size:14px;"></textarea></sc-if>
+                                <sc-if value="{{ cell.isSelect }}">
+                                  <select class="gia-field" aria-label="{{ cell.label }}" value="{{ cell.value }}" onChange="{{ cell.onInput }}" onClick="{{ stop }}" style="padding:6px 8px;font-size:14px;">
+                                    <sc-for list="{{ cell.options }}" as="o" hint-placeholder-count="0"><option value="{{ o }}">{{ o }}</option></sc-for>
+                                  </select>
+                                </sc-if>
+                              </td>
+                            </sc-for>
+                            <sc-if value="{{ row.removable }}"><td><button onClick="{{ row.onRemove }}" style="background:none;border:1px solid var(--gia-stone);border-radius:6px;padding:4px 8px;font:500 13px 'Hanken Grotesk';color:var(--gia-red-text);cursor:pointer;">Remover</button></td></sc-if>
+                          </tr>
+                        </sc-for>
+                      </tbody>
+                    </table>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </section>
+
+          <aside style="position:sticky;top:16px;display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+              <h2 style="font:600 15px 'Hanken Grotesk';margin:0 0 8px;">Origem da informação</h2>
+              <sc-if value="{{ noOrigin }}"><p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Selecione uma linha para ver de onde veio cada valor.</p></sc-if>
+              <sc-for list="{{ origins }}" as="o" hint-placeholder-count="0">
+                <p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 8px;"><strong>{{ o.label }}</strong><br>{{ o.text }}</p>
+              </sc-for>
+            </div>
+            <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+              <h2 style="font:600 15px 'Hanken Grotesk';margin:0 0 8px;">Arquivos enviados</h2>
+              <sc-for list="{{ rv.files }}" as="f" hint-placeholder-count="0">
+                <a href="{{ f.href }}" style="display:block;color:var(--gia-forest-text);font:500 14px/1.6 'Hanken Grotesk';">{{ f.label }}</a>
+              </sc-for>
+              <sc-if value="{{ rv.text }}"><p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:8px 0 0;">Texto enviado: {{ rv.text }}</p></sc-if>
+            </div>
+            <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+              <h2 style="font:600 15px 'Hanken Grotesk';margin:0 0 8px;">Pontos de atenção</h2>
+              <sc-if value="{{ rv.noFlags }}"><p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nenhum ponto marcado pela plataforma.</p></sc-if>
+              <sc-for list="{{ rv.flags }}" as="fl" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);margin:0 0 6px;">{{ fl }}</p></sc-for>
+              <sc-if value="{{ rv.hasChecklist }}">
+                <h3 style="font:600 14px 'Hanken Grotesk';margin:12px 0 6px;">O que conferir</h3>
+                <sc-for list="{{ rv.checklist }}" as="ck" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 4px;">· {{ ck }}</p></sc-for>
+              </sc-if>
+            </div>
+            <sc-if value="{{ rv.hasExports }}">
+              <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+                <h2 style="font:600 15px 'Hanken Grotesk';margin:0 0 8px;">Exportar saída aprovada</h2>
+                <sc-for list="{{ rv.exports }}" as="x" hint-placeholder-count="0"><a href="{{ x.href }}" style="display:inline-block;margin-right:12px;color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">{{ x.label }}</a></sc-for>
+              </div>
+            </sc-if>
+          </aside>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <!-- ============================== RESULTADOS ============================== -->
+    <sc-if value="{{ showResults }}">
+      <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+        <div>
+          <label for="gia-met-a" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Assistente</label>
+          <select id="gia-met-a" class="gia-field" value="{{ metricSlug }}" onChange="{{ onMetricSlug }}" style="min-width:280px;">
+            <option value="">Escolha</option>
+            <sc-for list="{{ manageable }}" as="m" hint-placeholder-count="0"><option value="{{ m.slug }}">{{ m.name }}</option></sc-for>
+          </select>
+        </div>
+        <div><label for="gia-met-de" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">De</label><input id="gia-met-de" type="date" class="gia-field" value="{{ metricsFrom }}" onInput="{{ onMetricsFrom }}"></div>
+        <div><label for="gia-met-ate" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Até</label><input id="gia-met-ate" type="date" class="gia-field" value="{{ metricsTo }}" onInput="{{ onMetricsTo }}"></div>
+        <button onClick="{{ loadMetrics }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:11px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Atualizar</button>
+        <sc-if value="{{ hasMetrics }}">
+          <a href="{{ met.pdfHref }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Relatório PDF</a>
+          <a href="{{ met.xlsxHref }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Relatório XLSX</a>
+        </sc-if>
+      </div>
+      <sc-if value="{{ metricsMsg }}"><p role="status" style="font:500 14px 'Hanken Grotesk';color:var(--gia-forest-text);">{{ metricsMsg }}</p></sc-if>
+      <sc-if value="{{ hasMetrics }}">
+        <sc-if value="{{ met.aviso }}"><p role="note" style="font:600 15px/1.5 'Hanken Grotesk';color:var(--gia-amber-text);background:var(--gia-sand);border-radius:10px;padding:12px 14px;">{{ met.aviso }}</p></sc-if>
+        <div style="overflow-x:auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;margin-bottom:18px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Antes × depois</h2>
+          <table class="gia-table">
+            <thead><tr><th>Indicador</th><th>Antes</th><th>Origem</th><th>Depois</th><th>Origem</th><th>Diferença</th><th>Situação</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ met.indicators }}" as="i" hint-placeholder-count="0">
+                <tr><td>{{ i.label }}</td><td>{{ i.antes }}</td><td>{{ i.antesOrigem }}</td><td>{{ i.depois }}</td><td>{{ i.depoisOrigem }}</td><td>{{ i.diff }}</td><td>{{ i.situacao }}</td></tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <sc-for list="{{ met.acumulados }}" as="ac" hint-placeholder-count="0"><p style="font:400 14px 'Hanken Grotesk';margin:8px 0 0;">{{ ac }}</p></sc-for>
+        </div>
+        <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Medições automáticas</h2>
+            <table class="gia-table"><tbody>
+              <sc-for list="{{ met.auto }}" as="au" hint-placeholder-count="0"><tr><td>{{ au.k }}</td><td>{{ au.v }}</td></tr></sc-for>
+            </tbody></table>
+          </div>
+          <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Decisões</h2>
+            <sc-if value="{{ met.noDecisions }}"><p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Nenhuma decisão registrada.</p></sc-if>
+            <sc-for list="{{ met.decisions }}" as="d" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 8px;"><strong>{{ d.head }}</strong><br>{{ d.text }}</p></sc-for>
+            <h3 style="font:600 14px 'Hanken Grotesk';margin:14px 0 8px;">Registrar decisão</h3>
+            <select class="gia-field" aria-label="Decisão" value="{{ decForm.decisao }}" onChange="{{ onDec.decisao }}"><option value="manter">manter</option><option value="descartar">descartar</option><option value="ampliar">ampliar</option></select>
+            <input type="date" class="gia-field" aria-label="Data da decisão" value="{{ decForm.data }}" onInput="{{ onDec.data }}" style="margin-top:8px;">
+            <input class="gia-field" aria-label="Responsável" placeholder="Responsável" value="{{ decForm.responsavel }}" onInput="{{ onDec.responsavel }}" style="margin-top:8px;">
+            <textarea class="gia-field" aria-label="Justificativa" placeholder="Justificativa" rows="3" value="{{ decForm.justificativa }}" onInput="{{ onDec.justificativa }}" style="margin-top:8px;"></textarea>
+            <button onClick="{{ saveDecision }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Registrar decisão</button>
+          </div>
+          <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Registrar valor de indicador</h2>
+            <select class="gia-field" aria-label="Indicador" value="{{ valForm.indicador }}" onChange="{{ onVal.indicador }}">
+              <option value="">Indicador</option>
+              <sc-for list="{{ met.indicatorKeys }}" as="k" hint-placeholder-count="0"><option value="{{ k.key }}">{{ k.label }}</option></sc-for>
+            </select>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <select class="gia-field" aria-label="Fase" value="{{ valForm.fase }}" onChange="{{ onVal.fase }}"><option value="antes">antes</option><option value="depois">depois</option></select>
+              <input class="gia-field" aria-label="Valor" placeholder="Valor" inputmode="decimal" value="{{ valForm.valor }}" onInput="{{ onVal.valor }}">
+            </div>
+            <select class="gia-field" aria-label="Origem" value="{{ valForm.origem }}" onChange="{{ onVal.origem }}" style="margin-top:8px;"><option value="informado">informado</option><option value="medido">medido</option></select>
+            <sc-if value="{{ valMedido }}">
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <input type="date" class="gia-field" aria-label="Início do período" value="{{ valForm.periodoInicio }}" onInput="{{ onVal.periodoInicio }}">
+                <input type="date" class="gia-field" aria-label="Fim do período" value="{{ valForm.periodoFim }}" onInput="{{ onVal.periodoFim }}">
+              </div>
+              <input class="gia-field" aria-label="Método" placeholder="Método (ex.: cronometragem de 40 notas)" value="{{ valForm.metodo }}" onInput="{{ onVal.metodo }}" style="margin-top:8px;">
+            </sc-if>
+            <sc-if value="{{ valInformado }}">
+              <input class="gia-field" aria-label="Quem informou" placeholder="Quem informou" value="{{ valForm.informadoPor }}" onInput="{{ onVal.informadoPor }}" style="margin-top:8px;">
+            </sc-if>
+            <button onClick="{{ saveValue }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Registrar valor</button>
+          </div>
+          <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;overflow-x:auto;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Por mês</h2>
+            <table class="gia-table">
+              <thead><tr><th>Mês</th><th>Execuções</th><th>Pessoas</th><th>Aprovadas</th><th>Com edição</th><th>Rejeitadas</th><th>Consumo</th></tr></thead>
+              <tbody><sc-for list="{{ met.monthly }}" as="mo" hint-placeholder-count="0"><tr><td>{{ mo.mes }}</td><td>{{ mo.execucoes }}</td><td>{{ mo.usuarios }}</td><td>{{ mo.aprovadas }}</td><td>{{ mo.edicao }}</td><td>{{ mo.rejeitadas }}</td><td>{{ mo.custo }}</td></tr></sc-for></tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <!-- ============================== ADMINISTRAÇÃO ============================== -->
+    <sc-if value="{{ showAdmin }}">
+      <div class="gia-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;">
+        <sc-for list="{{ adminTabs }}" as="t" hint-placeholder-count="0">
+          <button onClick="{{ t.onClick }}" aria-current="{{ t.current }}" style="background:{{ t.bg }};color:{{ t.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:7px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ adminMsg }}"><p role="status" style="font:500 14px/1.5 'Hanken Grotesk';color:{{ adminMsgColor }};white-space:pre-wrap;">{{ adminMsg }}</p></sc-if>
+
+      <!-- Assistentes -->
+      <sc-if value="{{ admAssistants }}">
+        <div class="gia-split" style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;">
+          <aside style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:14px;">
+            <button onClick="{{ newAssistant }}" style="width:100%;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;margin-bottom:10px;">Novo assistente</button>
+            <sc-for list="{{ adminAssistants }}" as="a" hint-placeholder-count="0">
+              <button onClick="{{ a.onClick }}" style="display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--gia-line);padding:9px 4px;cursor:pointer;color:var(--gia-ink);font:400 14px/1.4 'Hanken Grotesk';">
+                <strong>{{ a.name }}</strong><br><span style="color:var(--gia-muted);">{{ a.meta }}</span>
+              </button>
+            </sc-for>
+          </aside>
+          <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
+            <sc-if value="{{ hasEditor }}">
+              <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <input class="gia-field" aria-label="Identificador" placeholder="identificador (ex.: conferencia-nfe)" value="{{ editor.slug }}" onInput="{{ onEditor.slug }}" disabled="{{ editorExisting }}">
+                <input class="gia-field" aria-label="Nome" placeholder="Nome" value="{{ editor.name }}" onInput="{{ onEditor.name }}">
+                <input class="gia-field" aria-label="Área" placeholder="área (slug)" value="{{ editor.area }}" onInput="{{ onEditor.area }}" disabled="{{ editorExisting }}">
+                <select class="gia-field" aria-label="Status" value="{{ editor.status }}" onChange="{{ onEditor.status }}"><option value="rascunho">rascunho</option><option value="piloto">piloto</option><option value="ativo">ativo</option><option value="pausado">pausado</option><option value="descartado">descartado</option></select>
+              </div>
+              <label for="gia-def" style="display:block;font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Definição (JSON validado pelo servidor; cada gravação vira uma nova versão)</label>
+              <textarea id="gia-def" class="gia-field" rows="22" value="{{ editor.json }}" onInput="{{ onEditor.json }}" style="font:400 13px/1.45 ui-monospace,Menlo,monospace;"></textarea>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+                <button onClick="{{ saveAssistant }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ editorSaveLabel }}</button>
+                <sc-if value="{{ editorExisting }}">
+                  <button onClick="{{ changeStatus }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Só mudar o status</button>
+                  <a href="{{ editorLinks.zip }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Pacote portátil (ZIP)</a>
+                  <a href="{{ editorLinks.md }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Pacote em Markdown</a>
+                  <a href="{{ editorLinks.guide }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Guia rápido (PDF)</a>
+                </sc-if>
+              </div>
+              <sc-if value="{{ editorVersions }}"><p style="font:400 13px 'Hanken Grotesk';color:var(--gia-muted);margin:10px 0 0;">{{ editorVersions }}</p></sc-if>
+            </sc-if>
+            <sc-if value="{{ noEditor }}"><p style="font:400 15px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Escolha um assistente para editar ou crie um novo.</p></sc-if>
+          </section>
+        </div>
+      </sc-if>
+
+      <!-- Pessoas -->
+      <sc-if value="{{ admPeople }}">
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Importar pessoas por CSV</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Colunas: email; nome; área; papel (usuario, revisor, key_user ou admin_cliente). Área vazia vale para o cliente todo.</p>
+          <input type="file" aria-label="Arquivo CSV" onChange="{{ onCsvFile }}" style="font:400 14px 'Hanken Grotesk';margin-bottom:8px;">
+          <textarea class="gia-field" aria-label="Conteúdo do CSV" rows="8" value="{{ csvText }}" onInput="{{ onCsvText }}" style="font:400 13px/1.45 ui-monospace,Menlo,monospace;"></textarea>
+          <div style="display:flex;gap:10px;margin-top:10px;">
+            <button onClick="{{ simulateCsv }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Simular</button>
+            <button onClick="{{ importCsv }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Importar</button>
+          </div>
+          <sc-if value="{{ hasCsvReport }}">
+            <p style="font:500 14px 'Hanken Grotesk';margin:14px 0 8px;">{{ csvSummary }}</p>
+            <table class="gia-table"><thead><tr><th>Linha</th><th>Email</th><th>Erro</th></tr></thead><tbody>
+              <sc-for list="{{ csvErrors }}" as="e" hint-placeholder-count="0"><tr><td>{{ e.linha }}</td><td>{{ e.email }}</td><td>{{ e.erro }}</td></tr></sc-for>
+            </tbody></table>
+          </sc-if>
+        </section>
+      </sc-if>
+
+      <!-- Base de conhecimento -->
+      <sc-if value="{{ admKb }}">
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Importar documentos para a base</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">PDF com texto, DOCX, XLSX, CSV, TXT ou MD. PDF digitalizado precisa da versão com texto.</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select class="gia-field" aria-label="Área dos documentos" value="{{ kbArea }}" onChange="{{ onKbArea }}" style="max-width:260px;">
+              <option value="">Todo o cliente</option>
+              <sc-for list="{{ areaOptions }}" as="o" hint-placeholder-count="0"><option value="{{ o.slug }}">{{ o.name }}</option></sc-for>
+            </select>
+            <input type="file" multiple="multiple" aria-label="Documentos" onChange="{{ onKbFiles }}" style="font:400 14px 'Hanken Grotesk';">
+            <button onClick="{{ importKb }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Importar {{ kbFileCount }} arquivo(s)</button>
+          </div>
+          <sc-if value="{{ hasKbBatch }}">
+            <p style="font:500 14px 'Hanken Grotesk';margin:14px 0 8px;">{{ kbSummary }}</p>
+            <table class="gia-table"><thead><tr><th>Documento</th><th>Situação</th><th>Erro</th></tr></thead><tbody>
+              <sc-for list="{{ kbRows }}" as="r" hint-placeholder-count="0"><tr><td>{{ r.titulo }}</td><td>{{ r.status }}</td><td>{{ r.erro }}</td></tr></sc-for>
+            </tbody></table>
+          </sc-if>
+        </section>
+      </sc-if>
+
+      <!-- Política de Uso de IA -->
+      <sc-if value="{{ admPolicy }}">
+        <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Publicar nova versão</h2>
+            <input class="gia-field" aria-label="Título" placeholder="Título" value="{{ policyForm.title }}" onInput="{{ onPolicy.title }}">
+            <textarea class="gia-field" aria-label="Texto da política" placeholder="Texto (Markdown)" rows="10" value="{{ policyForm.body }}" onInput="{{ onPolicy.body }}" style="margin-top:8px;"></textarea>
+            <label for="gia-rules" style="display:block;font:500 14px 'Hanken Grotesk';margin:10px 0 6px;">Regras (JSON: dataPolicy, restrictedTerms, allowedClasses, tools)</label>
+            <textarea id="gia-rules" class="gia-field" rows="6" value="{{ policyForm.rules }}" onInput="{{ onPolicy.rules }}" style="font:400 13px/1.45 ui-monospace,Menlo,monospace;"></textarea>
+            <button onClick="{{ publishPolicy }}" style="margin-top:10px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Publicar (todos registram ciência de novo)</button>
+          </section>
+          <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;overflow-x:auto;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">Ciência da versão vigente</h2>
+            <p style="font:400 14px 'Hanken Grotesk';margin:0 0 8px;">{{ ackSummary }}</p>
+            <table class="gia-table"><thead><tr><th>Pessoa</th><th>Ciência</th></tr></thead><tbody>
+              <sc-for list="{{ ackRows }}" as="k" hint-placeholder-count="0"><tr><td>{{ k.email }}</td><td>{{ k.when }}</td></tr></sc-for>
+            </tbody></table>
+          </section>
+        </div>
+      </sc-if>
+
+      <!-- Incidentes -->
+      <sc-if value="{{ admIncidents }}">
+        <div class="gia-split" style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start;">
+          <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;overflow-x:auto;">
+            <table class="gia-table"><thead><tr><th>Código</th><th>Tipo</th><th>Área</th><th>Situação</th><th>Aberto em</th></tr></thead><tbody>
+              <sc-for list="{{ incidentRows }}" as="i" hint-placeholder-count="0"><tr onClick="{{ i.onClick }}" style="cursor:pointer;"><td>{{ i.codigo }}</td><td>{{ i.tipo }}</td><td>{{ i.area }}</td><td>{{ i.status }}</td><td>{{ i.when }}</td></tr></sc-for>
+            </tbody></table>
+          </section>
+          <sc-if value="{{ hasIncident }}">
+            <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;">
+              <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 4px;">Incidente {{ inc.codigo }}</h2>
+              <p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">{{ inc.meta }}</p>
+              <p style="font:400 14px/1.6 'Hanken Grotesk';white-space:pre-wrap;margin:0 0 12px;">{{ inc.descricao }}</p>
+              <sc-for list="{{ inc.history }}" as="h" hint-placeholder-count="0"><p style="font:400 13px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 4px;">{{ h }}</p></sc-for>
+              <sc-if value="{{ inc.canHandle }}">
+                <select class="gia-field" aria-label="Novo status" value="{{ incStatus }}" onChange="{{ onIncStatus }}" style="margin-top:10px;">
+                  <option value="">Novo status</option>
+                  <sc-for list="{{ inc.next }}" as="n" hint-placeholder-count="0"><option value="{{ n }}">{{ n }}</option></sc-for>
+                </select>
+                <textarea class="gia-field" aria-label="Nota" placeholder="Nota (obrigatória para resolver ou encerrar)" rows="3" value="{{ incNote }}" onInput="{{ onIncNote }}" style="margin-top:8px;"></textarea>
+                <button onClick="{{ saveIncident }}" style="margin-top:8px;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Atualizar</button>
+              </sc-if>
+            </section>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- Consumo -->
+      <sc-if value="{{ admUsage }}">
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;margin-bottom:18px;overflow-x:auto;">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <label for="gia-mes" style="font:500 14px 'Hanken Grotesk';">Mês</label>
+            <input id="gia-mes" type="month" class="gia-field" value="{{ usageMonth }}" onInput="{{ onUsageMonth }}" style="max-width:180px;">
+            <button onClick="{{ loadUsage }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Ver consumo</button>
+            <sc-if value="{{ hasUsage }}">
+              <a href="{{ usageLinks.csv }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">CSV</a>
+              <a href="{{ usageLinks.xlsx }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">XLSX</a>
+            </sc-if>
+          </div>
+          <sc-if value="{{ hasUsage }}">
+            <p style="font:500 15px 'Hanken Grotesk';margin:0 0 10px;">{{ usageTotal }}</p>
+            <table class="gia-table"><thead><tr><th>Assistente</th><th>Chamadas</th><th>Tokens (entrada / saída)</th><th>Páginas</th><th>Custo</th></tr></thead><tbody>
+              <sc-for list="{{ usageRows }}" as="r" hint-placeholder-count="0"><tr><td>{{ r.nome }}</td><td>{{ r.chamadas }}</td><td>{{ r.tokens }}</td><td>{{ r.paginas }}</td><td>{{ r.custo }}</td></tr></sc-for>
+            </tbody></table>
+          </sc-if>
+        </section>
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;overflow-x:auto;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Simulador de custo mensal</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Projeção para apresentação: usa as médias medidas quando o assistente tem histórico; senão, as premissas declaradas.</p>
+          <table class="gia-table"><thead><tr><th>Nome</th><th>Assistente (opcional)</th><th>Execuções/mês</th><th>Páginas/execução</th><th>% digitalizado</th></tr></thead><tbody>
+            <sc-for list="{{ simRows }}" as="s" hint-placeholder-count="0">
+              <tr>
+                <td><input class="gia-field" aria-label="Nome" value="{{ s.nome }}" onInput="{{ s.onNome }}" style="padding:6px 8px;"></td>
+                <td><input class="gia-field" aria-label="Assistente" value="{{ s.assistente }}" onInput="{{ s.onAssistente }}" style="padding:6px 8px;"></td>
+                <td><input class="gia-field" aria-label="Execuções por mês" inputmode="numeric" value="{{ s.execucoes }}" onInput="{{ s.onExecucoes }}" style="padding:6px 8px;"></td>
+                <td><input class="gia-field" aria-label="Páginas por execução" inputmode="decimal" value="{{ s.paginas }}" onInput="{{ s.onPaginas }}" style="padding:6px 8px;"></td>
+                <td><input class="gia-field" aria-label="Percentual digitalizado" inputmode="numeric" value="{{ s.digitalizado }}" onInput="{{ s.onDigitalizado }}" style="padding:6px 8px;"></td>
+              </tr>
+            </sc-for>
+          </tbody></table>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+            <button onClick="{{ addSimRow }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:8px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Adicionar linha</button>
+            <label for="gia-mensal" style="font:500 14px 'Hanken Grotesk';">Mensalidade (R$)</label>
+            <input id="gia-mensal" class="gia-field" inputmode="decimal" value="{{ simMensal }}" onInput="{{ onSimMensal }}" style="max-width:140px;">
+            <button onClick="{{ runSim }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Simular</button>
+          </div>
+          <sc-if value="{{ hasSim }}">
+            <p style="font:600 15px 'Hanken Grotesk';margin:14px 0 6px;">{{ simTotal }}</p>
+            <sc-for list="{{ simLines }}" as="l" hint-placeholder-count="0"><p style="font:400 14px/1.5 'Hanken Grotesk';margin:0 0 4px;">{{ l }}</p></sc-for>
+          </sc-if>
+        </section>
+      </sc-if>
+
+      <!-- Exportação do cliente -->
+      <sc-if value="{{ admExport }}">
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Exportação completa dos dados</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">ZIP com os dados em JSON e CSV, os arquivos originais e a auditoria com a cadeia de hash. Os dados são do cliente.</p>
+          <button onClick="{{ requestExport }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Gerar exportação</button>
+          <table class="gia-table" style="margin-top:12px;"><thead><tr><th>Pedida em</th><th>Situação</th><th>Tamanho</th><th></th></tr></thead><tbody>
+            <sc-for list="{{ exportRows }}" as="x" hint-placeholder-count="0"><tr><td>{{ x.when }}</td><td>{{ x.status }}</td><td>{{ x.size }}</td><td><sc-if value="{{ x.ready }}"><a href="{{ x.href }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Baixar</a></sc-if></td></tr></sc-for>
+          </tbody></table>
+        </section>
+      </sc-if>
+    </sc-if>
+  </main>
+
+  <!-- ============================== REPORTAR INCIDENTE ============================== -->
+  <sc-if value="{{ incidentOpen }}">
+    <div onClick="{{ closeIncident }}" style="position:fixed;inset:0;background:rgba(15,58,42,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;">
+      <div role="dialog" aria-modal="true" aria-labelledby="gia-inc-title" onClick="{{ stop }}" style="background:var(--gia-paper);border-radius:16px;padding:24px;width:min(520px,100%);">
+        <h2 id="gia-inc-title" style="font:400 24px/1.2 'Newsreader',serif;margin:0 0 10px;">Reportar incidente</h2>
+        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">O key user da área e a TheNeil recebem o aviso. Descreva o que aconteceu; não repita o dado enviado por engano.</p>
+        <select class="gia-field" aria-label="Tipo" value="{{ incForm.tipo }}" onChange="{{ onIncForm.tipo }}">
+          <option value="dado_indevido">Dado enviado indevidamente</option>
+          <option value="resposta_errada">Resposta errada</option>
+          <option value="resposta_inadequada">Resposta inadequada</option>
+          <option value="outro">Outro</option>
+        </select>
+        <textarea class="gia-field" aria-label="Descrição" rows="5" value="{{ incForm.descricao }}" onInput="{{ onIncForm.descricao }}" style="margin-top:8px;"></textarea>
+        <sc-if value="{{ incMsg }}"><p role="status" style="font:500 14px 'Hanken Grotesk';color:var(--gia-forest-text);margin:8px 0 0;">{{ incMsg }}</p></sc-if>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+          <button onClick="{{ closeIncident }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Fechar</button>
+          <button onClick="{{ sendIncident }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============================== POLÍTICA DE USO: CIÊNCIA ============================== -->
+  <sc-if value="{{ policyPending }}">
+    <div style="position:fixed;inset:0;background:rgba(15,58,42,0.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:70;">
+      <div role="dialog" aria-modal="true" aria-labelledby="gia-pol-title" style="background:var(--gia-paper);border-radius:16px;padding:26px;width:min(680px,100%);max-height:90vh;display:flex;flex-direction:column;">
+        <h2 id="gia-pol-title" style="font:400 26px/1.2 'Newsreader',serif;margin:0 0 6px;">{{ policyTitle }}</h2>
+        <p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">Versão {{ policyVersion }}. Leia e registre sua ciência para continuar.</p>
+        <div style="flex:1;overflow:auto;background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:10px;padding:14px;font:400 15px/1.6 'Hanken Grotesk';white-space:pre-wrap;">{{ policyBody }}</div>
+        <button onClick="{{ ackPolicy }}" style="margin-top:14px;align-self:flex-end;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:11px 18px;font:500 15px 'Hanken Grotesk';cursor:pointer;">Li e estou ciente</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============================== ROTEIRO DE PRIMEIRO ACESSO ============================== -->
+  <sc-if value="{{ tourOpen }}">
+    <div style="position:fixed;inset:0;background:rgba(15,58,42,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:65;">
+      <div role="dialog" aria-modal="true" aria-labelledby="gia-tour-title" style="background:var(--gia-paper);border-radius:16px;padding:26px;width:min(520px,100%);">
+        <p style="font:500 13px 'Hanken Grotesk';color:var(--gia-forest-text);margin:0 0 6px;">{{ tour.step }}</p>
+        <h2 id="gia-tour-title" style="font:400 26px/1.2 'Newsreader',serif;margin:0 0 10px;">{{ tour.title }}</h2>
+        <p style="font:400 16px/1.6 'Hanken Grotesk';margin:0 0 18px;">{{ tour.text }}</p>
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <button onClick="{{ tourSkip }}" style="background:none;border:none;color:var(--gia-muted);font:500 14px 'Hanken Grotesk';cursor:pointer;">Pular</button>
+          <button onClick="{{ tourNext }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:10px;padding:10px 16px;font:500 15px 'Hanken Grotesk';cursor:pointer;">{{ tour.next }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;backendUrl&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;tenantSlug&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+// Página de assistentes: execução, revisão lado a lado, resultados e
+// administração. Só funciona com o servidor (prop backendUrl ou
+// window.__GREENIA__); no preview do Claude Design mostra um aviso.
+
+const STATUS_LABEL = {
+  processando: 'Processando', rascunho: 'Rascunho: aguardando revisão', erro: 'Erro', aprovado: 'Aprovada',
+  aprovado_com_edicao: 'Aprovada com edição', rejeitado: 'Rejeitada',
+};
+const STATUS_COLOR = { erro: 'var(--gia-red-text)', rejeitado: 'var(--gia-red-text)', rascunho: 'var(--gia-amber-text)', processando: 'var(--gia-muted)' };
+const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem', docx: 'DOCX', xlsx: 'XLSX', csv: 'CSV', nfe_xml: 'XML da NF-e', texto: 'TXT' };
+const TYPE_LABEL = {
+  cpf: 'CPF', cnpj: 'CNPJ', cartao: 'número de cartão', bancario: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial', rg: 'RG',
+  lista: 'lista com dados pessoais', email: 'email', telefone: 'telefone', cep: 'CEP', endereco: 'endereço', nome: 'nome de pessoa',
+  restrito: 'informação restrita pela Política de Uso de IA',
+};
+const INC_LABEL = { dado_indevido: 'dado enviado indevidamente', resposta_errada: 'resposta errada', resposta_inadequada: 'resposta inadequada', outro: 'outro' };
+const TOUR = [
+  { title: 'Boas-vindas à GreenIA', text: 'No chat você resolve tarefas do dia a dia. Os assistentes da sua área fazem trabalhos específicos, como conferir notas ou organizar documentos.' },
+  { title: 'Toda saída passa por revisão', text: 'O que um assistente entrega chega como rascunho. Uma pessoa confere, aprova, edita ou rejeita antes de usar.' },
+  { title: 'Algo deu errado?', text: 'Use Reportar incidente, no topo de qualquer tela: dado enviado sem querer, resposta errada ou inadequada. O key user da área acompanha até o fim.' },
+];
+
+const fmtDate = s => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+const fmtNum = (n, d) => n === null || n === undefined || n === '' ? '—' : Number(n).toLocaleString('pt-BR', { maximumFractionDigits: d === undefined ? 2 : d });
+const fmtBrl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const val = v => v === null || v === undefined ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+const today = () => new Date().toISOString().slice(0, 10);
+const monthAgo = n => { const d = new Date(); d.setMonth(d.getMonth() - n, 1); return d.toISOString().slice(0, 10); };
+const clone = x => JSON.parse(JSON.stringify(x));
+
+const NEW_ASSISTANT = {
+  description: '', objective: '', instructions: '',
+  inputs: { text: { enabled: true }, files: { enabled: true, accept: ['pdf', 'docx', 'xlsx', 'csv', 'texto'] } },
+  dataClasses: ['verde'],
+  pipeline: [{ bloco: 'ler' }, { bloco: 'resumir', params: { topicos: ['Resumo', 'Pontos de atenção'] } }],
+  output: { format: 'texto', files: ['pdf'] },
+  review: { required: true },
+  metrics: { indicators: [] },
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'executar', adminTab: 'assistentes',
+      tenant: null, session: null, booted: false, bootMessage: '',
+      assistants: [], selected: null, runText: '', runFiles: [], runBusy: false, runMsg: '', runWarn: null,
+      currentRun: null, myRuns: [],
+      queue: [], review: null, reviewEdit: null, selItem: null, rejectOpen: false, rejectReason: '', reviewBusy: false, reviewMsg: '',
+      metricSlug: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), metricsMsg: '',
+      valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '' },
+      decForm: { decisao: 'manter', data: today(), responsavel: '', justificativa: '' },
+      adminMsg: '', adminOk: true, editor: null, areas: [],
+      csvText: '', csvReport: null, kbArea: '', kbFiles: [], kbBatch: null,
+      policyForm: { title: '', body: '', rules: '{\n  "restrictedTerms": [],\n  "allowedClasses": ["verde", "amarela", "vermelha"]\n}' }, acks: null,
+      incidents: [], incident: null, incStatus: '', incNote: '',
+      usageMonth: today().slice(0, 7), usage: null,
+      simRows: [{ nome: 'Assistente 1', assistente: '', execucoes: '100', paginas: '2', digitalizado: '0' }], simMensal: '0', sim: null,
+      exports: [],
+      policy: null, policyAcked: true,
+      incidentOpen: false, incForm: { tipo: 'resposta_errada', descricao: '' }, incMsg: '',
+      tourStep: null,
+    };
+    this._timers = [];
+    this._stop = e => e.stopPropagation();
+  }
+
+  componentDidMount() { if (this._api() !== null) this._boot(); }
+  componentWillUnmount() { this._timers.forEach(t => clearTimeout(t)); }
+
+  // ---- Servidor --------------------------------------------------------------
+  _api() {
+    const cfg = (typeof window !== 'undefined' && window.__GREENIA__) || {};
+    const url = (this.props.backendUrl || cfg.backendUrl || '').trim();
+    if (!url) return null;
+    return url === '/' ? '' : url.replace(/\/$/, '');
+  }
+  _tenantQuery() {
+    const fromUrl = new URLSearchParams(location.search).get('tenant');
+    const slug = this.props.tenantSlug || fromUrl || '';
+    return slug ? 'tenant=' + encodeURIComponent(slug) : '';
+  }
+  _url(path) {
+    const q = this._tenantQuery();
+    return (this._api() || '') + path + (q ? (path.includes('?') ? '&' : '?') + q : '');
+  }
+  async _fetch(path, opts = {}) {
+    const headers = { ...(opts.body ? { 'content-type': 'application/json' } : {}) };
+    const csrf = this.state.session && this.state.session.csrfToken;
+    if (opts.method && opts.method !== 'GET' && csrf) headers['x-csrf-token'] = csrf;
+    const r = await fetch(this._url(path), { credentials: 'include', method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    let data = null;
+    try { data = await r.json(); } catch (e) { data = null; }
+    if (r.status === 428) this._loadPolicy();
+    return { ok: r.ok, status: r.status, data: data || {} };
+  }
+  _later(fn, ms) { const t = setTimeout(fn, ms); this._timers.push(t); }
+
+  async _boot() {
+    const t = await this._fetch('/api/tenant/config').catch(() => null);
+    if (!t || !t.ok) { this.setState({ booted: true, bootMessage: 'Não consegui carregar a GreenIA agora. Recarregue a página em instantes.' }); return; }
+    for (const [k, v] of Object.entries(t.data.theme || {})) {
+      if (/^--gia-[a-z-]+$/.test(k) && /^#[0-9A-Fa-f]{6}$/.test(v)) document.documentElement.style.setProperty(k, v);
+    }
+    const s = await this._fetch('/api/session');
+    if (!s.ok) { this.setState({ tenant: t.data, booted: true }); return; }
+    this.setState({ tenant: t.data, session: s.data, booted: true, tourStep: s.data.onboardingDone ? null : 0 });
+    this._loadPolicy();
+    this._loadAssistants();
+    this._loadMyRuns();
+  }
+
+  async _loadPolicy() {
+    const r = await this._fetch('/api/policy');
+    if (r.ok) this.setState({ policy: r.data.policy, policyAcked: r.data.acked });
+  }
+  async ackPolicy() {
+    const p = this.state.policy;
+    if (!p) return;
+    const r = await this._fetch('/api/policy/ack', { method: 'POST', body: { version: p.version } });
+    if (r.ok) this.setState({ policyAcked: true });
+  }
+
+  async _loadAssistants() {
+    const r = await this._fetch('/api/assistants');
+    if (r.ok) this.setState({ assistants: r.data });
+  }
+  async _loadMyRuns() {
+    const r = await this._fetch('/api/runs?escopo=minhas&limit=15');
+    if (r.ok) this.setState({ myRuns: r.data });
+  }
+
+  // ---- Papéis -------------------------------------------------------------------
+  _roles() {
+    const s = this.state.session;
+    if (!s) return { reviewer: false, manager: false, admin: false };
+    const tenantWide = s.roles || [];
+    const inArea = (s.areas || []).map(a => a.role);
+    const admin = tenantWide.includes('admin_cliente') || tenantWide.includes('admin_theneil');
+    const manager = admin || inArea.includes('key_user');
+    const reviewer = manager || tenantWide.includes('revisor') || inArea.includes('revisor');
+    return { reviewer, manager, admin };
+  }
+
+  setTab(tab) {
+    this.setState({ tab, adminMsg: '' });
+    if (tab === 'revisar') this._loadQueue();
+    if (tab === 'admin') this.setAdminTab(this.state.adminTab);
+  }
+
+  // ---- Executar -----------------------------------------------------------------
+  async selectAssistant(slug) {
+    const r = await this._fetch('/api/assistants/' + encodeURIComponent(slug));
+    if (r.ok) this.setState({ selected: r.data, runText: '', runFiles: [], runMsg: '', runWarn: null });
+  }
+
+  onRunFiles(e) {
+    const list = Array.from(e.target.files || []);
+    Promise.all(list.map(f => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: f.name, size: f.size, mime: f.type || 'application/octet-stream', b64: String(reader.result).split(',')[1] || '' });
+      reader.readAsDataURL(f);
+    }))).then(runFiles => this.setState({ runFiles }));
+  }
+
+  async submitRun(confirmed) {
+    const sel = this.state.selected;
+    if (!sel || this.state.runBusy) return;
+    this.setState({ runBusy: true, runMsg: 'Enviando...', runWarn: null });
+    const body = { assistant: sel.slug, text: this.state.runText, files: this.state.runFiles.map(f => ({ name: f.name, mime: f.mime, contentBase64: f.b64 })), confirmedWarnings: confirmed || [] };
+    const r = await this._fetch('/api/runs', { method: 'POST', body });
+    if (r.status === 409 && r.data.error === 'confirmacao_necessaria') {
+      this.setState({ runBusy: false, runMsg: '', runWarn: { types: r.data.types } });
+      return;
+    }
+    if (!r.ok) {
+      this.setState({ runBusy: false, runMsg: this._errorText(r) });
+      return;
+    }
+    this.setState({ runMsg: 'Processando. A saída aparece aqui quando ficar pronta.' });
+    this._pollRun(r.data.runId, 0);
+  }
+
+  _errorText(r) {
+    const e = r.data.error;
+    if (e === 'dado_bloqueado') return 'Não enviado: o texto ou os arquivos têm ' + (r.data.types || []).map(t => TYPE_LABEL[t] || t).join(', ') + '. Procure o key user da área.';
+    if (e === 'ciencia_da_politica_pendente') return 'Registre ciência da Política de Uso de IA para continuar.';
+    if (e === 'tipo_nao_aceito') return 'O arquivo ' + r.data.arquivo + ' não é de um tipo aceito por este assistente.';
+    if (e === 'arquivo_grande_demais') return 'O arquivo ' + r.data.arquivo + ' passa do limite de ' + r.data.limiteMb + ' MB.';
+    if (e === 'arquivo_obrigatorio') return 'Envie pelo menos um arquivo.';
+    if (e === 'texto_obrigatorio') return 'Escreva o texto pedido.';
+    if (e === 'cota_mensal_esgotada') return 'A cota de consumo do mês acabou. Fale com o administrador.';
+    if (e === 'muitas_requisicoes' || e === 'muitas_requisicoes_no_cliente') return 'Muitos envios seguidos. Tente de novo em instantes.';
+    if (r.data.detalhes) return 'Não foi possível: ' + r.data.detalhes.join('; ');
+    return 'Não foi possível agora (' + (e || r.status) + '). Tente de novo.';
+  }
+
+  async _pollRun(id, n) {
+    const r = await this._fetch('/api/runs/' + id);
+    if (r.ok && r.data.status === 'processando' && n < 90) { this._later(() => this._pollRun(id, n + 1), 1500); return; }
+    this.setState({ runBusy: false, runMsg: '', currentRun: r.ok ? r.data : null });
+    this._loadMyRuns();
+  }
+  async openRun(id) {
+    const r = await this._fetch('/api/runs/' + id);
+    if (r.ok) this.setState({ currentRun: r.data, tab: 'executar' });
+  }
+
+  // ---- Seções do resultado → tabelas (leitura ou edição) -----------------------------------
+  _sectionView(s, edit, onEdit, runId) {
+    const d = s.data || {};
+    const out = { id: s.id, title: s.titulo, paragraphs: [], flags: (s.flags || []).map(f => (f.ref ? f.ref + ': ' : '') + f.reason), columns: [], rows: [], removable: false };
+    const text = t => ({ isText: true, text: val(t) });
+    const input = (label, value, set, area) => edit ? { isInput: !area, isArea: !!area, label, value: val(value), onInput: e => set(e.target.value) } : text(value);
+    const select = (label, value, options, set) => edit ? { isSelect: true, label, value, options, onInput: e => set(e.target.value) } : text(value);
+    const pick = (i, origins) => ({ sectionId: s.id, index: i, origins });
+    const remove = (list, i) => () => onEdit(data => { data[list].splice(i, 1); });
+    if (s.kind === 'documentos') {
+      out.columns = ['Arquivo', 'Tipo', 'Leitura', 'Páginas', 'Avisos'];
+      out.rows = d.map((x, i) => ({ cells: [text(x.arquivo), text(KIND_LABEL[x.tipo] || x.tipo), text(x.leitura), text(x.paginas), text((x.avisos || []).join('; '))], pick: pick(i, [{ label: 'Arquivo', text: x.arquivo }]) }));
+    } else if (s.kind === 'divergencias') {
+      const L = d.rotulos.esquerda, R = d.rotulos.direita;
+      out.paragraphs = [d.resumo.pares + ' registros comparados, ' + d.divergencias.length + ' divergências.'];
+      out.columns = ['Chave', 'Campo', 'Divergência', L, R];
+      out.removable = edit;
+      out.rows = d.divergencias.map((x, i) => ({
+        cells: [text(x.chave), text(x.campo), text(x.motivo), text(x.esquerda ? x.esquerda.valor : ''), text(x.direita ? x.direita.valor : '')],
+        pick: pick(i, [{ label: L, text: x.esquerda ? val(x.esquerda.valor) + ' (' + x.esquerda.origem + ')' : 'sem registro' }, { label: R, text: x.direita ? val(x.direita.valor) + ' (' + x.direita.origem + ')' : 'sem registro' }]),
+        onRemove: remove('divergencias', i),
+      }));
+    } else if (s.kind === 'checklist') {
+      out.paragraphs = ['Presentes: ' + d.resumo.presente + '; ausentes: ' + d.resumo.ausente + '; duvidosos: ' + d.resumo.duvidoso + '.'];
+      if (d.naoIdentificados.length) out.paragraphs.push('Arquivos não identificados: ' + d.naoIdentificados.join(', ') + '.');
+      out.columns = ['Item', 'Obrigatório', 'Situação', 'Observação'];
+      out.rows = d.itens.map((x, i) => ({
+        cells: [text(x.nome), text(x.obrigatorio ? 'sim' : 'não'), select('Situação de ' + x.nome, x.status, ['presente', 'ausente', 'duvidoso'], v => onEdit(data => { data.itens[i].status = v; })), input('Observação de ' + x.nome, x.motivo, v => onEdit(data => { data.itens[i].motivo = v; }))],
+        pick: pick(i, x.evidencias.length ? x.evidencias.map(e => ({ label: e.arquivo, text: e.como })) : [{ label: 'Evidência', text: 'nenhum arquivo corresponde' }]),
+      }));
+    } else if (s.kind === 'campos') {
+      out.columns = ['Documento', 'Campo', 'Valor'];
+      d.forEach((ex, di) => {
+        if (!ex.valido) out.flags.push(ex.arquivo + ': ' + ex.erros.join('; '));
+        Object.keys(ex.campos || {}).forEach(k => {
+          const o = ex.origem.filter(x => x.campo === k || x.campo.indexOf(k + '.') === 0);
+          out.rows.push({
+            cells: [text(ex.arquivo), text(k), input(k, ex.campos[k], v => onEdit(data => { const old = data[di].campos[k]; data[di].campos[k] = typeof old === 'number' && v !== '' && !isNaN(Number(v)) ? Number(v) : v; }))],
+            pick: pick(out.rows.length, o.length ? o.map(x => ({ label: 'Página ' + (x.pagina || '?') + (x.confere === false ? ' (trecho não encontrado no documento)' : ''), text: x.trecho })) : [{ label: 'Origem', text: 'sem origem indicada' }]),
+          });
+        });
+      });
+    } else if (s.kind === 'classificacao') {
+      out.columns = ['Arquivo', 'Categoria', 'Período', 'Nome sugerido'];
+      out.rows = d.indice.map((x, i) => ({
+        cells: [text(x.arquivo), input('Categoria de ' + x.arquivo, x.categoria || '', v => onEdit(data => { data.indice[i].categoria = v || null; data.indice[i].categoriaNome = v || 'Não classificado'; })),
+          input('Período de ' + x.arquivo, x.periodo || '', v => onEdit(data => { data.indice[i].periodo = v || null; })), input('Nome sugerido de ' + x.arquivo, x.nomeSugerido, v => onEdit(data => { data.indice[i].nomeSugerido = v; }))],
+        pick: pick(i, [{ label: x.arquivo, text: 'classificado por ' + x.como + ', confiança ' + x.confianca }]),
+      }));
+    } else if (s.kind === 'resposta') {
+      out.paragraphs = ['Pergunta: ' + d.pergunta];
+      out.columns = ['Resposta'];
+      out.rows = [{ cells: [input('Resposta', d.resposta, v => onEdit(data => { data.resposta = v; }), true)], pick: pick(0, d.fontes.length ? d.fontes.map(f => ({ label: f.title, text: 'versão ' + f.version })) : [{ label: 'Fontes', text: 'a base não cobre a pergunta' }]) }];
+    } else if (s.kind === 'busca') {
+      out.columns = ['Origem', 'Documento', 'Trecho'];
+      out.removable = edit;
+      out.rows = d.resultados.map((x, i) => ({ cells: [text(x.origem === 'base' ? 'base de conhecimento' : 'arquivo enviado'), text(x.titulo), text(x.trecho)], pick: pick(i, [{ label: x.titulo, text: x.trecho }]), onRemove: remove('resultados', i) }));
+    } else if (s.kind === 'resumo') {
+      out.columns = ['Tópico', 'Texto'];
+      out.rows = d.topicos.map((x, i) => ({ cells: [text(x.titulo), input(x.titulo, x.texto, v => onEdit(data => { data.topicos[i].texto = v; }), true)], pick: pick(i, (d.fontes || []).map(f => ({ label: 'Fonte', text: f }))) }));
+    } else {
+      return null;
+    }
+    const sel = this.state.selItem;
+    out.rows = out.rows.map((r, i) => ({
+      ...r, removable: out.removable,
+      cls: sel && sel.sectionId === s.id && sel.index === i ? 'is-selected' : '',
+      onSelect: () => this.setState({ selItem: r.pick }),
+    }));
+    out.hasRows = out.rows.length > 0;
+    void runId;
+    return out;
+  }
+
+  _exportLinks(run) {
+    if (!run || (run.status !== 'aprovado' && run.status !== 'aprovado_com_edicao')) return [];
+    return (run.exportFormats || []).map(f => ({ label: f.toUpperCase(), href: this._url('/api/runs/' + run.id + '/export?format=' + f) }));
+  }
+
+  // ---- Revisão -----------------------------------------------------------------------------
+  async _loadQueue() {
+    const r = await this._fetch('/api/runs?escopo=revisar&status=rascunho');
+    if (r.ok) this.setState({ queue: r.data });
+  }
+  async openReview(id) {
+    const r = await this._fetch('/api/runs/' + id);
+    if (r.ok) this.setState({ tab: 'revisar', review: r.data, reviewEdit: null, selItem: null, rejectOpen: false, rejectReason: '', reviewMsg: '' });
+  }
+  toggleEdit() {
+    const rv = this.state.review;
+    if (!rv) return;
+    this.setState({ reviewEdit: this.state.reviewEdit ? null : clone(rv.result.sections) });
+  }
+  _edit(sectionId, fn) {
+    const sections = clone(this.state.reviewEdit);
+    const s = sections.find(x => x.id === sectionId);
+    fn(s.data);
+    if (s.kind === 'divergencias') s.data.resumo.divergencias = s.data.divergencias.length;
+    if (s.kind === 'checklist') { const r = { presente: 0, ausente: 0, duvidoso: 0 }; s.data.itens.forEach(i => { r[i.status]++; }); s.data.resumo = r; }
+    this.setState({ reviewEdit: sections });
+  }
+  async decide(decisao) {
+    const rv = this.state.review;
+    if (!rv || this.state.reviewBusy) return;
+    const body = { decisao };
+    if (decisao === 'rejeitado') body.motivo = this.state.rejectReason;
+    if (decisao === 'aprovado_com_edicao') body.resultadoEditado = { sections: this.state.reviewEdit };
+    this.setState({ reviewBusy: true });
+    const r = await this._fetch('/api/runs/' + rv.id + '/review', { method: 'POST', body });
+    if (!r.ok) {
+      const msg = r.data.error === 'motivo_obrigatorio' ? 'Escreva o motivo da rejeição.' : r.data.error === 'autor_nao_revisa' ? 'Quem executou não revisa a própria saída.' : 'Não foi possível registrar a revisão (' + (r.data.error || r.status) + ').';
+      this.setState({ reviewBusy: false, reviewMsg: msg });
+      return;
+    }
+    const again = await this._fetch('/api/runs/' + rv.id);
+    this.setState({ reviewBusy: false, review: again.data, reviewEdit: null, rejectOpen: false, reviewMsg: 'Revisão registrada: ' + (STATUS_LABEL[r.data.status] || r.data.status) + '.' });
+    this._loadQueue();
+  }
+
+  // ---- Resultados ----------------------------------------------------------------------------
+  async loadMetrics() {
+    const slug = this.state.metricSlug;
+    if (!slug) return;
+    const r = await this._fetch('/api/metrics/assistants/' + encodeURIComponent(slug) + '?de=' + this.state.metricsFrom + '&ate=' + this.state.metricsTo);
+    this.setState(r.ok ? { metrics: r.data } : { metrics: null, metricsMsg: 'Não foi possível carregar os resultados.' });
+  }
+  async saveValue() {
+    const f = this.state.valForm;
+    const body = { indicador: f.indicador, fase: f.fase, valor: Number(String(f.valor).replace(',', '.')), origem: f.origem };
+    if (f.origem === 'medido') Object.assign(body, { periodoInicio: f.periodoInicio || undefined, periodoFim: f.periodoFim || undefined, metodo: f.metodo || undefined });
+    else body.informadoPor = f.informadoPor || undefined;
+    const r = await this._fetch('/api/metrics/assistants/' + encodeURIComponent(this.state.metricSlug) + '/values', { method: 'POST', body });
+    this.setState({ metricsMsg: r.ok ? 'Valor registrado.' : 'Não registrado: ' + ((r.data.detalhes || []).join('; ') || r.data.error) });
+    if (r.ok) this.loadMetrics();
+  }
+  async saveDecision() {
+    const r = await this._fetch('/api/metrics/assistants/' + encodeURIComponent(this.state.metricSlug) + '/decisions', { method: 'POST', body: this.state.decForm });
+    this.setState({ metricsMsg: r.ok ? 'Decisão registrada.' : 'Não registrada: ' + ((r.data.detalhes || []).join('; ') || r.data.error) });
+    if (r.ok) this.loadMetrics();
+  }
+
+  // ---- Administração -------------------------------------------------------------------------
+  _msg(text, ok) { this.setState({ adminMsg: text, adminOk: ok !== false }); }
+  async setAdminTab(adminTab) {
+    this.setState({ adminTab, adminMsg: '' });
+    if (adminTab === 'assistentes') this._loadAssistants();
+    if (adminTab === 'base' || adminTab === 'assistentes') {
+      const r = await this._fetch('/api/admin/areas');
+      if (r.ok) this.setState({ areas: r.data });
+    }
+    if (adminTab === 'politica') this._loadAcks();
+    if (adminTab === 'incidentes') this._loadIncidents();
+    if (adminTab === 'exportacao') this._loadExports();
+  }
+  newAssistant() {
+    this.setState({ editor: { existing: false, slug: '', name: '', area: '', status: 'rascunho', json: JSON.stringify(NEW_ASSISTANT, null, 2), versions: '' } });
+  }
+  async editAssistant(slug) {
+    const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(slug));
+    if (!r.ok) { this._msg('Sem permissão para editar este assistente.', false); return; }
+    const d = r.data;
+    this.setState({ editor: { existing: true, slug: d.slug, name: d.name, area: d.area || '', status: d.status, json: JSON.stringify(d.definition, null, 2),
+      versions: 'Versão atual: ' + d.version + '. Histórico: ' + d.versions.map(v => 'v' + v.version + ' (' + fmtDate(v.created_at) + ')').join(', ') + '.' }, adminMsg: '' });
+  }
+  async saveAssistant() {
+    const ed = this.state.editor;
+    let definition;
+    try { definition = JSON.parse(ed.json); } catch (e) { this._msg('A definição não é um JSON válido: ' + e.message, false); return; }
+    const r = ed.existing
+      ? await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/versions', { method: 'POST', body: { definition, name: ed.name, status: ed.status } })
+      : await this._fetch('/api/admin/assistants', { method: 'POST', body: { slug: ed.slug, name: ed.name, areaSlug: ed.area || undefined, status: ed.status, definition } });
+    if (!r.ok) { this._msg('Não gravado: ' + ((r.data.detalhes || []).join('\n') || r.data.error || r.status), false); return; }
+    this._msg('Gravado como versão ' + r.data.version + '.');
+    this.editAssistant(r.data.slug);
+    this._loadAssistants();
+  }
+  async changeStatus() {
+    const ed = this.state.editor;
+    const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/status', { method: 'POST', body: { status: ed.status } });
+    if (!r.ok) { this._msg('Status não alterado: ' + (r.data.error === 'classe_nao_permitida_pela_politica' ? 'a Política de Uso não permite a classe ' + r.data.classes.join(', ') : r.data.error), false); return; }
+    this._msg('Status: ' + r.data.status + ' (versão ' + r.data.version + ').');
+    this.editAssistant(ed.slug);
+  }
+
+  onCsvFile(e) {
+    const f = (e.target.files || [])[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => this.setState({ csvText: String(reader.result) });
+    reader.readAsText(f);
+  }
+  async importCsv(simular) {
+    const r = await this._fetch('/api/admin/users/import', { method: 'POST', body: { csv: this.state.csvText, simular: !!simular } });
+    if (!r.ok) { this._msg('Não importado: ' + (r.data.error || r.status), false); this.setState({ csvReport: null }); return; }
+    this.setState({ csvReport: r.data, adminMsg: '' });
+  }
+
+  onKbFiles(e) {
+    const list = Array.from(e.target.files || []);
+    Promise.all(list.map(f => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: f.name, contentBase64: String(reader.result).split(',')[1] || '' });
+      reader.readAsDataURL(f);
+    }))).then(kbFiles => this.setState({ kbFiles }));
+  }
+  async importKb() {
+    if (!this.state.kbFiles.length) { this._msg('Escolha os arquivos.', false); return; }
+    const r = await this._fetch('/api/kb/import', { method: 'POST', body: { areaSlug: this.state.kbArea || undefined, files: this.state.kbFiles } });
+    if (!r.ok) { this._msg('Não importado: ' + (r.data.error || r.status), false); return; }
+    const refused = r.data.documentos.filter(d => d.erro).map(d => d.arquivo + ': ' + d.erro);
+    this._msg(r.data.aceitos + ' aceito(s).' + (refused.length ? ' Recusados: ' + refused.join('; ') : ''), !refused.length);
+    this._pollKb(r.data.lote, 0);
+  }
+  async _pollKb(lote, n) {
+    const r = await this._fetch('/api/kb/import/' + lote);
+    if (!r.ok) return;
+    this.setState({ kbBatch: r.data });
+    if (r.data.resumo.pendentes && n < 60) this._later(() => this._pollKb(lote, n + 1), 2000);
+  }
+
+  async publishPolicy() {
+    const f = this.state.policyForm;
+    let rules;
+    try { rules = JSON.parse(f.rules || '{}'); } catch (e) { this._msg('As regras não são um JSON válido.', false); return; }
+    const r = await this._fetch('/api/admin/policy', { method: 'POST', body: { title: f.title, body: f.body, rules } });
+    if (!r.ok) { this._msg('Não publicada: ' + ((r.data.detalhes || []).join('; ') || r.data.error), false); return; }
+    const conflicts = r.data.conflitos.map(c => c.slug + ' (' + c.classes.join(', ') + ')');
+    this._msg('Versão ' + r.data.version + ' publicada.' + (conflicts.length ? ' Assistentes com classe que a política não permite: ' + conflicts.join('; ') + '.' : ''));
+    this._loadAcks();
+    this._loadPolicy();
+  }
+  async _loadAcks() {
+    const r = await this._fetch('/api/admin/policy/acks');
+    if (r.ok) this.setState({ acks: r.data });
+  }
+
+  async _loadIncidents() {
+    const r = await this._fetch('/api/incidents');
+    if (r.ok) this.setState({ incidents: r.data });
+  }
+  async openIncidentDetail(id) {
+    const r = await this._fetch('/api/incidents/' + id);
+    if (r.ok) this.setState({ incident: r.data, incStatus: '', incNote: '' });
+  }
+  async saveIncident() {
+    const i = this.state.incident;
+    if (!i || !this.state.incStatus) return;
+    const r = await this._fetch('/api/incidents/' + i.id + '/status', { method: 'POST', body: { status: this.state.incStatus, nota: this.state.incNote || undefined } });
+    if (!r.ok) { this._msg(r.data.error === 'nota_obrigatoria' ? 'Escreva uma nota para resolver ou encerrar.' : 'Não atualizado: ' + r.data.error, false); return; }
+    this._msg('Incidente atualizado.');
+    this.openIncidentDetail(i.id);
+    this._loadIncidents();
+  }
+
+  async loadUsage() {
+    const r = await this._fetch('/api/usage/report?mes=' + this.state.usageMonth);
+    if (!r.ok) { this._msg('Sem permissão ou mês inválido.', false); return; }
+    this.setState({ usage: r.data, adminMsg: '' });
+  }
+  setSim(i, k, v) { const rows = clone(this.state.simRows); rows[i][k] = v; this.setState({ simRows: rows }); }
+  addSimRow() { this.setState({ simRows: this.state.simRows.concat([{ nome: 'Assistente ' + (this.state.simRows.length + 1), assistente: '', execucoes: '100', paginas: '1', digitalizado: '0' }]) }); }
+  async runSim() {
+    const num = v => Number(String(v).replace(',', '.')) || 0;
+    const body = { mensalidadeBrl: num(this.state.simMensal), itens: this.state.simRows.map(r => ({ nome: r.nome || 'Assistente', assistente: r.assistente || undefined, execucoesPorMes: Math.round(num(r.execucoes)), paginasPorExecucao: num(r.paginas), percentualDigitalizado: num(r.digitalizado) })) };
+    const r = await this._fetch('/api/usage/simulate', { method: 'POST', body });
+    if (!r.ok) { this._msg('Não simulado: ' + ((r.data.detalhes || []).join('; ') || r.data.error), false); return; }
+    this.setState({ sim: r.data, adminMsg: '' });
+  }
+
+  async _loadExports() {
+    const r = await this._fetch('/api/admin/exports');
+    if (r.ok) {
+      this.setState({ exports: r.data });
+      if (r.data.some(x => x.status === 'processando')) this._later(() => this._loadExports(), 2500);
+    }
+  }
+  async requestExport() {
+    const r = await this._fetch('/api/admin/exports', { method: 'POST', body: {} });
+    this._msg(r.ok ? 'Exportação pedida. O arquivo aparece na lista quando ficar pronto.' : 'Não foi possível pedir a exportação.', r.ok);
+    this._loadExports();
+  }
+
+  // ---- Incidente, roteiro -------------------------------------------------------------------
+  openIncident() { this.setState({ incidentOpen: true, incMsg: '' }); }
+  async sendIncident() {
+    const f = this.state.incForm;
+    const runId = this.state.tab === 'revisar' && this.state.review ? this.state.review.id : (this.state.currentRun ? this.state.currentRun.id : undefined);
+    const r = await this._fetch('/api/incidents', { method: 'POST', body: { tipo: f.tipo, descricao: f.descricao, runId, tela: 'assistentes:' + this.state.tab } });
+    if (!r.ok) { this.setState({ incMsg: r.data.error === 'dados_invalidos' ? 'Descreva o que aconteceu (pelo menos 10 caracteres).' : 'Não foi possível enviar agora.' }); return; }
+    this.setState({ incMsg: 'Incidente ' + r.data.codigo + ' registrado. O key user da área vai acompanhar.', incForm: { tipo: 'resposta_errada', descricao: '' } });
+  }
+  async tourDone() {
+    this.setState({ tourStep: null });
+    await this._fetch('/api/me/onboarding', { method: 'POST', body: {} });
+  }
+
+  renderVals() {
+    const st = this.state;
+    const backend = this._api() !== null;
+    const authed = !!st.session;
+    const roles = this._roles();
+    const tabDefs = [['executar', 'Assistentes', true], ['revisar', 'Revisão', roles.reviewer], ['resultados', 'Resultados', roles.manager], ['admin', 'Administração', roles.manager]];
+    const tabs = authed ? tabDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.tab === t[0] ? 'page' : 'false', bg: st.tab === t[0] ? 'rgba(255,255,255,0.16)' : 'transparent', onClick: () => this.setTab(t[0]) })) : [];
+    const chatHref = this._url('/GreenIA.dc.html');
+
+    // Executar
+    const runnable = st.assistants.filter(a => a.tipo === 'execucao' && (a.status === 'piloto' || a.status === 'ativo'));
+    const sel = st.selected;
+    const acceptText = sel ? (sel.inputs.files.accept || []).map(k => KIND_LABEL[k] || k).join(', ') : '';
+    const cr = st.currentRun;
+    const runView = cr ? {
+      title: cr.assistantName + ' · versão ' + cr.version,
+      status: (STATUS_LABEL[cr.status] || cr.status) + (cr.pages ? ' · ' + cr.pages + ' página(s)' : ''),
+      statusColor: STATUS_COLOR[cr.status] || 'var(--gia-forest-text)',
+      error: cr.error || '',
+      sections: ((cr.editedResult || cr.result || {}).sections || []).map(s => this._sectionView(s, false, () => {}, cr.id)).filter(Boolean),
+      canOpenReview: !!cr.canReview,
+      openReview: () => this.openReview(cr.id),
+      exports: this._exportLinks(cr),
+    } : null;
+
+    // Revisão
+    const rvRun = st.review;
+    const editing = !!st.reviewEdit;
+    const rvSections = rvRun ? (editing ? st.reviewEdit : ((rvRun.editedResult || rvRun.result || {}).sections || [])) : [];
+    const allFlags = [];
+    rvSections.forEach(s => (s.flags || []).forEach(f => allFlags.push((f.ref ? f.ref + ': ' : '') + f.reason)));
+    const rv = rvRun ? {
+      title: rvRun.assistantName + ' · versão ' + rvRun.version,
+      meta: 'Enviada por ' + rvRun.user + ' em ' + fmtDate(rvRun.createdAt) + ' · ' + (STATUS_LABEL[rvRun.status] || rvRun.status) + (rvRun.review ? ' · revisada por ' + rvRun.review.by + (rvRun.review.reason ? ': ' + rvRun.review.reason : '') : ''),
+      canDecide: !!rvRun.canReview,
+      approveLabel: editing ? 'Salvar edição e aprovar' : 'Aprovar',
+      editLabel: editing ? 'Descartar edição' : 'Editar',
+      sections: rvSections.map(s => this._sectionView(s, editing, fn => this._edit(s.id, fn), rvRun.id)).filter(Boolean),
+      files: (rvRun.files || []).map(f => ({ label: f.name + (f.pages ? ' · ' + f.pages + ' p.' : ''), href: this._url('/api/runs/' + rvRun.id + '/files/' + f.id) })),
+      text: rvRun.text || '',
+      flags: allFlags, noFlags: !allFlags.length,
+      checklist: rvRun.reviewChecklist || [], hasChecklist: !!(rvRun.reviewChecklist && rvRun.reviewChecklist.length),
+      exports: this._exportLinks(rvRun), hasExports: this._exportLinks(rvRun).length > 0,
+    } : null;
+    const origins = (st.selItem && st.selItem.origins) || [];
+
+    // Resultados
+    const m = st.metrics;
+    const met = m ? {
+      aviso: m.aviso || '',
+      pdfHref: this._url('/api/metrics/assistants/' + encodeURIComponent(st.metricSlug) + '/report?format=pdf&de=' + st.metricsFrom + '&ate=' + st.metricsTo),
+      xlsxHref: this._url('/api/metrics/assistants/' + encodeURIComponent(st.metricSlug) + '/report?format=xlsx&de=' + st.metricsFrom + '&ate=' + st.metricsTo),
+      indicators: m.indicadores.map(i => ({
+        label: i.label + (i.unit ? ' (' + i.unit + ')' : ''),
+        antes: i.antes ? fmtNum(i.antes.valor) : '—', antesOrigem: i.antes ? i.antes.origem.tipo + ': ' + i.antes.origem.detalhe : 'sem ponto de partida',
+        depois: i.depois ? fmtNum(i.depois.valor) : '—', depoisOrigem: i.depois ? i.depois.origem.tipo + ': ' + i.depois.origem.detalhe : 'sem medição',
+        diff: i.comparacao ? fmtNum(i.comparacao.diferenca) + (i.comparacao.percentual !== null ? ' (' + fmtNum(i.comparacao.percentual, 1) + '%)' : '') : '—',
+        situacao: i.lacuna || (i.comparacao && i.comparacao.melhorou ? 'melhorou' : 'não melhorou'),
+      })),
+      acumulados: m.indicadores.filter(i => i.acumuladoNoPeriodo).map(i => i.label + ': ' + fmtNum(i.acumuladoNoPeriodo.valor, 1) + ' h no período = ' + i.acumuladoNoPeriodo.calculo),
+      indicatorKeys: m.indicadores.map(i => ({ key: i.key, label: i.label })),
+      auto: [
+        ['Execuções', m.execucoes.execucoes], ['Pessoas que usaram', m.execucoes.usuariosAtivos], ['Tempo médio de processamento (s)', fmtNum(m.execucoes.tempoProcessamentoS)],
+        ['Tempo médio até a revisão (min)', fmtNum(m.execucoes.tempoAteRevisaoMin)], ['Aprovação sem edição (%)', fmtNum(m.execucoes.aprovacaoSemEdicaoPct, 1)],
+        ['Divergências encontradas', m.execucoes.divergenciasTotal], ['Pendências encontradas', m.execucoes.pendenciasTotal], ['Páginas processadas', m.execucoes.consumo.paginas],
+        ['Consumo de IA', fmtBrl(m.execucoes.consumo.custoBrl)],
+      ].map(x => ({ k: x[0], v: x[1] })),
+      monthly: m.mensal.map(x => ({ mes: x.mes, execucoes: x.execucoes, usuarios: x.usuarios, aprovadas: x.aprovadas, edicao: x.aprovadas_com_edicao, rejeitadas: x.rejeitadas, custo: fmtBrl(x.custo_brl) })),
+      decisions: m.decisoes.map(d => ({ head: d.data + ' · ' + d.decisao.toUpperCase() + ' · ' + d.responsavel, text: d.justificativa })),
+      noDecisions: !m.decisoes.length,
+    } : null;
+    const onVal = {}, onDec = {}, onEditor = {}, onPolicy = {}, onIncForm = {};
+    Object.keys(st.valForm).forEach(k => { onVal[k] = e => this.setState({ valForm: { ...this.state.valForm, [k]: e.target.value } }); });
+    Object.keys(st.decForm).forEach(k => { onDec[k] = e => this.setState({ decForm: { ...this.state.decForm, [k]: e.target.value } }); });
+    ['slug', 'name', 'area', 'status', 'json'].forEach(k => { onEditor[k] = e => this.setState({ editor: { ...this.state.editor, [k]: e.target.value } }); });
+    Object.keys(st.policyForm).forEach(k => { onPolicy[k] = e => this.setState({ policyForm: { ...this.state.policyForm, [k]: e.target.value } }); });
+    Object.keys(st.incForm).forEach(k => { onIncForm[k] = e => this.setState({ incForm: { ...this.state.incForm, [k]: e.target.value } }); });
+
+    // Administração
+    const adminDefs = [['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
+      ['politica', 'Política de Uso', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin]];
+    const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
+    const ed = st.editor;
+    const u = st.usage;
+    const inc = st.incident;
+    const policy = st.policy;
+    const tourData = st.tourStep !== null ? TOUR[st.tourStep] : null;
+
+    return {
+      authed,
+      noBackend: !backend,
+      bootMessage: st.bootMessage,
+      needLogin: backend && st.booted && !authed && !st.bootMessage,
+      tabs,
+      chatHref,
+      userEmail: authed ? st.session.user.email : '',
+      stop: this._stop,
+      openIncident: () => this.openIncident(),
+
+      showRun: authed && st.tab === 'executar',
+      assistantList: runnable.map(a => ({ name: a.name, meta: (a.areaName || 'Geral') + ' · ' + a.status, pressed: sel && sel.slug === a.slug ? 'true' : 'false', bg: sel && sel.slug === a.slug ? 'var(--gia-mint)' : 'var(--gia-paper)', onClick: () => this.selectAssistant(a.slug) })),
+      noAssistants: runnable.length === 0,
+      myRuns: st.myRuns.map(r => ({ assistant: r.assistant_name, when: fmtDate(r.created_at), status: STATUS_LABEL[r.status] || r.status, statusColor: STATUS_COLOR[r.status] || 'var(--gia-forest-text)', onClick: () => this.openRun(r.id) })),
+      noSelection: !sel,
+      selected: !!sel,
+      sel: sel ? { name: sel.name, meta: (sel.area || 'Geral') + ' · versão ' + sel.version + ' · ' + sel.status, description: [sel.description, sel.objective].filter(Boolean).join(' '), textEnabled: sel.inputs.text.enabled, textLabel: sel.inputs.text.label, filesEnabled: sel.inputs.files.enabled, accept: acceptText, guideHref: this._url('/api/assistants/' + encodeURIComponent(sel.slug) + '/guide') } : {},
+      runText: st.runText,
+      onRunText: e => this.setState({ runText: e.target.value }),
+      onRunFiles: e => this.onRunFiles(e),
+      runFiles: st.runFiles.map(f => ({ label: f.name + ' · ' + fmtNum(f.size / 1024, 0) + ' KB' })),
+      runWarn: !!st.runWarn,
+      runWarnText: st.runWarn ? 'Seu envio parece conter ' + st.runWarn.types.map(t => TYPE_LABEL[t] || t).join(', ') + '. Enviar mesmo assim?' : '',
+      confirmRun: () => this.submitRun(st.runWarn ? st.runWarn.types : []),
+      cancelWarn: () => this.setState({ runWarn: null }),
+      submitRun: () => this.submitRun([]),
+      runBusy: st.runBusy,
+      runMsg: st.runMsg,
+      hasRunView: !!runView,
+      runView: runView || {},
+
+      showReview: authed && st.tab === 'revisar',
+      noReviewOpen: !rvRun,
+      reviewOpen: !!rvRun,
+      queue: st.queue.map(q => ({ assistant: q.assistant_name, user: q.user_email, meta: fmtDate(q.created_at) + ' · ' + q.flags + ' ponto(s) de atenção', onClick: () => this.openReview(q.id) })),
+      queueEmpty: st.queue.length === 0,
+      closeReview: () => { this.setState({ review: null, reviewEdit: null, selItem: null }); this._loadQueue(); },
+      rv: rv || {},
+      approve: () => this.decide(editing ? 'aprovado_com_edicao' : 'aprovado'),
+      toggleEdit: () => this.toggleEdit(),
+      openReject: () => this.setState({ rejectOpen: !this.state.rejectOpen }),
+      rejectOpen: st.rejectOpen,
+      rejectReason: st.rejectReason,
+      onRejectReason: e => this.setState({ rejectReason: e.target.value }),
+      reject: () => this.decide('rejeitado'),
+      reviewBusy: st.reviewBusy,
+      reviewMsg: st.reviewMsg,
+      origins,
+      noOrigin: !origins.length,
+
+      showResults: authed && st.tab === 'resultados',
+      manageable: st.assistants.filter(a => a.podeGerenciar).map(a => ({ slug: a.slug, name: a.name })),
+      metricSlug: st.metricSlug,
+      onMetricSlug: e => this.setState({ metricSlug: e.target.value }, () => this.loadMetrics()),
+      metricsFrom: st.metricsFrom,
+      onMetricsFrom: e => this.setState({ metricsFrom: e.target.value }),
+      metricsTo: st.metricsTo,
+      onMetricsTo: e => this.setState({ metricsTo: e.target.value }),
+      loadMetrics: () => this.loadMetrics(),
+      hasMetrics: !!met,
+      met: met || {},
+      metricsMsg: st.metricsMsg,
+      valForm: st.valForm,
+      onVal,
+      valMedido: st.valForm.origem === 'medido',
+      valInformado: st.valForm.origem === 'informado',
+      decForm: st.decForm,
+      onDec,
+      saveValue: () => this.saveValue(),
+      saveDecision: () => this.saveDecision(),
+
+      showAdmin: authed && st.tab === 'admin',
+      adminTabs,
+      adminMsg: st.adminMsg,
+      adminMsgColor: st.adminOk ? 'var(--gia-forest-text)' : 'var(--gia-red-text)',
+      admAssistants: st.adminTab === 'assistentes',
+      admPeople: st.adminTab === 'pessoas',
+      admKb: st.adminTab === 'base',
+      admPolicy: st.adminTab === 'politica',
+      admIncidents: st.adminTab === 'incidentes',
+      admUsage: st.adminTab === 'consumo',
+      admExport: st.adminTab === 'exportacao',
+      newAssistant: () => this.newAssistant(),
+      adminAssistants: st.assistants.filter(a => a.podeGerenciar).map(a => ({ name: a.name, meta: (a.areaName || 'Geral') + ' · ' + a.status + ' · v' + a.version + ' · ' + a.tipo, onClick: () => this.editAssistant(a.slug) })),
+      hasEditor: !!ed,
+      noEditor: !ed,
+      editor: ed || {},
+      onEditor,
+      editorExisting: !!(ed && ed.existing),
+      editorSaveLabel: ed && ed.existing ? 'Gravar nova versão' : 'Criar assistente',
+      editorVersions: ed ? ed.versions : '',
+      editorLinks: ed && ed.existing ? { zip: this._url('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/package'), md: this._url('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/package?format=md'), guide: this._url('/api/assistants/' + encodeURIComponent(ed.slug) + '/guide') } : {},
+      saveAssistant: () => this.saveAssistant(),
+      changeStatus: () => this.changeStatus(),
+      onCsvFile: e => this.onCsvFile(e),
+      csvText: st.csvText,
+      onCsvText: e => this.setState({ csvText: e.target.value }),
+      simulateCsv: () => this.importCsv(true),
+      importCsv: () => this.importCsv(false),
+      hasCsvReport: !!st.csvReport,
+      csvSummary: st.csvReport ? (st.csvReport.simulado ? 'Simulação: ' : 'Importado: ') + st.csvReport.linhas + ' linha(s), ' + st.csvReport.criados + ' pessoa(s) nova(s), ' + st.csvReport.vinculos + ' papel(éis), ' + st.csvReport.erros.length + ' erro(s).' : '',
+      csvErrors: st.csvReport ? st.csvReport.erros : [],
+      areaOptions: st.areas.map(a => ({ slug: a.slug, name: a.name })),
+      kbArea: st.kbArea,
+      onKbArea: e => this.setState({ kbArea: e.target.value }),
+      onKbFiles: e => this.onKbFiles(e),
+      kbFileCount: st.kbFiles.length,
+      importKb: () => this.importKb(),
+      hasKbBatch: !!st.kbBatch,
+      kbSummary: st.kbBatch ? 'Indexados: ' + st.kbBatch.resumo.indexados + ' · pendentes: ' + st.kbBatch.resumo.pendentes + ' · com erro: ' + st.kbBatch.resumo.erros : '',
+      kbRows: st.kbBatch ? st.kbBatch.documentos.map(d => ({ titulo: d.titulo, status: d.status, erro: d.erro || '' })) : [],
+      policyForm: st.policyForm,
+      onPolicy,
+      publishPolicy: () => this.publishPolicy(),
+      ackSummary: st.acks && st.acks.version ? 'Versão ' + st.acks.version + ': ' + st.acks.comCiencia + ' de ' + st.acks.total + ' pessoas registraram ciência.' : 'Nenhuma política publicada.',
+      ackRows: st.acks ? st.acks.pessoas.map(k => ({ email: k.email, when: k.acked_at ? fmtDate(k.acked_at) : 'pendente' })) : [],
+      incidentRows: st.incidents.map(i => ({ codigo: i.codigo, tipo: INC_LABEL[i.tipo] || i.tipo, area: i.area || 'Geral', status: i.status, when: fmtDate(i.criadoEm), onClick: () => this.openIncidentDetail(i.id) })),
+      hasIncident: !!inc,
+      inc: inc ? { codigo: inc.codigo, meta: (INC_LABEL[inc.tipo] || inc.tipo) + ' · ' + (inc.area || 'Geral') + ' · reportado por ' + inc.reportadoPor + ' · ' + inc.status, descricao: inc.descricao,
+        history: inc.historico.map(h => fmtDate(h.at) + ' · ' + h.actor + ' · ' + (h.status_from ? h.status_from + ' → ' : '') + h.status_to + (h.note ? ': ' + h.note : '')), canHandle: inc.possoTratar && inc.proximos.length > 0, next: inc.proximos } : {},
+      incStatus: st.incStatus,
+      onIncStatus: e => this.setState({ incStatus: e.target.value }),
+      incNote: st.incNote,
+      onIncNote: e => this.setState({ incNote: e.target.value }),
+      saveIncident: () => this.saveIncident(),
+      usageMonth: st.usageMonth,
+      onUsageMonth: e => this.setState({ usageMonth: e.target.value }),
+      loadUsage: () => this.loadUsage(),
+      hasUsage: !!u,
+      usageLinks: { csv: this._url('/api/usage/report?mes=' + st.usageMonth + '&format=csv'), xlsx: this._url('/api/usage/report?mes=' + st.usageMonth + '&format=xlsx') },
+      usageTotal: u ? 'Total do mês: ' + fmtBrl(u.total.custo_brl) + ' · ' + u.total.chamadas + ' chamada(s) · ' + u.total.paginas + ' página(s)' : '',
+      usageRows: u ? u.porAssistente.map(r => ({ nome: r.nome, chamadas: r.chamadas, tokens: fmtNum(r.tokens_entrada, 0) + ' / ' + fmtNum(r.tokens_saida, 0), paginas: r.paginas, custo: fmtBrl(r.custo_brl) })) : [],
+      simRows: st.simRows.map((r, i) => ({ ...r, onNome: e => this.setSim(i, 'nome', e.target.value), onAssistente: e => this.setSim(i, 'assistente', e.target.value), onExecucoes: e => this.setSim(i, 'execucoes', e.target.value), onPaginas: e => this.setSim(i, 'paginas', e.target.value), onDigitalizado: e => this.setSim(i, 'digitalizado', e.target.value) })),
+      addSimRow: () => this.addSimRow(),
+      simMensal: st.simMensal,
+      onSimMensal: e => this.setState({ simMensal: e.target.value }),
+      runSim: () => this.runSim(),
+      hasSim: !!st.sim,
+      simTotal: st.sim ? 'Consumo estimado: ' + fmtBrl(st.sim.consumoMensalBrl) + ' + mensalidade ' + fmtBrl(st.sim.mensalidadeBrl) + ' = ' + fmtBrl(st.sim.totalMensalBrl) + ' por mês' : '',
+      simLines: st.sim ? st.sim.itens.map(i => i.nome + ': ' + fmtBrl(i.consumoBrl) + ' (' + fmtNum(i.tokensEntrada, 0) + ' tokens de entrada, ' + i.paginasPorMes + ' páginas; ' + i.base + ')').concat([st.sim.aviso]) : [],
+      exportRows: st.exports.map(x => ({ when: fmtDate(x.created_at), status: x.status, size: x.bytes ? fmtNum(x.bytes / 1024 / 1024, 1) + ' MB' : '', ready: x.status === 'pronta', href: this._url('/api/admin/exports/' + x.id + '/download') })),
+      requestExport: () => this.requestExport(),
+
+      incidentOpen: st.incidentOpen,
+      closeIncident: () => this.setState({ incidentOpen: false }),
+      incForm: st.incForm,
+      onIncForm,
+      incMsg: st.incMsg,
+      sendIncident: () => this.sendIncident(),
+      policyPending: authed && !!policy && !st.policyAcked,
+      policyTitle: policy ? policy.title : '',
+      policyVersion: policy ? policy.version : '',
+      policyBody: policy ? policy.body : '',
+      ackPolicy: () => this.ackPolicy(),
+      tourOpen: authed && !!tourData && st.policyAcked,
+      tour: tourData ? { step: 'Passo ' + (st.tourStep + 1) + ' de ' + TOUR.length, title: tourData.title, text: tourData.text, next: st.tourStep === TOUR.length - 1 ? 'Começar' : 'Próximo' } : {},
+      tourNext: () => (st.tourStep >= TOUR.length - 1 ? this.tourDone() : this.setState({ tourStep: st.tourStep + 1 })),
+      tourSkip: () => this.tourDone(),
+    };
+  }
+}
+</script>
+</body>
+</html>

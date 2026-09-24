@@ -18,7 +18,7 @@ COPY server/src server/src
 COPY server/migrations server/migrations
 COPY server/deploy server/deploy
 COPY lib lib
-COPY ["GreenIA.dc.html", "Política GreenIA.dc.html", "support.js", "./"]
+COPY ["GreenIA.dc.html", "Política GreenIA.dc.html", "Assistentes GreenIA.dc.html", "support.js", "./"]
 COPY assets assets
 USER node
 WORKDIR /app/server

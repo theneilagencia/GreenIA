@@ -1,0 +1,77 @@
+{
+  "versao": 1,
+  "caso": "contratacao-13",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "contrato.pdf",
+      "sha256": "55dfc3dd74fef3a23374053b58233aabff381f46cb31944419542cfa17bf610b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4628
+    },
+    {
+      "nome": "cartao-cnpj.pdf",
+      "sha256": "2cc81e2ec598500bd3329a6ec0b41a0e7d533fc192b84d756dcce5b65dfffdff",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2091
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "alvara",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "garantia",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnd",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cno",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "cartao-cnpj.pdf",
+        "pagina": 1
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Edifício comercial Centro Exemplo). ART ausente; garantia nenhuma; CND ausente; CNO mencionado no contrato. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

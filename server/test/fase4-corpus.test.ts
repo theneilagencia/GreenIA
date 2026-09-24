@@ -134,7 +134,7 @@ test('o corpus oficial gerado de novo bate com os gabaritos congelados (sha256 e
     const fresh = gabaritosEm(d).map(f => JSON.parse(readFileSync(f, 'utf8')));
     const frozen = readdirSync(GABARITOS).filter(n => !n.endsWith('.json')).flatMap(fr => readdirSync(join(GABARITOS, fr)).filter(n => n !== 'perguntas.json').map(n => JSON.parse(readFileSync(join(GABARITOS, fr, n), 'utf8'))));
     assert.equal(fresh.length, frozen.length);
-    assert.equal(frozen.length, 15 + 60 + 25 + 30 + 10 + 6);
+    assert.equal(frozen.length, 15 + 60 + 25 + 30 + 10 + 6 + 15);
     const byCase = new Map(frozen.map(g => [g.caso, g]));
     for (const g of fresh) assert.deepEqual(g, byCase.get(g.caso), g.caso);
   } finally { rmSync(d, { recursive: true, force: true }); }

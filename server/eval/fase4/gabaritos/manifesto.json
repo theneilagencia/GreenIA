@@ -24,8 +24,12 @@
     "lgpd": {
       "casos": 6,
       "semente": 4303
+    },
+    "contratacao": {
+      "pastas": 15,
+      "semente": 4501
     }
   },
-  "casos": 146,
+  "casos": 161,
   "descricao": "Gabaritos congelados do corpus gerado. O corpus fica fora do repositório; rode congelar.ts para gerar de novo e conferir os sha256."
 }

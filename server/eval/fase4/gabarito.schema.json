@@ -5,136 +5,981 @@
   "description": "Escrito antes de qualquer rodada. Um arquivo por caso: os arquivos de entrada (com sha256) e o resultado esperado da frente. Sem conteúdo de documento real: só identificadores, valores esperados e trechos de documentos fictícios.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["versao", "caso", "frente", "tenant", "modelo", "arquivos", "esperado", "conferencia"],
+  "required": [
+    "versao",
+    "caso",
+    "frente",
+    "tenant",
+    "modelo",
+    "arquivos",
+    "esperado",
+    "conferencia"
+  ],
   "properties": {
-    "versao": { "const": 1 },
-    "caso": { "type": "string", "pattern": "^[a-z0-9-]{3,80}$" },
-    "frente": { "enum": ["fiscal", "rh", "financeiro", "lgpd", "suprimentos", "juridico"] },
-    "tenant": { "enum": ["demonstracao", "construtora"], "description": "Tenant de avaliação em que o caso roda (as áreas e os assistentes são criados pela API)." },
-    "modelo": { "type": "string", "description": "Modelo do catálogo de onde o assistente foi criado (server/catalog/modelos)." },
-    "variacao": { "type": "string", "description": "Variação do caso (ex.: layout de ERP, digital, escaneado, foto, degradação sintética)." },
+    "versao": {
+      "const": 1
+    },
+    "caso": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{3,80}$"
+    },
+    "frente": {
+      "enum": [
+        "fiscal",
+        "rh",
+        "financeiro",
+        "lgpd",
+        "suprimentos",
+        "juridico",
+        "contratacao"
+      ]
+    },
+    "tenant": {
+      "enum": [
+        "demonstracao",
+        "construtora"
+      ],
+      "description": "Tenant de avaliação em que o caso roda (as áreas e os assistentes são criados pela API)."
+    },
+    "modelo": {
+      "type": "string",
+      "description": "Modelo do catálogo de onde o assistente foi criado (server/catalog/modelos)."
+    },
+    "variacao": {
+      "type": "string",
+      "description": "Variação do caso (ex.: layout de ERP, digital, escaneado, foto, degradação sintética)."
+    },
     "arquivos": {
-      "type": "array", "minItems": 1,
+      "type": "array",
+      "minItems": 1,
       "items": {
-        "type": "object", "additionalProperties": false,
-        "required": ["nome", "sha256", "tipo", "origem"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nome",
+          "sha256",
+          "tipo",
+          "origem"
+        ],
         "properties": {
-          "nome": { "type": "string" },
-          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "tipo": { "enum": ["digital", "escaneado", "foto", "xml", "planilha"] },
-          "origem": { "enum": ["gerado", "degradacao-sintetica", "foto-manual", "theneil"] },
-          "bytes": { "type": "integer", "minimum": 0 }
+          "nome": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "tipo": {
+            "enum": [
+              "digital",
+              "escaneado",
+              "foto",
+              "xml",
+              "planilha"
+            ]
+          },
+          "origem": {
+            "enum": [
+              "gerado",
+              "degradacao-sintetica",
+              "foto-manual",
+              "theneil"
+            ]
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
-    "esperado": { "type": "object" },
-    "notas": { "type": "string" },
+    "esperado": {
+      "type": "object"
+    },
+    "notas": {
+      "type": "string"
+    },
     "conferencia": {
-      "type": "object", "additionalProperties": false, "required": ["amostra", "por", "em"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amostra",
+        "por",
+        "em"
+      ],
       "description": "Segunda pessoa confere 20% dos casos antes de rodar. Divergência vira correção.",
       "properties": {
-        "amostra": { "type": "boolean" },
-        "por": { "type": ["string", "null"] },
-        "em": { "type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-        "divergencias": { "type": "array", "items": { "type": "string" } }
+        "amostra": {
+          "type": "boolean"
+        },
+        "por": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "divergencias": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     }
   },
   "allOf": [
-    { "if": { "properties": { "frente": { "const": "rh" } } }, "then": { "properties": { "esperado": { "$ref": "#/$defs/rh" } } } },
-    { "if": { "properties": { "frente": { "const": "suprimentos" } } }, "then": { "properties": { "esperado": { "$ref": "#/$defs/suprimentos" } } } },
-    { "if": { "properties": { "frente": { "const": "juridico" } } }, "then": { "properties": { "esperado": { "$ref": "#/$defs/juridico" } } } },
-    { "if": { "properties": { "frente": { "const": "fiscal" } } }, "then": { "properties": { "esperado": { "$ref": "#/$defs/fiscal" } } } },
-    { "if": { "properties": { "frente": { "const": "financeiro" } } }, "then": { "properties": { "esperado": { "$ref": "#/$defs/financeiro" } } } },
-    { "if": { "properties": { "frente": { "const": "lgpd" } } }, "then": { "properties": { "esperado": { "$ref": "#/$defs/lgpd" } } } }
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "rh"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/rh"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "suprimentos"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/suprimentos"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "juridico"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/juridico"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "fiscal"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/fiscal"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "financeiro"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/financeiro"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "lgpd"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/lgpd"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "frente": {
+            "const": "contratacao"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "esperado": {
+            "$ref": "#/$defs/contratacao"
+          }
+        }
+      }
+    }
   ],
   "$defs": {
-    "numeroOuNulo": { "type": ["number", "null"] },
+    "numeroOuNulo": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
     "rh": {
-      "type": "object", "additionalProperties": false, "required": ["itens"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itens"
+      ],
       "properties": {
         "itens": {
-          "type": "array", "minItems": 1,
+          "type": "array",
+          "minItems": 1,
           "items": {
-            "type": "object", "additionalProperties": false, "required": ["item", "situacao"],
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "situacao"
+            ],
             "properties": {
-              "item": { "enum": ["rg", "cpf", "residencia", "ctps", "aso", "titulo", "banco"] },
-              "situacao": { "enum": ["presente", "ausente", "duvidoso"] },
-              "arquivo": { "type": ["string", "null"], "description": "Arquivo que prova o item presente, ou a ficha que só cita o item duvidoso." }
+              "item": {
+                "enum": [
+                  "rg",
+                  "cpf",
+                  "residencia",
+                  "ctps",
+                  "aso",
+                  "titulo",
+                  "banco"
+                ]
+              },
+              "situacao": {
+                "enum": [
+                  "presente",
+                  "ausente",
+                  "duvidoso"
+                ]
+              },
+              "arquivo": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Arquivo que prova o item presente, ou a ficha que só cita o item duvidoso."
+              }
             }
           }
         },
-        "erroGrave": { "type": "string", "const": "item marcado presente quando está ausente" }
+        "erroGrave": {
+          "type": "string",
+          "const": "item marcado presente quando está ausente"
+        }
       }
     },
     "suprimentos": {
-      "type": "object", "additionalProperties": false, "required": ["cotacao", "divergencias"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cotacao",
+        "divergencias"
+      ],
       "properties": {
         "cotacao": {
-          "type": "object", "additionalProperties": false, "required": ["arquivo", "fornecedor", "validade", "itens"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "arquivo",
+            "fornecedor",
+            "validade",
+            "itens"
+          ],
           "properties": {
-            "arquivo": { "type": "string" }, "fornecedor": { "type": "string" }, "validade": { "type": ["string", "null"] },
-            "itens": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["codigo", "descricao", "quantidade", "unidade", "preco_unitario"],
-              "properties": { "codigo": { "type": "string" }, "descricao": { "type": "string" }, "quantidade": { "type": "number" }, "unidade": { "type": "string" }, "preco_unitario": { "type": "number" } } } }
+            "arquivo": {
+              "type": "string"
+            },
+            "fornecedor": {
+              "type": "string"
+            },
+            "validade": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "itens": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "codigo",
+                  "descricao",
+                  "quantidade",
+                  "unidade",
+                  "preco_unitario"
+                ],
+                "properties": {
+                  "codigo": {
+                    "type": "string"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "quantidade": {
+                    "type": "number"
+                  },
+                  "unidade": {
+                    "type": "string"
+                  },
+                  "preco_unitario": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
           }
         },
         "divergencias": {
           "type": "array",
-          "items": { "type": "object", "additionalProperties": false, "required": ["codigo", "tipo"],
-            "properties": { "codigo": { "type": "string" }, "tipo": { "enum": ["quantidade", "unidade", "faltante_na_cotacao", "sem_especificacao"] },
-              "especificado": { "type": ["string", "number", "null"] }, "cotado": { "type": ["string", "number", "null"] } } }
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codigo",
+              "tipo"
+            ],
+            "properties": {
+              "codigo": {
+                "type": "string"
+              },
+              "tipo": {
+                "enum": [
+                  "quantidade",
+                  "unidade",
+                  "faltante_na_cotacao",
+                  "sem_especificacao"
+                ]
+              },
+              "especificado": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "cotado": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
         },
-        "erroGrave": { "type": "string", "const": "divergência de quantidade ou unidade não apontada" }
+        "erroGrave": {
+          "type": "string",
+          "const": "divergência de quantidade ou unidade não apontada"
+        }
       }
     },
     "juridico": {
-      "type": "object", "additionalProperties": false, "required": ["contrato", "campos"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contrato",
+        "campos"
+      ],
       "properties": {
-        "contrato": { "type": "string" },
-        "campos": {
-          "type": "object", "additionalProperties": false,
-          "required": ["partes", "vigencia", "reajuste", "multa", "rescisao", "confidencialidade", "foro"],
-          "patternProperties": { "^(partes|vigencia|reajuste|multa|rescisao|confidencialidade|foro)$": {
-            "type": ["object", "null"], "additionalProperties": false, "required": ["clausula", "trecho"],
-            "properties": { "clausula": { "type": "string" }, "trecho": { "type": "string", "description": "Trecho que precisa aparecer na saída (normalizado)." } } } }
+        "contrato": {
+          "type": "string"
         },
-        "erroGrave": { "type": "string", "const": "cláusula citada com trecho que não está no contrato" }
+        "campos": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "partes",
+            "vigencia",
+            "reajuste",
+            "multa",
+            "rescisao",
+            "confidencialidade",
+            "foro"
+          ],
+          "patternProperties": {
+            "^(partes|vigencia|reajuste|multa|rescisao|confidencialidade|foro)$": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "required": [
+                "clausula",
+                "trecho"
+              ],
+              "properties": {
+                "clausula": {
+                  "type": "string"
+                },
+                "trecho": {
+                  "type": "string",
+                  "description": "Trecho que precisa aparecer na saída (normalizado)."
+                }
+              }
+            }
+          }
+        },
+        "erroGrave": {
+          "type": "string",
+          "const": "cláusula citada com trecho que não está no contrato"
+        }
       }
     },
     "fiscal": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["nota", "pedido", "divergencias", "pedirXml"],
+      "required": [
+        "nota",
+        "pedido",
+        "divergencias",
+        "pedirXml"
+      ],
       "properties": {
-        "tipoCaso": {"enum": ["limpo", "divergencias", "danfe_sem_xml"]},
-        "nota": {"type": "object", "additionalProperties": false, "required": ["chave", "numero", "dataEmissao", "cnpjEmitente", "valorTotal", "xml", "danfe"], "properties": {"chave": {"type": "string", "pattern": "^\\d{44}$"}, "numero": {"type": "string"}, "dataEmissao": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"}, "cnpjEmitente": {"type": "string", "pattern": "^\\d{14}$"}, "valorTotal": {"type": "number"}, "xml": {"type": ["string", "null"]}, "danfe": {"type": ["string", "null"]}}},
-        "pedido": {"type": "object", "additionalProperties": false, "required": ["arquivo", "layout", "mapeamento", "registros"], "properties": {"arquivo": {"type": "string"}, "layout": {"type": "string", "pattern": "^layout-[a-z0-9-]+$"}, "mapeamento": {"type": "string"}, "registros": {"type": "array", "minItems": 1, "description": "O que o mapeamento do layout entrega, nos campos normalizados.", "items": {"type": "object", "additionalProperties": false, "required": ["pedido", "cnpjFornecedor", "dataPedido", "codigo", "descricao", "quantidade", "valorUnitario"], "properties": {"pedido": {"type": "string"}, "cnpjFornecedor": {"type": "string"}, "dataPedido": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"}, "totalPedido": {"type": "number"}, "codigo": {"type": "string"}, "descricao": {"type": "string"}, "quantidade": {"type": "number"}, "unidade": {"type": "string"}, "valorUnitario": {"type": "number"}, "valorTotal": {"type": "number"}}}}}},
-        "divergencias": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["chave", "campo", "tipo", "esperado", "encontrado"], "description": "Nos campos normalizados do pedido. esperado: valor do pedido; encontrado: valor da nota. chave: código do item (só dígitos: sem zeros à esquerda) ou 'cabecalho'.", "properties": {"chave": {"type": "string"}, "campo": {"enum": ["pedido", "cnpjFornecedor", "dataPedido", "totalPedido", "codigo", "descricao", "quantidade", "valorUnitario"]}, "tipo": {"enum": ["quantidade", "preco_fora_tolerancia", "preco_dentro_tolerancia", "so_na_nota", "so_no_pedido", "prazo_emissao", "valor_total", "descricao", "pedido", "cnpj"]}, "esperado": {"type": ["string", "number", "null"]}, "encontrado": {"type": ["string", "number", "null"]}, "regra": {"type": "string"}}}},
-        "dentroDaTolerancia": {"type": "array", "description": "Diferenças de preço dentro da tolerância: não podem aparecer como divergência.", "items": {"type": "object", "additionalProperties": false, "required": ["chave", "campo", "tipo", "esperado", "encontrado"], "description": "Nos campos normalizados do pedido. esperado: valor do pedido; encontrado: valor da nota. chave: código do item (só dígitos: sem zeros à esquerda) ou 'cabecalho'.", "properties": {"chave": {"type": "string"}, "campo": {"enum": ["pedido", "cnpjFornecedor", "dataPedido", "totalPedido", "codigo", "descricao", "quantidade", "valorUnitario"]}, "tipo": {"enum": ["quantidade", "preco_fora_tolerancia", "preco_dentro_tolerancia", "so_na_nota", "so_no_pedido", "prazo_emissao", "valor_total", "descricao", "pedido", "cnpj"]}, "esperado": {"type": ["string", "number", "null"]}, "encontrado": {"type": ["string", "number", "null"]}, "regra": {"type": "string"}}}},
-        "pedirXml": {"type": "array", "items": {"type": "string", "pattern": "^\\d{44}$"}},
-        "erroGrave": {"type": "string", "const": "divergência não apontada"}
+        "tipoCaso": {
+          "enum": [
+            "limpo",
+            "divergencias",
+            "danfe_sem_xml"
+          ]
+        },
+        "nota": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "chave",
+            "numero",
+            "dataEmissao",
+            "cnpjEmitente",
+            "valorTotal",
+            "xml",
+            "danfe"
+          ],
+          "properties": {
+            "chave": {
+              "type": "string",
+              "pattern": "^\\d{44}$"
+            },
+            "numero": {
+              "type": "string"
+            },
+            "dataEmissao": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "cnpjEmitente": {
+              "type": "string",
+              "pattern": "^\\d{14}$"
+            },
+            "valorTotal": {
+              "type": "number"
+            },
+            "xml": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "danfe": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "pedido": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "arquivo",
+            "layout",
+            "mapeamento",
+            "registros"
+          ],
+          "properties": {
+            "arquivo": {
+              "type": "string"
+            },
+            "layout": {
+              "type": "string",
+              "pattern": "^layout-[a-z0-9-]+$"
+            },
+            "mapeamento": {
+              "type": "string"
+            },
+            "registros": {
+              "type": "array",
+              "minItems": 1,
+              "description": "O que o mapeamento do layout entrega, nos campos normalizados.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "pedido",
+                  "cnpjFornecedor",
+                  "dataPedido",
+                  "codigo",
+                  "descricao",
+                  "quantidade",
+                  "valorUnitario"
+                ],
+                "properties": {
+                  "pedido": {
+                    "type": "string"
+                  },
+                  "cnpjFornecedor": {
+                    "type": "string"
+                  },
+                  "dataPedido": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "totalPedido": {
+                    "type": "number"
+                  },
+                  "codigo": {
+                    "type": "string"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "quantidade": {
+                    "type": "number"
+                  },
+                  "unidade": {
+                    "type": "string"
+                  },
+                  "valorUnitario": {
+                    "type": "number"
+                  },
+                  "valorTotal": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "divergencias": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "chave",
+              "campo",
+              "tipo",
+              "esperado",
+              "encontrado"
+            ],
+            "description": "Nos campos normalizados do pedido. esperado: valor do pedido; encontrado: valor da nota. chave: código do item (só dígitos: sem zeros à esquerda) ou 'cabecalho'.",
+            "properties": {
+              "chave": {
+                "type": "string"
+              },
+              "campo": {
+                "enum": [
+                  "pedido",
+                  "cnpjFornecedor",
+                  "dataPedido",
+                  "totalPedido",
+                  "codigo",
+                  "descricao",
+                  "quantidade",
+                  "valorUnitario"
+                ]
+              },
+              "tipo": {
+                "enum": [
+                  "quantidade",
+                  "preco_fora_tolerancia",
+                  "preco_dentro_tolerancia",
+                  "so_na_nota",
+                  "so_no_pedido",
+                  "prazo_emissao",
+                  "valor_total",
+                  "descricao",
+                  "pedido",
+                  "cnpj"
+                ]
+              },
+              "esperado": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "encontrado": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "regra": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "dentroDaTolerancia": {
+          "type": "array",
+          "description": "Diferenças de preço dentro da tolerância: não podem aparecer como divergência.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "chave",
+              "campo",
+              "tipo",
+              "esperado",
+              "encontrado"
+            ],
+            "description": "Nos campos normalizados do pedido. esperado: valor do pedido; encontrado: valor da nota. chave: código do item (só dígitos: sem zeros à esquerda) ou 'cabecalho'.",
+            "properties": {
+              "chave": {
+                "type": "string"
+              },
+              "campo": {
+                "enum": [
+                  "pedido",
+                  "cnpjFornecedor",
+                  "dataPedido",
+                  "totalPedido",
+                  "codigo",
+                  "descricao",
+                  "quantidade",
+                  "valorUnitario"
+                ]
+              },
+              "tipo": {
+                "enum": [
+                  "quantidade",
+                  "preco_fora_tolerancia",
+                  "preco_dentro_tolerancia",
+                  "so_na_nota",
+                  "so_no_pedido",
+                  "prazo_emissao",
+                  "valor_total",
+                  "descricao",
+                  "pedido",
+                  "cnpj"
+                ]
+              },
+              "esperado": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "encontrado": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "regra": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "pedirXml": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{44}$"
+          }
+        },
+        "erroGrave": {
+          "type": "string",
+          "const": "divergência não apontada"
+        }
       }
     },
     "financeiro": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["campos", "topicos"],
+      "required": [
+        "campos",
+        "topicos"
+      ],
       "properties": {
-        "tipoCaso": {"type": "string"},
-        "campos": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["arquivo", "campo", "valor", "pagina"], "description": "Um item por campo extraído de cada documento. Campo que o documento não tem: valor e página nulos.", "properties": {"arquivo": {"type": "string"}, "campo": {"enum": ["periodo", "receita_total", "despesa_total", "resultado"]}, "valor": {"type": ["string", "number", "null"]}, "pagina": {"type": ["integer", "null"], "minimum": 1}, "trecho": {"type": ["string", "null"], "description": "Texto que está na página indicada."}}}},
-        "topicos": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-        "fatos": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["topico", "descricao", "valor", "arquivo"], "properties": {"topico": {"type": "string"}, "descricao": {"type": "string"}, "valor": {"type": ["string", "number", "null"]}, "arquivo": {"type": "string"}}}},
-        "erroGrave": {"type": "string", "const": "valor errado com origem aparentemente válida"}
+        "tipoCaso": {
+          "type": "string"
+        },
+        "campos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "arquivo",
+              "campo",
+              "valor",
+              "pagina"
+            ],
+            "description": "Um item por campo extraído de cada documento. Campo que o documento não tem: valor e página nulos.",
+            "properties": {
+              "arquivo": {
+                "type": "string"
+              },
+              "campo": {
+                "enum": [
+                  "periodo",
+                  "receita_total",
+                  "despesa_total",
+                  "resultado"
+                ]
+              },
+              "valor": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "pagina": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "trecho": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Texto que está na página indicada."
+              }
+            }
+          }
+        },
+        "topicos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "fatos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topico",
+              "descricao",
+              "valor",
+              "arquivo"
+            ],
+            "properties": {
+              "topico": {
+                "type": "string"
+              },
+              "descricao": {
+                "type": "string"
+              },
+              "valor": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ]
+              },
+              "arquivo": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "erroGrave": {
+          "type": "string",
+          "const": "valor errado com origem aparentemente válida"
+        }
       }
     },
     "lgpd": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["documentos"],
+      "required": [
+        "documentos"
+      ],
       "properties": {
-        "tipoCaso": {"type": "string"},
-        "documentos": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["arquivo", "categoria", "periodo", "nome"], "properties": {"arquivo": {"type": "string"}, "categoria": {"enum": ["politicas", "treinamentos", "contratos", "incidentes", "registros", null]}, "periodo": {"type": ["string", "null"], "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"}, "nome": {"type": ["string", "null"]}}}},
-        "perguntas": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["pergunta", "documentos"], "properties": {"pergunta": {"type": "string"}, "documentos": {"type": "array", "minItems": 1, "items": {"type": "string"}}}}}
+        "tipoCaso": {
+          "type": "string"
+        },
+        "documentos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "arquivo",
+              "categoria",
+              "periodo",
+              "nome"
+            ],
+            "properties": {
+              "arquivo": {
+                "type": "string"
+              },
+              "categoria": {
+                "enum": [
+                  "politicas",
+                  "treinamentos",
+                  "contratos",
+                  "incidentes",
+                  "registros",
+                  null
+                ]
+              },
+              "periodo": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+              },
+              "nome": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "perguntas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pergunta",
+              "documentos"
+            ],
+            "properties": {
+              "pergunta": {
+                "type": "string"
+              },
+              "documentos": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "contratacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itens"
+      ],
+      "properties": {
+        "itens": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "situacao"
+            ],
+            "properties": {
+              "item": {
+                "enum": [
+                  "contrato",
+                  "art",
+                  "alvara",
+                  "garantia",
+                  "cnd",
+                  "cno",
+                  "cnpj"
+                ]
+              },
+              "situacao": {
+                "enum": [
+                  "presente",
+                  "ausente",
+                  "duvidoso"
+                ]
+              },
+              "arquivo": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Arquivo que prova o item, ou o contrato que só cita o item duvidoso."
+              },
+              "pagina": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "description": "Página do arquivo em que está o documento ou a menção."
+              }
+            }
+          }
+        },
+        "erroGrave": {
+          "type": "string",
+          "const": "item marcado presente quando está ausente"
+        }
       }
     }
   }

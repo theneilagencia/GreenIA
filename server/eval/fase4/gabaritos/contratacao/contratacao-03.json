@@ -1,0 +1,91 @@
+{
+  "versao": 1,
+  "caso": "contratacao-03",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf, dois documentos num PDF",
+  "arquivos": [
+    {
+      "nome": "contrato.pdf",
+      "sha256": "d8a56f3e83bedd85382c4b0c70704b9590b74b98be0b48365fd4ab18342fcead",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4722
+    },
+    {
+      "nome": "documentos-da-contratada.pdf",
+      "sha256": "6fe63d5501a8319ca59e4979c5d2b7510b4a26319477dfc4054f38b105a3c6d4",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3022
+    },
+    {
+      "nome": "art.pdf",
+      "sha256": "5625ba9bfc922c45ae78d5c9314e5be4ac6a1fb7cd9ea2fd7240a0b27607b80d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2184
+    },
+    {
+      "nome": "alvara.pdf",
+      "sha256": "b87094ba78a066d5389ea954f15617052eedffb65a383afc0bef1b4d3e6e0e74",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2132
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "presente",
+        "arquivo": "art.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "alvara",
+        "situacao": "presente",
+        "arquivo": "alvara.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "garantia",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 3
+      },
+      {
+        "item": "cnd",
+        "situacao": "presente",
+        "arquivo": "documentos-da-contratada.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "cno",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "documentos-da-contratada.pdf",
+        "pagina": 2
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Escola municipal Bairro Novo). ART anexada; garantia caucao; CND anexada; CNO mencionado no contrato. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

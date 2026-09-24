@@ -1,0 +1,84 @@
+{
+  "versao": 1,
+  "caso": "contratacao-09",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf, dois documentos num PDF",
+  "arquivos": [
+    {
+      "nome": "contrato.pdf",
+      "sha256": "0d4d63198f84e500fd020b558fd8290f85a981ad5f051a21756969c89879ed04",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4658
+    },
+    {
+      "nome": "documentos-da-contratada.pdf",
+      "sha256": "8cb032eeb2847a355a34b3422b55f87d31b4fff100730a8246390d7778ac9e5b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3021
+    },
+    {
+      "nome": "alvara.pdf",
+      "sha256": "23dd254bee706404ec750acf544730012eb3be362de822cfc57cc609c2369b6c",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2136
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "duvidoso",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "alvara",
+        "situacao": "presente",
+        "arquivo": "alvara.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "garantia",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnd",
+        "situacao": "presente",
+        "arquivo": "documentos-da-contratada.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "cno",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "documentos-da-contratada.pdf",
+        "pagina": 2
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Reforma da sede administrativa). ART citada; garantia nenhuma; CND anexada; CNO mencionado no contrato. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

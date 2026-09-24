@@ -82,6 +82,30 @@ Ressalva: a linha de base abaixo, com resultado por caso dos 15 casos, foi grava
 
 Arquivos: `resultados/rh-linha-de-base-desenvolvimento.json` (por caso) e `resultados/rh-linha-de-base-reservado.json` (só o resumo). O uso do reservado para esta linha de base foi pedido e está no registro.
 
+## Correções da plataforma no checklist (medidas só no desenvolvimento)
+
+Os erros da linha de base do RH foram corrigidos no bloco de checklist, não no modelo de RH:
+
+- **Evidência por item.** Cada item declara o que o satisfaz: `documento` (padrão), `mencao` (dado mencionado), `documento_ou_mencao` ou `documento_e_mencao`. Menção em outro documento não satisfaz item que exige documento; o item fica duvidoso com "mencionado em [arquivo], documento não encontrado".
+- **Vários documentos por arquivo.** A classificação é por página. O título de cada página vale como identificação: a primeira linha útil ou uma linha de título em maiúsculas, sem contar linhas repetidas em muitas páginas (marca d'água, rodapé) nem linhas "rótulo: número". Um arquivo pode satisfazer vários itens, e a saída diz a página de cada um (também na revisão e na planilha exportada).
+- **Siglas.** Sigla escrita em maiúsculas na configuração (RG, CPF, ART) só casa com maiúsculas no conteúdo: "art. 55" de lei não vira ART. Quando termos de itens diferentes se sobrepõem, vale o mais longo.
+- **Sinônimos na tela do assistente.** Administração › Assistentes › Itens e sinônimos: sinônimos e "vale como" de cada item, gravados como versão nova da definição.
+- **Catálogo.** Sinônimos comuns acrescentados em `checklist-documentos-admissao` (v2), `organizacao-evidencias` (v2) e `comercial-proposta-requisitos` (v2, com os requisitos como dado mencionado). Novo modelo `checklist-documentos-contratacao` (obra ou serviço de engenharia).
+
+**Casos equivalentes da construtora** (`gerar-contratacao.ts`, 15 pastas, semente 4501, gabaritos congelados antes de qualquer rodada; 9 no desenvolvimento, 6 no reservado). ART citada no contrato sem a ART anexada; CND e cartão CNPJ no mesmo PDF (uma pasta a cada três); contrato que cita "art." de lei; garantia por caução mencionada no contrato; matrícula CNO como dado mencionado; contrato em DOCX.
+
+**Nova medição, desenvolvimento** (sem modelo, blocos reais da plataforma):
+
+| Conjunto de desenvolvimento | Checklist anterior | Plataforma corrigida | Erros graves (antes → depois) |
+|---|---|---|---|
+| RH, 9 pastas, catálogo v1 | 84,1% | — | 1 → — |
+| RH, 9 pastas, catálogo v2 (sinônimos) | 92,1% | 98,4% | 1 → 0 |
+| Construtora, 9 pastas | 69,8% | 100% (página certa em 49 de 49) | 0 → 0 |
+
+O que sobra no RH é um caso: o número do CPF aparece como dado em outros documentos (ASO, CTPS, conta salário). A plataforma deixa o item duvidoso, com "mencionado em [arquivo], documento não encontrado", e ele vai para a revisão. O gabarito diz ausente. Não é erro grave. O gabarito não foi mudado.
+
+Arquivos: `resultados/rh-desenvolvimento-depois-das-correcoes.json` e `resultados/contratacao-desenvolvimento.json`. O reservado não foi rodado depois das correções; fica para a rodada final. Os casos da construtora foram gerados de novo uma vez, antes de qualquer rodada, porque o sorteio não produziu nenhum PDF com dois documentos (a divisão desse lote foi refeita junto). Teste de regressão: `test/fase4-checklist.test.ts`.
+
 ## Linha de base sem modelo (RH), antes da divisão
 
 `resultados/rh-linha-de-base-sem-modelo.json`: os 15 casos digitais pelo checklist por regras, sem chamar o modelo. Acerto de 81,9% dos itens e 4 erros graves. Os erros apontam o que a rodada com o modelo precisa medir:

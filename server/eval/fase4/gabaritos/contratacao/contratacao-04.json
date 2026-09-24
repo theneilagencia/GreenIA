@@ -1,0 +1,91 @@
+{
+  "versao": 1,
+  "caso": "contratacao-04",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "contrato.pdf",
+      "sha256": "22c10602988dbda46525fad8d8d5985089256350ede5127797d48ac5440fc77f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4598
+    },
+    {
+      "nome": "alvara.pdf",
+      "sha256": "82abe1e6225bd50c8e3949e098d535c1bea129c840468101e753186d0b064b19",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2127
+    },
+    {
+      "nome": "certidao-federal.pdf",
+      "sha256": "a9131f007994f851be7e4c7d958a4d6b90905888d2cdeff003e4c170041d2bf7",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2138
+    },
+    {
+      "nome": "cartao-cnpj.pdf",
+      "sha256": "a56a2a15aff6dc42ea33c158adc1da087cfd850de29cfc642011d519fe3213c3",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2083
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "duvidoso",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "alvara",
+        "situacao": "presente",
+        "arquivo": "alvara.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "garantia",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnd",
+        "situacao": "presente",
+        "arquivo": "certidao-federal.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "cno",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "cartao-cnpj.pdf",
+        "pagina": 1
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Reforma da sede administrativa). ART citada; garantia nenhuma; CND anexada; CNO não mencionado. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

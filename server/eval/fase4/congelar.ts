@@ -12,11 +12,13 @@ import { gerarJuridico, gerarSuprimentos } from './gerar-construtora.ts';
 import { gerarFiscal } from './gerar-fiscal.ts';
 import { gerarFinanceiro } from './gerar-financeiro.ts';
 import { gerarLgpd } from './gerar-lgpd.ts';
+import { gerarContratacao } from './gerar-contratacao.ts';
 import { gabaritosEm } from './validar.ts';
 
 export const OFICIAL = {
   rh: { pastas: 15, semente: 4101 }, suprimentos: { especificacoes: 20, semente: 4201 }, juridico: { contratos: 25, semente: 4201 },
   fiscal: { casos: 30, semente: 4301 }, financeiro: { pacotes: 10, semente: 4302 }, lgpd: { casos: 6, semente: 4303 },
+  contratacao: { pastas: 15, semente: 4501 },
 };
 export const GABARITOS = fileURLToPath(new URL('./gabaritos/', import.meta.url));
 
@@ -27,6 +29,7 @@ export async function gerarOficial(saida: string) {
   await gerarFiscal(saida, OFICIAL.fiscal.casos, OFICIAL.fiscal.semente);
   await gerarFinanceiro(saida, OFICIAL.financeiro.pacotes, OFICIAL.financeiro.semente);
   await gerarLgpd(saida, OFICIAL.lgpd.casos, OFICIAL.lgpd.semente);
+  await gerarContratacao(saida, OFICIAL.contratacao.pastas, OFICIAL.contratacao.semente);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

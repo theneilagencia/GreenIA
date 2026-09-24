@@ -1,0 +1,77 @@
+{
+  "versao": 1,
+  "caso": "contratacao-07",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "contrato.pdf",
+      "sha256": "a228168be1520f97964b7e1d0cccabebf2a268020e6aca6faf5f6b8223c9f414",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4648
+    },
+    {
+      "nome": "cartao-cnpj.pdf",
+      "sha256": "aa9679a1a6ce1a262e93daa773e3ddc65885692db7c79bb9b07d7ea071838bd1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2082
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "alvara",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "garantia",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 3
+      },
+      {
+        "item": "cnd",
+        "situacao": "duvidoso",
+        "arquivo": "contrato.pdf",
+        "pagina": 3
+      },
+      {
+        "item": "cno",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "cartao-cnpj.pdf",
+        "pagina": 1
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Edifício comercial Centro Exemplo). ART ausente; garantia caucao; CND citada; CNO não mencionado. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

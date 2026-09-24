@@ -51,7 +51,7 @@ export function rotulosDe(g: Gab): string[] {
   if (!tipos.size) tipos.add('completo');
   // Layout de exportação (Fiscal): cada layout com a mesma proporção.
   const layout = (e.pedido as { layout?: string } | undefined)?.layout;
-  return [...[...tipos].sort().map(t => `tipo:${t}`), `formato:${formatoDe(g)}`, `origem:${origemDe(g)}`, ...(layout ? [`layout:${layout}`] : [])];
+  return [...[...tipos].sort().map(t => `tipo:${t}`), `formato:${formatoDe(g)}`, `origem:${origemDe(g)}`, ...(layout ? [`layout:${layout}`] : []), ...(/dois documentos/.test(g.variacao) ? ['arquivo:combinado'] : [])];
 }
 
 // Unidade de divisão: casos que compartilham um arquivo andam juntos.

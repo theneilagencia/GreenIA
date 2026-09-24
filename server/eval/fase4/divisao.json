@@ -3,6 +3,59 @@
   "proporcao": 0.6,
   "regra": "Lote = frente/procedência. Unidade = caso (em Suprimentos, a especificação). Estratos = tipo de caso, formato e origem. Variações herdam o conjunto do caso de origem. Semente fixa, sem olhar resultados.",
   "lotes": {
+    "contratacao/gerado": {
+      "semente": -2032406383,
+      "unidades": 15,
+      "desenvolvimento": 9,
+      "reservado": 6,
+      "casos": {
+        "contratacao-01": "desenvolvimento",
+        "contratacao-02": "reservado",
+        "contratacao-03": "reservado",
+        "contratacao-04": "reservado",
+        "contratacao-05": "desenvolvimento",
+        "contratacao-06": "reservado",
+        "contratacao-07": "reservado",
+        "contratacao-08": "desenvolvimento",
+        "contratacao-09": "desenvolvimento",
+        "contratacao-10": "desenvolvimento",
+        "contratacao-11": "desenvolvimento",
+        "contratacao-12": "desenvolvimento",
+        "contratacao-13": "reservado",
+        "contratacao-14": "desenvolvimento",
+        "contratacao-15": "desenvolvimento"
+      },
+      "distribuicao": {
+        "arquivo:combinado": {
+          "desenvolvimento": 3,
+          "reservado": 2
+        },
+        "formato:docx": {
+          "desenvolvimento": 2,
+          "reservado": 1
+        },
+        "formato:pdf": {
+          "desenvolvimento": 7,
+          "reservado": 5
+        },
+        "origem:digital": {
+          "desenvolvimento": 9,
+          "reservado": 6
+        },
+        "tipo:ausente": {
+          "desenvolvimento": 7,
+          "reservado": 4
+        },
+        "tipo:completo": {
+          "desenvolvimento": 2,
+          "reservado": 1
+        },
+        "tipo:duvidoso": {
+          "desenvolvimento": 6,
+          "reservado": 4
+        }
+      }
+    },
     "financeiro/gerado": {
       "semente": -1345013278,
       "unidades": 10,

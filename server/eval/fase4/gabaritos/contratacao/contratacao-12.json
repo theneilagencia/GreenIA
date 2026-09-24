@@ -1,0 +1,77 @@
+{
+  "versao": 1,
+  "caso": "contratacao-12",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf, dois documentos num PDF",
+  "arquivos": [
+    {
+      "nome": "contrato.pdf",
+      "sha256": "ae923c269883fb58181ca07c602712a51b4619090489bfe36dcda4d45f2fe150",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4720
+    },
+    {
+      "nome": "documentos-da-contratada.pdf",
+      "sha256": "564ac96109b7fb0d464d8c0f48e2060ce70dea9c89d4b3123c35522aab3a2bdd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3019
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "duvidoso",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "alvara",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "garantia",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 3
+      },
+      {
+        "item": "cnd",
+        "situacao": "presente",
+        "arquivo": "documentos-da-contratada.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "cno",
+        "situacao": "presente",
+        "arquivo": "contrato.pdf",
+        "pagina": 2
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "documentos-da-contratada.pdf",
+        "pagina": 2
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Escola municipal Bairro Novo). ART citada; garantia caucao; CND anexada; CNO mencionado no contrato. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

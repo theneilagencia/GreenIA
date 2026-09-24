@@ -6,6 +6,7 @@ import { Document, Packer, Paragraph } from 'docx';
 import ExcelJS from 'exceljs';
 import type { InputFile, BlockEnv } from '../src/blocks/types.ts';
 import type { LlmCompletion } from '../src/llm/provider.ts';
+import type { Converter, OcrPage } from '../src/convert/converter.ts';
 
 let seq = 0;
 export function inputFile(name: string, bytes: Uint8Array | string, mime = 'application/octet-stream'): InputFile {
@@ -47,7 +48,7 @@ export async function xlsx(sheets: Record<string, (string | number | Date | null
 export const png = () => new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64'));
 
 // NF-e fictícia: o mesmo gerador das amostras de demonstração.
-export { nfeXml } from '../src/demo/samples.ts';
+export { nfeXml, nfeKey, danfePdf } from '../src/demo/samples.ts';
 
 // Ambiente de bloco para testes unitários: o modelo responde pela função dada.
 export function testEnv(reply: (req: Parameters<BlockEnv['complete']>[0]) => string = () => '', extra: Partial<BlockEnv> = {}) {
@@ -65,3 +66,19 @@ export function testEnv(reply: (req: Parameters<BlockEnv['complete']>[0]) => str
   };
   return { env, calls };
 }
+
+// Conversor simulado: o OCR devolve as páginas dadas (por número), sem ferramentas do sistema.
+export function fakeConverter(ocr: (pages?: number[]) => OcrPage[], extra: Partial<Converter> = {}) {
+  const calls: string[] = [];
+  const c: Converter = {
+    async available() { return { ocr: true, images: true, office: true }; },
+    async ocrPdf(_b, pages) { calls.push(`ocrPdf:${(pages ?? []).join(',')}`); return ocr(pages); },
+    async ocrImage() { calls.push('ocrImage'); return ocr(); },
+    async imageToJpeg() { calls.push('imageToJpeg'); return [new Uint8Array([0xff, 0xd8, 0xff, 0xe0])]; },
+    async officeToOoxml() { throw new Error('conversão não simulada'); },
+    ...extra,
+  };
+  return { converter: c, calls };
+}
+
+export const jpeg = () => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);

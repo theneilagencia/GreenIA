@@ -40,6 +40,12 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   // Câmbio para o custo em reais (a tabela de preços está em US$).
   USD_BRL: z.coerce.number().positive().default(5.5),
+  // OCR e conversões no servidor (ferramentas do sistema; veja src/convert/converter.ts).
+  OCRMYPDF_CMD: z.string().default('ocrmypdf'),
+  OCR_LANG: z.string().default('por'),
+  MAGICK_CMD: z.string().default('convert'),
+  SOFFICE_CMD: z.string().default('soffice'),
+  CONVERT_TIMEOUT_S: z.coerce.number().int().min(10).max(3600).default(120),
   // Corpo máximo do envio de documento (JSON com base64: ~1,37x o arquivo).
   KB_UPLOAD_BODY_LIMIT_MB: z.coerce.number().int().min(1).max(300).default(30),
 

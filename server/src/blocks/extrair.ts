@@ -26,7 +26,8 @@ export interface Extracao {
 // Texto com marcação de página, para o modelo citar a origem.
 export function docForModel(d: ReadDoc): string {
   const pages = d.pages.length ? d.pages : [{ n: 1, text: d.text }];
-  return `### Documento: ${d.name}\n` + pages.map(p => `=== Página ${p.n} ===\n${p.text}`).join('\n');
+  const how = (p: ReadDoc['pages'][number]) => p.via === 'ocr' ? ` (lida por OCR, confiança ${Math.round(p.confianca ?? 0)}%: pode ter erro de leitura)` : '';
+  return `### Documento: ${d.name}\n` + pages.map(p => `=== Página ${p.n} ===${how(p)}\n${p.text}`).join('\n');
 }
 
 // JSON dentro da resposta (com ou sem bloco de código).
@@ -70,9 +71,14 @@ export function wrapperSchema(schema: Record<string, unknown>) {
 export async function extrairBlock(ctx: RunContext, step: PipelineStep): Promise<Section> {
   const p = extrairParams.parse(step.params);
   const validate = ajv.compile(p.schema);
-  const docs = ctx.docs.filter(d => (!p.tipos || p.tipos.includes(d.kind)) && (d.text || d.nfe));
-  const groups = p.por === 'conjunto' ? (docs.length ? [docs] : []) : docs.map(d => [d]);
   const flags: ReviewFlag[] = [];
+  // DANFE em PDF: nenhum campo sai do texto impresso. A nota vem do XML com a
+  // mesma chave (lido pelo parser) ou fica como "pedir o XML ao fornecedor".
+  for (const d of ctx.docs.filter(d => d.danfe && (!p.tipos || p.tipos.includes(d.kind)))) {
+    flags.push({ reason: `DANFE: campos não extraídos do PDF; use o XML da nota (chave ${d.danfe!.chave})`, ref: d.name });
+  }
+  const docs = ctx.docs.filter(d => !d.danfe && (!p.tipos || p.tipos.includes(d.kind)) && (d.text || d.nfe));
+  const groups = p.por === 'conjunto' ? (docs.length ? [docs] : []) : docs.map(d => [d]);
   const out: Extracao[] = [];
   if (!groups.length) flags.push({ reason: 'nenhum documento com texto para extrair' });
 

@@ -11,7 +11,7 @@ import type { PipelineStep } from '../blocks/params.ts';
 export interface PackageMeta { slug: string; name: string; area: string | null; status: string; version: number; tenantName: string }
 
 const KIND_LABEL: Record<string, string> = {
-  pdf: 'PDF', imagem: 'imagem (JPG, PNG)', docx: 'Word (DOCX)', xlsx: 'Excel (XLSX)', csv: 'CSV', nfe_xml: 'XML de NF-e', texto: 'texto (TXT, MD)',
+  pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'Word (DOCX, DOC, ODT)', xlsx: 'Excel (XLSX, XLS, ODS)', csv: 'CSV', nfe_xml: 'XML de NF-e', texto: 'texto (TXT, MD)',
 };
 
 const list = (items: string[]) => items.map(i => `- ${i}`).join('\n');
@@ -32,7 +32,7 @@ export function describeStep(s: PipelineStep, n: number): string {
   const head = `### Etapa ${n}: ${s.titulo || s.bloco}`;
   switch (s.bloco) {
     case 'ler':
-      return `${head}\nLeia todos os arquivos enviados. Em PDF escaneado ou imagem, leia o conteúdo visível. Em XML de NF-e, use os campos do XML (emitente, destinatário, itens, totais), sem interpretar.`;
+      return `${head}\nLeia todos os arquivos enviados. Em PDF escaneado ou imagem, leia o conteúdo visível. Em XML de NF-e, use os campos do XML (emitente, destinatário, itens, totais), sem interpretar. Em DANFE (PDF da nota), não extraia os campos do texto impresso: use o XML com a mesma chave de acesso ou peça o XML ao fornecedor.`;
     case 'extrair':
       return `${head}\nExtraia ${p.por === 'conjunto' ? 'do conjunto de documentos' : 'de cada documento'} os campos do schema abaixo. Para cada campo, indique a página ou o trecho de origem. Se um campo não aparecer no documento, deixe vazio e diga que não foi encontrado: nunca complete por suposição.${p.instrucoes ? '\n\n' + p.instrucoes : ''}\n\n${json(p.schema)}`;
     case 'conferir': {

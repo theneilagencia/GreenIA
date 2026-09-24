@@ -34,6 +34,7 @@ import type { ObjectStore } from './storage/object-store.ts';
 import type { JobQueue } from './jobs/queue.ts';
 import type { KnowledgeSource } from './kb/knowledge.ts';
 import type { LlmProvider } from './llm/provider.ts';
+import { LocalConverter, type Converter } from './convert/converter.ts';
 
 export interface Deps {
   config: Config;
@@ -46,12 +47,13 @@ export interface Deps {
   queue: JobQueue;
   knowledge: KnowledgeSource;
   rateLimiter: RateLimiter;
+  converter: Converter;              // OCR e conversões (ferramentas do sistema)
   ping?: { redis?: () => Promise<unknown> };
 }
 
-export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
+export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { chatHooks?: ChatHooks; converter?: Converter }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([usagePolicyStep, usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
+  const deps: Deps = { ...input, converter: input.converter ?? new LocalConverter(input.config), chatHooks: input.chatHooks ?? composeSteps([usagePolicyStep, usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -74,7 +76,10 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
       try { await deps.ping.redis(); checks.redis = 'ok'; } catch { checks.redis = 'erro'; }
     }
     const ok = Object.values(checks).every(v => v === 'ok');
-    return reply.code(ok ? 200 : 503).send({ status: ok ? 'ok' : 'erro', checks });
+    // OCR e conversões: informativos (sem eles o servidor funciona, mas escaneados, DOC e XLS não são lidos).
+    const tools = await deps.converter.available();
+    const ferramentas = { ocr: tools.ocr ? 'ok' : 'ausente', imagens: tools.images ? 'ok' : 'ausente', office: tools.office ? 'ok' : 'ausente' };
+    return reply.code(ok ? 200 : 503).send({ status: ok ? 'ok' : 'erro', checks, ferramentas });
   });
 
   // Sessão e proteção de escrita valem para todas as rotas (hook na raiz).
@@ -99,7 +104,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(staticRoutes);
 
   // Tarefas da fila.
-  deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects));
+  deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects, deps.converter));
   deps.queue.register('run:execute', makeRunExecutor(app));
   deps.queue.register('tenant:export', makeExportJob(app));
   const sweep = makeRetentionSweep(deps.db, deps.objects);

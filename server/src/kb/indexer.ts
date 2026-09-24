@@ -1,14 +1,16 @@
 // Indexação de uma versão de documento (tarefa da fila 'kb:index'). Lê o
 // original no armazenamento com o bloco de leitura (PDF com texto, DOCX, XLSX,
 // CSV, NF-e, texto), quebra em trechos e troca os trechos do documento pelos da
-// nova versão. Na base de conhecimento nada vai para o modelo: PDF escaneado ou
-// imagem vira erro explicado (envie a versão com texto).
+// nova versão. Na base de conhecimento nada vai para o modelo: PDF escaneado e
+// DOC, XLS, ODT e ODS passam pelo OCR e pelas conversões locais; se o OCR não
+// puder ser feito, o erro é explicado (envie a versão com texto).
 import type { Db } from '../db/pool.ts';
 import { withTenant } from '../db/pool.ts';
 import type { ObjectStore } from '../storage/object-store.ts';
 import { chunkText, searchTerms } from './knowledge.ts';
 import { readFile } from '../blocks/ler.ts';
 import type { BlockEnv } from '../blocks/types.ts';
+import type { Converter } from '../convert/converter.ts';
 
 // Tipos aceitos na base (pelo tipo declarado; o conteúdo é conferido na leitura).
 export const KB_TYPES: Record<string, string> = {
@@ -20,6 +22,11 @@ export const KB_TYPES: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   'application/xml': 'xml',
   'text/xml': 'xml',
+  // Convertidos no servidor (LibreOffice) antes da leitura.
+  'application/msword': 'doc',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.oasis.opendocument.text': 'odt',
+  'application/vnd.oasis.opendocument.spreadsheet': 'ods',
 };
 export const KB_TEXT_TYPES = Object.keys(KB_TYPES);
 
@@ -33,15 +40,16 @@ const noModel: BlockEnv = {
   now: () => new Date(),
 };
 
-export async function extractForKb(name: string, bytes: Uint8Array): Promise<string> {
-  const d = await readFile({ id: 'kb', name, mime: '', sha256: '', bytes }, { visao: 'nunca', paginasMax: 500 }, noModel);
-  const scanned = d.warnings.find(w => /escaneado|imagem ignorada/.test(w));
-  if (scanned) throw new Error('arquivo sem texto (digitalizado): envie a versão com texto');
+export async function extractForKb(name: string, bytes: Uint8Array, converter?: Converter): Promise<{ text: string; warnings: string[] }> {
+  const d = await readFile({ id: 'kb', name, mime: '', sha256: '', bytes }, { paginasMax: 500, ocrMinConfidence: 0, visionFallback: false }, { ...noModel, converter });
+  if (d.warnings.some(w => /^OCR não foi feito/.test(w))) throw new Error('arquivo digitalizado e o OCR não pôde ser feito: envie a versão com texto');
+  if (d.warnings.some(w => /conversão indisponível|não pôde ser convertido/.test(w))) throw new Error(d.warnings[0]);
+  if ((d.via === 'ocr' || d.kind === 'imagem') && !d.text.trim()) throw new Error('arquivo digitalizado sem texto legível pelo OCR: envie a versão com texto');
   if (d.warnings.some(w => /não reconhecido|não pôde ser aberto|inválido|não é uma NF-e/.test(w))) throw new Error(d.warnings[0]);
-  return d.text;
+  return { text: d.text, warnings: d.warnings };
 }
 
-export function makeIndexer(db: Db, objects: ObjectStore) {
+export function makeIndexer(db: Db, objects: ObjectStore, converter?: Converter) {
   return async (data: Record<string, unknown>) => {
     const tenantId = String(data.tenantId);
     const documentId = String(data.documentId);
@@ -55,7 +63,7 @@ export function makeIndexer(db: Db, objects: ObjectStore) {
       try {
         const ext = KB_TYPES[v.mime];
         if (!ext) throw new Error('tipo de arquivo não suportado: ' + v.mime);
-        const text = await extractForKb(`${v.title}.${ext}`, await objects.get(v.object_key));
+        const { text } = await extractForKb(`${v.title}.${ext}`, await objects.get(v.object_key), converter);
         const chunks = chunkText(text);
         if (!chunks.length) throw new Error('documento sem texto');
         await tx.query(`delete from kb_chunks where document_id = $1`, [documentId]);

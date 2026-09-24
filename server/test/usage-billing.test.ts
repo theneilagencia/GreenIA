@@ -82,13 +82,18 @@ test('simulador: premissa sem histórico, média medida com histórico, conferê
     { nome: 'Resumo financeiro', assistente: 'resumo', execucoesPorMes: 200, paginasPorExecucao: 5 },
     { nome: 'Conferência de NF-e', execucoesPorMes: 800, paginasPorExecucao: 2, usaModelo: false },
     { nome: 'Recibos digitalizados', execucoesPorMes: 100, paginasPorExecucao: 1, percentualDigitalizado: 100 },
+    { nome: 'Recibos com OCR bom', execucoesPorMes: 100, paginasPorExecucao: 1, percentualDigitalizado: 100, percentualFallbackVisao: 0 },
   ] };
   let s = (await post(T.userId, '/api/usage/simulate', body)).json();
   assert.match(s.itens[0].base, /^premissa/);
   assert.equal(s.itens[0].tokensEntrada, 200 * (1200 + 5 * 750));
   assert.equal(s.itens[1].tokensEntrada, 0);
   assert.equal(s.itens[1].paginasPorMes, 1600);
-  assert.equal(s.itens[2].tokensEntrada, 100 * (1200 + 1800));
+  // Digitalizada: OCR local (texto) + 10% das páginas no fallback de visão (imagem na entrada, transcrição na saída).
+  assert.equal(s.itens[2].tokensEntrada, 100 * (1200 + 750 + 0.1 * 2300));
+  assert.equal(s.itens[2].tokensSaida, 100 * (800 + 0.1 * 750));
+  assert.equal(s.itens[3].tokensEntrada, 100 * (1200 + 750));
+  assert.equal(s.premissas.percentualFallbackVisao, 10);
   assert.equal(s.preco.porPaginaBrl, 0.1);
   assert.equal(s.totalMensalBrl, Math.round((s.consumoMensalBrl + 1500) * 100) / 100);
   assert.match(s.aviso, /Projeção/);

@@ -12,7 +12,7 @@ import { addPerson, buildTestApp, loginAs } from './app-helpers.ts';
 import { FakeProvider, type LlmCompleteRequest } from '../src/llm/provider.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
 import { demoAssistants, seedDemo } from '../src/demo/seed.ts';
-import { SAMPLES, RH_PHOTO_TRANSCRIPTION } from '../src/demo/samples.ts';
+import { SAMPLES, RH_PHOTO_TRANSCRIPTION, danfePdf, nfeKey } from '../src/demo/samples.ts';
 
 let db: TestDb;
 let app: FastifyInstance;
@@ -105,10 +105,24 @@ test('Fiscal: NF-e de entrada (XML) × pedido de compra (XLSX), com divergência
   assert.match(csv, /P-003;Valor unitário/);
 });
 
+test('Fiscal: DANFE em PDF sem o XML vira pendência "pedir o XML ao fornecedor", sem chamar o modelo', async () => {
+  const before = fake.completions.length;
+  const files = [...await SAMPLES['conferencia-nfe'](), { name: 'danfe-000124.pdf', mime: 'application/pdf', bytes: await danfePdf({ numero: '124', emissao: '2026-09-16', total: 'R$ 890,00' }) }]
+    .map(f => ({ name: f.name, mime: f.mime, contentBase64: Buffer.from(f.bytes).toString('base64') }));
+  const r = await post(u.fiscal, '/api/runs', { assistant: 'conferencia-nfe', files });
+  assert.equal(r.statusCode, 202, r.body);
+  const d = (await get(u.fiscal, `/api/runs/${r.json().runId}`)).json();
+  assert.equal(fake.completions.length - before, 0);
+  const docs = section(d, 'documentos');
+  assert.deepEqual(docs.data.find((x: { arquivo: string }) => x.arquivo === 'danfe-000124.pdf').danfe, { chave: nfeKey('124'), xml: null, situacao: 'pedir o XML ao fornecedor' });
+  assert.ok(docs.flags.some(f => f.ref === 'danfe-000124.pdf' && /pedir o XML ao fornecedor/.test(f.reason)));
+  assert.equal(d.pendings, 1);
+});
+
 test('RH/DP: checklist de admissão a partir de uma pasta de arquivos', async () => {
   const before = fake.completions.length;
   const d = await runWith(u.rh, 'checklist-admissao');
-  assert.equal(fake.completions.length - before, 1, 'só a foto vai para a visão');
+  assert.equal(fake.completions.length - before, 1, 'só a foto vai para a visão (fallback: o OCR não leu a foto)');
   const c = section(d, 'checklist').data;
   assert.deepEqual(Object.fromEntries(c.itens.map((i: { id: string; status: string }) => [i.id, i.status])),
     { rg: 'presente', cpf: 'presente', residencia: 'presente', ctps: 'presente', aso: 'ausente', titulo: 'duvidoso', banco: 'duvidoso' });
@@ -174,6 +188,6 @@ test('LGPD & Compliance: organização de evidências com índice, busca por doc
 test('medição dos assistentes de referência: sem ponto de partida até o baseline ser registrado', async () => {
   const r = (await get(u.key_fiscal, '/api/metrics/assistants/conferencia-nfe')).json();
   assert.equal(r.semPontoDePartida, true);
-  assert.equal(r.execucoes.execucoes, 1);
+  assert.equal(r.execucoes.execucoes, 2);                              // conferência + a execução com DANFE
   assert.equal((await get(u.key_lgpd, '/api/audit/verify')).json().ok, true);
 });

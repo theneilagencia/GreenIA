@@ -5,6 +5,7 @@
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph } from 'docx';
 import ExcelJS from 'exceljs';
+import { accessKeyDv } from '../blocks/danfe.ts';
 
 export interface SampleFile { name: string; bytes: Uint8Array; mime: string }
 
@@ -35,6 +36,12 @@ export const pngPlaceholder = () => new Uint8Array(Buffer.from('iVBORw0KGgoAAAAN
 
 export interface NFeItemSpec { codigo: string; descricao: string; qtd: number; unit: number; pedido?: string; itemPedido?: string }
 
+// Chave de acesso da NF-e fictícia, com dígito verificador válido.
+export function nfeKey(numero: string, cnpj = '12345678000199', aamm = '2609'): string {
+  const k = `35${aamm}${cnpj}55001${numero.padStart(9, '0')}100000000`;
+  return k + accessKeyDv(k);
+}
+
 // NF-e autorizada (nfeProc), layout 4.00.
 export function nfeXml(o: { numero: string; emissao: string; emitente?: string; cnpj?: string; pedido?: string; itens: NFeItemSpec[] }): string {
   const det = o.itens.map((it, i) => `
@@ -47,7 +54,7 @@ export function nfeXml(o: { numero: string; emissao: string; emitente?: string; 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
   <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
-    <infNFe Id="NFe35260912345678000199550010000${o.numero.padStart(5, '0')}1000000001" versao="4.00">
+    <infNFe Id="NFe${nfeKey(o.numero, o.cnpj ?? '12345678000199', o.emissao.slice(2, 4) + o.emissao.slice(5, 7))}" versao="4.00">
       <ide><cUF>35</cUF><natOp>Venda de mercadoria</natOp><mod>55</mod><serie>1</serie><nNF>${o.numero}</nNF><dhEmi>${o.emissao}T10:00:00-03:00</dhEmi></ide>
       <emit><CNPJ>${o.cnpj ?? '12345678000199'}</CNPJ><xNome>${o.emitente ?? 'Plásticos Exemplo Ltda'}</xNome><enderEmit><UF>SP</UF></enderEmit><IE>111222333444</IE></emit>
       <dest><CNPJ>98765432000155</CNPJ><xNome>Empresa Demonstração S.A.</xNome><enderDest><UF>SP</UF></enderDest></dest>${det}
@@ -60,6 +67,20 @@ export function nfeXml(o: { numero: string; emissao: string; emitente?: string; 
 }
 
 const enc = (s: string) => new TextEncoder().encode(s);
+
+// DANFE impresso (PDF com texto): a chave aparece em grupos de 4, como no documento real.
+export function danfePdf(o: { numero: string; emissao: string; cnpj?: string; emitente?: string; total: string }): Promise<Uint8Array> {
+  const chave = nfeKey(o.numero, o.cnpj ?? '12345678000199', o.emissao.slice(2, 4) + o.emissao.slice(5, 7));
+  return pdfText([[
+    'DANFE - Documento Auxiliar da Nota Fiscal Eletrônica',
+    `${o.emitente ?? 'Plásticos Exemplo Ltda'}`,
+    `NF-e Nº ${o.numero.padStart(9, '0').replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3')} Série 1`,
+    'CHAVE DE ACESSO',
+    chave.replace(/(\d{4})(?=\d)/g, '$1 '),
+    `Data de emissão: ${o.emissao.split('-').reverse().join('/')}`,
+    `VALOR TOTAL DA NOTA: ${o.total}`,
+  ].join('\n')]);
+}
 
 // Fiscal: nota com 5 itens × pedido com 5 itens. Esperado: quantidade do P-002,
 // preço do P-003 (4% acima), P-009 sem pedido, P-005 sem nota, valor total do

@@ -457,7 +457,7 @@
       <sc-if value="{{ admKb }}">
         <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
           <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Importar documentos para a base</h2>
-          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">PDF com texto, DOCX, XLSX, CSV, TXT ou MD. PDF digitalizado precisa da versão com texto.</p>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">PDF, DOCX, DOC, ODT, XLSX, XLS, ODS, CSV, TXT ou MD. PDF digitalizado passa pelo OCR no servidor; se o OCR não achar texto, envie a versão com texto.</p>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <select class="gia-field" aria-label="Área dos documentos" value="{{ kbArea }}" onChange="{{ onKbArea }}" style="max-width:260px;">
               <option value="">Todo o cliente</option>
@@ -644,7 +644,7 @@ const STATUS_LABEL = {
   aprovado_com_edicao: 'Aprovada com edição', rejeitado: 'Rejeitada',
 };
 const STATUS_COLOR = { erro: 'var(--gia-red-text)', rejeitado: 'var(--gia-red-text)', rascunho: 'var(--gia-amber-text)', processando: 'var(--gia-muted)' };
-const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem', docx: 'DOCX', xlsx: 'XLSX', csv: 'CSV', nfe_xml: 'XML da NF-e', texto: 'TXT' };
+const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'DOCX, DOC, ODT', xlsx: 'XLSX, XLS, ODS', csv: 'CSV', nfe_xml: 'XML da NF-e', texto: 'TXT' };
 const TYPE_LABEL = {
   cpf: 'CPF', cnpj: 'CNPJ', cartao: 'número de cartão', bancario: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial', rg: 'RG',
   lista: 'lista com dados pessoais', email: 'email', telefone: 'telefone', cep: 'CEP', endereco: 'endereço', nome: 'nome de pessoa',

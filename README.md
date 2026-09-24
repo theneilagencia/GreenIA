@@ -34,6 +34,17 @@ DATABASE_URL=postgres://greenia_srv:...@localhost/greenia COOKIE_SECURE=false \
   S3_ENDPOINT=http://localhost:9000 S3_FORCE_PATH_STYLE=true npm start
 ```
 
+### Ferramentas de OCR e conversão
+
+A imagem Docker já traz tudo. Para rodar fora dela (Ubuntu ou Debian):
+
+```sh
+sudo apt-get install ocrmypdf tesseract-ocr tesseract-ocr-por imagemagick libheif1 \
+  libreoffice-writer-nogui libreoffice-calc-nogui fonts-dejavu-core
+```
+
+Sem essas ferramentas o servidor funciona, mas PDF escaneado, foto, DOC, XLS, ODT e ODS não são lidos (a execução avisa). `GET /health/ready` mostra o estado de cada uma em `ferramentas`. Os testes que usam as ferramentas reais (`test/convert.test.ts`) são pulados quando elas faltam.
+
 ### Testes
 
 ```sh
@@ -79,6 +90,9 @@ Exemplos: `server/.env.example` (produção, AWS) e `.env.local.example` (compos
 | `PLATFORM_SUPPORT_EMAIL` | não | suporte da TheNeil: recebe o aviso de cada incidente reportado, sem a descrição |
 | `SESSION_TTL_HOURS` | não | duração da sessão (padrão 12 h) |
 | `COOKIE_SECURE` | não | `true` por padrão. Com `false` (só local), o cookie perde o prefixo `__Host-` |
+| `OCRMYPDF_CMD`, `OCR_LANG` | não | OCR local: comando do OCRmyPDF (padrão `ocrmypdf`) e idioma do Tesseract (padrão `por`) |
+| `MAGICK_CMD`, `SOFFICE_CMD` | não | ImageMagick (padrão `convert`; TIFF, HEIC) e LibreOffice (padrão `soffice`; DOC, XLS, ODT, ODS) |
+| `CONVERT_TIMEOUT_S` | não | tempo máximo base de cada OCR ou conversão (padrão 120 s, mais 20 s por página) |
 | `KB_UPLOAD_BODY_LIMIT_MB` | não | corpo máximo do envio de documento (padrão 30) |
 | `LOG_LEVEL` | não | padrão `info` |
 | `OIDC_*` (nome livre) | por provedor | segredo do cliente OIDC. A configuração do tenant guarda só o nome da variável, em `clientSecretEnv` |

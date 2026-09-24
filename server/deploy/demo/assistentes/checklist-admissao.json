@@ -14,6 +14,7 @@
     "dataClasses": ["verde", "amarela", "vermelha"],
     "dataPolicy": { "cpf": "permitir_com_registro", "rg": "permitir_com_registro", "nome": "permitir_com_registro", "endereco": "permitir_com_registro", "cep": "permitir_com_registro", "telefone": "permitir_com_registro", "email": "permitir_com_registro" },
     "retention": { "days": 90 },
+    "reading": { "ocrMinConfidence": 70, "visionFallback": true },
     "pipeline": [
       { "bloco": "ler", "params": { "visao": "auto" } },
       { "bloco": "checklist", "titulo": "Documentos da admissão", "params": {

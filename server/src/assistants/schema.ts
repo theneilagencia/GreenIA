@@ -59,6 +59,14 @@ export const assistantDefinitionSchema = z.preprocess(upgrade, z.object({
     keepOutputs: z.boolean().default(false),                // chat: grava a resposta como evidência?
     days: z.number().int().min(1).max(3650).optional(),     // sem valor: o padrão do tenant (vale também para as execuções)
   }).prefault({}),
+  // Leitura de PDF escaneado e foto: OCR local (Tesseract). A visão do modelo
+  // só entra como fallback, página a página, quando a confiança do OCR fica
+  // abaixo do limiar e esta política permite (e a Política de Uso do cliente
+  // não proíbe). Cada uso do fallback vai para a auditoria.
+  reading: z.object({
+    ocrMinConfidence: z.number().min(0).max(100).default(70),
+    visionFallback: z.boolean().default(false),
+  }).prefault({}),
   // Sequência de blocos. Vazio: assistente de conversa (Fase 2).
   pipeline: z.array(pipelineStepSchema).max(20).default([]),
   // Saída.

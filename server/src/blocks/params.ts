@@ -26,7 +26,9 @@ const jsonSchemaObject = z.record(z.string(), z.unknown()).refine(s => s.type ==
 
 export const lerParams = z.object({
   tipos: z.array(z.enum(FILE_KINDS)).optional(),          // restringe o que o bloco aceita (padrão: as entradas do assistente)
-  visao: z.enum(['auto', 'sempre', 'nunca']).default('auto'), // PDF escaneado e imagem vão para a visão do modelo
+  // 'nunca' desliga o fallback de visão nesta etapa, mesmo que o assistente permita.
+  // 'sempre' (definições antigas) vale como 'auto': a visão agora só entra como fallback do OCR.
+  visao: z.preprocess(v => v === 'sempre' ? 'auto' : v, z.enum(['auto', 'nunca'])).default('auto'),
   paginasMax: z.number().int().min(1).max(500).default(50),
 }).prefault({});
 

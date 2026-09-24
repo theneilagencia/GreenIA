@@ -5,8 +5,10 @@
 //   avisar ............. só segue se a pessoa confirmou o tipo ao enviar
 //   mascarar ........... enviado com o dado mascarado
 //   permitir c/ registro enviado e registrado na auditoria
-// Imagem e PDF escaneado vão para a visão do modelo antes que o filtro possa
-// ler o texto (limite registrado no relatório); o envio fica na auditoria.
+// PDF escaneado e imagem passam antes pelo OCR local; o texto do OCR segue a
+// mesma política. A visão do modelo só entra como fallback de OCR com baixa
+// confiança, se o assistente e a Política de Uso permitem, depois de o texto
+// do OCR passar pela política (screen); cada uso fica na auditoria.
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { SensitiveType } from '../../../lib/greenia-core.js';
@@ -75,22 +77,32 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
   const log = (action: string, details: Record<string, unknown>) =>
     withTenant(db, ctxDb, tx => audit(tx, { tenantId, actorUserId: run.user_id, action, target, details }));
 
+  // Tipos que impedem o envio destes textos (sem registrar nada).
+  const check = (texts: string[]) => {
+    if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) return { blocked: ['restrito'], motivo: 'informação restrita pela Política de Uso de IA', decision: null };
+    const { decision } = inspect(texts, policy);
+    const unconfirmed = decision.warn.filter(t => !confirmed.has(t));
+    if (decision.action === 'bloquear') return { blocked: decision.block as string[], motivo: 'política', decision };
+    if (unconfirmed.length) return { blocked: unconfirmed as string[], motivo: 'aviso não confirmado', decision };
+    return { blocked: [] as string[], motivo: '', decision };
+  };
+
   const env: BlockEnv = {
     keyUserContact: config.keyUserContact,
     now: () => new Date(),
+    converter: app.deps.converter,
+    visionAllowedByPolicy: rules?.allowVisionFallback ?? true,
+    // Imagem não tem como ser mascarada: tipo a mascarar também impede o fallback de visão.
+    async screen(texts) { const c = check(texts); return [...c.blocked, ...((c.decision?.mask ?? []) as string[])]; },
+    async record(action, details) { await log(action, details); },
     async complete(req) {
       const texts = req.content.filter(c => c.type === 'text').map(c => (c as { text: string }).text);
-      if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) {
-        await log('envio_bloqueado', { tipos: ['restrito'], etapa: req.purpose, motivo: 'informação restrita pela Política de Uso de IA' });
-        return { text: '', blocked: ['restrito'], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: null, model };
+      const c = check([req.system, ...texts]);
+      if (c.blocked.length || !c.decision) {
+        await log('envio_bloqueado', { tipos: c.blocked, etapa: req.purpose, motivo: c.motivo });
+        return { text: '', blocked: c.blocked, usage: { inputTokens: 0, outputTokens: 0 }, stopReason: null, model };
       }
-      const { decision } = inspect([req.system, ...texts], policy);
-      const unconfirmed = decision.warn.filter(t => !confirmed.has(t));
-      if (decision.action === 'bloquear' || unconfirmed.length) {
-        const blocked = decision.action === 'bloquear' ? decision.block : unconfirmed;
-        await log('envio_bloqueado', { tipos: blocked, etapa: req.purpose, motivo: decision.action === 'bloquear' ? 'política' : 'aviso não confirmado' });
-        return { text: '', blocked: blocked as string[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: null, model };
-      }
+      const decision = c.decision;
       let content: ContentPart[] = req.content;
       if (decision.mask.length) {
         content = content.map(c => c.type === 'text' ? { ...c, text: maskText(c.text, decision.mask as SensitiveType[]) } : c);

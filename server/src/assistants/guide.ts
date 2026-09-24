@@ -8,7 +8,7 @@ import type { AssistantDefinition } from './schema.ts';
 import type { UsageRules } from '../policy/usage-policy.ts';
 
 const KIND_LABEL: Record<string, string> = {
-  pdf: 'PDF', imagem: 'foto ou imagem digitalizada', docx: 'Word (DOCX)', xlsx: 'Excel (XLSX)', csv: 'CSV exportado do sistema', nfe_xml: 'XML da NF-e', texto: 'texto (TXT)',
+  pdf: 'PDF', imagem: 'foto ou imagem digitalizada (JPG, PNG, TIFF, HEIC)', docx: 'Word (DOCX, DOC, ODT)', xlsx: 'Excel (XLSX, XLS, ODS)', csv: 'CSV exportado do sistema', nfe_xml: 'XML da NF-e', texto: 'texto (TXT)',
 };
 const FLAG_HINTS: Record<string, string> = {
   conferir: 'Cada divergência mostra os dois valores e onde estão. Confira no documento antes de aceitar ou descartar.',

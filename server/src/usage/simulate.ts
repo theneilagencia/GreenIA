@@ -7,11 +7,18 @@ import { z } from 'zod';
 import type { Tx } from '../db/pool.ts';
 import { costBrl, currentPrice, priceCost } from './pricing.ts';
 
+// Página digitalizada: o OCR local lê sem custo de modelo, e o texto dela
+// conta como página de texto quando vai ao modelo. Só a parcela que cai no
+// fallback de visão (OCR abaixo do limiar, com o assistente permitindo) paga a
+// imagem na entrada e a transcrição na saída.
 export const ASSUMPTIONS = {
-  tokensPorPaginaTexto: 750,     // ~3.000 caracteres por página, ~4 caracteres por token
-  tokensPorPaginaVisao: 1800,    // página A4 digitalizada enviada como imagem
-  tokensFixosPorExecucao: 1200,  // instruções, schema e contexto de cada chamada
-  tokensSaidaPorExecucao: 800,   // resposta do modelo por execução
+  tokensPorPaginaTexto: 750,         // ~3.000 caracteres por página, ~4 caracteres por token (vale para o texto do OCR)
+  tokensPorPaginaVisao: 2300,        // página A4 enviada como JPEG de até 1568 px (largura × altura / 750)
+  tokensSaidaPorPaginaVisao: 750,    // transcrição da página pelo modelo
+  percentualFallbackVisao: 10,       // das páginas digitalizadas, quantas caem no fallback (premissa até medir)
+  tokensFixosPorExecucao: 1200,      // instruções, schema e contexto de cada chamada
+  tokensSaidaPorExecucao: 800,       // resposta do modelo por execução
+  segundosOcrPorPagina: 2.5,         // CPU do servidor por página no OCR (informativo: não entra no consumo)
 };
 
 export const simulateSchema = z.object({
@@ -22,7 +29,8 @@ export const simulateSchema = z.object({
     assistente: z.string().max(80).optional(),           // usa as médias medidas deste assistente, se houver
     execucoesPorMes: z.number().int().min(0).max(1_000_000),
     paginasPorExecucao: z.number().min(0).max(5000).default(1),
-    percentualDigitalizado: z.number().min(0).max(100).default(0),   // páginas que vão para a visão do modelo
+    percentualDigitalizado: z.number().min(0).max(100).default(0),   // páginas escaneadas ou fotos (passam pelo OCR local)
+    percentualFallbackVisao: z.number().min(0).max(100).optional(), // das digitalizadas, quantas vão à visão; sem valor: a premissa
     usaModelo: z.boolean().default(true),                // conferência só em código não consome tokens
   })).min(1).max(50),
 });
@@ -56,8 +64,9 @@ export async function simulate(tx: Tx, input: z.infer<typeof simulateSchema>, op
       base = `medido: médias de ${m.execucoes} execuções dos últimos 90 dias`;
     } else {
       const dig = it.percentualDigitalizado / 100;
-      tin = ASSUMPTIONS.tokensFixosPorExecucao + it.paginasPorExecucao * ((1 - dig) * ASSUMPTIONS.tokensPorPaginaTexto + dig * ASSUMPTIONS.tokensPorPaginaVisao);
-      tout = ASSUMPTIONS.tokensSaidaPorExecucao;
+      const visao = it.paginasPorExecucao * dig * (it.percentualFallbackVisao ?? ASSUMPTIONS.percentualFallbackVisao) / 100;
+      tin = ASSUMPTIONS.tokensFixosPorExecucao + it.paginasPorExecucao * ASSUMPTIONS.tokensPorPaginaTexto + visao * ASSUMPTIONS.tokensPorPaginaVisao;
+      tout = ASSUMPTIONS.tokensSaidaPorExecucao + visao * ASSUMPTIONS.tokensSaidaPorPaginaVisao;
       base = 'premissa (sem histórico suficiente: mínimo de 5 execuções)';
     }
     const inTok = Math.round(tin * it.execucoesPorMes), outTok = Math.round(tout * it.execucoesPorMes);

@@ -86,7 +86,7 @@ test('importação em lote para a base: PDF, DOCX, XLSX e texto indexados; recus
   const st = (await get(people.keyRh, `/api/kb/import/${body.lote}`)).json();
   assert.deepEqual(st.resumo, { indexados: 4, pendentes: 0, erros: 1 });
   assert.deepEqual(st.documentos.filter((d: { status: string }) => d.status === 'erro').map((d: { titulo: string; erro: string }) => [d.titulo, d.erro]),
-    [['Escaneado', 'arquivo sem texto (digitalizado): envie a versão com texto']]);
+    [['Escaneado', 'arquivo digitalizado sem texto legível pelo OCR: envie a versão com texto']]);
   const search = async (q: string) => (await get(people.keyRh, '/api/kb/search?q=' + encodeURIComponent(q))).json().map((x: { title: string }) => x.title);
   assert.deepEqual(await search('antecedência para pedir férias'), ['Férias']);
   assert.deepEqual(await search('documentos de admissão carteira de trabalho'), ['Admissão']);
@@ -102,7 +102,7 @@ test('guia rápido do assistente em PDF e Markdown, gerado da definição e da p
     pipeline: [{ bloco: 'ler' }, { bloco: 'checklist', params: { itens: [{ id: 'rg', nome: 'RG' }] } }],
     output: { format: 'checklist', files: ['pdf', 'xlsx'] }, review: { checklist: ['Confira a validade da CNH.'] } } });
   const md = (await get(people.keyRh, '/api/assistants/admissao/guide?format=md')).body;
-  assert.match(md, /## O que enviar\n- Arquivos: PDF, foto ou imagem digitalizada\. Até 20 arquivos de 20 MB cada\. Pelo menos um arquivo é obrigatório\./);
+  assert.match(md, /## O que enviar\n- Arquivos: PDF, foto ou imagem digitalizada \(JPG, PNG, TIFF, HEIC\)\. Até 20 arquivos de 20 MB cada\. Pelo menos um arquivo é obrigatório\./);
   assert.match(md, /Nunca: senha ou credencial, [^\n]*RG/);
   assert.ok(!/Nunca:[^\n]*CPF/.test(md), 'CPF é permitido com registro neste assistente');
   assert.match(md, /Mascarados antes do envio: email\./);

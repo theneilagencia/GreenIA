@@ -17,6 +17,7 @@
         "required": true,
         "accept": [
           "nfe_xml",
+          "pdf",
           "xlsx",
           "csv"
         ],

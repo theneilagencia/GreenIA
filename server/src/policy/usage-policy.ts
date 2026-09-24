@@ -6,6 +6,8 @@
 //                    texto que as contém não vai ao modelo
 //   allowedClasses   classes de dado permitidas: assistente que aceita outra
 //                    classe não pode ir para piloto nem ficar ativo
+//   allowVisionFallback  se falso, nenhum assistente envia página à visão do
+//                    modelo, nem com OCR de baixa confiança
 //   tools            texto livre sobre ferramentas permitidas (informativo)
 // No primeiro acesso e a cada nova versão, a pessoa registra ciência antes de
 // usar o chat ou os assistentes (conferido no servidor).
@@ -21,6 +23,7 @@ export const usageRulesSchema = z.object({
   dataPolicy: dataPolicySchema.default({}),
   restrictedTerms: z.array(z.string().trim().min(3).max(120)).max(200).default([]),
   allowedClasses: z.array(z.enum(['verde', 'amarela', 'vermelha'])).min(1).default(['verde', 'amarela', 'vermelha']),
+  allowVisionFallback: z.boolean().default(true),
   tools: z.string().max(4000).default(''),
 }).prefault({});
 export type UsageRules = z.infer<typeof usageRulesSchema>;

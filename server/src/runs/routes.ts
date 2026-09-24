@@ -46,6 +46,8 @@ function modelInputs(def: AssistantDefinition) {
   return { text, docs };
 }
 
+const PRECHECK_READ = { paginasMax: 500, ocrMinConfidence: 0, visionFallback: false };
+
 const noModelEnv: BlockEnv = {
   async complete() { throw new Error('sem modelo na checagem prévia'); },
   async searchKnowledge() { return []; },
@@ -105,7 +107,15 @@ export async function runRoutes(app: FastifyInstance) {
     const need = modelInputs(def);
     const texts: string[] = [];
     if (need.text && text) texts.push(text);
-    if (need.docs) for (const f of files) texts.push((await readFile(f, { visao: 'nunca', paginasMax: 500 }, noModelEnv)).text);
+    // Checagem prévia só com a camada de texto (DOC, XLS, ODT e ODS convertidos). O OCR
+    // das páginas escaneadas roda na execução, e o texto dele passa pela mesma
+    // política antes de ir ao modelo: aviso não confirmado aqui vira bloqueio lá.
+    if (need.docs) {
+      const { converter } = app.deps;
+      const env: BlockEnv = { ...noModelEnv, converter: { ...converter, officeToOoxml: converter.officeToOoxml.bind(converter),
+        ocrPdf: () => Promise.reject(new Error('OCR na execução')), ocrImage: () => Promise.reject(new Error('OCR na execução')) } };
+      for (const f of files) texts.push((await readFile(f, PRECHECK_READ, env)).text);
+    }
     if (texts.length) {
       const rules = usage.policy?.rules;
       if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) {

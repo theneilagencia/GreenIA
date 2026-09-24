@@ -6,6 +6,7 @@ import type { AssistantDefinition } from '../assistants/schema.ts';
 import type { ContentPart, LlmCompletion } from '../llm/provider.ts';
 import type { KnowledgeHit } from '../kb/knowledge.ts';
 import type { NFe } from './nfe.ts';
+import type { Converter } from '../convert/converter.ts';
 
 export interface InputFile { id: string; name: string; mime: string; bytes: Uint8Array; sha256: string }
 
@@ -21,12 +22,14 @@ export interface ReadDoc {
   name: string;
   kind: FileKind;
   sha256: string;
-  via: 'texto' | 'parser' | 'visao';
-  pages: { n: number; text: string }[];
+  via: 'texto' | 'parser' | 'ocr' | 'visao';       // o mais "caro" usado no arquivo
+  pages: { n: number; text: string; via?: 'texto' | 'ocr' | 'visao'; confianca?: number }[];
+  convertedFrom?: string;                           // DOC, XLS, ODT, ODS, TIFF, HEIC: formato original
   text: string;
   pageCount: number;                                // páginas processadas (consumo)
   sheets?: Sheet[];
   nfe?: NFe;
+  danfe?: { chave: string };                        // PDF de DANFE: chave de acesso de 44 dígitos
   warnings: string[];
 }
 
@@ -53,6 +56,12 @@ export interface BlockEnv {
   searchKnowledge(query: string, opts: { areas?: string[]; limit: number }): Promise<KnowledgeHit[]>;
   keyUserContact: string;
   now: () => Date;
+  converter?: Converter;                            // OCR e conversões; ausente: indisponível
+  visionAllowedByPolicy?: boolean;                  // Política de Uso do cliente (padrão: permite)
+  // Confere textos contra a política sem enviar nada; devolve os tipos que impedem
+  // enviar a imagem correspondente (bloqueio, aviso não confirmado ou mascaramento).
+  screen?(texts: string[]): Promise<string[]>;
+  record?(action: string, details: Record<string, unknown>): Promise<void>;
 }
 
 export interface RunContext {

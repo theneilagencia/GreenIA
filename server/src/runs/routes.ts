@@ -11,6 +11,7 @@ import { audit } from '../audit.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { assistantDefinitionSchema, type AssistantDefinition } from '../assistants/schema.ts';
 import { effectivePolicy, inspect } from '../policy/data-policy.ts';
+import { applyFloor, policyState, restrictedHits } from '../policy/usage-policy.ts';
 import { detectKind, readFile } from '../blocks/ler.ts';
 import type { BlockEnv, InputFile } from '../blocks/types.ts';
 import { checkLimits } from '../usage/record.ts';
@@ -63,13 +64,15 @@ export async function runRoutes(app: FastifyInstance) {
     const body = p.data;
 
     const loaded = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const usage = await policyState(tx, a.userId);
       const t = (await tx.query(`select config from tenants where id = $1`, [a.tenantId])).rows[0];
       const row = (await tx.query(
         `select a.id, a.slug, a.name, a.status, a.area_id, a.current_version, v.definition from assistants a
          join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version where a.slug = $1`, [body.assistant])).rows[0];
-      return { config: parseTenantConfig(t?.config).config, row };
+      return { config: parseTenantConfig(t?.config).config, row, usage };
     });
-    const { config, row } = loaded;
+    const { config, row, usage } = loaded;
+    if (!usage.acked) return reply.code(428).send({ error: 'ciencia_da_politica_pendente', version: usage.policy!.version });
     if (!row || !['piloto', 'ativo'].includes(row.status)) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
     const def = assistantDefinitionSchema.parse(row.definition);
     if (!def.pipeline.length) return reply.code(409).send({ error: 'assistente_de_conversa', detalhe: 'use o chat para este assistente' });
@@ -104,7 +107,12 @@ export async function runRoutes(app: FastifyInstance) {
     if (need.text && text) texts.push(text);
     if (need.docs) for (const f of files) texts.push((await readFile(f, { visao: 'nunca', paginasMax: 500 }, noModelEnv)).text);
     if (texts.length) {
-      const { decision } = inspect(texts, effectivePolicy(config.dataPolicy, def.dataPolicy));
+      const rules = usage.policy?.rules;
+      if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) {
+        await withTenant(app.deps.db, tenantCtx(a), tx => audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'envio_bloqueado', target, details: { tipos: ['restrito'] } }));
+        return reply.code(422).send({ error: 'dado_bloqueado', types: ['restrito'] });
+      }
+      const { decision } = inspect(texts, applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy), rules?.dataPolicy));
       if (decision.action === 'bloquear') {
         await withTenant(app.deps.db, tenantCtx(a), tx => audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'envio_bloqueado', target, details: { tipos: decision.block } }));
         return reply.code(422).send({ error: 'dado_bloqueado', types: decision.block });

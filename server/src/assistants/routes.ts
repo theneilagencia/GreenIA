@@ -9,6 +9,15 @@ import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { assistantDefinitionSchema } from './schema.ts';
 import { buildPackageMarkdown, buildPackageZip, type PackageMeta } from './package.ts';
+import { classConflicts, currentPolicy } from '../policy/usage-policy.ts';
+import type { Tx } from '../db/pool.ts';
+
+// Assistente em piloto ou ativo só aceita as classes de dado que a Política de Uso de IA permite.
+async function policyConflict(tx: Tx, status: string, dataClasses: string[]) {
+  if (!['piloto', 'ativo'].includes(status)) return null;
+  const conflicts = classConflicts(dataClasses, (await currentPolicy(tx))?.rules);
+  return conflicts.length ? { status: 409, body: { error: 'classe_nao_permitida_pela_politica', classes: conflicts } } : null;
+}
 
 const STATUS = ['rascunho', 'piloto', 'ativo', 'pausado', 'descartado'] as const;
 
@@ -51,6 +60,8 @@ export async function assistantRoutes(app: FastifyInstance) {
       const areaId = p.data.areaSlug ? (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id : null;
       if (p.data.areaSlug && !areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
       if (!can(a, 'kb.manage', areaId)) return { status: 403, body: { error: 'sem_permissao' } };
+      const blocked = await policyConflict(tx, p.data.status, def.data.dataClasses);
+      if (blocked) return blocked;
       try {
         const row = (await tx.query(
           `insert into assistants (tenant_id, slug, name, area_id, status) values ($1, $2, $3, $4, $5) returning id`,
@@ -76,9 +87,11 @@ export async function assistantRoutes(app: FastifyInstance) {
     if (!def.success) return reply.code(400).send({ error: 'definicao_invalida', detalhes: issues(def.error) });
     const { slug } = req.params as { slug: string };
     const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
-      const cur = (await tx.query(`select id, area_id, current_version from assistants where slug = $1 for update`, [slug])).rows[0];
+      const cur = (await tx.query(`select id, area_id, status, current_version from assistants where slug = $1 for update`, [slug])).rows[0];
       if (!cur) return { status: 404, body: { error: 'assistente_nao_encontrado' } };
       if (!can(a, 'kb.manage', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
+      const blocked = await policyConflict(tx, p.data.status ?? cur.status, def.data.dataClasses);
+      if (blocked) return blocked;
       const version = cur.current_version + 1;
       await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, $3, $4, $5)`,
         [a.tenantId, cur.id, version, def.data, a.userId]);
@@ -130,23 +143,26 @@ export async function assistantRoutes(app: FastifyInstance) {
     const a = requireAuth(req, reply);
     if (!a) return;
     const p = statusSchema.safeParse(req.body);
-    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    if (!p.success) return { status: 400, body: { error: 'dados_invalidos' } };
     const { slug } = req.params as { slug: string };
-    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
       const cur = (await tx.query(
         `select a.id, a.area_id, a.status, a.current_version, v.definition from assistants a
          join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version where a.slug = $1 for update of a`, [slug])).rows[0];
-      if (!cur) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
-      if (!can(a, 'kb.manage', cur.area_id)) return reply.code(403).send({ error: 'sem_permissao' });
-      if (cur.status === p.data.status) return { slug, version: cur.current_version, status: cur.status };
+      if (!cur) return { status: 404, body: { error: 'assistente_nao_encontrado' } };
+      if (!can(a, 'kb.manage', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
+      if (cur.status === p.data.status) return { status: 200, body: { slug, version: cur.current_version, status: cur.status } };
+      const blocked = await policyConflict(tx, p.data.status, assistantDefinitionSchema.parse(cur.definition).dataClasses);
+      if (blocked) return blocked;
       const version = cur.current_version + 1;
       await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, $3, $4, $5)`,
         [a.tenantId, cur.id, version, cur.definition, a.userId]);
       await tx.query(`update assistants set current_version = $1, status = $2 where id = $3`, [version, p.data.status, cur.id]);
       await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_status', target: `assistente:${slug}@${version}`,
         details: { de: cur.status, para: p.data.status, motivo: p.data.motivo } });
-      return { slug, version, status: p.data.status };
+      return { status: 200, body: { slug, version, status: p.data.status } };
     });
+    return reply.code(out.status).send(out.body);
   });
 
   // Pacote portátil (ZIP com Markdown e JSON, ou um único Markdown).

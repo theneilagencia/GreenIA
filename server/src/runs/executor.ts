@@ -16,6 +16,7 @@ import { audit } from '../audit.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { assistantDefinitionSchema } from '../assistants/schema.ts';
 import { effectivePolicy, inspect, maskText } from '../policy/data-policy.ts';
+import { applyFloor, currentPolicy, restrictedHits } from '../policy/usage-policy.ts';
 import { runBlock } from '../blocks/index.ts';
 import type { BlockEnv, InputFile, RunContext, Section } from '../blocks/types.ts';
 import type { ContentPart, LlmUsage } from '../llm/provider.ts';
@@ -55,16 +56,17 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
     const v = (await tx.query(`select definition from assistant_versions where assistant_id = $1 and version = $2`, [run.assistant_id, run.assistant_version])).rows[0];
     const files = (await tx.query(`select * from run_files where run_id = $1 order by name`, [runId])).rows;
     await tx.query(`update runs set started_at = now() where id = $1`, [runId]);
-    return { config: parseTenantConfig(t?.config).config, def: assistantDefinitionSchema.parse(v.definition), files };
+    return { config: parseTenantConfig(t?.config).config, def: assistantDefinitionSchema.parse(v.definition), files, usage: await currentPolicy(tx) };
   });
   const { config, def } = loaded;
+  const rules = loaded.usage?.rules;
   const started = Date.now();
 
   const files: InputFile[] = [];
   for (const f of loaded.files) files.push({ id: f.id, name: f.name, mime: f.mime, sha256: f.sha256, bytes: await objects.get(f.object_key) });
 
   const provider = app.deps.llm(config.llm.provider);
-  const policy = effectivePolicy(config.dataPolicy, def.dataPolicy);
+  const policy = applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy), rules?.dataPolicy);
   const confirmed = new Set<string>(run.confirmed_warnings || []);
   const usage: LlmUsage = { inputTokens: 0, outputTokens: 0 };
   let model = config.llm.model;
@@ -78,6 +80,10 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
     now: () => new Date(),
     async complete(req) {
       const texts = req.content.filter(c => c.type === 'text').map(c => (c as { text: string }).text);
+      if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) {
+        await log('envio_bloqueado', { tipos: ['restrito'], etapa: req.purpose, motivo: 'informação restrita pela Política de Uso de IA' });
+        return { text: '', blocked: ['restrito'], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: null, model };
+      }
       const { decision } = inspect([req.system, ...texts], policy);
       const unconfirmed = decision.warn.filter(t => !confirmed.has(t));
       if (decision.action === 'bloquear' || unconfirmed.length) {

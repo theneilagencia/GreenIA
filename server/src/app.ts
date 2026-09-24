@@ -12,13 +12,15 @@ import { adminRoutes } from './admin/routes.ts';
 import { platformRoutes } from './platform/routes.ts';
 import { chatRoutes } from './chat/routes.ts';
 import { composeSteps, type ChatHooks } from './chat/hooks.ts';
-import { assistantStep, dataPolicyStep } from './chat/steps.ts';
+import { assistantStep, dataPolicyStep, usagePolicyStep } from './chat/steps.ts';
 import { assistantRoutes } from './assistants/routes.ts';
 import { kbRoutes } from './kb/routes.ts';
 import { auditRoutes } from './audit/routes.ts';
 import { runRoutes } from './runs/routes.ts';
 import { reviewRoutes } from './runs/review.ts';
 import { metricsRoutes } from './metrics/routes.ts';
+import { policyRoutes } from './policy/routes.ts';
+import { incidentRoutes } from './incidents/routes.ts';
 import { makeRunExecutor } from './runs/executor.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
@@ -47,7 +49,7 @@ export interface Deps {
 
 export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
+  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([usagePolicyStep, usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -86,6 +88,8 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(runRoutes);
   await app.register(reviewRoutes);
   await app.register(metricsRoutes);
+  await app.register(policyRoutes);
+  await app.register(incidentRoutes);
 
   // Frontend (mesma origem da API). Registrado por último: as rotas da API têm prioridade.
   await app.register(staticRoutes);

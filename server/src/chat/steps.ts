@@ -6,6 +6,7 @@ import { tenantCtx } from '../auth/session.ts';
 import { audit } from '../audit.ts';
 import { assistantDefinitionSchema, type AssistantDefinition } from '../assistants/schema.ts';
 import { effectivePolicy, inspect, maskText } from '../policy/data-policy.ts';
+import { applyFloor, policyState, restrictedHits, type UsageRules } from '../policy/usage-policy.ts';
 import type { ChatStep } from './hooks.ts';
 
 // Carrega o assistente pedido (versão atual), respeitando tenant, área e status.
@@ -28,17 +29,36 @@ export const assistantStep: ChatStep = {
   },
 };
 
+// Política de Uso de IA: a pessoa precisa ter registrado ciência da versão
+// vigente; as regras da política seguem para a etapa de política de dados.
+export const usagePolicyStep: ChatStep = {
+  name: 'politica-de-uso',
+  async prepare({ app, auth }, state) {
+    const { policy, acked } = await withTenant(app.deps.db, tenantCtx(auth), tx => policyState(tx, auth.userId));
+    if (!acked) return { status: 428, body: { error: 'ciencia_da_politica_pendente', version: policy!.version } };
+    state.usageRules = policy?.rules;
+  },
+};
+
 // Decide, no servidor, o que fazer com dado sensível antes de qualquer chamada
 // ao modelo. Auditoria registra tipos e decisão, nunca os valores.
 export const dataPolicyStep: ChatStep = {
   name: 'politica-de-dados',
   async prepare({ app, auth, config, body }, state) {
     const def = state.assistant?.definition as AssistantDefinition | undefined;
-    const policy = effectivePolicy(config.dataPolicy, def?.dataPolicy);
-    const { decision, types } = inspect(state.messages.map(m => m.content), policy);
-    if (!types.length) return;
+    const rules = state.usageRules as UsageRules | undefined;
+    const policy = applyFloor(effectivePolicy(config.dataPolicy, def?.dataPolicy), rules?.dataPolicy);
+    const texts = state.messages.map(m => m.content);
     const ctx = tenantCtx(auth);
     const base = { tenantId: auth.tenantId, actorUserId: auth.userId, target: state.assistant ? `assistente:${state.assistant.slug}@${state.assistant.version}` : 'chat' };
+    // Informação restrita pela Política de Uso de IA: não vai ao modelo.
+    const restricted = restrictedHits(texts, rules?.restrictedTerms ?? []);
+    if (restricted.length) {
+      await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'envio_bloqueado', details: { tipos: ['restrito'], termos: restricted.length } }));
+      return { status: 422, body: { error: 'dado_bloqueado', types: ['restrito'] } };
+    }
+    const { decision, types } = inspect(texts, policy);
+    if (!types.length) return;
 
     if (decision.action === 'bloquear') {
       await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'envio_bloqueado', details: { tipos: decision.block } }));

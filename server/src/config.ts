@@ -33,6 +33,8 @@ const schema = z.object({
   // Email (SMTP; em produção, Amazon SES em sa-east-1 via SMTP).
   SMTP_URL: z.string().optional(),
   EMAIL_FROM: z.string().default('GreenIA <nao-responda@greenia.local>'),
+  // Suporte da TheNeil: recebe o aviso de cada incidente reportado (sem a descrição).
+  PLATFORM_SUPPORT_EMAIL: z.email().optional(),
 
   // Provedores de modelo. As chaves ficam aqui, nunca no frontend.
   ANTHROPIC_API_KEY: z.string().optional(),

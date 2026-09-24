@@ -156,7 +156,7 @@ Um quick win é uma melhoria num processo de uma área, não uma ferramenta. Pod
 - **Ampliar**: cria outro quick win em outra área, unidade ou processo, com baseline próprio e vínculo com a origem. Os recursos são compartilhados (os mesmos) ou duplicados (cópia independente na área nova), à escolha de quem amplia.
 - **Cota**: nenhuma na plataforma. A cota, se houver, é do plano (`PUT /api/platform/tenants/<slug>/quick-wins-quota`), com aviso quando atingida.
 - **Relatórios** em PDF e XLSX: portfólio de oportunidades (avaliação, situação e motivo de roadmap e arquivo) e resultados dos quick wins (antes × depois, janelas, decisões e trajetória).
-- **Da Fase 3**: a medição que ficava no assistente foi trazida para quick wins pela migração `020` (um quick win por assistente com valores ou decisões, com os indicadores, os valores com origem, a última decisão e as execuções).
+- **Da Fase 3**: a medição que ficava no assistente foi trazida para quick wins pela migração `020` (um quick win por assistente com valores ou decisões, com os indicadores, os valores com origem, a última decisão e as execuções), e as tabelas antigas saíram na `022`. O teste `legacy-reconciliation` confere os totais antes e depois.
 
 ### Tenants de demonstração
 
@@ -185,7 +185,7 @@ O código não depende da AWS: cada peça fica atrás de uma interface (`ObjectS
 
 - **Rede**: o banco, o Redis e as tarefas ficam em sub-redes privadas, e só o ALB é público. As saídas necessárias são `api.anthropic.com` (modelo), SES, S3 e os provedores OIDC dos clientes (`login.microsoftonline.com`, `accounts.google.com`).
 - **Modelo e região**: o processamento do modelo acontece fora do Brasil. A API da Anthropic não tem região Brasil. O Bedrock também não tem perfil de inferência no Brasil: veja `docs/fase-2/bedrock-regiao-brasil.md`. Os dados em repouso (banco, documentos, filas) ficam em sa-east-1. É um ponto jurídico (transferência internacional), registrado em `PENDENCIAS-SEGURANCA.md`.
-- **Migrações no deploy**: rode uma tarefa avulsa com a mesma imagem, com `node src/db/migrate.ts`, antes de atualizar o serviço. As migrações são aditivas e registradas em `schema_migrations`.
+- **Migrações no deploy**: rode uma tarefa avulsa com a mesma imagem, com `node src/db/migrate.ts`, antes de atualizar o serviço. As migrações são aditivas e registradas em `schema_migrations`. Uma migração que remove algo tem volta em `migrations/down/` com o mesmo nome: `node src/db/migrate.ts --down <nome>.sql` (só a última aplicada). A `022` remove as tabelas da medição por assistente, depois de a `020` trazer os dados para quick wins; a volta recria as tabelas vazias.
 
 ## Âncora da auditoria (conta AWS separada)
 

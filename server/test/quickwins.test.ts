@@ -1,8 +1,8 @@
 // Quick wins como objeto próprio: oportunidades avaliadas por critérios do
 // tenant; roadmap e arquivo com motivo; patrocinador seleciona e decide; ciclo
 // auditado; volta ao roadmap na implantação com substituição; ampliação com
-// recursos compartilhados ou duplicados; cota do plano; os dois relatórios; e a
-// medição por assistente da Fase 3 trazida para quick wins.
+// recursos compartilhados ou duplicados; cota do plano; os dois relatórios. A
+// migração da medição por assistente tem teste próprio (legacy-reconciliation).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FastifyInstance } from 'fastify';
@@ -223,26 +223,4 @@ test('relatórios: portfólio com motivos de roadmap e arquivo; resultados com j
   assert.match(rtext, /ampliado para: /);
   assert.match(rtext, /AMPLIAR — Tempo por orçamento caiu/);
   assert.equal((await call(u.mestre, 'GET', '/api/quick-wins/relatorios/portfolio')).statusCode, 403);
-});
-
-test('medição por assistente da Fase 3 vira quick win: indicadores, valores com origem, decisão e execuções', async () => {
-  const a = (await db.owner.query(`select id from assistants where slug = 'clausulas-obra'`)).rows[0].id;
-  const eng = (await db.owner.query(`select id from areas where tenant_id = $1 and slug = 'engenharia'`, [T.tenantId])).rows[0].id;
-  await db.owner.query(`update assistant_versions set definition = definition || '{"metrics":{"indicators":[{"key":"tempo_contrato","label":"Tempo por contrato","unit":"min"}]}}'::jsonb where assistant_id = $1`, [a]);
-  await db.owner.query(`insert into metric_values (tenant_id, assistant_id, indicator, phase, value, unit, origin, period_start, period_end, method, recorded_by)
-    values ($1, $2, 'tempo_contrato', 'antes', 45, 'min', 'medido', '2026-05-01', '2026-05-31', 'cronometragem', $3)`, [T.tenantId, a, u.eng]);
-  await db.owner.query(`insert into assistant_decisions (tenant_id, assistant_id, decision, decided_on, responsible, justification, recorded_by)
-    values ($1, $2, 'manter', '2026-08-30', 'Diretoria de engenharia', 'Ganho confirmado no piloto.', $3)`, [T.tenantId, a, u.eng]);
-  await db.owner.query(`insert into runs (tenant_id, assistant_id, assistant_version, area_id, user_id, status, input_sha256, expires_at) values ($1, $2, 1, $3, $4, 'aprovado', 'x', now() + interval '30 days')`, [T.tenantId, a, eng, u.eng]);
-  assert.equal((await db.owner.query(`select migrate_assistant_metrics() as n`)).rows[0].n, 1);
-  assert.equal((await db.owner.query(`select migrate_assistant_metrics() as n`)).rows[0].n, 0);           // uma vez só
-  const q = (await db.owner.query(`select id, stage, decision from quick_wins where migrated_from_assistant = $1`, [a])).rows[0];
-  assert.deepEqual([q.stage, q.decision], ['decisao', 'manter']);
-  const d = (await call(u.eng, 'GET', `/api/quick-wins/${q.id}?de=2020-01-01&ate=2030-12-31`)).json();
-  assert.equal(d.quickWin.titulo, 'Medição do assistente Cláusulas de contratos de obra');
-  assert.deepEqual(d.indicadores.map((i: { key: string; antes: { valor: number } }) => [i.key, i.antes.valor]), [['tempo_contrato', 45]]);
-  assert.match(d.indicadores[0].antes.origem.detalhe, /medido de 2026-05-01 a 2026-05-31; método: cronometragem/);
-  assert.match(d.quickWin.decisao.justificativa, /Ganho confirmado no piloto\. \(responsável: Diretoria de engenharia, 2026-08-30\)/);
-  assert.equal((await db.owner.query(`select count(*)::int as n from runs where assistant_id = $1 and quick_win_id = $2`, [a, q.id])).rows[0].n, 1);
-  assert.equal((await db.owner.query(`select count(*)::int as n from audit_log where action = 'medicao_migrada_para_quick_win' and tenant_id = $1`, [T.tenantId])).rows[0].n, 1);
 });

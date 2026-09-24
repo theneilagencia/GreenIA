@@ -8,10 +8,13 @@ import { tenantRoutes } from './tenants/routes.ts';
 import { sessionPlugin } from './auth/session.ts';
 import { authRoutes } from './auth/routes.ts';
 import type { EmailSender } from './email/sender.ts';
+import { adminRoutes } from './admin/routes.ts';
+import { platformRoutes } from './platform/routes.ts';
 
 export interface Deps {
   config: Config;
   db: Db;
+  ownerDb?: Db; // conexão do dono das tabelas: só operações de plataforma
   email: EmailSender;
   ping?: { redis?: () => Promise<unknown> };
 }
@@ -46,6 +49,8 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   await sessionPlugin(app);
   await app.register(tenantRoutes);
   await app.register(authRoutes);
+  await app.register(adminRoutes);
+  await app.register(platformRoutes);
 
   return app;
 }

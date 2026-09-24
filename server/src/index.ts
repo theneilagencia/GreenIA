@@ -8,11 +8,13 @@ const config = loadConfig();
 const db = createPool(config.DATABASE_URL);
 if (!config.SMTP_URL && config.NODE_ENV === 'production') throw new Error('SMTP_URL é obrigatório em produção');
 const email = config.SMTP_URL ? new SmtpEmailSender(config.SMTP_URL, config.EMAIL_FROM) : new MemoryEmailSender();
-const app = await buildApp({ config, db, email });
+const ownerDb = config.DATABASE_OWNER_URL ? createPool(config.DATABASE_OWNER_URL, 2) : undefined;
+const app = await buildApp({ config, db, ownerDb, email });
 
 const stop = async () => {
   await app.close();
   await db.end();
+  await ownerDb?.end();
   process.exit(0);
 };
 process.on('SIGTERM', stop);

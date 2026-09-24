@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { withTenant } from '../db/pool.ts';
-import { requireAuth, tenantCtx, type AuthContext } from '../auth/session.ts';
+import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
@@ -15,6 +15,7 @@ import { detectKind, readFile } from '../blocks/ler.ts';
 import type { BlockEnv, InputFile } from '../blocks/types.ts';
 import { checkLimits } from '../usage/record.ts';
 import { tenantPrefix } from '../storage/object-store.ts';
+import { canReviewRun, canSeeRun } from './access.ts';
 
 const sha = (b: string | Uint8Array) => createHash('sha256').update(b).digest('hex');
 
@@ -43,10 +44,6 @@ function modelInputs(def: AssistantDefinition) {
   const text = docs || uses('consultar') || uses('resumir');
   return { text, docs };
 }
-
-// Quem pode ver uma execução: quem executou, revisores e key users da área, admin.
-export const canSeeRun = (a: AuthContext, run: { user_id: string; area_id: string | null }) =>
-  run.user_id === a.userId || can(a, 'outputs.review', run.area_id) || can(a, 'audit.read', run.area_id);
 
 const noModelEnv: BlockEnv = {
   async complete() { throw new Error('sem modelo na checagem prévia'); },
@@ -194,7 +191,7 @@ export async function runRoutes(app: FastifyInstance) {
       provider: r.provider, model: r.model, pages: r.pages, costBrl: Number(r.cost_brl), expiresAt: r.expires_at,
       reviewRequired: def.review.required, reviewers: def.review.reviewers, reviewChecklist: def.review.checklist,
       exportFormats: def.output.files.length ? def.output.files : (def.pipeline.find(s => s.bloco === 'exportar')?.params.formatos ?? []),
-      canReview: can(a, 'outputs.review', r.area_id) && (r.user_id !== a.userId || !def.review.required),
+      canReview: r.status === 'rascunho' && canReviewRun(a, r, def.review),
     };
   });
 

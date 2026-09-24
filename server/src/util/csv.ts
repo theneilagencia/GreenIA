@@ -3,7 +3,7 @@
 // são simples e não justificam uma dependência.
 
 export function parseCsv(text: string, sep?: string): string[][] {
-  const src = text.replace(/^﻿/, '');
+  const src = text.replace(/^\uFEFF/, '');
   const firstLine = src.split(/\r?\n/, 1)[0] ?? '';
   const d = sep ?? ((firstLine.split(';').length >= firstLine.split(',').length) ? ';' : ',');
   const rows: string[][] = [];
@@ -46,5 +46,5 @@ const cellOut = (v: unknown) => {
 
 export function toCsv(rows: Record<string, unknown>[], columns?: string[]): string {
   const cols = columns ?? [...new Set(rows.flatMap(r => Object.keys(r)))];
-  return '﻿' + [cols.map(cellOut).join(';'), ...rows.map(r => cols.map(c => cellOut(r[c])).join(';'))].join('\r\n') + '\r\n';
+  return '\uFEFF' + [cols.map(cellOut).join(';'), ...rows.map(r => cols.map(c => cellOut(r[c])).join(';'))].join('\r\n') + '\r\n';
 }

@@ -28,3 +28,14 @@ test('nenhum caractere combinante (U+0300 a U+036F) solto no código-fonte', () 
   }
   assert.deepEqual(bad, [], 'use o escape \\u0300-\\u036f em vez dos caracteres');
 });
+
+// Mesmo defeito com outros escapes (\uFEFF, \uFFFD, espaços especiais): viram o
+// próprio caractere, invisível ou igual a um espaço comum no editor.
+test('nenhum caractere invisível ou especial solto no código-fonte', () => {
+  const bad = [];
+  for (const f of files(ROOT)) {
+    const lines = readFileSync(f, 'utf8').split('\n');
+    lines.forEach((l, i) => { if (/[\uFEFF\uFFFD\u00A0\u200B-\u200F\u2028\u2029\u202F]/.test(l)) bad.push(`${f.slice(ROOT.length)}:${i + 1}`); });
+  }
+  assert.deepEqual(bad, [], 'use o escape (ex.: \\uFEFF) em vez do caractere');
+});

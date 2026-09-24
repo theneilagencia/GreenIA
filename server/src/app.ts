@@ -22,6 +22,7 @@ import { metricsRoutes } from './metrics/routes.ts';
 import { policyRoutes } from './policy/routes.ts';
 import { incidentRoutes } from './incidents/routes.ts';
 import { usageRoutes } from './usage/routes.ts';
+import { makeExportJob, portabilityRoutes } from './portability/routes.ts';
 import { makeRunExecutor } from './runs/executor.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
@@ -92,6 +93,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(policyRoutes);
   await app.register(incidentRoutes);
   await app.register(usageRoutes);
+  await app.register(portabilityRoutes);
 
   // Frontend (mesma origem da API). Registrado por último: as rotas da API têm prioridade.
   await app.register(staticRoutes);
@@ -99,6 +101,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   // Tarefas da fila.
   deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects));
   deps.queue.register('run:execute', makeRunExecutor(app));
+  deps.queue.register('tenant:export', makeExportJob(app));
   const sweep = makeRetentionSweep(deps.db, deps.objects);
   deps.queue.register('retention:sweep', async () => { await sweep(); });
 

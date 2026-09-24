@@ -2,7 +2,8 @@
 // pedido em planilha, nota × contrato, exportação do ERP × documento) pelas
 // regras declaradas no assistente. A comparação é feita em código, não pelo
 // modelo. Cada divergência traz os dois valores e a origem de cada um.
-// Conjunto vazio ou não encontrado nunca vira "sem divergências": vai para revisão.
+// Conjunto vazio ou não encontrado nunca vira "sem divergências": a conferência
+// fica "não realizada: falta [fonte]" e vai para revisão.
 import { conferirParams, type DatasetRef, type PipelineStep } from './params.ts';
 import type { ReviewFlag, RunContext, Section } from './types.ts';
 import type { Extracao } from './extrair.ts';
@@ -25,6 +26,10 @@ export interface Divergencia {
 }
 
 export interface ResultadoConferencia {
+  // Sem os dados de um dos lados (ex.: só o DANFE, sem o XML), a conferência não
+  // é feita: um único status, sem listar cada item como "sem par".
+  situacao: 'realizada' | 'nao_realizada';
+  motivo?: string;
   rotulos: { esquerda: string; direita: string };
   resumo: { esquerda: number; direita: number; pares: number; divergencias: number; conferidos: number };
   divergencias: Divergencia[];
@@ -87,6 +92,15 @@ export function resolveDataset(ctx: RunContext, ref: DatasetRef): Registro[] {
   });
 }
 
+// Nome da fonte que faltou: a do leitor especializado (ex.: o XML que ele lê) ou o rótulo do lado.
+function fonteDe(ctx: RunContext, ref: DatasetRef, rotulo: string): string {
+  if (ref.de === 'leitor') {
+    const r = (ctx.env.readers ?? []).find(x => x.id === ref.leitor);
+    return r ? (r.kind?.label ?? r.label) : rotulo;
+  }
+  return rotulo;
+}
+
 type Regra = ReturnType<typeof conferirParams.parse>['regras'][number];
 
 // Compara dois valores por uma regra. null = confere; texto = motivo da divergência.
@@ -130,8 +144,12 @@ export function conferir(ctx: RunContext, params: ReturnType<typeof conferirPara
   const right = resolveDataset(ctx, params.direita);
   const flags: ReviewFlag[] = [];
   const { rotulos } = params;
-  if (!left.length) flags.push({ reason: `nenhum registro encontrado em ${rotulos.esquerda}` });
-  if (!right.length) flags.push({ reason: `nenhum registro encontrado em ${rotulos.direita}` });
+  const faltam = [...(!left.length ? [fonteDe(ctx, params.esquerda, rotulos.esquerda)] : []), ...(!right.length ? [fonteDe(ctx, params.direita, rotulos.direita)] : [])];
+  if (faltam.length) {
+    const motivo = `conferência não realizada: falta ${faltam.join(' e ')}`;
+    flags.push({ reason: motivo });
+    return { result: { situacao: 'nao_realizada', motivo, rotulos, resumo: { esquerda: left.length, direita: right.length, pares: 0, divergencias: 0, conferidos: 0 }, divergencias: [] } as ResultadoConferencia, flags };
+  }
 
   const pairs: [Registro | null, Registro | null, string][] = [];
   if (params.chave) {
@@ -175,6 +193,7 @@ export function conferir(ctx: RunContext, params: ReturnType<typeof conferirPara
     }
   }
   const result: ResultadoConferencia = {
+    situacao: 'realizada',
     rotulos,
     resumo: { esquerda: left.length, direita: right.length, pares, divergencias: divergencias.length, conferidos: pares * params.regras.length },
     divergencias,

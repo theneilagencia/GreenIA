@@ -118,7 +118,21 @@ test('conjunto não encontrado nunca vira "sem divergências": vai para revisão
     esquerda: { de: 'nfe', caminho: 'itens' }, direita: { de: 'tabela', arquivo: '*pedido*' }, regras: [{ campo: 'q', esquerda: 'quantidade', direita: 'Quantidade', tipo: 'numero' }] } }] });
   const { env } = testEnv();
   const s = await conferirBlock({ def, text: '', files: [], docs: [], sections: [], env }, def.pipeline[0]);
-  assert.deepEqual(s.flags.map(f => f.reason), ['nenhum registro encontrado em Documento', 'nenhum registro encontrado em Referência']);
+  assert.deepEqual(s.flags.map(f => f.reason), ['conferência não realizada: falta XML de NF-e e Referência']);
+  assert.deepEqual([s.data.situacao, s.data.divergencias.length], ['nao_realizada', 0]);
+});
+
+test('falta a fonte de um lado: um único status, sem listar cada item como "sem par" (vale para qualquer conferência)', async () => {
+  const def = assistantDefinitionSchema.parse({ inputs: { files: { enabled: true } }, pipeline: [{ bloco: 'conferir', params: {
+    esquerda: { de: 'tabela', arquivo: '*recebimento*' }, direita: { de: 'tabela', arquivo: '*pedido*' }, rotulos: { esquerda: 'Recebimento', direita: 'Pedido' },
+    chave: { esquerda: 'Código', direita: 'Código' }, regras: [{ campo: 'q', esquerda: 'Quantidade', direita: 'Quantidade', tipo: 'numero' }] } }] });
+  const { env } = testEnv();
+  const pedido = { fileId: 'p', name: 'pedido.xlsx', kind: 'xlsx', sha256: 'x', via: 'parser', pages: [], text: '', pageCount: 1, warnings: [],
+    sheets: [{ name: 'Itens', header: ['Código', 'Quantidade'], rows: [{ 'Código': 'A', Quantidade: 1 }, { 'Código': 'B', Quantidade: 2 }], rowNumbers: [2, 3] }] } as never;
+  const s = await conferirBlock({ def, text: '', files: [], docs: [pedido], sections: [], env }, def.pipeline[0]);
+  assert.deepEqual(s.flags.map(f => f.reason), ['conferência não realizada: falta Recebimento']);
+  assert.deepEqual(s.data.divergencias, []);
+  assert.equal(s.counts!.divergencias, 0);
 });
 
 test('conferência sobre campos extraídos (nota × contrato), com a página de origem', async () => {

@@ -204,7 +204,7 @@ test('o mesmo assistente confere dois layouts diferentes, só pelos mapeamentos'
   await call('admin', 'POST', `/api/admin/import-mappings/${id}/arquivar`, {});
   const s3 = await rodar({ name: 'pedido-777.csv', bytes: latin1(CSV), mime: 'text/csv' });
   const flags = s3.flatMap((x: { flags: { reason: string }[] }) => x.flags.map(f => f.reason));
-  assert.ok(flags.includes('nenhum registro encontrado em Pedido'), flags.join(' | '));
+  assert.ok(flags.includes('conferência não realizada: falta Pedido'), flags.join(' | '));
   assert.ok(flags.some((f: string) => /nenhum mapeamento de importação/.test(f)), flags.join(' | '));
 });
 

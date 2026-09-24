@@ -118,7 +118,7 @@ test('NF-e: campos por parser, sem modelo', async () => {
   assert.equal(n.chave.length, 44);
   assert.equal(n.emitente.cnpj, '12345678000199');
   assert.equal(n.pedido, '4500123');
-  assert.equal(n.protocolo, '135260000000001');
+  assert.equal(n.protocolo, '135260000000123');
   assert.deepEqual(n.itens[0], { n: 1, codigo: '00123', descricao: 'Caixa plástica', ncm: '39239000', cfop: '1102', unidade: 'UN', quantidade: 100, valorUnitario: 12.5, valorTotal: 1250, pedido: '4500123', itemPedido: '10', ean: '' });
   assert.equal(n.totais.nota, 1403.6);
   assert.throws(() => parseNFe('<a>'), /não é uma NF-e|XML inválido/);

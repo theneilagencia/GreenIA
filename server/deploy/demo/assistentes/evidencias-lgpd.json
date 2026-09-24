@@ -1,0 +1,41 @@
+{
+  "slug": "evidencias-lgpd",
+  "name": "Organização de evidências de LGPD",
+  "area": "lgpd",
+  "status": "piloto",
+  "definition": {
+    "description": "Classifica evidências de LGPD, sugere nomes padronizados, gera índice e pacote ZIP, e localiza documentos pedidos.",
+    "owner": "key.lgpd@demonstracao.com.br",
+    "objective": "Manter as evidências organizadas para auditoria e responder rápido onde está cada documento.",
+    "inputs": {
+      "text": { "enabled": true, "required": false, "label": "O que procurar (opcional)" },
+      "files": { "enabled": true, "required": true, "accept": ["pdf", "docx", "xlsx", "texto"], "maxFiles": 100 },
+      "knowledge": { "enabled": true, "areas": ["lgpd"] }
+    },
+    "dataClasses": ["verde", "amarela"],
+    "dataPolicy": { "nome": "permitir_com_registro", "email": "permitir_com_registro", "cnpj": "permitir_com_registro" },
+    "retention": { "days": 730 },
+    "pipeline": [
+      { "bloco": "ler", "params": { "visao": "nunca" } },
+      { "bloco": "classificar", "titulo": "Índice de evidências", "params": {
+        "metodo": "regras",
+        "padraoNome": "{categoria}/{periodo}_{nome}",
+        "taxonomia": [
+          { "id": "politicas", "nome": "Políticas e normas", "sinonimos": ["política de privacidade", "norma interna", "política de segurança"] },
+          { "id": "treinamentos", "nome": "Treinamentos", "sinonimos": ["lista de presença", "certificado de conclusão"] },
+          { "id": "contratos", "nome": "Contratos com operadores", "sinonimos": ["acordo de processamento de dados", "DPA", "cláusulas de proteção de dados"] },
+          { "id": "incidentes", "nome": "Incidentes", "sinonimos": ["relatório de incidente", "comunicação à ANPD"] },
+          { "id": "registros", "nome": "Registro de operações", "sinonimos": ["inventário de dados", "ROPA", "registro das operações de tratamento"] }
+        ]
+      } },
+      { "bloco": "buscar", "titulo": "Documentos encontrados", "params": { "limite": 10, "incluirEntradas": true } },
+      { "bloco": "exportar", "params": { "formatos": ["zip", "xlsx"] } }
+    ],
+    "output": { "format": "arquivo", "files": ["zip", "xlsx", "csv"] },
+    "review": { "reviewers": ["key_user"], "checklist": ["Categorias e períodos conferidos.", "Documentos não classificados receberam categoria antes de aprovar."] },
+    "metrics": { "indicators": [
+      { "key": "tempo_localizar", "label": "Tempo para localizar uma evidência", "unit": "min", "direction": "menor_melhor" },
+      { "key": "volume", "label": "Execuções no período", "unit": "execuções", "direction": "maior_melhor", "auto": "volume" }
+    ] }
+  }
+}

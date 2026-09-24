@@ -46,31 +46,8 @@ export async function xlsx(sheets: Record<string, (string | number | Date | null
 // PNG 1x1 (branco).
 export const png = () => new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64'));
 
-export interface NFeItemFx { codigo: string; descricao: string; qtd: number; unit: number; pedido?: string; itemPedido?: string }
-
-// NF-e autorizada (nfeProc) no layout 4.00, fictícia.
-export function nfeXml(o: { numero: string; emissao: string; emitente?: string; cnpj?: string; pedido?: string; itens: NFeItemFx[] }): string {
-  const det = o.itens.map((it, i) => `
-      <det nItem="${i + 1}"><prod>
-        <cProd>${it.codigo}</cProd><cEAN>SEM GTIN</cEAN><xProd>${it.descricao}</xProd><NCM>39239000</NCM><CFOP>1102</CFOP>
-        <uCom>UN</uCom><qCom>${it.qtd.toFixed(4)}</qCom><vUnCom>${it.unit.toFixed(10)}</vUnCom><vProd>${(it.qtd * it.unit).toFixed(2)}</vProd>
-        ${it.pedido ? `<xPed>${it.pedido}</xPed>` : ''}${it.itemPedido ? `<nItemPed>${it.itemPedido}</nItemPed>` : ''}
-      </prod><imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST></ICMS00></ICMS></imposto></det>`).join('');
-  const total = o.itens.reduce((s, it) => s + it.qtd * it.unit, 0).toFixed(2);
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
-    <infNFe Id="NFe35260912345678000199550010000${o.numero.padStart(5, '0')}1000000001" versao="4.00">
-      <ide><cUF>35</cUF><natOp>Venda de mercadoria</natOp><mod>55</mod><serie>1</serie><nNF>${o.numero}</nNF><dhEmi>${o.emissao}T10:00:00-03:00</dhEmi></ide>
-      <emit><CNPJ>${o.cnpj ?? '12345678000199'}</CNPJ><xNome>${o.emitente ?? 'Plásticos Exemplo Ltda'}</xNome><enderEmit><UF>SP</UF></enderEmit><IE>111222333444</IE></emit>
-      <dest><CNPJ>98765432000155</CNPJ><xNome>Empresa Exemplo S.A.</xNome><enderDest><UF>SP</UF></enderDest></dest>${det}
-      <total><ICMSTot><vProd>${total}</vProd><vNF>${total}</vNF><vICMS>0.00</vICMS><vIPI>0.00</vIPI><vFrete>0.00</vFrete><vDesc>0.00</vDesc></ICMSTot></total>
-      ${o.pedido ? `<compra><xPed>${o.pedido}</xPed></compra>` : ''}
-    </infNFe>
-  </NFe>
-  <protNFe versao="4.00"><infProt><nProt>135260000000001</nProt></infProt></protNFe>
-</nfeProc>`;
-}
+// NF-e fictícia: o mesmo gerador das amostras de demonstração.
+export { nfeXml } from '../src/demo/samples.ts';
 
 // Ambiente de bloco para testes unitários: o modelo responde pela função dada.
 export function testEnv(reply: (req: Parameters<BlockEnv['complete']>[0]) => string = () => '', extra: Partial<BlockEnv> = {}) {

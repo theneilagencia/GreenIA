@@ -1,0 +1,200 @@
+{
+  "slug": "conferencia-nfe",
+  "name": "Conferência de NF-e de entrada × pedido",
+  "area": "fiscal",
+  "status": "piloto",
+  "definition": {
+    "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do ERP (XLSX) e lista as divergências.",
+    "owner": "key.fiscal@demonstracao.com.br",
+    "objective": "Encontrar divergências de quantidade, preço, descrição e cabeçalho antes do lançamento da nota.",
+    "instructions": "",
+    "inputs": {
+      "text": {
+        "enabled": false
+      },
+      "files": {
+        "enabled": true,
+        "required": true,
+        "accept": [
+          "nfe_xml",
+          "xlsx",
+          "csv"
+        ],
+        "maxFiles": 10,
+        "maxFileMb": 10
+      }
+    },
+    "dataClasses": [
+      "verde",
+      "amarela"
+    ],
+    "dataPolicy": {
+      "cnpj": "permitir_com_registro",
+      "nome": "permitir_com_registro",
+      "endereco": "permitir_com_registro",
+      "cep": "permitir_com_registro"
+    },
+    "retention": {
+      "days": 365
+    },
+    "pipeline": [
+      {
+        "bloco": "ler",
+        "params": {
+          "visao": "nunca"
+        }
+      },
+      {
+        "bloco": "conferir",
+        "id": "itens",
+        "titulo": "Itens da nota × itens do pedido",
+        "params": {
+          "esquerda": {
+            "de": "nfe",
+            "caminho": "itens"
+          },
+          "direita": {
+            "de": "tabela",
+            "arquivo": "*pedido*",
+            "planilha": "Itens"
+          },
+          "rotulos": {
+            "esquerda": "Nota",
+            "direita": "Pedido"
+          },
+          "chave": {
+            "esquerda": "codigo",
+            "direita": "Código"
+          },
+          "regras": [
+            {
+              "campo": "Quantidade",
+              "esquerda": "quantidade",
+              "direita": "Quantidade",
+              "tipo": "numero"
+            },
+            {
+              "campo": "Valor unitário",
+              "esquerda": "valorUnitario",
+              "direita": "Preço unitário",
+              "tipo": "numero",
+              "tolerancia": {
+                "percentual": 1
+              }
+            },
+            {
+              "campo": "Descrição",
+              "esquerda": "descricao",
+              "direita": "Descrição",
+              "tipo": "texto"
+            }
+          ]
+        }
+      },
+      {
+        "bloco": "conferir",
+        "id": "cabecalho",
+        "titulo": "Cabeçalho da nota × cabeçalho do pedido",
+        "params": {
+          "esquerda": {
+            "de": "nfe"
+          },
+          "direita": {
+            "de": "tabela",
+            "arquivo": "*pedido*",
+            "planilha": "Cabeçalho",
+            "orientacao": "chave_valor"
+          },
+          "rotulos": {
+            "esquerda": "Nota",
+            "direita": "Pedido"
+          },
+          "regras": [
+            {
+              "campo": "Número do pedido",
+              "esquerda": "pedido",
+              "direita": "Número do pedido",
+              "tipo": "igual"
+            },
+            {
+              "campo": "CNPJ do fornecedor",
+              "esquerda": "emitente.cnpj",
+              "direita": "CNPJ do fornecedor",
+              "tipo": "igual"
+            },
+            {
+              "campo": "Emissão dentro do prazo de entrega",
+              "esquerda": "dataEmissao",
+              "direita": "Data do pedido",
+              "tipo": "data",
+              "prazoDias": 30,
+              "referencia": "direita"
+            },
+            {
+              "campo": "Valor total",
+              "esquerda": "totais.nota",
+              "direita": "Valor total",
+              "tipo": "numero",
+              "tolerancia": {
+                "absoluta": 1
+              }
+            }
+          ]
+        }
+      },
+      {
+        "bloco": "exportar",
+        "params": {
+          "formatos": [
+            "xlsx",
+            "pdf",
+            "csv"
+          ]
+        }
+      }
+    ],
+    "output": {
+      "format": "tabela",
+      "files": [
+        "xlsx",
+        "pdf",
+        "csv"
+      ]
+    },
+    "review": {
+      "reviewers": [
+        "key_user",
+        "revisor"
+      ],
+      "checklist": [
+        "Itens sem par no pedido foram confirmados com o comprador.",
+        "Divergências de preço dentro do acordo comercial foram descartadas com justificativa."
+      ]
+    },
+    "metrics": {
+      "indicators": [
+        {
+          "key": "tempo_por_nota",
+          "label": "Tempo de conferência por nota",
+          "unit": "min",
+          "direction": "menor_melhor",
+          "auto": "tempo_processamento"
+        },
+        {
+          "key": "divergencias",
+          "label": "Divergências encontradas por nota",
+          "unit": "por nota",
+          "direction": "maior_melhor",
+          "auto": "divergencias"
+        },
+        {
+          "key": "aprovacao",
+          "label": "Aprovação sem edição",
+          "unit": "%",
+          "direction": "maior_melhor",
+          "auto": "aprovacao_sem_edicao"
+        }
+      ]
+    }
+  }
+}

@@ -111,12 +111,36 @@ test('key user revisa lado a lado: origem de cada divergência, edição e expor
   await context.close();
 });
 
-test('resultados: sem ponto de partida até registrar o valor "antes", com a origem visível', async () => {
+test('quick wins: oportunidade registrada, avaliada e selecionada; sem ponto de partida até registrar o valor "antes"', async () => {
   const { page, errors, context } = await openAs(u.key);
-  await page.getByRole('button', { name: 'Resultados' }).click();
-  await page.getByLabel('Assistente').selectOption('conferencia-nfe');
+  await page.getByRole('button', { name: 'Quick wins' }).first().click();
+  await page.getByRole('button', { name: 'Portfólio de oportunidades' }).waitFor();
+  await page.getByLabel('Área da oportunidade').selectOption('fiscal');
+  await page.getByLabel('Título da oportunidade').fill('Conferência de notas contra pedidos');
+  await page.getByLabel('Processo').fill('Entrada de notas de compra');
+  await page.getByLabel('Problema observado').fill('Conferência manual, item a item, com retrabalho.');
+  await page.getByLabel('Quem executa hoje').fill('Duas pessoas do fiscal');
+  await page.getByLabel('Volume', { exact: true }).fill('400 notas por mês');
+  await page.getByLabel('Evidência', { exact: true }).selectOption('comprovado');
+  await page.getByRole('button', { name: 'Registrar oportunidade' }).click();
+  await page.getByText('Oportunidade registrada.').waitFor();
+  await page.getByRole('button', { name: 'Conferência de notas contra pedidos' }).click();
+  for (const [c, n] of [['Valor', '5'], ['Complexidade', '2'], ['Risco', '2'], ['Dependências', '1']]) await page.getByLabel(new RegExp('^' + c + ' \\(peso')).selectOption(n);
+  await page.getByLabel('Por que essa avaliação').fill('Volume alto e conferência repetitiva.');
+  await page.getByRole('button', { name: 'Avaliar', exact: true }).click();
+  await page.getByText(/Oportunidade avaliada\. Nota/).waitFor();
+  await page.getByLabel('Objetivo', { exact: true }).fill('Conferir as notas sem retrabalho');
+  await page.getByLabel('Responsável (email)').fill('key.fiscal@demonstracao.com.br');
+  await page.getByRole('button', { name: 'Conferência de NF-e de entrada × pedido' }).click();
+  await page.getByRole('button', { name: 'Acrescentar indicador' }).click();
+  await page.getByLabel('Nome do indicador 1').fill('Tempo por nota');
+  await page.getByLabel('Unidade do indicador 1').fill('min');
+  await page.getByLabel('Medição do indicador 1').selectOption('tempo_processamento');
+  await page.getByLabel('Por que selecionar').fill('Maior nota do portfólio do fiscal.');
+  await page.getByRole('button', { name: 'Criar quick win' }).click();
+  await page.getByText(/Quick win criado\./).waitFor();
   await page.getByText(/Sem ponto de partida/).waitFor();
-  await page.getByLabel('Indicador').selectOption('tempo_por_nota');
+  await page.getByLabel('Indicador', { exact: true }).selectOption('tempo_por_nota');
   await page.getByLabel('Valor', { exact: true }).fill('12');
   await page.getByLabel('Quem informou').fill('Coordenação fiscal (Discovery)');
   await page.getByRole('button', { name: 'Registrar valor' }).click();
@@ -125,6 +149,12 @@ test('resultados: sem ponto de partida até registrar o valor "antes", com a ori
   // O automático mede só o processamento: a comparação de tempo aparece como parcial, sem ganho acumulado.
   await page.getByText(/comparação parcial/).first().waitFor();
   assert.equal(await page.getByText(/h no período/).count(), 0);
+  // Etapa com motivo, e o histórico mostra quem mudou e por quê.
+  await page.getByLabel('Motivo da mudança de etapa').fill('Assistente publicado para a equipe.');
+  await page.getByRole('button', { name: 'Passar para em implantação' }).click();
+  await page.getByText('Etapa registrada.').waitFor();
+  await page.getByText('Assistente publicado para a equipe.').waitFor();
+  assert.ok(await page.getByRole('link', { name: 'Resultados em PDF' }).getAttribute('href'));
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -227,6 +257,21 @@ test('catálogo: o admin cria um assistente a partir de um modelo e depois o dup
   await page.getByLabel('Identificador').fill('duvidas-conformidade');
   await page.getByRole('button', { name: 'Criar assistente' }).click();
   await page.getByText(/Duplicado de atendimento-procedimentos\./).waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('critérios de avaliação: o admin muda peso e acrescenta um critério pelo painel', async () => {
+  const { page, errors, context } = await openAs(u.admin);
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: 'Critérios de avaliação' }).click();
+  await page.getByLabel('Peso do critério 1').fill('50');
+  await page.getByRole('button', { name: 'Acrescentar critério' }).click();
+  await page.getByLabel('Nome do critério 5').fill('Alinhamento com a estratégia');
+  await page.getByRole('button', { name: 'Salvar critérios' }).click();
+  await page.getByText('Critérios salvos.').waitFor();
+  const saved = (await db.owner.query(`select config->'qwCriteria' as c from tenants where id = $1`, [tenantId])).rows[0].c;
+  assert.deepEqual(saved.criterios.map((c: { key: string; peso: number }) => `${c.key}:${c.peso}`), ['valor:50', 'complexidade:20', 'risco:20', 'dependencias:20', 'alinhamento_com_a_estrategia:10']);
   assert.deepEqual(errors, []);
   await context.close();
 });

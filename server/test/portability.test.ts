@@ -30,15 +30,23 @@ async function populate(t: Awaited<ReturnType<typeof seedTenant>>, key: string, 
   await ok(post(t.userId, '/api/admin/assistants', { slug: 'conferencia', name: 'Conferência', areaSlug: 'fiscal', status: 'ativo', definition: {
     inputs: { text: { enabled: false }, files: { enabled: true, accept: ['nfe_xml', 'xlsx'] } }, dataClasses: ['verde', 'amarela'],
     pipeline: [{ bloco: 'ler' }, { bloco: 'conferir', params: { esquerda: { de: 'nfe', caminho: 'itens' }, direita: { de: 'tabela' }, chave: { esquerda: 'codigo', direita: 'Código' }, regras: [{ campo: 'Q', esquerda: 'quantidade', direita: 'Quantidade', tipo: 'numero' }] } }],
-    output: { files: ['xlsx'] }, metrics: { indicators: [{ key: 'tempo', label: 'Tempo por nota', unit: 'min' }] } } }), 201);
+    output: { files: ['xlsx'] } } }), 201);
   const run = await ok(post(user, '/api/runs', { assistant: 'conferencia', files: [
     { name: 'nfe.xml', contentBase64: b64(nfeXml({ numero: '7', emissao: '2026-09-01', itens: [{ codigo: 'A', descricao: 'x', qtd: 2, unit: 1 }] })) },
     { name: 'pedido.xlsx', contentBase64: b64(await xlsx({ P: [['Código', 'Quantidade'], ['A', 3]] })) },
   ] }), 202);
   const runId = JSON.parse(run.body).runId;
   await ok(post(key, `/api/runs/${runId}/review`, { decisao: 'aprovado' }), 200);
-  await ok(post(key, '/api/metrics/assistants/conferencia/values', { indicador: 'tempo', fase: 'antes', valor: 12, origem: 'informado', informadoPor: 'Coordenação fiscal' }), 201);
-  await ok(post(key, '/api/metrics/assistants/conferencia/decisions', { decisao: 'manter', data: '2026-09-24', responsavel: 'Coordenação', justificativa: 'Piloto funcionou bem no fiscal.' }), 201);
+  // Quick win com o assistente, ponto de partida e decisão.
+  const opp = await ok(post(key, '/api/opportunities', { areaSlug: 'fiscal', titulo: 'Conferência de notas', processo: 'Entrada de notas', problema: 'Conferência manual', evidencia: 'comprovado' }), 201);
+  const oppId = JSON.parse(opp.body).id;
+  await ok(post(key, `/api/opportunities/${oppId}/avaliar`, { notas: { valor: 5, complexidade: 2, risco: 2, dependencias: 2 }, nota: 'Avaliada.' }), 200);
+  const qw = await ok(post(key, `/api/opportunities/${oppId}/selecionar`, { objetivo: 'Conferir mais rápido', responsavel: key === user ? 'x@x.com' : (await db.owner.query(`select email from users where id = $1`, [key])).rows[0].email,
+    indicadores: [{ key: 'tempo', label: 'Tempo por nota', unit: 'min' }], recursos: { assistentes: ['conferencia'] }, nota: 'Selecionada.' }), 201);
+  const qwId = JSON.parse(qw.body).id;
+  await ok(post(key, `/api/quick-wins/${qwId}/valores`, { indicador: 'tempo', fase: 'antes', valor: 12, origem: 'informado', informadoPor: 'Coordenação fiscal' }), 201);
+  for (const etapa of ['em_implantacao', 'em_medicao']) await ok(post(key, `/api/quick-wins/${qwId}/etapa`, { etapa, nota: 'Avanço.' }), 200);
+  await ok(post(key, `/api/quick-wins/${qwId}/decisao`, { decisao: 'manter', justificativa: 'Piloto funcionou bem no fiscal.' }), 200);
   await ok(post(user, '/api/incidents', { tipo: 'resposta_errada', descricao: 'A conferência apontou item que estava certo.' }), 201);
   await ok(post(user, '/api/chat', { messages: [{ role: 'user', content: 'Resuma: reunião na quinta.' }] }), 200);
   return runId;
@@ -81,7 +89,7 @@ test('exportação completa em formato aberto: dados em JSON e CSV, originais e 
   const zip = await JSZip.loadAsync(dl.rawPayload);
   const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
   const manifest = JSON.parse(await zip.file('manifesto.json')!.async('string'));
-  for (const set of ['pessoas', 'papeis', 'assistentes', 'assistentes-versoes', 'base-documentos', 'execucoes', 'medicoes', 'decisoes', 'consumo', 'politica-de-uso', 'politica-ciencia', 'incidentes', 'auditoria']) {
+  for (const set of ['pessoas', 'papeis', 'assistentes', 'assistentes-versoes', 'base-documentos', 'execucoes', 'oportunidades', 'quick-wins', 'medicoes', 'quick-wins-historico', 'consumo', 'politica-de-uso', 'politica-ciencia', 'incidentes', 'auditoria']) {
     assert.ok(names.includes(`dados/${set}.json`) && names.includes(`dados/${set}.csv`), set);
   }
   assert.equal(manifest.cliente.slug, 'repet');

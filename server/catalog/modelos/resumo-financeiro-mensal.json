@@ -133,23 +133,6 @@
         "Os números do resumo batem com os documentos.",
         "Nenhum valor foi estimado."
       ]
-    },
-    "metrics": {
-      "indicators": [
-        {
-          "key": "tempo_preparo",
-          "label": "Tempo de preparo do material",
-          "unit": "h",
-          "direction": "menor_melhor"
-        },
-        {
-          "key": "aprovacao",
-          "label": "Aprovação sem edição",
-          "unit": "%",
-          "direction": "maior_melhor",
-          "auto": "aprovacao_sem_edicao"
-        }
-      ]
     }
   }
 }

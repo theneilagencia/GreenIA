@@ -139,23 +139,6 @@
         "Categorias e períodos conferidos.",
         "Documentos não classificados receberam categoria antes de aprovar."
       ]
-    },
-    "metrics": {
-      "indicators": [
-        {
-          "key": "tempo_localizar",
-          "label": "Tempo para localizar uma evidência",
-          "unit": "min",
-          "direction": "menor_melhor"
-        },
-        {
-          "key": "volume",
-          "label": "Execuções no período",
-          "unit": "execuções",
-          "direction": "maior_melhor",
-          "auto": "volume"
-        }
-      ]
     }
   }
 }

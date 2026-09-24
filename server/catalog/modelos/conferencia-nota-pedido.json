@@ -176,31 +176,6 @@
         "Itens sem par no pedido foram confirmados com o comprador.",
         "Divergências de preço dentro do acordo comercial foram descartadas com justificativa."
       ]
-    },
-    "metrics": {
-      "indicators": [
-        {
-          "key": "tempo_por_nota",
-          "label": "Tempo de conferência por nota",
-          "unit": "min",
-          "direction": "menor_melhor",
-          "auto": "tempo_processamento"
-        },
-        {
-          "key": "divergencias",
-          "label": "Divergências encontradas por nota",
-          "unit": "por nota",
-          "direction": "maior_melhor",
-          "auto": "divergencias"
-        },
-        {
-          "key": "aprovacao",
-          "label": "Aprovação sem edição",
-          "unit": "%",
-          "direction": "maior_melhor",
-          "auto": "aprovacao_sem_edicao"
-        }
-      ]
     }
   }
 }

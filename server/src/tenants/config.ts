@@ -8,6 +8,7 @@ import { contrast, textVariant, MIN_NORMAL, normalizeHex } from '../../../lib/co
 import type { DataAction } from '../../../lib/greenia-core.js';
 import { checkPolicyAgainstClasses } from '../policy/data-policy.ts';
 import { BUILTIN_TYPES, detectorsSchema, TYPE_KEY } from '../policy/detectors.ts';
+import { qwCriteriaSchema } from '../quickwins/criteria.ts';
 
 const hex = z.string().regex(/^#?[0-9a-fA-F]{6}$/, 'cor em hexadecimal, ex.: #1F8A5B').transform(v => normalizeHex(v));
 
@@ -48,6 +49,8 @@ export const tenantConfigSchema = z.object({
   dataPolicy: dataPolicySchema.default({ ...core.DATA_POLICY }),
   // Detectores próprios do tenant (padrão, validação, classe, ação padrão).
   detectors: detectorsSchema,
+  // Critérios de avaliação das oportunidades (escala e pesos editáveis pelo admin).
+  qwCriteria: qwCriteriaSchema,
   // Leitores especializados ligados (src/readers/: ex. 'nfe', 'danfe'). Padrão: nenhum.
   readers: z.array(z.string().max(40)).max(50).default([]).refine(ids => ids.every(id => !!readerById(id)), { message: 'leitor desconhecido' }),
   // Provedor do modelo. Hoje só a API da Anthropic: o Claude no Amazon Bedrock
@@ -65,6 +68,9 @@ export const tenantConfigSchema = z.object({
     tenantPerMinute: z.number().int().min(1).max(20000).default(600),
     monthlyBudgetBrl: z.number().min(0).default(500),
     hardLimit: z.boolean().default(true),
+    // Quick wins em andamento (não encerrados) que o plano permite. Sem valor: sem limite.
+    // Definido pela TheNeil (plano), não pelo admin do cliente.
+    maxQuickWins: z.number().int().min(1).max(100000).nullable().default(null),
   }).prefault({}),
   retention: z.object({
     defaultOutputDays: z.number().int().min(1).max(3650).default(90),

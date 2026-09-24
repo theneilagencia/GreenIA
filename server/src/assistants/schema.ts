@@ -20,7 +20,6 @@ export function jsonSchemaProblem(schema: unknown): string | null {
 }
 
 // Indicadores automáticos que a plataforma sabe medir por execução (item 3.4).
-export const AUTO_METRICS = ['tempo_processamento', 'tempo_ate_revisao', 'aprovacao_sem_edicao', 'divergencias', 'pendencias', 'consumo', 'volume', 'usuarios_ativos'] as const;
 
 const exampleSchema = z.object({
   entrada: z.string().max(20000),
@@ -81,16 +80,8 @@ export const assistantDefinitionSchema = z.preprocess(upgrade, z.object({
     reviewers: z.array(z.enum(['revisor', 'key_user', 'admin_cliente'])).min(1).default(['revisor', 'key_user']),
     checklist: z.array(z.string().min(1).max(200)).max(30).default([]), // o que o revisor confere
   }).prefault({}),
-  // Medição (os valores de baseline ficam em tabela própria, com origem).
-  metrics: z.object({
-    indicators: z.array(z.object({
-      key: z.string().regex(/^[a-z0-9_]{1,60}$/),
-      label: z.string().min(1).max(120),
-      unit: z.string().max(30).default(''),
-      direction: z.enum(['menor_melhor', 'maior_melhor']).default('menor_melhor'),
-      auto: z.enum(AUTO_METRICS).optional(),               // medido pela plataforma; sem valor: só o baseline informado/medido
-    })).max(20).default([]),
-  }).prefault({}),
+  // A medição não é do assistente: é do quick win que o usa (src/quickwins). O
+  // campo "metrics" de definições antigas é ignorado na leitura.
 })).superRefine((d, ctx) => {
   for (const p of checkPolicyAgainstClasses(d.dataPolicy, d.dataClasses)) {
     ctx.addIssue({ code: 'custom', path: ['dataPolicy', p.type], message: `${p.action}: ${p.reason}` });
@@ -112,11 +103,6 @@ export const assistantDefinitionSchema = z.preprocess(upgrade, z.object({
   if (needsFiles && !d.inputs.files.enabled) {
     ctx.addIssue({ code: 'custom', path: ['inputs', 'files', 'enabled'], message: 'o pipeline lê arquivos: habilite a entrada de arquivos' });
   }
-  const keys = new Set<string>();
-  d.metrics.indicators.forEach((m, i) => {
-    if (keys.has(m.key)) ctx.addIssue({ code: 'custom', path: ['metrics', 'indicators', i, 'key'], message: `indicador repetido: ${m.key}` });
-    keys.add(m.key);
-  });
 });
 
 // v1 → v2: os campos da Fase 2 têm o mesmo nome; o resto recebe os padrões.

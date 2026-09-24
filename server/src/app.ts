@@ -20,6 +20,7 @@ import { auditRoutes } from './audit/routes.ts';
 import { runRoutes } from './runs/routes.ts';
 import { reviewRoutes } from './runs/review.ts';
 import { metricsRoutes } from './metrics/routes.ts';
+import { quickWinRoutes } from './quickwins/routes.ts';
 import { policyRoutes } from './policy/routes.ts';
 import { incidentRoutes } from './incidents/routes.ts';
 import { usageRoutes } from './usage/routes.ts';
@@ -100,6 +101,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { 
   await app.register(runRoutes);
   await app.register(reviewRoutes);
   await app.register(metricsRoutes);
+  await app.register(quickWinRoutes);
   await app.register(policyRoutes);
   await app.register(incidentRoutes);
   await app.register(usageRoutes);

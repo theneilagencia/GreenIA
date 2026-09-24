@@ -1,11 +1,17 @@
-// Resultados por assistente: antes × depois, com a origem de cada número.
+// Medição de um quick win: antes × depois, com a origem de cada número.
 //   antes   último valor "antes" registrado (medido ou informado)
 //   depois  último valor "depois" registrado; se não houver e o indicador for
-//           automático, a medição das execuções do período
+//           automático, a medição das execuções do período, só dos
+//           assistentes vinculados e só nas áreas do quick win
 // Sem valor "antes" não há comparação nem diferença acumulada: o painel mostra
 // a lacuna ("sem ponto de partida"). Nada é estimado para preencher lacuna.
 import type { Tx } from '../db/pool.ts';
-import type { AssistantDefinition } from '../assistants/schema.ts';
+
+// Medições automáticas que um indicador pode usar (vêm das execuções).
+export const AUTO_METRICS = ['tempo_processamento', 'tempo_ate_revisao', 'aprovacao_sem_edicao', 'taxa_revisao', 'divergencias', 'pendencias', 'consumo', 'volume', 'usuarios_ativos'] as const;
+export type AutoMetric = typeof AUTO_METRICS[number];
+
+export interface Indicator { key: string; label: string; unit: string; direction: 'menor_melhor' | 'maior_melhor'; auto?: string | null }
 
 export interface Period { de: string; ate: string }     // datas (AAAA-MM-DD), inclusive
 
@@ -38,8 +44,11 @@ function origemDe(v: MetricValue): Origem {
     : { tipo: 'informado', detalhe: `informado por ${v.informedBy} em ${v.createdAt.slice(0, 10)}` };
 }
 
-// Medições automáticas das execuções do período (todas as versões do assistente).
-export async function autoMetrics(tx: Tx, assistantId: string, p: Period) {
+// Execuções dos assistentes do período, opcionalmente só nas áreas indicadas.
+const RUNS_WHERE = `assistant_id = any($1::uuid[]) and ($4::uuid[] is null or area_id = any($4::uuid[])) and created_at >= $2::date and created_at < $3::date + 1`;
+
+// Medições automáticas das execuções do período (todas as versões dos assistentes).
+export async function autoMetrics(tx: Tx, assistantIds: string[], p: Period, areaIds: string[] | null = null) {
   const r = (await tx.query(
     `select count(*)::int as execucoes,
             count(*) filter (where status <> 'processando')::int as concluidas,
@@ -57,8 +66,8 @@ export async function autoMetrics(tx: Tx, assistantId: string, p: Period) {
             coalesce(sum(cost_brl), 0) as custo, coalesce(sum(pages), 0)::int as paginas,
             coalesce(sum(input_tokens), 0)::bigint as tin, coalesce(sum(output_tokens), 0)::bigint as tout,
             array_agg(distinct assistant_version order by assistant_version) as versoes
-     from runs where assistant_id = $1 and created_at >= $2::date and created_at < $3::date + 1`,
-    [assistantId, p.de, p.ate])).rows[0];
+     from runs where ${RUNS_WHERE}`,
+    [assistantIds, p.de, p.ate, areaIds])).rows[0];
   const revisadas = r.aprovadas + r.editadas + r.rejeitadas;
   const concl = r.concluidas - r.erros;
   return {
@@ -67,6 +76,8 @@ export async function autoMetrics(tx: Tx, assistantId: string, p: Period) {
     tempoAteRevisaoMin: r.ate_revisao_s === null ? null : round(Number(r.ate_revisao_s) / 60),
     revisao: { aprovadas: r.aprovadas, aprovadasComEdicao: r.editadas, rejeitadas: r.rejeitadas, aguardando: r.aguardando, revisadas },
     aprovacaoSemEdicaoPct: revisadas ? round(r.aprovadas / revisadas * 100, 1) : null,
+    // Saídas que precisaram de mudança ou foram recusadas na revisão.
+    taxaRevisaoPct: revisadas ? round((r.editadas + r.rejeitadas) / revisadas * 100, 1) : null,
     divergenciasPorExecucao: r.div === null ? null : round(Number(r.div)), divergenciasTotal: r.div_total,
     pendenciasPorExecucao: r.pend === null ? null : round(Number(r.pend)), pendenciasTotal: r.pend_total,
     consumo: { custoBrl: round(Number(r.custo), 4), custoPorExecucaoBrl: concl > 0 ? round(Number(r.custo) / concl, 4) : null, paginas: r.paginas, tokensEntrada: Number(r.tin), tokensSaida: Number(r.tout) },
@@ -86,6 +97,7 @@ function autoValue(auto: string, a: AutoMetrics, unit: string): { valor: number;
     case 'tempo_processamento': return time(a.tempoProcessamentoS);
     case 'tempo_ate_revisao': return time(a.tempoAteRevisaoMin === null ? null : a.tempoAteRevisaoMin * 60);
     case 'aprovacao_sem_edicao': return a.aprovacaoSemEdicaoPct === null ? null : { valor: a.aprovacaoSemEdicaoPct, unidade: '%' };
+    case 'taxa_revisao': return a.taxaRevisaoPct === null ? null : { valor: a.taxaRevisaoPct, unidade: '%' };
     case 'divergencias': return a.divergenciasPorExecucao === null ? null : { valor: a.divergenciasPorExecucao, unidade: 'por execução' };
     case 'pendencias': return a.pendenciasPorExecucao === null ? null : { valor: a.pendenciasPorExecucao, unidade: 'por execução' };
     case 'consumo': return a.consumo.custoPorExecucaoBrl === null ? null : { valor: a.consumo.custoPorExecucaoBrl, unidade: 'R$ por execução' };
@@ -95,9 +107,9 @@ function autoValue(auto: string, a: AutoMetrics, unit: string): { valor: number;
   return null;
 }
 
-export function indicatorResults(def: AssistantDefinition, values: MetricValue[], auto: AutoMetrics, p: Period): IndicatorResult[] {
+export function indicatorResults(indicators: Indicator[], values: MetricValue[], auto: AutoMetrics, p: Period): IndicatorResult[] {
   const latest = (key: string, phase: 'antes' | 'depois') => values.filter(v => v.indicator === key && v.phase === phase).sort((x, y) => y.createdAt.localeCompare(x.createdAt))[0];
-  return def.metrics.indicators.map(ind => {
+  return indicators.map(ind => {
     const a = latest(ind.key, 'antes');
     const d = latest(ind.key, 'depois');
     const av = ind.auto ? autoValue(ind.auto, auto, ind.unit) : null;
@@ -129,17 +141,17 @@ export function indicatorResults(def: AssistantDefinition, values: MetricValue[]
   });
 }
 
-export async function loadValues(tx: Tx, assistantId: string): Promise<MetricValue[]> {
+export async function loadValues(tx: Tx, quickWinId: string): Promise<MetricValue[]> {
   return (await tx.query(
-    `select v.*, u.email as recorded_email from metric_values v left join users u on u.id = v.recorded_by
-     where v.assistant_id = $1 order by v.created_at`, [assistantId])).rows.map(r => ({
+    `select v.*, u.email as recorded_email from quick_win_values v left join users u on u.id = v.recorded_by
+     where v.quick_win_id = $1 order by v.created_at`, [quickWinId])).rows.map(r => ({
     id: r.id, indicator: r.indicator, phase: r.phase, value: Number(r.value), unit: r.unit, origin: r.origin,
     periodStart: fmtDay(r.period_start), periodEnd: fmtDay(r.period_end), method: r.method, informedBy: r.informed_by, notes: r.notes,
     recordedBy: r.recorded_email ?? '', createdAt: new Date(r.created_at).toISOString(),
   }));
 }
 
-export async function monthly(tx: Tx, assistantId: string, p: Period) {
+export async function monthly(tx: Tx, assistantIds: string[], p: Period, areaIds: string[] | null = null) {
   return (await tx.query(
     `select to_char(date_trunc('month', created_at at time zone 'America/Sao_Paulo'), 'YYYY-MM') as mes,
             count(*)::int as execucoes, count(distinct user_id)::int as usuarios,
@@ -147,13 +159,6 @@ export async function monthly(tx: Tx, assistantId: string, p: Period) {
             count(*) filter (where status = 'aprovado_com_edicao')::int as aprovadas_com_edicao,
             count(*) filter (where status = 'rejeitado')::int as rejeitadas,
             coalesce(sum(cost_brl), 0)::float as custo_brl
-     from runs where assistant_id = $1 and created_at >= $2::date and created_at < $3::date + 1
-     group by 1 order by 1`, [assistantId, p.de, p.ate])).rows;
-}
-
-export async function decisions(tx: Tx, assistantId: string) {
-  return (await tx.query(
-    `select d.decision, d.decided_on, d.responsible, d.justification, d.created_at, u.email as recorded_by
-     from assistant_decisions d left join users u on u.id = d.recorded_by where d.assistant_id = $1 order by d.created_at desc`, [assistantId])).rows
-    .map(r => ({ decisao: r.decision, data: fmtDay(r.decided_on), responsavel: r.responsible, justificativa: r.justification, registradoPor: r.recorded_by, registradoEm: new Date(r.created_at).toISOString() }));
+     from runs where ${RUNS_WHERE}
+     group by 1 order by 1`, [assistantIds, p.de, p.ate, areaIds])).rows;
 }

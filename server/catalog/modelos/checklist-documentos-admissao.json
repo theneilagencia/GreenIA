@@ -141,24 +141,6 @@
         "Documentos duvidosos foram abertos e conferidos.",
         "Pendências foram comunicadas ao candidato."
       ]
-    },
-    "metrics": {
-      "indicators": [
-        {
-          "key": "tempo_por_admissao",
-          "label": "Tempo de conferência por admissão",
-          "unit": "min",
-          "direction": "menor_melhor",
-          "auto": "tempo_processamento"
-        },
-        {
-          "key": "pendencias",
-          "label": "Pendências encontradas por admissão",
-          "unit": "por admissão",
-          "direction": "maior_melhor",
-          "auto": "pendencias"
-        }
-      ]
     }
   }
 }

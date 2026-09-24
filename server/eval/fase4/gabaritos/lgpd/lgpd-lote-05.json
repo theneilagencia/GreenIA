@@ -1,0 +1,173 @@
+{
+  "versao": 1,
+  "caso": "lgpd-lote-05",
+  "frente": "lgpd",
+  "tenant": "demonstracao",
+  "modelo": "organizacao-evidencias",
+  "variacao": "misto: PDF, DOCX e XLSX",
+  "arquivos": [
+    {
+      "nome": "ocorrencia-ri-2026-026.docx",
+      "sha256": "ff5e54a06e10c8d82c77b742ba6d93d02f78e9c85a921b7738845818036e3259",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8481
+    },
+    {
+      "nome": "contrato-servicos-folha-ficticia.pdf",
+      "sha256": "74d8c625acdea5d0ebce085111030fa27699244208db945682030c54f9e9fe0d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2470
+    },
+    {
+      "nome": "comunicacao-anpd-2025-08.pdf",
+      "sha256": "bde321da03da17eb793ddd3c0a2157ff38500367051e031e3eee1e539e1c0143",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2161
+    },
+    {
+      "nome": "ocorrencia-ri-2025-009.docx",
+      "sha256": "3df136ba3dc399bc294715083135a3a40618909ebf8d842bb5469e5cc0a16d68",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8469
+    },
+    {
+      "nome": "ata-comite-privacidade-2026-06-44.pdf",
+      "sha256": "314a9496f0d1d79a1cc9f1e1a7187ae2d64c9e7ea30fd85faceb6ae3f1e3a6c9",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2233
+    },
+    {
+      "nome": "ramais-internos.xlsx",
+      "sha256": "c47297bebd88f94e591507a95a53822bf63dca158edc1afb691da36cb61a5d33",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6036
+    },
+    {
+      "nome": "vagas-estacionamento.xlsx",
+      "sha256": "a52116d0a5f1c8239e85f36e7eed312ab62eeeed79795a5920c5fdc873b0f81f",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6101
+    },
+    {
+      "nome": "relatorio-incidente-ri-2026-019.pdf",
+      "sha256": "916b688b6e3b1e58f173c2828a516a35896bdeb1f437cc97e20f79a174edadcd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2180
+    },
+    {
+      "nome": "ata-comite-privacidade-2026-08-48.pdf",
+      "sha256": "b8b8e66a11ba881a5d2a3c1114b7602b8f8b75d3109f84f37fe4a7e0726b85b1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2246
+    },
+    {
+      "nome": "estoque-material-escritorio.xlsx",
+      "sha256": "320fd9eb4d81499632357043b86896f6b856128572df68e4ba524117a5ccffb3",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6102
+    }
+  ],
+  "esperado": {
+    "documentos": [
+      {
+        "arquivo": "ocorrencia-ri-2026-026.docx",
+        "categoria": "incidentes",
+        "periodo": "2026-02",
+        "nome": "incidentes/2026-02_ocorrencia-ri-2026-026.docx"
+      },
+      {
+        "arquivo": "contrato-servicos-folha-ficticia.pdf",
+        "categoria": "contratos",
+        "periodo": "2026-07",
+        "nome": "contratos/2026-07_contrato-servicos-folha-ficticia.pdf"
+      },
+      {
+        "arquivo": "comunicacao-anpd-2025-08.pdf",
+        "categoria": "incidentes",
+        "periodo": "2025-08",
+        "nome": "incidentes/2025-08_comunicacao-anpd-2025-08.pdf"
+      },
+      {
+        "arquivo": "ocorrencia-ri-2025-009.docx",
+        "categoria": "incidentes",
+        "periodo": "2025-03",
+        "nome": "incidentes/2025-03_ocorrencia-ri-2025-009.docx"
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2026-06-44.pdf",
+        "categoria": "politicas",
+        "periodo": "2026-06",
+        "nome": "politicas/2026-06_ata-comite-privacidade-2026-06-44.pdf"
+      },
+      {
+        "arquivo": "ramais-internos.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "vagas-estacionamento.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "relatorio-incidente-ri-2026-019.pdf",
+        "categoria": "incidentes",
+        "periodo": "2026-08",
+        "nome": "incidentes/2026-08_relatorio-incidente-ri-2026-019.pdf"
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2026-08-48.pdf",
+        "categoria": "registros",
+        "periodo": "2026-08",
+        "nome": "registros/2026-08_ata-comite-privacidade-2026-08-48.pdf"
+      },
+      {
+        "arquivo": "estoque-material-escritorio.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      }
+    ],
+    "perguntas": [
+      {
+        "pergunta": "Onde está o contrato com Folha Fictícia Processamento Ltda. que trata da proteção de dados?",
+        "documentos": [
+          "contrato-servicos-folha-ficticia.pdf"
+        ]
+      },
+      {
+        "pergunta": "Qual relatório trata do incidente de agosto de 2026 (backup exposto por configuração incorreta)?",
+        "documentos": [
+          "relatorio-incidente-ri-2026-019.pdf"
+        ]
+      },
+      {
+        "pergunta": "Quais são os documentos de incidentes deste lote, inclusive as atas que os analisam?",
+        "documentos": [
+          "ocorrencia-ri-2026-026.docx",
+          "comunicacao-anpd-2025-08.pdf",
+          "ocorrencia-ri-2025-009.docx",
+          "relatorio-incidente-ri-2026-019.pdf"
+        ]
+      }
+    ]
+  },
+  "notas": "10 documentos fictícios de LGPD, uma execução do assistente por lote. 3 sem relação com LGPD (categoria nula, sem período e sem nome padronizado: vão para revisão). Nome padronizado pela regra do modelo ({categoria}/{periodo}_{nome}), com o nome do arquivo em minúsculas e hífens. Atas do comitê de privacidade entram na categoria do assunto da pauta (política, incidente ou inventário). Parte dos arquivos tem nome genérico (scan-, documento-aprovado-, ocorrencia-, contrato-...-assinado): a categoria só aparece no conteúdo. O período é o mês da data do próprio documento (aprovação, treinamento, assinatura, ocorrência, reunião ou referência). Em XLSX com linhas de título acima da tabela (listas de presença e inventários), o título e a data ficam acima do cabeçalho: a leitura da plataforma guarda só o cabeçalho e as linhas da tabela, então a classificação por regras depende do nome do arquivo. DOC (Word 97) não entra: gerar exige o LibreOffice para escrever.",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

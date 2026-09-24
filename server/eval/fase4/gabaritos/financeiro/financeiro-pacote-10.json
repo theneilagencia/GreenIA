@@ -1,0 +1,198 @@
+{
+  "versao": 1,
+  "caso": "financeiro-pacote-10",
+  "frente": "financeiro",
+  "tenant": "demonstracao",
+  "modelo": "resumo-financeiro-mensal",
+  "variacao": "pdf, 208 páginas, caixa semanal",
+  "arquivos": [
+    {
+      "nome": "dre-2025-11.pdf",
+      "sha256": "0c45c3ff8886156cd0f270f43757433386c056a7b42e83c50e5f500b002f4d74",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 6242
+    },
+    {
+      "nome": "balancete-2025-11.pdf",
+      "sha256": "d53576d01d224249d7c30ac4f48ccbb2786c6fe966fa1b9e29eb7b667f3985a8",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 166151
+    },
+    {
+      "nome": "razao-2025-11.pdf",
+      "sha256": "43ce9b76352598e1e8f559d8cc5e87f36de2b018585b51e9a6612966be2f358b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 248764
+    },
+    {
+      "nome": "fluxo-de-caixa-2025-11.xlsx",
+      "sha256": "6f7885b14f9cb73a333f84d9619a6a0aa620bcfebf38ae5a9ab6ba76494bbf5f",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6588
+    },
+    {
+      "nome": "inadimplencia-2025-11.csv",
+      "sha256": "5394d323b1eff1419e9ad9af6a93a02a5ce920cacfd87d99a5da54bae9f9785e",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 819
+    }
+  ],
+  "esperado": {
+    "campos": [
+      {
+        "arquivo": "dre-2025-11.pdf",
+        "campo": "periodo",
+        "valor": "2025-11",
+        "pagina": 1,
+        "trecho": "novembro de 2025"
+      },
+      {
+        "arquivo": "dre-2025-11.pdf",
+        "campo": "receita_total",
+        "valor": 7336755.95,
+        "pagina": 4,
+        "trecho": "R$ 7.336.755,95"
+      },
+      {
+        "arquivo": "dre-2025-11.pdf",
+        "campo": "despesa_total",
+        "valor": 5795509.93,
+        "pagina": 4,
+        "trecho": "R$ 5.795.509,93"
+      },
+      {
+        "arquivo": "dre-2025-11.pdf",
+        "campo": "resultado",
+        "valor": 1541246.02,
+        "pagina": 4,
+        "trecho": "R$ 1.541.246,02"
+      },
+      {
+        "arquivo": "balancete-2025-11.pdf",
+        "campo": "periodo",
+        "valor": "2025-11",
+        "pagina": 1,
+        "trecho": "novembro de 2025"
+      },
+      {
+        "arquivo": "balancete-2025-11.pdf",
+        "campo": "receita_total",
+        "valor": 7336755.95,
+        "pagina": 69,
+        "trecho": "R$ 7.336.755,95"
+      },
+      {
+        "arquivo": "balancete-2025-11.pdf",
+        "campo": "despesa_total",
+        "valor": 5795509.93,
+        "pagina": 69,
+        "trecho": "R$ 5.795.509,93"
+      },
+      {
+        "arquivo": "balancete-2025-11.pdf",
+        "campo": "resultado",
+        "valor": 1541246.02,
+        "pagina": 69,
+        "trecho": "R$ 1.541.246,02"
+      },
+      {
+        "arquivo": "razao-2025-11.pdf",
+        "campo": "periodo",
+        "valor": "2025-11",
+        "pagina": 1,
+        "trecho": "novembro de 2025"
+      },
+      {
+        "arquivo": "razao-2025-11.pdf",
+        "campo": "receita_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "razao-2025-11.pdf",
+        "campo": "despesa_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "razao-2025-11.pdf",
+        "campo": "resultado",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      }
+    ],
+    "topicos": [
+      "Visão geral do mês",
+      "Receitas e despesas",
+      "Caixa",
+      "Inadimplência",
+      "Pontos de atenção",
+      "Informações que faltam"
+    ],
+    "fatos": [
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo inicial",
+        "valor": 780590.81,
+        "arquivo": "fluxo-de-caixa-2025-11.xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de entradas",
+        "valor": 577531.23,
+        "arquivo": "fluxo-de-caixa-2025-11.xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de saídas",
+        "valor": 1036598.63,
+        "arquivo": "fluxo-de-caixa-2025-11.xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo final",
+        "valor": 321523.41,
+        "arquivo": "fluxo-de-caixa-2025-11.xlsx"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Total em atraso (posição em 30/11/2025)",
+        "valor": 310799.61,
+        "arquivo": "inadimplencia-2025-11.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Quantidade de títulos em atraso",
+        "valor": 10,
+        "arquivo": "inadimplencia-2025-11.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Em atraso há mais de 90 dias",
+        "valor": 155284.2,
+        "arquivo": "inadimplencia-2025-11.csv"
+      },
+      {
+        "topico": "Informações que faltam",
+        "descricao": "O resumo do balancete está na página 69, além das 50 lidas por padrão",
+        "valor": null,
+        "arquivo": "balancete-2025-11.pdf"
+      }
+    ],
+    "erroGrave": "valor errado com origem aparentemente válida"
+  },
+  "notas": "Empresa fictícia (Metalúrgica Teste Ltda.), novembro de 2025. DRE com 4 página(s), balancete com 69, razão com 135: 208 páginas em PDF. A DRE traz também a coluna de outubro de 2025 (armadilha: valor do mês errado); o quadro-resumo está na página 4. O resumo do balancete está na última página (69). Ela fica além das 50 páginas que o bloco ler lê por padrão (paginasMax): na versão 1 do modelo o valor não chega ao modelo, e o esperado continua sendo o valor certo. O razão tem 135 páginas; só as 50 primeiras são lidas. O razão só tem lançamentos: receita, despesa e resultado esperados nulos. O modelo extrai só de PDF e DOCX; o fluxo de caixa (XLSX) e a inadimplência (CSV) entram só no resumo (fatos). Inadimplência em CSV com ponto e vírgula, UTF-8 com BOM. Parte escaneada: pode vir depois, pela degradação sintética (degradar.ts).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

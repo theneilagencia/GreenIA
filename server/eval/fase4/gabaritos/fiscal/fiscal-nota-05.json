@@ -1,0 +1,133 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-05",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-e xml",
+  "arquivos": [
+    {
+      "nome": "nfe-57034.xml",
+      "sha256": "8a1f47d0164272c7412b2433526e682ae086e8f3a185596095610c68442750b3",
+      "tipo": "xml",
+      "origem": "gerado",
+      "bytes": 4770
+    },
+    {
+      "nome": "danfe-57034.pdf",
+      "sha256": "25ca52e40ef98a05ee1e9b36c809f9bb183998a57ecd31643be0927575eaa56a",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2912
+    },
+    {
+      "nome": "pedido-537058.xml",
+      "sha256": "8b5dd11a0d876e00129916d271d66ca9908e7a49767eaf02e9ab832d086234fd",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 1856
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "divergencias",
+    "nota": {
+      "chave": "35260708284704000145550010000570341000000007",
+      "numero": "57034",
+      "dataEmissao": "2026-07-11",
+      "cnpjEmitente": "08284704000145",
+      "valorTotal": 21164.6,
+      "xml": "nfe-57034.xml",
+      "danfe": "danfe-57034.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-537058.xml",
+      "layout": "layout-e",
+      "mapeamento": "mapeamentos/layout-e.json",
+      "registros": [
+        {
+          "pedido": "537058",
+          "cnpjFornecedor": "08284704000145",
+          "dataPedido": "2026-06-25",
+          "totalPedido": 8849.24,
+          "codigo": "6101",
+          "descricao": "Arame de solda MIG 1,0 mm",
+          "unidade": "KG",
+          "quantidade": 9,
+          "valorUnitario": 19.77,
+          "valorTotal": 177.93
+        },
+        {
+          "pedido": "537058",
+          "cnpjFornecedor": "08284704000145",
+          "dataPedido": "2026-06-25",
+          "totalPedido": 8849.24,
+          "codigo": "EPI-0451",
+          "descricao": "Protetor auricular tipo plug",
+          "unidade": "PR",
+          "quantidade": 171,
+          "valorUnitario": 1.48,
+          "valorTotal": 253.08
+        },
+        {
+          "pedido": "537058",
+          "cnpjFornecedor": "08284704000145",
+          "dataPedido": "2026-06-25",
+          "totalPedido": 8849.24,
+          "codigo": "6100",
+          "descricao": "Eletrodo revestido E6013 2,5 mm",
+          "unidade": "KG",
+          "quantidade": 21.5,
+          "valorUnitario": 30.04,
+          "valorTotal": 645.86
+        },
+        {
+          "pedido": "537058",
+          "cnpjFornecedor": "08284704000145",
+          "dataPedido": "2026-06-25",
+          "totalPedido": 8849.24,
+          "codigo": "2210",
+          "descricao": "Filme stretch 500 mm x 25 micras",
+          "unidade": "RL",
+          "quantidade": 123,
+          "valorUnitario": 63.19,
+          "valorTotal": 7772.37
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "chave": "8801",
+        "campo": "codigo",
+        "tipo": "so_na_nota",
+        "esperado": null,
+        "encontrado": "8801",
+        "regra": "item da nota sem par no pedido"
+      },
+      {
+        "chave": "6101",
+        "campo": "valorUnitario",
+        "tipo": "preco_fora_tolerancia",
+        "esperado": 19.77,
+        "encontrado": 1.477,
+        "regra": "tolerância de 1% sobre o preço do pedido"
+      },
+      {
+        "chave": "cabecalho",
+        "campo": "totalPedido",
+        "tipo": "valor_total",
+        "esperado": 8849.24,
+        "encontrado": 21164.6,
+        "regra": "total do pedido × valor da nota, tolerância de R$ 1,00"
+      }
+    ],
+    "dentroDaTolerancia": [],
+    "pedirXml": [],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-e: XML de registros, data dd/mm/aa, número com ponto decimal e vírgula de milhar, CNPJ formatado. Importação pelo mapeamento mapeamentos/layout-e.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Plantado: so_na_nota; preço dentro da tolerância de 1% (não é divergência). O total do pedido entra quando difere do valor da nota em mais de R$ 1,00. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

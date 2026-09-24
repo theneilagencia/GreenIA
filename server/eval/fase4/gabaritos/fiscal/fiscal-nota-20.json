@@ -1,0 +1,165 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-20",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-c txt",
+  "arquivos": [
+    {
+      "nome": "nfe-44615.xml",
+      "sha256": "391b356371d24745e4ea3bb884b8b70c85acd109bf7fd66a118d1f8369154e79",
+      "tipo": "xml",
+      "origem": "gerado",
+      "bytes": 5355
+    },
+    {
+      "nome": "danfe-44615.pdf",
+      "sha256": "d4af8e90e40ed79cef46658e97e173d3233ca39d6381b68225b56cf34877ba1e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2935
+    },
+    {
+      "nome": "pedido-539577.txt",
+      "sha256": "dff7f1987908c320e42b438ec93460de6cc7a76c9e1ab40c42a90f7af7269576",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 1223
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "divergencias",
+    "nota": {
+      "chave": "35260819626645000162550010000446151000000002",
+      "numero": "44615",
+      "dataEmissao": "2026-08-06",
+      "cnpjEmitente": "19626645000162",
+      "valorTotal": 19820.5,
+      "xml": "nfe-44615.xml",
+      "danfe": "danfe-44615.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-539577.txt",
+      "layout": "layout-c",
+      "mapeamento": "mapeamentos/layout-c.json",
+      "registros": [
+        {
+          "pedido": "539577",
+          "cnpjFornecedor": "19626645000162",
+          "dataPedido": "2026-06-01",
+          "totalPedido": 18934.5,
+          "codigo": "7731",
+          "descricao": "LUVA DE VAQUETA TAMANHO G",
+          "unidade": "PR",
+          "quantidade": 15,
+          "valorUnitario": 16.13,
+          "valorTotal": 241.95
+        },
+        {
+          "pedido": "539577",
+          "cnpjFornecedor": "19626645000162",
+          "dataPedido": "2026-06-01",
+          "totalPedido": 18934.5,
+          "codigo": "1150",
+          "descricao": "CABO PP 3X2,5 MM",
+          "unidade": "M",
+          "quantidade": 27,
+          "valorUnitario": 9.81,
+          "valorTotal": 264.87
+        },
+        {
+          "pedido": "539577",
+          "cnpjFornecedor": "19626645000162",
+          "dataPedido": "2026-06-01",
+          "totalPedido": 18934.5,
+          "codigo": "2215",
+          "descricao": "ETIQUETA ADESIVA 100X50 MM",
+          "unidade": "MIL",
+          "quantidade": 115,
+          "valorUnitario": 41.32,
+          "valorTotal": 4751.8
+        },
+        {
+          "pedido": "539577",
+          "cnpjFornecedor": "19626645000162",
+          "dataPedido": "2026-06-01",
+          "totalPedido": 18934.5,
+          "codigo": "8802",
+          "descricao": "GRAXA DE LITIO EP2, POTE 1 KG",
+          "unidade": "UN",
+          "quantidade": 67,
+          "valorUnitario": 40.52,
+          "valorTotal": 2714.84
+        },
+        {
+          "pedido": "539577",
+          "cnpjFornecedor": "19626645000162",
+          "dataPedido": "2026-06-01",
+          "totalPedido": 18934.5,
+          "codigo": "7000",
+          "descricao": "SABAO DESENGRAXANTE, GALAO 5 L",
+          "unidade": "GL",
+          "quantidade": 86,
+          "valorUnitario": 48.14,
+          "valorTotal": 4140.04
+        },
+        {
+          "pedido": "539577",
+          "cnpjFornecedor": "19626645000162",
+          "dataPedido": "2026-06-01",
+          "totalPedido": 18934.5,
+          "codigo": "2210",
+          "descricao": "FILME STRETCH 500 MM X 25 MICRAS",
+          "unidade": "RL",
+          "quantidade": 100,
+          "valorUnitario": 68.21,
+          "valorTotal": 6821
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "chave": "2210",
+        "campo": "quantidade",
+        "tipo": "quantidade",
+        "esperado": 100,
+        "encontrado": 113
+      },
+      {
+        "chave": "cabecalho",
+        "campo": "dataPedido",
+        "tipo": "prazo_emissao",
+        "esperado": "2026-06-01",
+        "encontrado": "2026-08-06",
+        "regra": "emissão até 30 dias depois da data do pedido (66 dias)"
+      },
+      {
+        "chave": "cabecalho",
+        "campo": "totalPedido",
+        "tipo": "valor_total",
+        "esperado": 18934.5,
+        "encontrado": 19820.5,
+        "regra": "total do pedido × valor da nota, tolerância de R$ 1,00"
+      }
+    ],
+    "dentroDaTolerancia": [
+      {
+        "chave": "7731",
+        "campo": "valorUnitario",
+        "tipo": "preco_dentro_tolerancia",
+        "esperado": 16.13,
+        "encontrado": 16.0816,
+        "regra": "tolerância de 1% sobre o preço do pedido"
+      }
+    ],
+    "pedirXml": [],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-c: TXT de largura fixa em Latin-1, descrição em maiúsculas sem acento, data aaaammdd, decimal com vírgula, linha de trailer. Importação pelo mapeamento mapeamentos/layout-c.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Plantado: quantidade, prazo_emissao; preço dentro da tolerância de 1% (não é divergência). O total do pedido entra quando difere do valor da nota em mais de R$ 1,00. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

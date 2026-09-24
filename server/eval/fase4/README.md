@@ -15,6 +15,10 @@ Tudo é fictício: pessoas, empresas, CNPJs e valores inventados, com a marca "E
 | Variação por imagens | `variante.ts` | Cria a variação de um caso a partir das fotos reais (ou de escaneamentos), com o mesmo esperado e os sha256 das imagens |
 | Construtora, Suprimentos | `gerar-construtora.ts` | 20 especificações de compra (XLSX) × 3 cotações (PDF ou DOCX) = 60 casos, com divergências plantadas: quantidade, unidade, item faltante na cotação, item cotado sem especificação. A primeira cotação de cada especificação vem limpa (controle) |
 | Construtora, Jurídico | `gerar-construtora.ts` | 25 contratos (DOCX ou PDF, 5 a 40 páginas) com partes, vigência, reajuste, multa, rescisão, confidencialidade e foro; um terço sem alguma cláusula (esperado: nulo). Mais 20 perguntas com o contrato, a cláusula e o trecho esperados |
+| Fiscal | `gerar-fiscal.ts`, `mapeamentos/` | 30 casos: NF-e fictícia (XML de homologação e DANFE) × pedido de compra em cinco layouts neutros de exportação (layout-a CSV Latin-1 com títulos e rodapé, layout-b XLSX com aba Campo \| Valor e código e descrição na mesma coluna, layout-c TXT de largura fixa, layout-d JSON em caixas com fator 10, layout-e XML). O mapeamento de cada layout fica em `mapeamentos/`, no formato do núcleo; o gabarito usa só os campos normalizados. Divergências plantadas: quantidade, preço fora da tolerância, item só na nota, item só no pedido, emissão fora do prazo e o total. Preço dentro da tolerância fica em `dentroDaTolerancia`. 6 casos limpos, 8 só com a DANFE (pedir o XML) |
+| Financeiro | `gerar-financeiro.ts` | 10 pacotes do mês: DRE, balancete e razão em PDF (30 a 300 páginas), fluxo de caixa em XLSX e inadimplência em CSV. Gabarito: periodo, receita_total, despesa_total e resultado de cada PDF, com a página; tópicos do resumo; fatos de caixa e inadimplência |
+| LGPD | `gerar-lgpd.ts` | 60 documentos em 6 lotes de 10 (PDF, DOCX e XLSX): categoria da taxonomia, período e nome padronizado de cada um; planilha sem relação com categoria nula; 20 perguntas de busca. DOC fica de fora (gerar exige o LibreOffice) |
+| Peças comuns das três frentes | `lib-extra.ts` | CNPJ fictício válido, Latin-1, datas, e a leitura de referência de um pedido pelo mapeamento |
 | Gabaritos congelados | `gabaritos/`, `congelar.ts` | Os 100 gabaritos do corpus oficial, versionados antes de qualquer rodada. O teste `fase4-corpus` gera o corpus de novo e compara |
 | Comparador RH sem modelo | `avaliar-rh-offline.ts` | Roda a leitura e o checklist por regras da plataforma, com a definição do modelo do catálogo, e compara item a item. Com `--ocr sim`, as imagens passam pelo OCR local |
 
@@ -26,6 +30,9 @@ node --experimental-strip-types eval/fase4/congelar.ts --saida eval/fase4/saida 
 node --experimental-strip-types eval/fase4/degradar.ts --saida eval/fase4/saida --frente rh
 node --experimental-strip-types eval/fase4/validar.ts --saida eval/fase4/saida
 node --experimental-strip-types eval/fase4/avaliar-rh-offline.ts --saida eval/fase4/saida [--ocr sim]
+node --experimental-strip-types eval/fase4/gerar-fiscal.ts --saida eval/fase4/saida --casos 30 --semente 4301
+node --experimental-strip-types eval/fase4/gerar-financeiro.ts --saida eval/fase4/saida --pacotes 10 --semente 4302
+node --experimental-strip-types eval/fase4/gerar-lgpd.ts --saida eval/fase4/saida --casos 6 --semente 4303
 ```
 
 `eval/fase4/saida/` fica fora do repositório (`.gitignore`); o corpus vai para o bucket privado da TheNeil quando ele existir.
@@ -40,7 +47,9 @@ Um `gabarito.json` por caso, ao lado dos arquivos:
   - RH: situação de cada item (presente, ausente, duvidoso) e o arquivo que prova. Erro grave: item marcado presente quando está ausente.
   - Suprimentos: itens da cotação (código, descrição, quantidade, unidade, preço) e divergências contra a especificação. Erro grave: divergência de quantidade ou unidade não apontada.
   - Jurídico: para cada campo, a cláusula e o trecho que precisa aparecer na saída; nulo quando o contrato não tem a cláusula. Erro grave: trecho citado que não está no contrato.
-  - Fiscal, financeiro e LGPD: formatos definidos no schema; os geradores dessas frentes vêm a seguir.
+  - Fiscal: nota (chave, XML, DANFE), pedido (layout, mapeamento e registros normalizados), divergências nos campos normalizados (esperado = pedido, encontrado = nota), diferenças dentro da tolerância e as chaves para pedir o XML. Erro grave: divergência não apontada.
+  - Financeiro: cada campo extraído de cada PDF, com valor, página e trecho; nulo quando o documento não tem o campo. Tópicos obrigatórios e fatos de caixa e inadimplência. Erro grave: valor errado com origem aparentemente válida.
+  - LGPD: categoria, período e nome padronizado de cada documento (nulos para o que não tem relação) e os documentos esperados de cada pergunta.
 - `conferencia`: 20% dos casos marcados como amostra para a segunda pessoa conferir (`por`, `em`, `divergencias`).
 
 ## Divisão: desenvolvimento e reservado
@@ -54,7 +63,13 @@ Um `gabarito.json` por caso, ao lado dos arquivos:
 - Lote congelado não é refeito. Casos novos (construtora, PNCP, fiscal, financeiro, LGPD) entram em lotes próprios.
 - O reservado só roda com `--conjunto reservado --rodada-final sim`. Cada uso fica em `resultados/uso-do-reservado.log`, e a saída traz só números agregados.
 
-Resultado: RH 9 casos no desenvolvimento e 6 no reservado; Suprimentos 12 especificações (36 cotações) e 8 (24); Jurídico 15 e 10 contratos.
+Resultado: RH 9 casos no desenvolvimento e 6 no reservado; Suprimentos 12 especificações (36 cotações) e 8 (24); Jurídico 15 e 10 contratos; Fiscal 18 e 12 (os cinco layouts nos dois conjuntos); Financeiro 6 e 4 pacotes; LGPD 4 e 2 casos. No Fiscal, o layout de exportação também é estrato.
+
+### Fiscal: importação pelos mapeamentos
+
+Os pedidos do Fiscal chegam em cinco layouts (`mapeamentos/layout-a.json` a `layout-e.json`). O teste `fase4-fiscal-importacao.test.ts` cria cada mapeamento pela API de configuração, com um arquivo de exemplo do próprio layout, e roda o modelo `conferencia-nota-pedido` do catálogo, sem ajuste, nos casos do desenvolvimento. Resultado: 18 de 18 (layout-a 3, b 4, c 3, d 4, e 4). O leitor do núcleo também lê os 30 pedidos exatamente como o gabarito.
+
+Ressalva: antes de congelar a divisão das frentes novas, o teste rodou uma vez nos 30 casos do Fiscal (30 de 30). Nada foi corrigido depois disso; a partir da divisão, o teste usa só o desenvolvimento.
 
 Ressalva: a linha de base abaixo, com resultado por caso dos 15 casos, foi gravada antes da divisão. As categorias de erro foram vistas em todos os casos. As correções seguem estas categorias gerais e são medidas só no desenvolvimento; nenhum caso do reservado é aberto para corrigir.
 
@@ -83,6 +98,6 @@ Nada disso foi ajustado: a Fase 4 mede como está e o relatório propõe as muda
 - `ANTHROPIC_API_KEY` no ambiente da avaliação (rodada com Haiku 4.5 e Sonnet 5).
 - As 30 notas de compra da TheNeil (XML e DANFE) para a frente fiscal.
 - Pessoas para imprimir e fotografar as pastas de RH (roteiro em `saida/rh/ROTEIRO-FOTOS.md`).
-- Os layouts de ERP para os pedidos (qualquer cliente, sem dados; o SyGeCom entra como uma variação).
+- Os layouts de ERP para os pedidos (qualquer cliente, sem dados). Os cinco de hoje são aproximações neutras; cada layout real (o SyGeCom é um deles) vira mais um `mapeamentos/layout-x.json`.
 - O bucket privado para o corpus.
 - A pessoa que confere os 20% de amostra dos gabaritos.

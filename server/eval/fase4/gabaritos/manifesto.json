@@ -12,8 +12,20 @@
     "juridico": {
       "contratos": 25,
       "semente": 4201
+    },
+    "fiscal": {
+      "casos": 30,
+      "semente": 4301
+    },
+    "financeiro": {
+      "pacotes": 10,
+      "semente": 4302
+    },
+    "lgpd": {
+      "casos": 6,
+      "semente": 4303
     }
   },
-  "casos": 100,
+  "casos": 146,
   "descricao": "Gabaritos congelados do corpus gerado. O corpus fica fora do repositório; rode congelar.ts para gerar de novo e conferir os sha256."
 }

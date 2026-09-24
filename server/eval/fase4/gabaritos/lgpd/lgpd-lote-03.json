@@ -1,0 +1,171 @@
+{
+  "versao": 1,
+  "caso": "lgpd-lote-03",
+  "frente": "lgpd",
+  "tenant": "demonstracao",
+  "modelo": "organizacao-evidencias",
+  "variacao": "misto: PDF, DOCX e XLSX",
+  "arquivos": [
+    {
+      "nome": "contrato-servicos-nuvem-exemplo.pdf",
+      "sha256": "135dd1b25cb76337f782b7621e4f465a2cfe409de3540564668acf21a505ff49",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2487
+    },
+    {
+      "nome": "lista-presenca-lgpd-para-liderancas-2026-04.pdf",
+      "sha256": "056b5742e74b7049cf4c84f01fbdfb76e9e7f8b627ff8ee09a2107cb73852228",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2255
+    },
+    {
+      "nome": "lista-presenca-protecao-de-dados-2026-01.pdf",
+      "sha256": "e542f0164b33d97f64380b180a86628ec9855408625e167c5698248d98e68ecf",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2229
+    },
+    {
+      "nome": "comunicacao-anpd-2026-06.pdf",
+      "sha256": "7dcca71edb4d977e4d0f1ca1522b18021c27225a34c69fff7acfbe9812e85b79",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2144
+    },
+    {
+      "nome": "inventario-de-dados-recursos-humanos-2026-02.docx",
+      "sha256": "129b5f43d860e745a895b66d38d7a73439932c8ca1091a4c95bc017a2eb54239",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8491
+    },
+    {
+      "nome": "lista-presenca-seguranca-da-informacao-2026-04.pdf",
+      "sha256": "b217026acf0289347ff60ebc8e178bc1da82da558b7782a20bc51228677bec15",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2326
+    },
+    {
+      "nome": "contrato-servicos-laboratorio-modelo.pdf",
+      "sha256": "055a22a0f7e378a37654959bb5e861aadef33be063f442f21bb6957bca654169",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2477
+    },
+    {
+      "nome": "comunicado-campanha-agasalho.docx",
+      "sha256": "e00caceb07554cb560fb4ee6667d05e8761cd3b29a5d76cdfa426bd2ce66e831",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8325
+    },
+    {
+      "nome": "inventario-de-dados-tecnologia-2026-08.xlsx",
+      "sha256": "473c0ee1ef135d63617e869dcc0957ed8528196563f4a04d6fcf04a7e20d8026",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6340
+    },
+    {
+      "nome": "lista-presenca-protecao-de-dados-2026-02.pdf",
+      "sha256": "765db11016027c4b43bc9c3d9f54f0a05429597b8591e047dd0488403e65ac5c",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2371
+    }
+  ],
+  "esperado": {
+    "documentos": [
+      {
+        "arquivo": "contrato-servicos-nuvem-exemplo.pdf",
+        "categoria": "contratos",
+        "periodo": "2026-08",
+        "nome": "contratos/2026-08_contrato-servicos-nuvem-exemplo.pdf"
+      },
+      {
+        "arquivo": "lista-presenca-lgpd-para-liderancas-2026-04.pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-04",
+        "nome": "treinamentos/2026-04_lista-presenca-lgpd-para-liderancas-2026-04.pdf"
+      },
+      {
+        "arquivo": "lista-presenca-protecao-de-dados-2026-01.pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-01",
+        "nome": "treinamentos/2026-01_lista-presenca-protecao-de-dados-2026-01.pdf"
+      },
+      {
+        "arquivo": "comunicacao-anpd-2026-06.pdf",
+        "categoria": "incidentes",
+        "periodo": "2026-06",
+        "nome": "incidentes/2026-06_comunicacao-anpd-2026-06.pdf"
+      },
+      {
+        "arquivo": "inventario-de-dados-recursos-humanos-2026-02.docx",
+        "categoria": "registros",
+        "periodo": "2026-02",
+        "nome": "registros/2026-02_inventario-de-dados-recursos-humanos-2026-02.docx"
+      },
+      {
+        "arquivo": "lista-presenca-seguranca-da-informacao-2026-04.pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-04",
+        "nome": "treinamentos/2026-04_lista-presenca-seguranca-da-informacao-2026-04.pdf"
+      },
+      {
+        "arquivo": "contrato-servicos-laboratorio-modelo.pdf",
+        "categoria": "contratos",
+        "periodo": "2026-05",
+        "nome": "contratos/2026-05_contrato-servicos-laboratorio-modelo.pdf"
+      },
+      {
+        "arquivo": "comunicado-campanha-agasalho.docx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "inventario-de-dados-tecnologia-2026-08.xlsx",
+        "categoria": "registros",
+        "periodo": "2026-08",
+        "nome": "registros/2026-08_inventario-de-dados-tecnologia-2026-08.xlsx"
+      },
+      {
+        "arquivo": "lista-presenca-protecao-de-dados-2026-02.pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-02",
+        "nome": "treinamentos/2026-02_lista-presenca-protecao-de-dados-2026-02.pdf"
+      }
+    ],
+    "perguntas": [
+      {
+        "pergunta": "Qual documento comprova a presença no treinamento \"Proteção de dados no atendimento\" de 06/01/2026?",
+        "documentos": [
+          "lista-presenca-protecao-de-dados-2026-01.pdf"
+        ]
+      },
+      {
+        "pergunta": "Onde está a comunicação à ANPD enviada em 08/06/2026?",
+        "documentos": [
+          "comunicacao-anpd-2026-06.pdf"
+        ]
+      },
+      {
+        "pergunta": "Quais são os contratos com operadores deste lote?",
+        "documentos": [
+          "contrato-servicos-nuvem-exemplo.pdf",
+          "contrato-servicos-laboratorio-modelo.pdf"
+        ]
+      }
+    ]
+  },
+  "notas": "10 documentos fictícios de LGPD, uma execução do assistente por lote. 1 sem relação com LGPD (categoria nula, sem período e sem nome padronizado: vão para revisão). Nome padronizado pela regra do modelo ({categoria}/{periodo}_{nome}), com o nome do arquivo em minúsculas e hífens. Atas do comitê de privacidade entram na categoria do assunto da pauta (política, incidente ou inventário). Parte dos arquivos tem nome genérico (scan-, documento-aprovado-, ocorrencia-, contrato-...-assinado): a categoria só aparece no conteúdo. O período é o mês da data do próprio documento (aprovação, treinamento, assinatura, ocorrência, reunião ou referência). Em XLSX com linhas de título acima da tabela (listas de presença e inventários), o título e a data ficam acima do cabeçalho: a leitura da plataforma guarda só o cabeçalho e as linhas da tabela, então a classificação por regras depende do nome do arquivo. DOC (Word 97) não entra: gerar exige o LibreOffice para escrever.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

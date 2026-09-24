@@ -1,0 +1,177 @@
+{
+  "versao": 1,
+  "caso": "lgpd-lote-01",
+  "frente": "lgpd",
+  "tenant": "demonstracao",
+  "modelo": "organizacao-evidencias",
+  "variacao": "misto: PDF, DOCX e XLSX",
+  "arquivos": [
+    {
+      "nome": "relatorio-incidente-ri-2026-024.docx",
+      "sha256": "7ac3196b7a1c4425f321750aba96a898ce16260b63a4bb4f59c8e5053742852e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8473
+    },
+    {
+      "nome": "inventario-de-dados-comercial-2026-01.xlsx",
+      "sha256": "cb958aaad7f56b71899788a0ff675c5dfe37a87cf551b6070eb20824779fb713",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6338
+    },
+    {
+      "nome": "inventario-de-dados-financeiro-2025-09.docx",
+      "sha256": "81d85312b731475d3b4ed546d45ffc91872da6a64cbef33725eaa9da2349f65f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8480
+    },
+    {
+      "nome": "norma-interna-controle-de-acesso-v5.pdf",
+      "sha256": "28f88bb3976a9c9070e2890e01a2a7f58bb2f97a49d1b9c5c16b700b651fd070",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2319
+    },
+    {
+      "nome": "ata-comite-privacidade-2026-07-4.pdf",
+      "sha256": "cb6d1a1cb4f1339c33a88fe39f4ae35af63f988e5ff4b3daba3017517c719c76",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2234
+    },
+    {
+      "nome": "mesas-e-cadeiras.xlsx",
+      "sha256": "1792ad06567ce3b5274d14d72b46a77d24295fea42aa01c524ab81a4be77d04d",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6139
+    },
+    {
+      "nome": "politica-de-seguranca-da-informacao-v2.docx",
+      "sha256": "915970cd432d1bcac8f7b9357a4dada7a91d6a52e80aa4d4187963d6a7eb171b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8611
+    },
+    {
+      "nome": "ata-comite-privacidade-2026-01-7.docx",
+      "sha256": "cb4667894f32841829d40d2f584248a4bded2747a80f465315d5d55ffe7b5469",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8493
+    },
+    {
+      "nome": "norma-interna-retencao-v2.docx",
+      "sha256": "d2ffc4af336173eacf9c87d4e2b4bd57f5e90ea3b7cb880ca517db89af7a72f6",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8619
+    },
+    {
+      "nome": "relatorio-incidente-ri-2026-003.pdf",
+      "sha256": "228667b727223d317032de7151c06848b4cd8e697547de2f05f347b647780ffd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2187
+    }
+  ],
+  "esperado": {
+    "documentos": [
+      {
+        "arquivo": "relatorio-incidente-ri-2026-024.docx",
+        "categoria": "incidentes",
+        "periodo": "2026-06",
+        "nome": "incidentes/2026-06_relatorio-incidente-ri-2026-024.docx"
+      },
+      {
+        "arquivo": "inventario-de-dados-comercial-2026-01.xlsx",
+        "categoria": "registros",
+        "periodo": "2026-01",
+        "nome": "registros/2026-01_inventario-de-dados-comercial-2026-01.xlsx"
+      },
+      {
+        "arquivo": "inventario-de-dados-financeiro-2025-09.docx",
+        "categoria": "registros",
+        "periodo": "2025-09",
+        "nome": "registros/2025-09_inventario-de-dados-financeiro-2025-09.docx"
+      },
+      {
+        "arquivo": "norma-interna-controle-de-acesso-v5.pdf",
+        "categoria": "politicas",
+        "periodo": "2026-01",
+        "nome": "politicas/2026-01_norma-interna-controle-de-acesso-v5.pdf"
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2026-07-4.pdf",
+        "categoria": "registros",
+        "periodo": "2026-07",
+        "nome": "registros/2026-07_ata-comite-privacidade-2026-07-4.pdf"
+      },
+      {
+        "arquivo": "mesas-e-cadeiras.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "politica-de-seguranca-da-informacao-v2.docx",
+        "categoria": "politicas",
+        "periodo": "2026-07",
+        "nome": "politicas/2026-07_politica-de-seguranca-da-informacao-v2.docx"
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2026-01-7.docx",
+        "categoria": "registros",
+        "periodo": "2026-01",
+        "nome": "registros/2026-01_ata-comite-privacidade-2026-01-7.docx"
+      },
+      {
+        "arquivo": "norma-interna-retencao-v2.docx",
+        "categoria": "politicas",
+        "periodo": "2026-07",
+        "nome": "politicas/2026-07_norma-interna-retencao-v2.docx"
+      },
+      {
+        "arquivo": "relatorio-incidente-ri-2026-003.pdf",
+        "categoria": "incidentes",
+        "periodo": "2026-04",
+        "nome": "incidentes/2026-04_relatorio-incidente-ri-2026-003.pdf"
+      }
+    ],
+    "perguntas": [
+      {
+        "pergunta": "Onde está a política de segurança da informação versão 2, aprovada em julho de 2026?",
+        "documentos": [
+          "politica-de-seguranca-da-informacao-v2.docx"
+        ]
+      },
+      {
+        "pergunta": "Em qual ata do comitê de privacidade, de janeiro de 2026, a pauta foi a revisão do inventário de dados das áreas?",
+        "documentos": [
+          "ata-comite-privacidade-2026-01-7.docx"
+        ]
+      },
+      {
+        "pergunta": "Em qual ata do comitê de privacidade, de julho de 2026, a pauta foi a revisão do inventário de dados das áreas?",
+        "documentos": [
+          "ata-comite-privacidade-2026-07-4.pdf"
+        ]
+      },
+      {
+        "pergunta": "Quais são os documentos de incidentes deste lote, inclusive as atas que os analisam?",
+        "documentos": [
+          "relatorio-incidente-ri-2026-024.docx",
+          "relatorio-incidente-ri-2026-003.pdf"
+        ]
+      }
+    ]
+  },
+  "notas": "10 documentos fictícios de LGPD, uma execução do assistente por lote. 1 sem relação com LGPD (categoria nula, sem período e sem nome padronizado: vão para revisão). Nome padronizado pela regra do modelo ({categoria}/{periodo}_{nome}), com o nome do arquivo em minúsculas e hífens. Atas do comitê de privacidade entram na categoria do assunto da pauta (política, incidente ou inventário). Parte dos arquivos tem nome genérico (scan-, documento-aprovado-, ocorrencia-, contrato-...-assinado): a categoria só aparece no conteúdo. O período é o mês da data do próprio documento (aprovação, treinamento, assinatura, ocorrência, reunião ou referência). Em XLSX com linhas de título acima da tabela (listas de presença e inventários), o título e a data ficam acima do cabeçalho: a leitura da plataforma guarda só o cabeçalho e as linhas da tabela, então a classificação por regras depende do nome do arquivo. DOC (Word 97) não entra: gerar exige o LibreOffice para escrever.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

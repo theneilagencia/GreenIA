@@ -1,0 +1,144 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-26",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-a csv",
+  "arquivos": [
+    {
+      "nome": "nfe-83239.xml",
+      "sha256": "55138780a31447b7a9f83892548f4e863b452e3ecf1ae409c0232ddad59298ce",
+      "tipo": "xml",
+      "origem": "gerado",
+      "bytes": 5922
+    },
+    {
+      "nome": "danfe-83239.pdf",
+      "sha256": "02edc5b261baf9f2c14032ee7b9cea2729a265a82491b65910234cf6cd5fff64",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3029
+    },
+    {
+      "nome": "pedido-947175.csv",
+      "sha256": "f102c8bcd5d544d84879eafa16bfca12aaf9b00e78ca724ebfb88dc19b6a785f",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 788
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "limpo",
+    "nota": {
+      "chave": "35260823603170000166550010000832391000000003",
+      "numero": "83239",
+      "dataEmissao": "2026-08-07",
+      "cnpjEmitente": "23603170000166",
+      "valorTotal": 12932.27,
+      "xml": "nfe-83239.xml",
+      "danfe": "danfe-83239.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-947175.csv",
+      "layout": "layout-a",
+      "mapeamento": "mapeamentos/layout-a.json",
+      "registros": [
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "7731",
+          "descricao": "Luva de vaqueta tamanho G",
+          "unidade": "PR",
+          "quantidade": 36,
+          "valorUnitario": 15.52,
+          "valorTotal": 558.72
+        },
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "3306",
+          "descricao": "Lixa para ferro grão 120",
+          "unidade": "FL",
+          "quantidade": 172,
+          "valorUnitario": 2.18,
+          "valorTotal": 374.96
+        },
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "4012",
+          "descricao": "Parafuso sextavado M8x30 zincado",
+          "unidade": "UN",
+          "quantidade": 73,
+          "valorUnitario": 0.39,
+          "valorTotal": 28.47
+        },
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "5120",
+          "descricao": "Arruela lisa 5/16 polegada",
+          "unidade": "UN",
+          "quantidade": 155,
+          "valorUnitario": 0.06,
+          "valorTotal": 9.3
+        },
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "2210",
+          "descricao": "Filme stretch 500 mm x 25 micras",
+          "unidade": "RL",
+          "quantidade": 132,
+          "valorUnitario": 69.78,
+          "valorTotal": 9210.96
+        },
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "6101",
+          "descricao": "Arame de solda MIG 1,0 mm",
+          "unidade": "KG",
+          "quantidade": 58.5,
+          "valorUnitario": 22.6,
+          "valorTotal": 1322.1
+        },
+        {
+          "pedido": "947175",
+          "cnpjFornecedor": "23603170000166",
+          "dataPedido": "2026-07-17",
+          "totalPedido": 12932.27,
+          "codigo": "1151",
+          "descricao": "Abraçadeira de nylon 200 mm",
+          "unidade": "PCT",
+          "quantidade": 108,
+          "valorUnitario": 13.22,
+          "valorTotal": 1427.76
+        }
+      ]
+    },
+    "divergencias": [],
+    "dentroDaTolerancia": [],
+    "pedirXml": [],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-a: CSV com ponto e vírgula em Latin-1; número do pedido, data e CNPJ nas linhas de título; rodapé com total geral e contagem de registros. Importação pelo mapeamento mapeamentos/layout-a.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Caso limpo (controle): nota e pedido iguais, emissão dentro do prazo. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

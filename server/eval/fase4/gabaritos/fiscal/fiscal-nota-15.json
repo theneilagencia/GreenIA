@@ -1,0 +1,115 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-15",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-b xlsx, só DANFE",
+  "arquivos": [
+    {
+      "nome": "danfe-28858.pdf",
+      "sha256": "f975c80904310599d4d234dbca07d3d41a91491549492dd08727294fea98f010",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2887
+    },
+    {
+      "nome": "pedido-384586.xlsx",
+      "sha256": "c95377c0a3c28d7a27172c311297c9ece9328c7b8571bf9fa4afdb154bb02719",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 7170
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "danfe_sem_xml",
+    "nota": {
+      "chave": "35260842787636000175550010000288581000000000",
+      "numero": "28858",
+      "dataEmissao": "2026-08-23",
+      "cnpjEmitente": "42787636000175",
+      "valorTotal": 15574.57,
+      "xml": null,
+      "danfe": "danfe-28858.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-384586.xlsx",
+      "layout": "layout-b",
+      "mapeamento": "mapeamentos/layout-b.json",
+      "registros": [
+        {
+          "pedido": "384586",
+          "cnpjFornecedor": "42787636000175",
+          "dataPedido": "2026-08-03",
+          "totalPedido": 15574.57,
+          "codigo": "001151",
+          "descricao": "Abraçadeira de nylon 200 mm",
+          "unidade": "PCT",
+          "quantidade": 169,
+          "valorUnitario": 13.15,
+          "valorTotal": 2222.35
+        },
+        {
+          "pedido": "384586",
+          "cnpjFornecedor": "42787636000175",
+          "dataPedido": "2026-08-03",
+          "totalPedido": 15574.57,
+          "codigo": "CX-PAP-40",
+          "descricao": "Caixa de papelão 40x30x30 cm",
+          "unidade": "UN",
+          "quantidade": 54,
+          "valorUnitario": 4.75,
+          "valorTotal": 256.5
+        },
+        {
+          "pedido": "384586",
+          "cnpjFornecedor": "42787636000175",
+          "dataPedido": "2026-08-03",
+          "totalPedido": 15574.57,
+          "codigo": "001150",
+          "descricao": "Cabo PP 3x2,5 mm",
+          "unidade": "M",
+          "quantidade": 230,
+          "valorUnitario": 10.34,
+          "valorTotal": 2378.2
+        },
+        {
+          "pedido": "384586",
+          "cnpjFornecedor": "42787636000175",
+          "dataPedido": "2026-08-03",
+          "totalPedido": 15574.57,
+          "codigo": "003305",
+          "descricao": "Disco de corte 7 polegadas para aço",
+          "unidade": "UN",
+          "quantidade": 198,
+          "valorUnitario": 9.4,
+          "valorTotal": 1861.2
+        },
+        {
+          "pedido": "384586",
+          "cnpjFornecedor": "42787636000175",
+          "dataPedido": "2026-08-03",
+          "totalPedido": 15574.57,
+          "codigo": "002210",
+          "descricao": "Filme stretch 500 mm x 25 micras",
+          "unidade": "RL",
+          "quantidade": 148,
+          "valorUnitario": 59.84,
+          "valorTotal": 8856.32
+        }
+      ]
+    },
+    "divergencias": [],
+    "dentroDaTolerancia": [],
+    "pedirXml": [
+      "35260842787636000175550010000288581000000000"
+    ],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-b: XLSX com três linhas de título acima da tabela; código e descrição na mesma coluna (\"000123 - Descrição\"), código numérico com zeros à esquerda; dados do pedido na aba Campo | Valor. Importação pelo mapeamento mapeamentos/layout-b.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Só a DANFE, sem o XML: o esperado é pedir o XML ao fornecedor (chave 35260842787636000175550010000288581000000000). Sem o XML não há conferência de itens; nota e pedido são iguais. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

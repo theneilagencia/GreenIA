@@ -49,7 +49,9 @@ export function rotulosDe(g: Gab): string[] {
   if (e.campos && typeof e.campos === 'object') for (const [k, v] of Object.entries(e.campos)) if (v === null) tipos.add('faltante');
   for (const k of ['tipoCaso', 'tipo'] as const) if (typeof e[k] === 'string') tipos.add(e[k] as string);
   if (!tipos.size) tipos.add('completo');
-  return [...[...tipos].sort().map(t => `tipo:${t}`), `formato:${formatoDe(g)}`, `origem:${origemDe(g)}`];
+  // Layout de exportação (Fiscal): cada layout com a mesma proporção.
+  const layout = (e.pedido as { layout?: string } | undefined)?.layout;
+  return [...[...tipos].sort().map(t => `tipo:${t}`), `formato:${formatoDe(g)}`, `origem:${origemDe(g)}`, ...(layout ? [`layout:${layout}`] : [])];
 }
 
 // Unidade de divisão: casos que compartilham um arquivo andam juntos.

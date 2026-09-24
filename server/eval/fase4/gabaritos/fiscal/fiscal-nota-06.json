@@ -1,0 +1,132 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-06",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-b xlsx",
+  "arquivos": [
+    {
+      "nome": "nfe-6361.xml",
+      "sha256": "121e4ad98d59df90e31321113b9e7de0aa392a178c6df816eb6d7b42dc91a513",
+      "tipo": "xml",
+      "origem": "gerado",
+      "bytes": 5363
+    },
+    {
+      "nome": "danfe-6361.pdf",
+      "sha256": "733d5129ae96ba37d581aa4b7748fe06f5c9ecf363817b613c99ddece430d450",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2962
+    },
+    {
+      "nome": "pedido-614857.xlsx",
+      "sha256": "4a92ad75eb3d6111f2cb0454ae9643ed08c06325838c119d290c60da4dbd2452",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 7245
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "limpo",
+    "nota": {
+      "chave": "35260888207840000170550010000063611000000008",
+      "numero": "6361",
+      "dataEmissao": "2026-08-04",
+      "cnpjEmitente": "88207840000170",
+      "valorTotal": 59371.16,
+      "xml": "nfe-6361.xml",
+      "danfe": "danfe-6361.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-614857.xlsx",
+      "layout": "layout-b",
+      "mapeamento": "mapeamentos/layout-b.json",
+      "registros": [
+        {
+          "pedido": "614857",
+          "cnpjFornecedor": "88207840000170",
+          "dataPedido": "2026-07-14",
+          "totalPedido": 59371.16,
+          "codigo": "008801",
+          "descricao": "Óleo lubrificante ISO 68, balde 20 L",
+          "unidade": "BD",
+          "quantidade": 182,
+          "valorUnitario": 286.86,
+          "valorTotal": 52208.52
+        },
+        {
+          "pedido": "614857",
+          "cnpjFornecedor": "88207840000170",
+          "dataPedido": "2026-07-14",
+          "totalPedido": 59371.16,
+          "codigo": "004012",
+          "descricao": "Parafuso sextavado M8x30 zincado",
+          "unidade": "UN",
+          "quantidade": 125,
+          "valorUnitario": 0.39,
+          "valorTotal": 48.75
+        },
+        {
+          "pedido": "614857",
+          "cnpjFornecedor": "88207840000170",
+          "dataPedido": "2026-07-14",
+          "totalPedido": 59371.16,
+          "codigo": "CX-PAP-40",
+          "descricao": "Caixa de papelão 40x30x30 cm",
+          "unidade": "UN",
+          "quantidade": 9,
+          "valorUnitario": 5.14,
+          "valorTotal": 46.26
+        },
+        {
+          "pedido": "614857",
+          "cnpjFornecedor": "88207840000170",
+          "dataPedido": "2026-07-14",
+          "totalPedido": 59371.16,
+          "codigo": "008802",
+          "descricao": "Graxa de lítio EP2, pote 1 kg",
+          "unidade": "UN",
+          "quantidade": 137,
+          "valorUnitario": 40.19,
+          "valorTotal": 5506.03
+        },
+        {
+          "pedido": "614857",
+          "cnpjFornecedor": "88207840000170",
+          "dataPedido": "2026-07-14",
+          "totalPedido": 59371.16,
+          "codigo": "001150",
+          "descricao": "Cabo PP 3x2,5 mm",
+          "unidade": "M",
+          "quantidade": 87,
+          "valorUnitario": 9.68,
+          "valorTotal": 842.16
+        },
+        {
+          "pedido": "614857",
+          "cnpjFornecedor": "88207840000170",
+          "dataPedido": "2026-07-14",
+          "totalPedido": 59371.16,
+          "codigo": "006101",
+          "descricao": "Arame de solda MIG 1,0 mm",
+          "unidade": "KG",
+          "quantidade": 34,
+          "valorUnitario": 21.16,
+          "valorTotal": 719.44
+        }
+      ]
+    },
+    "divergencias": [],
+    "dentroDaTolerancia": [],
+    "pedirXml": [],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-b: XLSX com três linhas de título acima da tabela; código e descrição na mesma coluna (\"000123 - Descrição\"), código numérico com zeros à esquerda; dados do pedido na aba Campo | Valor. Importação pelo mapeamento mapeamentos/layout-b.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Caso limpo (controle): nota e pedido iguais, emissão dentro do prazo. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

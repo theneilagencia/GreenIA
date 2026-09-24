@@ -3,6 +3,158 @@
   "proporcao": 0.6,
   "regra": "Lote = frente/procedência. Unidade = caso (em Suprimentos, a especificação). Estratos = tipo de caso, formato e origem. Variações herdam o conjunto do caso de origem. Semente fixa, sem olhar resultados.",
   "lotes": {
+    "financeiro/gerado": {
+      "semente": -1345013278,
+      "unidades": 10,
+      "desenvolvimento": 6,
+      "reservado": 4,
+      "casos": {
+        "financeiro-pacote-01": "desenvolvimento",
+        "financeiro-pacote-02": "reservado",
+        "financeiro-pacote-03": "desenvolvimento",
+        "financeiro-pacote-04": "desenvolvimento",
+        "financeiro-pacote-05": "reservado",
+        "financeiro-pacote-06": "reservado",
+        "financeiro-pacote-07": "desenvolvimento",
+        "financeiro-pacote-08": "desenvolvimento",
+        "financeiro-pacote-09": "reservado",
+        "financeiro-pacote-10": "desenvolvimento"
+      },
+      "distribuicao": {
+        "formato:pdf": {
+          "desenvolvimento": 6,
+          "reservado": 4
+        },
+        "origem:digital": {
+          "desenvolvimento": 6,
+          "reservado": 4
+        },
+        "tipo:completo": {
+          "desenvolvimento": 6,
+          "reservado": 4
+        }
+      }
+    },
+    "fiscal/gerado": {
+      "semente": -885485037,
+      "unidades": 30,
+      "desenvolvimento": 18,
+      "reservado": 12,
+      "casos": {
+        "fiscal-nota-01": "reservado",
+        "fiscal-nota-02": "desenvolvimento",
+        "fiscal-nota-03": "reservado",
+        "fiscal-nota-04": "reservado",
+        "fiscal-nota-05": "reservado",
+        "fiscal-nota-06": "reservado",
+        "fiscal-nota-07": "reservado",
+        "fiscal-nota-08": "reservado",
+        "fiscal-nota-09": "reservado",
+        "fiscal-nota-10": "reservado",
+        "fiscal-nota-11": "reservado",
+        "fiscal-nota-12": "desenvolvimento",
+        "fiscal-nota-13": "desenvolvimento",
+        "fiscal-nota-14": "reservado",
+        "fiscal-nota-15": "reservado",
+        "fiscal-nota-16": "desenvolvimento",
+        "fiscal-nota-17": "desenvolvimento",
+        "fiscal-nota-18": "desenvolvimento",
+        "fiscal-nota-19": "desenvolvimento",
+        "fiscal-nota-20": "desenvolvimento",
+        "fiscal-nota-21": "desenvolvimento",
+        "fiscal-nota-22": "desenvolvimento",
+        "fiscal-nota-23": "desenvolvimento",
+        "fiscal-nota-24": "desenvolvimento",
+        "fiscal-nota-25": "desenvolvimento",
+        "fiscal-nota-26": "desenvolvimento",
+        "fiscal-nota-27": "desenvolvimento",
+        "fiscal-nota-28": "desenvolvimento",
+        "fiscal-nota-29": "desenvolvimento",
+        "fiscal-nota-30": "desenvolvimento"
+      },
+      "distribuicao": {
+        "formato:csv": {
+          "desenvolvimento": 3,
+          "reservado": 3
+        },
+        "formato:json": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "formato:txt": {
+          "desenvolvimento": 3,
+          "reservado": 3
+        },
+        "formato:xlsx": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "formato:xml": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "layout:layout-a": {
+          "desenvolvimento": 3,
+          "reservado": 3
+        },
+        "layout:layout-b": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "layout:layout-c": {
+          "desenvolvimento": 3,
+          "reservado": 3
+        },
+        "layout:layout-d": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "layout:layout-e": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "origem:digital": {
+          "desenvolvimento": 18,
+          "reservado": 12
+        },
+        "tipo:danfe_sem_xml": {
+          "desenvolvimento": 5,
+          "reservado": 3
+        },
+        "tipo:divergencias": {
+          "desenvolvimento": 10,
+          "reservado": 6
+        },
+        "tipo:limpo": {
+          "desenvolvimento": 3,
+          "reservado": 3
+        },
+        "tipo:prazo_emissao": {
+          "desenvolvimento": 3,
+          "reservado": 2
+        },
+        "tipo:preco_fora_tolerancia": {
+          "desenvolvimento": 5,
+          "reservado": 4
+        },
+        "tipo:quantidade": {
+          "desenvolvimento": 3,
+          "reservado": 2
+        },
+        "tipo:so_na_nota": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "tipo:so_no_pedido": {
+          "desenvolvimento": 2,
+          "reservado": 1
+        },
+        "tipo:valor_total": {
+          "desenvolvimento": 9,
+          "reservado": 6
+        }
+      }
+    },
     "juridico/gerado": {
       "semente": 851922463,
       "unidades": 25,
@@ -55,6 +207,34 @@
         "tipo:faltante": {
           "desenvolvimento": 5,
           "reservado": 3
+        }
+      }
+    },
+    "lgpd/gerado": {
+      "semente": -1868851047,
+      "unidades": 6,
+      "desenvolvimento": 4,
+      "reservado": 2,
+      "casos": {
+        "lgpd-lote-01": "desenvolvimento",
+        "lgpd-lote-02": "desenvolvimento",
+        "lgpd-lote-03": "reservado",
+        "lgpd-lote-04": "reservado",
+        "lgpd-lote-05": "desenvolvimento",
+        "lgpd-lote-06": "desenvolvimento"
+      },
+      "distribuicao": {
+        "formato:misto": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "origem:digital": {
+          "desenvolvimento": 4,
+          "reservado": 2
+        },
+        "tipo:completo": {
+          "desenvolvimento": 4,
+          "reservado": 2
         }
       }
     },

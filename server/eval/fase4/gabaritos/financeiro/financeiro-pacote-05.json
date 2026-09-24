@@ -1,0 +1,192 @@
+{
+  "versao": 1,
+  "caso": "financeiro-pacote-05",
+  "frente": "financeiro",
+  "tenant": "demonstracao",
+  "modelo": "resumo-financeiro-mensal",
+  "variacao": "pdf, 83 páginas, caixa diario",
+  "arquivos": [
+    {
+      "nome": "dre-2026-04.pdf",
+      "sha256": "a17b2355dd36cc36cf4949950aa7deb659f63af0bd193dba2b4a1a1179565ea1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3923
+    },
+    {
+      "nome": "balancete-2026-04.pdf",
+      "sha256": "9dbc1be82d367ad4b6e5090bf0273ac69fd90e9bcf96d125a737c7294fd15d10",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 70723
+    },
+    {
+      "nome": "razao-2026-04.pdf",
+      "sha256": "a1983c320d2f4aefbdf69d4ce0a4e0515f0f0c90d0b9d96241fff3c06398a7c0",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 94237
+    },
+    {
+      "nome": "fluxo-de-caixa-2026-04.xlsx",
+      "sha256": "934fa8a82ea16ea5042411cf49882ae92bb91ce06cc94b7fd1e9a516f6562345",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 7351
+    },
+    {
+      "nome": "inadimplencia-2026-04.csv",
+      "sha256": "3bb96cca6d62edb4a5cfbe93071161e1ec53c7ebf85e1dbce0cf73d343973e48",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 1073
+    }
+  ],
+  "esperado": {
+    "campos": [
+      {
+        "arquivo": "dre-2026-04.pdf",
+        "campo": "periodo",
+        "valor": "2026-04",
+        "pagina": 1,
+        "trecho": "abril de 2026"
+      },
+      {
+        "arquivo": "dre-2026-04.pdf",
+        "campo": "receita_total",
+        "valor": 5912326.31,
+        "pagina": 1,
+        "trecho": "R$ 5.912.326,31"
+      },
+      {
+        "arquivo": "dre-2026-04.pdf",
+        "campo": "despesa_total",
+        "valor": 4624254.06,
+        "pagina": 1,
+        "trecho": "R$ 4.624.254,06"
+      },
+      {
+        "arquivo": "dre-2026-04.pdf",
+        "campo": "resultado",
+        "valor": 1288072.25,
+        "pagina": 1,
+        "trecho": "R$ 1.288.072,25"
+      },
+      {
+        "arquivo": "balancete-2026-04.pdf",
+        "campo": "periodo",
+        "valor": "2026-04",
+        "pagina": 1,
+        "trecho": "abril de 2026"
+      },
+      {
+        "arquivo": "balancete-2026-04.pdf",
+        "campo": "receita_total",
+        "valor": 5912326.31,
+        "pagina": 30,
+        "trecho": "R$ 5.912.326,31"
+      },
+      {
+        "arquivo": "balancete-2026-04.pdf",
+        "campo": "despesa_total",
+        "valor": 4624254.06,
+        "pagina": 30,
+        "trecho": "R$ 4.624.254,06"
+      },
+      {
+        "arquivo": "balancete-2026-04.pdf",
+        "campo": "resultado",
+        "valor": 1288072.25,
+        "pagina": 30,
+        "trecho": "R$ 1.288.072,25"
+      },
+      {
+        "arquivo": "razao-2026-04.pdf",
+        "campo": "periodo",
+        "valor": "2026-04",
+        "pagina": 1,
+        "trecho": "abril de 2026"
+      },
+      {
+        "arquivo": "razao-2026-04.pdf",
+        "campo": "receita_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "razao-2026-04.pdf",
+        "campo": "despesa_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "razao-2026-04.pdf",
+        "campo": "resultado",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      }
+    ],
+    "topicos": [
+      "Visão geral do mês",
+      "Receitas e despesas",
+      "Caixa",
+      "Inadimplência",
+      "Pontos de atenção",
+      "Informações que faltam"
+    ],
+    "fatos": [
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo inicial",
+        "valor": 630705.71,
+        "arquivo": "fluxo-de-caixa-2026-04.xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de entradas",
+        "valor": 469906.04,
+        "arquivo": "fluxo-de-caixa-2026-04.xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de saídas",
+        "valor": 714527.24,
+        "arquivo": "fluxo-de-caixa-2026-04.xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo final",
+        "valor": 386084.51,
+        "arquivo": "fluxo-de-caixa-2026-04.xlsx"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Total em atraso (posição em 30/04/2026)",
+        "valor": 455159.13,
+        "arquivo": "inadimplencia-2026-04.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Quantidade de títulos em atraso",
+        "valor": 14,
+        "arquivo": "inadimplencia-2026-04.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Em atraso há mais de 90 dias",
+        "valor": 135945.79,
+        "arquivo": "inadimplencia-2026-04.csv"
+      }
+    ],
+    "erroGrave": "valor errado com origem aparentemente válida"
+  },
+  "notas": "Empresa fictícia (Distribuidora Exemplo de Bebidas Ltda.), abril de 2026. DRE com 2 página(s), balancete com 30, razão com 51: 83 páginas em PDF. A DRE traz também a coluna de março de 2026 (armadilha: valor do mês errado); o quadro-resumo está na página 1. O resumo do balancete está na última página (30). O razão tem 51 páginas; só as 50 primeiras são lidas. O razão só tem lançamentos: receita, despesa e resultado esperados nulos. O modelo extrai só de PDF e DOCX; o fluxo de caixa (XLSX) e a inadimplência (CSV) entram só no resumo (fatos). Inadimplência em CSV com ponto e vírgula, Latin-1. Parte escaneada: pode vir depois, pela degradação sintética (degradar.ts).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

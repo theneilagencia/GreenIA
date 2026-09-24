@@ -1,0 +1,177 @@
+{
+  "versao": 1,
+  "caso": "lgpd-lote-02",
+  "frente": "lgpd",
+  "tenant": "demonstracao",
+  "modelo": "organizacao-evidencias",
+  "variacao": "misto: PDF, DOCX e XLSX",
+  "arquivos": [
+    {
+      "nome": "certificado-carla-10.pdf",
+      "sha256": "1f5be92f6ad80298009fb2371a4df31ad21891a25afca10fd9c0ba0ef375d6d4",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2031
+    },
+    {
+      "nome": "mesas-e-cadeiras.xlsx",
+      "sha256": "1792ad06567ce3b5274d14d72b46a77d24295fea42aa01c524ab81a4be77d04d",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6139
+    },
+    {
+      "nome": "inventario-de-dados-recursos-humanos-2025-02.docx",
+      "sha256": "b4e7ce5918c72a762abf9dd2854c14d2fd1d8e83be41cf84c6d0f98c19accc4e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8491
+    },
+    {
+      "nome": "dpa-call-center.docx",
+      "sha256": "24f94e09de4a6250c47f1f6bd1b3059f0e13aefc08e41dbc76c95086c7dce883",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8581
+    },
+    {
+      "nome": "ata-comite-privacidade-2025-03-14.docx",
+      "sha256": "6a8a4c70882e2f0937cd3c80154349e07ea18c5e41af6d72ad796479e6d1365f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8526
+    },
+    {
+      "nome": "politica-de-privacidade-v4.docx",
+      "sha256": "8db072b8c41ce80fc1b6b3461040b60c642b28659eca5821e1e7687c24c49277",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8594
+    },
+    {
+      "nome": "lista-presenca-lgpd-para-liderancas-2026-06.xlsx",
+      "sha256": "06747eb247c7798b9c3f46503ee8785a058a3343f338e50f1d2bbcdfccff0857",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6498
+    },
+    {
+      "nome": "relatorio-incidente-ri-2025-030.docx",
+      "sha256": "38c116db00d4ad118f12ea875c992a9844c3a6d94261052fab8815043bcd7f9d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8474
+    },
+    {
+      "nome": "controle-chaves.xlsx",
+      "sha256": "70bd0f341e14fd1cbfcd8b7c3cd7752ac9b3b37fd4440f37c81746d957732726",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6119
+    },
+    {
+      "nome": "ata-comite-privacidade-2026-02-19.pdf",
+      "sha256": "ac1745728a989bb1ef64590f5520fbe4417d9442b46eae46bd0eae33ad8c2c82",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2263
+    }
+  ],
+  "esperado": {
+    "documentos": [
+      {
+        "arquivo": "certificado-carla-10.pdf",
+        "categoria": "treinamentos",
+        "periodo": "2025-12",
+        "nome": "treinamentos/2025-12_certificado-carla-10.pdf"
+      },
+      {
+        "arquivo": "mesas-e-cadeiras.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "inventario-de-dados-recursos-humanos-2025-02.docx",
+        "categoria": "registros",
+        "periodo": "2025-02",
+        "nome": "registros/2025-02_inventario-de-dados-recursos-humanos-2025-02.docx"
+      },
+      {
+        "arquivo": "dpa-call-center.docx",
+        "categoria": "contratos",
+        "periodo": "2026-01",
+        "nome": "contratos/2026-01_dpa-call-center.docx"
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2025-03-14.docx",
+        "categoria": "incidentes",
+        "periodo": "2025-03",
+        "nome": "incidentes/2025-03_ata-comite-privacidade-2025-03-14.docx"
+      },
+      {
+        "arquivo": "politica-de-privacidade-v4.docx",
+        "categoria": "politicas",
+        "periodo": "2026-06",
+        "nome": "politicas/2026-06_politica-de-privacidade-v4.docx"
+      },
+      {
+        "arquivo": "lista-presenca-lgpd-para-liderancas-2026-06.xlsx",
+        "categoria": "treinamentos",
+        "periodo": "2026-06",
+        "nome": "treinamentos/2026-06_lista-presenca-lgpd-para-liderancas-2026-06.xlsx"
+      },
+      {
+        "arquivo": "relatorio-incidente-ri-2025-030.docx",
+        "categoria": "incidentes",
+        "periodo": "2025-10",
+        "nome": "incidentes/2025-10_relatorio-incidente-ri-2025-030.docx"
+      },
+      {
+        "arquivo": "controle-chaves.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2026-02-19.pdf",
+        "categoria": "incidentes",
+        "periodo": "2026-02",
+        "nome": "incidentes/2026-02_ata-comite-privacidade-2026-02-19.pdf"
+      }
+    ],
+    "perguntas": [
+      {
+        "pergunta": "Onde está o contrato com Call Center Teste S.A. que trata da proteção de dados?",
+        "documentos": [
+          "dpa-call-center.docx"
+        ]
+      },
+      {
+        "pergunta": "Onde está a política de privacidade versão 4, aprovada em junho de 2026?",
+        "documentos": [
+          "politica-de-privacidade-v4.docx"
+        ]
+      },
+      {
+        "pergunta": "Em qual ata do comitê de privacidade, de fevereiro de 2026, a pauta foi a análise do relatório de incidente do mês e do plano de ação?",
+        "documentos": [
+          "ata-comite-privacidade-2026-02-19.pdf"
+        ]
+      },
+      {
+        "pergunta": "Quais são as evidências de treinamento deste lote?",
+        "documentos": [
+          "certificado-carla-10.pdf",
+          "lista-presenca-lgpd-para-liderancas-2026-06.xlsx"
+        ]
+      }
+    ]
+  },
+  "notas": "10 documentos fictícios de LGPD, uma execução do assistente por lote. 2 sem relação com LGPD (categoria nula, sem período e sem nome padronizado: vão para revisão). Nome padronizado pela regra do modelo ({categoria}/{periodo}_{nome}), com o nome do arquivo em minúsculas e hífens. Atas do comitê de privacidade entram na categoria do assunto da pauta (política, incidente ou inventário). Parte dos arquivos tem nome genérico (scan-, documento-aprovado-, ocorrencia-, contrato-...-assinado): a categoria só aparece no conteúdo. O período é o mês da data do próprio documento (aprovação, treinamento, assinatura, ocorrência, reunião ou referência). Em XLSX com linhas de título acima da tabela (listas de presença e inventários), o título e a data ficam acima do cabeçalho: a leitura da plataforma guarda só o cabeçalho e as linhas da tabela, então a classificação por regras depende do nome do arquivo. DOC (Word 97) não entra: gerar exige o LibreOffice para escrever.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

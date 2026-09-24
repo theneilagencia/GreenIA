@@ -1,0 +1,173 @@
+{
+  "versao": 1,
+  "caso": "lgpd-lote-04",
+  "frente": "lgpd",
+  "tenant": "demonstracao",
+  "modelo": "organizacao-evidencias",
+  "variacao": "misto: PDF, DOCX e XLSX",
+  "arquivos": [
+    {
+      "nome": "dpa-nuvem-exemplo.docx",
+      "sha256": "88dd758d98decbbd244a3e9af4e052ab670fde2ea9600040bc09059f6a747fda",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8593
+    },
+    {
+      "nome": "estoque-material-escritorio.xlsx",
+      "sha256": "320fd9eb4d81499632357043b86896f6b856128572df68e4ba524117a5ccffb3",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6102
+    },
+    {
+      "nome": "norma-interna-retencao-v2.pdf",
+      "sha256": "8cef4002236339f013f8741ebe144a00d1e6ae330f93381a2ae4769bd5d7af47",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2396
+    },
+    {
+      "nome": "contrato-servicos-call-center.docx",
+      "sha256": "da177814126a92a35d46e0974a2ad6bdf383a82e8120d3cb5d555a9ff91aa0d2",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8617
+    },
+    {
+      "nome": "comunicado-campanha-agasalho.docx",
+      "sha256": "e00caceb07554cb560fb4ee6667d05e8761cd3b29a5d76cdfa426bd2ce66e831",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8325
+    },
+    {
+      "nome": "contrato-servicos-transportes-ficticios.docx",
+      "sha256": "57683a003853d6c7ca6470ab566b2d2e870e0533802e65e104540cf6e7b59ef8",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8628
+    },
+    {
+      "nome": "lista-presenca-protecao-de-dados-2026-05.xlsx",
+      "sha256": "2581152bccca7d5628a4639f24048c4c4d55a7c318b049be4fe5dcaa7dbe81e7",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6656
+    },
+    {
+      "nome": "certificado-joao-37.pdf",
+      "sha256": "9350e1ce42309011c1bbdf923385d7b1b2f4243ae410835e35614743cb69e748",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2035
+    },
+    {
+      "nome": "dpa-assinatura-eletronica.docx",
+      "sha256": "9246460467def09ff7cfba1c80f9aacef5edab1b30532b76eed88888086f9bcd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8591
+    },
+    {
+      "nome": "ata-comite-privacidade-2026-08-39.docx",
+      "sha256": "568e8bd4ffbb1e95f721e7391e40654a4a0347ff27c9d02d874844a1ecaee693",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8504
+    }
+  ],
+  "esperado": {
+    "documentos": [
+      {
+        "arquivo": "dpa-nuvem-exemplo.docx",
+        "categoria": "contratos",
+        "periodo": "2026-02",
+        "nome": "contratos/2026-02_dpa-nuvem-exemplo.docx"
+      },
+      {
+        "arquivo": "estoque-material-escritorio.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "norma-interna-retencao-v2.pdf",
+        "categoria": "politicas",
+        "periodo": "2026-02",
+        "nome": "politicas/2026-02_norma-interna-retencao-v2.pdf"
+      },
+      {
+        "arquivo": "contrato-servicos-call-center.docx",
+        "categoria": "contratos",
+        "periodo": "2026-07",
+        "nome": "contratos/2026-07_contrato-servicos-call-center.docx"
+      },
+      {
+        "arquivo": "comunicado-campanha-agasalho.docx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "contrato-servicos-transportes-ficticios.docx",
+        "categoria": "contratos",
+        "periodo": "2025-07",
+        "nome": "contratos/2025-07_contrato-servicos-transportes-ficticios.docx"
+      },
+      {
+        "arquivo": "lista-presenca-protecao-de-dados-2026-05.xlsx",
+        "categoria": "treinamentos",
+        "periodo": "2026-05",
+        "nome": "treinamentos/2026-05_lista-presenca-protecao-de-dados-2026-05.xlsx"
+      },
+      {
+        "arquivo": "certificado-joao-37.pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-06",
+        "nome": "treinamentos/2026-06_certificado-joao-37.pdf"
+      },
+      {
+        "arquivo": "dpa-assinatura-eletronica.docx",
+        "categoria": "contratos",
+        "periodo": "2026-03",
+        "nome": "contratos/2026-03_dpa-assinatura-eletronica.docx"
+      },
+      {
+        "arquivo": "ata-comite-privacidade-2026-08-39.docx",
+        "categoria": "politicas",
+        "periodo": "2026-08",
+        "nome": "politicas/2026-08_ata-comite-privacidade-2026-08-39.docx"
+      }
+    ],
+    "perguntas": [
+      {
+        "pergunta": "Qual documento comprova a presença no treinamento \"Proteção de dados no atendimento\" de 17/05/2026?",
+        "documentos": [
+          "lista-presenca-protecao-de-dados-2026-05.xlsx"
+        ]
+      },
+      {
+        "pergunta": "Onde está o certificado de conclusão de João Esteves Fictícia?",
+        "documentos": [
+          "certificado-joao-37.pdf"
+        ]
+      },
+      {
+        "pergunta": "Quais são os contratos com operadores deste lote?",
+        "documentos": [
+          "dpa-nuvem-exemplo.docx",
+          "contrato-servicos-call-center.docx",
+          "contrato-servicos-transportes-ficticios.docx",
+          "dpa-assinatura-eletronica.docx"
+        ]
+      }
+    ]
+  },
+  "notas": "10 documentos fictícios de LGPD, uma execução do assistente por lote. 2 sem relação com LGPD (categoria nula, sem período e sem nome padronizado: vão para revisão). Nome padronizado pela regra do modelo ({categoria}/{periodo}_{nome}), com o nome do arquivo em minúsculas e hífens. Atas do comitê de privacidade entram na categoria do assunto da pauta (política, incidente ou inventário). Parte dos arquivos tem nome genérico (scan-, documento-aprovado-, ocorrencia-, contrato-...-assinado): a categoria só aparece no conteúdo. O período é o mês da data do próprio documento (aprovação, treinamento, assinatura, ocorrência, reunião ou referência). Em XLSX com linhas de título acima da tabela (listas de presença e inventários), o título e a data ficam acima do cabeçalho: a leitura da plataforma guarda só o cabeçalho e as linhas da tabela, então a classificação por regras depende do nome do arquivo. DOC (Word 97) não entra: gerar exige o LibreOffice para escrever.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

@@ -53,7 +53,8 @@ Ordem sugerida: contrato, infraestrutura (uma vez por ambiente), tenant e login,
 ## 7. Assistentes
 
 - [ ] Cada assistente criado pelo painel: do zero, a partir de um modelo do catálogo da TheNeil ou duplicando outro. O assistente é do cliente e não muda quando o modelo muda; o painel só avisa que há versão nova.
-- [ ] Ajustes do cliente registrados no arquivo de implantação (colunas reais, tolerâncias, listas, taxonomias).
+- [ ] Para cada sistema do cliente que exporta arquivos usados pelos assistentes: obter um exemplo real de exportação e criar o mapeamento de importação pela tela (Administração, Mapeamentos de importação), conferindo a pré-visualização. Nenhum sistema precisa de código; o mapeamento pode também ir no arquivo de implantação (`mapeamentosImportacao`).
+- [ ] Ajustes do cliente registrados no arquivo de implantação (tolerâncias, listas, sinônimos, taxonomias).
 - [ ] Uma rodada com documentos reais de cada área, revisada pelo key user, antes de mudar o status para piloto.
 
 ## 8. Oportunidades e quick wins

@@ -6,7 +6,7 @@ import { withTenant, type Tx } from '../db/pool.ts';
 import { audit } from '../audit.ts';
 import type { TenantConfig } from '../tenants/config.ts';
 import type { LlmUsage } from '../llm/provider.ts';
-import { costBrl } from './pricing.ts';
+import { costBrl, currentPrice, priceCost } from './pricing.ts';
 
 // Mês corrente no fuso de Brasília (a cota vira no dia 1º, horário local).
 export const MONTH_SQL = `date_trunc('month', now() at time zone 'America/Sao_Paulo')::date`;
@@ -43,12 +43,16 @@ export interface UsageRecord {
 
 // Grava o consumo, dispara os alertas de cota e devolve o custo em reais.
 export async function recordUsage(app: FastifyInstance, config: TenantConfig, r: UsageRecord): Promise<number> {
-  const cost = costBrl(r.model, r.usage.inputTokens, r.usage.outputTokens, app.deps.config.USD_BRL);
+  let cost = 0;
   const alerts = await withTenant(app.deps.db, { tenantId: r.tenantId }, async tx => {
+    const price = await currentPrice(tx, r.provider, r.model);
+    cost = price
+      ? priceCost(price, r.usage.inputTokens, r.usage.outputTokens, r.pages ?? 0)
+      : costBrl(r.model, r.usage.inputTokens, r.usage.outputTokens, app.deps.config.USD_BRL);
     await tx.query(
-      `insert into usage_events (tenant_id, user_id, assistant_id, run_id, provider, model, input_tokens, output_tokens, pages, cost_brl)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [r.tenantId, r.userId, r.assistantId, r.runId ?? null, r.provider, r.model, r.usage.inputTokens, r.usage.outputTokens, r.pages ?? 0, cost]);
+      `insert into usage_events (tenant_id, user_id, assistant_id, run_id, provider, model, input_tokens, output_tokens, pages, cost_brl, price_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [r.tenantId, r.userId, r.assistantId, r.runId ?? null, r.provider, r.model, r.usage.inputTokens, r.usage.outputTokens, r.pages ?? 0, cost, price?.id ?? null]);
     const budget = config.limits.monthlyBudgetBrl;
     if (budget <= 0) return [];
     const pct = (await monthCost(tx)) / budget * 100;

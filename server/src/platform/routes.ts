@@ -7,6 +7,18 @@ import { can } from '../auth/rbac.ts';
 import { createTenant } from './tenants.ts';
 import type { AuthContext } from '../auth/session.ts';
 import { INCIDENT_STATUS, NEXT, code } from '../incidents/routes.ts';
+import { simulate, simulateSchema } from '../usage/simulate.ts';
+
+const priceSchema = z.object({
+  provider: z.enum(['anthropic']),
+  model: z.string().trim().min(1).max(120),
+  inputPerMTokUsd: z.number().min(0).max(10000),
+  outputPerMTokUsd: z.number().min(0).max(10000),
+  perPageBrl: z.number().min(0).max(1000).default(0),
+  usdBrl: z.number().positive().max(100),
+  validFrom: z.iso.date(),
+  source: z.string().trim().min(5).max(500),
+});
 
 // Operação da plataforma: pessoa admin_theneil no tenant interno da TheNeil.
 async function isPlatformAdmin(app: FastifyInstance, a: AuthContext) {
@@ -81,5 +93,67 @@ export async function platformRoutes(app: FastifyInstance) {
       client.release();
     }
     return { id, status: p.data.status };
+  });
+
+  // Tabela de preços (vigência por data). Só inclusão: preço novo é uma nova linha.
+  app.get('/api/platform/prices', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!(await isPlatformAdmin(app, a))) return reply.code(403).send({ error: 'sem_permissao' });
+    return (await app.deps.db.query(`select * from price_tables order by model, valid_from desc`)).rows;
+  });
+
+  app.post('/api/platform/prices', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!(await isPlatformAdmin(app, a))) return reply.code(403).send({ error: 'sem_permissao' });
+    if (!app.deps.ownerDb) return reply.code(503).send({ error: 'plataforma_indisponivel' });
+    const p = priceSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos', detalhes: p.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) });
+    const v = p.data;
+    try {
+      const r = (await app.deps.ownerDb.query(
+        `insert into price_tables (provider, model, input_per_mtok_usd, output_per_mtok_usd, per_page_brl, usd_brl, valid_from, source, created_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
+        [v.provider, v.model, v.inputPerMTokUsd, v.outputPerMTokUsd, v.perPageBrl, v.usdBrl, v.validFrom, v.source, a.email])).rows[0];
+      await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(`insert into audit_log (tenant_id, actor_user_id, action, details) values ($1, $2, 'preco_cadastrado', $3)`,
+        [a.tenantId, a.userId, { modelo: v.model, vigencia: v.validFrom, entrada: v.inputPerMTokUsd, saida: v.outputPerMTokUsd, porPagina: v.perPageBrl, cambio: v.usdBrl }]));
+      return reply.code(201).send({ id: r.id });
+    } catch (e) {
+      if ((e as { code?: string }).code === '23505') return reply.code(409).send({ error: 'ja_existe_preco_nessa_data' });
+      throw e;
+    }
+  });
+
+  // Consumo do mês por cliente, para faturamento.
+  app.get('/api/platform/usage', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!(await isPlatformAdmin(app, a))) return reply.code(403).send({ error: 'sem_permissao' });
+    if (!app.deps.ownerDb) return reply.code(503).send({ error: 'plataforma_indisponivel' });
+    const q = z.object({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) }).safeParse(req.query);
+    if (!q.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    return (await app.deps.ownerDb.query(
+      `select t.slug as cliente, count(e.*)::int as chamadas, coalesce(sum(e.input_tokens), 0)::bigint as tokens_entrada,
+              coalesce(sum(e.output_tokens), 0)::bigint as tokens_saida, coalesce(sum(e.pages), 0)::int as paginas,
+              round(coalesce(sum(e.cost_brl), 0), 2)::float as custo_brl
+       from tenants t left join usage_events e on e.tenant_id = t.id
+         and (e.at at time zone 'America/Sao_Paulo') >= $1::date and (e.at at time zone 'America/Sao_Paulo') < ($1::date + interval '1 month')
+       where not t.is_platform group by t.slug order by custo_brl desc`, [`${q.data.mes}-01`])).rows
+      .map(r => ({ ...r, tokens_entrada: Number(r.tokens_entrada), tokens_saida: Number(r.tokens_saida) }));
+  });
+
+  // Simulador para a proposta comercial (sem dados de cliente: só premissas).
+  app.post('/api/platform/simulate', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!(await isPlatformAdmin(app, a))) return reply.code(403).send({ error: 'sem_permissao' });
+    const p = simulateSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos', detalhes: p.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) });
+    const client = await app.deps.db.connect();
+    try {
+      return await simulate(client, { ...p.data, itens: p.data.itens.map(i => ({ ...i, assistente: undefined })) },
+        { provider: 'anthropic', model: p.data.modelo ?? 'claude-haiku-4-5', usdBrlFallback: app.deps.config.USD_BRL });
+    } finally { client.release(); }
   });
 }

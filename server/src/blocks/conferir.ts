@@ -94,11 +94,12 @@ export function compare(r: Regra, a: unknown, b: unknown): string | null {
       return `diferença de ${(x - y).toFixed(4).replace(/\.?0+$/, '').replace('.', ',')}${pct}${tol ? ', acima da tolerância' : ''}`;
     }
     case 'data': {
-      const x = parseDateBr(a), y = parseDateBr(b);
+      // O prazo conta a partir da data de referência (esquerda, por padrão).
+      const [x, y] = r.referencia === 'direita' ? [parseDateBr(b), parseDateBr(a)] : [parseDateBr(a), parseDateBr(b)];
       if (!x || !y) return 'data inválida';
       const days = Math.round((y.getTime() - x.getTime()) / 86400000);
       if (r.prazoDias === undefined) return days === 0 ? null : `datas diferentes (${isoDay(x)} × ${isoDay(y)})`;
-      if (days < 0) return `data da direita ${-days} dia(s) antes`;
+      if (days < 0) return `${-days} dia(s) antes da data de referência`;
       return days <= r.prazoDias ? null : `${days} dias, acima do prazo de ${r.prazoDias}`;
     }
     case 'texto':

@@ -43,7 +43,8 @@ const regraSchema = z.object({
   direita: z.string().min(1).max(200),
   tipo: z.enum(['igual', 'texto', 'numero', 'data']).default('igual'),
   tolerancia: z.object({ absoluta: z.number().min(0).optional(), percentual: z.number().min(0).max(100).optional() }).optional(),
-  prazoDias: z.number().int().min(0).optional(),            // data da direita até N dias depois da esquerda
+  prazoDias: z.number().int().min(0).optional(),            // até N dias depois da data de referência
+  referencia: z.enum(['esquerda', 'direita']).default('esquerda'), // de que lado começa o prazo
 });
 
 export const conferirParams = z.object({

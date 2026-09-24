@@ -38,7 +38,7 @@ export function describeStep(s: PipelineStep, n: number): string {
     case 'conferir': {
       const rules = (p.regras as any[]).map(r => {
         const extra = r.tipo === 'numero' && r.tolerancia ? ` (tolerância ${[r.tolerancia.absoluta !== undefined ? r.tolerancia.absoluta : null, r.tolerancia.percentual !== undefined ? r.tolerancia.percentual + '%' : null].filter(x => x !== null).join(' ou ')})`
-          : r.tipo === 'data' && r.prazoDias !== undefined ? ` (até ${r.prazoDias} dias depois)` : r.tipo === 'texto' ? ' (sem diferenciar maiúsculas, acentos e espaços)' : '';
+          : r.tipo === 'data' && r.prazoDias !== undefined ? ` (até ${r.prazoDias} dias depois da data ${r.referencia === 'direita' ? 'da direita' : 'da esquerda'})` : r.tipo === 'texto' ? ' (sem diferenciar maiúsculas, acentos e espaços)' : '';
         return `| ${r.campo} | ${r.esquerda} | ${r.direita} | ${r.tipo}${extra} |`;
       }).join('\n');
       return `${head}\nCompare ${p.rotulos?.esquerda ?? 'Documento'} (${refLabel(p.esquerda)}) com ${p.rotulos?.direita ?? 'Referência'} (${refLabel(p.direita)})${p.chave ? `, casando os registros por ${p.chave.esquerda} = ${p.chave.direita}` : ''}. Liste cada divergência com os dois valores e onde cada um aparece.${p.semPar === 'divergencia' ? ' Registro sem par do outro lado também é divergência.' : ''}\n\n| Campo | ${p.rotulos?.esquerda ?? 'Documento'} | ${p.rotulos?.direita ?? 'Referência'} | Regra |\n|---|---|---|---|\n${rules}\n\n> Na GreenIA esta comparação é feita em código. Em outra plataforma, depende do modelo: confira as divergências antes de usar.`;

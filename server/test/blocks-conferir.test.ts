@@ -31,7 +31,7 @@ test('números e datas como aparecem em documentos brasileiros', () => {
 });
 
 test('regras: igual, texto, número com tolerância e data dentro do prazo', () => {
-  const r = (x: object) => ({ campo: 'c', esquerda: 'a', direita: 'b', tipo: 'igual' as const, ...x });
+  const r = (x: object) => ({ campo: 'c', esquerda: 'a', direita: 'b', tipo: 'igual' as const, referencia: 'esquerda' as const, ...x });
   assert.equal(compare(r({ tipo: 'numero' }), 100, '100,00'), null);
   assert.match(compare(r({ tipo: 'numero' }), 101, 100)!, /diferença de 1 \(1,00%\)/);
   assert.equal(compare(r({ tipo: 'numero', tolerancia: { percentual: 1 } }), 12.62, 12.5), null);      // 0,96%
@@ -42,7 +42,8 @@ test('regras: igual, texto, número com tolerância e data dentro do prazo', () 
   assert.equal(compare(r({ tipo: 'igual' }), 'Caixa Plástica', 'caixa plastica'), 'valores diferentes');
   assert.equal(compare(r({ tipo: 'data', prazoDias: 10 }), '2026-09-01', '11/09/2026'), null);
   assert.match(compare(r({ tipo: 'data', prazoDias: 10 }), '2026-09-01', '12/09/2026')!, /11 dias, acima do prazo de 10/);
-  assert.match(compare(r({ tipo: 'data', prazoDias: 10 }), '2026-09-05', '2026-09-01')!, /4 dia\(s\) antes/);
+  assert.match(compare(r({ tipo: 'data', prazoDias: 10 }), '2026-09-05', '2026-09-01')!, /4 dia\(s\) antes da data de referência/);
+  assert.equal(compare(r({ tipo: 'data', prazoDias: 10, referencia: 'direita' }), '2026-09-05', '2026-09-01'), null);   // prazo conta da direita
   assert.match(compare(r({ tipo: 'data' }), '2026-09-01', '2026-09-02')!, /datas diferentes/);
   assert.equal(compare(r({}), '', null), null);
   assert.equal(compare(r({}), 'x', ''), 'valor ausente à direita');

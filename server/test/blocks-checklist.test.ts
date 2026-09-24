@@ -1,0 +1,89 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { checklistBlock, type ResultadoChecklist } from '../src/blocks/checklist.ts';
+import { assistantDefinitionSchema } from '../src/assistants/schema.ts';
+import type { ReadDoc, RunContext } from '../src/blocks/types.ts';
+import { testEnv } from './fixtures.ts';
+
+// Documentos de admissão, como no assistente de referência de RH.
+const ITENS = [
+  { id: 'rg', nome: 'RG', sinonimos: ['identidade', 'carteira de identidade'] },
+  { id: 'cpf', nome: 'CPF', sinonimos: [] },
+  { id: 'residencia', nome: 'Comprovante de residência', sinonimos: ['comprovante de endereço', 'conta de luz'] },
+  { id: 'ctps', nome: 'Carteira de trabalho', sinonimos: ['CTPS'] },
+  { id: 'aso', nome: 'ASO', sinonimos: ['atestado de saúde ocupacional', 'exame admissional'] },
+  { id: 'foto', nome: 'Foto 3x4', sinonimos: [], obrigatorio: false },
+];
+const doc = (name: string, text: string): ReadDoc => ({ fileId: name, name, kind: 'pdf', sha256: 'x', via: 'texto', pages: [{ n: 1, text }], text, pageCount: 1, warnings: [] });
+
+async function run(docs: ReadDoc[], metodo: 'regras' | 'modelo' = 'regras', reply = '') {
+  const def = assistantDefinitionSchema.parse({ inputs: { files: { enabled: true } }, pipeline: [{ bloco: 'checklist', params: { itens: ITENS, metodo } }] });
+  const { env, calls } = testEnv(() => reply);
+  const ctx: RunContext = { def, text: '', files: [], docs, sections: [], env };
+  const s = await checklistBlock(ctx, def.pipeline[0]);
+  return { s, r: s.data as ResultadoChecklist, calls, st: Object.fromEntries((s.data as ResultadoChecklist).itens.map(i => [i.id, i.status])) };
+}
+
+test('regras: presente pelo nome do arquivo ou pelo início do conteúdo; ausente quando não há nada', async () => {
+  const { r, st, s, calls } = await run([
+    doc('RG_Maria.pdf', 'República Federativa do Brasil'),
+    doc('scan0001.pdf', 'COMPROVANTE DE ENDEREÇO\nCompanhia de Energia\nConta de agosto'),
+    doc('cpf-maria.jpg.pdf', 'Cadastro de Pessoas Físicas'),
+    doc('exame.pdf', 'ATESTADO DE SAÚDE OCUPACIONAL\nApto para a função.'),
+  ]);
+  assert.deepEqual(st, { rg: 'presente', cpf: 'presente', residencia: 'presente', ctps: 'ausente', aso: 'presente', foto: 'ausente' });
+  assert.equal(r.itens.find(i => i.id === 'residencia')!.evidencias[0].como, 'conteúdo, no início ("comprovante de endereço")');
+  assert.deepEqual(r.resumo, { presente: 4, ausente: 2, duvidoso: 0 });
+  assert.deepEqual(s.counts, { pendencias: 1 });                  // CTPS obrigatória ausente; a foto é opcional
+  assert.equal(calls.length, 0);                                  // regras: sem modelo
+});
+
+test('duvidoso: citado só no meio do texto, ou um arquivo com mais de um item; sempre vai para revisão', async () => {
+  const { st, s, r } = await run([
+    doc('ficha-cadastral.pdf', 'Ficha cadastral do candidato.\n' + 'x'.repeat(400) + '\nDocumentos entregues: CTPS em análise.'),
+    doc('documentos.pdf', 'RG e CPF digitalizados na mesma folha'),
+    doc('boleto.pdf', 'Boleto de mensalidade'),
+  ]);
+  assert.equal(st.ctps, 'duvidoso');
+  assert.equal(st.rg, 'duvidoso');
+  assert.equal(st.cpf, 'duvidoso');
+  assert.ok(s.flags.some(f => f.reason.startsWith('item duvidoso: Carteira de trabalho')));
+  assert.ok(s.flags.some(f => f.reason === 'arquivo não corresponde a nenhum item' && f.ref === 'boleto.pdf'));
+  assert.deepEqual(r.naoIdentificados, ['boleto.pdf']);
+  assert.equal(s.counts!.pendencias, 5);                          // 3 duvidosos + residência e ASO ausentes
+});
+
+test('"RG" não casa com "cargo"', async () => {
+  const { st } = await run([doc('ficha.pdf', 'Cargo pretendido: analista')]);
+  assert.equal(st.rg, 'ausente');
+});
+
+test('modelo: confiança alta com trecho que confere fica presente; o resto, duvidoso', async () => {
+  const reply = JSON.stringify({ arquivos: [
+    { arquivo: 'a.pdf', item: 'rg', confianca: 'alta', trecho: 'Registro Geral 12.345.678' },
+    { arquivo: 'b.pdf', item: 'ctps', confianca: 'media', trecho: 'Carteira de Trabalho Digital' },
+    { arquivo: 'c.pdf', item: 'aso', confianca: 'alta', trecho: 'trecho inventado' },
+    { arquivo: 'd.pdf', item: null, confianca: 'alta', trecho: 'Boleto' },
+  ] });
+  const { st, r } = await run([
+    doc('a.pdf', 'Registro Geral 12.345.678'), doc('b.pdf', 'Carteira de Trabalho Digital'), doc('c.pdf', 'Exame clínico'), doc('d.pdf', 'Boleto'),
+  ], 'modelo', reply);
+  assert.equal(st.rg, 'presente');
+  assert.equal(st.ctps, 'duvidoso');
+  assert.equal(st.aso, 'duvidoso');
+  assert.match(r.itens.find(i => i.id === 'aso')!.evidencias[0].como, /trecho não encontrado/);
+  assert.equal(st.cpf, 'ausente');
+  assert.deepEqual(r.naoIdentificados, ['d.pdf']);
+});
+
+test('modelo fora do formato: todos os itens duvidosos, nunca presentes por suposição', async () => {
+  const { st, s } = await run([doc('a.pdf', 'RG')], 'modelo', 'não sei');
+  assert.ok(Object.values(st).every(v => v === 'duvidoso'));
+  assert.match(s.flags[0].reason, /checklist pelo modelo falhou/);
+});
+
+test('sem arquivos: tudo ausente e sinalizado', async () => {
+  const { st, s } = await run([]);
+  assert.ok(Object.values(st).every(v => v === 'ausente'));
+  assert.equal(s.flags[0].reason, 'nenhum arquivo lido para conferir o checklist');
+});

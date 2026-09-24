@@ -102,7 +102,7 @@ test('execução também exige ciência e respeita a informação restrita', asy
 
 let incidentId = '';
 
-test('reportar incidente: key user da área e suporte da TheNeil avisados, sem a descrição', async () => {
+test('reportar incidente: key user da área e suporte da TheNeil avisados, sem a descrição; só o key user lê a descrição', async () => {
   await ack(people.user); await ack(people.key); await ack(people.keyRh);
   email.sent.length = 0;
   const r = await post(people.user, '/api/incidents', { tipo: 'dado_indevido', descricao: 'Enviei sem querer a planilha com salários da equipe.', tela: 'chat' });
@@ -110,8 +110,17 @@ test('reportar incidente: key user da área e suporte da TheNeil avisados, sem a
   incidentId = r.json().id;
   assert.equal(r.json().codigo, incidentId.slice(0, 8).toUpperCase());
   const to = email.sent.map(m => m.to).sort();
-  assert.deepEqual(to, ['pessoa@repet.com.br', 'key.fiscal@repet.com.br', 'suporte@theneil.com.br'].sort());
+  assert.deepEqual(to, ['key.fiscal@repet.com.br', 'suporte@theneil.com.br'].sort());   // o admin não recebe: a área tem key user
   assert.ok(email.sent.every(m => !m.text.includes('salários')), 'descrição não vai por email');
+  const support = email.sent.find(m => m.to === 'suporte@theneil.com.br')!;
+  assert.match(support.text, /dado enviado indevidamente, aberto em \d{4}-\d{2}-\d{2}T.*sem execução ou saída indicada\.\nA descrição fica com o key user da área/);
+  // Descrição: quem reportou e o key user da área leem; o admin do cliente vê o incidente, mas não a descrição.
+  const byKey = (await get(people.key, `/api/incidents/${incidentId}`)).json();
+  assert.match(byKey.descricao, /salários/);
+  const byAdmin = (await get(T.userId, `/api/incidents/${incidentId}`)).json();
+  assert.deepEqual([byAdmin.descricao, byAdmin.descricaoRestrita, byAdmin.possoTratar], [null, true, true]);
+  const lidas = (await db.owner.query(`select details->>'por' as por from audit_log where action = 'incidente_descricao_lida' and target = $1 order by seq`, [`incidente:${incidentId}`])).rows.map(r => r.por);
+  assert.deepEqual(lidas, ['key.fiscal@repet.com.br']);
   assert.match(email.sent[0].subject, /incidente [0-9A-F]{8} \(dado enviado indevidamente\)/);
   // Quem vê: quem reportou e quem trata a área; key user de outra área, não.
   assert.equal((await get(people.user, `/api/incidents/${incidentId}`)).json().possoTratar, false);
@@ -131,7 +140,7 @@ test('incidente segue com status até o encerramento, com histórico e auditoria
   assert.equal(d.status, 'resolvido');
   assert.deepEqual(d.historico.map((e: { status_to: string }) => e.status_to), ['aberto', 'em_analise', 'resolvido']);
   assert.equal(d.historico[2].note, 'Arquivo apagado do histórico; equipe orientada.');
-  const acts = (await db.owner.query(`select action from audit_log where target = $1 order by seq`, [`incidente:${incidentId}`])).rows.map(a => a.action);
+  const acts = (await db.owner.query(`select action from audit_log where target = $1 and action <> 'incidente_descricao_lida' order by seq`, [`incidente:${incidentId}`])).rows.map(a => a.action);
   assert.deepEqual(acts, ['incidente_aberto', 'incidente_status', 'incidente_status']);
 });
 
@@ -139,7 +148,26 @@ test('TheNeil acompanha os incidentes de todos os clientes e encerra, com regist
   assert.equal((await get(T.userId, '/api/platform/incidents')).statusCode, 403);
   const list = (await get(P.userId, '/api/platform/incidents')).json();
   const mine = list.find((x: { id: string }) => x.id === incidentId);
-  assert.deepEqual([mine.tenant, mine.status], ['repet', 'resolvido']);
+  assert.deepEqual([mine.tenant, mine.status, mine.descricaoDisponivel, mine.escalado], ['repet', 'resolvido', false, false]);
+  assert.equal('descricao' in mine, false);
+  // Sem escalonamento: nem a descrição, nem as notas do cliente.
+  let det = (await get(P.userId, `/api/platform/incidents/${incidentId}`)).json();
+  assert.deepEqual([det.descricao, det.descricaoRestrita], [null, true]);
+  assert.ok(det.historico.every((e: { note: string | null }) => e.note === null));
+  // Só o key user escala; depois disso a TheNeil lê, com registro de quem leu.
+  assert.equal((await post(people.user, `/api/incidents/${incidentId}/escalar`, { nota: 'Quero ajuda.' })).json().error, 'so_o_key_user_escala');
+  assert.equal((await post(T.userId, `/api/incidents/${incidentId}/escalar`, { nota: 'Quero ajuda.' })).json().error, 'so_o_key_user_escala');
+  email.sent.length = 0;
+  const esc = await post(people.key, `/api/incidents/${incidentId}/escalar`, { nota: 'Preciso confirmar se o provedor reteve o arquivo.' });
+  assert.equal(esc.statusCode, 200, esc.body);
+  assert.deepEqual(email.sent.map(m => m.to), ['suporte@theneil.com.br']);
+  assert.ok(!email.sent[0].text.includes('salários'));
+  assert.equal((await post(people.key, `/api/incidents/${incidentId}/escalar`, { nota: 'De novo.' })).json().error, 'ja_disponivel_para_a_theneil');
+  det = (await get(P.userId, `/api/platform/incidents/${incidentId}`)).json();
+  assert.match(det.descricao, /salários/);
+  assert.equal(det.escalado.por, 'key.fiscal@repet.com.br');
+  const lida = (await db.owner.query(`select details->>'por' as por from audit_log where tenant_id = $1 and action = 'incidente_descricao_lida' order by seq desc limit 1`, [T.tenantId])).rows[0];
+  assert.equal(lida.por, 'TheNeil (pessoa@theneil.com.br)');
   const r = await post(P.userId, `/api/platform/incidents/${incidentId}/status`, { status: 'encerrado', nota: 'Sem dado exposto a terceiros.' });
   assert.equal(r.statusCode, 200, r.body);
   const d = (await get(people.key, `/api/incidents/${incidentId}`)).json();
@@ -149,4 +177,19 @@ test('TheNeil acompanha os incidentes de todos os clientes e encerra, com regist
   const acts = (await db.owner.query(`select action from audit_log where tenant_id = $1 and action like 'incidente%' order by seq`, [T.tenantId])).rows.map(a => a.action);
   assert.ok(acts.includes('incidentes_consultados_pela_theneil'));
   assert.equal((await get(people.key, '/api/audit/verify')).json().ok, true);          // a cadeia continua íntegra
+});
+
+test('problema técnico: a descrição chega à TheNeil sem escalonamento; sem key user na área, o admin lê', async () => {
+  email.sent.length = 0;
+  const r = await post(people.key, '/api/incidents', { tipo: 'problema_tecnico', descricao: 'A exportação em PDF trava depois de 30 segundos.', tela: 'assistentes' });
+  assert.equal(r.statusCode, 201, r.body);
+  assert.match(email.sent.find(m => m.to === 'suporte@theneil.com.br')!.text, /Problema técnico: a descrição está disponível no painel/);
+  const item = (await get(P.userId, '/api/platform/incidents')).json().find((x: { id: string }) => x.id === r.json().id);
+  assert.equal(item.descricaoDisponivel, true);
+  assert.match((await get(P.userId, `/api/platform/incidents/${r.json().id}`)).json().descricao, /trava depois de 30 segundos/);
+  // Incidente sem área (aberto pelo admin): quem lê é o administrador do cliente.
+  const semArea = await post(T.userId, '/api/incidents', { tipo: 'outro', descricao: 'Texto de boas-vindas com erro de digitação.' });
+  const d = (await get(T.userId, `/api/incidents/${semArea.json().id}`)).json();
+  assert.match(d.descricao, /boas-vindas/);
+  assert.equal(d.podeEscalar, true);
 });

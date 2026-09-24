@@ -527,11 +527,12 @@
     <div onClick="{{ closeIncident }}" class="gia-modal-wrap" style="position:fixed;inset:0;background:rgba(15,58,42,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;">
       <div role="dialog" aria-modal="true" aria-labelledby="gia-inc-title" onClick="{{ stop }}" class="gia-modal" style="background:var(--gia-paper);border-radius:16px;padding:24px;width:min(520px,100%);">
         <h2 id="gia-inc-title" style="font:400 24px/1.2 'Newsreader',serif;margin:0 0 10px;">Reportar incidente</h2>
-        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">O key user da área e a TheNeil recebem o aviso. Descreva o que aconteceu; não repita o dado enviado por engano.</p>
+        <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">O key user da área recebe o aviso e lê a descrição. A TheNeil vê só o tipo e a situação, a não ser em problema técnico ou quando o key user escala o caso. Não repita o dado enviado por engano.</p>
         <select aria-label="Tipo" value="{{ incForm.tipo }}" onChange="{{ onIncTipo }}" style="width:100%;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:10px;padding:10px 12px;font:400 15px 'Hanken Grotesk';color:var(--gia-ink);">
           <option value="dado_indevido">Dado enviado indevidamente</option>
           <option value="resposta_errada">Resposta errada</option>
           <option value="resposta_inadequada">Resposta inadequada</option>
+          <option value="problema_tecnico">Problema técnico</option>
           <option value="outro">Outro</option>
         </select>
         <textarea aria-label="Descrição" rows="5" value="{{ incForm.descricao }}" onInput="{{ onIncDescricao }}" style="width:100%;margin-top:8px;border:1px solid var(--gia-line-strong);background:var(--gia-surface);border-radius:10px;padding:10px 12px;font:400 15px 'Hanken Grotesk';color:var(--gia-ink);"></textarea>

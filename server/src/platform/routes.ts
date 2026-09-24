@@ -6,7 +6,7 @@ import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
 import { createTenant } from './tenants.ts';
 import type { AuthContext } from '../auth/session.ts';
-import { INCIDENT_STATUS, NEXT, code } from '../incidents/routes.ts';
+import { INCIDENT_STATUS, NEXT, code, platformMayRead } from '../incidents/routes.ts';
 import { simulate, simulateSchema } from '../usage/simulate.ts';
 
 const priceSchema = z.object({
@@ -43,9 +43,10 @@ export async function platformRoutes(app: FastifyInstance) {
     }
   });
 
-  // Incidentes de todos os clientes, para o suporte da TheNeil acompanhar.
-  // Lê pela conexão do dono (fora da RLS por tenant); cada acesso fica na
-  // auditoria do tenant do incidente.
+  // Incidentes de todos os clientes, para o suporte da TheNeil acompanhar:
+  // tipo, status, data e a execução ou saída afetada, sem a descrição. Lê pela
+  // conexão do dono (fora da RLS por tenant); cada acesso fica na auditoria do
+  // tenant do incidente.
   app.get('/api/platform/incidents', async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;
@@ -54,8 +55,8 @@ export async function platformRoutes(app: FastifyInstance) {
     const q = z.object({ status: z.enum(INCIDENT_STATUS).optional() }).safeParse(req.query);
     if (!q.success) return reply.code(400).send({ error: 'dados_invalidos' });
     const rows = (await app.deps.ownerDb.query(
-      `select i.id, i.tenant_id, t.slug as tenant, i.kind, i.status, i.description, ar.name as area, i.created_at, i.updated_at
-       from incidents i join tenants t on t.id = i.tenant_id left join areas ar on ar.id = i.area_id
+      `select i.id, i.tenant_id, t.slug as tenant, i.kind, i.status, i.run_id, i.output_id, i.escalated_at, i.created_at, i.updated_at
+       from incidents i join tenants t on t.id = i.tenant_id
        where ($1::text is null or i.status = $1) order by i.created_at desc limit 500`, [q.data.status ?? null])).rows;
     const perTenant = new Map<string, number>();
     for (const r of rows) perTenant.set(r.tenant_id, (perTenant.get(r.tenant_id) ?? 0) + 1);
@@ -63,7 +64,31 @@ export async function platformRoutes(app: FastifyInstance) {
       await app.deps.ownerDb.query(`insert into audit_log (tenant_id, action, details) values ($1, 'incidentes_consultados_pela_theneil', $2)`,
         [tenantId, { quantidade: n, por: a.email }]);
     }
-    return rows.map(r => ({ id: r.id, codigo: code(r.id), tenant: r.tenant, tipo: r.kind, status: r.status, descricao: r.description, area: r.area, criadoEm: r.created_at, atualizadoEm: r.updated_at, proximos: NEXT[r.status] }));
+    return rows.map(r => ({ id: r.id, codigo: code(r.id), tenant: r.tenant, tipo: r.kind, status: r.status, execucao: r.run_id, saida: r.output_id,
+      escalado: !!r.escalated_at, descricaoDisponivel: platformMayRead(r), criadoEm: r.created_at, atualizadoEm: r.updated_at, proximos: NEXT[r.status] }));
+  });
+
+  // Detalhe para a TheNeil. A descrição (e as notas do histórico, que podem
+  // repetir o conteúdo) só vêm com escalonamento ou em problema técnico; a
+  // leitura fica na auditoria do cliente.
+  app.get('/api/platform/incidents/:id', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!(await isPlatformAdmin(app, a))) return reply.code(403).send({ error: 'sem_permissao' });
+    if (!app.deps.ownerDb) return reply.code(503).send({ error: 'plataforma_indisponivel' });
+    const { id } = req.params as { id: string };
+    if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'nao_encontrado' });
+    const i = (await app.deps.ownerDb.query(
+      `select i.*, t.slug as tenant from incidents i join tenants t on t.id = i.tenant_id where i.id = $1`, [id])).rows[0];
+    if (!i) return reply.code(404).send({ error: 'nao_encontrado' });
+    const reads = platformMayRead(i);
+    const events = (await app.deps.ownerDb.query(`select at, actor, status_from, status_to, note from incident_events where incident_id = $1 order by id`, [id])).rows
+      .map(e => ({ at: e.at, actor: e.actor, status_from: e.status_from, status_to: e.status_to, note: reads || String(e.actor).startsWith('TheNeil') ? e.note : null }));
+    await app.deps.ownerDb.query(`insert into audit_log (tenant_id, action, target, details) values ($1, $2, $3, $4)`,
+      [i.tenant_id, reads ? 'incidente_descricao_lida' : 'incidente_consultado_pela_theneil', `incidente:${id}`, { por: `TheNeil (${a.email})` }]);
+    return { id: i.id, codigo: code(i.id), tenant: i.tenant, tipo: i.kind, status: i.status, execucao: i.run_id, saida: i.output_id, criadoEm: i.created_at,
+      escalado: i.escalated_at ? { em: i.escalated_at, por: i.escalated_by } : null, descricao: reads ? i.description : null, descricaoRestrita: !reads,
+      historico: events, proximos: NEXT[i.status] };
   });
 
   app.post('/api/platform/incidents/:id/status', async (req, reply) => {

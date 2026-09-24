@@ -140,7 +140,24 @@ test('administração: editor da definição do assistente e incidente reportado
   assert.ok(await page.getByRole('link', { name: 'Pacote portátil (ZIP)' }).isVisible());
   await page.getByRole('button', { name: 'Incidentes' }).click();
   await page.getByRole('cell', { name: 'resposta errada' }).click();
+  // O admin vê o incidente, mas a descrição fica com o key user da área.
+  await page.getByText('A descrição fica só com o key user da área.').waitFor();
+  assert.equal(await page.getByText('A nota apontou palete sem pedido, mas é retornável.').count(), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('incidente: o key user lê a descrição e escala para a TheNeil', async () => {
+  const { page, errors, context } = await openAs(u.key);                // ciência e roteiro já feitos no teste da revisão
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: 'Incidentes' }).click();
+  await page.getByRole('cell', { name: 'resposta errada' }).click();
   await page.getByText('A nota apontou palete sem pedido, mas é retornável.').waitFor();
+  await page.getByLabel('Motivo para escalar').fill('Pode ser erro no leitor da NF-e.');
+  await page.getByRole('button', { name: 'Escalar para a TheNeil' }).click();
+  await page.getByText('Incidente escalado. A TheNeil passa a ver a descrição.').waitFor();
+  await page.getByText(/Escalado para a TheNeil por key\.fiscal@demonstracao\.com\.br/).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Escalar para a TheNeil' }).count(), 0);
   assert.deepEqual(errors, []);
   await context.close();
 });

@@ -22,6 +22,8 @@ const bodySchema = z.object({
   })).min(1).max(60),
   // Tipos de dado que a pessoa confirmou no aviso ("Enviar mesmo assim").
   confirmedWarnings: z.array(z.string()).max(20).default([]),
+  // Assistente (slug). Sem ele, é o chat livre do tenant (ambiente Verde).
+  assistant: z.string().regex(/^[a-z0-9][a-z0-9-]{1,60}$/).optional(),
 });
 
 export type ChatBody = z.infer<typeof bodySchema>;
@@ -57,17 +59,18 @@ export async function chatRoutes(app: FastifyInstance) {
     reply.raw.on('close', onClose);
     if (prep.meta) sse.send('meta', prep.meta);
 
+    let outputText = '';
     try {
       for await (const ev of provider.stream({
         model: config.llm.model,
-        system: buildSystemPrompt({ config }),
+        system: buildSystemPrompt({ config, assistantInstructions: prep.systemExtra }),
         messages,
         maxOutputTokens: config.llm.maxOutputTokens,
         signal: abort.signal,
       })) {
-        if (ev.type === 'text') sse.send('delta', { text: ev.text });
+        if (ev.type === 'text') { outputText += ev.text; sse.send('delta', { text: ev.text }); }
         else {
-          await app.deps.chatHooks.completed({ app, auth, config, usage: ev.usage, model: ev.model, providerId: provider.id, meta: prep.meta });
+          await app.deps.chatHooks.completed({ app, auth, config, usage: ev.usage, model: ev.model, providerId: provider.id, meta: prep.meta, state: prep.state, outputText });
           sse.send('done', { usage: ev.usage, stopReason: ev.stopReason, model: ev.model });
         }
       }

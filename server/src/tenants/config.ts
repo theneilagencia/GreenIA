@@ -5,6 +5,7 @@ import { z } from 'zod';
 import core from '../../../lib/greenia-core.js';
 import { contrast, textVariant, MIN_NORMAL, normalizeHex } from '../../../lib/contrast.mjs';
 import type { DataAction, SensitiveType } from '../../../lib/greenia-core.js';
+import { checkPolicyAgainstClasses } from '../policy/data-policy.ts';
 
 const hex = z.string().regex(/^#?[0-9a-fA-F]{6}$/, 'cor em hexadecimal, ex.: #1F8A5B').transform(v => normalizeHex(v));
 
@@ -63,6 +64,11 @@ export const tenantConfigSchema = z.object({
     defaultOutputDays: z.number().int().min(1).max(3650).default(90),
   }).prefault({}),
   autoProvision: z.boolean().default(true), // cria o usuário no primeiro login, se o domínio for permitido
+}).superRefine((c, ctx) => {
+  // O chat livre (sem assistente) é o ambiente Verde: a política do tenant vale ali.
+  for (const p of checkPolicyAgainstClasses(c.dataPolicy, ['verde'])) {
+    ctx.addIssue({ code: 'custom', path: ['dataPolicy', p.type], message: `${p.action}: ${p.reason}` });
+  }
 });
 
 export type TenantConfig = z.infer<typeof tenantConfigSchema>;

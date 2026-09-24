@@ -1,0 +1,59 @@
+// Etapas do chat: assistente e política de dados. As etapas de base de
+// conhecimento, limites e consumo ficam nos seus próprios módulos.
+import type { SensitiveType } from '../../../lib/greenia-core.js';
+import { withTenant } from '../db/pool.ts';
+import { tenantCtx } from '../auth/session.ts';
+import { audit } from '../audit.ts';
+import { assistantDefinitionSchema, type AssistantDefinition } from '../assistants/schema.ts';
+import { effectivePolicy, inspect, maskText } from '../policy/data-policy.ts';
+import type { ChatStep } from './hooks.ts';
+
+// Carrega o assistente pedido (versão atual), respeitando tenant, área e status.
+export const assistantStep: ChatStep = {
+  name: 'assistente',
+  async prepare({ app, auth, body }, state) {
+    if (!body.assistant) return;
+    const row = await withTenant(app.deps.db, tenantCtx(auth), tx => tx.query(
+      `select a.id, a.slug, a.area_id, a.status, v.version, v.definition
+       from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
+       where a.slug = $1`, [body.assistant]).then(r => r.rows[0]));
+    if (!row || !['piloto', 'ativo'].includes(row.status)) {
+      return { status: 404, body: { error: 'assistente_nao_encontrado' } };
+    }
+    const definition = assistantDefinitionSchema.parse(row.definition);
+    state.assistant = { id: row.id, slug: row.slug, version: row.version, areaId: row.area_id, definition };
+    if (definition.instructions) state.systemExtra = definition.instructions;
+  },
+};
+
+// Decide, no servidor, o que fazer com dado sensível antes de qualquer chamada
+// ao modelo. Auditoria registra tipos e decisão, nunca os valores.
+export const dataPolicyStep: ChatStep = {
+  name: 'politica-de-dados',
+  async prepare({ app, auth, config, body }, state) {
+    const def = state.assistant?.definition as AssistantDefinition | undefined;
+    const policy = effectivePolicy(config.dataPolicy, def?.dataPolicy);
+    const { decision, types } = inspect(state.messages.map(m => m.content), policy);
+    if (!types.length) return;
+    const ctx = tenantCtx(auth);
+    const base = { tenantId: auth.tenantId, actorUserId: auth.userId, target: state.assistant ? `assistente:${state.assistant.slug}@${state.assistant.version}` : 'chat' };
+
+    if (decision.action === 'bloquear') {
+      await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'envio_bloqueado', details: { tipos: decision.block } }));
+      return { status: 422, body: { error: 'dado_bloqueado', types: decision.block } };
+    }
+    if (decision.warn.length) {
+      const confirmed = new Set(body.confirmedWarnings);
+      const missing = decision.warn.filter(t => !confirmed.has(t));
+      if (missing.length) return { status: 409, body: { error: 'confirmacao_necessaria', types: missing } };
+      await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'aviso_confirmado', details: { tipos: decision.warn } }));
+    }
+    if (decision.mask.length) {
+      state.messages = state.messages.map(m => ({ ...m, content: maskText(m.content, decision.mask as SensitiveType[]) }));
+      await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'dado_mascarado', details: { tipos: decision.mask } }));
+    }
+    if (decision.log.length) {
+      await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'dado_enviado_com_registro', details: { tipos: decision.log } }));
+    }
+  },
+};

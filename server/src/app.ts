@@ -11,7 +11,9 @@ import type { EmailSender } from './email/sender.ts';
 import { adminRoutes } from './admin/routes.ts';
 import { platformRoutes } from './platform/routes.ts';
 import { chatRoutes } from './chat/routes.ts';
-import { noopChatHooks, type ChatHooks } from './chat/hooks.ts';
+import { composeSteps, type ChatHooks } from './chat/hooks.ts';
+import { assistantStep, dataPolicyStep } from './chat/steps.ts';
+import { assistantRoutes } from './assistants/routes.ts';
 import type { LlmProvider } from './llm/provider.ts';
 
 export interface Deps {
@@ -25,7 +27,8 @@ export interface Deps {
 }
 
 export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
-  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? noopChatHooks };
+  // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
+  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([assistantStep, dataPolicyStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -58,6 +61,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(adminRoutes);
   await app.register(platformRoutes);
   await app.register(chatRoutes);
+  await app.register(assistantRoutes);
 
   return app;
 }

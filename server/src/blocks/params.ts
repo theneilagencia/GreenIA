@@ -73,12 +73,22 @@ export const conferirParams = z.object({
   semPar: z.enum(['divergencia', 'ignorar']).default('divergencia'),
 });
 
+// O que satisfaz um item do checklist:
+//   documento            o próprio documento (título da página ou nome do arquivo)
+//   mencao               o dado mencionado em qualquer documento
+//   documento_ou_mencao  um dos dois
+//   documento_e_mencao   os dois (ex.: a ART anexada e citada no contrato)
+// Menção em outro documento não satisfaz item que exige documento: aparece na
+// saída como "mencionado em [arquivo], documento não encontrado".
+export const EVIDENCIAS_ITEM = ['documento', 'mencao', 'documento_ou_mencao', 'documento_e_mencao'] as const;
 export const checklistParams = z.object({
   itens: z.array(z.object({
     id: z.string().regex(/^[a-z0-9_-]{1,60}$/),
     nome: z.string().min(1).max(120),
     sinonimos: z.array(z.string().min(2).max(80)).max(30).default([]),
     obrigatorio: z.boolean().default(true),
+    evidencia: z.enum(EVIDENCIAS_ITEM).default('documento'),
+    mencoes: z.array(z.string().min(2).max(80)).max(30).default([]),   // termos que contam como menção do dado (além do nome e dos sinônimos)
   })).min(1).max(200),
   metodo: z.enum(['regras', 'modelo']).default('regras'),
 });

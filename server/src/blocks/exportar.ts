@@ -62,7 +62,7 @@ export function sectionTable(s: Section): Tabela | null {
     case 'checklist':
       return { titulo: s.titulo, colunas: ['Item', 'Obrigatório', 'Situação', 'Evidência', 'Observação'],
         texto: [`Presentes: ${d.resumo.presente}; ausentes: ${d.resumo.ausente}; duvidosos: ${d.resumo.duvidoso}.`, ...(d.naoIdentificados.length ? [`Arquivos não identificados: ${d.naoIdentificados.join(', ')}.`] : [])],
-        linhas: d.itens.map((i: any) => ({ Item: i.nome, 'Obrigatório': i.obrigatorio ? 'sim' : 'não', 'Situação': i.status, 'Evidência': i.evidencias.map((e: any) => `${e.arquivo} (${e.como})`).join('; '), 'Observação': i.motivo })) };
+        linhas: d.itens.map((i: any) => ({ Item: i.nome, 'Obrigatório': i.obrigatorio ? 'sim' : 'não', 'Situação': i.status, 'Evidência': i.evidencias.map((e: any) => `${e.arquivo}${e.pagina ? `, p. ${e.pagina}` : ''} (${e.como})`).join('; '), 'Observação': i.motivo })) };
     case 'classificacao':
       return { titulo: s.titulo, colunas: ['Arquivo', 'Categoria', 'Período', 'Nome sugerido', 'Confiança'], linhas: d.indice.map((r: LinhaIndice) => ({ Arquivo: r.arquivo, Categoria: r.categoriaNome, 'Período': r.periodo ?? '', 'Nome sugerido': r.nomeSugerido, 'Confiança': r.confianca })) };
     case 'resposta':

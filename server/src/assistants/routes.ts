@@ -4,7 +4,7 @@
 import { activeQuickWinsFor } from '../quickwins/context.ts';
 import type { FastifyInstance } from 'fastify';
 import { z, ZodError } from 'zod';
-import { setShares, shareSchema, sharesOf } from '../areas/sharing.ts';
+import { canApproveShare, changeShares, shareSchema, sharesOf, shareTarget } from '../areas/sharing.ts';
 import { READERS, enabledReaders, readersUsedBy } from '../readers/registry.ts';
 import { getTemplate, type AssistantTemplate } from '../catalog/catalog.ts';
 import { withTenant } from '../db/pool.ts';
@@ -164,12 +164,15 @@ export async function assistantRoutes(app: FastifyInstance) {
           [a.tenantId, p.data.slug, p.data.name, areaId, p.data.status, origin.template_slug, origin.template_version, origin.duplicated_from])).rows[0];
         await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`,
           [a.tenantId, row.id, def.data, a.userId]);
+        let share: { aplicados: string[]; pendentes: string[] } | undefined;
         if (p.data.compartilhar) {
-          const { missing } = await setShares(tx, 'assistente', a.tenantId, row.id, p.data.compartilhar);
-          if (missing.length) throw new ShareError(missing);
+          const r = await changeShares(tx, a, 'assistente', { id: row.id, area_id: areaId ?? null, company_wide: false, label: p.data.slug }, p.data.compartilhar, 'criação', true);
+          if ('error' in r) throw new Error(r.error);
+          if (r.missing.length) throw new ShareError(r.missing);
+          share = { aplicados: r.aplicados, pendentes: r.pendentes };
         }
         await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_criado', target: `assistente:${p.data.slug}@1`, details: { ...(p.data.compartilhar ? { compartilhado: p.data.compartilhar } : {}), ...(origin.template_slug ? { modelo: `${origin.template_slug}@${origin.template_version}` } : {}), ...(origin.duplicated_from ? { duplicadoDe: origin.duplicated_from } : {}) } });
-        return { status: 201, body: { slug: p.data.slug, version: 1 } };
+        return { status: 201, body: { slug: p.data.slug, version: 1, ...(share ? { compartilhamento: share } : {}) } };
       } catch (e) {
         if ((e as { code?: string }).code === '23505') return { status: 409, body: { error: 'assistente_ja_existe' } };
         if (e instanceof ShareError) return { status: 404, body: { error: 'area_nao_encontrada', areas: e.missing } };
@@ -275,14 +278,17 @@ export async function assistantRoutes(app: FastifyInstance) {
     const { slug } = req.params as { slug: string };
     const p = shareSchema.safeParse(req.body);
     if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    // Quem administra a área dona, o patrocinador ou quem aprova pede; só quem aprova aplica na hora.
     const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
-      const cur = (await tx.query(`select id, area_id from assistants where slug = $1 for update`, [slug])).rows[0];
+      const cur = await shareTarget(tx, 'assistente', slug);
       if (!cur) return { status: 404, body: { error: 'nao_encontrado' } };
-      if (!can(a, 'kb.manage', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
-      const { missing } = await setShares(tx, 'assistente', a.tenantId, cur.id, p.data);
-      if (missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: missing } };
-      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_compartilhado', target: `assistente:${slug}`, details: p.data });
-      return { status: 200, body: { slug, ...p.data } };
+      const approver = await canApproveShare(tx, a, cur.area_id);
+      const manages = can(a, 'kb.manage', cur.area_id);
+      if (!approver && !manages && !can(a, 'qw.decide', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
+      const r = await changeShares(tx, a, 'assistente', cur, p.data, 'painel', approver || manages);
+      if ('error' in r) return { status: 403, body: { error: r.error } };
+      if (r.missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: r.missing } };
+      return { status: 200, body: { slug, aplicados: r.aplicados, pendentes: r.pendentes, removidos: r.removidos } };
     });
     return reply.code(out.status).send(out.body);
   });

@@ -49,7 +49,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
 
   // Dados da execução (contexto amplo só para ler quem pediu).
   const run = await withTenant(db, { tenantId, allAreas: true }, async tx => (await tx.query(
-    `select r.*, a.slug as assistant_slug from runs r join assistants a on a.id = r.assistant_id where r.id = $1`, [runId])).rows[0]);
+    `select r.*, a.slug as assistant_slug, a.area_id as assistant_area_id from runs r join assistants a on a.id = r.assistant_id where r.id = $1`, [runId])).rows[0]);
   if (!run || run.status !== 'processando') return;                 // já processada (tarefa repetida)
 
   const member = await withTenant(db, { tenantId, userId: run.user_id }, tx => loadMembership(tx, run.user_id));
@@ -122,14 +122,26 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
       model = r.model;
       return r;
     },
+    // Bases consultadas = bases vinculadas ao assistente (as áreas da definição;
+    // sem elas, a área dona do assistente) ∩ o que a pessoa que executa pode ler.
+    // A busca roda no contexto dela (RLS): o compartilhamento do assistente não
+    // abre a base da área dona. Base vinculada que a pessoa não lê vira aviso, sem conteúdo.
+    knowledgeGaps: [],
     async searchKnowledge(query, opts) {
       return withTenant(db, ctxDb, async tx => {
-        const areaIds = opts.areas?.length
-          ? (await tx.query(`select id from areas where slug = any($1)`, [opts.areas])).rows.map(r => r.id as string)
-          : [null];
+        const linked = opts.areas?.length
+          ? (await tx.query(`select id, name from areas where slug = any($1)`, [opts.areas])).rows as { id: string; name: string }[]
+          : (await tx.query(`select id, name from areas where id = $1`, [run.assistant_area_id ?? run.area_id])).rows as { id: string; name: string }[];
+        const readable = (id: string) => member.allAreas || member.areaIds.includes(id);
+        for (const l of linked.filter(l => !readable(l.id))) {
+          if (!env.knowledgeGaps!.includes(l.name)) {
+            env.knowledgeGaps!.push(l.name);
+            await audit(tx, { tenantId, actorUserId: run.user_id, action: 'fonte_indisponivel_para_a_pessoa', target, details: { area: l.name } });
+          }
+        }
         const hits: KnowledgeHit[] = [];
-        for (const areaId of areaIds.length ? areaIds : [null]) {
-          for (const h of await app.deps.knowledge.search(tx, query, { areaId: areaId ?? run.area_id ?? null, limit: opts.limit })) {
+        for (const areaId of linked.length ? linked.map(l => l.id) : [null]) {
+          for (const h of await app.deps.knowledge.search(tx, query, { areaId, limit: opts.limit })) {
             if (!hits.some(x => x.documentId === h.documentId)) hits.push(h);
           }
         }

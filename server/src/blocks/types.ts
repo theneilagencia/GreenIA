@@ -56,6 +56,7 @@ export interface GeneratedFile { name: string; mime: string; bytes: Uint8Array }
 export interface BlockEnv {
   complete(req: { system: string; content: ContentPart[]; maxOutputTokens?: number; jsonSchema?: Record<string, unknown>; purpose: string }): Promise<LlmCompletion & { blocked?: string[] }>;
   searchKnowledge(query: string, opts: { areas?: string[]; limit: number }): Promise<KnowledgeHit[]>;
+  knowledgeGaps?: string[];                         // bases vinculadas que a pessoa que executa não pode ler (só os nomes)
   keyUserContact: string;
   now: () => Date;
   converter?: Converter;                            // OCR e conversões; ausente: indisponível

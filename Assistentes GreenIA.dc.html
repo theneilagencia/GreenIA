@@ -632,6 +632,28 @@
       </div>
       <sc-if value="{{ adminMsg }}"><p role="status" style="font:500 14px/1.5 'Hanken Grotesk';color:{{ adminMsgColor }};white-space:pre-wrap;">{{ adminMsg }}</p></sc-if>
 
+      <!-- Pedidos de compartilhamento -->
+      <sc-if value="{{ admShares }}">
+        <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;max-width:900px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Pedidos de compartilhamento</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">Compartilhar um assistente ou documento com outra área só vale depois da aprovação do key user da área dona; sem key user, do admin do cliente. Quem usa o assistente compartilhado consulta só as bases que já pode ler.</p>
+          <sc-if value="{{ noShareRequests }}"><p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Nenhum pedido pendente.</p></sc-if>
+          <textarea class="gia-field" aria-label="Nota da decisão" placeholder="Nota da decisão (obrigatória para recusar)" rows="2" value="{{ shareNote }}" onInput="{{ onShareNote }}" style="margin-bottom:10px;"></textarea>
+          <sc-for list="{{ shareRows }}" as="r" hint-placeholder-count="0">
+            <div style="border:1px solid var(--gia-line);border-radius:10px;padding:10px;margin-bottom:8px;">
+              <p style="font:600 14px 'Hanken Grotesk';margin:0 0 4px;">{{ r.recurso }}</p>
+              <p style="font:400 14px 'Hanken Grotesk';margin:0 0 4px;">{{ r.rota }}</p>
+              <p style="font:400 13px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 8px;">{{ r.pedido }}</p>
+              <sc-if value="{{ r.podeAprovar }}">
+                <button onClick="{{ r.approve }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:8px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Aprovar</button>
+                <button onClick="{{ r.reject }}" style="margin-left:8px;background:transparent;color:var(--gia-ink);border:1px solid var(--gia-line-strong);border-radius:8px;padding:8px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Recusar</button>
+              </sc-if>
+              <sc-if value="{{ r.aguardando }}"><p style="font:400 13px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">Aguardando o key user da área dona.</p></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
       <!-- Critérios de avaliação das oportunidades -->
       <sc-if value="{{ admCriteria }}">
         <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;max-width:860px;">
@@ -1155,7 +1177,7 @@ class Component extends DCLogic {
       incidents: [], incident: null, incStatus: '', incNote: '', incEscNote: '',
       usageMonth: today().slice(0, 7), usage: null,
       simRows: [{ nome: 'Assistente 1', assistente: '', execucoes: '100', paginas: '2', digitalizado: '0' }], simMensal: '0', sim: null,
-      exports: [], anchors: null, auditCheck: null,
+      exports: [], anchors: null, auditCheck: null, shareRequests: [], shareNote: '',
       policy: null, policyAcked: true,
       incidentOpen: false, incForm: { tipo: 'resposta_errada', descricao: '' }, incMsg: '',
       tourStep: null,
@@ -1562,7 +1584,8 @@ class Component extends DCLogic {
     const f = this.state.ampForm;
     const r = await this._fetch('/api/quick-wins/' + this.state.qwId + '/ampliar', { method: 'POST', body: { areas: f.area ? [f.area] : [], titulo: f.titulo, objetivo: f.objetivo, responsavel: f.responsavel, nota: f.nota, recursos: f.recursos } });
     if (!r.ok) { this._qwMsg('Ampliação não criada: ' + this._err(r), false); return; }
-    this._qwMsg('Quick win ampliado criado, com baseline próprio e recursos ' + r.data.recursos + '.' + (r.data.aviso ? ' ' + r.data.aviso : ''));
+    const pend = (r.data.compartilhamentosPendentes || []).length ? ' Compartilhamentos aguardando o key user da área dona: ' + r.data.compartilhamentosPendentes.join('; ') + '.' : '';
+    this._qwMsg('Quick win ampliado criado, com baseline próprio e recursos ' + r.data.recursos + '.' + pend + (r.data.aviso ? ' ' + r.data.aviso : ''));
     this.openQw(r.data.id);
   }
   setInd(i, k, v) { const rows = clone(this.state.selInd); rows[i][k] = v; this.setState({ selInd: rows }); }
@@ -1591,6 +1614,7 @@ class Component extends DCLogic {
     if (adminTab === 'areas') this._fetch('/api/catalog/areas').then(r => { if (r.ok) this.setState({ areaModels: r.data }); });
     if (adminTab === 'base' || adminTab === 'assistentes' || adminTab === 'areas') this._loadAreas();
     if (adminTab === 'criterios') this._loadCriteria();
+    if (adminTab === 'compartilhamentos') this._loadShareRequests();
     if (adminTab === 'politica') this._loadAcks();
     if (adminTab === 'dados') this._loadDataSettings();
     if (adminTab === 'incidentes') this._loadIncidents();
@@ -1647,7 +1671,22 @@ class Component extends DCLogic {
   async saveShares() {
     const ed = this.state.editor;
     const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/areas', { method: 'PUT', body: ed.shares });
-    this._msg(r.ok ? 'Compartilhamento salvo.' : 'Não salvo: ' + r.data.error, r.ok);
+    if (!r.ok) { this._msg(r.data.error === 'so_quem_administra_a_area_dona_retira' ? 'Só quem administra a área dona retira um compartilhamento.' : 'Não salvo: ' + r.data.error, false); return; }
+    const parts = [];
+    if (r.data.aplicados && r.data.aplicados.length) parts.push('Compartilhado com: ' + r.data.aplicados.join(', ') + '.');
+    if (r.data.pendentes && r.data.pendentes.length) parts.push('Pedido enviado ao key user da área dona para: ' + r.data.pendentes.join(', ') + '. Só vale depois da aprovação.');
+    if (r.data.removidos && r.data.removidos.length) parts.push('Retirado de: ' + r.data.removidos.join(', ') + '.');
+    this._msg(parts.join(' ') || 'Nada mudou.');
+  }
+  async _loadShareRequests() {
+    const r = await this._fetch('/api/admin/share-requests');
+    this.setState({ shareRequests: r.ok ? r.data : [], shareNote: '' });
+  }
+  async decideShare(id, path) {
+    const r = await this._fetch('/api/admin/share-requests/' + id + '/' + path, { method: 'POST', body: { nota: this.state.shareNote } });
+    if (!r.ok) { this._msg(r.data.error === 'dados_invalidos' ? 'Escreva o motivo da recusa.' : r.data.error === 'so_key_user_da_area_dona' ? 'Aprova o key user da área dona; sem key user, o admin do cliente.' : 'Não registrado: ' + r.data.error, false); return; }
+    this._msg(path === 'aprovar' ? 'Compartilhamento aprovado.' : 'Pedido recusado.');
+    this._loadShareRequests();
   }
 
   // ---- Tipos de dado e leitores ---------------------------------------------------------------
@@ -2005,7 +2044,7 @@ class Component extends DCLogic {
 
     // Administração
     const adminDefs = [['areas', 'Áreas', roles.admin], ['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
-      ['politica', 'Política de Uso', roles.admin], ['dados', 'Tipos de dado e leitores', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin], ['criterios', 'Critérios de avaliação', roles.admin]];
+      ['politica', 'Política de Uso', roles.admin], ['dados', 'Tipos de dado e leitores', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin], ['criterios', 'Critérios de avaliação', roles.admin], ['compartilhamentos', 'Pedidos de compartilhamento', true]];
     const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
     const ed = st.editor;
     const u = st.usage;
@@ -2151,6 +2190,12 @@ class Component extends DCLogic {
       adminMsgColor: st.adminOk ? 'var(--gia-forest-text)' : 'var(--gia-red-text)',
       admAssistants: st.adminTab === 'assistentes',
       admCriteria: st.adminTab === 'criterios' && !!ce,
+      admShares: st.adminTab === 'compartilhamentos',
+      noShareRequests: !st.shareRequests.length,
+      shareRows: st.shareRequests.map(x => ({ recurso: (x.tipo === 'assistente' ? 'Assistente ' : 'Documento ') + x.recurso, rota: x.areaDona + ' → ' + x.destino, pedido: x.pedidoPor + ' · ' + fmtDate(x.pedidoEm) + ' · ' + x.origem,
+        podeAprovar: !!x.podeAprovar, aguardando: !x.podeAprovar, approve: () => this.decideShare(x.id, 'aprovar'), reject: () => this.decideShare(x.id, 'recusar') })),
+      shareNote: st.shareNote,
+      onShareNote: e => this.setState({ shareNote: e.target.value }),
       critEdit: ce || {},
       onCritMin: e => this.setState({ critEdit: { ...this.state.critEdit, min: e.target.value } }),
       onCritMax: e => this.setState({ critEdit: { ...this.state.critEdit, max: e.target.value } }),

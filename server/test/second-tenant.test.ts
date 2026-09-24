@@ -116,7 +116,9 @@ test('quatro assistentes: três do catálogo da TheNeil e um do zero; um compart
     review: { required: true },
   } });
   // Suprimentos e Obras passam a usar o assistente do Jurídico (compras com contrato e contratos de empreitada).
-  await ok('admin', 'PUT', '/api/admin/assistants/clausulas-fornecedores/areas', { areas: ['suprimentos', 'obras'] });
+  // Quem compartilha é o key user da área dona: vale na hora (pedido e aprovado por ele, na auditoria).
+  const sh = await ok('keyJur', 'PUT', '/api/admin/assistants/clausulas-fornecedores/areas', { areas: ['suprimentos', 'obras'] });
+  assert.deepEqual(sh.aplicados.sort(), ['obras', 'suprimentos']);
   const list = (await call('keySup', 'GET', '/api/assistants')).json() as { slug: string }[];
   assert.deepEqual(list.map(a => a.slug).sort(), ['clausulas-fornecedores', 'cotacoes']);
 });
@@ -260,6 +262,13 @@ test('ampliação para outra área: mesmo assistente, baseline próprio, víncul
     titulo: 'Resumo semanal das inspeções de segurança', objetivo: 'Técnico fecha a semana das inspeções em menos de uma hora.',
     responsavel: `key.seguranca@${DOM}`, areas: ['seguranca-do-trabalho'], recursos: 'compartilhar', nota: 'Mesmo formato de registro semanal do diário.',
     janelas: { pontoDePartida: { inicio: '2026-09-01', fim: '2026-09-30', volume: 4 }, medicao: { inicio: '2026-10-01', fim: '2026-10-31' } } })).id;
+  // Compartilhar com a Segurança do trabalho depende dos key users das áreas donas: fica pendente até eles aprovarem.
+  assert.equal(((await call('keySeg', 'GET', '/api/assistants')).json() as { slug: string }[]).some(a => a.slug === 'diario-de-obra'), false);
+  for (const who of ['keyEng', 'keyJur']) {
+    const pend = (await call(who, 'GET', '/api/admin/share-requests')).json() as { id: string; podeAprovar: boolean; recurso: string }[];
+    assert.ok(pend.length >= 1, who);
+    for (const p of pend.filter(x => x.podeAprovar)) await ok(who, 'POST', `/api/admin/share-requests/${p.id}/aprovar`, { nota: 'Aprovado para a ampliação.' });
+  }
   const r = (await call('keySeg', 'GET', `/api/quick-wins/${qw.amp}`)).json();
   assert.equal(r.semPontoDePartida, true);                                  // baseline próprio: ainda não registrado
   assert.deepEqual(r.quickWin.recursos.filter((x: { tipo: string }) => x.tipo === 'assistente').map((x: { slug: string }) => x.slug).sort(), ['clausulas-fornecedores', 'diario-de-obra']);

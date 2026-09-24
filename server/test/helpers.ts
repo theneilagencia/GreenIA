@@ -33,7 +33,7 @@ function withUser(url: string, user: string, password: string) {
   return u.toString();
 }
 
-export async function createTestDb(): Promise<TestDb> {
+export async function createTestDb(opts: { upTo?: string } = {}): Promise<TestDb> {
   const name = 'greenia_test_' + randomBytes(4).toString('hex');
   const admin = new pg.Client({ connectionString: ADMIN });
   await admin.connect();
@@ -52,7 +52,7 @@ export async function createTestDb(): Promise<TestDb> {
   await adminDb.end();
 
   const ownerUrl = withUser(withDb(ADMIN, name), OWNER_ROLE, PASS);
-  await migrate(ownerUrl, { appUser: APP_ROLE, appPassword: PASS });
+  await migrate(ownerUrl, { appUser: APP_ROLE, appPassword: PASS, upTo: opts.upTo });
   const appUrl = withUser(withDb(ADMIN, name), APP_ROLE, PASS);
   const app = createPool(appUrl, 5);
   const owner = createPool(ownerUrl, 3);

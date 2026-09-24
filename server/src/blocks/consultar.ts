@@ -17,6 +17,8 @@ export async function consultarBlock(ctx: RunContext, step: PipelineStep): Promi
   if (!pergunta) return { ...base, data: { pergunta, resposta: '', fontes: [], coberto: false }, flags: [{ reason: 'nenhuma pergunta enviada' }] };
   const areas = p.areas ?? (ctx.def.inputs.knowledge.areas.length ? ctx.def.inputs.knowledge.areas : undefined);
   const hits = await ctx.env.searchKnowledge(pergunta, { areas, limit: 3 });
+  const gap = gapFlag(ctx);
+  if (gap) flags.push(gap);
   const naoCobre = `A base de conhecimento não cobre essa pergunta. ${ctx.env.keyUserContact ? `Fale com ${ctx.env.keyUserContact}.` : 'Fale com o key user da sua área.'}`;
   if (!hits.length) return { ...base, data: { pergunta, resposta: naoCobre, fontes: [], coberto: false }, flags };
 
@@ -52,13 +54,20 @@ export async function buscarBlock(ctx: RunContext, step: PipelineStep): Promise<
   if (!consulta) return { ...base, data: { consulta, resultados: [] }, flags: [{ reason: 'nenhum termo de busca enviado' }] };
   const areas = ctx.def.inputs.knowledge.areas.length ? ctx.def.inputs.knowledge.areas : undefined;
   const hits = await ctx.env.searchKnowledge(consulta, { areas, limit: p.limite });
+  const gap = gapFlag(ctx);
   const resultados: { origem: 'base' | 'envio'; titulo: string; documentId?: string; version?: number; trecho: string }[] =
     hits.map(h => ({ origem: 'base', titulo: h.title, documentId: h.documentId, version: h.version, trecho: excerpt(h.text, consulta) }));
   if (p.incluirEntradas && ctx.docs.length) {
     const found = core.retrieve(ctx.docs.map(d => ({ title: d.name, text: d.text })), consulta);
     for (const d of found) resultados.push({ origem: 'envio', titulo: d.title, trecho: excerpt(d.text, consulta) });
   }
-  return { ...base, data: { consulta, resultados: resultados.slice(0, p.limite) }, flags: [] };
+  return { ...base, data: { consulta, resultados: resultados.slice(0, p.limite) }, flags: gap ? [gap] : [] };
+}
+
+// Base vinculada ao assistente que a pessoa não pode ler: avisa, sem conteúdo.
+function gapFlag(ctx: RunContext): ReviewFlag | null {
+  const gaps = ctx.env.knowledgeGaps ?? [];
+  return gaps.length ? { reason: `fonte não disponível para você: base de ${gaps.join(', ')}. A consulta usou só as bases que você pode ler.` } : null;
 }
 
 // Trecho em volta do primeiro termo encontrado.

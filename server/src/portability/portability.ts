@@ -43,6 +43,8 @@ const DATASETS: Record<string, string> = {
   'quick-wins-areas': `select quick_win_id, area_id from quick_win_areas`,
   'quick-wins-recursos': `select quick_win_id, assistant_id, document_id from quick_win_resources`,
   'quick-wins-revisores': `select quick_win_id, user_id from quick_win_reviewers`,
+  'pedidos-de-compartilhamento': `select id, kind, assistant_id, document_id, owner_area_id, target_area_id, company_wide, status, origin, requested_by, requested_at, decided_by, decided_at, note from share_requests`,
+  'quick-wins-alteracoes': `select id, quick_win_id, at, actor, stage, what, reason from quick_win_changes`,
   'quick-wins-indicadores': `select quick_win_id, key, label, unit, direction, auto, comparison, position from quick_win_indicators`,
   'medicoes': `select id, quick_win_id, indicator, phase, value, unit, origin, period_start, period_end, method, informed_by, notes, recorded_by, created_at from quick_win_values`,
   'quick-wins-historico': `select opportunity_id, quick_win_id, at, actor, stage_from, stage_to, note from quick_win_events`,

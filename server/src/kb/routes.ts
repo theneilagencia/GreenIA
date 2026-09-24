@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { setShares, shareSchema } from '../areas/sharing.ts';
+import { canApproveShare, changeShares, shareSchema, shareTarget } from '../areas/sharing.ts';
 import { withTenant } from '../db/pool.ts';
 import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
@@ -58,7 +58,7 @@ export async function kbRoutes(app: FastifyInstance) {
       if (missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: missing } };
       const doc = (await tx.query(`insert into kb_documents (tenant_id, area_id, title, created_by) values ($1, $2, $3, $4) returning id`,
         [a.tenantId, areaId, p.data.title, a.userId])).rows[0];
-      if (p.data.compartilhar) await setShares(tx, 'documento', a.tenantId, doc.id, p.data.compartilhar);
+      if (p.data.compartilhar) await changeShares(tx, a, 'documento', { id: doc.id, area_id: areaId ?? null, company_wide: false, label: p.data.title }, p.data.compartilhar, 'criação', true);
       const { key, sha } = await storeVersion(a.tenantId, a.userId, doc.id, 1, body, p.data.contentType);
       await tx.query(`insert into kb_document_versions (tenant_id, document_id, version, object_key, sha256, mime, bytes, created_by) values ($1, $2, 1, $3, $4, $5, $6, $7)`,
         [a.tenantId, doc.id, key, sha, p.data.contentType, body.length, a.userId]);
@@ -111,13 +111,15 @@ export async function kbRoutes(app: FastifyInstance) {
     const p = shareSchema.safeParse(req.body);
     if (!z.uuid().safeParse(id).success || !p.success) return reply.code(400).send({ error: 'dados_invalidos' });
     const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
-      const doc = (await tx.query(`select id, area_id from kb_documents where id = $1 for update`, [id])).rows[0];
+      const doc = await shareTarget(tx, 'documento', id);
       if (!doc) return { status: 404, body: { error: 'nao_encontrado' } };
-      if (!can(a, 'kb.manage', doc.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
-      const { missing } = await setShares(tx, 'documento', a.tenantId, doc.id, p.data);
-      if (missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: missing } };
-      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'documento_compartilhado', target: `documento:${id}`, details: p.data });
-      return { status: 200, body: { id, ...p.data } };
+      const approver = await canApproveShare(tx, a, doc.area_id);
+      const manages = can(a, 'kb.manage', doc.area_id);
+      if (!approver && !manages && !can(a, 'qw.decide', doc.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
+      const r = await changeShares(tx, a, 'documento', doc, p.data, 'painel', approver || manages);
+      if ('error' in r) return { status: 403, body: { error: r.error } };
+      if (r.missing.length) return { status: 404, body: { error: 'area_nao_encontrada', areas: r.missing } };
+      return { status: 200, body: { id, aplicados: r.aplicados, pendentes: r.pendentes, removidos: r.removidos } };
     });
     return reply.code(out.status).send(out.body);
   });

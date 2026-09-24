@@ -26,6 +26,7 @@ import { audit } from '../audit.ts';
 import { parseTenantConfig, tenantConfigSchema } from '../tenants/config.ts';
 import { isPlatformAdmin } from '../platform/routes.ts';
 import { tenantPrefix } from '../storage/object-store.ts';
+import { requestShares } from '../areas/sharing.ts';
 import { AUTO_METRICS } from '../metrics/metrics.ts';
 import { weightedScore, type QwCriteria } from './criteria.ts';
 import { NEXT_STAGE, STAGE_LABEL, activeCount, buildResults, loadQuickWin, period, windowsOf, windowWarnings } from './service.ts';
@@ -476,6 +477,7 @@ export async function quickWinRoutes(app: FastifyInstance) {
       for (const aid of areas.ids) await tx.query(`insert into quick_win_areas (tenant_id, quick_win_id, area_id) values ($1, $2, $3)`, [a.tenantId, newId, aid]);
       const target = areas.rows.find(r => r.id === areas.ids[0])!;
       const done: string[] = [];
+      const pendentes: string[] = [];
       for (const r of loaded.resources) {
         if (mode === 'duplicados') {
           // Cópia independente, na primeira área nova: muda sem afetar a origem.
@@ -486,15 +488,15 @@ export async function quickWinRoutes(app: FastifyInstance) {
           done.push(`${r.assistant_id ? 'assistente' : 'documento'} ${copy.label}`);
           continue;
         }
-        // Compartilhado: o mesmo assistente ou documento passa a servir as áreas novas.
-        const own = { area_id: r.area_id, company_wide: !!r.company_wide };
-        const need = !own.company_wide ? areas.ids.filter(x => x !== own.area_id) : [];
-        if (need.length && !(canManageArea(a, own.area_id) || canDecideArea(a, own.area_id))) throw new PartError(`sem permissão para compartilhar ${r.assistant_id ? 'o assistente ' + r.assistant_name : 'o documento ' + r.document_title} com as áreas novas: escolha duplicar`);
-        for (const x of need) {
-          if (r.assistant_id) await tx.query(`insert into assistant_shares (tenant_id, assistant_id, area_id) values ($1, $2, $3) on conflict do nothing`, [a.tenantId, r.assistant_id, x]);
-          else await tx.query(`insert into kb_document_shares (tenant_id, document_id, area_id) values ($1, $2, $3) on conflict do nothing`, [a.tenantId, r.document_id, x]);
+        // Compartilhado: o mesmo assistente ou documento passa a servir as áreas novas,
+        // depois da aprovação do key user da área dona (quem aprova e amplia aplica direto).
+        if (!r.company_wide) {
+          const kind = r.assistant_id ? 'assistente' as const : 'documento' as const;
+          const target = { id: (r.assistant_id ?? r.document_id)!, area_id: r.area_id, company_wide: false, label: (r.assistant_slug ?? r.document_title ?? '') };
+          const s = await requestShares(tx, a, kind, target, areas.rows.filter(x => x.id !== r.area_id), false, `ampliação do quick win ${loaded.q.title}`);
+          for (const x of s.aplicados) done.push(`${kind} ${target.label} → ${x}`);
+          for (const x of s.pendentes) pendentes.push(`${kind} ${target.label} → ${x}`);
         }
-        if (need.length) done.push(r.assistant_id ? `assistente ${r.assistant_slug}` : `documento ${r.document_title}`);
         await tx.query(`insert into quick_win_resources (tenant_id, quick_win_id, assistant_id, document_id) values ($1, $2, $3, $4)`, [a.tenantId, newId, r.assistant_id, r.document_id]);
       }
       if (done.length) await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: mode === 'duplicados' ? 'recursos_duplicados_na_ampliacao' : 'recursos_compartilhados_na_ampliacao', target: `quick_win:${newId}`, details: { recursos: done } });
@@ -505,7 +507,7 @@ export async function quickWinRoutes(app: FastifyInstance) {
       await setWindows(tx, newId, { unidadeVolume: loaded.q.volume_unit ?? '', ...p.data.janelas });
       await event(tx, a, { quickWinId: newId }, null, 'em_implantacao', `Ampliação de "${loaded.q.title}" (recursos ${mode}): ${p.data.nota}`, 'quick_win_ampliado');
       await event(tx, a, { quickWinId: id }, 'decisao', 'decisao', `Ampliado para "${p.data.titulo}".`, 'quick_win_ampliacao_criada');
-      return { status: 201, body: { id: newId, origem: id, etapa: 'em_implantacao', recursos: mode, aviso: q.aviso } };
+      return { status: 201, body: { id: newId, origem: id, etapa: 'em_implantacao', recursos: mode, aviso: q.aviso, compartilhamentosPendentes: pendentes } };
     }).catch(e => { if (e instanceof PartError) return { status: 403, body: { error: 'sem_permissao', detalhe: e.message } }; throw e; });
     for (const c of out.status === 201 ? copies : []) await app.deps.queue.enqueue('kb:index', { tenantId: a.tenantId, documentId: c.documentId, version: c.version });
     return reply.code(out.status).send(out.body);

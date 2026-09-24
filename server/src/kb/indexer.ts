@@ -1,12 +1,45 @@
 // Indexação de uma versão de documento (tarefa da fila 'kb:index'). Lê o
-// original no armazenamento, quebra em trechos e troca os trechos do documento
-// pelos da nova versão. A Fase 3 acrescenta leitura de PDF, DOCX, XLSX etc.
+// original no armazenamento com o bloco de leitura (PDF com texto, DOCX, XLSX,
+// CSV, NF-e, texto), quebra em trechos e troca os trechos do documento pelos da
+// nova versão. Na base de conhecimento nada vai para o modelo: PDF escaneado ou
+// imagem vira erro explicado (envie a versão com texto).
 import type { Db } from '../db/pool.ts';
 import { withTenant } from '../db/pool.ts';
 import type { ObjectStore } from '../storage/object-store.ts';
 import { chunkText, searchTerms } from './knowledge.ts';
+import { readFile } from '../blocks/ler.ts';
+import type { BlockEnv } from '../blocks/types.ts';
 
-export const KB_TEXT_TYPES = ['text/plain', 'text/markdown'];
+// Tipos aceitos na base (pelo tipo declarado; o conteúdo é conferido na leitura).
+export const KB_TYPES: Record<string, string> = {
+  'text/plain': 'txt',
+  'text/markdown': 'md',
+  'text/csv': 'csv',
+  'application/pdf': 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/xml': 'xml',
+  'text/xml': 'xml',
+};
+export const KB_TEXT_TYPES = Object.keys(KB_TYPES);
+
+// Extensão → tipo, para a importação em lote (nome do arquivo).
+export const KB_EXT_MIME: Record<string, string> = Object.fromEntries(Object.entries(KB_TYPES).filter(([m]) => m !== 'text/xml').map(([m, e]) => [e, m]));
+
+const noModel: BlockEnv = {
+  async complete() { throw new Error('a base de conhecimento não usa o modelo'); },
+  async searchKnowledge() { return []; },
+  keyUserContact: '',
+  now: () => new Date(),
+};
+
+export async function extractForKb(name: string, bytes: Uint8Array): Promise<string> {
+  const d = await readFile({ id: 'kb', name, mime: '', sha256: '', bytes }, { visao: 'nunca', paginasMax: 500 }, noModel);
+  const scanned = d.warnings.find(w => /escaneado|imagem ignorada/.test(w));
+  if (scanned) throw new Error('arquivo sem texto (digitalizado): envie a versão com texto');
+  if (d.warnings.some(w => /não reconhecido|não pôde ser aberto|inválido|não é uma NF-e/.test(w))) throw new Error(d.warnings[0]);
+  return d.text;
+}
 
 export function makeIndexer(db: Db, objects: ObjectStore) {
   return async (data: Record<string, unknown>) => {
@@ -20,8 +53,9 @@ export function makeIndexer(db: Db, objects: ObjectStore) {
          where v.document_id = $1 and v.version = $2`, [documentId, version])).rows[0];
       if (!v) return;
       try {
-        if (!KB_TEXT_TYPES.includes(v.mime)) throw new Error('tipo de arquivo ainda não suportado: ' + v.mime);
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(await objects.get(v.object_key));
+        const ext = KB_TYPES[v.mime];
+        if (!ext) throw new Error('tipo de arquivo não suportado: ' + v.mime);
+        const text = await extractForKb(`${v.title}.${ext}`, await objects.get(v.object_key));
         const chunks = chunkText(text);
         if (!chunks.length) throw new Error('documento sem texto');
         await tx.query(`delete from kb_chunks where document_id = $1`, [documentId]);

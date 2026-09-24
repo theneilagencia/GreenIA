@@ -1,6 +1,6 @@
 // Documentos da base: enviar, nova versão, listar, pesquisar. Envio e versão
 // exigem kb.manage na área do documento (ou admin, para documentos gerais).
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { withTenant } from '../db/pool.ts';
@@ -9,7 +9,7 @@ import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { tenantPrefix } from '../storage/object-store.ts';
-import { KB_TEXT_TYPES } from './indexer.ts';
+import { KB_EXT_MIME, KB_TEXT_TYPES } from './indexer.ts';
 
 const contentSchema = z.object({
   contentType: z.string(),
@@ -101,5 +101,73 @@ export async function kbRoutes(app: FastifyInstance) {
     const q = String((req.query as Record<string, unknown>).q || '').slice(0, 500);
     return withTenant(app.deps.db, tenantCtx(a), async tx =>
       (await app.deps.knowledge.search(tx, q)).map(h => ({ documentId: h.documentId, version: h.version, title: h.title, trecho: h.text.slice(0, 300) })));
+  });
+
+  // Importação em lote (implantação): cada arquivo vira um documento, indexado
+  // na fila. A resposta já traz o que foi recusado; o andamento da indexação,
+  // com os erros, fica em GET /api/kb/import/:lote.
+  const importSchema = z.object({
+    areaSlug: z.string().optional(),
+    files: z.array(z.object({
+      name: z.string().trim().min(1).max(200),
+      contentBase64: z.string().min(1),
+      title: z.string().trim().min(1).max(200).optional(),
+    })).min(1).max(500),
+  });
+
+  app.post('/api/kb/import', { bodyLimit }, async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const p = importSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const lote = randomUUID();
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const { config } = parseTenantConfig((await tx.query(`select config from tenants where id = $1`, [a.tenantId])).rows[0]?.config);
+      const areaId = p.data.areaSlug ? (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id : null;
+      if (p.data.areaSlug && !areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
+      if (!can(a, 'kb.manage', areaId)) return { status: 403, body: { error: 'sem_permissao' } };
+      const seen = new Set<string>();
+      const documentos: { arquivo: string; documentId: string | null; erro: string | null }[] = [];
+      for (const f of p.data.files) {
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        const mime = KB_EXT_MIME[ext === 'markdown' ? 'md' : ext];
+        const bytes = new Uint8Array(Buffer.from(f.contentBase64, 'base64'));
+        const erro = !mime ? `tipo não aceito (.${ext}); aceitos: ${Object.keys(KB_EXT_MIME).join(', ')}`
+          : bytes.length > config.limits.maxFileMb * 1024 * 1024 ? `arquivo acima de ${config.limits.maxFileMb} MB`
+            : seen.has(f.name.toLowerCase()) ? 'nome repetido no lote' : null;
+        seen.add(f.name.toLowerCase());
+        if (erro) { documentos.push({ arquivo: f.name, documentId: null, erro }); continue; }
+        const title = f.title ?? f.name.replace(/\.[^.]+$/, '');
+        const doc = (await tx.query(`insert into kb_documents (tenant_id, area_id, title, created_by, import_batch) values ($1, $2, $3, $4, $5) returning id`,
+          [a.tenantId, areaId, title, a.userId, lote])).rows[0];
+        const { key, sha } = await storeVersion(a.tenantId, a.userId, doc.id, 1, bytes, mime);
+        await tx.query(`insert into kb_document_versions (tenant_id, document_id, version, object_key, sha256, mime, bytes, created_by) values ($1, $2, 1, $3, $4, $5, $6, $7)`,
+          [a.tenantId, doc.id, key, sha, mime, bytes.length, a.userId]);
+        documentos.push({ arquivo: f.name, documentId: doc.id, erro: null });
+      }
+      const aceitos = documentos.filter(d => d.documentId).length;
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'documentos_importados', target: `lote:${lote}`,
+        details: { aceitos, recusados: documentos.length - aceitos, areaId } });
+      return { status: 202, body: { lote, aceitos, recusados: documentos.length - aceitos, documentos } };
+    });
+    if (out.status === 202) {
+      for (const d of (out.body as { documentos: { documentId: string | null }[] }).documentos) {
+        if (d.documentId) await app.deps.queue.enqueue('kb:index', { tenantId: a.tenantId, documentId: d.documentId, version: 1 });
+      }
+    }
+    return reply.code(out.status).send(out.body);
+  });
+
+  app.get('/api/kb/import/:lote', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const { lote } = req.params as { lote: string };
+    if (!z.uuid().safeParse(lote).success) return reply.code(404).send({ error: 'nao_encontrado' });
+    const rows = await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
+      `select d.id, d.title, v.status, v.error from kb_documents d join kb_document_versions v on v.document_id = d.id and v.version = 1
+       where d.import_batch = $1 order by d.title`, [lote]).then(r => r.rows));
+    if (!rows.length) return reply.code(404).send({ error: 'nao_encontrado' });
+    const resumo = { indexados: rows.filter(r => r.status === 'indexado').length, pendentes: rows.filter(r => r.status === 'pendente').length, erros: rows.filter(r => r.status === 'erro').length };
+    return { lote, resumo, documentos: rows.map(r => ({ documentId: r.id, titulo: r.title, status: r.status, erro: r.error })) };
   });
 }

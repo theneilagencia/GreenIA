@@ -38,7 +38,7 @@ export async function platformRoutes(app: FastifyInstance) {
     } catch (e) {
       if (e instanceof ZodError) return reply.code(400).send({ error: 'dados_invalidos', detalhes: e.issues.map(i => i.path.join('.') + ': ' + i.message) });
       if ((e as { code?: string }).code === '23505') return reply.code(409).send({ error: 'slug_dominio_ou_host_ja_usado' });
-      if (e instanceof Error && /fora dos domínios|segredo não vai/.test(e.message)) return reply.code(400).send({ error: e.message });
+      if (e instanceof Error && /fora dos domínios|segredo não vai|não existe no tenant/.test(e.message)) return reply.code(400).send({ error: e.message });
       throw e;
     }
   });

@@ -9,7 +9,10 @@ import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { assistantDefinitionSchema } from './schema.ts';
 import { buildPackageMarkdown, buildPackageZip, type PackageMeta } from './package.ts';
-import { classConflicts, currentPolicy } from '../policy/usage-policy.ts';
+import { applyFloor, classConflicts, currentPolicy } from '../policy/usage-policy.ts';
+import { effectivePolicy } from '../policy/data-policy.ts';
+import { parseTenantConfig } from '../tenants/config.ts';
+import { guideMarkdown, guidePdf } from './guide.ts';
 import type { Tx } from '../db/pool.ts';
 
 // Assistente em piloto ou ativo só aceita as classes de dado que a Política de Uso de IA permite.
@@ -190,5 +193,28 @@ export async function assistantRoutes(app: FastifyInstance) {
       return reply.type('text/markdown; charset=utf-8').header('content-disposition', `attachment; filename="${base}.md"`).send(buildPackageMarkdown(out.def, out.meta));
     }
     return reply.type('application/zip').header('content-disposition', `attachment; filename="${base}.zip"`).send(await buildPackageZip(out.def, out.meta));
+  });
+
+  // Guia rápido do assistente (treinamento): para quem enxerga o assistente.
+  app.get('/api/assistants/:slug/guide', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const q = z.object({ format: z.enum(['pdf', 'md']).default('pdf') }).safeParse(req.query);
+    if (!q.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const { slug } = req.params as { slug: string };
+    const g = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const row = (await tx.query(
+        `select a.name, a.current_version, ar.name as area, v.definition, t.config from assistants a
+         join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
+         join tenants t on t.id = a.tenant_id left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug])).rows[0];
+      if (!row) return null;
+      const def = assistantDefinitionSchema.parse(row.definition);
+      const config = parseTenantConfig(row.config).config;
+      const rules = (await currentPolicy(tx))?.rules;
+      return { name: row.name, area: row.area, version: row.current_version, def, rules, keyUser: config.keyUserContact, policy: applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy), rules?.dataPolicy) };
+    });
+    if (!g) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
+    if (q.data.format === 'md') return reply.type('text/markdown; charset=utf-8').header('content-disposition', `attachment; filename="guia-${slug}.md"`).send(guideMarkdown(g));
+    return reply.type('application/pdf').header('content-disposition', `attachment; filename="guia-${slug}.pdf"`).send(await guidePdf(g));
   });
 }

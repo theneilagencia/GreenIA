@@ -8,7 +8,7 @@ import { resolveTenant } from '../tenants/routes.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { audit } from '../audit.ts';
 import { secretFromEnv } from '../config.ts';
-import { cookieName, requireAuth, startSession } from './session.ts';
+import { cookieName, requireAuth, startSession, tenantCtx } from './session.ts';
 
 const CODE_TTL_MIN = 10;
 const CODE_MAX_ATTEMPTS = 5;
@@ -222,8 +222,17 @@ export async function authRoutes(app: FastifyInstance) {
       user: { email: a.email, name: a.name },
       roles: a.roles,
       areas: a.areaRoles.map(r => ({ slug: r.slug, name: r.name, role: r.role })),
+      onboardingDone: a.onboardingDone,
       csrfToken: a.csrfToken,
     };
+  });
+
+  // Roteiro de primeiro acesso concluído (ou pulado).
+  app.post('/api/me/onboarding', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(`update users set onboarding_done_at = coalesce(onboarding_done_at, now()) where id = $1`, [a.userId]));
+    return { onboardingDone: true };
   });
 
   app.post('/api/auth/logout', async (req, reply) => {

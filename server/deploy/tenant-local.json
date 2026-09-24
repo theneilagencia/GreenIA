@@ -1,21 +1,56 @@
 {
   "slug": "exemplo",
   "name": "Empresa Exemplo",
-  "domains": ["exemplo.com.br"],
-  "hosts": ["localhost"],
+  "domains": [
+    "exemplo.com.br"
+  ],
+  "hosts": [
+    "localhost"
+  ],
   "areas": [
-    { "slug": "financeiro", "name": "Financeiro" },
-    { "slug": "rh", "name": "RH / DP" },
-    { "slug": "fiscal", "name": "Fiscal" },
-    { "slug": "lgpd", "name": "LGPD & Compliance" }
+    {
+      "slug": "financeiro",
+      "name": "Financeiro"
+    },
+    {
+      "slug": "rh",
+      "name": "RH / DP"
+    },
+    {
+      "slug": "fiscal",
+      "name": "Fiscal"
+    },
+    {
+      "slug": "lgpd",
+      "name": "LGPD & Compliance"
+    }
   ],
   "providers": [
-    { "kind": "email_code", "label": "Código por email" }
+    {
+      "kind": "email_code",
+      "label": "Código por email"
+    }
   ],
-  "admins": ["admin@exemplo.com.br"],
+  "admins": [
+    "admin@exemplo.com.br"
+  ],
   "config": {
-    "branding": { "orgName": "Empresa Exemplo" },
-    "texts": { "tagline": "A IA do dia a dia da Empresa Exemplo" },
+    "branding": {
+      "orgName": "Empresa Exemplo"
+    },
+    "texts": {
+      "tagline": "A IA do dia a dia da Empresa Exemplo"
+    },
     "keyUserContact": "Key user · keyuser@exemplo.com.br"
-  }
+  },
+  "keyUsers": [
+    {
+      "email": "keyuser.fiscal@exemplo.com.br",
+      "area": "fiscal"
+    },
+    {
+      "email": "keyuser.rh@exemplo.com.br",
+      "area": "rh"
+    }
+  ]
 }

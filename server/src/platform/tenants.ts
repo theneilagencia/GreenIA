@@ -1,6 +1,8 @@
 // Criação de tenant (operação de plataforma da TheNeil). Roda com a conexão do
 // dono das tabelas, numa transação, e fica registrada na auditoria do tenant novo.
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { usageRulesSchema } from '../policy/usage-policy.ts';
 import type { Db } from '../db/pool.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 
@@ -17,6 +19,10 @@ export const newTenantSchema = z.object({
     config: z.record(z.string(), z.unknown()).default({}),
   })).min(1),
   admins: z.array(z.string().trim().toLowerCase().pipe(z.email())).min(1),
+  // Key users por área, já na implantação.
+  keyUsers: z.array(z.object({ email: z.string().trim().toLowerCase().pipe(z.email()), area: z.string() })).default([]),
+  // Política de Uso de IA inicial (versão 1), opcional.
+  policy: z.object({ title: z.string().trim().min(3).max(200), body: z.string().trim().min(20), rules: z.unknown().optional() }).optional(),
 });
 
 export type NewTenant = z.infer<typeof newTenantSchema>;
@@ -24,9 +30,13 @@ export type NewTenant = z.infer<typeof newTenantSchema>;
 export async function createTenant(ownerDb: Db, input: unknown, actor?: { tenantId: string; userId: string }) {
   const t = newTenantSchema.parse(input);
   const { config, theme } = parseTenantConfig(t.config);
-  for (const a of t.admins) {
-    if (!t.domains.includes(a.split('@')[1])) throw new Error(`admin ${a} fora dos domínios do tenant`);
+  for (const a of [...t.admins, ...t.keyUsers.map(k => k.email)]) {
+    if (!t.domains.includes(a.split('@')[1])) throw new Error(`pessoa ${a} fora dos domínios do tenant`);
   }
+  for (const k of t.keyUsers) {
+    if (!t.areas.some(ar => ar.slug === k.area)) throw new Error(`área ${k.area} do key user ${k.email} não existe no tenant`);
+  }
+  const rules = t.policy ? usageRulesSchema.parse(t.policy.rules ?? {}) : null;
   for (const p of t.providers) {
     if (p.config.clientSecret) throw new Error('segredo não vai na configuração: use clientSecretEnv com o nome da variável');
   }
@@ -40,12 +50,24 @@ export async function createTenant(ownerDb: Db, input: unknown, actor?: { tenant
     for (const p of t.providers) {
       await client.query(`insert into auth_providers (tenant_id, kind, label, config) values ($1, $2, $3, $4)`, [id, p.kind, p.label, p.config]);
     }
+    const userIds = new Map<string, string>();
+    const person = async (email: string) => {
+      if (!userIds.has(email)) userIds.set(email, (await client.query(`insert into users (tenant_id, email) values ($1, $2) returning id`, [id, email])).rows[0].id);
+      return userIds.get(email)!;
+    };
     for (const email of t.admins) {
-      const u = (await client.query(`insert into users (tenant_id, email) values ($1, $2) returning id`, [id, email])).rows[0];
-      await client.query(`insert into memberships (tenant_id, user_id, role) values ($1, $2, 'admin_cliente')`, [id, u.id]);
+      await client.query(`insert into memberships (tenant_id, user_id, role) values ($1, $2, 'admin_cliente')`, [id, await person(email)]);
+    }
+    for (const k of t.keyUsers) {
+      const areaId = (await client.query(`select id from areas where tenant_id = $1 and slug = $2`, [id, k.area])).rows[0].id;
+      await client.query(`insert into memberships (tenant_id, user_id, area_id, role) values ($1, $2, $3, 'key_user') on conflict do nothing`, [id, await person(k.email), areaId]);
+    }
+    if (t.policy && rules) {
+      await client.query(`insert into usage_policies (tenant_id, version, title, body, body_sha256, rules, published_by) values ($1, 1, $2, $3, $4, $5, $6)`,
+        [id, t.policy.title, t.policy.body, createHash('sha256').update(t.policy.body).digest('hex'), rules, await person(t.admins[0])]);
     }
     await client.query(`insert into audit_log (tenant_id, actor_user_id, action, details) values ($1, $2, 'tenant_criado', $3)`,
-      [id, actor?.userId || null, { porTenant: actor?.tenantId || 'cli', ajustesDeCor: theme.adjustments }]);
+      [id, actor?.userId || null, { porTenant: actor?.tenantId || 'cli', ajustesDeCor: theme.adjustments, keyUsers: t.keyUsers.length, politica: !!t.policy }]);
     await client.query('commit');
     return { id, slug: t.slug, themeAdjustments: theme.adjustments };
   } catch (e) {

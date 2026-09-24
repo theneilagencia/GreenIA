@@ -18,6 +18,7 @@ export interface AuthContext {
   areaRoles: { areaId: string; slug: string; name: string; role: Role }[];
   areaIds: string[];
   allAreas: boolean;                           // admin do cliente ou da TheNeil vê todas as áreas
+  onboardingDone: boolean;                     // já passou pelo roteiro de primeiro acesso
   csrfToken: string;
 }
 
@@ -69,14 +70,14 @@ async function loadAuth(app: FastifyInstance, req: FastifyRequest): Promise<Auth
 // Papéis e áreas de uma pessoa (a transação já está no contexto do tenant).
 // Usado pela sessão e pelas tarefas na fila, que agem em nome de quem pediu.
 export async function loadMembership(tx: Tx, userId: string) {
-  const u = (await tx.query(`select email, name from users where id = $1`, [userId])).rows[0] ?? { email: '', name: '' };
+  const u = (await tx.query(`select email, name, onboarding_done_at from users where id = $1`, [userId])).rows[0] ?? { email: '', name: '', onboarding_done_at: null };
   const m = (await tx.query(
     `select m.role, m.area_id, a.slug, a.name from memberships m left join areas a on a.id = m.area_id where m.user_id = $1`,
     [userId])).rows;
   const roles = m.filter(r => !r.area_id).map(r => r.role as Role);
   const areaRoles = m.filter(r => r.area_id).map(r => ({ areaId: r.area_id as string, slug: r.slug as string, name: r.name as string, role: r.role as Role }));
   const allAreas = roles.includes('admin_cliente') || roles.includes('admin_theneil');
-  return { email: u.email as string, name: u.name as string, roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas };
+  return { email: u.email as string, name: u.name as string, roles, areaRoles, areaIds: [...new Set(areaRoles.map(a => a.areaId))], allAreas, onboardingDone: !!u.onboarding_done_at };
 }
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);

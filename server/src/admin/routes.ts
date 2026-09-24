@@ -53,18 +53,18 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!a) return;
     const p = membershipSchema.safeParse(req.body);
     if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
-    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
       let areaId: string | null = null;
       if (p.data.areaSlug) {
         areaId = (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id || null;
-        if (!areaId) return reply.code(404).send({ error: 'area_nao_encontrada' });
+        if (!areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
       }
       if (!can(a, 'people.manage', areaId) || !assignableRoles(a, areaId).includes(p.data.role as Role)) {
-        return reply.code(403).send({ error: 'sem_permissao' });
+        return { status: 403, body: { error: 'sem_permissao' } };
       }
       const domain = p.data.email.split('@')[1];
       const allowed = (await tx.query(`select 1 from tenant_domains where domain = $1`, [domain])).rowCount;
-      if (!allowed) return reply.code(422).send({ error: 'dominio_nao_permitido' });
+      if (!allowed) return { status: 422, body: { error: 'dominio_nao_permitido' } };
       const user = (await tx.query(
         `insert into users (tenant_id, email, name) values ($1, $2, $3)
          on conflict (tenant_id, email) do update set name = coalesce(nullif(excluded.name, ''), users.name)
@@ -73,8 +73,9 @@ export async function adminRoutes(app: FastifyInstance) {
         `insert into memberships (tenant_id, user_id, area_id, role) values ($1, $2, $3, $4) on conflict do nothing`,
         [a.tenantId, user.id, areaId, p.data.role]);
       await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'papel_atribuido', target: user.id, details: { role: p.data.role, areaId } });
-      return reply.code(201).send({ userId: user.id, role: p.data.role, areaId });
+      return { status: 201, body: { userId: user.id, role: p.data.role, areaId } };
     });
+    return reply.code(out.status).send(out.body);
   });
 
   app.get('/api/admin/users', async (req, reply) => {

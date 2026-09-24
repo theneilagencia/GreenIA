@@ -47,10 +47,10 @@ export async function assistantRoutes(app: FastifyInstance) {
     if (!p.success) return reply.code(400).send({ error: 'dados_invalidos', detalhes: issues(p.error) });
     const def = assistantDefinitionSchema.safeParse(p.data.definition ?? {});
     if (!def.success) return reply.code(400).send({ error: 'definicao_invalida', detalhes: issues(def.error) });
-    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
       const areaId = p.data.areaSlug ? (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id : null;
-      if (p.data.areaSlug && !areaId) return reply.code(404).send({ error: 'area_nao_encontrada' });
-      if (!can(a, 'kb.manage', areaId)) return reply.code(403).send({ error: 'sem_permissao' });
+      if (p.data.areaSlug && !areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
+      if (!can(a, 'kb.manage', areaId)) return { status: 403, body: { error: 'sem_permissao' } };
       try {
         const row = (await tx.query(
           `insert into assistants (tenant_id, slug, name, area_id, status) values ($1, $2, $3, $4, $5) returning id`,
@@ -58,12 +58,13 @@ export async function assistantRoutes(app: FastifyInstance) {
         await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`,
           [a.tenantId, row.id, def.data, a.userId]);
         await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_criado', target: `assistente:${p.data.slug}@1` });
-        return reply.code(201).send({ slug: p.data.slug, version: 1 });
+        return { status: 201, body: { slug: p.data.slug, version: 1 } };
       } catch (e) {
-        if ((e as { code?: string }).code === '23505') return reply.code(409).send({ error: 'assistente_ja_existe' });
+        if ((e as { code?: string }).code === '23505') return { status: 409, body: { error: 'assistente_ja_existe' } };
         throw e;
       }
     });
+    return reply.code(out.status).send(out.body);
   });
 
   app.post('/api/admin/assistants/:slug/versions', async (req, reply) => {
@@ -74,18 +75,19 @@ export async function assistantRoutes(app: FastifyInstance) {
     const def = assistantDefinitionSchema.safeParse(p.data.definition ?? {});
     if (!def.success) return reply.code(400).send({ error: 'definicao_invalida', detalhes: issues(def.error) });
     const { slug } = req.params as { slug: string };
-    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
       const cur = (await tx.query(`select id, area_id, current_version from assistants where slug = $1 for update`, [slug])).rows[0];
-      if (!cur) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
-      if (!can(a, 'kb.manage', cur.area_id)) return reply.code(403).send({ error: 'sem_permissao' });
+      if (!cur) return { status: 404, body: { error: 'assistente_nao_encontrado' } };
+      if (!can(a, 'kb.manage', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
       const version = cur.current_version + 1;
       await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, $3, $4, $5)`,
         [a.tenantId, cur.id, version, def.data, a.userId]);
       await tx.query(`update assistants set current_version = $1, status = coalesce($2, status), name = coalesce($3, name) where id = $4`,
         [version, p.data.status ?? null, p.data.name ?? null, cur.id]);
       await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_nova_versao', target: `assistente:${slug}@${version}` });
-      return reply.code(201).send({ slug, version });
+      return { status: 201, body: { slug, version } };
     });
+    return reply.code(out.status).send(out.body);
   });
 
   // Detalhe: versão atual e histórico de versões.

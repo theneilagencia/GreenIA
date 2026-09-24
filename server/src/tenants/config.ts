@@ -20,7 +20,7 @@ export const dataPolicySchema = z.record(z.string().regex(TYPE_KEY), z.enum(ACTI
 export const tenantConfigSchema = z.object({
   branding: z.object({
     productName: z.string().min(1).max(40).default('GreenIA'),
-    orgName: z.string().min(1).max(80).default('Grupo'),
+    orgName: z.string().min(1).max(80).default('Empresa'),
     logoUrl: z.string().max(500).optional(),
     colors: z.object({
       primary: hex.default('#1F8A5B'),     // botões, links, destaques
@@ -37,10 +37,10 @@ export const tenantConfigSchema = z.object({
     }).prefault({}),
   }).prefault({}),
   texts: z.object({
-    tagline: z.string().max(120).default('A IA do dia a dia do Grupo'),
+    tagline: z.string().max(120).default('A IA do dia a dia da empresa'),
     heroTitle: z.string().max(120).default('IA para todos, com segurança.'),
-    heroSubtitle: z.string().max(300).default('Simples e segura. Entre com seu login do Grupo e use para o que aparece no dia: resumir, rascunhar, organizar.'),
-    whatIs: z.string().max(600).default('A GreenIA é a IA do dia a dia do Grupo. Qualquer pessoa entra com o login corporativo, sem licença. Serve para tarefas leves: resumir textos, rascunhar emails, organizar anotações. É o convite para usar IA do jeito certo.'),
+    heroSubtitle: z.string().max(300).default('Simples e segura. Entre com seu login da empresa e use para o que aparece no dia: resumir, rascunhar, organizar.'),
+    whatIs: z.string().max(600).default('A GreenIA é a IA do dia a dia da empresa. Qualquer pessoa entra com o login corporativo, sem licença. Serve para tarefas leves: resumir textos, rascunhar emails, organizar anotações. É o convite para usar IA do jeito certo.'),
   }).prefault({}),
   policyUrl: z.string().max(500).default('Política%20GreenIA.dc.html'),
   privacyNote: z.string().max(400).default('Suas conversas ficam só nesta sessão. A GreenIA não guarda o histórico em banco de dados.'),

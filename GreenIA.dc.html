@@ -737,7 +737,7 @@ const _RE = {
 
 // Duas ou mais palavras com inicial maiúscula, aceitando "de", "da", "dos"... no meio.
 const _NOME = /^\s*((?:[A-ZÀ-Ý][a-zà-ÿ']+)(?:\s+(?:(?:de|da|do|das|dos|e)\s+)?[A-ZÀ-Ý][a-zà-ÿ']+)+)/;
-// Palavras que indicam empresa, não pessoa ("cliente Repet Soluções Ambientais").
+// Palavras que indicam empresa, não pessoa ("cliente Acme Soluções Ambientais").
 const _EMPRESA = /\b(?:ltda|s\.?a\.?|sa|me|eireli|inc|corp|group|grupo|holding|solucoes|ambientais|industria|industrias|comercio|servicos|tecnologia|engenharia|consultoria|transportes|logistica|construtora|associacao|instituto|fundacao|banco|cooperativa|companhia|cia)\b/;
 
 // Lista de ocorrências { type, start, end } (posições no texto original).
@@ -973,7 +973,7 @@ class Component extends DCLogic {
   }
 
   PERSONA = [
-    "Você é a GreenIA, a assistente de IA do dia a dia do Grupo. Ajuda em tarefas leves: resumir textos, rascunhar emails, organizar anotações e traduzir.",
+    "Você é a GreenIA, a assistente de IA do dia a dia da empresa. Ajuda em tarefas leves: resumir textos, rascunhar emails, organizar anotações e traduzir.",
     "Voz: fale como gente. Frases curtas e diretas, linguagem simples, sem jargão. Convide a pessoa a continuar. Trate erros com calma. Nunca use emoji. Nada de tom frio ou adjetivos vazios.",
     "Responda sempre em português do Brasil e seja breve.",
     "Só circula tarefa Verde (uso livre). Se alguém pedir algo com dado sensível, pessoal, sigiloso ou regulado (CPF, dados de clientes, números financeiros confidenciais, jurídico, senhas), recuse com gentileza em uma ou duas frases e explique que isso segue o caminho com a proteção certa (tarefas Amarela/Vermelha), fora da GreenIA, e oriente a procurar o key user da área. Não invente detalhes desse outro caminho.",
@@ -984,7 +984,7 @@ class Component extends DCLogic {
   // confirmar, no preview do Claude Design, que window.claude.complete aceita
   // um campo `system`. Na Fase 2 ela passa para o parâmetro `system` da API.
 
-  // Base de conhecimento do Grupo (documentos de exemplo, edite à vontade)
+  // Base de conhecimento da empresa (documentos de exemplo, edite à vontade)
   KB = [
     { title: "Política de Governança e Uso de IA", text: "A GreenIA é o ambiente Verde, para tarefas leves do dia a dia. Toda tarefa de IA recebe uma cor. Verde é uso livre, com dado público ou interno sem sigilo. Amarela é proteção média: a DIT liga a retenção no painel de administração, com prazo mínimo de 30 dias. Vermelha é proteção máxima (ZDR) e exige aval da Segurança da Informação antes de qualquer dado real. Dado sensível, de cliente ou financeiro confidencial nunca entra na GreenIA. Nunca use contas pessoais ou gratuitas de IA para trabalho." },
     { title: "Reembolso de despesas", text: "Despesas de viagem e representação são reembolsadas mediante nota fiscal. O pedido é feito no portal de despesas em até 30 dias após o gasto. O pagamento sai no quinto dia útil após a aprovação do gestor. Despesas sem comprovante não são reembolsadas. O limite de refeição em viagem nacional é de R$ 90 por dia." },
@@ -1409,9 +1409,9 @@ class Component extends DCLogic {
     const li = apiConvo.length - 1;
     if (hits.length) {
       const ctx = hits.map((d, i) => `[${i + 1}] ${d.title}: ${d.text}`).join('\n');
-      apiConvo[li] = { role: 'user', content: 'Trechos da base de conhecimento do Grupo (use quando ajudarem na resposta e cite a fonte pelo título; se a base não cobrir o pedido, diga com calma que não encontrou na base):\n' + ctx + '\n\nPergunta: ' + text };
+      apiConvo[li] = { role: 'user', content: 'Trechos da base de conhecimento da empresa (use quando ajudarem na resposta e cite a fonte pelo título; se a base não cobrir o pedido, diga com calma que não encontrou na base):\n' + ctx + '\n\nPergunta: ' + text };
     } else if (this.state.kbOn) {
-      apiConvo[li] = { role: 'user', content: 'A base de conhecimento do Grupo não tem nenhum trecho relevante para esta pergunta. Se ela for sobre uma regra ou processo interno do Grupo, diga com calma que não encontrou na base e oriente procurar o key user da área. Para tarefas gerais (resumir, traduzir, rascunhar), responda normalmente.\n\nPergunta: ' + text };
+      apiConvo[li] = { role: 'user', content: 'A base de conhecimento da empresa não tem nenhum trecho relevante para esta pergunta. Se ela for sobre uma regra ou processo interno da empresa, diga com calma que não encontrou na base e oriente procurar o key user da área. Para tarefas gerais (resumir, traduzir, rascunhar), responda normalmente.\n\nPergunta: ' + text };
     }
 
     let reply = '';
@@ -1628,7 +1628,7 @@ class Component extends DCLogic {
     const tenant = this.state.tenant;
     const session = this.state.session;
     const texts = (tenant && tenant.texts) || {};
-    const orgName = (tenant && tenant.branding && tenant.branding.orgName) || 'Grupo';
+    const orgName = (tenant && tenant.branding && tenant.branding.orgName) || 'Empresa';
     const keyUser = (tenant && tenant.keyUserContact) || this.props.keyUser || 'Ana Ribeiro · ana.ribeiro@grupo.com.br';
     const providers = (tenant && tenant.providers) || [];
     const userName = backend ? ((session && (session.user.name || session.user.email.split('@')[0])) || '') : (this.props.userName || 'Marina Souza');

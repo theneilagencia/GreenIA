@@ -25,7 +25,7 @@ after(async () => { await app?.close(); await db?.drop(); });
 
 test('configuração vazia recebe os padrões do protótipo', () => {
   const c = tenantConfigSchema.parse({});
-  assert.equal(c.texts.tagline, 'A IA do dia a dia do Grupo');
+  assert.equal(c.texts.tagline, 'A IA do dia a dia da empresa');
   assert.equal(c.branding.colors.primary, '#1F8A5B');
   assert.equal(c.dataPolicy.cpf, 'bloquear');
   assert.equal(c.dataPolicy.email, 'avisar');

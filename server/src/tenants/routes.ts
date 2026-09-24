@@ -7,7 +7,7 @@ export interface PublicTenantRow {
   id: string; slug: string; name: string; status: string; config: unknown; providers: unknown;
 }
 
-// Tenant pelo host (produção: repet.greenia.theneil.com.br) ou pelo parâmetro
+// Tenant pelo host (produção: cliente.greenia.theneil.com.br) ou pelo parâmetro
 // ?tenant=slug, aceito só fora de produção (local e testes): em produção, o host
 // de um cliente não pode abrir o login de outro. Só tenants ativos.
 export async function resolveTenant(app: FastifyInstance, req: FastifyRequest): Promise<PublicTenantRow | null> {

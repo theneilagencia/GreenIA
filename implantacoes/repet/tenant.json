@@ -1,0 +1,22 @@
+{
+  "slug": "repet",
+  "name": "Repet",
+  "domains": ["repet.com.br"],
+  "hosts": ["repet.greenia.theneil.com.br"],
+  "areas": [
+    { "slug": "fiscal", "name": "Fiscal", "description": "Entrada de notas de compra e conferência com pedidos." },
+    { "slug": "rh", "name": "RH / DP", "description": "Admissão, documentos de pessoal e rotinas do DP." },
+    { "slug": "financeiro", "name": "Financeiro", "description": "Fechamento mensal e relatórios gerenciais." },
+    { "slug": "lgpd", "name": "LGPD & Compliance", "description": "Evidências de conformidade e privacidade." }
+  ],
+  "providers": [
+    { "kind": "entra", "label": "Conta corporativa", "config": { "issuer": "https://login.microsoftonline.com/A-CONFIRMAR/v2.0", "clientId": "A-CONFIRMAR", "clientSecretEnv": "OIDC_REPET_ENTRA_SECRET" } }
+  ],
+  "admins": ["admin@repet.com.br"],
+  "keyUsers": [],
+  "config": {
+    "branding": { "orgName": "Grupo Repet" },
+    "texts": { "tagline": "A IA do dia a dia do Grupo" },
+    "readers": ["nfe", "danfe"]
+  }
+}

@@ -66,7 +66,7 @@ test('datas, valores, pedidos e empresas não disparam', () => {
     'Pedido 1234567890 e pedido 12345678901',
     'Nota fiscal 000123456, série 1',
     'o cliente pediu revisão do contrato',
-    'O cliente Repet Soluções Ambientais pediu uma proposta',
+    'O cliente Acme Soluções Ambientais pediu uma proposta',
     'cliente Acme Ltda aprovou',
     'Planejamento 2024-2025 aprovado',
     'Comprei uma tv de 55 polegadas',

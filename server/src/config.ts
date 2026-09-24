@@ -75,7 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return r.data;
 }
 
-// Segredo referenciado pela configuração do tenant (ex.: "OIDC_REPET_ENTRA_SECRET").
+// Segredo referenciado pela configuração do tenant (ex.: "OIDC_CLIENTE_ENTRA_SECRET").
 export function secretFromEnv(name: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (!name || !/^[A-Z][A-Z0-9_]{2,80}$/.test(name)) return undefined;
   return env[name];

@@ -1,11 +1,16 @@
 {
-  "slug": "conferencia-nfe",
-  "name": "Conferência de NF-e de entrada × pedido",
-  "area": "fiscal",
-  "status": "piloto",
+  "kind": "assistente",
+  "slug": "conferencia-nota-pedido",
+  "version": 1,
+  "name": "Conferência de nota fiscal de entrada × pedido de compra",
+  "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do ERP (XLSX) e lista as divergências.",
+  "areaSugerida": "Compras, fiscal ou recebimento",
+  "leitores": [
+    "nfe",
+    "danfe"
+  ],
   "definition": {
     "description": "Confere a NF-e de entrada (XML) contra o pedido de compra exportado do ERP (XLSX) e lista as divergências.",
-    "owner": "key.fiscal@demonstracao.com.br",
     "objective": "Encontrar divergências de quantidade, preço, descrição e cabeçalho antes do lançamento da nota.",
     "instructions": "",
     "inputs": {

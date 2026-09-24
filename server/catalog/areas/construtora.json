@@ -1,0 +1,28 @@
+{
+  "kind": "areas",
+  "slug": "construtora",
+  "version": 1,
+  "name": "Construtora",
+  "description": "Áreas de uma construtora, com obras como subáreas de engenharia.",
+  "areas": [
+    {
+      "name": "Engenharia"
+    },
+    {
+      "name": "Obras",
+      "parent": "engenharia"
+    },
+    {
+      "name": "Suprimentos"
+    },
+    {
+      "name": "Jurídico"
+    },
+    {
+      "name": "Segurança do trabalho"
+    },
+    {
+      "name": "Financeiro"
+    }
+  ]
+}

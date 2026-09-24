@@ -1,0 +1,155 @@
+{
+  "kind": "assistente",
+  "slug": "resumo-financeiro-mensal",
+  "version": 1,
+  "name": "Resumo financeiro mensal padronizado",
+  "description": "Lê o conjunto de documentos do mês (DRE, fluxo de caixa, inadimplência) e prepara um resumo com tópicos fixos.",
+  "areaSugerida": "Financeiro ou controladoria",
+  "leitores": [],
+  "definition": {
+    "description": "Lê o conjunto de documentos do mês (DRE, fluxo de caixa, inadimplência) e prepara um resumo com tópicos fixos.",
+    "objective": "Preparar o material da reunião mensal de resultados.",
+    "instructions": "Use os números como aparecem nos documentos. Não projete nem estime valores.",
+    "inputs": {
+      "text": {
+        "enabled": true,
+        "required": false,
+        "label": "Observações para o resumo"
+      },
+      "files": {
+        "enabled": true,
+        "required": true,
+        "accept": [
+          "pdf",
+          "xlsx",
+          "csv",
+          "docx"
+        ],
+        "maxFiles": 10
+      }
+    },
+    "dataClasses": [
+      "verde",
+      "amarela"
+    ],
+    "dataPolicy": {
+      "cnpj": "permitir_com_registro",
+      "nome": "mascarar"
+    },
+    "retention": {
+      "days": 365
+    },
+    "pipeline": [
+      {
+        "bloco": "ler",
+        "params": {
+          "visao": "nunca"
+        }
+      },
+      {
+        "bloco": "extrair",
+        "id": "indicadores",
+        "titulo": "Indicadores do mês por documento",
+        "params": {
+          "por": "documento",
+          "tipos": [
+            "pdf",
+            "docx"
+          ],
+          "schema": {
+            "type": "object",
+            "properties": {
+              "periodo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "receita_total": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "despesa_total": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resultado": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "periodo",
+              "receita_total",
+              "despesa_total",
+              "resultado"
+            ]
+          }
+        }
+      },
+      {
+        "bloco": "resumir",
+        "titulo": "Resumo para a reunião de resultados",
+        "params": {
+          "topicos": [
+            "Visão geral do mês",
+            "Receitas e despesas",
+            "Caixa",
+            "Inadimplência",
+            "Pontos de atenção",
+            "Informações que faltam"
+          ],
+          "palavrasMax": 500
+        }
+      },
+      {
+        "bloco": "exportar",
+        "params": {
+          "formatos": [
+            "docx",
+            "pdf"
+          ]
+        }
+      }
+    ],
+    "output": {
+      "format": "texto",
+      "files": [
+        "docx",
+        "pdf"
+      ]
+    },
+    "review": {
+      "reviewers": [
+        "key_user"
+      ],
+      "checklist": [
+        "Os números do resumo batem com os documentos.",
+        "Nenhum valor foi estimado."
+      ]
+    },
+    "metrics": {
+      "indicators": [
+        {
+          "key": "tempo_preparo",
+          "label": "Tempo de preparo do material",
+          "unit": "h",
+          "direction": "menor_melhor"
+        },
+        {
+          "key": "aprovacao",
+          "label": "Aprovação sem edição",
+          "unit": "%",
+          "direction": "maior_melhor",
+          "auto": "aprovacao_sem_edicao"
+        }
+      ]
+    }
+  }
+}

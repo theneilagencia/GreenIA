@@ -82,5 +82,35 @@
       ],
       "tools": "Só a GreenIA para dados da empresa; ferramentas públicas de IA apenas com dados públicos."
     }
-  }
+  },
+  "assistentes": [
+    {
+      "modelo": "checklist-documentos-admissao",
+      "slug": "checklist-admissao",
+      "nome": "Checklist de documentos de admissão",
+      "area": "rh",
+      "status": "piloto"
+    },
+    {
+      "modelo": "conferencia-nota-pedido",
+      "slug": "conferencia-nfe",
+      "nome": "Conferência de NF-e de entrada × pedido",
+      "area": "fiscal",
+      "status": "piloto"
+    },
+    {
+      "modelo": "organizacao-evidencias",
+      "slug": "evidencias-lgpd",
+      "nome": "Organização de evidências de LGPD",
+      "area": "lgpd",
+      "status": "piloto"
+    },
+    {
+      "modelo": "resumo-financeiro-mensal",
+      "slug": "resumo-financeiro",
+      "nome": "Resumo padronizado para análise financeira",
+      "area": "financeiro",
+      "status": "piloto"
+    }
+  ]
 }

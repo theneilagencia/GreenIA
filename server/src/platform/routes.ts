@@ -22,7 +22,7 @@ const priceSchema = z.object({
 });
 
 // Operação da plataforma: pessoa admin_theneil no tenant interno da TheNeil.
-async function isPlatformAdmin(app: FastifyInstance, a: AuthContext) {
+export async function isPlatformAdmin(app: FastifyInstance, a: AuthContext) {
   const isPlatform = await withTenant(app.deps.db, tenantCtx(a), tx =>
     tx.query(`select is_platform from tenants where id = $1`, [a.tenantId]).then(r => r.rows[0]?.is_platform === true));
   return isPlatform && can(a, 'platform.tenants');
@@ -39,7 +39,7 @@ export async function platformRoutes(app: FastifyInstance) {
     } catch (e) {
       if (e instanceof ZodError) return reply.code(400).send({ error: 'dados_invalidos', detalhes: e.issues.map(i => i.path.join('.') + ': ' + i.message) });
       if ((e as { code?: string }).code === '23505') return reply.code(409).send({ error: 'slug_dominio_ou_host_ja_usado' });
-      if (e instanceof Error && /fora dos domínios|segredo não vai|não existe no tenant/.test(e.message)) return reply.code(400).send({ error: e.message });
+      if (e instanceof Error && /fora dos domínios|segredo não vai|não existe no tenant|não existe no catálogo|área mãe/.test(e.message)) return reply.code(400).send({ error: e.message });
       throw e;
     }
   });

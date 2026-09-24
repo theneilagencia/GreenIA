@@ -211,3 +211,22 @@ test('tipos de dado e leitores: o admin cadastra um tipo próprio, testa um text
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test('catálogo: o admin cria um assistente a partir de um modelo e depois o duplica', async () => {
+  const { page, errors, context } = await openAs(u.admin);
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: 'Assistentes', exact: true }).last().click();   // aba da Administração
+  await page.getByText('Criar a partir de um modelo').click();
+  await page.getByRole('button', { name: /Dúvidas sobre procedimentos internos/ }).click();
+  await page.getByText(/Modelo do catálogo: Dúvidas sobre procedimentos internos \(versão 1\)/).waitFor();
+  await page.getByLabel('Área', { exact: true }).fill('lgpd');
+  await page.getByRole('button', { name: 'Criar assistente' }).click();
+  await page.getByText('Gravado como versão 1.').waitFor();
+  await page.getByText(/Criado do modelo atendimento-procedimentos \(versão 1\)\./).waitFor();
+  await page.getByRole('button', { name: 'Duplicar' }).click();
+  await page.getByLabel('Identificador').fill('duvidas-conformidade');
+  await page.getByRole('button', { name: 'Criar assistente' }).click();
+  await page.getByText(/Duplicado de atendimento-procedimentos\./).waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});

@@ -12,6 +12,7 @@ import { addPerson, buildTestApp, loginAs } from './app-helpers.ts';
 import { FakeProvider, type LlmCompleteRequest } from '../src/llm/provider.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
 import { demoAssistants, seedDemo } from '../src/demo/seed.ts';
+import { loadCatalogFiles } from '../src/catalog/catalog.ts';
 import { SAMPLES, RH_PHOTO_TRANSCRIPTION, danfePdf, nfeKey } from '../src/demo/samples.ts';
 
 let db: TestDb;
@@ -71,13 +72,16 @@ before(async () => {
 });
 after(async () => { await app?.close(); await db?.drop(); });
 
-test('os quatro assistentes vêm só de configuração (JSON) e validam no mesmo schema do painel', async () => {
-  const files = demoAssistants();
-  assert.deepEqual(files.map(a => a.slug), ['checklist-admissao', 'conferencia-nfe', 'evidencias-lgpd', 'resumo-financeiro']);
-  const blocks = new Set(files.flatMap(a => (a.definition as { pipeline: { bloco: string }[] }).pipeline.map(s => s.bloco)));
+test('os quatro assistentes vêm de modelos do catálogo (JSON) e validam no mesmo schema do painel', async () => {
+  const plan = demoAssistants();
+  assert.deepEqual(plan.map(a => a.slug), ['checklist-admissao', 'conferencia-nfe', 'evidencias-lgpd', 'resumo-financeiro']);
+  const templates = loadCatalogFiles().filter(t => t.kind === 'assistente' && plan.some(a => a.modelo === t.slug));
+  assert.equal(templates.length, 4);
+  const blocks = new Set(templates.flatMap(t => ((t as { definition: { pipeline: { bloco: string }[] } }).definition).pipeline.map(s => s.bloco)));
   assert.deepEqual([...blocks].sort(), ['buscar', 'checklist', 'classificar', 'conferir', 'exportar', 'extrair', 'ler', 'resumir']);
   const list = (await get(u.key_fiscal, '/api/assistants')).json();
   assert.ok(list.some((a: { slug: string; status: string }) => a.slug === 'conferencia-nfe' && a.status === 'piloto'));
+  assert.deepEqual(list.find((a: { slug: string }) => a.slug === 'conferencia-nfe').origem, { tipo: 'modelo', modelo: { slug: 'conferencia-nota-pedido', versao: 1, versaoNova: null } });
 });
 
 test('Fiscal: NF-e de entrada (XML) × pedido de compra (XLSX), com divergências e origem', async () => {

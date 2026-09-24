@@ -10,6 +10,7 @@ import { authRoutes } from './auth/routes.ts';
 import type { EmailSender } from './email/sender.ts';
 import { adminRoutes } from './admin/routes.ts';
 import { platformRoutes } from './platform/routes.ts';
+import { catalogRoutes } from './catalog/routes.ts';
 import { chatRoutes } from './chat/routes.ts';
 import { composeSteps, type ChatHooks } from './chat/hooks.ts';
 import { assistantStep, dataPolicyStep, usagePolicyStep } from './chat/steps.ts';
@@ -91,6 +92,7 @@ export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { 
   await app.register(authRoutes);
   await app.register(adminRoutes);
   await app.register(platformRoutes);
+  await app.register(catalogRoutes);
   await app.register(chatRoutes);
   await app.register(assistantRoutes);
   await app.register(kbRoutes);

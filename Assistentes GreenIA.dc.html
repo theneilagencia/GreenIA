@@ -439,6 +439,14 @@
             <table class="gia-table"><thead><tr><th>Área</th><th>Situação</th><th>Key users</th><th>Revisores</th><th>Base</th><th>Assistentes</th></tr></thead><tbody>
               <sc-for list="{{ areaRows }}" as="a" hint-placeholder-count="0"><tr onClick="{{ a.onClick }}" style="cursor:pointer;"><td style="padding-left:{{ a.indent }};">{{ a.name }}</td><td>{{ a.situacao }}</td><td>{{ a.keyUsers }}</td><td>{{ a.revisores }}</td><td>{{ a.documentos }}</td><td>{{ a.assistentes }}</td></tr></sc-for>
             </tbody></table>
+            <h3 style="font:600 15px 'Hanken Grotesk';margin:18px 0 8px;">Começar de um modelo de áreas</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <select class="gia-field" aria-label="Modelo de áreas" value="{{ areaModel }}" onChange="{{ onAreaModel }}" style="max-width:360px;">
+                <option value="">Escolha um modelo</option>
+                <sc-for list="{{ areaModelOptions }}" as="o" hint-placeholder-count="0"><option value="{{ o.slug }}">{{ o.label }}</option></sc-for>
+              </select>
+              <button onClick="{{ applyAreaModel }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Aplicar modelo</button>
+            </div>
             <h3 style="font:600 15px 'Hanken Grotesk';margin:18px 0 8px;">Nova área</h3>
             <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               <input class="gia-field" aria-label="Nome da nova área" placeholder="Nome (ex.: Atendimento ao cliente)" value="{{ areaForm.name }}" onInput="{{ onAreaForm.name }}">
@@ -486,7 +494,15 @@
       <sc-if value="{{ admAssistants }}">
         <div class="gia-split" style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;">
           <aside style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:14px;">
-            <button onClick="{{ newAssistant }}" style="width:100%;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;margin-bottom:10px;">Novo assistente</button>
+            <button onClick="{{ newAssistant }}" style="width:100%;background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 12px;font:500 14px 'Hanken Grotesk';cursor:pointer;margin-bottom:10px;">Novo assistente do zero</button>
+            <details style="margin-bottom:10px;">
+              <summary style="font:500 14px 'Hanken Grotesk';cursor:pointer;padding:6px 0;">Criar a partir de um modelo</summary>
+              <sc-for list="{{ catalogItems }}" as="m" hint-placeholder-count="0">
+                <button onClick="{{ m.onClick }}" style="display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--gia-line);padding:8px 4px;cursor:pointer;color:var(--gia-ink);font:400 13px/1.4 'Hanken Grotesk';">
+                  <strong>{{ m.name }}</strong><br><span style="color:var(--gia-muted);">{{ m.meta }}</span>
+                </button>
+              </sc-for>
+            </details>
             <sc-for list="{{ adminAssistants }}" as="a" hint-placeholder-count="0">
               <button onClick="{{ a.onClick }}" style="display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--gia-line);padding:9px 4px;cursor:pointer;color:var(--gia-ink);font:400 14px/1.4 'Hanken Grotesk';">
                 <strong>{{ a.name }}</strong><br><span style="color:var(--gia-muted);">{{ a.meta }}</span>
@@ -501,6 +517,7 @@
                 <input class="gia-field" aria-label="Área" placeholder="área (slug)" value="{{ editor.area }}" onInput="{{ onEditor.area }}" disabled="{{ editorExisting }}">
                 <select class="gia-field" aria-label="Status" value="{{ editor.status }}" onChange="{{ onEditor.status }}"><option value="rascunho">rascunho</option><option value="piloto">piloto</option><option value="ativo">ativo</option><option value="pausado">pausado</option><option value="descartado">descartado</option></select>
               </div>
+              <sc-if value="{{ editorOrigin }}"><p role="status" style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:10px 0 0;">{{ editorOrigin }}</p></sc-if>
               <p style="font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Compartilhar com outras áreas</p>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <sc-for list="{{ shareButtons }}" as="b" hint-placeholder-count="0"><button onClick="{{ b.onClick }}" aria-pressed="{{ b.pressed }}" style="background:{{ b.bg }};color:{{ b.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:6px 12px;font:500 13px 'Hanken Grotesk';cursor:pointer;">{{ b.label }}</button></sc-for>
@@ -512,6 +529,7 @@
                 <button onClick="{{ saveAssistant }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">{{ editorSaveLabel }}</button>
                 <sc-if value="{{ editorExisting }}">
                   <button onClick="{{ changeStatus }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Só mudar o status</button>
+                  <button onClick="{{ duplicateAssistant }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Duplicar</button>
                   <a href="{{ editorLinks.zip }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Pacote portátil (ZIP)</a>
                   <a href="{{ editorLinks.md }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Pacote em Markdown</a>
                   <a href="{{ editorLinks.guide }}" style="color:var(--gia-forest-text);font:500 14px 'Hanken Grotesk';">Guia rápido (PDF)</a>
@@ -777,6 +795,15 @@ function areaEditView(e) {
   return { title: 'Área ' + (d.name || e.name), name: e.name, description: e.description, parent: e.parent, inherit: e.inherit, toggleLabel: e.active ? 'Desativar' : 'Reativar',
     lists: [{ label: 'Key users', text: names(d.keyUsers) }, { label: 'Revisores', text: names(d.revisores) }, { label: 'Base de conhecimento', text: own(d.documentos, 'titulo') }, { label: 'Assistentes', text: own(d.assistentes, 'nome') }] };
 }
+// Origem do assistente no editor: modelo do catálogo (com aviso de versão nova), cópia ou do zero.
+function originText(ed) {
+  if (!ed) return '';
+  if (!ed.existing && ed.from) return ed.from.label;
+  const o = ed.origem;
+  if (!o || o.tipo === 'do_zero') return '';
+  const base = o.tipo === 'duplicado' ? 'Duplicado de ' + o.duplicadoDe + '.' : 'Criado do modelo ' + o.modelo.slug + ' (versão ' + o.modelo.versao + ').';
+  return base + (o.modelo && o.modelo.versaoNova ? ' Há uma versão nova do modelo no catálogo (versão ' + o.modelo.versaoNova + '). Este assistente não muda sozinho.' : '');
+}
 // Botões de compartilhamento do assistente: cada área (menos a dona) e a empresa toda.
 function shareButtonsView(ed, areas, toggle) {
   if (!ed) return [];
@@ -844,7 +871,7 @@ class Component extends DCLogic {
       metricSlug: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), metricsMsg: '',
       valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '' },
       decForm: { decisao: 'manter', data: today(), responsavel: '', justificativa: '' },
-      adminMsg: '', adminOk: true, editor: null, areas: [], readers: [], detectors: null, allReaders: [], detForm: { label: '', pattern: '', validation: 'nenhuma', context: '', cls: 'amarela', action: 'avisar' }, detTest: '', detTestResult: '', areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
+      adminMsg: '', adminOk: true, editor: null, areas: [], readers: [], catalog: [], areaModels: [], areaModel: '', detectors: null, allReaders: [], detForm: { label: '', pattern: '', validation: 'nenhuma', context: '', cls: 'amarela', action: 'avisar' }, detTest: '', detTestResult: '', areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
       csvText: '', csvReport: null, kbArea: '', kbFiles: [], kbBatch: null,
       policyForm: { title: '', body: '', rules: '{\n  "restrictedTerms": [],\n  "allowedClasses": ["verde", "amarela", "vermelha"]\n}' }, acks: null,
       incidents: [], incident: null, incStatus: '', incNote: '', incEscNote: '',
@@ -1146,7 +1173,8 @@ class Component extends DCLogic {
   _msg(text, ok) { this.setState({ adminMsg: text, adminOk: ok !== false }); }
   async setAdminTab(adminTab) {
     this.setState({ adminTab, adminMsg: '' });
-    if (adminTab === 'assistentes') this._loadAssistants();
+    if (adminTab === 'assistentes') { this._loadAssistants(); this._fetch('/api/catalog/assistants').then(r => { if (r.ok) this.setState({ catalog: r.data }); }); }
+    if (adminTab === 'areas') this._fetch('/api/catalog/areas').then(r => { if (r.ok) this.setState({ areaModels: r.data }); });
     if (adminTab === 'base' || adminTab === 'assistentes' || adminTab === 'areas') this._loadAreas();
     if (adminTab === 'politica') this._loadAcks();
     if (adminTab === 'dados') this._loadDataSettings();
@@ -1161,7 +1189,7 @@ class Component extends DCLogic {
     const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(slug));
     if (!r.ok) { this._msg('Sem permissão para editar este assistente.', false); return; }
     const d = r.data;
-    this.setState({ editor: { existing: true, slug: d.slug, name: d.name, area: d.area || '', status: d.status, json: JSON.stringify(d.definition, null, 2), shares: d.compartilhamento || { areas: [], empresa: false },
+    this.setState({ editor: { existing: true, slug: d.slug, name: d.name, area: d.area || '', status: d.status, json: JSON.stringify(d.definition, null, 2), shares: d.compartilhamento || { areas: [], empresa: false }, origem: d.origem || null,
       versions: 'Versão atual: ' + d.version + '. Histórico: ' + d.versions.map(v => 'v' + v.version + ' (' + fmtDate(v.created_at) + ')').join(', ') + '.' }, adminMsg: '' });
   }
   async saveAssistant() {
@@ -1170,11 +1198,29 @@ class Component extends DCLogic {
     try { definition = JSON.parse(ed.json); } catch (e) { this._msg('A definição não é um JSON válido: ' + e.message, false); return; }
     const r = ed.existing
       ? await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/versions', { method: 'POST', body: { definition, name: ed.name, status: ed.status } })
-      : await this._fetch('/api/admin/assistants', { method: 'POST', body: { slug: ed.slug, name: ed.name, areaSlug: ed.area || undefined, status: ed.status, definition, compartilhar: ed.shares } });
+      : await this._fetch('/api/admin/assistants', { method: 'POST', body: Object.assign({ slug: ed.slug, name: ed.name, areaSlug: ed.area || undefined, status: ed.status, compartilhar: ed.shares },
+          ed.from && ed.from.json === ed.json ? (ed.from.modelo ? { modelo: ed.from.modelo } : { duplicar: ed.from.duplicar }) : { definition }) });
     if (!r.ok) { this._msg('Não gravado: ' + ((r.data.detalhes || []).join('\n') || r.data.error || r.status), false); return; }
     this._msg('Gravado como versão ' + r.data.version + '.');
     this.editAssistant(r.data.slug);
     this._loadAssistants();
+  }
+  async useTemplate(slug) {
+    const r = await this._fetch('/api/catalog/assistants/' + encodeURIComponent(slug));
+    if (!r.ok) { this._msg('Modelo não encontrado.', false); return; }
+    const t = r.data;
+    const json = JSON.stringify(t.definition, null, 2);
+    this.setState({ editor: { existing: false, slug: t.slug, name: t.name, area: '', status: 'rascunho', json, versions: '', shares: { areas: [], empresa: false }, from: { modelo: { slug: t.slug, versao: t.version }, json, label: 'Modelo do catálogo: ' + t.name + ' (versão ' + t.version + '). Sugestão de área: ' + (t.areaSugerida || 'qualquer') + '. Depois de criado, o assistente é da empresa e não muda quando o modelo mudar.' } }, adminMsg: '' });
+  }
+  duplicateAssistant() {
+    const ed = this.state.editor;
+    this.setState({ editor: { ...ed, existing: false, slug: ed.slug + '-copia', name: 'Cópia de ' + ed.name, versions: '', origem: null, from: { duplicar: ed.slug, json: ed.json, label: 'Cópia de ' + ed.name + '. Ajuste o identificador, o nome e a área antes de gravar.' } }, adminMsg: '' });
+  }
+  async applyAreaModel() {
+    if (!this.state.areaModel) { this._msg('Escolha um modelo de áreas.', false); return; }
+    const r = await this._fetch('/api/admin/areas/modelo', { method: 'POST', body: { modelo: this.state.areaModel } });
+    this._msg(r.ok ? (r.data.criadas.length ? 'Áreas criadas: ' + r.data.criadas.length + '.' : 'Todas as áreas do modelo já existiam.') : 'Não aplicado: ' + r.data.error, r.ok);
+    this._loadAreas();
   }
   toggleShare(slug) {
     const ed = this.state.editor;
@@ -1604,6 +1650,13 @@ class Component extends DCLogic {
       areaDown: () => this.moveArea(1),
       toggleArea: () => this.toggleArea(),
       shareButtons: shareButtonsView(st.editor, st.areas, slug => this.toggleShare(slug)),
+      catalogItems: (st.catalog || []).map(m => ({ name: m.nome, meta: (m.areaSugerida || '') + (m.leitoresDesligados.length ? ' · precisa ligar o leitor: ' + m.leitoresDesligados.join(', ') : ''), onClick: () => this.useTemplate(m.slug) })),
+      editorOrigin: originText(st.editor),
+      duplicateAssistant: () => this.duplicateAssistant(),
+      areaModel: st.areaModel,
+      onAreaModel: e => this.setState({ areaModel: e.target.value }),
+      areaModelOptions: (st.areaModels || []).map(m => ({ slug: m.slug, label: m.nome + ': ' + m.areas.join(', ') })),
+      applyAreaModel: () => this.applyAreaModel(),
       saveShares: () => this.saveShares(),
       auditStatus: auditText(st.auditCheck, st.anchors),
       auditColor: st.auditCheck && !st.auditCheck.ok ? 'var(--gia-red-text)' : 'var(--gia-forest-text)',

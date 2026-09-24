@@ -1,6 +1,7 @@
-// Tenant de demonstração com os quatro assistentes de referência, criados só a
-// partir de configuração (server/deploy/demo): nenhum código específico por
-// assistente. Também indexa os documentos fictícios da base (área LGPD).
+// Tenant de demonstração com quatro assistentes criados a partir dos modelos
+// do catálogo da TheNeil (server/catalog/modelos), como um cliente faria pelo
+// painel: nenhum código específico por assistente. Também indexa os
+// documentos fictícios da base (área de conformidade).
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,29 +12,34 @@ import { tenantPrefix } from '../storage/object-store.ts';
 import { createTenant } from '../platform/tenants.ts';
 import { assistantDefinitionSchema } from '../assistants/schema.ts';
 import { makeIndexer } from '../kb/indexer.ts';
+import { getTemplate, type AssistantTemplate } from '../catalog/catalog.ts';
 
 export const DEMO_DIR = fileURLToPath(new URL('../../deploy/demo/', import.meta.url));
 
-export interface AssistantFile { slug: string; name: string; area: string; status: string; definition: unknown }
+// Assistentes do tenant de demonstração: qual modelo do catálogo, com que identificador, nome, área e status.
+export interface DemoAssistant { modelo: string; slug: string; nome: string; area: string; status: string }
 
-export function demoAssistants(dir = DEMO_DIR): AssistantFile[] {
-  return readdirSync(join(dir, 'assistentes')).filter(f => f.endsWith('.json')).sort()
-    .map(f => JSON.parse(readFileSync(join(dir, 'assistentes', f), 'utf8')) as AssistantFile);
+export function demoAssistants(dir = DEMO_DIR): DemoAssistant[] {
+  return (JSON.parse(readFileSync(join(dir, 'tenant-demo.json'), 'utf8')).assistentes ?? []) as DemoAssistant[];
 }
 
 export async function seedDemo(owner: Db, objects: ObjectStore, dir = DEMO_DIR) {
   const tenantJson = JSON.parse(readFileSync(join(dir, 'tenant-demo.json'), 'utf8'));
-  const t = await createTenant(owner, tenantJson);
+  const { assistentes: _plan, ...tenantInput } = tenantJson;
+  void _plan;
+  const t = await createTenant(owner, tenantInput);
   const admin = (await owner.query(`select id from users where tenant_id = $1 and email = $2`, [t.id, tenantJson.admins[0]])).rows[0].id as string;
   const client = await owner.connect();
   try {
     await client.query('begin');
     for (const a of demoAssistants(dir)) {
-      const def = assistantDefinitionSchema.parse(a.definition);            // mesma validação do painel
+      const tpl = await getTemplate(client, 'assistente', a.modelo) as AssistantTemplate | null;
+      if (!tpl) throw new Error(`modelo ${a.modelo} não está no catálogo (rode o migrador)`);
+      const def = assistantDefinitionSchema.parse(tpl.definition);          // mesma validação do painel
       const areaId = (await client.query(`select id from areas where tenant_id = $1 and slug = $2`, [t.id, a.area])).rows[0]?.id;
       if (!areaId) throw new Error(`área ${a.area} do assistente ${a.slug} não existe`);
-      const id = (await client.query(`insert into assistants (tenant_id, slug, name, area_id, status) values ($1, $2, $3, $4, $5) returning id`,
-        [t.id, a.slug, a.name, areaId, a.status])).rows[0].id;
+      const id = (await client.query(`insert into assistants (tenant_id, slug, name, area_id, status, template_slug, template_version) values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+        [t.id, a.slug, a.nome, areaId, a.status, tpl.slug, tpl.version])).rows[0].id;
       await client.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`, [t.id, id, def, admin]);
       await client.query(`insert into audit_log (tenant_id, actor_user_id, action, target) values ($1, $2, 'assistente_criado', $3)`, [t.id, admin, `assistente:${a.slug}@1`]);
     }

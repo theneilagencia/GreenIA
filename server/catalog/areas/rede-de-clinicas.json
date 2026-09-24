@@ -1,0 +1,28 @@
+{
+  "kind": "areas",
+  "slug": "rede-de-clinicas",
+  "version": 1,
+  "name": "Rede de clínicas",
+  "description": "Áreas de uma rede de clínicas, com unidades e manutenção.",
+  "areas": [
+    {
+      "name": "Atendimento ao paciente"
+    },
+    {
+      "name": "Faturamento de convênios"
+    },
+    {
+      "name": "Qualidade e segurança do paciente"
+    },
+    {
+      "name": "Operações"
+    },
+    {
+      "name": "Manutenção",
+      "parent": "operacoes"
+    },
+    {
+      "name": "Suprimentos"
+    }
+  ]
+}

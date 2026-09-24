@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { z, ZodError } from 'zod';
 import { setShares, shareSchema, sharesOf } from '../areas/sharing.ts';
 import { READERS, enabledReaders, readersUsedBy } from '../readers/registry.ts';
+import { getTemplate, type AssistantTemplate } from '../catalog/catalog.ts';
 import { withTenant } from '../db/pool.ts';
 import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
@@ -43,6 +44,16 @@ async function readerConflict(tx: Tx, def: Parameters<typeof readersUsedBy>[0] &
   return null;
 }
 
+// De onde o assistente veio. O assistente é do cliente: versão nova do modelo
+// no catálogo só gera aviso, nunca muda o assistente.
+function originView(r: { template_slug: string | null; template_version: number | null; duplicated_from: string | null; template_latest: number | null }) {
+  if (!r.template_slug && !r.duplicated_from) return { tipo: 'do_zero' };
+  return {
+    tipo: r.duplicated_from ? 'duplicado' : 'modelo', duplicadoDe: r.duplicated_from ?? undefined,
+    modelo: r.template_slug ? { slug: r.template_slug, versao: r.template_version, versaoNova: r.template_latest && r.template_latest > (r.template_version ?? 0) ? Number(r.template_latest) : null } : undefined,
+  };
+}
+
 const STATUS = ['rascunho', 'piloto', 'ativo', 'pausado', 'descartado'] as const;
 
 const createSchema = z.object({
@@ -50,9 +61,12 @@ const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   areaSlug: z.string().optional(),
   status: z.enum(['rascunho', 'piloto', 'ativo', 'pausado', 'descartado']).default('rascunho'),
-  definition: z.unknown(),
+  definition: z.unknown().optional(),
   compartilhar: shareSchema.optional(),      // outras áreas ou toda a empresa
-});
+  // Três formas de criar: do zero (definition), de um modelo do catálogo ou duplicando um assistente próprio.
+  modelo: z.object({ slug: z.string().max(80), versao: z.number().int().min(1).optional() }).optional(),
+  duplicar: z.string().max(80).optional(),
+}).refine(b => [b.definition !== undefined, !!b.modelo, !!b.duplicar].filter(Boolean).length === 1, { message: 'informe definition, modelo ou duplicar (um só)' });
 
 const versionSchema = z.object({
   status: z.enum(STATUS).optional(),
@@ -71,12 +85,13 @@ export async function assistantRoutes(app: FastifyInstance) {
     if (!a) return;
     const rows = await withTenant(app.deps.db, tenantCtx(a), tx => tx.query(
       `select a.slug, a.name, a.status, a.current_version as version, ar.slug as area, ar.name as area_name, a.area_id, a.company_wide, v.definition,
-              coalesce((select array_agg(x.slug order by x.slug) from assistant_shares s join areas x on x.id = s.area_id where s.assistant_id = a.id), '{}') as shared
+              coalesce((select array_agg(x.slug order by x.slug) from assistant_shares s join areas x on x.id = s.area_id where s.assistant_id = a.id), '{}') as shared,
+              a.template_slug, a.template_version, a.duplicated_from, (select max(c.version) from catalog_templates c where c.kind = 'assistente' and c.slug = a.template_slug) as template_latest
        from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
        left join areas ar on ar.id = a.area_id order by a.name`).then(r => r.rows));
     return rows.map(r => {
       const def = assistantDefinitionSchema.parse(r.definition);
-      return { slug: r.slug, name: r.name, status: r.status, version: r.version, area: r.area, areaName: r.area_name, compartilhadoCom: r.shared, empresa: r.company_wide,
+      return { slug: r.slug, name: r.name, status: r.status, version: r.version, area: r.area, areaName: r.area_name, compartilhadoCom: r.shared, empresa: r.company_wide, origem: originView(r),
         tipo: def.pipeline.length ? 'execucao' : 'conversa', description: def.description, podeGerenciar: can(a, 'kb.manage', r.area_id) };
     });
   });
@@ -118,9 +133,23 @@ export async function assistantRoutes(app: FastifyInstance) {
     if (!a) return;
     const p = createSchema.safeParse(req.body);
     if (!p.success) return reply.code(400).send({ error: 'dados_invalidos', detalhes: issues(p.error) });
-    const def = assistantDefinitionSchema.safeParse(p.data.definition ?? {});
-    if (!def.success) return reply.code(400).send({ error: 'definicao_invalida', detalhes: issues(def.error) });
     const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      // Origem da definição: o que veio no pedido, o modelo do catálogo ou o assistente duplicado.
+      let raw: unknown = p.data.definition;
+      let origin: { template_slug: string | null; template_version: number | null; duplicated_from: string | null } = { template_slug: null, template_version: null, duplicated_from: null };
+      if (p.data.modelo) {
+        const t = await getTemplate(tx, 'assistente', p.data.modelo.slug, p.data.modelo.versao) as AssistantTemplate | null;
+        if (!t) return { status: 404, body: { error: 'modelo_nao_encontrado' } };
+        raw = t.definition;
+        origin = { template_slug: t.slug, template_version: t.version, duplicated_from: null };
+      } else if (p.data.duplicar) {
+        const src = (await tx.query(`select a.slug, a.template_slug, a.template_version, v.definition from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version where a.slug = $1`, [p.data.duplicar])).rows[0];
+        if (!src) return { status: 404, body: { error: 'assistente_nao_encontrado' } };
+        raw = src.definition;
+        origin = { template_slug: src.template_slug, template_version: src.template_version, duplicated_from: src.slug };
+      }
+      const def = assistantDefinitionSchema.safeParse(raw ?? {});
+      if (!def.success) return { status: 400, body: { error: 'definicao_invalida', detalhes: issues(def.error) } };
       const areaId = p.data.areaSlug ? (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id : null;
       if (p.data.areaSlug && !areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
       if (!can(a, 'kb.manage', areaId)) return { status: 403, body: { error: 'sem_permissao' } };
@@ -128,15 +157,15 @@ export async function assistantRoutes(app: FastifyInstance) {
       if (blocked) return blocked;
       try {
         const row = (await tx.query(
-          `insert into assistants (tenant_id, slug, name, area_id, status) values ($1, $2, $3, $4, $5) returning id`,
-          [a.tenantId, p.data.slug, p.data.name, areaId, p.data.status])).rows[0];
+          `insert into assistants (tenant_id, slug, name, area_id, status, template_slug, template_version, duplicated_from) values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
+          [a.tenantId, p.data.slug, p.data.name, areaId, p.data.status, origin.template_slug, origin.template_version, origin.duplicated_from])).rows[0];
         await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`,
           [a.tenantId, row.id, def.data, a.userId]);
         if (p.data.compartilhar) {
           const { missing } = await setShares(tx, 'assistente', a.tenantId, row.id, p.data.compartilhar);
           if (missing.length) throw new ShareError(missing);
         }
-        await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_criado', target: `assistente:${p.data.slug}@1`, details: p.data.compartilhar ? { compartilhado: p.data.compartilhar } : undefined });
+        await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_criado', target: `assistente:${p.data.slug}@1`, details: { ...(p.data.compartilhar ? { compartilhado: p.data.compartilhar } : {}), ...(origin.template_slug ? { modelo: `${origin.template_slug}@${origin.template_version}` } : {}), ...(origin.duplicated_from ? { duplicadoDe: origin.duplicated_from } : {}) } });
         return { status: 201, body: { slug: p.data.slug, version: 1 } };
       } catch (e) {
         if ((e as { code?: string }).code === '23505') return { status: 409, body: { error: 'assistente_ja_existe' } };
@@ -179,7 +208,8 @@ export async function assistantRoutes(app: FastifyInstance) {
     const { slug } = req.params as { slug: string };
     return withTenant(app.deps.db, tenantCtx(a), async tx => {
       const cur = (await tx.query(
-        `select a.id, a.slug, a.name, a.status, a.area_id, ar.slug as area, a.current_version as version, v.definition
+        `select a.id, a.slug, a.name, a.status, a.area_id, ar.slug as area, a.current_version as version, v.definition,
+                a.template_slug, a.template_version, a.duplicated_from, (select max(c.version) from catalog_templates c where c.kind = 'assistente' and c.slug = a.template_slug) as template_latest
          from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
          left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug])).rows[0];
       if (!cur) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
@@ -188,7 +218,7 @@ export async function assistantRoutes(app: FastifyInstance) {
         `select v.version, v.created_at, u.email as created_by from assistant_versions v left join users u on u.id = v.created_by
          where v.assistant_id = $1 order by v.version desc`, [cur.id])).rows;
       return { slug: cur.slug, name: cur.name, status: cur.status, area: cur.area, version: cur.version,
-        definition: assistantDefinitionSchema.parse(cur.definition), versions, compartilhamento: await sharesOf(tx, 'assistente', cur.id) };
+        definition: assistantDefinitionSchema.parse(cur.definition), versions, compartilhamento: await sharesOf(tx, 'assistente', cur.id), origem: originView(cur) };
     });
   });
 

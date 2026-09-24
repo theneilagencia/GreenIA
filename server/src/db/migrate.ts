@@ -1,11 +1,13 @@
 // Aplica as migrações de server/migrations/ em ordem, uma vez cada, com o papel
 // dono das tabelas (DATABASE_OWNER_URL). Se APP_DB_USER e APP_DB_PASSWORD
 // estiverem definidos, cria ou atualiza o papel de login do servidor como membro
-// de greenia_app (sem BYPASSRLS).
+// de greenia_app (sem BYPASSRLS). Depois, publica as versões novas do catálogo
+// de modelos (server/catalog/).
 //   node src/db/migrate.ts
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { syncCatalog } from '../catalog/catalog.ts';
 
 const DIR = fileURLToPath(new URL('../../migrations/', import.meta.url));
 
@@ -34,6 +36,8 @@ export async function migrate(ownerUrl: string, opts: { appUser?: string; appPas
         throw new Error(`migração ${f} falhou: ${(e as Error).message}`);
       }
     }
+    // Catálogo de modelos da TheNeil: publica as versões novas dos arquivos.
+    await syncCatalog(client, { log });
     if (opts.appUser && opts.appPassword) {
       if (!/^[a-z_][a-z0-9_]{2,40}$/.test(opts.appUser)) throw new Error('APP_DB_USER inválido');
       const exists = (await client.query('select 1 from pg_roles where rolname = $1', [opts.appUser])).rowCount;

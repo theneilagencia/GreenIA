@@ -1,0 +1,190 @@
+{
+  "kind": "assistente",
+  "slug": "suprimentos-cotacoes-especificacao",
+  "version": 1,
+  "name": "Cotações × especificação",
+  "description": "Extrai os itens das cotações de fornecedores e confere quantidade e unidade contra a planilha de especificação.",
+  "areaSugerida": "Suprimentos ou compras",
+  "leitores": [],
+  "definition": {
+    "description": "Confere cotações de fornecedores contra a especificação de compra.",
+    "objective": "Comparar cotações com o que foi especificado antes de escolher o fornecedor.",
+    "instructions": "Não converta unidades. Item da especificação que não aparece na cotação é divergência.",
+    "inputs": {
+      "text": {
+        "enabled": false
+      },
+      "files": {
+        "enabled": true,
+        "required": true,
+        "accept": [
+          "pdf",
+          "docx",
+          "xlsx",
+          "csv",
+          "imagem"
+        ],
+        "maxFiles": 20
+      }
+    },
+    "dataClasses": [
+      "verde",
+      "amarela"
+    ],
+    "dataPolicy": {
+      "cnpj": "permitir_com_registro",
+      "email": "permitir_com_registro",
+      "telefone": "permitir_com_registro"
+    },
+    "retention": {
+      "days": 180
+    },
+    "pipeline": [
+      {
+        "bloco": "ler"
+      },
+      {
+        "bloco": "extrair",
+        "id": "cotacoes",
+        "titulo": "Itens das cotações",
+        "params": {
+          "por": "documento",
+          "tipos": [
+            "pdf",
+            "docx",
+            "imagem"
+          ],
+          "schema": {
+            "type": "object",
+            "properties": {
+              "fornecedor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "validade": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "codigo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "descricao": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "quantidade": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "unidade": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "preco_unitario": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "codigo",
+                    "descricao",
+                    "quantidade",
+                    "unidade",
+                    "preco_unitario"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "fornecedor",
+              "validade",
+              "itens"
+            ]
+          }
+        }
+      },
+      {
+        "bloco": "conferir",
+        "titulo": "Cotação × especificação",
+        "params": {
+          "esquerda": {
+            "de": "extraido",
+            "bloco": "cotacoes",
+            "caminho": "itens"
+          },
+          "direita": {
+            "de": "tabela",
+            "arquivo": "*especifica*"
+          },
+          "rotulos": {
+            "esquerda": "Cotação",
+            "direita": "Especificação"
+          },
+          "chave": {
+            "esquerda": "codigo",
+            "direita": "Código"
+          },
+          "regras": [
+            {
+              "campo": "Quantidade",
+              "esquerda": "quantidade",
+              "direita": "Quantidade",
+              "tipo": "numero"
+            },
+            {
+              "campo": "Unidade",
+              "esquerda": "unidade",
+              "direita": "Unidade",
+              "tipo": "texto"
+            }
+          ]
+        }
+      },
+      {
+        "bloco": "exportar",
+        "params": {
+          "formatos": [
+            "xlsx",
+            "pdf"
+          ]
+        }
+      }
+    ],
+    "output": {
+      "format": "tabela",
+      "files": [
+        "xlsx",
+        "pdf"
+      ]
+    },
+    "review": {
+      "reviewers": [
+        "key_user",
+        "revisor"
+      ],
+      "checklist": [
+        "Cada divergência foi conferida na cotação e na especificação."
+      ]
+    }
+  }
+}

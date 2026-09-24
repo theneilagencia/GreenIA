@@ -1,6 +1,6 @@
 # Relatório da Fase 3: capacidades do Prumo Discovery
 
-Situação em 24/09/2026, branch `claude/descompactar-enviar-arquivos-hkx9is`. Os 11 itens da Fase 3 foram entregues, com um commit por item e as telas em dois commits. Os quatro assistentes de referência rodam só por configuração. Dois blocos precisaram ser generalizados no caminho, e isso está registrado abaixo. A próxima etapa só começa depois da sua confirmação.
+Situação em 24/09/2026, branch `claude/descompactar-enviar-arquivos-hkx9is`. Atualizado no mesmo dia com as quatro decisões da revisão (seção "Decisões aplicadas depois da revisão"). Os 11 itens da Fase 3 foram entregues, com um commit por item e as telas em dois commits. Os quatro assistentes de referência rodam só por configuração. Dois blocos precisaram ser generalizados no caminho, e isso está registrado abaixo. A próxima etapa só começa depois da sua confirmação.
 
 ## Resumo
 
@@ -133,42 +133,45 @@ Além deles: isolamento entre tenants e áreas nas execuções, revisão (autor,
 
 | Tipo | O que acontece | O que fazer |
 |---|---|---|
-| PDF escaneado e foto | Vai para a visão do modelo. Custa mais (cerca de 2,4 vezes uma página de texto) e o filtro de dados não enxerga o conteúdo antes do envio. Com a visão desligada, o arquivo não é lido e a execução avisa. | Preferir o PDF original ou o XML. Não há OCR local: nenhum motor de OCR em português instala sem baixar modelos de fora do npm. |
-| TIFF (comum em digitalização multipágina), HEIC (foto de iPhone) | Recusado: não é reconhecido. | Converter para PDF ou JPG antes do envio. |
-| DOC, XLS antigos e ODT/ODS | Recusados. Só DOCX e XLSX. | Salvar no formato novo. |
+| PDF escaneado e foto | OCR local (Tesseract, português), cerca de 2,5 s de CPU por página. Foto torta, com sombra ou letra pequena tende a ficar abaixo do limiar de confiança (70%): o texto segue com aviso para revisão, ou vai à visão do modelo se o assistente permitir. Letra de mão quase não é lida. | Preferir o PDF original ou o XML. Foto de celular: papel plano, luz uniforme, página inteira no quadro. |
+| TIFF (comum em digitalização multipágina), HEIC (foto de iPhone) | Convertidos no servidor (ImageMagick com libheif) e lidos pelo OCR. | Nada a fazer. |
+| DOC, XLS antigos e ODT/ODS | Convertidos no servidor (LibreOffice sem interface, cerca de 1 s por arquivo). Macro não roda; fórmula de XLS vem com o último valor salvo. | Nada a fazer. |
 | PDF com senha | Não é lido: a execução avisa ou termina em erro. | Remover a senha antes. |
-| DANFE em PDF | Lido como texto, não pelo parser da NF-e. A conferência depende de uma etapa de extração pelo modelo. | Usar o XML da NF-e sempre que possível. |
+| DANFE em PDF | Só a chave de acesso é lida. Com o XML da mesma chave na execução, a nota vem do XML; sem ele, a nota fica como "pedir o XML ao fornecedor". Nenhum campo é extraído do texto impresso. | Enviar o XML junto; o fornecedor é obrigado a entregá-lo. |
 | NFS-e, CT-e e outros XML fiscais | Não têm parser: viram texto. | Novo leitor, se a Repet precisar. |
 | Planilha com várias tabelas na mesma aba, células mescladas ou cabeçalho em duas linhas | O cabeçalho é a primeira linha, entre as 20 primeiras, com pelo menos 60% das colunas preenchidas. Fora desse padrão, a leitura pode errar as colunas. | Uma tabela por aba, ou aba chave-valor. |
 | CSV | O leitor é próprio, simples (RFC 4180, `;` ou `,`). Quebra de linha dentro de campo entre aspas funciona. Arquivo com outro separador (tab, pipe) não. | Suficiente para o CSV exportado do SyGeCom testado. |
 | PDF acima de `paginasMax` (padrão 50) | Lê só as primeiras páginas e avisa. | Aumentar o limite no assistente (até 500), com custo proporcional. |
 
 ### Outros limites
-- **Base de conhecimento sem visão.** PDF escaneado enviado à base vira erro no relatório da importação, não é lido.
+- **Base de conhecimento com OCR, sem visão.** PDF escaneado passa pelo OCR local; se o OCR não achar texto, vira erro no relatório da importação.
 - **Busca só por palavra-chave.** Paráfrases falham (Fase 2: 35,5% de acerto em 3 resultados). Os embeddings locais continuam sem medição.
 - **Checklist por regras.** Usa nome de arquivo, sinônimo e conteúdo. Documento com nome genérico ("scan001.pdf") e pouco texto tende a ficar duvidoso. Isso é seguro (vai para revisão), mas gera trabalho.
 - **Exportação completa em memória.** O ZIP do tenant é montado inteiro na memória do servidor. Para um tenant com muitos GB de documentos, precisa virar escrita em fluxo direto para o S3.
 - **Termos restritos são literais.** A busca ignora acento e maiúsculas, mas não pega variação de grafia nem abreviação.
-- **Auditoria.** Quem tem o papel dono do banco consegue reescrever a cadeia inteira. Falta ancorar o hash final fora do banco (seção 8 de `PENDENCIAS-SEGURANCA.md`).
+- **Auditoria.** Quem tem o papel dono do banco consegue reescrever a cadeia inteira, mas a âncora diária no bucket externo acusa a diferença. O que foi gravado depois da última âncora (até um dia) ainda depende só do banco.
 
 ## Custos por página
 
 Premissas do simulador (`server/src/usage/simulate.ts`), usadas até haver medição real:
 - 750 tokens por página de texto (cerca de 3.000 caracteres);
-- 1.800 tokens por página enviada à visão;
+- página escaneada ou foto: lida pelo OCR local, conta como página de texto quando vai ao modelo;
+- fallback de visão (premissa: 10% das páginas escaneadas): 2.300 tokens de entrada (JPEG de até 1568 px) e 750 de saída (transcrição) por página;
 - 1.200 tokens fixos de entrada por execução (instruções, schema, contexto);
 - 800 tokens de saída por execução.
 
 Preços de referência de 24/06/2026, câmbio de R$ 5,50, que é uma suposição:
 
-| Modelo (US$ por milhão de tokens, entrada/saída) | Página de texto | Página pela visão | Parte fixa por execução |
+| Modelo (US$ por milhão de tokens, entrada/saída) | Página de texto ou OCR | Página no fallback de visão | Parte fixa por execução |
 |---|---|---|---|
-| `claude-haiku-4-5` (1 / 5), padrão | R$ 0,0041 | R$ 0,0099 | R$ 0,029 |
-| `claude-sonnet-5` (2 / 10) | R$ 0,0083 | R$ 0,0198 | R$ 0,057 |
+| `claude-haiku-4-5` (1 / 5), padrão | R$ 0,0041 | R$ 0,033 | R$ 0,029 |
+| `claude-sonnet-5` (2 / 10) | R$ 0,0083 | R$ 0,067 | R$ 0,057 |
+
+O OCR não tem custo de modelo: custa CPU do servidor (cerca de 2,5 s por página).
 
 Exemplos com Haiku 4.5:
 - **Fiscal**, NF-e em XML × pedido em XLSX: **R$ 0,00**, porque leitura e conferência são em código. O custo é só de infraestrutura.
-- **RH**, pasta de admissão com 8 páginas de texto e 2 fotos, checklist por regras: cerca de R$ 0,05 por execução. Só as fotos passam pelo modelo; o texto é lido em código.
+- **RH**, pasta de admissão com 8 páginas de texto e 2 fotos, checklist por regras: **R$ 0,00** quando o OCR lê as fotos; cerca de R$ 0,03 por foto que cair no fallback de visão.
 - **Financeiro**, 20 páginas de texto, com extração e resumo (duas chamadas, cada uma com o texto inteiro): cerca de R$ 0,22 por execução.
 
 Esses valores são projeção. O custo real fica em `usage_events` a cada execução, e o simulador passa a usar as médias medidas depois de 5 execuções. A tabela de preços precisa ser conferida com o contrato antes da proposta comercial.
@@ -184,6 +187,8 @@ Os tempos foram medidos nos testes, com provedor simulado, banco local e armazen
 | Exportar XLSX / PDF e DOCX | cerca de 120 ms / 210 ms |
 | Assistente de referência de ponta a ponta (envio, fila, pipeline, gravação) | 160 a 310 ms |
 | Exportação completa de um tenant pequeno | cerca de 1,2 s |
+| OCR de uma página (PDF escaneado, TIFF, HEIC), CPU deste ambiente | cerca de 2,5 s |
+| Conversão de DOC, XLS, ODT ou ODS pelo LibreOffice | cerca de 1,1 s |
 
 **A latência do modelo real não foi medida neste ambiente.** Ela depende do modelo, do tamanho da entrada e da saída e da carga do provedor, e vai dominar o tempo total nas execuções que usam o modelo. O Fiscal, sem modelo, ficou abaixo de meio segundo nos testes. A medição real entra no primeiro piloto: o painel já registra o tempo de processamento de cada execução.
 
@@ -192,9 +197,8 @@ Os tempos foram medidos nos testes, com provedor simulado, banco local e armazen
 | O quê | Por quê | O que destrava |
 |---|---|---|
 | Rodar com o modelo real e documentos reais | Não há chave do modelo nem documentos da Repet neste ambiente. | Piloto no ambiente da TheNeil, com a chave e uma amostra real de cada área. |
-| OCR local para escaneados | Nenhum motor de OCR em português instala só pelo npm; os modelos vêm de fora. | Decidir se a visão do modelo é aceitável para a Repet ou se entra um serviço de OCR à parte. |
 | Medir embeddings e o NER BERTimbau | HuggingFace segue bloqueado no proxy do ambiente (mesmos quatro hosts da Fase 2). | Liberar os hosts nas configurações de rede do ambiente. |
-| `docker build` | Docker Hub continua respondendo 429. | Outra tentativa ou máquina com login no Docker Hub. |
+| `docker build` | Docker Hub continua respondendo 429. O `public.ecr.aws` responde (manifesto e token), mas as camadas das imagens vêm de `d2glxqk2uabbnd.cloudfront.net`, que o proxy recusa (403). | Liberar `d2glxqk2uabbnd.cloudfront.net` junto com `public.ecr.aws`, ou construir numa máquina fora deste ambiente. |
 
 ## Checklist para colocar a Repet no ar
 
@@ -210,6 +214,8 @@ Os tempos foram medidos nos testes, com provedor simulado, banco local e armazen
 - [ ] Segredos no Secrets Manager: chave do modelo, segredos OIDC, senhas do banco.
 - [ ] Migrações aplicadas (`001` a `013`) e o worker da fila rodando (indexação, execuções, retenção, exportação).
 - [ ] `PLATFORM_SUPPORT_EMAIL` apontando para a caixa de suporte da TheNeil.
+- [ ] `/health/ready` com `ocr`, `imagens` e `office` em `ok` na imagem publicada (confirmar que o ImageMagick do Debian lê HEIC).
+- [ ] Conta AWS separada com o bucket de âncoras (Object Lock, compliance) e o papel de publicação; primeira âncora de cada tenant publicada (roteiro no `README.md`).
 - [ ] Logs no CloudWatch com retenção definida; alarmes de erro 5xx e de fila parada.
 - [ ] Teste de restauração de backup feito uma vez.
 
@@ -239,12 +245,26 @@ Os tempos foram medidos nos testes, com provedor simulado, banco local e armazen
 - [ ] Relatório mensal de consumo conferido com o simulador no fim do primeiro mês.
 - [ ] Data da decisão por assistente (manter, descartar ou ampliar), registrada no painel.
 
+## Decisões aplicadas depois da revisão
+
+| Decisão | Como ficou | Commits |
+|---|---|---|
+| 1. OCR local, visão como fallback | OCRmyPDF + Tesseract (por) nas páginas sem texto e nas fotos, com a confiança do hOCR. O texto do OCR passa pela política antes de ir ao modelo. A visão só entra na página abaixo do limiar (`reading.ocrMinConfidence`, padrão 70), com `reading.visionFallback` ligado no assistente e sem proibição na Política de Uso (`allowVisionFallback`). Antes da imagem sair, o texto do OCR passa pela política: bloqueio, aviso não confirmado ou mascaramento impedem o envio. Uso e recusa ficam na auditoria (`leitura_visao_fallback`, `leitura_visao_nao_usada`). TIFF e HEIC pelo ImageMagick com libheif; DOC, XLS, ODT e ODS pelo LibreOffice. DANFE: chave de acesso (DV módulo 11) e "pedir o XML ao fornecedor" sem o XML. Simulador com as novas premissas. | `257eeed`, `18fb9ce` |
+| 2. Incidentes | Descrição só para quem reportou e o key user da área (sem key user, o admin do cliente). A TheNeil vê tipo, status, data e a execução ou saída; a descrição chega a ela com escalonamento pelo key user ou no tipo "problema técnico". Toda leitura da descrição fica na auditoria com quem leu. Emails nunca levam a descrição. | `07b1113` |
+| 3. Âncora da auditoria | Publicação diária por tenant num bucket S3 com Object Lock em modo compliance, numa conta separada (bucket, papel e retenção por configuração). A verificação compara com a última âncora lida do bucket. Aba Auditoria para o admin do cliente, com histórico e CSV. Validado contra o moto. | `98463bd` |
+| 4. Prenome sozinho | Não dispara aviso. As regras já exigiam nome e sobrenome; um teste trava o comportamento. | `93254e3` |
+
+**Limites que ficam:**
+- Foto de celular ruim cai abaixo do limiar. Com o fallback desligado (padrão), o texto do OCR segue com aviso e a revisão confere no original.
+- O filtro que decide o fallback olha o texto do OCR, que pode ter perdido justamente o dado sensível de uma foto ruim. O assistente de RH de demonstração tem o fallback ligado; a SI decide se mantém.
+- As ferramentas (Tesseract, ImageMagick, LibreOffice) processam arquivo de terceiros. Rodam sem shell, com tempo máximo e diretório próprio, mas no mesmo contêiner do servidor. Isolar num contêiner à parte fica como pendência (`PENDENCIAS-SEGURANCA.md`, seção 9).
+- A imagem Docker com as ferramentas não foi construída aqui (ver "O que não foi possível"). O `/health/ready` mostra se cada ferramenta está presente.
+- O HuggingFace continua bloqueado neste ambiente; a liberação pode valer só em sessão nova.
+
 ## Decisões que preciso de você
 
-1. **Escaneados:** visão do modelo (hoje) ou um serviço de OCR à parte, para que o filtro de dados veja o texto antes do envio?
-2. **Incidentes:** a TheNeil deve ler a descrição ou só o tipo e o status?
-3. **Âncora da auditoria:** publicar o hash final diário fora do banco (S3 com Object Lock)?
-4. As decisões pendentes da Fase 2 continuam abertas: segunda camada do filtro, embeddings, prenome sozinho e `heroTitle`.
+1. As decisões pendentes da Fase 2 continuam abertas: segunda camada do filtro e embeddings (esperam a rede), e `heroTitle`.
+2. O plano da Fase 4 está em `PLANO-FASE-4.md` e espera o seu aval.
 
 ## Como conferir
 

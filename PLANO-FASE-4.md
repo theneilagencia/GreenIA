@@ -1,0 +1,107 @@
+# Plano da Fase 4: validação real, antes de qualquer oferta à Repet
+
+Situação em 24/09/2026. Este plano espera o seu aval. Nada da Fase 4 foi executado.
+
+## Objetivo
+
+Medir se os quatro assistentes de referência funcionam com o modelo real e com documentos no formato que a Repet usa. Nenhuma proposta à Repet sai antes do relatório desta fase.
+
+A Fase 4 responde a quatro perguntas, por assistente:
+1. Quanto acerta, campo a campo, contra um gabarito escrito antes de rodar?
+2. Quantas saídas vão para a revisão com pendência ou aviso?
+3. Quanto tempo leva do envio ao rascunho, incluindo a espera pelo modelo?
+4. Quanto custa de verdade, e onde o simulador errou a estimativa, e por quanto?
+
+A comparação entre Haiku 4.5 e Sonnet 5 é feita na extração estruturada, onde o modelo decide o resultado.
+
+## O que não muda
+
+- A plataforma roda como está. Os assistentes são as definições de `server/deploy/demo/assistentes/`, sem código específico. Uma falha que peça código específico é falha da plataforma, e o relatório registra.
+- Os modelos são escolhidos pela configuração do tenant (`llm.model`). São dois tenants de avaliação, iguais exceto pelo modelo: um com `claude-haiku-4-5` e outro com `claude-sonnet-5`.
+- A chave do modelo vem só da variável de ambiente `ANTHROPIC_API_KEY`. Ela nunca vai para o repositório, o log ou o relatório.
+- Nenhuma premissa do simulador muda durante a medição. Ajustes vêm depois, como proposta, com o seu aval.
+
+## Corpus
+
+Todos os arquivos ficam fora do repositório, num bucket privado da TheNeil em sa-east-1, com criptografia. No repositório ficam só o manifesto (nome, sha256, tipo, origem) e o gabarito.
+
+| Conjunto | Conteúdo | Quantidade proposta | Quem providencia |
+|---|---|---|---|
+| Fiscal: notas reais | XML e DANFE (PDF) de notas de compra da própria TheNeil | 30 notas, com XML e DANFE de cada | TheNeil (financeiro) |
+| Fiscal: pedidos | Planilhas de pedido montadas a partir dessas notas, no layout de exportação de ERPs de mercado (SyGeCom, TOTVS Protheus, Omie e Bling: CSV e XLSX, com títulos acima da tabela, separador `;`, Latin-1, aba "Campo \| Valor"). Cada pedido recebe divergências plantadas e registradas no gabarito: quantidade, preço acima e abaixo da tolerância, item sem par dos dois lados, prazo de emissão. | 30 pedidos (1 por nota) | eu gero, você confere o layout |
+| Fiscal: DANFE sem XML | Parte das notas enviada só com o DANFE, para conferir o "pedir o XML ao fornecedor" | 8 casos | reaproveita as notas |
+| RH: pastas de admissão | Documentos fictícios (RG, CPF, CTPS, comprovante de residência, ASO, título, dados bancários), com a marca "ESPÉCIME" e dados inventados. Uma parte em PDF digital; uma parte impressa e escaneada (150 e 300 dpi); uma parte impressa e fotografada com celular (iPhone em HEIC, Android em JPG), com ângulo, sombra, luz baixa e desfoque leve. Cada pasta tem documentos faltando de propósito. | 15 pastas, cerca de 100 arquivos, com pelo menos 40 fotos reais | eu gero os PDFs; alguém da TheNeil imprime e fotografa |
+| RH: degradação sintética | As mesmas páginas com perspectiva, ruído, compressão e rotação aplicadas por script, para ter volume | cerca de 100 imagens | eu gero |
+| Financeiro: pacotes do mês | DRE, balancete e razão em PDF longo (30 a 300 páginas, parte escaneada), fluxo de caixa em XLSX no layout de ERP e inadimplência em CSV, todos fictícios | 10 pacotes | eu gero |
+| LGPD: evidências | Políticas, atas, listas de presença, contratos, relatórios de incidente e planilhas sem relação, em PDF digital, escaneado, DOCX, DOC e XLSX; 20 perguntas de busca com os documentos esperados | 60 documentos, 20 perguntas | eu gero |
+
+As notas reais da TheNeil têm dados de fornecedores (razão social, CNPJ, endereço). Elas passam pela API da Anthropic, fora do Brasil, como qualquer documento de cliente. A TheNeil é a controladora desses dados; se alguma nota tiver CPF de fornecedor pessoa física, ela fica fora do corpus.
+
+## Gabarito
+
+- Escrito antes de qualquer rodada, em JSON, um arquivo por caso: arquivos (sha256, tipo: digital, escaneado ou foto) e resultado esperado.
+- Fiscal: divergências esperadas (chave, campo, valores) e notas que devem virar "pedir o XML".
+- RH: situação esperada de cada item (presente, ausente ou duvidoso) e o arquivo que prova.
+- Financeiro: cada campo extraído com valor e página de origem; tópicos obrigatórios do resumo.
+- LGPD: categoria, período e nome esperado de cada documento; documentos esperados para cada pergunta.
+- Uma segunda pessoa confere 20% dos casos. Divergência entre as duas vira discussão e correção antes de rodar.
+
+## Execução
+
+- Um script de avaliação (`server/eval/fase4/`) sobe a plataforma no próprio processo, com o provedor real da Anthropic, o OCR e as conversões reais, Postgres e a fila em memória. Ele envia cada caso pela API de execuções, como uma pessoa faria.
+- O script envolve o provedor e o conversor para medir o tempo de cada chamada ao modelo e de cada OCR, sem mudar o código da plataforma.
+- Cada caso roda nos dois tenants (Haiku 4.5 e Sonnet 5). A extração estruturada (Financeiro e um conjunto extra de documentos de despesa, se precisar de mais volume) roda 3 vezes em cada modelo, para medir a estabilidade.
+- O Fiscal não chama o modelo (XML e planilha são lidos em código). Ele roda uma vez e serve de referência de tempo e de acerto sem modelo.
+- O fallback de visão fica como nas definições (desligado, exceto no RH). Uma rodada extra do RH com o fallback desligado mostra o que se perde.
+- Limite de gasto: cota do tenant de avaliação com bloqueio (`hardLimit`) em R$ 300. Pela estimativa abaixo, a fase inteira fica bem abaixo disso.
+
+## Medidas, por assistente e por modelo
+
+| Medida | Como é calculada |
+|---|---|
+| Acerto campo a campo | Campo certo depois de normalizar número (±0,01), data e texto. Listas (divergências, itens do checklist, categorias) com precisão e cobertura. Tudo com intervalo de confiança de 95%, separado por tipo de arquivo: digital, escaneado e foto. |
+| Erro grave | Fiscal: divergência não apontada. RH: item marcado presente quando está ausente. Financeiro: valor errado com origem aparentemente válida. Conta à parte, porque é o erro que passa pela revisão. |
+| Origem | Percentual de campos com página e trecho que existem no documento. |
+| Saída para a revisão | Percentual de execuções com pendência ou aviso (OCR abaixo do limiar, saída fora do schema, campo sem origem, DANFE sem XML, item duvidoso) e percentual de saídas fora do schema. |
+| Fallback de visão | Percentual de páginas escaneadas e fotos que caíram no fallback. |
+| Tempo total | Do envio ao rascunho, com mediana e percentil 90, separando OCR, conversão, espera pelo modelo e o resto da plataforma. |
+| Custo real | Tokens e páginas de cada execução, pela tabela de preços vigente (`usage_events`). Custo por execução e custo por campo certo. |
+| Erro do simulador | Para cada execução, o simulador roda com as mesmas entradas (páginas, percentual escaneado) e as premissas atuais. O relatório mostra o erro percentual por assistente e por modelo e decompõe a diferença: tokens por página de texto, tokens por página de visão, taxa de fallback, parte fixa e saída. |
+
+## Estimativa de gasto com o modelo
+
+Pelas premissas atuais: cerca de 2.500 páginas no corpus, 2 modelos, 3 repetições na extração. Isso dá menos de R$ 150 no total, sendo a maior parte o Sonnet 5 nos PDFs longos do Financeiro. O próprio erro dessa estimativa entra no relatório.
+
+## Entregáveis
+
+1. `server/eval/fase4/`: script de avaliação, formato do gabarito, manifesto do corpus e comparador. Um commit por peça.
+2. Resultados brutos em CSV (sem conteúdo de documento: só identificadores, medidas e hashes).
+3. `RELATORIO-FASE-4.md`:
+   - tabelas por assistente e por modelo;
+   - os tipos de documento que falham e por quê;
+   - a recomendação de modelo para a extração, com custo por campo certo;
+   - onde o simulador errou, por quanto e a proposta de novas premissas;
+   - o que precisa mudar na plataforma antes da oferta, se algo precisar.
+4. Parada para o seu aval antes de qualquer proposta à Repet ou mudança de premissa.
+
+## Critério de decisão sugerido
+
+- Extração: fica o Haiku 4.5, a menos que o Sonnet 5 acerte pelo menos 5 pontos percentuais a mais nos campos (ou reduza erro grave) por um custo por campo certo aceitável. Esse limite é sugestão; você decide antes de rodar.
+- Um assistente só vai para a oferta com erro grave abaixo de um limite combinado com você. Sugestão: nenhum item "presente" falso no RH e nenhuma divergência de valor não apontada no Fiscal, no corpus inteiro.
+
+## O que preciso de você
+
+1. Aval deste plano, do corpus e do critério de decisão.
+2. A variável `ANTHROPIC_API_KEY` configurada no ambiente onde a avaliação vai rodar.
+3. As 30 notas de compra da TheNeil (XML e DANFE).
+4. Uma pessoa para imprimir e fotografar as pastas de RH (iPhone e Android). Sem isso, o RH fica só com escaneamento e degradação sintética, e o relatório diz isso.
+5. Confirmação de quais layouts de ERP usar nos pedidos. Se houver um exemplo real de exportação do SyGeCom da Repet (só o cabeçalho, sem dados), ele entra no lugar do layout montado.
+6. O bucket privado para o corpus (ou autorização para eu criar a estrutura, se a conta estiver acessível daqui).
+
+## Riscos
+
+- **Corpus pequeno.** Com 15 pastas de RH e 10 pacotes financeiros, os intervalos de confiança ficam largos. O relatório mostra os intervalos, não só a média.
+- **Gabarito com viés.** Eu gero parte dos documentos e parte do gabarito. A conferência por uma segunda pessoa reduz esse viés, e as notas reais da TheNeil não são minhas.
+- **Fotos reais.** Sem fotos tiradas por uma pessoa, a medida do OCR em celular fica otimista.
+- **PDF longo.** Com o limite padrão de 50 páginas por arquivo, um PDF de 300 páginas é lido só em parte, e a execução avisa. Uma rodada com o limite em 300 mostra o custo, o tempo e se a entrada ainda cabe na janela de contexto do modelo (um PDF desse tamanho passa de 200 mil tokens).
+- **Rede deste ambiente.** A API da Anthropic está liberada. O HuggingFace e as camadas do `public.ecr.aws` não estão, mas a Fase 4 não depende deles.

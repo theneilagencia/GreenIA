@@ -6,7 +6,8 @@ Situação em 24/09/2026, fim da Fase 3. A GreenIA tem servidor próprio (Fase 2
 - a configuração de cada cliente antes de entrar em produção (seção 5);
 - os pontos jurídicos e contratuais (seção 6);
 - as pendências de implantação (seção 7);
-- o que a Fase 3 implementou e precisa da sua revisão (seção 8).
+- o que a Fase 3 implementou e precisa da sua revisão (seção 8);
+- as decisões de 24/09/2026 e o que ainda precisa da sua revisão (seção 9).
 
 ## 1. Texto de privacidade
 
@@ -116,20 +117,31 @@ A segunda camada é a própria instrução dada ao modelo, que recusa pedidos co
 ## 7. Pendências de implantação
 
 - Registrar os apps OIDC reais (Entra ID e Google). Os testes usaram um emissor simulado.
-- Rodar `docker build` e `docker compose up`. Neste ambiente, o Docker Hub limitou os downloads. As peças foram validadas separadamente (relatório, item 11).
+- Rodar `docker build` e `docker compose up`. Neste ambiente, o Docker Hub limitou os downloads, e o espelho `public.ecr.aws` responde, mas entrega as camadas por `d2glxqk2uabbnd.cloudfront.net`, que o proxy recusa. As peças foram validadas separadamente (relatório da Fase 2, item 11; OCR e conversões nos testes da Fase 3).
 - Liberar o HuggingFace para medir os embeddings locais e o NER BERTimbau antes de decidir a segunda camada e a busca semântica.
-- Rodar os quatro assistentes de referência com o modelo real e documentos reais da Repet (a Fase 3 usou provedor simulado e amostras fictícias).
+- Rodar os quatro assistentes de referência com o modelo real e documentos com formato real (Fase 4, `PLANO-FASE-4.md`). A Fase 3 usou provedor simulado e amostras fictícias.
 
 ## 8. O que a Fase 3 implementou e precisa da sua revisão
 
 | Tema | Como ficou | O que revisar |
 |---|---|---|
-| Auditoria encadeada | Cada registro guarda `seq`, o hash do anterior e o próprio hash (SHA-256), calculados por gatilho no banco, com a hora forçada pelo servidor. `audit_verify` refaz a cadeia e aponta o primeiro registro quebrado. A tela de Administração mostra a verificação, o histórico por documento, execução ou hash, e exporta em CSV (a exportação também é registrada). | O papel dono do banco ainda consegue desligar o gatilho e reescrever a cadeia inteira. Para prova contra quem tem esse acesso, o hash final precisa ser guardado fora do banco (por exemplo, publicado todo dia num bucket com Object Lock). Não implementado. |
-| Arquivos enviados à visão do modelo | PDF escaneado e imagem vão ao modelo como imagem. O filtro de dados não enxerga o conteúdo antes do envio: ele só age sobre o texto que volta. O envio é registrado na auditoria (`conteudo_visual_enviado`, com etapa e quantidade de páginas). Cada assistente pode desligar a visão. | Se a visão fica desligada por padrão em assistentes da classe Amarela ou Vermelha, e se o aviso ao usuário basta. Sem OCR local, desligar a visão significa não ler documento escaneado. |
+| Auditoria encadeada | Cada registro guarda `seq`, o hash do anterior e o próprio hash (SHA-256), calculados por gatilho no banco, com a hora forçada pelo servidor. `audit_verify` refaz a cadeia e aponta o primeiro registro quebrado. A tela de Administração mostra a verificação, o histórico por documento, execução ou hash, e exporta em CSV (a exportação também é registrada). | Resolvido pela âncora diária (seção 9): reescrever a cadeia no banco passa a divergir da âncora externa. O que foi gravado depois da última âncora (até um dia) ainda depende só do banco. |
+| Arquivos enviados à visão do modelo | Substituído pelo OCR local (seção 9). A visão só entra como fallback de OCR com baixa confiança, se o assistente e a Política de Uso permitirem, depois de o texto do OCR passar pela política. | Seção 9. |
 | Política de Uso de IA do cliente | Versionada. Cada pessoa dá ciência por versão; sem ciência, o servidor recusa o envio (428). As regras viram piso da política de dados dos assistentes: a ação mais restritiva vence. Termos restritos (ex.: nome de projeto sigiloso) viram o tipo `restrito`. Classes de dado não permitidas bloqueiam assistentes em piloto ou ativos. | O texto da política de cada cliente e os termos restritos. A busca de termos é literal (sem acento e sem diferenciar maiúsculas): variação de grafia escapa. |
-| Incidentes | Botão "Reportar incidente" em todas as telas com servidor. O aviso por email vai aos key users da área, aos administradores do cliente e a `PLATFORM_SUPPORT_EMAIL`, **sem a descrição**. A TheNeil (`admin_theneil`) lê incidentes de todos os clientes, e cada leitura fica na auditoria do cliente. | Se a TheNeil deve ler a descrição ou só o tipo e o status. Prazo de resposta por tipo de incidente. |
+| Incidentes | Botão "Reportar incidente" em todas as telas com servidor. Regras de leitura da descrição revistas em 24/09/2026 (seção 9). | Prazo de resposta por tipo de incidente. |
 | Revisão humana | Toda saída nasce rascunho. Só aprovado ou aprovado com edição exporta. Quem gerou não revisa a própria saída. A edição guarda original, editada e diff. Rejeição exige motivo. | Se algum assistente da classe Verde pode dispensar revisão (hoje, `review.required` é verdadeiro por padrão). |
 | Retenção | As execuções (arquivos de entrada, saídas, diffs) seguem o prazo do assistente ou do cliente e são apagadas de hora em hora, no banco e no S3. | O mesmo ponto dos backups da seção 4. |
 | Exportação completa | Pedido pelo administrador do cliente. Gera um ZIP com os dados em JSON e CSV, os arquivos originais e a auditoria com a verificação da cadeia, guardado no S3 do próprio cliente. O download é registrado. | Prazo de guarda do ZIP de exportação, que hoje fica até ser apagado junto com o tenant. |
 | Exclusão total | Só pela plataforma, com confirmação pelo slug e motivo. Apaga todas as linhas do tenant, inclusive a auditoria (única exceção ao "só inserção"), e todos os objetos do prefixo no S3. Confere que não sobrou nada e gera um comprovante com contagens, hash final da auditoria e SHA-256 do próprio comprovante, guardado fora das tabelas do tenant. | O comprovante não alcança os backups, que expiram no prazo deles. Isso precisa constar do contrato. Quem na TheNeil pode executar a exclusão. |
 | Importação de pessoas | CSV com email, nome, área e papel, com simulação antes de gravar. Aceita só emails dos domínios do cliente e os papéis que quem importa pode atribuir. Nunca cria `admin_theneil`. | Quem pode importar: hoje, o administrador do cliente e o key user, este só na própria área. |
+
+## 9. Decisões de 24/09/2026 e o que ainda precisa da sua revisão
+
+| Tema | Como ficou | O que revisar |
+|---|---|---|
+| OCR local | PDF escaneado e foto são lidos pelo Tesseract (português), via OCRmyPDF, no próprio servidor. TIFF e HEIC são convertidos pelo ImageMagick com libheif; DOC, XLS, ODT e ODS pelo LibreOffice. O texto do OCR passa pela política de dados antes de ir ao modelo, como qualquer texto. | As ferramentas processam arquivos de terceiros no mesmo contêiner do servidor, sem shell, com tempo máximo, diretório temporário próprio e perfil do LibreOffice por conversão (macro não roda). Recomendação: mover as conversões para um contêiner à parte, sem rede e sem credenciais. Não implementado. |
+| Fallback de visão | Só na página com OCR abaixo do limiar (padrão 70%), se o assistente tiver `reading.visionFallback` e a Política de Uso não proibir (`allowVisionFallback`). Antes, o texto do OCR passa pela política: bloqueio, aviso não confirmado ou tipo a mascarar impedem o envio da imagem. Uso e recusa ficam na auditoria. Padrão: desligado. | O texto de um OCR ruim pode não conter o dado que está na imagem, e aí a política não o enxerga. Decidir em quais assistentes o fallback pode ser ligado; o assistente de RH de demonstração está com ele ligado. |
+| DANFE | Só a chave de acesso é lida do PDF. Sem o XML da mesma chave, a nota fica como "pedir o XML ao fornecedor"; nenhum campo sai do texto impresso. | Nada. |
+| Incidentes | A descrição fica com quem reportou e com o key user da área (sem key user, o admin do cliente). O admin vê o incidente, não a descrição. A TheNeil vê tipo, status, data e a execução ou saída afetada; a descrição e as notas do histórico só chegam a ela com escalonamento pelo key user ou no tipo "problema técnico". Toda leitura da descrição fica na auditoria do cliente com quem leu. Emails nunca levam a descrição. | Se o admin do cliente deve ler a descrição quando a área tem key user (hoje, não). |
+| Âncora da auditoria | Todo dia, o hash final da cadeia de cada tenant vai para um bucket S3 com Object Lock em modo compliance, numa conta AWS separada. A âncora tem só identificador do tenant, número do registro, hash e datas. A verificação da cadeia compara com a âncora lida do bucket. O admin do cliente vê e exporta o histórico. Cadeia quebrada não é ancorada e vira registro. | Quem administra a conta separada (não pode ser quem administra a produção), a retenção (padrão 5 anos) e o fato de as âncoras sobreviverem à exclusão do tenant até o fim da retenção (o comprovante de exclusão registra isso). |
+| Prenome sozinho | Não dispara aviso. | Nada. |

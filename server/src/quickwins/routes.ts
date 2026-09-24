@@ -427,7 +427,8 @@ export async function portfolio(tx: Tx, f: { area?: string; status?: string; cri
   const rows = (await tx.query(
     `select o.*, a.slug as area_slug, a.name as area_name, u.email as created_by_email,
             (select q.id from quick_wins q where q.opportunity_id = o.id and q.origin_id is null order by q.created_at limit 1) as quick_win_id,
-            (select q.stage from quick_wins q where q.opportunity_id = o.id and q.origin_id is null order by q.created_at limit 1) as quick_win_stage
+            (select q.stage from quick_wins q where q.opportunity_id = o.id and q.origin_id is null order by q.created_at limit 1) as quick_win_stage,
+            (select e.note from quick_win_events e where e.opportunity_id = o.id order by e.id desc limit 1) as last_note
      from opportunities o join areas a on a.id = o.area_id left join users u on u.id = o.created_by
      where ($1::text is null or a.id = any(area_subtree((select id from areas where slug = $1))))
        and ($2::text is null or o.status = $2)
@@ -438,7 +439,7 @@ export async function portfolio(tx: Tx, f: { area?: string; status?: string; cri
       id: r.id, titulo: r.title, area: r.area_name, areaSlug: r.area_slug, processo: r.process, problema: r.problem, executorAtual: r.current_executor, volume: r.volume,
       evidencia: r.evidence, evidenciaNota: r.evidence_note, status: r.status, notas: r.scores ?? null, nota: r.score === null ? null : Number(r.score),
       criteriosUsados: r.criteria_snapshot ?? null, quickWin: r.quick_win_id ? { id: r.quick_win_id, etapa: r.quick_win_stage } : null,
-      registradaPor: r.created_by_email, registradaEm: r.created_at,
+      registradaPor: r.created_by_email, registradaEm: r.created_at, ultimoRegistro: (r.last_note ?? null) as string | null,
     }));
 }
 export type PortfolioRow = Awaited<ReturnType<typeof portfolio>>[number];

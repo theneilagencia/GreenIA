@@ -316,7 +316,7 @@ async function readBase(input: InputFile, opts: ReadOpts, env: BlockEnv): Promis
       const out = fmt.reader.read!(decodeText(file.bytes));
       return { ...base, kind, via: 'parser', pages: [{ n: 1, text: out.text }], text: out.text, pageCount: 1, dados: { [fmt.reader.id]: out.dados }, periodo: out.periodo ?? null };
     } catch (e) {
-      return { ...base, kind, via: 'parser', pages: [], text: '', pageCount: 0, warnings: [(e as Error).message] };
+      return { ...base, kind, via: 'parser', pages: [], text: '', pageCount: 0, warnings: [`arquivo inválido para o leitor ${fmt.reader.label}: ${(e as Error).message}`] };
     }
   }
 

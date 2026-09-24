@@ -1,6 +1,6 @@
 // Indexação de uma versão de documento (tarefa da fila 'kb:index'). Lê o
 // original no armazenamento com o bloco de leitura (PDF com texto, DOCX, XLSX,
-// CSV, NF-e, texto), quebra em trechos e troca os trechos do documento pelos da
+// CSV, leitores ligados, texto), quebra em trechos e troca os trechos do documento pelos da
 // nova versão. Na base de conhecimento nada vai para o modelo: PDF escaneado e
 // DOC, XLS, ODT e ODS passam pelo OCR e pelas conversões locais; se o OCR não
 // puder ser feito, o erro é explicado (envie a versão com texto).
@@ -47,7 +47,7 @@ export async function extractForKb(name: string, bytes: Uint8Array, converter?: 
   if (d.warnings.some(w => /^OCR não foi feito/.test(w))) throw new Error('arquivo digitalizado e o OCR não pôde ser feito: envie a versão com texto');
   if (d.warnings.some(w => /conversão indisponível|não pôde ser convertido/.test(w))) throw new Error(d.warnings[0]);
   if ((d.via === 'ocr' || d.kind === 'imagem') && !d.text.trim()) throw new Error('arquivo digitalizado sem texto legível pelo OCR: envie a versão com texto');
-  if (d.warnings.some(w => /não reconhecido|não pôde ser aberto|inválido|não é uma NF-e/.test(w))) throw new Error(d.warnings[0]);
+  if (d.warnings.some(w => /não reconhecido|não pôde ser aberto|inválido/.test(w))) throw new Error(d.warnings[0]);
   return { text: d.text, warnings: d.warnings };
 }
 

@@ -1,7 +1,7 @@
 // Parâmetros de cada bloco de capacidade, validados na definição do assistente.
 // Um assistente é uma sequência desses blocos; nada de código por melhoria.
 import { z } from 'zod';
-import { readerById, readerKinds } from '../readers/registry.ts';
+import { LEGACY_DATASET_SOURCES, readerById, readerKinds } from '../readers/registry.ts';
 
 // Tipos de arquivo genéricos que o bloco de leitura entende. Leitores
 // especializados (src/readers/) acrescentam os seus (ex.: nfe_xml).
@@ -10,14 +10,14 @@ export type FileKind = string;
 export const fileKindSchema = z.string().max(40).refine(k => (FILE_KINDS as readonly string[]).includes(k) || readerKinds().some(r => r.id === k), { message: 'tipo de arquivo desconhecido' });
 
 // Seleção de um conjunto de dados produzido por blocos anteriores:
-//   leitor    dados de um leitor especializado (leitor: 'nfe'; caminho: 'itens', 'totais'...)
+//   leitor    dados de um leitor especializado (leitor: id do registro; caminho dentro dos dados)
 //   tabela    planilha XLSX/CSV (arquivo: padrão do nome, ex. '*pedido*'; planilha opcional;
 //             orientacao 'chave_valor' para planilha de duas colunas Campo | Valor,
 //             como o cabeçalho de um pedido: vira um único registro)
 //   extraido  saída do bloco de extração (bloco: id do bloco; caminho opcional dentro do JSON)
 export const datasetRefSchema = z.preprocess(
-  // Definições anteriores usavam { de: 'nfe' }: vira o leitor 'nfe'.
-  v => v && typeof v === 'object' && (v as { de?: string }).de === 'nfe' ? { ...v, de: 'leitor', leitor: 'nfe' } : v,
+  // Definições anteriores escreviam o leitor em "de": vira { de: 'leitor', leitor }.
+  v => v && typeof v === 'object' && LEGACY_DATASET_SOURCES.includes((v as { de?: string }).de ?? '') ? { ...v, de: 'leitor', leitor: (v as { de: string }).de } : v,
   z.object({
   de: z.enum(['leitor', 'tabela', 'extraido']),
   leitor: z.string().max(40).optional(),

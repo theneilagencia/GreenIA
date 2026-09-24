@@ -1065,6 +1065,8 @@ const AUTO_LABEL = {
   taxa_revisao: 'saídas com edição ou rejeição (%)', divergencias: 'divergências encontradas', pendencias: 'pendências encontradas',
   consumo: 'consumo de IA (R$)', volume: 'execuções concluídas', usuarios_ativos: 'pessoas que usaram',
 };
+const ORIGEM_LABEL = { medido: 'medido', informado: 'informado', automatico: 'automático' };
+const STAGE_NAMES = { identificada: 'identificada', avaliada: 'avaliada', selecionada: 'selecionada', em_implantacao: 'em implantação', em_medicao: 'em medição', decisao: 'decisão', encerrada: 'encerrada' };
 const EMPTY_OPP = { area: '', titulo: '', processo: '', problema: '', executorAtual: '', volume: '', evidencia: 'hipotese', evidenciaNota: '' };
 const EMPTY_SEL = { objetivo: '', responsavel: '', prazo: '', revisores: '', nota: '' };
 const EMPTY_AMP = { area: '', titulo: '', objetivo: '', responsavel: '', nota: '' };
@@ -1836,7 +1838,8 @@ class Component extends DCLogic {
         'Processo: ' + o.processo, 'Problema: ' + o.problema, 'Quem executa hoje: ' + (o.executorAtual || '—'), 'Volume: ' + (o.volume || '—'),
         o.evidenciaNota ? 'Sobre a evidência: ' + o.evidenciaNota : '',
         o.notas ? 'Notas: ' + (o.criteriosUsados ? o.criteriosUsados.criterios : critList).map(c => c.label + ' ' + fmtNum(o.notas[c.key])).join(' · ') : '',
-        o.quickWin ? 'Quick win: ' + o.quickWin.etapa.replace('_', ' ') : '',
+        o.quickWin ? 'Quick win: ' + (STAGE_NAMES[o.quickWin.etapa] || o.quickWin.etapa) : '',
+        o.ultimoRegistro ? 'Último registro: ' + o.ultimoRegistro : '',
       ].filter(Boolean),
       canEvaluate: o.status !== 'selecionada',
       canSelect: o.status === 'avaliada',
@@ -1847,7 +1850,6 @@ class Component extends DCLogic {
     if (crit) for (let n = crit.escala.min; n <= crit.escala.max; n++) scale.push(String(n));
     const m = st.metrics;
     const next = m ? (m.proximasEtapas || [])[0] : null;
-    const STAGE_NAME = { em_implantacao: 'em implantação', em_medicao: 'em medição', encerrada: 'encerrada' };
     const met = m ? {
       titulo: m.quickWin.titulo,
       meta: m.quickWin.areas.join(', ') + ' · ' + m.quickWin.etapaNome + ' · responsável ' + m.quickWin.responsavel + (m.quickWin.prazo ? ' · prazo ' + m.quickWin.prazo : ''),
@@ -1862,8 +1864,8 @@ class Component extends DCLogic {
       aviso: m.aviso || '',
       indicators: m.indicadores.map(i => ({
         label: i.label + (i.unit ? ' (' + i.unit + ')' : ''),
-        antes: i.antes ? fmtNum(i.antes.valor) : '—', antesOrigem: i.antes ? i.antes.origem.tipo + ': ' + i.antes.origem.detalhe : 'sem ponto de partida',
-        depois: i.depois ? fmtNum(i.depois.valor) : '—', depoisOrigem: i.depois ? i.depois.origem.tipo + ': ' + i.depois.origem.detalhe : 'sem medição',
+        antes: i.antes ? fmtNum(i.antes.valor) : '—', antesOrigem: i.antes ? (ORIGEM_LABEL[i.antes.origem.tipo] || i.antes.origem.tipo) + ': ' + i.antes.origem.detalhe : 'sem ponto de partida',
+        depois: i.depois ? fmtNum(i.depois.valor) : '—', depoisOrigem: i.depois ? (ORIGEM_LABEL[i.depois.origem.tipo] || i.depois.origem.tipo) + ': ' + i.depois.origem.detalhe : 'sem medição',
         diff: i.comparacao ? fmtNum(i.comparacao.diferenca) + (i.comparacao.percentual !== null ? ' (' + fmtNum(i.comparacao.percentual, 1) + '%)' : '') : '—',
         situacao: i.lacuna || (i.comparacao && i.comparacao.melhorou ? 'melhorou' : 'não melhorou'),
       })),
@@ -1879,10 +1881,10 @@ class Component extends DCLogic {
         ['Consumo de IA', fmtBrl(m.execucoes.consumo.custoBrl)],
       ].map(x => ({ k: x[0], v: x[1] })) : [],
       monthly: (m.mensal || []).map(x => ({ mes: x.mes, execucoes: x.execucoes, usuarios: x.usuarios, aprovadas: x.aprovadas, edicao: x.aprovadas_com_edicao, rejeitadas: x.rejeitadas, custo: fmtBrl(x.custo_brl) })),
-      history: (m.historico || []).map(h => ({ head: fmtDate(h.at) + ' · ' + (h.stage_from ? h.stage_from.replace('_', ' ') + ' → ' : '') + h.stage_to.replace('_', ' ') + ' · ' + h.actor, text: h.note })),
+      history: (m.historico || []).map(h => ({ head: fmtDate(h.at) + ' · ' + (h.stage_from ? (STAGE_NAMES[h.stage_from] || h.stage_from) + ' → ' : '') + (STAGE_NAMES[h.stage_to] || h.stage_to) + ' · ' + h.actor, text: h.note })),
       etapaText: 'Etapa atual: ' + m.quickWin.etapaNome + '.' + (m.quickWin.decisao ? ' Decisão: ' + m.quickWin.decisao.decisao.toUpperCase() + ', ' + m.quickWin.decisao.justificativa : ''),
       canAdvance: !!(m.podeGerenciar && next),
-      advanceLabel: next ? 'Passar para ' + STAGE_NAME[next] : '',
+      advanceLabel: next ? 'Passar para ' + STAGE_NAMES[next] : '',
       canDecide: !!(m.podeGerenciar && m.quickWin.etapa === 'em_medicao'),
       canAmplify: !!(m.podeGerenciar && m.quickWin.decisao && m.quickWin.decisao.decisao === 'ampliar' && m.quickWin.etapa === 'decisao'),
     } : null;
@@ -1976,7 +1978,7 @@ class Component extends DCLogic {
       portfolioPdf: this._url('/api/quick-wins/relatorios/portfolio?format=pdf' + (repQuery ? '&' + repQuery : '')),
       portfolioXlsx: this._url('/api/quick-wins/relatorios/portfolio?format=xlsx' + (repQuery ? '&' + repQuery : '')),
       noOpps: !st.opps.length,
-      oppRows: st.opps.map(x => ({ titulo: x.titulo, area: x.area, evidencia: evid(x.evidencia), nota: fmtNum(x.nota, 1), situacao: x.status + (x.quickWin ? ' (quick win ' + x.quickWin.etapa.replace('_', ' ') + ')' : ''), onClick: () => this.openOpp(x) })),
+      oppRows: st.opps.map(x => ({ titulo: x.titulo, area: x.area, evidencia: evid(x.evidencia), nota: fmtNum(x.nota, 1), situacao: x.status + (x.quickWin ? ' (quick win ' + (STAGE_NAMES[x.quickWin.etapa] || x.quickWin.etapa) + ')' : ''), onClick: () => this.openOpp(x) })),
       noOpp: !o,
       hasOpp: !!o,
       oppForm: st.oppForm,

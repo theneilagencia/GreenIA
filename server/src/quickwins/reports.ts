@@ -6,9 +6,12 @@ import PDFDocument from 'pdfkit';
 import type { PortfolioRow } from './routes.ts';
 import type { QuickWinResults } from './service.ts';
 import type { QwCriteria } from './criteria.ts';
+import { STAGE_LABEL } from './service.ts';
 
 const num = (n: number | null | undefined, unit = '') => n === null || n === undefined ? '—' : `${String(n).replace('.', ',')}${unit ? ' ' + unit : ''}`;
 const STATUS: Record<string, string> = { identificada: 'identificada', avaliada: 'avaliada', selecionada: 'selecionada' };
+const ORIGEM: Record<string, string> = { medido: 'medido', informado: 'informado', automatico: 'automático' };
+const stage = (s: string) => STAGE_LABEL[s] ?? s;
 
 function sheet(wb: ExcelJS.Workbook, name: string, cols: string[], rows: Record<string, unknown>[]) {
   const ws = wb.addWorksheet(name.slice(0, 31));
@@ -38,14 +41,14 @@ function portfolioRows(rows: PortfolioRow[], crit: QwCriteria) {
     'Área': r.area, Oportunidade: r.titulo, Processo: r.processo, Problema: r.problema, 'Quem executa hoje': r.executorAtual, Volume: r.volume,
     'Evidência': r.evidencia === 'comprovado' ? 'comprovada' : 'hipótese',
     ...Object.fromEntries(crit.criterios.map(c => [c.label, r.notas ? num(r.notas[c.key]) : '—'])),
-    Nota: num(r.nota), 'Situação': STATUS[r.status] ?? r.status, 'Quick win': r.quickWin ? r.quickWin.etapa.replace('_', ' ') : '—',
+    Nota: num(r.nota), 'Situação': STATUS[r.status] ?? r.status, 'Quick win': r.quickWin ? stage(r.quickWin.etapa) : '—', 'Último registro': r.ultimoRegistro ?? '',
   }));
 }
 
 export async function portfolioXlsx(tenant: string, rows: PortfolioRow[], crit: QwCriteria): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'GreenIA';
-  const cols = ['Área', 'Oportunidade', 'Processo', 'Problema', 'Quem executa hoje', 'Volume', 'Evidência', ...crit.criterios.map(c => c.label), 'Nota', 'Situação', 'Quick win'];
+  const cols = ['Área', 'Oportunidade', 'Processo', 'Problema', 'Quem executa hoje', 'Volume', 'Evidência', ...crit.criterios.map(c => c.label), 'Nota', 'Situação', 'Quick win', 'Último registro'];
   sheet(wb, 'Portfólio', cols, portfolioRows(rows, crit));
   const c = wb.addWorksheet('Critérios');
   c.addRow([`Portfólio de oportunidades: ${tenant}`]);
@@ -68,10 +71,11 @@ export function portfolioPdf(tenant: string, rows: PortfolioRow[], crit: QwCrite
     for (const [area, list] of byArea) {
       h(area);
       for (const r of list) {
-        doc.moveDown(0.3).font('Helvetica-Bold').text(`${r.titulo} — nota ${num(r.nota)} — ${STATUS[r.status] ?? r.status}${r.quickWin ? ` (quick win: ${r.quickWin.etapa.replace('_', ' ')})` : ''}`).font('Helvetica');
+        doc.moveDown(0.3).font('Helvetica-Bold').text(`${r.titulo} — nota ${num(r.nota)} — ${STATUS[r.status] ?? r.status}${r.quickWin ? ` (quick win: ${stage(r.quickWin.etapa)})` : ''}`).font('Helvetica');
         doc.text(`Processo: ${r.processo}. Problema: ${r.problema}`);
         doc.text(`Quem executa hoje: ${r.executorAtual || '—'}. Volume: ${r.volume || '—'}. Evidência: ${r.evidencia === 'comprovado' ? 'comprovada' : 'hipótese'}${r.evidenciaNota ? ` (${r.evidenciaNota})` : ''}.`);
         if (r.notas) doc.text(crit.criterios.map(c => `${c.label}: ${num(r.notas![c.key])}`).join(' · '));
+        if (r.ultimoRegistro) doc.text(`Último registro: ${r.ultimoRegistro}`);
       }
     }
   });
@@ -81,8 +85,8 @@ export function portfolioPdf(tenant: string, rows: PortfolioRow[], crit: QwCrite
 function indicatorRows(r: QuickWinResults) {
   return r.indicadores.map(i => ({
     'Quick win': r.quickWin.titulo, Indicador: i.label, Unidade: i.unit,
-    Antes: num(i.antes?.valor), 'Origem (antes)': i.antes ? `${i.antes.origem.tipo}: ${i.antes.origem.detalhe}` : 'sem ponto de partida',
-    Depois: num(i.depois?.valor), 'Origem (depois)': i.depois ? `${i.depois.origem.tipo}: ${i.depois.origem.detalhe}` : 'sem medição',
+    Antes: num(i.antes?.valor), 'Origem (antes)': i.antes ? `${ORIGEM[i.antes.origem.tipo]}: ${i.antes.origem.detalhe}` : 'sem ponto de partida',
+    Depois: num(i.depois?.valor), 'Origem (depois)': i.depois ? `${ORIGEM[i.depois.origem.tipo]}: ${i.depois.origem.detalhe}` : 'sem medição',
     'Diferença': i.comparacao ? `${num(i.comparacao.diferenca)}${i.comparacao.percentual !== null ? ` (${num(i.comparacao.percentual)}%)` : ''}` : '—',
     'Situação': i.lacuna ?? (i.comparacao?.melhorou ? 'melhorou' : 'não melhorou'),
     'Acumulado no período': i.acumuladoNoPeriodo ? `${num(i.acumuladoNoPeriodo.valor)} h = ${i.acumuladoNoPeriodo.calculo}` : '—',

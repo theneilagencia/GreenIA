@@ -64,7 +64,8 @@ async function login(page: import('playwright').Page, addr = 'ana@repet.com.br')
   // Primeiro acesso: roteiro (testado à parte); aqui é pulado.
   const tour = page.getByRole('dialog', { name: 'Boas-vindas à GreenIA' });
   if (await tour.isVisible().catch(() => false) || await tour.waitFor({ timeout: 1500 }).then(() => true, () => false)) {
-    await page.getByRole('button', { name: 'Pular' }).click();
+    // O roteiro pode fechar sozinho enquanto a página troca de diálogo (ex.: a Política de Uso entra por cima).
+    await page.getByRole('button', { name: 'Pular' }).click({ timeout: 5000 }).catch(async e => { if (await tour.isVisible().catch(() => false)) throw e; });
   }
 }
 

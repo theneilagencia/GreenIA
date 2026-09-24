@@ -49,6 +49,9 @@ export interface Reader {
 
 export const READERS: Reader[] = [nfeReader, danfeReader];
 
+// Definições antigas escreviam o leitor direto em "de" (ex.: { de: 'nfe' }).
+export const LEGACY_DATASET_SOURCES: readonly string[] = [nfeReader.id];
+
 export const readerById = (id: string) => READERS.find(r => r.id === id);
 export const readerKinds = () => READERS.filter(r => r.kind).map(r => r.kind!);
 export const enabledReaders = (ids: readonly string[] | undefined) => READERS.filter(r => (ids ?? []).includes(r.id));

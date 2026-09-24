@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Config } from './config.ts';
 import type { Db } from './db/pool.ts';
+import { tenantRoutes } from './tenants/routes.ts';
 
 export interface Deps {
   config: Config;
@@ -36,6 +37,8 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
     const ok = Object.values(checks).every(v => v === 'ok');
     return reply.code(ok ? 200 : 503).send({ status: ok ? 'ok' : 'erro', checks });
   });
+
+  await app.register(tenantRoutes);
 
   return app;
 }

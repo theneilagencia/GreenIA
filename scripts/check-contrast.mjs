@@ -9,24 +9,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export function hexToRgb(hex) {
-  const h = hex.replace('#', '');
-  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
-}
-
-export function luminance(hex) {
-  const [r, g, b] = hexToRgb(hex).map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-export function contrast(a, b) {
-  const x = luminance(a);
-  const y = luminance(b);
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
-
-export const MIN_NORMAL = 4.5;
-export const MIN_LARGE = 3;
+import { contrast, MIN_NORMAL, MIN_LARGE } from '../lib/contrast.mjs';
+export { contrast, MIN_NORMAL, MIN_LARGE };
 
 // [texto, fundo, 'pequeno' | 'grande', onde aparece]
 const COMMON = [

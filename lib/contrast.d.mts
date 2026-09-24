@@ -1,0 +1,10 @@
+export const MIN_NORMAL: number;
+export const MIN_LARGE: number;
+export function normalizeHex(hex: string): string;
+export function hexToRgb(hex: string): [number, number, number];
+export function luminance(hex: string): number;
+export function contrast(a: string, b: string): number;
+export function toHsl(hex: string): [number, number, number];
+export function fromHsl(hsl: [number, number, number]): string;
+export function minContrast(fg: string, backgrounds: string[]): number;
+export function textVariant(hex: string, backgrounds: string[], min?: number, margin?: number): string;

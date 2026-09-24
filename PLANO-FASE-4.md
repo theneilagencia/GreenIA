@@ -30,7 +30,7 @@ Todos os arquivos ficam fora do repositório, num bucket privado da TheNeil em s
 | Conjunto | Conteúdo | Quantidade proposta | Quem providencia |
 |---|---|---|---|
 | Fiscal: notas reais | XML e DANFE (PDF) de notas de compra da própria TheNeil | 30 notas, com XML e DANFE de cada | TheNeil (financeiro) |
-| Fiscal: pedidos | Planilhas de pedido montadas a partir dessas notas, no layout de exportação de vários ERPs de mercado (TOTVS Protheus, Omie, Bling, SyGeCom e outros: CSV e XLSX, com títulos acima da tabela, separador `;`, Latin-1, aba "Campo \| Valor"). Nenhum layout é o principal: todos entram com o mesmo peso. Cada pedido recebe divergências plantadas e registradas no gabarito: quantidade, preço acima e abaixo da tolerância, item sem par dos dois lados, prazo de emissão. | 30 pedidos (1 por nota) | eu gero, você confere o layout |
+| Fiscal: pedidos | Planilhas de pedido montadas a partir dessas notas, em layouts de exportação diferentes (CSV Latin-1 com títulos acima da tabela e rodapé, XLSX com aba "Campo \| Valor", texto de largura fixa, JSON, XML). Nenhum layout é o principal: todos entram com o mesmo peso. Cada layout entra só por um mapeamento de importação criado pela API de configuração ou pela tela; nenhum nome de sistema existe no código. Cada pedido recebe divergências plantadas e registradas no gabarito: quantidade, preço acima e abaixo da tolerância, item sem par dos dois lados, prazo de emissão. | 30 pedidos (1 por nota) | eu gero, você confere o layout |
 | Fiscal: DANFE sem XML | Parte das notas enviada só com o DANFE, para conferir o "pedir o XML ao fornecedor" | 8 casos | reaproveita as notas |
 | RH: pastas de admissão | Documentos fictícios (RG, CPF, CTPS, comprovante de residência, ASO, título, dados bancários), com a marca "ESPÉCIME" e dados inventados. Uma parte em PDF digital; uma parte impressa e escaneada (150 e 300 dpi); uma parte impressa e fotografada com celular (iPhone em HEIC, Android em JPG), com ângulo, sombra, luz baixa e desfoque leve. Cada pasta tem documentos faltando de propósito. | 15 pastas, cerca de 100 arquivos, com pelo menos 40 fotos reais | eu gero os PDFs; alguém da TheNeil imprime e fotografa |
 | RH: degradação sintética | As mesmas páginas com perspectiva, ruído, compressão e rotação aplicadas por script, para ter volume | cerca de 100 imagens | eu gero |
@@ -102,7 +102,7 @@ Pelas premissas atuais: cerca de 3.300 páginas no corpus, 2 modelos, 3 repetiç
 2. A variável `ANTHROPIC_API_KEY` configurada no ambiente onde a avaliação vai rodar.
 3. As 30 notas de compra da TheNeil (XML e DANFE).
 4. Uma pessoa para imprimir e fotografar as pastas de RH (iPhone e Android). Sem isso, o RH fica só com escaneamento e degradação sintética, e o relatório diz isso.
-5. Confirmação de quais layouts de ERP usar nos pedidos. Um exemplo real de exportação de qualquer cliente (só o cabeçalho, sem dados), inclusive o do SyGeCom, entra como mais uma variação, sem substituir as outras.
+5. Um exemplo real de exportação de pedido de qualquer cliente (só o cabeçalho, sem dados), inclusive o do SyGeCom. Entra como mais um mapeamento de importação no corpus (e, para a Repet, no arquivo de implantação), sem substituir os outros layouts.
 6. O bucket privado para o corpus (ou autorização para eu criar a estrutura, se a conta estiver acessível daqui).
 
 ## Riscos

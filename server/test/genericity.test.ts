@@ -29,9 +29,18 @@ const core = [
   ...walk(join(ROOT, 'lib'), /\.js$/),
 ];
 const readers = walk(join(SERVER, 'src', 'readers'), /\.ts$/);
+// Para ERPs a varredura é mais larga: todo server/src (inclusive demo e leitores),
+// migrações, lib, scripts e páginas, com os comentários.
+const todoCodigo = [
+  ...walk(join(SERVER, 'src'), /\.ts$/), ...walk(join(SERVER, 'migrations'), /\.sql$/), ...walk(join(ROOT, 'lib'), /\.js$/),
+  ...walk(join(ROOT, 'scripts'), /\.m?js$/),
+];
 const pages = readdirSync(ROOT).filter(n => n.endsWith('.dc.html')).map(n => join(ROOT, n));
 
 const CLIENTES = /\b(repet|sygecom|prumo)\b/i;
+// ERPs e sistemas de cliente: o núcleo não conhece nenhum. Layouts entram só como
+// mapeamento de importação (dados de implantação) ou como caso do corpus.
+const ERPS = /\b(sygecom|totvs|protheus|datasul|microsiga|rm ?labore|sap|s\/4 ?hana|business ?one|omie|bling|sankhya|senior ?sistemas|oracle|jd ?edwards|netsuite|dynamics ?(365|nav|ax)|navision|odoo|tiny ?erp|olist|conta ?azul|linx|winthor|consinco|nomus|alterdata|questor|benner|cigam|vhsys|granatum|nibo|mega ?erp|dom[ií]nio ?sistemas|thomson|ifs ?erp|infor|epicor|acumatica|sage ?(x3|intacct|50|100|200|300|business ?cloud)|quickbooks|xero)\b/i;
 const AREAS = /['"`](fiscal|rh|financeiro|lgpd|jur[ií]dico|comercial|suprimentos|compras|atendimento|obras|engenharia|faturamento|manuten[cç][aã]o|opera[cç][oõ]es|recursos humanos|contabilidade|log[ií]stica)['"`]/i;
 const DOCUMENTOS = /\b(nf-?e|nfs-?e|danfe|ct-?e|boleto|notas? fisca(l|is))\b/i;
 
@@ -47,6 +56,12 @@ test('nenhum nome de cliente no núcleo, no registro de leitores nem nas página
   assert.deepEqual(hits([...core, ...readers, ...pages], CLIENTES), []);
 });
 
+test('nenhum ERP ou sistema de cliente no código: só em implantação, catálogo, corpus e fixtures', () => {
+  const out: string[] = [];
+  for (const f of [...todoCodigo, ...pages]) readFileSync(f, 'utf8').split('\n').forEach((l, i) => { if (ERPS.test(l)) out.push(`${relative(ROOT, f)}:${i + 1}: ${l.trim().slice(0, 140)}`); });
+  assert.deepEqual(out, []);
+});
+
 test('nenhum nome de área fixo no núcleo: as áreas são do cliente', () => {
   assert.deepEqual(hits([...core, ...readers], AREAS), []);
 });
@@ -59,6 +74,9 @@ test('o próprio teste pega o que deve pegar', () => {
   assert.ok(core.length > 60, `arquivos do núcleo lidos: ${core.length}`);
   assert.ok(hits(readers, DOCUMENTOS).length > 0);                 // os leitores falam de documentos: a varredura funciona
   assert.ok(CLIENTES.test('tenant da Repet'));
+  for (const n of ['SyGeCom', 'TOTVS Protheus', 'SAP S/4HANA', 'Omie', 'Bling', 'Sankhya', 'Senior Sistemas', 'Tiny ERP', 'Conta Azul', 'Dynamics 365']) assert.ok(ERPS.test(`layout do ${n}`), n);
+  assert.ok(!ERPS.test('analista sênior de compras') && !ERPS.test('saparia') && !ERPS.test('mapeamento de importação'));
+  assert.ok(todoCodigo.length > core.length);
   assert.ok(AREAS.test(`where slug = 'fiscal'`));
   assert.ok(DOCUMENTOS.test(`if (kind === 'nfe')`));
   assert.equal(stripComments('const a = 1; // ex.: NF-e'), 'const a = 1; ');

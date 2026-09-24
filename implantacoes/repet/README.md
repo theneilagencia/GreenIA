@@ -21,12 +21,12 @@ As quatro frentes da proposta: Fiscal, RH / DP, Financeiro e LGPD & Compliance. 
 
 | Área | Modelo do catálogo | Ajustes da Repet |
 |---|---|---|
-| Fiscal | `conferencia-nota-pedido` | Colunas reais do pedido exportado do SyGeCom; tolerâncias de quantidade e preço; prazo de emissão. |
+| Fiscal | `conferencia-nota-pedido` | Mapeamento de importação do pedido exportado do SyGeCom; tolerâncias de quantidade e preço; prazo de emissão. |
 | RH / DP | `checklist-documentos-admissao` | Lista real de documentos de admissão e sinônimos usados pelo DP. |
 | Financeiro | `resumo-financeiro-mensal` | Tópicos e indicadores do resumo mensal. |
 | LGPD & Compliance | `organizacao-evidencias` | Taxonomia de evidências e padrão de nome. |
 
-O layout do SyGeCom é uma variação entre outras de planilha de pedido: o assistente lê as colunas pela configuração, sem código próprio.
+O layout do SyGeCom entra só como mapeamento de importação em `tenant.json` (`mapeamentosImportacao`), criado a partir de um arquivo real de exportação, ou pela tela Administração › Mapeamentos de importação. O assistente declara os campos normalizados do pedido (número, fornecedor, data, código, descrição, quantidade, valor unitário) e nunca cita o sistema de origem. Nenhum nome, coluna ou regra do SyGeCom existe no código da plataforma. O mapeamento ainda não está no arquivo: falta o exemplo real de exportação.
 
 ## Oportunidades iniciais
 

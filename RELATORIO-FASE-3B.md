@@ -157,6 +157,47 @@ Nenhum passo pediu código de cliente. Os pontos em que a plataforma falhou ao g
 | 3. Edição do quick win | Tela para editar indicadores, recursos e revisores de um quick win já criado. Depois de iniciada a medição, mudar indicador, ponto de partida ou janela exige motivo, fica na auditoria (`quick_win_alterado_na_medicao`) e num registro próprio, e o relatório de resultados mostra "Houve alteração depois do início da medição", com data, o que mudou, quem e o motivo (e uma aba no XLSX) | `5f40036` |
 | 4. Cota de quick wins | Fica pela API da plataforma. Pendência do painel administrativo da TheNeil | — |
 
+## Regra dos ERPs: o núcleo não conhece nenhum sistema de cliente
+
+Pedida depois da aprovação dos ajustes. Nenhum nome de sistema, layout, nome de coluna ou regra de um ERP pode existir no código do núcleo.
+
+**Camada de importação genérica** (`server/src/imports/`, migração 023 com volta).
+- Mapeamento de importação por tenant. Define qual coluna, posição ou caminho vira qual campo; formato de data e de número; separador; codificação; linhas de início e fim a ignorar e linhas a pular por expressão (total, subtotal). Traz transformações simples: dividir código e descrição, trocar valores, só dígitos, converter unidade por fator fixo ou por outra coluna. Campos fora das linhas também entram, pelo título acima do cabeçalho ou por uma planilha de campo e valor.
+- Formatos: CSV (com aspas e Latin-1), XLSX, texto de largura fixa, JSON, XML.
+- Cada registro sai com a origem de cada campo (arquivo, planilha, linha).
+- Os blocos trabalham só com registros normalizados. A conferência lê `de: "importacao"` com o conjunto declarado no assistente.
+- O assistente declara os conjuntos de dados que espera (`dados`: campos, tipos, obrigatórios) e nunca o sistema de origem. A validação recusa regra de conferência com campo que o conjunto não declara.
+- Na execução, cada arquivo de dados passa pelos mapeamentos do tenant que entregam os campos obrigatórios. Fica o que lê sem erro geral e com menos linhas com erro. Linha com erro sai do conjunto e vai para a revisão com o motivo. Arquivo que nenhum mapeamento lê também vai para a revisão.
+- A seção de leitura mostra qual mapeamento e qual versão leram cada arquivo.
+- Pela tela (Administração › Mapeamentos de importação), o admin ou o key user sobe um arquivo de exemplo e vê as primeiras linhas. A tela sugere formato, codificação e separador. Depois ele mapeia os campos, vê a pré-visualização normalizada e salva.
+- Salvar com arquivo de exemplo exige ler pelo menos um registro. Cada alteração é uma versão nova, com o que mudou. Criar, alterar, arquivar e reativar ficam na auditoria (`mapeamento_importacao_*`).
+- A API é a mesma da tela. Os mapeamentos entram na exportação completa do tenant.
+- A implantação aceita `mapeamentosImportacao` no arquivo do tenant.
+- O modelo `conferencia-nota-pedido` passou à versão 2, com o conjunto normalizado do pedido. A demonstração traz o mapeamento da sua planilha de pedido.
+
+**Integrações diretas.** Leitura direta de um ERP (API, banco, SFTP), se houver, será um conector no registro de extensões, no padrão dos leitores especializados: declara o que entrega em formato normalizado, é habilitado por tenant, e o núcleo não depende dele. Nenhum conector foi criado.
+
+**SyGeCom.** Entra só como mapeamento de importação no arquivo de implantação da Repet (quando chegar um exemplo real de exportação) ou como caso do corpus. O mesmo vale para qualquer outro ERP do corpus.
+
+**Auditoria das referências a ERP** (busca por SyGeCom, TOTVS, Protheus, SAP, Omie, Bling, Sankhya, Senior, Oracle, Dynamics, Odoo, Tiny, Conta Azul, Linx e similares em todo o repositório).
+
+| Onde | Referência | O que foi feito |
+|---|---|---|
+| `server/src`, `server/migrations`, `lib`, `scripts`, páginas `.dc.html` | Nenhuma. O modelo do catálogo dizia "pedido exportado do ERP" (palavra genérica) | O modelo passou a dizer "sistema de compras" e declara o conjunto normalizado |
+| `implantacoes/repet/README.md` | "Colunas reais do pedido exportado do SyGeCom" | É dado de implantação. O texto agora diz que o layout entra só como mapeamento em `tenant.json` |
+| `PLANO-FASE-4.md` | Lista de ERPs de mercado nos layouts do corpus; pedido do cabeçalho do SyGeCom | Documentação do corpus. O texto agora diz que cada layout entra só por mapeamento criado pela API ou pela tela, sem nomes de sistema no corpus |
+| `RELATORIO-FASE-3.md`, este relatório, `server/eval/fase4/README.md` | Menções históricas ao SyGeCom como layout | Documentação. Mantidas como registro; nenhuma é código |
+| `server/test/blocks-ler.test.ts` | Fixture `export-sygecom.csv` (nome do arquivo de teste) | Fixture permitida. Renomeada para `exportacao-compras.csv`, sem perder o que o teste cobre |
+| `server/test/genericity.test.ts`, `server/test/catalog.test.ts` | Os nomes aparecem nas expressões que procuram por eles | É o próprio teste |
+| `eval/nomes/conjunto-teste.json` | Frase "O sistema SyGeCom exportou a planilha de compras." | Corpus de avaliação de nomes (a palavra não pode virar nome de pessoa). Permitido |
+| `server/eval/fase4/` (corpus) | Cinco layouts de exportação (`layout-a` a `layout-e`), sem nome de sistema | Cada layout entra por mapeamento criado pela API no teste da Fase 4 |
+
+**Verificação.**
+- O teste contra nomes fixos (`genericity.test.ts`) agora procura nomes de ERPs e sistemas em todo o `server/src` (inclusive demonstração e leitores), nas migrações, em `lib`, nos scripts e nas páginas, com os comentários. O próprio teste confere que pega SyGeCom, TOTVS Protheus, SAP S/4HANA, Omie, Bling, Sankhya, Senior Sistemas, Tiny ERP, Conta Azul e Dynamics 365, e que não pega "analista sênior".
+- `imports.test.ts`: leitura dos cinco formatos, transformações, erro por linha, pré-visualização, versões, auditoria, permissão e isolamento entre tenants. O mesmo assistente confere um CSV com título e rodapé e um JSON, só pelos mapeamentos. Mapeamento arquivado deixa de valer.
+- `fase4-fiscal-importacao.test.ts`: os cinco layouts do corpus fiscal entram por mapeamentos criados pela API de configuração, testados com um arquivo de exemplo. O mesmo assistente, criado do modelo do catálogo sem ajuste, confere os 18 casos do conjunto de desenvolvimento. Resultado: 18 de 18, e em cada layout todos os casos batem com o gabarito.
+- Tela: teste no navegador (key user sobe o exemplo, mapeia, pré-visualiza, salva a versão 1 e a 2).
+
 ## Limites e pendências
 
 - Painel administrativo da TheNeil: definir a cota de quick wins do plano de cada tenant pela tela (hoje só pela API `PUT /api/platform/tenants/<slug>/quick-wins-quota`).

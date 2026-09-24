@@ -187,7 +187,7 @@ test('XLSX com cabeçalho na primeira linha', async () => {
 test('CSV exportado do ERP em Latin-1, com ; e aspas', async () => {
   const { env } = testEnv();
   const latin1 = Buffer.from('Código;Descrição;Valor\r\nP-001;"Caixa; reforçada";1.250,50\r\n', 'latin1');
-  const s = (await readFile(inputFile('export-sygecom.csv', new Uint8Array(latin1)), OPTS, env)).sheets![0];
+  const s = (await readFile(inputFile('exportacao-compras.csv', new Uint8Array(latin1)), OPTS, env)).sheets![0];
   assert.deepEqual(s.header, ['Código', 'Descrição', 'Valor']);
   assert.deepEqual(s.rows[0], { 'Código': 'P-001', 'Descrição': 'Caixa; reforçada', Valor: '1.250,50' });
 });

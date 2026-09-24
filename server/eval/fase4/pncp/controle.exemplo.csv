@@ -1,0 +1,4 @@
+caso;frente;tipo_documento;arquivo;id_pncp;url;orgao;cnpj_orgao;esfera;ano;baixado_em;digitalizacao
+pncp-jur-01;juridico;contrato;contrato-01.pdf;00000000000000-2-000001/2025;https://pncp.gov.br/app/contratos/00000000000000/2025/1;Órgão de exemplo;00.000.000/0000-00;municipal;2025;2026-10-01;digital
+pncp-sup-01;suprimentos;termo_de_referencia;tr-sup-01.pdf;00000000000000-1-000010/2025;https://pncp.gov.br/app/editais/00000000000000/2025/10;Órgão de exemplo;00.000.000/0000-00;estadual;2025;2026-10-01;digital
+pncp-sup-01;suprimentos;ata_registro_precos;ata-sup-01.pdf;00000000000000-1-000010/2025-0001;https://pncp.gov.br/app/atas/00000000000000/2025/10/1;Órgão de exemplo;00.000.000/0000-00;estadual;2025;2026-10-01;digital

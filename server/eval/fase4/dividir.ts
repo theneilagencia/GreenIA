@@ -57,7 +57,7 @@ export function rotulosDe(g: Gab): string[] {
 // Unidade de divisão: casos que compartilham um arquivo andam juntos.
 export function unidadeDe(g: Gab): string {
   const base = casoBase(g.caso);
-  if (g.frente === 'suprimentos') return base.replace(/-\d+$/, '');
+  if (g.frente === 'suprimentos' && (g.procedencia ?? 'gerado') === 'gerado') return base.replace(/-\d+$/, '');   // cotações de uma especificação
   return base;
 }
 

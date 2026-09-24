@@ -117,11 +117,23 @@ Arquivos: `resultados/rh-desenvolvimento-depois-das-correcoes.json` e `resultado
 
 Nada disso foi ajustado: a Fase 4 mede como está e o relatório propõe as mudanças.
 
+## Documentos reais do PNCP (Jurídico e Suprimentos)
+
+O ambiente não alcança `pncp.gov.br`: a política de rede do ambiente recusa o endereço (403 no proxy). Para baixar daqui, o endereço precisa entrar na lista de domínios permitidos do ambiente. Enquanto isso, a lista do que baixar está em `pncp/LISTA.md`: 30 contratos e 10 atas para o Jurídico, e 20 pares de termo de referência e ata para Suprimentos (80 arquivos).
+
+- `importar-pncp.ts importar` lê a pasta baixada e a planilha de controle (`pncp/controle.exemplo.csv`). Copia os arquivos para a saída, fora do repositório, calcula o sha256 e escreve um gabarito em rascunho por caso, com "A PREENCHER".
+- `importar-pncp.ts congelar` recusa qualquer rascunho incompleto ou fora do schema. Com tudo certo, grava os gabaritos e o sha256 em `gabaritos/pncp-manifesto.json` e congela a divisão dos lotes `juridico/pncp` e `suprimentos/pncp`.
+- Os gabaritos são escritos e congelados antes de qualquer rodada. Caso fora da divisão congelada não roda.
+- Em Suprimentos, a planilha de especificação sai dos itens do termo de referência transcritos no gabarito.
+- O schema do gabarito ganhou `procedencia` (`gerado` ou `pncp`) e `pncp` (número de controle, endereço, órgão, esfera e ano de cada documento).
+- Teste: `test/fase4-pncp.test.ts`.
+
 ## O que depende de você
 
 - `ANTHROPIC_API_KEY` no ambiente da avaliação (rodada com Haiku 4.5 e Sonnet 5).
 - As 30 notas de compra da TheNeil (XML e DANFE) para a frente fiscal.
 - Pessoas para imprimir e fotografar as pastas de RH (roteiro em `saida/rh/ROTEIRO-FOTOS.md`).
 - Os layouts de ERP para os pedidos (qualquer cliente, sem dados). Os cinco de hoje são aproximações neutras; cada layout real (o SyGeCom é um deles) vira mais um `mapeamentos/layout-x.json`.
+- Os documentos do PNCP da lista `pncp/LISTA.md` e a planilha de controle, ou a liberação de `pncp.gov.br` na rede do ambiente.
 - O bucket privado para o corpus.
 - A pessoa que confere os 20% de amostra dos gabaritos.

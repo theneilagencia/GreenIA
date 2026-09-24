@@ -138,3 +138,35 @@ test('conferência sobre campos extraídos (nota × contrato), com a página de 
   assert.equal(r.divergencias[0].esquerda!.origem, 'nfs-88.pdf › p. 1');
   assert.equal(r.divergencias[0].direita!.origem, 'contrato.pdf › p. 3');
 });
+
+test('planilha chave-valor (cabeçalho do pedido na vertical) comparada ao cabeçalho da NF-e', async () => {
+  const def = assistantDefinitionSchema.parse({
+    inputs: { files: { enabled: true, accept: ['nfe_xml', 'xlsx'] } },
+    pipeline: [
+      { bloco: 'ler' },
+      { bloco: 'conferir', params: {
+        esquerda: { de: 'nfe' }, direita: { de: 'tabela', arquivo: '*pedido*', planilha: 'Cabeçalho', orientacao: 'chave_valor' },
+        rotulos: { esquerda: 'Nota', direita: 'Pedido' },
+        regras: [
+          { campo: 'Número do pedido', esquerda: 'pedido', direita: 'Número do pedido', tipo: 'igual' },
+          { campo: 'CNPJ do fornecedor', esquerda: 'emitente.cnpj', direita: 'CNPJ do fornecedor', tipo: 'igual' },
+          { campo: 'Prazo', esquerda: 'dataEmissao', direita: 'Data do pedido', tipo: 'data' },
+          { campo: 'Valor total', esquerda: 'totais.nota', direita: 'Valor total', tipo: 'numero', tolerancia: { absoluta: 1 } },
+        ] } },
+    ],
+  });
+  const { env } = testEnv();
+  const ctx: RunContext = { def, text: '', docs: [], sections: [], env, files: [
+    inputFile('nfe-55.xml', nfeXml({ numero: '55', emissao: '2026-09-12', pedido: '4500123', cnpj: '12345678000199', itens: [{ codigo: 'A', descricao: 'x', qtd: 10, unit: 10 }] })),
+    inputFile('pedido-4500123.xlsx', await xlsx({
+      Itens: [['Código', 'Quantidade'], ['A', 10]],
+      'Cabeçalho': [['Número do pedido', '4500123'], ['CNPJ do fornecedor', '12345678000199'], ['Data do pedido', '2026-09-01'], ['Valor total', 98.5]],
+    })),
+  ] };
+  ctx.sections.push(await lerBlock(ctx, def.pipeline[0]));
+  const r = (await conferirBlock(ctx, def.pipeline[1])).data as ResultadoConferencia;
+  assert.deepEqual(r.resumo.pares, 1);
+  assert.deepEqual(r.divergencias.map(d => [d.campo, d.motivo]), [['Prazo', 'datas diferentes (2026-09-12 × 2026-09-01)'], ['Valor total', 'diferença de 1,5 (1,52%), acima da tolerância']]);
+  assert.equal(r.divergencias[1].direita!.origem, 'pedido-4500123.xlsx › Cabeçalho › linha 4');
+  assert.equal(r.divergencias[0].direita!.origem, 'pedido-4500123.xlsx › Cabeçalho › linha 3');
+});

@@ -8,7 +8,9 @@ export type FileKind = typeof FILE_KINDS[number];
 
 // Seleção de um conjunto de dados produzido por blocos anteriores:
 //   nfe       campos da NF-e lida por parser (caminho: 'itens' ou 'totais', 'emitente'...)
-//   tabela    planilha XLSX/CSV (arquivo: padrão do nome, ex. '*pedido*'; planilha opcional)
+//   tabela    planilha XLSX/CSV (arquivo: padrão do nome, ex. '*pedido*'; planilha opcional;
+//             orientacao 'chave_valor' para planilha de duas colunas Campo | Valor,
+//             como o cabeçalho de um pedido: vira um único registro)
 //   extraido  saída do bloco de extração (bloco: id do bloco; caminho opcional dentro do JSON)
 export const datasetRefSchema = z.object({
   de: z.enum(['nfe', 'tabela', 'extraido']),
@@ -16,6 +18,7 @@ export const datasetRefSchema = z.object({
   planilha: z.string().max(100).optional(),
   bloco: z.string().max(60).optional(),
   caminho: z.string().max(200).optional(),
+  orientacao: z.enum(['linhas', 'chave_valor']).default('linhas'),
 });
 export type DatasetRef = z.infer<typeof datasetRefSchema>;
 

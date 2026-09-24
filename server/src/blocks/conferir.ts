@@ -43,6 +43,18 @@ export function resolveDataset(ctx: RunContext, ref: DatasetRef): Registro[] {
     return ctx.docs.filter(d => d.sheets?.length && globMatch(ref.arquivo, d.name)).flatMap(d => {
       const sheet = ref.planilha ? d.sheets!.find(s => normPt(s.name) === normPt(ref.planilha!)) : d.sheets!.find(s => s.rows.length);
       if (!sheet) return [];
+      if (ref.orientacao === 'chave_valor') {
+        // Duas colunas (Campo | Valor), uma informação por linha: vira um registro,
+        // com a linha de cada campo como origem.
+        const [k, v] = sheet.header;
+        const dados: Record<string, unknown> = { [k]: v };                        // a linha de cabeçalho também é um par
+        const linhas: Record<string, number> = { [k]: sheet.rowNumbers[0] - 1 };
+        sheet.rows.forEach((r, i) => { const key = String(r[k] ?? '').trim(); if (key) { dados[key] = r[v]; linhas[key] = sheet.rowNumbers[i]; } });
+        return [{ dados, origem: `${d.name} › ${sheet.name}`, origemCampo: (c: string) => {
+          const hit = Object.keys(linhas).find(x => x === c) ?? Object.keys(linhas).find(x => normPt(x) === normPt(c));
+          return hit ? `${d.name} › ${sheet.name} › linha ${linhas[hit]}` : null;
+        } }];
+      }
       return sheet.rows.map((r, i) => ({ dados: r as Record<string, unknown>, origem: `${d.name} › ${sheet.name} › linha ${sheet.rowNumbers[i]}` }));
     });
   }

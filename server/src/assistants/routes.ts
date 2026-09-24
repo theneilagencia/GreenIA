@@ -1,5 +1,6 @@
-// Administração de assistentes: criar, publicar nova versão, listar. Cada
-// alteração gera nova versão; a anterior fica guardada.
+// Administração de assistentes: criar, publicar nova versão, mudar status,
+// consultar versões e exportar o pacote portátil. Toda alteração gera nova
+// versão; as anteriores ficam guardadas.
 import type { FastifyInstance } from 'fastify';
 import { z, ZodError } from 'zod';
 import { withTenant } from '../db/pool.ts';
@@ -7,6 +8,9 @@ import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { assistantDefinitionSchema } from './schema.ts';
+import { buildPackageMarkdown, buildPackageZip, type PackageMeta } from './package.ts';
+
+const STATUS = ['rascunho', 'piloto', 'ativo', 'pausado', 'descartado'] as const;
 
 const createSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,60}$/),
@@ -17,9 +21,13 @@ const createSchema = z.object({
 });
 
 const versionSchema = z.object({
-  status: z.enum(['rascunho', 'piloto', 'ativo', 'pausado', 'descartado']).optional(),
+  status: z.enum(STATUS).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
   definition: z.unknown(),
 });
+
+const statusSchema = z.object({ status: z.enum(STATUS), motivo: z.string().trim().max(500).optional() });
+const packageQuery = z.object({ format: z.enum(['zip', 'md']).default('zip'), version: z.coerce.number().int().min(1).optional() });
 
 const issues = (e: ZodError) => e.issues.map(i => `${i.path.join('.')}: ${i.message}`);
 
@@ -73,9 +81,96 @@ export async function assistantRoutes(app: FastifyInstance) {
       const version = cur.current_version + 1;
       await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, $3, $4, $5)`,
         [a.tenantId, cur.id, version, def.data, a.userId]);
-      await tx.query(`update assistants set current_version = $1, status = coalesce($2, status) where id = $3`, [version, p.data.status ?? null, cur.id]);
+      await tx.query(`update assistants set current_version = $1, status = coalesce($2, status), name = coalesce($3, name) where id = $4`,
+        [version, p.data.status ?? null, p.data.name ?? null, cur.id]);
       await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_nova_versao', target: `assistente:${slug}@${version}` });
       return reply.code(201).send({ slug, version });
     });
+  });
+
+  // Detalhe: versão atual e histórico de versões.
+  app.get('/api/admin/assistants/:slug', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const { slug } = req.params as { slug: string };
+    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const cur = (await tx.query(
+        `select a.id, a.slug, a.name, a.status, a.area_id, ar.slug as area, a.current_version as version, v.definition
+         from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
+         left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug])).rows[0];
+      if (!cur) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
+      if (!can(a, 'kb.manage', cur.area_id)) return reply.code(403).send({ error: 'sem_permissao' });
+      const versions = (await tx.query(
+        `select v.version, v.created_at, u.email as created_by from assistant_versions v left join users u on u.id = v.created_by
+         where v.assistant_id = $1 order by v.version desc`, [cur.id])).rows;
+      return { slug: cur.slug, name: cur.name, status: cur.status, area: cur.area, version: cur.version,
+        definition: assistantDefinitionSchema.parse(cur.definition), versions };
+    });
+  });
+
+  app.get('/api/admin/assistants/:slug/versions/:version', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const { slug, version } = req.params as { slug: string; version: string };
+    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const row = (await tx.query(
+        `select a.area_id, v.version, v.definition, v.created_at from assistants a join assistant_versions v on v.assistant_id = a.id
+         where a.slug = $1 and v.version = $2`, [slug, Number(version) || 0])).rows[0];
+      if (!row) return reply.code(404).send({ error: 'versao_nao_encontrada' });
+      if (!can(a, 'kb.manage', row.area_id)) return reply.code(403).send({ error: 'sem_permissao' });
+      return { version: row.version, createdAt: row.created_at, definition: assistantDefinitionSchema.parse(row.definition) };
+    });
+  });
+
+  // Mudança de status (piloto, ativo, pausado, descartado): também é alteração,
+  // então gera nova versão com a mesma definição.
+  app.post('/api/admin/assistants/:slug/status', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const p = statusSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const { slug } = req.params as { slug: string };
+    return withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const cur = (await tx.query(
+        `select a.id, a.area_id, a.status, a.current_version, v.definition from assistants a
+         join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version where a.slug = $1 for update of a`, [slug])).rows[0];
+      if (!cur) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
+      if (!can(a, 'kb.manage', cur.area_id)) return reply.code(403).send({ error: 'sem_permissao' });
+      if (cur.status === p.data.status) return { slug, version: cur.current_version, status: cur.status };
+      const version = cur.current_version + 1;
+      await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, $3, $4, $5)`,
+        [a.tenantId, cur.id, version, cur.definition, a.userId]);
+      await tx.query(`update assistants set current_version = $1, status = $2 where id = $3`, [version, p.data.status, cur.id]);
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_status', target: `assistente:${slug}@${version}`,
+        details: { de: cur.status, para: p.data.status, motivo: p.data.motivo } });
+      return { slug, version, status: p.data.status };
+    });
+  });
+
+  // Pacote portátil (ZIP com Markdown e JSON, ou um único Markdown).
+  app.get('/api/admin/assistants/:slug/package', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const q = packageQuery.safeParse(req.query);
+    if (!q.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const { slug } = req.params as { slug: string };
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const row = (await tx.query(
+        `select a.slug, a.name, a.status, a.area_id, ar.name as area, v.version, v.definition, t.name as tenant_name
+         from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = coalesce($2, a.current_version)
+         join tenants t on t.id = a.tenant_id left join areas ar on ar.id = a.area_id where a.slug = $1`, [slug, q.data.version ?? null])).rows[0];
+      if (!row) return { status: 404 as const };
+      if (!can(a, 'kb.manage', row.area_id)) return { status: 403 as const };
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'assistente_exportado', target: `assistente:${slug}@${row.version}`, details: { formato: q.data.format } });
+      const meta: PackageMeta = { slug: row.slug, name: row.name, area: row.area, status: row.status, version: row.version, tenantName: row.tenant_name };
+      return { status: 200 as const, def: assistantDefinitionSchema.parse(row.definition), meta };
+    });
+    if (out.status === 404) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
+    if (out.status === 403) return reply.code(403).send({ error: 'sem_permissao' });
+    const base = `${out.meta.slug}-v${out.meta.version}`;
+    if (q.data.format === 'md') {
+      return reply.type('text/markdown; charset=utf-8').header('content-disposition', `attachment; filename="${base}.md"`).send(buildPackageMarkdown(out.def, out.meta));
+    }
+    return reply.type('application/zip').header('content-disposition', `attachment; filename="${base}.zip"`).send(await buildPackageZip(out.def, out.meta));
   });
 }

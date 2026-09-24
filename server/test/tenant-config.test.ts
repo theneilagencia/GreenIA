@@ -69,6 +69,15 @@ test('tenant resolvido pelo host', async () => {
   assert.equal(r.json().tenant.slug, 'repet');
 });
 
+test('em produção o parâmetro ?tenant= é ignorado: só o host decide', async () => {
+  const prod = await buildTestApp(db, {}, { NODE_ENV: 'production' });
+  try {
+    assert.equal((await prod.inject({ url: '/api/tenant/config?tenant=repet' })).statusCode, 404);
+    const r = await prod.inject({ url: '/api/tenant/config?tenant=outro', headers: { host: 'repet.greenia.local' } });
+    assert.equal(r.json().tenant.slug, 'repet');
+  } finally { await prod.close(); }
+});
+
 test('tenant desconhecido ou suspenso: 404', async () => {
   assert.equal((await app.inject({ url: '/api/tenant/config?tenant=nao-existe' })).statusCode, 404);
   await db.owner.query(`update tenants set status = 'suspenso' where slug = 'repet'`);

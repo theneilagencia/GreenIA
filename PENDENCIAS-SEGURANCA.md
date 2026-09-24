@@ -145,3 +145,10 @@ A segunda camada é a própria instrução dada ao modelo, que recusa pedidos co
 | Incidentes | A descrição fica com quem reportou e com o key user da área (sem key user, o admin do cliente). O admin vê o incidente, não a descrição. A TheNeil vê tipo, status, data e a execução ou saída afetada; a descrição e as notas do histórico só chegam a ela com escalonamento pelo key user ou no tipo "problema técnico". Toda leitura da descrição fica na auditoria do cliente com quem leu. Emails nunca levam a descrição. | Se o admin do cliente deve ler a descrição quando a área tem key user (hoje, não). |
 | Âncora da auditoria | Todo dia, o hash final da cadeia de cada tenant vai para um bucket S3 com Object Lock em modo compliance, numa conta AWS separada. A âncora tem só identificador do tenant, número do registro, hash e datas. A verificação da cadeia compara com a âncora lida do bucket. O admin do cliente vê e exporta o histórico. Cadeia quebrada não é ancorada e vira registro. | Quem administra a conta separada (não pode ser quem administra a produção), a retenção (padrão 5 anos) e o fato de as âncoras sobreviverem à exclusão do tenant até o fim da retenção (o comprovante de exclusão registra isso). |
 | Prenome sozinho | Não dispara aviso. | Nada. |
+
+## 10. Compartilhamento entre áreas (ajuste de 24/09/2026)
+
+- Compartilhar um assistente não abre a base da área dona: a execução consulta só a interseção entre as bases vinculadas ao assistente e as que a pessoa pode ler, com aviso sem conteúdo quando uma base vinculada fica de fora.
+- Compartilhar assistente ou documento com outra área (ou com a empresa toda) exige aprovação do key user da área dona; sem key user, do admin do cliente. Pedido, aprovação e recusa ficam na auditoria.
+- Para revisar: o patrocinador do tenant enxerga oportunidades e quick wins de todas as áreas e os nomes dos recursos deles (não o conteúdo). Confirme se isso atende à política de cada cliente.
+

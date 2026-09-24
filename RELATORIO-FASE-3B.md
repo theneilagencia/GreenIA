@@ -148,16 +148,24 @@ Nenhum passo pediu código de cliente. Os pontos em que a plataforma falhou ao g
 - `PLANO-FASE-4.md`: validação da plataforma. Corpus com as quatro frentes e duas áreas da construtora (cotações de Suprimentos e contratos do Jurídico). O layout do SyGeCom é uma variação entre outras. O modelo é escolhido por assistente. Cada assistente avaliado fica ligado a um quick win com janelas, e um deles em dois quick wins, para validar a contagem.
 - `RELATORIO-FASE-3.md`: nota da Fase 3B no início, medição no quick win, catálogo, checklist genérico no lugar do checklist da Repet.
 
+## Ajustes depois da aprovação (antes da Fase 4)
+
+| Ajuste | Como ficou | Commit |
+|---|---|---|
+| 1. Compartilhar não amplia acesso | Na execução, as bases consultadas são a interseção entre as bases vinculadas ao assistente (as áreas da definição; sem elas, a área dona) e o que a pessoa que executa pode ler. A busca roda no contexto de permissão dela; base vinculada que ela não lê vira aviso ("fonte não disponível para você: base de X"), sem título nem trecho, e fica na auditoria (`fonte_indisponivel_para_a_pessoa`). Compartilhar assistente ou documento com outra área, ou com a empresa toda, vira pedido: só vale depois da aprovação do key user da área dona (com herança); sem key user, do admin do cliente. O patrocinador e a ampliação de quick win pedem; quem aprova e pede ao mesmo tempo aplica direto. Retirar vale na hora. Pedido, aprovação e recusa (recusa com motivo) na auditoria e na aba Administração › Pedidos de compartilhamento. Teste: patrocinador pede o compartilhamento de um assistente de Pessoas com Comercial; fica pendente e não vale; depois de aprovado, o vendedor executa e nada da tabela salarial chega à saída nem ao modelo | `e7fcd49` |
+| 2. Tabelas antigas | Teste de reconciliação no tenant de demonstração: o banco sobe até a migração 019, recebe execuções, valores e decisões no modelo antigo e depois as migrações seguintes; execuções, pontos de partida, valores depois e decisões batem assistente por assistente. A migração 022 remove `metric_values` e `assistant_decisions`; a volta (`migrations/down/022_...sql`, `node src/db/migrate.ts --down`) recria as tabelas vazias | `5e28738` |
+| 3. Edição do quick win | Tela para editar indicadores, recursos e revisores de um quick win já criado. Depois de iniciada a medição, mudar indicador, ponto de partida ou janela exige motivo, fica na auditoria (`quick_win_alterado_na_medicao`) e num registro próprio, e o relatório de resultados mostra "Houve alteração depois do início da medição", com data, o que mudou, quem e o motivo (e uma aba no XLSX) | `5f40036` |
+| 4. Cota de quick wins | Fica pela API da plataforma. Pendência do painel administrativo da TheNeil | — |
+
 ## Limites e pendências
 
-- A tela ainda não edita indicadores, recursos e revisores de um quick win depois de criado: a API aceita (`PATCH /api/quick-wins/:id`); a tela edita as janelas.
-- A cota de quick wins só é definida pela API da plataforma; não há tela da TheNeil para isso.
-- Patrocinador do tenant não duplica documento de área que não enxerga: compartilha, ou pede ao key user da área.
-- As tabelas da medição por assistente (`metric_values`, `assistant_decisions`) ficam no banco, sem uso, até a sua confirmação.
+- Painel administrativo da TheNeil: definir a cota de quick wins do plano de cada tenant pela tela (hoje só pela API `PUT /api/platform/tenants/<slug>/quick-wins-quota`).
+- Patrocinador do tenant não duplica documento de área que não enxerga: compartilha (com aprovação), ou pede ao key user da área.
 - O segundo tenant existe como teste executável, não como seed no ambiente de demonstração.
-- Instabilidade vista uma vez, sem relação com a Fase 3B: o `audit-chain` falhou uma vez na desmontagem do banco (conexão encerrada durante o `drop`) e passou nas execuções seguintes.
+- A desmontagem dos testes às vezes encerrava conexões ainda abertas e derrubava o arquivo (visto no `audit-chain` e no `retention`); o pool de teste agora tem ouvinte de erro.
+- O chat com assistente de conversa já consulta a base no contexto da pessoa (sem vazamento), mas ainda não mostra o aviso de fonte indisponível; o aviso vale para os blocos das execuções (consulta e busca).
 - A18 (vocabulário de setor na avaliação de nomes) continua como estava: é avaliação, fora do núcleo.
 
 ## Parada
 
-A Fase 3B está concluída. Espero o seu aval para a Fase 4 (`PLANO-FASE-4.md`, revisado).
+A Fase 3B está concluída, com os ajustes. A Fase 4 começa pelo que não depende de insumos externos.

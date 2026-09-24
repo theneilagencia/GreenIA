@@ -2,6 +2,7 @@
 import { buildApp, type Deps } from '../src/app.ts';
 import { loadConfig } from '../src/config.ts';
 import type { TestDb } from './helpers.ts';
+import { MemoryEmailSender } from '../src/email/sender.ts';
 
 export function testConfig(db: TestDb, extra: Record<string, string> = {}) {
   return loadConfig({
@@ -15,5 +16,5 @@ export function testConfig(db: TestDb, extra: Record<string, string> = {}) {
 }
 
 export async function buildTestApp(db: TestDb, overrides: Partial<Deps> = {}, env: Record<string, string> = {}) {
-  return buildApp({ config: testConfig(db, env), db: db.app, ...overrides } as Deps);
+  return buildApp({ config: testConfig(db, env), db: db.app, email: new MemoryEmailSender(), ...overrides } as Deps);
 }

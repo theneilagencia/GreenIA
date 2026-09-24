@@ -2,10 +2,13 @@
 import { loadConfig } from './config.ts';
 import { createPool } from './db/pool.ts';
 import { buildApp } from './app.ts';
+import { MemoryEmailSender, SmtpEmailSender } from './email/sender.ts';
 
 const config = loadConfig();
 const db = createPool(config.DATABASE_URL);
-const app = await buildApp({ config, db });
+if (!config.SMTP_URL && config.NODE_ENV === 'production') throw new Error('SMTP_URL é obrigatório em produção');
+const email = config.SMTP_URL ? new SmtpEmailSender(config.SMTP_URL, config.EMAIL_FROM) : new MemoryEmailSender();
+const app = await buildApp({ config, db, email });
 
 const stop = async () => {
   await app.close();

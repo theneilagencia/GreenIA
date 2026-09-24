@@ -5,10 +5,14 @@ import cookie from '@fastify/cookie';
 import type { Config } from './config.ts';
 import type { Db } from './db/pool.ts';
 import { tenantRoutes } from './tenants/routes.ts';
+import { sessionPlugin } from './auth/session.ts';
+import { authRoutes } from './auth/routes.ts';
+import type { EmailSender } from './email/sender.ts';
 
 export interface Deps {
   config: Config;
   db: Db;
+  email: EmailSender;
   ping?: { redis?: () => Promise<unknown> };
 }
 
@@ -38,7 +42,10 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
     return reply.code(ok ? 200 : 503).send({ status: ok ? 'ok' : 'erro', checks });
   });
 
+  // Sessão e proteção de escrita valem para todas as rotas (hook na raiz).
+  await sessionPlugin(app);
   await app.register(tenantRoutes);
+  await app.register(authRoutes);
 
   return app;
 }

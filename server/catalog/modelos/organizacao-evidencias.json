@@ -1,7 +1,7 @@
 {
   "kind": "assistente",
   "slug": "organizacao-evidencias",
-  "version": 1,
+  "version": 2,
   "name": "Organização de evidências de conformidade",
   "description": "Classifica evidências de LGPD, sugere nomes padronizados, gera índice e pacote ZIP, e localiza documentos pedidos.",
   "areaSugerida": "Conformidade, jurídico ou proteção de dados",
@@ -65,7 +65,10 @@
               "sinonimos": [
                 "política de privacidade",
                 "norma interna",
-                "política de segurança"
+                "política de segurança",
+                "política interna",
+                "procedimento operacional",
+                "política de segurança da informação"
               ]
             },
             {
@@ -73,7 +76,10 @@
               "nome": "Treinamentos",
               "sinonimos": [
                 "lista de presença",
-                "certificado de conclusão"
+                "certificado de conclusão",
+                "treinamento",
+                "capacitação",
+                "conscientização"
               ]
             },
             {
@@ -82,7 +88,10 @@
               "sinonimos": [
                 "acordo de processamento de dados",
                 "DPA",
-                "cláusulas de proteção de dados"
+                "cláusulas de proteção de dados",
+                "aditivo de proteção de dados",
+                "termo de tratamento de dados",
+                "contrato de operador"
               ]
             },
             {
@@ -90,7 +99,10 @@
               "nome": "Incidentes",
               "sinonimos": [
                 "relatório de incidente",
-                "comunicação à ANPD"
+                "comunicação à ANPD",
+                "notificação de incidente",
+                "violação de dados",
+                "comunicação de incidente"
               ]
             },
             {
@@ -99,7 +111,10 @@
               "sinonimos": [
                 "inventário de dados",
                 "ROPA",
-                "registro das operações de tratamento"
+                "registro das operações de tratamento",
+                "mapeamento de dados",
+                "registro de atividades de tratamento",
+                "inventário de dados pessoais"
               ]
             }
           ]

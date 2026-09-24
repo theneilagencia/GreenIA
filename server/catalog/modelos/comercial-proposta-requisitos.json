@@ -1,7 +1,7 @@
 {
   "kind": "assistente",
   "slug": "comercial-proposta-requisitos",
-  "version": 1,
+  "version": 2,
   "name": "Proposta recebida × requisitos",
   "description": "Confere se uma proposta de cliente ou de parceiro atende à lista de requisitos e resume o que foi pedido.",
   "areaSugerida": "Comercial ou vendas",
@@ -57,8 +57,11 @@
               "sinonimos": [
                 "objeto",
                 "escopo do serviço",
-                "descrição do fornecimento"
-              ]
+                "descrição do fornecimento",
+                "escopo",
+                "objeto da proposta"
+              ],
+              "evidencia": "mencao"
             },
             {
               "id": "prazo",
@@ -66,8 +69,11 @@
               "sinonimos": [
                 "prazo de entrega",
                 "cronograma",
-                "prazo de execução"
-              ]
+                "prazo de execução",
+                "prazo de implantação",
+                "prazo"
+              ],
+              "evidencia": "mencao"
             },
             {
               "id": "preco",
@@ -75,25 +81,34 @@
               "sinonimos": [
                 "valor total",
                 "condições de pagamento",
-                "forma de pagamento"
-              ]
+                "forma de pagamento",
+                "preço",
+                "investimento",
+                "valor da proposta"
+              ],
+              "evidencia": "mencao"
             },
             {
               "id": "validade",
               "nome": "Validade da proposta",
               "sinonimos": [
                 "proposta válida",
-                "validade"
-              ]
+                "validade",
+                "validade da proposta",
+                "proposta válida por"
+              ],
+              "evidencia": "mencao"
             },
             {
               "id": "garantia",
               "nome": "Garantia",
               "sinonimos": [
                 "garantia de",
-                "prazo de garantia"
+                "prazo de garantia",
+                "período de garantia"
               ],
-              "obrigatorio": false
+              "obrigatorio": false,
+              "evidencia": "mencao"
             },
             {
               "id": "sla",
@@ -101,9 +116,12 @@
               "sinonimos": [
                 "nível de serviço",
                 "acordo de nível de serviço",
-                "SLA"
+                "SLA",
+                "tempo de resposta",
+                "tempo de atendimento"
               ],
-              "obrigatorio": false
+              "obrigatorio": false,
+              "evidencia": "mencao"
             }
           ]
         }

@@ -328,6 +328,27 @@ test('mapeamentos de importação: o key user sobe um exemplo, mapeia os campos,
   await context.close();
 });
 
+test('sinônimos na tela do assistente: o admin acrescenta um nome do item e muda o que vale como evidência', async () => {
+  const { page, errors, context } = await openAs(u.admin);
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: /Checklist de documentos de admissão/ }).click();
+  await page.getByText(/Versão atual: 1\./).waitFor();
+  const sin = page.getByLabel('Sinônimos de Título de eleitor');
+  assert.match(await sin.inputValue(), /título eleitoral/);                    // do catálogo
+  await sin.fill(await sin.inputValue() + ', título digital');
+  await sin.press('Tab');
+  await page.getByLabel('Vale como, para ASO').selectOption('documento_ou_mencao');
+  assert.match(await page.getByLabel(/Definição \(JSON/).inputValue(), /"título digital"/);
+  await page.getByRole('button', { name: 'Gravar nova versão' }).click();
+  await page.getByText(/Gravado como versão 2\./).waitFor();
+  const def = (await db.owner.query(`select v.definition from assistant_versions v join assistants a on a.id = v.assistant_id where a.tenant_id = $1 and a.slug = 'checklist-admissao' and v.version = 2`, [tenantId])).rows[0].definition;
+  const itens = def.pipeline.find((s: { bloco: string }) => s.bloco === 'checklist').params.itens;
+  assert.ok(itens.find((i: { id: string }) => i.id === 'titulo').sinonimos.includes('título digital'));
+  assert.equal(itens.find((i: { id: string }) => i.id === 'aso').evidencia, 'documento_ou_mencao');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('catálogo: o admin cria um assistente a partir de um modelo e depois o duplica', async () => {
   const { page, errors, context } = await openAs(u.admin);
   await page.getByRole('button', { name: 'Administração' }).click();

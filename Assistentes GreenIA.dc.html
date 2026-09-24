@@ -947,6 +947,19 @@
                 <sc-for list="{{ shareButtons }}" as="b" hint-placeholder-count="0"><button onClick="{{ b.onClick }}" aria-pressed="{{ b.pressed }}" style="background:{{ b.bg }};color:{{ b.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:6px 12px;font:500 13px 'Hanken Grotesk';cursor:pointer;">{{ b.label }}</button></sc-for>
               </div>
               <sc-if value="{{ editorExisting }}"><button onClick="{{ saveShares }}" style="margin-top:8px;background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar compartilhamento</button></sc-if>
+              <sc-if value="{{ termRowsShow }}">
+                <div style="border:1px solid var(--gia-line);border-radius:10px;padding:12px;margin-top:12px;">
+                  <p style="font:600 14px 'Hanken Grotesk';margin:0 0 4px;">Itens e sinônimos</p>
+                  <p style="font:400 13px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Escreva os nomes que o item costuma ter nos documentos da empresa, separados por vírgula. Em "Vale como", diga se o item precisa do próprio documento ou se basta o dado mencionado em outro documento. As mudanças vão para a definição abaixo e viram versão nova ao gravar.</p>
+                  <sc-for list="{{ termRows }}" as="t" hint-placeholder-count="0">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--gia-line);padding:8px 0;">
+                      <p style="font:500 14px 'Hanken Grotesk';margin:0;min-width:160px;flex:0 1 200px;">{{ t.nome }}</p>
+                      <input class="gia-field" aria-label="{{ t.ariaSin }}" placeholder="Sinônimos, separados por vírgula" value="{{ t.sinonimos }}" onChange="{{ t.onSinonimos }}" style="flex:1;min-width:200px;">
+                      <sc-if value="{{ t.temEvidencia }}"><select class="gia-field" aria-label="{{ t.ariaEv }}" value="{{ t.evidencia }}" onChange="{{ t.onEvidencia }}" style="width:auto;"><option value="documento">vale o documento</option><option value="mencao">vale o dado mencionado</option><option value="documento_ou_mencao">documento ou dado mencionado</option><option value="documento_e_mencao">documento e dado mencionado</option></select></sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
               <label for="gia-def" style="display:block;font:500 14px 'Hanken Grotesk';margin:12px 0 6px;">Definição (JSON validado pelo servidor; cada gravação vira uma nova versão)</label>
               <textarea id="gia-def" class="gia-field" rows="22" value="{{ editor.json }}" onInput="{{ onEditor.json }}" style="font:400 13px/1.45 ui-monospace,Menlo,monospace;"></textarea>
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;">
@@ -1501,7 +1514,7 @@ class Component extends DCLogic {
       out.columns = ['Item', 'Obrigatório', 'Situação', 'Observação'];
       out.rows = d.itens.map((x, i) => ({
         cells: [text(x.nome), text(x.obrigatorio ? 'sim' : 'não'), select('Situação de ' + x.nome, x.status, ['presente', 'ausente', 'duvidoso'], v => onEdit(data => { data.itens[i].status = v; })), input('Observação de ' + x.nome, x.motivo, v => onEdit(data => { data.itens[i].motivo = v; }))],
-        pick: pick(i, x.evidencias.length ? x.evidencias.map(e => ({ label: e.arquivo, text: e.como })) : [{ label: 'Evidência', text: 'nenhum arquivo corresponde' }]),
+        pick: pick(i, x.evidencias.length ? x.evidencias.map(e => ({ label: e.arquivo + (e.pagina ? ', p. ' + e.pagina : ''), text: e.como })) : [{ label: 'Evidência', text: 'nenhum arquivo corresponde' }]),
       }));
     } else if (s.kind === 'campos') {
       out.columns = ['Documento', 'Campo', 'Valor'];
@@ -1786,6 +1799,30 @@ class Component extends DCLogic {
     this.setState({ editor: { existing: true, slug: d.slug, name: d.name, area: d.area || '', status: d.status, json: JSON.stringify(d.definition, null, 2), shares: d.compartilhamento || { areas: [], empresa: false }, origem: d.origem || null,
       versions: 'Versão atual: ' + d.version + '. Histórico: ' + d.versions.map(v => 'v' + v.version + ' (' + fmtDate(v.created_at) + ')').join(', ') + '.' }, adminMsg: '' });
   }
+  // Itens de checklist e categorias de classificação da definição em edição, para
+  // editar sinônimos e evidência sem mexer no JSON à mão.
+  _termRows() {
+    const ed = this.state.editor;
+    if (!ed) return [];
+    let def;
+    try { def = JSON.parse(ed.json); } catch (e) { return []; }
+    const rows = [];
+    (def.pipeline || []).forEach((st, si) => {
+      const p = st.params || {};
+      const list = st.bloco === 'checklist' ? p.itens : st.bloco === 'classificar' ? p.taxonomia : null;
+      if (!Array.isArray(list)) return;
+      list.forEach((it, ii) => rows.push({ si, ii, key: st.bloco === 'checklist' ? 'itens' : 'taxonomia', nome: it.nome || it.id, sinonimos: (it.sinonimos || []).join(', '), evidencia: it.evidencia || 'documento', temEvidencia: st.bloco === 'checklist' }));
+    });
+    return rows;
+  }
+  setTerm(row, field, value) {
+    let def;
+    try { def = JSON.parse(this.state.editor.json); } catch (e) { this._msg('A definição não é um JSON válido: ' + e.message, false); return; }
+    const it = def.pipeline[row.si].params[row.key][row.ii];
+    if (field === 'sinonimos') it.sinonimos = value.split(',').map(x => x.trim()).filter(x => x.length >= 2);
+    else it.evidencia = value;
+    this.setState({ editor: { ...this.state.editor, json: JSON.stringify(def, null, 2) } });
+  }
   async saveAssistant() {
     const ed = this.state.editor;
     let definition;
@@ -1795,8 +1832,8 @@ class Component extends DCLogic {
       : await this._fetch('/api/admin/assistants', { method: 'POST', body: Object.assign({ slug: ed.slug, name: ed.name, areaSlug: ed.area || undefined, status: ed.status, compartilhar: ed.shares },
           ed.from && ed.from.json === ed.json ? (ed.from.modelo ? { modelo: ed.from.modelo } : { duplicar: ed.from.duplicar }) : { definition }) });
     if (!r.ok) { this._msg('Não gravado: ' + ((r.data.detalhes || []).join('\n') || r.data.error || r.status), false); return; }
+    await this.editAssistant(r.data.slug);
     this._msg('Gravado como versão ' + r.data.version + '.');
-    this.editAssistant(r.data.slug);
     this._loadAssistants();
   }
   async useTemplate(slug) {
@@ -1966,9 +2003,9 @@ class Component extends DCLogic {
       this._msg('Não salvo: ' + (r.status === 422 ? 'o arquivo de exemplo não gerou nenhum registro. Confira a pré-visualização.' : probs || this._err(r)), false);
       return;
     }
-    this._msg('Mapeamento salvo na versão ' + r.data.versao + '.');
     this._loadMappings();
-    this.editMapping(r.data.id);
+    await this.editMapping(r.data.id);
+    this._msg('Mapeamento salvo na versão ' + r.data.versao + '.');
   }
   async archiveMapping(id, arquivar) {
     const r = await this._fetch('/api/admin/import-mappings/' + id + '/' + (arquivar ? 'arquivar' : 'reativar'), { method: 'POST', body: {} });
@@ -2609,6 +2646,8 @@ class Component extends DCLogic {
       hasEditor: !!ed,
       noEditor: !ed,
       editor: ed || {},
+      termRows: this._termRows().map(t => ({ nome: t.nome, sinonimos: t.sinonimos, evidencia: t.evidencia, temEvidencia: t.temEvidencia, ariaSin: 'Sinônimos de ' + t.nome, ariaEv: 'Vale como, para ' + t.nome, onSinonimos: e => this.setTerm(t, 'sinonimos', e.target.value), onEvidencia: e => this.setTerm(t, 'evidencia', e.target.value) })),
+      termRowsShow: this._termRows().length > 0,
       onEditor,
       editorExisting: !!(ed && ed.existing),
       editorSaveLabel: ed && ed.existing ? 'Gravar nova versão' : 'Criar assistente',

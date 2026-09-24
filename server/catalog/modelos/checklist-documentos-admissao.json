@@ -1,7 +1,7 @@
 {
   "kind": "assistente",
   "slug": "checklist-documentos-admissao",
-  "version": 1,
+  "version": 2,
   "name": "Checklist de documentos de admissão",
   "description": "Confere a pasta de documentos de uma admissão e aponta o que está presente, ausente ou duvidoso.",
   "areaSugerida": "Pessoas (RH, departamento pessoal)",
@@ -64,14 +64,21 @@
               "nome": "RG",
               "sinonimos": [
                 "carteira de identidade",
-                "registro geral"
+                "registro geral",
+                "cédula de identidade",
+                "carteira de identidade nacional",
+                "CIN",
+                "documento de identidade"
               ]
             },
             {
               "id": "cpf",
               "nome": "CPF",
               "sinonimos": [
-                "cadastro de pessoas físicas"
+                "cadastro de pessoas físicas",
+                "comprovante de inscrição no CPF",
+                "comprovante de situação cadastral no CPF",
+                "cadastro de pessoa física"
               ]
             },
             {
@@ -80,7 +87,12 @@
               "sinonimos": [
                 "comprovante de endereço",
                 "conta de luz",
-                "conta de água"
+                "conta de água",
+                "conta de energia",
+                "conta de gás",
+                "conta de telefone",
+                "fatura de internet",
+                "declaração de residência"
               ]
             },
             {
@@ -88,7 +100,9 @@
               "nome": "Carteira de trabalho",
               "sinonimos": [
                 "CTPS",
-                "carteira de trabalho digital"
+                "carteira de trabalho digital",
+                "carteira de trabalho e previdência social",
+                "carteira profissional"
               ]
             },
             {
@@ -96,13 +110,19 @@
               "nome": "ASO",
               "sinonimos": [
                 "atestado de saúde ocupacional",
-                "exame admissional"
+                "exame admissional",
+                "atestado admissional",
+                "exame médico admissional"
               ]
             },
             {
               "id": "titulo",
               "nome": "Título de eleitor",
-              "sinonimos": [],
+              "sinonimos": [
+                "título eleitoral",
+                "e-título",
+                "inscrição eleitoral"
+              ],
               "obrigatorio": false
             },
             {
@@ -110,7 +130,10 @@
               "nome": "Dados bancários",
               "sinonimos": [
                 "conta salário",
-                "comprovante bancário"
+                "comprovante bancário",
+                "dados bancários",
+                "comprovante de conta",
+                "conta corrente para crédito de salário"
               ]
             }
           ]

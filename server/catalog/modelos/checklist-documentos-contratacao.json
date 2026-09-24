@@ -1,0 +1,161 @@
+{
+  "kind": "assistente",
+  "slug": "checklist-documentos-contratacao",
+  "version": 1,
+  "name": "Checklist de documentos da contratação de obra",
+  "description": "Confere a pasta de documentos da contratação de uma obra ou serviço de engenharia e aponta o que está presente, ausente ou duvidoso, com a página de cada documento.",
+  "areaSugerida": "Jurídico, contratos ou suprimentos",
+  "leitores": [],
+  "definition": {
+    "description": "Confere a pasta de documentos da contratação de uma obra ou serviço de engenharia e aponta o que está presente, ausente ou duvidoso, com a página de cada documento.",
+    "objective": "Encontrar documentos pendentes antes de liberar a mobilização da obra.",
+    "inputs": {
+      "text": {
+        "enabled": false
+      },
+      "files": {
+        "enabled": true,
+        "required": true,
+        "accept": [
+          "pdf",
+          "imagem",
+          "docx"
+        ],
+        "maxFiles": 30,
+        "maxFileMb": 15
+      }
+    },
+    "dataClasses": [
+      "verde",
+      "amarela",
+      "vermelha"
+    ],
+    "dataPolicy": {
+      "cpf": "permitir_com_registro",
+      "rg": "permitir_com_registro",
+      "nome": "permitir_com_registro",
+      "endereco": "permitir_com_registro",
+      "cep": "permitir_com_registro",
+      "telefone": "permitir_com_registro",
+      "email": "permitir_com_registro"
+    },
+    "retention": {
+      "days": 90
+    },
+    "reading": {
+      "ocrMinConfidence": 70,
+      "visionFallback": true
+    },
+    "pipeline": [
+      {
+        "bloco": "ler",
+        "params": {
+          "visao": "auto"
+        }
+      },
+      {
+        "bloco": "checklist",
+        "titulo": "Documentos da contratação",
+        "params": {
+          "metodo": "regras",
+          "itens": [
+            {
+              "id": "contrato",
+              "nome": "Contrato",
+              "sinonimos": [
+                "contrato de empreitada",
+                "contrato de prestação de serviços",
+                "instrumento particular de contrato"
+              ]
+            },
+            {
+              "id": "art",
+              "nome": "ART",
+              "sinonimos": [
+                "anotação de responsabilidade técnica",
+                "RRT",
+                "registro de responsabilidade técnica"
+              ]
+            },
+            {
+              "id": "alvara",
+              "nome": "Alvará de construção",
+              "sinonimos": [
+                "alvará de obra",
+                "licença de construção",
+                "alvará de execução"
+              ]
+            },
+            {
+              "id": "garantia",
+              "nome": "Seguro garantia",
+              "sinonimos": [
+                "apólice de seguro garantia",
+                "apólice de seguro"
+              ],
+              "mencoes": [
+                "caução",
+                "fiança bancária"
+              ],
+              "evidencia": "documento_ou_mencao"
+            },
+            {
+              "id": "cnd",
+              "nome": "Certidão negativa de débitos",
+              "sinonimos": [
+                "CND",
+                "certidão de regularidade fiscal",
+                "certidão positiva com efeitos de negativa"
+              ]
+            },
+            {
+              "id": "cno",
+              "nome": "Matrícula da obra",
+              "sinonimos": [
+                "cadastro nacional de obras"
+              ],
+              "mencoes": [
+                "CNO",
+                "matrícula CEI"
+              ],
+              "evidencia": "mencao"
+            },
+            {
+              "id": "cnpj",
+              "nome": "Cartão CNPJ",
+              "sinonimos": [
+                "comprovante de inscrição e de situação cadastral"
+              ],
+              "obrigatorio": false
+            }
+          ]
+        }
+      },
+      {
+        "bloco": "exportar",
+        "params": {
+          "formatos": [
+            "pdf",
+            "xlsx"
+          ]
+        }
+      }
+    ],
+    "output": {
+      "format": "checklist",
+      "files": [
+        "pdf",
+        "xlsx"
+      ]
+    },
+    "review": {
+      "reviewers": [
+        "key_user"
+      ],
+      "checklist": [
+        "Documentos só citados no contrato foram pedidos ao fornecedor.",
+        "A página de cada documento confere com o arquivo."
+      ]
+    }
+  }
+}

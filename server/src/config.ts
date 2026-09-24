@@ -36,6 +36,10 @@ const schema = z.object({
 
   // Provedores de modelo. As chaves ficam aqui, nunca no frontend.
   ANTHROPIC_API_KEY: z.string().optional(),
+  // Câmbio para o custo em reais (a tabela de preços está em US$).
+  USD_BRL: z.coerce.number().positive().default(5.5),
+  // Corpo máximo do envio de documento (JSON com base64: ~1,37x o arquivo).
+  KB_UPLOAD_BODY_LIMIT_MB: z.coerce.number().int().min(1).max(300).default(30),
 
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
   COOKIE_SECURE: bool.default(true),

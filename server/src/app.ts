@@ -18,6 +18,8 @@ import { kbRoutes } from './kb/routes.ts';
 import { knowledgeStep } from './kb/step.ts';
 import { makeIndexer } from './kb/indexer.ts';
 import { retentionStep, makeRetentionSweep } from './retention/retention.ts';
+import { usageStep } from './usage/step.ts';
+import type { RateLimiter } from './usage/rate-limit.ts';
 import type { ObjectStore } from './storage/object-store.ts';
 import type { JobQueue } from './jobs/queue.ts';
 import type { KnowledgeSource } from './kb/knowledge.ts';
@@ -33,12 +35,13 @@ export interface Deps {
   objects: ObjectStore;
   queue: JobQueue;
   knowledge: KnowledgeSource;
+  rateLimiter: RateLimiter;
   ping?: { redis?: () => Promise<unknown> };
 }
 
 export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
+  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,

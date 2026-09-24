@@ -7,6 +7,7 @@ import { FakeProvider } from '../src/llm/provider.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
 import { InlineJobQueue } from '../src/jobs/queue.ts';
 import { KeywordKnowledgeSource } from '../src/kb/knowledge.ts';
+import { MemoryRateLimiter } from '../src/usage/rate-limit.ts';
 import { randomBytes } from 'node:crypto';
 import { hashToken } from '../src/auth/session.ts';
 
@@ -26,6 +27,7 @@ export async function buildTestApp(db: TestDb, overrides: Partial<Deps> & { fake
   return buildApp({
     config: testConfig(db, env), db: db.app, ownerDb: db.owner, email: new MemoryEmailSender(), llm: () => fake,
     objects: new MemoryObjectStore(), queue: new InlineJobQueue(), knowledge: new KeywordKnowledgeSource(),
+    rateLimiter: new MemoryRateLimiter(),
     ...overrides,
   } as Deps);
 }

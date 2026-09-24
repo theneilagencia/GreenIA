@@ -35,7 +35,9 @@ export async function kbRoutes(app: FastifyInstance) {
     return { key, sha };
   }
 
-  app.post('/api/kb/documents', async (req, reply) => {
+  const bodyLimit = app.deps.config.KB_UPLOAD_BODY_LIMIT_MB * 1024 * 1024;
+
+  app.post('/api/kb/documents', { bodyLimit }, async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;
     const p = createSchema.safeParse(req.body);
@@ -61,7 +63,7 @@ export async function kbRoutes(app: FastifyInstance) {
     return reply.code(out.status).send(out.body);
   });
 
-  app.post('/api/kb/documents/:id/versions', async (req, reply) => {
+  app.post('/api/kb/documents/:id/versions', { bodyLimit }, async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;
     const { id } = req.params as { id: string };

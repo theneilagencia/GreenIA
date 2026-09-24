@@ -7,6 +7,7 @@ import { AnthropicProvider, FakeProvider, type LlmProvider } from './llm/provide
 import { S3ObjectStore } from './storage/object-store.ts';
 import { BullJobQueue } from './jobs/queue.ts';
 import { KeywordKnowledgeSource } from './kb/knowledge.ts';
+import { RedisRateLimiter } from './usage/rate-limit.ts';
 
 const config = loadConfig();
 const db = createPool(config.DATABASE_URL);
@@ -23,8 +24,10 @@ const llm = (id: string) => {
   return p;
 };
 const queue = new BullJobQueue(config.REDIS_URL);
+const rateLimiter = new RedisRateLimiter(config.REDIS_URL);
 const app = await buildApp({
-  config, db, ownerDb, email, llm, queue,
+  config, db, ownerDb, email, llm, queue, rateLimiter,
+  ping: { redis: () => rateLimiter.ping() },
   objects: new S3ObjectStore(config),
   knowledge: new KeywordKnowledgeSource(),
 });
@@ -35,6 +38,7 @@ await queue.repeat('retention:sweep', 60 * 60 * 1000); // de hora em hora
 const stop = async () => {
   await app.close();
   await queue.close();
+  await rateLimiter.close();
   await db.end();
   await ownerDb?.end();
   process.exit(0);

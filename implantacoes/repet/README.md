@@ -7,6 +7,7 @@ Primeiro cliente da GreenIA. Este arquivo e o `tenant.json` guardam o que é pr�
 - Domínio de email e host (o `tenant.json` usa `repet.com.br` e `repet.greenia.theneil.com.br` como provisórios).
 - Provedor de login: Entra ID ou Google, com o `issuer` (id do diretório) e o `clientId` reais. O segredo vai na variável `OIDC_REPET_ENTRA_SECRET`, nunca no arquivo.
 - Admins e key users de cada área (a lista `keyUsers` está vazia até a confirmação).
+- Patrocinador: quem seleciona as quick wins e registra a decisão final, no tenant todo ou por área.
 
 ## Áreas
 

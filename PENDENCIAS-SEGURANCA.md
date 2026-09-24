@@ -1,11 +1,12 @@
 # GreenIA: pendências para a Segurança da Informação
 
-Situação em 24/09/2026, fim da Fase 2. A GreenIA agora tem servidor próprio: login corporativo, filtro no servidor, base de conhecimento, retenção, limites e auditoria. O protótipo continua existindo em modo demonstração, no Claude Design. Este documento reúne:
+Situação em 24/09/2026, fim da Fase 3. A GreenIA tem servidor próprio (Fase 2) e agora executa assistentes definidos por configuração, com revisão humana, auditoria encadeada, Política de Uso de IA do cliente, incidentes, exportação e exclusão do tenant (Fase 3). O protótipo continua existindo em modo demonstração, no Claude Design. Este documento reúne:
 - o que precisa da sua decisão (seções 1 a 3, atualizadas);
 - o que a Fase 2 implementou e precisa da sua revisão (seção 4);
 - a configuração de cada cliente antes de entrar em produção (seção 5);
 - os pontos jurídicos e contratuais (seção 6);
-- as pendências de implantação (seção 7).
+- as pendências de implantação (seção 7);
+- o que a Fase 3 implementou e precisa da sua revisão (seção 8).
 
 ## 1. Texto de privacidade
 
@@ -82,7 +83,7 @@ A segunda camada é a própria instrução dada ao modelo, que recusa pedidos co
 | Filtro e política de dados | Por cliente e por assistente: bloquear, avisar, mascarar, permitir com registro ou permitir. Credencial é sempre bloqueada, e a classe do assistente (verde, amarela, vermelha) limita o que pode ser afrouxado. | A política padrão de cada cliente (seção 5). |
 | Documentos da base | No S3 com criptografia (SSE-KMS em produção), separados por cliente. O acesso por área é aplicado pelo banco. Versão e hash sha256 de cada arquivo. | Chave KMS própria por ambiente e quem pode administrar a base (papel `key_user`). |
 | Retenção | Conversa livre: não gravada. Saída de assistente com evidência: gravada pelo prazo do assistente ou do cliente (padrão 90 dias) e apagada automaticamente de hora em hora. | O prazo padrão, e o fato de o apagamento não alcançar os backups até eles expirarem (35 dias no RDS, 12 meses no dump semanal sugerido). |
-| Auditoria | A tabela `audit_log` só aceita inserções: criação do cliente, login, login negado e logout, envio bloqueado, aviso confirmado, dado mascarado ou enviado com registro, resposta gerada (sem conteúdo), documentos e versões, áreas, papéis, assistentes, alertas de cota. A configuração do cliente ainda não tem rota de alteração: hoje ela muda pelo papel dono, fora da auditoria, e a Fase 3 traz o painel com registro. O encadeamento por hash, que torna uma alteração detectável, entra na Fase 3. | O que mais deve ser registrado, e o prazo de guarda da auditoria. |
+| Auditoria | A tabela `audit_log` só aceita inserções: criação do cliente, login, login negado e logout, envio bloqueado, aviso confirmado, dado mascarado ou enviado com registro, resposta gerada (sem conteúdo), documentos e versões, áreas, papéis, assistentes, alertas de cota. A configuração do cliente ainda não tem rota de alteração: hoje ela muda pelo papel dono, fora da auditoria, e a Fase 3 traz o painel com registro. O encadeamento por hash entrou na Fase 3 (seção 8). | O que mais deve ser registrado, e o prazo de guarda da auditoria. |
 | Logs do servidor | JSON sem conteúdo das conversas. | Destino (CloudWatch em sa-east-1) e retenção. |
 | Frontend | Servido pelo próprio servidor, com CSP. A CSP precisa de `'unsafe-eval'` porque o runtime das páginas compila os templates no navegador. | Aceitar `'unsafe-eval'` enquanto o frontend usar esse runtime. Não há script de terceiros: o React é servido localmente. |
 | Limites | Por minuto (por usuário e por cliente), tamanho de mensagem e de arquivo, e cota mensal em reais com alerta em 80% e 100%. | Os valores padrão de cada cliente. |
@@ -117,3 +118,18 @@ A segunda camada é a própria instrução dada ao modelo, que recusa pedidos co
 - Registrar os apps OIDC reais (Entra ID e Google). Os testes usaram um emissor simulado.
 - Rodar `docker build` e `docker compose up`. Neste ambiente, o Docker Hub limitou os downloads. As peças foram validadas separadamente (relatório, item 11).
 - Liberar o HuggingFace para medir os embeddings locais e o NER BERTimbau antes de decidir a segunda camada e a busca semântica.
+- Rodar os quatro assistentes de referência com o modelo real e documentos reais da Repet (a Fase 3 usou provedor simulado e amostras fictícias).
+
+## 8. O que a Fase 3 implementou e precisa da sua revisão
+
+| Tema | Como ficou | O que revisar |
+|---|---|---|
+| Auditoria encadeada | Cada registro guarda `seq`, o hash do anterior e o próprio hash (SHA-256), calculados por gatilho no banco, com a hora forçada pelo servidor. `audit_verify` refaz a cadeia e aponta o primeiro registro quebrado. A tela de Administração mostra a verificação, o histórico por documento, execução ou hash, e exporta em CSV (a exportação também é registrada). | O papel dono do banco ainda consegue desligar o gatilho e reescrever a cadeia inteira. Para prova contra quem tem esse acesso, o hash final precisa ser guardado fora do banco (por exemplo, publicado todo dia num bucket com Object Lock). Não implementado. |
+| Arquivos enviados à visão do modelo | PDF escaneado e imagem vão ao modelo como imagem. O filtro de dados não enxerga o conteúdo antes do envio: ele só age sobre o texto que volta. O envio é registrado na auditoria (`conteudo_visual_enviado`, com etapa e quantidade de páginas). Cada assistente pode desligar a visão. | Se a visão fica desligada por padrão em assistentes da classe Amarela ou Vermelha, e se o aviso ao usuário basta. Sem OCR local, desligar a visão significa não ler documento escaneado. |
+| Política de Uso de IA do cliente | Versionada. Cada pessoa dá ciência por versão; sem ciência, o servidor recusa o envio (428). As regras viram piso da política de dados dos assistentes: a ação mais restritiva vence. Termos restritos (ex.: nome de projeto sigiloso) viram o tipo `restrito`. Classes de dado não permitidas bloqueiam assistentes em piloto ou ativos. | O texto da política de cada cliente e os termos restritos. A busca de termos é literal (sem acento e sem diferenciar maiúsculas): variação de grafia escapa. |
+| Incidentes | Botão "Reportar incidente" em todas as telas com servidor. O aviso por email vai aos key users da área, aos administradores do cliente e a `PLATFORM_SUPPORT_EMAIL`, **sem a descrição**. A TheNeil (`admin_theneil`) lê incidentes de todos os clientes, e cada leitura fica na auditoria do cliente. | Se a TheNeil deve ler a descrição ou só o tipo e o status. Prazo de resposta por tipo de incidente. |
+| Revisão humana | Toda saída nasce rascunho. Só aprovado ou aprovado com edição exporta. Quem gerou não revisa a própria saída. A edição guarda original, editada e diff. Rejeição exige motivo. | Se algum assistente da classe Verde pode dispensar revisão (hoje, `review.required` é verdadeiro por padrão). |
+| Retenção | As execuções (arquivos de entrada, saídas, diffs) seguem o prazo do assistente ou do cliente e são apagadas de hora em hora, no banco e no S3. | O mesmo ponto dos backups da seção 4. |
+| Exportação completa | Pedido pelo administrador do cliente. Gera um ZIP com os dados em JSON e CSV, os arquivos originais e a auditoria com a verificação da cadeia, guardado no S3 do próprio cliente. O download é registrado. | Prazo de guarda do ZIP de exportação, que hoje fica até ser apagado junto com o tenant. |
+| Exclusão total | Só pela plataforma, com confirmação pelo slug e motivo. Apaga todas as linhas do tenant, inclusive a auditoria (única exceção ao "só inserção"), e todos os objetos do prefixo no S3. Confere que não sobrou nada e gera um comprovante com contagens, hash final da auditoria e SHA-256 do próprio comprovante, guardado fora das tabelas do tenant. | O comprovante não alcança os backups, que expiram no prazo deles. Isso precisa constar do contrato. Quem na TheNeil pode executar a exclusão. |
+| Importação de pessoas | CSV com email, nome, área e papel, com simulação antes de gravar. Aceita só emails dos domínios do cliente e os papéis que quem importa pode atribuir. Nunca cria `admin_theneil`. | Quem pode importar: hoje, o administrador do cliente e o key user, este só na própria área. |

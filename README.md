@@ -75,7 +75,8 @@ Exemplos: `server/.env.example` (produção, AWS) e `.env.local.example` (compos
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | só fora da AWS | MinIO local |
 | `SMTP_URL`, `EMAIL_FROM` | sim (prod) | envio dos códigos de login e avisos de cota |
 | `ANTHROPIC_API_KEY` | sim (prod) | chave do modelo; nunca vai para o navegador |
-| `USD_BRL` | não | câmbio para o custo em reais (padrão 5,5) |
+| `USD_BRL` | não | câmbio de reserva para o custo em reais (padrão 5,5). Vale só para modelo sem linha vigente na tabela de preços (`price_tables`), que tem câmbio próprio |
+| `PLATFORM_SUPPORT_EMAIL` | não | suporte da TheNeil: recebe o aviso de cada incidente reportado, sem a descrição |
 | `SESSION_TTL_HOURS` | não | duração da sessão (padrão 12 h) |
 | `COOKIE_SECURE` | não | `true` por padrão. Com `false` (só local), o cookie perde o prefixo `__Host-` |
 | `KB_UPLOAD_BODY_LIMIT_MB` | não | corpo máximo do envio de documento (padrão 30) |
@@ -104,6 +105,15 @@ Veja o exemplo em `server/deploy/tenant-local.json`. Para login corporativo, os 
 - O servidor confere o diretório (`tid`) no Entra e o domínio (`hd`, com email verificado) no Google. Além disso, o domínio do email precisa estar em `domains` do tenant.
 - O tenant é escolhido pelo host da requisição (`hosts`). Fora de produção, também pelo parâmetro `?tenant=<slug>`. Em produção, esse parâmetro é ignorado, para que o host de um cliente não abra o login de outro.
 - As cores da marca que não passam em contraste AA são escurecidas automaticamente, e o script mostra os ajustes.
+
+### Tenant de demonstração (Fase 3)
+
+```sh
+DATABASE_OWNER_URL=... node src/scripts/seed-demo.ts              # cria o tenant demo com os 4 assistentes de referência
+node src/scripts/seed-demo.ts --amostras ./amostras               # só grava os arquivos de exemplo em disco
+```
+
+O tenant `demo` abre pelo host `demo.localhost`. As definições dos assistentes estão em `server/deploy/demo/assistentes/` e podem ser coladas no editor de assistentes, na aba Administração da página `Assistentes GreenIA.dc.html`, para criar o mesmo assistente em outro tenant.
 
 ## Produção na AWS (sa-east-1)
 

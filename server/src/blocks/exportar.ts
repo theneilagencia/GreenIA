@@ -32,11 +32,22 @@ function flatten(obj: unknown, prefix = ''): [string, unknown][] {
 }
 
 // Cada seção vira uma tabela (e, se for texto, parágrafos).
+// Como o arquivo foi lido, em palavras (OCR, visão, conversão) e a situação da DANFE.
+const LEITURA: Record<string, string> = { texto: 'texto', parser: 'leitura direta', ocr: 'OCR', visao: 'OCR e visão do modelo' };
+export function leituraLabel(x: { leitura: string; confiancaOcr?: number; paginasPorVisao?: number[]; convertidoDe?: string }): string {
+  const parts = [LEITURA[x.leitura] ?? x.leitura];
+  if (x.confiancaOcr !== undefined) parts.push(`confiança ${x.confiancaOcr}%`);
+  if (x.paginasPorVisao?.length) parts.push(`visão nas p. ${x.paginasPorVisao.join(', ')}`);
+  if (x.convertidoDe) parts.push(`convertido de ${x.convertidoDe}`);
+  return parts.join('; ');
+}
+export const danfeLabel = (x: { danfe?: { xml: string | null; situacao: string } }) => x.danfe ? `DANFE: ${x.danfe.xml ? 'XML ' + x.danfe.xml : x.danfe.situacao}` : '';
+
 export function sectionTable(s: Section): Tabela | null {
   const d = s.data as any;
   switch (s.kind) {
     case 'documentos':
-      return { titulo: s.titulo, colunas: ['Arquivo', 'Tipo', 'Leitura', 'Páginas', 'Avisos'], linhas: d.map((x: any) => ({ Arquivo: x.arquivo, Tipo: x.tipo, Leitura: x.leitura, 'Páginas': x.paginas, Avisos: fmt(x.avisos) })) };
+      return { titulo: s.titulo, colunas: ['Arquivo', 'Tipo', 'Leitura', 'Páginas', 'Situação', 'Avisos'], linhas: d.map((x: any) => ({ Arquivo: x.arquivo, Tipo: x.tipo, Leitura: leituraLabel(x), 'Páginas': x.paginas, 'Situação': danfeLabel(x), Avisos: fmt(x.avisos) })) };
     case 'campos':
       return { titulo: s.titulo, colunas: ['Documento', 'Campo', 'Valor', 'Página', 'Trecho de origem', 'Válido'], linhas: d.flatMap((e: any) => flatten(e.campos ?? {}).map(([campo, valor]) => {
         const o = e.origem.find((x: any) => x.campo === campo || x.campo.replace(/\[(\d+)\]/g, (_: string, n: string) => `[${+n + 1}]`) === campo);

@@ -644,6 +644,16 @@ const STATUS_LABEL = {
   aprovado_com_edicao: 'Aprovada com edição', rejeitado: 'Rejeitada',
 };
 const STATUS_COLOR = { erro: 'var(--gia-red-text)', rejeitado: 'var(--gia-red-text)', rascunho: 'var(--gia-amber-text)', processando: 'var(--gia-muted)' };
+// Como o arquivo foi lido (OCR, visão, conversão) e a situação da DANFE: mesmos textos da exportação.
+const LEITURA = { texto: 'texto', parser: 'leitura direta', ocr: 'OCR', visao: 'OCR e visão do modelo' };
+function leituraLabel(x) {
+  const parts = [LEITURA[x.leitura] || x.leitura];
+  if (x.confiancaOcr !== undefined && x.confiancaOcr !== null) parts.push('confiança ' + x.confiancaOcr + '%');
+  if (x.paginasPorVisao && x.paginasPorVisao.length) parts.push('visão nas p. ' + x.paginasPorVisao.join(', '));
+  if (x.convertidoDe) parts.push('convertido de ' + x.convertidoDe);
+  return parts.join('; ');
+}
+const danfeLabel = x => x.danfe ? 'DANFE: ' + (x.danfe.xml ? 'XML ' + x.danfe.xml : x.danfe.situacao) : '';
 const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'DOCX, DOC, ODT', xlsx: 'XLSX, XLS, ODS', csv: 'CSV', nfe_xml: 'XML da NF-e', texto: 'TXT' };
 const TYPE_LABEL = {
   cpf: 'CPF', cnpj: 'CNPJ', cartao: 'número de cartão', bancario: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial', rg: 'RG',
@@ -853,8 +863,8 @@ class Component extends DCLogic {
     const pick = (i, origins) => ({ sectionId: s.id, index: i, origins });
     const remove = (list, i) => () => onEdit(data => { data[list].splice(i, 1); });
     if (s.kind === 'documentos') {
-      out.columns = ['Arquivo', 'Tipo', 'Leitura', 'Páginas', 'Avisos'];
-      out.rows = d.map((x, i) => ({ cells: [text(x.arquivo), text(KIND_LABEL[x.tipo] || x.tipo), text(x.leitura), text(x.paginas), text((x.avisos || []).join('; '))], pick: pick(i, [{ label: 'Arquivo', text: x.arquivo }]) }));
+      out.columns = ['Arquivo', 'Tipo', 'Leitura', 'Páginas', 'Situação', 'Avisos'];
+      out.rows = d.map((x, i) => ({ cells: [text(x.arquivo), text(KIND_LABEL[x.tipo] || x.tipo), text(leituraLabel(x)), text(x.paginas), text(danfeLabel(x)), text((x.avisos || []).join('; '))], pick: pick(i, [{ label: 'Arquivo', text: x.arquivo }].concat(x.danfe ? [{ label: 'Chave de acesso', text: x.danfe.chave }] : [])) }));
     } else if (s.kind === 'divergencias') {
       const L = d.rotulos.esquerda, R = d.rotulos.direita;
       out.paragraphs = [d.resumo.pares + ' registros comparados, ' + d.divergencias.length + ' divergências.'];

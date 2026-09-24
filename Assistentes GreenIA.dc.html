@@ -695,6 +695,104 @@
         </div>
       </sc-if>
 
+      <!-- Mapeamentos de importação -->
+      <sc-if value="{{ admImports }}">
+        <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;max-width:1000px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Mapeamentos de importação</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 12px;">Arquivos exportados de outros sistemas (CSV, planilha, texto de largura fixa, JSON, XML) entram nos assistentes por um mapeamento: qual coluna vira qual campo. Suba um arquivo de exemplo, mapeie os campos, confira a pré-visualização e salve. Cada alteração vira uma versão nova.</p>
+          <sc-if value="{{ noMappings }}"><p style="font:400 14px 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Nenhum mapeamento ainda.</p></sc-if>
+          <sc-for list="{{ mapRows }}" as="m" hint-placeholder-count="0">
+            <div style="border:1px solid var(--gia-line);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+              <div style="min-width:220px;flex:1;">
+                <p style="font:600 14px 'Hanken Grotesk';margin:0 0 4px;">{{ m.nome }}</p>
+                <p style="font:400 13px 'Hanken Grotesk';color:var(--gia-muted);margin:0;">{{ m.resumo }}</p>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button onClick="{{ m.onEdit }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Editar</button>
+                <button onClick="{{ m.onArchive }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">{{ m.archiveLabel }}</button>
+              </div>
+            </div>
+          </sc-for>
+          <div style="margin-top:6px;"><button onClick="{{ newMapping }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Novo mapeamento</button></div>
+        </div>
+
+        <sc-if value="{{ mapEd }}">
+          <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;max-width:1000px;margin-top:14px;">
+            <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 10px;">{{ mapEdTitle }}</h2>
+            <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+              <div><label for="gia-map-nome" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Nome</label><input id="gia-map-nome" class="gia-field" value="{{ mapEdVals.nome }}" onInput="{{ onMapEd.nome }}"></div>
+              <div><label for="gia-map-desc" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Descrição</label><input id="gia-map-desc" class="gia-field" value="{{ mapEdVals.descricao }}" onInput="{{ onMapEd.descricao }}"></div>
+            </div>
+            <label for="gia-map-file" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Arquivo de exemplo</label>
+            <input id="gia-map-file" type="file" onChange="{{ onMapSample }}" style="font:400 14px 'Hanken Grotesk';margin-bottom:8px;">
+            <sc-if value="{{ mapSampleLines }}"><pre aria-label="Primeiras linhas do arquivo" style="background:var(--gia-paper);border:1px solid var(--gia-line);border-radius:8px;padding:10px;font:400 12px/1.5 ui-monospace,monospace;max-height:220px;overflow:auto;white-space:pre;">{{ mapSampleLines }}</pre></sc-if>
+
+            <h3 style="font:600 15px 'Hanken Grotesk';margin:14px 0 8px;">Formato do arquivo</h3>
+            <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+              <div><label for="gia-map-fmt" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Formato</label><select id="gia-map-fmt" class="gia-field" value="{{ mapEdVals.formato }}" onChange="{{ onMapEd.formato }}"><option value="csv">CSV ou texto com separador</option><option value="xlsx">Planilha XLSX</option><option value="txt_largura_fixa">Texto de largura fixa</option><option value="json">JSON</option><option value="xml">XML</option></select></div>
+              <div><label for="gia-map-enc" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Codificação</label><select id="gia-map-enc" class="gia-field" value="{{ mapEdVals.codificacao }}" onChange="{{ onMapEd.codificacao }}"><option value="utf-8">UTF-8</option><option value="latin1">Latin-1 (Windows)</option></select></div>
+              <div><label for="gia-map-sep" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Separador</label><input id="gia-map-sep" class="gia-field" value="{{ mapEdVals.separador }}" onInput="{{ onMapEd.separador }}" placeholder="; ou , ou \t"></div>
+              <div><label for="gia-map-ini" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Linhas a ignorar no início</label><input id="gia-map-ini" class="gia-field" inputmode="numeric" value="{{ mapEdVals.ignorarLinhasInicio }}" onInput="{{ onMapEd.ignorarLinhasInicio }}"></div>
+              <div><label for="gia-map-fim" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Linhas a ignorar no fim</label><input id="gia-map-fim" class="gia-field" inputmode="numeric" value="{{ mapEdVals.ignorarLinhasFim }}" onInput="{{ onMapEd.ignorarLinhasFim }}"></div>
+              <div><label for="gia-map-cab" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Primeira linha é o cabeçalho</label><select id="gia-map-cab" class="gia-field" value="{{ mapEdVals.linhaCabecalho }}" onChange="{{ onMapEd.linhaCabecalho }}"><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+              <div><label for="gia-map-pula" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Ignorar linhas que contêm</label><input id="gia-map-pula" class="gia-field" value="{{ mapEdVals.ignorarLinhasQue }}" onInput="{{ onMapEd.ignorarLinhasQue }}" placeholder="ex.: ^Total, Subtotal"></div>
+              <div><label for="gia-map-plan" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Planilha (XLSX)</label><input id="gia-map-plan" class="gia-field" value="{{ mapEdVals.planilha }}" onInput="{{ onMapEd.planilha }}" placeholder="padrão: a primeira"></div>
+              <div><label for="gia-map-cam" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Onde estão os registros (JSON, XML)</label><input id="gia-map-cam" class="gia-field" value="{{ mapEdVals.caminhoRegistros }}" onInput="{{ onMapEd.caminhoRegistros }}" placeholder="ex.: pedido.itens"></div>
+              <div><label for="gia-map-dec" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Separador decimal</label><select id="gia-map-dec" class="gia-field" value="{{ mapEdVals.decimal }}" onChange="{{ onMapEd.decimal }}"><option value=",">vírgula (1.234,56)</option><option value=".">ponto (1,234.56)</option></select></div>
+              <div><label for="gia-map-mil" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Separador de milhar</label><select id="gia-map-mil" class="gia-field" value="{{ mapEdVals.milhar }}" onChange="{{ onMapEd.milhar }}"><option value=".">ponto</option><option value=",">vírgula</option><option value=" ">espaço</option><option value="">nenhum</option></select></div>
+              <div><label for="gia-map-data" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Formato de data</label><select id="gia-map-data" class="gia-field" value="{{ mapEdVals.data }}" onChange="{{ onMapEd.data }}"><sc-for list="{{ mapDateFormats }}" as="f" hint-placeholder-count="0"><option value="{{ f }}">{{ f }}</option></sc-for></select></div>
+            </div>
+
+            <h3 style="font:600 15px 'Hanken Grotesk';margin:16px 0 4px;">Campos</h3>
+            <p style="font:400 13px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 8px;">O nome do campo é o que o assistente espera (ex.: codigo, quantidade, valorUnitario). A origem é a coluna do arquivo, a posição no texto, um trecho das linhas do início ou uma planilha de campo e valor.</p>
+            <sc-for list="{{ mapFieldRows }}" as="f" hint-placeholder-count="0">
+              <div style="border:1px solid var(--gia-line);border-radius:10px;padding:8px;margin-bottom:8px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input class="gia-field" aria-label="{{ f.aria }}" placeholder="campo" value="{{ f.campo }}" onInput="{{ f.onCampo }}" style="width:150px;">
+                  <select class="gia-field" aria-label="{{ f.ariaFonte }}" value="{{ f.fonte }}" onChange="{{ f.onFonte }}" style="width:auto;"><option value="coluna">coluna ou caminho</option><option value="posicao">posição (largura fixa)</option><option value="topo">linhas do início</option><option value="planilha">planilha campo | valor</option></select>
+                  <input class="gia-field" aria-label="{{ f.ariaA }}" placeholder="{{ f.phA }}" value="{{ f.a }}" onInput="{{ f.onA }}" style="flex:1;min-width:140px;">
+                  <sc-if value="{{ f.temB }}"><input class="gia-field" aria-label="{{ f.ariaB }}" placeholder="{{ f.phB }}" value="{{ f.b }}" onInput="{{ f.onB }}" style="width:130px;"></sc-if>
+                  <select class="gia-field" aria-label="{{ f.ariaTipo }}" value="{{ f.tipo }}" onChange="{{ f.onTipo }}" style="width:auto;"><option value="texto">texto</option><option value="numero">número</option><option value="inteiro">inteiro</option><option value="data">data</option></select>
+                  <select class="gia-field" aria-label="{{ f.ariaObrig }}" value="{{ f.obrigatorio }}" onChange="{{ f.onObrig }}" style="width:auto;"><option value="sim">obrigatório</option><option value="nao">opcional</option></select>
+                  <button onClick="{{ f.onRemove }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:6px 10px;font:500 13px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Remover</button>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+                  <select class="gia-field" aria-label="{{ f.ariaTr }}" value="{{ f.trTipo }}" onChange="{{ f.onTrTipo }}" style="width:auto;"><option value="">sem transformação</option><option value="dividir">dividir o texto</option><option value="substituir">substituir</option><option value="mapear">trocar valores</option><option value="aparar">tirar espaços</option><option value="maiusculas">maiúsculas</option><option value="minusculas">minúsculas</option><option value="somenteDigitos">só dígitos</option><option value="multiplicar">multiplicar</option><option value="dividirPor">dividir por</option></select>
+                  <sc-if value="{{ f.trTemA }}"><input class="gia-field" aria-label="{{ f.ariaTrA }}" placeholder="{{ f.trPhA }}" value="{{ f.trA }}" onInput="{{ f.onTrA }}" style="flex:1;min-width:140px;"></sc-if>
+                  <sc-if value="{{ f.trTemB }}"><input class="gia-field" aria-label="{{ f.ariaTrB }}" placeholder="{{ f.trPhB }}" value="{{ f.trB }}" onInput="{{ f.onTrB }}" style="width:160px;"></sc-if>
+                </div>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+              <button onClick="{{ addMapField }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Acrescentar campo</button>
+              <button onClick="{{ toggleMapJson }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">{{ mapJsonLabel }}</button>
+            </div>
+            <sc-if value="{{ mapUseJson }}">
+              <label for="gia-map-json" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">Configuração completa (JSON)</label>
+              <textarea id="gia-map-json" class="gia-field" rows="14" value="{{ mapJson }}" onInput="{{ onMapJson }}" style="font:400 13px/1.5 ui-monospace,monospace;"></textarea>
+            </sc-if>
+            <sc-if value="{{ mapExisting }}">
+              <label for="gia-map-nota" style="display:block;font:500 14px 'Hanken Grotesk';margin-bottom:6px;">O que mudou nesta versão</label>
+              <input id="gia-map-nota" class="gia-field" value="{{ mapEdVals.nota }}" onInput="{{ onMapEd.nota }}" style="margin-bottom:10px;">
+            </sc-if>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onClick="{{ previewMapping }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Pré-visualizar</button>
+              <button onClick="{{ saveMapping }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Salvar</button>
+              <button onClick="{{ closeMapping }}" style="background:transparent;border:1px solid var(--gia-line-strong);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;color:var(--gia-ink);">Fechar</button>
+            </div>
+            <sc-if value="{{ mapPreviewSummary }}">
+              <p role="status" style="font:500 14px/1.5 'Hanken Grotesk';margin:12px 0 8px;white-space:pre-wrap;">{{ mapPreviewSummary }}</p>
+              <div style="overflow-x:auto;">
+                <table class="gia-table"><thead><tr><sc-for list="{{ mapPreviewCols }}" as="c" hint-placeholder-count="0"><th>{{ c }}</th></sc-for></tr></thead><tbody>
+                  <sc-for list="{{ mapPreviewRows }}" as="r" hint-placeholder-count="0"><tr><sc-for list="{{ r.cells }}" as="v" hint-placeholder-count="0"><td>{{ v }}</td></sc-for></tr></sc-for>
+                </tbody></table>
+              </div>
+            </sc-if>
+            <sc-if value="{{ mapVersions }}"><p style="font:400 13px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:12px 0 0;white-space:pre-wrap;">{{ mapVersions }}</p></sc-if>
+          </div>
+        </sc-if>
+      </sc-if>
+
       <!-- Critérios de avaliação das oportunidades -->
       <sc-if value="{{ admCriteria }}">
         <div style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:16px;max-width:860px;">
@@ -1219,7 +1317,7 @@ class Component extends DCLogic {
       incidents: [], incident: null, incStatus: '', incNote: '', incEscNote: '',
       usageMonth: today().slice(0, 7), usage: null,
       simRows: [{ nome: 'Assistente 1', assistente: '', execucoes: '100', paginas: '2', digitalizado: '0' }], simMensal: '0', sim: null,
-      exports: [], anchors: null, auditCheck: null, shareRequests: [], shareNote: '',
+      exports: [], anchors: null, auditCheck: null, shareRequests: [], shareNote: '', mapList: [], mapEd: null,
       policy: null, policyAcked: true,
       incidentOpen: false, incForm: { tipo: 'resposta_errada', descricao: '' }, incMsg: '',
       tourStep: null,
@@ -1671,6 +1769,7 @@ class Component extends DCLogic {
     if (adminTab === 'base' || adminTab === 'assistentes' || adminTab === 'areas') this._loadAreas();
     if (adminTab === 'criterios') this._loadCriteria();
     if (adminTab === 'compartilhamentos') this._loadShareRequests();
+    if (adminTab === 'importacao') this._loadMappings();
     if (adminTab === 'politica') this._loadAcks();
     if (adminTab === 'dados') this._loadDataSettings();
     if (adminTab === 'incidentes') this._loadIncidents();
@@ -1746,6 +1845,154 @@ class Component extends DCLogic {
   }
 
   // ---- Tipos de dado e leitores ---------------------------------------------------------------
+  // ---- Mapeamentos de importação ----------------------------------------------------------------
+  async _loadMappings() {
+    const r = await this._fetch('/api/admin/import-mappings');
+    this.setState({ mapList: r.ok ? r.data : [] });
+  }
+  _mapBlank() {
+    return { id: null, nome: '', descricao: '', nota: '', formato: 'csv', codificacao: 'utf-8', separador: ';', ignorarLinhasInicio: '0', ignorarLinhasFim: '0', linhaCabecalho: 'sim', ignorarLinhasQue: '', planilha: '', caminhoRegistros: '', decimal: ',', milhar: '.', data: 'dd/mm/aaaa',
+      campos: [{ campo: '', fonte: 'coluna', a: '', b: '', tipo: 'texto', obrigatorio: 'sim', trTipo: '', trA: '', trB: '' }], usarJson: false, json: '', amostra: null, linhas: '', previa: null, versoes: '' };
+  }
+  newMapping() { this.setState({ mapEd: this._mapBlank(), adminMsg: '' }); }
+  // Configuração salva → campos da tela. Mais de uma transformação num campo: edita pelo JSON.
+  _mapFromConfig(c) {
+    const ed = this._mapBlank();
+    const n = c.numero || {};
+    Object.assign(ed, { formato: c.formato, codificacao: c.codificacao || 'utf-8', separador: c.separador || ';', ignorarLinhasInicio: String(c.ignorarLinhasInicio || 0), ignorarLinhasFim: String(c.ignorarLinhasFim || 0),
+      linhaCabecalho: c.linhaCabecalho === false ? 'nao' : 'sim', ignorarLinhasQue: (c.ignorarLinhasQue || []).join(', '), planilha: c.planilha || '', caminhoRegistros: c.caminhoRegistros || '',
+      decimal: n.decimal || ',', milhar: n.milhar === undefined ? '.' : n.milhar, data: c.data || 'dd/mm/aaaa' });
+    let complexo = false;
+    ed.campos = c.campos.map(f => {
+      const t = (f.transformacoes || [])[0] || null;
+      if ((f.transformacoes || []).length > 1) complexo = true;
+      const row = { campo: f.campo, tipo: f.tipo || 'texto', obrigatorio: f.obrigatorio ? 'sim' : 'nao', trTipo: t ? t.tipo : '', trA: '', trB: '', fonte: 'coluna', a: '', b: '' };
+      if (f.posicao) Object.assign(row, { fonte: 'posicao', a: String(f.posicao.inicio), b: String(f.posicao.tamanho) });
+      else if (f.doTopo) Object.assign(row, { fonte: 'topo', a: f.doTopo.padrao });
+      else if (f.daPlanilha) Object.assign(row, { fonte: 'planilha', a: f.daPlanilha.planilha, b: f.daPlanilha.chave });
+      else row.a = f.origem || '';
+      if (t && t.tipo === 'dividir') Object.assign(row, { trA: t.separador, trB: String(t.parte) });
+      if (t && t.tipo === 'substituir') Object.assign(row, { trA: t.de, trB: t.para });
+      if (t && t.tipo === 'mapear') row.trA = Object.entries(t.valores).map(([k, v]) => k + '=' + v).join(', ');
+      if (t && t.tipo === 'multiplicar') Object.assign(row, { trA: t.fator !== undefined ? String(t.fator) : '', trB: t.porOrigem || '' });
+      if (t && t.tipo === 'dividirPor') row.trA = String(t.fator);
+      return row;
+    });
+    if (complexo) { ed.usarJson = true; ed.json = JSON.stringify(c, null, 2); }
+    return ed;
+  }
+  _mapConfig() {
+    const ed = this.state.mapEd;
+    if (ed.usarJson) return JSON.parse(ed.json);
+    const num = v => (v === '' || v === undefined ? undefined : Number(String(v).replace(',', '.')));
+    const cfg = { formato: ed.formato, codificacao: ed.codificacao, separador: ed.separador || ';', ignorarLinhasInicio: Number(ed.ignorarLinhasInicio) || 0, ignorarLinhasFim: Number(ed.ignorarLinhasFim) || 0,
+      linhaCabecalho: ed.linhaCabecalho === 'sim', ignorarLinhasQue: ed.ignorarLinhasQue.split(',').map(x => x.trim()).filter(Boolean), numero: { decimal: ed.decimal, milhar: ed.milhar }, data: ed.data,
+      campos: ed.campos.filter(f => f.campo.trim()).map(f => {
+        const out = { campo: f.campo.trim(), tipo: f.tipo, obrigatorio: f.obrigatorio === 'sim', transformacoes: [] };
+        if (f.fonte === 'posicao') out.posicao = { inicio: Number(f.a) || 1, tamanho: Number(f.b) || 1 };
+        else if (f.fonte === 'topo') out.doTopo = { padrao: f.a };
+        else if (f.fonte === 'planilha') out.daPlanilha = { planilha: f.a, chave: f.b };
+        else out.origem = f.a;
+        const t = f.trTipo;
+        if (t === 'dividir') out.transformacoes.push({ tipo: t, separador: f.trA || ' - ', parte: Number(f.trB) || 0 });
+        else if (t === 'substituir') out.transformacoes.push({ tipo: t, de: f.trA, para: f.trB });
+        else if (t === 'mapear') out.transformacoes.push({ tipo: t, valores: Object.fromEntries(f.trA.split(',').map(x => x.split('=').map(y => y.trim())).filter(x => x.length === 2 && x[0])) });
+        else if (t === 'multiplicar') out.transformacoes.push(f.trB ? { tipo: t, porOrigem: f.trB } : { tipo: t, fator: num(f.trA) });
+        else if (t === 'dividirPor') out.transformacoes.push({ tipo: t, fator: num(f.trA) });
+        else if (t) out.transformacoes.push({ tipo: t });
+        return out;
+      }) };
+    if (ed.planilha) cfg.planilha = ed.planilha;
+    if (ed.caminhoRegistros) cfg.caminhoRegistros = ed.caminhoRegistros;
+    return cfg;
+  }
+  async editMapping(id) {
+    const r = await this._fetch('/api/admin/import-mappings/' + id);
+    if (!r.ok) { this._msg('Sem permissão para editar este mapeamento.', false); return; }
+    const d = r.data;
+    const ed = Object.assign(this._mapFromConfig(d.config), { id: d.id, nome: d.nome, descricao: d.descricao || '',
+      versoes: 'Versão atual: ' + d.versao + '.\n' + d.versoes.map(v => 'v' + v.versao + ' · ' + fmtDate(v.em) + ' · ' + (v.por || 'implantação') + (v.nota ? ' · ' + v.nota : '')).join('\n') });
+    this.setState({ mapEd: ed, adminMsg: '' });
+  }
+  setMapEd(k, v) { this.setState({ mapEd: { ...this.state.mapEd, [k]: v } }); }
+  setMapField(i, k, v) { this.setState({ mapEd: { ...this.state.mapEd, campos: this.state.mapEd.campos.map((f, j) => (j === i ? { ...f, [k]: v } : f)) } }); }
+  toggleMapJson() {
+    const ed = this.state.mapEd;
+    if (ed.usarJson) {
+      let c;
+      try { c = JSON.parse(ed.json); } catch (e) { this._msg('O JSON não é válido: ' + e.message, false); return; }
+      this.setState({ mapEd: Object.assign(this._mapFromConfig(c), { id: ed.id, nome: ed.nome, descricao: ed.descricao, nota: ed.nota, amostra: ed.amostra, linhas: ed.linhas, versoes: ed.versoes, usarJson: false }) });
+    } else this.setState({ mapEd: { ...ed, usarJson: true, json: JSON.stringify(this._mapConfig(), null, 2) } });
+  }
+  onMapSample(e) {
+    const f = (e.target.files || [])[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const amostra = { nome: f.name, base64: String(reader.result).split(',')[1] || '' };
+      const r = await this._fetch('/api/admin/import-mappings/inspecionar', { method: 'POST', body: { arquivo: amostra } });
+      const ed = { ...this.state.mapEd, amostra };
+      if (r.ok) {
+        const d = r.data;
+        if (d.formato) ed.formato = d.formato;
+        if (d.codificacao) ed.codificacao = d.codificacao;
+        if (d.separador) ed.separador = d.separador;
+        ed.linhas = d.planilhas ? d.planilhas.map(p => '[' + p.nome + ']\n' + p.celulas.map((c, i) => (i + 1) + ': ' + c.map(v => (v === null ? '' : String(v))).join(' | ')).join('\n')).join('\n\n')
+          : (d.linhas || []).map((l, i) => (i + 1) + ': ' + l).join('\n');
+      } else this._msg('Não foi possível ler o arquivo de exemplo: ' + this._err(r), false);
+      this.setState({ mapEd: ed });
+    };
+    reader.readAsDataURL(f);
+  }
+  async previewMapping() {
+    const ed = this.state.mapEd;
+    if (!ed.amostra) { this._msg('Suba um arquivo de exemplo para pré-visualizar.', false); return; }
+    let config;
+    try { config = this._mapConfig(); } catch (e) { this._msg('O JSON não é válido: ' + e.message, false); return; }
+    const r = await this._fetch('/api/admin/import-mappings/previa', { method: 'POST', body: { config, arquivo: ed.amostra } });
+    if (!r.ok) { this._msg('Mapeamento com problema:\n' + ((r.data.problemas || []).map(p => (p.caminho ? p.caminho + ': ' : '') + p.mensagem).join('\n') || this._err(r)), false); return; }
+    this.setState({ mapEd: { ...this.state.mapEd, previa: r.data }, adminMsg: '' });
+  }
+  async saveMapping() {
+    const ed = this.state.mapEd;
+    let config;
+    try { config = this._mapConfig(); } catch (e) { this._msg('O JSON não é válido: ' + e.message, false); return; }
+    const body = { nome: ed.nome, descricao: ed.descricao, config, arquivoExemplo: ed.amostra || undefined };
+    const r = ed.id
+      ? await this._fetch('/api/admin/import-mappings/' + ed.id, { method: 'PUT', body: Object.assign(body, { nota: ed.nota }) })
+      : await this._fetch('/api/admin/import-mappings', { method: 'POST', body });
+    if (!r.ok) {
+      const probs = (r.data.problemas || []).map(p => (p.caminho ? p.caminho + ': ' : '') + p.mensagem).join('\n');
+      this._msg('Não salvo: ' + (r.status === 422 ? 'o arquivo de exemplo não gerou nenhum registro. Confira a pré-visualização.' : probs || this._err(r)), false);
+      return;
+    }
+    this._msg('Mapeamento salvo na versão ' + r.data.versao + '.');
+    this._loadMappings();
+    this.editMapping(r.data.id);
+  }
+  async archiveMapping(id, arquivar) {
+    const r = await this._fetch('/api/admin/import-mappings/' + id + '/' + (arquivar ? 'arquivar' : 'reativar'), { method: 'POST', body: {} });
+    if (!r.ok) { this._msg('Não foi possível: ' + this._err(r), false); return; }
+    this._msg(arquivar ? 'Mapeamento arquivado. As execuções novas não usam mais.' : 'Mapeamento reativado.');
+    this._loadMappings();
+  }
+  _mapFieldRows() {
+    const me = this.state.mapEd;
+    const FONTE_PH = { coluna: ['Coluna, número da coluna ou caminho', ''], posicao: ['Início (1 = primeira letra)', 'Tamanho'], topo: ['Trecho com (grupo), ex.: Pedido: (\\d+)', ''], planilha: ['Planilha', 'Campo na primeira coluna'] };
+    const TR_PH = { dividir: ['Separador, ex.: " - "', 'Parte (0 = primeira)'], substituir: ['Trocar', 'Por'], mapear: ['Valores, ex.: CX=UN, PC=UN', ''], multiplicar: ['Fator', 'ou coluna do fator'], dividirPor: ['Fator', ''] };
+    return me ? me.campos.map((f, i) => {
+      const ph = FONTE_PH[f.fonte] || FONTE_PH.coluna;
+      const tr = TR_PH[f.trTipo] || ['', ''];
+      const n = ' do campo ' + (i + 1);
+      return { campo: f.campo, fonte: f.fonte, a: f.a, b: f.b, tipo: f.tipo, obrigatorio: f.obrigatorio, trTipo: f.trTipo, trA: f.trA, trB: f.trB,
+        phA: ph[0], phB: ph[1], temB: !!ph[1], trPhA: tr[0], trPhB: tr[1], trTemA: !!tr[0], trTemB: !!tr[1],
+        aria: 'Nome' + n, ariaFonte: 'Origem' + n, ariaA: ph[0] + n, ariaB: (ph[1] || 'Complemento') + n, ariaTipo: 'Tipo' + n, ariaObrig: 'Obrigatório' + n, ariaTr: 'Transformação' + n, ariaTrA: (tr[0] || 'Parâmetro') + n, ariaTrB: (tr[1] || 'Parâmetro') + n,
+        onCampo: e => this.setMapField(i, 'campo', e.target.value), onFonte: e => this.setMapField(i, 'fonte', e.target.value), onA: e => this.setMapField(i, 'a', e.target.value), onB: e => this.setMapField(i, 'b', e.target.value),
+        onTipo: e => this.setMapField(i, 'tipo', e.target.value), onObrig: e => this.setMapField(i, 'obrigatorio', e.target.value), onTrTipo: e => this.setMapField(i, 'trTipo', e.target.value),
+        onTrA: e => this.setMapField(i, 'trA', e.target.value), onTrB: e => this.setMapField(i, 'trB', e.target.value),
+        onRemove: () => this.setState({ mapEd: { ...this.state.mapEd, campos: this.state.mapEd.campos.filter((_, j) => j !== i) } }) };
+    }) : [];
+  }
   async _loadDataSettings() {
     const [d, r, all] = await Promise.all([this._fetch('/api/admin/detectors'), this._fetch('/api/readers'), this._fetch('/api/readers/catalogo')]);
     this.setState({ detectors: d.ok ? d.data : null, readers: r.ok ? r.data : this.state.readers, allReaders: all.ok ? all.data : [] });
@@ -2104,7 +2351,16 @@ class Component extends DCLogic {
 
     // Administração
     const adminDefs = [['areas', 'Áreas', roles.admin], ['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
-      ['politica', 'Política de Uso', roles.admin], ['dados', 'Tipos de dado e leitores', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin], ['criterios', 'Critérios de avaliação', roles.admin], ['compartilhamentos', 'Pedidos de compartilhamento', true]];
+      ['politica', 'Política de Uso', roles.admin], ['dados', 'Tipos de dado e leitores', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin], ['criterios', 'Critérios de avaliação', roles.admin], ['compartilhamentos', 'Pedidos de compartilhamento', true], ['importacao', 'Mapeamentos de importação', true]];
+    // Mapeamentos de importação
+    const me = st.mapEd;
+    const onMapEd = {};
+    ['nome', 'descricao', 'nota', 'formato', 'codificacao', 'separador', 'ignorarLinhasInicio', 'ignorarLinhasFim', 'linhaCabecalho', 'ignorarLinhasQue', 'planilha', 'caminhoRegistros', 'decimal', 'milhar', 'data'].forEach(k => { onMapEd[k] = e => this.setMapEd(k, e.target.value); });
+    const mapFieldRows = this._mapFieldRows();
+    const pv = me && me.previa;
+    const pvCols = pv && pv.amostra.length ? Object.keys(pv.amostra[0]).filter(k => k !== '_origem').concat(['origem']) : [];
+    const pvSummary = pv ? (pv.registros + ' registro(s) lidos de ' + pv.linhasLidas + ' linha(s); ' + pv.linhasIgnoradas + ' ignorada(s).' + (pv.serveParaEsteArquivo ? '' : '\nO formato escolhido não costuma servir para este tipo de arquivo.')
+      + (pv.totalErros ? '\n' + pv.totalErros + ' problema(s):\n' + pv.erros.slice(0, 10).map(e => (e.linha ? 'linha ' + e.linha + ' · ' : '') + (e.campo ? e.campo + ': ' : '') + e.motivo).join('\n') : '')) : '';
     const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
     const ed = st.editor;
     const u = st.usage;
@@ -2269,6 +2525,32 @@ class Component extends DCLogic {
         podeAprovar: !!x.podeAprovar, aguardando: !x.podeAprovar, approve: () => this.decideShare(x.id, 'aprovar'), reject: () => this.decideShare(x.id, 'recusar') })),
       shareNote: st.shareNote,
       onShareNote: e => this.setState({ shareNote: e.target.value }),
+      admImports: st.adminTab === 'importacao',
+      noMappings: !st.mapList.length,
+      mapRows: st.mapList.map(m => ({ nome: m.nome + (m.arquivado ? ' (arquivado)' : ''), resumo: m.formato + ' · versão ' + m.versao + ' · campos: ' + m.campos.map(c => c.campo).join(', ') + (m.atualizadoPor ? ' · ' + m.atualizadoPor : ''), archiveLabel: m.arquivado ? 'Reativar' : 'Arquivar', onEdit: () => this.editMapping(m.id), onArchive: () => this.archiveMapping(m.id, !m.arquivado) })),
+      newMapping: () => this.newMapping(),
+      mapEd: !!me,
+      mapEdTitle: me && me.id ? 'Editar mapeamento' : 'Novo mapeamento',
+      mapEdVals: me || {},
+      onMapEd,
+      onMapSample: e => this.onMapSample(e),
+      mapSampleLines: me ? me.linhas : '',
+      mapDateFormats: ['dd/mm/aaaa', 'dd-mm-aaaa', 'dd.mm.aaaa', 'aaaa-mm-dd', 'aaaa/mm/dd', 'aaaammdd', 'ddmmaaaa', 'dd/mm/aa'],
+      mapFieldRows,
+      addMapField: () => this.setState({ mapEd: { ...this.state.mapEd, campos: this.state.mapEd.campos.concat([{ campo: '', fonte: 'coluna', a: '', b: '', tipo: 'texto', obrigatorio: 'sim', trTipo: '', trA: '', trB: '' }]) } }),
+      toggleMapJson: () => this.toggleMapJson(),
+      mapJsonLabel: me && me.usarJson ? 'Voltar aos campos' : 'Editar em JSON',
+      mapUseJson: !!(me && me.usarJson),
+      mapJson: me ? me.json : '',
+      onMapJson: e => this.setMapEd('json', e.target.value),
+      mapExisting: !!(me && me.id),
+      previewMapping: () => this.previewMapping(),
+      saveMapping: () => this.saveMapping(),
+      closeMapping: () => this.setState({ mapEd: null }),
+      mapPreviewSummary: pvSummary,
+      mapPreviewCols: pvCols,
+      mapPreviewRows: pv ? pv.amostra.slice(0, 20).map(r => ({ cells: pvCols.map(c => (c === 'origem' ? r._origem : r[c] === null || r[c] === undefined ? '—' : String(r[c]))) })) : [],
+      mapVersions: me ? me.versoes : '',
       critEdit: ce || {},
       onCritMin: e => this.setState({ critEdit: { ...this.state.critEdit, min: e.target.value } }),
       onCritMax: e => this.setState({ critEdit: { ...this.state.critEdit, max: e.target.value } }),

@@ -283,6 +283,51 @@ test('tipos de dado e leitores: o admin cadastra um tipo próprio, testa um text
   await context.close();
 });
 
+test('mapeamentos de importação: o key user sobe um exemplo, mapeia os campos, pré-visualiza e salva versões', async () => {
+  const { page, errors, context } = await openAs(u.key);
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: 'Mapeamentos de importação' }).click();
+  await page.getByText('Planilha de pedido (demonstração)').waitFor();          // da implantação
+  await page.getByRole('button', { name: 'Novo mapeamento' }).click();
+  const csv = ['RELATÓRIO DE PEDIDOS', 'Pedido: 000777', 'Emitido em 03/09/2026', 'Item;Produto;Qtde;Vl. Unit.', '1;000123 - PARAFUSO;10;"1.234,50"', '2;000456 - ARRUELA;200;0,15', 'Total geral;;;'].join('\r\n');
+  await page.setInputFiles('#gia-map-file', { name: 'exportacao.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'latin1') });
+  await page.getByLabel('Primeiras linhas do arquivo').waitFor();
+  assert.equal(await page.getByLabel('Codificação').inputValue(), 'latin1');
+  assert.equal(await page.getByLabel('Separador', { exact: true }).inputValue(), ';');
+  await page.getByLabel('Nome', { exact: true }).fill('Exportação de pedidos em texto');
+  await page.getByLabel('Linhas a ignorar no início').fill('3');
+  await page.getByLabel('Ignorar linhas que contêm').fill('^Total geral');
+  await page.getByLabel('Nome do campo 1').fill('codigo');
+  await page.getByLabel('Coluna, número da coluna ou caminho do campo 1').fill('Produto');
+  await page.getByLabel('Transformação do campo 1').selectOption('dividir');
+  await page.getByLabel('Separador, ex.: " - " do campo 1').fill(' - ');
+  await page.getByLabel('Parte (0 = primeira) do campo 1').fill('0');
+  for (const [i, campo, coluna] of [[2, 'quantidade', 'Qtde'], [3, 'valorUnitario', 'Vl. Unit.']] as const) {
+    await page.getByRole('button', { name: 'Acrescentar campo' }).click();
+    await page.getByLabel(`Nome do campo ${i}`).fill(campo);
+    await page.getByLabel(`Coluna, número da coluna ou caminho do campo ${i}`).fill(coluna);
+    await page.getByLabel(`Tipo do campo ${i}`).selectOption('numero');
+  }
+  await page.getByRole('button', { name: 'Pré-visualizar' }).click();
+  await page.getByText(/2 registro\(s\) lidos/).waitFor();
+  await page.getByRole('cell', { name: '000123', exact: true }).waitFor();
+  await page.getByRole('cell', { name: '1234.5' }).waitFor();
+  await page.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Mapeamento salvo na versão 1.').waitFor();
+  await page.getByLabel('O que mudou nesta versão').fill('pedido pelo título');
+  await page.getByRole('button', { name: 'Acrescentar campo' }).click();
+  await page.getByLabel('Nome do campo 4').fill('pedido');
+  await page.getByLabel('Origem do campo 4').selectOption('topo');
+  await page.getByLabel('Trecho com (grupo), ex.: Pedido: (\\d+) do campo 4').fill('Pedido: (\\d+)');
+  await page.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Mapeamento salvo na versão 2.').waitFor();
+  await page.getByText(/v2 · .* · pedido pelo título/).waitFor();
+  const audit = (await db.owner.query(`select action from audit_log where tenant_id = $1 and action like 'mapeamento_importacao%' order by seq`, [tenantId])).rows.map(r => r.action);
+  assert.deepEqual(audit, ['mapeamento_importacao_criado', 'mapeamento_importacao_alterado']);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('catálogo: o admin cria um assistente a partir de um modelo e depois o duplica', async () => {
   const { page, errors, context } = await openAs(u.admin);
   await page.getByRole('button', { name: 'Administração' }).click();

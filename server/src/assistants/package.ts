@@ -1,24 +1,27 @@
 // Pacote portátil de um assistente: instruções, exemplos, schema da saída e
 // checklist de revisão em Markdown, para rodar a melhoria em outra plataforma
 // (ChatGPT, Claude, Gemini). A definição da melhoria não fica presa à GreenIA.
-// O que a GreenIA faz em código (conferência, checklist por regras, leitura de
-// NF-e por parser) vira instrução explícita, com o aviso de que ali depende do
+// O que a GreenIA faz em código (conferência, checklist por regras, leitores
+// especializados por parser) vira instrução explícita, com o aviso de que ali depende do
 // modelo e precisa de conferência humana.
 import JSZip from 'jszip';
 import type { AssistantDefinition } from './schema.ts';
 import type { PipelineStep } from '../blocks/params.ts';
+import { readerById, readerKinds, readersUsedBy } from '../readers/registry.ts';
 
 export interface PackageMeta { slug: string; name: string; area: string | null; status: string; version: number; tenantName: string }
 
 const KIND_LABEL: Record<string, string> = {
-  pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'Word (DOCX, DOC, ODT)', xlsx: 'Excel (XLSX, XLS, ODS)', csv: 'CSV', nfe_xml: 'XML de NF-e', texto: 'texto (TXT, MD)',
+  pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'Word (DOCX, DOC, ODT)', xlsx: 'Excel (XLSX, XLS, ODS)', csv: 'CSV', texto: 'texto (TXT, MD)',
 };
+// Tipos acrescentados por leitores especializados usam o rótulo do leitor.
+const kindLabel = (k: string) => KIND_LABEL[k] ?? readerKinds().find(x => x.id === k)?.label ?? k;
 
 const list = (items: string[]) => items.map(i => `- ${i}`).join('\n');
 const json = (v: unknown) => '```json\n' + JSON.stringify(v, null, 2) + '\n```';
 
-function refLabel(r: { de: string; arquivo?: string; planilha?: string; bloco?: string; caminho?: string }) {
-  const parts = [r.de === 'nfe' ? 'NF-e (XML)' : r.de === 'tabela' ? 'planilha' : 'dados extraídos'];
+function refLabel(r: { de: string; leitor?: string; arquivo?: string; planilha?: string; bloco?: string; caminho?: string }) {
+  const parts = [r.de === 'leitor' ? (readerById(r.leitor ?? '')?.label ?? 'leitor ' + r.leitor) : r.de === 'tabela' ? 'planilha' : 'dados extraídos'];
   if (r.arquivo) parts.push(`arquivo "${r.arquivo}"`);
   if (r.planilha) parts.push(`aba "${r.planilha}"`);
   if (r.bloco) parts.push(`da etapa "${r.bloco}"`);
@@ -27,12 +30,12 @@ function refLabel(r: { de: string; arquivo?: string; planilha?: string; bloco?: 
 }
 
 // Cada bloco descrito como passo de instrução.
-export function describeStep(s: PipelineStep, n: number): string {
+export function describeStep(s: PipelineStep, n: number, readerIds: string[] = []): string {
   const p = s.params as Record<string, any>;
   const head = `### Etapa ${n}: ${s.titulo || s.bloco}`;
   switch (s.bloco) {
     case 'ler':
-      return `${head}\nLeia todos os arquivos enviados. Em PDF escaneado ou imagem, leia o conteúdo visível. Em XML de NF-e, use os campos do XML (emitente, destinatário, itens, totais), sem interpretar. Em DANFE (PDF da nota), não extraia os campos do texto impresso: use o XML com a mesma chave de acesso ou peça o XML ao fornecedor.`;
+      return `${head}\nLeia todos os arquivos enviados. Em PDF escaneado ou imagem, leia o conteúdo visível.${readerIds.map(id => readerById(id)?.instruction).filter(Boolean).map(t => ' ' + t).join('')}`;
     case 'extrair':
       return `${head}\nExtraia ${p.por === 'conjunto' ? 'do conjunto de documentos' : 'de cada documento'} os campos do schema abaixo. Para cada campo, indique a página ou o trecho de origem. Se um campo não aparecer no documento, deixe vazio e diga que não foi encontrado: nunca complete por suposição.${p.instrucoes ? '\n\n' + p.instrucoes : ''}\n\n${json(p.schema)}`;
     case 'conferir': {
@@ -61,7 +64,7 @@ export function describeStep(s: PipelineStep, n: number): string {
 export function buildPackageFiles(def: AssistantDefinition, meta: PackageMeta): Record<string, string> {
   const inputs: string[] = [];
   if (def.inputs.text.enabled) inputs.push(`${def.inputs.text.label}${def.inputs.text.required ? ' (obrigatório)' : ''}`);
-  if (def.inputs.files.enabled) inputs.push(`Arquivos: ${def.inputs.files.accept.map(k => KIND_LABEL[k]).join(', ')}; até ${def.inputs.files.maxFiles} arquivos de ${def.inputs.files.maxFileMb} MB`);
+  if (def.inputs.files.enabled) inputs.push(`Arquivos: ${def.inputs.files.accept.map(kindLabel).join(', ')}; até ${def.inputs.files.maxFiles} arquivos de ${def.inputs.files.maxFileMb} MB`);
   if (def.inputs.knowledge.enabled) inputs.push('Documentos de procedimento da área (anexe à base do projeto na outra plataforma)');
 
   const instrucoes = [
@@ -69,7 +72,7 @@ export function buildPackageFiles(def: AssistantDefinition, meta: PackageMeta): 
     def.objective ? `## Objetivo\n${def.objective}` : '',
     def.instructions ? `## Instruções\n${def.instructions}` : '',
     inputs.length ? `## O que a pessoa envia\n${list(inputs)}` : '',
-    def.pipeline.length ? `## Como trabalhar\n\n${def.pipeline.map((s, i) => describeStep(s, i + 1)).join('\n\n')}` : '',
+    def.pipeline.length ? `## Como trabalhar\n\n${def.pipeline.map((s, i) => describeStep(s, i + 1, readersUsedBy(def))).join('\n\n')}` : '',
     `## Saída\nFormato: ${def.output.format}.${def.output.schema ? ' A saída segue o schema em `schema-saida.json`.' : ''}${def.output.files.length ? ` Arquivos: ${def.output.files.join(', ').toUpperCase()}.` : ''}`,
     `## Regras de dados\nClasses de dado aceitas: ${def.dataClasses.join(', ')}. Não envie senhas, tokens ou chaves. Siga a Política de Uso de IA da empresa.`,
     def.review.required ? '## Revisão humana\nToda saída é um rascunho até uma pessoa revisar, conforme `checklist-revisao.md`.' : '',

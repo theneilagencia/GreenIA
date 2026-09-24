@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { Ajv } from 'ajv';
 import { dataPolicySchema } from '../tenants/config.ts';
 import { checkPolicyAgainstClasses } from '../policy/data-policy.ts';
-import { FILE_KINDS, pipelineStepSchema } from '../blocks/params.ts';
+import { fileKindSchema, pipelineStepSchema } from '../blocks/params.ts';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 
@@ -43,7 +43,7 @@ export const assistantDefinitionSchema = z.preprocess(upgrade, z.object({
     files: z.object({
       enabled: z.boolean().default(false),
       required: z.boolean().default(false),
-      accept: z.array(z.enum(FILE_KINDS)).default(['pdf', 'docx', 'xlsx', 'csv', 'texto']),
+      accept: z.array(fileKindSchema).default(['pdf', 'docx', 'xlsx', 'csv', 'texto']),
       maxFileMb: z.number().int().min(1).max(200).default(20),
       maxFiles: z.number().int().min(1).max(500).default(20),
     }).prefault({}),

@@ -115,7 +115,7 @@ test('conteúdo bloqueado pela política não é extraído', async () => {
 });
 
 test('DANFE em PDF não é extraído do texto impresso; página de OCR vai marcada para o modelo', async () => {
-  const danfe: ReadDoc = { ...doc('danfe.pdf', ['DANFE\nCHAVE DE ACESSO ...']), danfe: { chave: '3'.repeat(44) } };
+  const danfe: ReadDoc = { ...doc('danfe.pdf', ['DANFE\nCHAVE DE ACESSO ...']), semExtracao: 'DANFE: campos não extraídos do PDF; use o XML da nota (chave ' + '3'.repeat(44) + ')' };
   const ocr: ReadDoc = { ...doc('recibo.pdf', ['Recibo 7788']), via: 'ocr', pages: [{ n: 1, text: 'Recibo 7788', via: 'ocr', confianca: 84.6 }] };
   const { s, data, calls } = await run('{"campos": {"fornecedor": null, "numero": "7788", "valor": null}, "origem": []}', [danfe, ocr]);
   assert.deepEqual(data.map(d => d.arquivo), ['recibo.pdf']);

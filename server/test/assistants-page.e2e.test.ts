@@ -189,3 +189,25 @@ test('áreas: o admin cria área e subárea, renomeia e desativa pelo painel', a
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test('tipos de dado e leitores: o admin cadastra um tipo próprio, testa um texto e liga e desliga um leitor', async () => {
+  const { page, errors, context } = await openAs(u.admin);
+  await page.getByRole('button', { name: 'Administração' }).click();
+  await page.getByRole('button', { name: 'Tipos de dado e leitores' }).click();
+  await page.getByLabel('Nome do tipo').fill('placa de veículo');
+  await page.getByLabel('Padrão', { exact: true }).fill('\\b[A-Z]{3}-?\\d[A-Z0-9]\\d{2}\\b');
+  await page.getByLabel('Ação padrão').selectOption('mascarar');
+  await page.getByRole('button', { name: 'Adicionar tipo' }).click();
+  await page.getByText('Tipo adicionado.').waitFor();
+  await page.getByRole('cell', { name: 'placa de veículo' }).waitFor();
+  await page.getByLabel('Testar um texto').fill('Caminhão ABC1D23 na doca 2');
+  await page.getByRole('button', { name: 'Testar' }).click();
+  await page.getByText(/Como ficaria mascarado: Caminhão \[PLACA DE VEÍCULO\] na doca 2/).waitFor();
+  const nfe = page.getByRole('button', { name: 'Ligado' }).first();
+  await nfe.click();
+  await page.getByText('Leitores atualizados.').waitFor();
+  await page.getByRole('button', { name: 'Desligado' }).first().click();
+  await page.getByRole('button', { name: 'Desligado' }).waitFor({ state: 'detached' });
+  assert.deepEqual(errors, []);
+  await context.close();
+});

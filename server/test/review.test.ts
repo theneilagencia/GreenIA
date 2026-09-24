@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FastifyInstance } from 'fastify';
 import ExcelJS from 'exceljs';
-import { createTestDb, seedTenant, type TestDb } from './helpers.ts';
+import { createTestDb, seedTenant, enableReaders, type TestDb } from './helpers.ts';
 import { addPerson, buildTestApp, loginAs } from './app-helpers.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
 import { nfeXml, xlsx } from './fixtures.ts';
@@ -42,6 +42,7 @@ const review = async (userId: string, id: string, payload: object) =>
 before(async () => {
   db = await createTestDb();
   T = await seedTenant(db.owner, 'repet', { role: 'admin_cliente' });
+  await enableReaders(db.owner, T.tenantId);                     // este cliente lida com NF-e
   await db.owner.query(`insert into areas (tenant_id, slug, name) values ($1, 'fiscal', 'Fiscal')`, [T.tenantId]);
   people.user = await addPerson(db, T.tenantId, 'ana@repet.com.br', 'usuario', 'fiscal');
   people.revisor = await addPerson(db, T.tenantId, 'rev@repet.com.br', 'revisor', 'fiscal');

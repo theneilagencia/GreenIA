@@ -1,9 +1,12 @@
 // Administração do tenant: áreas e pessoas. Tudo dentro do contexto do tenant da
 // sessão (RLS): um admin nunca alcança áreas ou pessoas de outro tenant.
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { withTenant, type Tx } from '../db/pool.ts';
-import { requireAuth, tenantCtx, type Role } from '../auth/session.ts';
+import { requireAuth, tenantCtx, type AuthContext, type Role } from '../auth/session.ts';
+import { parseTenantConfig, tenantConfigSchema } from '../tenants/config.ts';
+import { effectivePolicy, inspect, maskText } from '../policy/data-policy.ts';
+import { BUILTIN_TYPES, detectorsSchema, typeLabels } from '../policy/detectors.ts';
 import { assignableRoles, can } from '../auth/rbac.ts';
 import { audit } from '../audit.ts';
 import { parseCsvObjects } from '../util/csv.ts';
@@ -61,7 +64,25 @@ const membershipSchema = z.object({
   role: z.enum(['usuario', 'revisor', 'key_user', 'admin_cliente']),
 });
 
+async function tenantConfig(tx: Tx, tenantId: string) {
+  return parseTenantConfig((await tx.query(`select config from tenants where id = $1`, [tenantId])).rows[0]?.config).config;
+}
+
 export async function adminRoutes(app: FastifyInstance) {
+  // Grava uma parte da configuração depois de validar a configuração inteira com ela.
+  async function saveSetting(_req: unknown, reply: FastifyReply, a: AuthContext, key: 'detectors' | 'readers', value: unknown, action: string) {
+    const out = await withTenant(app.deps.db, tenantCtx(a), async tx => {
+      const raw = (await tx.query(`select config from tenants where id = $1`, [a.tenantId])).rows[0]?.config ?? {};
+      const next = tenantConfigSchema.safeParse({ ...raw, [key]: value });
+      if (!next.success) return { status: 400, body: { error: 'configuracao_invalida', detalhes: next.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) } };
+      await tx.query(`select tenant_set_setting($1, $2)`, [key, JSON.stringify(next.data[key])]);
+      const summary = key === 'detectors' ? (next.data.detectors).map(d => d.key) : next.data.readers;
+      await audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action, details: { [key]: summary } });
+      return { status: 200, body: { [key]: next.data[key] } };
+    });
+    return reply.code(out.status).send(out.body);
+  }
+
   app.get('/api/admin/areas', async (req, reply) => {
     const a = requireAuth(req, reply);
     if (!a) return;
@@ -207,6 +228,56 @@ export async function adminRoutes(app: FastifyInstance) {
       return { status: 200, body: { ok: true } };
     });
     return reply.code(out.status).send(out.body);
+  });
+
+  // Detectores da política de dados: os de fábrica e os próprios do cliente.
+  app.get('/api/admin/detectors', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!can(a, 'tenant.configure')) return reply.code(403).send({ error: 'sem_permissao' });
+    const cfg = await withTenant(app.deps.db, tenantCtx(a), tx => tenantConfig(tx, a.tenantId));
+    const policy = effectivePolicy(cfg.dataPolicy, undefined, cfg.detectors) as Record<string, string>;
+    const labels = typeLabels(cfg.detectors);
+    return {
+      deFabrica: BUILTIN_TYPES.map(k => ({ key: k, label: labels[k], acao: policy[k] })),
+      proprios: cfg.detectors.map(d => ({ ...d, acao: policy[d.key] })),
+    };
+  });
+
+  // Troca os detectores próprios (lista inteira, validada com a configuração toda).
+  app.put('/api/admin/detectors', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!can(a, 'tenant.configure')) return reply.code(403).send({ error: 'sem_permissao' });
+    const body = z.object({ detectors: z.array(z.unknown()).max(50) }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    return saveSetting(req, reply, a, 'detectors', body.data.detectors, 'detectores_alterados');
+  });
+
+  // Testa um texto contra os detectores (de fábrica e próprios) sem enviar nada a lugar nenhum.
+  app.post('/api/admin/detectors/test', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!can(a, 'tenant.configure')) return reply.code(403).send({ error: 'sem_permissao' });
+    const p = z.object({ texto: z.string().max(20000), detectors: z.array(z.unknown()).max(50).optional() }).safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    const cfg = await withTenant(app.deps.db, tenantCtx(a), tx => tenantConfig(tx, a.tenantId));
+    const trial = p.data.detectors ? detectorsSchema.safeParse(p.data.detectors) : { success: true as const, data: cfg.detectors };
+    if (!trial.success) return reply.code(400).send({ error: 'detector_invalido', detalhes: trial.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) });
+    const policy = effectivePolicy(cfg.dataPolicy, undefined, trial.data);
+    const { types, decision } = inspect([p.data.texto], policy, trial.data);
+    const labels = typeLabels(trial.data);
+    return { tipos: types, rotulos: Object.fromEntries(types.map(t => [t, labels[t] ?? t])), acao: decision.action, mascarado: maskText(p.data.texto, types, trial.data) };
+  });
+
+  // Leitores especializados ligados no cliente (ex.: XML de NF-e).
+  app.put('/api/admin/readers', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    if (!can(a, 'tenant.configure')) return reply.code(403).send({ error: 'sem_permissao' });
+    const body = z.object({ readers: z.array(z.string().max(40)).max(50) }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'dados_invalidos' });
+    return saveSetting(req, reply, a, 'readers', body.data.readers, 'leitores_alterados');
   });
 
   app.get('/api/admin/users', async (req, reply) => {

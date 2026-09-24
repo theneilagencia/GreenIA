@@ -38,7 +38,7 @@ test('CPF é bloqueado no servidor mesmo sem o filtro do navegador', async () =>
   const before = fake.requests.length;
   const r = await chat({ messages: [{ role: 'user', content: `Confere o CPF ${CPF}` }] });
   assert.equal(r.statusCode, 422);
-  assert.deepEqual(r.json(), { error: 'dado_bloqueado', types: ['cpf'] });
+  assert.deepEqual(r.json(), { error: 'dado_bloqueado', types: ['cpf'], rotulos: { cpf: 'CPF' } });
   assert.equal(fake.requests.length, before, 'o modelo não pode ser chamado');
   const a = await lastAudit('envio_bloqueado');
   assert.deepEqual(a.details, { tipos: ['cpf'] });
@@ -63,7 +63,7 @@ test('email pede confirmação; confirmado, envia e audita o tipo, sem o valor',
   const before = fake.requests.length;
   const r1 = await chat({ messages: [msg] });
   assert.equal(r1.statusCode, 409);
-  assert.deepEqual(r1.json(), { error: 'confirmacao_necessaria', types: ['email'] });
+  assert.deepEqual(r1.json(), { error: 'confirmacao_necessaria', types: ['email'], rotulos: { email: 'email' } });
   assert.equal(fake.requests.length, before);
   const r2 = await chat({ messages: [msg], confirmedWarnings: ['email'] });
   assert.equal(r2.statusCode, 200);

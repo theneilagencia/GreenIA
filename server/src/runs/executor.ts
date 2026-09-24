@@ -20,6 +20,7 @@ import { assistantDefinitionSchema } from '../assistants/schema.ts';
 import { effectivePolicy, inspect, maskText } from '../policy/data-policy.ts';
 import { applyFloor, currentPolicy, restrictedHits } from '../policy/usage-policy.ts';
 import { runBlock } from '../blocks/index.ts';
+import { enabledReaders } from '../readers/registry.ts';
 import type { BlockEnv, InputFile, RunContext, Section } from '../blocks/types.ts';
 import type { ContentPart, LlmUsage } from '../llm/provider.ts';
 import type { KnowledgeHit } from '../kb/knowledge.ts';
@@ -68,7 +69,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
   for (const f of loaded.files) files.push({ id: f.id, name: f.name, mime: f.mime, sha256: f.sha256, bytes: await objects.get(f.object_key) });
 
   const provider = app.deps.llm(config.llm.provider);
-  const policy = applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy), rules?.dataPolicy);
+  const policy = applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy, config.detectors), rules?.dataPolicy);
   const confirmed = new Set<string>(run.confirmed_warnings || []);
   const usage: LlmUsage = { inputTokens: 0, outputTokens: 0 };
   let model = config.llm.model;
@@ -80,7 +81,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
   // Tipos que impedem o envio destes textos (sem registrar nada).
   const check = (texts: string[]) => {
     if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) return { blocked: ['restrito'], motivo: 'informação restrita pela Política de Uso de IA', decision: null };
-    const { decision } = inspect(texts, policy);
+    const { decision } = inspect(texts, policy, config.detectors);
     const unconfirmed = decision.warn.filter(t => !confirmed.has(t));
     if (decision.action === 'bloquear') return { blocked: decision.block as string[], motivo: 'política', decision };
     if (unconfirmed.length) return { blocked: unconfirmed as string[], motivo: 'aviso não confirmado', decision };
@@ -91,6 +92,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
     keyUserContact: config.keyUserContact,
     now: () => new Date(),
     converter: app.deps.converter,
+    readers: enabledReaders(config.readers),
     visionAllowedByPolicy: rules?.allowVisionFallback ?? true,
     // Imagem não tem como ser mascarada: tipo a mascarar também impede o fallback de visão.
     async screen(texts) { const c = check(texts); return [...c.blocked, ...((c.decision?.mask ?? []) as string[])]; },
@@ -105,7 +107,7 @@ async function execute(app: FastifyInstance, runId: string, tenantId: string) {
       const decision = c.decision;
       let content: ContentPart[] = req.content;
       if (decision.mask.length) {
-        content = content.map(c => c.type === 'text' ? { ...c, text: maskText(c.text, decision.mask as SensitiveType[]) } : c);
+        content = content.map(c => c.type === 'text' ? { ...c, text: maskText(c.text, decision.mask, config.detectors) } : c);
         await log('dado_mascarado', { tipos: decision.mask, etapa: req.purpose });
       }
       if (decision.log.length || decision.warn.length) await log('dado_enviado_com_registro', { tipos: [...decision.log, ...decision.warn], etapa: req.purpose });

@@ -5,7 +5,7 @@
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph } from 'docx';
 import ExcelJS from 'exceljs';
-import { accessKeyDv } from '../blocks/danfe.ts';
+import { accessKeyDv } from '../readers/danfe-key.ts';
 
 export interface SampleFile { name: string; bytes: Uint8Array; mime: string }
 

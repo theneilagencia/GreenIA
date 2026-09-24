@@ -28,9 +28,9 @@ const MESES = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho
 const pad = (n: number) => String(n).padStart(2, '0');
 
 // Período do documento: competência/referência explícita, mês por extenso,
-// data da NF-e ou a primeira data dd/mm/aaaa do texto.
-export function detectPeriod(d: Pick<ReadDoc, 'text' | 'nfe'>): string | null {
-  if (d.nfe?.dataEmissao) return d.nfe.dataEmissao.slice(0, 7);
+// a data dada por um leitor especializado ou a primeira data dd/mm/aaaa do texto.
+export function detectPeriod(d: Pick<ReadDoc, 'text' | 'periodo'>): string | null {
+  if (d.periodo) return d.periodo;
   const t = normPt(d.text.slice(0, 5000));
   let m = t.match(/(?:competencia|referencia|referente a|periodo)[:\s]+(\d{1,2})\s*[/-]\s*(\d{4})/);
   if (m && +m[1] >= 1 && +m[1] <= 12) return `${m[2]}-${pad(+m[1])}`;

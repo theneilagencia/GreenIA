@@ -21,11 +21,11 @@ const TAXONOMIA = [
   { id: 'incidente', nome: 'Registro de incidente', sinonimos: ['relatório de incidente'] },
 ];
 
-test('período: competência, mês por extenso, data da NF-e ou primeira data', () => {
+test('período: competência, mês por extenso, data dada por um leitor ou primeira data', () => {
   assert.equal(detectPeriod({ text: 'Folha de pagamento - competência 08/2026' }), '2026-08');
   assert.equal(detectPeriod({ text: 'Lista de presença do treinamento de março de 2026' }), '2026-03');
   assert.equal(detectPeriod({ text: 'Assinado em 15/07/2026.' }), '2026-07');
-  assert.equal(detectPeriod({ text: 'x', nfe: { dataEmissao: '2026-09-02T10:00:00-03:00' } as never }), '2026-09');
+  assert.equal(detectPeriod({ text: 'x', periodo: '2026-09' }), '2026-09');
   assert.equal(detectPeriod({ text: 'sem data' }), null);
 });
 
@@ -93,7 +93,7 @@ test('consulta sem documento na base: diz que não cobre e indica o key user, se
   const s = await consultarBlock(ctx, ctx.def.pipeline[0]);
   const d = s.data as { coberto: boolean; resposta: string };
   assert.equal(d.coberto, false);
-  assert.equal(d.resposta, 'A base de conhecimento não cobre essa pergunta. Fale com Key user do RH: rh.key@exemplo.com.br.');
+  assert.equal(d.resposta, 'A base de conhecimento não cobre essa pergunta. Fale com Key user da área: key.user@exemplo.com.br.');
   assert.equal(calls.length, 0);
 });
 

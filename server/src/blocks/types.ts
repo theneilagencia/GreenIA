@@ -5,8 +5,8 @@ import type { FileKind, PipelineStep } from './params.ts';
 import type { AssistantDefinition } from '../assistants/schema.ts';
 import type { ContentPart, LlmCompletion } from '../llm/provider.ts';
 import type { KnowledgeHit } from '../kb/knowledge.ts';
-import type { NFe } from './nfe.ts';
 import type { Converter } from '../convert/converter.ts';
+import type { Reader } from '../readers/registry.ts';
 
 export interface InputFile { id: string; name: string; mime: string; bytes: Uint8Array; sha256: string }
 
@@ -28,8 +28,10 @@ export interface ReadDoc {
   text: string;
   pageCount: number;                                // páginas processadas (consumo)
   sheets?: Sheet[];
-  nfe?: NFe;
-  danfe?: { chave: string };                        // PDF de DANFE: chave de acesso de 44 dígitos
+  dados?: Record<string, unknown>;                  // dados estruturados, por leitor especializado (ex.: dados.nfe)
+  semExtracao?: string;                             // o leitor pede que a extração pelo modelo pule o documento (motivo)
+  periodo?: string | null;                          // AAAA-MM, quando um leitor sabe a data do documento
+  situacao?: string;                                // situação dada por um leitor (ex.: DANFE sem o XML)
   warnings: string[];
 }
 
@@ -57,6 +59,7 @@ export interface BlockEnv {
   keyUserContact: string;
   now: () => Date;
   converter?: Converter;                            // OCR e conversões; ausente: indisponível
+  readers?: Reader[];                               // leitores especializados ligados no tenant
   visionAllowedByPolicy?: boolean;                  // Política de Uso do cliente (padrão: permite)
   // Confere textos contra a política sem enviar nada; devolve os tipos que impedem
   // enviar a imagem correspondente (bloqueio, aviso não confirmado ou mascaramento).

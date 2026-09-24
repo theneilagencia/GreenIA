@@ -32,9 +32,10 @@ export interface ResultadoConferencia {
 
 // Registros de um conjunto, com a origem de cada um.
 export function resolveDataset(ctx: RunContext, ref: DatasetRef): Registro[] {
-  if (ref.de === 'nfe') {
-    return ctx.docs.filter(d => d.nfe && globMatch(ref.arquivo, d.name)).flatMap(d => {
-      const v = getPath(d.nfe, ref.caminho ?? '');
+  if (ref.de === 'leitor') {
+    // Dados de um leitor especializado (ex.: itens do XML de NF-e).
+    return ctx.docs.filter(d => d.dados?.[ref.leitor!] !== undefined && globMatch(ref.arquivo, d.name)).flatMap(d => {
+      const v = getPath(d.dados![ref.leitor!], ref.caminho ?? '');
       if (Array.isArray(v)) return v.map((item, i) => ({ dados: item as Record<string, unknown>, origem: `${d.name} › item ${(item as { n?: number }).n ?? i + 1}` }));
       return v && typeof v === 'object' ? [{ dados: v as Record<string, unknown>, origem: `${d.name}${ref.caminho ? ' › ' + ref.caminho : ''}` }] : [];
     });

@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FastifyInstance } from 'fastify';
-import { createTestDb, seedTenant, type TestDb } from './helpers.ts';
+import { createTestDb, seedTenant, enableReaders, type TestDb } from './helpers.ts';
 import { addPerson, buildTestApp, loginAs } from './app-helpers.ts';
 import { FakeProvider, LlmError } from '../src/llm/provider.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
@@ -46,6 +46,7 @@ const get = async (userId: string, url: string) => app.inject({ url, headers: (a
 before(async () => {
   db = await createTestDb();
   T = await seedTenant(db.owner, 'repet', { role: 'admin_cliente' });
+  await enableReaders(db.owner, T.tenantId);                     // este cliente lida com NF-e
   await db.owner.query(`insert into areas (tenant_id, slug, name) values ($1, 'fiscal', 'Fiscal'), ($1, 'rh', 'RH'), ($1, 'financeiro', 'Financeiro')`, [T.tenantId]);
   people.keyFiscal = await addPerson(db, T.tenantId, 'key.fiscal@repet.com.br', 'key_user', 'fiscal');
   people.fiscal = await addPerson(db, T.tenantId, 'ana.fiscal@repet.com.br', 'usuario', 'fiscal');

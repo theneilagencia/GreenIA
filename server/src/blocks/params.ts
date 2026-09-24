@@ -1,31 +1,38 @@
 // Parâmetros de cada bloco de capacidade, validados na definição do assistente.
 // Um assistente é uma sequência desses blocos; nada de código por melhoria.
 import { z } from 'zod';
+import { readerById, readerKinds } from '../readers/registry.ts';
 
-// Tipos de arquivo que o bloco de leitura entende.
-export const FILE_KINDS = ['pdf', 'imagem', 'docx', 'xlsx', 'csv', 'nfe_xml', 'texto'] as const;
-export type FileKind = typeof FILE_KINDS[number];
+// Tipos de arquivo genéricos que o bloco de leitura entende. Leitores
+// especializados (src/readers/) acrescentam os seus (ex.: nfe_xml).
+export const FILE_KINDS = ['pdf', 'imagem', 'docx', 'xlsx', 'csv', 'texto'] as const;
+export type FileKind = string;
+export const fileKindSchema = z.string().max(40).refine(k => (FILE_KINDS as readonly string[]).includes(k) || readerKinds().some(r => r.id === k), { message: 'tipo de arquivo desconhecido' });
 
 // Seleção de um conjunto de dados produzido por blocos anteriores:
-//   nfe       campos da NF-e lida por parser (caminho: 'itens' ou 'totais', 'emitente'...)
+//   leitor    dados de um leitor especializado (leitor: 'nfe'; caminho: 'itens', 'totais'...)
 //   tabela    planilha XLSX/CSV (arquivo: padrão do nome, ex. '*pedido*'; planilha opcional;
 //             orientacao 'chave_valor' para planilha de duas colunas Campo | Valor,
 //             como o cabeçalho de um pedido: vira um único registro)
 //   extraido  saída do bloco de extração (bloco: id do bloco; caminho opcional dentro do JSON)
-export const datasetRefSchema = z.object({
-  de: z.enum(['nfe', 'tabela', 'extraido']),
+export const datasetRefSchema = z.preprocess(
+  // Definições anteriores usavam { de: 'nfe' }: vira o leitor 'nfe'.
+  v => v && typeof v === 'object' && (v as { de?: string }).de === 'nfe' ? { ...v, de: 'leitor', leitor: 'nfe' } : v,
+  z.object({
+  de: z.enum(['leitor', 'tabela', 'extraido']),
+  leitor: z.string().max(40).optional(),
   arquivo: z.string().max(200).optional(),
   planilha: z.string().max(100).optional(),
   bloco: z.string().max(60).optional(),
   caminho: z.string().max(200).optional(),
   orientacao: z.enum(['linhas', 'chave_valor']).default('linhas'),
-});
+}).refine(r => r.de !== 'leitor' || (!!r.leitor && !!readerById(r.leitor)), { message: 'informe um leitor registrado (leitor)' }));
 export type DatasetRef = z.infer<typeof datasetRefSchema>;
 
 const jsonSchemaObject = z.record(z.string(), z.unknown()).refine(s => s.type === 'object', 'o schema precisa ser do tipo object');
 
 export const lerParams = z.object({
-  tipos: z.array(z.enum(FILE_KINDS)).optional(),          // restringe o que o bloco aceita (padrão: as entradas do assistente)
+  tipos: z.array(fileKindSchema).optional(),          // restringe o que o bloco aceita (padrão: as entradas do assistente)
   // 'nunca' desliga o fallback de visão nesta etapa, mesmo que o assistente permita.
   // 'sempre' (definições antigas) vale como 'auto': a visão agora só entra como fallback do OCR.
   visao: z.preprocess(v => v === 'sempre' ? 'auto' : v, z.enum(['auto', 'nunca'])).default('auto'),
@@ -36,7 +43,7 @@ export const extrairParams = z.object({
   schema: jsonSchemaObject,                                 // JSON Schema dos campos
   instrucoes: z.string().max(4000).default(''),
   por: z.enum(['documento', 'conjunto']).default('documento'),
-  tipos: z.array(z.enum(FILE_KINDS)).optional(),            // de quais documentos extrair
+  tipos: z.array(fileKindSchema).optional(),            // de quais documentos extrair
 });
 
 const regraSchema = z.object({

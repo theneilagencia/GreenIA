@@ -2,17 +2,19 @@
 // retenção. Tudo que no protótipo era "do Grupo" vem daqui. Validada por Zod no
 // cadastro; o tema (cores de texto que passam de 4,5:1) é derivado na hora.
 import { z } from 'zod';
+import { readerById } from '../readers/registry.ts';
 import core from '../../../lib/greenia-core.js';
 import { contrast, textVariant, MIN_NORMAL, normalizeHex } from '../../../lib/contrast.mjs';
-import type { DataAction, SensitiveType } from '../../../lib/greenia-core.js';
+import type { DataAction } from '../../../lib/greenia-core.js';
 import { checkPolicyAgainstClasses } from '../policy/data-policy.ts';
+import { BUILTIN_TYPES, detectorsSchema, TYPE_KEY } from '../policy/detectors.ts';
 
 const hex = z.string().regex(/^#?[0-9a-fA-F]{6}$/, 'cor em hexadecimal, ex.: #1F8A5B').transform(v => normalizeHex(v));
 
 const ACTIONS = core.DATA_ACTIONS as [DataAction, ...DataAction[]];
-const TYPES = Object.keys(core.SENSITIVE_LABELS) as [SensitiveType, ...SensitiveType[]];
 
-export const dataPolicySchema = z.partialRecord(z.enum(TYPES), z.enum(ACTIONS));
+// Ação por tipo de dado: tipos de fábrica e os que o tenant cadastrar (detectors).
+export const dataPolicySchema = z.record(z.string().regex(TYPE_KEY), z.enum(ACTIONS));
 
 export const tenantConfigSchema = z.object({
   branding: z.object({
@@ -44,6 +46,10 @@ export const tenantConfigSchema = z.object({
   privacyDetail: z.string().max(1500).default(''),
   keyUserContact: z.string().max(200).default(''),
   dataPolicy: dataPolicySchema.default({ ...core.DATA_POLICY }),
+  // Detectores próprios do tenant (padrão, validação, classe, ação padrão).
+  detectors: detectorsSchema,
+  // Leitores especializados ligados (src/readers/: ex. 'nfe', 'danfe'). Padrão: nenhum.
+  readers: z.array(z.string().max(40)).max(50).default([]).refine(ids => ids.every(id => !!readerById(id)), { message: 'leitor desconhecido' }),
   // Provedor do modelo. Hoje só a API da Anthropic: o Claude no Amazon Bedrock
   // não tem opção de processamento no Brasil (ver RELATORIO-FASE-2.md). O
   // padrão é o modelo mais leve, coerente com a política ("roda no modelo mais leve").
@@ -66,8 +72,11 @@ export const tenantConfigSchema = z.object({
   autoProvision: z.boolean().default(true), // cria o usuário no primeiro login, se o domínio for permitido
 }).superRefine((c, ctx) => {
   // O chat livre (sem assistente) é o ambiente Verde: a política do tenant vale ali.
-  for (const p of checkPolicyAgainstClasses(c.dataPolicy, ['verde'])) {
+  for (const p of checkPolicyAgainstClasses(c.dataPolicy, ['verde'], c.detectors)) {
     ctx.addIssue({ code: 'custom', path: ['dataPolicy', p.type], message: `${p.action}: ${p.reason}` });
+  }
+  for (const k of Object.keys(c.dataPolicy)) {
+    if (!BUILTIN_TYPES.includes(k) && !c.detectors.some(d => d.key === k)) ctx.addIssue({ code: 'custom', path: ['dataPolicy', k], message: 'tipo de dado desconhecido: cadastre o detector antes' });
   }
 });
 

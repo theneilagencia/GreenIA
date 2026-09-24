@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import JSZip from 'jszip';
-import { createTestDb, seedTenant, type TestDb } from './helpers.ts';
+import { createTestDb, seedTenant, enableReaders, type TestDb } from './helpers.ts';
 import { addPerson, buildTestApp, loginAs } from './app-helpers.ts';
 import { FakeProvider } from '../src/llm/provider.ts';
 import { MemoryObjectStore } from '../src/storage/object-store.ts';
@@ -49,6 +49,7 @@ before(async () => {
   pdfBytes = await textPdf(['Procedimento de entrada de notas fiscais: conferir o pedido antes do lançamento.']);
   A = await seedTenant(db.owner, 'repet', { role: 'admin_cliente' });
   B = await seedTenant(db.owner, 'outra', { role: 'admin_cliente' });
+  for (const t of [A, B]) await enableReaders(db.owner, t.tenantId);   // estes clientes lidam com NF-e
   P = await seedTenant(db.owner, 'theneil', { role: 'admin_theneil', domain: 'theneil.com.br' });
   await db.owner.query(`update tenants set is_platform = true where id = $1`, [P.tenantId]);
   for (const t of [A, B]) await db.owner.query(`insert into areas (tenant_id, slug, name) values ($1, 'fiscal', 'Fiscal')`, [t.tenantId]);

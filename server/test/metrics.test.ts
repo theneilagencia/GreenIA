@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { FastifyInstance } from 'fastify';
 import ExcelJS from 'exceljs';
 import { extractText, getDocumentProxy } from 'unpdf';
-import { createTestDb, seedTenant, type TestDb } from './helpers.ts';
+import { createTestDb, seedTenant, enableReaders, type TestDb } from './helpers.ts';
 import { addPerson, buildTestApp, loginAs } from './app-helpers.ts';
 
 let db: TestDb;
@@ -29,6 +29,7 @@ const results = async (userId = people.key) => (await get(userId, '/api/metrics/
 before(async () => {
   db = await createTestDb();
   T = await seedTenant(db.owner, 'repet', { role: 'admin_cliente' });
+  await enableReaders(db.owner, T.tenantId);                     // este cliente lida com NF-e
   await db.owner.query(`insert into areas (tenant_id, slug, name) values ($1, 'fiscal', 'Fiscal'), ($1, 'rh', 'RH')`, [T.tenantId]);
   people.key = await addPerson(db, T.tenantId, 'key@repet.com.br', 'key_user', 'fiscal');
   people.user = await addPerson(db, T.tenantId, 'ana@repet.com.br', 'usuario', 'fiscal');

@@ -1,6 +1,7 @@
 // Guia rápido de um assistente, gerado a partir da definição e da política
 // efetiva, para o treinamento inicial: o que faz, o que enviar, o que não
 // enviar, como revisar. Em PDF (para distribuir) ou Markdown.
+import { readerKinds } from '../readers/registry.ts';
 import PDFDocument from 'pdfkit';
 import core from '../../../lib/greenia-core.js';
 import type { DataPolicy, SensitiveType } from '../../../lib/greenia-core.js';
@@ -8,7 +9,7 @@ import type { AssistantDefinition } from './schema.ts';
 import type { UsageRules } from '../policy/usage-policy.ts';
 
 const KIND_LABEL: Record<string, string> = {
-  pdf: 'PDF', imagem: 'foto ou imagem digitalizada (JPG, PNG, TIFF, HEIC)', docx: 'Word (DOCX, DOC, ODT)', xlsx: 'Excel (XLSX, XLS, ODS)', csv: 'CSV exportado do sistema', nfe_xml: 'XML da NF-e', texto: 'texto (TXT)',
+  pdf: 'PDF', imagem: 'foto ou imagem digitalizada (JPG, PNG, TIFF, HEIC)', docx: 'Word (DOCX, DOC, ODT)', xlsx: 'Excel (XLSX, XLS, ODS)', csv: 'CSV exportado do sistema', texto: 'texto (TXT)',
 };
 const FLAG_HINTS: Record<string, string> = {
   conferir: 'Cada divergência mostra os dois valores e onde estão. Confira no documento antes de aceitar ou descartar.',
@@ -19,15 +20,15 @@ const FLAG_HINTS: Record<string, string> = {
   resumir: 'Tópico sem informação no material aparece vazio ou com "Sem informação no material".',
 };
 
-export interface GuideInput { name: string; area: string | null; version: number; def: AssistantDefinition; policy: DataPolicy; rules?: UsageRules; keyUser: string }
+export interface GuideInput { name: string; area: string | null; version: number; def: AssistantDefinition; policy: DataPolicy; rules?: UsageRules; keyUser: string; labels?: Record<string, string> }
 
 export function guideSections(g: GuideInput) {
   const d = g.def;
-  const label = (t: string) => core.SENSITIVE_LABELS[t as SensitiveType] ?? t;
+  const label = (t: string) => g.labels?.[t] ?? core.SENSITIVE_LABELS[t as SensitiveType] ?? t;
   const by = (action: string) => (Object.entries(g.policy) as [string, string][]).filter(([, a]) => a === action).map(([t]) => label(t));
   const enviar: string[] = [];
   if (d.inputs.text.enabled) enviar.push(`${d.inputs.text.label}${d.inputs.text.required ? ' (obrigatório)' : ' (opcional)'}.`);
-  if (d.inputs.files.enabled) enviar.push(`Arquivos: ${d.inputs.files.accept.map(k => KIND_LABEL[k]).join(', ')}. Até ${d.inputs.files.maxFiles} arquivos de ${d.inputs.files.maxFileMb} MB cada.${d.inputs.files.required ? ' Pelo menos um arquivo é obrigatório.' : ''}`);
+  if (d.inputs.files.enabled) enviar.push(`Arquivos: ${d.inputs.files.accept.map(k => KIND_LABEL[k] ?? readerKinds().find(x => x.id === k)?.label ?? k).join(', ')}. Até ${d.inputs.files.maxFiles} arquivos de ${d.inputs.files.maxFileMb} MB cada.${d.inputs.files.required ? ' Pelo menos um arquivo é obrigatório.' : ''}`);
   if (d.inputs.knowledge.enabled) enviar.push('O assistente também consulta os documentos de procedimento da área.');
   const naoEnviar = [
     `Nunca: ${[...new Set(['senha ou credencial', ...by('bloquear')])].join(', ')}.`,

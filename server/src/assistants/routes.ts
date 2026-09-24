@@ -4,6 +4,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z, ZodError } from 'zod';
 import { setShares, shareSchema, sharesOf } from '../areas/sharing.ts';
+import { READERS, enabledReaders, readersUsedBy } from '../readers/registry.ts';
 import { withTenant } from '../db/pool.ts';
 import { requireAuth, tenantCtx } from '../auth/session.ts';
 import { can } from '../auth/rbac.ts';
@@ -11,7 +12,8 @@ import { audit } from '../audit.ts';
 import { assistantDefinitionSchema } from './schema.ts';
 import { buildPackageMarkdown, buildPackageZip, type PackageMeta } from './package.ts';
 import { applyFloor, classConflicts, currentPolicy } from '../policy/usage-policy.ts';
-import { effectivePolicy } from '../policy/data-policy.ts';
+import { checkPolicyAgainstClasses, effectivePolicy } from '../policy/data-policy.ts';
+import { BUILTIN_TYPES, typeLabels } from '../policy/detectors.ts';
 import { parseTenantConfig } from '../tenants/config.ts';
 import { guideMarkdown, guidePdf } from './guide.ts';
 
@@ -26,6 +28,19 @@ async function policyConflict(tx: Tx, status: string, dataClasses: string[]) {
   if (!['piloto', 'ativo'].includes(status)) return null;
   const conflicts = classConflicts(dataClasses, (await currentPolicy(tx))?.rules);
   return conflicts.length ? { status: 409, body: { error: 'classe_nao_permitida_pela_politica', classes: conflicts } } : null;
+}
+
+// O que a definição usa precisa existir no tenant: leitores especializados
+// ligados e tipos de dado cadastrados (com a classe do detector respeitada).
+async function readerConflict(tx: Tx, def: Parameters<typeof readersUsedBy>[0] & { dataPolicy: Record<string, string>; dataClasses: ('verde' | 'amarela' | 'vermelha')[] }) {
+  const cfg = parseTenantConfig((await tx.query(`select config from tenants where id = app_tenant()`)).rows[0]?.config).config;
+  const missing = readersUsedBy(def).filter(id => !cfg.readers.includes(id));
+  if (missing.length) return { status: 409, body: { error: 'leitor_desligado', leitores: missing, detalhe: 'ligue o leitor na configuração do cliente antes de usar este tipo de arquivo' } };
+  const unknown = Object.keys(def.dataPolicy).filter(k => !BUILTIN_TYPES.includes(k) && !cfg.detectors.some(d => d.key === k));
+  if (unknown.length) return { status: 400, body: { error: 'tipo_de_dado_desconhecido', tipos: unknown } };
+  const problems = checkPolicyAgainstClasses(def.dataPolicy as never, def.dataClasses, cfg.detectors).filter(p => !BUILTIN_TYPES.includes(p.type));
+  if (problems.length) return { status: 400, body: { error: 'definicao_invalida', detalhes: problems.map(p => `dataPolicy.${p.type}: ${p.action}: ${p.reason}`) } };
+  return null;
 }
 
 const STATUS = ['rascunho', 'piloto', 'ativo', 'pausado', 'descartado'] as const;
@@ -66,6 +81,21 @@ export async function assistantRoutes(app: FastifyInstance) {
     });
   });
 
+  // Todos os leitores registrados na plataforma (para o admin escolher quais ligar).
+  app.get('/api/readers/catalogo', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    return READERS.map(r => ({ id: r.id, label: r.label, description: r.description, kind: r.kind ?? null, fields: r.fields }));
+  });
+
+  // Leitores especializados ligados no tenant: tipos de arquivo e campos que entregam.
+  app.get('/api/readers', async (req, reply) => {
+    const a = requireAuth(req, reply);
+    if (!a) return;
+    const cfg = await withTenant(app.deps.db, tenantCtx(a), async tx => parseTenantConfig((await tx.query(`select config from tenants where id = $1`, [a.tenantId])).rows[0]?.config).config);
+    return enabledReaders(cfg.readers).map(r => ({ id: r.id, label: r.label, description: r.description, kind: r.kind ?? null, fields: r.fields }));
+  });
+
   // Resumo do assistente para quem vai usar: o que faz, o que enviar, o que sai.
   app.get('/api/assistants/:slug', async (req, reply) => {
     const a = requireAuth(req, reply);
@@ -94,7 +124,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       const areaId = p.data.areaSlug ? (await tx.query(`select id from areas where slug = $1`, [p.data.areaSlug])).rows[0]?.id : null;
       if (p.data.areaSlug && !areaId) return { status: 404, body: { error: 'area_nao_encontrada' } };
       if (!can(a, 'kb.manage', areaId)) return { status: 403, body: { error: 'sem_permissao' } };
-      const blocked = await policyConflict(tx, p.data.status, def.data.dataClasses);
+      const blocked = await policyConflict(tx, p.data.status, def.data.dataClasses) ?? await readerConflict(tx, def.data);
       if (blocked) return blocked;
       try {
         const row = (await tx.query(
@@ -129,7 +159,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       const cur = (await tx.query(`select id, area_id, status, current_version from assistants where slug = $1 for update`, [slug])).rows[0];
       if (!cur) return { status: 404, body: { error: 'assistente_nao_encontrado' } };
       if (!can(a, 'kb.manage', cur.area_id)) return { status: 403, body: { error: 'sem_permissao' } };
-      const blocked = await policyConflict(tx, p.data.status ?? cur.status, def.data.dataClasses);
+      const blocked = await policyConflict(tx, p.data.status ?? cur.status, def.data.dataClasses) ?? await readerConflict(tx, def.data);
       if (blocked) return blocked;
       const version = cur.current_version + 1;
       await tx.query(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, $3, $4, $5)`,
@@ -266,7 +296,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       const def = assistantDefinitionSchema.parse(row.definition);
       const config = parseTenantConfig(row.config).config;
       const rules = (await currentPolicy(tx))?.rules;
-      return { name: row.name, area: row.area, version: row.current_version, def, rules, keyUser: config.keyUserContact, policy: applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy), rules?.dataPolicy) };
+      return { name: row.name, area: row.area, version: row.current_version, def, rules, keyUser: config.keyUserContact, policy: applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy, config.detectors), rules?.dataPolicy), labels: typeLabels(config.detectors) };
     });
     if (!g) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
     if (q.data.format === 'md') return reply.type('text/markdown; charset=utf-8').header('content-disposition', `attachment; filename="guia-${slug}.md"`).send(guideMarkdown(g));

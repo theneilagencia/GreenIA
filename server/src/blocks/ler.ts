@@ -5,9 +5,9 @@
 //   DOCX ................ texto (mammoth); DOC e ODT convertidos antes (LibreOffice)
 //   XLSX ................ planilhas com cabeçalho (exceljs); XLS e ODS convertidos antes
 //   CSV ................. planilha com cabeçalho (leitor próprio)
-//   XML de NF-e ......... campos por parser, sem modelo
-//   DANFE em PDF ........ só a chave de acesso; os campos vêm do XML da nota
-//   texto (TXT, MD) ..... como está
+//   texto (TXT, MD, XML)  como está
+// Formatos de um setor (ex.: XML de NF-e, chave de acesso de DANFE) ficam no
+// registro de leitores (src/readers/) e só valem se o tenant os ligar.
 // Visão do modelo: só como fallback, na página cujo OCR ficou abaixo do limiar
 // de confiança, quando o assistente e a Política de Uso permitem. Antes do
 // envio, o texto do próprio OCR passa pela política de dados; cada uso vai
@@ -20,8 +20,7 @@ import ExcelJS from 'exceljs';
 import type { FileKind, PipelineStep } from './params.ts';
 import { lerParams } from './params.ts';
 import { parseCsv } from '../util/csv.ts';
-import { isNFeXml, nfeToText, parseNFe } from './nfe.ts';
-import { DANFE_SEM_XML, findAccessKey } from './danfe.ts';
+import type { Reader } from '../readers/registry.ts';
 import type { OcrPage, OfficeKind } from '../convert/converter.ts';
 import type { ContentPart } from '../llm/provider.ts';
 import type { BlockEnv, InputFile, ReadDoc, RunContext, Section, Sheet } from './types.ts';
@@ -47,7 +46,7 @@ function imageType(b: Uint8Array): keyof typeof IMAGE_MIME | 'tiff' | 'heic' | n
 // Formato pelo conteúdo (assinatura), com a extensão só para desempatar
 // formatos ZIP, OLE e texto. "from" indica o formato original que o servidor
 // converte antes de ler (DOC, XLS, ODT, ODS).
-export function detectFormat(file: Pick<InputFile, 'name' | 'bytes'>): { kind: FileKind; from?: OfficeKind } | null {
+export function detectFormat(file: Pick<InputFile, 'name' | 'bytes'>, readers: readonly Reader[] = []): { kind: FileKind; from?: OfficeKind; reader?: Reader } | null {
   const b = file.bytes;
   const e = ext(file.name);
   if (startsWith(b, [0x25, 0x50, 0x44, 0x46])) return { kind: 'pdf' };        // %PDF
@@ -67,18 +66,21 @@ export function detectFormat(file: Pick<InputFile, 'name' | 'bytes'>): { kind: F
     if (e === 'xls') return { kind: 'xlsx', from: 'xls' };
     return null;
   }
-  const text = Buffer.from(b.subarray(0, 4096)).toString('utf8');
   if (b.subarray(0, 4096).includes(0)) return null;                        // binário desconhecido
-  if (e === 'xml' || text.trimStart().startsWith('<?xml') || text.includes('<nfeProc') || text.includes('<NFe')) {
-    return { kind: isNFeXml(Buffer.from(b).toString('utf8')) ? 'nfe_xml' : 'texto' };
+  // Leitores especializados ligados no tenant reconhecem o arquivo pelo conteúdo.
+  const specialized = readers.filter(r => r.kind && r.matches && r.read);
+  if (specialized.length) {
+    const full = decodeText(b);
+    for (const r of specialized) if (r.matches!(full, file.name)) return { kind: r.kind!.id, reader: r };
   }
   if (e === 'csv') return { kind: 'csv' };
+  if (e === 'xml' || e === 'json') return { kind: 'texto' };
   if (['txt', 'md', 'markdown', ''].includes(e) || e.length <= 4) return { kind: 'texto' };
   return null;
 }
 
-export function detectKind(file: Pick<InputFile, 'name' | 'bytes'>): FileKind | null {
-  return detectFormat(file)?.kind ?? null;
+export function detectKind(file: Pick<InputFile, 'name' | 'bytes'>, readers: readonly Reader[] = []): FileKind | null {
+  return detectFormat(file, readers)?.kind ?? null;
 }
 
 const decodeText = (b: Uint8Array) => {
@@ -235,8 +237,21 @@ async function readScanned(file: InputFile, kind: 'pdf' | 'imagem', pdfPages: nu
 const viaOf = (pages: PageOut[]): ReadDoc['via'] => pages.some(p => p.via === 'visao') ? 'visao' : pages.some(p => p.via === 'ocr') ? 'ocr' : 'texto';
 const joinPages = (pages: PageOut[]) => pages.map(p => p.text).filter(Boolean).join('\n\n');
 
+// Leitura genérica e, depois, o que os leitores ligados acrescentam.
 export async function readFile(input: InputFile, opts: ReadOpts, env: BlockEnv): Promise<ReadDoc> {
-  const fmt = detectFormat(input);
+  const doc = await readBase(input, opts, env);
+  for (const r of env.readers ?? []) {
+    const e = r.enrich?.(doc);
+    if (!e) continue;
+    doc.dados = { ...doc.dados, [r.id]: e.dados };
+    if (e.semExtracao) doc.semExtracao = e.semExtracao;
+    if (e.periodo) doc.periodo = e.periodo;
+  }
+  return doc;
+}
+
+async function readBase(input: InputFile, opts: ReadOpts, env: BlockEnv): Promise<ReadDoc> {
+  const fmt = detectFormat(input, env.readers);
   const base = { fileId: input.id, name: input.name, sha256: input.sha256, warnings: [] as string[] };
   if (!fmt) return { ...base, kind: 'texto', via: 'texto', pages: [], text: '', pageCount: 0, warnings: ['tipo de arquivo não reconhecido'] };
   const kind = fmt.kind;
@@ -268,8 +283,7 @@ export async function readFile(input: InputFile, opts: ReadOpts, env: BlockEnv):
       pages = pages.map(p => ocr.find(o => o.n === p.n) ?? p);
     }
     const text = joinPages(pages);
-    const chave = findAccessKey(text);
-    return { ...base, kind, via: viaOf(pages), pages, text, pageCount: Math.min(total, opts.paginasMax), danfe: chave ? { chave } : undefined };
+    return { ...base, kind, via: viaOf(pages), pages, text, pageCount: Math.min(total, opts.paginasMax) };
   }
 
   if (kind === 'imagem') {
@@ -297,11 +311,10 @@ export async function readFile(input: InputFile, opts: ReadOpts, env: BlockEnv):
     return { ...base, kind, via: 'parser', pages: [{ n: 1, text }], text, pageCount: pagesFromChars(text), sheets };
   }
 
-  if (kind === 'nfe_xml') {
+  if (fmt.reader) {
     try {
-      const nfe = parseNFe(decodeText(file.bytes));
-      const text = nfeToText(nfe);
-      return { ...base, kind, via: 'parser', pages: [{ n: 1, text }], text, pageCount: 1, nfe };
+      const out = fmt.reader.read!(decodeText(file.bytes));
+      return { ...base, kind, via: 'parser', pages: [{ n: 1, text: out.text }], text: out.text, pageCount: 1, dados: { [fmt.reader.id]: out.dados }, periodo: out.periodo ?? null };
     } catch (e) {
       return { ...base, kind, via: 'parser', pages: [], text: '', pageCount: 0, warnings: [(e as Error).message] };
     }
@@ -323,28 +336,29 @@ export async function lerBlock(ctx: RunContext, step: PipelineStep): Promise<Sec
   const read: ReadDoc[] = [];
   for (const f of ctx.files) {
     if (ctx.docs.some(d => d.fileId === f.id)) continue;               // já lido por outro bloco de leitura
-    const kind = detectKind(f);
+    const kind = detectKind(f, ctx.env.readers);
     if (!kind || !accept.has(kind)) {
       flags.push({ reason: kind ? `tipo ${kind} não aceito por este assistente` : 'tipo de arquivo não reconhecido', ref: f.name });
       continue;
     }
     const doc = await readFile(f, opts, ctx.env);
     for (const w of doc.warnings) flags.push({ reason: w, ref: f.name });
-    if (!doc.text && !doc.sheets?.length && !doc.nfe) flags.push({ reason: 'nenhum conteúdo lido', ref: f.name });
+    if (!doc.text && !doc.sheets?.length && !doc.dados) flags.push({ reason: 'nenhum conteúdo lido', ref: f.name });
     read.push(doc);
   }
   ctx.docs.push(...read);
-  // DANFE: os campos vêm do XML com a mesma chave; sem ele, pede-se o XML ao fornecedor.
+  // Leitores que relacionam documentos da execução (ex.: DANFE com o XML de mesma chave).
   let pendencias = 0;
-  const danfeXml = new Map<string, string | null>();
-  for (const d of read.filter(d => d.danfe)) {
-    const xml = ctx.docs.find(x => x.nfe?.chave === d.danfe!.chave);
-    danfeXml.set(d.fileId, xml?.name ?? null);
-    if (!xml) {
-      pendencias++;
-      flags.push({ reason: `DANFE sem o XML da nota (chave ${d.danfe!.chave}): ${DANFE_SEM_XML}`, ref: d.name });
+  for (const r of ctx.env.readers ?? []) {
+    for (const l of r.link?.(read, ctx.docs) ?? []) {
+      const d = read.find(x => x.fileId === l.fileId);
+      if (!d) continue;
+      d.situacao = l.situacao;
+      if (l.pendencia) { pendencias++; flags.push({ reason: l.pendencia, ref: d.name }); }
     }
   }
+  const summaries = (d: ReadDoc) => Object.fromEntries((ctx.env.readers ?? []).filter(r => d.dados?.[r.id] !== undefined)
+    .map(r => [r.id, r.summary ? r.summary(d.dados![r.id], d) : true]));
   const ocrConf = (d: ReadDoc) => {
     const c = d.pages.filter(pg => pg.via === 'ocr' && pg.confianca !== undefined).map(pg => pg.confianca!);
     return c.length ? Math.round(c.reduce((a, b) => a + b, 0) / c.length) : undefined;
@@ -357,8 +371,8 @@ export async function lerBlock(ctx: RunContext, step: PipelineStep): Promise<Sec
       confiancaOcr: ocrConf(d),
       paginasPorVisao: d.pages.filter(pg => pg.via === 'visao').map(pg => pg.n),
       planilhas: d.sheets?.map(s => ({ nome: s.name, linhas: s.rows.length })),
-      nfe: d.nfe ? { numero: d.nfe.numero, chave: d.nfe.chave, itens: d.nfe.itens.length } : undefined,
-      danfe: d.danfe ? { chave: d.danfe.chave, xml: danfeXml.get(d.fileId) ?? null, situacao: danfeXml.get(d.fileId) ? 'XML da nota enviado junto' : DANFE_SEM_XML } : undefined,
+      ...summaries(d),
+      situacao: d.situacao,
       avisos: d.warnings,
     })),
   };

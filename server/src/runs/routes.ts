@@ -14,6 +14,8 @@ import { effectivePolicy, inspect } from '../policy/data-policy.ts';
 import { applyFloor, policyState, restrictedHits } from '../policy/usage-policy.ts';
 import { runAreaFor } from '../areas/sharing.ts';
 import { detectKind, readFile } from '../blocks/ler.ts';
+import { enabledReaders } from '../readers/registry.ts';
+import { typeLabels } from '../policy/detectors.ts';
 import type { BlockEnv, InputFile } from '../blocks/types.ts';
 import { checkLimits } from '../usage/record.ts';
 import { tenantPrefix } from '../storage/object-store.ts';
@@ -83,6 +85,7 @@ export async function runRoutes(app: FastifyInstance) {
     if (!row || !['piloto', 'ativo'].includes(row.status)) return reply.code(404).send({ error: 'assistente_nao_encontrado' });
     const def = assistantDefinitionSchema.parse(row.definition);
     if (!def.pipeline.length) return reply.code(409).send({ error: 'assistente_de_conversa', detalhe: 'use o chat para este assistente' });
+    const readers = enabledReaders(config.readers);
 
     // Entradas conforme a definição.
     const text = body.text.trim();
@@ -98,7 +101,7 @@ export async function runRoutes(app: FastifyInstance) {
       const bytes = new Uint8Array(Buffer.from(f.contentBase64, 'base64'));
       if (bytes.length > maxMb * 1024 * 1024) return reply.code(413).send({ error: 'arquivo_grande_demais', arquivo: f.name, limiteMb: maxMb });
       const file: InputFile = { id: randomUUID(), name: f.name, mime: f.mime, bytes, sha256: sha(bytes) };
-      const kind = detectKind(file);
+      const kind = detectKind(file, readers);
       if (!kind || !def.inputs.files.accept.includes(kind)) return reply.code(415).send({ error: 'tipo_nao_aceito', arquivo: f.name, aceitos: def.inputs.files.accept });
       files.push(file);
     }
@@ -117,23 +120,25 @@ export async function runRoutes(app: FastifyInstance) {
     // política antes de ir ao modelo: aviso não confirmado aqui vira bloqueio lá.
     if (need.docs) {
       const { converter } = app.deps;
-      const env: BlockEnv = { ...noModelEnv, converter: { ...converter, officeToOoxml: converter.officeToOoxml.bind(converter),
+      const env: BlockEnv = { ...noModelEnv, readers, converter: { ...converter, officeToOoxml: converter.officeToOoxml.bind(converter),
         ocrPdf: () => Promise.reject(new Error('OCR na execução')), ocrImage: () => Promise.reject(new Error('OCR na execução')) } };
       for (const f of files) texts.push((await readFile(f, PRECHECK_READ, env)).text);
     }
     if (texts.length) {
       const rules = usage.policy?.rules;
+      const labels = typeLabels(config.detectors);
+      const pick = (types: string[]) => Object.fromEntries(types.map(t => [t, labels[t] ?? t]));
       if (restrictedHits(texts, rules?.restrictedTerms ?? []).length) {
         await withTenant(app.deps.db, tenantCtx(a), tx => audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'envio_bloqueado', target, details: { tipos: ['restrito'] } }));
-        return reply.code(422).send({ error: 'dado_bloqueado', types: ['restrito'] });
+        return reply.code(422).send({ error: 'dado_bloqueado', types: ['restrito'], rotulos: { restrito: labels.restrito } });
       }
-      const { decision } = inspect(texts, applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy), rules?.dataPolicy));
+      const { decision } = inspect(texts, applyFloor(effectivePolicy(config.dataPolicy, def.dataPolicy, config.detectors), rules?.dataPolicy), config.detectors);
       if (decision.action === 'bloquear') {
         await withTenant(app.deps.db, tenantCtx(a), tx => audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'envio_bloqueado', target, details: { tipos: decision.block } }));
-        return reply.code(422).send({ error: 'dado_bloqueado', types: decision.block });
+        return reply.code(422).send({ error: 'dado_bloqueado', types: decision.block, rotulos: pick(decision.block) });
       }
       const missing = decision.warn.filter(t => !body.confirmedWarnings.includes(t));
-      if (missing.length) return reply.code(409).send({ error: 'confirmacao_necessaria', types: missing });
+      if (missing.length) return reply.code(409).send({ error: 'confirmacao_necessaria', types: missing, rotulos: pick(missing) });
       if (decision.warn.length) {
         await withTenant(app.deps.db, tenantCtx(a), tx => audit(tx, { tenantId: a.tenantId, actorUserId: a.userId, action: 'aviso_confirmado', target, details: { tipos: decision.warn } }));
       }

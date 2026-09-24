@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectKind, readFile, lerBlock } from '../src/blocks/ler.ts';
-import { parseNFe } from '../src/blocks/nfe.ts';
+import { parseNFe, type NFe } from '../src/readers/nfe-parser.ts';
+import { READERS } from '../src/readers/registry.ts';
 import { assistantDefinitionSchema } from '../src/assistants/schema.ts';
 import type { RunContext } from '../src/blocks/types.ts';
 import { danfePdf, docx, fakeConverter, inputFile, jpeg, nfeKey, nfeXml, png, scannedPdf, testEnv, textPdf, xlsx } from './fixtures.ts';
-import { accessKeyDv, findAccessKey, isAccessKey } from '../src/blocks/danfe.ts';
+import { accessKeyDv, findAccessKey, isAccessKey } from '../src/readers/danfe-key.ts';
 
 const OPTS = { paginasMax: 50, ocrMinConfidence: 70, visionFallback: false };
 const FALLBACK = { ...OPTS, visionFallback: true };
@@ -15,7 +16,9 @@ test('tipo pelo conteúdo, não só pela extensão', async () => {
   assert.equal(detectKind(inputFile('foto.bin', png())), 'imagem');           // extensão errada, assinatura de PNG
   assert.equal(detectKind(inputFile('contrato.docx', await docx(['oi']))), 'docx');
   assert.equal(detectKind(inputFile('pedido.xlsx', await xlsx({ P: [['a']] }))), 'xlsx');
-  assert.equal(detectKind(inputFile('nota.xml', nfeXml({ numero: '1', emissao: '2026-09-01', itens: [] }))), 'nfe_xml');
+  // XML de NF-e só vira nfe_xml com o leitor especializado ligado; sem ele, é texto.
+  assert.equal(detectKind(inputFile('nota.xml', nfeXml({ numero: '1', emissao: '2026-09-01', itens: [] })), READERS), 'nfe_xml');
+  assert.equal(detectKind(inputFile('nota.xml', nfeXml({ numero: '1', emissao: '2026-09-01', itens: [] }))), 'texto');
   assert.equal(detectKind(inputFile('outro.xml', '<?xml version="1.0"?><a/>')), 'texto');
   assert.equal(detectKind(inputFile('lista.csv', 'a;b\n1;2')), 'csv');
   assert.equal(detectKind(inputFile('x.exe', new Uint8Array([0x4d, 0x5a, 0, 0, 1]))), null);
@@ -198,7 +201,7 @@ test('NF-e: campos por parser, sem modelo', async () => {
   const d = await readFile(inputFile('nfe-1234.xml', xml), OPTS, env);
   assert.equal(d.via, 'parser');
   assert.equal(calls.length, 0);
-  const n = d.nfe!;
+  const n = d.dados!.nfe as NFe;
   assert.equal(n.numero, '1234');
   assert.equal(n.chave.length, 44);
   assert.equal(n.emitente.cnpj, '12345678000199');

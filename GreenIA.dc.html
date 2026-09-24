@@ -1506,8 +1506,10 @@ class Component extends DCLogic {
       const body = await res.json().catch(() => ({}));
       const types = Array.isArray(body.types) ? body.types : [];
       this._forceScroll = true;
-      if (res.status === 422) undoSend(keep => ({ blocked: { convoId: keep, types }, warned: null, liveText: '' }));
-      else undoSend(keep => ({ warned: { convoId: keep, types, text: msgs[msgs.length - 1].text }, blocked: null, liveText: '' }));
+      // Rótulos do servidor: tipos de dado próprios do cliente (ex.: matrícula interna).
+      const rotulos = body.rotulos || {};
+      if (res.status === 422) undoSend(keep => ({ blocked: { convoId: keep, types, rotulos }, warned: null, liveText: '' }));
+      else undoSend(keep => ({ warned: { convoId: keep, types, rotulos, text: msgs[msgs.length - 1].text }, blocked: null, liveText: '' }));
       return;
     }
     if (!res.ok || !res.body) {
@@ -1619,7 +1621,7 @@ class Component extends DCLogic {
     const warned = this.state.warned && this.state.warned.convoId === activeId ? this.state.warned : null;
     const backend = this._api() !== null;
     // "restrito" vem do servidor (Política de Uso do cliente); não é um tipo do filtro do navegador.
-    const describe = types => describeSensitive(types.map(t => t === 'restrito' ? 'informação restrita pela Política de Uso de IA' : t));
+    const describe = (types, rotulos) => describeSensitive(types.map(t => (rotulos && rotulos[t] && !SENSITIVE_LABELS[t] ? rotulos[t] : t === 'restrito' ? 'informação restrita pela Política de Uso de IA' : t)));
     const tq = this._tenantQuery();
     const usagePolicy = this.state.usagePolicy;
     const tour = this.state.tourStep !== null ? this.TOUR[this.state.tourStep] : null;
@@ -1655,14 +1657,14 @@ class Component extends DCLogic {
       showWelcome: messages.length === 0 && !blocked && !warned,
       showBlocked: !!blocked,
       showWarned: !!warned,
-      warnedText: warned ? 'Seu texto parece conter ' + describe(warned.types) + '. Enviar mesmo assim?' : '',
+      warnedText: warned ? 'Seu texto parece conter ' + describe(warned.types, warned.rotulos) + '. Enviar mesmo assim?' : '',
       reviewWarned: () => this.reviewWarned(),
       confirmWarned: () => this.confirmWarned(),
-      liveText: blocked ? 'Mensagem não enviada. ' + describe(blocked.types) + ' não pode entrar na GreenIA.'
-        : warned ? 'Seu texto parece conter ' + describe(warned.types) + '. Enviar mesmo assim?'
+      liveText: blocked ? 'Mensagem não enviada. ' + describe(blocked.types, blocked.rotulos) + ' não pode entrar na GreenIA.'
+        : warned ? 'Seu texto parece conter ' + describe(warned.types, warned.rotulos) + '. Enviar mesmo assim?'
         : this.state.liveText,
       blockedText: blocked
-        ? 'Parece que o texto tem ' + describe(blocked.types) + '. Esse tipo de dado não pode entrar na GreenIA, então não enviei a mensagem. Tire essa parte e tente de novo. Na dúvida, fale com o key user da sua área: ' + keyUser + '.'
+        ? 'Parece que o texto tem ' + describe(blocked.types, blocked.rotulos) + '. Esse tipo de dado não pode entrar na GreenIA, então não enviei a mensagem. Tire essa parte e tente de novo. Na dúvida, fale com o key user da sua área: ' + keyUser + '.'
         : '',
       thinking,
       input,

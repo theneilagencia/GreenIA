@@ -11,6 +11,8 @@ import { chunkText, searchTerms } from './knowledge.ts';
 import { readFile } from '../blocks/ler.ts';
 import type { BlockEnv } from '../blocks/types.ts';
 import type { Converter } from '../convert/converter.ts';
+import { enabledReaders, type Reader } from '../readers/registry.ts';
+import { parseTenantConfig } from '../tenants/config.ts';
 
 // Tipos aceitos na base (pelo tipo declarado; o conteúdo é conferido na leitura).
 export const KB_TYPES: Record<string, string> = {
@@ -40,8 +42,8 @@ const noModel: BlockEnv = {
   now: () => new Date(),
 };
 
-export async function extractForKb(name: string, bytes: Uint8Array, converter?: Converter): Promise<{ text: string; warnings: string[] }> {
-  const d = await readFile({ id: 'kb', name, mime: '', sha256: '', bytes }, { paginasMax: 500, ocrMinConfidence: 0, visionFallback: false }, { ...noModel, converter });
+export async function extractForKb(name: string, bytes: Uint8Array, converter?: Converter, readers: Reader[] = []): Promise<{ text: string; warnings: string[] }> {
+  const d = await readFile({ id: 'kb', name, mime: '', sha256: '', bytes }, { paginasMax: 500, ocrMinConfidence: 0, visionFallback: false }, { ...noModel, converter, readers });
   if (d.warnings.some(w => /^OCR não foi feito/.test(w))) throw new Error('arquivo digitalizado e o OCR não pôde ser feito: envie a versão com texto');
   if (d.warnings.some(w => /conversão indisponível|não pôde ser convertido/.test(w))) throw new Error(d.warnings[0]);
   if ((d.via === 'ocr' || d.kind === 'imagem') && !d.text.trim()) throw new Error('arquivo digitalizado sem texto legível pelo OCR: envie a versão com texto');
@@ -63,7 +65,8 @@ export function makeIndexer(db: Db, objects: ObjectStore, converter?: Converter)
       try {
         const ext = KB_TYPES[v.mime];
         if (!ext) throw new Error('tipo de arquivo não suportado: ' + v.mime);
-        const { text } = await extractForKb(`${v.title}.${ext}`, await objects.get(v.object_key), converter);
+        const cfg = parseTenantConfig((await tx.query(`select config from tenants where id = $1`, [tenantId])).rows[0]?.config).config;
+        const { text } = await extractForKb(`${v.title}.${ext}`, await objects.get(v.object_key), converter, enabledReaders(cfg.readers));
         const chunks = chunkText(text);
         if (!chunks.length) throw new Error('documento sem texto');
         await tx.query(`delete from kb_chunks where document_id = $1`, [documentId]);

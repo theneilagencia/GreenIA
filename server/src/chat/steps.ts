@@ -1,5 +1,6 @@
 // Etapas do chat: assistente e política de dados. As etapas de base de
 // conhecimento, limites e consumo ficam nos seus próprios módulos.
+import { typeLabels } from '../policy/detectors.ts';
 import type { SensitiveType } from '../../../lib/greenia-core.js';
 import { withTenant } from '../db/pool.ts';
 import { tenantCtx } from '../auth/session.ts';
@@ -47,7 +48,9 @@ export const dataPolicyStep: ChatStep = {
   async prepare({ app, auth, config, body }, state) {
     const def = state.assistant?.definition as AssistantDefinition | undefined;
     const rules = state.usageRules as UsageRules | undefined;
-    const policy = applyFloor(effectivePolicy(config.dataPolicy, def?.dataPolicy), rules?.dataPolicy);
+    const policy = applyFloor(effectivePolicy(config.dataPolicy, def?.dataPolicy, config.detectors), rules?.dataPolicy);
+    const rotulos = typeLabels(config.detectors);
+    const withLabels = (types: string[]) => Object.fromEntries(types.map(t => [t, rotulos[t] ?? t]));
     const texts = state.messages.map(m => m.content);
     const ctx = tenantCtx(auth);
     const base = { tenantId: auth.tenantId, actorUserId: auth.userId, target: state.assistant ? `assistente:${state.assistant.slug}@${state.assistant.version}` : 'chat' };
@@ -55,23 +58,23 @@ export const dataPolicyStep: ChatStep = {
     const restricted = restrictedHits(texts, rules?.restrictedTerms ?? []);
     if (restricted.length) {
       await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'envio_bloqueado', details: { tipos: ['restrito'], termos: restricted.length } }));
-      return { status: 422, body: { error: 'dado_bloqueado', types: ['restrito'] } };
+      return { status: 422, body: { error: 'dado_bloqueado', types: ['restrito'], rotulos: withLabels(['restrito']) } };
     }
-    const { decision, types } = inspect(texts, policy);
+    const { decision, types } = inspect(texts, policy, config.detectors);
     if (!types.length) return;
 
     if (decision.action === 'bloquear') {
       await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'envio_bloqueado', details: { tipos: decision.block } }));
-      return { status: 422, body: { error: 'dado_bloqueado', types: decision.block } };
+      return { status: 422, body: { error: 'dado_bloqueado', types: decision.block, rotulos: withLabels(decision.block) } };
     }
     if (decision.warn.length) {
       const confirmed = new Set(body.confirmedWarnings);
       const missing = decision.warn.filter(t => !confirmed.has(t));
-      if (missing.length) return { status: 409, body: { error: 'confirmacao_necessaria', types: missing } };
+      if (missing.length) return { status: 409, body: { error: 'confirmacao_necessaria', types: missing, rotulos: withLabels(missing) } };
       await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'aviso_confirmado', details: { tipos: decision.warn } }));
     }
     if (decision.mask.length) {
-      state.messages = state.messages.map(m => ({ ...m, content: maskText(m.content, decision.mask as SensitiveType[]) }));
+      state.messages = state.messages.map(m => ({ ...m, content: maskText(m.content, decision.mask, config.detectors) }));
       await withTenant(app.deps.db, ctx, tx => audit(tx, { ...base, action: 'dado_mascarado', details: { tipos: decision.mask } }));
     }
     if (decision.log.length) {

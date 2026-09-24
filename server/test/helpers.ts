@@ -78,3 +78,8 @@ export async function seedTenant(owner: Db, slug: string, opts: { email?: string
   await owner.query(`insert into tenant_domains (tenant_id, domain) values ($1, $2)`, [t.id, opts.domain || `${slug}.com.br`]);
   return { tenantId: t.id as string, userId: u.id as string, email };
 }
+
+// Liga leitores especializados no tenant (como o admin faria na configuração).
+export async function enableReaders(owner: Db, tenantId: string, ids: string[] = ['nfe', 'danfe']) {
+  await owner.query(`update tenants set config = coalesce(config, '{}'::jsonb) || jsonb_build_object('readers', $2::jsonb) where id = $1`, [tenantId, JSON.stringify(ids)]);
+}

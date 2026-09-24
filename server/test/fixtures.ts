@@ -7,6 +7,7 @@ import ExcelJS from 'exceljs';
 import type { InputFile, BlockEnv } from '../src/blocks/types.ts';
 import type { LlmCompletion } from '../src/llm/provider.ts';
 import type { Converter, OcrPage } from '../src/convert/converter.ts';
+import { READERS } from '../src/readers/registry.ts';
 
 let seq = 0;
 export function inputFile(name: string, bytes: Uint8Array | string, mime = 'application/octet-stream'): InputFile {
@@ -60,7 +61,8 @@ export function testEnv(reply: (req: Parameters<BlockEnv['complete']>[0]) => str
       return { text, model: 'fake', stopReason: 'end_turn', usage: { inputTokens: 100, outputTokens: Math.ceil(text.length / 4) } };
     },
     async searchKnowledge() { return []; },
-    keyUserContact: 'Key user do RH: rh.key@exemplo.com.br',
+    keyUserContact: 'Key user da área: key.user@exemplo.com.br',
+    readers: READERS,                                      // nos testes de bloco, todos os leitores ligados
     now: () => new Date('2026-09-24T12:00:00-03:00'),
     ...extra,
   };

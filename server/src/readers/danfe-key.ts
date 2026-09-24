@@ -38,4 +38,3 @@ export function findAccessKey(text: string): string | null {
   return null;
 }
 
-export const DANFE_SEM_XML = 'pedir o XML ao fornecedor';

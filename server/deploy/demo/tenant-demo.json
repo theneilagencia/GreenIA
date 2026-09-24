@@ -1,34 +1,85 @@
 {
   "slug": "demo",
   "name": "Empresa Demonstração",
-  "domains": ["demonstracao.com.br"],
-  "hosts": ["demo.localhost"],
-  "areas": [
-    { "slug": "fiscal", "name": "Fiscal" },
-    { "slug": "rh", "name": "RH / DP" },
-    { "slug": "financeiro", "name": "Financeiro" },
-    { "slug": "lgpd", "name": "LGPD & Compliance" }
+  "domains": [
+    "demonstracao.com.br"
   ],
-  "providers": [{ "kind": "email_code", "label": "Código por email" }],
-  "admins": ["admin@demonstracao.com.br"],
+  "hosts": [
+    "demo.localhost"
+  ],
+  "areas": [
+    {
+      "slug": "fiscal",
+      "name": "Fiscal"
+    },
+    {
+      "slug": "rh",
+      "name": "RH / DP"
+    },
+    {
+      "slug": "financeiro",
+      "name": "Financeiro"
+    },
+    {
+      "slug": "lgpd",
+      "name": "LGPD & Compliance"
+    }
+  ],
+  "providers": [
+    {
+      "kind": "email_code",
+      "label": "Código por email"
+    }
+  ],
+  "admins": [
+    "admin@demonstracao.com.br"
+  ],
   "keyUsers": [
-    { "email": "key.fiscal@demonstracao.com.br", "area": "fiscal" },
-    { "email": "key.rh@demonstracao.com.br", "area": "rh" },
-    { "email": "key.financeiro@demonstracao.com.br", "area": "financeiro" },
-    { "email": "key.lgpd@demonstracao.com.br", "area": "lgpd" }
+    {
+      "email": "key.fiscal@demonstracao.com.br",
+      "area": "fiscal"
+    },
+    {
+      "email": "key.rh@demonstracao.com.br",
+      "area": "rh"
+    },
+    {
+      "email": "key.financeiro@demonstracao.com.br",
+      "area": "financeiro"
+    },
+    {
+      "email": "key.lgpd@demonstracao.com.br",
+      "area": "lgpd"
+    }
   ],
   "config": {
-    "branding": { "orgName": "Empresa Demonstração" },
-    "texts": { "tagline": "A IA do dia a dia da Empresa Demonstração" },
+    "branding": {
+      "orgName": "Empresa Demonstração"
+    },
+    "texts": {
+      "tagline": "A IA do dia a dia da Empresa Demonstração"
+    },
     "keyUserContact": "Key user da sua área (lista na intranet)",
-    "retention": { "defaultOutputDays": 180 }
+    "retention": {
+      "defaultOutputDays": 180
+    },
+    "readers": [
+      "nfe",
+      "danfe"
+    ]
   },
   "policy": {
     "title": "Política de Uso de IA da Empresa Demonstração",
     "body": "# Política de Uso de IA\n\n1. Use a GreenIA para tarefas de trabalho: resumir, organizar, conferir e consultar procedimentos.\n2. Toda saída de assistente é revisada por uma pessoa antes de ser usada.\n3. Não envie senhas, tokens ou dados de cartão.\n4. Informações de projetos confidenciais não devem ser enviadas.\n5. Em caso de envio indevido ou resposta errada, use o botão Reportar incidente.\n\nDocumento fictício, para demonstração.",
     "rules": {
-      "restrictedTerms": ["Projeto Aurora"],
-      "allowedClasses": ["verde", "amarela", "vermelha"],
+      "restrictedTerms": [
+        "Projeto Aurora"
+      ],
+      "allowedClasses": [
+        "verde",
+        "amarela",
+        "vermelha"
+      ],
       "tools": "Só a GreenIA para dados da empresa; ferramentas públicas de IA apenas com dados públicos."
     }
   }

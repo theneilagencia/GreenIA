@@ -72,12 +72,12 @@ export async function extrairBlock(ctx: RunContext, step: PipelineStep): Promise
   const p = extrairParams.parse(step.params);
   const validate = ajv.compile(p.schema);
   const flags: ReviewFlag[] = [];
-  // DANFE em PDF: nenhum campo sai do texto impresso. A nota vem do XML com a
-  // mesma chave (lido pelo parser) ou fica como "pedir o XML ao fornecedor".
-  for (const d of ctx.docs.filter(d => d.danfe && (!p.tipos || p.tipos.includes(d.kind)))) {
-    flags.push({ reason: `DANFE: campos não extraídos do PDF; use o XML da nota (chave ${d.danfe!.chave})`, ref: d.name });
+  // Documento que um leitor especializado marcou para não extrair (ex.: DANFE:
+  // a nota vem do XML de mesma chave, nunca do texto impresso).
+  for (const d of ctx.docs.filter(d => d.semExtracao && (!p.tipos || p.tipos.includes(d.kind)))) {
+    flags.push({ reason: d.semExtracao!, ref: d.name });
   }
-  const docs = ctx.docs.filter(d => !d.danfe && (!p.tipos || p.tipos.includes(d.kind)) && (d.text || d.nfe));
+  const docs = ctx.docs.filter(d => !d.semExtracao && (!p.tipos || p.tipos.includes(d.kind)) && (d.text || d.dados));
   const groups = p.por === 'conjunto' ? (docs.length ? [docs] : []) : docs.map(d => [d]);
   const out: Extracao[] = [];
   if (!groups.length) flags.push({ reason: 'nenhum documento com texto para extrair' });

@@ -396,6 +396,40 @@
       </div>
       <sc-if value="{{ adminMsg }}"><p role="status" style="font:500 14px/1.5 'Hanken Grotesk';color:{{ adminMsgColor }};white-space:pre-wrap;">{{ adminMsg }}</p></sc-if>
 
+      <!-- Tipos de dado e leitores -->
+      <sc-if value="{{ admData }}">
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;margin-bottom:18px;overflow-x:auto;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Tipos de dado próprios</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Além dos tipos de fábrica (CPF, CNPJ, cartão, e-mail...), cadastre os da empresa: matrícula, número de contrato, placa, código de paciente. O padrão é uma expressão regular.</p>
+          <table class="gia-table"><thead><tr><th>Tipo</th><th>Padrão</th><th>Validação</th><th>Contexto</th><th>Ação</th><th></th></tr></thead><tbody>
+            <sc-for list="{{ detectorRows }}" as="d" hint-placeholder-count="0"><tr><td>{{ d.label }}</td><td style="font-family:ui-monospace,monospace;font-size:13px;">{{ d.pattern }}</td><td>{{ d.validation }}</td><td>{{ d.context }}</td><td>{{ d.action }}</td><td><button onClick="{{ d.onRemove }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;padding:5px 10px;">Remover</button></td></tr></sc-for>
+          </tbody></table>
+          <div class="gia-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+            <input class="gia-field" aria-label="Nome do tipo" placeholder="Nome (ex.: matrícula interna)" value="{{ detForm.label }}" onInput="{{ onDetForm.label }}">
+            <input class="gia-field" aria-label="Padrão" placeholder="Padrão (ex.: MAT-\d{6})" value="{{ detForm.pattern }}" onInput="{{ onDetForm.pattern }}">
+            <select class="gia-field" aria-label="Validação" value="{{ detForm.validation }}" onChange="{{ onDetForm.validation }}"><option value="nenhuma">Sem validação</option><option value="mod11">Dígito verificador módulo 11</option><option value="luhn">Dígito verificador Luhn</option><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select>
+            <input class="gia-field" aria-label="Palavras de contexto" placeholder="Palavras de contexto, separadas por vírgula (opcional)" value="{{ detForm.context }}" onInput="{{ onDetForm.context }}">
+            <select class="gia-field" aria-label="Classe" value="{{ detForm.cls }}" onChange="{{ onDetForm.cls }}"><option value="amarela">Classe amarela</option><option value="vermelha">Classe vermelha</option></select>
+            <select class="gia-field" aria-label="Ação padrão" value="{{ detForm.action }}" onChange="{{ onDetForm.action }}"><option value="avisar">Avisar</option><option value="bloquear">Bloquear</option><option value="mascarar">Mascarar</option><option value="permitir_com_registro">Permitir com registro</option></select>
+          </div>
+          <div style="margin-top:10px;"><button onClick="{{ addDetector }}" style="background:var(--gia-forest-strong);color:var(--gia-paper);border:none;border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Adicionar tipo</button></div>
+          <label for="gia-det-test" style="display:block;font:500 14px 'Hanken Grotesk';margin:16px 0 6px;">Testar um texto</label>
+          <textarea id="gia-det-test" class="gia-field" rows="3" value="{{ detTest }}" onInput="{{ onDetTest }}"></textarea>
+          <div style="margin-top:8px;"><button onClick="{{ runDetTest }}" style="background:none;border:1px solid var(--gia-stone);color:var(--gia-ink);border-radius:8px;padding:9px 14px;font:500 14px 'Hanken Grotesk';cursor:pointer;">Testar</button></div>
+          <sc-if value="{{ detTestResult }}"><p role="status" style="font:400 14px/1.5 'Hanken Grotesk';margin:8px 0 0;white-space:pre-wrap;">{{ detTestResult }}</p></sc-if>
+        </section>
+        <section style="background:var(--gia-surface);border:1px solid var(--gia-line);border-radius:14px;padding:18px;">
+          <h2 style="font:600 16px 'Hanken Grotesk';margin:0 0 6px;">Leitores especializados</h2>
+          <p style="font:400 14px/1.5 'Hanken Grotesk';color:var(--gia-muted);margin:0 0 10px;">Formatos de um setor, como o XML de nota fiscal. Só ligue os que a empresa usa.</p>
+          <sc-for list="{{ readerToggles }}" as="r" hint-placeholder-count="0">
+            <div style="display:flex;gap:12px;align-items:flex-start;border-top:1px solid var(--gia-line);padding:10px 0;">
+              <button onClick="{{ r.onClick }}" aria-pressed="{{ r.pressed }}" style="background:{{ r.bg }};color:{{ r.color }};border:1px solid var(--gia-line-strong);border-radius:999px;padding:6px 12px;font:500 13px 'Hanken Grotesk';cursor:pointer;min-width:92px;">{{ r.state }}</button>
+              <p style="font:400 14px/1.5 'Hanken Grotesk';margin:0;"><strong>{{ r.label }}</strong><br><span style="color:var(--gia-muted);">{{ r.description }}</span></p>
+            </div>
+          </sc-for>
+        </section>
+      </sc-if>
+
       <!-- Áreas -->
       <sc-if value="{{ admAreas }}">
         <div class="gia-split" style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start;">
@@ -732,6 +766,8 @@ function leituraLabel(x) {
   if (x.convertidoDe) parts.push('convertido de ' + x.convertidoDe);
   return parts.join('; ');
 }
+// Identificador de um tipo de dado a partir do nome (minúsculas, sem acento).
+const normKey = label => label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(\d)/, 't_$1').slice(0, 40) || 'tipo';
 // Painel de edição de uma área: campos e listas do detalhe.
 function areaEditView(e) {
   if (!e) return {};
@@ -761,8 +797,11 @@ function auditText(v, anchors) {
   if (anchors && !anchors.ligada) return base + ' A publicação de âncoras não está ligada neste ambiente.';
   return base;
 }
-const danfeLabel = x => x.danfe ? 'DANFE: ' + (x.danfe.xml ? 'XML ' + x.danfe.xml : x.danfe.situacao) : '';
-const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'DOCX, DOC, ODT', xlsx: 'XLSX, XLS, ODS', csv: 'CSV', nfe_xml: 'XML da NF-e', texto: 'TXT' };
+// Situação dada por um leitor especializado (ex.: nota sem o XML).
+const situacaoLabel = x => x.situacao || '';
+const KIND_LABEL = { pdf: 'PDF', imagem: 'imagem (JPG, PNG, TIFF, HEIC)', docx: 'DOCX, DOC, ODT', xlsx: 'XLSX, XLS, ODS', csv: 'CSV', texto: 'TXT' };
+// Tipos acrescentados pelos leitores especializados ligados no cliente (/api/readers).
+const kindLabel = (k, readers) => KIND_LABEL[k] || ((readers || []).find(r => r.kind && r.kind.id === k) || { kind: { label: k } }).kind.label;
 const TYPE_LABEL = {
   cpf: 'CPF', cnpj: 'CNPJ', cartao: 'número de cartão', bancario: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial', rg: 'RG',
   lista: 'lista com dados pessoais', email: 'email', telefone: 'telefone', cep: 'CEP', endereco: 'endereço', nome: 'nome de pessoa',
@@ -805,7 +844,7 @@ class Component extends DCLogic {
       metricSlug: '', metrics: null, metricsFrom: monthAgo(3), metricsTo: today(), metricsMsg: '',
       valForm: { indicador: '', fase: 'antes', valor: '', origem: 'informado', periodoInicio: '', periodoFim: '', metodo: '', informadoPor: '' },
       decForm: { decisao: 'manter', data: today(), responsavel: '', justificativa: '' },
-      adminMsg: '', adminOk: true, editor: null, areas: [], areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
+      adminMsg: '', adminOk: true, editor: null, areas: [], readers: [], detectors: null, allReaders: [], detForm: { label: '', pattern: '', validation: 'nenhuma', context: '', cls: 'amarela', action: 'avisar' }, detTest: '', detTestResult: '', areaForm: { name: '', description: '', parent: '', inherit: 'sim' }, areaEdit: null,
       csvText: '', csvReport: null, kbArea: '', kbFiles: [], kbBatch: null,
       policyForm: { title: '', body: '', rules: '{\n  "restrictedTerms": [],\n  "allowedClasses": ["verde", "amarela", "vermelha"]\n}' }, acks: null,
       incidents: [], incident: null, incStatus: '', incNote: '', incEscNote: '',
@@ -863,6 +902,7 @@ class Component extends DCLogic {
     this._loadPolicy();
     this._loadAssistants();
     this._loadMyRuns();
+    this._fetch('/api/readers').then(r => { if (r.ok) this.setState({ readers: r.data }); });
   }
 
   async _loadPolicy() {
@@ -925,7 +965,7 @@ class Component extends DCLogic {
     const body = { assistant: sel.slug, text: this.state.runText, files: this.state.runFiles.map(f => ({ name: f.name, mime: f.mime, contentBase64: f.b64 })), confirmedWarnings: confirmed || [] };
     const r = await this._fetch('/api/runs', { method: 'POST', body });
     if (r.status === 409 && r.data.error === 'confirmacao_necessaria') {
-      this.setState({ runBusy: false, runMsg: '', runWarn: { types: r.data.types } });
+      this.setState({ runBusy: false, runMsg: '', runWarn: { types: r.data.types, rotulos: r.data.rotulos || {} } });
       return;
     }
     if (!r.ok) {
@@ -938,7 +978,7 @@ class Component extends DCLogic {
 
   _errorText(r) {
     const e = r.data.error;
-    if (e === 'dado_bloqueado') return 'Não enviado: o texto ou os arquivos têm ' + (r.data.types || []).map(t => TYPE_LABEL[t] || t).join(', ') + '. Procure o key user da área.';
+    if (e === 'dado_bloqueado') return 'Não enviado: o texto ou os arquivos têm ' + (r.data.types || []).map(t => TYPE_LABEL[t] || (r.data.rotulos || {})[t] || t).join(', ') + '. Procure o key user da área.';
     if (e === 'ciencia_da_politica_pendente') return 'Registre ciência da Política de Uso de IA para continuar.';
     if (e === 'tipo_nao_aceito') return 'O arquivo ' + r.data.arquivo + ' não é de um tipo aceito por este assistente.';
     if (e === 'arquivo_grande_demais') return 'O arquivo ' + r.data.arquivo + ' passa do limite de ' + r.data.limiteMb + ' MB.';
@@ -972,7 +1012,7 @@ class Component extends DCLogic {
     const remove = (list, i) => () => onEdit(data => { data[list].splice(i, 1); });
     if (s.kind === 'documentos') {
       out.columns = ['Arquivo', 'Tipo', 'Leitura', 'Páginas', 'Situação', 'Avisos'];
-      out.rows = d.map((x, i) => ({ cells: [text(x.arquivo), text(KIND_LABEL[x.tipo] || x.tipo), text(leituraLabel(x)), text(x.paginas), text(danfeLabel(x)), text((x.avisos || []).join('; '))], pick: pick(i, [{ label: 'Arquivo', text: x.arquivo }].concat(x.danfe ? [{ label: 'Chave de acesso', text: x.danfe.chave }] : [])) }));
+      out.rows = d.map((x, i) => ({ cells: [text(x.arquivo), text(kindLabel(x.tipo, this.state.readers)), text(leituraLabel(x)), text(x.paginas), text(situacaoLabel(x)), text((x.avisos || []).join('; '))], pick: pick(i, [{ label: 'Arquivo', text: x.arquivo }].concat(x.situacao ? [{ label: 'Situação', text: x.situacao }] : [])) }));
     } else if (s.kind === 'divergencias') {
       const L = d.rotulos.esquerda, R = d.rotulos.direita;
       out.paragraphs = [d.resumo.pares + ' registros comparados, ' + d.divergencias.length + ' divergências.'];
@@ -1109,6 +1149,7 @@ class Component extends DCLogic {
     if (adminTab === 'assistentes') this._loadAssistants();
     if (adminTab === 'base' || adminTab === 'assistentes' || adminTab === 'areas') this._loadAreas();
     if (adminTab === 'politica') this._loadAcks();
+    if (adminTab === 'dados') this._loadDataSettings();
     if (adminTab === 'incidentes') this._loadIncidents();
     if (adminTab === 'exportacao') this._loadExports();
     if (adminTab === 'auditoria') { this._loadAnchors(); this.verifyAudit(); }
@@ -1146,6 +1187,45 @@ class Component extends DCLogic {
     const ed = this.state.editor;
     const r = await this._fetch('/api/admin/assistants/' + encodeURIComponent(ed.slug) + '/areas', { method: 'PUT', body: ed.shares });
     this._msg(r.ok ? 'Compartilhamento salvo.' : 'Não salvo: ' + r.data.error, r.ok);
+  }
+
+  // ---- Tipos de dado e leitores ---------------------------------------------------------------
+  async _loadDataSettings() {
+    const [d, r, all] = await Promise.all([this._fetch('/api/admin/detectors'), this._fetch('/api/readers'), this._fetch('/api/readers/catalogo')]);
+    this.setState({ detectors: d.ok ? d.data : null, readers: r.ok ? r.data : this.state.readers, allReaders: all.ok ? all.data : [] });
+  }
+  _detectorsPayload(list) { return list.map(({ acao, ...d }) => d); }
+  async _saveDetectors(list, done) {
+    const r = await this._fetch('/api/admin/detectors', { method: 'PUT', body: { detectors: list } });
+    if (!r.ok) { this._msg('Não salvo: ' + ((r.data.detalhes || []).join('\n') || r.data.error), false); return false; }
+    this._msg(done);
+    this._loadDataSettings();
+    return true;
+  }
+  async addDetector() {
+    const f = this.state.detForm;
+    if (!f.label.trim() || !f.pattern.trim()) { this._msg('Dê um nome e um padrão para o tipo.', false); return; }
+    const key = normKey(f.label);
+    const cur = this._detectorsPayload((this.state.detectors && this.state.detectors.proprios) || []);
+    const item = { key, label: f.label.trim(), pattern: f.pattern.trim(), validation: f.validation, class: f.cls, action: f.action, context: f.context.split(',').map(x => x.trim()).filter(Boolean) };
+    if (await this._saveDetectors(cur.concat([item]), 'Tipo adicionado.')) this.setState({ detForm: { label: '', pattern: '', validation: 'nenhuma', context: '', cls: 'amarela', action: 'avisar' } });
+  }
+  removeDetector(key) {
+    const cur = this._detectorsPayload((this.state.detectors && this.state.detectors.proprios) || []);
+    return this._saveDetectors(cur.filter(d => d.key !== key), 'Tipo removido.');
+  }
+  async runDetTest() {
+    const r = await this._fetch('/api/admin/detectors/test', { method: 'POST', body: { texto: this.state.detTest } });
+    if (!r.ok) { this.setState({ detTestResult: 'Não foi possível testar.' }); return; }
+    const d = r.data;
+    this.setState({ detTestResult: d.tipos.length ? 'Encontrado: ' + d.tipos.map(t => d.rotulos[t] || t).join(', ') + '. Ação: ' + d.acao + '.\nComo ficaria mascarado: ' + d.mascarado : 'Nenhum dado sensível encontrado.' });
+  }
+  async toggleReader(id) {
+    const on = (this.state.readers || []).map(r => r.id);
+    const next = on.includes(id) ? on.filter(x => x !== id) : on.concat([id]);
+    const r = await this._fetch('/api/admin/readers', { method: 'PUT', body: { readers: next } });
+    this._msg(r.ok ? 'Leitores atualizados.' : 'Não salvo: ' + ((r.data.detalhes || []).join('\n') || r.data.error), r.ok);
+    this._loadDataSettings();
   }
 
   // ---- Áreas ---------------------------------------------------------------------------------
@@ -1339,7 +1419,7 @@ class Component extends DCLogic {
     // Executar
     const runnable = st.assistants.filter(a => a.tipo === 'execucao' && (a.status === 'piloto' || a.status === 'ativo'));
     const sel = st.selected;
-    const acceptText = sel ? (sel.inputs.files.accept || []).map(k => KIND_LABEL[k] || k).join(', ') : '';
+    const acceptText = sel ? (sel.inputs.files.accept || []).map(k => kindLabel(k, st.readers)).join(', ') : '';
     const cr = st.currentRun;
     const runView = cr ? {
       title: cr.assistantName + ' · versão ' + cr.version,
@@ -1407,7 +1487,7 @@ class Component extends DCLogic {
 
     // Administração
     const adminDefs = [['areas', 'Áreas', roles.admin], ['assistentes', 'Assistentes', true], ['pessoas', 'Pessoas', true], ['base', 'Base de conhecimento', true], ['incidentes', 'Incidentes', true],
-      ['politica', 'Política de Uso', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin]];
+      ['politica', 'Política de Uso', roles.admin], ['dados', 'Tipos de dado e leitores', roles.admin], ['consumo', 'Consumo', roles.admin], ['exportacao', 'Exportação', roles.admin], ['auditoria', 'Auditoria', roles.admin]];
     const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
     const ed = st.editor;
     const u = st.usage;
@@ -1438,7 +1518,7 @@ class Component extends DCLogic {
       onRunFiles: e => this.onRunFiles(e),
       runFiles: st.runFiles.map(f => ({ label: f.name + ' · ' + fmtNum(f.size / 1024, 0) + ' KB' })),
       runWarn: !!st.runWarn,
-      runWarnText: st.runWarn ? 'Seu envio parece conter ' + st.runWarn.types.map(t => TYPE_LABEL[t] || t).join(', ') + '. Enviar mesmo assim?' : '',
+      runWarnText: st.runWarn ? 'Seu envio parece conter ' + st.runWarn.types.map(t => TYPE_LABEL[t] || (st.runWarn.rotulos || {})[t] || t).join(', ') + '. Enviar mesmo assim?' : '',
       confirmRun: () => this.submitRun(st.runWarn ? st.runWarn.types : []),
       cancelWarn: () => this.setState({ runWarn: null }),
       submitRun: () => this.submitRun([]),
@@ -1500,6 +1580,16 @@ class Component extends DCLogic {
       admExport: st.adminTab === 'exportacao',
       admAudit: st.adminTab === 'auditoria',
       admAreas: st.adminTab === 'areas',
+      admData: st.adminTab === 'dados',
+      detectorRows: ((st.detectors && st.detectors.proprios) || []).map(d => ({ label: d.label, pattern: d.pattern, validation: d.validation === 'nenhuma' ? '—' : d.validation, context: (d.context || []).join(', ') || '—', action: d.acao, onRemove: () => this.removeDetector(d.key) })),
+      detForm: st.detForm,
+      onDetForm: { label: e => this.setState({ detForm: { ...st.detForm, label: e.target.value } }), pattern: e => this.setState({ detForm: { ...st.detForm, pattern: e.target.value } }), validation: e => this.setState({ detForm: { ...st.detForm, validation: e.target.value } }), context: e => this.setState({ detForm: { ...st.detForm, context: e.target.value } }), cls: e => this.setState({ detForm: { ...st.detForm, cls: e.target.value } }), action: e => this.setState({ detForm: { ...st.detForm, action: e.target.value } }) },
+      addDetector: () => this.addDetector(),
+      detTest: st.detTest,
+      onDetTest: e => this.setState({ detTest: e.target.value }),
+      runDetTest: () => this.runDetTest(),
+      detTestResult: st.detTestResult,
+      readerToggles: (st.allReaders || []).map(r => { const on = (st.readers || []).some(x => x.id === r.id); return { label: r.label, description: r.description, state: on ? 'Ligado' : 'Desligado', pressed: on ? 'true' : 'false', bg: on ? 'var(--gia-deep)' : 'var(--gia-surface)', color: on ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.toggleReader(r.id) }; }),
       areaRows: st.areas.map(a => ({ name: a.name, indent: (10 + a.depth * 22) + 'px', situacao: a.efetivamenteAtiva ? 'ativa' : 'desativada', keyUsers: a.keyUsers, revisores: a.revisores, documentos: a.documentos, assistentes: a.assistentes, onClick: () => this.openArea(a.slug) })),
       areaParentOptions: st.areas.map(a => ({ slug: a.slug, label: a.caminho })),
       areaForm: st.areaForm,

@@ -4,6 +4,9 @@ import { loadConfig } from '../src/config.ts';
 import type { TestDb } from './helpers.ts';
 import { MemoryEmailSender } from '../src/email/sender.ts';
 import { FakeProvider } from '../src/llm/provider.ts';
+import { MemoryObjectStore } from '../src/storage/object-store.ts';
+import { InlineJobQueue } from '../src/jobs/queue.ts';
+import { KeywordKnowledgeSource } from '../src/kb/knowledge.ts';
 import { randomBytes } from 'node:crypto';
 import { hashToken } from '../src/auth/session.ts';
 
@@ -20,7 +23,11 @@ export function testConfig(db: TestDb, extra: Record<string, string> = {}) {
 
 export async function buildTestApp(db: TestDb, overrides: Partial<Deps> & { fake?: FakeProvider } = {}, env: Record<string, string> = {}) {
   const fake = overrides.fake ?? new FakeProvider();
-  return buildApp({ config: testConfig(db, env), db: db.app, ownerDb: db.owner, email: new MemoryEmailSender(), llm: () => fake, ...overrides } as Deps);
+  return buildApp({
+    config: testConfig(db, env), db: db.app, ownerDb: db.owner, email: new MemoryEmailSender(), llm: () => fake,
+    objects: new MemoryObjectStore(), queue: new InlineJobQueue(), knowledge: new KeywordKnowledgeSource(),
+    ...overrides,
+  } as Deps);
 }
 
 // Abre uma sessão direto no banco (atalho para testes que não são de login).

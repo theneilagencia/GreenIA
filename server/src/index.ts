@@ -4,6 +4,9 @@ import { createPool } from './db/pool.ts';
 import { buildApp } from './app.ts';
 import { MemoryEmailSender, SmtpEmailSender } from './email/sender.ts';
 import { AnthropicProvider, FakeProvider, type LlmProvider } from './llm/provider.ts';
+import { S3ObjectStore } from './storage/object-store.ts';
+import { BullJobQueue } from './jobs/queue.ts';
+import { KeywordKnowledgeSource } from './kb/knowledge.ts';
 
 const config = loadConfig();
 const db = createPool(config.DATABASE_URL);
@@ -19,10 +22,18 @@ const llm = (id: string) => {
   if (!p) throw new Error('provedor de modelo desconhecido: ' + id);
   return p;
 };
-const app = await buildApp({ config, db, ownerDb, email, llm });
+const queue = new BullJobQueue(config.REDIS_URL);
+const app = await buildApp({
+  config, db, ownerDb, email, llm, queue,
+  objects: new S3ObjectStore(config),
+  knowledge: new KeywordKnowledgeSource(),
+});
+// Este processo também processa a fila. Em escala, pode rodar um processo só de fila.
+queue.startWorker();
 
 const stop = async () => {
   await app.close();
+  await queue.close();
   await db.end();
   await ownerDb?.end();
   process.exit(0);

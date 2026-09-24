@@ -24,6 +24,8 @@ const bodySchema = z.object({
   confirmedWarnings: z.array(z.string()).max(20).default([]),
   // Assistente (slug). Sem ele, é o chat livre do tenant (ambiente Verde).
   assistant: z.string().regex(/^[a-z0-9][a-z0-9-]{1,60}$/).optional(),
+  // Consultar a base de conhecimento (o botão "Base" da tela).
+  useKnowledge: z.boolean().default(true),
 });
 
 export type ChatBody = z.infer<typeof bodySchema>;

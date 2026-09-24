@@ -14,6 +14,12 @@ import { chatRoutes } from './chat/routes.ts';
 import { composeSteps, type ChatHooks } from './chat/hooks.ts';
 import { assistantStep, dataPolicyStep } from './chat/steps.ts';
 import { assistantRoutes } from './assistants/routes.ts';
+import { kbRoutes } from './kb/routes.ts';
+import { knowledgeStep } from './kb/step.ts';
+import { makeIndexer } from './kb/indexer.ts';
+import type { ObjectStore } from './storage/object-store.ts';
+import type { JobQueue } from './jobs/queue.ts';
+import type { KnowledgeSource } from './kb/knowledge.ts';
 import type { LlmProvider } from './llm/provider.ts';
 
 export interface Deps {
@@ -23,12 +29,15 @@ export interface Deps {
   email: EmailSender;
   llm: (providerId: string) => LlmProvider;
   chatHooks: ChatHooks;
+  objects: ObjectStore;
+  queue: JobQueue;
+  knowledge: KnowledgeSource;
   ping?: { redis?: () => Promise<unknown> };
 }
 
 export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([assistantStep, dataPolicyStep]) };
+  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? composeSteps([assistantStep, dataPolicyStep, knowledgeStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -62,6 +71,10 @@ export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: Ch
   await app.register(platformRoutes);
   await app.register(chatRoutes);
   await app.register(assistantRoutes);
+  await app.register(kbRoutes);
+
+  // Tarefas da fila.
+  deps.queue.register('kb:index', makeIndexer(deps.db, deps.objects));
 
   return app;
 }

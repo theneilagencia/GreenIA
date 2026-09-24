@@ -36,7 +36,6 @@ const schema = z.object({
 
   // Provedores de modelo. As chaves ficam aqui, nunca no frontend.
   ANTHROPIC_API_KEY: z.string().optional(),
-  BEDROCK_REGION: z.string().default('sa-east-1'),
 
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
   COOKIE_SECURE: bool.default(true),

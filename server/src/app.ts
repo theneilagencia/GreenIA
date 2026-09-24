@@ -10,16 +10,22 @@ import { authRoutes } from './auth/routes.ts';
 import type { EmailSender } from './email/sender.ts';
 import { adminRoutes } from './admin/routes.ts';
 import { platformRoutes } from './platform/routes.ts';
+import { chatRoutes } from './chat/routes.ts';
+import { noopChatHooks, type ChatHooks } from './chat/hooks.ts';
+import type { LlmProvider } from './llm/provider.ts';
 
 export interface Deps {
   config: Config;
   db: Db;
   ownerDb?: Db; // conexão do dono das tabelas: só operações de plataforma
   email: EmailSender;
+  llm: (providerId: string) => LlmProvider;
+  chatHooks: ChatHooks;
   ping?: { redis?: () => Promise<unknown> };
 }
 
-export async function buildApp(deps: Deps): Promise<FastifyInstance> {
+export async function buildApp(input: Omit<Deps, 'chatHooks'> & { chatHooks?: ChatHooks }): Promise<FastifyInstance> {
+  const deps: Deps = { ...input, chatHooks: input.chatHooks ?? noopChatHooks };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
       level: deps.config.LOG_LEVEL,
@@ -51,6 +57,7 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   await app.register(authRoutes);
   await app.register(adminRoutes);
   await app.register(platformRoutes);
+  await app.register(chatRoutes);
 
   return app;
 }

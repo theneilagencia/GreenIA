@@ -43,10 +43,13 @@ export const tenantConfigSchema = z.object({
   privacyDetail: z.string().max(1500).default(''),
   keyUserContact: z.string().max(200).default(''),
   dataPolicy: dataPolicySchema.default({ ...core.DATA_POLICY }),
+  // Provedor do modelo. Hoje só a API da Anthropic: o Claude no Amazon Bedrock
+  // não tem opção de processamento no Brasil (ver RELATORIO-FASE-2.md). O
+  // padrão é o modelo mais leve, coerente com a política ("roda no modelo mais leve").
   llm: z.object({
-    provider: z.enum(['anthropic', 'bedrock']).default('anthropic'),
+    provider: z.enum(['anthropic']).default('anthropic'),
     model: z.string().min(1).max(120).default('claude-haiku-4-5'),
-    maxOutputTokens: z.number().int().min(64).max(16000).default(1024),
+    maxOutputTokens: z.number().int().min(256).max(16000).default(4096),
   }).prefault({}),
   limits: z.object({
     maxMessageChars: z.number().int().min(100).max(200000).default(20000),

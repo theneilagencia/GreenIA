@@ -138,7 +138,8 @@ O tenant novo começa vazio: sem áreas, sem assistentes. As áreas vêm da list
 | Tipos de dado próprios | Administração › Tipos de dado e leitores | Padrão, validação opcional (CPF, CNPJ, Luhn, módulo 11) e ação padrão, além dos de fábrica |
 | Leitores especializados | Administração › Tipos de dado e leitores | Formatos de um setor (hoje: XML de NF-e e chave de DANFE), ligados só no cliente que usa |
 | Critérios de avaliação | Administração › Critérios de avaliação | Padrão Valor, Complexidade, Risco e Dependências; escala, pesos e critérios editáveis |
-| Oportunidades e quick wins | aba Quick wins | Portfólio por área, ciclo com motivo em cada etapa, indicadores escolhidos pelo cliente, relatórios em PDF e XLSX |
+| Oportunidades e quick wins | aba Quick wins | Portfólio por área, roadmap e arquivo com motivo, seleção e decisão pelo patrocinador, janelas, indicadores escolhidos pelo cliente, relatórios em PDF e XLSX |
+| Papéis | Administração › Pessoas e Áreas | usuário, revisor, key user, patrocinador (tenant ou área), admin do cliente |
 
 ## Catálogo de modelos (TheNeil)
 
@@ -146,7 +147,16 @@ Os arquivos em `server/catalog/modelos/` (assistentes) e `server/catalog/areas/`
 
 ## Quick wins
 
-Um quick win é do processo, não da ferramenta. Nasce de uma oportunidade registrada pelo key user ou admin na área (processo, problema, quem executa hoje, volume, evidência comprovada ou hipótese), avaliada pelos critérios do cliente e selecionada. Ciclo: identificada → avaliada → selecionada → em implantação → em medição → decisão (manter, descartar, ampliar) → encerrada; toda mudança vai para a auditoria com quem e por quê. A medição junta o automático das execuções dos assistentes vinculados (volume, tempo, revisão, divergências, consumo) com indicadores lançados à mão, sempre com origem e período. Sem valor "antes", não há comparação. Ampliar cria outro quick win em outra área, unidade ou processo, com os mesmos recursos, baseline próprio e vínculo registrado. Não há limite na plataforma; a cota, se houver, é do plano (`PUT /api/platform/tenants/<slug>/quick-wins-quota`).
+Um quick win é uma melhoria num processo de uma área, não uma ferramenta. Pode usar um ou mais assistentes, uma ou mais bases, ou só uma base com consulta. A medição é do processo.
+
+- **Oportunidade**: registrada pelo key user ou admin na área (processo, problema, quem executa hoje, volume, evidência comprovada ou hipótese) e avaliada pelos critérios do cliente. Ciclo: registrada → avaliada → selecionada como quick win, enviada ao roadmap (grande ou complexa demais) ou arquivada. Roadmap e arquivo sempre com motivo; dá para reabrir.
+- **Quick win**: nasce da oportunidade selecionada, com responsável, áreas, objetivo, indicadores escolhidos pelo cliente, janelas de ponto de partida e de medição, recursos, revisores e prazo. Ciclo: em implantação → em medição → decisão (manter, descartar, ampliar) → encerrado. Na implantação, se ficar complexo demais, volta ao portfólio como oportunidade no roadmap, com motivo, e outra pode entrar no lugar.
+- **Quem decide**: key users propõem; selecionar e registrar a decisão final exigem patrocinador (papel `patrocinador`, no tenant ou numa área) ou admin do cliente. Toda mudança de etapa vai para a auditoria com quem decidiu e por quê. O patrocinador do tenant vê oportunidades e quick wins de todas as áreas, mas não a base nem as execuções delas.
+- **Medição**: o automático vem das execuções vinculadas ao quick win (volume, tempo, revisão, divergências, consumo); o resto é lançado à mão, com origem e período. Cada execução pertence a no máximo um quick win: com o assistente em mais de um quick win ativo, a pessoa escolhe ao executar, ou vale a área de quem executa quando ela aponta um só. As janelas definem o período; a comparação pode ser pelo valor, por mês ou por item, e o relatório avisa quando as janelas não são comparáveis (duração ou volume mais de duas vezes diferente, sobreposição). Sem valor "antes", não há comparação.
+- **Ampliar**: cria outro quick win em outra área, unidade ou processo, com baseline próprio e vínculo com a origem. Os recursos são compartilhados (os mesmos) ou duplicados (cópia independente na área nova), à escolha de quem amplia.
+- **Cota**: nenhuma na plataforma. A cota, se houver, é do plano (`PUT /api/platform/tenants/<slug>/quick-wins-quota`), com aviso quando atingida.
+- **Relatórios** em PDF e XLSX: portfólio de oportunidades (avaliação, situação e motivo de roadmap e arquivo) e resultados dos quick wins (antes × depois, janelas, decisões e trajetória).
+- **Da Fase 3**: a medição que ficava no assistente foi trazida para quick wins pela migração `020` (um quick win por assistente com valores ou decisões, com os indicadores, os valores com origem, a última decisão e as execuções).
 
 ### Tenants de demonstração
 
@@ -157,7 +167,7 @@ node src/scripts/seed-demo.ts --amostras ./amostras               # só grava os
 
 O tenant `demo` abre pelo host `demo.localhost`. Os dados dele estão em `server/deploy/demo/tenant-demo.json` (áreas e assistentes criados a partir do catálogo).
 
-O segundo tenant de demonstração, uma construtora, é montado só pela API em `server/test/second-tenant.test.ts`: áreas com subárea, tipo de dado próprio, quatro assistentes, duas bases, seis oportunidades, três quick wins (um com dois assistentes, um só com a base e um ampliado) e os dois relatórios. Com `GREENIA_RELATORIOS_DIR=<pasta>`, o teste grava os relatórios; a última saída está em `docs/fase-3b/relatorios-construtora/`.
+O segundo tenant de demonstração, uma construtora, é montado só pela API em `server/test/second-tenant.test.ts`: áreas com subárea, patrocinador, tipo de dado próprio, quatro assistentes, duas bases, seis oportunidades (uma no roadmap, uma arquivada), três quick wins (um com dois assistentes, um só com a base e um ampliado), um assistente em dois quick wins ativos sem contagem em dobro, e os dois relatórios. Com `GREENIA_RELATORIOS_DIR=<pasta>`, o teste grava os relatórios; a última saída está em `docs/fase-3b/relatorios-construtora/`.
 
 ## Produção na AWS (sa-east-1)
 

@@ -57,7 +57,7 @@ As notas reais da TheNeil têm dados de fornecedores (razão social, CNPJ, ender
 - Um script de avaliação (`server/eval/fase4/`) sobe a plataforma no próprio processo, com o provedor real da Anthropic, o OCR e as conversões reais, Postgres e a fila em memória. Ele envia cada caso pela API de execuções, como uma pessoa faria.
 - O script envolve o provedor e o conversor para medir o tempo de cada chamada ao modelo e de cada OCR, sem mudar o código da plataforma.
 - Cada caso roda nos dois tenants (Haiku 4.5 e Sonnet 5). A extração estruturada (Financeiro, cotações de Suprimentos e um conjunto extra de documentos de despesa, se precisar de mais volume) roda 3 vezes em cada modelo, para medir a estabilidade.
-- Cada assistente fica ligado a um quick win no tenant de avaliação, com ponto de partida informado. Isso valida também a medição automática do quick win (volume, tempo, revisão, consumo) contra os números do script.
+- Cada assistente fica ligado a um quick win no tenant de avaliação, com janelas de ponto de partida e de medição e ponto de partida informado. Isso valida também a medição automática do quick win (volume, tempo, revisão, consumo) contra os números do script, e que nenhuma execução é contada em dois quick wins (um assistente fica em dois quick wins ativos, com o contexto escolhido na execução).
 - O Fiscal não chama o modelo (XML e planilha são lidos em código). Ele roda uma vez e serve de referência de tempo e de acerto sem modelo.
 - O fallback de visão fica como nas definições (desligado, exceto no RH). Uma rodada extra do RH com o fallback desligado mostra o que se perde.
 - Limite de gasto: cota do tenant de avaliação com bloqueio (`hardLimit`) em R$ 300. Pela estimativa abaixo, a fase inteira fica bem abaixo disso.

@@ -91,8 +91,8 @@ export function resumoReservado(rs: ResultadoCaso[]) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const a = args(process.argv.slice(2), { saida: 'eval/fase4/saida', frente: 'rh', ocr: 'nao', resultado: '', conjunto: 'desenvolvimento', 'rodada-final': 'nao', motivo: 'rodada final' });
-  const conjunto = exigirConjunto(a.conjunto, a['rodada-final'] === 'sim', `avaliar-rh-offline frente=${a.frente} ocr=${a.ocr} motivo=${a.motivo}`);
+  const a = args(process.argv.slice(2), { saida: 'eval/fase4/saida', frente: 'rh', ocr: 'nao', resultado: '', conjunto: 'desenvolvimento', 'rodada-final': 'nao', motivo: 'rodada final', 'versao-plataforma': '' });
+  const conjunto = exigirConjunto(a.conjunto, a['rodada-final'] === 'sim', `avaliar-rh-offline ocr=${a.ocr} motivo=${a.motivo}`, { versao: a['versao-plataforma'], frente: a.frente });
   avaliarChecklist(a.saida, a.frente, { ocr: a.ocr === 'sim', conjunto }).then(rs => {
     const s = conjunto === 'reservado' ? resumoReservado(rs) : resumo(rs);
     console.log(JSON.stringify(s, null, 2));

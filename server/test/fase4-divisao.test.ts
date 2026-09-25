@@ -3,7 +3,8 @@
 // herdam o conjunto do caso de origem e o reservado exige a rodada final.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DIVISAO, DIVISAO_HASH, calcular, conjuntoDe, exigirConjunto, lerDivisao, lerGabaritos, unidadeDe } from '../eval/fase4/dividir.ts';
 import { sha256 } from '../eval/fase4/lib.ts';
@@ -47,4 +48,11 @@ test('variações herdam o conjunto; o reservado só na rodada final', () => {
   assert.equal(conjuntoDe('rh-pasta-03-sintetica', d), conjuntoDe('rh-pasta-03', d));
   assert.throws(() => exigirConjunto('reservado', false, 'teste'), /rodada final/);
   assert.equal(exigirConjunto('desenvolvimento', false, 'teste'), 'desenvolvimento');
+  // Rodada final: exige a versão da plataforma; cada versão usa o reservado de cada frente uma vez.
+  const log = join(mkdtempSync(join(tmpdir(), 'uso-')), 'uso.log');
+  assert.throws(() => exigirConjunto('reservado', true, 'teste', { log }), /versão da plataforma/);
+  assert.equal(exigirConjunto('reservado', true, 'teste', { versao: 'fase4-antes-correcoes-checklist', frente: 'rh', log }), 'reservado');
+  assert.throws(() => exigirConjunto('reservado', true, 'teste', { versao: 'fase4-antes-correcoes-checklist', frente: 'rh', log }), /uma única vez/);
+  assert.equal(exigirConjunto('reservado', true, 'teste', { versao: 'fase4-antes-correcoes-checklist', frente: 'lgpd', log }), 'reservado');
+  assert.equal(exigirConjunto('reservado', true, 'teste', { versao: 'v-final-abc1234', frente: 'rh', log }), 'reservado');
 });

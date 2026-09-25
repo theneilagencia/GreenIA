@@ -127,12 +127,18 @@ export function conjuntoDe(caso: string, d: Divisao = lerDivisao()): Conjunto | 
   return null;
 }
 
-// Guarda do reservado: só na rodada final, e cada uso fica registrado.
-export function exigirConjunto(conjunto: string, rodadaFinal: boolean, quem: string): Conjunto {
+// Guarda do reservado: só na rodada final, com a versão da plataforma, e cada
+// versão usa o reservado de cada frente uma única vez. Cada uso fica registrado.
+export function exigirConjunto(conjunto: string, rodadaFinal: boolean, quem: string, opts: { versao?: string; frente?: string; log?: string } = {}): Conjunto {
   if (conjunto !== 'desenvolvimento' && conjunto !== 'reservado') throw new Error(`conjunto desconhecido: ${conjunto}`);
   if (conjunto === 'reservado') {
     if (!rodadaFinal) throw new Error('o conjunto reservado só é usado na rodada final (--rodada-final sim)');
-    appendFileSync(USO_RESERVADO, `${new Date().toISOString()} ${quem}\n`);
+    if (!opts.versao || !/^[\w.-]{3,80}$/.test(opts.versao)) throw new Error('informe a versão da plataforma (tag ou commit) da rodada final (--versao-plataforma)');
+    const log = opts.log ?? USO_RESERVADO;
+    const chave = `versao=${opts.versao} frente=${opts.frente ?? '-'}`;
+    const usado = existsSync(log) && readFileSync(log, 'utf8').split('\n').some(l => l.includes(chave + ' ') || l.endsWith(chave));
+    if (usado) throw new Error(`o reservado já foi usado com ${chave}: cada versão usa o reservado uma única vez`);
+    appendFileSync(log, `${new Date().toISOString()} ${chave} ${quem}\n`);
   }
   return conjunto;
 }

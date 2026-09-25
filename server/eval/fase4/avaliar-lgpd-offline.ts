@@ -55,8 +55,8 @@ export function paresLgpd(casos: CasoLgpd[]): Par[] {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const a = args(process.argv.slice(2), { saida: 'eval/fase4/saida', resultado: '', conjunto: 'desenvolvimento', 'rodada-final': 'nao' });
-  const conjunto = exigirConjunto(a.conjunto, a['rodada-final'] === 'sim', 'avaliar-lgpd-offline');
+  const a = args(process.argv.slice(2), { saida: 'eval/fase4/saida', resultado: '', conjunto: 'desenvolvimento', 'rodada-final': 'nao', 'versao-plataforma': '' });
+  const conjunto = exigirConjunto(a.conjunto, a['rodada-final'] === 'sim', 'avaliar-lgpd-offline', { versao: a['versao-plataforma'], frente: 'lgpd' });
   avaliarLgpd(a.saida, conjunto).then(rs => {
     console.log(JSON.stringify(rs.map(r => ({ caso: r.caso, certos: r.documentos.filter(d => d.esperado === d.obtido).length, total: r.documentos.length }))));
     if (a.resultado) gravarJson(a.resultado, { conjunto, casos: rs });

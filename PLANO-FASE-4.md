@@ -62,6 +62,22 @@ As notas reais da TheNeil têm dados de fornecedores (razão social, CNPJ, ender
 - O fallback de visão fica como nas definições (desligado, exceto no RH). Uma rodada extra do RH com o fallback desligado mostra o que se perde.
 - Limite de gasto: cota do tenant de avaliação com bloqueio (`hardLimit`) em R$ 300. Pela estimativa abaixo, a fase inteira fica bem abaixo disso.
 
+## Rodada final (conjunto reservado)
+
+A rodada final só acontece depois das rodadas com o modelo real no desenvolvimento. Depende da chave da API e da conferência dos 20% dos gabaritos.
+
+O reservado roda duas vezes, e cada versão da plataforma usa o reservado uma única vez:
+
+| Rodada | Versão da plataforma | Para quê |
+|---|---|---|
+| 1 | Tag `fase4-antes-correcoes-checklist` (commit `d4b9f76`): a plataforma antes das correções do checklist (evidência por item, leitura por página, siglas) | Referência: quanto a plataforma acertava antes das correções |
+| 2 | Versão final (commit a registrar no relatório no dia da rodada) | Estimativa de acerto que o relatório final apresenta |
+
+- As duas rodadas usam o mesmo corpus (versão 2, com nomes genéricos), a mesma divisão congelada e a mesma matriz de pontuação de três estados (`server/eval/fase4/matriz.json`, com hash). O avaliador e a matriz são os de hoje; muda só o código da plataforma (`server/src`), tirado da tag ou da versão final.
+- Cada rodada gera acerto, erros graves, erros comuns e taxa de revisão, por frente e por conjunto.
+- Cada uso do reservado fica em `server/eval/fase4/resultados/uso-do-reservado.log`, com a versão da plataforma. Uma segunda rodada da mesma versão não vale: o avaliador recusa.
+- Nenhuma correção é feita entre as duas rodadas. A diferença entre elas é o efeito das correções, medido num conjunto que ninguém olhou.
+
 ## Medidas, por assistente e por modelo
 
 | Medida | Como é calculada |

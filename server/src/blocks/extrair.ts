@@ -9,6 +9,7 @@ import { extrairParams, type PipelineStep } from './params.ts';
 import type { ReadDoc, ReviewFlag, RunContext, Section } from './types.ts';
 import { normPt as norm } from '../util/text.ts';
 import { descreverParte, dividirEmPartes } from './partes.ts';
+import { AVISO_DOCUMENTOS } from '../llm/persona.ts';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 
@@ -125,6 +126,7 @@ export async function extrairBlock(ctx: RunContext, step: PipelineStep): Promise
         purpose: partes.length > 1 ? `extração estruturada (parte ${k + 1} de ${partes.length})` : 'extração estruturada',
         system: [
           'Você extrai informações de documentos para um formulário.',
+          AVISO_DOCUMENTOS,
           'Responda só com JSON no formato {"campos": {...}, "origem": [{"campo": "caminho.do.campo", "pagina": N, "trecho": "texto copiado do documento"}]}.',
           '"campos" segue o schema informado. "origem" tem uma entrada para cada campo preenchido, com a página e um trecho copiado literalmente do documento.',
           'Se uma informação não estiver no documento, use null. Nunca deduza, estime ou complete um valor.',

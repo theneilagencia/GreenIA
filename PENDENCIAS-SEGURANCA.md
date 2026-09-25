@@ -139,7 +139,7 @@ A segunda camada é a própria instrução dada ao modelo, que recusa pedidos co
 
 | Tema | Como ficou | O que revisar |
 |---|---|---|
-| OCR local | PDF escaneado e foto são lidos pelo Tesseract (português), via OCRmyPDF, no próprio servidor. TIFF e HEIC são convertidos pelo ImageMagick com libheif; DOC, XLS, ODT e ODS pelo LibreOffice. O texto do OCR passa pela política de dados antes de ir ao modelo, como qualquer texto. | As ferramentas processam arquivos de terceiros no mesmo contêiner do servidor, sem shell, com tempo máximo, diretório temporário próprio e perfil do LibreOffice por conversão (macro não roda). Recomendação: mover as conversões para um contêiner à parte, sem rede e sem credenciais. Não implementado. |
+| OCR local | PDF escaneado e foto são lidos pelo Tesseract (português), via OCRmyPDF, no próprio servidor. TIFF e HEIC são convertidos pelo ImageMagick com libheif; DOC, XLS, ODT e ODS pelo LibreOffice. O texto do OCR passa pela política de dados antes de ir ao modelo, como qualquer texto. | As ferramentas processam arquivos de terceiros no mesmo contêiner do servidor, sem shell, com tempo máximo, diretório temporário próprio e perfil do LibreOffice por conversão (macro não roda). Recomendação: mover as conversões para um contêiner à parte, sem rede e sem credenciais. Implementado em 25/09/2026: veja a seção 11. |
 | Fallback de visão | Só na página com OCR abaixo do limiar (padrão 70%), se o assistente tiver `reading.visionFallback` e a Política de Uso não proibir (`allowVisionFallback`). Antes, o texto do OCR passa pela política: bloqueio, aviso não confirmado ou tipo a mascarar impedem o envio da imagem. Uso e recusa ficam na auditoria. Padrão: desligado. | O texto de um OCR ruim pode não conter o dado que está na imagem, e aí a política não o enxerga. Decidir em quais assistentes o fallback pode ser ligado; o assistente de RH de demonstração está com ele ligado. |
 | DANFE | Só a chave de acesso é lida do PDF. Sem o XML da mesma chave, a nota fica como "pedir o XML ao fornecedor"; nenhum campo sai do texto impresso. | Nada. |
 | Incidentes | A descrição fica com quem reportou e com o key user da área (sem key user, o admin do cliente). O admin vê o incidente, não a descrição. A TheNeil vê tipo, status, data e a execução ou saída afetada; a descrição e as notas do histórico só chegam a ela com escalonamento pelo key user ou no tipo "problema técnico". Toda leitura da descrição fica na auditoria do cliente com quem leu. Emails nunca levam a descrição. | Se o admin do cliente deve ler a descrição quando a área tem key user (hoje, não). |
@@ -151,4 +151,34 @@ A segunda camada é a própria instrução dada ao modelo, que recusa pedidos co
 - Compartilhar um assistente não abre a base da área dona: a execução consulta só a interseção entre as bases vinculadas ao assistente e as que a pessoa pode ler, com aviso sem conteúdo quando uma base vinculada fica de fora.
 - Compartilhar assistente ou documento com outra área (ou com a empresa toda) exige aprovação do key user da área dona; sem key user, do admin do cliente. Pedido, aprovação e recusa ficam na auditoria.
 - Para revisar: o patrocinador do tenant enxerga oportunidades e quick wins de todas as áreas e os nomes dos recursos deles (não o conteúdo). Confirme se isso atende à política de cada cliente.
+
+## 11. Revisão de segurança de 25/09/2026
+
+O modelo de ameaças completo, com o controle e o teste de cada ameaça, está em `docs/seguranca/modelo-de-ameacas.md`.
+
+Corrigido nesta revisão (com teste):
+
+- **Conversões isoladas.** OCRmyPDF, Tesseract, ImageMagick e LibreOffice rodam sem os segredos do servidor, com limite de memória, CPU e tamanho de arquivo (`prlimit`) e sem rede (`unshare -rn`), quando o sistema permite. `/health/ready` mostra o isolamento em uso. Com `CONVERT_ISOLATION=required`, o servidor recusa converter sem isolamento.
+- **Conversor em serviço próprio.** No ECS Fargate não dá para tirar a rede de um processo filho. Lá a conversão roda no serviço `conversor` (`node src/converter-main.ts`), em sub-rede sem rota para a internet, sem papel de tarefa e só com o próprio token. A API e a fila usam `CONVERTER_URL`.
+- **ImageMagick.** Política própria: só formatos de imagem, sem delegados (Ghostscript, curl), sem leitura indireta, com limites de memória, disco, pixels e tempo.
+- **LibreOffice.** A conversão de um documento com imagem vinculada a um endereço interno baixava a imagem. Confirmado com o LibreOffice 24.2. Agora o perfil de cada conversão tem macros desligadas e bloqueia conteúdo vinculado.
+- **Bomba de ZIP.** DOCX, XLSX, ODT e ODS são descompactados com teto real (256 MB, 10 mil entradas) antes de chegar ao mammoth, ao ExcelJS ou ao LibreOffice.
+- **Injeção de prompt.** Todo prompt que leva documento ao modelo diz que o conteúdo é dado, não instrução.
+- **Isolamento pela API.** Novo teste: outro tenant, com os ids, recebe 404.
+- **Fórmula em planilha exportada.** Novo teste: o CSV já neutralizava e o XLSX grava texto como texto.
+- **Terraform.** A primeira versão do item 1 dava a conexão do dono do banco só à migração. Mas a âncora da auditoria (fila) e as operações de plataforma (API) usam essa conexão. Corrigido: a API e a fila recebem a conexão do dono, e a senha do papel do servidor continua só com a migração.
+
+Pendências:
+
+| # | Tema | Situação | Proposta |
+|---|---|---|---|
+| 11.1 | Canal entre servidor e conversor | HTTP dentro da VPC, com token de 32+ caracteres e grupos de segurança que só deixam a API e a fila falar com o conversor. Os documentos trafegam sem TLS dentro da VPC. | TLS no Service Connect do ECS, ou certificado interno. No Docker Compose local, o seccomp padrão do Docker bloqueia `unshare`: lá a conversão roda sem isolamento de rede (com ambiente limpo e limites). Para testar como em produção, subir o conversor como serviço à parte no Compose. |
+| 11.2 | Testes de limite com arquivo real | Os limites estão provados com uma ferramenta de inspeção e com os arquivos normais. Falta um arquivo real que estoure o tempo ou a memória, e o teste do 413 por arquivo nas execuções. | Acrescentar esses casos ao `convert-isolamento.test.ts` e ao `runs.test.ts`. |
+| 11.3 | PDF e XLSX no processo do servidor | O PDF (pdf.js) e o XLSX (ExcelJS, dentro do teto do ZIP) são abertos no processo da API ou da fila, sem limite de memória próprio. Um arquivo feito para isso pode deixar o processo lento ou derrubá-lo. Os dados de outros clientes continuam protegidos, mas o serviço fica fora do ar para todos. | Levar a leitura de PDF e XLSX para o conversor, ou para uma worker thread com `resourceLimits`. |
+| 11.4 | Injeção de prompt com o modelo real | O aviso reduz o risco, não elimina. O modelo não tem ferramentas e toda saída passa por revisão humana. | Nas rodadas com o modelo real, incluir um conjunto de documentos com ordens escondidas, no desenvolvimento, e medir quantas vezes a resposta muda. |
+| 11.5 | Cabeçalhos e limite de requisições | Não há CSP, HSTS nem limite genérico de requisições por IP. Os limites de hoje são os do modelo (por pessoa e por tenant) e os do código por email. | Cabeçalhos no servidor (CSP compatível com o frontend `.dc.html`, HSTS) e WAF no ALB com limite por IP (custo à parte: cerca de US$ 10 a 20 por mês, estimativa). |
+| 11.6 | Conexão do dono do banco na API e na fila | As operações de plataforma (criar e excluir tenant, catálogo, incidentes para a TheNeil) e a âncora diária da auditoria usam a conexão do dono, que passa por cima da RLS. Uma falha nessas rotas teria alcance maior. | Papel próprio de plataforma, com permissões só nas tabelas e funções de que precisa, e `FORCE ROW LEVEL SECURITY` nas tabelas do tenant. Alternativa: um serviço de plataforma separado da API dos clientes. |
+| 11.7 | Saída de rede da API e da fila | O grupo de segurança limita portas (443, 465), não domínios. | Lista de domínios permitidos (API do modelo, SES, provedores OIDC dos clientes) com AWS Network Firewall (cerca de US$ 290 por mês por zona, mais tráfego, estimativa) ou com um proxy de saída. Decisão de custo. |
+| 11.8 | Raiz somente leitura nos contêineres | As tarefas rodam como usuário sem privilégio e sem capabilities, mas com a raiz gravável. | Ligar `readonlyRootFilesystem` com um volume temporário em `/tmp` e testar OCR e LibreOffice nessa configuração. |
+| 11.9 | Ghostscript no OCR de PDF | O OCRmyPDF usa o Ghostscript para rasterizar PDFs. O Ghostscript tem histórico de falhas graves. Ele roda sob o mesmo isolamento (sem rede, sem segredos, com limites; em produção, no conversor), mas fora da política do ImageMagick. | Acompanhar as versões da imagem base e reconstruir a imagem com as correções de segurança do Debian. Avaliar o rasterizador pdfium do OCRmyPDF. |
 

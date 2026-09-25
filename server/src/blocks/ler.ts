@@ -17,6 +17,7 @@
 import { extractText, getDocumentProxy } from 'unpdf';
 import mammoth from 'mammoth';
 import ExcelJS from 'exceljs';
+import { conferirZip } from '../util/zip.ts';
 import { importarConjuntos } from '../imports/match.ts';
 import { lerMetadados, temMetadados } from '../util/metadados.ts';
 import type { FileKind, PipelineStep } from './params.ts';
@@ -266,11 +267,17 @@ async function readBase(input: InputFile, opts: ReadOpts, env: BlockEnv): Promis
   const kind = fmt.kind;
   let file = input;
   let convertedFrom: string | undefined;
+  // Formatos compactados (DOCX, XLSX, ODT, ODS): teto de descompactação antes de abrir.
+  const zipado = (bytes: Uint8Array) => bytes[0] === 0x50 && bytes[1] === 0x4b;
+  if (zipado(input.bytes)) {
+    try { conferirZip(input.bytes); }
+    catch (e) { return { ...base, kind, via: 'texto', pages: [], text: '', pageCount: 0, warnings: [`arquivo não lido: ${(e as Error).message}`] }; }
+  }
   if (fmt.from) {
     // DOC, XLS, ODT, ODS: convertidos para DOCX ou XLSX no servidor antes da leitura.
     convertedFrom = fmt.from.toUpperCase();
     if (!env.converter) return { ...base, kind, via: 'texto', pages: [], text: '', pageCount: 0, convertedFrom, warnings: [`arquivo ${convertedFrom} não lido: conversão indisponível no servidor`] };
-    try { file = { ...input, bytes: await env.converter.officeToOoxml(input.bytes, fmt.from) }; }
+    try { file = { ...input, bytes: await env.converter.officeToOoxml(input.bytes, fmt.from) }; conferirZip(file.bytes); }
     catch (e) { return { ...base, kind, via: 'texto', pages: [], text: '', pageCount: 0, convertedFrom, warnings: [`arquivo ${convertedFrom} não pôde ser convertido: ${(e as Error).message}`] }; }
   }
 

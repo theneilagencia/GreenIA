@@ -18,6 +18,7 @@ import { checklistParams, type PipelineStep } from './params.ts';
 import type { ReadDoc, ReviewFlag, RunContext, Section } from './types.ts';
 import { normPt, stripAccents } from '../util/text.ts';
 import { parseJsonReply } from './extrair.ts';
+import { AVISO_DOCUMENTOS } from '../llm/persona.ts';
 
 export type StatusItem = 'presente' | 'ausente' | 'duvidoso';
 
@@ -144,7 +145,7 @@ function byRules(items: Item[], docs: ReadDoc[]) {
 async function byModel(ctx: RunContext, items: Item[], docs: ReadDoc[], flags: ReviewFlag[]): Promise<ItemChecklist[]> {
   const reply = await ctx.env.complete({
     purpose: 'checklist',
-    system: 'Você identifica documentos. Para cada arquivo, diga a qual item da lista ele corresponde (ou null), com confiança "alta", "media" ou "baixa" e um trecho copiado do arquivo que justifique. Responda só com JSON: {"arquivos": [{"arquivo": "...", "item": "id ou null", "confianca": "...", "trecho": "..."}]}.',
+    system: 'Você identifica documentos. Para cada arquivo, diga a qual item da lista ele corresponde (ou null), com confiança "alta", "media" ou "baixa" e um trecho copiado do arquivo que justifique. Responda só com JSON: {"arquivos": [{"arquivo": "...", "item": "id ou null", "confianca": "...", "trecho": "..."}]}.\n' + AVISO_DOCUMENTOS,
     content: [{ type: 'text', text: `Itens:\n${items.map(i => `- ${i.id}: ${i.nome}${i.sinonimos.length ? ` (${i.sinonimos.join(', ')})` : ''}`).join('\n')}\n\n${docs.map(d => `### Arquivo: ${d.name}\n${d.text.slice(0, 3000)}`).join('\n\n')}` }],
     jsonSchema: { type: 'object', properties: { arquivos: { type: 'array', items: { type: 'object', properties: { arquivo: { type: 'string' }, item: { type: ['string', 'null'] }, confianca: { type: 'string', enum: ['alta', 'media', 'baixa'] }, trecho: { type: 'string' } }, required: ['arquivo', 'item', 'confianca', 'trecho'] } } }, required: ['arquivos'] },
     maxOutputTokens: 3000,

@@ -1,7 +1,7 @@
 # Execução: uma imagem, três usos.
 #  - api: atende o HTTP atrás do ALB (PROCESS_ROLE=api);
-#  - fila: processa a fila, OCR e conversões, e as tarefas de hora em hora
-#    (PROCESS_ROLE=worker);
+#  - fila: processa a fila e as tarefas de hora em hora (PROCESS_ROLE=worker);
+#  - conversor: OCR e conversões, isolado e sem saída de rede (conversor.tf);
 #  - migracao: tarefa avulsa, rodada antes de atualizar os serviços.
 resource "aws_ecr_repository" "principal" {
   name                 = local.nome
@@ -108,6 +108,7 @@ locals {
     AUDIT_ANCHOR_REGION         = var.regiao
     AUDIT_ANCHOR_ROLE_ARN       = aws_iam_role.ancoras.arn
     AUDIT_ANCHOR_RETENTION_DAYS = tostring(var.auditoria_retencao_dias)
+    CONVERTER_URL               = local.conversor_url
   }
   processos = {
     api = { papel = "api", cpu = var.api_cpu, memoria = var.api_memoria, segredos = local.segredos_app, comando = null, parada = 30 }

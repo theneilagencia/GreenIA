@@ -13,6 +13,7 @@ import type { ReadDoc, ReviewFlag, RunContext, Section } from './types.ts';
 import { containsPhrase } from './values.ts';
 import { normPt, stripAccents } from '../util/text.ts';
 import { parseJsonReply } from './extrair.ts';
+import { AVISO_DOCUMENTOS } from '../llm/persona.ts';
 
 export interface LinhaIndice {
   arquivo: string;
@@ -82,7 +83,7 @@ export async function classificarBlock(ctx: RunContext, step: PipelineStep): Pro
   if (p.metodo === 'modelo' && ctx.docs.length) {
     const reply = await ctx.env.complete({
       purpose: 'classificação',
-      system: 'Você organiza documentos. Para cada arquivo, escolha uma categoria da lista (pelo id) ou null se nenhuma servir, o período no formato AAAA-MM (ou null) e a confiança ("alta", "media" ou "baixa"). Responda só com JSON: {"arquivos": [{"arquivo": "...", "categoria": "id ou null", "periodo": "AAAA-MM ou null", "confianca": "..."}]}.',
+      system: 'Você organiza documentos. Para cada arquivo, escolha uma categoria da lista (pelo id) ou null se nenhuma servir, o período no formato AAAA-MM (ou null) e a confiança ("alta", "media" ou "baixa"). Responda só com JSON: {"arquivos": [{"arquivo": "...", "categoria": "id ou null", "periodo": "AAAA-MM ou null", "confianca": "..."}]}.\n' + AVISO_DOCUMENTOS,
       content: [{ type: 'text', text: `Categorias:\n${p.taxonomia.map(c => `- ${c.id}: ${c.nome}${c.sinonimos.length ? ` (${c.sinonimos.join(', ')})` : ''}`).join('\n')}\n\n${ctx.docs.map(d => `### Arquivo: ${d.name}\n${d.text.slice(0, 2000)}`).join('\n\n')}` }],
       jsonSchema: { type: 'object', properties: { arquivos: { type: 'array', items: { type: 'object', properties: { arquivo: { type: 'string' }, categoria: { type: ['string', 'null'] }, periodo: { type: ['string', 'null'] }, confianca: { type: 'string', enum: ['alta', 'media', 'baixa'] } }, required: ['arquivo', 'categoria', 'periodo', 'confianca'] } } }, required: ['arquivos'] },
       maxOutputTokens: 3000,

@@ -113,12 +113,27 @@ variable "fila_tarefas" {
 }
 
 variable "fila_cpu" {
-  description = "A fila roda OCR e LibreOffice: mais CPU e memória que a API."
+  type    = number
+  default = 1024
+}
+
+variable "fila_memoria" {
+  type    = number
+  default = 2048
+}
+
+variable "conversor_tarefas" {
+  type    = number
+  default = 1
+}
+
+variable "conversor_cpu" {
+  description = "O conversor roda OCR e LibreOffice: mais CPU e memória."
   type        = number
   default     = 2048
 }
 
-variable "fila_memoria" {
+variable "conversor_memoria" {
   type    = number
   default = 4096
 }

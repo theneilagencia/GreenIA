@@ -17,7 +17,7 @@ Terraform em `infra/terraform/`. **Nada foi aplicado.** O repositório só valid
 | Documentos | S3 | KMS próprio, versionamento, bloqueio público, só TLS 1.2+, gravação só com a chave da plataforma, versões antigas apagadas em 90 dias |
 | Âncoras da auditoria | S3 na **conta de auditoria** (provedor `aws.auditoria`) e o papel `greenia-ancora-auditoria` | Object Lock em modo compliance com retenção padrão; papel que só grava e lê, com `ExternalId`, confiando só no papel da tarefa de produção |
 | Email | SES: domínio com Easy DKIM (2048 bits), MAIL FROM próprio, conjunto de configuração com TLS obrigatório e supressão de bounces | usuário SMTP que só envia do domínio; a credencial SMTP é gerada fora do Terraform |
-| Execução | ECR (tags imutáveis, varredura), cluster ECS Fargate, serviço `api` (2 a 6 tarefas atrás do ALB), serviço `fila` (`PROCESS_ROLE=worker`), tarefa avulsa `migracao` | sem IP público, sem ECS Exec, capabilities do Linux descartadas; só a migração recebe a conexão do dono do banco; circuito de implantação com volta automática |
+| Execução | ECR (tags imutáveis, varredura), cluster ECS Fargate, serviço `api` (2 a 6 tarefas atrás do ALB), serviço `fila` (`PROCESS_ROLE=worker`), serviço `conversor` (OCR, ImageMagick, LibreOffice), tarefa avulsa `migracao` | sem IP público, sem ECS Exec, capabilities do Linux descartadas; só a migração recebe a senha do papel do servidor (a conexão do dono vai para a migração, a API e a fila: operações de plataforma e âncora da auditoria); circuito de implantação com volta automática. O `conversor` fica em sub-redes sem rota para a internet, só sai para os endpoints privados e o S3, não tem papel de tarefa e recebe só o próprio token; a API e a fila chamam `CONVERTER_URL` (nome interno no Cloud Map) |
 | Entrada | ALB com HTTPS (certificado do ACM), HTTP redireciona | TLS 1.2+, cabeçalhos inválidos descartados, proteção contra exclusão |
 | Segredos | Secrets Manager, um por variável (`ANTHROPIC_API_KEY`, `DATABASE_URL`, `SMTP_URL`, OIDC...) | KMS próprio; o Terraform cria só o recipiente, o valor é gravado fora dele e não fica no estado |
 | Logs | CloudWatch Logs por processo (1 ano) e da VPC (90 dias) | KMS próprio; alarmes de 5xx, tarefas saudáveis, CPU e disco do banco, memória do Redis, CPU da fila e âncora não publicada, por email (SNS) |
@@ -33,7 +33,7 @@ terraform test
 ```
 
 Resultado neste repositório (25/09/2026, Terraform 1.16.4, provedor AWS 6.66.0):
-`Success! The configuration is valid.` e `Success! 4 passed, 0 failed.`
+`Success! The configuration is valid.` e `Success! 5 passed, 0 failed.`
 
 O registro do Terraform (`registry.terraform.io`) estava bloqueado neste ambiente:
 o provedor foi baixado de `releases.hashicorp.com` e instalado por um espelho
@@ -70,7 +70,8 @@ preço.
 | Item | Suposição | US$/mês |
 |---|---|---:|
 | Fargate, API | 2 tarefas × (1 vCPU, 2 GB), 730 h; US$ 0,0696 por vCPU-h e US$ 0,0076 por GB-h | 123,81 |
-| Fargate, fila | 1 tarefa × (2 vCPU, 4 GB), 730 h | 123,81 |
+| Fargate, fila | 1 tarefa × (1 vCPU, 2 GB), 730 h | 61,90 |
+| Fargate, conversor | 1 tarefa × (2 vCPU, 4 GB), 730 h | 123,81 |
 | RDS PostgreSQL | db.t4g.medium Multi-AZ, US$ 0,275/h | 200,75 |
 | RDS disco | 100 GB gp3 Multi-AZ, US$ 0,438/GB | 43,80 |
 | ElastiCache | 2 × cache.t4g.small, US$ 0,061/h | 89,06 |
@@ -85,19 +86,20 @@ preço.
 | Secrets Manager | 8 segredos | 3,20 |
 | Saída para a internet | 50 GB (preço não conferido na tabela; cerca de US$ 0,15/GB) | 7,50 |
 | SES, ECR, conta de auditoria | 10 mil emails, imagens, âncoras | 2,50 |
-| **Total** | | **≈ 926** |
+| **Total** | | **≈ 988** |
 
-Em reais, com o câmbio da tabela da plataforma (5,5): **≈ R$ 5.100 por mês (estimativa)**.
+Em reais, com o câmbio da tabela da plataforma (5,5): **≈ R$ 5.430 por mês (estimativa)**.
 
 Onde dá para economizar, com o efeito aproximado:
 
 | Mudança | US$/mês |
 |---|---:|
-| `endpoints_de_interface = false` (o tráfego vai pelo NAT) | −153 |
+| Conversor com 1 vCPU e 2 GB (conversões mais lentas) | −62 |
 | `banco_classe = "db.t4g.small"` | −101 |
 | `banco_armazenamento_gb = 50` | −22 |
 | API com 0,5 vCPU e 1 GB por tarefa | −62 |
-| Configuração mínima (as quatro acima) | **≈ 590** |
+| Configuração mínima (as quatro acima) | **≈ 740** |
+| Os endpoints privados não saem: sem eles, o conversor isolado não baixa a imagem nem escreve log | 0 |
 | `nat_por_zona = true` (mais disponibilidade) | +72 |
 | Reservas de 1 ano (RDS, ElastiCache) e Savings Plans (Fargate) | de −20% a −40% nesses itens |
 
@@ -113,12 +115,12 @@ em regime).
 | Backup do bucket | 60 GB × US$ 0,07, com as cópias mensais | 5,46 |
 | Banco | +2 GB em disco Multi-AZ e nos snapshots | 1,17 |
 | Logs | +1 GB por mês | 1,40 |
-| Computação da fila | 1 tarefa da fila atende cerca de 26 mil execuções por mês (2 simultâneas, 60 s cada, 30% de ocupação); a fração de 1.000 execuções | 4,80 |
+| Computação das conversões | 1 tarefa do conversor atende cerca de 26 mil execuções por mês (2 simultâneas, 60 s cada, 30% de ocupação); a fração de 1.000 execuções | 4,80 |
 | SES, NAT | emails e chamadas ao modelo | 0,15 |
 | **Total** | | **≈ 16** |
 
 Em reais: **≈ R$ 88 por tenant adicional por mês (estimativa)**, mais o custo do
 modelo, que depende dos assistentes e do volume. A infraestrutura base atende
 vários tenants sem mudança; acima de cerca de 25 mil execuções por mês no total,
-some uma tarefa da fila (+US$ 124) e, com mais de 150 usuários simultâneos, uma
+some uma tarefa do conversor (+US$ 124) e, com mais de 150 usuários simultâneos, uma
 tarefa da API (+US$ 62).

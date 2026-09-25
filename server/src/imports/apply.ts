@@ -3,6 +3,7 @@
 // cada campo (arquivo, planilha, linha). Tudo vem da configuração; nada aqui
 // sabe de onde o arquivo foi exportado.
 import ExcelJS from 'exceljs';
+import { conferirZip, ZipRecusado } from '../util/zip.ts';
 import { XMLParser } from 'fast-xml-parser';
 import { cellValue } from '../blocks/ler.ts';
 import { getPath } from '../blocks/values.ts';
@@ -53,6 +54,7 @@ export function lerCsv(texto: string, separador: string, aspas: string): Linha[]
 }
 
 export async function lerXlsx(bytes: Uint8Array, planilha?: string) {
+  conferirZip(bytes);                                     // teto de descompactação antes do ExcelJS
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(Buffer.from(bytes) as unknown as ArrayBuffer);
   const linhasDe = (ws: ExcelJS.Worksheet): Linha[] => {
@@ -234,8 +236,8 @@ export async function aplicarMapeamento(bytes: Uint8Array, nome: string, cfg: Ma
       const x = await lerXlsx(bytes, cfg.planilha);
       if (!x.nome) return { registros: [], erros: [{ motivo: cfg.planilha ? `planilha ${cfg.planilha} não encontrada` : 'planilha vazia' }], colunas: [], linhasLidas: 0, linhasIgnoradas: 0 };
       todas = x.linhas; rotulo = `${nome} › ${x.nome}`; planilhas = x.planilhas;
-    } catch {
-      return { registros: [], erros: [{ motivo: 'arquivo XLSX inválido' }], colunas: [], linhasLidas: 0, linhasIgnoradas: 0 };
+    } catch (e) {
+      return { registros: [], erros: [{ motivo: e instanceof ZipRecusado ? e.message : 'arquivo XLSX inválido' }], colunas: [], linhasLidas: 0, linhasIgnoradas: 0 };
     }
   } else {
     const texto = decodificar(bytes, cfg.codificacao);

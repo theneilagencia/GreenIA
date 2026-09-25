@@ -58,6 +58,18 @@ const schema = z.object({
   MAGICK_CMD: z.string().default('convert'),
   SOFFICE_CMD: z.string().default('soffice'),
   CONVERT_TIMEOUT_S: z.coerce.number().int().min(10).max(3600).default(120),
+  // Isolamento das conversões (OCR, ImageMagick, LibreOffice): cada chamada roda
+  // sem os segredos do servidor, com limite de memória (espaço de endereços),
+  // CPU e tamanho de arquivo (prlimit) e, quando o sistema permite, sem rede
+  // (unshare). auto: usa o que houver; required: recusa converter sem isolamento
+  // de rede; off: só o ambiente limpo e o tempo máximo.
+  CONVERT_ISOLATION: z.enum(['auto', 'required', 'off']).default('auto'),
+  CONVERT_MEM_MB: z.coerce.number().int().min(256).max(16384).default(2048),
+  CONVERT_FILE_MB: z.coerce.number().int().min(16).max(16384).default(1024),
+  // Conversor em outro processo (serviço sem saída de rede; veja src/convert/service.ts).
+  // Com CONVERTER_URL, este processo não roda ferramenta nenhuma: envia os bytes para lá.
+  CONVERTER_URL: z.url().optional(),
+  CONVERTER_TOKEN: z.string().min(32).optional(),
   // Corpo máximo do envio de documento (JSON com base64: ~1,37x o arquivo).
   KB_UPLOAD_BODY_LIMIT_MB: z.coerce.number().int().min(1).max(300).default(30),
 

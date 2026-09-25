@@ -51,10 +51,10 @@ locals {
       namespace = "AWS/ElastiCache", metrica = "DatabaseMemoryUsagePercentage", estatistica = "Maximum", limite = 80, comparacao = "GreaterThanThreshold"
       dimensoes = { ReplicationGroupId = aws_elasticache_replication_group.principal.id }
     }
-    fila_cpu = {
-      descricao = "CPU das tarefas da fila acima de 85% (OCR e conversões)"
+    conversor_cpu = {
+      descricao = "CPU do conversor acima de 85% (OCR e conversões)"
       namespace = "AWS/ECS", metrica = "CPUUtilization", estatistica = "Average", limite = 85, comparacao = "GreaterThanThreshold"
-      dimensoes = { ClusterName = aws_ecs_cluster.principal.name, ServiceName = aws_ecs_service.fila.name }
+      dimensoes = { ClusterName = aws_ecs_cluster.principal.name, ServiceName = aws_ecs_service.conversor.name }
     }
   }
 }

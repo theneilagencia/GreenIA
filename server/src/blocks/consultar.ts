@@ -4,6 +4,7 @@ import core from '../../../lib/greenia-core.js';
 import { buscarParams, consultarParams, resumirParams, type PipelineStep } from './params.ts';
 import type { ReviewFlag, RunContext, Section } from './types.ts';
 import { normPt } from '../util/text.ts';
+import { AVISO_DOCUMENTOS } from '../llm/persona.ts';
 
 export interface Fonte { documentId: string; version: number; title: string }
 
@@ -28,6 +29,7 @@ export async function consultarBlock(ctx: RunContext, step: PipelineStep): Promi
     purpose: 'consulta à base',
     system: [
       'Você responde perguntas sobre procedimentos internos usando só os documentos fornecidos.',
+      AVISO_DOCUMENTOS,
       'Cite a fonte de cada informação no formato [Título do documento, v N].',
       `Se os documentos não responderem à pergunta, responda exatamente: "${naoCobre}"`,
       'Frases curtas, sem inventar prazos, valores ou regras.',
@@ -91,6 +93,7 @@ export async function resumirBlock(ctx: RunContext, step: PipelineStep): Promise
   if (!material) return { ...base, data: { topicos: p.topicos.map(t => ({ titulo: t, texto: '' })), fontes: [] }, flags: [{ reason: 'nada para resumir' }] };
   const sistema = (extra: string) => [
     'Você prepara resumos para análise. Use só o material fornecido; não estime números que não estejam nele.',
+    AVISO_DOCUMENTOS,
     `Escreva em até ${p.palavrasMax} palavras, com exatamente estes tópicos, nesta ordem, cada um começando por "## " e o nome do tópico:`,
     ...p.topicos.map(t => `## ${t}`),
     'Se o material não tiver informação para um tópico, escreva "Sem informação no material."',

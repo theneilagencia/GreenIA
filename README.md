@@ -47,6 +47,8 @@ sudo apt-get install ocrmypdf tesseract-ocr tesseract-ocr-por imagemagick libhei
 
 Sem essas ferramentas o servidor funciona, mas PDF escaneado, foto, DOC, XLS, ODT e ODS não são lidos (a execução avisa). `GET /health/ready` mostra o estado de cada uma em `ferramentas`. Os testes que usam as ferramentas reais (`test/convert.test.ts`) são pulados quando elas faltam.
 
+Os arquivos vêm de fora e podem ser maliciosos. Por isso cada conversão roda sem os segredos do servidor, com limite de memória, CPU e tamanho de arquivo (`prlimit`) e sem rede (`unshare -rn`) quando o sistema permite. O ImageMagick usa a política de `server/deploy/imagemagick/policy.xml` (só formatos de imagem, sem delegados). O LibreOffice roda com macros desligadas e sem buscar conteúdo vinculado. No ECS Fargate, o sistema não permite tirar a rede de um processo filho. Lá a conversão roda no serviço `conversor`, sem saída de rede (veja `infra/terraform/conversor.tf`).
+
 ### Testes
 
 ```sh
@@ -110,6 +112,9 @@ Exemplos: `server/.env.example` (produção, AWS) e `.env.local.example` (compos
 | `AUDIT_ANCHOR_RETENTION_DAYS` | não | retenção em modo compliance de cada âncora (padrão 1825 dias, 5 anos) |
 | `OCRMYPDF_CMD`, `OCR_LANG` | não | OCR local: comando do OCRmyPDF (padrão `ocrmypdf`) e idioma do Tesseract (padrão `por`) |
 | `MAGICK_CMD`, `SOFFICE_CMD` | não | ImageMagick (padrão `convert`; TIFF, HEIC) e LibreOffice (padrão `soffice`; DOC, XLS, ODT, ODS) |
+| `CONVERT_ISOLATION` | não | isolamento das conversões: `auto` (padrão: usa o que o sistema permite), `required` (recusa converter sem isolamento de rede e limites) ou `off`. O estado aparece em `/health/ready` (`isolamento`) |
+| `CONVERT_MEM_MB`, `CONVERT_FILE_MB` | não | limites por processo de conversão: memória (padrão 2048) e tamanho de arquivo (padrão 1024) |
+| `CONVERTER_URL`, `CONVERTER_TOKEN` | não | conversor em outro processo (`node src/converter-main.ts`, porta `CONVERTER_PORT`, padrão 8081). Com a URL, o servidor não roda ferramenta nenhuma. Token de 32+ caracteres, o mesmo nos dois lados |
 | `CONVERT_TIMEOUT_S` | não | tempo máximo base de cada OCR ou conversão (padrão 120 s, mais 20 s por página) |
 | `KB_UPLOAD_BODY_LIMIT_MB` | não | corpo máximo do envio de documento (padrão 30) |
 | `LOG_LEVEL` | não | padrão `info` |

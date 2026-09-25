@@ -39,6 +39,7 @@ import type { JobQueue } from './jobs/queue.ts';
 import type { KnowledgeSource } from './kb/knowledge.ts';
 import type { LlmProvider } from './llm/provider.ts';
 import { LocalConverter, type Converter } from './convert/converter.ts';
+import { RemoteConverter } from './convert/remote.ts';
 import { S3AnchorStore, makeAnchorJob, type AnchorStore } from './audit/anchor.ts';
 
 export interface Deps {
@@ -59,7 +60,9 @@ export interface Deps {
 
 export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { chatHooks?: ChatHooks; converter?: Converter }): Promise<FastifyInstance> {
   // Etapas padrão do chat, em ordem. Os próximos itens acrescentam as suas.
-  const deps: Deps = { ...input, converter: input.converter ?? new LocalConverter(input.config),
+  const deps: Deps = { ...input, converter: input.converter ?? (input.config.CONVERTER_URL
+    ? new RemoteConverter({ url: input.config.CONVERTER_URL, token: input.config.CONVERTER_TOKEN ?? '', timeoutS: input.config.CONVERT_TIMEOUT_S })
+    : new LocalConverter(input.config)),
     anchors: 'anchors' in input ? input.anchors : input.config.AUDIT_ANCHOR_BUCKET ? new S3AnchorStore(input.config) : undefined, chatHooks: input.chatHooks ?? composeSteps([usagePolicyStep, usageStep, assistantStep, dataPolicyStep, knowledgeStep, retentionStep]) };
   const app = Fastify({
     logger: deps.config.LOG_LEVEL === 'silent' ? false : {
@@ -86,7 +89,10 @@ export async function buildApp(input: Omit<Deps, 'chatHooks' | 'converter'> & { 
     // OCR e conversões: informativos (sem eles o servidor funciona, mas escaneados, DOC e XLS não são lidos).
     const tools = await deps.converter.available();
     const ferramentas = { ocr: tools.ocr ? 'ok' : 'ausente', imagens: tools.images ? 'ok' : 'ausente', office: tools.office ? 'ok' : 'ausente' };
-    return reply.code(ok ? 200 : 503).send({ status: ok ? 'ok' : 'erro', checks, ferramentas });
+    // Isolamento das conversões: sem rede e com limites, ou só ambiente limpo.
+    const iso = await deps.converter.isolamento?.().catch(() => undefined);
+    const isolamento = iso && { onde: iso.remoto ? 'servico' : 'local', rede: iso.rede ? 'sem_rede' : 'com_rede', limites: iso.limites ? 'ok' : 'ausente' };
+    return reply.code(ok ? 200 : 503).send({ status: ok ? 'ok' : 'erro', checks, ferramentas, isolamento });
   });
 
   // Sessão e proteção de escrita valem para todas as rotas (hook na raiz).

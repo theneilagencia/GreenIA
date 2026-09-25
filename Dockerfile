@@ -1,6 +1,8 @@
 # GreenIA: servidor (API + frontend) em um contêiner.
 # Build a partir da raiz do repositório:  docker build -t greenia .
-# O mesmo processo atende a API, entrega o frontend e processa a fila.
+# O mesmo processo atende a API, entrega o frontend e processa a fila
+# (PROCESS_ROLE separa os papéis). O conversor isolado usa a mesma imagem com
+# o comando node src/converter-main.ts.
 # Imagens oficiais do Docker pelo espelho público da AWS (public.ecr.aws/docker/library),
 # que não tem o limite de downloads anônimos do Docker Hub.
 # Debian (não Alpine): OCRmyPDF, Tesseract com português, ImageMagick com HEIC e
@@ -22,6 +24,10 @@ RUN apt-get update \
       libreoffice-writer-nogui libreoffice-calc-nogui \
       fonts-dejavu-core wget ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+# Política restrita do ImageMagick (só formatos de imagem, sem delegados, com
+# limites) no lugar da do sistema; o servidor também aponta MAGICK_CONFIGURE_PATH
+# para ela. prlimit e unshare (isolamento das conversões) vêm do util-linux.
+COPY server/deploy/imagemagick/policy.xml /etc/ImageMagick-6/policy.xml
 ENV NODE_ENV=production \
     FRONTEND_DIR=/app/ \
     PORT=8080

@@ -50,6 +50,9 @@ mock_provider "aws" {
   mock_resource "aws_backup_plan" {
     defaults = { arn = "arn:aws:backup:sa-east-1:111111111111:backup-plan:simulado" }
   }
+  mock_resource "aws_service_discovery_service" {
+    defaults = { arn = "arn:aws:servicediscovery:sa-east-1:111111111111:service/srv-simulado" }
+  }
   mock_resource "aws_ecr_repository" {
     defaults = { arn = "arn:aws:ecr:sa-east-1:111111111111:repository/simulado" }
   }
@@ -175,12 +178,45 @@ run "conferencias" {
     error_message = "A API roda com PROCESS_ROLE=api e a fila com PROCESS_ROLE=worker."
   }
   assert {
-    condition     = !strcontains(aws_ecs_task_definition.principal["api"].container_definitions, "DATABASE_OWNER_URL") && strcontains(aws_ecs_task_definition.principal["migracao"].container_definitions, "DATABASE_OWNER_URL")
-    error_message = "Só a migração recebe a conexão do dono do banco."
+    condition = (!strcontains(aws_ecs_task_definition.principal["api"].container_definitions, "APP_DB_PASSWORD") && !strcontains(aws_ecs_task_definition.principal["fila"].container_definitions, "APP_DB_PASSWORD")
+    && strcontains(aws_ecs_task_definition.principal["migracao"].container_definitions, "APP_DB_PASSWORD"))
+    error_message = "Só a migração recebe a senha do papel do servidor."
+  }
+  assert {
+    condition     = strcontains(aws_ecs_task_definition.principal["fila"].container_definitions, "DATABASE_OWNER_URL") && strcontains(aws_ecs_task_definition.principal["api"].container_definitions, "DATABASE_OWNER_URL")
+    error_message = "A âncora da auditoria (fila) e as operações de plataforma (API) têm a conexão do dono."
+  }
+  assert {
+    condition     = !strcontains(aws_ecs_task_definition.conversor.container_definitions, "DATABASE") && !strcontains(aws_ecs_task_definition.conversor.container_definitions, "ANTHROPIC")
+    error_message = "O conversor não recebe banco nem chave do modelo."
   }
   assert {
     condition     = strcontains(aws_ecs_task_definition.principal["fila"].container_definitions, "\"drop\":[\"ALL\"]")
     error_message = "Os contêineres descartam todas as capabilities do Linux."
+  }
+
+  # Conversor: sem rota para a internet, só sai para endpoints privados e S3,
+  # sem papel de tarefa e só com o próprio token.
+  assert {
+    condition     = length(aws_route_table.conversor.route) == 0
+    error_message = "As sub-redes do conversor não têm rota para fora da VPC (nem NAT)."
+  }
+  assert {
+    condition = alltrue([for r in [aws_vpc_security_group_egress_rule.conversor_endpoints, aws_vpc_security_group_egress_rule.conversor_s3] :
+    r.cidr_ipv4 == null && r.cidr_ipv6 == null])
+    error_message = "O conversor não tem saída para endereços da internet."
+  }
+  assert {
+    condition     = aws_ecs_task_definition.conversor.task_role_arn == null && length(jsondecode(aws_ecs_task_definition.conversor.container_definitions)[0].secrets) == 1
+    error_message = "O conversor não tem papel de tarefa e recebe só o CONVERTER_TOKEN."
+  }
+  assert {
+    condition     = strcontains(aws_ecs_task_definition.principal["fila"].container_definitions, "CONVERTER_URL") && strcontains(aws_ecs_task_definition.principal["api"].container_definitions, "http://conversor.")
+    error_message = "A API e a fila convertem pelo serviço (CONVERTER_URL)."
+  }
+  assert {
+    condition     = !aws_ecs_service.conversor.network_configuration[0].assign_public_ip && !aws_ecs_service.conversor.enable_execute_command
+    error_message = "Conversor sem IP público e sem ECS Exec."
   }
 
   # ALB: só TLS 1.2+, HTTP redireciona.
@@ -213,13 +249,20 @@ run "conferencias" {
 run "um_nat_por_zona" {
   command = plan
   variables {
-    nat_por_zona           = true
-    endpoints_de_interface = false
+    nat_por_zona = true
   }
   assert {
-    condition     = length(aws_nat_gateway.principal) == 2 && length(aws_vpc_endpoint.interface) == 0
+    condition     = length(aws_nat_gateway.principal) == 2 && length(aws_vpc_endpoint.interface) == 5
     error_message = "Com nat_por_zona, um NAT por zona."
   }
+}
+
+run "conversor_exige_endpoints" {
+  command = plan
+  variables {
+    endpoints_de_interface = false
+  }
+  expect_failures = [aws_ecs_service.conversor]
 }
 
 run "token_curto_recusado" {

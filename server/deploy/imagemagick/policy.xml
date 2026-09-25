@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Política do ImageMagick da GreenIA (src/convert/converter.ts aponta
+  MAGICK_CONFIGURE_PATH para esta pasta; a imagem Docker também a copia sobre a
+  política do sistema). Só lê e escreve os formatos que a plataforma usa, sem
+  delegados externos (Ghostscript, curl...), sem leitura indireta (@arquivo) e
+  com limite de memória, disco, tempo e tamanho.
+-->
+<!DOCTYPE policymap [
+  <!ELEMENT policymap (policy)*>
+  <!ATTLIST policymap xmlns CDATA #FIXED ''>
+  <!ELEMENT policy EMPTY>
+  <!ATTLIST policy xmlns CDATA #FIXED '' domain NMTOKEN #REQUIRED
+    name NMTOKEN #IMPLIED pattern CDATA #IMPLIED rights NMTOKEN #IMPLIED
+    stealth NMTOKEN #IMPLIED value CDATA #IMPLIED>
+]>
+<policymap>
+  <policy domain="resource" name="memory" value="512MiB"/>
+  <policy domain="resource" name="map" value="1GiB"/>
+  <policy domain="resource" name="disk" value="2GiB"/>
+  <policy domain="resource" name="area" value="128MP"/>
+  <policy domain="resource" name="width" value="16KP"/>
+  <policy domain="resource" name="height" value="16KP"/>
+  <policy domain="resource" name="list-length" value="64"/>
+  <policy domain="resource" name="time" value="300"/>
+  <policy domain="resource" name="thread" value="2"/>
+  <policy domain="delegate" rights="none" pattern="*"/>
+  <policy domain="filter" rights="none" pattern="*"/>
+  <policy domain="path" rights="none" pattern="@*"/>
+  <policy domain="coder" rights="none" pattern="*"/>
+  <policy domain="coder" rights="read|write" pattern="{JPEG,JPG,PNG,TIFF,TIF,HEIC,HEIF,AVIF,WEBP,GIF,BMP}"/>
+</policymap>

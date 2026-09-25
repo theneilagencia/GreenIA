@@ -23,7 +23,7 @@ export type StatusItem = 'presente' | 'ausente' | 'duvidoso';
 
 export interface Evidencia { arquivo: string; pagina?: number; como: string }
 export interface ItemChecklist { id: string; nome: string; obrigatorio: boolean; status: StatusItem; evidencias: Evidencia[]; motivo: string; mencoes?: Evidencia[] }
-export interface ResultadoChecklist { itens: ItemChecklist[]; naoIdentificados: string[]; resumo: Record<StatusItem, number> }
+export interface ResultadoChecklist { itens: ItemChecklist[]; naoIdentificados: string[]; resumo: Record<StatusItem, number>; leitura?: string }
 
 type Item = ReturnType<typeof checklistParams.parse>['itens'][number];
 interface Pagina { doc: ReadDoc; n: number; titulos: string[]; corpo: string }
@@ -187,6 +187,6 @@ export async function checklistBlock(ctx: RunContext, step: PipelineStep): Promi
   const resumo = { presente: 0, ausente: 0, duvidoso: 0 } as Record<StatusItem, number>;
   for (const i of itens) resumo[i.status]++;
   const pendencias = itens.filter(i => i.status === 'duvidoso' || (i.status === 'ausente' && i.obrigatorio)).length;
-  const data: ResultadoChecklist = { itens, naoIdentificados, resumo };
+  const data: ResultadoChecklist = { itens, naoIdentificados, resumo, ...(p.metodo === 'modelo' ? { leitura: 'identificação pelo início de cada documento (primeiros 3.000 caracteres)' } : {}) };
   return { id: step.id, bloco: 'checklist', titulo: step.titulo || 'Checklist', kind: 'checklist', data, flags, counts: { pendencias } };
 }

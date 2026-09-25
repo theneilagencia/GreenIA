@@ -118,5 +118,5 @@ export async function classificarBlock(ctx: RunContext, step: PipelineStep): Pro
       nomeSugerido: suggestName(p.padraoNome, { categoria: cat?.id ?? null, categoriaNome, periodo, arquivo: d.name }, used) });
   }
   if (!ctx.docs.length) flags.push({ reason: 'nenhum documento para classificar' });
-  return { id: step.id, bloco: 'classificar', titulo: step.titulo || 'Classificação e índice', kind: 'classificacao', data: { indice: rows, pacoteZip: p.pacoteZip }, flags };
+  return { id: step.id, bloco: 'classificar', titulo: step.titulo || 'Classificação e índice', kind: 'classificacao', data: { indice: rows, pacoteZip: p.pacoteZip, leitura: p.metodo === 'modelo' ? 'identificação pelo início de cada documento (primeiros 2.000 caracteres); este bloco não extrai conteúdo' : 'identificação pelo nome e pelo início de cada documento (primeiros 5.000 caracteres); este bloco não extrai conteúdo' }, flags };
 }

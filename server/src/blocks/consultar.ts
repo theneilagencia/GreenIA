@@ -1,4 +1,5 @@
 // Blocos 6, 7 e 8: consulta à base, busca e localização, resumo para análise.
+import { descreverParte, dividirEmPartes } from './partes.ts';
 import core from '../../../lib/greenia-core.js';
 import { buscarParams, consultarParams, resumirParams, type PipelineStep } from './params.ts';
 import type { ReviewFlag, RunContext, Section } from './types.ts';
@@ -85,22 +86,47 @@ export async function resumirBlock(ctx: RunContext, step: PipelineStep): Promise
   const p = resumirParams.parse(step.params);
   const flags: ReviewFlag[] = [];
   const base = { id: step.id, bloco: 'resumir', titulo: step.titulo || 'Resumo para análise', kind: 'resumo' as const };
-  const material = [ctx.text.trim() ? `### Texto enviado\n${ctx.text.trim()}` : '', ...ctx.docs.map(d => `### Documento: ${d.name}\n${d.text}`)].filter(Boolean).join('\n\n');
+  const textoEnviado = ctx.text.trim() ? `### Texto enviado\n${ctx.text.trim()}` : '';
+  const material = [textoEnviado, ...ctx.docs.map(d => `### Documento: ${d.name}\n${d.text}`)].filter(Boolean).join('\n\n');
   if (!material) return { ...base, data: { topicos: p.topicos.map(t => ({ titulo: t, texto: '' })), fontes: [] }, flags: [{ reason: 'nada para resumir' }] };
+  const sistema = (extra: string) => [
+    'Você prepara resumos para análise. Use só o material fornecido; não estime números que não estejam nele.',
+    `Escreva em até ${p.palavrasMax} palavras, com exatamente estes tópicos, nesta ordem, cada um começando por "## " e o nome do tópico:`,
+    ...p.topicos.map(t => `## ${t}`),
+    'Se o material não tiver informação para um tópico, escreva "Sem informação no material."',
+    extra,
+    p.instrucoes,
+  ].filter(Boolean).join('\n');
+  const maxOutputTokens = Math.min(8000, Math.ceil(p.palavrasMax * 2.5) + 200);
+  // Material longo: um resumo parcial por parte (páginas em blocos) e um resumo final
+  // feito só dos parciais. Nada é cortado.
+  let entrada = material, extra = '';
+  let partesLidas: string[] | undefined;
+  if (material.length > p.caracteresPorParte) {
+    const partes = dividirEmPartes(ctx.docs, p.caracteresPorParte - textoEnviado.length);
+    partesLidas = partes.map(descreverParte);
+    const parciais: string[] = [];
+    for (const [k, parte] of partes.entries()) {
+      const r = await ctx.env.complete({
+        purpose: `resumo (parte ${k + 1} de ${partes.length})`,
+        system: sistema(`O material é longo e foi dividido em ${partes.length} partes. Esta é a parte ${k + 1} (${descreverParte(parte)}): resuma só o que está nela, com números e páginas.`),
+        content: [{ type: 'text', text: [k === 0 ? textoEnviado : '', ...parte.itens.map(i => `### Documento: ${i.doc.name}\n` + i.paginas.map(pg => `=== Página ${pg.n} ===\n${pg.text}`).join('\n'))].filter(Boolean).join('\n\n') }],
+        maxOutputTokens,
+      });
+      if (r.blocked?.length) return { ...base, data: { topicos: p.topicos.map(t => ({ titulo: t, texto: '' })), fontes: ctx.docs.map(d => d.name), partes: partesLidas }, flags: [{ reason: 'não enviado ao modelo: contém ' + r.blocked.join(', ') }] };
+      parciais.push(`### Resumo parcial ${k + 1} de ${partes.length} (${descreverParte(parte)})\n${r.text}`);
+    }
+    entrada = parciais.join('\n\n');
+    extra = `O material abaixo são ${partes.length} resumos parciais de um material longo, na ordem. Consolide num resumo só, sem repetir, mantendo os números como estão e dizendo quando dois parciais divergem.`;
+  }
   const reply = await ctx.env.complete({
-    purpose: 'resumo',
-    system: [
-      'Você prepara resumos para análise. Use só o material fornecido; não estime números que não estejam nele.',
-      `Escreva em até ${p.palavrasMax} palavras, com exatamente estes tópicos, nesta ordem, cada um começando por "## " e o nome do tópico:`,
-      ...p.topicos.map(t => `## ${t}`),
-      'Se o material não tiver informação para um tópico, escreva "Sem informação no material."',
-      p.instrucoes,
-    ].filter(Boolean).join('\n'),
-    content: [{ type: 'text', text: material }],
-    maxOutputTokens: Math.min(8000, Math.ceil(p.palavrasMax * 2.5) + 200),
+    purpose: partesLidas ? 'resumo (consolidação das partes)' : 'resumo',
+    system: sistema(extra),
+    content: [{ type: 'text', text: entrada }],
+    maxOutputTokens,
   });
   const fontes = ctx.docs.map(d => d.name);
-  if (reply.blocked?.length) return { ...base, data: { topicos: p.topicos.map(t => ({ titulo: t, texto: '' })), fontes }, flags: [{ reason: 'não enviado ao modelo: contém ' + reply.blocked.join(', ') }] };
+  if (reply.blocked?.length) return { ...base, data: { topicos: p.topicos.map(t => ({ titulo: t, texto: '' })), fontes, partes: partesLidas }, flags: [{ reason: 'não enviado ao modelo: contém ' + reply.blocked.join(', ') }] };
   const parts = new Map<string, string>();
   const re = /^##\s+(.+)$/gm;
   const text = reply.text;
@@ -113,5 +139,5 @@ export async function resumirBlock(ctx: RunContext, step: PipelineStep): Promise
   });
   const words = topicos.reduce((n, t) => n + (t.texto.match(/\S+/g)?.length ?? 0), 0);
   if (words > p.palavrasMax * 1.1) flags.push({ reason: `resumo com ${words} palavras, acima do limite de ${p.palavrasMax}` });
-  return { ...base, data: { topicos, fontes }, flags };
+  return { ...base, data: { topicos, fontes, ...(partesLidas ? { partes: partesLidas } : {}) }, flags };
 }

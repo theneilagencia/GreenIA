@@ -1,3 +1,4 @@
+import { lerParams } from '../src/blocks/params.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectKind, readFile, lerBlock } from '../src/blocks/ler.ts';
@@ -146,11 +147,21 @@ test('chave de acesso: dígito verificador, modelo 55/65 e texto de DANFE', () =
   assert.equal(findAccessKey(`Boleto bancário ${k}`), null);                         // sem texto de DANFE
 });
 
-test('PDF com mais páginas que o limite: lê as primeiras e avisa', async () => {
+test('PDF acima do limite de páginas: nada some em silêncio; a saída diz quais páginas ficaram de fora', async () => {
   const { env } = testEnv();
-  const d = await readFile(inputFile('longo.pdf', await textPdf(['Primeira página do relatório mensal.', 'Segunda página do relatório mensal.', 'Terceira página do relatório mensal.'])), { ...OPTS, paginasMax: 2 }, env);
+  const d = await readFile(inputFile('longo.pdf', await textPdf(['Primeira página do relatório mensal.', 'Segunda página do relatório mensal.', 'Terceira página do relatório mensal.', 'Quarta página do relatório mensal.'])), { ...OPTS, paginasMax: 2 }, env);
   assert.equal(d.pages.length, 2);
-  assert.match(d.warnings.join(), /3 páginas: lidas só as 2 primeiras/);
+  assert.deepEqual(d.paginasNaoLidas, { total: 4, lidas: 2, paginas: '3–4' });
+  assert.match(d.warnings.join(), /2 página\(s\) não lida\(s\) \(páginas 3–4\): acima do limite de 2 páginas por documento/);
+});
+
+test('o limite padrão lê documentos longos inteiros', async () => {
+  const { env } = testEnv();
+  const texts = Array.from({ length: 120 }, (_, i) => `Página ${i + 1} do balancete.`);
+  const def = lerParams.parse({});
+  const d = await readFile(inputFile('balancete.pdf', await textPdf(texts)), { ...OPTS, paginasMax: def.paginasMax }, env);
+  assert.equal(d.pages.length, 120);
+  assert.equal(d.paginasNaoLidas, undefined);
 });
 
 test('DOCX: texto', async () => {

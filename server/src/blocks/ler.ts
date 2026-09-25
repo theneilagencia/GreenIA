@@ -277,14 +277,15 @@ async function readBase(input: InputFile, opts: ReadOpts, env: BlockEnv): Promis
     } catch (e) {
       return { ...base, kind, via: 'texto', pages: [], text: '', pageCount: 0, warnings: ['PDF não pôde ser aberto: ' + (e as Error).message] };
     }
-    if (total > opts.paginasMax) base.warnings.push(`PDF com ${total} páginas: lidas só as ${opts.paginasMax} primeiras`);
+    const naoLidas = total > opts.paginasMax ? { total, lidas: opts.paginasMax, paginas: `${opts.paginasMax + 1}${total > opts.paginasMax + 1 ? `–${total}` : ''}` } : undefined;
+    if (naoLidas) base.warnings.push(`${total - opts.paginasMax} página(s) não lida(s) (páginas ${naoLidas.paginas}): acima do limite de ${opts.paginasMax} páginas por documento`);
     const scanned = pages.filter(p => p.text.replace(/\s+/g, '').length < SCANNED_CHARS_PER_PAGE).map(p => p.n);
     if (scanned.length) {
       const ocr = await readScanned(file, 'pdf', scanned, opts, env, base.warnings);
       pages = pages.map(p => ocr.find(o => o.n === p.n) ?? p);
     }
     const text = joinPages(pages);
-    return { ...base, kind, via: viaOf(pages), pages, text, pageCount: Math.min(total, opts.paginasMax) };
+    return { ...base, kind, via: viaOf(pages), pages, text, pageCount: Math.min(total, opts.paginasMax), ...(naoLidas ? { paginasNaoLidas: naoLidas } : {}) };
   }
 
   if (kind === 'imagem') {
@@ -372,7 +373,7 @@ export async function lerBlock(ctx: RunContext, step: PipelineStep): Promise<Sec
     id: step.id, bloco: 'ler', titulo: step.titulo || 'Documentos lidos', kind: 'documentos', flags,
     counts: pendencias ? { pendencias } : undefined,
     data: read.map(d => ({
-      arquivo: d.name, tipo: d.kind, leitura: d.via, convertidoDe: d.convertedFrom, paginas: d.pageCount,
+      arquivo: d.name, tipo: d.kind, leitura: d.via, convertidoDe: d.convertedFrom, paginas: d.pageCount, paginasNaoLidas: d.paginasNaoLidas,
       confiancaOcr: ocrConf(d),
       paginasPorVisao: d.pages.filter(pg => pg.via === 'visao').map(pg => pg.n),
       planilhas: d.sheets?.map(s => ({ nome: s.name, linhas: s.rows.length })),

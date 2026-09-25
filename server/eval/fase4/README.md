@@ -165,6 +165,31 @@ Arquivos: `resultados/rh-desenvolvimento-depois-das-correcoes.json` e `resultado
 
 Nada disso foi ajustado: a Fase 4 mede como está e o relatório propõe as mudanças.
 
+## Documentos longos: leitura por partes, sem truncamento silencioso
+
+- **Leitura.** O limite de páginas por documento passou de 50 para 2.000 (`ler.paginasMax`). Acima do limite, nada some em silêncio. A saída lista quantas e quais páginas ficaram de fora (`paginasNaoLidas`, ex.: "páginas 2001–2400"), e o aviso leva o resultado para revisão.
+- **Extração.** Documento maior que o limite por chamada (`caracteresPorParte`, padrão 120 mil caracteres, cerca de 30 mil tokens) é lido em partes de páginas consecutivas, uma chamada por parte, com as páginas indicadas ao modelo. A consolidação é feita em código: valor de uma parte completa o vazio das outras; listas se juntam sem repetir. O mesmo campo com valores diferentes em duas partes fica com o primeiro e vai para revisão. A saída diz em quais partes o documento foi lido.
+- **Resumo.** Material maior que o limite: um resumo parcial por parte e um resumo final feito só dos parciais (consolidação pelo modelo). A saída diz as partes.
+- **Classificação e checklist pelo modelo.** Identificam o documento pelo início dele (2.000 a 5.000 caracteres) e não extraem conteúdo. A saída agora diz isso (`leitura`).
+- **Testes:** `blocks-partes.test.ts` e `blocks-ler.test.ts`.
+
+**Custo e tempo** [desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]. Seis pacotes do Financeiro do desenvolvimento (159 a 296 páginas cada), modelo `resumo-financeiro-mensal` do catálogo (ler, extrair por documento, resumir). Medido sem chamar o modelo: um modelo simulado conta as chamadas e os tokens (4 caracteres por token). O custo sai da tabela de preços, com o dólar a R$ 5,40. Arquivo: `resultados/financeiro-leitura-longa-desenvolvimento.json` (`medir-leitura-longa.ts`).
+
+| Pacote | Páginas lidas | Chamadas | Tokens de entrada | Custo Haiku 4.5 (R$) | Custo Sonnet 5 (R$) | Valores do gabarito que chegam ao modelo | Tempo da plataforma (ms) |
+|---|---|---|---|---|---|---|---|
+| 01 | 104 → 189 | 4 → 9 | 97 mil → 172 mil | 0,55 → 1,03 | 1,10 → 2,05 | 6 de 9 → 9 de 9 | 1.076 → 657 |
+| 03 | 82 → 196 | 4 → 9 | 69 mil → 167 mil | 0,40 → 1,00 | 0,80 → 2,00 | 9 de 9 → 9 de 9 | 654 → 643 |
+| 04 | 75 → 240 | 4 → 10 | 62 mil → 201 mil | 0,36 → 1,21 | 0,72 → 2,41 | 9 de 9 → 9 de 9 | 715 → 727 |
+| 07 | 95 → 296 | 4 → 12 | 85 mil → 257 mil | 0,49 → 1,53 | 0,97 → 3,07 | 9 de 9 → 9 de 9 | 961 → 885 |
+| 08 | 91 → 159 | 4 → 8 | 81 mil → 140 mil | 0,46 → 0,86 | 0,92 → 1,71 | 9 de 9 → 9 de 9 | 473 → 484 |
+| 10 | 106 → 210 | 4 → 10 | 97 mil → 192 mil | 0,55 → 1,16 | 1,10 → 2,31 | 6 de 9 → 9 de 9 | 637 → 634 |
+| Total | | 24 → 58 | | 2,81 → 6,79 | 5,61 → 13,55 | 48 de 54 → 54 de 54 | |
+
+- A primeira coluna de cada par é o jeito antigo: 50 páginas e uma chamada por documento. A segunda é a leitura por partes.
+- A leitura por partes custa cerca de 2,4 vezes mais nesses pacotes, porque lê as páginas que antes eram cortadas (o razão tem até 215 páginas).
+- Nos pacotes 01 e 10, o valor do balancete estava depois da página 50 e antes não chegava ao modelo.
+- O tempo medido é só o da plataforma (leitura dos PDFs e montagem das partes). O tempo do modelo não dá para medir sem a chave. Com as chamadas em sequência, ele cresce com o número de chamadas: 24 para 58 nos seis pacotes, cerca de 10 por pacote. A medição com o modelo real entra na rodada do desenvolvimento.
+
 ## Documentos reais do PNCP (Jurídico e Suprimentos)
 
 O ambiente não alcança `pncp.gov.br`: a política de rede do ambiente recusa o endereço (403 no proxy). Para baixar daqui, o endereço precisa entrar na lista de domínios permitidos do ambiente. Enquanto isso, a lista do que baixar está em `pncp/LISTA.md`: 30 contratos e 10 atas para o Jurídico, e 20 pares de termo de referência e ata para Suprimentos (80 arquivos).

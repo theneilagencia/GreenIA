@@ -44,13 +44,16 @@ export const lerParams = z.object({
   // 'nunca' desliga o fallback de visão nesta etapa, mesmo que o assistente permita.
   // 'sempre' (definições antigas) vale como 'auto': a visão agora só entra como fallback do OCR.
   visao: z.preprocess(v => v === 'sempre' ? 'auto' : v, z.enum(['auto', 'nunca'])).default('auto'),
-  paginasMax: z.number().int().min(1).max(500).default(50),
+  // Limite de páginas por documento. Documento maior não é cortado em silêncio:
+  // as páginas de fora são listadas na saída e o resultado vai para revisão.
+  paginasMax: z.number().int().min(1).max(5000).default(2000),
 }).prefault({});
 
 export const extrairParams = z.object({
   schema: jsonSchemaObject,                                 // JSON Schema dos campos
   instrucoes: z.string().max(4000).default(''),
   por: z.enum(['documento', 'conjunto']).default('documento'),
+  caracteresPorParte: z.number().int().min(5_000).max(400_000).default(120_000),   // documento maior é lido por partes
   tipos: z.array(fileKindSchema).optional(),            // de quais documentos extrair
 });
 
@@ -118,6 +121,7 @@ export const resumirParams = z.object({
   topicos: z.array(z.string().min(1).max(80)).min(1).max(20),
   instrucoes: z.string().max(4000).default(''),
   palavrasMax: z.number().int().min(50).max(5000).default(600),
+  caracteresPorParte: z.number().int().min(5_000).max(400_000).default(120_000),   // material maior é resumido por partes e consolidado
 });
 
 export const exportarParams = z.object({

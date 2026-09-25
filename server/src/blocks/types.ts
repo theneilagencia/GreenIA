@@ -35,6 +35,7 @@ export interface ReadDoc {
   periodo?: string | null;                          // AAAA-MM, quando um leitor sabe a data do documento
   situacao?: string;                                // situação dada por um leitor (ex.: DANFE sem o XML)
   importado?: Record<string, Importado>;            // registros normalizados por conjunto de dados, pelo mapeamento de importação
+  paginasNaoLidas?: { total: number; lidas: number; paginas: string };   // acima do limite: nunca some em silêncio
   warnings: string[];
 }
 

@@ -78,6 +78,24 @@ O reservado roda duas vezes, e cada versão da plataforma usa o reservado uma ú
 - Cada uso do reservado fica em `server/eval/fase4/resultados/uso-do-reservado.log`, com a versão da plataforma. Uma segunda rodada da mesma versão não vale: o avaliador recusa.
 - Nenhuma correção é feita entre as duas rodadas. A diferença entre elas é o efeito das correções, medido num conjunto que ninguém olhou.
 
+## Modos de classificação: regras × modelo (rodadas com o modelo real, desenvolvimento)
+
+Dois assistentes de referência classificam hoje só por regras. Nas rodadas com o modelo real, cada um é medido nos dois modos, no conjunto de desenvolvimento do corpus versão 2:
+
+| Assistente | Casos | Modo 1 | Modo 2 |
+|---|---|---|---|
+| Organização de evidências (LGPD) | lotes do LGPD | `classificar.metodo = "regras"` | `classificar.metodo = "modelo"` (Haiku 4.5 e Sonnet 5) |
+| Checklist de admissão, PDF digital | pastas do RH, variação digital | `checklist.metodo = "regras"` | `checklist.metodo = "modelo"` (Haiku 4.5 e Sonnet 5) |
+
+- **Para cada modo:** acerto, erros graves, erros comuns e taxa de revisão pela matriz de três estados, por tipo de nome (genérico × descritivo). Também custo por execução medido (tokens e reais) e tempo por execução.
+- **A escolha é configuração.** O modo vira o campo `metodo` do assistente, que o cliente troca na definição (versão nova, com auditoria). Nenhum código muda. O relatório recomenda o modo por assistente, pelo menor número de erros graves e, no empate, pelo custo.
+- **O reservado roda só no modo escolhido,** nas duas versões da plataforma da rodada final.
+
+## Relatório final: o que registrar sobre o reservado
+
+- **Versão 1 do corpus.** O reservado foi usado uma vez, a pedido, para o resumo da linha de base do RH antes das correções: 6 casos, 42 itens, 78,6% de acerto item a item, 3 erros graves. Só o resumo foi gravado (`resultados/rh-linha-de-base-reservado.json`), e o uso está em `resultados/uso-do-reservado.log`. Nenhum caso do reservado foi aberto para corrigir, e não houve rodada final na versão 1.
+- **Versão 2 do corpus.** Mantém os conjuntos da versão 1, com o estrato de tipo de nome sorteado dentro de cada conjunto. O reservado da versão 2 só é usado na rodada final.
+
 ## Medidas, por assistente e por modelo
 
 | Medida | Como é calculada |

@@ -1,0 +1,91 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-05",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "rg.pdf",
+      "sha256": "ecffbc18a2dc4e31057c6d9d1a53f45d0cc4cb32fe8f2e74d9fbcb6af1dd760a",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2168
+    },
+    {
+      "nome": "conta-de-luz.pdf",
+      "sha256": "3d26ebc78c3a0c7fef7977eb7059a2b464dbd6674a3963575a654e75fa944177",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2119
+    },
+    {
+      "nome": "aso-admissional.pdf",
+      "sha256": "6268566991ad1278d8d1cc110d2ea0b536e680e01941a131170e012679741db7",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2152
+    },
+    {
+      "nome": "titulo-eleitor.pdf",
+      "sha256": "94c38b63fb1df68ce5b515787978f1aed49ac7dd07045f4edea19c08baf4b2ce",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2001
+    },
+    {
+      "nome": "ficha-de-admissao.pdf",
+      "sha256": "1a6130208f2f5c4e5daca3e4e87f74bcfd106393ba41c47e316d2abc49f2727e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2119
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "presente",
+        "arquivo": "rg.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "conta-de-luz.pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "duvidoso",
+        "arquivo": "ficha-de-admissao.pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "presente",
+        "arquivo": "aso-admissional.pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "presente",
+        "arquivo": "titulo-eleitor.pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "ausente",
+        "arquivo": null
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Rafael Hartmann Teste). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento. O número do CPF aparece em outros documentos (ASO, CTPS, conta salário); isso não é o comprovante de inscrição.",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

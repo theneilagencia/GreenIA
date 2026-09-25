@@ -1,0 +1,98 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-04",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "scan_6425.pdf",
+      "sha256": "14b818d90ae89138a051b851cfafdfa7dc6a91be4642d42e096510ee0bdfb6c0",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3072
+    },
+    {
+      "nome": "Documento (4).pdf",
+      "sha256": "3e843b153719ad695fdbcf715f4fddd52adacc33a8ca68b0c2c7b9b7b7815354",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2129
+    },
+    {
+      "nome": "Documento (5).pdf",
+      "sha256": "6d50b1703cce7307712d909922a75ef246dc778fd01d46c7165a36fd2310d649",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2094
+    },
+    {
+      "nome": "scan_2540.pdf",
+      "sha256": "06baf41f77de55ac2176159015282a8b4b6f8dfc5d0358722ae5ec7b51d9e1b1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2145
+    },
+    {
+      "nome": "scan_7584.pdf",
+      "sha256": "a54807b4f6f8ef4f2a91e215d01c79fe67df02a8374268649520e826d60f979b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2009
+    },
+    {
+      "nome": "digitalizado_20260324_145936.pdf",
+      "sha256": "417c349f6c2fc153928094acacb04428a0864920cf30b251c19044164afaa5e1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2018
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "presente",
+        "arquivo": "scan_6425.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "presente",
+        "arquivo": "scan_6425.pdf"
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "Documento (4).pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "Documento (5).pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "presente",
+        "arquivo": "scan_2540.pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "presente",
+        "arquivo": "scan_7584.pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "ausente",
+        "arquivo": null
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Larissa Esteves Fictícia). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

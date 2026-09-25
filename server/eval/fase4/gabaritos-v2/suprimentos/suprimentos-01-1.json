@@ -1,0 +1,97 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-01-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "export_6683.xlsx",
+      "sha256": "5f884c92ea710a3a75c3f2353d0477e92cf21fea06f56e8d2388e41e32fe8409",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6462
+    },
+    {
+      "nome": "doc6239.docx",
+      "sha256": "df9a9369403e29f04beb802b04e7cc693b65c7035f86be673ded102234942e74",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8809
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "doc6239.docx",
+      "fornecedor": "Aços Modelo Distribuidora Ltda.",
+      "validade": "21/10/2026",
+      "itens": [
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 155,
+          "unidade": "pç",
+          "preco_unitario": 740.76
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 10,
+          "unidade": "br",
+          "preco_unitario": 728.49
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 110,
+          "unidade": "mil",
+          "preco_unitario": 323.05
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 37,
+          "unidade": "m³",
+          "preco_unitario": 95.49
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 105,
+          "unidade": "sc",
+          "preco_unitario": 579.27
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 120,
+          "unidade": "sc",
+          "preco_unitario": 679.04
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 95,
+          "unidade": "sc",
+          "preco_unitario": 714.2
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 165,
+          "unidade": "rl",
+          "preco_unitario": 869.61
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

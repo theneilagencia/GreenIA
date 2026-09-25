@@ -1,0 +1,97 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-13-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "Documento (11).xlsx",
+      "sha256": "dced5700373772464070f6c12f04742dec61d2066ee7f59291c9e998bc166c66",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6463
+    },
+    {
+      "nome": "digitalizado_20260211_091923.pdf",
+      "sha256": "733853fedaa561c86077c77f67389a9152c31e20a0115f9af9b77995b04ca5ad",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2655
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "digitalizado_20260211_091923.pdf",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "13/10/2026",
+      "itens": [
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 44,
+          "unidade": "m³",
+          "preco_unitario": 106.75
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 190,
+          "unidade": "un",
+          "preco_unitario": 487.4
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 41,
+          "unidade": "m³",
+          "preco_unitario": 303.08
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 280,
+          "unidade": "sc",
+          "preco_unitario": 497.54
+        },
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 190,
+          "unidade": "ch",
+          "preco_unitario": 145.61
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 270,
+          "unidade": "rl",
+          "preco_unitario": 773.62
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 105,
+          "unidade": "sc",
+          "preco_unitario": 708.04
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 165,
+          "unidade": "mil",
+          "preco_unitario": 831.66
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Residencial Jardim das Acácias. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

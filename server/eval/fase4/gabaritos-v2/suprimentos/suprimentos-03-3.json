@@ -1,0 +1,115 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-03-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "Documento (3).xlsx",
+      "sha256": "3c1cccc7b330d01c73c5f0f4a799544321beba399fa2c30a37886e7820b27f3c",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6416
+    },
+    {
+      "nome": "digitalizado_20260113_171415.pdf",
+      "sha256": "5e388fb2b2c7b3e1abee989bb2dd64d95ffc022aa13562c0188e8108edc86433",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2577
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "digitalizado_20260113_171415.pdf",
+      "fornecedor": "Madeireira Teste Ltda.",
+      "validade": "13/10/2026",
+      "itens": [
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 12,
+          "unidade": "m³",
+          "preco_unitario": 197.42
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 240,
+          "unidade": "kg",
+          "preco_unitario": 544.84
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 280,
+          "unidade": "br",
+          "preco_unitario": 382.08
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 65,
+          "unidade": "rl",
+          "preco_unitario": 131.07
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 110,
+          "unidade": "kg",
+          "preco_unitario": 34.32
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 165,
+          "unidade": "mil",
+          "preco_unitario": 150.49
+        },
+        {
+          "codigo": "IMP-ASF",
+          "descricao": "Manta asfáltica 4 mm, rolo 10 m²",
+          "quantidade": 7,
+          "unidade": "rl",
+          "preco_unitario": 137.93
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "ARG-AC3",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 215,
+        "cotado": null
+      },
+      {
+        "codigo": "ACO-050",
+        "tipo": "unidade",
+        "especificado": "br",
+        "cotado": "kg"
+      },
+      {
+        "codigo": "PRE-TER",
+        "tipo": "unidade",
+        "especificado": "cx",
+        "cotado": "kg"
+      },
+      {
+        "codigo": "IMP-ASF",
+        "tipo": "sem_especificacao",
+        "especificado": null,
+        "cotado": 7
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Galpão Logístico Km 12. 4 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

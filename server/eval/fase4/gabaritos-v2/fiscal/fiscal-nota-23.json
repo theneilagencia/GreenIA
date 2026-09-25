@@ -1,0 +1,103 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-23",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-b xlsx, só DANFE",
+  "arquivos": [
+    {
+      "nome": "danfe-66319.pdf",
+      "sha256": "174f538c7c5e470d8a36e9bdef17228369275dff9106c22ad6f26fbd2e424a34",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2868
+    },
+    {
+      "nome": "pedido-156664.xlsx",
+      "sha256": "3efe4585405ff3eebd0457e12f543fc20e606e560cf5ea6279ac76b04e6489e6",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 7124
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "danfe_sem_xml",
+    "nota": {
+      "chave": "35260786617482000149550010000663191000000007",
+      "numero": "66319",
+      "dataEmissao": "2026-07-07",
+      "cnpjEmitente": "86617482000149",
+      "valorTotal": 45914.09,
+      "xml": null,
+      "danfe": "danfe-66319.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-156664.xlsx",
+      "layout": "layout-b",
+      "mapeamento": "mapeamentos/layout-b.json",
+      "registros": [
+        {
+          "pedido": "156664",
+          "cnpjFornecedor": "86617482000149",
+          "dataPedido": "2026-07-01",
+          "totalPedido": 45914.09,
+          "codigo": "009020",
+          "descricao": "Pallet de madeira PBR 1,20 x 1,00 m",
+          "unidade": "UN",
+          "quantidade": 110,
+          "valorUnitario": 60.4,
+          "valorTotal": 6644
+        },
+        {
+          "pedido": "156664",
+          "cnpjFornecedor": "86617482000149",
+          "dataPedido": "2026-07-01",
+          "totalPedido": 45914.09,
+          "codigo": "FT-ARQ-16",
+          "descricao": "Fita de arquear 16 mm, rolo",
+          "unidade": "RL",
+          "quantidade": 114,
+          "valorUnitario": 83.72,
+          "valorTotal": 9544.08
+        },
+        {
+          "pedido": "156664",
+          "cnpjFornecedor": "86617482000149",
+          "dataPedido": "2026-07-01",
+          "totalPedido": 45914.09,
+          "codigo": "002215",
+          "descricao": "Etiqueta adesiva 100x50 mm",
+          "unidade": "MIL",
+          "quantidade": 37,
+          "valorUnitario": 39.04,
+          "valorTotal": 1444.48
+        },
+        {
+          "pedido": "156664",
+          "cnpjFornecedor": "86617482000149",
+          "dataPedido": "2026-07-01",
+          "totalPedido": 45914.09,
+          "codigo": "008801",
+          "descricao": "Óleo lubrificante ISO 68, balde 20 L",
+          "unidade": "BD",
+          "quantidade": 89,
+          "valorUnitario": 317.77,
+          "valorTotal": 28281.53
+        }
+      ]
+    },
+    "divergencias": [],
+    "dentroDaTolerancia": [],
+    "pedirXml": [
+      "35260786617482000149550010000663191000000007"
+    ],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-b: XLSX com três linhas de título acima da tabela; código e descrição na mesma coluna (\"000123 - Descrição\"), código numérico com zeros à esquerda; dados do pedido na aba Campo | Valor. Importação pelo mapeamento mapeamentos/layout-b.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Só a DANFE, sem o XML: o esperado é pedir o XML ao fornecedor (chave 35260786617482000149550010000663191000000007). Sem o XML não há conferência de itens; nota e pedido são iguais. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

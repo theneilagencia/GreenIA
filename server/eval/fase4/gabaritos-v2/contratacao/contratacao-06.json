@@ -1,0 +1,84 @@
+{
+  "versao": 1,
+  "caso": "contratacao-06",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "docx, dois documentos num PDF",
+  "arquivos": [
+    {
+      "nome": "Documento (4).docx",
+      "sha256": "cb82a0b5c92de0783da134f3d0b1f97ed902e824aa0a2dad70a9c76cb9d02317",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8816
+    },
+    {
+      "nome": "scan_7697.pdf",
+      "sha256": "b159f648220be2015010c3dda28fce93b6a34385f2f975d43450f46f780cd29f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3023
+    },
+    {
+      "nome": "anexo (5).pdf",
+      "sha256": "1e16efac935d5bdecba45d936fdc13a095416cffc58a3ecf964fb43ea15a228c",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2132
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "Documento (4).docx",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "duvidoso",
+        "arquivo": "Documento (4).docx",
+        "pagina": 1
+      },
+      {
+        "item": "alvara",
+        "situacao": "presente",
+        "arquivo": "anexo (5).pdf",
+        "pagina": 1
+      },
+      {
+        "item": "garantia",
+        "situacao": "presente",
+        "arquivo": "Documento (4).docx",
+        "pagina": 1
+      },
+      {
+        "item": "cnd",
+        "situacao": "presente",
+        "arquivo": "scan_7697.pdf",
+        "pagina": 1
+      },
+      {
+        "item": "cno",
+        "situacao": "presente",
+        "arquivo": "Documento (4).docx",
+        "pagina": 1
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "scan_7697.pdf",
+        "pagina": 2
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Galpão logístico Rodovia Fictícia km 12). ART citada; garantia caucao; CND anexada; CNO mencionado no contrato. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

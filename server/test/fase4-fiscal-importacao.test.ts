@@ -3,7 +3,8 @@
 // de largura fixa, JSON em caixas, XML). Cada layout entra por um mapeamento
 // criado pela API de configuração, testado com um arquivo de exemplo. O mesmo
 // assistente, criado do modelo do catálogo, confere todos, sem mudança de código,
-// e as divergências batem com o gabarito. Só o conjunto de desenvolvimento.
+// e as divergências batem com o gabarito. Só o conjunto de desenvolvimento, no
+// corpus versão 2 (parte dos casos com nomes genéricos).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -17,6 +18,7 @@ import { MemoryObjectStore } from '../src/storage/object-store.ts';
 import { normKey } from '../src/blocks/values.ts';
 import { gerarFiscal } from '../eval/fase4/gerar-fiscal.ts';
 import { conjuntoDe } from '../eval/fase4/dividir.ts';
+import { aplicarV2, tipoDeNome } from '../eval/fase4/congelar-v2.ts';
 import { paresFiscal, pontuar, type CasoFiscal } from '../eval/fase4/pontuar.ts';
 import { gravarJson } from '../eval/fase4/lib.ts';
 
@@ -32,6 +34,7 @@ let casos: { dir: string; g: Gab }[] = [];
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), 'fase4-fiscal-'));
   await gerarFiscal(dir, 30, 4301);
+  aplicarV2(dir);                                                     // corpus versão 2: nomes genéricos em parte dos casos
   const base = join(dir, 'fiscal');
   casos = readdirSync(base).filter(c => statSync(join(base, c)).isDirectory()).sort()
     .map(c => ({ dir: join(base, c), g: JSON.parse(readFileSync(join(base, c, 'gabarito.json'), 'utf8')) as Gab }))
@@ -126,7 +129,7 @@ test('cinco layouts entram por mapeamentos criados pela API; o mesmo assistente 
   const p = pontuar(paresFiscal(medidos));
   console.log('Fiscal, desenvolvimento:', JSON.stringify({ ...p, graves: undefined }));
   assert.equal(p.errosGraves, 0);
-  if (process.env.FASE4_GRAVAR === '1') gravarJson(join(EVAL, 'resultados', 'fiscal-desenvolvimento.json'), { conjunto: 'desenvolvimento', casos: medidos });
+  if (process.env.FASE4_GRAVAR === '1') gravarJson(join(EVAL, 'resultados', 'fiscal-v2-desenvolvimento.json'), { conjunto: 'desenvolvimento', corpus: 2, casos: medidos.map(m => ({ ...m, nome: tipoDeNome(m.caso) })) });
   console.log('Fiscal por layout:', JSON.stringify(porLayout));
   assert.deepEqual(falhas, []);
   for (const l of layouts) assert.equal(porLayout[l].certos, porLayout[l].casos, l);

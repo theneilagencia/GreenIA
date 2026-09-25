@@ -1,0 +1,90 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-08-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "Documento (10).xlsx",
+      "sha256": "3ad374d77a8bce05c07997e036f2a4368ec94c767c8bec0f962f7d219b794a37",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6406
+    },
+    {
+      "nome": "doc7913.docx",
+      "sha256": "04f36ab1141f739205587a708dbf9b0ae5d4d459fb7a170ed87c187887cfb287",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8768
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "doc7913.docx",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "07/10/2026",
+      "itens": [
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 290,
+          "unidade": "rl",
+          "preco_unitario": 217.52
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 225,
+          "unidade": "br",
+          "preco_unitario": 612.34
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 7,
+          "unidade": "m³",
+          "preco_unitario": 477.35
+        },
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 205,
+          "unidade": "pç",
+          "preco_unitario": 663.68
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 60,
+          "unidade": "sc",
+          "preco_unitario": 362.06
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 125,
+          "unidade": "br",
+          "preco_unitario": 365.08
+        },
+        {
+          "codigo": "IMP-ASF",
+          "descricao": "Manta asfáltica 4 mm, rolo 10 m²",
+          "quantidade": 95,
+          "unidade": "rl",
+          "preco_unitario": 715.3
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

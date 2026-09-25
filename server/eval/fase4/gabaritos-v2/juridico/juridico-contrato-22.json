@@ -1,0 +1,54 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-22",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "pdf, 20 páginas",
+  "arquivos": [
+    {
+      "nome": "digitalizado_20260909_071643.pdf",
+      "sha256": "e95d87ca77c1cd934377906fac1ccc1a19642fa24626458cd97306f29c26a49d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 17945
+    }
+  ],
+  "esperado": {
+    "contrato": "digitalizado_20260909_071643.pdf",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Depósito Fictício de Materiais S."
+      },
+      "vigencia": null,
+      "reajuste": {
+        "clausula": "Cláusula 26ª",
+        "trecho": "variação do INCC-DI"
+      },
+      "multa": {
+        "clausula": "Cláusula 6ª",
+        "trecho": "multa de 1% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 20ª",
+        "trecho": "aviso prévio de 60 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 13ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 33ª",
+        "trecho": "comarca de Goiânia-GO"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de empreitada de mão de obra de alvenaria. Sem cláusula de vigencia: o esperado é nulo.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

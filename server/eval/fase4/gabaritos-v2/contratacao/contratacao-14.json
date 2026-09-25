@@ -1,0 +1,77 @@
+{
+  "versao": 1,
+  "caso": "contratacao-14",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "Documento (9).pdf",
+      "sha256": "7373f071675b5a917926c6dbcb373e9e0728890da2e45d5931b7f02e295e8924",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 4655
+    },
+    {
+      "nome": "scan_6077.pdf",
+      "sha256": "8b80d190c0a8609069a50fe76ced65909eaa8c8a05bee0acfad61c7e815339c3",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2077
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "Documento (9).pdf",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "duvidoso",
+        "arquivo": "Documento (9).pdf",
+        "pagina": 2
+      },
+      {
+        "item": "alvara",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "garantia",
+        "situacao": "presente",
+        "arquivo": "Documento (9).pdf",
+        "pagina": 3
+      },
+      {
+        "item": "cnd",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cno",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnpj",
+        "situacao": "presente",
+        "arquivo": "scan_6077.pdf",
+        "pagina": 1
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Edifício comercial Centro Exemplo). ART citada; garantia caucao; CND ausente; CNO não mencionado. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

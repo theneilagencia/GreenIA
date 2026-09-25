@@ -1,0 +1,91 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-11",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "digitalizado_20260201_153059.pdf",
+      "sha256": "296b9b6e5b84d6aa47c70f2959e31d83350975135623931b5c246cdc1099f72d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2169
+    },
+    {
+      "nome": "digitalizado_20260608_130906.pdf",
+      "sha256": "dbb599be0d7f2388d9860672df70f1c11f59c15642180c6063562205c8c0a49e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2081
+    },
+    {
+      "nome": "Documento (13).pdf",
+      "sha256": "09324e631fee80af3f119d43642ed67ab1bb717359810021c5cdb515716e5d43",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 1990
+    },
+    {
+      "nome": "scan_7732.pdf",
+      "sha256": "ae0272d399bf658e904fda3b9c08da7870dfffc2ad8dfcc801016c79e4cda7a1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2077
+    },
+    {
+      "nome": "anexo (14).pdf",
+      "sha256": "cbdf9d9c79615821cd1cd78bc5b957a541e162dbe819ea8a6d22a4f0424a95db",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2082
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "presente",
+        "arquivo": "digitalizado_20260201_153059.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "residencia",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "digitalizado_20260608_130906.pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "duvidoso",
+        "arquivo": "anexo (14).pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "presente",
+        "arquivo": "Documento (13).pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "presente",
+        "arquivo": "scan_7732.pdf"
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Bruno Barreto Exemplo). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento. O número do CPF aparece em outros documentos (ASO, CTPS, conta salário); isso não é o comprovante de inscrição.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "versao": 1,
+  "caso": "financeiro-pacote-06",
+  "frente": "financeiro",
+  "tenant": "demonstracao",
+  "modelo": "resumo-financeiro-mensal",
+  "variacao": "pdf, 265 páginas, caixa semanal",
+  "arquivos": [
+    {
+      "nome": "Documento (10).pdf",
+      "sha256": "6d0ae1cd67c22ff965e3cedae98adeaff14c9a5f16ddaed67386aa76cff55594",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 6223
+    },
+    {
+      "nome": "digitalizado_20260803_133206.pdf",
+      "sha256": "91d2d6298104978a16910abded584c9a246176053bb87d6e6ac46822d0cc4f26",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 201916
+    },
+    {
+      "nome": "scan_5025.pdf",
+      "sha256": "fc34a5eb71a483b1fdb206e5b163aba623fbc0af9d18f538ad1238addd92c8c5",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 326488
+    },
+    {
+      "nome": "Planilha sem título (11).xlsx",
+      "sha256": "2a0d6ff02706acbc8c06d489163982c241b2c9db1dbcb7db1aba3bbe7cad8ebc",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6592
+    },
+    {
+      "nome": "dados_9059.csv",
+      "sha256": "f7220b233370ab069a079bdbfd32ee5c0e48a0a0d9606a2ad3e01248255cee74",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 878
+    }
+  ],
+  "esperado": {
+    "campos": [
+      {
+        "arquivo": "Documento (10).pdf",
+        "campo": "periodo",
+        "valor": "2026-03",
+        "pagina": 1,
+        "trecho": "março de 2026"
+      },
+      {
+        "arquivo": "Documento (10).pdf",
+        "campo": "receita_total",
+        "valor": 7255060.71,
+        "pagina": 4,
+        "trecho": "R$ 7.255.060,71"
+      },
+      {
+        "arquivo": "Documento (10).pdf",
+        "campo": "despesa_total",
+        "valor": 5745061.14,
+        "pagina": 4,
+        "trecho": "R$ 5.745.061,14"
+      },
+      {
+        "arquivo": "Documento (10).pdf",
+        "campo": "resultado",
+        "valor": 1509999.57,
+        "pagina": 4,
+        "trecho": "R$ 1.509.999,57"
+      },
+      {
+        "arquivo": "digitalizado_20260803_133206.pdf",
+        "campo": "periodo",
+        "valor": "2026-03",
+        "pagina": 1,
+        "trecho": "março de 2026"
+      },
+      {
+        "arquivo": "digitalizado_20260803_133206.pdf",
+        "campo": "receita_total",
+        "valor": 7255060.71,
+        "pagina": 84,
+        "trecho": "R$ 7.255.060,71"
+      },
+      {
+        "arquivo": "digitalizado_20260803_133206.pdf",
+        "campo": "despesa_total",
+        "valor": 5745061.14,
+        "pagina": 84,
+        "trecho": "R$ 5.745.061,14"
+      },
+      {
+        "arquivo": "digitalizado_20260803_133206.pdf",
+        "campo": "resultado",
+        "valor": 1509999.57,
+        "pagina": 84,
+        "trecho": "R$ 1.509.999,57"
+      },
+      {
+        "arquivo": "scan_5025.pdf",
+        "campo": "periodo",
+        "valor": "2026-03",
+        "pagina": 1,
+        "trecho": "março de 2026"
+      },
+      {
+        "arquivo": "scan_5025.pdf",
+        "campo": "receita_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "scan_5025.pdf",
+        "campo": "despesa_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "scan_5025.pdf",
+        "campo": "resultado",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      }
+    ],
+    "topicos": [
+      "Visão geral do mês",
+      "Receitas e despesas",
+      "Caixa",
+      "Inadimplência",
+      "Pontos de atenção",
+      "Informações que faltam"
+    ],
+    "fatos": [
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo inicial",
+        "valor": 51232.78,
+        "arquivo": "Planilha sem título (11).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de entradas",
+        "valor": 562702.42,
+        "arquivo": "Planilha sem título (11).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de saídas",
+        "valor": 944685.49,
+        "arquivo": "Planilha sem título (11).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo final",
+        "valor": -330750.29,
+        "arquivo": "Planilha sem título (11).xlsx"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Total em atraso (posição em 28/02/2026)",
+        "valor": 360625.12,
+        "arquivo": "dados_9059.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Quantidade de títulos em atraso",
+        "valor": 11,
+        "arquivo": "dados_9059.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Em atraso há mais de 90 dias",
+        "valor": 97549.2,
+        "arquivo": "dados_9059.csv"
+      },
+      {
+        "topico": "Informações que faltam",
+        "descricao": "A inadimplência enviada é de fevereiro de 2026, não de março de 2026",
+        "valor": null,
+        "arquivo": "dados_9059.csv"
+      },
+      {
+        "topico": "Informações que faltam",
+        "descricao": "O resumo do balancete está na página 84, além das 50 lidas por padrão",
+        "valor": null,
+        "arquivo": "digitalizado_20260803_133206.pdf"
+      }
+    ],
+    "erroGrave": "valor errado com origem aparentemente válida"
+  },
+  "notas": "Empresa fictícia (Serviços Modelo de Manutenção Ltda.), março de 2026. DRE com 4 página(s), balancete com 84, razão com 177: 265 páginas em PDF. A DRE traz também a coluna de fevereiro de 2026 (armadilha: valor do mês errado); o quadro-resumo está na página 4. O resumo do balancete está na última página (84). Ela fica além das 50 páginas que o bloco ler lê por padrão (paginasMax): na versão 1 do modelo o valor não chega ao modelo, e o esperado continua sendo o valor certo. O razão tem 177 páginas; só as 50 primeiras são lidas. O razão só tem lançamentos: receita, despesa e resultado esperados nulos. O modelo extrai só de PDF e DOCX; o fluxo de caixa (XLSX) e a inadimplência (CSV) entram só no resumo (fatos). Inadimplência em CSV com ponto e vírgula, UTF-8 com BOM, com posição de fevereiro de 2026 (o resumo precisa apontar que falta a de março de 2026). Parte escaneada: pode vir depois, pela degradação sintética (degradar.ts).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

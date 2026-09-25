@@ -1,0 +1,146 @@
+{
+  "versao": 1,
+  "descricao": "Perguntas sobre cláusulas dos contratos da construtora, com o contrato, a cláusula e o trecho esperados (nulo: o contrato não tem a cláusula).",
+  "perguntas": [
+    {
+      "pergunta": "Por quanto tempo vale o sigilo no contrato anexo (1).pdf?",
+      "contrato": "anexo (1).pdf",
+      "campo": "confidencialidade",
+      "clausula": "Cláusula 32ª",
+      "trecho": "por 5 anos após o término"
+    },
+    {
+      "pergunta": "Por quanto tempo vale o sigilo no contrato Documento (2).pdf?",
+      "contrato": "Documento (2).pdf",
+      "campo": "confidencialidade",
+      "clausula": "Cláusula 12ª",
+      "trecho": "por 5 anos após o término"
+    },
+    {
+      "pergunta": "Por quanto tempo vale o sigilo no contrato Documento (3).docx?",
+      "contrato": "Documento (3).docx",
+      "campo": "confidencialidade",
+      "clausula": "Cláusula 2ª",
+      "trecho": "por 5 anos após o término"
+    },
+    {
+      "pergunta": "Qual é o foro no contrato contrato-04.pdf?",
+      "contrato": "contrato-04.pdf",
+      "campo": "foro",
+      "clausula": "Cláusula 10ª",
+      "trecho": "comarca de Campinas-SP"
+    },
+    {
+      "pergunta": "Por quanto tempo vale o sigilo no contrato Documento (4).pdf?",
+      "contrato": "Documento (4).pdf",
+      "campo": "confidencialidade",
+      "clausula": "Cláusula 39ª",
+      "trecho": "por 5 anos após o término"
+    },
+    {
+      "pergunta": "Qual é a multa por atraso no contrato arquivo_5183.docx?",
+      "contrato": "arquivo_5183.docx",
+      "campo": "multa",
+      "clausula": "Cláusula 38ª",
+      "trecho": "multa de 0,33% por dia"
+    },
+    {
+      "pergunta": "Qual é a multa por atraso no contrato anexo.pdf?",
+      "contrato": "anexo.pdf",
+      "campo": "multa",
+      "clausula": "Cláusula 47ª",
+      "trecho": "multa de 1% por dia"
+    },
+    {
+      "pergunta": "Qual é o foro no contrato digitalizado_20260724_123633.pdf?",
+      "contrato": "digitalizado_20260724_123633.pdf",
+      "campo": "foro",
+      "clausula": "Cláusula 20ª",
+      "trecho": "comarca de Goiânia-GO"
+    },
+    {
+      "pergunta": "Qual é o aviso prévio para rescisão no contrato scan_2228.pdf?",
+      "contrato": "scan_2228.pdf",
+      "campo": "rescisao",
+      "clausula": "Cláusula 20ª",
+      "trecho": "aviso prévio de 60 dias"
+    },
+    {
+      "pergunta": "Por quanto tempo vale o sigilo no contrato scan_0924.pdf?",
+      "contrato": "scan_0924.pdf",
+      "campo": "confidencialidade",
+      "clausula": "Cláusula 4ª",
+      "trecho": "por 5 anos após o término"
+    },
+    {
+      "pergunta": "Qual é a multa por atraso no contrato Documento (5).docx?",
+      "contrato": "Documento (5).docx",
+      "campo": "multa",
+      "clausula": "Cláusula 39ª",
+      "trecho": "multa de 1% por dia"
+    },
+    {
+      "pergunta": "Qual índice reajusta os preços no contrato contrato-12.docx?",
+      "contrato": "contrato-12.docx",
+      "campo": "reajuste",
+      "clausula": null,
+      "trecho": null
+    },
+    {
+      "pergunta": "Qual é o aviso prévio para rescisão no contrato doc4876.docx?",
+      "contrato": "doc4876.docx",
+      "campo": "rescisao",
+      "clausula": "Cláusula 28ª",
+      "trecho": "aviso prévio de 60 dias"
+    },
+    {
+      "pergunta": "Por quanto tempo vale o sigilo no contrato arquivo_2685.docx?",
+      "contrato": "arquivo_2685.docx",
+      "campo": "confidencialidade",
+      "clausula": "Cláusula 49ª",
+      "trecho": "por 5 anos após o término"
+    },
+    {
+      "pergunta": "Qual índice reajusta os preços no contrato digitalizado_20260113_175323.pdf?",
+      "contrato": "digitalizado_20260113_175323.pdf",
+      "campo": "reajuste",
+      "clausula": "Cláusula 16ª",
+      "trecho": "variação do IPCA"
+    },
+    {
+      "pergunta": "Qual é o aviso prévio para rescisão no contrato contrato-16.pdf?",
+      "contrato": "contrato-16.pdf",
+      "campo": "rescisao",
+      "clausula": "Cláusula 46ª",
+      "trecho": "aviso prévio de 60 dias"
+    },
+    {
+      "pergunta": "Qual índice reajusta os preços no contrato digitalizado_20260118_165619.pdf?",
+      "contrato": "digitalizado_20260118_165619.pdf",
+      "campo": "reajuste",
+      "clausula": "Cláusula 15ª",
+      "trecho": "variação do INCC-DI"
+    },
+    {
+      "pergunta": "Qual é o foro no contrato arquivo_6113.docx?",
+      "contrato": "arquivo_6113.docx",
+      "campo": "foro",
+      "clausula": "Cláusula 9ª",
+      "trecho": "comarca de Curitiba-PR"
+    },
+    {
+      "pergunta": "Qual é o aviso prévio para rescisão no contrato contrato-19.pdf?",
+      "contrato": "contrato-19.pdf",
+      "campo": "rescisao",
+      "clausula": "Cláusula 14ª",
+      "trecho": "aviso prévio de 30 dias"
+    },
+    {
+      "pergunta": "Qual é a vigência no contrato contrato-20.docx?",
+      "contrato": "contrato-20.docx",
+      "campo": "vigencia",
+      "clausula": "Cláusula 45ª",
+      "trecho": "vigorará por 24 meses"
+    }
+  ]
+}

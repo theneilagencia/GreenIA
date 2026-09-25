@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { classificar, lerMatriz, pontuar, pontuarMedicoes, rotulo } from '../eval/fase4/pontuar.ts';
+import { classificar, lerMatriz, pontuar, pontuarMedicoes, pontuarMedicoesV2, rotulo } from '../eval/fase4/pontuar.ts';
 import { sha256 } from '../eval/fase4/lib.ts';
 
 const AQUI = new URL('../eval/fase4/', import.meta.url);
@@ -50,4 +50,19 @@ test('rótulos: estimativa de acerto só do reservado; construtora no desenvolvi
   const ms = pontuarMedicoes();
   assert.ok(ms.filter(m => m.frente === 'contratacao').every(m => m.natureza === 'prova_de_generalizacao'));
   assert.ok(ms.every(m => (m.natureza as string) !== 'estimativa_de_acerto' && /desenvolvimento/.test(m.rotuloRelatorio)));
+});
+
+test('pontuação do corpus v2 gravada = matriz aplicada às medições, por tipo de nome', async () => {
+  const gravada = JSON.parse(readFileSync(new URL('resultados/pontuacao-v2-desenvolvimento.json', AQUI), 'utf8'));
+  const agora = await pontuarMedicoesV2();
+  assert.deepEqual(gravada.medicoes, JSON.parse(JSON.stringify(agora)));
+  for (const m of agora) {
+    assert.ok(m.pontuacao && m.porNome, m.arquivo);
+    assert.equal(m.porNome.generico.unidades + m.porNome.descritivo.unidades, m.pontuacao.unidades, m.arquivo);
+  }
+  for (const a of ['rh-v2-desenvolvimento.json', 'contratacao-v2-desenvolvimento.json', 'fiscal-v2-desenvolvimento.json', 'lgpd-v2-desenvolvimento.json']) {
+    const m = agora.find(x => x.arquivo === a)!;
+    assert.equal(m.porNome!.generico.errosGraves, 0, a);
+    assert.equal(m.porNome!.descritivo.errosGraves, 0, a);
+  }
 });

@@ -114,9 +114,40 @@ export function pontuarMedicoes() {
   });
 }
 
+// Corpus versão 2 (nomes genéricos em pelo menos 60% dos arquivos): as mesmas
+// medições, separadas por tipo de nome do caso.
+export const MEDICOES_V2 = [
+  { frente: 'rh', rotulo: 'RH, checklist anterior (tag fase4-antes-correcoes-checklist)', arquivo: 'rh-v2-desenvolvimento-checklist-anterior.json', tipo: 'checklist', natureza: 'desenvolvimento' },
+  { frente: 'rh', rotulo: 'RH, plataforma corrigida', arquivo: 'rh-v2-desenvolvimento.json', tipo: 'checklist', natureza: 'desenvolvimento' },
+  { frente: 'contratacao', rotulo: 'Construtora (contratação), checklist anterior', arquivo: 'contratacao-v2-desenvolvimento-checklist-anterior.json', tipo: 'checklist', natureza: 'prova_de_generalizacao' },
+  { frente: 'contratacao', rotulo: 'Construtora (contratação), plataforma corrigida', arquivo: 'contratacao-v2-desenvolvimento.json', tipo: 'checklist', natureza: 'prova_de_generalizacao' },
+  { frente: 'fiscal', rotulo: 'Fiscal, conferência pelos mapeamentos (cinco layouts)', arquivo: 'fiscal-v2-desenvolvimento.json', tipo: 'fiscal', natureza: 'desenvolvimento' },
+  { frente: 'lgpd', rotulo: 'LGPD, classificação por regras, com os metadados das planilhas', arquivo: 'lgpd-v2-desenvolvimento.json', tipo: 'lgpd', natureza: 'desenvolvimento' },
+] as const;
+
+export async function pontuarMedicoesV2() {
+  const { tipoDeNome, lerDivisaoV2 } = await import('./congelar-v2.ts');
+  const d = lerDivisaoV2();
+  return MEDICOES_V2.map(m => {
+    const p = join(AQUI, 'resultados', m.arquivo);
+    if (!existsSync(p)) return { ...m, conjunto: 'desenvolvimento', corpus: 2, rotuloRelatorio: rotulo('desenvolvimento', m.natureza), pontuacao: null as Pontuacao | null, porNome: null as { generico: Pontuacao; descritivo: Pontuacao } | null };
+    const r = JSON.parse(readFileSync(p, 'utf8'));
+    if (r.conjunto && r.conjunto !== 'desenvolvimento') throw new Error(`${m.arquivo} não é do desenvolvimento`);
+    const pares = (casos: unknown[]) => m.tipo === 'fiscal' ? paresFiscal(casos as CasoFiscal[]) : m.tipo === 'lgpd' ? paresLgpd(casos as never) : paresChecklist(casos as never);
+    const doTipo = (t: string) => (r.casos as { caso: string }[]).filter(c => tipoDeNome(c.caso, d) === t);
+    return { ...m, conjunto: 'desenvolvimento', corpus: 2, rotuloRelatorio: rotulo('desenvolvimento', m.natureza),
+      pontuacao: pontuar(pares(r.casos)) as Pontuacao | null, porNome: { generico: pontuar(pares(doTipo('generico'))), descritivo: pontuar(pares(doTipo('descritivo'))) } as { generico: Pontuacao; descritivo: Pontuacao } | null };
+  });
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const rs = pontuarMedicoes();
   gravarJson(join(AQUI, 'resultados', 'pontuacao-desenvolvimento.json'), { matriz: readFileSync(join(AQUI, 'matriz.sha256'), 'utf8').split(/\s+/)[0], conjunto: 'desenvolvimento', medicoes: rs });
+  pontuarMedicoesV2().then(v2 => {
+    gravarJson(join(AQUI, 'resultados', 'pontuacao-v2-desenvolvimento.json'), { matriz: readFileSync(join(AQUI, 'matriz.sha256'), 'utf8').split(/\s+/)[0], corpus: 2, conjunto: 'desenvolvimento', medicoes: v2 });
+    const linha = (p: Pontuacao) => `${p.casos} casos, ${p.unidades} unidades · acerto ${p.taxas.acerto}% · graves ${p.errosGraves} · comuns ${p.errosComuns} · revisão ${p.taxas.revisao}%`;
+    for (const r of v2) if (r.pontuacao) console.log(`[v2] ${r.rotulo} ${r.rotuloRelatorio}: ${linha(r.pontuacao)}\n     genérico: ${linha(r.porNome!.generico)}\n     descritivo: ${linha(r.porNome!.descritivo)}`);
+  });
   for (const r of rs) {
     const p = r.pontuacao;
     console.log(p ? `${r.rotulo} ${r.rotuloRelatorio}: ${p.casos} casos, ${p.unidades} unidades · acerto ${p.taxas.acerto}% · erros graves ${p.errosGraves} (${p.taxas.errosGraves}%) · erros comuns ${p.errosComuns} (${p.taxas.errosComuns}%) · revisão ${p.taxas.revisao}%` : `${r.rotulo}: sem medição gravada`);

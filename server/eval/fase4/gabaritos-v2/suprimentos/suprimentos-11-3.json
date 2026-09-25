@@ -1,0 +1,110 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-11-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-11.xlsx",
+      "sha256": "ad4087be82fddacf8f7ae7502080e076c1667689dfdb6129a46cb9580079b17b",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6423
+    },
+    {
+      "nome": "cotacao-11-3.docx",
+      "sha256": "7b2493e6f77783dd63aa496b4290682b26f5fc2b914cac219823d8c9f1101355",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8828
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-11-3.docx",
+      "fornecedor": "Aços Modelo Distribuidora Ltda.",
+      "validade": "27/10/2026",
+      "itens": [
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 50,
+          "unidade": "pç",
+          "preco_unitario": 151.67
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 65,
+          "unidade": "br",
+          "preco_unitario": 693.42
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 11,
+          "unidade": "m³",
+          "preco_unitario": 739.9
+        },
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 25,
+          "unidade": "br",
+          "preco_unitario": 707.06
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 28,
+          "unidade": "cx",
+          "preco_unitario": 889.59
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 75,
+          "unidade": "un",
+          "preco_unitario": 560.87
+        },
+        {
+          "codigo": "CIM-032",
+          "descricao": "Cimento CP II-E-32, saco 50 kg",
+          "quantidade": 160,
+          "unidade": "sc",
+          "preco_unitario": 25.8
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 20,
+          "unidade": "rl",
+          "preco_unitario": 125.59
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "PRE-TER",
+        "tipo": "quantidade",
+        "especificado": 30,
+        "cotado": 28
+      },
+      {
+        "codigo": "CAB-006",
+        "tipo": "sem_especificacao",
+        "especificado": null,
+        "cotado": 20
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. 2 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

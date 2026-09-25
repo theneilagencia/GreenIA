@@ -1,0 +1,57 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-04",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "pdf, 9 páginas",
+  "arquivos": [
+    {
+      "nome": "contrato-04.pdf",
+      "sha256": "7efc7d2e1995f8a895db4c11eeabac5f72fe83c64ed134075613a2e9fbe6d1d0",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 9479
+    }
+  ],
+  "esperado": {
+    "contrato": "contrato-04.pdf",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Elétrica Exemplo Comércio Ltda."
+      },
+      "vigencia": {
+        "clausula": "Cláusula 15ª",
+        "trecho": "vigorará por 12 meses"
+      },
+      "reajuste": {
+        "clausula": "Cláusula 12ª",
+        "trecho": "variação do INCC-DI"
+      },
+      "multa": {
+        "clausula": "Cláusula 7ª",
+        "trecho": "multa de 1% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 2ª",
+        "trecho": "aviso prévio de 60 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 5ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 10ª",
+        "trecho": "comarca de Campinas-SP"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de empreitada de mão de obra de alvenaria.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

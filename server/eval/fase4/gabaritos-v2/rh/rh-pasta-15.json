@@ -1,0 +1,98 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-15",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "digitalizado_20260118_171022.pdf",
+      "sha256": "74860daf7f956c83ea334d05aeae1697f8833e13828fefd808e25a2089020751",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2121
+    },
+    {
+      "nome": "digitalizado_20260612_172729.pdf",
+      "sha256": "2b1ba90e619fb88c4459e25eacc9f7c27637d6076bad07d5150834f3e1724bfd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2124
+    },
+    {
+      "nome": "Documento (20).pdf",
+      "sha256": "94da3b6d534a112b4b8790307480b87b317766fa398b18f619f9e2003b1a696d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2090
+    },
+    {
+      "nome": "digitalizado_20260113_093805.pdf",
+      "sha256": "8860fa74d19304635fc592790ba52970b35ee0f85d95ad2a00f7ba5983e08708",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2154
+    },
+    {
+      "nome": "Documento (21).pdf",
+      "sha256": "cfddf2bff5568f81615e1f257f99b04b641d92944ec756a690aca853c1afcf77",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 1998
+    },
+    {
+      "nome": "scan_6122.pdf",
+      "sha256": "ebbfbb499fa12f24b1a3256857e5e36227aa16e9f7d89ac8a94f41d691ad41e3",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2115
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "duvidoso",
+        "arquivo": "scan_6122.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "presente",
+        "arquivo": "digitalizado_20260118_171022.pdf"
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "digitalizado_20260612_172729.pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "Documento (20).pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "presente",
+        "arquivo": "digitalizado_20260113_093805.pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "presente",
+        "arquivo": "Documento (21).pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "ausente",
+        "arquivo": null
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Carla Albuquerque Fictício). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento.",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

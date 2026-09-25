@@ -1,0 +1,104 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-15-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "export_2994.xlsx",
+      "sha256": "80c55ce84b8b554c5f0d249bfb7e86c13535365cd8e2da806e095d8d448a8509",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6511
+    },
+    {
+      "nome": "digitalizado_20260601_170803.pdf",
+      "sha256": "a2de7b2cef4cc9408171893b10a294e8ac7d0c4ac3256863db9ce9fd9b20c2a9",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2684
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "digitalizado_20260601_170803.pdf",
+      "fornecedor": "Elétrica Exemplo Comércio Ltda.",
+      "validade": "11/10/2026",
+      "itens": [
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 245,
+          "unidade": "rl",
+          "preco_unitario": 510.41
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 265,
+          "unidade": "sc",
+          "preco_unitario": 810.22
+        },
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 270,
+          "unidade": "pç",
+          "preco_unitario": 706.27
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 57,
+          "unidade": "m³",
+          "preco_unitario": 288.34
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 240,
+          "unidade": "br",
+          "preco_unitario": 609.79
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 80,
+          "unidade": "mil",
+          "preco_unitario": 251.84
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 155,
+          "unidade": "un",
+          "preco_unitario": 84.58
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 140,
+          "unidade": "cx",
+          "preco_unitario": 838.21
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 85,
+          "unidade": "br",
+          "preco_unitario": 344.21
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

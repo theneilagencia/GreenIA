@@ -1,0 +1,165 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-17",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-e xml",
+  "arquivos": [
+    {
+      "nome": "nfe-6522.xml",
+      "sha256": "38feadd98f453db1db142345e34aa6ddf3a67db103b8a6a3e7f82f9f6d50e2e0",
+      "tipo": "xml",
+      "origem": "gerado",
+      "bytes": 5326
+    },
+    {
+      "nome": "danfe-6522.pdf",
+      "sha256": "3f3b67c00d8ddfc3ab2a2293f4cc22b4dee03a5ab96c3c8433d6e8ea17c6668d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2964
+    },
+    {
+      "nome": "pedido-834264.xml",
+      "sha256": "c6c13a301f541c34a82623ab3b723e0818dfb775b9396d01a85adf629fe3ea6c",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 2686
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "divergencias",
+    "nota": {
+      "chave": "35260626951045000135550010000065221000000007",
+      "numero": "6522",
+      "dataEmissao": "2026-06-28",
+      "cnpjEmitente": "26951045000135",
+      "valorTotal": 7604.04,
+      "xml": "nfe-6522.xml",
+      "danfe": "danfe-6522.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-834264.xml",
+      "layout": "layout-e",
+      "mapeamento": "mapeamentos/layout-e.json",
+      "registros": [
+        {
+          "pedido": "834264",
+          "cnpjFornecedor": "26951045000135",
+          "dataPedido": "2026-06-03",
+          "totalPedido": 50105.02,
+          "codigo": "1151",
+          "descricao": "Abraçadeira de nylon 200 mm",
+          "unidade": "PCT",
+          "quantidade": 19,
+          "valorUnitario": 11.58,
+          "valorTotal": 220.02
+        },
+        {
+          "pedido": "834264",
+          "cnpjFornecedor": "26951045000135",
+          "dataPedido": "2026-06-03",
+          "totalPedido": 50105.02,
+          "codigo": "8801",
+          "descricao": "Óleo lubrificante ISO 68, balde 20 L",
+          "unidade": "BD",
+          "quantidade": 159,
+          "valorUnitario": 296.64,
+          "valorTotal": 47165.76
+        },
+        {
+          "pedido": "834264",
+          "cnpjFornecedor": "26951045000135",
+          "dataPedido": "2026-06-03",
+          "totalPedido": 50105.02,
+          "codigo": "6100",
+          "descricao": "Eletrodo revestido E6013 2,5 mm",
+          "unidade": "KG",
+          "quantidade": 33,
+          "valorUnitario": 27.9,
+          "valorTotal": 920.7
+        },
+        {
+          "pedido": "834264",
+          "cnpjFornecedor": "26951045000135",
+          "dataPedido": "2026-06-03",
+          "totalPedido": 50105.02,
+          "codigo": "4013",
+          "descricao": "Porca sextavada M8 zincada",
+          "unidade": "UN",
+          "quantidade": 22,
+          "valorUnitario": 0.12,
+          "valorTotal": 2.64
+        },
+        {
+          "pedido": "834264",
+          "cnpjFornecedor": "26951045000135",
+          "dataPedido": "2026-06-03",
+          "totalPedido": 50105.02,
+          "codigo": "3305",
+          "descricao": "Disco de corte 7 polegadas para aço",
+          "unidade": "UN",
+          "quantidade": 190,
+          "valorUnitario": 8.95,
+          "valorTotal": 1700.5
+        },
+        {
+          "pedido": "834264",
+          "cnpjFornecedor": "26951045000135",
+          "dataPedido": "2026-06-03",
+          "totalPedido": 50105.02,
+          "codigo": "3306",
+          "descricao": "Lixa para ferro grão 120",
+          "unidade": "FL",
+          "quantidade": 45,
+          "valorUnitario": 2.12,
+          "valorTotal": 95.4
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "chave": "2215",
+        "campo": "codigo",
+        "tipo": "so_na_nota",
+        "esperado": null,
+        "encontrado": "2215",
+        "regra": "item da nota sem par no pedido"
+      },
+      {
+        "chave": "8801",
+        "campo": "valorUnitario",
+        "tipo": "preco_fora_tolerancia",
+        "esperado": 296.64,
+        "encontrado": 27.7326,
+        "regra": "tolerância de 1% sobre o preço do pedido"
+      },
+      {
+        "chave": "6100",
+        "campo": "codigo",
+        "tipo": "so_no_pedido",
+        "esperado": "6100",
+        "encontrado": null,
+        "regra": "item do pedido sem par na nota"
+      },
+      {
+        "chave": "cabecalho",
+        "campo": "totalPedido",
+        "tipo": "valor_total",
+        "esperado": 50105.02,
+        "encontrado": 7604.04,
+        "regra": "total do pedido × valor da nota, tolerância de R$ 1,00"
+      }
+    ],
+    "dentroDaTolerancia": [],
+    "pedirXml": [],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-e: XML de registros, data dd/mm/aa, número com ponto decimal e vírgula de milhar, CNPJ formatado. Importação pelo mapeamento mapeamentos/layout-e.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Plantado: so_na_nota, so_no_pedido; preço dentro da tolerância de 1% (não é divergência). O total do pedido entra quando difere do valor da nota em mais de R$ 1,00. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

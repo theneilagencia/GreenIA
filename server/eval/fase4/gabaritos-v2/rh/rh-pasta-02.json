@@ -1,0 +1,98 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-02",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "rg.pdf",
+      "sha256": "1a5ca6159413606606680951c616fb810972ce2cbb394f3a7b6454e74a2f821b",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2157
+    },
+    {
+      "nome": "conta-de-luz.pdf",
+      "sha256": "3a1b3fba7937a6dbf4cb5f41f5c8cc18a37892c45e820e056b5547f0f5909b99",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2085
+    },
+    {
+      "nome": "aso-admissional.pdf",
+      "sha256": "74300f7d548db73ed229769ab02e313e4393b322b3df9827b2d29ce1e44adcec",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2137
+    },
+    {
+      "nome": "titulo-eleitor.pdf",
+      "sha256": "c57df37698e427b72abbdb94e811ef0af8a900b93a324004f841f3951320ff36",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 1990
+    },
+    {
+      "nome": "comprovante-conta-salario.pdf",
+      "sha256": "a5b290dab1c3b1bc4b05fc923d88b775eeeb416e08478dfbceb70bfb4d0e20bd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2077
+    },
+    {
+      "nome": "ficha-de-admissao.pdf",
+      "sha256": "103b4995c290b1ee50a550a0baae08ee5241b0d7c9ccffcae5aaa2c91f11f5da",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 1973
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "presente",
+        "arquivo": "rg.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "conta-de-luz.pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "aso",
+        "situacao": "presente",
+        "arquivo": "aso-admissional.pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "presente",
+        "arquivo": "titulo-eleitor.pdf"
+      },
+      {
+        "item": "banco",
+        "situacao": "presente",
+        "arquivo": "comprovante-conta-salario.pdf"
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Marcos Leal Fictício). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento. O número do CPF aparece em outros documentos (ASO, CTPS, conta salário); isso não é o comprovante de inscrição.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

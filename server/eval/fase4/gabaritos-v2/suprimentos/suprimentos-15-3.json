@@ -1,0 +1,116 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-15-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "export_2994.xlsx",
+      "sha256": "80c55ce84b8b554c5f0d249bfb7e86c13535365cd8e2da806e095d8d448a8509",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6511
+    },
+    {
+      "nome": "Documento (16).docx",
+      "sha256": "128ba91aa1a86ad82fd154aa39aaa37716ec651ac742e85d5d85dd3b9872c5e3",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8803
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "Documento (16).docx",
+      "fornecedor": "Casa do Construtor Exemplo Ltda.",
+      "validade": "28/10/2026",
+      "itens": [
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 245,
+          "unidade": "m",
+          "preco_unitario": 84.53
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 265,
+          "unidade": "sc",
+          "preco_unitario": 322.71
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 57,
+          "unidade": "ton",
+          "preco_unitario": 633.22
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 240,
+          "unidade": "br",
+          "preco_unitario": 787.99
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 80,
+          "unidade": "mil",
+          "preco_unitario": 641.74
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 155,
+          "unidade": "un",
+          "preco_unitario": 556.37
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 140,
+          "unidade": "cx",
+          "preco_unitario": 430.91
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 85,
+          "unidade": "br",
+          "preco_unitario": 831.67
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "CAB-006",
+        "tipo": "unidade",
+        "especificado": "rl",
+        "cotado": "m"
+      },
+      {
+        "codigo": "TEL-Q92",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 270,
+        "cotado": null
+      },
+      {
+        "codigo": "BRI-001",
+        "tipo": "unidade",
+        "especificado": "m³",
+        "cotado": "ton"
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. 3 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

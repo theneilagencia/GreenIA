@@ -1,0 +1,103 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-03-2",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "Documento (3).xlsx",
+      "sha256": "3c1cccc7b330d01c73c5f0f4a799544321beba399fa2c30a37886e7820b27f3c",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6416
+    },
+    {
+      "nome": "Documento (4).pdf",
+      "sha256": "85fc0ef17cce7e57b823d9f626cf137901287651bc44840d5d0906bb37ce94bc",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2596
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "Documento (4).pdf",
+      "fornecedor": "Elétrica Exemplo Comércio Ltda.",
+      "validade": "17/10/2026",
+      "itens": [
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 12,
+          "unidade": "m³",
+          "preco_unitario": 114.18
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 215,
+          "unidade": "sc",
+          "preco_unitario": 273.01
+        },
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 190,
+          "unidade": "br",
+          "preco_unitario": 757.68
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 280,
+          "unidade": "br",
+          "preco_unitario": 361.51
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 55,
+          "unidade": "rl",
+          "preco_unitario": 717.84
+        },
+        {
+          "codigo": "PRE-TER",
+          "descricao": "Prego 18x27 com cabeça, caixa 1 kg",
+          "quantidade": 110,
+          "unidade": "cx",
+          "preco_unitario": 847.65
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 165,
+          "unidade": "mil",
+          "preco_unitario": 140.5
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "ACO-050",
+        "tipo": "quantidade",
+        "especificado": 240,
+        "cotado": 190
+      },
+      {
+        "codigo": "CAB-006",
+        "tipo": "quantidade",
+        "especificado": 65,
+        "cotado": 55
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Galpão Logístico Km 12. 2 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

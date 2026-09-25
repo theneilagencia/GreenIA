@@ -1,0 +1,198 @@
+{
+  "versao": 1,
+  "caso": "financeiro-pacote-01",
+  "frente": "financeiro",
+  "tenant": "demonstracao",
+  "modelo": "resumo-financeiro-mensal",
+  "variacao": "pdf, 187 páginas, caixa diario",
+  "arquivos": [
+    {
+      "nome": "Documento (1).pdf",
+      "sha256": "df7218cc807355f8145ee07c3644b86be76300627c5228bf08fb513bcaf954c1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3901
+    },
+    {
+      "nome": "anexo (2).pdf",
+      "sha256": "79a4ae81ba6714f57d1334c503bb1e79b78e6f9e01b5d9c13e7cd80d7afc42a9",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 134100
+    },
+    {
+      "nome": "anexo.pdf",
+      "sha256": "f09ee625f3f4c9d871cd24f3d8fb2eb2416d2b958d7aba291f2f21849724a393",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 238039
+    },
+    {
+      "nome": "Planilha sem título (3).xlsx",
+      "sha256": "d4e0e5fb969199930fb9e65c24f1889f5d8ef18ac527d6977e5ae5c79354a582",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 7323
+    },
+    {
+      "nome": "export (4).csv",
+      "sha256": "67b7633eeffcf186314a542bf8fc0485000657ed6cb1fe1cd1a95fb1ab8a5490",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 1324
+    }
+  ],
+  "esperado": {
+    "campos": [
+      {
+        "arquivo": "Documento (1).pdf",
+        "campo": "periodo",
+        "valor": "2026-08",
+        "pagina": 1,
+        "trecho": "agosto de 2026"
+      },
+      {
+        "arquivo": "Documento (1).pdf",
+        "campo": "receita_total",
+        "valor": 6886518.29,
+        "pagina": 1,
+        "trecho": "R$ 6.886.518,29"
+      },
+      {
+        "arquivo": "Documento (1).pdf",
+        "campo": "despesa_total",
+        "valor": 6260398.55,
+        "pagina": 1,
+        "trecho": "R$ 6.260.398,55"
+      },
+      {
+        "arquivo": "Documento (1).pdf",
+        "campo": "resultado",
+        "valor": 626119.74,
+        "pagina": 1,
+        "trecho": "R$ 626.119,74"
+      },
+      {
+        "arquivo": "anexo (2).pdf",
+        "campo": "periodo",
+        "valor": "2026-08",
+        "pagina": 1,
+        "trecho": "agosto de 2026"
+      },
+      {
+        "arquivo": "anexo (2).pdf",
+        "campo": "receita_total",
+        "valor": 6886518.29,
+        "pagina": 56,
+        "trecho": "R$ 6.886.518,29"
+      },
+      {
+        "arquivo": "anexo (2).pdf",
+        "campo": "despesa_total",
+        "valor": 6260398.55,
+        "pagina": 56,
+        "trecho": "R$ 6.260.398,55"
+      },
+      {
+        "arquivo": "anexo (2).pdf",
+        "campo": "resultado",
+        "valor": 626119.74,
+        "pagina": 56,
+        "trecho": "R$ 626.119,74"
+      },
+      {
+        "arquivo": "anexo.pdf",
+        "campo": "periodo",
+        "valor": "2026-08",
+        "pagina": 1,
+        "trecho": "agosto de 2026"
+      },
+      {
+        "arquivo": "anexo.pdf",
+        "campo": "receita_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "anexo.pdf",
+        "campo": "despesa_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "anexo.pdf",
+        "campo": "resultado",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      }
+    ],
+    "topicos": [
+      "Visão geral do mês",
+      "Receitas e despesas",
+      "Caixa",
+      "Inadimplência",
+      "Pontos de atenção",
+      "Informações que faltam"
+    ],
+    "fatos": [
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo inicial",
+        "valor": 117728.53,
+        "arquivo": "Planilha sem título (3).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de entradas",
+        "valor": 700048.51,
+        "arquivo": "Planilha sem título (3).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de saídas",
+        "valor": 666913.53,
+        "arquivo": "Planilha sem título (3).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo final",
+        "valor": 150863.51,
+        "arquivo": "Planilha sem título (3).xlsx"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Total em atraso (posição em 31/08/2026)",
+        "valor": 418590.92,
+        "arquivo": "export (4).csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Quantidade de títulos em atraso",
+        "valor": 17,
+        "arquivo": "export (4).csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Em atraso há mais de 90 dias",
+        "valor": 214159.15,
+        "arquivo": "export (4).csv"
+      },
+      {
+        "topico": "Informações que faltam",
+        "descricao": "O resumo do balancete está na página 56, além das 50 lidas por padrão",
+        "valor": null,
+        "arquivo": "anexo (2).pdf"
+      }
+    ],
+    "erroGrave": "valor errado com origem aparentemente válida"
+  },
+  "notas": "Empresa fictícia (Indústria Exemplo de Embalagens Ltda.), agosto de 2026. DRE com 2 página(s), balancete com 56, razão com 129: 187 páginas em PDF. A DRE traz também a coluna de julho de 2026 (armadilha: valor do mês errado); o quadro-resumo está na página 1. O resumo do balancete está na última página (56). Ela fica além das 50 páginas que o bloco ler lê por padrão (paginasMax): na versão 1 do modelo o valor não chega ao modelo, e o esperado continua sendo o valor certo. O razão tem 129 páginas; só as 50 primeiras são lidas. O razão só tem lançamentos: receita, despesa e resultado esperados nulos. O modelo extrai só de PDF e DOCX; o fluxo de caixa (XLSX) e a inadimplência (CSV) entram só no resumo (fatos). Inadimplência em CSV com ponto e vírgula, Latin-1. Parte escaneada: pode vir depois, pela degradação sintética (degradar.ts).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

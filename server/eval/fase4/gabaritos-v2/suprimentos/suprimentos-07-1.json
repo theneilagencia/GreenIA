@@ -1,0 +1,97 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-07-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-07.xlsx",
+      "sha256": "fb34ec1a485a6b7930d41db8304184298bee4c38b8206af3a7a85c1be909af79",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6461
+    },
+    {
+      "nome": "cotacao-07-1.docx",
+      "sha256": "f3479bc1898e5c344769e0270df970b655886c1da8b48647a318d8df18791bee",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8824
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-07-1.docx",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "18/10/2026",
+      "itens": [
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 215,
+          "unidade": "ch",
+          "preco_unitario": 511.13
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 170,
+          "unidade": "rl",
+          "preco_unitario": 894.21
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 175,
+          "unidade": "sc",
+          "preco_unitario": 702.34
+        },
+        {
+          "codigo": "IMP-ASF",
+          "descricao": "Manta asfáltica 4 mm, rolo 10 m²",
+          "quantidade": 280,
+          "unidade": "rl",
+          "preco_unitario": 436.59
+        },
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 160,
+          "unidade": "pç",
+          "preco_unitario": 442.26
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 25,
+          "unidade": "m³",
+          "preco_unitario": 408.15
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 45,
+          "unidade": "un",
+          "preco_unitario": 814.6
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 25,
+          "unidade": "m³",
+          "preco_unitario": 617.23
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

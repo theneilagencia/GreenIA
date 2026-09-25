@@ -1,0 +1,127 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-30",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-e xml, só DANFE",
+  "arquivos": [
+    {
+      "nome": "scan_1292.pdf",
+      "sha256": "5b4d7cd7ec4ab044c6403543c01c3b778208d60bfb7bb0fe6fb3d0ac80386641",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3012
+    },
+    {
+      "nome": "download (36).xml",
+      "sha256": "74755712fa4e0fb30ea98bfe0515eee0d85ded6ab310c8e2cef6bdd9b0bb4e13",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 2694
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "danfe_sem_xml",
+    "nota": {
+      "chave": "35260782104754000156550010000589311000000001",
+      "numero": "58931",
+      "dataEmissao": "2026-07-04",
+      "cnpjEmitente": "82104754000156",
+      "valorTotal": 62928.75,
+      "xml": null,
+      "danfe": "scan_1292.pdf"
+    },
+    "pedido": {
+      "arquivo": "download (36).xml",
+      "layout": "layout-e",
+      "mapeamento": "mapeamentos/layout-e.json",
+      "registros": [
+        {
+          "pedido": "479761",
+          "cnpjFornecedor": "82104754000156",
+          "dataPedido": "2026-06-16",
+          "totalPedido": 62928.75,
+          "codigo": "4012",
+          "descricao": "Parafuso sextavado M8x30 zincado",
+          "unidade": "UN",
+          "quantidade": 165,
+          "valorUnitario": 0.35,
+          "valorTotal": 57.75
+        },
+        {
+          "pedido": "479761",
+          "cnpjFornecedor": "82104754000156",
+          "dataPedido": "2026-06-16",
+          "totalPedido": 62928.75,
+          "codigo": "8801",
+          "descricao": "Óleo lubrificante ISO 68, balde 20 L",
+          "unidade": "BD",
+          "quantidade": 155,
+          "valorUnitario": 323.79,
+          "valorTotal": 50187.45
+        },
+        {
+          "pedido": "479761",
+          "cnpjFornecedor": "82104754000156",
+          "dataPedido": "2026-06-16",
+          "totalPedido": 62928.75,
+          "codigo": "2210",
+          "descricao": "Filme stretch 500 mm x 25 micras",
+          "unidade": "RL",
+          "quantidade": 26,
+          "valorUnitario": 66.03,
+          "valorTotal": 1716.78
+        },
+        {
+          "pedido": "479761",
+          "cnpjFornecedor": "82104754000156",
+          "dataPedido": "2026-06-16",
+          "totalPedido": 62928.75,
+          "codigo": "2215",
+          "descricao": "Etiqueta adesiva 100x50 mm",
+          "unidade": "MIL",
+          "quantidade": 182,
+          "valorUnitario": 46.03,
+          "valorTotal": 8377.46
+        },
+        {
+          "pedido": "479761",
+          "cnpjFornecedor": "82104754000156",
+          "dataPedido": "2026-06-16",
+          "totalPedido": 62928.75,
+          "codigo": "1151",
+          "descricao": "Abraçadeira de nylon 200 mm",
+          "unidade": "PCT",
+          "quantidade": 134,
+          "valorUnitario": 12.14,
+          "valorTotal": 1626.76
+        },
+        {
+          "pedido": "479761",
+          "cnpjFornecedor": "82104754000156",
+          "dataPedido": "2026-06-16",
+          "totalPedido": 62928.75,
+          "codigo": "7731",
+          "descricao": "Luva de vaqueta tamanho G",
+          "unidade": "PR",
+          "quantidade": 69,
+          "valorUnitario": 13.95,
+          "valorTotal": 962.55
+        }
+      ]
+    },
+    "divergencias": [],
+    "dentroDaTolerancia": [],
+    "pedirXml": [
+      "35260782104754000156550010000589311000000001"
+    ],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-e: XML de registros, data dd/mm/aa, número com ponto decimal e vírgula de milhar, CNPJ formatado. Importação pelo mapeamento mapeamentos/layout-e.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Só a DANFE, sem o XML: o esperado é pedir o XML ao fornecedor (chave 35260782104754000156550010000589311000000001). Sem o XML não há conferência de itens; nota e pedido são iguais. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

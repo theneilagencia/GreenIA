@@ -1,0 +1,90 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-17-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "Documento (19).xlsx",
+      "sha256": "d5b2b3c204af740f690400bf0f602c59c3f748bb670493ad23e2d2fb83d3f543",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6407
+    },
+    {
+      "nome": "Documento (20).docx",
+      "sha256": "79a7358ecaced0ac7928243d7fe1204422dbece4bbcf16b7e5cf879f36fcca86",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8771
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "Documento (20).docx",
+      "fornecedor": "Aços Modelo Distribuidora Ltda.",
+      "validade": "26/10/2026",
+      "itens": [
+        {
+          "codigo": "ACO-050",
+          "descricao": "Aço CA-50 10 mm, barra 12 m",
+          "quantidade": 10,
+          "unidade": "br",
+          "preco_unitario": 16.98
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 25,
+          "unidade": "mil",
+          "preco_unitario": 139.7
+        },
+        {
+          "codigo": "ARG-AC3",
+          "descricao": "Argamassa colante AC-III, saco 20 kg",
+          "quantidade": 165,
+          "unidade": "sc",
+          "preco_unitario": 846.36
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 135,
+          "unidade": "un",
+          "preco_unitario": 129.77
+        },
+        {
+          "codigo": "CAB-006",
+          "descricao": "Cabo flexível 6 mm², rolo 100 m",
+          "quantidade": 100,
+          "unidade": "rl",
+          "preco_unitario": 194.8
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 300,
+          "unidade": "br",
+          "preco_unitario": 138.24
+        },
+        {
+          "codigo": "ARE-MED",
+          "descricao": "Areia média lavada",
+          "quantidade": 5,
+          "unidade": "m³",
+          "preco_unitario": 478.07
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Escola Municipal Exemplo. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

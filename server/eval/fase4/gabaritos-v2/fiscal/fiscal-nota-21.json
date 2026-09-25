@@ -1,0 +1,144 @@
+{
+  "versao": 1,
+  "caso": "fiscal-nota-21",
+  "frente": "fiscal",
+  "tenant": "demonstracao",
+  "modelo": "conferencia-nota-pedido",
+  "variacao": "layout-e xml",
+  "arquivos": [
+    {
+      "nome": "nfe-93429.xml",
+      "sha256": "7b56d16ecad9be0ab4317393ff927cce9f8ebe344aebe8f1e1c88f0fae0b47fd",
+      "tipo": "xml",
+      "origem": "gerado",
+      "bytes": 5954
+    },
+    {
+      "nome": "danfe-93429.pdf",
+      "sha256": "8c48b664ac482505cf954be12daaeb945d676fcde0b9fc6de5e805e91d0e2b2f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 3048
+    },
+    {
+      "nome": "pedido-119159.xml",
+      "sha256": "9e03eda79b281abe45d222899654a7d2bc2efac0c0cd10f0443d493bd944bb67",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 3116
+    }
+  ],
+  "esperado": {
+    "tipoCaso": "limpo",
+    "nota": {
+      "chave": "35260660294388000102550010000934291000000003",
+      "numero": "93429",
+      "dataEmissao": "2026-06-13",
+      "cnpjEmitente": "60294388000102",
+      "valorTotal": 75598.49,
+      "xml": "nfe-93429.xml",
+      "danfe": "danfe-93429.pdf"
+    },
+    "pedido": {
+      "arquivo": "pedido-119159.xml",
+      "layout": "layout-e",
+      "mapeamento": "mapeamentos/layout-e.json",
+      "registros": [
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "2210",
+          "descricao": "Filme stretch 500 mm x 25 micras",
+          "unidade": "RL",
+          "quantidade": 153,
+          "valorUnitario": 71.34,
+          "valorTotal": 10915.02
+        },
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "8801",
+          "descricao": "Óleo lubrificante ISO 68, balde 20 L",
+          "unidade": "BD",
+          "quantidade": 197,
+          "valorUnitario": 299.57,
+          "valorTotal": 59015.29
+        },
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "6100",
+          "descricao": "Eletrodo revestido E6013 2,5 mm",
+          "unidade": "KG",
+          "quantidade": 43,
+          "valorUnitario": 27.87,
+          "valorTotal": 1198.41
+        },
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "EPI-0450",
+          "descricao": "Óculos de proteção incolor",
+          "unidade": "UN",
+          "quantidade": 99,
+          "valorUnitario": 7.18,
+          "valorTotal": 710.82
+        },
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "4012",
+          "descricao": "Parafuso sextavado M8x30 zincado",
+          "unidade": "UN",
+          "quantidade": 7,
+          "valorUnitario": 0.38,
+          "valorTotal": 2.66
+        },
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "6101",
+          "descricao": "Arame de solda MIG 1,0 mm",
+          "unidade": "KG",
+          "quantidade": 46,
+          "valorUnitario": 22.64,
+          "valorTotal": 1041.44
+        },
+        {
+          "pedido": "119159",
+          "cnpjFornecedor": "60294388000102",
+          "dataPedido": "2026-06-08",
+          "totalPedido": 75598.49,
+          "codigo": "9020",
+          "descricao": "Pallet de madeira PBR 1,20 x 1,00 m",
+          "unidade": "UN",
+          "quantidade": 45,
+          "valorUnitario": 60.33,
+          "valorTotal": 2714.85
+        }
+      ]
+    },
+    "divergencias": [],
+    "dentroDaTolerancia": [],
+    "pedirXml": [],
+    "erroGrave": "divergência não apontada"
+  },
+  "notas": "Pedido no layout-e: XML de registros, data dd/mm/aa, número com ponto decimal e vírgula de milhar, CNPJ formatado. Importação pelo mapeamento mapeamentos/layout-e.json; o gabarito usa só os campos normalizados (pedido, cnpjFornecedor, dataPedido, totalPedido, codigo, descricao, quantidade, unidade, valorUnitario, valorTotal), nunca os nomes de coluna do sistema de origem. O modelo conferencia-nota-pedido (versão 2) lê o pedido pelo conjunto de dados \"pedido\": o tenant de avaliação precisa ter este mapeamento cadastrado. Caso limpo (controle): nota e pedido iguais, emissão dentro do prazo. Regras do modelo: quantidade exata, valor unitário com tolerância de 1%, descrição sem diferenciar maiúsculas e acentos, emissão até 30 dias depois da data do pedido, total do pedido × valor da nota com tolerância de R$ 1,00. O valorTotal de cada item não é conferido. A chave de junção é o código (só dígitos: comparado como número).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

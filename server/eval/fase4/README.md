@@ -64,6 +64,74 @@ Todo número deste README e do relatório final traz o conjunto de origem e a na
 
 Hoje não há nenhuma estimativa de acerto: o reservado só roda na rodada final, depois das rodadas com o modelo real no desenvolvimento. A única exceção foi a linha de base do RH, pedida explicitamente e registrada em `resultados/uso-do-reservado.log`. Ela está rotulada abaixo e não é estimativa da plataforma corrigida.
 
+## Corpus versão 2: nomes de arquivo genéricos
+
+### Por que a versão 1 foi substituída
+
+Na versão 1, o nome de quase todo arquivo entregava a resposta: `ctps-digital.pdf`, `aso-admissional.pdf`, `art.pdf`, `relatorio-incidente-ri-2026-024.docx`, `cotacao-01-2.pdf`. Um assistente que olhasse só o nome acertaria boa parte dos itens sem ler o documento. Arquivos reais chegam com nomes como `scan_0043.pdf` ou `Documento (3).xlsx`.
+
+A versão 2 foi feita antes de qualquer rodada com o modelo real e antes da rodada final. O reservado da versão 1 foi usado uma única vez, a seu pedido, para a linha de base do RH antes das correções (só o resumo, em `resultados/uso-do-reservado.log`). Não houve rodada final na versão 1. A versão 1 fica no repositório (`gabaritos/`, `divisao.json`) como registro.
+
+### Auditoria dos nomes (`nomes.ts`, resultado em `resultados/auditoria-nomes.json`)
+
+Um nome "revela" quando traz um termo que entrega a resposta daquela frente. Os termos são:
+- **Checklists:** o item, com os sinônimos do modelo do catálogo.
+- **LGPD:** a categoria da taxonomia.
+- **Demais frentes:** o tipo de documento (NF-e, DANFE, pedido, cotação, especificação, contrato, DRE, balancete, razão).
+
+| Frente | Arquivos | Nome revela a resposta, versão 1 | Versão 2 | Nome da pasta revela |
+|---|---|---|---|---|
+| RH | 85 | 85 (100%) | 28 (33%) | não |
+| Construtora (contratação) | 47 | 47 (100%) | 18 (38%) | não |
+| Fiscal | 82 | 82 (100%) | 28 (34%) | só o tipo de documento (`fiscal-nota-NN`) |
+| Suprimentos | 120 | 120 (100%) | 42 (35%) | não |
+| Jurídico | 25 | 25 (100%) | 8 (32%) | só o tipo de documento (`juridico-contrato-NN`) |
+| Financeiro | 50 | 50 (100%) | 15 (30%) | não |
+| LGPD | 60 | 45 (75%) | 17 (28%) | não |
+
+- O nome da pasta do caso nunca chega à plataforma: a avaliação envia só os arquivos, pela API.
+- No LGPD, os 15 arquivos que já não revelavam na versão 1 são os sem relação com a taxonomia (ex.: `mesas-e-cadeiras.xlsx`).
+- Na versão 2, o que ainda revela está só nos casos descritivos.
+
+### Como a versão 2 foi feita (`congelar-v2.ts`)
+
+- **Mesmos casos, mesmos arquivos, mesmos resultados esperados.** Só os nomes de arquivo mudam, dentro dos gabaritos também. No LGPD, o nome sugerido (`categoria/período_nome`) acompanha o nome novo.
+- **Nomes genéricos** como sai de scanner, download ou "salvar como": `scan_0514.pdf`, `anexo (2).pdf`, `digitalizado_20260106_161049.pdf`, `Documento (3).xlsx`, `doc0592.docx`, `export (1).csv`, `download (4).xml`. Eles são únicos na frente, porque as perguntas do Jurídico citam o arquivo.
+- **Tipo de nome por unidade da divisão.** O caso inteiro tem um tipo só; em Suprimentos, a especificação inteira. Em cada frente e em cada conjunto, 65% das unidades têm nome genérico, com pelo menos uma de cada tipo. Resultado: 62% a 70% dos arquivos genéricos por frente (RH 67%, construtora 62%, Fiscal 66%, Suprimentos 65%, Jurídico 68%, Financeiro 70%, LGPD 67%).
+- **Divisão (`divisao-v2.json`, sha256 em `divisao-v2.sha256`).** Os conjuntos da versão 1 foram mantidos, e o estrato "nome genérico × descritivo" foi sorteado dentro de cada conjunto. Não refiz o sorteio dos conjuntos: os casos do desenvolvimento já foram lidos e usados nas correções, e um novo sorteio levaria alguns deles para o reservado. A distribuição por estrato, agora com `nome:`, está no arquivo.
+- **Gabaritos em `gabaritos-v2/`,** com o sha256 de cada um em `gabaritos-v2/manifesto.json`. O teste `fase4-corpus-v2.test.ts` confere:
+  - que os gabaritos v2 são os v1 com outros nomes (mesmos bytes, mesmo esperado);
+  - que pelo menos 60% dos arquivos de cada frente têm nome genérico;
+  - que a divisão tem os mesmos conjuntos da v1;
+  - que o corpus gerado de novo bate com os gabaritos congelados.
+- **Catálogo.** O modelo de Suprimentos (v3) procurava a especificação pelo nome (`*especifica*`). Agora lê a planilha do caso sem depender do nome. Os outros modelos já não dependiam do nome de arquivo.
+
+### Medições do desenvolvimento no corpus versão 2, pela matriz, por tipo de nome
+
+[desenvolvimento · medição de desenvolvimento; a construtora é prova de generalização; nenhum número é estimativa de acerto]. Arquivo: `resultados/pontuacao-v2-desenvolvimento.json`.
+
+| Frente | Versão da plataforma | Tipo de nome | Casos | Unidades | Acerto | Erros graves | Erros comuns | Revisão |
+|---|---|---|---|---|---|---|---|---|
+| RH | checklist anterior (tag) | genérico | 6 | 42 | 50,0% | 3 | 0 | 42,9% |
+| RH | checklist anterior (tag) | descritivo | 3 | 21 | 95,2% | 1 | 0 | 0% |
+| RH | plataforma corrigida | genérico | 6 | 42 | 90,5% | 0 | 0 | 9,5% |
+| RH | plataforma corrigida | descritivo | 3 | 21 | 95,2% | 0 | 0 | 4,8% |
+| Construtora | checklist anterior (tag) | genérico | 6 | 42 | 52,4% | 0 | 3 | 40,5% |
+| Construtora | checklist anterior (tag) | descritivo | 3 | 21 | 66,7% | 2 | 1 | 19,0% |
+| Construtora | plataforma corrigida | genérico | 6 | 42 | 90,5% | 0 | 0 | 9,5% |
+| Construtora | plataforma corrigida | descritivo | 3 | 21 | 90,5% | 0 | 0 | 9,5% |
+| Fiscal | conferência pelos mapeamentos | genérico | 12 | 237 | 98,7% | 0 | 0 | 1,3% |
+| Fiscal | conferência pelos mapeamentos | descritivo | 6 | 116 | 98,3% | 0 | 0 | 1,7% |
+| LGPD | classificação por regras | genérico | 3 | 150 | 79,3% | 0 | 0 | 20,7% |
+| LGPD | classificação por regras | descritivo | 1 | 50 | 90,0% | 0 | 0 | 10,0% |
+
+- **O que os nomes escondiam.** O checklist anterior dependia do nome do arquivo. Com nome genérico, o RH cai de 95,2% para 50% de acerto e 42,9% vai para revisão.
+- **A plataforma corrigida identifica pelo conteúdo:**
+  - no total, dá o mesmo resultado nas duas versões do corpus (RH 92,1%, construtora 90,5%, Fiscal 98,6%, LGPD 82%, todos com 0 erro grave);
+  - as diferenças entre genérico e descritivo, dentro de cada frente, vêm de casos diferentes (quantos itens duvidosos cada caso tem), e não do nome.
+- **No LGPD, a revisão maior do genérico** vem da composição dos casos. Os três casos genéricos têm 6 documentos sem relação com a taxonomia, que ficam não classificados; o descritivo tem 1. Há ainda um certificado classificado com confiança baixa. Nenhum documento foi classificado errado.
+- **Daqui em diante.** As rodadas com o modelo real e a rodada final usam a versão 2 (`gerarOficialV2`, `aplicarV2`).
+
 ## Divisão: desenvolvimento e reservado
 
 `dividir.ts` separa cada lote (frente + procedência: `gerado`, depois `pncp`) em desenvolvimento (60%) e reservado (40%). O resultado fica congelado em `divisao.json`, com o sha256 em `divisao.sha256`. O teste `fase4-divisao.test.ts` confere o hash, a cobertura de todos os gabaritos e que a divisão refeita dá o mesmo resultado.

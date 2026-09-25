@@ -1,0 +1,89 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-06-3",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "pdf",
+  "arquivos": [
+    {
+      "nome": "export_6446.xlsx",
+      "sha256": "32062c3e2a725c7da3736b89d3841c200d52154d9fc8c8c76c156712d5b8913d",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6424
+    },
+    {
+      "nome": "anexo (9).pdf",
+      "sha256": "eb377449032eef8fa5c0254f0f017b943cd2292e4c47ab7d6556d33a527839bf",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2503
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "anexo (9).pdf",
+      "fornecedor": "Depósito Fictício de Materiais S.A.",
+      "validade": "02/10/2026",
+      "itens": [
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 275,
+          "unidade": "ch",
+          "preco_unitario": 132.58
+        },
+        {
+          "codigo": "CAL-HID",
+          "descricao": "Cal hidratada CH-III, saco 20 kg",
+          "quantidade": 280,
+          "unidade": "sc",
+          "preco_unitario": 322.92
+        },
+        {
+          "codigo": "BLO-014",
+          "descricao": "Bloco de concreto 14x19x39",
+          "quantidade": 160,
+          "unidade": "un",
+          "preco_unitario": 272.83
+        },
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 185,
+          "unidade": "br",
+          "preco_unitario": 256.32
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 180,
+          "unidade": "mil",
+          "preco_unitario": 567.4
+        }
+      ]
+    },
+    "divergencias": [
+      {
+        "codigo": "TEL-Q92",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 195,
+        "cotado": null
+      },
+      {
+        "codigo": "CIM-032",
+        "tipo": "faltante_na_cotacao",
+        "especificado": 175,
+        "cotado": null
+      }
+    ],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. 2 divergência(s) plantada(s).",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "versao": 1,
+  "caso": "rh-pasta-06",
+  "frente": "rh",
+  "tenant": "demonstracao",
+  "modelo": "checklist-documentos-admissao",
+  "variacao": "digital",
+  "arquivos": [
+    {
+      "nome": "rg.pdf",
+      "sha256": "fd471c1ce9acbabb3dc1e2f5fe04e8d1a617d5179c07213b476b385a1dc84a90",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2154
+    },
+    {
+      "nome": "cpf.pdf",
+      "sha256": "d62c771745efe41f1a0f92567027fa8bc5f1a70e05a85feb74f34927a6b746f3",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2109
+    },
+    {
+      "nome": "conta-de-luz.pdf",
+      "sha256": "953a9c9cdc2088a25e1d79db2818ed6d0b5b6aa24b160ed8d9906bc20c749ebd",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2083
+    },
+    {
+      "nome": "ctps-digital.pdf",
+      "sha256": "4995079fdf345e59814da5fd2cd0771497915ec8460b8231de1b8de37117d308",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2084
+    },
+    {
+      "nome": "aso-admissional.pdf",
+      "sha256": "eb8a963f6556e27d0393b57936f9b4481735ead6d9bda5e70a592d5aacff87ce",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2141
+    },
+    {
+      "nome": "ficha-de-admissao.pdf",
+      "sha256": "319f8a92d0ecf736d76f44101ff22386892f8ebdabaa38b372a7bddc1b77a548",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 1976
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "rg",
+        "situacao": "presente",
+        "arquivo": "rg.pdf"
+      },
+      {
+        "item": "cpf",
+        "situacao": "presente",
+        "arquivo": "cpf.pdf"
+      },
+      {
+        "item": "residencia",
+        "situacao": "presente",
+        "arquivo": "conta-de-luz.pdf"
+      },
+      {
+        "item": "ctps",
+        "situacao": "presente",
+        "arquivo": "ctps-digital.pdf"
+      },
+      {
+        "item": "aso",
+        "situacao": "presente",
+        "arquivo": "aso-admissional.pdf"
+      },
+      {
+        "item": "titulo",
+        "situacao": "ausente",
+        "arquivo": null
+      },
+      {
+        "item": "banco",
+        "situacao": "ausente",
+        "arquivo": null
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Pessoa fictícia (Carla Leal Fictício). Obrigatórios: rg, cpf, residencia, ctps, aso, banco; título de eleitor é opcional. Duvidoso: citado só na ficha, sem o documento.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

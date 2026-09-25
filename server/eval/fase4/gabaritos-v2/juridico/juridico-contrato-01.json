@@ -1,0 +1,57 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-01",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "pdf, 28 páginas",
+  "arquivos": [
+    {
+      "nome": "anexo (1).pdf",
+      "sha256": "96e3e8c802a173ce979a653d67e8ec9d36f9e87cb9ceb748a08b55a12b076f80",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 23951
+    }
+  ],
+  "esperado": {
+    "contrato": "anexo (1).pdf",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Elétrica Exemplo Comércio Ltda."
+      },
+      "vigencia": {
+        "clausula": "Cláusula 24ª",
+        "trecho": "vigorará por 18 meses"
+      },
+      "reajuste": {
+        "clausula": "Cláusula 40ª",
+        "trecho": "variação do INCC-DI"
+      },
+      "multa": {
+        "clausula": "Cláusula 8ª",
+        "trecho": "multa de 1% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 48ª",
+        "trecho": "aviso prévio de 30 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 32ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 16ª",
+        "trecho": "comarca de Campinas-SP"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de instalações elétricas prediais.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

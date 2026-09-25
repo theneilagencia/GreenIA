@@ -1,7 +1,7 @@
 {
   "kind": "assistente",
   "slug": "suprimentos-cotacoes-especificacao",
-  "version": 1,
+  "version": 2,
   "name": "Cotações × especificação",
   "description": "Extrai os itens das cotações de fornecedores e confere quantidade e unidade contra a planilha de especificação.",
   "areaSugerida": "Suprimentos ou compras",
@@ -133,8 +133,7 @@
             "caminho": "itens"
           },
           "direita": {
-            "de": "tabela",
-            "arquivo": "*especifica*"
+            "de": "tabela"
           },
           "rotulos": {
             "esquerda": "Cotação",

@@ -1,0 +1,173 @@
+{
+  "versao": 1,
+  "caso": "lgpd-lote-06",
+  "frente": "lgpd",
+  "tenant": "demonstracao",
+  "modelo": "organizacao-evidencias",
+  "variacao": "misto: PDF, DOCX e XLSX",
+  "arquivos": [
+    {
+      "nome": "doc9780.docx",
+      "sha256": "90ad0252da0bf9ca32cea326d6b2b47a4379782890968fc7442de5e1f7fd2a94",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8628
+    },
+    {
+      "nome": "export_2372.xlsx",
+      "sha256": "c47297bebd88f94e591507a95a53822bf63dca158edc1afb691da36cb61a5d33",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6036
+    },
+    {
+      "nome": "Documento (14).xlsx",
+      "sha256": "b03df998c6e382f736abf0f7657cdc5335857e455ea82f77bf5c2214f9d18b32",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6340
+    },
+    {
+      "nome": "doc0816.docx",
+      "sha256": "a432215e8acf6b6f04f47f73d6350de7a8e15a5afce41435a0dfb71339566c09",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8594
+    },
+    {
+      "nome": "Documento (15).pdf",
+      "sha256": "c18222bf544f4445f592c20ad7ccec7ae93a87c0e9837cf3bdea356810e6c2b1",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2040
+    },
+    {
+      "nome": "scan_2330.pdf",
+      "sha256": "d801581e703f02e69cb9d919d02d1021c35061da6ae56d5a427142c11e33929d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2254
+    },
+    {
+      "nome": "doc9155.docx",
+      "sha256": "c32b9407a2ad07526cbb109b32f517ef79d55afe45cf5fab0bcb880383c3cc36",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8619
+    },
+    {
+      "nome": "arquivo_7592.docx",
+      "sha256": "52c00683e78cb8ad16e61c662773adbd69f6d8930ff17ae1da08d38b1dfbfd67",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8613
+    },
+    {
+      "nome": "anexo (16).pdf",
+      "sha256": "7df36b7944d84d728a1010c5a444010e33825f1b474d0b15c51bdc5d80c64f1e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 2168
+    },
+    {
+      "nome": "Documento (17).docx",
+      "sha256": "2c32f604ffd28327994475bd96226126d942b6e1b4ef2899441a58844d75edf0",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8619
+    }
+  ],
+  "esperado": {
+    "documentos": [
+      {
+        "arquivo": "doc9780.docx",
+        "categoria": "contratos",
+        "periodo": "2025-02",
+        "nome": "contratos/2025-02_doc9780.docx"
+      },
+      {
+        "arquivo": "export_2372.xlsx",
+        "categoria": null,
+        "periodo": null,
+        "nome": null
+      },
+      {
+        "arquivo": "Documento (14).xlsx",
+        "categoria": "registros",
+        "periodo": "2026-04",
+        "nome": "registros/2026-04_documento-14.xlsx"
+      },
+      {
+        "arquivo": "doc0816.docx",
+        "categoria": "politicas",
+        "periodo": "2026-03",
+        "nome": "politicas/2026-03_doc0816.docx"
+      },
+      {
+        "arquivo": "Documento (15).pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-04",
+        "nome": "treinamentos/2026-04_documento-15.pdf"
+      },
+      {
+        "arquivo": "scan_2330.pdf",
+        "categoria": "incidentes",
+        "periodo": "2025-08",
+        "nome": "incidentes/2025-08_scan-2330.pdf"
+      },
+      {
+        "arquivo": "doc9155.docx",
+        "categoria": "politicas",
+        "periodo": "2025-04",
+        "nome": "politicas/2025-04_doc9155.docx"
+      },
+      {
+        "arquivo": "arquivo_7592.docx",
+        "categoria": "politicas",
+        "periodo": "2026-02",
+        "nome": "politicas/2026-02_arquivo-7592.docx"
+      },
+      {
+        "arquivo": "anexo (16).pdf",
+        "categoria": "treinamentos",
+        "periodo": "2026-08",
+        "nome": "treinamentos/2026-08_anexo-16.pdf"
+      },
+      {
+        "arquivo": "Documento (17).docx",
+        "categoria": "politicas",
+        "periodo": "2025-09",
+        "nome": "politicas/2025-09_documento-17.docx"
+      }
+    ],
+    "perguntas": [
+      {
+        "pergunta": "Onde está a política de privacidade dos colaboradores versão 4, aprovada em fevereiro de 2026?",
+        "documentos": [
+          "arquivo_7592.docx"
+        ]
+      },
+      {
+        "pergunta": "Qual documento comprova a presença no treinamento \"Proteção de dados no atendimento\" de 23/08/2026?",
+        "documentos": [
+          "anexo (16).pdf"
+        ]
+      },
+      {
+        "pergunta": "Quais são as políticas e normas deste lote, inclusive as atas que as aprovam ou revisam?",
+        "documentos": [
+          "doc0816.docx",
+          "doc9155.docx",
+          "arquivo_7592.docx",
+          "Documento (17).docx"
+        ]
+      }
+    ]
+  },
+  "notas": "10 documentos fictícios de LGPD, uma execução do assistente por lote. 1 sem relação com LGPD (categoria nula, sem período e sem nome padronizado: vão para revisão). Nome padronizado pela regra do modelo ({categoria}/{periodo}_{nome}), com o nome do arquivo em minúsculas e hífens. Atas do comitê de privacidade entram na categoria do assunto da pauta (política, incidente ou inventário). Parte dos arquivos tem nome genérico (scan-, documento-aprovado-, ocorrencia-, contrato-...-assinado): a categoria só aparece no conteúdo. O período é o mês da data do próprio documento (aprovação, treinamento, assinatura, ocorrência, reunião ou referência). Em XLSX com linhas de título acima da tabela (listas de presença e inventários), o título e a data ficam acima do cabeçalho: a leitura da plataforma guarda só o cabeçalho e as linhas da tabela, então a classificação por regras depende do nome do arquivo. DOC (Word 97) não entra: gerar exige o LibreOffice para escrever.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

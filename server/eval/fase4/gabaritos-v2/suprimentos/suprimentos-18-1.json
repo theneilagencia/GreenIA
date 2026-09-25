@@ -1,0 +1,83 @@
+{
+  "versao": 1,
+  "caso": "suprimentos-18-1",
+  "frente": "suprimentos",
+  "tenant": "construtora",
+  "modelo": "suprimentos-cotacoes-especificacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "especificacao-compra-18.xlsx",
+      "sha256": "b46aa85db246beb9a3e78b6d2607c4a985187efc924089cb74c951f0599b9853",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 6355
+    },
+    {
+      "nome": "cotacao-18-1.docx",
+      "sha256": "9593776925b9c2b0c4f56139adf554e6bb7060bbcec9792dcc948fca6e91f64e",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8737
+    }
+  ],
+  "esperado": {
+    "cotacao": {
+      "arquivo": "cotacao-18-1.docx",
+      "fornecedor": "Aços Modelo Distribuidora Ltda.",
+      "validade": "06/10/2026",
+      "itens": [
+        {
+          "codigo": "ACO-060",
+          "descricao": "Aço CA-60 5 mm, barra 12 m",
+          "quantidade": 100,
+          "unidade": "br",
+          "preco_unitario": 151.7
+        },
+        {
+          "codigo": "TEL-Q92",
+          "descricao": "Tela soldada Q-92, painel 2x3 m",
+          "quantidade": 115,
+          "unidade": "pç",
+          "preco_unitario": 493.11
+        },
+        {
+          "codigo": "FOR-COM",
+          "descricao": "Forma de compensado plastificado 18 mm",
+          "quantidade": 40,
+          "unidade": "ch",
+          "preco_unitario": 805.85
+        },
+        {
+          "codigo": "TIJ-009",
+          "descricao": "Tijolo cerâmico 9x19x19",
+          "quantidade": 75,
+          "unidade": "mil",
+          "preco_unitario": 340.11
+        },
+        {
+          "codigo": "TUB-100",
+          "descricao": "Tubo PVC esgoto 100 mm, barra 6 m",
+          "quantidade": 60,
+          "unidade": "br",
+          "preco_unitario": 40.01
+        },
+        {
+          "codigo": "BRI-001",
+          "descricao": "Brita 1",
+          "quantidade": 42,
+          "unidade": "m³",
+          "preco_unitario": 425.43
+        }
+      ]
+    },
+    "divergencias": [],
+    "erroGrave": "divergência de quantidade ou unidade não apontada"
+  },
+  "notas": "Obra Edifício Comercial Centro. Cotação sem divergência (controle).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

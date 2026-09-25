@@ -1,0 +1,293 @@
+{
+  "conjunto": "desenvolvimento",
+  "casos": [
+    {
+      "caso": "lgpd-lote-01",
+      "categorias": [
+        "politicas",
+        "treinamentos",
+        "contratos",
+        "incidentes",
+        "registros"
+      ],
+      "documentos": [
+        {
+          "arquivo": "relatorio-incidente-ri-2026-024.docx",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "inventario-de-dados-comercial-2026-01.xlsx",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "inventario-de-dados-financeiro-2025-09.docx",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "norma-interna-controle-de-acesso-v5.pdf",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "ata-comite-privacidade-2026-07-4.pdf",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "mesas-e-cadeiras.xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "politica-de-seguranca-da-informacao-v2.docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "ata-comite-privacidade-2026-01-7.docx",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "norma-interna-retencao-v2.docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "relatorio-incidente-ri-2026-003.pdf",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        }
+      ]
+    },
+    {
+      "caso": "lgpd-lote-02",
+      "categorias": [
+        "politicas",
+        "treinamentos",
+        "contratos",
+        "incidentes",
+        "registros"
+      ],
+      "documentos": [
+        {
+          "arquivo": "anexo.pdf",
+          "esperado": "treinamentos",
+          "obtido": "treinamentos",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "export_1380.xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "doc1121.docx",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "doc0592.docx",
+          "esperado": "contratos",
+          "obtido": "contratos",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (1).docx",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "arquivo_9611.docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "export_7478.xlsx",
+          "esperado": "treinamentos",
+          "obtido": "treinamentos",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (2).docx",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Planilha sem título (3).xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "digitalizado_20260301_152852.pdf",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        }
+      ]
+    },
+    {
+      "caso": "lgpd-lote-05",
+      "categorias": [
+        "politicas",
+        "treinamentos",
+        "contratos",
+        "incidentes",
+        "registros"
+      ],
+      "documentos": [
+        {
+          "arquivo": "Documento (9).docx",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "anexo (10).pdf",
+          "esperado": "contratos",
+          "obtido": "contratos",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "digitalizado_20260205_131153.pdf",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (11).docx",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "scan_6374.pdf",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (12).xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "export_4000.xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "scan_6063.pdf",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (13).pdf",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "export_0243.xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        }
+      ]
+    },
+    {
+      "caso": "lgpd-lote-06",
+      "categorias": [
+        "politicas",
+        "treinamentos",
+        "contratos",
+        "incidentes",
+        "registros"
+      ],
+      "documentos": [
+        {
+          "arquivo": "doc9780.docx",
+          "esperado": "contratos",
+          "obtido": "contratos",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "export_2372.xlsx",
+          "esperado": null,
+          "obtido": null,
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "Documento (14).xlsx",
+          "esperado": "registros",
+          "obtido": "registros",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "doc0816.docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (15).pdf",
+          "esperado": "treinamentos",
+          "obtido": "treinamentos",
+          "confianca": "baixa"
+        },
+        {
+          "arquivo": "scan_2330.pdf",
+          "esperado": "incidentes",
+          "obtido": "incidentes",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "doc9155.docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "arquivo_7592.docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "anexo (16).pdf",
+          "esperado": "treinamentos",
+          "obtido": "treinamentos",
+          "confianca": "alta"
+        },
+        {
+          "arquivo": "Documento (17).docx",
+          "esperado": "politicas",
+          "obtido": "politicas",
+          "confianca": "alta"
+        }
+      ]
+    }
+  ]
+}

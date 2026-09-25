@@ -1,0 +1,3856 @@
+{
+  "v1": {
+    "porFrente": {
+      "contratacao": {
+        "arquivos": 47,
+        "revelam": 47,
+        "casos": 15,
+        "pastaRevela": 0
+      },
+      "financeiro": {
+        "arquivos": 50,
+        "revelam": 50,
+        "casos": 10,
+        "pastaRevela": 0
+      },
+      "fiscal": {
+        "arquivos": 82,
+        "revelam": 82,
+        "casos": 30,
+        "pastaRevela": 30
+      },
+      "juridico": {
+        "arquivos": 25,
+        "revelam": 25,
+        "casos": 25,
+        "pastaRevela": 25
+      },
+      "lgpd": {
+        "arquivos": 60,
+        "revelam": 45,
+        "casos": 6,
+        "pastaRevela": 0
+      },
+      "rh": {
+        "arquivos": 85,
+        "revelam": 85,
+        "casos": 15,
+        "pastaRevela": 0
+      },
+      "suprimentos": {
+        "arquivos": 120,
+        "revelam": 120,
+        "casos": 60,
+        "pastaRevela": 0
+      }
+    },
+    "achados": [
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-01",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-01",
+        "arquivo": "art.pdf",
+        "revela": [
+          "art"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-01",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-01",
+        "arquivo": "apolice-seguro-garantia.pdf",
+        "revela": [
+          "garantia",
+          "seguro garantia",
+          "apolice",
+          "seguro"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-01",
+        "arquivo": "certidao-federal.pdf",
+        "revela": [
+          "certidao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-01",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-02",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-02",
+        "arquivo": "certidao-federal.pdf",
+        "revela": [
+          "certidao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-03",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-03",
+        "arquivo": "documentos-da-contratada.pdf",
+        "revela": [
+          "contratada"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-03",
+        "arquivo": "art.pdf",
+        "revela": [
+          "art"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-03",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-04",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-04",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-04",
+        "arquivo": "certidao-federal.pdf",
+        "revela": [
+          "certidao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-04",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-05",
+        "arquivo": "contrato.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-06",
+        "arquivo": "contrato.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-06",
+        "arquivo": "documentos-da-contratada.pdf",
+        "revela": [
+          "contratada"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-06",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-07",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-07",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-08",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-08",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-08",
+        "arquivo": "certidao-federal.pdf",
+        "revela": [
+          "certidao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-08",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-09",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-09",
+        "arquivo": "documentos-da-contratada.pdf",
+        "revela": [
+          "contratada"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-09",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-10",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-10",
+        "arquivo": "art.pdf",
+        "revela": [
+          "art"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-10",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-10",
+        "arquivo": "certidao-federal.pdf",
+        "revela": [
+          "certidao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-10",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-11",
+        "arquivo": "contrato.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-11",
+        "arquivo": "art.pdf",
+        "revela": [
+          "art"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-11",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-12",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-12",
+        "arquivo": "documentos-da-contratada.pdf",
+        "revela": [
+          "contratada"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-13",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-13",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-14",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-14",
+        "arquivo": "cartao-cnpj.pdf",
+        "revela": [
+          "cnpj",
+          "cartao cnpj",
+          "cartao"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-15",
+        "arquivo": "contrato.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-15",
+        "arquivo": "documentos-da-contratada.pdf",
+        "revela": [
+          "contratada"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-15",
+        "arquivo": "alvara.pdf",
+        "revela": [
+          "alvara"
+        ]
+      },
+      {
+        "frente": "contratacao",
+        "caso": "contratacao-15",
+        "arquivo": "apolice-seguro-garantia.pdf",
+        "revela": [
+          "garantia",
+          "seguro garantia",
+          "apolice",
+          "seguro"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-01",
+        "arquivo": "dre-2026-08.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-01",
+        "arquivo": "balancete-2026-08.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-01",
+        "arquivo": "razao-2026-08.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-01",
+        "arquivo": "fluxo-de-caixa-2026-08.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-01",
+        "arquivo": "inadimplencia-2026-08.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-02",
+        "arquivo": "dre-2026-07.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-02",
+        "arquivo": "balancete-2026-07.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-02",
+        "arquivo": "razao-2026-07.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-02",
+        "arquivo": "fluxo-de-caixa-2026-07.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-02",
+        "arquivo": "inadimplencia-2026-07.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-03",
+        "arquivo": "dre-2026-06.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-03",
+        "arquivo": "balancete-2026-06.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-03",
+        "arquivo": "razao-2026-06.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-03",
+        "arquivo": "fluxo-de-caixa-2026-06.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-03",
+        "arquivo": "inadimplencia-2026-06.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-04",
+        "arquivo": "dre-2026-05.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-04",
+        "arquivo": "balancete-2026-05.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-04",
+        "arquivo": "razao-2026-05.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-04",
+        "arquivo": "fluxo-de-caixa-2026-05.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-04",
+        "arquivo": "inadimplencia-2026-05.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-05",
+        "arquivo": "dre-2026-04.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-05",
+        "arquivo": "balancete-2026-04.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-05",
+        "arquivo": "razao-2026-04.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-05",
+        "arquivo": "fluxo-de-caixa-2026-04.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-05",
+        "arquivo": "inadimplencia-2026-04.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-06",
+        "arquivo": "dre-2026-03.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-06",
+        "arquivo": "balancete-2026-03.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-06",
+        "arquivo": "razao-2026-03.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-06",
+        "arquivo": "fluxo-de-caixa-2026-03.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-06",
+        "arquivo": "inadimplencia-2026-03.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-07",
+        "arquivo": "dre-2026-02.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-07",
+        "arquivo": "balancete-2026-02.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-07",
+        "arquivo": "razao-2026-02.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-07",
+        "arquivo": "fluxo-de-caixa-2026-02.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-07",
+        "arquivo": "inadimplencia-2026-02.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-08",
+        "arquivo": "dre-2026-01.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-08",
+        "arquivo": "balancete-2026-01.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-08",
+        "arquivo": "razao-2026-01.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-08",
+        "arquivo": "fluxo-de-caixa-2026-01.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-08",
+        "arquivo": "inadimplencia-2026-01.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-09",
+        "arquivo": "dre-2025-12.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-09",
+        "arquivo": "balancete-2025-12.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-09",
+        "arquivo": "razao-2025-12.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-09",
+        "arquivo": "fluxo-de-caixa-2025-12.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-09",
+        "arquivo": "inadimplencia-2025-12.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-10",
+        "arquivo": "dre-2025-11.pdf",
+        "revela": [
+          "dre"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-10",
+        "arquivo": "balancete-2025-11.pdf",
+        "revela": [
+          "balancete"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-10",
+        "arquivo": "razao-2025-11.pdf",
+        "revela": [
+          "razao"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-10",
+        "arquivo": "fluxo-de-caixa-2025-11.xlsx",
+        "revela": [
+          "fluxo",
+          "caixa"
+        ]
+      },
+      {
+        "frente": "financeiro",
+        "caso": "financeiro-pacote-10",
+        "arquivo": "inadimplencia-2025-11.csv",
+        "revela": [
+          "inadimplencia"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-01",
+        "arquivo": "nfe-98766.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-01",
+        "arquivo": "danfe-98766.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-01",
+        "arquivo": "pedido-918890.csv",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-02",
+        "arquivo": "nfe-58591.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-02",
+        "arquivo": "danfe-58591.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-02",
+        "arquivo": "pedido-242216.xlsx",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-03",
+        "arquivo": "danfe-97308.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-03",
+        "arquivo": "pedido-288631.txt",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-04",
+        "arquivo": "nfe-63716.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-04",
+        "arquivo": "danfe-63716.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-04",
+        "arquivo": "pedido-358835.json",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-05",
+        "arquivo": "nfe-57034.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-05",
+        "arquivo": "danfe-57034.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-05",
+        "arquivo": "pedido-537058.xml",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-06",
+        "arquivo": "nfe-6361.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-06",
+        "arquivo": "danfe-6361.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-06",
+        "arquivo": "pedido-614857.xlsx",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-07",
+        "arquivo": "nfe-38015.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-07",
+        "arquivo": "danfe-38015.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-07",
+        "arquivo": "pedido-954614.txt",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-08",
+        "arquivo": "danfe-7175.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-08",
+        "arquivo": "pedido-941279.json",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-09",
+        "arquivo": "nfe-27675.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-09",
+        "arquivo": "danfe-27675.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-09",
+        "arquivo": "pedido-188935.xml",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-10",
+        "arquivo": "nfe-67040.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-10",
+        "arquivo": "danfe-67040.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-10",
+        "arquivo": "pedido-946578.csv",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-11",
+        "arquivo": "nfe-14499.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-11",
+        "arquivo": "danfe-14499.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-11",
+        "arquivo": "pedido-277862.txt",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-12",
+        "arquivo": "nfe-56621.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-12",
+        "arquivo": "danfe-56621.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-12",
+        "arquivo": "pedido-468528.json",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-13",
+        "arquivo": "danfe-87873.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-13",
+        "arquivo": "pedido-650042.xml",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-14",
+        "arquivo": "nfe-2216.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-14",
+        "arquivo": "danfe-2216.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-14",
+        "arquivo": "pedido-967539.csv",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-15",
+        "arquivo": "danfe-28858.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-15",
+        "arquivo": "pedido-384586.xlsx",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-16",
+        "arquivo": "nfe-24459.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-16",
+        "arquivo": "danfe-24459.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-16",
+        "arquivo": "pedido-355725.json",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-17",
+        "arquivo": "nfe-6522.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-17",
+        "arquivo": "danfe-6522.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-17",
+        "arquivo": "pedido-834264.xml",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-18",
+        "arquivo": "danfe-42541.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-18",
+        "arquivo": "pedido-722036.csv",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-19",
+        "arquivo": "nfe-37324.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-19",
+        "arquivo": "danfe-37324.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-19",
+        "arquivo": "pedido-678581.xlsx",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-20",
+        "arquivo": "nfe-44615.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-20",
+        "arquivo": "danfe-44615.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-20",
+        "arquivo": "pedido-539577.txt",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-21",
+        "arquivo": "nfe-93429.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-21",
+        "arquivo": "danfe-93429.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-21",
+        "arquivo": "pedido-119159.xml",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-22",
+        "arquivo": "nfe-61985.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-22",
+        "arquivo": "danfe-61985.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-22",
+        "arquivo": "pedido-745243.csv",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-23",
+        "arquivo": "danfe-66319.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-23",
+        "arquivo": "pedido-156664.xlsx",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-24",
+        "arquivo": "nfe-48907.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-24",
+        "arquivo": "danfe-48907.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-24",
+        "arquivo": "pedido-489612.txt",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-25",
+        "arquivo": "nfe-49719.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-25",
+        "arquivo": "danfe-49719.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-25",
+        "arquivo": "pedido-441403.json",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-26",
+        "arquivo": "nfe-83239.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-26",
+        "arquivo": "danfe-83239.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-26",
+        "arquivo": "pedido-947175.csv",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-27",
+        "arquivo": "nfe-10366.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-27",
+        "arquivo": "danfe-10366.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-27",
+        "arquivo": "pedido-894990.xlsx",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-28",
+        "arquivo": "danfe-58407.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-28",
+        "arquivo": "pedido-271675.txt",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-29",
+        "arquivo": "nfe-16216.xml",
+        "revela": [
+          "nfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-29",
+        "arquivo": "danfe-16216.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-29",
+        "arquivo": "pedido-292402.json",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-30",
+        "arquivo": "danfe-58931.pdf",
+        "revela": [
+          "danfe"
+        ]
+      },
+      {
+        "frente": "fiscal",
+        "caso": "fiscal-nota-30",
+        "arquivo": "pedido-479761.xml",
+        "revela": [
+          "pedido"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-01",
+        "arquivo": "contrato-01.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-02",
+        "arquivo": "contrato-02.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-03",
+        "arquivo": "contrato-03.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-04",
+        "arquivo": "contrato-04.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-05",
+        "arquivo": "contrato-05.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-06",
+        "arquivo": "contrato-06.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-07",
+        "arquivo": "contrato-07.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-08",
+        "arquivo": "contrato-08.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-09",
+        "arquivo": "contrato-09.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-10",
+        "arquivo": "contrato-10.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-11",
+        "arquivo": "contrato-11.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-12",
+        "arquivo": "contrato-12.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-13",
+        "arquivo": "contrato-13.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-14",
+        "arquivo": "contrato-14.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-15",
+        "arquivo": "contrato-15.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-16",
+        "arquivo": "contrato-16.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-17",
+        "arquivo": "contrato-17.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-18",
+        "arquivo": "contrato-18.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-19",
+        "arquivo": "contrato-19.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-20",
+        "arquivo": "contrato-20.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-21",
+        "arquivo": "contrato-21.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-22",
+        "arquivo": "contrato-22.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-23",
+        "arquivo": "contrato-23.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-24",
+        "arquivo": "contrato-24.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "juridico",
+        "caso": "juridico-contrato-25",
+        "arquivo": "contrato-25.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "relatorio-incidente-ri-2026-024.docx",
+        "revela": [
+          "incidente"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "inventario-de-dados-comercial-2026-01.xlsx",
+        "revela": [
+          "inventario de dados",
+          "inventario"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "inventario-de-dados-financeiro-2025-09.docx",
+        "revela": [
+          "inventario de dados",
+          "inventario"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "norma-interna-controle-de-acesso-v5.pdf",
+        "revela": [
+          "norma interna",
+          "norma"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "ata-comite-privacidade-2026-07-4.pdf",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "politica-de-seguranca-da-informacao-v2.docx",
+        "revela": [
+          "politica de seguranca",
+          "politica de seguranca da informacao",
+          "politica"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "ata-comite-privacidade-2026-01-7.docx",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "norma-interna-retencao-v2.docx",
+        "revela": [
+          "norma interna",
+          "norma"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-01",
+        "arquivo": "relatorio-incidente-ri-2026-003.pdf",
+        "revela": [
+          "incidente"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "certificado-carla-10.pdf",
+        "revela": [
+          "certificado"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "inventario-de-dados-recursos-humanos-2025-02.docx",
+        "revela": [
+          "inventario de dados",
+          "inventario"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "dpa-call-center.docx",
+        "revela": [
+          "dpa"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "ata-comite-privacidade-2025-03-14.docx",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "politica-de-privacidade-v4.docx",
+        "revela": [
+          "politica de privacidade",
+          "politica",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "lista-presenca-lgpd-para-liderancas-2026-06.xlsx",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "relatorio-incidente-ri-2025-030.docx",
+        "revela": [
+          "incidente"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-02",
+        "arquivo": "ata-comite-privacidade-2026-02-19.pdf",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "contrato-servicos-nuvem-exemplo.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "lista-presenca-lgpd-para-liderancas-2026-04.pdf",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "lista-presenca-protecao-de-dados-2026-01.pdf",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "inventario-de-dados-recursos-humanos-2026-02.docx",
+        "revela": [
+          "inventario de dados",
+          "inventario"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "lista-presenca-seguranca-da-informacao-2026-04.pdf",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "contrato-servicos-laboratorio-modelo.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "inventario-de-dados-tecnologia-2026-08.xlsx",
+        "revela": [
+          "inventario de dados",
+          "inventario"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-03",
+        "arquivo": "lista-presenca-protecao-de-dados-2026-02.pdf",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "dpa-nuvem-exemplo.docx",
+        "revela": [
+          "dpa"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "norma-interna-retencao-v2.pdf",
+        "revela": [
+          "norma interna",
+          "norma"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "contrato-servicos-call-center.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "contrato-servicos-transportes-ficticios.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "lista-presenca-protecao-de-dados-2026-05.xlsx",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "certificado-joao-37.pdf",
+        "revela": [
+          "certificado"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "dpa-assinatura-eletronica.docx",
+        "revela": [
+          "dpa"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-04",
+        "arquivo": "ata-comite-privacidade-2026-08-39.docx",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-05",
+        "arquivo": "contrato-servicos-folha-ficticia.pdf",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-05",
+        "arquivo": "ata-comite-privacidade-2026-06-44.pdf",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-05",
+        "arquivo": "relatorio-incidente-ri-2026-019.pdf",
+        "revela": [
+          "incidente"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-05",
+        "arquivo": "ata-comite-privacidade-2026-08-48.pdf",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "contrato-servicos-nuvem-exemplo.docx",
+        "revela": [
+          "contrato"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "inventario-de-dados-tecnologia-2026-04.xlsx",
+        "revela": [
+          "inventario de dados",
+          "inventario"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "politica-de-privacidade-v4.docx",
+        "revela": [
+          "politica de privacidade",
+          "politica",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "certificado-paula-54.pdf",
+        "revela": [
+          "certificado"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "ata-comite-privacidade-2025-08-55.pdf",
+        "revela": [
+          "ata",
+          "comite",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "norma-interna-retencao-v6.docx",
+        "revela": [
+          "norma interna",
+          "norma"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "politica-privacidade-colaboradores-v4.docx",
+        "revela": [
+          "politica",
+          "privacidade"
+        ]
+      },
+      {
+        "frente": "lgpd",
+        "caso": "lgpd-lote-06",
+        "arquivo": "lista-presenca-protecao-de-dados-2026-08.pdf",
+        "revela": [
+          "presenca"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "documentos-pessoais.pdf",
+        "revela": [
+          "pessoais"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-01",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-02",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-02",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-02",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-02",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-02",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-02",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-03",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-03",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-03",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-03",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-03",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-03",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-04",
+        "arquivo": "documentos-pessoais.pdf",
+        "revela": [
+          "pessoais"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-04",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-04",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-04",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-04",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-04",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-05",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-05",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-05",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-05",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-05",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-06",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-06",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-06",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-06",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-06",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-06",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-07",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-08",
+        "arquivo": "documentos-pessoais.pdf",
+        "revela": [
+          "pessoais"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-08",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-08",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-08",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-09",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-09",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-09",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-09",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-09",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-10",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-10",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-10",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-10",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-10",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-10",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-11",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-11",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-11",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-11",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-11",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-12",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-12",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-12",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-12",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-12",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-12",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-13",
+        "arquivo": "rg.pdf",
+        "revela": [
+          "rg"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-13",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-13",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-13",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-13",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-13",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-14",
+        "arquivo": "documentos-pessoais.pdf",
+        "revela": [
+          "pessoais"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-14",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-14",
+        "arquivo": "comprovante-conta-salario.pdf",
+        "revela": [
+          "conta salario",
+          "conta",
+          "salario"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-14",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-15",
+        "arquivo": "cpf.pdf",
+        "revela": [
+          "cpf"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-15",
+        "arquivo": "conta-de-luz.pdf",
+        "revela": [
+          "conta de luz",
+          "luz",
+          "conta"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-15",
+        "arquivo": "ctps-digital.pdf",
+        "revela": [
+          "ctps"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-15",
+        "arquivo": "aso-admissional.pdf",
+        "revela": [
+          "aso"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-15",
+        "arquivo": "titulo-eleitor.pdf",
+        "revela": [
+          "titulo",
+          "eleitor"
+        ]
+      },
+      {
+        "frente": "rh",
+        "caso": "rh-pasta-15",
+        "arquivo": "ficha-de-admissao.pdf",
+        "revela": [
+          "ficha",
+          "admissao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-01-1",
+        "arquivo": "especificacao-compra-01.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-01-1",
+        "arquivo": "cotacao-01-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-01-2",
+        "arquivo": "especificacao-compra-01.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-01-2",
+        "arquivo": "cotacao-01-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-01-3",
+        "arquivo": "especificacao-compra-01.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-01-3",
+        "arquivo": "cotacao-01-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-02-1",
+        "arquivo": "especificacao-compra-02.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-02-1",
+        "arquivo": "cotacao-02-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-02-2",
+        "arquivo": "especificacao-compra-02.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-02-2",
+        "arquivo": "cotacao-02-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-02-3",
+        "arquivo": "especificacao-compra-02.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-02-3",
+        "arquivo": "cotacao-02-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-03-1",
+        "arquivo": "especificacao-compra-03.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-03-1",
+        "arquivo": "cotacao-03-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-03-2",
+        "arquivo": "especificacao-compra-03.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-03-2",
+        "arquivo": "cotacao-03-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-03-3",
+        "arquivo": "especificacao-compra-03.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-03-3",
+        "arquivo": "cotacao-03-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-04-1",
+        "arquivo": "especificacao-compra-04.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-04-1",
+        "arquivo": "cotacao-04-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-04-2",
+        "arquivo": "especificacao-compra-04.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-04-2",
+        "arquivo": "cotacao-04-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-04-3",
+        "arquivo": "especificacao-compra-04.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-04-3",
+        "arquivo": "cotacao-04-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-05-1",
+        "arquivo": "especificacao-compra-05.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-05-1",
+        "arquivo": "cotacao-05-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-05-2",
+        "arquivo": "especificacao-compra-05.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-05-2",
+        "arquivo": "cotacao-05-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-05-3",
+        "arquivo": "especificacao-compra-05.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-05-3",
+        "arquivo": "cotacao-05-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-06-1",
+        "arquivo": "especificacao-compra-06.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-06-1",
+        "arquivo": "cotacao-06-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-06-2",
+        "arquivo": "especificacao-compra-06.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-06-2",
+        "arquivo": "cotacao-06-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-06-3",
+        "arquivo": "especificacao-compra-06.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-06-3",
+        "arquivo": "cotacao-06-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-07-1",
+        "arquivo": "especificacao-compra-07.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-07-1",
+        "arquivo": "cotacao-07-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-07-2",
+        "arquivo": "especificacao-compra-07.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-07-2",
+        "arquivo": "cotacao-07-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-07-3",
+        "arquivo": "especificacao-compra-07.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-07-3",
+        "arquivo": "cotacao-07-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-08-1",
+        "arquivo": "especificacao-compra-08.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-08-1",
+        "arquivo": "cotacao-08-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-08-2",
+        "arquivo": "especificacao-compra-08.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-08-2",
+        "arquivo": "cotacao-08-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-08-3",
+        "arquivo": "especificacao-compra-08.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-08-3",
+        "arquivo": "cotacao-08-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-09-1",
+        "arquivo": "especificacao-compra-09.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-09-1",
+        "arquivo": "cotacao-09-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-09-2",
+        "arquivo": "especificacao-compra-09.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-09-2",
+        "arquivo": "cotacao-09-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-09-3",
+        "arquivo": "especificacao-compra-09.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-09-3",
+        "arquivo": "cotacao-09-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-10-1",
+        "arquivo": "especificacao-compra-10.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-10-1",
+        "arquivo": "cotacao-10-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-10-2",
+        "arquivo": "especificacao-compra-10.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-10-2",
+        "arquivo": "cotacao-10-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-10-3",
+        "arquivo": "especificacao-compra-10.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-10-3",
+        "arquivo": "cotacao-10-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-11-1",
+        "arquivo": "especificacao-compra-11.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-11-1",
+        "arquivo": "cotacao-11-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-11-2",
+        "arquivo": "especificacao-compra-11.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-11-2",
+        "arquivo": "cotacao-11-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-11-3",
+        "arquivo": "especificacao-compra-11.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-11-3",
+        "arquivo": "cotacao-11-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-12-1",
+        "arquivo": "especificacao-compra-12.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-12-1",
+        "arquivo": "cotacao-12-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-12-2",
+        "arquivo": "especificacao-compra-12.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-12-2",
+        "arquivo": "cotacao-12-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-12-3",
+        "arquivo": "especificacao-compra-12.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-12-3",
+        "arquivo": "cotacao-12-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-13-1",
+        "arquivo": "especificacao-compra-13.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-13-1",
+        "arquivo": "cotacao-13-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-13-2",
+        "arquivo": "especificacao-compra-13.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-13-2",
+        "arquivo": "cotacao-13-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-13-3",
+        "arquivo": "especificacao-compra-13.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-13-3",
+        "arquivo": "cotacao-13-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-14-1",
+        "arquivo": "especificacao-compra-14.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-14-1",
+        "arquivo": "cotacao-14-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-14-2",
+        "arquivo": "especificacao-compra-14.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-14-2",
+        "arquivo": "cotacao-14-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-14-3",
+        "arquivo": "especificacao-compra-14.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-14-3",
+        "arquivo": "cotacao-14-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-15-1",
+        "arquivo": "especificacao-compra-15.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-15-1",
+        "arquivo": "cotacao-15-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-15-2",
+        "arquivo": "especificacao-compra-15.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-15-2",
+        "arquivo": "cotacao-15-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-15-3",
+        "arquivo": "especificacao-compra-15.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-15-3",
+        "arquivo": "cotacao-15-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-16-1",
+        "arquivo": "especificacao-compra-16.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-16-1",
+        "arquivo": "cotacao-16-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-16-2",
+        "arquivo": "especificacao-compra-16.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-16-2",
+        "arquivo": "cotacao-16-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-16-3",
+        "arquivo": "especificacao-compra-16.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-16-3",
+        "arquivo": "cotacao-16-3.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-17-1",
+        "arquivo": "especificacao-compra-17.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-17-1",
+        "arquivo": "cotacao-17-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-17-2",
+        "arquivo": "especificacao-compra-17.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-17-2",
+        "arquivo": "cotacao-17-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-17-3",
+        "arquivo": "especificacao-compra-17.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-17-3",
+        "arquivo": "cotacao-17-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-18-1",
+        "arquivo": "especificacao-compra-18.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-18-1",
+        "arquivo": "cotacao-18-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-18-2",
+        "arquivo": "especificacao-compra-18.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-18-2",
+        "arquivo": "cotacao-18-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-18-3",
+        "arquivo": "especificacao-compra-18.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-18-3",
+        "arquivo": "cotacao-18-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-19-1",
+        "arquivo": "especificacao-compra-19.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-19-1",
+        "arquivo": "cotacao-19-1.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-19-2",
+        "arquivo": "especificacao-compra-19.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-19-2",
+        "arquivo": "cotacao-19-2.pdf",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-19-3",
+        "arquivo": "especificacao-compra-19.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-19-3",
+        "arquivo": "cotacao-19-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-20-1",
+        "arquivo": "especificacao-compra-20.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-20-1",
+        "arquivo": "cotacao-20-1.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-20-2",
+        "arquivo": "especificacao-compra-20.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-20-2",
+        "arquivo": "cotacao-20-2.docx",
+        "revela": [
+          "cotacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-20-3",
+        "arquivo": "especificacao-compra-20.xlsx",
+        "revela": [
+          "especificacao"
+        ]
+      },
+      {
+        "frente": "suprimentos",
+        "caso": "suprimentos-20-3",
+        "arquivo": "cotacao-20-3.docx",
+        "revela": [
+          "cotacao"
+        ]
+      }
+    ]
+  },
+  "v2": {
+    "porFrente": {
+      "contratacao": {
+        "arquivos": 47,
+        "revelam": 18,
+        "casos": 15,
+        "pastaRevela": 0
+      },
+      "financeiro": {
+        "arquivos": 50,
+        "revelam": 15,
+        "casos": 10,
+        "pastaRevela": 0
+      },
+      "fiscal": {
+        "arquivos": 82,
+        "revelam": 28,
+        "casos": 30,
+        "pastaRevela": 30
+      },
+      "juridico": {
+        "arquivos": 25,
+        "revelam": 8,
+        "casos": 25,
+        "pastaRevela": 25
+      },
+      "lgpd": {
+        "arquivos": 60,
+        "revelam": 17,
+        "casos": 6,
+        "pastaRevela": 0
+      },
+      "rh": {
+        "arquivos": 85,
+        "revelam": 28,
+        "casos": 15,
+        "pastaRevela": 0
+      },
+      "suprimentos": {
+        "arquivos": 120,
+        "revelam": 42,
+        "casos": 60,
+        "pastaRevela": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-09",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "pdf, 12 páginas",
+  "arquivos": [
+    {
+      "nome": "scan_2228.pdf",
+      "sha256": "46e06ba10bfc02c6b4db754f585ff262a75341219c293b9aab805d403333615d",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 11525
+    }
+  ],
+  "esperado": {
+    "contrato": "scan_2228.pdf",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Hidráulica Fictícia Ltda."
+      },
+      "vigencia": {
+        "clausula": "Cláusula 17ª",
+        "trecho": "vigorará por 24 meses"
+      },
+      "reajuste": {
+        "clausula": "Cláusula 6ª",
+        "trecho": "variação do INCC-DI"
+      },
+      "multa": {
+        "clausula": "Cláusula 3ª",
+        "trecho": "multa de 0,33% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 20ª",
+        "trecho": "aviso prévio de 60 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 13ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 10ª",
+        "trecho": "comarca de Curitiba-PR"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de instalações elétricas prediais.",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "versao": 1,
+  "caso": "contratacao-05",
+  "frente": "contratacao",
+  "tenant": "construtora",
+  "modelo": "checklist-documentos-contratacao",
+  "variacao": "docx",
+  "arquivos": [
+    {
+      "nome": "doc6172.docx",
+      "sha256": "d4c496da4c9abb18e68503148c88475a51f01abd70d3c8a72bf75465f653d22a",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 8757
+    }
+  ],
+  "esperado": {
+    "itens": [
+      {
+        "item": "contrato",
+        "situacao": "presente",
+        "arquivo": "doc6172.docx",
+        "pagina": 1
+      },
+      {
+        "item": "art",
+        "situacao": "duvidoso",
+        "arquivo": "doc6172.docx",
+        "pagina": 1
+      },
+      {
+        "item": "alvara",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "garantia",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnd",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cno",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      },
+      {
+        "item": "cnpj",
+        "situacao": "ausente",
+        "arquivo": null,
+        "pagina": null
+      }
+    ],
+    "erroGrave": "item marcado presente quando está ausente"
+  },
+  "notas": "Obra fictícia (Escola municipal Bairro Novo). ART citada; garantia nenhuma; CND ausente; CNO não mencionado. Duvidoso: citado no contrato sem o documento anexo. O contrato cita artigos de lei (\"art. 610\", \"art. 55\"), que não são ART. Garantia vale pela apólice ou pela caução mencionada; a matrícula CNO vale como dado mencionado. Cartão CNPJ é opcional.",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

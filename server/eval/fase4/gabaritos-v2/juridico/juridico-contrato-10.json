@@ -1,0 +1,54 @@
+{
+  "versao": 1,
+  "caso": "juridico-contrato-10",
+  "frente": "juridico",
+  "tenant": "construtora",
+  "modelo": "juridico-localizar-clausulas",
+  "variacao": "pdf, 7 páginas",
+  "arquivos": [
+    {
+      "nome": "scan_0924.pdf",
+      "sha256": "1fa4f15a6ad1d49d2e4eadace532fb3cdea213a72a0913377ade5453412282eb",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 7284
+    }
+  ],
+  "esperado": {
+    "contrato": "scan_0924.pdf",
+    "campos": {
+      "partes": {
+        "clausula": "Preâmbulo",
+        "trecho": "CONTRATADA: Aços Modelo Distribuidora Ltda."
+      },
+      "vigencia": null,
+      "reajuste": {
+        "clausula": "Cláusula 2ª",
+        "trecho": "variação do IPCA"
+      },
+      "multa": {
+        "clausula": "Cláusula 9ª",
+        "trecho": "multa de 0,5% por dia"
+      },
+      "rescisao": {
+        "clausula": "Cláusula 7ª",
+        "trecho": "aviso prévio de 60 dias"
+      },
+      "confidencialidade": {
+        "clausula": "Cláusula 4ª",
+        "trecho": "por 5 anos após o término"
+      },
+      "foro": {
+        "clausula": "Cláusula 11ª",
+        "trecho": "comarca de Recife-PE"
+      }
+    },
+    "erroGrave": "cláusula citada com trecho que não está no contrato"
+  },
+  "notas": "Contrato de fornecimento de concreto usinado. Sem cláusula de vigencia: o esperado é nulo.",
+  "conferencia": {
+    "amostra": true,
+    "por": null,
+    "em": null
+  }
+}

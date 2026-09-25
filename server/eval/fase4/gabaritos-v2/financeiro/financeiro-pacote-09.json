@@ -1,0 +1,198 @@
+{
+  "versao": 1,
+  "caso": "financeiro-pacote-09",
+  "frente": "financeiro",
+  "tenant": "demonstracao",
+  "modelo": "resumo-financeiro-mensal",
+  "variacao": "pdf, 100 páginas, caixa diario",
+  "arquivos": [
+    {
+      "nome": "anexo (15).pdf",
+      "sha256": "46c60814e04acd62c7b20778731ea7e403cdefa04c55ce709e1c83bc14330c98",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 7282
+    },
+    {
+      "nome": "anexo (16).pdf",
+      "sha256": "102c7647cb4213e60acc8baef8ddd6d01869a0e3a94f6b2370d8753e124aafd9",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 95440
+    },
+    {
+      "nome": "scan_5494.pdf",
+      "sha256": "798309eecae9bcd2b8864b76664dad324f499103c2e6c4bd166d360beb19151f",
+      "tipo": "digital",
+      "origem": "gerado",
+      "bytes": 102253
+    },
+    {
+      "nome": "Documento (17).xlsx",
+      "sha256": "0850fc090c9e46ab595bec8fea9d8e1e0eb46e90d8ef5d74ba3c1334eaed5214",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 7221
+    },
+    {
+      "nome": "dados_6489.csv",
+      "sha256": "d8caec254f82ecbe51d1b6fa91cd63d9c159cc7079d80dbf49eb02240e4e7f85",
+      "tipo": "planilha",
+      "origem": "gerado",
+      "bytes": 1151
+    }
+  ],
+  "esperado": {
+    "campos": [
+      {
+        "arquivo": "anexo (15).pdf",
+        "campo": "periodo",
+        "valor": "2025-12",
+        "pagina": 1,
+        "trecho": "dezembro de 2025"
+      },
+      {
+        "arquivo": "anexo (15).pdf",
+        "campo": "receita_total",
+        "valor": 5023043.31,
+        "pagina": 1,
+        "trecho": "R$ 5.023.043,31"
+      },
+      {
+        "arquivo": "anexo (15).pdf",
+        "campo": "despesa_total",
+        "valor": 4353772.78,
+        "pagina": 1,
+        "trecho": "R$ 4.353.772,78"
+      },
+      {
+        "arquivo": "anexo (15).pdf",
+        "campo": "resultado",
+        "valor": 669270.53,
+        "pagina": 1,
+        "trecho": "R$ 669.270,53"
+      },
+      {
+        "arquivo": "anexo (16).pdf",
+        "campo": "periodo",
+        "valor": "2025-12",
+        "pagina": 1,
+        "trecho": "dezembro de 2025"
+      },
+      {
+        "arquivo": "anexo (16).pdf",
+        "campo": "receita_total",
+        "valor": 5023043.31,
+        "pagina": 40,
+        "trecho": "R$ 5.023.043,31"
+      },
+      {
+        "arquivo": "anexo (16).pdf",
+        "campo": "despesa_total",
+        "valor": 4353772.78,
+        "pagina": 40,
+        "trecho": "R$ 4.353.772,78"
+      },
+      {
+        "arquivo": "anexo (16).pdf",
+        "campo": "resultado",
+        "valor": 669270.53,
+        "pagina": 40,
+        "trecho": "R$ 669.270,53"
+      },
+      {
+        "arquivo": "scan_5494.pdf",
+        "campo": "periodo",
+        "valor": "2025-12",
+        "pagina": 1,
+        "trecho": "dezembro de 2025"
+      },
+      {
+        "arquivo": "scan_5494.pdf",
+        "campo": "receita_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "scan_5494.pdf",
+        "campo": "despesa_total",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      },
+      {
+        "arquivo": "scan_5494.pdf",
+        "campo": "resultado",
+        "valor": null,
+        "pagina": null,
+        "trecho": null
+      }
+    ],
+    "topicos": [
+      "Visão geral do mês",
+      "Receitas e despesas",
+      "Caixa",
+      "Inadimplência",
+      "Pontos de atenção",
+      "Informações que faltam"
+    ],
+    "fatos": [
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo inicial",
+        "valor": 624726.99,
+        "arquivo": "Documento (17).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de entradas",
+        "valor": 393082.87,
+        "arquivo": "Documento (17).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Total de saídas",
+        "valor": 492727.54,
+        "arquivo": "Documento (17).xlsx"
+      },
+      {
+        "topico": "Caixa",
+        "descricao": "Saldo final",
+        "valor": 525082.32,
+        "arquivo": "Documento (17).xlsx"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Total em atraso (posição em 30/11/2025)",
+        "valor": 469088.76,
+        "arquivo": "dados_6489.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Quantidade de títulos em atraso",
+        "valor": 15,
+        "arquivo": "dados_6489.csv"
+      },
+      {
+        "topico": "Inadimplência",
+        "descricao": "Em atraso há mais de 90 dias",
+        "valor": 176391.98,
+        "arquivo": "dados_6489.csv"
+      },
+      {
+        "topico": "Informações que faltam",
+        "descricao": "A inadimplência enviada é de novembro de 2025, não de dezembro de 2025",
+        "valor": null,
+        "arquivo": "dados_6489.csv"
+      }
+    ],
+    "erroGrave": "valor errado com origem aparentemente válida"
+  },
+  "notas": "Empresa fictícia (Logística Fictícia Transportes Ltda.), dezembro de 2025. DRE com 5 página(s), balancete com 40, razão com 55: 100 páginas em PDF. A DRE traz também a coluna de novembro de 2025 (armadilha: valor do mês errado); o quadro-resumo está na página 1. O resumo do balancete está na última página (40). O razão tem 55 páginas; só as 50 primeiras são lidas. O razão só tem lançamentos: receita, despesa e resultado esperados nulos. O modelo extrai só de PDF e DOCX; o fluxo de caixa (XLSX) e a inadimplência (CSV) entram só no resumo (fatos). Inadimplência em CSV com ponto e vírgula, Latin-1, com posição de novembro de 2025 (o resumo precisa apontar que falta a de dezembro de 2025). Parte escaneada: pode vir depois, pela degradação sintética (degradar.ts).",
+  "conferencia": {
+    "amostra": false,
+    "por": null,
+    "em": null
+  }
+}

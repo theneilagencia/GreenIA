@@ -9,6 +9,9 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().default(8080),
   HOST: z.string().default('0.0.0.0'),
+  // Papel do processo: all (API e fila), api (só API) ou worker (só fila; a API
+  // continua de pé para o /health). Na AWS: um serviço api e um serviço worker.
+  PROCESS_ROLE: z.enum(['all', 'api', 'worker']).default('all'),
   // URL pública do app (usada nos redirects do login e na checagem de Origin).
   PUBLIC_URL: z.url().default('http://localhost:8080'),
 

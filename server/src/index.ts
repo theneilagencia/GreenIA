@@ -31,12 +31,14 @@ const app = await buildApp({
   objects: new S3ObjectStore(config),
   knowledge: new KeywordKnowledgeSource(),
 });
-// Este processo também processa a fila. Em escala, pode rodar um processo só de fila.
-queue.startWorker();
-await queue.repeat('retention:sweep', 60 * 60 * 1000); // de hora em hora
-// Âncora da auditoria: roda de hora em hora e publica uma vez por dia por tenant
-// (a primeira rodada do dia publica; as outras veem que já existe).
-await queue.repeat('audit:anchor', 60 * 60 * 1000);
+// Papel do processo: all e worker processam a fila; api só enfileira.
+if (config.PROCESS_ROLE !== 'api') {
+  queue.startWorker();
+  await queue.repeat('retention:sweep', 60 * 60 * 1000); // de hora em hora
+  // Âncora da auditoria: roda de hora em hora e publica uma vez por dia por tenant
+  // (a primeira rodada do dia publica; as outras veem que já existe).
+  await queue.repeat('audit:anchor', 60 * 60 * 1000);
+}
 
 const stop = async () => {
   await app.close();

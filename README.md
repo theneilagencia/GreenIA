@@ -89,6 +89,7 @@ Exemplos: `server/.env.example` (produção, AWS) e `.env.local.example` (compos
 |---|---|---|
 | `NODE_ENV` | sim (prod) | `production` exige chave do modelo e cookie seguro |
 | `PORT`, `HOST` | não | padrão `8080`, `0.0.0.0` |
+| `PROCESS_ROLE` | não | `all` (padrão: API e fila no mesmo processo), `api` (só API) ou `worker` (só fila; a API fica de pé para o `/health`). Na AWS, um serviço de cada, com a mesma imagem |
 | `PUBLIC_URL` | sim | URL pública. Usada nos redirects do login e na checagem de `Origin` das escritas |
 | `DATABASE_URL` | sim | conexão do servidor (papel sem `BYPASSRLS`) |
 | `DATABASE_OWNER_URL` | sim | dono das tabelas (migrações e plataforma) |
@@ -182,11 +183,13 @@ O segundo tenant de demonstração, uma construtora, é montado só pela API em 
 
 ## Produção na AWS (sa-east-1)
 
+A infraestrutura está descrita em Terraform em `infra/terraform/`, com a estimativa de custo em `infra/README.md` (validada, nunca aplicada).
+
 O código não depende da AWS: cada peça fica atrás de uma interface (`ObjectStore`, `EmailSender`, `JobQueue`, `LlmProvider`) e é configurada por variável de ambiente. O mapeamento assumido é este:
 
 | Peça | Serviço (sa-east-1) | Configuração |
 |---|---|---|
-| App | ECS Fargate (ou App Runner) com esta imagem | 2+ tarefas atrás de um ALB com HTTPS (ACM); health check `GET /health`, prontidão `GET /health/ready` |
+| App | ECS Fargate com esta imagem | serviço `api` (`PROCESS_ROLE=api`, 2+ tarefas atrás de um ALB com HTTPS/ACM) e serviço `fila` (`PROCESS_ROLE=worker`); health check `GET /health`, prontidão `GET /health/ready` |
 | Banco | RDS for PostgreSQL 16 | Multi-AZ, criptografia em repouso (KMS), `rds.force_ssl=1`, `sslmode=require` nas URLs, extensão `pgvector` disponível para a fase de embeddings |
 | Documentos | S3 | bloqueio de acesso público, `S3_SSE=aws:kms` com chave própria, versionamento ligado, política do bucket exigindo TLS (`aws:SecureTransport`) |
 | Fila e limites | ElastiCache for Redis (ou Valkey) | TLS em trânsito (`rediss://`), AUTH ou RBAC, sem acesso público |

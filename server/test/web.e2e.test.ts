@@ -156,6 +156,51 @@ test('chat com assistente de conversa: base vinculada fora do alcance aparece co
   await page.getByRole('note').getByText('fonte não disponível para você: base de Pessoas').waitFor({ timeout: 5000 });
   assert.equal(await page.getByText('R$ 9.800').count(), 0);
   assert.ok(!JSON.stringify(fake.requests.at(-1)).includes('9.800'));
+  assert.equal(await page.getByLabel('Assistente', { exact: true }).inputValue(), 'duvidas-pessoas');   // ?assistente= escolhe no seletor
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('seletor de assistente no chat: só os de conversa das áreas da pessoa e da empresa; o geral é o padrão', async () => {
+  const q = async (sql: string, p: unknown[] = []) => (await db.owner.query(sql, p)).rows;
+  const [{ id: tid }] = await q(`select id from tenants where slug = 'repet'`);
+  const area = async (slug: string) => (await q(`select id from areas where tenant_id = $1 and slug = $2`, [tid, slug]))[0]?.id ?? (await q(`insert into areas (tenant_id, slug, name) values ($1, $2, $3) returning id`, [tid, slug, slug[0].toUpperCase() + slug.slice(1)]))[0].id;
+  const comercial = await area('comercial'), financeiro = await area('financeiro');
+  const [{ id: uid }] = await q(`insert into users (tenant_id, email) values ($1, 'vendedor2@repet.com.br') returning id`, [tid]);
+  await q(`insert into memberships (tenant_id, user_id, area_id, role) values ($1, $2, $3, 'usuario')`, [tid, uid, comercial]);
+  const cria = async (slug: string, name: string, areaId: string | null, def: Record<string, unknown>, extra: { status?: string; empresa?: boolean } = {}) => {
+    const [{ id }] = await q(`insert into assistants (tenant_id, slug, name, area_id, status, company_wide) values ($1, $2, $3, $4, $5, $6) returning id`, [tid, slug, name, areaId, extra.status ?? 'ativo', !!extra.empresa]);
+    await q(`insert into assistant_versions (tenant_id, assistant_id, version, definition, created_by) values ($1, $2, 1, $3, $4)`, [tid, id, { schemaVersion: 2, ...def }, uid]);
+  };
+  await cria('propostas', 'Propostas comerciais', comercial, { instructions: 'Você ajuda com propostas comerciais.' });
+  await cria('politicas-gerais', 'Políticas da empresa', financeiro, { instructions: 'Você explica as políticas.' }, { empresa: true });
+  await cria('custos', 'Custos do financeiro', financeiro, { instructions: 'Financeiro.' });                         // outra área: não aparece
+  await cria('rascunho-comercial', 'Rascunho comercial', comercial, {}, { status: 'rascunho' });                        // rascunho: não aparece
+  await cria('conferencia-comercial', 'Conferência comercial', comercial, { inputs: { files: { enabled: true } }, pipeline: [{ bloco: 'ler' }] });   // de execução: não aparece
+  const page = await browser.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await page.goto(base + '/GreenIA.dc.html?tenant=repet');
+  await login(page, 'vendedor2@repet.com.br');
+  const sel = page.getByLabel('Assistente', { exact: true });
+  await page.locator('#gia-assistente option', { hasText: 'Propostas comerciais' }).waitFor({ state: 'attached' });
+  assert.equal(await sel.inputValue(), '');
+  const opcoes = await page.locator('#gia-assistente option').allTextContents();
+  // "Dúvidas de pessoas" é de Pessoas, compartilhado com Comercial (teste anterior): vale como da área da pessoa.
+  assert.deepEqual(opcoes, ['Assistente geral', 'Dúvidas de pessoas', 'Políticas da empresa', 'Propostas comerciais']);
+  // Geral: sem instruções de assistente. Escolhido: as instruções dele vão ao modelo.
+  fake.reply = () => 'Resposta do assistente geral.';
+  await page.getByLabel('Mensagem').fill('oi');
+  await page.getByLabel('Mensagem').press('Enter');
+  await bubbles(page).getByText('Resposta do assistente geral.').waitFor({ timeout: 5000 });
+  assert.ok(!JSON.stringify(fake.requests.at(-1)).includes('propostas comerciais'));
+  await sel.selectOption('propostas');
+  fake.reply = () => 'Resposta de propostas.';
+  await page.getByLabel('Mensagem').fill('como monto uma proposta?');
+  await page.getByLabel('Mensagem').press('Enter');
+  await bubbles(page).getByText('Resposta de propostas.').waitFor({ timeout: 5000 });
+  assert.match(JSON.stringify(fake.requests.at(-1)), /Você ajuda com propostas comerciais\./);
   assert.deepEqual(errors, []);
   await page.close();
 });

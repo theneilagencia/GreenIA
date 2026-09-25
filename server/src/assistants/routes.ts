@@ -90,7 +90,10 @@ export async function assistantRoutes(app: FastifyInstance) {
               a.template_slug, a.template_version, a.duplicated_from, (select max(c.version) from catalog_templates c where c.kind = 'assistente' and c.slug = a.template_slug) as template_latest
        from assistants a join assistant_versions v on v.assistant_id = a.id and v.version = a.current_version
        left join areas ar on ar.id = a.area_id order by a.name`).then(r => r.rows));
-    return rows.map(r => {
+    // ?para=chat: só os assistentes de conversa em uso (piloto ou ativo). A RLS já
+    // limita às áreas da pessoa, aos compartilhados com elas e aos da empresa toda.
+    const paraChat = (req.query as { para?: string }).para === 'chat';
+    return rows.filter(r => !paraChat || (['piloto', 'ativo'].includes(r.status) && !assistantDefinitionSchema.parse(r.definition).pipeline.length)).map(r => {
       const def = assistantDefinitionSchema.parse(r.definition);
       return { slug: r.slug, name: r.name, status: r.status, version: r.version, area: r.area, areaName: r.area_name, compartilhadoCom: r.shared, empresa: r.company_wide, origem: originView(r),
         tipo: def.pipeline.length ? 'execucao' : 'conversa', description: def.description, podeGerenciar: can(a, 'kb.manage', r.area_id) };

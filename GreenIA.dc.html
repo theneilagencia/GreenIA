@@ -479,6 +479,14 @@
               <button onClick="{{ s.onClick }}" style="background:none;border:1px solid var(--gia-line-strong);color:var(--gia-ink);border-radius:999px;padding:9px 16px;font:500 14px 'Hanken Grotesk';cursor:pointer;" style-hover="background:var(--gia-sand) !important">{{ s.label }}</button>
             </sc-for>
           </div>
+          <sc-if value="{{ showAssistantPicker }}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <label for="gia-assistente" style="font:500 14px 'Hanken Grotesk';color:var(--gia-ink);">Assistente</label>
+              <select id="gia-assistente" value="{{ chatAssistant }}" onChange="{{ onChatAssistant }}" style="font:400 14px 'Hanken Grotesk';color:var(--gia-ink);background:var(--gia-surface);border:1px solid var(--gia-line-strong);border-radius:999px;padding:7px 14px;max-width:100%;">
+                <sc-for list="{{ assistantOptions }}" as="o" hint-placeholder-count="0"><option value="{{ o.slug }}">{{ o.name }}</option></sc-for>
+              </select>
+            </div>
+          </sc-if>
           <div class="gia-composer-box" style="display:flex;align-items:flex-end;gap:10px;background:var(--gia-surface);border:1px solid var(--gia-line-strong);border-radius:24px;padding:8px 8px 8px 20px;">
             <textarea ref="{{ inputRef }}" rows="1" value="{{ input }}" onInput="{{ onInput }}" onKeyDown="{{ onKeyDown }}" placeholder="Pergunte alguma coisa…" aria-label="Mensagem" style="flex:1;display:block;min-width:0;border:none;background:none;outline:none;resize:none;font:400 17px/1.5 'Hanken Grotesk';color:var(--gia-ink);padding:10px 0;max-height:calc(8 * 1.5em + 20px);overflow-y:hidden;"></textarea>
             <button onClick="{{ send }}" disabled="{{ sendDisabled }}" aria-label="Enviar" style="flex:none;width:44px;height:44px;border-radius:999px;background:{{ sendBg }};border:none;display:flex;align-items:center;justify-content:center;cursor:{{ sendCursor }};" style-enabled:hover="background:var(--gia-forest-hover) !important">
@@ -953,6 +961,8 @@ class Component extends DCLogic {
       policyOpen: false,
       sidebarOpen: false, // painel de conversas no celular (abaixo de 860 px)
       kbOn: true,
+      chatAssistants: [],   // assistentes de conversa que a pessoa pode usar (modo backend)
+      chatAssistant: '',    // '' = assistente geral; ?assistente=<slug> escolhe de início
       liveText: '', // texto para leitores de tela (aria-live), só com a resposta completa
       // Modo backend (prop backendUrl): configuração pública do tenant e sessão.
       tenant: null,
@@ -1064,9 +1074,17 @@ class Component extends DCLogic {
     }
   }
 
-  _assistantSlug() {
+  // Assistente da conversa: o escolhido no seletor; de início, o do endereço (?assistente=<slug>).
+  _assistantFromUrl() {
     const v = new URLSearchParams(location.search).get('assistente');
-    return v && /^[a-z0-9][a-z0-9-]{0,60}$/.test(v) ? v : null;
+    return v && /^[a-z0-9][a-z0-9-]{0,60}$/.test(v) ? v : '';
+  }
+  _assistantSlug() { return this.state.chatAssistant || null; }
+  async _loadChatAssistants() {
+    const r = await this._fetch('/api/assistants?para=chat');
+    if (!r.ok) return;
+    const list = await r.json();
+    this.setState(s => ({ chatAssistants: list.map(a => ({ slug: a.slug, name: a.name })), chatAssistant: s.chatAssistant || this._assistantFromUrl() }));
   }
 
   // Cores do tenant (já validadas para contraste no servidor).
@@ -1085,6 +1103,7 @@ class Component extends DCLogic {
       this.setState({ session, authed: true, tourStep: session.onboardingDone ? null : 0 });
       this._loadKbCount();
       this._loadUsagePolicy();
+      this._loadChatAssistants();
       return true;
     } catch (e) {
       this.setState({ loginMessage: 'Não consegui falar com o servidor agora. Tente de novo em instantes.' });
@@ -1735,6 +1754,10 @@ class Component extends DCLogic {
       logout: () => this.logout(),
 
       kbChecked: kbOn ? 'true' : 'false',
+      showAssistantPicker: this._api() !== null && !!this.state.session,
+      chatAssistant: this.state.chatAssistant,
+      onChatAssistant: e => this.setState({ chatAssistant: e.target.value }),
+      assistantOptions: [{ slug: '', name: 'Assistente geral' }].concat(this.state.chatAssistants, this.state.chatAssistant && !this.state.chatAssistants.some(a => a.slug === this.state.chatAssistant) ? [{ slug: this.state.chatAssistant, name: this.state.chatAssistant }] : []),
       kbStatus: !kbOn ? 'Desligada'
         : backend ? (this.state.kbCount === null ? 'Conectada' : 'Conectada · ' + this.state.kbCount + ' documentos')
         : ('Conectada · ' + this.KB.length + ' documentos'),

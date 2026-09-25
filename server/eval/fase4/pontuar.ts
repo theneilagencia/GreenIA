@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gravarJson, sha256 } from './lib.ts';
 import { normKey } from '../../src/blocks/values.ts';
+import { paresLgpd } from './avaliar-lgpd-offline.ts';
 
 const AQUI = fileURLToPath(new URL('.', import.meta.url));
 export type Estado = 'presente' | 'ausente' | 'duvidoso';
@@ -98,6 +99,8 @@ export const MEDICOES = [
   { frente: 'contratacao', rotulo: 'Construtora (contratação), checklist anterior', arquivo: 'contratacao-desenvolvimento-checklist-anterior.json', tipo: 'checklist', natureza: 'prova_de_generalizacao' },
   { frente: 'contratacao', rotulo: 'Construtora (contratação), plataforma corrigida', arquivo: 'contratacao-desenvolvimento.json', tipo: 'checklist', natureza: 'prova_de_generalizacao' },
   { frente: 'fiscal', rotulo: 'Fiscal, conferência pelos mapeamentos (cinco layouts)', arquivo: 'fiscal-desenvolvimento.json', tipo: 'fiscal', natureza: 'desenvolvimento' },
+  { frente: 'lgpd', rotulo: 'LGPD, classificação por regras, antes dos metadados das planilhas', arquivo: 'lgpd-desenvolvimento-antes-dos-metadados.json', tipo: 'lgpd', natureza: 'desenvolvimento' },
+  { frente: 'lgpd', rotulo: 'LGPD, classificação por regras, com os metadados das planilhas', arquivo: 'lgpd-desenvolvimento.json', tipo: 'lgpd', natureza: 'desenvolvimento' },
 ] as const;
 
 export function pontuarMedicoes() {
@@ -106,7 +109,7 @@ export function pontuarMedicoes() {
     if (!existsSync(p)) return { ...m, conjunto: 'desenvolvimento', rotuloRelatorio: rotulo('desenvolvimento', m.natureza), pontuacao: null };
     const r = JSON.parse(readFileSync(p, 'utf8'));
     if (r.conjunto && r.conjunto !== 'desenvolvimento') throw new Error(`${m.arquivo} não é do desenvolvimento`);
-    const pares = m.tipo === 'fiscal' ? paresFiscal(r.casos) : paresChecklist(r.casos);
+    const pares = m.tipo === 'fiscal' ? paresFiscal(r.casos) : m.tipo === 'lgpd' ? paresLgpd(r.casos) : paresChecklist(r.casos);
     return { ...m, conjunto: 'desenvolvimento', rotuloRelatorio: rotulo('desenvolvimento', m.natureza), pontuacao: pontuar(pares) };
   });
 }

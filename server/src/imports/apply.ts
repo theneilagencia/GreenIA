@@ -8,6 +8,7 @@ import { cellValue } from '../blocks/ler.ts';
 import { getPath } from '../blocks/values.ts';
 import { normPt } from '../util/text.ts';
 import type { CampoMapeado, MapeamentoConfig, Transformacao } from './schema.ts';
+import { lerMetadados, metadado, temMetadados, type Metadados } from '../util/metadados.ts';
 
 export type Valor = string | number | null;
 export interface RegistroImportado { dados: Record<string, Valor>; origem: string; origens: Record<string, string> }
@@ -18,6 +19,7 @@ export interface ResultadoImportacao {
   colunas: string[];                       // cabeçalho encontrado (tabelas) ou chaves do primeiro registro
   linhasLidas: number;
   linhasIgnoradas: number;
+  metadados?: Metadados;                   // linhas ignoradas do início lidas como título e rótulo: valor
 }
 
 type Linha = { n: number; celulas: Valor[]; texto: string };
@@ -155,7 +157,13 @@ function converter(bruto: Valor, c: CampoMapeado, cfg: MapeamentoConfig, outra: 
 function valoresFixos(cfg: MapeamentoConfig, topo: Linha[], nome: string, planilhas?: Awaited<ReturnType<typeof lerXlsx>>['planilhas']) {
   const valores: Record<string, { bruto: Valor; origem: string }> = {};
   const erros: ErroImportacao[] = [];
+  const meta = lerMetadados(topo.map(l => ({ n: l.n, celulas: cfg.formato === 'csv' || cfg.formato === 'xlsx' ? l.celulas : [l.texto] })));
   for (const c of cfg.campos) {
+    if (c.doMetadado) {
+      const m = metadado(meta, c.doMetadado.chave);
+      if (m) valores[c.campo] = { bruto: m.valor, origem: `${nome} › linha ${m.linha}` };
+      else if (c.obrigatorio) erros.push({ campo: c.campo, motivo: `metadado ${c.doMetadado.chave} não encontrado nas linhas acima da tabela` });
+    }
     if (c.doTopo) {
       const re = new RegExp(c.doTopo.padrao, 'i');
       const hit = topo.map(l => ({ l, m: re.exec(l.texto) })).find(x => x.m);
@@ -170,7 +178,7 @@ function valoresFixos(cfg: MapeamentoConfig, topo: Linha[], nome: string, planil
       else if (c.obrigatorio) erros.push({ campo: c.campo, motivo: `campo ${c.daPlanilha.chave} não encontrado na planilha ${p.nome}` });
     }
   }
-  return { valores, erros };
+  return { valores, erros, meta };
 }
 
 function montar(cfg: MapeamentoConfig, fixos: ReturnType<typeof valoresFixos>, linhas: { n: number; origem: string; valor: (c: CampoMapeado) => Valor; outra: (o: string) => Valor }[], erros: ErroImportacao[]) {
@@ -179,8 +187,9 @@ function montar(cfg: MapeamentoConfig, fixos: ReturnType<typeof valoresFixos>, l
     const dados: Record<string, Valor> = {}, origens: Record<string, string> = {};
     let ok = true;
     for (const c of cfg.campos) {
-      const fixo = c.doTopo || c.daPlanilha ? fixos.valores[c.campo] : undefined;
-      const bruto = c.doTopo || c.daPlanilha ? (fixo?.bruto ?? null) : l.valor(c);
+      const deFora = !!(c.doTopo || c.daPlanilha || c.doMetadado);
+      const fixo = deFora ? fixos.valores[c.campo] : undefined;
+      const bruto = deFora ? (fixo?.bruto ?? null) : l.valor(c);
       const r = converter(bruto, c, cfg, l.outra);
       if (r.erro) { ok = false; if (erros.length < MAX_ERROS) erros.push({ linha: l.n, campo: c.campo, motivo: r.erro }); }
       dados[c.campo] = r.valor;
@@ -212,7 +221,7 @@ export async function aplicarMapeamento(bytes: Uint8Array, nome: string, cfg: Ma
       if (typeof v === 'object') return (v as Record<string, unknown>)['#text'] !== undefined ? String((v as Record<string, unknown>)['#text']) : null;
       return typeof v === 'number' ? v : String(v);
     };
-    const registros = montar(cfg, { valores: {}, erros: [] }, recs.map((rec, i) => ({
+    const registros = montar(cfg, { valores: {}, erros: [], meta: { campos: {}, linhaDe: {}, linhas: [] } }, recs.map((rec, i) => ({
       n: i + 1, origem: `${nome} › registro ${i + 1}`, valor: (c: CampoMapeado) => pegar(rec, c.origem!), outra: (o: string) => pegar(rec, o),
     })), erros);
     const colunas = recs[0] && typeof recs[0] === 'object' ? Object.keys(recs[0] as object) : [];
@@ -267,7 +276,7 @@ export async function aplicarMapeamento(bytes: Uint8Array, nome: string, cfg: Ma
       outra: pegar,
     };
   }), erros);
-  return { registros, erros, colunas, linhasLidas: corpo.length, linhasIgnoradas: ignoradas };
+  return { registros, erros, colunas, linhasLidas: corpo.length, linhasIgnoradas: ignoradas, ...(temMetadados(fixos.meta) ? { metadados: fixos.meta } : {}) };
 }
 
 // O mapeamento pode servir para o arquivo? (pela extensão; exportações em

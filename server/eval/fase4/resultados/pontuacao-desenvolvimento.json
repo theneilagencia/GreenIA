@@ -164,6 +164,54 @@
         },
         "graves": []
       }
+    },
+    {
+      "frente": "lgpd",
+      "rotulo": "LGPD, classificação por regras, antes dos metadados das planilhas",
+      "arquivo": "lgpd-desenvolvimento-antes-dos-metadados.json",
+      "tipo": "lgpd",
+      "natureza": "desenvolvimento",
+      "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]",
+      "pontuacao": {
+        "casos": 4,
+        "unidades": 200,
+        "acerto": 164,
+        "errosGraves": 0,
+        "errosComuns": 0,
+        "revisao": 36,
+        "taxas": {
+          "acerto": 82,
+          "errosGraves": 0,
+          "errosComuns": 0,
+          "revisao": 18
+        },
+        "graves": []
+      }
+    },
+    {
+      "frente": "lgpd",
+      "rotulo": "LGPD, classificação por regras, com os metadados das planilhas",
+      "arquivo": "lgpd-desenvolvimento.json",
+      "tipo": "lgpd",
+      "natureza": "desenvolvimento",
+      "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]",
+      "pontuacao": {
+        "casos": 4,
+        "unidades": 200,
+        "acerto": 164,
+        "errosGraves": 0,
+        "errosComuns": 0,
+        "revisao": 36,
+        "taxas": {
+          "acerto": 82,
+          "errosGraves": 0,
+          "errosComuns": 0,
+          "revisao": 18
+        },
+        "graves": []
+      }
     }
   ]
 }

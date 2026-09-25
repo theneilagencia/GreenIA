@@ -8,6 +8,7 @@ import type { KnowledgeHit } from '../kb/knowledge.ts';
 import type { Converter } from '../convert/converter.ts';
 import type { Reader } from '../readers/registry.ts';
 import type { MapeamentoAtivo } from '../imports/schema.ts';
+import type { Metadados } from '../util/metadados.ts';
 import type { Importado } from '../imports/match.ts';
 
 export interface InputFile { id: string; name: string; mime: string; bytes: Uint8Array; sha256: string }
@@ -17,6 +18,7 @@ export interface Sheet {
   header: string[];
   rows: Record<string, string | number | null>[];   // chave = coluna do cabeçalho
   rowNumbers: number[];                             // linha de cada registro na planilha (origem)
+  metadados?: Metadados;                            // linhas acima da tabela (título, período, unidade, responsável)
 }
 
 export interface ReadDoc {

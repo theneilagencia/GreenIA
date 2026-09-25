@@ -18,6 +18,7 @@ import { extractText, getDocumentProxy } from 'unpdf';
 import mammoth from 'mammoth';
 import ExcelJS from 'exceljs';
 import { importarConjuntos } from '../imports/match.ts';
+import { lerMetadados, temMetadados } from '../util/metadados.ts';
 import type { FileKind, PipelineStep } from './params.ts';
 import { lerParams } from './params.ts';
 import { parseCsv } from '../util/csv.ts';
@@ -94,16 +95,23 @@ const b64 = (b: Uint8Array) => Buffer.from(b).toString('base64');
 
 const filled = (r: (string | number | null)[]) => r.filter(c => c !== null && String(c).trim() !== '').length;
 
-// Cabeçalho: a primeira linha (entre as 20 primeiras) com pelo menos 60% das
-// colunas preenchidas. Pula títulos e linhas em branco acima da tabela, comuns
-// em planilhas exportadas do ERP.
+// Região da tabela: o cabeçalho é a primeira linha (entre as 20 primeiras) com
+// pelo menos 60% das colunas preenchidas (de preferência a mais larga) e seguida
+// de outra linha assim (a primeira linha de dados). As linhas acima (título, período, unidade,
+// responsável) não se perdem: viram metadados da planilha, com a linha de origem.
 function sheetFromRows(name: string, rows: (string | number | null)[][], firstRowNumber = 1): Sheet {
   const top = rows.slice(0, 20).map(filled);
   const widest = Math.max(0, ...top);
-  const headerIdx = widest === 0 ? -1 : top.findIndex(n => n >= Math.max(1, Math.ceil(widest * 0.6)));
+  const min = Math.max(1, Math.ceil(widest * 0.6));
+  const cands = top.map((n, i) => (n >= min ? i : -1)).filter(i => i >= 0);
+  const seguida = (i: number) => { const prox = rows.slice(i + 1).find(r => filled(r) > 0); return !prox || filled(prox) >= min; };
+  // Preferência: a linha mais larga seguida de dados (linhas de cima como "Unidade | Matriz" são mais estreitas).
+  const headerIdx = widest === 0 ? -1 : (cands.find(i => top[i] === widest && seguida(i)) ?? cands.find(seguida) ?? cands[0] ?? -1);
   if (headerIdx < 0) return { name, header: [], rows: [], rowNumbers: [] };
   const header = rows[headerIdx].map((h, i) => (h === null || String(h).trim() === '' ? `coluna_${i + 1}` : String(h).trim()));
   const out: Sheet = { name, header, rows: [], rowNumbers: [] };
+  const meta = lerMetadados(rows.slice(0, headerIdx).map((celulas, i) => ({ n: firstRowNumber + i, celulas })));
+  if (temMetadados(meta)) out.metadados = meta;
   rows.slice(headerIdx + 1).forEach((r, i) => {
     if (!filled(r)) return;
     out.rows.push(Object.fromEntries(header.map((h, j) => [h, r[j] ?? null])));
@@ -141,7 +149,7 @@ async function readXlsx(bytes: Uint8Array): Promise<Sheet[]> {
   });
 }
 
-const sheetText = (s: Sheet) => [`[${s.name}]`, s.header.join(' | '), ...s.rows.map(r => s.header.map(h => r[h] ?? '').join(' | '))].join('\n');
+const sheetText = (s: Sheet) => [`[${s.name}]`, ...(s.metadados?.linhas.map(l => l.texto) ?? []), s.header.join(' | '), ...s.rows.map(r => s.header.map(h => r[h] ?? '').join(' | '))].join('\n');
 
 export interface ReadOpts { paginasMax: number; ocrMinConfidence: number; visionFallback: boolean }
 type PageOut = ReadDoc['pages'][number];
@@ -376,7 +384,7 @@ export async function lerBlock(ctx: RunContext, step: PipelineStep): Promise<Sec
       arquivo: d.name, tipo: d.kind, leitura: d.via, convertidoDe: d.convertedFrom, paginas: d.pageCount, paginasNaoLidas: d.paginasNaoLidas,
       confiancaOcr: ocrConf(d),
       paginasPorVisao: d.pages.filter(pg => pg.via === 'visao').map(pg => pg.n),
-      planilhas: d.sheets?.map(s => ({ nome: s.name, linhas: s.rows.length })),
+      planilhas: d.sheets?.map(s => ({ nome: s.name, linhas: s.rows.length, ...(s.metadados ? { metadados: { titulo: s.metadados.titulo, ...s.metadados.campos } } : {}) })),
       ...summaries(d),
       situacao: d.situacao,
       importacao: imp.resumo.filter(r => r.arquivo === d.name).map(({ arquivo: _a, ...r }) => r),

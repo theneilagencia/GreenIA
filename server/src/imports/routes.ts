@@ -26,7 +26,7 @@ async function previa(cfg: MapeamentoConfig, arq: z.infer<typeof arquivoSchema>,
   const r = await aplicarMapeamento(bytesDe(arq), arq.nome, cfg);
   return {
     serveParaEsteArquivo: serveParaArquivo(cfg, arq.nome),
-    colunas: r.colunas, linhasLidas: r.linhasLidas, linhasIgnoradas: r.linhasIgnoradas,
+    colunas: r.colunas, linhasLidas: r.linhasLidas, linhasIgnoradas: r.linhasIgnoradas, metadados: r.metadados ? { titulo: r.metadados.titulo, ...r.metadados.campos } : undefined,
     registros: r.registros.length, amostra: r.registros.slice(0, limite).map(x => ({ ...x.dados, _origem: x.origem })),
     erros: r.erros.slice(0, 100), totalErros: r.erros.length,
   };

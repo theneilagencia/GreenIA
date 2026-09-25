@@ -749,7 +749,7 @@
               <div style="border:1px solid var(--gia-line);border-radius:10px;padding:8px;margin-bottom:8px;">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <input class="gia-field" aria-label="{{ f.aria }}" placeholder="campo" value="{{ f.campo }}" onInput="{{ f.onCampo }}" style="width:150px;">
-                  <select class="gia-field" aria-label="{{ f.ariaFonte }}" value="{{ f.fonte }}" onChange="{{ f.onFonte }}" style="width:auto;"><option value="coluna">coluna ou caminho</option><option value="posicao">posição (largura fixa)</option><option value="topo">linhas do início</option><option value="planilha">planilha campo | valor</option></select>
+                  <select class="gia-field" aria-label="{{ f.ariaFonte }}" value="{{ f.fonte }}" onChange="{{ f.onFonte }}" style="width:auto;"><option value="coluna">coluna ou caminho</option><option value="posicao">posição (largura fixa)</option><option value="topo">linhas do início</option><option value="planilha">planilha campo | valor</option><option value="metadado">metadado (linhas acima da tabela)</option></select>
                   <input class="gia-field" aria-label="{{ f.ariaA }}" placeholder="{{ f.phA }}" value="{{ f.a }}" onInput="{{ f.onA }}" style="flex:1;min-width:140px;">
                   <sc-if value="{{ f.temB }}"><input class="gia-field" aria-label="{{ f.ariaB }}" placeholder="{{ f.phB }}" value="{{ f.b }}" onInput="{{ f.onB }}" style="width:130px;"></sc-if>
                   <select class="gia-field" aria-label="{{ f.ariaTipo }}" value="{{ f.tipo }}" onChange="{{ f.onTipo }}" style="width:auto;"><option value="texto">texto</option><option value="numero">número</option><option value="inteiro">inteiro</option><option value="data">data</option></select>
@@ -1907,6 +1907,7 @@ class Component extends DCLogic {
       if (f.posicao) Object.assign(row, { fonte: 'posicao', a: String(f.posicao.inicio), b: String(f.posicao.tamanho) });
       else if (f.doTopo) Object.assign(row, { fonte: 'topo', a: f.doTopo.padrao });
       else if (f.daPlanilha) Object.assign(row, { fonte: 'planilha', a: f.daPlanilha.planilha, b: f.daPlanilha.chave });
+      else if (f.doMetadado) Object.assign(row, { fonte: 'metadado', a: f.doMetadado.chave });
       else row.a = f.origem || '';
       if (t && t.tipo === 'dividir') Object.assign(row, { trA: t.separador, trB: String(t.parte) });
       if (t && t.tipo === 'substituir') Object.assign(row, { trA: t.de, trB: t.para });
@@ -1929,6 +1930,7 @@ class Component extends DCLogic {
         if (f.fonte === 'posicao') out.posicao = { inicio: Number(f.a) || 1, tamanho: Number(f.b) || 1 };
         else if (f.fonte === 'topo') out.doTopo = { padrao: f.a };
         else if (f.fonte === 'planilha') out.daPlanilha = { planilha: f.a, chave: f.b };
+        else if (f.fonte === 'metadado') out.doMetadado = { chave: f.a };
         else out.origem = f.a;
         const t = f.trTipo;
         if (t === 'dividir') out.transformacoes.push({ tipo: t, separador: f.trA || ' - ', parte: Number(f.trB) || 0 });
@@ -2015,7 +2017,7 @@ class Component extends DCLogic {
   }
   _mapFieldRows() {
     const me = this.state.mapEd;
-    const FONTE_PH = { coluna: ['Coluna, número da coluna ou caminho', ''], posicao: ['Início (1 = primeira letra)', 'Tamanho'], topo: ['Trecho com (grupo), ex.: Pedido: (\\d+)', ''], planilha: ['Planilha', 'Campo na primeira coluna'] };
+    const FONTE_PH = { coluna: ['Coluna, número da coluna ou caminho', ''], posicao: ['Início (1 = primeira letra)', 'Tamanho'], topo: ['Trecho com (grupo), ex.: Pedido: (\\d+)', ''], planilha: ['Planilha', 'Campo na primeira coluna'], metadado: ['Rótulo do metadado, ex.: Período (ou titulo)', ''] };
     const TR_PH = { dividir: ['Separador, ex.: " - "', 'Parte (0 = primeira)'], substituir: ['Trocar', 'Por'], mapear: ['Valores, ex.: CX=UN, PC=UN', ''], multiplicar: ['Fator', 'ou coluna do fator'], dividirPor: ['Fator', ''] };
     return me ? me.campos.map((f, i) => {
       const ph = FONTE_PH[f.fonte] || FONTE_PH.coluna;
@@ -2397,6 +2399,7 @@ class Component extends DCLogic {
     const pv = me && me.previa;
     const pvCols = pv && pv.amostra.length ? Object.keys(pv.amostra[0]).filter(k => k !== '_origem').concat(['origem']) : [];
     const pvSummary = pv ? (pv.registros + ' registro(s) lidos de ' + pv.linhasLidas + ' linha(s); ' + pv.linhasIgnoradas + ' ignorada(s).' + (pv.serveParaEsteArquivo ? '' : '\nO formato escolhido não costuma servir para este tipo de arquivo.')
+      + (pv.metadados ? '\nMetadados das linhas acima da tabela: ' + Object.keys(pv.metadados).filter(k => pv.metadados[k]).map(k => k + ': ' + pv.metadados[k]).join('; ') + '.' : '')
       + (pv.totalErros ? '\n' + pv.totalErros + ' problema(s):\n' + pv.erros.slice(0, 10).map(e => (e.linha ? 'linha ' + e.linha + ' · ' : '') + (e.campo ? e.campo + ': ' : '') + e.motivo).join('\n') : '')) : '';
     const adminTabs = adminDefs.filter(t => t[2]).map(t => ({ label: t[1], current: st.adminTab === t[0] ? 'page' : 'false', bg: st.adminTab === t[0] ? 'var(--gia-deep)' : 'var(--gia-surface)', color: st.adminTab === t[0] ? 'var(--gia-paper)' : 'var(--gia-ink)', onClick: () => this.setAdminTab(t[0]) }));
     const ed = st.editor;

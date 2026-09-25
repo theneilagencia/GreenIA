@@ -125,10 +125,13 @@ Congelada em `matriz.json` (sha256 em `matriz.sha256`) antes da rodada final. Va
 | Construtora (contratação) | checklist anterior | desenvolvimento · prova de generalização | 9 | 63 | 69,8% | 6 (9,5%) | 4 (6,3%) | 14,3% |
 | Construtora (contratação) | plataforma corrigida | desenvolvimento · prova de generalização | 9 | 63 | 90,5% | 0 | 0 | 9,5% |
 | Fiscal | conferência pelos mapeamentos, cinco layouts | desenvolvimento · medição | 18 | 353 | 98,6% | 0 | 0 | 1,4% |
+| LGPD | classificação por regras, antes dos metadados das planilhas | desenvolvimento · medição | 4 | 200 | 82% | 0 | 0 | 18% |
+| LGPD | classificação por regras, com os metadados das planilhas | desenvolvimento · medição | 4 | 200 | 82% | 0 | 0 | 18% |
 
 - Pela matriz, o RH corrigido tem o mesmo acerto que o checklist anterior (92,1%). Os 5 erros graves viraram revisão: 4 itens só citados na ficha e o CPF citado em outros documentos. Na conta item a item de antes, "duvidoso = duvidoso" contava como acerto (98,4%). Pela matriz, conta como revisão.
 - A linha de base do reservado (78,6%) foi gravada só como resumo, antes da matriz. Ela não é pontuada pela matriz: isso exigiria rodar o reservado, o que fica para a rodada final.
-- Jurídico, Suprimentos, Financeiro e LGPD ainda não têm medição no desenvolvimento. Dependem das rodadas com o modelo real.
+- No LGPD, a unidade é documento × categoria. Os 18% de revisão (36 unidades) vêm de dois lugares. Os documentos sem relação com a taxonomia (7 de 40) ficam "não classificados" e vão para revisão em todas as categorias (35 unidades). Um certificado foi classificado com confiança baixa (1 unidade).
+- Jurídico, Suprimentos e Financeiro ainda não têm medição no desenvolvimento. Dependem das rodadas com o modelo real.
 
 ## Correções da plataforma no checklist (medidas só no desenvolvimento)
 
@@ -189,6 +192,18 @@ Nada disso foi ajustado: a Fase 4 mede como está e o relatório propõe as muda
 - A leitura por partes custa cerca de 2,4 vezes mais nesses pacotes, porque lê as páginas que antes eram cortadas (o razão tem até 215 páginas).
 - Nos pacotes 01 e 10, o valor do balancete estava depois da página 50 e antes não chegava ao modelo.
 - O tempo medido é só o da plataforma (leitura dos PDFs e montagem das partes). O tempo do modelo não dá para medir sem a chave. Com as chamadas em sequência, ele cresce com o número de chamadas: 24 para 58 nos seis pacotes, cerca de 10 por pacote. A medição com o modelo real entra na rodada do desenvolvimento.
+
+## Planilhas com linhas acima da tabela: metadados
+
+- **Região da tabela.** O leitor procura, entre as 20 primeiras linhas, a linha mais larga que é seguida de dados. Por isso, uma linha como "Unidade | Matriz" acima da tabela não vira cabeçalho.
+- **Metadados.** O que vem antes do cabeçalho não se perde: vira os metadados da planilha, cada um com a linha de origem. São eles:
+  - o título;
+  - pares "rótulo: valor", numa célula ou em duas (ex.: "Período: 08/2026", "Unidade | Matriz", "Responsável: | Ana");
+  - todas as linhas, como vieram.
+- **Para o assistente.** O texto da planilha traz os metadados antes da tabela. Os registros da planilha trazem `_meta.<rótulo>` (ex.: `_meta.Período`), com a linha de origem, para a conferência. A seção de leitura mostra os metadados de cada planilha.
+- **Para o mapeamento de importação.** O campo pode vir de `doMetadado: { chave: "Período" }`, lido nas linhas ignoradas do início. `"titulo"` é o título. Na tela, a origem é "metadado (linhas acima da tabela)", e a pré-visualização mostra os metadados encontrados.
+- **Testes:** `metadados-planilha.test.ts`.
+- **Medição no LGPD** [desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]: sem mudança (82% de acerto, 0 erro grave, 18% em revisão, antes e depois). Nos quatro lotes do desenvolvimento, o nome de cada arquivo já traz a categoria. O caso que o gerador apontou (planilha com nome genérico, em que o título decide) não caiu no desenvolvimento. Não abri o reservado para conferir.
 
 ## Documentos reais do PNCP (Jurídico e Suprimentos)
 

@@ -9,6 +9,7 @@ import type { ReviewFlag, RunContext, Section } from './types.ts';
 import type { Extracao } from './extrair.ts';
 import { getPath, globMatch, isoDay, normKey, parseDateBr, parseNumberBr } from './values.ts';
 import { normPt } from '../util/text.ts';
+import { metadado } from '../util/metadados.ts';
 
 export interface Registro {
   dados: Record<string, unknown>;
@@ -73,7 +74,18 @@ export function resolveDataset(ctx: RunContext, ref: DatasetRef): Registro[] {
           return hit ? `${d.name} › ${sheet.name} › linha ${linhas[hit]}` : null;
         } }];
       }
-      return sheet.rows.map((r, i) => ({ dados: r as Record<string, unknown>, origem: `${d.name} › ${sheet.name} › linha ${sheet.rowNumbers[i]}` }));
+      // Metadados das linhas acima da tabela (título, período...) ficam em "_meta.<rótulo>".
+      const meta = sheet.metadados;
+      const metaDados = meta ? { ...(meta.titulo ? { titulo: meta.titulo } : {}), ...meta.campos } : null;
+      return sheet.rows.map((r, i) => ({
+        dados: metaDados ? { ...r, _meta: metaDados } : r as Record<string, unknown>,
+        origem: `${d.name} › ${sheet.name} › linha ${sheet.rowNumbers[i]}`,
+        origemCampo: (c: string) => {
+          if (!meta || !c.startsWith('_meta.')) return null;
+          const m = metadado(meta, c.slice(6));
+          return m ? `${d.name} › ${sheet.name} › linha ${m.linha}` : null;
+        },
+      }));
     });
   }
   const sec = ctx.sections.find(s => s.id === ref.bloco && s.kind === 'campos') ?? (ref.bloco ? undefined : ctx.sections.find(s => s.kind === 'campos'));

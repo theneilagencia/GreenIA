@@ -34,11 +34,13 @@ export const campoMapeadoSchema = z.object({
   // planilha em campo | valor): o valor vale para todos os registros do arquivo.
   doTopo: z.object({ padrao: z.string().min(1).max(300) }).optional(),                    // expressão com um grupo, nas linhas ignoradas do início
   daPlanilha: z.object({ planilha: z.string().max(100), chave: z.string().max(200) }).optional(), // planilha de duas colunas (campo | valor)
+  // Metadado das linhas acima da tabela ("Período: 08/2026", "Unidade | Matriz"), pelo rótulo; "titulo" é o título.
+  doMetadado: z.object({ chave: z.string().min(1).max(100) }).optional(),
   tipo: tipoCampoSchema.default('texto'),
   obrigatorio: z.boolean().default(false),
   transformacoes: z.array(transformacaoSchema).max(10).default([]),
-}).refine(c => [c.origem, c.posicao, c.doTopo, c.daPlanilha].filter(x => x !== undefined).length === 1,
-  'cada campo vem de um só lugar: origem, posição, doTopo ou daPlanilha');
+}).refine(c => [c.origem, c.posicao, c.doTopo, c.daPlanilha, c.doMetadado].filter(x => x !== undefined).length === 1,
+  'cada campo vem de um só lugar: origem, posição, doTopo, daPlanilha ou doMetadado');
 export type CampoMapeado = z.infer<typeof campoMapeadoSchema>;
 
 export const mapeamentoConfigSchema = z.object({
@@ -66,7 +68,8 @@ export const mapeamentoConfigSchema = z.object({
     if (c.doTopo) { try { new RegExp(c.doTopo.padrao); } catch { ctx.addIssue({ code: 'custom', path: ['campos', i, 'doTopo'], message: 'expressão inválida' }); } }
   });
   m.ignorarLinhasQue.forEach((p, i) => { try { new RegExp(p); } catch { ctx.addIssue({ code: 'custom', path: ['ignorarLinhasQue', i], message: 'expressão inválida' }); } });
-  if ((m.formato === 'json' || m.formato === 'xml') && m.campos.some(c => c.origem === undefined && !c.doTopo)) {
+  if (m.formato === 'json' || m.formato === 'xml') m.campos.forEach((c, i) => { if (c.doMetadado) ctx.addIssue({ code: 'custom', path: ['campos', i], message: 'doMetadado vale para CSV, XLSX e texto' }); });
+  if ((m.formato === 'json' || m.formato === 'xml') && m.campos.some(c => c.origem === undefined && !c.doTopo && !c.doMetadado)) {
     ctx.addIssue({ code: 'custom', path: ['campos'], message: 'JSON e XML: cada campo precisa de origem (caminho)' });
   }
 });

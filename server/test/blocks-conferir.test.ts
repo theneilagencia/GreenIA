@@ -119,7 +119,8 @@ test('conjunto não encontrado nunca vira "sem divergências": vai para revisão
   const { env } = testEnv();
   const s = await conferirBlock({ def, text: '', files: [], docs: [], sections: [], env }, def.pipeline[0]);
   assert.deepEqual(s.flags.map(f => f.reason), ['conferência não realizada: falta XML de NF-e e Referência']);
-  assert.deepEqual([s.data.situacao, s.data.divergencias.length], ['nao_realizada', 0]);
+  const d = s.data as ResultadoConferencia;
+  assert.deepEqual([d.situacao, d.divergencias.length], ['nao_realizada', 0]);
 });
 
 test('falta a fonte de um lado: um único status, sem listar cada item como "sem par" (vale para qualquer conferência)', async () => {
@@ -131,7 +132,7 @@ test('falta a fonte de um lado: um único status, sem listar cada item como "sem
     sheets: [{ name: 'Itens', header: ['Código', 'Quantidade'], rows: [{ 'Código': 'A', Quantidade: 1 }, { 'Código': 'B', Quantidade: 2 }], rowNumbers: [2, 3] }] } as never;
   const s = await conferirBlock({ def, text: '', files: [], docs: [pedido], sections: [], env }, def.pipeline[0]);
   assert.deepEqual(s.flags.map(f => f.reason), ['conferência não realizada: falta Recebimento']);
-  assert.deepEqual(s.data.divergencias, []);
+  assert.deepEqual((s.data as ResultadoConferencia).divergencias, []);
   assert.equal(s.counts!.divergencias, 0);
 });
 

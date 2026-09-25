@@ -176,22 +176,52 @@ Nada disso foi ajustado: a Fase 4 mede como está e o relatório propõe as muda
 - **Classificação e checklist pelo modelo.** Identificam o documento pelo início dele (2.000 a 5.000 caracteres) e não extraem conteúdo. A saída agora diz isso (`leitura`).
 - **Testes:** `blocks-partes.test.ts` e `blocks-ler.test.ts`.
 
-**Custo e tempo** [desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]. Seis pacotes do Financeiro do desenvolvimento (159 a 296 páginas cada), modelo `resumo-financeiro-mensal` do catálogo (ler, extrair por documento, resumir). Medido sem chamar o modelo: um modelo simulado conta as chamadas e os tokens (4 caracteres por token). O custo sai da tabela de preços, com o dólar a R$ 5,40. Arquivo: `resultados/financeiro-leitura-longa-desenvolvimento.json` (`medir-leitura-longa.ts`).
+**Custo e tempo** [desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]. Seis pacotes do Financeiro do desenvolvimento (159 a 296 páginas cada), modelo `resumo-financeiro-mensal` do catálogo (ler, extrair por documento, resumir). Medido sem chamar o modelo: um modelo simulado conta as chamadas e os tokens (4 caracteres por token). O custo sai da tabela de preços, com o dólar a R$ 5,50 (o câmbio da tabela da plataforma). Arquivo: `resultados/financeiro-leitura-longa-desenvolvimento.json` (`medir-leitura-longa.ts`).
 
 | Pacote | Páginas lidas | Chamadas | Tokens de entrada | Custo Haiku 4.5 (R$) | Custo Sonnet 5 (R$) | Valores do gabarito que chegam ao modelo | Tempo da plataforma (ms) |
 |---|---|---|---|---|---|---|---|
-| 01 | 104 → 189 | 4 → 9 | 97 mil → 172 mil | 0,55 → 1,03 | 1,10 → 2,05 | 6 de 9 → 9 de 9 | 1.076 → 657 |
-| 03 | 82 → 196 | 4 → 9 | 69 mil → 167 mil | 0,40 → 1,00 | 0,80 → 2,00 | 9 de 9 → 9 de 9 | 654 → 643 |
-| 04 | 75 → 240 | 4 → 10 | 62 mil → 201 mil | 0,36 → 1,21 | 0,72 → 2,41 | 9 de 9 → 9 de 9 | 715 → 727 |
-| 07 | 95 → 296 | 4 → 12 | 85 mil → 257 mil | 0,49 → 1,53 | 0,97 → 3,07 | 9 de 9 → 9 de 9 | 961 → 885 |
-| 08 | 91 → 159 | 4 → 8 | 81 mil → 140 mil | 0,46 → 0,86 | 0,92 → 1,71 | 9 de 9 → 9 de 9 | 473 → 484 |
-| 10 | 106 → 210 | 4 → 10 | 97 mil → 192 mil | 0,55 → 1,16 | 1,10 → 2,31 | 6 de 9 → 9 de 9 | 637 → 634 |
-| Total | | 24 → 58 | | 2,81 → 6,79 | 5,61 → 13,55 | 48 de 54 → 54 de 54 | |
+| 01 | 104 → 189 | 4 → 9 | 97 mil → 172 mil | 0,56 → 1,05 | 1,12 → 2,09 | 6 de 9 → 9 de 9 | 827 → 602 |
+| 03 | 82 → 196 | 4 → 9 | 69 mil → 167 mil | 0,41 → 1,02 | 0,82 → 2,03 | 9 de 9 → 9 de 9 | 561 → 565 |
+| 04 | 75 → 240 | 4 → 10 | 62 mil → 201 mil | 0,37 → 1,23 | 0,73 → 2,46 | 9 de 9 → 9 de 9 | 648 → 786 |
+| 07 | 95 → 296 | 4 → 12 | 85 mil → 257 mil | 0,50 → 1,56 | 0,99 → 3,12 | 9 de 9 → 9 de 9 | 813 → 838 |
+| 08 | 91 → 159 | 4 → 8 | 81 mil → 141 mil | 0,47 → 0,87 | 0,94 → 1,74 | 9 de 9 → 9 de 9 | 417 → 458 |
+| 10 | 106 → 210 | 4 → 10 | 97 mil → 192 mil | 0,56 → 1,18 | 1,12 → 2,35 | 6 de 9 → 9 de 9 | 558 → 578 |
+| Total | | 24 → 58 | | 2,87 → 6,91 | 5,72 → 13,79 | 48 de 54 → 54 de 54 | |
 
 - A primeira coluna de cada par é o jeito antigo: 50 páginas e uma chamada por documento. A segunda é a leitura por partes.
 - A leitura por partes custa cerca de 2,4 vezes mais nesses pacotes, porque lê as páginas que antes eram cortadas (o razão tem até 215 páginas).
 - Nos pacotes 01 e 10, o valor do balancete estava depois da página 50 e antes não chegava ao modelo.
 - O tempo medido é só o da plataforma (leitura dos PDFs e montagem das partes). O tempo do modelo não dá para medir sem a chave. Com as chamadas em sequência, ele cresce com o número de chamadas: 24 para 58 nos seis pacotes, cerca de 10 por pacote. A medição com o modelo real entra na rodada do desenvolvimento.
+
+## Custo estimado por execução, por assistente (estimativa com modelo simulado)
+
+**Estimativa com modelo simulado, a ser substituída pelas rodadas com o modelo real.** Nenhum destes valores é medido.
+
+O simulador da plataforma (`src/usage/simulate.ts`) passou a considerar a leitura por partes. O número de chamadas de um documento depende das páginas e do limite por chamada: cerca de 40 páginas por chamada, com 3 mil caracteres por página e 120 mil caracteres por parte.
+- **Extração:** uma chamada por parte, cada uma com as instruções e o schema.
+- **Resumo:** um parcial por parte e uma consolidação.
+- **Consulta à base:** uma chamada.
+- **Sem custo de modelo:** leitura, conferência, checklist e classificação por regras, busca e exportação.
+- **Página escaneada:** o OCR local não custa. Só a parcela que cai no fallback de visão custa (10% das páginas, premissa), quando o assistente permite.
+
+Fontes: `resultados/custo-estimado-por-assistente.json` (`simular-custo.ts`). Preços da tabela da plataforma, dólar a R$ 5,50.
+
+Um documento por execução. Custo em R$ por execução, no formato Haiku 4.5 / Sonnet 5:
+
+| Assistente (modelo do catálogo) | Chamadas (5 · 20 · 50 · 150 p.) | 5 páginas | 20 páginas | 50 páginas | 150 páginas |
+|---|---|---|---|---|---|
+| Resumo financeiro mensal padronizado (referência) | 2 · 2 · 5 · 9 | 0,10 / 0,19 | 0,22 / 0,44 | 0,56 / 1,11 | 1,50 / 3,00 |
+| Checklist de documentos de admissão (referência), PDF digital | 0 · 0 · 0 · 0 | 0,00 / 0,00 | 0,00 / 0,00 | 0,00 / 0,00 | 0,00 / 0,00 |
+| Checklist de documentos de admissão (referência), tudo escaneado | fallback de visão | 0,02 / 0,03 | 0,07 / 0,13 | 0,17 / 0,33 | 0,50 / 1,00 |
+| Conferência de nota fiscal × pedido (referência) | 0 · 0 · 0 · 0 | 0,00 / 0,00 | 0,00 / 0,00 | 0,00 / 0,00 | 0,00 / 0,00 |
+| Organização de evidências de conformidade (referência) | 0 · 0 · 0 · 0 | 0,00 / 0,00 | 0,00 / 0,00 | 0,00 / 0,00 | 0,00 / 0,00 |
+| Localizar cláusulas em contratos | 1 · 1 · 2 · 4 | 0,05 / 0,10 | 0,11 / 0,22 | 0,26 / 0,53 | 0,74 / 1,47 |
+| Cotações × especificação | 1 · 1 · 2 · 4 | 0,05 / 0,10 | 0,11 / 0,22 | 0,26 / 0,53 | 0,74 / 1,47 |
+| Proposta recebida × requisitos | 1 · 1 · 3 · 5 | 0,04 / 0,09 | 0,10 / 0,21 | 0,28 / 0,56 | 0,74 / 1,48 |
+| Dúvidas sobre procedimentos internos (conversa) | 1 · 1 · 1 · 1 | 0,03 / 0,06 | 0,03 / 0,06 | 0,03 / 0,06 | 0,03 / 0,06 |
+
+- Três dos quatro assistentes de referência não chamam o modelo em documento digital: a conferência, o checklist e a classificação são feitos em código. O custo deles vem do fallback de visão em página escaneada.
+- Os pacotes do Financeiro medidos acima custaram de R$ 0,87 a R$ 1,56 no Haiku 4.5. São cinco documentos por pacote, e por isso o valor fica acima do de um documento de 150 páginas.
 
 ## Planilhas com linhas acima da tabela: metadados
 

@@ -97,6 +97,12 @@ test('simulador: premissa sem histórico, média medida com histórico, conferê
   assert.equal(s.preco.porPaginaBrl, 0.1);
   assert.equal(s.totalMensalBrl, Math.round((s.consumoMensalBrl + 1500) * 100) / 100);
   assert.match(s.aviso, /Projeção/);
+  assert.match(s.itens[0].base, /estimativa com modelo simulado, a substituir pelas rodadas com o modelo real/);
+  // Documento longo: leitura por partes (cerca de 40 páginas por chamada), cada parte com as instruções e a resposta dela.
+  const longo = (await post(T.userId, '/api/usage/simulate', { itens: [{ nome: 'Balancete', execucoesPorMes: 10, paginasPorExecucao: 150 }] })).json();
+  assert.equal(longo.itens[0].chamadasPorExecucao, 4);
+  assert.equal(longo.itens[0].tokensEntrada, 10 * (4 * 1200 + 150 * 750));
+  assert.equal(longo.itens[0].tokensSaida, 10 * 4 * 800);
   // Com 5 execuções medidas, o simulador usa as médias reais do assistente.
   const aid = (await db.owner.query(`select id, area_id from assistants where slug = 'resumo'`)).rows[0];
   for (let i = 0; i < 5; i++) {

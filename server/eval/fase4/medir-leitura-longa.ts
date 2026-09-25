@@ -19,7 +19,7 @@ import { gabaritosEm } from './validar.ts';
 import { conjuntoDe } from './dividir.ts';
 
 const TEMPLATE = JSON.parse(readFileSync(new URL('../../catalog/modelos/resumo-financeiro-mensal.json', import.meta.url), 'utf8'));
-const USD_BRL = 5.4;                                         // mesma ordem da tabela de preços da plataforma
+const USD_BRL = 5.5;                                         // câmbio da tabela de preços da plataforma (migração 011)
 const MODELOS = ['claude-haiku-4-5', 'claude-sonnet-5'] as const;
 
 interface Chamada { etapa: string; entrada: number; saida: number; paginas: Record<string, number[]> }

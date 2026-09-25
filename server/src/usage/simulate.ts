@@ -19,7 +19,47 @@ export const ASSUMPTIONS = {
   tokensFixosPorExecucao: 1200,      // instruções, schema e contexto de cada chamada
   tokensSaidaPorExecucao: 800,       // resposta do modelo por execução
   segundosOcrPorPagina: 2.5,         // CPU do servidor por página no OCR (informativo: não entra no consumo)
+  caracteresPorPagina: 3000,
+  caracteresPorParte: 120_000,       // leitura por partes: documento maior vai em mais de uma chamada (≈ 40 páginas por chamada)
 };
+
+// Chamadas ao modelo para ler um documento de N páginas por partes.
+export const partesPara = (paginas: number, caracteresPorParte = ASSUMPTIONS.caracteresPorParte) =>
+  Math.max(1, Math.ceil(paginas * ASSUMPTIONS.caracteresPorPagina / caracteresPorParte));
+
+export const ROTULO_ESTIMATIVA = 'estimativa com modelo simulado, a substituir pelas rodadas com o modelo real';
+
+// Estimativa de uma execução pela definição do assistente: cada bloco que chama o
+// modelo, com a leitura por partes (extração: uma chamada por parte; resumo: um
+// parcial por parte e uma consolidação). Blocos em código (ler, conferir,
+// checklist e classificação por regras, busca, exportação) não consomem tokens.
+type Passo = { bloco: string; params?: Record<string, unknown> };
+export function estimarExecucao(def: { pipeline: Passo[]; reading?: { visionFallback?: boolean } }, paginas: number, opts: { percentualDigitalizado?: number } = {}) {
+  const A = ASSUMPTIONS;
+  let chamadas = 0, tin = 0, tout = 0;
+  // Página digitalizada: OCR local sem custo; a parcela abaixo do limiar vai à visão, se o assistente permitir.
+  const visao = def.reading?.visionFallback && def.pipeline.some(p => p.bloco === 'ler') ? paginas * (opts.percentualDigitalizado ?? 0) / 100 * A.percentualFallbackVisao / 100 : 0;
+  if (visao) { chamadas += Math.ceil(visao); tin += visao * A.tokensPorPaginaVisao; tout += visao * A.tokensSaidaPorPaginaVisao; }
+  const texto = paginas * A.tokensPorPaginaTexto;
+  for (const p of def.pipeline) {
+    const params = p.params ?? {};
+    const cpp = Number(params.caracteresPorParte ?? A.caracteresPorParte);
+    const partes = partesPara(paginas, cpp);
+    if (p.bloco === 'extrair') {
+      const schema = Math.ceil(JSON.stringify(params.schema ?? {}).length / 4);
+      chamadas += partes; tin += texto + partes * (A.tokensFixosPorExecucao + schema); tout += partes * A.tokensSaidaPorExecucao;
+    } else if (p.bloco === 'resumir') {
+      const saida = Math.ceil(Number(params.palavrasMax ?? 600) * 1.4);
+      if (partes === 1) { chamadas += 1; tin += texto + A.tokensFixosPorExecucao; tout += saida; }
+      else { chamadas += partes + 1; tin += texto + partes * A.tokensFixosPorExecucao + A.tokensFixosPorExecucao + partes * saida; tout += (partes + 1) * saida; }
+    } else if ((p.bloco === 'classificar' || p.bloco === 'checklist') && params.metodo === 'modelo') {
+      chamadas += 1; tin += A.tokensFixosPorExecucao + Math.min(texto, 750); tout += 300;
+    } else if (p.bloco === 'consultar') {
+      chamadas += 1; tin += A.tokensFixosPorExecucao + 2000; tout += 500;
+    }
+  }
+  return { chamadas, tokensEntrada: Math.round(tin), tokensSaida: Math.round(tout) };
+}
 
 export const simulateSchema = z.object({
   mensalidadeBrl: z.number().min(0).default(0),
@@ -51,7 +91,7 @@ export async function simulate(tx: Tx, input: z.infer<typeof simulateSchema>, op
   const itens = [];
   for (const it of input.itens) {
     const m = it.assistente && opts.measured ? await opts.measured(it.assistente) : null;
-    let tin = 0, tout = 0, base: string;
+    let tin = 0, tout = 0, base: string, chamadas: number | null = null;
     if (!it.usaModelo) { base = 'sem uso do modelo (processamento em código)'; }
     else if (m && m.paginasPorExecucao > 0) {
       // Médias medidas, escaladas pelas páginas informadas.
@@ -63,16 +103,20 @@ export async function simulate(tx: Tx, input: z.infer<typeof simulateSchema>, op
       tin = m.tokensEntradaPorExecucao; tout = m.tokensSaidaPorExecucao;
       base = `medido: médias de ${m.execucoes} execuções dos últimos 90 dias`;
     } else {
+      // Documento acima do limite por chamada é lido por partes: cada parte repete
+      // as instruções e devolve a sua resposta.
       const dig = it.percentualDigitalizado / 100;
       const visao = it.paginasPorExecucao * dig * (it.percentualFallbackVisao ?? ASSUMPTIONS.percentualFallbackVisao) / 100;
-      tin = ASSUMPTIONS.tokensFixosPorExecucao + it.paginasPorExecucao * ASSUMPTIONS.tokensPorPaginaTexto + visao * ASSUMPTIONS.tokensPorPaginaVisao;
-      tout = ASSUMPTIONS.tokensSaidaPorExecucao + visao * ASSUMPTIONS.tokensSaidaPorPaginaVisao;
-      base = 'premissa (sem histórico suficiente: mínimo de 5 execuções)';
+      const partes = partesPara(it.paginasPorExecucao);
+      tin = partes * ASSUMPTIONS.tokensFixosPorExecucao + it.paginasPorExecucao * ASSUMPTIONS.tokensPorPaginaTexto + visao * ASSUMPTIONS.tokensPorPaginaVisao;
+      tout = partes * ASSUMPTIONS.tokensSaidaPorExecucao + visao * ASSUMPTIONS.tokensSaidaPorPaginaVisao;
+      chamadas = partes;
+      base = `premissa (sem histórico suficiente: mínimo de 5 execuções); ${ROTULO_ESTIMATIVA}`;
     }
     const inTok = Math.round(tin * it.execucoesPorMes), outTok = Math.round(tout * it.execucoesPorMes);
     const paginas = Math.round(it.paginasPorExecucao * it.execucoesPorMes);
     const custo = price ? priceCost(price, inTok, outTok, paginas) : costBrl(model, inTok, outTok, opts.usdBrlFallback);
-    itens.push({ nome: it.nome, execucoesPorMes: it.execucoesPorMes, paginasPorMes: paginas, tokensEntrada: inTok, tokensSaida: outTok, consumoBrl: Math.round(custo * 100) / 100, base });
+    itens.push({ nome: it.nome, execucoesPorMes: it.execucoesPorMes, paginasPorMes: paginas, tokensEntrada: inTok, tokensSaida: outTok, consumoBrl: Math.round(custo * 100) / 100, base, ...(chamadas !== null ? { chamadasPorExecucao: chamadas } : {}) });
   }
   const consumo = Math.round(itens.reduce((s, i) => s + i.consumoBrl, 0) * 100) / 100;
   return {

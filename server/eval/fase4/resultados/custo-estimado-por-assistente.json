@@ -1,0 +1,562 @@
+{
+  "natureza": "estimativa com modelo simulado, a substituir pelas rodadas com o modelo real",
+  "usdBrl": 5.5,
+  "premissas": {
+    "tokensPorPaginaTexto": 750,
+    "tokensPorPaginaVisao": 2300,
+    "tokensSaidaPorPaginaVisao": 750,
+    "percentualFallbackVisao": 10,
+    "tokensFixosPorExecucao": 1200,
+    "tokensSaidaPorExecucao": 800,
+    "segundosOcrPorPagina": 2.5,
+    "caracteresPorPagina": 3000,
+    "caracteresPorParte": 120000
+  },
+  "precosUsdPorMTok": {
+    "claude-haiku-4-5": {
+      "inputPerMTok": 1,
+      "outputPerMTok": 5
+    },
+    "claude-sonnet-5": {
+      "inputPerMTok": 2,
+      "outputPerMTok": 10
+    }
+  },
+  "assistentes": [
+    {
+      "modelo": "atendimento-procedimentos",
+      "nome": "Dúvidas sobre procedimentos internos",
+      "referencia": false,
+      "blocosComModelo": [
+        "consultar"
+      ],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 3200,
+          "tokensSaida": 500,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.03,
+            "claude-sonnet-5": 0.06
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 3200,
+          "tokensSaida": 500,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.03,
+            "claude-sonnet-5": 0.06
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 1,
+          "tokensEntrada": 3200,
+          "tokensSaida": 500,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.03,
+            "claude-sonnet-5": 0.06
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 1,
+          "tokensEntrada": 3200,
+          "tokensSaida": 500,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.03,
+            "claude-sonnet-5": 0.06
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "checklist-documentos-admissao",
+      "nome": "Checklist de documentos de admissão",
+      "referencia": true,
+      "blocosComModelo": [],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 1,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.02,
+              "claude-sonnet-5": 0.03
+            }
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 2,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.07,
+              "claude-sonnet-5": 0.13
+            }
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 5,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.17,
+              "claude-sonnet-5": 0.33
+            }
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 15,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.5,
+              "claude-sonnet-5": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "checklist-documentos-contratacao",
+      "nome": "Checklist de documentos da contratação de obra",
+      "referencia": false,
+      "blocosComModelo": [],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 1,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.02,
+              "claude-sonnet-5": 0.03
+            }
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 2,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.07,
+              "claude-sonnet-5": 0.13
+            }
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 5,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.17,
+              "claude-sonnet-5": 0.33
+            }
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          },
+          "digitalizado": {
+            "chamadas": 15,
+            "custoBrl": {
+              "claude-haiku-4-5": 0.5,
+              "claude-sonnet-5": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "comercial-proposta-requisitos",
+      "nome": "Proposta recebida × requisitos",
+      "referencia": false,
+      "blocosComModelo": [
+        "resumir"
+      ],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 4950,
+          "tokensSaida": 560,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.04,
+            "claude-sonnet-5": 0.09
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 16200,
+          "tokensSaida": 560,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.1,
+            "claude-sonnet-5": 0.21
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 3,
+          "tokensEntrada": 42220,
+          "tokensSaida": 1680,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.28,
+            "claude-sonnet-5": 0.56
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 5,
+          "tokensEntrada": 120740,
+          "tokensSaida": 2800,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.74,
+            "claude-sonnet-5": 1.48
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "conferencia-nota-pedido",
+      "nome": "Conferência de nota fiscal de entrada × pedido de compra",
+      "referencia": true,
+      "blocosComModelo": [],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "juridico-localizar-clausulas",
+      "nome": "Localizar cláusulas em contratos",
+      "referencia": false,
+      "blocosComModelo": [
+        "extrair"
+      ],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 5047,
+          "tokensSaida": 800,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.05,
+            "claude-sonnet-5": 0.1
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 16297,
+          "tokensSaida": 800,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.11,
+            "claude-sonnet-5": 0.22
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 2,
+          "tokensEntrada": 40094,
+          "tokensSaida": 1600,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.26,
+            "claude-sonnet-5": 0.53
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 4,
+          "tokensEntrada": 117688,
+          "tokensSaida": 3200,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.74,
+            "claude-sonnet-5": 1.47
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "organizacao-evidencias",
+      "nome": "Organização de evidências de conformidade",
+      "referencia": true,
+      "blocosComModelo": [],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 0,
+          "tokensEntrada": 0,
+          "tokensSaida": 0,
+          "custoBrl": {
+            "claude-haiku-4-5": 0,
+            "claude-sonnet-5": 0
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "resumo-financeiro-mensal",
+      "nome": "Resumo financeiro mensal padronizado",
+      "referencia": true,
+      "blocosComModelo": [
+        "extrair",
+        "resumir"
+      ],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 2,
+          "tokensEntrada": 9966,
+          "tokensSaida": 1500,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.1,
+            "claude-sonnet-5": 0.19
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 2,
+          "tokensEntrada": 32466,
+          "tokensSaida": 1500,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.22,
+            "claude-sonnet-5": 0.44
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 5,
+          "tokensEntrada": 82532,
+          "tokensSaida": 3700,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.56,
+            "claude-sonnet-5": 1.11
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 9,
+          "tokensEntrada": 238864,
+          "tokensSaida": 6700,
+          "custoBrl": {
+            "claude-haiku-4-5": 1.5,
+            "claude-sonnet-5": 3
+          }
+        }
+      ]
+    },
+    {
+      "modelo": "suprimentos-cotacoes-especificacao",
+      "nome": "Cotações × especificação",
+      "referencia": false,
+      "blocosComModelo": [
+        "extrair"
+      ],
+      "porPaginas": [
+        {
+          "paginas": 5,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 5073,
+          "tokensSaida": 800,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.05,
+            "claude-sonnet-5": 0.1
+          }
+        },
+        {
+          "paginas": 20,
+          "partes": 1,
+          "chamadas": 1,
+          "tokensEntrada": 16323,
+          "tokensSaida": 800,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.11,
+            "claude-sonnet-5": 0.22
+          }
+        },
+        {
+          "paginas": 50,
+          "partes": 2,
+          "chamadas": 2,
+          "tokensEntrada": 40146,
+          "tokensSaida": 1600,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.26,
+            "claude-sonnet-5": 0.53
+          }
+        },
+        {
+          "paginas": 150,
+          "partes": 4,
+          "chamadas": 4,
+          "tokensEntrada": 117792,
+          "tokensSaida": 3200,
+          "custoBrl": {
+            "claude-haiku-4-5": 0.74,
+            "claude-sonnet-5": 1.47
+          }
+        }
+      ]
+    }
+  ]
+}

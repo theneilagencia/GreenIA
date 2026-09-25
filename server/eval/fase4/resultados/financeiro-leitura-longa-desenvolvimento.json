@@ -1,7 +1,7 @@
 {
   "conjunto": "desenvolvimento",
   "natureza": "medição de desenvolvimento, não é estimativa de acerto",
-  "usdBrl": 5.4,
+  "usdBrl": 5.5,
   "tokensPorCaractere": 0.25,
   "pacotes": [
     {
@@ -14,29 +14,29 @@
           "razao-2026-08.pdf: 51–129"
         ],
         "chamadas": 4,
-        "tokensEntrada": 97435,
+        "tokensEntrada": 97465,
         "tokensSaida": 946,
         "custoBrl": {
-          "claude-haiku-4-5": 0.55,
-          "claude-sonnet-5": 1.1
+          "claude-haiku-4-5": 0.56,
+          "claude-sonnet-5": 1.12
         },
         "valoresDoGabaritoQueChegamAoModelo": "6 de 9",
-        "msLeitura": 1056,
-        "msPlataforma": 20
+        "msLeitura": 809,
+        "msPlataforma": 18
       },
       "partes": {
         "paginasLidas": 189,
         "paginasNaoLidas": [],
         "chamadas": 9,
-        "tokensEntrada": 172063,
+        "tokensEntrada": 172093,
         "tokensSaida": 3609,
         "custoBrl": {
-          "claude-haiku-4-5": 1.03,
-          "claude-sonnet-5": 2.05
+          "claude-haiku-4-5": 1.05,
+          "claude-sonnet-5": 2.09
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 641,
-        "msPlataforma": 16
+        "msLeitura": 588,
+        "msPlataforma": 14
       }
     },
     {
@@ -48,28 +48,28 @@
           "razao-2026-06.pdf: 51–164"
         ],
         "chamadas": 4,
-        "tokensEntrada": 69414,
+        "tokensEntrada": 69442,
         "tokensSaida": 946,
         "custoBrl": {
-          "claude-haiku-4-5": 0.4,
-          "claude-sonnet-5": 0.8
+          "claude-haiku-4-5": 0.41,
+          "claude-sonnet-5": 0.82
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 645,
-        "msPlataforma": 9
+        "msLeitura": 555,
+        "msPlataforma": 6
       },
       "partes": {
         "paginasLidas": 196,
         "paginasNaoLidas": [],
         "chamadas": 9,
-        "tokensEntrada": 166867,
+        "tokensEntrada": 166896,
         "tokensSaida": 3609,
         "custoBrl": {
-          "claude-haiku-4-5": 1,
-          "claude-sonnet-5": 2
+          "claude-haiku-4-5": 1.02,
+          "claude-sonnet-5": 2.03
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 628,
+        "msLeitura": 550,
         "msPlataforma": 15
       }
     },
@@ -82,29 +82,29 @@
           "razao-2026-05.pdf: 51–215"
         ],
         "chamadas": 4,
-        "tokensEntrada": 61710,
+        "tokensEntrada": 61742,
         "tokensSaida": 946,
         "custoBrl": {
-          "claude-haiku-4-5": 0.36,
-          "claude-sonnet-5": 0.72
+          "claude-haiku-4-5": 0.37,
+          "claude-sonnet-5": 0.73
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 710,
+        "msLeitura": 643,
         "msPlataforma": 5
       },
       "partes": {
         "paginasLidas": 240,
         "paginasNaoLidas": [],
         "chamadas": 10,
-        "tokensEntrada": 200985,
+        "tokensEntrada": 201017,
         "tokensSaida": 4480,
         "custoBrl": {
-          "claude-haiku-4-5": 1.21,
-          "claude-sonnet-5": 2.41
+          "claude-haiku-4-5": 1.23,
+          "claude-sonnet-5": 2.46
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 711,
-        "msPlataforma": 16
+        "msLeitura": 774,
+        "msPlataforma": 12
       }
     },
     {
@@ -116,29 +116,29 @@
           "razao-2026-02.pdf: 51–251"
         ],
         "chamadas": 4,
-        "tokensEntrada": 85378,
+        "tokensEntrada": 85408,
         "tokensSaida": 946,
         "custoBrl": {
-          "claude-haiku-4-5": 0.49,
-          "claude-sonnet-5": 0.97
+          "claude-haiku-4-5": 0.5,
+          "claude-sonnet-5": 0.99
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 955,
+        "msLeitura": 807,
         "msPlataforma": 6
       },
       "partes": {
         "paginasLidas": 296,
         "paginasNaoLidas": [],
         "chamadas": 12,
-        "tokensEntrada": 257085,
+        "tokensEntrada": 257115,
         "tokensSaida": 5376,
         "custoBrl": {
-          "claude-haiku-4-5": 1.53,
-          "claude-sonnet-5": 3.07
+          "claude-haiku-4-5": 1.56,
+          "claude-sonnet-5": 3.12
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 866,
-        "msPlataforma": 19
+        "msLeitura": 823,
+        "msPlataforma": 15
       }
     },
     {
@@ -150,29 +150,29 @@
           "razao-2026-01.pdf: 51–118"
         ],
         "chamadas": 4,
-        "tokensEntrada": 80739,
+        "tokensEntrada": 80774,
         "tokensSaida": 946,
         "custoBrl": {
-          "claude-haiku-4-5": 0.46,
-          "claude-sonnet-5": 0.92
+          "claude-haiku-4-5": 0.47,
+          "claude-sonnet-5": 0.94
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 467,
-        "msPlataforma": 6
+        "msLeitura": 410,
+        "msPlataforma": 7
       },
       "partes": {
         "paginasLidas": 159,
         "paginasNaoLidas": [],
         "chamadas": 8,
-        "tokensEntrada": 140473,
+        "tokensEntrada": 140508,
         "tokensSaida": 3584,
         "custoBrl": {
-          "claude-haiku-4-5": 0.86,
-          "claude-sonnet-5": 1.71
+          "claude-haiku-4-5": 0.87,
+          "claude-sonnet-5": 1.74
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 473,
-        "msPlataforma": 11
+        "msLeitura": 449,
+        "msPlataforma": 9
       }
     },
     {
@@ -185,29 +185,29 @@
           "razao-2025-11.pdf: 51–135"
         ],
         "chamadas": 4,
-        "tokensEntrada": 97068,
+        "tokensEntrada": 97101,
         "tokensSaida": 946,
         "custoBrl": {
-          "claude-haiku-4-5": 0.55,
-          "claude-sonnet-5": 1.1
+          "claude-haiku-4-5": 0.56,
+          "claude-sonnet-5": 1.12
         },
         "valoresDoGabaritoQueChegamAoModelo": "6 de 9",
-        "msLeitura": 630,
+        "msLeitura": 551,
         "msPlataforma": 7
       },
       "partes": {
         "paginasLidas": 210,
         "paginasNaoLidas": [],
         "chamadas": 10,
-        "tokensEntrada": 191631,
+        "tokensEntrada": 191664,
         "tokensSaida": 4480,
         "custoBrl": {
-          "claude-haiku-4-5": 1.16,
-          "claude-sonnet-5": 2.31
+          "claude-haiku-4-5": 1.18,
+          "claude-sonnet-5": 2.35
         },
         "valoresDoGabaritoQueChegamAoModelo": "9 de 9",
-        "msLeitura": 611,
-        "msPlataforma": 23
+        "msLeitura": 566,
+        "msPlataforma": 12
       }
     }
   ]

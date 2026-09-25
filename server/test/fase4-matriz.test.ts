@@ -49,5 +49,5 @@ test('rótulos: estimativa de acerto só do reservado; construtora no desenvolvi
   assert.equal(rotulo('reservado', 'estimativa_de_acerto'), '[reservado · estimativa de acerto]');
   const ms = pontuarMedicoes();
   assert.ok(ms.filter(m => m.frente === 'contratacao').every(m => m.natureza === 'prova_de_generalizacao'));
-  assert.ok(ms.every(m => m.natureza !== 'estimativa_de_acerto' && /desenvolvimento/.test(m.rotuloRelatorio)));
+  assert.ok(ms.every(m => (m.natureza as string) !== 'estimativa_de_acerto' && /desenvolvimento/.test(m.rotuloRelatorio)));
 });

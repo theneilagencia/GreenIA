@@ -74,25 +74,40 @@ export function paresFiscal(casos: CasoFiscal[]): Par[] {
   return out;
 }
 
+// Natureza de cada número do relatório. Estimativa de acerto só vem do
+// reservado; o desenvolvimento serve para corrigir e comparar versões; os casos
+// equivalentes de outra área provam que a correção é da plataforma.
+export type Natureza = 'estimativa_de_acerto' | 'desenvolvimento' | 'prova_de_generalizacao';
+export const NATUREZA: Record<Natureza, string> = {
+  estimativa_de_acerto: 'estimativa de acerto',
+  desenvolvimento: 'medição de desenvolvimento, não é estimativa de acerto',
+  prova_de_generalizacao: 'prova de generalização, não é estimativa de acerto',
+};
+export function rotulo(conjunto: 'desenvolvimento' | 'reservado', natureza: Natureza): string {
+  if (natureza === 'estimativa_de_acerto' && conjunto !== 'reservado') throw new Error('estimativa de acerto só vem do conjunto reservado');
+  if (conjunto === 'reservado' && natureza !== 'estimativa_de_acerto') throw new Error('o reservado só entra no relatório como estimativa de acerto');
+  return `[${conjunto} · ${NATUREZA[natureza]}]`;
+}
+
 // Medições do desenvolvimento gravadas em resultados/. O reservado não entra:
 // dele só existe o resumo antigo, e a matriz só é aplicada a ele na rodada final.
 export const MEDICOES = [
-  { frente: 'rh', rotulo: 'RH, checklist anterior, catálogo v1 (linha de base)', arquivo: 'rh-linha-de-base-desenvolvimento.json', tipo: 'checklist' },
-  { frente: 'rh', rotulo: 'RH, checklist anterior, catálogo v2', arquivo: 'rh-desenvolvimento-checklist-anterior-catalogo-v2.json', tipo: 'checklist' },
-  { frente: 'rh', rotulo: 'RH, plataforma corrigida, catálogo v2', arquivo: 'rh-desenvolvimento-depois-das-correcoes.json', tipo: 'checklist' },
-  { frente: 'contratacao', rotulo: 'Construtora (contratação), checklist anterior', arquivo: 'contratacao-desenvolvimento-checklist-anterior.json', tipo: 'checklist' },
-  { frente: 'contratacao', rotulo: 'Construtora (contratação), plataforma corrigida', arquivo: 'contratacao-desenvolvimento.json', tipo: 'checklist' },
-  { frente: 'fiscal', rotulo: 'Fiscal, conferência pelos mapeamentos (cinco layouts)', arquivo: 'fiscal-desenvolvimento.json', tipo: 'fiscal' },
+  { frente: 'rh', rotulo: 'RH, checklist anterior, catálogo v1 (linha de base)', arquivo: 'rh-linha-de-base-desenvolvimento.json', tipo: 'checklist', natureza: 'desenvolvimento' },
+  { frente: 'rh', rotulo: 'RH, checklist anterior, catálogo v2', arquivo: 'rh-desenvolvimento-checklist-anterior-catalogo-v2.json', tipo: 'checklist', natureza: 'desenvolvimento' },
+  { frente: 'rh', rotulo: 'RH, plataforma corrigida, catálogo v2', arquivo: 'rh-desenvolvimento-depois-das-correcoes.json', tipo: 'checklist', natureza: 'desenvolvimento' },
+  { frente: 'contratacao', rotulo: 'Construtora (contratação), checklist anterior', arquivo: 'contratacao-desenvolvimento-checklist-anterior.json', tipo: 'checklist', natureza: 'prova_de_generalizacao' },
+  { frente: 'contratacao', rotulo: 'Construtora (contratação), plataforma corrigida', arquivo: 'contratacao-desenvolvimento.json', tipo: 'checklist', natureza: 'prova_de_generalizacao' },
+  { frente: 'fiscal', rotulo: 'Fiscal, conferência pelos mapeamentos (cinco layouts)', arquivo: 'fiscal-desenvolvimento.json', tipo: 'fiscal', natureza: 'desenvolvimento' },
 ] as const;
 
 export function pontuarMedicoes() {
   return MEDICOES.map(m => {
     const p = join(AQUI, 'resultados', m.arquivo);
-    if (!existsSync(p)) return { ...m, conjunto: 'desenvolvimento', pontuacao: null };
+    if (!existsSync(p)) return { ...m, conjunto: 'desenvolvimento', rotuloRelatorio: rotulo('desenvolvimento', m.natureza), pontuacao: null };
     const r = JSON.parse(readFileSync(p, 'utf8'));
     if (r.conjunto && r.conjunto !== 'desenvolvimento') throw new Error(`${m.arquivo} não é do desenvolvimento`);
     const pares = m.tipo === 'fiscal' ? paresFiscal(r.casos) : paresChecklist(r.casos);
-    return { ...m, conjunto: 'desenvolvimento', pontuacao: pontuar(pares) };
+    return { ...m, conjunto: 'desenvolvimento', rotuloRelatorio: rotulo('desenvolvimento', m.natureza), pontuacao: pontuar(pares) };
   });
 }
 
@@ -101,6 +116,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   gravarJson(join(AQUI, 'resultados', 'pontuacao-desenvolvimento.json'), { matriz: readFileSync(join(AQUI, 'matriz.sha256'), 'utf8').split(/\s+/)[0], conjunto: 'desenvolvimento', medicoes: rs });
   for (const r of rs) {
     const p = r.pontuacao;
-    console.log(p ? `${r.rotulo} [desenvolvimento]: ${p.casos} casos, ${p.unidades} unidades · acerto ${p.taxas.acerto}% · erros graves ${p.errosGraves} (${p.taxas.errosGraves}%) · erros comuns ${p.errosComuns} (${p.taxas.errosComuns}%) · revisão ${p.taxas.revisao}%` : `${r.rotulo}: sem medição gravada`);
+    console.log(p ? `${r.rotulo} ${r.rotuloRelatorio}: ${p.casos} casos, ${p.unidades} unidades · acerto ${p.taxas.acerto}% · erros graves ${p.errosGraves} (${p.taxas.errosGraves}%) · erros comuns ${p.errosComuns} (${p.taxas.errosComuns}%) · revisão ${p.taxas.revisao}%` : `${r.rotulo}: sem medição gravada`);
   }
 }

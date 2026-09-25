@@ -7,7 +7,9 @@
       "rotulo": "RH, checklist anterior, catálogo v1 (linha de base)",
       "arquivo": "rh-linha-de-base-desenvolvimento.json",
       "tipo": "checklist",
+      "natureza": "desenvolvimento",
       "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]",
       "pontuacao": {
         "casos": 9,
         "unidades": 63,
@@ -35,7 +37,9 @@
       "rotulo": "RH, checklist anterior, catálogo v2",
       "arquivo": "rh-desenvolvimento-checklist-anterior-catalogo-v2.json",
       "tipo": "checklist",
+      "natureza": "desenvolvimento",
       "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]",
       "pontuacao": {
         "casos": 9,
         "unidades": 63,
@@ -63,7 +67,9 @@
       "rotulo": "RH, plataforma corrigida, catálogo v2",
       "arquivo": "rh-desenvolvimento-depois-das-correcoes.json",
       "tipo": "checklist",
+      "natureza": "desenvolvimento",
       "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]",
       "pontuacao": {
         "casos": 9,
         "unidades": 63,
@@ -85,7 +91,9 @@
       "rotulo": "Construtora (contratação), checklist anterior",
       "arquivo": "contratacao-desenvolvimento-checklist-anterior.json",
       "tipo": "checklist",
+      "natureza": "prova_de_generalizacao",
       "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · prova de generalização, não é estimativa de acerto]",
       "pontuacao": {
         "casos": 9,
         "unidades": 63,
@@ -114,7 +122,9 @@
       "rotulo": "Construtora (contratação), plataforma corrigida",
       "arquivo": "contratacao-desenvolvimento.json",
       "tipo": "checklist",
+      "natureza": "prova_de_generalizacao",
       "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · prova de generalização, não é estimativa de acerto]",
       "pontuacao": {
         "casos": 9,
         "unidades": 63,
@@ -136,7 +146,9 @@
       "rotulo": "Fiscal, conferência pelos mapeamentos (cinco layouts)",
       "arquivo": "fiscal-desenvolvimento.json",
       "tipo": "fiscal",
+      "natureza": "desenvolvimento",
       "conjunto": "desenvolvimento",
+      "rotuloRelatorio": "[desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]",
       "pontuacao": {
         "casos": 18,
         "unidades": 353,

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { classificar, lerMatriz, pontuar, pontuarMedicoes } from '../eval/fase4/pontuar.ts';
+import { classificar, lerMatriz, pontuar, pontuarMedicoes, rotulo } from '../eval/fase4/pontuar.ts';
 import { sha256 } from '../eval/fase4/lib.ts';
 
 const AQUI = new URL('../eval/fase4/', import.meta.url);
@@ -41,4 +41,13 @@ test('pontuação do desenvolvimento gravada = matriz aplicada às medições; n
   for (const a of ['rh-desenvolvimento-depois-das-correcoes.json', 'contratacao-desenvolvimento.json', 'fiscal-desenvolvimento.json']) {
     assert.equal(agora.find(m => m.arquivo === a)!.pontuacao!.errosGraves, 0, a);
   }
+});
+
+test('rótulos: estimativa de acerto só do reservado; construtora no desenvolvimento é prova de generalização', () => {
+  assert.throws(() => rotulo('desenvolvimento', 'estimativa_de_acerto'), /só vem do conjunto reservado/);
+  assert.throws(() => rotulo('reservado', 'desenvolvimento'), /estimativa de acerto/);
+  assert.equal(rotulo('reservado', 'estimativa_de_acerto'), '[reservado · estimativa de acerto]');
+  const ms = pontuarMedicoes();
+  assert.ok(ms.filter(m => m.frente === 'contratacao').every(m => m.natureza === 'prova_de_generalizacao'));
+  assert.ok(ms.every(m => m.natureza !== 'estimativa_de_acerto' && /desenvolvimento/.test(m.rotuloRelatorio)));
 });

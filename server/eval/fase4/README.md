@@ -52,6 +52,18 @@ Um `gabarito.json` por caso, ao lado dos arquivos:
   - LGPD: categoria, período e nome padronizado de cada documento (nulos para o que não tem relação) e os documentos esperados de cada pergunta.
 - `conferencia`: 20% dos casos marcados como amostra para a segunda pessoa conferir (`por`, `em`, `divergencias`).
 
+## Como reportar: de qual conjunto vem cada número
+
+Todo número deste README e do relatório final traz o conjunto de origem e a natureza. `pontuar.ts` recusa qualquer outra combinação:
+
+| Natureza | Conjunto | Uso |
+|---|---|---|
+| Estimativa de acerto | só o reservado, na rodada final | O que o relatório final promete ao cliente. Uma por frente, pela matriz de três estados. |
+| Medição de desenvolvimento | desenvolvimento | Serve para corrigir e comparar versões (antes × depois). Não é estimativa: as correções foram feitas olhando para esses casos. |
+| Prova de generalização | desenvolvimento, casos equivalentes de outra área (construtora) | Mostra que uma correção feita por causa de uma frente vale em outra área e em outro modelo sem mudança de código. Não é estimativa de acerto. |
+
+Hoje não há nenhuma estimativa de acerto: o reservado só roda na rodada final, depois das rodadas com o modelo real no desenvolvimento. A única exceção foi a linha de base do RH, pedida explicitamente e registrada em `resultados/uso-do-reservado.log`. Ela está rotulada abaixo e não é estimativa da plataforma corrigida.
+
 ## Divisão: desenvolvimento e reservado
 
 `dividir.ts` separa cada lote (frente + procedência: `gerado`, depois `pncp`) em desenvolvimento (60%) e reservado (40%). O resultado fica congelado em `divisao.json`, com o sha256 em `divisao.sha256`. O teste `fase4-divisao.test.ts` confere o hash, a cobertura de todos os gabaritos e que a divisão refeita dá o mesmo resultado.
@@ -67,18 +79,20 @@ Resultado: RH 9 casos no desenvolvimento e 6 no reservado; Suprimentos 12 especi
 
 ### Fiscal: importação pelos mapeamentos
 
-Os pedidos do Fiscal chegam em cinco layouts (`mapeamentos/layout-a.json` a `layout-e.json`). O teste `fase4-fiscal-importacao.test.ts` cria cada mapeamento pela API de configuração, com um arquivo de exemplo do próprio layout, e roda o modelo `conferencia-nota-pedido` do catálogo, sem ajuste, nos casos do desenvolvimento. Resultado: 18 de 18 (layout-a 3, b 4, c 3, d 4, e 4). O leitor do núcleo também lê os 30 pedidos exatamente como o gabarito.
+Os pedidos do Fiscal chegam em cinco layouts (`mapeamentos/layout-a.json` a `layout-e.json`). O teste `fase4-fiscal-importacao.test.ts` cria cada mapeamento pela API de configuração, com um arquivo de exemplo do próprio layout, e roda o modelo `conferencia-nota-pedido` do catálogo, sem ajuste, nos casos do desenvolvimento. Resultado [desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]: 18 de 18 casos (layout-a 3, b 4, c 3, d 4, e 4); pela matriz, acerto 98,6%, 0 erro grave, 0 erro comum, revisão 1,4%. O leitor do núcleo também lê os 30 pedidos exatamente como o gabarito.
 
-Ressalva: antes de congelar a divisão das frentes novas, o teste rodou uma vez nos 30 casos do Fiscal (30 de 30). Nada foi corrigido depois disso; a partir da divisão, o teste usa só o desenvolvimento.
+Ressalva: antes de congelar a divisão das frentes novas, o teste rodou uma vez nos 30 casos do Fiscal, desenvolvimento e reservado juntos (30 de 30) [antes da divisão · não é estimativa de acerto]. Nada foi corrigido depois disso; a partir da divisão, o teste usa só o desenvolvimento.
 
 Ressalva: a linha de base abaixo, com resultado por caso dos 15 casos, foi gravada antes da divisão. As categorias de erro foram vistas em todos os casos. As correções seguem estas categorias gerais e são medidas só no desenvolvimento; nenhum caso do reservado é aberto para corrigir.
 
 ### Linha de base por conjunto (antes das correções)
 
-| Conjunto | Casos | Itens | Acerto | Erros graves |
-|---|---|---|---|---|
-| Desenvolvimento | 9 | 63 | 84,1% | 1 |
-| Reservado | 6 | 42 | 78,6% | 3 |
+| Conjunto | Natureza | Casos | Itens | Acerto item a item | Erros graves |
+|---|---|---|---|---|---|
+| Desenvolvimento | medição de desenvolvimento, não é estimativa | 9 | 63 | 84,1% | 1 |
+| Reservado | linha de base antes das correções, pedida à parte; não é estimativa da plataforma corrigida | 6 | 42 | 78,6% | 3 |
+
+Contagem item a item, anterior à matriz; os erros graves eram só "ausente → presente". Pela matriz, a linha do desenvolvimento está na seção "Matriz de pontuação".
 
 Arquivos: `resultados/rh-linha-de-base-desenvolvimento.json` (por caso) e `resultados/rh-linha-de-base-reservado.json` (só o resumo). O uso do reservado para esta linha de base foi pedido e está no registro.
 
@@ -101,16 +115,16 @@ Congelada em `matriz.json` (sha256 em `matriz.sha256`) antes da rodada final. Va
 - **Denominador.** Todas as unidades da frente no conjunto. As quatro taxas somam 100%.
 - **Reaplicação.** `pontuar.ts` reaplica a matriz a todas as medições gravadas do desenvolvimento e grava `resultados/pontuacao-desenvolvimento.json`. O teste `fase4-matriz.test.ts` confere o hash, as regras e a pontuação gravada.
 
-**Medições do desenvolvimento pela matriz.** Nenhum destes números é estimativa de acerto; veja "Como reportar".
+**Medições do desenvolvimento pela matriz.** Nenhum destes números é estimativa de acerto. As linhas da construtora são prova de generalização.
 
-| Frente | Medição | Conjunto | Casos | Unidades | Acerto | Erros graves | Erros comuns | Revisão |
+| Frente | Medição | Conjunto · natureza | Casos | Unidades | Acerto | Erros graves | Erros comuns | Revisão |
 |---|---|---|---|---|---|---|---|---|
-| RH | checklist anterior, catálogo v1 (linha de base) | desenvolvimento | 9 | 63 | 84,1% | 5 (7,9%) | 5 (7,9%) | 0% |
-| RH | checklist anterior, catálogo v2 | desenvolvimento | 9 | 63 | 92,1% | 5 (7,9%) | 0 | 0% |
-| RH | plataforma corrigida, catálogo v2 | desenvolvimento | 9 | 63 | 92,1% | 0 | 0 | 7,9% |
-| Construtora (contratação) | checklist anterior | desenvolvimento | 9 | 63 | 69,8% | 6 (9,5%) | 4 (6,3%) | 14,3% |
-| Construtora (contratação) | plataforma corrigida | desenvolvimento | 9 | 63 | 90,5% | 0 | 0 | 9,5% |
-| Fiscal | conferência pelos mapeamentos, cinco layouts | desenvolvimento | 18 | 353 | 98,6% | 0 | 0 | 1,4% |
+| RH | checklist anterior, catálogo v1 (linha de base) | desenvolvimento · medição | 9 | 63 | 84,1% | 5 (7,9%) | 5 (7,9%) | 0% |
+| RH | checklist anterior, catálogo v2 | desenvolvimento · medição | 9 | 63 | 92,1% | 5 (7,9%) | 0 | 0% |
+| RH | plataforma corrigida, catálogo v2 | desenvolvimento · medição | 9 | 63 | 92,1% | 0 | 0 | 7,9% |
+| Construtora (contratação) | checklist anterior | desenvolvimento · prova de generalização | 9 | 63 | 69,8% | 6 (9,5%) | 4 (6,3%) | 14,3% |
+| Construtora (contratação) | plataforma corrigida | desenvolvimento · prova de generalização | 9 | 63 | 90,5% | 0 | 0 | 9,5% |
+| Fiscal | conferência pelos mapeamentos, cinco layouts | desenvolvimento · medição | 18 | 353 | 98,6% | 0 | 0 | 1,4% |
 
 - Pela matriz, o RH corrigido tem o mesmo acerto que o checklist anterior (92,1%). Os 5 erros graves viraram revisão: 4 itens só citados na ficha e o CPF citado em outros documentos. Na conta item a item de antes, "duvidoso = duvidoso" contava como acerto (98,4%). Pela matriz, conta como revisão.
 - A linha de base do reservado (78,6%) foi gravada só como resumo, antes da matriz. Ela não é pontuada pela matriz: isso exigiria rodar o reservado, o que fica para a rodada final.
@@ -128,7 +142,7 @@ Os erros da linha de base do RH foram corrigidos no bloco de checklist, não no 
 
 **Casos equivalentes da construtora** (`gerar-contratacao.ts`, 15 pastas, semente 4501, gabaritos congelados antes de qualquer rodada; 9 no desenvolvimento, 6 no reservado). ART citada no contrato sem a ART anexada; CND e cartão CNPJ no mesmo PDF (uma pasta a cada três); contrato que cita "art." de lei; garantia por caução mencionada no contrato; matrícula CNO como dado mencionado; contrato em DOCX.
 
-**Nova medição, desenvolvimento** (sem modelo, blocos reais da plataforma):
+**Nova medição** [desenvolvimento · medição de desenvolvimento; a construtora é prova de generalização; nenhum número é estimativa de acerto] (sem modelo, blocos reais da plataforma, contagem item a item anterior à matriz):
 
 | Conjunto de desenvolvimento | Checklist anterior | Plataforma corrigida | Erros graves (antes → depois) |
 |---|---|---|---|

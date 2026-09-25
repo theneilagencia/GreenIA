@@ -195,7 +195,7 @@ Pedida depois da aprovação dos ajustes. Nenhum nome de sistema, layout, nome d
 **Verificação.**
 - O teste contra nomes fixos (`genericity.test.ts`) agora procura nomes de ERPs e sistemas em todo o `server/src` (inclusive demonstração e leitores), nas migrações, em `lib`, nos scripts e nas páginas, com os comentários. O próprio teste confere que pega SyGeCom, TOTVS Protheus, SAP S/4HANA, Omie, Bling, Sankhya, Senior Sistemas, Tiny ERP, Conta Azul e Dynamics 365, e que não pega "analista sênior".
 - `imports.test.ts`: leitura dos cinco formatos, transformações, erro por linha, pré-visualização, versões, auditoria, permissão e isolamento entre tenants. O mesmo assistente confere um CSV com título e rodapé e um JSON, só pelos mapeamentos. Mapeamento arquivado deixa de valer.
-- `fase4-fiscal-importacao.test.ts`: os cinco layouts do corpus fiscal entram por mapeamentos criados pela API de configuração, testados com um arquivo de exemplo. O mesmo assistente, criado do modelo do catálogo sem ajuste, confere os 18 casos do conjunto de desenvolvimento. Resultado: 18 de 18, e em cada layout todos os casos batem com o gabarito.
+- `fase4-fiscal-importacao.test.ts`: os cinco layouts do corpus fiscal entram por mapeamentos criados pela API de configuração, testados com um arquivo de exemplo. O mesmo assistente, criado do modelo do catálogo sem ajuste, confere os 18 casos do conjunto de desenvolvimento. Resultado [desenvolvimento · medição de desenvolvimento, não é estimativa de acerto]: 18 de 18, e em cada layout todos os casos batem com o gabarito.
 - Tela: teste no navegador (key user sobe o exemplo, mapeia, pré-visualiza, salva a versão 1 e a 2).
 
 ## Limites e pendências

@@ -82,6 +82,40 @@ Ressalva: a linha de base abaixo, com resultado por caso dos 15 casos, foi grava
 
 Arquivos: `resultados/rh-linha-de-base-desenvolvimento.json` (por caso) e `resultados/rh-linha-de-base-reservado.json` (só o resumo). O uso do reservado para esta linha de base foi pedido e está no registro.
 
+## Matriz de pontuação de três estados
+
+Congelada em `matriz.json` (sha256 em `matriz.sha256`) antes da rodada final. Vale para todas as frentes. Cada unidade avaliada é um par (gabarito, plataforma):
+
+| Gabarito | Plataforma | Resultado |
+|---|---|---|
+| ausente | presente | erro grave |
+| presente | ausente | erro comum |
+| qualquer | duvidoso | revisão (nem acerto nem erro) |
+| presente | presente | acerto |
+| ausente | ausente | acerto |
+| duvidoso | presente | erro grave |
+| duvidoso | ausente | acerto |
+
+- **Gabarito duvidoso.** O documento está ausente e só é mencionado. Por isso, "presente" é erro grave e "ausente" é acerto. Essa leitura está congelada na matriz.
+- **"Presente" em cada frente.** Nos checklists, o documento está na pasta. Nas conferências (Fiscal, Suprimentos), o campo está conforme. Assim, uma divergência não apontada é erro grave. Os significados das demais frentes estão em `matriz.json`.
+- **Denominador.** Todas as unidades da frente no conjunto. As quatro taxas somam 100%.
+- **Reaplicação.** `pontuar.ts` reaplica a matriz a todas as medições gravadas do desenvolvimento e grava `resultados/pontuacao-desenvolvimento.json`. O teste `fase4-matriz.test.ts` confere o hash, as regras e a pontuação gravada.
+
+**Medições do desenvolvimento pela matriz.** Nenhum destes números é estimativa de acerto; veja "Como reportar".
+
+| Frente | Medição | Conjunto | Casos | Unidades | Acerto | Erros graves | Erros comuns | Revisão |
+|---|---|---|---|---|---|---|---|---|
+| RH | checklist anterior, catálogo v1 (linha de base) | desenvolvimento | 9 | 63 | 84,1% | 5 (7,9%) | 5 (7,9%) | 0% |
+| RH | checklist anterior, catálogo v2 | desenvolvimento | 9 | 63 | 92,1% | 5 (7,9%) | 0 | 0% |
+| RH | plataforma corrigida, catálogo v2 | desenvolvimento | 9 | 63 | 92,1% | 0 | 0 | 7,9% |
+| Construtora (contratação) | checklist anterior | desenvolvimento | 9 | 63 | 69,8% | 6 (9,5%) | 4 (6,3%) | 14,3% |
+| Construtora (contratação) | plataforma corrigida | desenvolvimento | 9 | 63 | 90,5% | 0 | 0 | 9,5% |
+| Fiscal | conferência pelos mapeamentos, cinco layouts | desenvolvimento | 18 | 353 | 98,6% | 0 | 0 | 1,4% |
+
+- Pela matriz, o RH corrigido tem o mesmo acerto que o checklist anterior (92,1%). Os 5 erros graves viraram revisão: 4 itens só citados na ficha e o CPF citado em outros documentos. Na conta item a item de antes, "duvidoso = duvidoso" contava como acerto (98,4%). Pela matriz, conta como revisão.
+- A linha de base do reservado (78,6%) foi gravada só como resumo, antes da matriz. Ela não é pontuada pela matriz: isso exigiria rodar o reservado, o que fica para a rodada final.
+- Jurídico, Suprimentos, Financeiro e LGPD ainda não têm medição no desenvolvimento. Dependem das rodadas com o modelo real.
+
 ## Correções da plataforma no checklist (medidas só no desenvolvimento)
 
 Os erros da linha de base do RH foram corrigidos no bloco de checklist, não no modelo de RH:

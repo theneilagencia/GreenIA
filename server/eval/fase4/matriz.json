@@ -1,0 +1,25 @@
+{
+  "versao": 1,
+  "descricao": "Matriz de pontuação para saídas de três estados (presente, ausente, duvidoso). Congelada antes da rodada final e aplicada a todas as frentes. Cada unidade avaliada é um par (gabarito, plataforma).",
+  "estados": ["presente", "ausente", "duvidoso"],
+  "resultados": ["acerto", "erro_grave", "erro_comum", "revisao"],
+  "regras": [
+    { "gabarito": "*", "plataforma": "duvidoso", "resultado": "revisao", "motivo": "plataforma duvidoso: nem acerto nem erro; conta na taxa de revisão" },
+    { "gabarito": "presente", "plataforma": "presente", "resultado": "acerto" },
+    { "gabarito": "ausente", "plataforma": "ausente", "resultado": "acerto" },
+    { "gabarito": "ausente", "plataforma": "presente", "resultado": "erro_grave", "motivo": "a plataforma afirma o que não existe" },
+    { "gabarito": "presente", "plataforma": "ausente", "resultado": "erro_comum", "motivo": "a plataforma deixa de ver o que existe" },
+    { "gabarito": "duvidoso", "plataforma": "presente", "resultado": "erro_grave", "motivo": "gabarito duvidoso = documento ausente, só mencionado: dizer presente é afirmar o que não existe" },
+    { "gabarito": "duvidoso", "plataforma": "ausente", "resultado": "acerto", "motivo": "gabarito duvidoso = documento ausente, só mencionado: ausente está certo" }
+  ],
+  "taxas": "Denominador: todas as unidades da frente no conjunto. Acerto, erros graves, erros comuns e revisão somam 100%. Reportados separadamente, por frente e por conjunto.",
+  "significado": {
+    "rh": { "unidade": "item da pasta de admissão", "presente": "o documento do item está na pasta" },
+    "contratacao": { "unidade": "item da pasta de contratação", "presente": "o documento do item está na pasta (ou o dado mencionado, quando o item aceita menção)" },
+    "fiscal": { "unidade": "campo conferido: quantidade, valor unitário e descrição de cada item do pedido; par do item; e número, CNPJ, prazo e valor total do cabeçalho", "presente": "conforme (sem divergência)", "nota": "gabarito ausente = há divergência; plataforma presente numa unidade com divergência = divergência não apontada (erro grave). Conferência não realizada (falta a fonte) conta como duvidoso." },
+    "suprimentos": { "unidade": "campo conferido de cada item (quantidade, unidade) e par do item", "presente": "conforme (sem divergência)" },
+    "juridico": { "unidade": "campo do contrato (partes, vigência, reajuste, multa, rescisão, confidencialidade, foro)", "presente": "a cláusula está no contrato e a saída cita trecho que está nele", "nota": "trecho citado que não está no contrato conta como presente com gabarito ausente (erro grave)" },
+    "financeiro": { "unidade": "valor do pacote (receita, despesa, resultado, saldo e os demais do gabarito)", "presente": "valor informado e igual ao do gabarito", "nota": "valor informado diferente do gabarito conta como presente com gabarito ausente (erro grave)" },
+    "lgpd": { "unidade": "documento × categoria da taxonomia", "presente": "o documento pertence à categoria" }
+  }
+}

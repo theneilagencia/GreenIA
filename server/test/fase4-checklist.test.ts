@@ -10,6 +10,7 @@ import { gerarRh } from '../eval/fase4/gerar-rh.ts';
 import { gerarContratacao } from '../eval/fase4/gerar-contratacao.ts';
 import { OFICIAL } from '../eval/fase4/congelar.ts';
 import { avaliarChecklist, resumo } from '../eval/fase4/avaliar-rh-offline.ts';
+import { paresChecklist, pontuar } from '../eval/fase4/pontuar.ts';
 
 let dir = '';
 before(async () => {
@@ -19,7 +20,7 @@ before(async () => {
 });
 after(() => { if (dir) rmSync(dir, { recursive: true, force: true }); });
 
-test('RH, desenvolvimento: nenhum erro grave e acerto de pelo menos 98%', async () => {
+test('RH, desenvolvimento: nenhum erro grave; acerto item a item de pelo menos 98% e, pela matriz, 58 acertos e 5 em revisão', async () => {
   const rs = await avaliarChecklist(dir, 'rh');
   const s = resumo(rs);
   assert.equal(s.casos, 9);
@@ -28,6 +29,9 @@ test('RH, desenvolvimento: nenhum erro grave e acerto de pelo menos 98%', async 
   // O que sobra é o CPF citado em outro documento: fica duvidoso (vai para a revisão), nunca presente.
   assert.equal(s.confusao['ausente→presente'] ?? 0, 0);
   assert.equal(s.confusao['duvidoso→presente'] ?? 0, 0);
+  // Pela matriz congelada: acerto, erros graves, erros comuns e revisão.
+  const m = pontuar(paresChecklist(rs));
+  assert.deepEqual([m.acerto, m.errosGraves, m.errosComuns, m.revisao], [58, 0, 0, 5]);
 });
 
 test('construtora, desenvolvimento: ART citada sem anexo fica duvidosa, PDF com dois documentos dá a página de cada um', async () => {
@@ -40,4 +44,6 @@ test('construtora, desenvolvimento: ART citada sem anexo fica duvidosa, PDF com 
   const art = rs.flatMap(r => r.itens.filter(i => i.item === 'art' && i.esperado === 'duvidoso'));
   assert.ok(art.length >= 1);
   for (const i of art) assert.match(i.motivo!, /^mencionado em contrato\.(pdf|docx), documento não encontrado$/);
+  const m = pontuar(paresChecklist(rs));
+  assert.deepEqual([m.acerto, m.errosGraves, m.errosComuns, m.revisao], [57, 0, 0, 6]);
 });

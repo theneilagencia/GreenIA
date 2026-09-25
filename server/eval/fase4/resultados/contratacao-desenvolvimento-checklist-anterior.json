@@ -1,0 +1,592 @@
+{
+  "conjunto": "desenvolvimento",
+  "resumo": {
+    "casos": 9,
+    "itens": 63,
+    "acerto": 69.8,
+    "errosGraves": [],
+    "porItem": {
+      "contrato": {
+        "acertos": 9,
+        "total": 9
+      },
+      "art": {
+        "acertos": 3,
+        "total": 9
+      },
+      "alvara": {
+        "acertos": 9,
+        "total": 9
+      },
+      "garantia": {
+        "acertos": 5,
+        "total": 9
+      },
+      "cnd": {
+        "acertos": 9,
+        "total": 9
+      },
+      "cno": {
+        "acertos": 3,
+        "total": 9
+      },
+      "cnpj": {
+        "acertos": 6,
+        "total": 9
+      }
+    },
+    "confusao": {
+      "presente→presente": 30,
+      "presente→duvidoso": 9,
+      "duvidoso→presente": 6,
+      "ausente→ausente": 14,
+      "presente→ausente": 4
+    },
+    "pagina": {
+      "itens": 30,
+      "certas": 0
+    }
+  },
+  "casos": [
+    {
+      "caso": "contratacao-01",
+      "variacao": "pdf",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.146
+    },
+    {
+      "caso": "contratacao-05",
+      "variacao": "docx",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "duvidoso",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnpj",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        }
+      ],
+      "acertos": 6,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.037
+    },
+    {
+      "caso": "contratacao-08",
+      "variacao": "pdf",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "duvidoso",
+          "obtido": "presente",
+          "paginaEsperada": 2,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.026
+    },
+    {
+      "caso": "contratacao-09",
+      "variacao": "pdf, dois documentos num PDF",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "duvidoso",
+          "obtido": "presente",
+          "paginaEsperada": 2,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        }
+      ],
+      "acertos": 4,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.018
+    },
+    {
+      "caso": "contratacao-10",
+      "variacao": "pdf",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "presente",
+          "obtido": "ausente",
+          "paginaEsperada": 3,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.022
+    },
+    {
+      "caso": "contratacao-11",
+      "variacao": "docx",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "presente",
+          "obtido": "ausente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 1,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.016
+    },
+    {
+      "caso": "contratacao-12",
+      "variacao": "pdf, dois documentos num PDF",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "duvidoso",
+          "obtido": "presente",
+          "paginaEsperada": 2,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "presente",
+          "obtido": "ausente",
+          "paginaEsperada": 3,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        }
+      ],
+      "acertos": 3,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.011
+    },
+    {
+      "caso": "contratacao-14",
+      "variacao": "pdf",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "duvidoso",
+          "obtido": "presente",
+          "paginaEsperada": 2,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "presente",
+          "obtido": "ausente",
+          "paginaEsperada": 3,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.012
+    },
+    {
+      "caso": "contratacao-15",
+      "variacao": "pdf, dois documentos num PDF",
+      "itens": [
+        {
+          "item": "contrato",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "art",
+          "esperado": "duvidoso",
+          "obtido": "presente",
+          "paginaEsperada": 2,
+          "paginaObtida": null
+        },
+        {
+          "item": "alvara",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "garantia",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnd",
+          "esperado": "presente",
+          "obtido": "presente",
+          "paginaEsperada": 1,
+          "paginaObtida": null
+        },
+        {
+          "item": "cno",
+          "esperado": "ausente",
+          "obtido": "ausente",
+          "paginaEsperada": null,
+          "paginaObtida": null
+        },
+        {
+          "item": "cnpj",
+          "esperado": "presente",
+          "obtido": "duvidoso",
+          "paginaEsperada": 2,
+          "paginaObtida": null,
+          "motivo": "citado no texto, mas não parece ser o próprio documento"
+        }
+      ],
+      "acertos": 5,
+      "total": 7,
+      "errosGraves": [],
+      "segundos": 0.03
+    }
+  ]
+}

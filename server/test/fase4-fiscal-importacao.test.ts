@@ -17,6 +17,8 @@ import { MemoryObjectStore } from '../src/storage/object-store.ts';
 import { normKey } from '../src/blocks/values.ts';
 import { gerarFiscal } from '../eval/fase4/gerar-fiscal.ts';
 import { conjuntoDe } from '../eval/fase4/dividir.ts';
+import { paresFiscal, pontuar, type CasoFiscal } from '../eval/fase4/pontuar.ts';
+import { gravarJson } from '../eval/fase4/lib.ts';
 
 const EVAL = new URL('../eval/fase4/', import.meta.url).pathname;
 let db: TestDb, app: FastifyInstance, dir = '';
@@ -82,6 +84,7 @@ test('cinco layouts entram por mapeamentos criados pela API; o mesmo assistente 
   assert.equal(a.statusCode, 201, a.body);
 
   const porLayout: Record<string, { casos: number; certos: number }> = {};
+  const medidos: CasoFiscal[] = [];
   const falhas: string[] = [];
   for (const { dir: cd, g } of casos) {
     const files = g.arquivos.map(f => ({ name: f.nome, mime: 'application/octet-stream', contentBase64: readFileSync(join(cd, f.nome)).toString('base64') }));
@@ -104,6 +107,11 @@ test('cinco layouts entram por mapeamentos criados pela API; o mesmo assistente 
       // Só o DANFE: o assistente pede o XML ao fornecedor.
       const danfe = ler.data.find((x: { danfe?: unknown }) => x.danfe);
       certo = !!danfe && danfe.danfe.situacao === 'pedir o XML ao fornecedor' && g.esperado.pedirXml.includes(danfe.danfe.chave);
+      // Sem o XML, a conferência não é feita: um status só, nenhum item como "sem par".
+      for (const id of ['itens', 'cabecalho']) {
+        const sec = d.result.sections.find((s: { id: string }) => s.id === id);
+        assert.deepEqual([sec.data.situacao, sec.data.motivo, sec.data.divergencias.length], ['nao_realizada', 'conferência não realizada: falta XML de NF-e', 0], g.caso);
+      }
     } else {
       const esperado = g.esperado.divergencias.map(x => `${x.tipo}:${x.chave === 'cabecalho' ? 'cabecalho' : normKey(x.chave)}`).sort();
       const achado = obtidas(d.result.sections);
@@ -111,7 +119,14 @@ test('cinco layouts entram por mapeamentos criados pela API; o mesmo assistente 
       if (!certo) falhas.push(`${g.caso} (${l}): esperado ${esperado.join(', ') || 'nada'}; achado ${achado.join(', ') || 'nada'}`);
     }
     if (certo) porLayout[l].certos++;
+    const naoRealizada = d.result.sections.find((s: { id: string }) => s.id === 'itens').data.situacao === 'nao_realizada';
+    medidos.push({ caso: g.caso, esperado: g.esperado as unknown as CasoFiscal['esperado'], obtido: { naoRealizada, divergencias: naoRealizada ? [] : obtidas(d.result.sections).map(x => ({ tipo: x.split(':')[0], chave: x.split(':').slice(1).join(':') })) } });
   }
+  // Pontuação de três estados pela matriz congelada (FASE4_GRAVAR=1 grava a medição).
+  const p = pontuar(paresFiscal(medidos));
+  console.log('Fiscal, desenvolvimento:', JSON.stringify({ ...p, graves: undefined }));
+  assert.equal(p.errosGraves, 0);
+  if (process.env.FASE4_GRAVAR === '1') gravarJson(join(EVAL, 'resultados', 'fiscal-desenvolvimento.json'), { conjunto: 'desenvolvimento', casos: medidos });
   console.log('Fiscal por layout:', JSON.stringify(porLayout));
   assert.deepEqual(falhas, []);
   for (const l of layouts) assert.equal(porLayout[l].certos, porLayout[l].casos, l);

@@ -58,6 +58,17 @@ cd server && npm run typecheck
 
 Os testes do servidor criam um banco novo por execução, em `TEST_PG_ADMIN_URL`, com padrão `postgres://postgres@localhost:5432/postgres`.
 
+## Frontend no modo com servidor
+
+O servidor entrega as páginas `.dc.html` e o React da própria GreenIA. Nada vem de unpkg ou de outro CDN de terceiros:
+
+- React e ReactDOM 18.3.1 saem do pacote npm, em `/vendor/react@18.3.1/...`, com `integrity` (SHA-384) e cache imutável.
+- A versão e o hash estão fixados em `server/src/web/static.ts`. Se o arquivo instalado for outro, o servidor não sobe.
+- A política de conteúdo (CSP) só aceita scripts da própria origem.
+- As fontes do Google continuam como opção de estilo. Sem elas, a página usa a fonte do sistema.
+- O teste `web.e2e` cobre a página com unpkg, jsdelivr, cdnjs e Google Fonts bloqueados.
+- O modo demonstração (Claude Design, sem servidor) continua buscando o React no unpkg, com SRI.
+
 ## Banco de dados e papéis
 
 | Papel | Uso | Observação |

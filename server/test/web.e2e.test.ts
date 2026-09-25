@@ -74,11 +74,38 @@ const bubbles = (page: import('playwright').Page) => page.locator('.gia-msgs > d
 test('servidor entrega a página com React local, CSP e config do modo backend', async () => {
   const r = await fetch(base + '/GreenIA.dc.html');
   const html = await r.text();
-  assert.match(html, /<script src="\/greenia-config.js"><\/script><script src="\/vendor\/react.production.min.js">/);
+  assert.match(html, /<script src="\/greenia-config.js"><\/script><script src="\/vendor\/react@18\.3\.1\/react\.production\.min\.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW\/XQGmfe\+IsZ8TqEiDrcHkMLKI6fiB\/Z" crossorigin="anonymous"><\/script>/);
+  assert.match(html, /react-dom\.production\.min\.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn\/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"/);
+  assert.ok(!/unpkg|jsdelivr|cdnjs/.test(html));
   assert.match(r.headers.get('content-security-policy') || '', /script-src 'self' 'unsafe-eval'/);
-  assert.equal((await fetch(base + '/vendor/react.production.min.js')).status, 200);
+  const v = await fetch(base + '/vendor/react@18.3.1/react.production.min.js');
+  assert.equal(v.status, 200);
+  assert.match(v.headers.get('cache-control') || '', /immutable/);
+  assert.equal((await fetch(base + '/vendor/react@18.2.0/react.production.min.js')).status, 404);
   assert.equal((await fetch(base + '/server/src/config.ts')).status, 404);
   assert.equal((await fetch(base + '/..%2Fpackage.json')).status, 404);
+});
+
+test('CDNs de terceiros bloqueados: a página carrega e o chat funciona, sem nenhuma requisição a CDN', async () => {
+  const page = await browser.newPage();
+  const errors: string[] = [];
+  const tentativas: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  // unpkg, jsdelivr, cdnjs e Google Fonts fora do ar.
+  await page.route(/unpkg\.com|jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com/, r => { tentativas.push(r.request().url()); return r.abort('blockedbyclient'); });
+  await page.goto(base + '/GreenIA.dc.html?tenant=repet');
+  await login(page, 'cdn@repet.com.br');
+  fake.reply = () => 'Resposta sem CDN.';
+  await page.getByLabel('Mensagem').fill('oi');
+  await page.getByLabel('Mensagem').press('Enter');
+  await bubbles(page).getByText('Resposta sem CDN.').waitFor({ timeout: 5000 });
+  // O React veio da própria GreenIA, na versão fixada, com integridade.
+  assert.equal(await page.evaluate(() => (window as unknown as { React: { version: string } }).React.version), '18.3.1');
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('script[src*="/vendor/"]')].map(s => [s.getAttribute('src'), !!s.getAttribute('integrity')])),
+    [['/vendor/react@18.3.1/react.production.min.js', true], ['/vendor/react@18.3.1/react-dom.production.min.js', true]]);
+  assert.deepEqual(tentativas.filter(u => !/fonts\./.test(u)), []);                     // só as fontes tentam sair (e caem para a fonte do sistema)
+  assert.deepEqual(errors, []);
+  await page.close();
 });
 
 test('landing com textos e cores do tenant', async () => {

@@ -1,8 +1,11 @@
 // Entrega do frontend pelo próprio servidor (mesma origem da API: sem CORS).
 // Só uma lista fechada de arquivos. O HTML recebe, antes do support.js:
 //  - /greenia-config.js, que liga o modo backend (window.__GREENIA__);
-//  - o React 18.3.1 do pacote npm (o support.js só busca no unpkg se window.React
-//    não existir), então produção não depende de CDN.
+//  - o React do pacote npm, servido por aqui com versão fixa e integridade (SRI):
+//    produção não depende de unpkg nem de outro CDN de terceiros (o support.js só
+//    busca no unpkg se window.React não existir, o que é o modo demonstração).
+//    Se o arquivo instalado não for o da versão e do hash fixados, o servidor não sobe.
+import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -18,10 +21,22 @@ const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.svg': 'image/svg+xml',
 };
 
-const VENDOR: Record<string, string> = {
-  'react.production.min.js': join(dirname(require.resolve('react/package.json')), 'umd/react.production.min.js'),
-  'react-dom.production.min.js': join(dirname(require.resolve('react-dom/package.json')), 'umd/react-dom.production.min.js'),
+// React fixado: versão exata e sha384 dos arquivos UMD (os mesmos do support.js).
+export const REACT_VERSION = '18.3.1';
+export const VENDOR: Record<string, { pacote: 'react' | 'react-dom'; path: string; sri: string }> = {
+  'react.production.min.js': { pacote: 'react', path: join(dirname(require.resolve('react/package.json')), 'umd/react.production.min.js'), sri: 'sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z' },
+  'react-dom.production.min.js': { pacote: 'react-dom', path: join(dirname(require.resolve('react-dom/package.json')), 'umd/react-dom.production.min.js'), sri: 'sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1' },
 };
+export const vendorUrl = (file: string) => `/vendor/react@${REACT_VERSION}/${file}`;
+
+export function conferirVendor() {
+  for (const [file, v] of Object.entries(VENDOR)) {
+    const versao = (require(`${v.pacote}/package.json`) as { version: string }).version;
+    if (versao !== REACT_VERSION) throw new Error(`${v.pacote} ${versao} instalado; a página exige ${REACT_VERSION}`);
+    const sri = 'sha384-' + createHash('sha384').update(readFileSync(v.path)).digest('base64');
+    if (sri !== v.sri) throw new Error(`${file}: integridade diferente da fixada (${sri})`);
+  }
+}
 
 // O runtime do .dc.html avalia a lógica do componente com `new Function`, por
 // isso 'unsafe-eval'; os estilos são inline, por isso 'unsafe-inline' em style-src.
@@ -37,7 +52,9 @@ const CSP = [
   "form-action 'self'",
 ].join('; ');
 
-const INJECT = '<script src="/greenia-config.js"></script><script src="/vendor/react.production.min.js"></script><script src="/vendor/react-dom.production.min.js"></script><script src="./support.js"></script>';
+const INJECT = '<script src="/greenia-config.js"></script>'
+  + Object.keys(VENDOR).map(f => `<script src="${vendorUrl(f)}" integrity="${VENDOR[f].sri}" crossorigin="anonymous"></script>`).join('')
+  + '<script src="./support.js"></script>';
 
 function secure(reply: FastifyReply, https: boolean) {
   reply.header('x-content-type-options', 'nosniff');
@@ -47,6 +64,7 @@ function secure(reply: FastifyReply, https: boolean) {
 }
 
 export async function staticRoutes(app: FastifyInstance) {
+  conferirVendor();
   const https = new URL(app.deps.config.PUBLIC_URL).protocol === 'https:';
   const cache = new Map<string, Buffer>();
   const read = (file: string) => {
@@ -63,11 +81,11 @@ export async function staticRoutes(app: FastifyInstance) {
     return reply.type(TYPES['.js']).header('cache-control', 'no-store').send('window.__GREENIA__ = {"backendUrl":"/"};\n');
   });
 
-  app.get('/vendor/:file', async (req, reply) => {
+  app.get(`/vendor/react@${REACT_VERSION}/:file`, async (req, reply) => {
     const f = VENDOR[(req.params as { file: string }).file];
     if (!f) return reply.code(404).send();
     secure(reply, https);
-    return reply.type(TYPES['.js']).header('cache-control', 'public, max-age=31536000, immutable').send(read(f));
+    return reply.type(TYPES['.js']).header('cache-control', 'public, max-age=31536000, immutable').send(read(f.path));
   });
 
   app.get('/*', async (req, reply) => {

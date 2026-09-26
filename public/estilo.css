@@ -287,3 +287,10 @@ button.lista-item:hover{background:var(--surface-hover)}
 .caixas{display:flex;flex-wrap:wrap;gap:6px 16px;max-height:220px;overflow-y:auto;padding:8px 0}
 .caixas label{display:flex;align-items:center;gap:6px;font:400 14px var(--sans)}
 @media (max-width:860px){.painel-topo{padding:12px 16px}.abas{padding:0 8px}.painel-corpo{padding:18px 16px 40px}}
+/* Medição do quick win */
+.lado{border:1px solid var(--line);border-radius:12px;padding:12px 16px 0;margin:0 0 16px;min-width:0}
+.lado legend{font:500 14px var(--sans);padding:0 6px}
+.logo-empresa{max-height:34px;max-width:140px;object-fit:contain;background:#fff;border-radius:8px;padding:4px 8px}
+.topo .logo-empresa{margin-right:auto}
+.lateral .logo-empresa{display:block;margin:-12px 6px 20px}
+.login-cartao .logo-empresa{display:block;margin:12px 0 0}

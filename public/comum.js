@@ -40,8 +40,20 @@ export async function preencherMarca() {
   const p = await fetch('/api/publico').then(r => r.json()).catch(() => ({}));
   document.querySelectorAll('[data-empresa]').forEach(e => { e.textContent = p.empresa || 'sua empresa'; });
   document.querySelectorAll('[data-privacidade]').forEach(e => { e.textContent = p.privacyNote || ''; });
+  aplicarMarca(p);
+  document.querySelectorAll('.marca').forEach(m => m.insertAdjacentHTML('afterend', logoEmpresa(p)));
   return p;
 }
+
+// Cor de marca (já conferida no servidor: 4,5:1 com o texto claro) nos botões principais.
+export function aplicarMarca(p) {
+  if (!p.corMarca) return;
+  document.documentElement.style.setProperty('--forest-strong', p.corMarca);
+  document.documentElement.style.setProperty('--forest-strong-hover', p.corMarca);
+}
+
+// Logo da empresa ao lado da marca, num fundo claro para funcionar também na barra escura.
+export const logoEmpresa = p => (p.logo ? `<img class="logo-empresa" src="${esc(p.logo)}" alt="${esc(p.empresa || 'Empresa')}">` : '');
 
 export const marcaHtml = (escuro = false) => `<img src="/assets/greenia-symbol-${escuro ? 'spark' : 'forest'}.svg" width="32" height="32" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>`;
 

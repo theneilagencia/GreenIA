@@ -1,6 +1,6 @@
 // Painel: o admin vê todas as abas; responsáveis e pessoas autorizadas veem
 // bases de conhecimento e quick wins (o servidor confere cada permissão).
-import { api, definirCsrf, esc, ICONE, toast } from '/comum.js';
+import { api, definirCsrf, esc, ICONE, preencherMarca, toast } from '/comum.js';
 import { renderizar } from '/md.js';
 
 const $ = id => document.getElementById(id);
@@ -383,8 +383,13 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
 // ---------------------------------------------------------------- Eventos
 async function abaEventos(filtro = {}, pagina = 0) {
   const q = new URLSearchParams(Object.entries(filtro).filter(([, v]) => v));
-  const d = await api(`/api/admin/eventos?${q}&pagina=${pagina}`);
-  $('conteudo').innerHTML = `<h2>Eventos</h2>
+  const [d, { problemas }] = await Promise.all([api(`/api/admin/eventos?${q}&pagina=${pagina}`), api('/api/admin/problemas')]);
+  const abertos = problemas.filter(p => !p.resolvido).length;
+  $('conteudo').innerHTML = `<h2>Problemas reportados</h2>
+    <p class="lead">${abertos ? `${abertos} em aberto.` : 'Nenhum problema em aberto.'} Cada um também chega por email.</p>
+    ${tabela(['Quando', 'Pessoa', 'Tipo', 'Descrição', 'Resolvido'], problemas.map(p => `<tr><td style="white-space:nowrap">${dataHora(p.em)}</td><td>${esc(p.nome || '')}<br><span class="dica">${esc(p.email || '')}</span></td><td>${esc(p.tipo)}</td>
+      <td style="white-space:pre-wrap;word-break:break-word">${esc(p.descricao)}</td><td><input type="checkbox" data-problema="${p.id}" ${p.resolvido ? 'checked' : ''} aria-label="Resolvido"></td></tr>`), 'Ninguém reportou problema.')}
+    <h2 style="margin-top:32px">Eventos</h2>
     <p class="lead">Registro só de inclusão: logins, mudanças de configuração, uso (sem conteúdo), bloqueios, conversas sigilosas, exclusões.</p>
     <form class="filtros" id="filtro-ev">
       <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo"><option value="">Todos</option>${d.tipos.map(t => `<option ${t === filtro.tipo ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
@@ -401,6 +406,7 @@ async function abaEventos(filtro = {}, pagina = 0) {
   $('filtro-ev').onsubmit = ev => { ev.preventDefault(); abaEventos(ler()); };
   if ($('ev-ant')) $('ev-ant').onclick = () => abaEventos(filtro, pagina - 1);
   if ($('ev-prox')) $('ev-prox').onclick = () => abaEventos(filtro, pagina + 1);
+  document.querySelectorAll('[data-problema]').forEach(c => { c.onchange = () => api(`/api/admin/problemas/${c.dataset.problema}`, { metodo: 'PUT', corpo: { resolvido: c.checked } }).then(() => toast(c.checked ? 'Marcado como resolvido.' : 'Reaberto.')).catch(falhar); });
 }
 
 // ---------------------------------------------------------------- Configurações
@@ -484,6 +490,7 @@ async function abrir() {
 async function iniciar() {
   const eu = await api('/api/eu');
   definirCsrf(eu.csrf);
+  preencherMarca();
   Object.assign(S, { eu: eu.pessoa, perm: eu.quickWins });
   const pode = S.eu.admin || ABAS.some(a => a.tambem?.());
   if (!pode) { location.href = '/app'; return; }

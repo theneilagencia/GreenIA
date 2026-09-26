@@ -2,6 +2,7 @@
 import { api, esc, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
+import { secaoMedicao } from '/medicao.js';
 
 const $ = id => document.getElementById(id);
 const FEEDBACK = { serviu: 'Serviu', ajustes: 'Serviu com ajustes', nao_serviu: 'Não serviu' };
@@ -23,7 +24,6 @@ export async function rotaQuickWin(hash) {
 
 async function paginaQuickWin(id) {
   const [qw, lista] = await Promise.all([api(`/api/quick-wins/${id}`), api(`/api/conversas?quick_win=${id}`)]);
-  const uso = qw.podeEditar ? await api(`/api/quick-wins/${id}/uso`).catch(() => null) : null;
   $('principal').innerHTML = `${cabecalho(qw.nome, qw.status !== 'ativo' ? `<span class="selo selo-cinza">${qw.status === 'rascunho' ? 'Rascunho' : 'Pausado'}</span>` : '')}
     <div class="pagina"><div class="pagina-dentro">
       <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -46,11 +46,10 @@ async function paginaQuickWin(id) {
         </div>`).join('')}</div>`
         : '<p class="lead">Você ainda não tem conversas aqui. Comece uma nova ou use uma sugestão.</p>'}
       <p class="dica" style="margin-top:10px">Suas conversas ficam salvas só para você, por até ${E.retencaoDias} dias sem uso. Você pode continuar de onde parou.</p>
-      ${uso ? `<h3>Uso neste mês</h3><div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Conversas</th><th>Mensagens</th><th>Pessoas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>Sem retorno</th><th>Custo de IA</th></tr></thead>
-        <tbody><tr><td>${uso.conversas}</td><td>${uso.mensagens}</td><td>${uso.pessoas}</td><td>${uso.feedback.serviu}</td><td>${uso.feedback.ajustes}</td><td>${uso.feedback.nao_serviu}</td><td>${uso.feedback.sem}</td><td>${brl(uso.custo)}</td></tr></tbody></table></div>
-        <p class="dica">Você vê só os números de uso. O conteúdo das conversas é de cada pessoa.</p>` : ''}
+      ${qw.podeEditar ? '<section id="medicao-qw" aria-label="Medição"></section>' : ''}
     </div></div>`;
   ligarCabecalho();
+  if (qw.podeEditar) secaoMedicao($('medicao-qw'), id).catch(e => { $('medicao-qw').innerHTML = `<p class="dica">${esc(e.message)}</p>`; });
   document.querySelectorAll('[data-sug]').forEach(b => { b.onclick = async () => { await vistaConversa({ qw }); const t = $('entrada'); t.value = b.textContent; t.dispatchEvent(new Event('input')); t.focus(); history.replaceState(null, '', `#/qw/${id}/nova`); }; });
   document.querySelectorAll('[data-renomear]').forEach(b => { b.onclick = async () => {
     const atual = lista.conversas.find(c => String(c.id) === b.dataset.renomear);

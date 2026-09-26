@@ -2,7 +2,7 @@
 //   #/nova          nova conversa no chat geral
 //   #/c/:id         conversa (chat ou quick win)
 //   #/qw/:id        página de um quick win (e #/qw/:id/editar, #/qw/nova)
-import { api, definirCsrf, esc, ICONE, marcaHtml } from '/comum.js';
+import { api, aplicarMarca, definirCsrf, esc, ICONE, logoEmpresa, marcaHtml, toast } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
@@ -40,7 +40,7 @@ const itemConversa = c => `<a class="item-lat${location.hash === `#/c/${c.id}` ?
 export function desenharLateral() {
   const qws = E.quickWins;
   $('lateral').innerHTML = `
-    <a class="marca" href="/" aria-label="GreenIA, página inicial">${marcaHtml(true)}</a>
+    <a class="marca" href="/" aria-label="GreenIA, página inicial">${marcaHtml(true)}</a>${logoEmpresa(E.publico)}
     <a class="btn btn-verde nova" href="#/nova">${ICONE.mais} Nova conversa</a>
     <nav class="lateral-rolagem" aria-label="Conversas e quick wins">
       <h2>Conversas</h2>
@@ -54,9 +54,11 @@ export function desenharLateral() {
     <div class="lateral-pe">
       ${E.eu.admin ? '<a class="btn-lat" href="/admin">Painel do admin</a>' : E.eu.areas.some(a => a.responsavel) || E.podeCriarQw ? '<a class="btn-lat" href="/admin">Gerenciar bases e quick wins</a>' : ''}
       <button class="btn-lat" id="ver-politica">Ver a política</button>
+      <button class="btn-lat" id="reportar">Reportar problema</button>
       <p class="nota">${esc(E.publico.privacyNote)}</p>
     </div>`;
   $('ver-politica').onclick = abrirPolitica;
+  $('reportar').onclick = reportarProblema;
 }
 
 export async function recarregarLateral() {
@@ -79,6 +81,31 @@ function abrirPolitica() {
   $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
   document.addEventListener('keydown', function esc(ev) { if (ev.key === 'Escape') { fechar(); document.removeEventListener('keydown', esc); } });
   document.querySelector('.modal').focus();
+}
+
+// Problema reportado: vai para o admin por email. Sem dado sigiloso na descrição.
+async function reportarProblema() {
+  const { tipos } = await api('/api/problemas/tipos');
+  $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-problema" tabindex="-1" id="form-problema" novalidate>
+    <div class="modal-topo"><div class="rotulo">Reportar problema</div><button type="button" class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="titulo-problema">O que aconteceu?</h2>
+    <div class="campo"><span class="legenda">Tipo</span><div class="opcoes">${Object.entries(tipos).map(([v, r], i) => `<label><input type="radio" name="tipo" value="${v}" ${i === 0 ? 'checked' : ''}> ${esc(r)}</label>`).join('')}</div></div>
+    <div class="campo"><label for="descricao-problema">Descrição</label><textarea class="entrada" id="descricao-problema" rows="5" maxlength="4000"></textarea>
+      <span class="ajuda">Conte o que aconteceu e onde. Não cole dados sigilosos aqui: descreva sem eles. O admin recebe por email.</span></div>
+    <p class="msg-erro oculto" id="erro-problema" role="alert"></p>
+    <div class="linha-botoes"><button class="btn btn-verde">Enviar</button><button type="button" class="btn btn-texto" id="cancelar-problema">Cancelar</button></div></form></div>`;
+  const fechar = () => { $('modal').innerHTML = ''; $('reportar')?.focus(); };
+  $('fechar-modal').onclick = fechar;
+  $('cancelar-problema').onclick = fechar;
+  $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
+  $('descricao-problema').focus();
+  $('form-problema').onsubmit = async ev => {
+    ev.preventDefault();
+    try {
+      await api('/api/problemas', { metodo: 'POST', corpo: { tipo: $('form-problema').querySelector('[name=tipo]:checked').value, descricao: $('descricao-problema').value } });
+      fechar(); toast('Obrigado. O admin foi avisado.');
+    } catch (e) { $('erro-problema').textContent = e.message; $('erro-problema').classList.remove('oculto'); }
+  };
 }
 
 async function rota() {
@@ -109,11 +136,6 @@ async function iniciar() {
   window.addEventListener('hashchange', rota);
   await rota();
   await pedirCiencia();
-}
-
-// Cor de marca (já conferida no servidor: 4,5:1 com o texto claro) nos botões principais.
-export function aplicarMarca(p) {
-  if (p.corMarca) { document.documentElement.style.setProperty('--forest-strong', p.corMarca); document.documentElement.style.setProperty('--forest-strong-hover', p.corMarca); }
 }
 
 // Primeiro acesso e cada nova versão da política: a pessoa registra ciência.

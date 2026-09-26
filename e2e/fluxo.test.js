@@ -77,3 +77,38 @@ test('360 px: sem rolagem horizontal, menu abre a lateral', async () => {
   }
   await ctx.close();
 });
+
+test('quem gerencia: medição e decisão; reportar problema; painel do admin com todas as abas', async () => {
+  const p = await N.contexto.newPage();
+  const erros = [];
+  p.on('pageerror', e => erros.push(e.message));
+  await N.entrar('admin@empresa-exemplo.com.br', p);
+  await p.goto(`${N.base}/app#/qw/${qwId}`);
+  await p.waitForSelector('#nova-med');
+  await p.click('#nova-med');
+  await p.fill('#indicador', 'minutos por pedido');
+  await p.fill('#depois-valor', '12');
+  await p.click('#form-med .btn-verde');
+  await p.waitForSelector('#medicoes .selo-ambar');
+  assert.match(await p.textContent('#medicoes'), /sem ponto de partida/i);
+  await p.fill('#motivo', 'Vale seguir por mais um mês.');
+  await p.click('#form-dec .btn-verde');
+  await p.waitForFunction(() => /Vale seguir/.test(document.getElementById('medicao-qw').textContent));
+  // Reportar problema, pela lateral.
+  await p.click('#reportar');
+  await p.fill('#descricao-problema', 'A resposta citou uma regra que não existe.');
+  await p.click('#form-problema .btn-verde');
+  await p.waitForSelector('#form-problema', { state: 'detached' });
+  // Painel: cada aba abre sem erro.
+  await p.goto(`${N.base}/admin`);
+  await p.waitForSelector('[data-aba="areas"]');
+  for (const aba of ['areas', 'grupos', 'bases', 'quickwins', 'modelos', 'politica', 'uso', 'eventos', 'config']) {
+    await p.click(`[data-aba="${aba}"]`);
+    await p.waitForFunction(a => { const c = document.getElementById('conteudo'); return c.getAttribute('aria-labelledby') === `aba-${a}` && !/Carregando/.test(c.textContent); }, aba);
+    assert.equal(await p.locator('#conteudo > .faixa-aviso.erro:only-child').count(), 0, aba + ': ' + await p.textContent('#conteudo'));
+  }
+  await p.click('[data-aba="eventos"]');
+  await p.waitForSelector('[data-problema]');
+  assert.match(await p.textContent('#conteudo'), /regra que não existe/);
+  assert.deepEqual(erros, []);
+});

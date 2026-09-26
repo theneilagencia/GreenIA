@@ -94,7 +94,11 @@ O console (`/operador`) junta todas as instalações de clientes numa tela: plan
 | `CUSTO_INFRA_USD` | Instalação de cada cliente | Custo mensal do servidor, para a margem |
 | `PACOTE_CREDITOS`, `PACOTE_PRECO_USD` | Instalação de cada cliente | Pacote de referência para a receita (padrão: 10.000 créditos por US$ 250) |
 
-Gere o token com `openssl rand -base64 32` e guarde só nas variáveis do servidor.
+Como ativar:
+
+1. **Instalação de cada cliente.** Crie pelo blueprint `deploy/render-cliente.yaml` (New > Blueprint > Blueprint Path). O Render gera o `OPERADOR_TOKEN` sozinho. Numa instalação de cliente que já existe, crie a variável no painel com o botão **Generate**. O token fica só no Render: não cole em chat, email ou repositório.
+2. **Instalação do operador.** O `render.yaml` já define `PAGINA_INICIAL=vendas`. No painel dela, crie `INSTANCIAS` com uma linha por cliente, separadas por `;`, copiando o token do painel do cliente: `Cliente A|https://ia.clientea.com.br|token`. Salvar reinicia o serviço.
+3. **Conferir.** Entre com um email de `OPERADOR_EMAIL` e abra `/operador`. Cliente que não responde aparece como **Sem resposta**, com o motivo.
 
 ## Página de vendas
 

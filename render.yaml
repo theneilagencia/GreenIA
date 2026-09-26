@@ -30,15 +30,15 @@ services:
         value: "750"
       - key: OPERADOR_EMAIL
         sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
-      - key: OPERADOR_TOKEN
-        sync: false         # libera o resumo desta instalação para o console do operador
+      # Esta é a instalação do operador: a raiz abre a página de vendas e /operador junta os clientes.
+      # Ela mesma aparece no console (tem plano); não precisa de OPERADOR_TOKEN.
+      - key: PAGINA_INICIAL
+        value: vendas
       - key: CUSTO_INFRA_USD
         value: "7"
-      # Só na instalação do operador:
-      # - key: PAGINA_INICIAL
-      #   value: vendas
-      # - key: INSTANCIAS
-      #   sync: false
+      # Clientes no console: crie INSTANCIAS no painel do Render (Environment), separadas por ponto e vírgula:
+      #   Cliente A|https://ia.clientea.com.br|token-a;Cliente B|https://ia.clienteb.com.br|token-b
+      # Instalação de cliente: use deploy/render-cliente.yaml.
       - key: BACKUP_HORA
         value: "06:00"
       - key: BACKUP_MANTER

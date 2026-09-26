@@ -1,0 +1,42 @@
+# Blueprint da instalação de um cliente. Uma cópia por empresa: servidor, disco e banco próprios.
+# No Render: New > Blueprint > este repositório > Blueprint Path: deploy/render-cliente.yaml.
+# Antes de criar, troque "greenia-cliente" e o domínio pelo nome do cliente.
+services:
+  - type: web
+    name: greenia-cliente
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: virginia
+    plan: starter
+    healthCheckPath: /api/saude
+    autoDeploy: true
+    # domains:
+    #   - ia.cliente.com.br
+    disk:
+      name: dados
+      mountPath: /app/dados
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_EMAIL
+        sync: false         # primeiro admin do cliente
+      - key: OPENROUTER_API_KEY
+        sync: false         # nunca no repositório
+      # Plano. Company: 25000 / 5000 / 750. Team: 10000 / 2000 / 290.
+      - key: PLANO_CREDITOS
+        value: "25000"
+      - key: PLANO_RESERVA
+        value: "5000"
+      - key: PLANO_PRECO_USD
+        value: "750"
+      - key: OPERADOR_EMAIL
+        sync: false         # os mesmos emails da instalação do operador
+      # Token do console: o Render gera um valor aleatório na criação. Ninguém precisa digitar nem colar em chat.
+      # Depois, copie o valor do painel (Environment) para a linha do cliente em INSTANCIAS na instalação do operador.
+      - key: OPERADOR_TOKEN
+        generateValue: true
+      - key: CUSTO_INFRA_USD
+        value: "7"
+      - key: BACKUP_HORA
+        value: "06:00"
+      - key: BACKUP_MANTER
+        value: "7"

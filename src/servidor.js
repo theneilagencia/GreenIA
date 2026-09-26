@@ -11,6 +11,8 @@ import { criarSimulada } from './ia.js';
 import { rotasModelos } from './modelos.js';
 import { rotasConversas } from './conversas.js';
 import { rotasPessoas } from './pessoas.js';
+import { criarContexto, rotasBases } from './bases.js';
+import { extrairTexto } from './texto.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/admin': 'admin.html' };
@@ -35,7 +37,14 @@ export function criarApp(op = {}) {
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf }));
-  for (const modulo of [rotasModelos, rotasPessoas, rotasConversas]) modulo(app, r);
+  app.contexto = criarContexto(app);
+  app.extrairAnexos = async (anexos = []) => {
+    if (!Array.isArray(anexos) || anexos.length > 10) throw new ErroHttp(400, 'anexos', 'Envie até 10 anexos por mensagem.');
+    const out = [];
+    for (const a of anexos) out.push(await extrairTexto(a));
+    return out;
+  };
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasConversas]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;

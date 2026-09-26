@@ -4,7 +4,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { subirComNavegador } from './navegador.js';
-import { cliente } from '../test/ajuda.js';
+import { cliente } from './cliente.js';
 import { salvarConfig } from '../src/config.js';
 import { docx } from '../test/arquivos.js';
 

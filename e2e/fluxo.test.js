@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { subirComNavegador } from '../scripts/navegador.js';
-import { cliente } from '../test/ajuda.js';
+import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
 
 let N, qwId;

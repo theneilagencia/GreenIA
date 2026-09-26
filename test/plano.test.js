@@ -52,8 +52,8 @@ test('mês completo: 80%, só rápido em 100%, bloqueio no fim da reserva, aviso
   assert.ok(emails('admin@exemplo.com.br').some(a => /só o modelo rápido/.test(a)));
   // Na reserva: o pedido pelo equilibrado vira rápido, com aviso na conversa; o seletor marca os outros como bloqueados.
   const opcoes = (await admin.get('/api/modelos')).dados.opcoes;
-  assert.equal(opcoes.find(o => o.id === EQUILIBRADO).bloqueado, true);
-  assert.ok(!opcoes.find(o => o.id === RAPIDO).bloqueado);
+  assert.equal(opcoes.find(o => o.id === 'classe:equilibrado').bloqueado, true);
+  assert.ok(!opcoes.find(o => o.id === 'classe:rapido').bloqueado);
   const antes = OR.chamadas.length;
   r = await enviar(EQUILIBRADO);                         // reserva 2 → 6
   assert.equal(OR.chamadas[antes].model, RAPIDO);

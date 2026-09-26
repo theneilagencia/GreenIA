@@ -5,7 +5,7 @@ import { exec, json, todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { decidir, detectar, ROTULOS } from './filtro.js';
-import { homologadoPadrao, modeloPermitido } from './modelos.js';
+import { classeDe, homologadoPadrao, modeloPermitido, NOMES_CLASSE } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
@@ -170,7 +170,8 @@ export function rotasConversas(app, r) {
     const sigilosa = !!conv.sigilosa;
 
     // 3. Modelo: permitido para a pessoa (ou padrão do quick win); sigilosa só homologado.
-    let m = modeloPermitido(app.db, cfg, pessoa, corpo.modelo || conv.modelo || qw?.modelo || cfg.padroes.chat, { qw, sigilosa });
+    const pedido = corpo.modelo || conv.modelo || qw?.modelo || classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat;
+    let m = modeloPermitido(app.db, cfg, pessoa, pedido, { qw, sigilosa });
     if (sigilosa && !m.homologado) {
       const h = homologadoPadrao(app.db, cfg);
       throw erro(409, 'precisa_homologado', h ? `Esta conversa passou a ter dados sigilosos e vai usar o modelo homologado ${h.nome}.`
@@ -179,14 +180,14 @@ export function rotasConversas(app, r) {
     // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
     let trocaDoPlano = false;
     if (plano?.fase === 'reserva') {
-      const pedido = m;
+      const antes = m;
       m = modeloNaReserva(app, cfg, m, sigilosa);
-      trocaDoPlano = m.id !== pedido.id;
-      if (trocaDoPlano) aviso(app, conv.id, `Os créditos deste mês acabaram: esta resposta usa o modelo rápido ${m.nome}.`);
+      trocaDoPlano = m.id !== antes.id;
+      if (trocaDoPlano) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
     }
-    if (conv.modelo && conv.modelo !== m.id && !trocaDoPlano) {
-      aviso(app, conv.id, `Modelo trocado para ${m.nome}.`);
-      registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: m.id });
+    if (conv.modelo && conv.modelo !== pedido && !trocaDoPlano) {
+      aviso(app, conv.id, `Classe trocada para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
+      registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: pedido });
     }
 
     // 4. Grava a mensagem e os anexos (só o texto extraído).
@@ -194,7 +195,7 @@ export function rotasConversas(app, r) {
     const msgId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, texto, agora).lastInsertRowid);
     for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto) values (?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto);
     const titulo = conv.titulo === 'Nova conversa' ? (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60) : conv.titulo;
-    exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', m.id, titulo, agora, conv.id);
+    exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
 
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw);
     const limite = Math.floor((m.contexto || 32000) * 2.4) - sistema.length - ctx.partes.join('').length;
@@ -209,7 +210,7 @@ export function rotasConversas(app, r) {
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     const linha = o => res.write(JSON.stringify(o) + '\n');
-    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, cortada: h.cortada || !!conv.cortada });
+    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada });
     const inicio = Date.now();
     let resposta = '', fim = null;
     try {
@@ -232,7 +233,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
-    linha({ t: 'fim', id: respId, modelo: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id });
+    linha({ t: 'fim', id: respId, modelo: usado, classe: m.perfil, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id });
     res.end();
   }, { limiteMb: 30 });
 }
@@ -245,7 +246,7 @@ export function detalhe(app, c) {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: c.modelo, sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
-    mensagens: todos(app.db, 'select id, papel, texto, modelo, fornecedor, fontes from mensagens where conversa_id = ? order by id', c.id)
+    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, md.perfil as classe from mensagens m left join modelos md on md.id = m.modelo where m.conversa_id = ? order by m.id', c.id)
       .map(m => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome) })),
   };
 }

@@ -5,6 +5,8 @@ import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia }
 
 const $ = id => document.getElementById(id);
 const SUGESTOES_CHAT = ['Resuma um texto em poucos pontos', 'Rascunhe um email curto e cordial', 'Organize estas anotações em uma lista', 'Revise este texto e deixe mais claro'];
+const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuração', em_teste: 'Em teste', em_uso: 'Em uso', em_avaliacao: 'Em avaliação', aprovado: 'Aprovado', em_expansao: 'Em expansão', descartado: 'Descartado' };
+const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 const FEEDBACK = [['serviu', 'Serviu'], ['ajustes', 'Serviu com ajustes'], ['nao_serviu', 'Não serviu']];
 let C = null;       // estado da conversa aberta
 const vistos = new Set();   // mensagens já mostradas (só as novas animam)
@@ -45,18 +47,17 @@ function desenhar() {
     ${cabecalho(titulo(), conv ? `<button class="icone-btn" id="renomear" title="Renomear" aria-label="Renomear conversa">${ICONE.lapis}</button>
       <button class="icone-btn" id="apagar" title="Apagar" aria-label="Apagar conversa">${ICONE.lixo}</button>` : '')}
     <div class="barra-conversa">
-      ${qw ? `<span class="selo" style="background:${esc(qw.cor)}1f;color:var(--ink)"><span class="cor" style="width:9px;height:9px;border-radius:3px;background:${esc(qw.cor)}"></span>${esc(qw.nome)}</span>` : ''}
-      <label class="seletor">Modelo
+      ${qw ? `<span class="selo"><span class="cor" style="width:8px;height:8px;border-radius:2px;background:${esc(qw.cor)}"></span>${esc(qw.nome)}</span><span class="dica">${ESTADOS[qw.status] || ''}${C.teste ? ' · teste, fora da medição' : ''}</span>` : ''}
+      <label class="seletor">Classe
         <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
           ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.nome)}${o.homologado ? ' · Homologado' : ''}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
         </select></label>
       <span id="selo-modelo">${modeloAtual?.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span>` : ''}</span>
       <span class="chave">
         <button class="switch" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'disabled' : ''} aria-label="Esta conversa tem dados sigilosos"><span></span></button>
-        <span>Esta conversa tem dados sigilosos</span>
+        <span title="Ligue se houver dado sigiloso que o sistema não reconhece. A conversa passa a usar só modelos homologados.">Dados sigilosos</span>
       </span>
-      <span class="dica">${sig ? `Sigilosa: ${esc(conv.motivo_sigilosa || '')}. Fica assim até ser apagada, porque o histórico já tem os dados.` : 'Se houver dado sigiloso que o sistema não reconhece, ligue esta opção.'}</span>
-      ${sig ? '<span class="selo selo-sigilosa">Sigilosa · só modelos homologados</span>' : ''}
+      ${sig ? `<span class="selo selo-sigilosa" title="Fica assim até ser apagada, porque o histórico já tem os dados.">Sigilosa · ${esc(conv.motivo_sigilosa || 'só modelos homologados')}</span>` : ''}
       ${qw && conv && !conv.teste ? `<span class="feedback" role="group" aria-label="Esta conversa serviu?"><span class="dica">Serviu?</span>
         ${FEEDBACK.map(([v, r]) => `<button data-fb="${v}" aria-pressed="${conv.feedback === v}">${r}</button>`).join('')}</span>` : ''}
     </div>
@@ -98,7 +99,7 @@ function htmlMensagem(m) {
     <span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>Respondido por ${esc(C.opcoes.find(o => o.id === m.modelo)?.nome || m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}</span>` : ''}</div>${fontes}`}
+        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>${E.eu.admin ? `Respondido por ${esc(m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}` : `Classe ${esc(CLASSES[m.classe] || 'Rápido')}`}</span>` : ''}</div>${fontes}`}
     </div></div>`;
 }
 
@@ -243,7 +244,7 @@ async function enviar(reenvio = null) {
         resposta.texto += ev.v;
       }
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
-      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, fornecedor: ev.fornecedor, fontes: ev.fontes, carregando: false });
+      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, carregando: false });
     }
     // Durante o streaming, atualiza só a bolha da resposta.
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);

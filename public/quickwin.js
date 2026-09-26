@@ -1,5 +1,7 @@
-// Quick wins no app: página do quick win (conversas retomáveis) e configuração.
-import { api, esc, fmtCusto, ICONE, toast } from '/comum.js';
+// Quick wins: portfólio (o ciclo de adoção), página do quick win e configuração.
+// Um quick win é uma unidade operacional de adoção de IA: problema, responsável,
+// instruções, conhecimento, classe de modelo, uso, avaliação, resultado e decisão.
+import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { secaoMedicao } from '/medicao.js';
@@ -9,10 +11,18 @@ const FEEDBACK = { serviu: 'Serviu', ajustes: 'Serviu com ajustes', nao_serviu: 
 const FORMATOS = { texto: 'Texto', lista: 'Lista', tabela: 'Tabela (baixa em CSV)', checklist: 'Checklist' };
 const DADOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', rg: 'RG', email: 'Email', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço' };
 const CORES = ['#1B7950', '#0F6E8C', '#5B4B8A', '#8C621D', '#7A3E2E', '#2F6B3B', '#3E5C76', '#9B4029'];
+export const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuração', em_teste: 'Em teste', em_uso: 'Em uso', em_avaliacao: 'Em avaliação', aprovado: 'Aprovado', em_expansao: 'Em expansão', descartado: 'Descartado' };
+const EXPLICA = { identificado: 'Uso possível registrado, ainda sem configuração', em_configuracao: 'Sendo configurado; só quem gere usa', em_teste: 'Disponível para a área, em piloto',
+  em_uso: 'Disponível e em uso no dia a dia', em_avaliacao: 'Em uso, aguardando decisão', aprovado: 'Decisão tomada: manter', em_expansao: 'Decisão tomada: levar para mais áreas', descartado: 'Fora de circulação; o histórico fica' };
+const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];
+const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+export const seloEstado = st => `<span class="selo ${st === 'descartado' ? 'selo-cinza' : EM_CIRCULACAO.includes(st) ? 'selo-verde' : ''}">${ESTADOS[st] || st}</span>`;
+const classeDoQw = modelo => (/^classe:/.test(modelo || '') ? CLASSES[modelo.slice(7)] : modelo ? 'Modelo específico' : 'Sem classe');
 const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
 export async function rotaQuickWin(hash) {
   let m;
+  if (hash === '#/quick-wins') return listaQuickWins();
   if (hash === '#/qw/nova') return novaOrigem();
   if ((m = /^#\/qw\/(\d+)\/editar$/.exec(hash))) return configurar(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/teste$/.exec(hash))) return vistaConversa({ qw: await api(`/api/quick-wins/${m[1]}`), teste: true });
@@ -21,16 +31,56 @@ export async function rotaQuickWin(hash) {
   irPara('#/nova');
 }
 
+// Portfólio: o que está disponível para a pessoa e, para quem gere, o ciclo de cada quick win.
+async function listaQuickWins() {
+  const gere = E.eu.admin || E.eu.areas.some(a => a.responsavel) || E.podeCriarQw;
+  const [{ quickWins }, port] = await Promise.all([api('/api/quick-wins'), gere ? api('/api/quick-wins/portfolio') : Promise.resolve(null)]);
+  const disponiveis = quickWins.filter(q => EM_CIRCULACAO.includes(q.status));
+  const cont = st => (port?.quickWins || []).filter(q => q.status === st).length;
+  $('principal').innerHTML = `${cabecalho('Quick wins', E.podeCriarQw ? `<a class="btn btn-verde btn-pequeno" href="#/qw/nova">${ICONE.mais} Registrar quick win</a>` : '')}
+    <div class="pagina"><div class="pagina-dentro">
+      <p class="lead">Um quick win organiza um uso recorrente de IA: o problema, as instruções, o conhecimento, a classe de modelo e quem é responsável. A empresa acompanha uso, custo e avaliação, e decide o que manter, ajustar, descartar ou ampliar.</p>
+      <div class="secao-titulo" style="margin-top:8px"><h3>Disponíveis para você</h3></div>
+      ${disponiveis.length ? `<div class="lista">${disponiveis.map(q => `<a class="lista-item" href="#/qw/${q.id}"><span class="item-lat cor" style="width:8px;height:8px;border-radius:2px;background:${esc(q.cor)};padding:0"></span>
+        <span class="principal-texto"><b>${esc(q.nome)}</b><span>${esc(q.para_que_serve || '')}</span></span>${seloEstado(q.status)}</a>`).join('')}</div>`
+        : '<div class="lista"><div class="lista-item"><span class="dica">Ainda não há quick wins em circulação nas suas áreas.</span></div></div>'}
+      ${port ? `<div class="secao-titulo"><h3>Ciclo de adoção</h3><span class="dica">Quick wins que você gere</span></div>
+        <div class="ciclo">
+          <div><b>Identificar</b><span>${cont('identificado')} identificados</span></div>
+          <div><b>Testar</b><span>${cont('em_configuracao') + cont('em_teste')} em configuração ou teste</span></div>
+          <div><b>Medir</b><span>${cont('em_uso') + cont('em_avaliacao')} em uso ou avaliação</span></div>
+          <div><b>Decidir</b><span>${cont('aprovado')} aprovados, ${cont('descartado')} descartados</span></div>
+          <div><b>Ampliar</b><span>${cont('em_expansao')} em expansão</span></div>
+        </div>
+        <div class="tabela-rolagem" style="margin-top:14px"><table class="tabela tabela-empilha"><thead><tr><th>Quick win</th><th>Estado</th><th>Onde</th><th>Responsável</th>
+          <th class="num">Execuções no mês</th><th class="num">${emCreditos() ? 'Créditos no mês' : 'Custo no mês'}</th><th class="num">Por execução</th><th class="num">Serviu</th><th>Medição</th></tr></thead><tbody>
+          ${port.quickWins.map(q => `<tr><td data-r="Quick win"><a href="#/qw/${q.id}"><b>${esc(q.nome)}</b></a>${q.problema ? `<br><span class="dica">${esc(q.problema.slice(0, 90))}</span>` : ''}</td>
+            <td data-r="Estado">${seloEstado(q.status)}</td><td data-r="Onde">${esc(q.onde || '')}</td><td data-r="Responsável">${q.responsavel ? esc(q.responsavel) : '<span class="selo selo-ambar">sem responsável</span>'}</td>
+            <td class="num" data-r="Execuções">${q.execucoes}</td><td class="num" data-r="${emCreditos() ? 'Créditos' : 'Custo'}">${fmtCusto(q.custo)}</td><td class="num" data-r="Por execução">${q.custoPorExecucao === null ? '—' : fmtCusto(q.custoPorExecucao)}</td>
+            <td class="num" data-r="Serviu">${q.aceitacao === null ? '<span class="dica">sem avaliação</span>' : `${q.aceitacao}% de ${q.avaliadas}`}</td>
+            <td data-r="Medição">${q.medicoes ? `${q.medicoes} com antes e depois` : '<span class="dica">nenhuma</span>'}</td></tr>`).join('') || '<tr><td colspan="9" class="dica">Nenhum quick win registrado ainda.</td></tr>'}
+        </tbody></table></div>` : ''}
+    </div></div>`;
+  ligarCabecalho();
+}
+
 async function paginaQuickWin(id) {
   const [qw, lista] = await Promise.all([api(`/api/quick-wins/${id}`), api(`/api/conversas?quick_win=${id}`)]);
-  $('principal').innerHTML = `${cabecalho(qw.nome, qw.status !== 'ativo' ? `<span class="selo selo-cinza">${qw.status === 'rascunho' ? 'Rascunho' : 'Pausado'}</span>` : '')}
+  $('principal').innerHTML = `${cabecalho(qw.nome, seloEstado(qw.status))}
     <div class="pagina"><div class="pagina-dentro">
       <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
         <span class="passo" style="background:${esc(qw.cor)};color:#fff;margin:4px 0 0">${esc(qw.icone || qw.nome[0])}</span>
         <div style="flex:1;min-width:240px"><h2>${esc(qw.nome)}</h2><p class="lead">${esc(qw.para_que_serve)}</p></div>
       </div>
+      <div class="tabela-rolagem" style="margin-bottom:18px"><table class="tabela tabela-empilha"><tbody>
+        <tr><td data-r="Estado" style="width:180px" class="dica">Estado</td><td data-r="">${ESTADOS[qw.status]} <span class="dica">· ${EXPLICA[qw.status]}</span></td></tr>
+        <tr><td data-r="Classe" class="dica">Classe de modelo</td><td data-r="">${classeDoQw(qw.modelo)}${qw.sigiloso ? ' · trata dados sigilosos, só modelos homologados' : ''}</td></tr>
+        <tr><td data-r="Responsável" class="dica">Responsável</td><td data-r="">${qw.responsavel ? esc(qw.responsavel.nome) : '<span class="selo selo-ambar">sem responsável</span>'}</td></tr>
+        ${qw.problema ? `<tr><td data-r="Problema" class="dica">Problema</td><td data-r="">${esc(qw.problema)}</td></tr>` : ''}
+        ${qw.objetivo ? `<tr><td data-r="Objetivo" class="dica">Objetivo</td><td data-r="">${esc(qw.objetivo)}</td></tr>` : ''}
+      </tbody></table></div>
       <div class="linha-botoes" style="margin-bottom:18px">
-        ${qw.status === 'ativo' || qw.podeEditar ? `<a class="btn btn-verde" href="#/qw/${id}/nova">${ICONE.mais} Nova conversa neste quick win</a>` : ''}
+        ${EM_CIRCULACAO.includes(qw.status) || qw.podeEditar ? `<a class="btn btn-verde" href="#/qw/${id}/nova">${ICONE.mais} Nova conversa neste quick win</a>` : ''}
         ${qw.podeEditar ? `<a class="btn btn-linha" href="#/qw/${id}/editar">${ICONE.engrenagem} Configurar</a><a class="btn btn-linha" href="#/qw/${id}/teste">Testar</a>` : ''}
         ${qw.sigiloso ? '<span class="selo selo-sigilosa">Trata dados sigilosos · só modelos homologados</span>' : ''}
       </div>
@@ -66,9 +116,9 @@ async function novaOrigem() {
   const { modelos } = await api('/api/quick-wins/modelos-iniciais');
   const minhas = E.permQw.areas;
   const existentes = E.quickWins;
-  $('principal').innerHTML = `${cabecalho('Criar quick win')}
+  $('principal').innerHTML = `${cabecalho('Registrar quick win')}
     <div class="pagina"><div class="pagina-dentro">
-      <h2>Criar quick win</h2><p class="lead">Um espaço para uma tarefa que se repete. Você define as instruções e os arquivos uma vez; o time usa em conversas próprias.</p>
+      <p class="lead">Registre um uso recorrente de IA. Ele começa em configuração: você define problema, instruções, conhecimento e classe de modelo, testa e depois coloca em teste para a área.</p>
       <div class="grupo-form"><h3>Para qual área</h3>
         <div class="opcoes">${minhas.map((a, i) => `<label><input type="checkbox" name="area" value="${a.id}" ${i === 0 ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('') || '<span class="dica">Você não pode criar quick wins em nenhuma área.</span>'}
         ${E.permQw.todaEmpresa ? '<label><input type="checkbox" id="toda"> Toda a empresa</label>' : ''}</div><p></p></div>
@@ -95,7 +145,8 @@ async function novaOrigem() {
 
 // Configuração numa tela só, em linguagem simples.
 async function configurar(id) {
-  const [qw, { areas }, est, bases] = await Promise.all([api(`/api/quick-wins/${id}`), api('/api/areas'), api(`/api/quick-wins/${id}/estimativas`), api('/api/bases/documentos')]);
+  const [qw, { areas }, est, bases, pessoas] = await Promise.all([api(`/api/quick-wins/${id}`), api('/api/areas'), api(`/api/quick-wins/${id}/estimativas`), api('/api/bases/documentos'),
+    E.eu.admin ? api('/api/admin/pessoas').then(r => r.pessoas) : Promise.resolve(null)]);
   if (!qw.podeEditar) return irPara(`#/qw/${id}`);
   // Áreas que a pessoa pode usar, mais as que o quick win já tem.
   const nomes = new Map([...areas, ...E.permQw.areas].map(a => [a.id, a.nome]));
@@ -104,7 +155,7 @@ async function configurar(id) {
   const radio = (nome, valor, atual, rotulo) => `<label><input type="radio" name="${nome}" value="${valor}" ${atual === valor ? 'checked' : ''}> ${rotulo}</label>`;
   $('principal').innerHTML = `${cabecalho(`Configurar: ${qw.nome}`)}
     <div class="pagina"><form class="pagina-dentro" id="form-qw" novalidate>
-      <h2>Configurar quick win</h2><p class="lead">Tudo em uma tela. As mudanças valem para as próximas mensagens de todas as conversas.</p>
+      <p class="lead">Tudo em uma tela. As mudanças valem para as próximas mensagens de todas as conversas deste quick win.</p>
       <div class="grupo-form"><h3>Identificação</h3>
         <div class="campo"><label for="nome">Nome</label><input class="entrada" id="nome" value="${esc(qw.nome)}" maxlength="80" required></div>
         <div class="duas-col">
@@ -114,6 +165,14 @@ async function configurar(id) {
         <div class="campo"><span class="legenda">Áreas</span><div class="opcoes">${minhas.map(a => `<label><input type="checkbox" name="area" value="${a.id}" ${qw.areas.includes(a.id) ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('')}
           ${E.permQw.todaEmpresa || qw.toda_empresa ? `<label><input type="checkbox" id="toda" ${qw.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></div>
         <div class="campo"><label for="para">Para que serve</label><input class="entrada" id="para" value="${esc(qw.para_que_serve)}" maxlength="200"><span class="ajuda">Uma frase. Aparece para quem vai usar.</span></div>
+      </div>
+      <div class="grupo-form"><h3>Propósito</h3>
+        <div class="campo"><label for="problema">Problema</label><textarea class="entrada" id="problema" rows="2" maxlength="2000" placeholder="O que hoje toma tempo, gera erro ou depende de uma pessoa">${esc(qw.problema || '')}</textarea></div>
+        <div class="campo"><label for="objetivo">Objetivo</label><input class="entrada" id="objetivo" maxlength="2000" value="${esc(qw.objetivo || '')}" placeholder="Ex.: conferir um pedido em até 10 minutos"></div>
+        <div class="campo"><label for="processo">Como é feito hoje</label><textarea class="entrada" id="processo" rows="2" maxlength="2000">${esc(qw.processo_atual || '')}</textarea><span class="ajuda">Serve de ponto de partida para a medição.</span></div>
+        <div class="campo"><label for="responsavel">Responsável</label>${pessoas ? `<select class="entrada" id="responsavel"><option value="">sem responsável</option>${pessoas.filter(p => p.ativo).map(p => `<option value="${p.id}" ${qw.responsavel?.id === p.id ? 'selected' : ''}>${esc(p.nome)} · ${esc(p.email)}</option>`).join('')}</select>`
+          : `<div class="linha-botoes"><span>${qw.responsavel ? esc(qw.responsavel.nome) : 'sem responsável'}</span>${qw.responsavel?.id !== E.eu.id ? '<label class="dica"><input type="checkbox" id="assumir"> assumir como responsável</label>' : ''}</div>`}
+          <span class="ajuda">Quem responde pelo resultado e pelas decisões deste quick win.</span></div>
       </div>
       <div class="grupo-form"><h3>O que a IA deve fazer</h3>
         <div class="campo"><label for="instrucoes">Instruções</label><textarea class="entrada" id="instrucoes" rows="7">${esc(qw.instrucoes)}</textarea><span class="ajuda">Em português comum. Valem para todas as conversas deste quick win.</span></div>
@@ -135,10 +194,13 @@ async function configurar(id) {
           ${radio('bases', 'nenhuma', qw.bases.modo, 'Nenhuma')}${radio('bases', 'area', qw.bases.modo, 'A da área')}${radio('bases', 'escolhidas', qw.bases.modo, 'Escolher documentos')}</div>
           <div class="opcoes" id="bases-escolhidas" style="margin-top:8px">${bases.documentos.map(d => `<label><input type="checkbox" name="base" value="${d.id}" ${qw.bases.ids.includes(d.id) ? 'checked' : ''}> ${esc(d.titulo)}</label>`).join('') || '<span class="dica">Nenhum documento de base disponível.</span>'}</div></div>
       </div>
-      <div class="grupo-form"><h3>Modelo de IA</h3>
-        <div class="campo"><label for="modelo">Modelo padrão</label><select class="entrada" id="modelo">${est.modelos.map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${m.homologado ? ' · Homologado' : ''} · ${fmtCusto(m.custo, { conversa: true })} por conversa típica</option>`).join('')}</select>
-          <span class="ajuda">Estimativa com o preço informado pelo OpenRouter, para uma conversa de três perguntas. Quem usa pode usar este modelo mesmo sem ter o perfil liberado no dia a dia.</span></div>
-        <label class="opcoes"><span><input type="checkbox" id="pode-trocar" ${qw.pode_trocar ? 'checked' : ''}> Quem usa pode trocar de modelo (dentro dos perfis liberados para a pessoa)</span></label><p></p>
+      <div class="grupo-form"><h3>Classe de modelo</h3>
+        <div class="campo"><label for="modelo">Classe</label><select class="entrada" id="modelo">
+          <optgroup label="Classes">${est.modelos.filter(m => m.classe).map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${E.eu.admin ? ` · ${esc(m.modelo)}` : ''}${m.homologado ? ' · homologado' : ''} · ${fmtCusto(m.custo, { conversa: true })} por conversa típica</option>`).join('')}</optgroup>
+          ${E.eu.admin ? `<optgroup label="Modelo técnico específico">${est.modelos.filter(m => !m.classe).map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${m.homologado ? ' · homologado' : ''}</option>`).join('')}</optgroup>` : ''}
+        </select>
+          <span class="ajuda">A classe define o equilíbrio entre custo e capacidade. O modelo por trás de cada classe é escolhido pela empresa e pode mudar sem alterar este quick win. Quem usa pode usar esta classe mesmo sem acesso a ela no dia a dia.</span></div>
+        <label class="opcoes"><span><input type="checkbox" id="pode-trocar" ${qw.pode_trocar ? 'checked' : ''}> Quem usa pode trocar de classe (dentro das classes liberadas para a pessoa)</span></label><p></p>
       </div>
       <div class="grupo-form"><h3>Dados e sigilo</h3>
         <div class="campo"><span class="legenda">Classificação</span><div class="opcoes">${radio('sigiloso', '0', qw.sigiloso ? '1' : '0', 'Sem dados sigilosos')}${radio('sigiloso', '1', qw.sigiloso ? '1' : '0', 'Trata dados sigilosos (só modelos homologados; todas as conversas nascem sigilosas)')}</div></div>
@@ -147,7 +209,10 @@ async function configurar(id) {
           ${Object.entries(DADOS).map(([t, r]) => `<tr><td>${r}</td><td><input type="radio" name="dado-${t}" value="bloquear" ${qw.dados[t] !== 'permitir' ? 'checked' : ''} aria-label="${r}: bloquear"></td><td><input type="radio" name="dado-${t}" value="permitir" ${qw.dados[t] === 'permitir' ? 'checked' : ''} aria-label="${r}: permitir"></td></tr>`).join('')}
           <tr><td>Senhas e credenciais</td><td colspan="2">Sempre bloqueadas</td></tr></tbody></table></div></div>
       </div>
-      <div class="grupo-form"><h3>Status</h3><div class="opcoes">${radio('status', 'rascunho', qw.status, 'Rascunho (só você e o admin usam)')}${radio('status', 'ativo', qw.status, 'Ativo')}${radio('status', 'pausado', qw.status, 'Pausado')}</div><p></p></div>
+      <div class="grupo-form"><h3>Estado e resultado</h3>
+        <div class="campo"><span class="legenda">Estado</span><div class="caixas" style="max-height:none;flex-direction:column;gap:8px">${Object.entries(ESTADOS).map(([k, v]) => `<label><input type="radio" name="status" value="${k}" ${qw.status === k ? 'checked' : ''}> <b style="font-weight:500">${v}</b> <span class="dica">${EXPLICA[k]}</span></label>`).join('')}</div>
+          <span class="ajuda">Manter, ajustar, descartar ou ampliar também mudam o estado, pela decisão registrada na página do quick win.</span></div>
+        <div class="campo"><label for="resultado">Resultado observado</label><textarea class="entrada" id="resultado" rows="2" maxlength="2000">${esc(qw.resultado || '')}</textarea><span class="ajuda">O que mudou no trabalho. Os números entram na medição de antes e depois.</span></div></div>
       <p class="msg-erro oculto" id="erro-qw" role="alert"></p>
       <div class="linha-botoes" style="position:sticky;bottom:0;background:var(--paper);padding:12px 0;border-top:1px solid var(--line)">
         <button class="btn btn-verde" id="salvar">Salvar</button>
@@ -169,6 +234,8 @@ async function configurar(id) {
       modelo: $('modelo').value, pode_trocar: $('pode-trocar').checked, sigiloso: valor('sigiloso') === '1',
       dados: Object.fromEntries(Object.keys(DADOS).map(t => [t, valor(`dado-${t}`)])), status: valor('status'),
       toda_empresa: $('toda')?.checked || false, areas: [...document.querySelectorAll('input[name=area]:checked')].map(i => Number(i.value)),
+      problema: $('problema').value, objetivo: $('objetivo').value, processo_atual: $('processo').value, resultado: $('resultado').value,
+      ...($('responsavel') ? { responsavel_id: $('responsavel').value ? Number($('responsavel').value) : null } : $('assumir')?.checked ? { responsavel_id: E.eu.id } : {}),
     };
     try {
       await api(`/api/quick-wins/${id}`, { metodo: 'PUT', corpo });
@@ -180,8 +247,8 @@ async function configurar(id) {
   $('form-qw').onsubmit = async ev => { ev.preventDefault(); if (await salvar()) toast('Quick win salvo.'); };
   $('testar').onclick = async () => { if (await salvar()) irPara(`#/qw/${id}/teste`); };
   $('excluir').onclick = async () => {
-    if (!confirm('Excluir este quick win? As conversas das pessoas continuam salvas com elas.')) return;
-    await api(`/api/quick-wins/${id}`, { metodo: 'DELETE' }); await recarregarLateral(); irPara('#/nova');
+    if (!confirm('Excluir este quick win e o histórico de medição e decisões? Para manter o histórico, use o estado Descartado.')) return;
+    await api(`/api/quick-wins/${id}`, { metodo: 'DELETE' }); await recarregarLateral(); irPara('#/quick-wins');
   };
   $('add-arquivo').onclick = () => $('arquivo-qw').click();
   $('arquivo-qw').onchange = async ev => {

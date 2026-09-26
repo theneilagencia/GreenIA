@@ -9,6 +9,7 @@ const mesNome = m => new Date(`${m}-15T12:00:00`).toLocaleDateString('pt-BR', { 
 const dataBr = d => (d ? new Date(d.length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('pt-BR') : '');
 const DECISOES = { manter: 'Manter', ajustar: 'Ajustar', descartar: 'Descartar', ampliar: 'Ampliar' };
 const ORIGENS = { medido: 'medido', informado: 'informado' };
+const TIPOS = { tempo: 'Tempo', financeiro: 'Financeiro', qualidade: 'Qualidade', volume: 'Volume', outro: 'Outro' };
 
 export async function secaoMedicao(alvo, id) {
   const [d, uso] = await Promise.all([api(`/api/quick-wins/${id}/medicao`), api(`/api/quick-wins/${id}/uso`)]);
@@ -32,7 +33,7 @@ export async function secaoMedicao(alvo, id) {
     <h3>Medição antes e depois</h3>
     <p class="dica">Lance um indicador que a equipe já acompanha. Sem o valor de antes, nada é calculado.</p>
     <div class="lista" id="medicoes">${d.medicoes.map(m => `<div class="lista-item">
-      <span class="principal-texto"><b>${esc(m.indicador)}</b>
+      <span class="principal-texto"><b>${esc(m.indicador)}${m.unidade ? ` (${esc(m.unidade)})` : ''}</b><span class="chip">${TIPOS[m.tipo] || 'Outro'}</span>
         <span>${m.antes_valor !== null ? `Antes: ${num(m.antes_valor)} (${dataBr(m.antes_data)}, ${ORIGENS[m.antes_origem]})` : 'Sem ponto de partida'}${m.depois_valor !== null ? ` · Depois: ${num(m.depois_valor)} (${dataBr(m.depois_data)}, ${ORIGENS[m.depois_origem]})` : ''}${m.variacao !== null ? ` · Variação: ${m.variacao > 0 ? '+' : ''}${num(+m.variacao.toFixed(2))}${m.percentual !== null ? ` (${m.percentual > 0 ? '+' : ''}${num(Math.round(m.percentual))}%)` : ''}` : ''}${m.observacao ? `<br>${esc(m.observacao)}` : ''}</span></span>
       ${m.situacao === 'sem ponto de partida' ? '<span class="selo selo-ambar">sem ponto de partida</span>' : ''}
       <button class="icone-btn" data-editar-med="${m.id}" aria-label="Editar ${esc(m.indicador)}" title="Editar">${ICONE.lapis}</button>
@@ -41,6 +42,7 @@ export async function secaoMedicao(alvo, id) {
     <form id="form-med" class="grupo-form oculto" novalidate style="margin-top:14px"></form>
 
     <h3>Decisão</h3>
+    <p class="dica">Manter aprova o quick win, ajustar volta para teste, descartar tira de circulação e ampliar marca para expansão. O motivo fica registrado.</p>
     <form id="form-dec" novalidate>
       <div class="campo"><span class="legenda">O que fazer com este quick win</span><div class="opcoes">${Object.entries(DECISOES).map(([v, r], i) => `<label><input type="radio" name="decisao" value="${v}" ${i === 0 ? 'checked' : ''}> ${r}</label>`).join('')}</div></div>
       <div class="campo"><label for="motivo">Por quê</label><textarea class="entrada" id="motivo" rows="2" maxlength="1000"></textarea></div>
@@ -55,6 +57,8 @@ export async function secaoMedicao(alvo, id) {
     const f = $('form-med');
     f.classList.remove('oculto');
     f.innerHTML = `<div class="campo"><label for="indicador">Indicador</label><input class="entrada" id="indicador" maxlength="160" value="${esc(m.indicador || '')}" placeholder="Ex.: minutos por documento conferido"></div>
+      <div class="duas-col"><div class="campo"><label for="tipo-med">Tipo</label><select class="entrada" id="tipo-med">${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}" ${(m.tipo || 'tempo') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div class="campo"><label for="unidade-med">Unidade</label><input class="entrada" id="unidade-med" maxlength="40" value="${esc(m.unidade || '')}" placeholder="Ex.: minutos, R$, erros por mês"></div></div>
       <div class="duas-col">${lado('antes', m)}${lado('depois', m)}</div>
       <div class="campo"><label for="observacao">Observação (opcional)</label><input class="entrada" id="observacao" maxlength="1000" value="${esc(m.observacao || '')}"></div>
       <p class="msg-erro oculto" id="erro-med" role="alert"></p>
@@ -63,7 +67,7 @@ export async function secaoMedicao(alvo, id) {
     $('cancelar-med').onclick = () => { f.classList.add('oculto'); f.innerHTML = ''; };
     f.onsubmit = async ev => {
       ev.preventDefault();
-      const corpo = { indicador: $('indicador').value, observacao: $('observacao').value };
+      const corpo = { indicador: $('indicador').value, observacao: $('observacao').value, tipo: $('tipo-med').value, unidade: $('unidade-med').value };
       for (const k of ['antes', 'depois']) {
         corpo[`${k}_valor`] = $(`${k}-valor`).value.trim();
         corpo[`${k}_data`] = $(`${k}-data`).value;
@@ -85,7 +89,7 @@ export async function secaoMedicao(alvo, id) {
     ev.preventDefault();
     try {
       await api(`/api/quick-wins/${id}/decisoes`, { metodo: 'POST', corpo: { decisao: $('form-dec').querySelector('[name=decisao]:checked').value, motivo: $('motivo').value } });
-      toast('Decisão registrada.'); recarregar();
+      toast('Decisão registrada. O estado do quick win foi atualizado.'); location.hash === `#/qw/${id}` ? (await import('/quickwin.js')).rotaQuickWin(location.hash) : recarregar();
     } catch (e) { $('erro-dec').textContent = e.message; $('erro-dec').classList.remove('oculto'); }
   };
 }

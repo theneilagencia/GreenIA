@@ -9,7 +9,7 @@ import { registrar } from './eventos.js';
 import { extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
 import { trechosDasBases } from './bases.js';
-import { acharModelo, custoEstimado, lerModelos } from './modelos.js';
+import { acharModelo, custoEstimado, ehClasse, lerModelos, NOMES_CLASSE, resolverClasse } from './modelos.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -107,10 +107,12 @@ function validar(app, pessoa, atual, c) {
   // Modelo padrão: liberado, de um perfil que o admin permite; homologado se o quick win é sigiloso.
   const final = { ...atual, ...v };
   if (final.modelo) {
-    const m = acharModelo(app.db, cfg, final.modelo);
-    if (!m?.liberado) throw erro(400, 'modelo', 'Escolha um modelo liberado na empresa.');
-    if (!cfg.perfisQuickWin.includes(m.perfil)) throw erro(400, 'modelo', 'O admin não liberou este perfil de modelo como padrão de quick win.');
-    if (final.sigiloso && !m.homologado) throw erro(400, 'modelo', 'Quick win que trata dados sigilosos só aceita modelo homologado.');
+    if (!ehClasse(final.modelo) && !pessoa.admin && v.modelo !== undefined && v.modelo !== atual.modelo) throw erro(403, 'modelo', 'Escolha uma classe de modelo. O modelo técnico por trás é definido pelo admin.');
+    const m = acharModelo(app.db, cfg, resolverClasse(app.db, cfg, final.modelo, { sigilosa: !!final.sigiloso }));
+    if (!m?.liberado) throw erro(400, 'modelo', 'Esta classe de modelo não está disponível na empresa.');
+    if (!cfg.perfisQuickWin.includes(m.perfil)) throw erro(400, 'modelo', 'O admin não liberou esta classe como padrão de quick win.');
+    if (final.sigiloso && !m.homologado) throw erro(400, 'modelo', 'Quick win que trata dados sigilosos só aceita classe com modelo homologado.');
+    if (final.sigiloso && ehClasse(final.modelo) && `classe:${m.perfil}` !== final.modelo) throw erro(400, 'modelo', `A classe ${NOMES_CLASSE[final.modelo.slice(7)]} não tem modelo homologado. Escolha outra classe ou homologue um modelo nela.`);
   } else if (EM_CIRCULACAO.includes(final.status)) throw erro(400, 'modelo', 'Escolha a classe de modelo antes de colocar em teste ou em uso.');
   return { v, areas };
 }
@@ -129,8 +131,13 @@ function estimativas(app, qw) {
   const cfg = lerConfig(app.db);
   const fixos = ((qw.instrucoes || '').length + Math.min(MAX_ARQUIVOS_INTEIROS, um(app.db, 'select coalesce(sum(length(texto)), 0) as n from documentos where quick_win_id = ?', qw.id).n)) / 4;
   const entrada = 3 * (fixos + 900) + 1200, saida = 3 * 500;
-  return lerModelos(app.db).filter(m => m.liberado && cfg.perfisQuickWin.includes(m.perfil))
+  const classes = Object.entries(NOMES_CLASSE).filter(([p]) => cfg.perfisQuickWin.includes(p)).map(([p, nome]) => {
+    const m = acharModelo(app.db, cfg, resolverClasse(app.db, cfg, `classe:${p}`, { sigilosa: !!qw.sigiloso }));
+    return m?.liberado ? { id: `classe:${p}`, nome, perfil: p, classe: true, modelo: m.nome, homologado: m.homologado, custo: custoEstimado(m, entrada, saida) } : null;
+  }).filter(Boolean);
+  const tecnicos = lerModelos(app.db).filter(m => m.liberado && cfg.perfisQuickWin.includes(m.perfil))
     .map(m => ({ id: m.id, nome: m.nome, perfil: m.perfil, homologado: m.homologado, custo: custoEstimado(m, entrada, saida) }));
+  return [...classes, ...tecnicos];
 }
 
 export function criarQuickWins(app) {
@@ -208,7 +215,7 @@ export function rotasQuickWins(app, r) {
 
   r.get('/api/quick-wins/:id', ({ pessoa, params }) => publico(app.db, pessoa, carregar(pessoa, params.id)));
 
-  r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ modelos: estimativas(app, carregar(pessoa, params.id, true)) }));
+  r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ modelos: estimativas(app, carregar(pessoa, params.id, true)).filter(m => m.classe || pessoa.admin) }));
 
   // Criar: do zero, de um modelo inicial ou duplicando um existente (inclusive
   // para outra área). Duplicar copia instruções, arquivos e configuração, nunca conversas.
@@ -225,7 +232,7 @@ export function rotasQuickWins(app, r) {
       if (!base) throw erro(404, 'modelo_inicial', 'Modelo inicial não encontrado.');
     }
     const cfg = lerConfig(app.db);
-    const dados = { modelo: cfg.padroes[cfg.perfisQuickWin[0]] || cfg.padroes.chat, ...base, ...corpo };
+    const dados = { modelo: `classe:${cfg.perfisQuickWin[0] || 'rapido'}`, ...base, ...corpo };
     delete dados.id;
     const id = transacao(app.db, () => {
       const novo = Number(exec(app.db, 'insert into quick_wins (nome, criado_por) values (?, ?)', 'Novo quick win', pessoa.id).lastInsertRowid);

@@ -121,33 +121,35 @@ test('filtro no servidor: CPF bloqueado no quick win com "bloquear"; credencial 
 });
 
 test('perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick win, mas não troca para outro Avançado', async () => {
-  const q = (await ana.post('/api/quick-wins', { nome: 'Análise avançada', areas: [A.id], modelo: AVANCADO, pode_trocar: true })).dados;
+  // Quem gere escolhe a classe; o modelo técnico por trás é do admin.
+  assert.equal((await ana.post('/api/quick-wins', { nome: 'X', areas: [A.id], modelo: AVANCADO })).status, 403);
+  const q = (await ana.post('/api/quick-wins', { nome: 'Análise avançada', areas: [A.id], modelo: 'classe:avancado', pode_trocar: true })).dados;
   await ana.put(`/api/quick-wins/${q.id}`, { status: 'ativo' });
   const conv = (await carlos.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
   let r = await enviarMensagem(carlos, conv.id, { texto: 'Analise este cenário' });
   assert.equal(r.status, 200);
   assert.equal(OR.chamadas.at(-1).model, AVANCADO);
   const opcoes = (await carlos.get(`/api/modelos?quick_win=${q.id}`)).dados.opcoes.map(o => o.id);
-  assert.ok(opcoes.includes(AVANCADO) && !opcoes.includes(AVANCADO2));
+  assert.ok(opcoes.includes('classe:avancado') && !opcoes.includes(AVANCADO2));
   r = await enviarMensagem(carlos, conv.id, { texto: 'De novo', modelo: AVANCADO2 });
   assert.equal(r.status, 403);
   // No chat, sem o perfil, o mesmo modelo é recusado.
   const chat = (await carlos.post('/api/conversas', {})).dados.conversa;
-  assert.equal((await enviarMensagem(carlos, chat.id, { texto: 'Olá', modelo: AVANCADO })).status, 403);
+  assert.equal((await enviarMensagem(carlos, chat.id, { texto: 'Olá', modelo: 'classe:avancado' })).status, 403);
   // O admin define quais perfis podem ser padrão de quick win.
   await admin.put('/api/admin/modelos-config', { perfisQuickWin: ['rapido', 'equilibrado'] });
-  assert.equal((await ana.put(`/api/quick-wins/${q.id}`, { modelo: AVANCADO2 })).status, 400);
+  assert.equal((await ana.put(`/api/quick-wins/${q.id}`, { modelo: 'classe:avancado' })).status, 400);
   await admin.put('/api/admin/modelos-config', { perfisQuickWin: ['rapido', 'equilibrado', 'avancado'] });
 });
 
 test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo não homologado é recusado e reenviado ao homologado', async () => {
-  let r = await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'google/gemini-3.5-flash-lite' });
-  assert.equal(r.status, 400, 'quick win sigiloso só aceita modelo homologado');
-  const q = (await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: HOMOLOGADO, pode_trocar: true })).dados;
+  let r = await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'classe:equilibrado' });
+  assert.equal(r.status, 400, 'quick win sigiloso só aceita classe com modelo homologado');
+  const q = (await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'classe:rapido', pode_trocar: true })).dados;
   await ana.put(`/api/quick-wins/${q.id}`, { status: 'ativo' });
   const conv = (await carlos.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
   assert.equal(conv.sigilosa, true);
-  assert.deepEqual((await carlos.get(`/api/modelos?quick_win=${q.id}&sigilosa=1`)).dados.opcoes.map(o => o.id), [HOMOLOGADO]);
+  assert.deepEqual((await carlos.get(`/api/modelos?quick_win=${q.id}&sigilosa=1`)).dados.opcoes.map(o => o.id), ['classe:rapido']);
   const n = OR.chamadas.length;
   r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: 'google/gemini-3.5-flash-lite' });
   assert.equal(r.status, 409);
@@ -184,9 +186,12 @@ test('duplicar para outra área copia instruções, arquivos e configuração, n
 
 test('estimativa de custo por conversa típica, por modelo, a partir do preço do catálogo', async () => {
   S.app.db.prepare('update modelos set preco_entrada = 0.0000003, preco_saida = 0.0000025 where id = ?').run('google/gemini-3.5-flash-lite');
+  // Quem gere vê as classes; o admin vê também os modelos técnicos.
   const est = (await ana.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.modelos;
-  const g = est.find(m => m.id === 'google/gemini-3.5-flash-lite');
+  assert.ok(est.every(m => m.classe));
+  const g = est.find(m => m.id === 'classe:rapido');
   assert.ok(g.custo > 0 && g.custo < 0.05, String(g.custo));
-  assert.equal(est.find(m => m.id === AVANCADO2).custo, null, 'sem preço no catálogo: sem estimativa');
-  assert.ok(est.find(m => m.id === AVANCADO).custo > g.custo, 'o Avançado sugerido custa mais que o Rápido');
+  assert.ok(est.find(m => m.id === 'classe:avancado').custo > g.custo, 'a classe Avançado custa mais que a Rápido');
+  const doAdmin = (await admin.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.modelos;
+  assert.equal(doAdmin.find(m => m.id === AVANCADO2).custo, null, 'sem preço no catálogo: sem estimativa');
 });

@@ -111,12 +111,12 @@ test('sigilosa por documento sigiloso da base: não vai a modelo não homologado
   await ana.post('/api/bases/documentos', { area_id: A.id, arquivo: doc, titulo: 'Metas comerciais', sigiloso: true });
   const conv = (await carlos.post('/api/conversas', {})).dados.conversa;
   const n = OR.chamadas.length;
-  const r = await enviarMensagem(carlos, conv.id, { texto: 'Quais são as metas comerciais para grandes contas?' });
-  assert.equal(r.status, 409);
-  assert.equal(OR.chamadas.length, n);
-  const ok = await enviarMensagem(carlos, conv.id, { texto: 'Quais são as metas comerciais para grandes contas?', modelo: r.erro.sugestao.id });
+  // A classe pedida resolve direto para um homologado: nenhuma chamada vai a modelo não homologado.
+  const ok = await enviarMensagem(carlos, conv.id, { texto: 'Quais são as metas comerciais para grandes contas?' });
   assert.equal(ok.status, 200);
+  assert.equal(OR.chamadas.length, n + 1);
   assert.equal(OR.chamadas.at(-1).provider.zdr, true);
+  assert.equal(OR.chamadas.at(-1).provider.allow_fallbacks, false);
   assert.equal((await carlos.patch(`/api/conversas/${conv.id}`, { sigilosa: false })).status, 409);
   assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.confidential' order by id desc limit 1").detalhes).motivo, 'documento');
 });

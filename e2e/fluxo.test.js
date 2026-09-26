@@ -13,7 +13,7 @@ before(async () => {
   const area = (await admin.post('/api/admin/areas', { nome: 'Área Teste' })).dados.id;
   await admin.post('/api/admin/pessoas', { email: 'lia@empresa-exemplo.com.br', nome: 'Lia Prado', areas: [{ id: area }] });
   const q = (await admin.post('/api/quick-wins', { modelo_inicial: 1, areas: [area] })).dados;
-  await admin.put(`/api/quick-wins/${q.id}`, { status: 'ativo' });
+  await admin.put(`/api/quick-wins/${q.id}`, { status: 'em_uso' });
   qwId = q.id;
 });
 after(() => N.fechar());
@@ -39,7 +39,8 @@ test('login → chat → quick win', async () => {
   await p.waitForSelector('.aviso-bolha');
   assert.match(await p.textContent('.aviso-bolha'), /CPF/);
   // Quick win: abre pela lateral, usa uma sugestão, pede ajuste.
-  await p.click(`.lateral a[href="#/qw/${qwId}"]`);
+  await p.click('.lateral a[href="#/quick-wins"]');
+  await p.click(`a.lista-item[href="#/qw/${qwId}"]`);
   await p.waitForSelector('[data-sug]');
   await p.click('[data-sug="0"]');
   await p.waitForFunction(() => document.getElementById('entrada')?.value.length > 0);
@@ -54,7 +55,8 @@ test('login → chat → quick win', async () => {
   await p.click('[data-fb="serviu"]');
   await p.waitForSelector('[data-fb="serviu"][aria-pressed="true"]');
   // Retomar: a conversa está na página do quick win e abre com o histórico.
-  await p.click(`.lateral a[href="#/qw/${qwId}"]`);
+  await p.click('.lateral a[href="#/quick-wins"]');
+  await p.click(`a.lista-item[href="#/qw/${qwId}"]`);
   await p.waitForSelector('.lista-item a');
   assert.match(await p.textContent('.lista-item'), /Serviu/);
   await p.click('.lista-item a');
@@ -99,15 +101,18 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.fill('#descricao-problema', 'A resposta citou uma regra que não existe.');
   await p.click('#form-problema .btn-verde');
   await p.waitForSelector('#form-problema', { state: 'detached' });
-  // Painel: cada aba abre sem erro.
+  // O endereço antigo do painel leva à visão geral.
   await p.goto(`${N.base}/admin`);
-  await p.waitForSelector('[data-aba="areas"]');
-  for (const aba of ['areas', 'grupos', 'bases', 'quickwins', 'modelos', 'politica', 'uso', 'eventos', 'config']) {
-    await p.click(`[data-aba="${aba}"]`);
-    await p.waitForFunction(a => { const c = document.getElementById('conteudo'); return c.getAttribute('aria-labelledby') === `aba-${a}` && !/Carregando/.test(c.textContent); }, aba);
-    assert.equal(await p.locator('#conteudo > .faixa-aviso.erro:only-child').count(), 0, aba + ': ' + await p.textContent('#conteudo'));
+  await p.waitForURL(/#\/visao-geral/);
+  await p.waitForSelector('.etapas, .indicadores');
+  // Gestão: cada tela abre pela navegação, sem erro.
+  for (const tela of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'pessoas/grupos', 'pessoas/criacao', 'modelos', 'modelos/historico', 'politicas', 'politicas/texto', 'atividade', 'configuracoes', 'conversas']) {
+    await p.goto(`${N.base}/app#/${tela}`);
+    await p.waitForFunction(() => { const c = document.getElementById('conteudo'); return !c || !/Carregando/.test(c.textContent); });
+    await p.waitForTimeout(150);
+    assert.equal(await p.locator('.faixa-aviso.erro:only-child').count(), 0, tela + ': ' + await p.textContent('#principal'));
   }
-  await p.click('[data-aba="eventos"]');
+  await p.goto(`${N.base}/app#/atividade`);
   await p.waitForSelector('[data-problema]');
   assert.match(await p.textContent('#conteudo'), /regra que não existe/);
   assert.deepEqual(erros, []);

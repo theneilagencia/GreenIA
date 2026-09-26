@@ -217,12 +217,19 @@ async function abaModelos() {
   const acesso = p => { const a = cfg.acessoPerfis[p] || {}; return `<div class="editor"><b>${PERFIS[p]}</b>
     <label class="opcoes"><span><input type="checkbox" id="todos-${p}" ${a.todos ? 'checked' : ''}> Todas as pessoas</span></label>
     <div class="duas-col"><div><span class="legenda">Grupos</span>${caixas(`ac-g-${p}`, grupos, a.grupos || [])}</div><div><span class="legenda">Áreas</span>${caixas(`ac-a-${p}`, areas, a.areas || [])}</div></div></div>`; };
-  $('conteudo').innerHTML = `<p class="lead">Todos os modelos passam pelo OpenRouter. Libere os que a empresa pode usar, classifique cada um num perfil e homologue os que podem receber dados sigilosos.</p>
+  $('conteudo').innerHTML = `<p class="lead">As pessoas trabalham com classes: Rápido, Equilibrado e Avançado. Aqui a empresa decide qual modelo técnico atende cada classe. Trocar o modelo de uma classe muda todos os usos de uma vez, sem mudar o trabalho de ninguém.</p>
+    <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Classe</th><th>Modelo técnico</th><th>Reserva se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
+      ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {};
+        return `<tr><td data-r="Classe"><b>${v}</b></td><td data-r="Modelo">${x ? `${esc(x.nome)}<br><span class="dica">${esc(x.id)}${x.homologado ? ' · homologado' : ''}</span>` : '<span class="selo selo-ambar">sem modelo</span>'}</td>
+          <td data-r="Reserva">${r ? esc(r.nome) : '<span class="dica">sem reserva</span>'}</td><td data-r="Consumo">${x ? fmtCusto(x.custoConversa, { conversa: true }) : '—'}</td>
+          <td data-r="Quem usa">${k === 'rapido' || a.todos ? 'Todas as pessoas' : (a.grupos || []).length + (a.areas || []).length ? 'Grupos e áreas escolhidos' : 'Só pelo quick win'}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <p class="dica">Para trocar o modelo de uma classe, use "Modelo de cada classe" mais abaixo. Toda troca fica no histórico.</p>
+    <h3>Catálogo técnico</h3>
     <div class="faixa-aviso ${padrao ? 'ok' : 'erro'}">${padrao ? `Homologado padrão: <b>${esc(padrao.nome)}</b>, disponível para todas as pessoas. Conversas sigilosas usam este modelo quando a pessoa não escolhe outro homologado.`
       : 'Nenhum modelo homologado disponível para todos. Conversas sigilosas não podem ser enviadas. Homologue um modelo do perfil Rápido (ou de um perfil liberado para todos).'}</div>
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
-    <h3>Catálogo da empresa</h3>
-    ${tabela(['Modelo', 'Perfil', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos'], m.modelos.map(x => `<tr>
+    ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
       <td><select data-perfil="${esc(x.id)}" aria-label="Perfil de ${esc(x.nome)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}" ${x.perfil === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
       ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
@@ -238,16 +245,16 @@ async function abaModelos() {
         <div class="campo"><label for="perfil-manual">Perfil</label><select class="entrada" id="perfil-manual">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
         <button class="btn btn-linha btn-pequeno">Adicionar e liberar</button></form></details>
     <form id="cfg-modelos">
-      <h3>Modelos padrão</h3>
+      <h3>Modelo de cada classe</h3>
       <div class="duas-col">
         <div class="campo"><label for="pd-chat">Chat</label><select class="entrada" id="pd-chat">${opcao(liberados, cfg.padroes.chat)}</select></div>
         <div class="campo"><label for="pd-homologado">Homologado padrão (conversas sigilosas)</label><select class="entrada" id="pd-homologado">${opcao(homologados, cfg.padroes.homologado, 'o primeiro disponível para todos')}</select></div>
         ${Object.entries(PERFIS).map(([k, v]) => `<div class="campo"><label for="pd-${k}">${v}</label><select class="entrada" id="pd-${k}">${opcao(liberados.filter(x => x.perfil === k), cfg.padroes[k], 'nenhum')}</select></div>`).join('')}
       </div>
-      <h3>Quem usa cada perfil no dia a dia</h3>
-      <p class="dica">${PERFIS.rapido}: todas as pessoas, sempre. No quick win, quem usa pode usar o modelo padrão dele mesmo sem o perfil.</p>
+      <h3>Quem usa cada classe no dia a dia</h3>
+      <p class="dica">${PERFIS.rapido}: todas as pessoas, sempre. No quick win, quem usa pode usar a classe dele mesmo sem acesso a ela no dia a dia.</p>
       ${acesso('equilibrado')}${acesso('avancado')}
-      <h3>Perfis que podem ser padrão de quick win</h3>
+      <h3>Classes que podem ser escolhidas em quick win</h3>
       <div class="opcoes">${Object.entries(PERFIS).map(([k, v]) => `<label><input type="checkbox" name="perfis-qw" value="${k}" ${cfg.perfisQuickWin.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
       <h3>Privacidade e roteamento</h3>
       <label class="opcoes"><span><input type="checkbox" id="sem-treino" ${cfg.exigirSemTreino ? 'checked' : ''}> Em conversas normais, usar só fornecedores que não treinam com os dados</span></label>
@@ -477,7 +484,6 @@ async function abaConhecimento() {
   await abaBases();
   $('conteudo').insertAdjacentHTML('afterbegin', `${visao}<div class="secao-titulo"><h3>Gerir documentos</h3></div>`);
 }
-}
 
 // ---------------------------------------------------------------- Políticas de IA
 // Uma página responde: o que pode ser enviado, por quem, para qual modelo e em qual contexto.
@@ -490,8 +496,8 @@ async function abaPoliticas() {
   $('conteudo').innerHTML = `<p class="lead">As regras que valem para toda conversa: o que pode ser enviado, por quem, para qual modelo e em qual contexto. O servidor aplica estas regras antes de qualquer envio.</p>
     <form id="form-dados"><div class="secao-titulo"><h3>Dados sensíveis</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
       <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>
-        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><label><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}> Bloquear</label>&nbsp;&nbsp;
-          <label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}> Permitir</label></td>
+        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><span class="opcoes" style="flex-wrap:nowrap"><label><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}> Bloquear</label>
+          <label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}> Permitir</label></span></td>
           <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Entra, e a conversa passa a ser sigilosa' : 'A mensagem não sai, e a pessoa vê o motivo'}</td></tr>`).join('')}
         <tr><td data-r="Tipo"><b>Senhas e credenciais</b></td><td data-r="Regra">Sempre bloqueadas</td><td data-r="Efeito" class="dica">Não pode ser alterado</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Não é detectada automaticamente. A pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>

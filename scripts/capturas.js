@@ -30,9 +30,10 @@ const qw = (await marina.post('/api/quick-wins', { modelo_inicial: modelos.findI
 await marina.put(`/api/quick-wins/${qw.id}`, { nome: 'Conferência de pedido × nota', para_que_serve: 'Compara o pedido com a nota recebida e lista as diferenças de item, quantidade e preço.',
   sugestoes: ['Confira estes dois documentos e liste as diferenças', 'Os valores dos dois documentos batem?', 'Escreva uma mensagem ao fornecedor sobre as diferenças'] });
 await marina.post(`/api/quick-wins/${qw.id}/arquivos`, { arquivo: { nome: 'regras-de-conferencia.docx', base64: b64(docx(['Diferença de preço acima de 2% é relevante.', 'Item faltando sempre é relevante.'])) } });
-await marina.put(`/api/quick-wins/${qw.id}`, { status: 'ativo' });
+await marina.put(`/api/quick-wins/${qw.id}`, { status: 'em_uso', problema: 'Conferir pedido contra nota leva até 25 minutos e gera retrabalho quando passa diferença.', objetivo: 'Conferir cada pedido em até 10 minutos, sem diferença passando.', processo_atual: 'Conferência manual, item a item, em planilha.' });
 const outro = (await marina.post('/api/quick-wins', { modelo_inicial: modelos.findIndex(m => m.nome === 'Organizar lista de pendências'), areas: [areas['Operações']] })).dados;
-await marina.put(`/api/quick-wins/${outro.id}`, { status: 'ativo' });
+await marina.put(`/api/quick-wins/${outro.id}`, { status: 'em_teste' });
+await marina.post('/api/quick-wins', { nome: 'Resumo de reclamações da semana', areas: [areas['Operações']], status: 'identificado', problema: 'Ninguém consolida as reclamações; os padrões só aparecem tarde.' });
 
 // Rafael: conversas antigas no quick win, para a lista de retomada.
 await admin.post('/api/admin/grupos', { nome: 'Gestores' });
@@ -48,6 +49,8 @@ await marina.post(`/api/quick-wins/${qw.id}/medicoes`, { indicador: 'pedidos dev
 await marina.post(`/api/quick-wins/${qw.id}/decisoes`, { decisao: 'manter', motivo: 'O tempo caiu e a equipe está usando. Reavaliar no próximo mês.' });
 
 const p = await N.entrar('rafael@empresa-exemplo.com.br');
+p.on('pageerror', e => console.error('erro na página:', e.message));
+p.on('response', async r => { if (r.status() >= 400 && r.url().includes('/api/')) console.error('HTTP', r.status(), r.url(), (await r.text().catch(() => '')).slice(0, 200)); });
 // 1. Chat
 await p.waitForSelector('#entrada');
 await p.fill('#entrada', 'Resuma em 3 linhas as regras de recebimento de pedidos');
@@ -61,6 +64,7 @@ await p.waitForSelector('#entrada');
 const arq = join(PASTA, 'pedido-exemplo.docx');
 writeFileSync(arq, docx(['Pedido 4502: 10 caixas de papel A4 a R$ 25,00; 5 toners a R$ 180,00.']));
 await p.setInputFiles('#arquivo', arq);
+await p.waitForSelector('.anexos-pendentes .anexo-chip');
 await p.fill('#entrada', 'Confira estes dois documentos e liste as diferenças em uma tabela');
 await p.keyboard.press('Enter');
 await p.waitForSelector('.rodape-resposta');
@@ -99,9 +103,9 @@ await pc.screenshot({ path: join(PASTA, '5-celular-360.png') });
 const ctxAdmin = await N.navegador.newContext({ viewport: { width: 1360, height: 860 } });
 await ctxAdmin.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
 const pa = await N.entrar('admin@empresa-exemplo.com.br', await ctxAdmin.newPage());
-for (const [i, aba] of ['areas', 'grupos', 'bases', 'quickwins', 'modelos', 'politica', 'uso', 'eventos', 'config'].entries()) {
-  await pa.goto(`${N.base}/admin#/${aba}`);
-  await pa.waitForFunction(() => !document.getElementById('conteudo').textContent.startsWith('Carregando'));
+for (const [i, aba] of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configuracoes'].entries()) {
+  await pa.goto(`${N.base}/app#/${aba}`);
+  await pa.waitForFunction(() => { const c = document.getElementById('conteudo'); return !c || !c.textContent.startsWith('Carregando'); });
   await pa.waitForTimeout(250);
   await pa.screenshot({ path: join(PASTA, `6-painel-${i + 1}-${aba}.png`), fullPage: true });
 }

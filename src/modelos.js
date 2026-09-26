@@ -61,26 +61,50 @@ export function homologadoPadrao(db, cfg) {
   return serve(escolhido) ? escolhido : lerModelos(db).find(serve) || null;
 }
 
-// Modelos que a pessoa vê no seletor de uma conversa.
+// Classes operacionais: o trabalho escolhe a classe; a empresa decide o modelo por trás.
+// "classe:equilibrado" vale o modelo padrão da classe no momento do envio (em conversa
+// sigilosa, um homologado da classe). Trocar o modelo da classe muda todos os usos de uma vez.
+export const NOMES_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const CLASSE = /^classe:(rapido|equilibrado|avancado)$/;
+export const ehClasse = id => CLASSE.test(id || '');
+export function resolverClasse(db, cfg, id, { sigilosa = false } = {}) {
+  const c = CLASSE.exec(id || '');
+  if (!c) return id;
+  const padrao = cfg.padroes[c[1]];
+  if (!sigilosa) return padrao || null;
+  const homologados = lerModelos(db).filter(m => m.liberado && m.homologado && m.perfil === c[1]);
+  if (homologados.some(m => m.id === padrao)) return padrao;
+  return homologados[0]?.id || homologadoPadrao(db, cfg)?.id || null;
+}
+export const classeDe = (db, cfg, id) => (ehClasse(id) ? id : (acharModelo(db, cfg, id)?.perfil ? `classe:${acharModelo(db, cfg, id).perfil}` : null));
+
+// Opções do seletor de uma conversa: classes, não fornecedores. O admin vê o modelo por trás.
 export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } = {}) {
-  const lista = lerModelos(db).filter(m => m.liberado);
-  if (cfg.automatico) lista.push(acharModelo(db, cfg, AUTO));
-  const garantia = homologadoPadrao(db, cfg);
-  return lista.filter(m => {
-    if (sigilosa && !m.homologado) return false;
-    if (qw && m.id === qw.modelo) return true;
-    if (qw && !qw.pode_trocar) return false;
-    return podeUsar(cfg, pessoa, m) || (sigilosa && garantia?.id === m.id);
-  }).map(m => ({ id: m.id, nome: m.nome, fornecedor: m.fornecedor, perfil: m.perfil, homologado: m.homologado }));
+  const perfis = perfisDe(cfg, pessoa);
+  const qwClasse = qw?.modelo ? classeDe(db, cfg, qw.modelo) : null;
+  const out = [];
+  for (const [perfil, nome] of Object.entries(NOMES_CLASSE)) {
+    const id = `classe:${perfil}`;
+    const doQw = qwClasse === id;
+    if (qw && !qw.pode_trocar && !doQw) continue;
+    if (!doQw && !perfis.has(perfil) && !(sigilosa && homologadoPadrao(db, cfg)?.perfil === perfil)) continue;
+    const m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
+    if (!m?.liberado || (sigilosa && !m.homologado)) continue;
+    if (sigilosa && m.perfil !== perfil && !doQw) continue;     // classe sem homologado próprio não aparece em conversa sigilosa
+    out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, perfil, homologado: m.homologado, classe: true });
+  }
+  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO, nome: 'Automático', perfil: 'rapido', homologado: false });
+  return out;
 }
 
-// Valida o modelo pedido para um envio. Devolve o modelo ou lança erro.
+// Valida o modelo (ou a classe) pedido para um envio. Devolve o modelo técnico ou lança erro.
 export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = false } = {}) {
-  const m = acharModelo(db, cfg, id);
-  if (!m || !m.liberado) throw erro(403, 'modelo_nao_liberado', 'Este modelo não está liberado na empresa.');
+  const m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
+  if (!m || !m.liberado) throw erro(403, 'modelo_nao_liberado', 'Esta classe de modelo não está disponível na empresa.');
   const garantia = sigilosa && homologadoPadrao(db, cfg)?.id === m.id;
-  const ok = qw ? (m.id === qw.modelo || (!!qw.pode_trocar && podeUsar(cfg, pessoa, m))) || garantia : podeUsar(cfg, pessoa, m) || garantia;
-  if (!ok) throw erro(403, 'modelo_sem_acesso', 'Você não tem acesso a este modelo.');
+  const doQw = qw && (id === qw.modelo || m.id === resolverClasse(db, cfg, qw.modelo, { sigilosa }));
+  const ok = qw ? doQw || (!!qw.pode_trocar && podeUsar(cfg, pessoa, m)) || garantia : podeUsar(cfg, pessoa, m) || garantia;
+  if (!ok) throw erro(403, 'modelo_sem_acesso', 'Você não tem acesso a esta classe de modelo.');
   return m;
 }
 
@@ -140,7 +164,8 @@ export function rotasModelos(app, r) {
     const reserva = situacaoPlano(app)?.fase === 'reserva';
     const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' })
       .map(o => (reserva && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
-    return { opcoes, padrao: qw?.modelo || cfg.padroes.chat, homologadoPadrao: homologadoPadrao(app.db, cfg)?.id || null, perfis: PERFIS };
+    const h = homologadoPadrao(app.db, cfg);
+    return { opcoes, padrao: classeDe(app.db, cfg, qw?.modelo || cfg.padroes.chat), homologadoPadrao: h ? `classe:${h.perfil}` : null, perfis: PERFIS };
   });
 
   r.get('/api/admin/modelos', () => {

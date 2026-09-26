@@ -66,9 +66,10 @@ test('modelo fora da lista liberada é recusado pela API', async () => {
 });
 
 test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat', async () => {
+  // O seletor mostra classes, não fornecedores.
   const opcoes = (await ana.get('/api/modelos')).dados.opcoes.map(o => o.id);
-  assert.ok(opcoes.includes(RAPIDO) && opcoes.includes('anthropic/claude-haiku-4.5'));
-  assert.ok(!opcoes.includes(AVANCADO));
+  assert.ok(opcoes.includes('classe:rapido') && opcoes.includes('classe:equilibrado'));
+  assert.ok(!opcoes.includes('classe:avancado') && !opcoes.includes(AVANCADO));
   const conv = await novaConversa();
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO });
   assert.equal(r.status, 403);
@@ -77,8 +78,10 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
   const g = (await admin.post('/api/admin/grupos', { nome: 'Analistas' })).dados;
   await admin.put(`/api/admin/grupos/${g.id}`, { pessoas: [ana.pessoa.id] });
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false, grupos: [g.id] } } });
-  assert.ok((await ana.get('/api/modelos')).dados.opcoes.some(o => o.id === AVANCADO));
-  assert.equal((await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO })).status, 200);
+  assert.ok((await ana.get('/api/modelos')).dados.opcoes.some(o => o.id === 'classe:avancado'));
+  const r2 = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'classe:avancado' });
+  assert.equal(r2.status, 200);
+  assert.equal(r2.fim.modelo, AVANCADO);
   assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'model.config_changed'"));
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false } } });
 });
@@ -86,10 +89,11 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
 test('trocar de modelo no meio da conversa funciona e fica registrado na conversa', async () => {
   const conv = await novaConversa();
   await enviarMensagem(ana, conv.id, { texto: 'Primeira pergunta' });
-  const r = await enviarMensagem(ana, conv.id, { texto: 'Segunda pergunta', modelo: 'anthropic/claude-haiku-4.5' });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Segunda pergunta', modelo: 'classe:equilibrado' });
   assert.equal(r.fim.modelo, 'anthropic/claude-haiku-4.5');
+  assert.equal(r.fim.classe, 'equilibrado');
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
-  assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Modelo trocado para Claude Haiku 4.5/.test(m.texto)));
+  assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Classe trocada para Equilibrado/.test(m.texto)));
   // O histórico vai junto para o novo modelo.
   assert.equal(OR.chamadas.at(-1).messages.filter(m => m.role !== 'system').length, 3);
 });
@@ -134,13 +138,15 @@ test('filtro no servidor: CPF bloqueado no chat por padrão; credencial sempre, 
 // com o homologado padrão; o reenvio com ele funciona; a chave não desliga.
 async function confereSigilosa(conv, corpo, motivo) {
   const n = OR.chamadas.length;
-  const r = await enviarMensagem(ana, conv.id, corpo);
+  // Pedido por um modelo técnico não homologado: recusado, com sugestão do homologado.
+  const r = await enviarMensagem(ana, conv.id, { ...corpo, modelo: RAPIDO });
   assert.equal(r.status, 409, JSON.stringify(r.erro));
   assert.equal(r.erro.erro, 'precisa_homologado');
   assert.match(r.erro.mensagem, /passou a ter dados sigilosos e vai usar o modelo homologado/);
   assert.equal(r.erro.sugestao.id, HOMOLOGADO);
   assert.equal(OR.chamadas.length, n, 'nada foi enviado ao modelo não homologado');
-  const ok = await enviarMensagem(ana, conv.id, { ...corpo, modelo: r.erro.sugestao.id });
+  // Pedido por classe (o caminho da interface): vai direto a um homologado.
+  const ok = await enviarMensagem(ana, conv.id, { ...corpo, modelo: 'classe:rapido' });
   assert.equal(ok.status, 200);
   const chamada = OR.chamadas.at(-1);
   assert.equal(chamada.model, HOMOLOGADO);
@@ -175,7 +181,8 @@ test('sigilosa por área marcada como "todas as conversas são sigilosas"', asyn
 
 test('sigilosa: o seletor mostra só homologados, e a pessoa usa o homologado padrão mesmo sem o perfil', async () => {
   const op = (await ana.get('/api/modelos?sigilosa=1')).dados.opcoes;
-  assert.deepEqual(op.map(o => o.id), [HOMOLOGADO]);
+  assert.deepEqual(op.map(o => o.id), ['classe:rapido']);
+  assert.ok(op.every(o => o.homologado));
 });
 
 test('sem nenhum homologado disponível para todos, a configuração é recusada', async () => {

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { subir } from './ajuda.js';
-import { abrirBanco, um } from '../src/db.js';
+import { abrirBanco, migrar, um } from '../src/db.js';
 import { assinarS3, fazerBackup, restaurar } from '../src/backup.js';
 
 let S, pasta;
@@ -67,4 +67,15 @@ test('restauração recusa arquivo corrompido ou que não é da GreenIA, sem mex
   writeFileSync(lixo, gzipSync(readFileSync(outro)));
   await assert.rejects(restaurar(lixo, alvo), /não é um banco da GreenIA/);
   assert.equal(readFileSync(alvo, 'utf8'), 'original');
+});
+
+test('migração: cada mudança de estrutura roda uma vez, em ordem; uma falha não deixa pela metade', () => {
+  const db = abrirBanco(':memory:');
+  const lista = ['alter table areas add column extra text', "update areas set extra = 'x'"];
+  migrar(db, lista);
+  migrar(db, lista);
+  assert.equal(db.prepare('pragma user_version').get().user_version, 2);
+  assert.throws(() => migrar(db, [...lista, 'alter table areas add column extra2 text', 'isto não é sql']));
+  assert.equal(db.prepare('pragma user_version').get().user_version, 3);
+  db.close();
 });

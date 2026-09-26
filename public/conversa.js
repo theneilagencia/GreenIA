@@ -97,7 +97,7 @@ function htmlMensagem(m) {
     <span class="sim"><img src="/assets/greenia-symbol-forest.svg" width="18" height="18" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>Respondido por ${esc(C.opcoes.find(o => o.id === m.modelo)?.nome || m.modelo)}</span>` : ''}</div>${fontes}`}
+        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>Respondido por ${esc(C.opcoes.find(o => o.id === m.modelo)?.nome || m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}</span>` : ''}</div>${fontes}`}
     </div></div>`;
 }
 
@@ -242,7 +242,7 @@ async function enviar(reenvio = null) {
         resposta.texto += ev.v;
       }
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
-      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, fontes: ev.fontes, carregando: false });
+      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, fornecedor: ev.fornecedor, fontes: ev.fontes, carregando: false });
     }
     // Durante o streaming, atualiza só a bolha da resposta.
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);

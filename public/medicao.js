@@ -33,8 +33,7 @@ export async function secaoMedicao(alvo, id) {
     <p class="dica">Lance um indicador que a equipe já acompanha. Sem o valor de antes, nada é calculado.</p>
     <div class="lista" id="medicoes">${d.medicoes.map(m => `<div class="lista-item">
       <span class="principal-texto"><b>${esc(m.indicador)}</b>
-        <span>${m.antes_valor !== null ? `Antes: ${num(m.antes_valor)} (${dataBr(m.antes_data)}, ${ORIGENS[m.antes_origem]})` : 'Sem ponto de partida'}${m.depois_valor !== null ? ` · Depois: ${num(m.depois_valor)} (${dataBr(m.depois_data)}, ${ORIGENS[m.depois_origem]})` : ''}${m.variacao !== null ? ` · Variação: ${m.variacao > 0 ? '+' : ''}${num(+m.variacao.toFixed(2))}${m.percentual !== null ? ` (${m.percentual > 0 ? '+' : ''}${num(Math.round(m.percentual))}%)` : ''}` : ''}</span>
-        ${m.observacao ? `<span>${esc(m.observacao)}</span>` : ''}</span>
+        <span>${m.antes_valor !== null ? `Antes: ${num(m.antes_valor)} (${dataBr(m.antes_data)}, ${ORIGENS[m.antes_origem]})` : 'Sem ponto de partida'}${m.depois_valor !== null ? ` · Depois: ${num(m.depois_valor)} (${dataBr(m.depois_data)}, ${ORIGENS[m.depois_origem]})` : ''}${m.variacao !== null ? ` · Variação: ${m.variacao > 0 ? '+' : ''}${num(+m.variacao.toFixed(2))}${m.percentual !== null ? ` (${m.percentual > 0 ? '+' : ''}${num(Math.round(m.percentual))}%)` : ''}` : ''}${m.observacao ? `<br>${esc(m.observacao)}` : ''}</span></span>
       ${m.situacao === 'sem ponto de partida' ? '<span class="selo selo-ambar">sem ponto de partida</span>' : ''}
       <button class="icone-btn" data-editar-med="${m.id}" aria-label="Editar ${esc(m.indicador)}" title="Editar">${ICONE.lapis}</button>
       <button class="icone-btn" data-apagar-med="${m.id}" aria-label="Apagar ${esc(m.indicador)}" title="Apagar">${ICONE.lixo}</button></div>`).join('') || '<div class="lista-item"><span class="dica">Nenhuma medição lançada.</span></div>'}</div>
@@ -49,7 +48,7 @@ export async function secaoMedicao(alvo, id) {
       <div class="linha-botoes"><button class="btn btn-verde btn-pequeno">Registrar decisão</button>
         <a class="btn btn-texto" href="/api/quick-wins/${id}/medicao.csv" download>Baixar tudo em CSV</a></div>
     </form>
-    ${d.decisoes.length ? `<div class="lista" style="margin-top:12px">${d.decisoes.map(x => `<div class="lista-item"><span class="principal-texto"><b>${DECISOES[x.decisao]}</b><span>${dataBr(x.em)} · ${esc(x.por || '')}</span><span>${esc(x.motivo)}</span></span></div>`).join('')}</div>` : ''}`;
+    ${d.decisoes.length ? `<div class="lista" style="margin-top:12px">${d.decisoes.map(x => `<div class="lista-item"><span class="principal-texto"><b>${DECISOES[x.decisao]}</b><span>${dataBr(x.em)} · ${esc(x.por || '')}<br>${esc(x.motivo)}</span></span></div>`).join('')}</div>` : ''}`;
 
   const recarregar = () => secaoMedicao(alvo, id);
   const abrirForm = (m = {}) => {

@@ -43,6 +43,10 @@ for (const [titulo, fb] of [['Pedido 4471 da papelaria', 'serviu'], ['Nota de in
   await rafael.patch(`/api/conversas/${c.id}`, { titulo, feedback: fb });
 }
 
+await marina.post(`/api/quick-wins/${qw.id}/medicoes`, { indicador: 'minutos por pedido conferido', antes_valor: 25, antes_data: '2026-08-01', antes_origem: 'medido', depois_valor: 9, depois_data: '2026-09-15', depois_origem: 'medido' });
+await marina.post(`/api/quick-wins/${qw.id}/medicoes`, { indicador: 'pedidos devolvidos por erro de conferência', depois_valor: 1, depois_data: '2026-09-15', depois_origem: 'informado' });
+await marina.post(`/api/quick-wins/${qw.id}/decisoes`, { decisao: 'manter', motivo: 'O tempo caiu e a equipe está usando. Reavaliar no próximo mês.' });
+
 const p = await N.entrar('rafael@empresa-exemplo.com.br');
 // 1. Chat
 await p.waitForSelector('#entrada');
@@ -78,6 +82,12 @@ await pm.waitForSelector('#form-qw');
 await pm.waitForTimeout(300);
 await pm.evaluate(() => { document.querySelector('.app').style.height = 'auto'; document.querySelector('.pagina').style.overflow = 'visible'; [...document.querySelectorAll('#form-qw .linha-botoes')].at(-1).style.position = 'static'; });
 await pm.screenshot({ path: join(PASTA, '2-configuracao-quick-win.png'), fullPage: true });
+// 4b. Medição do quick win, vista pela responsável
+await pm.goto(`${N.base}/app#/qw/${qw.id}`);
+await pm.waitForSelector('#form-dec');
+await pm.waitForTimeout(300);
+await pm.evaluate(() => { document.querySelector('.app').style.height = 'auto'; document.querySelector('.pagina').style.overflow = 'visible'; });
+await pm.screenshot({ path: join(PASTA, '7-medicao-quick-win.png'), fullPage: true });
 // 5. Celular (360 px): chat
 const cel = await N.navegador.newContext({ viewport: { width: 360, height: 740 } });
 await cel.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());

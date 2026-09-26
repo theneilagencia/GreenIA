@@ -114,7 +114,19 @@ export function abrirBanco(arquivo = ':memory:') {
   const db = new DatabaseSync(arquivo);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
   db.exec(ESQUEMA);
+  migrar(db);
   return db;
+}
+
+// Mudanças de estrutura depois da primeira versão: acrescente no fim, nunca edite
+// as que já existem. Cada uma roda uma vez, na subida (pragma user_version).
+const MIGRACOES = [];
+
+export function migrar(db, lista = MIGRACOES) {
+  const atual = db.prepare('pragma user_version').get().user_version;
+  for (let v = atual; v < lista.length; v++) {
+    transacao(db, () => { db.exec(lista[v]); db.exec(`pragma user_version = ${v + 1}`); });
+  }
 }
 
 // Atalhos. Parâmetros booleanos e undefined viram 0/1 e null (o SQLite não aceita).

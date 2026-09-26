@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta name="theme-color" content="#08090A">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GreenIA · A infraestrutura de IA da sua empresa</title>
 <meta name="description" content="A GreenIA organiza, controla e mede o uso de IA dentro da empresa: instalação exclusiva, políticas aplicadas em cada mensagem, quick wins e custo previsível em créditos.">
@@ -10,7 +11,7 @@
 <link rel="icon" href="/assets/greenia-marca.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/estilo.css">
 <link rel="stylesheet" href="/lp.css">
 </head>
@@ -21,7 +22,7 @@
 
 <header class="l-topo" id="topo">
   <div class="l-dentro">
-    <a class="marca" href="#inicio" aria-label="GreenIA, início"><img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></a>
+    <a class="marca" href="#inicio" aria-label="GreenIA, início"><img src="/assets/greenia-marca-escuro.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></a>
     <nav class="l-nav" aria-label="Seções">
       <a href="#produto">Produto</a>
       <a href="#controle">Controle</a>
@@ -37,27 +38,27 @@
 <main id="inicio">
   <!-- Hero -->
   <section class="l-hero">
-    <div class="l-dentro">
-      <div>
-        <p class="l-rotulo">Infraestrutura corporativa de IA</p>
-        <h1>A infraestrutura de IA da sua empresa</h1>
-        <p class="l-lead">Organize, controle e meça o uso de IA em toda a empresa. Uma instalação exclusiva, com as regras da empresa aplicadas em cada mensagem e custo previsível em créditos.</p>
-        <div class="l-acoes">
-          <a class="btn btn-verde btn-grande" href="#contato">Conhecer a GreenIA</a>
-          <a class="btn btn-linha btn-grande" href="#produto">Ver como funciona</a>
-        </div>
-        <ul class="l-fatos">
-          <li><svg width="18" height="18"><use href="#ok"/></svg>Instalação exclusiva por empresa</li>
-          <li><svg width="18" height="18"><use href="#ok"/></svg>Sem cobrança por pessoa</li>
-          <li><svg width="18" height="18"><use href="#ok"/></svg>Modelos de vários fabricantes</li>
-        </ul>
+    <div class="l-dentro l-hero-texto">
+      <a class="l-pill" href="#produto"><span>Infraestrutura corporativa de IA</span><span class="seta">Ver como funciona <span aria-hidden="true">→</span></span></a>
+      <h1>A infraestrutura de IA da sua empresa</h1>
+      <p class="l-lead">Organize, controle e meça o uso de IA em toda a empresa. Uma instalação exclusiva, com as regras da empresa aplicadas em cada mensagem e custo previsível em créditos.</p>
+      <div class="l-acoes">
+        <a class="btn btn-verde btn-grande" href="#contato">Conhecer a GreenIA</a>
+        <a class="btn btn-linha btn-grande" href="#produto">Ver como funciona</a>
       </div>
-
-      <figure style="margin:0">
+      <ul class="l-fatos">
+        <li><svg width="16" height="16"><use href="#ok"/></svg>Instalação exclusiva por empresa</li>
+        <li><svg width="16" height="16"><use href="#ok"/></svg>Sem cobrança por pessoa</li>
+        <li><svg width="16" height="16"><use href="#ok"/></svg>Modelos de vários fabricantes</li>
+      </ul>
+    </div>
+    <div class="l-dentro l-estreito">
+      <figure class="l-palco l-surge">
         <div class="l-janela" role="img" aria-label="Tela da visão geral: uso do mês, adoção, resultado, atenção e concentração por área">
           <div class="l-janela-barra"><i></i><i></i><i></i><span>ia.suaempresa.com.br</span></div>
           <div class="m-app">
             <div class="m-lat" aria-hidden="true">
+              <div class="m-org"><i></i>Sua empresa</div>
               <span class="ativo">Visão geral</span>
               <b>Trabalho</b><span>Conversas</span><span>Quick wins</span><span>Conhecimento</span>
               <b>Gestão</b><span>Uso e créditos</span><span>Pessoas e áreas</span><span>Modelos</span><span>Políticas de IA</span>
@@ -112,7 +113,7 @@
         <h2 class="l-h2">A IA já está na empresa, só que espalhada</h2>
         <p class="l-sub">As pessoas descobriram que a IA ajuda e passaram a usar por conta própria. O resultado é útil para quem usa e invisível para a empresa.</p>
       </div>
-      <div class="l-contraste">
+      <div class="l-contraste l-surge">
         <div class="l-coluna">
           <h3>Sem uma infraestrutura</h3>
           <ul>
@@ -138,12 +139,10 @@
   <!-- Declaração -->
   <section class="l-escura" id="produto">
     <div class="l-dentro">
-      <div>
-        <p class="l-rotulo">Posicionamento</p>
-        <h2 class="l-h2">Não é mais um chatbot</h2>
-        <p class="l-sub">Ferramentas de chat resolvem o uso individual. A GreenIA é a camada que a empresa coloca por cima: quem usa, com quais dados, em quais modelos, com que custo e com que resultado.</p>
-      </div>
-      <div class="l-pilares">
+      <p class="l-rotulo">Posicionamento</p>
+      <h2 class="l-h2 l-surge">Não é mais um chatbot</h2>
+      <p class="l-declaracao l-surge">Ferramentas de chat resolvem o uso individual. <b>A GreenIA é a camada que a empresa coloca por cima: quem usa, com quais dados, em quais modelos, com que custo e com que resultado.</b></p>
+      <div class="l-pilares l-surge">
         <div><span class="n">01</span><b>Infraestrutura privada</b><p>Uma instalação só da empresa, com servidor, banco de dados, marca e regras próprias.</p></div>
         <div><span class="n">02</span><b>Políticas de IA</b><p>Regras de dados aplicadas pelo sistema em cada mensagem, não só escritas num documento.</p></div>
         <div><span class="n">03</span><b>Quick wins</b><p>Usos recorrentes com dono, objetivo e medida, decididos com dados área por área.</p></div>
@@ -156,7 +155,7 @@
   <section class="l-dentro">
     <div class="l-bloco">
       <div>
-        <p class="l-rotulo">Quick wins</p>
+        <p class="l-rotulo"><span class="n">1.0</span>Quick wins</p>
         <h2 class="l-h2">Descubra onde a IA realmente funciona</h2>
         <p class="l-sub">Um quick win é um uso recorrente da IA com responsável, objetivo e medida. A empresa testa em pequena escala, mede e amplia só o que dá resultado.</p>
         <ul class="l-itens">
@@ -165,7 +164,7 @@
           <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Decidir e ampliar.</b> Manter, ajustar, descartar ou ampliar, com o motivo registrado.</span></li>
         </ul>
       </div>
-      <div class="l-janela" role="img" aria-label="Quick win em avaliação com execuções, avaliação e comparação de antes e depois">
+      <div class="l-janela l-surge" role="img" aria-label="Quick win em avaliação com execuções, avaliação e comparação de antes e depois">
         <div class="l-janela-barra"><i></i><i></i><i></i><span>Quick wins</span></div>
         <div class="m-qw" aria-hidden="true">
           <div class="m-qw-topo"><b>Conferência de contratos</b><span class="m-selo">Em avaliação</span></div>
@@ -190,7 +189,7 @@
   <section class="l-dentro" id="controle">
     <div class="l-bloco inverte">
       <div>
-        <p class="l-rotulo">Políticas de IA</p>
+        <p class="l-rotulo"><span class="n">2.0</span>Políticas de IA</p>
         <h2 class="l-h2">IA disponível não significa IA sem controle</h2>
         <p class="l-sub">A empresa libera a IA para todos e define as regras uma vez. A GreenIA confere cada mensagem e cada anexo antes do envio.</p>
         <ul class="l-itens">
@@ -199,7 +198,7 @@
           <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Política com ciência.</b> A cada nova versão, cada pessoa registra que leu. Mudanças ficam no histórico.</span></li>
         </ul>
       </div>
-      <div class="l-janela" role="img" aria-label="Mensagem com CNPJ e CPF identificados antes do envio e as regras aplicadas">
+      <div class="l-janela l-surge" role="img" aria-label="Mensagem com CNPJ e CPF identificados antes do envio e as regras aplicadas">
         <div class="l-janela-barra"><i></i><i></i><i></i><span>Nova conversa</span></div>
         <div class="m-envio" aria-hidden="true">
           <div class="m-bolha">Resuma a proposta do cliente <mark>CNPJ 12.345.678/0001-95</mark> e confira o cadastro do responsável: CPF <mark>123.456.789-09</mark></div>
@@ -218,7 +217,7 @@
   <section class="l-dentro" id="custo">
     <div class="l-bloco">
       <div>
-        <p class="l-rotulo">FinOps de IA</p>
+        <p class="l-rotulo"><span class="n">3.0</span>FinOps de IA</p>
         <h2 class="l-h2">Controle o custo sem contar tokens</h2>
         <p class="l-sub">Ninguém precisa entender tokens ou preços de modelos. O plano tem créditos por mês, e cada resposta consome conforme a classe e o tamanho do pedido.</p>
         <ul class="l-itens">
@@ -227,7 +226,7 @@
           <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Continuidade.</b> Ao chegar a 100%, a GreenIA segue na classe Rápido dentro de uma reserva. Pacotes adicionais quando precisar.</span></li>
         </ul>
       </div>
-      <div class="l-janela" role="img" aria-label="Créditos do ciclo em 82%, divididos por classe, com aviso de 80%">
+      <div class="l-janela l-surge" role="img" aria-label="Créditos do ciclo em 82%, divididos por classe, com aviso de 80%">
         <div class="l-janela-barra"><i></i><i></i><i></i><span>Uso e créditos</span></div>
         <div class="m-cred" aria-hidden="true">
           <div class="m-cartao">
@@ -237,8 +236,8 @@
           </div>
           <div class="m-cartao" style="margin-top:8px">
             <p class="rot">Por classe</p>
-            <div class="m-empilhada"><span style="width:58%;background:var(--forest)"></span><span style="width:31%;background:#6FA78A"></span><span style="width:11%;background:var(--deep)"></span></div>
-            <div class="m-legenda"><span><i style="background:var(--forest)"></i>Rápido 58%</span><span><i style="background:#6FA78A"></i>Equilibrado 31%</span><span><i style="background:var(--deep)"></i>Avançado 11%</span></div>
+            <div class="m-empilhada"><span style="width:58%;background:var(--acento)"></span><span style="width:31%;background:color-mix(in srgb,var(--acento) 50%,transparent)"></span><span style="width:11%;background:rgba(255,255,255,.3)"></span></div>
+            <div class="m-legenda"><span><i style="background:var(--acento)"></i>Rápido 58%</span><span><i style="background:color-mix(in srgb,var(--acento) 50%,transparent)"></i>Equilibrado 31%</span><span><i style="background:rgba(255,255,255,.3)"></i>Avançado 11%</span></div>
           </div>
           <div class="m-aviso">Sua organização usou 80% dos créditos deste ciclo. Ao chegar a 100%, a GreenIA continua disponível com a classe Rápido.</div>
         </div>
@@ -250,7 +249,7 @@
   <section class="l-dentro">
     <div class="l-bloco inverte">
       <div>
-        <p class="l-rotulo">Arquitetura e acesso</p>
+        <p class="l-rotulo"><span class="n">4.0</span>Arquitetura e acesso</p>
         <h2 class="l-h2">Uma instalação por empresa, para a empresa inteira</h2>
         <p class="l-sub">Cada cliente recebe a própria GreenIA. Servidor, banco de dados, marca, políticas e histórico não são compartilhados com outras empresas.</p>
         <ul class="l-itens">
@@ -259,7 +258,7 @@
           <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>A marca da empresa.</b> Logo e cor próprias na página de entrada e no app.</span></li>
         </ul>
       </div>
-      <div class="l-inst" role="img" aria-label="Empresa A usa a GreenIA A e Empresa B usa a GreenIA B, cada uma com servidor, banco, marca e políticas próprios">
+      <div class="l-inst l-surge" role="img" aria-label="Empresa A usa a GreenIA A e Empresa B usa a GreenIA B, cada uma com servidor, banco, marca e políticas próprios">
         <div class="l-inst-item" aria-hidden="true">
           <div class="l-inst-cab"><span class="emp">Empresa A</span><span class="seta"></span><span class="gia">GreenIA A</span></div>
           <ul><li>Servidor próprio</li><li>Banco de dados</li><li>Marca e cor</li><li>Políticas</li></ul>
@@ -280,7 +279,7 @@
         <h2 class="l-h2">Ferramenta individual e infraestrutura da empresa</h2>
         <p class="l-sub">As duas usam bons modelos. A diferença está em quem controla o uso.</p>
       </div>
-      <div class="l-comp-rolagem">
+      <div class="l-comp-rolagem l-surge">
         <table class="l-comp">
           <thead><tr><th scope="col"><span class="l-oculto">Critério</span></th><th scope="col">Ferramenta individual de IA</th><th scope="col">GreenIA</th></tr></thead>
           <tbody>
@@ -305,7 +304,7 @@
         <h2 class="l-h2">Um plano de créditos para a empresa inteira</h2>
         <p class="l-sub">Todos os planos incluem instalação exclusiva, pessoas sem limite, quick wins, políticas de IA, base de conhecimento, as três classes de modelo e o painel de uso.</p>
       </div>
-      <div class="l-planos">
+      <div class="l-planos l-surge">
         <div class="l-plano">
           <h3>GreenIA Team</h3>
           <p class="para">Para começar com uma área ou um time e provar os primeiros quick wins.</p>
@@ -424,7 +423,7 @@
 
 <footer class="l-rodape">
   <div class="l-dentro">
-    <span class="marca"><img src="/assets/greenia-marca.svg" width="22" height="22" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></span>
+    <span class="marca"><img src="/assets/greenia-marca-escuro.svg" width="22" height="22" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></span>
     <p>Infraestrutura corporativa de IA</p>
     <a href="#planos">Planos</a>
     <a href="#contato">Contato</a>

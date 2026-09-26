@@ -1,10 +1,6 @@
 // Página de entrada da instalação: nome, logo, cor, aviso de privacidade e retenção da empresa.
 import { preencherMarca, logoEmpresa } from '/comum.js';
-
-const topo = document.getElementById('topo');
-const marcarTopo = () => topo.classList.toggle('rolou', scrollY > 8);
-addEventListener('scroll', marcarTopo, { passive: true });
-marcarTopo();
+import '/surgir.js';
 
 const p = await preencherMarca();
 if (p.empresa) document.title = `${p.empresa} · GreenIA`;

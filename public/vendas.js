@@ -1,12 +1,8 @@
 // Página de vendas: formulário de contato e plano escolhido nos botões.
+import '/surgir.js';
+
 const $ = id => document.getElementById(id);
 const form = $('form-contato');
-
-// Topo com linha só depois de rolar.
-const topo = $('topo');
-const marcarTopo = () => topo.classList.toggle('rolou', scrollY > 8);
-addEventListener('scroll', marcarTopo, { passive: true });
-marcarTopo();
 
 for (const a of document.querySelectorAll('[data-plano]')) a.addEventListener('click', () => {
   if (!$('c-msg').value) $('c-msg').value = `Tenho interesse no plano GreenIA ${a.dataset.plano}.`;

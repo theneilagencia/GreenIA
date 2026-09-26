@@ -30,8 +30,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible,input:focus-visibl
 @keyframes pisca{0%,100%{opacity:1}50%{opacity:0}}
 
 /* Marca */
-.marca{display:flex;align-items:center;gap:10px;font:600 17px/1 var(--sans);letter-spacing:-.01em;color:var(--ink);text-decoration:none}
-.marca .ia{color:var(--forest)}
+.marca{display:flex;align-items:center;gap:10px;font:600 17px/1 var(--sans);letter-spacing:-.01em;color:#16241D;text-decoration:none}
+.marca .ia{color:#1F8A5B}   /* cores oficiais da marca GreenIA: não mudam com a cor da empresa */
 .escuro .marca{color:#fff} .escuro .marca .ia{color:var(--spark)}
 .rotulo{font:600 12px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .logo-empresa{max-height:30px;max-width:140px;object-fit:contain}

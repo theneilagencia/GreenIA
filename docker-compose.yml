@@ -1,0 +1,35 @@
+# Sobe a GreenIA atrás do Caddy, que emite e renova o certificado HTTPS sozinho.
+# Antes: copie .env.exemplo para .env e preencha. O DNS do DOMINIO deve apontar para esta máquina.
+services:
+  greenia:
+    build: .
+    image: greenia-lite
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      COOKIE_SEGURO: "1"
+      HOST: 0.0.0.0
+    volumes:
+      - dados:/app/dados
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+    depends_on:
+      greenia:
+        condition: service_healthy
+
+volumes:
+  dados:
+  caddy_dados:
+  caddy_config:

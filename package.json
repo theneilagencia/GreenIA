@@ -8,7 +8,7 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning src/servidor.js",
+    "start": "node --disable-warning=ExperimentalWarning src/iniciar.js",
     "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.js\"",
     "test:e2e": "node --disable-warning=ExperimentalWarning --test \"e2e/*.test.js\"",
     "backup": "node --disable-warning=ExperimentalWarning scripts/backup.js",

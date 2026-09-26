@@ -95,9 +95,3 @@ async function tratar(app, r, req, res) {
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }
 }
-
-// Execução direta: node src/servidor.js
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { iniciar } = await import('./iniciar.js');
-  await iniciar();
-}

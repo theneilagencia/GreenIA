@@ -1,4 +1,5 @@
-// Sobe o servidor com a configuração das variáveis de ambiente.
+// Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
+import { fileURLToPath } from 'node:url';
 import { criarApp } from './servidor.js';
 import { criarOpenRouter, criarSimulada } from './ia.js';
 import { atualizarCatalogo } from './modelos.js';
@@ -29,3 +30,5 @@ export async function iniciar(env = process.env) {
   process.on('SIGINT', parar);
   return app;
 }
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) await iniciar();

@@ -7,6 +7,10 @@ import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
+import { criarSimulada } from './ia.js';
+import { rotasModelos } from './modelos.js';
+import { rotasConversas } from './conversas.js';
+import { rotasPessoas } from './pessoas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/admin': 'admin.html' };
@@ -19,7 +23,7 @@ const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html
 export function criarApp(op = {}) {
   const db = abrirBanco(op.banco ?? ':memory:');
   const app = {
-    db, ia: op.ia, agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log,
+    db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log,
   };
   app.email = op.email ?? criarEmail({ lerSmtp: () => lerConfig(db).smtp, log: app.log });
   if (op.adminEmail) garantirAdmin(app, op.adminEmail);
@@ -28,10 +32,10 @@ export function criarApp(op = {}) {
   rotasLogin(app, r);
   r.get('/api/publico', () => {
     const c = lerConfig(db);
-    return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote };
+    return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf }));
-  for (const modulo of op.modulos ?? []) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasConversas]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;

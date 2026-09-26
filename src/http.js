@@ -21,7 +21,7 @@ export function criarRoteador() {
     achar(metodo, caminho) {
       for (const r of rotas) {
         const m = r.re.exec(caminho);
-        if (m && r.metodo === metodo) return { ...r, params: { ...m.groups } };
+        if (m && r.metodo === metodo) return { ...r, params: Object.fromEntries(Object.entries(m.groups || {}).map(([k, v]) => [k, decodeURIComponent(v)])) };
       }
       return null;
     },

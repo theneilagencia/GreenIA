@@ -138,9 +138,10 @@ textarea.entrada{resize:vertical;min-height:90px;line-height:1.5}
 .boas-vindas{text-align:center;padding:40px 0 8px}
 .boas-vindas h2{font:300 32px/1.2 var(--serif);margin:18px 0 10px}
 .boas-vindas p{font:400 18px/1.5 var(--sans);color:var(--muted);margin:0}
-.bolha-eu{align-self:flex-end;max-width:78%;background:var(--mint);border-radius:16px 16px 4px 16px;padding:14px 18px;font:400 17px/1.55 var(--sans);white-space:pre-wrap;overflow-wrap:anywhere;animation:up .25s ease both}
+.bolha-eu{align-self:flex-end;max-width:78%;background:var(--mint);border-radius:16px 16px 4px 16px;padding:14px 18px;font:400 17px/1.55 var(--sans);white-space:pre-wrap;overflow-wrap:anywhere}
 .anexo-chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;font:500 13px var(--sans);margin:6px 6px 0 0;white-space:nowrap}
-.resposta{display:flex;gap:14px;align-items:flex-start;max-width:92%;animation:up .25s ease both}
+.resposta{display:flex;gap:14px;align-items:flex-start;max-width:92%}
+.anim{animation:up .25s ease both}
 .resposta .sim{flex:none;width:30px;height:30px;border-radius:999px;background:var(--mint);display:flex;align-items:center;justify-content:center;margin-top:2px}
 .resposta-corpo{display:flex;flex-direction:column;gap:8px;min-width:0}
 .bolha-ia{background:var(--surface);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:14px 18px;font:400 17px/1.6 var(--sans);overflow-wrap:anywhere}

@@ -4,78 +4,174 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GreenIA</title>
+<meta name="robots" content="noindex">
 <link rel="icon" href="/assets/greenia-marca.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/estilo.css">
+<link rel="stylesheet" href="/lp.css">
 </head>
-<body>
-<div class="landing">
-  <header class="topo">
-    <div class="marca"><img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></div>
-    <a class="btn-texto" href="/politica">Ver a política</a>
-  </header>
-  <main>
-    <section class="hero">
-      <div class="rotulo">A IA da <span data-empresa>empresa</span></div>
-      <h1>A infraestrutura de IA da <span data-empresa>empresa</span></h1>
-      <p>Um lugar só para usar IA no trabalho, com as regras da empresa aplicadas em cada mensagem, o conhecimento de cada área e quick wins para o trabalho que se repete.</p>
-      <a class="btn btn-verde btn-grande" href="/entrar">Entrar <span aria-hidden="true">→</span></a>
-    </section>
+<body class="l p">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ok" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="escudo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></g></symbol>
+</svg>
 
-    <section class="faixa">
-      <div class="faixa-dentro">
-        <div class="rotulo">O que é</div>
-        <p>Uma instalação só da <span data-empresa>empresa</span>, com modelos de IA de diferentes fabricantes organizados em três classes: Rápido, Equilibrado e Avançado. As conversas ficam no servidor da empresa, e a empresa decide quem usa o quê.</p>
-      </div>
-    </section>
+<header class="l-topo" id="topo">
+  <div class="l-dentro">
+    <a class="p-marca" href="/" id="p-marca">
+      <span id="p-logo"></span>
+      <span>
+        <span class="p-nome" data-empresa>Sua empresa</span>
+        <span class="p-com"><img src="/assets/greenia-marca.svg" alt="" aria-hidden="true">com GreenIA</span>
+      </span>
+    </a>
+    <a class="btn-texto btn-pequeno l-so-largo" href="/politica">Política de uso</a>
+    <a class="btn btn-verde btn-pequeno" href="/entrar">Entrar</a>
+  </div>
+</header>
 
-    <section class="secao">
-      <div class="rotulo">Ao entrar</div>
-      <h2>O que você encontra</h2>
-      <div class="grade-3">
-        <div class="cartao"><h3>Conversas</h3><p>Resumir, rascunhar, conferir e organizar. Anexe PDF, Word, Excel ou texto. A conversa fica salva só para você.</p></div>
-        <div class="cartao"><h3>Quick wins</h3><p>Usos prontos para uma tarefa que se repete, com instruções, arquivos e formato da resposta já definidos. Você traz só o caso do dia.</p></div>
-        <div class="cartao"><h3>Conhecimento</h3><p>Procedimentos e documentos de cada área. A IA responde com base neles e mostra de onde tirou a resposta.</p></div>
-        <div class="cartao"><h3>Dados sigilosos</h3><p>Dado pessoal, de cliente, financeiro ou estratégico vai só para modelos homologados pela empresa, com fornecedor fixo e sem retenção.</p></div>
-        <div class="cartao"><h3>Filtro antes do envio</h3><p>CPF, CNPJ, cartão, dados bancários e PIX são identificados antes de sair. Senhas e credenciais nunca saem.</p></div>
-        <div class="cartao"><h3>Política de uso</h3><p>As regras da empresa para IA, com registro de ciência a cada nova versão.</p></div>
-      </div>
-    </section>
-
-    <section class="secao">
-      <div class="rotulo">Quick wins</div>
-      <h2>Do teste à decisão, com dados</h2>
-      <p class="sub">Cada quick win tem responsável, objetivo e medida. A equipe usa, diz se a resposta serviu, e a decisão de manter ou ampliar é tomada com números.</p>
-      <div class="grade-4">
-        <div><div class="passo">1</div><h3 class="passo-titulo">Testar</h3><p class="passo-texto">O responsável configura o quick win e a equipe experimenta.</p></div>
-        <div><div class="passo">2</div><h3 class="passo-titulo">Medir</h3><p class="passo-texto">Execuções, avaliações e comparação de antes e depois.</p></div>
-        <div><div class="passo">3</div><h3 class="passo-titulo">Decidir</h3><p class="passo-texto">Manter, ajustar, descartar ou ampliar, com o motivo registrado.</p></div>
-        <div><div class="passo">4</div><h3 class="passo-titulo">Ampliar</h3><p class="passo-texto">O que funcionou chega a outras áreas.</p></div>
-      </div>
-    </section>
-
-    <section class="secao">
-      <div class="rotulo">Boas tarefas</div>
-      <h2>Por onde começar</h2>
-      <div class="caixa-menta" style="margin-top:20px">
-        <ul class="lista-check">
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Resumir um documento longo em poucos pontos</li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Conferir dois documentos e listar as diferenças</li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Responder uma dúvida com base nos procedimentos da área</li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Comparar cotações e montar uma tabela</li>
+<main>
+  <!-- Hero -->
+  <section class="l-hero">
+    <div class="l-dentro">
+      <div>
+        <p class="l-rotulo">A IA da <span data-empresa>empresa</span></p>
+        <h1>IA para o trabalho, com as regras da casa</h1>
+        <p class="l-lead">Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da <span data-empresa>empresa</span> são aplicadas antes de cada envio.</p>
+        <div class="l-acoes">
+          <a class="btn btn-verde btn-grande" href="/entrar">Entrar com o email da empresa</a>
+          <a class="btn btn-linha btn-grande" href="#como-usar">Como usar</a>
+        </div>
+        <ul class="l-fatos">
+          <li><svg width="18" height="18"><use href="#ok"/></svg>Código de acesso no email</li>
+          <li><svg width="18" height="18"><use href="#ok"/></svg>Sem senha para decorar</li>
+          <li><svg width="18" height="18"><use href="#ok"/></svg>Conversas salvas só para você</li>
         </ul>
       </div>
-    </section>
-  </main>
-  <footer class="rodape escuro">
-    <div class="rodape-dentro">
-      <p>Revise sempre antes de usar. A IA ajuda, a decisão é sua.</p>
-      <a class="btn btn-spark btn-grande" href="/entrar">Entrar <span aria-hidden="true">→</span></a>
+
+      <figure style="margin:0">
+        <div class="l-janela" role="img" aria-label="Conversa num quick win: um pedido com anexo e a resposta com a fonte citada">
+          <div class="l-janela-barra"><i></i><i></i><i></i><span>Conferência de pedido e nota</span></div>
+          <div class="p-chat" aria-hidden="true">
+            <div class="p-chat-barra"><span>Classe</span><span class="classe">Rápido</span><span class="troca"><i></i>Dados sigilosos</span></div>
+            <div class="p-eu">Confira o pedido com a nota e liste as diferenças.<br><span class="anexo">pedido-4502.pdf</span> <span class="anexo">nota-8812.pdf</span></div>
+            <div class="p-ia">
+              Encontrei duas diferenças:
+              <ul>
+                <li>Toner: pedido com 5 unidades, nota com 4</li>
+                <li>Papel A4: R$ 25,00 no pedido e R$ 27,50 na nota</li>
+              </ul>
+              Pelo procedimento de recebimento, a divergência precisa ser registrada em até 2 dias úteis.
+              <div style="margin-top:10px"><span class="p-fonte">Fonte: Procedimento de recebimento</span></div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="l-legenda">Exemplo ilustrativo.</figcaption>
+      </figure>
     </div>
-  </footer>
-</div>
+  </section>
+
+  <!-- Como usar -->
+  <section class="l-secao" id="como-usar" style="padding-top:88px">
+    <div class="l-dentro">
+      <div class="l-cab">
+        <p class="l-rotulo">Como usar</p>
+        <h2 class="l-h2">Três passos para começar</h2>
+      </div>
+      <ol class="p-passos">
+        <li><b>Entre com o seu email</b><span>Use o email da <span data-empresa>empresa</span>. Um código de 6 dígitos chega na hora.</span></li>
+        <li><b>Peça em palavras simples</b><span>Cole um texto, anexe PDF, Word, Excel ou CSV e diga o que precisa.</span></li>
+        <li><b>Revise e ajuste</b><span>Peça mais curto, em tabela ou em outro tom. A decisão final é sempre sua.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- O que tem -->
+  <section class="l-secao" style="padding-top:88px">
+    <div class="l-dentro">
+      <div class="l-cab">
+        <p class="l-rotulo">Ao entrar</p>
+        <h2 class="l-h2">O que você encontra</h2>
+      </div>
+      <div class="p-recursos">
+        <div><b>Conversas</b><p>Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois.</p></div>
+        <div><b>Quick wins</b><p>Usos prontos para tarefas que se repetem na sua área, com instruções e arquivos já definidos. Você traz só o caso do dia.</p></div>
+        <div><b>Conhecimento</b><p>Procedimentos e documentos das áreas. A resposta mostra de qual documento veio a informação.</p></div>
+        <div><b>Classes de modelo</b><p>Você escolhe o tipo de trabalho, não o modelo técnico.</p>
+          <div class="p-classes"><span>Rápido · dia a dia</span><span>Equilibrado · mais contexto</span><span>Avançado · análises longas</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Regras -->
+  <section class="l-secao" style="padding-top:88px">
+    <div class="l-dentro">
+      <div class="l-cab">
+        <p class="l-rotulo">Antes de enviar</p>
+        <h2 class="l-h2">O que pode, o que pede cuidado e o que nunca sai</h2>
+        <p class="l-sub">A GreenIA confere cada mensagem e cada anexo antes do envio, pelas regras que a <span data-empresa>empresa</span> definiu.</p>
+      </div>
+      <div class="p-regras">
+        <div class="p-regra pode">
+          <h3><i></i>Pode usar</h3>
+          <ul><li>Textos e documentos de trabalho</li><li>Procedimentos, modelos e rascunhos</li><li>Planilhas sem dados pessoais</li></ul>
+        </div>
+        <div class="p-regra sigilo">
+          <h3><i></i>Ligue “Dados sigilosos”</h3>
+          <ul><li>Dados de clientes, fornecedores e pessoas</li><li>Informações financeiras ou estratégicas</li><li>A conversa vai só para modelos homologados pela empresa, sem retenção</li></ul>
+        </div>
+        <div class="p-regra nunca">
+          <h3><i></i>Nunca sai</h3>
+          <ul><li>Senhas, tokens e chaves de acesso</li><li>Credenciais de sistemas</li><li>A GreenIA bloqueia antes do envio</li></ul>
+        </div>
+      </div>
+      <div class="p-privacidade">
+        <svg width="20" height="20"><use href="#escudo"/></svg>
+        <div><span data-privacidade></span> <span id="p-retencao"></span> <a href="/politica">Ler a Política de Uso de IA</a></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Boas tarefas -->
+  <section class="l-secao" style="padding-top:88px">
+    <div class="l-dentro">
+      <div class="l-cab">
+        <p class="l-rotulo">Boas tarefas</p>
+        <h2 class="l-h2">Por onde começar</h2>
+        <p class="l-sub">Pedidos que costumam dar bom resultado logo na primeira semana.</p>
+      </div>
+      <div class="p-tarefas">
+        <div><span>Resumir</span>Resuma este relatório em cinco pontos para a diretoria</div>
+        <div><span>Conferir</span>Compare estes dois contratos e liste o que mudou</div>
+        <div><span>Consultar</span>Qual é o prazo do procedimento de recebimento?</div>
+        <div><span>Organizar</span>Monte uma tabela com estas três cotações</div>
+        <div><span>Rascunhar</span>Escreva um email ao fornecedor sobre a divergência</div>
+        <div><span>Revisar</span>Deixe este texto mais claro e mais curto</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fim -->
+  <section class="p-fim">
+    <div class="l-dentro">
+      <div>
+        <h2>Pronto para começar</h2>
+        <p>Revise sempre antes de usar. A IA ajuda, a decisão é sua.</p>
+      </div>
+      <a class="btn btn-spark btn-grande" href="/entrar">Entrar</a>
+    </div>
+  </section>
+</main>
+
+<footer class="l-rodape">
+  <div class="l-dentro">
+    <p><span data-empresa>Sua empresa</span> · com GreenIA</p>
+    <a href="/politica">Política de uso de IA</a>
+    <a href="/entrar">Entrar</a>
+  </div>
+</footer>
 <script type="module" src="/landing.js"></script>
 </body>
 </html>

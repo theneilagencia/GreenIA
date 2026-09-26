@@ -29,6 +29,14 @@ test('a página não promete o que não existe nem mostra custo de fornecedor', 
   for (const [, t] of v.matchAll(/<h[123][^>]*>([^<]+)<\/h[123]>/g)) assert.doesNotMatch(t.trim(), /\.$/, t);
 });
 
+test('a página da empresa orienta o uso e segue as mesmas regras de texto', async () => {
+  const c = await (await fetch(`${C.base}/`)).text();
+  assert.match(c, /IA para o trabalho, com as regras da casa/);
+  assert.match(c, /href="\/entrar"/);
+  assert.doesNotMatch(c, /US\$|créditos/);   // quem usa não vê plano nem preço
+  for (const [, t] of c.matchAll(/<h[123][^>]*>([^<]+)<\/h[123]>/g)) assert.doesNotMatch(t.trim(), /\.$/, t);
+});
+
 test('contato válido vira lead, evento e email; inválido e robô não', async () => {
   assert.equal((await contato(V, { ...lead, email: 'sem-arroba' })).status, 400);
   assert.equal((await contato(V, { ...lead, pessoas: 'muitas' })).status, 400);

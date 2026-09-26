@@ -1,8 +1,0 @@
-/* Oren Design System — global entry point.
-   This file is intentionally a list of @import lines only.
-   Everything reachable from here ships to consumers. */
-
-@import url("tokens/fonts.css");
-@import url("tokens/colors.css");
-@import url("tokens/typography.css");
-@import url("tokens/spacing.css");

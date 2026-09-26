@@ -1,0 +1,45 @@
+# Blueprint do Render: um serviço web (Docker) com disco para o SQLite.
+# No Render: New > Blueprint > escolha este repositório. Os segredos são pedidos na criação.
+services:
+  - type: web
+    name: greenia
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: virginia        # não há região no Brasil; Virgínia é a mais próxima
+    plan: starter           # disco persistente exige plano pago
+    healthCheckPath: /api/saude
+    autoDeploy: true
+    domains:
+      - greenia.theneil.com.br
+    disk:
+      name: dados
+      mountPath: /app/dados
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_EMAIL
+        sync: false         # pedido na criação
+      - key: OPENROUTER_API_KEY
+        sync: false         # pedido na criação; nunca no repositório
+      # Plano contratado (definido pela TheNeil; o admin da empresa não altera).
+      # Plano principal: 25000 créditos, reserva 5000, preço 750. Plano de entrada: 10000, 2000, 290.
+      - key: PLANO_CREDITOS
+        value: "25000"
+      - key: PLANO_RESERVA
+        value: "5000"
+      - key: PLANO_PRECO_USD
+        value: "750"
+      - key: OPERADOR_EMAIL
+        sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
+      # Esta é a instalação do operador: a raiz abre a página de vendas e /operador junta os clientes.
+      # Ela mesma aparece no console (tem plano); não precisa de OPERADOR_TOKEN.
+      - key: PAGINA_INICIAL
+        value: vendas
+      - key: CUSTO_INFRA_USD
+        value: "7"
+      # Clientes no console: crie INSTANCIAS no painel do Render (Environment), separadas por ponto e vírgula:
+      #   Cliente A|https://ia.clientea.com.br|token-a;Cliente B|https://ia.clienteb.com.br|token-b
+      # Instalação de cliente: use deploy/render-cliente.yaml.
+      - key: BACKUP_HORA
+        value: "06:00"
+      - key: BACKUP_MANTER
+        value: "7"

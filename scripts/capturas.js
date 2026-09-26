@@ -1,0 +1,145 @@
+// Capturas de tela para revisão: sobe a GreenIA com a IA simulada, monta uma
+// empresa fictícia pela API e fotografa as telas principais.
+//   node scripts/capturas.js [pasta]
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { subirComNavegador } from './navegador.js';
+import { cliente } from './cliente.js';
+import { salvarConfig } from '../src/config.js';
+import { docx } from '../test/arquivos.js';
+
+const PASTA = process.argv[2] || 'capturas';
+mkdirSync(PASTA, { recursive: true });
+const N = await subirComNavegador({ adminEmail: 'admin@empresa-exemplo.com.br', largura: 1360, altura: 860 });
+salvarConfig(N.app.db, { empresa: 'Empresa Exemplo', dominios: ['empresa-exemplo.com.br'] });
+const b64 = b => Buffer.from(b).toString('base64');
+
+const admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');
+const areas = {};
+for (const nome of ['Atendimento', 'Operações', 'Qualidade']) areas[nome] = (await admin.post('/api/admin/areas', { nome })).dados.id;
+await admin.post('/api/admin/pessoas', { email: 'marina@empresa-exemplo.com.br', nome: 'Marina Costa', areas: [{ id: areas['Operações'], responsavel: true }] });
+await admin.post('/api/admin/pessoas', { email: 'rafael@empresa-exemplo.com.br', nome: 'Rafael Nunes', areas: [{ id: areas['Operações'] }, { id: areas['Atendimento'] }] });
+await admin.put(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}`, { liberado: true, perfil: 'rapido' });
+await admin.post(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}/homologar`, { fornecedor: 'Mistral', semTreino: true, retencaoZero: true, justificativa: 'Fornecedor com retenção zero, conferido no OpenRouter.' });
+N.app.db.prepare("update modelos set nome = 'Mistral Small', preco_entrada = 0.0000001, preco_saida = 0.0000003 where id = 'mistralai/mistral-small'").run();
+
+const marina = await cliente(N.app, N.base).entrar('marina@empresa-exemplo.com.br');
+await marina.post('/api/bases/documentos', { area_id: areas['Operações'], titulo: 'Procedimento de recebimento', arquivo: { nome: 'recebimento.docx', base64: b64(docx(['Todo pedido recebido deve ser conferido contra a nota em até 2 dias úteis.'])) } });
+const modelos = (await marina.get('/api/quick-wins/modelos-iniciais')).dados.modelos;
+const qw = (await marina.post('/api/quick-wins', { modelo_inicial: modelos.findIndex(m => m.nome === 'Conferir dois documentos'), areas: [areas['Operações']] })).dados;
+await marina.put(`/api/quick-wins/${qw.id}`, { nome: 'Conferência de pedido × nota', para_que_serve: 'Compara o pedido com a nota recebida e lista as diferenças de item, quantidade e preço.',
+  sugestoes: ['Confira estes dois documentos e liste as diferenças', 'Os valores dos dois documentos batem?', 'Escreva uma mensagem ao fornecedor sobre as diferenças'] });
+await marina.post(`/api/quick-wins/${qw.id}/arquivos`, { arquivo: { nome: 'regras-de-conferencia.docx', base64: b64(docx(['Diferença de preço acima de 2% é relevante.', 'Item faltando sempre é relevante.'])) } });
+await marina.put(`/api/quick-wins/${qw.id}`, { status: 'em_uso', problema: 'Conferir pedido contra nota leva até 25 minutos e gera retrabalho quando passa diferença.', objetivo: 'Conferir cada pedido em até 10 minutos, sem diferença passando.', processo_atual: 'Conferência manual, item a item, em planilha.' });
+const outro = (await marina.post('/api/quick-wins', { modelo_inicial: modelos.findIndex(m => m.nome === 'Organizar lista de pendências'), areas: [areas['Operações']] })).dados;
+await marina.put(`/api/quick-wins/${outro.id}`, { status: 'em_teste' });
+await marina.post('/api/quick-wins', { nome: 'Resumo de reclamações da semana', areas: [areas['Operações']], status: 'identificado', problema: 'Ninguém consolida as reclamações; os padrões só aparecem tarde.' });
+
+// Rafael: conversas antigas no quick win, para a lista de retomada.
+await admin.post('/api/admin/grupos', { nome: 'Gestores' });
+const rafael = await cliente(N.app, N.base).entrar('rafael@empresa-exemplo.com.br');
+for (const [titulo, fb] of [['Pedido 4471 da papelaria', 'serviu'], ['Nota de insumos de agosto', 'ajustes']]) {
+  const c = (await rafael.post('/api/conversas', { quick_win_id: qw.id })).dados.conversa;
+  await rafael.req('POST', `/api/conversas/${c.id}/mensagens`, { texto: 'Confira estes dois documentos e liste as diferenças' });
+  await rafael.patch(`/api/conversas/${c.id}`, { titulo, feedback: fb });
+}
+
+await marina.post(`/api/quick-wins/${qw.id}/medicoes`, { indicador: 'minutos por pedido conferido', antes_valor: 25, antes_data: '2026-08-01', antes_origem: 'medido', depois_valor: 9, depois_data: '2026-09-15', depois_origem: 'medido' });
+await marina.post(`/api/quick-wins/${qw.id}/medicoes`, { indicador: 'pedidos devolvidos por erro de conferência', depois_valor: 1, depois_data: '2026-09-15', depois_origem: 'informado' });
+await marina.post(`/api/quick-wins/${qw.id}/decisoes`, { decisao: 'manter', motivo: 'O tempo caiu e a equipe está usando. Reavaliar no próximo mês.' });
+
+const p = await N.entrar('rafael@empresa-exemplo.com.br');
+p.on('pageerror', e => console.error('erro na página:', e.message));
+p.on('response', async r => { if (r.status() >= 400 && r.url().includes('/api/')) console.error('HTTP', r.status(), r.url(), (await r.text().catch(() => '')).slice(0, 200)); });
+// 1. Chat
+await p.waitForSelector('#entrada');
+await p.fill('#entrada', 'Resuma em 3 linhas as regras de recebimento de pedidos');
+await p.keyboard.press('Enter');
+await p.waitForSelector('.rodape-resposta');
+await p.waitForTimeout(400);
+await p.screenshot({ path: join(PASTA, '1-chat.png') });
+// 2. Conversa dentro do quick win, com anexo e pedido de ajuste
+await p.goto(`${N.base}/app#/qw/${qw.id}/nova`);
+// Só o hash muda: a #entrada da conversa anterior ainda está na tela até a vista do quick win desenhar.
+await p.waitForFunction(() => document.querySelector('.barra-conversa')?.textContent.includes('Conferência de pedido'));
+const arq = join(PASTA, 'pedido-exemplo.docx');
+writeFileSync(arq, docx(['Pedido 4502: 10 caixas de papel A4 a R$ 25,00; 5 toners a R$ 180,00.']));
+await p.setInputFiles('#arquivo', arq);
+await p.waitForSelector('.anexos-pendentes .anexo-chip');
+await p.fill('#entrada', 'Confira estes dois documentos e liste as diferenças em uma tabela');
+await p.keyboard.press('Enter');
+await p.waitForSelector('.rodape-resposta');
+await p.fill('#entrada', 'Tire a coluna de valor');
+await p.keyboard.press('Enter');
+await p.waitForFunction(() => document.querySelectorAll('.rodape-resposta').length >= 2);
+await p.waitForTimeout(400);
+await p.screenshot({ path: join(PASTA, '3-conversa-com-ajuste.png') });
+// 3. Página do quick win com as conversas retomáveis
+await p.goto(`${N.base}/app#/qw/${qw.id}`);
+await p.waitForSelector('.lista-item');
+await p.waitForTimeout(300);
+await p.screenshot({ path: join(PASTA, '4-conversas-retomaveis.png') });
+// 4. Configuração do quick win (responsável)
+const pm = await N.contexto.newPage();
+await N.entrar('marina@empresa-exemplo.com.br', pm);
+await pm.goto(`${N.base}/app#/qw/${qw.id}/editar`);
+await pm.waitForSelector('#form-qw');
+await pm.waitForTimeout(300);
+await pm.evaluate(() => { document.querySelector('.app').style.height = 'auto'; document.querySelector('.pagina').style.overflow = 'visible'; [...document.querySelectorAll('#form-qw .linha-botoes')].at(-1).style.position = 'static'; });
+await pm.screenshot({ path: join(PASTA, '2-configuracao-quick-win.png'), fullPage: true });
+// 4b. Medição do quick win, vista pela responsável
+await pm.goto(`${N.base}/app#/qw/${qw.id}`);
+await pm.waitForSelector('#form-dec');
+await pm.waitForTimeout(300);
+await pm.evaluate(() => { document.querySelector('.app').style.height = 'auto'; document.querySelector('.pagina').style.overflow = 'visible'; });
+await pm.screenshot({ path: join(PASTA, '7-medicao-quick-win.png'), fullPage: true });
+// 5. Celular (360 px): chat
+const cel = await N.navegador.newContext({ viewport: { width: 360, height: 740 } });
+await cel.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+const pc = await N.entrar('rafael@empresa-exemplo.com.br', await cel.newPage());
+await pc.goto(`${N.base}/app#/qw/${qw.id}/nova`);
+await pc.waitForSelector('#entrada');
+await pc.screenshot({ path: join(PASTA, '5-celular-360.png') });
+// 6. Painel do admin, uma captura por aba (página inteira).
+const ctxAdmin = await N.navegador.newContext({ viewport: { width: 1360, height: 860 } });
+await ctxAdmin.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+const pa = await N.entrar('admin@empresa-exemplo.com.br', await ctxAdmin.newPage());
+for (const [i, aba] of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configuracoes'].entries()) {
+  await pa.goto(`${N.base}/app#/${aba}`);
+  await pa.waitForFunction(() => { const c = document.getElementById('conteudo'); return !c || !c.textContent.startsWith('Carregando'); });
+  await pa.waitForTimeout(250);
+  await pa.screenshot({ path: join(PASTA, `6-painel-${i + 1}-${aba}.png`), fullPage: true });
+}
+// 7. A mesma instalação com a marca de outra empresa (logo e cor fictícios): para o site de vendas.
+const logo = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40"><rect x="2" y="6" width="28" height="28" rx="8" fill="#0F5E78"/><circle cx="16" cy="20" r="6" fill="#fff"/><text x="40" y="27" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#0F5E78">Exemplo</text></svg>').toString('base64');
+salvarConfig(N.app.db, { empresa: 'Empresa Exemplo', logo, corMarca: '#0F5E78' });
+await admin.post('/api/admin/pessoas', { email: 'lucas@empresa-exemplo.com.br', nome: 'Lucas Prado', areas: [{ id: areas['Operações'] }] });
+const pm2 = await N.entrar('lucas@empresa-exemplo.com.br', await (await N.navegador.newContext({ viewport: { width: 1360, height: 860 } })).newPage());
+await pm2.goto(`${N.base}/app#/qw/${qw.id}/nova`);
+// Espera a vista do quick win terminar de desenhar (a da entrada no app pode vir antes).
+await pm2.waitForFunction(() => document.querySelector('.barra-conversa')?.textContent.includes('Conferência de pedido'));
+await pm2.fill('#entrada', 'Confira estes dois documentos e liste as diferenças em uma tabela');
+await pm2.keyboard.press('Enter');
+await pm2.waitForSelector('.rodape-resposta');
+await pm2.waitForTimeout(400);
+await pm2.screenshot({ path: join(PASTA, '8-marca-propria-app.png') });
+await pm2.goto(`${N.base}/entrar`);
+await pm2.waitForTimeout(400);
+await pm2.screenshot({ path: join(PASTA, '9-marca-propria-entrar.png') });
+await N.fechar();
+
+// 10. Página de vendas (instalação do operador) no computador e no celular, e o console do operador.
+const V = await subirComNavegador({ paginaInicial: 'vendas', adminEmail: 'suporte@operadora-exemplo.com', operadores: ['suporte@operadora-exemplo.com'], plano: { creditos: 25000, reserva: 5000, precoUsd: 750 } });
+for (const [largura, nome] of [[1360, '10-vendas.png'], [360, '10-vendas-360.png']]) {
+  const pv = await V.contexto.newPage();
+  await pv.setViewportSize({ width: largura, height: 860 });
+  await pv.goto(`${V.base}/`);
+  await pv.screenshot({ path: join(PASTA, nome), fullPage: true });
+}
+const po = await V.entrar('suporte@operadora-exemplo.com');
+await po.goto(`${V.base}/operador`);
+await po.waitForSelector('.cliente');
+await po.click('.cliente summary');
+await po.screenshot({ path: join(PASTA, '11-console-operador.png'), fullPage: true });
+await V.fechar();
+console.log(`capturas em ${PASTA}/`);

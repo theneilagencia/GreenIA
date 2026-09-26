@@ -1,0 +1,26 @@
+{
+  "name": "greenia-lite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "GreenIA Lite: chat seguro, bases por área e quick wins, uma instalação por empresa.",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/iniciar.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.js\"",
+    "test:e2e": "node --disable-warning=ExperimentalWarning --test \"e2e/*.test.js\"",
+    "backup": "node --disable-warning=ExperimentalWarning scripts/backup.js",
+    "restaurar": "node --disable-warning=ExperimentalWarning scripts/restaurar.js",
+    "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js",
+    "capturas": "node --disable-warning=ExperimentalWarning scripts/capturas.js"
+  },
+  "dependencies": {
+    "nodemailer": "^7.0.13",
+    "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.1"
+  }
+}

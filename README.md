@@ -1,0 +1,196 @@
+# GreenIA Lite
+
+A IA do dia a dia da empresa: um chat, as bases de conhecimento de cada área e os quick wins, que são espaços prontos para as tarefas que se repetem. Uma instalação por empresa, um processo Node e um banco SQLite. Os modelos passam todos pelo OpenRouter.
+
+## Ver funcionando em 1 minuto
+
+```sh
+npm ci
+npm run demo
+```
+
+Abra http://127.0.0.1:8080. A demonstração monta uma empresa fictícia com 3 áreas, pessoas, documentos, 4 quick wins e um modelo homologado. A IA é simulada: nada sai da máquina. O código de acesso aparece no terminal. Precisa de Node 22.13 ou mais novo.
+
+## Instalar
+
+Você precisa de uma VM Linux com Docker, um domínio (ex.: `ia.suaempresa.com.br`) apontando para ela e as portas 80 e 443 abertas.
+
+```sh
+git clone <este repositório> greenia && cd greenia
+cp .env.exemplo .env      # preencha DOMINIO, ADMIN_EMAIL e OPENROUTER_API_KEY
+docker compose up -d
+```
+
+O Caddy emite e renova o certificado HTTPS sozinho. Em um ou dois minutos, abra `https://<DOMINIO>` e entre com o `ADMIN_EMAIL`.
+
+**Primeiro acesso.** Sem SMTP configurado, o código de acesso aparece no log: `docker compose logs greenia`. No painel do admin, aba **Configurações**, preencha:
+
+- o nome da empresa, o logo, a cor e os domínios de email aceitos;
+- o SMTP da empresa (há um botão de teste).
+
+Depois, na aba **Áreas e pessoas**, cadastre as áreas e as pessoas. Na aba **Modelos de IA**, homologue um modelo para as conversas sigilosas. O guia está em [docs/modelos-sugeridos.md](docs/modelos-sugeridos.md).
+
+**A chave do OpenRouter fica só no `.env`.** Nunca no git, em log ou em relatório. Crie uma chave só para a GreenIA, com limite de gasto definido no OpenRouter.
+
+## Publicar no Render (sem administrar servidor)
+
+O arquivo `render.yaml` já descreve o serviço:
+
+- Docker, plano Starter, região Virgínia;
+- disco de 1 GB para o banco;
+- verificação de saúde em `/api/saude`;
+- domínio `greenia.theneil.com.br`.
+
+Passos:
+
+1. No Render, clique em **New → Blueprint** e escolha este repositório. Ele pede `ADMIN_EMAIL` e `OPENROUTER_API_KEY`: preencha lá, nunca no repositório. Sem a chave, o serviço sobe com a IA desligada e o painel mostra o aviso.
+2. Espere a primeira publicação ficar verde (**Live**).
+3. No DNS de `theneil.com.br`, crie um registro **CNAME** de `greenia` apontando para o endereço `*.onrender.com` do serviço. O Render mostra esse endereço em **Settings → Custom Domains** e emite o HTTPS sozinho.
+4. Entre com o `ADMIN_EMAIL`. Enquanto não houver SMTP, o código aparece em **Logs** no Render. Configure o SMTP no painel (porta 587 ou 465) para as outras pessoas receberem o código por email.
+5. No Render, abra **Shell** e rode `node scripts/verificar.js`. Ele confere com o OpenRouter de verdade:
+   - a chave e o limite de gasto;
+   - o catálogo de modelos;
+   - uma resposta curta de cada perfil;
+   - em cada modelo homologado, que quem respondeu foi o fornecedor fixado.
+
+   Custa centavos.
+
+O que muda em relação a uma VM:
+
+- **Local dos dados.** Não há região no Brasil: os dados ficam nos EUA. Registre isso na política e no inventário de dados (LGPD).
+- **Publicação.** Com disco, cada publicação para o serviço por alguns segundos.
+- **Backup.** O Render tira cópia do disco uma vez por dia. Mesmo assim, configure o `BACKUP_DESTINO` para ter uma cópia fora do Render.
+- **Custo.** Cerca de US$ 7 por mês (Starter: 512 MB e 0,5 CPU), mais US$ 0,25 por GB de disco. Se ficar lento com muitos PDFs grandes, suba para o plano com 2 GB.
+
+## Plano contratado (créditos)
+
+Quando a GreenIA é oferecida como serviço, o plano de cada empresa vem de variáveis do servidor. O admin da empresa não consegue alterar esses valores.
+
+| Variável | O que faz |
+|---|---|
+| `PLANO_CREDITOS` | Créditos por mês. 1 crédito = US$ 0,01 de custo de IA. Sem esta variável, não há cota e a empresa vê o custo em dólar |
+| `PLANO_RESERVA` | Créditos extras só no modelo rápido, depois que o plano acaba. Padrão: 20% do plano |
+| `PLANO_PRECO_USD` | Preço do plano, usado só no resumo do operador |
+| `OPERADOR_EMAIL` | Quem opera a plataforma. Entra mesmo com email de outro domínio, vê o custo real e libera pacotes extras |
+
+Como o mês funciona:
+
+1. **Consumo.** Cada resposta gasta créditos conforme o custo real do modelo naquele dia.
+2. **Ordem.** Primeiro os créditos do plano, depois os pacotes extras (o que sobra passa para o mês seguinte), por último a reserva, só no modelo rápido.
+3. **Avisos.** O admin da empresa e o operador recebem email em 80% do plano, no fim do plano (a partir daí, só a classe Rápido), em 90% da reserva e no fim da reserva, quando o envio para até o dia 1. Também há email quando um pacote é liberado, quando os créditos renovam e quando o modelo por trás de uma classe muda.
+4. **Faixas.** O painel e o chat mostram faixas com o mesmo aviso.
+5. **Pacote adicional.** O operador libera no console (`/operador`), com quantidade, validade opcional e observação. Pacote vencido deixa de valer.
+
+A empresa vê créditos em todo o painel. O servidor não envia valores em dólar nem preços de modelo para quem não é operador. O operador também recebe email quando o preço de um modelo liberado muda mais de 20%.
+
+## Console do operador
+
+O console (`/operador`) junta todas as instalações de clientes numa tela: plano, créditos, reserva, pacotes, custo real, receita, margem, modelos por classe, variações de preço, alertas e situação. Só quem está em `OPERADOR_EMAIL` abre o console, e ele é separado do painel do cliente.
+
+| Variável | Onde | O que faz |
+|---|---|---|
+| `OPERADOR_TOKEN` | Instalação de cada cliente | Token (24 caracteres ou mais) que libera o resumo desta instalação para o console. Sem ele, a rota não existe. Tentativas erradas bloqueiam o endereço por 15 minutos |
+| `INSTANCIAS` | Instalação do operador | Uma instalação por linha ou separadas por `;`, no formato `Nome|https://endereco|token` |
+| `CUSTO_INFRA_USD` | Instalação de cada cliente | Custo mensal do servidor, para a margem |
+| `PACOTE_CREDITOS`, `PACOTE_PRECO_USD` | Instalação de cada cliente | Pacote de referência para a receita (padrão: 10.000 créditos por US$ 250) |
+
+Como ativar:
+
+1. **Instalação de cada cliente.** Crie pelo blueprint `deploy/render-cliente.yaml` (New > Blueprint > Blueprint Path). O Render gera o `OPERADOR_TOKEN` sozinho. Numa instalação de cliente que já existe, crie a variável no painel com o botão **Generate**. O token fica só no Render: não cole em chat, email ou repositório.
+2. **Instalação do operador.** O `render.yaml` já define `PAGINA_INICIAL=vendas`. No painel dela, crie `INSTANCIAS` com uma linha por cliente, separadas por `;`, copiando o token do painel do cliente: `Cliente A|https://ia.clientea.com.br|token`. Salvar reinicia o serviço.
+3. **Conferir.** Entre com um email de `OPERADOR_EMAIL` e abra `/operador`. Cliente que não responde aparece como **Sem resposta**, com o motivo.
+
+## Página de vendas
+
+Com `PAGINA_INICIAL=vendas`, a raiz da instalação abre a página de vendas da GreenIA em vez da página da empresa. O formulário de contato grava o pedido e manda email para `OPERADOR_EMAIL`; os contatos aparecem no fim do console. Use só na instalação do operador.
+
+## Atualizar
+
+No Render, cada push no branch principal publica sozinho. Numa VM:
+
+```sh
+git pull
+docker compose up -d --build
+```
+
+O banco fica no volume `dados` e a estrutura é atualizada sozinha na subida. Faça um backup antes (abaixo).
+
+## Backup e restauração
+
+- **Automático.** Com `BACKUP_HORA=06:00` no `.env`, o próprio processo faz um backup por dia (horário UTC no contêiner). Os arquivos ficam em `dados/backups`, e são guardados os últimos `BACKUP_MANTER` (padrão 14). Com `BACKUP_DESTINO=s3://bucket/pasta` e as variáveis `S3_*`, cada backup também vai para um armazenamento compatível com S3 (AWS S3, Cloudflare R2, Backblaze B2, Magalu Cloud, MinIO). Sucesso e falha ficam no registro de eventos.
+- **Manual,** com o servidor no ar: `docker compose exec greenia node scripts/backup.js`.
+- **O backup é uma cópia consistente** (`VACUUM INTO`) compactada com gzip. Não é preciso parar nada para fazer.
+- **Restaurar:**
+
+  ```sh
+  docker compose stop greenia
+  docker compose run --rm greenia node scripts/restaurar.js dados/backups/greenia-AAAAMMDD-HHMMSS.sqlite.gz
+  docker compose start greenia
+  ```
+
+  Também aceita `s3://bucket/pasta/arquivo.sqlite.gz`. A restauração confere a integridade do arquivo antes de trocar o banco e guarda o banco anterior como `greenia.sqlite.antes-da-restauracao`.
+- **Teste a restauração** uma vez por trimestre numa máquina à parte. Backup que nunca foi restaurado não é backup.
+
+## Camadas de privacidade no OpenRouter
+
+A GreenIA manda as regras em toda chamada:
+
+- **Conversa normal:** `provider.data_collection: "deny"`, para usar só fornecedores que não treinam com os dados. O admin pode desligar isso no painel, e a mudança fica registrada.
+- **Conversa sigilosa:** só modelos homologados, com o fornecedor fixado (`order` e `only`), sem troca de fornecedor (`allow_fallbacks: false`), retenção zero (`zdr: true`) e sem treino. Se o fornecedor fixado cair, a mensagem falha, em vez de ir para outro.
+
+Configure também na conta do OpenRouter (Settings → Privacy):
+
+1. Desligue o uso dos dados para treino e os endpoints gratuitos que treinam.
+2. Desligue o registro de entradas e saídas (input/output logging).
+3. Se a conta permitir, ligue a exigência de retenção zero para a conta toda.
+4. Defina um limite de crédito na chave.
+
+**Como conferir.** Cada resposta registra o modelo e o fornecedor que respondeu, na tela da conversa e no evento `uso` (painel → Eventos). Compare com a página Activity do OpenRouter. Numa conversa sigilosa, o fornecedor tem de ser sempre o homologado.
+
+## Dependências
+
+São 2 em produção:
+
+| Pacote | Por quê |
+|---|---|
+| `nodemailer` | Envio por SMTP (códigos de acesso, avisos ao admin). Escrever SMTP com TLS e autenticação à mão não compensa. |
+| `unpdf` | Extrai o texto dos PDFs das bases e dos anexos. É o pdf.js empacotado para servidor, sem binário nativo. |
+
+O resto usa o próprio Node:
+
+- `node:sqlite`, com busca FTS5;
+- `node:http` e `node:crypto`;
+- `node:zlib`, que também lê DOCX e XLSX.
+
+Em desenvolvimento há mais uma: `playwright-core`, usada no teste de ponta a ponta e nas capturas de tela.
+
+## Quanto custa a VM
+
+Para até algumas centenas de pessoas, 2 vCPU e 2 a 4 GB de memória bastam: o trabalho pesado é do modelo, no OpenRouter.
+
+| Opção (região Brasil) | Máquina | Preço por mês | Observação |
+|---|---|---|---|
+| Hostinger VPS KVM 2, São Paulo | 2 vCPU, 8 GB, 100 GB NVMe | R$ 38,99 (promocional) | A renovação chega perto do dobro. Cobrança em reais. |
+| AWS Lightsail, São Paulo | 2 vCPU, 2 GB, 60 GB SSD | cerca de US$ 12 | Preço de tabela da Lightsail. Em São Paulo, a franquia de tráfego é a metade (1,5 TB). |
+| Oracle Cloud Always Free, São Paulo | Ampere A1 (ARM), até 2 OCPU e 12 GB | R$ 0 | Limite reduzido pela Oracle em 2026. Falta de capacidade é comum. Serve para piloto. |
+
+Pesquisa feita em 26/09/2026, pelo buscador. As páginas de preço não abriram no ambiente onde isto foi escrito, então confira o valor antes de contratar. Fontes:
+
+- [Hostinger VPS no Brasil](https://kildaryoliver.com.br/quanto-custa-vps-hostinger-brasil/)
+- [Preços da Lightsail](https://aws.amazon.com/lightsail/pricing/)
+- [Tráfego da Lightsail por região](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-faq-data-transfer-allowance.html)
+- [Oracle Always Free](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm)
+- [Redução do limite da Oracle](https://www.infoq.com/news/2026/07/oracle-cloud-free-tier-limits/)
+
+Some o gasto com os modelos: veja o painel, aba **Uso e custo**, e os tetos de gasto em **Configurações**.
+
+## Desenvolvimento
+
+```sh
+npm test            # testes (servidor, com um OpenRouter falso)
+npm run test:e2e    # ponta a ponta no Chromium (precisa de playwright-core e de um Chromium)
+npm run capturas    # capturas de tela em capturas/
+npm start           # servidor com as variáveis de ambiente (sem OPENROUTER_API_KEY, usa a IA simulada)
+```
+
+A variável `BANCO` diz onde fica o SQLite (padrão: `dados/greenia.sqlite`), e `PORTA` a porta do servidor (padrão: 8080).

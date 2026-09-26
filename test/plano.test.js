@@ -49,7 +49,7 @@ test('mês completo: 80%, só rápido em 100%, bloqueio no fim da reserva, aviso
   assert.ok(emails('suporte@operadora.com').some(a => /80% dos créditos/.test(a)));
   r = await enviar(EQUILIBRADO);                         // 8 → 12: plano acabou, reserva com 2
   assert.equal(situacaoPlano(S.app).fase, 'reserva');
-  assert.ok(emails('admin@exemplo.com.br').some(a => /só o modelo rápido/.test(a)));
+  assert.ok(emails('admin@exemplo.com.br').some(a => /segue com a classe Rápido/.test(a)));
   // Na reserva: o pedido pelo equilibrado vira rápido, com aviso na conversa; o seletor marca os outros como bloqueados.
   const opcoes = (await admin.get('/api/modelos')).dados.opcoes;
   assert.equal(opcoes.find(o => o.id === 'classe:equilibrado').bloqueado, true);
@@ -60,8 +60,8 @@ test('mês completo: 80%, só rápido em 100%, bloqueio no fim da reserva, aviso
   assert.equal((await admin.get('/api/eu')).dados.plano.fase, 'reserva');
   r = await enviar(RAPIDO);                              // reserva 6 → 10: acabou
   assert.equal(situacaoPlano(S.app).fase, 'esgotado');
-  assert.ok(emails('admin@exemplo.com.br').some(a => /quase no fim/.test(a)));
-  assert.ok(emails('admin@exemplo.com.br').some(a => /pausado/.test(a)));
+  assert.ok(emails('admin@exemplo.com.br').some(a => /perto do fim/.test(a)));
+  assert.ok(emails('admin@exemplo.com.br').some(a => /pausadas/.test(a)));
   r = await enviar(RAPIDO);
   assert.equal(r.status, 429);
   assert.equal(r.erro.erro, 'plano_esgotado');
@@ -94,7 +94,7 @@ test('pacote do operador volta todos os modelos, o que sobra passa para o mês s
   const r = (await op.post('/api/operador/pacotes', { creditos: 20 })).dados.resumo;
   assert.equal(r.fase, 'pacote');
   assert.equal(r.pacoteDisponivel, 10);                  // 10 cobriram o que passou do plano
-  assert.ok(emails('admin@exemplo.com.br').some(a => /pacote extra/.test(a)));
+  assert.ok(emails('admin@exemplo.com.br').some(a => /pacote adicional/.test(a)));
   const antes = OR.chamadas.length;
   await enviar(EQUILIBRADO);                             // pacote 10 → 6
   assert.equal(OR.chamadas[antes].model, EQUILIBRADO);

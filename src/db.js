@@ -106,7 +106,8 @@ create table if not exists politica_versoes (
   versao integer primary key, texto text not null, secao text not null, criado_em text not null, criado_por integer);
 
 -- Pacotes extras de créditos, liberados pelo operador da plataforma.
-create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer);
+create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer,
+  observacao text not null default '', validade text, origem text not null default 'manual');
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
 create table if not exists uso (
@@ -150,6 +151,13 @@ const MIGRACOES = [
   alter table quick_wins_nova rename to quick_wins;
   alter table medicoes add column tipo text not null default 'outro' check (tipo in ('tempo','financeiro','qualidade','volume','outro'));
   alter table medicoes add column unidade text not null default '';`,
+  // 2. Pacote extra com observação, validade opcional e origem (painel ou console do operador).
+  //    Bancos anteriores aos pacotes já recebem a tabela nova pelo ESQUEMA: só acrescenta o que falta.
+  db => {
+    for (const [coluna, def] of [['observacao', "text not null default ''"], ['validade', 'text'], ['origem', "text not null default 'manual'"]]) {
+      if (!db.prepare('pragma table_info(pacotes)').all().some(c => c.name === coluna)) db.exec(`alter table pacotes add column ${coluna} ${def}`);
+    }
+  },
 ];
 
 export function migrar(db, lista = MIGRACOES) {
@@ -159,7 +167,7 @@ export function migrar(db, lista = MIGRACOES) {
   db.exec('pragma foreign_keys = off');
   try {
     for (let v = atual; v < lista.length; v++) {
-      transacao(db, () => { db.exec(lista[v]); db.exec(`pragma user_version = ${v + 1}`); });
+      transacao(db, () => { typeof lista[v] === 'function' ? lista[v](db) : db.exec(lista[v]); db.exec(`pragma user_version = ${v + 1}`); });
     }
   } finally { db.exec('pragma foreign_keys = on'); }
 }

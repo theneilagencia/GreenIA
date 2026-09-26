@@ -59,6 +59,17 @@ Antes de homologar, confira na página do modelo no OpenRouter (aba de fornecedo
 
 **Nomes com "latest".** Evite os ids que terminam em `latest` (por exemplo `~google/gemini-flash-latest`). O modelo por trás muda sozinho, e isso quebra o sentido da homologação e da comparação por modelo.
 
+## Modelos gratuitos
+
+O OpenRouter tem modelos com sufixo `:free` e o roteador `openrouter/free`. Eles não entram na sugestão, por quatro motivos:
+
+- **Dados.** Os fornecedores dos modelos gratuitos podem guardar e usar as mensagens para treino. Com a exigência de "sem treino" ligada, que é o padrão da GreenIA, a maioria das chamadas é recusada.
+- **Limites.** Há cota de requisições por minuto e por dia na conta, compartilhada por toda a empresa. Em horário de pico, as pessoas recebem erro.
+- **Estabilidade.** Os gratuitos entram e saem do catálogo sem aviso. O roteador `openrouter/free` escolhe o modelo sozinho, o que impede comparar qualidade e custo por modelo.
+- **Economia pequena.** O perfil Rápido custa perto de US$ 0,007 por conversa. Mil conversas por mês dão cerca de US$ 7.
+
+O que a GreenIA faz: o admin pode liberar um modelo gratuito para testes, mas ele aparece com aviso no painel. Nenhum modelo gratuito nem o roteador automático pode ser homologado, então nunca recebe conversa sigilosa.
+
 ## Revisão
 
 - A cada trimestre, ou quando o painel avisar que um modelo saiu do ar ou mudou de preço.

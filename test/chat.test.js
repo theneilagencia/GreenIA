@@ -10,8 +10,8 @@ import { montarCorpo } from '../src/ia.js';
 import { apagarVencidas } from '../src/conversas.js';
 
 const HOMOLOGADO = 'mistralai/mistral-small';
-const AVANCADO = 'anthropic/claude-sonnet-4.5';
-const RAPIDO = 'google/gemini-2.5-flash';
+const AVANCADO = 'anthropic/claude-sonnet-5';
+const RAPIDO = 'google/gemini-3.5-flash-lite';
 const enc = encodeURIComponent;
 let S, OR, admin, ana;
 let agora = new Date('2026-09-26T12:00:00Z');
@@ -35,7 +35,7 @@ test('chat com streaming: persona no system, resposta gravada, custo informado p
   const n = OR.chamadas.length;
   const r = await enviarMensagem(ana, conv.id, { texto: 'Resuma este parágrafo sobre o novo processo de compras.' });
   assert.equal(r.status, 200);
-  assert.match(r.texto, /^Resposta de google\/gemini-2\.5-flash/);
+  assert.match(r.texto, /^Resposta de google\/gemini-3\.5-flash-lite/);
   assert.equal(r.fim.modelo, RAPIDO);
   const chamada = OR.chamadas[n];
   assert.equal(chamada.messages[0].role, 'system');
@@ -67,7 +67,7 @@ test('modelo fora da lista liberada é recusado pela API', async () => {
 
 test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat', async () => {
   const opcoes = (await ana.get('/api/modelos')).dados.opcoes.map(o => o.id);
-  assert.ok(opcoes.includes(RAPIDO) && opcoes.includes('openai/gpt-5-mini'));
+  assert.ok(opcoes.includes(RAPIDO) && opcoes.includes('anthropic/claude-haiku-4.5'));
   assert.ok(!opcoes.includes(AVANCADO));
   const conv = await novaConversa();
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO });
@@ -86,28 +86,28 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
 test('trocar de modelo no meio da conversa funciona e fica registrado na conversa', async () => {
   const conv = await novaConversa();
   await enviarMensagem(ana, conv.id, { texto: 'Primeira pergunta' });
-  const r = await enviarMensagem(ana, conv.id, { texto: 'Segunda pergunta', modelo: 'openai/gpt-5-mini' });
-  assert.equal(r.fim.modelo, 'openai/gpt-5-mini');
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Segunda pergunta', modelo: 'anthropic/claude-haiku-4.5' });
+  assert.equal(r.fim.modelo, 'anthropic/claude-haiku-4.5');
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
-  assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Modelo trocado para GPT-5 mini/.test(m.texto)));
+  assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Modelo trocado para Claude Haiku 4.5/.test(m.texto)));
   // O histórico vai junto para o novo modelo.
   assert.equal(OR.chamadas.at(-1).messages.filter(m => m.role !== 'system').length, 3);
 });
 
 test('falha do modelo principal usa o reserva e registra qual respondeu', async () => {
-  await admin.put(`/api/admin/modelos/${enc('google/gemini-2.5-flash-lite')}`, { liberado: true, perfil: 'rapido' });
-  await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: 'google/gemini-2.5-flash-lite' });
+  await admin.put(`/api/admin/modelos/${enc('openai/gpt-5-mini')}`, { liberado: true, perfil: 'rapido' });
+  await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: 'openai/gpt-5-mini' });
   OR.falhar.add(RAPIDO);
   const conv = await novaConversa();
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá' });
   OR.falhar.delete(RAPIDO);
-  assert.deepEqual(OR.chamadas.at(-1).models, [RAPIDO, 'google/gemini-2.5-flash-lite']);
-  assert.equal(r.fim.modelo, 'google/gemini-2.5-flash-lite');
+  assert.deepEqual(OR.chamadas.at(-1).models, [RAPIDO, 'openai/gpt-5-mini']);
+  assert.equal(r.fim.modelo, 'openai/gpt-5-mini');
   assert.equal(r.fim.reserva, true);
   const u = um(S.app.db, 'select modelo_pedido, modelo_usado from uso where conversa_id = ?', conv.id);
-  assert.deepEqual({ ...u }, { modelo_pedido: RAPIDO, modelo_usado: 'google/gemini-2.5-flash-lite' });
+  assert.deepEqual({ ...u }, { modelo_pedido: RAPIDO, modelo_usado: 'openai/gpt-5-mini' });
   const ev = JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'uso' order by id desc limit 1").detalhes);
-  assert.equal(ev.modelo_usado, 'google/gemini-2.5-flash-lite');
+  assert.equal(ev.modelo_usado, 'openai/gpt-5-mini');
   assert.ok(!('texto' in ev));
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: null });
 });

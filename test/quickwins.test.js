@@ -10,7 +10,7 @@ import { arquivo, docx } from './arquivos.js';
 
 const enc = encodeURIComponent;
 const HOMOLOGADO = 'mistralai/mistral-small';
-const AVANCADO = 'anthropic/claude-sonnet-4.5';
+const AVANCADO = 'anthropic/claude-sonnet-5';
 const AVANCADO2 = 'openai/gpt-5';
 let S, OR, admin, ana, carlos, bia, A, B, qw;
 
@@ -141,7 +141,7 @@ test('perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick 
 });
 
 test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo não homologado é recusado e reenviado ao homologado', async () => {
-  let r = await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'google/gemini-2.5-flash' });
+  let r = await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'google/gemini-3.5-flash-lite' });
   assert.equal(r.status, 400, 'quick win sigiloso só aceita modelo homologado');
   const q = (await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: HOMOLOGADO, pode_trocar: true })).dados;
   await ana.put(`/api/quick-wins/${q.id}`, { status: 'ativo' });
@@ -149,7 +149,7 @@ test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo n
   assert.equal(conv.sigilosa, true);
   assert.deepEqual((await carlos.get(`/api/modelos?quick_win=${q.id}&sigilosa=1`)).dados.opcoes.map(o => o.id), [HOMOLOGADO]);
   const n = OR.chamadas.length;
-  r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: 'google/gemini-2.5-flash' });
+  r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: 'google/gemini-3.5-flash-lite' });
   assert.equal(r.status, 409);
   assert.equal(OR.chamadas.length, n);
   r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: r.erro.sugestao.id });
@@ -183,9 +183,10 @@ test('duplicar para outra área copia instruções, arquivos e configuração, n
 });
 
 test('estimativa de custo por conversa típica, por modelo, a partir do preço do catálogo', async () => {
-  S.app.db.prepare('update modelos set preco_entrada = 0.0000003, preco_saida = 0.0000025 where id = ?').run('google/gemini-2.5-flash');
+  S.app.db.prepare('update modelos set preco_entrada = 0.0000003, preco_saida = 0.0000025 where id = ?').run('google/gemini-3.5-flash-lite');
   const est = (await ana.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.modelos;
-  const g = est.find(m => m.id === 'google/gemini-2.5-flash');
+  const g = est.find(m => m.id === 'google/gemini-3.5-flash-lite');
   assert.ok(g.custo > 0 && g.custo < 0.05, String(g.custo));
-  assert.equal(est.find(m => m.id === AVANCADO).custo, null, 'sem preço no catálogo: sem estimativa');
+  assert.equal(est.find(m => m.id === AVANCADO2).custo, null, 'sem preço no catálogo: sem estimativa');
+  assert.ok(est.find(m => m.id === AVANCADO).custo > g.custo, 'o Avançado sugerido custa mais que o Rápido');
 });

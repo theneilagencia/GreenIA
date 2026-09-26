@@ -22,8 +22,8 @@ await admin.post('/api/admin/pessoas', { email: 'rafael@empresa-exemplo.com.br',
 await admin.put(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}`, { liberado: true, perfil: 'rapido' });
 await admin.post(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}/homologar`, { fornecedor: 'Mistral', semTreino: true, retencaoZero: true, justificativa: 'Fornecedor com retenção zero, conferido no OpenRouter.' });
 N.app.db.prepare("update modelos set nome = 'Mistral Small', preco_entrada = 0.0000001, preco_saida = 0.0000003 where id = 'mistralai/mistral-small'").run();
-N.app.db.prepare("update modelos set preco_entrada = 0.0000003, preco_saida = 0.0000025 where id = 'google/gemini-2.5-flash'").run();
-N.app.db.prepare("update modelos set preco_entrada = 0.00000025, preco_saida = 0.000002 where id = 'openai/gpt-5-mini'").run();
+N.app.db.prepare("update modelos set preco_entrada = 0.0000003, preco_saida = 0.0000025 where id = 'google/gemini-3.5-flash-lite'").run();
+N.app.db.prepare("update modelos set preco_entrada = 0.00000025, preco_saida = 0.000002 where id = 'anthropic/claude-haiku-4.5'").run();
 
 const marina = await cliente(N.app, N.base).entrar('marina@empresa-exemplo.com.br');
 await marina.post('/api/bases/documentos', { area_id: areas['Operações'], titulo: 'Procedimento de recebimento', arquivo: { nome: 'recebimento.docx', base64: b64(docx(['Todo pedido recebido deve ser conferido contra a nota em até 2 dias úteis.'])) } });

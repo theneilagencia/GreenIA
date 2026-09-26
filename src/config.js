@@ -15,7 +15,7 @@ export const PADRAO = {
   acoesChat: { cpf: 'bloquear', cnpj: 'permitir', cartao: 'bloquear', banco: 'bloquear', pix: 'bloquear', credencial: 'bloquear',
     rg: 'bloquear', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir' },
   // Modelos: padrões, acesso por perfil e privacidade (seção 9).
-  padroes: { chat: 'google/gemini-2.5-flash', rapido: 'google/gemini-2.5-flash', equilibrado: 'openai/gpt-5-mini', avancado: 'anthropic/claude-sonnet-4.5', homologado: null },
+  padroes: { chat: 'google/gemini-3.5-flash-lite', rapido: 'google/gemini-3.5-flash-lite', equilibrado: 'anthropic/claude-haiku-4.5', avancado: 'anthropic/claude-sonnet-5', homologado: null },
   acessoPerfis: { equilibrado: { todos: true, grupos: [], areas: [] }, avancado: { todos: false, grupos: [], areas: [] } },
   perfisQuickWin: ['rapido', 'equilibrado', 'avancado'],
   exigirSemTreino: true,

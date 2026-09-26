@@ -8,17 +8,20 @@ import { registrar } from './eventos.js';
 export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 export const AUTO = 'openrouter/auto';
 
+// Sugestão inicial (análise em docs/modelos-sugeridos.md, 26/09/2026).
 const SUGESTAO = [
-  { id: 'google/gemini-2.5-flash', nome: 'Gemini 2.5 Flash', perfil: 'rapido' },
-  { id: 'openai/gpt-5-mini', nome: 'GPT-5 mini', perfil: 'equilibrado' },
-  { id: 'anthropic/claude-sonnet-4.5', nome: 'Claude Sonnet 4.5', perfil: 'avancado' },
+  { id: 'google/gemini-3.5-flash-lite', nome: 'Gemini 3.5 Flash Lite', perfil: 'rapido', entrada: 0.30, saida: 2.50, contexto: 1048576 },
+  { id: 'anthropic/claude-haiku-4.5', nome: 'Claude Haiku 4.5', perfil: 'equilibrado', entrada: 1, saida: 5, contexto: 200000 },
+  { id: 'anthropic/claude-sonnet-5', nome: 'Claude Sonnet 5', perfil: 'avancado', entrada: 2, saida: 10, contexto: 1000000 },
 ];
 
 // Instalação nova: um modelo por perfil, liberado e editável. Nenhum homologado:
 // homologar é decisão do admin, com registro.
 export function semearSugestao(db) {
   if (um(db, 'select 1 from modelos limit 1')) return;
-  for (const m of SUGESTAO) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil) values (?, ?, ?, 1, ?)', m.id, m.nome, m.id.split('/')[0], m.perfil);
+  // Preços por token, da página do modelo no OpenRouter; a atualização diária corrige.
+  for (const m of SUGESTAO) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil, preco_entrada, preco_saida, contexto) values (?, ?, ?, 1, ?, ?, ?, ?)',
+    m.id, m.nome, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
 }
 
 const deLinha = m => m && ({

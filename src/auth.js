@@ -100,7 +100,7 @@ export function rotasLogin(app, r) {
     if (!p) p = { id: Number(exec(app.db, 'insert into pessoas (email, nome) values (?, ?)', email, email.split('@')[0]).lastInsertRowid), ativo: 1 };
     if (!p.ativo) throw erro(403, 'inativo', 'Seu acesso está desativado. Fale com o admin.');
     const csrf = abrirSessao(app, res, p.id);
-    registrar(app, 'login', p.id, {});
+    registrar(app, 'auth.login', p.id, {});
     return { ok: true, csrf };
   }, { publica: true });
 

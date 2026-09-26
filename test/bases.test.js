@@ -118,5 +118,5 @@ test('sigilosa por documento sigiloso da base: não vai a modelo não homologado
   assert.equal(ok.status, 200);
   assert.equal(OR.chamadas.at(-1).provider.zdr, true);
   assert.equal((await carlos.patch(`/api/conversas/${conv.id}`, { sigilosa: false })).status, 409);
-  assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversa_sigilosa' order by id desc limit 1").detalhes).motivo, 'documento');
+  assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.confidential' order by id desc limit 1").detalhes).motivo, 'documento');
 });

@@ -20,15 +20,15 @@ export function criarLimites(app) {
       const agora = app.agora().toISOString();
       const mes = agora.slice(0, 7), dia = agora.slice(0, 10);
       if (cfg.tetoMensal > 0 && um(app.db, 'select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?', mes).c >= cfg.tetoMensal) {
-        registrar(app, 'bloqueio', pessoa.id, { motivo: 'teto_mensal' });
+        registrar(app, 'policy.blocked', pessoa.id, { motivo: 'teto_mensal' });
         throw erro(429, 'teto_mensal', 'O teto de gasto de IA deste mês foi atingido. Os envios voltam no próximo mês ou quando o admin aumentar o teto.');
       }
       if (cfg.tetoPessoaMensal > 0 && um(app.db, 'select coalesce(sum(custo), 0) as c from uso where pessoa_id = ? and substr(em, 1, 7) = ?', pessoa.id, mes).c >= cfg.tetoPessoaMensal) {
-        registrar(app, 'bloqueio', pessoa.id, { motivo: 'teto_pessoa' });
+        registrar(app, 'policy.blocked', pessoa.id, { motivo: 'teto_pessoa' });
         throw erro(429, 'teto_pessoa', 'Você atingiu o seu teto de gasto de IA deste mês. Fale com o admin se precisar de mais.');
       }
       if (cfg.limiteDiarioPessoa > 0 && um(app.db, 'select count(*) as n from uso where pessoa_id = ? and substr(em, 1, 10) = ?', pessoa.id, dia).n >= cfg.limiteDiarioPessoa) {
-        registrar(app, 'bloqueio', pessoa.id, { motivo: 'limite_diario' });
+        registrar(app, 'policy.blocked', pessoa.id, { motivo: 'limite_diario' });
         throw erro(429, 'limite_diario', `Você chegou ao limite de ${cfg.limiteDiarioPessoa} respostas por dia. Amanhã o limite volta.`);
       }
     },
@@ -49,7 +49,7 @@ function validarConfig(c) {
     if (c.corMarca && !/^#[0-9a-fA-F]{6}$/.test(c.corMarca)) throw erro(400, 'cor', 'Cor inválida.');
     // A cor de marca vira fundo de botão com texto claro e texto sobre os fundos claros.
     // Conferida contra o fundo claro mais escuro das telas (areia): 4,5:1 ali vale para todos.
-    if (c.corMarca && contraste(c.corMarca, '#F1EAD9') < 4.5) throw erro(400, 'cor', `Contraste de ${contraste(c.corMarca, '#F1EAD9').toFixed(2)}:1 com os fundos claros. O mínimo é 4,5:1: escolha uma cor mais escura.`);
+    if (c.corMarca && contraste(c.corMarca, '#F1F1EE') < 4.5) throw erro(400, 'cor', `Contraste de ${contraste(c.corMarca, '#F1F1EE').toFixed(2)}:1 com os fundos claros. O mínimo é 4,5:1: escolha uma cor mais escura.`);
     v.corMarca = c.corMarca || '';
   }
   if (c.dominios !== undefined) {
@@ -100,7 +100,7 @@ export function rotasAdmin(app, r) {
     if (creditos) for (const k of TETOS) if (corpo[k] !== undefined) corpo[k] = (Number(corpo[k]) || 0) * CREDITO_USD;
     const v = validarConfig(corpo);
     salvarConfig(app.db, v);
-    registrar(app, 'config_alterada', pessoa.id, { campos: Object.keys(v) });
+    registrar(app, 'config.changed', pessoa.id, { campos: Object.keys(v) });
     if ('retencaoDias' in v) app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true, limiteMb: 1 });
@@ -125,6 +125,7 @@ export function rotasAdmin(app, r) {
   r.get('/api/admin/eventos', ({ query, res, creditos }) => {
     const cond = [], p = [];
     if (query.tipo) { cond.push('e.tipo = ?'); p.push(query.tipo); }
+    if (/^[a-z]+\.$/.test(query.prefixo || '')) { cond.push('e.tipo like ?'); p.push(`${query.prefixo}%`); }
     if (query.pessoa) { cond.push('p.email like ?'); p.push(`%${query.pessoa}%`); }
     if (/^\d{4}-\d{2}-\d{2}$/.test(query.de || '')) { cond.push('e.em >= ?'); p.push(query.de); }
     if (/^\d{4}-\d{2}-\d{2}$/.test(query.ate || '')) { cond.push('e.em < ?'); p.push(`${query.ate}T99`); }
@@ -153,7 +154,7 @@ export function rotasAdmin(app, r) {
     const v = { responsaveis: corpo.responsaveis !== false, pessoas: ids(corpo.pessoas), grupos: ids(corpo.grupos),
       todaEmpresa: { pessoas: ids(corpo.todaEmpresa?.pessoas), grupos: ids(corpo.todaEmpresa?.grupos) } };
     salvarConfig(app.db, { criarQuickWin: v });
-    registrar(app, 'permissao_quick_win', pessoa.id, { responsaveis: v.responsaveis, pessoas: v.pessoas.length, grupos: v.grupos.length });
+    registrar(app, 'quickwin.permissions_changed', pessoa.id, { responsaveis: v.responsaveis, pessoas: v.pessoas.length, grupos: v.grupos.length });
     return v;
   }, { admin: true });
 }

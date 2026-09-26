@@ -61,7 +61,9 @@ create table if not exists quick_wins (
   modelo text, pode_trocar integer not null default 0, formato text not null default 'texto',
   sugestoes text not null default '[]', exemplo_entrada text not null default '', exemplo_saida text not null default '',
   sigiloso integer not null default 0, dados text not null default '{}',
-  status text not null default 'rascunho' check (status in ('rascunho','ativo','pausado')),
+  status text not null default 'em_configuracao' check (status in ('identificado','em_configuracao','em_teste','em_uso','em_avaliacao','aprovado','em_expansao','descartado')),
+  problema text not null default '', objetivo text not null default '', processo_atual text not null default '', resultado text not null default '',
+  responsavel_id integer references pessoas(id) on delete set null,
   criado_por integer, criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')));
 create table if not exists quick_win_areas (
   quick_win_id integer not null references quick_wins(id) on delete cascade,
@@ -88,7 +90,8 @@ create table if not exists medicoes (
   id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade,
   indicador text not null, antes_valor real, antes_data text, antes_origem text check (antes_origem in ('medido','informado')),
   depois_valor real, depois_data text, depois_origem text check (depois_origem in ('medido','informado')),
-  observacao text not null default '', criado_por integer, atualizado_em text not null);
+  observacao text not null default '', criado_por integer, atualizado_em text not null,
+  tipo text not null default 'outro' check (tipo in ('tempo','financeiro','qualidade','volume','outro')), unidade text not null default '');
 create table if not exists decisoes (
   id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade,
   decisao text not null check (decisao in ('manter','ajustar','descartar','ampliar')), motivo text not null, pessoa_id integer, em text not null);
@@ -116,20 +119,49 @@ export function abrirBanco(arquivo = ':memory:') {
   if (arquivo !== ':memory:') mkdirSync(dirname(arquivo), { recursive: true });
   const db = new DatabaseSync(arquivo);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
+  const novo = !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'config'").get();
   db.exec(ESQUEMA);
-  migrar(db);
+  // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.
+  if (novo) db.exec(`pragma user_version = ${MIGRACOES.length}`);
+  else migrar(db);
   return db;
 }
 
 // Mudanças de estrutura depois da primeira versão: acrescente no fim, nunca edite
 // as que já existem. Cada uma roda uma vez, na subida (pragma user_version).
-const MIGRACOES = [];
+const COLUNAS_QW = 'id, nome, cor, icone, para_que_serve, instrucoes, toda_empresa, bases, modelo, pode_trocar, formato, sugestoes, exemplo_entrada, exemplo_saida, sigiloso, dados, criado_por, criado_em, atualizado_em';
+const MIGRACOES = [
+  // 1. Quick win como unidade operacional: oito estados, problema, objetivo, processo atual, responsável e resultado.
+  //    Medição ganha tipo (tempo, financeiro...) e unidade.
+  `create table quick_wins_nova (
+    id integer primary key, nome text not null, cor text not null default '#1B7950', icone text not null default '',
+    para_que_serve text not null default '', instrucoes text not null default '',
+    toda_empresa integer not null default 0, bases text not null default '{"modo":"area","ids":[]}',
+    modelo text, pode_trocar integer not null default 0, formato text not null default 'texto',
+    sugestoes text not null default '[]', exemplo_entrada text not null default '', exemplo_saida text not null default '',
+    sigiloso integer not null default 0, dados text not null default '{}',
+    status text not null default 'em_configuracao' check (status in ('identificado','em_configuracao','em_teste','em_uso','em_avaliacao','aprovado','em_expansao','descartado')),
+    problema text not null default '', objetivo text not null default '', processo_atual text not null default '', resultado text not null default '',
+    responsavel_id integer references pessoas(id) on delete set null,
+    criado_por integer, criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')));
+  insert into quick_wins_nova (${COLUNAS_QW}, status, responsavel_id)
+    select ${COLUNAS_QW}, case status when 'ativo' then 'em_uso' else 'em_configuracao' end, criado_por from quick_wins;
+  drop table quick_wins;
+  alter table quick_wins_nova rename to quick_wins;
+  alter table medicoes add column tipo text not null default 'outro' check (tipo in ('tempo','financeiro','qualidade','volume','outro'));
+  alter table medicoes add column unidade text not null default '';`,
+];
 
 export function migrar(db, lista = MIGRACOES) {
   const atual = db.prepare('pragma user_version').get().user_version;
-  for (let v = atual; v < lista.length; v++) {
-    transacao(db, () => { db.exec(lista[v]); db.exec(`pragma user_version = ${v + 1}`); });
-  }
+  if (atual >= lista.length) return;
+  // Reconstruir tabela exige as chaves estrangeiras desligadas (fora da transação).
+  db.exec('pragma foreign_keys = off');
+  try {
+    for (let v = atual; v < lista.length; v++) {
+      transacao(db, () => { db.exec(lista[v]); db.exec(`pragma user_version = ${v + 1}`); });
+    }
+  } finally { db.exec('pragma foreign_keys = on'); }
 }
 
 // Atalhos. Parâmetros booleanos e undefined viram 0/1 e null (o SQLite não aceita).

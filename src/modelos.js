@@ -123,7 +123,9 @@ function mudar(app, pessoa, tipo, detalhes, fn) {
 
 // Preço de um modelo liberado mudou mais de 20%: o operador recebe email (a empresa vê só o aviso no painel).
 function avisarPrecoAoOperador(app, m, n) {
-  if (!app.operadores?.length || !m.liberado) return;
+  if (!m.liberado) return;
+  registrar(app, 'model.price_changed', null, { modelo: m.id, classe: m.perfil, entrada: [m.precoEntrada, n.precoEntrada], saida: [m.precoSaida, n.precoSaida] });
+  if (!app.operadores?.length) return;
   enviarAvisoOperador(app, `preço do modelo ${m.nome} mudou mais de 20%`,
     `O modelo ${m.id} (${m.perfil}) mudou de preço no OpenRouter.\nEntrada: ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)} por milhão de tokens.\nSaída: ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens.\n\nOs créditos acompanham o custo real, então a margem não muda. Se o aumento for grande, considere trocar o modelo padrão do perfil por um equivalente mais barato.${m.homologado ? '\n\nAtenção: este modelo está homologado para conversas sigilosas.' : ''}`)
     .catch(e => app.log('aviso de preço', e.message));
@@ -165,7 +167,7 @@ export function rotasModelos(app, r) {
       const rs = um(app.db, 'select perfil, liberado from modelos where id = ?', reserva);
       if (!rs?.liberado || rs.perfil !== (corpo.perfil || atual?.perfil)) throw erro(400, 'reserva', 'O reserva precisa estar liberado e ser do mesmo perfil.');
     }
-    mudar(app, pessoa, 'modelo_alterado', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva }, () => {
+    mudar(app, pessoa, 'model.changed', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva }, () => {
       if (!atual) exec(app.db, 'insert into modelos (id, nome, fornecedor, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?)',
         id, cat?.nome || id, id.split('/')[0], cat?.precoEntrada ?? null, cat?.precoSaida ?? null, cat?.contexto ?? null);
       exec(app.db, 'update modelos set liberado = coalesce(?, liberado), perfil = coalesce(?, perfil), reserva = ? where id = ?',
@@ -187,14 +189,14 @@ export function rotasModelos(app, r) {
     if (corpo.semTreino !== true || corpo.retencaoZero !== true) throw erro(400, 'garantias', 'Confirme que o fornecedor não treina com os dados e não guarda nada (retenção zero).');
     if (justificativa.length < 10) throw erro(400, 'justificativa', 'Escreva a justificativa da homologação.');
     const registro = { quem: pessoa.email, em: app.agora().toISOString(), fornecedor, justificativa };
-    mudar(app, pessoa, 'homologacao', { modelo: m.id, fornecedor }, () => {
+    mudar(app, pessoa, 'model.certified', { modelo: m.id, fornecedor }, () => {
       exec(app.db, 'update modelos set homologado = 1, homologacao = ? where id = ?', JSON.stringify(registro), m.id);
     });
     return deLinha(um(app.db, 'select * from modelos where id = ?', m.id));
   }, { admin: true });
 
   r.del('/api/admin/modelos/:id/homologar', ({ pessoa, params }) => {
-    mudar(app, pessoa, 'homologacao_retirada', { modelo: params.id }, () => exec(app.db, 'update modelos set homologado = 0 where id = ?', params.id));
+    mudar(app, pessoa, 'model.uncertified', { modelo: params.id }, () => exec(app.db, 'update modelos set homologado = 0 where id = ?', params.id));
     return { ok: true };
   }, { admin: true });
 
@@ -212,7 +214,7 @@ export function rotasModelos(app, r) {
     for (const [k, id] of Object.entries(novo.padroes || {})) {
       if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
-    mudar(app, pessoa, 'config_modelos', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino }, () => salvarConfig(app.db, novo));
+    mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino }, () => salvarConfig(app.db, novo));
     return { ok: true };
   }, { admin: true });
 }

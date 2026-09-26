@@ -30,7 +30,7 @@ export function tornarSigilosa(app, pessoa, conv, motivo) {
   if (conv.sigilosa) return false;
   exec(app.db, 'update conversas set sigilosa = 1, motivo_sigilosa = ? where id = ?', motivo, conv.id);
   aviso(app, conv.id, `Esta conversa passou a ser sigilosa (${textoMotivo(motivo)}). Ela usa só modelos homologados e continua sigilosa até ser apagada.`);
-  registrar(app, 'conversa_sigilosa', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, motivo });
+  registrar(app, 'conversation.confidential', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, motivo });
   conv.sigilosa = 1;
   conv.motivo_sigilosa = motivo;
   return true;
@@ -98,6 +98,8 @@ export function rotasConversas(app, r) {
   const carregarQw = (pessoa, id, teste) => app.quickWins?.paraUso(pessoa, id, teste) ?? null;
 
   r.get('/api/conversas', ({ pessoa, query }) => {
+    if (query.todas) return { conversas: todos(app.db, `select c.id, c.titulo, c.sigilosa, c.quick_win_id, q.nome as quick_win, c.feedback, c.atualizado_em
+      from conversas c left join quick_wins q on q.id = c.quick_win_id where c.pessoa_id = ? and c.teste = 0 order by c.atualizado_em desc limit 200`, pessoa.id) };
     const filtro = query.quick_win ? 'and quick_win_id = ? and teste = 0' : 'and quick_win_id is null';
     const p = query.quick_win ? [pessoa.id, Number(query.quick_win)] : [pessoa.id];
     return { conversas: todos(app.db, `select id, titulo, sigilosa, quick_win_id, feedback, atualizado_em,
@@ -112,6 +114,7 @@ export function rotasConversas(app, r) {
     const id = Number(exec(app.db, 'insert into conversas (pessoa_id, quick_win_id, teste, titulo, criado_em, atualizado_em) values (?, ?, ?, ?, ?, ?)',
       pessoa.id, qw?.id ?? null, Number(!!corpo.teste && !!qw), corpo.teste ? 'Teste' : 'Nova conversa', agora, agora).lastInsertRowid);
     const conv = um(app.db, 'select * from conversas where id = ?', id);
+    registrar(app, 'conversation.created', pessoa.id, { conversa: id, quick_win: qw?.id ?? null, teste: !!corpo.teste });
     const motivo = motivosFixos(app, pessoa, qw);
     if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     return detalhe(app, conv);
@@ -127,7 +130,7 @@ export function rotasConversas(app, r) {
     if (corpo.feedback !== undefined) {
       if (corpo.feedback !== null && !['serviu', 'ajustes', 'nao_serviu'].includes(corpo.feedback)) throw erro(400, 'feedback', 'Feedback inválido.');
       exec(app.db, 'update conversas set feedback = ?, feedback_motivo = ? where id = ?', corpo.feedback, corpo.feedback === 'nao_serviu' ? String(corpo.motivo || '').slice(0, 500) || null : null, conv.id);
-      registrar(app, 'feedback', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, feedback: corpo.feedback });
+      registrar(app, conv.quick_win_id ? 'quickwin.evaluated' : 'conversation.evaluated', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, feedback: corpo.feedback });
     }
     return detalhe(app, minhaConversa(app, pessoa, conv.id));
   });
@@ -135,7 +138,7 @@ export function rotasConversas(app, r) {
   r.del('/api/conversas/:id', ({ pessoa, params }) => {
     const conv = minhaConversa(app, pessoa, params.id);
     exec(app.db, 'delete from conversas where id = ?', conv.id);
-    registrar(app, 'conversa_apagada', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, por: 'pessoa' });
+    registrar(app, 'conversation.deleted', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, por: 'pessoa' });
     return { ok: true };
   });
 
@@ -156,7 +159,7 @@ export function rotasConversas(app, r) {
     const tipos = detectar([texto, ...anexos.map(a => a.texto)].join('\n'));
     const { bloqueados, permitidos } = decidir(tipos, qw ? { ...cfg.acoesChat, ...json(qw.dados, {}) } : cfg.acoesChat);
     if (bloqueados.length) {
-      registrar(app, 'bloqueio', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipos: bloqueados });
+      registrar(app, 'policy.blocked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipos: bloqueados });
       throw erro(422, 'dado_bloqueado', `Esta mensagem tem dado que não pode ser enviado: ${bloqueados.map(t => ROTULOS[t]).join(', ')}. Tire o dado e envie de novo.`, { tipos: bloqueados });
     }
 
@@ -183,7 +186,7 @@ export function rotasConversas(app, r) {
     }
     if (conv.modelo && conv.modelo !== m.id && !trocaDoPlano) {
       aviso(app, conv.id, `Modelo trocado para ${m.nome}.`);
-      registrar(app, 'troca_modelo', pessoa.id, { conversa: conv.id, de: conv.modelo, para: m.id });
+      registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: m.id });
     }
 
     // 4. Grava a mensagem e os anexos (só o texto extraído).
@@ -215,7 +218,7 @@ export function rotasConversas(app, r) {
       }
       if (!resposta) throw new ErroIA('O modelo não respondeu. Tente de novo.');
     } catch (e) {
-      registrar(app, 'falha_ia', pessoa.id, { conversa: conv.id, modelo: m.id, erro: String(e.message).slice(0, 200) });
+      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, erro: String(e.message).slice(0, 200) });
       linha({ t: 'erro', mensagem: e instanceof ErroIA ? e.message : 'Não foi possível responder agora. Tente de novo.' });
       return res.end();
     }
@@ -226,7 +229,8 @@ export function rotasConversas(app, r) {
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
-    registrar(app, 'uso', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, custo: fim?.custo || 0, tipos: permitidos, sigilosa });
+    registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
+    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id });
     res.end();
@@ -252,7 +256,7 @@ export function apagarVencidas(app) {
   const vencidas = todos(app.db, 'select id, pessoa_id, quick_win_id from conversas where atualizado_em < ?', limite);
   for (const c of vencidas) {
     exec(app.db, 'delete from conversas where id = ?', c.id);
-    registrar(app, 'conversa_apagada', c.pessoa_id, { conversa: c.id, quick_win: c.quick_win_id, por: 'retencao' });
+    registrar(app, 'conversation.deleted', c.pessoa_id, { conversa: c.id, quick_win: c.quick_win_id, por: 'retencao' });
   }
   return vencidas.length;
 }

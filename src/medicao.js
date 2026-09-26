@@ -9,6 +9,10 @@ import { creditosDe } from './plano.js';
 
 const ORIGENS = ['medido', 'informado'];
 const DECISOES = ['manter', 'ajustar', 'descartar', 'ampliar'];
+// Cada decisão move o quick win no ciclo.
+const ESTADO_DA_DECISAO = { manter: 'aprovado', ajustar: 'em_teste', descartar: 'descartado', ampliar: 'em_expansao' };
+const EVENTO_DA_DECISAO = { manter: 'quickwin.approved', ajustar: 'quickwin.adjusted', descartar: 'quickwin.discarded', ampliar: 'quickwin.expanded' };
+const TIPOS_MEDICAO = ['tempo', 'financeiro', 'qualidade', 'volume', 'outro'];
 const TIPOS_PROBLEMA = { resposta: 'Resposta errada ou inventada', dado: 'Dado sensível apareceu onde não devia', erro: 'Erro no sistema', outro: 'Outro' };
 
 // Uso automático por mês (últimos 12), sem as conversas de teste. Cada conversa conta como um uso.
@@ -45,7 +49,8 @@ function validarMedicao(c) {
     if (valor !== null && !ORIGENS.includes(origem)) throw erro(400, k, `Diga se o valor ${k} foi medido ou informado.`);
     return [valor, data, origem];
   };
-  return { indicador, antes: lado('antes'), depois: lado('depois'), observacao: String(c.observacao || '').slice(0, 1000) };
+  return { indicador, antes: lado('antes'), depois: lado('depois'), observacao: String(c.observacao || '').slice(0, 1000),
+    tipo: TIPOS_MEDICAO.includes(c.tipo) ? c.tipo : 'outro', unidade: String(c.unidade || '').trim().slice(0, 40) };
 }
 
 export function rotasMedicao(app, r) {
@@ -66,9 +71,9 @@ export function rotasMedicao(app, r) {
   r.post('/api/quick-wins/:id/medicoes', ({ pessoa, params, corpo }) => {
     const q = gerido(pessoa, params.id);
     const v = validarMedicao(corpo);
-    const id = Number(exec(app.db, `insert into medicoes (quick_win_id, indicador, antes_valor, antes_data, antes_origem, depois_valor, depois_data, depois_origem, observacao, criado_por, atualizado_em)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, q.id, v.indicador, ...v.antes, ...v.depois, v.observacao, pessoa.id, app.agora().toISOString()).lastInsertRowid);
-    registrar(app, 'medicao_registrada', pessoa.id, { quick_win: q.id, medicao: id, antes: v.antes[0] !== null, depois: v.depois[0] !== null });
+    const id = Number(exec(app.db, `insert into medicoes (quick_win_id, indicador, antes_valor, antes_data, antes_origem, depois_valor, depois_data, depois_origem, observacao, criado_por, atualizado_em, tipo, unidade)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, q.id, v.indicador, ...v.antes, ...v.depois, v.observacao, pessoa.id, app.agora().toISOString(), v.tipo, v.unidade).lastInsertRowid);
+    registrar(app, 'quickwin.measured', pessoa.id, { quick_win: q.id, medicao: id, tipo: v.tipo, antes: v.antes[0] !== null, depois: v.depois[0] !== null });
     return { medicoes: lerMedicoes(q.id) };
   });
 
@@ -76,16 +81,16 @@ export function rotasMedicao(app, r) {
     const q = gerido(pessoa, params.id);
     if (!um(app.db, 'select 1 from medicoes where id = ? and quick_win_id = ?', Number(params.m), q.id)) throw erro(404, 'medicao', 'Medição não encontrada.');
     const v = validarMedicao(corpo);
-    exec(app.db, `update medicoes set indicador = ?, antes_valor = ?, antes_data = ?, antes_origem = ?, depois_valor = ?, depois_data = ?, depois_origem = ?, observacao = ?, atualizado_em = ? where id = ?`,
-      v.indicador, ...v.antes, ...v.depois, v.observacao, app.agora().toISOString(), Number(params.m));
-    registrar(app, 'medicao_alterada', pessoa.id, { quick_win: q.id, medicao: Number(params.m) });
+    exec(app.db, `update medicoes set indicador = ?, antes_valor = ?, antes_data = ?, antes_origem = ?, depois_valor = ?, depois_data = ?, depois_origem = ?, observacao = ?, atualizado_em = ?, tipo = ?, unidade = ? where id = ?`,
+      v.indicador, ...v.antes, ...v.depois, v.observacao, app.agora().toISOString(), v.tipo, v.unidade, Number(params.m));
+    registrar(app, 'quickwin.measure_updated', pessoa.id, { quick_win: q.id, medicao: Number(params.m) });
     return { medicoes: lerMedicoes(q.id) };
   });
 
   r.del('/api/quick-wins/:id/medicoes/:m', ({ pessoa, params }) => {
     const q = gerido(pessoa, params.id);
     exec(app.db, 'delete from medicoes where id = ? and quick_win_id = ?', Number(params.m), q.id);
-    registrar(app, 'medicao_removida', pessoa.id, { quick_win: q.id, medicao: Number(params.m) });
+    registrar(app, 'quickwin.measure_removed', pessoa.id, { quick_win: q.id, medicao: Number(params.m) });
     return { medicoes: lerMedicoes(q.id) };
   });
 
@@ -94,9 +99,13 @@ export function rotasMedicao(app, r) {
     if (!DECISOES.includes(corpo.decisao)) throw erro(400, 'decisao', 'Escolha manter, ajustar, descartar ou ampliar.');
     const motivo = String(corpo.motivo || '').trim().slice(0, 1000);
     if (motivo.length < 5) throw erro(400, 'motivo', 'Escreva por que decidiu assim.');
+    const estado = ESTADO_DA_DECISAO[corpo.decisao];
+    if (estado !== 'descartado' && !q.modelo) throw erro(400, 'modelo', 'Escolha a classe de modelo do quick win antes de decidir mantê-lo em circulação.');
     exec(app.db, 'insert into decisoes (quick_win_id, decisao, motivo, pessoa_id, em) values (?, ?, ?, ?, ?)', q.id, corpo.decisao, motivo, pessoa.id, app.agora().toISOString());
-    registrar(app, 'decisao_quick_win', pessoa.id, { quick_win: q.id, decisao: corpo.decisao });
-    return { decisoes: lerDecisoes(q.id) };
+    exec(app.db, "update quick_wins set status = ?, atualizado_em = datetime('now') where id = ?", estado, q.id);
+    registrar(app, 'quickwin.decided', pessoa.id, { quick_win: q.id, decisao: corpo.decisao });
+    registrar(app, EVENTO_DA_DECISAO[corpo.decisao], pessoa.id, { quick_win: q.id, de: q.status, para: estado });
+    return { decisoes: lerDecisoes(q.id), status: estado };
   });
 
   // Tudo em CSV: uso por mês, medições e decisões.
@@ -117,7 +126,7 @@ export function rotasMedicao(app, r) {
     const descricao = String(corpo.descricao || '').trim().slice(0, 4000);
     if (descricao.length < 5) throw erro(400, 'descricao', 'Descreva o problema.');
     const id = Number(exec(app.db, 'insert into problemas (pessoa_id, tipo, descricao, em) values (?, ?, ?, ?)', pessoa.id, tipo, descricao, app.agora().toISOString()).lastInsertRowid);
-    registrar(app, 'problema_reportado', pessoa.id, { problema: id, tipo });
+    registrar(app, 'problem.reported', pessoa.id, { problema: id, tipo });
     const admins = todos(app.db, "select email from pessoas where papel = 'admin' and ativo = 1").map(a => a.email);
     for (const a of admins) {
       await app.email.enviar(a, `GreenIA: problema reportado (${TIPOS_PROBLEMA[tipo]})`, `${pessoa.nome} (${pessoa.email}) reportou um problema.\n\nTipo: ${TIPOS_PROBLEMA[tipo]}\n\n${descricao}\n\nVeja no painel do admin, aba Eventos.`)
@@ -135,7 +144,7 @@ export function rotasMedicao(app, r) {
 
   r.put('/api/admin/problemas/:id', ({ pessoa, params, corpo }) => {
     exec(app.db, 'update problemas set resolvido = ? where id = ?', Number(!!corpo.resolvido), Number(params.id));
-    registrar(app, 'problema_atualizado', pessoa.id, { problema: Number(params.id), resolvido: !!corpo.resolvido });
+    registrar(app, 'problem.updated', pessoa.id, { problema: Number(params.id), resolvido: !!corpo.resolvido });
     return { ok: true };
   }, { admin: true });
 }

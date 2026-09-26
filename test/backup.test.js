@@ -71,11 +71,35 @@ test('restauração recusa arquivo corrompido ou que não é da GreenIA, sem mex
 
 test('migração: cada mudança de estrutura roda uma vez, em ordem; uma falha não deixa pela metade', () => {
   const db = abrirBanco(':memory:');
+  db.exec('pragma user_version = 0');
   const lista = ['alter table areas add column extra text', "update areas set extra = 'x'"];
   migrar(db, lista);
   migrar(db, lista);
   assert.equal(db.prepare('pragma user_version').get().user_version, 2);
   assert.throws(() => migrar(db, [...lista, 'alter table areas add column extra2 text', 'isto não é sql']));
   assert.equal(db.prepare('pragma user_version').get().user_version, 3);
+  db.close();
+});
+
+test('migração 1: banco da versão anterior ganha os oito estados do quick win, responsável e tipo de medição', () => {
+  const arq = join(pasta, 'antigo.sqlite');
+  const d = new DatabaseSync(arq);
+  d.exec(`create table config (chave text primary key, valor text not null);
+    create table pessoas (id integer primary key, email text unique not null, nome text not null, papel text not null default 'pessoa', ativo integer not null default 1, ciencia_versao integer, criado_em text);
+    create table quick_wins (id integer primary key, nome text not null, cor text not null default '#1B7950', icone text not null default '', para_que_serve text not null default '', instrucoes text not null default '',
+      toda_empresa integer not null default 0, bases text not null default '{}', modelo text, pode_trocar integer not null default 0, formato text not null default 'texto', sugestoes text not null default '[]',
+      exemplo_entrada text not null default '', exemplo_saida text not null default '', sigiloso integer not null default 0, dados text not null default '{}',
+      status text not null default 'rascunho' check (status in ('rascunho','ativo','pausado')), criado_por integer, criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')));
+    create table medicoes (id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade, indicador text not null, antes_valor real, antes_data text, antes_origem text,
+      depois_valor real, depois_data text, depois_origem text, observacao text not null default '', criado_por integer, atualizado_em text not null);
+    insert into pessoas (id, email, nome) values (7, 'ana@exemplo.com.br', 'Ana');
+    insert into quick_wins (id, nome, status, criado_por) values (1, 'A', 'ativo', 7), (2, 'B', 'rascunho', 7), (3, 'C', 'pausado', 7);
+    insert into medicoes (quick_win_id, indicador, atualizado_em) values (1, 'minutos', '2026-09-01');`);
+  d.close();
+  const db = abrirBanco(arq);
+  assert.deepEqual(db.prepare('select id, status, responsavel_id from quick_wins order by id').all().map(q => [q.id, q.status, q.responsavel_id]),
+    [[1, 'em_uso', 7], [2, 'em_configuracao', 7], [3, 'em_configuracao', 7]]);
+  assert.equal(db.prepare('select tipo from medicoes').get().tipo, 'outro');
+  assert.equal(db.prepare('pragma foreign_key_check').all().length, 0);
   db.close();
 });

@@ -70,7 +70,7 @@ export function aplicarMarca(p) {
   const tons = {
     '--forest': c, '--forest-hover': misturar(c, '#000000', 0.12), '--forest-text': c,
     '--forest-strong': c, '--forest-strong-hover': misturar(c, '#000000', 0.18),
-    '--deep': misturar(c, '#000000', 0.68), '--mint': misturar(c, '#FAF7EF', 0.94), '--leaf': misturar(c, '#FAF7EF', 0.3), '--disabled': misturar(c, '#FAF7EF', 0.55), '--sage': misturar(c, '#FAF7EF', 0.55),
+    '--deep': misturar(c, '#000000', 0.7), '--mint': misturar(c, '#FFFFFF', 0.94), '--leaf': misturar(c, '#FFFFFF', 0.3), '--disabled': misturar(c, '#FFFFFF', 0.55), '--sage': misturar(c, '#FFFFFF', 0.55),
   };
   for (const [k, v] of Object.entries(tons)) raiz.setProperty(k, v);
 }
@@ -78,7 +78,7 @@ export function aplicarMarca(p) {
 // Logo da empresa ao lado da marca, num fundo claro para funcionar também na barra escura.
 export const logoEmpresa = p => (p.logo ? `<img class="logo-empresa" src="${esc(p.logo)}" alt="${esc(p.empresa || 'Empresa')}">` : '');
 
-export const marcaHtml = (escuro = false) => `<img src="/assets/greenia-symbol-${escuro ? 'spark' : 'forest'}.svg" width="32" height="32" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>`;
+export const marcaHtml = () => '<img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>';
 
 export function toast(texto, ms = 4000) {
   const t = document.createElement('div');

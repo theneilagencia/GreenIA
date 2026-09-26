@@ -13,7 +13,10 @@ import { acharModelo, custoEstimado, lerModelos } from './modelos.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
-const STATUS = ['rascunho', 'ativo', 'pausado'];
+// Ciclo de adoção: identificar, configurar, testar, usar, avaliar, decidir, ampliar.
+export const STATUS = ['identificado', 'em_configuracao', 'em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao', 'descartado'];
+export const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];   // disponíveis para quem está nas áreas
+const ANTIGOS = { rascunho: 'em_configuracao', ativo: 'em_uso', pausado: 'em_configuracao' };      // nomes da versão anterior da API
 const MAX_ARQUIVOS_INTEIROS = 40000;   // acima disso, só os trechos relevantes dos arquivos
 
 export const areasDoQw = (db, id) => todos(db, 'select area_id from quick_win_areas where quick_win_id = ?', id).map(a => a.area_id);
@@ -50,10 +53,11 @@ function publico(db, pessoa, q) {
   const base = {
     id: q.id, nome: q.nome, cor: q.cor, icone: q.icone, para_que_serve: q.para_que_serve, status: q.status, formato: q.formato,
     sugestoes: json(q.sugestoes, []), modelo: q.modelo, pode_trocar: !!q.pode_trocar, sigiloso: !!q.sigiloso, toda_empresa: !!q.toda_empresa,
-    areas, podeEditar: podeGerir(db, pessoa, q),
+    areas, podeEditar: podeGerir(db, pessoa, q), problema: q.problema, objetivo: q.objetivo,
+    responsavel: q.responsavel_id ? um(db, 'select id, nome, email from pessoas where id = ?', q.responsavel_id) || null : null,
   };
   if (!base.podeEditar) return base;
-  return { ...base, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
+  return { ...base, processo_atual: q.processo_atual, resultado: q.resultado, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
     dados: json(q.dados, {}), arquivos: todos(db, 'select id, titulo, arquivo, sigiloso, length(texto) as caracteres from documentos where quick_win_id = ? order by id', q.id) };
 }
 
@@ -63,9 +67,18 @@ function validar(app, pessoa, atual, c) {
   if (c.nome !== undefined) { v.nome = String(c.nome).trim().slice(0, 80); if (!v.nome) throw erro(400, 'nome', 'Dê um nome ao quick win.'); }
   if (c.cor !== undefined) { if (!/^#[0-9a-fA-F]{6}$/.test(c.cor)) throw erro(400, 'cor', 'Cor inválida.'); v.cor = c.cor; }
   if (c.icone !== undefined) v.icone = String(c.icone).trim().slice(0, 2);
-  for (const k of ['para_que_serve', 'instrucoes', 'exemplo_entrada', 'exemplo_saida']) if (c[k] !== undefined) v[k] = String(c[k]).slice(0, k === 'instrucoes' ? 8000 : 2000);
+  for (const k of ['para_que_serve', 'instrucoes', 'exemplo_entrada', 'exemplo_saida', 'problema', 'objetivo', 'processo_atual', 'resultado']) if (c[k] !== undefined) v[k] = String(c[k]).slice(0, k === 'instrucoes' ? 8000 : 2000);
+  if (c.responsavel_id !== undefined) {
+    const r = c.responsavel_id ? um(app.db, 'select id from pessoas where id = ? and ativo = 1', Number(c.responsavel_id)) : null;
+    if (c.responsavel_id && !r) throw erro(400, 'responsavel', 'Escolha uma pessoa ativa como responsável.');
+    v.responsavel_id = r?.id ?? null;
+  }
   if (c.formato !== undefined) { if (!FORMATOS.includes(c.formato)) throw erro(400, 'formato', 'Formato inválido.'); v.formato = c.formato; }
-  if (c.status !== undefined) { if (!STATUS.includes(c.status)) throw erro(400, 'status', 'Status inválido.'); v.status = c.status; }
+  if (c.status !== undefined) {
+    const st = ANTIGOS[c.status] || c.status;
+    if (!STATUS.includes(st)) throw erro(400, 'status', 'Estado inválido.');
+    v.status = st;
+  }
   if (c.sugestoes !== undefined) v.sugestoes = JSON.stringify((c.sugestoes || []).map(s => String(s).trim().slice(0, 160)).filter(Boolean).slice(0, 4));
   if (c.sigiloso !== undefined) v.sigiloso = Number(!!c.sigiloso);
   if (c.pode_trocar !== undefined) v.pode_trocar = Number(!!c.pode_trocar);
@@ -98,7 +111,7 @@ function validar(app, pessoa, atual, c) {
     if (!m?.liberado) throw erro(400, 'modelo', 'Escolha um modelo liberado na empresa.');
     if (!cfg.perfisQuickWin.includes(m.perfil)) throw erro(400, 'modelo', 'O admin não liberou este perfil de modelo como padrão de quick win.');
     if (final.sigiloso && !m.homologado) throw erro(400, 'modelo', 'Quick win que trata dados sigilosos só aceita modelo homologado.');
-  } else if (final.status === 'ativo') throw erro(400, 'modelo', 'Escolha o modelo padrão antes de ativar.');
+  } else if (EM_CIRCULACAO.includes(final.status)) throw erro(400, 'modelo', 'Escolha a classe de modelo antes de colocar em teste ou em uso.');
   return { v, areas };
 }
 
@@ -122,12 +135,12 @@ function estimativas(app, qw) {
 
 export function criarQuickWins(app) {
   return {
-    // Quick win para uso numa conversa: ativo e visível, ou (rascunho, pausado, teste) só para quem gerencia.
+    // Quick win para uso numa conversa: em circulação e visível; fora de circulação (ou teste), só para quem gerencia.
     paraUso(pessoa, id, teste = false) {
       const q = um(app.db, 'select * from quick_wins where id = ?', Number(id));
       if (!q) return null;
       const gere = podeGerir(app.db, pessoa, q);
-      if (teste || q.status !== 'ativo') return gere ? q : null;
+      if (teste || !EM_CIRCULACAO.includes(q.status)) return gere ? q : null;
       return visivel(app.db, pessoa, q) || gere ? q : null;
     },
 
@@ -171,6 +184,26 @@ export function rotasQuickWins(app, r) {
       .map(q => ({ id: q.id, nome: q.nome, cor: q.cor, icone: q.icone, status: q.status, para_que_serve: q.para_que_serve, podeEditar: podeGerir(app.db, pessoa, q) })),
   }));
 
+  // Portfólio para quem gere: estado, onde, responsável, uso, créditos, avaliação, medição e decisão.
+  r.get('/api/quick-wins/portfolio', ({ pessoa }) => {
+    const mes = app.agora().toISOString().slice(0, 7);
+    const lista = todos(app.db, `select q.*, p.nome as responsavel_nome,
+        (select count(distinct u.conversa_id) from uso u where u.quick_win_id = q.id and u.teste = 0 and substr(u.em, 1, 7) = ?) as execucoes,
+        (select count(distinct u.pessoa_id) from uso u where u.quick_win_id = q.id and u.teste = 0 and substr(u.em, 1, 7) = ?) as pessoas,
+        (select coalesce(sum(u.custo), 0) from uso u where u.quick_win_id = q.id and u.teste = 0 and substr(u.em, 1, 7) = ?) as custo,
+        (select count(*) from conversas c where c.quick_win_id = q.id and c.teste = 0 and c.feedback = 'serviu') as serviu,
+        (select count(*) from conversas c where c.quick_win_id = q.id and c.teste = 0 and c.feedback is not null) as avaliadas,
+        (select count(*) from medicoes m where m.quick_win_id = q.id and m.antes_valor is not null and m.depois_valor is not null) as medicoes,
+        (select d.decisao from decisoes d where d.quick_win_id = q.id order by d.id desc limit 1) as decisao
+      from quick_wins q left join pessoas p on p.id = q.responsavel_id order by q.atualizado_em desc`, mes, mes, mes)
+      .filter(q => podeGerir(app.db, pessoa, q));
+    const nomesAreas = new Map(todos(app.db, 'select id, nome from areas').map(a => [a.id, a.nome]));
+    return { quickWins: lista.map(q => ({ id: q.id, nome: q.nome, cor: q.cor, status: q.status, problema: q.problema, responsavel: q.responsavel_nome,
+      onde: q.toda_empresa ? 'Empresa toda' : areasDoQw(app.db, q.id).map(a => nomesAreas.get(a)).filter(Boolean).join(', '),
+      execucoes: q.execucoes, pessoas: q.pessoas, custo: q.custo, custoPorExecucao: q.execucoes ? q.custo / q.execucoes : null,
+      aceitacao: q.avaliadas ? Math.round(q.serviu / q.avaliadas * 100) : null, avaliadas: q.avaliadas, medicoes: q.medicoes, decisao: q.decisao })) };
+  });
+
   r.get('/api/quick-wins/modelos-iniciais', () => ({ modelos: JSON.parse(readFileSync(MODELOS_INICIAIS, 'utf8')) }));
 
   r.get('/api/quick-wins/:id', ({ pessoa, params }) => publico(app.db, pessoa, carregar(pessoa, params.id)));
@@ -185,21 +218,22 @@ export function rotasQuickWins(app, r) {
     let origem = null;
     if (corpo.duplicar_de) {
       origem = carregar(pessoa, corpo.duplicar_de);
-      if (!podeGerir(app.db, pessoa, origem) && origem.status !== 'ativo') throw erro(404, 'quick_win', 'Quick win não encontrado.');
+      if (!podeGerir(app.db, pessoa, origem) && !EM_CIRCULACAO.includes(origem.status)) throw erro(404, 'quick_win', 'Quick win não encontrado.');
       base = { ...publico(app.db, { ...pessoa, admin: true }, origem), nome: corpo.nome || `${origem.nome} (cópia)` };
     } else if (corpo.modelo_inicial !== undefined) {
       base = JSON.parse(readFileSync(MODELOS_INICIAIS, 'utf8'))[Number(corpo.modelo_inicial)];
       if (!base) throw erro(404, 'modelo_inicial', 'Modelo inicial não encontrado.');
     }
     const cfg = lerConfig(app.db);
-    const dados = { modelo: cfg.padroes[cfg.perfisQuickWin[0]] || cfg.padroes.chat, ...base, ...corpo, status: 'rascunho' };
+    const dados = { modelo: cfg.padroes[cfg.perfisQuickWin[0]] || cfg.padroes.chat, ...base, ...corpo };
     delete dados.id;
     const id = transacao(app.db, () => {
       const novo = Number(exec(app.db, 'insert into quick_wins (nome, criado_por) values (?, ?)', 'Novo quick win', pessoa.id).lastInsertRowid);
       const { v, areas } = validar(app, pessoa, {}, { nome: dados.nome || 'Novo quick win', cor: dados.cor || '#1B7950', icone: dados.icone || '', para_que_serve: dados.para_que_serve || '',
         instrucoes: dados.instrucoes || '', formato: dados.formato || 'texto', sugestoes: dados.sugestoes || [], exemplo_entrada: dados.exemplo_entrada || '', exemplo_saida: dados.exemplo_saida || '',
         sigiloso: dados.sigiloso || false, pode_trocar: dados.pode_trocar || false, dados: dados.dados || {}, bases: dados.bases || { modo: 'area' }, modelo: dados.modelo,
-        status: 'rascunho', toda_empresa: !!corpo.toda_empresa, areas: corpo.areas || [] });
+        status: ['identificado', 'em_configuracao'].includes(corpo.status) ? corpo.status : 'em_configuracao', toda_empresa: !!corpo.toda_empresa, areas: corpo.areas || [],
+        problema: corpo.problema || '', objetivo: corpo.objetivo || '', processo_atual: corpo.processo_atual || '', responsavel_id: corpo.responsavel_id || pessoa.id });
       gravar(app, novo, v, areas);
       if (origem) {
         for (const a of todos(app.db, 'select titulo, arquivo, sigiloso, texto from documentos where quick_win_id = ?', origem.id)) {
@@ -209,7 +243,7 @@ export function rotasQuickWins(app, r) {
       }
       return novo;
     });
-    registrar(app, 'quick_win_criado', pessoa.id, { quick_win: id, duplicado_de: origem?.id ?? null, modelo_inicial: corpo.modelo_inicial ?? null });
+    registrar(app, 'quickwin.created', pessoa.id, { quick_win: id, duplicado_de: origem?.id ?? null, modelo_inicial: corpo.modelo_inicial ?? null });
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', id));
   });
 
@@ -217,7 +251,8 @@ export function rotasQuickWins(app, r) {
     const q = carregar(pessoa, params.id, true);
     const { v, areas } = validar(app, pessoa, q, corpo);
     transacao(app.db, () => gravar(app, q.id, v, areas));
-    registrar(app, 'quick_win_alterado', pessoa.id, { quick_win: q.id, campos: Object.keys(v), status: v.status });
+    registrar(app, 'quickwin.updated', pessoa.id, { quick_win: q.id, campos: Object.keys(v) });
+    if (v.status && v.status !== q.status) registrar(app, 'quickwin.status_changed', pessoa.id, { quick_win: q.id, de: q.status, para: v.status });
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
   });
 
@@ -225,7 +260,7 @@ export function rotasQuickWins(app, r) {
     const q = carregar(pessoa, params.id, true);
     for (const d of todos(app.db, 'select id from documentos where quick_win_id = ?', q.id)) desindexar(app.db, d.id);
     exec(app.db, 'delete from quick_wins where id = ?', q.id);
-    registrar(app, 'quick_win_removido', pessoa.id, { quick_win: q.id });
+    registrar(app, 'quickwin.deleted', pessoa.id, { quick_win: q.id });
     return { ok: true };
   });
 
@@ -235,7 +270,7 @@ export function rotasQuickWins(app, r) {
     const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, quick_win_id, sigiloso, texto, enviado_por) values (?, ?, ?, ?, ?, ?)',
       (String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '')).slice(0, 200), nome, q.id, Number(!!corpo.sigiloso), texto, pessoa.id).lastInsertRowid);
     indexar(app.db, id, texto);
-    registrar(app, 'quick_win_arquivo', pessoa.id, { quick_win: q.id, documento: id, sigiloso: !!corpo.sigiloso });
+    registrar(app, 'knowledge.added', pessoa.id, { quick_win: q.id, documento: id, sigiloso: !!corpo.sigiloso });
     return publico(app.db, pessoa, q);
   }, { limiteMb: 30 });
 
@@ -245,7 +280,7 @@ export function rotasQuickWins(app, r) {
     if (!d) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
     desindexar(app.db, d.id);
     exec(app.db, 'delete from documentos where id = ?', d.id);
-    registrar(app, 'quick_win_arquivo_removido', pessoa.id, { quick_win: q.id, documento: d.id });
+    registrar(app, 'knowledge.removed', pessoa.id, { quick_win: q.id, documento: d.id });
     return publico(app.db, pessoa, q);
   });
 

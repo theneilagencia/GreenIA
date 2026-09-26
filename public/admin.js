@@ -1,11 +1,13 @@
-// Painel: o admin vê todas as abas; responsáveis e pessoas autorizadas veem
-// bases de conhecimento e quick wins (o servidor confere cada permissão).
-import { api, definirCsrf, definirUnidade, emCreditos, esc, fmtCusto, ICONE, preencherMarca, toast } from '/comum.js';
+// Gestão da GreenIA: telas de uso, pessoas, modelos, políticas, atividade,
+// configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
+// cada permissão; aqui só se escolhe o que mostrar.
+import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
+import { E, cabecalho, ligarCabecalho } from '/app.js';
 import { renderizar } from '/md.js';
 
 const $ = id => document.getElementById(id);
-const S = { eu: null, perm: null };
-const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
+const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 const DADOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', rg: 'RG', email: 'Email', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço' };
 const STATUS = { rascunho: 'Rascunho', ativo: 'Ativo', pausado: 'Pausado' };
 
@@ -35,8 +37,7 @@ async function abaAreas() {
   const nomeArea = id => areas.find(a => a.id === id)?.nome || '?';
   const nomeGrupo = id => grupos.find(g => g.id === id)?.nome || '?';
   const pessoaPorId = new Map(pessoas.map(p => [p.id, p]));
-  $('conteudo').innerHTML = `<h2>Áreas e pessoas</h2>
-    <p class="lead">Crie as áreas com o nome que a empresa usa. Cada área tem pessoas, responsáveis e uma base de conhecimento.</p>
+  $('conteudo').innerHTML = `<p class="lead">Crie as áreas com o nome que a empresa usa. Cada área tem pessoas, responsáveis e uma base de conhecimento.</p>
     <h3>Áreas</h3>
     <form class="filtros" id="nova-area"><div class="campo"><label for="area-nome">Nova área</label><input class="entrada" id="area-nome" maxlength="80" required></div>
       <label class="dica"><input type="checkbox" id="area-sig"> todas as conversas desta área são sigilosas</label><button class="btn btn-verde btn-pequeno">Criar área</button></form>
@@ -117,8 +118,7 @@ async function abaAreas() {
 // ---------------------------------------------------------------- Grupos
 async function abaGrupos() {
   const [{ grupos }, { pessoas }] = await Promise.all([api('/api/admin/grupos'), api('/api/admin/pessoas')]);
-  $('conteudo').innerHTML = `<h2>Grupos</h2>
-    <p class="lead">Grupos juntam pessoas de áreas diferentes (por exemplo, "Gestores"). Servem para liberar perfis de modelo e para autorizar quem cria quick wins.</p>
+  $('conteudo').innerHTML = `<p class="lead">Grupos juntam pessoas de áreas diferentes (por exemplo, "Gestores"). Servem para liberar perfis de modelo e para autorizar quem cria quick wins.</p>
     <form class="filtros" id="novo-grupo"><div class="campo"><label for="g-nome">Novo grupo</label><input class="entrada" id="g-nome" required maxlength="80"></div><button class="btn btn-verde btn-pequeno">Criar grupo</button></form>
     ${tabela(['Grupo', '#Pessoas', 'Pessoas', 'Ações'], grupos.map(g => `<tr><td><b>${esc(g.nome)}</b></td><td class="num">${g.pessoas.length}</td>
       <td><div class="chips">${g.pessoas.slice(0, 8).map(id => `<span class="chip">${esc(pessoas.find(p => p.id === id)?.nome || '?')}</span>`).join('')}${g.pessoas.length > 8 ? `<span class="chip">+${g.pessoas.length - 8}</span>` : ''}</div></td>
@@ -142,8 +142,7 @@ async function abaGrupos() {
 async function abaBases() {
   const { documentos } = await api('/api/bases/documentos');
   const areas = S.eu.admin ? (await api('/api/admin/areas')).areas : S.eu.areas.filter(a => a.responsavel);
-  $('conteudo').innerHTML = `<h2>Bases de conhecimento</h2>
-    <p class="lead">Documentos que a IA consulta no chat e nos quick wins, citando a fonte. Cada documento é de uma área ou da empresa toda.</p>
+  $('conteudo').innerHTML = `<p class="lead">Documentos que a IA consulta no chat e nos quick wins, citando a fonte. Cada documento é de uma área ou da empresa toda.</p>
     <form class="grupo-form" id="enviar-doc"><h3>Enviar documento</h3>
       <div class="filtros">
         <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.txt,.md,.csv,.xlsx" required></div>
@@ -169,7 +168,7 @@ async function abaBases() {
     try {
       await api('/api/bases/documentos', { metodo: 'POST', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) }, titulo: $('doc-titulo').value, sigiloso: $('doc-sigiloso').checked,
         ...(destino === 'toda' ? { toda_empresa: true } : { area_id: Number(destino) }) } });
-      toast('Documento enviado e indexado.'); abaBases();
+      toast('Documento enviado e indexado.'); abaConhecimento();
     } catch (e) { falhar(e); $('btn-doc').disabled = false; }
   };
   $('conteudo').onchange = async ev => {
@@ -177,38 +176,27 @@ async function abaBases() {
       const s = ev.target.closest('[data-sigiloso]');
       if (s) { await api(`/api/bases/documentos/${s.dataset.sigiloso}`, { metodo: 'PUT', corpo: { sigiloso: s.checked } }); toast('Documento atualizado.'); }
       const sub = ev.target.closest('[data-substituir]');
-      if (sub?.files[0]) { const f = sub.files[0]; await api(`/api/bases/documentos/${sub.dataset.substituir}`, { metodo: 'PUT', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) } } }); toast('Documento substituído.'); abaBases(); }
+      if (sub?.files[0]) { const f = sub.files[0]; await api(`/api/bases/documentos/${sub.dataset.substituir}`, { metodo: 'PUT', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) } } }); toast('Documento substituído.'); abaConhecimento(); }
     } catch (e) { falhar(e); }
   };
   $('conteudo').onclick = async ev => {
     const r = ev.target.closest('[data-remover]');
-    if (r && confirm('Remover este documento da base?')) { try { await api(`/api/bases/documentos/${r.dataset.remover}`, { metodo: 'DELETE' }); abaBases(); } catch (e) { falhar(e); } }
+    if (r && confirm('Remover este documento da base?')) { try { await api(`/api/bases/documentos/${r.dataset.remover}`, { metodo: 'DELETE' }); abaConhecimento(); } catch (e) { falhar(e); } }
   };
 }
 
 // ---------------------------------------------------------------- Quick wins
-async function abaQuickWins() {
-  let lista, perm = null, pessoas = [], grupos = [];
-  if (S.eu.admin) {
-    [{ quickWins: lista }, perm, { pessoas }, { grupos }] = await Promise.all([api('/api/admin/quick-wins'), api('/api/admin/quick-wins-permissoes'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
-  } else lista = (await api('/api/quick-wins')).quickWins.filter(q => q.podeEditar);
-  $('conteudo').innerHTML = `<h2>Quick wins</h2>
-    <p class="lead">Espaços para tarefas repetitivas. Quem cria define instruções, arquivos e modelo; o time usa em conversas próprias.</p>
-    ${S.perm.criar ? '<div class="linha-botoes" style="margin-bottom:14px"><a class="btn btn-verde" href="/app#/qw/nova">Criar quick win</a></div>' : ''}
-    ${tabela(S.eu.admin ? ['Quick win', 'Status', 'Onde', 'Criado por', '#Conversas no mês', emCreditos() ? '#Créditos no mês' : '#Custo no mês', ''] : ['Quick win', 'Status', ''], lista.map(q => `<tr>
-      <td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${esc(q.cor)};margin-right:8px"></span><b>${esc(q.nome)}</b>${q.sigiloso ? ' <span class="chip">sigiloso</span>' : ''}</td>
-      <td>${STATUS[q.status]}</td>
-      ${S.eu.admin ? `<td>${q.toda_empresa ? 'Toda a empresa' : esc(q.areas.join(', '))}</td><td>${esc(q.criado_por || '—')}</td><td class="num">${num(q.conversas)}</td><td class="num">${us(q.custo)}</td>` : ''}
-      <td><a class="btn-texto btn-pequeno" href="/app#/qw/${q.id}">Abrir</a><a class="btn-texto btn-pequeno" href="/app#/qw/${q.id}/editar">Configurar</a></td></tr>`), 'Nenhum quick win ainda.')}
-    ${perm ? `<form class="grupo-form" id="perm-qw" style="margin-top:24px"><h3>Quem pode criar quick wins</h3>
-      <p class="dica">Quem cria configura e acompanha o uso dos próprios quick wins. O responsável da área também configura os da área.</p>
+async function abaCriacaoQw() {
+  const [perm, { pessoas }, { grupos }] = await Promise.all([api('/api/admin/quick-wins-permissoes'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
+  $('conteudo').innerHTML = `<p class="lead">Quem cria um quick win configura instruções, conhecimento e classe de modelo, e acompanha uso e resultado. O responsável da área também gere os quick wins da área.</p>
+    <form class="grupo-form" id="perm-qw"><h3>Quem pode criar quick wins</h3>
       <label class="opcoes"><span><input type="checkbox" id="perm-resp" ${perm.responsaveis ? 'checked' : ''}> Responsáveis de área, nas áreas em que são responsáveis</span></label>
       <div class="duas-col"><div><span class="legenda">Grupos autorizados (nas áreas de que fazem parte)</span>${caixas('perm-grupos', grupos, perm.grupos)}</div>
         <div><span class="legenda">Pessoas autorizadas</span>${caixas('perm-pessoas', pessoas, perm.pessoas)}</div></div>
       <h3>Quem pode criar quick win para a empresa toda</h3><p class="dica">Além do admin.</p>
       <div class="duas-col"><div><span class="legenda">Grupos</span>${caixas('perm-tg', grupos, perm.todaEmpresa.grupos)}</div><div><span class="legenda">Pessoas</span>${caixas('perm-tp', pessoas, perm.todaEmpresa.pessoas)}</div></div>
-      <button class="btn btn-verde btn-pequeno" style="margin:6px 0 14px">Salvar permissões</button></form>` : ''}`;
-  if (perm) $('perm-qw').onsubmit = async ev => {
+      <button class="btn btn-verde btn-pequeno" style="margin:6px 0 14px">Salvar permissões</button></form>`;
+  $('perm-qw').onsubmit = async ev => {
     ev.preventDefault();
     try {
       await api('/api/admin/quick-wins-permissoes', { metodo: 'PUT', corpo: { responsaveis: $('perm-resp').checked, grupos: marcados('perm-grupos'), pessoas: marcados('perm-pessoas'),
@@ -229,8 +217,7 @@ async function abaModelos() {
   const acesso = p => { const a = cfg.acessoPerfis[p] || {}; return `<div class="editor"><b>${PERFIS[p]}</b>
     <label class="opcoes"><span><input type="checkbox" id="todos-${p}" ${a.todos ? 'checked' : ''}> Todas as pessoas</span></label>
     <div class="duas-col"><div><span class="legenda">Grupos</span>${caixas(`ac-g-${p}`, grupos, a.grupos || [])}</div><div><span class="legenda">Áreas</span>${caixas(`ac-a-${p}`, areas, a.areas || [])}</div></div></div>`; };
-  $('conteudo').innerHTML = `<h2>Modelos de IA</h2>
-    <p class="lead">Todos os modelos passam pelo OpenRouter. Libere os que a empresa pode usar, classifique cada um num perfil e homologue os que podem receber dados sigilosos.</p>
+  $('conteudo').innerHTML = `<p class="lead">Todos os modelos passam pelo OpenRouter. Libere os que a empresa pode usar, classifique cada um num perfil e homologue os que podem receber dados sigilosos.</p>
     <div class="faixa-aviso ${padrao ? 'ok' : 'erro'}">${padrao ? `Homologado padrão: <b>${esc(padrao.nome)}</b>, disponível para todas as pessoas. Conversas sigilosas usam este modelo quando a pessoa não escolhe outro homologado.`
       : 'Nenhum modelo homologado disponível para todos. Conversas sigilosas não podem ser enviadas. Homologue um modelo do perfil Rápido (ou de um perfil liberado para todos).'}</div>
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
@@ -341,8 +328,7 @@ function homologar(modelo) {
 // ---------------------------------------------------------------- Política
 async function abaPolitica() {
   const [p, v] = await Promise.all([api('/api/politica'), api('/api/admin/politica/versoes')]);
-  $('conteudo').innerHTML = `<h2>Política de Uso de IA</h2>
-    <p class="lead">O texto é da empresa. A plataforma acrescenta no fim a seção sobre dados sigilosos, gerada da configuração atual. A cada nova versão, as pessoas registram ciência no próximo acesso.</p>
+  $('conteudo').innerHTML = `<p class="lead">O texto é da empresa. A plataforma acrescenta no fim a seção sobre dados sigilosos, gerada da configuração atual. A cada nova versão, as pessoas registram ciência no próximo acesso.</p>
     <div class="faixa-aviso ok">Versão ${p.versao}, de ${dataHora(p.atualizada_em)}. Ciência registrada por ${v.versoes[0]?.ciencias ?? 0} de ${v.pessoas} pessoas ativas.</div>
     <form id="form-pol"><div class="campo"><label for="pol-texto">Texto da empresa (títulos com ##, listas com -)</label><textarea class="entrada" id="pol-texto" rows="16">${esc(p.texto)}</textarea></div>
       <div class="linha-botoes"><button class="btn btn-verde">Publicar nova versão</button><a class="btn-texto" href="/politica" target="_blank">Ver como as pessoas veem</a></div></form>
@@ -364,8 +350,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
   const tipo = k => u.porTipo.find(x => x.tipo === k) || { conversas: 0, custo: 0 };
   const col = emCreditos() ? '#Créditos' : '#Custo';
   const linhas = (lista, rotulo) => lista.map(x => `<tr><td>${rotulo(x)}</td><td class="num">${num(x.conversas)}</td><td class="num">${num(x.respostas)}</td><td class="num">${us(x.custo)}</td></tr>`);
-  $('conteudo').innerHTML = `${await blocoPlano()}<h2>${emCreditos() ? 'Uso e créditos' : 'Uso e custo'}</h2>
-    <p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo OpenRouter em cada resposta.'} Conversas de teste de quick win não entram.</p>
+  $('conteudo').innerHTML = `${await blocoPlano()}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo OpenRouter em cada resposta.'} Conversas de teste de quick win não entram.</p>
     <div class="filtros"><div class="campo"><label for="mes">Mês</label><input class="entrada" type="month" id="mes" value="${u.mes}"></div>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/uso?mes=${u.mes}&formato=csv">Baixar CSV</a></div>
     <div class="indicadores">
@@ -383,7 +368,6 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
     <h3>Por pessoa</h3>${tabela(['Pessoa', '#Conversas', '#Respostas', col], linhas(u.porPessoa, x => `${esc(x.nome)} <span class="dica">${esc(x.email)}</span>`))}
     <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', col], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}`;
   $('mes').onchange = ev => abaUso(ev.target.value);
-  ligarPacote();
 }
 
 // ---------------------------------------------------------------- Plano (empresa com plano contratado)
@@ -391,7 +375,7 @@ const dataBr = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR');
 async function blocoPlano() {
   const p = S.plano;
   if (!p) return '';
-  let html = `<h2>Plano</h2>
+  let html = `<h3 style="margin-top:0">Plano</h3>
     <div class="indicadores">
       <div class="indicador"><span>Créditos do mês</span><b>${num(p.creditos)}</b></div>
       <div class="indicador"><span>Usados</span><b>${num(Math.round(p.usados))}</b><small>${p.percentual}% do plano</small></div>
@@ -400,38 +384,14 @@ async function blocoPlano() {
     </div>
     <div class="barra" role="progressbar" aria-label="Créditos do plano usados" aria-valuenow="${p.percentual}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p.percentual}%"></span></div>
     <p class="dica">Os créditos do plano renovam todo dia 1. ${p.fase === 'reserva' || p.fase === 'esgotado' ? esc(p.mensagem) : 'Quando acabam, só o modelo rápido fica disponível até a renovação.'}</p>`;
-  if (S.operador) {
-    const { resumo: r } = await api('/api/operador/plano');
-    html += `<div class="cartao-operador"><h3>Operador da plataforma</h3><p class="dica">Só o operador vê esta parte. A empresa vê apenas créditos.</p>
-      <div class="indicadores">
-        <div class="indicador"><span>Custo de IA no mês</span><b>${fmtCusto(r.custoIa)}</b><small>com a taxa do OpenRouter: ${fmtCusto(r.custoComTaxa)}</small></div>
-        ${r.precoUsd ? `<div class="indicador"><span>Preço do plano</span><b>${fmtCusto(r.precoUsd)}</b><small>sobra antes do servidor: ${fmtCusto(r.lucroSemServidor)}</small></div>` : ''}
-        <div class="indicador"><span>Reserva usada</span><b>${num(Math.round(r.naReserva))} de ${num(r.reserva)}</b><small>só modelo rápido</small></div>
-      </div>
-      <form id="form-pacote" class="linha-botoes"><label for="pacote-creditos">Liberar pacote extra de créditos</label>
-        <input class="entrada" id="pacote-creditos" type="number" min="1" step="1" value="10000" style="max-width:160px"><button class="btn btn-verde btn-pequeno">Liberar pacote</button></form>
-      ${r.pacotes.length ? tabela(['Quando', '#Créditos', 'Liberado por'], r.pacotes.map(x => `<tr><td>${dataHora(x.em)}</td><td class="num">${num(x.creditos)}</td><td>${esc(x.por || '')}</td></tr>`)) : '<p class="dica">Nenhum pacote liberado ainda.</p>'}
-    </div>`;
-  }
   return html;
 }
-function ligarPacote() {
-  if (!$('form-pacote')) return;
-  $('form-pacote').onsubmit = async ev => {
-    ev.preventDefault();
-    const n = Number($('pacote-creditos').value);
-    if (!confirm(`Liberar ${num(n)} créditos extras para esta empresa? O admin recebe um email.`)) return;
-    try { await api('/api/operador/pacotes', { metodo: 'POST', corpo: { creditos: n } }); toast('Pacote liberado.'); S.plano = (await api('/api/eu')).plano; abaUso(); } catch (e) { falhar(e); }
-  };
-}
-
 // ---------------------------------------------------------------- Eventos
 async function abaEventos(filtro = {}, pagina = 0) {
   const q = new URLSearchParams(Object.entries(filtro).filter(([, v]) => v));
   const [d, { problemas }] = await Promise.all([api(`/api/admin/eventos?${q}&pagina=${pagina}`), api('/api/admin/problemas')]);
   const abertos = problemas.filter(p => !p.resolvido).length;
-  $('conteudo').innerHTML = `<h2>Problemas reportados</h2>
-    <p class="lead">${abertos ? `${abertos} em aberto.` : 'Nenhum problema em aberto.'} Cada um também chega por email.</p>
+  $('conteudo').innerHTML = `<p class="lead">${abertos ? `${abertos} em aberto.` : 'Nenhum problema em aberto.'} Cada um também chega por email.</p>
     ${tabela(['Quando', 'Pessoa', 'Tipo', 'Descrição', 'Resolvido'], problemas.map(p => `<tr><td style="white-space:nowrap">${dataHora(p.em)}</td><td>${esc(p.nome || '')}<br><span class="dica">${esc(p.email || '')}</span></td><td>${esc(p.tipo)}</td>
       <td style="white-space:pre-wrap;word-break:break-word">${esc(p.descricao)}</td><td><input type="checkbox" data-problema="${p.id}" ${p.resolvido ? 'checked' : ''} aria-label="Resolvido"></td></tr>`), 'Ninguém reportou problema.')}
     <h2 style="margin-top:32px">Eventos</h2>
@@ -458,8 +418,7 @@ async function abaEventos(filtro = {}, pagina = 0) {
 async function abaConfig() {
   const c = await api('/api/admin/config');
   let logo = c.logo;
-  $('conteudo').innerHTML = `<h2>Configurações</h2>
-    <form id="form-cfg">
+  $('conteudo').innerHTML = `<form id="form-cfg">
       <div class="grupo-form"><h3>Empresa</h3>
         <div class="campo"><label for="c-empresa">Nome da empresa</label><input class="entrada" id="c-empresa" value="${esc(c.empresa)}" required maxlength="80"></div>
         <div class="campo"><span class="legenda">Logo</span><div class="linha-botoes"><span id="c-logo-prev">${logo ? `<img src="${esc(logo)}" alt="Logo atual" style="max-height:48px">` : '<span class="dica">Sem logo.</span>'}</span>
@@ -482,12 +441,10 @@ async function abaConfig() {
         <div class="duas-col"><div class="campo"><label for="c-teto">Teto mensal da empresa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto" value="${c.tetoMensal}"></div>
           <div class="campo"><label for="c-teto-p">Teto mensal por pessoa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto-p" value="${c.tetoPessoaMensal}"></div>
           <div class="campo"><label for="c-dia">Respostas por pessoa por dia</label><input class="entrada" type="number" min="0" id="c-dia" value="${c.limiteDiarioPessoa}"></div></div></div>
-      <div class="grupo-form"><h3>Dados no chat</h3><p class="dica">O que fazer quando o sistema encontra cada tipo de dado numa conversa do chat. É também o padrão dos quick wins novos. Permitir torna a conversa sigilosa.</p>
-        ${tabela(['Tipo', 'Bloquear', 'Permitir'], Object.entries(DADOS).map(([k, v]) => `<tr><td>${v}</td><td><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''} aria-label="${v}: bloquear"></td><td><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''} aria-label="${v}: permitir"></td></tr>`).concat('<tr><td>Senhas e credenciais</td><td colspan="2">Sempre bloqueadas</td></tr>'))}<p></p></div>
       <div class="linha-botoes"><button class="btn btn-verde">Salvar configurações</button></div>
     </form>`;
   const mostrarContraste = () => {
-    const r = contraste($('c-cor').value, '#F1EAD9');
+    const r = contraste($('c-cor').value, '#F1F1EE');
     $('c-contraste').textContent = `Contraste com os fundos claros: ${r.toFixed(2).replace('.', ',')}:1 ${r >= 4.5 ? '(ok)' : '(abaixo do mínimo de 4,5:1)'}`;
     $('c-contraste').style.color = r >= 4.5 ? 'var(--forest-text)' : 'var(--red-text)';
   };
@@ -501,54 +458,110 @@ async function abaConfig() {
       await api('/api/admin/config', { metodo: 'PUT', corpo: {
         empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', dominios: $('c-dominios').value,
         smtp: { url: $('c-smtp').value, remetente: $('c-rem').value }, privacyNote: $('c-priv').value, retencaoDias: Number($('c-ret').value),
-        tetoMensal: Number($('c-teto').value), tetoPessoaMensal: Number($('c-teto-p').value), limiteDiarioPessoa: Number($('c-dia').value),
-        acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`input[name="d-${k}"]:checked`).value])) } });
+        tetoMensal: Number($('c-teto').value), tetoPessoaMensal: Number($('c-teto-p').value), limiteDiarioPessoa: Number($('c-dia').value) } });
       toast('Configurações salvas.');
     } catch (e) { falhar(e); }
   };
 }
 
-// ---------------------------------------------------------------- abas
-const ABAS = [
-  { id: 'areas', nome: 'Áreas e pessoas', fn: abaAreas },
-  { id: 'grupos', nome: 'Grupos', fn: abaGrupos },
-  { id: 'bases', nome: 'Bases de conhecimento', fn: abaBases, tambem: () => S.eu.areas.some(a => a.responsavel) },
-  { id: 'quickwins', nome: 'Quick wins', fn: abaQuickWins, tambem: () => S.perm.criar || S.eu.areas.some(a => a.responsavel) },
-  { id: 'modelos', nome: 'Modelos de IA', fn: abaModelos },
-  { id: 'politica', nome: 'Política', fn: abaPolitica },
-  { id: 'uso', nome: 'Uso', fn: abaUso },
-  { id: 'eventos', nome: 'Eventos', fn: abaEventos },
-  { id: 'config', nome: 'Configurações', fn: abaConfig },
-];
+// ---------------------------------------------------------------- Conhecimento
+// Para todos: que conhecimento a IA pode usar. Para quem gere áreas: envio e organização.
+async function abaConhecimento() {
+  const k = await api('/api/conhecimento');
+  const visao = `<p class="lead">Que conhecimento a IA pode usar nas suas tarefas. Os documentos da sua área e os da empresa toda entram nas respostas do chat e dos quick wins, sempre com a fonte citada.</p>
+    ${k.documentos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Área</th><th>Quick wins que usam</th><th>Atualizado</th></tr></thead><tbody>
+      ${k.documentos.map(d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</td><td data-r="Área">${d.toda_empresa ? 'Empresa toda' : esc(d.area || '')}</td>
+        <td data-r="Quick wins">${d.quickWins.map(q => `<a href="#/qw/${q.id}">${esc(q.nome)}</a>`).join(', ') || '<span class="dica">só no chat</span>'}</td><td data-r="Atualizado">${dataHora(d.atualizado_em)}</td></tr>`).join('')}
+    </tbody></table></div>` : '<div class="lista"><div class="lista-item"><span class="dica">Ainda não há documentos disponíveis para você.</span></div></div>'}`;
+  if (!k.podeGerir) { $('conteudo').innerHTML = visao; return; }
+  await abaBases();
+  $('conteudo').insertAdjacentHTML('afterbegin', `${visao}<div class="secao-titulo"><h3>Gerir documentos</h3></div>`);
+}
+}
 
-async function abrir() {
-  const visiveis = ABAS.filter(a => S.eu.admin || a.tambem?.());
-  const atual = visiveis.find(a => `#/${a.id}` === location.hash) || visiveis[0];
-  $('abas').innerHTML = visiveis.map(a => `<button role="tab" id="aba-${a.id}" aria-selected="${a === atual}" aria-controls="conteudo" data-aba="${a.id}">${a.nome}</button>`).join('');
-  $('abas').querySelectorAll('[data-aba]').forEach(b => { b.onclick = () => { location.hash = `#/${b.dataset.aba}`; }; });
-  $('conteudo').setAttribute('aria-labelledby', `aba-${atual.id}`);
+// ---------------------------------------------------------------- Políticas de IA
+// Uma página responde: o que pode ser enviado, por quem, para qual modelo e em qual contexto.
+async function abaPoliticas() {
+  const [c, m, { areas }, { grupos }] = await Promise.all([api('/api/admin/config'), api('/api/admin/modelos'), api('/api/admin/areas'), api('/api/admin/grupos')]);
+  const homologados = m.modelos.filter(x => x.liberado && x.homologado);
+  const fabricantes = new Set(homologados.map(x => x.id.split('/')[0]));
+  const nomes = (ids, lista) => ids.map(id => lista.find(x => x.id === id)?.nome).filter(Boolean).join(', ');
+  const quem = p => { const a = m.config.acessoPerfis[p] || {}; return a.todos ? 'Todas as pessoas' : [nomes(a.grupos || [], grupos), nomes(a.areas || [], areas)].filter(Boolean).join(' · ') || 'Ninguém no dia a dia (só pelo quick win)'; };
+  $('conteudo').innerHTML = `<p class="lead">As regras que valem para toda conversa: o que pode ser enviado, por quem, para qual modelo e em qual contexto. O servidor aplica estas regras antes de qualquer envio.</p>
+    <form id="form-dados"><div class="secao-titulo"><h3>Dados sensíveis</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
+      <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>
+        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><label><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}> Bloquear</label>&nbsp;&nbsp;
+          <label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}> Permitir</label></td>
+          <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Entra, e a conversa passa a ser sigilosa' : 'A mensagem não sai, e a pessoa vê o motivo'}</td></tr>`).join('')}
+        <tr><td data-r="Tipo"><b>Senhas e credenciais</b></td><td data-r="Regra">Sempre bloqueadas</td><td data-r="Efeito" class="dica">Não pode ser alterado</td></tr>
+        <tr><td data-r="Tipo"><b>Informação estratégica</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Não é detectada automaticamente. A pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
+      </tbody></table></div>
+      <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
+
+    <div class="secao-titulo"><h3>Conversas sigilosas</h3><a class="btn-texto btn-pequeno" href="#/modelos">Gerir modelos homologados</a></div>
+    ${homologados.length < 2 || fabricantes.size < 2 ? `<div class="faixa-aviso atencao">${homologados.length ? `Há ${homologados.length === 1 ? 'um modelo homologado' : 'modelos homologados de um só fabricante'}.` : 'Nenhum modelo homologado: conversas sigilosas não podem ser enviadas.'} O recomendado são dois modelos homologados, de fabricantes diferentes, para que as conversas sigilosas continuem se um sair do ar.</div>` : ''}
+    <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quando uma conversa vira sigilosa</th><th>Situação atual</th></tr></thead><tbody>
+      <tr><td data-r="Gatilho">Área marcada como sigilosa</td><td data-r="Situação">${areas.filter(a => a.sigilosa).map(a => esc(a.nome)).join(', ') || '<span class="dica">nenhuma</span>'}</td></tr>
+      <tr><td data-r="Gatilho">Quick win que trata dados sigilosos</td><td data-r="Situação">definido em cada quick win</td></tr>
+      <tr><td data-r="Gatilho">Dado sensível permitido detectado</td><td data-r="Situação">${Object.entries(c.acoesChat).filter(([, v]) => v === 'permitir').map(([k]) => DADOS[k]).join(', ') || '<span class="dica">nenhum tipo permitido</span>'}</td></tr>
+      <tr><td data-r="Gatilho">Documento sigiloso usado na resposta</td><td data-r="Situação">marcado no envio do documento</td></tr>
+      <tr><td data-r="Gatilho">Marcação manual pela pessoa</td><td data-r="Situação">sempre disponível no chat</td></tr>
+    </tbody></table></div>
+    <p class="dica">Conversa sigilosa usa só modelo homologado, com o fornecedor fixado e retenção zero exigida. Se o fornecedor fixado não responder, a mensagem não é enviada para outro.</p>
+    ${homologados.length ? `<div class="tabela-rolagem" style="margin-top:10px"><table class="tabela"><thead><tr><th>Modelo homologado</th><th>Classe</th><th>Fornecedor fixado</th><th>Homologado por</th></tr></thead><tbody>
+      ${homologados.map(x => `<tr><td>${esc(x.nome)}</td><td>${PERFIS[x.perfil] || ''}</td><td>${esc(x.homologacao?.fornecedor || '')}</td><td>${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+
+    <div class="secao-titulo"><h3>Quem usa cada classe de modelo</h3><a class="btn-texto btn-pequeno" href="#/modelos">Alterar</a></div>
+    <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Classe</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
+      <tr><td data-r="Classe"><b>Rápido</b></td><td data-r="Quem">Todas as pessoas</td></tr>
+      <tr><td data-r="Classe"><b>Equilibrado</b></td><td data-r="Quem">${esc(quem('equilibrado'))}</td></tr>
+      <tr><td data-r="Classe"><b>Avançado</b></td><td data-r="Quem">${esc(quem('avancado'))}</td></tr>
+    </tbody></table></div>
+    <p class="dica">Dentro de um quick win, quem usa pode usar a classe definida para ele, mesmo sem acesso a ela no dia a dia.</p>
+
+    <div class="secao-titulo"><h3>Fornecedores e retenção</h3><a class="btn-texto btn-pequeno" href="#/configuracoes">Alterar retenção</a></div>
+    <div class="tabela-rolagem"><table class="tabela tabela-empilha"><tbody>
+      <tr><td data-r="Regra">Conversas normais</td><td data-r="Situação">${m.config.exigirSemTreino ? 'Só fornecedores que não treinam com os dados' : 'Qualquer fornecedor liberado (a exigência de não treinar está desligada)'}</td></tr>
+      <tr><td data-r="Regra">Histórico das conversas</td><td data-r="Situação">Guardado nesta instalação e apagado depois de ${c.retencaoDias} dias sem uso</td></tr>
+      <tr><td data-r="Regra">Anexos</td><td data-r="Situação">Só o texto extraído fica guardado, junto com a conversa</td></tr>
+    </tbody></table></div>`;
+  $('form-dados').onsubmit = async ev => {
+    ev.preventDefault();
+    try {
+      await api('/api/admin/config', { metodo: 'PUT', corpo: { acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`input[name="d-${k}"]:checked`).value])) } });
+      toast('Regras de dados salvas.'); abaPoliticas();
+    } catch (e) { falhar(e); }
+  };
+}
+
+// ---------------------------------------------------------------- Histórico de modelos
+async function abaHistoricoModelos() {
+  const d = await api('/api/admin/eventos?prefixo=model.');
+  $('conteudo').innerHTML = `<p class="lead">Toda alteração de modelos fica registrada: liberação, classe, reserva, homologação e troca do modelo de cada classe.</p>
+    ${tabela(['Quando', 'O que mudou', 'Quem', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(NOMES_EVENTO[e.tipo] || e.tipo)}</td><td>${esc(e.pessoa || 'sistema')}</td>
+      <td><code style="font-size:12px;white-space:pre-wrap;word-break:break-word">${esc(e.detalhes)}</code></td></tr>`), 'Nenhuma alteração registrada ainda.')}`;
+}
+const NOMES_EVENTO = { 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Classes e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%' };
+
+// ---------------------------------------------------------------- rotas
+const TELAS = {
+  uso: { titulo: 'Uso e créditos', fn: abaUso },
+  pessoas: { titulo: 'Pessoas e áreas', sub: [['', 'Pessoas e áreas', abaAreas], ['grupos', 'Grupos', abaGrupos], ['criacao', 'Quem cria quick wins', abaCriacaoQw]] },
+  modelos: { titulo: 'Modelos', sub: [['', 'Classes e modelos', abaModelos], ['historico', 'Histórico', abaHistoricoModelos]] },
+  politicas: { titulo: 'Políticas de IA', sub: [['', 'Regras de uso', abaPoliticas], ['texto', 'Texto da política', abaPolitica]] },
+  atividade: { titulo: 'Atividade', fn: abaEventos },
+  configuracoes: { titulo: 'Configurações', fn: abaConfig },
+  conhecimento: { titulo: 'Conhecimento', fn: abaConhecimento, todos: true },
+};
+
+export async function rotaGestao(id, sub = '') {
+  const t = TELAS[id];
+  if (!t || (!t.todos && !S.eu.admin)) { location.hash = '#/nova'; return; }
+  const atual = t.sub ? (t.sub.find(x => x[0] === (sub || '')) || t.sub[0]) : null;
+  document.getElementById('principal').innerHTML = `${cabecalho(t.titulo)}<div class="pagina"><div class="pagina-dentro">
+    ${t.sub ? `<nav class="subnav" aria-label="${esc(t.titulo)}">${t.sub.map(x => `<a href="#/${id}${x[0] ? `/${x[0]}` : ''}" ${x === atual ? 'aria-current="page"' : ''}>${x[1]}</a>`).join('')}</nav>` : ''}
+    <div id="conteudo"><p class="dica">Carregando…</p></div></div></div>`;
+  ligarCabecalho();
   $('conteudo').onclick = null; $('conteudo').onchange = null;
-  $('conteudo').innerHTML = '<p class="dica">Carregando…</p>';
-  try { await atual.fn(); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
+  try { await (atual ? atual[2] : t.fn)(); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
 }
-
-async function iniciar() {
-  const eu = await api('/api/eu');
-  definirCsrf(eu.csrf);
-  preencherMarca();
-  Object.assign(S, { eu: eu.pessoa, perm: eu.quickWins, plano: eu.plano, operador: eu.operador });
-  definirUnidade(eu.unidade);
-  const pode = S.eu.admin || ABAS.some(a => a.tambem?.());
-  if (!pode) { location.href = '/app'; return; }
-  $('titulo-painel').textContent = S.eu.admin ? 'Painel do admin' : 'Bases e quick wins';
-  const p = S.plano;
-  if (S.eu.admin && p && p.fase !== 'normal') {
-    const texto = p.fase === 'aviso' ? `Vocês usaram ${p.percentual}% dos créditos do mês. Eles renovam em ${dataBr(p.renova)}.`
-      : p.fase === 'pacote' ? `Os créditos do plano acabaram. Vocês estão usando o pacote extra: ${num(Math.round(p.pacoteDisponivel))} créditos disponíveis.` : p.mensagem;
-    document.querySelector('.painel-corpo').insertAdjacentHTML('afterbegin', `<div class="faixa-aviso ${p.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status" style="margin:16px 24px 0">${esc(texto)}</div>`);
-  }
-  if (S.eu.admin && eu.iaConfigurada === false) document.querySelector('.painel-corpo').insertAdjacentHTML('afterbegin', '<div class="faixa-aviso erro" role="alert" style="margin:16px 24px 0">A IA está desligada: falta a variável OPENROUTER_API_KEY no servidor. No Render: serviço → Environment → adicione a chave e salve. As pessoas conseguem entrar, mas não recebem respostas.</div>');
-  window.addEventListener('hashchange', abrir);
-  await abrir();
-}
-iniciar();

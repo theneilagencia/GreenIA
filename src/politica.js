@@ -80,7 +80,7 @@ export function sincronizarPolitica(app, pessoaId = null) {
   const secao = secaoAutomatica(app);
   if (secao === atual.secao) return false;
   exec(app.db, 'insert into politica_versoes (texto, secao, criado_em, criado_por) values (?, ?, ?, ?)', atual.texto, secao, app.agora().toISOString(), pessoaId);
-  registrar(app, 'politica_versao', pessoaId, { motivo: 'secao_automatica' });
+  registrar(app, 'policy.updated', pessoaId, { motivo: 'secao_automatica' });
   return true;
 }
 
@@ -97,7 +97,7 @@ export function rotasPolitica(app, r) {
     const v = politicaAtual(app);
     if (Number(corpo.versao) !== v.versao) throw erro(409, 'versao', 'A política mudou. Recarregue e leia a versão nova.');
     exec(app.db, 'update pessoas set ciencia_versao = ? where id = ?', v.versao, pessoa.id);
-    registrar(app, 'politica_ciencia', pessoa.id, { versao: v.versao });
+    registrar(app, 'policy.acknowledged', pessoa.id, { versao: v.versao });
     return { ok: true };
   });
 
@@ -105,7 +105,7 @@ export function rotasPolitica(app, r) {
     const texto = String(corpo.texto || '').trim();
     if (texto.length < 20) throw erro(400, 'texto', 'Escreva o texto da política.');
     exec(app.db, 'insert into politica_versoes (texto, secao, criado_em, criado_por) values (?, ?, ?, ?)', texto.slice(0, 50000), secaoAutomatica(app), app.agora().toISOString(), pessoa.id);
-    registrar(app, 'politica_versao', pessoa.id, { motivo: 'texto' });
+    registrar(app, 'policy.updated', pessoa.id, { motivo: 'texto' });
     return { ok: true };
   }, { admin: true });
 

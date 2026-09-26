@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { lerPlano, situacaoPlano } from '../src/plano.js';
+import { um } from '../src/db.js';
 
 let S, OR, admin, op, relogio = new Date('2026-09-10T12:00:00Z');
 const RAPIDO = 'google/gemini-3.5-flash-lite', EQUILIBRADO = 'anthropic/claude-haiku-4.5';
@@ -73,7 +74,7 @@ test('o cliente vê créditos, nunca dólar: uso, eventos, tetos e CSV', async (
   assert.equal(uso.totais.custo, 20);                     // US$ 0,20 = 20 créditos
   const usoOp = (await op.get('/api/admin/uso')).dados;
   assert.ok(Math.abs(usoOp.totais.custo - 0.2) < 1e-9);
-  const ev = (await admin.get('/api/admin/eventos?tipo=uso')).dados.eventos[0];
+  const ev = (await admin.get('/api/admin/eventos?tipo=credits.consumed')).dados.eventos[0];
   assert.ok(!ev.detalhes.includes('"custo"') && ev.detalhes.includes('"creditos":4'));
   const csv = (await admin.get('/api/admin/uso?formato=csv')).dados;
   assert.match(csv, /créditos/);
@@ -130,7 +131,7 @@ test('sem plano, nada muda: o admin vê dólar e não há bloqueio', async () =>
   await T.fechar();
 });
 
-test('preço de modelo liberado muda mais de 20%: email ao operador; a empresa vê o aviso sem valores', async () => {
+test('preço de modelo liberado muda mais de 20%: evento e email ao operador; a empresa não é avisada sem decisão do operador', async () => {
   const OR2 = await openRouterFalso({ modelos: [{ id: RAPIDO, name: 'Gemini 3.5 Flash Lite', pricing: { prompt: '0.0000006', completion: '0.000005' }, context_length: 1048576 }] });
   const T = await subir({ ia: OR2.ia, plano: { creditos: 100, reserva: 20 }, operadores: ['suporte@operadora.com'] });
   const { atualizarCatalogo } = await import('../src/modelos.js');
@@ -141,7 +142,8 @@ test('preço de modelo liberado muda mais de 20%: email ao operador; a empresa v
   assert.match(mail.texto, /US\$ 0\.30 → US\$ 0\.60/);
   assert.ok(!T.app.email.enviados.some(m => m.para === 'admin@exemplo.com.br' && /mudou/.test(m.assunto)));
   const a = await T.cliente().entrar('admin@exemplo.com.br');
-  const aviso = (await a.get('/api/admin/modelos')).dados.modelos.find(m => m.id === RAPIDO).aviso;
-  assert.equal(aviso, 'O consumo deste modelo mudou mais de 20% nos últimos dias.');
-  await T.fechar(); await OR2.fechar();
+  try {
+    assert.equal((await a.get('/api/admin/modelos')).dados.modelos.find(m => m.id === RAPIDO).aviso, null);
+    assert.ok(um(T.app.db, "select 1 from eventos where tipo = 'model.price_changed'"));
+  } finally { await T.fechar(); await OR2.fechar(); }
 });

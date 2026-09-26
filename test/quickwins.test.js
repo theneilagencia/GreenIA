@@ -41,7 +41,7 @@ test('quick win de ponta a ponta: configurar com arquivo, testar, ativar, conver
   let r = await ana.post('/api/quick-wins', { modelo_inicial: i, areas: [A.id] });
   assert.equal(r.status, 200, JSON.stringify(r.dados));
   qw = r.dados;
-  assert.equal(qw.status, 'rascunho');
+  assert.equal(qw.status, 'em_configuracao');
   assert.equal(qw.formato, 'tabela');
   r = await ana.put(`/api/quick-wins/${qw.id}`, { nome: 'Conferência de pedidos', sugestoes: ['Confira estes dois documentos e liste as diferenças'], instrucoes: 'Compare e liste diferenças de quantidade e preço.' });
   assert.equal(r.status, 200);
@@ -156,7 +156,7 @@ test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo n
   assert.equal(r.status, 200);
   assert.deepEqual(OR.chamadas.at(-1).provider, { order: ['Mistral'], only: ['Mistral'], allow_fallbacks: false, zdr: true, data_collection: 'deny' });
   assert.equal((await carlos.patch(`/api/conversas/${conv.id}`, { sigilosa: false })).status, 409);
-  assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversa_sigilosa' order by id desc limit 1").detalhes).motivo, 'quick_win');
+  assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.confidential' order by id desc limit 1").detalhes).motivo, 'quick_win');
 });
 
 test('apagar a conversa apaga os anexos; outra pessoa, o responsável e o admin não leem a conversa', async () => {
@@ -177,7 +177,7 @@ test('duplicar para outra área copia instruções, arquivos e configuração, n
   assert.equal(copia.nome, 'Conferência de pedidos (cópia)');
   assert.equal(copia.instrucoes, 'Compare e liste diferenças de quantidade e preço.');
   assert.equal(copia.arquivos.length, 1);
-  assert.equal(copia.status, 'rascunho');
+  assert.equal(copia.status, 'em_configuracao');
   assert.deepEqual(copia.areas, [B.id]);
   assert.equal(um(S.app.db, 'select count(*) as n from conversas where quick_win_id = ?', copia.id).n, 0);
 });

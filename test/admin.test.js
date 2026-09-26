@@ -139,9 +139,9 @@ test('uso e custo: por mês, área, quick win, pessoa, modelo e tipo; CSV; event
   const csv = await admin.get('/api/admin/uso?formato=csv');
   assert.match(csv.headers.get('content-type'), /text\/csv/);
   assert.match(csv.dados, /Por pessoa;ana@exemplo\.com\.br/);
-  const ev = (await admin.get('/api/admin/eventos?tipo=uso')).dados;
-  assert.ok(ev.total >= 2 && ev.eventos.every(e => e.tipo === 'uso'));
-  assert.ok(ev.tipos.includes('login'));
+  const ev = (await admin.get('/api/admin/eventos?tipo=credits.consumed')).dados;
+  assert.ok(ev.total >= 2 && ev.eventos.every(e => e.tipo === 'credits.consumed'));
+  assert.ok(ev.tipos.includes('auth.login'));
   const todosEv = (await admin.get('/api/admin/eventos?formato=csv')).dados;
   assert.ok(!/Primeira|Segunda|Olá/.test(todosEv), 'nenhum conteúdo de conversa nos eventos');
   assert.equal((await ana.get('/api/admin/eventos')).status, 403);

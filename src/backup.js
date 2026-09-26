@@ -110,8 +110,8 @@ export function agendarBackup(app, { hora, ...op }) {
     if (hhmm !== hora || ultimo === dia) return;
     ultimo = dia;
     fazerBackup(app.db, op)
-      .then(r => { app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}`); registrar(app, 'backup_feito', null, { tamanho: r.tamanho, remoto: !!r.remoto }); })
-      .catch(e => { app.log('backup falhou', e.message); registrar(app, 'backup_falhou', null, { erro: e.message }); });
+      .then(r => { app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}`); registrar(app, 'backup.completed', null, { tamanho: r.tamanho, remoto: !!r.remoto }); })
+      .catch(e => { app.log('backup falhou', e.message); registrar(app, 'backup.failed', null, { erro: e.message }); });
   }, 30e3);
   t.unref();
   return t;

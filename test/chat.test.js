@@ -79,7 +79,7 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false, grupos: [g.id] } } });
   assert.ok((await ana.get('/api/modelos')).dados.opcoes.some(o => o.id === AVANCADO));
   assert.equal((await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO })).status, 200);
-  assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'config_modelos'"));
+  assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'model.config_changed'"));
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false } } });
 });
 
@@ -106,7 +106,7 @@ test('falha do modelo principal usa o reserva e registra qual respondeu', async 
   assert.equal(r.fim.reserva, true);
   const u = um(S.app.db, 'select modelo_pedido, modelo_usado from uso where conversa_id = ?', conv.id);
   assert.deepEqual({ ...u }, { modelo_pedido: RAPIDO, modelo_usado: 'openai/gpt-5-mini' });
-  const ev = JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'uso' order by id desc limit 1").detalhes);
+  const ev = JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'credits.consumed' order by id desc limit 1").detalhes);
   assert.equal(ev.modelo_usado, 'openai/gpt-5-mini');
   assert.ok(!('texto' in ev));
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: null });
@@ -126,7 +126,7 @@ test('filtro no servidor: CPF bloqueado no chat por padrão; credencial sempre, 
   salvarConfig(S.app.db, { acoesChat: cfg.acoesChat });
   assert.equal(OR.chamadas.length, n);
   assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens.length, 0);
-  const ev = um(S.app.db, "select detalhes from eventos where tipo = 'bloqueio' order by id desc limit 1");
+  const ev = um(S.app.db, "select detalhes from eventos where tipo = 'policy.blocked' order by id desc limit 1");
   assert.ok(!ev.detalhes.includes('Primavera'));
 });
 
@@ -149,7 +149,7 @@ async function confereSigilosa(conv, corpo, motivo) {
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
   assert.equal(d.conversa.sigilosa, true);
   assert.equal((await ana.patch(`/api/conversas/${conv.id}`, { sigilosa: false })).status, 409);
-  const ev = JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversa_sigilosa' order by id desc limit 1").detalhes);
+  const ev = JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.confidential' order by id desc limit 1").detalhes);
   assert.equal(ev.motivo, motivo);
 }
 
@@ -214,5 +214,5 @@ test('retenção: conversas sem uso há mais que o prazo são apagadas, com regi
   assert.equal((await ana.get(`/api/conversas/${conv.id}`)).status, 404);
   assert.equal((await ana.get(`/api/conversas/${recente.id}`)).status, 200);
   assert.equal(um(S.app.db, 'select count(*) n from mensagens where conversa_id = ?', conv.id).n, 0);
-  assert.ok(um(S.app.db, `select 1 from eventos where tipo = 'conversa_apagada' and detalhes like '%"por":"retencao"%'`));
+  assert.ok(um(S.app.db, `select 1 from eventos where tipo = 'conversation.deleted' and detalhes like '%"por":"retencao"%'`));
 });

@@ -41,6 +41,20 @@ export function rotasBases(app, r) {
     return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null and d.area_id in (${minhas.map(() => '?').join(',')}) order by a.nome, d.titulo`, ...minhas) };
   });
 
+  // Conhecimento que a IA pode usar para esta pessoa, e em quais quick wins cada documento entra.
+  r.get('/api/conhecimento', ({ pessoa }) => {
+    const ids = basesVisiveis(app.db, pessoa);
+    const docs = ids.length ? todos(app.db, `${LISTA} where d.id in (${ids.map(() => '?').join(',')}) order by d.toda_empresa desc, a.nome, d.titulo`, ...ids) : [];
+    const qws = todos(app.db, "select q.id, q.nome, q.bases, q.toda_empresa, (select group_concat(area_id) from quick_win_areas where quick_win_id = q.id) as areas from quick_wins q where q.status not in ('identificado', 'descartado')");
+    const usa = (q, d) => {
+      const b = JSON.parse(q.bases || '{}');
+      if (b.modo === 'escolhidas') return (b.ids || []).includes(d.id);
+      if (b.modo === 'area') return d.toda_empresa || String(q.areas || '').split(',').map(Number).includes(d.area_id);
+      return false;
+    };
+    return { documentos: docs.map(d => ({ ...d, quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.responsavel) };
+  });
+
   r.post('/api/bases/documentos', async ({ pessoa, corpo }) => {
     const todaEmpresa = !!corpo.toda_empresa;
     const areaId = todaEmpresa ? null : Number(corpo.area_id) || null;
@@ -51,7 +65,7 @@ export function rotasBases(app, r) {
     const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por) values (?, ?, ?, ?, ?, ?, ?)',
       titulo.slice(0, 200), nome, areaId, Number(todaEmpresa), Number(!!corpo.sigiloso), texto, pessoa.id).lastInsertRowid);
     indexar(app.db, id, texto);
-    registrar(app, 'documento_enviado', pessoa.id, { documento: id, area: areaId, toda_empresa: todaEmpresa, sigiloso: !!corpo.sigiloso });
+    registrar(app, 'knowledge.added', pessoa.id, { documento: id, area: areaId, toda_empresa: todaEmpresa, sigiloso: !!corpo.sigiloso });
     return um(app.db, `${LISTA} where d.id = ?`, id);
   }, { limiteMb: 30 });
 
@@ -65,7 +79,7 @@ export function rotasBases(app, r) {
     }
     if (corpo.titulo) exec(app.db, 'update documentos set titulo = ? where id = ?', String(corpo.titulo).trim().slice(0, 200), d.id);
     if (corpo.sigiloso !== undefined) exec(app.db, 'update documentos set sigiloso = ? where id = ?', Number(!!corpo.sigiloso), d.id);
-    registrar(app, 'documento_alterado', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso });
+    registrar(app, 'knowledge.updated', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso });
     return um(app.db, `${LISTA} where d.id = ?`, d.id);
   }, { limiteMb: 30 });
 
@@ -74,7 +88,7 @@ export function rotasBases(app, r) {
     if (!podeGerirDoc(pessoa, d)) throw erro(404, 'documento', 'Documento não encontrado.');
     desindexar(app.db, d.id);
     exec(app.db, 'delete from documentos where id = ?', d.id);
-    registrar(app, 'documento_removido', pessoa.id, { documento: d.id });
+    registrar(app, 'knowledge.removed', pessoa.id, { documento: d.id });
     return { ok: true };
   });
 }

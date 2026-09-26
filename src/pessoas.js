@@ -28,7 +28,7 @@ export function rotasPessoas(app, r) {
     if (!nome) throw erro(400, 'nome', 'Dê um nome à área.');
     if (um(app.db, 'select 1 from areas where nome = ?', nome)) throw erro(409, 'nome', 'Já existe uma área com esse nome.');
     const id = Number(exec(app.db, 'insert into areas (nome, sigilosa) values (?, ?)', nome, Number(!!corpo.sigilosa)).lastInsertRowid);
-    registrar(app, 'area_criada', pessoa.id, { area: id, nome, sigilosa: !!corpo.sigilosa });
+    registrar(app, 'area.created', pessoa.id, { area: id, nome, sigilosa: !!corpo.sigilosa });
     app.aoMudarModelos?.();
     return { id, nome, sigilosa: !!corpo.sigilosa, pessoas: [] };
   }, { admin: true });
@@ -44,14 +44,14 @@ export function rotasPessoas(app, r) {
         for (const m of corpo.pessoas) exec(app.db, 'insert or ignore into area_pessoas (area_id, pessoa_id, responsavel) select ?, id, ? from pessoas where id = ?', id, Number(!!m.responsavel), Number(m.pessoa_id));
       }
     });
-    registrar(app, 'area_alterada', pessoa.id, { area: id, sigilosa: corpo.sigilosa, pessoas: corpo.pessoas?.length });
+    registrar(app, 'area.updated', pessoa.id, { area: id, sigilosa: corpo.sigilosa, pessoas: corpo.pessoas?.length });
     app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
 
   r.del('/api/admin/areas/:id', ({ pessoa, params }) => {
     exec(app.db, 'delete from areas where id = ?', Number(params.id));
-    registrar(app, 'area_removida', pessoa.id, { area: Number(params.id) });
+    registrar(app, 'area.removed', pessoa.id, { area: Number(params.id) });
     app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
@@ -75,7 +75,7 @@ export function rotasPessoas(app, r) {
       salvarAreasDaPessoa(app.db, novo, corpo.areas);
       return novo;
     });
-    registrar(app, 'pessoa_criada', pessoa.id, { pessoa: id, papel });
+    registrar(app, 'people.created', pessoa.id, { pessoa: id, papel });
     return { id };
   }, { admin: true });
 
@@ -92,7 +92,7 @@ export function rotasPessoas(app, r) {
       if (Array.isArray(corpo.areas)) salvarAreasDaPessoa(app.db, id, corpo.areas);
       if (!ativo) exec(app.db, 'delete from sessoes where pessoa_id = ?', id);
     });
-    registrar(app, 'pessoa_alterada', pessoa.id, { pessoa: id, papel, ativo: !!ativo, areas: corpo.areas?.length });
+    registrar(app, 'people.updated', pessoa.id, { pessoa: id, papel, ativo: !!ativo, areas: corpo.areas?.length });
     app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
@@ -108,7 +108,7 @@ export function rotasPessoas(app, r) {
     if (!nome) throw erro(400, 'nome', 'Dê um nome ao grupo.');
     if (um(app.db, 'select 1 from grupos where nome = ?', nome)) throw erro(409, 'nome', 'Já existe um grupo com esse nome.');
     const id = Number(exec(app.db, 'insert into grupos (nome) values (?)', nome).lastInsertRowid);
-    registrar(app, 'grupo_criado', pessoa.id, { grupo: id, nome });
+    registrar(app, 'group.created', pessoa.id, { grupo: id, nome });
     return { id, nome, pessoas: [] };
   }, { admin: true });
 
@@ -122,14 +122,14 @@ export function rotasPessoas(app, r) {
         for (const p of new Set(corpo.pessoas.map(Number))) exec(app.db, 'insert into grupo_pessoas (grupo_id, pessoa_id) select ?, id from pessoas where id = ?', id, p);
       }
     });
-    registrar(app, 'grupo_alterado', pessoa.id, { grupo: id, pessoas: corpo.pessoas?.length });
+    registrar(app, 'group.updated', pessoa.id, { grupo: id, pessoas: corpo.pessoas?.length });
     app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
 
   r.del('/api/admin/grupos/:id', ({ pessoa, params }) => {
     exec(app.db, 'delete from grupos where id = ?', Number(params.id));
-    registrar(app, 'grupo_removido', pessoa.id, { grupo: Number(params.id) });
+    registrar(app, 'group.removed', pessoa.id, { grupo: Number(params.id) });
     app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });

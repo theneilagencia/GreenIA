@@ -67,7 +67,7 @@ test('problema reportado: gravado, email ao admin, evento sem a descrição', as
   const mail = S.app.email.enviados.filter(m => m.para === 'admin@exemplo.com.br').at(-1);
   assert.match(mail.assunto, /problema reportado \(Resposta errada ou inventada\)/);
   assert.match(mail.texto, /inventou um prazo/);
-  const ev = um(S.app.db, "select detalhes from eventos where tipo = 'problema_reportado' order by id desc limit 1").detalhes;
+  const ev = um(S.app.db, "select detalhes from eventos where tipo = 'problem.reported' order by id desc limit 1").detalhes;
   assert.ok(!ev.includes('inventou'));
   const lista = (await admin.get('/api/admin/problemas')).dados.problemas;
   assert.equal(lista[0].email, 'carlos@exemplo.com.br');

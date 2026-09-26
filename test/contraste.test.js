@@ -17,10 +17,10 @@ const lum = h => {
 const razao = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
 const PARES = [
-  ['forest-text', 'paper'], ['forest-text', 'surface'], ['forest-text', 'mint'], ['forest-text', 'surface-hover'], ['forest-strong-hover', 'sand'],
-  ['muted', 'paper'], ['muted', 'surface'], ['muted', 'sand'], ['ink', 'paper'], ['ink', 'mint'],
-  ['amber-text', 'paper'], ['amber-text', '#F6ECD8'], ['red-text', 'paper'], ['paper', 'forest-strong'],
-  ['red-text', '#F6E3DC'], ['amber-text', '#F6ECD8'], ['forest-text', 'mint'], ['sage', 'deep'], ['leaf', 'deep'], ['spark', 'deep'], ['deep', 'spark'], ['line', 'deep'],
+  ['forest-text', 'paper'], ['forest-text', 'surface'], ['forest-text', 'mint'], ['forest-text', 'sand'], ['forest-text', 'sand-hover'],
+  ['muted', 'paper'], ['muted', 'surface'], ['muted', 'sand'], ['muted', 'sand-hover'], ['ink', 'paper'], ['ink', 'sand-hover'], ['ink', 'mint'],
+  ['amber-text', 'paper'], ['amber-text', 'amber-bg'], ['red-text', 'paper'], ['red-text', 'red-bg'], ['#FFFFFF', 'forest-strong'], ['#FFFFFF', 'forest-strong-hover'],
+  ['#FFFFFF', 'deep'], ['spark', 'deep'],
 ];
 
 test('texto pequeno com contraste de pelo menos 4,5:1', () => {
@@ -39,11 +39,11 @@ test('esquema de cor da empresa: toda cor aceita pelo servidor mantém 4,5:1 nos
   let aceitas = 0;
   for (let r = 0; r < 256; r += 17) for (let g = 0; g < 256; g += 17) for (let b = 0; b < 256; b += 17) {
     const c = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-    if (contraste(c, '#F1EAD9') < 4.5) continue;   // o servidor recusa
+    if (contraste(c, '#F1F1EE') < 4.5) continue;   // o servidor recusa
     aceitas++;
-    assert.ok(contraste(c, misturar(c, '#FAF7EF', 0.94)) >= 4.5, `${c} na bolha clara`);
-    assert.ok(contraste('#FAF7EF', c) >= 4.5, `${c}: texto claro no botão`);
-    assert.ok(contraste('#E9E0CD', misturar(c, '#000000', 0.68)) >= 7, `${c}: texto na lateral escura`);
+    assert.ok(contraste(c, misturar(c, '#FFFFFF', 0.94)) >= 4.5, `${c} na bolha clara`);
+    assert.ok(contraste('#FFFFFF', c) >= 4.5, `${c}: texto claro no botão`);
+    assert.ok(contraste('#FFFFFF', misturar(c, '#000000', 0.7)) >= 7, `${c}: texto na lateral escura`);
   }
   assert.ok(aceitas > 500);
 });

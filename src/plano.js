@@ -89,7 +89,7 @@ export function modeloNaReserva(app, cfg, m, sigilosa) {
 }
 
 // Converte custos em créditos e tira preços de qualquer resposta JSON.
-const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa']);
+const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'custoPorExecucao', 'previsao', 'tetoMensal', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa']);
 const CHAVES_PRECO = new Set(['precoEntrada', 'precoSaida', 'preco_entrada', 'preco_saida']);
 export function emCreditos(v, chave) {
   if (Array.isArray(v)) return v.map(x => emCreditos(x));
@@ -98,7 +98,7 @@ export function emCreditos(v, chave) {
     for (const [k, x] of Object.entries(v)) {
       if (CHAVES_PRECO.has(k)) continue;
       if (CHAVES_CUSTO.has(k)) out[k] = x === null || x === undefined ? x : creditosDe(x);
-      else if (k === 'aviso' && typeof x === 'string' && x.startsWith('Preço mudou')) out[k] = 'O consumo deste modelo mudou mais de 20% nos últimos dias.';
+      else if (k === 'aviso' && typeof x === 'string' && x.startsWith('Preço mudou')) out[k] = null;   // variação de preço: só o operador decide se avisa
       else if (k === 'detalhes' && typeof x === 'string' && x.includes('"custo"')) out[k] = detalhesEmCreditos(x);
       else out[k] = emCreditos(x, k);
     }
@@ -115,7 +115,7 @@ export function liberarPacote(app, pessoa, creditos) {
   const n = Math.floor(Number(creditos) || 0);
   if (n <= 0 || n > 1_000_000) throw erro(400, 'creditos', 'Informe a quantidade de créditos do pacote.');
   exec(app.db, 'insert into pacotes (em, creditos, pessoa_id) values (?, ?, ?)', app.agora().toISOString(), n, pessoa.id);
-  registrar(app, 'pacote_liberado', pessoa.id, { creditos: n });
+  registrar(app, 'creditpack.added', pessoa.id, { creditos: n });
   return situacaoPlano(app);
 }
 
@@ -130,6 +130,8 @@ const ETAPAS = [
   { id: 'esgotado', quando: s => s.fase === 'esgotado', assunto: 'o envio de mensagens está pausado até a renovação',
     texto: s => `${MSG.esgotado(s)} O histórico das conversas continua disponível.` },
 ];
+
+const EVENTOS_ETAPA = { aviso80: ['credits.threshold_80'], plano100: ['credits.exhausted', 'reserve.started'], reserva90: ['reserve.threshold_90'], esgotado: ['reserve.exhausted'], renovado: ['credits.renewed'] };
 
 async function enviarParaTodos(app, assunto, texto, { soOperador = false } = {}) {
   const admins = soOperador ? [] : todos(app.db, "select email from pessoas where papel = 'admin' and ativo = 1").map(a => a.email).filter(e => !(app.operadores || []).includes(e));
@@ -153,7 +155,7 @@ export async function verificarAvisos(app) {
   if (!novos.length && reg.mes === mes) return [];
   salvarConfig(app.db, { avisosPlano: { mes, enviados: [...enviados, ...novos.filter(n => n.id !== 'renovado').map(n => n.id)] } });
   for (const n of novos) {
-    registrar(app, 'aviso_plano', null, { etapa: n.id, percentual: s.percentual });
+    for (const tipo of EVENTOS_ETAPA[n.id]) registrar(app, tipo, null, { percentual: s.percentual, reserva: s.percentualReserva });
     await enviarParaTodos(app, n.assunto, n.texto);
   }
   return novos.map(n => n.id);

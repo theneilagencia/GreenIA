@@ -1,7 +1,7 @@
 // Vista de uma conversa (chat geral ou dentro de um quick win).
 import { api, esc, ICONE, toast } from '/comum.js';
 import { renderizar, baixarCsv } from '/md.js';
-import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
+import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia } from '/app.js';
 
 const $ = id => document.getElementById(id);
 const SUGESTOES_CHAT = ['Resuma um texto em poucos pontos', 'Rascunhe um email curto e cordial', 'Organize estas anotações em uma lista', 'Revise este texto e deixe mais claro'];
@@ -204,6 +204,13 @@ async function enviar(reenvio = null) {
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;
+    if (r.status === 428) {
+      // A política mudou: registra ciência e reenvia.
+      C.enviando = false;
+      await pedirCiencia();
+      await new Promise(ok => { const t = setInterval(() => { if (!document.querySelector('#dar-ciencia')) { clearInterval(t); ok(); } }, 300); });
+      return enviar({ texto, anexos });
+    }
     if (r.status === 409 && d.erro === 'precisa_homologado' && d.sugestao) {
       // A conversa virou sigilosa: avisa e reenvia com o modelo homologado.
       C.mensagens.push({ id: 'av' + Date.now(), papel: 'aviso', texto: d.mensagem });

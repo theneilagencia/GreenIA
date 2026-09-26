@@ -52,7 +52,7 @@ export function desenharLateral() {
       ${E.podeCriarQw ? '<a class="item-lat" href="#/qw/nova" style="color:var(--spark)">+ Criar quick win</a>' : ''}
     </nav>
     <div class="lateral-pe">
-      ${E.eu.admin ? '<a class="btn-lat" href="/admin">Painel do admin</a>' : ''}
+      ${E.eu.admin ? '<a class="btn-lat" href="/admin">Painel do admin</a>' : E.eu.areas.some(a => a.responsavel) || E.podeCriarQw ? '<a class="btn-lat" href="/admin">Gerenciar bases e quick wins</a>' : ''}
       <button class="btn-lat" id="ver-politica">Ver a política</button>
       <p class="nota">${esc(E.publico.privacyNote)}</p>
     </div>`;
@@ -100,12 +100,38 @@ async function rota() {
 async function iniciar() {
   const [eu, publico] = await Promise.all([api('/api/eu'), api('/api/publico')]);
   definirCsrf(eu.csrf);
-  Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, podeCriarQw: eu.pessoa.admin || eu.pessoa.areas.some(a => a.responsavel) });
+  Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar });
+  aplicarMarca(publico);
   document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   const qw = await import('/quickwin.js').catch(() => null);
   if (qw) E.rotas.quickWin = qw.rotaQuickWin;
   await recarregarLateral();
   window.addEventListener('hashchange', rota);
   await rota();
+  await pedirCiencia();
+}
+
+// Cor de marca (já conferida no servidor: 4,5:1 com o texto claro) nos botões principais.
+export function aplicarMarca(p) {
+  if (p.corMarca) { document.documentElement.style.setProperty('--forest-strong', p.corMarca); document.documentElement.style.setProperty('--forest-strong-hover', p.corMarca); }
+}
+
+// Primeiro acesso e cada nova versão da política: a pessoa registra ciência.
+export async function pedirCiencia() {
+  const pol = await api('/api/politica');
+  if (!pol.cienciaPendente) return;
+  const { renderizar } = await import('/md.js');
+  $('modal').innerHTML = `<div class="modal-fundo"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-ciencia" tabindex="-1">
+    <div class="rotulo">Política de Uso de IA · versão ${pol.versao}</div>
+    <h2 id="titulo-ciencia">${E.eu.ciencia_versao ? 'A política mudou' : 'Antes de começar'}</h2>
+    <p class="dica" style="margin:-8px 0 16px">Leia a política. Para usar a GreenIA, registre que você está ciente.</p>
+    <div class="bolha-ia" style="max-height:46vh;overflow-y:auto">${renderizar(pol.texto + '\n\n' + pol.secao).html}</div>
+    <div class="linha-botoes" style="margin-top:18px"><button class="btn btn-verde" id="dar-ciencia">Li e estou ciente</button><a class="btn-texto" href="/politica" target="_blank">Abrir em outra aba</a></div></div></div>`;
+  document.querySelector('.modal').focus();
+  $('dar-ciencia').onclick = async () => {
+    await api('/api/politica/ciencia', { metodo: 'POST', corpo: { versao: pol.versao } });
+    E.eu.ciencia_versao = pol.versao;
+    $('modal').innerHTML = '';
+  };
 }
 iniciar();

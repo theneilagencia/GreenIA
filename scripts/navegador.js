@@ -26,6 +26,9 @@ export async function subirComNavegador({ adminEmail = 'admin@empresa-exemplo.co
       await p.fill('#codigo', codigo);
       await p.click('#btn-codigo');
       await p.waitForURL(/\/app/);
+      // Primeiro acesso: registra ciência da política.
+      const ciencia = await p.waitForSelector('#dar-ciencia', { timeout: 4000 }).catch(() => null);
+      if (ciencia) { await ciencia.click(); await p.waitForSelector('#dar-ciencia', { state: 'detached' }); }
       return p;
     },
     async fechar() { await navegador.close(); app.servidor.close(); app.servidor.closeAllConnections?.(); },

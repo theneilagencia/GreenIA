@@ -20,7 +20,7 @@ const PARES = [
   ['forest-text', 'paper'], ['forest-text', 'surface'], ['forest-text', 'mint'], ['forest-text', 'surface-hover'], ['forest-strong-hover', 'sand'],
   ['muted', 'paper'], ['muted', 'surface'], ['muted', 'sand'], ['ink', 'paper'], ['ink', 'mint'],
   ['amber-text', 'paper'], ['amber-text', '#F6ECD8'], ['red-text', 'paper'], ['paper', 'forest-strong'],
-  ['sage', 'deep'], ['leaf', 'deep'], ['spark', 'deep'], ['deep', 'spark'], ['line', 'deep'],
+  ['red-text', '#F6E3DC'], ['amber-text', '#F6ECD8'], ['forest-text', 'mint'], ['sage', 'deep'], ['leaf', 'deep'], ['spark', 'deep'], ['deep', 'spark'], ['line', 'deep'],
 ];
 
 test('texto pequeno com contraste de pelo menos 4,5:1', () => {

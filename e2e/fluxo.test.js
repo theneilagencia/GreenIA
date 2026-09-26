@@ -32,7 +32,7 @@ test('login → chat → quick win', async () => {
   await p.keyboard.press('Enter');
   await p.waitForSelector('.rodape-resposta');
   assert.match(await p.textContent('.bolha-eu'), /Primeira linha\nSegunda linha/);
-  assert.equal(await p.locator('.lateral .item-lat[href^="#/c/"]').count(), 1);
+  await p.waitForFunction(() => document.querySelectorAll('.lateral .item-lat[href^="#/c/"]').length === 1);
   // Dado bloqueado não sai: aviso na tela, texto volta para a caixa.
   await p.fill('#entrada', 'CPF 529.982.247-25');
   await p.keyboard.press('Enter');

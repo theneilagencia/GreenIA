@@ -22,8 +22,6 @@ await admin.post('/api/admin/pessoas', { email: 'rafael@empresa-exemplo.com.br',
 await admin.put(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}`, { liberado: true, perfil: 'rapido' });
 await admin.post(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}/homologar`, { fornecedor: 'Mistral', semTreino: true, retencaoZero: true, justificativa: 'Fornecedor com retenção zero, conferido no OpenRouter.' });
 N.app.db.prepare("update modelos set nome = 'Mistral Small', preco_entrada = 0.0000001, preco_saida = 0.0000003 where id = 'mistralai/mistral-small'").run();
-N.app.db.prepare("update modelos set preco_entrada = 0.0000003, preco_saida = 0.0000025 where id = 'google/gemini-3.5-flash-lite'").run();
-N.app.db.prepare("update modelos set preco_entrada = 0.00000025, preco_saida = 0.000002 where id = 'anthropic/claude-haiku-4.5'").run();
 
 const marina = await cliente(N.app, N.base).entrar('marina@empresa-exemplo.com.br');
 await marina.post('/api/bases/documentos', { area_id: areas['Operações'], titulo: 'Procedimento de recebimento', arquivo: { nome: 'recebimento.docx', base64: b64(docx(['Todo pedido recebido deve ser conferido contra a nota em até 2 dias úteis.'])) } });
@@ -37,6 +35,7 @@ const outro = (await marina.post('/api/quick-wins', { modelo_inicial: modelos.fi
 await marina.put(`/api/quick-wins/${outro.id}`, { status: 'ativo' });
 
 // Rafael: conversas antigas no quick win, para a lista de retomada.
+await admin.post('/api/admin/grupos', { nome: 'Gestores' });
 const rafael = await cliente(N.app, N.base).entrar('rafael@empresa-exemplo.com.br');
 for (const [titulo, fb] of [['Pedido 4471 da papelaria', 'serviu'], ['Nota de insumos de agosto', 'ajustes']]) {
   const c = (await rafael.post('/api/conversas', { quick_win_id: qw.id })).dados.conversa;
@@ -86,5 +85,15 @@ const pc = await N.entrar('rafael@empresa-exemplo.com.br', await cel.newPage());
 await pc.goto(`${N.base}/app#/qw/${qw.id}/nova`);
 await pc.waitForSelector('#entrada');
 await pc.screenshot({ path: join(PASTA, '5-celular-360.png') });
+// 6. Painel do admin, uma captura por aba (página inteira).
+const ctxAdmin = await N.navegador.newContext({ viewport: { width: 1360, height: 860 } });
+await ctxAdmin.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+const pa = await N.entrar('admin@empresa-exemplo.com.br', await ctxAdmin.newPage());
+for (const [i, aba] of ['areas', 'grupos', 'bases', 'quickwins', 'modelos', 'politica', 'uso', 'eventos', 'config'].entries()) {
+  await pa.goto(`${N.base}/admin#/${aba}`);
+  await pa.waitForFunction(() => !document.getElementById('conteudo').textContent.startsWith('Carregando'));
+  await pa.waitForTimeout(250);
+  await pa.screenshot({ path: join(PASTA, `6-painel-${i + 1}-${aba}.png`), fullPage: true });
+}
 console.log(`capturas em ${PASTA}/`);
 await N.fechar();

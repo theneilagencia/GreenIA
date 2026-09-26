@@ -65,15 +65,15 @@ async function paginaQuickWin(id) {
 
 // Criar: do zero, de um modelo inicial ou duplicando um existente.
 async function novaOrigem() {
-  const [{ modelos }, { areas }] = await Promise.all([api('/api/quick-wins/modelos-iniciais'), api('/api/areas')]);
-  const minhas = areas.filter(a => a.responsavel);
+  const { modelos } = await api('/api/quick-wins/modelos-iniciais');
+  const minhas = E.permQw.areas;
   const existentes = E.quickWins;
   $('principal').innerHTML = `${cabecalho('Criar quick win')}
     <div class="pagina"><div class="pagina-dentro">
       <h2>Criar quick win</h2><p class="lead">Um espaço para uma tarefa que se repete. Você define as instruções e os arquivos uma vez; o time usa em conversas próprias.</p>
       <div class="grupo-form"><h3>Para qual área</h3>
-        <div class="opcoes">${minhas.map((a, i) => `<label><input type="checkbox" name="area" value="${a.id}" ${i === 0 ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('') || '<span class="dica">Você não é responsável de nenhuma área.</span>'}
-        ${E.eu.admin ? '<label><input type="checkbox" id="toda"> Toda a empresa</label>' : ''}</div><p></p></div>
+        <div class="opcoes">${minhas.map((a, i) => `<label><input type="checkbox" name="area" value="${a.id}" ${i === 0 ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('') || '<span class="dica">Você não pode criar quick wins em nenhuma área.</span>'}
+        ${E.permQw.todaEmpresa ? '<label><input type="checkbox" id="toda"> Toda a empresa</label>' : ''}</div><p></p></div>
       <h3>Começar do zero</h3><div class="linha-botoes"><button class="btn btn-verde" id="do-zero">Quick win em branco</button></div>
       <h3>Começar de um modelo</h3><div class="lista">${modelos.map((m, i) => `<button class="lista-item" data-modelo="${i}"><span class="passo" style="background:${esc(m.cor)};color:#fff;margin:0;width:32px;height:32px;font-size:13px">${esc(m.icone)}</span>
         <span class="principal-texto"><b>${esc(m.nome)}</b><span>${esc(m.para_que_serve)}</span></span></button>`).join('')}</div>
@@ -99,7 +99,9 @@ async function novaOrigem() {
 async function configurar(id) {
   const [qw, { areas }, est, bases] = await Promise.all([api(`/api/quick-wins/${id}`), api('/api/areas'), api(`/api/quick-wins/${id}/estimativas`), api('/api/bases/documentos')]);
   if (!qw.podeEditar) return irPara(`#/qw/${id}`);
-  const minhas = areas.filter(a => a.responsavel);
+  // Áreas que a pessoa pode usar, mais as que o quick win já tem.
+  const nomes = new Map([...areas, ...E.permQw.areas].map(a => [a.id, a.nome]));
+  const minhas = [...new Set([...E.permQw.areas.map(a => a.id), ...qw.areas])].map(id => ({ id, nome: nomes.get(id) || `Área ${id}` }));
   const sug = [...qw.sugestoes, '', '', '', ''].slice(0, 4);
   const radio = (nome, valor, atual, rotulo) => `<label><input type="radio" name="${nome}" value="${valor}" ${atual === valor ? 'checked' : ''}> ${rotulo}</label>`;
   $('principal').innerHTML = `${cabecalho(`Configurar: ${qw.nome}`)}
@@ -112,7 +114,7 @@ async function configurar(id) {
           <div class="campo"><span class="legenda">Cor</span><div class="opcoes">${CORES.map(c => `<label title="${c}"><input type="radio" name="cor" value="${c}" ${qw.cor.toLowerCase() === c.toLowerCase() ? 'checked' : ''}><span style="display:inline-block;width:20px;height:20px;border-radius:6px;background:${c}"></span></label>`).join('')}</div></div>
         </div>
         <div class="campo"><span class="legenda">Áreas</span><div class="opcoes">${minhas.map(a => `<label><input type="checkbox" name="area" value="${a.id}" ${qw.areas.includes(a.id) ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('')}
-          ${E.eu.admin ? `<label><input type="checkbox" id="toda" ${qw.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></div>
+          ${E.permQw.todaEmpresa || qw.toda_empresa ? `<label><input type="checkbox" id="toda" ${qw.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></div>
         <div class="campo"><label for="para">Para que serve</label><input class="entrada" id="para" value="${esc(qw.para_que_serve)}" maxlength="200"><span class="ajuda">Uma frase. Aparece para quem vai usar.</span></div>
       </div>
       <div class="grupo-form"><h3>O que a IA deve fazer</h3>

@@ -249,3 +249,41 @@ button.lista-item:hover{background:var(--surface-hover)}
   .bolha-eu{max-width:90%} .resposta{max-width:100%}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Painel do admin */
+.painel{min-height:100vh;display:flex;flex-direction:column}
+.painel-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(14px + env(safe-area-inset-top)) 28px 14px;background:var(--deep);flex-wrap:wrap}
+.painel-topo .marca{text-decoration:none;font-size:20px}
+.painel-topo .titulo{font:500 15px var(--sans);color:var(--sage)}
+.painel-topo a.voltar{color:var(--spark);font:500 14px var(--sans);text-decoration:none;padding:8px;border-radius:8px}
+.abas{display:flex;gap:4px;overflow-x:auto;padding:0 28px;border-bottom:1px solid var(--line);background:var(--surface);scrollbar-width:thin}
+.abas button{background:none;border:none;border-bottom:3px solid transparent;padding:14px 12px 11px;font:500 14px var(--sans);color:var(--muted);white-space:nowrap}
+.abas button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--forest-strong)}
+.abas button:hover{color:var(--ink)}
+.painel-corpo{flex:1;padding:24px 28px 56px}
+.painel-dentro{max-width:1120px;margin:0 auto}
+.painel-dentro h2{font:300 28px/1.2 var(--serif);margin:0 0 6px}
+.painel-dentro h3{font:600 16px var(--sans);margin:26px 0 10px}
+.painel-dentro .lead{font:400 16px/1.55 var(--sans);color:var(--muted);margin:0 0 18px}
+.indicadores{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0 8px}
+.indicador{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.indicador span{display:block;font:500 13px var(--sans);color:var(--muted)}
+.indicador b{display:block;font:500 26px/1.2 var(--sans);color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums}
+.indicador small{font:400 12.5px var(--sans);color:var(--muted)}
+.tabela td.num,.tabela th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tabela input[type=checkbox],.tabela input[type=radio]{width:18px;height:18px}
+.tabela select{background:var(--paper);border:1px solid var(--line-strong);border-radius:8px;padding:5px 8px;font:400 14px var(--sans)}
+.faixa-aviso{border-radius:12px;padding:12px 16px;font:500 14px/1.5 var(--sans);margin:0 0 16px}
+.faixa-aviso.ok{background:var(--mint);color:var(--forest-text)}
+.faixa-aviso.erro{background:#F6E3DC;color:var(--red-text)}
+.faixa-aviso.atencao{background:#F6ECD8;color:var(--amber-text)}
+.filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
+.filtros .campo{margin:0}
+.filtros .entrada{padding:8px 10px;font-size:14px}
+.editor{background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:16px;margin:8px 0}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{background:var(--sand);color:var(--ink);border-radius:999px;padding:2px 9px;font:500 12.5px var(--sans);white-space:nowrap}
+.chip.resp{background:var(--mint);color:var(--forest-text)}
+.caixas{display:flex;flex-wrap:wrap;gap:6px 16px;max-height:220px;overflow-y:auto;padding:8px 0}
+.caixas label{display:flex;align-items:center;gap:6px;font:400 14px var(--sans)}
+@media (max-width:860px){.painel-topo{padding:12px 16px}.abas{padding:0 8px}.painel-corpo{padding:18px 16px 40px}}

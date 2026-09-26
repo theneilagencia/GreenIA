@@ -18,6 +18,7 @@ export async function iniciar(env = process.env) {
     adminEmail: env.ADMIN_EMAIL,
     plano: lerPlano(env),
     operadores: lerOperadores(env),
+    paginaInicial: env.PAGINA_INICIAL,
     operacao: {
       token: env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length >= 24 ? env.OPERADOR_TOKEN : null,
       instancias: lerInstancias(env.INSTANCIAS),

@@ -20,6 +20,7 @@ import { rotasAdmin } from './admin.js';
 import { rotasMedicao } from './medicao.js';
 import { rotasVisao } from './visao.js';
 import { rotasOperador } from './operador.js';
+import { rotasVendas } from './vendas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html' };
@@ -40,6 +41,8 @@ export function criarApp(op = {}) {
   app.operadores = (op.operadores || []).map(e => e.toLowerCase());
   // Console do operador: token desta instalação, instalações remotas, custo de servidor e preço do pacote.
   app.operacao = op.operacao || {};
+  // Na instalação do operador, a raiz abre a página de vendas (PAGINA_INICIAL=vendas).
+  app.paginaInicial = op.paginaInicial === 'vendas' ? 'vendas' : 'instalacao';
   for (const e of app.operadores) garantirOperador(app, e);
 
   const r = criarRoteador();
@@ -60,7 +63,7 @@ export function criarApp(op = {}) {
     for (const a of anexos) out.push(await extrairTexto(a));
     return out;
   };
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;
@@ -87,7 +90,9 @@ async function tratar(app, r, req, res) {
   try {
     if (!url.pathname.startsWith('/api/')) {
       if (url.pathname === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }   // painel antigo
-      if (req.method === 'GET' && PAGINAS[url.pathname] && await servirEstatico(res, join(RAIZ, 'public'), PAGINAS[url.pathname])) return;
+      const pagina = url.pathname === '/' && app.paginaInicial === 'vendas' ? 'vendas.html' : PAGINAS[url.pathname];
+      if (url.pathname === '/vendas.html' && app.paginaInicial !== 'vendas') { res.writeHead(302, { location: '/' }); return res.end(); }
+      if (req.method === 'GET' && pagina && await servirEstatico(res, join(RAIZ, 'public'), pagina)) return;
       if (req.method === 'GET' && await servirEstatico(res, join(RAIZ, 'public'), url.pathname.slice(1))) return;
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       return res.end('Página não encontrada.');

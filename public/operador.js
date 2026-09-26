@@ -33,9 +33,18 @@ async function carregar() {
     <div class="tabela-rolagem" style="margin:18px 0 24px"><table class="tabela tabela-empilha"><thead><tr>
       <th>Cliente</th><th>Situação</th><th class="num">Créditos usados</th><th class="num">Reserva</th><th class="num">Pacote disponível</th><th class="num">Custo real</th><th class="num">Receita</th><th class="num">Margem</th></tr></thead><tbody>
       ${dados.instancias.map(i => linha(i)).join('')}</tbody></table></div>
-    ${dados.instancias.map(i => detalhe(i)).join('')}`;
+    ${dados.instancias.map(i => detalhe(i)).join('')}
+    <div id="leads"></div>`;
+  api('/api/operador/leads').then(({ leads }) => {
+    if (!leads.length) return;
+    $('leads').innerHTML = `<h3>Contatos da página de vendas</h3>
+      <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Data</th><th>Empresa</th><th>Pessoa</th><th>Pessoas na empresa</th><th>Mensagem</th></tr></thead><tbody>
+      ${leads.map(l => `<tr><td data-r="Data">${data(l.em)}</td><td data-r="Empresa"><b>${esc(l.empresa)}</b></td><td data-r="Pessoa">${esc(l.nome)}${l.cargo ? `, ${esc(l.cargo)}` : ''}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td>
+        <td data-r="Pessoas">${esc(l.pessoas) || '–'}</td><td data-r="Mensagem">${esc(l.mensagem) || '–'}</td></tr>`).join('')}</tbody></table></div>`;
+  }).catch(() => {});
 
   for (const f of document.querySelectorAll('form[data-pacote]')) f.onsubmit = liberar;
+  for (const a of document.querySelectorAll('a[href^="#cliente-"]')) a.onclick = () => document.getElementById(a.getAttribute('href').slice(1))?.setAttribute('open', '');
 }
 
 function linha(i) {

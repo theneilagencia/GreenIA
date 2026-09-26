@@ -105,6 +105,10 @@ create table if not exists problemas (
 create table if not exists politica_versoes (
   versao integer primary key, texto text not null, secao text not null, criado_em text not null, criado_por integer);
 
+-- Contatos da página de vendas (só na instalação do operador, com PAGINA_INICIAL=vendas).
+create table if not exists leads (id integer primary key, em text not null, nome text not null, email text not null, empresa text not null,
+  cargo text not null default '', pessoas text not null default '', mensagem text not null default '', ip text);
+
 -- Pacotes extras de créditos, liberados pelo operador da plataforma.
 create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer,
   observacao text not null default '', validade text, origem text not null default 'manual', operador text);

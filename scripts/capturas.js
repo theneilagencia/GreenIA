@@ -60,7 +60,8 @@ await p.waitForTimeout(400);
 await p.screenshot({ path: join(PASTA, '1-chat.png') });
 // 2. Conversa dentro do quick win, com anexo e pedido de ajuste
 await p.goto(`${N.base}/app#/qw/${qw.id}/nova`);
-await p.waitForSelector('#entrada');
+// Só o hash muda: a #entrada da conversa anterior ainda está na tela até a vista do quick win desenhar.
+await p.waitForFunction(() => document.querySelector('.barra-conversa')?.textContent.includes('Conferência de pedido'));
 const arq = join(PASTA, 'pedido-exemplo.docx');
 writeFileSync(arq, docx(['Pedido 4502: 10 caixas de papel A4 a R$ 25,00; 5 toners a R$ 180,00.']));
 await p.setInputFiles('#arquivo', arq);
@@ -115,7 +116,8 @@ salvarConfig(N.app.db, { empresa: 'Empresa Exemplo', logo, corMarca: '#0F5E78' }
 await admin.post('/api/admin/pessoas', { email: 'lucas@empresa-exemplo.com.br', nome: 'Lucas Prado', areas: [{ id: areas['Operações'] }] });
 const pm2 = await N.entrar('lucas@empresa-exemplo.com.br', await (await N.navegador.newContext({ viewport: { width: 1360, height: 860 } })).newPage());
 await pm2.goto(`${N.base}/app#/qw/${qw.id}/nova`);
-await pm2.waitForSelector('#entrada');
+// Espera a vista do quick win terminar de desenhar (a da entrada no app pode vir antes).
+await pm2.waitForFunction(() => document.querySelector('.barra-conversa')?.textContent.includes('Conferência de pedido'));
 await pm2.fill('#entrada', 'Confira estes dois documentos e liste as diferenças em uma tabela');
 await pm2.keyboard.press('Enter');
 await pm2.waitForSelector('.rodape-resposta');
@@ -124,5 +126,20 @@ await pm2.screenshot({ path: join(PASTA, '8-marca-propria-app.png') });
 await pm2.goto(`${N.base}/entrar`);
 await pm2.waitForTimeout(400);
 await pm2.screenshot({ path: join(PASTA, '9-marca-propria-entrar.png') });
-console.log(`capturas em ${PASTA}/`);
 await N.fechar();
+
+// 10. Página de vendas (instalação do operador) no computador e no celular, e o console do operador.
+const V = await subirComNavegador({ paginaInicial: 'vendas', adminEmail: 'suporte@operadora-exemplo.com', operadores: ['suporte@operadora-exemplo.com'], plano: { creditos: 25000, reserva: 5000, precoUsd: 750 } });
+for (const [largura, nome] of [[1360, '10-vendas.png'], [360, '10-vendas-360.png']]) {
+  const pv = await V.contexto.newPage();
+  await pv.setViewportSize({ width: largura, height: 860 });
+  await pv.goto(`${V.base}/`);
+  await pv.screenshot({ path: join(PASTA, nome), fullPage: true });
+}
+const po = await V.entrar('suporte@operadora-exemplo.com');
+await po.goto(`${V.base}/operador`);
+await po.waitForSelector('.cliente');
+await po.click('.cliente summary');
+await po.screenshot({ path: join(PASTA, '11-console-operador.png'), fullPage: true });
+await V.fechar();
+console.log(`capturas em ${PASTA}/`);

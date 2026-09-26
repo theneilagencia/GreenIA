@@ -12,20 +12,25 @@ let C = null;       // estado da conversa aberta
 const vistos = new Set();   // mensagens já mostradas (só as novas animam)
 
 export async function vistaConversa({ id = null, qw = null, teste = false } = {}) {
-  C = { conv: null, mensagens: [], qw, teste, opcoes: [], modelo: null, anexos: [], enviando: false, tabelas: {}, noFim: true, homologadoPadrao: null };
+  // Navegações seguidas: só a última desenha (uma vista antiga não sobrescreve o estado da nova).
+  const estado = C = { conv: null, mensagens: [], qw, teste, opcoes: [], modelo: null, anexos: [], enviando: false, tabelas: {}, noFim: true, homologadoPadrao: null };
   if (id) {
     const d = await api(`/api/conversas/${id}`);
+    if (C !== estado) return;
     Object.assign(C, { conv: d.conversa, mensagens: d.mensagens });
     d.mensagens.forEach(m => vistos.add(String(m.id)));
     if (d.conversa.quick_win_id && !qw) C.qw = await api(`/api/quick-wins/${d.conversa.quick_win_id}`).catch(() => null);
+    if (C !== estado) return;
   }
   await carregarModelos();
+  if (C !== estado) return;
   desenhar();
 }
 
 async function carregarModelos() {
   const q = new URLSearchParams({ sigilosa: C.conv?.sigilosa ? '1' : '0', ...(C.qw ? { quick_win: C.qw.id } : {}) });
-  const m = await api(`/api/modelos?${q}`);
+  const s = C, m = await api(`/api/modelos?${q}`);
+  if (C !== s) return;
   C.opcoes = m.opcoes;
   C.homologadoPadrao = m.homologadoPadrao;
   const preferido = C.conv?.modelo || m.padrao;
@@ -109,7 +114,7 @@ function desenharMensagens() {
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p></div>`
     : `<div class="boas-vindas"><img src="/assets/greenia-marca.svg" width="32" height="32" alt="" aria-hidden="true">
-        <h2>Olá. Sou a GreenIA.</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p></div>`;
+        <h2>Como a GreenIA pode ajudar hoje</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p></div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? '<div class="resposta"><span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt=""></span><span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span></div>' : '');
   sugestoes();

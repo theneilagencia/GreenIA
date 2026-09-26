@@ -30,6 +30,15 @@ services:
         value: "750"
       - key: OPERADOR_EMAIL
         sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
+      - key: OPERADOR_TOKEN
+        sync: false         # libera o resumo desta instalação para o console do operador
+      - key: CUSTO_INFRA_USD
+        value: "7"
+      # Só na instalação do operador:
+      # - key: PAGINA_INICIAL
+      #   value: vendas
+      # - key: INSTANCIAS
+      #   sync: false
       - key: BACKUP_HORA
         value: "06:00"
       - key: BACKUP_MANTER

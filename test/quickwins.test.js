@@ -66,7 +66,7 @@ test('quick win de ponta a ponta: configurar com arquivo, testar, ativar, conver
   const pedido = arquivo('pedido.docx', docx(['Pedido 4500123456: 10 caixas a R$ 12,00']));
   r = await enviarMensagem(carlos, conv.id, { texto: 'Confira estes dois documentos e liste as diferenças', anexos: [pedido] });
   assert.equal(r.status, 200);
-  assert.match(OR.chamadas.at(-1).messages.at(-1).content, /\[Anexo: pedido\.docx\]\nPedido 4500123456/);
+  assert.match(OR.chamadas.at(-1).messages.at(-1).content, /<anexo nome="pedido\.docx">\nPedido 4500123456/);
   r = await enviarMensagem(carlos, conv.id, { texto: 'Tire a coluna de relevância' });
   assert.equal(OR.chamadas.at(-1).messages.filter(m => m.role !== 'system').length, 3, 'o ajuste leva o histórico');
   // Sair e retomar: a conversa está na lista dele, com o histórico.

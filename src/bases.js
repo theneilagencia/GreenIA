@@ -3,7 +3,7 @@
 import { erro } from './http.js';
 import { exec, todos, um } from './db.js';
 import { registrar } from './eventos.js';
-import { extrairTexto } from './texto.js';
+import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
 
 export const podeGerirArea = (pessoa, areaId) => pessoa.admin || pessoa.areas.some(a => a.id === Number(areaId) && a.responsavel);
@@ -28,7 +28,7 @@ export function trechosDasBases(db, consulta, ids) {
   if (!achados.length) return { parte: null, fontes: [], sigiloso: false };
   const docs = new Map(todos(db, `select id, titulo, sigiloso from documentos where id in (${[...new Set(achados.map(a => a.documento_id))].join(',')})`).map(d => [d.id, d]));
   const parte = 'Trechos das bases de conhecimento que podem ajudar (cite o título do documento quando usar):\n\n'
-    + achados.map((a, i) => `[${i + 1}] ${docs.get(a.documento_id).titulo}\n${a.texto}`).join('\n\n');
+    + achados.map(a => delimitar('documento', docs.get(a.documento_id).titulo, a.texto)).join('\n\n');
   const usados = [...docs.values()];
   return { parte, fontes: usados.map(d => d.titulo), sigiloso: usados.some(d => d.sigiloso) };
 }

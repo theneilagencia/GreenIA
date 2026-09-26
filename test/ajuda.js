@@ -3,7 +3,7 @@ import { criarApp } from '../src/servidor.js';
 import { cliente } from '../scripts/cliente.js';
 
 export async function subir(op = {}) {
-  const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail: 'admin@exemplo.com.br', ...op });
+  const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail: 'admin@exemplo.com.br', rajada: 1000, ...op });
   await new Promise(r => app.servidor.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.servidor.address().port}`;
   return { app, base, fechar: () => new Promise(r => { app.servidor.close(r); app.servidor.closeAllConnections?.(); }), cliente: () => cliente(app, base) };

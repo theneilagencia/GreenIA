@@ -4,6 +4,9 @@ import { inflateRawSync } from 'node:zlib';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { erro } from './http.js';
 
+// Conteúdo de fora (anexo, documento) entre marcas; a marca de fechamento dentro do texto é neutralizada.
+export const delimitar = (tipo, nome, texto) => `<${tipo} nome="${String(nome).replace(/["<>]/g, '')}">\n${String(texto).replace(new RegExp(`</?${tipo}`, 'gi'), m => m.replace('<', '‹'))}\n</${tipo}>`;
+
 export const MSG_IMAGEM = 'Este arquivo parece ser uma imagem. Envie a versão em texto ou em PDF digital';
 const MAX_ARQUIVO_MB = 20;
 const MAX_DESCOMPACTADO = 200 * 1024 * 1024;   // teto contra "bomba de ZIP"
@@ -97,7 +100,11 @@ export async function extrairTexto({ nome, base64 }) {
   let texto;
   try {
     if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b);
-    else if (b[0] === 0x50 && b[1] === 0x4b) texto = ext === 'xlsx' ? xlsx(b) : docx(b);
+    else if (b[0] === 0x50 && b[1] === 0x4b) {
+      // Zip só como DOCX ou XLSX: outro conteúdo compactado não é aceito.
+      if (!['docx', 'xlsx'].includes(ext)) throw erro(415, 'formato', 'arquivo compactado não aceito. Use PDF com texto, DOCX, TXT, MD, CSV ou XLSX.');
+      texto = ext === 'xlsx' ? xlsx(b) : docx(b);
+    }
     else if (['txt', 'md', 'csv'].includes(ext)) {
       if (b.subarray(0, 4096).includes(0)) throw erro(415, 'formato', 'não é um arquivo de texto.');
       texto = decodificar(b);

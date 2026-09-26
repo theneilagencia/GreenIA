@@ -77,11 +77,28 @@ Como o mês funciona:
 
 1. **Consumo.** Cada resposta gasta créditos conforme o custo real do modelo naquele dia.
 2. **Ordem.** Primeiro os créditos do plano, depois os pacotes extras (o que sobra passa para o mês seguinte), por último a reserva, só no modelo rápido.
-3. **Avisos.** O admin da empresa e o operador recebem email em 80% do plano, no fim do plano (a partir daí, só o modelo rápido), em 90% da reserva e no fim da reserva, quando o envio para até o dia 1.
+3. **Avisos.** O admin da empresa e o operador recebem email em 80% do plano, no fim do plano (a partir daí, só a classe Rápido), em 90% da reserva e no fim da reserva, quando o envio para até o dia 1. Também há email quando um pacote é liberado, quando os créditos renovam e quando o modelo por trás de uma classe muda.
 4. **Faixas.** O painel e o chat mostram faixas com o mesmo aviso.
-5. **Pacote extra.** O operador libera na aba **Uso** do painel.
+5. **Pacote adicional.** O operador libera no console (`/operador`), com quantidade, validade opcional e observação. Pacote vencido deixa de valer.
 
 A empresa vê créditos em todo o painel. O servidor não envia valores em dólar nem preços de modelo para quem não é operador. O operador também recebe email quando o preço de um modelo liberado muda mais de 20%.
+
+## Console do operador
+
+O console (`/operador`) junta todas as instalações de clientes numa tela: plano, créditos, reserva, pacotes, custo real, receita, margem, modelos por classe, variações de preço, alertas e situação. Só quem está em `OPERADOR_EMAIL` abre o console, e ele é separado do painel do cliente.
+
+| Variável | Onde | O que faz |
+|---|---|---|
+| `OPERADOR_TOKEN` | Instalação de cada cliente | Token (24 caracteres ou mais) que libera o resumo desta instalação para o console. Sem ele, a rota não existe. Tentativas erradas bloqueiam o endereço por 15 minutos |
+| `INSTANCIAS` | Instalação do operador | Uma instalação por linha ou separadas por `;`, no formato `Nome|https://endereco|token` |
+| `CUSTO_INFRA_USD` | Instalação de cada cliente | Custo mensal do servidor, para a margem |
+| `PACOTE_CREDITOS`, `PACOTE_PRECO_USD` | Instalação de cada cliente | Pacote de referência para a receita (padrão: 10.000 créditos por US$ 250) |
+
+Gere o token com `openssl rand -base64 32` e guarde só nas variáveis do servidor.
+
+## Página de vendas
+
+Com `PAGINA_INICIAL=vendas`, a raiz da instalação abre a página de vendas da GreenIA em vez da página da empresa. O formulário de contato grava o pedido e manda email para `OPERADOR_EMAIL`; os contatos aparecem no fim do console. Use só na instalação do operador.
 
 ## Atualizar
 

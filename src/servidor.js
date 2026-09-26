@@ -41,6 +41,7 @@ export function criarApp(op = {}) {
   app.operadores = (op.operadores || []).map(e => e.toLowerCase());
   // Console do operador: token desta instalação, instalações remotas, custo de servidor e preço do pacote.
   app.operacao = op.operacao || {};
+  app.rajada = op.rajada;   // envios por minuto por pessoa (padrão 12)
   // Na instalação do operador, a raiz abre a página de vendas (PAGINA_INICIAL=vendas).
   app.paginaInicial = op.paginaInicial === 'vendas' ? 'vendas' : 'instalacao';
   for (const e of app.operadores) garantirOperador(app, e);

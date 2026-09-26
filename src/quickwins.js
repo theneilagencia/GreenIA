@@ -6,7 +6,7 @@ import { erro } from './http.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, TIPOS_DADO } from './config.js';
 import { registrar } from './eventos.js';
-import { extrairTexto } from './texto.js';
+import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
 import { trechosDasBases } from './bases.js';
 import { acharModelo, custoEstimado, ehClasse, lerModelos, NOMES_CLASSE, resolverClasse } from './modelos.js';
@@ -159,8 +159,8 @@ export function criarQuickWins(app) {
       if (arquivos.length) {
         const total = arquivos.reduce((n, a) => n + a.texto.length, 0);
         const corpo = total <= MAX_ARQUIVOS_INTEIROS
-          ? arquivos.map(a => `### ${a.titulo}\n${a.texto}`).join('\n\n')
-          : buscar(app.db, texto, arquivos.map(a => a.id), 8).map(t => `### ${arquivos.find(a => a.id === t.documento_id).titulo}\n${t.texto}`).join('\n\n');
+          ? arquivos.map(a => delimitar('documento', a.titulo, a.texto)).join('\n\n')
+          : buscar(app.db, texto, arquivos.map(a => a.id), 8).map(t => delimitar('documento', arquivos.find(a => a.id === t.documento_id).titulo, t.texto)).join('\n\n');
         partes.push(`Arquivos de referência deste quick win (use em todas as respostas):\n\n${corpo}`);
         fontes.push(...arquivos.map(a => a.titulo));
       }

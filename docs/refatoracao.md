@@ -37,7 +37,7 @@ Critério de todas as decisões: isto faz a GreenIA parecer um chatbot ou uma in
 7. **O operador vê custos misturados ao painel do cliente**, dentro da aba Uso da própria instalação. Não há visão de várias empresas.
 8. **Nomes de eventos** em português e sem padrão (`uso`, `bloqueio`, `quick_win_alterado`), difíceis de agregar.
 9. **Identidade visual editorial.** Serifa, fundo creme, lateral verde-escura e o símbolo em forma de estrela passam a ideia de produto de consumo, não de sistema de trabalho.
-10. **A página inicial da instalação comparava preços com fornecedores**, o que já foi retirado. A página de vendas ainda não existe.
+10. **A página inicial da instalação comparava preços com fornecedores**, o que foi retirado. A página de vendas agora é separada (`PAGINA_INICIAL=vendas`).
 
 ### Funcionalidades existentes e não comunicadas
 
@@ -135,4 +135,51 @@ Perguntas que o modelo responde: quem usa (`uso.pessoa_id`), onde (área da pess
 
 ## 5. Eventos canônicos
 
-`auth.login`, `conversation.created`, `conversation.completed`, `conversation.deleted`, `conversation.confidential`, `quickwin.created`, `quickwin.updated`, `quickwin.status_changed`, `quickwin.evaluated`, `quickwin.decided`, `quickwin.approved`, `quickwin.discarded`, `quickwin.expanded`, `quickwin.measured`, `credits.consumed`, `credits.threshold_80`, `credits.exhausted`, `reserve.started`, `reserve.threshold_90`, `reserve.exhausted`, `credits.renewed`, `creditpack.added`, `model.changed`, `model.price_changed`, `model.certified`, `policy.blocked`, `policy.updated`, `knowledge.added`, `knowledge.removed`, `knowledge.used`, `ai.failed`, `problem.reported`, `config.changed`, `people.changed`, `area.changed`, `backup.completed`, `backup.failed`.
+`auth.login`, `lead.created`, `model.config_changed`, `model.uncertified`, `quickwin.adjusted`, `conversation.created`, `conversation.completed`, `conversation.deleted`, `conversation.confidential`, `quickwin.created`, `quickwin.updated`, `quickwin.status_changed`, `quickwin.evaluated`, `quickwin.decided`, `quickwin.approved`, `quickwin.discarded`, `quickwin.expanded`, `quickwin.measured`, `credits.consumed`, `credits.threshold_80`, `credits.exhausted`, `reserve.started`, `reserve.threshold_90`, `reserve.exhausted`, `credits.renewed`, `creditpack.added`, `model.changed`, `model.price_changed`, `model.certified`, `policy.blocked`, `policy.updated`, `knowledge.added`, `knowledge.removed`, `knowledge.used`, `ai.failed`, `problem.reported`, `config.changed`, `people.changed`, `area.changed`, `backup.completed`, `backup.failed`.
+
+## 6. Segurança
+
+| Item | Como está |
+|---|---|
+| Isolamento entre clientes | Uma instalação por empresa: processo, banco SQLite e disco próprios. Não há dado de dois clientes no mesmo banco |
+| Autorização | Toda regra é conferida no servidor: papel (admin, responsável de área, pessoa), área, quick win e operador. O front só esconde botões |
+| Dólar para o cliente | Com plano, o servidor converte custo em créditos e retira preços de modelo de toda resposta JSON e CSV. Só `OPERADOR_EMAIL` recebe dólar |
+| Segredos | Chave do OpenRouter, SMTP e `OPERADOR_TOKEN` só em variáveis do servidor. Nada vai para o navegador |
+| Console do operador | Rota por token com comparação em tempo constante, bloqueio por endereço após 10 erros em 15 minutos, e rota inexistente sem `OPERADOR_TOKEN` |
+| Sessão | Cookie HttpOnly e SameSite, CSRF em todo envio, conferência de origem, código de login com limite de pedidos |
+| Limites de uso | Teto mensal, teto por pessoa, limite diário e rajada de 12 envios por minuto por pessoa. Fim da reserva bloqueia o envio |
+| Arquivos | Tipo conferido pelo conteúdo (PDF, zip de DOCX ou XLSX, texto sem byte nulo), zip só com extensão DOCX ou XLSX, limite de 20 MB e teto contra bomba de zip. Imagem é recusada |
+| Prompt injection | Anexos e documentos vão entre marcas `<anexo>` e `<documento>`, com a marca de fechamento neutralizada dentro do texto, e a instrução do sistema manda tratar esse conteúdo como material, não como ordem |
+| Exfiltração | Filtro de dados antes do envio (credenciais sempre bloqueadas); conversas sigilosas só em modelos homologados com fornecedor fixo e retenção zero; o modelo não tem ferramentas nem acesso à rede |
+| Abuso de créditos | Créditos, reserva só na classe Rápido, rajada e limites por pessoa. Pessoas comuns só escolhem classes, não modelos técnicos caros |
+| Histórico | Eventos canônicos para login, mudanças de modelo, política, configuração, pessoas e pacotes |
+| Retenção | Conversas apagadas depois do prazo configurado pelo admin (1 a 3.650 dias) |
+| Página de vendas | Formulário público com validação, campo escondido contra robôs e limite de 5 contatos por hora por endereço |
+
+## 7. Funcionalidades não implementadas
+
+- **SSO (Entra ID, Google) e SCIM.** A entrada é por código enviado ao email do domínio autorizado.
+- **SLA formal e monitoramento externo.** Existe `/api/saude`, sem alerta automático fora do email de preço e dos avisos de créditos.
+- **Integrações** com outros sistemas (ERP, CRM, drive, chat corporativo).
+- **OCR.** Imagens e PDF escaneado são recusados com orientação.
+- **Busca semântica.** A base de conhecimento usa busca por palavras (FTS5), sem embeddings.
+- **Medição automática de tempo poupado e resultado financeiro.** A medição é registrada pelo responsável.
+- **Detecção automática de informação estratégica.** Depende de marcação manual (conversa, documento ou área sigilosa).
+- **Cobrança automática.** Plano e pacotes são definidos pelo operador; não há fatura, cartão ou emissão de nota.
+- **Criação de instalações pelo console.** O console lê e libera pacotes; uma instalação nova ainda é criada no Render.
+- **Onboarding guiado em assistente de tela.** A implantação aparece como roteiro de oito etapas na visão geral, com links para cada tela.
+- **Exportação do console** (CSV de clientes e margens) e histórico financeiro de meses anteriores no console.
+- **Aviso por email de contatos repetidos** e gestão de status dos contatos da página de vendas.
+
+## 8. Riscos técnicos
+
+1. **SQLite em disco único.** Uma instalação por empresa limita o impacto, mas cada banco depende do disco do serviço e do backup diário. Sem `BACKUP_DESTINO`, a cópia fica no mesmo provedor.
+2. **Dependência do OpenRouter.** Uma falha dele para todas as instalações. O reserva por classe cobre falha de um modelo, não do intermediário.
+3. **Variação de preço.** Os créditos acompanham o custo real, então a margem se mantém, mas um aumento grande consome os créditos do cliente mais rápido. O alerta de 20% vai ao operador, que decide trocar o modelo da classe.
+4. **Limites em memória.** Rajada, tentativas de token e contatos são contados na memória do processo e zeram quando o serviço reinicia. Suficiente com um processo por instalação; não com várias réplicas.
+5. **Console síncrono.** O console consulta cada instalação na hora, com prazo de 10 segundos. Com muitas instalações, a tela fica lenta; será preciso guardar um resumo periódico.
+6. **Token por instalação.** O `OPERADOR_TOKEN` dá leitura financeira e liberação de pacotes. Vazamento exige troca manual em duas variáveis (cliente e `INSTANCIAS`).
+7. **Prompt injection não tem solução completa.** As marcas e a instrução reduzem o risco, e o modelo não tem ferramentas. Ainda assim, um documento malicioso pode distorcer uma resposta; a revisão humana continua necessária.
+8. **Filtro de dados por padrões.** Pega CPF, CNPJ, cartão, dados bancários, PIX e credenciais em formatos comuns. Dado sensível em texto livre (diagnóstico, salário descrito por extenso) depende de marcação manual.
+9. **Dados fora do Brasil.** O Render e os fornecedores de modelo ficam fora do país. Precisa constar na política e no inventário de dados (LGPD).
+10. **Migrações num processo só.** As migrações rodam na subida; uma falha no meio deixa o serviço fora até a correção. O backup antes de publicar é a proteção.

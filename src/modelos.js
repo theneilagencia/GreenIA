@@ -7,6 +7,9 @@ import { registrar } from './eventos.js';
 
 export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 export const AUTO = 'openrouter/auto';
+// Modelos gratuitos: o fornecedor costuma guardar e treinar com os dados.
+export const ehGratuito = id => /:free$/.test(id) || id === 'openrouter/free';
+const AVISO_GRATUITO = 'Modelo gratuito: o fornecedor pode guardar e treinar com os dados. Não serve para conversas sigilosas e costuma ser recusado quando a exigência de "sem treino" está ligada.';
 
 // Sugestão inicial (análise em docs/modelos-sugeridos.md, 26/09/2026).
 const SUGESTAO = [
@@ -155,6 +158,7 @@ export function rotasModelos(app, r) {
         id, cat?.nome || id, id.split('/')[0], cat?.precoEntrada ?? null, cat?.precoSaida ?? null, cat?.contexto ?? null);
       exec(app.db, 'update modelos set liberado = coalesce(?, liberado), perfil = coalesce(?, perfil), reserva = ? where id = ?',
         corpo.liberado === undefined ? null : Number(!!corpo.liberado), corpo.perfil ?? null, reserva, id);
+      if (ehGratuito(id)) exec(app.db, 'update modelos set aviso = ? where id = ?', AVISO_GRATUITO, id);
       // Modelo que deixa de ser liberado perde a homologação.
       if (corpo.liberado === false) exec(app.db, 'update modelos set homologado = 0 where id = ?', id);
     });
@@ -164,6 +168,7 @@ export function rotasModelos(app, r) {
   r.post('/api/admin/modelos/:id/homologar', ({ pessoa, params, corpo }) => {
     const m = um(app.db, 'select * from modelos where id = ?', params.id);
     if (!m?.liberado) throw erro(400, 'nao_liberado', 'Libere o modelo antes de homologar.');
+    if (ehGratuito(m.id) || m.id === AUTO) throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o modo automático não podem ser homologados: não há fornecedor fixo com retenção zero.');
     const fornecedor = String(corpo.fornecedor || '').trim();
     const justificativa = String(corpo.justificativa || '').trim();
     if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado no OpenRouter.');

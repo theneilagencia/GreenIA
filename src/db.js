@@ -83,6 +83,21 @@ create table if not exists anexos (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade,
   mensagem_id integer references mensagens(id) on delete cascade, nome text not null, texto text not null);
 
+-- Medição manual dos quick wins (lançada pelo responsável) e decisões.
+create table if not exists medicoes (
+  id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade,
+  indicador text not null, antes_valor real, antes_data text, antes_origem text check (antes_origem in ('medido','informado')),
+  depois_valor real, depois_data text, depois_origem text check (depois_origem in ('medido','informado')),
+  observacao text not null default '', criado_por integer, atualizado_em text not null);
+create table if not exists decisoes (
+  id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade,
+  decisao text not null check (decisao in ('manter','ajustar','descartar','ampliar')), motivo text not null, pessoa_id integer, em text not null);
+
+-- Problemas reportados pelas pessoas.
+create table if not exists problemas (
+  id integer primary key, pessoa_id integer, tipo text not null, descricao text not null, em text not null,
+  resolvido integer not null default 0);
+
 -- Política de Uso de IA: texto do cliente e seção automática sobre dados sigilosos, por versão.
 create table if not exists politica_versoes (
   versao integer primary key, texto text not null, secao text not null, criado_em text not null, criado_por integer);

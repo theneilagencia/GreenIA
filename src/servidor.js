@@ -16,6 +16,7 @@ import { permissoesQw, rotasQuickWins } from './quickwins.js';
 import { extrairTexto } from './texto.js';
 import { rotasPolitica } from './politica.js';
 import { rotasAdmin } from './admin.js';
+import { rotasMedicao } from './medicao.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/admin': 'admin.html' };
@@ -39,6 +40,7 @@ export function criarApp(op = {}) {
     const c = lerConfig(db);
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
+  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true }; }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa) }));
   app.contexto = criarContexto(app);
   app.extrairAnexos = async (anexos = []) => {
@@ -47,7 +49,7 @@ export function criarApp(op = {}) {
     for (const a of anexos) out.push(await extrairTexto(a));
     return out;
   };
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;

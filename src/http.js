@@ -63,7 +63,7 @@ export function enviarJson(res, status, dados, extras = {}) {
 export function enviarCsv(res, nome, linhas) {
   const cel = v => {
     let s = v === null || v === undefined ? '' : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;           // evita fórmula ao abrir na planilha
+    if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;           // evita fórmula ao abrir na planilha
     return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${nome}"`, 'cache-control': 'no-store' });

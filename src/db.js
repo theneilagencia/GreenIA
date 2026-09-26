@@ -107,7 +107,7 @@ create table if not exists politica_versoes (
 
 -- Pacotes extras de créditos, liberados pelo operador da plataforma.
 create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer,
-  observacao text not null default '', validade text, origem text not null default 'manual');
+  observacao text not null default '', validade text, origem text not null default 'manual', operador text);
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
 create table if not exists uso (
@@ -154,7 +154,7 @@ const MIGRACOES = [
   // 2. Pacote extra com observação, validade opcional e origem (painel ou console do operador).
   //    Bancos anteriores aos pacotes já recebem a tabela nova pelo ESQUEMA: só acrescenta o que falta.
   db => {
-    for (const [coluna, def] of [['observacao', "text not null default ''"], ['validade', 'text'], ['origem', "text not null default 'manual'"]]) {
+    for (const [coluna, def] of [['observacao', "text not null default ''"], ['validade', 'text'], ['origem', "text not null default 'manual'"], ['operador', 'text']]) {
       if (!db.prepare('pragma table_info(pacotes)').all().some(c => c.name === coluna)) db.exec(`alter table pacotes add column ${coluna} ${def}`);
     }
   },

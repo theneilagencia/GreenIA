@@ -19,9 +19,10 @@ import { rotasPolitica } from './politica.js';
 import { rotasAdmin } from './admin.js';
 import { rotasMedicao } from './medicao.js';
 import { rotasVisao } from './visao.js';
+import { rotasOperador } from './operador.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
-const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html' };
+const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html' };
 
 /**
  * Monta a aplicação. Tudo o que vem de fora (banco, IA, email, relógio) pode ser
@@ -37,6 +38,8 @@ export function criarApp(op = {}) {
   if (op.adminEmail) garantirAdmin(app, op.adminEmail);
   app.plano = op.plano || null;
   app.operadores = (op.operadores || []).map(e => e.toLowerCase());
+  // Console do operador: token desta instalação, instalações remotas, custo de servidor e preço do pacote.
+  app.operacao = op.operacao || {};
   for (const e of app.operadores) garantirOperador(app, e);
 
   const r = criarRoteador();
@@ -57,7 +60,7 @@ export function criarApp(op = {}) {
     for (const a of anexos) out.push(await extrairTexto(a));
     return out;
   };
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;
@@ -101,7 +104,7 @@ async function tratar(app, r, req, res) {
     }
     const corpo = req.method === 'GET' ? {} : await lerCorpo(req, rota.op.limiteMb ?? 1);
     const ctx = { app, req, res, cookies, sessao, pessoa: sessao?.pessoa, params: rota.params, query: Object.fromEntries(url.searchParams), corpo };
-    ctx.creditos = !veDolar(app, ctx.pessoa);
+    ctx.creditos = !rota.op.maquina && !veDolar(app, ctx.pessoa);   // rotas com token do operador respondem em dólar
     let out = await rota.h(ctx);
     if (ctx.creditos && out) out = emCreditos(out);   // com plano, só o operador recebe valores em dólar
     if (!res.headersSent && !res.writableEnded) enviarJson(res, 200, out ?? { ok: true });

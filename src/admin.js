@@ -65,6 +65,7 @@ function validarConfig(c) {
   return v;
 }
 
+const seisMesesAntes = mes => { const [a, m] = mes.split('-').map(Number); const d = new Date(Date.UTC(a, m - 6, 1)); return d.toISOString().slice(0, 7); };
 // Uso agregado do mês (conversas de teste não contam).
 function uso(app, mes) {
   const base = "from uso u where u.teste = 0 and substr(u.em, 1, 7) = ?";
@@ -75,12 +76,21 @@ function uso(app, mes) {
     porTipo: todos(app.db, `select case when u.sigilosa = 1 then 'sigilosa' else 'normal' end as tipo, ${soma} ${base} group by u.sigilosa`, mes),
     porModelo: todos(app.db, `select u.modelo_usado as modelo, u.fornecedor, ${soma} ${base} group by u.modelo_usado, u.fornecedor order by custo desc`, mes),
     porPessoa: todos(app.db, `select p.nome, p.email, ${soma} ${base.replace('from uso u', 'from uso u join pessoas p on p.id = u.pessoa_id')} group by u.pessoa_id order by custo desc`, mes),
-    porQuickWin: todos(app.db, `select coalesce(q.nome, 'Chat geral') as quick_win, ${soma} ${base.replace('from uso u', 'from uso u left join quick_wins q on q.id = u.quick_win_id')} group by u.quick_win_id order by custo desc`, mes),
+    // Quick win: cada conversa é uma execução. Sem avaliação: execuções sem retorno de quem usou.
+    porQuickWin: todos(app.db, `select coalesce(q.nome, 'Chat geral') as quick_win, u.quick_win_id as id, ${soma},
+        count(distinct u.conversa_id) as execucoes, coalesce(sum(u.custo), 0) / max(count(distinct u.conversa_id), 1) as custoPorExecucao,
+        count(distinct case when c.feedback is null then u.conversa_id end) as semAvaliacao
+        ${base.replace('from uso u', 'from uso u left join quick_wins q on q.id = u.quick_win_id left join conversas c on c.id = u.conversa_id')} group by u.quick_win_id order by custo desc`, mes),
+    porClasse: todos(app.db, `select coalesce(m.perfil, 'outro') as classe, ${soma} ${base.replace('from uso u', 'from uso u left join modelos m on m.id = u.modelo_pedido')} group by 1 order by custo desc`, mes),
+    // Tendência: os seis meses até o escolhido.
+    tendencia: todos(app.db, `select substr(u.em, 1, 7) as mes, count(*) as respostas, count(distinct u.conversa_id) as conversas, count(distinct u.pessoa_id) as pessoas, coalesce(sum(u.custo), 0) as custo
+        from uso u where u.teste = 0 and substr(u.em, 1, 7) between ? and ? group by 1 order by 1`, seisMesesAntes(mes), mes),
     // Quick win: pelas áreas dele. Chat: pelas áreas de quem usou (quem está em várias áreas conta em cada uma).
     porArea: todos(app.db, `select a.nome as area, count(*) as respostas, count(distinct x.conversa_id) as conversas, coalesce(sum(x.custo), 0) as custo from (
         select u.*, qa.area_id from uso u join quick_win_areas qa on qa.quick_win_id = u.quick_win_id where u.teste = 0 and substr(u.em, 1, 7) = ?
         union all select u.*, ap.area_id from uso u join area_pessoas ap on ap.pessoa_id = u.pessoa_id where u.quick_win_id is null and u.teste = 0 and substr(u.em, 1, 7) = ?
       ) x join areas a on a.id = x.area_id group by a.id order by custo desc`, mes, mes),
+    pacotes: app.plano ? todos(app.db, 'select em, creditos, validade, origem, observacao from pacotes order by id desc limit 12') : [],
   };
 }
 

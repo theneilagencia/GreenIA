@@ -357,7 +357,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
   const tipo = k => u.porTipo.find(x => x.tipo === k) || { conversas: 0, custo: 0 };
   const col = emCreditos() ? '#Créditos' : '#Custo';
   const linhas = (lista, rotulo) => lista.map(x => `<tr><td>${rotulo(x)}</td><td class="num">${num(x.conversas)}</td><td class="num">${num(x.respostas)}</td><td class="num">${us(x.custo)}</td></tr>`);
-  $('conteudo').innerHTML = `${await blocoPlano()}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo OpenRouter em cada resposta.'} Conversas de teste de quick win não entram.</p>
+  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo OpenRouter em cada resposta.'} Conversas de teste de quick win não entram.</p>
     <div class="filtros"><div class="campo"><label for="mes">Mês</label><input class="entrada" type="month" id="mes" value="${u.mes}"></div>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/uso?mes=${u.mes}&formato=csv">Baixar CSV</a></div>
     <div class="indicadores">
@@ -369,9 +369,15 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
       <div class="indicador"><span>Conversas normais</span><b>${num(tipo('normal').conversas)}</b><small>${us(tipo('normal').custo)}</small></div>
       <div class="indicador"><span>Conversas sigilosas</span><b>${num(tipo('sigilosa').conversas)}</b><small>${us(tipo('sigilosa').custo)}</small></div>
     </div>
+    <h3>Tendência</h3><p class="dica">Seis meses até o mês escolhido.</p>
+    ${barrasMes(u.tendencia, u.mes)}
+    <h3>Por classe</h3><p class="dica">A classe pedida em cada resposta. Rápido para o dia a dia, Avançado para análises longas.</p>
+    ${tabela(['Classe', '#Conversas', '#Respostas', col], linhas(u.porClasse, x => esc(NOME_CLASSE[x.classe] || 'Outro')))}
     <h3>Por área</h3><p class="dica">Quick wins contam nas áreas deles; o chat, nas áreas de quem usou. Quem está em várias áreas conta em cada uma.</p>
     ${tabela(['Área', '#Conversas', '#Respostas', col], linhas(u.porArea, x => esc(x.area)))}
-    <h3>Por quick win</h3>${tabela(['Quick win', '#Conversas', '#Respostas', col], linhas(u.porQuickWin, x => esc(x.quick_win)))}
+    <h3>Por quick win</h3><p class="dica">Cada conversa iniciada num quick win é uma execução. Sem avaliação: execuções em que ninguém disse se a resposta serviu.</p>
+    ${tabela(['Quick win', '#Execuções', emCreditos() ? '#Créditos por execução' : '#Custo por execução', '#Sem avaliação', col],
+      u.porQuickWin.map(x => `<tr><td>${x.id ? `<a href="#/qw/${x.id}">${esc(x.quick_win)}</a>` : esc(x.quick_win)}</td><td class="num">${num(x.execucoes)}</td><td class="num">${x.id ? us(x.custoPorExecucao) : '–'}</td><td class="num">${x.id ? num(x.semAvaliacao) : '–'}</td><td class="num">${us(x.custo)}</td></tr>`))}
     <h3>Por pessoa</h3>${tabela(['Pessoa', '#Conversas', '#Respostas', col], linhas(u.porPessoa, x => `${esc(x.nome)} <span class="dica">${esc(x.email)}</span>`))}
     <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', col], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}`;
   $('mes').onchange = ev => abaUso(ev.target.value);
@@ -379,7 +385,19 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
 
 // ---------------------------------------------------------------- Plano (empresa com plano contratado)
 const dataBr = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR');
-async function blocoPlano() {
+const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const MES_CURTO = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function barrasMes(lista, ate) {
+  const [a, m] = ate.split('-').map(Number);
+  const meses = Array.from({ length: 6 }, (_, i) => new Date(Date.UTC(a, m - 6 + i, 1)).toISOString().slice(0, 7));
+  const por = Object.fromEntries(lista.map(x => [x.mes, x]));
+  const max = Math.max(...lista.map(x => x.custo), 0) || 1;
+  return `<div class="barras">${meses.map(k => { const x = por[k] || { custo: 0, conversas: 0 };
+    return `<div class="linha"><span class="nome">${MES_CURTO[Number(k.slice(5)) - 1]} ${k.slice(0, 4)}</span><span class="trilho"><span style="width:${x.custo ? Math.max(2, x.custo / max * 100) : 0}%"></span></span>
+      <span class="valor">${us(x.custo)} <span class="dica">${num(x.conversas)} conv.</span></span></div>`; }).join('')}</div>`;
+}
+const ORIGEM = { painel: 'Painel do operador', console: 'Console do operador', manual: 'Liberação manual' };
+async function blocoPlano(pacotes = []) {
   const p = S.plano;
   if (!p) return '';
   let html = `<h3 style="margin-top:0">Plano</h3>
@@ -390,7 +408,10 @@ async function blocoPlano() {
       <div class="indicador"><span>Renovação</span><b>${dataBr(p.renova)}</b></div>
     </div>
     <div class="barra" role="progressbar" aria-label="Créditos do plano usados" aria-valuenow="${p.percentual}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p.percentual}%"></span></div>
-    <p class="dica">Os créditos do plano renovam todo dia 1. ${p.fase === 'reserva' || p.fase === 'esgotado' ? esc(p.mensagem) : 'Quando acabam, só o modelo rápido fica disponível até a renovação.'}</p>`;
+    <p class="dica">Os créditos do plano renovam todo dia 1. ${p.fase === 'reserva' || p.fase === 'esgotado' ? esc(p.mensagem) : 'Quando acabam, a GreenIA segue com a classe Rápido até a renovação.'}</p>`;
+  if (pacotes.length) html += `<h3>Pacotes adicionais</h3><p class="dica">Usados depois dos créditos do plano, do mais antigo para o mais novo. Sem validade, ficam até serem usados.</p>
+    ${tabela(['Liberado em', '#Créditos', 'Validade', 'Origem', 'Observação'], pacotes.map(x => `<tr><td data-r="Liberado em">${dataBr(x.em.slice(0, 10))}</td><td class="num" data-r="Créditos">${num(x.creditos)}</td>
+      <td data-r="Validade">${x.validade ? dataBr(x.validade) : 'sem validade'}</td><td data-r="Origem">${ORIGEM[x.origem] || esc(x.origem)}</td><td data-r="Observação">${esc(x.observacao) || '<span class="dica">–</span>'}</td></tr>`))}`;
   return html;
 }
 // ---------------------------------------------------------------- Eventos

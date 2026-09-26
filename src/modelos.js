@@ -146,6 +146,14 @@ function mudar(app, pessoa, tipo, detalhes, fn) {
 }
 
 // Preço de um modelo liberado mudou mais de 20%: o operador recebe email (a empresa vê só o aviso no painel).
+// Troca do modelo por trás de uma classe: os admins recebem um aviso, sem alarde.
+function avisarModeloAlterado(app, trocas) {
+  const admins = todos(app.db, "select email from pessoas where papel = 'admin' and ativo = 1").map(a => a.email);
+  const linhas = trocas.map(([k, m]) => `- Classe ${NOMES_CLASSE[k]}: agora atendida por ${m?.nome || 'outro modelo'}`).join('\n');
+  const texto = `O modelo por trás de uma classe foi atualizado:\n\n${linhas}\n\nNada muda na forma de usar: as pessoas continuam escolhendo a classe, e as conversas seguem normalmente. O histórico da troca fica em Modelos.`;
+  for (const para of admins) app.email.enviar(para, 'GreenIA: modelo de uma classe atualizado', texto).catch(e => app.log('email de modelo', e.message));
+}
+
 function avisarPrecoAoOperador(app, m, n) {
   if (!m.liberado) return;
   registrar(app, 'model.price_changed', null, { modelo: m.id, classe: m.perfil, entrada: [m.precoEntrada, n.precoEntrada], saida: [m.precoSaida, n.precoSaida] });
@@ -240,6 +248,8 @@ export function rotasModelos(app, r) {
       if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
     mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino }, () => salvarConfig(app.db, novo));
+    const trocas = Object.keys(NOMES_CLASSE).filter(k => novo.padroes && novo.padroes[k] !== cfg.padroes[k]);
+    if (trocas.length) avisarModeloAlterado(app, trocas.map(k => [k, acharModelo(app.db, lerConfig(app.db), novo.padroes[k])]));
     return { ok: true };
   }, { admin: true });
 }

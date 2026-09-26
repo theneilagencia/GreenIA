@@ -113,13 +113,14 @@ export function detalhesEmCreditos(texto) {
 }
 
 // Pacote extra liberado pelo operador.
-export function liberarPacote(app, pessoa, creditos, { observacao = '', validade = null, origem = 'painel' } = {}) {
+export function liberarPacote(app, pessoa, creditos, { observacao = '', validade = null, origem = 'painel', operador = pessoa?.email } = {}) {
   const n = Math.floor(Number(creditos) || 0);
   if (n <= 0 || n > 1_000_000) throw erro(400, 'creditos', 'Informe a quantidade de créditos do pacote.');
   if (validade && (!/^\d{4}-\d{2}-\d{2}$/.test(validade) || validade < app.agora().toISOString().slice(0, 10))) throw erro(400, 'validade', 'A validade precisa ser uma data futura.');
   const obs = String(observacao || '').slice(0, 300);
-  exec(app.db, 'insert into pacotes (em, creditos, pessoa_id, observacao, validade, origem) values (?, ?, ?, ?, ?, ?)', app.agora().toISOString(), n, pessoa?.id ?? null, obs, validade || null, origem);
-  registrar(app, 'creditpack.added', pessoa?.id ?? null, { creditos: n, validade: validade || null, origem });
+  const quem = String(operador || '').slice(0, 200) || null;
+  exec(app.db, 'insert into pacotes (em, creditos, pessoa_id, observacao, validade, origem, operador) values (?, ?, ?, ?, ?, ?, ?)', app.agora().toISOString(), n, pessoa?.id ?? null, obs, validade || null, origem, quem);
+  registrar(app, 'creditpack.added', pessoa?.id ?? null, { creditos: n, validade: validade || null, origem, operador: quem });
   return situacaoPlano(app);
 }
 
@@ -179,7 +180,7 @@ export function resumoOperador(app) {
   const mes = app.agora().toISOString().slice(0, 7);
   const custoIa = um(app.db, 'select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?', mes).c;
   const custoComTaxa = custoIa * 1.055;
-  const pacotes = todos(app.db, 'select p.em, p.creditos, p.validade, p.origem, p.observacao, pe.email as por from pacotes p left join pessoas pe on pe.id = p.pessoa_id order by p.id desc limit 20');
+  const pacotes = todos(app.db, 'select p.em, p.creditos, p.validade, p.origem, p.observacao, coalesce(p.operador, pe.email) as por from pacotes p left join pessoas pe on pe.id = p.pessoa_id order by p.id desc limit 20');
   return { ...s, custoIa, custoComTaxa, precoUsd: app.plano.precoUsd, lucroSemServidor: app.plano.precoUsd ? app.plano.precoUsd - custoComTaxa : null, pacotes };
 }
 

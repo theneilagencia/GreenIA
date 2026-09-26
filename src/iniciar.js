@@ -6,6 +6,7 @@ import { atualizarCatalogo } from './modelos.js';
 import { apagarVencidas } from './conversas.js';
 import { agendarBackup } from './backup.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
+import { lerInstancias } from './operador.js';
 
 export async function iniciar(env = process.env) {
   const producao = env.NODE_ENV === 'production';
@@ -17,6 +18,12 @@ export async function iniciar(env = process.env) {
     adminEmail: env.ADMIN_EMAIL,
     plano: lerPlano(env),
     operadores: lerOperadores(env),
+    operacao: {
+      token: env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length >= 24 ? env.OPERADOR_TOKEN : null,
+      instancias: lerInstancias(env.INSTANCIAS),
+      custoInfraUsd: Number(env.CUSTO_INFRA_USD) || 0,
+      pacote: { creditos: Number(env.PACOTE_CREDITOS) || 10000, precoUsd: Number(env.PACOTE_PRECO_USD) || 250 },
+    },
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
   });
   if (!env.OPENROUTER_API_KEY) app.log(producao ? 'ATENÇÃO: sem OPENROUTER_API_KEY. O servidor está no ar, mas a IA está desligada até a chave ser configurada.' : 'Sem OPENROUTER_API_KEY: usando a IA simulada (nada vai para um modelo real).');
@@ -24,6 +31,7 @@ export async function iniciar(env = process.env) {
   const tarefa = (fn, ms) => { const t = () => Promise.resolve().then(fn).catch(e => app.log('tarefa', e.message)); t(); setInterval(t, ms).unref(); };
   tarefa(() => apagarVencidas(app), 3600e3);
   if (app.plano) { tarefa(() => verificarAvisos(app), 3600e3); app.log(`Plano: ${app.plano.creditos} créditos por mês, reserva de ${app.plano.reserva}.`); }
+  if (env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length < 24) app.log('ATENÇÃO: OPERADOR_TOKEN com menos de 24 caracteres foi ignorado.');
   if (env.OPENROUTER_API_KEY) tarefa(() => atualizarCatalogo(app), 24 * 3600e3);
   // Backup diário opcional (BACKUP_HORA=03:00).
   if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: env.BACKUP_DESTINO, manter: Number(env.BACKUP_MANTER || 14), env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);

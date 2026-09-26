@@ -41,7 +41,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible,input:focus-visibl
 .btn-grande{padding:17px 30px;font-size:17px}
 .btn-spark{background:var(--spark);color:var(--deep)} .btn-spark:hover{background:var(--spark-hover)}
 .btn-linha{background:none;border:1px solid var(--line-strong);color:var(--ink)} .btn-linha:hover:not(:disabled){background:var(--sand)}
-.btn-texto{background:none;border:none;color:var(--forest-text);padding:8px;border-radius:8px;font:500 15px var(--sans)} .btn-texto:hover{background:var(--sand-hover)}
+.btn-texto{background:none;border:none;color:var(--forest-text);padding:8px;border-radius:8px;font:500 15px var(--sans)} .btn-texto:hover{background:var(--surface-hover)}
 .btn-perigo{background:none;border:1px solid var(--red);color:var(--red-text)}
 .btn-pequeno{padding:7px 14px;font-size:14px}
 .icone-btn{background:none;border:none;border-radius:8px;padding:8px;color:var(--muted);display:inline-flex;align-items:center} .icone-btn:hover{background:var(--sand)}
@@ -55,6 +55,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible,input:focus-visibl
 .hero h1{font:300 clamp(40px,6.4vw,66px)/1.06 var(--serif);letter-spacing:-.01em;margin:24px 0 22px;text-wrap:balance}
 .hero p{font:400 clamp(18px,2vw,21px)/1.6 var(--sans);color:var(--muted);max-width:560px;margin:0 auto 36px;text-wrap:pretty}
 .faixa{background:var(--sand)}
+.faixa .rotulo{color:var(--forest-strong-hover)}   /* verde mais escuro: #1B7950 sobre areia fica em 4,49:1 */
 .faixa-dentro{max-width:1080px;margin:0 auto;padding:64px 32px;display:grid;grid-template-columns:.7fr 1.3fr;gap:48px}
 .faixa-dentro p{font:300 clamp(24px,3vw,32px)/1.45 var(--serif);margin:0;text-wrap:pretty}
 .secao{max-width:1080px;margin:0 auto;padding:72px 32px 24px}
@@ -157,7 +158,7 @@ textarea.entrada{resize:vertical;min-height:90px;line-height:1.5}
 .cursor{display:inline-block;width:8px;height:18px;background:var(--forest);margin-left:2px;vertical-align:-3px;animation:pisca 1s steps(1) infinite}
 .rodape-resposta{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font:400 12.5px var(--sans);color:var(--muted)}
 .rodape-resposta button{background:none;border:none;color:var(--forest-text);font:500 12.5px var(--sans);padding:2px 4px;border-radius:6px}
-.rodape-resposta button:hover{background:var(--sand)}
+.rodape-resposta button:hover{background:var(--surface-hover)}
 .fontes{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .fontes b{font:600 11px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .linha-aviso{align-self:center;font:500 13px/1.4 var(--sans);color:var(--amber-text);background:#F6ECD8;border-radius:999px;padding:6px 14px;text-align:center}

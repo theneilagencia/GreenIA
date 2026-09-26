@@ -66,7 +66,7 @@ function desenhar() {
       <div class="caixa">
         <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, TXT, MD, CSV, XLSX)">${ICONE.clipe}</button>
         <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.xlsx">
-        <textarea id="entrada" rows="1" placeholder="${qw ? 'Cole o texto ou anexe o material…' : 'Pergunte alguma coisa…'}" aria-label="Mensagem"></textarea>
+        <textarea id="entrada" rows="1" placeholder="${qw ? 'Cole o texto ou anexe…' : 'Pergunte alguma coisa…'}" aria-label="Mensagem"></textarea>
         <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}</button>
       </div>
       <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
@@ -181,8 +181,7 @@ async function darFeedback(valor) {
 async function garantirConversa() {
   if (C.conv) return;
   C.conv = (await api('/api/conversas', { metodo: 'POST', corpo: { quick_win_id: C.qw?.id, teste: C.teste } })).conversa;
-  history.replaceState(null, '', `#/c/${C.conv.id}`);
-  E.hashIgnorar = location.hash;
+  history.replaceState(null, '', `#/c/${C.conv.id}`);   // não dispara hashchange
 }
 
 // Sem feedback numa conversa com resposta: lembrete discreto ao sair.

@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/servidor.js",
     "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.js\"",
-    "test:e2e": "node --disable-warning=ExperimentalWarning --test \"e2e/*.test.js\""
+    "test:e2e": "node --disable-warning=ExperimentalWarning --test \"e2e/*.test.js\"",
+    "capturas": "node --disable-warning=ExperimentalWarning scripts/capturas.js"
   },
   "dependencies": {
     "nodemailer": "^7.0.13",

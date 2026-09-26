@@ -5,7 +5,7 @@
 import { api, definirCsrf, esc, ICONE, marcaHtml } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 
-export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, hashIgnorar: null, rotas: {} };
+export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
 const $ = id => document.getElementById(id);
 
 export const irPara = hash => { if (location.hash === hash) rota(); else location.hash = hash; };
@@ -82,7 +82,6 @@ function abrirPolitica() {
 }
 
 async function rota() {
-  if (E.hashIgnorar && location.hash === E.hashIgnorar) { E.hashIgnorar = null; desenharLateral(); return; }
   lembreteAoSair();
   $('lateral').classList.remove('aberta');
   const h = location.hash;

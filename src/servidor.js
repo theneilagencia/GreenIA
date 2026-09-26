@@ -12,6 +12,7 @@ import { rotasModelos } from './modelos.js';
 import { rotasConversas } from './conversas.js';
 import { rotasPessoas } from './pessoas.js';
 import { criarContexto, rotasBases } from './bases.js';
+import { rotasQuickWins } from './quickwins.js';
 import { extrairTexto } from './texto.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
@@ -44,7 +45,7 @@ export function criarApp(op = {}) {
     for (const a of anexos) out.push(await extrairTexto(a));
     return out;
   };
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasConversas]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;

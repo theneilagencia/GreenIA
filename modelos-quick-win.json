@@ -1,0 +1,112 @@
+[
+  {
+    "nome": "Resumir documento para análise",
+    "icone": "RS",
+    "cor": "#1B7950",
+    "para_que_serve": "Transforma um documento longo em um resumo curto, com os pontos que pedem decisão.",
+    "instrucoes": "Leia o material enviado e faça um resumo para quem vai analisar. Comece com uma frase sobre do que se trata. Depois liste os pontos principais, os números importantes e o que pede decisão ou atenção. Não invente nada que não esteja no material. Se faltar informação, diga o que falta.",
+    "formato": "lista",
+    "sugestoes": ["Resuma este documento em poucos pontos", "Quais pontos pedem decisão?", "Resuma em 3 linhas"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Conferir dois documentos",
+    "icone": "CF",
+    "cor": "#0F6E8C",
+    "para_que_serve": "Compara dois documentos e lista as diferenças, item por item.",
+    "instrucoes": "Compare os dois documentos enviados. Liste cada diferença encontrada: o item, o que diz o primeiro documento, o que diz o segundo e se a diferença parece relevante. Se os documentos batem em tudo, diga isso. Não suponha valores que não aparecem.",
+    "formato": "tabela",
+    "sugestoes": ["Confira estes dois documentos e liste as diferenças", "Os valores dos dois documentos batem?", "Tire a coluna de relevância"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Checklist de documentos pendentes",
+    "icone": "CK",
+    "cor": "#8C621D",
+    "para_que_serve": "Confere uma lista de documentos recebidos contra o que é exigido e mostra o que falta.",
+    "instrucoes": "Use a lista de documentos exigidos que está nos arquivos deste quick win. Compare com o que a pessoa enviou ou descreveu. Monte um checklist com cada documento exigido, marcando o que foi recebido e o que está pendente. No fim, escreva em uma frase o que falta.",
+    "formato": "checklist",
+    "sugestoes": ["Confira o que falta nestes documentos", "Monte o checklist deste caso", "Escreva uma mensagem pedindo o que falta"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Tirar dúvida com base nos procedimentos",
+    "icone": "PR",
+    "cor": "#5B4B8A",
+    "para_que_serve": "Responde dúvidas do dia a dia usando só os procedimentos da área.",
+    "instrucoes": "Responda a dúvida usando só os procedimentos e documentos disponíveis. Cite o documento de onde tirou a resposta. Se a resposta não estiver nos documentos, diga isso com clareza e sugira falar com o responsável da área. Use frases curtas.",
+    "formato": "texto",
+    "sugestoes": ["Como faço para pedir este serviço?", "Qual é o prazo para esta etapa?", "Quem aprova este tipo de pedido?"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Organizar lista de pendências",
+    "icone": "PD",
+    "cor": "#2F6B3B",
+    "para_que_serve": "Organiza anotações soltas em uma lista de pendências com responsável e prazo.",
+    "instrucoes": "Organize o texto enviado em uma lista de pendências. Para cada pendência, indique o que precisa ser feito, quem é o responsável (se aparecer no texto) e o prazo (se aparecer). Agrupe o que for parecido. Não invente responsáveis nem prazos: deixe em branco o que não estiver no texto.",
+    "formato": "tabela",
+    "sugestoes": ["Organize estas anotações em pendências", "Ordene por prazo", "Separe o que é urgente"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Localizar cláusula em contrato",
+    "icone": "CL",
+    "cor": "#7A3E2E",
+    "para_que_serve": "Encontra no contrato a cláusula sobre um assunto e explica em linguagem simples.",
+    "instrucoes": "Procure no contrato enviado as cláusulas sobre o assunto pedido. Para cada uma, informe o número da cláusula, copie o trecho principal e explique em uma ou duas frases simples o que ela diz. Se não encontrar, diga que não encontrou. Não dê parecer jurídico: indique quando for preciso consultar um especialista.",
+    "formato": "lista",
+    "sugestoes": ["Onde está a cláusula de multa?", "O que o contrato diz sobre rescisão?", "Qual é o prazo de vigência?"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Comparar cotações",
+    "icone": "CT",
+    "cor": "#1B5E7A",
+    "para_que_serve": "Coloca cotações de fornecedores lado a lado: preço, prazo, condições e o que falta.",
+    "instrucoes": "Compare as cotações enviadas. Monte uma tabela com fornecedor, preço total, prazo de entrega, condições de pagamento, validade e observações. Aponte itens que uma cotação tem e outra não. Não escolha o fornecedor: mostre as diferenças para quem vai decidir.",
+    "formato": "tabela",
+    "sugestoes": ["Compare estas cotações", "Qual cotação tem o menor prazo?", "O que falta em cada cotação?"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Redigir resposta padrão",
+    "icone": "RP",
+    "cor": "#6B5B1E",
+    "para_que_serve": "Escreve respostas cordiais e claras para pedidos que chegam sempre do mesmo jeito.",
+    "instrucoes": "Escreva uma resposta curta e cordial para a mensagem recebida, seguindo o modelo de resposta que está nos arquivos deste quick win, se houver. Use linguagem simples e direta. Termine com o próximo passo para quem vai receber. Não prometa prazos ou valores que não foram informados.",
+    "formato": "texto",
+    "sugestoes": ["Responda esta mensagem", "Deixe a resposta mais curta", "Escreva num tom mais formal"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Extrair dados para tabela",
+    "icone": "EX",
+    "cor": "#3E5C76",
+    "para_que_serve": "Tira de um documento os dados pedidos e organiza em uma tabela para copiar ou baixar.",
+    "instrucoes": "Leia o documento enviado e extraia os dados pedidos pela pessoa. Monte uma tabela com uma linha por registro. Copie os valores como estão no documento. Quando um dado não aparecer, deixe a célula vazia e avise no fim.",
+    "formato": "tabela",
+    "sugestoes": ["Extraia os itens e valores deste documento", "Coloque as datas numa coluna separada", "Tire a coluna de observações"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  },
+  {
+    "nome": "Revisar texto antes de enviar",
+    "icone": "RV",
+    "cor": "#4A6B2F",
+    "para_que_serve": "Revisa um texto: clareza, erros e tom, sem mudar o sentido.",
+    "instrucoes": "Revise o texto enviado. Corrija erros de português, deixe as frases mais curtas e claras e ajuste o tom para profissional e cordial. Não mude o sentido nem acrescente informação. Mostre o texto revisado e, em seguida, uma lista curta do que mudou.",
+    "formato": "texto",
+    "sugestoes": ["Revise este texto", "Deixe mais curto", "Deixe mais formal"],
+    "exemplo_entrada": "",
+    "exemplo_saida": ""
+  }
+]

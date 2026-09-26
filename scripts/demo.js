@@ -45,7 +45,7 @@ const doc = (c, area, titulo, texto) => c.post('/api/bases/documentos', { area_i
 const [julia, bruno, carla, diego, elisa] = await Promise.all(['julia', 'bruno', 'carla', 'diego', 'elisa'].map(entrar));
 await doc(julia, 'Atendimento', 'Prazos de resposta', '# Prazos de resposta\n\n- Reclamação: resposta em até 2 dias úteis.\n- Pedido de informação: até 5 dias úteis.\n- Toda resposta cita o número do chamado.');
 await doc(bruno, 'Operações', 'Recebimento de mercadorias', '# Recebimento\n\nTodo pedido recebido é conferido contra a nota em até 2 dias úteis. Diferença de preço acima de 2% vai para o comprador. Item faltando sempre é registrado.');
-await doc(carla, 'Administrativo', 'Reembolso de despesas', '# Reembolso\n\nDespesas são reembolsadas com nota fiscal em até 30 dias. Acima de R$ 500, precisa de aprovação do gestor.');
+await doc(carla, 'Administrativo', 'Reembolso de despesas', '# Reembolso\n\nDespesas são reembolsadas com comprovante em até 30 dias. Acima de R$ 500, precisa de aprovação do gestor.');
 
 const modelos = (await admin.get('/api/quick-wins/modelos-iniciais')).dados.modelos;
 const criar = async (c, modelo, area, extra = {}) => {

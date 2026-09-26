@@ -18,6 +18,9 @@ export const PADRAO = {
   padroes: { chat: 'google/gemini-3.5-flash-lite', rapido: 'google/gemini-3.5-flash-lite', equilibrado: 'anthropic/claude-haiku-4.5', avancado: 'anthropic/claude-sonnet-5', homologado: null },
   acessoPerfis: { equilibrado: { todos: true, grupos: [], areas: [] }, avancado: { todos: false, grupos: [], areas: [] } },
   perfisQuickWin: ['rapido', 'equilibrado', 'avancado'],
+  // Quem cria quick wins: responsáveis de área (nas áreas deles) e pessoas ou
+  // grupos autorizados (nas áreas de que fazem parte). "Toda a empresa" é à parte.
+  criarQuickWin: { responsaveis: true, pessoas: [], grupos: [], todaEmpresa: { pessoas: [], grupos: [] } },
   exigirSemTreino: true,
   automatico: false,
   // Limites (0 = sem limite).

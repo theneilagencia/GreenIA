@@ -28,13 +28,14 @@ export function cliente(app, base) {
     put: (p, b) => c.req('PUT', p, b ?? {}),
     patch: (p, b) => c.req('PATCH', p, b ?? {}),
     del: p => c.req('DELETE', p, {}),
-    async entrar(email) {
+    async entrar(email, op = {}) {
       await c.post('/api/login/codigo', { email });
       const msg = app.email.enviados.filter(m => m.para === email).at(-1);
       const codigo = /(\d{6})/.exec(msg.assunto)[1];
       const r = await c.post('/api/login/entrar', { email, codigo });
       if (r.status !== 200) throw new Error('login falhou: ' + JSON.stringify(r.dados));
       csrf = r.dados.csrf;
+      if (!op.semCiencia) await c.post('/api/politica/ciencia', { versao: (await c.get('/api/politica')).dados.versao });
       c.pessoa = (await c.get('/api/eu')).dados.pessoa;
       return c;
     },

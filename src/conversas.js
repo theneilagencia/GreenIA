@@ -7,6 +7,7 @@ import { registrar } from './eventos.js';
 import { decidir, detectar, ROTULOS } from './filtro.js';
 import { homologadoPadrao, modeloPermitido } from './modelos.js';
 import { ErroIA } from './ia.js';
+import { cienciaPendente } from './politica.js';
 
 const AGORA = app => app.agora().toISOString();
 const MAX_TEXTO = 20000;
@@ -146,6 +147,7 @@ export function rotasConversas(app, r) {
     const anexos = await (app.extrairAnexos?.(corpo.anexos) ?? []);
     if (!texto && !anexos.length) throw erro(400, 'vazia', 'Escreva uma mensagem.');
     if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Mensagem acima de ${MAX_TEXTO} caracteres.`);
+    if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');
     await app.limites?.checar(pessoa, cfg);
 
     // 1. Filtro de dados, no servidor, sobre a mensagem e os anexos.

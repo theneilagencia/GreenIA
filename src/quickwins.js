@@ -18,8 +18,22 @@ const MAX_ARQUIVOS_INTEIROS = 40000;   // acima disso, só os trechos relevantes
 
 export const areasDoQw = (db, id) => todos(db, 'select area_id from quick_win_areas where quick_win_id = ?', id).map(a => a.area_id);
 
+const naLista = (pessoa, l = {}) => (l.pessoas || []).includes(pessoa.id) || (l.grupos || []).some(g => pessoa.grupos.includes(g));
+
+// O que a pessoa pode criar: em quais áreas e se pode para a empresa toda.
+export function permissoesQw(db, pessoa, cfg = lerConfig(db)) {
+  const c = cfg.criarQuickWin;
+  const autorizado = pessoa.admin || naLista(pessoa, c);
+  const areas = pessoa.admin ? todos(db, 'select id, nome from areas order by nome')
+    : autorizado ? pessoa.areas : c.responsaveis ? pessoa.areas.filter(a => a.responsavel) : [];
+  const todaEmpresa = pessoa.admin || naLista(pessoa, c.todaEmpresa);
+  return { criar: areas.length > 0 || todaEmpresa, todaEmpresa, areas: areas.map(a => ({ id: a.id, nome: a.nome })) };
+}
+
+// Gerencia: o admin, o responsável de uma das áreas e quem criou (enquanto puder criar).
 export function podeGerir(db, pessoa, qw) {
   if (pessoa.admin) return true;
+  if (qw.criado_por === pessoa.id && permissoesQw(db, pessoa).criar) return true;
   if (qw.toda_empresa) return false;
   const minhas = pessoa.areas.filter(a => a.responsavel).map(a => a.id);
   return areasDoQw(db, qw.id).some(a => minhas.includes(a));
@@ -68,12 +82,14 @@ function validar(app, pessoa, atual, c) {
   // Áreas: só as que a pessoa gerencia; "toda a empresa", só o admin.
   let areas = null;
   if (c.toda_empresa !== undefined || c.areas !== undefined) {
+    const perm = permissoesQw(app.db, pessoa, cfg);
     v.toda_empresa = Number(!!c.toda_empresa);
-    if (v.toda_empresa && !pessoa.admin) throw erro(403, 'toda_empresa', 'Só o admin cria quick win para a empresa toda.');
+    if (v.toda_empresa && !perm.todaEmpresa) throw erro(403, 'toda_empresa', 'Você não tem autorização para quick win da empresa toda.');
     areas = v.toda_empresa ? [] : [...new Set((c.areas || []).map(Number))];
     if (!v.toda_empresa && !areas.length) throw erro(400, 'areas', 'Escolha pelo menos uma área.');
-    const minhas = pessoa.areas.filter(a => a.responsavel).map(a => a.id);
-    if (!pessoa.admin && areas.some(a => !minhas.includes(a))) throw erro(403, 'areas', 'Você só configura quick wins das áreas em que é responsável.');
+    // Pode manter as áreas que o quick win já tinha; acrescentar, só as que a pessoa pode.
+    const atuais = atual.id ? areasDoQw(app.db, atual.id) : [];
+    if (areas.some(a => !atuais.includes(a) && !perm.areas.some(p => p.id === a))) throw erro(403, 'areas', 'Você não pode criar quick wins nesta área.');
   }
   // Modelo padrão: liberado, de um perfil que o admin permite; homologado se o quick win é sigiloso.
   const final = { ...atual, ...v };
@@ -164,6 +180,7 @@ export function rotasQuickWins(app, r) {
   // Criar: do zero, de um modelo inicial ou duplicando um existente (inclusive
   // para outra área). Duplicar copia instruções, arquivos e configuração, nunca conversas.
   r.post('/api/quick-wins', ({ pessoa, corpo }) => {
+    if (!permissoesQw(app.db, pessoa).criar) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar quick wins. Fale com o admin.');
     let base = {};
     let origem = null;
     if (corpo.duplicar_de) {

@@ -12,8 +12,10 @@ import { rotasModelos } from './modelos.js';
 import { rotasConversas } from './conversas.js';
 import { rotasPessoas } from './pessoas.js';
 import { criarContexto, rotasBases } from './bases.js';
-import { rotasQuickWins } from './quickwins.js';
+import { permissoesQw, rotasQuickWins } from './quickwins.js';
 import { extrairTexto } from './texto.js';
+import { rotasPolitica } from './politica.js';
+import { rotasAdmin } from './admin.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/admin': 'admin.html' };
@@ -37,7 +39,7 @@ export function criarApp(op = {}) {
     const c = lerConfig(db);
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
-  r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf }));
+  r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa) }));
   app.contexto = criarContexto(app);
   app.extrairAnexos = async (anexos = []) => {
     if (!Array.isArray(anexos) || anexos.length > 10) throw new ErroHttp(400, 'anexos', 'Envie até 10 anexos por mensagem.');
@@ -45,7 +47,7 @@ export function criarApp(op = {}) {
     for (const a of anexos) out.push(await extrairTexto(a));
     return out;
   };
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;

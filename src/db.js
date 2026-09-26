@@ -83,6 +83,10 @@ create table if not exists anexos (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade,
   mensagem_id integer references mensagens(id) on delete cascade, nome text not null, texto text not null);
 
+-- Política de Uso de IA: texto do cliente e seção automática sobre dados sigilosos, por versão.
+create table if not exists politica_versoes (
+  versao integer primary key, texto text not null, secao text not null, criado_em text not null, criado_por integer);
+
 -- Uso da IA: uma linha por resposta, sem conteúdo.
 create table if not exists uso (
   id integer primary key, em text not null, pessoa_id integer, conversa_id integer, quick_win_id integer,

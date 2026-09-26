@@ -29,6 +29,7 @@ export function rotasPessoas(app, r) {
     if (um(app.db, 'select 1 from areas where nome = ?', nome)) throw erro(409, 'nome', 'Já existe uma área com esse nome.');
     const id = Number(exec(app.db, 'insert into areas (nome, sigilosa) values (?, ?)', nome, Number(!!corpo.sigilosa)).lastInsertRowid);
     registrar(app, 'area_criada', pessoa.id, { area: id, nome, sigilosa: !!corpo.sigilosa });
+    app.aoMudarModelos?.();
     return { id, nome, sigilosa: !!corpo.sigilosa, pessoas: [] };
   }, { admin: true });
 
@@ -44,12 +45,14 @@ export function rotasPessoas(app, r) {
       }
     });
     registrar(app, 'area_alterada', pessoa.id, { area: id, sigilosa: corpo.sigilosa, pessoas: corpo.pessoas?.length });
+    app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
 
   r.del('/api/admin/areas/:id', ({ pessoa, params }) => {
     exec(app.db, 'delete from areas where id = ?', Number(params.id));
     registrar(app, 'area_removida', pessoa.id, { area: Number(params.id) });
+    app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
 

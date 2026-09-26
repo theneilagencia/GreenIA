@@ -31,8 +31,13 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.
+// Se a política mudou (428), registra a ciência e reenvia: o bloqueio tem teste próprio.
 export async function enviarMensagem(c, conversaId, corpo) {
-  const r = await c.req('POST', `/api/conversas/${conversaId}/mensagens`, corpo);
+  let r = await c.req('POST', `/api/conversas/${conversaId}/mensagens`, corpo);
+  if (r.status === 428) {
+    await c.post('/api/politica/ciencia', { versao: (await c.get('/api/politica')).dados.versao });
+    r = await c.req('POST', `/api/conversas/${conversaId}/mensagens`, corpo);
+  }
   if (typeof r.dados === 'object') return { status: r.status, erro: r.dados };
   const eventos = r.dados.trim().split('\n').map(l => JSON.parse(l));
   return { status: r.status, eventos, texto: eventos.filter(e => e.t === 'texto').map(e => e.v).join(''), fim: eventos.find(e => e.t === 'fim'), falha: eventos.find(e => e.t === 'erro') };

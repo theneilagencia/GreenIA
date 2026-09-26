@@ -40,8 +40,8 @@ export function criarApp(op = {}) {
     const c = lerConfig(db);
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
-  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true }; }, { publica: true });
-  r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa) }));
+  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false }; }, { publica: true });
+  r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false }));
   app.contexto = criarContexto(app);
   app.extrairAnexos = async (anexos = []) => {
     if (!Array.isArray(anexos) || anexos.length > 10) throw new ErroHttp(400, 'anexos', 'Envie até 10 anexos por mensagem.');

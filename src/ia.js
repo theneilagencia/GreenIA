@@ -72,6 +72,17 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
   };
 }
 
+// Produção sem chave: o servidor sobe (o admin entra e vê o aviso), mas nenhuma
+// resposta é gerada. Nunca troca pela simulada em produção.
+export const MSG_SEM_CHAVE = 'A IA ainda não está configurada: falta a chave OPENROUTER_API_KEY no servidor. Avise o admin.';
+export function criarIndisponivel() {
+  return {
+    configurada: false,
+    async listarModelos() { return []; },
+    async *enviar() { throw new ErroIA(MSG_SEM_CHAVE, 503); },
+  };
+}
+
 // IA simulada, para demonstração e desenvolvimento sem chave. Responde de forma
 // previsível ao último pedido (tabela, resumo curto ou eco organizado).
 export function criarSimulada() {

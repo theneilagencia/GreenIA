@@ -43,7 +43,7 @@ O arquivo `render.yaml` já descreve o serviço:
 
 Passos:
 
-1. No Render, clique em **New → Blueprint** e escolha este repositório. Ele pede `ADMIN_EMAIL` e `OPENROUTER_API_KEY`: preencha lá, nunca no repositório.
+1. No Render, clique em **New → Blueprint** e escolha este repositório. Ele pede `ADMIN_EMAIL` e `OPENROUTER_API_KEY`: preencha lá, nunca no repositório. Sem a chave, o serviço sobe com a IA desligada e o painel mostra o aviso.
 2. Espere a primeira publicação ficar verde (**Live**).
 3. No DNS de `theneil.com.br`, crie um registro **CNAME** de `greenia` apontando para o endereço `*.onrender.com` do serviço. O Render mostra esse endereço em **Settings → Custom Domains** e emite o HTTPS sozinho.
 4. Entre com o `ADMIN_EMAIL`. Enquanto não houver SMTP, o código aparece em **Logs** no Render. Configure o SMTP no painel (porta 587 ou 465) para as outras pessoas receberem o código por email.

@@ -495,6 +495,7 @@ async function iniciar() {
   const pode = S.eu.admin || ABAS.some(a => a.tambem?.());
   if (!pode) { location.href = '/app'; return; }
   $('titulo-painel').textContent = S.eu.admin ? 'Painel do admin' : 'Bases e quick wins';
+  if (S.eu.admin && eu.iaConfigurada === false) document.querySelector('.painel-corpo').insertAdjacentHTML('afterbegin', '<div class="faixa-aviso erro" role="alert" style="margin:16px 24px 0">A IA está desligada: falta a variável OPENROUTER_API_KEY no servidor. No Render: serviço → Environment → adicione a chave e salve. As pessoas conseguem entrar, mas não recebem respostas.</div>');
   window.addEventListener('hashchange', abrir);
   await abrir();
 }

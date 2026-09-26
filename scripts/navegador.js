@@ -6,8 +6,8 @@ import { criarApp } from '../src/servidor.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM].find(p => p && existsSync(p));
 
-export async function subirComNavegador({ adminEmail = 'admin@empresa-exemplo.com.br', largura = 1280, altura = 820 } = {}) {
-  const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail });
+export async function subirComNavegador({ adminEmail = 'admin@empresa-exemplo.com.br', largura = 1280, altura = 820, ...extra } = {}) {
+  const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail, ...extra });
   await new Promise(r => app.servidor.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.servidor.address().port}`;
   const navegador = await chromium.launch({ executablePath: CHROMIUM });

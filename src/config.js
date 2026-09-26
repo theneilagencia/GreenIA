@@ -22,6 +22,7 @@ export const PADRAO = {
   // grupos autorizados (nas áreas de que fazem parte). "Toda a empresa" é à parte.
   criarQuickWin: { responsaveis: true, pessoas: [], grupos: [], todaEmpresa: { pessoas: [], grupos: [] } },
   exigirSemTreino: true,
+  avisosPlano: {},   // controle interno dos avisos do plano (mês e etapas já avisadas)
   automatico: false,
   // Limites (0 = sem limite).
   tetoMensal: 0, tetoPessoaMensal: 0, limiteDiarioPessoa: 0,

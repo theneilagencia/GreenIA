@@ -3,6 +3,7 @@ import { erro, enviarCsv } from './http.js';
 import { todos, um } from './db.js';
 import { lerConfig, salvarConfig, TIPOS_DADO } from './config.js';
 import { registrar } from './eventos.js';
+import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
 import { areasDoQw } from './quickwins.js';
 
 // Contraste (WCAG) para a checagem automática da cor de marca.
@@ -86,12 +87,17 @@ function uso(app, mes) {
 export function rotasAdmin(app, r) {
   app.limites = criarLimites(app);
 
-  r.get('/api/admin/config', () => {
+  // Com plano, os tetos de gasto aparecem e são digitados em créditos (guardados em dólar).
+  const TETOS = ['tetoMensal', 'tetoPessoaMensal'];
+  r.get('/api/admin/config', ({ creditos }) => {
     const c = lerConfig(app.db);
-    return Object.fromEntries(CAMPOS_CONFIG.map(k => [k, c[k]]));
+    const out = Object.fromEntries(CAMPOS_CONFIG.map(k => [k, c[k]]));
+    if (creditos) for (const k of TETOS) out[k] = Math.round(out[k] / CREDITO_USD);
+    return out;
   }, { admin: true });
 
-  r.put('/api/admin/config', ({ pessoa, corpo }) => {
+  r.put('/api/admin/config', ({ pessoa, corpo, creditos }) => {
+    if (creditos) for (const k of TETOS) if (corpo[k] !== undefined) corpo[k] = (Number(corpo[k]) || 0) * CREDITO_USD;
     const v = validarConfig(corpo);
     salvarConfig(app.db, v);
     registrar(app, 'config_alterada', pessoa.id, { campos: Object.keys(v) });
@@ -105,17 +111,18 @@ export function rotasAdmin(app, r) {
     return { ok: true, para: pessoa.email };
   }, { admin: true });
 
-  r.get('/api/admin/uso', ({ query, res }) => {
-    const u = uso(app, mesDe(app, query.mes));
+  r.get('/api/admin/uso', ({ query, res, creditos }) => {
+    let u = uso(app, mesDe(app, query.mes));
     if (query.formato !== 'csv') return u;
+    if (creditos) u = emCreditos(u);
     const cab = ['respostas', 'conversas', 'custo', 'economia'];
     const blocos = [['Por modelo', u.porModelo, 'modelo'], ['Por quick win', u.porQuickWin, 'quick_win'], ['Por área', u.porArea, 'area'], ['Por pessoa', u.porPessoa, 'email'], ['Por tipo', u.porTipo, 'tipo']];
-    const linhas = [['recorte', 'item', ...cab]];
+    const linhas = [['recorte', 'item', 'respostas', 'conversas', creditos ? 'créditos' : 'custo (US$)', creditos ? 'economia com cache (créditos)' : 'economia com cache (US$)']];
     for (const [nome, lista, chave] of blocos) for (const l of lista) linhas.push([nome, l[chave], ...cab.map(c => l[c] ?? '')]);
     enviarCsv(res, `greenia-uso-${u.mes}.csv`, linhas);
   }, { admin: true });
 
-  r.get('/api/admin/eventos', ({ query, res }) => {
+  r.get('/api/admin/eventos', ({ query, res, creditos }) => {
     const cond = [], p = [];
     if (query.tipo) { cond.push('e.tipo = ?'); p.push(query.tipo); }
     if (query.pessoa) { cond.push('p.email like ?'); p.push(`%${query.pessoa}%`); }
@@ -123,7 +130,7 @@ export function rotasAdmin(app, r) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(query.ate || '')) { cond.push('e.em < ?'); p.push(`${query.ate}T99`); }
     const where = cond.length ? `where ${cond.join(' and ')}` : '';
     const sql = `select e.id, e.em, e.tipo, p.email as pessoa, e.detalhes from eventos e left join pessoas p on p.id = e.pessoa_id ${where} order by e.id desc`;
-    if (query.formato === 'csv') return enviarCsv(res, 'greenia-eventos.csv', [['id', 'quando', 'tipo', 'pessoa', 'detalhes'], ...todos(app.db, sql, ...p).map(e => [e.id, e.em, e.tipo, e.pessoa, e.detalhes])]);
+    if (query.formato === 'csv') return enviarCsv(res, 'greenia-eventos.csv', [['id', 'quando', 'tipo', 'pessoa', 'detalhes'], ...todos(app.db, sql, ...p).map(e => [e.id, e.em, e.tipo, e.pessoa, creditos ? detalhesEmCreditos(e.detalhes) : e.detalhes])]);
     const pagina = Math.max(0, Number(query.pagina) || 0);
     return { eventos: todos(app.db, `${sql} limit 100 offset ?`, ...p, pagina * 100), total: um(app.db, `select count(*) as n from eventos e left join pessoas p on p.id = e.pessoa_id ${where}`, ...p).n,
       tipos: todos(app.db, 'select distinct tipo from eventos order by tipo').map(t => t.tipo) };

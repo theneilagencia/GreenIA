@@ -2,6 +2,20 @@
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 let csrf = '';
+// Unidade dos valores de consumo: dólar (sem plano, ou operador) ou créditos (empresa com plano).
+let unidade = 'usd';
+export const definirUnidade = u => { unidade = u === 'creditos' ? 'creditos' : 'usd'; };
+export const emCreditos = () => unidade === 'creditos';
+export function fmtCusto(v, { conversa = false } = {}) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return conversa ? 'sem estimativa' : '—';
+  const n = Number(v);
+  if (unidade === 'creditos') {
+    if (conversa) { const c = Math.max(1, Math.round(n)); return `cerca de ${c} ${c === 1 ? 'crédito' : 'créditos'}`; }
+    const t = n < 10 && n % 1 ? n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : Math.round(n).toLocaleString('pt-BR');
+    return `${t} ${n === 1 ? 'crédito' : 'créditos'}`;
+  }
+  return `US$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(n) < 1 ? 4 : 2 })}`;
+}
 export const definirCsrf = t => { csrf = t; };
 
 export async function api(caminho, { metodo = 'GET', corpo, bruto = false } = {}) {

@@ -2,7 +2,7 @@
 //   #/nova          nova conversa no chat geral
 //   #/c/:id         conversa (chat ou quick win)
 //   #/qw/:id        página de um quick win (e #/qw/:id/editar, #/qw/nova)
-import { api, aplicarMarca, definirCsrf, esc, ICONE, logoEmpresa, marcaHtml, toast } from '/comum.js';
+import { api, aplicarMarca, definirCsrf, definirUnidade, esc, ICONE, logoEmpresa, marcaHtml, toast } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
@@ -26,7 +26,7 @@ export function cabecalho(titulo, acoes = '') {
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
         <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}</button></div>
-    </div></header>`;
+    </div></header>${E.plano?.mensagem ? `<div class="faixa-plano faixa-aviso ${E.plano.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status">${esc(E.plano.mensagem)}</div>` : ''}`;
 }
 
 export function ligarCabecalho() {
@@ -127,7 +127,8 @@ async function rota() {
 async function iniciar() {
   const [eu, publico] = await Promise.all([api('/api/eu'), api('/api/publico')]);
   definirCsrf(eu.csrf);
-  Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar });
+  Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar, plano: eu.plano });
+  definirUnidade(eu.unidade);
   aplicarMarca(publico);
   document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   const qw = await import('/quickwin.js').catch(() => null);

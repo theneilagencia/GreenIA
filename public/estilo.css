@@ -314,3 +314,9 @@ button.lista-item:hover{background:var(--surface-hover)}
 .fontes a{color:var(--forest-text)}
 @media (max-width:900px){.grade-4{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.grade-4{grid-template-columns:1fr}}
+/* Plano contratado */
+.barra{height:10px;border-radius:999px;background:var(--sand);overflow:hidden;margin:6px 0 10px}
+.barra span{display:block;height:100%;background:var(--forest)}
+.cartao-operador{border:1px dashed var(--line-strong);border-radius:14px;padding:18px 20px;margin:18px 0 28px}
+.cartao-operador h3{margin:0 0 4px}
+.faixa-plano{margin:0;border-radius:0;padding:10px 24px}

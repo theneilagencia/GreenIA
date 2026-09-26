@@ -5,6 +5,7 @@ import { erro, enviarCsv } from './http.js';
 import { exec, todos, um } from './db.js';
 import { registrar } from './eventos.js';
 import { podeGerir } from './quickwins.js';
+import { creditosDe } from './plano.js';
 
 const ORIGENS = ['medido', 'informado'];
 const DECISOES = ['manter', 'ajustar', 'descartar', 'ampliar'];
@@ -99,10 +100,10 @@ export function rotasMedicao(app, r) {
   });
 
   // Tudo em CSV: uso por mês, medições e decisões.
-  r.get('/api/quick-wins/:id/medicao.csv', ({ pessoa, params, res }) => {
+  r.get('/api/quick-wins/:id/medicao.csv', ({ pessoa, params, res, creditos }) => {
     const q = gerido(pessoa, params.id);
-    const linhas = [['bloco', 'mês ou indicador', 'conversas', 'mensagens', 'pessoas', 'serviu', 'com ajustes', 'não serviu', 'sem feedback', 'sigilosas', 'custo (US$)', 'tempo médio (s)']];
-    for (const u of usoMensal(app.db, q.id)) linhas.push(['uso', u.mes, u.conversas, u.mensagens, u.pessoas, u.serviu, u.ajustes, u.nao_serviu, u.sem_feedback, u.sigilosas, u.custo.toFixed(4), (u.ms / 1000).toFixed(1)]);
+    const linhas = [['bloco', 'mês ou indicador', 'conversas', 'mensagens', 'pessoas', 'serviu', 'com ajustes', 'não serviu', 'sem feedback', 'sigilosas', creditos ? 'créditos' : 'custo (US$)', 'tempo médio (s)']];
+    for (const u of usoMensal(app.db, q.id)) linhas.push(['uso', u.mes, u.conversas, u.mensagens, u.pessoas, u.serviu, u.ajustes, u.nao_serviu, u.sem_feedback, u.sigilosas, creditos ? creditosDe(u.custo) : u.custo.toFixed(4), (u.ms / 1000).toFixed(1)]);
     linhas.push([], ['bloco', 'indicador', 'antes', 'data antes', 'origem antes', 'depois', 'data depois', 'origem depois', 'situação', 'variação', 'observação', 'lançado por']);
     for (const m of lerMedicoes(q.id)) linhas.push(['medição', m.indicador, m.antes_valor, m.antes_data, m.antes_origem, m.depois_valor, m.depois_data, m.depois_origem, m.situacao, m.variacao ?? '', m.observacao, m.por]);
     linhas.push([], ['bloco', 'decisão', 'motivo', 'quando', 'quem']);

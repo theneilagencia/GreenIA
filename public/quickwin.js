@@ -1,5 +1,5 @@
 // Quick wins no app: página do quick win (conversas retomáveis) e configuração.
-import { api, esc, ICONE, toast } from '/comum.js';
+import { api, esc, fmtCusto, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { secaoMedicao } from '/medicao.js';
@@ -10,7 +10,6 @@ const FORMATOS = { texto: 'Texto', lista: 'Lista', tabela: 'Tabela (baixa em CSV
 const DADOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', rg: 'RG', email: 'Email', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço' };
 const CORES = ['#1B7950', '#0F6E8C', '#5B4B8A', '#8C621D', '#7A3E2E', '#2F6B3B', '#3E5C76', '#9B4029'];
 const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-const brl = v => (v === null || v === undefined ? 'sem preço' : `US$ ${v < 0.01 ? v.toFixed(4) : v.toFixed(3)}`.replace('.', ','));
 
 export async function rotaQuickWin(hash) {
   let m;
@@ -137,7 +136,7 @@ async function configurar(id) {
           <div class="opcoes" id="bases-escolhidas" style="margin-top:8px">${bases.documentos.map(d => `<label><input type="checkbox" name="base" value="${d.id}" ${qw.bases.ids.includes(d.id) ? 'checked' : ''}> ${esc(d.titulo)}</label>`).join('') || '<span class="dica">Nenhum documento de base disponível.</span>'}</div></div>
       </div>
       <div class="grupo-form"><h3>Modelo de IA</h3>
-        <div class="campo"><label for="modelo">Modelo padrão</label><select class="entrada" id="modelo">${est.modelos.map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${m.homologado ? ' · Homologado' : ''} · ${brl(m.custo)} por conversa típica</option>`).join('')}</select>
+        <div class="campo"><label for="modelo">Modelo padrão</label><select class="entrada" id="modelo">${est.modelos.map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${m.homologado ? ' · Homologado' : ''} · ${fmtCusto(m.custo, { conversa: true })} por conversa típica</option>`).join('')}</select>
           <span class="ajuda">Estimativa com o preço informado pelo OpenRouter, para uma conversa de três perguntas. Quem usa pode usar este modelo mesmo sem ter o perfil liberado no dia a dia.</span></div>
         <label class="opcoes"><span><input type="checkbox" id="pode-trocar" ${qw.pode_trocar ? 'checked' : ''}> Quem usa pode trocar de modelo (dentro dos perfis liberados para a pessoa)</span></label><p></p>
       </div>

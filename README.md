@@ -62,6 +62,27 @@ O que muda em relação a uma VM:
 - **Backup.** O Render tira cópia do disco uma vez por dia. Mesmo assim, configure o `BACKUP_DESTINO` para ter uma cópia fora do Render.
 - **Custo.** Cerca de US$ 7 por mês (Starter: 512 MB e 0,5 CPU), mais US$ 0,25 por GB de disco. Se ficar lento com muitos PDFs grandes, suba para o plano com 2 GB.
 
+## Plano contratado (créditos)
+
+Quando a GreenIA é oferecida como serviço, o plano de cada empresa vem de variáveis do servidor. O admin da empresa não consegue alterar esses valores.
+
+| Variável | O que faz |
+|---|---|
+| `PLANO_CREDITOS` | Créditos por mês. 1 crédito = US$ 0,01 de custo de IA. Sem esta variável, não há cota e a empresa vê o custo em dólar |
+| `PLANO_RESERVA` | Créditos extras só no modelo rápido, depois que o plano acaba. Padrão: 20% do plano |
+| `PLANO_PRECO_USD` | Preço do plano, usado só no resumo do operador |
+| `OPERADOR_EMAIL` | Quem opera a plataforma. Entra mesmo com email de outro domínio, vê o custo real e libera pacotes extras |
+
+Como o mês funciona:
+
+1. **Consumo.** Cada resposta gasta créditos conforme o custo real do modelo naquele dia.
+2. **Ordem.** Primeiro os créditos do plano, depois os pacotes extras (o que sobra passa para o mês seguinte), por último a reserva, só no modelo rápido.
+3. **Avisos.** O admin da empresa e o operador recebem email em 80% do plano, no fim do plano (a partir daí, só o modelo rápido), em 90% da reserva e no fim da reserva, quando o envio para até o dia 1.
+4. **Faixas.** O painel e o chat mostram faixas com o mesmo aviso.
+5. **Pacote extra.** O operador libera na aba **Uso** do painel.
+
+A empresa vê créditos em todo o painel. O servidor não envia valores em dólar nem preços de modelo para quem não é operador. O operador também recebe email quando o preço de um modelo liberado muda mais de 20%.
+
 ## Atualizar
 
 No Render, cada push no branch principal publica sozinho. Numa VM:

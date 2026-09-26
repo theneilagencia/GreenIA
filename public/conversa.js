@@ -27,7 +27,8 @@ async function carregarModelos() {
   C.opcoes = m.opcoes;
   C.homologadoPadrao = m.homologadoPadrao;
   const preferido = C.conv?.modelo || m.padrao;
-  C.modelo = C.opcoes.some(o => o.id === preferido) ? preferido : C.conv?.sigilosa ? m.homologadoPadrao : C.opcoes[0]?.id || null;
+  const livres = C.opcoes.filter(o => !o.bloqueado);
+  C.modelo = livres.some(o => o.id === preferido) ? preferido : C.conv?.sigilosa ? m.homologadoPadrao : livres[0]?.id || null;
 }
 
 function titulo() {
@@ -47,7 +48,7 @@ function desenhar() {
       ${qw ? `<span class="selo" style="background:${esc(qw.cor)}1f;color:var(--ink)"><span class="cor" style="width:9px;height:9px;border-radius:3px;background:${esc(qw.cor)}"></span>${esc(qw.nome)}</span>` : ''}
       <label class="seletor">Modelo
         <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
-          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''}>${esc(o.nome)}${o.homologado ? ' · Homologado' : ''}</option>`).join('')}
+          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.nome)}${o.homologado ? ' · Homologado' : ''}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
         </select></label>
       <span id="selo-modelo">${modeloAtual?.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span>` : ''}</span>
       <span class="chave">

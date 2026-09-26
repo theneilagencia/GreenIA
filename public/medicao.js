@@ -1,9 +1,9 @@
 // Medição do quick win, vista por quem gerencia: uso automático por mês,
 // comparação entre modelos, medição manual (antes e depois) e decisões.
-import { api, esc, ICONE, toast } from '/comum.js';
+import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
 
 const $ = id => document.getElementById(id);
-const brl = v => (v === null || v === undefined ? 'sem preço' : `US$ ${v < 0.01 ? v.toFixed(4) : v.toFixed(3)}`.replace('.', ','));
+const brl = v => fmtCusto(v);
 const num = v => (v === null || v === undefined ? '' : String(v).replace('.', ','));
 const mesNome = m => new Date(`${m}-15T12:00:00`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
 const dataBr = d => (d ? new Date(d.length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('pt-BR') : '');
@@ -20,12 +20,12 @@ export async function secaoMedicao(alvo, id) {
 
   alvo.innerHTML = `
     <h3>Uso por mês</h3>
-    ${d.usoMensal.length ? `<div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Mês</th><th>Conversas</th><th>Mensagens</th><th>Pessoas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>Sem retorno</th><th>Custo de IA</th></tr></thead><tbody>
+    ${d.usoMensal.length ? `<div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Mês</th><th>Conversas</th><th>Mensagens</th><th>Pessoas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>Sem retorno</th><th>${emCreditos() ? 'Créditos' : 'Custo de IA'}</th></tr></thead><tbody>
       ${d.usoMensal.map(u => `<tr><td>${mesNome(u.mes)}</td><td>${u.conversas}</td><td>${u.mensagens}</td><td>${u.pessoas}</td><td>${u.serviu}</td><td>${u.ajustes}</td><td>${u.nao_serviu}</td><td>${u.sem_feedback}</td><td>${brl(u.custo)}</td></tr>`).join('')}
     </tbody></table></div>` : '<p class="dica">Ainda sem uso. Os números aparecem quando alguém conversar neste quick win.</p>'}
     <p class="dica">Cada conversa conta como um uso. Você vê só os números. O conteúdo das conversas é de cada pessoa.</p>
 
-    ${uso.porModelo.length > 1 ? `<h3>Modelos neste mês</h3><div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Modelo</th><th>Conversas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>Custo médio por conversa</th><th>Tempo médio</th></tr></thead><tbody>
+    ${uso.porModelo.length > 1 ? `<h3>Modelos neste mês</h3><div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Modelo</th><th>Conversas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>${emCreditos() ? 'Créditos por conversa' : 'Custo médio por conversa'}</th><th>Tempo médio</th></tr></thead><tbody>
       ${uso.porModelo.map(m => `<tr><td>${esc(m.modelo)}</td><td>${m.conversas}</td><td>${m.serviu}</td><td>${m.ajustes}</td><td>${m.nao_serviu}</td><td>${brl(m.custoMedio)}</td><td>${num((m.ms / 1000).toFixed(1))} s</td></tr>`).join('')}
     </tbody></table></div><p class="dica">Ajuda a decidir se vale trocar o modelo padrão.</p>` : ''}
 

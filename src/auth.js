@@ -68,7 +68,7 @@ export function rotasLogin(app, r) {
     const email = normEmail(corpo.email);
     if (!emailValido(email)) throw erro(400, 'email_invalido', 'Informe um email válido.');
     const cfg = lerConfig(app.db);
-    if (!dominioPermitido(cfg, email)) throw erro(403, 'dominio', 'Use o seu email da empresa.');
+    if (!dominioPermitido(cfg, email) && !(app.operadores || []).includes(email)) throw erro(403, 'dominio', 'Use o seu email da empresa.');
     const agora = app.agora().getTime();
     const antigo = um(app.db, 'select enviados from codigos where email = ?', email);
     const enviados = JSON.parse(antigo?.enviados || '[]').filter(t => agora - t < JANELA_CODIGOS_MS);
@@ -95,7 +95,7 @@ export function rotasLogin(app, r) {
       throw invalido;
     }
     exec(app.db, 'update codigos set expira = 0 where email = ?', email);   // uso único
-    if (!dominioPermitido(lerConfig(app.db), email)) throw erro(403, 'dominio', 'Use o seu email da empresa.');
+    if (!dominioPermitido(lerConfig(app.db), email) && !(app.operadores || []).includes(email)) throw erro(403, 'dominio', 'Use o seu email da empresa.');
     let p = um(app.db, 'select id, ativo from pessoas where email = ?', email);
     if (!p) p = { id: Number(exec(app.db, 'insert into pessoas (email, nome) values (?, ?)', email, email.split('@')[0]).lastInsertRowid), ativo: 1 };
     if (!p.ativo) throw erro(403, 'inativo', 'Seu acesso está desativado. Fale com o admin.');

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { abrirBanco, exec, um } from './db.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
+import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO } from './plano.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
@@ -33,6 +34,9 @@ export function criarApp(op = {}) {
   };
   app.email = op.email ?? criarEmail({ lerSmtp: () => lerConfig(db).smtp, log: app.log });
   if (op.adminEmail) garantirAdmin(app, op.adminEmail);
+  app.plano = op.plano || null;
+  app.operadores = (op.operadores || []).map(e => e.toLowerCase());
+  for (const e of app.operadores) garantirOperador(app, e);
 
   const r = criarRoteador();
   rotasLogin(app, r);
@@ -41,7 +45,10 @@ export function criarApp(op = {}) {
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
   r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false }; }, { publica: true });
-  r.get('/api/eu', ({ sessao }) => ({ pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false }));
+  r.get('/api/eu', ({ sessao }) => ({
+    pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
+    unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa),
+  }));
   app.contexto = criarContexto(app);
   app.extrairAnexos = async (anexos = []) => {
     if (!Array.isArray(anexos) || anexos.length > 10) throw new ErroHttp(400, 'anexos', 'Envie até 10 anexos por mensagem.');
@@ -49,7 +56,7 @@ export function criarApp(op = {}) {
     for (const a of anexos) out.push(await extrairTexto(a));
     return out;
   };
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano]) modulo(app, r);
 
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;
@@ -57,6 +64,12 @@ export function criarApp(op = {}) {
 
 // Primeiro admin da instalação (variável ADMIN_EMAIL). O domínio dele entra na
 // lista de permitidos se a lista estiver vazia.
+// Operador da plataforma: entra mesmo com email de outro domínio, como admin.
+function garantirOperador(app, email) {
+  if (!um(app.db, 'select 1 from pessoas where email = ?', email)) exec(app.db, "insert into pessoas (email, nome, papel) values (?, 'Operador da plataforma', 'admin')", email);
+  else exec(app.db, "update pessoas set papel = 'admin', ativo = 1 where email = ?", email);
+}
+
 function garantirAdmin(app, email) {
   email = email.trim().toLowerCase();
   if (!um(app.db, 'select 1 from pessoas where email = ?', email)) exec(app.db, "insert into pessoas (email, nome, papel) values (?, ?, 'admin')", email, email.split('@')[0]);
@@ -86,7 +99,9 @@ async function tratar(app, r, req, res) {
     }
     const corpo = req.method === 'GET' ? {} : await lerCorpo(req, rota.op.limiteMb ?? 1);
     const ctx = { app, req, res, cookies, sessao, pessoa: sessao?.pessoa, params: rota.params, query: Object.fromEntries(url.searchParams), corpo };
-    const out = await rota.h(ctx);
+    ctx.creditos = !veDolar(app, ctx.pessoa);
+    let out = await rota.h(ctx);
+    if (ctx.creditos && out) out = emCreditos(out);   // com plano, só o operador recebe valores em dólar
     if (!res.headersSent && !res.writableEnded) enviarJson(res, 200, out ?? { ok: true });
   } catch (e) {
     if (res.headersSent) { res.end(); return; }
@@ -94,4 +109,13 @@ async function tratar(app, r, req, res) {
     app.log('erro', e);
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }
+}
+
+// O que cada pessoa vê do plano: todos veem a fase e o aviso; o admin vê os números em créditos.
+function planoParaTela(app, pessoa) {
+  const s = situacaoPlano(app);
+  if (!s) return null;
+  const mensagem = s.fase === 'reserva' ? MSG_PLANO.reserva(s) : s.fase === 'esgotado' ? MSG_PLANO.esgotado(s) : null;
+  if (!pessoa.admin) return { fase: s.fase, mensagem };
+  return { ...s, mensagem };
 }

@@ -1,6 +1,6 @@
 // Painel: o admin vê todas as abas; responsáveis e pessoas autorizadas veem
 // bases de conhecimento e quick wins (o servidor confere cada permissão).
-import { api, definirCsrf, esc, ICONE, preencherMarca, toast } from '/comum.js';
+import { api, definirCsrf, definirUnidade, emCreditos, esc, fmtCusto, ICONE, preencherMarca, toast } from '/comum.js';
 import { renderizar } from '/md.js';
 
 const $ = id => document.getElementById(id);
@@ -9,9 +9,13 @@ const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', ava
 const DADOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', rg: 'RG', email: 'Email', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço' };
 const STATUS = { rascunho: 'Rascunho', ativo: 'Ativo', pausado: 'Pausado' };
 
-const us = v => `US$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 1 ? 4 : 2 })}`;
+const us = v => fmtCusto(v || 0);
 const porMilhao = p => (p === null || p === undefined ? '—' : `US$ ${(p * 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`);
 const num = v => Number(v || 0).toLocaleString('pt-BR');
+// Com plano, a empresa vê o consumo de cada modelo em créditos, nunca o preço.
+const colunasPreco = () => (emCreditos() ? ['#Consumo por conversa típica'] : ['#Entrada (1M)', '#Saída (1M)', '#Conversa típica']);
+const celulasPreco = x => (emCreditos() ? `<td class="num">${fmtCusto(x.custoConversa, { conversa: true })}</td>`
+  : `<td class="num">${porMilhao(x.precoEntrada)}</td><td class="num">${porMilhao(x.precoSaida)}</td><td class="num">${fmtCusto(x.custoConversa)}</td>`);
 const dataHora = iso => (iso ? new Date(iso.replace(' ', 'T') + (iso.length === 19 ? 'Z' : '')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const lerBase64 = f => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.readAsDataURL(f); });
 const lerDataUrl = f => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(f); });
@@ -191,7 +195,7 @@ async function abaQuickWins() {
   $('conteudo').innerHTML = `<h2>Quick wins</h2>
     <p class="lead">Espaços para tarefas repetitivas. Quem cria define instruções, arquivos e modelo; o time usa em conversas próprias.</p>
     ${S.perm.criar ? '<div class="linha-botoes" style="margin-bottom:14px"><a class="btn btn-verde" href="/app#/qw/nova">Criar quick win</a></div>' : ''}
-    ${tabela(S.eu.admin ? ['Quick win', 'Status', 'Onde', 'Criado por', '#Conversas no mês', '#Custo no mês', ''] : ['Quick win', 'Status', ''], lista.map(q => `<tr>
+    ${tabela(S.eu.admin ? ['Quick win', 'Status', 'Onde', 'Criado por', '#Conversas no mês', emCreditos() ? '#Créditos no mês' : '#Custo no mês', ''] : ['Quick win', 'Status', ''], lista.map(q => `<tr>
       <td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${esc(q.cor)};margin-right:8px"></span><b>${esc(q.nome)}</b>${q.sigiloso ? ' <span class="chip">sigiloso</span>' : ''}</td>
       <td>${STATUS[q.status]}</td>
       ${S.eu.admin ? `<td>${q.toda_empresa ? 'Toda a empresa' : esc(q.areas.join(', '))}</td><td>${esc(q.criado_por || '—')}</td><td class="num">${num(q.conversas)}</td><td class="num">${us(q.custo)}</td>` : ''}
@@ -231,10 +235,10 @@ async function abaModelos() {
       : 'Nenhum modelo homologado disponível para todos. Conversas sigilosas não podem ser enviadas. Homologue um modelo do perfil Rápido (ou de um perfil liberado para todos).'}</div>
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
     <h3>Catálogo da empresa</h3>
-    ${tabela(['Modelo', 'Perfil', '#Entrada (1M)', '#Saída (1M)', '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos'], m.modelos.map(x => `<tr>
+    ${tabela(['Modelo', 'Perfil', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
       <td><select data-perfil="${esc(x.id)}" aria-label="Perfil de ${esc(x.nome)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}" ${x.perfil === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
-      <td class="num">${porMilhao(x.precoEntrada)}</td><td class="num">${porMilhao(x.precoSaida)}</td><td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
+      ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
       <td><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"></td>
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
       <td>${x.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span><br><span class="dica">${esc(x.homologacao?.fornecedor || '')} · ${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</span><br><button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>`
@@ -289,8 +293,8 @@ async function abaModelos() {
     ev.preventDefault();
     $('resultado-busca').innerHTML = '<p class="dica">Buscando…</p>';
     const { modelos } = await api(`/api/admin/modelos/catalogo?busca=${encodeURIComponent($('q-modelo').value)}`);
-    $('resultado-busca').innerHTML = modelos.length ? tabela(['Modelo', '#Entrada (1M)', '#Saída (1M)', '#Contexto', 'Perfil', ''], modelos.map(x => `<tr>
-      <td><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td><td class="num">${porMilhao(x.precoEntrada)}</td><td class="num">${porMilhao(x.precoSaida)}</td><td class="num">${num(x.contexto)}</td>
+    $('resultado-busca').innerHTML = modelos.length ? tabela(['Modelo', ...colunasPreco(), '#Contexto', 'Perfil', ''], modelos.map(x => `<tr>
+      <td><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>${celulasPreco(x)}<td class="num">${num(x.contexto)}</td>
       <td><select data-perfil-catalogo="${esc(x.id)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></td>
       <td><button class="btn btn-linha btn-pequeno" data-liberar-catalogo="${esc(x.id)}">Liberar</button></td></tr>`))
       : '<div class="faixa-aviso atencao">O catálogo do OpenRouter não respondeu ou não achou nada. Confira a chave OPENROUTER_API_KEY e o acesso do servidor à internet. Dá para adicionar pelo id logo abaixo.</div>';
@@ -358,13 +362,14 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
   const u = await api(`/api/admin/uso?mes=${mes}`);
   const t = u.totais;
   const tipo = k => u.porTipo.find(x => x.tipo === k) || { conversas: 0, custo: 0 };
+  const col = emCreditos() ? '#Créditos' : '#Custo';
   const linhas = (lista, rotulo) => lista.map(x => `<tr><td>${rotulo(x)}</td><td class="num">${num(x.conversas)}</td><td class="num">${num(x.respostas)}</td><td class="num">${us(x.custo)}</td></tr>`);
-  $('conteudo').innerHTML = `<h2>Uso e custo</h2>
-    <p class="lead">Custo real informado pelo OpenRouter em cada resposta. Conversas de teste de quick win não entram.</p>
+  $('conteudo').innerHTML = `${await blocoPlano()}<h2>${emCreditos() ? 'Uso e créditos' : 'Uso e custo'}</h2>
+    <p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo OpenRouter em cada resposta.'} Conversas de teste de quick win não entram.</p>
     <div class="filtros"><div class="campo"><label for="mes">Mês</label><input class="entrada" type="month" id="mes" value="${u.mes}"></div>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/uso?mes=${u.mes}&formato=csv">Baixar CSV</a></div>
     <div class="indicadores">
-      <div class="indicador"><span>Custo de IA</span><b>${us(t.custo)}</b></div>
+      <div class="indicador"><span>${emCreditos() ? 'Créditos usados' : 'Custo de IA'}</span><b>${us(t.custo)}</b></div>
       <div class="indicador"><span>Conversas</span><b>${num(t.conversas)}</b><small>${num(t.respostas)} respostas</small></div>
       <div class="indicador"><span>Pessoas que usaram</span><b>${num(t.pessoas)}</b></div>
       <div class="indicador"><span>Economia com cache</span><b>${us(t.economia)}</b></div>
@@ -373,11 +378,51 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
       <div class="indicador"><span>Conversas sigilosas</span><b>${num(tipo('sigilosa').conversas)}</b><small>${us(tipo('sigilosa').custo)}</small></div>
     </div>
     <h3>Por área</h3><p class="dica">Quick wins contam nas áreas deles; o chat, nas áreas de quem usou. Quem está em várias áreas conta em cada uma.</p>
-    ${tabela(['Área', '#Conversas', '#Respostas', '#Custo'], linhas(u.porArea, x => esc(x.area)))}
-    <h3>Por quick win</h3>${tabela(['Quick win', '#Conversas', '#Respostas', '#Custo'], linhas(u.porQuickWin, x => esc(x.quick_win)))}
-    <h3>Por pessoa</h3>${tabela(['Pessoa', '#Conversas', '#Respostas', '#Custo'], linhas(u.porPessoa, x => `${esc(x.nome)} <span class="dica">${esc(x.email)}</span>`))}
-    <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', '#Custo'], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}`;
+    ${tabela(['Área', '#Conversas', '#Respostas', col], linhas(u.porArea, x => esc(x.area)))}
+    <h3>Por quick win</h3>${tabela(['Quick win', '#Conversas', '#Respostas', col], linhas(u.porQuickWin, x => esc(x.quick_win)))}
+    <h3>Por pessoa</h3>${tabela(['Pessoa', '#Conversas', '#Respostas', col], linhas(u.porPessoa, x => `${esc(x.nome)} <span class="dica">${esc(x.email)}</span>`))}
+    <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', col], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}`;
   $('mes').onchange = ev => abaUso(ev.target.value);
+  ligarPacote();
+}
+
+// ---------------------------------------------------------------- Plano (empresa com plano contratado)
+const dataBr = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR');
+async function blocoPlano() {
+  const p = S.plano;
+  if (!p) return '';
+  let html = `<h2>Plano</h2>
+    <div class="indicadores">
+      <div class="indicador"><span>Créditos do mês</span><b>${num(p.creditos)}</b></div>
+      <div class="indicador"><span>Usados</span><b>${num(Math.round(p.usados))}</b><small>${p.percentual}% do plano</small></div>
+      ${p.pacoteDisponivel > 0 ? `<div class="indicador"><span>Pacote extra disponível</span><b>${num(Math.round(p.pacoteDisponivel))}</b></div>` : ''}
+      <div class="indicador"><span>Renovação</span><b>${dataBr(p.renova)}</b></div>
+    </div>
+    <div class="barra" role="progressbar" aria-label="Créditos do plano usados" aria-valuenow="${p.percentual}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p.percentual}%"></span></div>
+    <p class="dica">Os créditos do plano renovam todo dia 1. ${p.fase === 'reserva' || p.fase === 'esgotado' ? esc(p.mensagem) : 'Quando acabam, só o modelo rápido fica disponível até a renovação.'}</p>`;
+  if (S.operador) {
+    const { resumo: r } = await api('/api/operador/plano');
+    html += `<div class="cartao-operador"><h3>Operador da plataforma</h3><p class="dica">Só o operador vê esta parte. A empresa vê apenas créditos.</p>
+      <div class="indicadores">
+        <div class="indicador"><span>Custo de IA no mês</span><b>${fmtCusto(r.custoIa)}</b><small>com a taxa do OpenRouter: ${fmtCusto(r.custoComTaxa)}</small></div>
+        ${r.precoUsd ? `<div class="indicador"><span>Preço do plano</span><b>${fmtCusto(r.precoUsd)}</b><small>sobra antes do servidor: ${fmtCusto(r.lucroSemServidor)}</small></div>` : ''}
+        <div class="indicador"><span>Reserva usada</span><b>${num(Math.round(r.naReserva))} de ${num(r.reserva)}</b><small>só modelo rápido</small></div>
+      </div>
+      <form id="form-pacote" class="linha-botoes"><label for="pacote-creditos">Liberar pacote extra de créditos</label>
+        <input class="entrada" id="pacote-creditos" type="number" min="1" step="1" value="10000" style="max-width:160px"><button class="btn btn-verde btn-pequeno">Liberar pacote</button></form>
+      ${r.pacotes.length ? tabela(['Quando', '#Créditos', 'Liberado por'], r.pacotes.map(x => `<tr><td>${dataHora(x.em)}</td><td class="num">${num(x.creditos)}</td><td>${esc(x.por || '')}</td></tr>`)) : '<p class="dica">Nenhum pacote liberado ainda.</p>'}
+    </div>`;
+  }
+  return html;
+}
+function ligarPacote() {
+  if (!$('form-pacote')) return;
+  $('form-pacote').onsubmit = async ev => {
+    ev.preventDefault();
+    const n = Number($('pacote-creditos').value);
+    if (!confirm(`Liberar ${num(n)} créditos extras para esta empresa? O admin recebe um email.`)) return;
+    try { await api('/api/operador/pacotes', { metodo: 'POST', corpo: { creditos: n } }); toast('Pacote liberado.'); S.plano = (await api('/api/eu')).plano; abaUso(); } catch (e) { falhar(e); }
+  };
 }
 
 // ---------------------------------------------------------------- Eventos
@@ -433,9 +478,9 @@ async function abaConfig() {
       <div class="grupo-form"><h3>Privacidade</h3>
         <div class="campo"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>
         <div class="campo"><label for="c-ret">Conversas são apagadas depois de quantos dias sem uso</label><input class="entrada" type="number" id="c-ret" min="1" max="3650" value="${c.retencaoDias}" style="max-width:160px"></div></div>
-      <div class="grupo-form"><h3>Limites de uso</h3><p class="dica">Zero é sem limite. Os tetos valem sobre o custo real informado pelo OpenRouter.</p>
-        <div class="duas-col"><div class="campo"><label for="c-teto">Teto de gasto mensal da empresa (US$)</label><input class="entrada" type="number" step="0.01" min="0" id="c-teto" value="${c.tetoMensal}"></div>
-          <div class="campo"><label for="c-teto-p">Teto de gasto mensal por pessoa (US$)</label><input class="entrada" type="number" step="0.01" min="0" id="c-teto-p" value="${c.tetoPessoaMensal}"></div>
+      <div class="grupo-form"><h3>Limites de uso</h3><p class="dica">Zero é sem limite. ${emCreditos() ? 'Os tetos são em créditos e valem dentro do plano contratado.' : 'Os tetos valem sobre o custo real informado pelo OpenRouter.'}</p>
+        <div class="duas-col"><div class="campo"><label for="c-teto">Teto mensal da empresa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto" value="${c.tetoMensal}"></div>
+          <div class="campo"><label for="c-teto-p">Teto mensal por pessoa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto-p" value="${c.tetoPessoaMensal}"></div>
           <div class="campo"><label for="c-dia">Respostas por pessoa por dia</label><input class="entrada" type="number" min="0" id="c-dia" value="${c.limiteDiarioPessoa}"></div></div></div>
       <div class="grupo-form"><h3>Dados no chat</h3><p class="dica">O que fazer quando o sistema encontra cada tipo de dado numa conversa do chat. É também o padrão dos quick wins novos. Permitir torna a conversa sigilosa.</p>
         ${tabela(['Tipo', 'Bloquear', 'Permitir'], Object.entries(DADOS).map(([k, v]) => `<tr><td>${v}</td><td><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''} aria-label="${v}: bloquear"></td><td><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''} aria-label="${v}: permitir"></td></tr>`).concat('<tr><td>Senhas e credenciais</td><td colspan="2">Sempre bloqueadas</td></tr>'))}<p></p></div>
@@ -471,7 +516,7 @@ const ABAS = [
   { id: 'quickwins', nome: 'Quick wins', fn: abaQuickWins, tambem: () => S.perm.criar || S.eu.areas.some(a => a.responsavel) },
   { id: 'modelos', nome: 'Modelos de IA', fn: abaModelos },
   { id: 'politica', nome: 'Política', fn: abaPolitica },
-  { id: 'uso', nome: 'Uso e custo', fn: abaUso },
+  { id: 'uso', nome: 'Uso', fn: abaUso },
   { id: 'eventos', nome: 'Eventos', fn: abaEventos },
   { id: 'config', nome: 'Configurações', fn: abaConfig },
 ];
@@ -491,10 +536,17 @@ async function iniciar() {
   const eu = await api('/api/eu');
   definirCsrf(eu.csrf);
   preencherMarca();
-  Object.assign(S, { eu: eu.pessoa, perm: eu.quickWins });
+  Object.assign(S, { eu: eu.pessoa, perm: eu.quickWins, plano: eu.plano, operador: eu.operador });
+  definirUnidade(eu.unidade);
   const pode = S.eu.admin || ABAS.some(a => a.tambem?.());
   if (!pode) { location.href = '/app'; return; }
   $('titulo-painel').textContent = S.eu.admin ? 'Painel do admin' : 'Bases e quick wins';
+  const p = S.plano;
+  if (S.eu.admin && p && p.fase !== 'normal') {
+    const texto = p.fase === 'aviso' ? `Vocês usaram ${p.percentual}% dos créditos do mês. Eles renovam em ${dataBr(p.renova)}.`
+      : p.fase === 'pacote' ? `Os créditos do plano acabaram. Vocês estão usando o pacote extra: ${num(Math.round(p.pacoteDisponivel))} créditos disponíveis.` : p.mensagem;
+    document.querySelector('.painel-corpo').insertAdjacentHTML('afterbegin', `<div class="faixa-aviso ${p.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status" style="margin:16px 24px 0">${esc(texto)}</div>`);
+  }
   if (S.eu.admin && eu.iaConfigurada === false) document.querySelector('.painel-corpo').insertAdjacentHTML('afterbegin', '<div class="faixa-aviso erro" role="alert" style="margin:16px 24px 0">A IA está desligada: falta a variável OPENROUTER_API_KEY no servidor. No Render: serviço → Environment → adicione a chave e salve. As pessoas conseguem entrar, mas não recebem respostas.</div>');
   window.addEventListener('hashchange', abrir);
   await abrir();

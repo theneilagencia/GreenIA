@@ -7,6 +7,7 @@ import { registrar } from './eventos.js';
 import { decidir, detectar, ROTULOS } from './filtro.js';
 import { homologadoPadrao, modeloPermitido } from './modelos.js';
 import { ErroIA } from './ia.js';
+import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -149,6 +150,7 @@ export function rotasConversas(app, r) {
     if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Mensagem acima de ${MAX_TEXTO} caracteres.`);
     if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');
     await app.limites?.checar(pessoa, cfg);
+    const plano = checarPlano(app);   // fim da reserva: bloqueia
 
     // 1. Filtro de dados, no servidor, sobre a mensagem e os anexos.
     const tipos = detectar([texto, ...anexos.map(a => a.texto)].join('\n'));
@@ -165,13 +167,21 @@ export function rotasConversas(app, r) {
     const sigilosa = !!conv.sigilosa;
 
     // 3. Modelo: permitido para a pessoa (ou padrão do quick win); sigilosa só homologado.
-    const m = modeloPermitido(app.db, cfg, pessoa, corpo.modelo || conv.modelo || qw?.modelo || cfg.padroes.chat, { qw, sigilosa });
+    let m = modeloPermitido(app.db, cfg, pessoa, corpo.modelo || conv.modelo || qw?.modelo || cfg.padroes.chat, { qw, sigilosa });
     if (sigilosa && !m.homologado) {
       const h = homologadoPadrao(app.db, cfg);
       throw erro(409, 'precisa_homologado', h ? `Esta conversa passou a ter dados sigilosos e vai usar o modelo homologado ${h.nome}.`
         : 'Esta conversa tem dados sigilosos e ainda não há modelo homologado. Fale com o admin.', { sugestao: h && { id: h.id, nome: h.nome } });
     }
-    if (conv.modelo && conv.modelo !== m.id) {
+    // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
+    let trocaDoPlano = false;
+    if (plano?.fase === 'reserva') {
+      const pedido = m;
+      m = modeloNaReserva(app, cfg, m, sigilosa);
+      trocaDoPlano = m.id !== pedido.id;
+      if (trocaDoPlano) aviso(app, conv.id, `Os créditos deste mês acabaram: esta resposta usa o modelo rápido ${m.nome}.`);
+    }
+    if (conv.modelo && conv.modelo !== m.id && !trocaDoPlano) {
       aviso(app, conv.id, `Modelo trocado para ${m.nome}.`);
       registrar(app, 'troca_modelo', pessoa.id, { conversa: conv.id, de: conv.modelo, para: m.id });
     }
@@ -217,6 +227,7 @@ export function rotasConversas(app, r) {
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
     registrar(app, 'uso', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, custo: fim?.custo || 0, tipos: permitidos, sigilosa });
+    verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id });
     res.end();
   }, { limiteMb: 30 });

@@ -4,6 +4,7 @@ import { erro } from './http.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { registrar } from './eventos.js';
+import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
 export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 export const AUTO = 'openrouter/auto';
@@ -98,6 +99,7 @@ export async function atualizarCatalogo(app) {
     const mudou = (a, b) => a > 0 && Math.abs(b - a) / a > 0.2;
     const aviso = mudou(m.precoEntrada, n.precoEntrada) || mudou(m.precoSaida, n.precoSaida)
       ? `Preço mudou mais de 20% (entrada ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)}; saída ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens).` : m.aviso?.startsWith('Preço') ? m.aviso : null;
+    if (aviso && aviso !== m.aviso) avisarPrecoAoOperador(app, m, n);
     exec(app.db, 'update modelos set nome = ?, preco_entrada = ?, preco_saida = ?, contexto = ?, no_catalogo = 1, aviso = ?, atualizado_em = ? where id = ?',
       n.nome, n.precoEntrada, n.precoSaida, n.contexto, aviso, app.agora().toISOString(), m.id);
   }
@@ -119,27 +121,37 @@ function mudar(app, pessoa, tipo, detalhes, fn) {
   app.aoMudarModelos?.();
 }
 
+// Preço de um modelo liberado mudou mais de 20%: o operador recebe email (a empresa vê só o aviso no painel).
+function avisarPrecoAoOperador(app, m, n) {
+  if (!app.operadores?.length || !m.liberado) return;
+  enviarAvisoOperador(app, `preço do modelo ${m.nome} mudou mais de 20%`,
+    `O modelo ${m.id} (${m.perfil}) mudou de preço no OpenRouter.\nEntrada: ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)} por milhão de tokens.\nSaída: ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens.\n\nOs créditos acompanham o custo real, então a margem não muda. Se o aumento for grande, considere trocar o modelo padrão do perfil por um equivalente mais barato.${m.homologado ? '\n\nAtenção: este modelo está homologado para conversas sigilosas.' : ''}`)
+    .catch(e => app.log('aviso de preço', e.message));
+}
+
 export function rotasModelos(app, r) {
   semearSugestao(app.db);
 
   r.get('/api/modelos', ({ pessoa, query }) => {
     const cfg = lerConfig(app.db);
     const qw = query.quick_win ? um(app.db, 'select id, modelo, pode_trocar from quick_wins where id = ?', Number(query.quick_win)) : null;
-    const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' });
+    const reserva = situacaoPlano(app)?.fase === 'reserva';
+    const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' })
+      .map(o => (reserva && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
     return { opcoes, padrao: qw?.modelo || cfg.padroes.chat, homologadoPadrao: homologadoPadrao(app.db, cfg)?.id || null, perfis: PERFIS };
   });
 
   r.get('/api/admin/modelos', () => {
     const cfg = lerConfig(app.db);
     const h = homologadoPadrao(app.db, cfg);
-    return { modelos: lerModelos(app.db), perfis: PERFIS, homologadoPadrao: h?.id || null, garantia: !!h,
+    return { modelos: lerModelos(app.db).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500) })), perfis: PERFIS, homologadoPadrao: h?.id || null, garantia: !!h,
       config: { padroes: cfg.padroes, acessoPerfis: cfg.acessoPerfis, perfisQuickWin: cfg.perfisQuickWin, exigirSemTreino: cfg.exigirSemTreino, automatico: cfg.automatico } };
   }, { admin: true });
 
   r.get('/api/admin/modelos/catalogo', async ({ query }) => {
     if (!app.catalogo) await atualizarCatalogo(app).catch(() => { app.catalogo = []; });
     const q = String(query.busca || '').toLowerCase();
-    return { modelos: app.catalogo.filter(m => !q || m.id.toLowerCase().includes(q) || m.nome.toLowerCase().includes(q)).slice(0, 50) };
+    return { modelos: app.catalogo.filter(m => !q || m.id.toLowerCase().includes(q) || m.nome.toLowerCase().includes(q)).slice(0, 50).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500) })) };
   }, { admin: true });
 
   r.put('/api/admin/modelos/:id', ({ pessoa, params, corpo }) => {

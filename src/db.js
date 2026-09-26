@@ -102,6 +102,9 @@ create table if not exists problemas (
 create table if not exists politica_versoes (
   versao integer primary key, texto text not null, secao text not null, criado_em text not null, criado_por integer);
 
+-- Pacotes extras de créditos, liberados pelo operador da plataforma.
+create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer);
+
 -- Uso da IA: uma linha por resposta, sem conteúdo.
 create table if not exists uso (
   id integer primary key, em text not null, pessoa_id integer, conversa_id integer, quick_win_id integer,

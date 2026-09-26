@@ -442,8 +442,8 @@ async function abaConfig() {
       <div class="linha-botoes"><button class="btn btn-verde">Salvar configurações</button></div>
     </form>`;
   const mostrarContraste = () => {
-    const r = contraste($('c-cor').value, '#FAF7EF');
-    $('c-contraste').textContent = `Contraste com o texto claro: ${r.toFixed(2).replace('.', ',')}:1 ${r >= 4.5 ? '(ok)' : '(abaixo do mínimo de 4,5:1)'}`;
+    const r = contraste($('c-cor').value, '#F1EAD9');
+    $('c-contraste').textContent = `Contraste com os fundos claros: ${r.toFixed(2).replace('.', ',')}:1 ${r >= 4.5 ? '(ok)' : '(abaixo do mínimo de 4,5:1)'}`;
     $('c-contraste').style.color = r >= 4.5 ? 'var(--forest-text)' : 'var(--red-text)';
   };
   $('c-cor').oninput = mostrarContraste; mostrarContraste();

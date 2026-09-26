@@ -45,11 +45,20 @@ export async function preencherMarca() {
   return p;
 }
 
-// Cor de marca (já conferida no servidor: 4,5:1 com o texto claro) nos botões principais.
+// Esquema de cor da empresa, a partir da cor de marca (conferida no servidor: 4,5:1
+// com os fundos claros). Tons escuros para lateral, entrada e rodapé; tom claro
+// para bolhas e destaques. Sem cor de marca, fica o verde da GreenIA.
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+export const misturar = (a, b, t) => '#' + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
 export function aplicarMarca(p) {
-  if (!p.corMarca) return;
-  document.documentElement.style.setProperty('--forest-strong', p.corMarca);
-  document.documentElement.style.setProperty('--forest-strong-hover', p.corMarca);
+  if (!/^#[0-9a-f]{6}$/i.test(p.corMarca || '')) return;
+  const c = p.corMarca, raiz = document.documentElement.style;
+  const tons = {
+    '--forest': c, '--forest-hover': misturar(c, '#000000', 0.12), '--forest-text': c,
+    '--forest-strong': c, '--forest-strong-hover': misturar(c, '#000000', 0.18),
+    '--deep': misturar(c, '#000000', 0.68), '--mint': misturar(c, '#FAF7EF', 0.94), '--leaf': misturar(c, '#FAF7EF', 0.3), '--disabled': misturar(c, '#FAF7EF', 0.55), '--sage': misturar(c, '#FAF7EF', 0.55),
+  };
+  for (const [k, v] of Object.entries(tons)) raiz.setProperty(k, v);
 }
 
 // Logo da empresa ao lado da marca, num fundo claro para funcionar também na barra escura.

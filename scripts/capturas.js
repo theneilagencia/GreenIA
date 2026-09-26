@@ -105,5 +105,20 @@ for (const [i, aba] of ['areas', 'grupos', 'bases', 'quickwins', 'modelos', 'pol
   await pa.waitForTimeout(250);
   await pa.screenshot({ path: join(PASTA, `6-painel-${i + 1}-${aba}.png`), fullPage: true });
 }
+// 7. A mesma instalação com a marca de outra empresa (logo e cor fictícios): para o site de vendas.
+const logo = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40"><rect x="2" y="6" width="28" height="28" rx="8" fill="#0F5E78"/><circle cx="16" cy="20" r="6" fill="#fff"/><text x="40" y="27" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#0F5E78">Exemplo</text></svg>').toString('base64');
+salvarConfig(N.app.db, { empresa: 'Empresa Exemplo', logo, corMarca: '#0F5E78' });
+await admin.post('/api/admin/pessoas', { email: 'lucas@empresa-exemplo.com.br', nome: 'Lucas Prado', areas: [{ id: areas['Operações'] }] });
+const pm2 = await N.entrar('lucas@empresa-exemplo.com.br', await (await N.navegador.newContext({ viewport: { width: 1360, height: 860 } })).newPage());
+await pm2.goto(`${N.base}/app#/qw/${qw.id}/nova`);
+await pm2.waitForSelector('#entrada');
+await pm2.fill('#entrada', 'Confira estes dois documentos e liste as diferenças em uma tabela');
+await pm2.keyboard.press('Enter');
+await pm2.waitForSelector('.rodape-resposta');
+await pm2.waitForTimeout(400);
+await pm2.screenshot({ path: join(PASTA, '8-marca-propria-app.png') });
+await pm2.goto(`${N.base}/entrar`);
+await pm2.waitForTimeout(400);
+await pm2.screenshot({ path: join(PASTA, '9-marca-propria-entrar.png') });
 console.log(`capturas em ${PASTA}/`);
 await N.fechar();

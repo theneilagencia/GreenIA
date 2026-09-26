@@ -46,8 +46,9 @@ function validarConfig(c) {
   }
   if (c.corMarca !== undefined) {
     if (c.corMarca && !/^#[0-9a-fA-F]{6}$/.test(c.corMarca)) throw erro(400, 'cor', 'Cor inválida.');
-    // A cor de marca vira fundo de botão com texto claro: precisa de 4,5:1.
-    if (c.corMarca && contraste(c.corMarca, '#FAF7EF') < 4.5) throw erro(400, 'cor', `Contraste de ${contraste(c.corMarca, '#FAF7EF').toFixed(2)}:1 com o texto claro. O mínimo é 4,5:1: escolha uma cor mais escura.`);
+    // A cor de marca vira fundo de botão com texto claro e texto sobre os fundos claros.
+    // Conferida contra o fundo claro mais escuro das telas (areia): 4,5:1 ali vale para todos.
+    if (c.corMarca && contraste(c.corMarca, '#F1EAD9') < 4.5) throw erro(400, 'cor', `Contraste de ${contraste(c.corMarca, '#F1EAD9').toFixed(2)}:1 com os fundos claros. O mínimo é 4,5:1: escolha uma cor mais escura.`);
     v.corMarca = c.corMarca || '';
   }
   if (c.dominios !== undefined) {

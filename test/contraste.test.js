@@ -32,3 +32,18 @@ test('verde e âmbar de texto pequeno são os pedidos', () => {
   assert.equal(cor('forest-text').toUpperCase(), '#1B7950');
   assert.equal(cor('amber-text').toUpperCase(), '#8C621D');
 });
+
+test('esquema de cor da empresa: toda cor aceita pelo servidor mantém 4,5:1 nos tons derivados', async () => {
+  const { contraste } = await import('../src/admin.js');
+  const { misturar } = await import('../public/comum.js');
+  let aceitas = 0;
+  for (let r = 0; r < 256; r += 17) for (let g = 0; g < 256; g += 17) for (let b = 0; b < 256; b += 17) {
+    const c = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+    if (contraste(c, '#F1EAD9') < 4.5) continue;   // o servidor recusa
+    aceitas++;
+    assert.ok(contraste(c, misturar(c, '#FAF7EF', 0.94)) >= 4.5, `${c} na bolha clara`);
+    assert.ok(contraste('#FAF7EF', c) >= 4.5, `${c}: texto claro no botão`);
+    assert.ok(contraste('#E9E0CD', misturar(c, '#000000', 0.68)) >= 7, `${c}: texto na lateral escura`);
+  }
+  assert.ok(aceitas > 500);
+});

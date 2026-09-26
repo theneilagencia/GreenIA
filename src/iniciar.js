@@ -23,7 +23,7 @@ export async function iniciar(env = process.env) {
   if (env.OPENROUTER_API_KEY) tarefa(() => atualizarCatalogo(app), 24 * 3600e3);
   // Backup diário opcional (BACKUP_HORA=03:00).
   if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: env.BACKUP_DESTINO, manter: Number(env.BACKUP_MANTER || 14), env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
-  const porta = Number(env.PORTA || 8080);
+  const porta = Number(env.PORTA || env.PORT || 8080);   // PORT: definida por plataformas como o Render
   app.servidor.listen(porta, env.HOST || '0.0.0.0', () => app.log(`GreenIA Lite em http://localhost:${porta}`));
   const parar = () => { app.servidor.close(); app.db.close(); process.exit(0); };
   process.on('SIGTERM', parar);

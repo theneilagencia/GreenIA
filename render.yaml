@@ -1,0 +1,26 @@
+# Blueprint do Render: um serviço web (Docker) com disco para o SQLite.
+# No Render: New > Blueprint > escolha este repositório. Os segredos são pedidos na criação.
+services:
+  - type: web
+    name: greenia
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: virginia        # não há região no Brasil; Virgínia é a mais próxima
+    plan: starter           # disco persistente exige plano pago
+    healthCheckPath: /api/saude
+    autoDeploy: true
+    domains:
+      - greenia.theneil.com.br
+    disk:
+      name: dados
+      mountPath: /app/dados
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_EMAIL
+        sync: false         # pedido na criação
+      - key: OPENROUTER_API_KEY
+        sync: false         # pedido na criação; nunca no repositório
+      - key: BACKUP_HORA
+        value: "06:00"
+      - key: BACKUP_MANTER
+        value: "7"

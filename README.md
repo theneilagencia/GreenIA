@@ -32,7 +32,39 @@ Depois, na aba **Áreas e pessoas**, cadastre as áreas e as pessoas. Na aba **M
 
 **A chave do OpenRouter fica só no `.env`.** Nunca no git, em log ou em relatório. Crie uma chave só para a GreenIA, com limite de gasto definido no OpenRouter.
 
+## Publicar no Render (sem administrar servidor)
+
+O arquivo `render.yaml` já descreve o serviço:
+
+- Docker, plano Starter, região Virgínia;
+- disco de 1 GB para o banco;
+- verificação de saúde em `/api/saude`;
+- domínio `greenia.theneil.com.br`.
+
+Passos:
+
+1. No Render, clique em **New → Blueprint** e escolha este repositório. Ele pede `ADMIN_EMAIL` e `OPENROUTER_API_KEY`: preencha lá, nunca no repositório.
+2. Espere a primeira publicação ficar verde (**Live**).
+3. No DNS de `theneil.com.br`, crie um registro **CNAME** de `greenia` apontando para o endereço `*.onrender.com` do serviço. O Render mostra esse endereço em **Settings → Custom Domains** e emite o HTTPS sozinho.
+4. Entre com o `ADMIN_EMAIL`. Enquanto não houver SMTP, o código aparece em **Logs** no Render. Configure o SMTP no painel (porta 587 ou 465) para as outras pessoas receberem o código por email.
+5. No Render, abra **Shell** e rode `node scripts/verificar.js`. Ele confere com o OpenRouter de verdade:
+   - a chave e o limite de gasto;
+   - o catálogo de modelos;
+   - uma resposta curta de cada perfil;
+   - em cada modelo homologado, que quem respondeu foi o fornecedor fixado.
+
+   Custa centavos.
+
+O que muda em relação a uma VM:
+
+- **Local dos dados.** Não há região no Brasil: os dados ficam nos EUA. Registre isso na política e no inventário de dados (LGPD).
+- **Publicação.** Com disco, cada publicação para o serviço por alguns segundos.
+- **Backup.** O Render tira cópia do disco uma vez por dia. Mesmo assim, configure o `BACKUP_DESTINO` para ter uma cópia fora do Render.
+- **Custo.** Cerca de US$ 7 por mês (Starter: 512 MB e 0,5 CPU), mais US$ 0,25 por GB de disco. Se ficar lento com muitos PDFs grandes, suba para o plano com 2 GB.
+
 ## Atualizar
+
+No Render, cada push no branch principal publica sozinho. Numa VM:
 
 ```sh
 git pull

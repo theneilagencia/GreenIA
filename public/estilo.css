@@ -294,3 +294,23 @@ button.lista-item:hover{background:var(--surface-hover)}
 .topo .logo-empresa{margin-right:auto}
 .lateral .logo-empresa{display:block;margin:-12px 6px 20px}
 .login-cartao .logo-empresa{display:block;margin:12px 0 0}
+/* Página inicial: escopo, quick wins e comparação */
+.grade-4{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.passo-titulo{font:500 18px var(--sans);margin:0 0 6px}
+.passo-texto{color:var(--muted);margin:0;line-height:1.55}
+.tabela-comp th[scope=row]{font:500 14px var(--sans);color:var(--ink);white-space:nowrap}
+.tabela-comp td:nth-child(2){background:var(--mint);color:var(--forest-text)}
+.tabela-comp td{vertical-align:top;line-height:1.5}
+.conta{background:var(--sand);border-radius:16px;padding:28px;margin:28px 0}
+.conta .rotulo{color:var(--forest-strong-hover)}
+.conta .grade-2{margin:14px 0 10px}
+.conta-valor{font:300 clamp(26px,3vw,34px)/1.2 var(--serif);margin:0 0 4px}
+.conta-rotulo{font:400 15px/1.5 var(--sans);color:var(--muted);margin:0}
+.conta-nota{font:400 14px/1.6 var(--sans);color:var(--muted);margin:10px 0 0}
+.titulo-menor{font:500 19px var(--sans);margin:32px 0 10px}
+.lista-honesta{margin:0;padding-left:20px;font:400 16px/1.6 var(--sans);color:var(--muted)}
+.lista-honesta li{margin-bottom:8px} .lista-honesta b{color:var(--ink);font-weight:500}
+.fontes{font:400 13px/1.6 var(--sans);color:var(--muted);margin:22px 0 0}
+.fontes a{color:var(--forest-text)}
+@media (max-width:900px){.grade-4{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.grade-4{grid-template-columns:1fr}}

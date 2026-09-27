@@ -46,12 +46,15 @@ test('plataforma já importada sem SMTP: a cópia acontece na subida seguinte', 
   fechar(P);
 });
 
-test('sem SMTP no console, usa o das variáveis; o do console tem prioridade', () => {
+test('variáveis do servidor têm prioridade; sem elas, vale o SMTP do console', () => {
   const P = criarPlataforma({ log: () => {}, cookieSeguro: false, smtpPadrao: { url: 'smtp://var:25', remetente: 'Var <v@x.com>' } });
-  assert.equal(P.lerSmtp().url, 'smtp://var:25');
   salvarAjuste(P.db, 'smtp', { url: 'smtp://console:25', remetente: '' });
-  assert.equal(P.lerSmtp().url, 'smtp://console:25');
+  assert.equal(P.lerSmtp().url, 'smtp://var:25');
   fechar(P);
+  const Q = criarPlataforma({ log: () => {}, cookieSeguro: false });
+  salvarAjuste(Q.db, 'smtp', { url: 'smtp://console:25', remetente: '' });
+  assert.equal(Q.lerSmtp().url, 'smtp://console:25');
+  fechar(Q);
 });
 
 test('produção sem SMTP: o console avisa que o email não está configurado, em vez de dizer que enviou', async () => {
@@ -103,4 +106,25 @@ test('endereço SMTP com caracteres especiais na senha, codificados ou não', as
   assert.equal(smtpDeVariaveis({ SMTP_SERVIDOR: 'smtp.provedor.net', SMTP_USUARIO: 'noreply@empresa.com.br', SMTP_SENHA: 'Sx@9pQ2' }), ok);
   assert.equal(smtpDeVariaveis({ SMTP_SERVIDOR: 'smtp.x.com', SMTP_PORTA: '587', SMTP_USUARIO: 'u', SMTP_SENHA: 'p' }), 'smtp://u:p@smtp.x.com:587');
   assert.equal(smtpDeVariaveis({}), '');
+});
+
+test('envio por API HTTPS (Resend e Brevo), sem expor a chave em erro', async () => {
+  const { criarEmail, smtpDeVariaveis } = await import('../src/email.js');
+  assert.equal(smtpDeVariaveis({ EMAIL_API: 'Resend', EMAIL_API_CHAVE: 're_abc', SMTP_URL: 'smtp://x:y@z:25' }), 'resend://re_abc');
+  const pedidos = [];
+  const f = async (url, op) => { pedidos.push([url, op.headers, JSON.parse(op.body)]); return { ok: true, status: 200, text: async () => '{"id":"1"}' }; };
+  const logs = [];
+  let e = criarEmail({ lerSmtp: () => ({ url: 'resend://re_abc', remetente: 'GreenIA <noreply@empresa.com.br>' }), log: m => logs.push(m), fetch: f });
+  await e.enviar('a@b.com', 'Assunto', 'Texto');
+  assert.equal(pedidos[0][0], 'https://api.resend.com/emails');
+  assert.equal(pedidos[0][1].authorization, 'Bearer re_abc');
+  assert.deepEqual(pedidos[0][2], { from: 'GreenIA <noreply@empresa.com.br>', to: ['a@b.com'], subject: 'Assunto', text: 'Texto' });
+  assert.match(logs[0], /enviado para a@b.com via resend/);
+  e = criarEmail({ lerSmtp: () => ({ url: 'brevo://xkeysib-1', remetente: 'GreenIA <noreply@empresa.com.br>' }), log: () => {}, fetch: f });
+  await e.enviar('a@b.com', 'Assunto', 'Texto');
+  assert.equal(pedidos[1][0], 'https://api.brevo.com/v3/smtp/email');
+  assert.equal(pedidos[1][1]['api-key'], 'xkeysib-1');
+  assert.deepEqual(pedidos[1][2].sender, { name: 'GreenIA', email: 'noreply@empresa.com.br' });
+  const ruim = criarEmail({ lerSmtp: () => ({ url: 'resend://re_segredo', remetente: 'x@y.com' }), log: () => {}, fetch: async () => ({ ok: false, status: 403, text: async () => 'invalid key re_segredo' }) });
+  await assert.rejects(ruim.enviar('a@b.com', 's', 't'), er => /403/.test(er.message) && !er.message.includes('re_segredo'));
 });

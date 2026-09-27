@@ -44,6 +44,8 @@ services:
         sync: false         # ex.: GreenIA <nao-responda@seudominio.com.br>
       # Em vez de SMTP_URL, pode usar variáveis separadas (a senha entra como está, sem codificar):
       # SMTP_SERVIDOR (ex.: smtp.kinghost.net), SMTP_PORTA (465), SMTP_USUARIO (email completo), SMTP_SENHA
+      # O plano gratuito do Render bloqueia SMTP de saída (portas 25, 465 e 587). Nele, use envio por API:
+      # EMAIL_API=resend ou brevo e EMAIL_API_CHAVE=<chave do provedor>. Tem prioridade sobre o SMTP.
       # Domínio próprio das empresas cadastrado sozinho no Render (opcional):
       # - key: RENDER_API_KEY      # chave da API do Render (Account Settings > API Keys); nunca no repositório
       #   sync: false

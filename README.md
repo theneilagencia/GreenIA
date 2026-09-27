@@ -93,6 +93,7 @@ Com `MULTIEMPRESA=1`, uma única instalação atende várias empresas. Cada empr
 | `PLATAFORMA_HOST` | Endereço da plataforma. O console fica em `/plataforma` e cada empresa em `/<slug>` |
 | `PLATAFORMA_ADMINS` | Emails dos administradores da plataforma, separados por vírgula (`OPERADOR_EMAIL` também vale) |
 | `SMTP_URL`, `SMTP_REMETENTE` | SMTP da plataforma (ou `SMTP_SERVIDOR`, `SMTP_PORTA`, `SMTP_USUARIO`, `SMTP_SENHA`, sem codificar a senha) (códigos de acesso ao console) enquanto não há um configurado no console. Na migração, o SMTP da instalação anterior é copiado para a plataforma uma vez |
+| `EMAIL_API`, `EMAIL_API_CHAVE` | Envio por API HTTPS (`resend` ou `brevo`) em vez de SMTP. Use onde a hospedagem bloqueia SMTP de saída, como o plano gratuito do Render |
 | `deploy/admins-plataforma.txt` | Arquivo com mais administradores da plataforma, um email por linha, lido a cada inicialização |
 | `PLATAFORMA_SUBDOMINIO` | Opcional. Com DNS curinga, cada empresa ganha `slug.base` |
 | `EMPRESA_SLUG` | Identificador da empresa criada a partir da instalação única, na primeira subida |

@@ -43,10 +43,11 @@ export function criarPlataforma(op = {}) {
     dns: op.dns || null, provedorDominios: op.provedorDominios || null, emAndamento: new Map(),
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
-  // SMTP da plataforma: o configurado no console; sem ele, o das variáveis SMTP_URL/SMTP_REMETENTE.
+  // SMTP da plataforma: o das variáveis (SMTP_URL ou SMTP_SERVIDOR/...); sem elas, o configurado no console.
   P.avisarSemEmail = !!op.avisarSemEmail;
   P.smtpPadrao = { url: op.smtpPadrao?.url || '', remetente: op.smtpPadrao?.remetente || '' };
-  P.lerSmtp = () => { const s = lerAjuste(db, 'smtp', { url: '', remetente: '' }); return s.url ? s : P.smtpPadrao.url ? P.smtpPadrao : s; };
+  // As variáveis do servidor, quando definidas, mandam: são a configuração explícita de quem opera.
+  P.lerSmtp = () => { if (P.smtpPadrao.url) return P.smtpPadrao; return lerAjuste(db, 'smtp', { url: '', remetente: '' }); };
   P.email = op.email ?? criarEmail({ lerSmtp: P.lerSmtp, log: P.log });
 
   semearRbac(db, P.agora().toISOString());

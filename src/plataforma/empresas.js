@@ -2,8 +2,10 @@
 // URL e concessões. Usados pelo console do operador da plataforma e pelo admin da empresa; toda regra fica aqui,
 // no servidor, e toda mudança relevante é auditada.
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { statSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { statSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { gzipSync } from 'node:zlib';
 import { erro } from '../http.js';
 import { exec, todos, um, json, transacao } from '../db.js';
 import { lerConfig } from '../config.js';
@@ -21,7 +23,9 @@ export const RECURSOS = {
   custom_branding: 'Marca própria', landing_page: 'Landing page própria', custom_url: 'URL personalizada',
   custom_domain: 'Domínio próprio', custom_roles: 'Roles personalizadas',
 };
-export const LIMITES = { max_users: 'Usuários (0 = sem limite)', messages_per_minute: 'Mensagens por minuto por pessoa', max_quick_wins: 'Quick wins (0 = sem limite)' };
+export const LIMITES = { max_users: 'Usuários (0 = sem limite)', messages_per_minute: 'Mensagens por minuto por pessoa', max_quick_wins: 'Quick wins (0 = sem limite)', max_concurrent: 'Respostas simultâneas da empresa (0 = sem limite)' };
+// Valor de cada limite quando o plano ainda não o define. As respostas simultâneas protegem as outras empresas da mesma instalação.
+export const LIMITES_PADRAO = { max_users: 0, messages_per_minute: 12, max_quick_wins: 0, max_concurrent: 10 };
 // O que o operador da plataforma pode liberar ou não para o admin da empresa editar.
 export const CONCESSOES = { branding: 'Identidade visual', landing_page: 'Landing page', url: 'URL', domain: 'Domínio próprio', roles: 'Roles e permissões' };
 export const CAMPOS_MARCA = ['display_name', 'logo', 'favicon', 'primary_color', 'secondary_color', 'login_title', 'login_text', 'privacy_note'];
@@ -33,11 +37,11 @@ const novoId = prefixo => `${prefixo}_${randomUUID().replace(/-/g, '').slice(0, 
 export function semearPlanos(P) {
   if (um(P.db, 'select 1 from plans')) return;
   const base = { features: Object.fromEntries(Object.keys(RECURSOS).map(k => [k, k !== 'custom_domain'])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 } };
-  salvarPlano(P, { name: 'GreenIA Team', description: 'Para começar com uma área ou um time', price_usd: 290, credits: 10000, reserve: 2000, limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, ...base }, null, {});
-  salvarPlano(P, { name: 'GreenIA Company', description: 'Para levar a IA a todas as áreas', price_usd: 750, credits: 25000, reserve: 5000, limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, ...base, features: { ...base.features, custom_domain: true } }, null, {});
+  salvarPlano(P, { name: 'GreenIA Team', description: 'Para começar com uma área ou um time', price_usd: 290, credits: 10000, reserve: 2000, limits: LIMITES_PADRAO, ...base }, null, {});
+  salvarPlano(P, { name: 'GreenIA Company', description: 'Para levar a IA a todas as áreas', price_usd: 750, credits: 25000, reserve: 5000, limits: { ...LIMITES_PADRAO, max_concurrent: 20 }, ...base, features: { ...base.features, custom_domain: true } }, null, {});
 }
 
-const dePlano = p => p && ({ ...p, limits: json(p.limits, {}), features: json(p.features, {}), rules: json(p.rules, {}), settings: json(p.settings, {}) });
+const dePlano = p => p && ({ ...p, limits: { ...LIMITES_PADRAO, ...json(p.limits, {}) }, features: json(p.features, {}), rules: json(p.rules, {}), settings: json(p.settings, {}) });
 export const lerPlanoPorId = (P, id) => dePlano(um(P.db, 'select * from plans where id = ?', id));
 export const listarPlanos = P => todos(P.db, 'select * from plans order by status, credits').map(dePlano)
   .map(p => ({ ...p, empresas: um(P.db, 'select count(*) as n from companies where plan_id = ?', p.id).n }));
@@ -54,7 +58,7 @@ export function salvarPlano(P, dados, ator, origem, id = null) {
   const price = d.price_usd === '' || d.price_usd == null ? null : Number(d.price_usd);
   if (price !== null && !(price >= 0)) throw erro(400, 'price_usd', 'Preço inválido.');
   const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, !!(d.features || {})[k]]));
-  const limits = Object.fromEntries(Object.keys(LIMITES).map(k => { const v = Math.floor(Number((d.limits || {})[k] || 0)); if (!(v >= 0 && v <= 1_000_000)) throw erro(400, k, `Limite inválido: ${LIMITES[k]}.`); return [k, v]; }));
+  const limits = Object.fromEntries(Object.keys(LIMITES).map(k => { const bruto = (d.limits || {})[k]; const v = Math.floor(Number(bruto === undefined ? LIMITES_PADRAO[k] : bruto || 0)); if (!(v >= 0 && v <= 1_000_000)) throw erro(400, k, `Limite inválido: ${LIMITES[k]}.`); return [k, v]; }));
   const rules = { reserve_fast_only: (d.rules || {}).reserve_fast_only !== false, pack_credits: Math.max(0, Math.floor(Number((d.rules || {}).pack_credits) || 0)), pack_price_usd: Math.max(0, Number((d.rules || {}).pack_price_usd) || 0) };
   const settings = typeof d.settings === 'object' && d.settings ? d.settings : {};
   if (JSON.stringify(settings).length > 5000) throw erro(400, 'settings', 'Configurações específicas grandes demais.');
@@ -184,7 +188,9 @@ export function mudarUrl(P, id, { slug, custom_domain }, ator, origem, { escopo 
       exec(P.db, 'insert into company_slugs (slug, company_id, until) values (?, ?, ?) on conflict (slug) do update set company_id = excluded.company_id, until = excluded.until', antes.slug, id, agoraIso(P));
     }
     exec(P.db, 'update companies set slug = ?, custom_domain = ?, updated_at = ? where id = ?', novoSlug, novoDominio || null, agoraIso(P), id);
+    if ((novoDominio || null) !== (antes.custom_domain || null)) exec(P.db, "update companies set domain_status = ?, domain_checked_at = null, domain_message = '' where id = ?", novoDominio ? 'pendente' : '', id);
   });
+  if ((novoDominio || null) !== (antes.custom_domain || null)) P.aoMudarDominio?.(id, antes.custom_domain || null, novoDominio || null);
   auditar(P, { usuario: ator, empresa: id, acao: 'company.url_changed', entidade: 'company', id, antes: { slug: antes.slug, custom_domain: antes.custom_domain }, depois: { slug: novoSlug, custom_domain: novoDominio || null }, origem });
   return lerEmpresa(P, id);
 }
@@ -383,3 +389,42 @@ export function liberarPacoteNaEmpresa(P, companyId, dados, ator, origem, email)
 }
 
 export { ehAdminPlataforma };
+
+// ---------------------------------------------------------------- Exportação e exclusão definitiva
+// Cópia íntegra do banco da empresa (SQLite compactado): o que a empresa leva ao sair.
+export function exportarEmpresa(P, companyId) {
+  const c = exigirEmpresa(P, companyId);
+  const temp = join(tmpdir(), `greenia-exportacao-${randomUUID()}.sqlite`);
+  try {
+    P.tenant(companyId).db.exec(`VACUUM INTO '${temp.replace(/'/g, "''")}'`);
+    return { nome: `greenia-${c.slug}-${P.agora().toISOString().slice(0, 10)}.sqlite.gz`, dados: gzipSync(readFileSync(temp), { level: 9 }) };
+  } finally { rmSync(temp, { force: true }); }
+}
+
+// Exclusão definitiva: só de empresa cancelada, com o slug digitado como confirmação.
+// Antes de apagar, guarda uma cópia em dados/excluidas (a menos que a plataforma rode em memória).
+export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
+  const c = exigirEmpresa(P, companyId);
+  if (c.status !== 'cancelada') throw erro(409, 'status', 'Cancele a empresa antes de excluir. A exclusão só vale para ambientes cancelados.');
+  if (String(confirmacao || '').trim().toLowerCase() !== c.slug) throw erro(400, 'confirmacao', `Para confirmar, digite o identificador da empresa: ${c.slug}`);
+  const resumo = { name: c.name, slug: c.slug, usuarios: um(P.db, 'select count(*) as n from company_users where company_id = ?', companyId).n, ...usoDaEmpresa(P, companyId) };
+  let copia = null;
+  if (P.pastaEmpresas !== ':memory:') {
+    const pasta = join(dirname(P.pastaEmpresas), 'excluidas');
+    mkdirSync(pasta, { recursive: true });
+    const { nome, dados } = exportarEmpresa(P, companyId);
+    copia = join(pasta, `${companyId}-${nome}`);
+    writeFileSync(copia, dados);
+  }
+  const t = P.tenants.get(companyId);
+  if (t) { try { t.db.close(); } catch { /* já fechado */ } P.tenants.delete(companyId); }
+  transacao(P.db, () => {
+    exec(P.db, 'delete from company_slugs where company_id = ?', companyId);
+    exec(P.db, 'delete from sessions where company_id = ?', companyId);
+    exec(P.db, 'delete from login_codes where scope = ?', companyId);
+    exec(P.db, 'delete from companies where id = ?', companyId);   // em cascata: marca, landing, configurações, vínculos e roles da empresa
+  });
+  if (c.banco !== ':memory:') for (const s of ['', '-wal', '-shm']) rmSync(c.banco + s, { force: true });
+  auditar(P, { usuario: ator, empresa: companyId, acao: 'company.deleted', entidade: 'company', id: companyId, antes: resumo, depois: { copia }, origem });
+  return { ok: true, copia };
+}

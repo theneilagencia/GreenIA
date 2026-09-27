@@ -38,6 +38,13 @@ services:
         value: greenia.theneil.com.br
       - key: PLATAFORMA_ADMINS
         sync: false         # emails dos administradores da plataforma, separados por vírgula
+      # Domínio próprio das empresas cadastrado sozinho no Render (opcional):
+      # - key: RENDER_API_KEY      # chave da API do Render (Account Settings > API Keys); nunca no repositório
+      #   sync: false
+      # - key: RENDER_SERVICE_ID   # id deste serviço (srv-...)
+      #   sync: false
+      # - key: RENDER_ALVO         # endereço onrender.com do serviço, alvo do CNAME das empresas
+      #   sync: false
       # - key: PLATAFORMA_SUBDOMINIO   # com DNS curinga *.base, cada empresa ganha empresa.base
       #   value: ia.theneil.com.br
       # Esta é a instalação do operador: a raiz abre a página de vendas e /operador junta os clientes.

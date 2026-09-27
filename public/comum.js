@@ -81,6 +81,7 @@ export const logoEmpresa = p => (p.logo ? `<img class="logo-empresa" src="${esc(
 export const marcaHtml = () => '<img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>';
 
 export function toast(texto, ms = 4000) {
+  for (const antigo of document.querySelectorAll('.toast')) antigo.remove();   // um aviso por vez, sem sobrepor
   const t = document.createElement('div');
   t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = texto;
   document.body.append(t);

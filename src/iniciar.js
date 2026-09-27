@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { criarPlataforma } from './plataforma/servidor.js';
+import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
 import { criarApp } from './servidor.js';
 import { criarIndisponivel, criarOpenRouter, criarSimulada } from './ia.js';
 import { atualizarCatalogo } from './modelos.js';
@@ -60,6 +61,8 @@ export async function iniciarPlataforma(env = process.env) {
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
     hostPlataforma: host, urlBase: env.PLATAFORMA_URL || (host ? `https://${host}` : ''), subdominioBase: env.PLATAFORMA_SUBDOMINIO || '',
     admins: [...lista(env.PLATAFORMA_ADMINS), ...lista(env.OPERADOR_EMAIL)], paginaInicial: env.PAGINA_INICIAL,
+    // Domínio próprio das empresas cadastrado sozinho no Render (opcional): chave e serviço só em variáveis do servidor.
+    provedorDominios: env.RENDER_API_KEY && env.RENDER_SERVICE_ID ? criarProvedorRender({ chave: env.RENDER_API_KEY, servico: env.RENDER_SERVICE_ID, alvo: env.RENDER_ALVO || '' }) : null,
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).
     legado: existsSync(legado) ? { banco: legado, slug: env.EMPRESA_SLUG, plano: lerPlano(env) } : null,
   });
@@ -68,6 +71,9 @@ export async function iniciarPlataforma(env = process.env) {
   const todas = fn => () => Promise.all([...P.tenants.values()].map(t => Promise.resolve().then(() => fn(t)).catch(e => P.log('tarefa', e.message))));
   tarefa(todas(apagarVencidas), 3600e3);
   tarefa(todas(t => t.plano && verificarAvisos(t)), 3600e3);
+  // Domínios próprios ainda não confirmados: confere o DNS a cada 30 minutos.
+  tarefa(async () => { for (const id of pendentes(P)) await verificarDominio(P, id); }, 1800e3);
+  if (P.provedorDominios) P.log('Domínios próprios: cadastro automático no Render ligado.');
   if (env.OPENROUTER_API_KEY) tarefa(async () => { const [primeiro, ...resto] = [...P.tenants.values()]; if (!primeiro) return; await atualizarCatalogo(primeiro); for (const t of resto) { t.catalogo = primeiro.catalogo; await atualizarCatalogo(t).catch(() => {}); } }, 24 * 3600e3);
   // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas.
   if (/^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '')) {

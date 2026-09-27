@@ -97,6 +97,12 @@ Com `MULTIEMPRESA=1`, uma única instalação atende várias empresas. Cada empr
 
 Fluxo: no console, **Empresas > Nova empresa** (nome, identificador, plano e primeiro admin). Em seguida, configure Marca, Landing Page, URL e Permissões concedidas e clique em **Publicar ambiente**. O admin recebe o convite e entra em `/<slug>`. No app, a seção **Empresa** traz Usuários, Roles e permissões, Branding, Landing Page, URL e domínio e Configurações, dentro do que o plano e a plataforma liberaram.
 
+Domínio próprio: a empresa (ou o operador) informa o domínio em URL e domínio, e o DNS é conferido a cada 30 minutos ou no botão **Verificar agora**. Com `RENDER_API_KEY`, `RENDER_SERVICE_ID` e `RENDER_ALVO`, o domínio também é cadastrado sozinho no Render, que emite o certificado. Sem essas variáveis, cadastre o domínio em Custom Domains no Render.
+
+Exportar e excluir: no resumo da empresa, **Exportar dados** baixa o banco dela (SQLite compactado). Uma empresa cancelada pode ser excluída de vez, digitando o identificador para confirmar; uma cópia do banco fica em `dados/excluidas`.
+
+Respostas simultâneas: cada plano define quantas respostas uma empresa pode ter em andamento ao mesmo tempo (padrão 10). Acima disso, a pessoa recebe um aviso para tentar em alguns segundos, e as outras empresas não são afetadas.
+
 Na primeira subida em modo multiempresa, o banco `dados/greenia.sqlite` (se existir) vira a primeira empresa, com as mesmas pessoas e dados. Os admins de antes viram admins da empresa.
 
 ## Console do operador

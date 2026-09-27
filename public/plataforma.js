@@ -146,7 +146,9 @@ async function abaResumo(d, id) {
   $('aba').innerHTML = `
     <div class="secao-titulo" style="margin-top:0"><h3>Status</h3></div>
     <div class="faixa-aviso ${e.status === 'ativa' ? 'ok' : e.status === 'em_implantacao' ? 'atencao' : 'erro'}">${{ em_implantacao: 'Em implantação: só administradores da empresa entram, e a landing pública ainda não aparece.', ativa: 'Ativa: o ambiente está disponível para as pessoas da empresa.', suspensa: 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.', cancelada: 'Cancelada: o ambiente está encerrado. Os dados ficam guardados.' }[e.status]}</div>
-    <div class="linha-botoes">${botoesStatus.map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}</div>
+    <div class="linha-botoes">${botoesStatus.map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}
+      <a class="btn btn-linha" href="/api/plataforma/empresas/${encodeURIComponent(id)}/exportar" download>Exportar dados</a>
+      ${e.status === 'cancelada' ? '<button class="btn btn-texto" id="excluir-empresa" style="color:var(--red-text)">Excluir definitivamente</button>' : ''}</div>
     <div class="secao-titulo"><h3>Plano</h3></div>
     <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${num(p.credits)} créditos · ${usd(p.price_usd)}</option>`).join('')}</select>
       <button class="btn btn-linha">Alterar plano</button></form>
@@ -175,6 +177,11 @@ async function abaResumo(d, id) {
     if ((s === 'suspensa' || s === 'cancelada') && !confirm(`${s === 'suspensa' ? 'Suspender' : 'Cancelar'} o ambiente? As pessoas da empresa perdem o acesso na hora.`)) return;
     try { await api(`/api/plataforma/empresas/${id}/status`, { metodo: 'POST', corpo: { status: s } }); toast('Status alterado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); }
   };
+  $('excluir-empresa')?.addEventListener('click', async () => {
+    const conf = prompt(`A exclusão apaga o ambiente e o banco da empresa. Uma cópia fica guardada no servidor.\n\nPara confirmar, digite o identificador: ${e.slug}`);
+    if (conf === null) return;
+    try { await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: conf } }); toast('Empresa excluída. A cópia do banco ficou guardada em dados/excluidas.'); location.hash = '#/empresas'; } catch (x) { falhar(x); }
+  });
   $('f-plano').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: $('s-plano').value || null } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
   if ($('f-pacote')) $('f-pacote').onsubmit = async ev => { ev.preventDefault(); if (!confirm(`Liberar ${num($('p-creditos').value)} créditos? Os admins da empresa recebem um email.`)) return; try { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { creditos: Number($('p-creditos').value), validade: $('p-validade').value || null, observacao: $('p-obs').value } }); toast('Pacote liberado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
   $('f-dados').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); toast('Dados salvos.'); } catch (x) { falhar(x); } };
@@ -225,11 +232,20 @@ async function abaUrl(d, id) {
   const e = d.empresa;
   $('aba').innerHTML = `<p class="lead">O ID interno da empresa não muda. Ao trocar o identificador, o endereço antigo continua levando ao ambiente.</p>
     <div class="faixa-aviso ok">Endereço atual: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a></div>
+    ${statusDominio(e.custom_domain, e.domain_status, e.domain_message, e.domain_checked_at)}
     <form id="f-url" novalidate><div class="grade-2">
       <div class="campo"><label for="url-slug">Identificador (slug)</label><input class="entrada" id="url-slug" value="${esc(e.slug)}" maxlength="40"><span class="ajuda">Endereço pela plataforma: /${esc(e.slug)}</span></div>
       <div class="campo"><label for="url-dom">Domínio próprio (opcional)</label><input class="entrada" id="url-dom" value="${esc(e.custom_domain || '')}" placeholder="app.empresa.com.br"><span class="ajuda">O DNS do domínio precisa apontar para a plataforma (CNAME).</span></div>
     </div><p class="msg-erro oculto" id="url-erro" role="alert"></p><div class="linha-botoes"><button class="btn btn-verde">Salvar URL</button></div></form>`;
+  $('verificar-dominio')?.addEventListener('click', async () => { try { const r = await api(`/api/plataforma/empresas/${id}/dominio/verificar`, { metodo: 'POST' }); toast(r.status === 'verificado' ? 'Domínio verificado.' : r.mensagem, 7000); vistaEmpresa(id, 'url'); } catch (x) { falhar(x); } });
   $('f-url').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/url`, { metodo: 'PUT', corpo: { slug: $('url-slug').value, custom_domain: $('url-dom').value } }); toast('URL salva.'); vistaEmpresa(id, 'url'); } catch (x) { mostrarErro('url-erro', x); } };
+}
+
+export function statusDominio(dominio, status, mensagem, em) {
+  if (!dominio) return '';
+  const ok = status === 'verificado';
+  return `<div class="faixa-aviso ${ok ? 'ok' : 'atencao'}"><b>${esc(dominio)}</b>: ${ok ? 'verificado' : 'aguardando o DNS'}${em ? ` (conferido em ${dataHora(em)})` : ''}. ${esc(mensagem || '')}
+    <button type="button" class="btn-texto btn-pequeno" id="verificar-dominio">Verificar agora</button></div>`;
 }
 
 async function abaPermissoes(d, id) {

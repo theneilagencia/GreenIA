@@ -21,6 +21,7 @@ import { rotasAuthEmpresa, rotasPublicoEmpresa } from './api-publica.js';
 import { rotasPlataforma } from './api-plataforma.js';
 import { rotasEmpresa } from './api-empresa.js';
 import { slugDe, SLUGS_RESERVADOS } from './validar.js';
+import { sincronizarProvedor, verificarDominio } from './dominio.js';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
@@ -38,6 +39,7 @@ export function criarPlataforma(op = {}) {
     cookieSeguro: op.cookieSeguro ?? true, pastaEmpresas: op.pastaEmpresas ?? (op.banco && op.banco !== ':memory:' ? join(dirname(op.banco), 'empresas') : ':memory:'),
     hostPlataforma: (op.hostPlataforma || '').toLowerCase(), urlBase: op.urlBase || '', subdominioBase: (op.subdominioBase || '').toLowerCase(),
     paginaInicial: op.paginaInicial === 'vendas' ? 'vendas' : 'plataforma', tenants: new Map(),
+    dns: op.dns || null, provedorDominios: op.provedorDominios || null, emAndamento: new Map(),
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
   P.email = op.email ?? criarEmail({ lerSmtp: () => lerAjuste(db, 'smtp', { url: '', remetente: '' }), log: P.log });
@@ -49,6 +51,8 @@ export function criarPlataforma(op = {}) {
   P.sincronizarPessoa = (companyId, userId) => sincronizarPessoa(P, companyId, userId);
   P.emailDa = companyId => P.tenant(companyId).email;
   P.adminsPlataforma = () => todos(db, "select u.email from platform_members m join users u on u.id = m.user_id where u.status = 'ativo'").map(x => x.email);
+  // Domínio trocado: atualiza o provedor de hospedagem e confere o DNS em segundo plano.
+  P.aoMudarDominio = (id, antigo, novo) => { P.pendenteDominio = sincronizarProvedor(P, id, antigo, novo).then(() => novo && verificarDominio(P, id)).catch(e => P.log('dominio', e.message)); };
   P.aoMudarAdmins = () => { const lista = P.adminsPlataforma(); for (const t of P.tenants.values()) t.operadores = lista; };
   E.semearPlanos(P);
 
@@ -234,6 +238,16 @@ async function tratar(P, rPlat, rEmp, req, res) {
     const t = P.tenant(companyId);
     const sessao = sessaoDaEmpresa(P, cookies, companyId);
     if (sessao && !statusPermite(c, sessao)) throw new ErroHttp(423, 'empresa_indisponivel', c.status === 'em_implantacao' ? 'O ambiente está em implantação.' : 'O ambiente desta empresa está indisponível. Fale com o administrador.');
+    // Respostas simultâneas por empresa: uma empresa não ocupa a instalação inteira.
+    if (req.method === 'POST' && /^\/api\/conversas\/\d+\/mensagens$/.test(caminho) && sessao) {
+      const limite = E.lerPlanoPorId(P, c.plan_id)?.limits?.max_concurrent ?? E.LIMITES_PADRAO.max_concurrent;
+      const agora = P.emAndamento.get(companyId) || 0;
+      if (limite && agora >= limite) throw new ErroHttp(429, 'ocupado', 'Muitas respostas em andamento na sua empresa agora. Tente de novo em alguns segundos.');
+      P.emAndamento.set(companyId, agora + 1);
+      let liberado = false;
+      const liberar = () => { if (liberado) return; liberado = true; P.emAndamento.set(companyId, Math.max(0, (P.emAndamento.get(companyId) || 1) - 1)); };
+      res.on('close', liberar); res.on('finish', liberar);
+    }
     return await t.tratar(req, res, { sessao: sessao && { pessoa: sessao.pessoa, csrf: sessao.csrf } });
   } catch (e) {
     if (res.headersSent) { res.end(); return; }

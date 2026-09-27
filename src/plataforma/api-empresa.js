@@ -6,6 +6,7 @@ import { exigir, rolesDaEmpresa, salvarRole, PERMISSOES, PERMISSOES_EMPRESA } fr
 import * as E from './empresas.js';
 import { auditar, listarAuditoria } from './auditoria.js';
 import { exec } from '../db.js';
+import { verificarDominio } from './dominio.js';
 
 export function rotasEmpresa(P, r) {
   const precisa = (s, chave) => exigir(s.perms, chave);
@@ -93,13 +94,15 @@ export function rotasEmpresa(P, r) {
   r.get('/api/empresa/url', ({ sessao, companyId, empresa }) => {
     precisa(sessao, 'company.read');
     const pode = E.podeEditar(P, companyId);
-    return { slug: empresa.slug, custom_domain: empresa.custom_domain, url: E.urlDaEmpresa(P, empresa), pode: { url: pode.url && sessao.perms.has('url.manage'), domain: pode.domain && sessao.perms.has('url.manage') }, host: P.hostPlataforma };
+    return { slug: empresa.slug, custom_domain: empresa.custom_domain, url: E.urlDaEmpresa(P, empresa), dominio: { status: empresa.domain_status, mensagem: empresa.domain_message, verificadoEm: empresa.domain_checked_at }, pode: { url: pode.url && sessao.perms.has('url.manage'), domain: pode.domain && sessao.perms.has('url.manage') }, host: P.hostPlataforma };
   });
   r.put('/api/empresa/url', ({ sessao, companyId, corpo, origem }) => {
     precisa(sessao, 'url.manage');
     const c = E.mudarUrl(P, companyId, { slug: corpo.slug, custom_domain: corpo.custom_domain }, sessao.userId, origem, { escopo: 'empresa' });
     return { slug: c.slug, custom_domain: c.custom_domain, url: E.urlDaEmpresa(P, c) };
   });
+
+  r.post('/api/empresa/dominio/verificar', async ({ sessao, companyId, origem }) => { precisa(sessao, 'url.manage'); return verificarDominio(P, companyId, { ator: sessao.userId, origem }); });
 
   // ------------------------------------------------ Auditoria da própria empresa
   r.get('/api/empresa/auditoria', ({ sessao, companyId, query }) => { precisa(sessao, 'audit.read'); return listarAuditoria(P, { empresa: companyId, pagina: Math.max(0, Number(query.pagina) || 0) }); });

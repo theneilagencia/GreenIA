@@ -134,7 +134,7 @@ O modo de instalação única (`criarApp`) continua funcionando para quem já us
 
 ### Limitações conhecidas
 
-- Domínio próprio precisa de DNS e certificado configurados fora da aplicação (no Render: Custom Domains).
-- Subdomínios por empresa exigem DNS curinga e certificado curinga.
-- Todas as empresas rodam no mesmo processo: o isolamento é de dados (banco por empresa) e de autorização, não de CPU e memória.
-- Excluir definitivamente uma empresa não foi implementado. Existe cancelar, que encerra o acesso e mantém os dados.
+- Domínio próprio: o DNS é conferido pela plataforma e, com a API do Render configurada, o domínio é cadastrado e o certificado emitido sozinhos. Sem a API, o cadastro no Render é manual.
+- Subdomínios por empresa exigem DNS curinga e certificado curinga no provedor.
+- Todas as empresas rodam no mesmo processo. Além do isolamento de dados e de autorização, cada empresa tem limite de respostas simultâneas e de mensagens por minuto, para uma não degradar as outras; não há isolamento de CPU e memória por empresa.
+- Exclusão definitiva só de empresa cancelada, com confirmação e cópia do banco em `dados/excluidas`. Os usuários continuam na plataforma (identidade global); os vínculos com a empresa são apagados.

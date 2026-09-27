@@ -8,6 +8,7 @@ import { auditar, listarAuditoria } from './auditoria.js';
 import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf, definirContexto } from './sessao.js';
 import { publicaEmpresa } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
+import { verificarDominio } from './dominio.js';
 
 
 export function rotasPlataforma(P, r) {
@@ -96,6 +97,19 @@ export function rotasPlataforma(P, r) {
     precisa(sessao, 'platform.plans.manage');
     return { plano: E.liberarPacoteNaEmpresa(P, params.id, corpo, sessao.userId, origem, sessao.email) };
   });
+
+  r.post('/api/plataforma/empresas/:id/dominio/verificar', async ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); E.exigirEmpresa(P, params.id); return verificarDominio(P, params.id, { ator: sessao.userId, origem }); });
+
+  // Exportação: cópia íntegra do banco da empresa, para entregar ao cliente ou guardar.
+  r.get('/api/plataforma/empresas/:id/exportar', ({ sessao, params, res, origem }) => {
+    precisa(sessao, 'platform.companies.manage');
+    const { nome, dados } = E.exportarEmpresa(P, params.id);
+    auditar(P, { usuario: sessao.userId, empresa: params.id, acao: 'company.exported', entidade: 'company', id: params.id, depois: { arquivo: nome, bytes: dados.length }, origem });
+    res.writeHead(200, { 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${nome}"`, 'content-length': dados.length, 'cache-control': 'no-store' });
+    res.end(dados);
+  });
+
+  r.post('/api/plataforma/empresas/:id/excluir', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.excluirEmpresa(P, params.id, corpo.confirmacao, sessao.userId, origem); });
 
   // Entrar no ambiente da empresa como admin da plataforma: abre uma sessão da empresa e registra na auditoria.
   r.post('/api/plataforma/empresas/:id/entrar', ({ sessao, params, res, origem }) => {

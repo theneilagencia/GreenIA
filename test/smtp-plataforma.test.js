@@ -66,3 +66,15 @@ test('produção sem SMTP: o console avisa que o email não está configurado, e
     assert.ok(S.P.email.enviados.some(m => m.para === 'ops@theneil.com.br'));
   } finally { await S.fechar(); }
 });
+
+test('SMTP recusa o envio: o console mostra o motivo, sem o endereço com a senha', async () => {
+  const { subirPlataforma } = await import('./ajuda-plataforma.js');
+  const email = { enviados: [], enviar: async () => { throw new Error('Invalid login: 535 5.7.8 authentication failed (smtp://u:segredo@host:587)'); } };
+  const S = await subirPlataforma({ email });
+  try {
+    const r = await S.navegador().post('/api/plataforma/login/codigo', { email: 'ops@theneil.com.br' });
+    assert.equal(r.status, 502);
+    assert.match(r.dados.mensagem, /535/);
+    assert.doesNotMatch(r.dados.mensagem, /segredo/);
+  } finally { await S.fechar(); }
+});

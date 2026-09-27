@@ -22,7 +22,14 @@ export function rotasPlataforma(P, r) {
     const u = E.acharUsuario(P, email);
     // Resposta igual para quem não é admin: não revela quem tem acesso ao console.
     if (!u || u.status !== 'ativo' || !ehAdminPlataforma(P.db, u.id)) throw erro(403, 'sem_acesso', 'Este email não tem acesso ao console da plataforma.');
-    await enviarCodigo(P, email, 'plataforma', P.email, 'Seu código de acesso ao console da GreenIA');
+    try { await enviarCodigo(P, email, 'plataforma', P.email, 'Seu código de acesso ao console da GreenIA'); }
+    catch (e) {
+      if (e.status) throw e;
+      // Falha do servidor de email: mostra o motivo (sem endereço nem senha) para quem configura.
+      const motivo = String(e.message || e).replace(/\S+:\/\/\S+/g, '[endereço]').slice(0, 240);
+      P.log(`email do console falhou: ${motivo}`);
+      throw erro(502, 'email_falhou', `O servidor de email recusou o envio: ${motivo}`);
+    }
     // Sem SMTP em produção o código só vai para o log do servidor: avisa em vez de fingir que enviou.
     if (P.avisarSemEmail && !P.lerSmtp().url) throw erro(503, 'email_nao_configurado', 'O envio de email não está configurado no servidor. Configure SMTP_URL e SMTP_REMETENTE nas variáveis do servidor; até lá, o código aparece no log do servidor, na linha "[email simulado]".');
     return { ok: true };

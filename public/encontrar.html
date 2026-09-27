@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Encontre o seu ambiente · GreenIA</title>
+<meta name="description" content="Receba por email o link de entrada do ambiente GreenIA da sua empresa.">
+<meta name="theme-color" content="#F8F6F1">
+<link rel="icon" href="/assets/greenia-marca.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
+<link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+<main class="login">
+  <div class="login-cartao">
+    <a class="marca" href="/" style="text-decoration:none;color:var(--ink)"><img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></a>
+    <h1>Encontre o seu ambiente</h1>
+    <p class="texto">Cada empresa tem o próprio endereço. Informe o seu email de trabalho e enviamos o link de entrada.</p>
+    <form id="form-encontrar" novalidate>
+      <div class="campo"><label for="email">Email de trabalho</label>
+        <input class="entrada" id="email" name="email" type="email" autocomplete="email" required placeholder="nome@empresa.com.br"></div>
+      <div class="l-oculto" aria-hidden="true" style="position:absolute;left:-9999px"><label for="site">Site</label><input id="site" name="site" tabindex="-1" autocomplete="off"></div>
+      <p class="msg-erro oculto" id="erro" role="alert"></p>
+      <button class="btn btn-verde" style="width:100%;border-radius:12px;padding:15px" id="enviar">Enviar link de entrada</button>
+    </form>
+    <div class="faixa-aviso ok oculto" id="ok" role="status" tabindex="-1"></div>
+    <p class="nota-login" style="margin:18px 0 0;font:400 13px/1.5 var(--sans);color:var(--muted)">Já sabe o endereço? Abra-o direto, por exemplo <b>ia.suaempresa.com.br</b>. Sem acesso ainda? Fale com o administrador da sua empresa.</p>
+    <a class="btn-texto" href="/" style="display:inline-block;margin-top:14px;color:var(--muted);padding-left:0">← Voltar</a>
+  </div>
+</main>
+<script type="module" src="/encontrar.js"></script>
+</body>
+</html>

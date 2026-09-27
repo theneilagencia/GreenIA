@@ -126,6 +126,8 @@ Como ativar:
 
 Com `PAGINA_INICIAL=vendas`, a raiz da instalação abre a página de vendas da GreenIA em vez da página da empresa. O formulário de contato grava o pedido e manda email para `OPERADOR_EMAIL`; os contatos aparecem no fim do console. Use só na instalação do operador.
 
+O "Entrar" da página de vendas leva a `/encontrar` ("Encontre o seu ambiente"): a pessoa informa o email de trabalho e recebe por email o link de entrada de cada empresa em que tem acesso (empresas ativas ou em implantação; domínio próprio só depois de verificado). A resposta é sempre a mesma, com ou sem cadastro, para não revelar emails nem empresas. Limites: 10 pedidos por hora por IP e 3 emails por hora para o mesmo endereço. Sem contexto de empresa, `/entrar` no endereço da plataforma também leva para lá; na instalação única, `/encontrar` vai direto para `/entrar`.
+
 ## Atualizar
 
 No Render, cada push no branch principal publica sozinho. Numa VM:

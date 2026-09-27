@@ -110,6 +110,7 @@ async function tratar(app, r, req, res, externo) {
   try {
     if (!url.pathname.startsWith('/api/')) {
       if (url.pathname === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }   // painel antigo
+      if (url.pathname === '/encontrar' && !app.tenant) { res.writeHead(302, { location: '/entrar' }); return res.end(); }   // instalação única: um ambiente só
       const pagina = url.pathname === '/' && app.paginaInicial === 'vendas' ? 'vendas.html' : PAGINAS[url.pathname];
       if (url.pathname === '/vendas.html' && app.paginaInicial !== 'vendas') { res.writeHead(302, { location: '/' }); return res.end(); }
       if (req.method === 'GET' && pagina && await servirEstatico(res, join(RAIZ, 'public'), pagina)) return;

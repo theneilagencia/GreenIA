@@ -3,7 +3,7 @@ import { erro } from '../http.js';
 import { contraste } from '../admin.js';
 
 // Slugs que não podem virar empresa: rotas da aplicação, nomes da plataforma e termos genéricos.
-export const SLUGS_RESERVADOS = new Set(['www', 'app', 'api', 'admin', 'administrador', 'plataforma', 'platform', 'entrar', 'login', 'sair', 'logout',
+export const SLUGS_RESERVADOS = new Set(['www', 'app', 'api', 'admin', 'administrador', 'plataforma', 'platform', 'entrar', 'encontrar', 'login', 'sair', 'logout',
   'politica', 'operador', 'vendas', 'assets', 'static', 'public', 'cdn', 'mail', 'email', 'smtp', 'suporte', 'support', 'ajuda', 'help', 'status',
   'docs', 'blog', 'dev', 'teste', 'test', 'staging', 'root', 'sistema', 'system', 'conta', 'contas', 'billing', 'pagamento', 'greenia', 'empresa', 'empresas']);
 

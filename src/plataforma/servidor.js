@@ -22,6 +22,7 @@ import { rotasPlataforma } from './api-plataforma.js';
 import { rotasEmpresa } from './api-empresa.js';
 import { slugDe, SLUGS_RESERVADOS } from './validar.js';
 import { sincronizarProvedor, verificarDominio } from './dominio.js';
+import { criarEncontrar } from './encontrar.js';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
@@ -50,6 +51,7 @@ export function criarPlataforma(op = {}) {
   P.tenant = id => P.tenants.get(id) || abrirTenant(P, id);
   P.sincronizarPessoa = (companyId, userId) => sincronizarPessoa(P, companyId, userId);
   P.emailDa = companyId => P.tenant(companyId).email;
+  P.encontrar = criarEncontrar(P);
   P.adminsPlataforma = () => todos(db, "select u.email from platform_members m join users u on u.id = m.user_id where u.status = 'ativo'").map(x => x.email);
   // Domínio trocado: atualiza o provedor de hospedagem e confere o DNS em segundo plano.
   P.aoMudarDominio = (id, antigo, novo) => { P.pendenteDominio = sincronizarProvedor(P, id, antigo, novo).then(() => novo && verificarDominio(P, id)).catch(e => P.log('dominio', e.message)); };
@@ -204,6 +206,9 @@ async function tratar(P, rPlat, rEmp, req, res) {
         res.writeHead(302, { location: '/plataforma' }); return res.end();
       }
       if (caminho === '/api/contato' && P.paginaInicial === 'vendas') return await contatoVendas(P, req, res);
+      // Quem não sabe o endereço da empresa recebe o link de entrada por email.
+      if (caminho === '/encontrar' || caminho === '/encontrar/') return await servirPagina(res, 'encontrar.html');
+      if (caminho === '/api/encontrar' && req.method === 'POST') return await P.encontrar(req, res);
       const m = /^\/([a-z0-9-]{3,40})(\/entrar|\/app)?\/?$/.exec(caminho);
       if (m && !PAGINAS_EMPRESA[`/${m[1]}`] && !SLUGS_RESERVADOS.has(m[1])) {
         const c = um(P.db, 'select id, slug from companies where slug = ?', m[1]) || um(P.db, 'select c.id, c.slug, 1 as antigo from company_slugs s join companies c on c.id = s.company_id where s.slug = ?', m[1]);
@@ -217,7 +222,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
       if (companyId && !E.lerEmpresa(P, companyId)) companyId = null;
       if (!companyId) {
         if (caminho.startsWith('/api/')) throw new ErroHttp(404, 'ambiente', 'Abra o endereço da sua empresa para entrar.');
-        if (PAGINAS_EMPRESA[caminho]) { res.writeHead(302, { location: '/' }); return res.end(); }
+        if (PAGINAS_EMPRESA[caminho]) { res.writeHead(302, { location: caminho === '/entrar' ? '/encontrar' : '/' }); return res.end(); }
         return pagina404(res, 'Página não encontrada.');
       }
     } else if (caminho.startsWith('/plataforma') || caminho.startsWith('/api/plataforma/')) {

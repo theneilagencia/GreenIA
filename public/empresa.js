@@ -2,7 +2,7 @@
 // landing page e URL. Tudo dentro do próprio ambiente e do que o operador da plataforma liberou.
 import { api, carregandoHtml, esc, ocupado, toast, vazioHtml } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
-import { renderMarca, ligarMarca, renderLanding, ligarLanding, mostrarErro } from '/editores.js';
+import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro } from '/editores.js';
 
 const $ = id => document.getElementById(id);
 const falhar = e => toast(e.message, 6000);
@@ -149,18 +149,9 @@ async function telaLanding() {
 // ---------------------------------------------------------------- URL e domínio
 async function telaUrl() {
   const u = await api('/api/empresa/url');
-  $('conteudo').innerHTML = `<p class="lead">Endereço de acesso ao ambiente. Ao trocar o identificador, o endereço antigo continua levando para cá, e nada se perde.</p>
-    <div class="faixa-aviso ok">Endereço atual: <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.url)}</a></div>
-    ${u.custom_domain ? `<div class="faixa-aviso ${u.dominio.status === 'verificado' ? 'ok' : 'atencao'}"><b>${esc(u.custom_domain)}</b>: ${u.dominio.status === 'verificado' ? 'verificado' : 'aguardando o DNS'}. ${esc(u.dominio.mensagem || '')}
-      ${u.pode.domain ? '<button type="button" class="btn-texto btn-pequeno" id="verificar-dominio">Verificar agora</button>' : ''}</div>` : ''}
-    ${!u.pode.url && !u.pode.domain ? '<div class="faixa-aviso atencao">A URL desta empresa é gerenciada pelo operador da plataforma.</div>' : ''}
-    <form id="f-url" novalidate><div class="grade-2">
-      <div class="campo"><label for="url-slug">Identificador</label><input class="entrada" id="url-slug" value="${esc(u.slug)}" maxlength="40" ${u.pode.url ? '' : 'disabled'}><span class="ajuda">Letras minúsculas, números e hífens, de 3 a 40.</span></div>
-      <div class="campo"><label for="url-dom">Domínio próprio</label><input class="entrada" id="url-dom" value="${esc(u.custom_domain || '')}" placeholder="app.suaempresa.com.br" ${u.pode.domain ? '' : 'disabled'}>
-        <span class="ajuda">${u.pode.domain ? `Crie um registro CNAME do domínio apontando para ${esc(u.host || 'a plataforma')} antes de salvar.` : 'Domínio próprio não está incluído ou liberado para esta empresa.'}</span></div></div>
-      <p class="msg-erro oculto" id="url-erro" role="alert"></p>
-      ${u.pode.url || u.pode.domain ? '<div class="linha-botoes"><button class="btn btn-verde">Salvar</button></div>' : ''}</form>`;
-  $('verificar-dominio')?.addEventListener('click', async () => { try { const r = await api('/api/empresa/dominio/verificar', { metodo: 'POST' }); toast(r.status === 'verificado' ? 'Domínio verificado.' : r.mensagem, 7000); telaUrl(); } catch (e) { falhar(e); } });
+  $('conteudo').innerHTML = renderUrl(u, { pode: u.pode });
+  ligarUrl(u);
+  $('verificar-dominio')?.addEventListener('click', ev => ocupado(ev.currentTarget, async () => { try { const r = await api('/api/empresa/dominio/verificar', { metodo: 'POST' }); toast(r.status === 'verificado' ? 'Domínio verificado.' : r.mensagem, r.status === 'verificado' ? undefined : 7000); telaUrl(); } catch (e) { falhar(e); } }));
   $('f-url').onsubmit = async ev => {
     ev.preventDefault();
     const corpo = {};

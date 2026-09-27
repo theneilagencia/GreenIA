@@ -152,3 +152,58 @@ export function mostrarErro(id, e) {
   if (!el) return;
   el.textContent = e.message; el.classList.remove('oculto');
 }
+
+// ---------------------------------------------------------------- URL e domínio
+// Duas formas de acesso, explicadas em passos: o endereço na plataforma (pronto) e, opcional, um
+// domínio próprio da empresa (registro CNAME no DNS dela + verificação). O registro a criar aparece
+// montado e muda enquanto a pessoa digita.
+// u = { slug, custom_domain, url, dominio: {status, mensagem, verificadoEm}, dns: {alvo, automatico, base} }
+// pode = { url, domain }; plataforma = true no console (mostra o que a equipe da plataforma faz)
+const dataCurta = iso => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
+const nomeDoRegistro = d => { const p = String(d || '').split('.'); return p.length > 2 ? p.slice(0, -2 - (/^(com|net|org|gov|edu)$/.test(p.at(-2)) ? 1 : 0)).join('.') || '@' : '@'; };
+
+export function renderUrl(u, { pode = { url: true, domain: true }, plataforma = false } = {}) {
+  const base = u.dns?.base || '', alvo = u.dns?.alvo || 'o endereço da plataforma';
+  const st = u.custom_domain ? (u.dominio?.status === 'verificado' ? 'verificado' : 'pendente') : 'nenhum';
+  const selo = { verificado: '<span class="selo selo-verde">Verificado</span>', pendente: '<span class="selo selo-ambar">Aguardando o DNS</span>', nenhum: '<span class="selo selo-cinza">Não configurado</span>' }[st];
+  const copiar = v => `<button type="button" class="btn-texto btn-pequeno" data-copiar="${esc(v)}">Copiar</button>`;
+  return `<p class="lead">Como as pessoas da empresa chegam ao ambiente. O ID interno nunca muda: trocar o endereço não perde nada.</p>
+    <form id="f-url" novalidate class="url-passos">
+      <section class="url-caixa">
+        <div class="url-topo"><span class="url-num">1</span><div><h3>Endereço na plataforma</h3><p class="dica">Já funciona, sem configurar nada. Ao trocar, o endereço antigo continua levando para cá.</p></div></div>
+        <div class="campo"><label for="url-slug">Identificador</label>
+          <div class="url-prefixo"><span>${esc(base.replace(/^https?:\/\//, ''))}/</span><input class="entrada" id="url-slug" value="${esc(u.slug)}" maxlength="40" autocomplete="off" ${pode.url ? '' : 'disabled'}></div>
+          <span class="ajuda">Letras minúsculas, números e hífens (3 a 40).</span></div>
+        <div class="url-final"><span class="dica">Endereço completo</span><b id="url-previa">${esc(base)}/${esc(u.slug)}</b>${copiar(`${base}/${u.slug}`)}</div>
+        ${pode.url ? '' : '<p class="dica">O endereço desta empresa é gerenciado pela equipe da plataforma.</p>'}
+      </section>
+      <section class="url-caixa">
+        <div class="url-topo"><span class="url-num">2</span><div><h3>Domínio próprio <small>(opcional)</small> ${selo}</h3><p class="dica">Para usar um endereço da própria empresa, como <b>ia.suaempresa.com.br</b>. Use um subdomínio: o domínio principal (suaempresa.com.br) normalmente já é o site.</p></div></div>
+        ${pode.domain ? `
+        <ol class="url-lista">
+          <li><b>Escolha o endereço</b>
+            <div class="campo"><label for="url-dom" class="sr">Domínio próprio</label><input class="entrada" id="url-dom" value="${esc(u.custom_domain || '')}" placeholder="ia.suaempresa.com.br" autocomplete="off" inputmode="url"></div></li>
+          <li><b>Crie este registro no DNS do domínio</b> <span class="dica">(no painel onde o domínio está: Registro.br, KingHost, GoDaddy, Cloudflare…)</span>
+            <div class="tabela-rolagem"><table class="tabela tabela-fixa url-dns"><thead><tr><th>Tipo</th><th>Nome</th><th>Valor / destino</th></tr></thead>
+              <tbody><tr><td><code>CNAME</code></td><td><code id="dns-nome">${esc(nomeDoRegistro(u.custom_domain) === '@' ? 'ia' : nomeDoRegistro(u.custom_domain))}</code></td><td><code>${esc(alvo)}</code> ${copiar(alvo)}</td></tr></tbody></table></div>
+            <p class="dica">Em “Nome”, alguns painéis pedem só a primeira parte (<code>ia</code>), outros o endereço inteiro. Se o Cloudflare estiver no meio, deixe o registro como “somente DNS” (nuvem cinza).</p></li>
+          <li><b>Salve aqui e verifique</b> <span class="dica">O DNS pode levar de alguns minutos a algumas horas para valer. A plataforma confere sozinha a cada 30 minutos.</span></li>
+          <li><b>HTTPS</b> <span class="dica">${u.dns?.automatico ? 'O certificado é emitido automaticamente depois da verificação.' : plataforma ? `Depois de verificado, cadastre o domínio também na hospedagem (no Render: <b>Settings → Custom Domains → Add</b>) para emitir o certificado HTTPS.` : 'Depois da verificação, a equipe da plataforma ativa o certificado HTTPS. Avise-a se passar de um dia.'}</span></li>
+        </ol>
+        ${u.custom_domain ? `<div class="faixa-aviso ${st === 'verificado' ? 'ok' : 'atencao'} url-status"><div><b>${esc(u.custom_domain)}</b>: ${st === 'verificado' ? 'o DNS está certo.' : 'ainda não aponta para a plataforma.'} ${esc(u.dominio?.mensagem || '')}${u.dominio?.verificadoEm ? ` <span class="dica">Conferido em ${dataCurta(u.dominio.verificadoEm)}.</span>` : ''}</div><button type="button" class="btn btn-linha btn-pequeno" id="verificar-dominio">Verificar agora</button></div>` : ''}
+        ` : '<p class="dica">Domínio próprio não está incluído no plano ou não foi liberado para esta empresa.</p>'}
+      </section>
+      <p class="msg-erro oculto" id="url-erro" role="alert"></p>
+      ${pode.url || pode.domain ? '<div class="linha-botoes"><button class="btn btn-verde">Salvar endereço</button></div>' : ''}
+    </form>`;
+}
+
+export function ligarUrl(u) {
+  const base = u.dns?.base || '';
+  const slug = document.getElementById('url-slug'), dom = document.getElementById('url-dom');
+  slug?.addEventListener('input', () => { const v = slug.value.trim().toLowerCase(), b = document.querySelector('.url-final [data-copiar]'); document.getElementById('url-previa').textContent = `${base}/${v}`; if (b) b.dataset.copiar = `${base}/${v}`; });
+  dom?.addEventListener('input', () => { const n = nomeDoRegistro(dom.value.trim().toLowerCase()); document.getElementById('dns-nome').textContent = n === '@' ? 'ia' : n; });
+  for (const b of document.querySelectorAll('[data-copiar]')) b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copiar); b.textContent = 'Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1500); } catch {}
+  });
+}

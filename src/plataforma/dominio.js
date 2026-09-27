@@ -52,6 +52,13 @@ export async function sincronizarProvedor(P, companyId, antigo, novo) {
   } else if (novo) auditar(P, { empresa: companyId, acao: 'company.domain_provider_added', entidade: 'company', id: companyId, depois: { dominio: novo }, origem: { painel: 'sistema' } });
 }
 
+// O que a tela de URL mostra: para onde o CNAME do domínio próprio deve apontar e se o HTTPS
+// é ativado sozinho (provedor configurado) ou fica com a equipe da plataforma.
+export function orientacaoDns(P) {
+  const alvo = (P.provedorDominios?.alvos || [])[0] || P.hostPlataforma || '';
+  return { alvo, automatico: !!P.provedorDominios, base: (P.urlBase || (P.hostPlataforma ? `https://${P.hostPlataforma}` : '')).replace(/\/$/, '') };
+}
+
 export const pendentes = P => todos(P.db, "select id from companies where custom_domain is not null and domain_status != 'verificado'").map(c => c.id);
 
 // Provedor Render: cadastra e confere domínios do serviço pela API (RENDER_API_KEY e RENDER_SERVICE_ID).

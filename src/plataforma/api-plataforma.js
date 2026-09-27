@@ -8,7 +8,7 @@ import { auditar, listarAuditoria } from './auditoria.js';
 import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf, definirContexto } from './sessao.js';
 import { publicaEmpresa } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
-import { verificarDominio } from './dominio.js';
+import { verificarDominio, orientacaoDns } from './dominio.js';
 
 
 export function rotasPlataforma(P, r) {
@@ -86,7 +86,7 @@ export function rotasPlataforma(P, r) {
     return {
       empresa: { ...c, ...resumoEmpresa(c), banco: undefined }, marca: E.lerMarca(P, c.id), landing: E.lerLanding(P, c.id),
       concessoes: E.concessoes(P, c.id), podeEditar: E.podeEditar(P, c.id), ambiente: E.ambienteDaEmpresa(P, c), uso: E.usoDaEmpresa(P, c.id),
-      usuarios: E.listarMembros(P, c.id), roles: rolesDaEmpresa(P.db, c.id),
+      usuarios: E.listarMembros(P, c.id), roles: rolesDaEmpresa(P.db, c.id), dns: orientacaoDns(P),
     };
   });
 

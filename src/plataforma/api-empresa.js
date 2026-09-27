@@ -6,7 +6,7 @@ import { exigir, rolesDaEmpresa, salvarRole, PERMISSOES, PERMISSOES_EMPRESA } fr
 import * as E from './empresas.js';
 import { auditar, listarAuditoria } from './auditoria.js';
 import { exec } from '../db.js';
-import { verificarDominio } from './dominio.js';
+import { verificarDominio, orientacaoDns } from './dominio.js';
 
 export function rotasEmpresa(P, r) {
   const precisa = (s, chave) => exigir(s.perms, chave);
@@ -94,7 +94,7 @@ export function rotasEmpresa(P, r) {
   r.get('/api/empresa/url', ({ sessao, companyId, empresa }) => {
     precisa(sessao, 'company.read');
     const pode = E.podeEditar(P, companyId);
-    return { slug: empresa.slug, custom_domain: empresa.custom_domain, url: E.urlDaEmpresa(P, empresa), dominio: { status: empresa.domain_status, mensagem: empresa.domain_message, verificadoEm: empresa.domain_checked_at }, pode: { url: pode.url && sessao.perms.has('url.manage'), domain: pode.domain && sessao.perms.has('url.manage') }, host: P.hostPlataforma };
+    return { slug: empresa.slug, custom_domain: empresa.custom_domain, url: E.urlDaEmpresa(P, empresa), dominio: { status: empresa.domain_status, mensagem: empresa.domain_message, verificadoEm: empresa.domain_checked_at }, pode: { url: pode.url && sessao.perms.has('url.manage'), domain: pode.domain && sessao.perms.has('url.manage') }, host: P.hostPlataforma, dns: orientacaoDns(P) };
   });
   r.put('/api/empresa/url', ({ sessao, companyId, corpo, origem }) => {
     precisa(sessao, 'url.manage');

@@ -2,7 +2,7 @@
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
 import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE } from '/comum.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
-import { renderMarca, ligarMarca, renderLanding, ligarLanding, mostrarErro, ROTULOS_MARCA } from '/editores.js';
+import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
 const $ = id => document.getElementById(id);
 const C = { eu: null, csrf: '', catalogo: null, planos: [] };
@@ -240,15 +240,11 @@ async function abaLanding(d, id) {
 
 async function abaUrl(d, id) {
   const e = d.empresa;
-  $('aba').innerHTML = `<p class="lead">O ID interno da empresa não muda. Ao trocar o identificador, o endereço antigo continua levando ao ambiente.</p>
-    <div class="faixa-aviso ok">Endereço atual: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a></div>
-    ${statusDominio(e.custom_domain, e.domain_status, e.domain_message, e.domain_checked_at)}
-    <form id="f-url" novalidate><div class="grade-2">
-      <div class="campo"><label for="url-slug">Identificador (slug)</label><input class="entrada" id="url-slug" value="${esc(e.slug)}" maxlength="40"><span class="ajuda">Endereço pela plataforma: /${esc(e.slug)}</span></div>
-      <div class="campo"><label for="url-dom">Domínio próprio (opcional)</label><input class="entrada" id="url-dom" value="${esc(e.custom_domain || '')}" placeholder="app.empresa.com.br"><span class="ajuda">O DNS do domínio precisa apontar para a plataforma (CNAME).</span></div>
-    </div><p class="msg-erro oculto" id="url-erro" role="alert"></p><div class="linha-botoes"><button class="btn btn-verde">Salvar URL</button></div></form>`;
-  $('verificar-dominio')?.addEventListener('click', async () => { try { const r = await api(`/api/plataforma/empresas/${id}/dominio/verificar`, { metodo: 'POST' }); toast(r.status === 'verificado' ? 'Domínio verificado.' : r.mensagem, 7000); vistaEmpresa(id, 'url'); } catch (x) { falhar(x); } });
-  $('f-url').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/url`, { metodo: 'PUT', corpo: { slug: $('url-slug').value, custom_domain: $('url-dom').value } }); toast('URL salva.'); vistaEmpresa(id, 'url'); } catch (x) { mostrarErro('url-erro', x); } };
+  const u = { slug: e.slug, custom_domain: e.custom_domain, url: e.url, dominio: { status: e.domain_status, mensagem: e.domain_message, verificadoEm: e.domain_checked_at }, dns: d.dns };
+  $('aba').innerHTML = renderUrl(u, { plataforma: true });
+  ligarUrl(u);
+  $('verificar-dominio')?.addEventListener('click', ev => ocupado(ev.currentTarget, async () => { try { const r = await api(`/api/plataforma/empresas/${id}/dominio/verificar`, { metodo: 'POST' }); toast(r.status === 'verificado' ? 'Domínio verificado.' : r.mensagem, r.status === 'verificado' ? undefined : 7000); vistaEmpresa(id, 'url'); } catch (x) { falhar(x); } }));
+  $('f-url').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/url`, { metodo: 'PUT', corpo: { slug: $('url-slug').value, custom_domain: $('url-dom').value } }); toast('Endereço salvo.'); vistaEmpresa(id, 'url'); } catch (x) { mostrarErro('url-erro', x); } };
 }
 
 export function statusDominio(dominio, status, mensagem, em) {

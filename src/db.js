@@ -1,5 +1,5 @@
-// Banco da instalação: um arquivo SQLite (WAL). Uma empresa por instalação,
-// então nenhuma tabela tem coluna de cliente.
+// Banco de uma empresa: um arquivo SQLite (WAL). Cada empresa tem o seu arquivo (instalação única
+// ou dados/empresas/<company_id>.sqlite no modo multiempresa), então nenhuma tabela tem coluna de cliente.
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -11,7 +11,7 @@ create table if not exists pessoas (
   id integer primary key, email text not null unique, nome text not null default '',
   papel text not null default 'usuario' check (papel in ('admin','usuario')),
   ativo integer not null default 1, ciencia_versao integer not null default 0,
-  criado_em text not null default (datetime('now')));
+  criado_em text not null default (datetime('now')), user_id text);
 
 create table if not exists codigos (
   email text primary key, hash text not null, expira integer not null,
@@ -161,6 +161,10 @@ const MIGRACOES = [
     for (const [coluna, def] of [['observacao', "text not null default ''"], ['validade', 'text'], ['origem', "text not null default 'manual'"], ['operador', 'text']]) {
       if (!db.prepare('pragma table_info(pacotes)').all().some(c => c.name === coluna)) db.exec(`alter table pacotes add column ${coluna} ${def}`);
     }
+  },
+  // 3. Multiempresa: a pessoa da empresa aponta para a identidade global do usuário na plataforma.
+  db => {
+    if (!db.prepare('pragma table_info(pessoas)').all().some(c => c.name === 'user_id')) db.exec('alter table pessoas add column user_id text');
   },
 ];
 

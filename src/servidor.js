@@ -45,7 +45,10 @@ export function criarApp(op = {}) {
   app.rajada = op.rajada;   // envios por minuto por pessoa (padrão 12)
   // Na instalação do operador, a raiz abre a página de vendas (PAGINA_INICIAL=vendas).
   app.paginaInicial = op.paginaInicial === 'vendas' ? 'vendas' : 'instalacao';
-  for (const e of app.operadores) garantirOperador(app, e);
+  // Modo multiempresa: esta aplicação é uma empresa (tenant) dentro da plataforma. Login, sessão,
+  // pessoas e permissões vêm do banco da plataforma (src/plataforma); aqui ficam os dados do produto.
+  app.tenant = op.tenant || null;
+  if (!app.tenant) for (const e of app.operadores) garantirOperador(app, e);
 
   const r = criarRoteador();
   rotasLogin(app, r);
@@ -57,6 +60,7 @@ export function criarApp(op = {}) {
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
     unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa),
+    ...(app.extraEu?.(sessao) ?? {}),
   }));
   app.contexto = criarContexto(app);
   app.extrairAnexos = async (anexos = []) => {
@@ -67,6 +71,7 @@ export function criarApp(op = {}) {
   };
   for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas]) modulo(app, r);
 
+  app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
   return app;
 }
@@ -87,7 +92,19 @@ function garantirAdmin(app, email) {
   if (!cfg.dominios.length) salvarConfig(app.db, { dominios: [email.split('@')[1]] });
 }
 
-async function tratar(app, r, req, res) {
+// Permissão exigida por cada rota administrativa no modo multiempresa (no modo de instalação única, basta ser admin).
+export function permissaoAdmin(caminho, metodo) {
+  const ler = metodo === 'GET';
+  if (/^\/api\/admin\/(pessoas|areas|grupos)/.test(caminho)) return ler ? 'user.read' : 'user.update';
+  if (/^\/api\/admin\/(modelos|catalogo)/.test(caminho)) return 'models.manage';
+  if (caminho.startsWith('/api/admin/politica')) return 'policy.manage';
+  if (/^\/api\/admin\/(uso|visao-geral)/.test(caminho)) return 'usage.read';
+  if (/^\/api\/admin\/(eventos|problemas)/.test(caminho)) return ler ? 'audit.read' : 'settings.manage';
+  if (/^\/api\/admin\/(config|smtp)/.test(caminho)) return 'settings.manage';
+  return 'company.manage';
+}
+
+async function tratar(app, r, req, res, externo) {
   cabecalhosSeguranca(res);
   const url = new URL(req.url, 'http://local');
   try {
@@ -103,12 +120,17 @@ async function tratar(app, r, req, res) {
     const rota = r.achar(req.method, url.pathname);
     if (!rota) throw new ErroHttp(404, 'nao_encontrado', 'Não encontrado.');
     const cookies = lerCookies(req);
-    const sessao = lerSessao(app, cookies);
+    const sessao = externo ? externo.sessao : lerSessao(app, cookies);
     if (req.method !== 'GET') checarOrigem(req);
     if (!rota.op.publica) {
       if (!sessao) throw new ErroHttp(401, 'sem_sessao', 'Entre de novo.');
       if (req.method !== 'GET') checarCsrf(sessao, req);
-      if (rota.op.admin && !sessao.pessoa.admin) throw new ErroHttp(403, 'so_admin', 'Só o admin pode fazer isso.');
+      if (app.tenant) {
+        const perms = sessao.pessoa.permissoes || [];
+        if (rota.op.admin && !perms.includes(permissaoAdmin(url.pathname, req.method))) throw new ErroHttp(403, 'sem_permissao', 'Você não tem permissão para isso.');
+        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
+        app.checarRecurso?.(req.method, url.pathname);
+      } else if (rota.op.admin && !sessao.pessoa.admin) throw new ErroHttp(403, 'so_admin', 'Só o admin pode fazer isso.');
     }
     const corpo = req.method === 'GET' ? {} : await lerCorpo(req, rota.op.limiteMb ?? 1);
     const ctx = { app, req, res, cookies, sessao, pessoa: sessao?.pessoa, params: rota.params, query: Object.fromEntries(url.searchParams), corpo };

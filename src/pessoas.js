@@ -63,6 +63,8 @@ export function rotasPessoas(app, r) {
   }), { admin: true });
 
   r.post('/api/admin/pessoas', ({ pessoa, corpo }) => {
+    // Multiempresa: usuários, convites, roles e status ficam na plataforma (Usuários, no admin da empresa).
+    if (app.tenant) throw erro(409, 'use_usuarios', 'Cadastre pessoas em Usuários. Aqui ficam as áreas e os grupos.');
     const email = String(corpo.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw erro(400, 'email', 'Email inválido.');
     // Fora dos domínios permitidos, só entra quem o admin cadastrou (a pessoa, não o domínio).
@@ -81,6 +83,7 @@ export function rotasPessoas(app, r) {
     const id = Number(params.id);
     const alvo = um(app.db, 'select id, papel, ativo from pessoas where id = ?', id);
     if (!alvo) throw erro(404, 'pessoa', 'Pessoa não encontrada.');
+    if (app.tenant && (corpo.papel !== undefined || corpo.ativo !== undefined)) throw erro(409, 'use_usuarios', 'Role e status são alterados em Usuários.');
     const papel = corpo.papel === undefined ? alvo.papel : corpo.papel === 'admin' ? 'admin' : 'usuario';
     const ativo = corpo.ativo === undefined ? alvo.ativo : Number(!!corpo.ativo);
     const admins = um(app.db, "select count(*) as n from pessoas where papel = 'admin' and ativo = 1 and id != ?", id).n;

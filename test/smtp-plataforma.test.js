@@ -1,0 +1,55 @@
+// Email da plataforma (códigos do console): SMTP do console, senão o das variáveis, e o da
+// instalação anterior copiado uma vez na migração para multiempresa.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { criarApp } from '../src/servidor.js';
+import { criarPlataforma } from '../src/plataforma/servidor.js';
+import { salvarConfig, lerConfig } from '../src/config.js';
+import { lerAjuste, salvarAjuste } from '../src/plataforma/db.js';
+
+const fechar = P => { P.servidor.close(); for (const t of P.tenants.values()) t.db?.close?.(); };
+
+test('SMTP da instalação anterior vira o da plataforma, uma vez, inclusive depois da importação', () => {
+  const pasta = mkdtempSync(join(tmpdir(), 'gia-smtp-'));
+  const arquivo = join(pasta, 'greenia.sqlite'), banco = join(pasta, 'plataforma.sqlite');
+  const antigo = criarApp({ banco: arquivo, log: () => {}, adminEmail: 'dono@antiga.com.br' });
+  salvarConfig(antigo.db, { empresa: 'Empresa Antiga', smtp: { url: 'smtps://u:s@mail.antiga.com.br:465', remetente: 'IA <ia@antiga.com.br>' } });
+  antigo.db.close();
+  // Primeira subida: importa e copia.
+  let P = criarPlataforma({ banco, log: () => {}, cookieSeguro: false, legado: { banco: arquivo } });
+  assert.equal(lerAjuste(P.db, 'smtp', {}).url, 'smtps://u:s@mail.antiga.com.br:465');
+  assert.equal(P.lerSmtp().remetente, 'IA <ia@antiga.com.br>');
+  // Uma empresa mudar o próprio SMTP depois não altera o da plataforma.
+  const id = P.db.prepare('select id from companies').get().id;
+  salvarConfig(P.tenant(id).db, { ...lerConfig(P.tenant(id).db), smtp: { url: 'smtp://outro:25', remetente: '' } });
+  fechar(P);
+  P = criarPlataforma({ banco, log: () => {}, cookieSeguro: false, legado: { banco: arquivo } });
+  assert.equal(P.lerSmtp().url, 'smtps://u:s@mail.antiga.com.br:465');
+  fechar(P);
+});
+
+test('plataforma já importada sem SMTP: a cópia acontece na subida seguinte', () => {
+  const pasta = mkdtempSync(join(tmpdir(), 'gia-smtp-'));
+  const arquivo = join(pasta, 'greenia.sqlite'), banco = join(pasta, 'plataforma.sqlite');
+  const antigo = criarApp({ banco: arquivo, log: () => {}, adminEmail: 'dono@antiga.com.br' });
+  salvarConfig(antigo.db, { empresa: 'Empresa Antiga', smtp: { url: 'smtp://mail.antiga:587', remetente: '' } });
+  antigo.db.close();
+  let P = criarPlataforma({ banco, log: () => {}, cookieSeguro: false, legado: { banco: arquivo } });
+  // Simula a versão anterior, que importava sem copiar o SMTP.
+  salvarAjuste(P.db, 'smtp', { url: '', remetente: '' }); P.db.prepare("delete from platform_settings where key = 'smtp_legado_copiado'").run();
+  fechar(P);
+  P = criarPlataforma({ banco, log: () => {}, cookieSeguro: false, legado: { banco: arquivo } });
+  assert.equal(P.lerSmtp().url, 'smtp://mail.antiga:587');
+  fechar(P);
+});
+
+test('sem SMTP no console, usa o das variáveis; o do console tem prioridade', () => {
+  const P = criarPlataforma({ log: () => {}, cookieSeguro: false, smtpPadrao: { url: 'smtp://var:25', remetente: 'Var <v@x.com>' } });
+  assert.equal(P.lerSmtp().url, 'smtp://var:25');
+  salvarAjuste(P.db, 'smtp', { url: 'smtp://console:25', remetente: '' });
+  assert.equal(P.lerSmtp().url, 'smtp://console:25');
+  fechar(P);
+});

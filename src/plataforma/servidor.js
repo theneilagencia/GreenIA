@@ -13,7 +13,7 @@ import { lerConfig, salvarConfig } from '../config.js';
 import { carregarPessoa, dominioPermitido } from '../auth.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
 import { exec, todos, um, json } from '../db.js';
-import { abrirPlataforma, lerAjuste } from './db.js';
+import { abrirPlataforma, lerAjuste, salvarAjuste } from './db.js';
 import { semearRbac, permissoesNaEmpresa, ehAdminPlataforma, roleDeSistema } from './rbac.js';
 import * as E from './empresas.js';
 import { COOKIE_CONTEXTO, lerSessaoBruta, checarCsrf } from './sessao.js';
@@ -43,7 +43,10 @@ export function criarPlataforma(op = {}) {
     dns: op.dns || null, provedorDominios: op.provedorDominios || null, emAndamento: new Map(),
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
-  P.email = op.email ?? criarEmail({ lerSmtp: () => lerAjuste(db, 'smtp', { url: '', remetente: '' }), log: P.log });
+  // SMTP da plataforma: o configurado no console; sem ele, o das variáveis SMTP_URL/SMTP_REMETENTE.
+  P.smtpPadrao = { url: op.smtpPadrao?.url || '', remetente: op.smtpPadrao?.remetente || '' };
+  P.lerSmtp = () => { const s = lerAjuste(db, 'smtp', { url: '', remetente: '' }); return s.url ? s : P.smtpPadrao.url ? P.smtpPadrao : s; };
+  P.email = op.email ?? criarEmail({ lerSmtp: P.lerSmtp, log: P.log });
 
   semearRbac(db, P.agora().toISOString());
   P.aplicarAoTenant = id => aplicarAoTenant(P, id);
@@ -64,7 +67,7 @@ export function criarPlataforma(op = {}) {
     exec(db, "update users set status = 'ativo' where id = ?", u.id);
     exec(db, "insert into platform_members (user_id, role) values (?, 'platform_admin') on conflict (user_id) do nothing", u.id);
   }
-  if (op.legado) importarInstalacao(P, op.legado);
+  if (op.legado) { importarInstalacao(P, op.legado); copiarSmtpLegado(P, op.legado.banco); }
   for (const c of todos(db, 'select id from companies')) abrirTenant(P, c.id);
 
   const rPlat = criarRoteador(), rEmp = criarRoteador();
@@ -313,6 +316,20 @@ async function contatoVendas(P, req, res) {
 }
 
 // ---------------------------------------------------------------- Importação da instalação única
+// O SMTP que a instalação única usava passa a ser o da plataforma, uma vez, se o console ainda não
+// tiver um: sem isso, nenhum código de acesso ao console chega por email. Mudanças posteriores no
+// SMTP da empresa não afetam a plataforma.
+function copiarSmtpLegado(P, banco) {
+  if (lerAjuste(P.db, 'smtp', { url: '' }).url || lerAjuste(P.db, 'smtp_legado_copiado', false)) return;
+  const c = um(P.db, 'select id from companies where banco = ?', banco);
+  if (!c) return;
+  const smtp = lerConfig(P.tenant(c.id).db).smtp || {};
+  salvarAjuste(P.db, 'smtp_legado_copiado', true);
+  if (!smtp.url) return;
+  salvarAjuste(P.db, 'smtp', { url: smtp.url, remetente: smtp.remetente || '' });
+  P.log('SMTP da instalação anterior copiado para a plataforma (códigos de acesso ao console).');
+}
+
 // A instalação que já existia vira a primeira empresa: mesmo banco, pessoas viram usuários com vínculo.
 function importarInstalacao(P, { banco, slug, plano }) {
   if (!banco || um(P.db, 'select 1 from companies') || (banco !== ':memory:' && !existsSync(banco))) return;

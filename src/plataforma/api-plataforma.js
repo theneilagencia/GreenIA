@@ -201,7 +201,7 @@ export function rotasPlataforma(P, r) {
     return {
       nome: lerAjuste(P.db, 'nome', 'GreenIA'), subdominio_base: lerAjuste(P.db, 'subdominio_base', P.subdominioBase), host: P.hostPlataforma, url_base: P.urlBase,
       slugs_reservados: lerAjuste(P.db, 'slugs_reservados', []), plano_padrao: lerAjuste(P.db, 'plano_padrao', null),
-      smtp: { configurado: !!smtp.url, remetente: smtp.remetente }, admins: todos(P.db, 'select u.id, u.email, u.name from platform_members m join users u on u.id = m.user_id order by u.email'),
+      smtp: { configurado: !!(smtp.url || P.smtpPadrao?.url), remetente: smtp.remetente || P.smtpPadrao?.remetente || '', porVariavel: !smtp.url && !!P.smtpPadrao?.url }, admins: todos(P.db, 'select u.id, u.email, u.name from platform_members m join users u on u.id = m.user_id order by u.email'),
       leads: lerAjuste(P.db, 'leads', []).slice(0, 50),
     };
   });

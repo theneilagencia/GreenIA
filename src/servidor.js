@@ -36,7 +36,8 @@ export function criarApp(op = {}) {
     db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log,
   };
   app.email = op.email ?? criarEmail({ lerSmtp: () => lerConfig(db).smtp, log: app.log });
-  if (op.adminEmail) garantirAdmin(app, op.adminEmail);
+  // ADMIN_EMAIL: um ou mais emails (separados por vírgula), sempre admins e ativos.
+  for (const e of String(op.adminEmail || '').split(/[\s,;]+/).filter(Boolean)) garantirAdmin(app, e);
   app.plano = op.plano || null;
   app.operadores = (op.operadores || []).map(e => e.toLowerCase());
   // Console do operador: token desta instalação, instalações remotas, custo de servidor e preço do pacote.
@@ -81,6 +82,7 @@ function garantirOperador(app, email) {
 function garantirAdmin(app, email) {
   email = email.trim().toLowerCase();
   if (!um(app.db, 'select 1 from pessoas where email = ?', email)) exec(app.db, "insert into pessoas (email, nome, papel) values (?, ?, 'admin')", email, email.split('@')[0]);
+  else exec(app.db, "update pessoas set papel = 'admin', ativo = 1 where email = ?", email);
   const cfg = lerConfig(app.db);
   if (!cfg.dominios.length) salvarConfig(app.db, { dominios: [email.split('@')[1]] });
 }

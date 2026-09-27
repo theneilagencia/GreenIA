@@ -21,6 +21,33 @@ test('código por email: só domínio permitido; entra, recebe cookie HttpOnly e
   assert.equal(eu.dados.pessoa.papel, 'usuario');
 });
 
+test('fora dos domínios, só entra quem o admin cadastrou; ADMIN_EMAIL é sempre admin', async () => {
+  const c = S.cliente();
+  assert.equal((await c.post('/api/login/codigo', { email: 'convidado@parceiro.com' })).status, 403);
+  const admin = await S.cliente().entrar('admin@exemplo.com.br');
+  assert.equal((await admin.post('/api/admin/pessoas', { email: 'convidado@parceiro.com', papel: 'admin' })).status, 200);
+  assert.equal((await c.post('/api/login/codigo', { email: 'convidado@parceiro.com' })).status, 200);
+  assert.equal((await c.post('/api/login/entrar', { email: 'convidado@parceiro.com', codigo: ultimoCodigo('convidado@parceiro.com') })).status, 200);
+  assert.equal((await c.get('/api/eu')).dados.pessoa.papel, 'admin');
+  // Outro email do mesmo domínio continua de fora.
+  assert.equal((await S.cliente().post('/api/login/codigo', { email: 'outro@parceiro.com' })).status, 403);
+  // Desativado não pede código.
+  const id = (await admin.get('/api/admin/pessoas')).dados.pessoas.find(p => p.email === 'convidado@parceiro.com').id;
+  await admin.put(`/api/admin/pessoas/${id}`, { ativo: false });
+  assert.equal((await S.cliente().post('/api/login/codigo', { email: 'convidado@parceiro.com' })).status, 403);
+});
+
+test('ADMIN_EMAIL com vários emails, de qualquer domínio, entra como admin', async () => {
+  const T = await subir({ adminEmail: 'dono@exemplo.com.br, fulano@outrodominio.com' });
+  try {
+    const c = T.cliente();
+    assert.equal((await c.post('/api/login/codigo', { email: 'fulano@outrodominio.com' })).status, 200);
+    const codigo = /(\d{6})/.exec(T.app.email.enviados.at(-1).assunto)[1];
+    assert.equal((await c.post('/api/login/entrar', { email: 'fulano@outrodominio.com', codigo })).status, 200);
+    assert.equal((await c.get('/api/eu')).dados.pessoa.papel, 'admin');
+  } finally { await T.fechar(); }
+});
+
 test('cookie Secure quando a instalação usa HTTPS', async () => {
   const T = await subir({ cookieSeguro: true });
   const c = T.cliente();

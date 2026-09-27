@@ -35,8 +35,8 @@ const perguntar = async (c, texto) => {
   return { ...r, conv, sistema: JSON.stringify(OR.chamadas.at(-1)?.messages[0].content) };
 };
 
-test('admin cria áreas e pessoas; domínio fora da lista é recusado; o último admin não sai', async () => {
-  assert.equal((await admin.post('/api/admin/pessoas', { email: 'x@outro.com' })).status, 400);
+test('admin cria áreas e pessoas; email inválido é recusado; o último admin não sai', async () => {
+  assert.equal((await admin.post('/api/admin/pessoas', { email: 'sem-arroba' })).status, 400);
   assert.equal((await admin.post('/api/admin/pessoas', { email: 'ana@exemplo.com.br' })).status, 409);
   assert.equal((await ana.post('/api/admin/areas', { nome: 'Outra' })).status, 403);
   const eu = admin.pessoa.id;

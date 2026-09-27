@@ -2,8 +2,6 @@
 import { erro } from './http.js';
 import { exec, todos, transacao, um } from './db.js';
 import { registrar } from './eventos.js';
-import { lerConfig } from './config.js';
-import { dominioPermitido } from './auth.js';
 
 const membros = (db, areaId) => todos(db, 'select pessoa_id, responsavel from area_pessoas where area_id = ?', areaId)
   .map(m => ({ pessoa_id: m.pessoa_id, responsavel: !!m.responsavel }));
@@ -67,7 +65,7 @@ export function rotasPessoas(app, r) {
   r.post('/api/admin/pessoas', ({ pessoa, corpo }) => {
     const email = String(corpo.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw erro(400, 'email', 'Email inválido.');
-    if (!dominioPermitido(lerConfig(app.db), email)) throw erro(400, 'dominio', 'O domínio deste email não está na lista de domínios permitidos.');
+    // Fora dos domínios permitidos, só entra quem o admin cadastrou (a pessoa, não o domínio).
     if (um(app.db, 'select 1 from pessoas where email = ?', email)) throw erro(409, 'email', 'Esta pessoa já está cadastrada.');
     const papel = corpo.papel === 'admin' ? 'admin' : 'usuario';
     const id = transacao(app.db, () => {

@@ -17,7 +17,7 @@ services:
       sizeGB: 1
     envVars:
       - key: ADMIN_EMAIL
-        sync: false         # pedido na criação
+        sync: false         # um ou mais emails de admin (vírgula); entram de qualquer domínio
       - key: OPENROUTER_API_KEY
         sync: false         # pedido na criação; nunca no repositório
       # Plano contratado (definido pela TheNeil; o admin da empresa não altera).

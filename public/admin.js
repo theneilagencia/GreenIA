@@ -1,7 +1,7 @@
 // Gestão da GreenIA: telas de uso, pessoas, modelos, políticas, atividade,
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
-import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, toast, vazioHtml } from '/comum.js';
+import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, ocupado, toast, vazioHtml } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
 import { renderizar } from '/md.js';
 
@@ -443,13 +443,33 @@ async function abaEventos(filtro = {}, pagina = 0) {
 }
 
 // ---------------------------------------------------------------- Configurações
+// Provedores de email mais comuns: servidor e porta já preenchidos, e onde conseguir a senha.
+const PROVEDORES_EMAIL = {
+  google: { nome: 'Google Workspace / Gmail', servidor: 'smtp.gmail.com', porta: 465, ajuda: 'Use uma <b>senha de app</b>, não a senha normal: ative a verificação em duas etapas e crie a senha em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>.' },
+  microsoft: { nome: 'Microsoft 365 / Outlook', servidor: 'smtp.office365.com', porta: 587, ajuda: 'O administrador do Microsoft 365 precisa liberar o <b>SMTP autenticado</b> para esta caixa.' },
+  kinghost: { nome: 'KingHost', servidor: 'smtp.kinghost.net', porta: 465, ajuda: 'Use o email completo e a senha da caixa, a mesma do webmail.' },
+  locaweb: { nome: 'Locaweb', servidor: 'email-ssl.com.br', porta: 465, ajuda: 'Use o email completo e a senha da caixa.' },
+  zoho: { nome: 'Zoho Mail', servidor: 'smtp.zoho.com', porta: 465, ajuda: 'Use o email completo e a senha (ou senha de app, se tiver verificação em duas etapas).' },
+  outro: { nome: 'Outro servidor', servidor: '', porta: 465, ajuda: 'Peça ao responsável pelo email da empresa o <b>servidor SMTP</b> e a <b>porta</b> (normalmente 465 ou 587).' },
+};
+const provedorDe = smtp => smtp.modo === 'api' ? smtp.api : smtp.modo === 'smtp' ? (Object.entries(PROVEDORES_EMAIL).find(([k, p]) => k !== 'outro' && p.servidor === smtp.servidor)?.[0] || 'outro') : '';
+const nomeDoRemetente = r => (/^\s*(.*?)\s*</.exec(r || '')?.[1] || 'GreenIA').replace(/^"|"$/g, '');
+const RETENCOES = [[30, '30 dias'], [90, '90 dias'], [180, '6 meses'], [365, '1 ano']];
+
 async function abaConfig() {
   const c = await api('/api/admin/config');
   let logo = c.logo;
-  const multi = !!E.plataforma;
-  $('conteudo').innerHTML = `<form id="form-cfg">
+  const multi = !!E.plataforma, un = emCreditos() ? 'créditos' : 'US$';
+  let dominios = [...c.dominios];
+  const smtp = c.smtp || {};
+  let prov = provedorDe(smtp);
+  const caixa = (n, titulo, porque, corpo, extra = '') => `<section class="cfg-caixa"${extra}><div class="cfg-topo"><span class="url-num">${n}</span><div><h3>${titulo}</h3><p class="dica">${porque}</p></div></div>${corpo}</section>`;
+  const limite = (id, rotulo, explica, valor, sufixo, passo = 1) => `<div class="cfg-limite"><label class="cfg-liga"><input type="checkbox" data-liga="${id}" ${valor > 0 ? 'checked' : ''}> <span><b>${rotulo}</b><small>${explica}</small></span></label>
+    <div class="cfg-valor ${valor > 0 ? '' : 'oculto'}" id="v-${id}"><input class="entrada" type="number" min="1" step="${passo}" id="${id}" value="${valor > 0 ? valor : ''}" inputmode="numeric"><span class="dica">${sufixo}</span></div></div>`;
+  $('conteudo').innerHTML = `<form id="form-cfg" class="cfg">
+      <p class="lead">Ajustes gerais do ambiente. Cada bloco explica para que serve; o que não for mexido continua como está.</p>
       ${multi ? '<div class="faixa-aviso ok">Nome, logomarca, cores e aviso de privacidade ficam em <a href="#/empresa/marca">Branding</a>.</div>' : ''}
-      <div class="grupo-form${multi ? ' oculto' : ''}"><h3>Empresa</h3>
+      ${multi ? '' : caixa('·', 'Empresa', 'Como a empresa aparece para as pessoas.', `
         <div class="campo"><label for="c-empresa">Nome da empresa</label><input class="entrada" id="c-empresa" value="${esc(c.empresa)}" required maxlength="80"></div>
         <div class="campo"><span class="legenda">Logo</span><div class="linha-botoes"><span id="c-logo-prev">${logo ? `<img src="${esc(logo)}" alt="Logo atual" style="max-height:48px">` : '<span class="dica">Sem logo.</span>'}</span>
           <label class="btn btn-linha btn-pequeno" style="cursor:pointer">Escolher arquivo<input type="file" id="c-logo" hidden accept=".png,.jpg,.jpeg,.svg"></label><button type="button" class="btn-texto btn-pequeno" id="c-logo-tirar">Remover</button></div>
@@ -457,40 +477,107 @@ async function abaConfig() {
         <div class="campo"><label for="c-cor">Cor de marca (botões principais)</label><div class="linha-botoes"><input type="color" id="c-cor" value="${esc(c.corMarca || '#1B7950')}">
           <label class="dica"><input type="checkbox" id="c-cor-usar" ${c.corMarca ? 'checked' : ''}> usar a cor de marca</label><span id="c-contraste" class="dica"></span></div>
           <span class="ajuda">A cor fica atrás de texto claro. O contraste mínimo é 4,5:1.</span></div>
-      </div>
-      <div class="grupo-form"><h3>Acesso</h3>
-        <div class="campo"><label for="c-dominios">Domínios de email permitidos</label><textarea class="entrada" id="c-dominios" rows="2">${esc(c.dominios.join(', '))}</textarea><span class="ajuda">${multi ? 'Separe por vírgula. Quem tem email destes domínios entra como membro sem convite. Pessoas convidadas em Usuários entram de qualquer domínio.' : 'Separe por vírgula. Só entram emails destes domínios.'}</span></div></div>
-      <div class="grupo-form"><h3>Email (SMTP)</h3>
-        <div class="duas-col"><div class="campo"><label for="c-smtp">Endereço do servidor</label><input class="entrada" id="c-smtp" value="${esc(c.smtp.url)}" placeholder="smtps://usuario:senha@smtp.exemplo.com:465"></div>
-          <div class="campo"><label for="c-rem">Remetente</label><input class="entrada" id="c-rem" value="${esc(c.smtp.remetente)}" placeholder="GreenIA <nao-responda@empresa.com.br>"></div></div>
-        <div class="linha-botoes" style="margin-bottom:14px"><button type="button" class="btn btn-linha btn-pequeno" id="c-smtp-teste">Enviar email de teste para mim</button><span class="dica">Salve antes de testar.</span></div></div>
-      <div class="grupo-form"><h3>Privacidade</h3>
-        <div class="campo${multi ? ' oculto' : ''}"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>
-        <div class="campo"><label for="c-ret">Conversas são apagadas depois de quantos dias sem uso</label><input class="entrada" type="number" id="c-ret" min="1" max="3650" value="${c.retencaoDias}" style="max-width:160px"></div></div>
-      <div class="grupo-form"><h3>Limites de uso</h3><p class="dica">Zero é sem limite. ${emCreditos() ? 'Os tetos são em créditos e valem dentro do plano contratado.' : 'Os tetos valem sobre o custo real informado pelo OpenRouter.'}</p>
-        <div class="duas-col"><div class="campo"><label for="c-teto">Teto mensal da empresa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto" value="${c.tetoMensal}"></div>
-          <div class="campo"><label for="c-teto-p">Teto mensal por pessoa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto-p" value="${c.tetoPessoaMensal}"></div>
-          <div class="campo"><label for="c-dia">Respostas por pessoa por dia</label><input class="entrada" type="number" min="0" id="c-dia" value="${c.limiteDiarioPessoa}"></div></div></div>
-      <div class="linha-botoes"><button class="btn btn-verde">Salvar configurações</button></div>
+        <div class="campo"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>`)}
+      ${caixa(1, 'Quem pode entrar', multi ? 'Pessoas com email destes domínios entram sozinhas, como membros. Quem tem outro email só entra se for convidado em <a href="#/empresa/usuarios">Usuários</a>.' : 'Só entram pessoas com email destes domínios.', `
+        <div class="campo"><label for="c-dom-novo">Domínios de email da empresa</label>
+          <div class="chips-entrada" id="c-chips"></div>
+          <div class="linha-botoes"><input class="entrada" id="c-dom-novo" placeholder="suaempresa.com.br" autocomplete="off" inputmode="url" style="max-width:320px"><button type="button" class="btn btn-linha btn-pequeno" id="c-dom-add">Adicionar</button></div>
+          <span class="ajuda">O domínio é o que vem depois do @. Exemplo: para <b>ana@suaempresa.com.br</b>, adicione <b>suaempresa.com.br</b>.${multi ? ' Sem nenhum domínio, só entra quem for convidado.' : ''}</span></div>`)}
+      ${caixa(2, 'Envio de emails', 'A GreenIA manda por email o código de acesso, convites e avisos de uso. ' + (multi ? 'Se não configurar nada, os emails saem pelo servidor da plataforma, e isso já funciona.' : 'Sem isso, os códigos de acesso não chegam.'), `
+        <div class="campo"><span class="legenda">Por onde os emails saem</span>
+          <div class="opcoes-email" role="radiogroup" aria-label="Provedor de email">
+            ${multi ? `<label class="opcao"><input type="radio" name="prov" value="" ${prov === '' ? 'checked' : ''}><span><b>Servidor da plataforma</b><small>Recomendado. Nada a configurar.</small></span></label>` : ''}
+            ${Object.entries(PROVEDORES_EMAIL).map(([k, p]) => `<label class="opcao"><input type="radio" name="prov" value="${k}" ${prov === k ? 'checked' : ''}><span><b>${p.nome}</b><small>${k === 'outro' ? 'Servidor e porta informados por você' : 'Servidor já preenchido'}</small></span></label>`).join('')}
+            <label class="opcao"><input type="radio" name="prov" value="resend" ${prov === 'resend' ? 'checked' : ''}><span><b>Resend</b><small>Serviço de envio por chave de API</small></span></label>
+            <label class="opcao"><input type="radio" name="prov" value="brevo" ${prov === 'brevo' ? 'checked' : ''}><span><b>Brevo</b><small>Serviço de envio por chave de API</small></span></label>
+          </div></div>
+        <div id="email-campos"></div>
+        <div class="linha-botoes cfg-teste"><button type="button" class="btn btn-linha btn-pequeno" id="c-smtp-teste">Salvar e enviar um email de teste para mim</button><span class="dica" id="c-teste-res"></span></div>`)}
+      ${caixa(3, 'Por quanto tempo guardar as conversas', 'Conversas paradas por mais tempo que isso são apagadas sozinhas. Quanto menor, menos dados guardados.', `
+        <div class="chips-opcoes" role="radiogroup" aria-label="Retenção">${RETENCOES.map(([d, n]) => `<label class="chip-opcao"><input type="radio" name="ret" value="${d}" ${c.retencaoDias === d ? 'checked' : ''}><span>${n}</span></label>`).join('')}
+          <label class="chip-opcao"><input type="radio" name="ret" value="outro" ${RETENCOES.some(([d]) => d === c.retencaoDias) ? '' : 'checked'}><span>Outro</span></label></div>
+        <div class="campo ${RETENCOES.some(([d]) => d === c.retencaoDias) ? 'oculto' : ''}" id="c-ret-outro"><label for="c-ret">Dias sem uso</label><input class="entrada" type="number" id="c-ret" min="1" max="3650" value="${c.retencaoDias}" style="max-width:160px"></div>`)}
+      ${caixa(4, 'Limites de uso', `Opcional. Servem para evitar exageros; ${emCreditos() ? 'valem dentro do plano contratado' : 'valem sobre o custo real da IA'}. Deixe desmarcado para não limitar.`, `
+        ${limite('c-teto', 'Limite do mês para a empresa toda', 'Quando a empresa inteira chegar a esse total no mês, as novas mensagens ficam bloqueadas até o mês seguinte.', c.tetoMensal, un, emCreditos() ? 1 : 0.01)}
+        ${limite('c-teto-p', 'Limite do mês por pessoa', 'Cada pessoa pode usar até esse total no mês. Útil para ninguém consumir o plano sozinho.', c.tetoPessoaMensal, un, emCreditos() ? 1 : 0.01)}
+        ${limite('c-dia', 'Limite de respostas por pessoa por dia', 'Quantas respostas da IA cada pessoa pode pedir por dia.', c.limiteDiarioPessoa, 'respostas por dia')}`)}
+      <div class="cfg-salvar"><span class="dica" id="c-sujo"></span><button class="btn btn-verde">Salvar configurações</button></div>
     </form>`;
-  const mostrarContraste = () => {
-    const r = contraste($('c-cor').value, '#F1F1EE');
-    $('c-contraste').textContent = `Contraste com os fundos claros: ${r.toFixed(2).replace('.', ',')}:1 ${r >= 4.5 ? '(ok)' : '(abaixo do mínimo de 4,5:1)'}`;
-    $('c-contraste').style.color = r >= 4.5 ? 'var(--forest-text)' : 'var(--red-text)';
+
+  // Domínios em etiquetas
+  const desenharChips = () => { $('c-chips').innerHTML = dominios.length ? dominios.map((d, i) => `<span class="chip">${esc(d)}<button type="button" aria-label="Remover ${esc(d)}" data-tira="${i}">×</button></span>`).join('') : '<span class="dica">Nenhum domínio ainda.</span>'; };
+  const addDominio = () => { const v = $('c-dom-novo').value.trim().toLowerCase().replace(/^.*@/, '').replace(/^https?:\/\//, '').replace(/\/.*$/, ''); if (!v) return; if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(v)) { toast('Domínio inválido. Exemplo: suaempresa.com.br', 6000); return; } if (!dominios.includes(v)) dominios.push(v); $('c-dom-novo').value = ''; desenharChips(); sujo(); };
+  $('c-chips').onclick = ev => { const b = ev.target.closest('[data-tira]'); if (b) { dominios.splice(Number(b.dataset.tira), 1); desenharChips(); sujo(); } };
+  $('c-dom-add').onclick = addDominio;
+  $('c-dom-novo').onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); addDominio(); } };
+  desenharChips();
+
+  // Email: campos conforme o provedor escolhido
+  const desenharEmail = () => {
+    const alvo = $('email-campos');
+    if (!prov) { alvo.innerHTML = '<p class="dica">Os emails saem pelo servidor da plataforma, com o nome da sua empresa.</p>'; return; }
+    const nome = nomeDoRemetente(smtp.remetente);
+    if (prov === 'resend' || prov === 'brevo') {
+      const guardada = smtp.modo === 'api' && smtp.api === prov && smtp.temChave;
+      alvo.innerHTML = `<div class="faixa-aviso">${prov === 'resend' ? 'No <a href="https://resend.com" target="_blank" rel="noopener">Resend</a>' : 'No <a href="https://www.brevo.com" target="_blank" rel="noopener">Brevo</a>'}, adicione e verifique o domínio da empresa (registros de DNS que o serviço mostra) e crie uma chave de API.</div>
+        <div class="grade-2"><div class="campo"><label for="c-chave">Chave de API</label><input class="entrada" id="c-chave" type="password" autocomplete="new-password" placeholder="${guardada ? '•••••••• (guardada; deixe em branco para manter)' : 'Cole a chave aqui'}"></div>
+        <div class="campo"><label for="c-rem-email">Email que aparece como remetente</label><input class="entrada" id="c-rem-email" type="email" value="${esc(/<([^>]+)>/.exec(smtp.remetente || '')?.[1] || '')}" placeholder="nao-responda@suaempresa.com.br"><span class="ajuda">Precisa ser do domínio verificado no serviço.</span></div>
+        <div class="campo"><label for="c-rem-nome">Nome do remetente</label><input class="entrada" id="c-rem-nome" value="${esc(nome)}"></div></div>`;
+    } else {
+      const p = PROVEDORES_EMAIL[prov], mesmo = smtp.modo === 'smtp';
+      alvo.innerHTML = `<div class="faixa-aviso">${p.ajuda}</div>
+        <div class="grade-2"><div class="campo"><label for="c-usu">Email que envia</label><input class="entrada" id="c-usu" type="email" autocomplete="off" value="${esc(mesmo ? smtp.usuario : '')}" placeholder="nao-responda@suaempresa.com.br"><span class="ajuda">Uma caixa de email da empresa. Os emails saem em nome dela.</span></div>
+        <div class="campo"><label for="c-senha">Senha dessa caixa</label><input class="entrada" id="c-senha" type="password" autocomplete="new-password" placeholder="${mesmo && smtp.temSenha ? '•••••••• (guardada; deixe em branco para manter)' : 'Senha da caixa de email'}"><span class="ajuda">Fica guardada no servidor e nunca é mostrada de novo.</span></div>
+        <div class="campo"><label for="c-rem-nome">Nome do remetente</label><input class="entrada" id="c-rem-nome" value="${esc(nome)}"><span class="ajuda">Como aparece na caixa de entrada. Ex.: GreenIA, ou IA da Sua Empresa.</span></div></div>
+        <details class="cfg-avancado" ${prov === 'outro' ? 'open' : ''}><summary>Servidor e porta${prov === 'outro' ? '' : ' (já preenchidos)'}</summary>
+          <div class="grade-2"><div class="campo"><label for="c-serv">Servidor SMTP</label><input class="entrada" id="c-serv" value="${esc(mesmo && prov === provedorDe(smtp) ? smtp.servidor : p.servidor)}" placeholder="smtp.suaempresa.com.br"></div>
+          <div class="campo"><label for="c-porta">Porta</label><input class="entrada" id="c-porta" type="number" value="${esc(mesmo && prov === provedorDe(smtp) ? smtp.porta : p.porta)}" style="max-width:120px"><span class="ajuda">465 (SSL) ou 587 (TLS).</span></div></div></details>`;
+    }
   };
-  $('c-cor').oninput = mostrarContraste; mostrarContraste();
-  $('c-logo').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; logo = await lerDataUrl(f); $('c-logo-prev').innerHTML = `<img src="${esc(logo)}" alt="Logo novo" style="max-height:48px">`; };
-  $('c-logo-tirar').onclick = () => { logo = ''; $('c-logo-prev').innerHTML = '<span class="dica">Sem logo.</span>'; };
-  $('c-smtp-teste').onclick = async () => { try { const r = await api('/api/admin/smtp/teste', { metodo: 'POST' }); toast(`Email de teste enviado para ${r.para}.`); } catch (e) { falhar(e); } };
+  document.querySelectorAll('input[name="prov"]').forEach(r => r.onchange = () => { prov = r.value; desenharEmail(); sujo(); });
+  desenharEmail();
+  const lerEmail = () => {
+    if (!prov) return { modo: '' };
+    const nome = ($('c-rem-nome')?.value || 'GreenIA').trim();
+    if (prov === 'resend' || prov === 'brevo') return { modo: 'api', api: prov, chave: $('c-chave').value, remetente: `${nome} <${$('c-rem-email').value.trim()}>` };
+    const usu = $('c-usu').value.trim();
+    return { modo: 'smtp', servidor: $('c-serv').value.trim(), porta: Number($('c-porta').value), usuario: usu, senha: $('c-senha').value, remetente: `${nome} <${usu}>` };
+  };
+
+  // Retenção e limites
+  document.querySelectorAll('input[name="ret"]').forEach(r => r.onchange = () => { $('c-ret-outro').classList.toggle('oculto', r.value !== 'outro' || !r.checked); if (r.value !== 'outro') $('c-ret').value = r.value; sujo(); });
+  document.querySelectorAll('[data-liga]').forEach(ch => ch.onchange = () => { $(`v-${ch.dataset.liga}`).classList.toggle('oculto', !ch.checked); if (ch.checked) $(ch.dataset.liga).focus(); sujo(); });
+  const valorLimite = id => (document.querySelector(`[data-liga="${id}"]`).checked ? Number($(id).value) || 0 : 0);
+
+  // Empresa (instalação única)
+  if (!multi) {
+    const mostrarContraste = () => {
+      const r = contraste($('c-cor').value, '#F1F1EE');
+      $('c-contraste').textContent = `Contraste com os fundos claros: ${r.toFixed(2).replace('.', ',')}:1 ${r >= 4.5 ? '(ok)' : '(abaixo do mínimo de 4,5:1)'}`;
+      $('c-contraste').style.color = r >= 4.5 ? 'var(--forest-text)' : 'var(--red-text)';
+    };
+    $('c-cor').oninput = mostrarContraste; mostrarContraste();
+    $('c-logo').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; logo = await lerDataUrl(f); $('c-logo-prev').innerHTML = `<img src="${esc(logo)}" alt="Logo novo" style="max-height:48px">`; };
+    $('c-logo-tirar').onclick = () => { logo = ''; $('c-logo-prev').innerHTML = '<span class="dica">Sem logo.</span>'; };
+  }
+  const sujo = () => { $('c-sujo').textContent = 'Há alterações não salvas.'; };
+  $('form-cfg').addEventListener('input', sujo);
+
+  const salvar = async () => {
+    await api('/api/admin/config', { metodo: 'PUT', corpo: {
+      ...(multi ? {} : { empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', privacyNote: $('c-priv').value }),
+      dominios, smtp: lerEmail(), retencaoDias: Number($('c-ret').value),
+      tetoMensal: valorLimite('c-teto'), tetoPessoaMensal: valorLimite('c-teto-p'), limiteDiarioPessoa: valorLimite('c-dia') } });
+    $('c-sujo').textContent = '';
+  };
+  $('c-smtp-teste').onclick = ev => ocupado(ev.currentTarget, async () => {
+    $('c-teste-res').textContent = '';
+    try { await salvar(); const r = await api('/api/admin/smtp/teste', { metodo: 'POST' }); $('c-teste-res').textContent = `Enviado para ${r.para}. Confira a caixa de entrada e o spam.`; toast('Email de teste enviado.'); }
+    catch (e) { $('c-teste-res').textContent = e.message; falhar(e); }
+  });
   $('form-cfg').onsubmit = async ev => {
     ev.preventDefault();
-    try {
-      await api('/api/admin/config', { metodo: 'PUT', corpo: {
-        ...(multi ? {} : { empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', privacyNote: $('c-priv').value }), dominios: $('c-dominios').value,
-        smtp: { url: $('c-smtp').value, remetente: $('c-rem').value }, retencaoDias: Number($('c-ret').value),
-        tetoMensal: Number($('c-teto').value), tetoPessoaMensal: Number($('c-teto-p').value), limiteDiarioPessoa: Number($('c-dia').value) } });
-      toast('Configurações salvas.');
-    } catch (e) { falhar(e); }
+    await ocupado(ev.submitter, async () => { try { await salvar(); toast('Configurações salvas.'); abaConfig(); } catch (e) { falhar(e); } });
   };
 }
 

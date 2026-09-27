@@ -652,3 +652,40 @@ body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista
 @media (max-width:760px){.cabeca-titulo{min-width:45%}.cabeca-acoes{gap:8px}}
 .url-final{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--surface)}
 .url-final b{font:500 13.5px var(--sans);word-break:break-all}
+
+/* Configurações: blocos numerados com explicação, etiquetas de domínio, opções de email e limites liga/desliga */
+.cfg{display:grid;gap:14px;max-width:860px}
+.cfg-caixa{border:1px solid var(--line);border-radius:12px;background:var(--paper);padding:18px 20px}
+.cfg-topo{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.cfg-topo h3{margin:0 0 2px;font:600 15px var(--sans)}
+.cfg-topo .dica{margin:0;line-height:1.5}
+.chips-entrada{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:30px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--mint);color:var(--forest-text);font:500 13px var(--sans)}
+.chip button{border:0;background:none;color:inherit;font-size:16px;line-height:1;width:24px;height:24px;border-radius:50%;cursor:pointer}
+.chip button:hover{background:color-mix(in srgb,var(--forest) 14%,transparent)}
+.opcoes-email{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.opcao{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff;transition:border-color .15s,box-shadow .15s}
+.opcao:hover{border-color:var(--line-strong)}
+.opcao:has(input:checked){border-color:var(--forest);box-shadow:0 0 0 3px color-mix(in srgb,var(--forest) 14%,transparent)}
+.opcao span{display:grid;gap:2px;font:500 13.5px var(--sans)}
+.opcao small{font:400 12px var(--sans);color:var(--muted)}
+.opcao input{margin-top:2px}
+#email-campos{margin-top:14px;display:grid;gap:12px}
+#email-campos .faixa-aviso{margin:0}
+.cfg-avancado summary{cursor:pointer;font:500 13px var(--sans);color:var(--muted);padding:6px 0}
+.cfg-teste{margin-top:12px;align-items:center}
+.chips-opcoes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip-opcao input{position:absolute;opacity:0;pointer-events:none}
+.chip-opcao span{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;font:500 13.5px var(--sans);cursor:pointer;background:#fff;transition:all .15s}
+.chip-opcao input:checked+span{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip-opcao input:focus-visible+span{outline:2px solid var(--forest);outline-offset:2px}
+.cfg-limite{display:grid;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.cfg-limite:first-of-type{border-top:0;padding-top:0}
+.cfg-liga{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.cfg-liga span{display:grid;gap:2px;font:500 14px var(--sans)}
+.cfg-liga small{font:400 12.5px/1.45 var(--sans);color:var(--muted)}
+.cfg-liga input{margin-top:3px}
+.cfg-valor{display:flex;align-items:center;gap:10px;padding-left:28px}
+.cfg-valor .entrada{max-width:160px}
+.cfg-salvar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--paper) 70%,transparent);z-index:2}
+@media (max-width:640px){.cfg-caixa{padding:16px 14px}.opcoes-email{grid-template-columns:1fr}.cfg-salvar .btn{flex:1}}

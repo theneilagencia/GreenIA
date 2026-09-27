@@ -5,6 +5,7 @@ import { lerConfig, salvarConfig, TIPOS_DADO } from './config.js';
 import { registrar } from './eventos.js';
 import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
 import { areasDoQw } from './quickwins.js';
+import { normalizarSmtpUrl } from './email.js';
 
 // Contraste (WCAG) para a checagem automática da cor de marca.
 const lum = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
@@ -37,7 +38,7 @@ export function criarLimites(app) {
 
 const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
 
-function validarConfig(c, { multi = false } = {}) {
+function validarConfig(c, { multi = false, atual = null } = {}) {
   const v = {};
   if (c.empresa !== undefined) { v.empresa = String(c.empresa).trim().slice(0, 80); if (!v.empresa) throw erro(400, 'empresa', 'Informe o nome da empresa.'); }
   if (c.logo !== undefined) {
@@ -57,12 +58,48 @@ function validarConfig(c, { multi = false } = {}) {
     if (v.dominios.some(d => !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(d))) throw erro(400, 'dominios', 'Domínio inválido.');
     if (!v.dominios.length && !multi) throw erro(400, 'dominios', 'Informe pelo menos um domínio permitido.');
   }
-  if (c.smtp !== undefined) v.smtp = { url: String(c.smtp.url || '').trim(), remetente: String(c.smtp.remetente || '').trim() };
+  if (c.smtp !== undefined) v.smtp = smtpDoFormulario(c.smtp, atual?.smtp);
   if (c.privacyNote !== undefined) v.privacyNote = String(c.privacyNote).trim().slice(0, 400);
   if (c.retencaoDias !== undefined) { v.retencaoDias = Math.round(Number(c.retencaoDias)); if (!(v.retencaoDias >= 1 && v.retencaoDias <= 3650)) throw erro(400, 'retencao', 'Retenção entre 1 e 3.650 dias.'); }
   if (c.acoesChat !== undefined) v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : c.acoesChat[t] === 'permitir' ? 'permitir' : 'bloquear']));
   for (const k of ['tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa']) if (c[k] !== undefined) { v[k] = Number(c[k]) || 0; if (v[k] < 0) throw erro(400, k, 'Use zero para sem limite.'); }
   return v;
+}
+
+// Email da empresa em campos separados (sem montar endereço): servidor, porta, email e senha, ou uma
+// API de envio (Resend, Brevo) com a chave. A senha e a chave nunca voltam para o navegador; em branco,
+// ficam as que já estavam salvas.
+export function smtpParaTela(smtp = {}) {
+  const url = String(smtp.url || '').trim(), remetente = smtp.remetente || '';
+  const api = /^(resend|brevo):\/\/(.+)$/i.exec(url);
+  if (api) return { modo: 'api', api: api[1].toLowerCase(), temChave: true, remetente };
+  if (!url) return { modo: '', remetente };
+  try {
+    const u = new URL(normalizarSmtpUrl(url));
+    return { modo: 'smtp', servidor: u.hostname, porta: Number(u.port) || (u.protocol === 'smtps:' ? 465 : 587), usuario: decodeURIComponent(u.username), temSenha: !!u.password, remetente };
+  } catch { return { modo: 'smtp', servidor: '', porta: 465, usuario: '', temSenha: false, remetente }; }
+}
+function smtpDoFormulario(f = {}, atual = {}) {
+  const remetente = String(f.remetente || '').trim().slice(0, 200);
+  if (f.url !== undefined && f.modo === undefined) return { url: String(f.url || '').trim(), remetente };   // formato antigo
+  const antes = smtpParaTela(atual), urlAntes = String(atual?.url || '');
+  if (!f.modo) return { url: '', remetente };
+  if (f.modo === 'api') {
+    const api = String(f.api || '').toLowerCase();
+    if (!['resend', 'brevo'].includes(api)) throw erro(400, 'smtp', 'Escolha o serviço de envio.');
+    const chave = String(f.chave || '').trim() || (antes.modo === 'api' && antes.api === api ? urlAntes.replace(/^[a-z]+:\/\//i, '') : '');
+    if (!chave) throw erro(400, 'smtp', 'Informe a chave de API do serviço de envio.');
+    if (!/@/.test(remetente)) throw erro(400, 'smtp', 'Informe o email remetente, de um domínio verificado no serviço.');
+    return { url: `${api}://${chave}`, remetente };
+  }
+  const servidor = String(f.servidor || '').trim().toLowerCase(), porta = Math.floor(Number(f.porta) || 465), usuario = String(f.usuario || '').trim();
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(servidor)) throw erro(400, 'smtp', 'Servidor de email inválido. Exemplo: smtp.gmail.com');
+  if (!(porta > 0 && porta < 65536)) throw erro(400, 'smtp', 'Porta inválida. Normalmente é 465 ou 587.');
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(usuario)) throw erro(400, 'smtp', 'Informe o email completo da conta que envia.');
+  let senha = String(f.senha || '');
+  if (!senha && antes.modo === 'smtp' && antes.usuario === usuario && antes.temSenha) senha = decodeURIComponent(new URL(normalizarSmtpUrl(urlAntes)).password);
+  if (!senha) throw erro(400, 'smtp', 'Informe a senha da conta de email.');
+  return { url: `smtp${porta === 465 ? 's' : ''}://${encodeURIComponent(usuario)}:${encodeURIComponent(senha)}@${servidor}:${porta}`, remetente: remetente || `GreenIA <${usuario}>` };
 }
 
 const seisMesesAntes = mes => { const [a, m] = mes.split('-').map(Number); const d = new Date(Date.UTC(a, m - 6, 1)); return d.toISOString().slice(0, 7); };
@@ -102,6 +139,7 @@ export function rotasAdmin(app, r) {
   r.get('/api/admin/config', ({ creditos }) => {
     const c = lerConfig(app.db);
     const out = Object.fromEntries(CAMPOS_CONFIG.map(k => [k, c[k]]));
+    out.smtp = smtpParaTela(c.smtp);   // sem senha nem chave
     if (creditos) for (const k of TETOS) out[k] = Math.round(out[k] / CREDITO_USD);
     return out;
   }, { admin: true });
@@ -110,7 +148,7 @@ export function rotasAdmin(app, r) {
     if (creditos) for (const k of TETOS) if (corpo[k] !== undefined) corpo[k] = (Number(corpo[k]) || 0) * CREDITO_USD;
     // Multiempresa: nome, logo, cor e aviso de privacidade são da marca (plataforma), com as permissões e bloqueios de lá.
     if (app.tenant) for (const k of ['empresa', 'logo', 'corMarca', 'privacyNote']) delete corpo[k];
-    const v = validarConfig(corpo, { multi: !!app.tenant });
+    const v = validarConfig(corpo, { multi: !!app.tenant, atual: lerConfig(app.db) });
     salvarConfig(app.db, v);
     registrar(app, 'config.changed', pessoa.id, { campos: Object.keys(v) });
     if ('retencaoDias' in v) app.aoMudarModelos?.();

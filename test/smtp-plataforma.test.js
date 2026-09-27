@@ -128,3 +128,31 @@ test('envio por API HTTPS (Resend e Brevo), sem expor a chave em erro', async ()
   const ruim = criarEmail({ lerSmtp: () => ({ url: 'resend://re_segredo', remetente: 'x@y.com' }), log: () => {}, fetch: async () => ({ ok: false, status: 403, text: async () => 'invalid key re_segredo' }) });
   await assert.rejects(ruim.enviar('a@b.com', 's', 't'), er => /403/.test(er.message) && !er.message.includes('re_segredo'));
 });
+
+test('configurações da empresa: email em campos separados, senha nunca devolvida e mantida quando em branco', async () => {
+  const { criarApp } = await import('../src/servidor.js');
+  const { cliente } = await import('../scripts/cliente.js');
+  const app = criarApp({ banco: ':memory:', cookieSeguro: false, log: () => {}, adminEmail: 'adm@empresa.com.br' });
+  await new Promise(r => app.servidor.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.servidor.address().port}`;
+  try {
+    const adm = await cliente(app, base).entrar('adm@empresa.com.br');
+    const put = smtp => adm.put('/api/admin/config', { smtp });
+    assert.equal((await put({ modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'noreply@empresa.com.br', senha: 'a@b#c:d', remetente: 'IA <noreply@empresa.com.br>' })).status, 200);
+    const { lerConfig } = await import('../src/config.js');
+    assert.equal(lerConfig(app.db).smtp.url, 'smtps://noreply%40empresa.com.br:a%40b%23c%3Ad@smtp.provedor.net:465');
+    const tela = (await adm.get('/api/admin/config')).dados.smtp;
+    assert.deepEqual(tela, { modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'noreply@empresa.com.br', temSenha: true, remetente: 'IA <noreply@empresa.com.br>' });
+    assert.doesNotMatch(JSON.stringify((await adm.get('/api/admin/config')).dados), /a%40b|a@b#c/);
+    // Senha em branco: mantém a anterior.
+    assert.equal((await put({ modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'noreply@empresa.com.br', senha: '', remetente: 'IA <noreply@empresa.com.br>' })).status, 200);
+    assert.match(lerConfig(app.db).smtp.url, /a%40b%23c%3Ad@/);
+    // Trocar o usuário exige senha nova.
+    assert.equal((await put({ modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'outro@empresa.com.br', senha: '' })).status, 400);
+    // API de envio: chave guardada e escondida.
+    assert.equal((await put({ modo: 'api', api: 'resend', chave: 're_x1', remetente: 'IA <noreply@empresa.com.br>' })).status, 200);
+    assert.deepEqual((await adm.get('/api/admin/config')).dados.smtp, { modo: 'api', api: 'resend', temChave: true, remetente: 'IA <noreply@empresa.com.br>' });
+    assert.equal((await put({ modo: '' })).status, 200);
+    assert.equal(lerConfig(app.db).smtp.url, '');
+  } finally { app.servidor.close(); app.servidor.closeAllConnections?.(); }
+});

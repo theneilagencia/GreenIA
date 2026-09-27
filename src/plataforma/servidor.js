@@ -300,7 +300,7 @@ function servirIcone(P, res, companyId) {
   const fav = E.lerMarca(P, companyId)?.favicon || E.lerMarca(P, companyId)?.logo;
   const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/.exec(fav || '');
   if (!m) { res.writeHead(302, { location: ICONE_PADRAO }); return res.end(); }
-  res.writeHead(200, { 'content-type': m[1], 'cache-control': 'public, max-age=300', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'" });
+  res.writeHead(200, { 'content-type': m[1], 'cache-control': 'no-cache', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'" });   // troca de ícone aparece na hora
   res.end(Buffer.from(m[2], 'base64'));
 }
 

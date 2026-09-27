@@ -34,6 +34,14 @@ if (l) {
   if (l.imagem) $('ld-figura').innerHTML = `<img src="${esc(l.imagem)}" alt="" style="width:100%;border-radius:14px;border:1px solid var(--line)">`;
   if (l.chamadas?.length) $('ld-chamadas').innerHTML = l.chamadas.map(c => `<div><b>${esc(c.titulo)}</b><p>${esc(c.texto)}</p></div>`).join('');
   else $('sec-chamadas').classList.add('oculto');
+  const t = l.textos || {}, txt = (id, v) => { if (v) $(id).textContent = v; };
+  txt('cu-rotulo', t.como_usar_rotulo); txt('cu-titulo', t.como_usar_titulo); txt('ch-rotulo', t.chamadas_rotulo); txt('ch-titulo', t.chamadas_titulo);
+  txt('rg-rotulo', t.regras_rotulo); txt('rg-titulo', t.regras_titulo); txt('rg-sub', t.regras_sub);
+  txt('tf-rotulo', t.tarefas_rotulo); txt('tf-titulo', t.tarefas_titulo); txt('tf-sub', t.tarefas_sub);
+  txt('fim-titulo', t.fim_titulo); txt('fim-texto', t.fim_texto); txt('fim-botao', t.fim_botao);
+  if (l.passos?.length) $('ld-passos').innerHTML = l.passos.map(x => `<li><b>${esc(x.titulo)}</b><span>${esc(x.texto)}</span></li>`).join('');
+  for (const k of ['pode', 'sigilo', 'nunca']) if (l.regras?.[k]?.length) $(`rg-${k}`).innerHTML = l.regras[k].map(x => `<li>${esc(x)}</li>`).join('');
+  if (l.tarefas?.length) $('ld-tarefas').innerHTML = l.tarefas.map(x => `<div>${x.tipo ? `<span>${esc(x.tipo)}</span>` : ''}${esc(x.texto)}</div>`).join('');
   if (l.secoes?.como_usar === false) $('como-usar').classList.add('oculto');
   if (l.secoes?.regras === false) $('sec-regras').classList.add('oculto');
   if (l.secoes?.tarefas === false) $('sec-tarefas').classList.add('oculto');

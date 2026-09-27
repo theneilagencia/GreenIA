@@ -126,7 +126,7 @@ export function criarEmpresa(P, dados, ator, origem) {
       id, name, slug, dados.status && STATUS_EMPRESA[dados.status] ? dados.status : 'em_implantacao', plano?.id ?? null, banco,
       texto(dados.legal_name, 160, 'legal_name'), texto(dados.document, 40, 'document'), dados.contact_email ? validarEmail(dados.contact_email) : '', texto(dados.notes, 1000, 'notes'), t, t);
     exec(P.db, 'insert into branding (company_id, display_name, updated_at) values (?, ?, ?)', id, name, t);
-    exec(P.db, 'insert into landing_pages (company_id, content, seo, updated_at) values (?, ?, ?, ?)', id, JSON.stringify(landingPadrao(name)), JSON.stringify({ title: `${name} · GreenIA`, description: '' }), t);
+    exec(P.db, "insert into landing_pages (company_id, content, seo, status, updated_at) values (?, ?, ?, 'publicada', ?)", id, JSON.stringify(landingPadrao(name)), JSON.stringify(seoPadrao(name)), t);
     exec(P.db, 'insert into company_settings (company_id, settings, grants, updated_at) values (?, ?, ?, ?)', id, '{}', '{}', t);
   });
   auditar(P, { usuario: ator, empresa: id, acao: 'company.created', entidade: 'company', id, depois: lerEmpresa(P, id), origem });
@@ -246,29 +246,66 @@ export function salvarMarca(P, id, dados, ator, origem, { escopo = 'plataforma' 
 }
 
 // ---------------------------------------------------------------- Landing page
+// Modelo completo da landing page de uma empresa: toda a página já vem escrita, com o nome da
+// empresa, e cada texto pode ser trocado no editor. Nenhuma seção fica vazia.
 export function landingPadrao(nome) {
+  const n = nome || 'sua empresa';
   return {
-    rotulo: `A IA da ${nome}`,
+    rotulo: `A IA da ${n}`,
     titulo: 'IA para o trabalho, com as regras da casa',
-    subtitulo: `Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da ${nome} são aplicadas antes de cada envio.`,
+    subtitulo: `Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da ${n} são aplicadas antes de cada envio.`,
     descricao: '',
     imagem: '',
     botoes: [{ texto: 'Entrar com o email da empresa', link: '/entrar', estilo: 'primario' }, { texto: 'Como usar', link: '#como-usar', estilo: 'secundario' }],
     destaques: ['Código de acesso no email', 'Sem senha para decorar', 'Conversas salvas só para você'],
+    textos: {
+      como_usar_rotulo: 'Como usar', como_usar_titulo: 'Três passos para começar',
+      chamadas_rotulo: 'Ao entrar', chamadas_titulo: 'O que você encontra',
+      regras_rotulo: 'Antes de enviar', regras_titulo: 'O que pode, o que pede cuidado e o que nunca sai',
+      regras_sub: `A GreenIA confere cada mensagem e cada anexo antes do envio, pelas regras que a ${n} definiu.`,
+      tarefas_rotulo: 'Boas tarefas', tarefas_titulo: 'Por onde começar', tarefas_sub: 'Pedidos que costumam dar bom resultado logo na primeira semana.',
+      fim_titulo: 'Pronto para começar', fim_texto: 'Revise sempre antes de usar. A IA ajuda, a decisão é sua.', fim_botao: 'Entrar',
+    },
+    passos: [
+      { titulo: 'Entre com o seu email', texto: `Use o email da ${n}. Um código de 6 dígitos chega na hora.` },
+      { titulo: 'Peça em palavras simples', texto: 'Cole um texto, anexe PDF, Word, Excel ou CSV e diga o que precisa.' },
+      { titulo: 'Revise e ajuste', texto: 'Peça mais curto, em tabela ou em outro tom. A decisão final é sempre sua.' },
+    ],
     chamadas: [
       { titulo: 'Conversas', texto: 'Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois.' },
-      { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções e arquivos já definidos.' },
+      { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções e arquivos já definidos. Você traz só o caso do dia.' },
       { titulo: 'Conhecimento', texto: 'Procedimentos e documentos das áreas. A resposta mostra de qual documento veio a informação.' },
-      { titulo: 'Classes de modelo', texto: 'Você escolhe o tipo de trabalho, não o modelo técnico: Rápido, Equilibrado ou Avançado.' },
+      { titulo: 'Classes de modelo', texto: 'Você escolhe o tipo de trabalho, não o modelo técnico: Rápido para o dia a dia, Equilibrado para mais contexto, Avançado para análises longas.' },
+    ],
+    regras: {
+      pode: ['Textos e documentos de trabalho', 'Procedimentos, modelos e rascunhos', 'Planilhas sem dados pessoais'],
+      sigilo: ['Dados de clientes, fornecedores e pessoas', 'Informações financeiras ou estratégicas', 'A conversa vai só para modelos homologados pela empresa, sem retenção'],
+      nunca: ['Senhas, tokens e chaves de acesso', 'Credenciais de sistemas', 'A GreenIA bloqueia antes do envio'],
+    },
+    tarefas: [
+      { tipo: 'Resumir', texto: 'Resuma este relatório em cinco pontos para a diretoria' },
+      { tipo: 'Conferir', texto: 'Compare estes dois contratos e liste o que mudou' },
+      { tipo: 'Consultar', texto: 'Qual é o prazo do procedimento de recebimento?' },
+      { tipo: 'Organizar', texto: 'Monte uma tabela com estas três cotações' },
+      { tipo: 'Rascunhar', texto: 'Escreva um email ao fornecedor sobre a divergência' },
+      { tipo: 'Revisar', texto: 'Deixe este texto mais claro e mais curto' },
     ],
     secoes: { como_usar: true, regras: true, tarefas: true },
-    institucional: { titulo: '', texto: '', links: [] },
+    institucional: {
+      titulo: `A IA na ${n}`,
+      texto: `A ${n} oferece a GreenIA para apoiar o trabalho do dia a dia com segurança. Os dados ficam no ambiente da empresa e seguem a Política de Uso de IA. Em caso de dúvida, fale com a equipe responsável pela IA na ${n}.`,
+      links: [{ texto: 'Política de uso de IA', link: '/politica' }],
+    },
   };
 }
+export const seoPadrao = nome => ({ title: `${nome || 'Sua empresa'} · IA para o trabalho`, description: `Ambiente de IA da ${nome || 'empresa'}: conversas, quick wins e conhecimento das áreas, com as regras de dados da empresa.` });
 
 export function lerLanding(P, id) {
   const l = um(P.db, 'select * from landing_pages where company_id = ?', id);
-  return l && { status: l.status, content: { ...landingPadrao(lerEmpresa(P, id)?.name || ''), ...json(l.content, {}) }, seo: json(l.seo, {}), updated_at: l.updated_at };
+  const nome = lerMarca(P, id)?.display_name || lerEmpresa(P, id)?.name || '';
+  const modelo = landingPadrao(nome), salvo = json(l?.content, {});
+  // Textos novos do modelo entram sozinhos em landings antigas; o que a empresa já escreveu prevalece.
+  return l && { status: l.status, content: { ...modelo, ...salvo, textos: { ...modelo.textos, ...(salvo.textos || {}) } }, seo: { ...seoPadrao(nome), ...Object.fromEntries(Object.entries(json(l.seo, {})).filter(([, v]) => v)) }, modelo, modeloSeo: seoPadrao(nome), updated_at: l.updated_at };
 }
 
 function validarConteudoLanding(c) {
@@ -283,6 +320,10 @@ function validarConteudoLanding(c) {
     destaques: (Array.isArray(c.destaques) ? c.destaques : []).slice(0, 4).map(d => texto(d, 60, 'destaque')).filter(Boolean),
     chamadas: (Array.isArray(c.chamadas) ? c.chamadas : []).slice(0, 6).map(x => ({ titulo: texto(x.titulo, 60, 'chamada'), texto: texto(x.texto, 300, 'chamada') })).filter(x => x.titulo),
     secoes: { como_usar: c.secoes?.como_usar !== false, regras: c.secoes?.regras !== false, tarefas: c.secoes?.tarefas !== false },
+    textos: Object.fromEntries(Object.keys(landingPadrao('').textos).map(k => [k, texto(c.textos?.[k], k.endsWith('_sub') || k === 'fim_texto' ? 240 : 120, k)])),
+    passos: (Array.isArray(c.passos) ? c.passos : []).slice(0, 4).map(x => ({ titulo: texto(x.titulo, 60, 'passo'), texto: texto(x.texto, 200, 'passo') })).filter(x => x.titulo),
+    regras: Object.fromEntries(['pode', 'sigilo', 'nunca'].map(k => [k, (Array.isArray(c.regras?.[k]) ? c.regras[k] : []).slice(0, 5).map(t => texto(t, 120, 'regra')).filter(Boolean)])),
+    tarefas: (Array.isArray(c.tarefas) ? c.tarefas : []).slice(0, 8).map(x => ({ tipo: texto(x.tipo, 30, 'tarefa'), texto: texto(x.texto, 140, 'tarefa') })).filter(x => x.texto),
     institucional: {
       titulo: texto(c.institucional?.titulo, 80, 'institucional'), texto: texto(c.institucional?.texto, 1200, 'institucional'),
       links: (Array.isArray(c.institucional?.links) ? c.institucional.links : []).slice(0, 6).map(l => ({ texto: texto(l.texto, 40, 'link'), link: validarLink(l.link) })).filter(l => l.texto && l.link),
@@ -294,7 +335,7 @@ export function salvarLanding(P, id, dados, ator, origem, { escopo = 'plataforma
   const antes = lerLanding(P, id);
   if (!antes) throw erro(404, 'empresa', 'Empresa não encontrada.');
   if (escopo === 'empresa' && !podeEditar(P, id).landing_page) throw erro(403, 'nao_concedido', 'A landing page desta empresa é gerenciada pelo operador da plataforma.');
-  const content = dados.content ? validarConteudoLanding({ ...antes.content, ...dados.content }) : antes.content;
+  const content = dados.content ? validarConteudoLanding({ ...antes.content, ...dados.content, textos: { ...antes.content.textos, ...(dados.content.textos || {}) }, regras: { ...antes.content.regras, ...(dados.content.regras || {}) } }) : antes.content;
   const seo = dados.seo ? { title: texto(dados.seo.title, 70, 'seo'), description: texto(dados.seo.description, 160, 'seo') } : antes.seo;
   const status = dados.status === 'publicada' || dados.status === 'rascunho' ? dados.status : antes.status;
   exec(P.db, 'update landing_pages set content = ?, seo = ?, status = ?, updated_at = ? where company_id = ?', JSON.stringify(content), JSON.stringify(seo), status, agoraIso(P), id);

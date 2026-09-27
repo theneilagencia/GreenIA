@@ -8,6 +8,44 @@ export const ROTULOS_MARCA = {
 };
 
 // Imagem enviada pelo navegador vira data: URL, conferida no servidor (tipo e tamanho).
+// Imagem escolhida pela pessoa é ajustada no navegador antes do envio: redimensiona e comprime até
+// caber no limite. Logo grande, foto do celular ou favicon em JPG funcionam sem a pessoa precisar
+// editar o arquivo. SVG vai como está (só o tamanho é conferido).
+const lerComoDataUrl = f => new Promise((ok, falha) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => falha(new Error('Não foi possível ler o arquivo.')); r.readAsDataURL(f); });
+const kbDe = dataUrl => Math.max(1, Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 3 / 4 / 1024));
+export async function ajustarImagem(f, { maxKb, largura, altura, quadrado = false, formatos = ['image/webp', 'image/png', 'image/jpeg'] }) {
+  if (!f) return null;
+  if (f.type === 'image/svg+xml' || /\.svg$/i.test(f.name)) {
+    if (f.size > maxKb * 1024) throw new Error(`O SVG tem ${Math.round(f.size / 1024)} KB; o máximo é ${maxKb} KB.`);
+    return (await lerComoDataUrl(f)).replace(/^data:[^;]*;/, 'data:image/svg+xml;');
+  }
+  // data: e não blob:, que a política de segurança das páginas não permite em imagens.
+  const url = await lerComoDataUrl(f);
+  {
+    const img = await new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => falha(new Error('Este arquivo não é uma imagem que o navegador consiga abrir. Use PNG, JPG, WEBP ou SVG.')); i.src = url; });
+    for (const escala of [1, 0.75, 0.5, 0.35]) {
+      const r = Math.min(1, largura / img.naturalWidth, altura / img.naturalHeight) * escala;
+      const w = quadrado ? Math.round(largura * escala) : Math.max(1, Math.round(img.naturalWidth * r)), h = quadrado ? w : Math.max(1, Math.round(img.naturalHeight * r));
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d');
+      if (quadrado) { const lado = Math.min(img.naturalWidth, img.naturalHeight); g.drawImage(img, (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, w, h); }
+      else g.drawImage(img, 0, 0, w, h);
+      for (const tipo of formatos) for (const q of [0.9, 0.8, 0.65]) {
+        const d = c.toDataURL(tipo, q);
+        if (!d.startsWith(`data:${tipo}`)) continue;   // navegador sem esse formato
+        if (kbDe(d) <= maxKb) return d;
+        if (tipo === 'image/png') break;              // PNG não tem qualidade: tenta o próximo formato
+      }
+    }
+    throw new Error(`Não foi possível deixar a imagem abaixo de ${maxKb} KB. Tente um arquivo mais simples.`);
+  }
+}
+export const AJUSTE_IMAGEM = {
+  logo: { maxKb: 200, largura: 600, altura: 240 },
+  favicon: { maxKb: 60, largura: 64, altura: 64, quadrado: true, formatos: ['image/png'] },
+  imagem: { maxKb: 780, largura: 1600, altura: 1600, formatos: ['image/webp', 'image/jpeg'] },
+};
+
 export function lerImagem(input, maxKb) {
   return new Promise((ok, falha) => {
     const f = input.files?.[0];
@@ -42,7 +80,7 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
       <div>${campo('display_name', `<input class="entrada" id="mk-display_name" value="${esc(m.display_name)}" maxlength="80" ${desab('display_name', b, modo, pode)}>`)}
         ${cor('primary_color')}${cor('secondary_color')}
         <p class="ajuda" style="margin-top:-8px">A cor principal precisa de contraste de 4,5:1 com fundos claros, porque vira fundo de botão com texto branco.</p></div>
-      <div>${img('logo', 'PNG, JPG, WEBP ou SVG, até 200 KB.')}${img('favicon', 'Ícone da aba do navegador. PNG, SVG ou ICO, até 80 KB. Sem favicon, usa o logo.')}</div>
+      <div>${img('logo', 'PNG, JPG, WEBP ou SVG, de qualquer tamanho: a imagem é ajustada sozinha. Prefira fundo transparente.')}${img('favicon', 'Ícone da aba do navegador. Qualquer imagem serve: vira um quadrado de 64×64. Sem favicon, usa o logo.')}</div>
     </div>
     ${campo('login_title', `<input class="entrada" id="mk-login_title" value="${esc(m.login_title)}" maxlength="120" placeholder="Entre com o seu email da empresa" ${desab('login_title', b, modo, pode)}>`)}
     ${campo('login_text', `<textarea class="entrada" id="mk-login_text" rows="2" maxlength="400" placeholder="Você recebe um código de acesso de 6 dígitos no seu email." ${desab('login_text', b, modo, pode)}>${esc(m.login_text)}</textarea>`)}
@@ -61,14 +99,31 @@ export function ligarMarca(m) {
     txt.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(txt.value)) { sel.value = txt.value; $(k === 'primary_color' ? 'mk-previa-p' : 'mk-previa-s').style.background = txt.value; } };
   }
   $('mk-display_name').oninput = e => { $('mk-previa-nome').textContent = e.target.value; };
-  for (const b of document.querySelectorAll('[data-remover]')) b.onclick = () => { removidos.add(b.dataset.remover); $(`mk-${b.dataset.remover}-previa`).innerHTML = '<span class="dica">Será removido ao salvar</span>'; };
+  for (const b of document.querySelectorAll('[data-remover]')) b.onclick = () => { removidos.add(b.dataset.remover); delete prontas[b.dataset.remover]; $(`mk-${b.dataset.remover}-previa`).innerHTML = '<span class="dica">Será removido ao salvar</span>'; };
+  // Ao escolher o arquivo: ajusta na hora, mostra a prévia e o tamanho final (ou o motivo de não servir).
+  const prontas = {};
+  for (const k of ['logo', 'favicon']) {
+    const el = $(`mk-${k}`);
+    el?.addEventListener('change', async () => {
+      const f = el.files?.[0], previa = $(`mk-${k}-previa`);
+      delete prontas[k];
+      if (!f) return;
+      previa.innerHTML = '<span class="dica">Preparando a imagem…</span>';
+      try {
+        const d = await ajustarImagem(f, AJUSTE_IMAGEM[k]);
+        prontas[k] = d; removidos.delete(k);
+        previa.innerHTML = `<img src="${d}" alt=""><span class="dica">Pronto (${kbDe(d)} KB). Clique em Salvar.</span>`;
+        if (k === 'logo') document.querySelector('#mk-previa img').src = d;
+      } catch (e) { previa.innerHTML = `<span class="msg-erro" style="margin:0">${esc(e.message)}</span>`; el.value = ''; }
+    });
+  }
   return async () => {
     const corpo = {};
     for (const k of ['display_name', 'primary_color', 'secondary_color', 'login_title', 'login_text', 'privacy_note']) { const el = $(`mk-${k}`); if (!el.disabled && el.value !== (m[k] || '')) corpo[k] = el.value.trim(); }
-    for (const [k, max] of [['logo', 200], ['favicon', 80]]) {
+    for (const k of ['logo', 'favicon']) {
       const el = $(`mk-${k}`);
       if (el.disabled) continue;
-      const v = await lerImagem(el, max);
+      const v = prontas[k] || (el.files?.[0] ? await ajustarImagem(el.files[0], AJUSTE_IMAGEM[k]) : null);
       if (v) corpo[k] = v; else if (removidos.has(k)) corpo[k] = '';
     }
     const bloqueios = [...document.querySelectorAll('[data-bloqueio]')];
@@ -77,70 +132,107 @@ export function ligarMarca(m) {
 }
 
 // ---------------------------------------------------------------- Landing page
+// A página vem inteira escrita pelo modelo (com o nome da empresa). O editor mostra tudo em blocos,
+// na ordem em que aparecem na página, e "Restaurar o modelo" devolve os textos originais.
+const TEXTOS_SECAO = {
+  como_usar: [['como_usar_rotulo', 'Rótulo'], ['como_usar_titulo', 'Título']],
+  chamadas: [['chamadas_rotulo', 'Rótulo'], ['chamadas_titulo', 'Título']],
+  regras: [['regras_rotulo', 'Rótulo'], ['regras_titulo', 'Título'], ['regras_sub', 'Texto de apoio']],
+  tarefas: [['tarefas_rotulo', 'Rótulo'], ['tarefas_titulo', 'Título'], ['tarefas_sub', 'Texto de apoio']],
+  fim: [['fim_titulo', 'Título'], ['fim_texto', 'Texto'], ['fim_botao', 'Texto do botão']],
+};
+const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'Nunca sai']];
+
 export function renderLanding(l, { pode = true, urlPublica = '' } = {}) {
-  const c = l.content, d = pode ? '' : 'disabled';
-  const botoes = [...(c.botoes || []), {}, {}, {}].slice(0, 3);
-  const chamadas = [...(c.chamadas || []), {}, {}, {}, {}, {}, {}].slice(0, 6);
-  const links = [...(c.institucional?.links || []), {}, {}, {}].slice(0, 4);
-  return `<form id="form-landing" novalidate>
+  const c = l.content, d = pode ? '' : 'disabled', t = c.textos || {};
+  const slots = (lista, n) => [...(lista || []), ...Array(n).fill({})].slice(0, n);
+  const inp = (id, v, max, extra = '') => `<input class="entrada" id="${id}" value="${esc(v || '')}" maxlength="${max}" ${d} ${extra}>`;
+  const textos = sec => `<div class="grade-2">${TEXTOS_SECAO[sec].map(([k, r]) => `<div class="campo"><label for="lt-${k}">${r}</label>${inp(`lt-${k}`, t[k], k.endsWith('_sub') || k === 'fim_texto' ? 240 : 120, `data-texto="${k}"`)}</div>`).join('')}</div>`;
+  const mostrar = (k, rot) => `<label class="ld-mostrar"><input type="checkbox" id="ld-sec-${k}" ${c.secoes?.[k] !== false ? 'checked' : ''} ${d}> ${rot}</label>`;
+  const bloco = (titulo, onde, corpo, aberto = false) => `<details class="ld-bloco" ${aberto ? 'open' : ''}><summary><b>${titulo}</b><span class="dica">${onde}</span></summary><div class="ld-corpo">${corpo}</div></details>`;
+  return `<form id="form-landing" novalidate class="ld-editor">
     ${!pode ? '<div class="faixa-aviso atencao">A landing page desta empresa é gerenciada pelo operador da plataforma. Você pode ver, mas não alterar.</div>' : ''}
-    <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'}">${l.status === 'publicada' ? 'Publicada.' : 'Rascunho: a página pública mostra uma versão simples até a publicação.'} ${urlPublica ? `<a href="${esc(urlPublica)}" target="_blank" rel="noopener">Abrir a página</a>` : ''}</div>
-    <h3 style="margin-top:0">Topo</h3>
-    <div class="grade-2">
-      <div class="campo"><label for="ld-rotulo">Rótulo acima do título</label><input class="entrada" id="ld-rotulo" value="${esc(c.rotulo)}" maxlength="80" ${d}></div>
-      <div class="campo"><label for="ld-titulo">Título</label><input class="entrada" id="ld-titulo" value="${esc(c.titulo)}" maxlength="120" ${d}></div>
-    </div>
-    <div class="campo"><label for="ld-subtitulo">Subtítulo</label><textarea class="entrada" id="ld-subtitulo" rows="2" maxlength="300" ${d}>${esc(c.subtitulo)}</textarea></div>
-    <div class="campo"><label for="ld-descricao">Descrição (opcional)</label><textarea class="entrada" id="ld-descricao" rows="3" maxlength="1200" ${d}>${esc(c.descricao)}</textarea></div>
-    <div class="campo"><label for="ld-imagem">Imagem do topo (opcional)</label>
-      <div class="previa-marca" id="ld-imagem-previa">${c.imagem ? `<img src="${esc(c.imagem)}" alt="" style="max-height:80px">` : '<span class="dica">Sem imagem: aparece uma conversa de exemplo</span>'}</div>
-      <div class="linha-botoes"><input type="file" id="ld-imagem" accept="image/png,image/jpeg,image/webp" ${d}>${c.imagem ? `<button type="button" class="btn-texto" id="ld-imagem-remover" ${d}>Remover</button>` : ''}</div><span class="ajuda">PNG, JPG ou WEBP, até 800 KB.</span></div>
-    <h3>Botões</h3><div class="repetidor">${botoes.map((b, i) => `<div class="linha"><input class="entrada" data-botao-texto="${i}" value="${esc(b.texto || '')}" placeholder="Texto do botão" maxlength="40" ${d}>
-      <input class="entrada" data-botao-link="${i}" value="${esc(b.link || '')}" placeholder="/entrar, #como-usar ou https://" ${d}>
-      <select class="entrada" data-botao-estilo="${i}" ${d}><option value="primario" ${b.estilo !== 'secundario' ? 'selected' : ''}>Principal</option><option value="secundario" ${b.estilo === 'secundario' ? 'selected' : ''}>Secundário</option></select></div>`).join('')}</div>
-    <div class="campo"><label for="ld-destaques">Destaques (um por linha, até 4)</label><textarea class="entrada" id="ld-destaques" rows="3" ${d}>${esc((c.destaques || []).join('\n'))}</textarea></div>
-    <h3>Chamadas</h3><p class="dica">Blocos de "O que você encontra". Deixe em branco para não mostrar.</p>
-    <div class="repetidor">${chamadas.map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-chamada-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Título" maxlength="60" ${d}>
-      <input class="entrada" data-chamada-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto" maxlength="300" ${d}></div>`).join('')}</div>
-    <h3>Seções prontas</h3>
-    <div class="checagens">
-      <label><input type="checkbox" id="ld-sec-como_usar" ${c.secoes?.como_usar !== false ? 'checked' : ''} ${d}> Como usar (três passos)</label>
-      <label><input type="checkbox" id="ld-sec-regras" ${c.secoes?.regras !== false ? 'checked' : ''} ${d}> Regras de dados</label>
-      <label><input type="checkbox" id="ld-sec-tarefas" ${c.secoes?.tarefas !== false ? 'checked' : ''} ${d}> Boas tarefas para começar</label>
-    </div>
-    <h3>Informações institucionais</h3>
-    <div class="campo"><label for="ld-inst-titulo">Título</label><input class="entrada" id="ld-inst-titulo" value="${esc(c.institucional?.titulo || '')}" maxlength="80" ${d}></div>
-    <div class="campo"><label for="ld-inst-texto">Texto</label><textarea class="entrada" id="ld-inst-texto" rows="3" maxlength="1200" ${d}>${esc(c.institucional?.texto || '')}</textarea></div>
-    <div class="repetidor">${links.map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-link-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto do link" maxlength="40" ${d}>
-      <input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" placeholder="https://" ${d}></div>`).join('')}</div>
-    <h3>SEO</h3>
-    <div class="grade-2">
-      <div class="campo"><label for="ld-seo-title">Título da página</label><input class="entrada" id="ld-seo-title" value="${esc(l.seo?.title || '')}" maxlength="70" ${d}></div>
-      <div class="campo"><label for="ld-seo-description">Descrição</label><input class="entrada" id="ld-seo-description" value="${esc(l.seo?.description || '')}" maxlength="160" ${d}></div>
-    </div>
+    <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'} ld-situacao"><span>${l.status === 'publicada' ? '<b>Publicada.</b> A página já vem pronta com um modelo completo; troque o que quiser.' : '<b>Rascunho.</b> A página pública mostra uma versão simples até a publicação.'}</span>
+      <span class="linha-botoes">${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página</a>` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
+    ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `
+      <div class="grade-2"><div class="campo"><label for="ld-rotulo">Rótulo acima do título</label>${inp('ld-rotulo', c.rotulo, 80)}</div>
+        <div class="campo"><label for="ld-titulo">Título</label>${inp('ld-titulo', c.titulo, 120)}</div></div>
+      <div class="campo"><label for="ld-subtitulo">Subtítulo</label><textarea class="entrada" id="ld-subtitulo" rows="2" maxlength="300" ${d}>${esc(c.subtitulo)}</textarea></div>
+      <div class="campo"><label for="ld-descricao">Texto extra (opcional)</label><textarea class="entrada" id="ld-descricao" rows="2" maxlength="1200" ${d}>${esc(c.descricao)}</textarea></div>
+      <div class="campo"><label for="ld-imagem">Imagem ao lado do título (opcional)</label>
+        <div class="previa-marca" id="ld-imagem-previa">${c.imagem ? `<img src="${esc(c.imagem)}" alt="" style="max-height:80px">` : '<span class="dica">Sem imagem: aparece uma conversa de exemplo.</span>'}</div>
+        <div class="linha-botoes"><input type="file" id="ld-imagem" accept="image/png,image/jpeg,image/webp" ${d}>${c.imagem ? `<button type="button" class="btn-texto" id="ld-imagem-remover" ${d}>Remover</button>` : ''}</div><span class="ajuda">PNG, JPG ou WEBP de qualquer tamanho: a imagem é ajustada sozinha.</span></div>
+      <span class="legenda">Botões</span><div class="repetidor">${slots(c.botoes, 3).map((b, i) => `<div class="linha"><input class="entrada" data-botao-texto="${i}" value="${esc(b.texto || '')}" placeholder="Texto do botão" maxlength="40" ${d}>
+        <input class="entrada" data-botao-link="${i}" value="${esc(b.link || '')}" placeholder="/entrar, #como-usar ou https://" ${d}>
+        <select class="entrada" data-botao-estilo="${i}" ${d}><option value="primario" ${b.estilo !== 'secundario' ? 'selected' : ''}>Principal</option><option value="secundario" ${b.estilo === 'secundario' ? 'selected' : ''}>Secundário</option></select></div>`).join('')}</div>
+      <div class="campo"><label for="ld-destaques">Destaques abaixo dos botões (um por linha, até 4)</label><textarea class="entrada" id="ld-destaques" rows="3" ${d}>${esc((c.destaques || []).join('\n'))}</textarea></div>`, true)}
+    ${bloco('2. Como usar', 'Passo a passo para começar', `${mostrar('como_usar', 'Mostrar esta seção')}${textos('como_usar')}
+      <div class="repetidor">${slots(c.passos, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-passo-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Passo ${i + 1}" maxlength="60" ${d}>
+        <input class="entrada" data-passo-texto="${i}" value="${esc(x.texto || '')}" placeholder="Explicação" maxlength="200" ${d}></div>`).join('')}</div>`)}
+    ${bloco('3. O que você encontra', 'Recursos disponíveis', `${textos('chamadas')}
+      <div class="repetidor">${slots(c.chamadas, 6).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-chamada-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Título" maxlength="60" ${d}>
+        <input class="entrada" data-chamada-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto" maxlength="300" ${d}></div>`).join('')}</div><p class="dica">Deixe o título em branco para esconder um bloco.</p>`)}
+    ${bloco('4. Regras de dados', 'O que pode e o que não pode ser enviado', `${mostrar('regras', 'Mostrar esta seção')}${textos('regras')}
+      <div class="grade-3">${REGRAS.map(([k, r]) => `<div class="campo"><label for="ld-regra-${k}">${r} <small>(um por linha)</small></label><textarea class="entrada" id="ld-regra-${k}" rows="4" ${d}>${esc((c.regras?.[k] || []).join('\n'))}</textarea></div>`).join('')}</div>`)}
+    ${bloco('5. Boas tarefas', 'Exemplos de pedidos para começar', `${mostrar('tarefas', 'Mostrar esta seção')}${textos('tarefas')}
+      <div class="repetidor">${slots(c.tarefas, 8).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 3fr"><input class="entrada" data-tarefa-tipo="${i}" value="${esc(x.tipo || '')}" placeholder="Tipo (ex.: Resumir)" maxlength="30" ${d}>
+        <input class="entrada" data-tarefa-texto="${i}" value="${esc(x.texto || '')}" placeholder="Exemplo de pedido" maxlength="140" ${d}></div>`).join('')}</div>`)}
+    ${bloco('6. Institucional', 'Sobre a IA na empresa e links úteis', `
+      <div class="campo"><label for="ld-inst-titulo">Título</label>${inp('ld-inst-titulo', c.institucional?.titulo, 80)}</div>
+      <div class="campo"><label for="ld-inst-texto">Texto</label><textarea class="entrada" id="ld-inst-texto" rows="3" maxlength="1200" ${d}>${esc(c.institucional?.texto || '')}</textarea></div>
+      <span class="legenda">Links</span><div class="repetidor">${slots(c.institucional?.links, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-link-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto do link" maxlength="40" ${d}>
+        <input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" placeholder="/politica ou https://" ${d}></div>`).join('')}</div>`)}
+    ${bloco('7. Fechamento', 'Chamada final antes do rodapé', textos('fim'))}
+    ${bloco('8. Busca e compartilhamento', 'Como a página aparece no Google e em links', `<div class="grade-2">
+      <div class="campo"><label for="ld-seo-title">Título da página</label>${inp('ld-seo-title', l.seo?.title, 70)}</div>
+      <div class="campo"><label for="ld-seo-description">Descrição</label>${inp('ld-seo-description', l.seo?.description, 160)}</div></div>`)}
     <p class="msg-erro oculto" id="ld-erro" role="alert"></p>
     ${pode ? `<div class="linha-botoes"><button class="btn btn-verde" data-acao="salvar">Salvar</button>
       ${l.status === 'publicada' ? '<button type="button" class="btn btn-linha" data-acao="despublicar">Voltar para rascunho</button>' : '<button type="button" class="btn btn-linha" data-acao="publicar">Salvar e publicar</button>'}</div>` : ''}
   </form>`;
 }
 
-export function ligarLanding() {
+export function ligarLanding(l) {
   const $ = id => document.getElementById(id);
   let removerImagem = false;
   if ($('ld-imagem-remover')) $('ld-imagem-remover').onclick = () => { removerImagem = true; $('ld-imagem-previa').innerHTML = '<span class="dica">Será removida ao salvar</span>'; };
-  const vals = attr => [...document.querySelectorAll(`[${attr}]`)].map(e => e.value.trim());
+  const todos = attr => [...document.querySelectorAll(`[${attr}]`)];
+  const vals = attr => todos(attr).map(e => e.value.trim());
+  const pares = (a, b, ka, kb) => { const x = vals(a), y = vals(b); return x.map((v, i) => ({ [ka]: v, [kb]: y[i] })); };
+  const linhas = id => $(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+  // Restaurar o modelo: devolve os textos originais nos campos (só vale ao salvar).
+  $('ld-restaurar')?.addEventListener('click', () => {
+    if (!l?.modelo || !confirm('Trocar todos os textos pelos do modelo? A mudança só vale quando você salvar.')) return;
+    const m = l.modelo, set = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
+    const lista = (attr, arr, k) => todos(attr).forEach((e, i) => { e.value = arr?.[i]?.[k] ?? ''; });
+    set('ld-rotulo', m.rotulo); set('ld-titulo', m.titulo); set('ld-subtitulo', m.subtitulo); set('ld-descricao', m.descricao);
+    lista('data-botao-texto', m.botoes, 'texto'); lista('data-botao-link', m.botoes, 'link'); todos('data-botao-estilo').forEach((e, i) => { e.value = m.botoes?.[i]?.estilo || 'primario'; });
+    set('ld-destaques', (m.destaques || []).join('\n'));
+    todos('data-texto').forEach(e => { e.value = m.textos?.[e.dataset.texto] ?? ''; });
+    lista('data-passo-titulo', m.passos, 'titulo'); lista('data-passo-texto', m.passos, 'texto');
+    lista('data-chamada-titulo', m.chamadas, 'titulo'); lista('data-chamada-texto', m.chamadas, 'texto');
+    for (const [k] of REGRAS) set(`ld-regra-${k}`, (m.regras?.[k] || []).join('\n'));
+    lista('data-tarefa-tipo', m.tarefas, 'tipo'); lista('data-tarefa-texto', m.tarefas, 'texto');
+    set('ld-inst-titulo', m.institucional?.titulo); set('ld-inst-texto', m.institucional?.texto);
+    lista('data-link-texto', m.institucional?.links, 'texto'); lista('data-link-url', m.institucional?.links, 'link');
+    for (const k of ['como_usar', 'regras', 'tarefas']) $(`ld-sec-${k}`).checked = true;
+    set('ld-seo-title', l.modeloSeo?.title); set('ld-seo-description', l.modeloSeo?.description);
+    document.querySelectorAll('.ld-bloco').forEach(b => { b.open = true; });
+  });
   return async status => {
-    const img = await lerImagem($('ld-imagem'), 800);
-    const bt = vals('data-botao-texto'), bl = vals('data-botao-link'), be = vals('data-botao-estilo');
-    const ct = vals('data-chamada-titulo'), cx = vals('data-chamada-texto');
-    const lt = vals('data-link-texto'), lu = vals('data-link-url');
+    const img = $('ld-imagem').files?.[0] ? await ajustarImagem($('ld-imagem').files[0], AJUSTE_IMAGEM.imagem) : null;
+    const be = vals('data-botao-estilo');
     const content = {
       rotulo: $('ld-rotulo').value, titulo: $('ld-titulo').value, subtitulo: $('ld-subtitulo').value, descricao: $('ld-descricao').value,
-      botoes: bt.map((t, i) => ({ texto: t, link: bl[i], estilo: be[i] })).filter(b => b.texto && b.link),
-      destaques: $('ld-destaques').value.split('\n').map(s => s.trim()).filter(Boolean),
-      chamadas: ct.map((t, i) => ({ titulo: t, texto: cx[i] })).filter(x => x.titulo),
+      botoes: pares('data-botao-texto', 'data-botao-link', 'texto', 'link').map((b, i) => ({ ...b, estilo: be[i] })).filter(b => b.texto && b.link),
+      destaques: linhas('ld-destaques'),
+      textos: Object.fromEntries(todos('data-texto').map(e => [e.dataset.texto, e.value.trim()])),
+      passos: pares('data-passo-titulo', 'data-passo-texto', 'titulo', 'texto').filter(x => x.titulo),
+      chamadas: pares('data-chamada-titulo', 'data-chamada-texto', 'titulo', 'texto').filter(x => x.titulo),
+      regras: Object.fromEntries(REGRAS.map(([k]) => [k, linhas(`ld-regra-${k}`)])),
+      tarefas: pares('data-tarefa-tipo', 'data-tarefa-texto', 'tipo', 'texto').filter(x => x.texto),
       secoes: { como_usar: $('ld-sec-como_usar').checked, regras: $('ld-sec-regras').checked, tarefas: $('ld-sec-tarefas').checked },
-      institucional: { titulo: $('ld-inst-titulo').value, texto: $('ld-inst-texto').value, links: lt.map((t, i) => ({ texto: t, link: lu[i] })).filter(x => x.texto && x.link) },
+      institucional: { titulo: $('ld-inst-titulo').value, texto: $('ld-inst-texto').value, links: pares('data-link-texto', 'data-link-url', 'texto', 'link').filter(x => x.texto && x.link) },
     };
     if (img) content.imagem = img; else if (removerImagem) content.imagem = '';
     return { content, seo: { title: $('ld-seo-title').value, description: $('ld-seo-description').value }, ...(status ? { status } : {}) };

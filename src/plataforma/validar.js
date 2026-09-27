@@ -3,7 +3,7 @@ import { erro } from '../http.js';
 import { contraste } from '../admin.js';
 
 // Slugs que não podem virar empresa: rotas da aplicação, nomes da plataforma e termos genéricos.
-export const SLUGS_RESERVADOS = new Set(['www', 'app', 'api', 'admin', 'administrador', 'plataforma', 'platform', 'entrar', 'encontrar', 'login', 'sair', 'logout',
+export const SLUGS_RESERVADOS = new Set(['www', 'app', 'api', 'admin', 'administrador', 'plataforma', 'platform', 'entrar', 'encontrar', 'icone', 'login', 'sair', 'logout',
   'politica', 'operador', 'vendas', 'assets', 'static', 'public', 'cdn', 'mail', 'email', 'smtp', 'suporte', 'support', 'ajuda', 'help', 'status',
   'docs', 'blog', 'dev', 'teste', 'test', 'staging', 'root', 'sistema', 'system', 'conta', 'contas', 'billing', 'pagamento', 'greenia', 'empresa', 'empresas']);
 
@@ -38,7 +38,7 @@ export function validarCorPrincipal(c) {
 
 const IMAGENS = {
   logo: [/^data:image\/(png|svg\+xml|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, 300_000, 'O logo precisa ser PNG, JPG, WEBP ou SVG, com até 200 KB.'],
-  favicon: [/^data:image\/(png|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,[A-Za-z0-9+/=]+$/, 120_000, 'O favicon precisa ser PNG, SVG ou ICO, com até 80 KB.'],
+  favicon: [/^data:image\/(png|jpeg|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,[A-Za-z0-9+/=]+$/, 120_000, 'O favicon precisa ser uma imagem (PNG, JPG, WEBP, SVG ou ICO) com até 80 KB.'],
   imagem: [/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, 1_100_000, 'A imagem precisa ser PNG, JPG ou WEBP, com até 800 KB.'],
 };
 export function validarImagem(v, tipo) {

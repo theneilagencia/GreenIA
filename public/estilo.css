@@ -695,3 +695,17 @@ body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista
 /* A barra de salvar fica colada na borda de baixo da área que rola (descontando o espaço interno da página) */
 .cfg-salvar{bottom:-64px;margin-bottom:-64px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 @media (max-width:860px){.cfg-salvar{bottom:-40px;margin-bottom:-40px}}
+
+/* Editor da landing page: blocos na ordem da página, abrem e fecham */
+.ld-editor{display:grid;gap:10px;max-width:900px}
+.ld-situacao{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ld-bloco{border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.ld-bloco>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:14px 18px;font:500 14.5px var(--sans)}
+.ld-bloco>summary::-webkit-details-marker{display:none}
+.ld-bloco>summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);transition:transform .2s;align-self:center}
+.ld-bloco[open]>summary::after{transform:rotate(-135deg)}
+.ld-bloco[open]>summary{border-bottom:1px solid var(--line)}
+.ld-corpo{padding:16px 18px;display:grid;gap:12px}
+.ld-corpo .campo{margin:0}
+.ld-mostrar{display:inline-flex;gap:8px;align-items:center;font:500 13.5px var(--sans)}
+@media (max-width:640px){.ld-bloco>summary,.ld-corpo{padding-left:14px;padding-right:14px}.ld-corpo .repetidor .linha{grid-template-columns:1fr!important}}

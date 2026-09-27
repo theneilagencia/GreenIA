@@ -231,7 +231,7 @@ async function abaMarca(d, id) {
 
 async function abaLanding(d, id) {
   $('aba').innerHTML = renderLanding(d.landing, { urlPublica: d.empresa.url });
-  const ler = ligarLanding();
+  const ler = ligarLanding(d.landing);
   const salvar = async status => { try { await api(`/api/plataforma/empresas/${id}/landing`, { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada.' : 'Landing page salva.'); vistaEmpresa(id, 'landing'); } catch (x) { mostrarErro('ld-erro', x); } };
   $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
   document.querySelector('[data-acao="publicar"]')?.addEventListener('click', () => salvar('publicada'));

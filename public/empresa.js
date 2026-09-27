@@ -139,7 +139,7 @@ async function telaLanding() {
   const [{ landing, pode: podeEditar }, url] = await Promise.all([api('/api/empresa/landing'), api('/api/empresa/url')]);
   $('conteudo').innerHTML = renderLanding(landing, { pode: podeEditar, urlPublica: url.url });
   if (!podeEditar) return;
-  const ler = ligarLanding();
+  const ler = ligarLanding(landing);
   const salvar = async status => { try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada.' : 'Landing page salva.'); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); } };
   $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
   document.querySelector('[data-acao="publicar"]')?.addEventListener('click', () => salvar('publicada'));

@@ -194,7 +194,7 @@ test('último admin da empresa não sai; próprio usuário não se rebaixa', asy
 test('auditoria registra usuário, empresa, ação, antes, depois e origem', async () => {
   const a = (await ops.get(`/api/plataforma/auditoria?empresa=${A.id}`)).dados.itens;
   const acoes = a.map(x => x.action);
-  for (const esperado of ['company.created', 'user.created', 'branding.updated', 'landing_page.published', 'company.url_changed', 'company.published', 'role.created', 'company.suspended', 'company.grants_changed'])
+  for (const esperado of ['company.created', 'user.created', 'branding.updated', 'landing_page.updated', 'company.url_changed', 'company.published', 'role.created', 'company.suspended', 'company.grants_changed'])
     assert.ok(acoes.includes(esperado), `faltou ${esperado}`);
   const url = a.find(x => x.action === 'company.url_changed' && x.after?.slug === 'acme-ia');
   assert.deepEqual([url.before.slug, url.after.slug, url.usuario, url.origin.painel], ['acme', 'acme-ia', 'ops@theneil.com.br', 'plataforma']);

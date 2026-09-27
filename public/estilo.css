@@ -507,3 +507,11 @@ select.entrada{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
   .paleta-fundo{padding-top:8vh}
   .migalha .sep,.migalha a{display:none}
 }
+
+/* Cartão com conteúdo centralizado (Encontre o seu ambiente) */
+.login-centro{text-align:center}
+.login-centro .marca{justify-content:center}
+.login-centro .texto{margin-left:auto;margin-right:auto}
+.login-centro .campo label{display:block;text-align:center}
+.login-centro .entrada{text-align:center}
+.login-centro .faixa-aviso{text-align:center}

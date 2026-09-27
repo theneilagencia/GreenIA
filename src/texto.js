@@ -8,7 +8,20 @@ import { erro } from './http.js';
 export const delimitar = (tipo, nome, texto) => `<${tipo} nome="${String(nome).replace(/["<>]/g, '')}">\n${String(texto).replace(new RegExp(`</?${tipo}`, 'gi'), m => m.replace('<', '‹'))}\n</${tipo}>`;
 
 export const MSG_IMAGEM = 'Este arquivo parece ser uma imagem. Envie a versão em texto ou em PDF digital';
-const MAX_ARQUIVO_MB = 20;
+// Limites de upload, no padrão de mercado (anexo de email e ferramentas de IA corporativas): o tamanho
+// do arquivo protege o servidor; o texto extraído protege o consumo, porque é ele que vai para o modelo.
+// ~2.500 caracteres por página.
+export const LIMITES_ARQUIVO = {
+  arquivoMb: 25,            // cada arquivo (anexo, documento da base, arquivo de quick win)
+  anexosPorMensagem: 5,
+  mensagemMb: 30,           // soma dos arquivos de uma mensagem
+  anexoCaracteres: 100_000, // texto de um anexo no chat (~40 páginas): vai inteiro para o modelo
+  mensagemCaracteres: 150_000,
+  historicoAnexosCaracteres: 150_000, // anexos de mensagens antigas reenviados a cada resposta
+  documentoCaracteres: 2_000_000,     // base de conhecimento e quick win: entram só os trechos relevantes
+};
+export const paginasDe = caracteres => Math.max(1, Math.round(caracteres / 2500));
+const MAX_ARQUIVO_MB = LIMITES_ARQUIVO.arquivoMb;
 const MAX_DESCOMPACTADO = 200 * 1024 * 1024;   // teto contra "bomba de ZIP"
 
 const ehImagem = b => (b[0] === 0x89 && b[1] === 0x50) || (b[0] === 0xff && b[1] === 0xd8) || b.subarray(0, 4).toString() === 'GIF8'
@@ -90,7 +103,7 @@ const decodificar = b => {
 };
 
 /** Extrai o texto de um arquivo enviado em base64. @returns {Promise<{nome: string, texto: string}>} */
-export async function extrairTexto({ nome, base64 }) {
+export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_ARQUIVO.documentoCaracteres, onde = 'documento' } = {}) {
   nome = String(nome || 'arquivo').slice(0, 200);
   const b = Buffer.from(String(base64 || ''), 'base64');
   if (!b.length) throw erro(400, 'vazio', `${nome}: arquivo vazio.`);
@@ -114,5 +127,8 @@ export async function extrairTexto({ nome, base64 }) {
     throw erro(400, 'arquivo_invalido', `${nome}: não foi possível ler o arquivo.`);
   }
   if (!texto.trim()) throw erro(415, 'imagem', MSG_IMAGEM);
-  return { nome, texto };
+  if (texto.length > maxCaracteres) throw erro(413, 'texto_grande', onde === 'anexo'
+    ? `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto. No chat, cada anexo pode ter até ${paginasDe(maxCaracteres)} páginas, porque vai inteiro para a IA e consome créditos a cada resposta. Envie só a parte necessária, ou coloque o documento na base de conhecimento, que usa apenas os trechos relevantes.`
+    : `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto; o máximo é ${paginasDe(maxCaracteres)} páginas por documento. Divida o arquivo em partes.`);
+  return { nome, texto, bytes: b.length };
 }

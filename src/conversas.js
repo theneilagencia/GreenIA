@@ -82,8 +82,18 @@ function instrucoesQw(qw) {
 function historico(app, conv, limiteChars) {
   const msgs = todos(app.db, "select id, papel, texto from mensagens where conversa_id = ? and papel != 'aviso' order by id", conv.id);
   const anexos = todos(app.db, 'select mensagem_id, nome, texto from anexos where conversa_id = ?', conv.id);
+  // Anexos de mensagens antigas são reenviados só até um orçamento (do mais novo para o mais antigo):
+  // uma conversa longa com arquivos grandes não multiplica o consumo a cada resposta.
+  let orcamento = app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity;
+  const ultimaDaPessoa = msgs.filter(m => m.papel === 'user').at(-1)?.id;
+  const conteudo = new Map();
+  for (const x of [...anexos].reverse()) {
+    const cabe = x.mensagem_id === ultimaDaPessoa || x.texto.length <= orcamento;
+    if (cabe && x.mensagem_id !== ultimaDaPessoa) orcamento -= x.texto.length;
+    conteudo.set(x, cabe ? delimitar('anexo', x.nome, x.texto) : `[Anexo "${x.nome}" enviado antes nesta conversa. O conteúdo não foi reenviado para economizar créditos; se precisar dele de novo, peça para a pessoa anexar outra vez.]`);
+  }
   const comAnexos = msgs.map(m => {
-    const a = anexos.filter(x => x.mensagem_id === m.id).map(x => `\n\n${delimitar('anexo', x.nome, x.texto)}`).join('');
+    const a = anexos.filter(x => x.mensagem_id === m.id).map(x => `\n\n${conteudo.get(x)}`).join('');
     return { role: m.papel, content: m.texto + a };
   });
   const out = [];
@@ -243,7 +253,7 @@ export function rotasConversas(app, r) {
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: usado, classe: m.perfil, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id });
     res.end();
-  }, { limiteMb: 30 });
+  }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
 }
 
 export function detalhe(app, c) {

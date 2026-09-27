@@ -279,7 +279,7 @@ export function rotasQuickWins(app, r) {
     indexar(app.db, id, texto);
     registrar(app, 'knowledge.added', pessoa.id, { quick_win: q.id, documento: id, sigiloso: !!corpo.sigiloso });
     return publico(app.db, pessoa, q);
-  }, { limiteMb: 30 });
+  }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
 
   r.del('/api/quick-wins/:id/arquivos/:doc', ({ pessoa, params }) => {
     const q = carregar(pessoa, params.id, true);

@@ -67,7 +67,7 @@ export function rotasBases(app, r) {
     indexar(app.db, id, texto);
     registrar(app, 'knowledge.added', pessoa.id, { documento: id, area: areaId, toda_empresa: todaEmpresa, sigiloso: !!corpo.sigiloso });
     return um(app.db, `${LISTA} where d.id = ?`, id);
-  }, { limiteMb: 30 });
+  }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
 
   r.put('/api/bases/documentos/:id', async ({ pessoa, params, corpo }) => {
     const d = um(app.db, 'select * from documentos where id = ?', Number(params.id));
@@ -81,7 +81,7 @@ export function rotasBases(app, r) {
     if (corpo.sigiloso !== undefined) exec(app.db, 'update documentos set sigiloso = ? where id = ?', Number(!!corpo.sigiloso), d.id);
     registrar(app, 'knowledge.updated', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso });
     return um(app.db, `${LISTA} where d.id = ?`, d.id);
-  }, { limiteMb: 30 });
+  }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
 
   r.del('/api/bases/documentos/:id', ({ pessoa, params }) => {
     const d = um(app.db, 'select * from documentos where id = ?', Number(params.id));

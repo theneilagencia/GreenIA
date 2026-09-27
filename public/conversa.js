@@ -147,9 +147,11 @@ function ligar() {
   $('anexar').onclick = () => $('arquivo').click();
   $('arquivo').onchange = async ev => {
     for (const f of ev.target.files) {
-      if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: acima de 20 MB.`); continue; }
+      if (C.anexos.length >= 5) { toast('Até 5 anexos por mensagem. Envie os demais na próxima.', 6000); break; }
+      if (f.size > 25 * 1024 * 1024) { toast(`${f.name}: acima de 25 MB. Envie uma versão menor ou só a parte necessária.`, 6000); continue; }
+      if (C.anexos.reduce((t, a) => t + a.tamanho, 0) + f.size > 30 * 1024 * 1024) { toast('Os anexos desta mensagem passariam de 30 MB. Envie em mais de uma mensagem.', 6000); break; }
       const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
-      C.anexos.push({ nome: f.name, base64 });
+      C.anexos.push({ nome: f.name, base64, tamanho: f.size });
     }
     ev.target.value = '';
     desenharAnexos(); atualizarEnviar();

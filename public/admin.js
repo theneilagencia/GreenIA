@@ -151,7 +151,7 @@ async function abaBases() {
         <label class="dica"><input type="checkbox" id="doc-sigiloso"> documento sigiloso (a conversa que usar vira sigilosa)</label>
         <button class="btn btn-verde btn-pequeno" id="btn-doc">Enviar</button>
       </div>
-      <p class="dica">PDF com texto, DOCX, TXT, MD, CSV ou XLSX, até 20 MB. PDF escaneado e imagem não são aceitos.</p>
+      <p class="dica">PDF com texto, DOCX, TXT, MD, CSV ou XLSX, até 25 MB (cerca de 800 páginas). PDF escaneado e imagem não são aceitos.</p>
     </form>
     ${tabela(['Documento', 'Onde', 'Sigiloso', '#Caracteres', 'Atualizado', 'Ações'], documentos.map(d => `<tr>
       <td><b>${esc(d.titulo)}</b><br><span class="dica">${esc(d.arquivo)}</span></td><td>${d.toda_empresa ? 'Toda a empresa' : esc(d.area || '')}</td>

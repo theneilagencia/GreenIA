@@ -14,7 +14,7 @@ import { rotasConversas } from './conversas.js';
 import { rotasPessoas } from './pessoas.js';
 import { criarContexto, rotasBases } from './bases.js';
 import { permissoesQw, rotasQuickWins } from './quickwins.js';
-import { extrairTexto } from './texto.js';
+import { extrairTexto, LIMITES_ARQUIVO, paginasDe } from './texto.js';
 import { rotasPolitica } from './politica.js';
 import { rotasAdmin } from './admin.js';
 import { rotasMedicao } from './medicao.js';
@@ -64,11 +64,17 @@ export function criarApp(op = {}) {
   }));
   app.contexto = criarContexto(app);
   app.extrairAnexos = async (anexos = []) => {
-    if (!Array.isArray(anexos) || anexos.length > 10) throw new ErroHttp(400, 'anexos', 'Envie até 10 anexos por mensagem.');
+    const L = LIMITES_ARQUIVO;
+    if (!Array.isArray(anexos) || anexos.length > L.anexosPorMensagem) throw new ErroHttp(400, 'anexos', `Envie até ${L.anexosPorMensagem} anexos por mensagem.`);
+    // A soma é conferida pelo tamanho do base64, antes de abrir qualquer arquivo.
+    if (anexos.reduce((t, a) => t + String(a?.base64 || '').length * 0.75, 0) > L.mensagemMb * 1024 * 1024) throw new ErroHttp(413, 'anexos_grandes', `Os anexos desta mensagem somam mais de ${L.mensagemMb} MB. Envie em mais de uma mensagem.`);
     const out = [];
-    for (const a of anexos) out.push(await extrairTexto(a));
+    for (const a of anexos) out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo' }));
+    const caracteres = out.reduce((t, a) => t + a.texto.length, 0);
+    if (caracteres > L.mensagemCaracteres) throw new ErroHttp(413, 'texto_grande', `Os anexos desta mensagem somam cerca de ${paginasDe(caracteres)} páginas de texto; o máximo por mensagem é ${paginasDe(L.mensagemCaracteres)}. Envie menos arquivos ou só as partes necessárias.`);
     return out;
   };
+  app.limitesArquivo = LIMITES_ARQUIVO;
   for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);

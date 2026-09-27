@@ -53,3 +53,16 @@ test('sem SMTP no console, usa o das variáveis; o do console tem prioridade', (
   assert.equal(P.lerSmtp().url, 'smtp://console:25');
   fechar(P);
 });
+
+test('produção sem SMTP: o console avisa que o email não está configurado, em vez de dizer que enviou', async () => {
+  const { subirPlataforma } = await import('./ajuda-plataforma.js');
+  const S = await subirPlataforma({ avisarSemEmail: true });
+  try {
+    const r = await S.navegador().post('/api/plataforma/login/codigo', { email: 'ops@theneil.com.br' });
+    assert.equal(r.status, 503);
+    assert.match(r.dados.mensagem, /SMTP_URL/);
+    assert.equal((await S.navegador().post('/api/plataforma/login/codigo', { email: 'x@fora.com' })).status, 403);
+    // O código foi gerado e está no "log" (email simulado), para o primeiro acesso.
+    assert.ok(S.P.email.enviados.some(m => m.para === 'ops@theneil.com.br'));
+  } finally { await S.fechar(); }
+});

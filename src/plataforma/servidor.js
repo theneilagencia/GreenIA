@@ -44,6 +44,7 @@ export function criarPlataforma(op = {}) {
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
   // SMTP da plataforma: o configurado no console; sem ele, o das variáveis SMTP_URL/SMTP_REMETENTE.
+  P.avisarSemEmail = !!op.avisarSemEmail;
   P.smtpPadrao = { url: op.smtpPadrao?.url || '', remetente: op.smtpPadrao?.remetente || '' };
   P.lerSmtp = () => { const s = lerAjuste(db, 'smtp', { url: '', remetente: '' }); return s.url ? s : P.smtpPadrao.url ? P.smtpPadrao : s; };
   P.email = op.email ?? criarEmail({ lerSmtp: P.lerSmtp, log: P.log });

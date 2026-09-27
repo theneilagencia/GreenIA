@@ -23,6 +23,8 @@ export function rotasPlataforma(P, r) {
     // Resposta igual para quem não é admin: não revela quem tem acesso ao console.
     if (!u || u.status !== 'ativo' || !ehAdminPlataforma(P.db, u.id)) throw erro(403, 'sem_acesso', 'Este email não tem acesso ao console da plataforma.');
     await enviarCodigo(P, email, 'plataforma', P.email, 'Seu código de acesso ao console da GreenIA');
+    // Sem SMTP em produção o código só vai para o log do servidor: avisa em vez de fingir que enviou.
+    if (P.avisarSemEmail && !P.lerSmtp().url) throw erro(503, 'email_nao_configurado', 'O envio de email não está configurado no servidor. Configure SMTP_URL e SMTP_REMETENTE nas variáveis do servidor; até lá, o código aparece no log do servidor, na linha "[email simulado]".');
     return { ok: true };
   }, { publica: true });
 

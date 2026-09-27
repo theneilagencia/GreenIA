@@ -38,7 +38,11 @@ function telaLogin() {
   $('f-email').onsubmit = async ev => {
     ev.preventDefault();
     try { await api('/api/plataforma/login/codigo', { metodo: 'POST', corpo: { email: $('c-email').value } }); $('f-email').classList.add('oculto'); $('f-codigo').classList.remove('oculto'); $('c-codigo').focus(); }
-    catch (e) { mostrarErro('c-erro', e); }
+    catch (e) {
+      mostrarErro('c-erro', e);
+      // Sem email configurado o código foi gerado mesmo assim (está no log do servidor): deixa digitar.
+      if (e.erro === 'email_nao_configurado') { $('f-codigo').classList.remove('oculto'); $('c-codigo').focus(); }
+    }
   };
   $('f-codigo').onsubmit = async ev => {
     ev.preventDefault();

@@ -1,6 +1,6 @@
 // Validações do painel da plataforma e do admin da empresa: slug, domínio, cores, imagens, textos e links.
 import { erro } from '../http.js';
-import { contraste } from '../admin.js';
+import { contraste, erroContraste, FUNDO_CLARO, CONTRASTE_MINIMO } from '../admin.js';
 
 // Slugs que não podem virar empresa: rotas da aplicação, nomes da plataforma e termos genéricos.
 export const SLUGS_RESERVADOS = new Set(['www', 'app', 'api', 'admin', 'administrador', 'plataforma', 'platform', 'entrar', 'encontrar', 'icone', 'login', 'sair', 'logout',
@@ -32,7 +32,7 @@ export function validarCor(c, campo = 'cor') {
 // A cor principal vira fundo de botão com texto claro e texto sobre fundo claro: mínimo 4,5:1.
 export function validarCorPrincipal(c) {
   const s = validarCor(c, 'primary_color');
-  if (s && contraste(s, '#F1F1EE') < 4.5) throw erro(400, 'primary_color', `Contraste de ${contraste(s, '#F1F1EE').toFixed(2)}:1 com os fundos claros. O mínimo é 4,5:1: escolha uma cor mais escura.`);
+  if (s && contraste(s, FUNDO_CLARO) < CONTRASTE_MINIMO) throw erroContraste('primary_color', 'A cor principal', s);
   return s;
 }
 

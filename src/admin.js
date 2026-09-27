@@ -11,6 +11,21 @@ import { normalizarSmtpUrl } from './email.js';
 const lum = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
   .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0);
 export const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+export const FUNDO_CLARO = '#F1F1EE', CONTRASTE_MINIMO = 4.5;
+// A mesma cor, mais escura (mesmo tom), até passar no contraste mínimo.
+export function corLegivel(hex, fundo = FUNDO_CLARO, minimo = CONTRASTE_MINIMO) {
+  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  for (let f = 1; f > 0; f -= 0.01) {
+    const c = '#' + rgb.map(v => Math.round(v * f).toString(16).padStart(2, '0')).join('').toUpperCase();
+    if (contraste(c, fundo) >= minimo) return c;
+  }
+  return '#000000';
+}
+// Mensagem para quem não sabe o que é contraste: qual campo, o que acontece e qual cor usar.
+export function erroContraste(campo, rotulo, hex) {
+  const r = contraste(hex, FUNDO_CLARO), sugestao = corLegivel(hex);
+  return erro(400, campo, `${rotulo} (${hex.toUpperCase()}) está clara demais. Ela é usada nos botões, com texto branco por cima, e nos links sobre o fundo claro: com essa cor o texto fica difícil de ler (contraste ${r.toFixed(2).replace('.', ',')} para 1; o mínimo é 4,5). Escolha um tom mais escuro. Sugestão: ${sugestao}, o mesmo tom, mais escuro.`, { campo, sugestao });
+}
 
 const mesDe = (app, q) => (/^\d{4}-\d{2}$/.test(q || '') ? q : app.agora().toISOString().slice(0, 7));
 
@@ -50,7 +65,7 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
     if (c.corMarca && !/^#[0-9a-fA-F]{6}$/.test(c.corMarca)) throw erro(400, 'cor', 'Cor inválida.');
     // A cor de marca vira fundo de botão com texto claro e texto sobre os fundos claros.
     // Conferida contra o fundo claro mais escuro das telas (areia): 4,5:1 ali vale para todos.
-    if (c.corMarca && contraste(c.corMarca, '#F1F1EE') < 4.5) throw erro(400, 'cor', `Contraste de ${contraste(c.corMarca, '#F1F1EE').toFixed(2)}:1 com os fundos claros. O mínimo é 4,5:1: escolha uma cor mais escura.`);
+    if (c.corMarca && contraste(c.corMarca, FUNDO_CLARO) < CONTRASTE_MINIMO) throw erroContraste('cor', 'A cor de marca', c.corMarca);
     v.corMarca = c.corMarca || '';
   }
   if (c.dominios !== undefined) {

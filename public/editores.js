@@ -1,6 +1,7 @@
 // Editores de marca e de landing page, usados pelo console da plataforma e pelo admin da empresa.
 // A tela chama render*() para montar o formulário e ler*() para montar o corpo da requisição.
 import { esc } from '/comum.js';
+import { avisoCor, corLegivelOk } from '/cor.js';
 
 export const ROTULOS_MARCA = {
   display_name: 'Nome exibido', logo: 'Logomarca', favicon: 'Favicon', primary_color: 'Cor principal', secondary_color: 'Cor secundária',
@@ -68,7 +69,8 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
   const b = m.locked || [];
   const campo = (k, html) => `<div class="campo"><label for="mk-${k}">${ROTULOS_MARCA[k]}${trava(k, b, modo)}</label>${html}</div>`;
   const cor = k => campo(k, `<div style="display:flex;gap:8px;align-items:center"><input type="color" id="mk-${k}-sel" value="${esc(m[k] || '#1B7950')}" ${desab(k, b, modo, pode)} style="width:44px;height:38px;border:1px solid var(--line-strong);border-radius:8px;background:none">
-    <input class="entrada" id="mk-${k}" value="${esc(m[k] || '')}" placeholder="#1B7950" maxlength="7" style="max-width:140px" ${desab(k, b, modo, pode)}></div>`);
+    <input class="entrada" id="mk-${k}" value="${esc(m[k] || '')}" placeholder="#1B7950" maxlength="7" style="max-width:140px" ${desab(k, b, modo, pode)}></div>
+    ${k === 'primary_color' ? '<span class="ajuda">Usada nos botões (com texto branco por cima) e nos links. Precisa ser escura o bastante para o texto ser lido.</span><div class="aviso-cor" id="mk-primary_color-aviso" aria-live="polite"></div>' : ''}`);
   const img = (k, dica) => campo(k, `<div class="previa-marca" id="mk-${k}-previa">${m[k] ? `<img src="${esc(m[k])}" alt="">` : '<span class="dica">Nenhum arquivo</span>'}</div>
     <div class="linha-botoes"><input type="file" id="mk-${k}" accept="image/png,image/jpeg,image/webp,image/svg+xml${k === 'favicon' ? ',image/x-icon' : ''}" ${desab(k, b, modo, pode)}>
     ${m[k] ? `<button type="button" class="btn-texto" data-remover="${k}" ${desab(k, b, modo, pode)}>Remover</button>` : ''}</div><span class="ajuda">${dica}</span>`);
@@ -78,8 +80,7 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
       <span class="cor" id="mk-previa-p" style="background:${esc(m.primary_color || '#1B7950')}"></span><span class="cor" id="mk-previa-s" style="background:${esc(m.secondary_color || '#F3F3F1')}"></span></div>
     <div class="grade-2">
       <div>${campo('display_name', `<input class="entrada" id="mk-display_name" value="${esc(m.display_name)}" maxlength="80" ${desab('display_name', b, modo, pode)}>`)}
-        ${cor('primary_color')}${cor('secondary_color')}
-        <p class="ajuda" style="margin-top:-8px">A cor principal precisa de contraste de 4,5:1 com fundos claros, porque vira fundo de botão com texto branco.</p></div>
+        ${cor('primary_color')}${cor('secondary_color')}</div>
       <div>${img('logo', 'PNG, JPG, WEBP ou SVG, de qualquer tamanho: a imagem é ajustada sozinha. Prefira fundo transparente.')}${img('favicon', 'Ícone da aba do navegador. Qualquer imagem serve: vira um quadrado de 64×64. Sem favicon, usa o logo.')}</div>
     </div>
     ${campo('login_title', `<input class="entrada" id="mk-login_title" value="${esc(m.login_title)}" maxlength="120" placeholder="Entre com o seu email da empresa" ${desab('login_title', b, modo, pode)}>`)}
@@ -93,11 +94,19 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
 export function ligarMarca(m) {
   const $ = id => document.getElementById(id);
   const removidos = new Set();
+  // A cor principal é conferida enquanto a pessoa escolhe: botão de exemplo e, se clara demais, a sugestão.
+  const conferir = () => avisoCor($('mk-primary_color-aviso'), $('mk-primary_color').value || $('mk-primary_color-sel').value, sug => aplicarCor('primary_color', sug));
+  const aplicarCor = (k, v) => {
+    $(`mk-${k}`).value = v.toUpperCase(); $(`mk-${k}-sel`).value = v;
+    $(k === 'primary_color' ? 'mk-previa-p' : 'mk-previa-s').style.background = v;
+    if (k === 'primary_color') { $('mk-primary_color').classList.remove('invalida'); $('mk-primary_color').removeAttribute('aria-invalid'); conferir(); }
+  };
   for (const k of ['primary_color', 'secondary_color']) {
     const sel = $(`mk-${k}-sel`), txt = $(`mk-${k}`);
-    sel.oninput = () => { txt.value = sel.value.toUpperCase(); $(k === 'primary_color' ? 'mk-previa-p' : 'mk-previa-s').style.background = sel.value; };
-    txt.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(txt.value)) { sel.value = txt.value; $(k === 'primary_color' ? 'mk-previa-p' : 'mk-previa-s').style.background = txt.value; } };
+    sel.oninput = () => aplicarCor(k, sel.value);
+    txt.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(txt.value)) aplicarCor(k, txt.value); };
   }
+  conferir();
   $('mk-display_name').oninput = e => { $('mk-previa-nome').textContent = e.target.value; };
   for (const b of document.querySelectorAll('[data-remover]')) b.onclick = () => { removidos.add(b.dataset.remover); delete prontas[b.dataset.remover]; $(`mk-${b.dataset.remover}-previa`).innerHTML = '<span class="dica">Será removido ao salvar</span>'; };
   // Ao escolher o arquivo: ajusta na hora, mostra a prévia e o tamanho final (ou o motivo de não servir).
@@ -118,6 +127,11 @@ export function ligarMarca(m) {
     });
   }
   return async () => {
+    const principal = $('mk-primary_color');
+    if (!principal.disabled && !corLegivelOk(principal.value.trim())) {
+      conferir();
+      throw Object.assign(new Error('A cor principal está clara demais: o texto dos botões e dos links fica difícil de ler. Escolha um tom mais escuro ou use a sugestão ao lado do campo.'), { campo: 'primary_color' });
+    }
     const corpo = {};
     for (const k of ['display_name', 'primary_color', 'secondary_color', 'login_title', 'login_text', 'privacy_note']) { const el = $(`mk-${k}`); if (!el.disabled && el.value !== (m[k] || '')) corpo[k] = el.value.trim(); }
     for (const k of ['logo', 'favicon']) {
@@ -239,10 +253,16 @@ export function ligarLanding(l) {
   };
 }
 
+// O erro aparece no fim do formulário e, quando é de um campo, o campo fica marcado e ganha o foco.
 export function mostrarErro(id, e) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = e.message; el.classList.remove('oculto');
+  const campo = document.getElementById(`mk-${e.campo || e.codigo || e.erro}`);
+  if (campo?.classList.contains('entrada')) {
+    campo.classList.add('invalida'); campo.setAttribute('aria-invalid', 'true');
+    campo.scrollIntoView({ behavior: 'smooth', block: 'center' }); campo.focus({ preventScroll: true });
+  }
 }
 
 // ---------------------------------------------------------------- URL e domínio

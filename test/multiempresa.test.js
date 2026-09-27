@@ -88,7 +88,13 @@ test('admin da empresa personaliza dentro do que foi concedido; o operador bloqu
   assert.equal((await ana.put('/api/empresa/marca', { display_name: 'Acme IA', primary_color: '#1B4F72' })).status, 200);
   assert.equal((await ana.put('/api/empresa/landing', { content: { titulo: 'Nova IA da Acme' } })).status, 200);
   // Cor com contraste baixo é recusada.
-  assert.equal((await ana.put('/api/empresa/marca', { primary_color: '#FFFF00' })).status, 400);
+  const clara = await ana.put('/api/empresa/marca', { primary_color: '#FFFF00' });
+  assert.equal(clara.status, 400);
+  // A mensagem diz o campo, o motivo em palavras simples e sugere o mesmo tom, mais escuro, que passa.
+  assert.equal(clara.dados.erro, 'primary_color');
+  assert.match(clara.dados.mensagem, /^A cor principal \(#FFFF00\) está clara demais/);
+  assert.match(clara.dados.mensagem, new RegExp(`Sugestão: ${clara.dados.sugestao}`));
+  assert.equal((await ana.put('/api/empresa/marca', { primary_color: clara.dados.sugestao })).status, 200);
   // O operador bloqueia o logo e tira a URL da empresa.
   assert.equal((await ops.put(`/api/plataforma/empresas/${A.id}/concessoes`, { grants: { branding: true, landing_page: true, url: false, domain: false, roles: true }, locked: ['logo'] })).status, 200);
   const bloqueado = await ana.put('/api/empresa/marca', { logo: '' });

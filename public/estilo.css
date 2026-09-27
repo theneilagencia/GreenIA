@@ -340,6 +340,15 @@ body.console{display:flex;flex-direction:column;min-height:100vh;background:var(
 .previa-marca{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--raio-painel);margin:6px 0 16px;background:var(--surface)}
 .previa-marca img{max-height:32px;max-width:140px}
 .previa-marca .cor{width:22px;height:22px;border-radius:6px;border:1px solid var(--line)}
+.aviso-cor{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:-4px 0 14px;padding:0;font:400 13px/1.45 var(--sans)}
+.aviso-cor:empty{display:none}
+.aviso-cor.ok,.aviso-cor.ruim{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#F1F1EE}
+.aviso-cor.ruim{border-color:var(--red);background:var(--red-bg)}
+.aviso-cor .amostra-botao{color:#fff;font:600 13px var(--sans);padding:6px 12px;border-radius:8px}
+.aviso-cor .amostra-link{font:600 13px var(--sans);text-decoration:underline}
+.aviso-cor-texto{flex:1 1 220px;color:var(--ink)} .aviso-cor.ruim .aviso-cor-texto b{color:var(--red-text)}
+.aviso-cor .btn .cor{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-2px}
+.entrada.invalida,.entrada.invalida:focus,.entrada.invalida:focus-visible{border-color:var(--red);box-shadow:0 0 0 3px var(--red-bg);outline:none}
 .checagens{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 18px;margin:6px 0 14px}
 .checagens label{display:flex;gap:8px;align-items:flex-start;font:400 14px/1.4 var(--sans)}
 .checagens small{display:block;color:var(--muted);font-size:12px}

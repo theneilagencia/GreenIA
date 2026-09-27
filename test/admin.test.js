@@ -114,7 +114,7 @@ test('teto de gasto mensal interrompe os envios; limite diário por pessoa tamb�
 test('configurações: cor de marca com contraste baixo é recusada; domínios e retenção validados; só o admin', async () => {
   let r = await admin.put('/api/admin/config', { corMarca: '#9CC9B2' });
   assert.equal(r.status, 400);
-  assert.match(r.dados.mensagem, /mínimo é 4,5:1/);
+  assert.match(r.dados.mensagem, /A cor de marca \(#9CC9B2\) está clara demais.*o mínimo é 4,5.*Sugestão: #[0-9A-F]{6}/);
   assert.equal((await admin.put('/api/admin/config', { corMarca: '#1B4F8C', empresa: 'Empresa Exemplo', dominios: 'exemplo.com.br, @exemplo.net', retencaoDias: 60 })).status, 200);
   const c = (await admin.get('/api/admin/config')).dados;
   assert.deepEqual([c.corMarca, c.empresa, c.dominios, c.retencaoDias], ['#1B4F8C', 'Empresa Exemplo', ['exemplo.com.br', 'exemplo.net'], 60]);

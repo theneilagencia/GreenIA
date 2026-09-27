@@ -47,3 +47,14 @@ test('esquema de cor da empresa: toda cor aceita pelo servidor mantém 4,5:1 nos
   }
   assert.ok(aceitas > 500);
 });
+
+test('a cor sugerida é o mesmo tom, mais escuro, e sempre passa no mínimo (servidor e navegador iguais)', async () => {
+  const { corLegivel, contraste } = await import('../src/admin.js');
+  const navegador = await import('../public/cor.js');
+  for (const c of ['#FFFF00', '#F1F1EE', '#8FD14F', '#FF9900', '#66CCFF', '#FFFFFF', '#1B7950']) {
+    const s = corLegivel(c);
+    assert.ok(contraste(s, '#F1F1EE') >= 4.5, `${c} → ${s}`);
+    assert.equal(navegador.corLegivel(c), s);
+  }
+  assert.equal(corLegivel('#1B7950'), '#1B7950', 'cor que já passa fica igual');
+});

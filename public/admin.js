@@ -4,6 +4,7 @@
 import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, ocupado, toast, vazioHtml } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
 import { renderizar } from '/md.js';
+import { avisoCor } from '/cor.js';
 
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
@@ -27,9 +28,6 @@ const marcados = nome => [...document.querySelectorAll(`input[name="${nome}"]:ch
 const tabela = (cab, linhas, vazio = 'Nada por aqui ainda.') => `<div class="tabela-rolagem"><table class="tabela"><thead><tr>${cab.map(c => `<th${c.startsWith('#') ? ' class="num"' : ''}>${esc(c.replace(/^#/, ''))}</th>`).join('')}</tr></thead>
   <tbody>${linhas.length ? linhas.join('') : `<tr><td colspan="${cab.length}" class="dica">${vazio}</td></tr>`}</tbody></table></div>`;
 
-// Contraste (mesma conta do servidor), para a checagem da cor de marca.
-const lum = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0);
-const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
 // ---------------------------------------------------------------- Áreas e pessoas
 async function abaAreas() {
@@ -475,8 +473,8 @@ async function abaConfig() {
           <label class="btn btn-linha btn-pequeno" style="cursor:pointer">Escolher arquivo<input type="file" id="c-logo" hidden accept=".png,.jpg,.jpeg,.svg"></label><button type="button" class="btn-texto btn-pequeno" id="c-logo-tirar">Remover</button></div>
           <span class="ajuda">PNG, JPG ou SVG, até 200 KB.</span></div>
         <div class="campo"><label for="c-cor">Cor de marca (botões principais)</label><div class="linha-botoes"><input type="color" id="c-cor" value="${esc(c.corMarca || '#1B7950')}">
-          <label class="dica"><input type="checkbox" id="c-cor-usar" ${c.corMarca ? 'checked' : ''}> usar a cor de marca</label><span id="c-contraste" class="dica"></span></div>
-          <span class="ajuda">A cor fica atrás de texto claro. O contraste mínimo é 4,5:1.</span></div>
+          <label class="dica"><input type="checkbox" id="c-cor-usar" ${c.corMarca ? 'checked' : ''}> usar a cor de marca</label></div>
+          <span class="ajuda">Usada nos botões (com texto branco por cima) e nos links. Precisa ser escura o bastante para o texto ser lido.</span><div class="aviso-cor" id="c-contraste" aria-live="polite"></div></div>
         <div class="campo"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>`)}
       ${caixa(1, 'Quem pode entrar', multi ? 'Pessoas com email destes domínios entram sozinhas, como membros. Quem tem outro email só entra se for convidado em <a href="#/empresa/usuarios">Usuários</a>.' : 'Só entram pessoas com email destes domínios.', `
         <div class="campo"><label for="c-dom-novo">Domínios de email da empresa</label>
@@ -552,9 +550,7 @@ async function abaConfig() {
   // Empresa (instalação única)
   if (!multi) {
     const mostrarContraste = () => {
-      const r = contraste($('c-cor').value, '#F1F1EE');
-      $('c-contraste').textContent = `Contraste com os fundos claros: ${r.toFixed(2).replace('.', ',')}:1 ${r >= 4.5 ? '(ok)' : '(abaixo do mínimo de 4,5:1)'}`;
-      $('c-contraste').style.color = r >= 4.5 ? 'var(--forest-text)' : 'var(--red-text)';
+      avisoCor($('c-contraste'), $('c-cor').value, sug => { $('c-cor').value = sug; $('c-cor-usar').checked = true; mostrarContraste(); });
     };
     $('c-cor').oninput = mostrarContraste; mostrarContraste();
     $('c-logo').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; logo = await lerDataUrl(f); $('c-logo-prev').innerHTML = `<img src="${esc(logo)}" alt="Logo novo" style="max-height:48px">`; };

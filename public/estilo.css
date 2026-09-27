@@ -515,3 +515,14 @@ select.entrada{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
 .login-centro .campo label{display:block;text-align:center}
 .login-centro .entrada{text-align:center}
 .login-centro .faixa-aviso{text-align:center}
+
+/* Login: foto do escritório ao fundo, com filtro nas cores da plataforma (tinta quente + verde da marca).
+   O verde vem de --forest, então acompanha a cor de marca de cada empresa. */
+.login{position:relative;isolation:isolate;background:#1A1915}
+.login::before,.login::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none}
+.login::before{background:url(/assets/login-fundo.webp) center/cover no-repeat;filter:saturate(.55) contrast(.95) brightness(.9)}
+.login::after{background:
+  linear-gradient(160deg,color-mix(in srgb,#1A1915 58%,transparent) 0%,color-mix(in srgb,#1A1915 72%,transparent) 55%,color-mix(in srgb,#1A1915 84%,transparent) 100%),
+  color-mix(in srgb,var(--forest) 34%,transparent);mix-blend-mode:normal}
+.login .login-cartao{box-shadow:0 24px 60px -20px rgba(10,10,8,.55),0 0 0 1px rgba(255,255,255,.06);border-color:transparent}
+@media (prefers-reduced-transparency:reduce){.login::before{display:none}}

@@ -96,7 +96,9 @@ async function auditar(p, rotulo, w) {
   await p.waitForTimeout(450);
   const m = await p.evaluate(medir);
   telas++;
-  const grave = m.rolagem > 1 || m.fora.length;
+  // No app e no console só a área de conteúdo rola; se o documento inteiro rolar, algo vazou da casca.
+  if (/^(app|console) /.test(rotulo)) m.vazaVertical = await p.evaluate(() => Math.max(0, document.documentElement.scrollHeight - innerHeight));
+  const grave = m.rolagem > 1 || m.fora.length || m.vazaVertical > 1;
   if (grave || (w < 700 && (m.pequenos.length || m.miudos.length))) problemas.push({ tela: rotulo, largura: w, grave, ...m });
   if (PASTA && w === 360) await p.screenshot({ path: join(PASTA, `${rotulo.replace(/[^a-z0-9]+/gi, '-')}-${w}.png`), fullPage: true });
 }
@@ -120,7 +122,7 @@ await navegador.close();
 for (const s of [app.servidor, vendas.servidor, P.servidor]) { s.close(); s.closeAllConnections?.(); }
 console.log(`${telas} telas auditadas em ${LARGURAS.join(', ')} px.`);
 for (const x of problemas) {
-  console.log(`\n${x.grave ? '✗' : '·'} ${x.tela} @ ${x.largura}px${x.rolagem > 1 ? `  rolagem horizontal ${x.rolagem}px` : ''}`);
+  console.log(`\n${x.grave ? '✗' : '·'} ${x.tela} @ ${x.largura}px${x.rolagem > 1 ? `  rolagem horizontal ${x.rolagem}px` : ''}${x.vazaVertical > 1 ? `  página vaza ${x.vazaVertical}px para baixo` : ''}`);
   if (x.fora.length) console.log('   passa da borda:', x.fora.join(', '));
   if (x.pequenos.length) console.log('   toque pequeno:', x.pequenos.join(', '));
   if (x.miudos.length) console.log('   texto < 11,5px:', x.miudos.join(', '));

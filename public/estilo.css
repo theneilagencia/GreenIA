@@ -675,7 +675,8 @@ body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista
 .cfg-avancado summary{cursor:pointer;font:500 13px var(--sans);color:var(--muted);padding:6px 0}
 .cfg-teste{margin-top:12px;align-items:center}
 .chips-opcoes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-.chip-opcao input{position:absolute;opacity:0;pointer-events:none}
+.chip-opcao{position:relative}
+.chip-opcao input{position:absolute;inset:0;opacity:0;pointer-events:none;margin:0}
 .chip-opcao span{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;font:500 13.5px var(--sans);cursor:pointer;background:#fff;transition:all .15s}
 .chip-opcao input:checked+span{background:var(--ink);border-color:var(--ink);color:#fff}
 .chip-opcao input:focus-visible+span{outline:2px solid var(--forest);outline-offset:2px}
@@ -687,6 +688,10 @@ body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista
 .cfg-liga input{margin-top:3px}
 .cfg-valor{display:flex;align-items:center;gap:10px;padding-left:28px}
 .cfg-valor .entrada{max-width:160px}
-.cfg-salvar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--paper) 70%,transparent);z-index:2}
+.cfg-salvar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:flex-end;gap:12px;margin:4px -8px 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line);box-shadow:0 -8px 16px -12px rgba(20,20,19,.18);z-index:2}
 @media (max-width:640px){.cfg-caixa{padding:16px 14px}.opcoes-email{grid-template-columns:1fr}.cfg-salvar .btn{flex:1}}
 @media (pointer:coarse),(max-width:760px){.chip button{width:32px;height:32px}}
+.pagina,.mensagens,.lateral-rolagem{position:relative}   /* elementos absolutos (campos escondidos, textos para leitor de tela) ficam dentro da área que rola */
+/* A barra de salvar fica colada na borda de baixo da área que rola (descontando o espaço interno da página) */
+.cfg-salvar{bottom:-64px;margin-bottom:-64px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+@media (max-width:860px){.cfg-salvar{bottom:-40px;margin-bottom:-40px}}

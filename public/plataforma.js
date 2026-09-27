@@ -109,7 +109,7 @@ async function novaEmpresa() {
     <form id="f-nova" novalidate>
       <div class="campo"><label for="n-nome">Nome da empresa</label><input class="entrada" id="n-nome" required maxlength="80"></div>
       <div class="campo"><label for="n-slug">Identificador (slug)</label><input class="entrada" id="n-slug" required maxlength="40" pattern="[a-z0-9-]+"><span class="ajuda" id="n-url">Usado no endereço do ambiente. Letras minúsculas, números e hífens.</span></div>
-      <div class="campo"><label for="n-plano">Plano</label><select class="entrada" id="n-plano"><option value="">Sem plano por enquanto</option>${planos.map(p => `<option value="${p.id}">${esc(p.name)} · ${num(p.credits)} créditos</option>`).join('')}</select></div>
+      <div class="campo"><label for="n-plano">Plano</label><select class="entrada" id="n-plano"><option value="">Sem plano por enquanto</option>${planos.map(p => `<option value="${p.id}">${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'ilimitado'}</option>`).join('')}</select></div>
       <h3>Primeiro administrador</h3>
       <div class="grade-2"><div class="campo"><label for="n-admin">Email</label><input class="entrada" id="n-admin" type="email"></div>
         <div class="campo"><label for="n-admin-nome">Nome</label><input class="entrada" id="n-admin-nome" maxlength="120"></div></div>
@@ -160,9 +160,9 @@ async function abaResumo(d, id) {
       <a class="btn btn-linha" href="/api/plataforma/empresas/${encodeURIComponent(id)}/exportar" download>Exportar dados</a>
       ${e.status === 'cancelada' ? '<button class="btn btn-texto" id="excluir-empresa" style="color:var(--red-text)">Excluir definitivamente</button>' : ''}</div>
     <div class="secao-titulo"><h3>Plano</h3></div>
-    <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${num(p.credits)} créditos · ${usd(p.price_usd)}</option>`).join('')}</select>
+    <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'créditos ilimitados'} · ${usd(p.price_usd)}</option>`).join('')}</select>
       <button class="btn btn-linha">Alterar plano</button></form>
-    ${u.plano ? `<div class="indicadores"><div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.percentual}% de ${num(u.plano.creditos)}</small></div>
+    ${u.plano ? `<div class="indicadores"><div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${u.plano.percentual}% de ${num(u.plano.creditos)}`}</small></div>
       <div class="indicador"><span>Pacote disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b></div><div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b></div>
       <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} cadastradas</small></div></div>
       <details><summary class="btn-texto" style="padding-left:0">Liberar pacote de créditos</summary>
@@ -301,7 +301,7 @@ async function vistaPlanos() {
   tela('Planos', `<p class="lead">Créditos, limites e recursos de cada plano. Alterar um plano vale na hora para todas as empresas vinculadas.</p>
     ${tabela(['Plano', 'Status', '#Créditos', '#Reserva', '#Preço', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
       <td data-r="Status">${p.status === 'ativo' ? '<span class="selo selo-verde">Ativo</span>' : '<span class="selo selo-cinza">Inativo</span>'}</td>
-      <td class="num" data-r="Créditos">${num(p.credits)}</td><td class="num" data-r="Reserva">${num(p.reserve)}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}`,
+      <td class="num" data-r="Créditos">${p.credits ? num(p.credits) : 'Ilimitado'}</td><td class="num" data-r="Reserva">${num(p.reserve)}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}`,
   '<a class="btn btn-verde btn-pequeno" href="#/planos/novo">Novo plano</a>');
 }
 
@@ -313,7 +313,7 @@ async function vistaPlano(id) {
     <div class="grade-2"><div class="campo"><label for="pl-nome">Nome</label><input class="entrada" id="pl-nome" value="${esc(p.name)}" maxlength="60"></div>
       <div class="campo"><label for="pl-status">Status</label><select class="entrada" id="pl-status"><option value="ativo" ${p.status === 'ativo' ? 'selected' : ''}>Ativo</option><option value="inativo" ${p.status !== 'ativo' ? 'selected' : ''}>Inativo (não aparece para novas empresas)</option></select></div></div>
     <div class="campo"><label for="pl-desc">Descrição</label><input class="entrada" id="pl-desc" value="${esc(p.description)}" maxlength="300"></div>
-    <div class="grade-2"><div class="campo"><label for="pl-cred">Créditos por mês</label><input class="entrada" id="pl-cred" type="number" min="0" value="${p.credits}"></div>
+    <div class="grade-2"><div class="campo"><label for="pl-cred">Créditos por mês</label><input class="entrada" id="pl-cred" type="number" min="0" value="${p.credits}"><span class="ajuda">0 = ilimitado (sem teto de créditos, sem reserva e sem avisos de consumo).</span></div>
       <div class="campo"><label for="pl-res">Reserva de continuidade</label><input class="entrada" id="pl-res" type="number" min="0" value="${p.reserve}"><span class="ajuda">Usada depois dos créditos, só na classe Rápido.</span></div>
       <div class="campo"><label for="pl-preco">Preço mensal (US$)</label><input class="entrada" id="pl-preco" type="number" min="0" step="0.01" value="${p.price_usd ?? ''}"><span class="ajuda">Só o operador vê. A empresa nunca vê valores em dólar.</span></div></div>
     <h3>Limites</h3><div class="grade-2">${Object.entries(C.catalogo.limites).map(([k, n]) => `<div class="campo"><label for="pl-l-${k}">${esc(n)}</label><input class="entrada" id="pl-l-${k}" type="number" min="0" value="${p.limits[k] ?? 0}"></div>`).join('')}</div>

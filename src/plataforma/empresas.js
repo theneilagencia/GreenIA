@@ -11,7 +11,7 @@ import { exec, todos, um, json, transacao } from '../db.js';
 import { lerConfig } from '../config.js';
 import { situacaoPlano, liberarPacote, avisarPacote } from '../plano.js';
 import { auditar } from './auditoria.js';
-import { lerAjuste } from './db.js';
+import { lerAjuste, salvarAjuste } from './db.js';
 import { roleDeSistema, acharRoleDaEmpresa, permissoesDaRole, ehAdminPlataforma } from './rbac.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
@@ -34,16 +34,27 @@ const agoraIso = P => P.agora().toISOString();
 const novoId = prefixo => `${prefixo}_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
 
 // ---------------------------------------------------------------- Planos
+// Plano sem amarras: créditos ilimitados (0), todos os recursos e nenhum limite. Criado também em
+// plataformas que já existiam, uma vez (se foi apagado ou renomeado, não volta).
+const LIBERADO = { name: 'GreenIA Liberado', description: 'Sem limites: créditos ilimitados, todos os recursos e nenhum teto de uso', price_usd: null, credits: 0, reserve: 0,
+  limits: { max_users: 0, messages_per_minute: 0, max_quick_wins: 0, max_concurrent: 0 }, rules: { reserve_fast_only: false, pack_credits: 0, pack_price_usd: 0 } };
+function semearLiberado(P) {
+  if (lerAjuste(P.db, 'plano_liberado_criado', false)) return;
+  salvarPlano(P, { ...LIBERADO, features: Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true])) }, null, {});
+  salvarAjuste(P.db, 'plano_liberado_criado', true);
+}
+
 export function semearPlanos(P) {
-  if (um(P.db, 'select 1 from plans')) return;
+  if (um(P.db, 'select 1 from plans')) return semearLiberado(P);
   const base = { features: Object.fromEntries(Object.keys(RECURSOS).map(k => [k, k !== 'custom_domain'])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 } };
   salvarPlano(P, { name: 'GreenIA Team', description: 'Para começar com uma área ou um time', price_usd: 290, credits: 10000, reserve: 2000, limits: LIMITES_PADRAO, ...base }, null, {});
   salvarPlano(P, { name: 'GreenIA Company', description: 'Para levar a IA a todas as áreas', price_usd: 750, credits: 25000, reserve: 5000, limits: { ...LIMITES_PADRAO, max_concurrent: 20 }, ...base, features: { ...base.features, custom_domain: true } }, null, {});
+  semearLiberado(P);
 }
 
 const dePlano = p => p && ({ ...p, limits: { ...LIMITES_PADRAO, ...json(p.limits, {}) }, features: json(p.features, {}), rules: json(p.rules, {}), settings: json(p.settings, {}) });
 export const lerPlanoPorId = (P, id) => dePlano(um(P.db, 'select * from plans where id = ?', id));
-export const listarPlanos = P => todos(P.db, 'select * from plans order by status, credits').map(dePlano)
+export const listarPlanos = P => todos(P.db, 'select * from plans order by status, credits = 0, credits').map(dePlano)
   .map(p => ({ ...p, empresas: um(P.db, 'select count(*) as n from companies where plan_id = ?', p.id).n }));
 
 export function salvarPlano(P, dados, ator, origem, id = null) {

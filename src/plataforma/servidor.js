@@ -105,8 +105,10 @@ function aplicarAoTenant(P, id) {
   const c = E.lerEmpresa(P, id);
   if (!t || !c) return;
   const plano = E.lerPlanoPorId(P, c.plan_id);
-  t.plano = plano && plano.credits > 0 ? { creditos: plano.credits, reserva: plano.reserve, precoUsd: plano.price_usd } : null;
-  t.rajada = plano?.limits?.messages_per_minute || undefined;
+  // Plano com 0 créditos é ilimitado: não bloqueia nem avisa, mas continua sendo um plano (o cliente vê créditos, nunca dólar).
+  t.plano = !plano ? null : plano.credits > 0 ? { creditos: plano.credits, reserva: plano.reserve, precoUsd: plano.price_usd } : { ilimitado: true, creditos: 0, reserva: 0, precoUsd: plano.price_usd };
+  const mpm = plano?.limits?.messages_per_minute;
+  t.rajada = plano ? (mpm > 0 ? mpm : Infinity) : undefined;
   t.operadores = P.adminsPlataforma();
   const b = E.lerMarca(P, id);
   const parcial = { empresa: b?.display_name || c.name, logo: b?.logo || '', corMarca: b?.primary_color || '' };

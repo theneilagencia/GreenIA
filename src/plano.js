@@ -33,6 +33,10 @@ export function situacaoPlano(app) {
   const p = app.plano;
   if (!p) return null;
   const agora = app.agora(), mesAtual = mesDe(agora), hoje = agora.toISOString().slice(0, 10);
+  if (p.ilimitado) {
+    const usados = creditosDe(um(app.db, "select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?", mesAtual).c);
+    return { ilimitado: true, creditos: null, reserva: 0, usados, pacoteDisponivel: 0, naReserva: 0, fase: 'normal', renova: proximoMes(agora), percentual: 0, percentualReserva: 0 };
+  }
   const usos = new Map(todos(app.db, 'select substr(em, 1, 7) as mes, coalesce(sum(custo), 0) as c from uso group by 1').map(x => [x.mes, creditosDe(x.c)]));
   const lista = todos(app.db, 'select id, substr(em, 1, 7) as mes, creditos, validade from pacotes order by id');
   const meses = [...new Set([...usos.keys(), ...lista.map(x => x.mes), mesAtual])].filter(m => m <= mesAtual).sort();
@@ -149,7 +153,7 @@ async function enviarParaTodos(app, assunto, texto, { soOperador = false } = {})
 
 export async function verificarAvisos(app) {
   const s = situacaoPlano(app);
-  if (!s) return [];
+  if (!s || s.ilimitado) return [];
   const mes = app.agora().toISOString().slice(0, 7);
   const reg = lerConfig(app.db).avisosPlano || {};
   const enviados = reg.mes === mes ? [...(reg.enviados || [])] : [];

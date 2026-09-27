@@ -42,6 +42,8 @@ services:
         sync: false         # smtps://usuario:senha@servidor:465 — envia os códigos do console enquanto o SMTP não é configurado nele
       - key: SMTP_REMETENTE
         sync: false         # ex.: GreenIA <nao-responda@seudominio.com.br>
+      # Em vez de SMTP_URL, pode usar variáveis separadas (a senha entra como está, sem codificar):
+      # SMTP_SERVIDOR (ex.: smtp.kinghost.net), SMTP_PORTA (465), SMTP_USUARIO (email completo), SMTP_SENHA
       # Domínio próprio das empresas cadastrado sozinho no Render (opcional):
       # - key: RENDER_API_KEY      # chave da API do Render (Account Settings > API Keys); nunca no repositório
       #   sync: false

@@ -91,3 +91,16 @@ test('falha no envio do email não gasta o limite de pedidos de código', async 
     assert.equal((await n.post('/api/plataforma/login/codigo', { email: 'ops@theneil.com.br' })).status, 200);
   } finally { await S.fechar(); }
 });
+
+test('endereço SMTP com caracteres especiais na senha, codificados ou não', async () => {
+  const { normalizarSmtpUrl, smtpDeVariaveis } = await import('../src/email.js');
+  const ok = 'smtps://noreply%40empresa.com.br:Sx%409pQ2@smtp.provedor.net:465';
+  assert.equal(normalizarSmtpUrl('smtps://noreply@empresa.com.br:Sx@9pQ2@smtp.provedor.net:465'), ok);
+  assert.equal(normalizarSmtpUrl(ok), ok);
+  assert.equal(normalizarSmtpUrl('  smtps://noreply%40empresa.com.br:Sx@9pQ2@smtp.provedor.net:465 '), ok);
+  assert.equal(normalizarSmtpUrl('smtp://u:p#:/?x@host:587'), 'smtp://u:p%23%3A%2F%3Fx@host:587');
+  assert.equal(new URL(normalizarSmtpUrl('smtps://a@b.com:x@y@z@smtp.x.com:465')).hostname, 'smtp.x.com');
+  assert.equal(smtpDeVariaveis({ SMTP_SERVIDOR: 'smtp.provedor.net', SMTP_USUARIO: 'noreply@empresa.com.br', SMTP_SENHA: 'Sx@9pQ2' }), ok);
+  assert.equal(smtpDeVariaveis({ SMTP_SERVIDOR: 'smtp.x.com', SMTP_PORTA: '587', SMTP_USUARIO: 'u', SMTP_SENHA: 'p' }), 'smtp://u:p@smtp.x.com:587');
+  assert.equal(smtpDeVariaveis({}), '');
+});

@@ -125,7 +125,8 @@ export function criarEmpresa(P, dados, ator, origem) {
     exec(P.db, 'insert into companies (id, name, slug, status, plan_id, banco, legal_name, document, contact_email, notes, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       id, name, slug, dados.status && STATUS_EMPRESA[dados.status] ? dados.status : 'em_implantacao', plano?.id ?? null, banco,
       texto(dados.legal_name, 160, 'legal_name'), texto(dados.document, 40, 'document'), dados.contact_email ? validarEmail(dados.contact_email) : '', texto(dados.notes, 1000, 'notes'), t, t);
-    exec(P.db, 'insert into branding (company_id, display_name, updated_at) values (?, ?, ?)', id, name, t);
+    const textos = marcaPadrao(name);
+    exec(P.db, 'insert into branding (company_id, display_name, login_title, login_text, privacy_note, updated_at) values (?, ?, ?, ?, ?, ?)', id, name, textos.login_title, textos.login_text, textos.privacy_note, t);
     exec(P.db, "insert into landing_pages (company_id, content, seo, status, updated_at) values (?, ?, ?, 'publicada', ?)", id, JSON.stringify(landingPadrao(name)), JSON.stringify(seoPadrao(name)), t);
     exec(P.db, 'insert into company_settings (company_id, settings, grants, updated_at) values (?, ?, ?, ?)', id, '{}', '{}', t);
   });
@@ -218,7 +219,25 @@ export function salvarConcessoes(P, id, { grants, locked }, ator, origem) {
 }
 
 // ---------------------------------------------------------------- Marca
-export const lerMarca = (P, id) => { const b = um(P.db, 'select * from branding where company_id = ?', id); return b && { ...b, locked: json(b.locked, []) }; };
+// Textos da tela de login e aviso de privacidade: toda empresa já nasce com um exemplo pronto,
+// que o cliente pode editar. O modelo também vai para o editor ("Usar o texto de exemplo").
+export const marcaPadrao = nome => ({
+  login_title: 'Entre com o seu email de trabalho',
+  login_text: `Esta é a IA de uso interno de ${nome || 'sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,
+  privacy_note: 'Suas conversas ficam salvas só para você e podem ser apagadas quando quiser. As regras de dados da empresa são conferidas antes de cada envio à IA.',
+});
+export const TEXTOS_MARCA = Object.keys(marcaPadrao(''));
+// Preenche os textos vazios das empresas que já existiam, uma vez só: se depois o cliente apagar
+// um texto de propósito, ele continua vazio.
+export function preencherTextosMarca(P) {
+  if (lerAjuste(P.db, 'marca_textos_preenchidos', false)) return;
+  for (const b of todos(P.db, 'select b.company_id, b.display_name, c.name from branding b join companies c on c.id = b.company_id')) {
+    const m = marcaPadrao(b.display_name || b.name);
+    for (const k of TEXTOS_MARCA) exec(P.db, `update branding set ${k} = ? where company_id = ? and ${k} = ''`, m[k], b.company_id);
+  }
+  salvarAjuste(P.db, 'marca_textos_preenchidos', true);
+}
+export const lerMarca = (P, id) => { const b = um(P.db, 'select b.*, c.name as nome_empresa from branding b join companies c on c.id = b.company_id where b.company_id = ?', id); if (!b) return b; const { nome_empresa, ...r } = b; return { ...r, locked: json(b.locked, []), modelo: marcaPadrao(b.display_name || nome_empresa) }; };
 
 export function salvarMarca(P, id, dados, ator, origem, { escopo = 'plataforma' } = {}) {
   const antes = lerMarca(P, id);

@@ -70,6 +70,7 @@ export function criarPlataforma(op = {}) {
     exec(db, "insert into platform_members (user_id, role) values (?, 'platform_admin') on conflict (user_id) do nothing", u.id);
   }
   if (op.legado) { importarInstalacao(P, op.legado); copiarSmtpLegado(P, op.legado.banco); }
+  E.preencherTextosMarca(P);
   for (const c of todos(db, 'select id from companies')) abrirTenant(P, c.id);
 
   const rPlat = criarRoteador(), rEmp = criarRoteador();
@@ -345,7 +346,7 @@ function importarInstalacao(P, { banco, slug, plano }) {
   if (s.length < 3 || SLUGS_RESERVADOS.has(s)) s = `${s}-ia`.replace(/^-/, '');
   const planoId = plano ? todos(P.db, 'select id, credits from plans').find(p => p.credits === plano.creditos)?.id : null;
   const c = E.criarEmpresa(P, { name: cfg.empresa || 'Empresa principal', slug: s, plan_id: planoId || null, banco, status: 'ativa' }, null, { painel: 'importacao' });
-  exec(P.db, 'update branding set logo = ?, primary_color = ?, privacy_note = ? where company_id = ?', cfg.logo || '', cfg.corMarca ? cfg.corMarca.toUpperCase() : '', cfg.privacyNote || '', c.id);
+  exec(P.db, "update branding set logo = ?, primary_color = ?, privacy_note = coalesce(nullif(?, ''), privacy_note) where company_id = ?", cfg.logo || '', cfg.corMarca ? cfg.corMarca.toUpperCase() : '', cfg.privacyNote || '', c.id);
   const admin = roleDeSistema(P.db, 'company_admin'), membro = roleDeSistema(P.db, 'member');
   const t = P.tenant(c.id);
   for (const p of pessoas) {

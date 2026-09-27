@@ -74,6 +74,11 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
   const img = (k, dica) => campo(k, `<div class="previa-marca" id="mk-${k}-previa">${m[k] ? `<img src="${esc(m[k])}" alt="">` : '<span class="dica">Nenhum arquivo</span>'}</div>
     <div class="linha-botoes"><input type="file" id="mk-${k}" accept="image/png,image/jpeg,image/webp,image/svg+xml${k === 'favicon' ? ',image/x-icon' : ''}" ${desab(k, b, modo, pode)}>
     ${m[k] ? `<button type="button" class="btn-texto" data-remover="${k}" ${desab(k, b, modo, pode)}>Remover</button>` : ''}</div><span class="ajuda">${dica}</span>`);
+  // Textos: já vêm com um exemplo. "Usar o texto de exemplo" devolve o modelo, se a pessoa apagou ou mudou.
+  const texto = (k, dica, max, linhas) => campo(k, `${linhas > 1
+    ? `<textarea class="entrada" id="mk-${k}" rows="${linhas}" maxlength="${max}" placeholder="${esc(m.modelo?.[k] || '')}" ${desab(k, b, modo, pode)}>${esc(m[k])}</textarea>`
+    : `<input class="entrada" id="mk-${k}" value="${esc(m[k])}" maxlength="${max}" placeholder="${esc(m.modelo?.[k] || '')}" ${desab(k, b, modo, pode)}>`}
+    <span class="ajuda">${dica}${m.modelo?.[k] && pode && !desab(k, b, modo, pode) ? ` <button type="button" class="btn-texto btn-pequeno" data-exemplo="${k}" ${m[k] === m.modelo[k] ? 'hidden' : ''}>Usar o texto de exemplo</button>` : ''}</span>`);
   return `<form id="form-marca" novalidate>
     ${!pode ? '<div class="faixa-aviso atencao">A identidade visual desta empresa é gerenciada pelo operador da plataforma. Você pode ver, mas não alterar.</div>' : ''}
     <div class="previa-marca" id="mk-previa" aria-label="Prévia"><img src="${esc(m.logo || '/assets/greenia-marca.svg')}" alt=""><b id="mk-previa-nome">${esc(m.display_name)}</b>
@@ -83,9 +88,9 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
         ${cor('primary_color')}${cor('secondary_color')}</div>
       <div>${img('logo', 'PNG, JPG, WEBP ou SVG, de qualquer tamanho: a imagem é ajustada sozinha. Prefira fundo transparente.')}${img('favicon', 'Ícone da aba do navegador. Qualquer imagem serve: vira um quadrado de 64×64. Sem favicon, usa o logo.')}</div>
     </div>
-    ${campo('login_title', `<input class="entrada" id="mk-login_title" value="${esc(m.login_title)}" maxlength="120" placeholder="Entre com o seu email da empresa" ${desab('login_title', b, modo, pode)}>`)}
-    ${campo('login_text', `<textarea class="entrada" id="mk-login_text" rows="2" maxlength="400" placeholder="Você recebe um código de acesso de 6 dígitos no seu email." ${desab('login_text', b, modo, pode)}>${esc(m.login_text)}</textarea>`)}
-    ${campo('privacy_note', `<textarea class="entrada" id="mk-privacy_note" rows="2" maxlength="400" ${desab('privacy_note', b, modo, pode)}>${esc(m.privacy_note)}</textarea>`)}
+    ${texto('login_title', 'O título grande da tela de entrada.', 120, 1)}
+    ${texto('login_text', 'A frase logo abaixo do título, explicando como entrar.', 400, 2)}
+    ${texto('privacy_note', 'Aparece no login, na página inicial e no chat.', 400, 2)}
     <p class="msg-erro oculto" id="mk-erro" role="alert"></p>
     ${pode ? '<div class="linha-botoes"><button class="btn btn-verde">Salvar identidade visual</button></div>' : ''}
   </form>`;
@@ -108,6 +113,11 @@ export function ligarMarca(m) {
   }
   conferir();
   $('mk-display_name').oninput = e => { $('mk-previa-nome').textContent = e.target.value; };
+  for (const bt of document.querySelectorAll('[data-exemplo]')) {
+    const el = $(`mk-${bt.dataset.exemplo}`), modelo = m.modelo[bt.dataset.exemplo];
+    bt.onclick = () => { el.value = modelo; bt.hidden = true; el.focus(); };
+    el.addEventListener('input', () => { bt.hidden = el.value === modelo; });
+  }
   for (const b of document.querySelectorAll('[data-remover]')) b.onclick = () => { removidos.add(b.dataset.remover); delete prontas[b.dataset.remover]; $(`mk-${b.dataset.remover}-previa`).innerHTML = '<span class="dica">Será removido ao salvar</span>'; };
   // Ao escolher o arquivo: ajusta na hora, mostra a prévia e o tamanho final (ou o motivo de não servir).
   const prontas = {};

@@ -52,3 +52,31 @@ test('marca: favicon em JPG ou WEBP é aceito, e o ícone da aba não fica em ca
   assert.equal(r.headers.get('content-type'), 'image/jpeg');
   assert.equal(r.headers.get('cache-control'), 'no-cache');
 });
+
+test('marca nasce com título e texto do login e aviso de privacidade de exemplo, editáveis', async () => {
+  const { marcaPadrao, preencherTextosMarca } = await import('../src/plataforma/empresas.js');
+  const { exec } = await import('../src/db.js');
+  const { salvarAjuste } = await import('../src/plataforma/db.js');
+  const m = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.marca;
+  const modelo = marcaPadrao('Construtora Horizonte');
+  assert.deepEqual([m.login_title, m.login_text, m.privacy_note], [modelo.login_title, modelo.login_text, modelo.privacy_note]);
+  assert.match(m.login_text, /Construtora Horizonte/);
+  assert.deepEqual(m.modelo, modelo);
+  // A tela de login recebe os textos.
+  const v = S.navegador(); await v.get('/horizonte');
+  const pub = (await v.get('/api/publico')).dados;
+  assert.equal(pub.loginTitulo, modelo.login_title);
+  assert.equal(pub.privacyNote, modelo.privacy_note);
+  // O cliente edita; e pode apagar.
+  assert.equal((await ops.put(`/api/plataforma/empresas/${c.id}/marca`, { login_title: 'Bem-vindo', login_text: '' })).status, 200);
+  const m2 = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.marca;
+  assert.deepEqual([m2.login_title, m2.login_text], ['Bem-vindo', '']);
+  // Empresas antigas com textos vazios recebem o exemplo uma vez; depois, um texto apagado continua apagado.
+  preencherTextosMarca(S.P);
+  assert.equal((await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.marca.login_text, '');
+  salvarAjuste(S.P.db, 'marca_textos_preenchidos', false);
+  exec(S.P.db, "update branding set privacy_note = '' where company_id = ?", c.id);
+  preencherTextosMarca(S.P);
+  const m3 = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.marca;
+  assert.deepEqual([m3.login_title, m3.login_text, m3.privacy_note], ['Bem-vindo', modelo.login_text, modelo.privacy_note]);
+});

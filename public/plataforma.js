@@ -1,6 +1,6 @@
 // Console da plataforma (operador): empresas, usuários, planos, ambientes, uso, auditoria e configurações.
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
-import { carregandoHtml, esc, marcaHtml, ocupado, toast, vazioHtml, ICONE } from '/comum.js';
+import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE } from '/comum.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
@@ -402,6 +402,7 @@ async function vistaConfiguracoes() {
 // ---------------------------------------------------------------- Rotas
 async function rota() {
   const h = location.hash || '#/empresas';
+  const fimTransicao = transicao();
   lateral();
   $('lateral').classList.remove('aberta');
   try {
@@ -416,6 +417,7 @@ async function rota() {
     else if (h.startsWith('#/configuracoes')) await vistaConfiguracoes();
     else await vistaEmpresas();
   } catch (e) { if (e.status !== 401) tela('Algo deu errado', `<div class="faixa-aviso erro">${esc(e.message)}</div>`); }
+  fimTransicao();
 }
 
 function itensPaleta() {

@@ -578,3 +578,47 @@ select.entrada{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
 .selo-escopo{font-size:11.5px}
 .lateral h2{font-size:11.5px}
 @keyframes sobe{from{transform:translateY(100%)}to{transform:none}}
+
+/* ================= Movimento =================
+   Curto e com propósito: a tela nova entra de baixo, em cascata; barras crescem; botões
+   respondem ao toque; nada se move para quem pediu menos movimento (regra global acima). */
+:root{--suave:cubic-bezier(.2,.7,.2,1);--mola:cubic-bezier(.34,1.4,.64,1)}
+@keyframes cresce{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes linha{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes pulso{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--forest) 35%,transparent)}100%{box-shadow:0 0 0 10px transparent}}
+body[data-transicao] .pagina-dentro>*,body[data-transicao] .pagina>*:not(.pagina-dentro){animation:entra .34s var(--suave) both}
+body[data-transicao] .pagina-dentro>:nth-child(2),body[data-transicao] .pagina>:nth-child(2){animation-delay:.04s}
+body[data-transicao] .pagina-dentro>:nth-child(3),body[data-transicao] .pagina>:nth-child(3){animation-delay:.08s}
+body[data-transicao] .pagina-dentro>:nth-child(4),body[data-transicao] .pagina>:nth-child(4){animation-delay:.12s}
+body[data-transicao] .pagina-dentro>:nth-child(5),body[data-transicao] .pagina>:nth-child(5){animation-delay:.16s}
+body[data-transicao] .pagina-dentro>:nth-child(n+6),body[data-transicao] .pagina>:nth-child(n+6){animation-delay:.2s}
+body[data-transicao] .tabela tbody tr,body[data-transicao] .lista-item{animation:linha .3s var(--suave) both}
+body[data-transicao] .tabela tbody tr:nth-child(2),body[data-transicao] .lista-item:nth-child(2){animation-delay:.03s}
+body[data-transicao] .tabela tbody tr:nth-child(3),body[data-transicao] .lista-item:nth-child(3){animation-delay:.06s}
+body[data-transicao] .tabela tbody tr:nth-child(4),body[data-transicao] .lista-item:nth-child(4){animation-delay:.09s}
+body[data-transicao] .tabela tbody tr:nth-child(5),body[data-transicao] .lista-item:nth-child(5){animation-delay:.12s}
+body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista-item:nth-child(n+6){animation-delay:.15s}
+.barra span,.barras .trilho span{transform-origin:left;animation:cresce .8s var(--suave) .15s both}
+.cabeca h1{animation:aparece .25s ease both}
+/* Resposta ao toque e ao cursor */
+.btn{transition:background var(--rapido),border-color var(--rapido),box-shadow var(--rapido),transform .12s var(--suave)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.item-lat{transition:background .15s,color .15s,box-shadow .15s,transform .15s var(--suave)}
+.item-lat:active{transform:scale(.98)}
+.lista-item{transition:background .15s}
+.indicador,.vazio,.faixa-aviso{transition:transform .2s var(--suave),box-shadow .2s}
+.entrada{transition:border-color .15s,box-shadow .2s var(--suave),background .15s}
+.switch::before{transition:transform .22s var(--mola)!important}
+.subnav a{transition:color .15s,border-color .2s var(--suave)}
+.fundo-lateral{animation:aparece .2s ease both}
+.lateral{transition:transform .28s var(--suave),visibility .28s!important}
+.paleta-item{transition:background .1s}
+.toast{animation:toast .32s var(--mola) both}
+@keyframes toast{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+.msg-ok,.faixa-aviso.ok{animation:entra .3s var(--suave) both}
+.bolha-eu,.bolha-ia,.resposta{animation:up .28s var(--suave) both}
+.selo-verde .ponto,.selo[data-vivo]::before{animation:pulso 2s ease-out infinite}
+@media (hover:hover){
+  a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
+  .item-lat:not(.ativo):hover{transform:translateX(2px)}
+}

@@ -83,7 +83,7 @@ export function visaoGeral(app) {
     { id: 'pessoas', nome: 'Pessoas', texto: 'Pessoas cadastradas nas áreas', feito: um(db, 'select count(*) as n from area_pessoas').n > 1, link: '#/pessoas' },
     { id: 'politicas', nome: 'Políticas', texto: 'Regras de dados revisadas e um modelo homologado', feito: um(db, "select count(*) as n from eventos where tipo in ('config.changed', 'policy.updated')").n > 0 && homologados.length > 0, link: '#/politicas' },
     { id: 'conhecimento', nome: 'Conhecimento', texto: 'Primeiros documentos das áreas', feito: um(db, 'select count(*) as n from documentos where quick_win_id is null').n > 0, link: '#/conhecimento' },
-    { id: 'quickwin', nome: 'Primeiro quick win', texto: 'Um uso recorrente configurado', feito: um(db, 'select count(*) as n from quick_wins').n > 0, link: '#/qw/nova' },
+    { id: 'quickwin', nome: 'Quick wins', texto: 'Configure o primeiro uso recorrente da equipe', feito: um(db, 'select count(*) as n from quick_wins').n > 0, link: '#/qw/nova' },
     { id: 'publicar', nome: 'Publicar', texto: 'Quick win disponível para a equipe testar', feito: adocao.quickWinsEmCirculacao > 0, link: '#/quick-wins' },
   ];
 

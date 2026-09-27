@@ -4,7 +4,7 @@
 //   #/quick-wins, #/qw/:id...        quick wins
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
-import { api, aplicarMarca, definirCsrf, definirUnidade, esc, ICONE, logoEmpresa, marcaHtml, toast, vazioHtml } from '/comum.js';
+import { api, aplicarMarca, definirCsrf, definirUnidade, esc, ICONE, logoEmpresa, marcaHtml, toast, transicao, vazioHtml } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 
@@ -164,6 +164,7 @@ const GESTAO = ['uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configur
 
 async function rota() {
   lembreteAoSair();
+  const fimTransicao = transicao();
   $('lateral').classList.remove('aberta');
   const h = location.hash;
   let m;
@@ -181,6 +182,7 @@ async function rota() {
     ligarCabecalho();
   }
   desenharLateral();
+  fimTransicao();
 }
 
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.

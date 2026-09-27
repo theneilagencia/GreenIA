@@ -138,3 +138,14 @@ if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') 
   new MutationObserver(() => { if (!agendado) { agendado = true; requestAnimationFrame(() => { agendado = false; rotularTabelas(); }); } })
     .observe(document.documentElement, { childList: true, subtree: true });
 }
+
+// Transição de tela: durante a troca de rota, o conteúdo novo entra em cascata (ver "Movimento" no CSS).
+// Renderizações depois disso (salvar, atualizar) não animam.
+let tokenTransicao = 0;
+export function transicao() {
+  const t = ++tokenTransicao;
+  const limpar = () => { if (t === tokenTransicao) delete document.body.dataset.transicao; };
+  document.body.dataset.transicao = '';
+  setTimeout(limpar, 2500);
+  return () => setTimeout(limpar, 500);
+}

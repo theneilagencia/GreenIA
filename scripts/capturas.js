@@ -133,6 +133,7 @@ const V = await subirComNavegador({ paginaInicial: 'vendas', adminEmail: 'suport
 for (const [largura, nome] of [[1360, '10-vendas.png'], [360, '10-vendas-360.png']]) {
   const pv = await V.contexto.newPage();
   await pv.setViewportSize({ width: largura, height: 860 });
+  await pv.emulateMedia({ reducedMotion: 'reduce' });   // captura de página inteira: sem esperar os blocos surgirem
   await pv.goto(`${V.base}/`);
   await pv.screenshot({ path: join(PASTA, nome), fullPage: true });
 }

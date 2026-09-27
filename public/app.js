@@ -4,8 +4,9 @@
 //   #/quick-wins, #/qw/:id...        quick wins
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
-import { api, aplicarMarca, definirCsrf, definirUnidade, esc, ICONE, logoEmpresa, marcaHtml, toast } from '/comum.js';
+import { api, aplicarMarca, definirCsrf, definirUnidade, esc, ICONE, logoEmpresa, marcaHtml, toast, vazioHtml } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
+import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
 const $ = id => document.getElementById(id);
@@ -21,12 +22,20 @@ function iniciais(p) {
   return ((n[0]?.[0] || '') + (n[1]?.[0] || '')).toUpperCase();
 }
 
+// Onde estou: grupo da seção atual (Trabalho, Gestão, Empresa) antes do título.
+function grupoAtual() {
+  const h = location.hash || '';
+  for (const g of SECOES()) for (const i of g.itens) if (i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`)) return g.titulo || '';
+  return '';
+}
+
 export function cabecalho(titulo, acoes = '') {
   const p = E.eu;
+  const grupo = grupoAtual();
   return `<header class="cabeca">
     <div class="cabeca-titulo">
       <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}</button>
-      <h1>${esc(titulo)}</h1>${acoes}
+      ${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1>${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
@@ -42,39 +51,40 @@ export function ligarCabecalho() {
 
 // Seções da navegação. Cada pessoa vê só o que pode usar.
 const SECOES = () => [
-  { itens: [{ id: 'visao-geral', nome: 'Visão geral', ver: () => pode('usage.read') }] },
+  { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
   { titulo: 'Trabalho', itens: [
-    { id: 'conversas', nome: 'Conversas', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
-    { id: 'quick-wins', nome: 'Quick wins', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
-    { id: 'conhecimento', nome: 'Conhecimento' },
+    { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
+    { id: 'quick-wins', nome: 'Quick wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
+    { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro' },
   ] },
   { titulo: 'Gestão', itens: [
-    { id: 'uso', nome: 'Uso e créditos', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', ver: () => pode('user.read') },
-    { id: 'modelos', nome: 'Modelos', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', ver: () => pode('policy.manage') },
-    { id: 'atividade', nome: 'Atividade', ver: () => pode('audit.read') },
+    { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: 'pessoas', ver: () => pode('user.read') },
+    { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
+    { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
   ] },
   // Administração da empresa (multiempresa): usuários, roles, marca, landing page, URL e configurações.
   E.plataforma ? { titulo: 'Empresa', itens: [
-    { id: 'empresa/usuarios', nome: 'Usuários', ver: () => pode('user.read') },
-    { id: 'empresa/roles', nome: 'Roles e permissões', ver: () => pode('role.manage') },
-    { id: 'empresa/marca', nome: 'Branding', ver: () => pode('branding.manage') },
-    { id: 'empresa/landing', nome: 'Landing Page', ver: () => pode('landing_page.manage') },
-    { id: 'empresa/url', nome: 'URL e domínio', ver: () => pode('url.manage') },
-    { id: 'configuracoes', nome: 'Configurações', ver: () => pode('settings.manage') },
-  ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', ver: ehAdmin }] },
+    { id: 'empresa/usuarios', nome: 'Usuários', icone: 'pessoas', ver: () => pode('user.read') },
+    { id: 'empresa/roles', nome: 'Roles e permissões', icone: 'chave', ver: () => pode('role.manage') },
+    { id: 'empresa/marca', nome: 'Branding', icone: 'pincel', ver: () => pode('branding.manage') },
+    { id: 'empresa/landing', nome: 'Landing Page', icone: 'pagina', ver: () => pode('landing_page.manage') },
+    { id: 'empresa/url', nome: 'URL e domínio', icone: 'link', ver: () => pode('url.manage') },
+    { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
+  ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];
 
 export function desenharLateral() {
   const h = location.hash || '';
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
-    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}><span class="nome">${i.nome}</span></a>`;
+    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span></a>`;
   };
   const recentes = E.conversas.slice(0, 6).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}"><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: só modelos homologados">Sigilosa</span>' : ''}</a>`).join('');
   $('lateral').innerHTML = `
     <a class="marca" href="#/${pode('usage.read') ? 'visao-geral' : 'nova'}" aria-label="GreenIA, início">${marcaHtml()}</a>${logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
-    <a class="btn btn-verde nova" href="#/nova">${ICONE.mais} Nova conversa</a>
+    <a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)">${ICONE.mais} Nova conversa</a>
+    <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Navegação">
       ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(i => item(i) + (i.id === 'conversas' ? recentes : '')).join('')}`).join('')}
     </nav>
@@ -84,6 +94,7 @@ export function desenharLateral() {
       ${E.plataforma?.adminPlataforma ? '<a class="btn-lat" href="/plataforma">Console da plataforma</a>' : E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
     </div>`;
   $('ver-politica').onclick = abrirPolitica;
+  $('abrir-busca').onclick = () => abrirPaleta();
   $('reportar').onclick = reportarProblema;
 }
 
@@ -103,7 +114,7 @@ async function vistaConversas() {
       <p class="lead">Suas conversas ficam salvas só para você por até ${E.retencaoDias} dias sem uso. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com uso e resultado medidos.</p>
       ${conversas.length ? `<div class="lista">${conversas.map(c => `<a class="lista-item" href="#/c/${c.id}"><span class="principal-texto"><b>${esc(c.titulo)}</b>
         <span>${dataCurta(c.atualizado_em)}${c.quick_win ? ` · ${esc(c.quick_win)}` : ' · conversa livre'}</span></span>${c.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</a>`).join('')}</div>`
-        : `<div class="lista"><div class="lista-item"><span class="dica">Nenhuma conversa ainda. Comece uma nova ou abra um quick win.</span></div></div>`}
+        : vazioHtml({ icone: 'conversa', titulo: 'Nenhuma conversa ainda', texto: 'Comece uma conversa para qualquer tarefa, ou abra um quick win para um trabalho que se repete.', acao: '<a class="btn btn-verde" href="#/nova">Nova conversa</a>' })}
       <div class="linha-botoes" style="margin-top:16px"><a class="btn btn-linha" href="#/quick-wins">Ver quick wins</a></div>
     </div></div>`;
   ligarCabecalho();
@@ -172,6 +183,20 @@ async function rota() {
   desenharLateral();
 }
 
+// Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.
+function itensPaleta() {
+  const telas = SECOES().flatMap(g => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo: 'Ir para', nome: i.nome, dica: g.titulo || '', icone: i.icone, href: `#/${i.id}` })));
+  return [
+    { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
+    ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo quick win', icone: 'raio', href: '#/qw/nova' }] : []),
+    { grupo: 'Ações', nome: 'Política de uso de IA', icone: 'escudo', acao: abrirPolitica },
+    ...telas,
+    ...E.quickWins.map(q => ({ grupo: 'Quick wins', nome: q.nome, icone: 'raio', href: `#/qw/${q.id}`, soNaBusca: E.quickWins.length > 5 })),
+    ...E.conversas.slice(0, 40).map((c, i) => ({ grupo: 'Conversas', nome: c.titulo, dica: c.quick_win || '', icone: 'conversa', href: `#/c/${c.id}`, soNaBusca: i >= 5 })),
+    ...(E.plataforma?.adminPlataforma ? [{ grupo: 'Plataforma', nome: 'Console da plataforma', icone: 'predio', href: '/plataforma' }] : []),
+  ];
+}
+
 async function iniciar() {
   const [eu, publico] = await Promise.all([api('/api/eu'), api('/api/publico')]);
   definirCsrf(eu.csrf);
@@ -185,6 +210,7 @@ async function iniciar() {
   document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   await recarregarLateral();
   window.addEventListener('hashchange', rota);
+  iniciarPaleta(itensPaleta, { atalhos: { c: () => irPara('#/nova') } });
   await rota();
   await pedirCiencia();
 }

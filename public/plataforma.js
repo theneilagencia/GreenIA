@@ -1,6 +1,7 @@
 // Console da plataforma (operador): empresas, usuários, planos, ambientes, uso, auditoria e configurações.
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
-import { esc, marcaHtml, toast, ICONE } from '/comum.js';
+import { carregandoHtml, esc, marcaHtml, ocupado, toast, vazioHtml, ICONE } from '/comum.js';
+import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
 const $ = id => document.getElementById(id);
@@ -47,28 +48,30 @@ function telaLogin() {
 }
 
 // ---------------------------------------------------------------- Casca
-const SECOES = [['empresas', 'Empresas'], ['usuarios', 'Usuários'], ['planos', 'Planos'], ['ambientes', 'Ambientes'], ['uso', 'Uso'], ['auditoria', 'Auditoria'], ['configuracoes', 'Configurações']];
+const SECOES = [['empresas', 'Empresas', 'predio'], ['usuarios', 'Usuários', 'pessoas'], ['planos', 'Planos', 'pacote'], ['ambientes', 'Ambientes', 'servidor'], ['uso', 'Uso', 'grafico'], ['auditoria', 'Auditoria', 'atividade'], ['configuracoes', 'Configurações', 'engrenagem']];
 function lateral() {
   const h = location.hash || '#/empresas';
   $('lateral').innerHTML = `<a class="marca" href="#/empresas">${marcaHtml()}</a><span class="selo-escopo">Plataforma</span>
+    <button type="button" class="busca-lat" id="abrir-busca" style="margin-top:12px">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Console">
-      ${SECOES.map(([id, nome]) => `<a class="item-lat${h.startsWith(`#/${id}`) ? ' ativo' : ''}" href="#/${id}" ${h.startsWith(`#/${id}`) ? 'aria-current="page"' : ''}><span class="nome">${nome}</span></a>`).join('')}
+      ${SECOES.map(([id, nome, ic]) => `<a class="item-lat${h.startsWith(`#/${id}`) ? ' ativo' : ''}" href="#/${id}" ${h.startsWith(`#/${id}`) ? 'aria-current="page"' : ''}>${ICONE[ic]}<span class="nome">${nome}</span></a>`).join('')}
     </nav>
     <div class="lateral-pe"><span class="btn-lat" style="cursor:default">${esc(C.eu.usuario.email)}</span><button class="btn-lat" id="sair">Sair do console</button></div>`;
+  $('abrir-busca').onclick = () => abrirPaleta();
   $('sair').onclick = async () => { await api('/api/plataforma/sair', { metodo: 'POST' }).catch(() => {}); location.reload(); };
 }
 function cab(titulo, acoes = '', voltar = '') {
   return `<header class="cabeca"><div class="cabeca-titulo">
     <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação">${ICONE.menu}</button>
-    ${voltar ? `<a class="btn-texto btn-pequeno" href="${voltar}" style="padding-left:0">← Voltar</a>` : ''}<h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
+    <span class="migalha"><span>Plataforma</span><span class="sep">/</span>${voltar ? `<a href="${voltar}">${esc(SECOES.find(x => voltar.startsWith(`#/${x[0]}`))?.[1] || 'Voltar')}</a><span class="sep">/</span>` : ''}</span><h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
 }
 function tela(titulo, corpo, acoes = '', voltar = '') {
   $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${corpo}</div></div>`;
   $('menu').onclick = () => $('lateral').classList.toggle('aberta');
 }
-const carregando = titulo => tela(titulo, '<p class="dica">Carregando…</p>');
+const carregando = titulo => tela(titulo, carregandoHtml());
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => `<th${c.startsWith('#') ? ' class="num"' : ''}>${esc(c.replace(/^#/, ''))}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
-  : `<div class="lista"><div class="lista-item"><span class="dica">${vazio}</span></div></div>`);
+  : vazio ? vazioHtml({ titulo: vazio }) : '');
 
 function modal(html, aoAbrir) {
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" tabindex="-1">${html}</div></div>`;
@@ -82,13 +85,16 @@ function modal(html, aoAbrir) {
 async function vistaEmpresas() {
   carregando('Empresas');
   const { empresas } = await api('/api/plataforma/empresas');
+  C.empresas = empresas;
   tela('Empresas', `<p class="lead">Cada empresa é um ambiente independente: dados, usuários, marca e landing page próprios.</p>
     ${tabela(['Empresa', 'Status', 'Plano', 'URL', '#Usuários', '#Créditos no mês'], empresas.map(e => `<tr>
       <td data-r="Empresa"><a href="#/empresas/${e.id}"><b>${esc(e.name)}</b></a><br><span class="dica">${esc(e.admins.join(', ') || 'sem administrador')}</span></td>
       <td data-r="Status">${selo(e.status, e.statusNome)}</td><td data-r="Plano">${esc(e.plano?.name || 'sem plano')}</td>
       <td data-r="URL"><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url.replace(/^https?:\/\//, ''))}</a></td>
       <td class="num" data-r="Usuários">${num(e.usuarios)}</td><td class="num" data-r="Créditos">${e.creditosUsados === null ? '–' : `${num(Math.round(e.creditosUsados))} <span class="dica">${e.percentual}%</span>`}</td></tr>`),
-    'Nenhuma empresa ainda. Crie a primeira.')}`, '<button class="btn btn-verde btn-pequeno" id="nova-empresa">Nova empresa</button>');
+    '')}${empresas.length ? '' : vazioHtml({ icone: 'predio', titulo: 'Nenhuma empresa ainda', texto: 'Crie a primeira empresa: nome, identificador, plano e administrador. Ela nasce em implantação, e você publica quando estiver pronta.', acao: '<button class="btn btn-verde" id="nova-empresa-vazio">Criar empresa</button>' })}`,
+  '<button class="btn btn-verde btn-pequeno" id="nova-empresa" title="Nova empresa (N)">Nova empresa</button>');
+  $('nova-empresa-vazio')?.addEventListener('click', novaEmpresa);
   $('nova-empresa').onclick = novaEmpresa;
 }
 
@@ -412,6 +418,16 @@ async function rota() {
   } catch (e) { if (e.status !== 401) tela('Algo deu errado', `<div class="faixa-aviso erro">${esc(e.message)}</div>`); }
 }
 
+function itensPaleta() {
+  return [
+    { grupo: 'Ações', nome: 'Nova empresa', dica: 'N', icone: 'mais', acao: novaEmpresa },
+    { grupo: 'Ações', nome: 'Novo plano', icone: 'pacote', href: '#/planos/novo' },
+    ...SECOES.map(([id, nome, ic]) => ({ grupo: 'Ir para', nome, icone: ic, href: `#/${id}` })),
+    ...(C.empresas || []).map((e, i) => ({ grupo: 'Empresas', nome: e.name, dica: e.statusNome, icone: 'predio', href: `#/empresas/${e.id}`, chaves: e.slug, soNaBusca: i >= 6 })),
+    ...C.planos.map(p => ({ grupo: 'Planos', nome: p.name, icone: 'pacote', href: `#/planos/${p.id}`, soNaBusca: true })),
+  ];
+}
+
 async function iniciar() {
   const r = await fetch('/api/plataforma/eu', { credentials: 'same-origin' });
   if (r.status !== 200) return telaLogin();
@@ -420,6 +436,8 @@ async function iniciar() {
   C.planos = (await api('/api/plataforma/planos')).planos;
   $('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   addEventListener('hashchange', rota);
+  api('/api/plataforma/empresas').then(d => { C.empresas = d.empresas; }).catch(() => {});
+  iniciarPaleta(itensPaleta, { atalhos: { n: novaEmpresa } });
   rota();
 }
 iniciar();

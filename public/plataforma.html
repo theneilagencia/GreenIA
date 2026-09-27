@@ -8,14 +8,14 @@
 <link rel="icon" href="/assets/greenia-marca.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
 <link rel="stylesheet" href="/estilo.css">
 </head>
 <body class="plataforma">
 <div class="app" id="app">
   <aside class="lateral lateral-plataforma" id="lateral" aria-label="Console da plataforma"></aside>
   <div class="fundo-lateral" id="fundo-lateral"></div>
-  <main class="principal" id="principal"><div class="pagina"><p class="dica">Carregando…</p></div></main>
+  <main class="principal" id="principal"><div class="pagina"><div class="esqueleto" aria-busy="true" aria-label="Carregando"><i></i><i></i><i></i><i></i><i></i></div></div></main>
 </div>
 <div id="modal"></div>
 <script type="module" src="/plataforma.js"></script>

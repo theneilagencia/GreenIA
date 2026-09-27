@@ -48,6 +48,24 @@ export const ICONE = {
   lapis: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>', 1.6),
   lixo: svg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>', 1.6),
   engrenagem: svg('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>', 1.6),
+  busca: svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', 1.7),
+  // Navegação: um ícone por seção, para varrer a lateral sem ler.
+  visao: svg('<path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/>', 1.5),
+  conversa: svg('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/>', 1.5),
+  raio: svg('<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>', 1.5),
+  livro: svg('<path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h13"/>', 1.5),
+  grafico: svg('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', 1.5),
+  pessoas: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>', 1.5),
+  cubo: svg('<path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/>', 1.5),
+  atividade: svg('<path d="M22 12h-4l-3 8-6-16-3 8H2"/>', 1.5),
+  chave: svg('<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L21 2M17 6l3 3M14 9l2 2"/>', 1.5),
+  pincel: svg('<path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L11 15.8 8.2 13z"/><path d="M8 14c-2.5 0-4 1.8-4 4 0 1.5-1 2.5-2 3 3 .5 7-.5 7-4"/>', 1.5),
+  pagina: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M8 13h8M8 17h5"/>', 1.5),
+  link: svg('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>', 1.5),
+  predio: svg('<path d="M4 21V5l8-3v19M12 8l8 3v10M8 9v.01M8 13v.01M8 17v.01M16 14v.01M16 18v.01M2 21h20"/>', 1.5),
+  pacote: svg('<path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>', 1.5),
+  servidor: svg('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/>', 1.5),
+  lista: svg('<path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>', 1.7),
 };
 
 export async function preencherMarca() {
@@ -80,10 +98,26 @@ export const logoEmpresa = p => (p.logo ? `<img class="logo-empresa" src="${esc(
 
 export const marcaHtml = () => '<img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>';
 
-export function toast(texto, ms = 4000) {
+// Aviso discreto no canto. Tipo: 'ok' (padrão), 'erro' ou 'info'. Erros ficam mais tempo na tela.
+export function toast(texto, ms, tipo) {
+  if (typeof ms === 'string') { tipo = ms; ms = undefined; }
+  tipo = tipo || (ms >= 6000 ? 'erro' : 'ok');
   for (const antigo of document.querySelectorAll('.toast')) antigo.remove();   // um aviso por vez, sem sobrepor
   const t = document.createElement('div');
-  t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = texto;
+  t.className = `toast ${tipo}`; t.setAttribute('role', tipo === 'erro' ? 'alert' : 'status'); t.textContent = texto;
   document.body.append(t);
-  setTimeout(() => t.remove(), ms);
+  setTimeout(() => t.remove(), ms || (tipo === 'erro' ? 6500 : 3600));
+}
+
+// Carregando: esqueleto no lugar do conteúdo.
+export const carregandoHtml = () => '<div class="esqueleto" aria-busy="true" aria-label="Carregando"><i></i><i></i><i></i><i></i><i></i></div>';
+
+// Estado vazio: o que é, por que está vazio e qual o próximo passo.
+export const vazioHtml = ({ icone = 'lista', titulo, texto = '', acao = '' }) => `<div class="vazio">${ICONE[icone] || ''}<b>${esc(titulo)}</b>${texto ? `<p>${esc(texto)}</p>` : ''}${acao}</div>`;
+
+// Botão ocupado enquanto a ação roda: impede clique duplo e mostra que algo está acontecendo.
+export async function ocupado(botao, fn) {
+  if (!botao) return fn();
+  botao.setAttribute('aria-busy', 'true'); botao.disabled = true;
+  try { return await fn(); } finally { botao.removeAttribute('aria-busy'); botao.disabled = false; }
 }

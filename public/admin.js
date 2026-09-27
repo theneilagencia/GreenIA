@@ -1,7 +1,7 @@
 // Gestão da GreenIA: telas de uso, pessoas, modelos, políticas, atividade,
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
-import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
+import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, toast, vazioHtml } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
 import { renderizar } from '/md.js';
 
@@ -589,7 +589,7 @@ export async function rotaGestao(id, sub = '') {
   const atual = t.sub ? (t.sub.find(x => x[0] === (sub || '')) || t.sub[0]) : null;
   document.getElementById('principal').innerHTML = `${cabecalho(t.titulo)}<div class="pagina"><div class="pagina-dentro">
     ${t.sub ? `<nav class="subnav" aria-label="${esc(t.titulo)}">${t.sub.map(x => `<a href="#/${id}${x[0] ? `/${x[0]}` : ''}" ${x === atual ? 'aria-current="page"' : ''}>${x[1]}</a>`).join('')}</nav>` : ''}
-    <div id="conteudo"><p class="dica">Carregando…</p></div></div></div>`;
+    <div id="conteudo">${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
   $('conteudo').onclick = null; $('conteudo').onchange = null;
   try { await (atual ? atual[2] : t.fn)(); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }

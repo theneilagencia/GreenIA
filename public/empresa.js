@@ -1,6 +1,6 @@
 // Administração da empresa (multiempresa): usuários e convites, roles e permissões, branding,
 // landing page e URL. Tudo dentro do próprio ambiente e do que o operador da plataforma liberou.
-import { api, esc, toast } from '/comum.js';
+import { api, carregandoHtml, esc, ocupado, toast, vazioHtml } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, mostrarErro } from '/editores.js';
 
@@ -8,7 +8,7 @@ const $ = id => document.getElementById(id);
 const falhar = e => toast(e.message, 6000);
 const STATUS = { convidado: ['Convidado', 'selo-ambar'], ativo: ['Ativo', 'selo-verde'], inativo: ['Inativo', 'selo-cinza'] };
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
-  : `<div class="lista"><div class="lista-item"><span class="dica">${vazio}</span></div></div>`);
+  : vazioHtml({ icone: 'pessoas', titulo: vazio }));
 
 const TELAS = {
   usuarios: ['Usuários', 'user.read', telaUsuarios],
@@ -21,7 +21,7 @@ const TELAS = {
 export async function rotaEmpresa(aba) {
   const t = TELAS[aba];
   if (!t || !pode(t[1])) { location.hash = '#/nova'; return; }
-  $('principal').innerHTML = `${cabecalho(t[0])}<div class="pagina"><div class="pagina-dentro"><div id="conteudo"><p class="dica">Carregando…</p></div></div></div>`;
+  $('principal').innerHTML = `${cabecalho(t[0])}<div class="pagina"><div class="pagina-dentro"><div id="conteudo">${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
   try { await t[2](); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
 }

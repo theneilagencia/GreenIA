@@ -25,7 +25,12 @@ export async function enviarCodigo(P, email, escopo, remetente, assunto) {
   exec(P.db, `insert into login_codes (email, scope, hash, expira, tentativas, enviados) values (?, ?, ?, ?, 0, ?)
     on conflict (email, scope) do update set hash = excluded.hash, expira = excluded.expira, tentativas = 0, enviados = excluded.enviados`,
   email, escopo, `${sal}$${sha(sal + codigo)}`, agora + VALIDADE_CODIGO_MS, JSON.stringify([...enviados, agora]));
-  await remetente.enviar(email, `${assunto}: ${codigo}`, `Seu código de acesso é ${codigo}.\n\nEle vale por 10 minutos. Se você não pediu, ignore este email.`);
+  try { await remetente.enviar(email, `${assunto}: ${codigo}`, `Seu código de acesso é ${codigo}.\n\nEle vale por 10 minutos. Se você não pediu, ignore este email.`); }
+  catch (e) {
+    // Falha no envio não conta no limite de pedidos: quem está configurando o email pode tentar de novo.
+    exec(P.db, 'update login_codes set enviados = ? where email = ? and scope = ?', JSON.stringify(enviados), email, escopo);
+    throw e;
+  }
 }
 
 export function conferirCodigo(P, email, escopo, codigo) {

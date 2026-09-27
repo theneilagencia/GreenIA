@@ -78,3 +78,16 @@ test('SMTP recusa o envio: o console mostra o motivo, sem o endereço com a senh
     assert.doesNotMatch(r.dados.mensagem, /segredo/);
   } finally { await S.fechar(); }
 });
+
+test('falha no envio do email não gasta o limite de pedidos de código', async () => {
+  const { subirPlataforma } = await import('./ajuda-plataforma.js');
+  let falhar = true;
+  const email = { enviados: [], enviar: async (para, assunto) => { if (falhar) throw new Error('ENOTFOUND'); email.enviados.push({ para, assunto }); } };
+  const S = await subirPlataforma({ email });
+  try {
+    const n = S.navegador();
+    for (let i = 0; i < 5; i++) assert.equal((await n.post('/api/plataforma/login/codigo', { email: 'ops@theneil.com.br' })).status, 502);
+    falhar = false;
+    assert.equal((await n.post('/api/plataforma/login/codigo', { email: 'ops@theneil.com.br' })).status, 200);
+  } finally { await S.fechar(); }
+});

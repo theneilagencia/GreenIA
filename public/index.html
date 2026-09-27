@@ -6,7 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GreenIA</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="/assets/greenia-marca.svg">
+<link rel="icon" href="/assets/greenia-marca.svg" id="favicon">
+<meta name="description" content="" id="meta-desc">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -38,20 +39,22 @@
   <section class="l-hero">
     <div class="l-dentro p-heroi">
       <div class="l-hero-texto">
-        <span class="l-pill"><span>A IA da <span data-empresa>empresa</span></span><span class="seta">com GreenIA</span></span>
-        <h1>IA para o trabalho, com as regras da casa</h1>
-        <p class="l-lead">Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da <span data-empresa>empresa</span> são aplicadas antes de cada envio.</p>
-        <div class="l-acoes">
+        <div class="faixa-aviso atencao oculto" id="ld-aviso" role="status"></div>
+        <span class="l-pill"><span id="ld-rotulo">A IA da <span data-empresa>empresa</span></span><span class="seta">com GreenIA</span></span>
+        <h1 id="ld-titulo">IA para o trabalho, com as regras da casa</h1>
+        <p class="l-lead" id="ld-sub">Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da <span data-empresa>empresa</span> são aplicadas antes de cada envio.</p>
+        <p class="l-sub oculto" id="ld-desc"></p>
+        <div class="l-acoes" id="ld-botoes">
           <a class="btn btn-verde btn-grande" href="/entrar">Entrar com o email da empresa</a>
           <a class="btn btn-linha btn-grande" href="#como-usar">Como usar</a>
         </div>
-        <ul class="l-fatos">
+        <ul class="l-fatos" id="ld-destaques">
           <li><svg width="16" height="16"><use href="#ok"/></svg>Código de acesso no email</li>
           <li><svg width="16" height="16"><use href="#ok"/></svg>Sem senha para decorar</li>
           <li><svg width="16" height="16"><use href="#ok"/></svg>Conversas salvas só para você</li>
         </ul>
       </div>
-      <figure class="l-palco">
+      <figure class="l-palco" id="ld-figura">
         <div class="l-janela" role="img" aria-label="Conversa num quick win: um pedido com anexo e a resposta com a fonte citada">
           <div class="l-janela-barra"><i></i><i></i><i></i><span>Conferência de pedido e nota</span></div>
           <div class="p-chat" aria-hidden="true">
@@ -89,13 +92,13 @@
   </section>
 
   <!-- O que tem -->
-  <section class="l-secao" style="padding-top:88px">
+  <section class="l-secao" style="padding-top:88px" id="sec-chamadas">
     <div class="l-dentro">
       <div class="l-cab">
         <p class="l-rotulo">Ao entrar</p>
         <h2 class="l-h2">O que você encontra</h2>
       </div>
-      <div class="p-recursos l-surge">
+      <div class="p-recursos l-surge" id="ld-chamadas">
         <div><b>Conversas</b><p>Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois.</p></div>
         <div><b>Quick wins</b><p>Usos prontos para tarefas que se repetem na sua área, com instruções e arquivos já definidos. Você traz só o caso do dia.</p></div>
         <div><b>Conhecimento</b><p>Procedimentos e documentos das áreas. A resposta mostra de qual documento veio a informação.</p></div>
@@ -106,7 +109,7 @@
   </section>
 
   <!-- Regras -->
-  <section class="l-secao" style="padding-top:88px">
+  <section class="l-secao" style="padding-top:88px" id="sec-regras">
     <div class="l-dentro">
       <div class="l-cab">
         <p class="l-rotulo">Antes de enviar</p>
@@ -135,7 +138,7 @@
   </section>
 
   <!-- Boas tarefas -->
-  <section class="l-secao" style="padding-top:88px">
+  <section class="l-secao" style="padding-top:88px" id="sec-tarefas">
     <div class="l-dentro">
       <div class="l-cab">
         <p class="l-rotulo">Boas tarefas</p>
@@ -153,8 +156,16 @@
     </div>
   </section>
 
+  <!-- Institucional (conteúdo da empresa) -->
+  <section class="l-secao oculto" style="padding-top:88px" id="sec-inst">
+    <div class="l-dentro">
+      <div class="l-cab"><p class="l-rotulo">Institucional</p><h2 class="l-h2" id="inst-titulo"></h2><p class="l-sub" id="inst-texto" style="white-space:pre-line"></p></div>
+      <div class="linha-botoes" id="inst-links"></div>
+    </div>
+  </section>
+
   <!-- Fim -->
-  <section class="p-fim">
+  <section class="p-fim" id="sec-fim">
     <div class="l-dentro">
       <div>
         <h2>Pronto para começar</h2>

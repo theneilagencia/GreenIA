@@ -37,7 +37,7 @@ export function criarLimites(app) {
 
 const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
 
-function validarConfig(c) {
+function validarConfig(c, { multi = false } = {}) {
   const v = {};
   if (c.empresa !== undefined) { v.empresa = String(c.empresa).trim().slice(0, 80); if (!v.empresa) throw erro(400, 'empresa', 'Informe o nome da empresa.'); }
   if (c.logo !== undefined) {
@@ -55,7 +55,7 @@ function validarConfig(c) {
   if (c.dominios !== undefined) {
     v.dominios = [...new Set((Array.isArray(c.dominios) ? c.dominios : String(c.dominios).split(/[\s,;]+/)).map(d => String(d).trim().toLowerCase().replace(/^@/, '')).filter(Boolean))];
     if (v.dominios.some(d => !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(d))) throw erro(400, 'dominios', 'Domínio inválido.');
-    if (!v.dominios.length) throw erro(400, 'dominios', 'Informe pelo menos um domínio permitido.');
+    if (!v.dominios.length && !multi) throw erro(400, 'dominios', 'Informe pelo menos um domínio permitido.');
   }
   if (c.smtp !== undefined) v.smtp = { url: String(c.smtp.url || '').trim(), remetente: String(c.smtp.remetente || '').trim() };
   if (c.privacyNote !== undefined) v.privacyNote = String(c.privacyNote).trim().slice(0, 400);
@@ -108,7 +108,9 @@ export function rotasAdmin(app, r) {
 
   r.put('/api/admin/config', ({ pessoa, corpo, creditos }) => {
     if (creditos) for (const k of TETOS) if (corpo[k] !== undefined) corpo[k] = (Number(corpo[k]) || 0) * CREDITO_USD;
-    const v = validarConfig(corpo);
+    // Multiempresa: nome, logo, cor e aviso de privacidade são da marca (plataforma), com as permissões e bloqueios de lá.
+    if (app.tenant) for (const k of ['empresa', 'logo', 'corMarca', 'privacyNote']) delete corpo[k];
+    const v = validarConfig(corpo, { multi: !!app.tenant });
     salvarConfig(app.db, v);
     registrar(app, 'config.changed', pessoa.id, { campos: Object.keys(v) });
     if ('retencaoDias' in v) app.aoMudarModelos?.();

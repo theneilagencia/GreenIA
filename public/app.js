@@ -12,6 +12,8 @@ const $ = id => document.getElementById(id);
 
 export const irPara = hash => { if (location.hash === hash) rota(); else location.hash = hash; };
 export const ehAdmin = () => !!E.eu?.admin;
+// Permissão granular (multiempresa); na instalação única, as telas de gestão são do admin.
+export const pode = perm => (E.permissoes ? E.permissoes.includes(perm) : ehAdmin());
 export const ehGestor = () => ehAdmin() || E.eu?.areas.some(a => a.responsavel) || !!E.podeCriarQw;
 
 function iniciais(p) {
@@ -40,17 +42,26 @@ export function ligarCabecalho() {
 
 // Seções da navegação. Cada pessoa vê só o que pode usar.
 const SECOES = () => [
-  { itens: [{ id: 'visao-geral', nome: 'Visão geral', ver: ehAdmin }] },
+  { itens: [{ id: 'visao-geral', nome: 'Visão geral', ver: () => pode('usage.read') }] },
   { titulo: 'Trabalho', itens: [
     { id: 'conversas', nome: 'Conversas', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
     { id: 'quick-wins', nome: 'Quick wins', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
     { id: 'conhecimento', nome: 'Conhecimento' },
   ] },
-  { titulo: 'Gestão', ver: ehAdmin, itens: [
-    { id: 'uso', nome: 'Uso e créditos' }, { id: 'pessoas', nome: 'Pessoas e áreas' }, { id: 'modelos', nome: 'Modelos' },
-    { id: 'politicas', nome: 'Políticas de IA' }, { id: 'atividade', nome: 'Atividade' },
+  { titulo: 'Gestão', itens: [
+    { id: 'uso', nome: 'Uso e créditos', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', ver: () => pode('user.read') },
+    { id: 'modelos', nome: 'Modelos', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', ver: () => pode('policy.manage') },
+    { id: 'atividade', nome: 'Atividade', ver: () => pode('audit.read') },
   ] },
-  { titulo: 'Organização', ver: ehAdmin, itens: [{ id: 'configuracoes', nome: 'Configurações' }] },
+  // Administração da empresa (multiempresa): usuários, roles, marca, landing page, URL e configurações.
+  E.plataforma ? { titulo: 'Empresa', itens: [
+    { id: 'empresa/usuarios', nome: 'Usuários', ver: () => pode('user.read') },
+    { id: 'empresa/roles', nome: 'Roles e permissões', ver: () => pode('role.manage') },
+    { id: 'empresa/marca', nome: 'Branding', ver: () => pode('branding.manage') },
+    { id: 'empresa/landing', nome: 'Landing Page', ver: () => pode('landing_page.manage') },
+    { id: 'empresa/url', nome: 'URL e domínio', ver: () => pode('url.manage') },
+    { id: 'configuracoes', nome: 'Configurações', ver: () => pode('settings.manage') },
+  ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', ver: ehAdmin }] },
 ];
 
 export function desenharLateral() {
@@ -61,15 +72,16 @@ export function desenharLateral() {
   };
   const recentes = E.conversas.slice(0, 6).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}"><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: só modelos homologados">Sigilosa</span>' : ''}</a>`).join('');
   $('lateral').innerHTML = `
-    <a class="marca" href="#/${ehAdmin() ? 'visao-geral' : 'nova'}" aria-label="GreenIA, início">${marcaHtml()}</a>${logoEmpresa(E.publico)}
+    <a class="marca" href="#/${pode('usage.read') ? 'visao-geral' : 'nova'}" aria-label="GreenIA, início">${marcaHtml()}</a>${logoEmpresa(E.publico)}
+    ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
     <a class="btn btn-verde nova" href="#/nova">${ICONE.mais} Nova conversa</a>
     <nav class="lateral-rolagem" aria-label="Navegação">
-      ${SECOES().filter(s => !s.ver || s.ver()).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.filter(i => !i.ver || i.ver()).map(i => item(i) + (i.id === 'conversas' ? recentes : '')).join('')}`).join('')}
+      ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(i => item(i) + (i.id === 'conversas' ? recentes : '')).join('')}`).join('')}
     </nav>
     <div class="lateral-pe">
       <button class="btn-lat" id="ver-politica">Política de uso de IA</button>
       <button class="btn-lat" id="reportar">Reportar problema</button>
-      ${E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
+      ${E.plataforma?.adminPlataforma ? '<a class="btn-lat" href="/plataforma">Console da plataforma</a>' : E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
     </div>`;
   $('ver-politica').onclick = abrirPolitica;
   $('reportar').onclick = reportarProblema;
@@ -149,9 +161,10 @@ async function rota() {
     else if (h === '#/nova') await vistaConversa({});
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);
-    else if (h === '#/visao-geral' && ehAdmin()) await (await import('/visao.js')).vistaGeral();
+    else if (h === '#/visao-geral' && pode('usage.read')) await (await import('/visao.js')).vistaGeral();
+    else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await import('/empresa.js')).rotaEmpresa(m[1]);
     else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await import('/admin.js')).rotaGestao(m[1], m[2]);
-    else return irPara(ehAdmin() ? '#/visao-geral' : '#/nova');
+    else return irPara(pode('usage.read') ? '#/visao-geral' : '#/nova');
   } catch (e) {
     $('principal').innerHTML = `${cabecalho('GreenIA')}<div class="pagina"><div class="pagina-dentro"><p class="lead">${esc(e.message)}</p><a class="btn btn-verde" href="#/nova">Nova conversa</a></div></div>`;
     ligarCabecalho();
@@ -163,9 +176,12 @@ async function iniciar() {
   const [eu, publico] = await Promise.all([api('/api/eu'), api('/api/publico')]);
   definirCsrf(eu.csrf);
   Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar,
-    plano: eu.plano, operador: eu.operador, unidade: eu.unidade, iaConfigurada: eu.iaConfigurada });
+    plano: eu.plano, operador: eu.operador, unidade: eu.unidade, iaConfigurada: eu.iaConfigurada,
+    permissoes: eu.permissoes || null, plataforma: eu.plataforma || null });
   definirUnidade(eu.unidade);
   aplicarMarca(publico);
+  if (publico.favicon) document.querySelector('link[rel="icon"]').href = publico.favicon;
+  if (publico.empresa) document.title = `GreenIA · ${publico.empresa}`;
   document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   await recarregarLateral();
   window.addEventListener('hashchange', rota);

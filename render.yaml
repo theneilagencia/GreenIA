@@ -30,6 +30,16 @@ services:
         value: "750"
       - key: OPERADOR_EMAIL
         sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
+      # Multiempresa: uma instalação para todas as empresas. Console da plataforma em /plataforma.
+      # Na primeira subida, a instalação que já existia (dados/greenia.sqlite) vira a primeira empresa.
+      - key: MULTIEMPRESA
+        value: "1"
+      - key: PLATAFORMA_HOST
+        value: greenia.theneil.com.br
+      - key: PLATAFORMA_ADMINS
+        sync: false         # emails dos administradores da plataforma, separados por vírgula
+      # - key: PLATAFORMA_SUBDOMINIO   # com DNS curinga *.base, cada empresa ganha empresa.base
+      #   value: ia.theneil.com.br
       # Esta é a instalação do operador: a raiz abre a página de vendas e /operador junta os clientes.
       # Ela mesma aparece no console (tem plano); não precisa de OPERADOR_TOKEN.
       - key: PAGINA_INICIAL

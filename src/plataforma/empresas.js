@@ -99,8 +99,9 @@ export function criarEmpresa(P, dados, ator, origem) {
   const name = texto(dados.name, 80, 'name', { obrigatorio: true });
   const slug = validarSlug(dados.slug, lerAjuste(P.db, 'slugs_reservados', []));
   if (um(P.db, 'select 1 from companies where slug = ?', slug) || um(P.db, 'select 1 from company_slugs where slug = ?', slug)) throw erro(409, 'slug', 'Este identificador já está em uso.');
-  const plano = dados.plan_id ? lerPlanoPorId(P, dados.plan_id) : null;
-  if (dados.plan_id && !plano) throw erro(400, 'plan_id', 'Plano inválido.');
+  const planoId = dados.plan_id === undefined ? lerAjuste(P.db, 'plano_padrao', null) : dados.plan_id;
+  const plano = planoId ? lerPlanoPorId(P, planoId) : null;
+  if (planoId && !plano) throw erro(400, 'plan_id', 'Plano inválido.');
   if (plano && plano.status !== 'ativo') throw erro(400, 'plan_id', 'Este plano está inativo.');
   const id = dados.id || novoId('emp');
   const banco = dados.banco || join(P.pastaEmpresas, `${id}.sqlite`);

@@ -83,6 +83,22 @@ Como o mês funciona:
 
 A empresa vê créditos em todo o painel. O servidor não envia valores em dólar nem preços de modelo para quem não é operador. O operador também recebe email quando o preço de um modelo liberado muda mais de 20%.
 
+## Multiempresa
+
+Com `MULTIEMPRESA=1`, uma única instalação atende várias empresas. Cada empresa é um tenant independente, com banco, usuários, marca, landing page e URL próprios. Criar uma empresa não exige deploy. Arquitetura e decisões em `docs/multiempresa.md`.
+
+| Variável | O que faz |
+|---|---|
+| `MULTIEMPRESA` | `1` liga o modo multiempresa |
+| `PLATAFORMA_HOST` | Endereço da plataforma. O console fica em `/plataforma` e cada empresa em `/<slug>` |
+| `PLATAFORMA_ADMINS` | Emails dos administradores da plataforma, separados por vírgula (`OPERADOR_EMAIL` também vale) |
+| `PLATAFORMA_SUBDOMINIO` | Opcional. Com DNS curinga, cada empresa ganha `slug.base` |
+| `EMPRESA_SLUG` | Identificador da empresa criada a partir da instalação única, na primeira subida |
+
+Fluxo: no console, **Empresas > Nova empresa** (nome, identificador, plano e primeiro admin). Em seguida, configure Marca, Landing Page, URL e Permissões concedidas e clique em **Publicar ambiente**. O admin recebe o convite e entra em `/<slug>`. No app, a seção **Empresa** traz Usuários, Roles e permissões, Branding, Landing Page, URL e domínio e Configurações, dentro do que o plano e a plataforma liberaram.
+
+Na primeira subida em modo multiempresa, o banco `dados/greenia.sqlite` (se existir) vira a primeira empresa, com as mesmas pessoas e dados. Os admins de antes viram admins da empresa.
+
 ## Console do operador
 
 O console (`/operador`) junta todas as instalações de clientes numa tela: plano, créditos, reserva, pacotes, custo real, receita, margem, modelos por classe, variações de preço, alertas e situação. Só quem está em `OPERADOR_EMAIL` abre o console, e ele é separado do painel do cliente.

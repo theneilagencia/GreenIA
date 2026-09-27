@@ -1,7 +1,13 @@
 import { api, preencherMarca } from '/comum.js';
 
-preencherMarca();
 const $ = id => document.getElementById(id);
+// Textos e ícone da tela de login vêm da marca da empresa (multiempresa).
+preencherMarca().then(p => {
+  if (p.loginTitulo) $('titulo-login').textContent = p.loginTitulo;
+  if (p.loginTexto) $('explica').textContent = p.loginTexto;
+  if (p.favicon) $('favicon').href = p.favicon;
+  if (p.empresa) document.title = `Entrar · ${p.empresa}`;
+});
 let email = '';
 const mostrarErro = (el, msg) => { el.textContent = msg; el.classList.toggle('oculto', !msg); };
 

@@ -2,7 +2,7 @@
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
 import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
-import { E, cabecalho, ligarCabecalho } from '/app.js';
+import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
 import { renderizar } from '/md.js';
 
 const $ = id => document.getElementById(id);
@@ -47,8 +47,8 @@ async function abaAreas() {
       <td><label><input type="checkbox" data-sigilosa="${a.id}" ${a.sigilosa ? 'checked' : ''}> todas</label></td>
       <td><button class="btn-texto btn-pequeno" data-renomear-area="${a.id}">Renomear</button><button class="btn-texto btn-pequeno" data-excluir-area="${a.id}">Excluir</button></td></tr>`), 'Nenhuma área ainda.')}
     <h3>Pessoas</h3>
-    <p class="dica">Quem tem email de um domínio permitido também entra sozinho, como usuário sem área.</p>
-    <form class="filtros" id="nova-pessoa">
+    ${E.plataforma ? '<p class="dica">Convites, roles e status ficam em <a href="#/empresa/usuarios">Usuários</a>. Aqui você define as áreas de cada pessoa.</p>' : '<p class="dica">Quem tem email de um domínio permitido também entra sozinho, como usuário sem área.</p>'}
+    <form class="filtros${E.plataforma ? ' oculto' : ''}" id="nova-pessoa">
       <div class="campo"><label for="p-email">Email</label><input class="entrada" id="p-email" type="email" required></div>
       <div class="campo"><label for="p-nome">Nome</label><input class="entrada" id="p-nome"></div>
       <div class="campo"><label for="p-papel">Papel</label><select class="entrada" id="p-papel"><option value="usuario">Usuário</option><option value="admin">Admin</option></select></div>
@@ -66,7 +66,7 @@ async function abaAreas() {
       <td>${p.ativo ? 'Ativa' : '<span class="dica">Desativada</span>'}</td>
       <td><button class="btn-texto btn-pequeno" data-editar-pessoa="${p.id}">Editar</button></td></tr>
       <tr class="oculto" id="editor-${p.id}"><td colspan="7"><div class="editor">
-        <div class="filtros"><div class="campo"><label>Nome</label><input class="entrada" data-campo="nome" value="${esc(p.nome)}"></div>
+        <div class="filtros${E.plataforma ? ' oculto' : ''}"><div class="campo"><label>Nome</label><input class="entrada" data-campo="nome" value="${esc(p.nome)}"></div>
           <div class="campo"><label>Papel</label><select class="entrada" data-campo="papel"><option value="usuario" ${p.papel !== 'admin' ? 'selected' : ''}>Usuário</option><option value="admin" ${p.papel === 'admin' ? 'selected' : ''}>Admin</option></select></div>
           <label class="dica"><input type="checkbox" data-campo="ativo" ${p.ativo ? 'checked' : ''}> ativa</label></div>
         <span class="legenda">Áreas</span>
@@ -102,7 +102,7 @@ async function abaAreas() {
         const campo = n => ed.querySelector(`[data-campo="${n}"]`);
         const areasSel = [...ed.querySelectorAll('[data-membro]')].filter(c => c.checked || ed.querySelector(`[data-resp="${c.dataset.membro}"]`).checked)
           .map(c => ({ id: Number(c.dataset.membro), responsavel: ed.querySelector(`[data-resp="${c.dataset.membro}"]`).checked }));
-        await api(`/api/admin/pessoas/${t.dataset.salvarPessoa}`, { metodo: 'PUT', corpo: { nome: campo('nome').value, papel: campo('papel').value, ativo: campo('ativo').checked, areas: areasSel } });
+        await api(`/api/admin/pessoas/${t.dataset.salvarPessoa}`, { metodo: 'PUT', corpo: E.plataforma ? { areas: areasSel } : { nome: campo('nome').value, papel: campo('papel').value, ativo: campo('ativo').checked, areas: areasSel } });
         toast('Pessoa salva.'); abaAreas();
       }
     } catch (e) { falhar(e); }
@@ -446,8 +446,10 @@ async function abaEventos(filtro = {}, pagina = 0) {
 async function abaConfig() {
   const c = await api('/api/admin/config');
   let logo = c.logo;
+  const multi = !!E.plataforma;
   $('conteudo').innerHTML = `<form id="form-cfg">
-      <div class="grupo-form"><h3>Empresa</h3>
+      ${multi ? '<div class="faixa-aviso ok">Nome, logomarca, cores e aviso de privacidade ficam em <a href="#/empresa/marca">Branding</a>.</div>' : ''}
+      <div class="grupo-form${multi ? ' oculto' : ''}"><h3>Empresa</h3>
         <div class="campo"><label for="c-empresa">Nome da empresa</label><input class="entrada" id="c-empresa" value="${esc(c.empresa)}" required maxlength="80"></div>
         <div class="campo"><span class="legenda">Logo</span><div class="linha-botoes"><span id="c-logo-prev">${logo ? `<img src="${esc(logo)}" alt="Logo atual" style="max-height:48px">` : '<span class="dica">Sem logo.</span>'}</span>
           <label class="btn btn-linha btn-pequeno" style="cursor:pointer">Escolher arquivo<input type="file" id="c-logo" hidden accept=".png,.jpg,.jpeg,.svg"></label><button type="button" class="btn-texto btn-pequeno" id="c-logo-tirar">Remover</button></div>
@@ -457,13 +459,13 @@ async function abaConfig() {
           <span class="ajuda">A cor fica atrás de texto claro. O contraste mínimo é 4,5:1.</span></div>
       </div>
       <div class="grupo-form"><h3>Acesso</h3>
-        <div class="campo"><label for="c-dominios">Domínios de email permitidos</label><textarea class="entrada" id="c-dominios" rows="2">${esc(c.dominios.join(', '))}</textarea><span class="ajuda">Separe por vírgula. Só entram emails destes domínios.</span></div></div>
+        <div class="campo"><label for="c-dominios">Domínios de email permitidos</label><textarea class="entrada" id="c-dominios" rows="2">${esc(c.dominios.join(', '))}</textarea><span class="ajuda">${multi ? 'Separe por vírgula. Quem tem email destes domínios entra como membro sem convite. Pessoas convidadas em Usuários entram de qualquer domínio.' : 'Separe por vírgula. Só entram emails destes domínios.'}</span></div></div>
       <div class="grupo-form"><h3>Email (SMTP)</h3>
         <div class="duas-col"><div class="campo"><label for="c-smtp">Endereço do servidor</label><input class="entrada" id="c-smtp" value="${esc(c.smtp.url)}" placeholder="smtps://usuario:senha@smtp.exemplo.com:465"></div>
           <div class="campo"><label for="c-rem">Remetente</label><input class="entrada" id="c-rem" value="${esc(c.smtp.remetente)}" placeholder="GreenIA <nao-responda@empresa.com.br>"></div></div>
         <div class="linha-botoes" style="margin-bottom:14px"><button type="button" class="btn btn-linha btn-pequeno" id="c-smtp-teste">Enviar email de teste para mim</button><span class="dica">Salve antes de testar.</span></div></div>
       <div class="grupo-form"><h3>Privacidade</h3>
-        <div class="campo"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>
+        <div class="campo${multi ? ' oculto' : ''}"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>
         <div class="campo"><label for="c-ret">Conversas são apagadas depois de quantos dias sem uso</label><input class="entrada" type="number" id="c-ret" min="1" max="3650" value="${c.retencaoDias}" style="max-width:160px"></div></div>
       <div class="grupo-form"><h3>Limites de uso</h3><p class="dica">Zero é sem limite. ${emCreditos() ? 'Os tetos são em créditos e valem dentro do plano contratado.' : 'Os tetos valem sobre o custo real informado pelo OpenRouter.'}</p>
         <div class="duas-col"><div class="campo"><label for="c-teto">Teto mensal da empresa (${emCreditos() ? 'créditos' : 'US$'})</label><input class="entrada" type="number" step="${emCreditos() ? 1 : 0.01}" min="0" id="c-teto" value="${c.tetoMensal}"></div>
@@ -484,8 +486,8 @@ async function abaConfig() {
     ev.preventDefault();
     try {
       await api('/api/admin/config', { metodo: 'PUT', corpo: {
-        empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', dominios: $('c-dominios').value,
-        smtp: { url: $('c-smtp').value, remetente: $('c-rem').value }, privacyNote: $('c-priv').value, retencaoDias: Number($('c-ret').value),
+        ...(multi ? {} : { empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', privacyNote: $('c-priv').value }), dominios: $('c-dominios').value,
+        smtp: { url: $('c-smtp').value, remetente: $('c-rem').value }, retencaoDias: Number($('c-ret').value),
         tetoMensal: Number($('c-teto').value), tetoPessoaMensal: Number($('c-teto-p').value), limiteDiarioPessoa: Number($('c-dia').value) } });
       toast('Configurações salvas.');
     } catch (e) { falhar(e); }
@@ -572,18 +574,18 @@ const NOMES_EVENTO = { 'model.changed': 'Modelo alterado', 'model.certified': 'M
 
 // ---------------------------------------------------------------- rotas
 const TELAS = {
-  uso: { titulo: 'Uso e créditos', fn: abaUso },
-  pessoas: { titulo: 'Pessoas e áreas', sub: [['', 'Pessoas e áreas', abaAreas], ['grupos', 'Grupos', abaGrupos], ['criacao', 'Quem cria quick wins', abaCriacaoQw]] },
-  modelos: { titulo: 'Modelos', sub: [['', 'Classes e modelos', abaModelos], ['historico', 'Histórico', abaHistoricoModelos]] },
-  politicas: { titulo: 'Políticas de IA', sub: [['', 'Regras de uso', abaPoliticas], ['texto', 'Texto da política', abaPolitica]] },
-  atividade: { titulo: 'Atividade', fn: abaEventos },
-  configuracoes: { titulo: 'Configurações', fn: abaConfig },
+  uso: { titulo: 'Uso e créditos', perm: 'usage.read', fn: abaUso },
+  pessoas: { titulo: 'Pessoas e áreas', perm: 'user.read', sub: [['', 'Pessoas e áreas', abaAreas], ['grupos', 'Grupos', abaGrupos], ['criacao', 'Quem cria quick wins', abaCriacaoQw]] },
+  modelos: { titulo: 'Modelos', perm: 'models.manage', sub: [['', 'Classes e modelos', abaModelos], ['historico', 'Histórico', abaHistoricoModelos]] },
+  politicas: { titulo: 'Políticas de IA', perm: 'policy.manage', sub: [['', 'Regras de uso', abaPoliticas], ['texto', 'Texto da política', abaPolitica]] },
+  atividade: { titulo: 'Atividade', perm: 'audit.read', fn: abaEventos },
+  configuracoes: { titulo: 'Configurações', perm: 'settings.manage', fn: abaConfig },
   conhecimento: { titulo: 'Conhecimento', fn: abaConhecimento, todos: true },
 };
 
 export async function rotaGestao(id, sub = '') {
   const t = TELAS[id];
-  if (!t || (!t.todos && !S.eu.admin)) { location.hash = '#/nova'; return; }
+  if (!t || (!t.todos && !pode(t.perm))) { location.hash = '#/nova'; return; }
   const atual = t.sub ? (t.sub.find(x => x[0] === (sub || '')) || t.sub[0]) : null;
   document.getElementById('principal').innerHTML = `${cabecalho(t.titulo)}<div class="pagina"><div class="pagina-dentro">
     ${t.sub ? `<nav class="subnav" aria-label="${esc(t.titulo)}">${t.sub.map(x => `<a href="#/${id}${x[0] ? `/${x[0]}` : ''}" ${x === atual ? 'aria-current="page"' : ''}>${x[1]}</a>`).join('')}</nav>` : ''}

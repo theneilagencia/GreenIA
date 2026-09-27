@@ -315,3 +315,24 @@ body.console{display:flex;flex-direction:column;min-height:100vh;background:var(
 .cliente[open]>summary{border-bottom:1px solid var(--line)}
 .cliente .dentro{padding:4px 18px 18px}
 @media (max-width:720px){.console-topo{padding:12px 16px}}
+
+/* Console da plataforma: lateral escura para não confundir com o admin da empresa */
+.lateral-plataforma{background:#131A16;border-right-color:#131A16;color:#DDE3DF}
+.lateral-plataforma .marca{color:#FAF7EF} .lateral-plataforma .marca .ia{color:#B9E85A}
+.lateral-plataforma h2{color:#8B9690}
+.lateral-plataforma .item-lat{color:#DDE3DF} .lateral-plataforma .item-lat:hover{background:rgba(255,255,255,.06)}
+.lateral-plataforma .item-lat.ativo{background:rgba(255,255,255,.1);color:#fff}
+.lateral-plataforma .lateral-pe{border-top-color:rgba(255,255,255,.1)} .lateral-plataforma .lateral-pe .btn-lat{color:#A9B4AE} .lateral-plataforma .lateral-pe .btn-lat:hover{background:rgba(255,255,255,.06);color:#fff}
+.selo-escopo{display:inline-block;margin:10px 8px 4px;font:600 10.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#131A16;background:#B9E85A;border-radius:4px;padding:2px 7px}
+.selo-escopo.empresa{background:var(--mint);color:var(--forest-text)}
+.entrar-console{min-height:100vh;display:grid;place-items:center;padding:24px;background:#131A16}
+.entrar-console .login-cartao{max-width:420px;width:100%}
+.previa-marca{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--raio-painel);margin:6px 0 16px;background:var(--surface)}
+.previa-marca img{max-height:32px;max-width:140px}
+.previa-marca .cor{width:22px;height:22px;border-radius:6px;border:1px solid var(--line)}
+.checagens{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 18px;margin:6px 0 14px}
+.checagens label{display:flex;gap:8px;align-items:flex-start;font:400 14px/1.4 var(--sans)}
+.checagens small{display:block;color:var(--muted);font-size:12px}
+.repetidor{display:grid;gap:8px;margin:0 0 12px}
+.repetidor .linha{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;align-items:start}
+@media (max-width:720px){.repetidor .linha{grid-template-columns:1fr}}

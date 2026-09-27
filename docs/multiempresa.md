@@ -101,3 +101,40 @@ Para uma ação de personalização valer, três coisas precisam estar certas:
 ## 8. O que continua como antes
 
 O modo de instalação única (`criarApp`) continua funcionando para quem já usa, e o servidor multiempresa é ligado com `MULTIEMPRESA=1`. O console antigo de instalações remotas (`/operador`) continua para instalações antigas.
+
+## 9. Como ficou implementado
+
+| Parte | Onde |
+|---|---|
+| Banco da plataforma | `src/plataforma/db.js` |
+| RBAC (permissões, roles de sistema e da empresa) | `src/plataforma/rbac.js` |
+| Empresas, planos, usuários, marca, landing, URL, concessões | `src/plataforma/empresas.js` |
+| Resolução do tenant, sessões, status e entrega ao ambiente da empresa | `src/plataforma/servidor.js`, `src/plataforma/sessao.js` |
+| Login e página pública por empresa | `src/plataforma/api-publica.js` |
+| APIs do console | `src/plataforma/api-plataforma.js` |
+| APIs do admin da empresa | `src/plataforma/api-empresa.js` |
+| Validações (slug reservado, domínio, cores, imagens, links) | `src/plataforma/validar.js` |
+| Auditoria com antes e depois | `src/plataforma/auditoria.js` |
+| Console | `public/plataforma.html`, `public/plataforma.js` |
+| Admin da empresa | `public/empresa.js` e a seção Empresa do app |
+| Editores de marca e landing (compartilhados) | `public/editores.js` |
+| Testes de aceite, isolamento e segurança | `test/multiempresa.test.js` |
+
+### Garantias testadas
+
+- Sessão presa à empresa: trocar o cookie de contexto, o ID ou a URL não dá acesso a outra empresa (401).
+- Um admin de empresa não vê usuários, roles ou conversas de outra, nem usa roles de outra empresa (404 ou 400).
+- O console não existe no domínio de uma empresa, e o admin da empresa não usa as APIs da plataforma.
+- As permissões são conferidas no servidor em toda rota administrativa, incluindo as telas antigas de gestão (mapa de permissões por rota).
+- Suspender a empresa derruba as sessões na hora.
+- O slug antigo redireciona para o novo; slugs reservados, duplicados e domínios da plataforma são recusados.
+- Os limites e recursos do plano valem na hora: usuários, quick wins, conhecimento, marca, roles e mensagens por minuto.
+- O último admin da empresa não pode ser desativado nem rebaixado.
+- A auditoria registra quem, empresa, ação, entidade, antes, depois e origem. Imagens entram só com o tamanho.
+
+### Limitações conhecidas
+
+- Domínio próprio precisa de DNS e certificado configurados fora da aplicação (no Render: Custom Domains).
+- Subdomínios por empresa exigem DNS curinga e certificado curinga.
+- Todas as empresas rodam no mesmo processo: o isolamento é de dados (banco por empresa) e de autorização, não de CPU e memória.
+- Excluir definitivamente uma empresa não foi implementado. Existe cancelar, que encerra o acesso e mantém os dados.

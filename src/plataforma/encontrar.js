@@ -41,11 +41,12 @@ export function criarEncontrar(P) {
     if (nEmail.length < MAX_POR_EMAIL) {
       porEmail.set(email, [...nEmail, agora]);
       const ambientes = ambientesDoEmail(P, email);
-      if (ambientes.length) {
+      const admin = !!todos(P.db, "select 1 from platform_members m join users u on u.id = m.user_id where u.email = ? and u.status = 'ativo'", email).length;
+      if (ambientes.length || admin) {
         const origem = `${req.headers['x-forwarded-proto'] === 'https' || P.cookieSeguro ? 'https' : 'http'}://${req.headers.host}`;
         const nome = lerAjuste(P.db, 'nome', 'GreenIA');
-        const linhas = ambientes.map(c => `${c.nome}: ${linkDeEntrada(P, c, origem)}`).join('\n');
-        const texto = `Você pediu o endereço do seu ambiente ${nome}.\n\n${ambientes.length > 1 ? 'Você tem acesso a estes ambientes:' : 'Este é o seu ambiente:'}\n\n${linhas}\n\nAbra o link e entre com este email (${email}). Um código de acesso chega na hora.\n\nSe não foi você quem pediu, ignore esta mensagem.`;
+        const linhas = [...(admin ? [`Console da plataforma: ${P.urlBase || origem}/plataforma`] : []), ...ambientes.map(c => `${c.nome}: ${linkDeEntrada(P, c, origem)}`)];
+        const texto = `Você pediu o endereço do seu ambiente ${nome}.\n\n${linhas.length > 1 ? 'Você tem acesso a estes ambientes:' : 'Este é o seu acesso:'}\n\n${linhas.join('\n')}\n\nAbra o link e entre com este email (${email}). Um código de acesso chega na hora.\n\nSe não foi você quem pediu, ignore esta mensagem.`;
         P.email.enviar(email, `Seu acesso à ${nome}`, texto).catch(e => P.log('encontrar ambiente', e.message));
       }
     }

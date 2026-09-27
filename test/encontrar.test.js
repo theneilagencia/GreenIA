@@ -62,3 +62,11 @@ test('domínio próprio entra no link só depois de verificado', async () => {
   assert.equal(linkDeEntrada(S.P, c, 'http://x'), 'http://plataforma.teste/alfa/entrar');
   assert.equal(linkDeEntrada(S.P, { ...c, domain_status: 'verificado' }, 'http://x'), 'https://ia.alfa.com.br/entrar');
 });
+
+test('administrador da plataforma recebe o link do console', async () => {
+  const r = await S.navegador().post('/api/encontrar', { email: 'ops@theneil.com.br' }, { 'x-forwarded-for': '10.5.0.1' });
+  assert.equal(r.status, 200);
+  const m = S.P.email.enviados.filter(x => x.para === 'ops@theneil.com.br' && /Seu acesso/.test(x.assunto)).at(-1);
+  assert.ok(m, 'email enviado');
+  assert.match(m.texto, /Console da plataforma: http:\/\/plataforma\.teste\/plataforma/);
+});

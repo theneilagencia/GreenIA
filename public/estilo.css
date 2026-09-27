@@ -526,3 +526,55 @@ select.entrada{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
   color-mix(in srgb,var(--forest) 34%,transparent);mix-blend-mode:normal}
 .login .login-cartao{box-shadow:0 24px 60px -20px rgba(10,10,8,.55),0 0 0 1px rgba(255,255,255,.06);border-color:transparent}
 @media (prefers-reduced-transparency:reduce){.login::before{display:none}}
+
+/* ================= Mobile first: toque, leitura e formulários =================
+   Em telas de toque ou estreitas: alvos de pelo menos 44px, campos com 16px (o iOS não
+   dá zoom), tabelas viram listas, modais viram folhas que sobem da base. */
+@media (pointer:coarse),(max-width:760px){
+  .btn,.btn-pequeno{min-height:44px;height:auto;padding:0 16px}
+  .btn-texto{min-height:40px;display:inline-flex;align-items:center}
+  .entrada,select.entrada,textarea.entrada{min-height:44px;font-size:16px}
+  textarea.entrada{min-height:88px}
+  input[type=color]{min-height:44px;min-width:56px}
+  input[type=file]{min-height:44px;font-size:15px}
+  input[type=checkbox],input[type=radio]{width:20px;height:20px}
+  .item-lat,.btn-lat,.lateral-pe .btn-lat{min-height:44px;display:flex;align-items:center}
+  .busca-lat{min-height:44px}
+  .switch{position:relative}
+  .switch::after{content:'';position:absolute;inset:-12px -8px}
+  .sugestoes button,.barra-conversa button,.barra-conversa select{min-height:40px}
+  .subnav a{padding:12px 12px 13px}
+  .kbd{display:none}
+  .menu-btn{min-width:44px;min-height:44px}
+  .rodape-resposta button{min-height:36px;padding:4px 10px}
+  a.marca{min-height:44px}
+  .p-regras a,.p-aviso a,.l a[href='/politica']{display:inline-block;padding:12px 0}
+}
+@media (max-width:760px){
+  .pagina .entrada,.modal .entrada{max-width:100%}
+  .pagina form .btn,.modal form .btn-verde{width:100%}
+  .cabeca-acoes .btn{min-height:40px;padding:0 12px}
+  /* Abas roláveis com esmaecimento na borda, para indicar que há mais */
+  .subnav{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent);scroll-snap-type:x proximity}
+  .subnav a{scroll-snap-align:start}
+  /* Modal vira folha que sobe da base */
+  .modal-fundo{align-items:flex-end;padding:0}
+  .modal{max-width:none;border-radius:18px 18px 0 0;max-height:92dvh;padding:22px 18px calc(22px + env(safe-area-inset-bottom));animation:sobe .28s cubic-bezier(.2,.8,.2,1) both}
+  .modal::before{content:'';display:block;width:36px;height:4px;border-radius:4px;background:var(--line-strong);margin:-8px auto 14px}
+  .toast{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:none}
+}
+@media (max-width:640px){
+  .tabela:not(.tabela-fixa) thead{display:none}
+  .tabela:not(.tabela-fixa),.tabela:not(.tabela-fixa) tbody{display:block;width:100%}
+  .tabela:not(.tabela-fixa) tr{display:block;border-bottom:1px solid var(--line);padding:10px 0}
+  .tabela:not(.tabela-fixa) tr:last-child{border-bottom:0}
+  .tabela:not(.tabela-fixa) td{display:flex;justify-content:space-between;align-items:center;gap:12px;border:none;padding:5px 14px;text-align:right;min-height:32px}
+  .tabela:not(.tabela-fixa) td::before{content:attr(data-r);color:var(--muted);font:500 12px var(--sans);text-align:left;flex:none;max-width:45%}
+  .tabela:not(.tabela-fixa) td:first-child{font-weight:500;text-align:left}
+  .tabela:not(.tabela-fixa) td[data-r=""]::before{display:none}
+  .tabela:not(.tabela-fixa) td[data-r=""]{justify-content:flex-end}
+  .tabela-rolagem:has(.tabela:not(.tabela-fixa)){overflow:visible}
+}
+.selo-escopo{font-size:11.5px}
+.lateral h2{font-size:11.5px}
+@keyframes sobe{from{transform:translateY(100%)}to{transform:none}}

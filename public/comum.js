@@ -121,3 +121,20 @@ export async function ocupado(botao, fn) {
   botao.setAttribute('aria-busy', 'true'); botao.disabled = true;
   try { return await fn(); } finally { botao.removeAttribute('aria-busy'); botao.disabled = false; }
 }
+
+// Tabelas no celular viram listas: cada célula ganha o nome da coluna (data-r) a partir do cabeçalho.
+function rotularTabelas(raiz = document) {
+  for (const t of raiz.querySelectorAll('table.tabela')) {
+    const cab = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    if (!cab.length) continue;
+    for (const tr of t.querySelectorAll('tbody tr')) {
+      let i = 0;
+      for (const td of tr.children) { if (!td.hasAttribute('data-r')) td.setAttribute('data-r', cab[i] || ''); i += Number(td.getAttribute('colspan') || 1); }
+    }
+  }
+}
+if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  let agendado = false;
+  new MutationObserver(() => { if (!agendado) { agendado = true; requestAnimationFrame(() => { agendado = false; rotularTabelas(); }); } })
+    .observe(document.documentElement, { childList: true, subtree: true });
+}

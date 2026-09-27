@@ -1,6 +1,6 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { criarPlataforma } from './plataforma/servidor.js';
 import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
@@ -49,6 +49,12 @@ export async function iniciar(env = process.env) {
   return app;
 }
 
+// Lista de administradores da plataforma versionada no repositório (um email por linha, # comenta).
+export function lerAdminsArquivo(arquivo) {
+  if (!arquivo || !existsSync(arquivo)) return [];
+  return readFileSync(arquivo, 'utf8').split('\n').map(l => l.replace(/#.*/, '').trim().toLowerCase()).filter(l => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(l));
+}
+
 // Modo multiempresa (MULTIEMPRESA=1): uma plataforma, um banco de controle e um banco por empresa.
 export async function iniciarPlataforma(env = process.env) {
   const producao = env.NODE_ENV === 'production';
@@ -60,7 +66,7 @@ export async function iniciarPlataforma(env = process.env) {
     ia, banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
     hostPlataforma: host, urlBase: env.PLATAFORMA_URL || (host ? `https://${host}` : ''), subdominioBase: env.PLATAFORMA_SUBDOMINIO || '',
-    admins: [...lista(env.PLATAFORMA_ADMINS), ...lista(env.OPERADOR_EMAIL)], paginaInicial: env.PAGINA_INICIAL,
+    admins: [...lista(env.PLATAFORMA_ADMINS), ...lista(env.OPERADOR_EMAIL), ...lerAdminsArquivo(env.PLATAFORMA_ADMINS_ARQUIVO || 'deploy/admins-plataforma.txt')], paginaInicial: env.PAGINA_INICIAL,
     // Domínio próprio das empresas cadastrado sozinho no Render (opcional): chave e serviço só em variáveis do servidor.
     provedorDominios: env.RENDER_API_KEY && env.RENDER_SERVICE_ID ? criarProvedorRender({ chave: env.RENDER_API_KEY, servico: env.RENDER_SERVICE_ID, alvo: env.RENDER_ALVO || '' }) : null,
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).

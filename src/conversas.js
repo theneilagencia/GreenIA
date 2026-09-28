@@ -5,12 +5,12 @@ import { exec, json, todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { decidir, detectar, ROTULOS } from './filtro.js';
-import { classeDe, homologadoPadrao, modeloPermitido, NOMES_CLASSE } from './modelos.js';
+import { AUTO, classeDe, homologadoPadrao, modeloPermitido, NOMES_CLASSE, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
-import { analisarPedido, rotear, AUTOMATICO, VERSAO_ROTEADOR, NOME_CLASSE } from './roteador.js';
+import { analisarPedido, analiseIndisponivel, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
 const MAX_TEXTO = 20000;
@@ -188,45 +188,73 @@ export function rotasConversas(app, r) {
     if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     const sigilosa = !!conv.sigilosa;
 
-    // 3. Modelo. Com o roteamento ligado, o pedido é analisado (tipo, complexidade, contexto, precisão)
-    //    e o modelo sai dos permitidos pelas regras (acesso, quick win, sigilo, plano). Classe escolhida
-    //    pela pessoa ou fixada pelo quick win é respeitada, com o mesmo registro de critérios.
+    // 3. Modelo. O pedido é sempre analisado e a decisão sempre registrada, venha a classe do
+    //    roteamento automático, da pessoa, do quick win ou do padrão da empresa (ver roteador.js).
     const roteamentoAtivo = cfg.roteamento?.ativo !== false;
-    const qwFixo = qw?.modelo && !qw.pode_trocar;
-    const pedido = qwFixo ? qw.modelo : corpo.modelo || conv.modelo || qw?.modelo || (roteamentoAtivo ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat);
+    const qwFixo = !!(qw?.modelo && !qw.pode_trocar);
+    const classePadrao = classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat;
+    const escolhaSalva = corpo.modelo || conv.modelo || null;
+    // Quick win que deixa trocar: com o roteamento ligado, começa no Automático (a classe dele continua liberada).
+    const pedido = qwFixo ? qw.modelo : escolhaSalva || (roteamentoAtivo ? AUTOMATICO : qw?.modelo || classePadrao);
     const automatico = roteamentoAtivo && pedido === AUTOMATICO;
+    const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
+      : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw);
     const historicoChars = um(app.db, 'select coalesce(sum(length(texto)), 0) as n from mensagens where conversa_id = ?', conv.id).n
       + Math.min(app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity, um(app.db, 'select coalesce(sum(length(texto)), 0) as n from anexos where conversa_id = ?', conv.id).n);
     const temResposta = !!um(app.db, "select 1 from mensagens where conversa_id = ? and papel = 'assistant'", conv.id);
-    const analise = analisarPedido({ texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta, preferencia: cfg.roteamento?.preferencia });
+    // Decisão anterior desta conversa: numa nova tentativa, a exigência sobe a partir do que foi usado.
+    const ant = um(app.db, "select classe from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1", conv.id);
+    const entradaAnalise = { texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta,
+      anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe] } : null, feedback: conv.feedback };
+    let analise;
+    try { analise = (app.analisarPedido || analisarPedido)(entradaAnalise); } catch (e) {
+      app.log?.('análise do pedido', e.message);
+      analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
+    }
     const reservaDoPlano = plano?.fase === 'reserva';
-    let manual = null;
+    let manual = null, trocaDoPlano = false;
     if (!automatico) {
-      manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat : pedido, { qw, sigilosa });
+      manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
       if (sigilosa && !manual.homologado) {
         const h = homologadoPadrao(app.db, cfg);
         throw erro(409, 'precisa_homologado', h ? `Esta conversa passou a ter dados sigilosos e vai usar o modelo homologado ${h.nome}.`
           : 'Esta conversa tem dados sigilosos e ainda não há modelo homologado. Fale com o admin.', { sugestao: h && { id: h.id, nome: h.nome } });
       }
+      // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
+      if (reservaDoPlano) {
+        const antes = manual;
+        manual = modeloNaReserva(app, cfg, manual, sigilosa);
+        trocaDoPlano = manual.id !== antes.id;
+        if (trocaDoPlano) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
+      }
     }
-    // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
-    let trocaDoPlano = false;
-    if (manual && reservaDoPlano) {
-      const antes = manual;
-      manual = modeloNaReserva(app, cfg, manual, sigilosa);
-      trocaDoPlano = manual.id !== antes.id;
-      if (trocaDoPlano) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
-    }
-    const rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual: manual });
+    const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'openrouter_auto' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
+    const rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual: manual, origem });
+    if (trocaDoPlano) rota.fallback = rota.fallback || { tipo: 'trocado_pela_reserva_do_plano', classePedida };
+
+    // Registro da decisão: critérios, requisitos, políticas, candidatos e fallback; nenhum conteúdo do pedido.
+    const gravarRota = (msgId, resultado) => Number(exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, mensagem_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais,
+      classe_necessaria, modelo, classe, politicas, candidatos, tokens_entrada, tokens_saida, custo_estimado, custo_referencia, explicacao, versao, sigilosa, teste,
+      origem, classe_pedida, preferencia, requisitos, janela_minima, janela_desejada, motivo_escolha, fallback, reserva, resultado)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      AGORA(app), pessoa.id, conv.id, msgId, conv.quick_win_id, rota.modo, rota.requisitos.complexidade, rota.requisitos.nivel, JSON.stringify(analise.tipos), JSON.stringify(analise.precisao),
+      JSON.stringify({ ...analise.sinais, insatisfacao: analise.insatisfacao, anterior: analise.anterior?.classe || null, analiseFalhou: !!analise.falhou }),
+      rota.requisitos.classe, rota.modelo?.id || null, rota.modelo?.id === AUTO ? null : rota.modelo?.perfil || null, JSON.stringify(rota.politicas), JSON.stringify(rota.candidatos),
+      analise.tokensEntrada, analise.tokensSaida, rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, Number(sigilosa), conv.teste,
+      origem, classePedida, rota.preferencia, JSON.stringify({ nivel: rota.requisitos.nivel, dimensoes: rota.requisitos.dimensoes, motivos: rota.requisitos.motivos, determinantes: rota.requisitos.determinantes }),
+      rota.requisitos.janelaMinima, rota.requisitos.janelaDesejada, rota.motivoEscolha, rota.fallback ? JSON.stringify(rota.fallback) : null,
+      rota.reserva || (rota.reservaDescartada ? `descartada:${rota.reservaDescartada}` : null), resultado).lastInsertRowid);
+
     let m = rota.modelo;
     if (!m) {
+      gravarRota(null, 'bloqueado');
       if (sigilosa) throw erro(409, 'precisa_homologado', 'Esta conversa tem dados sigilosos e não há modelo homologado disponível para você. Fale com o admin.');
-      if (rota.candidatos.some(c => c.status === 'contexto_insuficiente'))
+      if (rota.fallback?.causas?.includes('contexto_insuficiente') || rota.fallback?.causa === 'contexto_insuficiente')
         throw erro(413, 'grande_demais', 'Esta mensagem e os anexos passam do tamanho que os modelos liberados aceitam. Envie menos texto ou só as partes necessárias.');
       throw erro(403, 'modelo_nao_liberado', 'Nenhum modelo liberado atende a este pedido agora. Fale com o admin.');
     }
-    if (reservaDoPlano && automatico && m.perfil === 'rapido' && rota.necessario.nivel > 1) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
+    if (reservaDoPlano && automatico && rota.fallback?.tipo === 'abaixo_do_necessario') aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
     if (conv.modelo && conv.modelo !== pedido && !trocaDoPlano) {
       aviso(app, conv.id, pedido === AUTOMATICO ? 'Classe automática: a GreenIA escolhe o modelo para cada pedido.' : `Classe trocada para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
       registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: pedido });
@@ -238,16 +266,10 @@ export function rotasConversas(app, r) {
     for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto) values (?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto);
     const titulo = conv.titulo === 'Nova conversa' ? (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
-    // Registro da decisão de roteamento: critérios, políticas e candidatos; nenhum conteúdo do pedido.
-    const rotaId = Number(exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, mensagem_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais,
-      classe_necessaria, modelo, classe, politicas, candidatos, tokens_entrada, tokens_saida, custo_estimado, custo_referencia, explicacao, versao, sigilosa, teste)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      agora, pessoa.id, conv.id, msgId, conv.quick_win_id, rota.modo, analise.complexidade, analise.pontuacao, JSON.stringify(analise.tipos), JSON.stringify(analise.precisao),
-      JSON.stringify({ ...analise.sinais, insatisfacao: analise.insatisfacao }), rota.necessario.classe, m.id, m.perfil, JSON.stringify([...rota.politicas, ...rota.necessario.motivos]),
-      JSON.stringify(rota.candidatos), analise.tokensEntrada, analise.tokensSaida, rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, Number(sigilosa), conv.teste).lastInsertRowid);
+    const rotaId = gravarRota(msgId, 'enviado');
 
-    const limite = Math.floor((m.contexto || 32000) * 2.4) - sistema.length - ctx.partes.join('').length;
-    const h = historico(app, conv, Math.max(limite, 8000));
+    // Histórico no mesmo orçamento que a seleção usou: o que ela garantiu que cabe, cabe aqui.
+    const h = historico(app, conv, orcamentoHistorico(analise, m));
     if (h.cortada && !conv.cortada) exec(app.db, 'update conversas set cortada = 1 where id = ?', conv.id);
     const cache = /^(anthropic|google)\//.test(m.id);
     const conteudoSistema = ctx.partes.length && cache
@@ -258,16 +280,17 @@ export function rotasConversas(app, r) {
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     const linha = o => res.write(JSON.stringify(o) + '\n');
-    const rotaTela = { modo: rota.modo, classe: m.perfil, complexidade: analise.complexidade, explicacao: rota.explicacao };
+    const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade, explicacao: rota.explicacao };
     linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
     const inicio = Date.now();
     let resposta = '', fim = null;
     try {
-      for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: sigilosa ? null : m.reserva, sigilosa, fornecedor: m.homologacao?.fornecedor, semTreino: cfg.exigirSemTreino })) {
+      for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: sigilosa ? null : rota.reserva, sigilosa, fornecedor: m.homologacao?.fornecedor, semTreino: cfg.exigirSemTreino })) {
         if (ev.tipo === 'texto') { resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
       }
       if (!resposta) throw new ErroIA('O modelo não respondeu. Tente de novo.');
     } catch (e) {
+      exec(app.db, "update roteamento set resultado = 'falha_na_execucao' where id = ?", rotaId);
       registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
       linha({ t: 'erro', mensagem: e instanceof ErroIA ? e.message : 'Não foi possível responder agora. Tente de novo.' });
       return res.end();
@@ -277,11 +300,11 @@ export function rotasConversas(app, r) {
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, resposta, usado, fim?.fornecedor, JSON.stringify(ctx.fontes), AGORA(app)).lastInsertRowid);
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
-    exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ? where id = ?', respId, usado, fim?.custo || 0, rotaId);
+    exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ? where id = ?', respId, usado, fim?.custo || 0, usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', rotaId);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
-    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: analise.complexidade });
+    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: usado, classe: m.perfil, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
     res.end();

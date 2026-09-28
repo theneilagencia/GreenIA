@@ -126,7 +126,9 @@ create table if not exists roteamento (
   modo text not null, complexidade text not null, pontuacao real not null default 0, tipos text not null default '[]', precisao text not null default '[]',
   sinais text not null default '{}', classe_necessaria text, modelo text, classe text, politicas text not null default '[]', candidatos text not null default '[]',
   tokens_entrada integer, tokens_saida integer, custo_estimado real, custo_referencia real, modelo_usado text, custo_real real,
-  explicacao text not null default '', versao text not null default '', sigilosa integer not null default 0, teste integer not null default 0);
+  explicacao text not null default '', versao text not null default '', sigilosa integer not null default 0, teste integer not null default 0,
+  origem text, classe_pedida text, preferencia text, requisitos text not null default '{}', janela_minima integer, janela_desejada integer,
+  motivo_escolha text, fallback text, reserva text, resultado text);
 create index if not exists roteamento_em on roteamento (em);
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
@@ -194,6 +196,13 @@ const MIGRACOES = [
   },
   // 5. Roteamento de modelos: a tabela vem pelo ESQUEMA; nada a converter.
   () => {},
+  // 6. Roteamento 2.0: requisitos de capacidade, janela, preferência, motivo da escolha, fallback,
+  //    reserva de execução e resultado, para reconstruir cada decisão sem o conteúdo da conversa.
+  db => {
+    const tem = c => db.prepare('pragma table_info(roteamento)').all().some(x => x.name === c);
+    for (const [c, def] of [['origem', 'text'], ['classe_pedida', 'text'], ['preferencia', 'text'], ['requisitos', "text not null default '{}'"], ['janela_minima', 'integer'],
+      ['janela_desejada', 'integer'], ['motivo_escolha', 'text'], ['fallback', 'text'], ['reserva', 'text'], ['resultado', 'text']]) if (!tem(c)) db.exec(`alter table roteamento add column ${c} ${def}`);
+  },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

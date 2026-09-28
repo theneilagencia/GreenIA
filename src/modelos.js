@@ -179,7 +179,7 @@ export function rotasModelos(app, r) {
     const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' })
       .map(o => (reserva && o.id !== AUTOMATICO && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
     const h = homologadoPadrao(app.db, cfg);
-    const padrao = qw?.modelo ? classeDe(app.db, cfg, qw.modelo) : roteamentoLigado(cfg) ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat);
+    const padrao = qw?.modelo && (!qw.pode_trocar || !roteamentoLigado(cfg)) ? classeDe(app.db, cfg, qw.modelo) : roteamentoLigado(cfg) ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat);
     return { opcoes, padrao, roteamento: roteamentoLigado(cfg), homologadoPadrao: h ? `classe:${h.perfil}` : null, perfis: PERFIS };
   });
 
@@ -192,20 +192,30 @@ export function rotasModelos(app, r) {
 
   // Roteamento: configuração, números dos últimos 30 dias e as decisões recentes, com critérios e
   // candidatos. Nenhum conteúdo de conversa é guardado nem sai daqui; custos viram créditos na resposta.
+  // Roteamento: configuração, números dos últimos 30 dias e as decisões recentes, com requisitos,
+  // candidatos e fallbacks. Nenhum conteúdo de conversa é guardado nem sai daqui; custos viram créditos.
+  // Indicadores do roteador contam só decisões da GreenIA que viraram resposta: o Automático do
+  // OpenRouter (fora da governança) e os envios bloqueados ficam de fora.
   r.get('/api/admin/roteamento', ({ query }) => {
     const cfg = lerConfig(app.db);
     const desde = new Date(app.agora().getTime() - 30 * 864e5).toISOString();
-    const contar = campo => Object.fromEntries(todos(app.db, `select ${campo} as k, count(*) as n from roteamento where em >= ? and coalesce(teste, 0) = 0 group by k`, desde).map(x => [x.k ?? 'sem', x.n]));
-    const soma = um(app.db, 'select count(*) as n, sum(custo_estimado) as est, sum(case when custo_estimado is not null then custo_referencia end) as ref, sum(case when politicas like ? then 1 else 0 end) as divergentes from roteamento where em >= ? and coalesce(teste, 0) = 0', '%capacidade_limitada%', desde);
+    const base = "from roteamento where em >= ? and coalesce(teste, 0) = 0 and modo != 'openrouter_auto' and coalesce(resultado, 'respondido') like 'respondido%'";
+    const contar = campo => Object.fromEntries(todos(app.db, `select ${campo} as k, count(*) as n ${base} group by k`, desde).map(x => [x.k ?? 'sem', x.n]));
+    const soma = um(app.db, `select count(*) as n, sum(custo_estimado) as est, sum(case when custo_estimado is not null then custo_referencia end) as ref,
+      sum(case when fallback like ? then 1 else 0 end) as limitadas, sum(case when fallback like ? then 1 else 0 end) as abaixoPorEscolha ${base}`, '%"abaixo_do_necessario"%', '%abaixo_do_necessario_por_escolha%', desde);
+    const fora = um(app.db, "select sum(case when modo = 'openrouter_auto' then 1 else 0 end) as openrouter, sum(case when resultado = 'bloqueado' then 1 else 0 end) as bloqueadas from roteamento where em >= ? and coalesce(teste, 0) = 0", desde);
     const limite = Math.min(100, Math.max(1, Number(query.limite) || 40));
-    const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.complexidade, r.pontuacao, r.tipos, r.precisao, r.sinais, r.classe_necessaria, r.modelo, r.classe,
-      r.politicas, r.candidatos, r.tokens_entrada, r.tokens_saida, r.modelo_usado, r.explicacao, r.versao, r.sigilosa, q.nome as quick_win
+    const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.origem, r.classe_pedida, r.preferencia, r.complexidade, r.tipos, r.precisao, r.sinais, r.requisitos,
+      r.classe_necessaria, r.modelo, r.classe, r.politicas, r.candidatos, r.janela_minima, r.janela_desejada, r.motivo_escolha, r.fallback, r.reserva, r.resultado,
+      r.modelo_usado, r.explicacao, r.versao, r.sigilosa, q.nome as quick_win
       from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id order by r.id desc limit ?`, limite)
-      .map(d => ({ ...d, sigilosa: !!d.sigilosa, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), politicas: json(d.politicas, []), candidatos: json(d.candidatos, []) }));
+      .map(d => ({ ...d, sigilosa: !!d.sigilosa, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), requisitos: json(d.requisitos, {}),
+        politicas: json(d.politicas, []), candidatos: json(d.candidatos, []), fallback: json(d.fallback, null) }));
     return {
       config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
       resumo: {
-        decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), limitadas: soma.divergentes || 0,
+        decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), porNecessaria: contar('classe_necessaria'),
+        limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { openrouter: fora.openrouter || 0, bloqueadas: fora.bloqueadas || 0 },
         // Quanto o roteamento poupou em relação a mandar tudo para a classe Avançado, em percentual.
         economiaPercentual: soma.ref > 0 ? Math.round((1 - soma.est / soma.ref) * 100) : null,
       },

@@ -583,13 +583,17 @@ async function abaPoliticas() {
 
 // ---------------------------------------------------------------- Roteamento
 const COMPLEXIDADE = { simples: 'Simples', intermediaria: 'Intermediária', complexa: 'Complexa' };
-const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win' };
-const STATUS_CAND = { escolhido: 'escolhido', elegivel_mais_caro: 'atendia, com consumo maior', capacidade_insuficiente: 'capacidade abaixo da necessária', nao_homologado: 'não homologado (conversa sigilosa)',
-  plano_na_reserva: 'fora na reserva do plano', gratuito_treina_com_dados: 'gratuito: treina com os dados', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
+const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win', padrao: 'Padrão da empresa (roteamento desligado)', openrouter_auto: 'Automático do OpenRouter' };
+const STATUS_CAND = { escolhido: 'escolhido', preterido: 'atendia; menor utilidade', insuficiente: 'capacidade abaixo da exigida', excluido: 'fora pelas regras' };
+const MOTIVO_CAND = { capacidade_insuficiente: 'capacidade abaixo da exigida', nao_homologado: 'não homologado (conversa sigilosa)', plano_na_reserva: 'reserva do plano (só Rápido)',
+  gratuito_treina_com_dados: 'gratuito: treina com os dados', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
+const RESULTADO = { respondido: 'respondido', respondido_pela_reserva: 'respondido pela reserva', falha_na_execucao: 'falha na execução', bloqueado: 'bloqueado antes do envio', enviado: 'em andamento' };
+const FALLBACK = { abaixo_do_necessario: 'abaixo do necessário (regras ou permissões)', abaixo_do_necessario_por_escolha: 'abaixo do necessário (escolha manual)',
+  trocado_por_falta_de_contexto: 'trocado por falta de janela', trocado_pela_reserva_do_plano: 'trocado pela reserva do plano', sem_modelo: 'nenhum modelo permitido' };
 const TIPO_TAREFA = { classificacao: 'classificação', traducao: 'tradução', extracao: 'extração', sintese: 'síntese', redacao: 'redação', analise: 'análise', programacao: 'programação', raciocinio: 'raciocínio', consulta: 'consulta' };
-const PREFERENCIAS = [['economia', 'Economia', 'Sobe de classe só quando o pedido claramente exige. Menor consumo.'],
-  ['equilibrio', 'Equilíbrio', 'Recomendado: pedidos simples na classe Rápido; análise, raciocínio e assuntos sensíveis em classes maiores.'],
-  ['qualidade', 'Qualidade', 'Sobe de classe mais cedo. Maior consumo, menos risco de resposta fraca.']];
+const PREFERENCIAS = [['economia', 'Economia', 'O modelo de menor consumo que atende ao que o pedido exige. Nunca abaixo do necessário.'],
+  ['equilibrio', 'Equilíbrio', 'Recomendado: atende ao que o pedido exige e prefere o modelo padrão de cada classe quando custa até cerca de 2 vezes o mais barato.'],
+  ['qualidade', 'Qualidade', 'Em tarefas que não são simples, usa uma classe acima do mínimo. Maior consumo, menos risco de resposta fraca.']];
 function barrasDist(titulo, dist, nomes) {
   const total = Object.values(dist).reduce((a, b) => a + b, 0);
   const linhas = Object.entries(nomes).filter(([k]) => dist[k]).map(([k, nome]) => { const n = dist[k], pct = Math.round(n / total * 100);
@@ -599,7 +603,7 @@ function barrasDist(titulo, dist, nomes) {
 async function abaRoteamento() {
   const d = await api('/api/admin/roteamento');
   const c = d.config, r = d.resumo;
-  $('conteudo').innerHTML = `<p class="lead">Antes de cada resposta, a GreenIA analisa o pedido (tipo de tarefa, complexidade, tamanho do contexto e assuntos que pedem precisão) e escolhe, entre os modelos liberados, o de menor consumo que tenha a capacidade necessária. Acesso das pessoas, quick wins, conversas sigilosas e plano limitam a escolha antes dela acontecer.</p>
+  $('conteudo').innerHTML = `<p class="lead">Antes de cada resposta, a GreenIA analisa o pedido e calcula o que ele exige: capacidade (raciocínio, programação, precisão, leitura de grande volume, nova tentativa) e janela de contexto. Sigilo, plano e acesso das pessoas só tiram modelos da lista; entre os que atendem e são permitidos, a escolha pesa consumo, margem de capacidade e o modelo padrão de cada classe, conforme a preferência abaixo. Cada decisão fica registrada com os motivos.</p>
     <form id="cfg-rota" class="editor">
       <label class="opcoes"><span><input type="checkbox" id="rota-ativo" ${c.ativo ? 'checked' : ''}> Roteamento automático ligado (a opção "Automático" é o padrão das conversas)</span></label>
       <p class="dica">Desligado, cada conversa usa a classe do modelo de chat, e a pessoa troca de classe à mão.</p>
@@ -611,18 +615,20 @@ async function abaRoteamento() {
     <div class="or-grade">
       <div class="or-card"><span class="or-rotulo">Decisões</span><b class="or-numero">${num(r.decisoes)}</b><span class="or-sub">respostas com a escolha registrada</span></div>
       <div class="or-card destaque"><span class="or-rotulo">Consumo poupado</span><b class="or-numero">${r.economiaPercentual === null ? '—' : `${r.economiaPercentual}%`}</b><span class="or-sub">em relação a usar sempre a classe Avançado</span></div>
-      <div class="or-card"><span class="or-rotulo">Limitadas pelas permissões</span><b class="or-numero">${num(r.limitadas)}</b><span class="or-sub">o pedido pedia uma classe que a pessoa não tem</span></div>
+      <div class="or-card"><span class="or-rotulo">Abaixo do necessário</span><b class="or-numero">${num(r.limitadas + r.abaixoPorEscolha)}</b><span class="or-sub">${num(r.limitadas)} por regras ou permissões, ${num(r.abaixoPorEscolha)} por escolha manual</span></div>
+      <div class="or-card"><span class="or-rotulo">Fora do roteador</span><b class="or-numero">${num(r.foraDoRoteador.openrouter + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.openrouter)} no Automático do OpenRouter, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
     </div>
-    <div class="or-grade">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Classe usada', r.porClasse, PERFIS)}${barrasDist('Como a classe foi definida', r.porModo, MODO)}</div>
+    <div class="or-grade">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Classe exigida pelo pedido', r.porNecessaria, PERFIS)}${barrasDist('Classe usada', r.porClasse, PERFIS)}${barrasDist('Como a classe foi definida', r.porModo, MODO)}</div>
     <h3>Decisões recentes</h3>
     <p class="dica">Cada registro guarda só critérios, regras e candidatos. O texto das conversas não fica aqui.</p>
-    ${tabela(['Quando', 'Pessoa', 'Pedido', 'Necessária', 'Usada', 'Por quê'], d.decisoes.map(x => `<tr>
-      <td style="white-space:nowrap">${dataHora(x.em)}</td><td>${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
-      <td>${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''} · ${num(x.tokens_entrada)} tokens${x.sigilosa ? ' · sigilosa' : ''}</span></td>
-      <td>${PERFIS[x.classe_necessaria] || '—'}</td><td><b>${PERFIS[x.classe] || x.classe}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo)}</span></td>
-      <td style="min-width:260px">${esc(x.explicacao)}<details><summary class="dica" style="cursor:pointer">Candidatos e critérios</summary>
-        <ul class="dica">${x.candidatos.map(k => `<li>${esc(k.id)} (${PERFIS[k.classe] || k.classe}): ${esc(STATUS_CAND[k.status] || k.status)}${k.custo != null ? ` · ${fmtCusto(k.custo)}` : ''}</li>`).join('')}</ul>
-        <span class="dica">Pontuação ${x.pontuacao} · critérios: ${esc(x.politicas.join(', ') || '—')} · versão ${esc(x.versao)}</span></details></td></tr>`), 'Nenhuma decisão registrada ainda.')}`;
+    ${tabela(['Quando', 'Pessoa', 'Pedido', 'Exigida', 'Usada', 'Por quê'], d.decisoes.map(x => `<tr>
+      <td style="white-space:nowrap">${dataHora(x.em)}<br><span class="dica">${esc(RESULTADO[x.resultado] || x.resultado || '')}</span></td><td>${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
+      <td>${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''} · janela ${num(x.janela_minima)} tokens${x.sigilosa ? ' · sigilosa' : ''}</span></td>
+      <td>${PERFIS[x.classe_necessaria] || '—'}</td><td><b>${PERFIS[x.classe] || (x.modo === 'openrouter_auto' ? 'OpenRouter' : '—')}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo || '')}</span>${x.fallback ? `<br><span class="selo selo-ambar">${esc(FALLBACK[x.fallback.tipo] || x.fallback.tipo)}</span>` : ''}</td>
+      <td style="min-width:260px">${esc(x.explicacao)}<details><summary class="dica" style="cursor:pointer">Requisitos, candidatos e critérios</summary>
+        <p class="dica">${esc(MODO[x.modo] || x.modo)} · preferência ${esc(x.preferencia || '—')} · requisitos: ${esc(Object.entries(x.requisitos.dimensoes || {}).map(([k, n]) => `${k} ${n}`).join(', ') || '—')}</p>
+        <ul class="dica">${x.candidatos.map(k => `<li>${esc(k.id)} (${PERFIS[k.classe] || k.classe}): ${esc(STATUS_CAND[k.status] || k.status)}${k.motivos?.length ? ` · ${esc(k.motivos.map(m => MOTIVO_CAND[m] || m).join(', '))}` : ''}${k.custo != null ? ` · ${fmtCusto(k.custo)}` : ''}</li>`).join('')}</ul>
+        <span class="dica">Regras: ${esc(x.politicas.join(', ') || '—')} · escolha: ${esc(x.motivo_escolha || '—')}${x.reserva ? ` · reserva: ${esc(x.reserva)}` : ''} · versão ${esc(x.versao)}</span></details></td></tr>`), 'Nenhuma decisão registrada ainda.')}`;
   $('cfg-rota').onsubmit = async ev => {
     ev.preventDefault();
     try {

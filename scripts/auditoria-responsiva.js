@@ -87,7 +87,7 @@ function medir() {
   return { rolagem: document.documentElement.scrollWidth - vw, fora: [...new Set(fora)].slice(0, 8), pequenos: [...new Set(pequenos)].slice(0, 8), miudos: [...new Set(miudos)].slice(0, 6) };
 }
 
-const APP = ['#/visao-geral', '#/conversas', '#/nova', `#/c/${conversa.id}`, '#/quick-wins', `#/qw/${qw.id}`, '#/conhecimento', '#/uso', '#/pessoas', '#/pessoas/pessoas', '#/pessoas/grupos', '#/modelos', '#/politicas', '#/atividade', '#/configuracoes'];
+const APP = ['#/visao-geral', '#/conversas', '#/nova', `#/c/${conversa.id}`, '#/quick-wins', `#/qw/${qw.id}`, '#/conhecimento', '#/uso', '#/pessoas', '#/pessoas/pessoas', '#/pessoas/grupos', '#/modelos', '#/modelos/roteamento', '#/politicas', '#/atividade', '#/configuracoes'];
 const CONSOLE = ['#/empresas', '#/usuarios', '#/planos', '#/ambientes', '#/uso', '#/auditoria', '#/configuracoes'];
 const problemas = [];
 let telas = 0;

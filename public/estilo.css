@@ -1035,3 +1035,14 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .or-chave-linha input{flex:1 1 280px;font-family:var(--mono);font-size:13.5px}
 .or-chave-form .dica{margin:8px 0 0}
 .or-card .tag{white-space:normal;height:auto;min-height:22px;padding:2px 8px;line-height:1.35}
+
+/* ------------------------------------------------------------ Roteamento de modelos (admin) */
+.rt-linha{display:grid;grid-template-columns:minmax(90px,auto) 1fr 40px;align-items:center;gap:10px;font:400 13.5px var(--sans)}
+.rt-linha .barra{margin:0} .rt-linha b{text-align:right;font-variant-numeric:tabular-nums}
+.rota-motivo{margin:6px 0 0;font:400 12.5px/1.5 var(--sans);color:var(--muted)}
+.rota-motivo summary{cursor:pointer;width:max-content;color:var(--muted)} .rota-motivo summary:hover{color:var(--ink)}
+.rt-pref{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:6px 0 0}
+.rt-pref label{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);cursor:pointer}
+.rt-pref label:has(input:checked){border-color:var(--forest);background:var(--mint)}
+.rt-pref input{margin-top:3px;flex:none} .rt-pref b{display:block;font:600 14px var(--sans);color:var(--ink)}
+.rt-pref small{display:block;margin-top:2px;font:400 12.5px/1.45 var(--sans);color:var(--muted)}

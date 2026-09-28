@@ -8,6 +8,9 @@ import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
 export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 export const AUTO = 'openrouter/auto';
+// Roteamento da GreenIA: o modelo sai da análise de cada pedido, dentro das regras da empresa (ver roteador.js).
+export const AUTOMATICO = 'classe:auto';
+const roteamentoLigado = cfg => cfg.roteamento?.ativo !== false;
 // Modelos gratuitos: o fornecedor costuma guardar e treinar com os dados.
 export const ehGratuito = id => /:free$/.test(id) || id === 'openrouter/free';
 const AVISO_GRATUITO = 'Modelo gratuito: o fornecedor pode guardar e treinar com os dados. Não serve para conversas sigilosas e costuma ser recusado quando a exigência de "sem treino" está ligada.';
@@ -83,6 +86,9 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
   const perfis = perfisDe(cfg, pessoa);
   const qwClasse = qw?.modelo ? classeDe(db, cfg, qw.modelo) : null;
   const out = [];
+  if (roteamentoLigado(cfg) && (!qw || qw.pode_trocar) && (!sigilosa || homologadoPadrao(db, cfg))) {
+    out.push({ id: AUTOMATICO, nome: 'Automático', descricao: 'A GreenIA escolhe a classe certa para cada pedido', perfil: 'auto', homologado: sigilosa, classe: true, automatico: true });
+  }
   for (const [perfil, nome] of Object.entries(NOMES_CLASSE)) {
     const id = `classe:${perfil}`;
     const doQw = qwClasse === id;
@@ -93,7 +99,7 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
     if (sigilosa && m.perfil !== perfil && !doQw) continue;     // classe sem homologado próprio não aparece em conversa sigilosa
     out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, perfil, homologado: m.homologado, classe: true });
   }
-  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO, nome: 'Automático', perfil: 'rapido', homologado: false });
+  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO, nome: 'Automático do OpenRouter (fora da governança)', perfil: 'rapido', homologado: false });
   return out;
 }
 
@@ -171,16 +177,40 @@ export function rotasModelos(app, r) {
     const qw = query.quick_win ? um(app.db, 'select id, modelo, pode_trocar from quick_wins where id = ?', Number(query.quick_win)) : null;
     const reserva = situacaoPlano(app)?.fase === 'reserva';
     const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' })
-      .map(o => (reserva && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
+      .map(o => (reserva && o.id !== AUTOMATICO && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
     const h = homologadoPadrao(app.db, cfg);
-    return { opcoes, padrao: classeDe(app.db, cfg, qw?.modelo || cfg.padroes.chat), homologadoPadrao: h ? `classe:${h.perfil}` : null, perfis: PERFIS };
+    const padrao = qw?.modelo ? classeDe(app.db, cfg, qw.modelo) : roteamentoLigado(cfg) ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat);
+    return { opcoes, padrao, roteamento: roteamentoLigado(cfg), homologadoPadrao: h ? `classe:${h.perfil}` : null, perfis: PERFIS };
   });
 
   r.get('/api/admin/modelos', () => {
     const cfg = lerConfig(app.db);
     const h = homologadoPadrao(app.db, cfg);
     return { modelos: lerModelos(app.db).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500) })), perfis: PERFIS, homologadoPadrao: h?.id || null, garantia: !!h,
-      config: { padroes: cfg.padroes, acessoPerfis: cfg.acessoPerfis, perfisQuickWin: cfg.perfisQuickWin, exigirSemTreino: cfg.exigirSemTreino, automatico: cfg.automatico } };
+      config: { padroes: cfg.padroes, acessoPerfis: cfg.acessoPerfis, perfisQuickWin: cfg.perfisQuickWin, exigirSemTreino: cfg.exigirSemTreino, automatico: cfg.automatico, roteamento: cfg.roteamento } };
+  }, { admin: true });
+
+  // Roteamento: configuração, números dos últimos 30 dias e as decisões recentes, com critérios e
+  // candidatos. Nenhum conteúdo de conversa é guardado nem sai daqui; custos viram créditos na resposta.
+  r.get('/api/admin/roteamento', ({ query }) => {
+    const cfg = lerConfig(app.db);
+    const desde = new Date(app.agora().getTime() - 30 * 864e5).toISOString();
+    const contar = campo => Object.fromEntries(todos(app.db, `select ${campo} as k, count(*) as n from roteamento where em >= ? and coalesce(teste, 0) = 0 group by k`, desde).map(x => [x.k ?? 'sem', x.n]));
+    const soma = um(app.db, 'select count(*) as n, sum(custo_estimado) as est, sum(case when custo_estimado is not null then custo_referencia end) as ref, sum(case when politicas like ? then 1 else 0 end) as divergentes from roteamento where em >= ? and coalesce(teste, 0) = 0', '%capacidade_limitada%', desde);
+    const limite = Math.min(100, Math.max(1, Number(query.limite) || 40));
+    const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.complexidade, r.pontuacao, r.tipos, r.precisao, r.sinais, r.classe_necessaria, r.modelo, r.classe,
+      r.politicas, r.candidatos, r.tokens_entrada, r.tokens_saida, r.modelo_usado, r.explicacao, r.versao, r.sigilosa, q.nome as quick_win
+      from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id order by r.id desc limit ?`, limite)
+      .map(d => ({ ...d, sigilosa: !!d.sigilosa, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), politicas: json(d.politicas, []), candidatos: json(d.candidatos, []) }));
+    return {
+      config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
+      resumo: {
+        decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), limitadas: soma.divergentes || 0,
+        // Quanto o roteamento poupou em relação a mandar tudo para a classe Avançado, em percentual.
+        economiaPercentual: soma.ref > 0 ? Math.round((1 - soma.est / soma.ref) * 100) : null,
+      },
+      decisoes,
+    };
   }, { admin: true });
 
   r.get('/api/admin/modelos/catalogo', async ({ query }) => {
@@ -244,10 +274,14 @@ export function rotasModelos(app, r) {
     if (corpo.perfisQuickWin) novo.perfisQuickWin = corpo.perfisQuickWin.filter(p => PERFIS[p]);
     if (corpo.exigirSemTreino !== undefined) novo.exigirSemTreino = !!corpo.exigirSemTreino;
     if (corpo.automatico !== undefined) novo.automatico = !!corpo.automatico;
+    if (corpo.roteamento) {
+      const pref = ['economia', 'equilibrio', 'qualidade'].includes(corpo.roteamento.preferencia) ? corpo.roteamento.preferencia : cfg.roteamento?.preferencia || 'equilibrio';
+      novo.roteamento = { ativo: corpo.roteamento.ativo !== undefined ? !!corpo.roteamento.ativo : cfg.roteamento?.ativo !== false, preferencia: pref };
+    }
     for (const [k, id] of Object.entries(novo.padroes || {})) {
       if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
-    mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino }, () => salvarConfig(app.db, novo));
+    mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino, roteamento: novo.roteamento }, () => salvarConfig(app.db, novo));
     const trocas = Object.keys(NOMES_CLASSE).filter(k => novo.padroes && novo.padroes[k] !== cfg.padroes[k]);
     if (trocas.length) avisarModeloAlterado(app, trocas.map(k => [k, acharModelo(app.db, lerConfig(app.db), novo.padroes[k])]));
     return { ok: true };

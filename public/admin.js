@@ -188,7 +188,8 @@ async function abaModelos() {
       <h3>Privacidade e roteamento</h3>
       <label class="opcoes"><span><input type="checkbox" id="sem-treino" ${cfg.exigirSemTreino ? 'checked' : ''}> Em conversas normais, usar só fornecedores que não treinam com os dados</span></label>
       <p class="dica">Conversas sigilosas sempre usam fornecedor fixado e retenção zero, com esta opção ligada ou não.</p>
-      <label class="opcoes"><span><input type="checkbox" id="automatico" ${cfg.automatico ? 'checked' : ''}> Oferecer "Automático" no seletor (o OpenRouter escolhe o modelo; o modelo usado aparece abaixo de cada resposta)</span></label>
+      <label class="opcoes"><span><input type="checkbox" id="automatico" ${cfg.automatico ? 'checked' : ''}> Oferecer também o "Automático do OpenRouter" no seletor (o OpenRouter escolhe qualquer modelo do mercado, fora das classes e das regras da empresa)</span></label>
+      <p class="dica">O recomendado é o roteamento da GreenIA, em Modelos → Roteamento: ele escolhe entre os modelos liberados aqui, respeitando acesso, sigilo e plano, e registra o motivo de cada escolha.</p>
       <div class="linha-botoes" style="margin:18px 0"><button class="btn btn-verde">Salvar configuração de modelos</button></div>
     </form>`;
 
@@ -580,6 +581,57 @@ async function abaPoliticas() {
   };
 }
 
+// ---------------------------------------------------------------- Roteamento
+const COMPLEXIDADE = { simples: 'Simples', intermediaria: 'Intermediária', complexa: 'Complexa' };
+const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win' };
+const STATUS_CAND = { escolhido: 'escolhido', elegivel_mais_caro: 'atendia, com consumo maior', capacidade_insuficiente: 'capacidade abaixo da necessária', nao_homologado: 'não homologado (conversa sigilosa)',
+  plano_na_reserva: 'fora na reserva do plano', gratuito_treina_com_dados: 'gratuito: treina com os dados', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
+const TIPO_TAREFA = { classificacao: 'classificação', traducao: 'tradução', extracao: 'extração', sintese: 'síntese', redacao: 'redação', analise: 'análise', programacao: 'programação', raciocinio: 'raciocínio', consulta: 'consulta' };
+const PREFERENCIAS = [['economia', 'Economia', 'Sobe de classe só quando o pedido claramente exige. Menor consumo.'],
+  ['equilibrio', 'Equilíbrio', 'Recomendado: pedidos simples na classe Rápido; análise, raciocínio e assuntos sensíveis em classes maiores.'],
+  ['qualidade', 'Qualidade', 'Sobe de classe mais cedo. Maior consumo, menos risco de resposta fraca.']];
+function barrasDist(titulo, dist, nomes) {
+  const total = Object.values(dist).reduce((a, b) => a + b, 0);
+  const linhas = Object.entries(nomes).filter(([k]) => dist[k]).map(([k, nome]) => { const n = dist[k], pct = Math.round(n / total * 100);
+    return `<div class="rt-linha" title="${esc(nome)}: ${num(n)} ${n === 1 ? 'decisão' : 'decisões'} (${pct}%)"><span>${esc(nome)}</span><div class="barra"><span style="width:${pct}%"></span></div><b>${pct}%</b></div>`; });
+  return `<div class="or-card"><span class="or-rotulo">${esc(titulo)}</span>${linhas.join('') || '<p class="or-sub">Sem decisões ainda.</p>'}</div>`;
+}
+async function abaRoteamento() {
+  const d = await api('/api/admin/roteamento');
+  const c = d.config, r = d.resumo;
+  $('conteudo').innerHTML = `<p class="lead">Antes de cada resposta, a GreenIA analisa o pedido (tipo de tarefa, complexidade, tamanho do contexto e assuntos que pedem precisão) e escolhe, entre os modelos liberados, o de menor consumo que tenha a capacidade necessária. Acesso das pessoas, quick wins, conversas sigilosas e plano limitam a escolha antes dela acontecer.</p>
+    <form id="cfg-rota" class="editor">
+      <label class="opcoes"><span><input type="checkbox" id="rota-ativo" ${c.ativo ? 'checked' : ''}> Roteamento automático ligado (a opção "Automático" é o padrão das conversas)</span></label>
+      <p class="dica">Desligado, cada conversa usa a classe do modelo de chat, e a pessoa troca de classe à mão.</p>
+      <span class="legenda">Preferência da empresa</span>
+      <div class="rt-pref">${PREFERENCIAS.map(([k, n, dica]) => `<label><input type="radio" name="rota-pref" value="${k}" ${c.preferencia === k ? 'checked' : ''}><span><b>${n}</b><small>${dica}</small></span></label>`).join('')}</div>
+      <div class="linha-botoes" style="margin-top:12px"><button class="btn btn-verde">Salvar roteamento</button></div>
+    </form>
+    <h3>Últimos 30 dias</h3>
+    <div class="or-grade">
+      <div class="or-card"><span class="or-rotulo">Decisões</span><b class="or-numero">${num(r.decisoes)}</b><span class="or-sub">respostas com a escolha registrada</span></div>
+      <div class="or-card destaque"><span class="or-rotulo">Consumo poupado</span><b class="or-numero">${r.economiaPercentual === null ? '—' : `${r.economiaPercentual}%`}</b><span class="or-sub">em relação a usar sempre a classe Avançado</span></div>
+      <div class="or-card"><span class="or-rotulo">Limitadas pelas permissões</span><b class="or-numero">${num(r.limitadas)}</b><span class="or-sub">o pedido pedia uma classe que a pessoa não tem</span></div>
+    </div>
+    <div class="or-grade">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Classe usada', r.porClasse, PERFIS)}${barrasDist('Como a classe foi definida', r.porModo, MODO)}</div>
+    <h3>Decisões recentes</h3>
+    <p class="dica">Cada registro guarda só critérios, regras e candidatos. O texto das conversas não fica aqui.</p>
+    ${tabela(['Quando', 'Pessoa', 'Pedido', 'Necessária', 'Usada', 'Por quê'], d.decisoes.map(x => `<tr>
+      <td style="white-space:nowrap">${dataHora(x.em)}</td><td>${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
+      <td>${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''} · ${num(x.tokens_entrada)} tokens${x.sigilosa ? ' · sigilosa' : ''}</span></td>
+      <td>${PERFIS[x.classe_necessaria] || '—'}</td><td><b>${PERFIS[x.classe] || x.classe}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo)}</span></td>
+      <td style="min-width:260px">${esc(x.explicacao)}<details><summary class="dica" style="cursor:pointer">Candidatos e critérios</summary>
+        <ul class="dica">${x.candidatos.map(k => `<li>${esc(k.id)} (${PERFIS[k.classe] || k.classe}): ${esc(STATUS_CAND[k.status] || k.status)}${k.custo != null ? ` · ${fmtCusto(k.custo)}` : ''}</li>`).join('')}</ul>
+        <span class="dica">Pontuação ${x.pontuacao} · critérios: ${esc(x.politicas.join(', ') || '—')} · versão ${esc(x.versao)}</span></details></td></tr>`), 'Nenhuma decisão registrada ainda.')}`;
+  $('cfg-rota').onsubmit = async ev => {
+    ev.preventDefault();
+    try {
+      await api('/api/admin/modelos-config', { metodo: 'PUT', corpo: { roteamento: { ativo: $('rota-ativo').checked, preferencia: document.querySelector('input[name=rota-pref]:checked')?.value } } });
+      toast('Roteamento salvo.'); abaRoteamento();
+    } catch (e) { falhar(e); }
+  };
+}
+
 // ---------------------------------------------------------------- Histórico de modelos
 async function abaHistoricoModelos() {
   const d = await api('/api/admin/eventos?prefixo=model.');
@@ -593,7 +645,7 @@ const NOMES_EVENTO = { 'model.changed': 'Modelo alterado', 'model.certified': 'M
 const TELAS = {
   uso: { titulo: 'Uso e créditos', perm: 'usage.read', fn: abaUso },
   pessoas: { titulo: 'Pessoas e áreas', perm: 'user.read', sub: [['', 'Áreas', abaAreas], ['pessoas', 'Pessoas', abaPessoas], ['grupos', 'Grupos de permissão', abaGrupos], ['criacao', 'Quem cria quick wins', abaCriacaoQw]] },
-  modelos: { titulo: 'Modelos', perm: 'models.manage', sub: [['', 'Classes e modelos', abaModelos], ['historico', 'Histórico', abaHistoricoModelos]] },
+  modelos: { titulo: 'Modelos', perm: 'models.manage', sub: [['', 'Classes e modelos', abaModelos], ['roteamento', 'Roteamento', abaRoteamento], ['historico', 'Histórico', abaHistoricoModelos]] },
   politicas: { titulo: 'Políticas de IA', perm: 'policy.manage', sub: [['', 'Regras de uso', abaPoliticas], ['texto', 'Texto da política', abaPolitica]] },
   atividade: { titulo: 'Atividade', perm: 'audit.read', fn: abaEventos },
   configuracoes: { titulo: 'Configurações', perm: 'settings.manage', fn: abaConfig },

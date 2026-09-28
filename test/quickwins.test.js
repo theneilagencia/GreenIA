@@ -149,7 +149,7 @@ test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo n
   await ana.put(`/api/quick-wins/${q.id}`, { status: 'ativo' });
   const conv = (await carlos.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
   assert.equal(conv.sigilosa, true);
-  assert.deepEqual((await carlos.get(`/api/modelos?quick_win=${q.id}&sigilosa=1`)).dados.opcoes.map(o => o.id), ['classe:rapido']);
+  assert.deepEqual((await carlos.get(`/api/modelos?quick_win=${q.id}&sigilosa=1`)).dados.opcoes.map(o => o.id), ['classe:auto', 'classe:rapido']);
   const n = OR.chamadas.length;
   r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: 'google/gemini-3.5-flash-lite' });
   assert.equal(r.status, 409);

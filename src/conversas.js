@@ -10,6 +10,7 @@ import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
+import { analisarPedido, rotear, AUTOMATICO, VERSAO_ROTEADOR, NOME_CLASSE } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
 const MAX_TEXTO = 20000;
@@ -187,24 +188,47 @@ export function rotasConversas(app, r) {
     if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     const sigilosa = !!conv.sigilosa;
 
-    // 3. Modelo: permitido para a pessoa (ou padrão do quick win); sigilosa só homologado.
-    const pedido = corpo.modelo || conv.modelo || qw?.modelo || classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat;
-    let m = modeloPermitido(app.db, cfg, pessoa, pedido, { qw, sigilosa });
-    if (sigilosa && !m.homologado) {
-      const h = homologadoPadrao(app.db, cfg);
-      throw erro(409, 'precisa_homologado', h ? `Esta conversa passou a ter dados sigilosos e vai usar o modelo homologado ${h.nome}.`
-        : 'Esta conversa tem dados sigilosos e ainda não há modelo homologado. Fale com o admin.', { sugestao: h && { id: h.id, nome: h.nome } });
+    // 3. Modelo. Com o roteamento ligado, o pedido é analisado (tipo, complexidade, contexto, precisão)
+    //    e o modelo sai dos permitidos pelas regras (acesso, quick win, sigilo, plano). Classe escolhida
+    //    pela pessoa ou fixada pelo quick win é respeitada, com o mesmo registro de critérios.
+    const roteamentoAtivo = cfg.roteamento?.ativo !== false;
+    const qwFixo = qw?.modelo && !qw.pode_trocar;
+    const pedido = qwFixo ? qw.modelo : corpo.modelo || conv.modelo || qw?.modelo || (roteamentoAtivo ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat);
+    const automatico = roteamentoAtivo && pedido === AUTOMATICO;
+    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw);
+    const historicoChars = um(app.db, 'select coalesce(sum(length(texto)), 0) as n from mensagens where conversa_id = ?', conv.id).n
+      + Math.min(app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity, um(app.db, 'select coalesce(sum(length(texto)), 0) as n from anexos where conversa_id = ?', conv.id).n);
+    const temResposta = !!um(app.db, "select 1 from mensagens where conversa_id = ? and papel = 'assistant'", conv.id);
+    const analise = analisarPedido({ texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta, preferencia: cfg.roteamento?.preferencia });
+    const reservaDoPlano = plano?.fase === 'reserva';
+    let manual = null;
+    if (!automatico) {
+      manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat : pedido, { qw, sigilosa });
+      if (sigilosa && !manual.homologado) {
+        const h = homologadoPadrao(app.db, cfg);
+        throw erro(409, 'precisa_homologado', h ? `Esta conversa passou a ter dados sigilosos e vai usar o modelo homologado ${h.nome}.`
+          : 'Esta conversa tem dados sigilosos e ainda não há modelo homologado. Fale com o admin.', { sugestao: h && { id: h.id, nome: h.nome } });
+      }
     }
     // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
     let trocaDoPlano = false;
-    if (plano?.fase === 'reserva') {
-      const antes = m;
-      m = modeloNaReserva(app, cfg, m, sigilosa);
-      trocaDoPlano = m.id !== antes.id;
+    if (manual && reservaDoPlano) {
+      const antes = manual;
+      manual = modeloNaReserva(app, cfg, manual, sigilosa);
+      trocaDoPlano = manual.id !== antes.id;
       if (trocaDoPlano) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
     }
+    const rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual: manual });
+    let m = rota.modelo;
+    if (!m) {
+      if (sigilosa) throw erro(409, 'precisa_homologado', 'Esta conversa tem dados sigilosos e não há modelo homologado disponível para você. Fale com o admin.');
+      if (rota.candidatos.some(c => c.status === 'contexto_insuficiente'))
+        throw erro(413, 'grande_demais', 'Esta mensagem e os anexos passam do tamanho que os modelos liberados aceitam. Envie menos texto ou só as partes necessárias.');
+      throw erro(403, 'modelo_nao_liberado', 'Nenhum modelo liberado atende a este pedido agora. Fale com o admin.');
+    }
+    if (reservaDoPlano && automatico && m.perfil === 'rapido' && rota.necessario.nivel > 1) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
     if (conv.modelo && conv.modelo !== pedido && !trocaDoPlano) {
-      aviso(app, conv.id, `Classe trocada para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
+      aviso(app, conv.id, pedido === AUTOMATICO ? 'Classe automática: a GreenIA escolhe o modelo para cada pedido.' : `Classe trocada para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
       registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: pedido });
     }
 
@@ -214,8 +238,14 @@ export function rotasConversas(app, r) {
     for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto) values (?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto);
     const titulo = conv.titulo === 'Nova conversa' ? (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
+    // Registro da decisão de roteamento: critérios, políticas e candidatos; nenhum conteúdo do pedido.
+    const rotaId = Number(exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, mensagem_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais,
+      classe_necessaria, modelo, classe, politicas, candidatos, tokens_entrada, tokens_saida, custo_estimado, custo_referencia, explicacao, versao, sigilosa, teste)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      agora, pessoa.id, conv.id, msgId, conv.quick_win_id, rota.modo, analise.complexidade, analise.pontuacao, JSON.stringify(analise.tipos), JSON.stringify(analise.precisao),
+      JSON.stringify({ ...analise.sinais, insatisfacao: analise.insatisfacao }), rota.necessario.classe, m.id, m.perfil, JSON.stringify([...rota.politicas, ...rota.necessario.motivos]),
+      JSON.stringify(rota.candidatos), analise.tokensEntrada, analise.tokensSaida, rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, Number(sigilosa), conv.teste).lastInsertRowid);
 
-    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw);
     const limite = Math.floor((m.contexto || 32000) * 2.4) - sistema.length - ctx.partes.join('').length;
     const h = historico(app, conv, Math.max(limite, 8000));
     if (h.cortada && !conv.cortada) exec(app.db, 'update conversas set cortada = 1 where id = ?', conv.id);
@@ -228,7 +258,8 @@ export function rotasConversas(app, r) {
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     const linha = o => res.write(JSON.stringify(o) + '\n');
-    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada });
+    const rotaTela = { modo: rota.modo, classe: m.perfil, complexidade: analise.complexidade, explicacao: rota.explicacao };
+    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
     const inicio = Date.now();
     let resposta = '', fim = null;
     try {
@@ -237,7 +268,7 @@ export function rotasConversas(app, r) {
       }
       if (!resposta) throw new ErroIA('O modelo não respondeu. Tente de novo.');
     } catch (e) {
-      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, erro: String(e.message).slice(0, 200) });
+      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
       linha({ t: 'erro', mensagem: e instanceof ErroIA ? e.message : 'Não foi possível responder agora. Tente de novo.' });
       return res.end();
     }
@@ -246,12 +277,13 @@ export function rotasConversas(app, r) {
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, resposta, usado, fim?.fornecedor, JSON.stringify(ctx.fontes), AGORA(app)).lastInsertRowid);
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
+    exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ? where id = ?', respId, usado, fim?.custo || 0, rotaId);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
-    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms });
+    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: analise.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
-    linha({ t: 'fim', id: respId, modelo: usado, classe: m.perfil, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id });
+    linha({ t: 'fim', id: respId, modelo: usado, classe: m.perfil, fornecedor: fim?.fornecedor, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
     res.end();
   }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
 }
@@ -264,7 +296,7 @@ export function detalhe(app, c) {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: c.modelo, sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
-    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, md.perfil as classe from mensagens m left join modelos md on md.id = m.modelo where m.conversa_id = ? order by m.id', c.id)
+    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
       .map(m => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome) })),
   };
 }

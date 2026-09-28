@@ -23,7 +23,10 @@ export const PADRAO = {
   criarQuickWin: { responsaveis: true, pessoas: [], grupos: [], todaEmpresa: { pessoas: [], grupos: [] } },
   exigirSemTreino: true,
   avisosPlano: {},   // controle interno dos avisos do plano (mês e etapas já avisadas)
-  automatico: false,
+  automatico: false,   // "Automático do OpenRouter" (openrouter/auto): fora da governança; o roteamento da GreenIA é o recomendado
+  // Roteamento da GreenIA: analisa cada pedido e escolhe o modelo entre os permitidos.
+  // preferencia: economia (sobe de classe só quando precisa muito), equilibrio ou qualidade.
+  roteamento: { ativo: true, preferencia: 'equilibrio' },
   // Limites (0 = sem limite).
   tetoMensal: 0, tetoPessoaMensal: 0, limiteDiarioPessoa: 0,
 };

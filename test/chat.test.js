@@ -181,7 +181,7 @@ test('sigilosa por área marcada como "todas as conversas são sigilosas"', asyn
 
 test('sigilosa: o seletor mostra só homologados, e a pessoa usa o homologado padrão mesmo sem o perfil', async () => {
   const op = (await ana.get('/api/modelos?sigilosa=1')).dados.opcoes;
-  assert.deepEqual(op.map(o => o.id), ['classe:rapido']);
+  assert.deepEqual(op.map(o => o.id), ['classe:auto', 'classe:rapido'], 'Automático (só homologados) e a classe homologada');
   assert.ok(op.every(o => o.homologado));
 });
 

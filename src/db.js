@@ -119,6 +119,16 @@ create table if not exists leads (id integer primary key, em text not null, nome
 create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer,
   observacao text not null default '', validade text, origem text not null default 'manual', operador text);
 
+-- Decisões de roteamento: por que cada resposta usou aquele modelo. Só sinais, rótulos e números;
+-- nenhum trecho da mensagem, dos anexos ou dos documentos.
+create table if not exists roteamento (
+  id integer primary key, em text not null, pessoa_id integer, conversa_id integer, mensagem_id integer, resposta_id integer, quick_win_id integer,
+  modo text not null, complexidade text not null, pontuacao real not null default 0, tipos text not null default '[]', precisao text not null default '[]',
+  sinais text not null default '{}', classe_necessaria text, modelo text, classe text, politicas text not null default '[]', candidatos text not null default '[]',
+  tokens_entrada integer, tokens_saida integer, custo_estimado real, custo_referencia real, modelo_usado text, custo_real real,
+  explicacao text not null default '', versao text not null default '', sigilosa integer not null default 0, teste integer not null default 0);
+create index if not exists roteamento_em on roteamento (em);
+
 -- Uso da IA: uma linha por resposta, sem conteúdo.
 create table if not exists uso (
   id integer primary key, em text not null, pessoa_id integer, conversa_id integer, quick_win_id integer,
@@ -182,6 +192,8 @@ const MIGRACOES = [
     if (!tem('documentos', 'pasta')) db.exec("alter table documentos add column pasta text not null default ''");
     if (!tem('documentos', 'revisado_em')) db.exec('alter table documentos add column revisado_em text; alter table documentos add column revisado_por integer;');
   },
+  // 5. Roteamento de modelos: a tabela vem pelo ESQUEMA; nada a converter.
+  () => {},
 ];
 
 export function migrar(db, lista = MIGRACOES) {

@@ -104,7 +104,8 @@ function htmlMensagem(m) {
     <span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>${E.eu.admin ? `Respondido por ${esc(m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}` : `Classe ${esc(CLASSES[m.classe] || 'Rápido')}`}</span>` : ''}</div>${fontes}`}
+        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>${E.eu.admin ? `Respondido por ${esc(m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}` : `Classe ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`}</span>` : ''}</div>
+        ${m.rota_explicacao ? `<details class="rota-motivo"><summary>Por que este modelo?</summary>${esc(m.rota_explicacao)}</details>` : ''}${fontes}`}
     </div></div>`;
 }
 
@@ -251,7 +252,7 @@ async function enviar(reenvio = null) {
         resposta.texto += ev.v;
       }
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
-      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, carregando: false });
+      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, carregando: false });
     }
     // Durante o streaming, atualiza só a bolha da resposta.
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);

@@ -78,7 +78,7 @@ const NIVEL_FAIXA = { atencao: 'atencao', critico: 'erro', erro: 'erro' };
 function faixaChave() {
   const a = C.eu?.alertaChave;
   if (!a || !NIVEL_FAIXA[a.nivel] || location.hash.startsWith('#/uso')) return '';   // em Uso, o card da chave já mostra
-  return `<div class="faixa-aviso ${NIVEL_FAIXA[a.nivel]} faixa-chave" role="${a.nivel === 'atencao' ? 'status' : 'alert'}"><b>Chave do OpenRouter:</b> ${esc(a.texto)} <a href="#/uso">Trocar a chave</a></div>`;
+  return `<div class="faixa-aviso ${NIVEL_FAIXA[a.nivel]} faixa-chave" role="${a.nivel === 'atencao' ? 'status' : 'alert'}"><b>Chave do OpenRouter · ${esc(a.rotulo || '')}:</b> ${esc(a.texto)} <a href="#/uso" data-trocar-chave>Trocar a chave</a></div>`;
 }
 const carregando = titulo => tela(titulo, carregandoHtml());
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => `<th${c.startsWith('#') ? ' class="num"' : ''}>${esc(c.replace(/^#/, ''))}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
@@ -400,22 +400,36 @@ function ligarDicas(raiz) {
   raiz.addEventListener('focusout', () => { dica.style.display = 'none'; });
 }
 
-const TAG_VALIDADE = { ok: ['tag-verde', 'Em dia'], info: ['', 'Troca programada'], atencao: ['tag-ambar', 'Atenção'], critico: ['tag-vermelha', 'Vence em breve'], erro: ['tag-vermelha', 'Sem validade'] };
+// Estado da chave: validade externa (OpenRouter) e troca preventiva (política da plataforma), sempre separadas.
+const TAG_VALIDADE = { ok: 'tag-verde', info: '', atencao: 'tag-ambar', critico: 'tag-vermelha', erro: 'tag-vermelha' };
+const dataCurta = d => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '–');
+const diasTxt = n => (n === 0 ? 'hoje' : n > 0 ? `em ${n} ${n === 1 ? 'dia' : 'dias'}` : `há ${-n} ${n === -1 ? 'dia' : 'dias'}`);
 function validadeHtml(v) {
   if (!v || v.nivel === 'sem_chave') return '';
-  const [cls, rotulo] = TAG_VALIDADE[v.nivel] || ['', ''];
-  const dataIso = v.expiraEm ? String(v.expiraEm).slice(0, 10) : '';
-  return `<div class="or-validade"><p><span class="tag ${cls}"><i></i>${rotulo}</span> ${esc(v.texto)}</p>
-    <details${['atencao', 'critico', 'erro'].includes(v.nivel) ? ' open' : ''}><summary class="dica">Vencimento e rotação da chave</summary>
+  const p = v.provedor, t = v.troca;
+  const vencProvedor = p.codigo === 'recusada' ? '<b>Recusada pelo OpenRouter</b>' + (p.recusadaEm ? ` desde ${dataHora(p.recusadaEm)}` : '')
+    : p.data ? `${dataCurta(p.data)} (${diasTxt(p.diasRestantes)})${p.fonte === 'informada' ? ' · data informada no console' : ' · informado pelo OpenRouter'}`
+      : p.semData === 'nao_definido' ? 'não definido no OpenRouter (sem validade conhecida)' : 'não informado (o OpenRouter ainda não respondeu)';
+  const podeInformar = p.fonte !== 'openrouter';
+  return `<div class="or-validade"><p class="or-validade-estado"><span class="tag ${TAG_VALIDADE[v.nivel] || ''}"><i></i>${esc(v.rotulo)}</span> ${esc(v.texto)}</p>
+    <dl class="or-validade-lista">
+      <dt>Origem</dt><dd>${v.origem === 'console' ? 'informada no console' : 'variável OPENROUTER_API_KEY'}</dd>
+      <dt>Início da contagem</dt><dd>${dataCurta(t.inicio)} (${t.emUsoDias} ${t.emUsoDias === 1 ? 'dia' : 'dias'} em uso)</dd>
+      <dt>Vencimento no provedor</dt><dd>${vencProvedor}</dd>
+      <dt>Última validação</dt><dd>${p.validadoEm ? dataHora(p.validadoEm) : '–'}</dd>
+      <dt>Próxima troca preventiva</dt><dd>${dataCurta(t.proximaTroca)} (${diasTxt(t.diasRestantes)}) · política da plataforma, a cada ${t.rotacaoDias} dias</dd>
+    </dl>
+    <details${['atencao', 'critico', 'erro'].includes(v.nivel) ? ' open' : ''}><summary class="dica">Troca preventiva e vencimento informado</summary>
       <form class="or-validade-form" id="f-validade" novalidate>
-        <div class="campo"><label for="val-expira">Vence em</label>
-          ${v.fonteVencimento === 'openrouter' ? `<input class="entrada" id="val-expira" type="date" value="${esc(dataIso)}" disabled aria-describedby="val-expira-dica"><span class="dica" id="val-expira-dica">Informado pelo OpenRouter.</span>`
-            : `<input class="entrada" id="val-expira" type="date" value="${esc(dataIso)}" aria-describedby="val-expira-dica"><span class="dica" id="val-expira-dica">Se a chave foi criada com data de expiração no OpenRouter, informe aqui. Vale só para esta chave.</span>`}</div>
         <div class="campo"><label for="val-rotacao">Trocar a chave a cada</label>
-          <span class="or-alerta-campo"><input class="entrada" id="val-rotacao" type="number" min="7" max="730" step="1" value="${esc(v.rotacaoDias)}"><span>dias</span></span>
-          <span class="dica">Em uso desde ${dataHora(v.desde)} (${v.idadeDias} ${v.idadeDias === 1 ? 'dia' : 'dias'}). Os admins da plataforma recebem email 30, 7 e 1 dia antes do vencimento, no dia e quando a troca atrasa.</span></div>
+          <span class="or-alerta-campo"><input class="entrada" id="val-rotacao" type="number" min="7" max="730" step="1" value="${esc(t.rotacaoDias)}" inputmode="numeric"><span>dias</span></span>
+          <span class="dica">De 7 a 730. Mudar o prazo não reinicia a contagem: vale a partir do início (${dataCurta(t.inicio)}).</span></div>
+        ${podeInformar ? `<div class="campo"><label for="val-expira">Vencimento real da chave (opcional)</label>
+          <input class="entrada" id="val-expira" type="date" value="${esc(p.fonte === 'informada' ? p.data || '' : '')}" aria-describedby="val-expira-dica">
+          <span class="dica" id="val-expira-dica">Só se você souber a data por outra fonte. Vale só para esta chave; se o OpenRouter informar a dele, a do OpenRouter prevalece.</span></div>` : ''}
         <button class="btn btn-linha btn-pequeno">Salvar</button>
-      </form></details></div>`;
+      </form></details>
+    <p class="dica">Os admins da plataforma recebem um email por estágio: 30, 7 e 1 dia antes, no dia, quando vence, quando a troca atrasa e quando a chave é recusada.</p></div>`;
 }
 async function vistaUso(forcar = false) {
   carregando('Uso');
@@ -488,10 +502,12 @@ async function vistaUso(forcar = false) {
   ligarDicas($('principal'));
   $('uso-atualizar').onclick = () => vistaUso(true);
   $('or-trocar')?.addEventListener('click', () => { $('f-chave').classList.toggle('oculto'); $('or-chave-in').focus(); });
+  // Veio do aviso do topo ("Trocar a chave"): abre o formulário de troca direto.
+  if (C.abrirTroca) { C.abrirTroca = false; $('f-chave').classList.remove('oculto'); $('or-chave-in').focus(); }
   if ($('f-validade')) $('f-validade').onsubmit = async ev => {
     ev.preventDefault();
-    const corpo = { rotacaoDias: Number($('val-rotacao').value) };
-    if (!$('val-expira').disabled) corpo.expiraEm = $('val-expira').value || null;
+    const corpo = { rotacaoDias: $('val-rotacao').value === '' ? null : Number($('val-rotacao').value) };
+    if ($('val-expira')) corpo.expiraEm = $('val-expira').value || null;
     try { await api('/api/plataforma/openrouter/chave/validade', { metodo: 'PUT', corpo }); toast('Vencimento e rotação salvos.'); vistaUso(); } catch (x) { falhar(x); }
   };
   $('or-ver').onclick = ev => { const i = $('or-chave-in'), ver = i.type === 'password'; i.type = ver ? 'text' : 'password'; ev.currentTarget.textContent = ver ? 'Ocultar' : 'Mostrar'; ev.currentTarget.setAttribute('aria-pressed', ver); };
@@ -499,7 +515,13 @@ async function vistaUso(forcar = false) {
     ev.preventDefault();
     const erroEl = $('or-chave-erro'); erroEl.classList.add('oculto');
     await ocupado($('or-salvar'), async () => {
-      try { await api('/api/plataforma/openrouter/chave', { metodo: 'PUT', corpo: { chave: $('or-chave-in').value } }); $('or-chave-in').value = ''; toast('Chave testada e salva. A IA já usa a chave nova.'); vistaUso(true); }
+      try {
+        const r = await api('/api/plataforma/openrouter/chave', { metodo: 'PUT', corpo: { chave: $('or-chave-in').value } });
+        $('or-chave-in').value = '';
+        // O servidor só responde depois de validar a chave nova no OpenRouter e recalcular o estado.
+        C.eu.alertaChave = r.validadeChave && NIVEL_FAIXA[r.validadeChave.nivel] ? r.validadeChave : null;
+        toast('Chave testada e salva. A IA já usa a chave nova.'); vistaUso(true);
+      }
       catch (x) { erroEl.textContent = x.message; erroEl.classList.remove('oculto'); $('or-chave-in').focus(); }
     });
   };
@@ -604,6 +626,7 @@ async function iniciar() {
   Object.assign(C, { eu, csrf: eu.csrf, catalogo: eu.catalogo });
   C.planos = (await api('/api/plataforma/planos')).planos;
   $('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
+  document.addEventListener('click', ev => { if (ev.target.closest('[data-trocar-chave]')) C.abrirTroca = true; });   // aviso do topo → formulário de troca
   addEventListener('hashchange', rota);
   api('/api/plataforma/empresas').then(d => { C.empresas = d.empresas; }).catch(() => {});
   iniciarPaleta(itensPaleta, { atalhos: { n: novaEmpresa } });

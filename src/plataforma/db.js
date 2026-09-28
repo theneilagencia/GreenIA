@@ -53,6 +53,10 @@ create table if not exists company_settings (
   company_id text primary key references companies(id) on delete cascade,
   settings text not null default '{}', grants text not null default '{}', updated_at text not null);
 create table if not exists platform_settings (key text primary key, value text not null);
+-- Avisos da chave do OpenRouter: uma linha por chave, estágio e destinatário. A chave primária
+-- garante no máximo um email por estágio, mesmo com execuções simultâneas ou mais de uma instância.
+create table if not exists avisos_chave (chave_id text not null, estagio text not null, destinatario text not null,
+  estado text not null check (estado in ('enviando','enviado')), em text not null, primary key (chave_id, estagio, destinatario));
 
 create table if not exists login_codes (email text not null, scope text not null, hash text not null, expira integer not null,
   tentativas integer not null default 0, enviados text not null default '[]', primary key (email, scope));

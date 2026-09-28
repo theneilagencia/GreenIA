@@ -10,6 +10,8 @@ import { criarApp } from '../servidor.js';
 import { criarEmail } from '../email.js';
 import { criarSimulada, criarOpenRouter } from '../ia.js';
 import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
+import { ErroIA } from '../ia.js';
+import { impressaoChave, registrarRecusa, registrarLeitura, chaveRecusada, podeRevalidar, marcarRevalidacao, conferirChave } from './chave-validade.js';
 import { lerConfig, salvarConfig } from '../config.js';
 import { carregarPessoa, dominioPermitido } from '../auth.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
@@ -37,7 +39,7 @@ const ICONE_PADRAO = '/assets/greenia-marca.svg';
 export function criarPlataforma(op = {}) {
   const db = abrirPlataforma(op.banco ?? ':memory:');
   const P = {
-    db, agora: op.agora ?? (() => new Date()), log: op.log ?? console.log, ia: iaTrocavel(op.ia ?? criarSimulada()), iaPadrao: op.ia ?? criarSimulada(),
+    db, agora: op.agora ?? (() => new Date()), log: op.log ?? console.log, ia: iaTrocavel(op.ia ?? criarSimulada(), { aoRecusar: () => P.aoRecusarChave?.(), bloqueio: () => P.bloqueioChave?.() }), iaPadrao: op.ia ?? criarSimulada(),
     cookieSeguro: op.cookieSeguro ?? true, pastaEmpresas: op.pastaEmpresas ?? (op.banco && op.banco !== ':memory:' ? join(dirname(op.banco), 'empresas') : ':memory:'),
     hostPlataforma: (op.hostPlataforma || '').toLowerCase(), urlBase: op.urlBase || '', subdominioBase: (op.subdominioBase || '').toLowerCase(),
     paginaInicial: op.paginaInicial === 'vendas' ? 'vendas' : 'plataforma', tenants: new Map(),
@@ -47,6 +49,22 @@ export function criarPlataforma(op = {}) {
   // Chave do OpenRouter informada no console: cifrada no banco; vale sobre a variável OPENROUTER_API_KEY.
   P.criarIA = op.criarIA ?? (chave => criarOpenRouter({ chave }));
   P.chaveVariavel = op.chaveVariavel || null;   // só a máscara da chave da variável de ambiente
+  P.chaveVariavelId = op.chaveVariavelId || null;   // impressão digital da chave da variável (nunca a chave)
+  P.chaveAtual = () => origemChaveOpenRouter(P);
+  // Recusa (401) num envio: registra na hora, derruba o cache da conta e avisa os admins já.
+  P.aoRecusarChave = () => { const cfg = P.chaveAtual(); registrarRecusa(P, cfg, 'envio'); P._contaOR = null; conferirChave(P, cfg).catch(e => P.log('aviso de chave', e.message)); };
+  // Chave já recusada: não insiste no OpenRouter a cada mensagem; revalida no máximo a cada 10 minutos.
+  P.bloqueioChave = async () => {
+    const cfg = P.chaveAtual();
+    if (!chaveRecusada(P, cfg)) return;
+    if (podeRevalidar(P, cfg)) {
+      marcarRevalidacao(P, cfg);
+      registrarLeitura(P, cfg, await P.ia.conta().catch(() => null));
+      P._contaOR = null;
+      if (!chaveRecusada(P, cfg)) return;
+    }
+    throw new ErroIA('A chave de IA da plataforma foi recusada pelo provedor. Os administradores já foram avisados; tente de novo depois da troca da chave.', 503);
+  };
   P.mestra = () => (P._mestra ??= op.chaveMestra ?? chaveMestra({ pasta: op.banco && op.banco !== ':memory:' ? dirname(op.banco) : join(tmpdirSeguro(), 'greenia') }));
   // SMTP da plataforma: o das variáveis (SMTP_URL ou SMTP_SERVIDOR/...); sem elas, o configurado no console.
   P.avisarSemEmail = !!op.avisarSemEmail;
@@ -373,15 +391,22 @@ export { dominioPermitido, json };
 
 // ---------------------------------------------------------------- IA trocável e chave do OpenRouter
 // As empresas recebem este mesmo objeto; trocar a chave vale na hora para todas, sem reiniciar.
-export function iaTrocavel(inicial) {
+export function iaTrocavel(inicial, { aoRecusar = null, bloqueio = null } = {}) {
   let atual = inicial;
-  return {
+  const ia = {
     get configurada() { return atual.configurada; }, get simulada() { return atual.simulada; },
     listarModelos: (...a) => atual.listarModelos(...a),
     conta: (...a) => (atual.conta ? atual.conta(...a) : Promise.resolve(null)),
-    enviar: (...a) => atual.enviar(...a),
+    // Envio: se a chave em uso já foi recusada pelo OpenRouter, não insiste (revalida no máximo a cada
+    // 10 minutos); se um envio receber 401, registra a recusa na hora (alerta e bloqueio imediatos).
+    async *enviar(...a) {
+      if (bloqueio) await bloqueio();
+      try { yield* atual.enviar(...a); }
+      catch (e) { if (e?.status === 401) aoRecusar?.(); throw e; }
+    },
     trocar(nova) { atual = nova; },
   };
+  return ia;
 }
 function tmpdirSeguro() { return process.env.TMPDIR || '/tmp'; }
 
@@ -391,7 +416,8 @@ export function lerChaveOpenRouter(P) {
   return { chave: decifrar(P.mestra(), s.cifrado), mascara: s.mascara, nome: s.nome || '', em: s.em, por: s.por };
 }
 export function salvarChaveOpenRouter(P, chave, { nome, por }) {
-  salvarAjuste(P.db, 'openrouter_chave', { cifrado: cifrar(P.mestra(), chave), mascara: mascarar(chave), nome, em: P.agora().toISOString(), por });
+  // A cifra nova sobrescreve a anterior: a chave antiga não fica guardada em lugar nenhum.
+  salvarAjuste(P.db, 'openrouter_chave', { cifrado: cifrar(P.mestra(), chave), id: impressaoChave(P.mestra(), chave), mascara: mascarar(chave), nome, em: P.agora().toISOString(), por });
   P.ia.trocar(P.criarIA(chave));
   P._contaOR = null;
 }
@@ -403,7 +429,11 @@ export function removerChaveOpenRouter(P) {
 // O que a tela mostra sobre a chave: de onde vem e a máscara. Nunca a chave.
 export function origemChaveOpenRouter(P) {
   const s = lerAjuste(P.db, 'openrouter_chave', null);
-  if (s) return { origem: 'console', mascara: s.mascara, nome: s.nome || '', em: s.em, por: s.por, variavelTambem: !!P.chaveVariavel };
-  if (P.chaveVariavel) return { origem: 'variavel', mascara: P.chaveVariavel };
+  if (s) {
+    // Registro salvo antes da impressão digital: calcula uma vez a partir da chave cifrada.
+    if (!s.id) { const k = decifrar(P.mestra(), s.cifrado); if (k) { s.id = impressaoChave(P.mestra(), k); salvarAjuste(P.db, 'openrouter_chave', s); } }
+    return { origem: 'console', id: s.id || null, mascara: s.mascara, nome: s.nome || '', em: s.em, por: s.por, variavelTambem: !!P.chaveVariavel };
+  }
+  if (P.chaveVariavel) return { origem: 'variavel', id: P.chaveVariavelId || null, mascara: P.chaveVariavel };
   return { origem: null };
 }

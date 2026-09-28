@@ -1,6 +1,6 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
 import { conferirSaldo, contaOpenRouter } from './plataforma/consumo.js';
-import { conferirChave } from './plataforma/chave-validade.js';
+import { conferirChave, impressaoChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
@@ -77,6 +77,9 @@ export async function iniciarPlataforma(env = process.env) {
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).
     legado: existsSync(legado) ? { banco: legado, slug: env.EMPRESA_SLUG, plano: lerPlano(env) } : null,
   });
+  // Chave da variável: identificada por impressão digital (HMAC com a chave-mestra), nunca pela chave.
+  // Mudar a variável gera outra impressão: o ciclo de troca e os avisos recomeçam para a chave nova.
+  if (env.OPENROUTER_API_KEY) P.chaveVariavelId = impressaoChave(P.mestra(), env.OPENROUTER_API_KEY);
   const iaReal = () => P.ia.configurada !== false && !P.ia.simulada;
   if (!iaReal()) P.log(producao ? 'ATENÇÃO: sem chave do OpenRouter. A IA está desligada até a chave ser informada no console (Uso) ou em OPENROUTER_API_KEY.' : 'Sem chave do OpenRouter: usando a IA simulada.');
   const tarefa = (fn, ms) => { const t = () => Promise.resolve().then(fn).catch(e => P.log('tarefa', e.message)); t(); setInterval(t, ms).unref(); };
@@ -90,7 +93,7 @@ export async function iniciarPlataforma(env = process.env) {
   tarefa(() => iaReal() && conferirSaldo(P), 3600e3);
   // Validade e rotação da chave do OpenRouter: confere a cada hora e avisa por email a cada estágio
   // (30, 7 e 1 dia antes, no vencimento, rotação atrasada ou chave recusada).
-  const validade = async () => { const cfg = origemChaveOpenRouter(P); if (cfg.mascara) await conferirChave(P, cfg, iaReal() ? await contaOpenRouter(P).catch(() => null) : null); };
+  const validade = async () => { if (iaReal()) await contaOpenRouter(P, { forcar: true }).catch(() => null); const cfg = origemChaveOpenRouter(P); if (cfg.id) await conferirChave(P, cfg); };
   tarefa(validade, 3600e3);
   const catalogo = async () => { if (!iaReal()) return; const [primeiro, ...resto] = [...P.tenants.values()]; if (!primeiro) return; await atualizarCatalogo(primeiro); for (const t of resto) { t.catalogo = primeiro.catalogo; await atualizarCatalogo(t).catch(() => {}); } };
   tarefa(catalogo, 24 * 3600e3);

@@ -70,8 +70,15 @@ function cab(titulo, acoes = '', voltar = '') {
     <span class="migalha"><span>Plataforma</span><span class="sep">/</span>${voltar ? `<a href="${voltar}">${esc(SECOES.find(x => voltar.startsWith(`#/${x[0]}`))?.[1] || 'Voltar')}</a><span class="sep">/</span>` : ''}</span><h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
 }
 function tela(titulo, corpo, acoes = '', voltar = '') {
-  $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${corpo}</div></div>`;
+  $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${faixaChave()}${corpo}</div></div>`;
   $('menu').onclick = () => $('lateral').classList.toggle('aberta');
+}
+// Aviso de vencimento ou rotação da chave do OpenRouter, no topo de todas as telas do console.
+const NIVEL_FAIXA = { atencao: 'atencao', critico: 'erro', erro: 'erro' };
+function faixaChave() {
+  const a = C.eu?.alertaChave;
+  if (!a || !NIVEL_FAIXA[a.nivel] || location.hash.startsWith('#/uso')) return '';   // em Uso, o card da chave já mostra
+  return `<div class="faixa-aviso ${NIVEL_FAIXA[a.nivel]} faixa-chave" role="${a.nivel === 'atencao' ? 'status' : 'alert'}"><b>Chave do OpenRouter:</b> ${esc(a.texto)} <a href="#/uso">Trocar a chave</a></div>`;
 }
 const carregando = titulo => tela(titulo, carregandoHtml());
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => `<th${c.startsWith('#') ? ' class="num"' : ''}>${esc(c.replace(/^#/, ''))}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
@@ -393,6 +400,23 @@ function ligarDicas(raiz) {
   raiz.addEventListener('focusout', () => { dica.style.display = 'none'; });
 }
 
+const TAG_VALIDADE = { ok: ['tag-verde', 'Em dia'], info: ['', 'Troca programada'], atencao: ['tag-ambar', 'Atenção'], critico: ['tag-vermelha', 'Vence em breve'], erro: ['tag-vermelha', 'Sem validade'] };
+function validadeHtml(v) {
+  if (!v || v.nivel === 'sem_chave') return '';
+  const [cls, rotulo] = TAG_VALIDADE[v.nivel] || ['', ''];
+  const dataIso = v.expiraEm ? String(v.expiraEm).slice(0, 10) : '';
+  return `<div class="or-validade"><p><span class="tag ${cls}"><i></i>${rotulo}</span> ${esc(v.texto)}</p>
+    <details${['atencao', 'critico', 'erro'].includes(v.nivel) ? ' open' : ''}><summary class="dica">Vencimento e rotação da chave</summary>
+      <form class="or-validade-form" id="f-validade" novalidate>
+        <div class="campo"><label for="val-expira">Vence em</label>
+          ${v.fonteVencimento === 'openrouter' ? `<input class="entrada" id="val-expira" type="date" value="${esc(dataIso)}" disabled aria-describedby="val-expira-dica"><span class="dica" id="val-expira-dica">Informado pelo OpenRouter.</span>`
+            : `<input class="entrada" id="val-expira" type="date" value="${esc(dataIso)}" aria-describedby="val-expira-dica"><span class="dica" id="val-expira-dica">Se a chave foi criada com data de expiração no OpenRouter, informe aqui. Vale só para esta chave.</span>`}</div>
+        <div class="campo"><label for="val-rotacao">Trocar a chave a cada</label>
+          <span class="or-alerta-campo"><input class="entrada" id="val-rotacao" type="number" min="7" max="730" step="1" value="${esc(v.rotacaoDias)}"><span>dias</span></span>
+          <span class="dica">Em uso desde ${dataHora(v.desde)} (${v.idadeDias} ${v.idadeDias === 1 ? 'dia' : 'dias'}). Os admins da plataforma recebem email 30, 7 e 1 dia antes do vencimento, no dia e quando a troca atrasa.</span></div>
+        <button class="btn btn-linha btn-pequeno">Salvar</button>
+      </form></details></div>`;
+}
 async function vistaUso(forcar = false) {
   carregando('Uso');
   const u = await api(`/api/plataforma/consumo${forcar ? '?forcar=1' : ''}`);
@@ -428,12 +452,14 @@ async function vistaUso(forcar = false) {
         <span>${semChave ? 'Nenhuma chave configurada: a IA das empresas está desligada (ou simulada) até você informar a chave.'
           : `<code>${esc(kc.mascara)}</code>${kc.nome ? ` · ${esc(kc.nome)}` : ''} · ${kc.origem === 'console' ? `salva no console${kc.em ? ` em ${dataHora(kc.em)}` : ''}${kc.por ? ` por ${esc(kc.por)}` : ''}${kc.variavelTambem ? ' (vale no lugar da variável OPENROUTER_API_KEY)' : ''}` : 'vinda da variável OPENROUTER_API_KEY do servidor'}`}</span></div>
       <div class="or-chave-acoes">${semChave ? '' : `<button type="button" class="btn btn-linha btn-pequeno" id="or-trocar">${kc.origem === 'console' ? 'Trocar chave' : 'Informar outra chave'}</button>`}${kc.origem === 'console' ? '<button type="button" class="btn-texto btn-pequeno" id="or-remover">Remover</button>' : ''}</div></div>
+    ${semChave ? '' : validadeHtml(u.validadeChave)}
     <form class="or-chave-form${semChave ? '' : ' oculto'}" id="f-chave" novalidate autocomplete="off">
       <label for="or-chave-in">Cole a chave da API do OpenRouter</label>
       <div class="or-chave-linha"><input class="entrada" id="or-chave-in" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-describedby="or-chave-ajuda">
         <button type="button" class="btn-texto btn-pequeno" id="or-ver" aria-pressed="false">Mostrar</button><button class="btn btn-verde btn-pequeno" id="or-salvar">Testar e salvar</button></div>
       <p class="dica" id="or-chave-ajuda">A chave é testada no OpenRouter antes de salvar, fica guardada cifrada e vale na hora para todas as empresas, sem reiniciar. Depois de salva, só aparecem o início e os 4 últimos caracteres. <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">Criar uma chave no OpenRouter ↗</a></p>
       <p class="msg-erro oculto" id="or-chave-erro" role="alert"></p></form></section>`;
+  C.eu.alertaChave = u.validadeChave && NIVEL_FAIXA[u.validadeChave.nivel] ? u.validadeChave : null;   // o topo acompanha a leitura mais recente
   tela('Uso', `<div class="uso-topo"><p class="lead">Consumo de IA da plataforma e de cada empresa. Valores em dólar, só para a operação.</p>
       <span class="dica">Conta atualizada ${c.atualizadoEm ? `às ${new Date(c.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '–'} <button class="btn-texto btn-pequeno" id="uso-atualizar">Atualizar agora</button></span></div>
     ${chaveHtml}${semChave ? '' : contaHtml}${conc}
@@ -462,6 +488,12 @@ async function vistaUso(forcar = false) {
   ligarDicas($('principal'));
   $('uso-atualizar').onclick = () => vistaUso(true);
   $('or-trocar')?.addEventListener('click', () => { $('f-chave').classList.toggle('oculto'); $('or-chave-in').focus(); });
+  if ($('f-validade')) $('f-validade').onsubmit = async ev => {
+    ev.preventDefault();
+    const corpo = { rotacaoDias: Number($('val-rotacao').value) };
+    if (!$('val-expira').disabled) corpo.expiraEm = $('val-expira').value || null;
+    try { await api('/api/plataforma/openrouter/chave/validade', { metodo: 'PUT', corpo }); toast('Vencimento e rotação salvos.'); vistaUso(); } catch (x) { falhar(x); }
+  };
   $('or-ver').onclick = ev => { const i = $('or-chave-in'), ver = i.type === 'password'; i.type = ver ? 'text' : 'password'; ev.currentTarget.textContent = ver ? 'Ocultar' : 'Mostrar'; ev.currentTarget.setAttribute('aria-pressed', ver); };
   $('f-chave').onsubmit = async ev => {
     ev.preventDefault();

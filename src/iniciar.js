@@ -1,10 +1,11 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
-import { conferirSaldo } from './plataforma/consumo.js';
+import { conferirSaldo, contaOpenRouter } from './plataforma/consumo.js';
+import { conferirChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { criarPlataforma } from './plataforma/servidor.js';
+import { criarPlataforma, origemChaveOpenRouter } from './plataforma/servidor.js';
 import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
 import { criarApp } from './servidor.js';
 import { smtpDeVariaveis } from './email.js';
@@ -87,10 +88,14 @@ export async function iniciarPlataforma(env = process.env) {
   if (P.provedorDominios) P.log('Domínios próprios: cadastro automático no Render ligado.');
   // Saldo de IA no OpenRouter: confere a cada hora e avisa os admins da plataforma quando fica baixo.
   tarefa(() => iaReal() && conferirSaldo(P), 3600e3);
+  // Validade e rotação da chave do OpenRouter: confere a cada hora e avisa por email a cada estágio
+  // (30, 7 e 1 dia antes, no vencimento, rotação atrasada ou chave recusada).
+  const validade = async () => { const cfg = origemChaveOpenRouter(P); if (cfg.mascara) await conferirChave(P, cfg, iaReal() ? await contaOpenRouter(P).catch(() => null) : null); };
+  tarefa(validade, 3600e3);
   const catalogo = async () => { if (!iaReal()) return; const [primeiro, ...resto] = [...P.tenants.values()]; if (!primeiro) return; await atualizarCatalogo(primeiro); for (const t of resto) { t.catalogo = primeiro.catalogo; await atualizarCatalogo(t).catch(() => {}); } };
   tarefa(catalogo, 24 * 3600e3);
   // Chave nova no console: atualiza o catálogo de modelos e o saldo logo, sem esperar o próximo ciclo.
-  P.aoTrocarIA = () => { catalogo().catch(e => P.log('catálogo', e.message)); if (iaReal()) conferirSaldo(P).catch(() => {}); };
+  P.aoTrocarIA = () => { catalogo().catch(e => P.log('catálogo', e.message)); if (iaReal()) conferirSaldo(P).catch(() => {}); validade().catch(() => {}); };
   // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas.
   if (/^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '')) {
     const pasta = env.BACKUP_PASTA || 'dados/backups';

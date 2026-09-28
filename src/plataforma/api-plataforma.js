@@ -10,6 +10,7 @@ import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemCh
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo } from './consumo.js';
+import { situacaoChave, salvarPoliticaChave, conferirChave } from './chave-validade.js';
 
 
 export function rotasPlataforma(P, r) {
@@ -54,6 +55,8 @@ export function rotasPlataforma(P, r) {
 
   r.get('/api/plataforma/eu', ({ sessao }) => ({
     usuario: { id: sessao.userId, email: sessao.email, name: sessao.name }, csrf: sessao.csrf, permissoes: [...perms(sessao)],
+    // Aviso de vencimento ou rotação da chave do OpenRouter, para o topo do console (sem chamar o OpenRouter).
+    alertaChave: perms(sessao).has('platform.settings.manage') || perms(sessao).has('platform.companies.manage') ? alertaDaChave() : null,
     catalogo: { permissoes: Object.entries(PERMISSOES).map(([k, [d, s]]) => ({ key: k, description: d, scope: s })), recursos: E.RECURSOS, limites: E.LIMITES, concessoes: E.CONCESSOES, status: E.STATUS_EMPRESA, camposMarca: E.CAMPOS_MARCA },
   }));
 
@@ -204,13 +207,41 @@ export function rotasPlataforma(P, r) {
     precisa(sessao, 'platform.companies.manage');
     const [conta, resumo] = [await contaOpenRouter(P, { forcar: !!query.forcar }), resumoConsumo(P)];
     const saldo = conta.saldo ?? conta.chave?.restante ?? null;
-    return { conta, chaveConfig: origemChaveOpenRouter(P), ...resumo, alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
+    const chaveConfig = origemChaveOpenRouter(P);
+    return { conta, chaveConfig, validadeChave: situacaoChave(P, chaveConfig, conta), ...resumo, alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
   });
   r.get('/api/plataforma/empresas/:id/consumo', ({ sessao, params }) => {
     precisa(sessao, 'platform.companies.manage');
     const d = detalheConsumo(P, params.id);
     if (!d) throw erro(404, 'empresa', 'Empresa não encontrada.');
     return d;
+  });
+  function alertaDaChave() {
+    const cfg = origemChaveOpenRouter(P);
+    if (!cfg.mascara) return null;
+    const v = situacaoChave(P, cfg, P._contaOR?.dados || null);
+    return ['info', 'atencao', 'critico', 'erro'].includes(v.nivel) ? { nivel: v.nivel, codigo: v.codigo, texto: v.texto } : null;
+  }
+  // Vencimento (quando o OpenRouter não informa) e rotação da chave em uso.
+  r.put('/api/plataforma/openrouter/chave/validade', async ({ sessao, corpo, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const cfg = origemChaveOpenRouter(P);
+    if (!cfg.mascara) throw erro(409, 'sem_chave', 'Informe a chave antes de configurar o vencimento.');
+    const campos = {};
+    if (corpo.expiraEm !== undefined) {
+      if (corpo.expiraEm !== null && corpo.expiraEm !== '' && (!/^\d{4}-\d{2}-\d{2}$/.test(corpo.expiraEm) || Number.isNaN(Date.parse(corpo.expiraEm)))) throw erro(400, 'expira_em', 'Informe a data de vencimento no formato AAAA-MM-DD.');
+      campos.expiraEm = corpo.expiraEm || null;
+    }
+    if (corpo.rotacaoDias !== undefined) {
+      const n = Number(corpo.rotacaoDias);
+      if (!Number.isInteger(n) || n < 7 || n > 730) throw erro(400, 'rotacao', 'A rotação deve ser entre 7 e 730 dias.');
+      campos.rotacaoDias = n;
+    }
+    salvarPoliticaChave(P, { ...campos, mascara: cfg.mascara });
+    auditar(P, { usuario: sessao.userId, acao: 'platform.openrouter_key_policy', entidade: 'platform_settings', depois: { chave: cfg.mascara, ...campos }, origem });
+    const conta = await contaOpenRouter(P).catch(() => null);
+    await conferirChave(P, cfg, conta).catch(() => null);
+    return { validadeChave: situacaoChave(P, cfg, conta) };
   });
   // Chave do OpenRouter pelo console: testada no OpenRouter antes de salvar, guardada cifrada,
   // vale na hora para todas as empresas e nunca volta para a tela (só a máscara).
@@ -224,7 +255,9 @@ export function rotasPlataforma(P, r) {
       throw erro(400, 'chave_recusada', st === 401 || st === 403 ? 'O OpenRouter recusou esta chave: confira se ela foi copiada inteira e se não foi desativada.' : 'Não foi possível confirmar a chave no OpenRouter agora. Tente de novo em instantes.');
     }
     const nome = String(teste.chave.label || '').slice(0, 80);
+    if (corpo.expiraEm && !/^\d{4}-\d{2}-\d{2}$/.test(corpo.expiraEm)) throw erro(400, 'expira_em', 'Informe a data de vencimento no formato AAAA-MM-DD.');
     salvarChaveOpenRouter(P, chave, { nome, por: sessao.email });
+    if (corpo.expiraEm) salvarPoliticaChave(P, { expiraEm: corpo.expiraEm, mascara: origemChaveOpenRouter(P).mascara });
     auditar(P, { usuario: sessao.userId, acao: 'platform.openrouter_key_set', entidade: 'platform_settings', depois: { chave: origemChaveOpenRouter(P).mascara, nome }, origem });
     P.aoTrocarIA?.();
     return { chaveConfig: origemChaveOpenRouter(P), conta: await contaOpenRouter(P, { forcar: true }) };

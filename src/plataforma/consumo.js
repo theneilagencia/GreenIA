@@ -20,12 +20,15 @@ export async function contaOpenRouter(P, { forcar = false } = {}) {
   const k = r?.chave && !r.chave.erro ? r.chave : null, c = r?.creditos && !r.creditos.erro ? r.creditos : null;
   const dados = {
     disponivel: !!(k || c), atualizadoEm: new Date(agora).toISOString(),
+    // 401/403 na chave: o OpenRouter não aceita mais esta chave (vencida, revogada ou desativada).
+    recusada: [401, 403].includes(r?.chave?.erro),
     motivo: k || c ? null : `O OpenRouter não respondeu (${r?.chave?.erro ?? 'sem resposta'}). Confira a chave.`,
     // Créditos da conta: comprados, gastos e o saldo que sobra.
     comprado: num(c?.total_credits), gasto: num(c?.total_usage), saldo: c ? num(c.total_credits) - num(c.total_usage) : null,
     creditosIndisponivel: c ? null : r?.creditos?.erro === 401 || r?.creditos?.erro === 403 ? 'A chave usada não tem acesso ao saldo da conta.' : 'O saldo da conta não veio na resposta.',
     // Chave usada pela plataforma: nome, limite (se houver) e uso por período (UTC).
-    chave: k && { nome: k.label || '', limite: num(k.limit), restante: num(k.limit_remaining), usoTotal: num(k.usage), hoje: num(k.usage_daily), semana: num(k.usage_weekly), mes: num(k.usage_monthly), gratuita: !!k.is_free_tier },
+    chave: k && { nome: k.label || '', limite: num(k.limit), restante: num(k.limit_remaining), usoTotal: num(k.usage), hoje: num(k.usage_daily), semana: num(k.usage_weekly), mes: num(k.usage_monthly), gratuita: !!k.is_free_tier,
+      expiraEm: k.expires_at || k.expiresAt || null },   // vencimento, quando o OpenRouter informa
   };
   P._contaOR = { em: agora, dados };
   return dados;

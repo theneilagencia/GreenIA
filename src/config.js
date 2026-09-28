@@ -1,7 +1,7 @@
 // Configuração da instalação, feita pela tela do admin e guardada no banco.
 import { exec, todos, json } from './db.js';
 
-export const TIPOS_DADO = ['cpf', 'cnpj', 'cartao', 'banco', 'pix', 'credencial', 'rg', 'email', 'telefone', 'cep', 'endereco', 'sensivel', 'confidencial'];
+export const TIPOS_DADO = ['cpf', 'cnpj', 'cartao', 'banco', 'pix', 'credencial', 'rg', 'email', 'telefone', 'cep', 'endereco', 'pessoal_restrito', 'sensivel', 'confidencial'];
 
 export const PADRAO = {
   empresa: 'Sua empresa',
@@ -18,7 +18,7 @@ export const PADRAO = {
   // ou CPF não torna a conversa sigilosa); dado financeiro de pagamento, dado sensível e marcação de confidencial
   // seguem só com proteção. Credencial não é configurável: nunca vai para a IA.
   acoesChat: { cpf: 'permitir', cnpj: 'permitir', cartao: 'proteger', banco: 'proteger', pix: 'proteger', credencial: 'bloquear',
-    rg: 'permitir', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir', sensivel: 'proteger', confidencial: 'proteger' },
+    rg: 'permitir', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir', pessoal_restrito: 'permitir', sensivel: 'proteger', confidencial: 'proteger' },
   acoesVersao: 2,
   // Controle proporcional para dado pessoal processado normalmente: só recursos com fornecedor fixo e pedido de
   // não uso para treino. Não bloqueia nem torna a conversa sigilosa.

@@ -45,7 +45,7 @@ const deLinha = (m, cfg) => {
     id: m.id, nome: m.nome || m.id, fornecedor: m.fornecedor, precoEntrada: m.preco_entrada, precoSaida: m.preco_saida, contexto: m.contexto,
     liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva,
     homologacaoEmpresa: m.homologado ? json(m.homologacao, null) : null, autorizacaoPlataforma: json(m.autorizacao_plataforma, null), vetadoPlataforma: !!m.vetado_plataforma,
-    noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null),
+    noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null), atributos: json(m.atributos, null),
   };
   const sigilo = avaliarRecurso(base, cfg);
   // "homologacao" continua com o registro da rota que vale (compatível com as telas e o envio).
@@ -341,17 +341,26 @@ export function rotasModelos(app, r) {
       if (!rs?.liberado || rs.perfil !== (corpo.perfil || atual?.perfil)) throw erro(400, 'reserva', 'O reserva precisa estar liberado e ser do mesmo perfil.');
     }
     // Capacidades explícitas (opcional): 1 a 3 por dimensão; o que não for informado segue a classe.
+    // Atributos de dados declarados pelo admin (contrato, política do fornecedor): valem na elegibilidade.
+    let atributos;
+    if (corpo.atributos !== undefined) {
+      const a = corpo.atributos || {};
+      const limpo = { semTreino: typeof a.semTreino === 'boolean' ? a.semTreino : null, retencaoZero: typeof a.retencaoZero === 'boolean' ? a.retencaoZero : null,
+        dadosPessoais: ['permitido', 'proibido'].includes(a.dadosPessoais) ? a.dadosPessoais : null, regiao: a.regiao ? String(a.regiao).slice(0, 60) : null };
+      atributos = Object.values(limpo).some(v => v !== null) ? JSON.stringify(limpo) : null;
+    }
     let capacidades;
     if (corpo.capacidades !== undefined) {
       const limpo = Object.fromEntries(CAPACIDADES.filter(d => [1, 2, 3].includes(Number(corpo.capacidades?.[d]))).map(d => [d, Number(corpo.capacidades[d])]));
       capacidades = Object.keys(limpo).length ? JSON.stringify(limpo) : null;
     }
-    mudar(app, pessoa, 'model.changed', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva, capacidades: capacidades === undefined ? undefined : json(capacidades, null) }, () => {
+    mudar(app, pessoa, 'model.changed', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva, capacidades: capacidades === undefined ? undefined : json(capacidades, null), atributos: atributos === undefined ? undefined : json(atributos, null) }, () => {
       if (!atual) exec(app.db, 'insert into modelos (id, nome, fornecedor, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?)',
         id, cat?.nome || id, id.split('/')[0], cat?.precoEntrada ?? null, cat?.precoSaida ?? null, cat?.contexto ?? null);
       exec(app.db, 'update modelos set liberado = coalesce(?, liberado), perfil = coalesce(?, perfil), reserva = ? where id = ?',
         corpo.liberado === undefined ? null : Number(!!corpo.liberado), corpo.perfil ?? null, reserva, id);
       if (capacidades !== undefined) exec(app.db, 'update modelos set capacidades = ? where id = ?', capacidades, id);
+      if (atributos !== undefined) exec(app.db, 'update modelos set atributos = ? where id = ?', atributos, id);
       if (ehGratuito(id)) exec(app.db, 'update modelos set aviso = ? where id = ?', AVISO_GRATUITO, id);
       // Modelo que deixa de ser liberado perde a homologação.
       if (corpo.liberado === false) exec(app.db, 'update modelos set homologado = 0 where id = ?', id);

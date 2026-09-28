@@ -69,6 +69,8 @@ const REGRAS = {
   credencial(t) {
     if (/\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abp]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|glpat-[A-Za-z0-9_-]{16,}|re_[A-Za-z0-9]{20,}|rnd_[A-Za-z0-9]{16,})\b/.test(t)) return true;
     if (/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/.test(t)) return true;                       // chave privada
+    // Frase de recuperação de carteira (seed phrase / mnemônico): o rótulo seguido de 12 ou mais palavras.
+    if (/\b(?:seed phrase|recovery phrase|mnemonic|frase semente|frase de recupera[cç][aã]o|palavras de recupera[cç][aã]o|mnem[oô]nic[oa])\b[^\n]{0,20}?(?:\b[a-z]{3,8}\b[\s,]+){11,}\b[a-z]{3,8}\b/i.test(t)) return true;
     if (/\bBearer\s+[A-Za-z0-9._~+\/-]{20,}=*/.test(t)) return true;                          // token de autorização
     if (/\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/.test(t)) return true;  // JWT
     if (/\b[a-z][a-z0-9+.-]*:\/\/[^\s:@\/]+:[^\s@\/]{3,}@/i.test(t)) return true;             // usuário:senha em URL
@@ -113,10 +115,21 @@ REGRAS.sensivel = t => /\b(?:laudo medico|prontuario|atestado medico|cid[- ]?10|
 REGRAS.confidencial = t => /\b(?:estritamente confidencial|documento confidencial|informacao confidencial|confidencial\s*[-–:|]|^\s*confidencial\s*$|classificacao:\s*confidencial)|\bconfidencial\b(?=[^\n]{0,3}$)/m.test(semAcento(t))
   || /\bCONFIDENCIAL\b/.test(t);
 
+// Dado pessoal restrito: registro sobre uma pessoa específica em processo interno (disciplina, desligamento,
+// remuneração individual, avaliação individual). É o conteúdo, e não o departamento: "reunião de RH", "plano de
+// férias", "feedback sobre a apresentação" ou "salário de mercado" são conteúdo comum.
+REGRAS.pessoal_restrito = t => {
+  const s = semAcento(t);
+  if (/\b(?:advertencia disciplinar|suspensao disciplinar|processo disciplinar|medida disciplinar|justa causa|holerite|contracheque|folha de pagamento)\b/.test(s)) return true;
+  if (/\b(?:recebeu|aplicada?|aplicou|levou) (?:uma )?(?:advertencia|suspensao)\b/.test(s)) return true;
+  if (/\b(?:salario|remuneracao|desligamento|demissao|avaliacao de desempenho) d[oa] (?:colaborador|funcionari|empregad|analista|gerente|candidat)/.test(s)) return true;
+  return /\b(?:sal[aá]rio|remunera[cç][aã]o) (?:d[oa]|de) [A-ZÀ-Ú][a-zà-ú]+[^.\n]{0,40}R\$\s?\d/.test(t);   // "salário do João é R$ 8.000"
+};
+
 export const TIPOS = Object.keys(REGRAS);
 // Nível de risco de cada tipo (a decisão é da política da empresa; o nível orienta o padrão):
 //   1 conteúdo normal · 2 dado pessoal · 3 dado pessoal sensível · 4 informação confidencial · 5 credencial/segredo
-export const NIVEL_DO_TIPO = { cnpj: 1, cpf: 2, rg: 2, email: 2, telefone: 2, cep: 2, endereco: 2, cartao: 2, banco: 2, pix: 2, sensivel: 3, confidencial: 4, credencial: 5 };
+export const NIVEL_DO_TIPO = { cnpj: 1, cpf: 2, rg: 2, email: 2, telefone: 2, cep: 2, endereco: 2, cartao: 2, banco: 2, pix: 2, pessoal_restrito: 2, sensivel: 3, confidencial: 4, credencial: 5 };
 // Classificação (o que o dado É). O tratamento (proteger ou não enviar) é política da empresa, com uma exceção:
 // credenciais e segredos nunca são enviados, por regra de segurança da GreenIA (não é uma afirmação da LGPD).
 // "Dado pessoal sensível" (saúde, origem racial, religião, biometria...) não é reconhecido por padrão de texto:
@@ -126,12 +139,12 @@ export const CATEGORIAS = {
   cpf: 'identificacao', rg: 'identificacao', cnpj: 'identificacao_empresa',
   cartao: 'financeiro', banco: 'financeiro', pix: 'financeiro',
   email: 'pessoal', telefone: 'pessoal', cep: 'pessoal', endereco: 'pessoal',
-  sensivel: 'sensivel', confidencial: 'confidencial', credencial: 'segredo',
+  pessoal_restrito: 'pessoal', sensivel: 'sensivel', confidencial: 'confidencial', credencial: 'segredo',
 };
 export const NOMES_CATEGORIA = { identificacao: 'dado de identificação pessoal', identificacao_empresa: 'identificação de empresa', financeiro: 'dado financeiro',
   pessoal: 'dado pessoal', sensivel: 'dado pessoal sensível', confidencial: 'informação confidencial', segredo: 'credencial ou segredo' };
 export const ROTULOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'cartão', banco: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial',
-  rg: 'RG', email: 'email pessoal', telefone: 'telefone', cep: 'CEP', endereco: 'endereço', sensivel: 'dado pessoal sensível', confidencial: 'marcação de confidencial' };
+  rg: 'RG', email: 'email pessoal', telefone: 'telefone', cep: 'CEP', endereco: 'endereço', pessoal_restrito: 'dado pessoal restrito', sensivel: 'dado pessoal sensível', confidencial: 'marcação de confidencial' };
 
 // Proteção reforçada (áreas com política de sigilo): além dos padrões gerais, a GreenIA procura sinais de
 // conteúdo que exige tratamento sigiloso e que não tem formato fixo. Só o conteúdo em que eles aparecem vira
@@ -141,10 +154,9 @@ export const ROTULOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'cartão', banco: 'da
 // são registro de pessoa.
 const REFORCO = {
   marcacao: /\b(?:uso (?:estritamente )?interno|uso restrito|estritamente reservad[oa]|nao (?:divulgar|distribuir)|acordo de confidencialidade|nda\b|sigilos[oa]\b)/,
-  pessoas: /\b(?:folha de pagamento|holerite|contracheque|advertencia disciplinar|processo disciplinar|justa causa|avaliacao de desempenho d[oa]|salario d[oa] (?:colaborador|funcionari|empregad)|remuneracao d[oa] (?:colaborador|funcionari|empregad)|desligamento d[oa] (?:colaborador|funcionari|empregad))/,
 };
 export const TIPOS_REFORCO = Object.keys(REFORCO);
-export const ROTULOS_REFORCO = { marcacao: 'marcação de uso interno', pessoas: 'registro de pessoas em processo interno' };
+export const ROTULOS_REFORCO = { marcacao: 'marcação de uso interno' };
 /** @param {string} texto @returns {string[]} sinais de conteúdo sigiloso (proteção reforçada) */
 export function detectarReforcado(texto) {
   const t = semAcento(texto);

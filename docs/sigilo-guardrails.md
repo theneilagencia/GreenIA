@@ -112,9 +112,13 @@ determina os controles; não significa bloquear.
 | Nível | O conteúdo que exige | O recurso que oferece (calculado da rota real, `protecaoDoRecurso`) |
 |---|---|---|
 | 1 | Conteúdo comum | Qualquer recurso liberado pela empresa |
-| 2 | Dado pessoal processado normalmente, conteúdo de área reforçada, registro de pessoa em processo interno | Fornecedor fixo (nada de gratuito ou automático) e pedido de não uso para treino em cada chamada |
+| 2 | Dado pessoal processado normalmente (inclusive o restrito: disciplina, remuneração individual), conteúdo de área reforçada | Garante o não uso para treino: declarado pelo admin (contrato), comprovado na rota autorizada ou exigido em cada chamada (não vale para gratuito nem para o Automático do serviço de IA, sem fornecedor controlável); e dado pessoal não proibido pelo admin no recurso |
 | 3 | Informação sigilosa: o que a política manda proteger (padrão: pagamento, dado sensível, marcação de confidencial), marcação manual, quick win ou documento sigiloso | Todos os guardrails: autorizado, rota fixada, retenção zero e ausência de treino comprovadas |
 
+- **Atributos, não rótulos** (`atributosDoRecurso`): uso para treino, retenção zero, dado pessoal permitido ou
+  proibido e região, declarados pelo admin em Modelos → Atributos de dados (`PUT /api/admin/modelos/:id` com
+  `atributos`). Dois recursos com os mesmos atributos são igualmente elegíveis; entre eles decidem capacidade,
+  adequação, continuidade e custo.
 - **Roteador:** a restrição `protecao_insuficiente` fica na lista `RESTRICOES` e vale para a escolha
   automática, o pedido da pessoa ou da API, a reserva de execução, a reserva do plano e a nova tentativa.
 - **Sem recurso compatível, nada é enviado.** Nunca se usa um recurso incompatível ou não autorizado para
@@ -135,6 +139,9 @@ histórico" (`naoArmazenar`) define os tipos que são processados, mas não fica
 - **O que não fica:** o texto da mensagem, o conteúdo e o nome do anexo, a resposta e um título tirado do
   conteúdo.
 - **Mensagens seguintes** sem o tipo voltam a ser guardadas.
+- **Anexo:** nenhuma linha fica, nem com o nome do arquivo.
+- **Erro do provedor:** o evento guarda só o status (a mensagem de erro poderia repetir o conteúdo).
+- **Registro operacional mínimo:** hora, pessoa, decisão, recurso, status e tipos de dado (sem valor).
 - **Auditoria:** os eventos e o roteamento nunca guardam conteúdo; só os tipos.
 - **Bloqueio:** registra a tentativa sem conteúdo nem anexo.
 

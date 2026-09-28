@@ -10,7 +10,7 @@ import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
 const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
-const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
+const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', pessoal_restrito: 'Dado pessoal restrito (disciplinar, remuneração individual)', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
 // Tratamento proporcional: seguir normalmente, só com proteção (guardrails) ou não enviar.
 const ACAO = { permitir: 'Processar normalmente', proteger: 'Só com proteção', bloquear: 'Não enviar' };
 const EFEITO = { permitir: 'Segue as regras gerais; a conversa não vira sigilosa', proteger: 'A conversa vira sigilosa: segue só com os guardrails', bloquear: 'Não é enviado; a pessoa vê o motivo' };
@@ -190,7 +190,12 @@ async function abaModelos() {
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
       <td>${x.homologacaoEmpresa ? `<span class="selo">${ICONE.escudo} Homologado pela empresa</span><br><span class="dica">${esc(x.homologacaoEmpresa.fornecedor || '')} · ${esc(x.homologacaoEmpresa.quem || '')} · ${dataHora(x.homologacaoEmpresa.em)}</span><br><button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>` : ''}
         ${x.autorizacaoPlataforma ? `<span class="selo">${ICONE.escudo} Autorizado pela plataforma</span><br>` : ''}
-        ${x.liberado && x.dados ? `<span class="dica">Pode receber: ${['conteúdo comum', x.dados.dadosPessoais && 'dados pessoais', x.dados.sensiveis && 'dados sensíveis e confidenciais'].filter(Boolean).join(', ')}</span><br>` : ''}
+        ${x.liberado && x.dados ? `<span class="dica">Pode receber: ${['conteúdo comum', x.dados.dadosPessoais && 'dados pessoais', x.dados.sensiveis && 'dados sensíveis e confidenciais'].filter(Boolean).join(', ')} · treino: ${esc(x.dados.semTreino)} · retenção zero: ${esc(x.dados.retencaoZero)}${x.dados.regiao ? ` · região: ${esc(x.dados.regiao)}` : ''}</span>
+        <details class="atributos"><summary class="dica">Atributos de dados</summary><div class="linha-botoes" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+          <label class="dica">Uso para treino <select class="entrada" data-attr="semTreino" data-modelo="${esc(x.id)}">${[['', 'conforme a rota'], ['true', 'não treina (contrato)'], ['false', 'pode treinar']].map(([v, r]) => `<option value="${v}" ${String(x.atributos?.semTreino ?? '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+          <label class="dica">Dados pessoais <select class="entrada" data-attr="dadosPessoais" data-modelo="${esc(x.id)}">${[['', 'conforme os atributos'], ['permitido', 'permitido'], ['proibido', 'proibido']].map(([v, r]) => `<option value="${v}" ${(x.atributos?.dadosPessoais ?? '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+          <label class="dica">Região <input class="entrada" data-attr="regiao" data-modelo="${esc(x.id)}" value="${esc(x.atributos?.regiao || '')}" maxlength="60" style="width:120px"></label>
+          <button type="button" class="btn btn-linha btn-pequeno" data-salvar-attr="${esc(x.id)}">Salvar atributos</button></div></details><br>` : ''}
         ${x.homologado ? '<span class="dica">Recebe informação sigilosa (guardrails atendidos)</span>' : (x.homologacaoEmpresa || x.autorizacaoPlataforma) ? `<span class="dica">Não recebe informação sigilosa: ${esc((x.sigiloTexto || []).join('; '))}</span>` : ''}
         ${x.homologacaoEmpresa ? '' : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<br><button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
       <td>${editorCapacidades(x)}</td></tr>`))}
@@ -242,6 +247,11 @@ async function abaModelos() {
     const t = ev.target.closest('button');
     if (!t) return;
     if (t.dataset.homologar) homologar(m.modelos.find(x => x.id === t.dataset.homologar));
+    if (t.dataset.salvarAttr) {
+      const id = t.dataset.salvarAttr, v = k => document.querySelector(`[data-attr="${k}"][data-modelo="${CSS.escape(id)}"]`)?.value || '';
+      const atributos = { semTreino: v('semTreino') === '' ? null : v('semTreino') === 'true', dadosPessoais: v('dadosPessoais') || null, regiao: v('regiao') || null };
+      try { await api(`/api/admin/modelos/${encodeURIComponent(id)}`, { metodo: 'PUT', corpo: { atributos } }); toast('Atributos salvos.'); abaModelos(); } catch (e) { falhar(e); }
+    }
     if (t.dataset.retirar && confirm('Retirar a homologação? Conversas sigilosas abertas passam para o homologado padrão, com aviso.')) {
       try { await api(`/api/admin/modelos/${encodeURIComponent(t.dataset.retirar)}/homologar`, { metodo: 'DELETE' }); toast('Homologação retirada. A política ganhou nova versão.'); abaModelos(); } catch (e) { falhar(e); }
     }
@@ -594,7 +604,7 @@ async function abaPoliticas() {
         <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Nunca enviados</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica sem marcação</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Nomes, cargos, emails e telefones de trabalho são conteúdo normal. Estratégia sem marcação não é adivinhada: a pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
-      <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="protecao-pessoais" ${c.protecaoDadosPessoais !== false ? 'checked' : ''}> Dados pessoais processados normalmente vão só para recursos com fornecedor fixo, que recebem o pedido de não usar os dados para treino. A conversa não vira sigilosa.</span></label>
+      <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="protecao-pessoais" ${c.protecaoDadosPessoais !== false ? 'checked' : ''}> Dados pessoais processados normalmente vão só para recursos que garantem não usar os dados para treino (por contrato, pela rota autorizada ou pelo pedido feito em cada chamada), e nunca para recursos em que o admin proibiu dados pessoais. A conversa não vira sigilosa.</span></label>
       <p class="dica">"Guardar no histórico": sem a marca, a mensagem é processada normalmente, mas o conteúdo, os anexos e a resposta não ficam guardados. Poder processar não é o mesmo que poder guardar.</p>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 

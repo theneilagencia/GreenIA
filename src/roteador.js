@@ -25,7 +25,6 @@
 // A explicação mostrada à pessoa é montada a partir dos códigos da decisão (nunca de texto livre),
 // e o registro de auditoria guarda os mesmos códigos, sem nenhum trecho do pedido.
 import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO } from './modelos.js';
-import { semRotaFixa } from './sigilo.js';
 export { AUTOMATICO };
 
 export const VERSAO_ROTEADOR = '2.0';
@@ -229,10 +228,11 @@ export const RESTRICOES = [
   ['capacidade_insuficiente', (c, x) => DIM_CAPACIDADE.some(d => (x.req.capacidade[d] || 0) > c.cap[d]) || c.nivel < x.req.classeMinima],
   ['nao_homologado', (c, x) => x.sigilosa && !c.m.homologado],
   ['plano_na_reserva', (c, x) => x.reservaDoPlano && c.nivel > 1],
-  ['gratuito_treina_com_dados', (c, x) => (x.cfg.exigirSemTreino || x.protecao >= 2) && ehGratuito(c.id)],
+  // Uso para treino pelo atributo efetivo do recurso (declarado, comprovado na rota ou controlável na chamada).
+  ['gratuito_treina_com_dados', (c, x) => (x.cfg.exigirSemTreino || x.protecao >= 2) && (c.m.dados ? c.m.dados.semTreino === 'não garantido' : ehGratuito(c.id))],
   // Proteção proporcional (sigilo.js): o recurso precisa oferecer o nível que o conteúdo exige. Dado pessoal e
   // área reforçada exigem fornecedor fixo e pedido sem treino, e não homologação (essa é do conteúdo sigiloso).
-  ['protecao_insuficiente', (c, x) => (c.m.protecao ?? (semRotaFixa(c.id) ? 1 : 2)) < x.protecao],
+  ['protecao_insuficiente', (c, x) => (c.m.protecao ?? 0) < x.protecao],   // sem nível calculado: fora (fail closed)
   ['sem_acesso_a_classe', (c, x) => !x.perfis.has(c.classe) && !(x.qw && c.classe === x.classeQw)],
   ['contexto_insuficiente', (c, x) => !cabe(c.m, x.req.janelaMinima)],
 ];

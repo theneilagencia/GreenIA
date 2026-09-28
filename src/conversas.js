@@ -11,7 +11,7 @@ import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
-import { avaliarProcessamentoSigiloso, semRotaFixa } from './sigilo.js';
+import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
@@ -274,14 +274,13 @@ export function rotasConversas(app, r) {
     // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.
     const areaReforcada = reforcada(app, pessoa, qw);
     const sinaisReforco = areaReforcada ? detectarReforcado([texto, ...anexos.map(a => a.texto)].join('\n')) : [];
-    // Marcação de uso interno torna o conteúdo sigiloso; registro de pessoa em processo interno (holerite,
-    // processo disciplinar) é dado pessoal: exige recurso com proteção de dados, e não o tratamento sigiloso.
+    // Marcação de uso interno (sinal da área reforçada) torna o conteúdo sigiloso.
     const marcacaoReforco = sinaisReforco.filter(k => k === 'marcacao');
     const motivo = motivosFixos(app, pessoa, qw) || (protegidos.length ? `dado:${protegidos[0]}` : null)
       || (marcacaoReforco.length ? `reforco:${marcacaoReforco[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
     // Dados pessoais processados normalmente: controles proporcionais (recurso com fornecedor fixo, pedido sem
     // treino), se a política da empresa pedir (padrão). Não vira sigilosa e não exige autorização de sigilo.
-    const dadosPessoais = cfg.protecaoDadosPessoais !== false && (normais.some(t => NIVEL_DO_TIPO[t] >= 2) || sinaisReforco.includes('pessoas'));
+    const dadosPessoais = cfg.protecaoDadosPessoais !== false && normais.some(t => NIVEL_DO_TIPO[t] >= 2);
     // A conversa só vira sigilosa (e o aviso só aparece) depois da decisão da política, mais abaixo: um
     // conteúdo que não pode ser enviado não deixa marca na conversa.
     const sigilosa = !!conv.sigilosa || !!motivo;
@@ -335,7 +334,9 @@ export function rotasConversas(app, r) {
       try {
         manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
         if (sigilosa && !manual.homologado) throw Object.assign(new Error('não autorizado para dado sigiloso'), { motivo: 'nao_homologado' });
-        if ((areaReforcada || dadosPessoais) && (manual.id === AUTO || semRotaFixa(manual.id))) throw Object.assign(new Error('sem a proteção que o conteúdo ou a área exigem'), { motivo: 'area_protecao_reforcada' });
+        // Pelo atributo efetivo do recurso (nível de proteção), e não pelo rótulo: o Automático do serviço de IA
+        // não tem fornecedor controlável e fica de fora; os demais, conforme o que oferecem.
+        if ((areaReforcada || dadosPessoais) && (manual.id === AUTO || (manual.protecao ?? 0) < 2)) throw Object.assign(new Error('sem a proteção que o conteúdo ou a área exigem'), { motivo: 'area_protecao_reforcada' });
         // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
         if (reservaDoPlano) {
           const antes = manual;
@@ -437,7 +438,7 @@ export function rotasConversas(app, r) {
     const agora = AGORA(app);
     const naoGuardar = tipos.some(t => (cfg.naoArmazenar || []).includes(t));
     const msgId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, naoGuardar ? NAO_GUARDADO : texto, agora).lastInsertRowid);
-    for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto) values (?, ?, ?, ?)', conv.id, msgId, naoGuardar ? 'anexo não guardado' : a.nome, naoGuardar ? '' : a.texto);
+    if (!naoGuardar) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto) values (?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto);
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
@@ -482,14 +483,14 @@ export function rotasConversas(app, r) {
         const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
-        registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: String(e.message).slice(0, 200), nova_rota: alt.modelo.id });
+        registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: naoGuardar ? `status ${e?.status ?? 'desconhecido'}` : String(e.message).slice(0, 200), nova_rota: alt.modelo.id });
         atual = alt.modelo; tentados.push(atual.id);
         exec(app.db, 'update roteamento set reserva = ? where id = ?', `guardrails:${tentados.slice(1).join(',')}`, rotaId);
       }
     }
     if (falha) { const e = falha;
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
-      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
+      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: naoGuardar ? `status ${e?.status ?? 'desconhecido'}` : String(e.message).slice(0, 200) });
       // O detalhe técnico (provedor, código, modelo) fica no evento; quem usa recebe uma mensagem orientada à tarefa.
       const fora = [401, 402, 503].includes(e?.status);
       if (fora) await avisarGovernanca(app, 'ia_fora', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});

@@ -107,15 +107,30 @@ export function avaliarProcessamentoSigiloso({ cfg, sigilosa, recurso = undefine
 //   2 dados pessoais / área reforçada: fornecedor fixo (nada de gratuito ou automático), pedido sem uso para treino
 //   3 informação sigilosa (dado sensível, confidencial, o que a política manda proteger): todos os guardrails
 export const PROTECAO = { comum: 1, dados_pessoais: 2, sigilosa: 3 };
+// Atributos efetivos do recurso, e não um rótulo: o que foi declarado pelo admin (contrato, política do
+// fornecedor), o que a rota autorizada comprova e o controle que a GreenIA aplica em cada chamada.
+//   semTreino: 'comprovado' (declarado ou comprovado na rota) · 'exigido em cada chamada' (a chamada pede que só
+//   fornecedores que não usam os dados para treino atendam; não vale para gratuito nem para automático, sem
+//   fornecedor controlável) · 'não garantido'
+export function atributosDoRecurso(m, cfg) {
+  const s = m?.sigilo ?? avaliarRecurso(m, cfg);
+  const d = m?.atributos || {};
+  const rota = s.rota || m?.homologacaoEmpresa || null;
+  const controlavel = !!m?.id && !semRotaFixa(m.id);
+  const semTreino = d.semTreino === false ? 'não garantido' : d.semTreino === true || rota?.semTreino === true ? 'comprovado' : controlavel ? 'exigido em cada chamada' : 'não garantido';
+  return { semTreino, retencaoZero: d.retencaoZero === true || rota?.retencaoZero === true, rotaFixa: controlavel,
+    dadosPessoais: d.dadosPessoais !== 'proibido', regiao: d.regiao || null, guardrailsSigilo: !!s.elegivel, motivosSigilo: s.motivos || [] };
+}
 export function protecaoDoRecurso(m, cfg) {
   if (!m?.liberado) return 0;
-  if ((m.sigilo ?? avaliarRecurso(m, cfg)).elegivel) return PROTECAO.sigilosa;
-  return m.id && !semRotaFixa(m.id) ? PROTECAO.dados_pessoais : PROTECAO.comum;
+  const a = atributosDoRecurso(m, cfg);
+  if (!a.dadosPessoais) return PROTECAO.comum;   // o admin proibiu dado pessoal neste recurso: só conteúdo comum
+  if (a.guardrailsSigilo) return PROTECAO.sigilosa;
+  return a.semTreino !== 'não garantido' ? PROTECAO.dados_pessoais : PROTECAO.comum;
 }
-// O que o recurso pode receber, para o admin (sem nome de provedor): tipo de conteúdo, treino, retenção e rota.
+// O que o recurso pode receber e sob quais condições (para o admin, sem nome de provedor).
 export function capacidadesDeDados(m, cfg) {
-  const n = protecaoDoRecurso(m, cfg), s = m?.sigilo ?? avaliarRecurso(m, cfg);
+  const n = protecaoDoRecurso(m, cfg), a = atributosDoRecurso(m, cfg);
   return { nivel: n, comum: n >= 1, dadosPessoais: n >= 2, sensiveis: n >= 3, confidenciais: n >= 3,
-    semTreino: n >= 3 ? 'comprovado' : n >= 2 ? 'pedido em cada chamada' : 'não garantido',
-    retencaoZero: n >= 3 ? 'comprovada' : 'não comprovada', rotaFixa: n >= 2, motivosSigilo: s.motivos || [] };
+    semTreino: a.semTreino, retencaoZero: a.retencaoZero ? 'comprovada' : 'não comprovada', rotaFixa: a.rotaFixa, regiao: a.regiao, motivosSigilo: a.motivosSigilo };
 }

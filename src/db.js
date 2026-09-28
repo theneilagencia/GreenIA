@@ -50,7 +50,7 @@ create table if not exists modelos (
   liberado integer not null default 0, perfil text check (perfil in ('rapido','equilibrado','avancado')),
   reserva text, homologado integer not null default 0, homologacao text,
   no_catalogo integer not null default 1, aviso text, atualizado_em text,
-  capacidades text, vetado_plataforma integer not null default 0, autorizacao_plataforma text);
+  capacidades text, vetado_plataforma integer not null default 0, autorizacao_plataforma text, atributos text);
 
 create table if not exists documentos (
   id integer primary key, titulo text not null, arquivo text not null,
@@ -244,6 +244,8 @@ const MIGRACOES = [
     db.exec("update roteamento set modo = 'externo' where modo = 'openrouter_auto'");
     db.exec("update roteamento set classe_pedida = 'externo' where classe_pedida = 'openrouter_auto'");
   },
+  // 11. Atributos de dados de cada recurso, declarados pelo admin (treino, retenção, dado pessoal, região).
+  db => { if (!db.prepare("select 1 from pragma_table_info('modelos') where name = 'atributos'").get()) db.exec('alter table modelos add column atributos text'); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

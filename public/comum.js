@@ -97,6 +97,15 @@ export function aplicarMarca(p) {
 // Logo da empresa ao lado da marca, num fundo claro para funcionar também na barra escura.
 export const logoEmpresa = p => (p.logo ? `<img class="logo-empresa" src="${esc(p.logo)}" alt="${esc(p.empresa || 'Empresa')}">` : '');
 
+// Versão publicada (commit), lida uma vez de /api/saude e mostrada no rodapé da barra lateral.
+let versaoAtual;
+const textoVersao = () => (versaoAtual === undefined ? '' : `Versão ${versaoAtual}`);
+fetch('/api/saude', { cache: 'no-store' }).then(r => r.json()).then(d => {
+  versaoAtual = d.versao || 'local';
+  document.querySelectorAll('[data-versao]').forEach(el => { el.textContent = textoVersao(); });
+}).catch(() => {});
+export const versaoHtml = () => `<span class="versao-plataforma" data-versao title="Versão publicada da GreenIA">${textoVersao()}</span>`;
+
 export const marcaHtml = () => '<img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>';
 
 // Aviso discreto no canto. Tipo: 'ok' (padrão), 'erro' ou 'info'. Erros ficam mais tempo na tela.

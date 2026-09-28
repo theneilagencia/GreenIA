@@ -1163,3 +1163,7 @@ select:not([multiple]):not([size]){-webkit-appearance:none;appearance:none;paddi
 }
 .tabela td{vertical-align:middle}
 .pagina .lead,.painel-dentro .lead{max-width:72ch}
+
+/* Versão publicada, no rodapé da barra lateral */
+.versao-plataforma{display:block;margin:6px 8px 2px;font:400 11.5px/1.4 var(--mono);color:var(--leaf);letter-spacing:.02em}
+.versao-plataforma:empty{display:none}

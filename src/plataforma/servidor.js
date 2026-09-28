@@ -8,7 +8,8 @@ import { join, dirname } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { criarApp } from '../servidor.js';
 import { criarEmail } from '../email.js';
-import { criarSimulada } from '../ia.js';
+import { criarSimulada, criarOpenRouter } from '../ia.js';
+import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
 import { lerConfig, salvarConfig } from '../config.js';
 import { carregarPessoa, dominioPermitido } from '../auth.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
@@ -36,13 +37,17 @@ const ICONE_PADRAO = '/assets/greenia-marca.svg';
 export function criarPlataforma(op = {}) {
   const db = abrirPlataforma(op.banco ?? ':memory:');
   const P = {
-    db, agora: op.agora ?? (() => new Date()), log: op.log ?? console.log, ia: op.ia ?? criarSimulada(),
+    db, agora: op.agora ?? (() => new Date()), log: op.log ?? console.log, ia: iaTrocavel(op.ia ?? criarSimulada()), iaPadrao: op.ia ?? criarSimulada(),
     cookieSeguro: op.cookieSeguro ?? true, pastaEmpresas: op.pastaEmpresas ?? (op.banco && op.banco !== ':memory:' ? join(dirname(op.banco), 'empresas') : ':memory:'),
     hostPlataforma: (op.hostPlataforma || '').toLowerCase(), urlBase: op.urlBase || '', subdominioBase: (op.subdominioBase || '').toLowerCase(),
     paginaInicial: op.paginaInicial === 'vendas' ? 'vendas' : 'plataforma', tenants: new Map(),
     dns: op.dns || null, provedorDominios: op.provedorDominios || null, emAndamento: new Map(),
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
+  // Chave do OpenRouter informada no console: cifrada no banco; vale sobre a variável OPENROUTER_API_KEY.
+  P.criarIA = op.criarIA ?? (chave => criarOpenRouter({ chave }));
+  P.chaveVariavel = op.chaveVariavel || null;   // só a máscara da chave da variável de ambiente
+  P.mestra = () => (P._mestra ??= op.chaveMestra ?? chaveMestra({ pasta: op.banco && op.banco !== ':memory:' ? dirname(op.banco) : join(tmpdirSeguro(), 'greenia') }));
   // SMTP da plataforma: o das variáveis (SMTP_URL ou SMTP_SERVIDOR/...); sem elas, o configurado no console.
   P.avisarSemEmail = !!op.avisarSemEmail;
   P.smtpPadrao = { url: op.smtpPadrao?.url || '', remetente: op.smtpPadrao?.remetente || '' };
@@ -71,6 +76,9 @@ export function criarPlataforma(op = {}) {
   }
   if (op.legado) { importarInstalacao(P, op.legado); copiarSmtpLegado(P, op.legado.banco); }
   E.preencherTextosMarca(P);
+  const salva = lerChaveOpenRouter(P);
+  if (salva?.chave) P.ia.trocar(P.criarIA(salva.chave));
+  else if (salva && !salva.chave) P.log('ATENÇÃO: a chave do OpenRouter salva no console não pôde ser lida (chave-mestra diferente). Informe a chave de novo em Uso.');
   E.liberarDominioParaTodos(P);
   for (const c of todos(db, 'select id from companies')) abrirTenant(P, c.id);
 
@@ -362,3 +370,40 @@ function importarInstalacao(P, { banco, slug, plano }) {
 }
 
 export { dominioPermitido, json };
+
+// ---------------------------------------------------------------- IA trocável e chave do OpenRouter
+// As empresas recebem este mesmo objeto; trocar a chave vale na hora para todas, sem reiniciar.
+export function iaTrocavel(inicial) {
+  let atual = inicial;
+  return {
+    get configurada() { return atual.configurada; }, get simulada() { return atual.simulada; },
+    listarModelos: (...a) => atual.listarModelos(...a),
+    conta: (...a) => (atual.conta ? atual.conta(...a) : Promise.resolve(null)),
+    enviar: (...a) => atual.enviar(...a),
+    trocar(nova) { atual = nova; },
+  };
+}
+function tmpdirSeguro() { return process.env.TMPDIR || '/tmp'; }
+
+export function lerChaveOpenRouter(P) {
+  const s = lerAjuste(P.db, 'openrouter_chave', null);
+  if (!s) return null;
+  return { chave: decifrar(P.mestra(), s.cifrado), mascara: s.mascara, nome: s.nome || '', em: s.em, por: s.por };
+}
+export function salvarChaveOpenRouter(P, chave, { nome, por }) {
+  salvarAjuste(P.db, 'openrouter_chave', { cifrado: cifrar(P.mestra(), chave), mascara: mascarar(chave), nome, em: P.agora().toISOString(), por });
+  P.ia.trocar(P.criarIA(chave));
+  P._contaOR = null;
+}
+export function removerChaveOpenRouter(P) {
+  exec(P.db, "delete from platform_settings where key = 'openrouter_chave'");
+  P.ia.trocar(P.iaPadrao);
+  P._contaOR = null;
+}
+// O que a tela mostra sobre a chave: de onde vem e a máscara. Nunca a chave.
+export function origemChaveOpenRouter(P) {
+  const s = lerAjuste(P.db, 'openrouter_chave', null);
+  if (s) return { origem: 'console', mascara: s.mascara, nome: s.nome || '', em: s.em, por: s.por, variavelTambem: !!P.chaveVariavel };
+  if (P.chaveVariavel) return { origem: 'variavel', mascara: P.chaveVariavel };
+  return { origem: null };
+}

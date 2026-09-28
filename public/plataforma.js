@@ -420,9 +420,23 @@ async function vistaUso(forcar = false) {
   const conc = c.disponivel && k?.mes !== null && k?.mes !== undefined ? (() => { const dif = k.mes - pl.custoMes, rel = pl.custoMes ? Math.abs(dif) / pl.custoMes : (k.mes > 0 ? 1 : 0);
     return `<p class="or-conc${rel > 0.1 && Math.abs(dif) > 0.5 ? ' dif' : ''}">Registrado pela GreenIA no mês: <b>${usd4(pl.custoMes)}</b> · Cobrado pelo OpenRouter no mês: <b>${usd4(k.mes)}</b>${rel > 0.1 && Math.abs(dif) > 0.5 ? ` · diferença de ${usd4(dif)}: pode haver uso da mesma chave fora da plataforma, ou respostas interrompidas antes de registrar o custo.` : ' · em linha.'}</p>`; })() : '';
   const empresas = u.empresas.filter(e => filtro !== 'alerta' || e.alerta).sort((a, b) => b.custoMes - a.custoMes);
+  const kc = u.chaveConfig || {};
+  const semChave = !kc.origem;
+  const chaveHtml = `<section class="or-chave${semChave ? ' vazia' : ''}" aria-labelledby="or-chave-t">
+    <div class="or-chave-topo"><span class="or-chave-icone">${ICONE.chave || ''}</span>
+      <div class="or-chave-texto"><b id="or-chave-t">Chave do OpenRouter</b>
+        <span>${semChave ? 'Nenhuma chave configurada: a IA das empresas está desligada (ou simulada) até você informar a chave.'
+          : `<code>${esc(kc.mascara)}</code>${kc.nome ? ` · ${esc(kc.nome)}` : ''} · ${kc.origem === 'console' ? `salva no console${kc.em ? ` em ${dataHora(kc.em)}` : ''}${kc.por ? ` por ${esc(kc.por)}` : ''}${kc.variavelTambem ? ' (vale no lugar da variável OPENROUTER_API_KEY)' : ''}` : 'vinda da variável OPENROUTER_API_KEY do servidor'}`}</span></div>
+      <div class="or-chave-acoes">${semChave ? '' : `<button type="button" class="btn btn-linha btn-pequeno" id="or-trocar">${kc.origem === 'console' ? 'Trocar chave' : 'Informar outra chave'}</button>`}${kc.origem === 'console' ? '<button type="button" class="btn-texto btn-pequeno" id="or-remover">Remover</button>' : ''}</div></div>
+    <form class="or-chave-form${semChave ? '' : ' oculto'}" id="f-chave" novalidate autocomplete="off">
+      <label for="or-chave-in">Cole a chave da API do OpenRouter</label>
+      <div class="or-chave-linha"><input class="entrada" id="or-chave-in" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-describedby="or-chave-ajuda">
+        <button type="button" class="btn-texto btn-pequeno" id="or-ver" aria-pressed="false">Mostrar</button><button class="btn btn-verde btn-pequeno" id="or-salvar">Testar e salvar</button></div>
+      <p class="dica" id="or-chave-ajuda">A chave é testada no OpenRouter antes de salvar, fica guardada cifrada e vale na hora para todas as empresas, sem reiniciar. Depois de salva, só aparecem o início e os 4 últimos caracteres. <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">Criar uma chave no OpenRouter ↗</a></p>
+      <p class="msg-erro oculto" id="or-chave-erro" role="alert"></p></form></section>`;
   tela('Uso', `<div class="uso-topo"><p class="lead">Consumo de IA da plataforma e de cada empresa. Valores em dólar, só para a operação.</p>
       <span class="dica">Conta atualizada ${c.atualizadoEm ? `às ${new Date(c.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '–'} <button class="btn-texto btn-pequeno" id="uso-atualizar">Atualizar agora</button></span></div>
-    ${contaHtml}${conc}
+    ${chaveHtml}${semChave ? '' : contaHtml}${conc}
     <form class="or-alerta" id="f-alerta"><label for="al-usd">Avisar os admins da plataforma por email quando o saldo ficar abaixo de</label>
       <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="al-usd" type="number" min="0" step="1" value="${esc(u.alerta.limiarUsd)}"></span><button class="btn btn-linha btn-pequeno">Salvar alerta</button><span class="dica">No máximo um email por dia.</span></form>
 
@@ -447,6 +461,20 @@ async function vistaUso(forcar = false) {
     <p class="dica">Projeção: quanto do plano estará usado no fim do mês, no ritmo do mês até hoje. Situação acima de 90%, na reserva ou esgotada pede atenção (a empresa também recebe os avisos do plano).</p>`);
   ligarDicas($('principal'));
   $('uso-atualizar').onclick = () => vistaUso(true);
+  $('or-trocar')?.addEventListener('click', () => { $('f-chave').classList.toggle('oculto'); $('or-chave-in').focus(); });
+  $('or-ver').onclick = ev => { const i = $('or-chave-in'), ver = i.type === 'password'; i.type = ver ? 'text' : 'password'; ev.currentTarget.textContent = ver ? 'Ocultar' : 'Mostrar'; ev.currentTarget.setAttribute('aria-pressed', ver); };
+  $('f-chave').onsubmit = async ev => {
+    ev.preventDefault();
+    const erroEl = $('or-chave-erro'); erroEl.classList.add('oculto');
+    await ocupado($('or-salvar'), async () => {
+      try { await api('/api/plataforma/openrouter/chave', { metodo: 'PUT', corpo: { chave: $('or-chave-in').value } }); $('or-chave-in').value = ''; toast('Chave testada e salva. A IA já usa a chave nova.'); vistaUso(true); }
+      catch (x) { erroEl.textContent = x.message; erroEl.classList.remove('oculto'); $('or-chave-in').focus(); }
+    });
+  };
+  $('or-remover')?.addEventListener('click', async () => {
+    if (!confirm(kc.variavelTambem ? 'Remover a chave salva no console? A plataforma volta a usar a chave da variável OPENROUTER_API_KEY.' : 'Remover a chave salva no console? Sem outra chave, a IA das empresas para de responder.')) return;
+    try { await api('/api/plataforma/openrouter/chave', { metodo: 'DELETE' }); toast('Chave removida.'); vistaUso(true); } catch (x) { falhar(x); }
+  });
   $('f-alerta').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/consumo/alerta', { metodo: 'PUT', corpo: { limiarUsd: Number($('al-usd').value) } }); toast('Alerta salvo.'); vistaUso(); } catch (x) { falhar(x); } };
   $('principal').onclick = async ev => {
     const f = ev.target.closest('[data-filtro]');

@@ -6,7 +6,7 @@ import { ehAdminPlataforma, permissoesNaPlataforma, exigir, rolesDaEmpresa, PERM
 import * as E from './empresas.js';
 import { auditar, listarAuditoria } from './auditoria.js';
 import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf, definirContexto } from './sessao.js';
-import { publicaEmpresa } from './servidor.js';
+import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemChaveOpenRouter } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo } from './consumo.js';
@@ -204,7 +204,7 @@ export function rotasPlataforma(P, r) {
     precisa(sessao, 'platform.companies.manage');
     const [conta, resumo] = [await contaOpenRouter(P, { forcar: !!query.forcar }), resumoConsumo(P)];
     const saldo = conta.saldo ?? conta.chave?.restante ?? null;
-    return { conta, ...resumo, alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
+    return { conta, chaveConfig: origemChaveOpenRouter(P), ...resumo, alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
   });
   r.get('/api/plataforma/empresas/:id/consumo', ({ sessao, params }) => {
     precisa(sessao, 'platform.companies.manage');
@@ -212,6 +212,33 @@ export function rotasPlataforma(P, r) {
     if (!d) throw erro(404, 'empresa', 'Empresa não encontrada.');
     return d;
   });
+  // Chave do OpenRouter pelo console: testada no OpenRouter antes de salvar, guardada cifrada,
+  // vale na hora para todas as empresas e nunca volta para a tela (só a máscara).
+  r.put('/api/plataforma/openrouter/chave', async ({ sessao, corpo, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const chave = String(corpo.chave || '').trim();
+    if (!/^sk-[A-Za-z0-9_-]{20,200}$/.test(chave)) throw erro(400, 'chave', 'Cole a chave completa do OpenRouter (começa com sk-or-).');
+    const teste = await P.criarIA(chave).conta().catch(() => null);
+    if (!teste?.chave || teste.chave.erro) {
+      const st = teste?.chave?.erro;
+      throw erro(400, 'chave_recusada', st === 401 || st === 403 ? 'O OpenRouter recusou esta chave: confira se ela foi copiada inteira e se não foi desativada.' : 'Não foi possível confirmar a chave no OpenRouter agora. Tente de novo em instantes.');
+    }
+    const nome = String(teste.chave.label || '').slice(0, 80);
+    salvarChaveOpenRouter(P, chave, { nome, por: sessao.email });
+    auditar(P, { usuario: sessao.userId, acao: 'platform.openrouter_key_set', entidade: 'platform_settings', depois: { chave: origemChaveOpenRouter(P).mascara, nome }, origem });
+    P.aoTrocarIA?.();
+    return { chaveConfig: origemChaveOpenRouter(P), conta: await contaOpenRouter(P, { forcar: true }) };
+  });
+  r.del('/api/plataforma/openrouter/chave', ({ sessao, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const antes = origemChaveOpenRouter(P);
+    if (antes.origem !== 'console') throw erro(409, 'sem_chave', 'Não há chave salva no console para remover.');
+    removerChaveOpenRouter(P);
+    auditar(P, { usuario: sessao.userId, acao: 'platform.openrouter_key_removed', entidade: 'platform_settings', antes: { chave: antes.mascara }, origem });
+    P.aoTrocarIA?.();
+    return { chaveConfig: origemChaveOpenRouter(P) };
+  });
+
   r.put('/api/plataforma/consumo/alerta', async ({ sessao, corpo, origem }) => {
     precisa(sessao, 'platform.settings.manage');
     const v = Number(corpo.limiarUsd);

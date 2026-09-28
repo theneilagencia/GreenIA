@@ -1,5 +1,6 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
 import { conferirSaldo } from './plataforma/consumo.js';
+import { mascarar } from './plataforma/segredo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -65,7 +66,7 @@ export async function iniciarPlataforma(env = process.env) {
   const host = (env.PLATAFORMA_HOST || '').toLowerCase();
   const legado = env.BANCO || 'dados/greenia.sqlite';
   const P = criarPlataforma({
-    ia, banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
+    ia, chaveVariavel: mascarar(env.OPENROUTER_API_KEY), banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
     hostPlataforma: host, urlBase: env.PLATAFORMA_URL || (host ? `https://${host}` : ''), subdominioBase: env.PLATAFORMA_SUBDOMINIO || '',
     smtpPadrao: { url: smtpDeVariaveis(env), remetente: env.SMTP_REMETENTE || '' }, avisarSemEmail: producao,
@@ -75,7 +76,8 @@ export async function iniciarPlataforma(env = process.env) {
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).
     legado: existsSync(legado) ? { banco: legado, slug: env.EMPRESA_SLUG, plano: lerPlano(env) } : null,
   });
-  if (!env.OPENROUTER_API_KEY) P.log(producao ? 'ATENÇÃO: sem OPENROUTER_API_KEY. A IA está desligada até a chave ser configurada.' : 'Sem OPENROUTER_API_KEY: usando a IA simulada.');
+  const iaReal = () => P.ia.configurada !== false && !P.ia.simulada;
+  if (!iaReal()) P.log(producao ? 'ATENÇÃO: sem chave do OpenRouter. A IA está desligada até a chave ser informada no console (Uso) ou em OPENROUTER_API_KEY.' : 'Sem chave do OpenRouter: usando a IA simulada.');
   const tarefa = (fn, ms) => { const t = () => Promise.resolve().then(fn).catch(e => P.log('tarefa', e.message)); t(); setInterval(t, ms).unref(); };
   const todas = fn => () => Promise.all([...P.tenants.values()].map(t => Promise.resolve().then(() => fn(t)).catch(e => P.log('tarefa', e.message))));
   tarefa(todas(apagarVencidas), 3600e3);
@@ -84,8 +86,11 @@ export async function iniciarPlataforma(env = process.env) {
   tarefa(async () => { for (const id of pendentes(P)) await verificarDominio(P, id); }, 1800e3);
   if (P.provedorDominios) P.log('Domínios próprios: cadastro automático no Render ligado.');
   // Saldo de IA no OpenRouter: confere a cada hora e avisa os admins da plataforma quando fica baixo.
-  if (env.OPENROUTER_API_KEY) tarefa(() => conferirSaldo(P), 3600e3);
-  if (env.OPENROUTER_API_KEY) tarefa(async () => { const [primeiro, ...resto] = [...P.tenants.values()]; if (!primeiro) return; await atualizarCatalogo(primeiro); for (const t of resto) { t.catalogo = primeiro.catalogo; await atualizarCatalogo(t).catch(() => {}); } }, 24 * 3600e3);
+  tarefa(() => iaReal() && conferirSaldo(P), 3600e3);
+  const catalogo = async () => { if (!iaReal()) return; const [primeiro, ...resto] = [...P.tenants.values()]; if (!primeiro) return; await atualizarCatalogo(primeiro); for (const t of resto) { t.catalogo = primeiro.catalogo; await atualizarCatalogo(t).catch(() => {}); } };
+  tarefa(catalogo, 24 * 3600e3);
+  // Chave nova no console: atualiza o catálogo de modelos e o saldo logo, sem esperar o próximo ciclo.
+  P.aoTrocarIA = () => { catalogo().catch(e => P.log('catálogo', e.message)); if (iaReal()) conferirSaldo(P).catch(() => {}); };
   // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas.
   if (/^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '')) {
     const pasta = env.BACKUP_PASTA || 'dados/backups';

@@ -6,7 +6,7 @@ addEventListener('scroll', marcarTopo, { passive: true });
 marcarTopo();
 
 const calmo = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const GRADES = '.l-pilares,.l-planos,.l-etapas,.l-inst,.p-passos,.p-recursos,.p-regras,.p-tarefas,.l-contraste';
+const GRADES = '.l-pilares,.l-planos,.l-etapas,.l-inst,.p-passos,.p-recursos,.p-regras,.p-tarefas,.l-contraste,.pp-passos,.pp-bento,.pp-regras,.pp-tarefas,.pp-confianca';
 
 // Conta de 0 até o número (formato 15.420 ou 82%), mantendo o texto ao redor.
 function contar(raiz) {

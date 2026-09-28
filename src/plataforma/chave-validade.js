@@ -13,26 +13,48 @@
 // em qualquer instância e depois de reiniciar. O estado de cada chave fica no banco da plataforma
 // ('openrouter_chaves'): início, última validação, recusa, vencimento do provedor, vencimento informado.
 //
-// Regra de tempo (determinística): dias corridos no calendário de America/Sao_Paulo. A troca preventiva
-// é devida no dia (início + N dias); "vencida" do provedor é pelo instante exato do expires_at.
+// Regra de tempo: o cálculo usa só instantes UTC e durações. Início = instante em que a chave passou a
+// valer para a plataforma; próxima troca = início + N × 24 h; vencimento do provedor = instante do
+// expires_at. Estados e estágios saem da duração restante (30 dias, 7 dias, 48 h, 24 h, 0). Nenhum
+// calendário ou fuso entra na conta. O fuso da plataforma (PLATAFORMA_FUSO) serve só para EXIBIR
+// datas e para converter, uma vez, a data que o admin digita ("vence em 31/12") em instante UTC.
 import { createHmac } from 'node:crypto';
 import { exec, todos } from '../db.js';
 import { lerAjuste, salvarAjuste } from './db.js';
 
-export const ROTACAO_PADRAO = 90, ROTACAO_MIN = 7, ROTACAO_MAX = 730;
-const FUSO = 'America/Sao_Paulo', DIA = 864e5, HISTORICO = 20, REVALIDAR_MS = 10 * 60e3;
+export const ROTACAO_PADRAO = 90, ROTACAO_MIN = 7, ROTACAO_MAX = 730, FUSO_PADRAO = 'America/Sao_Paulo';
+const H = 3600e3, DIA = 24 * H, HISTORICO = 20, REVALIDAR_MS = 10 * 60e3;
 
 export const impressaoChave = (mestra, chave) => createHmac('sha256', mestra).update(String(chave)).digest('hex').slice(0, 32);
 
-// ------------------------------------------------------------------ calendário
-const fmtData = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO, year: 'numeric', month: '2-digit', day: '2-digit' });
-export const dataLocal = instante => fmtData.format(new Date(instante));   // 'AAAA-MM-DD' em São Paulo
-const somarDias = (data, n) => new Date(Date.parse(`${data}T12:00:00Z`) + n * DIA).toISOString().slice(0, 10);
-export const diasEntre = (de, ate) => Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / DIA);
-const dataBr = data => `${data.slice(8, 10)}/${data.slice(5, 7)}/${data.slice(0, 4)}`;
+// ------------------------------------------------------------------ tempo: cálculo em UTC, exibição no fuso
+export function fusoValido(f) { try { new Intl.DateTimeFormat('pt-BR', { timeZone: f }); return !!f; } catch { return false; } }
+export const fusoDe = P => (fusoValido(P.fuso) ? P.fuso : FUSO_PADRAO);
+const iso = ms => new Date(ms).toISOString();
+// Dias inteiros de 24 h: para frente, os que ainda cabem; para trás, os que já passaram (negativo).
+export const diasDe = ms => (ms > 0 ? Math.floor(ms / DIA) : -Math.floor(-ms / DIA));
+export const formatarInstante = (ms, fuso) => new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'short', timeStyle: 'short' }).format(new Date(ms));
 const plural = n => `${n} ${Math.abs(n) === 1 ? 'dia' : 'dias'}`;
-// Data informada pelo admin ("2026-12-31") vale até o fim daquele dia em São Paulo (UTC−3, sem horário de verão).
-const fimDoDia = data => Date.parse(`${data}T23:59:59-03:00`);
+// Duração legível: dias a partir de 48 h; abaixo disso, horas.
+export function duracaoTxt(ms) {
+  const a = Math.abs(ms);
+  if (a >= 2 * DIA) return plural(Math.floor(a / DIA));
+  const h = Math.max(1, Math.floor(a / H));
+  return `${h} ${h === 1 ? 'hora' : 'horas'}`;
+}
+// Quanto o fuso está à frente de UTC num instante (considera horário de verão, se o fuso tiver).
+function deslocamento(ms, fuso) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: fuso, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000;
+}
+// Data digitada pelo admin ("AAAA-MM-DD") → último segundo daquele dia no fuso da plataforma, em UTC.
+export function fimDoDiaNoFuso(data, fuso) {
+  const [y, m, d] = data.split('-').map(Number), local = Date.UTC(y, m - 1, d, 23, 59, 59);
+  let ms = local - deslocamento(local, fuso);
+  ms = local - deslocamento(ms, fuso);
+  return ms;
+}
 
 // ------------------------------------------------------------------ política interna
 export function politicaChave(P) {
@@ -84,7 +106,10 @@ export function registrarRecusa(P, cfg, onde = 'envio') {
   estadoDaChave(P, cfg);
   return gravar(P, cfg.id, e => (e.recusadaEm ? { ...e, ultimaRecusaEm: agora } : { ...e, recusadaEm: agora, ultimaRecusaEm: agora, recusadaOnde: onde }));
 }
-export const informarVencimento = (P, cfg, data) => gravar(P, cfg.id, e => ({ ...e, expiraInformada: data || null }));
+// Vencimento informado: convertido já na entrada para instante UTC (com o fuso da plataforma daquele
+// momento); a data digitada fica só para mostrar de volta no formulário.
+export const informarVencimento = (P, cfg, data) => gravar(P, cfg.id, e => ({ ...e, expiraInformada: data || null,
+  expiraInformadaEm: data ? iso(fimDoDiaNoFuso(data, fusoDe(P))) : null, expiraInformadaFuso: data ? fusoDe(P) : null }));
 // Chave recusada e ainda não revalidada: novos envios param até uma leitura da conta dar certo.
 export function chaveRecusada(P, cfg) {
   const e = cfg?.id ? lerRegistro(P)[cfg.id] : null;
@@ -103,55 +128,53 @@ export const ROTULO = { ok: 'Em dia', info: 'Troca próxima', atencao: 'Atençã
  */
 export function situacaoChave(P, cfg) {
   if (!cfg?.id) return { nivel: 'sem_chave', codigo: 'sem_chave', rotulo: 'Sem chave', texto: 'Nenhuma chave configurada.' };
-  const e = estadoDaChave(P, cfg), pol = politicaChave(P), agora = P.agora().getTime(), hoje = dataLocal(agora);
-  // Troca preventiva (política interna).
-  const inicio = dataLocal(Date.parse(e.desde));
-  const proximaTroca = somarDias(inicio, pol.rotacaoDias);
-  const diasTroca = diasEntre(hoje, proximaTroca);
-  const troca = { inicio, desde: e.desde, rotacaoDias: pol.rotacaoDias, proximaTroca, diasRestantes: diasTroca, emUsoDias: diasEntre(inicio, hoje),
-    ...(diasTroca < 0 ? { nivel: 'atencao', codigo: 'troca_atrasada', texto: `Troca preventiva atrasada ${plural(-diasTroca)} (prevista para ${dataBr(proximaTroca)}, a cada ${plural(pol.rotacaoDias)}).` }
-      : diasTroca === 0 ? { nivel: 'atencao', codigo: 'troca_hoje', texto: `Troca preventiva prevista para hoje (a cada ${plural(pol.rotacaoDias)}).` }
-        : diasTroca <= 7 ? { nivel: 'atencao', codigo: 'troca_proxima', texto: `Troca preventiva em ${plural(diasTroca)} (${dataBr(proximaTroca)}).` }
-          : diasTroca <= 30 ? { nivel: 'info', codigo: 'troca_em_breve', texto: `Troca preventiva em ${plural(diasTroca)} (${dataBr(proximaTroca)}).` }
-            : { nivel: 'ok', codigo: 'troca_em_dia', texto: `Próxima troca preventiva em ${dataBr(proximaTroca)} (${plural(diasTroca)}).` }) };
+  const e = estadoDaChave(P, cfg), pol = politicaChave(P), agora = P.agora().getTime(), fuso = fusoDe(P);
+  const quando = ms => formatarInstante(ms, fuso);
+  // Troca preventiva (política interna): início + N × 24 h.
+  const inicioMs = Date.parse(e.desde), trocaMs = inicioMs + pol.rotacaoDias * DIA, rt = trocaMs - agora;
+  const troca = { inicio: e.desde, proximaTroca: iso(trocaMs), restanteMs: rt, diasRestantes: diasDe(rt), emUsoDias: diasDe(agora - inicioMs), rotacaoDias: pol.rotacaoDias,
+    ...(rt <= 0 ? { nivel: 'atencao', codigo: 'troca_atrasada', texto: `Troca preventiva atrasada há ${duracaoTxt(rt)} (prevista para ${quando(trocaMs)}, a cada ${plural(pol.rotacaoDias)}).` }
+      : rt <= DIA ? { nivel: 'atencao', codigo: 'troca_24h', texto: `Troca preventiva prevista para daqui a ${duracaoTxt(rt)} (${quando(trocaMs)}).` }
+        : rt <= 7 * DIA ? { nivel: 'atencao', codigo: 'troca_proxima', texto: `Troca preventiva em ${duracaoTxt(rt)} (${quando(trocaMs)}).` }
+          : rt <= 30 * DIA ? { nivel: 'info', codigo: 'troca_em_breve', texto: `Troca preventiva em ${duracaoTxt(rt)} (${quando(trocaMs)}).` }
+            : { nivel: 'ok', codigo: 'troca_em_dia', texto: `Próxima troca preventiva em ${quando(trocaMs)} (${duracaoTxt(rt)}).` }) };
   // Validade externa (provedor). O vencimento informado pelo OpenRouter prevalece sobre o digitado.
   const pv = e.provedor || null;
-  const fonte = pv?.expiraEm ? 'openrouter' : e.expiraInformada ? 'informada' : null;
-  const instante = pv?.expiraEm ? Date.parse(pv.expiraEm) : e.expiraInformada ? fimDoDia(e.expiraInformada) : null;
-  const dataVenc = instante ? dataLocal(instante) : null;
-  const diasVenc = instante ? diasEntre(hoje, dataVenc) : null;
+  const informadaMs = e.expiraInformadaEm ? Date.parse(e.expiraInformadaEm) : e.expiraInformada ? fimDoDiaNoFuso(e.expiraInformada, fuso) : null;   // registros antigos: só a data
+  const fonte = pv?.expiraEm ? 'openrouter' : informadaMs ? 'informada' : null;
+  const vencMs = pv?.expiraEm ? Date.parse(pv.expiraEm) : informadaMs;
+  const rv = vencMs ? vencMs - agora : null;
   const provedor = {
-    fonte, expiraEm: fonte === 'openrouter' ? pv.expiraEm : e.expiraInformada || null, data: dataVenc, diasRestantes: diasVenc,
+    fonte, expiraEm: vencMs ? iso(vencMs) : null, restanteMs: rv, diasRestantes: rv === null ? null : diasDe(rv), dataInformada: e.expiraInformada || null,
     // Sem data: "não definido" = o OpenRouter respondeu sem vencimento; "não informado" = ainda não foi possível ler.
     semData: fonte ? null : pv?.consultadoEm ? 'nao_definido' : 'nao_informado',
     validadoEm: e.validadoEm || null, recusadaEm: e.recusadaEm || null,
   };
+  const origemData = fonte === 'informada' ? ' (data informada no console)' : '';
   let ext;
   if (e.recusadaEm) ext = { nivel: 'erro', codigo: 'recusada', texto: 'O OpenRouter está recusando esta chave (vencida, revogada, desativada ou inexistente). A IA das empresas está parada até você informar uma chave nova.' };
-  else if (instante && instante <= agora) ext = { nivel: 'erro', codigo: 'vencida', texto: `A chave venceu em ${dataBr(dataVenc)}${fonte === 'informada' ? ' (data informada no console)' : ''}. Informe uma chave nova.` };
-  else if (instante && diasVenc <= 7) ext = { nivel: 'critico', codigo: diasVenc === 0 ? 'vence_hoje' : 'vence_em_breve', texto: diasVenc === 0 ? 'A chave vence hoje no provedor. Troque agora.' : `A chave vence no provedor em ${plural(diasVenc)} (${dataBr(dataVenc)}). Troque antes disso.` };
-  else if (instante && diasVenc <= 30) ext = { nivel: 'atencao', codigo: 'vence', texto: `A chave vence no provedor em ${plural(diasVenc)} (${dataBr(dataVenc)}). Programe a troca.` };
-  else ext = { nivel: 'ok', codigo: instante ? 'vencimento_distante' : 'sem_vencimento_conhecido', texto: instante ? `Vencimento no provedor em ${dataBr(dataVenc)}.` : provedor.semData === 'nao_definido' ? 'Vencimento no provedor: não definido no OpenRouter.' : 'Vencimento no provedor: não informado.' };
+  else if (vencMs && rv <= 0) ext = { nivel: 'erro', codigo: 'vencida', texto: `A chave venceu em ${quando(vencMs)}${origemData}. Informe uma chave nova.` };
+  else if (vencMs && rv <= DIA) ext = { nivel: 'critico', codigo: 'vence_24h', texto: `A chave vence no provedor em ${duracaoTxt(rv)} (${quando(vencMs)})${origemData}. Troque agora.` };
+  else if (vencMs && rv <= 7 * DIA) ext = { nivel: 'critico', codigo: 'vence_em_breve', texto: `A chave vence no provedor em ${duracaoTxt(rv)} (${quando(vencMs)})${origemData}. Troque antes disso.` };
+  else if (vencMs && rv <= 30 * DIA) ext = { nivel: 'atencao', codigo: 'vence', texto: `A chave vence no provedor em ${duracaoTxt(rv)} (${quando(vencMs)})${origemData}. Programe a troca.` };
+  else ext = { nivel: 'ok', codigo: vencMs ? 'vencimento_distante' : 'sem_vencimento_conhecido', texto: vencMs ? `Vencimento no provedor em ${quando(vencMs)}${origemData}.` : provedor.semData === 'nao_definido' ? 'Vencimento no provedor: não definido no OpenRouter.' : 'Vencimento no provedor: não informado.' };
   Object.assign(provedor, ext);
   // Prevalece o mais grave; empate: a validade externa (é real, não uma política).
   const vence = GRAU[provedor.nivel] >= GRAU[troca.nivel] && provedor.nivel !== 'ok' ? provedor : troca.nivel !== 'ok' ? troca : provedor.nivel !== 'ok' ? provedor : { nivel: 'ok', codigo: 'ok', texto: troca.texto };
   const rotulo = vence.codigo === 'recusada' ? ROTULO.recusada : vence.codigo === 'vencida' ? ROTULO.vencida : ROTULO[vence.nivel];
-  return { nivel: vence.nivel, codigo: vence.codigo, rotulo, texto: vence.texto, id: cfg.id, mascara: cfg.mascara, origem: cfg.origem, provedor, troca };
+  return { nivel: vence.nivel, codigo: vence.codigo, rotulo, texto: vence.texto, id: cfg.id, mascara: cfg.mascara, origem: cfg.origem, fuso, agora: iso(agora), provedor, troca };
 }
 
 // ------------------------------------------------------------------ avisos por email
 // Estágio atual (um só) de cada frente. Cada estágio vira no máximo um email por chave e destinatário.
+// Por duração restante: 30 dias, 7 dias, 48 h ("1 dia antes"), 24 h ("no dia") e vencido/atrasado.
 function estagios(s) {
-  const l = [];
-  const p = s.provedor, t = s.troca;
-  if (p.codigo === 'recusada') l.push(`recusada:${p.recusadaEm.slice(0, 10)}`);   // nova recusa depois de uma recuperação avisa de novo
-  else if (p.codigo === 'vencida') l.push('venc_vencida');
-  else if (p.diasRestantes !== null && p.diasRestantes !== undefined) {
-    const d = p.diasRestantes;
-    if (d === 0) l.push('venc_hoje'); else if (d === 1) l.push('venc_1'); else if (d <= 7) l.push('venc_7'); else if (d <= 30) l.push('venc_30');
-  }
-  const d = t.diasRestantes;
-  if (d < 0) l.push('troca_atrasada'); else if (d === 0) l.push('troca_hoje'); else if (d === 1) l.push('troca_1'); else if (d <= 7) l.push('troca_7'); else if (d <= 30) l.push('troca_30');
+  const l = [], p = s.provedor, t = s.troca;
+  const faixa = ms => (ms <= 0 ? 'fim' : ms <= DIA ? '24h' : ms <= 2 * DIA ? '48h' : ms <= 7 * DIA ? '7d' : ms <= 30 * DIA ? '30d' : null);
+  if (p.codigo === 'recusada') l.push(`recusada:${p.recusadaEm}`);   // nova recusa depois de uma recuperação avisa de novo
+  else if (p.restanteMs !== null && p.restanteMs !== undefined) { const f = faixa(p.restanteMs); if (f) l.push(f === 'fim' ? 'venc_vencida' : `venc_${f}`); }
+  const f = faixa(t.restanteMs);
+  if (f) l.push(f === 'fim' ? 'troca_atrasada' : `troca_${f}`);
   return l;
 }
 const ASSUNTO = e => (e.startsWith('recusada') ? 'Chave do OpenRouter recusada: a IA parou' : e === 'venc_vencida' ? 'Chave do OpenRouter vencida: a IA parou'
@@ -175,8 +198,9 @@ export async function conferirChave(P, cfg) {
       const reservou = exec(P.db, "insert or ignore into avisos_chave (chave_id, estagio, destinatario, estado, em) values (?, ?, ?, 'enviando', ?)", cfg.id, e, para, agora).changes === 1;
       if (!reservou) continue;
       const texto = `${TEXTO_ESTAGIO(e, s)}\n\nChave em uso: ${s.mascara} (${s.origem === 'console' ? 'informada no console' : 'variável OPENROUTER_API_KEY'}).\n`
-        + `Vencimento no provedor: ${s.provedor.data ? dataBr(s.provedor.data) : s.provedor.semData === 'nao_definido' ? 'não definido no OpenRouter' : 'não informado'}.\n`
-        + `Próxima troca preventiva: ${dataBr(s.troca.proximaTroca)} (a cada ${plural(s.troca.rotacaoDias)}).\n\n`
+        + `Vencimento no provedor: ${s.provedor.expiraEm ? formatarInstante(Date.parse(s.provedor.expiraEm), s.fuso) : s.provedor.semData === 'nao_definido' ? 'não definido no OpenRouter' : 'não informado'}.\n`
+        + `Próxima troca preventiva: ${formatarInstante(Date.parse(s.troca.proximaTroca), s.fuso)} (a cada ${plural(s.troca.rotacaoDias)}).\n`
+        + `Horários no fuso da plataforma (${s.fuso}).\n\n`
         + 'Para trocar: crie uma chave nova em https://openrouter.ai/settings/keys, informe-a no console da plataforma, em Uso → Chave do OpenRouter, e depois desative a antiga no OpenRouter.';
       try {
         await P.email.enviar(para, ASSUNTO(e), texto);

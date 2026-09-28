@@ -38,6 +38,8 @@ services:
         value: greenia.theneil.com.br
       - key: PLATAFORMA_ADMINS
         sync: false         # emails dos administradores da plataforma, separados por vírgula
+      - key: PLATAFORMA_FUSO
+        value: America/Sao_Paulo   # só para exibir datas no console e nos emails; os prazos são calculados em UTC
       - key: SMTP_URL
         sync: false         # smtps://usuario:senha@servidor:465 — envia os códigos do console enquanto o SMTP não é configurado nele
       - key: SMTP_REMETENTE

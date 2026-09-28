@@ -402,34 +402,40 @@ function ligarDicas(raiz) {
 
 // Estado da chave: validade externa (OpenRouter) e troca preventiva (política da plataforma), sempre separadas.
 const TAG_VALIDADE = { ok: 'tag-verde', info: '', atencao: 'tag-ambar', critico: 'tag-vermelha', erro: 'tag-vermelha' };
-const dataCurta = d => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '–');
-const diasTxt = n => (n === 0 ? 'hoje' : n > 0 ? `em ${n} ${n === 1 ? 'dia' : 'dias'}` : `há ${-n} ${n === -1 ? 'dia' : 'dias'}`);
+// A API manda instantes UTC e durações; aqui só se formata, no fuso da plataforma (v.fuso).
+const noFuso = (iso, fuso) => (iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: fuso, dateStyle: 'short', timeStyle: 'short' }) : '–');
+function duracao(ms) {
+  const a = Math.abs(ms), h = 36e5, d = 24 * h;
+  const t = a >= 2 * d ? `${Math.floor(a / d)} dias` : `${Math.max(1, Math.floor(a / h))} ${Math.floor(a / h) === 1 ? 'hora' : 'horas'}`;
+  return ms > 0 ? `em ${t}` : `há ${t}`;
+}
 function validadeHtml(v) {
   if (!v || v.nivel === 'sem_chave') return '';
-  const p = v.provedor, t = v.troca;
-  const vencProvedor = p.codigo === 'recusada' ? '<b>Recusada pelo OpenRouter</b>' + (p.recusadaEm ? ` desde ${dataHora(p.recusadaEm)}` : '')
-    : p.data ? `${dataCurta(p.data)} (${diasTxt(p.diasRestantes)})${p.fonte === 'informada' ? ' · data informada no console' : ' · informado pelo OpenRouter'}`
+  const p = v.provedor, t = v.troca, f = v.fuso;
+  const vencProvedor = p.codigo === 'recusada' ? '<b>Recusada pelo OpenRouter</b>' + (p.recusadaEm ? ` desde ${noFuso(p.recusadaEm, f)}` : '')
+    : p.expiraEm ? `${noFuso(p.expiraEm, f)} (${duracao(p.restanteMs)})${p.fonte === 'informada' ? ' · data informada no console' : ' · informado pelo OpenRouter'}`
       : p.semData === 'nao_definido' ? 'não definido no OpenRouter (sem validade conhecida)' : 'não informado (o OpenRouter ainda não respondeu)';
   const podeInformar = p.fonte !== 'openrouter';
   return `<div class="or-validade"><p class="or-validade-estado"><span class="tag ${TAG_VALIDADE[v.nivel] || ''}"><i></i>${esc(v.rotulo)}</span> ${esc(v.texto)}</p>
     <dl class="or-validade-lista">
       <dt>Origem</dt><dd>${v.origem === 'console' ? 'informada no console' : 'variável OPENROUTER_API_KEY'}</dd>
-      <dt>Início da contagem</dt><dd>${dataCurta(t.inicio)} (${t.emUsoDias} ${t.emUsoDias === 1 ? 'dia' : 'dias'} em uso)</dd>
+      <dt>Início da contagem</dt><dd>${noFuso(t.inicio, f)} (${t.emUsoDias} ${t.emUsoDias === 1 ? 'dia' : 'dias'} em uso)</dd>
       <dt>Vencimento no provedor</dt><dd>${vencProvedor}</dd>
-      <dt>Última validação</dt><dd>${p.validadoEm ? dataHora(p.validadoEm) : '–'}</dd>
-      <dt>Próxima troca preventiva</dt><dd>${dataCurta(t.proximaTroca)} (${diasTxt(t.diasRestantes)}) · política da plataforma, a cada ${t.rotacaoDias} dias</dd>
+      <dt>Última validação</dt><dd>${noFuso(p.validadoEm, f)}</dd>
+      <dt>Próxima troca preventiva</dt><dd>${noFuso(t.proximaTroca, f)} (${duracao(t.restanteMs)}) · política da plataforma: início + ${t.rotacaoDias} × 24 h</dd>
+      <dt>Fuso dos horários</dt><dd>${esc(f)} (o cálculo é em UTC)</dd>
     </dl>
     <details${['atencao', 'critico', 'erro'].includes(v.nivel) ? ' open' : ''}><summary class="dica">Troca preventiva e vencimento informado</summary>
       <form class="or-validade-form" id="f-validade" novalidate>
         <div class="campo"><label for="val-rotacao">Trocar a chave a cada</label>
           <span class="or-alerta-campo"><input class="entrada" id="val-rotacao" type="number" min="7" max="730" step="1" value="${esc(t.rotacaoDias)}" inputmode="numeric"><span>dias</span></span>
-          <span class="dica">De 7 a 730. Mudar o prazo não reinicia a contagem: vale a partir do início (${dataCurta(t.inicio)}).</span></div>
+          <span class="dica">De 7 a 730. Mudar o prazo não reinicia a contagem: vale a partir do início (${noFuso(t.inicio, f)}).</span></div>
         ${podeInformar ? `<div class="campo"><label for="val-expira">Vencimento real da chave (opcional)</label>
-          <input class="entrada" id="val-expira" type="date" value="${esc(p.fonte === 'informada' ? p.data || '' : '')}" aria-describedby="val-expira-dica">
-          <span class="dica" id="val-expira-dica">Só se você souber a data por outra fonte. Vale só para esta chave; se o OpenRouter informar a dele, a do OpenRouter prevalece.</span></div>` : ''}
+          <input class="entrada" id="val-expira" type="date" value="${esc(p.fonte === 'informada' ? p.dataInformada || '' : '')}" aria-describedby="val-expira-dica">
+          <span class="dica" id="val-expira-dica">Só se você souber a data por outra fonte. Vale até 23:59 desse dia (${esc(f)}). Vale só para esta chave; se o OpenRouter informar a dele, a do OpenRouter prevalece.</span></div>` : ''}
         <button class="btn btn-linha btn-pequeno">Salvar</button>
       </form></details>
-    <p class="dica">Os admins da plataforma recebem um email por estágio: 30, 7 e 1 dia antes, no dia, quando vence, quando a troca atrasa e quando a chave é recusada.</p></div>`;
+    <p class="dica">Os admins da plataforma recebem um email por estágio: faltando 30 dias, 7 dias, 48 horas e 24 horas, quando vence ou a troca atrasa, e quando a chave é recusada.</p></div>`;
 }
 async function vistaUso(forcar = false) {
   carregando('Uso');

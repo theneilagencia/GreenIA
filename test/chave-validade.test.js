@@ -55,44 +55,67 @@ test('1, 2 e 3. chave nova inicia o contador; troca reinicia e descarta o vencim
   let ops = await entrar();
   await salvarChave(ops, A);
   let v = sit(P);
-  assert.equal(v.troca.inicio, '2026-09-28');
+  assert.equal(v.troca.inicio, '2026-09-28T12:00:00.000Z');
   assert.equal(v.troca.emUsoDias, 0);
-  assert.equal(v.troca.proximaTroca, '2026-12-27', 'início + 90 dias');
+  assert.equal(v.troca.proximaTroca, '2026-12-27T12:00:00.000Z', 'início + 90 × 24 h');
   assert.equal((await ops.put('/api/plataforma/openrouter/chave/validade', { expiraEm: '2026-12-31' })).status, 200);
   assert.equal(sit(P).provedor.fonte, 'informada');
   t.passar(50); ops = await entrar();
   assert.equal(sit(P).troca.emUsoDias, 50);
   await salvarChave(ops, B);
   v = sit(P);
-  assert.equal(v.troca.inicio, '2026-11-17', 'contador da chave nova');
+  assert.equal(v.troca.inicio, '2026-11-17T12:00:00.000Z', 'contador da chave nova');
   assert.equal(v.troca.emUsoDias, 0);
   assert.equal(v.provedor.fonte, null, 'o vencimento informado era da chave anterior');
   assert.equal(v.provedor.semData, 'nao_definido');
   await S.fechar();
 });
 
-test('7. cálculo determinístico em dias corridos de São Paulo: 100, 90, 89, 30, 7, 1 dia, dia e dia seguinte', async () => {
+test('7. cálculo em UTC + duração: 100, 90, 89, 88, 83, 60 e 0 dias de uso; vencimento do provedor por duração exata', async () => {
   const t = relogio('2026-01-10T12:00:00Z'), { S, P, p, entrar } = await subir({ agora: t });
   await salvarChave(await entrar(), A);
-  const em = dias => { t.t = new Date(Date.parse('2026-01-10T12:00:00Z') + dias * DIA); return sit(P).troca; };
-  assert.deepEqual([em(0).diasRestantes, em(0).codigo], [90, 'troca_em_dia']);
-  assert.deepEqual([em(60).diasRestantes, em(60).codigo], [30, 'troca_em_breve']);
-  assert.deepEqual([em(83).diasRestantes, em(83).codigo], [7, 'troca_proxima']);
-  assert.deepEqual([em(89).diasRestantes, em(89).codigo], [1, 'troca_proxima']);
-  assert.deepEqual([em(90).diasRestantes, em(90).codigo], [0, 'troca_hoje'], '90 dias de uso: troca devida hoje');
-  assert.deepEqual([em(91).diasRestantes, em(91).codigo], [-1, 'troca_atrasada']);
-  assert.deepEqual([em(100).diasRestantes, em(100).codigo], [-10, 'troca_atrasada']);
-  // Horário não muda o dia: 23h59 em São Paulo ainda é o mesmo dia; 00h01 já é o seguinte.
-  t.t = new Date('2026-04-10T02:59:00Z'); assert.equal(sit(P).troca.diasRestantes, 1, '09/04 23h59 em São Paulo');
-  t.t = new Date('2026-04-10T03:01:00Z'); assert.equal(sit(P).troca.diasRestantes, 0, '10/04 00h01 em São Paulo');
-  // Vencimento do provedor: pelo instante exato; "dia do vencimento" antes do instante; depois, vencida.
-  p.expira.set(A, '2026-02-20T23:59:59Z');
-  const venc = dias => { t.t = new Date(Date.parse('2026-02-20T12:00:00Z') - dias * DIA); P._contaOR = null; return contaOpenRouter(P, { forcar: true }).then(() => sit(P).provedor); };
-  for (const [d, cod, niv] of [[30, 'vence', 'atencao'], [7, 'vence_em_breve', 'critico'], [1, 'vence_em_breve', 'critico'], [0, 'vence_hoje', 'critico'], [-1, 'vencida', 'erro']]) {
-    const x = await venc(d);
-    assert.deepEqual([x.codigo, x.nivel], [cod, niv], `${d} dias antes`);
+  const inicio = Date.parse('2026-01-10T12:00:00Z');
+  const em = ms => { t.t = new Date(inicio + ms); return sit(P).troca; };
+  const H = 3600e3;
+  for (const [uso, dias, cod] of [[0, 90, 'troca_em_dia'], [60, 30, 'troca_em_breve'], [83, 7, 'troca_proxima'], [88, 2, 'troca_proxima'], [89, 1, 'troca_24h'], [90, 0, 'troca_atrasada'], [91, -1, 'troca_atrasada'], [100, -10, 'troca_atrasada']]) {
+    const x = em(uso * DIA);
+    assert.deepEqual([x.diasRestantes, x.codigo], [dias, cod], `${uso} dias de uso`);
+    assert.equal(x.restanteMs, (90 - uso) * DIA);
+  }
+  assert.equal(em(90 * DIA - 1).codigo, 'troca_24h', '1 ms antes do prazo');
+  assert.equal(em(90 * DIA).codigo, 'troca_atrasada', 'no instante do prazo');
+  assert.equal(em(90 * DIA).proximaTroca, '2026-04-10T12:00:00.000Z', 'início + 90 × 24 h, sem calendário');
+  // Vencimento do provedor: pela duração até o instante do expires_at.
+  const exp = Date.parse('2026-02-20T23:59:59Z');
+  p.expira.set(A, new Date(exp).toISOString());
+  const venc = async ms => { t.t = new Date(exp - ms); P._contaOR = null; await contaOpenRouter(P, { forcar: true }); return sit(P).provedor; };
+  for (const [ms, cod, niv] of [[31 * DIA, 'vencimento_distante', 'ok'], [30 * DIA, 'vence', 'atencao'], [7 * DIA, 'vence_em_breve', 'critico'], [2 * DIA, 'vence_em_breve', 'critico'],
+    [DIA, 'vence_24h', 'critico'], [H, 'vence_24h', 'critico'], [0, 'vencida', 'erro'], [-1000, 'vencida', 'erro']]) {
+    const x = await venc(ms);
+    assert.deepEqual([x.codigo, x.nivel], [cod, niv], `faltando ${ms / H} h`);
   }
   await S.fechar();
+});
+
+test('7b. o fuso da plataforma só muda a exibição; o cálculo é o mesmo em qualquer fuso', async () => {
+  const t = relogio('2026-03-01T12:00:00Z');
+  const sp = await subir({ agora: t, fuso: 'America/Sao_Paulo' }), tk = await subir({ agora: t, fuso: 'Asia/Tokyo' }), ruim = await subir({ agora: t, fuso: 'Marte/Olimpo' });
+  for (const x of [sp, tk, ruim]) await salvarChave(await x.entrar(), A);
+  t.passar(85.5);
+  const a = sit(sp.P), b = sit(tk.P);
+  assert.deepEqual([a.codigo, a.troca.restanteMs, a.troca.proximaTroca, a.troca.diasRestantes], [b.codigo, b.troca.restanteMs, b.troca.proximaTroca, b.troca.diasRestantes]);
+  assert.equal(a.fuso, 'America/Sao_Paulo'); assert.equal(b.fuso, 'Asia/Tokyo');
+  assert.match(a.texto, /30\/05\/2026.*09:00/, 'São Paulo: 12:00 UTC = 09:00');
+  assert.match(b.texto, /30\/05\/2026.*21:00/, 'Tóquio: 12:00 UTC = 21:00');
+  assert.equal(sit(ruim.P).fuso, 'America/Sao_Paulo', 'fuso inválido cai no padrão');
+  assert.ok(ruim.logs.some(l => /PLATAFORMA_FUSO inválido/.test(l)));
+  // Data digitada: convertida uma vez, na entrada, para o fim daquele dia no fuso da plataforma (instante UTC).
+  await (await sp.entrar()).put('/api/plataforma/openrouter/chave/validade', { expiraEm: '2026-12-31' });
+  await (await tk.entrar()).put('/api/plataforma/openrouter/chave/validade', { expiraEm: '2026-12-31' });
+  assert.equal(sit(sp.P).provedor.expiraEm, '2027-01-01T02:59:59.000Z');
+  assert.equal(sit(tk.P).provedor.expiraEm, '2026-12-31T14:59:59.000Z');
+  assert.equal(sit(sp.P).provedor.dataInformada, '2026-12-31');
+  for (const x of [sp, tk, ruim]) await x.S.fechar();
 });
 
 test('8 e 14–16. prazo: 7 e 730 aceitos; fora do limite, decimal, zero, negativo, nulo e texto rejeitados; mudar o prazo não reinicia o início', async () => {
@@ -124,14 +147,16 @@ test('6–12. cada estágio envia um email por chave e por destinatário; o job 
   let ops = await entrar();
   await salvarChave(ops, A);
   await ops.put('/api/plataforma/openrouter/chave/validade', { rotacaoDias: 730 });   // só o vencimento conta aqui
-  await ops.put('/api/plataforma/openrouter/chave/validade', { expiraEm: '2026-03-11' });   // 60 dias
+  await ops.put('/api/plataforma/openrouter/chave/validade', { expiraEm: '2026-03-11' });   // fim de 11/03 em São Paulo
+  const exp = Date.parse('2026-03-12T02:59:59Z'), H = 3600e3;
+  assert.equal(sit(P).provedor.expiraEm, new Date(exp).toISOString());
   const venc = () => emails(P, /vai vencer|vencida/).length;
   const antes = venc();
-  // 30, 7, 1 dia, dia do vencimento e vencida: rodando o job três vezes a cada passo.
-  for (const [dia, esperado] of [['2026-02-09', 1], ['2026-03-04', 2], ['2026-03-10', 3], ['2026-03-11', 4], ['2026-03-12', 5]]) {
-    t.t = new Date(`${dia}T12:00:00Z`);
+  // Faltando 30 dias, 7 dias, 48 h ("1 dia antes"), 24 h ("no dia") e vencida: o job roda três vezes a cada passo.
+  for (const [falta, esperado] of [[29 * DIA, 1], [6 * DIA, 2], [47 * H, 3], [23 * H, 4], [-H, 5]]) {
+    t.t = new Date(exp - falta);
     await conferir(P); await conferir(P); await conferir(P);
-    assert.equal(venc() - antes, esperado, dia);
+    assert.equal(venc() - antes, esperado, `faltando ${falta / H} h`);
   }
   // Troca preventiva atrasada: um email só.
   await ops.put('/api/plataforma/openrouter/chave/validade', { rotacaoDias: 30 }).catch(() => null);
@@ -229,7 +254,7 @@ test('24. sem vencimento no OpenRouter não é chave inválida; OpenRouter fora 
   assert.equal(v.rotulo, 'Em dia');
   assert.equal(v.provedor.semData, 'nao_definido');
   assert.match(v.provedor.texto, /não definido no OpenRouter/);
-  assert.equal(v.troca.proximaTroca, '2026-12-27');
+  assert.equal(v.troca.proximaTroca, '2026-12-27T12:00:00.000Z');
   p.rede = true;
   await contaOpenRouter(P, { forcar: true });
   v = sit(P);
@@ -245,11 +270,11 @@ test('17 e 18. OPENROUTER_API_KEY: início persistido entre reinícios; chave no
   const idA = impressaoChave(mestra, A), idM = impressaoChave(mestra, MESMO_FINAL), idB = impressaoChave(mestra, B);
   assert.notEqual(idA, idM, 'mesma máscara, chaves diferentes: impressões diferentes');
   let x = await subir({ agora: t, banco, mestra, chaveVariavel: 'sk-or-v1-…b9c1', chaveVariavelId: idA });
-  assert.equal(sit(x.P).troca.inicio, '2026-09-28');
+  assert.equal(sit(x.P).troca.inicio, '2026-09-28T12:00:00.000Z');
   await x.S.fechar();
   t.passar(40);
   x = await subir({ agora: t, banco, mestra, chaveVariavel: 'sk-or-v1-…b9c1', chaveVariavelId: idA });
-  assert.equal(sit(x.P).troca.inicio, '2026-09-28', 'reiniciar não muda o início');
+  assert.equal(sit(x.P).troca.inicio, '2026-09-28T12:00:00.000Z', 'reiniciar não muda o início');
   assert.equal(sit(x.P).troca.emUsoDias, 40);
   await x.S.fechar();
   // Variável trocada por outra chave com o MESMO final: é chave nova.
@@ -262,7 +287,7 @@ test('17 e 18. OPENROUTER_API_KEY: início persistido entre reinícios; chave no
   await x.S.fechar();
   // Volta para a chave A: o contador continua de onde estava (não é chave nova).
   x = await subir({ agora: t, banco, mestra, chaveVariavel: 'sk-or-v1-…b9c1', chaveVariavelId: idA });
-  assert.equal(sit(x.P).troca.inicio, '2026-09-28');
+  assert.equal(sit(x.P).troca.inicio, '2026-09-28T12:00:00.000Z');
   assert.equal(sit(x.P).troca.emUsoDias, 45);
   await x.S.fechar();
 });

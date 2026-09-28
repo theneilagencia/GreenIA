@@ -76,14 +76,29 @@ A data digitada vale só para aquela chave.
 - **Bloqueio:** depois da recusa, os envios param de chamar o OpenRouter, com uma revalidação a cada 10 minutos.
 - **Recusa que volta:** se a chave for recusada de novo depois de voltar a valer, o email é reenviado; o estágio leva a data da recusa.
 
-**6. Estados.** Ordem de prevalência: Recusada > Vencida > Vence em breve (≤7 dias) > Atenção (vencimento ≤30 dias, troca atrasada, troca hoje ou em ≤7 dias) > Troca próxima (≤30 dias) > Em dia.
+**6. Estados.** Ordem de prevalência: Recusada > Vencida > Vence em breve (faltam ≤7 dias; "vence em 24 h" na última janela) > Atenção (vencimento em ≤30 dias, troca atrasada, troca em ≤24 h ou em ≤7 dias) > Troca próxima (≤30 dias) > Em dia.
 
-**7. Cálculo (regra determinística):**
-- **Base:** dias corridos no calendário de **America/Sao_Paulo**.
-- **Troca preventiva:** devida na data de início + N dias. `diasRestantes` = próxima troca − hoje.
-- **Vencimento do provedor:** vale o **instante** exato. No dia do vencimento, antes do horário, o estado é "vence hoje"; depois, "vencida".
-- **Data digitada:** vale até 23h59 daquele dia, em São Paulo.
-- **Testado** com 100, 90, 89, 30, 7 e 1 dia, no dia, no dia seguinte, na virada de 23h59 para 00h01, e com prazos de 90, 30, 730 e 7 (teste 7).
+**7. Cálculo (regra determinística: UTC + duração).** Revisto depois desta auditoria: o cálculo não depende de calendário nem de fuso.
+- **Base:** instantes UTC e durações em milissegundos.
+- **Troca preventiva:** próxima troca = início + N × 24 h. `restanteMs` = próxima troca − agora; `diasRestantes` = dias inteiros de 24 h (para trás, negativo).
+- **Estados e estágios:** saem da duração restante:
+
+  | Duração restante | Troca preventiva | Vencimento do provedor | Estágio de email |
+  |---|---|---|---|
+  | ≤ 30 dias | Troca próxima (troca_em_breve) | Atenção (vence) | 30 dias |
+  | ≤ 7 dias | Atenção (troca_proxima) | Vence em breve | 7 dias |
+  | ≤ 48 h | Atenção (troca_proxima) | Vence em breve | 48 h ("1 dia antes") |
+  | ≤ 24 h | Atenção (troca_24h) | Vence em breve (vence_24h) | 24 h ("no dia") |
+  | ≤ 0 | Atenção (troca_atrasada) | Vencida | atrasada / vencida |
+
+- **Vencimento do provedor:** vale o instante exato do `expires_at`.
+- **Fuso da plataforma (`PLATAFORMA_FUSO`, padrão America/Sao_Paulo):** usado só para **exibir** datas (console e email) e para converter, **uma vez, na entrada**, a data digitada pelo admin no último segundo daquele dia naquele fuso, gravada como instante UTC. Trocar o fuso depois não muda nenhum prazo já calculado. Um fuso inválido cai no padrão, com aviso no log.
+- **Testado:**
+  - com 0, 60, 83, 88, 89, 90, 91 e 100 dias de uso;
+  - 1 ms antes do prazo e no instante do prazo;
+  - vencimento faltando 31 dias, 30 dias, 7 dias, 48 h, 24 h, 1 h, 0 e passado (teste 7);
+  - mesmo relógio em São Paulo e em Tóquio: mesmo estado, mesma duração e mesmo instante; só o texto muda (teste 7b);
+  - prazos de 90, 30, 730 e 7.
 
 **8. Prazo (7 a 730):**
 - **Aceita:** números inteiros entre 7 e 730, inclusive como texto ("30").
@@ -152,7 +167,7 @@ A tela nunca mostra "válida" antes da validação: a resposta só existe depois
 
 | Componente | Antes | Agora |
 |---|---|---|
-| 1. Cálculo do prazo | PARCIAL (horas com arredondamento, sem fuso, mistura de conceitos) | **CORRETO** (dias corridos em São Paulo; instante exato para o vencimento do provedor; testado nos limites) |
+| 1. Cálculo do prazo | PARCIAL (horas com arredondamento, sem fuso, mistura de conceitos) | **CORRETO** (UTC + duração; o fuso só na exibição; testado nos limites e em dois fusos) |
 | 2. Persistência | PROBLEMÁTICO (recusa só em cache) | **CORRETO** (estado por chave no banco; sobrevive a reinício) |
 | 3. Troca de chave | PARCIAL (identidade pela máscara; estado não voltava na resposta) | **CORRETO** |
 | 4. Detecção de chave recusada | PROBLEMÁTICO (só na leitura da conta; 403 confundido; chave recusada continuava em uso) | **CORRETO** (401 em leitura ou envio; bloqueio com revalidação) |
@@ -168,4 +183,4 @@ A tela nunca mostra "válida" antes da validação: a resposta só existe depois
 
 - **Recusa descoberta pelo tráfego ou pela tarefa horária.** Se ninguém usar a IA, uma chave revogada é descoberta na próxima leitura da conta, no máximo em uma hora.
 - **Vencimento digitado pelo admin.** O GreenIA não tem como conferir; ele fica rotulado como "data informada no console".
-- **Fuso fixo.** A regra usa America/Sao_Paulo (UTC−3, sem horário de verão desde 2019). Se o horário de verão voltar, a data digitada pode deslocar em uma hora no dia da virada.
+- **Troca de fuso e datas digitadas antes dela.** Uma data digitada antes de uma troca de `PLATAFORMA_FUSO` continua valendo pelo instante calculado na entrada, no fuso da época. É o comportamento esperado, mas convém saber que ele existe.

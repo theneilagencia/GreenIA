@@ -67,7 +67,7 @@ export async function iniciarPlataforma(env = process.env) {
   const host = (env.PLATAFORMA_HOST || '').toLowerCase();
   const legado = env.BANCO || 'dados/greenia.sqlite';
   const P = criarPlataforma({
-    ia, chaveVariavel: mascarar(env.OPENROUTER_API_KEY), banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
+    ia, chaveVariavel: mascarar(env.OPENROUTER_API_KEY), fuso: env.PLATAFORMA_FUSO || undefined, banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
     hostPlataforma: host, urlBase: env.PLATAFORMA_URL || (host ? `https://${host}` : ''), subdominioBase: env.PLATAFORMA_SUBDOMINIO || '',
     smtpPadrao: { url: smtpDeVariaveis(env), remetente: env.SMTP_REMETENTE || '' }, avisarSemEmail: producao,

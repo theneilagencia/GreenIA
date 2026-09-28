@@ -11,7 +11,7 @@ import { criarEmail } from '../email.js';
 import { criarSimulada, criarOpenRouter } from '../ia.js';
 import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
 import { ErroIA } from '../ia.js';
-import { impressaoChave, registrarRecusa, registrarLeitura, chaveRecusada, podeRevalidar, marcarRevalidacao, conferirChave } from './chave-validade.js';
+import { impressaoChave, fusoValido, FUSO_PADRAO, registrarRecusa, registrarLeitura, chaveRecusada, podeRevalidar, marcarRevalidacao, conferirChave } from './chave-validade.js';
 import { lerConfig, salvarConfig } from '../config.js';
 import { carregarPessoa, dominioPermitido } from '../auth.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
@@ -49,7 +49,10 @@ export function criarPlataforma(op = {}) {
   // Chave do OpenRouter informada no console: cifrada no banco; vale sobre a variável OPENROUTER_API_KEY.
   P.criarIA = op.criarIA ?? (chave => criarOpenRouter({ chave }));
   P.chaveVariavel = op.chaveVariavel || null;   // só a máscara da chave da variável de ambiente
-  P.chaveVariavelId = op.chaveVariavelId || null;   // impressão digital da chave da variável (nunca a chave)
+  P.chaveVariavelId = op.chaveVariavelId || null;
+  // Fuso da plataforma: só para exibir datas (e converter a data digitada no console). O cálculo é em UTC.
+  P.fuso = fusoValido(op.fuso) ? op.fuso : FUSO_PADRAO;
+  if (op.fuso && !fusoValido(op.fuso)) P.log(`PLATAFORMA_FUSO inválido ("${op.fuso}"): usando ${FUSO_PADRAO}.`);   // impressão digital da chave da variável (nunca a chave)
   P.chaveAtual = () => origemChaveOpenRouter(P);
   // Recusa (401) num envio: registra na hora, derruba o cache da conta e avisa os admins já.
   P.aoRecusarChave = () => { const cfg = P.chaveAtual(); registrarRecusa(P, cfg, 'envio'); P._contaOR = null; conferirChave(P, cfg).catch(e => P.log('aviso de chave', e.message)); };

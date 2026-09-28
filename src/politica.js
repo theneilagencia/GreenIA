@@ -45,8 +45,8 @@ function montarSecao(app) {
   };
   const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 and ativa = 1 order by nome').map(a => a.nome);
   const ligada = politicaSigiloLigada(cfg);
-  const protegidos = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'permitir').map(([t]) => ROTULOS[t]);
-  const naoEnviados = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v !== 'permitir').map(([t]) => ROTULOS[t]);
+  const protegidos = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'proteger').map(([t]) => ROTULOS[t]);
+  const naoEnviados = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'bloquear').map(([t]) => ROTULOS[t]);
   return [
     '## Como a GreenIA trata informações sigilosas',
     'Esta seção é gerada pela plataforma a partir da configuração atual da empresa.',
@@ -62,6 +62,8 @@ function montarSecao(app) {
     '4. Quando a conversa usa um documento de base ou arquivo de quick win marcado como sigiloso.',
     `5. Quando a sua área tem proteção reforçada${areasSigilosas.length ? ` (hoje: ${areasSigilosas.join(', ')})` : ''} e o conteúdo tem marcação de confidencialidade, dado pessoal sensível (como saúde) ou dado de pessoas em processo interno (como remuneração ou desligamento). Nessas áreas, o que não for sigiloso segue as regras gerais.`,
     'Uma conversa sigilosa continua sigilosa até ser apagada.',
+    '### Dados pessoais no dia a dia',
+    'Você pode escrever normalmente: nomes, cargos, emails e telefones de trabalho e outros dados do dia a dia seguem as regras gerais da empresa. A GreenIA analisa o conteúdo antes de cada envio e aplica a proteção quando ela é necessária, sem que você precise tirar nada do texto.',
     ...(naoEnviados.length ? ['### Dados que a empresa não envia à IA', `Por política da empresa, mensagens com ${naoEnviados.join(', ')} não são enviadas.`] : []),
     '### Quem usa cada nível',
     `- ${PERFIS.rapido}: todas as pessoas.`,

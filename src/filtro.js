@@ -34,6 +34,8 @@ function luhn(d) {
 // Palavra-chave a até `dist` caracteres antes da posição.
 const perto = (texto, pos, re, dist = 40) => re.test(texto.slice(Math.max(0, pos - dist), pos));
 
+// Provedores de email de uso pessoal. Os demais domínios são tratados como email corporativo (conteúdo normal).
+const PROVEDORES_PESSOAIS = String.raw`(?:gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|proton(?:mail)?|pm|gmx|zoho|yandex|uol|bol|terra|ig|globo(?:mail)?|r7|oi|zipmail)\.(?:com|me|net)(?:\.br)?|(?:uol|bol|terra|ig|globo|oi)\.com\.br`;
 const REGRAS = {
   cpf(t) {
     for (const m of t.matchAll(/(?<![\d.\/-])\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?![\d\/-]|\.\d)/g)) if (cpfValido(soDigitos(m[0]))) return true;
@@ -78,8 +80,9 @@ const REGRAS = {
   rg(t) {
     return /\bRG\b[^\d\n]{0,15}\d{1,2}\.?\d{3}\.?\d{3}-?[\dxX]\b/i.test(t);
   },
+  // Só email PESSOAL (provedores de uso pessoal). Email corporativo é conteúdo normal de trabalho.
   email(t) {
-    return /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/.test(t);
+    return new RegExp(String.raw`\b[A-Za-z0-9._%+-]+@(?:${PROVEDORES_PESSOAIS})\b`, 'i').test(t);
   },
   telefone(t) {
     const ddd = String.raw`(?:1[1-9]|[2-9][1-9])`;
@@ -103,7 +106,17 @@ const REGRAS = {
   },
 };
 
+// Dado pessoal sensível e marcação explícita de confidencialidade: reconhecidos em qualquer área, pelo contexto
+// (termos compostos, não palavras soltas: "diagnóstico de vendas" não é dado de saúde).
+const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+REGRAS.sensivel = t => /\b(?:laudo medico|prontuario|atestado medico|cid[- ]?10|cid[- ]?[a-z]\d{2}(?:\.\d)?\b|exame (?:medico|admissional|demissional|toxicologico)|diagnostico (?:medico|clinico|de (?:cancer|depressao|ansiedade|hiv|diabetes))|soropositiv|hiv positivo|dados biometricos|biometria (?:facial|digital)|orientacao sexual|conviccao religiosa|religiao d[oa] (?:colaborador|funcionari|candidat|empregad)|filiacao (?:sindical|partidaria)|opiniao politica d[oa]|origem racial|origem etnica)/.test(semAcento(t));
+REGRAS.confidencial = t => /\b(?:estritamente confidencial|documento confidencial|informacao confidencial|confidencial\s*[-–:|]|^\s*confidencial\s*$|classificacao:\s*confidencial)|\bconfidencial\b(?=[^\n]{0,3}$)/m.test(semAcento(t))
+  || /\bCONFIDENCIAL\b/.test(t);
+
 export const TIPOS = Object.keys(REGRAS);
+// Nível de risco de cada tipo (a decisão é da política da empresa; o nível orienta o padrão):
+//   1 conteúdo normal · 2 dado pessoal · 3 dado pessoal sensível · 4 informação confidencial · 5 credencial/segredo
+export const NIVEL_DO_TIPO = { cnpj: 1, cpf: 2, rg: 2, email: 2, telefone: 2, cep: 2, endereco: 2, cartao: 2, banco: 2, pix: 2, sensivel: 3, confidencial: 4, credencial: 5 };
 // Classificação (o que o dado É). O tratamento (proteger ou não enviar) é política da empresa, com uma exceção:
 // credenciais e segredos nunca são enviados, por regra de segurança da GreenIA (não é uma afirmação da LGPD).
 // "Dado pessoal sensível" (saúde, origem racial, religião, biometria...) não é reconhecido por padrão de texto:
@@ -113,27 +126,25 @@ export const CATEGORIAS = {
   cpf: 'identificacao', rg: 'identificacao', cnpj: 'identificacao_empresa',
   cartao: 'financeiro', banco: 'financeiro', pix: 'financeiro',
   email: 'pessoal', telefone: 'pessoal', cep: 'pessoal', endereco: 'pessoal',
-  credencial: 'segredo',
+  sensivel: 'sensivel', confidencial: 'confidencial', credencial: 'segredo',
 };
 export const NOMES_CATEGORIA = { identificacao: 'dado de identificação pessoal', identificacao_empresa: 'identificação de empresa', financeiro: 'dado financeiro',
-  pessoal: 'dado pessoal', segredo: 'credencial ou segredo' };
+  pessoal: 'dado pessoal', sensivel: 'dado pessoal sensível', confidencial: 'informação confidencial', segredo: 'credencial ou segredo' };
 export const ROTULOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'cartão', banco: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial',
-  rg: 'RG', email: 'email', telefone: 'telefone', cep: 'CEP', endereco: 'endereço' };
+  rg: 'RG', email: 'email pessoal', telefone: 'telefone', cep: 'CEP', endereco: 'endereço', sensivel: 'dado pessoal sensível', confidencial: 'marcação de confidencial' };
 
 // Proteção reforçada (áreas com política de sigilo): além dos padrões gerais, a GreenIA procura sinais de
 // conteúdo que exige tratamento sigiloso e que não tem formato fixo. Só o conteúdo em que eles aparecem vira
 // sigiloso; o resto segue as regras gerais da empresa. Termos inteiros, sem acento e sem diferença de caixa.
-const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Na área reforçada, entram também marcações mais leves e registros de pessoas em processos internos (os
+// tipos acima valem em qualquer área). Sinais específicos: "desligamento de sistemas" ou "salário de mercado" não
+// são registro de pessoa.
 const REFORCO = {
-  // Documento marcado como confidencial por quem o escreveu.
-  marcacao: /\b(?:confidencial|sigiloso|sigilosa|estritamente reservad[oa]|uso (?:estritamente )?interno|uso restrito|nao (?:divulgar|compartilhar|distribuir)|acordo de confidencialidade|nda)\b/,
-  // Dados pessoais sensíveis (saúde, biometria, crença, origem, vida sexual, filiação sindical).
-  dado_sensivel: /\b(?:diagnostico|prontuario|laudo medico|atestado medico|cid[- ]?10|exame (?:medico|admissional|demissional)|biometri[ac]|orientacao sexual|convicc?ao religiosa|filiacao (?:sindical|partidaria)|origem racial|etnia)\b/,
-  // Dados de pessoas em processos internos (remuneração individual, desligamento, disciplina).
-  pessoas: /\b(?:folha de pagamento|holerite|contracheque|salario de|remuneracao de|desligamento de|advertencia disciplinar|processo disciplinar)\b/,
+  marcacao: /\b(?:uso (?:estritamente )?interno|uso restrito|estritamente reservad[oa]|nao (?:divulgar|distribuir)|acordo de confidencialidade|nda\b|sigilos[oa]\b)/,
+  pessoas: /\b(?:folha de pagamento|holerite|contracheque|advertencia disciplinar|processo disciplinar|justa causa|avaliacao de desempenho d[oa]|salario d[oa] (?:colaborador|funcionari|empregad)|remuneracao d[oa] (?:colaborador|funcionari|empregad)|desligamento d[oa] (?:colaborador|funcionari|empregad))/,
 };
 export const TIPOS_REFORCO = Object.keys(REFORCO);
-export const ROTULOS_REFORCO = { marcacao: 'marcação de confidencialidade', dado_sensivel: 'dado pessoal sensível', pessoas: 'dado de pessoas em processo interno' };
+export const ROTULOS_REFORCO = { marcacao: 'marcação de uso interno', pessoas: 'registro de pessoas em processo interno' };
 /** @param {string} texto @returns {string[]} sinais de conteúdo sigiloso (proteção reforçada) */
 export function detectarReforcado(texto) {
   const t = semAcento(texto);
@@ -147,11 +158,12 @@ export function detectar(texto) {
 }
 
 // Decide o que fazer com os tipos encontrados, dadas as ações configuradas pela empresa:
-//   "permitir" = processar com proteção (a conversa passa a ser sigilosa e só segue por rota autorizada);
+//   "permitir" = processar normalmente, pelas regras gerais (a presença do dado não torna a conversa sigilosa);
+//   "proteger" = processar só com os guardrails de informação sigilosa (a conversa passa a ser sigilosa);
 //   "bloquear" = não enviar. Ação ausente ou desconhecida vale "bloquear" (fail closed).
-// Credencial é sempre bloqueada, independentemente da política de informação sigilosa.
+// Credencial é sempre bloqueada, independentemente de área, autorização, modelo ou configuração.
+export const ACOES = ['permitir', 'proteger', 'bloquear'];
 export function decidir(tipos, acoes) {
-  const bloqueados = tipos.filter(t => t === 'credencial' || acoes?.[t] !== 'permitir');   // só 'permitir' explícito libera
-  const permitidos = tipos.filter(t => !bloqueados.includes(t));
-  return { bloqueados, permitidos };
+  const acao = t => (t === 'credencial' ? 'bloquear' : ACOES.includes(acoes?.[t]) ? acoes[t] : 'bloquear');
+  return { bloqueados: tipos.filter(t => acao(t) === 'bloquear'), protegidos: tipos.filter(t => acao(t) === 'proteger'), normais: tipos.filter(t => acao(t) === 'permitir') };
 }

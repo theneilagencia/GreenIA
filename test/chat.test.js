@@ -126,15 +126,22 @@ test('falha do modelo principal usa o reserva e registra qual respondeu', async 
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: null });
 });
 
-test('filtro no servidor: CPF é classificado e protegido por padrão; bloquear é política da empresa; credencial nunca sai', async () => {
-  // Padrão: CPF identificado → a conversa vira sigilosa e só segue por rota autorizada (política ligada).
+test('filtro no servidor: CPF é dado pessoal e segue normalmente por padrão; proteger e bloquear são política da empresa; credencial nunca sai', async () => {
+  // Padrão: CPF identificado → dado pessoal, processado pelas regras gerais; a conversa não vira sigilosa.
   let conv = await novaConversa();
   let r = await enviarMensagem(ana, conv.id, { texto: 'O CPF do cliente é 529.982.247-25' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, false);
+  assert.match(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.completed' order by id desc limit 1").detalhes, /"tipos":\["cpf"\]/, 'o tipo fica registrado, sem o valor');
+  // A empresa escolhe "só com proteção" para CPF: a conversa vira sigilosa e segue só por rota autorizada.
+  const cfg = lerConfig(S.app.db);
+  salvarConfig(S.app.db, { acoesChat: { ...cfg.acoesChat, cpf: 'proteger' } });
+  conv = await novaConversa();
+  r = await enviarMensagem(ana, conv.id, { texto: 'O CPF do cliente é 529.982.247-25' });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   assert.equal(OR.chamadas.at(-1).model, HOMOLOGADO);
   assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, true);
   // A empresa escolhe bloquear CPF: vira política dela, e a mensagem diz isso.
-  const cfg = lerConfig(S.app.db);
   salvarConfig(S.app.db, { acoesChat: { ...cfg.acoesChat, cpf: 'bloquear', credencial: 'permitir' } });
   conv = await novaConversa();
   const n = OR.chamadas.length;
@@ -187,9 +194,13 @@ test('sigilosa pela chave manual', async () => {
   await confereSigilosa(conv, { texto: 'Estratégia de preço do próximo trimestre.' }, 'manual');
 });
 
-test('sigilosa por dado detectado com "permitir" (CNPJ no chat)', async () => {
+test('sigilosa por dado que a política manda proteger (dados bancários); CNPJ de empresa é conteúdo normal', async () => {
   const conv = await novaConversa();
-  await confereSigilosa(conv, { texto: 'Confira o fornecedor CNPJ 11.222.333/0001-81.' }, 'dado:cnpj');
+  await confereSigilosa(conv, { texto: 'Pague o fornecedor: agência 1234, conta corrente 56789-0.' }, 'dado:banco');
+  const outra = await novaConversa();
+  const r = await enviarMensagem(ana, outra.id, { texto: 'Confira o fornecedor CNPJ 11.222.333/0001-81.' });
+  assert.equal(r.status, 200);
+  assert.equal((await ana.get(`/api/conversas/${outra.id}`)).dados.conversa.sigilosa, false);
 });
 
 // Área com política de sigilo = proteção reforçada, e não "tudo sigiloso": quem decide é o conteúdo.
@@ -216,13 +227,18 @@ test('área com proteção reforçada: conteúdo comum segue as regras gerais, m
     exec(S.app.db, 'update modelos set homologado = 1 where id = ?', HOMOLOGADO);
     // Com recurso autorizado: o conteúdo sigiloso segue só pelos guardrails.
     const conv2 = await novaConversa();
-    await confereSigilosa(conv2, { texto: 'Resuma o laudo médico do colaborador.' }, 'reforco:dado_sensivel');
-    // Fora da área reforçada, o mesmo texto sem padrão de dado não vira sigiloso.
+    await confereSigilosa(conv2, { texto: 'Resuma o laudo médico do colaborador.' }, 'dado:sensivel');
+    // Registro de pessoa em processo interno: sinal só da área reforçada.
+    const conv4 = await novaConversa();
+    await confereSigilosa(conv4, { texto: 'Organize o holerite deste mês por rubrica.' }, 'reforco:pessoas');
+    // Fora da área reforçada: o dado sensível continua protegido (vale em qualquer área); o holerite é conteúdo comum.
     exec(S.app.db, 'update areas set sigilosa = 0 where id = ?', areaId);
     const conv3 = await novaConversa();
-    const c = await enviarMensagem(ana, conv3.id, { texto: 'Resuma o laudo médico do colaborador.' });
+    const c = await enviarMensagem(ana, conv3.id, { texto: 'Organize o holerite deste mês por rubrica.' });
     assert.equal(c.status, 200);
     assert.equal((await ana.get(`/api/conversas/${conv3.id}`)).dados.conversa.sigilosa, false);
+    const conv5 = await novaConversa();
+    await confereSigilosa(conv5, { texto: 'Resuma o laudo médico do colaborador.' }, 'dado:sensivel');
   } finally {
     exec(S.app.db, 'delete from area_pessoas where area_id = ?', areaId);
     exec(S.app.db, 'delete from areas where id = ?', areaId);
@@ -238,8 +254,17 @@ test('conversa marcada só pela área (regra antiga): sem sinal de conteúdo sig
   assert.match(d.mensagens.at(-1).texto, /voltou às regras gerais/);
   const comDado = await novaConversa();
   exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'area' where id = ?", comDado.id);
-  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Confira o CPF 529.982.247-25.', '2026-09-26')", comDado.id);
-  assert.equal((await ana.get(`/api/conversas/${comDado.id}`)).dados.conversa.sigilosa, true);
+  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Pague: agência 1234, conta corrente 56789-0.', '2026-09-26')", comDado.id);
+  assert.equal((await ana.get(`/api/conversas/${comDado.id}`)).dados.conversa.sigilosa, true, 'dado que a política manda proteger mantém a conversa sigilosa');
+  // Marcada pela regra antiga "qualquer dado pessoal = sigiloso" (email pessoal, CPF): volta às regras gerais.
+  const porEmail = await novaConversa();
+  exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'dado:email' where id = ?", porEmail.id);
+  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'João Silva (joao@gmail.com, CPF 529.982.247-25) fica com a proposta.', '2026-09-26')", porEmail.id);
+  assert.equal((await ana.get(`/api/conversas/${porEmail.id}`)).dados.conversa.sigilosa, false);
+  // Marcação manual nunca é desfeita.
+  const manual = await novaConversa();
+  exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'manual' where id = ?", manual.id);
+  assert.equal((await ana.get(`/api/conversas/${manual.id}`)).dados.conversa.sigilosa, true);
   const marcada = await novaConversa();
   exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'area' where id = ?", marcada.id);
   exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Documento de uso interno.', '2026-09-26')", marcada.id);

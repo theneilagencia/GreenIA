@@ -36,11 +36,12 @@ test('login → chat → quick win', async () => {
   assert.match(await p.textContent('.bolha-eu'), /Primeira linha\nSegunda linha/);
   await p.waitForFunction(() => document.querySelectorAll('.lateral .item-lat[href^="#/c/"]').length === 1);
   // Informação sigilosa com a política da empresa desligada (o padrão): não sai; aviso simples; texto volta para a caixa.
-  await p.fill('#entrada', 'CPF 529.982.247-25');
+  // (Dado pessoal comum, como CPF ou email, segue normalmente; dados bancários seguem só com proteção.)
+  await p.fill('#entrada', 'Pague o fornecedor: agência 1234, conta corrente 56789-0');
   await p.keyboard.press('Enter');
   await p.waitForSelector('.aviso-bolha');
   assert.match(await p.textContent('.aviso-bolha'), /não permite processar com IA\. Nenhum conteúdo foi enviado/);
-  assert.equal(await p.inputValue('#entrada'), 'CPF 529.982.247-25');
+  assert.equal(await p.inputValue('#entrada'), 'Pague o fornecedor: agência 1234, conta corrente 56789-0');
   // Quick win: abre pela lateral, usa uma sugestão, pede ajuste.
   await p.click('.lateral a[href="#/quick-wins"]');
   await p.click(`a.lista-item[href="#/qw/${qwId}"]`);

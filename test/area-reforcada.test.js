@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { arquivo, pdf } from './arquivos.js';
-import { salvarConfig } from '../src/config.js';
+import { lerConfig, salvarConfig } from '../src/config.js';
 import { exec, um } from '../src/db.js';
 import { POLITICA_SIGILO } from '../src/sigilo.js';
 import { MSG_USUARIO } from '../src/avisos-governanca.js';
@@ -94,12 +94,20 @@ test('1. área sigilosa + PDF sem informação sigilosa → não bloqueia; segue
   assert.match(x.r.fim.rota.explicacao_simples, /Proteção reforçada da área/);
 });
 
-test('2. área sigilosa + documento com CPF → política de informação sigilosa (só recurso autorizado, rota fixada)', async () => {
+test('2. área sigilosa + documento com CPF → dado pessoal: segue a política (padrão: normal, sem virar sigilosa); com "proteger", só recurso autorizado', async () => {
   catalogo({ [EQUILIBRADO]: ROTA('Anthropic') });
-  const x = await enviar('Confira o cadastro.', { anexos: [arquivo('cadastro.pdf', pdf(['Responsavel: CPF 529.982.247-25']))] });
+  const doc = { anexos: [arquivo('cadastro.pdf', pdf(['Responsavel: CPF 529.982.247-25']))] };
+  let x = await enviar('Confira o cadastro.', doc);
   assert.equal(x.r.status, 200, JSON.stringify(x.r.erro));
-  assert.deepEqual([x.conv_estado.sigilosa, x.conv_estado.motivo_sigilosa], [1, 'dado:cpf']);
-  assert.deepEqual(x.chamadas.map(c => [c.modelo, c.rota, c.reserva]), [[EQUILIBRADO, 'Anthropic', null]]);
+  assert.equal(x.conv_estado.sigilosa, 0, 'CPF não torna a conversa sigilosa por si só');
+  assert.ok(x.chamadas.every(c => c.modelo !== GRATUITO), 'mas a proteção da área continua valendo');
+  const antes = lerConfig(S.app.db).acoesChat;
+  salvarConfig(S.app.db, { acoesChat: { ...antes, cpf: 'proteger' } });
+  try {
+    x = await enviar('Confira o cadastro.', doc);
+    assert.deepEqual([x.conv_estado.sigilosa, x.conv_estado.motivo_sigilosa], [1, 'dado:cpf']);
+    assert.deepEqual(x.chamadas.map(c => [c.modelo, c.rota, c.reserva]), [[EQUILIBRADO, 'Anthropic', null]]);
+  } finally { salvarConfig(S.app.db, { acoesChat: antes }); }
 });
 
 test('3. área sigilosa + dados bancários → política de informação sigilosa', async () => {
@@ -127,14 +135,14 @@ test('5. área sigilosa + documento público → processa quando as demais regra
   assert.deepEqual(detectarReforcado('Edital público de licitação'), []);
   const y = await enviar('Resuma o relatório CONFIDENCIAL da diretoria.');
   assert.equal(y.r.status, 200);
-  assert.equal(y.conv_estado.motivo_sigilosa, 'reforco:marcacao');
+  assert.equal(y.conv_estado.motivo_sigilosa, 'dado:confidencial');
   assert.deepEqual(y.chamadas.map(c => [c.modelo, c.rota]), [[EQUILIBRADO, 'Anthropic']]);
 });
 
 test('6. área sigilosa + conteúdo sigiloso + processamento sigiloso desligado → não envia', async () => {
   salvarConfig(S.app.db, { [POLITICA_SIGILO]: false });
   try {
-    const x = await enviar('Confira o CPF 529.982.247-25.');
+    const x = await enviar('Resuma o laudo médico do colaborador.');
     assert.equal(x.r.status, 409);
     assert.equal(x.r.erro.mensagem, MSG_USUARIO.sigilo_desligado);
     assert.deepEqual(x.chamadas, []);
@@ -167,7 +175,7 @@ test('8. recurso autorizado indisponível → nunca cai para recurso não autori
   await admin.put(`/api/admin/modelos/${enc(EQUILIBRADO)}`, { reserva: RAPIDO });
   OR.falhar.add(EQUILIBRADO);
   try {
-    const x = await enviar('Confira o CPF 529.982.247-25.');
+    const x = await enviar('Resuma o laudo médico do colaborador.');
     assert.ok(x.r.falha, 'a pessoa recebe a falha, sem conteúdo em outro recurso');
     assert.ok(x.chamadas.length >= 1 && x.chamadas.every(c => c.modelo === EQUILIBRADO && !c.reserva), JSON.stringify(x.chamadas));
     // Conteúdo comum na área: a reserva só entra se também passar pelas regras da área.
@@ -192,7 +200,7 @@ test('9. créditos no fim → nunca usa recurso não autorizado nem fora da prot
     exec(S2.app.db, 'update modelos set homologado = 0, homologacao = null');
     exec(S2.app.db, 'update modelos set homologado = 1, homologacao = ? where id = ?', JSON.stringify(ROTA('Anthropic')), EQUILIBRADO);
     let n = OR2.chamadas.length;
-    const r = await enviarMensagem(adm, (await nova()).id, { texto: 'Confira o CPF 529.982.247-25.' });
+    const r = await enviarMensagem(adm, (await nova()).id, { texto: 'Resuma o laudo médico do colaborador.' });
     assert.equal(r.status, 409);
     assert.equal(OR2.chamadas.length, n, 'reserva do plano + recurso não autorizado = nada enviado');
     // Conteúdo comum: continua no Rápido, mas nunca no gratuito (fora da proteção da área).
@@ -212,7 +220,7 @@ test('10. nova tentativa, fallback, anexos e API passam de novo pela mesma gover
     assert.ok(x.chamadas.every(c => c.modelo !== GRATUITO && c.modelo !== 'openrouter/auto'), `${modelo}: ${JSON.stringify(x.chamadas)}`);
     assert.equal(x.rota.decisao_solicitado, 'substituido', modelo);
   }
-  const x = await enviar('Confira o CPF 529.982.247-25.', { modelo: RAPIDO });
+  const x = await enviar('Resuma o laudo médico do colaborador.', { modelo: RAPIDO });
   assert.deepEqual(x.chamadas.map(c => [c.modelo, c.rota]), [[EQUILIBRADO, 'Anthropic']], 'API com dado sigiloso: só o autorizado');
   // Nova tentativa na mesma conversa (já sigilosa): mesma governança.
   await ana.patch(`/api/conversas/${x.conv.id}`, { feedback: 'nao_serviu' });

@@ -4,7 +4,8 @@
 import { readFileSync } from 'node:fs';
 import { erro } from './http.js';
 import { exec, json, todos, transacao, um } from './db.js';
-import { lerConfig, TIPOS_DADO } from './config.js';
+import { acoesDoQuickWin, lerConfig, TIPOS_DADO } from './config.js';
+import { ACOES } from './filtro.js';
 import { registrar } from './eventos.js';
 import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
@@ -58,7 +59,7 @@ function publico(db, pessoa, q) {
   };
   if (!base.podeEditar) return base;
   return { ...base, processo_atual: q.processo_atual, resultado: q.resultado, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
-    dados: json(q.dados, {}), arquivos: todos(db, 'select id, titulo, arquivo, sigiloso, length(texto) as caracteres from documentos where quick_win_id = ? order by id', q.id) };
+    dados: acoesDoQuickWin(q.dados, lerConfig(db)), arquivos: todos(db, 'select id, titulo, arquivo, sigiloso, length(texto) as caracteres from documentos where quick_win_id = ? order by id', q.id) };
 }
 
 function validar(app, pessoa, atual, c) {
@@ -84,8 +85,8 @@ function validar(app, pessoa, atual, c) {
   if (c.pode_trocar !== undefined) v.pode_trocar = Number(!!c.pode_trocar);
   if (c.dados !== undefined) {
     const d = {};
-    for (const t of TIPOS_DADO) d[t] = t === 'credencial' ? 'bloquear' : (c.dados?.[t] === 'permitir' ? 'permitir' : c.dados?.[t] === 'bloquear' ? 'bloquear' : cfg.acoesChat[t]);
-    v.dados = JSON.stringify(d);
+    for (const t of TIPOS_DADO) d[t] = t === 'credencial' ? 'bloquear' : ACOES.includes(c.dados?.[t]) ? c.dados[t] : cfg.acoesChat[t];
+    v.dados = JSON.stringify({ ...d, _v: 2 });
   }
   if (c.bases !== undefined) {
     const modo = ['nenhuma', 'area', 'escolhidas'].includes(c.bases?.modo) ? c.bases.modo : 'area';

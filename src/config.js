@@ -1,7 +1,7 @@
 // Configuração da instalação, feita pela tela do admin e guardada no banco.
 import { exec, todos, json } from './db.js';
 
-export const TIPOS_DADO = ['cpf', 'cnpj', 'cartao', 'banco', 'pix', 'credencial', 'rg', 'email', 'telefone', 'cep', 'endereco'];
+export const TIPOS_DADO = ['cpf', 'cnpj', 'cartao', 'banco', 'pix', 'credencial', 'rg', 'email', 'telefone', 'cep', 'endereco', 'sensivel', 'confidencial'];
 
 export const PADRAO = {
   empresa: 'Sua empresa',
@@ -12,11 +12,14 @@ export const PADRAO = {
   privacyNote: 'Suas conversas ficam salvas só para você, por até 90 dias sem uso, e você pode apagá-las quando quiser.',
   retencaoDias: 90,
   // Ação por tipo de dado no chat (e padrão dos quick wins). Credencial é sempre bloqueada.
-  // "permitir" = processar com proteção (a conversa vira sigilosa e só segue por rota autorizada, e só com a
-  // política de informação sigilosa ligada); "bloquear" = não enviar. É política da empresa, editável; o padrão
-  // protege tudo o que é reconhecido. Credencial não é configurável: nunca vai para a IA.
-  acoesChat: { cpf: 'permitir', cnpj: 'permitir', cartao: 'permitir', banco: 'permitir', pix: 'permitir', credencial: 'bloquear',
-    rg: 'permitir', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir' },
+  // Tratamento proporcional ao risco (filtro.js → decidir): "permitir" = processar normalmente; "proteger" =
+  // só com os guardrails de informação sigilosa (e só com a política ligada); "bloquear" = não enviar. É política
+  // da empresa, editável. Padrão: dado pessoal comum segue normalmente (a presença de um nome, email, telefone
+  // ou CPF não torna a conversa sigilosa); dado financeiro de pagamento, dado sensível e marcação de confidencial
+  // seguem só com proteção. Credencial não é configurável: nunca vai para a IA.
+  acoesChat: { cpf: 'permitir', cnpj: 'permitir', cartao: 'proteger', banco: 'proteger', pix: 'proteger', credencial: 'bloquear',
+    rg: 'permitir', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir', sensivel: 'proteger', confidencial: 'proteger' },
+  acoesVersao: 2,
   // Modelos: padrões, acesso por perfil e privacidade (seção 9).
   padroes: { chat: 'google/gemini-3.5-flash-lite', rapido: 'google/gemini-3.5-flash-lite', equilibrado: 'anthropic/claude-haiku-4.5', avancado: 'anthropic/claude-sonnet-5', homologado: null },
   acessoPerfis: { equilibrado: { todos: true, grupos: [], areas: [] }, avancado: { todos: false, grupos: [], areas: [] } },
@@ -45,11 +48,36 @@ export const PADRAO = {
 
 export function lerConfig(db) {
   const cfg = structuredClone(PADRAO);
-  for (const r of todos(db, 'select chave, valor from config')) cfg[r.chave] = json(r.valor, cfg[r.chave]);
+  const salvos = new Set();
+  for (const r of todos(db, 'select chave, valor from config')) { cfg[r.chave] = json(r.valor, cfg[r.chave]); salvos.add(r.chave); }
+  cfg.acoesChat = acoesAtuais(salvos.has('acoesChat') ? cfg.acoesChat : null, salvos.has('acoesVersao') ? cfg.acoesVersao : 1);
+  cfg.acoesVersao = 2;
   return cfg;
 }
 
+// Regras de dados guardadas antes da classificação proporcional (versão 1) só tinham "permitir" (que então
+// significava "processar com proteção") e "bloquear". O "bloquear" da empresa continua valendo; o antigo
+// "permitir" passa para o padrão proporcional do tipo. Tipos novos entram com o padrão.
+// Regras de um quick win: as dele, no formato atual (marcador _v: 2), sobre as da empresa.
+export const acoesDoQuickWin = (dados, cfg) => {
+  const d = typeof dados === 'string' ? json(dados, {}) : (dados || {});
+  const { _v, ...proprias } = d;
+  const conv = acoesAtuais(Object.keys(proprias).length ? proprias : null, _v || 1);
+  const base = Object.keys(proprias).length ? { ...cfg.acoesChat, ...Object.fromEntries(Object.keys(proprias).filter(t => t in conv).map(t => [t, conv[t]])), credencial: 'bloquear' } : cfg.acoesChat;
+  return { ...base, _v: 2 };   // idempotente: reaplicar sobre o resultado não converte de novo
+};
+export function acoesAtuais(salvas, versao = 2) {
+  const out = { ...PADRAO.acoesChat };
+  for (const [t, v] of Object.entries(salvas || {})) {
+    if (!(t in out)) continue;
+    out[t] = versao >= 2 ? v : v === 'bloquear' ? 'bloquear' : PADRAO.acoesChat[t];
+  }
+  out.credencial = 'bloquear';
+  return out;
+}
+
 export function salvarConfig(db, parcial) {
+  if (parcial.acoesChat !== undefined && parcial.acoesVersao === undefined) parcial = { ...parcial, acoesVersao: 2 };   // regras gravadas agora já são do formato atual
   for (const [k, v] of Object.entries(parcial)) {
     if (!(k in PADRAO)) continue;
     exec(db, 'insert into config (chave, valor) values (?, ?) on conflict (chave) do update set valor = excluded.valor', k, JSON.stringify(v));

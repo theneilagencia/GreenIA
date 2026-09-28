@@ -2,6 +2,7 @@
 import { erro, enviarCsv } from './http.js';
 import { todos, um } from './db.js';
 import { lerConfig, salvarConfig, TIPOS_DADO } from './config.js';
+import { ACOES } from './filtro.js';
 import { registrar } from './eventos.js';
 import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
 import { areasDoQw } from './quickwins.js';
@@ -76,7 +77,8 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
   if (c.smtp !== undefined) v.smtp = smtpDoFormulario(c.smtp, atual?.smtp);
   if (c.privacyNote !== undefined) v.privacyNote = String(c.privacyNote).trim().slice(0, 400);
   if (c.retencaoDias !== undefined) { v.retencaoDias = Math.round(Number(c.retencaoDias)); if (!(v.retencaoDias >= 1 && v.retencaoDias <= 3650)) throw erro(400, 'retencao', 'Retenção entre 1 e 3.650 dias.'); }
-  if (c.acoesChat !== undefined) v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : c.acoesChat[t] === 'permitir' ? 'permitir' : 'bloquear']));
+  // Ação desconhecida vale "bloquear" (fail closed). Salvar grava o formato atual (acoesVersao 2).
+  if (c.acoesChat !== undefined) { v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : ACOES.includes(c.acoesChat[t]) ? c.acoesChat[t] : 'bloquear'])); v.acoesVersao = 2; }
   for (const k of ['tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa']) if (c[k] !== undefined) { v[k] = Number(c[k]) || 0; if (v[k] < 0) throw erro(400, k, 'Use zero para sem limite.'); }
   return v;
 }

@@ -9,7 +9,11 @@ import { secaoMedicao } from '/medicao.js';
 const $ = id => document.getElementById(id);
 const FEEDBACK = { serviu: 'Serviu', ajustes: 'Serviu com ajustes', nao_serviu: 'Não serviu' };
 const FORMATOS = { texto: 'Texto', lista: 'Lista', tabela: 'Tabela (baixa em CSV)', checklist: 'Checklist' };
-const DADOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', rg: 'RG', email: 'Email', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço' };
+const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
+// Tratamento proporcional: seguir normalmente, só com proteção (guardrails) ou não enviar.
+const ACAO = { permitir: 'Processar normalmente', proteger: 'Só com proteção', bloquear: 'Não enviar' };
+const EFEITO = { permitir: 'Segue as regras gerais; a conversa não vira sigilosa', proteger: 'A conversa vira sigilosa: segue só com os guardrails', bloquear: 'Não é enviado; a pessoa vê o motivo' };
+const seletorAcao = (nome, rotulo, atual) => `<span class="segmento" role="radiogroup" aria-label="${rotulo}">${Object.entries(ACAO).map(([v, r]) => `<label><input type="radio"${v === 'bloquear' ? ' class="perigo"' : ''} name="${nome}" value="${v}" ${atual === v ? 'checked' : ''}><span>${r}</span></label>`).join('')}</span>`;
 const CORES = ['#1B7950', '#0F6E8C', '#5B4B8A', '#8C621D', '#7A3E2E', '#2F6B3B', '#3E5C76', '#9B4029'];
 export const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuração', em_teste: 'Em teste', em_uso: 'Em uso', em_avaliacao: 'Em avaliação', aprovado: 'Aprovado', em_expansao: 'Em expansão', descartado: 'Descartado' };
 const EXPLICA = { identificado: 'Uso possível registrado, ainda sem configuração', em_configuracao: 'Sendo configurado; só quem gere usa', em_teste: 'Disponível para a área, em piloto',
@@ -206,7 +210,7 @@ async function configurar(id) {
         <div class="campo"><span class="legenda">Classificação</span><div class="opcoes">${radio('sigiloso', '0', qw.sigiloso ? '1' : '0', 'Sem dados sigilosos')}${radio('sigiloso', '1', qw.sigiloso ? '1' : '0', 'Trata informações sigilosas (todas as conversas nascem sigilosas e seguem só com os guardrails de proteção)')}</div></div>
         <div class="campo"><span class="legenda">O que fazer quando o sistema encontrar cada tipo de dado</span>
           <div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Tipo</th><th>Regra</th></tr></thead><tbody>
-          ${Object.entries(DADOS).map(([t, r]) => `<tr><td>${r}</td><td><span class="segmento" role="radiogroup" aria-label="${r}"><label><input type="radio" name="dado-${t}" value="permitir" ${qw.dados[t] === 'permitir' ? 'checked' : ''}><span>Processar com proteção</span></label><label><input type="radio" class="perigo" name="dado-${t}" value="bloquear" ${qw.dados[t] !== 'permitir' ? 'checked' : ''}><span>Não enviar</span></label></span></td></tr>`).join('')}
+          ${Object.entries(DADOS).map(([t, r]) => `<tr><td>${r}</td><td>${seletorAcao(`dado-${t}`, r, qw.dados[t])}</td></tr>`).join('')}
           <tr><td>Senhas, chaves de acesso e outros segredos</td><td class="dica">Nunca enviados (regra de segurança da GreenIA)</td></tr></tbody></table></div></div>
       </div>
       <div class="grupo-form"><h3>Estado e resultado</h3>

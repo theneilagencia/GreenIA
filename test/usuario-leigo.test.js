@@ -103,9 +103,9 @@ test('2. sigilosa com modelo elegível em outro nível: a GreenIA usa o autoriza
 
 test('17. conteúdo confidencial detectado com escolha de modelo não autorizado: não vai ao não autorizado', async () => {
   const cfg = lerConfig(S.app.db);
-  salvarConfig(S.app.db, { acoesChat: { ...cfg.acoesChat, cnpj: 'permitir' } });
+  salvarConfig(S.app.db, { acoesChat: { ...cfg.acoesChat, confidencial: 'proteger' } });
   const conv = await conversa();
-  const r = await enviarMensagem(ana, conv.id, { texto: 'Confira o fornecedor CNPJ 11.222.333/0001-81.', modelo: RAPIDO });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Resuma o relatório CONFIDENCIAL da diretoria.', modelo: RAPIDO });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   assert.equal(OR.chamadas.at(-1).model, EQUILIBRADO);
   assert.ok(!OR.chamadas.at(-1).models, 'sem reserva de outro fornecedor');

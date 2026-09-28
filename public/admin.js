@@ -10,7 +10,11 @@ import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
 const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
-const DADOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', rg: 'RG', email: 'Email', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço' };
+const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
+// Tratamento proporcional: seguir normalmente, só com proteção (guardrails) ou não enviar.
+const ACAO = { permitir: 'Processar normalmente', proteger: 'Só com proteção', bloquear: 'Não enviar' };
+const EFEITO = { permitir: 'Segue as regras gerais; a conversa não vira sigilosa', proteger: 'A conversa vira sigilosa: segue só com os guardrails', bloquear: 'Não é enviado; a pessoa vê o motivo' };
+const seletorAcao = (nome, rotulo, atual) => `<span class="segmento" role="radiogroup" aria-label="${rotulo}">${Object.entries(ACAO).map(([v, r]) => `<label><input type="radio"${v === 'bloquear' ? ' class="perigo"' : ''} name="${nome}" value="${v}" ${atual === v ? 'checked' : ''}><span>${r}</span></label>`).join('')}</span>`;
 const STATUS = { rascunho: 'Rascunho', ativo: 'Ativo', pausado: 'Pausado' };
 
 const us = v => fmtCusto(v || 0);
@@ -583,10 +587,10 @@ async function abaPoliticas() {
     </div></div>
     <form id="form-dados"><div class="secao-titulo"><h3>Tipos de dado reconhecidos</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
       <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>
-        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><span class="segmento" role="radiogroup" aria-label="${v}"><label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}><span>Processar com proteção</span></label><label><input type="radio" class="perigo" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}><span>Não enviar</span></label></span></td>
-          <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Vira informação sigilosa: segue só com os guardrails' : 'Não é enviado; a pessoa vê o motivo'}</td></tr>`).join('')}
+        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra">${seletorAcao(`d-${k}`, v, c.acoesChat[k])}</td>
+          <td data-r="Efeito" class="dica">${EFEITO[c.acoesChat[k]] || EFEITO.bloquear}</td></tr>`).join('')}
         <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Nunca enviados</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
-        <tr><td data-r="Tipo"><b>Informação estratégica</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Não é detectada automaticamente. A pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
+        <tr><td data-r="Tipo"><b>Informação estratégica sem marcação</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Nomes, cargos, emails e telefones de trabalho são conteúdo normal. Estratégia sem marcação não é adivinhada: a pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 
@@ -595,7 +599,7 @@ async function abaPoliticas() {
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quando uma conversa vira sigilosa</th><th>Situação atual</th></tr></thead><tbody>
       <tr><td data-r="Gatilho">Área com proteção reforçada: conteúdo com marcação de confidencialidade, dado pessoal sensível ou dado de pessoas em processo interno</td><td data-r="Situação">${areas.filter(a => a.sigilosa).map(a => esc(a.nome)).join(', ') || '<span class="dica">nenhuma</span>'}</td></tr>
       <tr><td data-r="Gatilho">Quick win que trata dados sigilosos</td><td data-r="Situação">definido em cada quick win</td></tr>
-      <tr><td data-r="Gatilho">Tipo de dado marcado como "Processar com proteção"</td><td data-r="Situação">${Object.entries(c.acoesChat).filter(([, v]) => v === 'permitir').map(([k]) => DADOS[k]).join(', ') || '<span class="dica">nenhum tipo permitido</span>'}</td></tr>
+      <tr><td data-r="Gatilho">Tipo de dado marcado como "Só com proteção"</td><td data-r="Situação">${Object.entries(c.acoesChat).filter(([k, v]) => v === 'proteger' && DADOS[k]).map(([k]) => DADOS[k]).join(', ') || '<span class="dica">nenhum</span>'}</td></tr>
       <tr><td data-r="Gatilho">Documento sigiloso usado na resposta</td><td data-r="Situação">marcado no envio do documento</td></tr>
       <tr><td data-r="Gatilho">Marcação manual pela pessoa</td><td data-r="Situação">sempre disponível no chat</td></tr>
     </tbody></table></div>

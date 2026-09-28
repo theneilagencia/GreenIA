@@ -2,7 +2,7 @@
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
 import { exec, json, todos, um } from './db.js';
-import { lerConfig } from './config.js';
+import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { decidir, detectar, detectarReforcado, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
 import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
@@ -76,19 +76,31 @@ function reforcada(app, pessoa, qw) {
   return areas.some(Boolean);
 }
 
-// Conversas marcadas como sigilosas só por causa da área (regra antiga: "área sigilosa = tudo sigiloso").
-// A GreenIA reavalia o que foi escrito e anexado. Sem nenhum sinal de conteúdo sigiloso (padrões gerais,
-// proteção reforçada) e sem fonte de conhecimento usada, a conversa volta às regras gerais. Com qualquer
-// sinal ou dúvida, continua sigilosa.
+// Conversas marcadas como sigilosas por regras antigas e amplas demais: "área sigilosa = tudo sigiloso" e
+// "qualquer dado pessoal = sigiloso". A GreenIA reavalia o que foi escrito e anexado com a classificação atual.
+// Sem nada que a política mande proteger, sem sinal da proteção reforçada e sem fonte de conhecimento usada, a
+// conversa volta às regras gerais. Na dúvida, continua sigilosa. Marcação manual, quick win sigiloso e documento
+// sigiloso nunca são desfeitos.
+function marcacaoReavaliavel(motivo, acoes) {
+  if (motivo === 'area' || String(motivo).startsWith('reforco:')) return true;
+  const m = /^dado:(\w+)$/.exec(motivo || '');
+  return !!m && acoes[m[1]] !== 'proteger';
+}
 function reavaliarMarcacaoDaArea(app, pessoa, conv) {
-  if (!conv.sigilosa || conv.motivo_sigilosa !== 'area') return;
+  if (!conv.sigilosa) return;
+  const cfg = lerConfig(app.db);
+  const qw = conv.quick_win_id ? um(app.db, 'select dados, sigiloso from quick_wins where id = ?', conv.quick_win_id) : null;
+  const acoes = qw ? acoesDoQuickWin(qw.dados, cfg) : cfg.acoesChat;
+  if (!marcacaoReavaliavel(conv.motivo_sigilosa, acoes) || qw?.sigiloso) return;
   const textos = [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto),
     ...todos(app.db, 'select texto from anexos where conversa_id = ?', conv.id).map(a => a.texto)].join('\n');
   const usouFontes = todos(app.db, "select fontes from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).some(m => json(m.fontes, []).length);
-  if (usouFontes || detectar(textos).length || detectarReforcado(textos).length) return;
+  const { protegidos, bloqueados } = decidir(detectar(textos), acoes);
+  if (usouFontes || protegidos.length || bloqueados.length || detectarReforcado(textos).length) return;
+  const de = conv.motivo_sigilosa;
   exec(app.db, 'update conversas set sigilosa = 0, motivo_sigilosa = null where id = ?', conv.id);
   aviso(app, conv.id, 'Esta conversa voltou às regras gerais da empresa: nada nela exige tratamento sigiloso. Se aparecer informação sigilosa, a proteção volta automaticamente.');
-  registrar(app, 'conversation.reclassified', pessoa.id, { conversa: conv.id, de: 'area', para: 'normal' });
+  registrar(app, 'conversation.reclassified', pessoa.id, { conversa: conv.id, de, para: 'normal' });
   conv.sigilosa = 0;
   conv.motivo_sigilosa = null;
 }
@@ -242,15 +254,17 @@ export function rotasConversas(app, r) {
     const plano = checarPlano(app);   // fim da reserva: bloqueia
 
     // 1. Filtro de dados, no servidor, sobre a mensagem e os anexos.
+    //    Proporcional ao risco: um dado pessoal comum não torna a conversa sigilosa nem bloqueia; só o que a política
+    //    manda proteger passa pelos guardrails, e só o que ela manda bloquear (e credencial, sempre) não sai.
     const tipos = detectar([texto, ...anexos.map(a => a.texto)].join('\n'));
-    const { bloqueados, permitidos } = decidir(tipos, qw ? { ...cfg.acoesChat, ...json(qw.dados, {}) } : cfg.acoesChat);
+    const { bloqueados, protegidos } = decidir(tipos, qw ? acoesDoQuickWin(qw.dados, cfg) : cfg.acoesChat);
     if (bloqueados.length) {
       registrar(app, 'policy.blocked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipos: bloqueados });
       // Credencial: regra de segurança da GreenIA. Outros tipos: política da empresa. Nada é enviado.
       const politica = bloqueados.filter(t => t !== 'credencial');
       const msg = [bloqueados.includes('credencial') ? 'Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA.' : null,
         politica.length ? `Pela política da empresa, esta mensagem não pode ser enviada à IA porque contém: ${politica.map(t => ROTULOS[t]).join(', ')}.` : null].filter(Boolean).join(' ');
-      throw erro(422, 'dado_bloqueado', `${msg} Nenhum conteúdo foi enviado. Tire o dado e envie de novo.`, { tipos: bloqueados });
+      throw erro(422, 'dado_bloqueado', `${msg} Nenhum conteúdo foi enviado.`, { tipos: bloqueados });
     }
 
     // 2. Contexto (arquivos do quick win e bases) e gatilhos de conversa sigilosa.
@@ -259,7 +273,7 @@ export function rotasConversas(app, r) {
     // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.
     const areaReforcada = reforcada(app, pessoa, qw);
     const sinaisReforco = areaReforcada ? detectarReforcado([texto, ...anexos.map(a => a.texto)].join('\n')) : [];
-    const motivo = motivosFixos(app, pessoa, qw) || (permitidos.length ? `dado:${permitidos[0]}` : null)
+    const motivo = motivosFixos(app, pessoa, qw) || (protegidos.length ? `dado:${protegidos[0]}` : null)
       || (sinaisReforco.length ? `reforco:${sinaisReforco[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
     // A conversa só vira sigilosa (e o aviso só aparece) depois da decisão da política, mais abaixo: um
     // conteúdo que não pode ser enviado não deixa marca na conversa.
@@ -486,7 +500,7 @@ export function rotasConversas(app, r) {
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
-    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
+    registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
     res.end();

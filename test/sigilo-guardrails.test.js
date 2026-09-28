@@ -93,8 +93,13 @@ test('classificação: CPF, CNPJ, cartão, banco, PIX, senha e API key detectado
   // Credencial é sempre bloqueada, mesmo com a empresa marcando "permitir"; ação desconhecida vale bloquear.
   assert.deepEqual(decidir(['credencial', 'cpf'], { credencial: 'permitir', cpf: 'permitir' }).bloqueados, ['credencial']);
   assert.deepEqual(decidir(['cpf'], { cpf: 'talvez' }).bloqueados, ['cpf']);
-  // Padrão da empresa: nada reconhecido é bloqueado por decreto; é protegido (sigiloso). Bloquear é escolha da empresa.
-  assert.ok(Object.entries(lerConfig(S.app.db).acoesChat).every(([t, v]) => (t === 'credencial' ? v === 'bloquear' : v === 'permitir')));
+  // Padrão proporcional ao risco: nada é bloqueado por decreto (bloquear é escolha da empresa); dado pessoal comum
+  // segue normalmente; pagamento, dado sensível e marcação de confidencial seguem só com proteção.
+  const padrao = lerConfig(S.app.db).acoesChat;
+  assert.equal(padrao.credencial, 'bloquear');
+  for (const t of ['cpf', 'rg', 'cnpj', 'email', 'telefone', 'cep', 'endereco']) assert.equal(padrao[t], 'permitir', t);
+  for (const t of ['cartao', 'banco', 'pix', 'sensivel', 'confidencial']) assert.equal(padrao[t], 'proteger', t);
+  assert.ok(!Object.entries(padrao).some(([t, v]) => t !== 'credencial' && v === 'bloquear'));
 });
 
 // ---------------------------------------------------------------- Política OFF
@@ -104,8 +109,8 @@ test('política OFF: informação sigilosa nunca é enviada; nada gravado; sem m
   // Pelo interruptor manual, por dado detectado (CPF) e por anexo.
   for (const [nome, prep, texto, extra] of [
     ['manual', sigilosa, 'Estratégia de preço do trimestre.', {}],
-    ['dado detectado', conversa, 'Confira o cadastro do CPF 529.982.247-25.', {}],
-    ['anexo', conversa, 'Resuma o anexo.', { anexos: [arquivo('cadastro.docx', docx(['Responsável: CPF 529.982.247-25']))] }],
+    ['dado detectado', conversa, 'Pague o fornecedor: agência 1234, conta corrente 56789-0.', {}],
+    ['anexo', conversa, 'Resuma o anexo.', { anexos: [arquivo('cadastro.docx', docx(['Responsável: agência 1234, conta corrente 56789-0']))] }],
   ]) {
     const conv = await prep();
     const x = await enviar(conv, texto, extra);
@@ -138,7 +143,7 @@ test('política ON + rota válida: envia pela rota fixada, com retenção zero e
   politica(true);
   catalogo({ [EQUILIBRADO]: ROTA('Anthropic') });
   const conv = await conversa();
-  const x = await enviar(conv, 'Resuma a proposta do cliente CNPJ 12.345.678/0001-95 e confira o cadastro do responsável CPF 529.982.247-25.');
+  const x = await enviar(conv, 'Resuma a proposta do cliente CNPJ 12.345.678/0001-95 e confira os dados de pagamento: agência 1234, conta corrente 56789-0.');
   assert.equal(x.r.status, 200, JSON.stringify(x.r.erro));
   assert.deepEqual(x.chamadas, [{ modelos: [EQUILIBRADO], rota: 'Anthropic' }]);
   assert.deepEqual(OR.chamadas.at(-1).provider, { order: ['Anthropic'], only: ['Anthropic'], allow_fallbacks: false, zdr: true, data_collection: 'deny' });
@@ -152,7 +157,7 @@ test('política ON + rota válida: envia pela rota fixada, com retenção zero e
   assert.equal(r.guardrails.selecionado, EQUILIBRADO);
   assert.ok(r.guardrails.requisitos.exigeRetencaoZero && r.guardrails.requisitos.exigeSemTreino && r.guardrails.requisitos.politicaEmpresa);
   assert.ok(r.guardrails.descartados.some(d => d.id === RAPIDO && d.motivos.includes('sem_homologacao_empresa')), 'rejeitado por não ser autorizado, com motivo');
-  assert.ok(!JSON.stringify(r).includes('529.982.247-25') && !JSON.stringify(r).includes('proposta do cliente'), 'a auditoria não guarda o conteúdo');
+  assert.ok(!JSON.stringify(r).includes('56789-0') && !JSON.stringify(r).includes('proposta do cliente'), 'a auditoria não guarda o conteúdo');
 });
 
 test('política ON + guardrail inválido, autorização ausente ou desconhecida: nunca envia; admin avisado uma vez', async () => {
@@ -281,7 +286,7 @@ test('invariante absoluta: nenhuma condição (barato, rápido, único disponív
     const modelo = [undefined, RAPIDO, AVANCADO, 'openrouter/auto', 'classe:rapido', 'classe:avancado'][al(6)];
     if (al(4) === 0) OR.falhar.add(EQUILIBRADO); else OR.falhar.clear();
     const conv = al(2) ? await sigilosa() : await conversa();
-    await enviarMensagem(ana, conv.id, { texto: al(2) ? "Traduza 'bom dia'." : 'Confira o CPF 529.982.247-25 no cadastro.', ...(modelo ? { modelo } : {}) });
+    await enviarMensagem(ana, conv.id, { texto: al(2) ? "Traduza 'bom dia'." : 'Confira a conta corrente 56789-0, agência 1234.', ...(modelo ? { modelo } : {}) });
   }
   OR.falhar.clear();
   // Toda chamada com informação sigilosa (rota fixada) foi a um autorizado, pela rota autorizada.

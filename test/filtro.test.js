@@ -10,7 +10,9 @@ const casos = {
   pix: ['chave pix 123e4567-e89b-42d3-a456-426614174000'],
   credencial: ['senha: Primavera2026', 'token=abc123xyz', 'minha api key: sk-proj-abcdefghijklmnop1234', 'a senha é Casa@123', 'AKIAIOSFODNN7EXAMPLE'],
   rg: ['RG 12.345.678-9', 'rg nº 1234567-X'],
-  email: ['fale com maria.souza@empresa.com.br'],
+  email: ['fale com maria.souza@gmail.com', 'contato pessoal: joao@hotmail.com.br'],
+  sensivel: ['Segue o laudo médico do colaborador', 'CID F32.1 informado no atestado', 'exame admissional agendado'],
+  confidencial: ['CONFIDENCIAL', 'Documento confidencial - não repassar', 'Relatório — Confidencial'],
   telefone: ['(11) 98765-4321', '+55 11 98765-4321', 'celular 11987654321', 'tel 21 3456-7890'],
   cep: ['CEP 01310-100', 'cep 01310100'],
   endereco: ['Rua das Flores, 123', 'Av. Paulista 1578', 'mora na Avenida Brasil, nº 500'],
@@ -36,17 +38,24 @@ test('não dispara em datas, valores, números de pedido e textos comuns', () =>
     'Revisar o token de acesso do portal.',
     'A rua estava cheia hoje.',
     'Lote 20260926 com 1500 unidades, peso 12.500 kg.',
+    // Conteúdo normal de trabalho: não é dado pessoal que exija tratamento.
+    'Fale com joao.silva@apymine.com.br sobre a proposta.',
+    'Diagnóstico de vendas do trimestre e plano de ação.',
+    'Política de confidencialidade da empresa.',
+    'Desligamento de sistemas legados em outubro.',
+    'Salário de mercado para a função de analista.',
   ];
   for (const t of limpos) assert.deepEqual(detectar(t), [], `falso positivo em: ${t}`);
 });
 
 test('devolve só os tipos, nunca os valores', () => {
-  const r = detectar('CPF 529.982.247-25 e email ana@empresa.com.br');
+  const r = detectar('CPF 529.982.247-25 e email ana@gmail.com');
   assert.deepEqual(r, ['cpf', 'email']);
   assert.ok(!JSON.stringify(r).includes('529'));
 });
 
 test('decidir: credencial sempre bloqueada, mesmo marcada como permitir', () => {
-  assert.deepEqual(decidir(['cpf', 'email', 'credencial'], { cpf: 'bloquear', email: 'permitir', credencial: 'permitir' }),
-    { bloqueados: ['cpf', 'credencial'], permitidos: ['email'] });
+  assert.deepEqual(decidir(['cpf', 'email', 'banco', 'credencial'], { cpf: 'bloquear', email: 'permitir', banco: 'proteger', credencial: 'permitir' }),
+    { bloqueados: ['cpf', 'credencial'], protegidos: ['banco'], normais: ['email'] });
+  assert.deepEqual(decidir(['cpf'], { cpf: 'talvez' }).bloqueados, ['cpf'], 'ação desconhecida: fail closed');
 });

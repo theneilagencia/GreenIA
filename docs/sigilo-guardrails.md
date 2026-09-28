@@ -76,25 +76,33 @@ pessoa: não altera nada disso nem escolhe recurso não autorizado (o modelo ped
 própria (`autorizacao_plataforma`). A empresa em modo manual precisa homologar, e a empresa que segue as
 recomendações adota a autorização automaticamente.
 
-## Classificação
+## Classificação proporcional ao risco
 
-| Categoria | Tipos |
-|---|---|
-| Identificação pessoal | CPF, RG |
-| Identificação de empresa | CNPJ |
-| Financeiro | cartão, dados bancários, chave PIX |
-| Pessoal | email, telefone, CEP, endereço |
-| Segredo | senhas, API keys, tokens (incluindo `Bearer` e JWT), chaves privadas, `usuário:senha` em URL e outros |
+**A IA não bloqueia porque encontrou um dado pessoal.** Ela decide como tratar o conteúdo pelo risco, pelo
+contexto e pelas políticas da empresa. A classificação fica em `src/filtro.js` (`detectar`, `decidir`) e vale
+para mensagens, anexos (PDF, DOCX, XLSX, imagens com OCR, texto), nova tentativa, API e histórico.
 
-- **Dado pessoal sensível** (saúde, origem racial, religião, biometria…) não é reconhecido pelos padrões
-  gerais. Ele é reconhecido pelos sinais da proteção reforçada, nas áreas que a têm, ou pela marcação manual
-  da conversa ou do quick win.
-- **Tratamento:** é política da empresa, escolhida por tipo entre "Processar com proteção" (a conversa vira
-  sigilosa) e "Não enviar". O padrão protege tudo o que é reconhecido. Nenhum tipo é bloqueado "por
-  exigência da LGPD".
-- **Ação desconhecida** vale como "Não enviar". Antes valia como permitido; o defeito foi corrigido.
-- **Credenciais e segredos:** nunca são enviados, por regra de segurança da GreenIA. A opção de informação
-  sigilosa não muda isso.
+| Nível | O que é | Exemplos | Padrão |
+|---|---|---|---|
+| 1 | Conteúdo normal | Nomes, cargos, empresas, email e telefone de trabalho, CNPJ, atas, relatórios, documentos institucionais | Regras gerais. Email corporativo nem é "detectado" |
+| 2 | Dado pessoal | CPF, RG, email pessoal (Gmail, Hotmail…), telefone, endereço, CEP | **Processar normalmente**: a conversa não vira sigilosa. Cartão, dados bancários e PIX: só com proteção |
+| 3 | Dado pessoal sensível | Laudo, atestado ou exame médico, CID, biometria, religião, orientação sexual, filiação sindical, origem racial | Só com proteção, em qualquer área |
+| 4 | Informação confidencial marcada | "CONFIDENCIAL", "documento confidencial", documento da base marcado como sigiloso | Só com proteção, em qualquer área |
+| 5 | Credencial ou segredo | Senha, API key, token, chave privada, `usuário:senha` em URL | Bloqueio absoluto; nenhuma configuração muda |
+
+- **Ações que a empresa escolhe por tipo** (Políticas de IA → Tipos de dado): **Processar normalmente**
+  (`permitir`), **Só com proteção** (`proteger`, a conversa vira sigilosa e segue só com os guardrails) ou **Não
+  enviar** (`bloquear`). Ação desconhecida vale "Não enviar" (fail closed).
+- **Contexto, não palavra solta:** "diagnóstico de vendas", "política de confidencialidade", "desligamento de
+  sistemas" e "salário de mercado" são conteúdo normal.
+- **Registro:** a auditoria guarda os tipos encontrados, nunca o valor.
+- **Quem usa não precisa limpar o texto.** A mensagem de bloqueio explica o motivo, sem pedir para tirar dados.
+- **Empresas que já existiam:** no formato antigo, "permitir" queria dizer "processar com proteção". Esse valor
+  passa para o padrão proporcional do tipo, e o "bloquear" que a empresa escolheu continua valendo (`acoesAtuais`,
+  `acoesDoQuickWin`). Conversas que ficaram sigilosas só por um tipo que agora é processado normalmente são
+  reavaliadas ao abrir; na dúvida, continuam sigilosas.
+- **Não é uma afirmação de conformidade com a LGPD.** São controles configuráveis que apoiam as obrigações da
+  empresa.
 
 ## Área com proteção reforçada (antes: "todas as conversas da área são sigilosas")
 
@@ -104,7 +112,7 @@ uma conversa é sigilosa é o que foi escrito e anexado.
 | | Área padrão | Área com proteção reforçada |
 |---|---|---|
 | A conversa nasce sigilosa? | Não | Não |
-| O que torna o conteúdo sigiloso | Padrões gerais (CPF, CNPJ, cartão, banco, PIX…), marcação manual, quick win sigiloso, documento sigiloso | Tudo o da área padrão **e** os sinais de `detectarReforcado`: marcação de confidencialidade ("confidencial", "uso interno", "não divulgar", NDA…), dado pessoal sensível (diagnóstico, laudo médico, CID, biometria, religião, origem racial…) e dado de pessoas em processo interno (holerite, folha de pagamento, desligamento, processo disciplinar…) |
+| O que torna o conteúdo sigiloso | Tipos que a política manda proteger (padrão: pagamento, dado sensível, marcação de confidencial), marcação manual, quick win sigiloso, documento sigiloso | Tudo o da área padrão **e** os sinais de `detectarReforcado`: marcação de uso interno ("uso interno", "uso restrito", "não divulgar", NDA) e registros de pessoas em processo interno (holerite, folha de pagamento, processo disciplinar, salário ou desligamento de colaborador) |
 | Conteúdo sem nenhum sinal | Regras gerais da empresa | Regras gerais da empresa, **só com recurso compatível com a proteção da área**: fornecedor fixo (nada de gratuito ou do Automático do serviço de IA) e sem treino com os dados. Não exige homologação para dado sigiloso |
 | Conteúdo sigiloso | Todos os guardrails; sem recurso autorizado, nada é enviado | Igual |
 

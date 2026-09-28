@@ -37,6 +37,7 @@ export const PADRAO = {
   // Informações sigilosas: "Permitir processamento de informações sigilosas com guardrails de proteção".
   // Desligado por padrão; só true liga (ver sigilo.js). Requisitos mínimos da plataforma, vindos dela.
   allow_sensitive_processing_with_guardrails: false,
+  emailSituacao: {},   // email próprio da empresa: último envio certo e última falha (motivo explicado, sem segredo)
   requisitosSigilo: { plataforma: false, exigeAutorizacao: false, exigeRetencaoZero: true, exigeSemTreino: true },
   // Limites (0 = sem limite).
   tetoMensal: 0, tetoPessoaMensal: 0, limiteDiarioPessoa: 0,

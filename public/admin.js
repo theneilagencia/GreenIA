@@ -454,6 +454,9 @@ async function abaConfig() {
             <label class="opcao"><input type="radio" name="prov" value="brevo" ${prov === 'brevo' ? 'checked' : ''}><span><b>Brevo</b><small>Serviço de envio por chave de API</small></span></label>
           </div></div>
         <div id="email-campos"></div>
+        ${(() => { const st = (c.smtp || {}).situacao || {}; return st.falha
+          ? `<div class="faixa-aviso erro"><b>O email da empresa falhou em ${esc(dataHora(st.falha.em))}.</b> ${esc(st.falha.motivo)}${st.falha.caiuNaPlataforma ? ' Enquanto isso, as mensagens saem pelo email da plataforma.' : ''}</div>`
+          : st.ultimoOk ? `<div class="faixa-aviso ok"><b>Funcionando.</b> Último envio pelo email da empresa em ${esc(dataHora(st.ultimoOk))}.</div>` : ''; })()}
         <div class="linha-botoes cfg-teste"><button type="button" class="btn btn-linha btn-pequeno" id="c-smtp-teste">Salvar e enviar um email de teste para mim</button><span class="dica" id="c-teste-res"></span></div>`)}
       ${caixa(3, 'Por quanto tempo guardar as conversas', 'Conversas paradas por mais tempo que isso são apagadas sozinhas. Quanto menor, menos dados guardados.', `
         <div class="chips-opcoes" role="radiogroup" aria-label="Retenção">${RETENCOES.map(([d, n]) => `<label class="chip-opcao"><input type="radio" name="ret" value="${d}" ${c.retencaoDias === d ? 'checked' : ''}><span>${n}</span></label>`).join('')}
@@ -532,7 +535,7 @@ async function abaConfig() {
   };
   $('c-smtp-teste').onclick = ev => ocupado(ev.currentTarget, async () => {
     $('c-teste-res').textContent = '';
-    try { await salvar(); const r = await api('/api/admin/smtp/teste', { metodo: 'POST' }); $('c-teste-res').textContent = `Enviado para ${r.para}. Confira a caixa de entrada e o spam.`; toast('Email de teste enviado.'); }
+    try { await salvar(); const r = await api('/api/admin/smtp/teste', { metodo: 'POST' }); $('c-teste-res').textContent = r.via === 'empresa' ? `Enviado pelo email da empresa para ${r.para}. Confira a caixa de entrada e o spam.` : `Enviado pelo email da plataforma para ${r.para} (a empresa ainda não tem email próprio configurado).`; toast('Email de teste enviado.'); }
     catch (e) { $('c-teste-res').textContent = e.message; falhar(e); }
   });
   $('form-cfg').onsubmit = async ev => {

@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { criarApp, VERSAO } from '../servidor.js';
-import { criarEmail } from '../email.js';
+import { criarEmail, explicarFalhaEmail } from '../email.js';
+import { registrarEmailEmpresa } from '../admin.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { REQUISITOS_PLATAFORMA } from '../sigilo.js';
 import { registrarFalhaEmail, registrarEnvioOk } from './email-falhas.js';
@@ -128,13 +129,17 @@ function abrirTenant(P, id) {
   const email = {
     async enviar(...a) {
       if (lerConfig(t.db).smtp.url) {
-        try { return await smtpProprio.enviar(...a); } catch (e) { registrarFalhaEmail(P, { escopo: `empresa ${id}`, origem: 'email próprio da empresa (tentando o da plataforma)', erro: e }); }
+        try { const r = await smtpProprio.enviar(...a); registrarEmailEmpresa(t, true); return r; } catch (e) {
+          registrarFalhaEmail(P, { escopo: `empresa ${id}`, origem: 'email próprio da empresa (tentando o da plataforma)', erro: e });
+          registrarEmailEmpresa(t, false, explicarFalhaEmail(e, lerConfig(t.db).smtp), true);   // o admin da empresa também vê
+        }
       }
       return P.email.enviar(...a);
     },
     get enviados() { return P.email.enviados; },
   };
   t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id } });
+  t.emailProprio = smtpProprio;   // o teste do admin da empresa usa só o email dela, sem cair no da plataforma
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],
     plataforma: { empresa: publicaEmpresa(P, id), adminPlataforma: !!sessao.pessoa.adminPlataforma, podeEditar: E.podeEditar(P, id), recursos: E.lerPlanoPorId(P, E.lerEmpresa(P, id).plan_id)?.features || {} },

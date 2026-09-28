@@ -5,7 +5,7 @@ import { lerConfig, salvarConfig, TIPOS_DADO } from './config.js';
 import { registrar } from './eventos.js';
 import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
 import { areasDoQw } from './quickwins.js';
-import { normalizarSmtpUrl } from './email.js';
+import { explicarFalhaEmail, normalizarSmtpUrl } from './email.js';
 
 // Contraste (WCAG) para a checagem automática da cor de marca.
 const lum = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
@@ -84,6 +84,19 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
 // Email da empresa em campos separados (sem montar endereço): servidor, porta, email e senha, ou uma
 // API de envio (Resend, Brevo) com a chave. A senha e a chave nunca voltam para o navegador; em branco,
 // ficam as que já estavam salvas.
+// Situação do email próprio da empresa: último envio certo e última falha (motivo já explicado, sem segredo).
+export function registrarEmailEmpresa(app, ok, motivo = '', caiuNaPlataforma = false) {
+  const atual = lerConfig(app.db).emailSituacao || {};
+  const agora = app.agora().toISOString();
+  salvarConfig(app.db, { emailSituacao: ok ? { ...atual, ultimoOk: agora } : { ...atual, ultimaFalha: { em: agora, motivo: String(motivo).slice(0, 400), caiuNaPlataforma } } });
+  if (!ok) registrar(app, 'email.failed', null, { motivo: String(motivo).slice(0, 200), caiu_na_plataforma: caiuNaPlataforma });
+}
+export function situacaoEmailEmpresa(app) {
+  const s = lerConfig(app.db).emailSituacao || {};
+  const f = s.ultimaFalha;
+  return { ultimoOk: s.ultimoOk || null, falha: f && (!s.ultimoOk || f.em > s.ultimoOk) ? f : null };
+}
+
 export function smtpParaTela(smtp = {}) {
   const url = String(smtp.url || '').trim(), remetente = smtp.remetente || '';
   const api = /^(resend|brevo):\/\/(.+)$/i.exec(url);
@@ -154,7 +167,7 @@ export function rotasAdmin(app, r) {
   r.get('/api/admin/config', ({ creditos }) => {
     const c = lerConfig(app.db);
     const out = Object.fromEntries(CAMPOS_CONFIG.map(k => [k, c[k]]));
-    out.smtp = smtpParaTela(c.smtp);   // sem senha nem chave
+    out.smtp = { ...smtpParaTela(c.smtp), situacao: situacaoEmailEmpresa(app) };   // sem senha nem chave
     if (creditos) for (const k of TETOS) out[k] = Math.round(out[k] / CREDITO_USD);
     return out;
   }, { admin: true });
@@ -170,10 +183,19 @@ export function rotasAdmin(app, r) {
     return { ok: true };
   }, { admin: true, limiteMb: 1 });
 
+  // Teste do email DA EMPRESA: sem cair no email da plataforma (senão o teste diria "enviado" com o email
+  // da empresa quebrado). O motivo real volta explicado, sem senha, usuário nem chave.
   r.post('/api/admin/smtp/teste', async ({ pessoa }) => {
-    try { await app.email.enviar(pessoa.email, 'Teste de email da GreenIA', 'Se você recebeu esta mensagem, o envio de email está funcionando.'); }
-    catch (e) { throw erro(502, 'smtp', `O servidor de email recusou: ${String(e.message).slice(0, 200)}`); }
-    return { ok: true, para: pessoa.email };
+    const smtp = lerConfig(app.db).smtp;
+    const envio = smtp.url && app.emailProprio ? app.emailProprio : app.email;
+    try { await envio.enviar(pessoa.email, 'Teste de email da GreenIA', 'Se você recebeu esta mensagem, o envio de email da empresa está funcionando.'); }
+    catch (e) {
+      const motivo = explicarFalhaEmail(e, smtp);
+      registrarEmailEmpresa(app, false, motivo);
+      throw erro(502, 'smtp', motivo);
+    }
+    if (smtp.url) registrarEmailEmpresa(app, true);
+    return { ok: true, para: pessoa.email, via: smtp.url ? 'empresa' : 'plataforma' };
   }, { admin: true });
 
   r.get('/api/admin/uso', ({ query, res, creditos }) => {

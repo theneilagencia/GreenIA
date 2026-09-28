@@ -142,7 +142,7 @@ test('configurações da empresa: email em campos separados, senha nunca devolvi
     const { lerConfig } = await import('../src/config.js');
     assert.equal(lerConfig(app.db).smtp.url, 'smtps://noreply%40empresa.com.br:a%40b%23c%3Ad@smtp.provedor.net:465');
     const tela = (await adm.get('/api/admin/config')).dados.smtp;
-    assert.deepEqual(tela, { modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'noreply@empresa.com.br', temSenha: true, remetente: 'IA <noreply@empresa.com.br>' });
+    assert.deepEqual(tela, { modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'noreply@empresa.com.br', temSenha: true, remetente: 'IA <noreply@empresa.com.br>', situacao: { falha: null, ultimoOk: null } });
     assert.doesNotMatch(JSON.stringify((await adm.get('/api/admin/config')).dados), /a%40b|a@b#c/);
     // Senha em branco: mantém a anterior.
     assert.equal((await put({ modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'noreply@empresa.com.br', senha: '', remetente: 'IA <noreply@empresa.com.br>' })).status, 200);
@@ -151,7 +151,7 @@ test('configurações da empresa: email em campos separados, senha nunca devolvi
     assert.equal((await put({ modo: 'smtp', servidor: 'smtp.provedor.net', porta: 465, usuario: 'outro@empresa.com.br', senha: '' })).status, 400);
     // API de envio: chave guardada e escondida.
     assert.equal((await put({ modo: 'api', api: 'resend', chave: 're_x1', remetente: 'IA <noreply@empresa.com.br>' })).status, 200);
-    assert.deepEqual((await adm.get('/api/admin/config')).dados.smtp, { modo: 'api', api: 'resend', temChave: true, remetente: 'IA <noreply@empresa.com.br>' });
+    assert.deepEqual((await adm.get('/api/admin/config')).dados.smtp, { modo: 'api', api: 'resend', temChave: true, remetente: 'IA <noreply@empresa.com.br>', situacao: { falha: null, ultimoOk: null } });
     assert.equal((await put({ modo: '' })).status, 200);
     assert.equal(lerConfig(app.db).smtp.url, '');
   } finally { app.servidor.close(); app.servidor.closeAllConnections?.(); }

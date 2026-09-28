@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { subirPlataforma } from './ajuda-plataforma.js';
 import { semSegredos } from '../src/plataforma/email-falhas.js';
 import { lerConfig, salvarConfig } from '../src/config.js';
+import { explicarFalhaEmail } from '../src/email.js';
 
 let S;
 after(async () => { await S?.fechar(); });
@@ -44,6 +45,35 @@ test('email próprio da empresa falhando: o código sai pelo email da plataforma
   const cfg = (await (await S.navegador().entrarConsole('ops@theneil.com.br')).get('/api/plataforma/configuracoes')).dados;
   assert.match(cfg.smtp.falhas[0].origem, /email próprio da empresa/);
   assert.ok(!cfg.smtp.falhas[0].detalhe.includes('errada'));
+});
+
+test('admin da empresa: vê a falha do email próprio (explicada, sem segredo) e o teste não cai em silêncio no email da plataforma', async () => {
+  const adm = S.navegador(); await adm.get('/apy');
+  assert.equal((await adm.entrarEmpresa('x@apy.com')).status, 200);
+  // A falha do teste anterior (o código saiu pela plataforma) aparece para o admin da empresa.
+  let st = (await adm.get('/api/admin/config')).dados.smtp.situacao;
+  assert.ok(st.falha, 'a empresa fica sabendo');
+  assert.equal(st.falha.caiuNaPlataforma, true);
+  assert.match(st.falha.motivo, /Não foi possível conectar a 127\.0\.0\.1:1/);
+  assert.ok(!JSON.stringify(st).includes('errada') && !JSON.stringify(st).includes('ninguem'));
+  // O teste do email da empresa falha de verdade (502, com o motivo) e nada sai pela plataforma.
+  const antes = S.P.email.enviados.length;
+  const r = await adm.post('/api/admin/smtp/teste');
+  assert.equal(r.status, 502);
+  assert.match(r.dados.mensagem, /Não foi possível conectar a 127\.0\.0\.1:1.*Resend ou Brevo/);
+  assert.equal(S.P.email.enviados.length, antes, 'o teste não troca para o email da plataforma');
+});
+
+test('explicações de falha de email: senha recusada, domínio não verificado, conexão bloqueada, remetente recusado', () => {
+  const smtp = { url: 'smtps://eu%40apy.com:segredo@smtp.gmail.com:465' };
+  assert.match(explicarFalhaEmail(Object.assign(new Error('Invalid login: 535-5.7.8'), { code: 'EAUTH', responseCode: 535 }), smtp), /recusou o usuário ou a senha.*senha de app/);
+  assert.match(explicarFalhaEmail(Object.assign(new Error('Connection timeout'), { code: 'ETIMEDOUT' }), smtp), /conectar a smtp\.gmail\.com:465.*bloqueando SMTP de saída/);
+  assert.match(explicarFalhaEmail(Object.assign(new Error('553 Sender not owned'), { code: 'EENVELOPE', responseCode: 553 }), smtp), /não aceitou o remetente/);
+  const api = { url: 'resend://re_chave_secreta_123456' };
+  const m = explicarFalhaEmail(new Error('resend respondeu 403: {"message":"The apymine.com domain is not verified"}'), api);
+  assert.match(m, /domínio do email remetente não está verificado na conta do Resend/);
+  assert.match(explicarFalhaEmail(new Error('resend respondeu 401: {"message":"API key is invalid"}'), api), /recusou a chave de API/);
+  for (const t of [m, explicarFalhaEmail(new Error('x'), smtp)]) assert.ok(!t.includes('segredo') && !t.includes('re_chave'));
 });
 
 test('semSegredos tira senha de URL, chaves de API e Bearer', () => {

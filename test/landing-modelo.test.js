@@ -142,3 +142,24 @@ test('prévia: quem edita vê a landing completa em rascunho ou em implantação
   assert.equal((await fe.get('/api/publico')).dados.landing, null, 'sem ?previa, vê como visitante');
   assert.equal((await fe.get('/api/empresa/landing')).dados.landing.empresaStatus, 'em_implantacao');
 });
+
+test('domínio próprio vale em qualquer plano; empresas antigas recebem a liberação; o operador ainda pode travar', async () => {
+  const minimo = (await ops.post('/api/plataforma/planos', { name: 'Mínimo', credits: 500, features: { quick_wins: true } })).dados;
+  const g = (await ops.post('/api/plataforma/empresas', { name: 'Golf', slug: 'golf', admin_email: 'gil@golf.com', plan_id: minimo.id, status: 'ativa' })).dados;
+  const gil = S.navegador(); await gil.get('/golf'); await gil.entrarEmpresa('gil@golf.com');
+  assert.equal((await gil.get('/api/empresa/url')).dados.pode.domain, true);
+  assert.equal((await gil.put('/api/empresa/url', { custom_domain: 'ia.golf.com.br' })).status, 200);
+  const { RECURSOS } = await import('../src/plataforma/empresas.js');
+  assert.ok(!('custom_domain' in RECURSOS), 'domínio não é mais recurso de plano');
+  // Empresa com a liberação antiga desligada: a migração única liga.
+  const { exec } = await import('../src/db.js');
+  const { salvarAjuste } = await import('../src/plataforma/db.js');
+  const { liberarDominioParaTodos } = await import('../src/plataforma/empresas.js');
+  exec(S.P.db, `update company_settings set grants = '{"domain":false}' where company_id = ?`, g.id);
+  salvarAjuste(S.P.db, 'dominio_para_todos', false);
+  liberarDominioParaTodos(S.P);
+  assert.equal((await gil.get('/api/empresa/url')).dados.pode.domain, true);
+  // Depois disso, o operador trava por empresa e vale.
+  await ops.put(`/api/plataforma/empresas/${g.id}/concessoes`, { grants: { branding: true, landing_page: true, url: true, domain: false, roles: true } });
+  assert.equal((await gil.get('/api/empresa/url')).dados.pode.domain, false);
+});

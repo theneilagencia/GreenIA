@@ -21,7 +21,8 @@ export const STATUS_EMPRESA = { em_implantacao: 'Em implantação', ativa: 'Ativ
 export const RECURSOS = {
   quick_wins: 'Quick wins', knowledge: 'Base de conhecimento', confidential: 'Conversas sigilosas',
   custom_branding: 'Marca própria', landing_page: 'Landing page própria', custom_url: 'URL personalizada',
-  custom_domain: 'Domínio próprio', custom_roles: 'Roles personalizadas',
+  custom_roles: 'Roles personalizadas',
+  // Domínio próprio não é recurso de plano: vale em todos (o operador ainda pode travar por empresa).
 };
 export const LIMITES = { max_users: 'Usuários (0 = sem limite)', messages_per_minute: 'Mensagens por minuto por pessoa', max_quick_wins: 'Quick wins (0 = sem limite)', max_concurrent: 'Respostas simultâneas da empresa (0 = sem limite)' };
 // Valor de cada limite quando o plano ainda não o define. As respostas simultâneas protegem as outras empresas da mesma instalação.
@@ -46,7 +47,7 @@ function semearLiberado(P) {
 
 export function semearPlanos(P) {
   if (um(P.db, 'select 1 from plans')) return semearLiberado(P);
-  const base = { features: Object.fromEntries(Object.keys(RECURSOS).map(k => [k, k !== 'custom_domain'])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 } };
+  const base = { features: Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 } };
   salvarPlano(P, { name: 'GreenIA Team', description: 'Para começar com uma área ou um time', price_usd: 290, credits: 10000, reserve: 2000, limits: LIMITES_PADRAO, ...base }, null, {});
   salvarPlano(P, { name: 'GreenIA Company', description: 'Para levar a IA a todas as áreas', price_usd: 750, credits: 25000, reserve: 5000, limits: { ...LIMITES_PADRAO, max_concurrent: 20 }, ...base, features: { ...base.features, custom_domain: true } }, null, {});
   semearLiberado(P);
@@ -96,16 +97,25 @@ export function urlDaEmpresa(P, c) {
   return `${P.urlBase || ''}/${c.slug}`;
 }
 
+// Uma vez: o domínio próprio era desligado por padrão e dependia do plano; agora vale para todos.
+export function liberarDominioParaTodos(P) {
+  if (lerAjuste(P.db, 'dominio_para_todos', false)) return;
+  for (const c of todos(P.db, 'select company_id, grants from company_settings')) {
+    const g = json(c.grants, {});
+    if (g.domain === false) exec(P.db, 'update company_settings set grants = ? where company_id = ?', JSON.stringify({ ...g, domain: true }), c.company_id);
+  }
+  salvarAjuste(P.db, 'dominio_para_todos', true);
+}
 export function concessoes(P, companyId) {
   const s = um(P.db, 'select grants from company_settings where company_id = ?', companyId);
-  return { branding: true, landing_page: true, url: true, domain: false, roles: true, ...json(s?.grants, {}) };
+  return { branding: true, landing_page: true, url: true, domain: true, roles: true, ...json(s?.grants, {}) };
 }
 export const marcaBloqueada = (P, companyId) => json(um(P.db, 'select locked from branding where company_id = ?', companyId)?.locked, []);
 
 // O que o admin da empresa pode personalizar: recurso do plano, concessão do operador da plataforma (a permissão da pessoa é conferida na rota).
 // Sem plano definido (empresa ainda em configuração), a personalização fica liberada: ela não consome
 // nada, e os limites de uso já dependem do plano.
-const RECURSO_DA_CONCESSAO = { branding: 'custom_branding', landing_page: 'landing_page', url: 'custom_url', domain: 'custom_domain', roles: 'custom_roles' };
+const RECURSO_DA_CONCESSAO = { branding: 'custom_branding', landing_page: 'landing_page', url: 'custom_url', domain: null, roles: 'custom_roles' };
 export function podeEditar(P, companyId) {
   const m = motivosBloqueio(P, companyId);
   return Object.fromEntries(Object.keys(RECURSO_DA_CONCESSAO).map(k => [k, !m[k]]));
@@ -116,7 +126,7 @@ export function motivosBloqueio(P, companyId) {
   const plano = c?.plan_id ? lerPlanoPorId(P, c.plan_id) : null;
   const g = concessoes(P, companyId);
   return Object.fromEntries(Object.entries(RECURSO_DA_CONCESSAO).map(([k, recurso]) => [k,
-    plano && !plano.features?.[recurso] ? `O plano ${plano.name} não inclui ${RECURSOS[recurso].toLowerCase()}. Para liberar, o operador da plataforma precisa mudar o plano da empresa.`
+    recurso && plano && !plano.features?.[recurso] ? `O plano ${plano.name} não inclui ${RECURSOS[recurso].toLowerCase()}. Para liberar, o operador da plataforma precisa mudar o plano da empresa.`
       : !g[k] ? `O operador da plataforma não liberou a edição de ${CONCESSOES[k].toLowerCase()} para a empresa. Para liberar, ele marca o item em Permissões concedidas.`
         : null]));
 }

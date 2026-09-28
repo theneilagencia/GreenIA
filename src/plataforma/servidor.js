@@ -71,6 +71,7 @@ export function criarPlataforma(op = {}) {
   }
   if (op.legado) { importarInstalacao(P, op.legado); copiarSmtpLegado(P, op.legado.banco); }
   E.preencherTextosMarca(P);
+  E.liberarDominioParaTodos(P);
   for (const c of todos(db, 'select id from companies')) abrirTenant(P, c.id);
 
   const rPlat = criarRoteador(), rEmp = criarRoteador();

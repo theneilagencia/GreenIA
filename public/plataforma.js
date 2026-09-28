@@ -259,7 +259,7 @@ async function abaPermissoes(d, id) {
   $('aba').innerHTML = `<p class="lead">O que o administrador da empresa pode personalizar. Vale o que estiver liberado aqui e incluído no plano; o operador da plataforma continua podendo alterar tudo.</p>
     <form id="f-conc">
       <h3>Itens liberados para a empresa</h3>
-      <div class="checagens">${Object.entries(C.catalogo.concessoes).map(([k, n]) => `<label><input type="checkbox" data-g="${k}" ${g[k] ? 'checked' : ''}> <span>${esc(n)}<small>${p[k] ? 'Liberado e incluído no plano' : g[k] ? 'Liberado, mas fora do plano atual' : 'Não liberado'}</small></span></label>`).join('')}</div>
+      <div class="checagens">${Object.entries(C.catalogo.concessoes).map(([k, n]) => `<label><input type="checkbox" data-g="${k}" ${g[k] ? 'checked' : ''}> <span>${esc(n)}<small>${p[k] ? (k === 'domain' ? 'Liberado (vale em todos os planos)' : 'Liberado e incluído no plano') : g[k] ? 'Liberado, mas fora do plano atual' : 'Não liberado'}</small></span></label>`).join('')}</div>
       <h3>Itens da marca bloqueados</h3>
       <div class="checagens">${Object.entries(ROTULOS_MARCA).map(([k, n]) => `<label><input type="checkbox" data-l="${k}" ${b.includes(k) ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div>
       <div class="linha-botoes"><button class="btn btn-verde">Salvar permissões</button></div></form>`;
@@ -307,7 +307,7 @@ async function vistaPlanos() {
 
 async function vistaPlano(id) {
   if (!C.planos.length) C.planos = (await api('/api/plataforma/planos')).planos;
-  const p = id === 'novo' ? { name: '', description: '', status: 'ativo', credits: 10000, reserve: 2000, price_usd: '', limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, features: Object.fromEntries(Object.keys(C.catalogo.recursos).map(k => [k, k !== 'custom_domain'])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 }, settings: {} } : C.planos.find(x => x.id === id);
+  const p = id === 'novo' ? { name: '', description: '', status: 'ativo', credits: 10000, reserve: 2000, price_usd: '', limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, features: Object.fromEntries(Object.keys(C.catalogo.recursos).map(k => [k, true])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 }, settings: {} } : C.planos.find(x => x.id === id);
   if (!p) return tela('Plano', '<p>Plano não encontrado.</p>', '', '#/planos');
   tela(id === 'novo' ? 'Novo plano' : p.name, `<form id="f-plano" novalidate>
     <div class="grade-2"><div class="campo"><label for="pl-nome">Nome</label><input class="entrada" id="pl-nome" value="${esc(p.name)}" maxlength="60"></div>

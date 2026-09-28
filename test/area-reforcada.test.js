@@ -224,3 +224,72 @@ test('10. nova tentativa, fallback, anexos e API passam de novo pela mesma gover
   assert.equal(z.r.status, 422);
   assert.deepEqual(z.chamadas, []);
 });
+
+// Regressão do caso real: PDF institucional (~9 mil caracteres, sem nenhum dado sigiloso) enviado numa área
+// com proteção reforçada, sem NENHUM recurso autorizado para informação sigilosa. Não pode ser bloqueado por
+// causa da área. Quem usa não vê recurso técnico; o admin da empresa vê o que o nível dele permite.
+test('regressão: PDF institucional sem dado sigiloso em área reforçada não é bloqueado por causa da área', async () => {
+  exec(S.app.db, 'insert or ignore into area_pessoas (area_id, pessoa_id) values (?, ?)', areaId, admin.pessoa.id);
+  const linhas = [];
+  for (let i = 1; linhas.join(' ').length < 9500; i++)
+    linhas.push(`${i}. Comparacao entre a base oficial e o fornecedor de mercado: cobertura por UF, prazo de integracao e custo por consulta.`);
+  const doc = arquivo('consultas-de-dados.pdf', pdf(linhas));
+  for (const ligada of [true, false]) {   // com a opção de informação sigilosa ligada ou desligada: o resultado é o mesmo
+    salvarConfig(S.app.db, { [POLITICA_SIGILO]: ligada });
+    catalogo({});   // nenhum recurso autorizado para informação sigilosa
+    const n = OR.chamadas.length;
+    const x = await enviar('Analise este arquivo e faça um resumo.', { anexos: [doc] });
+    assert.equal(x.r.status, 200, `política ${ligada}: ${JSON.stringify(x.r.erro)}`);
+    assert.ok(x.r.texto.length > 0);
+    assert.equal(OR.chamadas.length, n + 1, 'uma chamada, depois da decisão');
+    // Não virou sigiloso, e a decisão ficou registrada como conteúdo comum com a proteção da área.
+    assert.equal(x.conv_estado.sigilosa, 0);
+    assert.equal(x.rota.sigilosa, 0);
+    assert.equal(x.rota.resultado, 'respondido');
+    assert.ok(JSON.parse(x.rota.politicas).includes('area_protecao_reforcada'));
+    // Recurso compatível com a área (fornecedor fixo, sem treino), sem exigir autorização para dado sigiloso.
+    const usado = x.chamadas[0].modelo;
+    assert.notEqual(usado, GRATUITO);
+    assert.equal(x.chamadas[0].semTreino, true);
+    assert.equal(um(S.app.db, 'select homologado from modelos where id = ?', usado).homologado, 0);
+    // O anexo foi lido inteiro e ficou no histórico com a mensagem.
+    assert.equal(um(S.app.db, 'select count(*) n from anexos where conversa_id = ?', x.conv.id).n, 1);
+    // Quem usa: nada técnico, nem no streaming nem no histórico.
+    assert.equal(x.r.fim.modelo, null);
+    assert.equal(x.r.fim.fornecedor ?? null, null);
+    // (o provedor falso escreve o nome do modelo no próprio texto da resposta; o que se confere são os metadados)
+    const d = (await ana.get(`/api/conversas/${x.conv.id}`)).dados;
+    const hist = JSON.stringify({ ...d, mensagens: d.mensagens.map(({ texto, ...m }) => m) });
+    assert.doesNotMatch(hist, new RegExp(`${usado.replace(/[/.]/g, '\\$&')}|open\\s*router|Anthropic|Google`, 'i'));
+    assert.doesNotMatch(hist, /Uma mensagem não foi enviada/);
+  }
+  salvarConfig(S.app.db, { [POLITICA_SIGILO]: true });
+  // Admin da empresa, na mesma área: o mesmo resultado, e ele vê o recurso usado (o nível de informação dele).
+  const c = (await admin.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(admin, c.id, { texto: 'Analise este arquivo.', anexos: [doc] });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.ok(r.fim.modelo && r.fim.modelo !== GRATUITO);
+  assert.doesNotMatch(JSON.stringify(r.fim), /open\s*router/i, 'nem o admin da empresa vê o provedor');
+  catalogo({ [EQUILIBRADO]: ROTA('Anthropic') });
+});
+
+test('regressão: o único bloqueio legítimo de conteúdo comum na área é não haver recurso compatível; mensagem simples, sem marcar a conversa', async () => {
+  // Só o gratuito liberado: nenhum recurso cumpre a proteção da área. Nada é enviado (não se usa o incompatível
+  // para manter continuidade), a mensagem é a de indisponibilidade (não a de informação sigilosa), a conversa
+  // não fica sigilosa e o histórico registra a tentativa sem o conteúdo.
+  const antes = um(S.app.db, "select group_concat(id) ids from modelos where liberado = 1 and id <> ?", GRATUITO).ids.split(',');
+  exec(S.app.db, 'update modelos set liberado = 0 where id <> ?', GRATUITO);
+  try {
+    const x = await enviar('Analise este arquivo.', { anexos: [PDF_INSTITUCIONAL] });
+    assert.equal(x.r.status, 503);
+    assert.equal(x.r.erro.mensagem, MSG_USUARIO.indisponivel);
+    assert.deepEqual(x.chamadas, []);
+    assert.equal(x.conv_estado.sigilosa, 0);
+    const hist = (await ana.get(`/api/conversas/${x.conv.id}`)).dados.mensagens;
+    assert.deepEqual(hist.map(m => m.papel), ['aviso']);
+    assert.equal(um(S.app.db, 'select count(*) n from anexos where conversa_id = ?', x.conv.id).n, 0, 'anexo bloqueado não é guardado');
+    assert.doesNotMatch(hist[0].texto, /Workshop|UFs/);
+  } finally {
+    for (const id of antes) exec(S.app.db, 'update modelos set liberado = 1 where id = ?', id);
+  }
+});

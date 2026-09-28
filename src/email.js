@@ -65,6 +65,8 @@ export function explicarFalhaEmail(e, smtp = {}) {
     if (/\b429\b/.test(msg)) return `O ${nomeApi} limitou os envios da conta (muitas mensagens em pouco tempo ou cota do plano). Tente de novo mais tarde.`;
     return `O ${nomeApi} não aceitou o envio: ${msg.slice(0, 160)}`;
   }
+  if ((cod === 'EAUTH' || resp === 535 || resp === 534) && /gmail|google/i.test(host)) return 'O Gmail recusou o usuário ou a senha. Use o email completo como usuário e uma senha de app de 16 letras (não a senha normal), criada em myaccount.google.com/apppasswords com a verificação em duas etapas ligada. Em contas Google Workspace, o administrador do Google pode ter desligado as senhas de app.';
+  if ((cod === 'EAUTH' || resp === 535 || resp === 534) && /office365|outlook|microsoft/i.test(host)) return 'A Microsoft recusou o usuário ou a senha. O administrador do Microsoft 365 precisa liberar o SMTP autenticado para esta caixa; com verificação em duas etapas, use uma senha de app.';
   if (cod === 'EAUTH' || resp === 535 || resp === 534) return `O servidor ${host} recusou o usuário ou a senha. No Google e na Microsoft é preciso uma senha de app (com verificação em duas etapas) e, na Microsoft, o SMTP autenticado liberado para a caixa.`;
   if (['ETIMEDOUT', 'ECONNREFUSED', 'ECONNECTION', 'ESOCKET', 'ENOTFOUND', 'EHOSTUNREACH'].includes(cod) || /timeout|timed out|ECONNREFUSED|getaddrinfo/i.test(msg))
     return `Não foi possível conectar a ${host}:${porta}. Confira o servidor e a porta; se estiverem certos, a hospedagem pode estar bloqueando SMTP de saída. Nesse caso, use o envio por serviço (Resend ou Brevo), que funciona por HTTPS.`;

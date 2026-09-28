@@ -156,3 +156,17 @@ test('configurações da empresa: email em campos separados, senha nunca devolvi
     assert.equal(lerConfig(app.db).smtp.url, '');
   } finally { app.servidor.close(); app.servidor.closeAllConnections?.(); }
 });
+
+test('senha de app colada com os espaços de exibição ("abcd efgh ijkl mnop") é gravada sem espaços', async () => {
+  const { criarApp } = await import('../src/servidor.js');
+  const { cliente } = await import('./ajuda.js');
+  const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail: 'adm@empresa.com.br' });
+  await new Promise(r => app.servidor.listen(0, '127.0.0.1', r));
+  try {
+    const adm = await cliente(app, `http://127.0.0.1:${app.servidor.address().port}`).entrar('adm@empresa.com.br');
+    const r = await adm.put('/api/admin/config', { smtp: { modo: 'smtp', servidor: 'smtp.gmail.com', porta: 465, usuario: 'ia@empresa.com.br', senha: 'abcd efgh ijkl mnop', remetente: 'IA <ia@empresa.com.br>' } });
+    assert.equal(r.status, 200, JSON.stringify(r.dados));
+    const { lerConfig } = await import('../src/config.js');
+    assert.match(lerConfig(app.db).smtp.url, /:abcdefghijklmnop@smtp\.gmail\.com:465$/);
+  } finally { await new Promise(r => { app.servidor.close(r); app.servidor.closeAllConnections?.(); }); }
+});

@@ -127,6 +127,9 @@ function smtpDoFormulario(f = {}, atual = {}) {
   let senha = String(f.senha || '');
   if (!senha && antes.modo === 'smtp' && antes.usuario === usuario && antes.temSenha) senha = decodeURIComponent(new URL(normalizarSmtpUrl(urlAntes)).password);
   if (!senha) throw erro(400, 'smtp', 'Informe a senha da conta de email.');
+  // Senha de app do Google e da Microsoft: exibida em grupos com espaço ("abcd efgh ijkl mnop"), mas o
+  // servidor espera só as letras. Só remove os espaços quando a senha tem exatamente esse formato.
+  if (/^[a-z]{4}( [a-z]{4}){3}$/i.test(senha.trim())) senha = senha.replace(/\s+/g, '');
   return { url: `smtp${porta === 465 ? 's' : ''}://${encodeURIComponent(usuario)}:${encodeURIComponent(senha)}@${servidor}:${porta}`, remetente: remetente || `GreenIA <${usuario}>` };
 }
 

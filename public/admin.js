@@ -407,7 +407,7 @@ async function abaEventos(filtro = {}, pagina = 0) {
 // ---------------------------------------------------------------- Configurações
 // Provedores de email mais comuns: servidor e porta já preenchidos, e onde conseguir a senha.
 const PROVEDORES_EMAIL = {
-  google: { nome: 'Google Workspace / Gmail', servidor: 'smtp.gmail.com', porta: 465, ajuda: 'Use uma <b>senha de app</b>, não a senha normal: ative a verificação em duas etapas e crie a senha em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>.' },
+  google: { nome: 'Google Workspace / Gmail', servidor: 'smtp.gmail.com', porta: 465, ajuda: 'Use o email completo e uma <b>senha de app</b> de 16 letras, não a senha normal: ligue a verificação em duas etapas da conta e crie a senha em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>. Pode colar com ou sem os espaços. Em contas Google Workspace, o administrador do Google precisa permitir senhas de app.' },
   microsoft: { nome: 'Microsoft 365 / Outlook', servidor: 'smtp.office365.com', porta: 587, ajuda: 'O administrador do Microsoft 365 precisa liberar o <b>SMTP autenticado</b> para esta caixa.' },
   kinghost: { nome: 'KingHost', servidor: 'smtp.kinghost.net', porta: 465, ajuda: 'Use o email completo e a senha da caixa, a mesma do webmail.' },
   locaweb: { nome: 'Locaweb', servidor: 'email-ssl.com.br', porta: 465, ajuda: 'Use o email completo e a senha da caixa.' },

@@ -338,7 +338,7 @@ export function lerLanding(P, id) {
   const nome = lerMarca(P, id)?.display_name || lerEmpresa(P, id)?.name || '';
   const modelo = landingPadrao(nome), salvo = json(l?.content, {});
   // Textos novos do modelo entram sozinhos em landings antigas; o que a empresa já escreveu prevalece.
-  return l && { status: l.status, content: { ...modelo, ...salvo, textos: { ...modelo.textos, ...(salvo.textos || {}) }, secoes: { ...modelo.secoes, ...(salvo.secoes || {}) } }, seo: { ...seoPadrao(nome), ...Object.fromEntries(Object.entries(json(l.seo, {})).filter(([, v]) => v)) }, modelo, modeloSeo: seoPadrao(nome), updated_at: l.updated_at };
+  return l && { status: l.status, empresaStatus: lerEmpresa(P, id)?.status, content: { ...modelo, ...salvo, textos: { ...modelo.textos, ...(salvo.textos || {}) }, secoes: { ...modelo.secoes, ...(salvo.secoes || {}) } }, seo: { ...seoPadrao(nome), ...Object.fromEntries(Object.entries(json(l.seo, {})).filter(([, v]) => v)) }, modelo, modeloSeo: seoPadrao(nome), updated_at: l.updated_at };
 }
 
 function validarConteudoLanding(c) {

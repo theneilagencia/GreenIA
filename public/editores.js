@@ -167,8 +167,12 @@ const TEXTOS_SECAO = {
 };
 const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'Nunca sai']];
 
+const STATUS_AMBIENTE = { em_implantacao: 'em implantação', suspensa: 'suspenso', cancelada: 'encerrado' };
+const comPrevia = u => { const [base, hash = ''] = u.split('#'); return `${base}${base.includes('?') ? '&' : '?'}previa=1${hash ? `#${hash}` : ''}`; };
+
 export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } = {}) {
   const c = l.content, d = pode ? '' : 'disabled', t = c.textos || {};
+  const foraDoAr = !!l.empresaStatus && l.empresaStatus !== 'ativa';
   const slots = (lista, n) => [...(lista || []), ...Array(n).fill({})].slice(0, n);
   const inp = (id, v, max, extra = '') => `<input class="entrada" id="${id}" value="${esc(v || '')}" maxlength="${max}" ${d} ${extra}>`;
   const textos = sec => `<div class="grade-2">${TEXTOS_SECAO[sec].map(([k, r]) => `<div class="campo"><label for="lt-${k}">${r}</label>${inp(`lt-${k}`, t[k], k.endsWith('_sub') || k === 'fim_texto' ? 240 : 120, `data-texto="${k}"`)}</div>`).join('')}</div>`;
@@ -182,8 +186,10 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
     <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor no título para mostrar de novo.</p>' : ''}${corpo}</div></details>`;
   return `<form id="form-landing" novalidate class="ld-editor">
     ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A landing page desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver os textos, mas não alterar.</div>` : ''}
-    <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'} ld-situacao"><span>${l.status === 'publicada' ? '<b>Publicada.</b> A página já vem pronta com um modelo completo; troque o que quiser.' : '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a landing não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar.'}</span>
-      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página</a>` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
+    <div class="faixa-aviso ${l.status === 'publicada' && !foraDoAr ? 'ok' : 'atencao'} ld-situacao"><span>${l.status !== 'publicada' ? '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a landing não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar. Use Ver prévia para conferir antes.'
+      : foraDoAr ? `<b>Publicada, mas ainda fora do ar.</b> O ambiente está ${esc(STATUS_AMBIENTE[l.empresaStatus] || l.empresaStatus)}: os visitantes veem só a versão simples até o operador da plataforma ativar a empresa. Use Ver prévia para conferir a página completa.`
+        : '<b>Publicada e no ar.</b> A página já vem pronta com um modelo completo; troque o que quiser.'}</span>
+      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener" title="Página completa com o que está salvo, mesmo antes de publicar">Ver prévia</a>${l.status === 'publicada' && !foraDoAr ? `<a class="btn-texto btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : ''}` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
     ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `
       <div class="grade-2"><div class="campo"><label for="ld-rotulo">Rótulo acima do título</label>${inp('ld-rotulo', c.rotulo, 80)}</div>
         <div class="campo"><label for="ld-titulo">Título</label>${inp('ld-titulo', c.titulo, 120)}</div></div>

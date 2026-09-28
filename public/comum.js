@@ -69,7 +69,8 @@ export const ICONE = {
 };
 
 export async function preencherMarca() {
-  const p = await fetch('/api/publico').then(r => r.json()).catch(() => ({}));
+  const previa = new URLSearchParams(location.search).has('previa');
+  const p = await fetch(`/api/publico${previa ? '?previa=1' : ''}`, { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
   document.querySelectorAll('[data-empresa]').forEach(e => { e.textContent = p.empresa || 'sua empresa'; });
   document.querySelectorAll('[data-privacidade]').forEach(e => { e.textContent = p.privacyNote || ''; });
   aplicarMarca(p);

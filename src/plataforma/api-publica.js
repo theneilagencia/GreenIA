@@ -3,7 +3,7 @@ import { erro } from '../http.js';
 import { exec, um } from '../db.js';
 import { lerConfig } from '../config.js';
 import { dominioPermitido } from '../auth.js';
-import { ehAdminPlataforma, roleDeSistema } from './rbac.js';
+import { ehAdminPlataforma, roleDeSistema, permissoesNaEmpresa } from './rbac.js';
 import * as E from './empresas.js';
 import { auditar } from './auditoria.js';
 import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf } from './sessao.js';
@@ -69,17 +69,26 @@ export function rotasAuthEmpresa(P, r) {
 
 export function rotasPublicoEmpresa(P, r) {
   // Marca, textos de login e landing page da empresa. Sem sessão; nada sensível.
-  r.get('/api/publico', ({ companyId, empresa }) => {
+  r.get('/api/publico', ({ companyId, empresa, cookies, query }) => {
     const b = E.lerMarca(P, companyId);
     const cfg = lerConfig(P.tenant(companyId).db);
     const l = E.lerLanding(P, companyId);
     const publicada = empresa.status === 'ativa' && l.status === 'publicada';
+    // Prévia (?previa=1): quem pode editar a landing, ou o admin da plataforma, vê a página completa
+    // mesmo em rascunho ou com a empresa em implantação. Os visitantes continuam vendo a versão simples.
+    const naoPublica = publicada ? null : l.status !== 'publicada' ? 'a landing está em rascunho' : `a empresa está ${(E.STATUS_EMPRESA[empresa.status] || empresa.status).toLowerCase()}`;
+    let previa = false;
+    if (query?.previa) {
+      const s = lerSessaoBruta(P, cookies, companyId), sp = lerSessaoBruta(P, cookies, null);
+      previa = !!(s && permissoesNaEmpresa(P.db, s.user_id, companyId).has('landing_page.manage')) || !!(sp && ehAdminPlataforma(P.db, sp.user_id));
+    }
     return {
       multiempresa: true, empresa: b.display_name || empresa.name, logo: b.logo, corMarca: b.primary_color, corSecundaria: b.secondary_color,
       favicon: b.favicon ? '/icone' : null, privacyNote: b.privacy_note || cfg.privacyNote, retencaoDias: cfg.retencaoDias,
       loginTitulo: b.login_title, loginTexto: b.login_text, status: empresa.status,
       aviso: { em_implantacao: 'Este ambiente está em implantação.', suspensa: 'Este ambiente está indisponível no momento.', cancelada: 'Este ambiente foi encerrado.' }[empresa.status] || null,
-      landing: publicada ? l.content : null, seo: l.seo,
+      landing: publicada || previa ? l.content : null, seo: l.seo,
+      ...(previa ? { previa: { visivelAoPublico: publicada, motivo: naoPublica } } : {}),
     };
   }, { publica: true });
 }

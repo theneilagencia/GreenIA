@@ -49,6 +49,14 @@ const tarefaHtml = x => `<a href="/entrar">${x.tipo ? `<span>${esc(x.tipo)}</spa
 desenharChamadas(PADRAO_CHAMADAS);
 for (const a of document.querySelectorAll('#ld-tarefas a')) a.insertAdjacentHTML('beforeend', '<svg class="pp-tarefa-seta" width="16" height="16" aria-hidden="true"><use href="#i-seta"/></svg>');
 
+// Prévia: quem pode editar vê a página completa, com uma faixa dizendo se os visitantes já veem esta versão.
+if (p.previa) {
+  const sair = location.pathname + location.hash;
+  document.body.insertAdjacentHTML('afterbegin', `<div class="pp-previa" role="status"><b>Prévia · só você vê</b><span>${p.previa.visivelAoPublico
+    ? 'Esta versão já está no ar para os visitantes.'
+    : `Os visitantes ainda veem só a versão simples porque ${esc(p.previa.motivo || 'a página não está publicada')}.`} A prévia mostra o que está salvo.</span><a href="${esc(sair)}">Ver como visitante</a></div>`);
+  $('ld-aviso')?.classList.add('oculto');
+}
 const l = p.landing;
 if (l) {
   if (l.rotulo) $('ld-rotulo').textContent = l.rotulo;

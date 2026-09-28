@@ -127,3 +127,18 @@ test('admin da empresa edita a landing sem plano definido; quando trava, o motiv
   await ops.put(`/api/plataforma/empresas/${e.id}/concessoes`, { grants: { branding: false, landing_page: true, url: true, domain: false, roles: true } });
   assert.match((await eva.get('/api/empresa/marca')).dados.motivo, /Permissões concedidas/);
 });
+
+test('prévia: quem edita vê a landing completa em rascunho ou em implantação; visitante nunca', async () => {
+  const f = (await ops.post('/api/plataforma/empresas', { name: 'Foxtrot', slug: 'foxtrot', admin_email: 'fe@fox.com' })).dados;
+  assert.equal(f.status, 'em_implantacao');
+  const visitante = S.navegador(); await visitante.get('/foxtrot');
+  let r = (await visitante.get('/api/publico?previa=1')).dados;
+  assert.equal(r.landing, null);
+  assert.equal(r.previa, undefined);
+  const fe = S.navegador(); await fe.get('/foxtrot'); await fe.entrarEmpresa('fe@fox.com');
+  r = (await fe.get('/api/publico?previa=1')).dados;
+  assert.ok(r.landing?.titulo);
+  assert.deepEqual([r.previa.visivelAoPublico, r.previa.motivo], [false, 'a empresa está em implantação']);
+  assert.equal((await fe.get('/api/publico')).dados.landing, null, 'sem ?previa, vê como visitante');
+  assert.equal((await fe.get('/api/empresa/landing')).dados.landing.empresaStatus, 'em_implantacao');
+});

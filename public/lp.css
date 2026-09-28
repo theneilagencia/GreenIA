@@ -625,3 +625,10 @@
   .pp-card.destaque{background:var(--paper)}
 }
 @media (prefers-reduced-motion:reduce){.pp-flutua,.pp-mini-chat .ia i{animation:none}}
+
+/* Faixa da prévia (só para quem edita a landing) */
+.pp-previa{position:sticky;top:0;z-index:40;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 20px;background:#141413;color:#E8E5DC;font:400 13.5px/1.45 var(--sans)}
+.pp-previa b{color:#fff;font-weight:600}
+.pp-previa span{flex:1 1 320px}
+.pp-previa a{color:#fff;font-weight:500;text-underline-offset:3px}
+.pp-previa~.pp-topo{top:0}

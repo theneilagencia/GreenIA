@@ -103,9 +103,10 @@ function responsaveis(app, pessoa, qw) {
 
 const RAJADA = 12;
 
-function persona(cfg, responsaveis, qw) {
+// No ambiente de uma empresa da plataforma (white label), a IA se apresenta só pela empresa.
+function persona(cfg, responsaveis, qw, marcaPropria = false) {
   const partes = [
-    `Você é a GreenIA, a assistente de IA da ${cfg.empresa}. Responda em português do Brasil, com frases curtas, linguagem simples, sem jargão e sem emoji.`,
+    `Você é ${marcaPropria ? '' : 'a GreenIA, '}a assistente de IA da ${cfg.empresa}. Responda em português do Brasil, com frases curtas, linguagem simples, sem jargão e sem emoji.`,
     'Ajude nas tarefas do dia a dia: resumir, rascunhar, conferir, organizar e responder dúvidas. Não invente regras, prazos, valores ou nomes.',
     'Quando usar trechos de documentos fornecidos, cite o título do documento. Se os documentos não trouxerem a resposta para uma regra ou procedimento interno, diga isso com clareza'
       + (responsaveis.length ? ` e indique quem procurar: ${responsaveis.join(', ')}.` : ' e sugira procurar o responsável da área.'),
@@ -279,7 +280,7 @@ export function rotasConversas(app, r) {
     let automatico = roteamentoAtivo && pedido === AUTOMATICO;
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
-    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw);
+    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant);
     const historicoChars = um(app.db, 'select coalesce(sum(length(texto)), 0) as n from mensagens where conversa_id = ?', conv.id).n
       + Math.min(app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity, um(app.db, 'select coalesce(sum(length(texto)), 0) as n from anexos where conversa_id = ?', conv.id).n);
     const temResposta = !!um(app.db, "select 1 from mensagens where conversa_id = ? and papel = 'assistant'", conv.id);

@@ -1,5 +1,5 @@
 // Vista de uma conversa (chat geral ou dentro de um quick win).
-import { api, esc, ICONE, toast } from '/comum.js';
+import { api, esc, ICONE, iconeIA, toast } from '/comum.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia, cartaoBase } from '/app.js';
 
@@ -101,7 +101,7 @@ function htmlMensagem(m) {
   C.tabelas[m.id] = tabelas;
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => `<span class="selo">${ICONE.doc} ${esc(f)}</span>`).join('')}</div>` : '';
   return `<div class="resposta${anim}" data-msg="${m.id}">
-    <span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt="" aria-hidden="true"></span>
+    <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
         <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo || m.classe || m.rota_modo ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
@@ -114,10 +114,10 @@ function desenharMensagens() {
   const boasVindas = C.qw
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p></div>`
-    : `<div class="boas-vindas"><img src="/assets/greenia-marca.svg" width="32" height="32" alt="" aria-hidden="true">
+    : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
         <h2>Como a GreenIA pode ajudar hoje</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p>${cartaoBase()}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
-  $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? '<div class="resposta"><span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt=""></span><span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span></div>' : '');
+  $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span><span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span></div>` : '');
   sugestoes();
   rolarSeNoFim();
 }

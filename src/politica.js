@@ -9,6 +9,7 @@ import { registrar } from './eventos.js';
 import { PERFIS } from './modelos.js';
 import { ROTULOS } from './filtro.js';
 import { politicaSigiloLigada } from './sigilo.js';
+import { semMarcaDaPlataforma } from '../public/marca-branca.js';
 
 export const TEXTO_PADRAO = `## Para que serve a GreenIA
 A GreenIA é a assistente de IA da empresa para tarefas do dia a dia: resumir, rascunhar, conferir, organizar e tirar dúvidas.
@@ -25,7 +26,14 @@ A GreenIA é a assistente de IA da empresa para tarefas do dia a dia: resumir, r
 Na dúvida sobre o que pode ser enviado, fale com o responsável da sua área.`;
 
 
+// Ambiente de empresa da plataforma (white label): o texto padrão e a seção automática não citam a plataforma.
+const paraAmbiente = (app, t) => (app.tenant ? semMarcaDaPlataforma(t) : t);
+const textoPadrao = app => paraAmbiente(app, TEXTO_PADRAO);
+
 export function secaoAutomatica(app) {
+  return paraAmbiente(app, montarSecao(app));
+}
+function montarSecao(app) {
   const cfg = lerConfig(app.db);
   const nomeGrupo = id => um(app.db, 'select nome from grupos where id = ?', id)?.nome;
   const nomeArea = id => um(app.db, 'select nome from areas where id = ?', id)?.nome;
@@ -73,7 +81,12 @@ export function secaoAutomatica(app) {
 export function politicaAtual(app) {
   let v = um(app.db, 'select * from politica_versoes order by versao desc limit 1');
   if (!v) {
-    exec(app.db, 'insert into politica_versoes (texto, secao, criado_em) values (?, ?, ?)', TEXTO_PADRAO, secaoAutomatica(app), app.agora().toISOString());
+    exec(app.db, 'insert into politica_versoes (texto, secao, criado_em) values (?, ?, ?)', textoPadrao(app), secaoAutomatica(app), app.agora().toISOString());
+    v = um(app.db, 'select * from politica_versoes order by versao desc limit 1');
+  } else if (app.tenant && v.texto === TEXTO_PADRAO) {
+    // Empresa que ainda usa o texto padrão antigo (com o nome da plataforma): nova versão, sem ele, registrada.
+    exec(app.db, 'insert into politica_versoes (texto, secao, criado_em) values (?, ?, ?)', textoPadrao(app), secaoAutomatica(app), app.agora().toISOString());
+    registrar(app, 'policy.updated', null, { motivo: 'marca_da_empresa' });
     v = um(app.db, 'select * from politica_versoes order by versao desc limit 1');
   }
   return v;

@@ -81,7 +81,7 @@ export function renderMarca(m, { modo = 'empresa', pode = true, motivo = '' } = 
     <span class="ajuda">${dica}${m.modelo?.[k] && pode && !desab(k, b, modo, pode) ? ` <button type="button" class="btn-texto btn-pequeno" data-exemplo="${k}" ${m[k] === m.modelo[k] ? 'hidden' : ''}>Usar o texto de exemplo</button>` : ''}</span>`);
   return `<form id="form-marca" novalidate>
     ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A identidade visual desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver, mas não alterar.</div>` : ''}
-    <div class="previa-marca" id="mk-previa" aria-label="Prévia"><img src="${esc(m.logo || '/assets/greenia-marca.svg')}" alt=""><b id="mk-previa-nome">${esc(m.display_name)}</b>
+    <div class="previa-marca" id="mk-previa" aria-label="Prévia"><img src="${esc(m.logo || '/assets/ia-neutro.svg')}" alt=""><b id="mk-previa-nome">${esc(m.display_name)}</b>
       <span class="cor" id="mk-previa-p" style="background:${esc(m.primary_color || '#1B7950')}"></span><span class="cor" id="mk-previa-s" style="background:${esc(m.secondary_color || '#F3F3F1')}"></span></div>
     <div class="grade-2">
       <div>${campo('display_name', `<input class="entrada" id="mk-display_name" value="${esc(m.display_name)}" maxlength="80" ${desab('display_name', b, modo, pode)}>`)}

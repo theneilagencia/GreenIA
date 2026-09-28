@@ -77,9 +77,23 @@ export async function preencherMarca() {
   document.querySelectorAll('[data-empresa]').forEach(e => { e.textContent = p.empresa || 'sua empresa'; });
   document.querySelectorAll('[data-privacidade]').forEach(e => { e.textContent = p.privacyNote || ''; });
   aplicarMarca(p);
-  document.querySelectorAll('.marca').forEach(m => m.insertAdjacentHTML('afterend', logoEmpresa(p)));
+  definirMarcaPropria(p);
+  // White label: a marca da empresa ocupa o lugar da marca da plataforma. Fora dele, o logo da empresa vem ao lado.
+  document.querySelectorAll('.marca').forEach(m => { if (MARCA.propria) m.innerHTML = marcaHtml(p); else m.insertAdjacentHTML('afterend', logoEmpresa(p)); m.removeAttribute('data-marca-pendente'); });
   return p;
 }
+
+// Ambiente da empresa na plataforma multiempresa = white label (marca-branca.js).
+export const MARCA = { propria: false };
+export function definirMarcaPropria(p) {
+  if (!p?.multiempresa) return;
+  MARCA.propria = true;
+  document.querySelectorAll('[data-plataforma]').forEach(e => e.remove());   // "com GreenIA" e afins
+  document.querySelectorAll('link[rel="icon"]').forEach(l => { l.href = '/icone'; });
+  import('/marca-branca.js').then(m => m.ligarMarcaBranca());
+}
+// Ícone da IA nas conversas: o da empresa no white label.
+export const iconeIA = () => (MARCA.propria ? '/icone' : '/assets/greenia-marca.svg');
 
 // Esquema de cor da empresa, a partir da cor de marca (conferida no servidor: 4,5:1
 // com os fundos claros). Tons escuros para lateral, entrada e rodapé; tom claro
@@ -107,9 +121,11 @@ fetch('/api/saude', { cache: 'no-store' }).then(r => r.json()).then(d => {
   versaoAtual = d.versao || 'local';
   document.querySelectorAll('[data-versao]').forEach(el => { el.textContent = textoVersao(); });
 }).catch(() => {});
-export const versaoHtml = () => `<span class="versao-plataforma" data-versao title="Versão publicada da GreenIA">${textoVersao()}</span>`;
+export const versaoHtml = () => `<span class="versao-plataforma" data-versao title="Versão publicada">${textoVersao()}</span>`;
 
-export const marcaHtml = () => '<img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>';
+export const marcaHtml = (p = null) => (MARCA.propria && p
+  ? (p.logo ? `<img class="logo-marca" src="${esc(p.logo)}" alt="${esc(p.empresa || 'Empresa')}">` : `<span class="nome-marca">${esc(p.empresa || 'Empresa')}</span>`)
+  : '<img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span>');
 
 // Aviso discreto no canto. Tipo: 'ok' (padrão), 'erro' ou 'info'. Erros ficam mais tempo na tela.
 export function toast(texto, ms, tipo) {

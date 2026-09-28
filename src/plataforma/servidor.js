@@ -9,6 +9,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { criarApp, VERSAO } from '../servidor.js';
 import { criarEmail, explicarFalhaEmail } from '../email.js';
 import { registrarEmailEmpresa } from '../admin.js';
+import { semMarcaDaPlataforma } from '../../public/marca-branca.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { REQUISITOS_PLATAFORMA } from '../sigilo.js';
 import { registrarFalhaEmail, registrarEnvioOk } from './email-falhas.js';
@@ -34,7 +35,7 @@ import { criarEncontrar } from './encontrar.js';
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
 const PAGINAS_EMPRESA = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html' };
-const ICONE_PADRAO = '/assets/greenia-marca.svg';
+const ICONE_PADRAO = '/assets/ia-neutro.svg';   // empresa sem ícone próprio: ícone neutro (white label)
 
 /**
  * @param {{ banco?: string, pastaEmpresas?: string, ia?: object, email?: object, agora?: () => Date, log?: Function, cookieSeguro?: boolean,
@@ -126,8 +127,10 @@ function abrirTenant(P, id) {
   let t;
   const smtpProprio = criarEmail({ lerSmtp: () => lerConfig(t.db).smtp, log: P.log });
   // Email da empresa: o próprio (se configurado) e, se ele falhar, o da plataforma. A falha fica registrada.
+  // White label: o email que sai do ambiente da empresa não traz o nome da plataforma.
   const email = {
-    async enviar(...a) {
+    async enviar(para, assunto, texto, ...resto) {
+      const a = [para, semMarcaDaPlataforma(assunto), semMarcaDaPlataforma(texto), ...resto];
       if (lerConfig(t.db).smtp.url) {
         try { const r = await smtpProprio.enviar(...a); registrarEmailEmpresa(t, true); return r; } catch (e) {
           registrarFalhaEmail(P, { escopo: `empresa ${id}`, origem: 'email próprio da empresa (tentando o da plataforma)', erro: e });

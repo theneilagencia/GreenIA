@@ -4,7 +4,7 @@
 //   #/quick-wins, #/qw/:id...        quick wins
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
-import { api, aplicarMarca, definirCsrf, definirUnidade, esc, ICONE, logoEmpresa, marcaHtml, toast, transicao, vazioHtml, versaoHtml } from '/comum.js';
+import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, toast, transicao, vazioHtml, versaoHtml } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 
@@ -138,7 +138,7 @@ export function desenharLateral() {
       <a href="${esc(adm ? inicioUso() : h || '#/nova')}" class="${adm ? '' : 'ativo'}" ${adm ? '' : 'aria-current="page"'}>Usar GreenIA</a>
       <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
   $('lateral').innerHTML = `
-    <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="GreenIA, início">${marcaHtml()}</a>${logoEmpresa(E.publico)}
+    <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
     ${alternador}
     ${adm ? `<div class="aviso-contexto">${ICONE.engrenagem || ''}<span><b>Administração da empresa</b><small>Mudanças aqui valem para todas as pessoas.</small></span></div>`
@@ -277,8 +277,9 @@ async function iniciar() {
     permissoes: eu.permissoes || null, plataforma: eu.plataforma || null, bases: eu.bases || { areas: [], paraRevisar: 0 } });
   definirUnidade(eu.unidade);
   aplicarMarca(publico);
+  definirMarcaPropria(publico);
   if (publico.favicon) document.querySelector('link[rel="icon"]').href = publico.favicon;
-  if (publico.empresa) document.title = `GreenIA · ${publico.empresa}`;
+  if (publico.empresa) document.title = MARCA.propria ? publico.empresa : `GreenIA · ${publico.empresa}`;
   document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   await recarregarLateral();
   window.addEventListener('hashchange', rota);

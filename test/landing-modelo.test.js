@@ -80,3 +80,16 @@ test('marca nasce com título e texto do login e aviso de privacidade de exemplo
   const m3 = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.marca;
   assert.deepEqual([m3.login_title, m3.login_text, m3.privacy_note], ['Bem-vindo', modelo.login_text, modelo.privacy_note]);
 });
+
+test('multiempresa: o aviso de administrar a base leva ao endereço da própria empresa', async () => {
+  await ops.post('/api/plataforma/empresas', { name: 'Delta', slug: 'delta', admin_email: 'dora@delta.com', status: 'ativa' });
+  const dora = S.navegador(); await dora.get('/delta'); await dora.entrarEmpresa('dora@delta.com');
+  const area = (await dora.post('/api/admin/areas', { nome: 'Operações' })).dados;
+  const eu = (await dora.get('/api/eu')).dados.pessoa;
+  const r = await dora.post(`/api/admin/areas/${area.id}/pessoas`, { pessoas: [eu.id], adminBase: true });
+  assert.equal(r.status, 200, JSON.stringify(r.dados));
+  const m = [...S.P.email.enviados].reverse().find(x => x.para === 'dora@delta.com' && /administra a base/.test(x.assunto));
+  assert.ok(m, 'email enviado');
+  assert.match(m.texto, /http:\/\/plataforma\.teste\/delta\/app#\/conhecimento/);
+  assert.equal((await dora.get('/api/eu')).dados.bases.areas[0].nome, 'Operações');
+});

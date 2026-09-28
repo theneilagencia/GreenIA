@@ -1,7 +1,7 @@
 // Vista de uma conversa (chat geral ou dentro de um quick win).
 import { api, esc, ICONE, toast } from '/comum.js';
 import { renderizar, baixarCsv } from '/md.js';
-import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia } from '/app.js';
+import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia, cartaoBase } from '/app.js';
 
 const $ = id => document.getElementById(id);
 const SUGESTOES_CHAT = ['Resuma um texto em poucos pontos', 'Rascunhe um email curto e cordial', 'Organize estas anotações em uma lista', 'Revise este texto e deixe mais claro'];
@@ -114,7 +114,7 @@ function desenharMensagens() {
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p></div>`
     : `<div class="boas-vindas"><img src="/assets/greenia-marca.svg" width="32" height="32" alt="" aria-hidden="true">
-        <h2>Como a GreenIA pode ajudar hoje</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p></div>`;
+        <h2>Como a GreenIA pode ajudar hoje</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p>${cartaoBase()}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? '<div class="resposta"><span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt=""></span><span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span></div>' : '');
   sugestoes();

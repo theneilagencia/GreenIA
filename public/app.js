@@ -49,13 +49,36 @@ export function ligarCabecalho() {
   $('menu').onclick = () => { const a = $('lateral').classList.toggle('aberta'); $('menu').setAttribute('aria-expanded', String(a)); };
 }
 
+// Quem administra a base de uma área vê isso no menu: quantos documentos pedem revisão, ou "Admin da base".
+const seloBase = () => {
+  const b = E.bases;
+  if (!b?.areas.length) return null;
+  const nomes = b.areas.map(a => a.nome).join(', ');
+  return b.paraRevisar ? { texto: String(b.paraRevisar), alerta: true, dica: `${b.paraRevisar} ${b.paraRevisar === 1 ? 'documento' : 'documentos'} da base de ${nomes} para revisar (nunca revisados ou há mais de ${b.diasRevisao} dias)` }
+    : { texto: 'Admin', dica: `Você administra a base de conhecimento de ${nomes}` };
+};
+
+// Cartão no início (nova conversa e lista de conversas) para quem administra a base de alguma área.
+export function cartaoBase() {
+  const b = E.bases;
+  if (!b?.areas.length) return '';
+  const lista = b.areas.map(a => a.nome), nomes = lista.length === 1 ? lista[0] : `${lista.slice(0, -1).join(', ')} e ${lista.at(-1)}`;
+  const docs = b.areas.reduce((t, a) => t + a.documentos, 0);
+  const sub = b.paraRevisar ? `${b.paraRevisar} ${b.paraRevisar === 1 ? 'documento pede' : 'documentos pedem'} revisão.`
+    : docs ? 'Tudo revisado. Adicione ou atualize os conteúdos quando algo mudar.' : 'A base ainda está vazia: adicione procedimentos, políticas e manuais da área.';
+  return `<a class="cartao-base${b.paraRevisar ? ' alerta' : ''}" href="#/conhecimento">${ICONE.livro}<span><b>Você administra a base de ${esc(nomes)}</b><small>${sub}</small></span><span class="cartao-base-ir">${b.paraRevisar ? 'Revisar' : 'Abrir'} ${ICONE.seta || '→'}</span></a>`;
+}
+export async function recarregarBases() {
+  try { E.bases = await api('/api/bases/resumo'); desenharLateral(); } catch { /* segue com o que tinha */ }
+}
+
 // Seções da navegação. Cada pessoa vê só o que pode usar.
 const SECOES = () => [
   { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
   { titulo: 'Trabalho', itens: [
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
     { id: 'quick-wins', nome: 'Quick wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
-    { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro' },
+    { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
   ] },
   { titulo: 'Gestão', itens: [
     { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: 'pessoas', ver: () => pode('user.read') },
@@ -77,7 +100,8 @@ export function desenharLateral() {
   const h = location.hash || '';
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
-    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span></a>`;
+    const selo = i.selo?.();
+    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const recentes = E.conversas.slice(0, 6).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}"><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: só modelos homologados">Sigilosa</span>' : ''}</a>`).join('');
   $('lateral').innerHTML = `
@@ -111,6 +135,7 @@ async function vistaConversas() {
   const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   $('principal').innerHTML = `${cabecalho('Conversas', `<a class="btn btn-verde btn-pequeno" href="#/nova">${ICONE.mais} Nova conversa</a>`)}
     <div class="pagina"><div class="pagina-dentro estreita">
+      ${cartaoBase()}
       <p class="lead">Suas conversas ficam salvas só para você por até ${E.retencaoDias} dias sem uso. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com uso e resultado medidos.</p>
       ${conversas.length ? `<div class="lista">${conversas.map(c => `<a class="lista-item" href="#/c/${c.id}"><span class="principal-texto"><b>${esc(c.titulo)}</b>
         <span>${dataCurta(c.atualizado_em)}${c.quick_win ? ` · ${esc(c.quick_win)}` : ' · conversa livre'}</span></span>${c.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</a>`).join('')}</div>`
@@ -204,7 +229,7 @@ async function iniciar() {
   definirCsrf(eu.csrf);
   Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar,
     plano: eu.plano, operador: eu.operador, unidade: eu.unidade, iaConfigurada: eu.iaConfigurada,
-    permissoes: eu.permissoes || null, plataforma: eu.plataforma || null });
+    permissoes: eu.permissoes || null, plataforma: eu.plataforma || null, bases: eu.bases || { areas: [], paraRevisar: 0 } });
   definirUnidade(eu.unidade);
   aplicarMarca(publico);
   if (publico.favicon) document.querySelector('link[rel="icon"]').href = publico.favicon;

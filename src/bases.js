@@ -28,6 +28,17 @@ function podeGerirDoc(pessoa, d) {
   return d.toda_empresa ? pessoa.admin : podeGerirArea(pessoa, d.area_id);
 }
 
+// Resumo para quem administra a base de alguma área (a permissão explícita, não o papel de admin):
+// quais bases, quantos documentos e quantos pedem revisão (nunca revisados ou há mais de 180 dias).
+export const DIAS_REVISAO = 180;
+export function resumoBases(db, pessoa) {
+  const ids = areasQueAdministra(pessoa);
+  const areas = ids.map(id => um(db, `select a.id, a.nome, count(d.id) as documentos,
+    coalesce(sum(case when d.id is not null and (d.revisado_em is null or d.revisado_em < datetime('now', '-${DIAS_REVISAO} days')) then 1 else 0 end), 0) as paraRevisar
+    from areas a left join documentos d on d.area_id = a.id and d.quick_win_id is null where a.id = ? group by a.id`, id)).filter(Boolean);
+  return { areas, paraRevisar: areas.reduce((t, a) => t + a.paraRevisar, 0), diasRevisao: DIAS_REVISAO };
+}
+
 // Trechos das bases para uma pergunta: texto para o modelo, fontes e se algum é sigiloso.
 export function trechosDasBases(db, consulta, ids) {
   const achados = buscar(db, consulta, ids, 5);
@@ -61,6 +72,8 @@ export function rotasBases(app, r) {
     return { documentos: docs.map(d => ({ ...d, quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.adminBase) };
   });
 
+  r.get('/api/bases/resumo', ({ pessoa }) => resumoBases(app.db, pessoa));
+
   // Áreas cuja base a pessoa administra, com quem são os membros e os administradores.
   // O administrador da base vê as pessoas da própria área, sem poder mudá-las.
   r.get('/api/bases/areas', ({ pessoa }) => {
@@ -79,8 +92,9 @@ export function rotasBases(app, r) {
     if (areaId && !um(app.db, 'select 1 from areas where id = ? and ativa = 1', areaId)) throw erro(404, 'area', 'Área não encontrada ou desativada.');
     const { nome, texto } = await extrairTexto(corpo.arquivo || {});
     const titulo = String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '');
-    const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por, pasta) values (?, ?, ?, ?, ?, ?, ?, ?)',
-      titulo.slice(0, 200), nome, areaId, Number(todaEmpresa), Number(!!corpo.sigiloso), texto, pessoa.id, pasta(corpo.pasta)).lastInsertRowid);
+    // Quem envia conferiu o conteúdo: o documento nasce revisado (o prazo de revisão conta daqui).
+    const id = Number(exec(app.db, "insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por, pasta, revisado_em, revisado_por) values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
+      titulo.slice(0, 200), nome, areaId, Number(todaEmpresa), Number(!!corpo.sigiloso), texto, pessoa.id, pasta(corpo.pasta), pessoa.id).lastInsertRowid);
     indexar(app.db, id, texto);
     registrar(app, 'knowledge.added', pessoa.id, { documento: id, area: areaId, toda_empresa: todaEmpresa, sigiloso: !!corpo.sigiloso });
     return um(app.db, `${LISTA} where d.id = ?`, id);

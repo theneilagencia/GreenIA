@@ -111,6 +111,7 @@ function aplicarAoTenant(P, id) {
   const mpm = plano?.limits?.messages_per_minute;
   t.rajada = plano ? (mpm > 0 ? mpm : Infinity) : undefined;
   t.operadores = P.adminsPlataforma();
+  t.linkApp = () => `${E.urlDaEmpresa(P, E.lerEmpresa(P, id) || c)}/app`;   // links nos emails da empresa
   const b = E.lerMarca(P, id);
   const parcial = { empresa: b?.display_name || c.name, logo: b?.logo || '', corMarca: b?.primary_color || '' };
   if (b?.privacy_note) parcial.privacyNote = b.privacy_note;

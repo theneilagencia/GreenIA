@@ -21,6 +21,31 @@ function salvarAreasDaPessoa(db, pessoaId, areas) {
   for (const a of areas || []) exec(db, 'insert into area_pessoas (area_id, pessoa_id, responsavel, admin_base) select id, ?, ?, ? from areas where id = ?', pessoaId, Number(!!a.responsavel), Number(!!(a.adminBase ?? a.responsavel)), Number(a.id));
 }
 
+// Aviso por email a quem acabou de receber a permissão de administrar a base de uma área:
+// compara quem administrava antes e depois da mudança e escreve só para os novos.
+const adminsBase = db => new Set(todos(db, 'select area_id, pessoa_id from area_pessoas where admin_base = 1').map(x => `${x.area_id}:${x.pessoa_id}`));
+function avisarNovosAdminsBase(app, req, antes) {
+  const novos = [...adminsBase(app.db)].filter(k => !antes.has(k));
+  if (!novos.length) return;
+  const proto = req?.headers['x-forwarded-proto'] === 'https' || app.cookieSeguro ? 'https' : 'http';
+  const caminho = app.linkApp?.() ?? '/app';
+  const link = `${/^https?:/.test(caminho) ? caminho : `${proto}://${req?.headers.host || 'localhost'}${caminho}`}#/conhecimento`;
+  const empresa = lerConfig(app.db).empresa || 'sua empresa';
+  const porPessoa = new Map();
+  for (const k of novos) { const [a, p] = k.split(':').map(Number); if (!porPessoa.has(p)) porPessoa.set(p, []); porPessoa.get(p).push(a); }
+  for (const [pid, areas] of porPessoa) {
+    const p = um(app.db, 'select email, nome, ativo from pessoas where id = ?', pid);
+    const nomes = areas.map(a => um(app.db, 'select nome from areas where id = ? and ativa = 1', a)?.nome).filter(Boolean);
+    if (!p?.ativo || !nomes.length) continue;
+    const lista = nomes.length === 1 ? nomes[0] : `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}`;
+    const texto = `Olá${p.nome ? `, ${p.nome.split(' ')[0]}` : ''}.\n\nVocê agora administra a base de conhecimento de ${lista}, na GreenIA da ${empresa}.\n\n`
+      + `O que você pode fazer: adicionar procedimentos, políticas, manuais e outros documentos da área, organizar em pastas, revisar, atualizar e remover conteúdos. A IA usa esses documentos nas respostas das pessoas da área, citando a fonte.\n\n`
+      + `Para começar, entre na GreenIA e abra Conhecimento, no menu Trabalho:\n${link}\n\nA permissão vale só para ${nomes.length === 1 ? 'esta área' : 'estas áreas'}.`;
+    app.email.enviar(p.email, `Você agora administra a base de ${lista}`, texto).catch(e => app.log('aviso de admin da base', e.message));
+    registrar(app, 'area.kb_admin_notified', null, { pessoa: pid, areas });
+  }
+}
+
 const nomeArea = v => { const n = String(v ?? '').trim().slice(0, 80); if (!n) throw erro(400, 'nome', 'Dê um nome à área.'); return n; };
 const descricaoArea = v => String(v ?? '').trim().slice(0, 400);
 
@@ -49,7 +74,8 @@ export function rotasPessoas(app, r) {
     return lerArea(app.db, id);
   }, { admin: true });
 
-  r.put('/api/admin/areas/:id', ({ pessoa, params, corpo }) => {
+  r.put('/api/admin/areas/:id', ({ pessoa, params, corpo, req }) => {
+    const antesBase = adminsBase(app.db);
     const id = Number(params.id);
     const antes = lerArea(app.db, id);
     if (!antes) throw erro(404, 'area', 'Área não encontrada.');
@@ -70,12 +96,14 @@ export function rotasPessoas(app, r) {
     const tipo = corpo.ativa === false && antes.ativa ? 'area.deactivated' : corpo.ativa === true && !antes.ativa ? 'area.activated' : 'area.updated';
     registrar(app, tipo, pessoa.id, { area: id, nome: corpo.nome, sigilosa: corpo.sigilosa, pessoas: corpo.pessoas?.length });
     app.aoMudarModelos?.();
+    avisarNovosAdminsBase(app, req, antesBase);
     return lerArea(app.db, id);
   }, { admin: true });
 
   // Pessoas da área, uma a uma: adicionar (várias de uma vez), mudar a permissão e remover.
   const areaOu404 = id => { if (!um(app.db, 'select 1 from areas where id = ?', id)) throw erro(404, 'area', 'Área não encontrada.'); };
-  r.post('/api/admin/areas/:id/pessoas', ({ pessoa, params, corpo }) => {
+  r.post('/api/admin/areas/:id/pessoas', ({ pessoa, params, corpo, req }) => {
+    const antesBase = adminsBase(app.db);
     const id = Number(params.id);
     areaOu404(id);
     const ids = [...new Set((Array.isArray(corpo.pessoas) ? corpo.pessoas : []).map(Number).filter(Boolean))];
@@ -87,16 +115,19 @@ export function rotasPessoas(app, r) {
     });
     registrar(app, 'area.members_added', pessoa.id, { area: id, pessoas: ids, admin_base: !!adminBase });
     app.aoMudarModelos?.();
+    avisarNovosAdminsBase(app, req, antesBase);
     return lerArea(app.db, id);
   }, { admin: true });
 
-  r.put('/api/admin/areas/:id/pessoas/:pessoa', ({ pessoa, params, corpo }) => {
+  r.put('/api/admin/areas/:id/pessoas/:pessoa', ({ pessoa, params, corpo, req }) => {
+    const antesBase = adminsBase(app.db);
     const id = Number(params.id), alvo = Number(params.pessoa);
     const m = um(app.db, 'select responsavel, admin_base from area_pessoas where area_id = ? and pessoa_id = ?', id, alvo);
     if (!m) throw erro(404, 'membro', 'Esta pessoa não faz parte da área.');
     const v = { adminBase: corpo.adminBase === undefined ? !!m.admin_base : !!corpo.adminBase, responsavel: corpo.responsavel === undefined ? !!m.responsavel : !!corpo.responsavel };
     exec(app.db, 'update area_pessoas set admin_base = ?, responsavel = ? where area_id = ? and pessoa_id = ?', Number(v.adminBase), Number(v.responsavel), id, alvo);
     registrar(app, 'area.permission_changed', pessoa.id, { area: id, pessoa: alvo, admin_base: v.adminBase, responsavel: v.responsavel });
+    avisarNovosAdminsBase(app, req, antesBase);
     return lerArea(app.db, id);
   }, { admin: true });
 
@@ -127,7 +158,8 @@ export function rotasPessoas(app, r) {
       grupos: todos(app.db, 'select grupo_id from grupo_pessoas where pessoa_id = ?', p.id).map(g => g.grupo_id) })),
   }), { admin: true });
 
-  r.post('/api/admin/pessoas', ({ pessoa, corpo }) => {
+  r.post('/api/admin/pessoas', ({ pessoa, corpo, req }) => {
+    const antesBase = adminsBase(app.db);
     // Multiempresa: usuários, convites, roles e status ficam na plataforma (Usuários, no admin da empresa).
     if (app.tenant) throw erro(409, 'use_usuarios', 'Cadastre pessoas em Usuários. Aqui ficam as áreas e os grupos.');
     const email = String(corpo.email || '').trim().toLowerCase();
@@ -141,10 +173,12 @@ export function rotasPessoas(app, r) {
       return novo;
     });
     registrar(app, 'people.created', pessoa.id, { pessoa: id, papel });
+    avisarNovosAdminsBase(app, req, antesBase);
     return { id };
   }, { admin: true });
 
-  r.put('/api/admin/pessoas/:id', ({ pessoa, params, corpo }) => {
+  r.put('/api/admin/pessoas/:id', ({ pessoa, params, corpo, req }) => {
+    const antesBase = adminsBase(app.db);
     const id = Number(params.id);
     const alvo = um(app.db, 'select id, papel, ativo from pessoas where id = ?', id);
     if (!alvo) throw erro(404, 'pessoa', 'Pessoa não encontrada.');
@@ -164,6 +198,7 @@ export function rotasPessoas(app, r) {
     });
     registrar(app, 'people.updated', pessoa.id, { pessoa: id, papel, ativo: !!ativo, areas: corpo.areas?.length, grupos: corpo.grupos?.length });
     app.aoMudarModelos?.();
+    avisarNovosAdminsBase(app, req, antesBase);
     return { ok: true };
   }, { admin: true });
 

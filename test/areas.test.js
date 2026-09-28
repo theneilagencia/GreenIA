@@ -131,3 +131,33 @@ test('grupo mostra o que libera; o editor da pessoa salva áreas e grupos juntos
   // Grupo não dá acesso a base de conhecimento: José só vê a do RH, pela área.
   assert.deepEqual((await cli.jose.get('/api/bases/areas')).dados.areas.map(a => a.nome), ['Recursos Humanos']);
 });
+
+test('quem ganha a permissão de administrar a base recebe email com o link; o resumo conta o que pede revisão', async () => {
+  const x = (await admin.post('/api/admin/areas', { nome: 'Qualidade' })).dados;
+  const antes = S.app.email.enviados.length;
+  await admin.post(`/api/admin/areas/${x.id}/pessoas`, { pessoas: [pessoas.flavia] });
+  assert.equal(S.app.email.enviados.length, antes, 'membro comum não recebe aviso');
+  await admin.put(`/api/admin/areas/${x.id}/pessoas/${pessoas.flavia}`, { adminBase: true });
+  const m = S.app.email.enviados.at(-1);
+  assert.equal(m.para, 'flavia@exemplo.com.br');
+  assert.match(m.assunto, /administra a base de Qualidade/);
+  assert.match(m.texto || m.corpo || '', /#\/conhecimento/);
+  // Mudar outra coisa não reenvia.
+  const n = S.app.email.enviados.length;
+  await admin.put(`/api/admin/areas/${x.id}/pessoas/${pessoas.flavia}`, { responsavel: true });
+  assert.equal(S.app.email.enviados.length, n);
+  // Resumo: base vazia; um documento enviado nasce revisado; um antigo sem revisão conta.
+  let r = (await cli.flavia.get('/api/bases/resumo')).dados;
+  assert.deepEqual(r.areas.map(a => [a.nome, a.documentos, a.paraRevisar]), [['Qualidade', 0, 0]]);
+  const d = (await cli.flavia.post('/api/bases/documentos', doc(x.id, 'Manual da qualidade'))).dados;
+  assert.ok(d.revisado_em);
+  const { exec } = await import('../src/db.js');
+  exec(S.app.db, "update documentos set revisado_em = datetime('now', '-200 days') where id = ?", d.id);
+  r = (await cli.flavia.get('/api/bases/resumo')).dados;
+  assert.equal(r.paraRevisar, 1);
+  assert.equal((await cli.flavia.get('/api/eu')).dados.bases.paraRevisar, 1);
+  await cli.flavia.put(`/api/bases/documentos/${d.id}`, { revisado: true });
+  assert.equal((await cli.flavia.get('/api/bases/resumo')).dados.paraRevisar, 0);
+  // Quem não administra base nenhuma não tem resumo.
+  assert.deepEqual((await cli.rui.get('/api/bases/resumo')).dados.areas, []);
+});

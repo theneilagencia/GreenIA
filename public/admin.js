@@ -2,7 +2,7 @@
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
 import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, ocupado, toast, vazioHtml } from '/comum.js';
-import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
+import { E, cabecalho, ligarCabecalho, pode, recarregarBases } from '/app.js';
 import { renderizar } from '/md.js';
 import { avisoCor } from '/cor.js';
 import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
@@ -34,13 +34,14 @@ const tabela = (cab, linhas, vazio = 'Nada por aqui ainda.') => `<div class="tab
 // ---------------------------------------------------------------- Bases de conhecimento
 // Cada área com a sua base: quem administra, os documentos por pasta, e revisão de cada um.
 // Quem administra só vê aqui as bases das áreas em que recebeu a permissão.
+const vencida = d => d.revisado_em && Date.now() - Date.parse(d.revisado_em.replace(' ', 'T') + (d.revisado_em.length === 19 ? 'Z' : '')) > (E.bases?.diasRevisao || 180) * 864e5;
 async function abaBases() {
   const [{ documentos }, { areas, todaEmpresa }] = await Promise.all([api('/api/bases/documentos'), api('/api/bases/areas')]);
   const pastas = [...new Set(documentos.map(d => d.pasta).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'pt-BR'));
   const bases = [...areas.map(a => ({ ...a, chave: String(a.id) })), ...(todaEmpresa ? [{ chave: 'toda', nome: 'Toda a empresa', descricao: 'Documentos que valem para todas as áreas. Só o admin da empresa administra.', administradores: [], membros: null }] : [])];
   const docsDe = b => documentos.filter(d => (b.chave === 'toda' ? d.toda_empresa : d.area_id === b.id));
   const linhaDoc = d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}<br><span class="dica">${esc(d.arquivo)} · ${num(d.caracteres)} caracteres</span></td>
-      <td data-r="Revisão">${d.revisado_em ? `${dataHora(d.revisado_em)}<br><span class="dica">${esc(d.revisado_por || '')}</span>` : '<span class="selo selo-ambar">nunca revisado</span>'}</td>
+      <td data-r="Revisão">${d.revisado_em ? `${dataHora(d.revisado_em)}<br><span class="dica">${esc(d.revisado_por || '')}</span>${vencida(d) ? ' <span class="selo selo-ambar">revisar</span>' : ''}` : '<span class="selo selo-ambar">nunca revisado</span>'}</td>
       <td data-r="Atualizado">${dataHora(d.atualizado_em)}</td>
       <td data-r="Ações"><div class="linha-botoes">
         <button class="btn-texto btn-pequeno" data-revisado="${d.id}" title="Confirma que o conteúdo continua certo">Marcar revisado</button>
@@ -510,6 +511,7 @@ async function abaConfig() {
 // ---------------------------------------------------------------- Conhecimento
 // Para todos: que conhecimento a IA pode usar. Para quem gere áreas: envio e organização.
 async function abaConhecimento() {
+  recarregarBases();   // o selo do menu acompanha o que foi enviado ou revisado
   const k = await api('/api/conhecimento');
   const visao = `<p class="lead">Que conhecimento a IA pode usar nas suas tarefas. Os documentos da sua área e os da empresa toda entram nas respostas do chat e dos quick wins, sempre com a fonte citada.</p>
     ${k.documentos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Área</th><th>Quick wins que usam</th><th>Atualizado</th></tr></thead><tbody>

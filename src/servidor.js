@@ -12,7 +12,7 @@ import { criarSimulada } from './ia.js';
 import { rotasModelos } from './modelos.js';
 import { rotasConversas } from './conversas.js';
 import { rotasPessoas } from './pessoas.js';
-import { criarContexto, rotasBases } from './bases.js';
+import { criarContexto, resumoBases, rotasBases } from './bases.js';
 import { permissoesQw, rotasQuickWins } from './quickwins.js';
 import { extrairTexto, LIMITES_ARQUIVO, paginasDe } from './texto.js';
 import { rotasPolitica } from './politica.js';
@@ -59,7 +59,7 @@ export function criarApp(op = {}) {
   r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false }; }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
-    unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa),
+    unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),
     ...(app.extraEu?.(sessao) ?? {}),
   }));
   app.contexto = criarContexto(app);

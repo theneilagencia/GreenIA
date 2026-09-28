@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
-import { criarApp } from '../servidor.js';
+import { criarApp, VERSAO } from '../servidor.js';
 import { criarEmail } from '../email.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { REQUISITOS_PLATAFORMA } from '../sigilo.js';
@@ -257,7 +257,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
       // Host da plataforma: console, APIs da plataforma, página inicial e caminhos /<slug>.
       if (caminho === '/plataforma' || caminho === '/plataforma/') return await servirPagina(res, 'plataforma.html');
       if (caminho.startsWith('/api/plataforma/')) return await despachar(P, rPlat, req, res, url, cookies, null);
-      if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false });
+      if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false, versao: VERSAO });
       if (caminho === '/' ) {
         if (P.paginaInicial === 'vendas') return await servirPagina(res, 'vendas.html');
         res.writeHead(302, { location: '/plataforma' }); return res.end();

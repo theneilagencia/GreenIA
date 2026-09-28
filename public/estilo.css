@@ -1061,3 +1061,105 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .or-validade-lista{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:8px 0 10px;font:400 13.5px/1.5 var(--sans)}
 .or-validade-lista dt{color:var(--muted)} .or-validade-lista dd{margin:0;min-width:0;overflow-wrap:anywhere}
 @media (max-width:560px){.or-validade-lista{grid-template-columns:1fr;gap:0}.or-validade-lista dd{margin-bottom:6px}}
+
+/* =====================================================================================
+   Camada de acabamento (auditoria de UX/UI): controles da marca no lugar dos nativos,
+   cartões de escolha, controle segmentado, linha de interruptor, avisos discretos e
+   tabelas mais leves. Vale para todas as telas; os componentes antigos continuam válidos.
+   ===================================================================================== */
+:root{ --raio-painel:12px; --foco:0 0 0 3px rgba(27,121,80,.18); --tinta-2:#3D3B36 }
+
+/* Leitura: largura e ritmo do texto de apoio; hierarquia das seções */
+.pagina .lead,.painel-dentro .lead{font:400 14.5px/1.6 var(--sans);color:var(--muted);max-width:64ch;margin:0 0 24px}
+.secao-titulo{margin:36px 0 12px}
+.secao-titulo h3{font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink)}
+
+/* Rádio e checkbox da marca: mesmo tamanho, alinhados à primeira linha do texto */
+input[type=radio],input[type=checkbox]{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin:0;flex:none;display:inline-grid;place-content:center;
+  border:1.5px solid var(--line-strong);background:var(--paper);vertical-align:-3px;cursor:pointer;transition:border-color var(--rapido),background-color var(--rapido),box-shadow var(--rapido)}
+input[type=radio]{border-radius:999px}
+input[type=checkbox]{border-radius:4px}
+input[type=radio]:hover,input[type=checkbox]:hover{border-color:var(--forest)}
+input[type=radio]:checked{border-color:var(--forest-strong);box-shadow:inset 0 0 0 3.5px var(--paper);background:var(--forest-strong)}
+input[type=checkbox]:checked{border-color:var(--forest-strong);background:var(--forest-strong) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.4l2.6 2.6L12 5.6' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat}
+input[type=radio]:focus-visible,input[type=checkbox]:focus-visible{outline:none;box-shadow:var(--foco)}
+input[type=radio]:checked:focus-visible{box-shadow:inset 0 0 0 3.5px var(--paper),var(--foco)}
+input[type=radio]:disabled,input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}
+.opcoes label,.caixas label{align-items:flex-start;gap:8px;line-height:1.45}
+.opcoes label input,.caixas label input{margin-top:1.5px}
+
+/* Select da marca: sem a seta do sistema */
+select:not([multiple]):not([size]){-webkit-appearance:none;appearance:none;padding-right:30px!important;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6.5L8 10l3.5-3.5' fill='none' stroke='%235C5A54' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;background-size:14px}
+.tabela select,.seletor select{background-color:var(--paper);border:1px solid var(--line-strong);border-radius:7px;padding:6px 10px;font:400 13.5px var(--sans);color:var(--ink);transition:border-color var(--rapido)}
+.tabela select:hover,.seletor select:hover{border-color:var(--stone)}
+.tabela select:focus,.seletor select:focus{outline:none;border-color:var(--forest);box-shadow:var(--foco)}
+
+/* Tabelas: cabeçalho em caixa normal, respiro nas linhas, destaque de linha ao passar */
+.tabela-rolagem{border-radius:var(--raio-painel);box-shadow:var(--sombra-1)}
+.tabela{font:400 14px/1.45 var(--sans)}
+.tabela th{text-transform:none;letter-spacing:0;font:500 12.5px/1.3 var(--sans);color:var(--muted);background:var(--surface);padding:10px 14px}
+.tabela td{padding:13px 14px}
+.tabela tbody tr{transition:background-color var(--rapido)}
+.tabela tbody tr:hover{background:#FBFAF7}
+.tabela td .dica{display:inline-block;margin-top:2px}
+.tabela .mono,.tabela code{font:400 12.5px var(--mono);color:var(--muted)}
+
+/* Avisos: discretos, com barra de cor e título; o texto continua na cor de leitura */
+.faixa-aviso{display:block;background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--aviso-cor,var(--stone));border-radius:10px;
+  color:var(--tinta-2);font:400 13.5px/1.55 var(--sans);padding:12px 16px;margin:0 0 18px}
+.faixa-aviso b,.faixa-aviso strong{font-weight:600;color:var(--aviso-titulo,var(--ink))}
+.faixa-aviso.ok{--aviso-cor:var(--forest);--aviso-titulo:var(--forest-text);background:#F6FAF7;border-color:#DCE9E0;border-left-color:var(--forest);color:var(--tinta-2)}
+.faixa-aviso.atencao{--aviso-cor:var(--amber);--aviso-titulo:var(--amber-text);background:#FDF9F1;border-color:#F0E3C8;border-left-color:var(--amber);color:var(--tinta-2)}
+.faixa-aviso.erro{--aviso-cor:var(--red);--aviso-titulo:var(--red-text);background:#FDF7F5;border-color:#F2D9D2;border-left-color:var(--red);color:var(--tinta-2)}
+.faixa-plano{border-left-width:0;border-radius:0}
+
+/* Cartão de configuração */
+.editor{background:var(--paper);border:1px solid var(--line);border-radius:var(--raio-painel);padding:20px 22px;margin:8px 0 16px;box-shadow:var(--sombra-1)}
+.editor>b:first-child,.editor .editor-titulo{display:block;font:600 15px/1.35 var(--sans);color:var(--ink);margin:0 0 4px}
+.editor .editor-desc{font:400 13.5px/1.55 var(--sans);color:var(--muted);margin:0 0 16px;max-width:72ch}
+
+/* Cartões de escolha: decisões de uma opção entre poucas, com título e explicação */
+.escolhas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:0 0 14px}
+.escolha{position:relative;display:block;border:1px solid var(--line-strong);border-radius:var(--raio-painel);background:var(--paper);padding:16px 18px 16px 46px;cursor:pointer;
+  transition:border-color var(--rapido),box-shadow var(--rapido),background-color var(--rapido)}
+.escolha:hover{border-color:var(--stone)}
+.escolha input{position:absolute;left:18px;top:18px}
+.escolha .escolha-titulo{display:flex;align-items:center;gap:8px;font:600 14.5px/1.35 var(--sans);color:var(--ink)}
+.escolha .escolha-desc{display:block;margin-top:4px;font:400 13.5px/1.5 var(--sans);color:var(--muted)}
+.escolha:has(input:checked){border-color:var(--forest-strong);box-shadow:inset 0 0 0 1px var(--forest-strong);background:#F7FAF8}
+.escolha:has(input:focus-visible){box-shadow:inset 0 0 0 1px var(--forest-strong),var(--foco)}
+.selo-recomendado{font:500 11.5px/1.6 var(--sans);color:var(--forest-text);background:var(--mint);border-radius:999px;padding:0 8px}
+
+/* Controle segmentado: duas ou três opções curtas, lado a lado */
+.segmento{display:inline-flex;gap:2px;padding:3px;background:var(--sand);border-radius:9px;border:1px solid var(--line)}
+.segmento label{position:relative;display:inline-flex;align-items:center;cursor:pointer}
+.segmento input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.segmento span{display:inline-block;padding:5px 12px;border-radius:7px;font:500 13px/1.4 var(--sans);color:var(--muted);white-space:nowrap;transition:background-color var(--rapido),color var(--rapido),box-shadow var(--rapido)}
+.segmento label:hover span{color:var(--ink)}
+.segmento label:has(input:checked) span{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px rgba(26,25,21,.08),0 0 0 1px var(--line)}
+.segmento label:has(input:checked.perigo) span{color:var(--red-text)}
+.segmento label:has(input:focus-visible) span{box-shadow:var(--foco)}
+
+/* Linha de interruptor: controle, título, descrição e estado alinhados */
+.linha-switch{display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:start}
+.linha-switch .switch{margin-top:1px}
+.linha-switch .ls-titulo{font:600 14.5px/1.4 var(--sans);color:var(--ink);cursor:pointer}
+.linha-switch .ls-desc{grid-column:2/4;font:400 13.5px/1.55 var(--sans);color:var(--muted);margin:0;max-width:72ch}
+.estado{display:inline-flex;align-items:center;gap:6px;font:600 11.5px/1 var(--sans);letter-spacing:.04em;padding:5px 9px;border-radius:999px;background:var(--sand);color:var(--muted)}
+.estado::before{content:'';width:6px;height:6px;border-radius:999px;background:currentColor}
+.estado.on{background:var(--mint);color:var(--forest-text)}
+.switch{width:36px;height:20px}
+.switch span{box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.switch[aria-checked="true"] span{left:19px}
+.switch:focus-visible{outline:none;box-shadow:var(--foco)}
+
+@media (max-width:720px){
+  .escolhas{grid-template-columns:1fr}
+  .linha-switch{grid-template-columns:auto 1fr}
+  .linha-switch .estado{grid-column:2;justify-self:start}
+  .linha-switch .ls-desc{grid-column:1/3}
+}
+.tabela td{vertical-align:middle}
+.pagina .lead,.painel-dentro .lead{max-width:72ch}

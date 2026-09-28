@@ -155,10 +155,16 @@ async function abaModelos() {
     <label class="opcoes"><span><input type="checkbox" id="todos-${p}" ${a.todos ? 'checked' : ''}> Todas as pessoas</span></label>
     <div class="duas-col"><div><span class="legenda">Grupos</span>${caixas(`ac-g-${p}`, grupos, a.grupos || [])}</div><div><span class="legenda">Áreas</span>${caixas(`ac-a-${p}`, areas, a.areas || [])}</div></div></div>`; };
   const recomendado = gov.modo !== 'manual';
-  const cartaoGov = `<div class="editor" id="governanca"><b>Como a empresa usa a IA</b>
-    <label class="opcoes"><span><input type="radio" name="gov" value="recomendado" ${recomendado ? 'checked' : ''}> <b>Seguir recomendações da GreenIA</b> (recomendado): a GreenIA escolhe e mantém os recursos de cada nível. Não é preciso entender de modelos.</span></label>
-    <label class="opcoes"><span><input type="radio" name="gov" value="manual" ${recomendado ? '' : 'checked'}> <b>Configurar manualmente</b>: você ajusta os modelos e o acesso logo abaixo. Qualquer ajuste abaixo passa a empresa para este modo.</span></label>
-    <p class="dica">${esc(gov.valeSempre)}</p></div>`;
+  const cartaoGov = `<div class="editor" id="governanca"><span class="editor-titulo">Como a empresa usa a IA</span>
+    <p class="editor-desc">${esc(gov.valeSempre)}</p>
+    <div class="escolhas" role="radiogroup" aria-label="Como a empresa usa a IA">
+      <label class="escolha"><input type="radio" name="gov" value="recomendado" ${recomendado ? 'checked' : ''}>
+        <span class="escolha-titulo">Seguir recomendações da GreenIA <span class="selo-recomendado">Recomendado</span></span>
+        <span class="escolha-desc">A GreenIA escolhe e mantém os recursos de cada nível. Não é preciso entender de modelos.</span></label>
+      <label class="escolha"><input type="radio" name="gov" value="manual" ${recomendado ? '' : 'checked'}>
+        <span class="escolha-titulo">Configurar manualmente</span>
+        <span class="escolha-desc">Você ajusta modelos e acesso abaixo. Qualquer ajuste abaixo passa a empresa para este modo.</span></label>
+    </div></div>`;
   $('conteudo').innerHTML = `${cartaoGov}<p class="lead">As pessoas trabalham com classes: Rápido, Equilibrado e Avançado. Aqui a empresa decide qual modelo técnico atende cada classe. Trocar o modelo de uma classe muda todos os usos de uma vez, sem mudar o trabalho de ninguém.</p>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Classe</th><th>Modelo técnico</th><th>Reserva se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {};
@@ -561,15 +567,17 @@ async function abaPoliticas() {
   const quem = p => { const a = m.config.acessoPerfis[p] || {}; return a.todos ? 'Todas as pessoas' : [nomes(a.grupos || [], grupos), nomes(a.areas || [], areas)].filter(Boolean).join(' · ') || 'Ninguém no dia a dia (só pelo quick win)'; };
   $('conteudo').innerHTML = `<p class="lead">As regras que valem para toda conversa: o que pode ser enviado, por quem e em qual contexto. O servidor aplica estas regras antes de qualquer envio, na mensagem e nos anexos.</p>
     <div class="secao-titulo"><h3>Informações sigilosas</h3></div>
-    <div class="editor" id="sigilo-politica"><label class="opcoes"><span><button type="button" class="switch" id="sigilo-ativo" role="switch" aria-checked="${sig.ativo}"><span></span></button>
-      <b>Permitir processamento de informações sigilosas com guardrails de proteção</b> <span class="selo">${sig.ativo ? 'ON' : 'OFF'}</span></span></label>
-      <p class="dica">Quando ativado, a GreenIA permite o uso de IA com informações sigilosas aplicando automaticamente os guardrails de proteção antes de cada processamento.</p>
-      <p class="dica">${sig.ativo ? 'Ligado: informações sigilosas só seguem por recursos autorizados que atendem aos guardrails; quando não há nenhum, nada é enviado e você é avisado.' : 'Desligado: informações sigilosas não são enviadas para recursos de IA.'}</p></div>
+    <div class="editor" id="sigilo-politica"><div class="linha-switch">
+      <button type="button" class="switch" id="sigilo-ativo" role="switch" aria-checked="${sig.ativo}" aria-labelledby="sigilo-titulo"><span></span></button>
+      <label class="ls-titulo" id="sigilo-titulo" for="sigilo-ativo">Permitir processamento de informações sigilosas com guardrails de proteção</label>
+      <span class="estado ${sig.ativo ? 'on' : ''}">${sig.ativo ? 'ON' : 'OFF'}</span>
+      <p class="ls-desc">Quando ativado, a GreenIA permite o uso de IA com informações sigilosas aplicando automaticamente os guardrails de proteção antes de cada processamento.
+        ${sig.ativo ? 'Sem um recurso autorizado disponível, nada é enviado e você é avisado.' : 'Desligado, informações sigilosas não são enviadas para recursos de IA.'}</p>
+    </div></div>
     <form id="form-dados"><div class="secao-titulo"><h3>Tipos de dado reconhecidos</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
       <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>
-        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><span class="opcoes" style="flex-wrap:nowrap"><label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}> Processar com proteção</label>
-          <label><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}> Não enviar</label></span></td>
-          <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Tratado como informação sigilosa: segue só com os guardrails de proteção (e só com a opção acima ligada)' : 'Política da empresa: a mensagem não sai, e a pessoa vê o motivo'}</td></tr>`).join('')}
+        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><span class="segmento" role="radiogroup" aria-label="${v}"><label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}><span>Processar com proteção</span></label><label><input type="radio" class="perigo" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}><span>Não enviar</span></label></span></td>
+          <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Vira informação sigilosa: segue só com os guardrails' : 'Não é enviado; a pessoa vê o motivo'}</td></tr>`).join('')}
         <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Nunca enviados</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Não é detectada automaticamente. A pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>

@@ -30,6 +30,8 @@ const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html
  * trocado nos testes.
  * @param {{ banco?: string, ia?: object, email?: object, agora?: () => Date, cookieSeguro?: boolean, adminEmail?: string, log?: Function }} op
  */
+export const VERSAO = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null;
+
 export function criarApp(op = {}) {
   const db = abrirBanco(op.banco ?? ':memory:');
   const app = {
@@ -56,7 +58,8 @@ export function criarApp(op = {}) {
     const c = lerConfig(db);
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
-  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false }; }, { publica: true });
+  // versao: o commit publicado (o Render informa em RENDER_GIT_COMMIT), para conferir qual versão está no ar.
+  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false, versao: VERSAO }; }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
     unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),

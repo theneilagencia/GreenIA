@@ -37,7 +37,7 @@ test('npm start: sobe, responde em /api/saude e para com SIGTERM', async () => {
 test('produção sem OPENROUTER_API_KEY: sobe com a IA desligada e avisa, sem cair na simulada', async () => {
   const r = await subirProcesso({ NODE_ENV: 'production', COOKIE_SEGURO: '0' });
   assert.ok(r.ok, r.saida);
-  assert.deepEqual(r.saude, { ok: true, ia: false });
+  assert.deepEqual(r.saude, { ok: true, ia: false, versao: null });   // versao: o commit publicado (RENDER_GIT_COMMIT), nulo fora do Render
   assert.match(r.saida, /IA está desligada/);
 });
 

@@ -26,6 +26,17 @@ export function montarCorpo(mensagens, op) {
 export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', fetch: f = globalThis.fetch, titulo = 'GreenIA' }) {
   const cab = { authorization: `Bearer ${chave}`, 'content-type': 'application/json', 'x-title': titulo };
   return {
+    // Conta no OpenRouter: dados da chave (uso, limite, uso do dia/semana/mês) e créditos comprados e gastos.
+    // Cada parte falha sozinha (a de créditos pode exigir outro tipo de chave). A chave nunca sai daqui.
+    async conta() {
+      const pegar = async caminho => {
+        try { const r = await f(`${base}${caminho}`, { headers: cab }); return r.ok ? ((await r.json()).data ?? null) : { erro: r.status }; }
+        catch { return { erro: 'rede' }; }
+      };
+      const [chave, creditos] = await Promise.all([pegar('/key'), pegar('/credits')]);
+      return { chave, creditos };
+    },
+
     async listarModelos() {
       const r = await f(`${base}/models`, { headers: cab });
       if (!r.ok) throw new ErroIA(`OpenRouter respondeu ${r.status} na lista de modelos.`);
@@ -78,6 +89,7 @@ export const MSG_SEM_CHAVE = 'A IA ainda não está configurada: falta a chave O
 export function criarIndisponivel() {
   return {
     configurada: false,
+    async conta() { return null; },
     async listarModelos() { return []; },
     async *enviar() { throw new ErroIA(MSG_SEM_CHAVE, 503); },
   };
@@ -87,6 +99,8 @@ export function criarIndisponivel() {
 // previsível ao último pedido (tabela, resumo curto ou eco organizado).
 export function criarSimulada() {
   return {
+    simulada: true,
+    async conta() { return null; },
     async listarModelos() { return []; },
     async *enviar(mensagens, op) {
       const ultima = String(mensagens.filter(m => m.role === 'user').at(-1)?.content || '');

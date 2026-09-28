@@ -1,4 +1,5 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
+import { conferirSaldo } from './plataforma/consumo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -82,6 +83,8 @@ export async function iniciarPlataforma(env = process.env) {
   // Domínios próprios ainda não confirmados: confere o DNS a cada 30 minutos.
   tarefa(async () => { for (const id of pendentes(P)) await verificarDominio(P, id); }, 1800e3);
   if (P.provedorDominios) P.log('Domínios próprios: cadastro automático no Render ligado.');
+  // Saldo de IA no OpenRouter: confere a cada hora e avisa os admins da plataforma quando fica baixo.
+  if (env.OPENROUTER_API_KEY) tarefa(() => conferirSaldo(P), 3600e3);
   if (env.OPENROUTER_API_KEY) tarefa(async () => { const [primeiro, ...resto] = [...P.tenants.values()]; if (!primeiro) return; await atualizarCatalogo(primeiro); for (const t of resto) { t.catalogo = primeiro.catalogo; await atualizarCatalogo(t).catch(() => {}); } }, 24 * 3600e3);
   // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas.
   if (/^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '')) {

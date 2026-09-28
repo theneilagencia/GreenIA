@@ -9,6 +9,7 @@ import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fech
 import { publicaEmpresa } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
+import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo } from './consumo.js';
 
 
 export function rotasPlataforma(P, r) {
@@ -196,6 +197,30 @@ export function rotasPlataforma(P, r) {
         pessoasAtivas: u.pessoasAtivas, conversas: u.conversas, custoUsd: u.custoUsd, receitaUsd: receita, margemUsd: receita !== null ? receita - custo : null };
     });
     return { mes: P.agora().toISOString().slice(0, 7), empresas: linhas };
+  });
+
+  // Consumo de IA: conta no OpenRouter, total da plataforma por dia e cada empresa.
+  r.get('/api/plataforma/consumo', async ({ sessao, query }) => {
+    precisa(sessao, 'platform.companies.manage');
+    const [conta, resumo] = [await contaOpenRouter(P, { forcar: !!query.forcar }), resumoConsumo(P)];
+    const saldo = conta.saldo ?? conta.chave?.restante ?? null;
+    return { conta, ...resumo, alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
+  });
+  r.get('/api/plataforma/empresas/:id/consumo', ({ sessao, params }) => {
+    precisa(sessao, 'platform.companies.manage');
+    const d = detalheConsumo(P, params.id);
+    if (!d) throw erro(404, 'empresa', 'Empresa não encontrada.');
+    return d;
+  });
+  r.put('/api/plataforma/consumo/alerta', async ({ sessao, corpo, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const v = Number(corpo.limiarUsd);
+    if (!Number.isFinite(v) || v < 0 || v > 100000) throw erro(400, 'limiar', 'Informe um valor em dólares entre 0 e 100.000.');
+    const antes = limiarSaldo(P);
+    salvarAjuste(P.db, 'alerta_saldo_usd', Math.round(v * 100) / 100);
+    auditar(P, { usuario: sessao.userId, acao: 'platform.balance_alert_changed', entidade: 'platform_settings', antes: { limiarUsd: antes }, depois: { limiarUsd: v }, origem });
+    await conferirSaldo(P).catch(() => null);
+    return { limiarUsd: limiarSaldo(P) };
   });
 
   r.get('/api/plataforma/auditoria', ({ sessao, query }) => {

@@ -348,16 +348,123 @@ async function vistaAmbientes() {
       <td data-r="IA">${a.ia ? 'Ligada' : 'Desligada'}</td><td data-r="Último uso">${dataHora(a.ultimoUso)}</td></tr>`), 'Nenhum ambiente.')}`);
 }
 
-async function vistaUso() {
+// ---------------------------------------------------------------- Uso e consumo de IA
+// Conta no OpenRouter (saldo, limite da chave, uso por período), consumo diário da plataforma e de
+// cada empresa, com projeção do mês e alertas. Uma cor por gráfico (série única); estados com texto.
+const usd4 = v => (v === null || v === undefined ? '–' : `US$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: v > 0 && v < 1 ? 3 : 2, maximumFractionDigits: v > 0 && v < 1 ? 3 : 2 })}`);
+const diaCurto = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+const topoBonito = m => { if (m <= 0) return 1; const e = 10 ** Math.floor(Math.log10(m)), f = m / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; };
+const ESTADO = {
+  esgotado: ['tag-vermelha', 'Créditos esgotados'], reserva: ['tag-vermelha', 'Na reserva'], critico: ['tag-ambar', 'Acima de 90%'],
+  atencao: ['tag-ambar', 'Pode estourar no mês'],
+};
+const estadoTag = e => (e.alerta ? `<span class="tag ${ESTADO[e.alerta][0]}"><i></i>${ESTADO[e.alerta][1]}</span>` : e.ilimitado ? '<span class="tag">Ilimitado</span>' : e.plano ? '<span class="tag tag-verde"><i></i>No ritmo</span>' : '<span class="tag">Sem plano</span>');
+
+// Barras diárias: marcas finas, topo arredondado, 2px entre barras, eixo recessivo, dica ao passar.
+function grafBarras(serie, rotulo) {
+  const topo = topoBonito(Math.max(...serie.map(x => x.v), 0));
+  const meio = Math.floor(serie.length / 2);
+  return `<figure class="gb" aria-label="${esc(rotulo)}">
+    <div class="gb-corpo"><div class="gb-eixo" aria-hidden="true"><span>${usd4(topo)}</span><span>${usd4(topo / 2)}</span><span>US$ 0</span></div>
+      <div class="gb-area"><div class="gb-grade" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="gb-barras">${serie.map((x, i) => `<button type="button" class="gb-col${i === serie.length - 1 ? ' hoje' : ''}" data-tip="${esc(diaCurto(x.d))}${i === serie.length - 1 ? ' (hoje)' : ''} · ${esc(usd4(x.v))}${x.extra ? ` · ${esc(x.extra)}` : ''}" aria-label="${esc(diaCurto(x.d))}: ${esc(usd4(x.v))}"><i style="height:${x.v > 0 ? Math.max(2, x.v / topo * 100) : 0}%"></i></button>`).join('')}</div></div></div>
+    <div class="gb-x" aria-hidden="true"><span>${diaCurto(serie[0].d)}</span><span>${diaCurto(serie[meio].d)}</span><span>hoje</span></div>
+    <details class="gb-tabela"><summary>Ver em tabela</summary>${tabela(['Dia', '#Custo'], serie.slice().reverse().map(x => `<tr><td data-r="Dia">${esc(diaCurto(x.d))}</td><td class="num" data-r="Custo">${usd4(x.v)}</td></tr>`), '')}</details></figure>`;
+}
+// Linha de tendência (30 dias) para a tabela: 2px, ponto no último dia.
+function sparkline(v) {
+  const w = 96, h = 26, max = Math.max(...v, 0);
+  if (!max) return '<span class="dica">sem uso</span>';
+  const pts = v.map((y, i) => `${(i / (v.length - 1) * (w - 4) + 2).toFixed(1)},${(h - 3 - y / max * (h - 6)).toFixed(1)}`);
+  const [lx, ly] = pts.at(-1).split(',');
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--forest)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lx}" cy="${ly}" r="3" fill="var(--forest)" stroke="var(--paper)" stroke-width="1.5"/></svg>`;
+}
+// Barras horizontais (por modelo, por quick win): uma cor, rótulo e valor em texto.
+const barrasH = (lista, chave) => { const max = Math.max(...lista.map(x => x.custo), 0) || 1; return lista.length ? `<div class="bh">${lista.map(x => `<div class="bh-linha"><span class="bh-nome" title="${esc(x[chave])}">${esc(chave === 'modelo' ? String(x[chave]).split('/').pop() : x[chave])}${chave === 'modelo' && String(x[chave]).includes('/') ? ` <small>${esc(String(x[chave]).split('/')[0])}</small>` : ''}</span><span class="bh-trilho"><i style="width:${Math.max(1, x.custo / max * 100)}%"></i></span><span class="bh-valor">${usd4(x.custo)}<small>${num(x.respostas)} resp.</small></span></div>`).join('')}</div>` : '<p class="dica">Sem uso no mês.</p>'; };
+const barraPlano = e => (e.ilimitado ? '<span class="dica">ilimitado</span>' : e.creditos ? `<span class="bp" title="${num(Math.round(e.usados))} de ${num(e.creditos)} créditos"><span class="bp-trilho"><i class="${e.percentual >= 90 ? 'alto' : e.percentual >= 75 ? 'medio' : ''}" style="width:${Math.min(100, e.percentual)}%"></i></span><b>${e.percentual}%</b></span>` : '<span class="dica">–</span>');
+
+function ligarDicas(raiz) {
+  let dica = document.getElementById('gb-dica');
+  if (!dica) { dica = document.createElement('div'); dica.id = 'gb-dica'; dica.className = 'gb-dica'; dica.setAttribute('role', 'status'); document.body.append(dica); }
+  const mostrar = el => { const r = el.getBoundingClientRect(); dica.textContent = el.dataset.tip; dica.style.display = 'block'; const w = dica.offsetWidth; dica.style.left = `${Math.min(innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2))}px`; dica.style.top = `${r.top + scrollY - dica.offsetHeight - 8}px`; };
+  raiz.addEventListener('mouseover', ev => { const c = ev.target.closest('.gb-col'); if (c) mostrar(c); });
+  raiz.addEventListener('focusin', ev => { const c = ev.target.closest('.gb-col'); if (c) mostrar(c); });
+  raiz.addEventListener('mouseout', ev => { if (ev.target.closest('.gb-col')) dica.style.display = 'none'; });
+  raiz.addEventListener('focusout', () => { dica.style.display = 'none'; });
+}
+
+async function vistaUso(forcar = false) {
   carregando('Uso');
-  const u = await api('/api/plataforma/uso');
-  const receita = u.empresas.reduce((t, e) => t + (e.receitaUsd || 0), 0), custo = u.empresas.reduce((t, e) => t + e.custoUsd * 1.055, 0);
-  tela('Uso', `<p class="lead">Mês ${esc(u.mes)}. Custo real de IA com a taxa do intermediário; receita pelo preço do plano.</p>
-    <div class="indicadores"><div class="indicador"><span>Empresas</span><b>${num(u.empresas.length)}</b></div><div class="indicador"><span>Receita do mês</span><b>${usd(receita)}</b></div>
-      <div class="indicador"><span>Custo de IA</span><b>${usd(custo)}</b></div><div class="indicador"><span>Margem</span><b>${usd(receita - custo)}</b></div></div>
-    ${tabela(['Empresa', 'Plano', '#Créditos usados', '#Pessoas ativas', '#Conversas', '#Custo', '#Receita', '#Margem'], u.empresas.map(e => `<tr><td data-r="Empresa"><a href="#/empresas/${e.id}">${esc(e.name)}</a></td><td data-r="Plano">${esc(e.plano || '–')}</td>
-      <td class="num" data-r="Créditos">${e.usados === null ? '–' : `${num(Math.round(e.usados))} <span class="dica">${e.percentual}%</span>`}</td><td class="num" data-r="Pessoas">${num(e.pessoasAtivas)}</td><td class="num" data-r="Conversas">${num(e.conversas)}</td>
-      <td class="num" data-r="Custo">${usd(e.custoUsd * 1.055)}</td><td class="num" data-r="Receita">${usd(e.receitaUsd)}</td><td class="num" data-r="Margem">${usd(e.margemUsd)}</td></tr>`), 'Nenhuma empresa.')}`);
+  const u = await api(`/api/plataforma/consumo${forcar ? '?forcar=1' : ''}`);
+  const c = u.conta, k = c.chave, pl = u.plataforma;
+  const saldo = c.saldo ?? k?.restante ?? null;
+  const filtro = sessionStorage.getItem('uso.filtro') || 'todas';
+  const comAlerta = u.empresas.filter(e => e.alerta).length;
+  const contaHtml = !c.disponivel ? `<div class="faixa-aviso atencao"><b>Conta do OpenRouter indisponível.</b> ${esc(c.motivo || '')}</div>` : `
+    <div class="or-grade">
+      <div class="or-card destaque${u.alerta.abaixo ? ' baixo' : ''}"><span class="or-rotulo">Saldo disponível no OpenRouter</span>
+        <b class="or-numero">${usd(saldo)}</b>
+        <span class="or-sub">${u.alerta.abaixo ? `<span class="tag tag-vermelha"><i></i>Abaixo do alerta de ${usd(u.alerta.limiarUsd)}</span>` : `<span class="tag tag-verde"><i></i>Acima do alerta de ${usd(u.alerta.limiarUsd)}</span>`}</span>
+        <span class="or-sub">${u.alerta.diasRestantes !== null ? `No ritmo dos últimos 7 dias (${usd4(u.media7)} por dia), dura cerca de <b>${num(u.alerta.diasRestantes)} ${u.alerta.diasRestantes === 1 ? 'dia' : 'dias'}</b>.` : 'Sem consumo nos últimos 7 dias para estimar a duração.'}</span>
+        ${c.saldo === null && c.creditosIndisponivel ? `<span class="or-sub dica">${esc(c.creditosIndisponivel)} ${k?.restante !== null && k?.restante !== undefined ? 'Mostrando o que resta do limite da chave.' : ''}</span>` : ''}</div>
+      <div class="or-card"><span class="or-rotulo">Créditos da conta</span>
+        <dl class="or-lista"><dt>Comprados</dt><dd>${usd(c.comprado)}</dd><dt>Gastos</dt><dd>${usd(c.gasto)}</dd></dl>
+        <a class="dica" href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener">Comprar créditos no OpenRouter ↗</a></div>
+      <div class="or-card"><span class="or-rotulo">Consumo cobrado pelo OpenRouter</span>
+        <dl class="or-lista"><dt>Hoje</dt><dd>${usd4(k?.hoje)}</dd><dt>Nesta semana</dt><dd>${usd4(k?.semana)}</dd><dt>Neste mês</dt><dd>${usd4(k?.mes)}</dd></dl>
+        <span class="dica">Dias em UTC, pela chave usada na plataforma.</span></div>
+      <div class="or-card"><span class="or-rotulo">Chave da plataforma${k?.nome ? ` · ${esc(k.nome)}` : ''}</span>
+        <dl class="or-lista"><dt>Limite</dt><dd>${k?.limite !== null && k?.limite !== undefined ? usd(k.limite) : 'sem limite'}</dd><dt>Resta do limite</dt><dd>${k?.restante !== null && k?.restante !== undefined ? usd(k.restante) : '–'}</dd><dt>Uso total</dt><dd>${usd(k?.usoTotal)}</dd></dl>
+        ${k?.gratuita ? '<span class="tag tag-ambar">Chave gratuita: limites baixos</span>' : ''}</div>
+    </div>`;
+  const conc = c.disponivel && k?.mes !== null && k?.mes !== undefined ? (() => { const dif = k.mes - pl.custoMes, rel = pl.custoMes ? Math.abs(dif) / pl.custoMes : (k.mes > 0 ? 1 : 0);
+    return `<p class="or-conc${rel > 0.1 && Math.abs(dif) > 0.5 ? ' dif' : ''}">Registrado pela GreenIA no mês: <b>${usd4(pl.custoMes)}</b> · Cobrado pelo OpenRouter no mês: <b>${usd4(k.mes)}</b>${rel > 0.1 && Math.abs(dif) > 0.5 ? ` · diferença de ${usd4(dif)}: pode haver uso da mesma chave fora da plataforma, ou respostas interrompidas antes de registrar o custo.` : ' · em linha.'}</p>`; })() : '';
+  const empresas = u.empresas.filter(e => filtro !== 'alerta' || e.alerta).sort((a, b) => b.custoMes - a.custoMes);
+  tela('Uso', `<div class="uso-topo"><p class="lead">Consumo de IA da plataforma e de cada empresa. Valores em dólar, só para a operação.</p>
+      <span class="dica">Conta atualizada ${c.atualizadoEm ? `às ${new Date(c.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '–'} <button class="btn-texto btn-pequeno" id="uso-atualizar">Atualizar agora</button></span></div>
+    ${contaHtml}${conc}
+    <form class="or-alerta" id="f-alerta"><label for="al-usd">Avisar os admins da plataforma por email quando o saldo ficar abaixo de</label>
+      <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="al-usd" type="number" min="0" step="1" value="${esc(u.alerta.limiarUsd)}"></span><button class="btn btn-linha btn-pequeno">Salvar alerta</button><span class="dica">No máximo um email por dia.</span></form>
+
+    <div class="secao-titulo"><h3>Consumo da plataforma · últimos 30 dias</h3></div>
+    <div class="indicadores"><div class="indicador"><span>Hoje</span><b>${usd4(pl.custoHoje)}</b></div><div class="indicador"><span>Últimos 7 dias</span><b>${usd4(pl.custo7)}</b></div>
+      <div class="indicador"><span>Mês até hoje</span><b>${usd4(pl.custoMes)}</b></div><div class="indicador"><span>Projeção do mês</span><b>${usd4(pl.projecaoMes)}</b></div>
+      <div class="indicador"><span>Receita do mês (planos)</span><b>${usd(pl.receitaMes)}</b></div><div class="indicador"><span>Margem estimada</span><b>${usd(pl.receitaMes - pl.custoMesComTaxa)}</b></div></div>
+    ${grafBarras(u.serie.map(x => ({ d: x.dia, v: x.custo })), 'Custo diário de IA da plataforma nos últimos 30 dias')}
+    <p class="dica">Custo real de cada resposta, registrado pela GreenIA. A margem desconta a taxa de 5,5% do OpenRouter na compra de créditos.</p>
+
+    <div class="secao-titulo"><h3>Consumo por empresa</h3>
+      <div class="pilulas" role="group" aria-label="Filtro"><button type="button" class="pilula" data-filtro="todas" aria-pressed="${filtro === 'todas'}">Todas<span>${u.empresas.length}</span></button><button type="button" class="pilula" data-filtro="alerta" aria-pressed="${filtro === 'alerta'}">Com alerta<span>${comAlerta}</span></button></div></div>
+    ${tabela(['Empresa', 'Créditos do plano', '#Hoje', '#7 dias', '#Mês', 'Tendência 30 dias', '#Projeção', 'Situação', ''], empresas.map(e => `<tr class="uso-linha" data-empresa="${e.id}">
+      <td data-r="Empresa"><a href="#/empresas/${e.id}"><b>${esc(e.name)}</b></a><br><span class="dica">${esc(e.plano || 'sem plano')} · ${num(e.pessoasAtivas)} ${e.pessoasAtivas === 1 ? 'pessoa ativa' : 'pessoas ativas'}</span></td>
+      <td data-r="Créditos">${barraPlano(e)}</td>
+      <td class="num" data-r="Hoje">${usd4(e.custoHoje)}</td><td class="num" data-r="7 dias">${usd4(e.custo7)}</td><td class="num" data-r="Mês"><b>${usd4(e.custoMes)}</b></td>
+      <td data-r="Tendência">${sparkline(e.serie)}</td>
+      <td class="num" data-r="Projeção">${e.projecao !== null ? `${num(e.projecao)}%` : '–'}</td>
+      <td data-r="Situação">${estadoTag(e)}</td>
+      <td data-r=""><button class="btn-texto btn-pequeno" data-detalhe="${e.id}" aria-expanded="false">Detalhes</button></td></tr>
+      <tr class="oculto uso-detalhe" id="det-${e.id}"><td colspan="9"><div class="editor" id="det-corpo-${e.id}">${carregandoHtml()}</div></td></tr>`), filtro === 'alerta' ? 'Nenhuma empresa com alerta.' : 'Nenhuma empresa.')}
+    <p class="dica">Projeção: quanto do plano estará usado no fim do mês, no ritmo do mês até hoje. Situação acima de 90%, na reserva ou esgotada pede atenção (a empresa também recebe os avisos do plano).</p>`);
+  ligarDicas($('principal'));
+  $('uso-atualizar').onclick = () => vistaUso(true);
+  $('f-alerta').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/consumo/alerta', { metodo: 'PUT', corpo: { limiarUsd: Number($('al-usd').value) } }); toast('Alerta salvo.'); vistaUso(); } catch (x) { falhar(x); } };
+  $('principal').onclick = async ev => {
+    const f = ev.target.closest('[data-filtro]');
+    if (f) { try { sessionStorage.setItem('uso.filtro', f.dataset.filtro); } catch { /* sem armazenamento */ } vistaUso(); return; }
+    const b = ev.target.closest('[data-detalhe]');
+    if (!b) return;
+    const id = b.dataset.detalhe, linha = $(`det-${id}`), aberto = !linha.classList.toggle('oculto');
+    b.setAttribute('aria-expanded', aberto); b.textContent = aberto ? 'Fechar' : 'Detalhes';
+    if (!aberto || linha.dataset.carregado) return;
+    try {
+      const d = await api(`/api/plataforma/empresas/${id}/consumo`);
+      $(`det-corpo-${id}`).innerHTML = `<div class="uso-det">
+        <div><span class="or-rotulo">${esc(d.empresa.name)} · custo por dia</span>${grafBarras(d.dias.map((dia, i) => ({ d: dia, v: d.empresa.serie[i] })), `Custo diário de ${d.empresa.name}`)}</div>
+        <div><span class="or-rotulo">Por modelo · ${esc(d.mes)}</span>${barrasH(d.porModelo, 'modelo')}</div>
+        <div><span class="or-rotulo">Por quick win · ${esc(d.mes)}</span>${barrasH(d.porQw, 'nome')}</div></div>`;
+      linha.dataset.carregado = '1';
+    } catch (x) { $(`det-corpo-${id}`).innerHTML = `<span class="msg-erro">${esc(x.message)}</span>`; }
+  };
 }
 
 function listaAuditoria(itens, comEmpresa = true) {

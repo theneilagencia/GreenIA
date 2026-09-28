@@ -26,7 +26,7 @@ test('login → chat → quick win', async () => {
   // Chat: Enter envia, Shift+Enter quebra linha; a resposta chega por streaming.
   await p.waitForSelector('#entrada');
   // Rodapé da barra lateral: a versão em curso (fora do Render, "local").
-  await p.waitForFunction(() => document.querySelector('.lateral [data-versao]')?.textContent === 'Versão local');
+  await p.waitForFunction(() => document.querySelector('.lateral [data-versao]')?.textContent === 'v\u2009local');
   await p.fill('#entrada', 'Primeira linha');
   await p.keyboard.press('Shift+Enter');
   await p.keyboard.type('Segunda linha');

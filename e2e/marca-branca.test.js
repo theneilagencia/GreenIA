@@ -26,9 +26,9 @@ after(async () => { await nav?.close(); await S.fechar(); });
 // Texto visível e atributos que aparecem para a pessoa, fora do conteúdo das conversas.
 const marcaVisivel = p => p.evaluate(() => {
   const fora = document.body.cloneNode(true);
-  fora.querySelectorAll('.bolha-eu, .bolha-ia:not(.aviso-bolha), script, style').forEach(e => e.remove());
+  fora.querySelectorAll('.bolha-eu, .bolha-ia:not(.aviso-bolha), script, style, .rodape-plataforma').forEach(e => e.remove());   // o rodapé "Powered by" é a exceção, conferida à parte
   const attrs = [...fora.querySelectorAll('[title],[aria-label],[alt],[placeholder]')].map(e => ['title', 'aria-label', 'alt', 'placeholder'].map(a => e.getAttribute(a) || '').join(' '));
-  const imgs = [...document.querySelectorAll('img')].map(i => i.getAttribute('src') || '').filter(s => /greenia/i.test(s));
+  const imgs = [...document.querySelectorAll('img')].filter(i => !i.closest('.rodape-plataforma')).map(i => i.getAttribute('src') || '').filter(s => /greenia/i.test(s));
   return { texto: (fora.innerText + ' ' + attrs.join(' ') + ' ' + document.title).match(/.{0,40}GreenIA.{0,40}/g) || [], imgs };
 });
 
@@ -54,6 +54,9 @@ test('ambiente da empresa: login, uso e administração sem a marca da plataform
     await ciencia.click(); await p.waitForSelector('#dar-ciencia', { state: 'detached' });
   }
   await p.waitForSelector('#entrada');
+  // O único lugar com a plataforma: o rodapé discreto "Powered by GreenIA", com a versão.
+  assert.equal(await p.locator('.lateral .rodape-plataforma .powered').innerText(), 'Powered by GreenIA');
+  assert.match(await p.locator('.lateral .rodape-plataforma [data-versao]').innerText(), /^v\u2009\S+$/);
   // A marca da empresa ocupa o topo da lateral; o título da aba é o da empresa.
   assert.equal(await p.locator('.lateral .marca .logo-marca').count(), 1);
   assert.equal(await p.title(), 'Apiário Exemplo');

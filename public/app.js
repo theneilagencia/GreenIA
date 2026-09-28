@@ -4,7 +4,7 @@
 //   #/quick-wins, #/qw/:id...        quick wins
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
-import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, toast, transicao, vazioHtml, versaoHtml } from '/comum.js';
+import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, rodapePlataformaHtml, toast, transicao, vazioHtml } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 
@@ -151,7 +151,7 @@ export function desenharLateral() {
       <button class="btn-lat" id="ver-politica">Política de uso de IA</button>
       <button class="btn-lat" id="reportar">Reportar problema</button>
       ${E.plataforma?.adminPlataforma ? '<a class="btn-lat" href="/plataforma">Console da plataforma</a>' : E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
-      ${versaoHtml()}
+      ${rodapePlataformaHtml()}
     </div>`;
   $('ver-politica').onclick = abrirPolitica;
   $('abrir-busca').onclick = () => abrirPaleta();

@@ -1,6 +1,6 @@
 // Console da plataforma (operador): empresas, usuários, planos, ambientes, uso, auditoria e configurações.
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
-import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE, versaoHtml } from '/comum.js';
+import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE, rodapePlataformaHtml } from '/comum.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
@@ -60,7 +60,7 @@ function lateral() {
     <nav class="lateral-rolagem" aria-label="Console">
       ${SECOES.map(([id, nome, ic]) => `<a class="item-lat${h.startsWith(`#/${id}`) ? ' ativo' : ''}" href="#/${id}" ${h.startsWith(`#/${id}`) ? 'aria-current="page"' : ''}>${ICONE[ic]}<span class="nome">${nome}</span></a>`).join('')}
     </nav>
-    <div class="lateral-pe"><span class="btn-lat" style="cursor:default">${esc(C.eu.usuario.email)}</span><button class="btn-lat" id="sair">Sair do console</button>${versaoHtml()}</div>`;
+    <div class="lateral-pe"><span class="btn-lat" style="cursor:default">${esc(C.eu.usuario.email)}</span><button class="btn-lat" id="sair">Sair do console</button>${rodapePlataformaHtml({ powered: false })}</div>`;
   $('abrir-busca').onclick = () => abrirPaleta();
   $('sair').onclick = async () => { await api('/api/plataforma/sair', { metodo: 'POST' }).catch(() => {}); location.reload(); };
 }

@@ -116,12 +116,16 @@ export const logoEmpresa = p => (p.logo ? `<img class="logo-empresa" src="${esc(
 
 // Versão publicada (commit), lida uma vez de /api/saude e mostrada no rodapé da barra lateral.
 let versaoAtual;
-const textoVersao = () => (versaoAtual === undefined ? '' : `Versão ${versaoAtual}`);
+const textoVersao = () => (versaoAtual === undefined ? '' : `v\u2009${versaoAtual}`);   // curta; a completa fica na dica
 fetch('/api/saude', { cache: 'no-store' }).then(r => r.json()).then(d => {
   versaoAtual = d.versao || 'local';
-  document.querySelectorAll('[data-versao]').forEach(el => { el.textContent = textoVersao(); });
+  document.querySelectorAll('[data-versao]').forEach(el => { el.textContent = textoVersao(); el.title = `Versão publicada: ${versaoAtual}`; });
 }).catch(() => {});
-export const versaoHtml = () => `<span class="versao-plataforma" data-versao title="Versão publicada">${textoVersao()}</span>`;
+export const versaoHtml = () => `<span class="versao-plataforma" data-versao title="Versão publicada${versaoAtual ? `: ${versaoAtual}` : ''}">${textoVersao()}</span>`;
+// Rodapé discreto da lateral: "Powered by GreenIA" com o símbolo e a versão publicada, numa linha só.
+// data-sem-marca: é o único lugar em que o ambiente white label mostra a plataforma, de propósito.
+export const rodapePlataformaHtml = ({ powered = true } = {}) => `<div class="rodape-plataforma"${powered ? ' data-sem-marca' : ''}>
+  ${powered ? '<span class="powered"><img src="/assets/greenia-marca.svg" width="12" height="12" alt="" aria-hidden="true"><span class="powered-texto">Powered by <b>GreenIA</b></span></span>' : ''}${versaoHtml()}</div>`;
 
 export const marcaHtml = (p = null) => (MARCA.propria && p
   ? (p.logo ? `<img class="logo-marca" src="${esc(p.logo)}" alt="${esc(p.empresa || 'Empresa')}">` : `<span class="nome-marca">${esc(p.empresa || 'Empresa')}</span>`)

@@ -7,7 +7,7 @@
   --forest-strong:#1B7950; --forest-strong-hover:#145B3B;
   --deep:#1A1915; --spark:#B9E85A; --spark-hover:#A9D84A; --leaf:#A09C92;
   --mint:#EDF3EE; --paper:#FDFCFA; --surface:#F8F6F1; --sand:#F2EFE8; --sand-hover:#EFECE5;
-  --ink:#1A1915; --muted:#5C5A54; --line:#E7E3DA; --line-strong:#D8D3C8; --stone:#BDB7AA; --sage:#5C5A54;
+  --ink:#1A1915; --muted:#5C5A54; --faint:#75726B; --line:#E7E3DA; --line-strong:#D8D3C8; --stone:#BDB7AA; --sage:#5C5A54;
   --surface-hover:#F2EFE8; --disabled:#A9C4B3;
   --clay:#C2613A; --clay-bg:#F7EDE6;
   --amber:#B7791F; --amber-text:#8C621D; --amber-bg:#FBF3E4;
@@ -143,7 +143,7 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 @supports (height:100dvh){.app{height:100dvh}}
 .lateral{width:248px;flex:none;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;overflow:hidden}
 .lateral .marca{padding:6px 8px 0;margin-bottom:6px}
-.lateral .logo-empresa{display:block;margin:10px 8px 4px}
+.lateral .logo-empresa{display:block;margin:10px 8px 4px;max-height:22px;max-width:105px}   /* 25% menor (30 × 140) */
 .lateral .nova{width:100%;justify-content:flex-start;margin:14px 0 10px}
 .lateral-rolagem{flex:1;overflow-y:auto;min-height:0;margin:0 -4px;padding:0 4px}
 .lateral h2{font:600 11px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 8px;margin:18px 0 6px}
@@ -1165,8 +1165,20 @@ select:not([multiple]):not([size]){-webkit-appearance:none;appearance:none;paddi
 .pagina .lead,.painel-dentro .lead{max-width:72ch}
 
 /* Versão publicada, no rodapé da barra lateral */
-.versao-plataforma{display:block;margin:6px 8px 2px;font:400 11.5px/1.4 var(--mono);color:var(--leaf);letter-spacing:.02em}
+/* Rodapé da lateral: uma linha, sem peso. "Powered by" e versão em tom apagado; ganham contraste só no hover. */
+.rodape-plataforma{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 0;padding:10px 8px 2px;border-top:1px solid var(--line);min-height:24px}
+.rodape-plataforma .powered{display:inline-flex;align-items:center;gap:6px;min-width:0;font:400 11.5px/1 var(--sans);color:var(--faint);white-space:nowrap;transition:color .15s ease}
+.rodape-plataforma .powered img{flex:none;filter:grayscale(1);opacity:.55;transition:filter .15s ease,opacity .15s ease}
+.rodape-plataforma .powered b{font-weight:500}
+.rodape-plataforma .powered-texto{overflow:hidden;text-overflow:ellipsis}
+.rodape-plataforma .versao-plataforma{flex:none}
+.rodape-plataforma:hover .powered{color:var(--muted)}
+.rodape-plataforma:hover .powered img{filter:none;opacity:1}
+.versao-plataforma{display:inline-block;margin-left:auto;font:400 11.5px/1 var(--mono);color:var(--faint);letter-spacing:.01em;white-space:nowrap;opacity:.85}
 .versao-plataforma:empty{display:none}
+.rodape-plataforma:hover .versao-plataforma{color:var(--muted);opacity:1}
+.lateral-plataforma .rodape-plataforma{border-top-color:rgba(255,255,255,.08)}
+.lateral-plataforma .versao-plataforma{color:#7F8C85}
 
 /* Contextos: Usar GreenIA | Administração (mesma sessão; a Administração fica sempre evidente) */
 .troca-contexto{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;margin:14px 0 4px;background:var(--sand);border:1px solid var(--line);border-radius:9px}
@@ -1186,4 +1198,4 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 [data-marca-pendente]{visibility:hidden}
 .marca .logo-marca{display:block;max-height:40px;max-width:180px;object-fit:contain}
 .marca .nome-marca{font:600 18px/1.2 var(--sans);letter-spacing:-.01em;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
-.lateral .marca .logo-marca{max-height:44px}
+.lateral .marca .logo-marca{max-height:33px;max-width:135px}   /* 25% menor que a primeira versão (44 × 180) */

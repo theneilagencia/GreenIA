@@ -36,7 +36,7 @@ export function secaoAutomatica(app) {
     const quem = [...(a.grupos || []).map(nomeGrupo), ...(a.areas || []).map(nomeArea)].filter(Boolean);
     return quem.length ? quem.join(', ') : 'ninguém';
   };
-  const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 order by nome').map(a => a.nome);
+  const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 and ativa = 1 order by nome').map(a => a.nome);
   return [
     '## Como a GreenIA trata dados sigilosos',
     'Esta seção é gerada pela plataforma a partir da configuração atual.',

@@ -30,21 +30,43 @@ const tabela = (cab, linhas, vazio = 'Nada por aqui ainda.') => `<div class="tab
 
 
 // ---------------------------------------------------------------- Áreas e pessoas
+// Empresa → Áreas → Pessoas → Permissões → Base de conhecimento. A lista mostra cada área com
+// quantas pessoas e quem administra a base; "Gerenciar" abre a área: dados, pessoas e permissões.
+const PERMISSOES_AREA = `<div class="area-legenda">
+  <div><span class="selo">Membro</span> Usa o conhecimento da área nas conversas e nos quick wins.</div>
+  <div><span class="selo selo-verde">Administrador da base</span> Também adiciona, edita, organiza em pastas, revisa e remove os documentos da base <b>desta</b> área. Não muda pessoas nem outras áreas.</div>
+  <div><span class="selo selo-ambar">Responsável pela área</span> Gere os quick wins da área e é indicado pela IA como contato para dúvidas.</div></div>`;
+let areaAberta = null;
+
 async function abaAreas() {
+  if (areaAberta) return abaArea(areaAberta);
   const [{ areas }, { pessoas }, { grupos }] = await Promise.all([api('/api/admin/areas'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
   const nomeArea = id => areas.find(a => a.id === id)?.nome || '?';
   const nomeGrupo = id => grupos.find(g => g.id === id)?.nome || '?';
-  const pessoaPorId = new Map(pessoas.map(p => [p.id, p]));
-  $('conteudo').innerHTML = `<p class="lead">Crie as áreas com o nome que a empresa usa. Cada área tem pessoas, responsáveis e uma base de conhecimento.</p>
-    <h3>Áreas</h3>
-    <form class="filtros" id="nova-area"><div class="campo"><label for="area-nome">Nova área</label><input class="entrada" id="area-nome" maxlength="80" required></div>
-      <label class="dica"><input type="checkbox" id="area-sig"> todas as conversas desta área são sigilosas</label><button class="btn btn-verde btn-pequeno">Criar área</button></form>
-    ${tabela(['Área', '#Pessoas', 'Responsáveis', 'Conversas sigilosas', 'Ações'], areas.map(a => `<tr>
-      <td><b>${esc(a.nome)}</b></td><td class="num">${a.pessoas.length}</td>
-      <td><div class="chips">${a.pessoas.filter(m => m.responsavel).map(m => `<span class="chip resp">${esc(pessoaPorId.get(m.pessoa_id)?.nome || '?')}</span>`).join('') || '<span class="dica">nenhum</span>'}</div></td>
-      <td><label><input type="checkbox" data-sigilosa="${a.id}" ${a.sigilosa ? 'checked' : ''}> todas</label></td>
-      <td><button class="btn-texto btn-pequeno" data-renomear-area="${a.id}">Renomear</button><button class="btn-texto btn-pequeno" data-excluir-area="${a.id}">Excluir</button></td></tr>`), 'Nenhuma área ainda.')}
-    <h3>Pessoas</h3>
+  const ativas = areas.filter(a => a.ativa);
+  const cartao = a => {
+    const adm = a.pessoas.filter(m => m.adminBase);
+    return `<article class="area-cartao${a.ativa ? '' : ' inativa'}">
+      <div class="area-cartao-topo"><h4>${esc(a.nome)}</h4>${a.ativa ? '' : '<span class="selo selo-cinza">Desativada</span>'}${a.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</div>
+      <p class="dica">${esc(a.descricao) || 'Sem descrição.'}</p>
+      <ul class="area-numeros">
+        <li><b>${a.pessoas.length}</b> ${a.pessoas.length === 1 ? 'pessoa' : 'pessoas'}</li>
+        <li><b>${adm.length}</b> ${adm.length === 1 ? 'administra' : 'administram'} a base</li>
+        <li><b>${a.documentos}</b> ${a.documentos === 1 ? 'documento' : 'documentos'}</li></ul>
+      <div class="chips" aria-label="Administradores da base">${adm.slice(0, 4).map(m => `<span class="chip resp">${esc(m.nome || m.email)}</span>`).join('')}${adm.length > 4 ? `<span class="chip">+${adm.length - 4}</span>` : ''}${!adm.length && a.ativa ? '<span class="selo selo-ambar">ninguém administra a base</span>' : ''}</div>
+      <button class="btn btn-linha btn-pequeno" data-abrir-area="${a.id}">Gerenciar área</button></article>`;
+  };
+  $('conteudo').innerHTML = `<p class="lead">Cada área (ou departamento) é um grupo de pessoas com a sua própria base de conhecimento. Você define quem faz parte e quem administra a base de cada área.</p>
+    <ol class="area-fluxo" aria-label="Como funciona"><li>Empresa</li><li>Áreas</li><li>Pessoas</li><li>Permissões</li><li>Base de conhecimento</li></ol>
+    <form class="grupo-form" id="nova-area"><h3>Nova área</h3>
+      <div class="filtros">
+        <div class="campo"><label for="area-nome">Nome</label><input class="entrada" id="area-nome" maxlength="80" required placeholder="Nome que a empresa usa para o departamento"></div>
+        <div class="campo" style="flex:2 1 260px"><label for="area-desc">Descrição (opcional)</label><input class="entrada" id="area-desc" maxlength="400" placeholder="O que a área faz e que tipo de conteúdo a base dela terá"></div>
+        <button class="btn btn-verde btn-pequeno">Criar área</button></div>
+      <label class="dica"><input type="checkbox" id="area-sig"> todas as conversas das pessoas desta área são sigilosas</label></form>
+    <div class="secao-titulo"><h3>Áreas</h3><span class="dica">${ativas.length} ${ativas.length === 1 ? 'ativa' : 'ativas'}${areas.length > ativas.length ? ` · ${areas.length - ativas.length} desativada(s)` : ''}</span></div>
+    ${areas.length ? `<div class="area-grade">${areas.map(cartao).join('')}</div>` : vazioHtml({ titulo: 'Nenhuma área ainda', texto: 'Crie a primeira área acima, com o nome que a empresa usa para cada departamento.' })}
+    <div class="secao-titulo"><h3>Pessoas</h3><span class="dica">Também dá para ajustar as áreas de cada pessoa por aqui</span></div>
     ${E.plataforma ? '<p class="dica">Convites, roles e status ficam em <a href="#/empresa/usuarios">Usuários</a>. Aqui você define as áreas de cada pessoa.</p>' : '<p class="dica">Quem tem email de um domínio permitido também entra sozinho, como usuário sem área.</p>'}
     <form class="filtros${E.plataforma ? ' oculto' : ''}" id="nova-pessoa">
       <div class="campo"><label for="p-email">Email</label><input class="entrada" id="p-email" type="email" required></div>
@@ -54,12 +76,13 @@ async function abaAreas() {
     <div class="filtros"><div class="campo"><label for="busca-pessoa">Buscar</label><input class="entrada" id="busca-pessoa" placeholder="nome ou email"></div></div>
     <div id="lista-pessoas"></div>`;
 
+  const chipArea = a => `<span class="chip${a.adminBase ? ' resp' : ''}">${esc(nomeArea(a.id))}${a.adminBase ? ' · administra a base' : ''}${a.responsavel ? ' · responsável' : ''}</span>`;
   const desenharPessoas = () => {
     const q = $('busca-pessoa').value.toLowerCase();
     const lista = pessoas.filter(p => !q || p.nome.toLowerCase().includes(q) || p.email.includes(q));
     $('lista-pessoas').innerHTML = tabela(['Nome', 'Email', 'Papel', 'Áreas', 'Grupos', 'Situação', ''], lista.map(p => `<tr>
       <td>${esc(p.nome)}</td><td>${esc(p.email)}</td><td>${p.papel === 'admin' ? 'Admin' : 'Usuário'}</td>
-      <td><div class="chips">${p.areas.map(a => `<span class="chip${a.responsavel ? ' resp' : ''}">${esc(nomeArea(a.id))}${a.responsavel ? ' · responsável' : ''}</span>`).join('')}</div></td>
+      <td><div class="chips">${p.areas.map(chipArea).join('') || '<span class="dica">sem área</span>'}</div></td>
       <td><div class="chips">${p.grupos.map(g => `<span class="chip">${esc(nomeGrupo(g))}</span>`).join('')}</div></td>
       <td>${p.ativo ? 'Ativa' : '<span class="dica">Desativada</span>'}</td>
       <td><button class="btn-texto btn-pequeno" data-editar-pessoa="${p.id}">Editar</button></td></tr>
@@ -67,49 +90,128 @@ async function abaAreas() {
         <div class="filtros${E.plataforma ? ' oculto' : ''}"><div class="campo"><label>Nome</label><input class="entrada" data-campo="nome" value="${esc(p.nome)}"></div>
           <div class="campo"><label>Papel</label><select class="entrada" data-campo="papel"><option value="usuario" ${p.papel !== 'admin' ? 'selected' : ''}>Usuário</option><option value="admin" ${p.papel === 'admin' ? 'selected' : ''}>Admin</option></select></div>
           <label class="dica"><input type="checkbox" data-campo="ativo" ${p.ativo ? 'checked' : ''}> ativa</label></div>
-        <span class="legenda">Áreas</span>
-        ${tabela(['Área', 'Faz parte', 'Responsável'], areas.map(a => { const m = p.areas.find(x => x.id === a.id); return `<tr><td>${esc(a.nome)}</td>
+        <span class="legenda">Áreas de ${esc(p.nome || p.email)}</span>
+        ${tabela(['Área', 'Faz parte', 'Administra a base', 'Responsável'], ativas.map(a => { const m = p.areas.find(x => x.id === a.id); return `<tr><td>${esc(a.nome)}</td>
           <td><input type="checkbox" data-membro="${a.id}" ${m ? 'checked' : ''} aria-label="${esc(p.nome)} faz parte de ${esc(a.nome)}"></td>
-          <td><input type="checkbox" data-resp="${a.id}" ${m?.responsavel ? 'checked' : ''} aria-label="${esc(p.nome)} é responsável de ${esc(a.nome)}"></td></tr>`; }), 'Crie uma área primeiro.')}
+          <td><input type="checkbox" data-adm="${a.id}" ${m?.adminBase ? 'checked' : ''} aria-label="${esc(p.nome)} administra a base de ${esc(a.nome)}"></td>
+          <td><input type="checkbox" data-resp="${a.id}" ${m?.responsavel ? 'checked' : ''} aria-label="${esc(p.nome)} é responsável por ${esc(a.nome)}"></td></tr>`; }), 'Crie uma área primeiro.')}
         <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno" data-salvar-pessoa="${p.id}">Salvar</button><button class="btn-texto btn-pequeno" data-editar-pessoa="${p.id}">Cancelar</button></div>
       </div></td></tr>`), 'Ninguém encontrado.');
   };
   desenharPessoas();
   $('busca-pessoa').oninput = desenharPessoas;
 
-  $('nova-area').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/admin/areas', { metodo: 'POST', corpo: { nome: $('area-nome').value, sigilosa: $('area-sig').checked } }); toast('Área criada.'); abaAreas(); } catch (e) { falhar(e); } };
+  $('nova-area').onsubmit = async ev => {
+    ev.preventDefault();
+    try { const a = await api('/api/admin/areas', { metodo: 'POST', corpo: { nome: $('area-nome').value, descricao: $('area-desc').value, sigilosa: $('area-sig').checked } }); toast('Área criada. Agora adicione as pessoas.'); abaArea(a.id); } catch (e) { falhar(e); }
+  };
   $('nova-pessoa').onsubmit = async ev => {
     ev.preventDefault();
     try { await api('/api/admin/pessoas', { metodo: 'POST', corpo: { email: $('p-email').value, nome: $('p-nome').value, papel: $('p-papel').value } }); toast('Pessoa adicionada. Ajuste as áreas em "Editar".'); abaAreas(); } catch (e) { falhar(e); }
+  };
+  $('conteudo').onchange = ev => {
+    // Marcar "administra a base" ou "responsável" já coloca a pessoa na área.
+    const c = ev.target.closest('[data-adm],[data-resp]');
+    if (c?.checked) c.closest('tr').querySelector('[data-membro]').checked = true;
+    const m = ev.target.closest('[data-membro]');
+    if (m && !m.checked) for (const x of m.closest('tr').querySelectorAll('[data-adm],[data-resp]')) x.checked = false;
   };
   $('conteudo').onclick = async ev => {
     const t = ev.target.closest('button');
     if (!t) return;
     try {
-      if (t.dataset.renomearArea) {
-        const a = areas.find(x => x.id === Number(t.dataset.renomearArea));
-        const nome = prompt('Novo nome da área:', a.nome);
-        if (nome) { await api(`/api/admin/areas/${a.id}`, { metodo: 'PUT', corpo: { nome } }); abaAreas(); }
-      } else if (t.dataset.excluirArea) {
-        if (!confirm('Excluir esta área? Os documentos da base dela também são apagados.')) return;
-        await api(`/api/admin/areas/${t.dataset.excluirArea}`, { metodo: 'DELETE' }); toast('Área excluída.'); abaAreas();
-      } else if (t.dataset.editarPessoa) {
-        $(`editor-${t.dataset.editarPessoa}`).classList.toggle('oculto');
-      } else if (t.dataset.salvarPessoa) {
-        const ed = $(`editor-${t.dataset.salvarPessoa}`);
+      if (t.dataset.abrirArea) abaArea(Number(t.dataset.abrirArea));
+      else if (t.dataset.editarPessoa) $(`editor-${t.dataset.editarPessoa}`).classList.toggle('oculto');
+      else if (t.dataset.salvarPessoa) {
+        const ed = $(`editor-${t.dataset.salvarPessoa}`), p = pessoas.find(x => x.id === Number(t.dataset.salvarPessoa));
         const campo = n => ed.querySelector(`[data-campo="${n}"]`);
-        const areasSel = [...ed.querySelectorAll('[data-membro]')].filter(c => c.checked || ed.querySelector(`[data-resp="${c.dataset.membro}"]`).checked)
-          .map(c => ({ id: Number(c.dataset.membro), responsavel: ed.querySelector(`[data-resp="${c.dataset.membro}"]`).checked }));
-        await api(`/api/admin/pessoas/${t.dataset.salvarPessoa}`, { metodo: 'PUT', corpo: E.plataforma ? { areas: areasSel } : { nome: campo('nome').value, papel: campo('papel').value, ativo: campo('ativo').checked, areas: areasSel } });
+        const marcado = (k, id) => ed.querySelector(`[data-${k}="${id}"]`).checked;
+        // Áreas desativadas não aparecem no editor: continuam como estavam.
+        const areasSel = [...ed.querySelectorAll('[data-membro]')].filter(c => c.checked).map(c => ({ id: Number(c.dataset.membro), adminBase: marcado('adm', c.dataset.membro), responsavel: marcado('resp', c.dataset.membro) }))
+          .concat(p.areas.filter(a => !ativas.some(x => x.id === a.id)));
+        await api(`/api/admin/pessoas/${p.id}`, { metodo: 'PUT', corpo: E.plataforma ? { areas: areasSel } : { nome: campo('nome').value, papel: campo('papel').value, ativo: campo('ativo').checked, areas: areasSel } });
         toast('Pessoa salva.'); abaAreas();
       }
     } catch (e) { falhar(e); }
   };
+}
+
+// Uma área: nome e descrição, pessoas e a permissão de cada uma, e desativar ou excluir.
+async function abaArea(id) {
+  areaAberta = id;
+  let area, pessoas;
+  try { [{ area }, { pessoas }] = await Promise.all([api(`/api/admin/areas/${id}`), api('/api/admin/pessoas')]); }
+  catch (e) { areaAberta = null; return abaAreas(); }
+  const fora = pessoas.filter(p => p.ativo && !area.pessoas.some(m => m.pessoa_id === p.id));
+  const adm = area.pessoas.filter(m => m.adminBase).length;
+  $('conteudo').innerHTML = `<button class="btn-texto btn-pequeno" id="voltar-areas">← Todas as áreas</button>
+    <div class="area-cabeca"><h3>${esc(area.nome)}</h3>${area.ativa ? '<span class="selo selo-verde">Ativa</span>' : '<span class="selo selo-cinza">Desativada</span>'}${area.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</div>
+    ${area.ativa ? '' : '<div class="faixa-aviso atencao">Esta área está desativada: ninguém a vê, e a IA não usa os documentos dela. Pessoas e documentos continuam guardados. Reative quando quiser.</div>'}
+    <ul class="area-numeros grande"><li><b>${area.pessoas.length}</b> ${area.pessoas.length === 1 ? 'pessoa' : 'pessoas'}</li><li><b>${adm}</b> ${adm === 1 ? 'administra' : 'administram'} a base</li>
+      <li><b>${area.documentos}</b> ${area.documentos === 1 ? 'documento' : 'documentos'} na base · <a href="#/conhecimento">abrir a base</a></li></ul>
+
+    <form class="grupo-form" id="dados-area"><h3>Dados da área</h3>
+      <div class="filtros">
+        <div class="campo"><label for="ar-nome">Nome</label><input class="entrada" id="ar-nome" maxlength="80" required value="${esc(area.nome)}"></div>
+        <div class="campo" style="flex:2 1 260px"><label for="ar-desc">Descrição</label><input class="entrada" id="ar-desc" maxlength="400" value="${esc(area.descricao)}" placeholder="O que a área faz e que conteúdo a base dela tem"></div></div>
+      <label class="dica"><input type="checkbox" id="ar-sig" ${area.sigilosa ? 'checked' : ''}> todas as conversas das pessoas desta área são sigilosas (só modelos homologados)</label>
+      <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar dados</button></div></form>
+
+    <div class="secao-titulo"><h3>Pessoas e permissões</h3></div>
+    ${PERMISSOES_AREA}
+    ${area.pessoas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Pessoa</th><th>Permissão nesta área</th><th>Responsável pela área</th><th></th></tr></thead><tbody>
+      ${area.pessoas.map(m => `<tr><td data-r="Pessoa"><b>${esc(m.nome || m.email)}</b><br><span class="dica">${esc(m.email)}${m.ativo ? '' : ' · desativada'}</span></td>
+        <td data-r="Permissão"><select class="entrada entrada-pequena" data-perm="${m.pessoa_id}" aria-label="Permissão de ${esc(m.nome || m.email)} nesta área">
+          <option value="membro" ${m.adminBase ? '' : 'selected'}>Membro</option><option value="admin" ${m.adminBase ? 'selected' : ''}>Administrador da base</option></select></td>
+        <td data-r="Responsável"><label class="dica"><input type="checkbox" data-responsavel="${m.pessoa_id}" ${m.responsavel ? 'checked' : ''}> responsável</label></td>
+        <td data-r=""><button class="btn-texto btn-pequeno" data-tirar="${m.pessoa_id}">Remover da área</button></td></tr>`).join('')}
+    </tbody></table></div>` : '<div class="lista"><div class="lista-item"><span class="dica">Ninguém nesta área ainda. Adicione as pessoas abaixo.</span></div></div>'}
+
+    <form class="grupo-form" id="add-pessoas"><h3>Adicionar pessoas</h3>
+      ${fora.length ? `<div class="filtros"><div class="campo"><label for="busca-fora">Buscar</label><input class="entrada" id="busca-fora" placeholder="nome ou email"></div></div>
+      <div class="caixas" id="lista-fora">${fora.map(p => `<label data-nome="${esc((p.nome + ' ' + p.email).toLowerCase())}"><input type="checkbox" name="add" value="${p.id}"> ${esc(p.nome || p.email)} <span class="dica">${esc(p.email)}</span></label>`).join('')}</div>
+      <label class="dica" style="display:block;margin:8px 0"><input type="checkbox" id="add-adm"> adicionar como administradores da base desta área</label>
+      <button class="btn btn-verde btn-pequeno">Adicionar à área</button>` : '<p class="dica">Todas as pessoas ativas já fazem parte desta área.</p>'}</form>
+
+    <div class="secao-titulo"><h3>${area.ativa ? 'Desativar' : 'Reativar ou excluir'}</h3></div>
+    <div class="editor">${area.ativa
+      ? '<p class="dica" style="margin-top:0">Desativar tira a área do uso: as pessoas deixam de ver a base dela e a IA para de usar os documentos. Nada é apagado.</p><button class="btn btn-perigo btn-pequeno" id="desativar-area">Desativar área</button>'
+      : '<div class="linha-botoes"><button class="btn btn-verde btn-pequeno" id="reativar-area">Reativar área</button><button class="btn btn-perigo btn-pequeno" id="excluir-area">Excluir de vez</button></div><p class="dica">Excluir apaga a área e os documentos da base dela. Não dá para desfazer.</p>'}</div>`;
+
+  const atualizar = async (url, corpo, msg, metodo = 'PUT') => { await api(url, { metodo, corpo }); toast(msg); abaArea(id); };
+  $('voltar-areas').onclick = () => { areaAberta = null; abaAreas(); };
+  $('dados-area').onsubmit = async ev => {
+    ev.preventDefault();
+    const sig = $('ar-sig').checked;
+    if (sig && !area.sigilosa && !confirm('Todas as conversas das pessoas desta área passam a ser sigilosas e a usar só modelos homologados. Continuar?')) return;
+    try { await atualizar(`/api/admin/areas/${id}`, { nome: $('ar-nome').value, descricao: $('ar-desc').value, sigilosa: sig }, 'Área salva.'); } catch (e) { falhar(e); }
+  };
+  $('busca-fora')?.addEventListener('input', e => { const q = e.target.value.toLowerCase(); for (const l of $('lista-fora').children) l.hidden = q && !l.dataset.nome.includes(q); });
+  $('add-pessoas').onsubmit = async ev => {
+    ev.preventDefault();
+    const ids = [...document.querySelectorAll('input[name="add"]:checked')].map(i => Number(i.value));
+    if (!ids.length) return toast('Marque as pessoas que vão entrar na área.');
+    try { await atualizar(`/api/admin/areas/${id}/pessoas`, { pessoas: ids, adminBase: $('add-adm').checked }, `${ids.length} ${ids.length === 1 ? 'pessoa adicionada' : 'pessoas adicionadas'}.`, 'POST'); } catch (e) { falhar(e); }
+  };
   $('conteudo').onchange = async ev => {
-    const c = ev.target.closest('[data-sigilosa]');
-    if (!c) return;
-    if (c.checked && !confirm('Todas as conversas das pessoas desta área passam a ser sigilosas e a usar só modelos homologados. Continuar?')) { c.checked = false; return; }
-    try { await api(`/api/admin/areas/${c.dataset.sigilosa}`, { metodo: 'PUT', corpo: { sigilosa: c.checked } }); toast('Área atualizada. A política ganhou nova versão.'); } catch (e) { falhar(e); c.checked = !c.checked; }
+    const s = ev.target.closest('[data-perm]'), r = ev.target.closest('[data-responsavel]');
+    try {
+      if (s) await atualizar(`/api/admin/areas/${id}/pessoas/${s.dataset.perm}`, { adminBase: s.value === 'admin' }, s.value === 'admin' ? 'Agora administra a base desta área.' : 'Agora é só membro desta área.');
+      if (r) await atualizar(`/api/admin/areas/${id}/pessoas/${r.dataset.responsavel}`, { responsavel: r.checked }, 'Permissão atualizada.');
+    } catch (e) { falhar(e); abaArea(id); }
+  };
+  $('conteudo').onclick = async ev => {
+    const t = ev.target.closest('button');
+    if (!t) return;
+    try {
+      if (t.dataset.tirar) { if (confirm('Remover esta pessoa da área? Ela deixa de ver a base desta área.')) await atualizar(`/api/admin/areas/${id}/pessoas/${t.dataset.tirar}`, undefined, 'Pessoa removida da área.', 'DELETE'); }
+      else if (t.id === 'desativar-area') { if (confirm(`Desativar ${area.nome}? As pessoas deixam de ver a base e a IA para de usar os documentos dela. Nada é apagado.`)) await atualizar(`/api/admin/areas/${id}`, { ativa: false }, 'Área desativada.'); }
+      else if (t.id === 'reativar-area') await atualizar(`/api/admin/areas/${id}`, { ativa: true }, 'Área reativada.');
+      else if (t.id === 'excluir-area') {
+        if (prompt(`Excluir de vez apaga a área e ${area.documentos} documento(s) da base. Para confirmar, digite o nome da área:`) !== area.nome) return toast('Exclusão cancelada.');
+        await api(`/api/admin/areas/${id}`, { metodo: 'DELETE' }); toast('Área excluída.'); areaAberta = null; abaAreas();
+      }
+    } catch (e) { falhar(e); }
   };
 }
 
@@ -137,26 +239,53 @@ async function abaGrupos() {
 }
 
 // ---------------------------------------------------------------- Bases de conhecimento
+// Cada área com a sua base: quem administra, os documentos por pasta, e revisão de cada um.
+// Quem administra só vê aqui as bases das áreas em que recebeu a permissão.
 async function abaBases() {
-  const { documentos } = await api('/api/bases/documentos');
-  const areas = S.eu.admin ? (await api('/api/admin/areas')).areas : S.eu.areas.filter(a => a.responsavel);
-  $('conteudo').innerHTML = `<p class="lead">Documentos que a IA consulta no chat e nos quick wins, citando a fonte. Cada documento é de uma área ou da empresa toda.</p>
-    <form class="grupo-form" id="enviar-doc"><h3>Enviar documento</h3>
+  const [{ documentos }, { areas, todaEmpresa }] = await Promise.all([api('/api/bases/documentos'), api('/api/bases/areas')]);
+  const pastas = [...new Set(documentos.map(d => d.pasta).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'pt-BR'));
+  const bases = [...areas.map(a => ({ ...a, chave: String(a.id) })), ...(todaEmpresa ? [{ chave: 'toda', nome: 'Toda a empresa', descricao: 'Documentos que valem para todas as áreas. Só o admin da empresa administra.', administradores: [], membros: null }] : [])];
+  const docsDe = b => documentos.filter(d => (b.chave === 'toda' ? d.toda_empresa : d.area_id === b.id));
+  const linhaDoc = d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}<br><span class="dica">${esc(d.arquivo)} · ${num(d.caracteres)} caracteres</span></td>
+      <td data-r="Revisão">${d.revisado_em ? `${dataHora(d.revisado_em)}<br><span class="dica">${esc(d.revisado_por || '')}</span>` : '<span class="selo selo-ambar">nunca revisado</span>'}</td>
+      <td data-r="Atualizado">${dataHora(d.atualizado_em)}</td>
+      <td data-r="Ações"><div class="linha-botoes">
+        <button class="btn-texto btn-pequeno" data-revisado="${d.id}" title="Confirma que o conteúdo continua certo">Marcar revisado</button>
+        <button class="btn-texto btn-pequeno" data-editar-doc="${d.id}">Editar</button>
+        <label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir arquivo<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.txt,.md,.csv,.xlsx"></label>
+        <button class="btn-texto btn-pequeno" data-remover="${d.id}">Remover</button></div></td></tr>
+    <tr class="oculto" id="doc-ed-${d.id}"><td colspan="4"><div class="editor"><div class="filtros">
+      <div class="campo"><label>Título</label><input class="entrada" data-titulo="${d.id}" value="${esc(d.titulo)}" maxlength="200"></div>
+      <div class="campo"><label>Pasta</label><input class="entrada" data-pasta="${d.id}" value="${esc(d.pasta)}" maxlength="80" list="pastas" placeholder="sem pasta"></div>
+      <label class="dica"><input type="checkbox" data-sigiloso="${d.id}" ${d.sigiloso ? 'checked' : ''}> sigiloso (a conversa que usar vira sigilosa)</label>
+      <button class="btn btn-verde btn-pequeno" data-salvar-doc="${d.id}">Salvar</button></div></div></td></tr>`;
+  const porPasta = lista => {
+    const grupos = new Map();
+    for (const d of lista) { const k = d.pasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(d); }
+    return [...grupos.entries()].sort(([x], [y]) => (!x) - (!y) || x.localeCompare(y, 'pt-BR')).map(([k, ds]) => `
+      ${grupos.size > 1 || k ? `<div class="pasta-titulo">Pasta: ${esc(k || 'sem pasta')} <span class="dica">· ${ds.length}</span></div>` : ''}
+      <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Revisado</th><th>Atualizado</th><th>Ações</th></tr></thead><tbody>${ds.map(linhaDoc).join('')}</tbody></table></div>`).join('');
+  };
+  $('conteudo').innerHTML = `<datalist id="pastas">${pastas.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
+    ${bases.length ? '' : '<div class="faixa-aviso atencao">Você não administra a base de nenhuma área ativa.</div>'}
+    <form class="grupo-form" id="enviar-doc"><h3>Adicionar conteúdo</h3>
       <div class="filtros">
+        <div class="campo"><label for="doc-destino">Base</label><select class="entrada" id="doc-destino">${bases.map(b => `<option value="${b.chave}">${esc(b.nome)}</option>`).join('')}</select></div>
         <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.txt,.md,.csv,.xlsx" required></div>
         <div class="campo"><label for="doc-titulo">Título (opcional)</label><input class="entrada" id="doc-titulo" maxlength="200"></div>
-        <div class="campo"><label for="doc-destino">Para</label><select class="entrada" id="doc-destino">${areas.map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('')}${S.eu.admin ? '<option value="toda">Toda a empresa</option>' : ''}</select></div>
-        <label class="dica"><input type="checkbox" id="doc-sigiloso"> documento sigiloso (a conversa que usar vira sigilosa)</label>
-        <button class="btn btn-verde btn-pequeno" id="btn-doc">Enviar</button>
+        <div class="campo"><label for="doc-pasta">Pasta (opcional)</label><input class="entrada" id="doc-pasta" maxlength="80" list="pastas" placeholder="Ex.: Políticas, Manuais"></div>
       </div>
+      <label class="dica"><input type="checkbox" id="doc-sigiloso"> documento sigiloso (a conversa que usar vira sigilosa)</label>
+      <div class="linha-botoes" style="margin-top:8px"><button class="btn btn-verde btn-pequeno" id="btn-doc" ${bases.length ? '' : 'disabled'}>Enviar</button></div>
       <p class="dica">PDF com texto, DOCX, TXT, MD, CSV ou XLSX, até 25 MB (cerca de 800 páginas). PDF escaneado e imagem não são aceitos.</p>
     </form>
-    ${tabela(['Documento', 'Onde', 'Sigiloso', '#Caracteres', 'Atualizado', 'Ações'], documentos.map(d => `<tr>
-      <td><b>${esc(d.titulo)}</b><br><span class="dica">${esc(d.arquivo)}</span></td><td>${d.toda_empresa ? 'Toda a empresa' : esc(d.area || '')}</td>
-      <td><input type="checkbox" data-sigiloso="${d.id}" ${d.sigiloso ? 'checked' : ''} aria-label="${esc(d.titulo)} é sigiloso"></td>
-      <td class="num">${num(d.caracteres)}</td><td>${dataHora(d.atualizado_em)}</td>
-      <td><label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.txt,.md,.csv,.xlsx"></label>
-        <button class="btn-texto btn-pequeno" data-remover="${d.id}">Remover</button></td></tr>`), 'Nenhum documento ainda.')}`;
+    ${bases.map(b => { const ds = docsDe(b); return `<section class="base-area">
+      <div class="secao-titulo"><h3>Base: ${esc(b.nome)}</h3><span class="dica">${ds.length} ${ds.length === 1 ? 'documento' : 'documentos'}</span></div>
+      ${b.descricao ? `<p class="dica" style="margin-top:-4px">${esc(b.descricao)}</p>` : ''}
+      ${b.membros !== null ? `<details class="base-pessoas"><summary>${b.membros} ${b.membros === 1 ? 'pessoa usa' : 'pessoas usam'} esta base · administram: ${b.administradores.map(x => esc(x.nome || x.email)).join(', ') || 'só o admin da empresa'}</summary>
+        <div class="chips" style="margin-top:8px">${b.pessoas.map(x => `<span class="chip${x.adminBase ? ' resp' : ''}">${esc(x.nome || x.email)}${x.adminBase ? ' · administra' : ''}</span>`).join('')}</div>
+        <p class="dica">${S.eu.admin ? 'Pessoas e permissões são definidas em <a href="#/pessoas">Pessoas e áreas</a>.' : 'Quem faz parte da área e quem administra a base é definido pelo admin da empresa.'}</p></details>` : ''}
+      ${ds.length ? porPasta(ds) : '<div class="lista"><div class="lista-item"><span class="dica">Nenhum documento nesta base ainda.</span></div></div>'}</section>`; }).join('')}`;
   $('enviar-doc').onsubmit = async ev => {
     ev.preventDefault();
     const f = $('doc-arquivo').files[0];
@@ -164,22 +293,30 @@ async function abaBases() {
     $('btn-doc').disabled = true;
     const destino = $('doc-destino').value;
     try {
-      await api('/api/bases/documentos', { metodo: 'POST', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) }, titulo: $('doc-titulo').value, sigiloso: $('doc-sigiloso').checked,
+      await api('/api/bases/documentos', { metodo: 'POST', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) }, titulo: $('doc-titulo').value, pasta: $('doc-pasta').value, sigiloso: $('doc-sigiloso').checked,
         ...(destino === 'toda' ? { toda_empresa: true } : { area_id: Number(destino) }) } });
       toast('Documento enviado e indexado.'); abaConhecimento();
     } catch (e) { falhar(e); $('btn-doc').disabled = false; }
   };
   $('conteudo').onchange = async ev => {
     try {
-      const s = ev.target.closest('[data-sigiloso]');
-      if (s) { await api(`/api/bases/documentos/${s.dataset.sigiloso}`, { metodo: 'PUT', corpo: { sigiloso: s.checked } }); toast('Documento atualizado.'); }
       const sub = ev.target.closest('[data-substituir]');
       if (sub?.files[0]) { const f = sub.files[0]; await api(`/api/bases/documentos/${sub.dataset.substituir}`, { metodo: 'PUT', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) } } }); toast('Documento substituído.'); abaConhecimento(); }
     } catch (e) { falhar(e); }
   };
   $('conteudo').onclick = async ev => {
-    const r = ev.target.closest('[data-remover]');
-    if (r && confirm('Remover este documento da base?')) { try { await api(`/api/bases/documentos/${r.dataset.remover}`, { metodo: 'DELETE' }); abaConhecimento(); } catch (e) { falhar(e); } }
+    const t = ev.target.closest('button');
+    if (!t) return;
+    const d = x => document.querySelector(x);
+    try {
+      if (t.dataset.editarDoc) $(`doc-ed-${t.dataset.editarDoc}`).classList.toggle('oculto');
+      else if (t.dataset.salvarDoc) {
+        const id = t.dataset.salvarDoc;
+        await api(`/api/bases/documentos/${id}`, { metodo: 'PUT', corpo: { titulo: d(`[data-titulo="${id}"]`).value, pasta: d(`[data-pasta="${id}"]`).value, sigiloso: d(`[data-sigiloso="${id}"]`).checked } });
+        toast('Documento atualizado.'); abaConhecimento();
+      } else if (t.dataset.revisado) { await api(`/api/bases/documentos/${t.dataset.revisado}`, { metodo: 'PUT', corpo: { revisado: true } }); toast('Marcado como revisado.'); abaConhecimento(); }
+      else if (t.dataset.remover && confirm('Remover este documento da base? A IA deixa de usá-lo.')) { await api(`/api/bases/documentos/${t.dataset.remover}`, { metodo: 'DELETE' }); toast('Documento removido.'); abaConhecimento(); }
+    } catch (e) { falhar(e); }
   };
 }
 
@@ -583,12 +720,14 @@ async function abaConhecimento() {
   const k = await api('/api/conhecimento');
   const visao = `<p class="lead">Que conhecimento a IA pode usar nas suas tarefas. Os documentos da sua área e os da empresa toda entram nas respostas do chat e dos quick wins, sempre com a fonte citada.</p>
     ${k.documentos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Área</th><th>Quick wins que usam</th><th>Atualizado</th></tr></thead><tbody>
-      ${k.documentos.map(d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</td><td data-r="Área">${d.toda_empresa ? 'Empresa toda' : esc(d.area || '')}</td>
+      ${k.documentos.map(d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</td><td data-r="Área">${d.toda_empresa ? 'Empresa toda' : esc(d.area || '')}${d.pasta ? `<br><span class="dica">${esc(d.pasta)}</span>` : ''}</td>
         <td data-r="Quick wins">${d.quickWins.map(q => `<a href="#/qw/${q.id}">${esc(q.nome)}</a>`).join(', ') || '<span class="dica">só no chat</span>'}</td><td data-r="Atualizado">${dataHora(d.atualizado_em)}</td></tr>`).join('')}
     </tbody></table></div>` : '<div class="lista"><div class="lista-item"><span class="dica">Ainda não há documentos disponíveis para você.</span></div></div>'}`;
   if (!k.podeGerir) { $('conteudo').innerHTML = visao; return; }
   await abaBases();
-  $('conteudo').insertAdjacentHTML('afterbegin', `${visao}<div class="secao-titulo"><h3>Gerir documentos</h3></div>`);
+  $('conteudo').insertAdjacentHTML('afterbegin', `<p class="lead">${S.eu.admin ? 'Como admin da empresa, você administra a base de todas as áreas e a da empresa toda.' : 'Você administra a base de conhecimento destas áreas: adiciona, edita, organiza em pastas, revisa e remove conteúdos. As bases de outras áreas só podem ser mudadas por quem recebeu a permissão nelas.'} O que entra aqui a IA usa nas respostas das pessoas da área, citando a fonte.</p>
+    <div class="secao-titulo"><h3>Bases que você administra</h3></div>`);
+  $('conteudo').insertAdjacentHTML('beforeend', `<details class="base-visao"><summary>Tudo o que a IA pode usar para você (${k.documentos.length})</summary>${visao}</details>`);
 }
 
 // ---------------------------------------------------------------- Políticas de IA
@@ -675,5 +814,6 @@ export async function rotaGestao(id, sub = '') {
     <div id="conteudo">${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
   $('conteudo').onclick = null; $('conteudo').onchange = null;
+  areaAberta = null;   // o menu sempre abre a lista de áreas
   try { await (atual ? atual[2] : t.fn)(); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
 }

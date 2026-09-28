@@ -79,7 +79,7 @@ export function visaoGeral(app) {
   const implantacao = [
     { id: 'organizacao', nome: 'Organização', texto: 'Nome da empresa e domínios de email', feito: cfg.empresa !== 'Sua empresa' && cfg.dominios.length > 0, link: '#/configuracoes' },
     { id: 'marca', nome: 'Marca', texto: 'Logo e cor da empresa', feito: !!(cfg.logo || cfg.corMarca), link: '#/configuracoes' },
-    { id: 'areas', nome: 'Áreas', texto: 'Estrutura de áreas com responsáveis', feito: um(db, 'select count(*) as n from area_pessoas where responsavel = 1').n > 0, link: '#/pessoas' },
+    { id: 'areas', nome: 'Áreas', texto: 'Áreas com pessoas e quem administra a base de cada uma', feito: um(db, 'select count(*) as n from area_pessoas where admin_base = 1 or responsavel = 1').n > 0, link: '#/pessoas' },
     { id: 'pessoas', nome: 'Pessoas', texto: 'Pessoas cadastradas nas áreas', feito: um(db, 'select count(*) as n from area_pessoas').n > 1, link: '#/pessoas' },
     { id: 'politicas', nome: 'Políticas', texto: 'Regras de dados revisadas e um modelo homologado', feito: um(db, "select count(*) as n from eventos where tipo in ('config.changed', 'policy.updated')").n > 0 && homologados.length > 0, link: '#/politicas' },
     { id: 'conhecimento', nome: 'Conhecimento', texto: 'Primeiros documentos das áreas', feito: um(db, 'select count(*) as n from documentos where quick_win_id is null').n > 0, link: '#/conhecimento' },

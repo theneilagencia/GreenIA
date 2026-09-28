@@ -27,12 +27,17 @@ create table if not exists eventos (
 create trigger if not exists eventos_sem_update before update on eventos begin select raise(abort, 'eventos: só inclusão'); end;
 create trigger if not exists eventos_sem_delete before delete on eventos begin select raise(abort, 'eventos: só inclusão'); end;
 
+-- Área (departamento): grupo de pessoas com base de conhecimento própria. Desativada, sai do uso
+-- (ninguém a vê nem usa os documentos dela), mas nada é apagado.
 create table if not exists areas (
-  id integer primary key, nome text not null unique, sigilosa integer not null default 0);
+  id integer primary key, nome text not null unique, sigilosa integer not null default 0,
+  descricao text not null default '', ativa integer not null default 1);
+-- Permissões dentro da área, independentes do papel global: admin_base administra a base de
+-- conhecimento da área; responsavel responde pela área (quick wins e contato indicado pela IA).
 create table if not exists area_pessoas (
   area_id integer not null references areas(id) on delete cascade,
   pessoa_id integer not null references pessoas(id) on delete cascade,
-  responsavel integer not null default 0, primary key (area_id, pessoa_id));
+  responsavel integer not null default 0, admin_base integer not null default 0, primary key (area_id, pessoa_id));
 create table if not exists grupos (id integer primary key, nome text not null unique);
 create table if not exists grupo_pessoas (
   grupo_id integer not null references grupos(id) on delete cascade,
@@ -51,6 +56,7 @@ create table if not exists documentos (
   area_id integer references areas(id) on delete cascade, toda_empresa integer not null default 0,
   quick_win_id integer references quick_wins(id) on delete cascade,
   sigiloso integer not null default 0, texto text not null, enviado_por integer,
+  pasta text not null default '', revisado_em text, revisado_por integer,
   criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')));
 create virtual table if not exists trechos using fts5(texto, documento_id unindexed, tokenize = 'unicode61 remove_diacritics 2');
 
@@ -165,6 +171,16 @@ const MIGRACOES = [
   // 3. Multiempresa: a pessoa da empresa aponta para a identidade global do usuário na plataforma.
   db => {
     if (!db.prepare('pragma table_info(pessoas)').all().some(c => c.name === 'user_id')) db.exec('alter table pessoas add column user_id text');
+  },
+  // 4. Áreas com descrição e desativação; permissão de administrar a base separada do responsável
+  //    (quem já era responsável continua administrando a base); documentos com pasta e revisão.
+  db => {
+    const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
+    if (!tem('areas', 'descricao')) db.exec("alter table areas add column descricao text not null default ''");
+    if (!tem('areas', 'ativa')) db.exec('alter table areas add column ativa integer not null default 1');
+    if (!tem('area_pessoas', 'admin_base')) db.exec('alter table area_pessoas add column admin_base integer not null default 0; update area_pessoas set admin_base = responsavel;');
+    if (!tem('documentos', 'pasta')) db.exec("alter table documentos add column pasta text not null default ''");
+    if (!tem('documentos', 'revisado_em')) db.exec('alter table documentos add column revisado_em text; alter table documentos add column revisado_por integer;');
   },
 ];
 

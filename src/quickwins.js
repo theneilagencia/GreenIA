@@ -27,7 +27,7 @@ const naLista = (pessoa, l = {}) => (l.pessoas || []).includes(pessoa.id) || (l.
 export function permissoesQw(db, pessoa, cfg = lerConfig(db)) {
   const c = cfg.criarQuickWin;
   const autorizado = pessoa.admin || naLista(pessoa, c);
-  const areas = pessoa.admin ? todos(db, 'select id, nome from areas order by nome')
+  const areas = pessoa.admin ? todos(db, 'select id, nome from areas where ativa = 1 order by nome')
     : autorizado ? pessoa.areas : c.responsaveis ? pessoa.areas.filter(a => a.responsavel) : [];
   const todaEmpresa = pessoa.admin || naLista(pessoa, c.todaEmpresa);
   return { criar: areas.length > 0 || todaEmpresa, todaEmpresa, areas: areas.map(a => ({ id: a.id, nome: a.nome })) };

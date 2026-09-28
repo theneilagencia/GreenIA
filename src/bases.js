@@ -6,16 +6,22 @@ import { registrar } from './eventos.js';
 import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
 
-export const podeGerirArea = (pessoa, areaId) => pessoa.admin || pessoa.areas.some(a => a.id === Number(areaId) && a.responsavel);
+// Administrar a base de uma área: o admin da empresa, ou quem recebeu a permissão naquela área.
+// A permissão vale só para a área em que foi dada, e não depende do papel global da pessoa.
+export const podeGerirArea = (pessoa, areaId) => pessoa.admin || pessoa.areas.some(a => a.id === Number(areaId) && a.adminBase);
+const areasQueAdministra = pessoa => pessoa.areas.filter(a => a.adminBase).map(a => a.id);
 
 // Documentos de base que a pessoa pode consultar: das áreas dela e da empresa toda.
 export function basesVisiveis(db, pessoa) {
   const areas = pessoa.areas.map(a => a.id);
-  return todos(db, `select id from documentos where quick_win_id is null and (toda_empresa = 1 ${areas.length ? `or area_id in (${areas.map(() => '?').join(',')})` : ''})`, ...areas).map(d => d.id);
+  return todos(db, `select d.id from documentos d left join areas a on a.id = d.area_id where d.quick_win_id is null
+    and (d.toda_empresa = 1 ${areas.length ? `or (a.ativa = 1 and d.area_id in (${areas.map(() => '?').join(',')}))` : ''})`, ...areas).map(d => d.id);
 }
 
-const LISTA = `select d.id, d.titulo, d.arquivo, d.area_id, a.nome as area, d.toda_empresa, d.sigiloso, length(d.texto) as caracteres, d.atualizado_em
-  from documentos d left join areas a on a.id = d.area_id`;
+const LISTA = `select d.id, d.titulo, d.arquivo, d.area_id, a.nome as area, a.ativa as area_ativa, d.toda_empresa, d.sigiloso, d.pasta,
+  length(d.texto) as caracteres, d.atualizado_em, d.revisado_em, r.nome as revisado_por
+  from documentos d left join areas a on a.id = d.area_id left join pessoas r on r.id = d.revisado_por`;
+const pasta = v => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
 
 function podeGerirDoc(pessoa, d) {
   if (!d || d.quick_win_id) return false;
@@ -36,7 +42,7 @@ export function trechosDasBases(db, consulta, ids) {
 export function rotasBases(app, r) {
   r.get('/api/bases/documentos', ({ pessoa }) => {
     if (pessoa.admin) return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null order by d.toda_empresa desc, a.nome, d.titulo`) };
-    const minhas = pessoa.areas.filter(a => a.responsavel).map(a => a.id);
+    const minhas = areasQueAdministra(pessoa);
     if (!minhas.length) return { documentos: [] };
     return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null and d.area_id in (${minhas.map(() => '?').join(',')}) order by a.nome, d.titulo`, ...minhas) };
   });
@@ -52,18 +58,29 @@ export function rotasBases(app, r) {
       if (b.modo === 'area') return d.toda_empresa || String(q.areas || '').split(',').map(Number).includes(d.area_id);
       return false;
     };
-    return { documentos: docs.map(d => ({ ...d, quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.responsavel) };
+    return { documentos: docs.map(d => ({ ...d, quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.adminBase) };
+  });
+
+  // Áreas cuja base a pessoa administra, com quem são os membros e os administradores.
+  // O administrador da base vê as pessoas da própria área, sem poder mudá-las.
+  r.get('/api/bases/areas', ({ pessoa }) => {
+    const ids = pessoa.admin ? todos(app.db, 'select id from areas where ativa = 1 order by nome').map(a => a.id) : areasQueAdministra(pessoa);
+    return { areas: ids.map(id => {
+      const a = um(app.db, `select id, nome, descricao, (select count(*) from documentos where area_id = areas.id and quick_win_id is null) as documentos from areas where id = ?`, id);
+      const m = todos(app.db, 'select p.nome, p.email, ap.admin_base from area_pessoas ap join pessoas p on p.id = ap.pessoa_id where ap.area_id = ? and p.ativo = 1 order by ap.admin_base desc, p.nome', id);
+      return { ...a, membros: m.length, administradores: m.filter(x => x.admin_base).map(x => ({ nome: x.nome, email: x.email })), pessoas: m.map(x => ({ nome: x.nome, email: x.email, adminBase: !!x.admin_base })) };
+    }), todaEmpresa: pessoa.admin };
   });
 
   r.post('/api/bases/documentos', async ({ pessoa, corpo }) => {
     const todaEmpresa = !!corpo.toda_empresa;
     const areaId = todaEmpresa ? null : Number(corpo.area_id) || null;
-    if (todaEmpresa ? !pessoa.admin : !areaId || !podeGerirArea(pessoa, areaId)) throw erro(403, 'sem_permissao', 'Só o admin ou o responsável da área envia documentos para a base.');
-    if (areaId && !um(app.db, 'select 1 from areas where id = ?', areaId)) throw erro(404, 'area', 'Área não encontrada.');
+    if (todaEmpresa ? !pessoa.admin : !areaId || !podeGerirArea(pessoa, areaId)) throw erro(403, 'sem_permissao', 'Só o admin da empresa ou um administrador da base desta área envia documentos para ela.');
+    if (areaId && !um(app.db, 'select 1 from areas where id = ? and ativa = 1', areaId)) throw erro(404, 'area', 'Área não encontrada ou desativada.');
     const { nome, texto } = await extrairTexto(corpo.arquivo || {});
     const titulo = String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '');
-    const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por) values (?, ?, ?, ?, ?, ?, ?)',
-      titulo.slice(0, 200), nome, areaId, Number(todaEmpresa), Number(!!corpo.sigiloso), texto, pessoa.id).lastInsertRowid);
+    const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por, pasta) values (?, ?, ?, ?, ?, ?, ?, ?)',
+      titulo.slice(0, 200), nome, areaId, Number(todaEmpresa), Number(!!corpo.sigiloso), texto, pessoa.id, pasta(corpo.pasta)).lastInsertRowid);
     indexar(app.db, id, texto);
     registrar(app, 'knowledge.added', pessoa.id, { documento: id, area: areaId, toda_empresa: todaEmpresa, sigiloso: !!corpo.sigiloso });
     return um(app.db, `${LISTA} where d.id = ?`, id);
@@ -79,7 +96,10 @@ export function rotasBases(app, r) {
     }
     if (corpo.titulo) exec(app.db, 'update documentos set titulo = ? where id = ?', String(corpo.titulo).trim().slice(0, 200), d.id);
     if (corpo.sigiloso !== undefined) exec(app.db, 'update documentos set sigiloso = ? where id = ?', Number(!!corpo.sigiloso), d.id);
-    registrar(app, 'knowledge.updated', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso });
+    if (corpo.pasta !== undefined) exec(app.db, 'update documentos set pasta = ? where id = ?', pasta(corpo.pasta), d.id);
+    // Revisar: a pessoa confirma que o conteúdo continua certo. Substituir o arquivo também conta.
+    if (corpo.revisado || corpo.arquivo) exec(app.db, "update documentos set revisado_em = datetime('now'), revisado_por = ? where id = ?", pessoa.id, d.id);
+    registrar(app, 'knowledge.updated', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso, pasta: corpo.pasta, revisado: !!corpo.revisado });
     return um(app.db, `${LISTA} where d.id = ?`, d.id);
   }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
 

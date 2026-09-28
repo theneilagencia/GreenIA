@@ -175,14 +175,15 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
   // Seções opcionais: o interruptor fica no título do bloco (à vista mesmo fechado) e a seção oculta
   // fica marcada; os textos continuam editáveis para quando ela voltar.
   const visivel = k => c.secoes?.[k] !== false;
-  const chave = k => `<span class="ld-vis" data-vis="${k}"><span class="ld-vis-txt">${visivel(k) ? 'Aparece na página' : 'Oculta na página'}</span>
+  const APARECE = l.status === 'publicada' ? 'Aparece na página' : 'Aparece ao publicar';
+  const chave = k => `<span class="ld-vis" data-vis="${k}"><span class="ld-vis-txt">${visivel(k) ? APARECE : 'Oculta na página'}</span>
     <button type="button" class="switch" role="switch" id="ld-sec-${k}" aria-checked="${visivel(k)}" aria-label="Mostrar esta seção na página" title="Mostrar esta seção na página" ${d}><span></span></button></span>`;
   const bloco = (titulo, onde, corpo, aberto = false, secao = '') => `<details class="ld-bloco${secao && !visivel(secao) ? ' oculta' : ''}" ${aberto ? 'open' : ''} ${secao ? `data-secao="${secao}"` : ''}><summary><b>${titulo}</b><span class="dica">${onde}</span>${secao ? chave(secao) : ''}</summary>
     <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor no título para mostrar de novo.</p>' : ''}${corpo}</div></details>`;
   return `<form id="form-landing" novalidate class="ld-editor">
     ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A landing page desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver os textos, mas não alterar.</div>` : ''}
-    <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'} ld-situacao"><span>${l.status === 'publicada' ? '<b>Publicada.</b> A página já vem pronta com um modelo completo; troque o que quiser.' : '<b>Rascunho.</b> A página pública mostra uma versão simples até a publicação.'}</span>
-      <span class="linha-botoes">${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página</a>` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
+    <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'} ld-situacao"><span>${l.status === 'publicada' ? '<b>Publicada.</b> A página já vem pronta com um modelo completo; troque o que quiser.' : '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a landing não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar.'}</span>
+      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página</a>` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
     ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `
       <div class="grade-2"><div class="campo"><label for="ld-rotulo">Rótulo acima do título</label>${inp('ld-rotulo', c.rotulo, 80)}</div>
         <div class="campo"><label for="ld-titulo">Título</label>${inp('ld-titulo', c.titulo, 120)}</div></div>
@@ -233,7 +234,7 @@ export function ligarLanding(l) {
   const mudarSecao = (k, v) => {
     const e = document.querySelector(`[data-vis="${k}"]`);
     e.querySelector('.switch').setAttribute('aria-checked', v);
-    e.querySelector('.ld-vis-txt').textContent = v ? 'Aparece na página' : 'Oculta na página';
+    e.querySelector('.ld-vis-txt').textContent = v ? (l?.status === 'publicada' ? 'Aparece na página' : 'Aparece ao publicar') : 'Oculta na página';
     e.closest('.ld-bloco').classList.toggle('oculta', !v);
   };
   for (const e of todos('data-vis')) {

@@ -140,9 +140,9 @@ async function telaLanding() {
   $('conteudo').innerHTML = renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
   if (!podeEditar) return;
   const ler = ligarLanding(landing);
-  const salvar = async status => { try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada.' : 'Landing page salva.'); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); } };
+  const salvar = async status => { try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'Landing page voltou para rascunho: a página pública mostra só a versão simples.' : landing?.status === 'publicada' ? 'Landing page salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); } };
   $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
-  document.querySelector('[data-acao="publicar"]')?.addEventListener('click', () => salvar('publicada'));
+  for (const b of document.querySelectorAll('[data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));
   document.querySelector('[data-acao="despublicar"]')?.addEventListener('click', () => salvar('rascunho'));
 }
 

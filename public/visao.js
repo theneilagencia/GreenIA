@@ -51,7 +51,7 @@ export async function vistaGeral() {
       ${usoMes}
 
       <div class="secao-titulo"><h3>Atenção</h3></div>
-      ${v.atencao.length ? `<div class="lista">${v.atencao.map(x => `<a class="lista-item" href="${x.link}"><span class="principal-texto"><b>${esc(x.texto)}</b></span><span class="dica">Abrir</span></a>`).join('')}</div>`
+      ${v.atencao.length ? `<div class="lista">${v.atencao.map(x => `<a class="lista-item" href="${x.link}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<br><span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`
         : '<div class="lista"><div class="lista-item"><span class="dica">Nada pede ação agora.</span></div></div>'}
 
       <div class="secao-titulo"><h3>Adoção</h3></div>

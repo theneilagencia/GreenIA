@@ -155,7 +155,7 @@ function aplicarAoTenant(P, id) {
   const mpm = plano?.limits?.messages_per_minute;
   t.rajada = plano ? (mpm > 0 ? mpm : Infinity) : undefined;
   t.operadores = P.adminsPlataforma();
-  aplicarHomologacoesPlataforma(t.db, lerAjuste(P.db, 'homologacoes_plataforma', []) || [], P.agora());   // autorização da operadora para dados sigilosos
+  aplicarHomologacoesPlataforma(t.db, lerAjuste(P.db, 'homologacoes_plataforma', []) || [], P.agora(), lerAjuste(P.db, 'vetos_sigilo_plataforma', []) || []);   // autorizações e vetos da operadora para dados sigilosos
   t.linkApp = () => `${E.urlDaEmpresa(P, E.lerEmpresa(P, id) || c)}/app`;   // links nos emails da empresa
   const b = E.lerMarca(P, id);
   const parcial = { empresa: b?.display_name || c.name, logo: b?.logo || '', corMarca: b?.primary_color || '' };

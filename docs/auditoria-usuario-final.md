@@ -104,3 +104,20 @@ Os 20 cenários pedidos estão cobertos. Cada teste confere:
 | 19. Conteúdo incompatível com todos os modelos | Orientação da tarefa, sem acionar o admin (C) |
 | 20. Nenhum modelo liberado | Bloqueio, auditoria e aviso ao admin (C) |
 | Extra: plataforma | A operadora autoriza um modelo para todas as empresas, e a empresa não consegue retirá-lo (B) |
+
+## Auditoria incremental: API, hierarquia e modos
+
+O contrato completo está em `docs/api-modelo-preferencia.md`. Os testes estão em `test/governanca-api.test.js`.
+
+| # | Achado | Ajuste |
+|---|---|---|
+| 15 | O modelo solicitado era substituído, mas o registro não dizia o que foi pedido nem por que não foi usado | Colunas `modelo_solicitado`, `decisao_solicitado` e `motivo_substituicao` no registro do roteador, com a taxonomia `requested_model_*` e motivos derivados da regra que falhou |
+| 16 | Quando o roteador recusava um modelo solicitado por janela, política (sem treino) ou classe mínima, a mensagem era bloqueada, mesmo havendo alternativa | A mesma resolução passa ao automático, com o mesmo registro |
+| 17 | Um modelo pedido abaixo do piso do quick win ou da nova tentativa era usado | A classe mínima vale contra o modelo solicitado. A capacidade estimada pelo texto continua sendo sinal, e a escolha é respeitada |
+| 18 | A integração não conseguia saber se o modelo pedido foi o usado | `rota.solicitacao` com solicitado, selecionado, decisão e motivo (genérico para quem não é admin). No bloqueio, vem no corpo do erro |
+| 19 | O fornecedor técnico ia no evento `fim` do streaming para todos | Vai só para o admin |
+| 20 | A plataforma só autorizava modelos; não havia como proibir um modelo para dado sigiloso | Vetos da plataforma: nenhuma empresa homologa um modelo vetado, e homologações existentes deixam de valer. A plataforma não autoriza o que vetou |
+| 21 | Não existia modo "Seguir recomendações" ou "Manual" | `governanca.modo`, com a mesma governança nos dois modos. Um ajuste feito pelo admin muda para manual, com registro, e voltar ao recomendado restaura os ajustes |
+| 22 | Conteúdo grande demais para qualquer modelo virava "indisponível" e avisava o admin quando algum modelo também estava sem acesso | Se nenhum candidato comporta o conteúdo, a pessoa recebe a orientação de tamanho e o admin não é acionado |
+| 23 | Numa conversa sigilosa, o aviso de troca se repetia a cada mensagem | O aviso aparece uma vez por conversa |
+| 24 | Os alertas ao admin usavam termos técnicos e só existiam por email | O texto é simples, com "o que aconteceu" e "o que resolve", e também aparece no painel do admin |

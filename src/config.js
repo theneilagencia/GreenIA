@@ -27,6 +27,10 @@ export const PADRAO = {
   // Roteamento da GreenIA: analisa cada pedido e escolhe o modelo entre os permitidos.
   // preferencia: economia (sobe de classe só quando precisa muito), equilibrio ou qualidade.
   roteamento: { ativo: true, preferencia: 'equilibrio' },
+  // Governança de modelos: "recomendado" segue as recomendações da GreenIA (a empresa não precisa saber de
+  // modelos); "manual" deixa o admin ajustar. Nos dois modos valem as mesmas regras obrigatórias (sigilo,
+  // homologação, vetos e autorizações da plataforma, acesso, plano, janela): o modo muda só o grau de controle.
+  governanca: { modo: 'recomendado', em: null, por: null },
   // Limites (0 = sem limite).
   tetoMensal: 0, tetoPessoaMensal: 0, limiteDiarioPessoa: 0,
 };

@@ -1,7 +1,8 @@
 // Visão geral: como a empresa está usando IA. Uso do mês, adoção, resultado,
 // concentração, pontos de atenção e o roteiro de implantação. Só admin.
 // Os custos saem em dólar aqui e viram créditos na saída para quem não é operador.
-import { todos, um } from './db.js';
+import { json, todos, um } from './db.js';
+import { resumoAlerta } from './avisos-governanca.js';
 import { lerConfig } from './config.js';
 import { situacaoPlano } from './plano.js';
 import { homologadoPadrao, lerModelos } from './modelos.js';
@@ -72,6 +73,10 @@ export function visaoGeral(app) {
   if (!homologadoPadrao(db, cfg)) atencao.push({ tipo: 'modelo', texto: 'Nenhum modelo homologado disponível: conversas sigilosas não podem ser enviadas', link: '#/modelos' });
   else if (homologados.length < 2) atencao.push({ tipo: 'modelo', texto: 'Só um modelo homologado. O recomendado são dois, de fabricantes diferentes', link: '#/politicas' });
   if (app.ia.configurada === false) atencao.push({ tipo: 'ia', texto: 'A IA está desligada: falta a chave de acesso aos modelos no servidor', link: '#/configuracoes' });
+  // Alertas de governança dos últimos 7 dias: o que aconteceu e o que resolve, em linguagem simples.
+  const seteDias = new Date(app.agora().getTime() - 7 * 864e5).toISOString();
+  const causas = [...new Set(todos(db, "select detalhes from eventos where tipo = 'governance.admin_alert' and em >= ? order by id desc", seteDias).map(e => json(e.detalhes, {}).causa).filter(Boolean))];
+  for (const c of causas) { const r = resumoAlerta(c); atencao.push({ tipo: 'governanca', causa: c, texto: `${r.assunto}. ${r.oque}`, acao: r.resolve, link: '#/modelos' }); }
   const problemas = um(db, 'select count(*) as n from problemas where resolvido = 0').n;
   if (problemas) atencao.push({ tipo: 'problema', texto: `${problemas} ${problemas === 1 ? 'problema reportado em aberto' : 'problemas reportados em aberto'}`, link: '#/atividade' });
 

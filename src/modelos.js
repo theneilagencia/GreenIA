@@ -2,7 +2,7 @@
 // grupo ou área, homologação para dados sigilosos, reservas e modo automático.
 import { erro } from './http.js';
 import { exec, json, todos, transacao, um } from './db.js';
-import { lerConfig, salvarConfig } from './config.js';
+import { lerConfig, salvarConfig, PADRAO } from './config.js';
 import { registrar } from './eventos.js';
 import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
@@ -37,7 +37,9 @@ export function semearSugestao(db) {
 
 const deLinha = m => m && ({
   id: m.id, nome: m.nome || m.id, fornecedor: m.fornecedor, precoEntrada: m.preco_entrada, precoSaida: m.preco_saida, contexto: m.contexto,
-  liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva, homologado: !!m.homologado, homologacao: json(m.homologacao, null),
+  liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva,
+  // Vetado pela plataforma para dado sigiloso: não vale como homologado, mesmo que a empresa tenha homologado.
+  homologado: !!m.homologado && !m.vetado_plataforma, vetadoPlataforma: !!m.vetado_plataforma, homologacao: json(m.homologacao, null),
   noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null),
 });
 
@@ -121,8 +123,14 @@ export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = fal
 // Homologação da plataforma: modelos que a operadora autorizou para dados sigilosos valem em
 // todas as empresas, sem que o admin da empresa precise configurar. O modelo entra liberado no catálogo
 // da empresa, se ainda não estiver; só a plataforma retira essa homologação.
-export function aplicarHomologacoesPlataforma(db, lista = [], agora = new Date()) {
+// Hierarquia: a plataforma define o mínimo (autoriza e veta para dado sigiloso); a empresa pode acrescentar
+// homologações próprias, nunca para um modelo vetado; quem usa não altera nada disso.
+export function aplicarHomologacoesPlataforma(db, lista = [], agora = new Date(), vetos = []) {
   const ids = new Set(lista.map(h => h.id));
+  const vetados = new Set(vetos.map(v => v.id));
+  for (const id of vetados) if (!um(db, 'select 1 from modelos where id = ?', id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado) values (?, ?, ?, 0)', id, id, id.split('/')[0]);
+  exec(db, 'update modelos set vetado_plataforma = 0');
+  for (const id of vetados) exec(db, 'update modelos set vetado_plataforma = 1 where id = ?', id);
   for (const h of lista) {
     const registro = JSON.stringify({ quem: `${h.por || 'Equipe'} (plataforma)`, em: h.em || agora.toISOString(), fornecedor: h.fornecedor, justificativa: h.justificativa, origem: 'plataforma' });
     if (!um(db, 'select 1 from modelos where id = ?', h.id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil) values (?, ?, ?, 1, ?)', h.id, h.nome || h.id, h.id.split('/')[0], h.perfil);
@@ -185,6 +193,34 @@ function avisarPrecoAoOperador(app, m, n) {
   enviarAvisoOperador(app, `preço do modelo ${m.nome} mudou mais de 20%`,
     `O modelo ${m.id} (${m.perfil}) mudou de preço no OpenRouter.\nEntrada: ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)} por milhão de tokens.\nSaída: ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens.\n\nOs créditos acompanham o custo real, então a margem não muda. Se o aumento for grande, considere trocar o modelo padrão do perfil por um equivalente mais barato.${m.homologado ? '\n\nAtenção: este modelo está homologado para conversas sigilosas.' : ''}`)
     .catch(e => app.log('aviso de preço', e.message));
+}
+
+// Recomendações da GreenIA para modelos e roteamento: um modelo sugerido por nível, roteamento automático
+// com preferência Equilíbrio, fornecedor sem treino, Automático do OpenRouter desligado e acesso por nível
+// no padrão. Homologações (da empresa e da plataforma) e vetos da plataforma não mudam: são regras, não ajustes.
+export function aplicarRecomendacoes(app, pessoa = null) {
+  transacao(app.db, () => {
+    salvarConfig(app.db, { padroes: structuredClone(PADRAO.padroes), acessoPerfis: structuredClone(PADRAO.acessoPerfis), perfisQuickWin: [...PADRAO.perfisQuickWin],
+      exigirSemTreino: true, automatico: false, roteamento: { ativo: true, preferencia: 'equilibrio' },
+      governanca: { modo: 'recomendado', em: app.agora().toISOString(), por: pessoa?.email || null } });
+    const sugeridos = new Set(SUGESTAO.map(m => m.id));
+    for (const m of SUGESTAO) {
+      if (!um(app.db, 'select 1 from modelos where id = ?', m.id)) exec(app.db, 'insert into modelos (id, nome, fornecedor, perfil, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?, ?)',
+        m.id, m.nome, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
+      exec(app.db, 'update modelos set liberado = 1, perfil = ?, reserva = null where id = ?', m.perfil, m.id);
+    }
+    // Fora das sugestões, fica liberado só o que é regra de sigilo (homologado pela empresa ou pela plataforma).
+    for (const m of lerModelos(app.db)) if (!sugeridos.has(m.id) && m.liberado && !m.homologado) exec(app.db, 'update modelos set liberado = 0, reserva = null where id = ?', m.id);
+    registrar(app, 'governance.mode_changed', pessoa?.id ?? null, { modo: 'recomendado' });
+  });
+}
+export const VALE_SEMPRE = 'Nos dois modos, a GreenIA sempre protege informação sigilosa, respeita o que a plataforma autoriza ou proíbe, o acesso de cada grupo e o plano contratado. Nenhum ajuste manual desliga essas regras.';
+// Ajuste de modelos ou do roteamento pelo admin: a empresa passa ao modo manual, com registro (nunca em silêncio).
+function paraManual(app, pessoa, motivo) {
+  const cfg = lerConfig(app.db);
+  if (cfg.governanca?.modo === 'manual') return;
+  salvarConfig(app.db, { governanca: { modo: 'manual', em: app.agora().toISOString(), por: pessoa?.email || null } });
+  registrar(app, 'governance.mode_changed', pessoa?.id ?? null, { modo: 'manual', motivo });
 }
 
 export function rotasModelos(app, r) {
@@ -302,12 +338,14 @@ export function rotasModelos(app, r) {
       // Modelo que deixa de ser liberado perde a homologação.
       if (corpo.liberado === false) exec(app.db, 'update modelos set homologado = 0 where id = ?', id);
     });
+    paraManual(app, pessoa, 'model.changed');
     return deLinha(um(app.db, 'select * from modelos where id = ?', id));
   }, { admin: true });
 
   r.post('/api/admin/modelos/:id/homologar', ({ pessoa, params, corpo }) => {
     const m = um(app.db, 'select * from modelos where id = ?', params.id);
     if (!m?.liberado) throw erro(400, 'nao_liberado', 'Libere o modelo antes de homologar.');
+    if (m.vetado_plataforma) throw erro(409, 'vetado_pela_plataforma', 'A equipe da plataforma não autoriza este modelo para dados sigilosos. Homologue outro modelo.');
     if (ehGratuito(m.id) || m.id === AUTO) throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o modo automático não podem ser homologados: não há fornecedor fixo com retenção zero.');
     const fornecedor = String(corpo.fornecedor || '').trim();
     const justificativa = String(corpo.justificativa || '').trim();
@@ -346,8 +384,19 @@ export function rotasModelos(app, r) {
       if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
     mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino, roteamento: novo.roteamento }, () => salvarConfig(app.db, novo));
+    paraManual(app, pessoa, 'model.config_changed');
     const trocas = Object.keys(NOMES_CLASSE).filter(k => novo.padroes && novo.padroes[k] !== cfg.padroes[k]);
     if (trocas.length) avisarModeloAlterado(app, trocas.map(k => [k, acharModelo(app.db, lerConfig(app.db), novo.padroes[k])]));
     return { ok: true };
+  }, { admin: true });
+
+  // Modo de governança: seguir as recomendações da GreenIA ou ajustar manualmente. O texto é para quem não
+  // conhece modelos: o que muda, e o que vale nos dois modos.
+  r.get('/api/admin/governanca', () => ({ ...(lerConfig(app.db).governanca || { modo: 'recomendado' }), valeSempre: VALE_SEMPRE }), { admin: true });
+  r.put('/api/admin/governanca', ({ pessoa, corpo }) => {
+    if (!['recomendado', 'manual'].includes(corpo.modo)) throw erro(400, 'modo', 'Escolha "recomendado" ou "manual".');
+    if (corpo.modo === 'recomendado') aplicarRecomendacoes(app, pessoa);
+    else paraManual(app, pessoa, 'escolha_do_admin');
+    return { ...lerConfig(app.db).governanca, valeSempre: VALE_SEMPRE };
   }, { admin: true });
 }

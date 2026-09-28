@@ -280,7 +280,9 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
   const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO);
   const classeQw = qwClasse(qw, lista);
   const qwFixo = qw && !qw.pode_trocar;
-  const req = requisitosDe(a, { piso: qw && !qwFixo && !modeloManual && classeQw ? { nivel: NIVEL[classeQw] } : null });
+  // O piso do quick win vale também contra um modelo solicitado: é decisão de governança (quem responde pelo
+  // quick win conhece a tarefa), não preferência.
+  const req = requisitosDe(a, { piso: qw && !qwFixo && classeQw ? { nivel: NIVEL[classeQw] } : null });
   const preferencia = PESOS[cfg.roteamento?.preferencia] ? cfg.roteamento.preferencia : 'equilibrio';
   const P = PESOS[preferencia];
   const politicas = [];
@@ -336,6 +338,10 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
       fallback = { tipo: 'trocado_por_falta_de_contexto', de: escolhido.id, classePedida: escolhido.classe };
       escolhido = maiores[0];
     } else if (bloqueio.length) return semModelo(bloqueio[0]);
+    // Classe mínima (piso do quick win, nova tentativa depois de uma resposta que não serviu): restrição, não
+    // preferência; um modelo solicitado abaixo dela não é usado. A exigência estimada pela análise do texto
+    // continua sendo sinal: a escolha é respeitada e fica marcada como abaixo do necessário.
+    if (modo === 'manual' && escolhido.nivel < req.classeMinima) return semModelo('capacidade_insuficiente');
     motivoEscolha = modo === 'quick_win' ? 'definido_pelo_quick_win' : modo === 'padrao' ? 'padrao_da_empresa' : 'escolha_da_pessoa';
     if (escolhido.motivos.includes('capacidade_insuficiente')) fallback = fallback || { tipo: 'abaixo_do_necessario_por_escolha', classeNecessaria: req.classe, classeUsada: escolhido.classe };
   } else if (suficientes.length) {
@@ -427,6 +433,27 @@ export const TEXTO = {
 };
 const PREF_NOME = { economia: 'Economia', equilibrio: 'Equilíbrio', qualidade: 'Qualidade' };
 const nomeTipo = k => TIPOS[k]?.nome || (k === 'consulta' ? 'consulta' : k === 'indeterminado' ? 'pedido não analisado' : k);
+
+// Modelo solicitado (tela ou API) é PREFERÊNCIA, nunca garantia: quando não é elegível, a GreenIA escolhe outro
+// ou bloqueia. Motivos determinísticos, derivados da regra que tirou o modelo solicitado.
+export const MOTIVO_SUBSTITUICAO = {
+  requested_model_not_found: 'o modelo solicitado não existe no catálogo da empresa',
+  requested_model_not_authorized: 'o modelo solicitado não está liberado pela empresa',
+  requested_model_not_available: 'o modelo solicitado não está disponível agora',
+  requested_model_permission_restricted: 'a pessoa não tem acesso ao nível do modelo solicitado',
+  requested_model_not_homologated: 'conversa sigilosa e o modelo solicitado não é homologado',
+  requested_model_not_allowed_for_sensitive_data: 'conversa sigilosa e o modelo solicitado não pode receber dado sigiloso (vetado pela plataforma, gratuito ou Automático do OpenRouter)',
+  requested_model_plan_restricted: 'créditos do mês no fim: só o nível Rápido',
+  requested_model_policy_restricted: 'política da empresa (fornecedor sem treino com os dados)',
+  requested_model_insufficient_capacity: 'o modelo solicitado está abaixo da classe mínima exigida (quick win ou nova tentativa)',
+  requested_model_context_limit: 'o conteúdo não cabe na janela do modelo solicitado',
+};
+// Causa do roteador (sem_modelo no pedido manual) → motivo da substituição.
+export const MOTIVO_DA_CAUSA = {
+  nao_homologado: 'requested_model_not_homologated', plano_na_reserva: 'requested_model_plan_restricted', gratuito_treina_com_dados: 'requested_model_policy_restricted',
+  sem_acesso_a_classe: 'requested_model_permission_restricted', contexto_insuficiente: 'requested_model_context_limit', capacidade_insuficiente: 'requested_model_insufficient_capacity',
+  modelo_pedido_fora_da_lista: 'requested_model_not_available',
+};
 
 // Explicação para quem conversa: o que a GreenIA decidiu e por quê, sem termos técnicos (modelo, janela,
 // homologação, provedor). A explicação técnica completa fica no registro do roteamento, para o admin.

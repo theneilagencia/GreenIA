@@ -145,7 +145,7 @@ function editorCapacidades(x) {
     <select data-cap="${esc(x.id)}" data-dim="${k}"><option value="">da classe (${base})</option>${[1, 2, 3].map(v => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`).join('')}</div></details>`;
 }
 async function abaModelos() {
-  const [m, { grupos }, { areas }] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas')]);
+  const [m, { grupos }, { areas }, gov] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca')]);
   const cfg = m.config;
   const liberados = m.modelos.filter(x => x.liberado);
   const homologados = liberados.filter(x => x.homologado);
@@ -154,7 +154,12 @@ async function abaModelos() {
   const acesso = p => { const a = cfg.acessoPerfis[p] || {}; return `<div class="editor"><b>${PERFIS[p]}</b>
     <label class="opcoes"><span><input type="checkbox" id="todos-${p}" ${a.todos ? 'checked' : ''}> Todas as pessoas</span></label>
     <div class="duas-col"><div><span class="legenda">Grupos</span>${caixas(`ac-g-${p}`, grupos, a.grupos || [])}</div><div><span class="legenda">Áreas</span>${caixas(`ac-a-${p}`, areas, a.areas || [])}</div></div></div>`; };
-  $('conteudo').innerHTML = `<p class="lead">As pessoas trabalham com classes: Rápido, Equilibrado e Avançado. Aqui a empresa decide qual modelo técnico atende cada classe. Trocar o modelo de uma classe muda todos os usos de uma vez, sem mudar o trabalho de ninguém.</p>
+  const recomendado = gov.modo !== 'manual';
+  const cartaoGov = `<div class="editor" id="governanca"><b>Como a empresa usa a IA</b>
+    <label class="opcoes"><span><input type="radio" name="gov" value="recomendado" ${recomendado ? 'checked' : ''}> <b>Seguir recomendações da GreenIA</b> (recomendado): a GreenIA escolhe e mantém os recursos de cada nível. Não é preciso entender de modelos.</span></label>
+    <label class="opcoes"><span><input type="radio" name="gov" value="manual" ${recomendado ? '' : 'checked'}> <b>Configurar manualmente</b>: você ajusta os modelos e o acesso logo abaixo. Qualquer ajuste abaixo passa a empresa para este modo.</span></label>
+    <p class="dica">${esc(gov.valeSempre)}</p></div>`;
+  $('conteudo').innerHTML = `${cartaoGov}<p class="lead">As pessoas trabalham com classes: Rápido, Equilibrado e Avançado. Aqui a empresa decide qual modelo técnico atende cada classe. Trocar o modelo de uma classe muda todos os usos de uma vez, sem mudar o trabalho de ninguém.</p>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Classe</th><th>Modelo técnico</th><th>Reserva se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {};
         return `<tr><td data-r="Classe"><b>${v}</b></td><td data-r="Modelo">${x ? `${esc(x.nome)}<br><span class="dica">${esc(x.id)}${x.homologado ? ' · homologado' : ''}</span>` : '<span class="selo selo-ambar">sem modelo</span>'}</td>
@@ -173,7 +178,7 @@ async function abaModelos() {
       <td><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"></td>
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
       <td>${x.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span><br><span class="dica">${esc(x.homologacao?.fornecedor || '')} · ${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</span><br>${x.homologacao?.origem === 'plataforma' ? '<span class="dica">Autorizado pela plataforma para todas as empresas</span>' : `<button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>`}`
-        : x.liberado ? `<button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
+        : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
       <td>${editorCapacidades(x)}</td></tr>`))}
     <p class="dica">Capacidades: por padrão, cada modelo vale o nível da classe dele em tudo. Informe só quando um modelo foge disso (por exemplo, um Equilibrado forte em programação, ou um Avançado fraco em leitura de documentos longos). O roteamento compara essas capacidades com o que cada pedido exige; a classe continua valendo para acesso, plano e quick win.</p>
     <h3>Adicionar do catálogo do OpenRouter</h3>
@@ -215,6 +220,10 @@ async function abaModelos() {
     }
     if (t.id === 'sem-treino' && !t.checked && !confirm('Desligar esta opção permite fornecedores que guardam ou treinam com os dados nas conversas normais. A mudança fica no registro de eventos. Continuar?')) t.checked = true;
   };
+  document.querySelectorAll('input[name="gov"]').forEach(t => { t.onchange = async () => {
+      if (t.value === 'recomendado' && !confirm('Seguir as recomendações troca os ajustes manuais de modelos, níveis e roteamento pelas recomendações da GreenIA. As autorizações para dados sigilosos continuam valendo. Continuar?')) { abaModelos(); return; }
+      try { await api('/api/admin/governanca', { metodo: 'PUT', corpo: { modo: t.value } }); toast(t.value === 'recomendado' ? 'A empresa segue as recomendações da GreenIA.' : 'Configuração manual ligada.'); abaModelos(); } catch (e) { falhar(e); }
+  }; });
   $('conteudo').onclick = async ev => {
     const t = ev.target.closest('button');
     if (!t) return;

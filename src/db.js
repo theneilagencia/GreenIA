@@ -50,7 +50,7 @@ create table if not exists modelos (
   liberado integer not null default 0, perfil text check (perfil in ('rapido','equilibrado','avancado')),
   reserva text, homologado integer not null default 0, homologacao text,
   no_catalogo integer not null default 1, aviso text, atualizado_em text,
-  capacidades text);
+  capacidades text, vetado_plataforma integer not null default 0);
 
 create table if not exists documentos (
   id integer primary key, titulo text not null, arquivo text not null,
@@ -130,7 +130,8 @@ create table if not exists roteamento (
   explicacao text not null default '', versao text not null default '', sigilosa integer not null default 0, teste integer not null default 0,
   origem text, classe_pedida text, preferencia text, requisitos text not null default '{}', janela_minima integer, janela_desejada integer,
   motivo_escolha text, fallback text, reserva text, resultado text,
-  ms_primeiro_token integer, ms_total integer, feedback text, refeito integer not null default 0, nova_tentativa_de integer);
+  ms_primeiro_token integer, ms_total integer, feedback text, refeito integer not null default 0, nova_tentativa_de integer,
+  modelo_solicitado text, decisao_solicitado text, motivo_substituicao text);
 create index if not exists roteamento_em on roteamento (em);
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
@@ -212,6 +213,13 @@ const MIGRACOES = [
     if (!tem('modelos', 'capacidades')) db.exec('alter table modelos add column capacidades text');
     for (const [c, def] of [['ms_primeiro_token', 'integer'], ['ms_total', 'integer'], ['feedback', 'text'], ['refeito', 'integer not null default 0'], ['nova_tentativa_de', 'integer']])
       if (!tem('roteamento', c)) db.exec(`alter table roteamento add column ${c} ${def}`);
+  },
+  // 8. Modelo solicitado (pela tela ou pela API) é preferência: o registro guarda o que foi pedido, a decisão
+  //    (respeitado, substituido, bloqueado) e o motivo determinístico. Veto da plataforma para dado sigiloso.
+  db => {
+    const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
+    for (const c of ['modelo_solicitado', 'decisao_solicitado', 'motivo_substituicao']) if (!tem('roteamento', c)) db.exec(`alter table roteamento add column ${c} text`);
+    if (!tem('modelos', 'vetado_plataforma')) db.exec('alter table modelos add column vetado_plataforma integer not null default 0');
   },
 ];
 

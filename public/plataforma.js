@@ -580,7 +580,7 @@ async function vistaAuditoria(pagina = 0) {
 
 async function vistaConfiguracoes() {
   carregando('Configurações');
-  const [c, hm] = await Promise.all([api('/api/plataforma/configuracoes'), api('/api/plataforma/homologacoes').catch(() => ({ homologacoes: [] }))]);
+  const [c, hm] = await Promise.all([api('/api/plataforma/configuracoes'), api('/api/plataforma/homologacoes').catch(() => ({ homologacoes: [], vetos: [] }))]);
   const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
   tela('Configurações', `<form id="f-cfg" novalidate>
     <div class="grade-2"><div class="campo"><label for="cf-nome">Nome da plataforma</label><input class="entrada" id="cf-nome" value="${esc(c.nome)}" maxlength="60"></div>
@@ -607,6 +607,13 @@ async function vistaConfiguracoes() {
       <label class="opcoes"><span><input type="checkbox" id="hm-zdr"> Conferi que o fornecedor tem retenção zero (não guarda os dados)</span></label>
       <div class="campo"><label for="hm-just">Justificativa</label><textarea class="entrada" id="hm-just" rows="2"></textarea></div>
       <div class="linha-botoes"><button class="btn btn-verde">Autorizar para todas as empresas</button></div></form>
+    <div class="secao-titulo"><h3>Modelos proibidos para dados sigilosos (valem para todas as empresas)</h3></div>
+    <p class="dica">Nenhuma empresa consegue homologar um modelo desta lista, e homologações já feitas deixam de valer para dados sigilosos. Para conversas comuns, a empresa continua decidindo.</p>
+    ${(hm.vetos || []).length ? tabela(['Modelo', 'Motivo', 'Por', ''], hm.vetos.map(v => `<tr><td data-r="Modelo"><b>${esc(v.id)}</b></td><td data-r="Motivo">${esc(v.motivo)}</td><td data-r="Por">${esc(v.por || '')}<br><span class="dica">${esc(dataHora(v.em))}</span></td><td><button type="button" class="btn-texto btn-pequeno" data-veto-retirar="${esc(v.id)}">Retirar</button></td></tr>`), '') : '<p class="dica">Nenhum modelo proibido.</p>'}
+    <form id="f-veto" novalidate style="margin-top:12px">
+      <div class="grade-2"><div class="campo"><label for="vt-id">Modelo no OpenRouter</label><input class="entrada" id="vt-id" placeholder="fornecedor/modelo"></div>
+        <div class="campo"><label for="vt-motivo">Motivo</label><input class="entrada" id="vt-motivo" maxlength="500"></div></div>
+      <div class="linha-botoes"><button class="btn btn-linha">Proibir para dados sigilosos</button></div></form>
     ${c.leads.length ? `<div class="secao-titulo"><h3>Contatos da página de vendas</h3></div>${tabela(['Data', 'Empresa', 'Pessoa', 'Mensagem'], c.leads.map(l => `<tr><td data-r="Data">${data(l.em)}</td><td data-r="Empresa"><b>${esc(l.empresa)}</b><br><span class="dica">${esc(l.pessoas || '')}</span></td><td data-r="Pessoa">${esc(l.nome)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td data-r="Mensagem">${esc(l.mensagem || '–')}</td></tr>`), '')}` : ''}`);
   $('f-cfg').onsubmit = async ev => {
     ev.preventDefault();
@@ -618,6 +625,14 @@ async function vistaConfiguracoes() {
     const corpo = { id: $('hm-id').value.trim(), nome: $('hm-nome').value.trim(), perfil: $('hm-perfil').value, fornecedor: $('hm-forn').value.trim(), semTreino: $('hm-treino').checked, retencaoZero: $('hm-zdr').checked, justificativa: $('hm-just').value };
     try { await api('/api/plataforma/homologacoes', { metodo: 'POST', corpo }); toast('Modelo autorizado em todas as empresas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
   };
+  $('f-veto').onsubmit = async ev => {
+    ev.preventDefault();
+    try { await api('/api/plataforma/vetos-sigilo', { metodo: 'POST', corpo: { id: $('vt-id').value.trim(), motivo: $('vt-motivo').value } }); toast('Modelo proibido para dados sigilosos em todas as empresas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
+  };
+  document.querySelectorAll('[data-veto-retirar]').forEach(b => { b.onclick = async () => {
+    if (!confirm('Retirar a proibição? As empresas voltam a poder homologar este modelo.')) return;
+    try { await api(`/api/plataforma/vetos-sigilo/${encodeURIComponent(b.dataset.vetoRetirar)}`, { metodo: 'DELETE' }); toast('Proibição retirada.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
+  }; });
   document.querySelectorAll('[data-hm-retirar]').forEach(b => { b.onclick = async () => {
     if (!confirm('Retirar a autorização em todas as empresas? Empresas sem outro modelo homologado passam a bloquear conversas sigilosas.')) return;
     try { await api(`/api/plataforma/homologacoes/${encodeURIComponent(b.dataset.hmRetirar)}`, { metodo: 'DELETE' }); toast('Autorização retirada.'); vistaConfiguracoes(); } catch (x) { falhar(x); }

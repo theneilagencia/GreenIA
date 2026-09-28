@@ -2,6 +2,7 @@
 import { erro } from './http.js';
 import { exec, todos, transacao, um } from './db.js';
 import { registrar } from './eventos.js';
+import { lerConfig } from './config.js';
 
 // Membros da área e as permissões de cada um dentro dela.
 const membros = (db, areaId) => todos(db, `select ap.pessoa_id, ap.responsavel, ap.admin_base, p.nome, p.email, p.ativo
@@ -155,18 +156,30 @@ export function rotasPessoas(app, r) {
     transacao(app.db, () => {
       exec(app.db, 'update pessoas set nome = coalesce(?, nome), papel = ?, ativo = ? where id = ?', corpo.nome ? String(corpo.nome).trim().slice(0, 120) : null, papel, ativo, id);
       if (Array.isArray(corpo.areas)) salvarAreasDaPessoa(app.db, id, corpo.areas);
+      if (Array.isArray(corpo.grupos)) {
+        exec(app.db, 'delete from grupo_pessoas where pessoa_id = ?', id);
+        for (const g of new Set(corpo.grupos.map(Number))) exec(app.db, 'insert into grupo_pessoas (grupo_id, pessoa_id) select id, ? from grupos where id = ?', id, g);
+      }
       if (!ativo) exec(app.db, 'delete from sessoes where pessoa_id = ?', id);
     });
-    registrar(app, 'people.updated', pessoa.id, { pessoa: id, papel, ativo: !!ativo, areas: corpo.areas?.length });
+    registrar(app, 'people.updated', pessoa.id, { pessoa: id, papel, ativo: !!ativo, areas: corpo.areas?.length, grupos: corpo.grupos?.length });
     app.aoMudarModelos?.();
     return { ok: true };
   }, { admin: true });
 
   // Grupos: nome e pessoas, usados só para liberar perfis de modelo.
-  r.get('/api/admin/grupos', () => ({
-    grupos: todos(app.db, 'select id, nome from grupos order by nome').map(g => ({
-      ...g, pessoas: todos(app.db, 'select pessoa_id from grupo_pessoas where grupo_id = ?', g.id).map(x => x.pessoa_id) })),
-  }), { admin: true });
+  // Grupo não tem base de conhecimento: só serve para liberar recursos. "usos" diz o que cada um libera
+  // (e onde isso se muda), para a tela mostrar a diferença entre grupo e área.
+  r.get('/api/admin/grupos', () => {
+    const cfg = lerConfig(app.db), c = cfg.criarQuickWin;
+    const usos = id => [
+      ...['equilibrado', 'avancado'].filter(k => (cfg.acessoPerfis[k]?.grupos || []).includes(id)).map(k => ({ texto: `Usar a classe ${k === 'avancado' ? 'Avançado' : 'Equilibrado'} no dia a dia`, onde: '#/modelos' })),
+      ...((c.grupos || []).includes(id) ? [{ texto: 'Criar quick wins nas suas áreas', onde: '#/pessoas/criacao' }] : []),
+      ...((c.todaEmpresa?.grupos || []).includes(id) ? [{ texto: 'Criar quick wins para a empresa toda', onde: '#/pessoas/criacao' }] : []),
+    ];
+    return { grupos: todos(app.db, 'select id, nome from grupos order by nome').map(g => ({
+      ...g, pessoas: todos(app.db, 'select pessoa_id from grupo_pessoas where grupo_id = ?', g.id).map(x => x.pessoa_id), usos: usos(g.id) })) };
+  }, { admin: true });
 
   r.post('/api/admin/grupos', ({ pessoa, corpo }) => {
     const nome = String(corpo.nome || '').trim();

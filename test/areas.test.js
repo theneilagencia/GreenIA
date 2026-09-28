@@ -115,3 +115,19 @@ test('renomear para um nome que já existe é recusado', async () => {
   assert.equal((await admin.put(`/api/admin/areas/${x.id}`, { nome: 'Recursos Humanos' })).status, 409);
   assert.equal((await admin.put(`/api/admin/areas/${x.id}`, { nome: '  ' })).status, 400);
 });
+
+test('grupo mostra o que libera; o editor da pessoa salva áreas e grupos juntos', async () => {
+  const g = (await admin.post('/api/admin/grupos', { nome: 'Gestores' })).dados;
+  let lista = (await admin.get('/api/admin/grupos')).dados.grupos;
+  assert.deepEqual(lista.find(x => x.id === g.id).usos, []);
+  await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false, grupos: [g.id] } } });
+  await admin.put('/api/admin/quick-wins-permissoes', { grupos: [g.id] });
+  lista = (await admin.get('/api/admin/grupos')).dados.grupos;
+  assert.deepEqual(lista.find(x => x.id === g.id).usos.map(u => u.texto), ['Usar a classe Avançado no dia a dia', 'Criar quick wins nas suas áreas']);
+  const r = await admin.put(`/api/admin/pessoas/${pessoas.jose}`, { areas: [{ id: rh.id, adminBase: true, responsavel: false }], grupos: [g.id] });
+  assert.equal(r.status, 200);
+  const jose = (await admin.get('/api/admin/pessoas')).dados.pessoas.find(p => p.id === pessoas.jose);
+  assert.deepEqual([jose.grupos, jose.areas.map(a => [a.id, a.adminBase, a.responsavel])], [[g.id], [[rh.id, true, false]]]);
+  // Grupo não dá acesso a base de conhecimento: José só vê a do RH, pela área.
+  assert.deepEqual((await cli.jose.get('/api/bases/areas')).dados.areas.map(a => a.nome), ['Recursos Humanos']);
+});

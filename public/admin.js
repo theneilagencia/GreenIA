@@ -38,11 +38,18 @@ const PERMISSOES_AREA = `<div class="area-legenda">
   <div><span class="selo selo-ambar">Responsável pela área</span> Gere os quick wins da área e é indicado pela IA como contato para dúvidas.</div></div>`;
 let areaAberta = null;
 
+// Área x grupo, sempre à vista nas três abas: a de agora fica destacada.
+const QUADRO_CONCEITOS = atual => `<div class="conceitos" role="note">
+  <a class="conceito${atual === 'area' ? ' atual' : ''}" href="#/pessoas"><b>Área</b><span>Um departamento da empresa, como o que aparece no organograma. Tem <b>base de conhecimento própria</b> e quick wins. Cada pessoa da área é membro ou administra a base.</span></a>
+  <a class="conceito${atual === 'pessoa' ? ' atual' : ''}" href="#/pessoas/pessoas"><b>Pessoa</b><span>Quem usa a GreenIA. Faz parte de uma ou mais áreas e pode estar em grupos de permissão.</span></a>
+  <a class="conceito${atual === 'grupo' ? ' atual' : ''}" href="#/pessoas/grupos"><b>Grupo de permissão</b><span>Pessoas de <b>qualquer área</b> que recebem um recurso a mais: uma classe de modelo mais forte ou criar quick wins. <b>Não tem base de conhecimento.</b></span></a></div>`;
+
+const NIVEL_AREA = { fora: 'Não faz parte', membro: 'Membro', admin: 'Administrador da base' };
+const nivelDe = m => (!m ? 'fora' : m.adminBase ? 'admin' : 'membro');
+
 async function abaAreas() {
   if (areaAberta) return abaArea(areaAberta);
-  const [{ areas }, { pessoas }, { grupos }] = await Promise.all([api('/api/admin/areas'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
-  const nomeArea = id => areas.find(a => a.id === id)?.nome || '?';
-  const nomeGrupo = id => grupos.find(g => g.id === id)?.nome || '?';
+  const { areas } = await api('/api/admin/areas');
   const ativas = areas.filter(a => a.ativa);
   const cartao = a => {
     const adm = a.pessoas.filter(m => m.adminBase);
@@ -51,89 +58,114 @@ async function abaAreas() {
       <p class="dica">${esc(a.descricao) || 'Sem descrição.'}</p>
       <ul class="area-numeros">
         <li><b>${a.pessoas.length}</b> ${a.pessoas.length === 1 ? 'pessoa' : 'pessoas'}</li>
-        <li><b>${adm.length}</b> ${adm.length === 1 ? 'administra' : 'administram'} a base</li>
         <li><b>${a.documentos}</b> ${a.documentos === 1 ? 'documento' : 'documentos'}</li></ul>
-      <div class="chips" aria-label="Administradores da base">${adm.slice(0, 4).map(m => `<span class="chip resp">${esc(m.nome || m.email)}</span>`).join('')}${adm.length > 4 ? `<span class="chip">+${adm.length - 4}</span>` : ''}${!adm.length && a.ativa ? '<span class="selo selo-ambar">ninguém administra a base</span>' : ''}</div>
-      <button class="btn btn-linha btn-pequeno" data-abrir-area="${a.id}">Gerenciar área</button></article>`;
+      <div class="area-adm"><span class="legenda">Administram a base</span>
+        <div class="chips">${adm.slice(0, 4).map(m => `<span class="chip resp">${esc(m.nome || m.email)}</span>`).join('')}${adm.length > 4 ? `<span class="chip">+${adm.length - 4}</span>` : ''}${!adm.length ? `<span class="selo selo-ambar">${a.ativa ? 'ninguém ainda' : '—'}</span>` : ''}</div></div>
+      <button class="btn btn-linha btn-pequeno" data-abrir-area="${a.id}">Abrir área</button></article>`;
   };
-  $('conteudo').innerHTML = `<p class="lead">Cada área (ou departamento) é um grupo de pessoas com a sua própria base de conhecimento. Você define quem faz parte e quem administra a base de cada área.</p>
-    <ol class="area-fluxo" aria-label="Como funciona"><li>Empresa</li><li>Áreas</li><li>Pessoas</li><li>Permissões</li><li>Base de conhecimento</li></ol>
-    <form class="grupo-form" id="nova-area"><h3>Nova área</h3>
+  $('conteudo').innerHTML = `${QUADRO_CONCEITOS('area')}
+    <div class="secao-titulo"><h3>Áreas da empresa</h3><button class="btn btn-verde btn-pequeno" id="mostrar-nova-area">+ Nova área</button></div>
+    <form class="grupo-form oculto" id="nova-area"><h3>Nova área</h3>
       <div class="filtros">
-        <div class="campo"><label for="area-nome">Nome</label><input class="entrada" id="area-nome" maxlength="80" required placeholder="Nome que a empresa usa para o departamento"></div>
-        <div class="campo" style="flex:2 1 260px"><label for="area-desc">Descrição (opcional)</label><input class="entrada" id="area-desc" maxlength="400" placeholder="O que a área faz e que tipo de conteúdo a base dela terá"></div>
-        <button class="btn btn-verde btn-pequeno">Criar área</button></div>
-      <label class="dica"><input type="checkbox" id="area-sig"> todas as conversas das pessoas desta área são sigilosas</label></form>
-    <div class="secao-titulo"><h3>Áreas</h3><span class="dica">${ativas.length} ${ativas.length === 1 ? 'ativa' : 'ativas'}${areas.length > ativas.length ? ` · ${areas.length - ativas.length} desativada(s)` : ''}</span></div>
-    ${areas.length ? `<div class="area-grade">${areas.map(cartao).join('')}</div>` : vazioHtml({ titulo: 'Nenhuma área ainda', texto: 'Crie a primeira área acima, com o nome que a empresa usa para cada departamento.' })}
-    <div class="secao-titulo"><h3>Pessoas</h3><span class="dica">Também dá para ajustar as áreas de cada pessoa por aqui</span></div>
-    ${E.plataforma ? '<p class="dica">Convites, roles e status ficam em <a href="#/empresa/usuarios">Usuários</a>. Aqui você define as áreas de cada pessoa.</p>' : '<p class="dica">Quem tem email de um domínio permitido também entra sozinho, como usuário sem área.</p>'}
-    <form class="filtros${E.plataforma ? ' oculto' : ''}" id="nova-pessoa">
-      <div class="campo"><label for="p-email">Email</label><input class="entrada" id="p-email" type="email" required></div>
-      <div class="campo"><label for="p-nome">Nome</label><input class="entrada" id="p-nome"></div>
-      <div class="campo"><label for="p-papel">Papel</label><select class="entrada" id="p-papel"><option value="usuario">Usuário</option><option value="admin">Admin</option></select></div>
-      <button class="btn btn-verde btn-pequeno">Adicionar pessoa</button></form>
-    <div class="filtros"><div class="campo"><label for="busca-pessoa">Buscar</label><input class="entrada" id="busca-pessoa" placeholder="nome ou email"></div></div>
-    <div id="lista-pessoas"></div>`;
-
-  const chipArea = a => `<span class="chip${a.adminBase ? ' resp' : ''}">${esc(nomeArea(a.id))}${a.adminBase ? ' · administra a base' : ''}${a.responsavel ? ' · responsável' : ''}</span>`;
-  const desenharPessoas = () => {
-    const q = $('busca-pessoa').value.toLowerCase();
-    const lista = pessoas.filter(p => !q || p.nome.toLowerCase().includes(q) || p.email.includes(q));
-    $('lista-pessoas').innerHTML = tabela(['Nome', 'Email', 'Papel', 'Áreas', 'Grupos', 'Situação', ''], lista.map(p => `<tr>
-      <td>${esc(p.nome)}</td><td>${esc(p.email)}</td><td>${p.papel === 'admin' ? 'Admin' : 'Usuário'}</td>
-      <td><div class="chips">${p.areas.map(chipArea).join('') || '<span class="dica">sem área</span>'}</div></td>
-      <td><div class="chips">${p.grupos.map(g => `<span class="chip">${esc(nomeGrupo(g))}</span>`).join('')}</div></td>
-      <td>${p.ativo ? 'Ativa' : '<span class="dica">Desativada</span>'}</td>
-      <td><button class="btn-texto btn-pequeno" data-editar-pessoa="${p.id}">Editar</button></td></tr>
-      <tr class="oculto" id="editor-${p.id}"><td colspan="7"><div class="editor">
-        <div class="filtros${E.plataforma ? ' oculto' : ''}"><div class="campo"><label>Nome</label><input class="entrada" data-campo="nome" value="${esc(p.nome)}"></div>
-          <div class="campo"><label>Papel</label><select class="entrada" data-campo="papel"><option value="usuario" ${p.papel !== 'admin' ? 'selected' : ''}>Usuário</option><option value="admin" ${p.papel === 'admin' ? 'selected' : ''}>Admin</option></select></div>
-          <label class="dica"><input type="checkbox" data-campo="ativo" ${p.ativo ? 'checked' : ''}> ativa</label></div>
-        <span class="legenda">Áreas de ${esc(p.nome || p.email)}</span>
-        ${tabela(['Área', 'Faz parte', 'Administra a base', 'Responsável'], ativas.map(a => { const m = p.areas.find(x => x.id === a.id); return `<tr><td>${esc(a.nome)}</td>
-          <td><input type="checkbox" data-membro="${a.id}" ${m ? 'checked' : ''} aria-label="${esc(p.nome)} faz parte de ${esc(a.nome)}"></td>
-          <td><input type="checkbox" data-adm="${a.id}" ${m?.adminBase ? 'checked' : ''} aria-label="${esc(p.nome)} administra a base de ${esc(a.nome)}"></td>
-          <td><input type="checkbox" data-resp="${a.id}" ${m?.responsavel ? 'checked' : ''} aria-label="${esc(p.nome)} é responsável por ${esc(a.nome)}"></td></tr>`; }), 'Crie uma área primeiro.')}
-        <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno" data-salvar-pessoa="${p.id}">Salvar</button><button class="btn-texto btn-pequeno" data-editar-pessoa="${p.id}">Cancelar</button></div>
-      </div></td></tr>`), 'Ninguém encontrado.');
-  };
-  desenharPessoas();
-  $('busca-pessoa').oninput = desenharPessoas;
-
-  $('nova-area').onsubmit = async ev => {
+        <div class="campo"><label for="area-nome">Nome</label><input class="entrada" id="area-nome" maxlength="80" required placeholder="Nome do departamento"></div>
+        <div class="campo" style="flex:2 1 260px"><label for="area-desc">Descrição (opcional)</label><input class="entrada" id="area-desc" maxlength="400" placeholder="O que a área faz e que conteúdo a base dela terá"></div></div>
+      <label class="dica"><input type="checkbox" id="area-sig"> todas as conversas das pessoas desta área são sigilosas</label>
+      <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Criar e adicionar pessoas</button><button type="button" class="btn-texto btn-pequeno" id="cancelar-nova-area">Cancelar</button></div></form>
+    <p class="dica">${ativas.length} ${ativas.length === 1 ? 'área ativa' : 'áreas ativas'}${areas.length > ativas.length ? ` · ${areas.length - ativas.length} desativada(s)` : ''}. Abra uma área para ver e mudar quem faz parte e quem administra a base.</p>
+    ${areas.length ? `<div class="area-grade">${areas.map(cartao).join('')}</div>` : vazioHtml({ titulo: 'Nenhuma área ainda', texto: 'Crie a primeira área com o nome que a empresa usa para o departamento.' })}`;
+  const form = $('nova-area');
+  $('mostrar-nova-area').onclick = () => { form.classList.remove('oculto'); $('area-nome').focus(); };
+  $('cancelar-nova-area').onclick = () => form.classList.add('oculto');
+  if (!areas.length) form.classList.remove('oculto');
+  form.onsubmit = async ev => {
     ev.preventDefault();
     try { const a = await api('/api/admin/areas', { metodo: 'POST', corpo: { nome: $('area-nome').value, descricao: $('area-desc').value, sigilosa: $('area-sig').checked } }); toast('Área criada. Agora adicione as pessoas.'); abaArea(a.id); } catch (e) { falhar(e); }
   };
+  $('conteudo').onclick = ev => { const t = ev.target.closest('[data-abrir-area]'); if (t) abaArea(Number(t.dataset.abrirArea)); };
+}
+
+// Pessoas: cada linha mostra as áreas (com a permissão) e os grupos. "Editar" abre tudo da pessoa num lugar só.
+async function abaPessoas() {
+  const [{ areas }, { pessoas }, { grupos }] = await Promise.all([api('/api/admin/areas'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
+  const ativas = areas.filter(a => a.ativa);
+  const nomeArea = id => areas.find(a => a.id === id);
+  const chipArea = m => { const a = nomeArea(m.id); if (!a?.ativa) return ''; return `<span class="chip${m.adminBase ? ' resp' : ''}">${esc(a.nome)}${m.adminBase ? ' · administra a base' : ''}</span>`; };
+  $('conteudo').innerHTML = `${QUADRO_CONCEITOS('pessoa')}
+    <div class="secao-titulo"><h3>Pessoas</h3>${E.plataforma ? '<a class="btn btn-linha btn-pequeno" href="#/empresa/usuarios">Convidar pessoas</a>' : '<button class="btn btn-verde btn-pequeno" id="mostrar-nova-pessoa">+ Adicionar pessoa</button>'}</div>
+    ${E.plataforma ? '<p class="dica">Convites, papel e acesso à empresa ficam em <a href="#/empresa/usuarios">Usuários</a>. Aqui você define as áreas e os grupos de cada pessoa.</p>' : ''}
+    <form class="grupo-form oculto" id="nova-pessoa"><h3>Adicionar pessoa</h3><div class="filtros">
+      <div class="campo"><label for="p-email">Email</label><input class="entrada" id="p-email" type="email" required></div>
+      <div class="campo"><label for="p-nome">Nome</label><input class="entrada" id="p-nome"></div>
+      <div class="campo"><label for="p-papel">Papel</label><select class="entrada" id="p-papel"><option value="usuario">Usuário</option><option value="admin">Admin da empresa</option></select></div>
+      <button class="btn btn-verde btn-pequeno">Adicionar</button></div>
+      <p class="dica">Quem tem email de um domínio permitido também entra sozinho, sem área. Depois é só colocar a pessoa nas áreas.</p></form>
+    <div class="filtros"><div class="campo"><label for="busca-pessoa">Buscar</label><input class="entrada" id="busca-pessoa" placeholder="nome ou email"></div>
+      <div class="campo"><label for="filtro-area">Área</label><select class="entrada" id="filtro-area"><option value="">Todas</option><option value="sem">Sem área</option>${ativas.map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('')}</select></div></div>
+    <div id="lista-pessoas"></div>`;
+  const desenhar = () => {
+    const q = $('busca-pessoa').value.toLowerCase(), fa = $('filtro-area').value;
+    const naArea = p => !fa || (fa === 'sem' ? !p.areas.some(m => nomeArea(m.id)?.ativa) : p.areas.some(m => m.id === Number(fa)));
+    const lista = pessoas.filter(p => (!q || p.nome.toLowerCase().includes(q) || p.email.includes(q)) && naArea(p));
+    $('lista-pessoas').innerHTML = `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Pessoa</th><th>Áreas</th><th>Grupos de permissão</th><th>Papel</th><th></th></tr></thead><tbody>
+      ${lista.map(p => `<tr><td data-r="Pessoa"><b>${esc(p.nome || p.email)}</b><br><span class="dica">${esc(p.email)}${p.ativo ? '' : ' · desativada'}</span></td>
+        <td data-r="Áreas"><div class="chips">${p.areas.map(chipArea).join('') || '<span class="dica">sem área</span>'}</div></td>
+        <td data-r="Grupos"><div class="chips">${p.grupos.map(g => `<span class="chip chip-grupo">${esc(grupos.find(x => x.id === g)?.nome || '?')}</span>`).join('') || '<span class="dica">nenhum</span>'}</div></td>
+        <td data-r="Papel">${p.papel === 'admin' ? 'Admin da empresa' : 'Usuário'}</td>
+        <td data-r=""><button class="btn btn-linha btn-pequeno" data-editar-pessoa="${p.id}">Editar</button></td></tr>`).join('') || `<tr><td colspan="5" class="dica">Ninguém encontrado.</td></tr>`}
+    </tbody></table></div>`;
+  };
+  desenhar();
+  $('busca-pessoa').oninput = desenhar; $('filtro-area').onchange = desenhar;
+  $('mostrar-nova-pessoa')?.addEventListener('click', () => { $('nova-pessoa').classList.remove('oculto'); $('p-email').focus(); });
   $('nova-pessoa').onsubmit = async ev => {
     ev.preventDefault();
-    try { await api('/api/admin/pessoas', { metodo: 'POST', corpo: { email: $('p-email').value, nome: $('p-nome').value, papel: $('p-papel').value } }); toast('Pessoa adicionada. Ajuste as áreas em "Editar".'); abaAreas(); } catch (e) { falhar(e); }
+    try { const { id } = await api('/api/admin/pessoas', { metodo: 'POST', corpo: { email: $('p-email').value, nome: $('p-nome').value, papel: $('p-papel').value } }); toast('Pessoa adicionada. Agora escolha as áreas dela.'); await abaPessoas(); editarPessoa(id); } catch (e) { falhar(e); }
   };
-  $('conteudo').onchange = ev => {
-    // Marcar "administra a base" ou "responsável" já coloca a pessoa na área.
-    const c = ev.target.closest('[data-adm],[data-resp]');
-    if (c?.checked) c.closest('tr').querySelector('[data-membro]').checked = true;
-    const m = ev.target.closest('[data-membro]');
-    if (m && !m.checked) for (const x of m.closest('tr').querySelectorAll('[data-adm],[data-resp]')) x.checked = false;
-  };
-  $('conteudo').onclick = async ev => {
-    const t = ev.target.closest('button');
-    if (!t) return;
-    try {
-      if (t.dataset.abrirArea) abaArea(Number(t.dataset.abrirArea));
-      else if (t.dataset.editarPessoa) $(`editor-${t.dataset.editarPessoa}`).classList.toggle('oculto');
-      else if (t.dataset.salvarPessoa) {
-        const ed = $(`editor-${t.dataset.salvarPessoa}`), p = pessoas.find(x => x.id === Number(t.dataset.salvarPessoa));
-        const campo = n => ed.querySelector(`[data-campo="${n}"]`);
-        const marcado = (k, id) => ed.querySelector(`[data-${k}="${id}"]`).checked;
-        // Áreas desativadas não aparecem no editor: continuam como estavam.
-        const areasSel = [...ed.querySelectorAll('[data-membro]')].filter(c => c.checked).map(c => ({ id: Number(c.dataset.membro), adminBase: marcado('adm', c.dataset.membro), responsavel: marcado('resp', c.dataset.membro) }))
-          .concat(p.areas.filter(a => !ativas.some(x => x.id === a.id)));
-        await api(`/api/admin/pessoas/${p.id}`, { metodo: 'PUT', corpo: E.plataforma ? { areas: areasSel } : { nome: campo('nome').value, papel: campo('papel').value, ativo: campo('ativo').checked, areas: areasSel } });
-        toast('Pessoa salva.'); abaAreas();
-      }
-    } catch (e) { falhar(e); }
-  };
+  $('conteudo').onclick = ev => { const t = ev.target.closest('[data-editar-pessoa]'); if (t) editarPessoa(Number(t.dataset.editarPessoa)); };
+
+  // Editor da pessoa: áreas (uma linha por área, com a permissão), grupos e, na instalação única, dados.
+  function editarPessoa(id) {
+    const p = pessoas.find(x => x.id === id);
+    if (!p) return;
+    const m = document.getElementById('modal');
+    m.innerHTML = `<div class="modal-fundo" id="fundo-modal"><form class="modal modal-largo" role="dialog" aria-modal="true" aria-labelledby="titulo-pessoa" tabindex="-1" id="form-pessoa" novalidate>
+      <div class="modal-topo"><div><div class="rotulo">Editar pessoa</div><h2 id="titulo-pessoa" style="margin-bottom:2px">${esc(p.nome || p.email)}</h2><p class="dica" style="margin:0 0 14px">${esc(p.email)}</p></div>
+        <button type="button" class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar || '×'}</button></div>
+      ${E.plataforma ? '' : `<div class="filtros"><div class="campo"><label for="pe-nome">Nome</label><input class="entrada" id="pe-nome" value="${esc(p.nome)}"></div>
+        <div class="campo"><label for="pe-papel">Papel</label><select class="entrada" id="pe-papel"><option value="usuario" ${p.papel !== 'admin' ? 'selected' : ''}>Usuário</option><option value="admin" ${p.papel === 'admin' ? 'selected' : ''}>Admin da empresa</option></select></div>
+        <label class="dica"><input type="checkbox" id="pe-ativo" ${p.ativo ? 'checked' : ''}> pode entrar</label></div>`}
+      <h3 class="modal-secao">Áreas</h3>
+      <p class="dica">Em cada área, escolha se a pessoa faz parte e se administra a base de conhecimento daquela área.</p>
+      ${ativas.length ? `<div class="linhas-area">${ativas.map(a => { const mm = p.areas.find(x => x.id === a.id); return `<div class="linha-area">
+        <span class="linha-area-nome">${esc(a.nome)}</span>
+        <select class="entrada entrada-pequena" data-nivel="${a.id}" aria-label="${esc(p.nome)} em ${esc(a.nome)}">${Object.entries(NIVEL_AREA).map(([k, v]) => `<option value="${k}" ${nivelDe(mm) === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <label class="dica"><input type="checkbox" data-resp="${a.id}" ${mm?.responsavel ? 'checked' : ''} ${mm ? '' : 'disabled'}> responsável pela área</label></div>`; }).join('')}</div>`
+        : '<p class="dica">Nenhuma área criada ainda. <a href="#/pessoas">Criar áreas</a>.</p>'}
+      <h3 class="modal-secao">Grupos de permissão</h3>
+      <p class="dica">Recursos a mais, independentes da área.</p>
+      ${grupos.length ? `<div class="linhas-grupo">${grupos.map(g => `<label class="linha-grupo"><input type="checkbox" data-grupo="${g.id}" ${p.grupos.includes(g.id) ? 'checked' : ''}>
+        <span><b>${esc(g.nome)}</b><small>${g.usos.length ? `Libera: ${g.usos.map(u => esc(u.texto)).join(' · ')}` : 'Ainda não libera nenhum recurso'}</small></span></label>`).join('')}</div>`
+        : '<p class="dica">Nenhum grupo criado. <a href="#/pessoas/grupos">Criar grupos</a>.</p>'}
+      <div class="linha-botoes" style="margin-top:16px"><button class="btn btn-verde">Salvar</button><button type="button" class="btn-texto" id="cancelar-pessoa">Cancelar</button></div></form></div>`;
+    const esc_ = ev => { if (ev.key === 'Escape') fechar(); };
+    const fechar = () => { m.innerHTML = ''; document.removeEventListener('keydown', esc_); document.querySelector(`[data-editar-pessoa="${p.id}"]`)?.focus(); };
+    document.addEventListener('keydown', esc_);
+    document.getElementById('fechar-modal').onclick = fechar; document.getElementById('cancelar-pessoa').onclick = fechar;
+    document.getElementById('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
+    const f = document.getElementById('form-pessoa');
+    f.focus();
+    f.onchange = ev => { const s = ev.target.closest('[data-nivel]'); if (s) { const r = f.querySelector(`[data-resp="${s.dataset.nivel}"]`); r.disabled = s.value === 'fora'; if (r.disabled) r.checked = false; } };
+    f.onsubmit = async ev => {
+      ev.preventDefault();
+      const escolhidas = [...f.querySelectorAll('[data-nivel]')].filter(s => s.value !== 'fora')
+        .map(s => ({ id: Number(s.dataset.nivel), adminBase: s.value === 'admin', responsavel: f.querySelector(`[data-resp="${s.dataset.nivel}"]`).checked }));
+      // Áreas desativadas não aparecem aqui: ficam como estavam.
+      const areasSel = escolhidas.concat(p.areas.filter(x => !ativas.some(a => a.id === x.id)));
+      const corpo = { areas: areasSel, grupos: [...f.querySelectorAll('[data-grupo]:checked')].map(x => Number(x.dataset.grupo)) };
+      if (!E.plataforma) Object.assign(corpo, { nome: f.querySelector('#pe-nome').value, papel: f.querySelector('#pe-papel').value, ativo: f.querySelector('#pe-ativo').checked });
+      try { await api(`/api/admin/pessoas/${p.id}`, { metodo: 'PUT', corpo }); fechar(); toast('Pessoa salva.'); abaPessoas(); } catch (e) { falhar(e); }
+    };
+  }
 }
 
 // Uma área: nome e descrição, pessoas e a permissão de cada uma, e desativar ou excluir.
@@ -216,16 +248,30 @@ async function abaArea(id) {
 }
 
 // ---------------------------------------------------------------- Grupos
+// Grupo de permissão: pessoas de qualquer área que recebem um recurso a mais. Cada cartão diz o que
+// o grupo libera e onde isso é definido (Modelos, Quem cria quick wins).
 async function abaGrupos() {
   const [{ grupos }, { pessoas }] = await Promise.all([api('/api/admin/grupos'), api('/api/admin/pessoas')]);
-  $('conteudo').innerHTML = `<p class="lead">Grupos juntam pessoas de áreas diferentes (por exemplo, "Gestores"). Servem para liberar perfis de modelo e para autorizar quem cria quick wins.</p>
-    <form class="filtros" id="novo-grupo"><div class="campo"><label for="g-nome">Novo grupo</label><input class="entrada" id="g-nome" required maxlength="80"></div><button class="btn btn-verde btn-pequeno">Criar grupo</button></form>
-    ${tabela(['Grupo', '#Pessoas', 'Pessoas', 'Ações'], grupos.map(g => `<tr><td><b>${esc(g.nome)}</b></td><td class="num">${g.pessoas.length}</td>
-      <td><div class="chips">${g.pessoas.slice(0, 8).map(id => `<span class="chip">${esc(pessoas.find(p => p.id === id)?.nome || '?')}</span>`).join('')}${g.pessoas.length > 8 ? `<span class="chip">+${g.pessoas.length - 8}</span>` : ''}</div></td>
-      <td><button class="btn-texto btn-pequeno" data-editar="${g.id}">Pessoas</button><button class="btn-texto btn-pequeno" data-renomear="${g.id}">Renomear</button><button class="btn-texto btn-pequeno" data-excluir="${g.id}">Excluir</button></td></tr>
-      <tr class="oculto" id="grupo-${g.id}"><td colspan="4"><div class="editor"><span class="legenda">Pessoas do grupo ${esc(g.nome)}</span>${caixas(`g${g.id}`, pessoas, g.pessoas)}
-        <button class="btn btn-verde btn-pequeno" data-salvar="${g.id}">Salvar pessoas</button></div></td></tr>`), 'Nenhum grupo ainda.')}`;
-  $('novo-grupo').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/admin/grupos', { metodo: 'POST', corpo: { nome: $('g-nome').value } }); abaGrupos(); } catch (e) { falhar(e); } };
+  const nome = id => { const p = pessoas.find(x => x.id === id); return p ? (p.nome || p.email) : '?'; };
+  $('conteudo').innerHTML = `${QUADRO_CONCEITOS('grupo')}
+    <div class="secao-titulo"><h3>Grupos de permissão</h3><button class="btn btn-verde btn-pequeno" id="mostrar-novo-grupo">+ Novo grupo</button></div>
+    <form class="grupo-form oculto" id="novo-grupo"><h3>Novo grupo</h3><div class="filtros"><div class="campo"><label for="g-nome">Nome</label><input class="entrada" id="g-nome" required maxlength="80" placeholder="Ex.: Gestores, Diretoria"></div><button class="btn btn-verde btn-pequeno">Criar grupo</button></div>
+      <p class="dica">Depois de criar, escolha as pessoas e diga o que o grupo libera em <a href="#/modelos">Modelos</a> (classes de modelo) ou em <a href="#/pessoas/criacao">Quem cria quick wins</a>.</p></form>
+    <div class="faixa-aviso"><b>Para que servem os grupos:</b> liberar a classe <b>Equilibrado</b> ou <b>Avançado</b> para quem precisa no dia a dia (em <a href="#/modelos">Modelos</a>) e autorizar quem <b>cria quick wins</b> (em <a href="#/pessoas/criacao">Quem cria quick wins</a>). Para dar acesso a conhecimento, use as <a href="#/pessoas">áreas</a>.</div>
+    ${grupos.length ? `<div class="area-grade">${grupos.map(g => `<article class="area-cartao">
+      <div class="area-cartao-topo"><h4>${esc(g.nome)}</h4></div>
+      <ul class="area-numeros"><li><b>${g.pessoas.length}</b> ${g.pessoas.length === 1 ? 'pessoa' : 'pessoas'}</li></ul>
+      <div><span class="legenda">Libera</span>${g.usos.length ? `<ul class="usos">${g.usos.map(u => `<li>${esc(u.texto)} <a href="${u.onde}" class="dica">alterar</a></li>`).join('')}</ul>`
+        : '<p class="dica" style="margin:4px 0 0"><span class="selo selo-ambar">nada ainda</span> Defina em <a href="#/modelos">Modelos</a> ou <a href="#/pessoas/criacao">Quem cria quick wins</a>.</p>'}</div>
+      <div class="chips">${g.pessoas.slice(0, 6).map(id => `<span class="chip">${esc(nome(id))}</span>`).join('')}${g.pessoas.length > 6 ? `<span class="chip">+${g.pessoas.length - 6}</span>` : ''}</div>
+      <div class="linha-botoes"><button class="btn btn-linha btn-pequeno" data-editar="${g.id}">Escolher pessoas</button><button class="btn-texto btn-pequeno" data-renomear="${g.id}">Renomear</button><button class="btn-texto btn-pequeno" data-excluir="${g.id}">Excluir</button></div>
+      <div class="editor oculto" id="grupo-${g.id}"><div class="campo"><label>Buscar</label><input class="entrada" data-busca-grupo="${g.id}" placeholder="nome ou email"></div>
+        <div class="caixas caixas-rolagem">${pessoas.map(p => `<label data-nome="${esc((p.nome + ' ' + p.email).toLowerCase())}"><input type="checkbox" name="g${g.id}" value="${p.id}" ${g.pessoas.includes(p.id) ? 'checked' : ''}> ${esc(p.nome || p.email)}</label>`).join('')}</div>
+        <button class="btn btn-verde btn-pequeno" data-salvar="${g.id}">Salvar pessoas</button></div></article>`).join('')}</div>`
+      : vazioHtml({ titulo: 'Nenhum grupo ainda', texto: 'Crie um grupo só quando precisar liberar um recurso para pessoas de áreas diferentes.' })}`;
+  $('mostrar-novo-grupo').onclick = () => { $('novo-grupo').classList.remove('oculto'); $('g-nome').focus(); };
+  $('novo-grupo').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/admin/grupos', { metodo: 'POST', corpo: { nome: $('g-nome').value } }); toast('Grupo criado. Agora escolha as pessoas.'); abaGrupos(); } catch (e) { falhar(e); } };
+  $('conteudo').oninput = ev => { const b = ev.target.closest('[data-busca-grupo]'); if (!b) return; const q = b.value.toLowerCase(); for (const l of b.closest('.editor').querySelectorAll('[data-nome]')) l.hidden = q && !l.dataset.nome.includes(q); };
   $('conteudo').onclick = async ev => {
     const t = ev.target.closest('button');
     if (!t) return;
@@ -233,7 +279,7 @@ async function abaGrupos() {
       if (t.dataset.editar) $(`grupo-${t.dataset.editar}`).classList.toggle('oculto');
       if (t.dataset.salvar) { await api(`/api/admin/grupos/${t.dataset.salvar}`, { metodo: 'PUT', corpo: { pessoas: marcados(`g${t.dataset.salvar}`) } }); toast('Grupo salvo.'); abaGrupos(); }
       if (t.dataset.renomear) { const nome = prompt('Novo nome do grupo:', grupos.find(g => g.id === Number(t.dataset.renomear)).nome); if (nome) { await api(`/api/admin/grupos/${t.dataset.renomear}`, { metodo: 'PUT', corpo: { nome } }); abaGrupos(); } }
-      if (t.dataset.excluir && confirm('Excluir este grupo? Quem tinha acesso a modelos só por ele perde o acesso.')) { await api(`/api/admin/grupos/${t.dataset.excluir}`, { metodo: 'DELETE' }); abaGrupos(); }
+      if (t.dataset.excluir && confirm('Excluir este grupo? Quem tinha um recurso só por ele perde o recurso.')) { await api(`/api/admin/grupos/${t.dataset.excluir}`, { metodo: 'DELETE' }); abaGrupos(); }
     } catch (e) { falhar(e); }
   };
 }
@@ -797,7 +843,7 @@ const NOMES_EVENTO = { 'model.changed': 'Modelo alterado', 'model.certified': 'M
 // ---------------------------------------------------------------- rotas
 const TELAS = {
   uso: { titulo: 'Uso e créditos', perm: 'usage.read', fn: abaUso },
-  pessoas: { titulo: 'Pessoas e áreas', perm: 'user.read', sub: [['', 'Pessoas e áreas', abaAreas], ['grupos', 'Grupos', abaGrupos], ['criacao', 'Quem cria quick wins', abaCriacaoQw]] },
+  pessoas: { titulo: 'Pessoas e áreas', perm: 'user.read', sub: [['', 'Áreas', abaAreas], ['pessoas', 'Pessoas', abaPessoas], ['grupos', 'Grupos de permissão', abaGrupos], ['criacao', 'Quem cria quick wins', abaCriacaoQw]] },
   modelos: { titulo: 'Modelos', perm: 'models.manage', sub: [['', 'Classes e modelos', abaModelos], ['historico', 'Histórico', abaHistoricoModelos]] },
   politicas: { titulo: 'Políticas de IA', perm: 'policy.manage', sub: [['', 'Regras de uso', abaPoliticas], ['texto', 'Texto da política', abaPolitica]] },
   atividade: { titulo: 'Atividade', perm: 'audit.read', fn: abaEventos },

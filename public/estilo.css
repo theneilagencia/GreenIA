@@ -372,6 +372,28 @@ body.console{display:flex;flex-direction:column;min-height:100vh;background:var(
 .base-pessoas,.base-visao{margin:0 0 10px;font:400 13.5px/1.5 var(--sans)}
 .base-pessoas summary,.base-visao summary{cursor:pointer;color:var(--forest-text);font-weight:500;padding:4px 0}
 .pasta-titulo{font:600 13px var(--sans);color:var(--muted);margin:14px 0 6px;display:flex;align-items:center;gap:6px}
+.conceitos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 20px}
+.conceito{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--raio);background:var(--surface);text-decoration:none;color:var(--ink);font:400 13px/1.5 var(--sans);transition:border-color .15s,background .15s}
+.conceito:hover{border-color:var(--line-strong)}
+.conceito>b{font:600 14px var(--sans)}
+.conceito span{color:var(--muted)} .conceito span b{color:var(--ink);font-weight:600}
+.conceito.atual{border-color:var(--forest-text);background:var(--mint)}
+.conceito.atual span{color:var(--ink)}
+@media (max-width:760px){.conceitos{grid-template-columns:1fr}.conceito:not(.atual){padding:8px 12px}.conceito:not(.atual) span{display:none}}
+.area-adm .legenda,.area-cartao .legenda{display:block;margin-bottom:4px}
+.chip-grupo{background:#EAE7F4;color:#453A78}
+.usos{margin:2px 0 0;padding-left:18px;font:400 13px/1.6 var(--sans)}
+.caixas-rolagem{max-height:220px;overflow-y:auto}
+.modal-largo{max-width:680px}
+.modal-secao{font:600 15px var(--sans);margin:18px 0 2px;padding-top:14px;border-top:1px solid var(--line)}
+.linhas-area,.linhas-grupo{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--raio);margin-top:8px}
+.linha-area{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 12px;border-top:1px solid var(--line)}
+.linha-area:first-child,.linha-grupo:first-child{border-top:none}
+.linha-area-nome{flex:1 1 160px;font:500 14px var(--sans)}
+.linha-grupo{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-top:1px solid var(--line);cursor:pointer}
+.linha-grupo input{margin-top:3px}
+.linha-grupo b{display:block;font:500 14px var(--sans)}
+.linha-grupo small{display:block;color:var(--muted);font-size:12.5px}
 .checagens{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 18px;margin:6px 0 14px}
 .checagens label{display:flex;gap:8px;align-items:flex-start;font:400 14px/1.4 var(--sans)}
 .checagens small{display:block;color:var(--muted);font-size:12px}

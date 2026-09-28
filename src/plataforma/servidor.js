@@ -8,6 +8,7 @@ import { join, dirname } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { criarApp } from '../servidor.js';
 import { criarEmail } from '../email.js';
+import { registrarFalhaEmail, registrarEnvioOk } from './email-falhas.js';
 import { criarSimulada, criarOpenRouter } from '../ia.js';
 import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
 import { ErroIA } from '../ia.js';
@@ -74,7 +75,10 @@ export function criarPlataforma(op = {}) {
   P.smtpPadrao = { url: op.smtpPadrao?.url || '', remetente: op.smtpPadrao?.remetente || '' };
   // As variáveis do servidor, quando definidas, mandam: são a configuração explícita de quem opera.
   P.lerSmtp = () => { if (P.smtpPadrao.url) return P.smtpPadrao; return lerAjuste(db, 'smtp', { url: '', remetente: '' }); };
-  P.email = op.email ?? criarEmail({ lerSmtp: P.lerSmtp, log: P.log });
+  const base = op.email ?? criarEmail({ lerSmtp: P.lerSmtp, log: P.log });
+  // Email da plataforma com registro: sucesso limpa o aviso; falha é registrada (sem segredos) e repassada.
+  P.email = { enviados: base.enviados,
+    async enviar(...a) { try { const r = await base.enviar(...a); registrarEnvioOk(P); return r; } catch (e) { registrarFalhaEmail(P, { escopo: 'plataforma', origem: 'email da plataforma', erro: e }); throw e; } } };
 
   semearRbac(db, P.agora().toISOString());
   P.aplicarAoTenant = id => aplicarAoTenant(P, id);
@@ -118,7 +122,16 @@ function abrirTenant(P, id) {
   if (!c) return null;
   let t;
   const smtpProprio = criarEmail({ lerSmtp: () => lerConfig(t.db).smtp, log: P.log });
-  const email = { enviar: (...a) => (lerConfig(t.db).smtp.url ? smtpProprio : P.email).enviar(...a), get enviados() { return P.email.enviados; } };
+  // Email da empresa: o próprio (se configurado) e, se ele falhar, o da plataforma. A falha fica registrada.
+  const email = {
+    async enviar(...a) {
+      if (lerConfig(t.db).smtp.url) {
+        try { return await smtpProprio.enviar(...a); } catch (e) { registrarFalhaEmail(P, { escopo: `empresa ${id}`, origem: 'email próprio da empresa (tentando o da plataforma)', erro: e }); }
+      }
+      return P.email.enviar(...a);
+    },
+    get enviados() { return P.email.enviados; },
+  };
   t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id } });
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],

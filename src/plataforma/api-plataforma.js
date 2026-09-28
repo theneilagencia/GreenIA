@@ -10,6 +10,7 @@ import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemCh
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo } from './consumo.js';
+import { alertaEmail, falhasEmail } from './email-falhas.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
 
 
@@ -25,7 +26,8 @@ export function rotasPlataforma(P, r) {
     // Resposta igual para quem não é admin: não revela quem tem acesso ao console.
     if (!u || u.status !== 'ativo' || !ehAdminPlataforma(P.db, u.id)) throw erro(403, 'sem_acesso', 'Este email não tem acesso ao console da plataforma.');
     try { await enviarCodigo(P, email, 'plataforma', P.email, 'Seu código de acesso ao console da GreenIA'); }
-    catch (e) {
+    catch (x) {
+      const e = x.causa || x;
       if (e.status) throw e;
       // Falha do servidor de email: mostra o motivo (sem endereço nem senha) para quem configura.
       const motivo = String(e.message || e).replace(/\S+:\/\/\S+/g, '[endereço]').slice(0, 240);
@@ -57,6 +59,8 @@ export function rotasPlataforma(P, r) {
     usuario: { id: sessao.userId, email: sessao.email, name: sessao.name }, csrf: sessao.csrf, permissoes: [...perms(sessao)],
     // Aviso de vencimento ou rotação da chave do OpenRouter, para o topo do console (sem chamar o OpenRouter).
     alertaChave: perms(sessao).has('platform.settings.manage') || perms(sessao).has('platform.companies.manage') ? alertaDaChave() : null,
+    // Envio de email falhando (códigos de acesso não chegam): motivo real, sem segredos.
+    alertaEmail: perms(sessao).has('platform.settings.manage') ? alertaEmail(P) : null,
     catalogo: { permissoes: Object.entries(PERMISSOES).map(([k, [d, s]]) => ({ key: k, description: d, scope: s })), recursos: E.RECURSOS, limites: E.LIMITES, concessoes: E.CONCESSOES, status: E.STATUS_EMPRESA, camposMarca: E.CAMPOS_MARCA },
   }));
 
@@ -306,7 +310,7 @@ export function rotasPlataforma(P, r) {
     return {
       nome: lerAjuste(P.db, 'nome', 'GreenIA'), subdominio_base: lerAjuste(P.db, 'subdominio_base', P.subdominioBase), host: P.hostPlataforma, url_base: P.urlBase,
       slugs_reservados: lerAjuste(P.db, 'slugs_reservados', []), plano_padrao: lerAjuste(P.db, 'plano_padrao', null),
-      smtp: { configurado: !!(smtp.url || P.smtpPadrao?.url), remetente: smtp.remetente || P.smtpPadrao?.remetente || '', porVariavel: !smtp.url && !!P.smtpPadrao?.url }, admins: todos(P.db, 'select u.id, u.email, u.name from platform_members m join users u on u.id = m.user_id order by u.email'),
+      smtp: { configurado: !!(smtp.url || P.smtpPadrao?.url), remetente: smtp.remetente || P.smtpPadrao?.remetente || '', porVariavel: !smtp.url && !!P.smtpPadrao?.url, falhas: falhasEmail(P).slice(0, 10) }, admins: todos(P.db, 'select u.id, u.email, u.name from platform_members m join users u on u.id = m.user_id order by u.email'),
       leads: lerAjuste(P.db, 'leads', []).slice(0, 50),
     };
   });

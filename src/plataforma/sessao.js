@@ -29,7 +29,12 @@ export async function enviarCodigo(P, email, escopo, remetente, assunto) {
   catch (e) {
     // Falha no envio não conta no limite de pedidos: quem está configurando o email pode tentar de novo.
     exec(P.db, 'update login_codes set enviados = ? where email = ? and scope = ?', JSON.stringify(enviados), email, escopo);
-    throw e;
+    // O motivo real (servidor de email recusou, domínio não verificado...) fica registrado para o admin da
+    // plataforma; quem tentou entrar recebe uma mensagem clara em vez de "Algo deu errado".
+    if (e?.status) throw e;
+    const x = erro(503, 'email_falhou', 'Não foi possível enviar o código por email agora. Tente de novo em alguns minutos; se continuar, avise o administrador da plataforma.');
+    x.causa = e;   // o console da plataforma mostra o motivo real para quem configura o email
+    throw x;
   }
 }
 

@@ -70,8 +70,14 @@ function cab(titulo, acoes = '', voltar = '') {
     <span class="migalha"><span>Plataforma</span><span class="sep">/</span>${voltar ? `<a href="${voltar}">${esc(SECOES.find(x => voltar.startsWith(`#/${x[0]}`))?.[1] || 'Voltar')}</a><span class="sep">/</span>` : ''}</span><h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
 }
 function tela(titulo, corpo, acoes = '', voltar = '') {
-  $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${faixaChave()}${corpo}</div></div>`;
+  $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${faixaEmail()}${faixaChave()}${corpo}</div></div>`;
   $('menu').onclick = () => $('lateral').classList.toggle('aberta');
+}
+// Envio de email falhando: os códigos de acesso das empresas não chegam. Motivo real, sem segredos.
+function faixaEmail() {
+  const a = C.eu?.alertaEmail;
+  if (!a) return '';
+  return `<div class="faixa-aviso erro faixa-chave" role="alert"><b>Envio de email falhando:</b> os códigos de acesso podem não estar chegando. Última falha em ${esc(dataHora(a.em))} (${esc(a.origem)}): <code>${esc(a.detalhe)}</code> <a href="#/configuracoes">Ver email da plataforma</a></div>`;
 }
 // Aviso de vencimento ou rotação da chave do OpenRouter, no topo de todas as telas do console.
 const NIVEL_FAIXA = { atencao: 'atencao', critico: 'erro', erro: 'erro' };
@@ -582,6 +588,8 @@ async function vistaConfiguracoes() {
       <span class="ajuda">Com DNS curinga (*.base), cada empresa ganha empresa.base. Sem isso, o endereço é ${esc(c.url_base || '')}/empresa.</span></div>
     <div class="campo"><label for="cf-res">Identificadores reservados (além dos do sistema)</label><input class="entrada" id="cf-res" value="${esc(c.slugs_reservados.join(', '))}"></div>
     <h3>Email da plataforma</h3><p class="dica">Usado para códigos de acesso e convites das empresas que não têm email próprio. ${c.smtp.configurado ? 'Configurado.' : 'Não configurado: os códigos aparecem só no log do servidor.'}</p>
+    ${(c.smtp.falhas || []).length ? `<div class="faixa-aviso atencao"><b>Últimas falhas de envio</b> (o motivo vem do servidor de email; senhas e chaves ficam ocultas):
+      <ul class="dica" style="margin:6px 0 0">${c.smtp.falhas.map(f => `<li>${esc(dataHora(f.em))} · ${esc(f.origem)} · <code>${esc(f.detalhe)}</code></li>`).join('')}</ul></div>` : ''}
     <div class="grade-2"><div class="campo"><label for="cf-smtp">URL do SMTP</label><input class="entrada" id="cf-smtp" placeholder="${c.smtp.configurado ? '(mantida; preencha para trocar)' : 'smtps://usuario:senha@smtp.exemplo.com:465'}"></div>
       <div class="campo"><label for="cf-rem">Remetente</label><input class="entrada" id="cf-rem" value="${esc(c.smtp.remetente || '')}" placeholder="GreenIA <nao-responda@exemplo.com>"></div></div>
     <div class="linha-botoes"><button class="btn btn-verde">Salvar configurações</button><button type="button" class="btn btn-linha" id="cf-teste">Enviar email de teste</button></div></form>

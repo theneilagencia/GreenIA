@@ -25,6 +25,13 @@ export const docx = paragrafos => zip({
   'word/document.xml': `<?xml version="1.0"?><w:document xmlns:w="w"><w:body>${paragrafos.map(p => `<w:p><w:r><w:t>${x(p)}</w:t></w:r></w:p>`).join('')}</w:body></w:document>`,
 });
 
+// PPTX: um slide por item da lista, cada linha como um parágrafo.
+export const pptx = slides => zip({
+  '[Content_Types].xml': '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+  ...Object.fromEntries(slides.map((linhas, i) => [`ppt/slides/slide${i + 1}.xml`,
+    `<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree><p:sp><p:txBody>${linhas.map(l => `<a:p><a:r><a:t>${x(l)}</a:t></a:r></a:p>`).join('')}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>`])),
+});
+
 export function xlsx(linhas, nome = 'Plan1') {
   const textos = [...new Set(linhas.flat().filter(v => typeof v === 'string'))];
   const col = i => String.fromCharCode(65 + i);

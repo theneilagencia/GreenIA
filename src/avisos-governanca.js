@@ -8,7 +8,7 @@ import { enviarParaTodos } from './plano.js';
 // Mensagens para quem usa: sem modelo, classe, homologação, janela, provedor ou configuração.
 export const MSG_USUARIO = {
   // Política ligada, mas nenhum recurso autorizado e elegível para esta solicitação.
-  sigilo: 'Não foi possível processar esta solicitação com segurança. Nenhum conteúdo foi enviado. O administrador foi informado.',
+  sigilo: 'Esta informação não pode ser processada com os recursos atualmente disponíveis para esta área. Nenhum conteúdo foi enviado. O administrador foi informado.',
   // Política desligada: a empresa não permite processar informação sigilosa com IA.
   sigilo_desligado: 'Esta solicitação contém informações que a empresa não permite processar com IA. Nenhum conteúdo foi enviado.',
   indisponivel: 'Não foi possível processar esta solicitação agora. Nenhum conteúdo foi enviado. O administrador foi informado.',

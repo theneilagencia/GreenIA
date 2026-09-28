@@ -218,7 +218,7 @@ test('15. anexo de tipo desconhecido: recusado com orientação simples, nada en
   const n = OR.chamadas.length;
   const r = await enviarMensagem(ana, conv.id, { texto: 'Veja o anexo', anexos: [arquivo('planilha.xyz', 'conteúdo qualquer')] });
   assert.equal(r.status, 415);
-  assert.match(r.erro.mensagem, /formato não aceito\. Use PDF com texto, DOCX, TXT, MD, CSV ou XLSX/);
+  assert.match(r.erro.mensagem, /formato não aceito\. Use PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX/);
   assert.equal(OR.chamadas.length, n);
   await semDecisaoTecnica(conv, r);
 });

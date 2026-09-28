@@ -52,7 +52,7 @@ export function criarLimites(app) {
   };
 }
 
-const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
+const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
 
 function validarConfig(c, { multi = false, atual = null } = {}) {
   const v = {};
@@ -79,6 +79,8 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
   if (c.retencaoDias !== undefined) { v.retencaoDias = Math.round(Number(c.retencaoDias)); if (!(v.retencaoDias >= 1 && v.retencaoDias <= 3650)) throw erro(400, 'retencao', 'Retenção entre 1 e 3.650 dias.'); }
   // Ação desconhecida vale "bloquear" (fail closed). Salvar grava o formato atual (acoesVersao 2).
   if (c.acoesChat !== undefined) { v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : ACOES.includes(c.acoesChat[t]) ? c.acoesChat[t] : 'bloquear'])); v.acoesVersao = 2; }
+  if (c.protecaoDadosPessoais !== undefined) v.protecaoDadosPessoais = c.protecaoDadosPessoais !== false;   // só false explícito desliga
+  if (c.naoArmazenar !== undefined) v.naoArmazenar = (Array.isArray(c.naoArmazenar) ? c.naoArmazenar : []).filter(t => TIPOS_DADO.includes(t) && t !== 'credencial');
   for (const k of ['tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa']) if (c[k] !== undefined) { v[k] = Number(c[k]) || 0; if (v[k] < 0) throw erro(400, k, 'Use zero para sem limite.'); }
   return v;
 }

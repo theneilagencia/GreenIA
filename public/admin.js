@@ -50,7 +50,7 @@ async function abaBases() {
       <td data-r="Ações"><div class="linha-botoes">
         <button class="btn-texto btn-pequeno" data-revisado="${d.id}" title="Confirma que o conteúdo continua certo">Marcar revisado</button>
         <button class="btn-texto btn-pequeno" data-editar-doc="${d.id}">Editar</button>
-        <label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir arquivo<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.txt,.md,.csv,.xlsx"></label>
+        <label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir arquivo<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx"></label>
         <button class="btn-texto btn-pequeno" data-remover="${d.id}">Remover</button></div></td></tr>
     <tr class="oculto" id="doc-ed-${d.id}"><td colspan="4"><div class="editor"><div class="filtros">
       <div class="campo"><label>Título</label><input class="entrada" data-titulo="${d.id}" value="${esc(d.titulo)}" maxlength="200"></div>
@@ -69,13 +69,13 @@ async function abaBases() {
     <form class="grupo-form" id="enviar-doc"><h3>Adicionar conteúdo</h3>
       <div class="filtros">
         <div class="campo"><label for="doc-destino">Base</label><select class="entrada" id="doc-destino">${bases.map(b => `<option value="${b.chave}">${esc(b.nome)}</option>`).join('')}</select></div>
-        <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.txt,.md,.csv,.xlsx" required></div>
+        <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx" required></div>
         <div class="campo"><label for="doc-titulo">Título (opcional)</label><input class="entrada" id="doc-titulo" maxlength="200"></div>
         <div class="campo"><label for="doc-pasta">Pasta (opcional)</label><input class="entrada" id="doc-pasta" maxlength="80" list="pastas" placeholder="Ex.: Políticas, Manuais"></div>
       </div>
       <label class="dica"><input type="checkbox" id="doc-sigiloso"> documento sigiloso (a conversa que usar vira sigilosa)</label>
       <div class="linha-botoes" style="margin-top:8px"><button class="btn btn-verde btn-pequeno" id="btn-doc" ${bases.length ? '' : 'disabled'}>Enviar</button></div>
-      <p class="dica">PDF com texto, DOCX, TXT, MD, CSV ou XLSX, até 25 MB (cerca de 800 páginas). PDF escaneado e imagem não são aceitos.</p>
+      <p class="dica">PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX, até 25 MB (cerca de 800 páginas). PDF escaneado e imagem não são aceitos.</p>
     </form>
     ${bases.map(b => { const ds = docsDe(b); return `<section class="base-area">
       <div class="secao-titulo"><h3>Base: ${esc(b.nome)}</h3><span class="dica">${ds.length} ${ds.length === 1 ? 'documento' : 'documentos'}</span></div>
@@ -190,6 +190,7 @@ async function abaModelos() {
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
       <td>${x.homologacaoEmpresa ? `<span class="selo">${ICONE.escudo} Homologado pela empresa</span><br><span class="dica">${esc(x.homologacaoEmpresa.fornecedor || '')} · ${esc(x.homologacaoEmpresa.quem || '')} · ${dataHora(x.homologacaoEmpresa.em)}</span><br><button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>` : ''}
         ${x.autorizacaoPlataforma ? `<span class="selo">${ICONE.escudo} Autorizado pela plataforma</span><br>` : ''}
+        ${x.liberado && x.dados ? `<span class="dica">Pode receber: ${['conteúdo comum', x.dados.dadosPessoais && 'dados pessoais', x.dados.sensiveis && 'dados sensíveis e confidenciais'].filter(Boolean).join(', ')}</span><br>` : ''}
         ${x.homologado ? '<span class="dica">Recebe informação sigilosa (guardrails atendidos)</span>' : (x.homologacaoEmpresa || x.autorizacaoPlataforma) ? `<span class="dica">Não recebe informação sigilosa: ${esc((x.sigiloTexto || []).join('; '))}</span>` : ''}
         ${x.homologacaoEmpresa ? '' : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<br><button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
       <td>${editorCapacidades(x)}</td></tr>`))}
@@ -586,12 +587,15 @@ async function abaPoliticas() {
         ${sig.ativo ? 'Sem um recurso autorizado disponível, nada é enviado e você é avisado.' : 'Desligado, informações sigilosas não são enviadas para recursos de IA.'}</p>
     </div></div>
     <form id="form-dados"><div class="secao-titulo"><h3>Tipos de dado reconhecidos</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
-      <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>
+      <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th><th>Guardar no histórico</th></tr></thead><tbody>
         ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra">${seletorAcao(`d-${k}`, v, c.acoesChat[k])}</td>
-          <td data-r="Efeito" class="dica">${EFEITO[c.acoesChat[k]] || EFEITO.bloquear}</td></tr>`).join('')}
+          <td data-r="Efeito" class="dica">${EFEITO[c.acoesChat[k]] || EFEITO.bloquear}</td>
+          <td data-r="Guardar no histórico"><label class="dica"><input type="checkbox" data-guardar="${k}" ${(c.naoArmazenar || []).includes(k) ? '' : 'checked'}> guardar</label></td></tr>`).join('')}
         <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Nunca enviados</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica sem marcação</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Nomes, cargos, emails e telefones de trabalho são conteúdo normal. Estratégia sem marcação não é adivinhada: a pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
+      <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="protecao-pessoais" ${c.protecaoDadosPessoais !== false ? 'checked' : ''}> Dados pessoais processados normalmente vão só para recursos com fornecedor fixo, que recebem o pedido de não usar os dados para treino. A conversa não vira sigilosa.</span></label>
+      <p class="dica">"Guardar no histórico": sem a marca, a mensagem é processada normalmente, mas o conteúdo, os anexos e a resposta não ficam guardados. Poder processar não é o mesmo que poder guardar.</p>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 
     <div class="secao-titulo"><h3>Conversas sigilosas</h3><a class="btn-texto btn-pequeno" href="#/modelos">Gerir modelos homologados</a></div>
@@ -629,7 +633,8 @@ async function abaPoliticas() {
   $('form-dados').onsubmit = async ev => {
     ev.preventDefault();
     try {
-      await api('/api/admin/config', { metodo: 'PUT', corpo: { acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`input[name="d-${k}"]:checked`).value])) } });
+      await api('/api/admin/config', { metodo: 'PUT', corpo: { acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`input[name="d-${k}"]:checked`).value])),
+        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked } });
       toast('Regras de dados salvas.'); abaPoliticas();
     } catch (e) { falhar(e); }
   };
@@ -640,7 +645,7 @@ const COMPLEXIDADE = { simples: 'Simples', intermediaria: 'Intermediária', comp
 const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win', padrao: 'Padrão da empresa (roteamento desligado)', externo: 'Automático do serviço de IA' };
 const STATUS_CAND = { escolhido: 'escolhido', preterido: 'atendia; menor utilidade', insuficiente: 'capacidade abaixo da exigida', excluido: 'fora pelas regras' };
 const MOTIVO_CAND = { capacidade_insuficiente: 'capacidade abaixo da exigida', nao_homologado: 'não homologado (conversa sigilosa)', plano_na_reserva: 'reserva do plano (só Rápido)',
-  gratuito_treina_com_dados: 'gratuito: treina com os dados', area_protecao_reforcada: 'área com proteção reforçada: sem fornecedor fixo', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
+  gratuito_treina_com_dados: 'gratuito: treina com os dados', protecao_insuficiente: 'sem a proteção que o conteúdo exige', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
 const RESULTADO = { respondido: 'respondido', respondido_pela_reserva: 'respondido pela reserva', falha_na_execucao: 'falha na execução', bloqueado: 'bloqueado antes do envio', enviado: 'em andamento' };
 const FALLBACK = { abaixo_do_necessario: 'abaixo do necessário (regras ou permissões)', abaixo_do_necessario_por_escolha: 'abaixo do necessário (escolha manual)',
   trocado_por_falta_de_contexto: 'trocado por falta de janela', trocado_pela_reserva_do_plano: 'trocado pela reserva do plano', sem_modelo: 'nenhum modelo permitido' };

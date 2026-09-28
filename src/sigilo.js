@@ -99,3 +99,23 @@ export function avaliarProcessamentoSigiloso({ cfg, sigilosa, recurso = undefine
   const a = avaliarRecurso(recurso, cfg);
   return a.elegivel ? { permitido: true, motivo: null, requisitos, rota: a.rota } : { permitido: false, motivo: 'recurso_nao_elegivel', requisitos, motivos: a.motivos };
 }
+
+// ---------------------------------------------------------------- Proteção proporcional (conteúdo × recurso)
+// O conteúdo exige um nível; o recurso oferece um nível, calculado dos atributos da rota real. Só é elegível o
+// recurso cujo nível atende ao exigido. Custo, continuidade e fallback só escolhem entre os elegíveis.
+//   1 comum: qualquer recurso liberado pela empresa
+//   2 dados pessoais / área reforçada: fornecedor fixo (nada de gratuito ou automático), pedido sem uso para treino
+//   3 informação sigilosa (dado sensível, confidencial, o que a política manda proteger): todos os guardrails
+export const PROTECAO = { comum: 1, dados_pessoais: 2, sigilosa: 3 };
+export function protecaoDoRecurso(m, cfg) {
+  if (!m?.liberado) return 0;
+  if ((m.sigilo ?? avaliarRecurso(m, cfg)).elegivel) return PROTECAO.sigilosa;
+  return m.id && !semRotaFixa(m.id) ? PROTECAO.dados_pessoais : PROTECAO.comum;
+}
+// O que o recurso pode receber, para o admin (sem nome de provedor): tipo de conteúdo, treino, retenção e rota.
+export function capacidadesDeDados(m, cfg) {
+  const n = protecaoDoRecurso(m, cfg), s = m?.sigilo ?? avaliarRecurso(m, cfg);
+  return { nivel: n, comum: n >= 1, dadosPessoais: n >= 2, sensiveis: n >= 3, confidenciais: n >= 3,
+    semTreino: n >= 3 ? 'comprovado' : n >= 2 ? 'pedido em cada chamada' : 'não garantido',
+    retencaoZero: n >= 3 ? 'comprovada' : 'não comprovada', rotaFixa: n >= 2, motivosSigilo: s.motivos || [] };
+}

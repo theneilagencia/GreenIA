@@ -90,7 +90,7 @@ test('1. área sigilosa + PDF sem informação sigilosa → não bloqueia; segue
   assert.notEqual(x.chamadas[0].modelo, GRATUITO);
   assert.equal(x.chamadas[0].semTreino, true);
   assert.ok(JSON.parse(x.rota.politicas).includes('area_protecao_reforcada'));
-  assert.ok(JSON.parse(x.rota.candidatos).find(c => c.id === GRATUITO).motivos.includes('area_protecao_reforcada'));
+  assert.ok(JSON.parse(x.rota.candidatos).find(c => c.id === GRATUITO).motivos.includes('protecao_insuficiente'));
   assert.match(x.r.fim.rota.explicacao_simples, /Proteção reforçada da área/);
 });
 

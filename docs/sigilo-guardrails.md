@@ -30,7 +30,7 @@ Ela vale no backend, e não só na tela.
 | Padrão | `false`. Ausente, `null`, `"true"`, `1` e qualquer outro valor que não seja `true` valem como desligado |
 | Quem altera | Só o admin, em Políticas → Informações sigilosas (`PUT /api/admin/sigilo`). A mudança é registrada e gera nova versão da Política de Uso, com nova ciência |
 | **OFF** | Informação sigilosa não vai para nenhum recurso. A decisão acontece antes de gravar a mensagem ou os anexos e antes de marcar a conversa. Quem usa lê: "Esta solicitação contém informações que a empresa não permite processar com IA. Nenhum conteúdo foi enviado." O admin não é avisado, porque foi escolha da empresa |
-| **ON** | Libera a capacidade de processar informação sigilosa com proteção, não um recurso. Cada envio passa pelos guardrails. Sem recurso elegível, quem usa lê "Não foi possível processar esta solicitação com segurança. Nenhum conteúdo foi enviado. O administrador foi informado." e o admin recebe o alerta |
+| **ON** | Libera a capacidade de processar informação sigilosa com proteção, não um recurso. Cada envio passa pelos guardrails. Sem recurso elegível, quem usa lê "Esta informação não pode ser processada com os recursos atualmente disponíveis para esta área. Nenhum conteúdo foi enviado. O administrador foi informado." e o admin recebe o alerta |
 
 **Empresas que já existiam começam com a opção desligada.** Nenhuma migração a liga.
 
@@ -103,6 +103,40 @@ para mensagens, anexos (PDF, DOCX, XLSX, imagens com OCR, texto), nova tentativa
   reavaliadas ao abrir; na dúvida, continuam sigilosas.
 - **Não é uma afirmação de conformidade com a LGPD.** São controles configuráveis que apoiam as obrigações da
   empresa.
+
+## Proteção proporcional: o conteúdo exige, o recurso oferece
+
+A pergunta da GreenIA é "como processar este conteúdo com segurança?", e não "como impedir". Detectar um dado
+determina os controles; não significa bloquear.
+
+| Nível | O conteúdo que exige | O recurso que oferece (calculado da rota real, `protecaoDoRecurso`) |
+|---|---|---|
+| 1 | Conteúdo comum | Qualquer recurso liberado pela empresa |
+| 2 | Dado pessoal processado normalmente, conteúdo de área reforçada, registro de pessoa em processo interno | Fornecedor fixo (nada de gratuito ou automático) e pedido de não uso para treino em cada chamada |
+| 3 | Informação sigilosa: o que a política manda proteger (padrão: pagamento, dado sensível, marcação de confidencial), marcação manual, quick win ou documento sigiloso | Todos os guardrails: autorizado, rota fixada, retenção zero e ausência de treino comprovadas |
+
+- **Roteador:** a restrição `protecao_insuficiente` fica na lista `RESTRICOES` e vale para a escolha
+  automática, o pedido da pessoa ou da API, a reserva de execução, a reserva do plano e a nova tentativa.
+- **Sem recurso compatível, nada é enviado.** Nunca se usa um recurso incompatível ou não autorizado para
+  economizar, manter continuidade ou evitar um bloqueio.
+- **Recurso sem a capacidade é descartado com motivo, sem bloquear a conversa.** Um documento comum nunca é
+  bloqueado por falta de recurso para confidencial.
+- **O admin vê o que cada recurso pode receber** (Modelos: "Pode receber: conteúdo comum, dados pessoais, dados
+  sensíveis e confidenciais"), sem nome de provedor.
+- **A empresa é a autoridade:** a opção "Dados pessoais processados normalmente vão só para recursos com
+  fornecedor fixo" (`protecaoDadosPessoais`, ligada por padrão) pode ser desligada.
+
+## Retenção separada do processamento
+
+"Pode processar" não é o mesmo que "pode guardar". Em Políticas de IA → Tipos de dado, a coluna "Guardar no
+histórico" (`naoArmazenar`) define os tipos que são processados, mas não ficam guardados.
+
+- **O que fica:** um registro de que houve processamento.
+- **O que não fica:** o texto da mensagem, o conteúdo e o nome do anexo, a resposta e um título tirado do
+  conteúdo.
+- **Mensagens seguintes** sem o tipo voltam a ser guardadas.
+- **Auditoria:** os eventos e o roteamento nunca guardam conteúdo; só os tipos.
+- **Bloqueio:** registra a tentativa sem conteúdo nem anexo.
 
 ## Área com proteção reforçada (antes: "todas as conversas da área são sigilosas")
 

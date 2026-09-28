@@ -72,7 +72,7 @@ function desenhar() {
       <div class="anexos-pendentes" id="anexos"></div>
       <div class="caixa">
         <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, TXT, MD, CSV, XLSX)">${ICONE.clipe}</button>
-        <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.xlsx">
+        <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx">
         <textarea id="entrada" rows="1" placeholder="${qw ? 'Cole o texto ou anexe…' : 'Pergunte alguma coisa…'}" aria-label="Mensagem"></textarea>
         <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}</button>
       </div>

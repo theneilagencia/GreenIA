@@ -3,7 +3,7 @@
 import { erro } from './http.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, salvarConfig, PADRAO } from './config.js';
-import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada } from './sigilo.js';
+import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada, protecaoDoRecurso, capacidadesDeDados } from './sigilo.js';
 import { registrar } from './eventos.js';
 import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
@@ -49,7 +49,9 @@ const deLinha = (m, cfg) => {
   };
   const sigilo = avaliarRecurso(base, cfg);
   // "homologacao" continua com o registro da rota que vale (compatível com as telas e o envio).
-  return { ...base, sigilo, homologado: sigilo.elegivel, homologacao: sigilo.rota ? { ...sigilo.rota, origem: sigilo.origem } : base.homologacaoEmpresa };
+  const r = { ...base, sigilo, homologado: sigilo.elegivel, homologacao: sigilo.rota ? { ...sigilo.rota, origem: sigilo.origem } : base.homologacaoEmpresa };
+  // Nível de proteção que o recurso oferece (sigilo.js): quais dados ele pode receber.
+  return { ...r, protecao: protecaoDoRecurso(r, cfg), dados: capacidadesDeDados(r, cfg) };
 };
 
 export const lerModelos = db => { const cfg = lerConfig(db); return todos(db, 'select * from modelos order by perfil, nome').map(m => deLinha(m, cfg)); };

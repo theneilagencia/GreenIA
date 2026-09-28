@@ -67,6 +67,19 @@ function docx(b) {
 }
 
 // XLSX: cada planilha vira linhas separadas por ";", com o nome da planilha no topo.
+// PPTX: o texto de cada slide, na ordem, com "[Slide N]" (e as notas, quando houver).
+function pptx(b) {
+  const z = lerZip(b);
+  const num = n => Number(/(\d+)\.xml$/.exec(n)?.[1] || 0);
+  const slides = [...z.keys()].filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, c) => num(a) - num(c));
+  if (!slides.length) throw erro(400, 'arquivo_invalido', 'Este PPTX não tem slides com texto.');
+  const texto = x => entidades(x.replace(/<\/a:p>/g, '\n').replace(/<a:br\/>/g, '\n').replace(/<[^>]+>/g, '')).replace(/\n{2,}/g, '\n').trim();
+  return slides.map(n => {
+    const notas = z.get(`ppt/notesSlides/notesSlide${num(n)}.xml`);
+    return `[Slide ${num(n)}]\n${texto(z.get(n)())}${notas ? `\nNotas: ${texto(notas())}` : ''}`;
+  }).join('\n\n').trim();
+}
+
 function xlsx(b) {
   const z = lerZip(b);
   const compart = z.get('xl/sharedStrings.xml') ? [...z.get('xl/sharedStrings.xml')().matchAll(/<si>([\s\S]*?)<\/si>/g)]
@@ -114,14 +127,14 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
   try {
     if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b);
     else if (b[0] === 0x50 && b[1] === 0x4b) {
-      // Zip só como DOCX ou XLSX: outro conteúdo compactado não é aceito.
-      if (!['docx', 'xlsx'].includes(ext)) throw erro(415, 'formato', 'arquivo compactado não aceito. Use PDF com texto, DOCX, TXT, MD, CSV ou XLSX.');
-      texto = ext === 'xlsx' ? xlsx(b) : docx(b);
+      // Zip só como DOCX, XLSX ou PPTX: outro conteúdo compactado não é aceito.
+      if (!['docx', 'xlsx', 'pptx'].includes(ext)) throw erro(415, 'formato', 'arquivo compactado não aceito. Use PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX.');
+      texto = ext === 'xlsx' ? xlsx(b) : ext === 'pptx' ? pptx(b) : docx(b);
     }
     else if (['txt', 'md', 'csv'].includes(ext)) {
       if (b.subarray(0, 4096).includes(0)) throw erro(415, 'formato', 'não é um arquivo de texto.');
       texto = decodificar(b);
-    } else throw erro(415, 'formato', 'formato não aceito. Use PDF com texto, DOCX, TXT, MD, CSV ou XLSX.');
+    } else throw erro(415, 'formato', 'formato não aceito. Use PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX.');
   } catch (e) {
     if (e.status) throw e.codigo === 'imagem' ? e : erro(e.status, e.codigo, `${nome}: ${e.message}`);
     throw erro(400, 'arquivo_invalido', `${nome}: não foi possível ler o arquivo.`);

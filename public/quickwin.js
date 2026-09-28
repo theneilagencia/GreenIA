@@ -193,7 +193,7 @@ async function configurar(id) {
             <button type="button" class="icone-btn" data-tirar-arquivo="${a.id}" aria-label="Remover ${esc(a.titulo)}">${ICONE.lixo}</button></div>`).join('') || '<div class="lista-item"><span class="dica">Nenhum arquivo ainda.</span></div>'}</div>
           <div class="linha-botoes" style="margin-top:10px"><button type="button" class="btn btn-linha btn-pequeno" id="add-arquivo">${ICONE.clipe} Adicionar arquivo</button>
             <label class="dica"><input type="checkbox" id="arquivo-sigiloso"> marcar como sigiloso</label>
-            <input type="file" id="arquivo-qw" hidden accept=".pdf,.docx,.txt,.md,.csv,.xlsx"></div></div>
+            <input type="file" id="arquivo-qw" hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx"></div></div>
         <div class="campo"><span class="legenda">Bases de conhecimento</span><div class="opcoes">
           ${radio('bases', 'nenhuma', qw.bases.modo, 'Nenhuma')}${radio('bases', 'area', qw.bases.modo, 'A da área')}${radio('bases', 'escolhidas', qw.bases.modo, 'Escolher documentos')}</div>
           <div class="opcoes" id="bases-escolhidas" style="margin-top:8px">${bases.documentos.map(d => `<label><input type="checkbox" name="base" value="${d.id}" ${qw.bases.ids.includes(d.id) ? 'checked' : ''}> ${esc(d.titulo)}</label>`).join('') || '<span class="dica">Nenhum documento de base disponível.</span>'}</div></div>

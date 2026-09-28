@@ -20,6 +20,12 @@ export const PADRAO = {
   acoesChat: { cpf: 'permitir', cnpj: 'permitir', cartao: 'proteger', banco: 'proteger', pix: 'proteger', credencial: 'bloquear',
     rg: 'permitir', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir', sensivel: 'proteger', confidencial: 'proteger' },
   acoesVersao: 2,
+  // Controle proporcional para dado pessoal processado normalmente: só recursos com fornecedor fixo e pedido de
+  // não uso para treino. Não bloqueia nem torna a conversa sigilosa.
+  protecaoDadosPessoais: true,
+  // Retenção separada do processamento: tipos de dado que podem ser processados, mas não ficam guardados no
+  // histórico (a mensagem, o anexo e a resposta ficam só como um registro de que houve processamento).
+  naoArmazenar: [],
   // Modelos: padrões, acesso por perfil e privacidade (seção 9).
   padroes: { chat: 'google/gemini-3.5-flash-lite', rapido: 'google/gemini-3.5-flash-lite', equilibrado: 'anthropic/claude-haiku-4.5', avancado: 'anthropic/claude-sonnet-5', homologado: null },
   acessoPerfis: { equilibrado: { todos: true, grupos: [], areas: [] }, avancado: { todos: false, grupos: [], areas: [] } },

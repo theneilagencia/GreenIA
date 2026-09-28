@@ -228,9 +228,13 @@ test('área com proteção reforçada: conteúdo comum segue as regras gerais, m
     // Com recurso autorizado: o conteúdo sigiloso segue só pelos guardrails.
     const conv2 = await novaConversa();
     await confereSigilosa(conv2, { texto: 'Resuma o laudo médico do colaborador.' }, 'dado:sensivel');
-    // Registro de pessoa em processo interno: sinal só da área reforçada.
+    // Registro de pessoa em processo interno (sinal da área reforçada): dado pessoal, com proteção de dados
+    // (fornecedor fixo, sem treino), e não informação sigilosa.
     const conv4 = await novaConversa();
-    await confereSigilosa(conv4, { texto: 'Organize o holerite deste mês por rubrica.' }, 'reforco:pessoas');
+    const h = await enviarMensagem(ana, conv4.id, { texto: 'Organize o holerite deste mês por rubrica.' });
+    assert.equal(h.status, 200);
+    assert.equal((await ana.get(`/api/conversas/${conv4.id}`)).dados.conversa.sigilosa, false);
+    assert.equal(OR.chamadas.at(-1).provider?.data_collection, 'deny');
     // Fora da área reforçada: o dado sensível continua protegido (vale em qualquer área); o holerite é conteúdo comum.
     exec(S.app.db, 'update areas set sigilosa = 0 where id = ?', areaId);
     const conv3 = await novaConversa();

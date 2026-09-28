@@ -58,3 +58,8 @@ test('a cor sugerida é o mesmo tom, mais escuro, e sempre passa no mínimo (ser
   }
   assert.equal(corLegivel('#1B7950'), '#1B7950', 'cor que já passa fica igual');
 });
+
+test('variantes do selo vêm depois da regra base (senão o fundo areia apaga a cor e o selo escuro fica ilegível)', () => {
+  const base = css.lastIndexOf('\n.selo{');
+  for (const v of ['verde', 'sigilosa', 'ambar', 'vermelho', 'cinza']) assert.ok(css.indexOf(`.selo.selo-${v}{`) > base, `.selo-${v} precisa vir depois de .selo`);
+});

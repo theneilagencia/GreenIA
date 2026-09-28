@@ -129,6 +129,12 @@ REGRAS.pessoal_restrito = t => {
 export const TIPOS = Object.keys(REGRAS);
 // Nível de risco de cada tipo (a decisão é da política da empresa; o nível orienta o padrão):
 //   1 conteúdo normal · 2 dado pessoal · 3 dado pessoal sensível · 4 informação confidencial · 5 credencial/segredo
+// CPF x CNPJ (regra formal, com teste próprio em test/cnpj.test.js):
+//   • CPF é de pessoa física: dado pessoal (nível 2), com os controles de dado pessoal.
+//   • CNPJ é de pessoa jurídica: identificação de empresa (nível 1). Não herda os controles de dado pessoal e não
+//     bloqueia o processamento. Não existe regra que transforme um CNPJ em dado pessoal.
+//   • Um documento com CNPJ pode ter também dados de pessoas físicas (CPF, email pessoal, telefone...): cada um é
+//     classificado pelo próprio conteúdo, independentemente do CNPJ ao lado.
 export const NIVEL_DO_TIPO = { cnpj: 1, cpf: 2, rg: 2, email: 2, telefone: 2, cep: 2, endereco: 2, cartao: 2, banco: 2, pix: 2, pessoal_restrito: 2, sensivel: 3, confidencial: 4, credencial: 5 };
 // Classificação (o que o dado É). O tratamento (proteger ou não enviar) é política da empresa, com uma exceção:
 // credenciais e segredos nunca são enviados, por regra de segurança da GreenIA (não é uma afirmação da LGPD).

@@ -104,6 +104,15 @@ para mensagens, anexos (PDF, DOCX, XLSX, imagens com OCR, texto), nova tentativa
 - **Não é uma afirmação de conformidade com a LGPD.** São controles configuráveis que apoiam as obrigações da
   empresa.
 
+### CPF e CNPJ
+
+- **CPF** (pessoa física): dado pessoal, com os controles de dado pessoal.
+- **CNPJ** (pessoa jurídica): identificação de empresa. Não herda os controles de dado pessoal do CPF e nunca
+  bloqueia o processamento.
+- **Documento com CNPJ e dados de pessoas físicas:** cada dado é classificado pelo próprio conteúdo. O CPF ou o
+  email pessoal de um sócio, por exemplo, continuam sendo dado pessoal. O CNPJ ao lado não muda isso.
+- **Não existe regra genérica que transforme um CNPJ em dado pessoal.** Testes em `test/cnpj.test.js`.
+
 ## Proteção proporcional: o conteúdo exige, o recurso oferece
 
 A pergunta da GreenIA é "como processar este conteúdo com segurança?", e não "como impedir". Detectar um dado

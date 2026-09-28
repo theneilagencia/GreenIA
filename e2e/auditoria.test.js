@@ -61,7 +61,8 @@ test('imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem 
   // 5. Guardar = não para CPF: a imagem do cadastro é processada e, depois de recarregar, não está lá.
   assert.equal((await admin.put('/api/admin/config', { naoArmazenar: ['cpf'] })).status, 200);
   await p.goto(`${N.base}/app#/nova`);
-  await p.waitForSelector('#entrada');
+  // Troca de hash na mesma página: espera a conversa nova substituir a anterior antes de contar as respostas.
+  await p.waitForFunction(() => document.querySelector('#entrada') && !document.querySelector('.bolha-eu, .rodape-resposta, .aviso-bolha'));
   await enviar(p, 'Monte a ficha do cliente do anexo.', [png('ficha.png', 'cadastro.png')]);
   assert.equal(await p.locator('.rodape-resposta').count(), 1, 'processou e respondeu');
   await p.reload();

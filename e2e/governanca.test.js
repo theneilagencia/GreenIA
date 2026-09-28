@@ -71,7 +71,8 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
   // 5. Retenção: a empresa não guarda CPF. Processa e responde; depois de recarregar, o conteúdo não está lá.
   assert.equal((await admin.put('/api/admin/config', { naoArmazenar: ['cpf'] })).status, 200);
   await p.goto(`${N.base}/app#/nova`);
-  await p.waitForSelector('#entrada');
+  // Troca de hash na mesma página: espera a conversa nova substituir a anterior antes de contar as respostas.
+  await p.waitForFunction(() => document.querySelector('#entrada') && !document.querySelector('.bolha-eu, .rodape-resposta, .aviso-bolha'));
   await enviar(p, 'Monte a ficha do cliente Maria Souza, CPF 529.982.247-25.');
   assert.equal(await p.locator('.rodape-resposta').count(), 1, 'processou e respondeu');
   await p.reload();

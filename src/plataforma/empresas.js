@@ -309,7 +309,7 @@ export function landingPadrao(nome) {
       { tipo: 'Rascunhar', texto: 'Escreva um email ao fornecedor sobre a divergência' },
       { tipo: 'Revisar', texto: 'Deixe este texto mais claro e mais curto' },
     ],
-    secoes: { como_usar: true, regras: true, tarefas: true },
+    secoes: { como_usar: true, chamadas: true, regras: true, tarefas: true, institucional: true },
     institucional: {
       titulo: `A IA na ${n}`,
       texto: `A ${n} oferece a GreenIA para apoiar o trabalho do dia a dia com segurança. Os dados ficam no ambiente da empresa e seguem a Política de Uso de IA. Em caso de dúvida, fale com a equipe responsável pela IA na ${n}.`,
@@ -319,12 +319,15 @@ export function landingPadrao(nome) {
 }
 export const seoPadrao = nome => ({ title: `${nome || 'Sua empresa'} · IA para o trabalho`, description: `Ambiente de IA da ${nome || 'empresa'}: conversas, quick wins e conhecimento das áreas, com as regras de dados da empresa.` });
 
+// Seções que a empresa pode esconder na página (o topo e o fechamento ficam sempre).
+export const SECOES_LANDING = ['como_usar', 'chamadas', 'regras', 'tarefas', 'institucional'];
+
 export function lerLanding(P, id) {
   const l = um(P.db, 'select * from landing_pages where company_id = ?', id);
   const nome = lerMarca(P, id)?.display_name || lerEmpresa(P, id)?.name || '';
   const modelo = landingPadrao(nome), salvo = json(l?.content, {});
   // Textos novos do modelo entram sozinhos em landings antigas; o que a empresa já escreveu prevalece.
-  return l && { status: l.status, content: { ...modelo, ...salvo, textos: { ...modelo.textos, ...(salvo.textos || {}) } }, seo: { ...seoPadrao(nome), ...Object.fromEntries(Object.entries(json(l.seo, {})).filter(([, v]) => v)) }, modelo, modeloSeo: seoPadrao(nome), updated_at: l.updated_at };
+  return l && { status: l.status, content: { ...modelo, ...salvo, textos: { ...modelo.textos, ...(salvo.textos || {}) }, secoes: { ...modelo.secoes, ...(salvo.secoes || {}) } }, seo: { ...seoPadrao(nome), ...Object.fromEntries(Object.entries(json(l.seo, {})).filter(([, v]) => v)) }, modelo, modeloSeo: seoPadrao(nome), updated_at: l.updated_at };
 }
 
 function validarConteudoLanding(c) {
@@ -338,7 +341,7 @@ function validarConteudoLanding(c) {
     botoes,
     destaques: (Array.isArray(c.destaques) ? c.destaques : []).slice(0, 4).map(d => texto(d, 60, 'destaque')).filter(Boolean),
     chamadas: (Array.isArray(c.chamadas) ? c.chamadas : []).slice(0, 6).map(x => ({ titulo: texto(x.titulo, 60, 'chamada'), texto: texto(x.texto, 300, 'chamada') })).filter(x => x.titulo),
-    secoes: { como_usar: c.secoes?.como_usar !== false, regras: c.secoes?.regras !== false, tarefas: c.secoes?.tarefas !== false },
+    secoes: Object.fromEntries(SECOES_LANDING.map(k => [k, c.secoes?.[k] !== false])),
     textos: Object.fromEntries(Object.keys(landingPadrao('').textos).map(k => [k, texto(c.textos?.[k], k.endsWith('_sub') || k === 'fim_texto' ? 240 : 120, k)])),
     passos: (Array.isArray(c.passos) ? c.passos : []).slice(0, 4).map(x => ({ titulo: texto(x.titulo, 60, 'passo'), texto: texto(x.texto, 200, 'passo') })).filter(x => x.titulo),
     regras: Object.fromEntries(['pode', 'sigilo', 'nunca'].map(k => [k, (Array.isArray(c.regras?.[k]) ? c.regras[k] : []).slice(0, 5).map(t => texto(t, 120, 'regra')).filter(Boolean)])),

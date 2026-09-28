@@ -957,3 +957,14 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .cartao-base-ir{display:inline-flex;align-items:center;gap:4px;flex:none;font:500 13px var(--sans);color:var(--forest-text)}
 .cartao-base-ir svg{width:14px;height:14px}
 .boas-vindas .cartao-base{margin:22px auto 0;max-width:520px}
+
+/* Editor da landing: mostrar ou ocultar cada seção pelo interruptor no título do bloco */
+.ld-vis{margin-left:auto;display:inline-flex;align-items:center;gap:8px;align-self:center;padding:2px 0 2px 8px}
+.ld-vis-txt{font:500 12.5px var(--sans);color:var(--forest-text)}
+.ld-bloco.oculta .ld-vis-txt{color:var(--muted)}
+.ld-bloco[data-secao]>summary::after{margin-left:12px}
+.ld-bloco.oculta{background:var(--surface);border-style:dashed}
+.ld-bloco.oculta>summary b{color:var(--muted)}
+.ld-oculta-aviso{display:none;margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--amber-bg);color:var(--amber-text);font:400 13px/1.5 var(--sans)}
+.ld-bloco.oculta .ld-oculta-aviso{display:block}
+@media (max-width:640px){.ld-vis{margin-left:0;flex-basis:100%;padding-left:0}}

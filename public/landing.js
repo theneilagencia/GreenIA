@@ -68,16 +68,21 @@ if (l) {
   if (l.passos?.length) $('ld-passos').innerHTML = l.passos.map(x => `<li><b>${esc(x.titulo)}</b><span>${esc(x.texto)}</span></li>`).join('');
   for (const k of ['pode', 'sigilo', 'nunca']) if (l.regras?.[k]?.length) $(`rg-${k}`).innerHTML = l.regras[k].map(x => `<li>${esc(x)}</li>`).join('');
   if (l.tarefas?.length) $('ld-tarefas').innerHTML = l.tarefas.map(tarefaHtml).join('');
-  if (l.secoes?.como_usar === false) $('como-usar').classList.add('oculto');
-  if (l.secoes?.regras === false) $('sec-regras').classList.add('oculto');
-  if (l.secoes?.tarefas === false) $('sec-tarefas').classList.add('oculto');
+  const SECAO = { como_usar: 'como-usar', chamadas: 'sec-chamadas', regras: 'sec-regras', tarefas: 'sec-tarefas' };
+  for (const [k, id] of Object.entries(SECAO)) if (l.secoes?.[k] === false) $(id).classList.add('oculto');
   const inst = l.institucional || {};
-  if (inst.titulo || inst.texto || inst.links?.length) {
+  if (l.secoes?.institucional !== false && (inst.titulo || inst.texto || inst.links?.length)) {
     $('inst-titulo').textContent = inst.titulo || '';
     $('inst-texto').textContent = inst.texto || '';
     $('inst-links').innerHTML = (inst.links || []).map(x => `<a class="pp-inst-link" href="${esc(x.link)}"${/^https?:/.test(x.link) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.texto)}<svg width="16" height="16" aria-hidden="true"><use href="#i-seta"/></svg></a>`).join('');
     $('sec-inst').classList.remove('oculto');
   }
+}
+// Seção escondida (no editor ou por falta de conteúdo): some também o que aponta para ela,
+// como o menu do topo e botões "Como usar", para nenhum link ficar sem destino.
+for (const a of document.querySelectorAll('a[href^="#"]')) {
+  const alvo = a.getAttribute('href').length > 1 && document.getElementById(a.getAttribute('href').slice(1));
+  if (alvo?.classList.contains('oculto') || (alvo && alvo.closest('.oculto'))) a.classList.add('oculto');
 }
 if (p.seo?.title) document.title = p.seo.title;
 if (p.seo?.description) $('meta-desc').content = p.seo.description;

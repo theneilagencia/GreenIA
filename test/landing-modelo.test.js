@@ -93,3 +93,17 @@ test('multiempresa: o aviso de administrar a base leva ao endereço da própria 
   assert.match(m.texto, /http:\/\/plataforma\.teste\/delta\/app#\/conhecimento/);
   assert.equal((await dora.get('/api/eu')).dados.bases.areas[0].nome, 'Operações');
 });
+
+test('todas as seções opcionais podem ser escondidas, inclusive O que você encontra e Institucional', async () => {
+  const l = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.landing;
+  assert.deepEqual(Object.keys(l.content.secoes).sort(), ['chamadas', 'como_usar', 'institucional', 'regras', 'tarefas']);
+  const secoes = { como_usar: true, chamadas: false, regras: true, tarefas: true, institucional: false };
+  assert.equal((await ops.put(`/api/plataforma/empresas/${c.id}/landing`, { content: { ...l.content, secoes } })).status, 200);
+  const v = S.navegador(); await v.get('/horizonte');
+  assert.deepEqual((await v.get('/api/publico')).dados.landing.secoes, secoes);
+  // Landing antiga, salva só com as três seções de antes: as novas aparecem por padrão.
+  const { exec } = await import('../src/db.js');
+  exec(S.P.db, 'update landing_pages set content = json_set(content, \'$.secoes\', json(\'{"como_usar":false,"regras":true,"tarefas":true}\')) where company_id = ?', c.id);
+  const antiga = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.landing.content.secoes;
+  assert.deepEqual([antiga.como_usar, antiga.chamadas, antiga.institucional], [false, true, true]);
+});

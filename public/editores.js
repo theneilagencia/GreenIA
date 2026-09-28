@@ -172,8 +172,13 @@ export function renderLanding(l, { pode = true, urlPublica = '' } = {}) {
   const slots = (lista, n) => [...(lista || []), ...Array(n).fill({})].slice(0, n);
   const inp = (id, v, max, extra = '') => `<input class="entrada" id="${id}" value="${esc(v || '')}" maxlength="${max}" ${d} ${extra}>`;
   const textos = sec => `<div class="grade-2">${TEXTOS_SECAO[sec].map(([k, r]) => `<div class="campo"><label for="lt-${k}">${r}</label>${inp(`lt-${k}`, t[k], k.endsWith('_sub') || k === 'fim_texto' ? 240 : 120, `data-texto="${k}"`)}</div>`).join('')}</div>`;
-  const mostrar = (k, rot) => `<label class="ld-mostrar"><input type="checkbox" id="ld-sec-${k}" ${c.secoes?.[k] !== false ? 'checked' : ''} ${d}> ${rot}</label>`;
-  const bloco = (titulo, onde, corpo, aberto = false) => `<details class="ld-bloco" ${aberto ? 'open' : ''}><summary><b>${titulo}</b><span class="dica">${onde}</span></summary><div class="ld-corpo">${corpo}</div></details>`;
+  // Seções opcionais: o interruptor fica no título do bloco (à vista mesmo fechado) e a seção oculta
+  // fica marcada; os textos continuam editáveis para quando ela voltar.
+  const visivel = k => c.secoes?.[k] !== false;
+  const chave = k => `<span class="ld-vis" data-vis="${k}"><span class="ld-vis-txt">${visivel(k) ? 'Aparece na página' : 'Oculta na página'}</span>
+    <button type="button" class="switch" role="switch" id="ld-sec-${k}" aria-checked="${visivel(k)}" aria-label="Mostrar esta seção na página" title="Mostrar esta seção na página" ${d}><span></span></button></span>`;
+  const bloco = (titulo, onde, corpo, aberto = false, secao = '') => `<details class="ld-bloco${secao && !visivel(secao) ? ' oculta' : ''}" ${aberto ? 'open' : ''} ${secao ? `data-secao="${secao}"` : ''}><summary><b>${titulo}</b><span class="dica">${onde}</span>${secao ? chave(secao) : ''}</summary>
+    <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor no título para mostrar de novo.</p>' : ''}${corpo}</div></details>`;
   return `<form id="form-landing" novalidate class="ld-editor">
     ${!pode ? '<div class="faixa-aviso atencao">A landing page desta empresa é gerenciada pelo operador da plataforma. Você pode ver, mas não alterar.</div>' : ''}
     <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'} ld-situacao"><span>${l.status === 'publicada' ? '<b>Publicada.</b> A página já vem pronta com um modelo completo; troque o que quiser.' : '<b>Rascunho.</b> A página pública mostra uma versão simples até a publicação.'}</span>
@@ -190,22 +195,22 @@ export function renderLanding(l, { pode = true, urlPublica = '' } = {}) {
         <input class="entrada" data-botao-link="${i}" value="${esc(b.link || '')}" placeholder="/entrar, #como-usar ou https://" ${d}>
         <select class="entrada" data-botao-estilo="${i}" ${d}><option value="primario" ${b.estilo !== 'secundario' ? 'selected' : ''}>Principal</option><option value="secundario" ${b.estilo === 'secundario' ? 'selected' : ''}>Secundário</option></select></div>`).join('')}</div>
       <div class="campo"><label for="ld-destaques">Destaques abaixo dos botões (um por linha, até 4)</label><textarea class="entrada" id="ld-destaques" rows="3" ${d}>${esc((c.destaques || []).join('\n'))}</textarea></div>`, true)}
-    ${bloco('2. Como usar', 'Passo a passo para começar', `${mostrar('como_usar', 'Mostrar esta seção')}${textos('como_usar')}
+    ${bloco('2. Como usar', 'Passo a passo para começar', `${textos('como_usar')}
       <div class="repetidor">${slots(c.passos, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-passo-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Passo ${i + 1}" maxlength="60" ${d}>
-        <input class="entrada" data-passo-texto="${i}" value="${esc(x.texto || '')}" placeholder="Explicação" maxlength="200" ${d}></div>`).join('')}</div>`)}
+        <input class="entrada" data-passo-texto="${i}" value="${esc(x.texto || '')}" placeholder="Explicação" maxlength="200" ${d}></div>`).join('')}</div>`, false, 'como_usar')}
     ${bloco('3. O que você encontra', 'Recursos disponíveis', `${textos('chamadas')}
       <div class="repetidor">${slots(c.chamadas, 6).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-chamada-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Título" maxlength="60" ${d}>
-        <input class="entrada" data-chamada-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto" maxlength="300" ${d}></div>`).join('')}</div><p class="dica">Deixe o título em branco para esconder um bloco.</p>`)}
-    ${bloco('4. Regras de dados', 'O que pode e o que não pode ser enviado', `${mostrar('regras', 'Mostrar esta seção')}${textos('regras')}
-      <div class="grade-3">${REGRAS.map(([k, r]) => `<div class="campo"><label for="ld-regra-${k}">${r} <small>(um por linha)</small></label><textarea class="entrada" id="ld-regra-${k}" rows="4" ${d}>${esc((c.regras?.[k] || []).join('\n'))}</textarea></div>`).join('')}</div>`)}
-    ${bloco('5. Boas tarefas', 'Exemplos de pedidos para começar', `${mostrar('tarefas', 'Mostrar esta seção')}${textos('tarefas')}
+        <input class="entrada" data-chamada-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto" maxlength="300" ${d}></div>`).join('')}</div><p class="dica">Deixe o título em branco para esconder um bloco.</p>`, false, 'chamadas')}
+    ${bloco('4. Regras de dados', 'O que pode e o que não pode ser enviado', `${textos('regras')}
+      <div class="grade-3">${REGRAS.map(([k, r]) => `<div class="campo"><label for="ld-regra-${k}">${r} <small>(um por linha)</small></label><textarea class="entrada" id="ld-regra-${k}" rows="4" ${d}>${esc((c.regras?.[k] || []).join('\n'))}</textarea></div>`).join('')}</div>`, false, 'regras')}
+    ${bloco('5. Boas tarefas', 'Exemplos de pedidos para começar', `${textos('tarefas')}
       <div class="repetidor">${slots(c.tarefas, 8).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 3fr"><input class="entrada" data-tarefa-tipo="${i}" value="${esc(x.tipo || '')}" placeholder="Tipo (ex.: Resumir)" maxlength="30" ${d}>
-        <input class="entrada" data-tarefa-texto="${i}" value="${esc(x.texto || '')}" placeholder="Exemplo de pedido" maxlength="140" ${d}></div>`).join('')}</div>`)}
+        <input class="entrada" data-tarefa-texto="${i}" value="${esc(x.texto || '')}" placeholder="Exemplo de pedido" maxlength="140" ${d}></div>`).join('')}</div>`, false, 'tarefas')}
     ${bloco('6. Institucional', 'Sobre a IA na empresa e links úteis', `
       <div class="campo"><label for="ld-inst-titulo">Título</label>${inp('ld-inst-titulo', c.institucional?.titulo, 80)}</div>
       <div class="campo"><label for="ld-inst-texto">Texto</label><textarea class="entrada" id="ld-inst-texto" rows="3" maxlength="1200" ${d}>${esc(c.institucional?.texto || '')}</textarea></div>
       <span class="legenda">Links</span><div class="repetidor">${slots(c.institucional?.links, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><input class="entrada" data-link-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto do link" maxlength="40" ${d}>
-        <input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" placeholder="/politica ou https://" ${d}></div>`).join('')}</div>`)}
+        <input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" placeholder="/politica ou https://" ${d}></div>`).join('')}</div>`, false, 'institucional')}
     ${bloco('7. Fechamento', 'Chamada final antes do rodapé', textos('fim'))}
     ${bloco('8. Busca e compartilhamento', 'Como a página aparece no Google e em links', `<div class="grade-2">
       <div class="campo"><label for="ld-seo-title">Título da página</label>${inp('ld-seo-title', l.seo?.title, 70)}</div>
@@ -224,6 +229,18 @@ export function ligarLanding(l) {
   const vals = attr => todos(attr).map(e => e.value.trim());
   const pares = (a, b, ka, kb) => { const x = vals(a), y = vals(b); return x.map((v, i) => ({ [ka]: v, [kb]: y[i] })); };
   const linhas = id => $(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+  // Interruptor no título do bloco: não abre nem fecha o bloco; marca a seção como oculta na hora.
+  const mudarSecao = (k, v) => {
+    const e = document.querySelector(`[data-vis="${k}"]`);
+    e.querySelector('.switch').setAttribute('aria-checked', v);
+    e.querySelector('.ld-vis-txt').textContent = v ? 'Aparece na página' : 'Oculta na página';
+    e.closest('.ld-bloco').classList.toggle('oculta', !v);
+  };
+  for (const e of todos('data-vis')) {
+    const b = e.querySelector('.switch');
+    e.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); });
+    b.addEventListener('keydown', ev => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); } });
+  }
   // Restaurar o modelo: devolve os textos originais nos campos (só vale ao salvar).
   $('ld-restaurar')?.addEventListener('click', () => {
     if (!l?.modelo || !confirm('Trocar todos os textos pelos do modelo? A mudança só vale quando você salvar.')) return;
@@ -239,7 +256,7 @@ export function ligarLanding(l) {
     lista('data-tarefa-tipo', m.tarefas, 'tipo'); lista('data-tarefa-texto', m.tarefas, 'texto');
     set('ld-inst-titulo', m.institucional?.titulo); set('ld-inst-texto', m.institucional?.texto);
     lista('data-link-texto', m.institucional?.links, 'texto'); lista('data-link-url', m.institucional?.links, 'link');
-    for (const k of ['como_usar', 'regras', 'tarefas']) $(`ld-sec-${k}`).checked = true;
+    for (const e of todos('data-vis')) mudarSecao(e.dataset.vis, true);
     set('ld-seo-title', l.modeloSeo?.title); set('ld-seo-description', l.modeloSeo?.description);
     document.querySelectorAll('.ld-bloco').forEach(b => { b.open = true; });
   });
@@ -255,7 +272,7 @@ export function ligarLanding(l) {
       chamadas: pares('data-chamada-titulo', 'data-chamada-texto', 'titulo', 'texto').filter(x => x.titulo),
       regras: Object.fromEntries(REGRAS.map(([k]) => [k, linhas(`ld-regra-${k}`)])),
       tarefas: pares('data-tarefa-tipo', 'data-tarefa-texto', 'tipo', 'texto').filter(x => x.texto),
-      secoes: { como_usar: $('ld-sec-como_usar').checked, regras: $('ld-sec-regras').checked, tarefas: $('ld-sec-tarefas').checked },
+      secoes: Object.fromEntries(todos('data-vis').map(e => [e.dataset.vis, e.querySelector('.switch').getAttribute('aria-checked') === 'true'])),
       institucional: { titulo: $('ld-inst-titulo').value, texto: $('ld-inst-texto').value, links: pares('data-link-texto', 'data-link-url', 'texto', 'link').filter(x => x.texto && x.link) },
     };
     if (img) content.imagem = img; else if (removerImagem) content.imagem = '';

@@ -65,6 +65,10 @@ export function explicarFalhaEmail(e, smtp = {}) {
     if (/\b429\b/.test(msg)) return `O ${nomeApi} limitou os envios da conta (muitas mensagens em pouco tempo ou cota do plano). Tente de novo mais tarde.`;
     return `O ${nomeApi} não aceitou o envio: ${msg.slice(0, 160)}`;
   }
+  // Só o formato da senha é conferido (16 letras, como toda senha de app do Google); ela nunca aparece.
+  let formatoApp = true;
+  try { formatoApp = /^[a-z]{16}$/i.test(decodeURIComponent(new URL(normalizarSmtpUrl(smtp.url)).password).replace(/\s+/g, '')); } catch {}
+  if ((cod === 'EAUTH' || resp === 535 || resp === 534) && /gmail|google/i.test(host) && !formatoApp) return 'O Gmail recusou a senha: a senha informada não é uma senha de app (a senha de app do Google tem 16 letras). A senha normal da conta, mesmo correta, não é aceita para envio. Crie uma senha de app em myaccount.google.com/apppasswords (com a verificação em duas etapas ligada) e cole no campo de senha. Se o navegador preencheu a senha sozinho, apague e cole a senha de app.';
   if ((cod === 'EAUTH' || resp === 535 || resp === 534) && /gmail|google/i.test(host)) return 'O Gmail recusou o usuário ou a senha. Use o email completo como usuário e uma senha de app de 16 letras (não a senha normal), criada em myaccount.google.com/apppasswords com a verificação em duas etapas ligada. Em contas Google Workspace, o administrador do Google pode ter desligado as senhas de app.';
   if ((cod === 'EAUTH' || resp === 535 || resp === 534) && /office365|outlook|microsoft/i.test(host)) return 'A Microsoft recusou o usuário ou a senha. O administrador do Microsoft 365 precisa liberar o SMTP autenticado para esta caixa; com verificação em duas etapas, use uma senha de app.';
   if (cod === 'EAUTH' || resp === 535 || resp === 534) return `O servidor ${host} recusou o usuário ou a senha. No Google e na Microsoft é preciso uma senha de app (com verificação em duas etapas) e, na Microsoft, o SMTP autenticado liberado para a caixa.`;

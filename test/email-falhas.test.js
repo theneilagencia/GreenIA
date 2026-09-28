@@ -66,9 +66,14 @@ test('admin da empresa: vê a falha do email próprio (explicada, sem segredo) e
 
 test('explicações de falha de email: senha recusada, domínio não verificado, conexão bloqueada, remetente recusado', () => {
   const smtp = { url: 'smtps://eu%40apy.com:segredo@smtp.gmail.com:465' };
-  assert.match(explicarFalhaEmail(Object.assign(new Error('Invalid login: 535-5.7.8'), { code: 'EAUTH', responseCode: 535 }), smtp), /O Gmail recusou o usuário ou a senha.*senha de app de 16 letras.*apppasswords/);
+  assert.match(explicarFalhaEmail(Object.assign(new Error('Invalid login: 535-5.7.8'), { code: 'EAUTH', responseCode: 535 }), smtp), /O Gmail recusou a senha: a senha informada não é uma senha de app/);
   assert.match(explicarFalhaEmail(Object.assign(new Error('Connection timeout'), { code: 'ETIMEDOUT' }), smtp), /conectar a smtp\.gmail\.com:465.*bloqueando SMTP de saída/);
   assert.match(explicarFalhaEmail(Object.assign(new Error('553 Sender not owned'), { code: 'EENVELOPE', responseCode: 553 }), smtp), /não aceitou o remetente/);
+  // Senha que não tem o formato de senha de app (16 letras): o motivo diz isso, sem mostrar a senha.
+  const normal = explicarFalhaEmail(Object.assign(new Error('535'), { code: 'EAUTH', responseCode: 535 }), { url: 'smtps://eu%40apy.com:MinhaSenha2026@smtp.gmail.com:465' });
+  assert.match(normal, /não é uma senha de app \(a senha de app do Google tem 16 letras\)/);
+  assert.ok(!normal.includes('MinhaSenha2026'));
+  assert.match(explicarFalhaEmail(Object.assign(new Error('535'), { code: 'EAUTH', responseCode: 535 }), { url: 'smtps://eu%40apy.com:abcdefghijklmnop@smtp.gmail.com:465' }), /O Gmail recusou o usuário ou a senha/);
   const api = { url: 'resend://re_chave_secreta_123456' };
   const m = explicarFalhaEmail(new Error('resend respondeu 403: {"message":"The apymine.com domain is not verified"}'), api);
   assert.match(m, /domínio do email remetente não está verificado na conta do Resend/);

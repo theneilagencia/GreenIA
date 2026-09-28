@@ -414,6 +414,9 @@ const PROVEDORES_EMAIL = {
   zoho: { nome: 'Zoho Mail', servidor: 'smtp.zoho.com', porta: 465, ajuda: 'Use o email completo e a senha (ou senha de app, se tiver verificação em duas etapas).' },
   outro: { nome: 'Outro servidor', servidor: '', porta: 465, ajuda: 'Peça ao responsável pelo email da empresa o <b>servidor SMTP</b> e a <b>porta</b> (normalmente 465 ou 587).' },
 };
+// Senha da caixa de email: o campo nasce somente leitura para o navegador não preencher sozinho a senha de
+// login da conta; ao focar, libera a digitação.
+document.addEventListener('focusin', ev => { if (ev.target?.id === 'c-senha') ev.target.removeAttribute('readonly'); });
 const provedorDe = smtp => smtp.modo === 'api' ? smtp.api : smtp.modo === 'smtp' ? (Object.entries(PROVEDORES_EMAIL).find(([k, p]) => k !== 'outro' && p.servidor === smtp.servidor)?.[0] || 'outro') : '';
 const nomeDoRemetente = r => (/^\s*(.*?)\s*</.exec(r || '')?.[1] || 'GreenIA').replace(/^"|"$/g, '');
 const RETENCOES = [[30, '30 dias'], [90, '90 dias'], [180, '6 meses'], [365, '1 ano']];
@@ -492,7 +495,7 @@ async function abaConfig() {
       const p = PROVEDORES_EMAIL[prov], mesmo = smtp.modo === 'smtp';
       alvo.innerHTML = `<div class="faixa-aviso">${p.ajuda}</div>
         <div class="grade-2"><div class="campo"><label for="c-usu">Email que envia</label><input class="entrada" id="c-usu" type="email" autocomplete="off" value="${esc(mesmo ? smtp.usuario : '')}" placeholder="nao-responda@suaempresa.com.br"><span class="ajuda">Uma caixa de email da empresa. Os emails saem em nome dela.</span></div>
-        <div class="campo"><label for="c-senha">Senha dessa caixa</label><input class="entrada" id="c-senha" type="password" autocomplete="new-password" placeholder="${mesmo && smtp.temSenha ? '•••••••• (guardada; deixe em branco para manter)' : 'Senha da caixa de email'}"><span class="ajuda">Fica guardada no servidor e nunca é mostrada de novo.</span></div>
+        <div class="campo"><label for="c-senha">Senha dessa caixa</label><input class="entrada" id="c-senha" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore readonly placeholder="${mesmo && smtp.temSenha ? '•••••••• (guardada; deixe em branco para manter)' : 'Senha da caixa de email'}"><span class="ajuda">Fica guardada no servidor e nunca é mostrada de novo.</span></div>
         <div class="campo"><label for="c-rem-nome">Nome do remetente</label><input class="entrada" id="c-rem-nome" value="${esc(nome)}"><span class="ajuda">Como aparece na caixa de entrada. Ex.: GreenIA, ou IA da Sua Empresa.</span></div></div>
         <details class="cfg-avancado" ${prov === 'outro' ? 'open' : ''}><summary>Servidor e porta${prov === 'outro' ? '' : ' (já preenchidos)'}</summary>
           <div class="grade-2"><div class="campo"><label for="c-serv">Servidor SMTP</label><input class="entrada" id="c-serv" value="${esc(mesmo && prov === provedorDe(smtp) ? smtp.servidor : p.servidor)}" placeholder="smtp.suaempresa.com.br"></div>

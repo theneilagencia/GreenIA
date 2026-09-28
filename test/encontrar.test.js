@@ -11,7 +11,7 @@ before(async () => {
   S = await subirPlataforma();
   ops = await S.navegador().entrarConsole('ops@theneil.com.br');
   const planos = (await ops.get('/api/plataforma/planos')).dados.planos;
-  for (const [name, slug, status] of [['Alfa', 'alfa', 'ativa'], ['Beta', 'beta', 'ativa'], ['Gama', 'gama', 'suspensa']]) {
+  for (const [name, slug, status] of [['Alfa', 'alfa', 'ativa'], ['Beta', 'beta', 'ativa'], ['Gama', 'gama', 'suspensa'], ['Apy Mine', 'apy-mine', 'ativa']]) {
     const c = (await ops.post('/api/plataforma/empresas', { name, slug, plan_id: planos[0].id, admin_email: 'ana@grupo.com', status: 'ativa' })).dados;
     if (status !== 'ativa') await ops.post(`/api/plataforma/empresas/${c.id}/status`, { status });
   }
@@ -69,4 +69,19 @@ test('administrador da plataforma recebe o link do console', async () => {
   const m = S.P.email.enviados.filter(x => x.para === 'ops@theneil.com.br' && /Seu acesso/.test(x.assunto)).at(-1);
   assert.ok(m, 'email enviado');
   assert.match(m.texto, /Console da plataforma: http:\/\/plataforma\.teste\/plataforma/);
+});
+
+test('endereço de empresa inexistente: página da marca com o caminho para encontrar; sem hífen leva ao endereço certo', async () => {
+  const v = S.navegador();
+  const r = await v.get('/empresa-que-nao-existe');
+  assert.equal(r.status, 404);
+  assert.match(r.dados, /Não encontramos este endereço/);
+  assert.match(r.dados, /href="\/encontrar"/);
+  assert.doesNotMatch(r.dados, /alfa|beta|apy/i, 'não revela quais empresas existem');
+  // Digitado sem o hífen (ou com hífen a mais): uma só empresa corresponde → redireciona.
+  const sem = await v.get('/apymine');
+  assert.equal(sem.status, 301);
+  assert.equal(sem.headers.get('location'), '/apy-mine');
+  const app = await v.get('/apymine/entrar');
+  assert.equal(app.headers.get('location'), '/apy-mine/entrar');
 });

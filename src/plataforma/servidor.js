@@ -247,7 +247,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
     const cookies = lerCookies(req);
     const porHost = resolverPorHost(P, hostDe(req));
     if (porHost?.redirecionar) { res.writeHead(301, { location: porHost.redirecionar + caminho }); return res.end(); }
-    if (porHost?.inexistente) return pagina404(res, 'Ambiente não encontrado.');
+    if (porHost?.inexistente) return paginaAmbienteNaoEncontrado(res);
 
     // Arquivos estáticos (css, js, imagens) valem para todos.
     if (req.method === 'GET' && ehArquivoPublico(caminho) && await servirEstatico(res, PUBLICO, caminho.slice(1), req)) return;
@@ -269,7 +269,12 @@ async function tratar(P, rPlat, rEmp, req, res) {
       const m = /^\/([a-z0-9-]{3,40})(\/entrar|\/app)?\/?$/.exec(caminho);
       if (m && !PAGINAS_EMPRESA[`/${m[1]}`] && !SLUGS_RESERVADOS.has(m[1])) {
         const c = um(P.db, 'select id, slug from companies where slug = ?', m[1]) || um(P.db, 'select c.id, c.slug, 1 as antigo from company_slugs s join companies c on c.id = s.company_id where s.slug = ?', m[1]);
-        if (!c) return pagina404(res, 'Ambiente não encontrado.');
+        if (!c) {
+          // Endereço digitado sem (ou com) hífen: se só uma empresa corresponde, leva para o endereço certo.
+          const parecidos = todos(P.db, "select slug from companies where replace(slug, '-', '') = ?", m[1].replace(/-/g, ''));
+          if (parecidos.length === 1) { res.writeHead(301, { location: `/${parecidos[0].slug}${m[2] || ''}` }); return res.end(); }
+          return paginaAmbienteNaoEncontrado(res);
+        }
         if (c.antigo) { res.writeHead(301, { location: `/${c.slug}${m[2] || ''}` }); return res.end(); }
         (await import('./sessao.js')).definirContexto(P, res, c.id);
         if (m[2]) { res.writeHead(302, { location: m[2] }); return res.end(); }
@@ -341,6 +346,19 @@ async function despachar(P, r, req, res, url, cookies, companyId) {
 
 async function servirPagina(res, arquivo) {
   if (!(await servirEstatico(res, PUBLICO, arquivo))) pagina404(res, 'Página não encontrada.');
+}
+// Endereço de empresa inexistente: página da marca, sem revelar quais empresas existem, com o caminho para
+// encontrar o endereço certo pelo email.
+function paginaAmbienteNaoEncontrado(res) {
+  res.writeHead(404, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+  res.end(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Endereço não encontrado · GreenIA</title><link rel="stylesheet" href="/estilo.css"><link rel="icon" href="/assets/greenia-marca.svg"></head>
+<body><main style="min-height:100vh;display:grid;place-items:center;padding:24px"><div style="max-width:440px;text-align:center">
+<img src="/assets/greenia-marca.svg" width="40" height="40" alt="GreenIA" style="margin-bottom:18px">
+<h1 style="font:600 22px/1.3 var(--sans);margin:0 0 10px;color:var(--ink)">Não encontramos este endereço</h1>
+<p style="font:400 15px/1.6 var(--sans);color:var(--muted);margin:0 0 24px">Confira se o endereço da sua empresa foi digitado como recebido no convite. Se não souber o endereço, informe seu email e enviamos o link de entrada.</p>
+<a class="btn btn-verde btn-grande" href="/encontrar">Encontrar minha empresa</a>
+</div></main></body></html>`);
 }
 function pagina404(res, msg) {
   res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });

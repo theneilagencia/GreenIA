@@ -25,3 +25,18 @@ form.addEventListener('submit', async ev => {
     erro.textContent = e.message; erro.classList.remove('oculto'); botao.disabled = false;
   }
 });
+
+// 2.0 Políticas de IA: parallax discreto na foto (até 14 px), só com movimento liberado.
+const cena = document.querySelector('.l-cena-foto');
+if (cena && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  let pedido = 0;
+  const mover = () => {
+    pedido = 0;
+    const r = cena.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) return;
+    const k = (r.top + r.height / 2 - innerHeight / 2) / innerHeight;   // -1 (acima) … 1 (abaixo)
+    cena.style.setProperty('--par', `${Math.max(-14, Math.min(14, k * 20)).toFixed(1)}px`);
+  };
+  addEventListener('scroll', () => { if (!pedido) pedido = requestAnimationFrame(mover); }, { passive: true });
+  mover();
+}

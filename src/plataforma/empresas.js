@@ -103,11 +103,22 @@ export function concessoes(P, companyId) {
 export const marcaBloqueada = (P, companyId) => json(um(P.db, 'select locked from branding where company_id = ?', companyId)?.locked, []);
 
 // O que o admin da empresa pode personalizar: recurso do plano, concessão do operador da plataforma (a permissão da pessoa é conferida na rota).
+// Sem plano definido (empresa ainda em configuração), a personalização fica liberada: ela não consome
+// nada, e os limites de uso já dependem do plano.
+const RECURSO_DA_CONCESSAO = { branding: 'custom_branding', landing_page: 'landing_page', url: 'custom_url', domain: 'custom_domain', roles: 'custom_roles' };
 export function podeEditar(P, companyId) {
+  const m = motivosBloqueio(P, companyId);
+  return Object.fromEntries(Object.keys(RECURSO_DA_CONCESSAO).map(k => [k, !m[k]]));
+}
+// Por que cada item está travado para a empresa (ou null): o plano não inclui, ou o operador não concedeu.
+export function motivosBloqueio(P, companyId) {
   const c = lerEmpresa(P, companyId);
-  const f = lerPlanoPorId(P, c.plan_id)?.features || {};
+  const plano = c?.plan_id ? lerPlanoPorId(P, c.plan_id) : null;
   const g = concessoes(P, companyId);
-  return { branding: !!f.custom_branding && g.branding, landing_page: !!f.landing_page && g.landing_page, url: !!f.custom_url && g.url, domain: !!f.custom_domain && g.domain, roles: !!f.custom_roles && g.roles };
+  return Object.fromEntries(Object.entries(RECURSO_DA_CONCESSAO).map(([k, recurso]) => [k,
+    plano && !plano.features?.[recurso] ? `O plano ${plano.name} não inclui ${RECURSOS[recurso].toLowerCase()}. Para liberar, o operador da plataforma precisa mudar o plano da empresa.`
+      : !g[k] ? `O operador da plataforma não liberou a edição de ${CONCESSOES[k].toLowerCase()} para a empresa. Para liberar, ele marca o item em Permissões concedidas.`
+        : null]));
 }
 
 export function criarEmpresa(P, dados, ator, origem) {
@@ -243,7 +254,7 @@ export function salvarMarca(P, id, dados, ator, origem, { escopo = 'plataforma' 
   const antes = lerMarca(P, id);
   if (!antes) throw erro(404, 'empresa', 'Empresa não encontrada.');
   if (escopo === 'empresa') {
-    if (!podeEditar(P, id).branding) throw erro(403, 'nao_concedido', 'A identidade visual desta empresa é gerenciada pelo operador da plataforma.');
+    if (!podeEditar(P, id).branding) throw erro(403, 'nao_concedido', motivosBloqueio(P, id).branding);
     const bloqueados = CAMPOS_MARCA.filter(k => dados[k] !== undefined && antes.locked.includes(k) && dados[k] !== antes[k]);
     if (bloqueados.length) throw erro(403, 'campo_bloqueado', `Estes itens foram bloqueados pelo operador da plataforma: ${bloqueados.join(', ')}.`);
   }
@@ -356,7 +367,7 @@ function validarConteudoLanding(c) {
 export function salvarLanding(P, id, dados, ator, origem, { escopo = 'plataforma' } = {}) {
   const antes = lerLanding(P, id);
   if (!antes) throw erro(404, 'empresa', 'Empresa não encontrada.');
-  if (escopo === 'empresa' && !podeEditar(P, id).landing_page) throw erro(403, 'nao_concedido', 'A landing page desta empresa é gerenciada pelo operador da plataforma.');
+  if (escopo === 'empresa' && !podeEditar(P, id).landing_page) throw erro(403, 'nao_concedido', motivosBloqueio(P, id).landing_page);
   const content = dados.content ? validarConteudoLanding({ ...antes.content, ...dados.content, textos: { ...antes.content.textos, ...(dados.content.textos || {}) }, regras: { ...antes.content.regras, ...(dados.content.regras || {}) } }) : antes.content;
   const seo = dados.seo ? { title: texto(dados.seo.title, 70, 'seo'), description: texto(dados.seo.description, 160, 'seo') } : antes.seo;
   const status = dados.status === 'publicada' || dados.status === 'rascunho' ? dados.status : antes.status;

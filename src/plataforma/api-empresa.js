@@ -8,6 +8,8 @@ import { auditar, listarAuditoria } from './auditoria.js';
 import { exec } from '../db.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 
+const SEM_PERMISSAO = o => `A sua role não tem a permissão de ${o}. Um admin da empresa pode dar a permissão em Roles e permissões.`;
+
 export function rotasEmpresa(P, r) {
   const precisa = (s, chave) => exigir(s.perms, chave);
   // O que a empresa vê do próprio plano: nome, créditos e recursos. Nunca preço nem custo.
@@ -87,9 +89,9 @@ export function rotasEmpresa(P, r) {
   });
 
   // ------------------------------------------------ Marca, landing page e URL (dentro do que o operador da plataforma liberou)
-  r.get('/api/empresa/marca', ({ sessao, companyId }) => { precisa(sessao, 'company.read'); return { marca: E.lerMarca(P, companyId), pode: E.podeEditar(P, companyId).branding && sessao.perms.has('branding.manage'), campos: E.CAMPOS_MARCA }; });
+  r.get('/api/empresa/marca', ({ sessao, companyId }) => { precisa(sessao, 'company.read'); const motivo = E.motivosBloqueio(P, companyId).branding || (sessao.perms.has('branding.manage') ? null : SEM_PERMISSAO('editar a identidade visual')); return { marca: E.lerMarca(P, companyId), pode: !motivo, motivo, campos: E.CAMPOS_MARCA }; });
   r.put('/api/empresa/marca', ({ sessao, companyId, corpo, origem }) => { precisa(sessao, 'branding.manage'); return E.salvarMarca(P, companyId, corpo, sessao.userId, origem, { escopo: 'empresa' }); }, { limiteMb: 2 });
-  r.get('/api/empresa/landing', ({ sessao, companyId }) => { precisa(sessao, 'company.read'); return { landing: E.lerLanding(P, companyId), pode: E.podeEditar(P, companyId).landing_page && sessao.perms.has('landing_page.manage') }; });
+  r.get('/api/empresa/landing', ({ sessao, companyId }) => { precisa(sessao, 'company.read'); const motivo = E.motivosBloqueio(P, companyId).landing_page || (sessao.perms.has('landing_page.manage') ? null : SEM_PERMISSAO('editar a landing page')); return { landing: E.lerLanding(P, companyId), pode: !motivo, motivo }; });
   r.put('/api/empresa/landing', ({ sessao, companyId, corpo, origem }) => { precisa(sessao, 'landing_page.manage'); return E.salvarLanding(P, companyId, corpo, sessao.userId, origem, { escopo: 'empresa' }); }, { limiteMb: 3 });
   r.get('/api/empresa/url', ({ sessao, companyId, empresa }) => {
     precisa(sessao, 'company.read');

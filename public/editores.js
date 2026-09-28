@@ -65,7 +65,7 @@ const trava = (k, bloqueados, modo) => {
 };
 const desab = (k, bloqueados, modo, pode) => (!pode || (modo === 'empresa' && bloqueados.includes(k)) ? 'disabled' : '');
 
-export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
+export function renderMarca(m, { modo = 'empresa', pode = true, motivo = '' } = {}) {
   const b = m.locked || [];
   const campo = (k, html) => `<div class="campo"><label for="mk-${k}">${ROTULOS_MARCA[k]}${trava(k, b, modo)}</label>${html}</div>`;
   const cor = k => campo(k, `<div style="display:flex;gap:8px;align-items:center"><input type="color" id="mk-${k}-sel" value="${esc(m[k] || '#1B7950')}" ${desab(k, b, modo, pode)} style="width:44px;height:38px;border:1px solid var(--line-strong);border-radius:8px;background:none">
@@ -80,7 +80,7 @@ export function renderMarca(m, { modo = 'empresa', pode = true } = {}) {
     : `<input class="entrada" id="mk-${k}" value="${esc(m[k])}" maxlength="${max}" placeholder="${esc(m.modelo?.[k] || '')}" ${desab(k, b, modo, pode)}>`}
     <span class="ajuda">${dica}${m.modelo?.[k] && pode && !desab(k, b, modo, pode) ? ` <button type="button" class="btn-texto btn-pequeno" data-exemplo="${k}" ${m[k] === m.modelo[k] ? 'hidden' : ''}>Usar o texto de exemplo</button>` : ''}</span>`);
   return `<form id="form-marca" novalidate>
-    ${!pode ? '<div class="faixa-aviso atencao">A identidade visual desta empresa é gerenciada pelo operador da plataforma. Você pode ver, mas não alterar.</div>' : ''}
+    ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A identidade visual desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver, mas não alterar.</div>` : ''}
     <div class="previa-marca" id="mk-previa" aria-label="Prévia"><img src="${esc(m.logo || '/assets/greenia-marca.svg')}" alt=""><b id="mk-previa-nome">${esc(m.display_name)}</b>
       <span class="cor" id="mk-previa-p" style="background:${esc(m.primary_color || '#1B7950')}"></span><span class="cor" id="mk-previa-s" style="background:${esc(m.secondary_color || '#F3F3F1')}"></span></div>
     <div class="grade-2">
@@ -167,7 +167,7 @@ const TEXTOS_SECAO = {
 };
 const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'Nunca sai']];
 
-export function renderLanding(l, { pode = true, urlPublica = '' } = {}) {
+export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } = {}) {
   const c = l.content, d = pode ? '' : 'disabled', t = c.textos || {};
   const slots = (lista, n) => [...(lista || []), ...Array(n).fill({})].slice(0, n);
   const inp = (id, v, max, extra = '') => `<input class="entrada" id="${id}" value="${esc(v || '')}" maxlength="${max}" ${d} ${extra}>`;
@@ -180,7 +180,7 @@ export function renderLanding(l, { pode = true, urlPublica = '' } = {}) {
   const bloco = (titulo, onde, corpo, aberto = false, secao = '') => `<details class="ld-bloco${secao && !visivel(secao) ? ' oculta' : ''}" ${aberto ? 'open' : ''} ${secao ? `data-secao="${secao}"` : ''}><summary><b>${titulo}</b><span class="dica">${onde}</span>${secao ? chave(secao) : ''}</summary>
     <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor no título para mostrar de novo.</p>' : ''}${corpo}</div></details>`;
   return `<form id="form-landing" novalidate class="ld-editor">
-    ${!pode ? '<div class="faixa-aviso atencao">A landing page desta empresa é gerenciada pelo operador da plataforma. Você pode ver, mas não alterar.</div>' : ''}
+    ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A landing page desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver os textos, mas não alterar.</div>` : ''}
     <div class="faixa-aviso ${l.status === 'publicada' ? 'ok' : 'atencao'} ld-situacao"><span>${l.status === 'publicada' ? '<b>Publicada.</b> A página já vem pronta com um modelo completo; troque o que quiser.' : '<b>Rascunho.</b> A página pública mostra uma versão simples até a publicação.'}</span>
       <span class="linha-botoes">${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página</a>` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
     ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `

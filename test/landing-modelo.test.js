@@ -107,3 +107,23 @@ test('todas as seções opcionais podem ser escondidas, inclusive O que você en
   const antiga = (await ops.get(`/api/plataforma/empresas/${c.id}`)).dados.landing.content.secoes;
   assert.deepEqual([antiga.como_usar, antiga.chamadas, antiga.institucional], [false, true, true]);
 });
+
+test('admin da empresa edita a landing sem plano definido; quando trava, o motivo é o verdadeiro', async () => {
+  const e = (await ops.post('/api/plataforma/empresas', { name: 'Eco', slug: 'eco', admin_email: 'eva@eco.com', status: 'ativa' })).dados;
+  const eva = S.navegador(); await eva.get('/eco'); await eva.entrarEmpresa('eva@eco.com');
+  let r = (await eva.get('/api/empresa/landing')).dados;
+  assert.deepEqual([r.pode, r.motivo], [true, null], 'sem plano, a personalização fica liberada');
+  assert.equal((await eva.put('/api/empresa/landing', { content: { ...r.landing.content, secoes: { ...r.landing.content.secoes, regras: false } } })).status, 200);
+  // Plano sem landing page própria: trava e diz que é o plano.
+  const plano = (await ops.post('/api/plataforma/planos', { name: 'Básico', credits: 1000, features: { quick_wins: true, landing_page: false, custom_branding: true } })).dados;
+  assert.equal((await ops.post(`/api/plataforma/empresas/${e.id}/plano`, { plan_id: plano.id })).status, 200);
+  r = (await eva.get('/api/empresa/landing')).dados;
+  assert.equal(r.pode, false);
+  assert.match(r.motivo, /plano Básico não inclui landing page/);
+  const put = await eva.put('/api/empresa/landing', { content: r.landing.content });
+  assert.equal(put.status, 403);
+  assert.match(put.dados.mensagem, /plano Básico/);
+  // Operador não concedeu a marca: o motivo aponta Permissões concedidas.
+  await ops.put(`/api/plataforma/empresas/${e.id}/concessoes`, { grants: { branding: false, landing_page: true, url: true, domain: false, roles: true } });
+  assert.match((await eva.get('/api/empresa/marca')).dados.motivo, /Permissões concedidas/);
+});

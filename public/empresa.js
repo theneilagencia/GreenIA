@@ -123,8 +123,8 @@ async function telaRoles() {
 
 // ---------------------------------------------------------------- Branding
 async function telaMarca() {
-  const { marca, pode: podeEditar } = await api('/api/empresa/marca');
-  $('conteudo').innerHTML = `<p class="lead">A identidade visual aparece na página inicial, no login e no app. Itens definidos pelo operador da plataforma ficam travados.</p>${renderMarca(marca, { modo: 'empresa', pode: podeEditar })}`;
+  const { marca, pode: podeEditar, motivo } = await api('/api/empresa/marca');
+  $('conteudo').innerHTML = `<p class="lead">A identidade visual aparece na página inicial, no login e no app. Itens definidos pelo operador da plataforma ficam travados.</p>${renderMarca(marca, { modo: 'empresa', pode: podeEditar, motivo })}`;
   if (!podeEditar) return;
   const ler = ligarMarca(marca);
   $('form-marca').onsubmit = async ev => {
@@ -136,8 +136,8 @@ async function telaMarca() {
 
 // ---------------------------------------------------------------- Landing Page
 async function telaLanding() {
-  const [{ landing, pode: podeEditar }, url] = await Promise.all([api('/api/empresa/landing'), api('/api/empresa/url')]);
-  $('conteudo').innerHTML = renderLanding(landing, { pode: podeEditar, urlPublica: url.url });
+  const [{ landing, pode: podeEditar, motivo }, url] = await Promise.all([api('/api/empresa/landing'), api('/api/empresa/url')]);
+  $('conteudo').innerHTML = renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
   if (!podeEditar) return;
   const ler = ligarLanding(landing);
   const salvar = async status => { try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada.' : 'Landing page salva.'); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); } };

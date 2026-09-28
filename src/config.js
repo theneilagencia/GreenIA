@@ -12,8 +12,11 @@ export const PADRAO = {
   privacyNote: 'Suas conversas ficam salvas só para você, por até 90 dias sem uso, e você pode apagá-las quando quiser.',
   retencaoDias: 90,
   // Ação por tipo de dado no chat (e padrão dos quick wins). Credencial é sempre bloqueada.
-  acoesChat: { cpf: 'bloquear', cnpj: 'permitir', cartao: 'bloquear', banco: 'bloquear', pix: 'bloquear', credencial: 'bloquear',
-    rg: 'bloquear', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir' },
+  // "permitir" = processar com proteção (a conversa vira sigilosa e só segue por rota autorizada, e só com a
+  // política de informação sigilosa ligada); "bloquear" = não enviar. É política da empresa, editável; o padrão
+  // protege tudo o que é reconhecido. Credencial não é configurável: nunca vai para a IA.
+  acoesChat: { cpf: 'permitir', cnpj: 'permitir', cartao: 'permitir', banco: 'permitir', pix: 'permitir', credencial: 'bloquear',
+    rg: 'permitir', email: 'permitir', telefone: 'permitir', cep: 'permitir', endereco: 'permitir' },
   // Modelos: padrões, acesso por perfil e privacidade (seção 9).
   padroes: { chat: 'google/gemini-3.5-flash-lite', rapido: 'google/gemini-3.5-flash-lite', equilibrado: 'anthropic/claude-haiku-4.5', avancado: 'anthropic/claude-sonnet-5', homologado: null },
   acessoPerfis: { equilibrado: { todos: true, grupos: [], areas: [] }, avancado: { todos: false, grupos: [], areas: [] } },
@@ -31,6 +34,10 @@ export const PADRAO = {
   // modelos); "manual" deixa o admin ajustar. Nos dois modos valem as mesmas regras obrigatórias (sigilo,
   // homologação, vetos e autorizações da plataforma, acesso, plano, janela): o modo muda só o grau de controle.
   governanca: { modo: 'recomendado', em: null, por: null },
+  // Informações sigilosas: "Permitir processamento de informações sigilosas com guardrails de proteção".
+  // Desligado por padrão; só true liga (ver sigilo.js). Requisitos mínimos da plataforma, vindos dela.
+  allow_sensitive_processing_with_guardrails: false,
+  requisitosSigilo: { plataforma: false, exigeAutorizacao: false, exigeRetencaoZero: true, exigeSemTreino: true },
   // Limites (0 = sem limite).
   tetoMensal: 0, tetoPessoaMensal: 0, limiteDiarioPessoa: 0,
 };

@@ -177,8 +177,10 @@ async function abaModelos() {
       ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
       <td><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"></td>
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
-      <td>${x.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span><br><span class="dica">${esc(x.homologacao?.fornecedor || '')} · ${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</span><br>${x.homologacao?.origem === 'plataforma' ? '<span class="dica">Autorizado pela plataforma para todas as empresas</span>' : `<button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>`}`
-        : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
+      <td>${x.homologacaoEmpresa ? `<span class="selo">${ICONE.escudo} Homologado pela empresa</span><br><span class="dica">${esc(x.homologacaoEmpresa.fornecedor || '')} · ${esc(x.homologacaoEmpresa.quem || '')} · ${dataHora(x.homologacaoEmpresa.em)}</span><br><button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>` : ''}
+        ${x.autorizacaoPlataforma ? `<span class="selo">${ICONE.escudo} Autorizado pela plataforma</span><br>` : ''}
+        ${x.homologado ? '<span class="dica">Recebe informação sigilosa (guardrails atendidos)</span>' : (x.homologacaoEmpresa || x.autorizacaoPlataforma) ? `<span class="dica">Não recebe informação sigilosa: ${esc((x.sigiloTexto || []).join('; '))}</span>` : ''}
+        ${x.homologacaoEmpresa ? '' : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<br><button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
       <td>${editorCapacidades(x)}</td></tr>`))}
     <p class="dica">Capacidades: por padrão, cada modelo vale o nível da classe dele em tudo. Informe só quando um modelo foge disso (por exemplo, um Equilibrado forte em programação, ou um Avançado fraco em leitura de documentos longos). O roteamento compara essas capacidades com o que cada pedido exige; a classe continua valendo para acesso, plano e quick win.</p>
     <h3>Adicionar do catálogo do OpenRouter</h3>
@@ -552,18 +554,23 @@ async function abaConhecimento() {
 // ---------------------------------------------------------------- Políticas de IA
 // Uma página responde: o que pode ser enviado, por quem, para qual modelo e em qual contexto.
 async function abaPoliticas() {
-  const [c, m, { areas }, { grupos }] = await Promise.all([api('/api/admin/config'), api('/api/admin/modelos'), api('/api/admin/areas'), api('/api/admin/grupos')]);
+  const [c, m, { areas }, { grupos }, sig] = await Promise.all([api('/api/admin/config'), api('/api/admin/modelos'), api('/api/admin/areas'), api('/api/admin/grupos'), api('/api/admin/sigilo')]);
   const homologados = m.modelos.filter(x => x.liberado && x.homologado);
   const fabricantes = new Set(homologados.map(x => x.id.split('/')[0]));
   const nomes = (ids, lista) => ids.map(id => lista.find(x => x.id === id)?.nome).filter(Boolean).join(', ');
   const quem = p => { const a = m.config.acessoPerfis[p] || {}; return a.todos ? 'Todas as pessoas' : [nomes(a.grupos || [], grupos), nomes(a.areas || [], areas)].filter(Boolean).join(' · ') || 'Ninguém no dia a dia (só pelo quick win)'; };
-  $('conteudo').innerHTML = `<p class="lead">As regras que valem para toda conversa: o que pode ser enviado, por quem, para qual modelo e em qual contexto. O servidor aplica estas regras antes de qualquer envio.</p>
-    <form id="form-dados"><div class="secao-titulo"><h3>Dados sensíveis</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
+  $('conteudo').innerHTML = `<p class="lead">As regras que valem para toda conversa: o que pode ser enviado, por quem e em qual contexto. O servidor aplica estas regras antes de qualquer envio, na mensagem e nos anexos.</p>
+    <div class="secao-titulo"><h3>Informações sigilosas</h3></div>
+    <div class="editor" id="sigilo-politica"><label class="opcoes"><span><button type="button" class="switch" id="sigilo-ativo" role="switch" aria-checked="${sig.ativo}"><span></span></button>
+      <b>Permitir processamento de informações sigilosas com guardrails de proteção</b> <span class="selo">${sig.ativo ? 'ON' : 'OFF'}</span></span></label>
+      <p class="dica">Quando ativado, a GreenIA permite o uso de IA com informações sigilosas aplicando automaticamente os guardrails de proteção antes de cada processamento.</p>
+      <p class="dica">${sig.ativo ? 'Ligado: informações sigilosas só seguem por recursos autorizados que atendem aos guardrails; quando não há nenhum, nada é enviado e você é avisado.' : 'Desligado: informações sigilosas não são enviadas para recursos de IA.'}</p></div>
+    <form id="form-dados"><div class="secao-titulo"><h3>Tipos de dado reconhecidos</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
       <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>
-        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><span class="opcoes" style="flex-wrap:nowrap"><label><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}> Bloquear</label>
-          <label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}> Permitir</label></span></td>
-          <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Entra, e a conversa passa a ser sigilosa' : 'A mensagem não sai, e a pessoa vê o motivo'}</td></tr>`).join('')}
-        <tr><td data-r="Tipo"><b>Senhas e credenciais</b></td><td data-r="Regra">Sempre bloqueadas</td><td data-r="Efeito" class="dica">Não pode ser alterado</td></tr>
+        ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra"><span class="opcoes" style="flex-wrap:nowrap"><label><input type="radio" name="d-${k}" value="permitir" ${c.acoesChat[k] === 'permitir' ? 'checked' : ''}> Processar com proteção</label>
+          <label><input type="radio" name="d-${k}" value="bloquear" ${c.acoesChat[k] !== 'permitir' ? 'checked' : ''}> Não enviar</label></span></td>
+          <td data-r="Efeito" class="dica">${c.acoesChat[k] === 'permitir' ? 'Tratado como informação sigilosa: segue só com os guardrails de proteção (e só com a opção acima ligada)' : 'Política da empresa: a mensagem não sai, e a pessoa vê o motivo'}</td></tr>`).join('')}
+        <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Nunca enviados</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Não é detectada automaticamente. A pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
@@ -573,11 +580,11 @@ async function abaPoliticas() {
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quando uma conversa vira sigilosa</th><th>Situação atual</th></tr></thead><tbody>
       <tr><td data-r="Gatilho">Área marcada como sigilosa</td><td data-r="Situação">${areas.filter(a => a.sigilosa).map(a => esc(a.nome)).join(', ') || '<span class="dica">nenhuma</span>'}</td></tr>
       <tr><td data-r="Gatilho">Quick win que trata dados sigilosos</td><td data-r="Situação">definido em cada quick win</td></tr>
-      <tr><td data-r="Gatilho">Dado sensível permitido detectado</td><td data-r="Situação">${Object.entries(c.acoesChat).filter(([, v]) => v === 'permitir').map(([k]) => DADOS[k]).join(', ') || '<span class="dica">nenhum tipo permitido</span>'}</td></tr>
+      <tr><td data-r="Gatilho">Tipo de dado marcado como "Processar com proteção"</td><td data-r="Situação">${Object.entries(c.acoesChat).filter(([, v]) => v === 'permitir').map(([k]) => DADOS[k]).join(', ') || '<span class="dica">nenhum tipo permitido</span>'}</td></tr>
       <tr><td data-r="Gatilho">Documento sigiloso usado na resposta</td><td data-r="Situação">marcado no envio do documento</td></tr>
       <tr><td data-r="Gatilho">Marcação manual pela pessoa</td><td data-r="Situação">sempre disponível no chat</td></tr>
     </tbody></table></div>
-    <p class="dica">Conversa sigilosa usa só modelo homologado, com o fornecedor fixado e retenção zero exigida. Se o fornecedor fixado não responder, a mensagem não é enviada para outro.</p>
+    <p class="dica">Conversa sigilosa segue só por recursos que passam em todos os guardrails: autorizados, com o fornecedor fixado, retenção zero e ausência de uso para treino comprovadas. Se o recurso cair, a GreenIA procura outro que passe nos mesmos guardrails; se não houver, nada é enviado.</p>
     ${homologados.length ? `<div class="tabela-rolagem" style="margin-top:10px"><table class="tabela"><thead><tr><th>Modelo homologado</th><th>Classe</th><th>Fornecedor fixado</th><th>Homologado por</th></tr></thead><tbody>
       ${homologados.map(x => `<tr><td>${esc(x.nome)}</td><td>${PERFIS[x.perfil] || ''}</td><td>${esc(x.homologacao?.fornecedor || '')}</td><td>${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</td></tr>`).join('')}</tbody></table></div>` : ''}
 
@@ -595,6 +602,11 @@ async function abaPoliticas() {
       <tr><td data-r="Regra">Histórico das conversas</td><td data-r="Situação">Guardado nesta instalação e apagado depois de ${c.retencaoDias} dias sem uso</td></tr>
       <tr><td data-r="Regra">Anexos</td><td data-r="Situação">Só o texto extraído fica guardado, junto com a conversa</td></tr>
     </tbody></table></div>`;
+  $('sigilo-ativo').onclick = async () => {
+    const ativo = !sig.ativo;
+    if (ativo && !confirm('Ligar o processamento de informações sigilosas com guardrails de proteção? A GreenIA só usará recursos autorizados que atendem aos guardrails.')) return;
+    try { await api('/api/admin/sigilo', { metodo: 'PUT', corpo: { ativo } }); toast(ativo ? 'Processamento protegido ligado.' : 'Processamento de informações sigilosas desligado.'); abaPoliticas(); } catch (e) { falhar(e); }
+  };
   $('form-dados').onsubmit = async ev => {
     ev.preventDefault();
     try {

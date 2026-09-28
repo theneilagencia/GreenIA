@@ -3,6 +3,7 @@
 import { erro } from './http.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, salvarConfig, PADRAO } from './config.js';
+import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada } from './sigilo.js';
 import { registrar } from './eventos.js';
 import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
@@ -35,19 +36,27 @@ export function semearSugestao(db) {
     m.id, m.nome, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
 }
 
-const deLinha = m => m && ({
-  id: m.id, nome: m.nome || m.id, fornecedor: m.fornecedor, precoEntrada: m.preco_entrada, precoSaida: m.preco_saida, contexto: m.contexto,
-  liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva,
-  // Vetado pela plataforma para dado sigiloso: não vale como homologado, mesmo que a empresa tenha homologado.
-  homologado: !!m.homologado && !m.vetado_plataforma, vetadoPlataforma: !!m.vetado_plataforma, homologacao: json(m.homologacao, null),
-  noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null),
-});
+// Linha do catálogo. "homologado" quer dizer: este recurso pode receber informação sigilosa AGORA, segundo a
+// camada central (sigilo.js), que avalia a rota real (fornecedor, endpoint, retenção, treino, homologação da
+// empresa, autorização e veto da plataforma). Todos os usos (roteador, seletor, envio) leem este campo.
+const deLinha = (m, cfg) => {
+  if (!m) return m;
+  const base = {
+    id: m.id, nome: m.nome || m.id, fornecedor: m.fornecedor, precoEntrada: m.preco_entrada, precoSaida: m.preco_saida, contexto: m.contexto,
+    liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva,
+    homologacaoEmpresa: m.homologado ? json(m.homologacao, null) : null, autorizacaoPlataforma: json(m.autorizacao_plataforma, null), vetadoPlataforma: !!m.vetado_plataforma,
+    noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null),
+  };
+  const sigilo = avaliarRecurso(base, cfg);
+  // "homologacao" continua com o registro da rota que vale (compatível com as telas e o envio).
+  return { ...base, sigilo, homologado: sigilo.elegivel, homologacao: sigilo.rota ? { ...sigilo.rota, origem: sigilo.origem } : base.homologacaoEmpresa };
+};
 
-export const lerModelos = db => todos(db, 'select * from modelos order by perfil, nome').map(deLinha);
+export const lerModelos = db => { const cfg = lerConfig(db); return todos(db, 'select * from modelos order by perfil, nome').map(m => deLinha(m, cfg)); };
 
 export function acharModelo(db, cfg, id) {
-  if (id === AUTO) return cfg.automatico ? { id: AUTO, nome: 'Automático', fornecedor: 'openrouter', perfil: 'rapido', liberado: true, homologado: false } : null;
-  return deLinha(um(db, 'select * from modelos where id = ?', id));
+  if (id === AUTO) return cfg.automatico ? { id: AUTO, nome: 'Automático', fornecedor: 'openrouter', perfil: 'rapido', liberado: true, homologado: false, sigilo: { elegivel: false, motivos: ['sem_rota_fixa'] } } : null;
+  return deLinha(um(db, 'select * from modelos where id = ?', id), cfg);
 }
 
 export function perfisDe(cfg, pessoa) {
@@ -76,6 +85,11 @@ export function homologadoPadrao(db, cfg) {
 export const NOMES_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 const CLASSE = /^classe:(rapido|equilibrado|avancado)$/;
 export const ehClasse = id => CLASSE.test(id || '');
+// Apelido do Automático do serviço de IA para quem não administra (o identificador técnico não sai do servidor).
+export const AUTO_EXTERNO = 'classe:externo';
+export const doApelido = id => (id === AUTO_EXTERNO ? AUTO : id);
+// O que quem não administra vê de um pedido de modelo: nível, automático ou apelido; nunca o identificador técnico.
+export const paraPessoa = (db, cfg, id) => (!id ? null : id === AUTO ? AUTO_EXTERNO : ehClasse(id) || id === AUTOMATICO ? id : classeDe(db, cfg, id));
 export function resolverClasse(db, cfg, id, { sigilosa = false } = {}) {
   const c = CLASSE.exec(id || '');
   if (!c) return id;
@@ -105,7 +119,9 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
     if (sigilosa && m.perfil !== perfil && !doQw) continue;     // classe sem homologado próprio não aparece em conversa sigilosa
     out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, perfil, homologado: m.homologado, classe: true });
   }
-  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO, nome: 'Automático do OpenRouter (fora da governança)', perfil: 'rapido', homologado: false });
+  // Para quem não administra, o Automático do serviço de IA não leva o nome nem o identificador do provedor.
+  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push(pessoa.admin ? { id: AUTO, nome: 'Automático do OpenRouter (fora da governança)', perfil: 'rapido', homologado: false }
+    : { id: AUTO_EXTERNO, nome: 'Automático do serviço de IA', perfil: 'rapido', homologado: false });
   return out;
 }
 
@@ -120,25 +136,26 @@ export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = fal
   return m;
 }
 
-// Homologação da plataforma: modelos que a operadora autorizou para dados sigilosos valem em
-// todas as empresas, sem que o admin da empresa precise configurar. O modelo entra liberado no catálogo
-// da empresa, se ainda não estiver; só a plataforma retira essa homologação.
-// Hierarquia: a plataforma define o mínimo (autoriza e veta para dado sigiloso); a empresa pode acrescentar
-// homologações próprias, nunca para um modelo vetado; quem usa não altera nada disso.
+// Autorizações e vetos da plataforma para informação sigilosa. A autorização da plataforma é o requisito
+// mínimo (e, no modo recomendado, vale como a homologação da empresa); fica numa coluna própria, separada da
+// homologação da empresa. A empresa pode restringir (no modo manual, homologa só o que quiser), nunca remover
+// o mínimo. Quem usa não altera nada disso.
 export function aplicarHomologacoesPlataforma(db, lista = [], agora = new Date(), vetos = []) {
+  const recomendado = lerConfig(db).governanca?.modo !== 'manual';
   const ids = new Set(lista.map(h => h.id));
   const vetados = new Set(vetos.map(v => v.id));
   for (const id of vetados) if (!um(db, 'select 1 from modelos where id = ?', id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado) values (?, ?, ?, 0)', id, id, id.split('/')[0]);
   exec(db, 'update modelos set vetado_plataforma = 0');
   for (const id of vetados) exec(db, 'update modelos set vetado_plataforma = 1 where id = ?', id);
   for (const h of lista) {
-    const registro = JSON.stringify({ quem: `${h.por || 'Equipe'} (plataforma)`, em: h.em || agora.toISOString(), fornecedor: h.fornecedor, justificativa: h.justificativa, origem: 'plataforma' });
-    if (!um(db, 'select 1 from modelos where id = ?', h.id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil) values (?, ?, ?, 1, ?)', h.id, h.nome || h.id, h.id.split('/')[0], h.perfil);
-    exec(db, 'update modelos set liberado = 1, homologado = 1, homologacao = ? where id = ?', registro, h.id);
+    const registro = JSON.stringify({ fornecedor: h.fornecedor, endpoint: h.endpoint || h.fornecedor, retencaoZero: h.retencaoZero !== false, semTreino: h.semTreino !== false,
+      justificativa: h.justificativa, por: h.por || null, em: h.em || agora.toISOString() });
+    if (!um(db, 'select 1 from modelos where id = ?', h.id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil) values (?, ?, ?, ?, ?)', h.id, h.nome || h.id, h.id.split('/')[0], Number(recomendado), h.perfil);
+    else if (recomendado) exec(db, 'update modelos set liberado = 1 where id = ?', h.id);
+    exec(db, 'update modelos set autorizacao_plataforma = ? where id = ?', registro, h.id);
   }
-  for (const m of lerModelos(db)) if (m.homologacao?.origem === 'plataforma' && !ids.has(m.id)) exec(db, 'update modelos set homologado = 0, homologacao = null where id = ?', m.id);
+  exec(db, `update modelos set autorizacao_plataforma = null where autorizacao_plataforma is not null and id not in (${[...ids].map(() => '?').join(',') || "''"})`, ...ids);
 }
-const daPlataforma = (db, id) => deLinha(um(db, 'select * from modelos where id = ?', id))?.homologacao?.origem === 'plataforma';
 
 export const custoEstimado = (m, entrada, saida) =>
   m && m.precoEntrada != null && m.precoSaida != null ? m.precoEntrada * entrada + m.precoSaida * saida : null;
@@ -210,7 +227,7 @@ export function aplicarRecomendacoes(app, pessoa = null) {
       exec(app.db, 'update modelos set liberado = 1, perfil = ?, reserva = null where id = ?', m.perfil, m.id);
     }
     // Fora das sugestões, fica liberado só o que é regra de sigilo (homologado pela empresa ou pela plataforma).
-    for (const m of lerModelos(app.db)) if (!sugeridos.has(m.id) && m.liberado && !m.homologado) exec(app.db, 'update modelos set liberado = 0, reserva = null where id = ?', m.id);
+    for (const m of lerModelos(app.db)) if (!sugeridos.has(m.id) && m.liberado && !m.homologacaoEmpresa && !m.autorizacaoPlataforma) exec(app.db, 'update modelos set liberado = 0, reserva = null where id = ?', m.id);
     registrar(app, 'governance.mode_changed', pessoa?.id ?? null, { modo: 'recomendado' });
   });
 }
@@ -240,7 +257,7 @@ export function rotasModelos(app, r) {
   r.get('/api/admin/modelos', () => {
     const cfg = lerConfig(app.db);
     const h = homologadoPadrao(app.db, cfg);
-    return { modelos: lerModelos(app.db).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500) })), perfis: PERFIS, homologadoPadrao: h?.id || null, garantia: !!h,
+    return { modelos: lerModelos(app.db).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500), sigiloTexto: m.sigilo.motivos.map(c => MOTIVOS_GUARDRAIL[c] || c) })), perfis: PERFIS, homologadoPadrao: h?.id || null, garantia: !!h,
       config: { padroes: cfg.padroes, acessoPerfis: cfg.acessoPerfis, perfisQuickWin: cfg.perfisQuickWin, exigirSemTreino: cfg.exigirSemTreino, automatico: cfg.automatico, roteamento: cfg.roteamento } };
   }, { admin: true });
 
@@ -315,7 +332,7 @@ export function rotasModelos(app, r) {
     if (corpo.perfil && !PERFIS[corpo.perfil]) throw erro(400, 'perfil', 'Perfil inválido.');
     const cat = (app.catalogo || []).find(m => m.id === id);
     const atual = um(app.db, 'select * from modelos where id = ?', id);
-    if (daPlataforma(app.db, id) && (corpo.liberado === false || (corpo.perfil && corpo.perfil !== atual.perfil))) throw erro(409, 'definido_pela_plataforma', 'Este modelo foi autorizado pela equipe da plataforma para dados sigilosos em todas as empresas: a liberação e a classe dele são definidas pela plataforma.');
+    // A empresa pode restringir um recurso autorizado pela plataforma (não liberar, trocar de nível): restringir não remove o mínimo.
     if (!atual && !cat && !corpo.perfil) throw erro(404, 'modelo', 'Modelo não encontrado no catálogo.');
     const reserva = corpo.reserva === undefined ? atual?.reserva : corpo.reserva || null;
     if (reserva) {
@@ -339,7 +356,7 @@ export function rotasModelos(app, r) {
       if (corpo.liberado === false) exec(app.db, 'update modelos set homologado = 0 where id = ?', id);
     });
     paraManual(app, pessoa, 'model.changed');
-    return deLinha(um(app.db, 'select * from modelos where id = ?', id));
+    return acharModelo(app.db, lerConfig(app.db), id);
   }, { admin: true });
 
   r.post('/api/admin/modelos/:id/homologar', ({ pessoa, params, corpo }) => {
@@ -348,19 +365,20 @@ export function rotasModelos(app, r) {
     if (m.vetado_plataforma) throw erro(409, 'vetado_pela_plataforma', 'A equipe da plataforma não autoriza este modelo para dados sigilosos. Homologue outro modelo.');
     if (ehGratuito(m.id) || m.id === AUTO) throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o modo automático não podem ser homologados: não há fornecedor fixo com retenção zero.');
     const fornecedor = String(corpo.fornecedor || '').trim();
+    const endpoint = String(corpo.endpoint || fornecedor).trim();   // a rota fixada no envio (provider.only)
     const justificativa = String(corpo.justificativa || '').trim();
     if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado no OpenRouter.');
     if (corpo.semTreino !== true || corpo.retencaoZero !== true) throw erro(400, 'garantias', 'Confirme que o fornecedor não treina com os dados e não guarda nada (retenção zero).');
     if (justificativa.length < 10) throw erro(400, 'justificativa', 'Escreva a justificativa da homologação.');
-    const registro = { quem: pessoa.email, em: app.agora().toISOString(), fornecedor, justificativa };
+    // Atributos da rota homologada: as garantias ficam gravadas (e são conferidas a cada envio), não presumidas.
+    const registro = { quem: pessoa.email, em: app.agora().toISOString(), fornecedor, endpoint, retencaoZero: true, semTreino: true, justificativa };
     mudar(app, pessoa, 'model.certified', { modelo: m.id, fornecedor }, () => {
       exec(app.db, 'update modelos set homologado = 1, homologacao = ? where id = ?', JSON.stringify(registro), m.id);
     });
-    return deLinha(um(app.db, 'select * from modelos where id = ?', m.id));
+    return acharModelo(app.db, lerConfig(app.db), m.id);
   }, { admin: true });
 
   r.del('/api/admin/modelos/:id/homologar', ({ pessoa, params }) => {
-    if (daPlataforma(app.db, params.id)) throw erro(409, 'definido_pela_plataforma', 'Esta autorização foi feita pela equipe da plataforma para todas as empresas e só pode ser retirada por ela.');
     mudar(app, pessoa, 'model.uncertified', { modelo: params.id }, () => exec(app.db, 'update modelos set homologado = 0 where id = ?', params.id));
     return { ok: true };
   }, { admin: true });
@@ -392,6 +410,16 @@ export function rotasModelos(app, r) {
 
   // Modo de governança: seguir as recomendações da GreenIA ou ajustar manualmente. O texto é para quem não
   // conhece modelos: o que muda, e o que vale nos dois modos.
+  // "Permitir processamento de informações sigilosas com guardrails de proteção" (ON/OFF). Só o admin muda;
+  // só true liga. Ligar não libera nenhum recurso: os guardrails continuam decidindo cada envio.
+  r.get('/api/admin/sigilo', () => ({ ativo: politicaSigiloLigada(lerConfig(app.db)) }), { admin: true });
+  r.put('/api/admin/sigilo', ({ pessoa, corpo }) => {
+    if (typeof corpo.ativo !== 'boolean') throw erro(400, 'ativo', 'Informe ativo: true ou false.');
+    salvarConfig(app.db, { [POLITICA_SIGILO]: corpo.ativo });
+    registrar(app, 'policy.sensitive_processing_changed', pessoa.id, { ativo: corpo.ativo });
+    app.aoMudarModelos?.();   // a Política de Uso descreve a opção: muda a seção, nova versão, nova ciência
+    return { ativo: politicaSigiloLigada(lerConfig(app.db)) };
+  }, { admin: true });
   r.get('/api/admin/governanca', () => ({ ...(lerConfig(app.db).governanca || { modo: 'recomendado' }), valeSempre: VALE_SEMPRE }), { admin: true });
   r.put('/api/admin/governanca', ({ pessoa, corpo }) => {
     if (!['recomendado', 'manual'].includes(corpo.modo)) throw erro(400, 'modo', 'Escolha "recomendado" ou "manual".');

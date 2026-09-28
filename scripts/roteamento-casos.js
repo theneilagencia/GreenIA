@@ -63,7 +63,7 @@ export function rotearAnalise(analise, { db, preferencia = 'equilibrio' } = {}) 
 
 export function rodarCaso(caso, { db, preferencia, sigilosa = false, reservaDoPlano = false, pessoa = { grupos: [], areas: [] }, homologados = [] } = {}) {
   const banco = db || montarBanco({ preferencia });
-  for (const id of homologados) exec(banco, "update modelos set homologado = 1, homologacao = '{\"fornecedor\":\"x\"}' where id = ?", id);
+  for (const id of homologados) exec(banco, "update modelos set homologado = 1, homologacao = '{\"fornecedor\":\"x\",\"endpoint\":\"x\",\"retencaoZero\":true,\"semTreino\":true}' where id = ?", id);
   const cfg = lerConfig(banco);
   if (preferencia) cfg.roteamento = { ativo: true, preferencia };
   const analise = analisarPedido({ texto: caso.texto, anexos: caso.anexos || [], historicoChars: caso.historicoChars || 0, sistemaChars: SISTEMA,

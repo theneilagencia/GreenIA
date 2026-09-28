@@ -33,11 +33,12 @@ test('login → chat → quick win', async () => {
   await p.waitForSelector('.rodape-resposta');
   assert.match(await p.textContent('.bolha-eu'), /Primeira linha\nSegunda linha/);
   await p.waitForFunction(() => document.querySelectorAll('.lateral .item-lat[href^="#/c/"]').length === 1);
-  // Dado bloqueado não sai: aviso na tela, texto volta para a caixa.
+  // Informação sigilosa com a política da empresa desligada (o padrão): não sai; aviso simples; texto volta para a caixa.
   await p.fill('#entrada', 'CPF 529.982.247-25');
   await p.keyboard.press('Enter');
   await p.waitForSelector('.aviso-bolha');
-  assert.match(await p.textContent('.aviso-bolha'), /CPF/);
+  assert.match(await p.textContent('.aviso-bolha'), /não permite processar com IA\. Nenhum conteúdo foi enviado/);
+  assert.equal(await p.inputValue('#entrada'), 'CPF 529.982.247-25');
   // Quick win: abre pela lateral, usa uma sugestão, pede ajuste.
   await p.click('.lateral a[href="#/quick-wins"]');
   await p.click(`a.lista-item[href="#/qw/${qwId}"]`);

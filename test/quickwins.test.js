@@ -17,7 +17,7 @@ let S, OR, admin, ana, carlos, bia, A, B, qw;
 before(async () => {
   OR = await openRouterFalso();
   S = await subir({ ia: OR.ia });
-  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], allow_sensitive_processing_with_guardrails: true });   // empresa que processa informação sigilosa com guardrails
   admin = await S.cliente().entrar('admin@exemplo.com.br');
   A = (await admin.post('/api/admin/areas', { nome: 'Área Alfa' })).dados;
   B = (await admin.post('/api/admin/areas', { nome: 'Área Beta' })).dados;

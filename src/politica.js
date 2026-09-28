@@ -6,7 +6,9 @@ import { erro } from './http.js';
 import { exec, todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { registrar } from './eventos.js';
-import { lerModelos, PERFIS } from './modelos.js';
+import { PERFIS } from './modelos.js';
+import { ROTULOS } from './filtro.js';
+import { politicaSigiloLigada } from './sigilo.js';
 
 export const TEXTO_PADRAO = `## Para que serve a GreenIA
 A GreenIA é a assistente de IA da empresa para tarefas do dia a dia: resumir, rascunhar, conferir, organizar e tirar dúvidas.
@@ -22,12 +24,9 @@ A GreenIA é a assistente de IA da empresa para tarefas do dia a dia: resumir, r
 ## Dúvidas
 Na dúvida sobre o que pode ser enviado, fale com o responsável da sua área.`;
 
-const data = iso => new Date(iso).toLocaleDateString('pt-BR');
 
 export function secaoAutomatica(app) {
   const cfg = lerConfig(app.db);
-  const modelos = lerModelos(app.db);
-  const homologados = modelos.filter(m => m.liberado && m.homologado);
   const nomeGrupo = id => um(app.db, 'select nome from grupos where id = ?', id)?.nome;
   const nomeArea = id => um(app.db, 'select nome from areas where id = ?', id)?.nome;
   const acesso = p => {
@@ -37,31 +36,37 @@ export function secaoAutomatica(app) {
     return quem.length ? quem.join(', ') : 'ninguém';
   };
   const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 and ativa = 1 order by nome').map(a => a.nome);
+  const ligada = politicaSigiloLigada(cfg);
+  const protegidos = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'permitir').map(([t]) => ROTULOS[t]);
+  const naoEnviados = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v !== 'permitir').map(([t]) => ROTULOS[t]);
   return [
-    '## Como a GreenIA trata dados sigilosos',
-    'Esta seção é gerada pela plataforma a partir da configuração atual.',
+    '## Como a GreenIA trata informações sigilosas',
+    'Esta seção é gerada pela plataforma a partir da configuração atual da empresa.',
     '### Conversa normal e conversa sigilosa',
-    '- **Conversa normal:** não tem dados sigilosos. Pode usar todos os modelos liberados para você.',
-    '- **Conversa sigilosa:** tem dados pessoais, de clientes, financeiros confidenciais, jurídicos, estratégicos ou qualquer outro que esta política classifique como sigiloso. Usa só modelos homologados, com o fornecedor fixado e sem retenção dos dados.',
+    '- **Conversa normal:** não tem informação sigilosa.',
+    `- **Conversa sigilosa:** tem dados pessoais, de clientes, financeiros, jurídicos, estratégicos ou qualquer outro que esta política classifique como sigiloso. ${ligada
+      ? 'A empresa permite o processamento de informações sigilosas com guardrails de proteção: antes de cada envio, a GreenIA aplica os controles de proteção da empresa e só usa recursos de IA autorizados para esse tipo de informação. Quando não há um recurso autorizado disponível, nada é enviado.'
+      : 'A empresa não permite processar informações sigilosas com IA: mensagens com esse tipo de informação não são enviadas.'}`,
     '### Quando uma conversa vira sigilosa',
     '1. Quando você liga a opção "Esta conversa tem dados sigilosos".',
-    '2. Quando o quick win é classificado como "trata dados sigilosos".',
-    '3. Quando o sistema encontra um tipo de dado marcado como "permitir" (por exemplo CPF, CNPJ, dados bancários, email, telefone ou endereço), na mensagem ou em um anexo.',
+    '2. Quando o quick win é classificado como "trata informações sigilosas".',
+    `3. Quando o sistema encontra, na mensagem ou em um anexo, um tipo de dado que a empresa trata com proteção${protegidos.length ? ` (hoje: ${protegidos.join(', ')})` : ''}.`,
     '4. Quando a conversa usa um documento de base ou arquivo de quick win marcado como sigiloso.',
     `5. Quando a sua área tem a opção "todas as conversas desta área são sigilosas"${areasSigilosas.length ? ` (hoje: ${areasSigilosas.join(', ')})` : ''}.`,
     'Uma conversa sigilosa continua sigilosa até ser apagada.',
-    '### Modelos homologados para dados sigilosos',
-    ...(homologados.length ? homologados.map(m => `- ${m.nome} (fornecedor ${m.homologacao?.fornecedor || '?'}), homologado em ${data(m.homologacao?.em)}`) : ['- Nenhum modelo homologado ainda. Enquanto isso, conversas sigilosas não podem ser enviadas.']),
-    '### Quem usa cada perfil de modelo',
+    ...(naoEnviados.length ? ['### Dados que a empresa não envia à IA', `Por política da empresa, mensagens com ${naoEnviados.join(', ')} não são enviadas.`] : []),
+    '### Quem usa cada nível',
     `- ${PERFIS.rapido}: todas as pessoas.`,
     `- ${PERFIS.equilibrado}: ${acesso('equilibrado')}.`,
     `- ${PERFIS.avancado}: ${acesso('avancado')}.`,
     '### O sistema não reconhece tudo',
-    'Números estratégicos, nomes soltos e informações de negócio não são reconhecidos automaticamente. Se houver dado sigiloso que o sistema não reconhece, ligue a opção "Esta conversa tem dados sigilosos" antes de enviar.',
+    'Números estratégicos, nomes soltos e informações de negócio não são reconhecidos automaticamente. Se houver informação sigilosa que o sistema não reconhece, ligue a opção "Esta conversa tem dados sigilosos" antes de enviar.',
     '### Quem vê o quê e por quanto tempo',
     `- Suas conversas e anexos ficam salvos só para você, por até ${cfg.retencaoDias} dias sem uso, e você pode apagá-los quando quiser.`,
-    '- Nem o responsável da área nem o admin leem o conteúdo das conversas: eles veem só dados de uso (quantidade, custo, feedback), sem conteúdo.',
-    '- Senhas e credenciais nunca são enviadas.',
+    '- Nem o responsável da área nem o admin leem o conteúdo das conversas: eles veem só dados de uso (quantidade, consumo, feedback), sem conteúdo.',
+    '- Senhas, chaves de acesso e outros segredos nunca são enviados à IA (regra de segurança da GreenIA).',
+    '### Responsabilidades',
+    'A GreenIA aplica controles técnicos e administrativos para apoiar as políticas de segurança, confidencialidade e proteção de dados da empresa. A empresa continua responsável por suas obrigações legais e regulatórias.',
   ].join('\n');
 }
 

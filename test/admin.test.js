@@ -60,15 +60,18 @@ test('quick win: usuário comum só cria se o admin autorizar; cria nas própria
   assert.ok(lista.some(x => x.nome === 'Resumo de reuniões' && x.criado_por === 'dani@exemplo.com.br' && x.areas[0] === 'Área Alfa'));
 });
 
-test('política: a seção automática muda com a homologação e gera nova versão; preço não; ciência pendente bloqueia o envio', async () => {
+test('política: a seção automática muda com a política de informação sigilosa e gera nova versão; nunca cita fornecedor; preço não; ciência pendente bloqueia o envio', async () => {
   const v1 = (await admin.get('/api/politica')).dados;
-  assert.match(v1.secao, /Nenhum modelo homologado ainda/);
+  assert.match(v1.secao, /A empresa não permite processar informações sigilosas com IA/);
   assert.match(v1.secao, /Avançado: ninguém/);
   await admin.put(`/api/admin/modelos/${enc(HOMOLOGADO)}`, { liberado: true, perfil: 'rapido' });
-  await admin.post(`/api/admin/modelos/${enc(HOMOLOGADO)}/homologar`, { fornecedor: 'mistral', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no OpenRouter.' });
+  await admin.post(`/api/admin/modelos/${enc(HOMOLOGADO)}/homologar`, { fornecedor: 'mistral', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no contrato.' });
+  assert.equal((await admin.put('/api/admin/sigilo', { ativo: true })).status, 200);
   const v2 = (await admin.get('/api/politica')).dados;
   assert.ok(v2.versao > v1.versao);
-  assert.match(v2.secao, new RegExp(`fornecedor mistral\\), homologado em`));
+  assert.match(v2.secao, /permite o processamento de informações sigilosas com guardrails de proteção/);
+  assert.doesNotMatch(v2.secao, /mistral|openrouter|fornecedor \w/i, 'a política lida por todos não cita fornecedor nem modelo');
+  assert.doesNotMatch(v2.secao, /garant\w* (?:o )?compliance|100%/i);
   // Mudança só de preço não gera versão.
   S.app.db.prepare('update modelos set preco_entrada = 0.000002 where id = ?').run(HOMOLOGADO);
   await admin.put(`/api/admin/modelos/${enc(HOMOLOGADO)}`, { perfil: 'rapido' });
@@ -89,7 +92,7 @@ test('política: a seção automática muda com a homologação e gera nova vers
   assert.equal((await admin.put('/api/admin/politica', { texto: 'Texto próprio da empresa sobre o uso de IA no trabalho.' })).status, 200);
   const v4 = (await admin.get('/api/politica')).dados;
   assert.equal(v4.texto, 'Texto próprio da empresa sobre o uso de IA no trabalho.');
-  assert.match(v4.secao, /Como a GreenIA trata dados sigilosos/);
+  assert.match(v4.secao, /Como a GreenIA trata informações sigilosas/);
   assert.equal((await ana.put('/api/admin/politica', { texto: 'Tentativa de quem não é admin.' })).status, 403);
 });
 

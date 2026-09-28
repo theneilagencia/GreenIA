@@ -13,6 +13,10 @@ import { exec, todos, um } from '../src/db.js';
 import { ErroIA } from '../src/ia.js';
 import { MSG_USUARIO } from '../src/avisos-governanca.js';
 
+// Modelo que de fato respondeu, pelo registro (a resposta para quem não administra não traz identificador técnico).
+const usado = r => um(S.app.db, 'select modelo_usado from roteamento where resposta_id = ?', r.fim.id)?.modelo_usado;
+
+
 const RAPIDO = 'google/gemini-3.5-flash-lite', EQUILIBRADO = 'anthropic/claude-haiku-4.5', AVANCADO = 'anthropic/claude-sonnet-5';
 const CONTRATO = 'Analise este contrato e identifique riscos jurídicos, obrigações e possíveis pontos de exposição.';
 const enc = encodeURIComponent;
@@ -27,7 +31,7 @@ const ia = () => ({ ...OR.ia, configurada: true, listarModelos: (...a) => OR.ia.
 before(async () => {
   OR = await openRouterFalso();
   S = await subir({ ia: ia() });
-  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], allow_sensitive_processing_with_guardrails: true });   // empresa que processa informação sigilosa com guardrails
   admin = await S.cliente().entrar('admin@exemplo.com.br');
   ana = await S.cliente().entrar('ana@exemplo.com.br');
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false } } });
@@ -59,7 +63,7 @@ test('11. nenhum modelo homologado: conversa sigilosa bloqueada com segurança, 
   assert.equal(OR.chamadas.length, n, 'nada foi enviado');
   assert.equal(ultimaRota().resultado, 'bloqueado');
   assert.equal(alertas('sem_modelo_sigilo'), 1);
-  assert.ok(emailsAdmin().some(a => /informação sigilosa bloqueado/.test(a)));
+  assert.ok(emailsAdmin().some(a => /Conversas confidenciais estão sendo bloqueadas/.test(a)));
   await semDecisaoTecnica(conv, r);
   // De novo: continua bloqueado e registrado, sem repetir o email.
   const r2 = await enviarMensagem(ana, conv.id, { texto: 'Mais uma pergunta.' });
@@ -164,7 +168,7 @@ test('3 e 7. principal indisponível com reserva: a reserva responde, registrada
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá' });
   OR.falhar.delete(RAPIDO);
   assert.equal(r.status, 200);
-  assert.equal(r.fim.modelo, 'openai/gpt-5-mini');
+  assert.equal(usado(r), 'openai/gpt-5-mini');
   assert.equal(r.fim.reserva, true);
   await semDecisaoTecnica(conv, r);
 });
@@ -288,14 +292,15 @@ test('plataforma: a operadora autoriza um modelo para dado sigiloso em todas as 
     const gil = PL.navegador();
     await gil.get('/gama');
     assert.equal((await gil.entrarEmpresa('gil@gama.com')).status, 200);
+    assert.equal((await gil.put('/api/admin/sigilo', { ativo: true })).status, 200);   // a empresa liga o processamento protegido
     assert.equal((await ops.post('/api/plataforma/homologacoes', { id: 'mistralai/mistral-small', nome: 'Mistral Small', perfil: 'rapido', fornecedor: 'Mistral', semTreino: true, retencaoZero: false, justificativa: 'Retenção zero conferida.' })).status, 400, 'as duas garantias são obrigatórias');
     assert.equal((await gil.post('/api/plataforma/homologacoes', { id: 'x/y' })).status, 401, 'só a operadora autoriza pela plataforma');
     const ok = await ops.post('/api/plataforma/homologacoes', { id: 'mistralai/mistral-small', nome: 'Mistral Small', perfil: 'rapido', fornecedor: 'Mistral', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no contrato.' });
     assert.equal(ok.status, 200, JSON.stringify(ok.dados));
     const m = (await gil.get('/api/admin/modelos')).dados.modelos.find(x => x.id === 'mistralai/mistral-small');
-    assert.ok(m.homologado && m.liberado && m.homologacao.origem === 'plataforma');
-    assert.equal((await gil.del(`/api/admin/modelos/${enc('mistralai/mistral-small')}/homologar`)).status, 409);
-    assert.equal((await gil.put(`/api/admin/modelos/${enc('mistralai/mistral-small')}`, { liberado: false })).status, 409);
+    // Seguindo as recomendações, a empresa adota a autorização da plataforma sem configurar nada.
+    assert.ok(m.homologado && m.liberado && m.homologacao.origem === 'recomendacao_da_plataforma');
+    assert.equal(m.autorizacaoPlataforma.endpoint, 'Mistral');
     // Conversa sigilosa na empresa funciona sem nenhuma configuração do admin.
     const conv = (await gil.post('/api/conversas', {})).dados.conversa;
     await gil.req('PATCH', `/api/conversas/${conv.id}`, { sigilosa: true });

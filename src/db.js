@@ -50,7 +50,7 @@ create table if not exists modelos (
   liberado integer not null default 0, perfil text check (perfil in ('rapido','equilibrado','avancado')),
   reserva text, homologado integer not null default 0, homologacao text,
   no_catalogo integer not null default 1, aviso text, atualizado_em text,
-  capacidades text, vetado_plataforma integer not null default 0);
+  capacidades text, vetado_plataforma integer not null default 0, autorizacao_plataforma text);
 
 create table if not exists documentos (
   id integer primary key, titulo text not null, arquivo text not null,
@@ -131,7 +131,7 @@ create table if not exists roteamento (
   origem text, classe_pedida text, preferencia text, requisitos text not null default '{}', janela_minima integer, janela_desejada integer,
   motivo_escolha text, fallback text, reserva text, resultado text,
   ms_primeiro_token integer, ms_total integer, feedback text, refeito integer not null default 0, nova_tentativa_de integer,
-  modelo_solicitado text, decisao_solicitado text, motivo_substituicao text);
+  modelo_solicitado text, decisao_solicitado text, motivo_substituicao text, politica_sigilo text, guardrails text, motivo_bloqueio text);
 create index if not exists roteamento_em on roteamento (em);
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
@@ -220,6 +220,24 @@ const MIGRACOES = [
     const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
     for (const c of ['modelo_solicitado', 'decisao_solicitado', 'motivo_substituicao']) if (!tem('roteamento', c)) db.exec(`alter table roteamento add column ${c} text`);
     if (!tem('modelos', 'vetado_plataforma')) db.exec('alter table modelos add column vetado_plataforma integer not null default 0');
+  },
+  // 9. Informação sigilosa com guardrails: a autorização da plataforma sai da homologação da empresa (coluna
+  //    própria); as homologações existentes ganham os atributos da rota que já valiam (fornecedor usado como
+  //    endpoint no envio; retenção zero e ausência de treino eram confirmações obrigatórias para homologar).
+  //    Registro de auditoria: política da empresa, guardrails aplicados e motivo do bloqueio.
+  db => {
+    const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
+    if (!tem('modelos', 'autorizacao_plataforma')) db.exec('alter table modelos add column autorizacao_plataforma text');
+    for (const c of ['politica_sigilo', 'guardrails', 'motivo_bloqueio']) if (!tem('roteamento', c)) db.exec(`alter table roteamento add column ${c} text`);
+    for (const m of db.prepare('select id, homologado, homologacao from modelos where homologacao is not null').all()) {
+      let h; try { h = JSON.parse(m.homologacao); } catch { continue; }
+      if (h?.origem === 'plataforma') {
+        db.prepare('update modelos set autorizacao_plataforma = ?, homologado = 0, homologacao = null where id = ?')
+          .run(JSON.stringify({ fornecedor: h.fornecedor, endpoint: h.fornecedor, retencaoZero: true, semTreino: true, justificativa: h.justificativa, por: h.quem, em: h.em }), m.id);
+      } else if (h && h.endpoint === undefined) {
+        db.prepare('update modelos set homologacao = ? where id = ?').run(JSON.stringify({ ...h, endpoint: h.fornecedor, retencaoZero: true, semTreino: true, atributos: 'confirmados na homologação' }), m.id);
+      }
+    }
   },
 ];
 

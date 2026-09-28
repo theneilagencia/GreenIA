@@ -9,6 +9,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { criarApp } from '../servidor.js';
 import { criarEmail } from '../email.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
+import { REQUISITOS_PLATAFORMA } from '../sigilo.js';
 import { registrarFalhaEmail, registrarEnvioOk } from './email-falhas.js';
 import { criarSimulada, criarOpenRouter } from '../ia.js';
 import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
@@ -155,6 +156,8 @@ function aplicarAoTenant(P, id) {
   const mpm = plano?.limits?.messages_per_minute;
   t.rajada = plano ? (mpm > 0 ? mpm : Infinity) : undefined;
   t.operadores = P.adminsPlataforma();
+  // Requisitos mínimos da plataforma para informação sigilosa (a empresa não os remove) e as autorizações/vetos.
+  salvarConfig(t.db, { requisitosSigilo: REQUISITOS_PLATAFORMA });
   aplicarHomologacoesPlataforma(t.db, lerAjuste(P.db, 'homologacoes_plataforma', []) || [], P.agora(), lerAjuste(P.db, 'vetos_sigilo_plataforma', []) || []);   // autorizações e vetos da operadora para dados sigilosos
   t.linkApp = () => `${E.urlDaEmpresa(P, E.lerEmpresa(P, id) || c)}/app`;   // links nos emails da empresa
   const b = E.lerMarca(P, id);

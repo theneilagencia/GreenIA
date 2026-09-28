@@ -275,9 +275,10 @@ const deficit = (c, req) => DIM_CAPACIDADE.reduce((s, d) => s + Math.max(0, (req
  * @param {object} ctx { db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual, origem }
  *   origem: 'auto' | 'pessoa' | 'quick_win' | 'padrao' (de onde veio o pedido de classe)
  */
-export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null }) {
+export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [] }) {
   const a = analise, perfis = perfisDe(cfg, pessoa);
-  const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO);
+  // excluir: recursos que já falharam nesta solicitação (a busca por outro recurso elegível passa pelas mesmas regras).
+  const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO && !excluir.includes(m.id));
   const classeQw = qwClasse(qw, lista);
   const qwFixo = qw && !qw.pode_trocar;
   // O piso do quick win vale também contra um modelo solicitado: é decisão de governança (quem responde pelo
@@ -393,7 +394,9 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
   function saida(c) {
     return { id: c.id, classe: c.classe, capacidades: c.explicitas ? c.cap : undefined, custo: c.custo === null ? null : Math.round(c.custo * 1e6) / 1e6, cabeTudo: c.cabeTudo,
       utilidade: c.utilidade ?? null, dominadoPor: c.dominadoPor || undefined,
-      status: c === escolhido ? 'escolhido' : c.motivos.some(y => GOVERNANCA.includes(y)) ? 'excluido' : c.motivos.length ? 'insuficiente' : 'preterido', motivos: c.motivos };
+      status: c === escolhido ? 'escolhido' : c.motivos.some(y => GOVERNANCA.includes(y)) ? 'excluido' : c.motivos.length ? 'insuficiente' : 'preterido', motivos: c.motivos,
+      // Informação sigilosa: por que a rota deste recurso não passou nos guardrails (camada central, sigilo.js).
+      guardrails: sigilosa && c.m.sigilo && !c.m.sigilo.elegivel ? c.m.sigilo.motivos : undefined };
   }
   function semModelo(causa) {
     const d = { modelo: null, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes }, politicas, motivoEscolha: null,
@@ -467,7 +470,7 @@ export function explicarParaPessoa({ modo, classe, politicas = [], fallback = nu
     : `Nível ${nivel}, como você escolheu`];
   const f = fallback || {};
   if (f.tipo === 'escolha_substituida' || f.escolha) partes.push('A opção escolhida não podia ser usada neste pedido, então a GreenIA escolheu automaticamente, dentro das regras da empresa');
-  if (sigilosa || politicas.includes('sigilosa_so_homologado')) partes.push('Por ter informação confidencial, só foram considerados recursos autorizados para esse tipo de dado');
+  if (sigilosa || politicas.includes('sigilosa_so_homologado')) partes.push('Proteção aplicada: a GreenIA identificou informações sigilosas e aplicou automaticamente os controles de proteção da empresa antes de processar esta solicitação');
   if (f.tipo === 'trocado_por_falta_de_contexto') partes.push('O conteúdo era extenso, então foi usado um recurso que consegue ler tudo de uma vez');
   if (politicas.includes('plano_na_reserva_so_rapido') || f.tipo === 'trocado_pela_reserva_do_plano') partes.push('Os créditos do mês acabaram: até a renovação, as respostas usam o modo econômico');
   return `${partes.join('. ')}.`;

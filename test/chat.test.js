@@ -9,6 +9,10 @@ import { exec, um } from '../src/db.js';
 import { montarCorpo } from '../src/ia.js';
 import { apagarVencidas } from '../src/conversas.js';
 
+// Modelo que de fato respondeu, pelo registro (a resposta para quem não administra não traz identificador técnico).
+const usado = r => um(S.app.db, 'select modelo_usado from roteamento where resposta_id = ?', r.fim.id)?.modelo_usado;
+
+
 const HOMOLOGADO = 'mistralai/mistral-small';
 const AVANCADO = 'anthropic/claude-sonnet-5';
 const RAPIDO = 'google/gemini-3.5-flash-lite';
@@ -19,7 +23,7 @@ let agora = new Date('2026-09-26T12:00:00Z');
 before(async () => {
   OR = await openRouterFalso();
   S = await subir({ ia: OR.ia, agora: () => agora });
-  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], allow_sensitive_processing_with_guardrails: true });   // empresa que processa informação sigilosa com guardrails
   admin = await S.cliente().entrar('admin@exemplo.com.br');
   assert.equal((await admin.put(`/api/admin/modelos/${enc(HOMOLOGADO)}`, { liberado: true, perfil: 'rapido' })).status, 200);
   const h = await admin.post(`/api/admin/modelos/${enc(HOMOLOGADO)}/homologar`, { fornecedor: 'Mistral', semTreino: true, retencaoZero: true, justificativa: 'Fornecedor com retenção zero e sem treino, conferido no OpenRouter.' });
@@ -36,7 +40,9 @@ test('chat com streaming: persona no system, resposta gravada, custo informado p
   const r = await enviarMensagem(ana, conv.id, { texto: 'Resuma este parágrafo sobre o novo processo de compras.' });
   assert.equal(r.status, 200);
   assert.match(r.texto, /^Resposta de google\/gemini-3\.5-flash-lite/);
-  assert.equal(r.fim.modelo, RAPIDO);
+  assert.equal(usado(r), RAPIDO);
+  assert.equal(r.fim.modelo, null, 'quem usa não recebe o identificador técnico');
+  assert.equal(r.fim.classe, 'rapido');
   const chamada = OR.chamadas[n];
   assert.equal(chamada.messages[0].role, 'system');
   assert.match(chamada.messages[0].content, /Você é a GreenIA/);
@@ -60,7 +66,7 @@ test('modelo fora da lista liberada nunca é usado: o pedido segue no automátic
   const conv = await novaConversa();
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'openai/gpt-4o' });
   assert.equal(r.status, 200);
-  assert.notEqual(r.fim.modelo, 'openai/gpt-4o');
+  assert.notEqual(usado(r), 'openai/gpt-4o');
   assert.ok(!OR.chamadas.some(c => c.model === 'openai/gpt-4o' || c.models?.includes('openai/gpt-4o')));
   const rota = um(S.app.db, 'select politicas, fallback from roteamento where conversa_id = ? order by id desc limit 1', conv.id);
   assert.match(rota.politicas, /escolha_substituida_pelo_roteamento/);
@@ -76,7 +82,7 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
   // Pedido forçado pela API a um Avançado: não é usado; o automático escolhe entre o que ela pode usar.
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO });
   assert.equal(r.status, 200);
-  assert.notEqual(r.fim.modelo, AVANCADO);
+  assert.notEqual(usado(r), AVANCADO);
   assert.notEqual(r.fim.classe, 'avancado');
   // Liberado para um grupo do qual ela faz parte: passa a ver e usar; a mudança fica no log.
   const g = (await admin.post('/api/admin/grupos', { nome: 'Analistas' })).dados;
@@ -85,7 +91,7 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
   assert.ok((await ana.get('/api/modelos')).dados.opcoes.some(o => o.id === 'classe:avancado'));
   const r2 = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'classe:avancado' });
   assert.equal(r2.status, 200);
-  assert.equal(r2.fim.modelo, AVANCADO);
+  assert.equal(usado(r2), AVANCADO);
   assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'model.config_changed'"));
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false } } });
 });
@@ -94,7 +100,7 @@ test('trocar de modelo no meio da conversa funciona e fica registrado na convers
   const conv = await novaConversa();
   await enviarMensagem(ana, conv.id, { texto: 'Primeira pergunta' });
   const r = await enviarMensagem(ana, conv.id, { texto: 'Segunda pergunta', modelo: 'classe:equilibrado' });
-  assert.equal(r.fim.modelo, 'anthropic/claude-haiku-4.5');
+  assert.equal(usado(r), 'anthropic/claude-haiku-4.5');
   assert.equal(r.fim.classe, 'equilibrado');
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
   assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Nível trocado para Equilibrado/.test(m.texto)));
@@ -110,7 +116,7 @@ test('falha do modelo principal usa o reserva e registra qual respondeu', async 
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá' });
   OR.falhar.delete(RAPIDO);
   assert.deepEqual(OR.chamadas.at(-1).models, [RAPIDO, 'openai/gpt-5-mini']);
-  assert.equal(r.fim.modelo, 'openai/gpt-5-mini');
+  assert.equal(usado(r), 'openai/gpt-5-mini');
   assert.equal(r.fim.reserva, true);
   const u = um(S.app.db, 'select modelo_pedido, modelo_usado from uso where conversa_id = ?', conv.id);
   assert.deepEqual({ ...u }, { modelo_pedido: RAPIDO, modelo_usado: 'openai/gpt-5-mini' });
@@ -120,17 +126,27 @@ test('falha do modelo principal usa o reserva e registra qual respondeu', async 
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: null });
 });
 
-test('filtro no servidor: CPF bloqueado no chat por padrão; credencial sempre, mesmo marcada como permitir', async () => {
-  const conv = await novaConversa();
-  const n = OR.chamadas.length;
+test('filtro no servidor: CPF é classificado e protegido por padrão; bloquear é política da empresa; credencial nunca sai', async () => {
+  // Padrão: CPF identificado → a conversa vira sigilosa e só segue por rota autorizada (política ligada).
+  let conv = await novaConversa();
   let r = await enviarMensagem(ana, conv.id, { texto: 'O CPF do cliente é 529.982.247-25' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.equal(OR.chamadas.at(-1).model, HOMOLOGADO);
+  assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, true);
+  // A empresa escolhe bloquear CPF: vira política dela, e a mensagem diz isso.
+  const cfg = lerConfig(S.app.db);
+  salvarConfig(S.app.db, { acoesChat: { ...cfg.acoesChat, cpf: 'bloquear', credencial: 'permitir' } });
+  conv = await novaConversa();
+  const n = OR.chamadas.length;
+  r = await enviarMensagem(ana, conv.id, { texto: 'O CPF do cliente é 529.982.247-25' });
   assert.equal(r.status, 422);
   assert.deepEqual(r.erro.tipos, ['cpf']);
-  const cfg = lerConfig(S.app.db);
-  salvarConfig(S.app.db, { acoesChat: { ...cfg.acoesChat, credencial: 'permitir' } });
+  assert.match(r.erro.mensagem, /^Pela política da empresa/);
+  // Credencial: regra de segurança da GreenIA, mesmo marcada como "permitir".
   r = await enviarMensagem(ana, conv.id, { texto: 'a senha: Primavera2026' });
   assert.equal(r.status, 422);
   assert.deepEqual(r.erro.tipos, ['credencial']);
+  assert.match(r.erro.mensagem, /^Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA/);
   salvarConfig(S.app.db, { acoesChat: cfg.acoesChat });
   assert.equal(OR.chamadas.length, n);
   assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens.length, 0);
@@ -144,7 +160,7 @@ async function confereSigilosa(conv, corpo, motivo) {
   // Pedido por um modelo técnico não homologado: não é usado; a resposta vem do homologado.
   const r = await enviarMensagem(ana, conv.id, { ...corpo, modelo: RAPIDO });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
-  assert.equal(r.fim.modelo, HOMOLOGADO);
+  assert.equal(usado(r), HOMOLOGADO);
   assert.equal(OR.chamadas.at(-1).model, HOMOLOGADO, 'nada foi enviado ao modelo não homologado');
   assert.ok(!OR.chamadas.at(-1).models, 'sem reserva de outro fornecedor');
   // Pedido por classe (o caminho da interface): vai direto a um homologado.

@@ -17,6 +17,10 @@ import { ErroIA } from '../src/ia.js';
 import { MOTIVO_SUBSTITUICAO } from '../src/roteador.js';
 import { MSG_USUARIO } from '../src/avisos-governanca.js';
 
+// Modelo que de fato respondeu, pelo registro (a resposta para quem não administra não traz identificador técnico).
+const usado = r => um(S.app.db, 'select modelo_usado from roteamento where resposta_id = ?', r.fim.id)?.modelo_usado;
+
+
 const RAPIDO = 'google/gemini-3.5-flash-lite', EQUILIBRADO = 'anthropic/claude-haiku-4.5', AVANCADO = 'anthropic/claude-sonnet-5';
 const VETADO = 'mistralai/mistral-small', GRATUITO = 'meta-llama/llama-3.3-70b-instruct:free', NAO_LIBERADO = 'openai/gpt-5-mini';
 const enc = encodeURIComponent;
@@ -29,7 +33,7 @@ const ia = () => ({ ...OR.ia, configurada: true, listarModelos: (...a) => OR.ia.
 before(async () => {
   OR = await openRouterFalso();
   S = await subir({ ia: ia() });
-  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], allow_sensitive_processing_with_guardrails: true });   // empresa que processa informação sigilosa com guardrails
   admin = await S.cliente().entrar('admin@exemplo.com.br');
   ana = await S.cliente().entrar('ana@exemplo.com.br');
   // Empresa: Avançado só para um grupo (Ana fora); Equilibrado homologado para dado sigiloso; um modelo
@@ -103,7 +107,8 @@ test('invariante (10 casos): modelo proibido nunca é executado; com alternativa
     assert.equal(x.rota.motivo_substituicao, motivo, nome);
     assert.match(x.rota.explicacao, /Modelo solicitado não usado/, `${nome}: explicação reconstruída do registro`);
     // Quem conversa sabe que houve troca, sem a regra técnica.
-    assert.deepEqual(x.r.fim.rota.solicitacao, { modelo_solicitado: modelo, modelo_selecionado: x.r.fim.modelo, decisao: 'substituido', motivo: 'requested_model_not_eligible' }, nome);
+    assert.deepEqual(x.r.fim.rota.solicitacao, { decisao: 'substituido', motivo: 'requested_model_not_eligible' }, nome);
+    assert.equal(x.r.fim.modelo, null, `${nome}: sem identificador técnico para quem usa`);
   }
 });
 
@@ -181,7 +186,9 @@ test('caso A: solicitado elegível é usado (solicitado == selecionado)', async 
   const x = await pedir(await conversa(), RAPIDO);
   assert.equal(x.feitos[0], RAPIDO);
   assert.equal(x.rota.decisao_solicitado, 'respeitado');
-  assert.deepEqual(x.r.fim.rota.solicitacao, { modelo_solicitado: RAPIDO, modelo_selecionado: RAPIDO, decisao: 'respeitado', motivo: null });
+  assert.deepEqual(x.r.fim.rota.solicitacao, { decisao: 'respeitado', motivo: null });
+  assert.equal(x.rota.modelo_solicitado, RAPIDO);
+  assert.equal(x.rota.modelo, RAPIDO, 'o registro: solicitado == selecionado');
   // Sem modelo solicitado, não há solicitação a relatar.
   const y = await pedir(await conversa(), undefined);
   assert.equal(y.r.fim.rota.solicitacao, null);
@@ -207,7 +214,7 @@ test('caso B2: o selecionado cai no fornecedor e a reserva responde: registrado 
   OR.falhar.delete(RAPIDO);
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: null });
   await admin.put(`/api/admin/modelos/${enc(NAO_LIBERADO)}`, { liberado: false });
-  assert.equal(x.r.fim.modelo, NAO_LIBERADO);
+  assert.equal(usado(x.r), NAO_LIBERADO);
   const rota = um(S.app.db, 'select * from roteamento where id = ?', x.rota.id);
   assert.equal(rota.decisao_solicitado, 'substituido');
   assert.equal(rota.motivo_substituicao, 'requested_model_not_available');
@@ -223,7 +230,7 @@ test('caso C: solicitado não elegível e sem alternativa: bloqueio seguro, nada
   assert.equal(x.r.erro.mensagem, MSG_USUARIO.sigilo);
   assert.equal(x.feitos.length, 0);
   assert.equal(x.rota.decisao_solicitado, 'bloqueado');
-  assert.deepEqual(x.r.erro.rota.solicitacao, { modelo_solicitado: RAPIDO, modelo_selecionado: null, decisao: 'bloqueado', motivo: 'requested_model_not_eligible' });
+  assert.deepEqual(x.r.erro.rota.solicitacao, { decisao: 'bloqueado', motivo: 'requested_model_not_eligible' });
   assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'governance.admin_alert' and detalhes like '%sem_modelo_sigilo%'"));
   // Conteúdo grande demais para todos: bloqueio, mas sem acionar o admin (não é problema de governança).
   const antes = um(S.app.db, "select count(*) as n from eventos where tipo = 'governance.admin_alert'").n;
@@ -244,8 +251,11 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   const chamadas = arquivos.flatMap(p => (readFileSync(p, 'utf8').match(/\bia\.enviar\(/g) || []).map(() => p.slice(raiz.length)));
   assert.deepEqual(chamadas, ['conversas.js'], 'só o envio de mensagens executa modelo');
   const conv = readFileSync(join(raiz, 'conversas.js'), 'utf8');
-  assert.match(conv, /app\.ia\.enviar\(mensagens, \{ modelo: m\.id, reserva: sigilosa \? null : rota\.reserva/, 'executa o que o roteador decidiu (modelo e reserva)');
+  assert.match(conv, /app\.ia\.enviar\(mensagens, \{ modelo: atual\.id, reserva: sigilosa \|\| atual !== m \? null : rota\.reserva, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'executa o que o roteador decidiu (modelo, reserva e rota de sigilo)');
   assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf('app.ia.enviar('), 'a execução vem depois da decisão');
+  assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf('app.ia.enviar('), 'conferência final dos guardrails antes do envio');
+  assert.match(conv, /rotaSigilo = conferirEnvio\(alt\.modelo\)/, 'a busca por outro recurso passa pelos guardrails');
+  assert.ok(conv.indexOf('avaliarProcessamentoSigiloso({ cfg, sigilosa })') < conv.indexOf('tornarSigilosa(app, pessoa, conv, motivo)', conv.indexOf('r.post(\'/api/conversas/:id/mensagens\'')), 'a política decide antes de marcar a conversa');
   // O endpoint de chat do provedor só existe no cliente de IA.
   const completions = arquivos.filter(p => readFileSync(p, 'utf8').includes('chat/completions')).map(p => p.slice(raiz.length));
   assert.deepEqual(completions, ['ia.js']);
@@ -296,12 +306,24 @@ test('hierarquia: modelo homologado pela empresa MAS proibido pela plataforma n�
     const dora = PL.navegador();
     await dora.get('/delta');
     assert.equal((await dora.entrarEmpresa('dora@delta.com')).status, 200);
-    // A empresa homologa por conta própria.
+    assert.equal((await dora.put('/api/admin/sigilo', { ativo: true })).status, 200);   // a empresa liga o processamento protegido
+    // A empresa homologa por conta própria, mas a plataforma não autorizou: NÃO elegível (a autorização é o mínimo).
     assert.equal((await dora.post(`/api/admin/modelos/${enc(EQUILIBRADO)}/homologar`, { fornecedor: 'Anthropic', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no contrato.' })).status, 200);
     const conv = (await dora.post('/api/conversas', {})).dados.conversa;
     await dora.req('PATCH', `/api/conversas/${conv.id}`, { sigilosa: true });
+    const n0 = R.chamadas.length;
+    assert.equal((await enviarMensagem(dora, conv.id, { texto: 'Pergunta confidencial', modelo: EQUILIBRADO })).status, 409);
+    assert.equal(R.chamadas.length, n0, 'homologado pela empresa, não autorizado pela plataforma: nada enviado');
+    assert.ok((await dora.get('/api/admin/modelos')).dados.modelos.find(x => x.id === EQUILIBRADO).sigilo.motivos.includes('sem_autorizacao_plataforma'));
+    // Autorizado pela plataforma com OUTRA rota (endpoint): continua não elegível; é outro recurso.
+    assert.equal((await ops.post('/api/plataforma/homologacoes', { id: EQUILIBRADO, perfil: 'equilibrado', fornecedor: 'amazon-bedrock', semTreino: true, retencaoZero: true, justificativa: 'Rota autorizada pela plataforma.' })).status, 200);
+    assert.equal((await enviarMensagem(dora, conv.id, { texto: 'Pergunta confidencial', modelo: EQUILIBRADO })).status, 409);
+    assert.ok((await dora.get('/api/admin/modelos')).dados.modelos.find(x => x.id === EQUILIBRADO).sigilo.motivos.includes('rota_diferente_da_autorizada'));
+    // Plataforma autoriza a mesma rota que a empresa homologou: elegível, e o envio fixa essa rota.
+    assert.equal((await ops.post('/api/plataforma/homologacoes', { id: EQUILIBRADO, perfil: 'equilibrado', fornecedor: 'Anthropic', semTreino: true, retencaoZero: true, justificativa: 'Rota autorizada pela plataforma.' })).status, 200);
     assert.equal((await enviarMensagem(dora, conv.id, { texto: 'Pergunta confidencial', modelo: EQUILIBRADO })).status, 200);
     assert.equal(R.chamadas.at(-1), EQUILIBRADO);
+    assert.equal((await ops.del(`/api/plataforma/homologacoes/${enc(EQUILIBRADO)}`)).status, 200);
     // A plataforma proíbe o modelo para dado sigiloso: deixa de ser elegível, mesmo homologado pela empresa.
     assert.equal((await ops.post('/api/plataforma/vetos-sigilo', { id: EQUILIBRADO, motivo: 'Fornecedor mudou a política de retenção.' })).status, 200);
     const n = R.chamadas.length;
@@ -320,6 +342,7 @@ test('hierarquia: modelo homologado pela empresa MAS proibido pela plataforma n�
     assert.equal((await dora.post(`/api/admin/modelos/${enc('novo/modelo-z')}/homologar`, { fornecedor: 'Z', semTreino: true, retencaoZero: true, justificativa: 'Tentativa de homologar.' })).status, 409);
     // Retirado o veto, volta a valer a homologação da empresa.
     assert.equal((await ops.del(`/api/plataforma/vetos-sigilo/${enc(EQUILIBRADO)}`)).status, 200);
+    assert.equal((await ops.post('/api/plataforma/homologacoes', { id: EQUILIBRADO, perfil: 'equilibrado', fornecedor: 'Anthropic', semTreino: true, retencaoZero: true, justificativa: 'Rota autorizada pela plataforma.' })).status, 200);
     assert.equal((await enviarMensagem(dora, conv.id, { texto: 'Mais uma', modelo: EQUILIBRADO })).status, 200);
   } finally { await PL.fechar(); }
 });
@@ -336,6 +359,9 @@ test('admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, ale
     const eva = PL.navegador();
     await eva.get('/epsilon');
     assert.equal((await eva.entrarEmpresa('eva@epsilon.com')).status, 200);
+    // Informações sigilosas: começa desligado; o admin liga uma única opção, sem saber de modelos.
+    assert.equal((await eva.get('/api/admin/sigilo')).dados.ativo, false);
+    assert.equal((await eva.put('/api/admin/sigilo', { ativo: true })).status, 200);
     // 2. Seguir recomendações (já é o padrão de uma empresa nova).
     assert.equal((await eva.get('/api/admin/governanca')).dados.modo, 'recomendado');
     assert.equal((await eva.put('/api/admin/governanca', { modo: 'recomendado' })).status, 200);
@@ -356,7 +382,7 @@ test('admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, ale
     assert.equal((await enviarMensagem(eva, sig.id, { texto: 'Outra pergunta confidencial' })).status, 409);
     assert.equal(R.chamadas.length, n);
     // 6. Alerta recebido por email, e 7. legível no painel: o que aconteceu e o que resolve, sem jargão.
-    const email = PL.P.email.enviados.filter(m => m.para === 'eva@epsilon.com').find(m => /sigilosa bloqueado/.test(m.assunto));
+    const email = PL.P.email.enviados.filter(m => m.para === 'eva@epsilon.com').find(m => /Conversas confidenciais estão sendo bloqueadas/.test(m.assunto));
     assert.ok(email, 'o admin recebeu o alerta');
     const texto = email.texto ?? email.corpo ?? JSON.stringify(email);
     assert.doesNotMatch(texto, JARGAO);

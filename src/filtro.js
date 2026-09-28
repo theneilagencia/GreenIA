@@ -65,7 +65,11 @@ const REGRAS = {
     return false;
   },
   credencial(t) {
-    if (/\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|xox[abp]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})\b/.test(t)) return true;
+    if (/\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abp]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|glpat-[A-Za-z0-9_-]{16,}|re_[A-Za-z0-9]{20,}|rnd_[A-Za-z0-9]{16,})\b/.test(t)) return true;
+    if (/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/.test(t)) return true;                       // chave privada
+    if (/\bBearer\s+[A-Za-z0-9._~+\/-]{20,}=*/.test(t)) return true;                          // token de autorização
+    if (/\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/.test(t)) return true;  // JWT
+    if (/\b[a-z][a-z0-9+.-]*:\/\/[^\s:@\/]+:[^\s@\/]{3,}@/i.test(t)) return true;             // usuário:senha em URL
     const chave = String.raw`(?:senha|password|passwd|pwd|token|api[\s_-]?key|chave\s+de\s+api|secret|segredo|client[\s_-]?secret)`;
     // palavra-chave seguida de ":" ou "=" e um valor; ou de "é" e um valor com número ou símbolo
     return new RegExp(`\\b${chave}\\s*[:=]\\s*["'\`]?\\S{3,}`, 'i').test(t)
@@ -100,6 +104,18 @@ const REGRAS = {
 };
 
 export const TIPOS = Object.keys(REGRAS);
+// Classificação (o que o dado É). O tratamento (proteger ou não enviar) é política da empresa, com uma exceção:
+// credenciais e segredos nunca são enviados, por regra de segurança da GreenIA (não é uma afirmação da LGPD).
+// "Dado pessoal sensível" (saúde, origem racial, religião, biometria...) não é reconhecido por padrão de texto:
+// fica na marcação da conversa, da área ou do quick win como sigilosa.
+export const CATEGORIAS = {
+  cpf: 'identificacao', rg: 'identificacao', cnpj: 'identificacao_empresa',
+  cartao: 'financeiro', banco: 'financeiro', pix: 'financeiro',
+  email: 'pessoal', telefone: 'pessoal', cep: 'pessoal', endereco: 'pessoal',
+  credencial: 'segredo',
+};
+export const NOMES_CATEGORIA = { identificacao: 'dado de identificação pessoal', identificacao_empresa: 'identificação de empresa', financeiro: 'dado financeiro',
+  pessoal: 'dado pessoal', segredo: 'credencial ou segredo' };
 export const ROTULOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'cartão', banco: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial',
   rg: 'RG', email: 'email', telefone: 'telefone', cep: 'CEP', endereco: 'endereço' };
 
@@ -109,10 +125,12 @@ export function detectar(texto) {
   return TIPOS.filter(tipo => REGRAS[tipo](t));
 }
 
-// Decide o que fazer com os tipos encontrados, dadas as ações configuradas.
-// Credencial é sempre bloqueada.
+// Decide o que fazer com os tipos encontrados, dadas as ações configuradas pela empresa:
+//   "permitir" = processar com proteção (a conversa passa a ser sigilosa e só segue por rota autorizada);
+//   "bloquear" = não enviar. Ação ausente ou desconhecida vale "bloquear" (fail closed).
+// Credencial é sempre bloqueada, independentemente da política de informação sigilosa.
 export function decidir(tipos, acoes) {
-  const bloqueados = tipos.filter(t => t === 'credencial' || (acoes[t] ?? 'bloquear') === 'bloquear');
+  const bloqueados = tipos.filter(t => t === 'credencial' || acoes?.[t] !== 'permitir');   // só 'permitir' explícito libera
   const permitidos = tipos.filter(t => !bloqueados.includes(t));
   return { bloqueados, permitidos };
 }

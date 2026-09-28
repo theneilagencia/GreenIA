@@ -107,7 +107,7 @@ test('8. falha da classificação não quebra a governança', () => {
   const normal = rotear({ db, cfg, pessoa, pedido: AUTOMATICO, analise: a });
   assert.equal(normal.requisitos.classe, 'equilibrado', 'na dúvida, a exigência padrão');
   assert.deepEqual(normal.requisitos.determinantes, ['analise_indisponivel']);
-  exec(db, "update modelos set homologado = 1, homologacao = '{\"fornecedor\":\"x\"}' where id = 'google/gemini-3.5-flash-lite'");
+  exec(db, "update modelos set homologado = 1, homologacao = '{\"fornecedor\":\"x\",\"endpoint\":\"x\",\"retencaoZero\":true,\"semTreino\":true}' where id = 'google/gemini-3.5-flash-lite'");
   const sig = rotear({ db, cfg, pessoa, pedido: AUTOMATICO, analise: a, sigilosa: true });
   assert.equal(sig.modelo.id, 'google/gemini-3.5-flash-lite');
   assert.ok(sig.candidatos.filter(c => c.id !== sig.modelo.id).every(c => c.motivos.includes('nao_homologado')));

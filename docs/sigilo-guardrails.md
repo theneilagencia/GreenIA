@@ -1,0 +1,150 @@
+# Informações sigilosas com guardrails de proteção
+
+A GreenIA não bloqueia informação sigilosa por princípio. Ela a **protege**: a empresa decide se permite o
+processamento, e a GreenIA só encaminha a solicitação por um recurso autorizado cuja rota real atende a todos
+os guardrails. Quando não há recurso assim, o conteúdo não é enviado.
+
+## Invariante
+
+```text
+sigilosa E política ligada E guardrails satisfeitos E recurso autorizado E rota elegível → ENVIA
+qualquer outra combinação                                                                → NÃO ENVIA
+```
+
+Ela vale no backend, e não só na tela.
+
+- **Camada central:** `src/sigilo.js`. As funções `avaliarRecurso` e `avaliarProcessamentoSigiloso` (o
+  `evaluate_sensitive_processing` do pedido) devolvem se o recurso é elegível, o motivo e os requisitos.
+- **Catálogo:** a linha do catálogo (`deLinha`, em `src/modelos.js`) calcula `homologado` com essa camada.
+  O roteador, o seletor e o envio leem o mesmo campo.
+- **Conferência final:** logo antes de chamar a IA, `conferirEnvio` (em `src/conversas.js`) relê o catálogo
+  e reavalia. Um recurso que deixou de ser elegível entre a decisão e o envio não recebe nada.
+
+## Configuração da empresa
+
+"**Permitir processamento de informações sigilosas com guardrails de proteção**" [ON / OFF].
+
+| Aspecto | Como funciona |
+|---|---|
+| Nome interno | `allow_sensitive_processing_with_guardrails` (booleano) |
+| Padrão | `false`. Ausente, `null`, `"true"`, `1` e qualquer outro valor que não seja `true` valem como desligado |
+| Quem altera | Só o admin, em Políticas → Informações sigilosas (`PUT /api/admin/sigilo`). A mudança é registrada e gera nova versão da Política de Uso, com nova ciência |
+| **OFF** | Informação sigilosa não vai para nenhum recurso. A decisão acontece antes de gravar a mensagem ou os anexos e antes de marcar a conversa. Quem usa lê: "Esta solicitação contém informações que a empresa não permite processar com IA. Nenhum conteúdo foi enviado." O admin não é avisado, porque foi escolha da empresa |
+| **ON** | Libera a capacidade de processar informação sigilosa com proteção, não um recurso. Cada envio passa pelos guardrails. Sem recurso elegível, quem usa lê "Não foi possível processar esta solicitação com segurança. Nenhum conteúdo foi enviado. O administrador foi informado." e o admin recebe o alerta |
+
+**Empresas que já existiam começam com a opção desligada.** Nenhuma migração a liga.
+
+## Guardrails: a rota real, e não o nome do modelo
+
+| Requisito | O que precisa ser verdade | Motivo quando falha |
+|---|---|---|
+| Liberado | O recurso está liberado na empresa | `nao_liberado` |
+| Rota fixa | Não é gratuito nem automático, que não têm fornecedor com garantias verificáveis | `sem_rota_fixa` |
+| Veto da plataforma | A plataforma não proibiu o recurso para informação sigilosa | `proibido_pela_plataforma` |
+| Homologação da empresa | A empresa homologou. No modo "Seguir recomendações", a adoção da autorização da plataforma conta como homologação | `sem_homologacao_empresa` |
+| Autorização da plataforma | Exigida no modo multiempresa: é o mínimo e a empresa não a remove | `sem_autorizacao_plataforma` |
+| Mesma rota | O endpoint homologado pela empresa é o mesmo autorizado pela plataforma. O mesmo modelo por outro fornecedor é outro recurso | `rota_diferente_da_autorizada` |
+| Fornecedor e endpoint | Os dois estão informados | `fornecedor_desconhecido`, `endpoint_desconhecido` |
+| Retenção zero | `retencaoZero === true` na rota. Com a plataforma, na dela **e** na da empresa | `retencao_nao_comprovada` |
+| Sem uso para treino | `semTreino === true` na rota, com a mesma regra | `treino_nao_comprovado` |
+
+A regra é **fechada em caso de dúvida**: ausente, `null`, `"sim"`, JSON ilegível ou desconhecido tornam o recurso
+não elegível. Capacidade, janela, permissões e plano são as restrições que o roteador já aplicava, na
+lista `RESTRICOES`.
+
+**No envio,** a rota fica fixada no pedido ao fornecedor: `provider.only` com o endpoint, `allow_fallbacks: false`,
+`zdr: true` e `data_collection: deny`.
+
+**O que não é verificado automaticamente:** a retenção zero e a ausência de treino de cada rota são
+declaradas por quem homologa. A empresa e a plataforma confirmam as duas garantias, e a justificativa fica
+registrada. A GreenIA não consulta o fornecedor para confirmar. Por isso a página de vendas diz "rotas que
+atendam aos requisitos definidos" e não promete que todo modelo tem retenção zero.
+
+## Hierarquia
+
+```text
+plataforma: requisitos mínimos (autoriza, proíbe, exige retenção zero e ausência de treino)
+      ↓
+empresa: liga ou desliga a política, homologa ou só restringe (nunca remove o mínimo)
+      ↓
+GreenIA: aplica os guardrails a cada envio
+      ↓
+pessoa: não altera nada disso nem escolhe recurso não autorizado (o modelo pedido é só preferência)
+```
+
+**Antes, a plataforma apenas "homologava em todas as empresas".** Agora a autorização dela fica numa coluna
+própria (`autorizacao_plataforma`). A empresa em modo manual precisa homologar, e a empresa que segue as
+recomendações adota a autorização automaticamente.
+
+## Classificação
+
+| Categoria | Tipos |
+|---|---|
+| Identificação pessoal | CPF, RG |
+| Identificação de empresa | CNPJ |
+| Financeiro | cartão, dados bancários, chave PIX |
+| Pessoal | email, telefone, CEP, endereço |
+| Segredo | senhas, API keys, tokens (incluindo `Bearer` e JWT), chaves privadas, `usuário:senha` em URL e outros |
+
+- **Dado pessoal sensível** (saúde, origem racial, religião, biometria…) não é reconhecido por padrão de
+  texto. Ele depende da marcação manual da conversa, da área ou do quick win como sigilosa.
+- **Tratamento:** é política da empresa, escolhida por tipo entre "Processar com proteção" (a conversa vira
+  sigilosa) e "Não enviar". O padrão protege tudo o que é reconhecido. Nenhum tipo é bloqueado "por
+  exigência da LGPD".
+- **Ação desconhecida** vale como "Não enviar". Antes valia como permitido; o defeito foi corrigido.
+- **Credenciais e segredos:** nunca são enviados, por regra de segurança da GreenIA. A opção de informação
+  sigilosa não muda isso.
+
+## Ordem de decisão
+
+```text
+classificação (mensagem + anexos) → política da empresa → autorização → guardrails → elegibilidade
+→ capacidade → adequação → continuidade → custo → latência
+```
+
+Custo, continuidade, reserva, disponibilidade e latência só ordenam recursos que já são elegíveis. Os testes
+cobrem o barato não autorizado, o único disponível, a reserva do plano e o fallback.
+
+## Busca por caminhos de contorno
+
+| Caminho | Resultado |
+|---|---|
+| Chamadas que enviam conteúdo à IA | Uma só: `app.ia.enviar`, em `src/conversas.js`, depois do roteador e de `conferirEnvio`. O teste `uma só rota de execução` falha se aparecer outra |
+| Outras chamadas ao provedor | `ia.listarModelos` (catálogo) e `ia.conta` (saldo e validade da chave). Nenhuma leva conteúdo |
+| Fallback em conversa comum | A reserva configurada só vai ao fornecedor se passar pelas mesmas restrições do roteador |
+| Fallback em conversa sigilosa | Sem reserva no fornecedor. Se o recurso cai antes de responder, a GreenIA roteia de novo sem o recurso que falhou e passa de novo por `conferirEnvio`. Sem outro elegível, nada mais é enviado. O registro guarda `reserva = guardrails:<id>` |
+| Nova tentativa | É uma nova mensagem e passa por tudo de novo. Uma tentativa anterior não autoriza nada |
+| API | O mesmo endpoint da tela. O modelo pedido é preferência, e o Automático do provedor nunca recebe informação sigilosa |
+| Anexos | São classificados junto com a mensagem, antes de qualquer gravação ou envio. Credencial num anexo bloqueia |
+| Documentos das bases | Um documento marcado como sigiloso torna a conversa sigilosa, com as mesmas regras |
+| Agentes, automações, jobs, workers | Não existem caminhos desse tipo que executem IA. Se surgirem, precisam chamar a mesma camada; o teste acima falha se a IA for chamada de outro arquivo |
+
+## Auditoria (tabela `roteamento`, sem o conteúdo)
+
+| Pergunta | Coluna |
+|---|---|
+| Foi identificado conteúdo sigiloso? | `sigilosa` |
+| A empresa permitia o processamento protegido? | `politica_sigilo` (`on` ou `off`) |
+| Quais guardrails foram aplicados? | `guardrails.requisitos` |
+| Quais recursos foram considerados, quais eram elegíveis e por que os demais foram descartados? | `candidatos`, `guardrails.elegiveis`, `guardrails.descartados` (com os motivos) |
+| Qual recurso foi selecionado e qual respondeu? | `guardrails.selecionado`, `modelo`, `modelo_usado` |
+| O conteúdo foi enviado? | `resultado` (`respondido`, `respondido_pela_reserva`, `falha_na_execucao` ou `bloqueado`) e `motivo_bloqueio` |
+| Houve fallback? | `reserva` |
+| Houve nova tentativa? | `nova_tentativa_de` |
+| Houve modelo solicitado? | `modelo_solicitado`, `decisao_solicitado`, `motivo_substituicao` |
+
+A explicação mostrada à pessoa ("Proteção aplicada…") e a explicação técnica do admin saem do mesmo registro.
+
+## O que quem usa nunca vê
+
+Para quem não é admin, o servidor não devolve:
+
+- o nome do provedor (OpenRouter);
+- o fornecedor;
+- o endpoint;
+- o identificador técnico do modelo, nem no streaming, nem no histórico, nem na conversa, nem na solicitação;
+- o modo `openrouter_auto`, que vira `externo`;
+- o id da opção do Automático do provedor, que vira `classe:externo`.
+
+A Política de Uso não cita modelos nem fornecedores. O teste `nunca expor provider` percorre sucesso, falha,
+bloqueio, política desligada, indisponibilidade, Automático do provedor, histórico e as telas de quem usa.

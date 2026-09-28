@@ -5,12 +5,13 @@ import { exec, json, todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { decidir, detectar, ROTULOS } from './filtro.js';
-import { acharModelo, AUTO, classeDe, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, resolverClasse } from './modelos.js';
+import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
+import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -200,21 +201,26 @@ export function rotasConversas(app, r) {
     const { bloqueados, permitidos } = decidir(tipos, qw ? { ...cfg.acoesChat, ...json(qw.dados, {}) } : cfg.acoesChat);
     if (bloqueados.length) {
       registrar(app, 'policy.blocked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipos: bloqueados });
-      throw erro(422, 'dado_bloqueado', `Esta mensagem tem dado que não pode ser enviado: ${bloqueados.map(t => ROTULOS[t]).join(', ')}. Tire o dado e envie de novo.`, { tipos: bloqueados });
+      // Credencial: regra de segurança da GreenIA. Outros tipos: política da empresa. Nada é enviado.
+      const politica = bloqueados.filter(t => t !== 'credencial');
+      const msg = [bloqueados.includes('credencial') ? 'Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA.' : null,
+        politica.length ? `Pela política da empresa, esta mensagem não pode ser enviada à IA porque contém: ${politica.map(t => ROTULOS[t]).join(', ')}.` : null].filter(Boolean).join(' ');
+      throw erro(422, 'dado_bloqueado', `${msg} Nenhum conteúdo foi enviado. Tire o dado e envie de novo.`, { tipos: bloqueados });
     }
 
     // 2. Contexto (arquivos do quick win e bases) e gatilhos de conversa sigilosa.
     const ctx = await (app.contexto?.montar(pessoa, qw, texto) ?? { partes: [], fontes: [], sigiloso: false });
     const motivo = motivosFixos(app, pessoa, qw) || (permitidos.length ? `dado:${permitidos[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
-    if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
-    const sigilosa = !!conv.sigilosa;
+    // A conversa só vira sigilosa (e o aviso só aparece) depois da decisão da política, mais abaixo: um
+    // conteúdo que não pode ser enviado não deixa marca na conversa.
+    const sigilosa = !!conv.sigilosa || !!motivo;
 
     // 3. Modelo. O pedido é sempre analisado e a decisão sempre registrada, venha a classe do
     //    roteamento automático, da pessoa, do quick win ou do padrão da empresa (ver roteador.js).
     const roteamentoAtivo = cfg.roteamento?.ativo !== false;
     const qwFixo = !!(qw?.modelo && !qw.pode_trocar);
     const classePadrao = classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat;
-    const escolhaSalva = corpo.modelo || conv.modelo || null;
+    const escolhaSalva = doApelido(corpo.modelo) || conv.modelo || null;
     // Contrato do campo "modelo" (tela ou API): é PREFERÊNCIA de execução, nunca garantia nem autorização.
     // Passa pela mesma governança e pelo mesmo roteador de qualquer pedido; se não for elegível, a GreenIA
     // usa outro modelo elegível ou bloqueia. O registro guarda o solicitado, a decisão e o motivo.
@@ -239,6 +245,17 @@ export function rotasConversas(app, r) {
       app.log?.('análise do pedido', e.message);
       analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
     }
+    // Política da empresa para informação sigilosa (camada central, sigilo.js). Desligada: nada é enviado.
+    const decisaoSigilo = avaliarProcessamentoSigiloso({ cfg, sigilosa });
+    if (!decisaoSigilo.permitido) {
+      exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, quick_win_id, modo, complexidade, versao, sigilosa, teste, origem, resultado, modelo_solicitado, decisao_solicitado,
+        politica_sigilo, guardrails, motivo_bloqueio) values (?, ?, ?, ?, 'bloqueado_pela_politica', 'nao_analisada', ?, 1, ?, ?, 'bloqueado', ?, ?, 'off', ?, ?)`,
+        AGORA(app), pessoa.id, conv.id, conv.quick_win_id, VERSAO_ROTEADOR, conv.teste, origem, solicitado, solicitado ? 'bloqueado' : null,
+        JSON.stringify({ requisitos: decisaoSigilo.requisitos, motivoSigilo: motivo || conv.motivo_sigilosa || null }), decisaoSigilo.motivo);
+      registrar(app, 'governance.blocked', pessoa.id, { causa: decisaoSigilo.motivo, conversa: conv.id });
+      throw erro(409, 'sigilo_nao_permitido', MSG_USUARIO.sigilo_desligado);
+    }
+    if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     const reservaDoPlano = plano?.fase === 'reserva';
     // Resolução do pedido (antes de qualquer bloqueio): uma escolha manual que não pode ser usada (classe sem
     // acesso, não liberada, não autorizada para dado sigiloso, fora da reserva do plano) NÃO vira pergunta
@@ -281,33 +298,42 @@ export function rotasConversas(app, r) {
     // Decisão sobre o modelo solicitado, no mesmo registro do roteador (reconstruível, determinística).
     const decisaoSolicitado = !solicitado ? null : !rota.modelo ? 'bloqueado' : motivoSolicitado ? 'substituido' : 'respeitado';
     if (solicitado && motivoSolicitado) rota.explicacao += ` Modelo solicitado não usado: ${MOTIVO_SUBSTITUICAO[motivoSolicitado]}.`;
-    const solicitacao = () => (solicitado ? { modelo_solicitado: solicitado, modelo_selecionado: rota.modelo?.id || null, decisao: decisaoSolicitado,
-      // Quem não administra fica sabendo que houve troca, sem a regra técnica.
-      motivo: !motivoSolicitado ? null : pessoa.admin ? motivoSolicitado : 'requested_model_not_eligible' } : null);
+    // Quem administra vê os identificadores e o motivo exato; quem não administra sabe se houve troca, sem
+    // identificador técnico nem a regra.
+    const solicitacao = () => (!solicitado ? null : pessoa.admin
+      ? { modelo_solicitado: solicitado, modelo_selecionado: rota.modelo?.id || null, decisao: decisaoSolicitado, motivo: motivoSolicitado || null }
+      : { decisao: decisaoSolicitado, motivo: motivoSolicitado ? 'requested_model_not_eligible' : null });
 
     // Registro da decisão: critérios, requisitos, políticas, candidatos e fallback; nenhum conteúdo do pedido.
-    const gravarRota = (msgId, resultado) => Number(exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, mensagem_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais,
+    // Guardrails aplicados (informação sigilosa): requisitos, recursos elegíveis e os descartados com o motivo.
+    const guardrails = () => (!sigilosa ? null : JSON.stringify({ requisitos: decisaoSigilo.requisitos,
+      elegiveis: rota.candidatos.filter(c => !c.guardrails && !c.motivos.includes('nao_homologado')).map(c => c.id),
+      descartados: rota.candidatos.filter(c => c.guardrails).map(c => ({ id: c.id, motivos: c.guardrails })), selecionado: rota.modelo?.id || null }));
+    const gravarRota = (msgId, resultado, motivoBloqueio = null) => Number(exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, mensagem_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais,
       classe_necessaria, modelo, classe, politicas, candidatos, tokens_entrada, tokens_saida, custo_estimado, custo_referencia, explicacao, versao, sigilosa, teste,
-      origem, classe_pedida, preferencia, requisitos, janela_minima, janela_desejada, motivo_escolha, fallback, reserva, resultado, modelo_solicitado, decisao_solicitado, motivo_substituicao)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      origem, classe_pedida, preferencia, requisitos, janela_minima, janela_desejada, motivo_escolha, fallback, reserva, resultado, modelo_solicitado, decisao_solicitado, motivo_substituicao,
+      politica_sigilo, guardrails, motivo_bloqueio)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       AGORA(app), pessoa.id, conv.id, msgId, conv.quick_win_id, rota.modo, rota.requisitos.complexidade, rota.requisitos.nivel, JSON.stringify(analise.tipos), JSON.stringify(analise.precisao),
       JSON.stringify({ ...analise.sinais, insatisfacao: analise.insatisfacao, anterior: analise.anterior?.classe || null, analiseFalhou: !!analise.falhou }),
       rota.requisitos.classe, rota.modelo?.id || null, rota.modelo?.id === AUTO ? null : rota.modelo?.perfil || null, JSON.stringify(rota.politicas), JSON.stringify(rota.candidatos),
       analise.tokensEntrada, analise.tokensSaida, rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, Number(sigilosa), conv.teste,
       origem, classePedida, rota.preferencia, JSON.stringify({ nivel: rota.requisitos.nivel, dimensoes: rota.requisitos.dimensoes, motivos: rota.requisitos.motivos, determinantes: rota.requisitos.determinantes }),
       rota.requisitos.janelaMinima, rota.requisitos.janelaDesejada, rota.motivoEscolha, rota.fallback ? JSON.stringify(rota.fallback) : null,
-      rota.reserva || (rota.reservaDescartada ? `descartada:${rota.reservaDescartada}` : null), resultado, solicitado, decisaoSolicitado, motivoSolicitado).lastInsertRowid);
+      rota.reserva || (rota.reservaDescartada ? `descartada:${rota.reservaDescartada}` : null), resultado, solicitado, decisaoSolicitado, motivoSolicitado,
+      sigilosa ? 'on' : null, guardrails(), motivoBloqueio).lastInsertRowid);
     // Nova tentativa: liga a decisão à anterior e marca a anterior como refeita (dado para calibração).
     const ligarTentativa = id => { if (analise.insatisfacao && ant) { exec(app.db, 'update roteamento set nova_tentativa_de = ? where id = ?', ant.id, id); exec(app.db, 'update roteamento set refeito = 1 where id = ?', ant.id); } };
 
     let m = rota.modelo;
     if (!m) {
       // Nenhuma alternativa segura: bloqueia, registra e avisa quem governa. Quem usa não recebe instrução técnica.
-      gravarRota(null, 'bloqueado');
       const causas = [rota.fallback?.causa, ...(rota.fallback?.causas || [])];
       // Conteúdo que não cabe em NENHUM modelo (nem nos que as regras tiram) é tamanho, não governança.
       const naoCabeEmNenhum = rota.candidatos.length && rota.candidatos.every(c => c.motivos.includes('contexto_insuficiente'));
-      if (naoCabeEmNenhum || (causas.includes('contexto_insuficiente') && !causas.some(c => ['nao_homologado', 'sem_acesso_a_classe', 'plano_na_reserva'].includes(c))))
+      const grande = naoCabeEmNenhum || (causas.includes('contexto_insuficiente') && !causas.some(c => ['nao_homologado', 'sem_acesso_a_classe', 'plano_na_reserva'].includes(c)));
+      gravarRota(null, 'bloqueado', grande ? 'conteudo_grande_demais' : sigilosa ? 'sem_recurso_elegivel' : reservaDoPlano ? 'sem_recurso_na_reserva_do_plano' : 'sem_recurso_disponivel');
+      if (grande)
         throw erro(413, 'grande_demais', MSG_USUARIO.grande, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);   // o material em si é grande demais para qualquer modelo permitido
       await avisarGovernanca(app, sigilosa ? 'sem_modelo_sigilo' : reservaDoPlano ? 'plano_reserva' : 'sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
       throw erro(sigilosa ? 409 : 503, sigilosa ? 'sem_modelo_autorizado' : 'sem_modelo', sigilosa ? MSG_USUARIO.sigilo : MSG_USUARIO.indisponivel, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);
@@ -317,6 +343,19 @@ export function rotasConversas(app, r) {
       aviso(app, conv.id, pedido === AUTOMATICO ? 'Modo automático: a GreenIA escolhe o melhor recurso para cada pedido.' : `Nível trocado para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
       registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: pedido });
     }
+
+    // Conferência final, na hora do envio, pela mesma camada central: o recurso ainda está liberado e, com
+    // informação sigilosa, a rota ainda passa em todos os guardrails. Falhou: nada é gravado nem enviado.
+    const conferirEnvio = recurso => {
+      const cfgAgora = lerConfig(app.db);
+      const atual = acharModelo(app.db, cfgAgora, recurso.id);
+      if (!atual?.liberado) throw erro(503, 'sem_modelo', MSG_USUARIO.indisponivel);
+      const d = avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa, recurso: sigilosa ? atual : undefined });
+      if (!d.permitido) throw erro(409, 'sem_modelo_autorizado', d.motivo === 'politica_sigilo_desligada' ? MSG_USUARIO.sigilo_desligado : MSG_USUARIO.sigilo);
+      return d.rota || null;
+    };
+    let rotaSigilo;
+    try { rotaSigilo = conferirEnvio(m); } catch (e) { gravarRota(null, 'bloqueado', 'guardrail_na_conferencia_final'); throw e; }
 
     // 4. Grava a mensagem e os anexos (só o texto extraído).
     const agora = AGORA(app);
@@ -339,20 +378,37 @@ export function rotasConversas(app, r) {
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     const linha = o => res.write(JSON.stringify(o) + '\n');
-    const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
+    const rotaTela = { modo: pessoa.admin || rota.modo !== 'openrouter_auto' ? rota.modo : 'externo', classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       solicitacao: solicitacao() };
-    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
+    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
     const inicio = Date.now();
-    let resposta = '', fim = null, primeiroToken = null;
-    try {
-      for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: sigilosa ? null : rota.reserva, sigilosa, fornecedor: m.homologacao?.fornecedor, semTreino: cfg.exigirSemTreino })) {
-        if (ev.tipo === 'texto') { primeiroToken ??= Date.now() - inicio; resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
+    let resposta = '', fim = null, primeiroToken = null, falha = null, atual = m;
+    const tentados = [m.id];
+    // Execução. Informação sigilosa não tem reserva do fornecedor: se o recurso cair antes de responder, a busca
+    // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
+    for (;;) {
+      try {
+        for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino })) {
+          if (ev.tipo === 'texto') { primeiroToken ??= Date.now() - inicio; resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
+        }
+        if (!resposta) throw new ErroIA('A IA não respondeu.');
+        falha = null;
+        break;
+      } catch (e) {
+        falha = e;
+        if (!sigilosa || resposta || tentados.length >= 3) break;
+        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto', excluir: tentados });
+        if (!alt.modelo) break;
+        try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
+        registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: String(e.message).slice(0, 200), nova_rota: alt.modelo.id });
+        atual = alt.modelo; tentados.push(atual.id);
+        exec(app.db, 'update roteamento set reserva = ? where id = ?', `guardrails:${tentados.slice(1).join(',')}`, rotaId);
       }
-      if (!resposta) throw new ErroIA('A IA não respondeu.');
-    } catch (e) {
+    }
+    if (falha) { const e = falha;
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
-      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
+      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
       // O detalhe técnico (provedor, código, modelo) fica no evento; quem usa recebe uma mensagem orientada à tarefa.
       const fora = [401, 402, 503].includes(e?.status);
       if (fora) await avisarGovernanca(app, 'ia_fora', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});
@@ -360,10 +416,10 @@ export function rotasConversas(app, r) {
       return res.end();
     }
     const ms = Date.now() - inicio;
-    const usado = fim?.modelo || m.id;
+    const usado = fim?.modelo || atual.id;
     // O selecionado caiu no fornecedor e a reserva (que passou pelas mesmas regras) respondeu.
     if (rotaTela.solicitacao && usado !== m.id && m.id !== AUTO) {
-      rotaTela.solicitacao = { ...rotaTela.solicitacao, modelo_selecionado: usado, decisao: 'substituido', motivo: rotaTela.solicitacao.motivo || (pessoa.admin ? 'requested_model_not_available' : 'requested_model_not_eligible') };
+      rotaTela.solicitacao = { ...rotaTela.solicitacao, ...(pessoa.admin ? { modelo_selecionado: usado } : {}), decisao: 'substituido', motivo: rotaTela.solicitacao.motivo || (pessoa.admin ? 'requested_model_not_available' : 'requested_model_not_eligible') };
       if (!motivoSolicitado) exec(app.db, "update roteamento set decisao_solicitado = 'substituido', motivo_substituicao = 'requested_model_not_available' where id = ?", rotaId);
     }
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
@@ -376,7 +432,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos: permitidos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
-    linha({ t: 'fim', id: respId, modelo: usado, classe: m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
+    linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
     res.end();
   }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
 }
@@ -386,13 +442,13 @@ export function detalhe(app, c, pessoa = null) {
   const anexos = todos(app.db, 'select mensagem_id, nome from anexos where conversa_id = ?', c.id);
   const expira = new Date(new Date(c.atualizado_em).getTime() + cfg.retencaoDias * 864e5).toISOString();
   return {
-    conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: c.modelo, sigilosa: !!c.sigilosa,
+    conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
     mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
       .map(({ rota_politicas, rota_fallback, rota_sigilosa, ...m }) => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
-        ...(pessoa?.admin ? {} : { fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),
+        ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_modo: m.rota_modo === 'openrouter_auto' ? 'externo' : m.rota_modo, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),
   };
 }
 

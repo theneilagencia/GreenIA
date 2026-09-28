@@ -7,7 +7,10 @@ import { enviarParaTodos } from './plano.js';
 
 // Mensagens para quem usa: sem modelo, classe, homologação, janela, provedor ou configuração.
 export const MSG_USUARIO = {
-  sigilo: 'Não foi possível processar esta solicitação com segurança. Os recursos de IA desta empresa ainda não estão autorizados a receber este tipo de informação. Nenhum conteúdo foi enviado. O administrador foi informado.',
+  // Política ligada, mas nenhum recurso autorizado e elegível para esta solicitação.
+  sigilo: 'Não foi possível processar esta solicitação com segurança. Nenhum conteúdo foi enviado. O administrador foi informado.',
+  // Política desligada: a empresa não permite processar informação sigilosa com IA.
+  sigilo_desligado: 'Esta solicitação contém informações que a empresa não permite processar com IA. Nenhum conteúdo foi enviado.',
   indisponivel: 'Não foi possível processar esta solicitação agora. Nenhum conteúdo foi enviado. O administrador foi informado.',
   grande: 'Este conteúdo é grande demais para ser analisado de uma vez. Envie uma parte do material por vez (por exemplo, um arquivo ou um capítulo de cada vez).',
   ia_fora: 'A IA está temporariamente indisponível. A equipe responsável já foi avisada. Tente de novo mais tarde.',
@@ -16,7 +19,7 @@ export const MSG_USUARIO = {
 
 // O que o admin precisa saber e fazer (linguagem de governança, fica fora do fluxo de quem usa).
 const PARA_ADMIN = {
-  sem_modelo_sigilo: ['Pedido com informação sigilosa bloqueado', 'Uma pessoa tentou enviar uma mensagem com informação sigilosa, e nenhum recurso de IA autorizado para esse tipo de informação estava disponível para ela. Nada foi enviado.\n\nO que resolve: em Gestão → Modelos, escolha "Seguir recomendações da GreenIA" (vale a autorização da equipe da plataforma, quando houver) ou autorize um modelo para dados sigilosos. Se já houver um autorizado, confira se ele está disponível para o grupo ou a área da pessoa.'],
+  sem_modelo_sigilo: ['Conversas confidenciais estão sendo bloqueadas', 'Uma pessoa enviou uma solicitação com informação sigilosa e nenhum conteúdo foi enviado: atualmente não existe um recurso autorizado para processar este tipo de informação para ela.\n\nVocê pode: 1. em Gestão → Modelos, escolher "Seguir recomendações da GreenIA", que adota a autorização padrão recomendada pela plataforma; 2. homologar um recurso disponível para a sua empresa; ou 3. pedir à equipe da plataforma a autorização padrão recomendada.'],
   sem_modelo: ['Pedido bloqueado: nenhum modelo disponível', 'Uma pessoa tentou usar a IA e nenhum recurso liberado atendia às regras da empresa. Nada foi enviado.\n\nO que resolve: em Gestão → Modelos, escolha "Seguir recomendações da GreenIA", que deixa um recurso pronto em cada nível.'],
   quick_win_sem_modelo: ['Quick win com nível indisponível', 'Um quick win foi usado, mas o nível definido para ele não está disponível para quem usou. A GreenIA atendeu no modo automático, dentro das mesmas regras.\n\nO que resolve: no quick win, escolha um nível disponível para a equipe, ou em Gestão → Modelos escolha "Seguir recomendações da GreenIA".'],
   ia_fora: ['A IA não respondeu a um pedido', 'Uma resposta falhou porque o serviço de IA recusou o acesso ou está sem créditos. Quem usa recebeu só a mensagem de indisponibilidade.\n\nO que resolve: a equipe da plataforma também foi avisada e cuida disso; a empresa não precisa configurar nada. Em instalação própria, sem a equipe da plataforma, confira o acesso ao serviço de IA no servidor.'],

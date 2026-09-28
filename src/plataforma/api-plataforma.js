@@ -247,7 +247,7 @@ export function rotasPlataforma(P, r) {
     if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado no OpenRouter.');
     if (corpo.semTreino !== true || corpo.retencaoZero !== true) throw erro(400, 'garantias', 'Confirme que o fornecedor não treina com os dados e não guarda nada (retenção zero).');
     if (justificativa.length < 10) throw erro(400, 'justificativa', 'Escreva a justificativa da autorização.');
-    const item = { id, nome: String(corpo.nome || '').trim().slice(0, 120) || id, perfil, fornecedor, justificativa: justificativa.slice(0, 500), em: P.agora().toISOString(), por: sessao.email };
+    const item = { id, nome: String(corpo.nome || '').trim().slice(0, 120) || id, perfil, fornecedor, endpoint: String(corpo.endpoint || fornecedor).trim(), retencaoZero: true, semTreino: true, justificativa: justificativa.slice(0, 500), em: P.agora().toISOString(), por: sessao.email };
     salvarAjuste(P.db, 'homologacoes_plataforma', [...lerHom().filter(h => h.id !== id), item]);
     reaplicar();
     auditar(P, { usuario: sessao.userId, acao: 'platform.model_certified', entidade: 'platform_settings', depois: { modelo: id, perfil, fornecedor }, origem });

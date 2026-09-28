@@ -105,7 +105,7 @@ uma conversa é sigilosa é o que foi escrito e anexado.
 |---|---|---|
 | A conversa nasce sigilosa? | Não | Não |
 | O que torna o conteúdo sigiloso | Padrões gerais (CPF, CNPJ, cartão, banco, PIX…), marcação manual, quick win sigiloso, documento sigiloso | Tudo o da área padrão **e** os sinais de `detectarReforcado`: marcação de confidencialidade ("confidencial", "uso interno", "não divulgar", NDA…), dado pessoal sensível (diagnóstico, laudo médico, CID, biometria, religião, origem racial…) e dado de pessoas em processo interno (holerite, folha de pagamento, desligamento, processo disciplinar…) |
-| Conteúdo sem nenhum sinal | Regras gerais da empresa | Regras gerais da empresa |
+| Conteúdo sem nenhum sinal | Regras gerais da empresa | Regras gerais da empresa, **só com recurso compatível com a proteção da área**: fornecedor fixo (nada de gratuito ou do Automático do serviço de IA) e sem treino com os dados. Não exige homologação para dado sigiloso |
 | Conteúdo sigiloso | Todos os guardrails; sem recurso autorizado, nada é enviado | Igual |
 
 - **Antes, a área era classificação absoluta.** `motivosFixos` devolvia `area`, e toda conversa nascia
@@ -118,8 +118,25 @@ uma conversa é sigilosa é o que foi escrito e anexado.
   e a pessoa vê um aviso.
 - **Quick win classificado como "trata informações sigilosas"** continua fazendo as conversas nascerem
   sigilosas. Nesse caso, quem configura o quick win declara o conteúdo da tarefa.
+- **Restrição no roteador:** `area_protecao_reforcada` fica na lista `RESTRICOES` e vale para a escolha
+  automática, a escolha pedida pela pessoa ou pela API (vira preferência substituída, com o motivo
+  `requested_model_area_protection`), a reserva de execução e a reserva do plano.
 - **Nunca** se usa um recurso não autorizado para conteúdo sigiloso, nem para manter continuidade ou
   reduzir custo.
+- **Ordem:** mensagem e anexos → classificação → políticas da empresa → guardrails → recursos elegíveis →
+  capacidade e adequação → seleção → processamento. O teste `area-reforcada` espiona o provedor e falha se
+  alguma chamada acontecer antes da decisão registrada, depois de um bloqueio ou com conteúdo sigiloso fora
+  de um recurso autorizado.
+
+## Tentativas bloqueadas no histórico
+
+Uma mensagem bloqueada (dado que a empresa não envia, credencial, política desligada, nenhum recurso
+elegível, conteúdo grande demais) **não é guardada nem enviada**. O histórico mostra a tentativa com o
+aviso "Uma mensagem não foi enviada…", que diz o motivo em linguagem simples, sem nenhum trecho do
+conteúdo.
+
+A conversa só vira sigilosa quando o envio vai de fato acontecer. Um bloqueio não deixa a conversa presa
+como sigilosa sem ter recebido nada.
 
 ## Ordem de decisão
 

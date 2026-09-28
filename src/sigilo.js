@@ -30,7 +30,7 @@ export function requisitosDe(cfg) {
 }
 
 // Recursos que nunca recebem informação sigilosa: sem fornecedor fixo, sem garantia verificável.
-const semRotaFixa = id => /:free$/.test(id) || id === 'openrouter/free' || id === 'openrouter/auto';
+export const semRotaFixa = id => /:free$/.test(id) || id === 'openrouter/free' || id === 'openrouter/auto';
 
 // Motivos, em linguagem do admin (o registro guarda o código).
 export const MOTIVOS_GUARDRAIL = {

@@ -636,7 +636,7 @@ const COMPLEXIDADE = { simples: 'Simples', intermediaria: 'Intermediária', comp
 const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win', padrao: 'Padrão da empresa (roteamento desligado)', externo: 'Automático do serviço de IA' };
 const STATUS_CAND = { escolhido: 'escolhido', preterido: 'atendia; menor utilidade', insuficiente: 'capacidade abaixo da exigida', excluido: 'fora pelas regras' };
 const MOTIVO_CAND = { capacidade_insuficiente: 'capacidade abaixo da exigida', nao_homologado: 'não homologado (conversa sigilosa)', plano_na_reserva: 'reserva do plano (só Rápido)',
-  gratuito_treina_com_dados: 'gratuito: treina com os dados', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
+  gratuito_treina_com_dados: 'gratuito: treina com os dados', area_protecao_reforcada: 'área com proteção reforçada: sem fornecedor fixo', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
 const RESULTADO = { respondido: 'respondido', respondido_pela_reserva: 'respondido pela reserva', falha_na_execucao: 'falha na execução', bloqueado: 'bloqueado antes do envio', enviado: 'em andamento' };
 const FALLBACK = { abaixo_do_necessario: 'abaixo do necessário (regras ou permissões)', abaixo_do_necessario_por_escolha: 'abaixo do necessário (escolha manual)',
   trocado_por_falta_de_contexto: 'trocado por falta de janela', trocado_pela_reserva_do_plano: 'trocado pela reserva do plano', sem_modelo: 'nenhum modelo permitido' };

@@ -25,6 +25,7 @@
 // A explicação mostrada à pessoa é montada a partir dos códigos da decisão (nunca de texto livre),
 // e o registro de auditoria guarda os mesmos códigos, sem nenhum trecho do pedido.
 import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO } from './modelos.js';
+import { semRotaFixa } from './sigilo.js';
 export { AUTOMATICO };
 
 export const VERSAO_ROTEADOR = '2.0';
@@ -228,11 +229,14 @@ export const RESTRICOES = [
   ['capacidade_insuficiente', (c, x) => DIM_CAPACIDADE.some(d => (x.req.capacidade[d] || 0) > c.cap[d]) || c.nivel < x.req.classeMinima],
   ['nao_homologado', (c, x) => x.sigilosa && !c.m.homologado],
   ['plano_na_reserva', (c, x) => x.reservaDoPlano && c.nivel > 1],
-  ['gratuito_treina_com_dados', (c, x) => x.cfg.exigirSemTreino && ehGratuito(c.id)],
+  ['gratuito_treina_com_dados', (c, x) => (x.cfg.exigirSemTreino || x.reforcada) && ehGratuito(c.id)],
+  // Área com proteção reforçada: mesmo o conteúdo comum só vai para recurso com fornecedor fixo (nada de
+  // gratuito ou automático). Não exige homologação: isso é do conteúdo sigiloso.
+  ['area_protecao_reforcada', (c, x) => x.reforcada && semRotaFixa(c.id)],
   ['sem_acesso_a_classe', (c, x) => !x.perfis.has(c.classe) && !(x.qw && c.classe === x.classeQw)],
   ['contexto_insuficiente', (c, x) => !cabe(c.m, x.req.janelaMinima)],
 ];
-const GOVERNANCA = ['nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'sem_acesso_a_classe', 'contexto_insuficiente'];
+const GOVERNANCA = ['nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'area_protecao_reforcada', 'sem_acesso_a_classe', 'contexto_insuficiente'];
 
 // PREFERÊNCIAS (soft): só ordenam os modelos que passaram por todas as restrições.
 // C: custo (log da razão sobre o mais barato do conjunto); Q: margem de capacidade relevante;
@@ -275,7 +279,7 @@ const deficit = (c, req) => DIM_CAPACIDADE.reduce((s, d) => s + Math.max(0, (req
  * @param {object} ctx { db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual, origem }
  *   origem: 'auto' | 'pessoa' | 'quick_win' | 'padrao' (de onde veio o pedido de classe)
  */
-export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [] }) {
+export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [] }) {
   const a = analise, perfis = perfisDe(cfg, pessoa);
   // excluir: recursos que já falharam nesta solicitação (a busca por outro recurso elegível passa pelas mesmas regras).
   const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO && !excluir.includes(m.id));
@@ -289,11 +293,12 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
   const politicas = [];
   if (sigilosa) politicas.push('sigilosa_so_homologado');
   if (reservaDoPlano) politicas.push('plano_na_reserva_so_rapido');
-  if (cfg.exigirSemTreino) politicas.push('fornecedor_sem_treino');
+  if (reforcada) politicas.push('area_protecao_reforcada');
+  if (cfg.exigirSemTreino || reforcada) politicas.push('fornecedor_sem_treino');
   if (qwFixo) politicas.push('quick_win_define_o_modelo');
 
   // Candidatos: todas as restrições avaliadas em todos os modelos; todos os motivos ficam registrados.
-  const x = { req, sigilosa, reservaDoPlano, cfg, perfis, qw, classeQw };
+  const x = { req, sigilosa, reforcada, reservaDoPlano, cfg, perfis, qw, classeQw };
   const candidatos = lista.map(m => {
     const c = { id: m.id, classe: m.perfil, nivel: NIVEL[m.perfil] || 1, cap: capacidadesDe(m), explicitas: !!m.capacidades, contexto: m.contexto,
       custo: custoDe(m, a.tokens.custoEntrada, a.tokens.saida), cabeTudo: cabe(m, req.janelaDesejada), padrao: cfg.padroes[m.perfil] === m.id, m };
@@ -319,6 +324,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
   };
 
   let escolhido = null, modo = 'automatico', motivoEscolha = null, fallback = null;
+  if (modeloManual?.id === AUTO && (sigilosa || reforcada)) return semModelo('area_protecao_reforcada');   // defesa: o envio já substitui antes
   if (modeloManual?.id === AUTO) {
     // Automático do OpenRouter: fora da governança da GreenIA. Só registrado.
     modo = 'externo'; motivoEscolha = 'servico_decide';
@@ -431,6 +437,7 @@ export const TEXTO = {
   mais_capaz_permitido: 'o mais capaz entre os permitidos', reserva_fora_da_classe_do_quick_win: 'a reserva é de outra classe e o quick win fixa a classe',
   nao_homologado: 'conversa sigilosa (só homologados)', plano_na_reserva: 'créditos do mês no fim (só Rápido)', gratuito_treina_com_dados: 'modelos gratuitos treinam com os dados',
   sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'janela de contexto pequena para este conteúdo', nenhum_modelo_liberado_com_esta_capacidade: 'a empresa não liberou modelo desta classe',
+  area_protecao_reforcada: 'área com proteção reforçada: só recursos com fornecedor fixo e sem treino com os dados',
   sigilosa_so_homologado: 'conversa sigilosa: só modelos homologados', plano_na_reserva_so_rapido: 'créditos do mês no fim: só a classe Rápido',
   quick_win_define_o_modelo: 'o quick win define o modelo', piso_do_quick_win: 'classe mínima definida pelo quick win',
 };
@@ -448,12 +455,13 @@ export const MOTIVO_SUBSTITUICAO = {
   requested_model_not_allowed_for_sensitive_data: 'conversa sigilosa e o modelo solicitado não pode receber dado sigiloso (vetado pela plataforma, gratuito ou Automático do serviço de IA)',
   requested_model_plan_restricted: 'créditos do mês no fim: só o nível Rápido',
   requested_model_policy_restricted: 'política da empresa (fornecedor sem treino com os dados)',
+  requested_model_area_protection: 'área com proteção reforçada: o recurso solicitado não tem fornecedor fixo',
   requested_model_insufficient_capacity: 'o modelo solicitado está abaixo da classe mínima exigida (quick win ou nova tentativa)',
   requested_model_context_limit: 'o conteúdo não cabe na janela do modelo solicitado',
 };
 // Causa do roteador (sem_modelo no pedido manual) → motivo da substituição.
 export const MOTIVO_DA_CAUSA = {
-  nao_homologado: 'requested_model_not_homologated', plano_na_reserva: 'requested_model_plan_restricted', gratuito_treina_com_dados: 'requested_model_policy_restricted',
+  nao_homologado: 'requested_model_not_homologated', plano_na_reserva: 'requested_model_plan_restricted', gratuito_treina_com_dados: 'requested_model_policy_restricted', area_protecao_reforcada: 'requested_model_area_protection',
   sem_acesso_a_classe: 'requested_model_permission_restricted', contexto_insuficiente: 'requested_model_context_limit', capacidade_insuficiente: 'requested_model_insufficient_capacity',
   modelo_pedido_fora_da_lista: 'requested_model_not_available',
 };
@@ -471,6 +479,7 @@ export function explicarParaPessoa({ modo, classe, politicas = [], fallback = nu
   const f = fallback || {};
   if (f.tipo === 'escolha_substituida' || f.escolha) partes.push('A opção escolhida não podia ser usada neste pedido, então a GreenIA escolheu automaticamente, dentro das regras da empresa');
   if (sigilosa || politicas.includes('sigilosa_so_homologado')) partes.push('Proteção aplicada: a GreenIA identificou informações sigilosas e aplicou automaticamente os controles de proteção da empresa antes de processar esta solicitação');
+  else if (politicas.includes('area_protecao_reforcada')) partes.push('Proteção reforçada da área: a GreenIA usou só recursos compatíveis com as regras de proteção dela');
   if (f.tipo === 'trocado_por_falta_de_contexto') partes.push('O conteúdo era extenso, então foi usado um recurso que consegue ler tudo de uma vez');
   if (politicas.includes('plano_na_reserva_so_rapido') || f.tipo === 'trocado_pela_reserva_do_plano') partes.push('Os créditos do mês acabaram: até a renovação, as respostas usam o modo econômico');
   return `${partes.join('. ')}.`;

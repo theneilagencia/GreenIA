@@ -149,7 +149,11 @@ test('filtro no servidor: CPF é classificado e protegido por padrão; bloquear 
   assert.match(r.erro.mensagem, /^Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA/);
   salvarConfig(S.app.db, { acoesChat: cfg.acoesChat });
   assert.equal(OR.chamadas.length, n);
-  assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens.length, 0);
+  // O histórico registra que as mensagens não saíram, sem guardar o conteúdo delas.
+  const hist = (await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens;
+  assert.deepEqual(hist.map(m => m.papel), ['aviso', 'aviso']);
+  assert.ok(hist.every(m => /^Uma mensagem não foi enviada\./.test(m.texto) && /não foi guardado/.test(m.texto)));
+  assert.doesNotMatch(JSON.stringify(hist), /Primavera|529\.982/);
   const ev = um(S.app.db, "select detalhes from eventos where tipo = 'policy.blocked' order by id desc limit 1");
   assert.ok(!ev.detalhes.includes('Primavera'));
 });

@@ -11,7 +11,7 @@ import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
-import { avaliarProcessamentoSigiloso } from './sigilo.js';
+import { avaliarProcessamentoSigiloso, semRotaFixa } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
@@ -30,6 +30,7 @@ function motivoDoPedido(app, cfg, e, pedido, sigilosa) {
     const x = acharModelo(app.db, cfg, resolverClasse(app.db, cfg, pedido, { sigilosa }));
     return x && (x.vetadoPlataforma || ehGratuito(x.id) || x.id === AUTO) ? 'requested_model_not_allowed_for_sensitive_data' : 'requested_model_not_homologated';
   }
+  if (e.motivo === 'area_protecao_reforcada') return 'requested_model_area_protection';
   if (e.codigo === 'modelo_sem_acesso') return 'requested_model_permission_restricted';
   if (e.codigo === 'plano_reserva') return 'requested_model_plan_restricted';
   if (e.codigo === 'modelo_nao_liberado') {
@@ -209,7 +210,19 @@ export function rotasConversas(app, r) {
   });
 
   const rajadas = new Map();
-  r.post('/api/conversas/:id/mensagens', async ({ pessoa, params, corpo, res }) => {
+  // Tentativa bloqueada: o conteúdo não é guardado (nem enviado), mas a conversa registra que uma mensagem não
+  // saiu e por quê, para o histórico não parecer perdido. Só para bloqueios de política e governança.
+  const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
+  r.post('/api/conversas/:id/mensagens', async ctx => {
+    try { return await enviarMensagem(ctx); } catch (e) {
+      if (BLOQUEIOS.has(e.codigo)) {
+        const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(ctx.params.id), ctx.pessoa.id);
+        if (conv) aviso(app, conv.id, `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
+      }
+      throw e;
+    }
+  }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
+  async function enviarMensagem({ pessoa, params, corpo, res }) {
     // Rajada: no máximo RAJADA envios por minuto por pessoa (protege créditos e o fornecedor).
     const instante = Date.now(), recentes = (rajadas.get(pessoa.id) || []).filter(t => t > instante - 60e3);
     if (recentes.length >= (app.rajada ?? RAJADA)) throw erro(429, 'rajada', 'Muitas mensagens em pouco tempo. Espere um minuto e envie de novo.');
@@ -243,7 +256,8 @@ export function rotasConversas(app, r) {
     const ctx = await (app.contexto?.montar(pessoa, qw, texto) ?? { partes: [], fontes: [], sigiloso: false });
     // Área com política de sigilo: proteção reforçada. O conteúdo (mensagem e anexos) é avaliado com mais
     // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.
-    const sinaisReforco = reforcada(app, pessoa, qw) ? detectarReforcado([texto, ...anexos.map(a => a.texto)].join('\n')) : [];
+    const areaReforcada = reforcada(app, pessoa, qw);
+    const sinaisReforco = areaReforcada ? detectarReforcado([texto, ...anexos.map(a => a.texto)].join('\n')) : [];
     const motivo = motivosFixos(app, pessoa, qw) || (permitidos.length ? `dado:${permitidos[0]}` : null)
       || (sinaisReforco.length ? `reforco:${sinaisReforco[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
     // A conversa só vira sigilosa (e o aviso só aparece) depois da decisão da política, mais abaixo: um
@@ -290,7 +304,6 @@ export function rotasConversas(app, r) {
       registrar(app, 'governance.blocked', pessoa.id, { causa: decisaoSigilo.motivo, conversa: conv.id });
       throw erro(409, 'sigilo_nao_permitido', MSG_USUARIO.sigilo_desligado);
     }
-    if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     const reservaDoPlano = plano?.fase === 'reserva';
     // Resolução do pedido (antes de qualquer bloqueio): uma escolha manual que não pode ser usada (classe sem
     // acesso, não liberada, não autorizada para dado sigiloso, fora da reserva do plano) NÃO vira pergunta
@@ -300,6 +313,7 @@ export function rotasConversas(app, r) {
       try {
         manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
         if (sigilosa && !manual.homologado) throw Object.assign(new Error('não autorizado para dado sigiloso'), { motivo: 'nao_homologado' });
+        if (areaReforcada && (manual.id === AUTO || semRotaFixa(manual.id))) throw Object.assign(new Error('fora da proteção reforçada da área'), { motivo: 'area_protecao_reforcada' });
         // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
         if (reservaDoPlano) {
           const antes = manual;
@@ -318,14 +332,14 @@ export function rotasConversas(app, r) {
       }
     }
     const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'externo' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
-    let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, modeloManual: manual, origem: substituida ? 'auto' : origem });
+    let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, modeloManual: manual, origem: substituida ? 'auto' : origem });
     // Modelo solicitado que passou pela validação mas o roteador recusou (janela, política, classe mínima):
     // mesma resolução, no automático, com o mesmo registro. Quick win e padrão da empresa seguem as regras deles.
     if (!rota.modelo && manual && origem === 'pessoa' && manual.id !== AUTO) {
       motivoSolicitado = MOTIVO_DA_CAUSA[rota.fallback?.causa] || 'requested_model_not_available';
       substituida = { tipo: 'escolha_substituida', motivo: rota.fallback?.causa || 'indisponivel', classePedida: String(pedido).replace(/^classe:/, '') };
       manual = null; trocaDoPlano = false; automatico = true;
-      rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto' });
+      rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto' });
     }
     if (trocaDoPlano) { rota.fallback = rota.fallback || { tipo: 'trocado_pela_reserva_do_plano', classePedida }; motivoSolicitado = 'requested_model_plan_restricted'; }
     if (rota.fallback?.tipo === 'trocado_por_falta_de_contexto' && origem === 'pessoa') motivoSolicitado = 'requested_model_context_limit';
@@ -392,6 +406,9 @@ export function rotasConversas(app, r) {
     let rotaSigilo;
     try { rotaSigilo = conferirEnvio(m); } catch (e) { gravarRota(null, 'bloqueado', 'guardrail_na_conferencia_final'); throw e; }
 
+    // A conversa só vira sigilosa (com o aviso) quando o envio vai de fato acontecer: um bloqueio não deixa
+    // marca, e a conversa não fica presa como sigilosa sem ter recebido nada.
+    if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     // 4. Grava a mensagem e os anexos (só o texto extraído).
     const agora = AGORA(app);
     const msgId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, texto, agora).lastInsertRowid);
@@ -427,7 +444,7 @@ export function rotasConversas(app, r) {
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
     for (;;) {
       try {
-        for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino })) {
+        for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada })) {
           if (ev.tipo === 'texto') { primeiroToken ??= Date.now() - inicio; resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
         }
         if (!resposta) throw new ErroIA('A IA não respondeu.');
@@ -436,7 +453,7 @@ export function rotasConversas(app, r) {
       } catch (e) {
         falha = e;
         if (!sigilosa || resposta || tentados.length >= 3) break;
-        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto', excluir: tentados });
+        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: String(e.message).slice(0, 200), nova_rota: alt.modelo.id });
@@ -472,7 +489,7 @@ export function rotasConversas(app, r) {
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
     res.end();
-  }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
+  }
 }
 
 export function detalhe(app, c, pessoa = null) {

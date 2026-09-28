@@ -40,7 +40,7 @@ test('as páginas não fazem promessa jurídica, não generalizam garantias e n�
   }
   // O conceito aprovado e a responsabilidade da empresa estão na página de vendas.
   const v = semTags(ler('public/vendas.html'));
-  for (const frase of ['IA disponível não significa IA sem controle', 'Permitir processamento de informações sigilosas com guardrails de proteção', 'Sua empresa decide. A GreenIA aplica.',
-    'Controle o custo sem contar tokens', 'continua responsável por suas obrigações legais e regulatórias'])
+  for (const frase of ['IA disponível, mas com controle', 'Permita o uso de informações sigilosas com guardrails de proteção', 'Sua empresa decide. A GreenIA aplica.',
+    'Controle o custo sem contar tokens', 'permanece responsável por suas obrigações legais e regulatórias'])
     assert.ok(v.includes(frase), frase);
 });

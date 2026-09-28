@@ -117,7 +117,7 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
     const m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
     if (!m?.liberado || (sigilosa && !m.homologado)) continue;
     if (sigilosa && m.perfil !== perfil && !doQw) continue;     // classe sem homologado próprio não aparece em conversa sigilosa
-    out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, perfil, homologado: m.homologado, classe: true });
+    out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, nivel: nome, perfil, homologado: m.homologado, classe: true });
   }
   // Para quem não administra, o Automático do serviço de IA não leva o nome nem o identificador do provedor.
   if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO_EXTERNO, nome: pessoa.admin ? 'Automático do serviço de IA (fora das classes)' : 'Automático do serviço de IA', perfil: 'rapido', homologado: false });

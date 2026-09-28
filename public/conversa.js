@@ -55,9 +55,9 @@ function desenhar() {
       ${qw ? `<span class="selo"><span class="cor" style="width:8px;height:8px;border-radius:2px;background:${esc(qw.cor)}"></span>${esc(qw.nome)}</span><span class="dica">${ESTADOS[qw.status] || ''}${C.teste ? ' · teste, fora da medição' : ''}</span>` : ''}
       ${C.opcoes.length > 1 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível
         <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
-          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático (recomendado)' : o.nome)}${E.eu.admin && o.homologado ? ' · Homologado' : ''}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
+          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático (recomendado)' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
         </select></label>` : ''}
-      <span id="selo-modelo">${E.eu.admin && modeloAtual?.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span>` : ''}</span>
+      <span id="selo-modelo"></span>
       <span class="chave">
         <button class="switch" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'disabled' : ''} aria-label="Esta conversa tem dados sigilosos"><span></span></button>
         <span title="Ligue se a conversa tiver informação confidencial que a GreenIA não reconheceu sozinha. A partir daí, ela usa só os recursos autorizados para esse tipo de dado.">Dados sigilosos</span>
@@ -104,8 +104,8 @@ function htmlMensagem(m) {
     <span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo || m.classe || m.rota_modo ? `<span>${E.eu.admin ? `Respondido por ${esc(m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}` : (m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
-        ${m.rota_explicacao ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao)}</details>` : ''}${fontes}`}
+        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo || m.classe || m.rota_modo ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
+        ${m.rota_explicacao ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}`}
     </div></div>`;
 }
 
@@ -247,7 +247,7 @@ async function enviar(reenvio = null) {
         resposta.texto += ev.v;
       }
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
-      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, carregando: false });
+      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
     }
     // Durante o streaming, atualiza só a bolha da resposta.
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);

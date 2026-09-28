@@ -65,6 +65,13 @@ test('login → chat → quick win', async () => {
   await p.click('.lista-item a');
   await p.waitForSelector('.bolha-eu');
   assert.equal(await p.locator('.bolha-eu').count(), 2);
+  // Quem não é admin: sem alternador de contexto, e o endereço da administração volta para o uso.
+  assert.equal(await p.locator('.troca-contexto').count(), 0);
+  for (const tela of ['configuracoes', 'politicas', 'modelos', 'pessoas', 'empresa/marca']) {
+    await p.goto(`${N.base}/app#/${tela}`);
+    await p.waitForURL(/#\/nova$/);
+  }
+  assert.equal(await p.locator('.selo-contexto').count(), 0);
   assert.deepEqual(erros, []);
 });
 
@@ -108,6 +115,21 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.goto(`${N.base}/admin`);
   await p.waitForURL(/#\/visao-geral/);
   await p.waitForSelector('.etapas, .indicadores');
+  // Dois contextos, uma sessão: um clique troca, sem novo login, e o contexto fica evidente.
+  assert.equal(await p.locator('.troca-contexto a.ativo').textContent(), 'Administração');
+  assert.equal(await p.locator('.selo-contexto').count(), 1);
+  assert.equal(await p.evaluate(() => document.body.dataset.contexto), 'admin');
+  await p.click('.troca-contexto a:has-text("Usar GreenIA")');
+  // Volta para onde a pessoa estava no uso (aqui, o quick win).
+  await p.waitForURL(new RegExp(`#/qw/${qwId}$`));
+  await p.waitForFunction(() => document.body.dataset.contexto !== 'admin');
+  assert.equal(await p.locator('.troca-contexto a.ativo').textContent(), 'Usar GreenIA');
+  assert.equal(await p.locator('.selo-contexto').count(), 0);
+  assert.equal(await p.locator('.lateral a[href="#/configuracoes"]').count(), 0, 'no uso, a lateral não mostra a administração');
+  await p.click('.troca-contexto a:has-text("Administração")');
+  await p.waitForURL(/#\/visao-geral/);
+  await p.waitForFunction(() => document.querySelector('.troca-contexto a.ativo')?.textContent === 'Administração');
+  assert.doesNotMatch(p.url(), /entrar/);
   // Gestão: cada tela abre pela navegação, sem erro.
   for (const tela of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'pessoas/grupos', 'pessoas/criacao', 'modelos', 'modelos/historico', 'politicas', 'politicas/texto', 'atividade', 'configuracoes', 'conversas']) {
     await p.goto(`${N.base}/app#/${tela}`);

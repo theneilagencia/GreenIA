@@ -25,7 +25,7 @@ function iniciais(p) {
 // Onde estou: grupo da seção atual (Trabalho, Gestão, Empresa) antes do título.
 function grupoAtual() {
   const h = location.hash || '';
-  for (const g of SECOES()) for (const i of g.itens) if (i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`)) return g.titulo || '';
+  for (const g of [...SECOES_USO(), ...SECOES_ADMIN()]) for (const i of g.itens) if (i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`)) return g.titulo || '';
   return '';
 }
 
@@ -35,7 +35,7 @@ export function cabecalho(titulo, acoes = '') {
   return `<header class="cabeca">
     <div class="cabeca-titulo">
       <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}</button>
-      ${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1>${esc(titulo)}</h1>${acoes}
+      ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1>${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
@@ -72,14 +72,18 @@ export async function recarregarBases() {
   try { E.bases = await api('/api/bases/resumo'); desenharLateral(); } catch { /* segue com o que tinha */ }
 }
 
-// Seções da navegação. Cada pessoa vê só o que pode usar.
-const SECOES = () => [
-  { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
+// Dois contextos, uma sessão: USO (o trabalho de todos, inclusive de quem administra) e ADMINISTRAÇÃO
+// (quem tem permissão). Admin é permissão, não outra conta: a troca é só de tela, e cada tela da
+// Administração continua protegida no servidor pela permissão dela.
+const SECOES_USO = () => [
   { titulo: 'Trabalho', itens: [
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
     { id: 'quick-wins', nome: 'Quick wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
   ] },
+];
+const SECOES_ADMIN = () => [
+  { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
   { titulo: 'Gestão', itens: [
     { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: 'pessoas', ver: () => pode('user.read') },
     { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
@@ -95,6 +99,17 @@ const SECOES = () => [
     { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
   ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];
+const ROTAS_ADMIN = /^#\/(visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|empresa\/)/;
+export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '');
+const itensAdmin = () => SECOES_ADMIN().flatMap(g => g.itens).filter(i => !i.ver || i.ver());
+// Tem alguma tela de Administração que pode abrir: vê o alternador "Usar GreenIA | Administração".
+export const administra = () => itensAdmin().length > 0;
+const SECOES = () => (emAdministracao() ? SECOES_ADMIN() : SECOES_USO());
+// Última tela de cada contexto, para a troca voltar exatamente onde a pessoa estava.
+const ultima = ctx => { try { return sessionStorage.getItem(`greenia-ultima-${ctx}`); } catch { return null; } };
+const guardarUltima = h => { try { sessionStorage.setItem(`greenia-ultima-${emAdministracao(h) ? 'admin' : 'uso'}`, h); } catch {} };
+const inicioAdmin = () => ultima('admin') || `#/${itensAdmin()[0]?.id || 'visao-geral'}`;
+const inicioUso = () => ultima('uso') || '#/nova';
 
 export function desenharLateral() {
   const h = location.hash || '';
@@ -104,13 +119,21 @@ export function desenharLateral() {
     return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const recentes = E.conversas.slice(0, 6).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}"><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: a GreenIA usa só recursos autorizados para informação confidencial">Sigilosa</span>' : ''}</a>`).join('');
+  const adm = emAdministracao(h);
+  $('lateral').classList.toggle('modo-admin', adm);
+  document.body.dataset.contexto = adm ? 'admin' : 'uso';
+  const alternador = administra() ? `<nav class="troca-contexto" aria-label="Contexto">
+      <a href="${esc(adm ? inicioUso() : h || '#/nova')}" class="${adm ? '' : 'ativo'}" ${adm ? '' : 'aria-current="page"'}>Usar GreenIA</a>
+      <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
   $('lateral').innerHTML = `
-    <a class="marca" href="#/${pode('usage.read') ? 'visao-geral' : 'nova'}" aria-label="GreenIA, início">${marcaHtml()}</a>${logoEmpresa(E.publico)}
+    <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="GreenIA, início">${marcaHtml()}</a>${logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
-    <a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)">${ICONE.mais} Nova conversa</a>
+    ${alternador}
+    ${adm ? `<div class="aviso-contexto">${ICONE.engrenagem || ''}<span><b>Administração da empresa</b><small>Mudanças aqui valem para todas as pessoas.</small></span></div>`
+      : `<a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)">${ICONE.mais} Nova conversa</a>`}
     <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Navegação">
-      ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(i => item(i) + (i.id === 'conversas' ? recentes : '')).join('')}`).join('')}
+      ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(i => item(i) + (i.id === 'conversas' && !adm ? recentes : '')).join('')}`).join('')}
     </nav>
     <div class="lateral-pe">
       <button class="btn-lat" id="ver-politica">Política de uso de IA</button>
@@ -193,6 +216,14 @@ async function rota() {
   const fimTransicao = transicao();
   $('lateral').classList.remove('aberta');
   const h = location.hash;
+  // Administração: só para quem tem a permissão da tela (o servidor recusa de qualquer forma; aqui é para
+  // não abrir uma tela vazia). Sem permissão, volta ao uso normal.
+  if (emAdministracao(h)) {
+    const it = SECOES_ADMIN().flatMap(g => g.itens).find(i => h === `#/${i.id}` || h.startsWith(`#/${i.id}/`));
+    if (!administra()) return irPara('#/nova');
+    if (it?.ver && !it.ver()) return irPara(inicioAdmin() === h ? `#/${itensAdmin()[0].id}` : inicioAdmin());
+  }
+  if (h) guardarUltima(h);
   let m;
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
@@ -202,7 +233,7 @@ async function rota() {
     else if (h === '#/visao-geral' && pode('usage.read')) await (await import('/visao.js')).vistaGeral();
     else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await import('/empresa.js')).rotaEmpresa(m[1]);
     else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await import('/admin.js')).rotaGestao(m[1], m[2]);
-    else return irPara(pode('usage.read') ? '#/visao-geral' : '#/nova');
+    else return irPara('#/nova');   // o início de todos, inclusive de quem administra, é o uso normal
   } catch (e) {
     $('principal').innerHTML = `${cabecalho('GreenIA')}<div class="pagina"><div class="pagina-dentro"><p class="lead">${esc(e.message)}</p><a class="btn btn-verde" href="#/nova">Nova conversa</a></div></div>`;
     ligarCabecalho();
@@ -213,7 +244,8 @@ async function rota() {
 
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.
 function itensPaleta() {
-  const telas = SECOES().flatMap(g => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo: 'Ir para', nome: i.nome, dica: g.titulo || '', icone: i.icone, href: `#/${i.id}` })));
+  const telas = [...SECOES_USO().map(g => [g, 'Ir para']), ...SECOES_ADMIN().map(g => [g, 'Administração'])]
+    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: `#/${i.id}` })));
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
     ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo quick win', icone: 'raio', href: '#/qw/nova' }] : []),

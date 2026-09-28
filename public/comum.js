@@ -27,6 +27,9 @@ export async function api(caminho, { metodo = 'GET', corpo, bruto = false } = {}
   if (bruto) return r;
   const dados = await r.json().catch(() => ({}));
   if (r.status === 401 && !caminho.startsWith('/api/login')) { location.href = '/entrar'; throw new Error('sem sessão'); }
+  // A administração é autorizada só pelo servidor: um 403 dele numa leitura da administração avisa a tela, que
+  // volta ao uso normal. A tela nunca decide sozinha.
+  if (r.status === 403 && metodo === 'GET' && caminho.startsWith('/api/admin/')) dispatchEvent(new CustomEvent('greenia:admin-recusado'));
   if (!r.ok) { const e = new Error(dados.mensagem || 'Algo deu errado.'); Object.assign(e, dados, { status: r.status }); throw e; }
   return dados;
 }

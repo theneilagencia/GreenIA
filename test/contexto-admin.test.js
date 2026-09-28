@@ -61,9 +61,13 @@ test('multiempresa: membro, leitor e gestor não têm a permissão das rotas de 
     assert.ok(!gestor.includes(permissaoAdmin(p, 'PUT')), p);
 });
 
-test('a tela protege o hash da administração, mas quem decide é o servidor', () => {
+test('a tela não decide: quem não administra pergunta ao servidor, e cada tela aponta para uma leitura que existe', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
-  assert.match(app, /ROTAS_ADMIN/);
+  assert.match(app, /if \(!administra\(\)\) return conferirNoServidor\(h\)/);
+  const mapa = /const API_DA_TELA = (\{[^}]+\})/.exec(app)[1];
+  const leituras = new Set(ROTAS.filter(([m]) => m === 'GET').map(([, p]) => p));
+  for (const [, api] of mapa.matchAll(/:\s*'([^']+)'/g)) assert.ok(leituras.has(`/api/admin/${api}`), api);
+  // Depois do login, todos começam no uso normal; a administração é escolha explícita no alternador.
+  assert.match(app, /else return irPara\('#\/nova'\);/);
   assert.match(app, /Usar GreenIA/);
-  assert.match(app, /Administração/);
 });

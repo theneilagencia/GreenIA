@@ -100,7 +100,8 @@ const SECOES_ADMIN = () => [
   ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];
 const ROTAS_ADMIN = /^#\/(visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|empresa\/)/;
-export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '');
+// Contexto da tela. Quem não administra nunca está na Administração, nem digitando o endereço.
+export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '') && administra();
 const itensAdmin = () => SECOES_ADMIN().flatMap(g => g.itens).filter(i => !i.ver || i.ver());
 // Tem alguma tela de Administração que pode abrir: vê o alternador "Usar GreenIA | Administração".
 export const administra = () => itensAdmin().length > 0;
@@ -110,6 +111,17 @@ const ultima = ctx => { try { return sessionStorage.getItem(`greenia-ultima-${ct
 const guardarUltima = h => { try { sessionStorage.setItem(`greenia-ultima-${emAdministracao(h) ? 'admin' : 'uso'}`, h); } catch {} };
 const inicioAdmin = () => ultima('admin') || `#/${itensAdmin()[0]?.id || 'visao-geral'}`;
 const inicioUso = () => ultima('uso') || '#/nova';
+
+// Rota da API que cada tela da administração lê. A resposta do servidor decide; a tela só reage.
+const API_DA_TELA = { 'visao-geral': 'visao-geral', uso: 'uso', pessoas: 'pessoas', modelos: 'modelos', politicas: 'politica/versoes', atividade: 'eventos', configuracoes: 'config', empresa: 'config' };
+const recusado = () => { toast('Esta área é da administração da empresa.'); irPara('#/nova'); };
+async function conferirNoServidor(h) {
+  const tela = /^#\/([\w-]+)/.exec(h)?.[1];
+  try { await api(`/api/admin/${API_DA_TELA[tela] || 'config'}`); }
+  catch (e) { if (e.status !== 403) recusado(); return; }   // o 403 dispara greenia:admin-recusado
+  location.reload();   // o servidor aceitou: as permissões mudaram desde que a página abriu
+}
+addEventListener('greenia:admin-recusado', () => { if (ROTAS_ADMIN.test(location.hash)) recusado(); });
 
 export function desenharLateral() {
   const h = location.hash || '';
@@ -216,11 +228,11 @@ async function rota() {
   const fimTransicao = transicao();
   $('lateral').classList.remove('aberta');
   const h = location.hash;
-  // Administração: só para quem tem a permissão da tela (o servidor recusa de qualquer forma; aqui é para
-  // não abrir uma tela vazia). Sem permissão, volta ao uso normal.
-  if (emAdministracao(h)) {
+  // Administração: quem autoriza é o servidor. Quem não administra pergunta a ele (e recebe 403) antes de
+  // qualquer tela da administração ser desenhada; a recusa leva de volta ao uso normal.
+  if (ROTAS_ADMIN.test(h)) {
+    if (!administra()) return conferirNoServidor(h);
     const it = SECOES_ADMIN().flatMap(g => g.itens).find(i => h === `#/${i.id}` || h.startsWith(`#/${i.id}/`));
-    if (!administra()) return irPara('#/nova');
     if (it?.ver && !it.ver()) return irPara(inicioAdmin() === h ? `#/${itensAdmin()[0].id}` : inicioAdmin());
   }
   if (h) guardarUltima(h);

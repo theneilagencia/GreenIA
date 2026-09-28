@@ -66,12 +66,18 @@ test('login → chat → quick win', async () => {
   await p.waitForSelector('.bolha-eu');
   assert.equal(await p.locator('.bolha-eu').count(), 2);
   // Quem não é admin: sem alternador de contexto, e o endereço da administração volta para o uso.
+  // Quem recusa é o servidor (403); a tela só reage, voltando para "Nova conversa".
   assert.equal(await p.locator('.troca-contexto').count(), 0);
-  for (const tela of ['configuracoes', 'politicas', 'modelos', 'pessoas', 'empresa/marca']) {
+  const recusas = [];
+  p.on('response', r => { if (r.url().includes('/api/admin/')) recusas.push(r.status()); });
+  for (const tela of ['configuracoes', 'politicas', 'modelos', 'pessoas', 'atividade']) {
+    const antes = recusas.length;
     await p.goto(`${N.base}/app#/${tela}`);
     await p.waitForURL(/#\/nova$/);
+    assert.ok(recusas.length > antes, `${tela}: a tela perguntou ao servidor`);
+    assert.equal(await p.locator('.selo-contexto, .aviso-contexto, .lateral.modo-admin').count(), 0, tela);
   }
-  assert.equal(await p.locator('.selo-contexto').count(), 0);
+  assert.ok(recusas.every(s => s === 403), String(recusas));
   assert.deepEqual(erros, []);
 });
 

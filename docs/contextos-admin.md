@@ -1,5 +1,18 @@
 # Dois contextos para quem é admin: "Usar GreenIA | Administração"
 
+Arquitetura aprovada. Estas regras são invariantes:
+
+1. Admin é uma permissão, não uma segunda conta.
+2. Há um único login e uma única sessão.
+3. A troca entre contextos leva um clique.
+4. A troca não exige logout nem novo login.
+5. Quem não é admin nunca vê o alternador.
+6. A administração nunca se mistura à experiência normal de uso.
+7. Nenhum detalhe técnico de modelo ou provedor aparece na interface de uso.
+8. A autorização administrativa fica só no servidor. A tela reage ao 403 e nunca autoriza nada.
+9. Cada tela pertence a um único contexto, sem duplicação.
+10. Depois do login, todos começam em "Nova conversa". Entrar na administração é uma escolha explícita.
+
 **Admin é uma permissão, não uma segunda conta.** A pessoa entra uma vez, com a mesma sessão, e troca de
 contexto com um clique no alternador do topo da barra lateral. A troca não pede novo login e não cria outra sessão.
 
@@ -23,8 +36,12 @@ A tela esconde a administração de quem não é admin, mas esconder não é pro
   modo multiempresa, quer dizer ter a permissão da rota (`permissaoAdmin`). Nada disso mudou.
 - **Parâmetros:** `?admin=1`, `papel`, `permissoes` ou `contexto` no corpo ou na URL não mudam nada. O
   papel vem só da sessão.
-- **Endereços:** um endereço de administração (`#/configuracoes`, `#/politicas`…) aberto por quem não
-  administra volta para "Nova conversa".
+- **Endereços:** quando quem não administra abre um endereço de administração (`#/configuracoes`,
+  `#/politicas`…), a tela não decide sozinha. Ela pergunta ao servidor antes de desenhar qualquer coisa da
+  administração. O servidor responde **403**, e só então a tela volta para "Nova conversa" com o aviso
+  "Esta área é da administração da empresa."
+- **Leituras recusadas:** qualquer leitura de `/api/admin/*` recusada com 403 durante o uso, por exemplo porque
+  a permissão foi retirada no meio da sessão, também leva de volta ao uso.
 
 **Testes:**
 

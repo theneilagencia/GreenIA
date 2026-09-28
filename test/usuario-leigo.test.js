@@ -249,7 +249,7 @@ test('18. Automático do provedor: nunca usado com dado sigiloso; fora dele, exp
   const r2 = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'openrouter/auto' });
   assert.equal(r2.status, 200);
   assert.equal(OR.chamadas.at(-1).model, 'openrouter/auto');
-  assert.match(ultimaRota().explicacao, /fora da governança/, 'o registro técnico diz que ficou fora da governança');
+  assert.match(ultimaRota().explicacao, /fora das classes e das regras de roteamento/, 'o registro técnico diz que ficou fora das regras de roteamento');
   await semDecisaoTecnica(conv, r2);
   await admin.put('/api/admin/modelos-config', { automatico: false });
 });

@@ -239,6 +239,11 @@ const MIGRACOES = [
       }
     }
   },
+  // 10. O modo "Automático do serviço de IA" deixa de levar o nome do provedor no identificador interno.
+  db => {
+    db.exec("update roteamento set modo = 'externo' where modo = 'openrouter_auto'");
+    db.exec("update roteamento set classe_pedida = 'externo' where classe_pedida = 'openrouter_auto'");
+  },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

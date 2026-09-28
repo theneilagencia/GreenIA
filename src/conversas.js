@@ -12,6 +12,7 @@ import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
+import { semProvedor } from './sem-provedor.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -282,7 +283,7 @@ export function rotasConversas(app, r) {
         if (sigilosa) avisoUnico(app, conv.id, 'Esta conversa tem informação confidencial: a GreenIA passou a usar só os recursos autorizados para esse tipo de dado.');
       }
     }
-    const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'openrouter_auto' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
+    const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'externo' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
     let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, modeloManual: manual, origem: substituida ? 'auto' : origem });
     // Modelo solicitado que passou pela validação mas o roteador recusou (janela, política, classe mínima):
     // mesma resolução, no automático, com o mesmo registro. Quick win e padrão da empresa seguem as regras deles.
@@ -377,8 +378,9 @@ export function rotasConversas(app, r) {
 
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
-    const linha = o => res.write(JSON.stringify(o) + '\n');
-    const rotaTela = { modo: pessoa.admin || rota.modo !== 'openrouter_auto' ? rota.modo : 'externo', classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
+    // Metadados do streaming passam pelo mesmo filtro da API; o texto da resposta é o que a IA escreveu.
+    const linha = o => res.write(JSON.stringify(o.t === 'texto' ? o : semProvedor(o)) + '\n');
+    const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       solicitacao: solicitacao() };
     linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
@@ -448,7 +450,7 @@ export function detalhe(app, c, pessoa = null) {
     mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
       .map(({ rota_politicas, rota_fallback, rota_sigilosa, ...m }) => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
-        ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_modo: m.rota_modo === 'openrouter_auto' ? 'externo' : m.rota_modo, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),
+        ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),
   };
 }
 

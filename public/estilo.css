@@ -1047,7 +1047,7 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .rt-pref input{margin-top:3px;flex:none} .rt-pref b{display:block;font:600 14px var(--sans);color:var(--ink)}
 .rt-pref small{display:block;margin-top:2px;font:400 12.5px/1.45 var(--sans);color:var(--muted)}
 
-/* ------------------------------------------------------------ Validade da chave do OpenRouter */
+/* ------------------------------------------------------------ Validade da chave do serviço de IA (painel global) */
 .faixa-chave{margin:0 0 14px}
 .faixa-chave a{font-weight:600;margin-left:4px}
 .or-validade{margin:12px 0 0;padding:12px 0 0;border-top:1px solid var(--line);font:400 13.5px/1.5 var(--sans)}

@@ -145,7 +145,7 @@ function editorCapacidades(x) {
     <select data-cap="${esc(x.id)}" data-dim="${k}"><option value="">da classe (${base})</option>${[1, 2, 3].map(v => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`).join('')}</div></details>`;
 }
 async function abaModelos() {
-  const [m, { grupos }, { areas }, gov] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca')]);
+  const [m, { grupos }, { areas }, gov, sig] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca'), api('/api/admin/sigilo')]);
   const cfg = m.config;
   const liberados = m.modelos.filter(x => x.liberado);
   const homologados = liberados.filter(x => x.homologado);
@@ -174,8 +174,9 @@ async function abaModelos() {
     </tbody></table></div>
     <p class="dica">Para trocar o modelo de uma classe, use "Modelo de cada classe" mais abaixo. Toda troca fica no histórico.</p>
     <h3>Catálogo técnico</h3>
-    <div class="faixa-aviso ${padrao ? 'ok' : 'erro'}">${padrao ? `Homologado padrão: <b>${esc(padrao.nome)}</b>, disponível para todas as pessoas. Conversas sigilosas usam este modelo automaticamente; ninguém precisa escolher.`
-      : '<b>Conversas com informação sigilosa estão sendo bloqueadas com segurança.</b> Nenhum conteúdo é enviado e as pessoas recebem só uma mensagem simples; você é avisado por email. Para liberar, homologue aqui um modelo de uma classe disponível para todos (por exemplo, Rápido) ou peça à equipe da plataforma a autorização padrão, que vale sem configuração.'}</div>
+    ${!sig.ativo ? '<div class="faixa-aviso"><b>Informações sigilosas: desligado.</b> Hoje elas não são enviadas para recursos de IA. Para permitir o processamento com guardrails de proteção, ligue a opção em <a href="#/politicas">Políticas de IA → Informações sigilosas</a>.</div>'
+      : padrao ? `<div class="faixa-aviso ok"><b>Informações sigilosas: ligado.</b> Recurso autorizado disponível para todas as pessoas: ${esc(padrao.nome)}. Ninguém precisa escolher.</div>`
+      : '<div class="faixa-aviso erro"><b>Informações sigilosas: ligado, mas sem recurso autorizado.</b> Essas conversas são bloqueadas com segurança: nada é enviado e você recebe um aviso. Para resolver, escolha "Seguir recomendações da GreenIA" acima ou homologue um modelo abaixo.</div>'}
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
     ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
@@ -189,11 +190,11 @@ async function abaModelos() {
         ${x.homologacaoEmpresa ? '' : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<br><button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
       <td>${editorCapacidades(x)}</td></tr>`))}
     <p class="dica">Capacidades: por padrão, cada modelo vale o nível da classe dele em tudo. Informe só quando um modelo foge disso (por exemplo, um Equilibrado forte em programação, ou um Avançado fraco em leitura de documentos longos). O roteamento compara essas capacidades com o que cada pedido exige; a classe continua valendo para acesso, plano e quick win.</p>
-    <h3>Adicionar do catálogo do OpenRouter</h3>
+    <h3>Adicionar do catálogo de modelos</h3>
     <form class="filtros" id="busca-modelo"><div class="campo"><label for="q-modelo">Buscar por nome ou id</label><input class="entrada" id="q-modelo" placeholder="ex.: claude, gemini, gpt"></div><button class="btn btn-linha btn-pequeno">Buscar</button></form>
     <div id="resultado-busca"></div>
     <details><summary class="dica" style="cursor:pointer">Adicionar pelo id, sem o catálogo</summary>
-      <form class="filtros" id="add-manual" style="margin-top:10px"><div class="campo"><label for="id-manual">Id no OpenRouter</label><input class="entrada" id="id-manual" placeholder="fornecedor/modelo" pattern="[a-z0-9._~-]+/[a-z0-9._:-]+" required></div>
+      <form class="filtros" id="add-manual" style="margin-top:10px"><div class="campo"><label for="id-manual">Identificador do modelo</label><input class="entrada" id="id-manual" placeholder="fornecedor/modelo" pattern="[a-z0-9._~-]+/[a-z0-9._:-]+" required></div>
         <div class="campo"><label for="perfil-manual">Perfil</label><select class="entrada" id="perfil-manual">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
         <button class="btn btn-linha btn-pequeno">Adicionar e liberar</button></form></details>
     <form id="cfg-modelos">
@@ -211,7 +212,7 @@ async function abaModelos() {
       <h3>Privacidade e roteamento</h3>
       <label class="opcoes"><span><input type="checkbox" id="sem-treino" ${cfg.exigirSemTreino ? 'checked' : ''}> Em conversas normais, usar só fornecedores que não treinam com os dados</span></label>
       <p class="dica">Conversas sigilosas sempre usam fornecedor fixado e retenção zero, com esta opção ligada ou não.</p>
-      <label class="opcoes"><span><input type="checkbox" id="automatico" ${cfg.automatico ? 'checked' : ''}> Oferecer também o "Automático do OpenRouter" no seletor (o OpenRouter escolhe qualquer modelo do mercado, fora das classes e das regras da empresa)</span></label>
+      <label class="opcoes"><span><input type="checkbox" id="automatico" ${cfg.automatico ? 'checked' : ''}> Oferecer também o "Automático do serviço de IA" no seletor (o serviço de IA escolhe qualquer modelo do mercado, fora das classes e das regras de roteamento da empresa; nunca recebe informação sigilosa)</span></label>
       <p class="dica">O recomendado é o roteamento da GreenIA, em Modelos → Roteamento: ele escolhe entre os modelos liberados aqui, respeitando acesso, sigilo e plano, e registra o motivo de cada escolha.</p>
       <div class="linha-botoes" style="margin:18px 0"><button class="btn btn-verde">Salvar configuração de modelos</button></div>
     </form>`;
@@ -252,7 +253,7 @@ async function abaModelos() {
       <td><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>${celulasPreco(x)}<td class="num">${num(x.contexto)}</td>
       <td><select data-perfil-catalogo="${esc(x.id)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></td>
       <td><button class="btn btn-linha btn-pequeno" data-liberar-catalogo="${esc(x.id)}">Liberar</button></td></tr>`))
-      : '<div class="faixa-aviso atencao">O catálogo do OpenRouter não respondeu ou não achou nada. Confira a chave OPENROUTER_API_KEY e o acesso do servidor à internet. Dá para adicionar pelo id logo abaixo.</div>';
+      : '<div class="faixa-aviso atencao">O catálogo de modelos não respondeu ou não achou nada. Tente de novo em instantes; se continuar, a equipe da plataforma verifica. Dá para adicionar pelo identificador logo abaixo.</div>';
   };
   $('add-manual').onsubmit = ev => { ev.preventDefault(); salvarModelo($('id-manual').value.trim(), { liberado: true, perfil: $('perfil-manual').value }, 'Modelo adicionado e liberado.'); };
   $('cfg-modelos').onsubmit = async ev => {
@@ -273,8 +274,8 @@ function homologar(modelo) {
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-h"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="t-h" id="form-h">
     <div class="modal-topo"><div class="rotulo">Homologar para dados sigilosos</div><button type="button" class="icone-btn" id="fechar-h" aria-label="Fechar">${ICONE.fechar}</button></div>
     <h2 id="t-h">${esc(modelo.nome)}</h2>
-    <div class="campo"><label for="h-forn">Fornecedor fixado no OpenRouter</label><input class="entrada" id="h-forn" required placeholder="ex.: google-vertex, amazon-bedrock, azure">
-      <span class="ajuda">Use o nome do fornecedor como aparece na aba de fornecedores do modelo no OpenRouter. As chamadas sigilosas vão só para ele, sem cair para outro.</span></div>
+    <div class="campo"><label for="h-forn">Fornecedor fixado</label><input class="entrada" id="h-forn" required placeholder="ex.: google-vertex, amazon-bedrock, azure">
+      <span class="ajuda">Use o nome do fornecedor como aparece na lista de fornecedores do modelo. As chamadas sigilosas vão só para ele, sem cair para outro.</span></div>
     <label class="opcoes"><span><input type="checkbox" id="h-treino" required> Conferi que este fornecedor não treina com os dados</span></label>
     <label class="opcoes"><span><input type="checkbox" id="h-zdr" required> Conferi que este fornecedor tem retenção zero (não guarda os dados)</span></label>
     <div class="campo" style="margin-top:12px"><label for="h-just">Justificativa</label><textarea class="entrada" id="h-just" required minlength="10" placeholder="Onde conferiu, contrato, data da verificação"></textarea></div>
@@ -318,7 +319,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
   const tipo = k => u.porTipo.find(x => x.tipo === k) || { conversas: 0, custo: 0 };
   const col = emCreditos() ? '#Créditos' : '#Custo';
   const linhas = (lista, rotulo) => lista.map(x => `<tr><td>${rotulo(x)}</td><td class="num">${num(x.conversas)}</td><td class="num">${num(x.respostas)}</td><td class="num">${us(x.custo)}</td></tr>`);
-  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo OpenRouter em cada resposta.'} Conversas de teste de quick win não entram.</p>
+  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo serviço de IA em cada resposta.'} Conversas de teste de quick win não entram.</p>
     <div class="filtros"><div class="campo"><label for="mes">Mês</label><input class="entrada" type="month" id="mes" value="${u.mes}"></div>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/uso?mes=${u.mes}&formato=csv">Baixar CSV</a></div>
     <div class="indicadores">
@@ -626,7 +627,7 @@ async function abaPoliticas() {
 
 // ---------------------------------------------------------------- Roteamento
 const COMPLEXIDADE = { simples: 'Simples', intermediaria: 'Intermediária', complexa: 'Complexa' };
-const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win', padrao: 'Padrão da empresa (roteamento desligado)', openrouter_auto: 'Automático do OpenRouter' };
+const MODO = { automatico: 'Automático', manual: 'Escolhida pela pessoa', quick_win: 'Definida pelo quick win', padrao: 'Padrão da empresa (roteamento desligado)', externo: 'Automático do serviço de IA' };
 const STATUS_CAND = { escolhido: 'escolhido', preterido: 'atendia; menor utilidade', insuficiente: 'capacidade abaixo da exigida', excluido: 'fora pelas regras' };
 const MOTIVO_CAND = { capacidade_insuficiente: 'capacidade abaixo da exigida', nao_homologado: 'não homologado (conversa sigilosa)', plano_na_reserva: 'reserva do plano (só Rápido)',
   gratuito_treina_com_dados: 'gratuito: treina com os dados', sem_acesso_a_classe: 'a pessoa não tem acesso à classe', contexto_insuficiente: 'o conteúdo não cabe na janela' };
@@ -660,7 +661,7 @@ async function abaRoteamento() {
       <div class="or-card"><span class="or-rotulo">Consumo realizado</span><b class="or-numero">${fmtCusto(r.consumo.realizado.custo)}</b><span class="or-sub">medido nas respostas${r.realizadoSobreEstimado ? `; a estimativa do roteador acerta ${Math.round(Math.min(r.realizadoSobreEstimado, 1 / r.realizadoSobreEstimado) * 100)}%` : ''}</span></div>
       <div class="or-card destaque"><span class="or-rotulo">Consumo evitado (estimativa)</span><b class="or-numero">${r.consumoEvitadoEstimadoPercentual === null ? '—' : `${r.consumoEvitadoEstimadoPercentual}%`}</b><span class="or-sub">referência hipotética: se tudo fosse para a classe Avançado. Não é economia medida.</span></div>
       <div class="or-card"><span class="or-rotulo">Abaixo do necessário</span><b class="or-numero">${num(r.limitadas + r.abaixoPorEscolha)}</b><span class="or-sub">${num(r.limitadas)} por regras ou permissões, ${num(r.abaixoPorEscolha)} por escolha manual</span></div>
-      <div class="or-card"><span class="or-rotulo">Fora do roteador</span><b class="or-numero">${num(r.foraDoRoteador.openrouter + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.openrouter)} no Automático do OpenRouter, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
+      <div class="or-card"><span class="or-rotulo">Fora do roteador</span><b class="or-numero">${num(r.foraDoRoteador.externo + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.externo)} no Automático do serviço de IA, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
     </div>
     <div class="or-grade">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Classe exigida pelo pedido', r.porNecessaria, PERFIS)}${barrasDist('Classe usada', r.porClasse, PERFIS)}${barrasDist('Como a classe foi definida', r.porModo, MODO)}</div>
     <h3>Classificação dos pedidos</h3>
@@ -677,7 +678,7 @@ async function abaRoteamento() {
     ${tabela(['Quando', 'Pessoa', 'Pedido', 'Exigida', 'Usada', 'Por quê'], d.decisoes.map(x => `<tr>
       <td style="white-space:nowrap">${dataHora(x.em)}<br><span class="dica">${esc(RESULTADO[x.resultado] || x.resultado || '')}</span></td><td>${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
       <td>${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''} · janela ${num(x.janela_minima)} tokens${x.sigilosa ? ' · sigilosa' : ''}</span></td>
-      <td>${PERFIS[x.classe_necessaria] || '—'}</td><td><b>${PERFIS[x.classe] || (x.modo === 'openrouter_auto' ? 'OpenRouter' : '—')}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo || '')}</span>${x.fallback ? `<br><span class="selo selo-ambar">${esc(FALLBACK[x.fallback.tipo] || x.fallback.tipo)}</span>` : ''}</td>
+      <td>${PERFIS[x.classe_necessaria] || '—'}</td><td><b>${PERFIS[x.classe] || (x.modo === 'externo' ? 'Serviço de IA' : '—')}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo || '')}</span>${x.fallback ? `<br><span class="selo selo-ambar">${esc(FALLBACK[x.fallback.tipo] || x.fallback.tipo)}</span>` : ''}</td>
       <td style="min-width:260px">${esc(x.explicacao)}<details><summary class="dica" style="cursor:pointer">Requisitos, candidatos e critérios</summary>
         <p class="dica">${esc(MODO[x.modo] || x.modo)} · preferência ${esc(x.preferencia || '—')} · requisitos: ${esc(Object.entries(x.requisitos.dimensoes || {}).map(([k, n]) => `${k} ${n}`).join(', ') || '—')}</p>
         <ul class="dica">${x.candidatos.map(k => `<li>${esc(k.id)} (${PERFIS[k.classe] || k.classe}): ${esc(STATUS_CAND[k.status] || k.status)}${k.motivos?.length ? ` · ${esc(k.motivos.map(m => MOTIVO_CAND[m] || m).join(', '))}` : ''}${k.custo != null ? ` · ${fmtCusto(k.custo)}` : ''}</li>`).join('')}</ul>

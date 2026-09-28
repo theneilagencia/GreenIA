@@ -250,7 +250,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
     if (porHost?.inexistente) return pagina404(res, 'Ambiente não encontrado.');
 
     // Arquivos estáticos (css, js, imagens) valem para todos.
-    if (req.method === 'GET' && ehArquivoPublico(caminho) && await servirEstatico(res, PUBLICO, caminho.slice(1))) return;
+    if (req.method === 'GET' && ehArquivoPublico(caminho) && await servirEstatico(res, PUBLICO, caminho.slice(1), req)) return;
 
     let companyId = porHost?.id || null;
     if (!porHost) {

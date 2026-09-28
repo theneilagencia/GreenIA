@@ -120,8 +120,7 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
     out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, perfil, homologado: m.homologado, classe: true });
   }
   // Para quem não administra, o Automático do serviço de IA não leva o nome nem o identificador do provedor.
-  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push(pessoa.admin ? { id: AUTO, nome: 'Automático do OpenRouter (fora da governança)', perfil: 'rapido', homologado: false }
-    : { id: AUTO_EXTERNO, nome: 'Automático do serviço de IA', perfil: 'rapido', homologado: false });
+  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO_EXTERNO, nome: pessoa.admin ? 'Automático do serviço de IA (fora das classes)' : 'Automático do serviço de IA', perfil: 'rapido', homologado: false });
   return out;
 }
 
@@ -168,7 +167,7 @@ export async function atualizarCatalogo(app) {
   const porId = new Map(lista.map(m => [m.id, m]));
   for (const m of lerModelos(app.db)) {
     const n = porId.get(m.id);
-    if (!n) { exec(app.db, "update modelos set no_catalogo = 0, aviso = 'Saiu do catálogo do OpenRouter.', atualizado_em = ? where id = ?", app.agora().toISOString(), m.id); continue; }
+    if (!n) { exec(app.db, "update modelos set no_catalogo = 0, aviso = 'Saiu do catálogo do serviço de IA.', atualizado_em = ? where id = ?", app.agora().toISOString(), m.id); continue; }
     const mudou = (a, b) => a > 0 && Math.abs(b - a) / a > 0.2;
     const aviso = mudou(m.precoEntrada, n.precoEntrada) || mudou(m.precoSaida, n.precoSaida)
       ? `Preço mudou mais de 20% (entrada ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)}; saída ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens).` : m.aviso?.startsWith('Preço') ? m.aviso : null;
@@ -268,11 +267,11 @@ export function rotasModelos(app, r) {
   r.get('/api/admin/roteamento', ({ query }) => {
     const cfg = lerConfig(app.db);
     const desde = new Date(app.agora().getTime() - 30 * 864e5).toISOString();
-    const base = "from roteamento where em >= ? and coalesce(teste, 0) = 0 and modo != 'openrouter_auto' and coalesce(resultado, 'respondido') like 'respondido%'";
+    const base = "from roteamento where em >= ? and coalesce(teste, 0) = 0 and modo != 'externo' and coalesce(resultado, 'respondido') like 'respondido%'";
     const contar = campo => Object.fromEntries(todos(app.db, `select ${campo} as k, count(*) as n ${base} group by k`, desde).map(x => [x.k ?? 'sem', x.n]));
     const soma = um(app.db, `select count(*) as n, sum(custo_estimado) as est, sum(case when custo_estimado is not null then custo_referencia end) as ref,
       sum(case when fallback like ? then 1 else 0 end) as limitadas, sum(case when fallback like ? then 1 else 0 end) as abaixoPorEscolha ${base}`, '%"abaixo_do_necessario"%', '%abaixo_do_necessario_por_escolha%', desde);
-    const fora = um(app.db, "select sum(case when modo = 'openrouter_auto' then 1 else 0 end) as openrouter, sum(case when resultado = 'bloqueado' then 1 else 0 end) as bloqueadas from roteamento where em >= ? and coalesce(teste, 0) = 0", desde);
+    const fora = um(app.db, "select sum(case when modo = 'externo' then 1 else 0 end) as externo, sum(case when resultado = 'bloqueado' then 1 else 0 end) as bloqueadas from roteamento where em >= ? and coalesce(teste, 0) = 0", desde);
     // Consumo: o realizado (medido pelo fornecedor), o estimado pelo roteador e a referência hipotética
     // "tudo no Avançado". A diferença entre estimado e referência é consumo EVITADO ESTIMADO, não economia
     // financeira: não se sabe se o Avançado daria resultado melhor, nem o custo real dele.
@@ -309,7 +308,7 @@ export function rotasModelos(app, r) {
       config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
       resumo: {
         decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), porNecessaria: contar('classe_necessaria'),
-        limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { openrouter: fora.openrouter || 0, bloqueadas: fora.bloqueadas || 0 },
+        limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { externo: fora.externo || 0, bloqueadas: fora.bloqueadas || 0 },
         consumo: { realizado: { custo: consumo.real || 0 }, estimado: { custo: consumo.est || 0 }, referencia: { custo: consumo.ref || 0 } },
         // Referência hipotética: percentual de consumo evitado, estimado, contra "tudo no Avançado padrão".
         consumoEvitadoEstimadoPercentual: consumo.ref > 0 ? Math.round((1 - consumo.est / consumo.ref) * 100) : null,
@@ -367,7 +366,7 @@ export function rotasModelos(app, r) {
     const fornecedor = String(corpo.fornecedor || '').trim();
     const endpoint = String(corpo.endpoint || fornecedor).trim();   // a rota fixada no envio (provider.only)
     const justificativa = String(corpo.justificativa || '').trim();
-    if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado no OpenRouter.');
+    if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado.');
     if (corpo.semTreino !== true || corpo.retencaoZero !== true) throw erro(400, 'garantias', 'Confirme que o fornecedor não treina com os dados e não guarda nada (retenção zero).');
     if (justificativa.length < 10) throw erro(400, 'justificativa', 'Escreva a justificativa da homologação.');
     // Atributos da rota homologada: as garantias ficam gravadas (e são conferidas a cada envio), não presumidas.

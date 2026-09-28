@@ -1,6 +1,8 @@
 // HTTP mínimo: rotas com parâmetros, corpo JSON com limite, cookies,
+import { semProvedor } from './sem-provedor.js';
 // arquivos estáticos e cabeçalhos de segurança. Sem framework.
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { extname, join, normalize, sep } from 'node:path';
 
 export class ErroHttp extends Error {
@@ -60,7 +62,9 @@ export function enviarJson(res, status, dados, extras = {}) {
   res.end(JSON.stringify(dados));
 }
 
+// Só o ambiente da empresa exporta CSV: o provedor de IA não aparece nas planilhas.
 export function enviarCsv(res, nome, linhas) {
+  linhas = semProvedor(linhas);
   const cel = v => {
     let s = v === null || v === undefined ? '' : String(v);
     if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;           // evita fórmula ao abrir na planilha
@@ -81,12 +85,17 @@ export function cabecalhosSeguranca(res) {
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
 
-export async function servirEstatico(res, raiz, caminho) {
+// Revalidação a cada carga (no-cache + ETag): o navegador guarda os arquivos, mas confere com o servidor e
+// recebe 304 quando nada mudou. Um deploy novo aparece na hora, sem misturar módulos antigos e novos.
+export async function servirEstatico(res, raiz, caminho, req = null) {
   const arquivo = normalize(join(raiz, decodeURIComponent(caminho)));
   if (!arquivo.startsWith(normalize(raiz) + sep) || !TIPOS[extname(arquivo)]) return false;
   try {
     const dados = await readFile(arquivo);
-    res.writeHead(200, { 'content-type': TIPOS[extname(arquivo)], 'cache-control': extname(arquivo) === '.html' ? 'no-cache' : 'public, max-age=300' });
+    const etag = `"${createHash('sha1').update(dados).digest('base64url').slice(0, 20)}"`;
+    const cab = { 'content-type': TIPOS[extname(arquivo)], 'cache-control': 'no-cache', etag };
+    if (req?.headers['if-none-match'] === etag) { res.writeHead(304, cab); res.end(); return true; }
+    res.writeHead(200, cab);
     res.end(dados);
     return true;
   } catch { return false; }

@@ -321,7 +321,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
   let escolhido = null, modo = 'automatico', motivoEscolha = null, fallback = null;
   if (modeloManual?.id === AUTO) {
     // Automático do OpenRouter: fora da governança da GreenIA. Só registrado.
-    modo = 'openrouter_auto'; motivoEscolha = 'openrouter_decide';
+    modo = 'externo'; motivoEscolha = 'servico_decide';
     escolhido = { id: AUTO, classe: null, nivel: 0, custo: null, motivos: [], m: modeloManual };
   } else if (modeloManual) {
     modo = origem === 'quick_win' || qwFixo ? 'quick_win' : origem === 'padrao' ? 'padrao' : 'manual';
@@ -369,7 +369,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
   // Reserva de execução (outro modelo, se o escolhido falhar no fornecedor): só se passar pelas mesmas regras.
   let reserva = null, reservaDescartada = null;
   const idReserva = escolhido.m?.reserva;
-  if (idReserva && modo !== 'openrouter_auto') {
+  if (idReserva && modo !== 'externo') {
     const r = candidatos.find(c => c.id === idReserva);
     const bloqueio = !r ? ['reserva_nao_liberada'] : r.motivos.filter(y => GOVERNANCA.includes(y) && !(y === 'sem_acesso_a_classe' && r.classe === escolhido.classe));
     if (sigilosa) reservaDescartada = 'sigilosa_sem_reserva';
@@ -385,7 +385,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reservaDo
     politicas, motivoEscolha, fallback, reserva, reservaDescartada,
     candidatos: candidatos.map(saida),
     elegiveisQueAtendem: suficientes.length,
-    custoEstimado: modo === 'openrouter_auto' ? null : escolhido.custo ?? null, custoReferencia: modo === 'openrouter_auto' ? null : ref?.custo ?? null,
+    custoEstimado: modo === 'externo' ? null : escolhido.custo ?? null, custoReferencia: modo === 'externo' ? null : ref?.custo ?? null,
   };
   decisao.explicacao = explicar(a, decisao);
   return decisao;
@@ -445,7 +445,7 @@ export const MOTIVO_SUBSTITUICAO = {
   requested_model_not_available: 'o modelo solicitado não está disponível agora',
   requested_model_permission_restricted: 'a pessoa não tem acesso ao nível do modelo solicitado',
   requested_model_not_homologated: 'conversa sigilosa e o modelo solicitado não é homologado',
-  requested_model_not_allowed_for_sensitive_data: 'conversa sigilosa e o modelo solicitado não pode receber dado sigiloso (vetado pela plataforma, gratuito ou Automático do OpenRouter)',
+  requested_model_not_allowed_for_sensitive_data: 'conversa sigilosa e o modelo solicitado não pode receber dado sigiloso (vetado pela plataforma, gratuito ou Automático do serviço de IA)',
   requested_model_plan_restricted: 'créditos do mês no fim: só o nível Rápido',
   requested_model_policy_restricted: 'política da empresa (fornecedor sem treino com os dados)',
   requested_model_insufficient_capacity: 'o modelo solicitado está abaixo da classe mínima exigida (quick win ou nova tentativa)',
@@ -462,7 +462,7 @@ export const MOTIVO_DA_CAUSA = {
 // homologação, provedor). A explicação técnica completa fica no registro do roteamento, para o admin.
 export function explicarParaPessoa({ modo, classe, politicas = [], fallback = null, sigilosa = false }) {
   const nivel = NOME_CLASSE[classe];
-  if (modo === 'openrouter_auto') return 'Escolha automática feita pelo serviço de IA, como você pediu.';
+  if (modo === 'externo') return 'Escolha automática feita pelo serviço de IA, como você pediu.';
   const partes = [!nivel ? 'Recurso escolhido automaticamente pela GreenIA'
     : modo === 'automatico' ? `Nível ${nivel}, escolhido automaticamente pela GreenIA para este tipo de pedido`
     : modo === 'quick_win' ? `Nível ${nivel}, definido para este quick win`
@@ -480,7 +480,7 @@ export function explicarParaPessoa({ modo, classe, politicas = [], fallback = nu
 export function explicar(a, d) {
   const req = d.requisitos, partes = [];
   const classe = d.modelo ? NOME_CLASSE[d.modelo.perfil] || d.modelo.perfil : null;
-  if (d.modo === 'openrouter_auto') return 'Automático do OpenRouter, escolhido pela pessoa: fora da governança da GreenIA. O OpenRouter decide o modelo; a GreenIA só registra qual respondeu.';
+  if (d.modo === 'externo') return 'Automático do serviço de IA, escolhido pela pessoa: fora das classes e das regras de roteamento da empresa. O serviço de IA decide o modelo; a GreenIA registra qual respondeu.';
   if (!d.modelo) partes.push('Nenhum modelo permitido pôde atender');
   else if (d.modo === 'automatico') partes.push(`Classe ${classe}, escolhida automaticamente pela GreenIA`);
   else if (d.modo === 'quick_win') partes.push(`Classe ${classe}, definida pelo quick win`);

@@ -171,20 +171,22 @@ test('reserva de execução: só vai ao fornecedor se passar pelas regras; o uso
   } finally { OR.falhar.delete(AVANCADO); exec(S.app.db, 'update modelos set reserva = null where id = ?', AVANCADO); exec(S.app.db, "delete from modelos where id = 'x/avancado-2'"); }
 });
 
-test('Automático do OpenRouter: fora da governança, identificado como tal e fora dos indicadores do roteador', async () => {
+test('Automático do serviço de IA: fora das regras de roteamento, identificado como tal e fora dos indicadores do roteador', async () => {
   await admin.put('/api/admin/modelos-config', { automatico: true });
   const antes = (await admin.get('/api/admin/roteamento')).dados.resumo;
   const conv = await conversa();
   assert.equal((await enviarMensagem(ana, conv.id, { texto: CONTRATO, modelo: 'openrouter/auto' })).status, 200);
   assert.equal(OR.chamadas.at(-1).model, 'openrouter/auto');
   const rota = ultimaRota();
-  assert.equal(rota.modo, 'openrouter_auto');
+  assert.equal(rota.modo, 'externo', 'o identificador interno não leva o nome do provedor');
   assert.equal(rota.classe, null);
   assert.equal(rota.custo_estimado, null);
-  assert.match(rota.explicacao, /fora da governança da GreenIA/);
+  assert.match(rota.explicacao, /fora das classes e das regras de roteamento da empresa/);
+  assert.doesNotMatch(rota.explicacao, /openrouter/i);
   const depois = (await admin.get('/api/admin/roteamento')).dados.resumo;
   assert.equal(depois.decisoes, antes.decisoes, 'não entra na contagem do roteador');
-  assert.equal(depois.foraDoRoteador.openrouter, antes.foraDoRoteador.openrouter + 1);
+  assert.equal(depois.foraDoRoteador.externo, antes.foraDoRoteador.externo + 1);
+  assert.doesNotMatch(JSON.stringify((await admin.get('/api/admin/roteamento')).dados), /openrouter/i, 'nem o admin da empresa vê o provedor');
   // O roteamento automático nunca escolhe o openrouter/auto.
   assert.ok(!rota.candidatos.some(c => c.id === 'openrouter/auto'));
   // Conversa sigilosa: nem aparece no seletor, nem é aceito pela API.

@@ -6,6 +6,7 @@ import { abrirBanco, exec, um } from './db.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
 import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO } from './plano.js';
+import { semProvedor } from './sem-provedor.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
@@ -30,6 +31,9 @@ const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html
  * trocado nos testes.
  * @param {{ banco?: string, ia?: object, email?: object, agora?: () => Date, cookieSeguro?: boolean, adminEmail?: string, log?: Function }} op
  */
+// Console do operador (a equipe da plataforma): pode ver o provedor. Todo o resto é ambiente da empresa.
+const operador = caminho => caminho.startsWith('/api/operador');
+
 export const VERSAO = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null;
 
 export function criarApp(op = {}) {
@@ -122,8 +126,8 @@ async function tratar(app, r, req, res, externo) {
       if (url.pathname === '/encontrar' && !app.tenant) { res.writeHead(302, { location: '/entrar' }); return res.end(); }   // instalação única: um ambiente só
       const pagina = url.pathname === '/' && app.paginaInicial === 'vendas' ? 'vendas.html' : PAGINAS[url.pathname];
       if (url.pathname === '/vendas.html' && app.paginaInicial !== 'vendas') { res.writeHead(302, { location: '/' }); return res.end(); }
-      if (req.method === 'GET' && pagina && await servirEstatico(res, join(RAIZ, 'public'), pagina)) return;
-      if (req.method === 'GET' && await servirEstatico(res, join(RAIZ, 'public'), url.pathname.slice(1))) return;
+      if (req.method === 'GET' && pagina && await servirEstatico(res, join(RAIZ, 'public'), pagina, req)) return;
+      if (req.method === 'GET' && await servirEstatico(res, join(RAIZ, 'public'), url.pathname.slice(1), req)) return;
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       return res.end('Página não encontrada.');
     }
@@ -147,10 +151,11 @@ async function tratar(app, r, req, res, externo) {
     ctx.creditos = !rota.op.maquina && !veDolar(app, ctx.pessoa);   // rotas com token do operador respondem em dólar
     let out = await rota.h(ctx);
     if (ctx.creditos && out) out = emCreditos(out);   // com plano, só o operador recebe valores em dólar
+    if (!operador(url.pathname)) out = semProvedor(out);   // ambiente da empresa: o provedor de IA não aparece
     if (!res.headersSent && !res.writableEnded) enviarJson(res, 200, out ?? { ok: true });
   } catch (e) {
     if (res.headersSent) { res.end(); return; }
-    if (e instanceof ErroHttp) return enviarJson(res, e.status, { erro: e.codigo, mensagem: e.message, ...e.extra });
+    if (e instanceof ErroHttp) { const corpo = { erro: e.codigo, mensagem: e.message, ...e.extra }; return enviarJson(res, e.status, operador(new URL(req.url, 'http://x').pathname) ? corpo : semProvedor(corpo)); }
     app.log('erro', e);
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }

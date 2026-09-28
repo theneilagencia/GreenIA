@@ -144,7 +144,9 @@ create table if not exists uso (
 export function abrirBanco(arquivo = ':memory:') {
   if (arquivo !== ':memory:') mkdirSync(dirname(arquivo), { recursive: true });
   const db = new DatabaseSync(arquivo);
-  db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
+  // secure_delete: o que é apagado (conversa excluída, retenção vencida) é zerado no arquivo, e não fica em
+  // página livre do banco nem, por consequência, nos backups, que são cópias dele.
+  db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000; pragma secure_delete = on;');
   const novo = !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'config'").get();
   db.exec(ESQUEMA);
   // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.

@@ -2,6 +2,7 @@
 // Resolve a empresa (tenant) pelo domínio próprio, pelo subdomínio ou pelo caminho /<slug>,
 // sempre no servidor, e entrega a requisição ao ambiente daquela empresa com a sessão e as
 // permissões lidas do banco da plataforma. O console do operador da plataforma fica em /plataforma.
+import { erroParaLog } from '../registro-seguro.js';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
@@ -327,7 +328,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
   } catch (e) {
     if (res.headersSent) { res.end(); return; }
     if (e instanceof ErroHttp) return enviarJson(res, e.status, { erro: e.codigo, mensagem: e.message, ...e.extra });
-    P.log('erro', e);
+    P.log('erro', erroParaLog(e));   // sem a mensagem: uma exceção pode repetir o conteúdo do pedido
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }
 }

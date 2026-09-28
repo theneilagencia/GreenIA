@@ -1,13 +1,16 @@
-// Extração de texto dos arquivos enviados (bases, arquivos de quick win e
-// anexos). Sem OCR: imagem e PDF escaneado são recusados com orientação.
+// Extração de texto dos arquivos enviados (bases, arquivos de quick win e anexos). Imagem e página escaneada
+// de PDF são lidas por OCR local (ocr.js); o texto lido é tratado como qualquer outro texto extraído: a
+// classificação, a governança e a retenção vêm depois, iguais para todos os formatos.
 import { inflateRawSync } from 'node:zlib';
-import { extractText, getDocumentProxy } from 'unpdf';
+import { extractText, extractImages, getDocumentProxy } from 'unpdf';
 import { erro } from './http.js';
+import { lerImagens, pngDePixels, MSG_SEM_TEXTO, OCR_PAGINAS } from './ocr.js';
 
 // Conteúdo de fora (anexo, documento) entre marcas; a marca de fechamento dentro do texto é neutralizada.
 export const delimitar = (tipo, nome, texto) => `<${tipo} nome="${String(nome).replace(/["<>]/g, '')}">\n${String(texto).replace(new RegExp(`</?${tipo}`, 'gi'), m => m.replace('<', '‹'))}\n</${tipo}>`;
 
-export const MSG_IMAGEM = 'Este arquivo parece ser uma imagem. Envie a versão em texto ou em PDF digital';
+export { MSG_SEM_TEXTO };
+export const FORMATOS = 'PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem (PNG, JPG, WEBP ou TIFF)';
 // Limites de upload, no padrão de mercado (anexo de email e ferramentas de IA corporativas): o tamanho
 // do arquivo protege o servidor; o texto extraído protege o consumo, porque é ele que vai para o modelo.
 // ~2.500 caracteres por página.
@@ -101,13 +104,34 @@ function xlsx(b) {
   }).join('\n\n').trim();
 }
 
-async function pdf(b) {
+// Página com texto: o texto dela. Página sem texto e com imagem (escaneada): OCR das imagens dela.
+async function pdf(b, ocr) {
   const doc = await getDocumentProxy(new Uint8Array(b));
   const { text, totalPages } = await extractText(doc, { mergePages: false });
   const paginas = text.map(t => t.trim());
-  // Pouco texto por página: é escaneado (imagem), e não há OCR nesta versão.
-  if (paginas.join('').replace(/\s/g, '').length < 30 * Math.max(1, totalPages) / 2) throw erro(415, 'imagem', MSG_IMAGEM);
+  const escaneadas = paginas.map((t, i) => t.replace(/\s/g, '').length < 15 ? i : -1).filter(i => i >= 0);
+  if (escaneadas.length) {
+    const imagens = [];
+    for (const i of escaneadas) {
+      const png = (await extractImages(doc, i + 1).catch(() => [])).map(pngDePixels).filter(Boolean);
+      if (png.length) imagens.push({ i, png });
+    }
+    if (imagens.length > OCR_PAGINAS) throw erro(413, 'ocr_paginas', `tem ${imagens.length} páginas escaneadas; é possível ler até ${OCR_PAGINAS} por arquivo. Divida o arquivo em partes.`);
+    if (imagens.length) {
+      const lidos = await porOcr(ocr, imagens.flatMap(x => x.png));
+      let k = 0;
+      for (const x of imagens) { paginas[x.i] = lidos.slice(k, k + x.png.length).join('\n').trim(); k += x.png.length; }
+    }
+  }
   return paginas.map((t, i) => (totalPages > 1 ? `[Página ${i + 1}]\n${t}` : t)).join('\n\n');
+}
+
+// OCR indisponível, com erro, no tempo esgotado ou sem nada legível: limite técnico de leitura (nunca de política).
+async function porOcr(ocr, imagens) {
+  let lidos;
+  try { lidos = await ocr(imagens); } catch { lidos = null; }
+  if (!lidos) throw erro(422, 'sem_texto', MSG_SEM_TEXTO);
+  return lidos;
 }
 
 const decodificar = b => {
@@ -116,30 +140,30 @@ const decodificar = b => {
 };
 
 /** Extrai o texto de um arquivo enviado em base64. @returns {Promise<{nome: string, texto: string}>} */
-export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_ARQUIVO.documentoCaracteres, onde = 'documento' } = {}) {
+export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_ARQUIVO.documentoCaracteres, onde = 'documento', ocr = lerImagens } = {}) {
   nome = String(nome || 'arquivo').slice(0, 200);
   const b = Buffer.from(String(base64 || ''), 'base64');
   if (!b.length) throw erro(400, 'vazio', `${nome}: arquivo vazio.`);
   if (b.length > MAX_ARQUIVO_MB * 1024 * 1024) throw erro(413, 'arquivo_grande', `${nome}: acima de ${MAX_ARQUIVO_MB} MB.`);
-  if (ehImagem(b)) throw erro(415, 'imagem', MSG_IMAGEM);
   const ext = (nome.split('.').pop() || '').toLowerCase();
   let texto;
   try {
-    if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b);
+    if (ehImagem(b)) texto = (await porOcr(ocr, [b])).join('\n');
+    else if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b, ocr);
     else if (b[0] === 0x50 && b[1] === 0x4b) {
       // Zip só como DOCX, XLSX ou PPTX: outro conteúdo compactado não é aceito.
-      if (!['docx', 'xlsx', 'pptx'].includes(ext)) throw erro(415, 'formato', 'arquivo compactado não aceito. Use PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX.');
+      if (!['docx', 'xlsx', 'pptx'].includes(ext)) throw erro(415, 'formato', `arquivo compactado não aceito. Use ${FORMATOS}.`);
       texto = ext === 'xlsx' ? xlsx(b) : ext === 'pptx' ? pptx(b) : docx(b);
     }
     else if (['txt', 'md', 'csv'].includes(ext)) {
       if (b.subarray(0, 4096).includes(0)) throw erro(415, 'formato', 'não é um arquivo de texto.');
       texto = decodificar(b);
-    } else throw erro(415, 'formato', 'formato não aceito. Use PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX.');
+    } else throw erro(415, 'formato', `formato não aceito. Use ${FORMATOS}.`);
   } catch (e) {
-    if (e.status) throw e.codigo === 'imagem' ? e : erro(e.status, e.codigo, `${nome}: ${e.message}`);
+    if (e.status) throw e.codigo === 'sem_texto' ? e : erro(e.status, e.codigo, `${nome}: ${e.message}`);
     throw erro(400, 'arquivo_invalido', `${nome}: não foi possível ler o arquivo.`);
   }
-  if (!texto.trim()) throw erro(415, 'imagem', MSG_IMAGEM);
+  if (!texto.replace(/\[(Página|Slide) \d+\]/g, '').trim()) throw erro(422, 'sem_texto', MSG_SEM_TEXTO);
   if (texto.length > maxCaracteres) throw erro(413, 'texto_grande', onde === 'anexo'
     ? `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto. No chat, cada anexo pode ter até ${paginasDe(maxCaracteres)} páginas, porque vai inteiro para a IA e consome créditos a cada resposta. Envie só a parte necessária, ou coloque o documento na base de conhecimento, que usa apenas os trechos relevantes.`
     : `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto; o máximo é ${paginasDe(maxCaracteres)} páginas por documento. Divida o arquivo em partes.`);

@@ -43,8 +43,14 @@ function titulo() {
   return C.qw ? C.qw.nome : 'Nova conversa';
 }
 
+let desenhadoPara = null;
 function desenhar() {
   const conv = C.conv, qw = C.qw;
+  // Redesenhar (depois de cada resposta, ao mudar o sigilo...) não pode perder o que a pessoa já começou a
+  // escrever ou anexar para a próxima mensagem.
+  // Só na mesma conversa: abrir outra começa com o campo vazio.
+  const rascunho = desenhadoPara === C ? document.getElementById('entrada') : null, texto = rascunho?.value || '', focado = rascunho && document.activeElement === rascunho;
+  desenhadoPara = C;
   const sig = !!conv?.sigilosa;
   const modeloAtual = C.opcoes.find(o => o.id === C.modelo);
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
@@ -71,8 +77,8 @@ function desenhar() {
       <div class="sugestoes" id="sugestoes"></div>
       <div class="anexos-pendentes" id="anexos"></div>
       <div class="caixa">
-        <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, TXT, MD, CSV, XLSX)">${ICONE.clipe}</button>
-        <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx">
+        <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem)">${ICONE.clipe}</button>
+        <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff">
         <textarea id="entrada" rows="1" placeholder="${qw ? 'Cole o texto ou anexe…' : 'Pergunte alguma coisa…'}" aria-label="Mensagem"></textarea>
         <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}</button>
       </div>
@@ -82,6 +88,9 @@ function desenhar() {
   ligarCabecalho();
   desenharMensagens();
   ligar();
+  if (texto) { $('entrada').value = texto; ajustarAltura(); }
+  if (focado) $('entrada').focus();
+  desenharAnexos(); atualizarEnviar();
 }
 
 function sugestoes() {
@@ -147,14 +156,17 @@ function ligar() {
   };
   $('anexar').onclick = () => $('arquivo').click();
   $('arquivo').onchange = async ev => {
-    for (const f of ev.target.files) {
+    // O campo pode ser redesenhado enquanto os arquivos são lidos (a resposta anterior terminou): a lista e o
+    // elemento ficam guardados antes da leitura, e o anexo entra no campo atual.
+    const campo = ev.target, arquivos = [...campo.files];
+    for (const f of arquivos) {
       if (C.anexos.length >= 5) { toast('Até 5 anexos por mensagem. Envie os demais na próxima.', 6000); break; }
       if (f.size > 25 * 1024 * 1024) { toast(`${f.name}: acima de 25 MB. Envie uma versão menor ou só a parte necessária.`, 6000); continue; }
       if (C.anexos.reduce((t, a) => t + a.tamanho, 0) + f.size > 30 * 1024 * 1024) { toast('Os anexos desta mensagem passariam de 30 MB. Envie em mais de uma mensagem.', 6000); break; }
       const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
       C.anexos.push({ nome: f.name, base64, tamanho: f.size });
     }
-    ev.target.value = '';
+    campo.value = '';
     desenharAnexos(); atualizarEnviar();
   };
   $('coluna').addEventListener('click', ev => {

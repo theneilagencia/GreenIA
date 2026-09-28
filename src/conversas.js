@@ -13,6 +13,7 @@ import { delimitar } from './texto.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
+import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -140,9 +141,13 @@ function instrucoesQw(qw) {
 }
 
 // Histórico que cabe no contexto do modelo; as mais antigas saem primeiro, com aviso.
-function historico(app, conv, limiteChars) {
-  const msgs = todos(app.db, "select id, papel, texto from mensagens where conversa_id = ? and papel != 'aviso' order by id", conv.id);
-  const anexos = todos(app.db, 'select mensagem_id, nome, texto from anexos where conversa_id = ?', conv.id);
+// atual: a mensagem que está sendo enviada, com o conteúdo em memória. Com retenção desligada, o banco só tem
+// o marcador de "não guardado"; o que vai para a IA é o conteúdo real, que existe só durante o envio.
+function historico(app, conv, limiteChars, atual = null) {
+  const msgs = todos(app.db, "select id, papel, texto from mensagens where conversa_id = ? and papel != 'aviso' order by id", conv.id)
+    .map(m => atual && m.id === atual.id ? { ...m, texto: atual.texto } : m);
+  const anexos = [...todos(app.db, 'select mensagem_id, nome, texto from anexos where conversa_id = ?', conv.id).filter(x => !atual?.anexos || x.mensagem_id !== atual.id),
+    ...(atual?.anexos || []).map(a => ({ mensagem_id: atual.id, nome: a.nome, texto: a.texto }))];
   // Anexos de mensagens antigas são reenviados só até um orçamento (do mais novo para o mais antigo):
   // uma conversa longa com arquivos grandes não multiplica o consumo a cada resposta.
   let orcamento = app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity;
@@ -312,7 +317,7 @@ export function rotasConversas(app, r) {
       anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe] } : null, feedback: ant?.feedback || null };
     let analise;
     try { analise = (app.analisarPedido || analisarPedido)(entradaAnalise); } catch (e) {
-      app.log?.('análise do pedido', e.message);
+      app.log?.('análise do pedido', erroParaLog(e));
       analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
     }
     // Política da empresa para informação sigilosa (camada central, sigilo.js). Desligada: nada é enviado.
@@ -446,13 +451,15 @@ export function rotasConversas(app, r) {
     ligarTentativa(rotaId);
 
     // Histórico no mesmo orçamento que a seleção usou: o que ela garantiu que cabe, cabe aqui.
-    const h = historico(app, conv, orcamentoHistorico(analise, m));
+    const h = historico(app, conv, orcamentoHistorico(analise, m), naoGuardar ? { id: msgId, texto, anexos } : null);
     if (h.cortada && !conv.cortada) exec(app.db, 'update conversas set cortada = 1 where id = ?', conv.id);
     const cache = /^(anthropic|google)\//.test(m.id);
     const conteudoSistema = ctx.partes.length && cache
       ? [{ type: 'text', text: sistema }, ...ctx.partes.map((p, i) => ({ type: 'text', text: p, ...(i === 0 && ctx.cacheavel ? { cache_control: { type: 'ephemeral' } } : {}) }))]
       : [sistema, ...ctx.partes].join('\n\n');
     const mensagens = [{ role: 'system', content: conteudoSistema }, ...h.mensagens];
+    // Para limpar um erro do provedor que repita o pedido antes de ele ir para o registro (registro-seguro.js).
+    const conteudoDoPedido = mensagens.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
 
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
@@ -483,14 +490,14 @@ export function rotasConversas(app, r) {
         const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
-        registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: naoGuardar ? `status ${e?.status ?? 'desconhecido'}` : String(e.message).slice(0, 200), nova_rota: alt.modelo.id });
+        registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }), nova_rota: alt.modelo.id });
         atual = alt.modelo; tentados.push(atual.id);
         exec(app.db, 'update roteamento set reserva = ? where id = ?', `guardrails:${tentados.slice(1).join(',')}`, rotaId);
       }
     }
     if (falha) { const e = falha;
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
-      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: naoGuardar ? `status ${e?.status ?? 'desconhecido'}` : String(e.message).slice(0, 200) });
+      registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
       // O detalhe técnico (provedor, código, modelo) fica no evento; quem usa recebe uma mensagem orientada à tarefa.
       const fora = [401, 402, 503].includes(e?.status);
       if (fora) await avisarGovernanca(app, 'ia_fora', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});

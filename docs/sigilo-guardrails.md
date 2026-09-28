@@ -144,6 +144,41 @@ histórico" (`naoArmazenar`) define os tipos que são processados, mas não fica
 - **Registro operacional mínimo:** hora, pessoa, decisão, recurso, status e tipos de dado (sem valor).
 - **Auditoria:** os eventos e o roteamento nunca guardam conteúdo; só os tipos.
 - **Bloqueio:** registra a tentativa sem conteúdo nem anexo.
+- **O que vai para a IA:** o conteúdo real, que só existe na memória durante o envio. O banco tem o marcador de
+  "não guardado", e o histórico enviado usa o conteúdo em memória no lugar dele. Antes da auditoria final, a IA
+  recebia o marcador no lugar do texto e dos anexos.
+
+### Onde o conteúdo poderia ficar, e por que não fica (auditoria final)
+
+| Ponto | Situação com "guardar = não" | Teste |
+|---|---|---|
+| Mensagem, anexos, texto extraído e lido por OCR, resposta, título | Não gravados; só o marcador e o aviso | `auditoria-retencao`: todas as tabelas |
+| Arquivo do banco, WAL e backups | Nada é gravado. `secure_delete` zera o que é apagado, então o backup (cópia do arquivo) também não tem resto | leitura dos bytes do arquivo |
+| Roteamento, uso, eventos | Só contagens, tipos, decisão, recurso e status | todas as tabelas |
+| Erro do provedor (evento, log) | Só `status N`. Com "guardar = sim", a mensagem sai sem nenhum trecho do pedido e sem dado classificado (`registro-seguro.js`) | eco forçado do pedido no erro |
+| Nova tentativa e reserva | Mesmo caminho: o evento `ai.failed` usa a mesma sanitização | falha forçada, reserva forçada |
+| Tempo esgotado | O erro sanitizado é tratado igual aos outros | `timeout` forçado |
+| Log da aplicação (exceção) | `erroParaLog`: tipo, código e pilha, sem a mensagem | exceção com conteúdo |
+| Resposta de erro ao navegador | Mensagem técnica fixa, sem o conteúdo | arquivo corrompido, OCR com erro |
+| Memória do servidor (caches, mapas) | Não existe cache de conteúdo. Os mapas guardam só horários (rajada) e contagens | varredura do objeto do servidor |
+| Filas, jobs, webhooks, tracing, APM, telemetria, Sentry | Não existem no produto. As tarefas periódicas (backup, avisos) não leem conteúdo | revisão do código |
+| Arquivos temporários | Nenhum: arquivos e OCR ficam em memória, os dados do idioma vêm do pacote e o cache está desligado | pasta temporária do processo |
+| Outra empresa | Banco próprio por empresa. O OCR usa um worker por leitura, encerrado no fim | `auditoria-tenants` |
+
+## Imagem e PDF escaneado (OCR)
+
+O OCR é local (`src/ocr.js`, com tesseract.js e português) e é só uma forma de **ler** o arquivo:
+`arquivo → OCR → classificação → governança → elegibilidade → processamento`. O texto lido entra como o texto
+de qualquer anexo, com a mesma classificação, a mesma política, os mesmos recursos elegíveis e a mesma retenção.
+
+- **Imagem** (PNG, JPG, WEBP, TIFF): lida inteira.
+- **PDF:** a página com texto usa o texto; a página sem texto e com imagem (escaneada) passa pelo OCR. Até 30
+  páginas escaneadas por arquivo.
+- **Sem texto legível, OCR indisponível, erro ou tempo esgotado (90 s):** "Este arquivo não contém texto que o
+  GreenIA consiga ler neste momento." É um limite técnico de leitura. Nunca aparece como segurança, política ou
+  anonimização.
+- **Recurso:** uma leitura por vez por padrão (`OCR_SIMULTANEAS`). Cada leitura usa cerca de 150 MB de memória
+  enquanto dura.
 
 ## Área com proteção reforçada (antes: "todas as conversas da área são sigilosas")
 

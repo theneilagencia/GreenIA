@@ -63,13 +63,13 @@ test('só o responsável da área (ou o admin) envia documentos; só o admin, pa
   assert.equal((await admin.get('/api/bases/documentos')).dados.documentos.length, 3);
 });
 
-test('formatos: PDF com texto, DOCX, XLSX, CSV, TXT e MD; imagem e PDF escaneado são recusados com orientação', async () => {
+test('formatos: PDF com texto, DOCX, XLSX, CSV, TXT e MD; imagem ou PDF sem texto legível recebe o aviso técnico de leitura', async () => {
   const ok = [['tabela.xlsx', xlsx([['Produto', 'Prazo'], ['Caneta', 5]])], ['lista.csv', 'item;qtd\ncaneta;5'], ['nota.md', '# Nota\nTexto']];
   for (const [n, c] of ok) assert.equal((await ana.post('/api/bases/documentos', { area_id: A.id, arquivo: arquivo(n, c) })).status, 200, n);
   for (const [n, c] of [['foto.png', png()], ['escaneado.pdf', pdf([])]]) {
     const r = await ana.post('/api/bases/documentos', { area_id: A.id, arquivo: arquivo(n, c) });
-    assert.equal(r.status, 415, n);
-    assert.equal(r.dados.mensagem, 'Este arquivo parece ser uma imagem. Envie a versão em texto ou em PDF digital');
+    assert.equal(r.status, 422, n);
+    assert.equal(r.dados.mensagem, 'Este arquivo não contém texto que o GreenIA consiga ler neste momento.');
   }
   assert.equal((await ana.post('/api/bases/documentos', { area_id: A.id, arquivo: arquivo('app.exe', 'MZ\u0000\u0000') })).status, 415);
 });

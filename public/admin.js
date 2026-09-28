@@ -50,7 +50,7 @@ async function abaBases() {
       <td data-r="Ações"><div class="linha-botoes">
         <button class="btn-texto btn-pequeno" data-revisado="${d.id}" title="Confirma que o conteúdo continua certo">Marcar revisado</button>
         <button class="btn-texto btn-pequeno" data-editar-doc="${d.id}">Editar</button>
-        <label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir arquivo<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx"></label>
+        <label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir arquivo<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff"></label>
         <button class="btn-texto btn-pequeno" data-remover="${d.id}">Remover</button></div></td></tr>
     <tr class="oculto" id="doc-ed-${d.id}"><td colspan="4"><div class="editor"><div class="filtros">
       <div class="campo"><label>Título</label><input class="entrada" data-titulo="${d.id}" value="${esc(d.titulo)}" maxlength="200"></div>
@@ -69,13 +69,13 @@ async function abaBases() {
     <form class="grupo-form" id="enviar-doc"><h3>Adicionar conteúdo</h3>
       <div class="filtros">
         <div class="campo"><label for="doc-destino">Base</label><select class="entrada" id="doc-destino">${bases.map(b => `<option value="${b.chave}">${esc(b.nome)}</option>`).join('')}</select></div>
-        <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx" required></div>
+        <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff" required></div>
         <div class="campo"><label for="doc-titulo">Título (opcional)</label><input class="entrada" id="doc-titulo" maxlength="200"></div>
         <div class="campo"><label for="doc-pasta">Pasta (opcional)</label><input class="entrada" id="doc-pasta" maxlength="80" list="pastas" placeholder="Ex.: Políticas, Manuais"></div>
       </div>
       <label class="dica"><input type="checkbox" id="doc-sigiloso"> documento sigiloso (a conversa que usar vira sigilosa)</label>
       <div class="linha-botoes" style="margin-top:8px"><button class="btn btn-verde btn-pequeno" id="btn-doc" ${bases.length ? '' : 'disabled'}>Enviar</button></div>
-      <p class="dica">PDF com texto, DOCX, PPTX, TXT, MD, CSV ou XLSX, até 25 MB (cerca de 800 páginas). PDF escaneado e imagem não são aceitos.</p>
+      <p class="dica">PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem, até 25 MB (cerca de 800 páginas). Imagem e PDF escaneado são lidos por OCR.</p>
     </form>
     ${bases.map(b => { const ds = docsDe(b); return `<section class="base-area">
       <div class="secao-titulo"><h3>Base: ${esc(b.nome)}</h3><span class="dica">${ds.length} ${ds.length === 1 ? 'documento' : 'documentos'}</span></div>

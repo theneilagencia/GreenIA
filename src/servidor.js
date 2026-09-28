@@ -1,4 +1,5 @@
 // GreenIA Lite: um processo, um arquivo SQLite, uma empresa por instalação.
+import { erroParaLog } from './registro-seguro.js';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -39,7 +40,7 @@ export const VERSAO = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT |
 export function criarApp(op = {}) {
   const db = abrirBanco(op.banco ?? ':memory:');
   const app = {
-    db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log,
+    db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log, ocr: op.ocr,
   };
   app.email = op.email ?? criarEmail({ lerSmtp: () => lerConfig(db).smtp, log: app.log });
   // ADMIN_EMAIL: um ou mais emails (separados por vírgula), sempre admins e ativos.
@@ -76,7 +77,7 @@ export function criarApp(op = {}) {
     // A soma é conferida pelo tamanho do base64, antes de abrir qualquer arquivo.
     if (anexos.reduce((t, a) => t + String(a?.base64 || '').length * 0.75, 0) > L.mensagemMb * 1024 * 1024) throw new ErroHttp(413, 'anexos_grandes', `Os anexos desta mensagem somam mais de ${L.mensagemMb} MB. Envie em mais de uma mensagem.`);
     const out = [];
-    for (const a of anexos) out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo' }));
+    for (const a of anexos) out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo', ocr: app.ocr }));
     const caracteres = out.reduce((t, a) => t + a.texto.length, 0);
     if (caracteres > L.mensagemCaracteres) throw new ErroHttp(413, 'texto_grande', `Os anexos desta mensagem somam cerca de ${paginasDe(caracteres)} páginas de texto; o máximo por mensagem é ${paginasDe(L.mensagemCaracteres)}. Envie menos arquivos ou só as partes necessárias.`);
     return out;
@@ -156,7 +157,7 @@ async function tratar(app, r, req, res, externo) {
   } catch (e) {
     if (res.headersSent) { res.end(); return; }
     if (e instanceof ErroHttp) { const corpo = { erro: e.codigo, mensagem: e.message, ...e.extra }; return enviarJson(res, e.status, operador(new URL(req.url, 'http://x').pathname) ? corpo : semProvedor(corpo)); }
-    app.log('erro', e);
+    app.log('erro', erroParaLog(e));   // sem a mensagem: uma exceção pode repetir o conteúdo do pedido
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }
 }

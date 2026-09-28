@@ -17,7 +17,9 @@
     "capturas": "node --disable-warning=ExperimentalWarning scripts/capturas.js"
   },
   "dependencies": {
+    "@tesseract.js-data/por": "^1.0.0",
     "nodemailer": "^7.0.13",
+    "tesseract.js": "^7.0.0",
     "unpdf": "^1.8.1"
   },
   "devDependencies": {

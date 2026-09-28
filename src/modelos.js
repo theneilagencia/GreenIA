@@ -10,6 +10,10 @@ export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrad
 export const AUTO = 'openrouter/auto';
 // Roteamento da GreenIA: o modelo sai da análise de cada pedido, dentro das regras da empresa (ver roteador.js).
 export const AUTOMATICO = 'classe:auto';
+// Dimensões de capacidade que o admin pode informar por modelo (as mesmas do roteador).
+// Prioridade para o tipo principal nas métricas de classificação (mais exigente primeiro).
+const NIVEL_TIPO = { raciocinio: 5, programacao: 4, analise: 3, extracao: 2, sintese: 2, redacao: 2, traducao: 1, classificacao: 1 };
+export const CAPACIDADES = ['geral', 'raciocinio', 'programacao', 'precisao', 'leitura_longa'];
 const roteamentoLigado = cfg => cfg.roteamento?.ativo !== false;
 // Modelos gratuitos: o fornecedor costuma guardar e treinar com os dados.
 export const ehGratuito = id => /:free$/.test(id) || id === 'openrouter/free';
@@ -34,7 +38,7 @@ export function semearSugestao(db) {
 const deLinha = m => m && ({
   id: m.id, nome: m.nome || m.id, fornecedor: m.fornecedor, precoEntrada: m.preco_entrada, precoSaida: m.preco_saida, contexto: m.contexto,
   liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva, homologado: !!m.homologado, homologacao: json(m.homologacao, null),
-  noCatalogo: !!m.no_catalogo, aviso: m.aviso,
+  noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null),
 });
 
 export const lerModelos = db => todos(db, 'select * from modelos order by perfil, nome').map(deLinha);
@@ -190,8 +194,6 @@ export function rotasModelos(app, r) {
       config: { padroes: cfg.padroes, acessoPerfis: cfg.acessoPerfis, perfisQuickWin: cfg.perfisQuickWin, exigirSemTreino: cfg.exigirSemTreino, automatico: cfg.automatico, roteamento: cfg.roteamento } };
   }, { admin: true });
 
-  // Roteamento: configuração, números dos últimos 30 dias e as decisões recentes, com critérios e
-  // candidatos. Nenhum conteúdo de conversa é guardado nem sai daqui; custos viram créditos na resposta.
   // Roteamento: configuração, números dos últimos 30 dias e as decisões recentes, com requisitos,
   // candidatos e fallbacks. Nenhum conteúdo de conversa é guardado nem sai daqui; custos viram créditos.
   // Indicadores do roteador contam só decisões da GreenIA que viraram resposta: o Automático do
@@ -204,20 +206,49 @@ export function rotasModelos(app, r) {
     const soma = um(app.db, `select count(*) as n, sum(custo_estimado) as est, sum(case when custo_estimado is not null then custo_referencia end) as ref,
       sum(case when fallback like ? then 1 else 0 end) as limitadas, sum(case when fallback like ? then 1 else 0 end) as abaixoPorEscolha ${base}`, '%"abaixo_do_necessario"%', '%abaixo_do_necessario_por_escolha%', desde);
     const fora = um(app.db, "select sum(case when modo = 'openrouter_auto' then 1 else 0 end) as openrouter, sum(case when resultado = 'bloqueado' then 1 else 0 end) as bloqueadas from roteamento where em >= ? and coalesce(teste, 0) = 0", desde);
+    // Consumo: o realizado (medido pelo fornecedor), o estimado pelo roteador e a referência hipotética
+    // "tudo no Avançado". A diferença entre estimado e referência é consumo EVITADO ESTIMADO, não economia
+    // financeira: não se sabe se o Avançado daria resultado melhor, nem o custo real dele.
+    const consumo = um(app.db, `select sum(custo_real) as real, sum(case when custo_real is not null then custo_estimado end) as estReal, sum(custo_estimado) as est,
+      sum(case when custo_estimado is not null then custo_referencia end) as ref ${base}`, desde);
+    // Classificação por tipo principal: volume, "não serviu" na resposta, pedido refeito e se o tipo decidiu a exigência.
+    const linhas = todos(app.db, `select tipos, requisitos, feedback, refeito, classe_necessaria, classe ${base}`, desde);
+    const porTipo = {};
+    for (const l of linhas) {
+      const tipos = json(l.tipos, []), req = json(l.requisitos, {});
+      const t = tipos.includes('consulta') ? 'consulta' : tipos.includes('indeterminado') ? 'indeterminado'
+        : tipos.slice().sort((x, y) => (NIVEL_TIPO[y] ?? 1) - (NIVEL_TIPO[x] ?? 1))[0] || 'consulta';
+      const g = porTipo[t] ||= { n: 0, comFeedback: 0, naoServiu: 0, refeitos: 0, tipoDecidiu: 0, exigida: {} };
+      g.n++; if (l.feedback) g.comFeedback++; if (l.feedback === 'nao_serviu') g.naoServiu++; if (l.refeito) g.refeitos++;
+      if ((req.determinantes || []).includes(`tipo_${t}`)) g.tipoDecidiu++;
+      g.exigida[l.classe_necessaria] = (g.exigida[l.classe_necessaria] || 0) + 1;
+    }
+    const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : null);
+    const classificacao = Object.entries(porTipo).map(([tipo, g]) => ({ tipo, n: g.n, percentual: pct(g.n, linhas.length), naoServiuPercentual: pct(g.naoServiu, g.comFeedback),
+      refeitoPercentual: pct(g.refeitos, g.n), tipoDecidiuPercentual: pct(g.tipoDecidiu, g.n), exigida: g.exigida })).sort((a, b) => b.n - a.n);
+    // Latência por modelo: só observação (não entra na escolha). Mediana do primeiro token e do total.
+    const mediana = l => { const v = l.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; };
+    const lat = {};
+    for (const l of todos(app.db, `select modelo_usado as m, ms_primeiro_token as p, ms_total as t ${base} and ms_total is not null`, desde)) (lat[l.m] ||= []).push(l);
+    const latencia = Object.entries(lat).map(([modelo, l]) => ({ modelo, n: l.length, primeiroTokenMs: mediana(l.map(x => x.p)), totalMs: mediana(l.map(x => x.t)) })).sort((a, b) => b.n - a.n);
     const limite = Math.min(100, Math.max(1, Number(query.limite) || 40));
     const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.origem, r.classe_pedida, r.preferencia, r.complexidade, r.tipos, r.precisao, r.sinais, r.requisitos,
       r.classe_necessaria, r.modelo, r.classe, r.politicas, r.candidatos, r.janela_minima, r.janela_desejada, r.motivo_escolha, r.fallback, r.reserva, r.resultado,
-      r.modelo_usado, r.explicacao, r.versao, r.sigilosa, q.nome as quick_win
+      r.modelo_usado, r.explicacao, r.versao, r.sigilosa, r.ms_primeiro_token, r.ms_total, r.feedback, r.refeito, r.nova_tentativa_de, q.nome as quick_win
       from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id order by r.id desc limit ?`, limite)
-      .map(d => ({ ...d, sigilosa: !!d.sigilosa, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), requisitos: json(d.requisitos, {}),
+      .map(d => ({ ...d, sigilosa: !!d.sigilosa, refeito: !!d.refeito, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), requisitos: json(d.requisitos, {}),
         politicas: json(d.politicas, []), candidatos: json(d.candidatos, []), fallback: json(d.fallback, null) }));
     return {
       config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
       resumo: {
         decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), porNecessaria: contar('classe_necessaria'),
         limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { openrouter: fora.openrouter || 0, bloqueadas: fora.bloqueadas || 0 },
-        // Quanto o roteamento poupou em relação a mandar tudo para a classe Avançado, em percentual.
-        economiaPercentual: soma.ref > 0 ? Math.round((1 - soma.est / soma.ref) * 100) : null,
+        consumo: { realizado: { custo: consumo.real || 0 }, estimado: { custo: consumo.est || 0 }, referencia: { custo: consumo.ref || 0 } },
+        // Referência hipotética: percentual de consumo evitado, estimado, contra "tudo no Avançado padrão".
+        consumoEvitadoEstimadoPercentual: consumo.ref > 0 ? Math.round((1 - consumo.est / consumo.ref) * 100) : null,
+        // Qualidade da estimativa: realizado ÷ estimado nas respostas com os dois (1,0 = estimativa exata).
+        realizadoSobreEstimado: consumo.estReal > 0 ? Math.round(consumo.real / consumo.estReal * 100) / 100 : null,
+        classificacao, latencia,
       },
       decisoes,
     };
@@ -240,11 +271,18 @@ export function rotasModelos(app, r) {
       const rs = um(app.db, 'select perfil, liberado from modelos where id = ?', reserva);
       if (!rs?.liberado || rs.perfil !== (corpo.perfil || atual?.perfil)) throw erro(400, 'reserva', 'O reserva precisa estar liberado e ser do mesmo perfil.');
     }
-    mudar(app, pessoa, 'model.changed', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva }, () => {
+    // Capacidades explícitas (opcional): 1 a 3 por dimensão; o que não for informado segue a classe.
+    let capacidades;
+    if (corpo.capacidades !== undefined) {
+      const limpo = Object.fromEntries(CAPACIDADES.filter(d => [1, 2, 3].includes(Number(corpo.capacidades?.[d]))).map(d => [d, Number(corpo.capacidades[d])]));
+      capacidades = Object.keys(limpo).length ? JSON.stringify(limpo) : null;
+    }
+    mudar(app, pessoa, 'model.changed', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva, capacidades: capacidades === undefined ? undefined : json(capacidades, null) }, () => {
       if (!atual) exec(app.db, 'insert into modelos (id, nome, fornecedor, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?)',
         id, cat?.nome || id, id.split('/')[0], cat?.precoEntrada ?? null, cat?.precoSaida ?? null, cat?.contexto ?? null);
       exec(app.db, 'update modelos set liberado = coalesce(?, liberado), perfil = coalesce(?, perfil), reserva = ? where id = ?',
         corpo.liberado === undefined ? null : Number(!!corpo.liberado), corpo.perfil ?? null, reserva, id);
+      if (capacidades !== undefined) exec(app.db, 'update modelos set capacidades = ? where id = ?', capacidades, id);
       if (ehGratuito(id)) exec(app.db, 'update modelos set aviso = ? where id = ?', AVISO_GRATUITO, id);
       // Modelo que deixa de ser liberado perde a homologação.
       if (corpo.liberado === false) exec(app.db, 'update modelos set homologado = 0 where id = ?', id);

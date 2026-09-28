@@ -49,7 +49,8 @@ create table if not exists modelos (
   preco_entrada real, preco_saida real, contexto integer,
   liberado integer not null default 0, perfil text check (perfil in ('rapido','equilibrado','avancado')),
   reserva text, homologado integer not null default 0, homologacao text,
-  no_catalogo integer not null default 1, aviso text, atualizado_em text);
+  no_catalogo integer not null default 1, aviso text, atualizado_em text,
+  capacidades text);
 
 create table if not exists documentos (
   id integer primary key, titulo text not null, arquivo text not null,
@@ -128,7 +129,8 @@ create table if not exists roteamento (
   tokens_entrada integer, tokens_saida integer, custo_estimado real, custo_referencia real, modelo_usado text, custo_real real,
   explicacao text not null default '', versao text not null default '', sigilosa integer not null default 0, teste integer not null default 0,
   origem text, classe_pedida text, preferencia text, requisitos text not null default '{}', janela_minima integer, janela_desejada integer,
-  motivo_escolha text, fallback text, reserva text, resultado text);
+  motivo_escolha text, fallback text, reserva text, resultado text,
+  ms_primeiro_token integer, ms_total integer, feedback text, refeito integer not null default 0, nova_tentativa_de integer);
 create index if not exists roteamento_em on roteamento (em);
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
@@ -202,6 +204,14 @@ const MIGRACOES = [
     const tem = c => db.prepare('pragma table_info(roteamento)').all().some(x => x.name === c);
     for (const [c, def] of [['origem', 'text'], ['classe_pedida', 'text'], ['preferencia', 'text'], ['requisitos', "text not null default '{}'"], ['janela_minima', 'integer'],
       ['janela_desejada', 'integer'], ['motivo_escolha', 'text'], ['fallback', 'text'], ['reserva', 'text'], ['resultado', 'text']]) if (!tem(c)) db.exec(`alter table roteamento add column ${c} ${def}`);
+  },
+  // 7. Capacidades explícitas por modelo (opcional; sem elas vale o nível da classe) e dados para
+  //    calibração futura do roteador: latência, feedback da resposta e se o pedido foi refeito.
+  db => {
+    const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
+    if (!tem('modelos', 'capacidades')) db.exec('alter table modelos add column capacidades text');
+    for (const [c, def] of [['ms_primeiro_token', 'integer'], ['ms_total', 'integer'], ['feedback', 'text'], ['refeito', 'integer not null default 0'], ['nova_tentativa_de', 'integer']])
+      if (!tem('roteamento', c)) db.exec(`alter table roteamento add column ${c} ${def}`);
   },
 ];
 

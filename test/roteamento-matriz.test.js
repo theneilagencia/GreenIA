@@ -41,7 +41,7 @@ test('3. contexto grande: escolhe janela suficiente; volume sozinho não sobe a 
   assert.ok(orcamentoHistorico(a, h.modelo) >= caso('H').texto.length + caso('H').anexos[0].texto.length);
   // Analisar (e não só resumir) um volume grande pede capacidade e janela.
   const { rota: n } = rodarCaso(caso('N'));
-  assert.equal(n.requisitos.dimensoes.volume, 3);
+  assert.equal(n.requisitos.dimensoes.leitura_longa, 3);
   assert.ok(n.candidatos.find(c => c.id === 'x/avancado-curto').motivos.includes('contexto_insuficiente'));
   assert.equal(n.modelo.id, 'anthropic/claude-sonnet-5');
 });
@@ -196,8 +196,8 @@ test('capacidade x classe: cada dimensão tem efeito próprio e registrado', () 
   assert.equal(r('I').dimensoes.raciocinio, 3, 'raciocínio multicritério com pouco contexto');
   assert.equal(r('L').dimensoes.precisao, undefined, 'complexa sem domínio de precisão');
   assert.equal(r('K').dimensoes.precisao, 2, 'simples com exatidão');
-  assert.equal(r('H').dimensoes.volume, undefined, 'síntese de volume grande: só janela');
-  assert.equal(r('N').dimensoes.volume, 3, 'análise de volume grande: capacidade e janela');
+  assert.equal(r('H').dimensoes.leitura_longa, undefined, 'síntese de volume grande: só janela');
+  assert.equal(r('N').dimensoes.leitura_longa, 3, 'análise de volume grande: capacidade e janela');
 });
 
 test('quick win: fixo define a classe (com a análise registrada); flexível entra como piso do Automático', () => {
@@ -237,4 +237,83 @@ test('todo sinal da análise muda a escolha em pelo menos um caso de referência
     const muda = CASOS.some(c => { const { analise, rota } = rodarCaso(c); return rotearAnalise(f(analise)).modelo.id !== rota.modelo.id; });
     assert.ok(muda, `o sinal "${sinal}" não muda nenhuma decisão`);
   }
+});
+
+test('capacidades explícitas: modelo Equilibrado forte em programação atende código difícil antes de um Avançado mais caro', () => {
+  const db = montarBanco();
+  exec(db, `update modelos set capacidades = '{"programacao":3,"raciocinio":3}' where id = 'anthropic/claude-haiku-4.5'`);
+  const g = rodarCaso(caso('G'), { db }).rota;   // exige geral 3 também: o Equilibrado não atende "geral"
+  assert.equal(g.modelo.perfil, 'avancado', 'capacidade parcial não basta: todas as dimensões exigidas');
+  const p = rodarCaso(caso('P'), { db, preferencia: 'qualidade' }).rota;   // programação 2: Qualidade busca margem NA DIMENSÃO
+  assert.equal(p.modelo.id, 'anthropic/claude-haiku-4.5', 'margem de capacidade relevante sem subir de classe');
+  assert.ok(['margem_de_capacidade', 'menor_custo'].includes(p.motivoEscolha), p.motivoEscolha);
+  exec(db, `update modelos set capacidades = '{"geral":3,"programacao":3,"raciocinio":3}' where id = 'anthropic/claude-haiku-4.5'`);
+  const g2 = rodarCaso(caso('G'), { db }).rota;
+  assert.equal(g2.modelo.id, 'anthropic/claude-haiku-4.5', 'atende a todas as dimensões e é mais barato');
+  assert.deepEqual(g2.candidatos.find(c => c.id === g2.modelo.id).capacidades.programacao, 3, 'capacidades explícitas no registro');
+  // Avançado fraco em leitura longa não serve para análise de grande volume.
+  const db2 = montarBanco();
+  exec(db2, `update modelos set capacidades = '{"leitura_longa":2}' where id = 'anthropic/claude-sonnet-5'`);
+  const n = rodarCaso(caso('N'), { db: db2 }).rota;
+  assert.ok(n.candidatos.find(c => c.id === 'anthropic/claude-sonnet-5').motivos.includes('capacidade_insuficiente'));
+  // Classe continua sendo política: pessoa sem acesso ao Equilibrado não usa o Equilibrado "forte".
+  const db3 = montarBanco();
+  exec(db3, `update modelos set capacidades = '{"geral":3,"programacao":3,"raciocinio":3}' where id = 'anthropic/claude-haiku-4.5'`);
+  exec(db3, "update config set valor = ? where chave = 'acessoPerfis'", JSON.stringify({ equilibrado: { todos: false }, avancado: { todos: true } }));
+  assert.equal(rodarCaso(caso('G'), { db: db3 }).rota.modelo.perfil, 'avancado');
+});
+
+test('dominância: um desempate nunca escolhe modelo menos capaz e mais caro', () => {
+  const db = montarBanco();
+  // Avançado mais barato que o Equilibrado padrão: para um pedido Equilibrado, o Avançado domina.
+  exec(db, "update modelos set preco_entrada = 0.0000008, preco_saida = 0.000004 where id = 'x/avancado-curto'");
+  for (const p of PREFS) {
+    const r = rodarCaso(caso('O'), { db, preferencia: p }).rota;
+    assert.equal(r.modelo.id, 'x/avancado-curto', p);
+    assert.equal(r.candidatos.find(c => c.id === 'anthropic/claude-haiku-4.5').dominadoPor, 'x/avancado-curto');
+  }
+});
+
+test('"não serviu": só falha explícita sobe a exigência; continuação da conversa e assunto não sobem', () => {
+  const insat = (texto, extra = {}) => analisarPedido({ texto, temResposta: true, ...extra }).insatisfacao;
+  // Falha explícita sobre a resposta anterior.
+  for (const t of ['Não resolveu.', 'Não funcionou, continua dando erro 500.', 'Ainda está errado.', 'Refaça, por favor.', 'Não era isso que eu pedi.',
+    'Olha, a resposta anterior não resolveu nada.', 'O código que você mandou não funcionou.']) assert.equal(insat(t), true, t);
+  // Assunto ou nova tarefa: não é falha da resposta.
+  for (const t of ['O login não funcionou para o cliente, o que eu faço?', 'Encontre o que está errado nesta planilha.', 'Verifique se o valor está errado.',
+    'O que está faltando neste relatório?', 'Agora faça o mesmo para o segundo trimestre.', 'Ótimo. Agora resuma em três linhas.',
+    'O fornecedor não entendeu o pedido; escreva um email explicando de novo.']) assert.equal(insat(t), false, t);
+  // Mensagem longa ou com anexo novo é tarefa nova, mesmo começando com a frase.
+  assert.equal(insat(`Não resolveu. ${'Segue o contexto completo do caso. '.repeat(20)}`), false);
+  assert.equal(insat('Não resolveu.', { anexos: [{ texto: 'x'.repeat(100) }] }), false);
+  // Frases ambíguas ficam registradas para calibração, sem efeito.
+  assert.equal(analisarPedido({ texto: 'O que está faltando neste relatório?', temResposta: true }).sinais.insatisfacaoAmbigua, true);
+  // Sem resposta anterior, nada é falha.
+  assert.equal(analisarPedido({ texto: 'Não resolveu.' }).insatisfacao, false);
+});
+
+test('nova tentativa é limitada: no máximo uma classe acima do que a tarefa pede, sem subir em cadeia', () => {
+  const r = anterior => requisitosDe(analisarPedido({ texto: 'Não resolveu.', temResposta: true, anterior }));
+  assert.equal(r({ classe: 'rapido', nivel: 1 }).nivel, 2, 'tarefa simples, antes Rápido: Equilibrado');
+  assert.equal(r({ classe: 'equilibrado', nivel: 2 }).nivel, 2, 'segunda falha seguida não vai ao Avançado');
+  assert.deepEqual(r({ classe: 'equilibrado', nivel: 2 }).determinantes.includes('resposta_anterior_nao_resolveu_limite'), true);
+  assert.equal(r({ classe: 'avancado', nivel: 3 }).nivel, 3, 'nunca abaixo da classe que acabou de falhar');
+});
+
+test('quick win fixo com conteúdo grande: troca só dentro da classe dele; com modelo técnico fixado, não troca', () => {
+  const db = montarBanco(), cfg = lerConfig(db), pessoa = { grupos: [], areas: [] };
+  const grande = analisarPedido({ texto: 'Resuma este documento.', anexos: [{ texto: 'O lote foi entregue e conferido pela equipe. '.repeat(20000) }] });
+  const curto = { id: 'x/rapido-curto', perfil: 'rapido', liberado: true, contexto: 32000 };
+  const r = rotear({ db, cfg, pessoa, qw: { modelo: 'classe:rapido', pode_trocar: false }, pedido: 'classe:rapido', analise: grande, modeloManual: curto, origem: 'quick_win' });
+  assert.equal(r.modelo.perfil, 'rapido', 'continua na classe do quick win');
+  assert.equal(r.modelo.id, 'google/gemini-3.5-flash-lite');
+  assert.equal(r.fallback.tipo, 'trocado_por_falta_de_contexto');
+  const tecnico = rotear({ db, cfg, pessoa, qw: { modelo: 'x/rapido-curto', pode_trocar: false }, pedido: 'x/rapido-curto', analise: grande, modeloManual: curto, origem: 'quick_win' });
+  assert.equal(tecnico.modelo, null, 'modelo técnico fixado: bloqueia em vez de trocar');
+  assert.equal(tecnico.fallback.causa, 'contexto_insuficiente');
+  // A escolha da pessoa pode ir para classe maior quando a dela não comporta (não é regra de governança).
+  exec(db, "update modelos set liberado = 0 where id = 'google/gemini-3.5-flash-lite'");
+  const pessoaEscolheu = rotear({ db, cfg, pessoa, pedido: 'classe:rapido', analise: grande, modeloManual: curto, origem: 'pessoa' });
+  assert.ok(pessoaEscolheu.modelo.perfil !== 'rapido');
+  assert.equal(rotear({ db, cfg, pessoa, qw: { modelo: 'classe:rapido', pode_trocar: false }, pedido: 'classe:rapido', analise: grande, modeloManual: curto, origem: 'quick_win' }).modelo, null, 'quick win fixo nunca sai da classe');
 });

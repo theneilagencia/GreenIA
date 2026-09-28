@@ -3,7 +3,8 @@
 import { writeFileSync } from 'node:fs';
 import { CASOS, CATALOGO, montarBanco, rodarCaso, rotearAnalise } from './roteamento-casos.js';
 import { exec } from '../src/db.js';
-import { NOME_CLASSE, TEXTO, VERSAO_ROTEADOR } from '../src/roteador.js';
+import { NOME_CLASSE, TEXTO, VERSAO_ROTEADOR, DIM_CAPACIDADE, capacidadesDe } from '../src/roteador.js';
+import { lerModelos } from '../src/modelos.js';
 
 const PREFS = ['economia', 'equilibrio', 'qualidade'];
 const NOME_PREF = { economia: 'Economia', equilibrio: 'Equilíbrio', qualidade: 'Qualidade' };
@@ -77,6 +78,48 @@ variar('Conversa sigilosa, homologados no Rápido e no Avançado', { sigilosa: t
 variar('Créditos do mês no fim (reserva)', { reservaDoPlano: true });
 const semGrande = montarBanco(); exec(semGrande, "update modelos set liberado = 0 where perfil = 'avancado'");
 variar('Empresa sem modelo Avançado liberado', { db: semGrande });
+
+// Experimento controlado das preferências: os mesmos pedidos em Economia, Equilíbrio e Qualidade, com
+// preço relativo e capacidade relevante de cada escolha, e a classificação da diferença.
+const CATALOGO_CAPACIDADES = {
+  'anthropic/claude-haiku-4.5': { programacao: 3 },          // Equilibrado forte em programação
+  'x/avancado-curto': { leitura_longa: 2, precisao: 2 },     // Avançado com leitura longa e precisão abaixo da classe
+};
+function experimento(titulo, preparar) {
+  L('');
+  L(`### ${titulo}`);
+  L('');
+  L('| Caso | Requisitos | Classe mínima | Atendem | Economia | Equilíbrio | Qualidade | Preço relativo (E / Eq / Q) | Capacidade relevante (E / Eq / Q) | Diferença |');
+  L('|---|---|---|---:|---|---|---|---|---|---|');
+  const cont = { iguais: 0, curadoria: 0, capacidade: 0, outra: 0 };
+  for (const c of CASOS) {
+    const rs = PREFS.map(p => { const db = montarBanco({ preferencia: p }); preparar(db); return { db, ...rodarCaso(c, { db, preferencia: p }) }; });
+    const req = rs[1].rota.requisitos;
+    const rel = Object.keys(req.capacidade).filter(d => req.capacidade[d] === Math.max(...Object.values(req.capacidade)));
+    const capDe = r => { const m = lerModelos(r.db).find(x => x.id === r.rota.modelo.id); return capacidadesDe(m); };
+    const atendem = rs[1].rota.candidatos.filter(x => x.status === 'escolhido' || x.status === 'preterido');
+    const minimo = Math.min(...atendem.map(x => x.custo).filter(v => v != null));
+    const precos = rs.map(r => (r.rota.custoEstimado ? (r.rota.custoEstimado / minimo).toFixed(2).replace('.', ',') + '×' : '—')).join(' / ');
+    const caps = rs.map(r => rel.map(d => `${d} ${capDe(r)[d]}`).join(', ')).join(' / ');
+    const ids = rs.map(r => r.rota.modelo.id);
+    const capsIguais = rs.every(r => rel.every(d => capDe(r)[d] === capDe(rs[0])[d]) && r.rota.modelo.perfil === rs[0].rota.modelo.perfil);
+    const dif = new Set(ids).size === 1 ? 'iguais' : capsIguais ? 'curadoria' : rs[2].rota.modelo.id !== rs[1].rota.modelo.id && rel.some(d => capDe(rs[2])[d] > capDe(rs[1])[d]) || NIVEL_P(rs[2]) > NIVEL_P(rs[1]) ? 'capacidade' : 'outra';
+    cont[dif]++;
+    const TXT = { iguais: 'iguais: não há alternativa melhor ou mais barata', curadoria: 'muda o modelo, não a capacidade (curadoria/custo)', capacidade: 'Qualidade compra capacidade relevante', outra: 'outra' };
+    L(`| ${c.id} | ${Object.entries(req.capacidade).map(([d, n]) => `${d} ${n}`).join(', ')} | ${req.classeMinima ? NOME_CLASSE[{ 1: 'rapido', 2: 'equilibrado', 3: 'avancado' }[req.classeMinima]] : '—'} | ${atendem.length} | ${ids.map(i => `\`${i}\``).join(' | ')} | ${precos} | ${caps} | ${TXT[dif]} |`);
+  }
+  L('');
+  L(`Resumo: ${cont.iguais} casos iguais nas três; ${cont.curadoria} mudam o modelo sem mudar a capacidade relevante; ${cont.capacidade} em que Qualidade compra capacidade relevante; ${cont.outra} outros.`);
+}
+const NIVEL_P = r => ({ rapido: 1, equilibrado: 2, avancado: 3 })[r.rota.modelo.perfil];
+L('');
+L('## Experimento controlado: Economia × Equilíbrio × Qualidade');
+L('');
+L('Mesmos pedidos, mesmo catálogo, só a preferência muda. Preço relativo: custo estimado da escolha ÷ o mais barato entre os que atendem. Capacidade relevante: as dimensões que definiram a exigência.');
+experimento('Catálogo de referência (capacidade = classe)', () => {});
+experimento('Catálogo com capacidades explícitas (Equilibrado forte em programação; Avançado curto fraco em leitura longa e precisão)', db => {
+  for (const [id, cap] of Object.entries(CATALOGO_CAPACIDADES)) exec(db, 'update modelos set capacidades = ? where id = ?', JSON.stringify(cap), id);
+});
 
 // Ablação: cada sinal desligado, um de cada vez, em todos os casos e preferências. Mostra quais sinais
 // de fato mudam o modelo escolhido (e em quais casos), em vez de só aparecerem no registro.

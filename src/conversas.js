@@ -144,6 +144,8 @@ export function rotasConversas(app, r) {
     if (corpo.feedback !== undefined) {
       if (corpo.feedback !== null && !['serviu', 'ajustes', 'nao_serviu'].includes(corpo.feedback)) throw erro(400, 'feedback', 'Feedback inválido.');
       exec(app.db, 'update conversas set feedback = ?, feedback_motivo = ? where id = ?', corpo.feedback, corpo.feedback === 'nao_serviu' ? String(corpo.motivo || '').slice(0, 500) || null : null, conv.id);
+      // O feedback vale para a última resposta: fica na decisão dela (o motivo escrito não vai para o roteamento).
+      exec(app.db, "update roteamento set feedback = ? where id = (select id from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1)", corpo.feedback, conv.id);
       registrar(app, conv.quick_win_id ? 'quickwin.evaluated' : 'conversation.evaluated', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, feedback: corpo.feedback });
     }
     return detalhe(app, minhaConversa(app, pessoa, conv.id));
@@ -204,9 +206,11 @@ export function rotasConversas(app, r) {
       + Math.min(app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity, um(app.db, 'select coalesce(sum(length(texto)), 0) as n from anexos where conversa_id = ?', conv.id).n);
     const temResposta = !!um(app.db, "select 1 from mensagens where conversa_id = ? and papel = 'assistant'", conv.id);
     // Decisão anterior desta conversa: numa nova tentativa, a exigência sobe a partir do que foi usado.
-    const ant = um(app.db, "select classe from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1", conv.id);
+    // O feedback só vale para a resposta a que se refere: "não serviu" marcado na última resposta pesa na
+    // próxima mensagem; depois de uma nova resposta, deixa de valer (não sobe a exigência para sempre).
+    const ant = um(app.db, "select id, classe, feedback from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1", conv.id);
     const entradaAnalise = { texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta,
-      anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe] } : null, feedback: conv.feedback };
+      anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe] } : null, feedback: ant?.feedback || null };
     let analise;
     try { analise = (app.analisarPedido || analisarPedido)(entradaAnalise); } catch (e) {
       app.log?.('análise do pedido', e.message);
@@ -245,6 +249,8 @@ export function rotasConversas(app, r) {
       origem, classePedida, rota.preferencia, JSON.stringify({ nivel: rota.requisitos.nivel, dimensoes: rota.requisitos.dimensoes, motivos: rota.requisitos.motivos, determinantes: rota.requisitos.determinantes }),
       rota.requisitos.janelaMinima, rota.requisitos.janelaDesejada, rota.motivoEscolha, rota.fallback ? JSON.stringify(rota.fallback) : null,
       rota.reserva || (rota.reservaDescartada ? `descartada:${rota.reservaDescartada}` : null), resultado).lastInsertRowid);
+    // Nova tentativa: liga a decisão à anterior e marca a anterior como refeita (dado para calibração).
+    const ligarTentativa = id => { if (analise.insatisfacao && ant) { exec(app.db, 'update roteamento set nova_tentativa_de = ? where id = ?', ant.id, id); exec(app.db, 'update roteamento set refeito = 1 where id = ?', ant.id); } };
 
     let m = rota.modelo;
     if (!m) {
@@ -267,6 +273,7 @@ export function rotasConversas(app, r) {
     const titulo = conv.titulo === 'Nova conversa' ? (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
     const rotaId = gravarRota(msgId, 'enviado');
+    ligarTentativa(rotaId);
 
     // Histórico no mesmo orçamento que a seleção usou: o que ela garantiu que cabe, cabe aqui.
     const h = historico(app, conv, orcamentoHistorico(analise, m));
@@ -283,14 +290,14 @@ export function rotasConversas(app, r) {
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade, explicacao: rota.explicacao };
     linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
     const inicio = Date.now();
-    let resposta = '', fim = null;
+    let resposta = '', fim = null, primeiroToken = null;
     try {
       for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: sigilosa ? null : rota.reserva, sigilosa, fornecedor: m.homologacao?.fornecedor, semTreino: cfg.exigirSemTreino })) {
-        if (ev.tipo === 'texto') { resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
+        if (ev.tipo === 'texto') { primeiroToken ??= Date.now() - inicio; resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
       }
       if (!resposta) throw new ErroIA('O modelo não respondeu. Tente de novo.');
     } catch (e) {
-      exec(app.db, "update roteamento set resultado = 'falha_na_execucao' where id = ?", rotaId);
+      exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
       registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
       linha({ t: 'erro', mensagem: e instanceof ErroIA ? e.message : 'Não foi possível responder agora. Tente de novo.' });
       return res.end();
@@ -300,7 +307,8 @@ export function rotasConversas(app, r) {
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, resposta, usado, fim?.fornecedor, JSON.stringify(ctx.fontes), AGORA(app)).lastInsertRowid);
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
-    exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ? where id = ?', respId, usado, fim?.custo || 0, usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', rotaId);
+    exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
+      usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });

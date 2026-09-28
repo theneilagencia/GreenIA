@@ -206,3 +206,25 @@ test('admin: Automático é o padrão; liga, desliga e muda a preferência; a pr
   await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true, preferencia: 'equilibrio' } });
   assert.equal((await ana.get('/api/admin/roteamento')).status, 403);
 });
+
+test('feedback "não serviu" vale só para a próxima mensagem; a tentativa fica ligada à anterior; latência registrada', async () => {
+  const conv = await conversa();
+  assert.equal((await enviarMensagem(ana, conv.id, { texto: 'Liste os itens do pedido.' })).status, 200);
+  const primeira = ultimaRota();
+  assert.ok(primeira.ms_total >= 0 && primeira.ms_primeiro_token >= 0 && primeira.ms_primeiro_token <= primeira.ms_total, 'latência: primeiro trecho e total');
+  await ana.patch(`/api/conversas/${conv.id}`, { feedback: 'nao_serviu', motivo: 'Faltou o item Aurora' });
+  assert.equal(um(S.app.db, 'select feedback from roteamento where id = ?', primeira.id).feedback, 'nao_serviu', 'o feedback fica na decisão da resposta');
+  assert.ok(!JSON.stringify(um(S.app.db, 'select * from roteamento where id = ?', primeira.id)).includes('Aurora'), 'o motivo escrito não vai para o roteamento');
+  // Próxima mensagem: conta como nova tentativa, ligada à anterior.
+  assert.equal((await enviarMensagem(ana, conv.id, { texto: 'Liste de novo, por favor.' })).status, 200);
+  const segunda = ultimaRota();
+  assert.equal(segunda.requisitos.dimensoes.nova_tentativa, 2);
+  assert.equal(segunda.sinais.insatisfacaoFonte, 'feedback');
+  assert.equal(segunda.nova_tentativa_de, primeira.id);
+  assert.equal(um(S.app.db, 'select refeito from roteamento where id = ?', primeira.id).refeito, 1);
+  // Terceira mensagem, sem nova reclamação: o "não serviu" antigo não vale mais (não sobe para sempre).
+  assert.equal((await enviarMensagem(ana, conv.id, { texto: 'Agora traduza a lista para o inglês.' })).status, 200);
+  const terceira = ultimaRota();
+  assert.equal(terceira.requisitos.dimensoes.nova_tentativa, undefined);
+  assert.equal(terceira.classe_necessaria, 'rapido');
+});

@@ -34,7 +34,7 @@ Custo relativo = custo estimado da escolha ÷ custo do mesmo pedido no Avançado
 | M | Síntese curta | geral: 1 | 3.280 | `x/rapido-curto` (Rápido, 4%) | `x/rapido-curto` (Rápido, 4%) | `x/rapido-curto` (Rápido, 4%) |
 | O | Análise intermediária | geral: 2 | 5.090 | `anthropic/claude-haiku-4.5` (Equilibrado, 50%) | `anthropic/claude-haiku-4.5` (Equilibrado, 50%) | `anthropic/claude-sonnet-5` (Avançado, 100%) |
 | P | Correção de código colado | geral: 1, programacao: 2 | 2.896 | `anthropic/claude-haiku-4.5` (Equilibrado, 50%) | `anthropic/claude-haiku-4.5` (Equilibrado, 50%) | `anthropic/claude-sonnet-5` (Avançado, 100%) |
-| N | Análise sobre janela grande | geral: 2, volume: 3 | 235.757 | `anthropic/claude-sonnet-5` (Avançado, 100%) | `anthropic/claude-sonnet-5` (Avançado, 100%) | `anthropic/claude-sonnet-5` (Avançado, 100%) |
+| N | Análise sobre janela grande | geral: 2, leitura_longa: 3 | 235.757 | `anthropic/claude-sonnet-5` (Avançado, 100%) | `anthropic/claude-sonnet-5` (Avançado, 100%) | `anthropic/claude-sonnet-5` (Avançado, 100%) |
 
 ## Detalhe de cada caso (preferência Equilíbrio)
 
@@ -272,7 +272,7 @@ Pedido: "Analise este relatório e identifique inconsistências entre as seçõe
 
 1. **Classificação:** tipos analise; complexidade intermediaria; domínio de precisão: nenhum.
 2. **Sinais:** 69 caracteres; 1 anexo(s); etapas 0; critérios 0; risco sim; "simples" explícito não; código não; insatisfação não; tokens: fixo 600, mensagem 233357, histórico 0, reserva de saída 1800 (conteúdo prosa).
-   **Requisitos:** geral 2 (análise); volume 3 (análise sobre grande volume de conteúdo) → classe **Avançado**; janela mínima 235.757 tokens.
+   **Requisitos:** geral 2 (análise); leitura_longa 3 (análise sobre grande volume de conteúdo) → classe **Avançado**; janela mínima 235.757 tokens.
 3. **Candidatos que atendem:** `anthropic/claude-sonnet-5` (utilidade 1.2).
 4. **Excluídos:** `x/avancado-curto`: janela de contexto pequena para este conteúdo; `anthropic/claude-haiku-4.5`: capacidade_insuficiente, janela de contexto pequena para este conteúdo; `x/equilibrado-longo`: capacidade_insuficiente; `google/gemini-3.5-flash-lite`: capacidade_insuficiente; `x/rapido-curto`: capacidade_insuficiente, janela de contexto pequena para este conteúdo.
 5. **Escolhido:** `anthropic/claude-sonnet-5` (Avançado).
@@ -291,6 +291,56 @@ Pedido: "Analise este relatório e identifique inconsistências entre as seçõe
 | Conversa sigilosa, homologados no Rápido e no Avançado | `anthropic/claude-sonnet-5` | o único modelo permitido que atende | — | Classe Avançado, escolhida automaticamente pela GreenIA. O pedido (análise; 1 anexo) exige a classe Avançado: assunto que pede precisão, com riscos ou inconsistências a apontar. Escolhido o único modelo permitido que atende. Regras aplicadas: conversa sigilosa: só modelos homologados. |
 | Créditos do mês no fim (reserva) | `x/rapido-curto` | o mais capaz entre os permitidos | abaixo_do_necessario: créditos do mês no fim (só Rápido) | Classe Rápido, escolhida automaticamente pela GreenIA. O pedido (análise; 1 anexo) exige a classe Avançado: assunto que pede precisão, com riscos ou inconsistências a apontar. A tarefa pedia a classe Avançado, mas créditos do mês no fim (só Rápido): usado o mais capaz permitido. Regras aplicadas: créditos do mês no fim: só a classe Rápido. |
 | Empresa sem modelo Avançado liberado | `anthropic/claude-haiku-4.5` | o mais capaz entre os permitidos | abaixo_do_necessario: a empresa não liberou modelo desta classe | Classe Equilibrado, escolhida automaticamente pela GreenIA. O pedido (análise; 1 anexo) exige a classe Avançado: assunto que pede precisão, com riscos ou inconsistências a apontar. A tarefa pedia a classe Avançado, mas a empresa não liberou modelo desta classe: usado o mais capaz permitido. |
+
+## Experimento controlado: Economia × Equilíbrio × Qualidade
+
+Mesmos pedidos, mesmo catálogo, só a preferência muda. Preço relativo: custo estimado da escolha ÷ o mais barato entre os que atendem. Capacidade relevante: as dimensões que definiram a exigência.
+
+### Catálogo de referência (capacidade = classe)
+
+| Caso | Requisitos | Classe mínima | Atendem | Economia | Equilíbrio | Qualidade | Preço relativo (E / Eq / Q) | Capacidade relevante (E / Eq / Q) | Diferença |
+|---|---|---|---:|---|---|---|---|---|---|
+| A | geral 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| B | geral 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| C | geral 2, precisao 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,31× / 1,31× | precisao 3 / precisao 3 / precisao 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| D | geral 2, precisao 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,31× / 1,31× | precisao 3 / precisao 3 / precisao 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| E | geral 3, raciocinio 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,26× / 1,26× | geral 3, raciocinio 3 / geral 3, raciocinio 3 / geral 3, raciocinio 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| F | geral 1, programacao 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1, programacao 1 / geral 1, programacao 1 / geral 1, programacao 1 | iguais: não há alternativa melhor ou mais barata |
+| G | geral 3, raciocinio 3, programacao 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,27× / 1,27× | geral 3, raciocinio 3, programacao 3 / geral 3, raciocinio 3, programacao 3 / geral 3, raciocinio 3, programacao 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| H | geral 1 | — | 3 | `google/gemini-3.5-flash-lite` | `google/gemini-3.5-flash-lite` | `google/gemini-3.5-flash-lite` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| I | geral 1, raciocinio 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,26× / 1,26× | raciocinio 3 / raciocinio 3 / raciocinio 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| J | geral 1 | Equilibrado | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | geral 2 / geral 2 / geral 3 | Qualidade compra capacidade relevante |
+| K | geral 1, precisao 2 | — | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | precisao 2 / precisao 2 / precisao 3 | Qualidade compra capacidade relevante |
+| L | geral 2, raciocinio 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,26× / 1,26× | raciocinio 3 / raciocinio 3 / raciocinio 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| M | geral 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| O | geral 2 | — | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | geral 2 / geral 2 / geral 3 | Qualidade compra capacidade relevante |
+| P | geral 1, programacao 2 | — | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | programacao 2 / programacao 2 / programacao 3 | Qualidade compra capacidade relevante |
+| N | geral 2, leitura_longa 3 | — | 1 | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 1,00× | leitura_longa 3 / leitura_longa 3 / leitura_longa 3 | iguais: não há alternativa melhor ou mais barata |
+
+Resumo: 6 casos iguais nas três; 6 mudam o modelo sem mudar a capacidade relevante; 4 em que Qualidade compra capacidade relevante; 0 outros.
+
+### Catálogo com capacidades explícitas (Equilibrado forte em programação; Avançado curto fraco em leitura longa e precisão)
+
+| Caso | Requisitos | Classe mínima | Atendem | Economia | Equilíbrio | Qualidade | Preço relativo (E / Eq / Q) | Capacidade relevante (E / Eq / Q) | Diferença |
+|---|---|---|---:|---|---|---|---|---|---|
+| A | geral 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| B | geral 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| C | geral 2, precisao 3 | — | 1 | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 1,00× | precisao 3 / precisao 3 / precisao 3 | iguais: não há alternativa melhor ou mais barata |
+| D | geral 2, precisao 3 | — | 1 | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 1,00× | precisao 3 / precisao 3 / precisao 3 | iguais: não há alternativa melhor ou mais barata |
+| E | geral 3, raciocinio 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,26× / 1,26× | geral 3, raciocinio 3 / geral 3, raciocinio 3 / geral 3, raciocinio 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| F | geral 1, programacao 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1, programacao 1 / geral 1, programacao 1 / geral 1, programacao 1 | iguais: não há alternativa melhor ou mais barata |
+| G | geral 3, raciocinio 3, programacao 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,27× / 1,27× | geral 3, raciocinio 3, programacao 3 / geral 3, raciocinio 3, programacao 3 / geral 3, raciocinio 3, programacao 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| H | geral 1 | — | 3 | `google/gemini-3.5-flash-lite` | `google/gemini-3.5-flash-lite` | `google/gemini-3.5-flash-lite` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| I | geral 1, raciocinio 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,26× / 1,26× | raciocinio 3 / raciocinio 3 / raciocinio 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| J | geral 1 | Equilibrado | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | geral 2 / geral 2 / geral 3 | Qualidade compra capacidade relevante |
+| K | geral 1, precisao 2 | — | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | precisao 2 / precisao 2 / precisao 3 | Qualidade compra capacidade relevante |
+| L | geral 2, raciocinio 3 | — | 2 | `x/avancado-curto` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,26× / 1,26× | raciocinio 3 / raciocinio 3 / raciocinio 3 | muda o modelo, não a capacidade (curadoria/custo) |
+| M | geral 1 | — | 6 | `x/rapido-curto` | `x/rapido-curto` | `x/rapido-curto` | 1,00× / 1,00× / 1,00× | geral 1 / geral 1 / geral 1 | iguais: não há alternativa melhor ou mais barata |
+| O | geral 2 | — | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 2,00× | geral 2 / geral 2 / geral 3 | Qualidade compra capacidade relevante |
+| P | geral 1, programacao 2 | — | 4 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | 1,00× / 1,00× / 1,00× | programacao 3 / programacao 3 / programacao 3 | iguais: não há alternativa melhor ou mais barata |
+| N | geral 2, leitura_longa 3 | — | 1 | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | `anthropic/claude-sonnet-5` | 1,00× / 1,00× / 1,00× | leitura_longa 3 / leitura_longa 3 / leitura_longa 3 | iguais: não há alternativa melhor ou mais barata |
+
+Resumo: 9 casos iguais nas três; 4 mudam o modelo sem mudar a capacidade relevante; 3 em que Qualidade compra capacidade relevante; 0 outros.
 
 ## Ablação de sinais: quais sinais mudam a escolha
 

@@ -136,6 +136,14 @@ async function abaCriacaoQw() {
 }
 
 // ---------------------------------------------------------------- Modelos de IA
+const NOMES_CAP = { geral: 'Geral', raciocinio: 'Raciocínio', programacao: 'Programação', precisao: 'Precisão', leitura_longa: 'Leitura longa' };
+const NIVEL_CLASSE = { rapido: 1, equilibrado: 2, avancado: 3 };
+function editorCapacidades(x) {
+  const c = x.capacidades || {}, base = NIVEL_CLASSE[x.perfil] || 1;
+  const resumo = Object.keys(c).length ? Object.entries(c).map(([k, v]) => `${NOMES_CAP[k]} ${v}`).join(', ') : `da classe (${base})`;
+  return `<details><summary class="dica" style="cursor:pointer">${esc(resumo)}</summary><div class="duas-col" style="margin-top:6px">${Object.entries(NOMES_CAP).map(([k, n]) => `<label class="dica">${n}
+    <select data-cap="${esc(x.id)}" data-dim="${k}"><option value="">da classe (${base})</option>${[1, 2, 3].map(v => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`).join('')}</div></details>`;
+}
 async function abaModelos() {
   const [m, { grupos }, { areas }] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas')]);
   const cfg = m.config;
@@ -158,14 +166,16 @@ async function abaModelos() {
     <div class="faixa-aviso ${padrao ? 'ok' : 'erro'}">${padrao ? `Homologado padrão: <b>${esc(padrao.nome)}</b>, disponível para todas as pessoas. Conversas sigilosas usam este modelo quando a pessoa não escolhe outro homologado.`
       : 'Nenhum modelo homologado disponível para todos. Conversas sigilosas não podem ser enviadas. Homologue um modelo do perfil Rápido (ou de um perfil liberado para todos).'}</div>
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
-    ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos'], m.modelos.map(x => `<tr>
+    ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
       <td><select data-perfil="${esc(x.id)}" aria-label="Perfil de ${esc(x.nome)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}" ${x.perfil === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
       ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
       <td><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"></td>
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
       <td>${x.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span><br><span class="dica">${esc(x.homologacao?.fornecedor || '')} · ${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</span><br><button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>`
-        : x.liberado ? `<button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td></tr>`))}
+        : x.liberado ? `<button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
+      <td>${editorCapacidades(x)}</td></tr>`))}
+    <p class="dica">Capacidades: por padrão, cada modelo vale o nível da classe dele em tudo. Informe só quando um modelo foge disso (por exemplo, um Equilibrado forte em programação, ou um Avançado fraco em leitura de documentos longos). O roteamento compara essas capacidades com o que cada pedido exige; a classe continua valendo para acesso, plano e quick win.</p>
     <h3>Adicionar do catálogo do OpenRouter</h3>
     <form class="filtros" id="busca-modelo"><div class="campo"><label for="q-modelo">Buscar por nome ou id</label><input class="entrada" id="q-modelo" placeholder="ex.: claude, gemini, gpt"></div><button class="btn btn-linha btn-pequeno">Buscar</button></form>
     <div id="resultado-busca"></div>
@@ -199,6 +209,10 @@ async function abaModelos() {
     if (t.dataset.perfil) salvarModelo(t.dataset.perfil, { perfil: t.value }, 'Perfil alterado.');
     if (t.dataset.liberado) salvarModelo(t.dataset.liberado, { liberado: t.checked }, t.checked ? 'Modelo liberado.' : 'Modelo retirado da lista liberada.');
     if (t.dataset.reserva) salvarModelo(t.dataset.reserva, { reserva: t.value || null }, 'Reserva salva.');
+    if (t.dataset.cap) {
+      const caps = Object.fromEntries([...document.querySelectorAll(`[data-cap="${CSS.escape(t.dataset.cap)}"]`)].filter(e => e.value).map(e => [e.dataset.dim, Number(e.value)]));
+      salvarModelo(t.dataset.cap, { capacidades: caps }, 'Capacidades salvas.');
+    }
     if (t.id === 'sem-treino' && !t.checked && !confirm('Desligar esta opção permite fornecedores que guardam ou treinam com os dados nas conversas normais. A mudança fica no registro de eventos. Continuar?')) t.checked = true;
   };
   $('conteudo').onclick = async ev => {
@@ -590,7 +604,7 @@ const MOTIVO_CAND = { capacidade_insuficiente: 'capacidade abaixo da exigida', n
 const RESULTADO = { respondido: 'respondido', respondido_pela_reserva: 'respondido pela reserva', falha_na_execucao: 'falha na execução', bloqueado: 'bloqueado antes do envio', enviado: 'em andamento' };
 const FALLBACK = { abaixo_do_necessario: 'abaixo do necessário (regras ou permissões)', abaixo_do_necessario_por_escolha: 'abaixo do necessário (escolha manual)',
   trocado_por_falta_de_contexto: 'trocado por falta de janela', trocado_pela_reserva_do_plano: 'trocado pela reserva do plano', sem_modelo: 'nenhum modelo permitido' };
-const TIPO_TAREFA = { classificacao: 'classificação', traducao: 'tradução', extracao: 'extração', sintese: 'síntese', redacao: 'redação', analise: 'análise', programacao: 'programação', raciocinio: 'raciocínio', consulta: 'consulta' };
+const TIPO_TAREFA = { edicao: 'edição e formatação', classificacao: 'classificação', traducao: 'tradução', extracao: 'extração', sintese: 'síntese', redacao: 'redação', analise: 'análise', programacao: 'programação', raciocinio: 'raciocínio', consulta: 'consulta' };
 const PREFERENCIAS = [['economia', 'Economia', 'O modelo de menor consumo que atende ao que o pedido exige. Nunca abaixo do necessário.'],
   ['equilibrio', 'Equilíbrio', 'Recomendado: atende ao que o pedido exige e prefere o modelo padrão de cada classe quando custa até cerca de 2 vezes o mais barato.'],
   ['qualidade', 'Qualidade', 'Em tarefas que não são simples, usa uma classe acima do mínimo. Maior consumo, menos risco de resposta fraca.']];
@@ -614,11 +628,21 @@ async function abaRoteamento() {
     <h3>Últimos 30 dias</h3>
     <div class="or-grade">
       <div class="or-card"><span class="or-rotulo">Decisões</span><b class="or-numero">${num(r.decisoes)}</b><span class="or-sub">respostas com a escolha registrada</span></div>
-      <div class="or-card destaque"><span class="or-rotulo">Consumo poupado</span><b class="or-numero">${r.economiaPercentual === null ? '—' : `${r.economiaPercentual}%`}</b><span class="or-sub">em relação a usar sempre a classe Avançado</span></div>
+      <div class="or-card"><span class="or-rotulo">Consumo realizado</span><b class="or-numero">${fmtCusto(r.consumo.realizado.custo)}</b><span class="or-sub">medido nas respostas${r.realizadoSobreEstimado ? `; a estimativa do roteador acerta ${Math.round(Math.min(r.realizadoSobreEstimado, 1 / r.realizadoSobreEstimado) * 100)}%` : ''}</span></div>
+      <div class="or-card destaque"><span class="or-rotulo">Consumo evitado (estimativa)</span><b class="or-numero">${r.consumoEvitadoEstimadoPercentual === null ? '—' : `${r.consumoEvitadoEstimadoPercentual}%`}</b><span class="or-sub">referência hipotética: se tudo fosse para a classe Avançado. Não é economia medida.</span></div>
       <div class="or-card"><span class="or-rotulo">Abaixo do necessário</span><b class="or-numero">${num(r.limitadas + r.abaixoPorEscolha)}</b><span class="or-sub">${num(r.limitadas)} por regras ou permissões, ${num(r.abaixoPorEscolha)} por escolha manual</span></div>
       <div class="or-card"><span class="or-rotulo">Fora do roteador</span><b class="or-numero">${num(r.foraDoRoteador.openrouter + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.openrouter)} no Automático do OpenRouter, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
     </div>
     <div class="or-grade">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Classe exigida pelo pedido', r.porNecessaria, PERFIS)}${barrasDist('Classe usada', r.porClasse, PERFIS)}${barrasDist('Como a classe foi definida', r.porModo, MODO)}</div>
+    <h3>Classificação dos pedidos</h3>
+    <p class="dica">Quanto cada tipo de pedido aparece e como se sai. "Consulta" é o pedido sem tipo reconhecido: se ele for muito frequente ou concentrar "não serviu" e pedidos refeitos, a classificação precisa melhorar.</p>
+    ${tabela(['Tipo principal', '#Pedidos', '#% do total', '#Não serviu', '#Refeitos', '#Tipo decidiu a exigência'], r.classificacao.map(c => `<tr><td>${esc(TIPO_TAREFA[c.tipo] || c.tipo)}</td>
+      <td class="num">${num(c.n)}</td><td class="num">${c.percentual ?? '—'}%</td><td class="num">${c.naoServiuPercentual == null ? '—' : `${c.naoServiuPercentual}%`}</td>
+      <td class="num">${c.refeitoPercentual ?? 0}%</td><td class="num">${c.tipoDecidiuPercentual ?? 0}%</td></tr>`), 'Sem pedidos ainda.')}
+    <h3>Tempo de resposta por modelo</h3>
+    <p class="dica">Só observação: o tempo não entra na escolha. Primeiro trecho é o que a pessoa sente; total inclui a resposta inteira.</p>
+    ${tabela(['Modelo', '#Respostas', '#Primeiro trecho', '#Total'], r.latencia.map(l => `<tr><td>${esc(l.modelo)}</td><td class="num">${num(l.n)}</td>
+      <td class="num">${l.primeiroTokenMs == null ? '—' : `${(l.primeiroTokenMs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s`}</td><td class="num">${(l.totalMs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s</td></tr>`), 'Sem respostas ainda.')}
     <h3>Decisões recentes</h3>
     <p class="dica">Cada registro guarda só critérios, regras e candidatos. O texto das conversas não fica aqui.</p>
     ${tabela(['Quando', 'Pessoa', 'Pedido', 'Exigida', 'Usada', 'Por quê'], d.decisoes.map(x => `<tr>

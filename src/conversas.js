@@ -4,7 +4,7 @@ import { erro } from './http.js';
 import { exec, json, todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { registrar } from './eventos.js';
-import { decidir, detectar, ROTULOS } from './filtro.js';
+import { decidir, detectar, detectarReforcado, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
 import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
@@ -47,7 +47,8 @@ function aviso(app, conversaId, texto) {
 }
 
 const MOTIVOS = { manual: 'ligada por você', quick_win: 'o quick win trata dados sigilosos', area: 'todas as conversas da área são sigilosas', documento: 'usa documento marcado como sigiloso' };
-const textoMotivo = m => MOTIVOS[m] || (m.startsWith('dado:') ? `tem ${ROTULOS[m.slice(5)] || m.slice(5)}` : m);
+const textoMotivo = m => MOTIVOS[m] || (m.startsWith('dado:') ? `tem ${ROTULOS[m.slice(5)] || m.slice(5)}`
+  : m.startsWith('reforco:') ? `tem ${ROTULOS_REFORCO[m.slice(8)] || 'conteúdo sigiloso'}, e a área pede proteção reforçada` : m);
 
 export function tornarSigilosa(app, pessoa, conv, motivo) {
   if (conv.sigilosa) return false;
@@ -59,13 +60,36 @@ export function tornarSigilosa(app, pessoa, conv, motivo) {
   return true;
 }
 
-// Gatilhos que valem desde a criação: quick win sigiloso e área sigilosa.
+// Gatilhos que valem desde a criação: quick win declarado como sigiloso e arquivo sigiloso do quick win.
+// A área NÃO é um deles: área com política de sigilo pede proteção reforçada, e quem decide se a conversa é
+// sigilosa é o conteúdo (ver reforcada e detectarReforcado).
 function motivosFixos(app, pessoa, qw) {
   if (qw?.sigiloso) return 'quick_win';
+  return app.contexto?.arquivosSigilosos?.(qw) ? 'documento' : null;
+}
+
+// Área com política de sigilo (coluna "sigilosa" da área): proteção reforçada na análise do conteúdo.
+function reforcada(app, pessoa, qw) {
   const areas = qw ? todos(app.db, 'select a.sigilosa from quick_win_areas q join areas a on a.id = q.area_id where q.quick_win_id = ?', qw.id).map(a => a.sigilosa)
     : pessoa.areas.map(a => a.sigilosa);
-  if (areas.some(Boolean)) return 'area';
-  return app.contexto?.arquivosSigilosos?.(qw) ? 'documento' : null;
+  return areas.some(Boolean);
+}
+
+// Conversas marcadas como sigilosas só por causa da área (regra antiga: "área sigilosa = tudo sigiloso").
+// A GreenIA reavalia o que foi escrito e anexado. Sem nenhum sinal de conteúdo sigiloso (padrões gerais,
+// proteção reforçada) e sem fonte de conhecimento usada, a conversa volta às regras gerais. Com qualquer
+// sinal ou dúvida, continua sigilosa.
+function reavaliarMarcacaoDaArea(app, pessoa, conv) {
+  if (!conv.sigilosa || conv.motivo_sigilosa !== 'area') return;
+  const textos = [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto),
+    ...todos(app.db, 'select texto from anexos where conversa_id = ?', conv.id).map(a => a.texto)].join('\n');
+  const usouFontes = todos(app.db, "select fontes from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).some(m => json(m.fontes, []).length);
+  if (usouFontes || detectar(textos).length || detectarReforcado(textos).length) return;
+  exec(app.db, 'update conversas set sigilosa = 0, motivo_sigilosa = null where id = ?', conv.id);
+  aviso(app, conv.id, 'Esta conversa voltou às regras gerais da empresa: nada nela exige tratamento sigiloso. Se aparecer informação sigilosa, a proteção volta automaticamente.');
+  registrar(app, 'conversation.reclassified', pessoa.id, { conversa: conv.id, de: 'area', para: 'normal' });
+  conv.sigilosa = 0;
+  conv.motivo_sigilosa = null;
 }
 
 // Responsáveis das áreas do quick win (ou da pessoa, no chat), para indicar quem procurar.
@@ -155,11 +179,16 @@ export function rotasConversas(app, r) {
     return detalhe(app, conv, pessoa);
   });
 
-  r.get('/api/conversas/:id', ({ pessoa, params }) => detalhe(app, minhaConversa(app, pessoa, params.id), pessoa));
+  r.get('/api/conversas/:id', ({ pessoa, params }) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    reavaliarMarcacaoDaArea(app, pessoa, conv);
+    return detalhe(app, conv, pessoa);
+  });
 
   r.patch('/api/conversas/:id', ({ pessoa, params, corpo }) => {
     const conv = minhaConversa(app, pessoa, params.id);
     if (corpo.titulo !== undefined) exec(app.db, 'update conversas set titulo = ? where id = ?', String(corpo.titulo).trim().slice(0, 120) || 'Conversa', conv.id);
+    if (corpo.sigilosa === true && conv.motivo_sigilosa === 'area') exec(app.db, "update conversas set motivo_sigilosa = 'manual' where id = ?", conv.id);   // a escolha da pessoa vale mais que a marcação antiga
     if (corpo.sigilosa === true) tornarSigilosa(app, pessoa, conv, 'manual');
     if (corpo.sigilosa === false && conv.sigilosa) throw erro(409, 'sigilosa_travada', 'Uma conversa sigilosa continua sigilosa até ser apagada, porque o histórico já tem os dados.');
     if (corpo.feedback !== undefined) {
@@ -187,6 +216,7 @@ export function rotasConversas(app, r) {
     rajadas.set(pessoa.id, [...recentes, instante]);
     const cfg = lerConfig(app.db);
     const conv = minhaConversa(app, pessoa, params.id);
+    reavaliarMarcacaoDaArea(app, pessoa, conv);
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste) : null;
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
     const texto = String(corpo.texto || '').trim();
@@ -211,7 +241,11 @@ export function rotasConversas(app, r) {
 
     // 2. Contexto (arquivos do quick win e bases) e gatilhos de conversa sigilosa.
     const ctx = await (app.contexto?.montar(pessoa, qw, texto) ?? { partes: [], fontes: [], sigiloso: false });
-    const motivo = motivosFixos(app, pessoa, qw) || (permitidos.length ? `dado:${permitidos[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
+    // Área com política de sigilo: proteção reforçada. O conteúdo (mensagem e anexos) é avaliado com mais
+    // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.
+    const sinaisReforco = reforcada(app, pessoa, qw) ? detectarReforcado([texto, ...anexos.map(a => a.texto)].join('\n')) : [];
+    const motivo = motivosFixos(app, pessoa, qw) || (permitidos.length ? `dado:${permitidos[0]}` : null)
+      || (sinaisReforco.length ? `reforco:${sinaisReforco[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
     // A conversa só vira sigilosa (e o aviso só aparece) depois da decisão da política, mais abaixo: um
     // conteúdo que não pode ser enviado não deixa marca na conversa.
     const sigilosa = !!conv.sigilosa || !!motivo;

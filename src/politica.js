@@ -52,7 +52,7 @@ export function secaoAutomatica(app) {
     '2. Quando o quick win é classificado como "trata informações sigilosas".',
     `3. Quando o sistema encontra, na mensagem ou em um anexo, um tipo de dado que a empresa trata com proteção${protegidos.length ? ` (hoje: ${protegidos.join(', ')})` : ''}.`,
     '4. Quando a conversa usa um documento de base ou arquivo de quick win marcado como sigiloso.',
-    `5. Quando a sua área tem a opção "todas as conversas desta área são sigilosas"${areasSigilosas.length ? ` (hoje: ${areasSigilosas.join(', ')})` : ''}.`,
+    `5. Quando a sua área tem proteção reforçada${areasSigilosas.length ? ` (hoje: ${areasSigilosas.join(', ')})` : ''} e o conteúdo tem marcação de confidencialidade, dado pessoal sensível (como saúde) ou dado de pessoas em processo interno (como remuneração ou desligamento). Nessas áreas, o que não for sigiloso segue as regras gerais.`,
     'Uma conversa sigilosa continua sigilosa até ser apagada.',
     ...(naoEnviados.length ? ['### Dados que a empresa não envia à IA', `Por política da empresa, mensagens com ${naoEnviados.join(', ')} não são enviadas.`] : []),
     '### Quem usa cada nível',

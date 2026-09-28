@@ -97,7 +97,7 @@ function listaAreas() {
       <span class="lx-c" data-r="Pessoas">${pilha(a.pessoas)}<span class="lx-num">${a.pessoas.length}</span></span>
       <span class="lx-c" data-r="Administram">${adm.length ? `${pilha(adm, 3)}<span class="lx-texto">${esc(adm.map(m => (m.nome || m.email).split(' ')[0]).join(', '))}</span>` : `<span class="tag tag-ambar">${a.ativa ? 'ninguém ainda' : '—'}</span>`}</span>
       <span class="lx-c num" data-r="Documentos"><span class="lx-num">${a.documentos}</span></span>
-      <span class="lx-c" data-r="Situação">${a.ativa ? '<span class="tag tag-verde"><i></i>Ativa</span>' : '<span class="tag"><i></i>Desativada</span>'}${a.sigilosa ? '<span class="tag tag-escura">Sigilosa</span>' : ''}</span></button>`; }).join('')}`;
+      <span class="lx-c" data-r="Situação">${a.ativa ? '<span class="tag tag-verde"><i></i>Ativa</span>' : '<span class="tag"><i></i>Desativada</span>'}${a.sigilosa ? '<span class="tag tag-escura">Proteção reforçada</span>' : ''}</span></button>`; }).join('')}`;
 }
 
 function listaPessoas() {
@@ -214,7 +214,7 @@ function painelArea(a) {
     <textarea class="px-desc" id="px-desc" rows="2" maxlength="400" placeholder="Adicionar descrição: o que a área faz e o que a base dela tem…" aria-label="Descrição da área">${esc(a.descricao)}</textarea>
     <dl class="px-props">
       <dt>Situação</dt><dd>${seg([['1', 'Ativa'], ['0', 'Desativada']], a.ativa ? '1' : '0', 'data-campo="ativa"', 'Situação da área')}</dd>
-      <dt>Conversas</dt><dd>${seg([['0', 'Normais'], ['1', 'Sigilosas']], a.sigilosa ? '1' : '0', 'data-campo="sigilosa"', 'Conversas da área')}<small>Sigilosas usam só modelos homologados.</small></dd>
+      <dt>Proteção</dt><dd>${seg([['0', 'Padrão'], ['1', 'Reforçada']], a.sigilosa ? '1' : '0', 'data-campo="sigilosa"', 'Proteção das conversas da área')}<small>Reforçada: a GreenIA avalia o conteúdo com mais rigor. O que for sigiloso segue só com os guardrails de proteção; o resto segue as regras gerais.</small></dd>
       <dt>Base de conhecimento</dt><dd><span>${plural(a.documentos, 'documento', 'documentos')}</span> · <a href="#/conhecimento">abrir a base</a></dd>
     </dl>
     ${a.ativa ? '' : '<div class="px-aviso">Desativada: ninguém vê a base desta área e a IA não usa os documentos dela. Pessoas e documentos continuam guardados.</div>'}
@@ -241,7 +241,7 @@ function ligarArea(id) {
   ligarControles(document.querySelector('.px'), {
     seg: (d, v) => {
       if (d.campo === 'ativa' && v === '0' && !confirm(`Desativar ${a.nome}? As pessoas deixam de ver a base e a IA para de usar os documentos. Nada é apagado.`)) return;
-      if (d.campo === 'sigilosa' && v === '1' && !confirm('Todas as conversas das pessoas desta área passam a ser sigilosas e a usar só modelos homologados. Continuar?')) return;
+      if (d.campo === 'sigilosa' && v === '1' && !confirm('Ligar a proteção reforçada? A GreenIA passa a avaliar o conteúdo desta área com mais rigor, e o que for sigiloso segue só com os guardrails de proteção. Continuar?')) return;
       if (d.campo) salvar(() => api(url, { metodo: 'PUT', corpo: { [d.campo]: v === '1' } }));
       if (d.perm) salvar(() => api(`${url}/pessoas/${d.perm}`, { metodo: 'PUT', corpo: { adminBase: v === 'admin' } }));
     },

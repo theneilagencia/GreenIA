@@ -107,7 +107,8 @@ export const TIPOS = Object.keys(REGRAS);
 // Classificação (o que o dado É). O tratamento (proteger ou não enviar) é política da empresa, com uma exceção:
 // credenciais e segredos nunca são enviados, por regra de segurança da GreenIA (não é uma afirmação da LGPD).
 // "Dado pessoal sensível" (saúde, origem racial, religião, biometria...) não é reconhecido por padrão de texto:
-// fica na marcação da conversa, da área ou do quick win como sigilosa.
+// fica na marcação da conversa ou do quick win como sigilosa e, nas áreas com proteção reforçada, nos sinais de
+// detectarReforcado (abaixo).
 export const CATEGORIAS = {
   cpf: 'identificacao', rg: 'identificacao', cnpj: 'identificacao_empresa',
   cartao: 'financeiro', banco: 'financeiro', pix: 'financeiro',
@@ -118,6 +119,26 @@ export const NOMES_CATEGORIA = { identificacao: 'dado de identificação pessoal
   pessoal: 'dado pessoal', segredo: 'credencial ou segredo' };
 export const ROTULOS = { cpf: 'CPF', cnpj: 'CNPJ', cartao: 'cartão', banco: 'dados bancários', pix: 'chave PIX', credencial: 'senha ou credencial',
   rg: 'RG', email: 'email', telefone: 'telefone', cep: 'CEP', endereco: 'endereço' };
+
+// Proteção reforçada (áreas com política de sigilo): além dos padrões gerais, a GreenIA procura sinais de
+// conteúdo que exige tratamento sigiloso e que não tem formato fixo. Só o conteúdo em que eles aparecem vira
+// sigiloso; o resto segue as regras gerais da empresa. Termos inteiros, sem acento e sem diferença de caixa.
+const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const REFORCO = {
+  // Documento marcado como confidencial por quem o escreveu.
+  marcacao: /\b(?:confidencial|sigiloso|sigilosa|estritamente reservad[oa]|uso (?:estritamente )?interno|uso restrito|nao (?:divulgar|compartilhar|distribuir)|acordo de confidencialidade|nda)\b/,
+  // Dados pessoais sensíveis (saúde, biometria, crença, origem, vida sexual, filiação sindical).
+  dado_sensivel: /\b(?:diagnostico|prontuario|laudo medico|atestado medico|cid[- ]?10|exame (?:medico|admissional|demissional)|biometri[ac]|orientacao sexual|convicc?ao religiosa|filiacao (?:sindical|partidaria)|origem racial|etnia)\b/,
+  // Dados de pessoas em processos internos (remuneração individual, desligamento, disciplina).
+  pessoas: /\b(?:folha de pagamento|holerite|contracheque|salario de|remuneracao de|desligamento de|advertencia disciplinar|processo disciplinar)\b/,
+};
+export const TIPOS_REFORCO = Object.keys(REFORCO);
+export const ROTULOS_REFORCO = { marcacao: 'marcação de confidencialidade', dado_sensivel: 'dado pessoal sensível', pessoas: 'dado de pessoas em processo interno' };
+/** @param {string} texto @returns {string[]} sinais de conteúdo sigiloso (proteção reforçada) */
+export function detectarReforcado(texto) {
+  const t = semAcento(texto);
+  return TIPOS_REFORCO.filter(k => REFORCO[k].test(t));
+}
 
 /** @param {string} texto @returns {string[]} tipos encontrados */
 export function detectar(texto) {

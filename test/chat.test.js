@@ -188,13 +188,58 @@ test('sigilosa por dado detectado com "permitir" (CNPJ no chat)', async () => {
   await confereSigilosa(conv, { texto: 'Confira o fornecedor CNPJ 11.222.333/0001-81.' }, 'dado:cnpj');
 });
 
-test('sigilosa por área marcada como "todas as conversas são sigilosas"', async () => {
-  const areaId = Number(exec(S.app.db, "insert into areas (nome, sigilosa) values ('Área sigilosa', 1)").lastInsertRowid);
+// Área com política de sigilo = proteção reforçada, e não "tudo sigiloso": quem decide é o conteúdo.
+test('área com proteção reforçada: conteúdo comum segue as regras gerais, mesmo sem recurso para dado sigiloso', async () => {
+  const areaId = Number(exec(S.app.db, "insert into areas (nome, sigilosa) values ('Área reforçada', 1)").lastInsertRowid);
   exec(S.app.db, 'insert into area_pessoas (area_id, pessoa_id) values (?, ?)', areaId, ana.pessoa.id);
-  const conv = await novaConversa();
-  assert.equal(conv.sigilosa, true);
-  await confereSigilosa(conv, { texto: 'Uma pergunta qualquer.' }, 'area');
-  exec(S.app.db, 'delete from areas where id = ?', areaId);
+  try {
+    const conv = await novaConversa();
+    assert.equal(conv.sigilosa, false, 'a conversa não nasce sigilosa por causa da área');
+    // Sem recurso autorizado para dado sigiloso, o conteúdo comum continua funcionando (o caso do PDF sem dados sigilosos).
+    const cfg = lerConfig(S.app.db);
+    exec(S.app.db, 'update modelos set homologado = 0, autorizacao_plataforma = null');
+    const pdf = { nome: 'workshop.txt', base64: Buffer.from('Workshop de decisão: comparação entre duas fontes de consulta de dados, cobertura de 27 UFs, custo por consulta e prazo.').toString('base64') };
+    const r = await enviarMensagem(ana, conv.id, { texto: 'Analise este arquivo.', anexos: [pdf] });
+    assert.equal(r.status, 200, JSON.stringify(r.erro));
+    assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, false);
+    // Conteúdo com marcação de confidencialidade, na mesma área: vira sigiloso e, sem recurso autorizado, não sai.
+    const n = OR.chamadas.length;
+    const b = await enviarMensagem(ana, conv.id, { texto: 'Resuma o memorando CONFIDENCIAL da diretoria.' });
+    assert.equal(b.status, 409);
+    assert.equal(OR.chamadas.length, n, 'nada foi enviado');
+    assert.doesNotMatch(b.erro.mensagem, /recurso autorizado|homolog|modelo/i, 'quem usa não recebe mensagem técnica');
+    salvarConfig(S.app.db, { padroes: cfg.padroes });
+    exec(S.app.db, 'update modelos set homologado = 1 where id = ?', HOMOLOGADO);
+    // Com recurso autorizado: o conteúdo sigiloso segue só pelos guardrails.
+    const conv2 = await novaConversa();
+    await confereSigilosa(conv2, { texto: 'Resuma o laudo médico do colaborador.' }, 'reforco:dado_sensivel');
+    // Fora da área reforçada, o mesmo texto sem padrão de dado não vira sigiloso.
+    exec(S.app.db, 'update areas set sigilosa = 0 where id = ?', areaId);
+    const conv3 = await novaConversa();
+    const c = await enviarMensagem(ana, conv3.id, { texto: 'Resuma o laudo médico do colaborador.' });
+    assert.equal(c.status, 200);
+    assert.equal((await ana.get(`/api/conversas/${conv3.id}`)).dados.conversa.sigilosa, false);
+  } finally {
+    exec(S.app.db, 'delete from area_pessoas where area_id = ?', areaId);
+    exec(S.app.db, 'delete from areas where id = ?', areaId);
+  }
+});
+
+test('conversa marcada só pela área (regra antiga): sem sinal de conteúdo sigiloso, volta às regras gerais; com sinal, continua sigilosa', async () => {
+  const limpa = await novaConversa();
+  exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'area' where id = ?", limpa.id);
+  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Resuma a política de férias.', '2026-09-26')", limpa.id);
+  const d = (await ana.get(`/api/conversas/${limpa.id}`)).dados;
+  assert.equal(d.conversa.sigilosa, false);
+  assert.match(d.mensagens.at(-1).texto, /voltou às regras gerais/);
+  const comDado = await novaConversa();
+  exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'area' where id = ?", comDado.id);
+  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Confira o CPF 529.982.247-25.', '2026-09-26')", comDado.id);
+  assert.equal((await ana.get(`/api/conversas/${comDado.id}`)).dados.conversa.sigilosa, true);
+  const marcada = await novaConversa();
+  exec(S.app.db, "update conversas set sigilosa = 1, motivo_sigilosa = 'area' where id = ?", marcada.id);
+  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Documento de uso interno.', '2026-09-26')", marcada.id);
+  assert.equal((await ana.get(`/api/conversas/${marcada.id}`)).dados.conversa.sigilosa, true);
 });
 
 test('sigilosa: o seletor mostra só homologados, e a pessoa usa o homologado padrão mesmo sem o perfil', async () => {

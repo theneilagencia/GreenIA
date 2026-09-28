@@ -86,14 +86,40 @@ recomendações adota a autorização automaticamente.
 | Pessoal | email, telefone, CEP, endereço |
 | Segredo | senhas, API keys, tokens (incluindo `Bearer` e JWT), chaves privadas, `usuário:senha` em URL e outros |
 
-- **Dado pessoal sensível** (saúde, origem racial, religião, biometria…) não é reconhecido por padrão de
-  texto. Ele depende da marcação manual da conversa, da área ou do quick win como sigilosa.
+- **Dado pessoal sensível** (saúde, origem racial, religião, biometria…) não é reconhecido pelos padrões
+  gerais. Ele é reconhecido pelos sinais da proteção reforçada, nas áreas que a têm, ou pela marcação manual
+  da conversa ou do quick win.
 - **Tratamento:** é política da empresa, escolhida por tipo entre "Processar com proteção" (a conversa vira
   sigilosa) e "Não enviar". O padrão protege tudo o que é reconhecido. Nenhum tipo é bloqueado "por
   exigência da LGPD".
 - **Ação desconhecida** vale como "Não enviar". Antes valia como permitido; o defeito foi corrigido.
 - **Credenciais e segredos:** nunca são enviados, por regra de segurança da GreenIA. A opção de informação
   sigilosa não muda isso.
+
+## Área com proteção reforçada (antes: "todas as conversas da área são sigilosas")
+
+A área com política de sigilo **não classifica o conteúdo**. Ela pede proteção reforçada, e quem decide se
+uma conversa é sigilosa é o que foi escrito e anexado.
+
+| | Área padrão | Área com proteção reforçada |
+|---|---|---|
+| A conversa nasce sigilosa? | Não | Não |
+| O que torna o conteúdo sigiloso | Padrões gerais (CPF, CNPJ, cartão, banco, PIX…), marcação manual, quick win sigiloso, documento sigiloso | Tudo o da área padrão **e** os sinais de `detectarReforcado`: marcação de confidencialidade ("confidencial", "uso interno", "não divulgar", NDA…), dado pessoal sensível (diagnóstico, laudo médico, CID, biometria, religião, origem racial…) e dado de pessoas em processo interno (holerite, folha de pagamento, desligamento, processo disciplinar…) |
+| Conteúdo sem nenhum sinal | Regras gerais da empresa | Regras gerais da empresa |
+| Conteúdo sigiloso | Todos os guardrails; sem recurso autorizado, nada é enviado | Igual |
+
+- **Antes, a área era classificação absoluta.** `motivosFixos` devolvia `area`, e toda conversa nascia
+  sigilosa. Sem recurso autorizado, qualquer pedido era bloqueado, até um PDF sem nenhum dado sigiloso. A
+  regra foi corrigida.
+- **Conversas antigas marcadas só pela área** (`motivo_sigilosa = 'area'`) são reavaliadas ao abrir ou ao
+  enviar, pela função `reavaliarMarcacaoDaArea`. Elas voltam às regras gerais só se nenhuma mensagem ou
+  anexo tiver sinal de conteúdo sigiloso (padrões gerais e reforçados) e se nenhuma fonte de conhecimento
+  tiver sido usada. Na dúvida, continuam sigilosas. A mudança fica registrada (`conversation.reclassified`),
+  e a pessoa vê um aviso.
+- **Quick win classificado como "trata informações sigilosas"** continua fazendo as conversas nascerem
+  sigilosas. Nesse caso, quem configura o quick win declara o conteúdo da tarefa.
+- **Nunca** se usa um recurso não autorizado para conteúdo sigiloso, nem para manter continuidade ou
+  reduzir custo.
 
 ## Ordem de decisão
 

@@ -56,13 +56,15 @@ test('preferências de privacidade em toda chamada: normal pede fornecedor sem t
   assert.ok(OR.chamadas.every(c => c.provider && 'data_collection' in c.provider));
 });
 
-test('modelo fora da lista liberada é recusado pela API', async () => {
+test('modelo fora da lista liberada nunca é usado: o pedido segue no automático, sem perguntar nada à pessoa', async () => {
   const conv = await novaConversa();
-  const n = OR.chamadas.length;
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'openai/gpt-4o' });
-  assert.equal(r.status, 403);
-  assert.equal(r.erro.erro, 'modelo_nao_liberado');
-  assert.equal(OR.chamadas.length, n);
+  assert.equal(r.status, 200);
+  assert.notEqual(r.fim.modelo, 'openai/gpt-4o');
+  assert.ok(!OR.chamadas.some(c => c.model === 'openai/gpt-4o' || c.models?.includes('openai/gpt-4o')));
+  const rota = um(S.app.db, 'select politicas, fallback from roteamento where conversa_id = ? order by id desc limit 1', conv.id);
+  assert.match(rota.politicas, /escolha_substituida_pelo_roteamento/);
+  assert.equal(JSON.parse(rota.fallback).tipo, 'escolha_substituida');
 });
 
 test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat', async () => {
@@ -71,9 +73,11 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
   assert.ok(opcoes.includes('classe:rapido') && opcoes.includes('classe:equilibrado'));
   assert.ok(!opcoes.includes('classe:avancado') && !opcoes.includes(AVANCADO));
   const conv = await novaConversa();
+  // Pedido forçado pela API a um Avançado: não é usado; o automático escolhe entre o que ela pode usar.
   const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO });
-  assert.equal(r.status, 403);
-  assert.equal(r.erro.erro, 'modelo_sem_acesso');
+  assert.equal(r.status, 200);
+  assert.notEqual(r.fim.modelo, AVANCADO);
+  assert.notEqual(r.fim.classe, 'avancado');
   // Liberado para um grupo do qual ela faz parte: passa a ver e usar; a mudança fica no log.
   const g = (await admin.post('/api/admin/grupos', { nome: 'Analistas' })).dados;
   await admin.put(`/api/admin/grupos/${g.id}`, { pessoas: [ana.pessoa.id] });
@@ -93,7 +97,7 @@ test('trocar de modelo no meio da conversa funciona e fica registrado na convers
   assert.equal(r.fim.modelo, 'anthropic/claude-haiku-4.5');
   assert.equal(r.fim.classe, 'equilibrado');
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
-  assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Classe trocada para Equilibrado/.test(m.texto)));
+  assert.ok(d.mensagens.some(m => m.papel === 'aviso' && /Nível trocado para Equilibrado/.test(m.texto)));
   // O histórico vai junto para o novo modelo.
   assert.equal(OR.chamadas.at(-1).messages.filter(m => m.role !== 'system').length, 3);
 });
@@ -134,17 +138,15 @@ test('filtro no servidor: CPF bloqueado no chat por padrão; credencial sempre, 
   assert.ok(!ev.detalhes.includes('Primavera'));
 });
 
-// Conversas sigilosas: a mensagem não vai a modelo não homologado; volta 409
-// com o homologado padrão; o reenvio com ele funciona; a chave não desliga.
+// Conversas sigilosas: a mensagem não vai a modelo não homologado. Uma escolha que não serve para dado
+// sigiloso é trocada pela GreenIA por um recurso autorizado, sem pedir nada à pessoa; a chave não desliga.
 async function confereSigilosa(conv, corpo, motivo) {
-  const n = OR.chamadas.length;
-  // Pedido por um modelo técnico não homologado: recusado, com sugestão do homologado.
+  // Pedido por um modelo técnico não homologado: não é usado; a resposta vem do homologado.
   const r = await enviarMensagem(ana, conv.id, { ...corpo, modelo: RAPIDO });
-  assert.equal(r.status, 409, JSON.stringify(r.erro));
-  assert.equal(r.erro.erro, 'precisa_homologado');
-  assert.match(r.erro.mensagem, /passou a ter dados sigilosos e vai usar o modelo homologado/);
-  assert.equal(r.erro.sugestao.id, HOMOLOGADO);
-  assert.equal(OR.chamadas.length, n, 'nada foi enviado ao modelo não homologado');
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.equal(r.fim.modelo, HOMOLOGADO);
+  assert.equal(OR.chamadas.at(-1).model, HOMOLOGADO, 'nada foi enviado ao modelo não homologado');
+  assert.ok(!OR.chamadas.at(-1).models, 'sem reserva de outro fornecedor');
   // Pedido por classe (o caminho da interface): vai direto a um homologado.
   const ok = await enviarMensagem(ana, conv.id, { ...corpo, modelo: 'classe:rapido' });
   assert.equal(ok.status, 200);

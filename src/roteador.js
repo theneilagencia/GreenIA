@@ -428,6 +428,24 @@ export const TEXTO = {
 const PREF_NOME = { economia: 'Economia', equilibrio: 'Equilíbrio', qualidade: 'Qualidade' };
 const nomeTipo = k => TIPOS[k]?.nome || (k === 'consulta' ? 'consulta' : k === 'indeterminado' ? 'pedido não analisado' : k);
 
+// Explicação para quem conversa: o que a GreenIA decidiu e por quê, sem termos técnicos (modelo, janela,
+// homologação, provedor). A explicação técnica completa fica no registro do roteamento, para o admin.
+export function explicarParaPessoa({ modo, classe, politicas = [], fallback = null, sigilosa = false }) {
+  const nivel = NOME_CLASSE[classe];
+  if (modo === 'openrouter_auto') return 'Escolha automática feita pelo serviço de IA, como você pediu.';
+  const partes = [!nivel ? 'Recurso escolhido automaticamente pela GreenIA'
+    : modo === 'automatico' ? `Nível ${nivel}, escolhido automaticamente pela GreenIA para este tipo de pedido`
+    : modo === 'quick_win' ? `Nível ${nivel}, definido para este quick win`
+    : modo === 'padrao' ? `Nível ${nivel}, o padrão da empresa`
+    : `Nível ${nivel}, como você escolheu`];
+  const f = fallback || {};
+  if (f.tipo === 'escolha_substituida' || f.escolha) partes.push('A opção escolhida não podia ser usada neste pedido, então a GreenIA escolheu automaticamente, dentro das regras da empresa');
+  if (sigilosa || politicas.includes('sigilosa_so_homologado')) partes.push('Por ter informação confidencial, só foram considerados recursos autorizados para esse tipo de dado');
+  if (f.tipo === 'trocado_por_falta_de_contexto') partes.push('O conteúdo era extenso, então foi usado um recurso que consegue ler tudo de uma vez');
+  if (politicas.includes('plano_na_reserva_so_rapido') || f.tipo === 'trocado_pela_reserva_do_plano') partes.push('Os créditos do mês acabaram: até a renovação, as respostas usam o modo econômico');
+  return `${partes.join('. ')}.`;
+}
+
 // Explicação em linguagem simples, derivada só dos códigos da decisão.
 export function explicar(a, d) {
   const req = d.requisitos, partes = [];

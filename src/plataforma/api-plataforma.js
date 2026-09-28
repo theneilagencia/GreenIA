@@ -11,6 +11,7 @@ import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo } from './consumo.js';
 import { alertaEmail, falhasEmail } from './email-falhas.js';
+import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
 
 
@@ -228,6 +229,33 @@ export function rotasPlataforma(P, r) {
     const v = situacaoChave(P, cfg);
     return ['atencao', 'critico', 'erro'].includes(v.nivel) ? { nivel: v.nivel, codigo: v.codigo, rotulo: v.rotulo, texto: v.texto } : null;
   }
+  // Modelos autorizados pela operadora para dados sigilosos, em todas as empresas (a empresa não precisa configurar).
+  r.get('/api/plataforma/homologacoes', ({ sessao }) => { precisa(sessao, 'platform.settings.manage'); return { homologacoes: lerAjuste(P.db, 'homologacoes_plataforma', []) || [] }; });
+  r.post('/api/plataforma/homologacoes', ({ sessao, corpo, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const id = String(corpo.id || '').trim(), perfil = String(corpo.perfil || 'rapido'), fornecedor = String(corpo.fornecedor || '').trim(), justificativa = String(corpo.justificativa || '').trim();
+    if (!/^[a-z0-9._~-]+\/[a-z0-9._:-]+$/.test(id)) throw erro(400, 'id', 'Informe o id do modelo no OpenRouter (fornecedor/modelo).');
+    if (/:free$/.test(id) || id === 'openrouter/free' || id === 'openrouter/auto') throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o Automático do OpenRouter não podem ser autorizados para dados sigilosos.');
+    if (!['rapido', 'equilibrado', 'avancado'].includes(perfil)) throw erro(400, 'perfil', 'Classe inválida.');
+    if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado no OpenRouter.');
+    if (corpo.semTreino !== true || corpo.retencaoZero !== true) throw erro(400, 'garantias', 'Confirme que o fornecedor não treina com os dados e não guarda nada (retenção zero).');
+    if (justificativa.length < 10) throw erro(400, 'justificativa', 'Escreva a justificativa da autorização.');
+    const lista = (lerAjuste(P.db, 'homologacoes_plataforma', []) || []).filter(h => h.id !== id);
+    const item = { id, nome: String(corpo.nome || '').trim().slice(0, 120) || id, perfil, fornecedor, justificativa: justificativa.slice(0, 500), em: P.agora().toISOString(), por: sessao.email };
+    salvarAjuste(P.db, 'homologacoes_plataforma', [...lista, item]);
+    for (const [cid, t] of P.tenants) { try { aplicarHomologacoesPlataforma(t.db, [...lista, item], P.agora()); } catch (e) { P.log('homologação da plataforma', cid, e.message); } }
+    auditar(P, { usuario: sessao.userId, acao: 'platform.model_certified', entidade: 'platform_settings', depois: { modelo: id, perfil, fornecedor }, origem });
+    return { homologacoes: [...lista, item] };
+  });
+  r.del('/api/plataforma/homologacoes/:id', ({ sessao, params, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const id = decodeURIComponent(params.id);
+    const lista = (lerAjuste(P.db, 'homologacoes_plataforma', []) || []).filter(h => h.id !== id);
+    salvarAjuste(P.db, 'homologacoes_plataforma', lista);
+    for (const [, t] of P.tenants) aplicarHomologacoesPlataforma(t.db, lista, P.agora());
+    auditar(P, { usuario: sessao.userId, acao: 'platform.model_uncertified', entidade: 'platform_settings', antes: { modelo: id }, origem });
+    return { homologacoes: lista };
+  });
   // Troca preventiva (política da plataforma) e vencimento real informado por outra fonte. O vencimento
   // informado vale só para a chave em uso; se o OpenRouter informar o dele, o do OpenRouter prevalece.
   r.put('/api/plataforma/openrouter/chave/validade', async ({ sessao, corpo, origem }) => {

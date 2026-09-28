@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { subir } from './ajuda.js';
 import { enviarMensagem } from './openrouter-falso.js';
-import { criarIndisponivel, MSG_SEM_CHAVE } from '../src/ia.js';
+import { criarIndisponivel } from '../src/ia.js';
+import { MSG_USUARIO } from '../src/avisos-governanca.js';
 
 async function subirProcesso(extra) {
   const porta = 20000 + Math.floor(Math.random() * 20000);
@@ -45,7 +46,10 @@ test('com a IA desligada, a mensagem volta com o aviso claro e o admin sabe pelo
   const admin = await S.cliente().entrar('admin@exemplo.com.br');
   assert.equal((await admin.get('/api/eu')).dados.iaConfigurada, false);
   const c = (await admin.post('/api/conversas', {})).dados.conversa;
-  const r = await enviarMensagem(admin, c.id, { texto: 'Olá' });
-  assert.equal(r.falha.mensagem, MSG_SEM_CHAVE);
-  await S.fechar();
+  try {
+    const r = await enviarMensagem(admin, c.id, { texto: 'Olá' });
+    // Quem conversa recebe uma mensagem simples; o detalhe técnico (falta a chave) fica no console e no /api/eu.
+    assert.equal(r.falha.mensagem, MSG_USUARIO.ia_fora);
+    assert.doesNotMatch(r.falha.mensagem, /OPENROUTER|chave|servidor/i);
+  } finally { await S.fechar(); }
 });

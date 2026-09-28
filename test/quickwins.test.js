@@ -131,18 +131,22 @@ test('perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick 
   assert.equal(OR.chamadas.at(-1).model, AVANCADO);
   const opcoes = (await carlos.get(`/api/modelos?quick_win=${q.id}`)).dados.opcoes.map(o => o.id);
   assert.ok(opcoes.includes('classe:avancado') && !opcoes.includes(AVANCADO2));
+  // Pedido forçado a outro Avançado: não é usado; a GreenIA resolve com o que ele pode usar, sem perguntar.
   r = await enviarMensagem(carlos, conv.id, { texto: 'De novo', modelo: AVANCADO2 });
-  assert.equal(r.status, 403);
-  // No chat, sem o perfil, o mesmo modelo é recusado.
+  assert.equal(r.status, 200);
+  assert.notEqual(OR.chamadas.at(-1).model, AVANCADO2);
+  // No chat, sem o perfil, a classe Avançado não é usada: o pedido segue no automático.
   const chat = (await carlos.post('/api/conversas', {})).dados.conversa;
-  assert.equal((await enviarMensagem(carlos, chat.id, { texto: 'Olá', modelo: 'classe:avancado' })).status, 403);
+  r = await enviarMensagem(carlos, chat.id, { texto: 'Olá', modelo: 'classe:avancado' });
+  assert.equal(r.status, 200);
+  assert.notEqual(r.fim.classe, 'avancado');
   // O admin define quais perfis podem ser padrão de quick win.
   await admin.put('/api/admin/modelos-config', { perfisQuickWin: ['rapido', 'equilibrado'] });
   assert.equal((await ana.put(`/api/quick-wins/${q.id}`, { modelo: 'classe:avancado' })).status, 400);
   await admin.put('/api/admin/modelos-config', { perfisQuickWin: ['rapido', 'equilibrado', 'avancado'] });
 });
 
-test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo não homologado é recusado e reenviado ao homologado', async () => {
+test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo não homologado nunca é usado; a GreenIA usa o homologado sem perguntar', async () => {
   let r = await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'classe:equilibrado' });
   assert.equal(r.status, 400, 'quick win sigiloso só aceita classe com modelo homologado');
   const q = (await ana.post('/api/quick-wins', { nome: 'Casos de clientes', areas: [A.id], sigiloso: true, modelo: 'classe:rapido', pode_trocar: true })).dados;
@@ -150,12 +154,9 @@ test('sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo n
   const conv = (await carlos.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
   assert.equal(conv.sigilosa, true);
   assert.deepEqual((await carlos.get(`/api/modelos?quick_win=${q.id}&sigilosa=1`)).dados.opcoes.map(o => o.id), ['classe:auto', 'classe:rapido']);
-  const n = OR.chamadas.length;
   r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: 'google/gemini-3.5-flash-lite' });
-  assert.equal(r.status, 409);
-  assert.equal(OR.chamadas.length, n);
-  r = await enviarMensagem(carlos, conv.id, { texto: 'Caso do cliente', modelo: r.erro.sugestao.id });
   assert.equal(r.status, 200);
+  assert.equal(OR.chamadas.at(-1).model, HOMOLOGADO);
   assert.deepEqual(OR.chamadas.at(-1).provider, { order: ['Mistral'], only: ['Mistral'], allow_fallbacks: false, zdr: true, data_collection: 'deny' });
   assert.equal((await carlos.patch(`/api/conversas/${conv.id}`, { sigilosa: false })).status, 409);
   assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.confidential' order by id desc limit 1").detalhes).motivo, 'quick_win');

@@ -53,16 +53,16 @@ function desenhar() {
       <button class="icone-btn" id="apagar" title="Apagar" aria-label="Apagar conversa">${ICONE.lixo}</button>` : '')}
     <div class="barra-conversa">
       ${qw ? `<span class="selo"><span class="cor" style="width:8px;height:8px;border-radius:2px;background:${esc(qw.cor)}"></span>${esc(qw.nome)}</span><span class="dica">${ESTADOS[qw.status] || ''}${C.teste ? ' · teste, fora da medição' : ''}</span>` : ''}
-      <label class="seletor">Classe
+      ${C.opcoes.length > 1 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível
         <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
-          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.nome)}${o.homologado ? ' · Homologado' : ''}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
-        </select></label>
-      <span id="selo-modelo">${modeloAtual?.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span>` : ''}</span>
+          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático (recomendado)' : o.nome)}${E.eu.admin && o.homologado ? ' · Homologado' : ''}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
+        </select></label>` : ''}
+      <span id="selo-modelo">${E.eu.admin && modeloAtual?.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span>` : ''}</span>
       <span class="chave">
         <button class="switch" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'disabled' : ''} aria-label="Esta conversa tem dados sigilosos"><span></span></button>
-        <span title="Ligue se houver dado sigiloso que o sistema não reconhece. A conversa passa a usar só modelos homologados.">Dados sigilosos</span>
+        <span title="Ligue se a conversa tiver informação confidencial que a GreenIA não reconheceu sozinha. A partir daí, ela usa só os recursos autorizados para esse tipo de dado.">Dados sigilosos</span>
       </span>
-      ${sig ? `<span class="selo selo-sigilosa" title="Fica assim até ser apagada, porque o histórico já tem os dados.">Sigilosa · ${esc(conv.motivo_sigilosa || 'só modelos homologados')}</span>` : ''}
+      ${sig ? `<span class="selo selo-sigilosa" title="Fica assim até ser apagada, porque o histórico já tem os dados. A GreenIA usa só os recursos autorizados para informação confidencial.">Sigilosa${conv.motivo_sigilosa ? ` · ${esc(conv.motivo_sigilosa)}` : ''}</span>` : ''}
       ${qw && conv && !conv.teste ? `<span class="feedback" role="group" aria-label="Esta conversa serviu?"><span class="dica">Serviu?</span>
         ${FEEDBACK.map(([v, r]) => `<button data-fb="${v}" aria-pressed="${conv.feedback === v}">${r}</button>`).join('')}</span>` : ''}
     </div>
@@ -104,8 +104,8 @@ function htmlMensagem(m) {
     <span class="sim"><img src="/assets/greenia-marca.svg" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>${E.eu.admin ? `Respondido por ${esc(m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}` : (m.rota_modo === 'openrouter_auto' ? 'Automático do OpenRouter (fora da governança)' : `Classe ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
-        ${m.rota_explicacao ? `<details class="rota-motivo"><summary>Por que este modelo?</summary>${esc(m.rota_explicacao)}</details>` : ''}${fontes}`}
+        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo ? `<span>${E.eu.admin ? `Respondido por ${esc(m.modelo)}${m.fornecedor ? ` · fornecedor ${esc(m.fornecedor)}` : ''}` : (m.rota_modo === 'openrouter_auto' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
+        ${m.rota_explicacao ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao)}</details>` : ''}${fontes}`}
     </div></div>`;
 }
 
@@ -137,9 +137,9 @@ function ligar() {
   t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!$('enviar').disabled) enviar(); } });
   $('enviar').onclick = () => enviar();
   $('msgs').addEventListener('scroll', () => { const m = $('msgs'); C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
-  $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
+  if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
   $('sigilosa').onclick = async () => {
-    if (!confirm('Ligar esta opção torna a conversa sigilosa até ela ser apagada. Ela passa a usar só modelos homologados. Continuar?')) return;
+    if (!confirm('Ligar esta opção torna a conversa sigilosa até ela ser apagada. A GreenIA passa a usar só os recursos autorizados para informação confidencial. Continuar?')) return;
     await garantirConversa();
     const d = await api(`/api/conversas/${C.conv.id}`, { metodo: 'PATCH', corpo: { sigilosa: true } });
     C.conv = d.conversa; C.mensagens = d.mensagens;
@@ -221,13 +221,8 @@ async function enviar(reenvio = null) {
       await new Promise(ok => { const t = setInterval(() => { if (!document.querySelector('#dar-ciencia')) { clearInterval(t); ok(); } }, 300); });
       return enviar({ texto, anexos });
     }
-    if (r.status === 409 && d.erro === 'precisa_homologado' && d.sugestao) {
-      // A conversa virou sigilosa: avisa e reenvia com o modelo homologado.
-      C.mensagens.push({ id: 'av' + Date.now(), papel: 'aviso', texto: d.mensagem });
-      C.modelo = d.sugestao.id;
-      await recarregarConversa(false);
-      return enviar({ texto, anexos });
-    }
+    // Bloqueio (sigilo sem recurso autorizado, nada disponível): a conversa pode ter virado sigilosa no servidor.
+    if (r.status === 409 || r.status === 503) await recarregarConversa(false).catch(() => {});
     C.mensagens = C.mensagens.filter(m => !(m.papel === 'user' && String(m.id).startsWith('eu') && m.texto === texto));
     if (!reenvio) { $('entrada').value = texto; C.anexos = anexos; desenharAnexos(); ajustarAltura(); }
     C.mensagens.push({ id: 'er' + Date.now(), papel: 'assistant', texto: d.mensagem || 'Não foi possível enviar.', erro: true });

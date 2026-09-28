@@ -118,6 +118,20 @@ export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = fal
   return m;
 }
 
+// Homologação da plataforma: modelos que a operadora autorizou para dados sigilosos valem em
+// todas as empresas, sem que o admin da empresa precise configurar. O modelo entra liberado no catálogo
+// da empresa, se ainda não estiver; só a plataforma retira essa homologação.
+export function aplicarHomologacoesPlataforma(db, lista = [], agora = new Date()) {
+  const ids = new Set(lista.map(h => h.id));
+  for (const h of lista) {
+    const registro = JSON.stringify({ quem: `${h.por || 'Equipe'} (plataforma)`, em: h.em || agora.toISOString(), fornecedor: h.fornecedor, justificativa: h.justificativa, origem: 'plataforma' });
+    if (!um(db, 'select 1 from modelos where id = ?', h.id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil) values (?, ?, ?, 1, ?)', h.id, h.nome || h.id, h.id.split('/')[0], h.perfil);
+    exec(db, 'update modelos set liberado = 1, homologado = 1, homologacao = ? where id = ?', registro, h.id);
+  }
+  for (const m of lerModelos(db)) if (m.homologacao?.origem === 'plataforma' && !ids.has(m.id)) exec(db, 'update modelos set homologado = 0, homologacao = null where id = ?', m.id);
+}
+const daPlataforma = (db, id) => deLinha(um(db, 'select * from modelos where id = ?', id))?.homologacao?.origem === 'plataforma';
+
 export const custoEstimado = (m, entrada, saida) =>
   m && m.precoEntrada != null && m.precoSaida != null ? m.precoEntrada * entrada + m.precoSaida * saida : null;
 
@@ -265,6 +279,7 @@ export function rotasModelos(app, r) {
     if (corpo.perfil && !PERFIS[corpo.perfil]) throw erro(400, 'perfil', 'Perfil inválido.');
     const cat = (app.catalogo || []).find(m => m.id === id);
     const atual = um(app.db, 'select * from modelos where id = ?', id);
+    if (daPlataforma(app.db, id) && (corpo.liberado === false || (corpo.perfil && corpo.perfil !== atual.perfil))) throw erro(409, 'definido_pela_plataforma', 'Este modelo foi autorizado pela equipe da plataforma para dados sigilosos em todas as empresas: a liberação e a classe dele são definidas pela plataforma.');
     if (!atual && !cat && !corpo.perfil) throw erro(404, 'modelo', 'Modelo não encontrado no catálogo.');
     const reserva = corpo.reserva === undefined ? atual?.reserva : corpo.reserva || null;
     if (reserva) {
@@ -307,6 +322,7 @@ export function rotasModelos(app, r) {
   }, { admin: true });
 
   r.del('/api/admin/modelos/:id/homologar', ({ pessoa, params }) => {
+    if (daPlataforma(app.db, params.id)) throw erro(409, 'definido_pela_plataforma', 'Esta autorização foi feita pela equipe da plataforma para todas as empresas e só pode ser retirada por ela.');
     mudar(app, pessoa, 'model.uncertified', { modelo: params.id }, () => exec(app.db, 'update modelos set homologado = 0 where id = ?', params.id));
     return { ok: true };
   }, { admin: true });

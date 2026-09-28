@@ -85,12 +85,12 @@ export function modeloNaReserva(app, cfg, m, sigilosa) {
   if (sigilosa) {
     const h = homologadoPadrao(app.db, cfg);
     const escolhido = h?.perfil === 'rapido' ? h : rapidos.find(x => x.homologado);
-    if (!escolhido) throw erro(429, 'plano_reserva', 'Os créditos deste mês acabaram e não há modelo rápido homologado para conversas sigilosas. Fale com o admin.');
+    if (!escolhido) throw erro(429, 'plano_reserva', 'Os créditos deste mês acabaram e não há recurso econômico autorizado para informação sigilosa.');
     return escolhido;
   }
   const padrao = acharModelo(app.db, cfg, cfg.padroes.rapido);
   const escolhido = padrao?.liberado && padrao.perfil === 'rapido' ? padrao : rapidos[0];
-  if (!escolhido) throw erro(429, 'plano_reserva', 'Os créditos deste mês acabaram e não há modelo rápido liberado. Fale com o admin.');
+  if (!escolhido) throw erro(429, 'plano_reserva', 'Os créditos deste mês acabaram e não há recurso econômico disponível.');
   return escolhido;
 }
 
@@ -142,7 +142,7 @@ const ETAPAS = [
 
 const EVENTOS_ETAPA = { aviso80: ['credits.threshold_80'], plano100: ['credits.exhausted', 'reserve.started'], reserva90: ['reserve.threshold_90'], esgotado: ['reserve.exhausted'], renovado: ['credits.renewed'] };
 
-async function enviarParaTodos(app, assunto, texto, { soOperador = false } = {}) {
+export async function enviarParaTodos(app, assunto, texto, { soOperador = false } = {}) {
   const admins = soOperador ? [] : todos(app.db, "select email from pessoas where papel = 'admin' and ativo = 1").map(a => a.email).filter(e => !(app.operadores || []).includes(e));
   const empresa = lerConfig(app.db).empresa;
   for (const para of [...new Set([...admins, ...(app.operadores || [])])]) {

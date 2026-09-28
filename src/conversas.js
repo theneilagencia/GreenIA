@@ -10,7 +10,8 @@ import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
-import { analisarPedido, analiseIndisponivel, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL } from './roteador.js';
+import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
+import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
 const MAX_TEXTO = 20000;
@@ -31,7 +32,7 @@ const textoMotivo = m => MOTIVOS[m] || (m.startsWith('dado:') ? `tem ${ROTULOS[m
 export function tornarSigilosa(app, pessoa, conv, motivo) {
   if (conv.sigilosa) return false;
   exec(app.db, 'update conversas set sigilosa = 1, motivo_sigilosa = ? where id = ?', motivo, conv.id);
-  aviso(app, conv.id, `Esta conversa passou a ser sigilosa (${textoMotivo(motivo)}). Ela usa só modelos homologados e continua sigilosa até ser apagada.`);
+  aviso(app, conv.id, `Esta conversa passou a ser sigilosa (${textoMotivo(motivo)}). A partir daqui, a GreenIA usa só os recursos autorizados para informação confidencial, e a conversa continua sigilosa até ser apagada.`);
   registrar(app, 'conversation.confidential', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, motivo });
   conv.sigilosa = 1;
   conv.motivo_sigilosa = motivo;
@@ -104,7 +105,7 @@ function historico(app, conv, limiteChars) {
     if (total > limiteChars && out.length) return { mensagens: out, cortada: true };
     out.unshift(comAnexos[i]);
   }
-  if (total > limiteChars) throw erro(413, 'grande_demais', 'Esta mensagem e os anexos passam do tamanho que o modelo aceita. Envie menos texto.');
+  if (total > limiteChars) throw erro(413, 'grande_demais', 'Este conteúdo é grande demais para ser analisado de uma vez. Envie uma parte do material por vez (por exemplo, um arquivo ou um capítulo de cada vez).');
   return { mensagens: out, cortada: false };
 }
 
@@ -131,10 +132,10 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.created', pessoa.id, { conversa: id, quick_win: qw?.id ?? null, teste: !!corpo.teste });
     const motivo = motivosFixos(app, pessoa, qw);
     if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
-    return detalhe(app, conv);
+    return detalhe(app, conv, pessoa);
   });
 
-  r.get('/api/conversas/:id', ({ pessoa, params }) => detalhe(app, minhaConversa(app, pessoa, params.id)));
+  r.get('/api/conversas/:id', ({ pessoa, params }) => detalhe(app, minhaConversa(app, pessoa, params.id), pessoa));
 
   r.patch('/api/conversas/:id', ({ pessoa, params, corpo }) => {
     const conv = minhaConversa(app, pessoa, params.id);
@@ -148,7 +149,7 @@ export function rotasConversas(app, r) {
       exec(app.db, "update roteamento set feedback = ? where id = (select id from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1)", corpo.feedback, conv.id);
       registrar(app, conv.quick_win_id ? 'quickwin.evaluated' : 'conversation.evaluated', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, feedback: corpo.feedback });
     }
-    return detalhe(app, minhaConversa(app, pessoa, conv.id));
+    return detalhe(app, minhaConversa(app, pessoa, conv.id), pessoa);
   });
 
   r.del('/api/conversas/:id', ({ pessoa, params }) => {
@@ -171,7 +172,7 @@ export function rotasConversas(app, r) {
     const texto = String(corpo.texto || '').trim();
     const anexos = await (app.extrairAnexos?.(corpo.anexos) ?? []);
     if (!texto && !anexos.length) throw erro(400, 'vazia', 'Escreva uma mensagem.');
-    if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Mensagem acima de ${MAX_TEXTO} caracteres.`);
+    if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Esta mensagem é longa demais para enviar de uma vez (até ${MAX_TEXTO.toLocaleString('pt-BR')} caracteres). Divida em partes ou envie o material como anexo.`);
     if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');
     await app.limites?.checar(pessoa, cfg);
     const plano = checarPlano(app);   // fim da reserva: bloqueia
@@ -197,8 +198,8 @@ export function rotasConversas(app, r) {
     const classePadrao = classeDe(app.db, cfg, cfg.padroes.chat) || cfg.padroes.chat;
     const escolhaSalva = corpo.modelo || conv.modelo || null;
     // Quick win que deixa trocar: com o roteamento ligado, começa no Automático (a classe dele continua liberada).
-    const pedido = qwFixo ? qw.modelo : escolhaSalva || (roteamentoAtivo ? AUTOMATICO : qw?.modelo || classePadrao);
-    const automatico = roteamentoAtivo && pedido === AUTOMATICO;
+    let pedido = qwFixo ? qw.modelo : escolhaSalva || (roteamentoAtivo ? AUTOMATICO : qw?.modelo || classePadrao);
+    let automatico = roteamentoAtivo && pedido === AUTOMATICO;
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw);
@@ -217,25 +218,34 @@ export function rotasConversas(app, r) {
       analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
     }
     const reservaDoPlano = plano?.fase === 'reserva';
-    let manual = null, trocaDoPlano = false;
+    // Resolução do pedido (antes de qualquer bloqueio): uma escolha manual que não pode ser usada (classe sem
+    // acesso, não liberada, não autorizada para dado sigiloso, fora da reserva do plano) NÃO vira pergunta
+    // para a pessoa: o pedido segue no roteamento automático, entre os modelos que as regras permitem.
+    let manual = null, trocaDoPlano = false, substituida = null;
     if (!automatico) {
-      manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
-      if (sigilosa && !manual.homologado) {
-        const h = homologadoPadrao(app.db, cfg);
-        throw erro(409, 'precisa_homologado', h ? `Esta conversa passou a ter dados sigilosos e vai usar o modelo homologado ${h.nome}.`
-          : 'Esta conversa tem dados sigilosos e ainda não há modelo homologado. Fale com o admin.', { sugestao: h && { id: h.id, nome: h.nome } });
-      }
-      // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
-      if (reservaDoPlano) {
-        const antes = manual;
-        manual = modeloNaReserva(app, cfg, manual, sigilosa);
-        trocaDoPlano = manual.id !== antes.id;
-        if (trocaDoPlano) aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
+      try {
+        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
+        if (sigilosa && !manual.homologado) throw Object.assign(new Error('não autorizado para dado sigiloso'), { motivo: 'nao_homologado' });
+        // Créditos do mês no fim: só modelo rápido até a renovação ou um pacote.
+        if (reservaDoPlano) {
+          const antes = manual;
+          manual = modeloNaReserva(app, cfg, manual, sigilosa);
+          trocaDoPlano = manual.id !== antes.id;
+          if (trocaDoPlano) aviso(app, conv.id, 'Os créditos deste mês acabaram: até a renovação, as respostas usam o modo econômico.');
+        }
+      } catch (e) {
+        if (!e.motivo && !e.codigo) throw e;   // erro inesperado: não é uma regra de governança
+        // Quick win fixo sem o modelo dele: quem gere é avisado; quem usa segue no automático, na mesma governança.
+        if (qwFixo && !sigilosa && e.codigo !== 'plano_reserva') await avisarGovernanca(app, 'quick_win_sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
+        substituida = { tipo: 'escolha_substituida', motivo: e.motivo || e.codigo || 'indisponivel', classePedida: String(pedido).replace(/^classe:/, '') };
+        manual = null; trocaDoPlano = false; automatico = true;
+        if (sigilosa) aviso(app, conv.id, 'Esta conversa tem informação confidencial: a GreenIA passou a usar só os recursos autorizados para esse tipo de dado.');
       }
     }
     const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'openrouter_auto' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
-    const rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual: manual, origem });
+    const rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, modeloManual: manual, origem: substituida ? 'auto' : origem });
     if (trocaDoPlano) rota.fallback = rota.fallback || { tipo: 'trocado_pela_reserva_do_plano', classePedida };
+    if (substituida) { rota.fallback = rota.fallback ? { ...rota.fallback, escolha: substituida } : substituida; rota.politicas.push('escolha_substituida_pelo_roteamento'); }
 
     // Registro da decisão: critérios, requisitos, políticas, candidatos e fallback; nenhum conteúdo do pedido.
     const gravarRota = (msgId, resultado) => Number(exec(app.db, `insert into roteamento (em, pessoa_id, conversa_id, mensagem_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais,
@@ -254,15 +264,17 @@ export function rotasConversas(app, r) {
 
     let m = rota.modelo;
     if (!m) {
+      // Nenhuma alternativa segura: bloqueia, registra e avisa quem governa. Quem usa não recebe instrução técnica.
       gravarRota(null, 'bloqueado');
-      if (sigilosa) throw erro(409, 'precisa_homologado', 'Esta conversa tem dados sigilosos e não há modelo homologado disponível para você. Fale com o admin.');
-      if (rota.fallback?.causas?.includes('contexto_insuficiente') || rota.fallback?.causa === 'contexto_insuficiente')
-        throw erro(413, 'grande_demais', 'Esta mensagem e os anexos passam do tamanho que os modelos liberados aceitam. Envie menos texto ou só as partes necessárias.');
-      throw erro(403, 'modelo_nao_liberado', 'Nenhum modelo liberado atende a este pedido agora. Fale com o admin.');
+      const causas = [rota.fallback?.causa, ...(rota.fallback?.causas || [])];
+      if (causas.includes('contexto_insuficiente') && !causas.some(c => ['nao_homologado', 'sem_acesso_a_classe', 'plano_na_reserva'].includes(c)))
+        throw erro(413, 'grande_demais', MSG_USUARIO.grande);   // o material em si é grande demais para qualquer modelo permitido
+      await avisarGovernanca(app, sigilosa ? 'sem_modelo_sigilo' : reservaDoPlano ? 'plano_reserva' : 'sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
+      throw erro(sigilosa ? 409 : 503, sigilosa ? 'sem_modelo_autorizado' : 'sem_modelo', sigilosa ? MSG_USUARIO.sigilo : MSG_USUARIO.indisponivel);
     }
-    if (reservaDoPlano && automatico && rota.fallback?.tipo === 'abaixo_do_necessario') aviso(app, conv.id, 'Os créditos deste mês acabaram: esta resposta usa a classe Rápido.');
+    if (reservaDoPlano && automatico && rota.fallback?.tipo === 'abaixo_do_necessario') aviso(app, conv.id, 'Os créditos deste mês acabaram: até a renovação, as respostas usam o modo econômico.');
     if (conv.modelo && conv.modelo !== pedido && !trocaDoPlano) {
-      aviso(app, conv.id, pedido === AUTOMATICO ? 'Classe automática: a GreenIA escolhe o modelo para cada pedido.' : `Classe trocada para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
+      aviso(app, conv.id, pedido === AUTOMATICO ? 'Modo automático: a GreenIA escolhe o melhor recurso para cada pedido.' : `Nível trocado para ${NOMES_CLASSE[m.perfil] || m.nome}.`);
       registrar(app, 'conversation.model_changed', pessoa.id, { conversa: conv.id, de: conv.modelo, para: pedido });
     }
 
@@ -287,7 +299,8 @@ export function rotasConversas(app, r) {
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     const linha = o => res.write(JSON.stringify(o) + '\n');
-    const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade, explicacao: rota.explicacao };
+    const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
+      explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }) };
     linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: m.id, classe: m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
     const inicio = Date.now();
     let resposta = '', fim = null, primeiroToken = null;
@@ -295,11 +308,14 @@ export function rotasConversas(app, r) {
       for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: sigilosa ? null : rota.reserva, sigilosa, fornecedor: m.homologacao?.fornecedor, semTreino: cfg.exigirSemTreino })) {
         if (ev.tipo === 'texto') { primeiroToken ??= Date.now() - inicio; resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
       }
-      if (!resposta) throw new ErroIA('O modelo não respondeu. Tente de novo.');
+      if (!resposta) throw new ErroIA('A IA não respondeu.');
     } catch (e) {
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
       registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, erro: String(e.message).slice(0, 200) });
-      linha({ t: 'erro', mensagem: e instanceof ErroIA ? e.message : 'Não foi possível responder agora. Tente de novo.' });
+      // O detalhe técnico (provedor, código, modelo) fica no evento; quem usa recebe uma mensagem orientada à tarefa.
+      const fora = [401, 402, 503].includes(e?.status);
+      if (fora) await avisarGovernanca(app, 'ia_fora', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});
+      linha({ t: 'erro', mensagem: fora ? MSG_USUARIO.ia_fora : MSG_USUARIO.falhou });
       return res.end();
     }
     const ms = Date.now() - inicio;
@@ -319,7 +335,7 @@ export function rotasConversas(app, r) {
   }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
 }
 
-export function detalhe(app, c) {
+export function detalhe(app, c, pessoa = null) {
   const cfg = lerConfig(app.db);
   const anexos = todos(app.db, 'select mensagem_id, nome from anexos where conversa_id = ?', c.id);
   const expira = new Date(new Date(c.atualizado_em).getTime() + cfg.retencaoDias * 864e5).toISOString();
@@ -327,8 +343,10 @@ export function detalhe(app, c) {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: c.modelo, sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
-    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
-      .map(m => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome) })),
+    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
+      .map(({ rota_politicas, rota_fallback, rota_sigilosa, ...m }) => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
+        // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
+        ...(pessoa?.admin ? {} : { fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),
   };
 }
 

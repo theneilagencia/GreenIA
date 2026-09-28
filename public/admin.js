@@ -163,8 +163,8 @@ async function abaModelos() {
     </tbody></table></div>
     <p class="dica">Para trocar o modelo de uma classe, use "Modelo de cada classe" mais abaixo. Toda troca fica no histórico.</p>
     <h3>Catálogo técnico</h3>
-    <div class="faixa-aviso ${padrao ? 'ok' : 'erro'}">${padrao ? `Homologado padrão: <b>${esc(padrao.nome)}</b>, disponível para todas as pessoas. Conversas sigilosas usam este modelo quando a pessoa não escolhe outro homologado.`
-      : 'Nenhum modelo homologado disponível para todos. Conversas sigilosas não podem ser enviadas. Homologue um modelo do perfil Rápido (ou de um perfil liberado para todos).'}</div>
+    <div class="faixa-aviso ${padrao ? 'ok' : 'erro'}">${padrao ? `Homologado padrão: <b>${esc(padrao.nome)}</b>, disponível para todas as pessoas. Conversas sigilosas usam este modelo automaticamente; ninguém precisa escolher.`
+      : '<b>Conversas com informação sigilosa estão sendo bloqueadas com segurança.</b> Nenhum conteúdo é enviado e as pessoas recebem só uma mensagem simples; você é avisado por email. Para liberar, homologue aqui um modelo de uma classe disponível para todos (por exemplo, Rápido) ou peça à equipe da plataforma a autorização padrão, que vale sem configuração.'}</div>
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
     ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
@@ -172,7 +172,7 @@ async function abaModelos() {
       ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
       <td><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"></td>
       <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
-      <td>${x.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span><br><span class="dica">${esc(x.homologacao?.fornecedor || '')} · ${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</span><br><button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>`
+      <td>${x.homologado ? `<span class="selo">${ICONE.escudo} Homologado</span><br><span class="dica">${esc(x.homologacao?.fornecedor || '')} · ${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</span><br>${x.homologacao?.origem === 'plataforma' ? '<span class="dica">Autorizado pela plataforma para todas as empresas</span>' : `<button class="btn-texto btn-pequeno" data-retirar="${esc(x.id)}">Retirar</button>`}`
         : x.liberado ? `<button class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Homologar</button>` : '<span class="dica">libere antes</span>'}</td>
       <td>${editorCapacidades(x)}</td></tr>`))}
     <p class="dica">Capacidades: por padrão, cada modelo vale o nível da classe dele em tudo. Informe só quando um modelo foge disso (por exemplo, um Equilibrado forte em programação, ou um Avançado fraco em leitura de documentos longos). O roteamento compara essas capacidades com o que cada pedido exige; a classe continua valendo para acesso, plano e quick win.</p>

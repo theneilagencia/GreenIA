@@ -8,6 +8,7 @@ import { join, dirname } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { criarApp } from '../servidor.js';
 import { criarEmail } from '../email.js';
+import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { registrarFalhaEmail, registrarEnvioOk } from './email-falhas.js';
 import { criarSimulada, criarOpenRouter } from '../ia.js';
 import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
@@ -154,6 +155,7 @@ function aplicarAoTenant(P, id) {
   const mpm = plano?.limits?.messages_per_minute;
   t.rajada = plano ? (mpm > 0 ? mpm : Infinity) : undefined;
   t.operadores = P.adminsPlataforma();
+  aplicarHomologacoesPlataforma(t.db, lerAjuste(P.db, 'homologacoes_plataforma', []) || [], P.agora());   // autorização da operadora para dados sigilosos
   t.linkApp = () => `${E.urlDaEmpresa(P, E.lerEmpresa(P, id) || c)}/app`;   // links nos emails da empresa
   const b = E.lerMarca(P, id);
   const parcial = { empresa: b?.display_name || c.name, logo: b?.logo || '', corMarca: b?.primary_color || '' };

@@ -42,7 +42,13 @@ test('fluxo completo: pedido simples no Rápido, contrato com riscos no Avançad
   assert.equal(OR.chamadas.at(-1).model, AVANCADO);
   const rota = ultimaRota();
   assert.equal(rota.modelo, AVANCADO);
-  assert.equal(r.fim.rota.explicacao, rota.explicacao, 'a tela mostra a explicação registrada');
+  // Quem conversa vê a explicação simples; o registro (e o admin) guarda a técnica.
+  assert.match(r.fim.rota.explicacao, /^Nível Avançado, escolhido automaticamente pela GreenIA/);
+  assert.doesNotMatch(r.fim.rota.explicacao, /modelo|janela|token|homolog|OpenRouter/i);
+  assert.match(rota.explicacao, /^Classe Avançado, escolhida automaticamente pela GreenIA/);
+  const tela = (await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens.find(m => m.papel === 'assistant');
+  assert.equal(tela.rota_explicacao, r.fim.rota.explicacao);
+  assert.equal(tela.fornecedor, null);
 });
 
 test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, preferência, resultado) sem guardar conteúdo', async () => {

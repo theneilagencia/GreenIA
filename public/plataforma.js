@@ -580,7 +580,8 @@ async function vistaAuditoria(pagina = 0) {
 
 async function vistaConfiguracoes() {
   carregando('Configurações');
-  const c = await api('/api/plataforma/configuracoes');
+  const [c, hm] = await Promise.all([api('/api/plataforma/configuracoes'), api('/api/plataforma/homologacoes').catch(() => ({ homologacoes: [] }))]);
+  const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
   tela('Configurações', `<form id="f-cfg" novalidate>
     <div class="grade-2"><div class="campo"><label for="cf-nome">Nome da plataforma</label><input class="entrada" id="cf-nome" value="${esc(c.nome)}" maxlength="60"></div>
       <div class="campo"><label for="cf-plano">Plano padrão para novas empresas</label><select class="entrada" id="cf-plano"><option value="">Nenhum</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === c.plano_padrao ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div></div>
@@ -593,12 +594,34 @@ async function vistaConfiguracoes() {
     <div class="grade-2"><div class="campo"><label for="cf-smtp">URL do SMTP</label><input class="entrada" id="cf-smtp" placeholder="${c.smtp.configurado ? '(mantida; preencha para trocar)' : 'smtps://usuario:senha@smtp.exemplo.com:465'}"></div>
       <div class="campo"><label for="cf-rem">Remetente</label><input class="entrada" id="cf-rem" value="${esc(c.smtp.remetente || '')}" placeholder="GreenIA <nao-responda@exemplo.com>"></div></div>
     <div class="linha-botoes"><button class="btn btn-verde">Salvar configurações</button><button type="button" class="btn btn-linha" id="cf-teste">Enviar email de teste</button></div></form>
+    <div class="secao-titulo"><h3>Modelos autorizados para dados sigilosos (valem para todas as empresas)</h3></div>
+    <p class="dica">Com pelo menos um modelo aqui, conversas com informação sigilosa funcionam em todas as empresas sem que o admin de cada uma precise homologar nada. A empresa não consegue retirar esta autorização; ela pode homologar outros modelos além destes.</p>
+    ${hm.homologacoes.length ? tabela(['Modelo', 'Classe', 'Fornecedor fixado', 'Autorizado por', ''], hm.homologacoes.map(h => `<tr><td data-r="Modelo"><b>${esc(h.nome)}</b><br><span class="dica">${esc(h.id)}</span></td><td data-r="Classe">${esc(CLASSES[h.perfil] || h.perfil)}</td><td data-r="Fornecedor">${esc(h.fornecedor)}</td><td data-r="Autorizado por">${esc(h.por || '')}<br><span class="dica">${esc(dataHora(h.em))} · ${esc(h.justificativa)}</span></td><td><button type="button" class="btn-texto btn-pequeno" data-hm-retirar="${esc(h.id)}">Retirar</button></td></tr>`), '')
+      : '<div class="faixa-aviso atencao">Nenhum modelo autorizado pela plataforma. Em empresas cujo admin ainda não homologou um modelo, conversas sigilosas são bloqueadas com segurança (nada é enviado) e o admin é avisado.</div>'}
+    <form id="f-hm" novalidate style="margin-top:12px">
+      <div class="grade-2"><div class="campo"><label for="hm-id">Modelo no OpenRouter</label><input class="entrada" id="hm-id" placeholder="fornecedor/modelo"></div>
+        <div class="campo"><label for="hm-nome">Nome para exibir</label><input class="entrada" id="hm-nome" maxlength="120"></div></div>
+      <div class="grade-2"><div class="campo"><label for="hm-perfil">Classe</label><select class="entrada" id="hm-perfil">${Object.entries(CLASSES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select><span class="ajuda">Use uma classe que todas as pessoas acessam (normalmente Rápido).</span></div>
+        <div class="campo"><label for="hm-forn">Fornecedor fixado</label><input class="entrada" id="hm-forn" placeholder="Nome do fornecedor no OpenRouter"></div></div>
+      <label class="opcoes"><span><input type="checkbox" id="hm-treino"> Conferi que o fornecedor não treina com os dados</span></label>
+      <label class="opcoes"><span><input type="checkbox" id="hm-zdr"> Conferi que o fornecedor tem retenção zero (não guarda os dados)</span></label>
+      <div class="campo"><label for="hm-just">Justificativa</label><textarea class="entrada" id="hm-just" rows="2"></textarea></div>
+      <div class="linha-botoes"><button class="btn btn-verde">Autorizar para todas as empresas</button></div></form>
     ${c.leads.length ? `<div class="secao-titulo"><h3>Contatos da página de vendas</h3></div>${tabela(['Data', 'Empresa', 'Pessoa', 'Mensagem'], c.leads.map(l => `<tr><td data-r="Data">${data(l.em)}</td><td data-r="Empresa"><b>${esc(l.empresa)}</b><br><span class="dica">${esc(l.pessoas || '')}</span></td><td data-r="Pessoa">${esc(l.nome)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td data-r="Mensagem">${esc(l.mensagem || '–')}</td></tr>`), '')}` : ''}`);
   $('f-cfg').onsubmit = async ev => {
     ev.preventDefault();
     const corpo = { nome: $('cf-nome').value, plano_padrao: $('cf-plano').value || null, subdominio_base: $('cf-sub').value, slugs_reservados: $('cf-res').value, smtp: { remetente: $('cf-rem').value, ...($('cf-smtp').value ? { url: $('cf-smtp').value } : {}) } };
     try { await api('/api/plataforma/configuracoes', { metodo: 'PUT', corpo }); toast('Configurações salvas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
   };
+  $('f-hm').onsubmit = async ev => {
+    ev.preventDefault();
+    const corpo = { id: $('hm-id').value.trim(), nome: $('hm-nome').value.trim(), perfil: $('hm-perfil').value, fornecedor: $('hm-forn').value.trim(), semTreino: $('hm-treino').checked, retencaoZero: $('hm-zdr').checked, justificativa: $('hm-just').value };
+    try { await api('/api/plataforma/homologacoes', { metodo: 'POST', corpo }); toast('Modelo autorizado em todas as empresas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
+  };
+  document.querySelectorAll('[data-hm-retirar]').forEach(b => { b.onclick = async () => {
+    if (!confirm('Retirar a autorização em todas as empresas? Empresas sem outro modelo homologado passam a bloquear conversas sigilosas.')) return;
+    try { await api(`/api/plataforma/homologacoes/${encodeURIComponent(b.dataset.hmRetirar)}`, { metodo: 'DELETE' }); toast('Autorização retirada.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
+  }; });
   $('cf-teste').onclick = async () => { try { const r = await api('/api/plataforma/smtp/teste', { metodo: 'POST' }); toast(`Email de teste enviado para ${r.para}.`); } catch (x) { falhar(x); } };
 }
 

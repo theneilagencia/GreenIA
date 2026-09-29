@@ -204,6 +204,7 @@ test('versões: quem usa recebe a publicada; o teste usa o rascunho; publicar a 
   assert.equal(p.status, 'em_uso');
   assert.equal(p.rascunho_alterado, false);
   assert.equal(p.ultimo_teste.status, 'aprovado');
+  assert.equal(p.ultimo_teste.itens.filter(i => i.ok && i.conferido).length, 4, 'resumo simples do teste na publicação');
   const sistemaDe = r => JSON.stringify(r.chamadas[0].messages[0].content);
   assert.doesNotMatch(sistemaDe(await executar(carlos, q.id, 'pedido 40, nota 38')), /ordem de prioridade/);
   // Ajuste no rascunho: o time continua na v1; o teste de quem gere já usa o rascunho.

@@ -270,7 +270,8 @@ export function construir(r = {}) {
   const a = ARQUETIPOS[arq];
   const modo = ['explicar', 'mostrar', 'pronto'].includes(r.como?.modo) ? r.como.modo : 'pronto';
   const explicacao = modo === 'explicar' ? String(r.como?.texto || '').slice(0, 3000) : '';
-  const exemplo = modo === 'mostrar' ? analisarExemplo(r.como?.exemplo) : null;
+  // _estruturaAnterior: a estrutura já guardada (vem só do servidor, ao ajustar sem mostrar um exemplo novo).
+  const exemplo = modo === 'mostrar' ? analisarExemplo(r.como?.exemplo) || r._estruturaAnterior || null : null;
   // Regras: só as do catálogo; "não inventar" sempre ligada; no máximo as sugeridas mais as da escolha.
   const pedidas = Array.isArray(r.regras) ? r.regras.filter(id => REGRAS[id]) : sugerirRegras(arq, { exemplo }).map(x => x.id);
   const regras = [...new Set(['nao_inventar', ...pedidas])].slice(0, 8);

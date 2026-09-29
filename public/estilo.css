@@ -1199,3 +1199,56 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .marca .logo-marca{display:block;max-height:40px;max-width:180px;object-fit:contain}
 .marca .nome-marca{font:600 18px/1.2 var(--sans);letter-spacing:-.01em;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
 .lateral .marca .logo-marca{max-height:33px;max-width:135px}   /* 25% menor que a primeira versão (44 × 180) */
+
+/* Quick Wins 2.0: criação em etapas (uma pergunta por vez), resultado conferido e uso simples. */
+.qw-etapas{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:10px}
+.qw-etapa{display:block;border:1px solid var(--line);border-radius:var(--raio-painel);background:var(--paper);padding:14px 16px}
+.qw-etapa.atual{border-color:var(--forest);box-shadow:0 0 0 1px var(--forest)}
+.qw-etapa.atual h2{font:600 18px/1.35 var(--sans);margin:0 0 12px;display:flex;align-items:center;gap:10px}
+.qw-etapa.feita{display:flex;align-items:center;gap:12px;justify-content:space-between;background:var(--surface)}
+.qw-etapa.feita div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.qw-etapa.feita span{color:var(--muted);font:400 13.5px/1.45 var(--sans);overflow-wrap:anywhere}
+.qw-etapa.futura{color:var(--faint);font:500 14px var(--sans);display:flex;align-items:center;gap:10px;background:transparent;border-style:dashed}
+.passo-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:var(--mint);color:var(--forest-text);font:600 13px var(--sans);flex:none}
+.qw-etapa .linha-botoes{margin-top:14px}
+.etapa textarea,.etapa input.entrada{width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--paper);border:1px solid var(--line-strong);color:var(--ink);border-radius:999px;padding:9px 14px;font:500 14px var(--sans);min-height:40px}
+.chip:hover{background:var(--surface)}
+.chip[aria-pressed="true"]{background:var(--mint);border-color:var(--forest);color:var(--forest-text)}
+.chip[aria-pressed="true"]::before{content:"✓ "}
+.cartoes-opcao{border:0;padding:0;margin:0 0 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.cartao-opcao{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line-strong);border-radius:var(--raio);padding:12px;background:var(--paper);cursor:pointer;min-height:48px}
+.cartao-opcao:has(input:checked){border-color:var(--forest);background:var(--mint)}
+.cartao-opcao span{display:flex;flex-direction:column;gap:2px;font:400 13.5px/1.4 var(--sans);color:var(--muted)}
+.cartao-opcao b{color:var(--ink);font-weight:600;font-size:14.5px}
+.cartao-opcao input{margin-top:3px}
+.regras{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;font:400 15px var(--sans)}
+.regras label{display:flex;gap:10px;align-items:center;min-height:32px}
+.sugerido{background:var(--mint);border-radius:var(--raio);padding:10px 12px;margin:0 0 12px;font:400 14px/1.45 var(--sans)}
+.estrutura-pronta{background:var(--surface);border-radius:var(--raio);padding:10px 14px;font:400 14px/1.5 var(--sans)}
+.qualidade{border:1px solid var(--line);border-left:3px solid var(--forest);border-radius:var(--raio);background:var(--mint);padding:10px 12px;margin:0 0 10px;font:400 14px/1.45 var(--sans)}
+.qualidade ul,.qualidade-itens{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-wrap:wrap;gap:4px 16px}
+.qualidade p{margin:6px 0 0}
+.qualidade.inconsistente{background:var(--amber-bg);border-left-color:var(--amber)}
+.qualidade.inconsistente .linha-botoes{margin-top:8px}
+.etapa-texto{font:400 14px var(--sans);color:var(--muted);margin-left:8px;align-self:center}
+.aviso-teste{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--amber-bg);border-bottom:1px solid var(--line);padding:10px 18px;font:400 14px var(--sans)}
+.aviso-teste span{flex:1 1 240px}
+.qw-topo{display:flex;gap:14px;align-items:flex-start;margin-bottom:12px}
+.qw-topo h2{margin:0 0 4px}
+.gestao-qw{margin-bottom:16px}
+.executar{border:1px solid var(--line);border-radius:var(--raio-painel);background:var(--paper);padding:16px;margin-bottom:22px}
+.executar textarea{width:100%;margin-bottom:10px}
+.nome-sugerido{font:600 18px var(--sans);margin:0 0 10px}
+.publicar .grupo-form ul{margin:0 0 12px;padding-left:20px}
+.publicar .grupo-form ul.qualidade-itens{padding-left:0;gap:4px 18px}
+@media (max-width:640px){
+  .assistente .btn:not(.btn-texto),.executar .btn,.publicar .btn:not(.btn-texto){min-height:44px;flex:1 1 auto}
+  .cartoes-opcao{grid-template-columns:1fr}
+  /* Uma pergunta por vez: as respondidas ficam numa linha; as próximas não aparecem. */
+  .qw-etapa.feita{padding:8px 12px}
+  .qw-etapa.feita b{font-size:13px;color:var(--muted);font-weight:500}
+  .qw-etapa.feita span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  .qw-etapa.futura{display:none}
+}

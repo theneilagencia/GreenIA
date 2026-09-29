@@ -11,7 +11,8 @@ const FEEDBACK = [['serviu', 'Serviu'], ['ajustes', 'Serviu com ajustes'], ['nao
 let C = null;       // estado da conversa aberta
 const vistos = new Set();   // mensagens já mostradas (só as novas animam)
 
-export async function vistaConversa({ id = null, qw = null, teste = false } = {}) {
+// enviarAgora: { texto, anexos } para já executar ao abrir (Quick Win: "Executar" e o teste da criação).
+export async function vistaConversa({ id = null, qw = null, teste = false, enviarAgora = null } = {}) {
   // Navegações seguidas: só a última desenha (uma vista antiga não sobrescreve o estado da nova).
   const estado = C = { conv: null, mensagens: [], qw, teste, opcoes: [], modelo: null, anexos: [], enviando: false, tabelas: {}, noFim: true, homologadoPadrao: null };
   if (id) {
@@ -25,6 +26,7 @@ export async function vistaConversa({ id = null, qw = null, teste = false } = {}
   await carregarModelos();
   if (C !== estado) return;
   desenhar();
+  if (enviarAgora) { $('entrada').value = enviarAgora.texto || ''; C.anexos = enviarAgora.anexos || []; ajustarAltura(); desenharAnexos(); atualizarEnviar(); await enviar(); }
 }
 
 async function carregarModelos() {
@@ -59,7 +61,7 @@ function desenhar() {
       <button class="icone-btn" id="apagar" title="Apagar" aria-label="Apagar conversa">${ICONE.lixo}</button>` : '')}
     <div class="barra-conversa">
       ${qw ? `<span class="selo"><span class="cor" style="width:8px;height:8px;border-radius:2px;background:${esc(qw.cor)}"></span>${esc(qw.nome)}</span><span class="dica">${ESTADOS[qw.status] || ''}${C.teste ? ' · teste, fora da medição' : ''}</span>` : ''}
-      ${C.opcoes.length > 1 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível
+      ${C.opcoes.length > 1 && !qw?.v2 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível
         <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
           ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático (recomendado)' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
         </select></label>` : ''}
@@ -72,6 +74,8 @@ function desenhar() {
       ${qw && conv && !conv.teste ? `<span class="feedback" role="group" aria-label="Esta conversa serviu?"><span class="dica">Serviu?</span>
         ${FEEDBACK.map(([v, r]) => `<button data-fb="${v}" aria-pressed="${conv.feedback === v}">${r}</button>`).join('')}</span>` : ''}
     </div>
+    ${qw?.v2 && C.teste && qw.podeEditar ? `<div class="aviso-teste" role="region" aria-label="Teste do Quick Win"><span><b>Teste do Quick Win.</b> Usa a versão em ajuste e não entra na medição.</span>
+      <a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/ajustar">Ajustar Quick Win</a></div>` : ''}
     <div class="mensagens" id="msgs"><div class="coluna" id="coluna"></div></div>
     <div class="compositor"><div style="max-width:760px;margin:0 auto">
       <div class="sugestoes" id="sugestoes"></div>
@@ -108,13 +112,38 @@ function htmlMensagem(m) {
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}</div>`;
   const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>', tabelas: [] } : renderizar(m.texto);
   C.tabelas[m.id] = tabelas;
+  if (m.qualidade?.status === 'inconsistente' && !m.carregando) return htmlInconsistente(m, anim, html, fontes0(m));
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => `<span class="selo">${ICONE.doc} ${esc(f)}</span>`).join('')}</div>` : '';
   return `<div class="resposta${anim}" data-msg="${m.id}">
     <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
-    <div class="resposta-corpo"><div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
+    <div class="resposta-corpo">${htmlQualidade(m)}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}">${html}</div>
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${m.modelo || m.classe || m.rota_modo ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
-        ${m.rota_explicacao ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}`}
+        <button type="button" data-copiar="${m.id}">Copiar</button>${!C.qw?.v2 && (m.modelo || m.classe || m.rota_modo) ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
+        ${m.rota_explicacao && !C.qw?.v2 ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}`}
+    </div></div>`;
+}
+
+const fontes0 = m => ((m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => `<span class="selo">${ICONE.doc} ${esc(f)}</span>`).join('')}</div>` : '');
+// Conferência de qualidade (Quick Win 2.0): resumo simples, com ✓ e texto (nunca só cor).
+function htmlQualidade(m) {
+  const q = m.qualidade;
+  if (!q || m.carregando || !['aprovado', 'corrigido', 'parcial'].includes(q.status)) return '';
+  const itens = q.itens.filter(i => i.conferido && i.ok);
+  return `<div class="qualidade" role="status"><b>${C.teste ? 'Teste concluído' : 'Resultado conferido'} ✓</b>
+    <ul>${itens.map(i => `<li>${esc(i.rotulo)} ✓</li>`).join('')}</ul>${q.status === 'parcial' ? '<p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p>' : ''}</div>`;
+}
+function htmlInconsistente(m, anim, html, fontes) {
+  const q = m.qualidade;
+  return `<div class="resposta${anim}" data-msg="${m.id}">
+    <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
+    <div class="resposta-corpo"><div class="qualidade inconsistente" role="alert"><b>O GreenIA encontrou uma inconsistência no resultado.</b>
+      <div class="linha-botoes"><button type="button" class="btn btn-linha btn-pequeno" data-ver-qc="${m.id}" aria-expanded="false" aria-controls="qc-${m.id}">Ver o que aconteceu</button>
+      ${C.qw?.podeEditar ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${C.qw.id}/ajustar">Ajustar Quick Win</a>` : ''}</div></div>
+      <div class="oculto" id="qc-${m.id}"><ul class="qualidade-itens">${q.itens.map(i => `<li>${esc(i.rotulo)}: ${i.ok ? 'sim ✓' : 'não ✗'}</li>`).join('')}</ul>
+        ${(q.problemas || []).length ? `<p>${q.problemas.map(esc).join(' ')}</p>` : ''}
+        <p class="dica">Resultado entregue pela IA, sem aprovação na conferência. Revise com cuidado antes de usar:</p>
+        <div class="bolha-ia aviso-bolha">${html}</div>
+        <div class="rodape-resposta"><button type="button" data-copiar="${m.id}">Copiar</button></div>${fontes}</div>
     </div></div>`;
 }
 
@@ -126,7 +155,7 @@ function desenharMensagens() {
     : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
         <h2>Como a GreenIA pode ajudar hoje</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p>${cartaoBase()}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
-  $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span><span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span></div>` : '');
+  $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span><span class="pensando" aria-label="${esc(C.etapa || 'Pensando')}"><span></span><span></span><span></span></span>${C.etapa ? `<span class="etapa-texto">${esc(C.etapa)}</span>` : ''}</div>` : '');
   sugestoes();
   rolarSeNoFim();
 }
@@ -172,6 +201,8 @@ function ligar() {
   $('coluna').addEventListener('click', ev => {
     const cp = ev.target.closest('[data-copiar]');
     if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); navigator.clipboard?.writeText(m.texto).then(() => toast('Resposta copiada.')); }
+    const ver = ev.target.closest('[data-ver-qc]');
+    if (ver) { const d = $(`qc-${ver.dataset.verQc}`); const aberto = d.classList.toggle('oculto') === false; ver.setAttribute('aria-expanded', String(aberto)); }
     const csv = ev.target.closest('[data-csv]');
     if (csv) baixarCsv(C.tabelas[csv.closest('[data-msg]').dataset.msg][Number(csv.dataset.csv)], `${(C.qw?.nome || 'tabela').replace(/[^\wÀ-ú -]/g, '')}.csv`);
   });
@@ -221,8 +252,9 @@ async function enviar(reenvio = null) {
     C.mensagens.push({ id: 'eu' + Date.now(), papel: 'user', texto, anexos: anexos.map(a => a.nome) });
     $('entrada').value = ''; C.anexos = []; ajustarAltura(); desenharAnexos();
   }
-  C.pensando = true; C.noFim = true; desenharMensagens();
-  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos, modelo: C.modelo }, bruto: true });
+  C.pensando = true; C.etapa = null; C.noFim = true; desenharMensagens();
+  // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
+  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos, ...(C.qw?.v2 ? {} : { modelo: C.modelo }) }, bruto: true });
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;
@@ -254,18 +286,20 @@ async function enviar(reenvio = null) {
     for (const l of linhas.filter(Boolean)) {
       const ev = JSON.parse(l);
       if (ev.t === 'inicio' && ev.cortada && C.conv) C.conv.cortada = true;
+      if (ev.t === 'etapa' && C.pensando) { C.etapa = ev.v; $('ao-vivo').textContent = ev.v; }
       if (ev.t === 'texto') {
         if (C.pensando) { C.pensando = false; C.mensagens.push(resposta); }
         resposta.texto += ev.v;
       }
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
-      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
+      if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, qualidade: ev.qualidade, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
     }
     // Durante o streaming, atualiza só a bolha da resposta.
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
     if (bolha) { bolha.innerHTML = esc(resposta.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>'; rolarSeNoFim(); } else desenharMensagens();
   }
-  $('ao-vivo').textContent = resposta.erro ? resposta.texto : 'Resposta pronta.';
+  C.etapa = null;
+  $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
   await recarregarConversa(true);
   recarregarLateral();

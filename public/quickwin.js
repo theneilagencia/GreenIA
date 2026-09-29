@@ -4,6 +4,7 @@
 import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
+import { assistenteQw, publicarQw, versoesQw, paginaQw2 } from '/quickwin2.js';
 import { secaoMedicao } from '/medicao.js';
 
 const $ = id => document.getElementById(id);
@@ -27,7 +28,11 @@ const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-dig
 export async function rotaQuickWin(hash) {
   let m;
   if (hash === '#/quick-wins') return listaQuickWins();
-  if (hash === '#/qw/nova') return novaOrigem();
+  if (hash === '#/qw/nova') return assistenteQw();
+  if (hash === '#/qw/nova/modelos') return novaOrigem();
+  if ((m = /^#\/qw\/(\d+)\/ajustar$/.exec(hash))) return assistenteQw(Number(m[1]));
+  if ((m = /^#\/qw\/(\d+)\/publicar$/.exec(hash))) return publicarQw(Number(m[1]));
+  if ((m = /^#\/qw\/(\d+)\/versoes$/.exec(hash))) return versoesQw(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/editar$/.exec(hash))) return configurar(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/teste$/.exec(hash))) return vistaConversa({ qw: await api(`/api/quick-wins/${m[1]}`), teste: true });
   if ((m = /^#\/qw\/(\d+)\/nova$/.exec(hash))) return vistaConversa({ qw: await api(`/api/quick-wins/${m[1]}`) });
@@ -41,7 +46,7 @@ async function listaQuickWins() {
   const [{ quickWins }, port] = await Promise.all([api('/api/quick-wins'), gere ? api('/api/quick-wins/portfolio') : Promise.resolve(null)]);
   const disponiveis = quickWins.filter(q => EM_CIRCULACAO.includes(q.status));
   const cont = st => (port?.quickWins || []).filter(q => q.status === st).length;
-  $('principal').innerHTML = `${cabecalho('Quick wins', E.podeCriarQw ? `<a class="btn btn-verde btn-pequeno" href="#/qw/nova">${ICONE.mais} Registrar quick win</a>` : '')}
+  $('principal').innerHTML = `${cabecalho('Quick wins', E.podeCriarQw ? `<a class="btn btn-verde btn-pequeno" href="#/qw/nova">${ICONE.mais} Criar Quick Win</a>` : '')}
     <div class="pagina"><div class="pagina-dentro">
       <p class="lead">Um quick win organiza um uso recorrente de IA: o problema, as instruções, o conhecimento, a classe de modelo e quem é responsável. A empresa acompanha uso, custo e avaliação, e decide o que manter, ajustar, descartar ou ampliar.</p>
       <div class="secao-titulo" style="margin-top:8px"><h3>Disponíveis para você</h3></div>
@@ -70,6 +75,7 @@ async function listaQuickWins() {
 
 async function paginaQuickWin(id) {
   const [qw, lista] = await Promise.all([api(`/api/quick-wins/${id}`), api(`/api/conversas?quick_win=${id}`)]);
+  if (qw.v2) return paginaQw2(qw, lista);
   $('principal').innerHTML = `${cabecalho(qw.nome, seloEstado(qw.status))}
     <div class="pagina"><div class="pagina-dentro">
       <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -122,7 +128,7 @@ async function novaOrigem() {
   const existentes = E.quickWins;
   $('principal').innerHTML = `${cabecalho('Registrar quick win')}
     <div class="pagina"><div class="pagina-dentro">
-      <p class="lead">Registre um uso recorrente de IA. Ele começa em configuração: você define problema, instruções, conhecimento e classe de modelo, testa e depois coloca em teste para a área.</p>
+      <p class="lead">Comece de um modelo pronto ou duplique um Quick Win existente. Prefere descrever o trabalho com suas palavras? <a href="#/qw/nova">Criar em 5 etapas</a>.</p>
       <div class="grupo-form"><h3>Para qual área</h3>
         <div class="opcoes">${minhas.map((a, i) => `<label><input type="checkbox" name="area" value="${a.id}" ${i === 0 ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('') || '<span class="dica">Você não pode criar quick wins em nenhuma área.</span>'}
         ${E.permQw.todaEmpresa ? '<label><input type="checkbox" id="toda"> Toda a empresa</label>' : ''}</div><p></p></div>
@@ -178,7 +184,8 @@ async function configurar(id) {
           : `<div class="linha-botoes"><span>${qw.responsavel ? esc(qw.responsavel.nome) : 'sem responsável'}</span>${qw.responsavel?.id !== E.eu.id ? '<label class="dica"><input type="checkbox" id="assumir"> assumir como responsável</label>' : ''}</div>`}
           <span class="ajuda">Quem responde pelo resultado e pelas decisões deste quick win.</span></div>
       </div>
-      <div class="grupo-form"><h3>O que a IA deve fazer</h3>
+      ${qw.v2 ? `<div class="grupo-form"><h3>O que a IA deve fazer</h3><p class="lead">O trabalho deste Quick Win é montado pela GreenIA a partir das suas respostas. Para mudar o que ele faz, use <a href="#/qw/${id}/ajustar">Ajustar Quick Win</a>.</p></div>` : ''}
+      <div class="grupo-form${qw.v2 ? ' oculto' : ''}"><h3>O que a IA deve fazer</h3>
         <div class="campo"><label for="instrucoes">Instruções</label><textarea class="entrada" id="instrucoes" rows="7">${esc(qw.instrucoes)}</textarea><span class="ajuda">Em português comum. Valem para todas as conversas deste quick win.</span></div>
         <div class="campo"><span class="legenda">Formato preferido da resposta</span><div class="opcoes">${Object.entries(FORMATOS).map(([v, r]) => radio('formato', v, qw.formato, r)).join('')}</div></div>
         <div class="campo"><span class="legenda">Sugestões de início (até 4)</span>${sug.map((s, i) => `<input class="entrada" style="margin-bottom:6px" data-sugestao value="${esc(s)}" placeholder="Ex.: Confira estes dois documentos e liste as diferenças" aria-label="Sugestão ${i + 1}">`).join('')}</div>
@@ -198,7 +205,7 @@ async function configurar(id) {
           ${radio('bases', 'nenhuma', qw.bases.modo, 'Nenhuma')}${radio('bases', 'area', qw.bases.modo, 'A da área')}${radio('bases', 'escolhidas', qw.bases.modo, 'Escolher documentos')}</div>
           <div class="opcoes" id="bases-escolhidas" style="margin-top:8px">${bases.documentos.map(d => `<label><input type="checkbox" name="base" value="${d.id}" ${qw.bases.ids.includes(d.id) ? 'checked' : ''}> ${esc(d.titulo)}</label>`).join('') || '<span class="dica">Nenhum documento de base disponível.</span>'}</div></div>
       </div>
-      <div class="grupo-form"><h3>Classe de modelo</h3>
+      <div class="grupo-form${qw.v2 ? ' oculto' : ''}"><h3>Classe de modelo</h3>
         <div class="campo"><label for="modelo">Classe</label><select class="entrada" id="modelo">
           <optgroup label="Classes">${est.modelos.filter(m => m.classe).map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${E.eu.admin ? ` · ${esc(m.modelo)}` : ''}${m.homologado ? ' · homologado' : ''} · ${fmtCusto(m.custo, { conversa: true })} por conversa típica</option>`).join('')}</optgroup>
           ${E.eu.admin ? `<optgroup label="Modelo técnico específico">${est.modelos.filter(m => !m.classe).map(m => `<option value="${esc(m.id)}" ${m.id === qw.modelo ? 'selected' : ''}>${esc(m.nome)}${m.homologado ? ' · homologado' : ''}</option>`).join('')}</optgroup>` : ''}
@@ -239,6 +246,8 @@ async function configurar(id) {
       dados: Object.fromEntries(Object.keys(DADOS).map(t => [t, valor(`dado-${t}`)])), status: valor('status'),
       toda_empresa: $('toda')?.checked || false, areas: [...document.querySelectorAll('input[name=area]:checked')].map(i => Number(i.value)),
       problema: $('problema').value, objetivo: $('objetivo').value, processo_atual: $('processo').value, resultado: $('resultado').value,
+      // Quick Win 2.0: o trabalho vem da especificação; este formulário cuida só de acesso, dados e ciclo.
+      ...(qw.v2 ? { instrucoes: undefined, formato: undefined, modelo: undefined, pode_trocar: undefined, sugestoes: undefined, exemplo_entrada: undefined, exemplo_saida: undefined } : {}),
       ...($('responsavel') ? { responsavel_id: $('responsavel').value ? Number($('responsavel').value) : null } : $('assumir')?.checked ? { responsavel_id: E.eu.id } : {}),
     };
     try {

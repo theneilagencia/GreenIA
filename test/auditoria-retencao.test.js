@@ -20,7 +20,7 @@ import { ErroIA } from '../src/ia.js';
 import { POLITICA_SIGILO } from '../src/sigilo.js';
 import { lerModelos, AUTO } from '../src/modelos.js';
 import { detectar, decidir, NIVEL_DO_TIPO } from '../src/filtro.js';
-import { lerImagens, MSG_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
+import { lerImagens, MSG_SEM_TEXTO, MSG_IMAGEM_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
 import { extrairTexto } from '../src/texto.js';
 import { erroDoProvedor, erroParaLog } from '../src/registro-seguro.js';
 
@@ -277,9 +277,10 @@ test('OCR não é atalho: imagem com dado sensível segue a mesma política do t
 });
 
 test('sem texto legível ou sem OCR: mensagem técnica de leitura, nunca de segurança ou de política', async () => {
-  for (const [nome, b] of [['foto.png', imagem('sem-texto.png')], ['vazio.pdf', pdf([])]]) {
+  // Imagem que passou pelo OCR sem texto legível: aviso de que o conteúdo visual não é lido. PDF vazio: aviso geral.
+  for (const [nome, b, msg] of [['foto.png', imagem('sem-texto.png'), MSG_IMAGEM_SEM_TEXTO], ['vazio.pdf', pdf([]), MSG_SEM_TEXTO]]) {
     const x = await enviar('Veja o anexo.', { anexos: [arquivo(nome, b)] });
-    assert.deepEqual([x.r.status, x.n, x.r.erro.mensagem], [422, 0, MSG_SEM_TEXTO], nome);
+    assert.deepEqual([x.r.status, x.n, x.r.erro.mensagem], [422, 0, msg], nome);
     assert.doesNotMatch(x.r.erro.mensagem, /segurança|política|sigilo|anonimi|bloque|proteç/i);
   }
   modoOcr = async () => null;   // OCR indisponível nesta instalação

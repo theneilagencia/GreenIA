@@ -54,6 +54,9 @@ export const LIMITES_OCR = lerLimitesOcr();
 export const MSG_SEM_TEXTO = 'Este arquivo não contém texto que o GreenIA consiga ler neste momento.';
 export const MSG_GRANDE = 'Este arquivo é grande demais para ser processado com segurança neste momento. Tente um arquivo menor ou divida o documento em partes.';
 export const MSG_OCUPADO = 'A leitura de imagens e PDFs escaneados está ocupada agora. Tente de novo em alguns instantes.';
+// O OCR rodou, mas não achou texto legível (foto, gráfico, exame de imagem, radiografia, página em branco).
+export const MSG_IMAGEM_SEM_TEXTO = 'Não há texto legível nesta imagem. O GreenIA lê o texto de imagens e PDFs escaneados, mas não interpreta o conteúdo visual, como fotos, gráficos, exames ou radiografias. Se a imagem tem texto, envie uma versão mais nítida.';
+export const MSG_PDF_SEM_TEXTO = 'Não há texto legível neste PDF escaneado. O GreenIA lê o texto de imagens e PDFs escaneados, mas não interpreta o conteúdo visual, como fotos, gráficos, exames ou radiografias. Se o documento tem texto, envie uma versão mais nítida.';
 export const OCR_PAGINAS = LIMITES_OCR.maxPdfPaginas;
 
 /** Recusa ou falha técnica do OCR. motivo: grande | memoria | ocupado | tempo | cancelado | erro | indisponivel */
@@ -61,7 +64,19 @@ export class ErroOcr extends Error {
   constructor(motivo) { super(motivo); this.motivo = motivo; }
 }
 
-const CONFIANCA_MINIMA = 30;            // abaixo disso, o que foi "lido" é ruído
+// Legibilidade de uma leitura, pela confiança do próprio tesseract: a da página e a de cada palavra. Medido: texto
+// real fica com confiança 90–95 e 94–100% dos caracteres em palavras confiáveis; uma radiografia fotografada de
+// lado, com 30 e 5% ("ruído" que o tesseract inventa nas bordas da imagem). Ruído não vai para a IA: a leitura vira
+// vazia e a pessoa recebe a mensagem técnica.
+export const LEGIBILIDADE = { confiancaPagina: 45, confiancaPalavra: 70, fracaoConfiavel: 0.4 };
+export function avaliarLeitura({ confidence = 0, blocks = null } = {}, L = LEGIBILIDADE) {
+  const palavras = (blocks || []).flatMap(b => (b.paragraphs || []).flatMap(p => (p.lines || []).flatMap(l => l.words || [])))
+    .filter(w => /[\p{L}\p{N}]/u.test(w.text || ''));
+  const total = palavras.reduce((t, w) => t + w.text.length, 0);
+  const confiaveis = palavras.reduce((t, w) => t + (w.confidence >= L.confiancaPalavra ? w.text.length : 0), 0);
+  const fracao = total ? confiaveis / total : 0;
+  return { legivel: total > 0 && confidence >= L.confiancaPagina && fracao >= L.fracaoConfiavel, nota: confidence * fracao };
+}
 // Custo estimado de uma leitura (medido, com margem; docs/ocr-memoria.md), somado à memória do servidor. O OCR
 // roda num processo à parte, que acaba no fim do arquivo. Nele, a imagem grande é decodificada e reduzida antes
 // de o tesseract subir: numa imagem, os dois custos não se somam; num PDF, a página seguinte é decodificada com o
@@ -209,12 +224,14 @@ export async function sessaoOcr(meta, fn) {
     const ler = {
       // Texto digital do PDF num processo de vida curta (a memória do leitor de PDF volta ao sistema em seguida).
       textoPdf: async pdf => { const r = await chamar({ t: 'texto_pdf', pdf }, L.tempoPaginaMs); await encerrarFilho(); return r; },
-      imagem: async img => (await chamar({ t: 'imagem', img }, L.tempoPaginaMs)).texto,
+      // Leitura ilegível: o processo de OCR tenta a imagem girada (90°, 270°, 180°) dentro do orçamento de tempo.
+      // Num PDF, só quando há uma única página escaneada, para o tempo de PDFs longos não se multiplicar.
+      imagem: async img => (await chamar({ t: 'imagem', img, orcamentoMs: L.tempoPaginaMs * 0.7 }, L.tempoPaginaMs)).texto,
       pdf: async (pdf, indices) => {
-        const textos = [];
+        const textos = [], girar = indices.length === 1;
         for (let k = 0; k < indices.length; k += L.paginasPorProcesso) {
           if (k) await encerrarFilho();   // troca o processo de OCR entre os lotes de páginas
-          textos.push(...(await chamar({ t: 'pdf', pdf, indices: indices.slice(k, k + L.paginasPorProcesso) }, L.tempoPaginaMs)).textos);
+          textos.push(...(await chamar({ t: 'pdf', pdf, indices: indices.slice(k, k + L.paginasPorProcesso), girar, orcamentoMs: L.tempoPaginaMs * 0.7 }, L.tempoPaginaMs)).textos);
         }
         return textos;
       },
@@ -352,6 +369,22 @@ export function reduzirParaLeitura({ data, width, height, channels }, maxPixels)
     for (let x = 0, i = y * width * channels; x < width; x++, i += channels) { const ox = Math.min(W - 1, Math.floor(x * W / width)); soma[ox] += lum(i); conta[ox]++; }
   }
   for (let x = 0; x < W; x++) out[oy * W + x] = conta[x] ? soma[x] / conta[x] : 255;
+  return { data: out, width: W, height: H, channels: 1 };
+}
+
+// Gira pixels em cinza (a saída de reduzirParaLeitura) em 90° (horário), 180° ou 270°.
+export function girar({ data, width, height, channels = 1 }, graus) {
+  if (channels !== 1) throw new TypeError('girar: só imagem em cinza');
+  const g = ((graus % 360) + 360) % 360;
+  if (!g) return { data, width, height, channels: 1 };
+  const W = g === 180 ? width : height, H = g === 180 ? height : width, out = Buffer.alloc(W * H);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const nx = g === 90 ? height - 1 - y : g === 270 ? y : width - 1 - x;
+      const ny = g === 90 ? x : g === 270 ? width - 1 - x : height - 1 - y;
+      out[ny * W + nx] = data[y * width + x];
+    }
+  }
   return { data: out, width: W, height: H, channels: 1 };
 }
 

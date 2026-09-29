@@ -3,7 +3,7 @@
 // classificação, a governança e a retenção vêm depois, iguais para todos os formatos.
 import { inflateRawSync } from 'node:zlib';
 import { erro } from './http.js';
-import { lerImagens, dimensoes, imagensDoPdf, ErroOcr, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO } from './ocr.js';
+import { lerImagens, dimensoes, imagensDoPdf, ErroOcr, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO, MSG_IMAGEM_SEM_TEXTO, MSG_PDF_SEM_TEXTO } from './ocr.js';
 import { prepararImagem, lerPaginas, textoDoPdf } from './ocr-paginas.js';
 
 // Conteúdo de fora (anexo, documento) entre marcas; a marca de fechamento dentro do texto é neutralizada.
@@ -132,7 +132,7 @@ async function pdf(b, ocr, op) {
       const lidos = await sessao(ocr, { ...meta, paginas: escaneadas.length }, ler => ler.pdf(b, escaneadas));
       escaneadas.forEach((i, k) => { paginas[i] = lidos[k]; });
     }
-    return montar(paginas, total);
+    return legivelOuAviso(montar(paginas, total), escaneadas.length);
   }
   if (b.length > L.maxPdfMb * 1048576 || maiorImagem > L.pixelsEntrada) throw new ErroOcr('grande');
   return sessao(ocr, meta, async ler => {
@@ -143,8 +143,16 @@ async function pdf(b, ocr, op) {
       const lidos = await ler.pdf(b, escaneadas);
       escaneadas.forEach((i, k) => { paginas[i] = lidos[k]; });
     }
-    return montar(paginas, total);
+    return legivelOuAviso(montar(paginas, total), escaneadas.length);
   });
+}
+
+// PDF que passou pelo OCR e não tem texto legível em página nenhuma: aviso de que o conteúdo visual não é
+// interpretado (sem OCR, o PDF vazio continua com o aviso geral de arquivo sem texto).
+const semTexto = t => !t.replace(/\[(Página|Slide) \d+\]/g, '').trim();
+function legivelOuAviso(texto, escaneadas) {
+  if (escaneadas && semTexto(texto)) throw erro(422, 'sem_texto', MSG_PDF_SEM_TEXTO);
+  return texto;
 }
 
 // Imagem: tamanho, dimensões e formato conferidos antes do OCR, pelo cabeçalho. Acima da resolução de leitura, a
@@ -154,7 +162,10 @@ async function imagem(b, ocr, op) {
   if (b.length > L.maxImagemMb * 1048576 || (px && px > L.pixelsEntrada)) throw new ErroOcr('grande');
   const reduzir = px && px > L.pixelsLeitura;
   if (reduzir && !['png', 'jpeg'].includes(d.formato)) throw new ErroOcr('grande');   // sem como reduzir com segurança
-  return sessao(ocr, { tipo: `imagem/${d?.formato || 'desconhecida'}`, bytes: b.length, pixels: px ? Math.min(px, L.pixelsLeitura) : null, pixelsDecodificar: reduzir ? px : 0, ...op }, ler => ler.imagem(b));
+  const texto = await sessao(ocr, { tipo: `imagem/${d?.formato || 'desconhecida'}`, bytes: b.length, pixels: px ? Math.min(px, L.pixelsLeitura) : null, pixelsDecodificar: reduzir ? px : 0, ...op }, ler => ler.imagem(b));
+  // O OCR rodou e nada saiu legível (foto, gráfico, exame de imagem): aviso de que o conteúdo visual não é lido.
+  if (!String(texto || '').trim()) throw erro(422, 'sem_texto', MSG_IMAGEM_SEM_TEXTO);
+  return texto;
 }
 
 // Sessão do leitor padrão (vaga, guarda de memória, processo de OCR). Um leitor injetado (testes) recebe as
@@ -214,7 +225,7 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
     if (e.status) throw TECNICOS.has(e.codigo) ? e : erro(e.status, e.codigo, `${nome}: ${e.message}`);
     throw erro(400, 'arquivo_invalido', `${nome}: não foi possível ler o arquivo.`);
   }
-  if (!texto.replace(/\[(Página|Slide) \d+\]/g, '').trim()) throw erro(422, 'sem_texto', MSG_SEM_TEXTO);
+  if (semTexto(texto)) throw erro(422, 'sem_texto', MSG_SEM_TEXTO);
   if (texto.length > maxCaracteres) throw erro(413, 'texto_grande', onde === 'anexo'
     ? `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto. No chat, cada anexo pode ter até ${paginasDe(maxCaracteres)} páginas, porque vai inteiro para a IA e consome créditos a cada resposta. Envie só a parte necessária, ou coloque o documento na base de conhecimento, que usa apenas os trechos relevantes.`
     : `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto; o máximo é ${paginasDe(maxCaracteres)} páginas por documento. Divida o arquivo em partes.`);

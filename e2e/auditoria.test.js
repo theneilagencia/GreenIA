@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
-import { MSG_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
+import { MSG_IMAGEM_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
 import { imagem, pdfEscaneado, jpegDe } from '../test/arquivos.js';
 
 const TECNICO = /open\s*router|anthropic|google\/|gemini|claude|haiku|mistral|llama/i;
@@ -52,7 +52,7 @@ test('imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem 
   while (await p.locator('#anexos [data-tirar]').count()) await p.locator('#anexos [data-tirar]').first().click();   // o bloqueio devolve o anexo ao campo
   await enviar(p, 'Veja o anexo.', [png('foto.png', 'sem-texto.png')]);
   const tecnico = await p.locator('.aviso-bolha').last().innerText();
-  assert.equal(tecnico, MSG_SEM_TEXTO);
+  assert.equal(tecnico, MSG_IMAGEM_SEM_TEXTO);   // foto sem texto: o conteúdo visual não é interpretado
   // 4. Recarregar: o que foi processado continua (guardar = sim); o segredo não.
   await p.reload();
   await p.waitForSelector('.bolha-eu');

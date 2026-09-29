@@ -215,9 +215,16 @@ de qualquer anexo, com a mesma classificação, a mesma política, os mesmos rec
   por vez. O teto é de 30 páginas escaneadas por arquivo (`OCR_MAX_PDF_PAGINAS`), mas em produção foram
   validadas até 10. Um documento maior pode ser recusado pela guarda de memória antes da leitura
   (`docs/ocr-memoria.md`).
-- **Sem texto legível, OCR indisponível, erro ou tempo esgotado (90 s):** "Este arquivo não contém texto que o
-  GreenIA consiga ler neste momento." É um limite técnico de leitura. Nunca aparece como segurança, política ou
-  anonimização.
+- **Imagem ou PDF escaneado sem texto legível** (foto, gráfico, exame de imagem, radiografia): "Não há texto
+  legível nesta imagem. O GreenIA lê o texto de imagens e PDFs escaneados, mas não interpreta o conteúdo visual,
+  como fotos, gráficos, exames ou radiografias. Se a imagem tem texto, envie uma versão mais nítida." (No PDF, "neste
+  PDF escaneado".)
+  - Leitura com pouca confiança é ruído: é descartada e nunca vai para a IA.
+  - Imagem de lado é lida girada (90°, 270°, 180°) antes de desistir.
+  - O texto lido numa imagem girada passa pela mesma classificação e pelo mesmo bloqueio de segredos.
+- **PDF digital vazio, OCR indisponível, erro ou tempo esgotado:** "Este arquivo não contém texto que o GreenIA
+  consiga ler neste momento."
+- As duas são limites técnicos de leitura. Nunca aparecem como segurança, política ou anonimização.
 - **Capacidade:** uma leitura por vez, num processo de OCR próprio por arquivo, com limites de tamanho,
   páginas, resolução e memória (`docs/ocr-memoria.md`). Esses limites são técnicos e nunca aparecem como política.
 

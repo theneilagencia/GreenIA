@@ -10,17 +10,33 @@ const inflar = (z, max) => inflateSync(z, { maxOutputLength: max });
 
 /** Imagem pronta para o OCR: a original, se couber na resolução de leitura; senão, reduzida em cinza. */
 export async function prepararImagem(b, pixelsLeitura) {
+  return (await prepararComPixels(b, pixelsLeitura)).png;
+}
+
+/** Como prepararImagem, devolvendo também os pixels em cinza quando a imagem foi reduzida (null quando não foi):
+ * uma nova tentativa com a imagem girada reaproveita esses pixels, sem decodificar a imagem grande de novo. */
+export async function prepararComPixels(b, pixelsLeitura) {
   const d = dimensoes(b);
-  if (!d || d.largura * d.altura <= pixelsLeitura) return b;
+  if (!d || d.largura * d.altura <= pixelsLeitura) return { png: b, cinza: null };
   let crua = d.formato === 'png' ? decodificarPng(b, { inflar }) : d.formato === 'jpeg' ? await jpegCru(b, d) : null;
   if (!crua) throw new ErroOcr('grande');
-  const png = pngDePixels(reduzirParaLeitura(crua, pixelsLeitura));
+  const cinza = reduzirParaLeitura(crua, pixelsLeitura);
   crua = null;
-  return png;
+  return { png: pngDePixels(cinza), cinza };
+}
+
+/** Pixels em cinza, na resolução de leitura, para tentar a imagem girada. null se o formato não der para decodificar
+ * sem biblioteca nova (WEBP, TIFF): nesse caso não há nova tentativa. Só é chamada quando a primeira leitura falha. */
+export async function pixelsParaLeitura(b, pixelsLeitura) {
+  const d = dimensoes(b);
+  if (!d) return null;
+  const crua = d.formato === 'png' ? decodificarPng(b, { inflar }) : d.formato === 'jpeg' ? await jpegCru(b, d) : null;
+  return crua ? reduzirParaLeitura(crua, pixelsLeitura) : null;
 }
 
 /**
- * Páginas escaneadas de um PDF, uma por vez. `ler(png)` lê uma imagem; `aoLer(i, texto)` recebe cada página.
+ * Páginas escaneadas de um PDF, uma por vez. `ler(png, cinza)` lê uma imagem (com os pixels em cinza, para tentar
+ * girada); `aoLer(i, texto)` recebe cada página.
  * Uma falha numa página interrompe o arquivo todo (nada é devolvido pela metade).
  */
 export async function lerPaginas(bytes, indices, pixelsLeitura, ler, aoLer = () => {}) {
@@ -31,8 +47,8 @@ export async function lerPaginas(bytes, indices, pixelsLeitura, ler, aoLer = () 
       const brutas = await extractImages(doc, i + 1);
       const lidos = [];
       while (brutas.length) {
-        const png = pngDePixels(reduzirParaLeitura(brutas.shift(), pixelsLeitura));   // a imagem crua sai da lista antes da leitura
-        lidos.push(await ler(png));
+        const cinza = reduzirParaLeitura(brutas.shift(), pixelsLeitura);   // a imagem crua sai da lista antes da leitura
+        lidos.push(await ler(pngDePixels(cinza), cinza));
       }
       const texto = lidos.join('\n').trim();
       textos.push(texto);

@@ -33,6 +33,24 @@ mesmas regras do texto digitado, inclusive o bloqueio de segredos.
 - **Guarda de memória.** Antes de começar, a leitura estimada (medida, com margem) precisa caber abaixo de
   `OCR_MEMORIA_MAX_MB`. Durante a leitura, a memória do servidor mais a do processo de OCR é conferida a cada
   50 ms. Acima do limite, a leitura é interrompida.
+- **Leitura legível ou nada.** Cada leitura é avaliada pela confiança do próprio tesseract: a da página
+  (mínimo 45) e a de cada palavra (pelo menos 40% dos caracteres em palavras com confiança 70 ou mais).
+  - Medido: texto real tem confiança de página 90–95 e 94–100% dos caracteres em palavras confiáveis. Uma
+    radiografia fotografada de lado teve 30 e 5%; o critério antigo (só a página, mínimo 30) deixava esse ruído ir
+    para a IA, que respondia que o "texto" estava embaralhado.
+  - Leitura ilegível vira vazia: nada vai para a IA e a pessoa recebe a mensagem de imagem sem texto legível.
+- **Imagem de lado.** Se a primeira leitura sai ilegível, o processo de OCR tenta a imagem girada em 90° e 270° (e
+  180°, se nenhuma das duas der texto legível) e fica com a leitura mais legível.
+  - Só quando a primeira falha, dentro de 70% do tempo por página, em imagens PNG e JPEG e em PDFs com uma única
+    página escaneada (em PDFs longos o tempo se multiplicaria).
+  - Uma foto de lado passa a ser lida. Medido localmente: imagem pequena de lado, 1,7–2,4 s; página A4 de lado,
+    cerca de 23 s (em produção, o OCR é cerca de 2 vezes mais lento).
+  - Uma imagem sem texto nenhum faz até 4 leituras antes da mensagem: cerca de 11 s para uma foto comum e até
+    49 s para uma foto de 12 MP, medido localmente. Em produção, o orçamento de 70% do tempo por página corta as
+    tentativas antes do limite.
+  - Pico de memória medido nas tentativas giradas (A4 de lado, ruído de 12 MP): 240–292 MB. Os pixels em cinza da
+    redução são reaproveitados; a imagem grande nunca é decodificada duas vezes.
+  - Nenhum dado de orientação novo é instalado: a rotação é feita nos pixels já reduzidos, em cinza.
 - **Métricas** (log `ocr`, desligável com `OCR_METRICAS=0`). Registram só números: tipo, bytes, páginas, pixels,
   RSS antes, pico e depois, duração, resultado e motivo. Nunca o texto, a imagem ou dado classificado.
 
@@ -42,9 +60,15 @@ mesmas regras do texto digitado, inclusive o bloqueio de segredos.
 |---|---|
 | Arquivo, páginas ou resolução acima do limite; memória sem margem | Este arquivo é grande demais para ser processado com segurança neste momento. Tente um arquivo menor ou divida o documento em partes. |
 | Outra leitura em andamento e fila cheia ou espera esgotada | A leitura de imagens e PDFs escaneados está ocupada agora. Tente de novo em alguns instantes. |
-| Sem texto legível, OCR indisponível, erro, tempo esgotado ou cancelamento | Este arquivo não contém texto que o GreenIA consiga ler neste momento. |
+| Imagem que passou pelo OCR sem texto legível (foto, gráfico, exame de imagem, radiografia) | Não há texto legível nesta imagem. O GreenIA lê o texto de imagens e PDFs escaneados, mas não interpreta o conteúdo visual, como fotos, gráficos, exames ou radiografias. Se a imagem tem texto, envie uma versão mais nítida. |
+| PDF escaneado sem texto legível em nenhuma página | Não há texto legível neste PDF escaneado. O GreenIA lê o texto de imagens e PDFs escaneados, mas não interpreta o conteúdo visual, como fotos, gráficos, exames ou radiografias. Se o documento tem texto, envie uma versão mais nítida. |
+| PDF digital vazio, OCR indisponível, erro, tempo esgotado ou cancelamento | Este arquivo não contém texto que o GreenIA consiga ler neste momento. |
 
 Nenhuma delas cita fornecedor, modelo, memória, servidor ou infraestrutura.
+
+Custo de memória da avaliação por palavra (medido localmente, contra a versão anterior, na mesma máquina): o pico
+do processo de OCR subiu de 12 a 26 MB (PDF de 10 páginas: 379 → 397 MB), abaixo do limite operacional. O processo
+de OCR termina no fim de cada arquivo; o servidor não retém essa memória.
 
 ## Limites (variáveis de ambiente)
 

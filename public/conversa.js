@@ -77,7 +77,7 @@ function desenhar() {
       <div class="sugestoes" id="sugestoes"></div>
       <div class="anexos-pendentes" id="anexos"></div>
       <div class="caixa">
-        <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem)">${ICONE.clipe}</button>
+        <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem com texto)">${ICONE.clipe}</button>
         <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff">
         <textarea id="entrada" rows="1" placeholder="${qw ? 'Cole o texto ou anexe…' : 'Pergunte alguma coisa…'}" aria-label="Mensagem"></textarea>
         <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}</button>

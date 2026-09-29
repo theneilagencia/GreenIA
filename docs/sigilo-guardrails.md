@@ -212,7 +212,9 @@ de qualquer anexo, com a mesma classificação, a mesma política, os mesmos rec
 
 - **Imagem** (PNG, JPG, WEBP, TIFF): lida inteira.
 - **PDF:** a página com texto usa o texto; a página sem texto e com imagem (escaneada) passa pelo OCR, uma página
-  por vez. Até 30 páginas escaneadas por arquivo (`OCR_MAX_PDF_PAGINAS`).
+  por vez. O teto é de 30 páginas escaneadas por arquivo (`OCR_MAX_PDF_PAGINAS`), mas em produção foram
+  validadas até 10. Um documento maior pode ser recusado pela guarda de memória antes da leitura
+  (`docs/ocr-memoria.md`).
 - **Sem texto legível, OCR indisponível, erro ou tempo esgotado (90 s):** "Este arquivo não contém texto que o
   GreenIA consiga ler neste momento." É um limite técnico de leitura. Nunca aparece como segurança, política ou
   anonimização.

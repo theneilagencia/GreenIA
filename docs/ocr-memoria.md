@@ -52,8 +52,8 @@ Nenhuma delas cita fornecedor, modelo, memória, servidor ou infraestrutura.
 |---|---|---|
 | `OCR_SIMULTANEAS` | 1 | Leituras ao mesmo tempo no processo. Não aumentar sem nova medição. |
 | `OCR_MAX_IMAGE_MB` | 10 | Tamanho de uma imagem |
-| `OCR_MAX_PDF_MB` | 15 | Tamanho de um PDF com páginas escaneadas. Em 512 MB, medido até ~20 páginas A4 a 300 dpi (13 MB); 25 só com 1 GB ou mais |
-| `OCR_MAX_PDF_PAGINAS` | 30 | Páginas escaneadas por PDF |
+| `OCR_MAX_PDF_MB` | 15 | Tamanho máximo de um PDF com páginas escaneadas. É um teto, não uma capacidade garantida: pelo chat, a guarda de memória pode recusar antes (ver "Validação em produção") |
+| `OCR_MAX_PDF_PAGINAS` | 30 | Máximo de páginas escaneadas por PDF. Também é um teto: em produção foram validadas até 10 páginas |
 | `OCR_PIXELS_LEITURA` | 4000000 | Resolução entregue ao OCR (acima disso, a imagem é reduzida) |
 | `OCR_PIXELS_ENTRADA` | 24000000 | Maior imagem que o servidor aceita decodificar para reduzir |
 | `OCR_MEMORIA_MAX_MB` | 450 | Memória total (servidor + OCR) que a leitura não pode passar. Ajustar ao plano: ~88% da RAM da instância |
@@ -64,9 +64,13 @@ Nenhuma delas cita fornecedor, modelo, memória, servidor ou infraestrutura.
 | `OCR_TEMPO_TOTAL_MS` | 240000 | Tempo por arquivo |
 | `OCR_METRICAS` | 1 | Log técnico de cada leitura |
 
-## Medição (arquivos sintéticos, servidor real num processo limpo, limites padrão)
+## Medição local (arquivos sintéticos, servidor real num processo limpo, limites padrão)
 
 RSS base do servidor: 74 MB. Pico = servidor + processo de OCR. "Depois" = servidor após a leitura.
+
+Esta medição chama a extração direto, sem o envio pelo chat. Por isso não conta a memória que o servidor ocupa
+guardando o arquivo recebido (corpo em base64, JSON e o arquivo decodificado). A capacidade real pelo chat é a da
+seção "Validação em produção", e é menor.
 
 | Caso | Resultado | Antes | Pico | Depois | Tempo |
 |---|---|---|---|---|---|
@@ -96,18 +100,47 @@ RSS base do servidor: 74 MB. Pico = servidor + processo de OCR. "Depois" = servi
 limpo, com arquivos sintéticos. `--gerar pasta` grava os mesmos arquivos para validar no ambiente real pelo
 anexo do chat, do menor para o maior.
 
-## Validação no Render (a fazer, pendente de acesso)
+## Validação em produção (Render, 512 MB, commit `fce51b8`, 29/09/2026)
 
-Não executada: este ambiente não alcança o Render. Roteiro, com os arquivos de `--gerar`, um por vez e sem
-testes concorrentes:
+Arquivos de `--gerar`, enviados pelo chat de uma empresa, um por vez, sem concorrência e com os limites padrão.
 
-1. imagem pequena;
-2. imagem A4;
-3. PDF escaneado de 1 página;
-4. PDF de 5 páginas;
-5. PDF de 10 páginas;
-6. PDF de 30 páginas.
+**OCR validado em produção até 10 páginas escaneadas, nas condições testadas.** Documentos maiores podem ser
+recusados pela guarda de memória antes do processamento.
 
-Em cada envio, observar no painel do Render a memória, o tempo, reinícios do processo e erros 5xx, e no log as
-linhas `ocr`. Se o pico passar de ~440 MB ou houver reinício, baixar `OCR_PAGINAS_POR_PROCESSO` para 1 ou
+| Caso | Tamanho | Resultado | Tempo |
+|---|---|---|---|
+| Imagem pequena (1000×420) | 0,03 MB | ok, texto lido e usado na resposta | 4,0 s |
+| Imagem A4 a 300 dpi | 0,68 MB | ok, 44 linhas lidas | 12,0 s |
+| PDF escaneado, 1 página A4 | 0,66 MB | ok | 12,9 s |
+| PDF escaneado, 5 páginas A4 | 3,3 MB | ok | 50,6 s |
+| PDF escaneado, 10 páginas A4 | 6,6 MB | ok; `/api/saude` respondeu 200 durante toda a leitura | 99,9 s |
+| PDF escaneado, 20 páginas A4 | 13,1 MB | recusa técnica (guarda de memória), sem abrir | 1,4 s |
+| PDF escaneado, 30 páginas A4 | 19,7 MB | recusa técnica (tamanho), sem abrir | 2,3 s |
+| Imagem 2×2 A4 (35 MP) | 1,8 MB | recusa técnica (resolução), sem abrir | 0,3 s |
+| Imagem e PDF escaneado com uma senha fictícia | < 0,1 MB | lidos pelo OCR e bloqueados como credencial, sem chamar a IA | ~2 s |
+
+- **Tempo em produção:** ~10 s por página, cerca do dobro do tempo local.
+- **Disponibilidade:** nenhum erro 5xx e nenhum reinício. `/api/saude` respondeu com a mesma versão depois de
+  cada envio.
+- **Segredo:** a senha fictícia não apareceu na resposta, na conversa, nos eventos de auditoria, no roteamento nem
+  na governança.
+- **Não medido em produção:** a memória do serviço (sem acesso às métricas do Render), concorrência e
+  isolamento entre empresas.
+
+### Por que 20 páginas foi recusado
+
+- A recusa veio da guarda de memória (`motivo: memoria`), antes de começar a leitura. Não foram os limites de
+  tamanho ou de páginas: 13,1 MB e 20 páginas estão abaixo de 15 MB e 30.
+- Pelo chat, o servidor guarda o arquivo recebido na memória antes do OCR. Reproduzido localmente pelo mesmo
+  caminho: o servidor estava em ~204 MB, e a leitura estimada (~276 MB) passaria de `OCR_MEMORIA_MAX_MB` (450).
+- **Não é falha funcional.** É a proteção funcionando: o arquivo não é processado, a pessoa recebe a mensagem
+  técnica de arquivo grande e a instância não corre risco.
+- **O ponto exato entre 10 e 20 páginas não foi medido.** Depende do tamanho do arquivo e da memória do servidor
+  no momento.
+- **Melhoria futura, fora deste release:** reduzir a memória ocupada pelo envio do arquivo, para aproximar a
+  capacidade pelo chat da medição local. Não mudar `OCR_MEMORIA_MAX_MB`, a concorrência nem os outros limites
+  sem nova medição em produção.
+
+Numa próxima validação, observar também no painel do Render a memória, reinícios e erros 5xx, e no log as linhas
+`ocr`. Se o pico passar de ~440 MB ou houver reinício, baixar `OCR_PAGINAS_POR_PROCESSO` para 1 ou
 `OCR_MEMORIA_MAX_MB`, antes de mexer em qualquer outra coisa.

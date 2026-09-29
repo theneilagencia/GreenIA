@@ -19,8 +19,9 @@ export const lerArquivo = f => new Promise((ok, falha) => {
 export function htmlResumoTeste(q) {
   if (!q) return '<p class="dica">Ainda não testado.</p>';
   if (q.status === 'inconsistente') return `<p class="qualidade-linha"><b>Teste com inconsistência.</b> ${esc((q.problemas || []).join(' '))}</p>`;
+  if (q.status === 'parcial') return '<p class="qualidade-linha"><b>Teste feito, conferência incompleta.</b> A conferência completa não pôde ser feita agora. Revise antes de usar.</p>';
   const itens = (q.itens || []).filter(i => i.conferido && i.ok);
-  return `<ul class="qualidade-itens"><li><b>Teste concluído ✓</b></li>${itens.map(i => `<li>${esc(i.rotulo)} ✓</li>`).join('')}</ul>${q.status === 'parcial' ? '<p class="dica">A conferência completa não pôde ser feita no teste. Revise o resultado.</p>' : ''}`;
+  return `<ul class="qualidade-itens"><li><b>Teste concluído ✓</b></li>${itens.map(i => `<li>${esc(i.rotulo)} ✓</li>`).join('')}</ul>`;
 }
 
 // ---- Criação e ajuste (5 etapas) ----------------------------------------------------------------------------

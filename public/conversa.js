@@ -26,7 +26,8 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
   await carregarModelos();
   if (C !== estado) return;
   desenhar();
-  if (enviarAgora) { $('entrada').value = enviarAgora.texto || ''; C.anexos = enviarAgora.anexos || []; ajustarAltura(); desenharAnexos(); atualizarEnviar(); await enviar(); }
+  // Ação explícita de execução do Quick Win ("Executar", teste da criação): o servidor faz a execução completa.
+  if (enviarAgora) { $('entrada').value = enviarAgora.texto || ''; C.anexos = enviarAgora.anexos || []; ajustarAltura(); desenharAnexos(); atualizarEnviar(); await enviar(null, { executar: true }); }
 }
 
 async function carregarModelos() {
@@ -128,9 +129,12 @@ const fontes0 = m => ((m.fontes || []).length ? `<div class="fontes"><b>Fontes</
 function htmlQualidade(m) {
   const q = m.qualidade;
   if (!q || m.carregando || !['aprovado', 'corrigido', 'parcial'].includes(q.status)) return '';
+  // Parcial: a conferência não foi completa; nada na tela indica aprovação.
+  if (q.status === 'parcial') return `<div class="qualidade parcial" role="status"><b>${C.teste ? 'Teste feito, conferência incompleta' : 'Conferência incompleta'}</b>
+    <p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p></div>`;
   const itens = q.itens.filter(i => i.conferido && i.ok);
   return `<div class="qualidade" role="status"><b>${C.teste ? 'Teste concluído' : 'Resultado conferido'} ✓</b>
-    <ul>${itens.map(i => `<li>${esc(i.rotulo)} ✓</li>`).join('')}</ul>${q.status === 'parcial' ? '<p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p>' : ''}</div>`;
+    <ul>${itens.map(i => `<li>${esc(i.rotulo)} ✓</li>`).join('')}</ul></div>`;
 }
 function htmlInconsistente(m, anim, html, fontes) {
   const q = m.qualidade;
@@ -242,7 +246,7 @@ export function lembreteAoSair() {
   if (C?.qw && C.conv && !C.conv.teste && !C.conv.feedback && C.mensagens.some(m => m.papel === 'assistant')) toast('Esta conversa serviu? Dê seu retorno no topo da conversa quando puder.', 5000);
 }
 
-async function enviar(reenvio = null) {
+async function enviar(reenvio = null, { executar = false } = {}) {
   const texto = reenvio?.texto ?? $('entrada').value.trim();
   const anexos = reenvio?.anexos ?? C.anexos;
   if (!texto && !anexos.length) return;
@@ -254,7 +258,7 @@ async function enviar(reenvio = null) {
   }
   C.pensando = true; C.etapa = null; C.noFim = true; desenharMensagens();
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
-  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos, ...(C.qw?.v2 ? {} : { modelo: C.modelo }) }, bruto: true });
+  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos, ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;
@@ -263,7 +267,7 @@ async function enviar(reenvio = null) {
       C.enviando = false;
       await pedirCiencia();
       await new Promise(ok => { const t = setInterval(() => { if (!document.querySelector('#dar-ciencia')) { clearInterval(t); ok(); } }, 300); });
-      return enviar({ texto, anexos });
+      return enviar({ texto, anexos }, { executar });
     }
     // Bloqueio (sigilo sem recurso autorizado, nada disponível): a conversa pode ter virado sigilosa no servidor.
     if (r.status === 409 || r.status === 503) await recarregarConversa(false).catch(() => {});

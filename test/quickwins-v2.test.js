@@ -14,6 +14,7 @@ const AVANCADO2 = 'openai/gpt-5';
 const EXEMPLO_UNICO = 'LINHA-DE-EXEMPLO-QUE-NAO-DEVE-IR-PARA-A-EXECUCAO';
 const BOM = '| Item | Documento 1 | Documento 2 | Diferença | Relevância |\n|---|---|---|---|---|\n| Rolamento 6205 | 40 unidades | 38 unidades | 2 unidades | Alta |\n\n## Pontos de atenção\n- Faltam 2 rolamentos.\n\n## Informações não encontradas\n- Prazo de entrega do documento 2: não informado.';
 const RUIM = 'Os documentos têm algumas diferenças de quantidade.';
+const SEM_RELEVANCIA = '| Item | Documento 1 | Documento 2 | Diferença |\n|---|---|---|---|\n| Rolamento 6205 | 40 unidades | 38 unidades | 2 unidades |';
 const QC_OK = '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"formato","ok":true},{"id":"completo","ok":true}]}';
 const QC_FALHA = '{"criterios":[{"id":"formato","ok":false,"motivo":"sem tabela"},{"id":"completo","ok":false,"motivo":"faltou comparar prazos"}]}';
 let S, OR, admin, ana, carlos, A, modo = 'bom';
@@ -24,6 +25,11 @@ const ehCorrecao = b => String(b.messages.at(-1).content).includes('A conferênc
 function roteiro(b) {
   if (ehConferencia(b)) return { bom: QC_OK, corrige: QC_OK, falha: QC_FALHA, lixo: 'não sei conferir', pergunta: QC_OK }[modo];
   if (ehCorrecao(b)) return modo === 'falha' ? RUIM : BOM;
+  // Mensagens seguintes da conversa: a IA atende ao pedido da pessoa.
+  const ultima = String(b.messages.at(-1).content);
+  if (/Tire a coluna Relevância/.test(ultima)) return SEM_RELEVANCIA;
+  if (/maior valor/.test(ultima)) return 'O maior valor encontrado é 40 unidades, no pedido.';
+  if (/documento é o pedido 882/.test(ultima)) return BOM;
   if (modo === 'pergunta') return 'Antes de começar, preciso de uma informação: quais documentos você quer comparar?';
   return modo === 'bom' || modo === 'lixo' ? BOM : RUIM;
 }
@@ -258,4 +264,90 @@ test('governança soberana: o Quick Win não libera dado bloqueado, credencial n
   assert.equal(rota.origem, 'auto');
   // Mensagens para quem usa: sem código técnico, provedor ou modelo.
   assert.doesNotMatch(JSON.stringify(todos(S.app.db, "select texto from mensagens where papel = 'aviso'")), /ROUTING_|openrouter|mistral/i);
+});
+
+// Ciclo de vida: o Quality Check valida uma execução do Quick Win, não a conversa inteira.
+test('ciclo de vida: execução tem Quality Check; ajuste e pergunta seguintes são conversa normal; nova execução tem de novo', async () => {
+  modo = 'bom';
+  const q = await criar();
+  await ana.post(`/api/quick-wins/${q.id}/publicar`, {});
+  const conv = (await carlos.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
+  const enviar = async corpo => { const n = OR.chamadas.length; const r = await enviarMensagem(carlos, conv.id, corpo); return { ...r, chamadas: OR.chamadas.slice(n) }; };
+  const usos = () => um(S.app.db, 'select count(*) as n from uso where conversa_id = ?', conv.id).n;
+  // Teste 1: execução normal (primeira mensagem da conversa do Quick Win).
+  let r = await enviar({ texto: 'Pedido 882: 40 rolamentos 6205. Nota: 38 rolamentos 6205.' });
+  assert.equal(r.chamadas.length, 2, 'execução + Quality Check');
+  assert.match(JSON.stringify(r.chamadas[0].messages[0].content), /Você está executando o Quick Win/);
+  assert.equal(r.fim.qualidade.status, 'aprovado');
+  // Teste 2: ajuste posterior. Sem Quality Check, sem correção, sem o contrato; o pedido é respeitado.
+  r = await enviar({ texto: 'Tire a coluna Relevância' });
+  assert.equal(r.chamadas.length, 1, 'uma só chamada: fluxo normal');
+  assert.ok(!r.chamadas.some(ehConferencia) && !r.chamadas.some(ehCorrecao));
+  const sistema = JSON.stringify(r.chamadas[0].messages[0].content);
+  assert.doesNotMatch(sistema, /Você está executando o Quick Win|Formato da entrega|cabeçalho exatamente nestas colunas/, 'o contrato não é reaplicado');
+  assert.match(sistema, /Esta conversa começou com o Quick Win/, 'o contexto do trabalho continua disponível');
+  assert.match(sistema, /Não crie nomes, números, datas, valores/, 'a regra de não inventar continua');
+  assert.equal(r.fim.qualidade, undefined);
+  assert.equal(r.texto, SEM_RELEVANCIA);
+  assert.ok(!r.texto.includes('Relevância'), 'nada recoloca a coluna');
+  assert.equal(r.eventos.filter(e => e.t === 'texto').length > 0 && !r.eventos.some(e => e.t === 'etapa'), true, 'resposta normal, com streaming e sem etapas de conferência');
+  // O histórico (resultado anterior) segue no envio.
+  assert.ok(r.chamadas[0].messages.some(m => m.role === 'assistant' && String(m.content).includes('Relevância')));
+  // Teste 3: pergunta posterior. Resposta normal, sem formato obrigatório.
+  r = await enviar({ texto: 'Qual foi o maior valor?' });
+  assert.equal(r.chamadas.length, 1);
+  assert.equal(r.fim.qualidade, undefined);
+  assert.equal(r.texto, 'O maior valor encontrado é 40 unidades, no pedido.');
+  // Registros: só a execução tem qualidade; uma linha de uso por mensagem, custo de uma chamada nas normais.
+  const rotas = todos(S.app.db, 'select qualidade, custo_real from roteamento where conversa_id = ? order by id', conv.id);
+  assert.deepEqual(rotas.map(x => json(x.qualidade)?.status ?? null), ['aprovado', null, null]);
+  assert.ok(Math.abs(rotas[1].custo_real - 0.00123) < 1e-9 && Math.abs(rotas[2].custo_real - 0.00123) < 1e-9);
+  assert.equal(usos(), 3);
+  // Teste 4: nova execução explícita na mesma conversa: ciclo completo de novo.
+  r = await enviar({ texto: 'Pedido 883: 10 correias. Nota: 9 correias.', executar_quick_win: true });
+  assert.equal(r.chamadas.length, 2);
+  assert.match(JSON.stringify(r.chamadas[0].messages[0].content), /Você está executando o Quick Win/);
+  assert.equal(r.fim.qualidade.status, 'aprovado');
+  // Nova execução pela tela ("Executar" abre uma conversa nova): também tem Quality Check.
+  const nova = await executar(carlos, q.id, 'Pedido 884: 5 rolamentos. Nota: 5 rolamentos.');
+  assert.equal(nova.chamadas.length, 2);
+  assert.equal(nova.fim.qualidade.status, 'aprovado');
+  // A marca de execução não passa por cima da governança: credencial continua bloqueada, sem chamada.
+  r = await enviar({ texto: 'Execute de novo. senha: Primavera2026!', executar_quick_win: true });
+  assert.equal(r.status, 422);
+  assert.equal(r.chamadas.length, 0);
+});
+
+test('ciclo de vida: a resposta a uma pergunta de esclarecimento continua a mesma execução', async () => {
+  modo = 'pergunta';
+  const q = await criar();
+  const conv = (await ana.post('/api/conversas', { quick_win_id: q.id, teste: true })).dados.conversa;
+  let n = OR.chamadas.length;
+  let r = await enviarMensagem(ana, conv.id, { texto: 'Faça.' });
+  assert.equal(r.fim.qualidade.status, 'pergunta');
+  assert.equal(OR.chamadas.length - n, 1);
+  modo = 'bom';
+  n = OR.chamadas.length;
+  r = await enviarMensagem(ana, conv.id, { texto: 'O documento é o pedido 882: 40 rolamentos; a nota tem 38.' });
+  assert.equal(OR.chamadas.length - n, 2, 'a execução continua, com Quality Check');
+  assert.equal(r.fim.qualidade.status, 'aprovado');
+  // Depois do resultado, a próxima mensagem já é conversa normal.
+  n = OR.chamadas.length;
+  r = await enviarMensagem(ana, conv.id, { texto: 'Qual foi o maior valor?' });
+  assert.equal(OR.chamadas.length - n, 1);
+  assert.equal(r.fim.qualidade, undefined);
+});
+
+test('ciclo de vida: Quick Win antigo continua igual (sem Quality Check, instruções em todas as mensagens)', async () => {
+  const modelos = (await ana.get('/api/quick-wins/modelos-iniciais')).dados.modelos;
+  const antigo = (await ana.post('/api/quick-wins', { modelo_inicial: modelos.findIndex(m => m.nome === 'Conferir dois documentos'), areas: [A.id] })).dados;
+  assert.equal(antigo.v2, undefined);
+  const conv = (await ana.post('/api/conversas', { quick_win_id: antigo.id, teste: true })).dados.conversa;
+  for (const corpo of [{ texto: 'Compare os dois.' }, { texto: 'Tire a coluna Relevância' }, { texto: 'De novo', executar_quick_win: true }]) {
+    const n = OR.chamadas.length;
+    const r = await enviarMensagem(ana, conv.id, corpo);
+    assert.equal(OR.chamadas.length - n, 1);
+    assert.equal(r.fim.qualidade, undefined);
+    assert.match(JSON.stringify(OR.chamadas.at(-1).messages[0].content), /Você está no quick win .{1,2}Conferir dois documentos/);
+  }
 });

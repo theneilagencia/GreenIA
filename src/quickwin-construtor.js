@@ -349,6 +349,16 @@ export function promptExecucao(espec, { nome = '' } = {}) {
   return partes.join('\n\n');
 }
 
+// Mensagens depois de uma execução: a conversa continua normal. O modelo sabe qual foi o trabalho e segue as
+// mesmas restrições, mas atende ao pedido atual (ajuste, pergunta, resumo), sem reaplicar o contrato de saída.
+export function contextoDaExecucao(espec, { nome = '' } = {}) {
+  const e = normalizar(espec);
+  if (!e) return '';
+  return [`\nEsta conversa começou com o Quick Win "${nome}". Objetivo do trabalho: ${e.objetivo}`,
+    'O resultado desse trabalho está no histórico. Agora atenda ao pedido atual da pessoa (ajuste, pergunta, resumo, explicação, comparação): siga o que ela pedir, inclusive no formato. Não repita o formato anterior se ela não pedir.',
+    `${REGRAS.nao_inventar.instrucao} ${e.restricoes.join(' ')} Você não tem ferramentas nem acesso a sistemas externos.`].join('\n\n');
+}
+
 // ---- Quality Check ------------------------------------------------------------------------------------------
 export const GRUPOS = ['regras', 'completo', 'formato', 'invencao'];
 export const ROTULOS_QUALIDADE = { regras: 'Regras respeitadas', completo: 'Resultado completo', formato: 'Formato correto', invencao: 'Nenhuma informação inventada detectada' };

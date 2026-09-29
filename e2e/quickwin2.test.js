@@ -102,3 +102,34 @@ test('pessoa leiga cria, testa, publica; colega executa no celular', async () =>
   await cel.close();
   assert.deepEqual(erros, []);
 });
+
+test('conferência parcial não aparece como aprovada; mensagem seguinte é conversa normal', async () => {
+  // A conferência pela IA não responde no formato: estado parcial.
+  OR.responder = b => (JSON.stringify(b.messages[0].content).includes('conferente de qualidade') ? 'não consegui conferir' : BOM);
+  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 }, deviceScaleFactor: 1 });
+  await cel.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const q = await N.entrar('rui@empresa-exemplo.com.br', await cel.newPage());
+  const erros = [];
+  q.on('pageerror', e => erros.push(e.message));
+  await q.goto(`${N.base}/app#/quick-wins`);
+  await q.click('a.lista-item:has-text("Comparar pedidos de compra")');
+  await q.waitForSelector('#entrada-qw');
+  await q.fill('#entrada-qw', 'Pedido 882: 40 rolamentos. Nota: 38 rolamentos.');
+  await q.click('#executar-btn');
+  await q.waitForSelector('.qualidade.parcial');
+  const painel = await q.textContent('.qualidade');
+  assert.match(painel, /Conferência incompleta/);
+  assert.match(painel, /A conferência completa não pôde ser feita agora\. Revise antes de usar\./);
+  assert.doesNotMatch(painel, /conferido|concluído|aprovad|✓/i, 'nada indica aprovação no estado parcial');
+  // Mensagem seguinte: resposta normal, sem nova conferência nem painel de qualidade.
+  OR.responder = b => (JSON.stringify(b.messages[0].content).includes('conferente de qualidade') ? QC_OK : 'O maior valor é 40 unidades.');
+  const antes = OR.chamadas.length;
+  await q.fill('#entrada', 'Qual foi o maior valor?');
+  await q.keyboard.press('Enter');
+  await q.waitForFunction(() => document.querySelectorAll('.resposta .bolha-ia').length >= 2 && !document.querySelector('.cursor'));
+  await q.waitForFunction(() => /O maior valor é 40 unidades/.test(document.querySelector('#coluna').textContent));
+  assert.equal(OR.chamadas.length - antes, 1, 'uma só chamada');
+  assert.equal(await q.locator('.qualidade').count(), 1, 'só a execução tem painel de conferência');
+  await cel.close();
+  assert.deepEqual(erros, []);
+});

@@ -27,6 +27,13 @@ function roteiro(b) {
   if (ehCorrecao(b)) return modo === 'falha' ? RUIM : BOM;
   // Mensagens seguintes da conversa: a IA atende ao pedido da pessoa.
   const ultima = String(b.messages.at(-1).content);
+  if (/Tire a coluna Status/.test(ultima)) return '| Cliente | Valor |\n|---|---|\n| Alfa | 1.200 |\n| Beta | 3.400 |';
+  const sis = JSON.stringify(b.messages[0].content);
+  if (sis.includes('Cliente | Valor | Status') && !/maior valor/.test(ultima)) {
+    // Execução do Quick Win "Cliente, Valor e Status": tabela e as seções que o contrato pede.
+    const secoes = (/inclua estas seções, nesta ordem, cada uma com título \\"## Nome\\": ([^\\]+)\./.exec(sis)?.[1] || '').split('; ').filter(Boolean);
+    return `| Cliente | Valor | Status |\n|---|---|---|\n| Alfa | 1.200 | Pago |\n| Beta | 3.400 | Em aberto |\n\n${secoes.map(x => `## ${x}\n- Nenhuma`).join('\n\n')}`;
+  }
   if (/Tire a coluna Relevância/.test(ultima)) return SEM_RELEVANCIA;
   if (/maior valor/.test(ultima)) return 'O maior valor encontrado é 40 unidades, no pedido.';
   if (/documento é o pedido 882/.test(ultima)) return BOM;
@@ -350,4 +357,34 @@ test('ciclo de vida: Quick Win antigo continua igual (sem Quality Check, instru�
     assert.equal(r.fim.qualidade, undefined);
     assert.match(JSON.stringify(OR.chamadas.at(-1).messages[0].content), /Você está no quick win .{1,2}Conferir dois documentos/);
   }
+});
+
+// O exemplo do pedido de correção, literalmente: tabela com Cliente, Valor e Status.
+test('ciclo de vida (Cliente, Valor, Status): "Tire a coluna Status" e "Qual foi o maior valor?" não herdam a execução', async () => {
+  modo = 'bom';
+  const r0 = await ana.post('/api/quick-wins', { assistente: { descricao: 'Analise este documento e gere uma tabela com Cliente, Valor e Status', formato: 'tabela',
+    como: { modo: 'mostrar', exemplo: '| Cliente | Valor | Status |\n|---|---|---|\n| Exemplo | 10 | Pago |' } }, areas: [A.id] });
+  assert.equal(r0.status, 200, JSON.stringify(r0.dados));
+  const conv = (await ana.post('/api/conversas', { quick_win_id: r0.dados.id, teste: true })).dados.conversa;
+  const enviar = async corpo => { const n = OR.chamadas.length; const r = await enviarMensagem(ana, conv.id, corpo); return { ...r, chamadas: OR.chamadas.slice(n) }; };
+  // 1. Execução: Quality Check.
+  let r = await enviar({ texto: 'Clientes: Alfa, 1.200, pago; Beta, 3.400, em aberto.' });
+  assert.equal(r.chamadas.length, 2, JSON.stringify(r.fim?.qualidade));
+  assert.equal(r.fim.qualidade.status, 'aprovado');
+  assert.match(r.texto, /\| Cliente \| Valor \| Status \|/);
+  // 2. "Tire a coluna Status": 1 chamada, sem Quality Check, Status não volta.
+  r = await enviar({ texto: 'Tire a coluna Status' });
+  assert.equal(r.chamadas.length, 1);
+  assert.ok(!r.chamadas.some(ehConferencia) && !r.chamadas.some(ehCorrecao));
+  assert.equal(r.fim.qualidade, undefined);
+  assert.doesNotMatch(r.texto, /Status/);
+  // 3. "Qual foi o maior valor?": 1 chamada, resposta normal, sem tabela obrigatória.
+  r = await enviar({ texto: 'Qual foi o maior valor?' });
+  assert.equal(r.chamadas.length, 1);
+  assert.equal(r.fim.qualidade, undefined);
+  assert.doesNotMatch(r.texto, /^\|/);
+  // 4. Nova execução explícita: Quality Check de novo.
+  r = await enviar({ texto: 'Clientes: Gama, 900, pago.', executar_quick_win: true });
+  assert.equal(r.chamadas.length, 2);
+  assert.equal(r.fim.qualidade.status, 'aprovado');
 });

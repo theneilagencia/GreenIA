@@ -120,7 +120,8 @@ test('conferência parcial não aparece como aprovada; mensagem seguinte é conv
   const painel = await q.textContent('.qualidade');
   assert.match(painel, /Conferência incompleta/);
   assert.match(painel, /A conferência completa não pôde ser feita agora\. Revise antes de usar\./);
-  assert.doesNotMatch(painel, /conferido|concluído|aprovad|✓/i, 'nada indica aprovação no estado parcial');
+  assert.match(painel, /◐/, 'ícone próprio do estado parcial');
+  assert.doesNotMatch(painel, /✓|conferid|concluíd|aprovad|validad|verificad|certificad|garantid|sucesso|tudo certo/i, 'nada indica validação completa no estado parcial');
   // Mensagem seguinte: resposta normal, sem nova conferência nem painel de qualidade.
   OR.responder = b => (JSON.stringify(b.messages[0].content).includes('conferente de qualidade') ? QC_OK : 'O maior valor é 40 unidades.');
   const antes = OR.chamadas.length;

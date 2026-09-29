@@ -130,7 +130,7 @@ function htmlQualidade(m) {
   const q = m.qualidade;
   if (!q || m.carregando || !['aprovado', 'corrigido', 'parcial'].includes(q.status)) return '';
   // Parcial: a conferência não foi completa; nada na tela indica aprovação.
-  if (q.status === 'parcial') return `<div class="qualidade parcial" role="status"><b>${C.teste ? 'Teste feito, conferência incompleta' : 'Conferência incompleta'}</b>
+  if (q.status === 'parcial') return `<div class="qualidade parcial" role="status"><b><span aria-hidden="true">◐</span> ${C.teste ? 'Teste feito, conferência incompleta' : 'Conferência incompleta'}</b>
     <p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p></div>`;
   const itens = q.itens.filter(i => i.conferido && i.ok);
   return `<div class="qualidade" role="status"><b>${C.teste ? 'Teste concluído' : 'Resultado conferido'} ✓</b>

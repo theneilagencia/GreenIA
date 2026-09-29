@@ -271,10 +271,14 @@ export function rotasConversas(app, r) {
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste) : null;
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
     const texto = String(corpo.texto || '').trim();
-    // Execução do Quick Win 2.0 (prompt de execução + Quality Check), pelo estado da conversa, nunca pelo texto:
-    // a primeira mensagem de uma conversa do Quick Win, ou um pedido explícito de nova execução (a ação
-    // "Executar" da tela envia executar_quick_win), ou a resposta a uma pergunta de esclarecimento que a própria
-    // execução fez (a execução continua). As demais mensagens são conversa normal, na mesma governança.
+    // Execução do Quick Win 2.0 (prompt de execução + Quality Check), pelo estado da conversa, nunca pelo texto.
+    // Ter Quick Win (ou especificação) é contexto da conversa, NÃO evidência de execução. É execução quando:
+    //  - há pedido explícito (a ação "Executar" da tela envia executar_quick_win);
+    //  - a execução ainda não terminou: a última resposta foi uma pergunta de esclarecimento dela (estado
+    //    "pergunta"), e o Quality Check só roda quando houver um resultado a validar;
+    //  - compatibilidade: é a primeira mensagem de uma conversa nova criada a partir do Quick Win (tela de teste
+    //    e clientes da API), que é o início daquela execução. Não vale como regra geral para as mensagens seguintes.
+    // As demais mensagens são conversa normal, na mesma governança.
     const ultimaQualidade = qw?.espec ? json(um(app.db, 'select qualidade from roteamento where conversa_id = ? and resposta_id is not null order by id desc limit 1', conv.id)?.qualidade, null) : null;
     const execucaoQw = !!qw?.espec && (corpo.executar_quick_win === true || ultimaQualidade?.status === 'pergunta'
       || !um(app.db, "select 1 from mensagens where conversa_id = ? and papel = 'user'", conv.id));

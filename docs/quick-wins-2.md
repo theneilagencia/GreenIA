@@ -56,9 +56,15 @@ dica: o Quick Win deixa trocar e o roteamento automático decide.
 O Quality Check valida uma **execução** do Quick Win, não a conversa inteira. É execução (definido pelo estado da
 conversa, nunca pelo texto da mensagem):
 
-- a primeira mensagem de uma conversa do Quick Win;
-- um pedido explícito de nova execução (`executar_quick_win: true`), que a ação *Executar* da tela envia;
-- a resposta a uma pergunta de esclarecimento feita pela própria execução (último registro com estado `pergunta`).
+- um pedido explícito de execução (`executar_quick_win: true`), que a ação *Executar* da tela envia;
+- a resposta a uma pergunta de esclarecimento feita pela própria execução (último registro com estado `pergunta`): a
+  execução ainda não terminou, e o Quality Check só roda quando houver um resultado a validar;
+- por compatibilidade, a primeira mensagem de uma conversa nova criada a partir do Quick Win (tela de teste e clientes
+  da API): é o início daquela execução.
+
+A existência de um Quick Win ou de uma especificação na conversa é contexto, não evidência de execução. A regra é
+"primeira mensagem de uma nova conversa do Quick Win = início daquela execução", nunca "conversa com Quick Win = toda
+mensagem é execução".
 
 As demais mensagens (ajustar, perguntar, resumir, transformar o resultado) são conversa normal:
 - vão pelo mesmo fluxo de governança, com streaming;

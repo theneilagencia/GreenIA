@@ -274,7 +274,7 @@ export function rotasQuickWins(app, r) {
 
   r.post('/api/quick-wins/:id/arquivos', async ({ pessoa, params, corpo }) => {
     const q = carregar(pessoa, params.id, true);
-    const { nome, texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr });
+    const { nome, texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr, limitesOcr: app.limitesOcr });
     const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, quick_win_id, sigiloso, texto, enviado_por) values (?, ?, ?, ?, ?, ?)',
       (String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '')).slice(0, 200), nome, q.id, Number(!!corpo.sigiloso), texto, pessoa.id).lastInsertRowid);
     indexar(app.db, id, texto);

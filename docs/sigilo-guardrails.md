@@ -172,7 +172,7 @@ histórico" (`naoArmazenar`) define os tipos que são processados, mas não fica
 | Memória do servidor (caches, mapas) | Não existe cache de conteúdo. Os mapas guardam só horários (rajada) e contagens | varredura do objeto do servidor |
 | Filas, jobs, webhooks, tracing, APM, telemetria, Sentry | Não existem no produto. As tarefas periódicas (backup, avisos) não leem conteúdo | revisão do código |
 | Arquivos temporários | Nenhum: arquivos e OCR ficam em memória, os dados do idioma vêm do pacote e o cache está desligado | pasta temporária do processo |
-| Outra empresa | Banco próprio por empresa. O OCR usa um worker por leitura, encerrado no fim | `auditoria-tenants` |
+| Outra empresa | Banco próprio por empresa. O OCR usa um processo por arquivo, encerrado no fim | `auditoria-tenants` |
 
 ## Imagem e PDF escaneado (OCR)
 
@@ -181,13 +181,13 @@ O OCR é local (`src/ocr.js`, com tesseract.js e português) e é só uma forma 
 de qualquer anexo, com a mesma classificação, a mesma política, os mesmos recursos elegíveis e a mesma retenção.
 
 - **Imagem** (PNG, JPG, WEBP, TIFF): lida inteira.
-- **PDF:** a página com texto usa o texto; a página sem texto e com imagem (escaneada) passa pelo OCR. Até 30
-  páginas escaneadas por arquivo.
+- **PDF:** a página com texto usa o texto; a página sem texto e com imagem (escaneada) passa pelo OCR, uma página
+  por vez. Até 30 páginas escaneadas por arquivo (`OCR_MAX_PDF_PAGINAS`).
 - **Sem texto legível, OCR indisponível, erro ou tempo esgotado (90 s):** "Este arquivo não contém texto que o
   GreenIA consiga ler neste momento." É um limite técnico de leitura. Nunca aparece como segurança, política ou
   anonimização.
-- **Recurso:** uma leitura por vez por padrão (`OCR_SIMULTANEAS`). Cada leitura usa cerca de 150 MB de memória
-  enquanto dura.
+- **Capacidade:** uma leitura por vez, num processo de OCR próprio por arquivo, com limites de tamanho,
+  páginas, resolução e memória (`docs/ocr-memoria.md`). Esses limites são técnicos e nunca aparecem como política.
 
 ## Área com proteção reforçada (antes: "todas as conversas da área são sigilosas")
 

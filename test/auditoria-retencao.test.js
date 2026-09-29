@@ -20,7 +20,7 @@ import { ErroIA } from '../src/ia.js';
 import { POLITICA_SIGILO } from '../src/sigilo.js';
 import { lerModelos, AUTO } from '../src/modelos.js';
 import { detectar, decidir, NIVEL_DO_TIPO } from '../src/filtro.js';
-import { lerImagens, MSG_SEM_TEXTO } from '../src/ocr.js';
+import { lerImagens, MSG_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
 import { extrairTexto } from '../src/texto.js';
 import { erroDoProvedor, erroParaLog } from '../src/registro-seguro.js';
 
@@ -35,6 +35,9 @@ process.env.TMPDIR = TEMP;
 const pasta = mkdtempSync(join(TEMP, '..', 'greenia-auditoria-'));
 const banco = join(pasta, 'empresa.sqlite');
 let S, OR, admin, ana, modo = null, modoOcr = null;
+// O processo de teste já ocupa ~300 MB (servidor, cliente, banco, logs) antes de qualquer leitura; a guarda de
+// memória com os valores padrão tem teste próprio (ocr-protecao.test.js), num processo que mede o servidor real.
+const FOLGA = { ...LIMITES_OCR, memoriaMaxMb: 4000 };
 const logs = [];
 
 before(async () => {
@@ -48,8 +51,8 @@ before(async () => {
       if (modo === 'uma_falha') { modo = null; throw new ErroIA(`upstream 502: ${eco}`, 502); }
       yield* OR.ia.enviar(mensagens, op);
     } };
-  const ocr = imgs => modoOcr ? modoOcr(imgs) : lerImagens(imgs);
-  S = await subir({ ia, ocr, banco, log: (...a) => logs.push(a.map(x => typeof x === 'string' ? x : x?.stack || String(x)).join(' ')) });
+  const ocr = imgs => modoOcr ? modoOcr(imgs) : lerImagens(imgs, { limites: FOLGA });
+  S = await subir({ ia, ocr, limitesOcr: FOLGA, banco, log: (...a) => logs.push(a.map(x => typeof x === 'string' ? x : x?.stack || String(x)).join(' ')) });
   salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], exigirSemTreino: false, [POLITICA_SIGILO]: true });
   admin = await S.cliente().entrar('admin@exemplo.com.br');
   ana = await S.cliente().entrar('ana@exemplo.com.br');
@@ -287,8 +290,8 @@ test('sem texto legível ou sem OCR: mensagem técnica de leitura, nunca de segu
 
 test('OCR: tempo esgotado encerra a leitura sem deixar worker nem arquivo', async () => {
   const antes = temporarios();
-  await assert.rejects(lerImagens([imagem('reuniao.png')], { tempoMs: 1 }), /tempo esgotado/);
-  const lido = await lerImagens([imagem('reuniao.png')]);
+  await assert.rejects(lerImagens([imagem('reuniao.png')], { limites: { ...FOLGA, tempoPaginaMs: 1 } }), e => e.motivo === 'tempo');
+  const lido = await lerImagens([imagem('reuniao.png')], { limites: FOLGA });
   assert.match(lido[0], /Carla Mendes, gerente de marketing/);
   assert.deepEqual(temporarios(), antes);
 });
@@ -296,11 +299,9 @@ test('OCR: tempo esgotado encerra a leitura sem deixar worker nem arquivo', asyn
 // ------------------------------------------------------------------------------------ Arquivos
 test('arquivos: PDF com texto, PDF escaneado, PPTX e imagem viram texto pelo mesmo caminho', async () => {
   const ata = ['Reuniao comercial - cliente Grupo Horizonte', 'Carla Mendes, gerente de marketing: campanha ate 15/10'];
-  const lidos = await Promise.all([
-    extrairTexto(arquivo('ata.pdf', pdf(ata))), extrairTexto(arquivo('ata.pptx', pptx([ata]))),
-    extrairTexto(arquivo('ata.png', imagem('reuniao.png'))), extrairTexto(arquivo('ata.jpg', imagem('reuniao.jpg'))),
-    extrairTexto(arquivo('ata.pdf', pdfEscaneado([jpegDe('reuniao.jpg'), jpegDe('cadastro.jpg')]))),
-  ]);
+  const lidos = [];   // um por vez: leituras simultâneas esperam a vaga do OCR (limite de concorrência)
+  for (const [nome, b] of [['ata.pdf', pdf(ata)], ['ata.pptx', pptx([ata])], ['ata.png', imagem('reuniao.png')], ['ata.jpg', imagem('reuniao.jpg')],
+    ['ata.pdf', pdfEscaneado([jpegDe('reuniao.jpg'), jpegDe('cadastro.jpg')])]]) lidos.push(await extrairTexto(arquivo(nome, b), { limitesOcr: FOLGA }));
   for (const l of lidos) assert.match(l.texto, /Carla Mendes, gerente de marketing: campanha ate 15\/10/, l.nome);
   assert.match(lidos[4].texto, /\[Página 2\]\nCadastro do cliente\nMaria Souza\nCPF 529\.982\.247-25/, 'PDF escaneado de várias páginas, na ordem');
   assert.deepEqual(detectar(lidos[4].texto), detectar('Carla Mendes, gerente de marketing: campanha ate 15/10\nCadastro do cliente, Maria Souza, CPF 529.982.247-25'), 'mesma classificação do texto digital');

@@ -277,7 +277,7 @@ async function iniciar() {
     permissoes: eu.permissoes || null, plataforma: eu.plataforma || null, bases: eu.bases || { areas: [], paraRevisar: 0 } });
   definirUnidade(eu.unidade);
   aplicarMarca(publico);
-  definirMarcaPropria(publico);
+  await definirMarcaPropria(publico);
   if (publico.favicon) document.querySelector('link[rel="icon"]').href = publico.favicon;
   if (publico.empresa) document.title = MARCA.propria ? publico.empresa : `GreenIA · ${publico.empresa}`;
   document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');

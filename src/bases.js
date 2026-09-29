@@ -90,7 +90,7 @@ export function rotasBases(app, r) {
     const areaId = todaEmpresa ? null : Number(corpo.area_id) || null;
     if (todaEmpresa ? !pessoa.admin : !areaId || !podeGerirArea(pessoa, areaId)) throw erro(403, 'sem_permissao', 'Só o admin da empresa ou um administrador da base desta área envia documentos para ela.');
     if (areaId && !um(app.db, 'select 1 from areas where id = ? and ativa = 1', areaId)) throw erro(404, 'area', 'Área não encontrada ou desativada.');
-    const { nome, texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr });
+    const { nome, texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr, limitesOcr: app.limitesOcr });
     const titulo = String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '');
     // Quem envia conferiu o conteúdo: o documento nasce revisado (o prazo de revisão conta daqui).
     const id = Number(exec(app.db, "insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por, pasta, revisado_em, revisado_por) values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
@@ -104,7 +104,7 @@ export function rotasBases(app, r) {
     const d = um(app.db, 'select * from documentos where id = ?', Number(params.id));
     if (!podeGerirDoc(pessoa, d)) throw erro(404, 'documento', 'Documento não encontrado.');
     if (corpo.arquivo) {
-      const { nome, texto } = await extrairTexto(corpo.arquivo, { ocr: app.ocr });
+      const { nome, texto } = await extrairTexto(corpo.arquivo, { ocr: app.ocr, limitesOcr: app.limitesOcr });
       exec(app.db, "update documentos set arquivo = ?, texto = ?, atualizado_em = datetime('now') where id = ?", nome, texto, d.id);
       indexar(app.db, d.id, texto);
     }

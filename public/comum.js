@@ -77,7 +77,7 @@ export async function preencherMarca() {
   document.querySelectorAll('[data-empresa]').forEach(e => { e.textContent = p.empresa || 'sua empresa'; });
   document.querySelectorAll('[data-privacidade]').forEach(e => { e.textContent = p.privacyNote || ''; });
   aplicarMarca(p);
-  definirMarcaPropria(p);
+  await definirMarcaPropria(p);   // a marca branca já aplicada quando a página continua (sem a marca da plataforma piscando)
   // White label: a marca da empresa ocupa o lugar da marca da plataforma. Fora dele, o logo da empresa vem ao lado.
   document.querySelectorAll('.marca').forEach(m => { if (MARCA.propria) m.innerHTML = marcaHtml(p); else m.insertAdjacentHTML('afterend', logoEmpresa(p)); m.removeAttribute('data-marca-pendente'); });
   return p;
@@ -90,7 +90,7 @@ export function definirMarcaPropria(p) {
   MARCA.propria = true;
   document.querySelectorAll('[data-plataforma]').forEach(e => e.remove());   // "com GreenIA" e afins
   document.querySelectorAll('link[rel="icon"]').forEach(l => { l.href = '/icone'; });
-  import('/marca-branca.js').then(m => m.ligarMarcaBranca());
+  return import('/marca-branca.js').then(m => m.ligarMarcaBranca());
 }
 // Ícone da IA nas conversas: o da empresa no white label.
 export const iconeIA = () => (MARCA.propria ? '/icone' : '/assets/greenia-marca.svg');

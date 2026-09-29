@@ -1,4 +1,5 @@
 // GreenIA Lite: um processo, um arquivo SQLite, uma empresa por instalação.
+import { configurarOcr } from './ocr.js';
 import { erroParaLog } from './registro-seguro.js';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +41,7 @@ export const VERSAO = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT |
 export function criarApp(op = {}) {
   const db = abrirBanco(op.banco ?? ':memory:');
   const app = {
-    db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log, ocr: op.ocr,
+    db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log, ocr: op.ocr, limitesOcr: op.limitesOcr,
   };
   app.email = op.email ?? criarEmail({ lerSmtp: () => lerConfig(db).smtp, log: app.log });
   // ADMIN_EMAIL: um ou mais emails (separados por vírgula), sempre admins e ativos.
@@ -71,13 +72,14 @@ export function criarApp(op = {}) {
     ...(app.extraEu?.(sessao) ?? {}),
   }));
   app.contexto = criarContexto(app);
-  app.extrairAnexos = async (anexos = []) => {
+  configurarOcr({ log: app.log });   // métricas técnicas do OCR (tamanho, páginas, memória, tempo, resultado), sem conteúdo
+  app.extrairAnexos = async (anexos = [], { sinal } = {}) => {
     const L = LIMITES_ARQUIVO;
     if (!Array.isArray(anexos) || anexos.length > L.anexosPorMensagem) throw new ErroHttp(400, 'anexos', `Envie até ${L.anexosPorMensagem} anexos por mensagem.`);
     // A soma é conferida pelo tamanho do base64, antes de abrir qualquer arquivo.
     if (anexos.reduce((t, a) => t + String(a?.base64 || '').length * 0.75, 0) > L.mensagemMb * 1024 * 1024) throw new ErroHttp(413, 'anexos_grandes', `Os anexos desta mensagem somam mais de ${L.mensagemMb} MB. Envie em mais de uma mensagem.`);
     const out = [];
-    for (const a of anexos) out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo', ocr: app.ocr }));
+    for (const a of anexos) out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo', ocr: app.ocr, sinal, limitesOcr: app.limitesOcr }));
     const caracteres = out.reduce((t, a) => t + a.texto.length, 0);
     if (caracteres > L.mensagemCaracteres) throw new ErroHttp(413, 'texto_grande', `Os anexos desta mensagem somam cerca de ${paginasDe(caracteres)} páginas de texto; o máximo por mensagem é ${paginasDe(L.mensagemCaracteres)}. Envie menos arquivos ou só as partes necessárias.`);
     return out;

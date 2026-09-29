@@ -2,9 +2,9 @@
 // de PDF são lidas por OCR local (ocr.js); o texto lido é tratado como qualquer outro texto extraído: a
 // classificação, a governança e a retenção vêm depois, iguais para todos os formatos.
 import { inflateRawSync } from 'node:zlib';
-import { extractText, extractImages, getDocumentProxy } from 'unpdf';
 import { erro } from './http.js';
-import { lerImagens, pngDePixels, MSG_SEM_TEXTO, OCR_PAGINAS } from './ocr.js';
+import { lerImagens, dimensoes, imagensDoPdf, ErroOcr, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO } from './ocr.js';
+import { prepararImagem, lerPaginas, textoDoPdf } from './ocr-paginas.js';
 
 // Conteúdo de fora (anexo, documento) entre marcas; a marca de fechamento dentro do texto é neutralizada.
 export const delimitar = (tipo, nome, texto) => `<${tipo} nome="${String(nome).replace(/["<>]/g, '')}">\n${String(texto).replace(new RegExp(`</?${tipo}`, 'gi'), m => m.replace('<', '‹'))}\n</${tipo}>`;
@@ -104,32 +104,81 @@ function xlsx(b) {
   }).join('\n\n').trim();
 }
 
-// Página com texto: o texto dela. Página sem texto e com imagem (escaneada): OCR das imagens dela.
-async function pdf(b, ocr) {
-  const doc = await getDocumentProxy(new Uint8Array(b));
-  const { text, totalPages } = await extractText(doc, { mergePages: false });
-  const paginas = text.map(t => t.trim());
-  const escaneadas = paginas.map((t, i) => t.replace(/\s/g, '').length < 15 ? i : -1).filter(i => i >= 0);
-  if (escaneadas.length) {
-    const imagens = [];
-    for (const i of escaneadas) {
-      const png = (await extractImages(doc, i + 1).catch(() => [])).map(pngDePixels).filter(Boolean);
-      if (png.length) imagens.push({ i, png });
+// Imagem a partir da qual o PDF é tratado como escaneado (páginas inteiras em imagem). Logotipos e ícones de um PDF
+// digital ficam abaixo disso, e o PDF segue sem passar pelo OCR.
+const PIXELS_DE_PAGINA = 1_000_000;
+
+// Página com texto: o texto dela. Página sem texto e com imagem (escaneada): OCR, uma página por vez, no processo
+// de OCR (ocr.js). Aqui só se confere o que dá para conferir sem decodificar nada: tamanho, páginas e a resolução
+// das imagens (pelos dicionários do PDF). Num PDF com imagem de página, até o texto digital é lido num processo
+// de vida curta, para a memória do leitor de PDF não ficar no servidor.
+async function pdf(b, ocr, op) {
+  const L = op.limites, imagens = imagensDoPdf(b);
+  const maiorImagem = imagens.length ? Math.max(...imagens.map(x => x.largura * x.altura)) : 0;
+  const montar = (paginas, total) => paginas.map((t, i) => (total > 1 ? `[Página ${i + 1}]\n${t}` : t)).join('\n\n');
+  const escaneadasDe = paginas => paginas.map((t, i) => t.replace(/\s/g, '').length < 15 ? i : -1).filter(i => i >= 0);
+  // Tamanho do arquivo não basta (um PDF pequeno pode ter muitas páginas ou imagens enormes): páginas e pixels
+  // também são conferidos, antes de decodificar qualquer imagem.
+  const conferir = escaneadas => {
+    if (b.length > L.maxPdfMb * 1048576 || escaneadas.length > L.maxPdfPaginas || maiorImagem > L.pixelsEntrada) throw new ErroOcr('grande');
+  };
+  const meta = { tipo: 'pdf', bytes: b.length, pixels: Math.min(maiorImagem, L.pixelsLeitura), pixelsDecodificar: maiorImagem, ...op };
+  if (maiorImagem < PIXELS_DE_PAGINA) {
+    // PDF digital: como sempre. Se sobrar página sem texto com imagem pequena, ela vai para o OCR.
+    const { paginas, total } = await textoDoPdf(b);
+    const escaneadas = imagens.length ? escaneadasDe(paginas) : [];
+    if (escaneadas.length) {
+      conferir(escaneadas);
+      const lidos = await sessao(ocr, { ...meta, paginas: escaneadas.length }, ler => ler.pdf(b, escaneadas));
+      escaneadas.forEach((i, k) => { paginas[i] = lidos[k]; });
     }
-    if (imagens.length > OCR_PAGINAS) throw erro(413, 'ocr_paginas', `tem ${imagens.length} páginas escaneadas; é possível ler até ${OCR_PAGINAS} por arquivo. Divida o arquivo em partes.`);
-    if (imagens.length) {
-      const lidos = await porOcr(ocr, imagens.flatMap(x => x.png));
-      let k = 0;
-      for (const x of imagens) { paginas[x.i] = lidos.slice(k, k + x.png.length).join('\n').trim(); k += x.png.length; }
-    }
+    return montar(paginas, total);
   }
-  return paginas.map((t, i) => (totalPages > 1 ? `[Página ${i + 1}]\n${t}` : t)).join('\n\n');
+  if (b.length > L.maxPdfMb * 1048576 || maiorImagem > L.pixelsEntrada) throw new ErroOcr('grande');
+  return sessao(ocr, meta, async ler => {
+    const { paginas, total } = await ler.textoPdf(b);
+    const escaneadas = escaneadasDe(paginas);
+    conferir(escaneadas);
+    if (escaneadas.length) {
+      const lidos = await ler.pdf(b, escaneadas);
+      escaneadas.forEach((i, k) => { paginas[i] = lidos[k]; });
+    }
+    return montar(paginas, total);
+  });
 }
 
-// OCR indisponível, com erro, no tempo esgotado ou sem nada legível: limite técnico de leitura (nunca de política).
+// Imagem: tamanho, dimensões e formato conferidos antes do OCR, pelo cabeçalho. Acima da resolução de leitura, a
+// imagem é decodificada e reduzida (em cinza) no processo de OCR, antes do tesseract subir.
+async function imagem(b, ocr, op) {
+  const L = op.limites, d = dimensoes(b), px = d ? d.largura * d.altura : null;
+  if (b.length > L.maxImagemMb * 1048576 || (px && px > L.pixelsEntrada)) throw new ErroOcr('grande');
+  const reduzir = px && px > L.pixelsLeitura;
+  if (reduzir && !['png', 'jpeg'].includes(d.formato)) throw new ErroOcr('grande');   // sem como reduzir com segurança
+  return sessao(ocr, { tipo: `imagem/${d?.formato || 'desconhecida'}`, bytes: b.length, pixels: px ? Math.min(px, L.pixelsLeitura) : null, pixelsDecodificar: reduzir ? px : 0, ...op }, ler => ler.imagem(b));
+}
+
+// Sessão do leitor padrão (vaga, guarda de memória, processo de OCR). Um leitor injetado (testes) recebe as
+// mesmas imagens preparadas pelo mesmo código, uma a uma, neste processo.
+function sessao(ocr, meta, fn) {
+  if (ocr.sessao) return ocr.sessao(meta, fn);
+  const px = meta.limites.pixelsLeitura, um = async img => (await porOcr(ocr, [img]))[0];
+  return fn({ textoPdf: textoDoPdf, imagem: async b => um(await prepararImagem(b, px)), pdf: (bytes, indices) => lerPaginas(bytes, indices, px, um) });
+}
+
+// Recusas e falhas do OCR em mensagens técnicas: capacidade (grande, memória, ocupado) ou leitura (sem texto,
+// erro, tempo, indisponível). Nunca uma mensagem de política.
+function erroDeOcr(e) {
+  const motivo = e instanceof ErroOcr ? e.motivo : 'erro';
+  if (motivo === 'grande' || motivo === 'memoria') return erro(413, 'ocr_grande', MSG_GRANDE);
+  if (motivo === 'ocupado') return erro(503, 'ocr_ocupado', MSG_OCUPADO);
+  return erro(422, 'sem_texto', MSG_SEM_TEXTO);
+}
+const TECNICOS = new Set(['sem_texto', 'ocr_grande', 'ocr_ocupado']);
+
+// Leitor injetado: sem resultado ou com erro, mensagem técnica.
 async function porOcr(ocr, imagens) {
   let lidos;
-  try { lidos = await ocr(imagens); } catch { lidos = null; }
+  try { lidos = await ocr(imagens); } catch (e) { throw erroDeOcr(e); }
   if (!lidos) throw erro(422, 'sem_texto', MSG_SEM_TEXTO);
   return lidos;
 }
@@ -140,7 +189,7 @@ const decodificar = b => {
 };
 
 /** Extrai o texto de um arquivo enviado em base64. @returns {Promise<{nome: string, texto: string}>} */
-export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_ARQUIVO.documentoCaracteres, onde = 'documento', ocr = lerImagens } = {}) {
+export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_ARQUIVO.documentoCaracteres, onde = 'documento', ocr = lerImagens, sinal = null, limitesOcr = LIMITES_OCR } = {}) {
   nome = String(nome || 'arquivo').slice(0, 200);
   const b = Buffer.from(String(base64 || ''), 'base64');
   if (!b.length) throw erro(400, 'vazio', `${nome}: arquivo vazio.`);
@@ -148,8 +197,9 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
   const ext = (nome.split('.').pop() || '').toLowerCase();
   let texto;
   try {
-    if (ehImagem(b)) texto = (await porOcr(ocr, [b])).join('\n');
-    else if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b, ocr);
+    const op = { sinal, limites: limitesOcr };
+    if (ehImagem(b)) texto = await imagem(b, ocr, op);
+    else if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b, ocr, op);
     else if (b[0] === 0x50 && b[1] === 0x4b) {
       // Zip só como DOCX, XLSX ou PPTX: outro conteúdo compactado não é aceito.
       if (!['docx', 'xlsx', 'pptx'].includes(ext)) throw erro(415, 'formato', `arquivo compactado não aceito. Use ${FORMATOS}.`);
@@ -160,7 +210,8 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
       texto = decodificar(b);
     } else throw erro(415, 'formato', `formato não aceito. Use ${FORMATOS}.`);
   } catch (e) {
-    if (e.status) throw e.codigo === 'sem_texto' ? e : erro(e.status, e.codigo, `${nome}: ${e.message}`);
+    if (e instanceof ErroOcr) throw erroDeOcr(e);
+    if (e.status) throw TECNICOS.has(e.codigo) ? e : erro(e.status, e.codigo, `${nome}: ${e.message}`);
     throw erro(400, 'arquivo_invalido', `${nome}: não foi possível ler o arquivo.`);
   }
   if (!texto.replace(/\[(Página|Slide) \d+\]/g, '').trim()) throw erro(422, 'sem_texto', MSG_SEM_TEXTO);

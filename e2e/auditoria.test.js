@@ -7,13 +7,15 @@ import assert from 'node:assert/strict';
 import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
-import { MSG_SEM_TEXTO } from '../src/ocr.js';
+import { MSG_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
 import { imagem, pdfEscaneado, jpegDe } from '../test/arquivos.js';
 
 const TECNICO = /open\s*router|anthropic|google\/|gemini|claude|haiku|mistral|llama/i;
 let N, admin;
 before(async () => {
-  N = await subirComNavegador({ adminEmail: 'admin@empresa-exemplo.com.br' });
+  // O processo do teste (servidor + cliente) já ocupa bem mais que o servidor sozinho: folga na guarda de memória,
+  // que tem teste próprio com os valores padrão.
+  N = await subirComNavegador({ adminEmail: 'admin@empresa-exemplo.com.br', limitesOcr: { ...LIMITES_OCR, memoriaMaxMb: 4000 } });
   salvarConfig(N.app.db, { dominios: ['empresa-exemplo.com.br'] });
   admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');
   await admin.post('/api/admin/pessoas', { email: 'lia@empresa-exemplo.com.br', nome: 'Lia Prado' });

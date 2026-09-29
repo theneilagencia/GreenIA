@@ -252,7 +252,10 @@ export function rotasConversas(app, r) {
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste) : null;
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
     const texto = String(corpo.texto || '').trim();
-    const anexos = await (app.extrairAnexos?.(corpo.anexos) ?? []);
+    // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
+    const cancelado = new AbortController();
+    res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
+    const anexos = await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []);
     if (!texto && !anexos.length) throw erro(400, 'vazia', 'Escreva uma mensagem.');
     if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Esta mensagem é longa demais para enviar de uma vez (até ${MAX_TEXTO.toLocaleString('pt-BR')} caracteres). Divida em partes ou envie o material como anexo.`);
     if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');

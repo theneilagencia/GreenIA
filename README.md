@@ -117,7 +117,7 @@ O console (`/operador`) junta todas as instalações de clientes numa tela: plan
 | Variável | Onde | O que faz |
 |---|---|---|
 | `OPERADOR_TOKEN` | Instalação de cada cliente | Token (24 caracteres ou mais) que libera o resumo desta instalação para o console. Sem ele, a rota não existe. Tentativas erradas bloqueiam o endereço por 15 minutos |
-| `OCR_SIMULTANEAS` | Opcional | Leituras de imagem ou PDF escaneado ao mesmo tempo (padrão 1). Cada uma usa cerca de 150 MB de memória enquanto dura. O OCR é local: a imagem não sai do servidor |
+| `OCR_*` | Opcional | Limites técnicos do OCR (concorrência, tamanho, páginas, resolução, memória e tempo). Padrões medidos para uma instância de 512 MB; lista e medições em `docs/ocr-memoria.md`. O OCR é local: a imagem não sai do servidor |
 | `INSTANCIAS` | Instalação do operador | Uma instalação por linha ou separadas por `;`, no formato `Nome|https://endereco|token` |
 | `CUSTO_INFRA_USD` | Instalação de cada cliente | Custo mensal do servidor, para a margem |
 | `PACOTE_CREDITOS`, `PACOTE_PRECO_USD` | Instalação de cada cliente | Pacote de referência para a receita (padrão: 10.000 créditos por US$ 250) |

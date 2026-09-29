@@ -44,7 +44,7 @@ test('login → chat → quick win', async () => {
   assert.equal(await p.inputValue('#entrada'), 'Pague o fornecedor: agência 1234, conta corrente 56789-0');
   // Quick win: abre pela lateral, usa uma sugestão, pede ajuste.
   await p.click('.lateral a[href="#/quick-wins"]');
-  await p.click(`a.lista-item[href="#/qw/${qwId}"]`);
+  await p.click(`a.qw-item-link[href="#/qw/${qwId}"]`);
   await p.waitForSelector('[data-sug]');
   await p.click('[data-sug="0"]');
   await p.waitForFunction(() => document.getElementById('entrada')?.value.length > 0);
@@ -60,10 +60,10 @@ test('login → chat → quick win', async () => {
   await p.waitForSelector('[data-fb="serviu"][aria-pressed="true"]');
   // Retomar: a conversa está na página do quick win e abre com o histórico.
   await p.click('.lateral a[href="#/quick-wins"]');
-  await p.click(`a.lista-item[href="#/qw/${qwId}"]`);
-  await p.waitForSelector('.lista-item a');
-  assert.match(await p.textContent('.lista-item'), /Serviu/);
-  await p.click('.lista-item a');
+  await p.click(`a.qw-item-link[href="#/qw/${qwId}"]`);
+  await p.waitForSelector('.execucoes a.execucao');
+  assert.match(await p.textContent('.execucoes li'), /Serviu/);
+  await p.click('.execucoes a.execucao');
   await p.waitForSelector('.bolha-eu');
   assert.equal(await p.locator('.bolha-eu').count(), 2);
   // Quem não é admin: sem alternador de contexto, e o endereço da administração volta para o uso.

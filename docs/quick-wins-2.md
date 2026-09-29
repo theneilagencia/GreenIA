@@ -109,3 +109,25 @@ inventar.
   instruções e a classe de modelo.
 - A migração 12 é idempotente e só acrescenta: duas colunas em `quick_wins`, `roteamento.qualidade` e a tabela de
   versões pelo esquema.
+
+## Experiência (telas)
+
+- **Componentes comuns:** `public/qw-ui.js` (cabeçalho, progresso, estado, conferência, avisos, menu, estado vazio) e o
+  bloco "Quick Wins" de `public/estilo.css`, só com tokens do tema.
+- **Biblioteca** (`#/quick-wins`):
+  - listas "Publicados" e "Em preparo", com estado, versão, "Usar" e menu "…";
+  - estado vazio de boas-vindas;
+  - acompanhamento de uso e arquivados recolhidos.
+- **Criar** (`#/qw/nova`) e **Editar** (`#/qw/:id/ajustar`):
+  - uma etapa por vez (Objetivo · Processo · Regras · Resultado · Testar), com Voltar e Continuar;
+  - o que foi preenchido não se perde;
+  - o teste roda na mesma tela, depois vêm Revisar e publicar e a confirmação.
+  - Editar um Quick Win publicado prepara a próxima versão; a equipe segue na atual até publicar.
+- **Detalhe** (`#/qw/:id`): "Usar" e "Editar", com as seções O que ele faz, Regras, Formato do resultado, Último teste e
+  Versão publicada.
+- **Usar** (`#/qw/:id/usar`): o que enviar, depois Executar e o resultado na conversa.
+- **Conversa:**
+  - a execução tem rótulo e progresso (Analisando · Organizando · Conferindo);
+  - a conferência aparece logo abaixo do resultado;
+  - as mensagens seguintes são conversa normal;
+  - "Nova execução" roda o trabalho de novo, com conferência, no próximo envio.

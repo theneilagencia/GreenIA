@@ -14,6 +14,7 @@ import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
+import { conferirComCorrecao, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -133,6 +134,8 @@ function persona(cfg, responsaveis, qw, marcaPropria = false) {
 const FORMATOS = { texto: 'Responda em texto corrido, em parágrafos curtos.', lista: 'Responda em lista de tópicos.',
   tabela: 'Responda com uma tabela em Markdown (linhas com | ), com cabeçalho.', checklist: 'Responda como checklist: uma linha por item, começando com "- [ ]" ou "- [x]".' };
 function instrucoesQw(qw) {
+  // Quick Win 2.0: prompt de execução gerado da especificação (objetivo, procedimento, regras, contrato de saída).
+  if (qw.espec) return [promptExecucao(qw.espec, { nome: qw.nome })];
   const out = [`\nVocê está no quick win "${qw.nome}". Para que serve: ${qw.para_que_serve || '(não informado)'}.`];
   if (qw.instrucoes) out.push(`Instruções do responsável, para todas as conversas deste quick win:\n${qw.instrucoes}`);
   out.push(FORMATOS[qw.formato] || FORMATOS.texto);
@@ -174,7 +177,10 @@ function historico(app, conv, limiteChars, atual = null) {
 }
 
 export function rotasConversas(app, r) {
-  const carregarQw = (pessoa, id, teste) => app.quickWins?.paraUso(pessoa, id, teste) ?? null;
+  const carregarQw = (pessoa, id, teste) => {
+    const q = app.quickWins?.paraUso(pessoa, id, teste) ?? null;
+    return q && app.quickWins.efetivo ? app.quickWins.efetivo(q, teste) : q;
+  };
 
   r.get('/api/conversas', ({ pessoa, query }) => {
     if (query.todas) return { conversas: todos(app.db, `select c.id, c.titulo, c.sigilosa, c.quick_win_id, q.nome as quick_win, c.feedback, c.atualizado_em
@@ -509,7 +515,10 @@ export function rotasConversas(app, r) {
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.
       explicacao_simples: explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       solicitacao: solicitacao() };
-    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela });
+    // Quick Win 2.0: a resposta é conferida antes de aparecer; quem usa acompanha as etapas.
+    const espec = qw?.espec || null;
+    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela, qualidade: !!espec });
+    if (espec) linha({ t: 'etapa', v: anexos.length ? 'Analisando seu documento…' : 'Analisando seu pedido…' });
     const inicio = Date.now();
     let resposta = '', fim = null, primeiroToken = null, falha = null, atual = m;
     const tentados = [m.id];
@@ -518,7 +527,12 @@ export function rotasConversas(app, r) {
     for (;;) {
       try {
         for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
-          if (ev.tipo === 'texto') { primeiroToken ??= Date.now() - inicio; resposta += ev.texto; linha({ t: 'texto', v: ev.texto }); } else fim = ev;
+          if (ev.tipo === 'texto') {
+            primeiroToken ??= Date.now() - inicio;
+            if (espec && !resposta) linha({ t: 'etapa', v: 'Organizando as informações…' });
+            resposta += ev.texto;
+            if (!espec) linha({ t: 'texto', v: ev.texto });
+          } else fim = ev;
         }
         if (!resposta) throw new ErroIA('A IA não respondeu.');
         falha = null;
@@ -543,6 +557,28 @@ export function rotasConversas(app, r) {
       linha({ t: 'erro', mensagem: fora ? MSG_USUARIO.ia_fora : MSG_USUARIO.falhou });
       return res.end();
     }
+    // Quality Check (Quick Win 2.0): pelo mesmo recurso e pela mesma rota já decididos e conferidos acima
+    // (mesmo sigilo, fornecedor e preferência de não treino). A defesa final de credenciais vale também para
+    // cada chamada da conferência. Na reserva do plano, só a conferência determinística (sem gastar créditos).
+    let registroQualidade = null, custoExtra = 0, economiaExtra = 0;
+    if (espec) {
+      linha({ t: 'etapa', v: 'Conferindo o resultado…' });
+      const chamar = async msgs => {
+        const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
+        if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
+        let t = '', f = null;
+        for await (const ev of app.ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+          if (ev.tipo === 'texto') t += ev.texto; else f = ev;
+        }
+        return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
+      };
+      const entradaQc = [...ctx.partes, ...h.mensagens.map(x => x.content)].join('\n\n').slice(-30000);
+      const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }) });
+      resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
+      linha({ t: 'texto', v: resposta });
+      registrar(app, 'quickwin.quality_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, versao: qw.versao ?? null, roteamento: rotaId, ...registroQualidade });
+    }
+    if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra, economia: (fim?.economia || 0) + economiaExtra };
     const ms = Date.now() - inicio;
     const usado = fim?.modelo || atual.id;
     // O selecionado caiu no fornecedor e a reserva (que passou pelas mesmas regras) respondeu.
@@ -555,12 +591,14 @@ export function rotasConversas(app, r) {
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
     exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
       usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
+    if (registroQualidade) exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
-    linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela });
+    linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: ctx.fontes, reserva: usado !== m.id, rota: rotaTela,
+      ...(registroQualidade ? { qualidade: resumoQualidade(registroQualidade) } : {}) });
     res.end();
   }
 }
@@ -573,8 +611,8 @@ export function detalhe(app, c, pessoa = null) {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
-    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
-      .map(({ rota_politicas, rota_fallback, rota_sigilosa, ...m }) => ({ ...m, fontes: json(m.fontes, []), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
+    mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa, r.qualidade as rota_qualidade from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
+      .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: resumoQualidade(json(rota_qualidade, {})) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
         rota_explicacao_simples: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null,
         ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),

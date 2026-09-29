@@ -3,7 +3,8 @@
 import { createServer } from 'node:http';
 import { criarOpenRouter } from '../src/ia.js';
 
-export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123 } = {}) {
+// responder(corpo): texto da resposta (opcional), para roteirizar respostas nos testes.
+export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null } = {}) {
   const chamadas = [];
   const srv = createServer(async (req, res) => {
     if (req.url.endsWith('/models')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data: modelos })); }
@@ -19,7 +20,8 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     res.write(': OPENROUTER PROCESSING\n\n');
     const ultima = b.messages.filter(m => m.role === 'user').at(-1)?.content || '';
-    for (const parte of [`Resposta de ${respondeu}`, ` para: ${String(ultima).slice(0, 40)}`]) {
+    const roteiro = responder?.(b);
+    for (const parte of roteiro != null ? [roteiro] : [`Resposta de ${respondeu}`, ` para: ${String(ultima).slice(0, 40)}`]) {
       res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: { content: parte } }] })}\n\n`);
     }
     res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: {} }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: custo, cache_discount: 0.0001 } })}\n\n`);
@@ -27,7 +29,7 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/v1`;
-  return { chamadas, falhar, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
+  return { chamadas, falhar, set responder(f) { responder = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.

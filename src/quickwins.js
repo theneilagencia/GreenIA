@@ -11,6 +11,7 @@ import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
 import { trechosDasBases } from './bases.js';
 import { acharModelo, custoEstimado, ehClasse, lerModelos, NOMES_CLASSE, resolverClasse } from './modelos.js';
+import * as QW2 from './quickwin-construtor.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -57,14 +58,61 @@ function publico(db, pessoa, q) {
     areas, podeEditar: podeGerir(db, pessoa, q), problema: q.problema, objetivo: q.objetivo,
     responsavel: q.responsavel_id ? um(db, 'select id, nome, email from pessoas where id = ?', q.responsavel_id) || null : null,
   };
+  const v2 = versaoDe(db, q);
+  if (v2) Object.assign(base, v2.publico);
   if (!base.podeEditar) return base;
+  if (v2) Object.assign(base, v2.gestao);
   return { ...base, processo_atual: q.processo_atual, resultado: q.resultado, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
     dados: acoesDoQuickWin(q.dados, lerConfig(db)), arquivos: todos(db, 'select id, titulo, arquivo, sigiloso, length(texto) as caracteres from documentos where quick_win_id = ? order by id', q.id) };
 }
 
+// Quick Win 2.0 (com especificação): o que quem usa vê (versão atual) e o que quem gere vê (rascunho, respostas
+// da criação, último teste). Nunca modelo, prompt ou detalhe técnico.
+function versaoDe(db, q) {
+  if (!q.especificacao) return null;
+  const espec = json(q.especificacao, null);
+  const pub = q.versao_publicada ? um(db, 'select id, numero, especificacao, publicada_em from quick_win_versoes where id = ?', q.versao_publicada) : null;
+  const teste = um(db, "select r.qualidade, r.em from roteamento r join conversas c on c.id = r.conversa_id where r.quick_win_id = ? and r.teste = 1 and r.qualidade is not null order by r.id desc limit 1", q.id);
+  return {
+    publico: { v2: true, versao: pub?.numero ?? null, regras: QW2.regrasPrincipais(pub ? json(pub.especificacao, null) : espec), formato_saida: (pub ? json(pub.especificacao, {}) : espec)?.formato_saida?.tipo || null },
+    gestao: { assistente: espec?.origem || null, rascunho_alterado: !pub || pub.especificacao !== q.especificacao, regras_rascunho: QW2.regrasPrincipais(espec),
+      arquetipo: espec?.arquetipo || null, ultimo_teste: teste ? { ...json(teste.qualidade, {}), em: teste.em } : null },
+  };
+}
+
+// Classe de partida de um Quick Win 2.0, pela dica de complexidade da especificação. É só um piso para o
+// roteamento automático (o Quick Win deixa trocar): a governança e o roteador continuam decidindo o recurso.
+function classeSugerida(app, cfg, espec, sigiloso) {
+  const ordem = espec?.dicas_roteamento?.complexidade === 'baixa' ? ['rapido', 'equilibrado', 'avancado'] : ['equilibrado', 'rapido', 'avancado'];
+  for (const p of ordem.filter(x => cfg.perfisQuickWin.includes(x))) {
+    const m = acharModelo(app.db, cfg, resolverClasse(app.db, cfg, `classe:${p}`, { sigilosa: !!sigiloso }));
+    if (m?.liberado && (!sigiloso || (m.homologado && m.perfil === p))) return `classe:${p}`;
+  }
+  return null;
+}
+
+// A especificação só entra pelo construtor (ou cópia interna): um corpo JSON não tem chave Symbol, então
+// ninguém grava uma especificação montada à mão pela API.
+const ESPEC = Symbol('especificacao');
+
+// Respostas da criação em 5 etapas -> campos do Quick Win. Segredo no que a pessoa escreveu ou mostrou: recusa.
+function doAssistente(app, cfg, a, atual = {}) {
+  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao]))
+    throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
+  const espec = QW2.construir({ ...a, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
+  const v = { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
+  if (!atual.id || a?.nome) v.nome = espec.origem.nome;
+  if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(v.nome || atual.nome, espec.regras)).slice(0, 200);
+  const classe = classeSugerida(app, cfg, espec, atual.sigiloso);
+  if (classe && (!atual.modelo || ehClasse(atual.modelo))) v.modelo = classe;
+  return v;
+}
+
 function validar(app, pessoa, atual, c) {
   const cfg = lerConfig(app.db);
+  if (c.assistente) c = { ...c, ...doAssistente(app, cfg, c.assistente, atual), assistente: undefined };
   const v = {};
+  if (c[ESPEC] !== undefined) v.especificacao = c[ESPEC];
   if (c.nome !== undefined) { v.nome = String(c.nome).trim().slice(0, 80); if (!v.nome) throw erro(400, 'nome', 'Dê um nome ao quick win.'); }
   if (c.cor !== undefined) { if (!/^#[0-9a-fA-F]{6}$/.test(c.cor)) throw erro(400, 'cor', 'Cor inválida.'); v.cor = c.cor; }
   if (c.icone !== undefined) v.icone = String(c.icone).trim().slice(0, 2);
@@ -152,6 +200,15 @@ export function criarQuickWins(app) {
       return visivel(app.db, pessoa, q) || gere ? q : null;
     },
 
+    // Quick Win 2.0 como é executado: quem usa recebe a versão publicada; o teste (de quem gere) usa o rascunho.
+    // Só o trabalho muda com a versão; dados, sigilo, bases e áreas são sempre os atuais.
+    efetivo(q, teste = false) {
+      if (!q?.especificacao) return q;
+      const v = !teste && q.versao_publicada ? um(app.db, 'select numero, especificacao, nome, para_que_serve, formato from quick_win_versoes where id = ?', q.versao_publicada) : null;
+      const espec = QW2.normalizar(json(v ? v.especificacao : q.especificacao, null));
+      return espec ? { ...q, ...(v ? { nome: v.nome, para_que_serve: v.para_que_serve, formato: v.formato } : {}), espec, versao: v?.numero ?? null } : q;
+    },
+
     // Contexto: instruções (na persona), arquivos do quick win e bases escolhidas.
     contexto(pessoa, qw, texto) {
       const arquivos = todos(app.db, 'select id, titulo, texto, sigiloso from documentos where quick_win_id = ? order by id', qw.id);
@@ -216,6 +273,25 @@ export function rotasQuickWins(app, r) {
 
   r.get('/api/quick-wins/modelos-iniciais', () => ({ modelos: JSON.parse(readFileSync(MODELOS_INICIAIS, 'utf8')) }));
 
+  // Criação em 5 etapas: sugestões (tipo de trabalho, nome, descrição, regras, formato) sem chamar a IA.
+  const podeMontar = pessoa => permissoesQw(app.db, pessoa).criar || pessoa.admin || pessoa.areas.some(a => a.responsavel);
+  r.post('/api/quick-wins/assistente/sugerir', ({ pessoa, corpo }) => {
+    if (!podeMontar(pessoa)) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar Quick Wins. Fale com o admin.');
+    const como = corpo.como || {};
+    if (QW2.conferirSegredos([corpo.descricao, como.texto, como.exemplo]))
+      throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
+    return { ...QW2.sugerir({ descricao: String(corpo.descricao || '').slice(0, 1000), arquetipo: corpo.arquetipo, como }), sugestoes: QW2.SUGESTOES };
+  });
+  // Exemplo em arquivo: o texto é lido (com a mesma leitura dos anexos) e volta só para a tela da criação.
+  // Nada é guardado aqui; na criação, só a estrutura do exemplo fica na especificação.
+  r.post('/api/quick-wins/assistente/exemplo', async ({ pessoa, corpo }) => {
+    if (!podeMontar(pessoa)) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar Quick Wins. Fale com o admin.');
+    const { texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr, limitesOcr: app.limitesOcr });
+    if (QW2.conferirSegredos([texto])) throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Use um exemplo sem o segredo.', { tipos: ['credencial'] });
+    return { texto: texto.slice(0, 8000), estrutura: QW2.analisarExemplo(texto) };
+  }, { limiteMb: 35 });
+  r.get('/api/quick-wins/assistente/entrada-teste', ({ query }) => ({ texto: QW2.entradaDeTeste(query.arquetipo) }));
+
   r.get('/api/quick-wins/:id', ({ pessoa, params }) => publico(app.db, pessoa, carregar(pessoa, params.id)));
 
   r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ modelos: estimativas(app, carregar(pessoa, params.id, true)).filter(m => m.classe || pessoa.admin) }));
@@ -237,13 +313,18 @@ export function rotasQuickWins(app, r) {
     const cfg = lerConfig(app.db);
     const dados = { modelo: `classe:${cfg.perfisQuickWin[0] || 'rapido'}`, ...base, ...corpo };
     delete dados.id;
+    // Quick Win 2.0: a especificação é montada das respostas da criação (ou copiada, ao duplicar).
+    const v2 = corpo.assistente ? doAssistente(app, cfg, corpo.assistente) : origem?.especificacao ? { [ESPEC]: origem.especificacao } : {};
+    delete dados.especificacao;
+    Object.assign(dados, v2);
     const id = transacao(app.db, () => {
       const novo = Number(exec(app.db, 'insert into quick_wins (nome, criado_por) values (?, ?)', 'Novo quick win', pessoa.id).lastInsertRowid);
       const { v, areas } = validar(app, pessoa, {}, { nome: dados.nome || 'Novo quick win', cor: dados.cor || '#1B7950', icone: dados.icone || '', para_que_serve: dados.para_que_serve || '',
         instrucoes: dados.instrucoes || '', formato: dados.formato || 'texto', sugestoes: dados.sugestoes || [], exemplo_entrada: dados.exemplo_entrada || '', exemplo_saida: dados.exemplo_saida || '',
         sigiloso: dados.sigiloso || false, pode_trocar: dados.pode_trocar || false, dados: dados.dados || {}, bases: dados.bases || { modo: 'area' }, modelo: dados.modelo,
         status: ['identificado', 'em_configuracao'].includes(corpo.status) ? corpo.status : 'em_configuracao', toda_empresa: !!corpo.toda_empresa, areas: corpo.areas || [],
-        problema: corpo.problema || '', objetivo: corpo.objetivo || '', processo_atual: corpo.processo_atual || '', responsavel_id: corpo.responsavel_id || pessoa.id });
+        problema: corpo.problema || '', objetivo: corpo.objetivo || '', processo_atual: corpo.processo_atual || '', responsavel_id: corpo.responsavel_id || pessoa.id,
+        ...(v2[ESPEC] ? { [ESPEC]: v2[ESPEC] } : {}) });
       gravar(app, novo, v, areas);
       if (origem) {
         for (const a of todos(app.db, 'select titulo, arquivo, sigiloso, texto from documentos where quick_win_id = ?', origem.id)) {
@@ -253,7 +334,7 @@ export function rotasQuickWins(app, r) {
       }
       return novo;
     });
-    registrar(app, 'quickwin.created', pessoa.id, { quick_win: id, duplicado_de: origem?.id ?? null, modelo_inicial: corpo.modelo_inicial ?? null });
+    registrar(app, 'quickwin.created', pessoa.id, { quick_win: id, duplicado_de: origem?.id ?? null, modelo_inicial: corpo.modelo_inicial ?? null, v2: !!v2[ESPEC] });
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', id));
   });
 
@@ -263,6 +344,52 @@ export function rotasQuickWins(app, r) {
     transacao(app.db, () => gravar(app, q.id, v, areas));
     registrar(app, 'quickwin.updated', pessoa.id, { quick_win: q.id, campos: Object.keys(v) });
     if (v.status && v.status !== q.status) registrar(app, 'quickwin.status_changed', pessoa.id, { quick_win: q.id, de: q.status, para: v.status });
+    return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
+  });
+
+  // Publicar: o rascunho vira a versão seguinte (v1, v2...) e passa a ser a que as pessoas usam.
+  r.post('/api/quick-wins/:id/publicar', ({ pessoa, params, corpo }) => {
+    const q = carregar(pessoa, params.id, true);
+    if (!q.especificacao) throw erro(400, 'quick_win', 'Este Quick Win não tem uma especificação para publicar.');
+    const cfg = lerConfig(app.db);
+    const mudar = {};
+    if (corpo.nome !== undefined) mudar.nome = corpo.nome;
+    if (corpo.para_que_serve !== undefined) mudar.para_que_serve = corpo.para_que_serve;
+    if (corpo.areas !== undefined || corpo.toda_empresa !== undefined) { mudar.areas = corpo.areas ?? areasDoQw(app.db, q.id); mudar.toda_empresa = !!corpo.toda_empresa; }
+    if (QW2.conferirSegredos([corpo.nome, corpo.para_que_serve])) throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win.', { tipos: ['credencial'] });
+    if (!EM_CIRCULACAO.includes(q.status)) {
+      mudar.status = 'em_uso';
+      if (!q.modelo) { const c = classeSugerida(app, cfg, json(q.especificacao, {}), q.sigiloso); if (!c) throw erro(503, 'sem_modelo', 'A empresa ainda não liberou recursos de IA para Quick Wins. Fale com o administrador.'); mudar.modelo = c; }
+    }
+    const { v, areas } = validar(app, pessoa, q, mudar);
+    const teste = um(app.db, 'select qualidade from roteamento where quick_win_id = ? and teste = 1 and qualidade is not null order by id desc limit 1', q.id);
+    const numero = transacao(app.db, () => {
+      gravar(app, q.id, v, areas);
+      const atual = um(app.db, 'select * from quick_wins where id = ?', q.id);
+      const n = (um(app.db, 'select max(numero) as n from quick_win_versoes where quick_win_id = ?', q.id).n || 0) + 1;
+      const vid = Number(exec(app.db, 'insert into quick_win_versoes (quick_win_id, numero, especificacao, nome, para_que_serve, formato, teste, publicada_em, publicada_por) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        q.id, n, atual.especificacao, atual.nome, atual.para_que_serve, atual.formato, teste?.qualidade ?? null, app.agora().toISOString(), pessoa.id).lastInsertRowid);
+      exec(app.db, 'update quick_wins set versao_publicada = ? where id = ?', vid, q.id);
+      return n;
+    });
+    registrar(app, 'quickwin.published', pessoa.id, { quick_win: q.id, versao: numero, testado: !!teste });
+    if (v.status) registrar(app, 'quickwin.status_changed', pessoa.id, { quick_win: q.id, de: q.status, para: v.status });
+    return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
+  });
+
+  r.get('/api/quick-wins/:id/versoes', ({ pessoa, params }) => {
+    const q = carregar(pessoa, params.id, true);
+    return { versoes: todos(app.db, 'select v.id, v.numero, v.nome, v.publicada_em, v.teste, p.nome as publicada_por from quick_win_versoes v left join pessoas p on p.id = v.publicada_por where v.quick_win_id = ? order by v.numero desc', q.id)
+      .map(x => ({ numero: x.numero, nome: x.nome, publicada_em: x.publicada_em, publicada_por: x.publicada_por, atual: x.id === q.versao_publicada, teste: json(x.teste, null)?.status || null })) };
+  });
+
+  // Restaurar: a versão escolhida volta a ser a atual e também vira o rascunho (para ajustar a partir dela).
+  r.post('/api/quick-wins/:id/versoes/:numero/restaurar', ({ pessoa, params }) => {
+    const q = carregar(pessoa, params.id, true);
+    const ver = um(app.db, 'select * from quick_win_versoes where quick_win_id = ? and numero = ?', q.id, Number(params.numero));
+    if (!ver) throw erro(404, 'versao', 'Versão não encontrada.');
+    exec(app.db, "update quick_wins set versao_publicada = ?, especificacao = ?, nome = ?, para_que_serve = ?, formato = ?, atualizado_em = datetime('now') where id = ?", ver.id, ver.especificacao, ver.nome, ver.para_que_serve, ver.formato, q.id);
+    registrar(app, 'quickwin.version_restored', pessoa.id, { quick_win: q.id, versao: ver.numero });
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
   });
 

@@ -71,7 +71,14 @@ create table if not exists quick_wins (
   status text not null default 'em_configuracao' check (status in ('identificado','em_configuracao','em_teste','em_uso','em_avaliacao','aprovado','em_expansao','descartado')),
   problema text not null default '', objetivo text not null default '', processo_atual text not null default '', resultado text not null default '',
   responsavel_id integer references pessoas(id) on delete set null,
-  criado_por integer, criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')));
+  criado_por integer, criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')),
+  especificacao text, versao_publicada integer);
+-- Versões publicadas de um Quick Win 2.0: o que as pessoas usam. O rascunho fica em quick_wins.especificacao.
+-- Só o trabalho é versionado; áreas, regras de dados, sigilo e bases valem na hora (governança).
+create table if not exists quick_win_versoes (
+  id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade,
+  numero integer not null, especificacao text not null, nome text not null, para_que_serve text not null default '',
+  formato text not null default 'texto', teste text, publicada_em text not null, publicada_por integer, unique (quick_win_id, numero));
 create table if not exists quick_win_areas (
   quick_win_id integer not null references quick_wins(id) on delete cascade,
   area_id integer not null references areas(id) on delete cascade, primary key (quick_win_id, area_id));
@@ -131,7 +138,8 @@ create table if not exists roteamento (
   origem text, classe_pedida text, preferencia text, requisitos text not null default '{}', janela_minima integer, janela_desejada integer,
   motivo_escolha text, fallback text, reserva text, resultado text,
   ms_primeiro_token integer, ms_total integer, feedback text, refeito integer not null default 0, nova_tentativa_de integer,
-  modelo_solicitado text, decisao_solicitado text, motivo_substituicao text, politica_sigilo text, guardrails text, motivo_bloqueio text);
+  modelo_solicitado text, decisao_solicitado text, motivo_substituicao text, politica_sigilo text, guardrails text, motivo_bloqueio text,
+  qualidade text);
 create index if not exists roteamento_em on roteamento (em);
 
 -- Uso da IA: uma linha por resposta, sem conteúdo.
@@ -248,6 +256,14 @@ const MIGRACOES = [
   },
   // 11. Atributos de dados de cada recurso, declarados pelo admin (treino, retenção, dado pessoal, região).
   db => { if (!db.prepare("select 1 from pragma_table_info('modelos') where name = 'atributos'").get()) db.exec('alter table modelos add column atributos text'); },
+  // 12. Quick Wins 2.0: especificação interna (rascunho), versão publicada e resultado da conferência de
+  //     qualidade de cada resposta (só estado e itens, sem conteúdo). A tabela de versões vem pelo ESQUEMA.
+  db => {
+    const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
+    if (!tem('quick_wins', 'especificacao')) db.exec('alter table quick_wins add column especificacao text');
+    if (!tem('quick_wins', 'versao_publicada')) db.exec('alter table quick_wins add column versao_publicada integer');
+    if (!tem('roteamento', 'qualidade')) db.exec('alter table roteamento add column qualidade text');
+  },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

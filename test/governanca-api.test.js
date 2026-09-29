@@ -249,8 +249,13 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   const andar = d => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) andar(p); else if (p.endsWith('.js')) arquivos.push(p); } };
   andar(raiz);
   const chamadas = arquivos.flatMap(p => (readFileSync(p, 'utf8').match(/\bia\.enviar\(/g) || []).map(() => p.slice(raiz.length)));
-  assert.deepEqual(chamadas, ['conversas.js'], 'só o envio de mensagens executa modelo');
+  // Duas chamadas, as duas no envio de mensagens: a execução e a conferência de qualidade do Quick Win 2.0.
+  assert.deepEqual(chamadas, ['conversas.js', 'conversas.js'], 'só o envio de mensagens executa modelo');
   const conv = readFileSync(join(raiz, 'conversas.js'), 'utf8');
+  // A conferência usa o recurso e a rota já decididos e conferidos (nunca escolhe modelo), depois da execução.
+  assert.match(conv, /app\.ia\.enviar\(msgs, \{ modelo: atual\.id, reserva: null, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'a conferência de qualidade usa a mesma decisão');
+  assert.ok(conv.indexOf('app.ia.enviar(msgs') > conv.indexOf('app.ia.enviar(mensagens'), 'a conferência vem depois da execução');
+  assert.ok(conv.indexOf('if (contemCredencial(txt))') < conv.indexOf('app.ia.enviar(msgs'), 'defesa final de credenciais também na conferência');
   assert.match(conv, /app\.ia\.enviar\(mensagens, \{ modelo: atual\.id, reserva: sigilosa \|\| atual !== m \? null : rota\.reserva, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'executa o que o roteador decidiu (modelo, reserva e rota de sigilo)');
   assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf('app.ia.enviar('), 'a execução vem depois da decisão');
   assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf('app.ia.enviar('), 'conferência final dos guardrails antes do envio');

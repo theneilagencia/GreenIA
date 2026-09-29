@@ -169,6 +169,13 @@ export function detectarReforcado(texto) {
   return TIPOS_REFORCO.filter(k => REFORCO[k].test(t));
 }
 
+// Política de credenciais, uma só para qualquer conteúdo que possa chegar a um recurso de IA: mensagem, anexo
+// (inclusive o texto lido por OCR), instruções e arquivos de quick win, trechos da base de conhecimento,
+// histórico e o envio final. É a mesma regra que `detectar` usa para o tipo "credencial".
+export const contemCredencial = texto => REGRAS.credencial(String(texto ?? ''));
+/** Partes ({ origem, texto }) que contêm credencial, pela origem. @returns {string[]} */
+export const origensComCredencial = partes => [...new Set(partes.filter(p => contemCredencial(p.texto)).map(p => p.origem))];
+
 /** @param {string} texto @returns {string[]} tipos encontrados */
 export function detectar(texto) {
   const t = String(texto || '');

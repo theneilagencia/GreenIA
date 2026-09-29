@@ -42,12 +42,15 @@ export function resumoBases(db, pessoa) {
 // Trechos das bases para uma pergunta: texto para o modelo, fontes e se algum é sigiloso.
 export function trechosDasBases(db, consulta, ids) {
   const achados = buscar(db, consulta, ids, 5);
-  if (!achados.length) return { parte: null, fontes: [], sigiloso: false };
+  if (!achados.length) return { parte: null, fontes: [], sigiloso: false, pecas: [] };
   const docs = new Map(todos(db, `select id, titulo, sigiloso from documentos where id in (${[...new Set(achados.map(a => a.documento_id))].join(',')})`).map(d => [d.id, d]));
   const parte = 'Trechos das bases de conhecimento que podem ajudar (cite o título do documento quando usar):\n\n'
     + achados.map(a => delimitar('documento', docs.get(a.documento_id).titulo, a.texto)).join('\n\n');
   const usados = [...docs.values()];
-  return { parte, fontes: usados.map(d => d.titulo), sigiloso: usados.some(d => d.sigiloso) };
+  // Peças: cada trecho com o documento de origem (e o título, que também vai para a IA), para a política de
+  // credenciais conferir o que de fato entra no contexto (conversas.js).
+  const pecas = achados.map(a => ({ origem: 'base', documento: a.documento_id, texto: `${docs.get(a.documento_id).titulo}\n${a.texto}` }));
+  return { parte, fontes: usados.map(d => d.titulo), sigiloso: usados.some(d => d.sigiloso), pecas };
 }
 
 export function rotasBases(app, r) {
@@ -134,7 +137,7 @@ export function criarContexto(app) {
     async montar(pessoa, qw, texto) {
       if (qw && app.quickWins) return app.quickWins.contexto(pessoa, qw, texto);
       const t = trechosDasBases(app.db, texto, basesVisiveis(app.db, pessoa));
-      return { partes: t.parte ? [t.parte] : [], fontes: t.fontes, sigiloso: t.sigiloso, cacheavel: false };
+      return { partes: t.parte ? [t.parte] : [], fontes: t.fontes, sigiloso: t.sigiloso, cacheavel: false, pecas: t.pecas };
     },
     arquivosSigilosos: qw => !!qw && !!um(app.db, 'select 1 from documentos where quick_win_id = ? and sigiloso = 1', qw.id),
   };

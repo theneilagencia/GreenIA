@@ -155,13 +155,15 @@ export function criarQuickWins(app) {
     // Contexto: instruções (na persona), arquivos do quick win e bases escolhidas.
     contexto(pessoa, qw, texto) {
       const arquivos = todos(app.db, 'select id, titulo, texto, sigiloso from documentos where quick_win_id = ? order by id', qw.id);
-      const partes = [], fontes = [];
+      const partes = [], fontes = [], pecas = [];
       let sigiloso = arquivos.some(a => a.sigiloso);
       if (arquivos.length) {
         const total = arquivos.reduce((n, a) => n + a.texto.length, 0);
-        const corpo = total <= MAX_ARQUIVOS_INTEIROS
-          ? arquivos.map(a => delimitar('documento', a.titulo, a.texto)).join('\n\n')
-          : buscar(app.db, texto, arquivos.map(a => a.id), 8).map(t => delimitar('documento', arquivos.find(a => a.id === t.documento_id).titulo, t.texto)).join('\n\n');
+        // O que de fato entra no contexto (arquivo inteiro ou trecho), com o título: conferido pela política de credenciais.
+        const usados = total <= MAX_ARQUIVOS_INTEIROS ? arquivos.map(a => ({ documento_id: a.id, texto: a.texto })) : buscar(app.db, texto, arquivos.map(a => a.id), 8);
+        const titulo = id => arquivos.find(a => a.id === id).titulo;
+        pecas.push(...usados.map(u => ({ origem: 'quick_win', documento: u.documento_id, texto: `${titulo(u.documento_id)}\n${u.texto}` })));
+        const corpo = usados.map(u => delimitar('documento', titulo(u.documento_id), u.texto)).join('\n\n');
         partes.push(`Arquivos de referência deste quick win (use em todas as respostas):\n\n${corpo}`);
         fontes.push(...arquivos.map(a => a.titulo));
       }
@@ -171,9 +173,9 @@ export function criarQuickWins(app) {
         const ids = b.modo === 'escolhidas' ? b.ids
           : todos(app.db, `select id from documentos where quick_win_id is null and (toda_empresa = 1 ${areas.length ? `or area_id in (${areas.join(',')})` : ''})`).map(d => d.id);
         const t = trechosDasBases(app.db, texto, ids);
-        if (t.parte) { partes.push(t.parte); fontes.push(...t.fontes); sigiloso ||= t.sigiloso; }
+        if (t.parte) { partes.push(t.parte); fontes.push(...t.fontes); pecas.push(...t.pecas); sigiloso ||= t.sigiloso; }
       }
-      return { partes, fontes: [...new Set(fontes)], sigiloso, cacheavel: arquivos.length > 0 };
+      return { partes, fontes: [...new Set(fontes)], sigiloso, cacheavel: arquivos.length > 0, pecas };
     },
   };
 }

@@ -4,7 +4,7 @@ import { erro } from './http.js';
 import { exec, json, todos, um } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
-import { decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
+import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, origensComCredencial, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
 import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
@@ -231,6 +231,17 @@ export function rotasConversas(app, r) {
   const rajadas = new Map();
   // Tentativa bloqueada: o conteúdo não é guardado (nem enviado), mas a conversa registra que uma mensagem não
   // saiu e por quê, para o histórico não parecer perdido. Só para bloqueios de política e governança.
+  // Credencial em qualquer parte do envio: bloqueio, registro (só origens e ids, nunca o conteúdo) e, quando
+  // vem de documento ou instrução, aviso ao admin para corrigir a fonte.
+  function bloquearCredencial(pessoa, conv, origens, documentos) {
+    registrar(app, 'policy.blocked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipos: ['credencial'], origens, documentos });
+    const daFonte = origens.some(o => o !== 'historico' && o !== 'envio_final');
+    if (daFonte) avisarGovernanca(app, 'credencial_no_contexto', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});
+    const onde = daFonte ? 'Um documento ou instrução usado nesta resposta contém uma senha, chave ou outro segredo, então nada foi enviado. O administrador foi avisado.'
+      : origens.includes('historico') ? 'O histórico desta conversa contém uma senha, chave ou outro segredo, então nada foi enviado. Comece uma nova conversa.'
+      : 'Nada foi enviado.';
+    throw erro(422, 'dado_bloqueado', `Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA. ${onde}`, { tipos: ['credencial'] });
+  }
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
   r.post('/api/conversas/:id/mensagens', async ctx => {
     try { return await enviarMensagem(ctx); } catch (e) {
@@ -309,6 +320,21 @@ export function rotasConversas(app, r) {
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant);
+    // Política de credenciais sobre tudo o que vai compor o envio, parte por parte, antes de montar o payload:
+    // instruções (da empresa e do quick win), arquivos do quick win, trechos da base e o histórico da conversa.
+    // A mensagem e os anexos já passaram pela mesma regra no passo 1. Uma parte com segredo bloqueia a chamada
+    // inteira: nada é enviado, nem o restante, nem por outro recurso, reserva ou nova tentativa.
+    const pecasDoEnvio = [
+      { origem: 'instrucoes', texto: sistema },
+      ...(ctx.pecas || ctx.partes.map(texto => ({ origem: 'contexto', texto }))),
+      ...todos(app.db, "select texto from mensagens where conversa_id = ? and papel != 'aviso'", conv.id).map(m => ({ origem: 'historico', texto: m.texto })),
+      ...todos(app.db, 'select texto from anexos where conversa_id = ?', conv.id).map(a => ({ origem: 'historico', texto: a.texto })),
+    ];
+    const origensSegredo = origensComCredencial(pecasDoEnvio);
+    if (origensSegredo.length) {
+      const documentos = [...new Set(pecasDoEnvio.filter(p => p.documento && contemCredencial(p.texto)).map(p => p.documento))];
+      bloquearCredencial(pessoa, conv, origensSegredo, documentos);
+    }
     const historicoChars = um(app.db, 'select coalesce(sum(length(texto)), 0) as n from mensagens where conversa_id = ?', conv.id).n
       + Math.min(app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity, um(app.db, 'select coalesce(sum(length(texto)), 0) as n from anexos where conversa_id = ?', conv.id).n);
     const temResposta = !!um(app.db, "select 1 from mensagens where conversa_id = ? and papel = 'assistant'", conv.id);
@@ -463,6 +489,16 @@ export function rotasConversas(app, r) {
     const mensagens = [{ role: 'system', content: conteudoSistema }, ...h.mensagens];
     // Para limpar um erro do provedor que repita o pedido antes de ele ir para o registro (registro-seguro.js).
     const conteudoDoPedido = mensagens.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
+
+    // Defesa final, sobre o payload inteiro, imediatamente antes do envio: se algum caminho montou contexto sem
+    // passar pela conferência acima, nada sai e a mensagem gravada é desfeita (a tentativa fica só como aviso).
+    if (contemCredencial(conteudoDoPedido)) {
+      exec(app.db, 'delete from anexos where mensagem_id = ?', msgId);
+      exec(app.db, 'delete from mensagens where id = ?', msgId);
+      exec(app.db, 'update conversas set titulo = ? where id = ?', conv.titulo, conv.id);
+      exec(app.db, "update roteamento set resultado = 'bloqueado', motivo_bloqueio = 'credencial_na_conferencia_final' where id = ?", rotaId);
+      bloquearCredencial(pessoa, conv, ['envio_final'], []);
+    }
 
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });

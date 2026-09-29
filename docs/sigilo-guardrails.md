@@ -174,6 +174,36 @@ histórico" (`naoArmazenar`) define os tipos que são processados, mas não fica
 | Arquivos temporários | Nenhum: arquivos e OCR ficam em memória, os dados do idioma vêm do pacote e o cache está desligado | pasta temporária do processo |
 | Outra empresa | Banco próprio por empresa. O OCR usa um processo por arquivo, encerrado no fim | `auditoria-tenants` |
 
+## Credenciais em qualquer origem
+
+A política de credenciais é uma só (`contemCredencial`, em `src/filtro.js`, a mesma regra do tipo "credencial")
+e vale para tudo o que pode chegar a um recurso de IA. O único ponto de envio é `app.ia.enviar` em
+`src/conversas.js`, usado pelo chat, pela conversa de quick win (inclusive em teste), pela API, pela nova
+tentativa e pelo fallback. Não há IA na ingestão, na indexação (busca por palavras, sem embeddings), no resumo,
+na medição ou na avaliação.
+
+| Origem | Onde é conferida |
+|---|---|
+| Mensagem e anexos (PDF, DOCX, PPTX, XLSX, TXT/MD/CSV, imagem e PDF escaneado, com o texto lido por OCR) | Passo 1, antes de tudo |
+| Instruções da empresa e do quick win (nome, para que serve, instruções, exemplos) | Antes de montar o envio |
+| Arquivos do quick win (inteiros ou trechos) e trechos da base de conhecimento, com o título | Antes de montar o envio, cada trecho com o documento de origem |
+| Histórico da conversa (mensagens e anexos já guardados) | Antes de montar o envio |
+| Payload completo | Imediatamente antes do envio (defesa final); se barrar, a mensagem gravada é desfeita |
+
+- **Uma parte com segredo bloqueia a chamada inteira.** Nada é enviado: nem o restante, nem uma versão
+  resumida, nem por outro recurso, reserva ou nova tentativa.
+- **Registro:** o evento `policy.blocked` registra só as origens e os ids dos documentos, nunca o conteúdo.
+- **Aviso:** quando a fonte é um documento ou uma instrução, os admins recebem um aviso, no máximo um por dia,
+  para corrigir.
+- **Armazenamento:** guardar o documento continua permitido, porque a política trata do envio à IA. As
+  perguntas que recuperarem o trecho com segredo ficam bloqueadas até o documento ser corrigido.
+- **Base de conhecimento, perguntas A a E:**
+  - Nenhum conteúdo vai à IA na ingestão.
+  - O trecho indexado pode conter o segredo, mas nunca entra no contexto sem a conferência.
+  - Título e trecho entram juntos na conferência.
+  - A fonte citada vai só para a tela, não para a IA.
+  - Não existe resumo nem classificação automática por IA.
+
 ## Imagem e PDF escaneado (OCR)
 
 O OCR é local (`src/ocr.js`, com tesseract.js e português) e é só uma forma de **ler** o arquivo:

@@ -675,3 +675,16 @@
   .l-cena:hover .l-cena-foto img{--zoom:1.085}
 }
 @media (prefers-reduced-motion:reduce){.l-cena-foto img{transform:none}}
+
+/* Revisão de claims: contexto da Administração na tela do topo, anexo marcado, avisos de dados fictícios
+   em cada tela ilustrativa e a tabela só com o que a GreenIA faz. */
+.l-fig{margin:0;min-width:0}
+.m-lat .m-ctx{display:flex;gap:2px;margin:2px 4px 8px;padding:2px;border-radius:7px;background:#EDEAE2}
+.m-lat .m-ctx em{flex:1;text-align:center;font:500 11px var(--sans);font-style:normal;padding:4px 6px;border-radius:5px;color:var(--muted);white-space:nowrap}
+.m-lat .m-ctx em.ativo{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.m-envio .m-anexo{display:flex;width:max-content;max-width:100%;align-items:center;gap:6px;margin-top:8px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;background:#fff;font:500 12px var(--sans);color:var(--ink-2)}
+.l-cena-nota{position:relative;z-index:2;margin:10px 0 0 22%}
+.l-inst-nota{margin:0;padding:0 16px 14px;color:rgba(243,241,234,.7);position:relative;z-index:1}
+.l-comp-uma tbody th{width:32%}
+.l-contato-intro{margin:18px 0 -6px;font:500 13px var(--sans);color:var(--muted)}
+@media (max-width:760px){.l-cena-nota{margin:10px 10px 0}}

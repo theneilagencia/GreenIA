@@ -75,7 +75,10 @@ export function avaliarLeitura({ confidence = 0, blocks = null } = {}, L = LEGIB
   const total = palavras.reduce((t, w) => t + w.text.length, 0);
   const confiaveis = palavras.reduce((t, w) => t + (w.confidence >= L.confiancaPalavra ? w.text.length : 0), 0);
   const fracao = total ? confiaveis / total : 0;
-  return { legivel: total > 0 && confidence >= L.confiancaPagina && fracao >= L.fracaoConfiavel, nota: confidence * fracao };
+  // Pelo menos uma palavra confiável com 3 letras ou dígitos: um fragmento solto ("ul" num gráfico sem texto) não é
+  // texto, mesmo com confiança alta.
+  const palavraReal = palavras.some(w => w.confidence >= L.confiancaPalavra && (w.text.match(/[\p{L}\p{N}]/gu) || []).length >= 3);
+  return { legivel: palavraReal && confidence >= L.confiancaPagina && fracao >= L.fracaoConfiavel, nota: confidence * fracao };
 }
 // Custo estimado de uma leitura (medido, com margem; docs/ocr-memoria.md), somado à memória do servidor. O OCR
 // roda num processo à parte, que acaba no fim do arquivo. Nele, a imagem grande é decodificada e reduzida antes

@@ -34,23 +34,39 @@ mesmas regras do texto digitado, inclusive o bloqueio de segredos.
   `OCR_MEMORIA_MAX_MB`. Durante a leitura, a memória do servidor mais a do processo de OCR é conferida a cada
   50 ms. Acima do limite, a leitura é interrompida.
 - **Leitura legível ou nada.** Cada leitura é avaliada pela confiança do próprio tesseract: a da página
-  (mínimo 45) e a de cada palavra (pelo menos 40% dos caracteres em palavras com confiança 70 ou mais).
+  (mínimo 45), a de cada palavra (pelo menos 40% dos caracteres em palavras com confiança 70 ou mais) e pelo menos
+  uma palavra confiável com 3 letras ou dígitos.
   - Medido: texto real tem confiança de página 90–95 e 94–100% dos caracteres em palavras confiáveis. Uma
     radiografia fotografada de lado teve 30 e 5%; o critério antigo (só a página, mínimo 30) deixava esse ruído ir
-    para a IA, que respondia que o "texto" estava embaralhado.
+    para a IA, que respondia que o "texto" estava embaralhado. Um gráfico só com barras mandava "ul".
   - Leitura ilegível vira vazia: nada vai para a IA e a pessoa recebe a mensagem de imagem sem texto legível.
-- **Imagem de lado.** Se a primeira leitura sai ilegível, o processo de OCR tenta a imagem girada em 90° e 270° (e
-  180°, se nenhuma das duas der texto legível) e fica com a leitura mais legível.
-  - Só quando a primeira falha, dentro de 70% do tempo por página, em imagens PNG e JPEG e em PDFs com uma única
-    página escaneada (em PDFs longos o tempo se multiplicaria).
-  - Uma foto de lado passa a ser lida. Medido localmente: imagem pequena de lado, 1,7–2,4 s; página A4 de lado,
-    cerca de 23 s (em produção, o OCR é cerca de 2 vezes mais lento).
-  - Uma imagem sem texto nenhum faz até 4 leituras antes da mensagem: cerca de 11 s para uma foto comum e até
-    49 s para uma foto de 12 MP, medido localmente. Em produção, o orçamento de 70% do tempo por página corta as
-    tentativas antes do limite.
-  - Pico de memória medido nas tentativas giradas (A4 de lado, ruído de 12 MP): 240–292 MB. Os pixels em cinza da
-    redução são reaproveitados; a imagem grande nunca é decodificada duas vezes.
-  - Nenhum dado de orientação novo é instalado: a rotação é feita nos pixels já reduzidos, em cinza.
+- **Nova tentativa quando a primeira leitura falha.** A primeira leitura é a mesma de antes (arquivos que já eram
+  lidos dão exatamente o mesmo texto). Se ela sai ilegível, o processo de OCR procura uma leitura legível numa versão
+  reduzida da imagem (a "sonda", 1 MP, rápida):
+  - em cinza sem girar: o tesseract converte mal algumas imagens coloridas (texto claro sobre fundo colorido, como
+    uma placa numa foto), que em cinza ficam com confiança 93;
+  - girada em 90°, 270° e 180° (180° só se as outras não deram nada): texto de lado, como numa foto de celular.
+  - A orientação vencedora é lida de novo em resolução cheia, se couber no tempo; senão, fica o texto da sonda (que
+    também passou pelo filtro).
+  - Só em imagens PNG e JPEG e em PDFs com uma única página escaneada (em PDFs longos o tempo se multiplicaria).
+  - Tempo: uma nova tentativa só começa se couber em 70% do tempo por página, estimando pela sonda mais longa. Assim a
+    leitura termina com a mensagem certa, e não por tempo esgotado.
+  - Nenhum dado de orientação novo é instalado: a rotação é feita nos pixels em cinza. Os pixels da redução são
+    reaproveitados; a imagem grande nunca é decodificada duas vezes.
+- **Tempos e memória medidos localmente** (em produção o OCR é cerca de 2 vezes mais lento):
+
+  | Caso | Resultado | Tempo | Pico |
+  |---|---|---|---|
+  | Imagem pequena de lado (90°, 180°, 270°) | lida, mesmo texto da imagem de pé | 1,2–4,3 s | até 288 MB |
+  | Página A4 de lado (8,7 MP) | lida inteira | 28–30 s | até 278 MB |
+  | Foto sem texto (1 MP, colorida) | recusada, mensagem de imagem sem texto | 23 s | 269 MB |
+  | Foto só com ruído (12 MP) | recusada, mensagem de imagem sem texto | 38–41 s | até 315 MB |
+
+  - **Limitação conhecida:** com o limite por página pela metade (simulando a lentidão de produção), a página A4 de
+    lado não coube no tempo e recebeu a mensagem de imagem sem texto (nada foi para a IA). Fotos menores de lado são
+    lidas. A leitura inicial de uma página de lado é a parte cara (ruído é lento para o tesseract: 20 s contra 5 s na
+    orientação certa). Otimização futura: procurar a orientação antes da leitura cheia em imagens grandes, medindo
+    o custo para documentos de pé.
 - **Métricas** (log `ocr`, desligável com `OCR_METRICAS=0`). Registram só números: tipo, bytes, páginas, pixels,
   RSS antes, pico e depois, duração, resultado e motivo. Nunca o texto, a imagem ou dado classificado.
 
@@ -69,6 +85,30 @@ Nenhuma delas cita fornecedor, modelo, memória, servidor ou infraestrutura.
 Custo de memória da avaliação por palavra (medido localmente, contra a versão anterior, na mesma máquina): o pico
 do processo de OCR subiu de 12 a 26 MB (PDF de 10 páginas: 379 → 397 MB), abaixo do limite operacional. O processo
 de OCR termina no fim de cada arquivo; o servidor não retém essa memória.
+
+## Validação da leitura legível e da rotação (local, 29/09/2026)
+
+Com arquivos sintéticos, contra a versão anterior (`5f943e6`) na mesma máquina:
+
+- **Regressão:** 25 de 25 arquivos que já eram lidos deram exatamente o mesmo texto: imagens PNG e JPEG, imagem de
+  17 MP, PDFs escaneados de 1, 2 e 5 páginas, WEBP, PDF digital, DOCX, XLSX, PPTX e TXT.
+- **Rotação:** 27 de 27 (texto comum, cadastro com CPF e credencial; PNG, JPEG e PDF de uma página; 90°, 180° e
+  270°) com o texto certo e a mesma classificação da imagem de pé. Na versão anterior, todas davam ruído; a
+  credencial de cabeça para baixo ia invertida para a IA, sem ser detectada.
+- **Conteúdo visual com texto:** gráfico com título, legenda e números; foto de documento; placa numa foto; desenho
+  técnico com anotações; radiografia com etiquetas, de pé e de lado: o texto é lido e o visual não vira texto.
+- **Só visual:** gráfico só com barras, radiografia sem etiquetas, ruído e foto sem texto: recusados antes da IA.
+- **Pelo chat (servidor, classificação e envio reais, IA simulada que registra as chamadas):** 42 de 42.
+  - Credencial fictícia nas 12 combinações (0°, 90°, 180°, 270° × PNG, JPEG, PDF): bloqueada, nenhuma chamada à IA,
+    nada guardado ou registrado com o segredo.
+  - CPF nas 8 combinações: as mesmas políticas da imagem de pé.
+  - Imagens sem texto: nenhuma chamada à IA, mensagem de imagem sem texto.
+  - Imagens com texto: só o texto vai para a IA, nunca a imagem.
+  - PDF digital vazio, imagem corrompida e tempo esgotado: a mensagem geral de sempre.
+- **Defeitos que já existiam (não mudaram, a tratar à parte):**
+  - TIFF é anunciado como aceito, mas não é lido (antes e agora: mensagem de arquivo sem texto).
+  - O OCR às vezes insere um espaço num número (`CPF 529.982 .247-25` num PDF escaneado de pé), e o detector de CPF
+    não reconhece o número assim. A classificação está congelada; a tolerância a espaços é uma decisão à parte.
 
 ## Limites (variáveis de ambiente)
 

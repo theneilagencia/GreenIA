@@ -6,7 +6,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { extrairTexto } from '../src/texto.js';
-import { avaliarLeitura, girar, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO, MSG_IMAGEM_SEM_TEXTO, MSG_PDF_SEM_TEXTO } from '../src/ocr.js';
+import { inflateSync } from 'node:zlib';
+import { avaliarLeitura, girar, decodificarPng, reduzirParaLeitura, pngDePixels, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO, MSG_IMAGEM_SEM_TEXTO, MSG_PDF_SEM_TEXTO } from '../src/ocr.js';
 import { arquivo, imagem, pdfEscaneado, jpegDe, pdf } from './arquivos.js';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
@@ -30,6 +31,9 @@ test('avaliação de legibilidade: texto real passa; ruído (mesmo com confianç
   assert.equal(avaliarLeitura({ confidence: 90, ...palavras([['|', 99], ['—', 99]]) }).legivel, false, 'só símbolos não contam como texto');
   // Texto curto e confiável (legenda, etiqueta): passa.
   assert.equal(avaliarLeitura({ confidence: 91, ...palavras([['Figura', 93], ['3', 90]]) }).legivel, true);
+  assert.equal(avaliarLeitura({ confidence: 92, ...palavras([['2026', 95]]) }).legivel, true, 'um número de 4 dígitos é texto');
+  // Fragmento solto com confiança alta (um gráfico sem texto lido como "ul"): não é texto.
+  assert.equal(avaliarLeitura({ confidence: 70, ...palavras([['ul', 70]]) }).legivel, false);
 });
 
 // ------------------------------------------------------------------------------------ (2) Rotação dos pixels
@@ -57,6 +61,35 @@ test('rotação: foto de lado (PNG e JPEG) e PDF escaneado de uma página de lad
   assert.match((await ler('de-lado.png', imagem('reuniao-girada.png'))).texto, /Reuniao comercial - cliente Grupo Horizonte/);
   assert.match((await ler('de-lado.jpg', imagem('reuniao-girada.jpg'))).texto, /Reuniao comercial - cliente Grupo Horizonte/);
   assert.match((await ler('de-lado.pdf', pdfEscaneado([jpegDe('reuniao-girada.jpg')]))).texto, /Reuniao comercial/);
+});
+
+test('rotação em todas as orientações: 90°, 180° e 270° em PNG, JPEG e PDF de uma página dão o mesmo texto da imagem de pé', async () => {
+  const dePe = (await ler('ficha.png', imagem('cadastro.png'))).texto;
+  const crua = decodificarPng(imagem('cadastro.png'), { inflar: (z, max) => inflateSync(z, { maxOutputLength: max }) });
+  const cinza = reduzirParaLeitura(crua, 4_000_000);
+  for (const g of [90, 180, 270]) {
+    const png = pngDePixels(girar(cinza, g));
+    assert.equal((await ler(`ficha-${g}.png`, png)).texto, dePe, `${g}° PNG`);
+  }
+  // JPEG e PDF de uma página: a ata de reunião girada 90° (arquivo gerado fora do GreenIA).
+  assert.match((await ler('ata.jpg', imagem('reuniao-girada.jpg'))).texto, /Reuniao comercial - cliente Grupo Horizonte/);
+  assert.match((await ler('ata.pdf', pdfEscaneado([jpegDe('reuniao-girada.jpg')]))).texto, /Reuniao comercial - cliente Grupo Horizonte/);
+});
+
+test('conteúdo visual com texto: o texto é lido, o visual não vira texto; só visual: recusado', async () => {
+  // Gráfico com título, legenda e números; desenho técnico com cotas e anotações.
+  const grafico = (await ler('grafico.png', imagem('grafico.png'))).texto;
+  assert.match(grafico, /Produção mensal de minério \(toneladas\)/);
+  assert.match(grafico, /1\.450/);
+  assert.match(grafico, /Fevereiro/);
+  const tecnico = (await ler('tecnico.png', imagem('tecnico.png'))).texto;
+  assert.match(tecnico, /Material: aço SAE 1045/);
+  assert.match(tecnico, /Escala 1:50/);
+  assert.ok(tecnico.length < 150, 'só as anotações, sem as linhas do desenho viradas texto');
+  // Placa sobre fundo colorido: a leitura em cinza recupera o texto que a leitura colorida perdia.
+  assert.equal((await ler('placa.jpg', imagem('placa.jpg'))).texto.replace(/\s+/g, ' ').trim(), 'ÁREA DE BRITAGEM Uso obrigatório de EPI');
+  // Gráfico só com barras: nada legível, recusado antes da IA (antes ia "ul").
+  await recusa(ler('barras.png', imagem('grafico-sem-texto.png')), MSG_IMAGEM_SEM_TEXTO);
 });
 
 test('radiografia sintética (confiança de página acima do antigo mínimo): o ruído é descartado e as etiquetas de lado são lidas', async () => {

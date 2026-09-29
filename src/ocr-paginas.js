@@ -31,7 +31,9 @@ export async function pixelsParaLeitura(b, pixelsLeitura) {
   const d = dimensoes(b);
   if (!d) return null;
   const crua = d.formato === 'png' ? decodificarPng(b, { inflar }) : d.formato === 'jpeg' ? await jpegCru(b, d) : null;
-  return crua ? reduzirParaLeitura(crua, pixelsLeitura) : null;
+  if (!crua) return null;
+  // Imagem que já era em cinza: a versão em cinza sem girar seria a mesma leitura; quem chama pula essa tentativa.
+  return { ...reduzirParaLeitura(crua, pixelsLeitura), cinzaNaOrigem: crua.channels <= 2 };
 }
 
 /**

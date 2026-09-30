@@ -384,7 +384,7 @@ test('colunas do objetivo: uma estruturação por objetivo, revisão e ajuste ma
   await p.fill('#objetivo', 'Gere uma tabela com Cliente, Valor e Status.');
   n = estruturacoes();
   await irResultado();
-  assert.equal(estruturacoes() - n, 1);
+  assert.equal(estruturacoes() - n, 0, 'objetivo já estruturado nesta tela: a estrutura guardada para ele é reaproveitada');
   assert.deepEqual(await colunas(), ['Vencimento', 'Fornecedor', 'Situação do documento', 'Responsável'], 'a IA não sobrescreve o que a pessoa definiu');
   assert.match(await p.textContent('#colunas-bloco .aviso-linha'), /O objetivo mudou\. Pelo novo objetivo: Cliente, Valor, Status\./);
   await p.click('#manter-colunas');
@@ -417,5 +417,87 @@ test('colunas do objetivo: uma estruturação por objetivo, revisão e ajuste ma
   await p.click('[data-continuar]'); await p.waitForSelector('[data-testar]');
   const id2 = Number(/#\/qw\/(\d+)/.exec(p.url())[1]);
   assert.deepEqual(JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id = ?').get(id2).especificacao).formato_saida.colunas, ['Entrega']);
+  assert.deepEqual(erros, []);
+});
+
+test('concorrência: resposta atrasada não vale para outro objetivo, não desenha etapa abandonada e não vence a mais nova', async () => {
+  qc = 'ok';
+  const p = await N.contexto.newPage();
+  const erros = [];
+  p.on('pageerror', e => erros.push(e.message));
+  const OBJ_A = 'Gere uma tabela com Cliente, Valor e Status.';
+  const OBJ_B = 'Organize em uma tabela com Fornecedor, Vencimento, Valor contratado e Situação.';
+  const COL_A = ['Cliente', 'Valor', 'Status'], COL_B = ['Fornecedor', 'Vencimento', 'Valor contratado', 'Situação'];
+  // Atrasa no navegador a resposta da estruturação do objetivo escolhido (o servidor responde normalmente).
+  let atrasar = null;
+  await p.route('**/api/quick-wins/assistente/estrutura', async rota => {
+    const corpo = rota.request().postData() || '';
+    if (atrasar && corpo.includes(atrasar)) { atrasar = null; await new Promise(r => setTimeout(r, 2500)); }
+    await rota.continue();
+  });
+  const enviados = obj => OR.chamadas.filter(b => ehEstruturacao(b) && String(b.messages.at(-1).content).includes(obj)).length;
+  const colunas = () => p.$$eval('[data-coluna]', l => l.map(i => i.value));
+  const atual = () => p.$eval('.passos [aria-current="step"]', e => e.textContent.trim());
+  const pergunta = () => p.$eval('#pergunta', e => e.textContent.trim());
+  const avancar = async (...sels) => { for (const s of sels) { await p.click('[data-continuar]'); await p.waitForSelector(s); } };
+  const novo = async obj => { await p.goto(`${N.base}/app#/quick-wins`); await p.waitForSelector('.qw-lista'); await p.goto(`${N.base}/app#/qw/nova`); await p.waitForSelector('#objetivo'); await p.fill('#objetivo', obj); };
+  const PERGUNTA_PROCESSO = /O que normalmente precisa ser considerado/;
+
+  // Caso 1: A pendente → volta → B → avança; a resposta de A chega depois.
+  await novo(OBJ_A);
+  atrasar = 'Cliente, Valor e Status';
+  await avancar('#processo', 'input[name=regra]');
+  await p.click('[data-continuar]');                       // Resultado: estruturação de A pendente
+  await p.waitForSelector('#etapa .dica');
+  await p.click('.passos [data-ir-etapa="0"]'); await p.waitForSelector('#objetivo');
+  await p.fill('#objetivo', OBJ_B);
+  await avancar('#processo');
+  await p.waitForTimeout(3000);                            // a resposta de A chegou
+  assert.equal(await atual(), '2Processo', 'a tela não salta de etapa');
+  assert.match(await pergunta(), PERGUNTA_PROCESSO);
+  assert.equal(await p.locator('input[name=saida]').count(), 0, 'nada da etapa Resultado por cima');
+  const b0 = enviados(OBJ_B);
+  await avancar('input[name=regra]', 'input[name=saida]');
+  assert.equal(enviados(OBJ_B) - b0, 1, 'B recebe a própria estruturação');
+  assert.deepEqual(await colunas(), COL_B, 'A não aparece como sugestão de B');
+  assert.match(await p.textContent('#colunas-origem'), /Pelo que você escreveu no objetivo/);
+  await p.click('[data-continuar]'); await p.waitForSelector('[data-testar]');
+  const id1 = Number(/#\/qw\/(\d+)/.exec(p.url())[1]);
+  const e1 = JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id = ?').get(id1).especificacao);
+  assert.deepEqual([e1.objetivo, e1.formato_saida.colunas, e1.formato_saida.origem_colunas], [OBJ_B, COL_B, 'objetivo'], 'o que a pessoa viu é o que foi salvo');
+
+  // Caso 2: entra em Resultado, volta para Processo, a resposta chega: continua em Processo.
+  await novo(OBJ_A);
+  atrasar = 'Cliente, Valor e Status';
+  await avancar('#processo', 'input[name=regra]');
+  await p.click('[data-continuar]');
+  await p.waitForSelector('#etapa .dica');
+  await p.click('.passos [data-ir-etapa="1"]'); await p.waitForSelector('#processo');
+  await p.focus('#processo');
+  await p.waitForTimeout(3000);
+  assert.equal(await atual(), '2Processo');
+  assert.match(await pergunta(), PERGUNTA_PROCESSO);
+  assert.equal(await p.locator('input[name=saida]').count(), 0, 'sem repaint de Resultado');
+  assert.equal(await p.evaluate(() => document.activeElement?.id), 'processo', 'o foco não é roubado');
+  const a0 = enviados(OBJ_A);
+  await avancar('input[name=regra]', 'input[name=saida]');
+  assert.equal(enviados(OBJ_A) - a0, 0, 'a resposta que chegou fica guardada para o mesmo objetivo: sem chamada nova');
+  assert.deepEqual(await colunas(), COL_A);
+
+  // Caso 3: A inicia → B inicia → B responde → A responde. O estado final é B.
+  await novo(OBJ_A);
+  atrasar = 'Cliente, Valor e Status';
+  await avancar('#processo', 'input[name=regra]');
+  await p.click('[data-continuar]');
+  await p.waitForSelector('#etapa .dica');
+  await p.click('.passos [data-ir-etapa="0"]'); await p.waitForSelector('#objetivo');
+  await p.fill('#objetivo', OBJ_B);
+  await avancar('#processo', 'input[name=regra]', 'input[name=saida]');   // B responde logo
+  assert.deepEqual(await colunas(), COL_B);
+  await p.waitForTimeout(3000);                                           // A responde depois
+  assert.equal(await atual(), '4Resultado');
+  assert.deepEqual(await colunas(), COL_B, 'A nunca sobrescreve B');
+  assert.match(await p.textContent('#colunas-origem'), /Pelo que você escreveu no objetivo/);
+  await p.unroute('**/api/quick-wins/assistente/estrutura');
   assert.deepEqual(erros, []);
 });

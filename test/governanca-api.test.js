@@ -249,10 +249,16 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   const andar = d => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) andar(p); else if (p.endsWith('.js')) arquivos.push(p); } };
   andar(raiz);
   const chamadas = arquivos.flatMap(p => (readFileSync(p, 'utf8').match(/\bia\.enviar\(/g) || []).map(() => p.slice(raiz.length)));
-  // Duas chamadas no envio de mensagens (a execução e a conferência de qualidade do Quick Win 2.0) e uma na
-  // estruturação do objetivo do Quick Win, que passa pelos mesmos mecanismos (conferidos abaixo).
-  assert.deepEqual(chamadas.sort(), ['conversas.js', 'conversas.js', 'quickwin-estrutura.js'], 'só o envio de mensagens e a estruturação do objetivo executam modelo');
+  // Caminhos autorizados, cada um com a sua finalidade. Uma chamada nova (em outro módulo ou num destes) falha aqui.
+  const AUTORIZADOS = {
+    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0'],
+    'quickwin-estrutura.js': ['quick_win_estrutura'],
+  };
+  assert.deepEqual(chamadas.sort(), Object.entries(AUTORIZADOS).flatMap(([arq, fins]) => fins.map(() => arq)).sort(), 'só os caminhos autorizados executam modelo');
+  // A estruturação só existe com a finalidade quick_win_estrutura, registrada na decisão e no consumo.
   const est = readFileSync(join(raiz, 'quickwin-estrutura.js'), 'utf8');
+  assert.match(est, /export const ORIGEM_ESTRUTURA = 'quick_win_estrutura';/, 'finalidade da estruturação explícita');
+  assert.equal((est.match(/ORIGEM_ESTRUTURA/g) || []).length >= 4 && /origem: ORIGEM_ESTRUTURA, quick_win/.test(est) && /VERSAO_ROTEADOR, ORIGEM_ESTRUTURA/.test(est), true, 'decisão e créditos registrados com a finalidade quick_win_estrutura');
   const antesDoEnvio = trecho => { const i = est.indexOf(trecho); assert.ok(i >= 0 && i < est.indexOf('app.ia.enviar('), `estruturação: "${trecho}" antes do envio`); };
   ['cienciaPendente(app, pessoa)', 'app.limites?.checar(pessoa, cfg)', 'checarPlano(app)', 'decidir(tipos, cfg.acoesChat)', 'contemCredencial(textoDe(mensagens))',
     'modeloPermitido(app.db, cfg, pessoa', 'const rota = rotear({', 'avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa: false })', 'insert into roteamento'].forEach(antesDoEnvio);

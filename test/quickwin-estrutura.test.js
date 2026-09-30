@@ -26,7 +26,7 @@ const RESPOSTAS = {
 const jsonEstrutura = pares => JSON.stringify({ colunas: pares.map(([nome, evidencia]) => ({ nome, evidencia })) });
 const ehEstruturacao = b => JSON.stringify(b.messages[0].content).includes('Você organiza o pedido');
 const ehConferencia = b => JSON.stringify(b.messages[0].content).includes('conferente de qualidade');
-let S, OR, admin, ana, carlos, A, modo = 'normal';
+let S, OR, admin, ana, carlos, A, modo = 'normal', falharInvencao = false;
 
 function roteiro(b) {
   const sis = JSON.stringify(b.messages[0].content), usuario = String(b.messages.at(-1).content);
@@ -36,7 +36,16 @@ function roteiro(b) {
     const pares = RESPOSTAS[obj] || [];
     return jsonEstrutura(modo === 'inventa' ? [...pares, ['Prazo', 'Prazo'], ['Situação', 'Status']] : pares);
   }
-  if (ehConferencia(b)) return '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"formato","ok":true},{"id":"propria_1","ok":true}]}';
+  if (ehConferencia(b)) {
+    if (modo === 'segue_criterios') {
+      const pedidas = (/formato: O resultado está no formato combinado, com as colunas ([^\n]+?)(?: e as seções|\.)/.exec(sis.replace(/\\n/g, '\n'))?.[1] || '').split(', ').filter(Boolean);
+      const cab = (/\| ([^\n]+) \|/.exec(usuario)?.[1] || '').split(' | ');
+      const faltam = pedidas.filter(c => !cab.includes(c));
+      const inventou = falharInvencao && !(falharInvencao = false);
+      return JSON.stringify({ criterios: [{ id: 'formato', ok: !faltam.length, motivo: faltam.length ? `faltou ${faltam.join(', ')}` : '' }, { id: 'nao_inventar', ok: !inventou, motivo: inventou ? 'um valor não está na entrada' : '' }] });
+    }
+    return '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"formato","ok":true},{"id":"propria_1","ok":true}]}';
+  }
   // Execução: devolve exatamente as colunas e seções que o contrato pede.
   const cols = (/cabeçalho exatamente nestas colunas: ([^.]+)\./.exec(sis)?.[1] || 'Item').split(' | ');
   const secoes = (/estas seções, nesta ordem, cada uma com título \\"## Nome\\": ([^\\]+)\./.exec(sis)?.[1] || '').split('; ').filter(Boolean);
@@ -293,4 +302,72 @@ test('colunas Cliente/Valor/Status + regra própria "Destacar documentos vencido
   await ana.put(`/api/quick-wins/${q.id}`, { assistente: { descricao: A_, formato: 'tabela' } });
   assert.deepEqual(especDe(q.id).formato_saida.colunas, ['Cliente', 'Valor', 'Status']);
   assert.deepEqual(especDe(q.id).regras_proprias.map(x => x.texto), [REGRA]);
+});
+
+// ---- Precedência da configuração confirmada sobre o texto do objetivo ---------------------------------------
+test('precedência: configuração confirmada vale mais que o objetivo na execução e na conferência; especificação antiga igual', () => {
+  const e = C.construir({ descricao: A_, formato: 'tabela', colunas: ['Cliente', 'Valor'], colunas_origem: 'pessoa' });
+  assert.equal(e.configuracao_confirmada, true);
+  const exec1 = C.promptExecucao(e, { nome: 'X' });
+  assert.ok(exec1.indexOf(C.PRECEDENCIA_EXECUCAO) > exec1.indexOf('Objetivo: Gere uma tabela com Cliente, Valor e Status.'), 'o objetivo continua, seguido da precedência');
+  assert.match(exec1, /nestas colunas: Cliente \| Valor\./);
+  const qc = C.promptQualidade(e);
+  assert.ok(qc.includes(C.PRECEDENCIA_CONFERENCIA));
+  assert.match(qc, /completo: O resultado responde ao objetivo por inteiro dentro da configuração confirmada/);
+  assert.match(qc, /com as colunas Cliente, Valor e as seções/);
+  // A precedência é geral: formato escolhido, regras escolhidas ou regras próprias também contam como confirmação.
+  for (const r of [{ formato: 'lista' }, { regras: ['nao_inventar'] }, { regras_proprias: ['Destacar documentos vencidos'] }])
+    assert.equal(C.construir({ descricao: A_, ...r }).configuracao_confirmada, true, JSON.stringify(r));
+  // Especificação sem confirmação (API antiga) ou já gravada sem o campo: prompts exatamente como antes.
+  const antiga = C.construir({ descricao: A_ });
+  assert.equal(antiga.configuracao_confirmada, undefined);
+  assert.ok(!C.promptExecucao(antiga, { nome: 'X' }).includes(C.PRECEDENCIA_EXECUCAO));
+  assert.ok(!C.promptQualidade(antiga).includes(C.PRECEDENCIA_CONFERENCIA));
+  assert.match(C.promptQualidade(antiga), /completo: O resultado responde ao objetivo por inteiro, sem deixar parte do pedido de fora\./);
+});
+
+test('soberania na execução, no Quality Check e na correção: remover, renomear, adicionar e ordenar', async () => {
+  modo = 'segue_criterios';
+  const est = (await estruturar(A_)).dados;
+  const criarCom = async (colunas, descricao = A_, e = est) => (await ana.post('/api/quick-wins', { assistente: { descricao, formato: 'tabela', estrutura_objetivo: e, colunas, colunas_origem: 'pessoa' }, areas: [A.id] })).dados;
+  const rodar = async q => {
+    const conv = (await ana.post('/api/conversas', { quick_win_id: q.id, teste: true })).dados.conversa;
+    const n = OR.chamadas.length;
+    const r = await enviarMensagem(ana, conv.id, { texto: 'Cobranças: Alfa 1.200 pago; Beta 3.400 em aberto.' });
+    return { r, chamadas: OR.chamadas.slice(n) };
+  };
+  const sistema = b => JSON.stringify(b.messages[0].content);
+  // Remoção: objetivo cita Status; confirmado Cliente / Valor. Aprovado sem correção; nada recoloca Status.
+  const rem = await rodar(await criarCom(['Cliente', 'Valor']));
+  assert.equal(rem.r.fim.qualidade.status, 'aprovado');
+  assert.equal(rem.chamadas.length, 2, 'sem correção');
+  assert.match(rem.r.texto, /^\| Cliente \| Valor \|\n/);
+  assert.ok(sistema(rem.chamadas[0]).includes(C.PRECEDENCIA_EXECUCAO) && sistema(rem.chamadas[1]).includes(C.PRECEDENCIA_CONFERENCIA));
+  // Se a correção acontecer por outro motivo, ela segue o contrato confirmado (com a mesma precedência), sem Status.
+  falharInvencao = true;
+  const corr = await rodar(await criarCom(['Cliente', 'Valor']));
+  assert.equal(corr.chamadas.length, 4);
+  assert.match(sistema(corr.chamadas[2]), /nestas colunas: Cliente \| Valor\./);
+  assert.ok(sistema(corr.chamadas[2]).includes(C.PRECEDENCIA_EXECUCAO));
+  assert.doesNotMatch(String(corr.chamadas[2].messages.at(-1).content), /Status/, 'o pedido de correção não cita Status');
+  assert.match(corr.r.texto, /^\| Cliente \| Valor \|\n/);
+  // Renomeação: conferência e execução usam os nomes confirmados.
+  const ren = await rodar(await criarCom(['Cliente', 'Valor total', 'Situação']));
+  assert.match(sistema(ren.chamadas[0]), /nestas colunas: Cliente \| Valor total \| Situação\./);
+  assert.match(sistema(ren.chamadas[1]), /com as colunas Cliente, Valor total, Situação/);
+  assert.equal(ren.r.fim.qualidade.status, 'aprovado');
+  // Adição: objetivo com Cliente e Valor; confirmado com Responsável, que passa a ser exigido.
+  const obj2 = 'Gere uma tabela com Cliente e Valor.';
+  const e2 = { chave: C.chaveObjetivo(obj2), colunas: [{ nome: 'Cliente', evidencia: 'Cliente' }, { nome: 'Valor', evidencia: 'Valor' }], falhou: false };
+  const qAd = await criarCom(['Cliente', 'Valor', 'Responsável'], obj2, e2);
+  const ad = await rodar(qAd);
+  assert.match(sistema(ad.chamadas[0]), /nestas colunas: Cliente \| Valor \| Responsável\./);
+  assert.match(sistema(ad.chamadas[1]), /com as colunas Cliente, Valor, Responsável/);
+  const espAd = especDe(qAd.id);
+  assert.match(C.conferirContrato(espAd, '| Cliente | Valor |\n|---|---|\n| a | 1 |').detalhes.join(' '), /Faltaram as colunas: Responsável\./);
+  // Ordem: a execução pede a ordem confirmada.
+  const ord = await rodar(await criarCom(['Status', 'Cliente', 'Valor']));
+  assert.match(sistema(ord.chamadas[0]), /nestas colunas: Status \| Cliente \| Valor\./);
+  assert.match(ord.r.texto, /^\| Status \| Cliente \| Valor \|\n/);
+  modo = 'normal';
 });

@@ -43,7 +43,9 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
     formatoPessoa: !!o.formato,
     // Colunas da tabela: a estrutura pedida no objetivo (calculada uma vez por objetivo), as colunas atuais e
     // de onde vieram. Definidas pela pessoa, valem até ela mesma trocar.
-    estrutura: o.estrutura_objetivo ? { ...o.estrutura_objetivo, descricao: o.descricao || '' } : null,
+    // Estruturas por objetivo: cada resposta fica com o objetivo que a originou (nunca com o que está na tela
+    // quando ela chega). A que vale é sempre a do objetivo atual.
+    estruturas: new Map(o.estrutura_objetivo ? [[o.descricao || '', { ...o.estrutura_objetivo }]] : []), pendentes: new Map(), vez: 0,
     colunas: o.colunas ? [...o.colunas] : null, colunasOrigem: o.colunas_origem || null, colunasDescricao: o.descricao || '',
     salvo: qw ? assinatura({ descricao: o.descricao || '', arquetipo: o.arquetipo || null, como: o.como || {}, regras: o.regras || [], formato: o.formato || null, formato_descricao: o.formato_descricao || '', regras_proprias: o.regras_proprias || [],
       colunas: o.colunas || null, colunas_origem: o.colunas_origem || null, estrutura_objetivo: paraEnvio(o.estrutura_objetivo) }) : null,
@@ -80,21 +82,27 @@ function respostas(W) {
     colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W) };
 }
 const paraEnvio = e => (e ? { chave: e.chave, colunas: e.colunas || [], falhou: !!e.falhou } : null);
-const estruturaAtual = W => (W.estrutura && W.estrutura.chave && W.estrutura.descricao === W.descricao ? paraEnvio(W.estrutura) : null);
+const estruturaDoObjetivo = W => W.estruturas.get(W.descricao) || null;
+const estruturaAtual = W => { const e = estruturaDoObjetivo(W); return e?.chave ? paraEnvio(e) : null; };
 
 // Estrutura pedida no objetivo: uma chamada só quando o objetivo é novo ou mudou (voltar, avançar e reabrir a
 // etapa Resultado não chamam de novo). Falhou: a pessoa define as colunas; nada é inventado.
 async function estruturar(W) {
-  if (!W.descricao || W.estrutura?.descricao === W.descricao) return;
-  let r;
-  try { r = await api('/api/quick-wins/assistente/estrutura', { metodo: 'POST', corpo: { descricao: W.descricao, ...(W.id ? { quick_win_id: W.id } : {}) } }); }
-  catch { r = { chave: null, colunas: [], falhou: true }; }
-  W.estrutura = { descricao: W.descricao, chave: r.chave, colunas: r.colunas || [], falhou: !!r.falhou };
+  const desc = W.descricao;   // o objetivo enviado: a resposta é dele, qualquer que seja o objetivo quando ela voltar
+  if (!desc || W.estruturas.has(desc)) return;
+  if (!W.pendentes.has(desc)) W.pendentes.set(desc, (async () => {
+    let r;
+    try { r = await api('/api/quick-wins/assistente/estrutura', { metodo: 'POST', corpo: { descricao: desc, ...(W.id ? { quick_win_id: W.id } : {}) } }); }
+    catch { r = { chave: null, colunas: [], falhou: true }; }
+    W.estruturas.set(desc, { chave: r.chave, colunas: r.colunas || [], falhou: !!r.falhou });
+    W.pendentes.delete(desc);
+  })());
+  await W.pendentes.get(desc);
 }
 const mesmas = (a, b) => a.length === b.length && a.every((x, i) => x.toLowerCase() === String(b[i]).toLowerCase());
 function definirColunas(W, s) {
   const exemplo = s.exemplo?.colunas?.length ? s.exemplo.colunas : W.modoProc === 'exemplo' && !W.exemplo ? W.estruturaAnterior?.colunas || [] : [];
-  const doObjetivo = W.estrutura?.descricao === W.descricao ? W.estrutura.colunas.map(c => c.nome) : [];
+  const doObjetivo = (estruturaDoObjetivo(W)?.colunas || []).map(c => c.nome);
   W.novaSugestao = null;
   if (W.colunasOrigem === 'pessoa') {
     // A decisão da pessoa vale. Se o objetivo mudou depois dela, a nova estrutura vira só uma sugestão.
@@ -103,7 +111,7 @@ function definirColunas(W, s) {
   }
   if (exemplo.length) [W.colunas, W.colunasOrigem] = [[...exemplo], 'exemplo'];
   else if (doObjetivo.length) [W.colunas, W.colunasOrigem] = [doObjetivo, 'objetivo'];
-  else if (W.estrutura?.falhou) [W.colunas, W.colunasOrigem] = [[], 'livre'];
+  else if (estruturaDoObjetivo(W)?.falhou) [W.colunas, W.colunasOrigem] = [[], 'livre'];
   else [W.colunas, W.colunasOrigem] = [[...(s.colunasSugeridas || [])], 'sugestao'];
 }
 const marcarPessoa = W => { W.colunasOrigem = 'pessoa'; W.colunasDescricao = W.descricao; W.novaSugestao = null; };
@@ -115,7 +123,7 @@ const ORIGEM_COLUNAS = {
 };
 function htmlColunas(W) {
   const c = W.colunas || [];
-  const origem = W.colunasOrigem === 'livre' || (!c.length && W.estrutura?.falhou && W.colunasOrigem !== 'pessoa')
+  const origem = W.colunasOrigem === 'livre' || (!c.length && estruturaDoObjetivo(W)?.falhou && W.colunasOrigem !== 'pessoa')
     ? 'Não conseguimos sugerir a estrutura agora. Você pode defini-la abaixo.'
     : !c.length ? 'Sem colunas definidas: a GreenIA monta as que o pedido pedir.' : ORIGEM_COLUNAS[W.colunasOrigem] || '';
   return `<div id="colunas-bloco" class="bloco-extra colunas ${W.formato === 'tabela' ? '' : 'oculto'}">
@@ -136,9 +144,15 @@ async function desenhar(W, { foco = true } = {}) {
   $('progresso').innerHTML = W.passo === SUCESSO ? '' : progressoEtapas(ETAPAS, Math.min(W.passo, 5), { concluidas: W.passo >= REVISAR ? 5 : Math.max(W.maximo, W.editando ? 4 : 0) });
   $('progresso').querySelectorAll('[data-ir-etapa]').forEach(b => { b.onclick = () => irEtapa(W, Number(b.dataset.irEtapa)); });
   const el = $('etapa');
+  // Cada desenho tem a sua vez: se a pessoa já foi para outra etapa enquanto este carregava (uma resposta que
+  // demorou), ele não desenha, não liga eventos, não navega e não pega o foco.
+  const vez = ++W.vez, passo = W.passo;
   el.innerHTML = '<p class="dica">Carregando…</p>';
-  try { el.innerHTML = `<div class="etapa-foco">${await ETAPA_HTML[W.passo](W)}</div>`; }
-  catch (e) { el.innerHTML = aviso(esc(e.message), 'erro'); return; }
+  let html;
+  try { html = await ETAPA_HTML[passo](W); }
+  catch (e) { if (vez === W.vez) el.innerHTML = aviso(esc(e.message), 'erro'); return; }
+  if (vez !== W.vez || passo !== W.passo) return;
+  el.innerHTML = `<div class="etapa-foco">${html}</div>`;
   ETAPA_LIGAR[W.passo]?.(W);
   el.querySelector('[data-voltar]')?.addEventListener('click', () => irEtapa(W, W.passo - 1));
   if (W.passo !== REVISAR) el.querySelector('[data-continuar]')?.addEventListener('click', () => continuar(W));
@@ -194,8 +208,10 @@ async function continuar(W) {
 async function sugerir(W) {
   const est = estruturaAtual(W);
   if (W.sugestao && W.sugestaoChave === (est?.chave ?? null)) return W.sugestao;
-  const r = respostas(W);
-  W.sugestao = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: W.descricao, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo }, estrutura: est } });
+  const r = respostas(W), desc = W.descricao;
+  const s = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: desc, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo }, estrutura: est } });
+  if (W.descricao !== desc) return sugerir(W);   // o objetivo mudou enquanto a sugestão vinha: ela não vale para o atual
+  W.sugestao = s;
   W.sugestaoChave = est?.chave ?? null;
   const sugeridas = W.sugestao.regras.map(x => x.id);
   // Mantém as escolhas anteriores que continuam valendo; "não inventar" sempre.
@@ -269,6 +285,7 @@ const ETAPA_HTML = [
   async W => {
     await estruturar(W);
     const s = await sugerir(W);
+    if (W.passo !== 3) return '';   // a pessoa saiu da etapa: nada muda nas colunas por causa desta resposta
     definirColunas(W, s);
     const sug = s.formato.sugerido;
     return `${pergunta('Como você quer receber a resposta?', '')}

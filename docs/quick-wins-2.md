@@ -67,6 +67,14 @@ exemplo e sem ler o texto com regras frágeis.
   tabela sem colunas fixas pede ao modelo "as colunas que o objetivo pede" e não cobra nenhuma coluna na conferência.
 - **Fonte única:** execução, Quality Check (contrato determinístico e critério da IA), correção e versões leem só
   `formato_saida.colunas`. Nada interpreta o objetivo de novo depois de confirmado.
+- **Precedência da configuração confirmada** (`configuracao_confirmada`): o objetivo continua no prompt, porque
+  explica o trabalho. Mas a execução e a conferência recebem uma instrução explícita: para estrutura, formato,
+  campos, ordem e regras, vale a configuração confirmada, mesmo que o objetivo cite outra coisa. Assim, um campo
+  removido ou renomeado não volta na execução, na conferência nem na correção. Especificações sem confirmação
+  (antigas) ficam como estavam.
+- **Resposta atrasada:** cada estrutura fica guardada com o objetivo que a originou. Uma resposta que chega depois
+  de a pessoa trocar o objetivo não vale para o objetivo novo. Uma etapa que a pessoa já deixou não se redesenha,
+  não navega e não pega o foco.
 
 ## Especificação interna (`quick_wins.especificacao`)
 

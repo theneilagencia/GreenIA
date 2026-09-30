@@ -252,7 +252,7 @@ test('segredos em texto, PDF, PPTX, imagem e PDF escaneado (OCR): bloqueados ant
   for (const [nome, { texto, ...extra }] of Object.entries(casos)) {
     const x = await enviar(texto, extra);
     assert.deepEqual([x.r.status, x.n, x.r.erro.erro], [422, 0, 'dado_bloqueado'], nome);
-    assert.match(x.r.erro.mensagem, /senhas, chaves de acesso e outros segredos nunca são enviados/, nome);
+    assert.match(x.r.erro.mensagem, /Por segurança, este envio foi bloqueado: a mensagem ou um anexo tem uma senha, chave de acesso ou outro segredo/, nome);
     assert.match(JSON.stringify((await ana.get(`/api/conversas/${x.conv.id}`)).dados.mensagens), /Uma mensagem não foi enviada/, nome);
   }
   semRastro('segredos');

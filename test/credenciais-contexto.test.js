@@ -43,7 +43,7 @@ const documento = async (nome, conteudo, extra = {}) => {
 function bloqueado(x, origem, msg) {
   assert.equal(x.r.status, 422, `${msg}: ${JSON.stringify(x.r.erro || x.r.fim)}`);
   assert.equal(x.r.erro.erro, 'dado_bloqueado', msg);
-  assert.match(x.r.erro.mensagem, /senhas, chaves de acesso e outros segredos nunca são enviados à IA/, msg);
+  assert.match(x.r.erro.mensagem, /Por segurança, este envio foi bloqueado: há uma senha, chave de acesso ou outro segredo no pedido/, msg);
   assert.equal(x.chamadas, 0, `${msg}: nada foi enviado a nenhum recurso (nem reserva, nem nova tentativa)`);
   assert.ok(x.bloqueio?.origens.includes(origem), `${msg}: origem ${origem} em ${JSON.stringify(x.bloqueio)}`);
   assert.doesNotMatch(JSON.stringify(x.bloqueio), SEGREDO, `${msg}: o registro não guarda o segredo`);

@@ -248,7 +248,7 @@ export function rotasConversas(app, r) {
     const onde = daFonte ? 'Um documento ou instrução usado nesta resposta contém uma senha, chave ou outro segredo, então nada foi enviado. O administrador foi avisado.'
       : origens.includes('historico') ? 'O histórico desta conversa contém uma senha, chave ou outro segredo, então nada foi enviado. Comece uma nova conversa.'
       : 'Nada foi enviado.';
-    throw erro(422, 'dado_bloqueado', `Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA. ${onde}`, { tipos: ['credencial'] });
+    throw erro(422, 'dado_bloqueado', `Por segurança, este envio foi bloqueado: há uma senha, chave de acesso ou outro segredo no pedido. ${onde}`, { tipos: ['credencial'] });
   }
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
   r.post('/api/conversas/:id/mensagens', async ctx => {
@@ -301,7 +301,7 @@ export function rotasConversas(app, r) {
       registrar(app, 'policy.blocked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipos: bloqueados });
       // Credencial: regra de segurança da GreenIA. Outros tipos: política da empresa. Nada é enviado.
       const politica = bloqueados.filter(t => t !== 'credencial');
-      const msg = [bloqueados.includes('credencial') ? 'Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA.' : null,
+      const msg = [bloqueados.includes('credencial') ? 'Por segurança, este envio foi bloqueado: a mensagem ou um anexo tem uma senha, chave de acesso ou outro segredo.' : null,
         politica.length ? `Pela política da empresa, esta mensagem não pode ser enviada à IA porque contém: ${politica.map(t => ROTULOS[t]).join(', ')}.` : null].filter(Boolean).join(' ');
       throw erro(422, 'dado_bloqueado', `${msg} Nenhum conteúdo foi enviado.`, { tipos: bloqueados });
     }

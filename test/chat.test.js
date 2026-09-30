@@ -153,7 +153,7 @@ test('filtro no servidor: CPF é dado pessoal e segue normalmente por padrão; p
   r = await enviarMensagem(ana, conv.id, { texto: 'a senha: Primavera2026' });
   assert.equal(r.status, 422);
   assert.deepEqual(r.erro.tipos, ['credencial']);
-  assert.match(r.erro.mensagem, /^Por segurança, senhas, chaves de acesso e outros segredos nunca são enviados à IA/);
+  assert.match(r.erro.mensagem, /^Por segurança, este envio foi bloqueado: a mensagem ou um anexo tem uma senha, chave de acesso ou outro segredo/);
   salvarConfig(S.app.db, { acoesChat: cfg.acoesChat });
   assert.equal(OR.chamadas.length, n);
   // O histórico registra que as mensagens não saíram, sem guardar o conteúdo delas.

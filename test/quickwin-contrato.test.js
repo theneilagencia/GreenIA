@@ -147,3 +147,25 @@ test('intenção do trabalho: sem estrutura localizável e colunas da pessoa, o 
   const aberto = C.construir({ descricao: 'Faça uma tabela com os principais pontos.', formato: 'tabela', estrutura_objetivo: estruturaDe('Faça uma tabela com os principais pontos.', []), colunas: ['Ponto', 'Detalhe'], colunas_origem: 'pessoa' });
   assert.equal(C.intencaoDoTrabalho(aberto), 'Faça uma tabela com os principais pontos.');
 });
+
+// Alinhamento da execução: um executor que comenta todo campo que encontra no prompt e não entrega (como a execução
+// 3 do smoke test do RC3, que escreveu "Status não foi incluído…") não tem de onde tirar Status.
+test('execução recebe a intenção do contrato: Status removido não aparece em nenhuma parte da saída', async () => {
+  const e = especCom(['Cliente', 'Valor']);
+  const sis = C.promptExecucao(e, { nome: 'X' });
+  assert.doesNotMatch(sis, /Status/, 'nada do que vai para a execução cita Status');
+  assert.match(sis, /Intenção do trabalho: Gere uma tabela com \[os campos do contrato confirmado\]\./);
+  assert.match(sis, /nestas colunas: Cliente \| Valor\./);
+  const executor = prompt => {
+    const citados = [...new Set(prompt.match(CAMPOS) || [])], contrato = (/nestas colunas: ([^.]+)\./.exec(prompt)?.[1] || '').split(' | ');
+    const fora = citados.filter(c => !contrato.includes(c));
+    return `${resultado(contrato)}${fora.length ? `\n\n${fora.map(c => `${c} não foi incluído conforme formato solicitado.`).join(' ')}` : ''}`;
+  };
+  const saida = executor(sis);
+  assert.doesNotMatch(saida, /Status/);
+  const r = await executar(e, saida);
+  assert.equal(r.registro.status, 'aprovado');
+  assert.doesNotMatch(r.texto, /Status/);
+  // Especificação sem confirmação: o objetivo original continua indo como antes.
+  assert.match(C.promptExecucao(C.construir({ descricao: OBJ }), { nome: 'X' }), /Objetivo: Gere uma tabela com Cliente, Valor e Status\./);
+});

@@ -476,7 +476,9 @@ export function promptExecucao(espec, { nome = '' } = {}) {
   const e = normalizar(espec);
   if (!e) return '';
   const f = e.formato_saida;
-  const partes = [`\nVocê está executando o Quick Win "${nome}".`, `Objetivo: ${e.objetivo}`];
+  // Com configuração confirmada, a execução recebe a mesma intenção que a conferência: o trabalho, sem a estrutura
+  // antiga do objetivo (campos que a pessoa tirou ou renomeou não chegam ao modelo por nenhum caminho).
+  const partes = [`\nVocê está executando o Quick Win "${nome}".`, e.configuracao_confirmada ? `Intenção do trabalho: ${intencaoDoTrabalho(e)}` : `Objetivo: ${e.objetivo}`];
   if (e.configuracao_confirmada) partes.push(PRECEDENCIA_EXECUCAO);
   if (e.contexto) partes.push(e.contexto);
   partes.push(`Como fazer:\n${e.procedimento.map((p, i) => `${i + 1}. ${p}`).join('\n')}`);

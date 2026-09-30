@@ -309,7 +309,8 @@ test('precedência: configuração confirmada vale mais que o objetivo na execu�
   const e = C.construir({ descricao: A_, formato: 'tabela', colunas: ['Cliente', 'Valor'], colunas_origem: 'pessoa' });
   assert.equal(e.configuracao_confirmada, true);
   const exec1 = C.promptExecucao(e, { nome: 'X' });
-  assert.ok(exec1.indexOf(C.PRECEDENCIA_EXECUCAO) > exec1.indexOf('Objetivo: Gere uma tabela com Cliente, Valor e Status.'), 'o objetivo continua, seguido da precedência');
+  assert.ok(exec1.indexOf(C.PRECEDENCIA_EXECUCAO) > exec1.indexOf('Intenção do trabalho:'), 'a intenção do trabalho continua, seguida da precedência');
+  assert.doesNotMatch(exec1, /Status/, 'o campo que a pessoa tirou não vai para a execução');
   assert.match(exec1, /nestas colunas: Cliente \| Valor\./);
   const qc = C.promptQualidade(e);
   assert.ok(qc.includes(C.PRECEDENCIA_CONFERENCIA));

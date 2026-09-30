@@ -89,6 +89,9 @@ export const BLACKLIST = {
   B19: /você\s+escolhe\s+o\s+tipo/i,
   B21: /\bnunca\b/i,
   B22: /\bsempre\b/i,
+  B25: /cópias?\s+de\s+segurança[^.]{0,60}\d+\s*dias|backups?[^.]{0,40}\d+\s*dias/i,
+  B26: /\bprovar\b|comprovad|\bROI\b|retorno\s+sobre\s+o\s+investimento/i,
+  B27: /sobrescrit/i,
 };
 const ESCOPO_DO_ENVIO = /mensage[mn]|anexo|senhas?|chaves? de acesso|documentos da base|dados são reconhecidos/i;
 
@@ -122,10 +125,24 @@ test('blacklist B20: "antes do envio" sempre diz sobre o quê (mensagem, anexo, 
   }
 });
 
+// B23 e B24 são contextuais: a frase pode existir, mas precisa trazer o escopo que a torna verdadeira.
+const VISIBILIDADE = /\b(?:colegas|admin)\b/i, NAO_VE = /não\s+(?:veem|vê|aparecem?|mostra)|nenhuma\s+tela/i;
+test('blacklist B23: "colegas e admin não veem" só com o escopo das telas (exportação e suporte alcançam o banco)', () => {
+  for (const [sup, texto] of Object.entries(S)) {
+    for (const f of trechos(texto)) if (VISIBILIDADE.test(f) && NAO_VE.test(f)) assert.match(f, /\btelas?\b/i, `${sup}: visibilidade sem escopo: "${f}"`);
+  }
+});
+
+test('blacklist B24: "conferido a cada execução" só com a jornada guiada (quick win em branco ou de modelo não é conferido)', () => {
+  for (const [sup, texto] of Object.entries(S)) {
+    for (const f of trechos(texto)) if (/conferid[oa]s?\s+a\s+cada\s+execução/i.test(f)) assert.match(f, /guiad/i, `${sup}: conferência sem escopo: "${f}"`);
+  }
+});
+
 test('blacklist: cada entrada do código está documentada no registro, e cada liberação aponta para uma entrada existente', () => {
   const doc = ler('docs/claims-lp.md');
-  for (const id of [...Object.keys(BLACKLIST), 'B20']) assert.match(doc, new RegExp(`^\\| ${id} \\|`, 'm'), `${id} sem linha na blacklist do registro`);
-  for (const r of REGISTRO) for (const id of [...ids(r.libera), ...ids(r.proibido)]) assert.match(id, /^B(?:0[1-9]|1\d|2[0-2])$/, `${r.id}: entrada inexistente ${id}`);
+  for (const id of [...Object.keys(BLACKLIST), 'B20', 'B23', 'B24']) assert.match(doc, new RegExp(`^\\| ${id} \\|`, 'm'), `${id} sem linha na blacklist do registro`);
+  for (const r of REGISTRO) for (const id of [...ids(r.libera), ...ids(r.proibido)]) assert.match(id, /^B(?:0[1-9]|1\d|2[0-7])$/, `${r.id}: entrada inexistente ${id}`);
 });
 
 test('as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor', () => {

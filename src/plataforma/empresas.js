@@ -245,7 +245,7 @@ export function salvarConcessoes(P, id, { grants, locked }, ator, origem) {
 export const marcaPadrao = nome => ({
   login_title: 'Entre com o seu email de trabalho',
   login_text: `Esta é a IA de uso interno de ${nome || 'sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,
-  privacy_note: 'O conteúdo das suas conversas não aparece para colegas nem para o admin, e você pode apagá-las quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
+  privacy_note: 'Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa, e você pode apagar as conversas quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
 });
 export const TEXTOS_MARCA = Object.keys(marcaPadrao(''));
 // Preenche os textos vazios das empresas que já existiam, uma vez só: se depois o cliente apagar
@@ -297,7 +297,7 @@ export function landingPadrao(nome) {
     descricao: '',
     imagem: '',
     botoes: [{ texto: 'Entrar com o email da empresa', link: '/entrar', estilo: 'primario' }, { texto: 'Como usar', link: '#como-usar', estilo: 'secundario' }],
-    destaques: ['Código de acesso no email', 'Sem senha para decorar', 'Colegas e admin não veem o conteúdo das suas conversas'],
+    destaques: ['Código de acesso no email', 'Sem senha para decorar', 'Suas conversas não aparecem nas telas de colegas e do admin'],
     textos: {
       como_usar_rotulo: 'Como usar', como_usar_titulo: 'Três passos para começar',
       chamadas_rotulo: 'Ao entrar', chamadas_titulo: 'O que você encontra',
@@ -308,11 +308,11 @@ export function landingPadrao(nome) {
     },
     passos: [
       { titulo: 'Entre com o seu email', texto: `Use o email da ${n}. Um código de 6 dígitos, de uso único, chega por email.` },
-      { titulo: 'Peça em palavras simples', texto: 'Cole um texto, anexe PDF, Word, Excel, PowerPoint, CSV ou imagem e diga o que precisa. Imagens e PDFs escaneados viram texto no servidor da GreenIA.' },
+      { titulo: 'Peça em palavras simples', texto: 'Cole um texto, anexe PDF, Word, Excel, PowerPoint, CSV ou imagem e diga o que precisa. Imagens e PDFs escaneados viram texto no servidor da GreenIA, e esse texto segue para a IA.' },
       { titulo: 'Revise e ajuste', texto: 'Peça mais curto, em tabela ou em outro tom. A decisão final é sempre sua.' },
     ],
     chamadas: [
-      { titulo: 'Conversas', texto: 'Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois.' },
+      { titulo: 'Conversas', texto: 'Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois, dentro do prazo de retenção da empresa.' },
       { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções já definidas. Você traz só o caso do dia. Nos quick wins criados pela jornada guiada, o resultado é conferido contra as regras antes de aparecer.' },
       { titulo: 'Conhecimento', texto: 'Procedimentos e documentos das áreas. Quando a busca encontra documentos da área, a resposta lista os documentos consultados.' },
       { titulo: 'Classes de modelo', texto: 'A GreenIA escolhe o nível de cada pedido entre Rápido, Equilibrado e Avançado, dentro do que a empresa libera. Nas conversas, cada resposta explica por que aquele nível foi usado. Se preferir, você escolhe.' },

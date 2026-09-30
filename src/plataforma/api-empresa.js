@@ -53,7 +53,7 @@ export function rotasEmpresa(P, r) {
     const m = E.listarMembros(P, companyId).find(x => x.id === params.uid);
     if (!m) throw erro(404, 'usuario', 'Usuário não encontrado nesta empresa.');
     const c = E.lerEmpresa(P, companyId);
-    P.emailDa(companyId).enviar(m.email, `Convite para a GreenIA da ${E.lerMarca(P, companyId).display_name || c.name}`, `Para entrar, acesse ${E.urlDaEmpresa(P, c)} e use este email (${m.email}). Um código de acesso chega na hora.`).catch(() => {});
+    P.emailDa(companyId).enviar(m.email, `Convite para a GreenIA da ${E.lerMarca(P, companyId).display_name || c.name}`, `Para entrar, acesse ${E.urlDaEmpresa(P, c)} e use este email (${m.email}). Um código de acesso é enviado para este email.`).catch(() => {});
     auditar(P, { usuario: sessao.userId, empresa: companyId, acao: 'user.invite_resent', entidade: 'company_user', id: m.id, origem });
     return { ok: true };
   });

@@ -165,7 +165,7 @@ const TEXTOS_SECAO = {
   tarefas: [['tarefas_rotulo', 'Rótulo'], ['tarefas_titulo', 'Título'], ['tarefas_sub', 'Texto de apoio']],
   fim: [['fim_titulo', 'Título'], ['fim_texto', 'Texto'], ['fim_botao', 'Texto do botão']],
 };
-const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'Nunca sai']];
+const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'É bloqueado']];
 
 const STATUS_AMBIENTE = { em_implantacao: 'em implantação', suspensa: 'suspenso', cancelada: 'encerrado' };
 const comPrevia = u => { const [base, hash = ''] = u.split('#'); return `${base}${base.includes('?') ? '&' : '?'}previa=1${hash ? `#${hash}` : ''}`; };

@@ -245,7 +245,7 @@ export function salvarConcessoes(P, id, { grants, locked }, ator, origem) {
 export const marcaPadrao = nome => ({
   login_title: 'Entre com o seu email de trabalho',
   login_text: `Esta é a IA de uso interno de ${nome || 'sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,
-  privacy_note: 'Suas conversas ficam salvas só para você e podem ser apagadas quando quiser. As regras de dados da empresa são conferidas antes de cada envio à IA.',
+  privacy_note: 'O conteúdo das suas conversas não aparece para colegas nem para o admin, e você pode apagá-las quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
 });
 export const TEXTOS_MARCA = Object.keys(marcaPadrao(''));
 // Preenche os textos vazios das empresas que já existiam, uma vez só: se depois o cliente apagar
@@ -293,34 +293,34 @@ export function landingPadrao(nome) {
   return {
     rotulo: `A IA da ${n}`,
     titulo: 'IA para o trabalho, com as regras da casa',
-    subtitulo: `Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da ${n} são aplicadas antes de cada envio.`,
+    subtitulo: `Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da ${n} são aplicadas a cada mensagem e anexo antes do envio.`,
     descricao: '',
     imagem: '',
     botoes: [{ texto: 'Entrar com o email da empresa', link: '/entrar', estilo: 'primario' }, { texto: 'Como usar', link: '#como-usar', estilo: 'secundario' }],
-    destaques: ['Código de acesso no email', 'Sem senha para decorar', 'Conversas salvas só para você'],
+    destaques: ['Código de acesso no email', 'Sem senha para decorar', 'Colegas e admin não veem o conteúdo das suas conversas'],
     textos: {
       como_usar_rotulo: 'Como usar', como_usar_titulo: 'Três passos para começar',
       chamadas_rotulo: 'Ao entrar', chamadas_titulo: 'O que você encontra',
-      regras_rotulo: 'Antes de enviar', regras_titulo: 'O que pode, o que pede cuidado e o que nunca sai',
-      regras_sub: `A GreenIA confere cada mensagem e cada anexo antes do envio, pelas regras que a ${n} definiu.`,
-      tarefas_rotulo: 'Boas tarefas', tarefas_titulo: 'Por onde começar', tarefas_sub: 'Pedidos que costumam dar bom resultado logo na primeira semana.',
+      regras_rotulo: 'Antes de enviar', regras_titulo: 'O que pode, o que pede cuidado e o que é bloqueado',
+      regras_sub: `A GreenIA confere cada mensagem e cada anexo antes do envio, pelas regras que a ${n} definiu para os tipos de dado reconhecidos.`,
+      tarefas_rotulo: 'Boas tarefas', tarefas_titulo: 'Por onde começar', tarefas_sub: 'Exemplos de pedidos para começar.',
       fim_titulo: 'Pronto para começar', fim_texto: 'Revise sempre antes de usar. A IA ajuda, a decisão é sua.', fim_botao: 'Entrar',
     },
     passos: [
-      { titulo: 'Entre com o seu email', texto: `Use o email da ${n}. Um código de 6 dígitos chega na hora.` },
-      { titulo: 'Peça em palavras simples', texto: 'Cole um texto, anexe PDF, Word, Excel ou CSV e diga o que precisa.' },
+      { titulo: 'Entre com o seu email', texto: `Use o email da ${n}. Um código de 6 dígitos, de uso único, chega por email.` },
+      { titulo: 'Peça em palavras simples', texto: 'Cole um texto, anexe PDF, Word, Excel, PowerPoint, CSV ou imagem e diga o que precisa. Imagens e PDFs escaneados viram texto no servidor da GreenIA.' },
       { titulo: 'Revise e ajuste', texto: 'Peça mais curto, em tabela ou em outro tom. A decisão final é sempre sua.' },
     ],
     chamadas: [
       { titulo: 'Conversas', texto: 'Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois.' },
-      { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções e arquivos já definidos. Você traz só o caso do dia.' },
-      { titulo: 'Conhecimento', texto: 'Procedimentos e documentos das áreas. A resposta mostra de qual documento veio a informação.' },
-      { titulo: 'Classes de modelo', texto: 'Você escolhe o tipo de trabalho, não o modelo técnico: Rápido para o dia a dia, Equilibrado para mais contexto, Avançado para análises longas.' },
+      { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções já definidas. Você traz só o caso do dia. Nos quick wins criados pela jornada guiada, o resultado é conferido contra as regras antes de aparecer.' },
+      { titulo: 'Conhecimento', texto: 'Procedimentos e documentos das áreas. Quando a busca encontra documentos da área, a resposta lista os documentos consultados.' },
+      { titulo: 'Classes de modelo', texto: 'A GreenIA escolhe o nível de cada pedido entre Rápido, Equilibrado e Avançado, dentro do que a empresa libera. Nas conversas, cada resposta explica por que aquele nível foi usado. Se preferir, você escolhe.' },
     ],
     regras: {
       pode: ['Textos e documentos de trabalho', 'Procedimentos, modelos e rascunhos', 'Planilhas sem dados pessoais'],
-      sigilo: ['Dados de clientes, fornecedores e pessoas', 'Informações financeiras ou estratégicas', 'A conversa vai só para modelos homologados pela empresa, sem retenção'],
-      nunca: ['Senhas, tokens e chaves de acesso', 'Credenciais de sistemas', 'A GreenIA bloqueia antes do envio'],
+      sigilo: ['Dados de clientes, fornecedores e pessoas', 'Informações financeiras ou estratégicas', 'Com a opção de informações sigilosas ligada pela empresa, a conversa só usa recursos autorizados; se não houver, nada é enviado'],
+      nunca: ['Senhas, tokens e chaves de acesso reconhecidos', 'Inclusive em documentos da base e no histórico', 'Nenhuma regra da empresa libera'],
     },
     tarefas: [
       { tipo: 'Resumir', texto: 'Resuma este relatório em cinco pontos para a diretoria' },
@@ -333,7 +333,7 @@ export function landingPadrao(nome) {
     secoes: { como_usar: true, chamadas: true, regras: true, tarefas: true, institucional: true },
     institucional: {
       titulo: `A IA na ${n}`,
-      texto: `A ${n} oferece a GreenIA para apoiar o trabalho do dia a dia com segurança. Os dados ficam no ambiente da empresa e seguem a Política de Uso de IA. Em caso de dúvida, fale com a equipe responsável pela IA na ${n}.`,
+      texto: `A ${n} oferece a GreenIA para apoiar o trabalho do dia a dia, com as regras de dados da empresa e a Política de Uso de IA. As conversas ficam guardadas no banco da empresa; para responder, o conteúdo segue para o recurso de IA. Em caso de dúvida, fale com a equipe responsável pela IA na ${n}.`,
       links: [{ texto: 'Política de uso de IA', link: '/politica' }],
     },
   };
@@ -425,7 +425,7 @@ export function criarMembro(P, companyId, { email, name, role_id, role_key, stat
     const url = urlDaEmpresa(P, c);
     const nomeEmpresa = lerMarca(P, companyId)?.display_name || c.name;
     P.emailDa(companyId).enviar(e, `Convite para a GreenIA da ${nomeEmpresa}`,
-      `Você foi convidado para usar a GreenIA da ${nomeEmpresa}.\n\nPara entrar, acesse ${url} e use este email (${e}). Um código de acesso chega na hora.`).catch(err => P.log('convite', err.message));
+      `Você foi convidado para usar a GreenIA da ${nomeEmpresa}.\n\nPara entrar, acesse ${url} e use este email (${e}). Um código de acesso é enviado para este email.`).catch(err => P.log('convite', err.message));
   }
   return listarMembros(P, companyId).find(m => m.id === u.id);
 }

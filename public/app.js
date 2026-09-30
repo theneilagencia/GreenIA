@@ -172,7 +172,7 @@ async function vistaConversas() {
   $('principal').innerHTML = `${cabecalho('Conversas', `<a class="btn btn-verde btn-pequeno" href="#/nova">${ICONE.mais} Nova conversa</a>`)}
     <div class="pagina"><div class="pagina-dentro estreita">
       ${cartaoBase()}
-      <p class="lead">Suas conversas ficam salvas só para você por até ${E.retencaoDias} dias sem uso. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com uso e resultado medidos.</p>
+      <p class="lead">O conteúdo das suas conversas não aparece para colegas nem para o admin, e conversas sem uso são apagadas depois de ${E.retencaoDias} dias. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com o uso acompanhado.</p>
       ${conversas.length ? `<div class="lista">${conversas.map(c => `<a class="lista-item" href="#/c/${c.id}"><span class="principal-texto"><b>${esc(c.titulo)}</b>
         <span>${dataCurta(c.atualizado_em)}${c.quick_win ? ` · ${esc(c.quick_win)}` : ' · conversa livre'}</span></span>${c.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</a>`).join('')}</div>`
         : vazioHtml({ icone: 'conversa', titulo: 'Nenhuma conversa ainda', texto: 'Comece uma conversa para qualquer tarefa, ou abra um quick win para um trabalho que se repete.', acao: '<a class="btn btn-verde" href="#/nova">Nova conversa</a>' })}
@@ -186,7 +186,7 @@ function abrirPolitica() {
     <div class="modal-topo"><div class="rotulo">Política de uso de IA</div><button class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}</button></div>
     <h2 id="titulo-politica">Como a empresa usa IA</h2>
     <div class="item"><h3>Conversa normal e conversa sigilosa</h3><p>Dado pessoal, de cliente, financeiro, jurídico ou estratégico só entra em conversa sigilosa, em que a GreenIA usa apenas os recursos de IA autorizados para esse tipo de informação.</p></div>
-    <div class="item"><h3>Suas conversas ficam com você</h3><p>${esc(E.publico.privacyNote)}</p></div>
+    <div class="item"><h3>Privacidade das suas conversas</h3><p>${esc(E.publico.privacyNote)}</p></div>
     <div class="item"><h3>Revise antes de usar</h3><p>A IA ajuda, mas pode errar. Confira o resultado antes de enviar ou decidir.</p></div>
     <a href="/politica" class="btn-texto" style="padding-left:0">Abrir a política completa</a></div></div>`;
   const fechar = () => { $('modal').innerHTML = ''; $('ver-politica')?.focus(); };

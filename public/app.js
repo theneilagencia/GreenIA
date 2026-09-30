@@ -172,7 +172,7 @@ async function vistaConversas() {
   $('principal').innerHTML = `${cabecalho('Conversas', `<a class="btn btn-verde btn-pequeno" href="#/nova">${ICONE.mais} Nova conversa</a>`)}
     <div class="pagina"><div class="pagina-dentro estreita">
       ${cartaoBase()}
-      <p class="lead">O conteúdo das suas conversas não aparece para colegas nem para o admin, e conversas sem uso são apagadas depois de ${E.retencaoDias} dias. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com o uso acompanhado.</p>
+      <p class="lead">Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas ou ao admin, e conversas sem uso são apagadas depois de ${E.retencaoDias} dias. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com o uso acompanhado.</p>
       ${conversas.length ? `<div class="lista">${conversas.map(c => `<a class="lista-item" href="#/c/${c.id}"><span class="principal-texto"><b>${esc(c.titulo)}</b>
         <span>${dataCurta(c.atualizado_em)}${c.quick_win ? ` · ${esc(c.quick_win)}` : ' · conversa livre'}</span></span>${c.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</a>`).join('')}</div>`
         : vazioHtml({ icone: 'conversa', titulo: 'Nenhuma conversa ainda', texto: 'Comece uma conversa para qualquer tarefa, ou abra um quick win para um trabalho que se repete.', acao: '<a class="btn btn-verde" href="#/nova">Nova conversa</a>' })}

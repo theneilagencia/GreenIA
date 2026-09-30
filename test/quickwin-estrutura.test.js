@@ -38,11 +38,11 @@ function roteiro(b) {
   }
   if (ehConferencia(b)) {
     if (modo === 'segue_criterios') {
-      const pedidas = (/formato: O resultado está no formato combinado, com as colunas ([^\n]+?)(?: e as seções|\.)/.exec(sis.replace(/\\n/g, '\n'))?.[1] || '').split(', ').filter(Boolean);
+      const pedidas = (/tabela com exatamente as colunas (.+?), nesta ordem/.exec(sis)?.[1] || '').split(' | ').filter(Boolean);
       const cab = (/\| ([^\n]+) \|/.exec(usuario)?.[1] || '').split(' | ');
       const faltam = pedidas.filter(c => !cab.includes(c));
       const inventou = falharInvencao && !(falharInvencao = false);
-      return JSON.stringify({ criterios: [{ id: 'formato', ok: !faltam.length, motivo: faltam.length ? `faltou ${faltam.join(', ')}` : '' }, { id: 'nao_inventar', ok: !inventou, motivo: inventou ? 'um valor não está na entrada' : '' }] });
+      return JSON.stringify({ criterios: [{ id: 'completo', ok: !faltam.length, motivo: faltam.length ? `faltou ${faltam.join(', ')}` : '' }, { id: 'nao_inventar', ok: !inventou, motivo: inventou ? 'um valor não está na entrada' : '' }] });
     }
     return '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"formato","ok":true},{"id":"propria_1","ok":true}]}';
   }
@@ -293,7 +293,7 @@ test('colunas Cliente/Valor/Status + regra própria "Destacar documentos vencido
   assert.match(sis, /cabeçalho exatamente nestas colunas: Cliente \| Valor \| Status\./);
   assert.match(sis, new RegExp(`- ${REGRA}`));
   const conf = JSON.stringify(qc.messages[0].content);
-  assert.match(conf, /com as colunas Cliente, Valor, Status/);
+  assert.match(conf, /tabela com exatamente as colunas Cliente \| Valor \| Status, nesta ordem/);
   assert.match(conf, new RegExp(`propria_1: Regra do responsável: \\\\"${REGRA}\\\\"`));
   assert.match(r.texto, /\| Cliente \| Valor \| Status \|/);
   assert.equal(r.fim.qualidade.status, 'aprovado');
@@ -313,8 +313,10 @@ test('precedência: configuração confirmada vale mais que o objetivo na execu�
   assert.match(exec1, /nestas colunas: Cliente \| Valor\./);
   const qc = C.promptQualidade(e);
   assert.ok(qc.includes(C.PRECEDENCIA_CONFERENCIA));
-  assert.match(qc, /completo: O resultado responde ao objetivo por inteiro dentro da configuração confirmada/);
-  assert.match(qc, /com as colunas Cliente, Valor e as seções/);
+  assert.match(qc, /completo: O resultado cobre a intenção do trabalho e todo o material relevante da entrada, dentro do contrato confirmado\./);
+  assert.match(qc, /Contrato confirmado pelo responsável: tabela com exatamente as colunas Cliente \| Valor, nesta ordem/);
+  assert.doesNotMatch(qc, /Status/, 'a conferência não recebe o campo que a pessoa tirou');
+  assert.doesNotMatch(qc, /^- formato:/m, 'formato de tabela confirmado: conferido pelo código');
   // A precedência é geral: formato escolhido, regras escolhidas ou regras próprias também contam como confirmação.
   for (const r of [{ formato: 'lista' }, { regras: ['nao_inventar'] }, { regras_proprias: ['Destacar documentos vencidos'] }])
     assert.equal(C.construir({ descricao: A_, ...r }).configuracao_confirmada, true, JSON.stringify(r));
@@ -354,7 +356,7 @@ test('soberania na execução, no Quality Check e na correção: remover, renome
   // Renomeação: conferência e execução usam os nomes confirmados.
   const ren = await rodar(await criarCom(['Cliente', 'Valor total', 'Situação']));
   assert.match(sistema(ren.chamadas[0]), /nestas colunas: Cliente \| Valor total \| Situação\./);
-  assert.match(sistema(ren.chamadas[1]), /com as colunas Cliente, Valor total, Situação/);
+  assert.match(sistema(ren.chamadas[1]), /exatamente as colunas Cliente \| Valor total \| Situação, nesta ordem/);
   assert.equal(ren.r.fim.qualidade.status, 'aprovado');
   // Adição: objetivo com Cliente e Valor; confirmado com Responsável, que passa a ser exigido.
   const obj2 = 'Gere uma tabela com Cliente e Valor.';
@@ -362,7 +364,7 @@ test('soberania na execução, no Quality Check e na correção: remover, renome
   const qAd = await criarCom(['Cliente', 'Valor', 'Responsável'], obj2, e2);
   const ad = await rodar(qAd);
   assert.match(sistema(ad.chamadas[0]), /nestas colunas: Cliente \| Valor \| Responsável\./);
-  assert.match(sistema(ad.chamadas[1]), /com as colunas Cliente, Valor, Responsável/);
+  assert.match(sistema(ad.chamadas[1]), /exatamente as colunas Cliente \| Valor \| Responsável, nesta ordem/);
   const espAd = especDe(qAd.id);
   assert.match(C.conferirContrato(espAd, '| Cliente | Valor |\n|---|---|\n| a | 1 |').detalhes.join(' '), /Faltaram as colunas: Responsável\./);
   // Ordem: a execução pede a ordem confirmada.

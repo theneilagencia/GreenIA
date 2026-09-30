@@ -28,7 +28,7 @@ function responder(b) {
     const campos = Object.entries(CAMPOS).find(([k]) => ultima.includes(k))?.[1] || [];
     return JSON.stringify({ colunas: campos.map(c => ({ nome: c, evidencia: c })) });
   }
-  if (sis.includes('conferente de qualidade')) return qc === 'ok' ? QC_OK : qc === 'parcial' ? 'não consegui conferir' : '{"criterios":[{"id":"formato","ok":false,"motivo":"fora do formato"}]}';
+  if (sis.includes('conferente de qualidade')) return qc === 'ok' ? QC_OK : qc === 'parcial' ? 'não consegui conferir' : '{"criterios":[{"id":"completo","ok":false,"motivo":"faltou parte do material"}]}';
   if (/A conferência de qualidade encontrou/.test(ultima)) return qc === 'falha' ? 'Resultado ainda fora do formato.' : execucao(b.messages.find(m => m.role === 'system'));
   if (!/Você está executando o Quick Win/.test(sis)) return /maior valor/i.test(ultima) ? 'O maior valor é R$ 3.400,00, do cliente Beta Serviços.' : 'Certo. Segue a resposta, em texto corrido.';
   return execucao(b.messages[0]);

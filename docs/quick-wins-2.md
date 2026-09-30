@@ -142,6 +142,20 @@ inventar.
   rota da execução: mesmo sigilo, fornecedor fixo e preferência de não treino. A defesa final de credenciais vale
   também nessas chamadas.
 - **Falha:** uma correção automática e uma nova conferência (`MAX_CORRECOES = 1`), ou seja, no máximo 4 chamadas.
+- **Contrato confirmado é a autoridade final** (`configuracao_confirmada`):
+  - **Código:** confere tudo o que dá para comparar. Na tabela, exige exatamente as colunas de `formato_saida.colunas`,
+    com os mesmos nomes e na mesma ordem: coluna faltando, coluna a mais e ordem trocada reprovam. Também confere
+    tópicos e seções.
+  - **IA:** confere só o que é semântico: regras, regras próprias, cobertura do material e invenção. O critério
+    "formato" sai da IA, exceto no formato livre ("Outro").
+  - **O que a IA recebe:** a *intenção do trabalho*, sem a estrutura antiga. O trecho do objetivo que nomeava os
+    campos, localizado pelas evidências conferidas na estruturação, é trocado por "[os campos do contrato
+    confirmado]". Sem essas evidências, e com colunas da pessoa ou do exemplo, o texto original não vai. A IA
+    também recebe o contrato confirmado, marcado como já conferido pelo sistema.
+  - **Correção:** o pedido lembra as colunas exatas. Uma barreira no código descarta, sem nova chamada, a correção
+    que tira do contrato um resultado que estava dentro dele. O resultado original segue como `inconsistente`
+    (`correcao_descartada: "contrato"`) e nunca aparece como corrigido.
+  - Especificações sem configuração confirmada seguem como antes: coluna a mais é tolerada e a IA confere o formato.
 - **Reserva do plano:** só a conferência determinística, sem chamadas extras.
 - **O que a pessoa vê:** "Teste concluído ✓ / Regras respeitadas ✓ / Resultado completo ✓ / Formato correto ✓ /
   Nenhuma informação inventada detectada ✓".

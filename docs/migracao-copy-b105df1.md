@@ -16,7 +16,7 @@ empresa, a conversa só usa recursos autorizados; se não houver, nada é enviad
 
 ## Como rodou
 
-- Release `ea986c8` (em cima de `b105df1`), no boot, antes de abrir as empresas e de aceitar tráfego.
+- Release `ea986c8` (em cima de `b105df1`), no boot (o segundo boot, em `01ff973`, encontrou o marcador e não reaplicou), antes de abrir as empresas e de aceitar tráfego.
 - Pre-check sem escrita, ensaio real com ROLLBACK por empresa, aplicação uma empresa por transação e validação
   final (alvos, textos antigos ausentes, auditoria, `integrity_check`, política e config dos tenants intactas).
 - Gravação só por `salvarLanding` e `salvarMarca`. Nenhuma política publicada; `sincronizarPolitica` não foi chamada.

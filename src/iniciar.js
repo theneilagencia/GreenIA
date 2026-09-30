@@ -15,8 +15,6 @@ import { apagarVencidas } from './conversas.js';
 import { agendarBackup, fazerBackup } from './backup.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
-import { abrirPlataforma } from './plataforma/db.js';
-import { migrarCopyB105df1 } from './plataforma/migracao-copy-b105df1.js';
 
 export async function iniciar(env = process.env) {
   if (env.MULTIEMPRESA === '1') return iniciarPlataforma(env);
@@ -68,9 +66,6 @@ export async function iniciarPlataforma(env = process.env) {
   const lista = v => String(v || '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
   const host = (env.PLATAFORMA_HOST || '').toLowerCase();
   const legado = env.BANCO || 'dados/greenia.sqlite';
-  // Migração única do release de copy b105df1 (temporária): antes de abrir as empresas e de aceitar tráfego.
-  // Se falhar, o boot para aqui e o deploy falha, sem marcar a migração.
-  const migracao = migracaoNoBoot(env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite');
   const P = criarPlataforma({
     ia, chaveVariavel: mascarar(env.OPENROUTER_API_KEY), fuso: env.PLATAFORMA_FUSO || undefined, banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
@@ -82,7 +77,6 @@ export async function iniciarPlataforma(env = process.env) {
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).
     legado: existsSync(legado) ? { banco: legado, slug: env.EMPRESA_SLUG, plano: lerPlano(env) } : null,
   });
-  if (migracao.estado !== 'nao_aplicavel') P.migracaoCopy = migracao.estado;   // exposto em /api/saude enquanto o mecanismo existir
   // Chave da variável: identificada por impressão digital (HMAC com a chave-mestra), nunca pela chave.
   // Mudar a variável gera outra impressão: o ciclo de troca e os avisos recomeçam para a chave nova.
   if (env.OPENROUTER_API_KEY) P.chaveVariavelId = impressaoChave(P.mestra(), env.OPENROUTER_API_KEY);
@@ -128,14 +122,6 @@ export async function iniciarPlataforma(env = process.env) {
   process.on('SIGTERM', parar);
   process.on('SIGINT', parar);
   return P;
-}
-
-function migracaoNoBoot(arquivo) {
-  const db = abrirPlataforma(arquivo);
-  try { return migrarCopyB105df1(db); } catch (e) {
-    console.error(`[migracao] FALHA, boot interrompido e migracao nao marcada: ${e.message}`);
-    throw e;
-  } finally { db.close(); }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await iniciar();

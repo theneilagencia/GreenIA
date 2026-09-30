@@ -1466,3 +1466,11 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .nova-regra{margin-top:14px}
 .nova-regra-campo{display:flex;gap:8px;align-items:center;margin-top:10px}
 .nova-regra-campo .entrada{flex:1;min-width:0}
+.colunas .legenda{margin-bottom:2px}
+.colunas-lista{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.colunas-lista li{display:flex;align-items:center;gap:6px}
+.colunas-lista .entrada{flex:1;min-width:0}
+.btn-icone{flex:none;width:36px;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:500 15px var(--sans);cursor:pointer}
+.btn-icone:disabled{opacity:.35;cursor:default}
+.btn-icone:not(:disabled):hover{border-color:var(--forest)}
+.colunas #adicionar-coluna{margin-top:10px}

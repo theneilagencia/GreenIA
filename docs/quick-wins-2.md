@@ -15,6 +15,8 @@ saída. Quem usa nunca vê prompt, modelo, fornecedor, tokens, temperatura ou JS
    Em *+ Adicionar regra*, a pessoa escreve regras próprias (até 5, com até 160 caracteres cada), que entram na mesma
    lista e podem ser removidas antes de continuar.
 4. **Formato.** Resumo, Lista, Tabela, Relatório ou Outro. O formato sugerido vem com o motivo e é aceito com um clique.
+   Na tabela, "O que deve aparecer em cada linha?" mostra as colunas. A pessoa pode adicionar, remover, renomear e
+   mudar a ordem (ver "Colunas pedidas no objetivo").
 5. **Testar.** Com exemplo automático (sintético), texto colado ou arquivo. O teste roda o Quick Win completo, com a
    conferência de qualidade, e não entra na medição.
 
@@ -23,12 +25,53 @@ A publicação vem depois do teste:
 - mostra o resultado do teste e as regras principais;
 - termina no botão *Publicar Quick Win*.
 
-Criar não chama a IA e não gasta créditos. O construtor (`src/quickwin-construtor.js`) é determinístico.
+O construtor (`src/quickwin-construtor.js`) é determinístico. A única chamada de IA da criação é a estruturação do
+objetivo, descrita abaixo.
+
+## Colunas pedidas no objetivo
+
+"Gere uma tabela com Cliente, Valor e Status." precisa virar as colunas Cliente, Valor e Status do contrato, sem
+exemplo e sem ler o texto com regras frágeis.
+
+- **Quem interpreta:** a IA, em `src/quickwin-estrutura.js`, com `POST /api/quick-wins/assistente/estrutura`.
+  - Devolve `{"colunas":[{"nome","evidencia"}]}`: só os campos que a pessoa nomeou, cada um com o trecho do objetivo
+    de onde veio.
+  - Pedido aberto ("os principais pontos") devolve a lista vazia.
+- **Quem valida:** o servidor, de forma determinística (`validarColunas`). A evidência precisa existir no objetivo
+  e conter o nome do campo, sem diferenciar maiúsculas, acentos e espaços. O que não passa é descartado. Não há uma
+  segunda IA.
+- **Quando roda:** uma vez por objetivo, ao preparar a etapa Resultado.
+  - A estrutura fica guardada com a chave do objetivo (`chaveObjetivo`, um hash).
+  - Voltar, avançar, reabrir ou mudar regras não chama de novo.
+  - Mudar o objetivo chama uma vez.
+- **Governança:** a chamada usa os mecanismos existentes, sem alterar nenhum deles:
+  - política de uso;
+  - limites e tetos;
+  - plano: na reserva, não há chamada;
+  - filtro de credenciais e dados: com dado protegido ou Quick Win sigiloso, não há chamada;
+  - proteção reforçada da área;
+  - roteamento, na classe rápida, se a pessoa tiver acesso;
+  - conferência final do recurso;
+  - registro da decisão (`roteamento.origem = 'quick_win_estrutura'`), do uso e do evento de créditos, sem conteúdo.
+- **Precedência das colunas** (`formato_saida.colunas`, com `origem_colunas`):
+  1. definidas pela pessoa (`pessoa`, soberanas);
+  2. do exemplo (`exemplo`, como antes);
+  3. do objetivo (`objetivo`);
+  4. estruturação falhou (`livre`): nenhuma coluna fixa;
+  5. nada pedido (`sugestao`): a sugestão do tipo de trabalho, como antes.
+- **Objetivo × exemplo em conflito:** o exemplo continua valendo e nada é somado. O conflito fica em
+  `origem.conflito_colunas`, para uma decisão posterior.
+- **Objetivo mudou depois de a pessoa ajustar as colunas:** o ajuste fica, e a nova estrutura aparece só como
+  sugestão ("Usar estas colunas" ou "Manter as minhas").
+- **Falha:** "Não conseguimos sugerir a estrutura agora. Você pode defini-la abaixo." A criação não é bloqueada. A
+  tabela sem colunas fixas pede ao modelo "as colunas que o objetivo pede" e não cobra nenhuma coluna na conferência.
+- **Fonte única:** execução, Quality Check (contrato determinístico e critério da IA), correção e versões leem só
+  `formato_saida.colunas`. Nada interpreta o objetivo de novo depois de confirmado.
 
 ## Especificação interna (`quick_wins.especificacao`)
 
 Campos: `objetivo`, `contexto`, `procedimento`, `regras`, `regras_proprias`, `restricoes`, `criterios_decisao`, `formato_saida`
-(tipo, colunas, seções), `exemplos` (só a estrutura), `perguntas_esclarecimento`, `nivel_autonomia`,
+(tipo, colunas, seções, origem das colunas), `exemplos` (só a estrutura), `perguntas_esclarecimento`, `nivel_autonomia`,
 `fontes_permitidas`, `ferramentas_permitidas`, `criterios_qualidade`, `dicas_roteamento`, `origem`.
 
 A especificação só é gravada pelo construtor:

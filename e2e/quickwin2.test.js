@@ -16,9 +16,18 @@ let N, OR, qc = 'ok';
 const texto = c => (typeof c === 'string' ? c : c.map(p => p.text).join('\n'));
 
 // IA falsa: na execução, devolve exatamente as colunas e seções que o prompt de execução pede; na conversa
-// normal, responde à pergunta; na conferência, o veredito do cenário.
+// normal, responde à pergunta; na conferência, o veredito do cenário; na estruturação do objetivo, os campos que
+// cada objetivo do teste nomeia (com o trecho de origem), ou uma resposta ilegível no cenário de falha.
+const CAMPOS = { 'Cliente, Valor e Status': ['Cliente', 'Valor', 'Status'], 'Fornecedor, Vencimento, Valor contratado e Situação': ['Fornecedor', 'Vencimento', 'Valor contratado', 'Situação'] };
+let estruturaFalha = false;
+const ehEstruturacao = b => texto(b.messages[0].content).includes('Você organiza o pedido');
 function responder(b) {
   const sis = texto(b.messages[0].content), ultima = String(b.messages.at(-1).content);
+  if (ehEstruturacao(b)) {
+    if (estruturaFalha) return 'sem resposta';
+    const campos = Object.entries(CAMPOS).find(([k]) => ultima.includes(k))?.[1] || [];
+    return JSON.stringify({ colunas: campos.map(c => ({ nome: c, evidencia: c })) });
+  }
   if (sis.includes('conferente de qualidade')) return qc === 'ok' ? QC_OK : qc === 'parcial' ? 'não consegui conferir' : '{"criterios":[{"id":"formato","ok":false,"motivo":"fora do formato"}]}';
   if (/A conferência de qualidade encontrou/.test(ultima)) return qc === 'falha' ? 'Resultado ainda fora do formato.' : execucao(b.messages.find(m => m.role === 'system'));
   if (!/Você está executando o Quick Win/.test(sis)) return /maior valor/i.test(ultima) ? 'O maior valor é R$ 3.400,00, do cliente Beta Serviços.' : 'Certo. Segue a resposta, em texto corrido.';
@@ -320,5 +329,93 @@ test('editar um Quick Win publicado cria a próxima versão sem mexer na publica
   const depois = await (await p.request.get(`${N.base}/api/quick-wins/${q.id}`)).json();
   assert.equal(depois.versao, 1);
   assert.ok(depois.regras.length >= 1 && regra);
+  assert.deepEqual(erros, []);
+});
+
+test('colunas do objetivo: uma estruturação por objetivo, revisão e ajuste manual soberano, falha sem inventar', async () => {
+  qc = 'ok';
+  const p = await N.contexto.newPage();
+  const erros = [];
+  p.on('pageerror', e => erros.push(e.message));
+  const estruturacoes = () => OR.chamadas.filter(ehEstruturacao).length;
+  const colunas = () => p.$$eval('[data-coluna]', l => l.map(i => i.value));
+  const irResultado = async () => { for (const sel of ['#processo', 'input[name=regra]', 'input[name=saida]']) { await p.click('[data-continuar]'); await p.waitForSelector(sel); } };
+  await p.goto(`${N.base}/app#/qw/nova`);
+  await p.waitForSelector('#objetivo');
+  await p.fill('#objetivo', 'Gere uma tabela com Cliente, Valor e Status.');
+  let n = estruturacoes();
+  for (const sel of ['#processo', 'input[name=regra]', 'input[name=saida]']) { await p.click('[data-continuar]'); await p.waitForSelector(sel); }
+  assert.equal(estruturacoes() - n, 1, 'objetivo novo: 1 chamada ao preparar a etapa Resultado');
+  assert.equal(await p.locator('input[name=saida]:checked').getAttribute('value'), 'tabela');
+  assert.deepEqual(await colunas(), ['Cliente', 'Valor', 'Status']);
+  assert.match(await p.textContent('#colunas-origem'), /Pelo que você escreveu no objetivo/);
+  assert.doesNotMatch(await p.textContent('#principal'), TECNICO);
+  // Voltar e avançar; mudar só uma regra: nenhuma chamada nova.
+  n = estruturacoes();
+  await p.click('[data-voltar]'); await p.waitForSelector('input[name=regra]');
+  await p.locator('input[name=regra]:not([disabled])').first().uncheck();
+  await p.click('[data-continuar]'); await p.waitForSelector('input[name=saida]');
+  await p.click('[data-voltar]'); await p.waitForSelector('input[name=regra]');
+  await p.click('[data-continuar]'); await p.waitForSelector('input[name=saida]');
+  assert.equal(estruturacoes() - n, 0, 'mesmo objetivo: 0 chamadas');
+  assert.deepEqual(await colunas(), ['Cliente', 'Valor', 'Status']);
+  // Objetivo alterado: 1 chamada nova e as colunas acompanham (a pessoa ainda não mexeu nelas).
+  await p.click('.passos [data-ir-etapa="0"]'); await p.waitForSelector('#objetivo');
+  await p.fill('#objetivo', 'Organize em uma tabela com Fornecedor, Vencimento, Valor contratado e Situação.');
+  n = estruturacoes();
+  await irResultado();
+  assert.equal(estruturacoes() - n, 1);
+  assert.deepEqual(await colunas(), ['Fornecedor', 'Vencimento', 'Valor contratado', 'Situação']);
+  // Ajuste manual: renomear, mudar a ordem, remover, adicionar.
+  await p.fill('#coluna-3', 'Situação do documento');
+  await p.click('[data-subir="1"]');
+  await p.waitForFunction(() => document.querySelector('#coluna-0')?.value === 'Vencimento');
+  await p.click('[data-remover-coluna="2"]');
+  await p.waitForFunction(() => document.querySelectorAll('[data-coluna]').length === 3);
+  await p.click('#adicionar-coluna');
+  await p.fill('#coluna-3', 'Responsável');
+  assert.deepEqual(await colunas(), ['Vencimento', 'Fornecedor', 'Situação do documento', 'Responsável']);
+  await p.click('[data-voltar]'); await p.waitForSelector('input[name=regra]');
+  await p.click('[data-continuar]'); await p.waitForSelector('input[name=saida]');
+  assert.deepEqual(await colunas(), ['Vencimento', 'Fornecedor', 'Situação do documento', 'Responsável'], 'o ajuste não se perde');
+  assert.match(await p.textContent('#colunas-origem'), /Do jeito que você definiu/);
+  // Objetivo muda de novo: a estrutura da pessoa fica; a nova vira só uma sugestão.
+  await p.click('.passos [data-ir-etapa="0"]'); await p.waitForSelector('#objetivo');
+  await p.fill('#objetivo', 'Gere uma tabela com Cliente, Valor e Status.');
+  n = estruturacoes();
+  await irResultado();
+  assert.equal(estruturacoes() - n, 1);
+  assert.deepEqual(await colunas(), ['Vencimento', 'Fornecedor', 'Situação do documento', 'Responsável'], 'a IA não sobrescreve o que a pessoa definiu');
+  assert.match(await p.textContent('#colunas-bloco .aviso-linha'), /O objetivo mudou\. Pelo novo objetivo: Cliente, Valor, Status\./);
+  await p.click('#manter-colunas');
+  await p.waitForFunction(() => !document.querySelector('#colunas-bloco .aviso-linha'));
+  // Salvar (Continuar): o contrato é o que a pessoa confirmou; o teste executa com essas colunas.
+  await p.click('[data-continuar]'); await p.waitForSelector('[data-testar]');
+  const id = Number(/#\/qw\/(\d+)/.exec(p.url())[1]);
+  const espec = JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id = ?').get(id).especificacao);
+  assert.deepEqual(espec.formato_saida.colunas, ['Vencimento', 'Fornecedor', 'Situação do documento', 'Responsável']);
+  assert.equal(espec.formato_saida.origem_colunas, 'pessoa');
+  const antes = OR.chamadas.length;
+  await p.click('[data-testar]');
+  await p.waitForSelector('#teste-resultado .qc');
+  assert.match(texto(OR.chamadas[antes].messages[0].content), /cabeçalho exatamente nestas colunas: Vencimento \| Fornecedor \| Situação do documento \| Responsável\./);
+  assert.equal(OR.chamadas.slice(antes).filter(ehEstruturacao).length, 0, 'a execução não estrutura de novo');
+  // Revisão: mostra as colunas combinadas.
+  await p.click('[data-continuar]'); await p.waitForSelector('.resumo-pub');
+  assert.match(await p.textContent('.resumo-pub'), /Tabela · Vencimento, Fornecedor, Situação do documento, Responsável/);
+  // Falha da estruturação: mensagem simples, nenhuma coluna fixa inventada; a pessoa define.
+  await p.goto(`${N.base}/app#/qw/nova`);
+  await p.waitForSelector('#objetivo');
+  await p.fill('#objetivo', 'Monte uma tabela das entregas da semana.');
+  estruturaFalha = true;
+  for (const sel of ['#processo', 'input[name=regra]', 'input[name=saida]']) { await p.click('[data-continuar]'); await p.waitForSelector(sel); }
+  estruturaFalha = false;
+  assert.match(await p.textContent('#colunas-origem'), /Não conseguimos sugerir a estrutura agora\. Você pode defini-la abaixo\./);
+  assert.deepEqual(await colunas(), [], 'sem Item / Descrição / Observação');
+  await p.click('#adicionar-coluna');
+  await p.fill('#coluna-0', 'Entrega');
+  await p.click('[data-continuar]'); await p.waitForSelector('[data-testar]');
+  const id2 = Number(/#\/qw\/(\d+)/.exec(p.url())[1]);
+  assert.deepEqual(JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id = ?').get(id2).especificacao).formato_saida.colunas, ['Entrega']);
   assert.deepEqual(erros, []);
 });

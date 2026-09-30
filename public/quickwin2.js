@@ -40,7 +40,13 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
     modoProc: o.como?.modo === 'mostrar' ? 'exemplo' : 'explicar', processo: o.como?.modo === 'explicar' ? o.como.texto || '' : '',
     exemplo: '', exemploNome: '', estruturaAnterior: o.exemplo || null, estruturaSugerida: null,
     sugestao: null, regras: o.regras ? new Set(o.regras) : null, proprias: [...(o.regras_proprias || [])], formato: o.formato || null, formatoDescricao: o.formato_descricao || '',
-    salvo: qw ? assinatura({ descricao: o.descricao || '', arquetipo: o.arquetipo || null, como: o.como || {}, regras: o.regras || [], formato: o.formato || null, formato_descricao: o.formato_descricao || '', regras_proprias: o.regras_proprias || [] }) : null,
+    formatoPessoa: !!o.formato,
+    // Colunas da tabela: a estrutura pedida no objetivo (calculada uma vez por objetivo), as colunas atuais e
+    // de onde vieram. Definidas pela pessoa, valem até ela mesma trocar.
+    estrutura: o.estrutura_objetivo ? { ...o.estrutura_objetivo, descricao: o.descricao || '' } : null,
+    colunas: o.colunas ? [...o.colunas] : null, colunasOrigem: o.colunas_origem || null, colunasDescricao: o.descricao || '',
+    salvo: qw ? assinatura({ descricao: o.descricao || '', arquetipo: o.arquetipo || null, como: o.como || {}, regras: o.regras || [], formato: o.formato || null, formato_descricao: o.formato_descricao || '', regras_proprias: o.regras_proprias || [],
+      colunas: o.colunas || null, colunas_origem: o.colunas_origem || null, estrutura_objetivo: paraEnvio(o.estrutura_objetivo) }) : null,
     teste: { modo: 'auto', texto: '', anexo: null, entradaAuto: null }, resultado: null, publicado: null,
   };
   const publicada = qw?.versao;
@@ -70,7 +76,60 @@ function respostas(W) {
   const como = W.modoProc === 'exemplo'
     ? (W.exemplo || W.estruturaAnterior ? { modo: 'mostrar', exemplo: W.exemplo } : { modo: 'pronto' })
     : W.processo.trim() ? { modo: 'explicar', texto: W.processo.trim() } : { modo: 'pronto' };
-  return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias] };
+  return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias],
+    colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W) };
+}
+const paraEnvio = e => (e ? { chave: e.chave, colunas: e.colunas || [], falhou: !!e.falhou } : null);
+const estruturaAtual = W => (W.estrutura && W.estrutura.chave && W.estrutura.descricao === W.descricao ? paraEnvio(W.estrutura) : null);
+
+// Estrutura pedida no objetivo: uma chamada só quando o objetivo é novo ou mudou (voltar, avançar e reabrir a
+// etapa Resultado não chamam de novo). Falhou: a pessoa define as colunas; nada é inventado.
+async function estruturar(W) {
+  if (!W.descricao || W.estrutura?.descricao === W.descricao) return;
+  let r;
+  try { r = await api('/api/quick-wins/assistente/estrutura', { metodo: 'POST', corpo: { descricao: W.descricao, ...(W.id ? { quick_win_id: W.id } : {}) } }); }
+  catch { r = { chave: null, colunas: [], falhou: true }; }
+  W.estrutura = { descricao: W.descricao, chave: r.chave, colunas: r.colunas || [], falhou: !!r.falhou };
+}
+const mesmas = (a, b) => a.length === b.length && a.every((x, i) => x.toLowerCase() === String(b[i]).toLowerCase());
+function definirColunas(W, s) {
+  const exemplo = s.exemplo?.colunas?.length ? s.exemplo.colunas : W.modoProc === 'exemplo' && !W.exemplo ? W.estruturaAnterior?.colunas || [] : [];
+  const doObjetivo = W.estrutura?.descricao === W.descricao ? W.estrutura.colunas.map(c => c.nome) : [];
+  W.novaSugestao = null;
+  if (W.colunasOrigem === 'pessoa') {
+    // A decisão da pessoa vale. Se o objetivo mudou depois dela, a nova estrutura vira só uma sugestão.
+    if (W.colunasDescricao !== W.descricao && doObjetivo.length && !exemplo.length && !mesmas(doObjetivo, W.colunas || [])) W.novaSugestao = doObjetivo;
+    return;
+  }
+  if (exemplo.length) [W.colunas, W.colunasOrigem] = [[...exemplo], 'exemplo'];
+  else if (doObjetivo.length) [W.colunas, W.colunasOrigem] = [doObjetivo, 'objetivo'];
+  else if (W.estrutura?.falhou) [W.colunas, W.colunasOrigem] = [[], 'livre'];
+  else [W.colunas, W.colunasOrigem] = [[...(s.colunasSugeridas || [])], 'sugestao'];
+}
+const marcarPessoa = W => { W.colunasOrigem = 'pessoa'; W.colunasDescricao = W.descricao; W.novaSugestao = null; };
+const ORIGEM_COLUNAS = {
+  objetivo: 'Pelo que você escreveu no objetivo. Ajuste se precisar.',
+  exemplo: 'Do exemplo que você mostrou.',
+  sugestao: 'Sugestão para esse tipo de trabalho. Ajuste como preferir.',
+  pessoa: 'Do jeito que você definiu.',
+};
+function htmlColunas(W) {
+  const c = W.colunas || [];
+  const origem = W.colunasOrigem === 'livre' || (!c.length && W.estrutura?.falhou && W.colunasOrigem !== 'pessoa')
+    ? 'Não conseguimos sugerir a estrutura agora. Você pode defini-la abaixo.'
+    : !c.length ? 'Sem colunas definidas: a GreenIA monta as que o pedido pedir.' : ORIGEM_COLUNAS[W.colunasOrigem] || '';
+  return `<div id="colunas-bloco" class="bloco-extra colunas ${W.formato === 'tabela' ? '' : 'oculto'}">
+      <p class="legenda" id="colunas-titulo">O que deve aparecer em cada linha?</p>
+      <p class="dica" id="colunas-origem">${esc(origem)}</p>
+      ${W.novaSugestao ? aviso(`O objetivo mudou. Pelo novo objetivo: <b>${esc(W.novaSugestao.join(', '))}</b>.`, 'info',
+        '<button type="button" class="btn btn-linha btn-pequeno" id="usar-sugestao-colunas">Usar estas colunas</button><button type="button" class="link-sutil" id="manter-colunas">Manter as minhas</button>') : ''}
+      <ol class="colunas-lista" aria-labelledby="colunas-titulo">${c.map((nome, i) => `<li>
+        <label class="sr" for="coluna-${i}">Coluna ${i + 1}</label><input class="entrada" id="coluna-${i}" data-coluna="${i}" maxlength="40" value="${esc(nome)}">
+        <button type="button" class="btn-icone" data-subir="${i}" aria-label="Subir a coluna ${esc(nome || i + 1)}" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" class="btn-icone" data-descer="${i}" aria-label="Descer a coluna ${esc(nome || i + 1)}" ${i === c.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="link-sutil" data-remover-coluna="${i}" aria-label="Remover a coluna ${esc(nome || i + 1)}">Remover</button></li>`).join('')}</ol>
+      ${c.length >= 8 ? '<p class="dica">Até 8 colunas.</p>' : '<button type="button" class="link-sutil" id="adicionar-coluna">+ Adicionar coluna</button>'}
+    </div>`;
 }
 
 async function desenhar(W, { foco = true } = {}) {
@@ -109,6 +168,8 @@ function guardarEtapa(W) {
   if (W.passo === 2 && $('nova-regra-texto')?.value.trim()) adicionarPropria(W, $('nova-regra-texto').value);   // escrita e não adicionada: não se perde
   if (W.passo === 3) {
     W.formato = document.querySelector('input[name=saida]:checked')?.value || W.formato;
+    const campos = [...document.querySelectorAll('[data-coluna]')].map(i => i.value.trim());
+    if (document.querySelector('[data-coluna]') && !mesmas(campos, W.colunas || [])) { W.colunas = campos; marcarPessoa(W); }
     if ($('formato-descricao')) W.formatoDescricao = $('formato-descricao').value.trim();
   }
   if (W.passo === 4 && $('teste-texto')) W.teste.texto = $('teste-texto').value;
@@ -131,14 +192,16 @@ async function continuar(W) {
 }
 
 async function sugerir(W) {
-  if (W.sugestao) return W.sugestao;
+  const est = estruturaAtual(W);
+  if (W.sugestao && W.sugestaoChave === (est?.chave ?? null)) return W.sugestao;
   const r = respostas(W);
-  W.sugestao = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: W.descricao, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo } } });
+  W.sugestao = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: W.descricao, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo }, estrutura: est } });
+  W.sugestaoChave = est?.chave ?? null;
   const sugeridas = W.sugestao.regras.map(x => x.id);
   // Mantém as escolhas anteriores que continuam valendo; "não inventar" sempre.
   W.regras = W.regras ? new Set(['nao_inventar', ...[...W.regras].filter(x => sugeridas.includes(x))]) : new Set(W.sugestao.regras.filter(x => x.marcada).map(x => x.id));
   if (W.regras.size <= 1) W.sugestao.regras.forEach(x => x.marcada && W.regras.add(x.id));
-  if (!W.formato || (W.modoProc === 'exemplo' && W.exemplo)) W.formato = W.sugestao.formato.sugerido;
+  if (!W.formato || !W.formatoPessoa || (W.modoProc === 'exemplo' && W.exemplo)) W.formato = W.sugestao.formato.sugerido;
   return W.sugestao;
 }
 
@@ -204,7 +267,9 @@ const ETAPA_HTML = [
   },
   // 4. Resultado
   async W => {
+    await estruturar(W);
     const s = await sugerir(W);
+    definirColunas(W, s);
     const sug = s.formato.sugerido;
     return `${pergunta('Como você quer receber a resposta?', '')}
       <p class="saida-motivo"><b>Sugestão da GreenIA:</b> ${esc(s.formato.motivo)}</p>
@@ -216,6 +281,7 @@ const ETAPA_HTML = [
       </fieldset>
       <div id="saida-outro" class="bloco-extra ${W.formato === 'outro' ? '' : 'oculto'}"><label class="legenda" for="formato-descricao">Como o resultado deve vir?</label>
         <input class="entrada" id="formato-descricao" maxlength="200" value="${esc(W.formatoDescricao || s.formato.descricao || '')}" placeholder="Ex.: mensagem pronta para enviar ao cliente, com o que conferir antes"></div>
+      ${htmlColunas(W)}
       ${rodape(W)}`;
   },
   // 5. Testar (também é a tela de teste de um Quick Win já criado)
@@ -249,7 +315,7 @@ const ETAPA_HTML = [
           <div class="oculto" id="desc-edicao"><label class="sr" for="desc">O que o Quick Win faz</label><textarea class="entrada" id="desc" rows="2" maxlength="200">${esc(q.para_que_serve)}</textarea></div></div></li>
         <li><span class="r">Considera</span><div>${considera}</div></li>
         <li><span class="r">Respeita</span><ul>${(q.regras_rascunho || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul></li>
-        <li><span class="r">Entrega</span><div>${esc(FORMATOS_SAIDA[a.formato]?.rotulo || '')}${a.formato === 'outro' && a.formato_descricao ? ` · ${esc(a.formato_descricao)}` : ''}</div></li>
+        <li><span class="r">Entrega</span><div>${esc(FORMATOS_SAIDA[a.formato]?.rotulo || '')}${a.formato === 'outro' && a.formato_descricao ? ` · ${esc(a.formato_descricao)}` : ''}${a.formato === 'tabela' && a.colunas?.length ? ` · ${esc(a.colunas.join(', '))}` : ''}</div></li>
         <li><span class="r">Teste</span><div>${teste ? painelQualidade(teste, { id: 'revisao' }) || '<span class="dica">A IA pediu mais informação no último teste.</span>' : '<span class="dica">Ainda não testado.</span> <button type="button" class="link-sutil" data-ir-teste>Testar agora</button>'}</div></li>
         ${areas.length > 1 || E.permQw.todaEmpresa ? `<li><span class="r">Quem usa</span><div class="opcoes">${areas.map(x => `<label><input type="checkbox" name="area" value="${x.id}" ${q.areas.includes(x.id) ? 'checked' : ''}> ${esc(x.nome)}</label>`).join('')}
           ${E.permQw.todaEmpresa ? `<label><input type="checkbox" id="toda" ${q.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></li>` : ''}
@@ -363,7 +429,16 @@ const ETAPA_LIGAR = [
     $('nova-regra-texto')?.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirmar(); } });
   },
   W => {
-    document.querySelectorAll('input[name=saida]').forEach(r => { r.onchange = () => { W.formato = r.value; $('saida-outro').classList.toggle('oculto', r.value !== 'outro'); }; });
+    document.querySelectorAll('input[name=saida]').forEach(r => { r.onchange = () => { W.formato = r.value; W.formatoPessoa = true; $('saida-outro').classList.toggle('oculto', r.value !== 'outro'); $('colunas-bloco').classList.toggle('oculto', r.value !== 'tabela'); }; });
+    // Colunas: adicionar, remover, renomear (no próprio campo) e mudar a ordem. Qualquer ajuste é decisão da pessoa.
+    const refazer = (mudar, foco) => { guardarEtapa(W); W.colunas = [...(W.colunas || [])]; mudar(W.colunas); marcarPessoa(W); desenhar(W, { foco: false }).then(() => (typeof foco === 'function' ? foco() : $(foco))?.focus()); };
+    const trocar = (i, j) => c => { [c[i], c[j]] = [c[j], c[i]]; };
+    document.querySelectorAll('[data-subir]').forEach(b => { const i = Number(b.dataset.subir); b.onclick = () => refazer(trocar(i, i - 1), () => document.querySelector(`[data-subir="${i - 1}"]`) || $(`coluna-${i - 1}`)); });
+    document.querySelectorAll('[data-descer]').forEach(b => { const i = Number(b.dataset.descer); b.onclick = () => refazer(trocar(i, i + 1), () => document.querySelector(`[data-descer="${i + 1}"]`) || $(`coluna-${i + 1}`)); });
+    document.querySelectorAll('[data-remover-coluna]').forEach(b => { const i = Number(b.dataset.removerColuna); b.onclick = () => refazer(c => c.splice(i, 1), 'adicionar-coluna'); });
+    $('adicionar-coluna')?.addEventListener('click', () => refazer(c => c.push(''), () => $(`coluna-${W.colunas.length - 1}`)));
+    $('usar-sugestao-colunas')?.addEventListener('click', () => { guardarEtapa(W); W.colunas = [...W.novaSugestao]; W.colunasOrigem = 'objetivo'; W.novaSugestao = null; desenhar(W, { foco: false }).then(() => $('coluna-0')?.focus()); });
+    $('manter-colunas')?.addEventListener('click', () => { guardarEtapa(W); W.colunasDescricao = W.descricao; W.novaSugestao = null; desenhar(W, { foco: false }).then(() => $('coluna-0')?.focus()); });
   },
   W => {
     document.querySelectorAll('[data-material]').forEach(b => { b.onclick = () => { guardarEtapa(W); W.teste.modo = b.dataset.material; W.resultado = W.resultado?.rodando ? W.resultado : null; desenhar(W, { foco: false }); }; });

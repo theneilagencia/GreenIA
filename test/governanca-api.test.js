@@ -249,8 +249,16 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   const andar = d => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) andar(p); else if (p.endsWith('.js')) arquivos.push(p); } };
   andar(raiz);
   const chamadas = arquivos.flatMap(p => (readFileSync(p, 'utf8').match(/\bia\.enviar\(/g) || []).map(() => p.slice(raiz.length)));
-  // Duas chamadas, as duas no envio de mensagens: a execução e a conferência de qualidade do Quick Win 2.0.
-  assert.deepEqual(chamadas, ['conversas.js', 'conversas.js'], 'só o envio de mensagens executa modelo');
+  // Duas chamadas no envio de mensagens (a execução e a conferência de qualidade do Quick Win 2.0) e uma na
+  // estruturação do objetivo do Quick Win, que passa pelos mesmos mecanismos (conferidos abaixo).
+  assert.deepEqual(chamadas.sort(), ['conversas.js', 'conversas.js', 'quickwin-estrutura.js'], 'só o envio de mensagens e a estruturação do objetivo executam modelo');
+  const est = readFileSync(join(raiz, 'quickwin-estrutura.js'), 'utf8');
+  const antesDoEnvio = trecho => { const i = est.indexOf(trecho); assert.ok(i >= 0 && i < est.indexOf('app.ia.enviar('), `estruturação: "${trecho}" antes do envio`); };
+  ['cienciaPendente(app, pessoa)', 'app.limites?.checar(pessoa, cfg)', 'checarPlano(app)', 'decidir(tipos, cfg.acoesChat)', 'contemCredencial(textoDe(mensagens))',
+    'modeloPermitido(app.db, cfg, pessoa', 'const rota = rotear({', 'avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa: false })', 'insert into roteamento'].forEach(antesDoEnvio);
+  assert.match(est, /app\.ia\.enviar\(mensagens, \{ modelo: m\.id, reserva: rota\.reserva, sigilosa: false/, 'estruturação: executa o que o roteador decidiu');
+  assert.match(est, /const m = rota\.modelo;/);
+  assert.match(est, /insert into uso/, 'estruturação: consumo registrado');
   const conv = readFileSync(join(raiz, 'conversas.js'), 'utf8');
   // A conferência usa o recurso e a rota já decididos e conferidos (nunca escolhe modelo), depois da execução.
   assert.match(conv, /app\.ia\.enviar\(msgs, \{ modelo: atual\.id, reserva: null, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'a conferência de qualidade usa a mesma decisão');

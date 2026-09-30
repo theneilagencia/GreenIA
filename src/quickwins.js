@@ -12,6 +12,7 @@ import { buscar, desindexar, indexar } from './busca.js';
 import { trechosDasBases } from './bases.js';
 import { acharModelo, custoEstimado, ehClasse, lerModelos, NOMES_CLASSE, resolverClasse } from './modelos.js';
 import * as QW2 from './quickwin-construtor.js';
+import { estruturarObjetivo } from './quickwin-estrutura.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -97,12 +98,16 @@ const ESPEC = Symbol('especificacao');
 
 // Respostas da criação em 5 etapas -> campos do Quick Win. Segredo no que a pessoa escreveu ou mostrou: recusa.
 function doAssistente(app, cfg, a, atual = {}) {
-  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto)]))
+  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto), ...QW2.limparColunas(a?.colunas)]))
     throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
   // Regras próprias: ajustar sem mandar a lista mantém as que já estão no rascunho (lista vazia remove todas).
   const anterior = json(atual.especificacao, null);
   const proprias = a?.regras_proprias !== undefined ? a.regras_proprias : anterior?.regras_proprias || [];
-  const espec = QW2.construir({ ...a, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
+  // Colunas: sem a lista, as que a pessoa definiu continuam; a estrutura do objetivo continua se o objetivo for o mesmo.
+  const colunas = a?.colunas !== undefined ? { colunas: a.colunas, colunas_origem: a.colunas_origem }
+    : anterior?.origem?.colunas_origem === 'pessoa' ? { colunas: anterior.origem.colunas, colunas_origem: 'pessoa' } : {};
+  const estrutura_objetivo = a?.estrutura_objetivo !== undefined ? a.estrutura_objetivo : anterior?.origem?.estrutura_objetivo || null;
+  const espec = QW2.construir({ ...a, ...colunas, estrutura_objetivo, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
   const v = { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
   if (!atual.id || a?.nome) v.nome = espec.origem.nome;
   if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(v.nome || atual.nome, espec.regras)).slice(0, 200);
@@ -283,7 +288,17 @@ export function rotasQuickWins(app, r) {
     const como = corpo.como || {};
     if (QW2.conferirSegredos([corpo.descricao, como.texto, como.exemplo]))
       throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
-    return { ...QW2.sugerir({ descricao: String(corpo.descricao || '').slice(0, 1000), arquetipo: corpo.arquetipo, como }), sugestoes: QW2.SUGESTOES };
+    return { ...QW2.sugerir({ descricao: String(corpo.descricao || '').slice(0, 1000), arquetipo: corpo.arquetipo, como, estrutura: corpo.estrutura || null }), sugestoes: QW2.SUGESTOES };
+  });
+  // Estrutura pedida no objetivo (colunas): uma chamada de IA, governada, só para um objetivo novo ou alterado.
+  // A tela chama ao preparar a etapa Resultado; o mesmo objetivo já estruturado é reaproveitado sem chamada.
+  r.post('/api/quick-wins/assistente/estrutura', async ({ pessoa, corpo }) => {
+    if (!podeMontar(pessoa)) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar Quick Wins. Fale com o admin.');
+    const descricao = String(corpo.descricao || '').slice(0, 1000);
+    if (QW2.conferirSegredos([descricao]))
+      throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
+    const qw = corpo.quick_win_id ? carregar(pessoa, corpo.quick_win_id, true) : null;
+    return estruturarObjetivo(app, pessoa, { descricao, qw });
   });
   // Exemplo em arquivo: o texto é lido (com a mesma leitura dos anexos) e volta só para a tela da criação.
   // Nada é guardado aqui; na criação, só a estrutura do exemplo fica na especificação.

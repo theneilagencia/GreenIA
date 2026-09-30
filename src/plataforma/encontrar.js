@@ -46,7 +46,7 @@ export function criarEncontrar(P) {
         const origem = `${req.headers['x-forwarded-proto'] === 'https' || P.cookieSeguro ? 'https' : 'http'}://${req.headers.host}`;
         const nome = lerAjuste(P.db, 'nome', 'GreenIA');
         const linhas = [...(admin ? [`Console da plataforma: ${P.urlBase || origem}/plataforma`] : []), ...ambientes.map(c => `${c.nome}: ${linkDeEntrada(P, c, origem)}`)];
-        const texto = `Você pediu o endereço do seu ambiente ${nome}.\n\n${linhas.length > 1 ? 'Você tem acesso a estes ambientes:' : 'Este é o seu acesso:'}\n\n${linhas.join('\n')}\n\nAbra o link e entre com este email (${email}). Um código de acesso chega na hora.\n\nSe não foi você quem pediu, ignore esta mensagem.`;
+        const texto = `Você pediu o endereço do seu ambiente ${nome}.\n\n${linhas.length > 1 ? 'Você tem acesso a estes ambientes:' : 'Este é o seu acesso:'}\n\n${linhas.join('\n')}\n\nAbra o link e entre com este email (${email}). Um código de acesso é enviado para este email.\n\nSe não foi você quem pediu, ignore esta mensagem.`;
         P.email.enviar(email, `Seu acesso à ${nome}`, texto).catch(e => P.log('encontrar ambiente', e.message));
       }
     }

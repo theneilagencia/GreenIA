@@ -293,7 +293,7 @@ async function configurar(id) {
         <div class="campo"><span class="legenda">O que fazer quando o sistema encontrar cada tipo de dado</span>
           <div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Tipo</th><th>Regra</th></tr></thead><tbody>
           ${Object.entries(DADOS).map(([t, r]) => `<tr><td>${r}</td><td>${seletorAcao(`dado-${t}`, r, qw.dados[t])}</td></tr>`).join('')}
-          <tr><td>Senhas, chaves de acesso e outros segredos</td><td class="dica">Nunca enviados (regra de segurança da GreenIA)</td></tr></tbody></table></div></div>
+          <tr><td>Senhas, chaves de acesso e outros segredos</td><td class="dica">Bloqueados quando reconhecidos (regra de segurança da GreenIA)</td></tr></tbody></table></div></div>
       </div>
       <div class="grupo-form"><h3>Estado e resultado</h3>
         <div class="campo"><span class="legenda">Estado</span><div class="caixas" style="max-height:none;flex-direction:column;gap:8px">${Object.entries(ESTADOS).map(([k, v]) => `<label><input type="radio" name="status" value="${k}" ${qw.status === k ? 'checked' : ''}> <b style="font-weight:500">${v}</b> <span class="dica">${EXPLICA[k]}</span></label>`).join('')}</div>

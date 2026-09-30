@@ -14,7 +14,7 @@ if (p.logo) {
 }
 const dias = Number(p.retencaoDias);
 if (dias > 0) $('p-retencao').textContent = `Conversas sem uso são apagadas depois de ${dias.toLocaleString('pt-BR')} ${dias === 1 ? 'dia' : 'dias'}.`;
-if (dias > 0) $('pp-retencao').textContent = `Histórico de ${dias.toLocaleString('pt-BR')} ${dias === 1 ? 'dia' : 'dias'}`;
+if (dias > 0) $('pp-retencao').textContent = `Retenção de ${dias.toLocaleString('pt-BR')} ${dias === 1 ? 'dia' : 'dias'} sem uso`;
 
 // Ambiente em implantação, suspenso ou encerrado: aviso no topo; sem landing publicada, ficam só o essencial e o login.
 if (p.aviso) {
@@ -28,14 +28,14 @@ if (p.multiempresa && !p.landing) for (const id of ['sec-chamadas', 'sec-regras'
 // conhecimento, classes de modelo); assunto desconhecido fica só com o ícone.
 const PADRAO_CHAMADAS = [
   { titulo: 'Conversas', texto: 'Para qualquer tarefa do dia: resumir, conferir, reescrever, organizar. A conversa fica salva e dá para continuar depois.' },
-  { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções e arquivos já definidos. Você traz só o caso do dia.' },
-  { titulo: 'Conhecimento', texto: 'Procedimentos e documentos das áreas. A resposta mostra de qual documento veio a informação.' },
-  { titulo: 'Classes de modelo', texto: 'Você escolhe o tipo de trabalho, não o modelo técnico: Rápido para o dia a dia, Equilibrado para mais contexto, Avançado para análises longas.' },
+  { titulo: 'Quick wins', texto: 'Usos prontos para tarefas que se repetem na sua área, com instruções já definidas. Você traz só o caso do dia. Nos quick wins criados pela jornada guiada, o resultado é conferido contra as regras antes de aparecer.' },
+  { titulo: 'Conhecimento', texto: 'Procedimentos e documentos das áreas. Quando a busca encontra documentos da área, a resposta lista os documentos consultados.' },
+  { titulo: 'Classes de modelo', texto: 'A GreenIA escolhe o nível de cada pedido entre Rápido, Equilibrado e Avançado, dentro do que a empresa libera. Nas conversas, cada resposta explica por que aquele nível foi usado. Se preferir, você escolhe.' },
 ];
 const VISUAIS = [
-  [/convers|chat/i, 'i-conversa', '<div class="pp-mini pp-mini-chat"><span class="eu">Resuma este relatório em 5 pontos</span><span class="resp"><i></i><i></i><i></i><em>Fonte: Relatório mensal</em></span><span class="eu">Agora em tabela, por área</span><span class="ia"><i></i><i></i><i></i></span></div>'],
+  [/convers|chat/i, 'i-conversa', '<div class="pp-mini pp-mini-chat"><span class="eu">Resuma este relatório em 5 pontos</span><span class="resp"><i></i><i></i><i></i></span><span class="eu">Agora em tabela, por área</span><span class="ia"><i></i><i></i><i></i></span></div>'],
   [/quick|pronto|recorrent/i, 'i-raio', '<div class="pp-mini pp-mini-qw"><span><i style="background:#1B7950"></i>Conferência de nota</span><span><i style="background:#B7791F"></i>Resumo de contrato</span><span><i style="background:#453A78"></i>Resposta a fornecedor</span></div>'],
-  [/conhec|document|base|procedim/i, 'i-livro', '<div class="pp-mini pp-mini-docs"><span><b></b>Procedimento de recebimento</span><span><b></b>Política de viagens</span><span class="fonte">Fonte citada</span></div>'],
+  [/conhec|document|base|procedim/i, 'i-livro', '<div class="pp-mini pp-mini-docs"><span><b></b>Procedimento de recebimento</span><span><b></b>Política de viagens</span><span class="fonte">Documentos consultados</span></div>'],
   [/class|modelo/i, 'i-camadas', '<div class="pp-mini pp-mini-classes"><span class="on">Rápido</span><span>Equilibrado</span><span>Avançado</span></div>'],
 ];
 function desenharChamadas(lista) {

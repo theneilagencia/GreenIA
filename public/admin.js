@@ -567,7 +567,7 @@ async function abaConfig() {
 async function abaConhecimento() {
   recarregarBases();   // o selo do menu acompanha o que foi enviado ou revisado
   const k = await api('/api/conhecimento');
-  const visao = `<p class="lead">Que conhecimento a IA pode usar nas suas tarefas. Os documentos da sua área e os da empresa toda entram nas respostas do chat e dos quick wins, sempre com a fonte citada.</p>
+  const visao = `<p class="lead">Que conhecimento a IA pode usar nas suas tarefas. Os documentos da sua área e os da empresa toda entram nas respostas do chat e dos quick wins; quando a busca encontra documentos, a resposta lista os documentos consultados.</p>
     ${k.documentos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Área</th><th>Quick wins que usam</th><th>Atualizado</th></tr></thead><tbody>
       ${k.documentos.map(d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</td><td data-r="Área">${d.toda_empresa ? 'Empresa toda' : esc(d.area || '')}${d.pasta ? `<br><span class="dica">${esc(d.pasta)}</span>` : ''}</td>
         <td data-r="Quick wins">${d.quickWins.map(q => `<a href="#/qw/${q.id}">${esc(q.nome)}</a>`).join(', ') || '<span class="dica">só no chat</span>'}</td><td data-r="Atualizado">${dataHora(d.atualizado_em)}</td></tr>`).join('')}
@@ -601,7 +601,7 @@ async function abaPoliticas() {
         ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra">${seletorAcao(`d-${k}`, v, c.acoesChat[k])}</td>
           <td data-r="Efeito" class="dica">${EFEITO[c.acoesChat[k]] || EFEITO.bloquear}</td>
           <td data-r="Guardar no histórico"><label class="dica"><input type="checkbox" data-guardar="${k}" ${(c.naoArmazenar || []).includes(k) ? '' : 'checked'}> guardar</label></td></tr>`).join('')}
-        <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Nunca enviados</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
+        <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Bloqueados quando reconhecidos</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica sem marcação</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Nomes, cargos, emails e telefones de trabalho são conteúdo normal. Estratégia sem marcação não é adivinhada: a pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
       <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="protecao-pessoais" ${c.protecaoDadosPessoais !== false ? 'checked' : ''}> Dados pessoais processados normalmente vão só para recursos que garantem não usar os dados para treino (por contrato, pela rota autorizada ou pelo pedido feito em cada chamada), e nunca para recursos em que o admin proibiu dados pessoais. A conversa não vira sigilosa.</span></label>

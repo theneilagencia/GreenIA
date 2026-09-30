@@ -9,7 +9,7 @@ export const PADRAO = {
   corMarca: '',
   dominios: [],
   smtp: { url: '', remetente: '' },
-  privacyNote: 'Suas conversas ficam salvas só para você, por até 90 dias sem uso, e você pode apagá-las quando quiser.',
+  privacyNote: 'O conteúdo das suas conversas não aparece para colegas nem para o admin. Conversas sem uso são apagadas no prazo de retenção da empresa, e você pode apagá-las quando quiser.',
   retencaoDias: 90,
   // Ação por tipo de dado no chat (e padrão dos quick wins). Credencial é sempre bloqueada.
   // Tratamento proporcional ao risco (filtro.js → decidir): "permitir" = processar normalmente; "proteger" =

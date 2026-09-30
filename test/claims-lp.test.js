@@ -1,30 +1,131 @@
-// Consistência entre a página de vendas e o produto: cada afirmação crítica tem trecho na página, regra,
-// implementação e teste (docs/claims-lp.md). Frases que viram promessa jurídica ou garantia não comprovada
-// não podem aparecer nas páginas.
+// Governança da copy: docs/claims-lp.md é o registro de verdade comercial. Cada frase material das superfícies
+// (página de vendas e página de entrada das empresas) aponta para uma capacidade, um arquivo, um símbolo e um teste;
+// o que foi rejeitado não volta; formulações proibidas só passam dentro de uma frase registrada que as sustenta.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { superficies, frases as trechos, SENSIVEL } from './claims-superficies.js';
 
 const raiz = new URL('../', import.meta.url).pathname;
 const ler = p => readFileSync(raiz + p, 'utf8');
 const semTags = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const PAGINAS = ['public/vendas.html', 'public/index.html'];
 
-test('cada afirmação crítica da página tem regra, implementação e teste existentes', () => {
-  const linhas = ler('docs/claims-lp.md').split('\n').filter(l => /^\| C\d+ \|/.test(l));
-  assert.ok(linhas.length >= 15);
-  const pagina = semTags(ler('public/vendas.html'));
-  const testes = readdirSync(raiz + 'test').filter(f => f.endsWith('.test.js')).map(f => ler('test/' + f)).join('\n');
-  for (const l of linhas) {
-    const [id, trecho, , impl, teste] = l.split(' | ').map(x => x.replace(/^\|\s*|\s*\|$/g, '').trim());
-    const texto = trecho.replace(/`/g, '');
-    assert.ok(pagina.includes(texto), `${id}: trecho não está na página: "${texto}"`);
-    const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(impl) || [];
-    assert.ok(arquivo && simbolo, `${id}: implementação mal descrita: ${impl}`);
-    assert.ok(ler(arquivo).includes(simbolo), `${id}: ${arquivo} não contém "${simbolo}"`);
-    const titulo = teste.replace(/`/g, '');
-    assert.ok(testes.includes(`test('${titulo}'`), `${id}: teste inexistente: "${titulo}"`);
+// ---------------------------------------------------------------------------------------------- Registro
+const ESTADOS = ['sustentado', 'sustentado_com_condicao', 'nao_sustentado', 'futuro', 'obsoleto'];
+const COLUNAS = ['id', 'superficie', 'texto', 'estado', 'capacidade', 'versao', 'evidencia', 'teste', 'condicao', 'dependencia', 'proibido', 'libera', 'revisao'];
+const REGISTRO = ler('docs/claims-lp.md').split('\n').filter(l => /^\| (?:LP|OUT|FUT)-[A-Z0-9-]+ \|/.test(l)).map(l => {
+  const celulas = l.replace(/^\|\s*|\s*\|$/g, '').split(' | ').map(x => x.trim());
+  return Object.fromEntries(COLUNAS.map((c, i) => [c, celulas[i]]));
+});
+const SUSTENTADOS = REGISTRO.filter(r => r.estado.startsWith('sustentado'));
+const S = superficies();
+const TESTES = readdirSync(raiz + 'test').filter(f => f.endsWith('.test.js')).map(f => ler('test/' + f)).join('\n');
+const ids = lista => (lista === '—' ? [] : lista.split(/,\s*/));
+
+test('registro: toda linha tem as 13 colunas, estado válido, superfície conhecida e id único', () => {
+  assert.ok(SUSTENTADOS.length >= 80, `registro curto demais: ${SUSTENTADOS.length}`);
+  assert.equal(new Set(REGISTRO.map(r => r.id)).size, REGISTRO.length, 'id repetido');
+  for (const r of REGISTRO) {
+    assert.ok(COLUNAS.every(c => r[c]), `${r.id}: coluna vazia`);
+    assert.ok(ESTADOS.includes(r.estado), `${r.id}: estado inválido "${r.estado}"`);
+    assert.ok(r.estado.startsWith('sustentado') ? r.superficie in S : r.superficie === 'todas', `${r.id}: superfície "${r.superficie}"`);
+    assert.match(r.revisao, /^\d{4}-\d{2}-\d{2}$/, `${r.id}: revisão sem data`);
   }
+});
+
+test('registro: cada claim sustentado está na superfície, com evidência no código e teste existente', () => {
+  for (const r of SUSTENTADOS) {
+    assert.ok(S[r.superficie].includes(r.texto), `${r.id}: texto não está em "${r.superficie}": "${r.texto}"`);
+    assert.equal(r.versao, '6534041', `${r.id}: versão mínima`);
+    const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(r.evidencia) || [];
+    assert.ok(arquivo && simbolo, `${r.id}: evidência mal descrita: ${r.evidencia}`);
+    assert.ok(existsSync(raiz + arquivo) && ler(arquivo).includes(simbolo), `${r.id}: ${arquivo} não contém "${simbolo}"`);
+    // Teste de comportamento; fato de infraestrutura ou de atendimento declara a origem.
+    if (!/^(?:configuração|serviço): /.test(r.teste)) assert.ok(TESTES.includes(`test('${r.teste}'`), `${r.id}: teste inexistente: "${r.teste}"`);
+    if (r.estado === 'sustentado_com_condicao') assert.notEqual(r.condicao, '—', `${r.id}: condição não descrita`);
+  }
+});
+
+test('fora da página: claims obsoletos, não sustentados e futuros não aparecem em nenhuma superfície', () => {
+  const tudo = Object.values(S).join(' | ').toLowerCase();
+  const fora = REGISTRO.filter(r => !r.estado.startsWith('sustentado'));
+  assert.ok(fora.length >= 20);
+  for (const r of fora) assert.ok(!tudo.includes(r.texto.toLowerCase()), `${r.id} (${r.estado}) voltou: "${r.texto}"`);
+});
+
+test('trechos sensíveis (dados, segurança, privacidade, custo, conferência, fornecedores) só entram com registro sustentado', () => {
+  for (const [sup, texto] of Object.entries(S)) {
+    const registrados = SUSTENTADOS.filter(r => r.superficie === sup).map(r => r.texto.toLowerCase());
+    for (const f of new Set(trechos(texto))) {
+      if (!SENSIVEL.test(f)) continue;
+      assert.ok(registrados.some(t => t.includes(f.toLowerCase())), `${sup}: trecho sensível sem registro em docs/claims-lp.md: "${f}"`);
+    }
+  }
+});
+
+// ------------------------------------------------------------------------------------ Blacklist editorial
+// Formulações comerciais rejeitadas. Uma ocorrência só passa se estiver dentro de um texto sustentado do registro
+// cuja coluna "libera" cite a entrada; B20 é contextual (regras "antes do envio" precisam dizer sobre o quê).
+export const BLACKLIST = {
+  B01: /nunca\s+(?:são\s+)?enviad|credenciais[^.]{0,40}\bnunca\b/i,
+  B02: /nunca\s+sa(?:i|em)\b|não\s+sa(?:i|em)\s+da\s+empresa|dados\s+ficam\s+(?:no\s+ambiente|na\s+empresa|dentro)/i,
+  B03: /só\s+para\s+você|somente\s+para\s+você|100\s*%\s*privad|totalmente\s+privad|privacidade\s+total/i,
+  B04: /resultados?\s+corret|respostas?\s+corret|resposta\s+validada|sem\s+erros|sem\s+alucina/i,
+  B05: /fonte\s+citada|cita\s+a\s+fonte|mostra\s+de\s+qual\s+documento\s+veio/i,
+  B06: /exclusiv|infraestrutura\s+(?:dedicada|privada)|servidor(?:es)?\s+dedicad|fisicamente\s+isolad/i,
+  B07: /(?:não|nunca)\s+(?:são|é)\s+usad[oa]s?\s+para\s+trein|sem\s+treino\s+garantid|garant\w*[^.]{0,30}trein/i,
+  B08: /previsíve|custo\s+garantid|gasto\s+garantid|limite\s+rígido|nunca\s+passa\s+do\s+teto|nunca\s+ultrapass/i,
+  B09: /antes\s+e\s+depois|mede[^.]{0,30}resultado|resultado\s+medido/i,
+  B10: /amplia\w*\s+só|decidid\w*\s+com\s+dados|decisão\s+registrada|greenia\s+decide/i,
+  B11: /(?:dados|servidores?)\s+no\s+brasil|residência[^.]{0,20}brasil/i,
+  B12: /\b(?:garante|garantem|garantimos|assegura|asseguramos|elimina)\b/i,
+  B13: /sem\s+risco|risco\s+zero/i,
+  B14: /o\s+melhor\s+modelo/i,
+  B15: /ilimitad|sem\s+limite\s+de\s+(?:pessoas|usuários)|pessoas\s+sem\s+limite/i,
+  B16: /na\s+hora\b|instantâne/i,
+  B17: /primeira\s+semana|costumam\s+dar\s+bom\s+resultado/i,
+  B18: /mais\s+contexto/i,
+  B19: /você\s+escolhe\s+o\s+tipo/i,
+  B21: /\bnunca\b/i,
+  B22: /\bsempre\b/i,
+};
+const ESCOPO_DO_ENVIO = /mensage[mn]|anexo|senhas?|chaves? de acesso|documentos da base|dados são reconhecidos/i;
+
+// Intervalos do texto cobertos por um claim sustentado que libera a entrada.
+function liberados(texto, sup, id) {
+  const faixas = [];
+  for (const r of SUSTENTADOS.filter(x => x.superficie === sup && ids(x.libera).includes(id))) {
+    for (let i = texto.indexOf(r.texto); i >= 0; i = texto.indexOf(r.texto, i + 1)) faixas.push([i, i + r.texto.length]);
+  }
+  return faixas;
+}
+
+test('blacklist: formulações proibidas não aparecem, salvo dentro de frase registrada que as sustenta', () => {
+  for (const [sup, texto] of Object.entries(S)) {
+    for (const [id, re] of Object.entries(BLACKLIST)) {
+      const faixas = liberados(texto, sup, id);
+      for (const m of texto.matchAll(new RegExp(re.source, 'gi'))) {
+        const ok = faixas.some(([a, b]) => m.index >= a && m.index + m[0].length <= b);
+        const trecho = texto.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60);
+        assert.ok(ok, `${sup}: ${id} "${m[0]}" sem registro que libere: "…${trecho}…"`);
+      }
+    }
+  }
+});
+
+test('blacklist B20: "antes do envio" sempre diz sobre o quê (mensagem, anexo, senhas e chaves, documentos da base)', () => {
+  for (const [sup, texto] of Object.entries(S)) {
+    for (const f of trechos(texto)) {
+      if (/antes\s+(?:de\s+cada|do)\s+envio/i.test(f)) assert.match(f, ESCOPO_DO_ENVIO, `${sup}: regra "antes do envio" generalizada: "${f}"`);
+    }
+  }
+});
+
+test('blacklist: cada entrada do código está documentada no registro, e cada liberação aponta para uma entrada existente', () => {
+  const doc = ler('docs/claims-lp.md');
+  for (const id of [...Object.keys(BLACKLIST), 'B20']) assert.match(doc, new RegExp(`^\\| ${id} \\|`, 'm'), `${id} sem linha na blacklist do registro`);
+  for (const r of REGISTRO) for (const id of [...ids(r.libera), ...ids(r.proibido)]) assert.match(id, /^B(?:0[1-9]|1\d|2[0-2])$/, `${r.id}: entrada inexistente ${id}`);
 });
 
 test('as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor', () => {
@@ -55,8 +156,11 @@ test('dados: CNPJ não é "protegido", CPF não é "protegido" nem confidencial,
   assert.doesNotMatch(texto, /CPF · dado pessoal · (?:Protegid|confidencial)/i);
   assert.doesNotMatch(texto, /CPF[^.]{0,40}\bprotegid/i, 'CPF descrito como protegido sem ressalva');
   assert.doesNotMatch(texto, /CPF[^.]{0,30}\bconfidencia/i, 'CPF descrito como confidencial');
-  assert.match(texto, /CNPJ · identificação de empresa Processado normalmente/);
-  assert.match(texto, /CPF · dado pessoal Processado com controles de dado pessoal/);
+  // A tela mostra o que é reconhecido e o tratamento do pedido inteiro (a regra mais restritiva), não um tratamento por item.
+  assert.match(texto, /CNPJ · identificação de empresa Reconhecido/);
+  assert.match(texto, /CPF · dado pessoal Reconhecido/);
+  assert.match(texto, /Pedido inteiro · regra mais restritiva Só por recurso autorizado/);
+  assert.doesNotMatch(texto, /CNPJ · identificação de empresa Processado normalmente/, 'tratamento por item volta a sugerir que o CNPJ sai separado do pedido');
   // Detectar não é proteger: nada de "Proteção antes do envio" nem de "mesmo tratamento para todos".
   assert.doesNotMatch(texto, /Proteção antes do envio/i);
   assert.doesNotMatch(texto, /todos os (?:dados|tipos)[^.]{0,40}(?:mesm[ao]|igual)/i);
@@ -76,15 +180,16 @@ test('confidencial só por marcação reconhecida, nunca por ser uma proposta; g
   }
 });
 
-test('credenciais: a promessa fica em mensagens e anexos (base de conhecimento e quick win ainda não: pendência P1)', () => {
-  assert.match(texto, /Senhas e credenciais em mensagens e anexos Nunca enviadas/);
+test('credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as partes do envio, sem absoluto (P1 resolvida)', () => {
+  assert.match(texto, /Senhas e chaves de acesso reconhecidas são bloqueadas antes do envio, inclusive quando estão em documentos da base, em arquivos de quick win ou no histórico da conversa/);
   assert.doesNotMatch(texto, /credenciais[^.]{0,80}(?:base de conhecimento|quick win)[^.]{0,40}nunca/i);
+  assert.doesNotMatch(texto, /(?:senhas|credenciais|chaves)[^.]{0,60}\bnunca\b|nunca\s+(?:são\s+)?enviad/i, 'absoluto sobre credenciais voltou');
   assert.match(ler('docs/claims-lp.md'), /\| P1 \| Credenciais em documentos da base de conhecimento e arquivos de quick win/);
 });
 
 test('ambiente: sem "infraestrutura privada/dedicada", servidor dedicado ou isolamento físico', () => {
-  assert.doesNotMatch(texto, /infraestrutura (?:privada|dedicada)|servidor(?:es)? dedicad|fisicamente isolad|\bIsolad[oa]\b/i);
-  assert.match(texto, /separados das outras empresas/);
+  assert.doesNotMatch(texto, /infraestrutura (?:privada|dedicada)|servidor(?:es)? dedicad|fisicamente isolad|\bIsolad[oa]\b|exclusiv/i);
+  assert.match(texto, /O banco de dados de cada empresa é separado/);
 });
 
 test('fornecedor: atributos declarados, nunca garantia verificada de retenção ou treino', () => {

@@ -286,12 +286,18 @@ export function salvarMarca(P, id, dados, ator, origem, { escopo = 'plataforma' 
 }
 
 // ---------------------------------------------------------------- Landing page
+// Limites de gravação dos campos do modelo que levam o nome da empresa (os mesmos que validarConteudoLanding e
+// salvarLanding aplicam). O modelo usa o texto com o nome quando ele cabe inteiro; se não cabe, usa a forma genérica
+// inteira: nunca um texto cortado pela gravação.
+export const LIMITES_LANDING = { rotulo: 80, institucional_titulo: 80, seo_title: 70, seo_description: 160 };
+const inteiro = (comNome, limite, generico) => (comNome.length <= limite ? comNome : generico);
+
 // Modelo completo da landing page de uma empresa: toda a página já vem escrita, com o nome da
 // empresa, e cada texto pode ser trocado no editor. Nenhuma seção fica vazia.
 export function landingPadrao(nome) {
   const n = nome || 'sua empresa';
   return {
-    rotulo: `A IA da ${n}`,
+    rotulo: inteiro(`A IA da ${n}`, LIMITES_LANDING.rotulo, 'A IA da empresa'),
     titulo: 'IA para o trabalho, com as regras da casa',
     subtitulo: `Resuma, confira, rascunhe e consulte os documentos da sua área num lugar só. As regras de dados da ${n} são aplicadas a cada mensagem e anexo antes do envio.`,
     descricao: '',
@@ -319,7 +325,7 @@ export function landingPadrao(nome) {
     ],
     regras: {
       pode: ['Textos e documentos de trabalho', 'Procedimentos, modelos e rascunhos', 'Planilhas sem dados pessoais'],
-      sigilo: ['Dados de clientes, fornecedores e pessoas', 'Informações financeiras ou estratégicas', 'Com a opção de informações sigilosas ligada pela empresa, a conversa só usa recursos autorizados; se não houver, nada é enviado'],
+      sigilo: ['Dados de clientes, fornecedores e pessoas', 'Informações financeiras ou estratégicas', 'Com a opção de sigilo ligada pela empresa, a conversa só usa recursos autorizados; se não houver, nada é enviado'],
       nunca: ['Senhas, tokens e chaves de acesso reconhecidos', 'Inclusive em documentos da base e no histórico', 'Nenhuma regra da empresa libera'],
     },
     tarefas: [
@@ -332,13 +338,17 @@ export function landingPadrao(nome) {
     ],
     secoes: { como_usar: true, chamadas: true, regras: true, tarefas: true, institucional: true },
     institucional: {
-      titulo: `A IA na ${n}`,
+      titulo: inteiro(`A IA na ${n}`, LIMITES_LANDING.institucional_titulo, 'A IA na empresa'),
       texto: `A ${n} oferece a GreenIA para apoiar o trabalho do dia a dia, com as regras de dados da empresa e a Política de Uso de IA. As conversas ficam guardadas no banco da empresa; para responder, o conteúdo segue para o recurso de IA. Em caso de dúvida, fale com a equipe responsável pela IA na ${n}.`,
       links: [{ texto: 'Política de uso de IA', link: '/politica' }],
     },
   };
 }
-export const seoPadrao = nome => ({ title: `${nome || 'Sua empresa'} · IA para o trabalho`, description: `Ambiente de IA da ${nome || 'empresa'}: conversas, quick wins e conhecimento das áreas, com as regras de dados da empresa.` });
+export const seoPadrao = nome => ({
+  title: inteiro(`${nome || 'Sua empresa'} · IA para o trabalho`, LIMITES_LANDING.seo_title, 'IA para o trabalho'),
+  description: inteiro(`Ambiente de IA da ${nome || 'empresa'}: conversas, quick wins e conhecimento das áreas, com as regras de dados da empresa.`, LIMITES_LANDING.seo_description,
+    'Ambiente de IA da empresa: conversas, quick wins e conhecimento das áreas, com as regras de dados da empresa.'),
+});
 
 // Seções que a empresa pode esconder na página (o topo e o fechamento ficam sempre).
 export const SECOES_LANDING = ['como_usar', 'chamadas', 'regras', 'tarefas', 'institucional'];
@@ -354,7 +364,7 @@ export function lerLanding(P, id) {
 function validarConteudoLanding(c) {
   const botoes = (Array.isArray(c.botoes) ? c.botoes : []).slice(0, 3).map(b => ({ texto: texto(b.texto, 40, 'botao'), link: validarLink(b.link), estilo: b.estilo === 'secundario' ? 'secundario' : 'primario' })).filter(b => b.texto && b.link);
   return {
-    rotulo: texto(c.rotulo, 80, 'rotulo'),
+    rotulo: texto(c.rotulo, LIMITES_LANDING.rotulo, 'rotulo'),
     titulo: texto(c.titulo, 120, 'titulo', { obrigatorio: true }),
     subtitulo: texto(c.subtitulo, 300, 'subtitulo'),
     descricao: texto(c.descricao, 1200, 'descricao'),
@@ -368,7 +378,7 @@ function validarConteudoLanding(c) {
     regras: Object.fromEntries(['pode', 'sigilo', 'nunca'].map(k => [k, (Array.isArray(c.regras?.[k]) ? c.regras[k] : []).slice(0, 5).map(t => texto(t, 120, 'regra')).filter(Boolean)])),
     tarefas: (Array.isArray(c.tarefas) ? c.tarefas : []).slice(0, 8).map(x => ({ tipo: texto(x.tipo, 30, 'tarefa'), texto: texto(x.texto, 140, 'tarefa') })).filter(x => x.texto),
     institucional: {
-      titulo: texto(c.institucional?.titulo, 80, 'institucional'), texto: texto(c.institucional?.texto, 1200, 'institucional'),
+      titulo: texto(c.institucional?.titulo, LIMITES_LANDING.institucional_titulo, 'institucional'), texto: texto(c.institucional?.texto, 1200, 'institucional'),
       links: (Array.isArray(c.institucional?.links) ? c.institucional.links : []).slice(0, 6).map(l => ({ texto: texto(l.texto, 40, 'link'), link: validarLink(l.link) })).filter(l => l.texto && l.link),
     },
   };
@@ -379,7 +389,7 @@ export function salvarLanding(P, id, dados, ator, origem, { escopo = 'plataforma
   if (!antes) throw erro(404, 'empresa', 'Empresa não encontrada.');
   if (escopo === 'empresa' && !podeEditar(P, id).landing_page) throw erro(403, 'nao_concedido', motivosBloqueio(P, id).landing_page);
   const content = dados.content ? validarConteudoLanding({ ...antes.content, ...dados.content, textos: { ...antes.content.textos, ...(dados.content.textos || {}) }, regras: { ...antes.content.regras, ...(dados.content.regras || {}) } }) : antes.content;
-  const seo = dados.seo ? { title: texto(dados.seo.title, 70, 'seo'), description: texto(dados.seo.description, 160, 'seo') } : antes.seo;
+  const seo = dados.seo ? { title: texto(dados.seo.title, LIMITES_LANDING.seo_title, 'seo'), description: texto(dados.seo.description, LIMITES_LANDING.seo_description, 'seo') } : antes.seo;
   const status = dados.status === 'publicada' || dados.status === 'rascunho' ? dados.status : antes.status;
   exec(P.db, 'update landing_pages set content = ?, seo = ?, status = ?, updated_at = ? where company_id = ?', JSON.stringify(content), JSON.stringify(seo), status, agoraIso(P), id);
   auditar(P, { usuario: ator, empresa: id, acao: status !== antes.status ? `landing_page.${status === 'publicada' ? 'published' : 'unpublished'}` : 'landing_page.updated', entidade: 'landing_page', id, antes: { status: antes.status, content: antes.content, seo: antes.seo }, depois: { status, content, seo }, origem });

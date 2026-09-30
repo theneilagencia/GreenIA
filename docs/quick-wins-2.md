@@ -12,6 +12,8 @@ saída. Quem usa nunca vê prompt, modelo, fornecedor, tokens, temperatura ou JS
    - *Mostrar*: de um exemplo, só a estrutura é extraída (colunas, seções, detalhe e tom). O exemplo não é guardado.
    - *Começar pronto*: usa a estrutura sugerida.
 3. **Regras importantes.** Poucas, sugeridas pelo tipo de trabalho. *Não inventar informações* fica sempre ligada.
+   Em *+ Adicionar regra*, a pessoa escreve regras próprias (até 5, com até 160 caracteres cada), que entram na mesma
+   lista e podem ser removidas antes de continuar.
 4. **Formato.** Resumo, Lista, Tabela, Relatório ou Outro. O formato sugerido vem com o motivo e é aceito com um clique.
 5. **Testar.** Com exemplo automático (sintético), texto colado ou arquivo. O teste roda o Quick Win completo, com a
    conferência de qualidade, e não entra na medição.
@@ -25,13 +27,18 @@ Criar não chama a IA e não gasta créditos. O construtor (`src/quickwin-constr
 
 ## Especificação interna (`quick_wins.especificacao`)
 
-Campos: `objetivo`, `contexto`, `procedimento`, `regras`, `restricoes`, `criterios_decisao`, `formato_saida`
+Campos: `objetivo`, `contexto`, `procedimento`, `regras`, `regras_proprias`, `restricoes`, `criterios_decisao`, `formato_saida`
 (tipo, colunas, seções), `exemplos` (só a estrutura), `perguntas_esclarecimento`, `nivel_autonomia`,
 `fontes_permitidas`, `ferramentas_permitidas`, `criterios_qualidade`, `dicas_roteamento`, `origem`.
 
 A especificação só é gravada pelo construtor:
 - Um corpo JSON não consegue escrever `especificacao` diretamente, porque a chave interna é um `Symbol`.
-- Regras fora do catálogo são descartadas.
+- `regras` só aceita ids do catálogo. Os ids fora dele são descartados.
+- `regras_proprias` guarda as regras escritas pelo responsável como `{id: "propria_N", texto}`. O texto é limpo, sem
+  repetidas nem cópias do catálogo, e passa pela recusa de segredos. Cada uma vira uma linha em "Regras" na execução
+  e um critério do Quality Check no grupo "Regras respeitadas". Elas nunca ampliam fontes, ferramentas, autonomia ou
+  restrições. Ajustar sem mandar a lista mantém as regras atuais. Uma lista vazia remove todas. Especificações
+  antigas, sem o campo, valem como lista vazia.
 - `ferramentas_permitidas` é sempre vazio.
 - A autonomia é limitada a: apenas analisar, sugerir ou preparar para executar. Nunca há ação externa.
 

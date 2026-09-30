@@ -97,9 +97,12 @@ const ESPEC = Symbol('especificacao');
 
 // Respostas da criação em 5 etapas -> campos do Quick Win. Segredo no que a pessoa escreveu ou mostrou: recusa.
 function doAssistente(app, cfg, a, atual = {}) {
-  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao]))
+  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto)]))
     throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
-  const espec = QW2.construir({ ...a, _estruturaAnterior: json(atual.especificacao, null)?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
+  // Regras próprias: ajustar sem mandar a lista mantém as que já estão no rascunho (lista vazia remove todas).
+  const anterior = json(atual.especificacao, null);
+  const proprias = a?.regras_proprias !== undefined ? a.regras_proprias : anterior?.regras_proprias || [];
+  const espec = QW2.construir({ ...a, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
   const v = { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
   if (!atual.id || a?.nome) v.nome = espec.origem.nome;
   if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(v.nome || atual.nome, espec.regras)).slice(0, 200);

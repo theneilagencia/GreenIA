@@ -23,6 +23,7 @@ let S, OR, admin, ana, carlos, A, modo = 'bom';
 const ehConferencia = b => JSON.stringify(b.messages[0].content).includes('conferente de qualidade');
 const ehCorrecao = b => String(b.messages.at(-1).content).includes('A conferência de qualidade encontrou');
 function roteiro(b) {
+  if (ehConferencia(b) && modo === 'regra') return '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"propria_1","ok":false,"motivo":"os vencidos não foram destacados"}]}';
   if (ehConferencia(b)) return { bom: QC_OK, corrige: QC_OK, falha: QC_FALHA, lixo: 'não sei conferir', pergunta: QC_OK }[modo];
   if (ehCorrecao(b)) return modo === 'falha' ? RUIM : BOM;
   // Mensagens seguintes da conversa: a IA atende ao pedido da pessoa.
@@ -387,4 +388,63 @@ test('ciclo de vida (Cliente, Valor, Status): "Tire a coluna Status" e "Qual foi
   r = await enviar({ texto: 'Clientes: Gama, 900, pago.', executar_quick_win: true });
   assert.equal(r.chamadas.length, 2);
   assert.equal(r.fim.qualidade.status, 'aprovado');
+});
+
+test('regras próprias: salvas, publicadas, herdadas na nova versão, removidas, na execução e no Quality Check', async () => {
+  modo = 'bom';
+  const REGRA = 'Destacar documentos vencidos';
+  const espec = id => json(um(S.app.db, 'select especificacao from quick_wins where id = ?', id).especificacao);
+  const publicada = id => json(um(S.app.db, 'select v.especificacao from quick_win_versoes v join quick_wins q on q.versao_publicada = v.id where q.id = ?', id).especificacao);
+  // Teste 6: salva e volta para a tela de criação (respostas guardadas) e entra na especificação.
+  const q = await criar({ regras_proprias: [REGRA] });
+  assert.deepEqual(q.assistente.regras_proprias, [REGRA]);
+  assert.ok(q.regras_rascunho.includes(REGRA));
+  assert.deepEqual(espec(q.id).regras_proprias, [{ id: 'propria_1', texto: REGRA }]);
+  assert.ok(espec(q.id).criterios_qualidade.some(c => c.id === 'propria_1' && c.grupo === 'regras'));
+  // Teste 10 e 11: a execução recebe a regra; a conferência confere a regra (o mesmo critério da especificação).
+  const r = await executar(ana, q.id, 'Pedido 882: 40 rolamentos. Nota: 38 rolamentos.', { teste: true });
+  assert.match(JSON.stringify(r.chamadas[0].messages[0].content), new RegExp(`- ${REGRA}`));
+  assert.match(JSON.stringify(r.chamadas[1].messages[0].content), new RegExp(`propria_1: Regra do responsável: \\\\"${REGRA}\\\\"`));
+  assert.equal(r.fim.qualidade.status, 'aprovado');
+  // Regra não atendida: conta como "Regras respeitadas" com falha, corrige uma vez e termina inconsistente.
+  modo = 'regra';
+  const f = await executar(ana, q.id, 'Pedido 882: 40 rolamentos. Nota: 38 rolamentos.', { teste: true });
+  assert.equal(f.chamadas.length, 4, 'execução, conferência, correção, nova conferência: o mesmo ciclo');
+  assert.match(String(f.chamadas[2].messages.at(-1).content), new RegExp(REGRA), 'a correção diz qual regra faltou');
+  assert.equal(f.fim.qualidade.status, 'inconsistente');
+  assert.deepEqual(f.fim.qualidade.itens.filter(i => !i.ok).map(i => i.rotulo), ['Regras respeitadas']);
+  modo = 'bom';
+  // Teste 7: publica e reabre (quem gere e quem usa).
+  await executar(ana, q.id, 'Teste: pedido 40, nota 38.', { teste: true });
+  let p = (await ana.post(`/api/quick-wins/${q.id}/publicar`, {})).dados;
+  assert.equal(p.versao, 1);
+  assert.ok((await ana.get(`/api/quick-wins/${q.id}`)).dados.regras.includes(REGRA));
+  assert.deepEqual((await ana.get(`/api/quick-wins/${q.id}`)).dados.assistente.regras_proprias, [REGRA]);
+  assert.ok((await carlos.get(`/api/quick-wins/${q.id}`)).dados.regras.includes(REGRA));
+  assert.match(JSON.stringify((await executar(carlos, q.id, 'pedido 40, nota 38')).chamadas[0].messages[0].content), new RegExp(`- ${REGRA}`));
+  // Teste 8: nova versão herda a regra (ajuste sem mandar a lista) e soma outra.
+  await ana.put(`/api/quick-wins/${q.id}`, { assistente: { ...ASSISTENTE, descricao: `${ASSISTENTE.descricao}, item por item` } });
+  assert.deepEqual(espec(q.id).regras_proprias.map(x => x.texto), [REGRA], 'ajustar sem a lista mantém as regras próprias');
+  await ana.put(`/api/quick-wins/${q.id}`, { assistente: { ...ASSISTENTE, regras_proprias: [REGRA, 'Ordenar os valores do maior para o menor'] } });
+  p = (await ana.post(`/api/quick-wins/${q.id}/publicar`, {})).dados;
+  assert.equal(p.versao, 2);
+  assert.deepEqual(publicada(q.id).regras_proprias.map(x => x.texto), [REGRA, 'Ordenar os valores do maior para o menor']);
+  // Restaurar a v1 volta exatamente às regras da v1.
+  await ana.post(`/api/quick-wins/${q.id}/versoes/1/restaurar`, {});
+  assert.deepEqual(publicada(q.id).regras_proprias.map(x => x.texto), [REGRA]);
+  assert.deepEqual(espec(q.id).regras_proprias.map(x => x.texto), [REGRA]);
+  // Duplicar leva as regras próprias junto.
+  const d = (await ana.post('/api/quick-wins', { duplicar_de: q.id, areas: [A.id] })).dados;
+  assert.deepEqual(espec(d.id).regras_proprias.map(x => x.texto), [REGRA]);
+  // Teste 9: removida antes de publicar, não entra na versão publicada.
+  const q2 = await criar({ regras_proprias: [REGRA] });
+  await ana.put(`/api/quick-wins/${q2.id}`, { assistente: { ...ASSISTENTE, regras_proprias: [] } });
+  await executar(ana, q2.id, 'Teste: pedido 40, nota 38.', { teste: true });
+  await ana.post(`/api/quick-wins/${q2.id}/publicar`, {});
+  assert.deepEqual(publicada(q2.id).regras_proprias, []);
+  assert.ok(!publicada(q2.id).criterios_qualidade.some(c => c.id.startsWith('propria_')));
+  assert.doesNotMatch(JSON.stringify((await executar(carlos, q2.id, 'pedido 40, nota 38')).chamadas[0].messages[0].content), new RegExp(REGRA));
+  // Segredo numa regra própria: recusado, como no resto da criação.
+  const seg = await ana.post('/api/quick-wins', { assistente: { ...ASSISTENTE, regras_proprias: ['Use a senha: Sup3r$ecreta!2026'] }, areas: [A.id] });
+  assert.equal(seg.status, 422);
 });

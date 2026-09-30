@@ -180,6 +180,28 @@ test('etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (
   await p.waitForSelector('#exemplo');
   await p.click('[data-continuar]');
   await p.waitForSelector('input[name=regra]');
+  // Regras próprias: "+ Adicionar regra" (Enter ou botão), entram na mesma lista e podem ser removidas.
+  const sugeridas = await p.locator('.regras-lista li').count();
+  await p.click('#adicionar-regra');
+  await p.fill('#nova-regra-texto', 'Destacar documentos vencidos');
+  await p.press('#nova-regra-texto', 'Enter');
+  await p.waitForSelector('.regra-propria');
+  await p.click('#adicionar-regra');
+  await p.fill('#nova-regra-texto', 'Ordenar os valores do maior para o menor');
+  await p.click('#confirmar-regra');
+  await p.waitForFunction(() => document.querySelectorAll('.regra-propria').length === 2);
+  assert.equal(await p.locator('.regras-lista li').count(), sugeridas + 2, 'na mesma lista das sugeridas');
+  await p.click('[data-remover-regra="1"]');
+  await p.waitForFunction(() => document.querySelectorAll('.regra-propria').length === 1);
+  assert.equal(await p.evaluate(() => document.activeElement?.id), 'adicionar-regra', 'o foco volta para "Adicionar regra"');
+  assert.doesNotMatch(await p.textContent('.regras-lista'), TECNICO);
+  await p.click('[data-continuar]');
+  await p.waitForSelector('input[name=saida]');
+  // Voltar e avançar: a regra própria continua na lista.
+  await p.click('[data-voltar]');
+  await p.waitForSelector('.regra-propria');
+  assert.match(await p.textContent('.regra-propria'), /Destacar documentos vencidos/);
+  assert.doesNotMatch(await p.textContent('.regras-lista'), /Ordenar os valores/);
   await p.click('[data-continuar]');
   await p.waitForSelector('input[name=saida]');
   assert.match(await p.textContent('.saida-motivo'), /Segue o formato do exemplo/);
@@ -188,12 +210,18 @@ test('etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (
   // Conferência parcial: ◐, sem nenhuma linguagem de aprovação.
   qc = 'parcial';
   await p.waitForSelector('[data-testar]');
+  // Salvo no rascunho, como dado da especificação, e enviado na execução do teste.
+  const id = Number(/#\/qw\/(\d+)/.exec(p.url())[1]);
+  const espec = JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id = ?').get(id).especificacao);
+  assert.deepEqual(espec.regras_proprias, [{ id: 'propria_1', texto: 'Destacar documentos vencidos' }]);
+  const antes = OR.chamadas.length;
   await p.click('[data-testar]');
   await p.waitForSelector('.qc-parcial');
   const parcial = await p.textContent('.qc-parcial');
   assert.match(parcial, /◐/);
   assert.match(parcial, /Conferência incompleta.*A conferência completa não pôde ser feita agora\. Revise antes de usar\./s);
   assert.doesNotMatch(parcial, APROVACAO, 'parcial nunca parece aprovado');
+  assert.match(texto(OR.chamadas[antes].messages[0].content), /- Destacar documentos vencidos/);
   // Pontos para revisar: resultado recolhido, "Ver resultado" e "Ajustar Quick Win".
   qc = 'falha';
   await p.click('[data-testar]');

@@ -104,6 +104,23 @@ export const REGRAS = {
     criterio: 'O resultado segue a estrutura combinada.' },
 };
 const MAX_REGRAS_SUGERIDAS = 5;
+// Regras próprias: escritas pelo responsável, em linguagem comum. Entram na especificação como dados (não como
+// texto solto), vão para a execução junto das demais e viram critérios do Quality Check (grupo "regras").
+// Nunca ampliam fontes, ferramentas, autonomia ou restrições: são só exigências sobre o trabalho.
+export const MAX_REGRAS_PROPRIAS = 5, MAX_TEXTO_REGRA = 160;
+const ROTULOS_CATALOGO = new Set(Object.values(REGRAS).map(r => norm(r.rotulo)));
+export function regrasProprias(lista) {
+  const vistos = new Set(), out = [];
+  for (const item of Array.isArray(lista) ? lista : []) {
+    const texto = limpar(typeof item === 'string' ? item : item?.texto, MAX_TEXTO_REGRA).replace(/[<>]/g, '');
+    const chave = norm(texto).replace(/[.!;:]+$/, '');
+    if (texto.length < 3 || vistos.has(chave) || ROTULOS_CATALOGO.has(chave)) continue;
+    vistos.add(chave);
+    out.push({ id: `propria_${out.length + 1}`, texto });
+    if (out.length >= MAX_REGRAS_PROPRIAS) break;
+  }
+  return out;
+}
 
 // ---- Formatos de saída (o que a pessoa escolhe) -------------------------------------------------------------
 export const FORMATOS_SAIDA = {
@@ -275,6 +292,7 @@ export function construir(r = {}) {
   // Regras: só as do catálogo; "não inventar" sempre ligada; no máximo as sugeridas mais as da escolha.
   const pedidas = Array.isArray(r.regras) ? r.regras.filter(id => REGRAS[id]) : sugerirRegras(arq, { exemplo }).map(x => x.id);
   const regras = [...new Set(['nao_inventar', ...pedidas])].slice(0, 8);
+  const proprias = regrasProprias(r.regras_proprias);
   const sug = sugerirFormato({ descricao, arquetipo: arq, exemplo });
   const tipo = FORMATOS_SAIDA[r.formato] ? r.formato : sug.formato;
   const passos = explicacao ? explicacao.split(/\n+|(?<=[.;])\s+(?=[A-ZÀ-Ú0-9])/).map(p => limpar(p.replace(/^([-*•]|\d+[.)])\s*/, ''), 240)).filter(p => p.length > 3).slice(0, 8) : [];
@@ -291,6 +309,7 @@ export function construir(r = {}) {
     contexto: explicacao ? `Como o responsável faz hoje: ${limpar(explicacao, 600)}` : '',
     procedimento: passos.length ? passos : a.procedimento,
     regras,
+    regras_proprias: proprias,
     restricoes: ['Não execute ações fora desta conversa (enviar, publicar, pagar, agendar ou alterar sistemas).', 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
     formato_saida: { tipo, descricao: tipo === 'outro' ? limpar(r.formato_descricao, 200) || sug.descricao || a.formatoDescricao || '' : '', colunas, secoes },
@@ -299,9 +318,9 @@ export function construir(r = {}) {
     nivel_autonomia: autonomia,
     fontes_permitidas: ['entrada', 'anexos', 'conversa', 'contexto_autorizado'],
     ferramentas_permitidas: [],
-    criterios_qualidade: criterios(regras, { tipo, colunas, secoes }),
+    criterios_qualidade: criterios(regras, { tipo, colunas, secoes }, proprias),
     dicas_roteamento: { complexidade: a.complexidade },
-    origem: { descricao, arquetipo: r.arquetipo && ARQUETIPOS[r.arquetipo] ? r.arquetipo : null, como: { modo, texto: explicacao }, exemplo, regras, formato: tipo, formato_descricao: limpar(r.formato_descricao, 200), nome },
+    origem: { descricao, arquetipo: r.arquetipo && ARQUETIPOS[r.arquetipo] ? r.arquetipo : null, como: { modo, texto: explicacao }, exemplo, regras, regras_proprias: proprias.map(x => x.texto), formato: tipo, formato_descricao: limpar(r.formato_descricao, 200), nome },
   };
 }
 function secoesPadrao(tipo, arq) {
@@ -310,8 +329,9 @@ function secoesPadrao(tipo, arq) {
   if (tipo === 'resumo') return ['Resumo', 'Pontos de atenção'];
   return [];
 }
-function criterios(regras, contrato) {
+function criterios(regras, contrato, proprias = []) {
   const out = regras.map(id => ({ id, grupo: REGRAS[id].grupo, texto: REGRAS[id].criterio }));
+  for (const p of proprias) out.push({ id: p.id, grupo: 'regras', texto: `Regra do responsável: "${p.texto}". Foi seguida em tudo a que se aplica no material.` });
   out.push({ id: 'completo', grupo: 'completo', texto: 'O resultado responde ao objetivo por inteiro, sem deixar parte do pedido de fora.' });
   out.push({ id: 'formato', grupo: 'formato', texto: `O resultado está no formato combinado${contrato.colunas.length ? `, com as colunas ${contrato.colunas.join(', ')}` : ''}${contrato.secoes.length ? ` e as seções ${contrato.secoes.join(', ')}` : ''}.` });
   return out;
@@ -320,7 +340,7 @@ function criterios(regras, contrato) {
 // Validação de uma especificação vinda do banco (defensiva): o que não é conhecido não entra no prompt.
 export function normalizar(espec) {
   if (!espec || espec.v !== VERSAO_ESPEC) return null;
-  return { ...espec, regras: (espec.regras || []).filter(id => REGRAS[id]), ferramentas_permitidas: [], nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
+  return { ...espec, regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias), ferramentas_permitidas: [], nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
 }
 
 // ---- Prompt de execução -------------------------------------------------------------------------------------
@@ -332,7 +352,8 @@ export function promptExecucao(espec, { nome = '' } = {}) {
   const partes = [`\nVocê está executando o Quick Win "${nome}".`, `Objetivo: ${e.objetivo}`];
   if (e.contexto) partes.push(e.contexto);
   partes.push(`Como fazer:\n${e.procedimento.map((p, i) => `${i + 1}. ${p}`).join('\n')}`);
-  partes.push(`Regras:\n${e.regras.map(id => `- ${REGRAS[id].instrucao}`).join('\n')}`);
+  partes.push(`Regras:\n${[...e.regras.map(id => REGRAS[id].instrucao), ...e.regras_proprias.map(p => p.texto)].map(t => `- ${t}`).join('\n')}`
+    + (e.regras_proprias.length ? '\nAs regras acima valem junto com as restrições abaixo e nunca as substituem.' : ''));
   if (e.criterios_decisao.length) partes.push(`Critério de decisão: ${e.criterios_decisao.join(' ')}`);
   partes.push(`Autonomia: ${AUTONOMIA[e.nivel_autonomia].instrucao} ${e.restricoes.join(' ')} Você não tem ferramentas nem acesso a sistemas externos.`);
   const contrato = [];
@@ -454,7 +475,7 @@ const ENTRADAS = {
 export const entradaDeTeste = arquetipo => ENTRADAS[arquetipo] || ENTRADAS.outro;
 
 // Resumo que aparece na publicação: as regras principais, em linguagem comum.
-export const regrasPrincipais = espec => (normalizar(espec)?.regras || []).map(id => REGRAS[id].rotulo);
+export const regrasPrincipais = espec => { const e = normalizar(espec); return e ? [...e.regras.map(id => REGRAS[id].rotulo), ...e.regras_proprias.map(p => p.texto)] : []; };
 
 // Conferência com correção automática. `chamar(mensagens)` usa o MESMO recurso e a mesma rota já decididos pela
 // governança para a resposta (nada aqui escolhe modelo). No máximo MAX_CORRECOES correções e uma nova conferência

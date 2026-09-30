@@ -39,8 +39,8 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
     descricao: o.descricao || '', arquetipo: o.arquetipo || null,
     modoProc: o.como?.modo === 'mostrar' ? 'exemplo' : 'explicar', processo: o.como?.modo === 'explicar' ? o.como.texto || '' : '',
     exemplo: '', exemploNome: '', estruturaAnterior: o.exemplo || null, estruturaSugerida: null,
-    sugestao: null, regras: o.regras ? new Set(o.regras) : null, formato: o.formato || null, formatoDescricao: o.formato_descricao || '',
-    salvo: qw ? assinatura({ descricao: o.descricao || '', arquetipo: o.arquetipo || null, como: o.como || {}, regras: o.regras || [], formato: o.formato || null, formato_descricao: o.formato_descricao || '' }) : null,
+    sugestao: null, regras: o.regras ? new Set(o.regras) : null, proprias: [...(o.regras_proprias || [])], formato: o.formato || null, formatoDescricao: o.formato_descricao || '',
+    salvo: qw ? assinatura({ descricao: o.descricao || '', arquetipo: o.arquetipo || null, como: o.como || {}, regras: o.regras || [], formato: o.formato || null, formato_descricao: o.formato_descricao || '', regras_proprias: o.regras_proprias || [] }) : null,
     teste: { modo: 'auto', texto: '', anexo: null, entradaAuto: null }, resultado: null, publicado: null,
   };
   const publicada = qw?.versao;
@@ -58,11 +58,19 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
 }
 
 const assinatura = a => JSON.stringify(a);
+// Regra própria: texto curto, sem repetir outra. O servidor aplica os mesmos limites.
+const MAX_PROPRIAS = 5;
+function adicionarPropria(W, texto) {
+  const t = String(texto).replace(/\s+/g, ' ').trim().slice(0, 160);
+  const igual = x => x.toLowerCase() === t.toLowerCase();
+  if (t.length < 3 || W.proprias.some(igual) || W.proprias.length >= MAX_PROPRIAS) return;
+  W.proprias.push(t);
+}
 function respostas(W) {
   const como = W.modoProc === 'exemplo'
     ? (W.exemplo || W.estruturaAnterior ? { modo: 'mostrar', exemplo: W.exemplo } : { modo: 'pronto' })
     : W.processo.trim() ? { modo: 'explicar', texto: W.processo.trim() } : { modo: 'pronto' };
-  return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '' };
+  return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias] };
 }
 
 async function desenhar(W, { foco = true } = {}) {
@@ -98,6 +106,7 @@ function guardarEtapa(W) {
     if ($('exemplo')) mudou('exemplo', $('exemplo').value.trim());
   }
   if (W.passo === 2 && document.querySelector('input[name=regra]')) W.regras = new Set(['nao_inventar', ...[...document.querySelectorAll('input[name=regra]:checked')].map(i => i.value)]);
+  if (W.passo === 2 && $('nova-regra-texto')?.value.trim()) adicionarPropria(W, $('nova-regra-texto').value);   // escrita e não adicionada: não se perde
   if (W.passo === 3) {
     W.formato = document.querySelector('input[name=saida]:checked')?.value || W.formato;
     if ($('formato-descricao')) W.formatoDescricao = $('formato-descricao').value.trim();
@@ -183,7 +192,14 @@ const ETAPA_HTML = [
     const s = await sugerir(W);
     return `${pergunta('O que a IA não pode ignorar?', 'Estas regras valem em todas as execuções. Sugerimos as mais importantes para esse trabalho; desmarque o que não fizer sentido.')}
       <ul class="regras-lista">${s.regras.map(r => `<li><label class="${r.travada ? 'travada' : ''}"><input type="checkbox" name="regra" value="${esc(r.id)}" ${r.travada || W.regras.has(r.id) ? 'checked' : ''} ${r.travada ? 'disabled' : ''}>
-        <span>${esc(r.rotulo)}</span>${r.travada ? '<span class="tag">Sempre ativa</span>' : ''}</label></li>`).join('')}</ul>
+        <span>${esc(r.rotulo)}</span>${r.travada ? '<span class="tag">Sempre ativa</span>' : ''}</label></li>`).join('')}
+        ${W.proprias.map((t, i) => `<li class="regra-propria"><span class="regra-marca" aria-hidden="true">${ICONE.check}</span><span>${esc(t)}</span>
+          <button type="button" class="link-sutil" data-remover-regra="${i}" aria-label="Remover a regra: ${esc(t)}">Remover</button></li>`).join('')}</ul>
+      ${W.proprias.length >= MAX_PROPRIAS ? `<p class="dica bloco-extra">Você já adicionou ${MAX_PROPRIAS} regras suas.</p>`
+        : `<div class="nova-regra"><button type="button" class="link-sutil" id="adicionar-regra" aria-expanded="false" aria-controls="nova-regra">+ Adicionar regra</button>
+        <div class="nova-regra-campo oculto" id="nova-regra"><label class="sr" for="nova-regra-texto">Nova regra</label>
+          <input class="entrada" id="nova-regra-texto" maxlength="160" placeholder="Ex.: Destacar documentos vencidos">
+          <button type="button" class="btn btn-linha btn-pequeno" id="confirmar-regra">Adicionar</button></div></div>`}
       ${rodape(W)}`;
   },
   // 4. Resultado
@@ -338,7 +354,14 @@ const ETAPA_LIGAR = [
       };
     }
   },
-  null,
+  W => {
+    const redesenhar = foco => { guardarEtapa(W); desenhar(W, { foco: false }).then(() => $(foco)?.focus()); };
+    document.querySelectorAll('[data-remover-regra]').forEach(b => { b.onclick = () => { W.proprias.splice(Number(b.dataset.removerRegra), 1); redesenhar('adicionar-regra'); }; });
+    $('adicionar-regra')?.addEventListener('click', () => { $('nova-regra').classList.remove('oculto'); $('adicionar-regra').setAttribute('aria-expanded', 'true'); $('nova-regra-texto').focus(); });
+    const confirmar = () => { if (!$('nova-regra-texto').value.trim()) return $('nova-regra-texto').focus(); redesenhar('adicionar-regra'); };
+    $('confirmar-regra')?.addEventListener('click', confirmar);
+    $('nova-regra-texto')?.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirmar(); } });
+  },
   W => {
     document.querySelectorAll('input[name=saida]').forEach(r => { r.onchange = () => { W.formato = r.value; $('saida-outro').classList.toggle('oculto', r.value !== 'outro'); }; });
   },

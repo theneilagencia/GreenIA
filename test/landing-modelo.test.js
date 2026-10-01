@@ -81,6 +81,26 @@ test('marca nasce com título e texto do login e aviso de privacidade de exemplo
   assert.deepEqual([m3.login_title, m3.login_text, m3.privacy_note], ['Bem-vindo', modelo.login_text, modelo.privacy_note]);
 });
 
+test('marca branca: o aviso de privacidade de exemplo não cita a plataforma; o texto antigo gravado é trocado, o editado fica', async () => {
+  const { marcaPadrao, neutralizarAvisosAntigos, AVISOS_ANTIGOS } = await import('../src/plataforma/empresas.js');
+  const { exec, um } = await import('../src/db.js');
+  const { PADRAO: CONFIG_PADRAO } = await import('../src/config.js');
+  assert.doesNotMatch(marcaPadrao('X').privacy_note, /GreenIA/);
+  assert.doesNotMatch(CONFIG_PADRAO.privacyNote, /GreenIA/);
+  const aviso = () => um(S.P.db, 'select privacy_note from branding where company_id = ?', c.id).privacy_note;
+  for (const antigo of AVISOS_ANTIGOS) {
+    exec(S.P.db, 'update branding set privacy_note = ? where company_id = ?', antigo, c.id);
+    neutralizarAvisosAntigos(S.P); neutralizarAvisosAntigos(S.P);
+    assert.equal(aviso(), antigo.replace('Nenhuma tela da GreenIA', 'Nenhuma tela da plataforma'));
+  }
+  assert.equal(aviso(), CONFIG_PADRAO.privacyNote);
+  const editado = 'Aviso próprio do cliente, que cita a GreenIA de propósito.';
+  exec(S.P.db, 'update branding set privacy_note = ? where company_id = ?', editado, c.id);
+  neutralizarAvisosAntigos(S.P);
+  assert.equal(aviso(), editado);
+  exec(S.P.db, 'update branding set privacy_note = ? where company_id = ?', marcaPadrao('Construtora Horizonte').privacy_note, c.id);
+});
+
 test('multiempresa: o aviso de administrar a base leva ao endereço da própria empresa', async () => {
   await ops.post('/api/plataforma/empresas', { name: 'Delta', slug: 'delta', admin_email: 'dora@delta.com', status: 'ativa' });
   const dora = S.navegador(); await dora.get('/delta'); await dora.entrarEmpresa('dora@delta.com');

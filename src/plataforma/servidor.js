@@ -107,6 +107,7 @@ export function criarPlataforma(op = {}) {
   }
   if (op.legado) { importarInstalacao(P, op.legado); copiarSmtpLegado(P, op.legado.banco); }
   E.preencherTextosMarca(P);
+  E.neutralizarAvisosAntigos(P);
   const salva = lerChaveOpenRouter(P);
   if (salva?.chave) P.ia.trocar(P.criarIA(salva.chave));
   else if (salva && !salva.chave) P.log('ATENÇÃO: a chave do OpenRouter salva no console não pôde ser lida (chave-mestra diferente). Informe a chave de novo em Uso.');

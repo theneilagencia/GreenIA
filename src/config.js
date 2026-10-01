@@ -9,7 +9,7 @@ export const PADRAO = {
   corMarca: '',
   dominios: [],
   smtp: { url: '', remetente: '' },
-  privacyNote: 'Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa. Conversas sem uso são apagadas no prazo de retenção da empresa, e você pode apagá-las quando quiser.',
+  privacyNote: 'Nenhuma tela da plataforma mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa. Conversas sem uso são apagadas no prazo de retenção da empresa, e você pode apagá-las quando quiser.',
   retencaoDias: 90,
   // Ação por tipo de dado no chat (e padrão dos quick wins). Credencial é sempre bloqueada.
   // Tratamento proporcional ao risco (filtro.js → decidir): "permitir" = processar normalmente; "proteger" =

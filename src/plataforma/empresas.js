@@ -247,7 +247,7 @@ export function salvarConcessoes(P, id, { grants, locked }, ator, origem) {
 export const marcaPadrao = nome => ({
   login_title: 'Entre com o seu email de trabalho',
   login_text: `Esta é a IA de uso interno de ${nome || 'sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,
-  privacy_note: 'Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa, e você pode apagar as conversas quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
+  privacy_note: 'Nenhuma tela da plataforma mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa, e você pode apagar as conversas quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
 });
 export const TEXTOS_MARCA = Object.keys(marcaPadrao(''));
 // Preenche os textos vazios das empresas que já existiam, uma vez só: se depois o cliente apagar
@@ -259,6 +259,16 @@ export function preencherTextosMarca(P) {
     for (const k of TEXTOS_MARCA) exec(P.db, `update branding set ${k} = ? where company_id = ? and ${k} = ''`, m[k], b.company_id);
   }
   salvarAjuste(P.db, 'marca_textos_preenchidos', true);
+}
+// Avisos de privacidade que ainda são o texto de exemplo antigo (com o nome da plataforma, que aparecia cru no editor de
+// marca do ambiente da empresa): trocados pelo texto neutro. Só o texto idêntico ao antigo; um aviso editado pelo
+// cliente não muda. Idempotente.
+export const AVISOS_ANTIGOS = [
+  'Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa, e você pode apagar as conversas quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
+  'Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa. Conversas sem uso são apagadas no prazo de retenção da empresa, e você pode apagá-las quando quiser.',
+];
+export function neutralizarAvisosAntigos(P) {
+  for (const a of AVISOS_ANTIGOS) exec(P.db, 'update branding set privacy_note = ? where privacy_note = ?', a.replace('da GreenIA', 'da plataforma'), a);
 }
 export const lerMarca = (P, id) => { const b = um(P.db, 'select b.*, c.name as nome_empresa from branding b join companies c on c.id = b.company_id where b.company_id = ?', id); if (!b) return b; const { nome_empresa, ...r } = b; return { ...r, locked: json(b.locked, []), modelo: marcaPadrao(b.display_name || nome_empresa) }; };
 

@@ -179,7 +179,7 @@ async function vistaEmpresa(id, aba = 'resumo') {
   const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba] || abaResumo;
   tela(titulo, `${sub}<div id="aba"></div>`, acoes, '#/empresas');
   $('entrar-amb').onclick = () => pedirMotivo({ titulo: `Entrar no ambiente da ${e.name}`, botao: 'Entrar no ambiente',
-    explica: 'O acesso vale por 60 minutos, aparece na hora para a empresa em "Acessos da equipe GreenIA" e os admins dela recebem um aviso por email. Um admin da empresa pode encerrar o acesso.',
+    explica: 'O acesso vale por 60 minutos, aparece na hora para a empresa em "Acessos da equipe de operação" e os admins dela recebem um aviso por email. Um admin da empresa pode encerrar o acesso.',
     async enviar(motivo) { const r = await api(`/api/plataforma/empresas/${id}/entrar`, { metodo: 'POST', corpo: motivo }); window.open(r.url, '_blank'); toast('Ambiente aberto em outra aba. O acesso foi registrado e está visível para a empresa.'); } });
   await corpo(d, id);
 }
@@ -228,7 +228,7 @@ async function abaResumo(d, id) {
     try { await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: conf } }); toast('Empresa excluída. A cópia do banco ficou guardada em dados/excluidas.'); location.hash = '#/empresas'; } catch (x) { falhar(x); }
   });
   $('exportar-empresa').onclick = () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar',
-    explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas. Ela fica registrada, com o motivo, na tela "Acessos da equipe GreenIA" da empresa, e os admins dela recebem um aviso por email.',
+    explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas. Ela fica registrada, com o motivo, na tela "Acessos da equipe de operação" da empresa, e os admins dela recebem um aviso por email.',
     async enviar(motivo) {
       const r = await fetch(`/api/plataforma/empresas/${encodeURIComponent(id)}/exportar`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf': C.csrf }, body: JSON.stringify(motivo) });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.mensagem || 'A exportação falhou.'); }

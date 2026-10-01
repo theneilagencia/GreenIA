@@ -250,3 +250,15 @@ test('aviso por email aos admins é complemento: sem email, o acesso abre e fica
   await esperar();
   assert.ok(S.P.email.enviados.some(m => m.para === 'ana@acme.com' && /Acesso da equipe de operação da plataforma ao ambiente/.test(m.assunto)));
 });
+
+test('marca branca: a empresa vê "Acessos da equipe de operação", sem o nome da plataforma, e o operador continua identificado', async () => {
+  const { readFileSync } = await import('node:fs');
+  const ler = p => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+  for (const p of ['public/empresa.js', 'public/app.js']) {
+    assert.match(ler(p), /Acessos da equipe de operação/, p);
+    assert.doesNotMatch(ler(p).replace(/^\s*\/\/.*$/gm, ''), /equipe GreenIA/, p);
+  }
+  const lista = (await ana.get('/api/empresa/acessos-greenia')).dados;
+  assert.ok(lista.acessos.every(a => a.operador && a.tipo && a.justificativa && a.inicio && a.status));
+  assert.ok(lista.acessos.some(a => a.operador === 'ops@theneil.com.br'));
+});

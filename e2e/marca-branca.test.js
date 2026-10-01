@@ -27,9 +27,6 @@ after(async () => { await nav?.close(); await S.fechar(); });
 const marcaVisivel = p => p.evaluate(() => {
   const fora = document.body.cloneNode(true);
   fora.querySelectorAll('.bolha-eu, .bolha-ia:not(.aviso-bolha), script, style, .rodape-plataforma').forEach(e => e.remove());   // o rodapé "Powered by" é a exceção, conferida à parte
-  // Segunda exceção, deliberada: a transparência sobre a equipe da plataforma ("Acessos da equipe GreenIA"). Fora
-  // dela, nada pode citar a plataforma; dentro, só esse nome.
-  for (const e of fora.querySelectorAll('[data-sem-marca]')) { if (/^(?:[^G]|G(?!reenIA))*(?:equipe GreenIA(?:[^G]|G(?!reenIA))*)*$/.test(e.textContent)) e.remove(); }
   const attrs = [...fora.querySelectorAll('[title],[aria-label],[alt],[placeholder]')].map(e => ['title', 'aria-label', 'alt', 'placeholder'].map(a => e.getAttribute(a) || '').join(' '));
   const imgs = [...document.querySelectorAll('img')].filter(i => !i.closest('.rodape-plataforma')).map(i => i.getAttribute('src') || '').filter(s => /greenia/i.test(s));
   return { texto: (fora.innerText + ' ' + attrs.join(' ') + ' ' + document.title).match(/.{0,40}GreenIA.{0,40}/g) || [], imgs };

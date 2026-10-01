@@ -78,6 +78,33 @@ Valem só com a limpeza ligada em produção (`RETENCAO_APLICAR=1`) e sem item "
 Ordem de ativação: backup pré-deploy → deploy com `RETENCAO_APLICAR` desligado → health check → conferir logs → plano
 (dry-run) → hold e classificação acima → plano de novo → só então `RETENCAO_APLICAR=1`.
 
+## Ativação em produção (release eb3c6c6, fechada em 2026-10-01)
+
+| Item | Estado |
+|---|---|
+| Serviço | Render `greenia` (`srv-darrnsfavr4c73fu4m9g`), branch `greenia-lite`, `https://greenia.theneil.com.br` |
+| Commit | `eb3c6c6` (`eb3c6c68a4fa69282893a044d4a78ac835fa8652`) antes e depois da ativação; nenhum commit, merge ou mudança de código durante a ativação |
+| Backup pré-deploy | `dados/backups/pre-deploy-20261001T114538/` (4 bancos, `integrity_check` ok na origem e na cópia; manual, expira em 2026-10-31T11:45:38Z) |
+| Hold | `pre-release-b105df1-20260930T194342`, gravado em 2026-10-01T12:51:44Z por "TheNeil (operação GreenIA)", sem data de revisão: revisar e liberar conscientemente depois da estabilização do release `eb3c6c6` |
+| Classificação | `pre-deploy-20260930T164609`: manual, tipo `pre-deploy`, criado em 2026-09-30T16:46:09Z, expira em 2026-10-30T16:46:09Z |
+| Variáveis | `RETENCAO_APLICAR=1`, `EXCLUSAO_APLICAR=1`, `PLATAFORMA_URL=https://greenia.theneil.com.br` |
+| Reinícios | 2 redeploys de configuração (retenção; depois exclusão), ambos no mesmo commit e de volta a Live |
+| Retenção depois de cada reinício | 0 a apagar, 16 mantidos, 0 alertas; nenhuma exclusão inesperada nem erro de boot observado |
+| Exclusão automática | ativada com 0 empresas canceladas, 0 agendas, 0 datas estimadas e 0 exclusões elegíveis |
+
+Antes da ativação (diagnóstico só de leitura no servidor): contatos 0 antes e 0 depois da migração (sem perda nem
+duplicação; lista antiga removida), `.chave-mestra` presente e protegida, nenhum banco em uso marcado para limpeza,
+`integrity_check` ok nos 3 bancos em uso, e o backup legado `greenia-20260927` com todas as linhas presentes no banco
+em uso (sai na limpeza normal a partir de 2026-10-04T06:00:19Z).
+
+Limitação: depois da ativação não houve acesso de Shell ao servidor. Os logs confirmam a rodada (0/16/0); as checagens
+físicas do disco e de integridade continuam lastreadas no diagnóstico anterior à ativação.
+
+Débito técnico (próximo release, com teste próprio; não é blocker): o `Dockerfile` copia só `scripts/backup.js`,
+`scripts/restaurar.js`, `scripts/verificar.js` e `scripts/entrada.sh`. Faltam `scripts/retencao.js` e
+`scripts/contatos.js` (plano, hold, classificação, contagem e rollback dos contatos dentro do container). A rodada
+automática não depende deles (usa `src/retencao.js`). Correção: `COPY scripts/retencao.js scripts/contatos.js ./scripts/`.
+
 ## Como os prazos aparecem em documentos legais
 
 Os limites de 15 dias (cópias diárias) e 38 dias (backup manual e ambiente excluído) são o **pior caso operacional

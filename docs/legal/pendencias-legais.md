@@ -73,3 +73,7 @@ Os prazos são o pior caso das cópias geridas pela plataforma e pelo provedor, 
 1. Deploy da versão candidata. Os documentos vão ao ar com ela (`docs/legal/estado.json`: `publicado: true`).
 2. `RETENCAO_APLICAR=1` e `EXCLUSAO_APLICAR=1` ativados depois do dry-run e **antes de 30 de novembro de 2026**, início da
    vigência. Antes disso, os prazos descritos nos documentos ainda não estão em vigor.
+
+Situação em 2026-10-01: as duas condições foram cumpridas. O deploy de `eb3c6c6` publicou os documentos, e
+`RETENCAO_APLICAR=1` e `EXCLUSAO_APLICAR=1` foram ativados depois do dry-run (registro em `docs/politica-retencao.md`,
+"Ativação em produção").

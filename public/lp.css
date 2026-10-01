@@ -707,3 +707,7 @@
 .l-prumo{margin:18px 0 0;font:400 14px/1.55 var(--sans);color:var(--muted);text-align:center}
 .l-prumo a{color:inherit;text-decoration:underline;text-underline-offset:3px}
 .l-prumo a:hover{color:var(--ink)}
+/* Rodapé legal: identificação da empresa, contato de privacidade e encarregado. */
+.l-rodape .l-rodape-legal{display:grid;gap:4px;padding-top:0;padding-bottom:calc(28px + env(safe-area-inset-bottom));border-top:1px solid var(--line);padding-top:16px}
+.l-rodape .l-rodape-legal p{margin:0;font:400 12.5px/1.55 var(--sans);color:var(--muted)}
+.l-rodape .l-rodape-legal a{font-size:12.5px;min-height:0;display:inline;text-decoration:underline;text-underline-offset:2px}

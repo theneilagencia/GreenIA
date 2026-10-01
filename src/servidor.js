@@ -26,7 +26,7 @@ import { rotasOperador } from './operador.js';
 import { rotasVendas } from './vendas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
-const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html' };
+const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html', '/termos': 'termos.html', '/privacidade': 'privacidade.html' };
 
 /**
  * Monta a aplicação. Tudo o que vem de fora (banco, IA, email, relógio) pode ser

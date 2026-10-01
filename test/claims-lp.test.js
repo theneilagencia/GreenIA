@@ -37,7 +37,8 @@ test('registro: toda linha tem as 13 colunas, estado válido, superfície conhec
 test('registro: cada claim sustentado está na superfície, com evidência no código e teste existente', () => {
   for (const r of SUSTENTADOS) {
     assert.ok(S[r.superficie].includes(r.texto), `${r.id}: texto não está em "${r.superficie}": "${r.texto}"`);
-    assert.equal(r.versao, '6534041', `${r.id}: versão mínima`);
+    // 6534041: produção de referência. Os demais: commits da liberação candidata (governança, retenção, identificação legal).
+    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
     const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(r.evidencia) || [];
     assert.ok(arquivo && simbolo, `${r.id}: evidência mal descrita: ${r.evidencia}`);
     assert.ok(existsSync(raiz + arquivo) && ler(arquivo).includes(simbolo), `${r.id}: ${arquivo} não contém "${simbolo}"`);

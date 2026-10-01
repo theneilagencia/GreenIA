@@ -33,7 +33,8 @@ test('filtro de saída: substitui o nome, a URL, a chave e o identificador do pr
 
 test('código das páginas da empresa não contém o nome do provedor (só o painel global e o console do operador)', () => {
   const raiz = new URL('../public/', import.meta.url).pathname;
-  const doPainelGlobal = f => /^(plataforma|operador)\./.test(f);
+  // Painel global, console do operador e os documentos legais da plataforma (que precisam nomear os fornecedores).
+  const doPainelGlobal = f => /^(plataforma|operador|termos|privacidade)\./.test(f);
   for (const f of readdirSync(raiz).filter(f => /\.(js|html|css)$/.test(f) && !doPainelGlobal(f)))
     assert.doesNotMatch(readFileSync(raiz + f, 'utf8'), PROVEDOR, f);
   assert.match(readFileSync(raiz + 'plataforma.js', 'utf8'), /OpenRouter/, 'o painel global continua podendo mostrar o provedor');

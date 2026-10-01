@@ -287,6 +287,8 @@ async function tratar(P, rPlat, rEmp, req, res) {
       if (caminho === '/api/contato' && P.paginaInicial === 'vendas') return await contatoVendas(P, req, res);
       // Quem não sabe o endereço da empresa recebe o link de entrada por email.
       if (caminho === '/encontrar' || caminho === '/encontrar/') return await servirPagina(res, 'encontrar.html');
+      // Documentos legais da GreenIA (gerados de docs/legal por scripts/gerar-legais.js).
+      if (caminho === '/termos' || caminho === '/privacidade') return await servirPagina(res, `${caminho.slice(1)}.html`);
       if (caminho === '/api/encontrar' && req.method === 'POST') return await P.encontrar(req, res);
       const m = /^\/([a-z0-9-]{3,40})(\/entrar|\/app)?\/?$/.exec(caminho);
       if (m && !PAGINAS_EMPRESA[`/${m[1]}`] && !SLUGS_RESERVADOS.has(m[1])) {

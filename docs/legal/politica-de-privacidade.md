@@ -4,7 +4,6 @@
 > auditado (Etapas 1 a 3). As marcações têm três tipos:
 > - **[PENDÊNCIA JURÍDICA]**: depende de decisão jurídica.
 > - **[PENDÊNCIA DE GOVERNANÇA]**: depende de decisão de produto ou retenção.
-> - **[DADO DA THENEIL]**: depende da identificação legal (Etapa 6).
 >
 > Nenhuma base legal, papel jurídico ou prazo foi preenchido por inferência.
 >
@@ -12,7 +11,7 @@
 > equipe de operação, a consolidação do WAL e a política de retenção (Etapas 1 a 3), ainda **não publicada em
 > produção** (produção em `227fd36` em 2026-10-01). O documento só pode ser publicado junto com o deploy dessa versão.
 
-Versão: rascunho 0.2, de 1º de outubro de 2026 · Vigência: [PENDÊNCIA JURÍDICA: data de publicação]
+Versão: rascunho 0.3, de 1º de outubro de 2026 · Vigência: 30 de novembro de 2026 (a data não autoriza a publicação antes da conclusão do plano de liberação)
 
 ## 1. Quem somos e como falar conosco
 
@@ -20,8 +19,9 @@ A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA** ("TheNeil", "n�
 - **CNPJ:** 37.749.373/0001-70
 - **Sede:** Rua G, nº 277, Montserrat, Betim/MG
 - **Contato:** hello@theneil.com.br · www.theneil.com.br
-- **Canal de privacidade e de atendimento aos titulares:** [DADO DA THENEIL: confirmar se é hello@theneil.com.br ou um canal próprio]
-- **Encarregado (DPO):** pendente de definição.
+- **Canal de privacidade e de atendimento aos titulares:** hello@theneil.com.br (privacidade, pedidos de titulares,
+  contato com o encarregado e qualquer solicitação relacionada a dados pessoais)
+- **Encarregado pela proteção de dados (DPO):** Vinicius Guimaraes · hello@theneil.com.br
 
 Neste documento:
 - **"Cliente":** a empresa que contrata a GreenIA;
@@ -319,8 +319,8 @@ cliente decide sobre esse tratamento, e o pedido deve ser dirigido a ela. A TheN
 contrato. [PENDÊNCIA JURÍDICA: confirmar este encaminhamento.]
 
 16.3. **Canal e procedimento:**
-- **Canal:** [DADO DA THENEIL: canal de atendimento ao titular]
-- **Responsável:** [PENDÊNCIA JURÍDICA]
+- **Canal:** hello@theneil.com.br, aos cuidados do encarregado, Vinicius Guimaraes
+- **Responsável:** o encarregado, Vinicius Guimaraes
 - **Procedimento e prazo de resposta:** [PENDÊNCIA JURÍDICA]
 - **Verificação de identidade:** [PENDÊNCIA JURÍDICA]
 

@@ -7,8 +7,7 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 | Item | Status | Impacto | Jurídico? | Produto? | Dado da TheNeil? |
 |---|---|---|---|---|---|
 | Identificação (razão social, CNPJ, endereço, contato) | **Resolvido** em 2026-10-01: NEIL INOVAÇÃO E TECNOLOGIA LTDA, CNPJ 37.749.373/0001-70 (dígitos conferidos), sede na Rua G, nº 277, Montserrat, Betim/MG, hello@theneil.com.br, www.theneil.com.br (informados pela TheNeil) | — | Não | Não | — |
-| Canal de privacidade e de titulares | Aberto: confirmar se é hello@theneil.com.br ou um canal próprio | Bloqueia publicação | Não | Não | **Sim** |
-| Encarregado (DPO) | Pendente de definição (registrado assim na Política) | Bloqueia publicação | **Sim** | Não | **Sim** |
+| Canal de privacidade e de titulares | **Resolvido** em 2026-10-01: hello@theneil.com.br | — | Não | Não | — |
 | Controlador e operador por tratamento | Proposta (matriz na Política, seção 3) | Define obrigações de cada parte | **Sim** | Não | Não |
 | Acordo de tratamento de dados (DPA) com clientes | Aberto | Formaliza o papel de operadora | **Sim** | Não | Não |
 | Bases legais | Proposta (Política, seção 15) | Não publicar sem aprovação | **Sim** | Não | Não |
@@ -20,9 +19,10 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 | Prazo entre cancelamento e exclusão definitiva | Aberto (hoje sem prazo automático) | Ambiente cancelado guardado indefinidamente | Sim | **Sim** | Não |
 | Devolução dos dados no encerramento | Aberto | Cláusula sem procedimento | Sim | Sim | Não |
 | Exportações: política de guarda e eliminação fora do servidor; hipóteses de exportação sem pedido do cliente | Aberto | Arquivo exportado fica fora da retenção | Sim | Sim (processo) | Não |
-| Direitos dos titulares: canal, responsável, prazo, verificação de identidade | Aberto | Seção sem procedimento | **Sim** | Não | **Sim** (canal) |
+| Direitos dos titulares: procedimento, prazo de resposta e verificação de identidade (canal e responsável resolvidos) | Aberto | Seção sem procedimento | **Sim** | Não | **Sim** (canal) |
 | "A TheNeil não vende dados pessoais" | A confirmar | Afirmação comercial | Sim | Não | Sim |
 | Ativação da limpeza em produção (`RETENCAO_APLICAR=1`) e classificação dos backups atuais | Aprovado, executa no deploy. A Política diz "política técnica implementada, ainda não ativada em produção" | **Os prazos de 15 e 38 dias só valem depois disso** | Não | **Sim** | Não |
+| Vigência dos documentos | **Resolvido**: 30 de novembro de 2026 (não autoriza publicação antes do plano) | — | Não | Não | — |
 | Antecedência e forma de aviso de alterações | Aberto | Alinhar Termos (26) e Política (21) | Sim | Não | Não |
 
 ## 2. Mapa de transferências
@@ -76,14 +76,18 @@ física de blocos.
 
 ## 5. Pontos que impedem a publicação
 
-1. Canal de privacidade e de titulares confirmado; encarregado definido (a identificação legal está preenchida).
+Além dos itens abaixo, a publicação exige o deploy das Etapas 1 a 3, a retenção ativada, a Etapa 7 concluída, o QA
+final e a aprovação de merge e deploy. A data de vigência (30/11/2026) não autoriza publicar antes disso.
+
+
+1. ~~Identificação legal, canal de privacidade, encarregado e vigência~~ (resolvidos em 2026-10-01).
 2. Papéis (controlador e operador), DPA e bases legais aprovados pelo jurídico.
 3. Mecanismo de transferência internacional.
 4. Prazos dos registros sem prazo, ou redação aprovada pelo jurídico.
 5. Prazo entre cancelamento e exclusão definitiva.
 6. Prazo e processo de comunicação de incidentes.
 7. Provedor de email identificado; localização do OpenRouter e do Google Fonts conforme documentação deles.
-8. Canal e procedimento de atendimento aos titulares.
+8. Procedimento, prazo e verificação de identidade no atendimento aos titulares (o canal está definido).
 9. Limpeza de retenção ativa em produção (`RETENCAO_APLICAR=1`) com os backups atuais classificados. Sem isso, os
    prazos de 15 e 38 dias não se sustentam.
 10. ~~Correção do conflito "Operadora" nos Termos~~ (resolvido).

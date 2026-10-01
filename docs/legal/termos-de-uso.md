@@ -8,7 +8,7 @@
 > equipe de operação, a consolidação do WAL e a política de retenção (Etapas 1 a 3), ainda **não publicada em
 > produção** (produção em `227fd36` em 2026-10-01). O documento só pode ser publicado junto com o deploy dessa versão.
 
-Versão: rascunho 0.2, de 1º de outubro de 2026 · Vigência a partir de: [PENDÊNCIA PARA APROVAÇÃO: data de publicação]
+Versão: rascunho 0.3, de 1º de outubro de 2026 · Vigência a partir de: 30 de novembro de 2026 (a data não autoriza a publicação antes da conclusão do plano de liberação)
 
 ## 1. Quem opera a GreenIA
 

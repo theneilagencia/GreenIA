@@ -1,19 +1,11 @@
 # Termos de Uso da GreenIA
 
-> **RASCUNHO PARA APROVAÇÃO. NÃO PUBLICADO.** Os trechos marcados **[PENDÊNCIA PARA APROVAÇÃO]** dependem de decisão
-> jurídica ou comercial e não podem ser preenchidos por inferência técnica. Base técnica: o produto como implementado
-> nas Etapas 1 a 3 (governança de acesso, auditoria de produção e política de retenção).
->
-> **Correspondência com a produção:** este texto descreve a versão da GreenIA que inclui a governança de acesso da
-> equipe de operação, a consolidação do WAL e a política de retenção (Etapas 1 a 3), ainda **não publicada em
-> produção** (produção em `227fd36` em 2026-10-01). O documento só pode ser publicado junto com o deploy dessa versão.
-
-Versão: rascunho 0.3, de 1º de outubro de 2026 · Vigência a partir de: 30 de novembro de 2026 (a data não autoriza a publicação antes da conclusão do plano de liberação)
+Versão 1.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro de 2026
 
 ## 1. Quem opera a GreenIA
 
 A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA**, pessoa jurídica de direito privado, inscrita no CNPJ
-sob o nº **37.749.373/0001-70**, com sede na Rua G, nº 277, Montserrat, Betim/MG, doravante "TheNeil".
+sob o nº **37.749.373/0001-70**, com sede na Rua G, nº 277, Montserrat, Betim/MG [PENDÊNCIA FACTUAL: endereço conforme o cartão CNPJ], doravante "TheNeil".
 Contato oficial: hello@theneil.com.br · www.theneil.com.br.
 
 ## 2. Definições
@@ -37,8 +29,7 @@ definidos pelo Cliente.
 
 3.2. As condições comerciais (plano, volume de créditos, preço, forma de pagamento, prazo de contratação e eventuais
 serviços adicionais, como implantação assistida ou o diagnóstico Prumo Discovery) constam da proposta ou do contrato
-comercial firmado com o Cliente, que prevalece sobre estes Termos no que for específico. [PENDÊNCIA PARA APROVAÇÃO:
-hierarquia entre Termos, proposta e contrato.]
+comercial firmado com o Cliente, que prevalece sobre estes Termos no que for específico.
 
 ## 4. Elegibilidade e acesso
 
@@ -131,8 +122,7 @@ revisão de quem usa.
 (incluindo histórico e documentos usados) e da resposta. As conferências automáticas de quick wins também consomem.
 
 10.2. O plano é contratado para a empresa, não por pessoa. O volume mensal de créditos e as condições de renovação e
-de pacotes adicionais seguem a proposta comercial. [PENDÊNCIA PARA APROVAÇÃO: o que acontece com créditos mensais não
-usados; validade dos pacotes.]
+de pacotes adicionais seguem a proposta comercial.
 
 10.3. O Cliente pode definir um limite mensal para a empresa, um limite mensal por pessoa e um máximo de respostas por
 pessoa por dia. Os limites são conferidos a cada novo envio. Uma resposta que já começou termina, e envios simultâneos
@@ -152,8 +142,7 @@ quando o envio de email está disponível.
 - um serviço de acesso a modelos de IA, que encaminha os pedidos aos fabricantes dos modelos;
 - serviço de envio de email.
 
-A lista de fornecedores está na Política de Privacidade. [PENDÊNCIA PARA APROVAÇÃO: nomear os subprocessadores nos
-Termos ou só na Política de Privacidade.]
+A lista de fornecedores está na Política de Privacidade.
 
 11.2. Para responder, o pedido (mensagem, anexos em texto, histórico da conversa, instruções do quick win e trechos de
 documentos usados) é enviado ao recurso de IA por meio do serviço de acesso a modelos.
@@ -166,8 +155,7 @@ pelas políticas que eles informam. É um filtro, não uma garantia contratual, 
 atributos são declarados pelos fornecedores e não são verificados pela TheNeil.
 
 11.5. A TheNeil não responde por indisponibilidade, alteração de política ou descumprimento por parte desses
-fornecedores, salvo nos limites da lei e do contrato. [PENDÊNCIA PARA APROVAÇÃO: redação de responsabilidade por
-terceiros.]
+fornecedores, salvo nos limites da lei e do contrato.
 
 ## 12. Confidencialidade
 
@@ -181,8 +169,7 @@ Essas telas mostram dados de uso.
 12.3. A TheNeil trata o Conteúdo do Cliente como confidencial e o usa para prestar o serviço. Além disso, a TheNeil
 trata registros da plataforma (contas, consumo, eventos, auditoria e acessos da equipe de operação, que não contêm o
 conteúdo das conversas) para finalidades próprias de segurança, auditoria, operação, prevenção de abuso, controle de
-consumo e cobrança e suporte, como descrito na Política de Privacidade. [PENDÊNCIA PARA APROVAÇÃO: cláusula de
-confidencialidade recíproca, prazo e exceções legais; papel de cada parte nesses tratamentos.]
+consumo e cobrança e suporte, como descrito na Política de Privacidade.
 
 ## 13. Dados e conteúdo
 
@@ -195,9 +182,7 @@ conversas a qualquer momento.
 13.3. O Cliente pode definir tipos de dado processados sem ficar guardados. A mensagem que os contém, os anexos e a
 resposta não entram no histórico nem no banco.
 
-13.4. O papel de cada parte no tratamento de dados pessoais está descrito na Política de Privacidade. [PENDÊNCIA PARA
-APROVAÇÃO: enquadramento de Cliente e TheNeil como controlador e operador, por tratamento; necessidade de acordo de tratamento
-de dados (DPA).]
+13.4. O papel de cada parte no tratamento de dados pessoais está descrito na Política de Privacidade.
 
 ## 14. Segurança
 
@@ -210,8 +195,8 @@ de dados (DPA).]
 - exclusão com zeragem do espaço no banco em uso;
 - cópias de segurança com prazo.
 
-14.2. Nenhum sistema é imune a falhas ou incidentes. A TheNeil não garante segurança absoluta. [PENDÊNCIA PARA
-APROVAÇÃO: prazo e forma de comunicação de incidentes de segurança ao Cliente.]
+14.2. Nenhum sistema é imune a falhas ou incidentes. A TheNeil não garante segurança absoluta. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado sobre o prazo e a forma de
+comunicação de incidentes de segurança ao Cliente.]
 
 ## 15. Acesso da equipe de operação
 
@@ -220,11 +205,16 @@ Cliente, incidente ou outro motivo. O acesso exige tipo e justificativa, dura no
 aparece imediatamente para o Cliente em "Acessos da equipe de operação". Um Administrador do Cliente pode encerrá-lo a
 qualquer momento. O acesso **não depende, hoje, de aprovação prévia do Cliente**.
 
-15.2. A equipe de operação pode exportar uma cópia completa do banco do Ambiente, com as conversas, mediante tipo e
-justificativa registrados e visíveis para o Cliente. O arquivo exportado sai do servidor e fica sob a responsabilidade
-de quem o solicitou. [PENDÊNCIA PARA APROVAÇÃO: em que situações a TheNeil pode exportar sem pedido do Cliente.]
+15.2. A equipe de operação só exporta a cópia completa do banco do Ambiente, com as conversas, por pedido do Cliente, por
+incidente de segurança ou por obrigação legal, com finalidade e justificativa registradas e visíveis para o Cliente.
+Suporte, por si só, não é motivo para exportar. A cópia fica no servidor e é eliminada até 7 dias depois de encerrada a
+necessidade, salvo preservação por obrigação legal ou incidente. A cópia baixada sai do controle técnico da plataforma e
+fica sob a responsabilidade de quem a recebeu.
 
-15.3. O detalhamento (escopo do acesso, avisos, registros e o caso de pessoas da TheNeil cadastradas como Usuários)
+15.3. Ambiente cancelado não pode ser usado, nem pela equipe de operação; a recuperação dos dados é feita só pela
+exportação com finalidade (cláusula 17).
+
+15.4. O detalhamento (escopo do acesso, avisos, registros e o caso de pessoas da TheNeil cadastradas como Usuários)
 está na Política de Privacidade.
 
 ## 16. Retenção e cópias de segurança
@@ -236,21 +226,22 @@ período limitado, conforme os prazos por camada descritos na Política de Priva
 legal ou para investigar um incidente, com motivo registrado, ficam fora desses prazos enquanto a preservação for
 necessária. Os prazos não constituem garantia de destruição física de blocos de armazenamento do provedor.
 
-[PENDÊNCIA PARA APROVAÇÃO: os prazos por camada da Política só passam a valer depois da ativação da limpeza em produção,
-prevista para o deploy controlado.]
-
 ## 17. Exclusão
 
 17.1. Conversas: o Usuário pode apagar as próprias. Também são apagadas no fim do prazo de retenção do Ambiente.
 
-17.2. Ambiente: a exclusão definitiva é feita pela TheNeil somente depois do cancelamento, com confirmação. Antes de
-apagar, a plataforma guarda uma cópia de recuperação do banco, mantida por período limitado (prazo na Política de Privacidade), salvo preservação
-nos termos da cláusula 16.2.
+17.2. Ambiente: com o cancelamento, o Ambiente deixa de poder ser usado, e os dados ficam preservados por 30 dias
+corridos para recuperação ou devolução. Depois desse prazo, a exclusão definitiva é automática, salvo preservação nos
+termos da cláusula 16.2. Ao excluir, a plataforma guarda uma cópia de recuperação do banco por período limitado (prazo
+na Política de Privacidade).
 
-17.3. [PENDÊNCIA PARA APROVAÇÃO: prazo entre o cancelamento e a exclusão definitiva. Hoje não há prazo automático, e o
-Ambiente cancelado fica guardado até a exclusão.]
+17.3. Exclusão antecipada: um Administrador do Cliente cadastrado pode pedir a exclusão definitiva antes dos 30 dias,
+confirmando o pedido com um código enviado ao email dele e declarando ciência de que a exclusão é irreversível. Pedido
+informal ao suporte não basta. Preservação por obrigação legal ou incidente impede a exclusão antecipada.
 
-17.4. [PENDÊNCIA PARA APROVAÇÃO: devolução dos dados ao Cliente no encerramento (formato, prazo e forma de entrega).]
+17.4. Devolução: dentro dos 30 dias, um Administrador do Cliente cadastrado pode pedir, com o mesmo código, uma cópia
+técnica completa do banco de dados do Ambiente (arquivo SQLite compactado). A TheNeil a entrega por um link de uso único,
+válido por até 7 dias, enviado ao email de quem pediu. Não há outro formato de devolução, conversão ou migração.
 
 ## 18. Registros e auditoria
 
@@ -263,12 +254,12 @@ Ambiente cancelado fica guardado até a exclusão.]
 - relatos de problema enviados pelos Usuários (cláusula 22.2).
 
 18.2. Esses registros servem à segurança, à prestação de contas e à cobrança. Nesta versão, eles não têm prazo
-automático de eliminação. [PENDÊNCIA PARA APROVAÇÃO: prazo de guarda dos registros.]
+automático de eliminação e são mantidos enquanto necessários para essas finalidades e para o cumprimento de obrigações.
 
 ## 19. Disponibilidade
 
 19.1. A TheNeil busca manter a GreenIA disponível, mas não oferece garantia de disponibilidade nem nível de serviço
-(SLA). [PENDÊNCIA PARA APROVAÇÃO: se houver SLA comercial, ele deve estar no contrato.]
+(SLA), salvo se previsto no contrato comercial.
 
 19.2. A plataforma pode ficar indisponível por:
 - manutenção ou atualização (inclusive breves interrupções durante publicação de novas versões);
@@ -286,20 +277,16 @@ automático de eliminação. [PENDÊNCIA PARA APROVAÇÃO: prazo de guarda dos r
 - usar as respostas como se fossem decisões definitivas sem revisão humana, em especial em temas jurídicos, médicos,
   financeiros ou que afetem direitos de pessoas.
 
-[PENDÊNCIA PARA APROVAÇÃO: lista final de usos proibidos e alinhamento com as políticas dos fornecedores de IA.]
-
 ## 21. Propriedade intelectual
 
 21.1. A plataforma GreenIA, sua marca, interface e código pertencem à TheNeil ou a seus licenciantes. O Cliente
-recebe licença de uso não exclusiva e intransferível durante a contratação. [PENDÊNCIA PARA APROVAÇÃO: redação da
-licença.]
+recebe licença de uso não exclusiva e intransferível durante a contratação.
 
 21.2. As configurações do Cliente, como regras, quick wins, marca e documentos, e o Conteúdo permanecem do Cliente.
-[PENDÊNCIA PARA APROVAÇÃO: titularidade das respostas geradas e das melhorias derivadas de sugestões do Cliente.]
 
 ## 22. Suporte
 
-22.1. O suporte é prestado pelos canais informados pela TheNeil. [PENDÊNCIA PARA APROVAÇÃO: canais, horário e prazos.]
+22.1. O suporte é prestado pelos canais informados pela TheNeil.
 
 22.2. O Usuário pode relatar problemas pela própria plataforma ("Reportar problema"). O texto do relato fica
 registrado no Ambiente, é visto pelos Administradores do Cliente e enviado a eles por email, e por isso não deve conter
@@ -308,7 +295,7 @@ informação sigilosa.
 ## 23. Suspensão
 
 23.1. O Ambiente pode ser suspenso:
-- [PENDÊNCIA PARA APROVAÇÃO: hipóteses (inadimplência, uso proibido, risco de segurança, ordem legal) e aviso prévio];
+- [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado das hipóteses de suspensão e do aviso prévio];
 - a pedido do Cliente.
 
 23.2. Durante a suspensão, ninguém do Cliente entra no Ambiente, as sessões são encerradas e os dados continuam
@@ -316,10 +303,11 @@ guardados.
 
 ## 24. Encerramento
 
-24.1. Com o encerramento da contratação, o Ambiente é cancelado. O acesso dos Usuários termina, e os dados ficam
-guardados até a exclusão definitiva (cláusula 17).
+24.1. Com o encerramento da contratação, o Ambiente é cancelado. O uso termina na hora, e os dados ficam preservados por
+30 dias corridos, durante os quais o Cliente pode pedir a devolução, e depois são excluídos (cláusula 17).
 
-24.2. [PENDÊNCIA PARA APROVAÇÃO: prazos de aviso, multa e efeitos financeiros do encerramento.]
+24.2. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado sobre prazos de aviso, multa e efeitos financeiros do
+encerramento.]
 
 ## 25. Limitações do produto
 
@@ -336,16 +324,17 @@ base de conhecimento de cada área.
 
 25.6. Arquivos maiores que 25 MB não são aceitos.
 
-25.7. [PENDÊNCIA PARA APROVAÇÃO: cláusula de limitação de responsabilidade (teto e exclusões), conforme o contrato
-comercial e a lei aplicável.]
+25.7. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado da limitação de responsabilidade.]
 
 ## 26. Alterações dos Termos
 
-A TheNeil pode alterar estes Termos, informando aos Administradores do Cliente a nova versão e a data de vigência.
-[PENDÊNCIA PARA APROVAÇÃO: antecedência mínima do aviso e forma de aceite.]
+A TheNeil pode alterar estes Termos. Mudanças materiais são avisadas aos Administradores do Cliente, pelo email
+cadastrado, com 30 dias de antecedência, com a nova versão e a data de vigência. Mudanças urgentes, por segurança,
+obrigação legal ou risco operacional, podem valer em prazo menor, informado no próprio aviso. A mesma regra vale para a
+Política de Privacidade.
 
 ## 27. Lei aplicável, foro e contato
 
-27.1. [PENDÊNCIA PARA APROVAÇÃO: lei aplicável e foro.]
+27.1. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado da lei aplicável e do foro.]
 
 27.2. Contato: hello@theneil.com.br · www.theneil.com.br.

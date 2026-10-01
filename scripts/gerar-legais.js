@@ -1,6 +1,7 @@
 // Gera public/termos.html e public/privacidade.html a partir de docs/legal/*.md (fonte única dos textos).
 // Uso: node scripts/gerar-legais.js. O teste test/legais.test.js confere que as páginas estão em dia com o .md.
-// Enquanto o documento tiver marcações de pendência, a página mostra um aviso de rascunho no topo.
+// Enquanto o documento tiver marcações de pendência, ou enquanto docs/legal/estado.json não marcar a publicação final,
+// a página sai com noindex e com uma faixa de versão candidata no topo.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -9,14 +10,15 @@ export const DOCUMENTOS = [
   { md: 'docs/legal/termos-de-uso.md', html: 'public/termos.html', titulo: 'Termos de Uso', caminho: '/termos' },
   { md: 'docs/legal/politica-de-privacidade.md', html: 'public/privacidade.html', titulo: 'Política de Privacidade', caminho: '/privacidade' },
 ];
-const PENDENCIA = /\[(?:PENDÊNCIA|DADO DA THE[N]EIL)[^\]]*\]/;
+const PENDENCIA = /\[(?:PENDÊNCIA|PENDENTE|DADO DA THE[N]EIL)[^\]]*\]/;
+export const publicado = () => JSON.parse(readFileSync(raiz + 'docs/legal/estado.json', 'utf8')).publicado === true;
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const inline = s => esc(s)
   .replace(/`([^`]+)`/g, '<code>$1</code>')
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/~~([^~]+)~~/g, '<del>$1</del>')
-  .replace(/\[(?:PENDÊNCIA|DADO DA THE[N]EIL)[^\]]*\]/g, m => `<mark class="pendencia">${m}</mark>`);
+  .replace(/\[(?:PENDÊNCIA|PENDENTE|DADO DA THE[N]EIL)[^\]]*\]/g, m => `<mark class="pendencia">${m}</mark>`);
 const celulas = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
 
 // Markdown dos documentos legais: títulos, parágrafos, listas (com continuação), tabelas, citações e ênfase.
@@ -54,14 +56,14 @@ export function paraHtml(md) {
 
 export function pagina({ titulo, md }) {
   const texto = readFileSync(raiz + md, 'utf8');
-  const rascunho = PENDENCIA.test(texto);
+  const pendente = PENDENCIA.test(texto), candidata = pendente || !publicado();
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${titulo} · GreenIA</title>
-<meta name="robots" content="${rascunho ? 'noindex' : 'index'}">
+<meta name="robots" content="${candidata ? 'noindex' : 'index'}">
 <link rel="icon" href="/assets/greenia-marca.svg">
 <link rel="stylesheet" href="/fontes/fontes.css">
 <link rel="stylesheet" href="/estilo.css">
@@ -73,7 +75,7 @@ export function pagina({ titulo, md }) {
   <a class="btn-texto" href="/">Voltar ao site</a>
 </header>
 <main class="politica legal">
-${rascunho ? '<p class="faixa-aviso atencao" role="note"><b>Rascunho em revisão.</b> Este documento ainda tem pontos pendentes de aprovação e não está vigente.</p>\n' : ''}${paraHtml(texto)}
+${candidata ? `<p class="faixa-aviso atencao" role="note"><b>Versão final candidata, ainda não publicada.</b> ${pendente ? 'Há pontos pendentes de registro, marcados no texto. ' : ''}Este documento não está vigente.</p>\n` : ''}${paraHtml(texto)}
 </main>
 </body>
 </html>

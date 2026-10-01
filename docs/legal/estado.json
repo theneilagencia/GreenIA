@@ -1,0 +1,4 @@
+{
+  "publicado": false,
+  "nota": "Mude para true só no deploy final (Etapa de publicação do release gate) e rode node scripts/gerar-legais.js. Enquanto for false, as páginas saem com noindex e com a faixa de versão candidata."
+}

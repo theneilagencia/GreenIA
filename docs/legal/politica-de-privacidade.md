@@ -1,27 +1,16 @@
 # Política de Privacidade da GreenIA
 
-> **RASCUNHO PARA REVISÃO. NÃO PUBLICADO.** Este texto descreve o comportamento técnico da GreenIA como implementado e
-> auditado (Etapas 1 a 3). As marcações têm três tipos:
-> - **[PENDÊNCIA JURÍDICA]**: depende de decisão jurídica.
-> - **[PENDÊNCIA DE GOVERNANÇA]**: depende de decisão de produto ou retenção.
->
-> Nenhuma base legal, papel jurídico ou prazo foi preenchido por inferência.
->
-> **Correspondência com a produção:** este texto descreve a versão da GreenIA que inclui a governança de acesso da
-> equipe de operação, a consolidação do WAL e a política de retenção (Etapas 1 a 3), ainda **não publicada em
-> produção** (produção em `227fd36` em 2026-10-01). O documento só pode ser publicado junto com o deploy dessa versão.
-
-Versão: rascunho 0.3, de 1º de outubro de 2026 · Vigência: 30 de novembro de 2026 (a data não autoriza a publicação antes da conclusão do plano de liberação)
+Versão 1.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro de 2026
 
 ## 1. Quem somos e como falar conosco
 
 A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA** ("TheNeil", "nós"), pessoa jurídica de direito privado:
 - **CNPJ:** 37.749.373/0001-70
-- **Sede:** Rua G, nº 277, Montserrat, Betim/MG
+- **Sede:** Rua G, nº 277, Montserrat, Betim/MG [PENDÊNCIA FACTUAL: endereço conforme o cartão CNPJ]
 - **Contato:** hello@theneil.com.br · www.theneil.com.br
 - **Canal de privacidade e de atendimento aos titulares:** hello@theneil.com.br (privacidade, pedidos de titulares,
   contato com o encarregado e qualquer solicitação relacionada a dados pessoais)
-- **Encarregado pela proteção de dados (DPO):** Vinicius Guimaraes · hello@theneil.com.br
+- **Encarregado pela proteção de dados (DPO):** Vinicius Guimaraes [PENDÊNCIA FACTUAL: grafia do nome conforme documento oficial] · hello@theneil.com.br
 
 Neste documento:
 - **"Cliente":** a empresa que contrata a GreenIA;
@@ -40,21 +29,20 @@ ambiente, em "Política de uso de IA"), que valem em conjunto com esta.
 
 ## 3. Papéis no tratamento de dados
 
-O papel de cada parte depende do tratamento. A matriz abaixo é uma **proposta para validação jurídica**: não forçamos
-uma resposta onde a técnica não basta.
+O papel de cada parte depende do tratamento:
 
-| Tratamento | Finalidade | Quem define a finalidade | Papel provável | Pendência |
-|---|---|---|---|---|
-| Conteúdo inserido no ambiente (mensagens, anexos, documentos, quick wins, respostas) | Uso da IA pelo Cliente | Cliente | Cliente: controlador. TheNeil: operadora | [PENDÊNCIA JURÍDICA: confirmar e formalizar em acordo de tratamento (DPA)] |
-| Configurações do ambiente (regras de dados, política de uso, papéis, retenção) | Governança do uso pelo Cliente | Cliente | Idem | Idem |
-| Contas dos usuários (email, nome, papel, vínculo) e autenticação | Dar acesso ao ambiente do Cliente e proteger a plataforma | Cliente (quem entra) e TheNeil (como a autenticação funciona) | Misto: operadora para o acesso; possível controladora para a segurança da plataforma | [PENDÊNCIA JURÍDICA] |
-| Registros de consumo (créditos por área, pessoa e quick win) | Controle de uso pelo Cliente; cobrança pela TheNeil | Ambas | Misto | [PENDÊNCIA JURÍDICA] |
-| Eventos de atividade do ambiente | Prestação de contas ao Cliente (tela "Atividade") | Cliente | Operadora | [PENDÊNCIA JURÍDICA] |
-| Auditoria da plataforma (alterações administrativas, IP e navegador de quem agiu) | Segurança e prestação de contas da plataforma | TheNeil | Possível controladora | [PENDÊNCIA JURÍDICA] |
-| Acessos e exportações da equipe de operação | Segurança, transparência e responsabilização da operação | TheNeil (e visível para o Cliente) | Possível controladora | [PENDÊNCIA JURÍDICA] |
-| Formulário de contato da página de vendas | Atendimento comercial | TheNeil | Controladora | [PENDÊNCIA JURÍDICA: confirmar] |
-| Logs técnicos do servidor e do provedor | Operação, diagnóstico e segurança | TheNeil | Possível controladora | [PENDÊNCIA JURÍDICA] |
-| Relatos de problema ("Reportar problema") | Suporte interno do Cliente | Cliente | Operadora | [PENDÊNCIA JURÍDICA] |
+| Tratamento | Finalidade | Quem define a finalidade | Papel |
+|---|---|---|---|
+| Conteúdo inserido no ambiente (mensagens, anexos, documentos, quick wins, respostas) | Uso da IA pelo Cliente | Cliente | Cliente: controlador. TheNeil: operadora |
+| Configurações do ambiente (regras de dados, política de uso, papéis, retenção) | Governança do uso pelo Cliente | Cliente | Idem |
+| Contas dos usuários (email, nome, papel, vínculo) e autenticação | Dar acesso ao ambiente do Cliente e proteger a plataforma | Cliente (quem entra) e TheNeil (como a autenticação funciona) | Misto: operadora para o acesso; possível controladora para a segurança da plataforma |
+| Registros de consumo (créditos por área, pessoa e quick win) | Controle de uso pelo Cliente; cobrança pela TheNeil | Ambas | Misto |
+| Eventos de atividade do ambiente | Prestação de contas ao Cliente (tela "Atividade") | Cliente | Operadora |
+| Auditoria da plataforma (alterações administrativas, IP e navegador de quem agiu) | Segurança e prestação de contas da plataforma | TheNeil | Possível controladora |
+| Acessos e exportações da equipe de operação | Segurança, transparência e responsabilização da operação | TheNeil (e visível para o Cliente) | Possível controladora |
+| Formulário de contato da página de vendas | Atendimento comercial | TheNeil | Controladora |
+| Logs técnicos do servidor e do provedor | Operação, diagnóstico e segurança | TheNeil | Possível controladora |
+| Relatos de problema ("Reportar problema") | Suporte interno do Cliente | Cliente | Operadora |
 
 ## 4. Que dados tratamos
 
@@ -77,8 +65,8 @@ uma resposta onde a técnica não basta.
 | Eventos de atividade | Tipo do evento, pessoa, data, metadados (por exemplo, tipos de dado identificados num envio bloqueado). Sem o texto | Banco da empresa | Sim, sem prazo de eliminação | Não |
 | Auditoria da plataforma | Quem, o quê, antes e depois, quando, IP e navegador | Banco da plataforma | Sim, sem prazo de eliminação | Não |
 | Acessos da equipe de operação | Operador (email), tipo, justificativa, início, fim, duração, status, resultado do aviso; IP e navegador (estes não aparecem para a empresa) | Banco da plataforma | Sim, sem prazo de eliminação | Aviso por email aos admins |
-| Exportações | Operador, tipo, justificativa, data, tamanho, sucesso ou falha | Banco da plataforma | Sim, sem prazo de eliminação | O arquivo exportado é entregue a quem pediu (seção 12) |
-| Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem | Banco da plataforma | Sim (seção 14) | Pelo serviço de email, aos admins da plataforma |
+| Exportações | Registro: operador, finalidade, justificativa, data, tamanho, hash, resultado, downloads e eliminação. Cópia: o banco completo do ambiente | Registro: banco da plataforma. Cópia: servidor da plataforma | Registro: sim, sem prazo de eliminação. Cópia: até 7 dias depois de encerrada a necessidade (seção 12) | A cópia é entregue a quem a pediu (seção 12) |
+| Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem e interações comerciais registradas | Banco da plataforma | Sim, até 24 meses depois da última interação (seção 14) | Não: os admins da plataforma recebem só um aviso, sem os dados do contato |
 | Logs técnicos | Mensagens de operação do servidor (falhas, rotinas, avisos) | Logs do provedor de hospedagem | Sim, pelo prazo do provedor | Ficam no provedor |
 
 ### 4.2 Dados processados sem ficar guardados
@@ -138,20 +126,20 @@ contratual.** O administrador do Cliente pode desligá-lo.
 zero e ausência de uso para treino) atendem aos requisitos, com o fornecedor fixado. Esses atributos são declarados
 pelos fornecedores.
 
-6.5. A forma como o OpenRouter e cada fabricante tratam os dados é regida pelas políticas deles. [PENDÊNCIA JURÍDICA:
-termos contratuais aplicáveis entre a TheNeil e o OpenRouter, e referência às políticas dos fabricantes.]
+6.5. O tratamento feito pelo OpenRouter (OpenRouter, Inc., Estados Unidos) é regido pelos termos e pela política de
+privacidade dele; o feito por cada fabricante, pelas políticas do fabricante. [PENDÊNCIA FACTUAL: configuração da conta da
+TheNeil no OpenRouter (registro de pedidos, retenção zero, coleta para treino) e termos aplicáveis a essa conta.]
 
 ## 7. Hospedagem e transferência internacional
 
 7.1. A GreenIA é hospedada no **Render**, em servidores nos **Estados Unidos** (região Virgínia), com disco persistente e
 cópias diárias do disco feitas pelo provedor.
 
-7.2. Os pedidos à IA passam pelo OpenRouter e pelos fabricantes dos modelos, que podem estar fora do Brasil. [PENDÊNCIA
-JURÍDICA: localização dos fornecedores conforme documentação deles; não foi comprovada nesta auditoria.]
+7.2. Os pedidos à IA passam pelo OpenRouter, que, segundo a política pública dele, processa dados nos Estados Unidos ou
+em outros países, e pelos fabricantes dos modelos, que podem estar fora do Brasil, conforme a documentação de cada um.
 
-7.3. **Há, portanto, transferência internacional de dados pessoais.** [PENDÊNCIA JURÍDICA: mecanismo aplicável à
-transferência internacional, cláusulas ou documentos necessários e eventual DPA com o Cliente e com os
-fornecedores.]
+7.3. **Há, portanto, transferência internacional de dados pessoais.** [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado
+sobre o mecanismo de transferência internacional e os instrumentos com o Cliente e com os fornecedores.]
 
 ## 8. Quem pode ver as conversas
 
@@ -177,8 +165,10 @@ pode entrar no ambiente pelo console da plataforma:
 - **Encerramento:** um administrador do Cliente pode encerrar o acesso a qualquer momento.
 - **Sem aprovação prévia:** o acesso operacional **não depende, hoje, de aprovação prévia do Cliente**.
 
-9.2. **Exportação.** A equipe de operação pode exportar uma cópia completa do banco do ambiente, com tipo e justificativa
-registrados. Cada exportação aparece na mesma tela e gera aviso. Também não depende de aprovação prévia.
+9.2. **Exportação.** A equipe de operação só exporta a cópia completa do banco do ambiente por pedido do Cliente, por
+incidente de segurança ou por obrigação legal, com a finalidade e a justificativa registradas (seção 12). Cada exportação
+aparece na mesma tela e gera aviso. Ambiente cancelado não pode ser usado nem pela equipe de operação: a única forma de
+recuperar os dados dele é a exportação com finalidade.
 
 9.3. **Login como usuário com vínculo.** Se uma pessoa da TheNeil for cadastrada como usuária de um ambiente (por convite
 ou pelo console), ela entra como qualquer usuário, com o papel recebido, sem poderes de operação e sem acesso às
@@ -199,21 +189,19 @@ futura.
 
 ### 10.2 Cópias de segurança
 
-> **Situação:** política técnica implementada, **ainda não ativada em produção**. Os prazos abaixo passam a valer a
-> partir da ativação da limpeza no deploy controlado [PENDÊNCIA DE GOVERNANÇA: data de ativação]. Até lá, a cópia diária
-> do disco feita pelo provedor (7 dias) e a rotação dos backups automáticos (7 cópias por banco) já funcionam; a
-> eliminação por idade, a de backups manuais e a da cópia de ambiente excluído ainda não.
-
 | Camada | Prazo da camada |
 |---|---|
 | Backup automático diário | Até 7 dias |
 | Cópia diária do disco feita pelo provedor (Render) | 7 dias após a captura |
 | Backup manual de manutenção | 30 dias desde a criação |
 | Cópia de recuperação de ambiente excluído | 30 dias desde a exclusão |
+| Cópia operacional de uma exportação | Até 7 dias depois de encerrada a necessidade (seção 12) |
 
 As cópias do provedor incluem os backups locais. Com a limpeza ativa, no pior caso operacional, um dado excluído pode permanecer:
 - até **15 dias** nas cópias diárias;
 - até **38 dias** em backup manual ou na cópia de recuperação de um ambiente excluído.
+
+As cópias operacionais de exportação também ficam nas cópias diárias do disco por até 7 dias depois de eliminadas.
 
 ### 10.3 Preservação
 
@@ -226,41 +214,45 @@ Os prazos acima valem para as cópias geridas pela plataforma e pelo provedor. *
 todos os blocos de armazenamento:** o provedor pode manter blocos já liberados, fora do alcance da aplicação, até que
 sejam reutilizados.
 
-### 10.5 Registros sem prazo
+### 10.5 Registros sem prazo automático
 
-Os seguintes registros **ainda não têm prazo final de eliminação**:
+Os seguintes registros **não têm prazo automático de eliminação**:
 - eventos de atividade;
 - consumo;
 - auditoria da plataforma;
 - acessos e exportações da equipe de operação;
-- relatos de problema;
-- contatos comerciais (limitados aos 500 mais recentes).
+- relatos de problema.
 
 Eles não guardam o conteúdo das conversas, mas guardam metadados, emails e, no caso dos acessos, as justificativas.
+Eles são mantidos enquanto necessários para segurança, operação, prestação de contas e cumprimento de obrigações.
 
-[PENDÊNCIA DE GOVERNANÇA: definir prazos, ou aprovação jurídica de redação transparente de guarda "enquanto necessário
-para segurança, operação e cumprimento de obrigações". Esta Política não deve ser publicada sem essa decisão.]
-
-## 11. Suspensão, cancelamento e exclusão definitiva
+## 11. Suspensão, cancelamento, devolução e exclusão definitiva
 
 - **Suspensão:** ninguém do Cliente entra no ambiente, as sessões são encerradas e os dados continuam guardados.
-- **Cancelamento:** o ambiente é encerrado para os usuários, e os dados continuam guardados até a exclusão definitiva.
-  [PENDÊNCIA DE GOVERNANÇA / JURÍDICA: prazo entre o cancelamento e a exclusão definitiva. Hoje não há prazo
-  automático.]
-- **Exclusão definitiva:** feita pela TheNeil depois do cancelamento, com confirmação. A plataforma guarda uma cópia de
-  recuperação e a elimina 30 dias depois, salvo preservação (10.3), a partir da ativação da limpeza em produção (10.2). As cópias diárias seguem a seção 10.2.
-
-[PENDÊNCIA JURÍDICA: devolução dos dados ao Cliente no encerramento.]
+- **Cancelamento:** o ambiente deixa de poder ser usado na hora, inclusive pela equipe de operação. Os dados ficam
+  preservados por **30 dias corridos**, para recuperação ou devolução.
+- **Devolução:** dentro desses 30 dias, um administrador cadastrado do Cliente pode pedir uma cópia técnica completa do
+  banco de dados do ambiente (arquivo SQLite compactado), confirmando o pedido com um código enviado ao email dele. A
+  equipe de operação gera a cópia e a entrega por um link de uso único, válido por até 7 dias, enviado a esse email.
+  Ficam registrados o pedido, quem gerou a cópia, o hash do arquivo e a entrega. Não há outro formato de devolução.
+- **Exclusão definitiva:** acontece automaticamente depois dos 30 dias, salvo preservação (10.3). Antes disso, um
+  administrador cadastrado pode pedir a exclusão antecipada, com código enviado ao email dele e confirmação expressa de
+  que ela é irreversível; um pedido informal ao suporte não basta. Preservação por obrigação legal ou incidente impede a
+  exclusão, inclusive a antecipada. Ao excluir, a plataforma guarda uma cópia de recuperação por 30 dias; as cópias
+  diárias seguem a seção 10.2.
 
 ## 12. Exportações
 
-- **Quem exporta:** a exportação completa do banco de um ambiente é feita pela equipe de operação, com tipo e
-  justificativa.
-- **Registro:** cada exportação, com sucesso ou falha, aparece em "Acessos da equipe de operação" e gera aviso aos
-  administradores do Cliente.
-- **Fora do servidor:** o arquivo exportado deixa o servidor e não segue a política de retenção da seção 10. A guarda e a
-  eliminação ficam sob a responsabilidade de quem o recebeu. [PENDÊNCIA DE GOVERNANÇA: política própria de guarda,
-  entrega e eliminação de arquivos exportados.]
+- **Quando:** a cópia completa do banco de um ambiente só é exportada por pedido do Cliente (inclusive a devolução da
+  seção 11), por incidente de segurança ou por obrigação legal. Suporte, por si só, não é motivo para exportar.
+- **Registro:** cada exportação, com sucesso ou falha, registra operador, finalidade, justificativa e data, aparece em
+  "Acessos da equipe de operação" e gera aviso aos administradores do Cliente.
+- **Guarda no servidor:** a cópia fica no servidor da plataforma e é eliminada até 7 dias depois de encerrada a
+  necessidade que a justificou. Preservação por obrigação legal ou investigação de incidente, com motivo, responsável e
+  registro, suspende esse prazo.
+- **Cópia baixada:** cada download fica registrado (quem e quando). A cópia baixada sai do controle técnico da plataforma
+  e fica sob a responsabilidade de quem a recebeu; quando aplicável, registra-se a declaração de eliminação de quem a
+  recebeu. A plataforma não comprova a eliminação de cópias fora do servidor.
 
 ## 13. Emails
 
@@ -269,39 +261,41 @@ A GreenIA envia emails para:
 - convites;
 - avisos de consumo (80% e esgotamento);
 - avisos de acesso e exportação pela equipe de operação;
+- códigos de confirmação e links de devolução no encerramento de um ambiente;
 - relatos de problema (aos administradores do Cliente);
-- contatos comerciais (aos administradores da plataforma);
+- aviso de novo contato comercial (aos administradores da plataforma, sem os dados do contato);
 - avisos administrativos da plataforma.
 
 O envio usa o servidor de email da plataforma ou, se o Cliente configurar, o servidor de email da própria
 empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plataforma (marca branca).
 
-[PENDÊNCIA: identificar o provedor real do servidor de email da plataforma em produção; não foi comprovado nesta auditoria.]
+[PENDÊNCIA FACTUAL: provedor do servidor de email da plataforma em produção.]
 
 ## 14. Formulário comercial
 
 - **Campos:** nome, email, empresa, cargo (opcional), faixa de pessoas na empresa (opcional) e mensagem (opcional).
 - **Finalidade:** responder ao contato e marcar apresentação.
-- **Destino:**
-  - fica no banco da plataforma GreenIA, que mantém os 500 contatos mais recentes;
-  - é enviado por email aos administradores da plataforma.
+- **Destino:** fica no banco da plataforma GreenIA. Os administradores da plataforma recebem por email só um aviso de
+  novo contato, sem os dados dele, e consultam o contato no console.
 - **IP:** não é guardado com o contato. O servidor usa o IP só em memória, por uma hora, para limitar o envio a 5
   contatos.
-
-[PENDÊNCIA DE GOVERNANÇA: prazo de guarda dos contatos comerciais (hoje, só o limite de quantidade).]
+- **Prazo:** o contato é eliminado 24 meses depois da última interação comercial relevante registrada (um novo
+  formulário ou uma interação registrada pela equipe comercial). Fica apenas uma contagem agregada, sem dados pessoais.
+  Obrigação legal, contrato ou litígio, com motivo registrado, suspendem a eliminação.
+- **Emails anteriores:** avisos enviados antes desta versão com os dados do contato estão nas caixas de email dos
+  administradores da plataforma, fora do controle técnico da GreenIA; eles seguem o procedimento interno de eliminação
+  da TheNeil.
 
 ## 15. Bases legais
 
-[PENDÊNCIA JURÍDICA: a tabela abaixo é uma **proposta para revisão jurídica**. Não publicar bases legais sem aprovação.]
-
-| Tratamento | Finalidade | Base legal provável (proposta) | Confirmação jurídica |
-|---|---|---|---|
-| Conteúdo no ambiente | Uso da IA pelo Cliente | Definida pelo Cliente, como controlador | Necessária |
-| Contas e autenticação | Execução do contrato com o Cliente; segurança | Execução de contrato / legítimo interesse | Necessária |
-| Consumo e cobrança | Controle de uso e faturamento | Execução de contrato | Necessária |
-| Auditoria e acessos da operação | Segurança e prestação de contas | Legítimo interesse / cumprimento de obrigação | Necessária |
-| Logs técnicos | Operação e segurança | Legítimo interesse | Necessária |
-| Formulário comercial | Atendimento a pedido do titular | Procedimentos preliminares a contrato, a pedido do titular / legítimo interesse | Necessária |
+| Tratamento | Finalidade | Base legal |
+|---|---|---|
+| Conteúdo no ambiente | Uso da IA pelo Cliente | Definida pelo Cliente, como controlador |
+| Contas e autenticação | Execução do contrato com o Cliente; segurança | Execução de contrato / legítimo interesse |
+| Consumo e cobrança | Controle de uso e faturamento | Execução de contrato |
+| Auditoria e acessos da operação | Segurança e prestação de contas | Legítimo interesse / cumprimento de obrigação |
+| Logs técnicos | Operação e segurança | Legítimo interesse |
+| Formulário comercial | Atendimento a pedido do titular | Procedimentos preliminares a contrato, a pedido do titular / legítimo interesse |
 
 ## 16. Direitos dos titulares
 
@@ -314,13 +308,13 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 
 16.2. **Quando o dado está no ambiente de um Cliente** (por exemplo, conversas e documentos), a empresa
 cliente decide sobre esse tratamento, e o pedido deve ser dirigido a ela. A TheNeil apoia o Cliente conforme o
-contrato. [PENDÊNCIA JURÍDICA: confirmar este encaminhamento.]
+contrato.
 
 16.3. **Canal e procedimento:**
 - **Canal:** hello@theneil.com.br, aos cuidados do encarregado, Vinicius Guimaraes
 - **Responsável:** o encarregado, Vinicius Guimaraes
-- **Procedimento e prazo de resposta:** [PENDÊNCIA JURÍDICA]
-- **Verificação de identidade:** [PENDÊNCIA JURÍDICA]
+- **Procedimento e prazo de resposta:** [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado do procedimento e do prazo]
+- **Verificação de identidade:** [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado da verificação de identidade]
 
 Não há atendimento automatizado desses pedidos na plataforma.
 
@@ -335,6 +329,8 @@ Controles implementados:
 - acesso operacional com motivo, prazo de até 60 minutos, visibilidade e encerramento pela empresa;
 - exclusão com zeragem e consolidação do WAL;
 - cópias de segurança com prazo;
+- encerramento de ambiente com exclusão automática 30 dias depois do cancelamento;
+- cópias de exportação com prazo de eliminação;
 - registros de atividade sem o conteúdo das conversas.
 
 Esses controles reduzem riscos. **Nenhum sistema está livre de incidentes**, e não prometemos segurança absoluta.
@@ -344,21 +340,19 @@ Esses controles reduzem riscos. **Nenhum sistema está livre de incidentes**, e 
 Em caso de incidente de segurança que envolva dados pessoais, a TheNeil avalia o ocorrido, adota medidas de contenção
 e comunica o Cliente e, quando aplicável, a autoridade e os titulares.
 
-[PENDÊNCIA JURÍDICA / OPERACIONAL: prazo de comunicação ao Cliente, processo formal e responsabilidades.]
+[PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado sobre o prazo de comunicação ao Cliente, o processo e as responsabilidades.]
 
 ## 19. Terceiros
 
-Inventário de fornecedores confirmados:
+Fornecedores:
 
 | Fornecedor | Função | Categorias de dados | Localidade | Finalidade |
 |---|---|---|---|---|
-| Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), comprovado no serviço | Executar e guardar a GreenIA |
-| OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | [PENDÊNCIA: não comprovada nesta auditoria] | Gerar respostas |
-| Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | [PENDÊNCIA: depende do fabricante] | Gerar respostas |
-| Provedor de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | [PENDÊNCIA: provedor não identificado] | Enviar códigos e avisos |
+| Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), confirmada no painel do provedor | Executar e guardar a GreenIA |
+| OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | Estados Unidos ou outros países, conforme a política pública do OpenRouter | Gerar respostas |
+| Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | Conforme a documentação de cada fabricante | Gerar respostas |
+| Provedor de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | [PENDÊNCIA FACTUAL: provedor e localidade] | Enviar códigos e avisos |
 | Servidor de email do Cliente (opcional) | Envio dos emails do ambiente dele | Idem | Definido pelo Cliente | Idem |
-
-A TheNeil não vende dados pessoais. [PENDÊNCIA JURÍDICA: confirmar esta afirmação comercial antes de publicar.]
 
 ## 20. Cookies e armazenamento no navegador
 
@@ -370,6 +364,7 @@ A TheNeil não vende dados pessoais. [PENDÊNCIA JURÍDICA: confirmar esta afirm
 
 ## 21. Alterações desta Política
 
-Esta Política pode ser atualizada. A versão vigente e a data ficam no topo do documento.
-
-[PENDÊNCIA JURÍDICA: antecedência, forma de aviso e alinhamento com a cláusula 26 dos Termos de Uso.]
+Esta Política pode ser atualizada. A versão vigente e a data ficam no topo do documento. Mudanças materiais são avisadas
+aos administradores do Cliente, pelo email cadastrado, com 30 dias de antecedência. Mudanças urgentes, por segurança,
+obrigação legal ou risco operacional, podem valer em prazo menor, informado no próprio aviso. A mesma regra vale para os
+Termos de Uso (cláusula 26).

@@ -3,7 +3,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DOCUMENTOS, pagina } from '../scripts/gerar-legais.js';
+import { DOCUMENTOS, pagina, publicado } from '../scripts/gerar-legais.js';
 import { subir } from './ajuda.js';
 import { subirPlataforma } from './ajuda-plataforma.js';
 
@@ -20,14 +20,15 @@ test('páginas legais geradas em dia com docs/legal (rode node scripts/gerar-leg
   for (const d of DOCUMENTOS) assert.equal(ler(d.html), pagina(d), `${d.html} desatualizada em relação a ${d.md}`);
 });
 
-test('termos e privacidade no ar na instalação de vendas e na plataforma, com aviso de rascunho enquanto houver pendência', async () => {
+test('termos e privacidade no ar na instalação de vendas e na plataforma, com noindex e faixa de candidata até a publicação final', async () => {
   for (const base of [V.base]) {
     for (const d of DOCUMENTOS) {
       const r = await fetch(`${base}${d.caminho}`);
       assert.equal(r.status, 200, d.caminho);
       const h = await r.text();
       assert.match(h, new RegExp(d.titulo));
-      if (/\[PENDÊNCIA/.test(ler(d.md))) { assert.match(h, /Rascunho em revisão/); assert.match(h, /noindex/); }
+      // Candidata (com pendência ou sem a publicação final marcada em docs/legal/estado.json): noindex e faixa no topo.
+      if (/\[(PENDÊNCIA|PENDENTE)/.test(ler(d.md)) || !publicado()) { assert.match(h, /Versão final candidata, ainda não publicada/); assert.match(h, /noindex/); }
     }
   }
   const nav = P.navegador();
@@ -82,4 +83,25 @@ test('termos e privacidade só no endereço canônico da plataforma; no endereç
   // Login no endereço da empresa continua funcionando.
   assert.equal((await emp.entrarEmpresa('dora@empresa-doc.com.br')).status, 200);
   assert.equal((await emp.get('/api/eu')).status, 200);
+});
+
+test('versão final candidata: nenhuma marcação jurídica ou de governança; só pendências factuais ou de registro da aprovação', () => {
+  for (const d of DOCUMENTOS) {
+    const t = ler(d.md);
+    assert.doesNotMatch(t, /\[PENDÊNCIA (JURÍDICA|DE GOVERNANÇA|PARA APROVAÇÃO)/, d.md);
+    assert.doesNotMatch(t, /RASCUNHO|aguardando validação jurídica|proposta para (validação|revisão) jurídica/i, d.md);
+    assert.match(t, /Versão 1\.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro de 2026/, d.md);
+    for (const m of t.match(/\[(PENDÊNCIA|PENDENTE)[^\]]*\]/g) || []) assert.match(m, /^\[(PENDÊNCIA FACTUAL|PENDENTE DE REGISTRO DA APROVAÇÃO):/, m);
+  }
+  assert.doesNotMatch(ler('docs/legal/politica-de-privacidade.md') + ler('docs/legal/termos-de-uso.md') + ler('public/vendas.html') + ler('docs/claims-lp.md'), /n[ãa]o vende|nunca vende/i, 'sem "não vende dados"');
+});
+
+test('registro da aprovação: o hash anotado bate com os documentos (mudou o texto, atualize o registro)', async () => {
+  const { createHash } = await import('node:crypto');
+  const reg = ler('docs/legal/aprovacao-juridica.md');
+  for (const d of DOCUMENTOS) {
+    const h = createHash('sha256').update(readFileSync(raiz + d.md)).digest('hex');
+    assert.match(reg, new RegExp(`\`${d.md}\` \\| 1\\.0, .*\`${h}\``), `${d.md}: hash registrado desatualizado`);
+  }
+  assert.match(reg, /Quem aprovou \| (PENDENTE DE REGISTRO DA APROVAÇÃO|\S)/);
 });

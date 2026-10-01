@@ -125,7 +125,7 @@ de diversos fabricantes. O pedido é composto por:
 - as instruções do quick win;
 - os trechos de documentos usados.
 
-Os fabricantes envolvidos dependem dos modelos que cado Cliente libera.
+Os fabricantes envolvidos dependem dos modelos que cada Cliente libera.
 
 6.2. Antes do envio, valem as regras da seção 5.
 
@@ -312,7 +312,7 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 - informação sobre compartilhamento;
 - revisão de decisões automatizadas, quando aplicável.
 
-16.2. **Quando o dado está no ambiente de umo Cliente** (por exemplo, conversas e documentos), a empresa
+16.2. **Quando o dado está no ambiente de um Cliente** (por exemplo, conversas e documentos), a empresa
 cliente decide sobre esse tratamento, e o pedido deve ser dirigido a ela. A TheNeil apoia o Cliente conforme o
 contrato. [PENDÊNCIA JURÍDICA: confirmar este encaminhamento.]
 

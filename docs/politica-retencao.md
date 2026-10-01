@@ -66,16 +66,24 @@ Valem só com a limpeza ligada em produção (`RETENCAO_APLICAR=1`) e sem item "
 - **Logs e auditoria:** só caminho, camada, tamanho, data de criação, idade e motivo. Nunca conteúdo.
 - **Alerta de backup atrasado:** quando o backup automático mais novo de um banco tem mais de 26 horas.
 
-## Backups existentes em produção (proposta de classificação)
+## Backups existentes em produção (decisão aprovada em 2026-10-01)
 
-| Item | Proposta | Efeito |
+| Item | Decisão | Comando no deploy (Etapa 9) |
 |---|---|---|
-| `dados/backups/pre-deploy-20260930T164609/` | `classificar --criado-em 2026-09-30T16:46:09Z --tipo pre-deploy` | Expira em 2026-10-30 |
-| `dados/backups/pre-release-b105df1-20260930T194342/` | `classificar --criado-em 2026-09-30T19:43:42Z --tipo pre-release` (ou `hold`, se você quiser preservar além de 30 dias) | Expira em 2026-10-30, salvo hold. O `audit_log` da migração já guarda o valor anterior de cada campo |
-| `dados/backups/greenia-20260927-060019.sqlite.gz` | Regra automática (padrão de nome) | Apagado na primeira aplicação (idade > 7 dias). É a cópia da instalação única anterior à multiempresa; os dados dela estão no banco em uso |
-| Automáticos por banco (`plataforma/`, `emp_*/`) | Regra automática | Ficam no máximo 7 por banco e 7 dias |
+| `dados/backups/pre-release-b105df1-20260930T194342/` | **Hold temporário**: evidência da migração corretiva e de rollback durante o fechamento da liberação de governança, retenção, legal e LP. Revisar e liberar conscientemente depois do release final estabilizado | `node scripts/retencao.js hold dados/backups/pre-release-b105df1-20260930T194342 --motivo "Evidência da migração corretiva b105df1 e rollback durante o fechamento da liberação de governança, retenção, legal e LP" --por "<responsável>" --revisar-em <data após a estabilização>` |
+| `dados/backups/pre-deploy-20260930T164609/` | **Backup manual**, 30 dias desde a criação: expira em 2026-10-30T16:46:09Z | `node scripts/retencao.js classificar dados/backups/pre-deploy-20260930T164609 --criado-em 2026-09-30T16:46:09Z --tipo pre-deploy --motivo "Backup antes do deploy de 2026-09-30"` |
+| `dados/backups/greenia-20260927-060019.sqlite.gz` | **Política normal** (automático, mais de 7 dias). Antes de apagar: aparecer no dry-run; confirmar que não é banco em uso nem hold; confirmar que os dados dela estão no banco em uso (é a instalação única importada como `emp_dc75…`, banco `dados/greenia.sqlite`) | Nenhum: sai na primeira aplicação, depois das conferências |
+| Automáticos por banco (`plataforma/`, `emp_*/`) | Regra automática | — |
 
-Até a classificação, as duas pastas aparecem como "sem classificação" e não são apagadas.
+Ordem de ativação: backup pré-deploy → deploy com `RETENCAO_APLICAR` desligado → health check → conferir logs → plano
+(dry-run) → hold e classificação acima → plano de novo → só então `RETENCAO_APLICAR=1`.
+
+## Como os prazos aparecem em documentos legais
+
+Os limites de 15 dias (cópias diárias) e 38 dias (backup manual e ambiente excluído) são o **pior caso operacional
+das cópias acessíveis pela plataforma e pelo provedor**. Não são garantia de destruição física de todos os blocos do
+disco do provedor. Os textos legais distinguem: remoção do ambiente ativo; retenção em backups e snapshots; e possível
+persistência física de blocos fora do alcance da aplicação.
 
 ## Riscos residuais
 
@@ -84,8 +92,10 @@ Até a classificação, as duas pastas aparecem como "sem classificação" e nã
   imagem de snapshot.
 - **Exportações feitas pela equipe de operação** (arquivo baixado) saem do disco do serviço e não seguem esta
   política. Ficam registradas em "Acessos da equipe de operação"; o destino é responsabilidade de quem pediu.
-- **Registros de atividade, consumo e auditoria** (sem conteúdo de conversa, com metadados e justificativas de
-  acesso) não têm prazo de eliminação nesta etapa.
+- **Sem prazo definido ainda:** logs de atividade da empresa (`eventos`), registros de consumo, auditoria da
+  plataforma (`audit_log`) e registros de acesso da equipe de operação (`operator_access`, `operator_exports`). Não
+  guardam conteúdo de conversa, mas guardam metadados, emails e justificativas. A Política de Privacidade precisa
+  tratá-los até que ganhem prazo.
 - **A rodada depende do processo no ar.** Fora do ar, a limpeza atrasa até voltar (o snapshot do provedor segue o
   próprio prazo).
 - **Hold sem revisão** pode durar indefinidamente: o plano mostra o motivo, o responsável e a data de revisão.

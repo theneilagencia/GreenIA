@@ -219,3 +219,32 @@ com colunas e as mesmas conferências).
 - Quick Win antigo: na edição, a estrutura aparece como sugestão ("Usar esta estrutura"). Sem especificação (v1):
   "Atualizar para Quick Win inteligente"; quem usa continua no comportamento antigo até a primeira publicação
   (`origem.atualizado_de = 'v1'`), sem mudar formato, modelo ou troca da configuração antiga.
+
+## 5. Homologação final: autonomia, invariantes e cálculos conferidos
+
+### Política de autonomia (perguntas)
+- Prompt de execução (v2): só é motivo para perguntar o que for NECESSÁRIO (material obrigatório que não veio, ou
+  informação indispensável impossível de inferir). Preferência (estilo, detalhe, ordem, desempate, custo total ou
+  valor, tema, foco, tom, público, o que a pesquisa descobre, escolhas reversíveis) vira escolha registrada na seção
+  "## Escolhas feitas".
+- Execução que volta só com perguntas: uma reavaliação pela mesma rota (`PEDIDO_AUTONOMIA`). Uma segunda, final, só
+  quando a estrutura do plano garante que nada indispensável falta: sem material obrigatório e com o contexto da
+  empresa no envio (`PEDIDO_AUTONOMIA_FINAL`). Material obrigatório ausente continua bloqueando. Evento
+  `quickwin.autonomy_checked` (só metadados: resultado e número de reavaliações).
+- Interpretação: lacuna `obrigatoria` só quando sem a resposta não dá para fazer e ela não pode ser inferida,
+  pesquisada nem escolhida.
+
+### Invariantes do pedido (`garantirInvariantes`)
+Extraídas só da linguagem do pedido (nenhum setor): quantidade ("três fornecedores" → 3), critérios depois de
+"considerando…" (viram colunas da tabela/matriz ou critério), objetos de verbos de entrega ("destaque riscos e
+obrigações", "transforme em ata, decisões e próximos passos"), comparação estruturada (verbo "comparar" com
+critérios) e necessidade de pesquisa. O servidor só acrescenta o que faltar; o resto do plano da IA fica.
+
+### Planilhas (`src/planilha.js`)
+A partir de 10 linhas de dados, o texto extraído de XLSX/CSV leva "Cálculos conferidos pela GreenIA" sobre todas
+as linhas: totais, médias, mínimo e máximo (com a linha), vazios, valores fora do padrão (3 IQR), maiores variações
+entre as duas primeiras colunas numéricas e somas por categoria (variação só nas linhas com os dois valores).
+Motivo: na homologação real os desvios por linha vinham certos e os totais por categoria vinham errados.
+
+### CSV
+Proteção contra fórmula sem corromper número negativo ("-10,9%" continua "-10,9%").

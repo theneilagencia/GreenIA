@@ -28,6 +28,8 @@ function roteiro(b) {
   if (ehCorrecao(b)) return modo === 'falha' ? RUIM : BOM;
   // Mensagens seguintes da conversa: a IA atende ao pedido da pessoa.
   const ultima = String(b.messages.at(-1).content);
+  // Reavaliação pela política de autonomia: sem material nenhum, a pergunta é necessária e continua.
+  if (/Reavalie as suas perguntas/.test(ultima)) return String(b.messages.at(-2).content);
   if (/Tire a coluna Status/.test(ultima)) return '| Cliente | Valor |\n|---|---|\n| Alfa | 1.200 |\n| Beta | 3.400 |';
   const sis = JSON.stringify(b.messages[0].content);
   if (sis.includes('Cliente | Valor | Status') && !/maior valor/.test(ultima)) {
@@ -203,7 +205,7 @@ test('Quality Check: limite de tentativas e falha final com mensagem simples', a
   // Pergunta de esclarecimento: sem conferência, sem correção.
   modo = 'pergunta';
   const p = await executar(ana, q.id, 'Faça.', { teste: true });
-  assert.equal(p.chamadas.length, 1);
+  assert.equal(p.chamadas.length, 2, 'a pergunta e a reavaliação pela política de autonomia (continua necessária)');
   assert.equal(p.fim.qualidade.status, 'pergunta');
   modo = 'bom';
 });
@@ -333,7 +335,7 @@ test('ciclo de vida: a resposta a uma pergunta de esclarecimento continua a mesm
   let n = OR.chamadas.length;
   let r = await enviarMensagem(ana, conv.id, { texto: 'Faça.' });
   assert.equal(r.fim.qualidade.status, 'pergunta');
-  assert.equal(OR.chamadas.length - n, 1);
+  assert.equal(OR.chamadas.length - n, 2, 'a pergunta e a reavaliação pela política de autonomia');
   modo = 'bom';
   n = OR.chamadas.length;
   r = await enviarMensagem(ana, conv.id, { texto: 'O documento é o pedido 882: 40 rolamentos; a nota tem 38.' });

@@ -30,7 +30,7 @@ export const PROMPT_INTERPRETACAO = [
   '- etapas: de 3 a 7 passos curtos de como fazer, em ordem (ex.: extrair, normalizar, comparar, destacar riscos). Etapa que usa ferramenta tem "ferramenta".',
   `- ferramentas: só as necessárias, destas: ${catalogo(FERRAMENTAS)}. pesquisa_web só se o trabalho precisa de informação atual ou de fora da empresa. base_empresa se precisa do contexto da empresa. leitura_documento e analise_planilha conforme as entradas. geracao_imagem só se pede imagem pronta (a GreenIA entrega o briefing).`,
   '- contexto_empresa: true se o resultado precisa falar da empresa (conteúdo, posicionamento, concorrentes, apresentação comercial).',
-  '- lacunas: no máximo 3 perguntas, só sobre o que falta e muda o resultado (ex.: mercado ou região de uma pesquisa de concorrentes; de onde vêm os dados de um relatório; quais critérios pesam mais). Não pergunte o que dá para inferir, o que chega no material de cada execução nem o que está nos documentos da empresa. Cada uma com "id" curto, "pergunta", "motivo", "exemplo" de resposta e "obrigatoria" (true só se sem a resposta o trabalho não pode ser feito).',
+  '- lacunas: no máximo 3 perguntas, só sobre o que falta e muda o resultado (ex.: mercado ou região de uma pesquisa de concorrentes; de onde vêm os dados de um relatório; quais critérios pesam mais). Não pergunte o que dá para inferir, o que chega no material de cada execução nem o que está nos documentos da empresa. Cada uma com "id" curto, "pergunta", "motivo", "exemplo" de resposta e "obrigatoria". obrigatoria: true SÓ quando, sem a resposta, o trabalho não pode ser feito ou muda de significado, e ela não pode ser inferida, pesquisada nem escolhida pela GreenIA. Preferência nunca é obrigatória: tema, tom, público, critério ou limite de corte, indicadores, nível de detalhe, ordem, formato e o que a pesquisa descobre. A GreenIA escolhe, faz e diz o que escolheu.',
   '- sugestoes: até 4 coisas úteis que a pessoa NÃO pediu, como pergunta curta (ex.: "Extrair também prazos e multas?"). Quando a sugestão é um entregável, inclua "entregavel":{"tipo":"...","rotulo":"..."}. Não as coloque em entregaveis: a pessoa decide.',
   '- criterios: de 2 a 4 critérios verificáveis de um bom resultado.',
   '- categoria: uma palavra para organização (conteudo, contratos, compras, financeiro, pessoas, operacoes, vendas, juridico, outro). Ela não muda o plano.',
@@ -57,20 +57,84 @@ export function garantirCanais(op, pedido) {
   return limparOperacao({ ...op, entregaveis: [...resto.filter(e => e.tipo === 'temas'), ...porCanal, ...resto.filter(e => e.tipo !== 'temas')].map(e => ({ ...e, depende_de: undefined })) });
 }
 
+// ---- Invariantes do pedido ----------------------------------------------------------------------------------
+// O plano da IA varia na redação de uma rodada para outra; o que o pedido diz EXPLICITAMENTE não pode variar:
+// quantidade de itens, critérios citados, entregáveis pedidos por um verbo de entrega, comparação estruturada e a
+// necessidade de pesquisa. Tudo sai da linguagem do pedido (números, listas, verbos), nunca de um setor.
+const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const NUMEROS = { dois: 2, duas: 2, 'três': 3, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
+const UNIDADES = /^(dias?|semanas?|meses|mes|mês|anos?|horas?|minutos?|segundos?|linhas?|slides?|páginas?|paginas?|vezes|por|%)/;
+const VAGOS = new Set(['conteudo', 'conteudos', 'trabalho', 'tarefa', 'algo', 'isso', 'material', 'texto', 'um', 'uma']);
+const PALAVRAS_VAZIAS = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'o', 'a', 'os', 'as', 'um', 'uma', 'com', 'para', 'em', 'no', 'na', 'nos', 'nas', 'mais', 'relevantes', 'principais', 'cada', 'seu', 'sua', 'seus', 'suas']);
+const singular = p => (!p ? '' : /(r|s|z)es$/.test(p) ? p.slice(0, -2) : /oes$/.test(p) ? `${p.slice(0, -3)}ão` : p.replace(/s$/, ''));
+const itens = trecho => trecho.split(/,|\s+e\s+|\s+ou\s+/).map(x => x.trim().replace(/^(o|a|os|as|um|uma|uns|umas|seus?|suas?)\s+/, '').trim()).filter(x => x.length >= 3);
+const VERBO_ENTREGA = /\b(?:destaque|destacar|identifique|identificar|liste|listar|aponte|apontar|extraia|extrair|monte|montar|gere|gerar|prepare|preparar|elabore|elaborar|produza|produzir|redija|redigir|indique|indicar|traga|entregue|crie|criar|transforme[^.;]*?\bem|transformar[^.;]*?\bem)\s+([^.;:]+)/g;
+const CORTE = /\s+(?:considerando|com base|levando|para|sobre|a partir|usando|que|do mes|do mês|de cada|com\s)/;
+export function invariantesDoPedido(pedido) {
+  const t = String(pedido || '').toLowerCase();
+  const q = /\b(\d{1,2}|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(\p{L}+)/u.exec(t);
+  const quantidade = q && !UNIDADES.test(q[2]) ? { n: Number(q[1]) || NUMEROS[q[1]], de: q[2] } : null;
+  const cr = /\b(?:considerando|com base em|levando em conta|em termos de|pelos critérios de|pelos criterios de)\s+([^.;]+)/.exec(t);
+  const criterios = cr ? itens(cr[1]).slice(0, 8) : [];
+  const entregaveis = [];
+  for (const m of t.matchAll(VERBO_ENTREGA)) for (const x of itens(m[1].split(CORTE)[0])) if (!VAGOS.has(norm(x)) && !CANAIS_DE(x)) entregaveis.push(x);
+  return { quantidade, criterios, entregaveis: [...new Set(entregaveis)].slice(0, 6), comparacao: /^\s*(compar|confront)/.test(norm(pedido)) && criterios.length > 0,
+    pesquisa: tem(pedido, FERRAMENTAS.pesquisa_web.palavras) };
+}
+const tem = (texto, palavras) => palavras.some(p => new RegExp(`(^|[^a-z0-9])${p}`).test(` ${norm(texto)} `));
+const CANAIS_DE = x => Object.values(CANAIS).some(c => tem(x, c.palavras));
+const raizes = x => norm(x).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PALAVRAS_VAZIAS.has(w)).map(w => w.slice(0, 5));
+const textoDoPlano = op => norm([...(op.entregaveis || []).flatMap(e => [e.rotulo, ENTREGAVEIS[e.tipo]?.rotulo, e.descricao, ...(e.config?.colunas || [])]), ...(op.criterios || []), ...(op.etapas || []).map(x => x.texto)].join(' '));
+const cobre = (texto, item) => { const r = raizes(item); return r.length > 0 && r.some(w => texto.includes(w)); };
+const tipoPorPalavra = item => Object.entries(ENTREGAVEIS).find(([id, e]) => id !== 'outro' && raizes(item).some(w => norm(e.rotulo).startsWith(w) || w.startsWith(norm(id).slice(0, 5))))?.[0] || 'lista';
+// Garante as invariantes no plano (só acrescenta; nada que a IA trouxe é tirado). Devolve o plano e o que mudou.
+export function garantirInvariantes(op, pedido) {
+  if (!op) return { op, corrigidas: [] };
+  const inv = invariantesDoPedido(pedido), corrigidas = [];
+  const novo = structuredClone(op);
+  if (inv.quantidade && novo.entradas?.length && !novo.entradas.some(x => x.quantidade === inv.quantidade.n)) {
+    const alvo = novo.entradas.find(x => x.obrigatoria) || novo.entradas[0];
+    alvo.quantidade = inv.quantidade.n; corrigidas.push('quantidade');
+  }
+  if (inv.comparacao && !novo.entregaveis.some(e => ['tabela', 'matriz'].includes(e.tipo))) {
+    novo.entregaveis.unshift({ id: 'inv_cmp', tipo: 'matriz', rotulo: 'Matriz comparativa', canal: null, config: {} }); corrigidas.push('comparacao');
+  }
+  if (inv.criterios.length) {
+    const tab = novo.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
+    if (tab && (inv.comparacao || tab.config?.colunas?.length)) {
+      const cols = [...(tab.config?.colunas || [])];
+      const faltam = inv.criterios.filter(c => !cobre(norm(cols.join(' ')), c));
+      if (faltam.length) { tab.config = { ...(tab.config || {}), colunas: [...(cols.length ? cols : [cap(singular(inv.quantidade?.de) || 'Item')]), ...faltam.map(cap)].slice(0, 8) }; corrigidas.push('criterios'); }
+    } else if (inv.criterios.some(c => !cobre(textoDoPlano(novo), c))) {
+      novo.criterios = [...(novo.criterios || []), `Considera todos estes critérios: ${inv.criterios.join(', ')}.`]; corrigidas.push('criterios');
+    }
+  }
+  for (const item of inv.entregaveis) if (!cobre(textoDoPlano(novo), item)) {
+    novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: tipoPorPalavra(item), rotulo: cap(item).slice(0, 60), canal: null, config: {} }); corrigidas.push(`entregavel:${item}`);
+  }
+  if (inv.pesquisa && !novo.ferramentas.includes('pesquisa_web')) { novo.ferramentas.push('pesquisa_web'); corrigidas.push('pesquisa'); }
+  return { op: corrigidas.length ? limparOperacao(novo) : op, corrigidas };
+}
+
 // Resposta da IA -> plano validado. null: ilegível, sem entregável ou com algo que parece segredo (nada é inventado).
 export function lerInterpretacao(texto, pedido = '') {
   const m = /\{[\s\S]*\}/.exec(String(texto || ''));
   if (!m) return null;
   let d; try { d = JSON.parse(m[0]); } catch { return null; }
   if (!d || typeof d !== 'object' || !Array.isArray(d.entregaveis)) return null;
-  const op = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }), pedido);
-  if (!op?.entregaveis.length || contemCredencial(JSON.stringify(op))) return null;
+  const base = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }), pedido);
+  if (!base?.entregaveis.length) return null;
+  const { op, corrigidas } = pedido ? garantirInvariantes(base, pedido) : { op: base, corrigidas: [] };
+  if (contemCredencial(JSON.stringify(op))) return null;
+  if (corrigidas.length) Object.defineProperty(op, 'corrigidas', { value: corrigidas, enumerable: false });
   return op;
 }
 
 // Plano do pedido: interpretado pela IA (governado) ou heurístico. Um plano já interpretado para o mesmo pedido
 // (no Quick Win ou nesta instalação) é reaproveitado: nenhuma chamada nova.
 const cache = new Map();
+export const limparCacheInterpretacao = () => cache.clear();   // homologação: medir a variação entre rodadas
 export async function interpretar(app, pessoa, { descricao, processo = '', qw = null }) {
   const chave = chaveInterpretacao(descricao, processo);
   const heuristico = motivo => ({ chave, fonte: 'heuristica', motivo, operacao: planoHeuristico(`${descricao}\n${processo}`) });
@@ -86,7 +150,7 @@ export async function interpretar(app, pessoa, { descricao, processo = '', qw = 
   }
   const op = lerInterpretacao(r.texto, `${descricao}\n${processo}`);
   registrar(app, 'quickwin.interpreted', pessoa.id, { quick_win: qw?.id ?? null, roteamento: r.rotaId, legivel: !!op,
-    entregaveis: op?.entregaveis.length ?? 0, entradas: op?.entradas?.length ?? 0, lacunas: op?.lacunas?.length ?? 0, ferramentas: op?.ferramentas || [] });
+    entregaveis: op?.entregaveis.length ?? 0, entradas: op?.entradas?.length ?? 0, lacunas: op?.lacunas?.length ?? 0, ferramentas: op?.ferramentas || [], invariantes: op?.corrigidas || [] });
   if (!op) return heuristico('resposta_invalida');
   cache.set(`${app.tenant?.id || ''}:${chave}`, op);
   if (cache.size > 300) cache.delete(cache.keys().next().value);

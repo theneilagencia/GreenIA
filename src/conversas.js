@@ -14,7 +14,7 @@ import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
-import { conferirComCorrecao, contextoDaExecucao, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
+import { conferirComCorrecao, contextoDaExecucao, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
 import { MOTIVOS_PESQUISA, promptColeta } from './quickwin-operacao.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
@@ -560,6 +560,7 @@ export function rotasConversas(app, r) {
     let resposta = '', fim = null, primeiroToken = null, falha = null, atual = m;
     const fontesWeb = [];
     const tentados = [m.id];
+    let perguntaInicial = null, autonomia = 0;
     // Etapa 1 (coleta): pesquisa com o plugin web. Falhou ou não trouxe notas: a produção pesquisa sozinha, como
     // numa execução de uma etapa só (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
@@ -596,6 +597,17 @@ export function rotasConversas(app, r) {
         }
         if (!resposta) throw new ErroIA('A IA não respondeu.');
         falha = null;
+        // Política de autonomia: a execução voltou só com perguntas. Uma vez, pela mesma rota, a IA reavalia: o que
+        // é preferência vira escolha registrada e o trabalho sai; o que é necessário continua sendo perguntado.
+        // Segunda vez só se a estrutura do plano garante que nada indispensável falta (sem material obrigatório e com
+        // o contexto da empresa no envio): a dúvida que restou é de preferência.
+        const semObrigatorio = !(qw?.espec?.operacao?.entradas || []).some(x => x.obrigatoria) && ctx.partes.length > 0;
+        if (espec && qw.espec.operacao?.v === 2 && resposta.trim().startsWith(MARCADOR_PERGUNTA) && !contemCredencial(resposta)
+          && (autonomia === 0 || (autonomia === 1 && semObrigatorio))) {
+          perguntaInicial ??= resposta;
+          mensagens.push({ role: 'assistant', content: resposta }, { role: 'user', content: autonomia === 0 ? PEDIDO_AUTONOMIA : PEDIDO_AUTONOMIA_FINAL });
+          autonomia++; resposta = ''; continue;
+        }
         break;
       } catch (e) {
         falha = e;
@@ -608,6 +620,10 @@ export function rotasConversas(app, r) {
         exec(app.db, 'update roteamento set reserva = ? where id = ?', `guardrails:${tentados.slice(1).join(',')}`, rotaId);
       }
     }
+    // A reavaliação falhou: fica a pergunta original (nada se perde, nada é inventado).
+    if (falha && perguntaInicial && !resposta) { resposta = perguntaInicial; falha = null; }
+    if (perguntaInicial) registrar(app, 'quickwin.autonomy_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId,
+      resultado: resposta.trim().startsWith(MARCADOR_PERGUNTA) ? 'pergunta_necessaria' : 'executou_com_escolhas', reavaliacoes: autonomia });
     if (falha) { const e = falha;
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
       registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });

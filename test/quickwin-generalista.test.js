@@ -83,10 +83,16 @@ function roteiro(b) {
   if (t === 'coleta') return 'Notas da pesquisa:\n- Concorrente Alfa (fictício) — fonte: Revista Exemplo';
   if (t !== 'execucao') return 'Certo.';
   // Material obrigatório que não veio: o modelo pede (o prompt manda pedir em vez de inventar).
-  if (sis(b).includes('Material deste trabalho') && ultima(b).includes('SEM MATERIAL')) return `${C.MARCADOR_PERGUNTA} envie as 3 propostas dos fornecedores.`;
+  const pessoa = JSON.stringify(b.messages.filter(m => m.role === 'user').map(m => m.content));
+  if (sis(b).includes('Material deste trabalho') && pessoa.includes('SEM MATERIAL')) return `${C.MARCADOR_PERGUNTA} envie as 3 propostas dos fornecedores.`;
+  // Pergunta de preferência (simulada pelo pedido "PREFERENCIA"): na reavaliação, vira escolha registrada.
+  // Modelo teimoso: pergunta o tema de novo na primeira reavaliação; só a reavaliação final (estrutural) resolve.
+  if (pessoa.includes('TEIMOSO') && !ultima(b).includes('não há nada indispensável faltando')) return `${C.MARCADOR_PERGUNTA} qual é o tema central desta semana?`;
+  if (ultima(b).includes('PREFERENCIA')) return `${C.MARCADOR_PERGUNTA} prefere o custo total ou só o valor da proposta?`;
   const titulos = [...sis(b).matchAll(/\d+\. ## ([^\\(]+?)(?: \(|\\n|")/g)].map(m => m[1].trim());
   if (!titulos.length) return '## Resumo\nTexto.\n\n## Pontos de atenção\n- Nenhum.\n\n## Informações não encontradas\nNenhuma';
-  return titulos.map(x => `## ${x}\n${/Carrossel|Reels|Imagem/.test(x) ? `${OP.MARCA_BRIEFING}\nCena 1 (5s): conteúdo.` : /Tabela|Matriz|Desvios/.test(x) ? '| Item | Valor |\n|---|---|\n| A | 1 |' : `Conteúdo de ${x}.`}`).join('\n\n')
+  const escolhas = pessoa.includes('Reavalie') ? `\n\n## ${C.SECAO_ESCOLHAS}\n- Considerei o valor total de cada proposta (peça "só o valor" para mudar).` : '';
+  return escolhas.length ? titulos.map(x => `## ${x}\nConteúdo de ${x}.`).join('\n\n') + escolhas : titulos.map(x => `## ${x}\n${/Carrossel|Reels|Imagem/.test(x) ? `${OP.MARCA_BRIEFING}\nCena 1 (5s): conteúdo.` : /Tabela|Matriz|Desvios/.test(x) ? '| Item | Valor |\n|---|---|\n| A | 1 |' : `Conteúdo de ${x}.`}`).join('\n\n')
     + (sis(b).includes('Notas da pesquisa desta execu') ? `\n\n## ${OP.SECAO_FONTES}\n- Revista Exemplo: https://revista.exemplo/x` : '');
 }
 
@@ -343,4 +349,63 @@ test('trabalho que depende da empresa: o contexto da base chega mesmo sem palavr
 test('rótulo vindo da IA não repete o canal do entregável', () => {
   const op = OP.limparOperacao({ entregaveis: [{ tipo: 'copy', canal: 'linkedin', rotulo: 'Copy LinkedIn' }, { tipo: 'copy', canal: 'instagram', rotulo: 'Legenda para Instagram' }, { tipo: 'roteiro', canal: 'instagram', rotulo: 'Roteiro para Reels' }] });
   assert.deepEqual(op.entregaveis.map(OP.rotuloEntregavel), ['LinkedIn · Copy', 'Instagram · Legenda', 'Instagram · Roteiro para Reels']);
+});
+
+test('política de autonomia: pergunta de preferência não bloqueia (vira escolha registrada); a necessária continua bloqueando', async () => {
+  const { qw } = await criarComPlano(FRASES.propostas);
+  const prompt = C.promptExecucao(json(um(S.app.db, 'select especificacao from quick_wins where id = ?', qw.id).especificacao), { nome: 'x' });
+  assert.match(prompt, /Dúvida de PREFERÊNCIA nunca é motivo para perguntar/);
+  assert.match(prompt, /## Escolhas feitas/);
+  // Preferência: a primeira resposta só pergunta; a reavaliação executa e registra a escolha.
+  const r = await executar(qw.id, { texto: 'PREFERENCIA: compare as propostas fictícias anexadas.', anexos: [arquivo('propostas.docx', docx(['Proposta A: R$ 10.000. Proposta B: R$ 12.000. Proposta C: R$ 9.000.']))] });
+  const execs = r.chamadas.filter(b => tipoDe(b) === 'execucao' && !String(b.messages.at(-1).content).startsWith('Confira o resultado acima'));
+  assert.equal(execs.length, 2, 'a execução e a reavaliação, pela mesma rota');
+  assert.equal(execs[1].model, execs[0].model);
+  assert.match(String(execs[1].messages.at(-1).content), /Reavalie as suas perguntas pela política de autonomia/);
+  assert.notEqual(r.fim.qualidade.status, 'pergunta');
+  assert.match(r.texto, /## Escolhas feitas\n- Considerei o valor total/);
+  assert.match(r.texto, /## Tabela comparativa/);
+  const ev = json(um(S.app.db, "select detalhes from eventos where tipo = 'quickwin.autonomy_checked' order by id desc limit 1").detalhes);
+  assert.equal(ev.resultado, 'executou_com_escolhas');
+  // Necessária (as propostas não vieram): continua perguntando depois da reavaliação.
+  const n = await executar(qw.id, { texto: 'SEM MATERIAL: compare.' });
+  assert.equal(n.fim.qualidade.status, 'pergunta');
+  assert.equal(json(um(S.app.db, "select detalhes from eventos where tipo = 'quickwin.autonomy_checked' order by id desc limit 1").detalhes).resultado, 'pergunta_necessaria');
+});
+
+test('invariantes do pedido: o que o pedido diz explicitamente não se perde quando o plano da IA varia', async () => {
+  const { invariantesDoPedido, garantirInvariantes } = await import('../src/quickwin-interpretacao.js');
+  // Planos "esquecidos" (como numa rodada real em que a IA varia): o servidor recompõe só o explícito.
+  const prop = garantirInvariantes(OP.limparOperacao({ v: 2, origem: 'ia', entradas: [{ tipo: 'documento', rotulo: 'Propostas' }], entregaveis: [{ tipo: 'recomendacao', rotulo: 'Recomendação' }] }), FRASES.propostas);
+  assert.deepEqual(prop.corrigidas, ['quantidade', 'comparacao', 'criterios']);
+  assert.equal(prop.op.entradas[0].quantidade, 3);
+  assert.equal(prop.op.entregaveis[0].tipo, 'matriz');
+  assert.deepEqual(prop.op.entregaveis[0].config.colunas, ['Fornecedor', 'Preço', 'Prazo', 'Escopo', 'Risco']);
+  const contrato = garantirInvariantes(OP.limparOperacao({ v: 2, origem: 'ia', entregaveis: [{ tipo: 'riscos', rotulo: 'Riscos' }] }), FRASES.contratos);
+  assert.deepEqual(contrato.op.entregaveis.map(OP.rotuloEntregavel), ['Riscos', 'Obrigações']);
+  const ata = garantirInvariantes(OP.limparOperacao({ v: 2, origem: 'ia', entregaveis: [{ tipo: 'ata', rotulo: 'Ata da reunião' }, { tipo: 'lista', rotulo: 'Decisões tomadas' }] }), FRASES.reuniao);
+  assert.deepEqual(ata.op.entregaveis.map(OP.rotuloEntregavel), ['Ata da reunião', 'Decisões tomadas', 'Próximos passos']);
+  const pesquisa = garantirInvariantes(OP.limparOperacao({ v: 2, origem: 'ia', entregaveis: [{ tipo: 'matriz', rotulo: 'Matriz de posicionamento' }] }), FRASES.concorrentes);
+  assert.deepEqual(pesquisa.corrigidas, ['pesquisa']);
+  // Plano que já cobre tudo (redação diferente) não muda: estabilidade semântica, não texto idêntico.
+  const cobre = OP.limparOperacao({ v: 2, origem: 'ia', entradas: [{ tipo: 'planilha', rotulo: 'Planilha do mês' }], entregaveis: [{ tipo: 'relatorio', rotulo: 'Análise dos desvios' }] });
+  assert.deepEqual(garantirInvariantes(cobre, FRASES.planilha).corrigidas, []);
+  // Nada por setor: só números, listas após "considerando", objetos de verbos de entrega e "comparar".
+  assert.deepEqual(invariantesDoPedido('Revise 2 dias de escala e liste conflitos e horas extras.'), { quantidade: null, criterios: [], entregaveis: ['conflitos', 'horas extras'], comparacao: false, pesquisa: false });
+  assert.deepEqual(invariantesDoPedido('Compare 4 currículos considerando experiência e inglês.').quantidade, { n: 4, de: 'currículos' });
+});
+
+test('política de autonomia: sem material obrigatório e com o contexto da empresa, a insistência em perguntar o tema não bloqueia', async () => {
+  const { qw } = await criarComPlano(FRASES.social);
+  const r = await executar(qw.id, { texto: 'TEIMOSO: faça o conteúdo da semana.' });
+  const passos = r.chamadas.filter(b => tipoDe(b) === 'execucao' && !String(b.messages.at(-1).content).startsWith('Confira o resultado acima'));
+  assert.equal(passos.length, 3, 'execução, reavaliação e reavaliação final (estrutural)');
+  assert.match(String(passos[2].messages.at(-1).content), /não há nada indispensável faltando/);
+  assert.notEqual(r.fim.qualidade.status, 'pergunta');
+  assert.equal(json(um(S.app.db, "select detalhes from eventos where tipo = 'quickwin.autonomy_checked' order by id desc limit 1").detalhes).reavaliacoes, 2);
+  // Com material obrigatório (as 3 propostas), a reavaliação final não acontece: a pergunta necessária bloqueia.
+  const { qw: prop } = await criarComPlano(FRASES.propostas);
+  const n = await executar(prop.id, { texto: 'TEIMOSO SEM MATERIAL: compare.' });
+  assert.equal(n.chamadas.filter(b => tipoDe(b) === 'execucao').length, 2, 'uma reavaliação só');
+  assert.equal(n.fim.qualidade.status, 'pergunta');
 });

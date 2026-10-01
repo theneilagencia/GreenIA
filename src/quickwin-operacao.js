@@ -73,11 +73,19 @@ export function inferirOperacao(texto) {
     visto.add(k);
     entregaveis.push({ tipo, canal: canal || null, config: { ...(ENTREGAVEIS[tipo].config || {}) } });
   };
+  let anteriores = [];
   for (const o of oracoes) {
     const tipos = Object.keys(ENTREGAVEIS).filter(k => k !== 'outro' && tem(o, ENTREGAVEIS[k].palavras));
     // "roteiro de Reels": um entregável só (o Reels), com roteiro.
-    const finais = tipos.includes('reels') ? tipos.filter(x => x !== 'roteiro' && x !== 'video') : tipos;
+    let finais = tipos.includes('reels') ? tipos.filter(x => x !== 'roteiro' && x !== 'video') : tipos;
     const doTrecho = Object.keys(CANAIS).filter(c => tem(o, CANAIS[c].palavras));
+    // Canal coordenado sem peça própria ("posts para LinkedIn e Instagram"): herda as peças já pedidas antes dele.
+    // O "post" genérico (copy) vira a peça padrão do canal herdeiro (no Instagram, a legenda).
+    if (!finais.length && doTrecho.length && anteriores.length) {
+      for (const c of doTrecho) for (const tipo of anteriores) somar(tipo === 'copy' ? CANAIS[c].padrao : tipo, c);
+      continue;
+    }
+    anteriores = [...new Set([...anteriores, ...finais.filter(x => !SEM_CANAL.has(x))])];
     for (const tipo of finais) {
       if (tipo === 'temas' && !ferramentas.length && !/sugir|sugest|ideias|pauta/.test(o)) continue;
       if (SEM_CANAL.has(tipo)) { somar(tipo, null); continue; }

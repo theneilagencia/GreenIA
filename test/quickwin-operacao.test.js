@@ -270,3 +270,28 @@ test('compatibilidade: Quick Win antigo (sem operação) segue igual; especifica
   assert.ok(um(S.app.db, 'select 1 from quick_wins where id = ?', antigo.id));
   assert.equal(todos(S.app.db, "select tipo from eventos where tipo like 'quick_win.%'").length, 0, 'a auditoria usa o prefixo quickwin.*');
 });
+
+test('inferência: canal coordenado herda as peças já pedidas ("posts para LinkedIn e Instagram e um Reels")', () => {
+  const r = t => OP.inferirOperacao(t).entregaveis.map(OP.rotuloEntregavel);
+  assert.deepEqual(r('Crie posts para LinkedIn e Instagram e um Reels'), ['LinkedIn · Copy', 'Instagram · Legenda', 'Instagram · Reels']);
+  assert.deepEqual(r('Crie copy e carrossel para LinkedIn e Instagram'), ['LinkedIn · Copy', 'LinkedIn · Carrossel', 'Instagram · Legenda', 'Instagram · Carrossel']);
+  assert.deepEqual(r('Crie uma copy para LinkedIn'), ['LinkedIn · Copy']);
+});
+
+test('citações no formato oficial do OpenRouter (message.annotations e delta.annotations); só http(s)', async () => {
+  const { criarOpenRouter } = await import('../src/ia.js');
+  const cit = (url, title) => ({ type: 'url_citation', url_citation: { url, title, content: 'trecho', start_index: 0, end_index: 5 } });
+  const ler = async chunks => {
+    const corpo = chunks.map(c => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n';
+    let enviado;
+    const ia = criarOpenRouter({ chave: 'x', fetch: async (_u, op) => { enviado = JSON.parse(op.body); return new Response(new Blob([corpo]).stream(), { status: 200 }); } });
+    const out = [];
+    for await (const e of ia.enviar([{ role: 'user', content: 'x' }], { modelo: 'm', pesquisaWeb: { max: 5 } })) out.push(e);
+    return { fontes: out.filter(e => e.tipo === 'fonte'), enviado };
+  };
+  let r = await ler([{ choices: [{ delta: { content: 'a' } }] }, { choices: [{ message: { role: 'assistant', content: 'a', annotations: [cit('https://exemplo.org/1', 'Um')] } }] }]);
+  assert.deepEqual(r.fontes, [{ tipo: 'fonte', url: 'https://exemplo.org/1', titulo: 'Um' }]);
+  assert.deepEqual(r.enviado.plugins, [{ id: 'web', max_results: 5 }]);
+  r = await ler([{ choices: [{ delta: { content: 'a', annotations: [cit('https://exemplo.org/2', 'Dois'), cit('javascript:alert(1)', 'x')] } }] }]);
+  assert.deepEqual(r.fontes.map(f => f.url), ['https://exemplo.org/2']);
+});

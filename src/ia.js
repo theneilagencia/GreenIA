@@ -22,7 +22,11 @@ export function montarCorpo(mensagens, op) {
   if (op.maxTokens) corpo.max_tokens = op.maxTokens;
   // Pesquisa na internet (plugin "web" do OpenRouter): só quando a governança liberou para esta chamada.
   // As citações voltam como anotações "url_citation" e viram as fontes da resposta.
-  if (op.pesquisaWeb) corpo.plugins = [{ id: 'web', max_results: Math.min(10, Math.max(1, Number(op.pesquisaWeb.max) || 5)) }];
+  // Motor Exa fixo (homologação real): na busca nativa o modelo decide se pesquisa e se anota, e numa entrega longa
+  // o Gemini não pesquisou e o Claude pesquisou sem devolver anotação (fontes só no texto, que não contamos); as
+  // fontes nativas do Gemini ainda vinham como links de redirecionamento. Com o Exa, toda execução traz as citações
+  // com o endereço real do publicador, em qualquer modelo e com data_collection='deny'.
+  if (op.pesquisaWeb) corpo.plugins = [{ id: 'web', engine: 'exa', max_results: Math.min(10, Math.max(1, Number(op.pesquisaWeb.max) || 5)) }];
   return corpo;
 }
 

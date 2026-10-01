@@ -128,7 +128,7 @@ test('aceite A e B (Apy Mine): pesquisa real, contexto da empresa, todos os entr
   const r = await executar(ana, q.id, 'Pedido de teste: faça o trabalho desta semana.');
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   const exec = r.chamadas.find(b => !ehConferencia(b));
-  assert.deepEqual(exec.plugins, [{ id: 'web', max_results: 5 }], 'a execução pesquisou de verdade');
+  assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }], 'a execução pesquisou de verdade');
   assert.ok(r.chamadas.filter(ehConferencia).every(b => !b.plugins), 'a conferência nunca pesquisa');
   // Contexto da empresa: a mensagem de hoje é genérica, mas a consulta à base usa o objetivo do Quick Win.
   assert.match(sistemaDe(exec), /mineradora de médio porte/);
@@ -297,7 +297,7 @@ test('citações no formato oficial do OpenRouter (message.annotations e delta.a
   };
   let r = await ler([{ choices: [{ delta: { content: 'a' } }] }, { choices: [{ message: { role: 'assistant', content: 'a', annotations: [cit('https://exemplo.org/1', 'Um')] } }] }]);
   assert.deepEqual(r.fontes, [{ tipo: 'fonte', url: 'https://exemplo.org/1', titulo: 'Um' }]);
-  assert.deepEqual(r.enviado.plugins, [{ id: 'web', max_results: 5 }]);
+  assert.deepEqual(r.enviado.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }]);
   r = await ler([{ choices: [{ delta: { content: 'a', annotations: [cit('https://exemplo.org/2', 'Dois'), cit('javascript:alert(1)', 'x')] } }] }]);
   assert.deepEqual(r.fontes.map(f => f.url), ['https://exemplo.org/2']);
 });

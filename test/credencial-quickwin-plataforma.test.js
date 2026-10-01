@@ -109,7 +109,7 @@ test('A: pesquisa com a chave do console, plugin web, data_collection=deny, font
   assert.equal(r.falha, undefined, JSON.stringify(r.falha));
   assert.ok(r.autorizacoes.length && r.autorizacoes.every(a => a === `Bearer ${CHAVE}`), 'toda chamada saiu com a chave do console');
   const exec = r.chamadas.find(b => !ehConferencia(b));
-  assert.deepEqual(exec.plugins, [{ id: 'web', max_results: 5 }]);
+  assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }]);
   assert.equal(exec.provider.data_collection, 'deny');
   // Homologação real: sem busca nativa (Haiku pelo Bedrock), a consulta é a última mensagem da pessoa. O gatilho
   // "Execute agora." trazia fontes sem relação; o tema do Quick Win vai na mensagem enviada (não na gravada).
@@ -139,7 +139,7 @@ test('três níveis: Rápido, Equilibrado e Avançado usam o modelo configurado,
     const exec = r.chamadas.find(b => !ehConferencia(b));
     assert.equal(exec.model, padroes[nivel], `${nivel}: modelo`);
     assert.ok(r.autorizacoes.every(a => a === `Bearer ${CHAVE}`), `${nivel}: chave`);
-    assert.deepEqual(exec.plugins, [{ id: 'web', max_results: 5 }], `${nivel}: plugin`);
+    assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }], `${nivel}: plugin`);
     assert.equal(exec.provider.data_collection, 'deny', `${nivel}: deny`);
     assert.equal(r.fim.fontes.filter(f => f.url).length, FONTES.length, `${nivel}: fontes`);
   }
@@ -152,7 +152,7 @@ test('F: pesquisa + contexto da empresa + entregáveis separados por canal, brie
   const r = await executar(ana, q.id, 'Faça o trabalho desta semana.');
   assert.equal(r.falha, undefined, JSON.stringify(r.falha));
   const exec = r.chamadas.find(b => !ehConferencia(b));
-  assert.deepEqual(exec.plugins, [{ id: 'web', max_results: 5 }]);
+  assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }]);
   assert.match(sistemaDe(exec), /organização documental/, 'contexto da empresa enviado');
   for (const t of ['LinkedIn · Copy', 'LinkedIn · Carrossel', 'LinkedIn · Imagem', 'Instagram · Legenda', 'Instagram · Carrossel', 'Instagram · Imagem', 'Instagram · Reels'])
     assert.match(r.texto, new RegExp(`## ${t}`), t);

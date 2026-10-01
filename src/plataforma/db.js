@@ -100,7 +100,7 @@ create index if not exists commercial_contacts_email on commercial_contacts (ema
 create index if not exists commercial_contacts_ultima on commercial_contacts (last_interaction_at);
 create table if not exists commercial_interactions (
   id integer primary key, contact_id text not null references commercial_contacts(id) on delete cascade,
-  at text not null, tipo text not null, por text, nota text not null default '');
+  at text not null, tipo text not null, por text, nota text not null default '', dados text not null default '');
 create index if not exists commercial_interactions_contato on commercial_interactions (contact_id, at);
 -- Estatística irreversivelmente agregada dos contatos eliminados: só mês de entrada, faixa de pessoas e contagem.
 create table if not exists commercial_contacts_stats (mes text not null, pessoas text not null, eliminados integer not null, primary key (mes, pessoas));

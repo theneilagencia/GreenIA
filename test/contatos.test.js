@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { subirPlataforma } from './ajuda-plataforma.js';
 import { um, todos } from '../src/db.js';
 import { salvarAjuste, lerAjuste } from '../src/plataforma/db.js';
-import { rodadaContatos, registrarFormulario, listarContatos, migrarContatosAntigos, limiteRetencao } from '../src/plataforma/contatos.js';
+import { rodadaContatos, registrarFormulario, listarContatos, migrarContatosAntigos, limiteRetencao, listaAntigaDosContatos } from '../src/plataforma/contatos.js';
 
 let S, ops;
 let deslocamento = 0;
@@ -116,12 +116,29 @@ test('limite de 500 não apaga: 510 contatos ficam todos; a listagem é paginada
   assert.equal(listarContatos(S.P, { pagina: 10, porPagina: 50 }).itens.length, l.total - 500);
 });
 
-test('migração: a lista antiga (platform_settings) vira contatos com a data do formulário, e sai do banco', () => {
-  const em = new Date(agora() - 3 * DIA).toISOString();
-  salvarAjuste(S.P.db, 'leads', [{ nome: 'Velho', email: 'velho@antigo.com', empresa: 'Velha', cargo: '', pessoas: '', mensagem: 'antigo', em }]);
-  assert.equal(migrarContatosAntigos(S.P), 1);
-  assert.equal(lerAjuste(S.P.db, 'leads', null), null);
-  const c = contato('velho@antigo.com');
-  assert.equal(c.last_interaction_at, em);
-  assert.equal(migrarContatosAntigos(S.P), 0, 'idempotente');
+test('migração: provada por contagem, sem perda, sem duplicar o mesmo email, idempotente, com rollback sem perda', () => {
+  const base = agora();
+  const t = i => new Date(base - (10 - i) * DIA).toISOString();
+  const antigos = [
+    { nome: 'Velho', email: 'velho@antigo.com', empresa: 'Velha', cargo: 'Sócio', pessoas: 'até 50', mensagem: 'primeiro', em: t(1) },
+    { nome: 'Velho Silva', email: 'VELHO@antigo.com', empresa: 'Velha SA', cargo: 'Diretor', pessoas: '51 a 200', mensagem: 'segundo', em: t(2) },
+    { nome: 'Outra', email: 'outra@antigo.com', empresa: 'Outra', cargo: '', pessoas: '', mensagem: '', em: t(3) },
+  ];
+  salvarAjuste(S.P.db, 'leads', antigos);
+  const contatosAntes = um(S.P.db, 'select count(*) as n from commercial_contacts').n;
+  const r = migrarContatosAntigos(S.P);
+  assert.deepEqual([r.entradas, r.emailsDistintos, r.interacoes], [3, 2, 3]);
+  assert.equal(um(S.P.db, 'select count(*) as n from commercial_contacts').n, contatosAntes + 2, 'um contato por email');
+  assert.equal(lerAjuste(S.P.db, 'leads', null), null, 'a lista antiga sai do banco');
+  const v = contato('velho@antigo.com');
+  assert.deepEqual([v.created_at, v.last_interaction_at, v.nome, v.empresa], [t(1), t(2), 'Velho Silva', 'Velha SA'], 'mais antigo cria; mais recente atualiza');
+  assert.equal(um(S.P.db, 'select count(*) as n from commercial_interactions where contact_id = ?', v.id).n, 2);
+  const aud = JSON.parse(um(S.P.db, "select after from audit_log where action = 'contacts.migrated' order by id desc limit 1").after);
+  assert.equal(aud.entradas, 3);
+  assert.doesNotMatch(JSON.stringify(aud), /velho|outra/i, 'a auditoria só tem contagens');
+  assert.equal(migrarContatosAntigos(S.P), null, 'idempotente: não há mais lista antiga');
+  // Rollback: a lista antiga é reconstruída sem perda (uma entrada por formulário, com os campos daquele envio).
+  const lista = listaAntigaDosContatos(S.P).filter(x => /@antigo\.com$/.test(x.email));
+  const chave = x => `${x.em}|${x.email}|${x.nome}|${x.empresa}|${x.cargo}|${x.pessoas}|${x.mensagem}`;
+  assert.deepEqual(lista.map(chave).sort(), antigos.map(x => ({ ...x, email: x.email.toLowerCase() })).map(chave).sort());
 });

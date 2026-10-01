@@ -28,7 +28,9 @@ const linha = (P, companyId) => um(P.db, 'select * from company_deletion where c
 // ---------------------------------------------------------------- Agenda da exclusão
 export function agendarExclusao(P, c, { ator, origem, cancelledAt = null, estimado = false }) {
   const t = cancelledAt ? Date.parse(cancelledAt) : agoraMs(P);
-  const deleteAfter = iso(t + PRAZO_EXCLUSAO_DIAS * DIA);
+  // Data estimada (migração): o prazo nunca vence antes de 30 dias contados da própria migração, e a exclusão
+  // automática fica impedida até alguém confirmar a data no console (motivoQueImpede: 'data_estimada').
+  const deleteAfter = iso(estimado ? Math.max(t, agoraMs(P)) + PRAZO_EXCLUSAO_DIAS * DIA : t + PRAZO_EXCLUSAO_DIAS * DIA);
   exec(P.db, `insert into company_deletion (company_id, nome, slug, cancelled_at, delete_after, estimado, status, updated_at) values (?, ?, ?, ?, ?, ?, 'pendente', ?)
     on conflict (company_id) do update set nome = excluded.nome, slug = excluded.slug, cancelled_at = excluded.cancelled_at, delete_after = excluded.delete_after,
       estimado = excluded.estimado, status = 'pendente', antecipada_por = null, antecipada_em = null, deleted_at = null, deleted_via = null, updated_at = excluded.updated_at`,
@@ -63,6 +65,7 @@ export function motivoQueImpede(P, companyId, { antecipada = false } = {}) {
   const l = linha(P, companyId);
   if (!l || l.status !== 'pendente') return 'sem_agenda';
   if (l.hold_em) return 'hold';
+  if (!antecipada && l.estimado) return 'data_estimada';
   if (!antecipada && Date.parse(l.delete_after) > agoraMs(P)) return 'prazo';
   return null;
 }
@@ -71,6 +74,7 @@ export const MENSAGENS_IMPEDIMENTO = {
   nao_cancelada: 'Cancele a empresa antes de excluir. A exclusão só vale para ambientes cancelados.',
   sem_agenda: 'Esta empresa não tem exclusão agendada.',
   hold: 'A exclusão está suspensa por hold (obrigação legal ou incidente).',
+  data_estimada: 'A data de cancelamento desta empresa foi estimada na migração. Confirme a data no console antes da exclusão.',
   prazo: `A exclusão definitiva só acontece ${PRAZO_EXCLUSAO_DIAS} dias depois do cancelamento, ou antes, a pedido verificado do Cliente.`,
 };
 
@@ -90,6 +94,16 @@ export function marcarHoldExclusao(P, companyId, { tipo, motivo, por, ator, orig
   auditar(P, { usuario: ator ?? null, empresa: companyId, acao: 'company.deletion_hold', entidade: 'company_deletion', id: companyId, depois: { tipo, motivo: String(motivo).trim(), por }, origem });
   return linha(P, companyId);
 }
+// Data estimada (empresa cancelada antes do controle): só sai da trava com confirmação humana, registrada.
+export function confirmarDataExclusao(P, companyId, { por, ator, origem }) {
+  const l = linha(P, companyId);
+  if (!l || l.status !== 'pendente') throw erro(409, 'sem_agenda', 'Esta empresa não tem exclusão agendada.');
+  if (!l.estimado) throw erro(409, 'data_confirmada', 'A data desta exclusão já é a do cancelamento registrado.');
+  exec(P.db, 'update company_deletion set estimado = 0, updated_at = ? where company_id = ?', iso(agoraMs(P)), companyId);
+  auditar(P, { usuario: ator ?? null, empresa: companyId, acao: 'company.deletion_date_confirmed', entidade: 'company_deletion', id: companyId, depois: { cancelled_at: l.cancelled_at, delete_after: l.delete_after, por }, origem });
+  return linha(P, companyId);
+}
+
 export function liberarHoldExclusao(P, companyId, { por, ator, origem }) {
   const l = linha(P, companyId);
   if (!l?.hold_em) throw erro(409, 'sem_hold', 'A exclusão desta empresa não está em hold.');
@@ -258,6 +272,7 @@ export function rodadaDevolucoes(P) {
 export function rotasEncerramentoPlataforma(P, r, precisa) {
   r.get('/api/plataforma/exclusoes', ({ sessao }) => { precisa(sessao, 'platform.companies.manage'); return { exclusoes: listarExclusoes(P), prazoDias: PRAZO_EXCLUSAO_DIAS, aplicar: !!P.exclusaoAplicar }; });
   r.post('/api/plataforma/empresas/:id/exclusao/hold', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return { exclusao: marcarHoldExclusao(P, params.id, { tipo: corpo.tipo, motivo: corpo.motivo, por: sessao.email, ator: sessao.userId, origem }) }; });
+  r.post('/api/plataforma/empresas/:id/exclusao/confirmar-data', ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); return { exclusao: confirmarDataExclusao(P, params.id, { por: sessao.email, ator: sessao.userId, origem }) }; });
   r.post('/api/plataforma/empresas/:id/exclusao/liberar', ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); return { exclusao: liberarHoldExclusao(P, params.id, { por: sessao.email, ator: sessao.userId, origem }) }; });
   r.post('/api/plataforma/devolucoes/:id/gerar', ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); return gerarDevolucao(P, params.id, { sessao, origem }); });
 }

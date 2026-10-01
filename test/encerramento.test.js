@@ -246,3 +246,26 @@ test('sem o endereço público da plataforma, o link de devolução não é gera
     assert.equal(um(S.P.db, 'select status from data_returns where id = ?', p.dados.pedido).status, 'solicitada');
   } finally { S.P.urlBase = base; }
 });
+
+test('empresa cancelada antes do controle: data estimada nunca exclui sozinha nem vence antes de 30 dias da migração; só com confirmação', async () => {
+  const { migrarCanceladas } = await import('../src/plataforma/encerramento.js');
+  let ops = await consoleNovo();
+  const { c, slug } = await empresaCancelada(ops);
+  await ops.post(`/api/plataforma/empresas/${c.id}/status`, { status: 'cancelada' });
+  // Simula o banco de antes desta versão: cancelada há 90 dias, sem agenda.
+  S.P.db.prepare('delete from company_deletion where company_id = ?').run(c.id);
+  S.P.db.prepare("update audit_log set at = ? where company_id = ? and action = 'company.cancelled'").run(new Date(agora() - 90 * DIA).toISOString(), c.id);
+  migrarCanceladas(S.P);
+  const l = linha(c.id);
+  assert.equal(l.estimado, 1);
+  assert.ok(Date.parse(l.delete_after) >= agora() + PRAZO_EXCLUSAO_DIAS * DIA - 2000, 'o prazo conta da migração, não da data antiga');
+  avancar(PRAZO_EXCLUSAO_DIAS * DIA + 60e3);
+  const r = rodadaExclusoes(S.P, { aplicar: true });
+  assert.equal(r.plano.find(i => i.companyId === c.id).impede, 'data_estimada');
+  assert.ok(um(S.P.db, 'select 1 from companies where id = ?', c.id), 'sem confirmação, não exclui');
+  ops = await consoleNovo();
+  assert.equal((await ops.post(`/api/plataforma/empresas/${c.id}/excluir`, { confirmacao: slug })).dados.erro, 'data_estimada');
+  assert.equal((await ops.post(`/api/plataforma/empresas/${c.id}/exclusao/confirmar-data`, {})).status, 200);
+  assert.ok(acoes(c.id).includes('company.deletion_date_confirmed'));
+  assert.ok(rodadaExclusoes(S.P, { aplicar: true }).excluidas.includes(c.id));
+});

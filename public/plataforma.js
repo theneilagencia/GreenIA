@@ -305,11 +305,13 @@ async function secaoEncerramento(id) {
   if (!l) return;
   $('encerramento-empresa').innerHTML = `<div class="indicadores"><div class="indicador"><span>Cancelada em</span><b style="font-size:14px">${dataHora(l.canceladaEm)}</b>${l.estimado ? '<small>data estimada</small>' : ''}</div>
       <div class="indicador"><span>Exclusão definitiva</span><b style="font-size:14px">${l.hold ? 'Suspensa (hold)' : dataHora(l.excluirApos)}</b><small>${l.hold ? esc(l.hold.tipoNome) : `${l.diasRestantes} dia(s)`}</small></div></div>
-    <div class="linha-botoes">${l.hold ? '<button class="btn btn-linha" id="liberar-hold-exc">Liberar hold</button>' : '<button class="btn btn-linha" id="hold-exc">Hold da exclusão</button>'}</div>
+    ${l.estimado ? '<div class="faixa-aviso atencao">A data de cancelamento foi estimada na migração. A exclusão automática fica parada até a data ser confirmada.</div>' : ''}
+    <div class="linha-botoes">${l.hold ? '<button class="btn btn-linha" id="liberar-hold-exc">Liberar hold</button>' : '<button class="btn btn-linha" id="hold-exc">Hold da exclusão</button>'}${l.estimado ? '<button class="btn btn-linha" id="confirmar-data-exc">Confirmar a data</button>' : ''}</div>
     ${l.devolucoes.length ? tabela(['Pedido de devolução', 'Situação', ''], l.devolucoes.map(d => `<tr><td data-r="Pedido">${esc(d.solicitante_email)}<br><span class="dica">${dataHora(d.solicitado_em)}</span></td>
       <td data-r="Situação">${{ solicitada: 'Aguardando a cópia', gerada: `Link enviado; vale até ${dataHora(d.link_expira)}`, entregue: `Entregue em ${dataHora(d.entregue_em)}`, expirada: 'Link vencido sem download', cancelada: 'Encerrado' }[d.status]}</td>
       <td>${d.status === 'solicitada' ? `<button class="btn-texto" data-dev="${d.id}">Gerar cópia e enviar link</button>` : ''}</td></tr>`), '') : ''}`;
   $('hold-exc')?.addEventListener('click', () => pedirHold({ titulo: 'Hold da exclusão definitiva', enviar: async c => { await api(`/api/plataforma/empresas/${id}/exclusao/hold`, { metodo: 'POST', corpo: c }); vistaEmpresa(id, 'resumo'); } }));
+  $('confirmar-data-exc')?.addEventListener('click', async () => { if (!confirm(`Confirmar que a empresa foi cancelada em ${dataHora(l.canceladaEm)}? A exclusão automática passa a valer a partir de ${dataHora(l.excluirApos)}.`)) return; try { await api(`/api/plataforma/empresas/${id}/exclusao/confirmar-data`, { metodo: 'POST' }); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } });
   $('liberar-hold-exc')?.addEventListener('click', async () => { try { await api(`/api/plataforma/empresas/${id}/exclusao/liberar`, { metodo: 'POST' }); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } });
   for (const b of document.querySelectorAll('[data-dev]')) b.onclick = async () => {
     if (!confirm('Gerar a cópia completa do banco (SQLite) e enviar o link de uso único, válido por 7 dias, ao email de quem pediu?')) return;

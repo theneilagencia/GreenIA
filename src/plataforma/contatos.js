@@ -21,23 +21,49 @@ export function limiteRetencao(agora) {
   return d.toISOString();
 }
 
-// Contatos guardados no formato antigo (lista em platform_settings, cortada em 500): viram linhas, com a data do
-// formulário como última interação. A lista antiga sai do banco. Idempotente.
+// Contatos guardados no formato antigo (lista em platform_settings, cortada em 500): viram contatos, um por email
+// (sem duplicar), com uma interação "formulario" por entrada. Cada interação guarda os campos daquele formulário
+// (dados), o que permite reconstruir a lista antiga sem perda (scripts/contatos.js rollback). A contagem é conferida
+// dentro da transação: se não bater, nada muda e a lista antiga fica. Idempotente.
 export function migrarContatosAntigos(P) {
   const antigos = lerAjuste(P.db, 'leads', null);
-  if (!Array.isArray(antigos)) return 0;
+  if (!Array.isArray(antigos)) return null;
+  const porEmail = new Map();
+  for (const l of antigos) {
+    const email = String(l.email || '').trim().toLowerCase();
+    if (!email) continue;
+    if (!porEmail.has(email)) porEmail.set(email, []);
+    porEmail.get(email).push({ ...l, em: l.em || iso(P.agora()) });
+  }
+  const semEmail = antigos.length - [...porEmail.values()].reduce((t, x) => t + x.length, 0);
+  const resumo = { entradas: antigos.length, emailsDistintos: porEmail.size, semEmail, contatosAntes: um(P.db, 'select count(*) as n from commercial_contacts').n };
   transacao(P.db, () => {
-    for (const l of antigos) {
-      const em = l.em || iso(P.agora());
-      const id = `ct_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
-      exec(P.db, 'insert into commercial_contacts (id, created_at, last_interaction_at, nome, email, empresa, cargo, pessoas, mensagem) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        id, em, em, l.nome || '', String(l.email || '').toLowerCase(), l.empresa || '', l.cargo || '', l.pessoas || '', l.mensagem || '');
-      exec(P.db, "insert into commercial_interactions (contact_id, at, tipo, por) values (?, ?, 'formulario', 'migracao')", id, em);
+    for (const [email, lista] of porEmail) {
+      lista.sort((a, b) => a.em.localeCompare(b.em));
+      const ultimo = lista.at(-1);
+      const existente = um(P.db, 'select * from commercial_contacts where email = ?', email);
+      const id = existente?.id || `ct_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
+      if (!existente) exec(P.db, 'insert into commercial_contacts (id, created_at, last_interaction_at, nome, email, empresa, cargo, pessoas, mensagem) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        id, lista[0].em, ultimo.em, ultimo.nome || '', email, ultimo.empresa || '', ultimo.cargo || '', ultimo.pessoas || '', ultimo.mensagem || '');
+      else if (ultimo.em > existente.last_interaction_at) exec(P.db, 'update commercial_contacts set last_interaction_at = ? where id = ?', ultimo.em, id);
+      for (const l of lista) exec(P.db, "insert into commercial_interactions (contact_id, at, tipo, por, nota, dados) values (?, ?, 'formulario', 'migracao', ?, ?)", id, l.em, l.mensagem || '', JSON.stringify(camposDoFormulario(l)));
     }
+    const interacoes = um(P.db, "select count(*) as n from commercial_interactions where por = 'migracao'").n;
+    const contatosDepois = um(P.db, 'select count(*) as n from commercial_contacts').n;
+    if (interacoes !== antigos.length - semEmail || contatosDepois > resumo.contatosAntes + porEmail.size) throw new Error('migração de contatos: a contagem não bateu; nada foi alterado');
+    Object.assign(resumo, { interacoes, contatosDepois });
     exec(P.db, "delete from platform_settings where key = 'leads'");
   });
-  auditar(P, { acao: 'contacts.migrated', entidade: 'commercial_contacts', depois: { quantidade: antigos.length }, origem: { painel: 'migracao' } });
-  return antigos.length;
+  auditar(P, { acao: 'contacts.migrated', entidade: 'commercial_contacts', depois: resumo, origem: { painel: 'migracao' } });
+  return resumo;
+}
+const camposDoFormulario = l => ({ nome: l.nome || '', email: String(l.email || '').toLowerCase(), empresa: l.empresa || '', cargo: l.cargo || '', pessoas: l.pessoas || '', mensagem: l.mensagem || '' });
+
+// Rollback: reconstrói a lista antiga (formato de antes desta versão) a partir das interações "formulario", uma
+// entrada por formulário, com os campos daquele envio. Não apaga a tabela. Usado só antes de voltar ao código antigo.
+export function listaAntigaDosContatos(P) {
+  return todos(P.db, "select i.at, i.dados, i.nota, c.email from commercial_interactions i join commercial_contacts c on c.id = i.contact_id where i.tipo = 'formulario' order by i.at desc")
+    .map(x => { let d = {}; try { d = JSON.parse(x.dados || '{}'); } catch { d = {}; } return { ...camposDoFormulario({ email: x.email, mensagem: x.nota, ...d }), em: x.at }; });
 }
 
 // Formulário da página de vendas: o mesmo email volta para o mesmo contato (dados atualizados, nova interação).
@@ -55,7 +81,7 @@ export function registrarFormulario(P, lead) {
     exec(P.db, 'insert into commercial_contacts (id, created_at, last_interaction_at, nome, email, empresa, cargo, pessoas, mensagem) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       id, agora, agora, lead.nome, email, lead.empresa, lead.cargo || '', lead.pessoas || '', lead.mensagem || '');
   }
-  exec(P.db, "insert into commercial_interactions (contact_id, at, tipo, por, nota) values (?, ?, 'formulario', 'formulario', ?)", id, agora, lead.mensagem || '');
+  exec(P.db, "insert into commercial_interactions (contact_id, at, tipo, por, nota, dados) values (?, ?, 'formulario', 'formulario', ?, ?)", id, agora, lead.mensagem || '', JSON.stringify(camposDoFormulario(lead)));
   auditar(P, { acao: existente ? 'contact.interaction' : 'contact.created', entidade: 'commercial_contact', id, depois: { tipo: 'formulario' }, origem: { painel: 'vendas' } });
   return { id, novo: !existente };
 }

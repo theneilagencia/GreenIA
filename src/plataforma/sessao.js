@@ -4,6 +4,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { erro } from '../http.js';
 import { exec, um } from '../db.js';
+import { encerrarAcesso } from './acessos.js';
 
 export const COOKIE_EMPRESA = 'gia_s';
 export const COOKIE_PLATAFORMA = 'gia_p';
@@ -56,17 +57,24 @@ export function adicionarCookie(res, valor) {
   res.setHeader('set-cookie', [...(Array.isArray(atual) ? atual : atual ? [atual] : []), valor]);
 }
 
-export function abrirSessao(P, res, userId, companyId, via = 'login') {
+// Sessão de operador (acessoId): vale até o fim do acesso (expiraEm), nunca as 12 horas de uma sessão comum.
+export function abrirSessao(P, res, userId, companyId, via = 'login', { acessoId = null, expiraEm = null } = {}) {
   const token = randomBytes(32).toString('base64url');
   const csrf = randomBytes(24).toString('base64url');
-  exec(P.db, 'insert into sessions (token_hash, user_id, company_id, csrf, expira, via) values (?, ?, ?, ?, ?, ?)', sha(token), userId, companyId ?? null, csrf, P.agora().getTime() + SESSAO_MS, via);
-  adicionarCookie(res, cookie(P, companyId ? COOKIE_EMPRESA : COOKIE_PLATAFORMA, token, SESSAO_MS / 1000));
+  const expira = expiraEm ?? P.agora().getTime() + SESSAO_MS;
+  exec(P.db, 'insert into sessions (token_hash, user_id, company_id, csrf, expira, via, access_id) values (?, ?, ?, ?, ?, ?, ?)', sha(token), userId, companyId ?? null, csrf, expira, via, acessoId);
+  adicionarCookie(res, cookie(P, companyId ? COOKIE_EMPRESA : COOKIE_PLATAFORMA, token, Math.max(1, Math.round((expira - P.agora().getTime()) / 1000))));
   return csrf;
 }
 
-export function fecharSessao(P, res, cookies, companyId) {
+// Sair: apaga a sessão; se era de operador, o acesso fecha como "logout", com a duração.
+export function fecharSessao(P, res, cookies, companyId, origem) {
   const nome = companyId ? COOKIE_EMPRESA : COOKIE_PLATAFORMA;
-  if (cookies[nome]) exec(P.db, 'delete from sessions where token_hash = ?', sha(cookies[nome]));
+  if (cookies[nome]) {
+    const s = um(P.db, 'select user_id, access_id from sessions where token_hash = ?', sha(cookies[nome]));
+    exec(P.db, 'delete from sessions where token_hash = ?', sha(cookies[nome]));
+    if (s?.access_id) encerrarAcesso(P, s.access_id, 'logout', { por: s.user_id, origem });
+  }
   adicionarCookie(res, cookie(P, nome, '', 0));
 }
 
@@ -76,8 +84,11 @@ export const definirContexto = (P, res, companyId) => adicionarCookie(res, cooki
 export function lerSessaoBruta(P, cookies, companyId) {
   const token = cookies[companyId ? COOKIE_EMPRESA : COOKIE_PLATAFORMA];
   if (!token) return null;
-  const s = um(P.db, `select s.user_id, s.company_id, s.csrf, s.expira, s.via, u.email, u.name, u.status from sessions s join users u on u.id = s.user_id where s.token_hash = ?`, sha(token));
-  if (!s || s.expira < P.agora().getTime() || s.status !== 'ativo') return null;
+  const s = um(P.db, `select s.user_id, s.company_id, s.csrf, s.expira, s.via, s.access_id, u.email, u.name, u.status from sessions s join users u on u.id = s.user_id where s.token_hash = ?`, sha(token));
+  if (!s) return null;
+  // Sessão de operador vencida: o acesso fecha agora, mesmo que ninguém consulte a tela de acessos.
+  if (s.expira < P.agora().getTime()) { if (s.access_id) encerrarAcesso(P, s.access_id, 'expiracao'); return null; }
+  if (s.status !== 'ativo') return null;
   if ((s.company_id || null) !== (companyId || null)) return null;
   return s;
 }

@@ -5,6 +5,7 @@ import { lerAjuste, salvarAjuste } from './db.js';
 import { ehAdminPlataforma, permissoesNaPlataforma, exigir, rolesDaEmpresa, PERMISSOES } from './rbac.js';
 import * as E from './empresas.js';
 import { auditar, listarAuditoria } from './auditoria.js';
+import { validarMotivo, abrirAcesso, encerrarAcesso, encerrarAcessosAbertos, listarAcessos, registrarExportacao, avisarAdmins, TIPOS_ACESSO } from './acessos.js';
 import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf, definirContexto } from './sessao.js';
 import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemChaveOpenRouter } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
@@ -118,26 +119,48 @@ export function rotasPlataforma(P, r) {
 
   r.post('/api/plataforma/empresas/:id/dominio/verificar', async ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); E.exigirEmpresa(P, params.id); return verificarDominio(P, params.id, { ator: sessao.userId, origem }); });
 
-  // Exportação: cópia íntegra do banco da empresa, para entregar ao cliente ou guardar.
-  r.get('/api/plataforma/empresas/:id/exportar', ({ sessao, params, res, origem }) => {
+  // Exportação: cópia íntegra do banco da empresa (conversas incluídas). Evento sensível à parte: só com tipo e
+  // justificativa, por POST (o motivo não vai para a URL nem para logs de acesso), com registro de sucesso ou falha,
+  // visível para a empresa em "Acessos da equipe GreenIA".
+  r.post('/api/plataforma/empresas/:id/exportar', ({ sessao, params, corpo, res, origem }) => {
     precisa(sessao, 'platform.companies.manage');
-    const { nome, dados } = E.exportarEmpresa(P, params.id);
-    auditar(P, { usuario: sessao.userId, empresa: params.id, acao: 'company.exported', entidade: 'company', id: params.id, depois: { arquivo: nome, bytes: dados.length }, origem });
-    res.writeHead(200, { 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${nome}"`, 'content-length': dados.length, 'cache-control': 'no-store' });
-    res.end(dados);
+    const { tipo, justificativa } = validarMotivo(corpo);
+    const c = E.exigirEmpresa(P, params.id);
+    const base = { userId: sessao.userId, email: sessao.email, companyId: c.id, tipo, justificativa, origem };
+    let arquivo;
+    try { arquivo = E.exportarEmpresa(P, c.id); }
+    catch (e) { registrarExportacao(P, { ...base, sucesso: false, falha: String(e?.message || e).slice(0, 200) }); throw erro(500, 'exportacao_falhou', 'A exportação falhou. A tentativa ficou registrada.'); }
+    const id = registrarExportacao(P, { ...base, sucesso: true, bytes: arquivo.dados.length });
+    avisarAdmins(P, { tabela: 'operator_exports', id, companyId: c.id, operadorId: sessao.userId, assunto: 'Exportação de dados pela equipe de operação da plataforma',
+      texto: `A equipe de operação da plataforma exportou uma cópia completa do banco de dados do ambiente ${c.name}.\n\nQuem: ${sessao.email}\nTipo: ${TIPOS_ACESSO[tipo]}\nJustificativa: ${justificativa}\n\nO registro fica em Administração, na tela de acessos da equipe de operação.` });
+    res.writeHead(200, { 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${arquivo.nome}"`, 'content-length': arquivo.dados.length, 'cache-control': 'no-store' });
+    res.end(arquivo.dados);
   });
 
   r.post('/api/plataforma/empresas/:id/excluir', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.excluirEmpresa(P, params.id, corpo.confirmacao, sessao.userId, origem); });
 
-  // Entrar no ambiente da empresa como admin da plataforma: abre uma sessão da empresa e registra na auditoria.
-  r.post('/api/plataforma/empresas/:id/entrar', ({ sessao, params, res, origem }) => {
+  // Entrar no ambiente da empresa (acesso da equipe GreenIA): só com tipo e justificativa; acesso temporário
+  // (DURACAO_ACESSO_MS), registrado, visível na hora para a empresa e avisado por email aos admins, quando houver email.
+  r.post('/api/plataforma/empresas/:id/entrar', ({ sessao, params, corpo, res, origem }) => {
     precisa(sessao, 'platform.companies.manage');
+    const { tipo, justificativa } = validarMotivo(corpo);
     const c = E.exigirEmpresa(P, params.id);
-    P.sincronizarPessoa(c.id, sessao.userId);
-    abrirSessao(P, res, sessao.userId, c.id, 'plataforma');
+    const a = abrirAcesso(P, { userId: sessao.userId, email: sessao.email, companyId: c.id, tipo, justificativa, origem });
+    P.sincronizarPessoa(c.id, sessao.userId, { operador: true });
+    abrirSessao(P, res, sessao.userId, c.id, 'plataforma', { acessoId: a.id, expiraEm: Date.parse(a.expira) });
     definirContexto(P, res, c.id);
-    auditar(P, { usuario: sessao.userId, empresa: c.id, acao: 'company.accessed', entidade: 'company', id: c.id, origem });
-    return { ok: true, url: '/app#/visao-geral' };
+    avisarAdmins(P, { tabela: 'operator_access', id: a.id, companyId: c.id, operadorId: sessao.userId, assunto: 'Acesso da equipe de operação da plataforma ao ambiente',
+      texto: `A equipe de operação da plataforma entrou no ambiente ${c.name}.\n\nQuem: ${sessao.email}\nTipo: ${TIPOS_ACESSO[tipo]}\nJustificativa: ${justificativa}\nVale até: ${a.expira} (UTC)\n\nO registro fica em Administração, na tela de acessos da equipe de operação, onde um admin da empresa pode encerrar o acesso.` });
+    return { ok: true, url: '/app#/visao-geral', acesso: { id: a.id, expira: a.expira } };
+  });
+
+  // Acessos abertos pelo próprio operador: consulta e encerramento manual pelo console.
+  r.get('/api/plataforma/empresas/:id/acessos', ({ sessao, params }) => { precisa(sessao, 'platform.companies.manage'); E.exigirEmpresa(P, params.id); return listarAcessos(P, params.id); });
+  r.post('/api/plataforma/acessos/:id/encerrar', ({ sessao, params, origem }) => {
+    precisa(sessao, 'platform.companies.manage');
+    const a = um(P.db, 'select * from operator_access where id = ?', params.id);
+    if (!a) throw erro(404, 'acesso', 'Acesso não encontrado.');
+    return { acesso: encerrarAcesso(P, a.id, 'manual_operador', { por: sessao.userId, origem })?.status };
   });
 
   // ------------------------------------------------ Planos
@@ -163,7 +186,7 @@ export function rotasPlataforma(P, r) {
     const status = corpo.status === 'bloqueado' ? 'bloqueado' : corpo.status === 'ativo' ? 'ativo' : u.status;
     const name = corpo.name !== undefined ? texto(corpo.name, 120, 'name', { obrigatorio: true }) : u.name;
     exec(P.db, 'update users set status = ?, name = ? where id = ?', status, name, u.id);
-    if (status === 'bloqueado') exec(P.db, 'delete from sessions where user_id = ?', u.id);
+    if (status === 'bloqueado') { encerrarAcessosAbertos(P, { userId: u.id }, 'usuario_bloqueado', origem); exec(P.db, 'delete from sessions where user_id = ?', u.id); }
     for (const c of todos(P.db, 'select company_id from company_users where user_id = ?', u.id)) P.sincronizarPessoa(c.company_id, u.id);
     auditar(P, { usuario: sessao.userId, acao: status !== u.status ? (status === 'bloqueado' ? 'user.blocked' : 'user.unblocked') : 'user.updated', entidade: 'user', id: u.id, antes: { status: u.status, name: u.name }, depois: { status, name }, origem });
     P.aoMudarAdmins();
@@ -185,6 +208,7 @@ export function rotasPlataforma(P, r) {
     if (um(P.db, 'select count(*) as n from platform_members').n <= 1) throw erro(409, 'ultimo_admin', 'A plataforma precisa de pelo menos um administrador.');
     exec(P.db, 'delete from platform_members where user_id = ?', params.id);
     exec(P.db, 'delete from sessions where user_id = ? and company_id is null', params.id);
+    encerrarAcessosAbertos(P, { userId: params.id }, 'admin_removido', origem);   // derruba também as sessões de operador
     auditar(P, { usuario: sessao.userId, acao: 'platform.admin_removed', entidade: 'user', id: params.id, origem });
     P.aoMudarAdmins();
     return { ok: true };

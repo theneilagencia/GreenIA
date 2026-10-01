@@ -105,7 +105,7 @@ test('exportar e excluir: só empresa cancelada, com confirmação; guarda cópi
   const banco = S.P.db.prepare('select banco from companies where id = ?').get(c.id).banco;
   assert.ok(existsSync(banco));
   // Exportação: SQLite válido, compactado.
-  const exp = await ops.req('GET', `/api/plataforma/empresas/${c.id}/exportar`);
+  const exp = await ops.post(`/api/plataforma/empresas/${c.id}/exportar`, { tipo: 'solicitacao_cliente', justificativa: 'Cópia pedida pelo cliente antes do encerramento' });
   assert.equal(exp.status, 200);
   assert.equal(exp.headers.get('content-type'), 'application/gzip');
   // Ativa não pode ser excluída; confirmação errada é recusada.

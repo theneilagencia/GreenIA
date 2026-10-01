@@ -5,6 +5,7 @@ import { um } from '../db.js';
 import { exigir, rolesDaEmpresa, salvarRole, PERMISSOES, PERMISSOES_EMPRESA } from './rbac.js';
 import * as E from './empresas.js';
 import { auditar, listarAuditoria } from './auditoria.js';
+import { listarAcessos, acessoDaEmpresa, encerrarAcesso } from './acessos.js';
 import { exec } from '../db.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 
@@ -107,5 +108,15 @@ export function rotasEmpresa(P, r) {
   r.post('/api/empresa/dominio/verificar', async ({ sessao, companyId, origem }) => { precisa(sessao, 'url.manage'); return verificarDominio(P, companyId, { ator: sessao.userId, origem }); });
 
   // ------------------------------------------------ Auditoria da própria empresa
+  // Acessos da equipe GreenIA a este ambiente e exportações do banco: só os desta empresa. Um admin da empresa
+  // pode encerrar na hora um acesso aberto (a sessão do operador cai junto).
+  r.get('/api/empresa/acessos-greenia', ({ sessao, companyId }) => { precisa(sessao, 'audit.read'); return listarAcessos(P, companyId); });
+  r.post('/api/empresa/acessos-greenia/:id/encerrar', ({ sessao, companyId, params, origem }) => {
+    precisa(sessao, 'company.manage');
+    const a = acessoDaEmpresa(P, companyId, params.id);
+    if (!a) throw erro(404, 'acesso', 'Acesso não encontrado.');
+    const fim = encerrarAcesso(P, a.id, sessao.acessoOperador?.id === a.id ? 'logout' : 'manual_empresa', { por: sessao.userId, origem });
+    return { status: fim.status };
+  });
   r.get('/api/empresa/auditoria', ({ sessao, companyId, query }) => { precisa(sessao, 'audit.read'); return listarAuditoria(P, { empresa: companyId, pagina: Math.max(0, Number(query.pagina) || 0) }); });
 }

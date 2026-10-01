@@ -58,9 +58,10 @@ export const roleDeSistema = (db, key) => um(db, 'select * from roles where comp
 export const ehAdminPlataforma = (db, userId) => !!userId && !!um(db, "select 1 from platform_members m join users u on u.id = m.user_id where m.user_id = ? and u.status = 'ativo'", userId);
 export const permissoesDaRole = (db, roleId) => todos(db, 'select permission_key as k from role_permissions where role_id = ?', roleId).map(r => r.k);
 
-// Permissões de um usuário numa empresa. Admin da plataforma tem todas (acesso a todos os tenants).
-export function permissoesNaEmpresa(db, userId, companyId) {
-  if (ehAdminPlataforma(db, userId)) return new Set(PERMISSOES_EMPRESA);
+// Permissões de um usuário numa empresa: as da role do vínculo. O admin da plataforma só tem todas numa sessão de
+// operador (acesso da equipe GreenIA aberto, com motivo e prazo); fora dela, vale o vínculo dele, se tiver.
+export function permissoesNaEmpresa(db, userId, companyId, { operador = false } = {}) {
+  if (operador && ehAdminPlataforma(db, userId)) return new Set(PERMISSOES_EMPRESA);
   const v = um(db, "select role_id from company_users where company_id = ? and user_id = ? and status = 'ativo'", companyId, userId);
   return new Set(v ? permissoesDaRole(db, v.role_id) : []);
 }

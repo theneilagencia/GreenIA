@@ -13,8 +13,10 @@ import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fech
 function acesso(P, c, email) {
   const u = E.acharUsuario(P, email);
   if (u && u.status !== 'ativo') return { ok: false, motivo: 'bloqueado' };
-  if (u && ehAdminPlataforma(P.db, u.id)) return { ok: true, u, adminPlataforma: true };
   const v = u && um(P.db, 'select status, role_id from company_users where company_id = ? and user_id = ?', c.id, u.id);
+  // Admin da plataforma sem vínculo nesta empresa não entra pela tela de login: o acesso da equipe GreenIA é só
+  // pelo console, com motivo, prazo e registro visível para a empresa. Com vínculo, entra como qualquer pessoa.
+  const operadorSemVinculo = u && !v && ehAdminPlataforma(P.db, u.id);
   if (v?.status === 'inativo') return { ok: false, motivo: 'inativo' };
   if (c.status === 'suspensa' || c.status === 'cancelada') return { ok: false, motivo: 'indisponivel' };
   if (v) {
@@ -22,6 +24,7 @@ function acesso(P, c, email) {
     if (c.status === 'em_implantacao' && !um(P.db, "select 1 from role_permissions where role_id = ? and permission_key = 'company.manage'", v.role_id)) return { ok: false, motivo: 'implantacao' };
     return { ok: true, u, vinculo: v };
   }
+  if (operadorSemVinculo) return { ok: false, motivo: 'operador' };
   if (c.status === 'ativa' && dominioPermitido(lerConfig(P.tenant(c.id).db), email)) return { ok: true, u, novo: true };
   return { ok: false, motivo: 'fora' };
 }
@@ -31,6 +34,7 @@ const MENSAGENS = {
   bloqueado: 'Seu acesso está bloqueado. Fale com o administrador.',
   indisponivel: 'O ambiente desta empresa está indisponível no momento.',
   implantacao: 'O ambiente desta empresa ainda está em implantação.',
+  operador: 'Administradores da plataforma entram neste ambiente pelo console, informando o motivo do acesso.',
 };
 
 export function rotasAuthEmpresa(P, r) {
@@ -56,13 +60,12 @@ export function rotasAuthEmpresa(P, r) {
     } else if (a.vinculo?.status === 'convidado') exec(P.db, "update company_users set status = 'ativo', updated_at = ? where company_id = ? and user_id = ?", P.agora().toISOString(), companyId, u.id);
     P.sincronizarPessoa(companyId, u.id);
     const csrf = abrirSessao(P, res, u.id, companyId);
-    if (a.adminPlataforma) auditar(P, { usuario: u.id, empresa: companyId, acao: 'company.accessed', entidade: 'company', id: companyId, origem });
     return { ok: true, csrf };
   }, { publica: true });
 
-  r.post('/api/sair', ({ req, res, cookies, companyId }) => {
+  r.post('/api/sair', ({ req, res, cookies, companyId, origem }) => {
     checarCsrf(lerSessaoBruta(P, cookies, companyId) || { csrf: '' }, req);
-    fecharSessao(P, res, cookies, companyId);
+    fecharSessao(P, res, cookies, companyId, origem);
     return { ok: true };
   }, { publica: true });
 }

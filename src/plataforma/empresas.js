@@ -13,6 +13,7 @@ import { situacaoPlano, liberarPacote, avisarPacote } from '../plano.js';
 import { auditar } from './auditoria.js';
 import { lerAjuste, salvarAjuste } from './db.js';
 import { roleDeSistema, acharRoleDaEmpresa, permissoesDaRole, ehAdminPlataforma } from './rbac.js';
+import { encerrarAcessosAbertos } from './acessos.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
 export const STATUS_EMPRESA = { em_implantacao: 'Em implantação', ativa: 'Ativa', suspensa: 'Suspensa', cancelada: 'Cancelada' };
@@ -177,7 +178,7 @@ export function mudarStatus(P, id, status, ator, origem) {
   if (antes.status === status) return antes;
   exec(P.db, 'update companies set status = ?, updated_at = ? where id = ?', status, agoraIso(P), id);
   // Suspensa ou cancelada: as sessões das pessoas da empresa caem na hora.
-  if (status === 'suspensa' || status === 'cancelada') exec(P.db, 'delete from sessions where company_id = ?', id);
+  if (status === 'suspensa' || status === 'cancelada') { encerrarAcessosAbertos(P, { companyId: id }, `empresa_${status}`, origem); exec(P.db, 'delete from sessions where company_id = ?', id); }
   const acao = { ativa: 'company.published', suspensa: 'company.suspended', cancelada: 'company.cancelled', em_implantacao: 'company.status_changed' }[status];
   auditar(P, { usuario: ator, empresa: id, acao, entidade: 'company', id, antes: { status: antes.status }, depois: { status }, origem });
   return lerEmpresa(P, id);
@@ -449,7 +450,7 @@ export function atualizarMembro(P, companyId, userId, { role_id, status, name },
   if (perdeAdmin && !adminsAtivos(P, companyId, userId)) throw erro(409, 'ultimo_admin', 'A empresa precisa de pelo menos um administrador ativo.');
   exec(P.db, 'update company_users set role_id = ?, status = ?, updated_at = ? where company_id = ? and user_id = ?', role.id, st, agoraIso(P), companyId, userId);
   if (name !== undefined) exec(P.db, 'update users set name = ? where id = ?', texto(name, 120, 'name', { obrigatorio: true }), userId);
-  if (st === 'inativo') exec(P.db, 'delete from sessions where user_id = ? and company_id = ?', userId, companyId);
+  if (st === 'inativo') { encerrarAcessosAbertos(P, { companyId, userId }, 'pessoa_desativada'); exec(P.db, 'delete from sessions where user_id = ? and company_id = ?', userId, companyId); }
   P.sincronizarPessoa(companyId, userId);
   const acao = role.id !== v.role_id ? 'user.role_changed' : st !== v.status ? (st === 'inativo' ? 'user.deactivated' : 'user.activated') : 'user.updated';
   auditar(P, { usuario: ator, empresa: companyId, acao, entidade: 'company_user', id: userId, antes: { role_id: v.role_id, status: v.status }, depois: { role_id: role.id, status: st, name }, origem });
@@ -461,6 +462,7 @@ export function removerMembro(P, companyId, userId, ator, origem) {
   if (!v) throw erro(404, 'usuario', 'Usuário não encontrado nesta empresa.');
   if (ehRoleAdmin(P, v.role_id) && v.status === 'ativo' && !adminsAtivos(P, companyId, userId)) throw erro(409, 'ultimo_admin', 'A empresa precisa de pelo menos um administrador ativo.');
   exec(P.db, 'delete from company_users where company_id = ? and user_id = ?', companyId, userId);
+  encerrarAcessosAbertos(P, { companyId, userId }, 'pessoa_removida');
   exec(P.db, 'delete from sessions where user_id = ? and company_id = ?', userId, companyId);
   P.sincronizarPessoa(companyId, userId);   // a pessoa fica inativa no banco da empresa (o histórico continua)
   auditar(P, { usuario: ator, empresa: companyId, acao: 'user.deleted', entidade: 'company_user', id: userId, antes: { role_id: v.role_id, status: v.status }, origem });
@@ -525,6 +527,7 @@ export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
   if (t) { try { t.db.close(); } catch { /* já fechado */ } P.tenants.delete(companyId); }
   transacao(P.db, () => {
     exec(P.db, 'delete from company_slugs where company_id = ?', companyId);
+    encerrarAcessosAbertos(P, { companyId }, 'empresa_excluida', origem);
     exec(P.db, 'delete from sessions where company_id = ?', companyId);
     exec(P.db, 'delete from login_codes where scope = ?', companyId);
     exec(P.db, 'delete from companies where id = ?', companyId);   // em cascata: marca, landing, configurações, vínculos e roles da empresa

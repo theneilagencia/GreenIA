@@ -98,6 +98,28 @@ function modal(html, aoAbrir) {
   aoAbrir?.(fechar);
 }
 
+// Acesso da equipe GreenIA a uma empresa (entrar ou exportar): tipo e justificativa obrigatórios.
+const TIPOS_ACESSO = { suporte: 'Suporte', solicitacao_cliente: 'Solicitação do cliente', incidente: 'Incidente', outro: 'Outro' };
+function pedirMotivo({ titulo, explica, botao, enviar }) {
+  modal(`<div class="modal-topo"><div class="rotulo">Acesso da equipe GreenIA</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2>${esc(titulo)}</h2><p class="dica">${esc(explica)}</p>
+    <form id="f-motivo" novalidate>
+      <div class="campo"><label for="m-tipo">Tipo</label><select class="entrada" id="m-tipo" required><option value="">Escolha o tipo</option>${Object.entries(TIPOS_ACESSO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="campo"><label for="m-just">Justificativa</label><textarea class="entrada" id="m-just" rows="3" minlength="10" maxlength="500" required placeholder="Por que este acesso é necessário"></textarea><span class="ajuda">Fica registrada e visível para a empresa. Pelo menos 10 caracteres.</span></div>
+      <p class="msg-erro oculto" id="m-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">${esc(botao)}</button></div>
+    </form>`, fechar => {
+    $('fechar').onclick = fechar;
+    $('f-motivo').onsubmit = async ev => {
+      ev.preventDefault();
+      const corpo = { tipo: $('m-tipo').value, justificativa: $('m-just').value.trim() };
+      const erroEl = $('m-erro');
+      if (!corpo.tipo || corpo.justificativa.length < 10) { erroEl.textContent = 'Escolha o tipo e escreva a justificativa (pelo menos 10 caracteres).'; erroEl.classList.remove('oculto'); return; }
+      try { await enviar(corpo); fechar(); } catch (x) { erroEl.textContent = x.message; erroEl.classList.remove('oculto'); }
+    };
+  });
+}
+
 // ---------------------------------------------------------------- Empresas
 async function vistaEmpresas() {
   carregando('Empresas');
@@ -156,9 +178,9 @@ async function vistaEmpresa(id, aba = 'resumo') {
   const acoes = `${selo(e.status, e.statusNome)} <button class="btn btn-linha btn-pequeno" id="entrar-amb">Entrar no ambiente</button>`;
   const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba] || abaResumo;
   tela(titulo, `${sub}<div id="aba"></div>`, acoes, '#/empresas');
-  $('entrar-amb').onclick = async () => {
-    try { const r = await api(`/api/plataforma/empresas/${id}/entrar`, { metodo: 'POST' }); window.open(r.url, '_blank'); toast('Ambiente aberto em outra aba. O acesso foi registrado na auditoria.'); } catch (x) { falhar(x); }
-  };
+  $('entrar-amb').onclick = () => pedirMotivo({ titulo: `Entrar no ambiente da ${e.name}`, botao: 'Entrar no ambiente',
+    explica: 'O acesso vale por 60 minutos, aparece na hora para a empresa em "Acessos da equipe GreenIA" e os admins dela recebem um aviso por email. Um admin da empresa pode encerrar o acesso.',
+    async enviar(motivo) { const r = await api(`/api/plataforma/empresas/${id}/entrar`, { metodo: 'POST', corpo: motivo }); window.open(r.url, '_blank'); toast('Ambiente aberto em outra aba. O acesso foi registrado e está visível para a empresa.'); } });
   await corpo(d, id);
 }
 
@@ -170,7 +192,7 @@ async function abaResumo(d, id) {
     <div class="secao-titulo" style="margin-top:0"><h3>Status</h3></div>
     <div class="faixa-aviso ${e.status === 'ativa' ? 'ok' : e.status === 'em_implantacao' ? 'atencao' : 'erro'}">${{ em_implantacao: 'Em implantação: só administradores da empresa entram, e a landing pública ainda não aparece.', ativa: 'Ativa: o ambiente está disponível para as pessoas da empresa.', suspensa: 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.', cancelada: 'Cancelada: o ambiente está encerrado. Os dados ficam guardados.' }[e.status]}</div>
     <div class="linha-botoes">${botoesStatus.map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}
-      <a class="btn btn-linha" href="/api/plataforma/empresas/${encodeURIComponent(id)}/exportar" download>Exportar dados</a>
+      <button class="btn btn-linha" id="exportar-empresa">Exportar dados</button>
       ${e.status === 'cancelada' ? '<button class="btn btn-texto" id="excluir-empresa" style="color:var(--red-text)">Excluir definitivamente</button>' : ''}</div>
     <div class="secao-titulo"><h3>Plano</h3></div>
     <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'créditos ilimitados'} · ${usd(p.price_usd)}</option>`).join('')}</select>
@@ -205,6 +227,16 @@ async function abaResumo(d, id) {
     if (conf === null) return;
     try { await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: conf } }); toast('Empresa excluída. A cópia do banco ficou guardada em dados/excluidas.'); location.hash = '#/empresas'; } catch (x) { falhar(x); }
   });
+  $('exportar-empresa').onclick = () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar',
+    explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas. Ela fica registrada, com o motivo, na tela "Acessos da equipe GreenIA" da empresa, e os admins dela recebem um aviso por email.',
+    async enviar(motivo) {
+      const r = await fetch(`/api/plataforma/empresas/${encodeURIComponent(id)}/exportar`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf': C.csrf }, body: JSON.stringify(motivo) });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.mensagem || 'A exportação falhou.'); }
+      const nome = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '')?.[1] || 'exportacao.sqlite.gz';
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement('a'); a.href = url; a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('Exportação feita e registrada.');
+    } });
   $('f-plano').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: $('s-plano').value || null } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
   if ($('f-pacote')) $('f-pacote').onsubmit = async ev => { ev.preventDefault(); if (!confirm(`Liberar ${num($('p-creditos').value)} créditos? Os admins da empresa recebem um email.`)) return; try { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { creditos: Number($('p-creditos').value), validade: $('p-validade').value || null, observacao: $('p-obs').value } }); toast('Pacote liberado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
   $('f-dados').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); toast('Dados salvos.'); } catch (x) { falhar(x); } };

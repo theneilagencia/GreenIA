@@ -163,7 +163,7 @@ test('suspender derruba as sessões e bloqueia o acesso; reativar libera', async
 });
 
 test('admin da plataforma entra em qualquer ambiente, com registro na auditoria', async () => {
-  const r = await ops.post(`/api/plataforma/empresas/${B.id}/entrar`);
+  const r = await ops.post(`/api/plataforma/empresas/${B.id}/entrar`, { tipo: 'suporte', justificativa: 'Conferir a configuração de modelos a pedido do admin' });
   assert.equal(r.status, 200);
   const eu = await ops.get('/api/eu');
   assert.equal(eu.status, 200);

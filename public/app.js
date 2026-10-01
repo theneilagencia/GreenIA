@@ -96,6 +96,7 @@ const SECOES_ADMIN = () => [
     { id: 'empresa/marca', nome: 'Branding', icone: 'pincel', ver: () => pode('branding.manage') },
     { id: 'empresa/landing', nome: 'Landing Page', icone: 'pagina', ver: () => pode('landing_page.manage') },
     { id: 'empresa/url', nome: 'URL e domínio', icone: 'link', ver: () => pode('url.manage') },
+    { id: 'empresa/acessos', nome: 'Acessos da equipe GreenIA', icone: 'escudo', ver: () => pode('audit.read'), semMarca: true },
     { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
   ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];
@@ -128,7 +129,7 @@ export function desenharLateral() {
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
     const selo = i.selo?.();
-    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
+    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome"${i.semMarca ? ' data-sem-marca' : ''}>${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const recentes = E.conversas.slice(0, 6).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}"><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: a GreenIA usa só recursos autorizados para informação confidencial">Sigilosa</span>' : ''}</a>`).join('');
   const adm = emAdministracao(h);
@@ -140,6 +141,8 @@ export function desenharLateral() {
   $('lateral').innerHTML = `
     <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
+    ${E.plataforma?.acessoOperador ? `<div class="faixa-aviso atencao acesso-operador" role="status" data-sem-marca><b>Acesso da equipe GreenIA</b><br>Registrado e visível para a empresa. Vale até ${esc(new Date(E.plataforma.acessoOperador.expira).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))}.
+      <button type="button" class="btn-texto btn-pequeno" id="encerrar-acesso">Encerrar acesso</button></div>` : ''}
     ${alternador}
     ${adm ? `<div class="aviso-contexto">${ICONE.engrenagem || ''}<span><b>Administração da empresa</b><small>Mudanças aqui valem para todas as pessoas.</small></span></div>`
       : `<a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)">${ICONE.mais} Nova conversa</a>`}
@@ -153,6 +156,7 @@ export function desenharLateral() {
       ${E.plataforma?.adminPlataforma ? '<a class="btn-lat" href="/plataforma">Console da plataforma</a>' : E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
       ${rodapePlataformaHtml()}
     </div>`;
+  if ($('encerrar-acesso')) $('encerrar-acesso').onclick = async () => { try { await api('/api/sair', { metodo: 'POST' }); } catch { /* a sessão já pode ter caído */ } location.href = '/plataforma'; };
   $('ver-politica').onclick = abrirPolitica;
   $('abrir-busca').onclick = () => abrirPaleta();
   $('reportar').onclick = reportarProblema;

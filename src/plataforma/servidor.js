@@ -24,6 +24,7 @@ import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, l
 import { exec, todos, um, json } from '../db.js';
 import { abrirPlataforma, lerAjuste, salvarAjuste } from './db.js';
 import { semearRbac, permissoesNaEmpresa, ehAdminPlataforma, roleDeSistema } from './rbac.js';
+import { acessoValido, encerrarAcesso } from './acessos.js';
 import * as E from './empresas.js';
 import { COOKIE_CONTEXTO, lerSessaoBruta, checarCsrf } from './sessao.js';
 import { rotasAuthEmpresa, rotasPublicoEmpresa } from './api-publica.js';
@@ -89,7 +90,7 @@ export function criarPlataforma(op = {}) {
   P.aplicarAoTenant = id => aplicarAoTenant(P, id);
   P.abrirTenant = id => abrirTenant(P, id);
   P.tenant = id => P.tenants.get(id) || abrirTenant(P, id);
-  P.sincronizarPessoa = (companyId, userId) => sincronizarPessoa(P, companyId, userId);
+  P.sincronizarPessoa = (companyId, userId, op) => sincronizarPessoa(P, companyId, userId, op);
   P.emailDa = companyId => P.tenant(companyId).email;
   P.encontrar = criarEncontrar(P);
   P.adminsPlataforma = () => todos(db, "select u.email from platform_members m join users u on u.id = m.user_id where u.status = 'ativo'").map(x => x.email);
@@ -146,7 +147,7 @@ function abrirTenant(P, id) {
   t.emailProprio = smtpProprio;   // o teste do admin da empresa usa só o email dela, sem cair no da plataforma
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],
-    plataforma: { empresa: publicaEmpresa(P, id), adminPlataforma: !!sessao.pessoa.adminPlataforma, podeEditar: E.podeEditar(P, id), recursos: E.lerPlanoPorId(P, E.lerEmpresa(P, id).plan_id)?.features || {} },
+    plataforma: { empresa: publicaEmpresa(P, id), adminPlataforma: !!sessao.pessoa.adminPlataforma, acessoOperador: sessao.pessoa.acessoOperador || null, podeEditar: E.podeEditar(P, id), recursos: E.lerPlanoPorId(P, E.lerEmpresa(P, id).plan_id)?.features || {} },
   });
   t.checarRecurso = (metodo, caminho) => checarRecurso(P, id, t, metodo, caminho);
   P.tenants.set(id, t);
@@ -188,13 +189,14 @@ function checarRecurso(P, id, t, metodo, caminho) {
 }
 
 // Vínculo na plataforma → pessoa no banco da empresa (a identidade global fica em users).
-function sincronizarPessoa(P, companyId, userId) {
+function sincronizarPessoa(P, companyId, userId, { operador = false } = {}) {
   const t = P.tenant(companyId);
   const u = um(P.db, 'select * from users where id = ?', userId);
   if (!u) return null;
   const v = um(P.db, 'select role_id, status from company_users where company_id = ? and user_id = ?', companyId, userId);
-  const admin = ehAdminPlataforma(P.db, userId) || (v && permissoesNaEmpresa(P.db, userId, companyId).has('company.manage'));
-  const ativo = (v && v.status !== 'inativo' && u.status === 'ativo') || ehAdminPlataforma(P.db, userId) ? 1 : 0;
+  const op = operador && ehAdminPlataforma(P.db, userId);
+  const admin = op || (v && permissoesNaEmpresa(P.db, userId, companyId).has('company.manage'));
+  const ativo = (v && v.status !== 'inativo' && u.status === 'ativo') || op ? 1 : 0;
   const existente = um(t.db, 'select id from pessoas where user_id = ?', userId) || um(t.db, 'select id from pessoas where email = ?', u.email);
   if (existente) exec(t.db, 'update pessoas set user_id = ?, email = ?, nome = ?, papel = ?, ativo = ? where id = ?', userId, u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, existente.id);
   else if (v || admin) exec(t.db, 'insert into pessoas (email, nome, papel, ativo, user_id) values (?, ?, ?, ?, ?)', u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, userId);
@@ -207,17 +209,28 @@ export function publicaEmpresa(P, id) {
 }
 
 // Sessão da empresa: vale só no tenant resolvido, com vínculo ativo (ou admin da plataforma).
+// Sessão de operador (acesso da equipe GreenIA): só vale com o acesso aberto, no prazo, da mesma empresa e de quem
+// ainda é admin da plataforma. Acesso vencido ou encerrado derruba a sessão na hora (e fecha o registro).
 export function sessaoDaEmpresa(P, cookies, companyId) {
   const s = lerSessaoBruta(P, cookies, companyId);
   if (!s) return null;
-  const adminPlat = ehAdminPlataforma(P.db, s.user_id);
-  const perms = permissoesNaEmpresa(P.db, s.user_id, companyId);
-  if (!adminPlat && !perms.size) return null;
-  const pessoaId = sincronizarPessoa(P, companyId, s.user_id);
+  let acesso = null;
+  if (s.access_id) {
+    acesso = acessoValido(P, s.access_id);
+    if (!acesso || acesso.company_id !== companyId || acesso.user_id !== s.user_id || !ehAdminPlataforma(P.db, s.user_id)) {
+      if (acesso) encerrarAcesso(P, acesso.id, 'sessao_invalida');
+      return null;
+    }
+  }
+  const operador = !!acesso;
+  const perms = permissoesNaEmpresa(P.db, s.user_id, companyId, { operador });
+  if (!perms.size) return null;
+  const pessoaId = sincronizarPessoa(P, companyId, s.user_id, { operador });
   const pessoa = pessoaId && carregarPessoa(P.tenant(companyId).db, pessoaId);
   if (!pessoa) return null;
-  return { userId: s.user_id, csrf: s.csrf, perms, adminPlataforma: adminPlat,
-    pessoa: { ...pessoa, admin: perms.has('company.manage'), permissoes: [...perms], adminPlataforma: adminPlat, userId: s.user_id } };
+  const acessoOperador = acesso && { id: acesso.id, tipo: acesso.tipo, inicio: acesso.inicio, expira: acesso.expira };
+  return { userId: s.user_id, csrf: s.csrf, perms, adminPlataforma: operador, acessoOperador,
+    pessoa: { ...pessoa, admin: perms.has('company.manage'), permissoes: [...perms], adminPlataforma: operador, acessoOperador, userId: s.user_id } };
 }
 
 // Empresas suspensas, canceladas ou em implantação: quem pode usar o ambiente.

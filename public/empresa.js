@@ -16,12 +16,13 @@ const TELAS = {
   marca: ['Branding', 'branding.manage', telaMarca],
   landing: ['Landing Page', 'landing_page.manage', telaLanding],
   url: ['URL e domínio', 'url.manage', telaUrl],
+  acessos: ['Acessos da equipe GreenIA', 'audit.read', telaAcessos],
 };
 
 export async function rotaEmpresa(aba) {
   const t = TELAS[aba];
   if (!t || !pode(t[1])) { location.hash = '#/nova'; return; }
-  $('principal').innerHTML = `${cabecalho(t[0])}<div class="pagina"><div class="pagina-dentro"><div id="conteudo">${carregandoHtml()}</div></div></div>`;
+  $('principal').innerHTML = `${aba === 'acessos' ? `<div data-sem-marca>${cabecalho(t[0])}</div>` : cabecalho(t[0])}<div class="pagina"><div class="pagina-dentro"><div id="conteudo">${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
   try { await t[2](); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
 }
@@ -162,3 +163,35 @@ async function telaUrl() {
 }
 
 
+
+// ---------------------------------------------------------------- Acessos da equipe GreenIA
+// Quem da equipe GreenIA entrou neste ambiente ou exportou o banco, quando, por quê e por quanto tempo. Só os
+// registros desta empresa; nenhum conteúdo de conversa. Fica fora da marca branca: a empresa precisa saber quem foi.
+const ST_ACESSO = { aberto: ['Em andamento', 'selo-ambar'], encerrado: ['Encerrado', 'selo-cinza'], expirado: ['Expirado', 'selo-cinza'] };
+const FIM = { logout: 'saiu', expiracao: 'prazo de 60 minutos', manual_empresa: 'encerrado pela empresa', manual_operador: 'encerrado pelo operador', substituido: 'substituído por novo acesso',
+  sessao_encerrada: 'sessão encerrada', sessao_invalida: 'sessão inválida', empresa_suspensa: 'empresa suspensa', empresa_cancelada: 'empresa cancelada', pessoa_desativada: 'acesso desativado', pessoa_removida: 'acesso removido', usuario_bloqueado: 'usuário bloqueado', admin_removido: 'deixou a equipe da plataforma' };
+const quando = s => (s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+const duracao = s => (s == null ? '—' : s < 60 ? `${s} s` : `${Math.round(s / 60)} min`);
+async function telaAcessos() {
+  const d = await api('/api/empresa/acessos-greenia');
+  const podeEncerrar = pode('company.manage');
+  const raiz = $('conteudo');
+  raiz.setAttribute('data-sem-marca', '');
+  raiz.innerHTML = `<p class="lead">Cada vez que alguém da equipe GreenIA entra neste ambiente (para suporte, a pedido da empresa ou em incidente) ou exporta o banco de dados, o registro aparece aqui na hora, com o motivo. O acesso vale por até ${d.duracaoMinutos} minutos e não mostra o conteúdo das conversas. Os admins também recebem um aviso por email quando o envio está disponível.</p>
+    <div class="secao-titulo" style="margin-top:0"><h3>Acessos ao ambiente</h3></div>
+    ${d.acessos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quem</th><th>Tipo e justificativa</th><th>Início</th><th>Fim</th><th>Duração</th><th>Status</th><th></th></tr></thead><tbody>
+      ${d.acessos.map(a => `<tr><td data-r="Quem">${esc(a.operador)}</td><td data-r="Tipo e justificativa"><b>${esc(a.tipoNome)}</b><br><span class="dica">${esc(a.justificativa)}</span></td>
+        <td data-r="Início">${quando(a.inicio)}</td><td data-r="Fim">${a.fim ? `${quando(a.fim)}<br><span class="dica">${esc(FIM[a.motivo_fim] || a.motivo_fim || '')}</span>` : `até ${quando(a.expira)}`}</td>
+        <td data-r="Duração">${duracao(a.duracao_s)}</td><td data-r="Status"><span class="selo ${ST_ACESSO[a.status][1]}">${ST_ACESSO[a.status][0]}</span></td>
+        <td>${a.status === 'aberto' && podeEncerrar ? `<button class="btn-texto btn-pequeno" data-encerrar="${esc(a.id)}">Encerrar acesso</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : vazioHtml({ icone: 'escudo', titulo: 'Nenhum acesso da equipe GreenIA até agora.' })}
+    <div class="secao-titulo"><h3>Exportações do banco de dados</h3></div>
+    ${d.exportacoes.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quem</th><th>Tipo e justificativa</th><th>Quando</th><th>O que</th><th>Resultado</th></tr></thead><tbody>
+      ${d.exportacoes.map(x => `<tr><td data-r="Quem">${esc(x.operador)}</td><td data-r="Tipo e justificativa"><b>${esc(x.tipoNome)}</b><br><span class="dica">${esc(x.justificativa)}</span></td>
+        <td data-r="Quando">${quando(x.em)}</td><td data-r="O que">Cópia completa do banco, conversas incluídas</td>
+        <td data-r="Resultado"><span class="selo ${x.sucesso ? 'selo-ambar' : 'selo-cinza'}">${x.sucesso ? 'Exportado' : 'Falhou'}</span></td></tr>`).join('')}
+      </tbody></table></div>` : vazioHtml({ icone: 'escudo', titulo: 'Nenhuma exportação feita pela equipe GreenIA.' })}`;
+  raiz.querySelectorAll('[data-encerrar]').forEach(b => b.onclick = () => ocupado(b, async () => {
+    try { await api(`/api/empresa/acessos-greenia/${encodeURIComponent(b.dataset.encerrar)}/encerrar`, { metodo: 'POST' }); toast('Acesso encerrado.'); telaAcessos(); } catch (e) { falhar(e); }
+  }));
+}

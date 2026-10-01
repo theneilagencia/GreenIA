@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { exec, um } from '../db.js';
+import { ESQUEMA_ACESSOS } from './acessos.js';
 
 const ESQUEMA = `
 create table if not exists companies (
@@ -74,12 +75,16 @@ export function abrirPlataforma(arquivo = ':memory:') {
   const db = new DatabaseSync(arquivo);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
   db.exec(ESQUEMA);
+  db.exec(ESQUEMA_ACESSOS);
   // Colunas acrescentadas depois da primeira versão (bancos da plataforma que já existiam).
   const colunas = t => db.prepare(`pragma table_info(${t})`).all().map(c => c.name);
   const faltam = colunas('companies');
   for (const [c, def] of [['domain_status', "text not null default ''"], ['domain_checked_at', 'text'], ['domain_message', "text not null default ''"]]) {
     if (!faltam.includes(c)) db.exec(`alter table companies add column ${c} ${def}`);
   }
+  // Sessão de operador (acesso da equipe GreenIA): presa a um registro de operator_access aberto.
+  if (!colunas('sessions').includes('access_id')) db.exec('alter table sessions add column access_id text');
+  db.exec('create index if not exists sessions_acesso on sessions (access_id)');
   return db;
 }
 

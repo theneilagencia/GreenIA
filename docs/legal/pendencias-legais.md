@@ -8,6 +8,8 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 |---|---|---|---|---|---|
 | Identificação (razão social, CNPJ, endereço, contato) | **Resolvido** em 2026-10-01: NEIL INOVAÇÃO E TECNOLOGIA LTDA, CNPJ 37.749.373/0001-70 (dígitos conferidos), sede na Rua G, nº 277, Montserrat, Betim/MG, hello@theneil.com.br, www.theneil.com.br (informados pela TheNeil) | — | Não | Não | — |
 | Canal de privacidade e de titulares | **Resolvido** em 2026-10-01: hello@theneil.com.br | — | Não | Não | — |
+| Grafia do encarregado | **A confirmar**: grafia documental do encarregado a confirmar antes da publicação. Os documentos usam "Vinicius Guimaraes", como informado; não há fonte documental no projeto para outra grafia, e nada foi alterado por inferência | Nome do encarregado publicado na Política e no rodapé | Não | Não | **Sim** (documento oficial) |
+| Endereço institucional | **Blocker institucional**: os documentos da GreenIA usam a sede informada (Rua G, nº 277, Montserrat, Betim/MG); o site institucional www.theneil.com.br mostra hoje um endereço diferente, em Belo Horizonte. Corrigir antes da publicação final dos documentos legais. O site não foi alterado | Identificação do responsável divergente entre o site e os documentos | Não | Não | **Sim** (uniformizar o site) |
 | Controlador e operador por tratamento | Proposta (matriz na Política, seção 3) | Define obrigações de cada parte | **Sim** | Não | Não |
 | Acordo de tratamento de dados (DPA) com clientes | Aberto | Formaliza o papel de operadora | **Sim** | Não | Não |
 | Bases legais | Proposta (Política, seção 15) | Não publicar sem aprovação | **Sim** | Não | Não |
@@ -80,6 +82,8 @@ final e a aprovação de merge e deploy. A data de vigência (30/11/2026) não a
 
 
 1. ~~Identificação legal, canal de privacidade, encarregado e vigência~~ (resolvidos em 2026-10-01).
+   Ainda em aberto neste bloco: grafia documental do encarregado e divergência do endereço no site institucional
+   (Betim nos documentos; Belo Horizonte no site).
 2. Papéis (controlador e operador), DPA e bases legais aprovados pelo jurídico.
 3. Mecanismo de transferência internacional.
 4. Prazos dos registros sem prazo, ou redação aprovada pelo jurídico.

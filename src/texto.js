@@ -7,6 +7,8 @@ import { lerImagens, dimensoes, imagensDoPdf, ErroOcr, LIMITES_OCR, MSG_SEM_TEXT
 import { prepararImagem, lerPaginas, textoDoPdf } from './ocr-paginas.js';
 
 // Conteúdo de fora (anexo, documento) entre marcas; a marca de fechamento dentro do texto é neutralizada.
+import { resumoDeCsv, resumoDeTabela } from './planilha.js';
+
 export const delimitar = (tipo, nome, texto) => `<${tipo} nome="${String(nome).replace(/["<>]/g, '')}">\n${String(texto).replace(new RegExp(`</?${tipo}`, 'gi'), m => m.replace('<', '‹'))}\n</${tipo}>`;
 
 export { MSG_SEM_TEXTO };
@@ -98,9 +100,12 @@ function xlsx(b) {
         const v = /<v>([\s\S]*?)<\/v>/.exec(c[3] || '')?.[1] ?? /<t[^>]*>([\s\S]*?)<\/t>/.exec(c[3] || '')?.[1] ?? '';
         cel[col(c[1])] = /t="s"/.test(c[2]) ? compart[Number(v)] ?? '' : entidades(v);
       }
-      return Array.from(cel, x => x ?? '').join(';');
-    }).filter(l => l.replace(/;/g, '').trim());
-    return `# Planilha: ${nomes[i] || `Planilha ${i + 1}`}\n${linhas.join('\n')}`;
+      return Array.from(cel, x => x ?? '');
+    }).filter(l => l.join('').trim());
+    // Planilha com muitas linhas: os cálculos conferidos (totais, por categoria, extremos) vão junto (planilha.js).
+    const largura = Math.max(0, ...linhas.map(l => l.length));
+    const resumo = resumoDeTabela(linhas[0] || [], linhas.slice(1).map(l => Array.from({ length: largura }, (_, k) => l[k] ?? '')));
+    return `# Planilha: ${nomes[i] || `Planilha ${i + 1}`}\n${linhas.map(l => l.join(';')).join('\n')}${resumo ? `\n\n${resumo}` : ''}`;
   }).join('\n\n').trim();
 }
 
@@ -219,6 +224,7 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
     else if (['txt', 'md', 'csv'].includes(ext)) {
       if (b.subarray(0, 4096).includes(0)) throw erro(415, 'formato', 'não é um arquivo de texto.');
       texto = decodificar(b);
+      if (ext === 'csv') { const resumo = resumoDeCsv(texto); if (resumo) texto = `${texto.trim()}\n\n${resumo}`; }
     } else throw erro(415, 'formato', `formato não aceito. Use ${FORMATOS}.`);
   } catch (e) {
     if (e instanceof ErroOcr) throw erroDeOcr(e);

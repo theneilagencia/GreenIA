@@ -107,10 +107,13 @@ test('exportar e excluir: só empresa cancelada, com confirmação; guarda cópi
   // Exportação: SQLite válido, compactado.
   const exp = await ops.post(`/api/plataforma/empresas/${c.id}/exportar`, { tipo: 'solicitacao_cliente', justificativa: 'Cópia pedida pelo cliente antes do encerramento' });
   assert.equal(exp.status, 200);
-  assert.equal(exp.headers.get('content-type'), 'application/gzip');
+  assert.equal((await ops.get(exp.dados.download)).headers.get('content-type'), 'application/gzip');
   // Ativa não pode ser excluída; confirmação errada é recusada.
   assert.equal((await ops.post(`/api/plataforma/empresas/${c.id}/excluir`, { confirmacao: 'temporaria' })).status, 409);
   await ops.post(`/api/plataforma/empresas/${c.id}/status`, { status: 'cancelada' });
+  // Antes dos 30 dias, a exclusão pelo console é recusada (test/encerramento.test.js cobre o prazo); aqui o prazo vence.
+  assert.equal((await ops.post(`/api/plataforma/empresas/${c.id}/excluir`, { confirmacao: 'temporaria' })).status, 409);
+  S.P.db.prepare('update company_deletion set delete_after = ? where company_id = ?').run(new Date(Date.now() - 1000).toISOString(), c.id);
   assert.equal((await ops.post(`/api/plataforma/empresas/${c.id}/excluir`, { confirmacao: 'outra' })).status, 400);
   const r = await ops.post(`/api/plataforma/empresas/${c.id}/excluir`, { confirmacao: 'temporaria' });
   assert.equal(r.status, 200, JSON.stringify(r.dados));

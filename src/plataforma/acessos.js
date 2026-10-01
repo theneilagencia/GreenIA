@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { erro } from '../http.js';
 import { exec, todos, um } from '../db.js';
 import { auditar } from './auditoria.js';
+import { FINALIDADES_EXPORTACAO, situacaoExportacao } from './exportacoes.js';
 
 export const TIPOS_ACESSO = { suporte: 'Suporte', solicitacao_cliente: 'Solicitação do cliente', incidente: 'Incidente', outro: 'Outro' };
 export const DURACAO_ACESSO_MS = 60 * 60e3;
@@ -89,25 +90,17 @@ export function abrirAcesso(P, { userId, email, companyId, tipo, justificativa, 
   return um(P.db, 'select * from operator_access where id = ?', id);
 }
 
-export function registrarExportacao(P, { userId, email, companyId, tipo, justificativa, sucesso, bytes = null, falha = null, origem }) {
-  const id = `exp_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
-  exec(P.db, `insert into operator_exports (id, company_id, user_id, operador_email, tipo, justificativa, formato, em, sucesso, bytes, erro, origin)
-    values (?, ?, ?, ?, ?, ?, 'banco_completo', ?, ?, ?, ?, ?)`, id, companyId, userId, email, tipo, justificativa, iso(agoraMs(P)), sucesso ? 1 : 0, bytes, falha, JSON.stringify(origem || {}));
-  auditar(P, { usuario: userId, empresa: companyId, acao: sucesso ? 'company.exported' : 'company.export_failed', entidade: 'operator_export', id, depois: { tipo, justificativa, formato: 'banco_completo', bytes, erro: falha }, origem });
-  return id;
-}
-
 // O que a empresa vê: só os registros dela, sem IP nem navegador do operador.
 const publicoAcesso = a => ({ id: a.id, operador: a.operador_email, tipo: a.tipo, tipoNome: TIPOS_ACESSO[a.tipo] || a.tipo, justificativa: a.justificativa,
   inicio: a.inicio, expira: a.expira, fim: a.fim, duracao_s: a.duracao_s, status: a.status, motivo_fim: a.motivo_fim, aviso: a.aviso });
-const publicoExportacao = x => ({ id: x.id, operador: x.operador_email, tipo: x.tipo, tipoNome: TIPOS_ACESSO[x.tipo] || x.tipo, justificativa: x.justificativa,
-  formato: x.formato, em: x.em, sucesso: !!x.sucesso, bytes: x.bytes, aviso: x.aviso });
+const publicoExportacao = (P, x) => ({ id: x.id, operador: x.operador_email, tipo: x.tipo, tipoNome: FINALIDADES_EXPORTACAO[x.tipo] || TIPOS_ACESSO[x.tipo] || x.tipo, justificativa: x.justificativa,
+  formato: x.formato, em: x.em, sucesso: !!x.sucesso, bytes: x.bytes, aviso: x.aviso, ...situacaoExportacao(P, x) });
 
 export function listarAcessos(P, companyId, { limite = 200 } = {}) {
   varrerExpirados(P);
   return {
     acessos: todos(P.db, 'select * from operator_access where company_id = ? order by inicio desc limit ?', companyId, limite).map(publicoAcesso),
-    exportacoes: todos(P.db, 'select * from operator_exports where company_id = ? order by em desc limit ?', companyId, limite).map(publicoExportacao),
+    exportacoes: todos(P.db, 'select * from operator_exports where company_id = ? order by em desc limit ?', companyId, limite).map(x => publicoExportacao(P, x)),
     duracaoMinutos: DURACAO_ACESSO_MS / 60e3,
   };
 }

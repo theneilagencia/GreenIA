@@ -52,7 +52,7 @@ function telaLogin() {
 }
 
 // ---------------------------------------------------------------- Casca
-const SECOES = [['empresas', 'Empresas', 'predio'], ['usuarios', 'Usuários', 'pessoas'], ['planos', 'Planos', 'pacote'], ['ambientes', 'Ambientes', 'servidor'], ['uso', 'Uso', 'grafico'], ['auditoria', 'Auditoria', 'atividade'], ['configuracoes', 'Configurações', 'engrenagem']];
+const SECOES = [['empresas', 'Empresas', 'predio'], ['encerramentos', 'Encerramentos', 'atividade'], ['usuarios', 'Usuários', 'pessoas'], ['planos', 'Planos', 'pacote'], ['ambientes', 'Ambientes', 'servidor'], ['uso', 'Uso', 'grafico'], ['auditoria', 'Auditoria', 'atividade'], ['configuracoes', 'Configurações', 'engrenagem']];
 function lateral() {
   const h = location.hash || '#/empresas';
   $('lateral').innerHTML = `<a class="marca" href="#/empresas">${marcaHtml()}</a><span class="selo-escopo">Plataforma</span>
@@ -100,11 +100,14 @@ function modal(html, aoAbrir) {
 
 // Acesso da equipe GreenIA a uma empresa (entrar ou exportar): tipo e justificativa obrigatórios.
 const TIPOS_ACESSO = { suporte: 'Suporte', solicitacao_cliente: 'Solicitação do cliente', incidente: 'Incidente', outro: 'Outro' };
-function pedirMotivo({ titulo, explica, botao, enviar }) {
+// Exportar o banco: só pedido do cliente, incidente de segurança ou obrigação legal (suporte não exporta).
+const FINALIDADES_EXPORTACAO = { solicitacao_cliente: 'Pedido do cliente', incidente: 'Incidente de segurança', obrigacao_legal: 'Obrigação legal' };
+const TIPOS_HOLD = { legal: 'Obrigação legal', incidente: 'Investigação de incidente' };
+function pedirMotivo({ titulo, explica, botao, enviar, tipos = TIPOS_ACESSO, rotuloTipo = 'Tipo' }) {
   modal(`<div class="modal-topo"><div class="rotulo">Acesso da equipe GreenIA</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
     <h2>${esc(titulo)}</h2><p class="dica">${esc(explica)}</p>
     <form id="f-motivo" novalidate>
-      <div class="campo"><label for="m-tipo">Tipo</label><select class="entrada" id="m-tipo" required><option value="">Escolha o tipo</option>${Object.entries(TIPOS_ACESSO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="campo"><label for="m-tipo">${esc(rotuloTipo)}</label><select class="entrada" id="m-tipo" required><option value="">Escolha</option>${Object.entries(tipos).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
       <div class="campo"><label for="m-just">Justificativa</label><textarea class="entrada" id="m-just" rows="3" minlength="10" maxlength="500" required placeholder="Por que este acesso é necessário"></textarea><span class="ajuda">Fica registrada e visível para a empresa. Pelo menos 10 caracteres.</span></div>
       <p class="msg-erro oculto" id="m-erro" role="alert"></p>
       <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">${esc(botao)}</button></div>
@@ -114,10 +117,35 @@ function pedirMotivo({ titulo, explica, botao, enviar }) {
       ev.preventDefault();
       const corpo = { tipo: $('m-tipo').value, justificativa: $('m-just').value.trim() };
       const erroEl = $('m-erro');
-      if (!corpo.tipo || corpo.justificativa.length < 10) { erroEl.textContent = 'Escolha o tipo e escreva a justificativa (pelo menos 10 caracteres).'; erroEl.classList.remove('oculto'); return; }
+      if (!corpo.tipo || corpo.justificativa.length < 10) { erroEl.textContent = `Escolha ${rotuloTipo.toLowerCase() === 'tipo' ? 'o tipo' : 'a finalidade'} e escreva a justificativa (pelo menos 10 caracteres).`; erroEl.classList.remove('oculto'); return; }
       try { await enviar(corpo); fechar(); } catch (x) { erroEl.textContent = x.message; erroEl.classList.remove('oculto'); }
     };
   });
+}
+
+// Hold (obrigação legal ou incidente): motivo obrigatório, registrado.
+function pedirHold({ titulo, tipos = TIPOS_HOLD, enviar }) {
+  modal(`<div class="modal-topo"><div class="rotulo">Hold</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2>${esc(titulo)}</h2><p class="dica">O hold suspende o prazo de eliminação até ser liberado. Fica registrado com o motivo e quem o aplicou.</p>
+    <form id="f-hold" novalidate>
+      <div class="campo"><label for="h-tipo">Motivo do hold</label><select class="entrada" id="h-tipo"><option value="">Escolha</option>${Object.entries(tipos).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="campo"><label for="h-motivo">Descrição</label><textarea class="entrada" id="h-motivo" rows="3" maxlength="500" placeholder="Referência do processo, ofício ou incidente"></textarea></div>
+      <p class="msg-erro oculto" id="h-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Aplicar hold</button></div>
+    </form>`, fechar => {
+    $('fechar').onclick = fechar;
+    $('f-hold').onsubmit = async ev => {
+      ev.preventDefault();
+      try { await enviar({ tipo: $('h-tipo').value, motivo: $('h-motivo').value.trim() }); fechar(); } catch (x) { $('h-erro').textContent = x.message; $('h-erro').classList.remove('oculto'); }
+    };
+  });
+}
+async function baixar(url) {
+  const r = await fetch(url, { credentials: 'same-origin' });
+  if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.mensagem || 'O download falhou.'); }
+  const nome = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '')?.[1] || 'copia.sqlite.gz';
+  const u = URL.createObjectURL(await r.blob());
+  const a = document.createElement('a'); a.href = u; a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 5000);
 }
 
 // ---------------------------------------------------------------- Empresas
@@ -175,7 +203,7 @@ async function vistaEmpresa(id, aba = 'resumo') {
   const e = d.empresa;
   const sub = `<nav class="subnav" aria-label="Seções da empresa">${ABAS.map(([k, n]) => `<a href="#/empresas/${id}/${k}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
   const titulo = `${e.name}`;
-  const acoes = `${selo(e.status, e.statusNome)} <button class="btn btn-linha btn-pequeno" id="entrar-amb">Entrar no ambiente</button>`;
+  const acoes = `${selo(e.status, e.statusNome)} <button class="btn btn-linha btn-pequeno" id="entrar-amb" ${e.status === 'cancelada' ? 'disabled title="Ambiente cancelado: o uso fica bloqueado, inclusive para a equipe de operação"' : ''}>Entrar no ambiente</button>`;
   const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba] || abaResumo;
   tela(titulo, `${sub}<div id="aba"></div>`, acoes, '#/empresas');
   $('entrar-amb').onclick = () => pedirMotivo({ titulo: `Entrar no ambiente da ${e.name}`, botao: 'Entrar no ambiente',
@@ -190,10 +218,12 @@ async function abaResumo(d, id) {
     suspensa: [['ativa', 'Reativar', 'btn-verde'], ['cancelada', 'Cancelar', 'btn-texto']], cancelada: [['em_implantacao', 'Reabrir em implantação', 'btn-linha']] }[e.status];
   $('aba').innerHTML = `
     <div class="secao-titulo" style="margin-top:0"><h3>Status</h3></div>
-    <div class="faixa-aviso ${e.status === 'ativa' ? 'ok' : e.status === 'em_implantacao' ? 'atencao' : 'erro'}">${{ em_implantacao: 'Em implantação: só administradores da empresa entram, e a landing pública ainda não aparece.', ativa: 'Ativa: o ambiente está disponível para as pessoas da empresa.', suspensa: 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.', cancelada: 'Cancelada: o ambiente está encerrado. Os dados ficam guardados.' }[e.status]}</div>
+    <div class="faixa-aviso ${e.status === 'ativa' ? 'ok' : e.status === 'em_implantacao' ? 'atencao' : 'erro'}">${{ em_implantacao: 'Em implantação: só administradores da empresa entram, e a landing pública ainda não aparece.', ativa: 'Ativa: o ambiente está disponível para as pessoas da empresa.', suspensa: 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.', cancelada: 'Cancelada: ninguém usa o ambiente, nem a equipe de operação. A exclusão definitiva acontece sozinha 30 dias depois do cancelamento, salvo hold.' }[e.status]}</div>
+    <div id="encerramento-empresa"></div>
     <div class="linha-botoes">${botoesStatus.map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}
       <button class="btn btn-linha" id="exportar-empresa">Exportar dados</button>
       ${e.status === 'cancelada' ? '<button class="btn btn-texto" id="excluir-empresa" style="color:var(--red-text)">Excluir definitivamente</button>' : ''}</div>
+    <div id="exportacoes-empresa"></div>
     <div class="secao-titulo"><h3>Plano</h3></div>
     <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'créditos ilimitados'} · ${usd(p.price_usd)}</option>`).join('')}</select>
       <button class="btn btn-linha">Alterar plano</button></form>
@@ -223,23 +253,80 @@ async function abaResumo(d, id) {
     try { await api(`/api/plataforma/empresas/${id}/status`, { metodo: 'POST', corpo: { status: s } }); toast('Status alterado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); }
   };
   $('excluir-empresa')?.addEventListener('click', async () => {
-    const conf = prompt(`A exclusão apaga o ambiente e o banco da empresa. Uma cópia fica guardada no servidor.\n\nPara confirmar, digite o identificador: ${e.slug}`);
+    const conf = prompt(`A exclusão definitiva só vale depois do prazo de 30 dias do cancelamento (ou antes, a pedido verificado do cliente pela página de encerramento). Ela apaga o ambiente e o banco da empresa; uma cópia de recuperação fica 30 dias no servidor.\n\nPara confirmar, digite o identificador: ${e.slug}`);
     if (conf === null) return;
     try { const r = await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: conf } }); toast(r.copia ? `Empresa excluída. A cópia de recuperação fica guardada por ${r.expiraEmDias} dias e depois é eliminada.` : 'Empresa excluída.', 7000); location.hash = '#/empresas'; } catch (x) { falhar(x); }
   });
-  $('exportar-empresa').onclick = () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar',
-    explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas. Ela fica registrada, com o motivo, na tela "Acessos da equipe de operação" da empresa, e os admins dela recebem um aviso por email.',
+  $('exportar-empresa').onclick = () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar', tipos: FINALIDADES_EXPORTACAO, rotuloTipo: 'Finalidade',
+    explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas, e só vale por pedido do cliente, incidente de segurança ou obrigação legal. A cópia fica no servidor e é eliminada 7 dias depois de encerrada a necessidade, salvo hold. O registro aparece para a empresa, e os admins dela recebem um aviso por email.',
     async enviar(motivo) {
-      const r = await fetch(`/api/plataforma/empresas/${encodeURIComponent(id)}/exportar`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf': C.csrf }, body: JSON.stringify(motivo) });
-      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.mensagem || 'A exportação falhou.'); }
-      const nome = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '')?.[1] || 'exportacao.sqlite.gz';
-      const url = URL.createObjectURL(await r.blob());
-      const a = document.createElement('a'); a.href = url; a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast('Exportação feita e registrada.');
+      const r = await api(`/api/plataforma/empresas/${id}/exportar`, { metodo: 'POST', corpo: motivo });
+      await baixar(r.download);
+      toast('Exportação feita e registrada. Quando a cópia não for mais necessária, marque "Necessidade encerrada".', 7000); vistaEmpresa(id, 'resumo');
     } });
+  secaoExportacoes(id);
+  if (e.status === 'cancelada') secaoEncerramento(id);
   $('f-plano').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: $('s-plano').value || null } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
   if ($('f-pacote')) $('f-pacote').onsubmit = async ev => { ev.preventDefault(); if (!confirm(`Liberar ${num($('p-creditos').value)} créditos? Os admins da empresa recebem um email.`)) return; try { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { creditos: Number($('p-creditos').value), validade: $('p-validade').value || null, observacao: $('p-obs').value } }); toast('Pacote liberado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
   $('f-dados').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); toast('Dados salvos.'); } catch (x) { falhar(x); } };
+}
+
+// Exportações da empresa: finalidade, cópia no servidor, prazo, hold, download e eliminação.
+async function secaoExportacoes(id) {
+  const { exportacoes } = await api(`/api/plataforma/empresas/${id}/acessos`);
+  if (!exportacoes.length) return;
+  const estado = x => x.eliminadoEm ? `Eliminada do servidor em ${dataHora(x.eliminadoEm)}` : x.controle === 'anterior' ? 'Entregue direto (antes deste controle)' : x.hold ? `Em hold: ${esc(x.hold.tipoNome)}` : x.expiraEm ? `Elimina em ${dataHora(x.expiraEm)}` : 'Necessidade em aberto';
+  $('exportacoes-empresa').innerHTML = `<div class="secao-titulo"><h3>Exportações</h3></div>
+    <p class="dica">Uma cópia baixada sai do controle técnico da plataforma: fica registrado quem baixou, e a responsabilidade pela guarda passa a ser de quem a recebeu.</p>
+    ${tabela(['Quando', 'Finalidade', 'Situação', 'Downloads', ''], exportacoes.map(x => `<tr><td data-r="Quando">${dataHora(x.em)}<br><span class="dica">${esc(x.operador)}</span></td>
+      <td data-r="Finalidade">${esc(x.tipoNome)}<br><span class="dica">${esc(x.justificativa)}</span></td><td data-r="Situação">${estado(x)}${x.declaracao ? `<br><span class="dica">Declaração: ${esc(x.declaracao.texto)}</span>` : ''}</td>
+      <td data-r="Downloads" class="num">${num(x.downloads)}${x.baixadoPor ? `<br><span class="dica">${esc(x.baixadoPor)}</span>` : ''}</td>
+      <td>${x.noServidor ? `<button class="btn-texto" data-exp="baixar" data-id="${x.id}">Baixar</button>` : ''}
+        ${x.noServidor && !x.necessidadeEncerradaEm ? `<button class="btn-texto" data-exp="necessidade" data-id="${x.id}">Necessidade encerrada</button>` : ''}
+        ${x.noServidor && !x.hold ? `<button class="btn-texto" data-exp="hold" data-id="${x.id}">Hold</button>` : ''}${x.hold ? `<button class="btn-texto" data-exp="liberar" data-id="${x.id}">Liberar hold</button>` : ''}
+        ${x.baixadoEm && !x.declaracao ? `<button class="btn-texto" data-exp="declarar" data-id="${x.id}">Declarar eliminação</button>` : ''}</td></tr>`), '')}`;
+  const recarregar = () => secaoExportacoes(id);
+  for (const b of document.querySelectorAll('[data-exp]')) b.onclick = async () => {
+    const x = b.dataset.id, acao = b.dataset.exp;
+    try {
+      if (acao === 'baixar') { await baixar(`/api/plataforma/exportacoes/${x}/arquivo`); return recarregar(); }
+      if (acao === 'necessidade') { if (!confirm('Encerrar a necessidade desta cópia? Ela será eliminada do servidor em 7 dias, salvo hold.')) return; await api(`/api/plataforma/exportacoes/${x}/encerrar-necessidade`, { metodo: 'POST' }); return recarregar(); }
+      if (acao === 'hold') return pedirHold({ titulo: 'Hold da cópia exportada', enviar: async c => { await api(`/api/plataforma/exportacoes/${x}/hold`, { metodo: 'POST', corpo: c }); recarregar(); } });
+      if (acao === 'liberar') { await api(`/api/plataforma/exportacoes/${x}/liberar`, { metodo: 'POST' }); return recarregar(); }
+      if (acao === 'declarar') { const t = prompt('O que foi feito com a cópia baixada? (por exemplo: "arquivo apagado do notebook e da lixeira em 05/10")'); if (!t) return; await api(`/api/plataforma/exportacoes/${x}/declarar-eliminacao`, { metodo: 'POST', corpo: { texto: t } }); return recarregar(); }
+    } catch (e) { falhar(e); }
+  };
+}
+
+// Ambiente cancelado: data da exclusão automática, hold e pedidos de devolução.
+async function secaoEncerramento(id) {
+  const { exclusoes } = await api('/api/plataforma/exclusoes');
+  const l = exclusoes.find(x => x.companyId === id && x.status === 'pendente');
+  if (!l) return;
+  $('encerramento-empresa').innerHTML = `<div class="indicadores"><div class="indicador"><span>Cancelada em</span><b style="font-size:14px">${dataHora(l.canceladaEm)}</b>${l.estimado ? '<small>data estimada</small>' : ''}</div>
+      <div class="indicador"><span>Exclusão definitiva</span><b style="font-size:14px">${l.hold ? 'Suspensa (hold)' : dataHora(l.excluirApos)}</b><small>${l.hold ? esc(l.hold.tipoNome) : `${l.diasRestantes} dia(s)`}</small></div></div>
+    <div class="linha-botoes">${l.hold ? '<button class="btn btn-linha" id="liberar-hold-exc">Liberar hold</button>' : '<button class="btn btn-linha" id="hold-exc">Hold da exclusão</button>'}</div>
+    ${l.devolucoes.length ? tabela(['Pedido de devolução', 'Situação', ''], l.devolucoes.map(d => `<tr><td data-r="Pedido">${esc(d.solicitante_email)}<br><span class="dica">${dataHora(d.solicitado_em)}</span></td>
+      <td data-r="Situação">${{ solicitada: 'Aguardando a cópia', gerada: `Link enviado; vale até ${dataHora(d.link_expira)}`, entregue: `Entregue em ${dataHora(d.entregue_em)}`, expirada: 'Link vencido sem download', cancelada: 'Encerrado' }[d.status]}</td>
+      <td>${d.status === 'solicitada' ? `<button class="btn-texto" data-dev="${d.id}">Gerar cópia e enviar link</button>` : ''}</td></tr>`), '') : ''}`;
+  $('hold-exc')?.addEventListener('click', () => pedirHold({ titulo: 'Hold da exclusão definitiva', enviar: async c => { await api(`/api/plataforma/empresas/${id}/exclusao/hold`, { metodo: 'POST', corpo: c }); vistaEmpresa(id, 'resumo'); } }));
+  $('liberar-hold-exc')?.addEventListener('click', async () => { try { await api(`/api/plataforma/empresas/${id}/exclusao/liberar`, { metodo: 'POST' }); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } });
+  for (const b of document.querySelectorAll('[data-dev]')) b.onclick = async () => {
+    if (!confirm('Gerar a cópia completa do banco (SQLite) e enviar o link de uso único, válido por 7 dias, ao email de quem pediu?')) return;
+    try { await api(`/api/plataforma/devolucoes/${b.dataset.dev}/gerar`, { metodo: 'POST' }); toast('Cópia gerada e link enviado. A geração ficou registrada como exportação por pedido do cliente.', 7000); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); }
+  };
+}
+
+// Encerramentos: ambientes cancelados aguardando a exclusão automática (e os excluídos nos últimos 90 dias).
+async function vistaEncerramentos() {
+  carregando('Encerramentos');
+  const { exclusoes, prazoDias, aplicar } = await api('/api/plataforma/exclusoes');
+  tela('Encerramentos', `<p class="lead">Ambientes cancelados são excluídos definitivamente ${prazoDias} dias depois do cancelamento, salvo hold. Antes disso, um admin da empresa pode pedir uma cópia dos dados ou a exclusão antecipada, com código enviado ao email cadastrado.</p>
+    ${aplicar ? '' : '<div class="faixa-aviso atencao">A exclusão automática está em simulação (EXCLUSAO_APLICAR desligada): a rotina só registra o que faria.</div>'}
+    ${tabela(['Empresa', 'Cancelada em', 'Exclusão', 'Devolução'], exclusoes.map(l => `<tr><td data-r="Empresa">${l.status === 'pendente' ? `<a href="#/empresas/${l.companyId}"><b>${esc(l.nome)}</b></a>` : `<b>${esc(l.nome)}</b>`}<br><span class="dica">${esc(l.slug)}</span></td>
+      <td data-r="Cancelada em">${dataHora(l.canceladaEm)}${l.estimado ? '<br><span class="dica">estimada</span>' : ''}</td>
+      <td data-r="Exclusão">${l.status === 'excluida' ? `Excluída em ${dataHora(l.excluidaEm)} (${esc({ rotina: 'automática', cliente: 'a pedido do cliente', console: 'pelo console' }[l.via] || l.via)})` : l.status === 'revertida' ? 'Ambiente reaberto' : l.hold ? `Hold: ${esc(l.hold.tipoNome)}` : `${dataHora(l.excluirApos)} · ${l.diasRestantes} dia(s)`}</td>
+      <td data-r="Devolução">${l.devolucoes.map(d => esc(d.status)).join(', ') || '–'}</td></tr>`), vazioHtml({ icone: 'predio', titulo: 'Nenhum ambiente cancelado', texto: 'Quando uma empresa for cancelada, a data da exclusão aparece aqui.' }))}`);
 }
 
 async function abaUsuarios(d, id) {
@@ -646,7 +733,23 @@ async function vistaConfiguracoes() {
       <div class="grade-2"><div class="campo"><label for="vt-id">Modelo no OpenRouter</label><input class="entrada" id="vt-id" placeholder="fornecedor/modelo"></div>
         <div class="campo"><label for="vt-motivo">Motivo</label><input class="entrada" id="vt-motivo" maxlength="500"></div></div>
       <div class="linha-botoes"><button class="btn btn-linha">Proibir para dados sigilosos</button></div></form>
-    ${c.leads.length ? `<div class="secao-titulo"><h3>Contatos da página de vendas</h3></div>${tabela(['Data', 'Empresa', 'Pessoa', 'Mensagem'], c.leads.map(l => `<tr><td data-r="Data">${data(l.em)}</td><td data-r="Empresa"><b>${esc(l.empresa)}</b><br><span class="dica">${esc(l.pessoas || '')}</span></td><td data-r="Pessoa">${esc(l.nome)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td data-r="Mensagem">${esc(l.mensagem || '–')}</td></tr>`), '')}` : ''}`);
+    <div class="secao-titulo"><h3>Contatos da página de vendas</h3></div>
+    <p class="dica">Cada contato é eliminado ${c.contatos.prazoMeses} meses depois da última interação comercial registrada, salvo hold. Registre aqui respostas, reuniões e propostas feitas fora do sistema: só elas e um novo formulário renovam o prazo.</p>
+    ${tabela(['Última interação', 'Empresa', 'Pessoa', 'Mensagem', ''], c.contatos.itens.map(l => `<tr><td data-r="Última interação">${data(l.ultimaInteracao)}<br><span class="dica">${l.hold ? 'em hold' : `elimina em ${data(l.eliminarApos)}`}</span></td><td data-r="Empresa"><b>${esc(l.empresa)}</b><br><span class="dica">${esc(l.pessoas || '')}</span></td><td data-r="Pessoa">${esc(l.nome)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td data-r="Mensagem">${esc(l.mensagem || '–')}</td>
+      <td><button class="btn-texto" data-ct="interacao" data-id="${l.id}">Registrar interação</button>${l.hold ? `<button class="btn-texto" data-ct="liberar" data-id="${l.id}">Liberar hold</button>` : `<button class="btn-texto" data-ct="hold" data-id="${l.id}">Hold</button>`}</td></tr>`), '<p class="dica">Nenhum contato.</p>')}
+    ${c.contatos.total > c.contatos.itens.length ? `<p class="dica">Mostrando os ${c.contatos.itens.length} mais recentes de ${num(c.contatos.total)}.</p>` : ''}`);
+  for (const b of document.querySelectorAll('[data-ct]')) b.onclick = async () => {
+    const x = b.dataset.id, acao = b.dataset.ct;
+    try {
+      if (acao === 'interacao') {
+        const tipo = prompt('Tipo da interação: resposta, reuniao, proposta, contato ou outro'); if (!tipo) return;
+        const em = prompt('Data da interação (AAAA-MM-DD). Deixe em branco para hoje.') || null;
+        await api(`/api/plataforma/contatos/${x}/interacao`, { metodo: 'POST', corpo: { tipo: tipo.trim().toLowerCase(), em: em ? `${em}T12:00:00Z` : null } });
+      } else if (acao === 'hold') return pedirHold({ titulo: 'Hold do contato comercial', tipos: { legal: 'Obrigação legal', contrato: 'Contrato', litigio: 'Litígio' }, enviar: async corpo => { await api(`/api/plataforma/contatos/${x}/hold`, { metodo: 'POST', corpo }); vistaConfiguracoes(); } });
+      else if (acao === 'liberar') await api(`/api/plataforma/contatos/${x}/liberar`, { metodo: 'POST' });
+      toast('Contato atualizado.'); vistaConfiguracoes();
+    } catch (e) { falhar(e); }
+  };
   $('f-cfg').onsubmit = async ev => {
     ev.preventDefault();
     const corpo = { nome: $('cf-nome').value, plano_padrao: $('cf-plano').value || null, subdominio_base: $('cf-sub').value, slugs_reservados: $('cf-res').value, smtp: { remetente: $('cf-rem').value, ...($('cf-smtp').value ? { url: $('cf-smtp').value } : {}) } };
@@ -688,6 +791,7 @@ async function rota() {
     else if (h.startsWith('#/uso')) await vistaUso();
     else if (h.startsWith('#/auditoria')) await vistaAuditoria();
     else if (h.startsWith('#/configuracoes')) await vistaConfiguracoes();
+    else if (h.startsWith('#/encerramentos')) await vistaEncerramentos();
     else await vistaEmpresas();
   } catch (e) { if (e.status !== 401) tela('Algo deu errado', `<div class="faixa-aviso erro">${esc(e.message)}</div>`); }
   fimTransicao();

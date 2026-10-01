@@ -6,6 +6,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { exec, um } from '../db.js';
 import { ESQUEMA_ACESSOS } from './acessos.js';
+import { COLUNAS_EXPORTACAO } from './exportacoes.js';
 
 const ESQUEMA = `
 create table if not exists companies (
@@ -70,12 +71,49 @@ create table if not exists audit_log (
 create index if not exists audit_empresa on audit_log (company_id, id);
 `;
 
+// Encerramento de ambientes (cancelamento → exclusão em 30 dias) e devolução dos dados: src/plataforma/encerramento.js.
+export const ESQUEMA_ENCERRAMENTO = `
+create table if not exists company_deletion (
+  company_id text primary key, nome text not null, slug text not null,
+  cancelled_at text not null, delete_after text not null, estimado integer not null default 0,
+  status text not null check (status in ('pendente','excluida','revertida')),
+  hold_tipo text, hold_motivo text, hold_por text, hold_em text,
+  antecipada_por text, antecipada_em text, deleted_at text, deleted_via text, updated_at text not null);
+create index if not exists company_deletion_prazo on company_deletion (status, delete_after);
+create table if not exists data_returns (
+  id text primary key, company_id text not null, solicitante_email text not null, solicitante_user_id text,
+  solicitado_em text not null, verificado_em text not null,
+  status text not null check (status in ('solicitada','gerada','entregue','expirada','cancelada')),
+  export_id text, gerado_por text, gerado_em text, token_hash text, link_expira text, sha256 text, bytes integer,
+  entregue_em text, entregue_agente text, motivo_fim text, updated_at text not null);
+create index if not exists data_returns_empresa on data_returns (company_id, solicitado_em);
+create unique index if not exists data_returns_token on data_returns (token_hash);
+`;
+
+// Contatos comerciais (página de vendas): retenção de 24 meses depois da última interação comercial registrada.
+export const ESQUEMA_CONTATOS = `
+create table if not exists commercial_contacts (
+  id text primary key, created_at text not null, last_interaction_at text not null,
+  nome text not null, email text not null, empresa text not null, cargo text not null default '', pessoas text not null default '', mensagem text not null default '',
+  hold_motivo text, hold_por text, hold_em text);
+create index if not exists commercial_contacts_email on commercial_contacts (email);
+create index if not exists commercial_contacts_ultima on commercial_contacts (last_interaction_at);
+create table if not exists commercial_interactions (
+  id integer primary key, contact_id text not null references commercial_contacts(id) on delete cascade,
+  at text not null, tipo text not null, por text, nota text not null default '');
+create index if not exists commercial_interactions_contato on commercial_interactions (contact_id, at);
+-- Estatística irreversivelmente agregada dos contatos eliminados: só mês de entrada, faixa de pessoas e contagem.
+create table if not exists commercial_contacts_stats (mes text not null, pessoas text not null, eliminados integer not null, primary key (mes, pessoas));
+`;
+
 export function abrirPlataforma(arquivo = ':memory:') {
   if (arquivo !== ':memory:') mkdirSync(dirname(arquivo), { recursive: true });
   const db = new DatabaseSync(arquivo);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
   db.exec(ESQUEMA);
   db.exec(ESQUEMA_ACESSOS);
+  db.exec(ESQUEMA_ENCERRAMENTO);
+  db.exec(ESQUEMA_CONTATOS);
   // Colunas acrescentadas depois da primeira versão (bancos da plataforma que já existiam).
   const colunas = t => db.prepare(`pragma table_info(${t})`).all().map(c => c.name);
   const faltam = colunas('companies');
@@ -85,6 +123,9 @@ export function abrirPlataforma(arquivo = ':memory:') {
   // Sessão de operador (acesso da equipe GreenIA): presa a um registro de operator_access aberto.
   if (!colunas('sessions').includes('access_id')) db.exec('alter table sessions add column access_id text');
   db.exec('create index if not exists sessions_acesso on sessions (access_id)');
+  // Exportações: ciclo de vida da cópia operacional (finalidade, prazo, hold, download, eliminação).
+  const exp = colunas('operator_exports');
+  for (const [c, def] of COLUNAS_EXPORTACAO) if (!exp.includes(c)) db.exec(`alter table operator_exports add column ${c} ${def}`);
   return db;
 }
 

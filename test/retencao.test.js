@@ -203,6 +203,7 @@ test('empresa excluída: a cópia de recuperação ganha manifesto com prazo e e
     const ops = await S.navegador().entrarConsole('ops@theneil.com.br');
     const c = (await ops.post('/api/plataforma/empresas', { name: 'Temporária', slug: 'temp-ret' })).dados;
     await ops.post(`/api/plataforma/empresas/${c.id}/status`, { status: 'cancelada' });
+    S.P.db.prepare('update company_deletion set delete_after = ? where company_id = ?').run(new Date(Date.now() - 1000).toISOString(), c.id);   // prazo de 30 dias vencido
     const r = await ops.post(`/api/plataforma/empresas/${c.id}/excluir`, { confirmacao: 'temp-ret' });
     assert.equal(r.status, 200, JSON.stringify(r.dados));
     assert.equal(r.dados.expiraEmDias, 30);

@@ -33,10 +33,13 @@ import { rotasEmpresa } from './api-empresa.js';
 import { slugDe, SLUGS_RESERVADOS } from './validar.js';
 import { sincronizarProvedor, verificarDominio } from './dominio.js';
 import { criarEncontrar } from './encontrar.js';
+import { rotasEncerramentoEmpresa, migrarCanceladas, paginaDevolucao, entregarDevolucao } from './encerramento.js';
+import { migrarContatosAntigos, registrarFormulario } from './contatos.js';
+import { randomUUID } from 'node:crypto';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
-const PAGINAS_EMPRESA = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html' };
+const PAGINAS_EMPRESA = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/encerramento': 'encerramento.html' };
 const PAGINAS_EMPRESA_ARQUIVOS = new Set(Object.values(PAGINAS_EMPRESA));
 const DOCUMENTOS_LEGAIS = { '/termos': '/termos', '/termos.html': '/termos', '/privacidade': '/privacidade', '/privacidade.html': '/privacidade' };
 const ICONE_PADRAO = '/assets/ia-neutro.svg';   // empresa sem ícone próprio: ícone neutro (white label)
@@ -55,6 +58,9 @@ export function criarPlataforma(op = {}) {
     dns: op.dns || null, provedorDominios: op.provedorDominios || null, emAndamento: new Map(),
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
+  // Cópias operacionais das exportações (exportacoes.js): ao lado dos bancos, ou numa pasta temporária em memória.
+  P.pastaExportacoes = op.pastaExportacoes ?? (P.pastaEmpresas !== ':memory:' ? join(dirname(P.pastaEmpresas), 'exportacoes') : join(tmpdirSeguro(), 'greenia-exportacoes', randomUUID()));
+  P.exclusaoAplicar = op.exclusaoAplicar === true;
   // Chave do OpenRouter informada no console: cifrada no banco; vale sobre a variável OPENROUTER_API_KEY.
   P.criarIA = op.criarIA ?? (chave => criarOpenRouter({ chave }));
   P.chaveVariavel = op.chaveVariavel || null;   // só a máscara da chave da variável de ambiente
@@ -108,6 +114,8 @@ export function criarPlataforma(op = {}) {
     exec(db, "insert into platform_members (user_id, role) values (?, 'platform_admin') on conflict (user_id) do nothing", u.id);
   }
   if (op.legado) { importarInstalacao(P, op.legado); copiarSmtpLegado(P, op.legado.banco); }
+  migrarCanceladas(P);
+  migrarContatosAntigos(P);
   E.preencherTextosMarca(P);
   E.neutralizarAvisosAntigos(P);
   const salva = lerChaveOpenRouter(P);
@@ -120,6 +128,7 @@ export function criarPlataforma(op = {}) {
   rotasPlataforma(P, rPlat);
   rotasAuthEmpresa(P, rEmp);
   rotasPublicoEmpresa(P, rEmp);
+  rotasEncerramentoEmpresa(P, rEmp);
   rotasEmpresa(P, rEmp);
   P.servidor = createServer((req, res) => tratar(P, rPlat, rEmp, req, res));
   return P;
@@ -238,6 +247,7 @@ export function sessaoDaEmpresa(P, cookies, companyId) {
 
 // Empresas suspensas, canceladas ou em implantação: quem pode usar o ambiente.
 export function statusPermite(c, sessao) {
+  if (c.status === 'cancelada') return false;   // cancelado: ninguém usa, nem a equipe de operação
   if (sessao?.adminPlataforma) return true;
   if (c.status === 'ativa') return true;
   if (c.status === 'em_implantacao') return !!sessao?.perms?.has('company.manage');
@@ -306,7 +316,21 @@ async function tratar(P, rPlat, rEmp, req, res) {
       // Documentos legais da GreenIA (gerados de docs/legal por scripts/gerar-legais.js).
       if (caminho === '/termos' || caminho === '/privacidade') return await servirPagina(res, `${caminho.slice(1)}.html`);
       if (caminho === '/api/encontrar' && req.method === 'POST') return await P.encontrar(req, res);
-      const m = /^\/([a-z0-9-]{3,40})(\/entrar|\/app)?\/?$/.exec(caminho);
+      // Link de devolução dos dados (uso único): GET mostra a página, POST entrega e consome o link.
+      const dv = /^\/devolucao\/([A-Za-z0-9_-]{20,})$/.exec(caminho);
+      if (dv) {
+        if (req.method === 'POST') {
+          let a;
+          try { a = entregarDevolucao(P, dv[1], { agente: req.headers['user-agent'], origem: { painel: 'devolucao', agente: String(req.headers['user-agent'] || '').slice(0, 160) } }); }
+          catch (e) { if (!(e instanceof ErroHttp)) throw e; const pg = paginaDevolucao(P, dv[1]); res.writeHead(410, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(pg.html); }
+          res.writeHead(200, { 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${a.nome}"`, 'content-length': a.dados.length, 'cache-control': 'no-store' });
+          return res.end(a.dados);
+        }
+        const pg = paginaDevolucao(P, dv[1]);
+        res.writeHead(pg.status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+        return res.end(pg.html);
+      }
+      const m = /^\/([a-z0-9-]{3,40})(\/entrar|\/app|\/encerramento)?\/?$/.exec(caminho);
       if (m && !PAGINAS_EMPRESA[`/${m[1]}`] && !SLUGS_RESERVADOS.has(m[1])) {
         const c = um(P.db, 'select id, slug from companies where slug = ?', m[1]) || um(P.db, 'select c.id, c.slug, 1 as antigo from company_slugs s join companies c on c.id = s.company_id where s.slug = ?', m[1]);
         if (!c) {
@@ -419,10 +443,10 @@ async function contatoVendas(P, req, res) {
   if (corpo.site) return enviarJson(res, 200, { ok: true });
   try {
     const lead = { nome: texto(corpo.nome, 120, 'nome', { obrigatorio: true }), email: validarEmail(corpo.email), empresa: texto(corpo.empresa, 160, 'empresa', { obrigatorio: true }), cargo: texto(corpo.cargo, 120, 'cargo'), pessoas: texto(corpo.pessoas, 40, 'pessoas'), mensagem: texto(corpo.mensagem, 2000, 'mensagem') };
-    const leads = lerAjuste(P.db, 'leads', []);
-    const { salvarAjuste } = await import('./db.js');
-    salvarAjuste(P.db, 'leads', [{ ...lead, em: P.agora().toISOString() }, ...leads].slice(0, 500));
-    for (const para of P.adminsPlataforma()) P.email.enviar(para, `GreenIA: contato de ${lead.empresa}`, `Nome: ${lead.nome}\nEmail: ${lead.email}\nEmpresa: ${lead.empresa}\nCargo: ${lead.cargo || '-'}\nPessoas: ${lead.pessoas || '-'}\n\n${lead.mensagem || '(sem mensagem)'}`).catch(() => {});
+    const { id } = registrarFormulario(P, lead);
+    // O email aos admins só avisa: o contato (dados pessoais) fica no console, sob a retenção de 24 meses, sem cópia na caixa postal.
+    const link = `${(P.urlBase || '').replace(/\/$/, '')}/plataforma#/configuracoes`;
+    for (const para of P.adminsPlataforma()) P.email.enviar(para, 'Novo contato recebido', `Um novo contato chegou pela página de vendas.\n\nConsulte no console (é preciso entrar): ${link}\nReferência: ${id}`).catch(() => {});
     enviarJson(res, 200, { ok: true });
   } catch (e) { enviarJson(res, e.status || 400, { erro: e.codigo || 'contato', mensagem: e.message }); }
 }

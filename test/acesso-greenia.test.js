@@ -208,9 +208,12 @@ test('exportação: sem motivo é bloqueada; com motivo gera registro próprio, 
   assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/exportar`, { tipo: 'suporte' })).status, 400);
   assert.equal((await ops.req('GET', `/api/plataforma/empresas/${A.id}/exportar`)).status, 404, 'GET sem motivo deixou de existir');
   assert.equal(um(S.P.db, 'select count(*) as n from operator_exports').n, 0);
+  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/exportar`, MOTIVO)).status, 400, 'suporte não é finalidade de exportação');
   const r = await ops.post(`/api/plataforma/empresas/${A.id}/exportar`, { tipo: 'solicitacao_cliente', justificativa: 'Cópia pedida pelo admin para arquivo interno' });
   assert.equal(r.status, 200);
-  assert.equal(r.headers.get('content-type'), 'application/gzip');
+  const baixado = await ops.get(r.dados.download);
+  assert.equal(baixado.status, 200);
+  assert.equal(baixado.headers.get('content-type'), 'application/gzip');
   const x = um(S.P.db, 'select * from operator_exports where company_id = ?', A.id);
   assert.deepEqual([x.operador_email, x.tipo, x.formato, x.sucesso], ['ops@theneil.com.br', 'solicitacao_cliente', 'banco_completo', 1]);
   assert.ok(x.bytes > 0 && x.em);
@@ -226,7 +229,7 @@ test('exportação que falha também fica registrada, como falha', async () => {
   const t = S.P.tenant(B.id);
   t.db.close();
   try {
-    const r = await ops.post(`/api/plataforma/empresas/${B.id}/exportar`, MOTIVO);
+    const r = await ops.post(`/api/plataforma/empresas/${B.id}/exportar`, { tipo: 'incidente', justificativa: 'Análise do incidente de segurança INC-12' });
     assert.equal(r.status, 500);
     const x = um(S.P.db, 'select * from operator_exports where company_id = ? order by em desc', B.id);
     assert.equal(x.sucesso, 0);

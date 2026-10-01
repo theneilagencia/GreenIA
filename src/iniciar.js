@@ -17,6 +17,9 @@ import { consolidarWal, todos } from './db.js';
 import { registrar } from './eventos.js';
 import { auditar } from './plataforma/auditoria.js';
 import { prazosDe, rodadaRetencao } from './retencao.js';
+import { rodadaExclusoes, rodadaDevolucoes } from './plataforma/encerramento.js';
+import { rodadaExportacoes } from './plataforma/exportacoes.js';
+import { rodadaContatos } from './plataforma/contatos.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
 
@@ -94,6 +97,7 @@ export async function iniciarPlataforma(env = process.env) {
     provedorDominios: env.RENDER_API_KEY && env.RENDER_SERVICE_ID ? criarProvedorRender({ chave: env.RENDER_API_KEY, servico: env.RENDER_SERVICE_ID, alvo: env.RENDER_ALVO || '' }) : null,
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).
     legado: existsSync(legado) ? { banco: legado, slug: env.EMPRESA_SLUG, plano: lerPlano(env) } : null,
+    exclusaoAplicar: env.EXCLUSAO_APLICAR === '1',
   });
   // Chave da variável: identificada por impressão digital (HMAC com a chave-mestra), nunca pela chave.
   // Mudar a variável gera outra impressão: o ciclo de troca e os avisos recomeçam para a chave nova.
@@ -110,6 +114,11 @@ export async function iniciarPlataforma(env = process.env) {
     bancos: { dbs: [P.db, ...[...P.tenants.values()].map(t => t.db)], arquivos: [env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', ...todos(P.db, 'select banco from companies').map(x => x.banco)] },
     auditar: (acao, d) => auditar(P, { acao, entidade: 'retention', id: d.caminho || null, depois: d, origem: { painel: 'retencao' } }) }), 3600e3);
   tarefa(todas(t => t.plano && verificarAvisos(t)), 3600e3);
+  // Encerramento (src/plataforma/encerramento.js): exclusão definitiva automática 30 dias depois do cancelamento
+  // (EXCLUSAO_APLICAR=1; sem ela, dry-run), links de devolução vencidos, cópias de exportação com prazo vencido e
+  // contatos comerciais sem interação há 24 meses (estes dois seguem RETENCAO_APLICAR).
+  const retencaoAplicar = env.RETENCAO_APLICAR === '1';
+  tarefa(() => { rodadaDevolucoes(P); rodadaExclusoes(P, { aplicar: P.exclusaoAplicar, log: P.log }); rodadaExportacoes(P, { aplicar: retencaoAplicar, log: P.log }); rodadaContatos(P, { aplicar: retencaoAplicar, log: P.log }); }, 3600e3);
   // Domínios próprios ainda não confirmados: confere o DNS a cada 30 minutos.
   tarefa(async () => { for (const id of pendentes(P)) await verificarDominio(P, id); }, 1800e3);
   if (P.provedorDominios) P.log('Domínios próprios: cadastro automático no Render ligado.');

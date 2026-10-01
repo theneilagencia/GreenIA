@@ -186,10 +186,11 @@ async function telaAcessos() {
         <td>${a.status === 'aberto' && podeEncerrar ? `<button class="btn-texto btn-pequeno" data-encerrar="${esc(a.id)}">Encerrar acesso</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : vazioHtml({ icone: 'escudo', titulo: 'Nenhum acesso da equipe de operação até agora.' })}
     <div class="secao-titulo"><h3>Exportações do banco de dados</h3></div>
-    ${d.exportacoes.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quem</th><th>Tipo e justificativa</th><th>Quando</th><th>O que</th><th>Resultado</th></tr></thead><tbody>
+    ${d.exportacoes.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quem</th><th>Finalidade e justificativa</th><th>Quando</th><th>O que</th><th>Resultado</th><th>Cópia</th></tr></thead><tbody>
       ${d.exportacoes.map(x => `<tr><td data-r="Quem">${esc(x.operador)}</td><td data-r="Tipo e justificativa"><b>${esc(x.tipoNome)}</b><br><span class="dica">${esc(x.justificativa)}</span></td>
         <td data-r="Quando">${quando(x.em)}</td><td data-r="O que">Cópia completa do banco, conversas incluídas</td>
-        <td data-r="Resultado"><span class="selo ${x.sucesso ? 'selo-ambar' : 'selo-cinza'}">${x.sucesso ? 'Exportado' : 'Falhou'}</span></td></tr>`).join('')}
+        <td data-r="Resultado"><span class="selo ${x.sucesso ? 'selo-ambar' : 'selo-cinza'}">${x.sucesso ? 'Exportado' : 'Falhou'}</span></td>
+        <td data-r="Cópia">${!x.sucesso ? '–' : x.eliminadoEm ? `Eliminada do servidor em ${quando(x.eliminadoEm)}` : x.controle === 'anterior' ? 'Entregue direto à equipe' : x.hold ? 'Guardada por obrigação legal ou incidente' : x.expiraEm ? `Eliminada do servidor até ${quando(x.expiraEm)}` : 'Em uso pela equipe'}${x.baixadoEm ? `<br><span class="dica">Baixada por ${esc(x.baixadoPor || '')}: essa cópia sai do controle da plataforma</span>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : vazioHtml({ icone: 'escudo', titulo: 'Nenhuma exportação feita pela equipe de operação.' })}`;
   raiz.querySelectorAll('[data-encerrar]').forEach(b => b.onclick = () => ocupado(b, async () => {
     try { await api(`/api/empresa/acessos-greenia/${encodeURIComponent(b.dataset.encerrar)}/encerrar`, { metodo: 'POST' }); toast('Acesso encerrado.'); telaAcessos(); } catch (e) { falhar(e); }

@@ -149,6 +149,8 @@ O banco fica no volume `dados` e a estrutura é atualizada sozinha na subida. Fa
 
 - **Automático.** Com `BACKUP_HORA=06:00` no `.env`, o próprio processo faz um backup por dia (horário UTC no contêiner). Os arquivos ficam em `dados/backups`, e são guardados os últimos `BACKUP_MANTER` (padrão 14). Com `BACKUP_DESTINO=s3://bucket/pasta` e as variáveis `S3_*`, cada backup também vai para um armazenamento compatível com S3 (AWS S3, Cloudflare R2, Backblaze B2, Magalu Cloud, MinIO). Sucesso e falha ficam no registro de eventos. O S3 só é usado com `S3_LIFECYCLE_DIAS` (1 a 7) declarando a expiração configurada no bucket.
 - **Retenção.** Prazos por camada, limpeza de hora em hora (dry-run até `RETENCAO_APLICAR=1`), hold e backups manuais: veja `docs/politica-retencao.md` e `node scripts/retencao.js plano`.
+- **Encerramento de ambiente.** Cancelar agenda a exclusão definitiva para 30 dias corridos depois; a rotina de hora em hora exclui sozinha só com `EXCLUSAO_APLICAR=1` (sem ela, dry-run), revalidando status, prazo e hold. O admin da empresa pede cópia dos dados (SQLite, link de uso único por até 7 dias) ou exclusão antecipada em `/encerramento`, com código no email. Console: Encerramentos.
+- **Exportações e contatos comerciais.** Exportar o banco só por pedido do cliente, incidente ou obrigação legal; a cópia fica no servidor e sai 7 dias depois de encerrada a necessidade, salvo hold. Contatos da página de vendas saem 24 meses depois da última interação registrada. As duas limpezas seguem `RETENCAO_APLICAR`.
 - **Manual,** com o servidor no ar: `docker compose exec greenia node scripts/backup.js`.
 - **O backup é uma cópia consistente** (`VACUUM INTO`) compactada com gzip. Não é preciso parar nada para fazer.
 - **Restaurar:**

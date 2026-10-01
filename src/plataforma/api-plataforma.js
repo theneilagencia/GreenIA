@@ -5,7 +5,10 @@ import { lerAjuste, salvarAjuste } from './db.js';
 import { ehAdminPlataforma, permissoesNaPlataforma, exigir, rolesDaEmpresa, PERMISSOES } from './rbac.js';
 import * as E from './empresas.js';
 import { auditar, listarAuditoria } from './auditoria.js';
-import { validarMotivo, abrirAcesso, encerrarAcesso, encerrarAcessosAbertos, listarAcessos, registrarExportacao, avisarAdmins, TIPOS_ACESSO } from './acessos.js';
+import { validarMotivo, abrirAcesso, encerrarAcesso, encerrarAcessosAbertos, listarAcessos, avisarAdmins, TIPOS_ACESSO } from './acessos.js';
+import { validarFinalidade, criarExportacao, baixarExportacao, encerrarNecessidade, marcarHoldExportacao, liberarHoldExportacao, declararEliminacao, exigirExportacao, situacaoExportacao, FINALIDADES_EXPORTACAO } from './exportacoes.js';
+import { rotasEncerramentoPlataforma } from './encerramento.js';
+import { listarContatos, registrarInteracao, marcarHoldContato, liberarHoldContato } from './contatos.js';
 import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf, definirContexto } from './sessao.js';
 import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemChaveOpenRouter } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
@@ -119,23 +122,30 @@ export function rotasPlataforma(P, r) {
 
   r.post('/api/plataforma/empresas/:id/dominio/verificar', async ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); E.exigirEmpresa(P, params.id); return verificarDominio(P, params.id, { ator: sessao.userId, origem }); });
 
-  // Exportação: cópia íntegra do banco da empresa (conversas incluídas). Evento sensível à parte: só com tipo e
-  // justificativa, por POST (o motivo não vai para a URL nem para logs de acesso), com registro de sucesso ou falha,
-  // visível para a empresa em "Acessos da equipe GreenIA".
-  r.post('/api/plataforma/empresas/:id/exportar', ({ sessao, params, corpo, res, origem }) => {
+  // Exportação: cópia íntegra do banco da empresa (conversas incluídas). Só por pedido do Cliente, incidente de segurança
+  // ou obrigação legal (suporte não exporta), com justificativa, por POST. A cópia fica no servidor e sai por download
+  // registrado; é eliminada 7 dias depois de encerrada a necessidade, salvo hold. Visível para a empresa e avisada aos
+  // admins. Vale também para ambiente cancelado: é o fluxo de recuperação durante a janela de 30 dias.
+  r.post('/api/plataforma/empresas/:id/exportar', ({ sessao, params, corpo, origem }) => {
     precisa(sessao, 'platform.companies.manage');
-    const { tipo, justificativa } = validarMotivo(corpo);
+    const { tipo, justificativa } = validarFinalidade(corpo);
     const c = E.exigirEmpresa(P, params.id);
-    const base = { userId: sessao.userId, email: sessao.email, companyId: c.id, tipo, justificativa, origem };
-    let arquivo;
-    try { arquivo = E.exportarEmpresa(P, c.id); }
-    catch (e) { registrarExportacao(P, { ...base, sucesso: false, falha: String(e?.message || e).slice(0, 200) }); throw erro(500, 'exportacao_falhou', 'A exportação falhou. A tentativa ficou registrada.'); }
-    const id = registrarExportacao(P, { ...base, sucesso: true, bytes: arquivo.dados.length });
-    avisarAdmins(P, { tabela: 'operator_exports', id, companyId: c.id, operadorId: sessao.userId, assunto: 'Exportação de dados pela equipe de operação da plataforma',
-      texto: `A equipe de operação da plataforma exportou uma cópia completa do banco de dados do ambiente ${c.name}.\n\nQuem: ${sessao.email}\nTipo: ${TIPOS_ACESSO[tipo]}\nJustificativa: ${justificativa}\n\nO registro fica em Administração, na tela de acessos da equipe de operação.` });
-    res.writeHead(200, { 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${arquivo.nome}"`, 'content-length': arquivo.dados.length, 'cache-control': 'no-store' });
-    res.end(arquivo.dados);
+    const x = criarExportacao(P, { userId: sessao.userId, email: sessao.email, companyId: c.id, tipo, justificativa, origem, gerar: () => E.exportarEmpresa(P, c.id) });
+    avisarAdmins(P, { tabela: 'operator_exports', id: x.id, companyId: c.id, operadorId: sessao.userId, assunto: 'Exportação de dados pela equipe de operação da plataforma',
+      texto: `A equipe de operação da plataforma exportou uma cópia completa do banco de dados do ambiente ${c.name}.\n\nQuem: ${sessao.email}\nFinalidade: ${FINALIDADES_EXPORTACAO[tipo]}\nJustificativa: ${justificativa}\n\nO registro fica em Administração, na tela de acessos da equipe de operação.` });
+    return { id: x.id, sha256: x.sha256, bytes: x.bytes, download: `/api/plataforma/exportacoes/${x.id}/arquivo` };
   });
+  r.get('/api/plataforma/exportacoes/:id/arquivo', ({ sessao, params, res, origem }) => {
+    precisa(sessao, 'platform.companies.manage');
+    const a = baixarExportacao(P, params.id, { por: sessao.email, origem });
+    res.writeHead(200, { 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${a.nome}"`, 'content-length': a.dados.length, 'cache-control': 'no-store' });
+    res.end(a.dados);
+  });
+  const exportacao = id => { const x = exigirExportacao(P, id); return { id: x.id, companyId: x.company_id, tipo: x.tipo, em: x.em, ...situacaoExportacao(P, x) }; };
+  r.post('/api/plataforma/exportacoes/:id/encerrar-necessidade', ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); encerrarNecessidade(P, params.id, { por: sessao.email, ator: sessao.userId, origem }); return exportacao(params.id); });
+  r.post('/api/plataforma/exportacoes/:id/hold', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); marcarHoldExportacao(P, params.id, { tipo: corpo.tipo, motivo: corpo.motivo, por: sessao.email, ator: sessao.userId, origem }); return exportacao(params.id); });
+  r.post('/api/plataforma/exportacoes/:id/liberar', ({ sessao, params, origem }) => { precisa(sessao, 'platform.companies.manage'); liberarHoldExportacao(P, params.id, { por: sessao.email, ator: sessao.userId, origem }); return exportacao(params.id); });
+  r.post('/api/plataforma/exportacoes/:id/declarar-eliminacao', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); declararEliminacao(P, params.id, { texto: corpo.texto, por: sessao.email, ator: sessao.userId, origem }); return exportacao(params.id); });
 
   r.post('/api/plataforma/empresas/:id/excluir', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.excluirEmpresa(P, params.id, corpo.confirmacao, sessao.userId, origem); });
 
@@ -145,6 +155,8 @@ export function rotasPlataforma(P, r) {
     precisa(sessao, 'platform.companies.manage');
     const { tipo, justificativa } = validarMotivo(corpo);
     const c = E.exigirEmpresa(P, params.id);
+    // Ambiente cancelado: ninguém usa, nem a equipe de operação. Recuperação dos dados é só pela exportação com finalidade.
+    if (c.status === 'cancelada') throw erro(409, 'cancelada', 'O ambiente está cancelado: o uso fica bloqueado, inclusive para a equipe de operação. Para recuperar os dados, use a exportação com a finalidade registrada.');
     const a = abrirAcesso(P, { userId: sessao.userId, email: sessao.email, companyId: c.id, tipo, justificativa, origem });
     P.sincronizarPessoa(c.id, sessao.userId, { operador: true });
     abrirSessao(P, res, sessao.userId, c.id, 'plataforma', { acessoId: a.id, expiraEm: Date.parse(a.expira) });
@@ -162,6 +174,15 @@ export function rotasPlataforma(P, r) {
     if (!a) throw erro(404, 'acesso', 'Acesso não encontrado.');
     return { acesso: encerrarAcesso(P, a.id, 'manual_operador', { por: sessao.userId, origem })?.status };
   });
+
+  // ------------------------------------------------ Encerramento: exclusões agendadas, hold e devolução
+  rotasEncerramentoPlataforma(P, r, precisa);
+
+  // ------------------------------------------------ Contatos comerciais (página de vendas)
+  r.get('/api/plataforma/contatos', ({ sessao, query }) => { precisa(sessao, 'platform.settings.manage'); return listarContatos(P, { pagina: Math.max(0, Number(query.pagina) || 0) }); });
+  r.post('/api/plataforma/contatos/:id/interacao', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.settings.manage'); registrarInteracao(P, params.id, { tipo: corpo.tipo, nota: corpo.nota, em: corpo.em || null, por: sessao.email, ator: sessao.userId, origem }); return { ok: true }; });
+  r.post('/api/plataforma/contatos/:id/hold', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.settings.manage'); marcarHoldContato(P, params.id, { tipo: corpo.tipo, motivo: corpo.motivo, por: sessao.email, ator: sessao.userId, origem }); return { ok: true }; });
+  r.post('/api/plataforma/contatos/:id/liberar', ({ sessao, params, origem }) => { precisa(sessao, 'platform.settings.manage'); liberarHoldContato(P, params.id, { por: sessao.email, ator: sessao.userId, origem }); return { ok: true }; });
 
   // ------------------------------------------------ Planos
   r.get('/api/plataforma/planos', ({ sessao }) => { precisa(sessao, 'platform.companies.manage'); return { planos: E.listarPlanos(P) }; });
@@ -386,7 +407,7 @@ export function rotasPlataforma(P, r) {
       nome: lerAjuste(P.db, 'nome', 'GreenIA'), subdominio_base: lerAjuste(P.db, 'subdominio_base', P.subdominioBase), host: P.hostPlataforma, url_base: P.urlBase,
       slugs_reservados: lerAjuste(P.db, 'slugs_reservados', []), plano_padrao: lerAjuste(P.db, 'plano_padrao', null),
       smtp: { configurado: !!(smtp.url || P.smtpPadrao?.url), remetente: smtp.remetente || P.smtpPadrao?.remetente || '', porVariavel: !smtp.url && !!P.smtpPadrao?.url, falhas: falhasEmail(P).slice(0, 10) }, admins: todos(P.db, 'select u.id, u.email, u.name from platform_members m join users u on u.id = m.user_id order by u.email'),
-      leads: lerAjuste(P.db, 'leads', []).slice(0, 50),
+      contatos: listarContatos(P, { porPagina: 50 }),
     };
   });
 

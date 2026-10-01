@@ -14,6 +14,8 @@ import { auditar } from './auditoria.js';
 import { lerAjuste, salvarAjuste } from './db.js';
 import { roleDeSistema, acharRoleDaEmpresa, permissoesDaRole, ehAdminPlataforma } from './rbac.js';
 import { encerrarAcessosAbertos } from './acessos.js';
+import { agendarExclusao, reverterExclusao, motivoQueImpede, MENSAGENS_IMPEDIMENTO, concluirExclusao } from './encerramento.js';
+import { encerrarNecessidadesDaEmpresa } from './exportacoes.js';
 import { gravarManifesto, PRAZOS_PADRAO } from '../retencao.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
@@ -182,6 +184,9 @@ export function mudarStatus(P, id, status, ator, origem) {
   if (status === 'suspensa' || status === 'cancelada') { encerrarAcessosAbertos(P, { companyId: id }, `empresa_${status}`, origem); exec(P.db, 'delete from sessions where company_id = ?', id); }
   const acao = { ativa: 'company.published', suspensa: 'company.suspended', cancelada: 'company.cancelled', em_implantacao: 'company.status_changed' }[status];
   auditar(P, { usuario: ator, empresa: id, acao, entidade: 'company', id, antes: { status: antes.status }, depois: { status }, origem });
+  // Cancelada: a exclusão definitiva fica agendada para 30 dias corridos depois. Reaberta: a agenda é desfeita.
+  if (status === 'cancelada') agendarExclusao(P, antes, { ator, origem });
+  else if (antes.status === 'cancelada') reverterExclusao(P, id, { ator, origem });
   return lerEmpresa(P, id);
 }
 
@@ -519,13 +524,15 @@ export function exportarEmpresa(P, companyId) {
   } finally { rmSync(temp, { force: true }); }
 }
 
-// Exclusão definitiva: só de empresa cancelada, com o slug digitado como confirmação.
+// Exclusão definitiva: só de empresa cancelada, sem hold e depois do prazo de 30 dias (encerramento.js), ou antes
+// dele a pedido verificado do Cliente (via 'cliente'). Pelo console, com o slug digitado; pela rotina, automática.
 // Antes de apagar, guarda uma cópia em dados/excluidas (a menos que a plataforma rode em memória), com manifesto:
 // a cópia é de recuperação e expira no prazo da política de retenção (src/retencao.js, 30 dias por padrão).
-export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
+export function excluirEmpresa(P, companyId, confirmacao, ator, origem, { via = 'console' } = {}) {
   const c = exigirEmpresa(P, companyId);
-  if (c.status !== 'cancelada') throw erro(409, 'status', 'Cancele a empresa antes de excluir. A exclusão só vale para ambientes cancelados.');
-  if (String(confirmacao || '').trim().toLowerCase() !== c.slug) throw erro(400, 'confirmacao', `Para confirmar, digite o identificador da empresa: ${c.slug}`);
+  const impede = motivoQueImpede(P, companyId, { antecipada: via === 'cliente' });
+  if (impede) throw erro(409, impede === 'nao_cancelada' ? 'status' : impede, MENSAGENS_IMPEDIMENTO[impede]);
+  if (via !== 'rotina' && String(confirmacao || '').trim().toLowerCase() !== c.slug) throw erro(400, 'confirmacao', `Para confirmar, digite o identificador da empresa: ${c.slug}`);
   const resumo = { name: c.name, slug: c.slug, usuarios: um(P.db, 'select count(*) as n from company_users where company_id = ?', companyId).n, ...usoDaEmpresa(P, companyId) };
   let copia = null;
   if (P.pastaEmpresas !== ':memory:') {
@@ -547,6 +554,8 @@ export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
     exec(P.db, 'delete from companies where id = ?', companyId);   // em cascata: marca, landing, configurações, vínculos e roles da empresa
   });
   if (c.banco !== ':memory:') for (const s of ['', '-wal', '-shm']) rmSync(c.banco + s, { force: true });
-  auditar(P, { usuario: ator, empresa: companyId, acao: 'company.deleted', entidade: 'company', id: companyId, antes: resumo, depois: { copia }, origem });
+  concluirExclusao(P, companyId, { via });
+  encerrarNecessidadesDaEmpresa(P, companyId, { por: 'exclusao_definitiva', origem });
+  auditar(P, { usuario: ator, empresa: companyId, acao: 'company.deleted', entidade: 'company', id: companyId, antes: resumo, depois: { copia, via }, origem });
   return { ok: true, copia, expiraEmDias: copia ? (P.retencao?.excluidasDias ?? PRAZOS_PADRAO.excluidasDias) : null };
 }

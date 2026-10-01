@@ -21,6 +21,8 @@ if (p.aviso) {
   $('ld-aviso').textContent = p.aviso;
   $('ld-aviso').classList.remove('oculto');
   if (p.status === 'suspensa' || p.status === 'cancelada') for (const a of document.querySelectorAll('a[href="/entrar"]')) a.classList.add('oculto');
+  // Encerrado: o admin pode pedir uma cópia dos dados ou a exclusão antecipada.
+  if (p.status === 'cancelada') $('ld-aviso').insertAdjacentHTML('beforeend', ' <a href="/encerramento">Pedir cópia ou exclusão dos dados</a>');
 }
 if (p.multiempresa && !p.landing) for (const id of ['sec-chamadas', 'sec-regras', 'sec-tarefas', 'como-usar']) $(id).classList.add('oculto');
 

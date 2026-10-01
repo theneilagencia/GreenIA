@@ -14,6 +14,7 @@ import { auditar } from './auditoria.js';
 import { lerAjuste, salvarAjuste } from './db.js';
 import { roleDeSistema, acharRoleDaEmpresa, permissoesDaRole, ehAdminPlataforma } from './rbac.js';
 import { encerrarAcessosAbertos } from './acessos.js';
+import { gravarManifesto, PRAZOS_PADRAO } from '../retencao.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
 export const STATUS_EMPRESA = { em_implantacao: 'Em implantação', ativa: 'Ativa', suspensa: 'Suspensa', cancelada: 'Cancelada' };
@@ -509,7 +510,8 @@ export function exportarEmpresa(P, companyId) {
 }
 
 // Exclusão definitiva: só de empresa cancelada, com o slug digitado como confirmação.
-// Antes de apagar, guarda uma cópia em dados/excluidas (a menos que a plataforma rode em memória).
+// Antes de apagar, guarda uma cópia em dados/excluidas (a menos que a plataforma rode em memória), com manifesto:
+// a cópia é de recuperação e expira no prazo da política de retenção (src/retencao.js, 30 dias por padrão).
 export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
   const c = exigirEmpresa(P, companyId);
   if (c.status !== 'cancelada') throw erro(409, 'status', 'Cancele a empresa antes de excluir. A exclusão só vale para ambientes cancelados.');
@@ -522,6 +524,8 @@ export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
     const { nome, dados } = exportarEmpresa(P, companyId);
     copia = join(pasta, `${companyId}-${nome}`);
     writeFileSync(copia, dados);
+    const dias = P.retencao?.excluidasDias ?? PRAZOS_PADRAO.excluidasDias;
+    gravarManifesto(copia, { companyId, excluida_em: P.agora().toISOString(), expira_em: new Date(P.agora().getTime() + dias * 864e5).toISOString(), motivo: 'exclusao_definitiva' });
   }
   const t = P.tenants.get(companyId);
   if (t) { try { t.db.close(); } catch { /* já fechado */ } P.tenants.delete(companyId); }
@@ -534,5 +538,5 @@ export function excluirEmpresa(P, companyId, confirmacao, ator, origem) {
   });
   if (c.banco !== ':memory:') for (const s of ['', '-wal', '-shm']) rmSync(c.banco + s, { force: true });
   auditar(P, { usuario: ator, empresa: companyId, acao: 'company.deleted', entidade: 'company', id: companyId, antes: resumo, depois: { copia }, origem });
-  return { ok: true, copia };
+  return { ok: true, copia, expiraEmDias: copia ? (P.retencao?.excluidasDias ?? PRAZOS_PADRAO.excluidasDias) : null };
 }

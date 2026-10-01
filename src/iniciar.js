@@ -4,7 +4,7 @@ import { conferirChave, impressaoChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { criarPlataforma, origemChaveOpenRouter } from './plataforma/servidor.js';
 import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
 import { criarApp } from './servidor.js';
@@ -13,8 +13,22 @@ import { criarIndisponivel, criarOpenRouter, criarSimulada } from './ia.js';
 import { atualizarCatalogo } from './modelos.js';
 import { apagarVencidas } from './conversas.js';
 import { agendarBackup, fazerBackup } from './backup.js';
+import { consolidarWal, todos } from './db.js';
+import { registrar } from './eventos.js';
+import { auditar } from './plataforma/auditoria.js';
+import { prazosDe, rodadaRetencao } from './retencao.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
+
+// S3 só com regra de expiração declarada no bucket (S3_LIFECYCLE_DIAS de 1 a 7), igual ou menor que a retenção
+// local: sem isso, as cópias no S3 ficariam sem prazo (docs/politica-retencao.md). A regra é configurada no bucket.
+export function destinoS3(env, log = () => {}) {
+  if (!env.BACKUP_DESTINO) return undefined;
+  const dias = Number(env.S3_LIFECYCLE_DIAS);
+  if (Number.isInteger(dias) && dias >= 1 && dias <= 7) return env.BACKUP_DESTINO;
+  log('ATENÇÃO: BACKUP_DESTINO ignorado: declare em S3_LIFECYCLE_DIAS (1 a 7) a expiração configurada no bucket. Sem ela, as cópias no S3 não teriam prazo.');
+  return undefined;
+}
 
 export async function iniciar(env = process.env) {
   if (env.MULTIEMPRESA === '1') return iniciarPlataforma(env);
@@ -44,7 +58,11 @@ export async function iniciar(env = process.env) {
   if (env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length < 24) app.log('ATENÇÃO: OPERADOR_TOKEN com menos de 24 caracteres foi ignorado.');
   if (env.OPENROUTER_API_KEY) tarefa(() => atualizarCatalogo(app), 24 * 3600e3);
   // Backup diário opcional (BACKUP_HORA=03:00).
-  if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: env.BACKUP_DESTINO, manter: Number(env.BACKUP_MANTER || 14), env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
+  if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: destinoS3(env, app.log), manter: Number(env.BACKUP_MANTER || 14), env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
+  // Retenção das cópias e consolidação do WAL, de hora em hora (docs/politica-retencao.md).
+  const banco = env.BANCO || 'dados/greenia.sqlite';
+  tarefa(() => rodadaRetencao({ dados: dirname(banco), bancos: { dbs: [app.db], arquivos: [banco] }, prazos: prazosDe(env), aplicar: env.RETENCAO_APLICAR === '1',
+    log: app.log, auditar: (acao, dados) => registrar(app, acao, null, dados), consolidar: consolidarWal }), 3600e3);
   const porta = Number(env.PORTA || env.PORT || 8080);   // PORT: definida por plataformas como o Render
   app.servidor.listen(porta, env.HOST || '0.0.0.0', () => app.log(`GreenIA Lite em http://localhost:${porta}`));
   const parar = () => { app.servidor.close(); app.db.close(); process.exit(0); };
@@ -85,6 +103,12 @@ export async function iniciarPlataforma(env = process.env) {
   const tarefa = (fn, ms) => { const t = () => Promise.resolve().then(fn).catch(e => P.log('tarefa', e.message)); t(); setInterval(t, ms).unref(); };
   const todas = fn => () => Promise.all([...P.tenants.values()].map(t => Promise.resolve().then(() => fn(t)).catch(e => P.log('tarefa', e.message))));
   tarefa(todas(apagarVencidas), 3600e3);
+  // Retenção das cópias e consolidação do WAL de todos os bancos, de hora em hora (docs/politica-retencao.md).
+  P.retencao = prazosDe(env);
+  const dadosRaiz = dirname(env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite');
+  tarefa(() => rodadaRetencao({ dados: dadosRaiz, prazos: P.retencao, aplicar: env.RETENCAO_APLICAR === '1', log: P.log, consolidar: consolidarWal,
+    bancos: { dbs: [P.db, ...[...P.tenants.values()].map(t => t.db)], arquivos: [env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', ...todos(P.db, 'select banco from companies').map(x => x.banco)] },
+    auditar: (acao, d) => auditar(P, { acao, entidade: 'retention', id: d.caminho || null, depois: d, origem: { painel: 'retencao' } }) }), 3600e3);
   tarefa(todas(t => t.plano && verificarAvisos(t)), 3600e3);
   // Domínios próprios ainda não confirmados: confere o DNS a cada 30 minutos.
   tarefa(async () => { for (const id of pendentes(P)) await verificarDominio(P, id); }, 1800e3);
@@ -107,7 +131,7 @@ export async function iniciarPlataforma(env = process.env) {
       const agora = new Date();
       if (agora.toTimeString().slice(0, 5) !== env.BACKUP_HORA || ultimo === agora.toDateString()) return;
       ultimo = agora.toDateString();
-      const op = { destino: env.BACKUP_DESTINO, manter: Number(env.BACKUP_MANTER || 14), env };
+      const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), env };
       try { await fazerBackup(P.db, { ...op, pasta: join(pasta, 'plataforma'), destino: op.destino && `${op.destino.replace(/\/$/, '')}/plataforma` }); } catch (e) { P.log('backup da plataforma falhou', e.message); }
       for (const [id, t] of P.tenants) {
         try { await fazerBackup(t.db, { ...op, pasta: join(pasta, id), destino: op.destino && `${op.destino.replace(/\/$/, '')}/${id}` }); } catch (e) { P.log(`backup da empresa ${id} falhou`, e.message); }

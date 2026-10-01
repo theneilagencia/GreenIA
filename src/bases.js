@@ -1,7 +1,7 @@
 // Bases de conhecimento: documentos por área ou da empresa toda. O texto é
 // extraído no envio e indexado para a busca.
 import { erro } from './http.js';
-import { exec, todos, um } from './db.js';
+import { consolidarWal, exec, todos, um } from './db.js';
 import { registrar } from './eventos.js';
 import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
@@ -126,6 +126,7 @@ export function rotasBases(app, r) {
     desindexar(app.db, d.id);
     exec(app.db, 'delete from documentos where id = ?', d.id);
     registrar(app, 'knowledge.removed', pessoa.id, { documento: d.id });
+    consolidarWal(app.db);
     return { ok: true };
   });
 }

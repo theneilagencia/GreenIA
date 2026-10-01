@@ -147,7 +147,8 @@ O banco fica no volume `dados` e a estrutura é atualizada sozinha na subida. Fa
 
 ## Backup e restauração
 
-- **Automático.** Com `BACKUP_HORA=06:00` no `.env`, o próprio processo faz um backup por dia (horário UTC no contêiner). Os arquivos ficam em `dados/backups`, e são guardados os últimos `BACKUP_MANTER` (padrão 14). Com `BACKUP_DESTINO=s3://bucket/pasta` e as variáveis `S3_*`, cada backup também vai para um armazenamento compatível com S3 (AWS S3, Cloudflare R2, Backblaze B2, Magalu Cloud, MinIO). Sucesso e falha ficam no registro de eventos.
+- **Automático.** Com `BACKUP_HORA=06:00` no `.env`, o próprio processo faz um backup por dia (horário UTC no contêiner). Os arquivos ficam em `dados/backups`, e são guardados os últimos `BACKUP_MANTER` (padrão 14). Com `BACKUP_DESTINO=s3://bucket/pasta` e as variáveis `S3_*`, cada backup também vai para um armazenamento compatível com S3 (AWS S3, Cloudflare R2, Backblaze B2, Magalu Cloud, MinIO). Sucesso e falha ficam no registro de eventos. O S3 só é usado com `S3_LIFECYCLE_DIAS` (1 a 7) declarando a expiração configurada no bucket.
+- **Retenção.** Prazos por camada, limpeza de hora em hora (dry-run até `RETENCAO_APLICAR=1`), hold e backups manuais: veja `docs/politica-retencao.md` e `node scripts/retencao.js plano`.
 - **Manual,** com o servidor no ar: `docker compose exec greenia node scripts/backup.js`.
 - **O backup é uma cópia consistente** (`VACUUM INTO`) compactada com gzip. Não é preciso parar nada para fazer.
 - **Restaurar:**

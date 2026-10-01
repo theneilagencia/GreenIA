@@ -225,7 +225,7 @@ async function abaResumo(d, id) {
   $('excluir-empresa')?.addEventListener('click', async () => {
     const conf = prompt(`A exclusão apaga o ambiente e o banco da empresa. Uma cópia fica guardada no servidor.\n\nPara confirmar, digite o identificador: ${e.slug}`);
     if (conf === null) return;
-    try { await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: conf } }); toast('Empresa excluída. A cópia do banco ficou guardada em dados/excluidas.'); location.hash = '#/empresas'; } catch (x) { falhar(x); }
+    try { const r = await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: conf } }); toast(r.copia ? `Empresa excluída. A cópia de recuperação fica guardada por ${r.expiraEmDias} dias e depois é eliminada.` : 'Empresa excluída.', 7000); location.hash = '#/empresas'; } catch (x) { falhar(x); }
   });
   $('exportar-empresa').onclick = () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar',
     explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas. Ela fica registrada, com o motivo, na tela "Acessos da equipe de operação" da empresa, e os admins dela recebem um aviso por email.',

@@ -3,7 +3,7 @@
 // usados pelo time em conversas próprias, com feedback e medição.
 import { readFileSync } from 'node:fs';
 import { erro } from './http.js';
-import { exec, json, todos, transacao, um } from './db.js';
+import { consolidarWal, exec, json, todos, transacao, um } from './db.js';
 import { acoesDoQuickWin, lerConfig, TIPOS_DADO } from './config.js';
 import { ACOES } from './filtro.js';
 import { registrar } from './eventos.js';
@@ -416,6 +416,7 @@ export function rotasQuickWins(app, r) {
     for (const d of todos(app.db, 'select id from documentos where quick_win_id = ?', q.id)) desindexar(app.db, d.id);
     exec(app.db, 'delete from quick_wins where id = ?', q.id);
     registrar(app, 'quickwin.deleted', pessoa.id, { quick_win: q.id });
+    consolidarWal(app.db);
     return { ok: true };
   });
 
@@ -436,6 +437,7 @@ export function rotasQuickWins(app, r) {
     desindexar(app.db, d.id);
     exec(app.db, 'delete from documentos where id = ?', d.id);
     registrar(app, 'knowledge.removed', pessoa.id, { quick_win: q.id, documento: d.id });
+    consolidarWal(app.db);
     return publico(app.db, pessoa, q);
   });
 

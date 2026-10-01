@@ -1,7 +1,7 @@
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
-import { exec, json, todos, um } from './db.js';
+import { consolidarWal, exec, json, todos, um } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, origensComCredencial, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
@@ -233,6 +233,7 @@ export function rotasConversas(app, r) {
     const conv = minhaConversa(app, pessoa, params.id);
     exec(app.db, 'delete from conversas where id = ?', conv.id);
     registrar(app, 'conversation.deleted', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, por: 'pessoa' });
+    consolidarWal(app.db);   // o conteúdo apagado sai também do WAL
     return { ok: true };
   });
 
@@ -640,5 +641,6 @@ export function apagarVencidas(app) {
     exec(app.db, 'delete from conversas where id = ?', c.id);
     registrar(app, 'conversation.deleted', c.pessoa_id, { conversa: c.id, quick_win: c.quick_win_id, por: 'retencao' });
   }
+  if (vencidas.length) consolidarWal(app.db);
   return vencidas.length;
 }

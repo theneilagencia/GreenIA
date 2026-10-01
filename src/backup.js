@@ -93,7 +93,11 @@ export async function restaurar(origem, banco, { env = process.env } = {}) {
   let resumo;
   try { resumo = conferir(temp); } catch (e) { rmSync(temp, { force: true }); throw e; }
   let anterior = null;
-  if (existsSync(banco) && statSync(banco).size > 0) { anterior = `${banco}.antes-da-restauracao`; renameSync(banco, anterior); }
+  if (existsSync(banco) && statSync(banco).size > 0) {
+    anterior = `${banco}.antes-da-restauracao`; renameSync(banco, anterior);
+    // Manifesto: a cópia anterior expira no prazo de backup manual da política de retenção (src/retencao.js).
+    writeFileSync(`${anterior}.json`, JSON.stringify({ tipo: 'antes-da-restauracao', criado_em: new Date().toISOString(), origem: basename(origem) }, null, 2) + '\n');
+  }
   for (const s of ['-wal', '-shm']) rmSync(banco + s, { force: true });
   renameSync(temp, banco);
   return { ...resumo, anterior };

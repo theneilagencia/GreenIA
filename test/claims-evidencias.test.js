@@ -25,7 +25,7 @@ const bytesDe = sufixo => readdirSync(pasta).filter(f => f === `empresa.sqlite${
 
 // Sustenta a copy exata (LP-FAQ-09, LP-INFRA-02): o conteúdo sai do banco e o espaço é zerado no arquivo principal,
 // mas o arquivo de gravação ainda o tem até ser reaproveitado; por isso a página não promete "nenhuma cópia".
-test('conversa apagada: o conteúdo sai do banco e é zerado no arquivo principal; antes da consolidação, o arquivo temporário ainda o tem', async () => {
+test('conversa apagada: o conteúdo sai do banco, é zerado no arquivo principal e o arquivo temporário (WAL) é consolidado e truncado na hora', async () => {
   const marca = 'MARCADOR-UNICO-7F3A9C conteudo da conversa';
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   assert.equal((await enviarMensagem(ana, conv.id, { texto: `Resuma: ${marca}` })).status, 200);
@@ -33,11 +33,9 @@ test('conversa apagada: o conteúdo sai do banco e é zerado no arquivo principa
   assert.ok(bytesDe('').includes('MARCADOR-UNICO-7F3A9C'), 'antes de apagar, o conteúdo está no arquivo principal');
   assert.equal((await ana.del(`/api/conversas/${conv.id}`)).status, 200);
   assert.equal(S.app.db.prepare("select count(*) as n from mensagens where texto like '%MARCADOR-UNICO-7F3A9C%'").get().n, 0, 'fora do banco na hora');
-  S.app.db.exec('pragma wal_checkpoint(passive)');
-  assert.ok(!bytesDe('').includes('MARCADOR-UNICO-7F3A9C'), 'depois da consolidação, nenhum byte do conteúdo fica no arquivo principal');
-  assert.ok(bytesDe('-wal').includes('MARCADOR-UNICO-7F3A9C'), 'o arquivo de gravação ainda tem o conteúdo até ser reaproveitado');
-  S.app.db.exec('pragma wal_checkpoint(truncate)');
-  assert.ok(!bytesDe('').includes('MARCADOR-UNICO-7F3A9C') && !bytesDe('-wal').includes('MARCADOR-UNICO-7F3A9C'), 'reaproveitado o arquivo de gravação, o conteúdo some do disco');
+  // Sem nenhuma ação extra: a exclusão já consolida o WAL no banco (zerado por secure_delete) e trunca o arquivo.
+  assert.ok(!bytesDe('').includes('MARCADOR-UNICO-7F3A9C'), 'nenhum byte do conteúdo fica no arquivo principal');
+  assert.ok(!bytesDe('-wal').includes('MARCADOR-UNICO-7F3A9C'), 'nem no arquivo de gravação (WAL)');
 });
 
 test('Visão geral: envio bloqueado pelas regras de dados aparece como ponto de atenção, sem o conteúdo', async () => {

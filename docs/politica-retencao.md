@@ -1,0 +1,91 @@
+# Política de retenção de dados e cópias
+
+Responde: **depois que um dado é apagado no ambiente ativo, por quanto tempo ele ainda pode existir em cópias?**
+Base: inventário de produção de 2026-10-01 (Render Shell) e o painel do serviço `greenia` no Render.
+
+## Prazos por camada
+
+| Camada | Regra | Prazo da camada | Como é aplicado |
+|---|---|---|---|
+| Banco em uso | A exclusão (pessoa, retenção da empresa, documento, quick win) apaga a linha; `secure_delete` zera as páginas | Imediato | `src/db.js` (`secure_delete = on`) |
+| WAL / SHM | A exclusão consolida o WAL no banco e trunca o arquivo `-wal`; uma rodada de hora em hora consolida todos os bancos | Imediato após a exclusão; no máximo 1 hora, se o checkpoint estiver ocupado | `consolidarWal` (`pragma wal_checkpoint(TRUNCATE)`), sem VACUUM |
+| Backup automático | Diário, um arquivo por banco; ficam no máximo 7 cópias por banco e nenhuma com mais de 7 dias | 7 dias (+ até 1 hora da rodada) | `fazerBackup` (contagem) + `src/retencao.js` (idade) |
+| Snapshot do Render | Do provedor: captura a cada 24 h, disponível por 7 dias após a captura, imagem do disco inteiro | 7 dias após a captura | Painel do serviço (não configurável pelo código) |
+| Backup manual | Pasta em `dados/backups` com `backup.json` (tipo, criação, motivo) | 30 dias desde a criação | `src/retencao.js`; criação por `node scripts/retencao.js manual` |
+| Cópia de empresa excluída | `dados/excluidas/<empresa>-….sqlite.gz` com manifesto `….json` (excluída em, expira em) | 30 dias desde a exclusão (período de recuperação) | `excluirEmpresa` + `src/retencao.js` |
+| Cópia anterior a uma restauração | `*.antes-da-restauracao` com manifesto | 30 dias | `restaurar` + `src/retencao.js` |
+| S3 | **Inativo** em produção (nenhuma variável `BACKUP_DESTINO`/`S3_*`) | — | Não pode ser ligado sem regra de expiração (lifecycle) no bucket igual ou menor que 7 dias |
+| Hold | `HOLD.json` (pasta) ou `<arquivo>.hold.json`: motivo, responsável, data e revisão opcional | Até ser liberado | Fora da limpeza; aparece no plano como "manter (hold)" |
+
+## Quanto tempo um dado apagado ainda pode existir
+
+As cópias se somam: o snapshot do provedor copia o disco inteiro, **inclusive os backups locais**. Um dado apagado
+no instante *t* pode estar:
+
+| Onde | Até |
+|---|---|
+| Na aplicação | Some em *t* |
+| No banco em uso e no WAL | *t* (no máximo *t* + 1 h) |
+| Em snapshot do disco ativo | *t* + 7 dias |
+| Em backup automático | *t* + 7 dias + 1 h |
+| Em snapshot que contém esse backup | *t* + 14 dias + 1 h → **até 15 dias** |
+| Em backup manual ou cópia de empresa excluída, e no snapshot que o contém | *t* + 30 dias + 1 h + 7 dias → **até 38 dias** |
+| Em hold | Enquanto o hold durar, com motivo registrado |
+
+Valem só com a limpeza ligada em produção (`RETENCAO_APLICAR=1`) e sem item "sem classificação" no plano.
+
+## Por que estes prazos
+
+- **7 dias (automático):** cobre a recuperação de desastre do dia a dia (erro operacional, corrupção, exclusão
+  indevida percebida em dias) e casa com os snapshots do provedor. Passar a regra de "7 arquivos" para "7 arquivos
+  e no máximo 7 dias" fecha o caso em que um dia sem backup estica o prazo.
+- **30 dias (manual):** cobre a janela de rollback e validação de release e migração (a primeira semana concentra
+  os problemas; 30 dias dá folga para conferências de fechamento de mês). Além disso, restaurar uma cópia completa
+  antiga apaga o que foi feito depois, e a utilidade cai muito. O que precisar de mais tempo (incidente, pedido
+  legal) vai para hold, com motivo.
+- **30 dias (empresa excluída):** período de recuperação depois da exclusão definitiva (exclusão por engano,
+  pedido de devolução dos dados). Os Termos e a Política de Privacidade precisam dizer isso (Etapas 4 e 5).
+- **WAL:** não há motivo operacional para conteúdo apagado ficar no arquivo de gravação; o checkpoint é do próprio
+  SQLite, não reescreve o banco e devolve "ocupado" em vez de bloquear.
+
+## Limpeza: dry-run, aplicação, logs e proteções
+
+- **Rodada de hora em hora** no servidor (os dois modos, multiempresa e instalação única): consolida o WAL de
+  todos os bancos abertos e monta o plano de limpeza.
+  - Sem `RETENCAO_APLICAR=1`: só registra no log o que faria (dry-run).
+  - Com `RETENCAO_APLICAR=1`: apaga o que venceu e grava `retention.deleted` (por item) e `retention.run`
+    (resumo) na auditoria da plataforma.
+- **Linha de comando:** `node scripts/retencao.js plano | aplicar --confirmar | hold | liberar | classificar | manual`.
+- **Proteções:**
+  - age só em `dados/backups`, `dados/excluidas` e nas cópias `*.antes-da-restauracao`;
+  - nunca toca nos bancos em uso, nem nos `-wal`/`-shm` deles, nem em `.chave-mestra`;
+  - ignora links simbólicos;
+  - pasta manual sem `backup.json`, hold inválido e arquivo fora do padrão viram **alerta** e nunca são apagados;
+  - cada item é conferido de novo antes de apagar: um hold criado depois do plano é respeitado;
+  - a operação é idempotente.
+- **Logs e auditoria:** só caminho, camada, tamanho, data de criação, idade e motivo. Nunca conteúdo.
+- **Alerta de backup atrasado:** quando o backup automático mais novo de um banco tem mais de 26 horas.
+
+## Backups existentes em produção (proposta de classificação)
+
+| Item | Proposta | Efeito |
+|---|---|---|
+| `dados/backups/pre-deploy-20260930T164609/` | `classificar --criado-em 2026-09-30T16:46:09Z --tipo pre-deploy` | Expira em 2026-10-30 |
+| `dados/backups/pre-release-b105df1-20260930T194342/` | `classificar --criado-em 2026-09-30T19:43:42Z --tipo pre-release` (ou `hold`, se você quiser preservar além de 30 dias) | Expira em 2026-10-30, salvo hold. O `audit_log` da migração já guarda o valor anterior de cada campo |
+| `dados/backups/greenia-20260927-060019.sqlite.gz` | Regra automática (padrão de nome) | Apagado na primeira aplicação (idade > 7 dias). É a cópia da instalação única anterior à multiempresa; os dados dela estão no banco em uso |
+| Automáticos por banco (`plataforma/`, `emp_*/`) | Regra automática | Ficam no máximo 7 por banco e 7 dias |
+
+Até a classificação, as duas pastas aparecem como "sem classificação" e não são apagadas.
+
+## Riscos residuais
+
+- **Blocos liberados no disco físico** do provedor (de arquivos apagados ou do WAL truncado) podem conter dados até
+  serem reutilizados. Não são acessíveis pela aplicação nem pelo sistema de arquivos, mas podem fazer parte da
+  imagem de snapshot.
+- **Exportações feitas pela equipe de operação** (arquivo baixado) saem do disco do serviço e não seguem esta
+  política. Ficam registradas em "Acessos da equipe de operação"; o destino é responsabilidade de quem pediu.
+- **Registros de atividade, consumo e auditoria** (sem conteúdo de conversa, com metadados e justificativas de
+  acesso) não têm prazo de eliminação nesta etapa.
+- **A rodada depende do processo no ar.** Fora do ar, a limpeza atrasa até voltar (o snapshot do provedor segue o
+  próprio prazo).
+- **Hold sem revisão** pode durar indefinidamente: o plano mostra o motivo, o responsável e a data de revisão.

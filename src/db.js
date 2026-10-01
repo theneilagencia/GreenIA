@@ -149,6 +149,14 @@ create table if not exists uso (
   economia real not null default 0, ms integer, sigilosa integer not null default 0, teste integer not null default 0);
 `;
 
+// Consolida o WAL no banco e trunca o arquivo -wal: o conteúdo apagado (já zerado no banco por secure_delete)
+// deixa de existir também no WAL. Seguro com o servidor no ar: o checkpoint é do próprio SQLite e, se houver
+// leitura em andamento, ele devolve busy e a próxima rodada completa. Não reescreve o banco (não é VACUUM).
+export function consolidarWal(db) {
+  try { const r = db.prepare('pragma wal_checkpoint(TRUNCATE)').get(); return { ok: !r.busy, ...r }; }
+  catch (e) { return { ok: false, erro: e.message }; }
+}
+
 export function abrirBanco(arquivo = ':memory:') {
   if (arquivo !== ':memory:') mkdirSync(dirname(arquivo), { recursive: true });
   const db = new DatabaseSync(arquivo);

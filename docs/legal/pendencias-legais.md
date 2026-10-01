@@ -19,35 +19,22 @@ publicada). A aprovação jurídica está registrada em `docs/legal/aprovacao-ju
 | Aviso de alterações (N) | 30 dias por email aos administradores; exceções urgentes (segurança, obrigação legal, risco operacional) | Termos 26; Política 21 | Procedimento (envio aos admins existe; registro de aviso por destinatário é arquitetura futura) |
 | Hierarquia Termos × contrato, créditos, fornecedores, terceiros, confidencialidade, SLA, usos proibidos, licença, suporte | Texto existente aprovado | Termos 3.2, 10.2, 11, 12.3, 19, 20, 21, 22 | — |
 
-## 2. Textos aprovados que ainda precisam ser registrados nos documentos
+## 2. Cláusulas com texto entregue pela TheNeil
 
-A aprovação existe, mas o texto aprovado destes pontos não foi entregue para registro. Eles aparecem nos documentos como
-**[PENDENTE DE REGISTRO DA APROVAÇÃO]** e impedem a publicação até serem preenchidos com o texto aprovado (sem nova
-decisão jurídica).
+Inseridas sem alteração de sentido: Termos 14.2, 23.1, 24.2, 25.7 e 27.1; Política 7.3, 16.3 e 18.
 
-| Documento | Ponto |
+## 3. Pendências
+
+Nenhuma pendência factual ou de registro nos documentos. Fechados em 1º de outubro de 2026:
+
+| Item | Resolução |
 |---|---|
-| Termos 14.2 | Prazo e forma de comunicação de incidentes de segurança ao Cliente |
-| Termos 23.1 | Hipóteses de suspensão e aviso prévio |
-| Termos 24.2 | Prazos de aviso, multa e efeitos financeiros do encerramento |
-| Termos 25.7 | Limitação de responsabilidade |
-| Termos 27.1 | Lei aplicável e foro |
-| Política 7.3 | Mecanismo de transferência internacional e instrumentos com Cliente e fornecedores |
-| Política 16.3 | Procedimento e prazo de resposta aos titulares |
-| Política 16.3 | Verificação de identidade |
-| Política 18 | Prazo de comunicação ao Cliente, processo e responsabilidades em incidentes |
-
-## 3. Pendências factuais (operacionais e institucionais)
-
-Marcadas nos documentos como **[PENDÊNCIA FACTUAL]**.
-
-| Item | Onde | Estado | O que fecha |
-|---|---|---|---|
-| Endereço oficial da TheNeil | Termos 1; Política 1; rodapé da LP | Documentos com Rua G, nº 277, Montserrat, Betim/MG; site institucional com endereço em Belo Horizonte | Cartão CNPJ |
-| Grafia do encarregado | Política 1 e 16.3; rodapé da LP | "Vinicius Guimaraes", como informado | Documento oficial |
-| Provedor de email da plataforma | Política 13 e 19 | Não identificado | Nomes das variáveis no Render Shell e tela "Email da plataforma" do console |
-| Conta da TheNeil no OpenRouter | Política 6.5 | Lado público levantado; conta não verificada | Painel da conta: tipo, registro de pedidos, ZDR, treino, DPA aplicável |
-| Região do Render | Política 7.1 e 19 | **Fechado:** Virginia (US East), pelo painel | — |
+| Endereço oficial | Rua Bernardo Guimarães, 245, Funcionários, Belo Horizonte/MG (informado pela TheNeil) |
+| Grafia do encarregado | Vinicius Guimarães (informado pela TheNeil) |
+| Região do Render | Virginia (US East), confirmada no painel |
+| Provedor de email | Descrito de forma genérica ("provedor de envio de email"); nome não exigido |
+| Conta da TheNeil no OpenRouter | Não é bloqueio; os documentos não afirmam configuração específica da conta |
+| Metadados da aprovação | Não exigidos (decisão da TheNeil); ver `aprovacao-juridica.md` |
 
 ## 4. Mapa de transferências
 
@@ -56,7 +43,7 @@ Marcadas nos documentos como **[PENDÊNCIA FACTUAL]**.
 | Render (EUA, Virgínia) | Todo o armazenamento: bancos, backups, cópias diárias do disco, cópias de exportação, logs | Permanente enquanto houver serviço |
 | OpenRouter (EUA ou outros países, pela política pública dele) | Conteúdo de cada pedido à IA | A cada pedido |
 | Fabricantes dos modelos (conforme cada fabricante) | Conteúdo de cada pedido, via OpenRouter | A cada pedido |
-| Provedor de email (a identificar) | Destinatário e conteúdo do email (códigos, avisos, relatos, links de devolução) | A cada email |
+| Provedor de envio de email | Destinatário e conteúdo do email (códigos, avisos, relatos, links de devolução) | A cada email |
 
 ## 5. Matriz de retenção
 
@@ -83,8 +70,6 @@ Os prazos são o pior caso das cópias geridas pela plataforma e pelo provedor, 
 
 ## 6. Condições de publicação
 
-1. Os nove textos aprovados da seção 2 registrados nos documentos.
-2. As pendências factuais da seção 3 fechadas.
-3. Deploy do release candidato, com `RETENCAO_APLICAR=1` e `EXCLUSAO_APLICAR=1` ativados depois do dry-run.
-4. `docs/legal/estado.json` com `publicado: true` e `node scripts/gerar-legais.js`. Aí as páginas perdem o `noindex` e a
-   faixa de versão candidata.
+1. Deploy da versão candidata. Os documentos vão ao ar com ela (`docs/legal/estado.json`: `publicado: true`).
+2. `RETENCAO_APLICAR=1` e `EXCLUSAO_APLICAR=1` ativados depois do dry-run e **antes de 30 de novembro de 2026**, início da
+   vigência. Antes disso, os prazos descritos nos documentos ainda não estão em vigor.

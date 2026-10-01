@@ -10,7 +10,7 @@ import { subirPlataforma } from './ajuda-plataforma.js';
 const raiz = new URL('../', import.meta.url).pathname;
 const ler = p => readFileSync(raiz + p, 'utf8');
 const semTags = h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-const IDENTIDADE = ['NEIL INOVAÇÃO E TECNOLOGIA LTDA', '37.749.373/0001-70', 'Rua G, nº 277, Montserrat, Betim/MG', 'hello@theneil.com.br', 'Vinicius Guimaraes'];
+const IDENTIDADE = ['NEIL INOVAÇÃO E TECNOLOGIA LTDA', '37.749.373/0001-70', 'Rua Bernardo Guimarães, 245, Funcionários, Belo Horizonte/MG', 'hello@theneil.com.br', 'Vinicius Guimarães'];
 
 let V, P;
 before(async () => { V = await subir({ paginaInicial: 'vendas' }); P = await subirPlataforma({ paginaInicial: 'vendas' }); });
@@ -44,7 +44,7 @@ test('identificação legal igual no rodapé da LP, nos Termos e na Política', 
   for (const x of IDENTIDADE.slice(0, 4)) assert.ok(ler('docs/legal/termos-de-uso.md').includes(x), `Termos sem: ${x}`);
   assert.match(ler('public/vendas.html'), /href="\/termos">Termos de Uso</);
   assert.match(ler('public/vendas.html'), /href="\/privacidade">Política de Privacidade</);
-  assert.doesNotMatch(lp, /Bernardo Guimarães/, 'endereço do site institucional não é a sede');
+  assert.doesNotMatch(lp + ler('docs/legal/termos-de-uso.md') + ler('docs/legal/politica-de-privacidade.md'), /Betim|Montserrat|Rua G, nº 277|Vinicius Guimaraes/, 'endereço antigo e grafia sem acento não voltam');
 });
 
 test('LP: acesso da equipe sem aprovação prévia inventada; retenção sem prazo na página; nada de "equipe GreenIA" no app das empresas', () => {
@@ -85,14 +85,17 @@ test('termos e privacidade só no endereço canônico da plataforma; no endereç
   assert.equal((await emp.get('/api/eu')).status, 200);
 });
 
-test('versão final candidata: nenhuma marcação jurídica ou de governança; só pendências factuais ou de registro da aprovação', () => {
+test('versão final 1.0: sem marcação de pendência, rascunho ou texto interno; vigência de 30/11/2026; publicação marcada', () => {
   for (const d of DOCUMENTOS) {
     const t = ler(d.md);
-    assert.doesNotMatch(t, /\[PENDÊNCIA (JURÍDICA|DE GOVERNANÇA|PARA APROVAÇÃO)/, d.md);
-    assert.doesNotMatch(t, /RASCUNHO|aguardando validação jurídica|proposta para (validação|revisão) jurídica/i, d.md);
+    assert.doesNotMatch(t, /\[(PENDÊNCIA|PENDENTE|DADO DA)/, d.md);
+    assert.doesNotMatch(t, /RASCUNHO|aguardando|(^|\s)a confirmar|grafia|proposta para (validação|revisão) jurídica|não comprovad/i, d.md);
     assert.match(t, /Versão 1\.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro de 2026/, d.md);
-    for (const m of t.match(/\[(PENDÊNCIA|PENDENTE)[^\]]*\]/g) || []) assert.match(m, /^\[(PENDÊNCIA FACTUAL|PENDENTE DE REGISTRO DA APROVAÇÃO):/, m);
+    const h = ler(d.html);
+    assert.match(h, /<meta name="robots" content="index">/, `${d.html}: indexável na versão de release`);
+    assert.doesNotMatch(h, /Versão final candidata|Rascunho/, d.html);
   }
+  assert.equal(publicado(), true);
   assert.doesNotMatch(ler('docs/legal/politica-de-privacidade.md') + ler('docs/legal/termos-de-uso.md') + ler('public/vendas.html') + ler('docs/claims-lp.md'), /n[ãa]o vende|nunca vende/i, 'sem "não vende dados"');
 });
 
@@ -103,5 +106,5 @@ test('registro da aprovação: o hash anotado bate com os documentos (mudou o te
     const h = createHash('sha256').update(readFileSync(raiz + d.md)).digest('hex');
     assert.match(reg, new RegExp(`\`${d.md}\` \\| 1\\.0, .*\`${h}\``), `${d.md}: hash registrado desatualizado`);
   }
-  assert.match(reg, /Quem aprovou \| (PENDENTE DE REGISTRO DA APROVAÇÃO|\S)/);
+  assert.match(reg, /\*\*Aprovado\*\*/);
 });

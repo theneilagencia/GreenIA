@@ -5,7 +5,7 @@ Versão 1.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro d
 ## 1. Quem opera a GreenIA
 
 A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA**, pessoa jurídica de direito privado, inscrita no CNPJ
-sob o nº **37.749.373/0001-70**, com sede na Rua G, nº 277, Montserrat, Betim/MG [PENDÊNCIA FACTUAL: endereço conforme o cartão CNPJ], doravante "TheNeil".
+sob o nº **37.749.373/0001-70**, com sede na Rua Bernardo Guimarães, 245, Funcionários, Belo Horizonte/MG, doravante "TheNeil".
 Contato oficial: hello@theneil.com.br · www.theneil.com.br.
 
 ## 2. Definições
@@ -195,8 +195,7 @@ resposta não entram no histórico nem no banco.
 - exclusão com zeragem do espaço no banco em uso;
 - cópias de segurança com prazo.
 
-14.2. Nenhum sistema é imune a falhas ou incidentes. A TheNeil não garante segurança absoluta. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado sobre o prazo e a forma de
-comunicação de incidentes de segurança ao Cliente.]
+14.2. A TheNeil adota medidas técnicas e operacionais destinadas a proteger o ambiente da GreenIA, incluindo controle de acesso, isolamento entre Clientes, registros de auditoria, regras de proteção de dados e controles sobre acessos da equipe de operação. Essas medidas reduzem riscos, mas não constituem garantia de que incidentes, indisponibilidades, acessos indevidos ou outras falhas de segurança nunca ocorrerão.
 
 ## 15. Acesso da equipe de operação
 
@@ -294,9 +293,7 @@ informação sigilosa.
 
 ## 23. Suspensão
 
-23.1. O Ambiente pode ser suspenso:
-- [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado das hipóteses de suspensão e do aviso prévio];
-- a pedido do Cliente.
+23.1. A TheNeil poderá suspender o acesso ao ambiente quando necessário para proteger a segurança da plataforma, dos dados ou de terceiros, diante de uso incompatível com estes Termos, obrigação legal, risco operacional relevante ou inadimplemento aplicável à contratação. Sempre que razoavelmente possível, o Cliente será informado sobre a suspensão e sua causa, ressalvadas situações em que a comunicação possa ampliar o risco, comprometer uma investigação ou contrariar obrigação legal.
 
 23.2. Durante a suspensão, ninguém do Cliente entra no Ambiente, as sessões são encerradas e os dados continuam
 guardados.
@@ -306,8 +303,7 @@ guardados.
 24.1. Com o encerramento da contratação, o Ambiente é cancelado. O uso termina na hora, e os dados ficam preservados por
 30 dias corridos, durante os quais o Cliente pode pedir a devolução, e depois são excluídos (cláusula 17).
 
-24.2. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado sobre prazos de aviso, multa e efeitos financeiros do
-encerramento.]
+24.2. Após o cancelamento, o ambiente deixa de estar disponível para uso normal e permanece em janela de encerramento de 30 (trinta) dias corridos. Durante esse período, o Cliente poderá solicitar a devolução dos dados disponíveis no formato técnico suportado pela GreenIA ou requerer a exclusão antecipada, mediante autenticação e confirmação expressa, salvo quando houver obrigação legal, investigação de incidente ou outro motivo legítimo de preservação registrado. Encerrado o prazo, os dados seguem o processo de exclusão definitiva e os prazos aplicáveis às cópias de segurança descritos na Política de Privacidade.
 
 ## 25. Limitações do produto
 
@@ -324,7 +320,7 @@ base de conhecimento de cada área.
 
 25.6. Arquivos maiores que 25 MB não são aceitos.
 
-25.7. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado da limitação de responsabilidade.]
+25.7. A GreenIA depende de infraestrutura, modelos de inteligência artificial e outros serviços fornecidos por terceiros. A TheNeil não controla integralmente a disponibilidade, o funcionamento, as políticas ou as decisões técnicas desses fornecedores e não garante que respostas produzidas por modelos de inteligência artificial sejam completas, corretas ou adequadas a uma finalidade específica. O Cliente permanece responsável pela revisão e pelo uso das respostas em seus processos e decisões.
 
 ## 26. Alterações dos Termos
 
@@ -333,8 +329,8 @@ cadastrado, com 30 dias de antecedência, com a nova versão e a data de vigênc
 obrigação legal ou risco operacional, podem valer em prazo menor, informado no próprio aviso. A mesma regra vale para a
 Política de Privacidade.
 
-## 27. Lei aplicável, foro e contato
+## 27. Comunicações e contato
 
-27.1. [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado da lei aplicável e do foro.]
+27.1. Comunicações relacionadas à GreenIA, inclusive solicitações sobre suporte, privacidade e proteção de dados, poderão ser encaminhadas para hello@theneil.com.br. Para fins destes Termos, a TheNeil é NEIL INOVAÇÃO E TECNOLOGIA LTDA, CNPJ 37.749.373/0001-70, com endereço na Rua Bernardo Guimarães, 245, Funcionários, Belo Horizonte/MG.
 
 27.2. Contato: hello@theneil.com.br · www.theneil.com.br.

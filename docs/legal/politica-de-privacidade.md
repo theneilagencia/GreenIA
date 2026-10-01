@@ -6,11 +6,11 @@ Versão 1.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro d
 
 A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA** ("TheNeil", "nós"), pessoa jurídica de direito privado:
 - **CNPJ:** 37.749.373/0001-70
-- **Sede:** Rua G, nº 277, Montserrat, Betim/MG [PENDÊNCIA FACTUAL: endereço conforme o cartão CNPJ]
+- **Sede:** Rua Bernardo Guimarães, 245, Funcionários, Belo Horizonte/MG
 - **Contato:** hello@theneil.com.br · www.theneil.com.br
 - **Canal de privacidade e de atendimento aos titulares:** hello@theneil.com.br (privacidade, pedidos de titulares,
   contato com o encarregado e qualquer solicitação relacionada a dados pessoais)
-- **Encarregado pela proteção de dados (DPO):** Vinicius Guimaraes [PENDÊNCIA FACTUAL: grafia do nome conforme documento oficial] · hello@theneil.com.br
+- **Encarregado pela proteção de dados (DPO):** Vinicius Guimarães · hello@theneil.com.br
 
 Neste documento:
 - **"Cliente":** a empresa que contrata a GreenIA;
@@ -127,8 +127,7 @@ zero e ausência de uso para treino) atendem aos requisitos, com o fornecedor fi
 pelos fornecedores.
 
 6.5. O tratamento feito pelo OpenRouter (OpenRouter, Inc., Estados Unidos) é regido pelos termos e pela política de
-privacidade dele; o feito por cada fabricante, pelas políticas do fabricante. [PENDÊNCIA FACTUAL: configuração da conta da
-TheNeil no OpenRouter (registro de pedidos, retenção zero, coleta para treino) e termos aplicáveis a essa conta.]
+privacidade dele; o feito por cada fabricante, pelas políticas do fabricante.
 
 ## 7. Hospedagem e transferência internacional
 
@@ -138,8 +137,7 @@ cópias diárias do disco feitas pelo provedor.
 7.2. Os pedidos à IA passam pelo OpenRouter, que, segundo a política pública dele, processa dados nos Estados Unidos ou
 em outros países, e pelos fabricantes dos modelos, que podem estar fora do Brasil, conforme a documentação de cada um.
 
-7.3. **Há, portanto, transferência internacional de dados pessoais.** [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado
-sobre o mecanismo de transferência internacional e os instrumentos com o Cliente e com os fornecedores.]
+7.3. Alguns fornecedores utilizados na operação da GreenIA mantêm infraestrutura ou realizam tratamento de dados fora do Brasil. Nessas situações, pode ocorrer transferência internacional de dados. A TheNeil adota os instrumentos e salvaguardas aplicáveis ao tratamento e à transferência desses dados conforme a legislação pertinente e considera, na seleção e configuração dos serviços utilizados, as informações disponibilizadas pelos respectivos fornecedores sobre privacidade, segurança, retenção e tratamento de conteúdo.
 
 ## 8. Quem pode ver as conversas
 
@@ -266,10 +264,8 @@ A GreenIA envia emails para:
 - aviso de novo contato comercial (aos administradores da plataforma, sem os dados do contato);
 - avisos administrativos da plataforma.
 
-O envio usa o servidor de email da plataforma ou, se o Cliente configurar, o servidor de email da própria
+O envio usa o provedor de envio de email da plataforma ou, se o Cliente configurar, o servidor de email da própria
 empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plataforma (marca branca).
-
-[PENDÊNCIA FACTUAL: provedor do servidor de email da plataforma em produção.]
 
 ## 14. Formulário comercial
 
@@ -310,11 +306,9 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 cliente decide sobre esse tratamento, e o pedido deve ser dirigido a ela. A TheNeil apoia o Cliente conforme o
 contrato.
 
-16.3. **Canal e procedimento:**
-- **Canal:** hello@theneil.com.br, aos cuidados do encarregado, Vinicius Guimaraes
-- **Responsável:** o encarregado, Vinicius Guimaraes
-- **Procedimento e prazo de resposta:** [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado do procedimento e do prazo]
-- **Verificação de identidade:** [PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado da verificação de identidade]
+16.3. Solicitações relacionadas aos direitos dos titulares podem ser encaminhadas para hello@theneil.com.br, aos cuidados do Encarregado pela proteção de dados, Vinicius Guimarães. A solicitação será analisada de acordo com sua natureza e respondida nos prazos previstos na legislação aplicável. Quando o tratamento estiver relacionado a dados inseridos ou administrados por um Cliente, a TheNeil poderá encaminhar ou coordenar o atendimento com esse Cliente, conforme os papéis aplicáveis ao tratamento.
+
+Para proteger o próprio titular e evitar divulgação ou alteração indevida de dados, a TheNeil poderá solicitar informações adicionais razoavelmente necessárias para confirmar a identidade ou a legitimidade do solicitante antes de atender ao pedido. A verificação deverá ser proporcional à natureza da solicitação e não poderá exigir dados desnecessários para essa finalidade.
 
 Não há atendimento automatizado desses pedidos na plataforma.
 
@@ -337,10 +331,7 @@ Esses controles reduzem riscos. **Nenhum sistema está livre de incidentes**, e 
 
 ## 18. Incidentes
 
-Em caso de incidente de segurança que envolva dados pessoais, a TheNeil avalia o ocorrido, adota medidas de contenção
-e comunica o Cliente e, quando aplicável, a autoridade e os titulares.
-
-[PENDENTE DE REGISTRO DA APROVAÇÃO: texto aprovado sobre o prazo de comunicação ao Cliente, o processo e as responsabilidades.]
+A TheNeil mantém procedimentos para identificação, registro, análise e tratamento de incidentes que possam comprometer dados pessoais tratados no contexto da GreenIA. Quando um incidente puder gerar risco ou dano relevante aos titulares ou exigir comunicação nos termos da legislação aplicável, serão adotadas as providências cabíveis, inclusive comunicação ao Cliente, às autoridades competentes e aos titulares quando aplicável. O conteúdo, a forma e o momento dessas comunicações considerarão a natureza do incidente, os dados envolvidos, os riscos identificados e as obrigações legais aplicáveis.
 
 ## 19. Terceiros
 
@@ -351,7 +342,7 @@ Fornecedores:
 | Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), confirmada no painel do provedor | Executar e guardar a GreenIA |
 | OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | Estados Unidos ou outros países, conforme a política pública do OpenRouter | Gerar respostas |
 | Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | Conforme a documentação de cada fabricante | Gerar respostas |
-| Provedor de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | [PENDÊNCIA FACTUAL: provedor e localidade] | Enviar códigos e avisos |
+| Provedor de envio de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | Conforme o provedor contratado | Enviar códigos e avisos |
 | Servidor de email do Cliente (opcional) | Envio dos emails do ambiente dele | Idem | Definido pelo Cliente | Idem |
 
 ## 20. Cookies e armazenamento no navegador

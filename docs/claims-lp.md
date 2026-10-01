@@ -198,9 +198,9 @@ Colunas: id · superfície · texto aprovado · estado · capacidade · versão 
 | LP-ENT-30 | entrada | Como a GreenIA trata o seu trabalho: entrada, regras de dados, documentos consultados e retenção | sustentado | Rótulo de acessibilidade da faixa de confiança | 6534041 | `src/conversas.js` → `export function apagarVencidas` | retenção: conversas sem uso há mais que o prazo são apagadas, com registro | — | — | — | — | 2026-09-30 |
 | LP-ENT-32 | entrada | A conversa fica salva e dá para continuar depois, dentro do prazo de retenção da empresa. | sustentado_com_condicao | Histórico guardado com retenção | 6534041 | `src/conversas.js` → `export function apagarVencidas` | retenção: conversas sem uso há mais que o prazo são apagadas, com registro | Mensagens com um tipo que a empresa manda não guardar não ficam no histórico | — | — | — | 2026-09-30 |
 | LP-FAQ-25 | vendas | Como os servidores ficam nos Estados Unidos e os recursos de IA podem estar fora do Brasil, há transferência internacional de dados, descrita na Política de Privacidade. | sustentado_com_condicao | Transferência internacional | 6534041 | `render.yaml` → `region: virginia` | configuração: blueprint de produção (render.yaml) e painel do serviço greenia | Mecanismo jurídico da transferência é pendência (docs/legal/pendencias-legais.md); a localização dos fornecedores de IA não foi comprovada | Host; fornecedores de IA | B11 | — | 2026-10-01 |
-| LP-RODAPE-01 | vendas | NEIL INOVAÇÃO E TECNOLOGIA LTDA · CNPJ 37.749.373/0001-70 · Rua G, nº 277, Montserrat, Betim/MG | sustentado | Identificação legal | b574ae3 | `docs/legal/termos-de-uso.md` → `37.749.373/0001-70` | serviço: dados informados pela TheNeil em 2026-10-01 (CNPJ com dígitos conferidos) | — | TheNeil | — | — | 2026-10-01 |
+| LP-RODAPE-01 | vendas | NEIL INOVAÇÃO E TECNOLOGIA LTDA · CNPJ 37.749.373/0001-70 · Rua Bernardo Guimarães, 245, Funcionários, Belo Horizonte/MG | sustentado | Identificação legal | b574ae3 | `docs/legal/termos-de-uso.md` → `37.749.373/0001-70` | serviço: dados informados pela TheNeil em 2026-10-01 (CNPJ com dígitos conferidos) | — | TheNeil | — | — | 2026-10-01 |
 | LP-RODAPE-02 | vendas | Contato e privacidade: | sustentado | Canal de privacidade | b574ae3 | `docs/legal/politica-de-privacidade.md` → `Canal de privacidade e de atendimento aos titulares:** hello@theneil.com.br` | serviço: canal definido pela TheNeil em 2026-10-01 | — | TheNeil | — | — | 2026-10-01 |
-| LP-RODAPE-03 | vendas | · Encarregado pela proteção de dados: Vinicius Guimaraes · | sustentado_com_condicao | Encarregado | b574ae3 | `docs/legal/politica-de-privacidade.md` → `Vinicius Guimaraes` | serviço: encarregado definido pela TheNeil em 2026-10-01 | Grafia do nome conforme informada; confirmar a grafia documental | TheNeil | — | — | 2026-10-01 |
+| LP-RODAPE-03 | vendas | · Encarregado pela proteção de dados: Vinicius Guimarães · | sustentado | Encarregado | b574ae3 | `docs/legal/politica-de-privacidade.md` → `Vinicius Guimarães` | serviço: encarregado definido pela TheNeil em 2026-10-01 | Grafia oficial informada pela TheNeil em 2026-10-01 | TheNeil | — | — | 2026-10-01 |
 | OUT-01 | todas | Credenciais nunca são enviadas | obsoleto | — | — | — | — | Absoluto falso: formatos não previstos passam | — | B01 | — | 2026-09-30 |
 | OUT-02 | todas | Nunca enviadas | obsoleto | — | — | — | — | Idem | — | B01 | — | 2026-09-30 |
 | OUT-03 | todas | o que nunca sai | obsoleto | — | — | — | — | Só infraestrutura do cliente tornaria literal | Infraestrutura | B02 | — | 2026-09-30 |
@@ -309,6 +309,8 @@ editorial e o teste confere que cada id do código está aqui.
 
 ## Liberação candidata (Etapa 7): claims materiais por status
 
+> Histórico. Substituído pela seção "Status final (release candidato, documentos 1.0)", no fim deste arquivo.
+
 Branch `candidata/governanca-lp`. "Release" é o commit que sustenta o claim; nenhum deles está em produção (`227fd36`)
 até o deploy controlado. Status: **LIBERADO** (verdadeiro com o release), **QUALIFICADO** (verdadeiro com a ressalva
 escrita no próprio texto ou com condição operacional), **BLOQUEADO** (fora da página).
@@ -330,6 +332,8 @@ escrita no próprio texto ou com condição operacional), **BLOQUEADO** (fora da
 | Prumo obrigatório | — | — | BLOQUEADO | — |
 
 ## Auditoria final (Etapa 8): status de publicação
+
+> Histórico. Substituído pela seção "Status final (release candidato, documentos 1.0)", no fim deste arquivo.
 
 Auditoria da LP candidata contra o código final da branch `candidata/governanca-lp`. Status: **LIBERADO** (verdadeiro
 hoje em produção, `227fd36`, e na candidata) · **APÓS DEPLOY 1–3** (verdadeiro só com o release candidato em produção;
@@ -360,18 +364,22 @@ retenção, também com `RETENCAO_APLICAR=1`) · **BLOQUEADO POR JURÍDICO** (de
 | Fontes | Fontes servidas pelo próprio servidor (Política 20) | `public/fontes/`; `test/fontes.test.js` | APÓS DEPLOY 1–3 | `19830f4` |
 | Preço, "a partir de", equivalência de créditos; aprovação prévia do Cliente; Prumo obrigatório | — | — | REMOVIDO | — |
 
-## Status depois da aprovação jurídica (registro em `docs/legal/aprovacao-juridica.md`)
+## Status final (release candidato, documentos 1.0)
 
-A aprovação jurídica tira o bloqueio jurídico dos claims abaixo. Eles continuam dependendo do deploy do release
-candidato e, no caso dos documentos, da publicação final: `docs/legal/estado.json` com `publicado: true`, e nenhum ponto
-pendente de registro ou factual no texto.
+Aprovação jurídica registrada em `docs/legal/aprovacao-juridica.md`. Nenhum claim depende mais de encarregado, endereço,
+metadados jurídicos, conta do OpenRouter ou nome do provedor de email: a redação pública é factual e genérica nesses
+pontos. Todos dependem do deploy do release candidato; os de retenção e exclusão, também da ativação.
 
-| Claim | Status anterior (Etapa 8) | Status agora | Condição restante |
-|---|---|---|---|
-| LGPD com link para a Política (LP-POL-13) | LIBERADO, link BLOQUEADO POR JURÍDICO | LIBERADO SOMENTE APÓS DEPLOY | Política publicada (sem pontos pendentes) |
-| Transferência internacional (LP-FAQ-25) | Fato LIBERADO; mecanismo BLOQUEADO | LIBERADO SOMENTE APÓS DEPLOY | Texto aprovado do mecanismo registrado na Política 7.3 |
-| Termos e Privacidade (rodapé e corpo) | BLOQUEADO POR JURÍDICO | LIBERADO SOMENTE APÓS DEPLOY | Os textos aprovados ainda não registrados entram nos documentos; publicação marcada |
-| Rodapé: identificação, encarregado, endereço (LP-RODAPE-01..03) | BLOQUEADO (grafia e endereço) | AGUARDANDO FATO INSTITUCIONAL | Grafia do encarregado por documento oficial; endereço pelo cartão CNPJ |
-| Acesso da equipe e exportação (LP-FAQ-19): exportação só a pedido, em incidente ou por obrigação legal | APÓS DEPLOY 1–3 | LIBERADO SOMENTE APÓS DEPLOY | Release candidato (`6c0912f`) |
-| Encerramento: 30 dias, exclusão automática, exclusão antecipada verificada, devolução em SQLite (só nos documentos, não na LP) | — | LIBERADO SOMENTE APÓS DEPLOY | Deploy, mais `EXCLUSAO_APLICAR=1` e `PLATAFORMA_URL` confirmada |
-| Contatos comerciais: 24 meses depois da última interação (só na Política) | — | LIBERADO SOMENTE APÓS DEPLOY | Deploy, mais `RETENCAO_APLICAR=1` |
+| Claim | Status | Condição |
+|---|---|---|
+| Hero, comparação, quick wins, implantação, Prumo, créditos, fornecedores, formulário, white label | LIBERADO | — |
+| Acesso da equipe e exportação só a pedido, em incidente ou por obrigação legal (LP-FAQ-19) | LIBERADO SOMENTE APÓS DEPLOY | Release candidato |
+| Conversas fora das telas, exportação registrada (LP-POL-12) | LIBERADO SOMENTE APÓS DEPLOY | Release candidato |
+| Exclusão e cópias com prazo (LP-FAQ-20) | LIBERADO SOMENTE APÓS DEPLOY | Mais `RETENCAO_APLICAR=1` |
+| LGPD com link para a Política (LP-POL-13) | LIBERADO SOMENTE APÓS DEPLOY | Documentos publicados com o release |
+| Transferência internacional (LP-FAQ-25) | LIBERADO SOMENTE APÓS DEPLOY | Política 7.3 |
+| Termos e Privacidade (rodapé e corpo) | LIBERADO SOMENTE APÓS DEPLOY | Publicados com o release |
+| Rodapé: razão social, CNPJ, endereço, contato, encarregado, site (LP-RODAPE-01..03) | LIBERADO SOMENTE APÓS DEPLOY | Dados informados pela TheNeil |
+| Encerramento: 30 dias, exclusão automática e antecipada, devolução em SQLite (documentos) | LIBERADO SOMENTE APÓS DEPLOY | Mais `EXCLUSAO_APLICAR=1` e `PLATAFORMA_URL` |
+| Contatos comerciais: 24 meses (Política) | LIBERADO SOMENTE APÓS DEPLOY | Mais `RETENCAO_APLICAR=1` |
+| Preço, "a partir de", aprovação prévia, Prumo obrigatório, prazos 15/38 na LP | REMOVIDO | — |

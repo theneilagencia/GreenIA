@@ -21,6 +21,8 @@
   <symbol id="i-marca" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.2"/><circle cx="12" cy="7.5" r="1.2"/><circle cx="16" cy="10" r="1.2"/><path d="M12 21c-1.5 0-2-1-2-2s1-2 2-2h1.5a3 3 0 0 0 3-3"/></g></symbol>
   <symbol id="i-escudo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></g></symbol>
   <symbol id="i-cadeado" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g></symbol>
+  <symbol id="i-raio" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-moeda" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2c-.5-.9-1.6-1.4-2.8-1.4-1.7 0-2.9.9-2.9 2.1 0 2.9 5.9 1.4 5.9 4.2 0 1.2-1.3 2.1-3 2.1-1.3 0-2.4-.5-2.9-1.4M12 6.3v1.5m0 8.4v1.5"/></g></symbol>
   <symbol id="ok" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 <header class="l-topo" id="topo">
@@ -220,14 +222,13 @@
         <p class="l-rotulo"><span class="n">04</span>Controle e confidencialidade</p>
         <h2 class="l-h2">IA disponível, mas com controle</h2>
         <p class="l-sub">Antes do envio, a GreenIA confere cada mensagem e cada anexo e aplica a regra que a empresa definiu para cada tipo de dado reconhecido.</p>
-        <ul class="l-itens">
-          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Uma regra por tipo de dado.</b> Para CPF, CNPJ, cartões, agência e conta, marcação de confidencial e outros tipos reconhecidos, a empresa escolhe: processar normalmente, só com proteção ou não enviar.</span></li>
-          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Senhas e chaves de acesso bloqueadas.</b> Senhas e chaves de acesso reconhecidas são bloqueadas antes do envio, inclusive quando estão em documentos da base, em arquivos de quick win ou no histórico da conversa. Nenhuma regra da empresa libera.</span></li>
-          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Informações sigilosas com proteção.</b> Permita o uso de informações sigilosas com guardrails de proteção. Com a opção de sigilo ligada pela empresa, a conversa só usa recursos autorizados; se não houver, nada é enviado. Com a opção desligada, o conteúdo sigiloso não é enviado.</span></li>
-          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Política com ciência.</b> A cada nova versão da política, as pessoas confirmam a ciência antes de voltar a enviar mensagens.</span></li>
-          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Conversas fora das telas de gestão.</b> Nenhuma tela da GreenIA mostra o conteúdo das conversas a colegas ou ao admin; eles veem dados de uso. A exportação do banco, sempre registrada, inclui as conversas, e o texto de um relato de problema chega aos admins.</span></li>
+        <ul class="l-itens l-itens-curtos">
+          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Uma regra por tipo de dado.</b> Para CPF, CNPJ, cartões, dados bancários e marcação de confidencial, a empresa escolhe: processar normalmente, só com proteção ou não enviar.</span></li>
+          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Senhas e chaves de acesso bloqueadas.</b> Senhas e chaves de acesso reconhecidas são bloqueadas antes do envio, inclusive quando estão em documentos da base, em arquivos de quick win ou no histórico da conversa.</span></li>
+          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Informações sigilosas com proteção.</b> Permita o uso de informações sigilosas com guardrails de proteção. Com o sigilo ligado, a conversa só usa recursos autorizados; sem eles, ou com o sigilo desligado, o conteúdo sigiloso não é enviado.</span></li>
+          <li><svg width="18" height="18"><use href="#ok"/></svg><span><b>Conversas fora das telas de gestão.</b> Nenhuma tela mostra o conteúdo das conversas a colegas ou ao admin. A exportação do banco, sempre registrada, inclui as conversas, e um relato de problema chega aos admins.</span></li>
         </ul>
-        <p class="l-sub" style="font-size:.9em"><b>Sua empresa decide. A GreenIA aplica.</b><br>Os controles da GreenIA apoiam as políticas de segurança, confidencialidade e proteção de dados da empresa, inclusive as que ela adota para atender à LGPD. A empresa permanece responsável por suas obrigações legais e regulatórias. O tratamento de dados está descrito na <a href="/privacidade">Política de Privacidade</a>.</p>
+        <p class="l-nota"><b>Sua empresa decide. A GreenIA aplica.</b> Os controles da GreenIA apoiam as políticas de segurança, confidencialidade e proteção de dados da empresa, inclusive as que ela adota para atender à LGPD. A empresa permanece responsável por suas obrigações legais e regulatórias. Veja a <a href="/privacidade">Política de Privacidade</a>.</p>
       </div>
       <div class="l-cena l-surge">
         <figure class="l-cena-foto">
@@ -269,19 +270,26 @@
             <li class="f2"><span class="l-ecos-logo"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/></svg></span><span class="l-ecos-nome">Anthropic</span></li>
             <li class="f3"><span class="l-ecos-logo"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z"/></svg></span><span class="l-ecos-nome">Google</span></li>
           </ul>
-          <svg class="l-ecos-linhas" viewBox="0 0 300 72" preserveAspectRatio="none" aria-hidden="true">
-            <path class="ln ln1" pathLength="1" d="M50 0 C50 40 150 32 150 72"/>
-            <path class="ln ln2" pathLength="1" d="M150 0 L150 72"/>
-            <path class="ln ln3" pathLength="1" d="M250 0 C250 40 150 32 150 72"/>
-            <path class="luz ln1" pathLength="1" d="M50 0 C50 40 150 32 150 72"/>
-            <path class="luz ln2" pathLength="1" d="M150 0 L150 72"/>
-            <path class="luz ln3" pathLength="1" d="M250 0 C250 40 150 32 150 72"/>
+          <svg class="l-ecos-linhas" viewBox="0 0 300 88" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="ecos-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EDEAE2" stop-opacity=".05"/><stop offset="1" stop-color="#EDEAE2" stop-opacity=".28"/></linearGradient></defs>
+            <path class="ln ln1" pathLength="1" d="M50 0 C50 52 150 36 150 88"/>
+            <path class="ln ln2" pathLength="1" d="M150 0 L150 88"/>
+            <path class="ln ln3" pathLength="1" d="M250 0 C250 52 150 36 150 88"/>
+            <path class="luz ln1" pathLength="1" d="M50 0 C50 52 150 36 150 88"/>
+            <path class="luz ln2" pathLength="1" d="M150 0 L150 88"/>
+            <path class="luz ln3" pathLength="1" d="M250 0 C250 52 150 36 150 88"/>
           </svg>
           <div class="l-ecos-nucleo">
-            <div class="l-ecos-hub"><img src="/assets/greenia-marca.svg" width="22" height="22" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></div>
-            <div class="l-ecos-niveis"><span class="n1">Rápido</span><span class="n2">Equilibrado</span><span class="n3">Avançado</span><i aria-hidden="true"></i></div>
+            <div class="l-ecos-orbita" aria-hidden="true"><i></i><i></i></div>
+            <div class="l-ecos-hub"><span class="l-ecos-hub-marca"><img src="/assets/greenia-marca.svg" width="22" height="22" alt="" aria-hidden="true"></span><span>Green<span class="ia">IA</span></span></div>
+            <div class="l-ecos-niveis">
+              <span class="n1"><b class="sinal" aria-hidden="true"><i></i><i></i><i></i></b>Rápido</span>
+              <span class="n2"><b class="sinal" aria-hidden="true"><i></i><i></i><i></i></b>Equilibrado</span>
+              <span class="n3"><b class="sinal" aria-hidden="true"><i></i><i></i><i></i></b>Avançado</span>
+              <i class="marcador" aria-hidden="true"></i>
+            </div>
           </div>
-          <p class="l-ecos-criterios">Segurança <i aria-hidden="true">·</i> Desempenho <i aria-hidden="true">·</i> Custo</p>
+          <p class="l-ecos-criterios"><span><svg width="14" height="14" aria-hidden="true"><use href="#i-escudo"/></svg>Segurança</span> <i aria-hidden="true">·</i> <span><svg width="14" height="14" aria-hidden="true"><use href="#i-raio"/></svg>Desempenho</span> <i aria-hidden="true">·</i> <span><svg width="14" height="14" aria-hidden="true"><use href="#i-moeda"/></svg>Custo</span></p>
         </div>
       </div>
     </div>

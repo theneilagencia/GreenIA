@@ -13,6 +13,9 @@ const PROIBIDOS = [
   // áreas e setores fixos
   'fiscal', 'suprimentos', 'recursos humanos', 'departamento pessoal', 'construtora', 'contabilidade',
 ];
+// Exceção única: a página de vendas é da operadora (só existe na instalação dela, PAGINA_INICIAL=vendas) e
+// cita a TheNeil, que opera a GreenIA e oferece o Prumo Discovery. Nada da aplicação das empresas cita a operadora.
+const EXCECOES = { 'public/vendas.html': ['theneil'] };
 const RAIZ = new URL('..', import.meta.url).pathname;
 const ALVOS = ['src', 'public', 'modelos-quick-win.json', 'scripts'];
 
@@ -28,7 +31,7 @@ test('nenhum nome de cliente, área fixa ou ERP no código da aplicação', () =
     const texto = readFileSync(f, 'utf8').toLowerCase();
     for (const t of PROIBIDOS) {
       const re = new RegExp(`(^|[^a-zà-ú])${t.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}([^a-zà-ú]|$)`);
-      if (re.test(texto)) achados.push(`${f.slice(RAIZ.length)}: ${t}`);
+      if (re.test(texto) && !(EXCECOES[f.slice(RAIZ.length)] || []).includes(t)) achados.push(`${f.slice(RAIZ.length)}: ${t}`);
     }
   }
   assert.deepEqual(achados, []);

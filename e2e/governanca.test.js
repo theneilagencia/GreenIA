@@ -53,7 +53,7 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
   assert.doesNotMatch(await textoVisivel(p), /remova|retire|tire o dado|anonimi/i);
   // 2. Segredo: bloqueado, com mensagem simples.
   await enviar(p, 'O acesso do servidor é senha: Primavera2026');
-  assert.match(await p.locator('.aviso-bolha').last().innerText(), /senhas, chaves de acesso e outros segredos nunca são enviados/);
+  assert.match(await p.locator('.aviso-bolha').last().innerText(), /Por segurança, este envio foi bloqueado: .*senha, chave de acesso ou outro segredo/);
   // 3. Conteúdo sensível sem recurso compatível: não é enviado; a mensagem é a da política, em linguagem simples.
   await enviar(p, 'Organize o laudo médico do colaborador por data.');
   assert.equal(await p.locator('.aviso-bolha').last().innerText(), MSG_USUARIO.sigilo);

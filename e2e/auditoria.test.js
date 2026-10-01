@@ -46,7 +46,7 @@ test('imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem 
   assert.equal(await p.locator('.rodape-resposta').count(), 2, 'as duas foram respondidas');
   // 2. Segredo numa imagem: a mesma regra do texto digitado.
   await enviar(p, 'Veja o anexo.', [png('acesso.png', 'segredo.png')]);
-  assert.match(await p.locator('.aviso-bolha').last().innerText(), /senhas, chaves de acesso e outros segredos nunca são enviados/);
+  assert.match(await p.locator('.aviso-bolha').last().innerText(), /Por segurança, este envio foi bloqueado: .*senha, chave de acesso ou outro segredo/);
   // 3. Imagem sem texto: limite técnico de leitura, sem falar em política ou segurança.
   await p.fill('#entrada', '');
   while (await p.locator('#anexos [data-tirar]').count()) await p.locator('#anexos [data-tirar]').first().click();   // o bloqueio devolve o anexo ao campo

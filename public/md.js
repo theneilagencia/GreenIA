@@ -50,7 +50,9 @@ export function renderizar(texto) {
 }
 
 export function baixarCsv(linhas, nome = 'tabela.csv') {
-  const cel = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s)) s = "'" + s; return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  // Proteção contra fórmula na planilha (=, +, -, @ no começo), sem corromper número negativo ("-12,5%", "-1.234,00").
+  const numero = s => /^[-+]?\s?(R\$\s?)?\d[\d.,\s]*%?$/.test(s);
+  const cel = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s) && !numero(s)) s = "'" + s; return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const blob = new Blob(['﻿' + linhas.map(l => l.map(cel).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: nome });
   document.body.append(a); a.click(); a.remove();

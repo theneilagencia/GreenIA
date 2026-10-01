@@ -228,3 +228,21 @@ test('link de devolução vence em 7 dias: a cópia sai do servidor sem download
   assert.equal(x.eliminacao, 'link_vencido');
   assert.equal(x.downloads, 0);
 });
+
+test('sem o endereço público da plataforma, o link de devolução não é gerado (nada é exportado)', async () => {
+  const ops = await consoleNovo();
+  const { c, slug, admin } = await empresaCancelada(ops);
+  await ops.post(`/api/plataforma/empresas/${c.id}/status`, { status: 'cancelada' });
+  const v = S.navegador(); await v.get(`/${slug}`);
+  await v.post('/api/encerramento/codigo', { email: admin });
+  const p = await v.post('/api/encerramento/devolucao', { email: admin, codigo: ultimoCodigo(admin) });
+  const base = S.P.urlBase;
+  S.P.urlBase = '';
+  try {
+    const g = await ops.post(`/api/plataforma/devolucoes/${p.dados.pedido}/gerar`, {});
+    assert.equal(g.status, 409);
+    assert.equal(g.dados.erro, 'url_base');
+    assert.equal(um(S.P.db, 'select count(*) as n from operator_exports where devolucao_id = ?', p.dados.pedido).n, 0);
+    assert.equal(um(S.P.db, 'select status from data_returns where id = ?', p.dados.pedido).status, 'solicitada');
+  } finally { S.P.urlBase = base; }
+});

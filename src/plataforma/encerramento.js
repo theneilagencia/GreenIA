@@ -200,6 +200,8 @@ export function gerarDevolucao(P, id, { sessao, origem }) {
   if (d.status !== 'solicitada') throw erro(409, 'devolucao_status', 'Este pedido já foi atendido ou encerrado.');
   const c = E.lerEmpresa(P, d.company_id);
   if (!c) throw erro(409, 'empresa', 'O ambiente já foi excluído.');
+  // O link vai por email: sem o endereço público da plataforma (PLATAFORMA_URL), ele não funcionaria.
+  if (!/^https?:\/\//.test(P.urlBase || '')) throw erro(409, 'url_base', 'Defina o endereço público da plataforma (PLATAFORMA_URL) antes de gerar o link de devolução.');
   const x = criarExportacao(P, { userId: sessao.userId, email: sessao.email, companyId: c.id, tipo: 'solicitacao_cliente', origem, devolucaoId: d.id,
     justificativa: `Devolução dos dados pedida por ${d.solicitante_email} (pedido ${d.id})`, gerar: () => E.exportarEmpresa(P, c.id) });
   const token = randomBytes(32).toString('base64url');

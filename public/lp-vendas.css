@@ -1,0 +1,228 @@
+/* Página de vendas (vendas.html, body.lv): sistema visual próprio sobre lp.css.
+   Princípios: hierarquia por tipografia e espaço, superfícies em camadas com borda fina, uma escala de raio,
+   sombras curtas, movimento só em entrada e resposta ao cursor (sem animação contínua). As páginas das empresas
+   (index.html) não carregam este arquivo. */
+
+.lv{
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --sec:clamp(96px,11vw,148px);
+  --r-sm:10px; --r-md:14px; --r-lg:20px;
+  --hair:rgba(20,20,19,.08); --hair-2:rgba(20,20,19,.14);
+  --sombra-1:0 1px 1px rgba(20,20,19,.03),0 2px 6px -2px rgba(20,20,19,.06);
+  --sombra-2:0 1px 2px rgba(20,20,19,.04),0 18px 44px -24px rgba(20,20,19,.24);
+  --tinta:color-mix(in srgb,var(--acento) 6%,#fff);
+  --tinta-2:color-mix(in srgb,var(--acento) 12%,#fff);
+  font-feature-settings:'cv11','ss01','ss03';
+}
+.lv ::selection{background:color-mix(in srgb,var(--acento) 22%,transparent)}
+.lv .l-dentro{max-width:1240px}
+
+/* ----------------------------------------------------------------- Botões */
+.lv .btn{height:44px;padding:0 18px;border-radius:var(--r-sm);font:500 14.5px/1 var(--sans);letter-spacing:-.005em}
+.lv .btn-pequeno{height:34px;padding:0 13px;font-size:13.5px;border-radius:8px}
+.lv .btn-verde{background:var(--ink);color:#FAF9F5;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 1px 2px rgba(20,20,19,.2)}
+.lv .btn-verde:hover:not(:disabled){background:#252421}
+.lv .btn-linha{background:var(--paper);border-color:var(--hair-2);color:var(--ink);box-shadow:var(--sombra-1)}
+.lv .btn-linha:hover:not(:disabled){background:var(--paper);border-color:rgba(20,20,19,.26)}
+.lv .btn-grande{height:48px;padding:0 22px;font-size:15px}
+
+/* ----------------------------------------------------------------- Topo */
+.lv .l-topo{background:color-mix(in srgb,var(--bg) 82%,transparent)}
+.lv .l-topo.rolou{border-bottom-color:var(--hair)}
+.lv .l-topo .l-dentro{min-height:60px}
+.lv .l-nav{gap:4px}
+.lv .l-nav a{padding:7px 11px;border-radius:8px;font:450 13.5px/1 var(--sans);color:var(--muted);transition:color .2s var(--ease),background .2s var(--ease)}
+.lv .l-nav a:hover{color:var(--ink);background:rgba(20,20,19,.045)}
+
+/* ----------------------------------------------------------------- Hero */
+.lv .l-hero{padding-top:56px}
+.lv .l-pill{gap:10px;margin-bottom:32px;padding:4px 5px 4px 12px;border-color:var(--hair-2);box-shadow:var(--sombra-1);font:500 12.5px/1 var(--sans);transition:border-color .2s var(--ease)}
+.lv .l-pill:hover{border-color:rgba(20,20,19,.26)}
+.lv .l-pill .seta{padding:5px 10px;background:var(--bg-2);color:var(--ink-2)}
+.lv .l-hero h1{font:400 clamp(42px,8.4vw,64px)/1.02 var(--serif);letter-spacing:-.032em;max-width:16ch;margin:0 0 24px}
+.lv .l-lead{font:400 clamp(17.5px,2vw,20px)/1.55 var(--sans);color:var(--ink-2);max-width:56ch;margin-bottom:12px}
+.lv .l-simples{font:400 15.5px/1.6 var(--sans);color:var(--muted);max-width:56ch;margin:0 0 32px}
+.lv .l-fatos{margin-top:36px;padding-top:24px;border-top:1px solid var(--hair);gap:10px}
+.lv .l-fatos li{font-size:13.5px}
+.lv .l-hero-foto{border-radius:var(--r-lg);box-shadow:inset 0 0 0 1px var(--hair)}
+.lv .l-palco{margin-top:80px}
+.lv .l-legenda{font-size:12px}
+
+/* ----------------------------------------------------------------- Ritmo das seções */
+.lv main>section:not(.l-hero){padding-top:var(--sec)}
+.lv .l-secao,.lv .l-bloco{padding-top:0}
+.lv .l-contato{padding:0 0 var(--sec)}
+
+/* Cabeçalho de seção: número e nome sobre uma linha fina; título com presença; descrição em largura de leitura */
+.lv .l-rotulo{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 28px;font:500 12.5px/1 var(--sans);letter-spacing:.01em;color:var(--muted)}
+.lv .l-rotulo .n{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2);font:500 11.5px/1 var(--sans);color:var(--acento);font-variant-numeric:tabular-nums;letter-spacing:0}
+.lv .l-rotulo::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--hair-2),transparent)}
+.lv .l-h2,.lv .l-bloco .l-h2{font:400 clamp(34px,5.4vw,52px)/1.04 var(--serif);letter-spacing:-.028em;max-width:18ch;margin:0 0 20px}
+.lv .l-sub{font:400 clamp(16.5px,1.6vw,18px)/1.6 var(--sans);color:var(--muted);max-width:58ch}
+.lv .l-cab{display:grid;gap:0;margin-bottom:56px}
+.lv .l-cab .l-h2{margin-bottom:20px;max-width:21ch}
+
+/* ----------------------------------------------------------------- Listas de itens */
+.lv .l-itens{border-top:1px solid var(--hair)}
+.lv .l-itens li{grid-template-columns:26px 1fr;gap:14px;padding:18px 0;border-bottom:1px solid var(--hair);font:400 15.5px/1.6 var(--sans);transition:background .25s var(--ease)}
+.lv .l-itens li svg{box-sizing:content-box;width:12px;height:12px;padding:5px;margin-top:1px;border-radius:50%;background:var(--tinta-2);color:var(--acento)}
+.lv .l-itens b{font-weight:550;letter-spacing:-.005em}
+
+/* ----------------------------------------------------------------- Superfícies de produto */
+.lv .l-janela{border-color:var(--hair-2);border-radius:var(--r-md);box-shadow:var(--sombra-2)}
+.lv .l-janela-barra{background:#FBFAF7;border-bottom-color:var(--hair)}
+.lv .l-janela-barra i{width:9px;height:9px;background:#E6E2D8}
+
+/* Tabela comparativa: cartão com a coluna da GreenIA em destaque */
+.lv .l-comp-rolagem{border:1px solid var(--hair-2);border-radius:var(--r-lg);background:var(--paper);box-shadow:var(--sombra-1)}
+.lv .l-comp{font-size:15px}
+.lv .l-comp th,.lv .l-comp td{padding:18px 20px;border-bottom:1px solid var(--hair)}
+.lv .l-comp tbody tr:last-child>*{border-bottom:0}
+.lv .l-comp thead th{padding-top:20px;padding-bottom:16px;font:500 12px/1 var(--sans);letter-spacing:.04em}
+.lv .l-comp thead th:last-child,.lv .l-comp td:last-child{background:var(--tinta)}
+.lv .l-comp thead th:last-child{border-top-right-radius:calc(var(--r-lg) - 1px)}
+.lv .l-comp tbody th{font:400 17.5px/1.35 var(--serif)}
+.lv .l-comp tbody tr{transition:background .2s var(--ease)}
+
+/* Implantação: duas colunas como cartões irmãos */
+.lv .l-contraste{gap:12px;border:0;border-radius:0;background:none;overflow:visible}
+.lv .l-coluna{padding:32px 28px;border:1px solid var(--hair-2);border-radius:var(--r-lg);background:var(--paper);box-shadow:var(--sombra-1)}
+.lv .l-coluna+.l-coluna{border-top:1px solid var(--hair-2)}
+.lv .l-coluna h3{font:400 22px/1.25 var(--serif);letter-spacing:-.01em;text-transform:none;color:var(--ink);margin:0 0 12px}
+.lv .l-coluna>p{font:400 15.5px/1.6 var(--sans);color:var(--muted);margin:0 0 18px}
+.lv .l-coluna.nova{background:linear-gradient(180deg,var(--tinta) 0%,var(--paper) 70%);border-color:color-mix(in srgb,var(--acento) 26%,var(--hair-2))}
+.lv .l-coluna.nova h3{color:var(--ink)}
+.lv .l-caminho-nota{margin:22px 0 0;padding:18px 0 0;border:0;border-top:1px solid var(--hair);font:400 14px/1.6 var(--sans);color:var(--muted)}
+.lv .l-link{display:inline-flex;align-items:center;gap:6px;font:500 15px var(--sans);color:var(--ink);text-decoration:none;border-bottom:1px solid var(--hair-2);padding-bottom:2px;transition:border-color .2s var(--ease)}
+.lv .l-link:hover{border-color:var(--ink)}
+
+/* Perguntas frequentes */
+.lv .l-faq{border-top:1px solid var(--hair-2)}
+.lv .l-faq details{border-bottom:1px solid var(--hair)}
+.lv .l-faq summary{padding:22px 4px;font:400 19px/1.35 var(--serif);letter-spacing:-.01em;transition:color .2s var(--ease)}
+.lv .l-faq summary::after{content:'';width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--hair-2);
+  background:linear-gradient(var(--ink-2),var(--ink-2)) center/10px 1.5px no-repeat,linear-gradient(var(--ink-2),var(--ink-2)) center/1.5px 10px no-repeat;transition:transform .3s var(--ease),background-color .2s}
+.lv .l-faq details[open] summary::after{transform:rotate(45deg)}
+.lv .l-faq summary:hover::after{background-color:var(--paper)}
+.lv .l-faq p{padding:0 4px;font-size:15.5px}
+
+/* Contato */
+.lv .l-form{border-color:var(--hair-2);border-radius:var(--r-lg);box-shadow:var(--sombra-2)}
+.lv .l-form .entrada{border-radius:var(--r-sm);border-color:var(--hair-2);transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+.lv .l-form .entrada:focus{border-color:var(--acento);box-shadow:0 0 0 3px color-mix(in srgb,var(--acento) 16%,transparent);outline:none}
+.lv .l-contato-lista li{font-size:15px}
+.lv .l-contato-lista svg{box-sizing:content-box;width:12px;height:12px;padding:5px;border-radius:50%;background:var(--tinta-2);margin-top:0}
+.lv .l-prumo{margin:0;padding:0 0 var(--sec);font:400 14.5px/1.6 var(--sans);color:var(--muted);text-align:center}
+.lv .l-prumo a{color:var(--ink);text-underline-offset:3px;text-decoration-color:var(--hair-2)}
+
+/* Rodapé */
+.lv .l-rodape{background:var(--bg);border-top-color:var(--hair)}
+.lv .l-rodape a{color:var(--muted);transition:color .2s var(--ease)}
+.lv .l-rodape a:hover{color:var(--ink)}
+
+/* ----------------------------------------------------------------- Modelos de IA
+   Fabricantes (em cima) convergem para a GreenIA (núcleo), que organiza em três níveis; a base mostra os
+   critérios. Cartão escuro, único na página, para dar profundidade; marcas em claro (Google em cores). */
+.l-modelos{display:grid;gap:40px;align-items:center}
+.l-modelos-texto .l-sub{margin-bottom:14px}
+.l-modelos-texto .l-sub:last-child{margin-bottom:0}
+.l-ecos{position:relative;isolation:isolate;padding:30px 20px 24px;border-radius:24px;background:#151513;color:#EDEAE2;overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 0 1px rgba(20,20,19,.9),0 24px 48px -26px rgba(20,20,19,.45)}
+.l-ecos::before{content:'';position:absolute;inset:-40% -20% auto;height:90%;z-index:-1;pointer-events:none;
+  background:radial-gradient(50% 50% at 50% 50%,color-mix(in srgb,var(--acento) 32%,transparent),transparent 70%);opacity:.55;transition:opacity .6s var(--ease)}
+.l-ecos::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;
+  background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:18px 18px;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 70%);mask-image:linear-gradient(180deg,#000 0%,transparent 70%)}
+.l-ecos-fontes{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.l-ecos-fontes li{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0;transition:transform .35s var(--ease),opacity .35s var(--ease)}
+.l-ecos-logo{display:grid;place-items:center;width:58px;height:58px;border-radius:16px;color:#F4F2EC;
+  background:linear-gradient(180deg,#24231F,#1B1A17);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px rgba(255,255,255,.08),0 10px 24px -12px rgba(0,0,0,.8);
+  transition:box-shadow .35s var(--ease),transform .35s var(--ease)}
+.l-ecos-nome{font:500 12.5px/1 var(--sans);letter-spacing:.01em;color:#A8A498;transition:color .35s var(--ease)}
+.l-ecos-linhas{display:block;width:calc(100% * 2 / 3);height:64px;margin:6px auto 0;overflow:visible}
+.l-ecos-linhas .ln{fill:none;stroke:rgba(237,234,226,.16);stroke-width:1.25;vector-effect:non-scaling-stroke;transition:stroke .35s var(--ease)}
+.l-ecos-linhas .luz{fill:none;stroke:color-mix(in srgb,var(--acento) 55%,#fff);stroke-width:1.75;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-dasharray:.14 1;stroke-dashoffset:1.14;opacity:0}
+.l-ecos-nucleo{display:grid;justify-items:center;gap:14px}
+.l-ecos-hub{display:inline-flex;align-items:center;gap:9px;padding:9px 16px 9px 12px;border-radius:999px;background:#F7F5EF;color:#141413;font:600 14px/1 var(--sans);letter-spacing:-.01em;
+  box-shadow:0 0 0 1px rgba(255,255,255,.4),0 0 0 6px color-mix(in srgb,var(--acento) 18%,transparent),0 14px 30px -14px rgba(0,0,0,.8);transition:box-shadow .5s var(--ease)}
+.l-ecos-hub .ia{color:#1F8A5B}
+.l-ecos-niveis{position:relative;display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:400px;padding:4px;border-radius:12px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.l-ecos-niveis span{position:relative;z-index:1;padding:10px 4px;text-align:center;font:400 clamp(15px,3.6vw,17px)/1.1 var(--serif);color:#A8A498;transition:color .3s var(--ease);cursor:default;white-space:nowrap}
+.l-ecos-niveis i{position:absolute;z-index:0;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 3);border-radius:9px;background:rgba(255,255,255,.1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 1px 2px rgba(0,0,0,.3);transform:translateX(100%);transition:transform .45s var(--ease)}
+.l-ecos-niveis .n2{color:#FAF9F5}
+.l-ecos-criterios{margin:22px 0 0;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);text-align:center;font:500 13px/1 var(--sans);letter-spacing:.02em;color:#C9C5BA}
+.l-ecos-criterios i{font-style:normal;color:#5E5B53;margin:0 .45em}
+
+/* Cursor: a marca apontada acende o próprio caminho; o nível apontado recebe o marcador */
+@media (hover:hover){
+  .l-ecos-fontes li:hover .l-ecos-logo{transform:translateY(-3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 1px color-mix(in srgb,var(--acento) 60%,#fff),0 16px 30px -12px rgba(0,0,0,.9)}
+  .l-ecos-fontes li:hover .l-ecos-nome{color:#FAF9F5}
+  .l-ecos-fontes:hover li:not(:hover){opacity:.55}
+  .l-ecos:has(.f1:hover) .ln.ln1,.l-ecos:has(.f2:hover) .ln.ln2,.l-ecos:has(.f3:hover) .ln.ln3{stroke:color-mix(in srgb,var(--acento) 70%,#fff)}
+  .l-ecos:has(.l-ecos-fontes li:hover) .l-ecos-hub{box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 0 8px color-mix(in srgb,var(--acento) 28%,transparent),0 14px 30px -14px rgba(0,0,0,.8)}
+  .l-ecos:hover::before{opacity:.8}
+  .l-ecos-niveis:has(.n1:hover) i{transform:translateX(0)}
+  .l-ecos-niveis:has(.n3:hover) i{transform:translateX(200%)}
+  .l-ecos-niveis:has(span:hover) span{color:#A8A498}
+  .l-ecos-niveis span:hover{color:#FAF9F5!important}
+}
+
+/* Entrada: marcas sobem, caminhos se desenham, uma luz percorre cada um até o núcleo (uma vez) */
+@keyframes ecos-traco{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes ecos-luz{0%{stroke-dashoffset:1.14;opacity:0}12%{opacity:1}88%{opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes ecos-hub{0%{box-shadow:0 0 0 1px rgba(255,255,255,.4),0 0 0 6px color-mix(in srgb,var(--acento) 18%,transparent),0 14px 30px -14px rgba(0,0,0,.8)}
+  40%{box-shadow:0 0 0 1px rgba(255,255,255,.6),0 0 0 12px color-mix(in srgb,var(--acento) 30%,transparent),0 14px 30px -14px rgba(0,0,0,.8)}}
+@media (prefers-reduced-motion:no-preference){
+  .l-ecos.l-surge.espera{opacity:1;transform:none}
+  .l-ecos.espera .l-ecos-fontes li,.l-ecos.espera .l-ecos-nucleo,.l-ecos.espera .l-ecos-criterios{opacity:0;transform:translateY(10px)}
+  .l-ecos-fontes li,.l-ecos-nucleo,.l-ecos-criterios{transition:opacity .6s var(--ease),transform .6s var(--ease)}
+  .l-ecos .f2{transition-delay:.06s}.l-ecos .f3{transition-delay:.12s}
+  .l-ecos .l-ecos-nucleo{transition-delay:.55s}.l-ecos .l-ecos-criterios{transition-delay:.7s}
+  .l-ecos:not(.espera) .ln{stroke-dasharray:1;animation:ecos-traco .8s var(--ease) .2s both}
+  .l-ecos:not(.espera) .luz{animation:ecos-luz 1.1s var(--ease) .5s both}
+  .l-ecos:not(.espera) .luz.ln2{animation-delay:.6s}
+  .l-ecos:not(.espera) .luz.ln3{animation-delay:.7s}
+  .l-ecos:not(.espera) .l-ecos-hub{animation:ecos-hub 1s var(--ease) 1.3s both}
+  .l-ecos.espera .ln{stroke-dasharray:1;stroke-dashoffset:1}
+}
+
+/* ----------------------------------------------------------------- Movimento comum */
+@media (prefers-reduced-motion:no-preference) and (hover:hover){
+  .lv .l-janela:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(20,20,19,.05),0 26px 54px -26px rgba(20,20,19,.3)}
+  .lv .l-coluna{transition:border-color .3s var(--ease),box-shadow .3s var(--ease),transform .3s var(--ease)}
+  .lv .l-coluna:hover{transform:translateY(-2px);box-shadow:var(--sombra-2)}
+  .lv .l-comp tbody tr:hover>*{background:color-mix(in srgb,var(--bg) 70%,var(--paper))}
+  .lv .l-comp tbody tr:hover>td:last-child{background:var(--tinta-2)}
+  .lv .l-faq summary:hover{color:var(--acento)}
+  .lv .btn-verde:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 8px 18px -10px rgba(20,20,19,.6)}
+}
+
+/* ----------------------------------------------------------------- Larguras */
+@media (min-width:640px){
+  .l-ecos{padding:40px 36px 30px}
+  .l-ecos-logo{width:64px;height:64px;border-radius:18px}
+}
+@media (min-width:760px){
+  .lv .l-coluna{padding:36px 34px}
+  .lv .l-contraste{grid-template-columns:1fr 1fr}
+  .lv .l-coluna+.l-coluna{border-left:1px solid var(--hair-2)}
+}
+@media (min-width:1000px){
+  .lv .l-hero{padding-top:80px}
+  .lv .l-hero-grade{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:80px}
+  .lv .l-hero-grade h1{font-size:clamp(56px,5vw,72px)}
+  .lv .l-hero-foto{max-height:620px}
+  /* Cabeçalho em duas colunas: título à esquerda, descrição alinhada à base, à direita */
+  .lv .l-cab{grid-template-columns:minmax(0,7fr) minmax(0,5fr);column-gap:64px;align-items:end;margin-bottom:64px}
+  .lv .l-cab .l-rotulo{grid-column:1/-1}
+  .lv .l-cab .l-h2{margin:0}
+  .lv .l-cab .l-sub{margin:0;padding-bottom:8px}
+  .lv .l-bloco{gap:88px}
+  .l-modelos{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:88px}
+  /* Perguntas: título fixo à esquerda, respostas à direita */
+  .lv #perguntas .l-dentro{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);column-gap:80px;align-items:start}
+  .lv #perguntas .l-cab{display:block;position:sticky;top:96px;margin:0}
+  .lv #perguntas .l-faq{border-top:0}
+  .lv #perguntas .l-faq details:first-child summary{padding-top:6px}
+}

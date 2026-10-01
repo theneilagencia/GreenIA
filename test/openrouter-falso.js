@@ -5,14 +5,21 @@ import { criarOpenRouter } from '../src/ia.js';
 
 // responder(corpo): texto da resposta (opcional), para roteirizar respostas nos testes.
 export const FONTES_FALSAS = [{ url: 'https://noticias.exemplo/mineracao-segura', titulo: 'Segurança na mineração em 2026' }, { url: 'https://revista.exemplo/esg-mineracao', titulo: 'ESG e mineração' }];
-export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS } = {}) {
-  const chamadas = [];
+// chave: se informada, só aceita "Bearer <chave>" (401 nas demais), como o OpenRouter; autorizacoes guarda o
+// cabeçalho recebido em cada chamada de chat, para conferir QUAL chave a GreenIA usou (nunca vai para fixture).
+// anotacoes: função opcional (corpo, fontes) => chunks SSE extras com as citações, para simular outros formatos.
+export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null } = {}) {
+  const chamadas = [], autorizacoes = [];
   const srv = createServer(async (req, res) => {
+    if (chave && req.headers.authorization !== `Bearer ${chave}`) { res.writeHead(401, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'No auth credentials found' } })); }
     if (req.url.endsWith('/models')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data: modelos })); }
+    if (req.url.endsWith('/key')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data: { label: 'teste', usage: 0, limit: null } })); }
+    if (req.url.endsWith('/credits')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data: { total_credits: 10, total_usage: 0 } })); }
     let corpo = '';
     for await (const c of req) corpo += c;
     const b = JSON.parse(corpo);
     chamadas.push(b);
+    autorizacoes.push(req.headers.authorization || null);
     // O OpenRouter tenta o principal e, se falhar, os da lista "models".
     const tentar = [b.model, ...(b.models || []).filter(m => m !== b.model)];
     const respondeu = tentar.find(m => !falhar.has(m));
@@ -26,14 +33,15 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
       res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: { content: parte } }] })}\n\n`);
     }
     // Pesquisa na internet (plugin "web"): o OpenRouter devolve as citações como anotações url_citation.
-    if (b.plugins?.some(p => p.id === 'web') && fontes.length)
+    if (b.plugins?.some(p => p.id === 'web') && fontes.length && anotacoes) for (const ch of anotacoes(b, fontes, { model: respondeu, provider: fornecedor })) res.write(`data: ${JSON.stringify(ch)}\n\n`);
+    else if (b.plugins?.some(p => p.id === 'web') && fontes.length)
       res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: { annotations: fontes.map(f => ({ type: 'url_citation', url_citation: { url: f.url, title: f.titulo, content: 'trecho' } })) } }] })}\n\n`);
     res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: {} }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: custo, cache_discount: 0.0001 } })}\n\n`);
     res.end('data: [DONE]\n\n');
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/v1`;
-  return { chamadas, falhar, set responder(f) { responder = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
+  return { chamadas, autorizacoes, base, falhar, set responder(f) { responder = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.

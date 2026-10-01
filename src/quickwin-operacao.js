@@ -61,11 +61,37 @@ export const FERRAMENTAS = {
 
 // Trecho do pedido -> entregáveis e canais. Cada oração ("copy para LinkedIn, legenda para Instagram e roteiro de
 // Reels") é lida à parte, para ligar o entregável ao canal citado junto dele.
+const tiposDe = o => Object.keys(ENTREGAVEIS).filter(k => k !== 'outro' && tem(o, ENTREGAVEIS[k].palavras));
+const canaisDe = o => Object.keys(CANAIS).filter(c => tem(o, CANAIS[c].palavras));
+// Orações do pedido, cada uma com o canal que a frase dá a ela sem repeti-lo. Dentro de um bloco (separado por
+// ";", quebra de linha ou ponto), uma lista de peças sem canal termina na peça que cita UM canal: a lista toda é
+// desse canal ("copy, carrossel e imagem para o LinkedIn"). Sem esse fecho, vale o canal único do cabeçalho do
+// bloco ("LinkedIn: copy, carrossel e imagem"). Cabeçalho com mais de um canal não decide nada sozinho.
+function oracoesComCanal(t) {
+  const dividir = s => s.split(/,|\s+e\s+(?=[a-z])|\s+mais\s+/).filter(x => x.trim()).map(o => ({ o, implicito: [] }));
+  const saida = [];
+  for (const bloco of norm(t).split(/[;\n]|\.\s/)) {
+    const i = bloco.indexOf(':');
+    const cabeca = i >= 0 ? dividir(bloco.slice(0, i)) : [], corpo = dividir(i >= 0 ? bloco.slice(i + 1) : bloco);
+    const doCabeca = canaisDe(cabeca.map(x => x.o).join(' '));
+    let pendentes = [];
+    for (const x of corpo) {
+      const tipos = tiposDe(x.o), canais = canaisDe(x.o);
+      if (tipos.length && !canais.length) pendentes.push(x);
+      else if (tipos.length && canais.length === 1) { for (const p of pendentes) p.implicito = canais; pendentes = []; }
+      else if (canais.length) pendentes = [];
+    }
+    if (doCabeca.length === 1) for (const p of pendentes) p.implicito = doCabeca;
+    saida.push(...cabeca, ...corpo);
+  }
+  return saida;
+}
+
 export function inferirOperacao(texto) {
   const t = String(texto || '');
   const canais = Object.keys(CANAIS).filter(c => tem(t, CANAIS[c].palavras));
   const ferramentas = Object.keys(FERRAMENTAS).filter(f => tem(t, FERRAMENTAS[f].palavras));
-  const oracoes = norm(t).split(/[,;\n]|\s+e\s+(?=[a-z])|\s+mais\s+|\.\s/).filter(Boolean);
+  const oracoes = oracoesComCanal(t);
   const entregaveis = [], visto = new Set();
   const somar = (tipo, canal) => {
     const k = `${tipo}:${canal || ''}`;
@@ -74,11 +100,11 @@ export function inferirOperacao(texto) {
     entregaveis.push({ tipo, canal: canal || null, config: { ...(ENTREGAVEIS[tipo].config || {}) } });
   };
   let anteriores = [];
-  for (const o of oracoes) {
-    const tipos = Object.keys(ENTREGAVEIS).filter(k => k !== 'outro' && tem(o, ENTREGAVEIS[k].palavras));
+  for (const { o, implicito } of oracoes) {
+    const tipos = tiposDe(o);
     // "roteiro de Reels": um entregável só (o Reels), com roteiro.
     let finais = tipos.includes('reels') ? tipos.filter(x => x !== 'roteiro' && x !== 'video') : tipos;
-    const doTrecho = Object.keys(CANAIS).filter(c => tem(o, CANAIS[c].palavras));
+    const proprios = canaisDe(o), doTrecho = proprios.length ? proprios : implicito;
     // Canal coordenado sem peça própria ("posts para LinkedIn e Instagram"): herda as peças já pedidas antes dele.
     // O "post" genérico (copy) vira a peça padrão do canal herdeiro (no Instagram, a legenda).
     if (!finais.length && doTrecho.length && anteriores.length) {

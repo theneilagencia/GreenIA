@@ -1,0 +1,18 @@
+{
+  "_sobre": "Fixture sanitizada no formato documentado do plugin web do OpenRouter em streaming (choices[0].delta.annotations com url_citation aninhado e índices; a anotação pode chegar junto com texto e ser repetida). Domínios .exemplo, sem chave, sem conteúdo real. Não é captura de produção.",
+  "fontes": [
+    { "url": "https://www.mineracao.exemplo/ia-rejeitos-2026", "titulo": "IA na gestão de barragens de rejeitos" },
+    { "url": "https://tecnologia.exemplo/visao-computacional-mina", "titulo": "Visão computacional na segurança de minas" }
+  ],
+  "chunks": [
+    { "choices": [{ "index": 0, "delta": { "role": "assistant", "content": "", "annotations": [
+      { "type": "url_citation", "url_citation": { "url": "https://www.mineracao.exemplo/ia-rejeitos-2026", "title": "IA na gestão de barragens de rejeitos", "content": "trecho", "start_index": 0, "end_index": 0 } },
+      { "type": "url_citation", "url_citation": { "url": "https://tecnologia.exemplo/visao-computacional-mina", "title": "Visão computacional na segurança de minas", "content": "trecho", "start_index": 0, "end_index": 0 } }
+    ] }, "finish_reason": null }] },
+    { "choices": [{ "index": 0, "delta": { "content": "", "annotations": [
+      { "type": "url_citation", "url_citation": { "url": "https://www.mineracao.exemplo/ia-rejeitos-2026", "title": "IA na gestão de barragens de rejeitos", "start_index": 10, "end_index": 40 } },
+      { "type": "file", "file": { "name": "ignorar" } },
+      { "type": "url_citation", "url_citation": { "url": "javascript:alert(1)", "title": "não é link" } }
+    ] }, "finish_reason": "stop" }] }
+  ]
+}

@@ -72,6 +72,12 @@ test('inferência: canais, entregáveis ligados ao canal, pesquisa e só valores
   assert.deepEqual(op.entregaveis.map(OP.rotuloEntregavel), ['Temas sugeridos', 'LinkedIn · Copy', 'Instagram · Legenda', 'Instagram · Carrossel', 'Instagram · Imagem', 'Instagram · Reels']);
   assert.deepEqual(op.ferramentas, ['pesquisa_web']);
   assert.deepEqual(OP.inferirOperacao('Crie posts para LinkedIn e Instagram').entregaveis.map(OP.rotuloEntregavel), ['LinkedIn · Copy', 'Instagram · Legenda']);
+  // Lista de peças fechada por um canal ("copy, carrossel e imagem para o LinkedIn") e cabeçalho por canal
+  // ("LinkedIn: copy, carrossel e imagem"): a lista toda é daquele canal (cenário F).
+  const F = ['LinkedIn · Copy', 'LinkedIn · Carrossel', 'LinkedIn · Imagem', 'Instagram · Legenda', 'Instagram · Carrossel', 'Instagram · Imagem', 'Instagram · Reels'];
+  for (const t of ['Pesquise temas em alta sobre mineração. A partir disso, crie conteúdos para LinkedIn e Instagram: copy, carrossel e imagem para o LinkedIn; legenda, carrossel, imagem e roteiro de Reels para o Instagram.',
+    'Pesquise temas em alta sobre mineração.\nLinkedIn: copy, carrossel e briefing de imagem.\nInstagram: legenda, carrossel, briefing de imagem e roteiro de Reels.'])
+    assert.deepEqual(OP.inferirOperacao(t).entregaveis.map(OP.rotuloEntregavel), ['Temas sugeridos', ...F], t);
   // Formato clássico continua clássico (sem canal, um tipo só).
   assert.deepEqual(OP.inferirOperacao('Montar relatório de visita').entregaveis, []);
   // Catálogo: canal, entregável e ferramenta desconhecidos saem; configuração com limites.

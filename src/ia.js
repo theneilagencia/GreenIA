@@ -92,7 +92,8 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
 
 // Produção sem chave: o servidor sobe (o admin entra e vê o aviso), mas nenhuma
 // resposta é gerada. Nunca troca pela simulada em produção.
-export const MSG_SEM_CHAVE = 'A IA ainda não está configurada: falta a chave OPENROUTER_API_KEY no servidor. Avise o admin.';
+// A chave é informada no console da plataforma (Uso); a variável OPENROUTER_API_KEY é só a alternativa do servidor.
+export const MSG_SEM_CHAVE = 'A IA ainda não está configurada: falta a chave do OpenRouter (informada no console da plataforma, em Uso, ou na variável OPENROUTER_API_KEY do servidor). Avise o admin.';
 export function criarIndisponivel() {
   return {
     configurada: false,

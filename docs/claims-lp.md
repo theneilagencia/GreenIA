@@ -328,3 +328,34 @@ escrita no próprio texto ou com condição operacional), **BLOQUEADO** (fora da
 | Links para Termos e Política | `scripts/gerar-legais.js`, rotas `/termos` e `/privacidade` | candidato (Etapa 7) | QUALIFICADO (páginas com aviso de rascunho até as pendências serem resolvidas) | rodapé |
 | Preço, "a partir de", equivalência de créditos | — | — | BLOQUEADO (decisão comercial) | — |
 | Prumo obrigatório | — | — | BLOQUEADO | — |
+
+## Auditoria final (Etapa 8): status de publicação
+
+Auditoria da LP candidata contra o código final da branch `candidata/governanca-lp`. Status: **LIBERADO** (verdadeiro
+hoje em produção, `227fd36`, e na candidata) · **APÓS DEPLOY 1–3** (verdadeiro só com o release candidato em produção;
+retenção, também com `RETENCAO_APLICAR=1`) · **BLOQUEADO POR JURÍDICO** (depende de pendência de `docs/legal/pendencias-legais.md`)
+· **REMOVIDO** (fora da página).
+
+| Tema | Claim | Fonte | Status | Release necessário |
+|---|---|---|---|---|
+| Hero | Ambiente da empresa, regras de dados a cada mensagem e anexo antes do envio, quick wins (LP-HERO-02/03, LP-FATO-01/03) | `src/filtro.js`, `src/plataforma/empresas.js`; testes do registro | LIBERADO | `6534041` |
+| Comparação | Plano único por créditos; regras antes do envio; visão por área, pessoa e quick win; limites por empresa, pessoa e dia (LP-COMP-01..06) | `src/plano.js`, `src/filtro.js`, `src/medicao.js` | LIBERADO | `6534041` |
+| Quick wins | Ensinar sem prompt, testar, publicar, versões, conferência do resultado, avaliação (LP-QW-*, LP-FAQ-21) | `src/quickwin-construtor.js`, `src/quickwins.js` | LIBERADO | `6534041` |
+| Implantação | Roteiro guiado; sem integração; domínio próprio por DNS; apoio da equipe (LP-IMP-*, LP-FAQ-22) | telas de configuração; `src/plataforma/dominio.js` | LIBERADO | `6534041` |
+| Prumo | Caminho recomendado, não obrigatório; GreenIA funciona sem ele (LP-PRUMO-*, LP-FAQ-23) | texto comercial; implantação self-service existe | LIBERADO | `6534041` |
+| Acesso da equipe de operação | Tipo e justificativa, até 60 min, visível e encerrável pelo admin, sem aprovação prévia, sem conteúdo das conversas (LP-FAQ-19) | `src/plataforma/acessos.js`; `test/acesso-greenia.test.js` | APÓS DEPLOY 1–3 | `f013ff2` + `5e34f90` |
+| Conversas | Fora das telas de colegas e admins, com as ressalvas da exportação e do relato (LP-POL-12) | `minhaConversa`; teste "outra pessoa e o admin não leem a conversa" | APÓS DEPLOY 1–3 ("sempre registrada") | `f013ff2` |
+| Exportações | Exigem justificativa e ficam registradas, inclusive falhas (LP-FAQ-19, LP-POL-12) | `registrarExportacao`; testes de exportação | APÓS DEPLOY 1–3 | `f013ff2` |
+| Exclusão | Sai do banco em uso e o arquivo de gravação é limpo logo em seguida (LP-FAQ-20) | `consolidarWal`; teste de conversa apagada | APÓS DEPLOY 1–3 | `2717c99` |
+| Backups e retenção | Cópias seguem prazos definidos, descritos na Política (LP-FAQ-20) | `src/retencao.js`; `test/retencao.test.js` | APÓS DEPLOY 1–3 e `RETENCAO_APLICAR=1` | `2717c99` |
+| Retenção (números) | 15 e 38 dias | `docs/politica-retencao.md` | REMOVIDO da LP (só na Política, como não ativado) | — |
+| LGPD | Controles apoiam as políticas da empresa; a empresa segue responsável (LP-POL-13) | teste de LGPD não absoluta | LIBERADO (o link para a Política: BLOQUEADO POR JURÍDICO) | `6534041` |
+| Transferência internacional | Servidores nos EUA, IA possivelmente fora do Brasil, há transferência (LP-FAQ-25) | `render.yaml`; painel do serviço | LIBERADO como fato; mecanismo e Política: BLOQUEADO POR JURÍDICO | `6534041` |
+| Créditos | Créditos mensais, não por pessoa, aviso em 80%, reserva na classe Rápido (LP-FIN-*, LP-FAQ-11/12) | `src/plano.js`, `src/avisos-governanca.js` | LIBERADO | `6534041` |
+| Fornecedores | Serviço de acesso a modelos, filtro de não coleta, rotas autorizadas para sigilo, OCR local (LP-FAQ-13/14) | `src/roteador.js`, `src/ocr.js` | LIBERADO | `6534041` |
+| White label | Endereço com o nome da empresa; marca própria (LP-COMO-01) | `public/marca-branca.js`; e2e de marca branca (passa na candidata) | LIBERADO (aviso de exemplo neutro: APÓS DEPLOY, `892e216`) | `6534041` / `892e216` |
+| Formulário | Contato comercial por email, sem preço (LP-FIN-12) | `src/vendas.js` | LIBERADO | `6534041` |
+| Termos e Privacidade | Links no rodapé e no corpo; documentos canônicos em `/termos` e `/privacidade` | `scripts/gerar-legais.js`; `c3bc88a` | BLOQUEADO POR JURÍDICO (rascunhos com pendências; não vigentes) | `d7dbcec` + `c3bc88a` |
+| Rodapé | Razão social, CNPJ, sede, contato, encarregado, site (LP-RODAPE-01..03) | dados informados pela TheNeil | BLOQUEADO POR JURÍDICO até confirmar a grafia do encarregado e uniformizar o endereço do site institucional | `b574ae3` |
+| Fontes | Fontes servidas pelo próprio servidor (Política 20) | `public/fontes/`; `test/fontes.test.js` | APÓS DEPLOY 1–3 | `19830f4` |
+| Preço, "a partir de", equivalência de créditos; aprovação prévia do Cliente; Prumo obrigatório | — | — | REMOVIDO | — |

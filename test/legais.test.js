@@ -53,3 +53,33 @@ test('LP: acesso da equipe sem aprovação prévia inventada; retenção sem pra
   assert.doesNotMatch(lp, /\b(?:15|38) dias\b/, 'prazos de cópias ficam na Política (ainda não ativos em produção)');
   for (const p of ['public/app.js', 'public/empresa.js']) assert.doesNotMatch(ler(p).replace(/^\s*\/\/.*$/gm, ''), /equipe GreenIA/, p);
 });
+
+test('termos e privacidade só no endereço canônico da plataforma; no endereço de uma empresa levam à plataforma e o resto continua igual', async () => {
+  const ops = await P.navegador().entrarConsole('ops@theneil.com.br');
+  const c = (await ops.post('/api/plataforma/empresas', { name: 'Empresa Doc', slug: 'empresa-doc', status: 'ativa', admin_email: 'dora@empresa-doc.com.br', admin_name: 'Dora' })).dados;
+  assert.equal((await ops.put(`/api/plataforma/empresas/${c.id}/url`, { custom_domain: 'ia.empresa-doc.com.br' })).status, 200);
+  await ops.put('/api/plataforma/configuracoes', { subdominio_base: 'ia.plataforma.teste' });
+  const plat = P.navegador();
+  for (const d of DOCUMENTOS) {
+    // Na plataforma: o caminho canônico abre; o arquivo leva ao caminho canônico.
+    assert.equal((await plat.get(d.caminho)).status, 200);
+    const arq = await plat.get(`${d.caminho}.html`);
+    assert.equal(arq.status, 301); assert.equal(arq.headers.get('location'), d.caminho);
+    // No domínio próprio e no subdomínio da empresa: redirecionamento para a plataforma, sem servir a cópia local.
+    for (const host of ['ia.empresa-doc.com.br', 'empresa-doc.ia.plataforma.teste']) {
+      for (const cam of [d.caminho, `${d.caminho}.html`]) {
+        const r = await P.navegador(host).get(cam);
+        assert.equal(r.status, 301, `${host}${cam}`);
+        assert.equal(r.headers.get('location'), `http://plataforma.teste${d.caminho}`);
+      }
+    }
+  }
+  // Páginas da plataforma não abrem pelo arquivo no endereço da empresa; as da empresa continuam.
+  const emp = P.navegador('ia.empresa-doc.com.br');
+  for (const f of ['/vendas.html', '/plataforma.html', '/operador.html', '/encontrar.html']) assert.equal((await emp.get(f)).status, 404, f);
+  for (const f of ['/', '/entrar', '/app', '/politica', '/estilo.css', '/fontes/fontes.css']) assert.equal((await emp.get(f)).status, 200, f);
+  assert.equal((await emp.get('/api/publico')).dados.empresa, 'Empresa Doc');
+  // Login no endereço da empresa continua funcionando.
+  assert.equal((await emp.entrarEmpresa('dora@empresa-doc.com.br')).status, 200);
+  assert.equal((await emp.get('/api/eu')).status, 200);
+});

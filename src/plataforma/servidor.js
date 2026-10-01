@@ -37,6 +37,8 @@ import { criarEncontrar } from './encontrar.js';
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
 const PAGINAS_EMPRESA = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html' };
+const PAGINAS_EMPRESA_ARQUIVOS = new Set(Object.values(PAGINAS_EMPRESA));
+const DOCUMENTOS_LEGAIS = { '/termos': '/termos', '/termos.html': '/termos', '/privacidade': '/privacidade', '/privacidade.html': '/privacidade' };
 const ICONE_PADRAO = '/assets/ia-neutro.svg';   // empresa sem ícone próprio: ícone neutro (white label)
 
 /**
@@ -271,6 +273,19 @@ async function tratar(P, rPlat, rEmp, req, res) {
     const porHost = resolverPorHost(P, hostDe(req));
     if (porHost?.redirecionar) { res.writeHead(301, { location: porHost.redirecionar + caminho }); return res.end(); }
     if (porHost?.inexistente) return paginaAmbienteNaoEncontrado(res);
+
+    // Documentos legais da GreenIA: um endereço canônico, no host da plataforma. No endereço próprio de uma empresa
+    // (domínio ou subdomínio) levam à plataforma, para não parecerem termos da empresa (white label).
+    const doc = DOCUMENTOS_LEGAIS[caminho];
+    if (doc && req.method === 'GET') {
+      if (porHost) {
+        if (!P.urlBase) return pagina404(res, 'Página não encontrada.');
+        res.writeHead(301, { location: P.urlBase.replace(/\/$/, '') + doc }); return res.end();
+      }
+      if (caminho !== doc) { res.writeHead(301, { location: doc }); return res.end(); }
+    }
+    // Páginas da plataforma (vendas, console, operador, encontrar) não abrem pelo arquivo no endereço de uma empresa.
+    if (porHost && /\.html$/i.test(caminho) && !PAGINAS_EMPRESA_ARQUIVOS.has(caminho.slice(1))) return pagina404(res, 'Página não encontrada.');
 
     // Arquivos estáticos (css, js, imagens) valem para todos.
     if (req.method === 'GET' && ehArquivoPublico(caminho) && await servirEstatico(res, PUBLICO, caminho.slice(1), req)) return;

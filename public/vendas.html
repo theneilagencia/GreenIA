@@ -12,8 +12,9 @@
 <link rel="stylesheet" href="/fontes/fontes.css">
 <link rel="stylesheet" href="/estilo.css">
 <link rel="stylesheet" href="/lp.css">
+<link rel="stylesheet" href="/lp-vendas.css">
 </head>
-<body class="l">
+<body class="l lv">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-banco" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V5.5M4.5 12v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V12"/></g></symbol>
   <symbol id="i-pessoas" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></g></symbol>
@@ -29,6 +30,7 @@
       <a href="#como">Como funciona</a>
       <a href="#quick-wins">Quick wins</a>
       <a href="#controle">Controle</a>
+      <a href="#modelos">Modelos</a>
       <a href="#implantacao">Implantação</a>
       <a href="#custo">Custo</a>
       <a href="#perguntas">Perguntas</a>
@@ -102,7 +104,7 @@
   <section class="l-secao" id="produto">
     <div class="l-dentro">
       <div class="l-cab">
-        <p class="l-rotulo">O cenário de hoje</p>
+        <p class="l-rotulo"><span class="n">01</span>O cenário de hoje</p>
         <h2 class="l-h2">A IA já está na empresa, só que espalhada</h2>
         <p class="l-sub">Cada pessoa usa por conta própria: útil para quem usa, invisível para a empresa.</p>
       </div>
@@ -126,7 +128,7 @@
   <section class="l-dentro" id="como">
     <div class="l-bloco inverte">
       <div>
-        <p class="l-rotulo">Como funciona</p>
+        <p class="l-rotulo"><span class="n">02</span>Como funciona</p>
         <h2 class="l-h2">Um ambiente da empresa, em três passos</h2>
         <p class="l-sub">Cada empresa tem o seu ambiente, com um endereço de acesso com o nome da empresa, sobre servidores compartilhados entre os clientes. O banco de dados de cada empresa é separado.</p>
         <ol class="l-passos">
@@ -178,7 +180,7 @@
   <section class="l-dentro" id="quick-wins">
     <div class="l-bloco">
       <div>
-        <p class="l-rotulo">Quick wins</p>
+        <p class="l-rotulo"><span class="n">03</span>Quick wins</p>
         <h2 class="l-h2">Transforme o que funciona em uso recorrente</h2>
         <p class="l-sub">Um quick win é uma tarefa recorrente que a área ensina à IA uma vez: objetivo, processo, regras e formato do resultado. Depois, qualquer pessoa autorizada traz só o caso do dia.</p>
         <ul class="l-itens">
@@ -215,7 +217,7 @@
   <section class="l-dentro" id="controle">
     <div class="l-bloco inverte">
       <div>
-        <p class="l-rotulo">Controle e confidencialidade</p>
+        <p class="l-rotulo"><span class="n">04</span>Controle e confidencialidade</p>
         <h2 class="l-h2">IA disponível, mas com controle</h2>
         <p class="l-sub">Antes do envio, a GreenIA confere cada mensagem e cada anexo e aplica a regra que a empresa definiu para cada tipo de dado reconhecido.</p>
         <ul class="l-itens">
@@ -251,30 +253,45 @@
   </section>
 
   <!-- Modelos -->
-  <section class="l-secao" id="modelos" style="padding-top:88px">
+  <section class="l-secao" id="modelos">
     <div class="l-dentro">
       <div class="l-modelos">
-        <div>
-          <p class="l-rotulo">Modelos de IA</p>
-          <h2 class="l-h2">OpenAI, Anthropic e Google, em um só ambiente</h2>
+        <div class="l-modelos-texto">
+          <p class="l-rotulo"><span class="n">05</span>Modelos de IA</p>
+          <h2 class="l-h2">OpenAI, Anthropic e Google em um só ambiente</h2>
           <p class="l-sub">A GreenIA reúne modelos de diferentes fabricantes e organiza o uso em três níveis: <b>Rápido, Equilibrado e Avançado</b>.</p>
           <p class="l-sub">A empresa define quais recursos podem ser usados, e a GreenIA direciona cada tarefa considerando segurança, desempenho e custo.</p>
           <p class="l-sub">Os modelos podem evoluir ao longo do tempo sem mudar a forma como a equipe trabalha.</p>
         </div>
-        <ol class="l-fluxo l-surge">
-          <li class="marcas">OpenAI <i aria-hidden="true">·</i> Anthropic <i aria-hidden="true">·</i> Google</li>
-          <li class="niveis">Rápido <i aria-hidden="true">·</i> Equilibrado <i aria-hidden="true">·</i> Avançado</li>
-          <li class="criterios">Segurança <i aria-hidden="true">·</i> Desempenho <i aria-hidden="true">·</i> Custo</li>
-        </ol>
+        <div class="l-ecos l-surge">
+          <ul class="l-ecos-fontes">
+            <li class="f1"><span class="l-ecos-logo"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg></span><span class="l-ecos-nome">OpenAI</span></li>
+            <li class="f2"><span class="l-ecos-logo"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/></svg></span><span class="l-ecos-nome">Anthropic</span></li>
+            <li class="f3"><span class="l-ecos-logo"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z"/></svg></span><span class="l-ecos-nome">Google</span></li>
+          </ul>
+          <svg class="l-ecos-linhas" viewBox="0 0 300 72" preserveAspectRatio="none" aria-hidden="true">
+            <path class="ln ln1" pathLength="1" d="M50 0 C50 40 150 32 150 72"/>
+            <path class="ln ln2" pathLength="1" d="M150 0 L150 72"/>
+            <path class="ln ln3" pathLength="1" d="M250 0 C250 40 150 32 150 72"/>
+            <path class="luz ln1" pathLength="1" d="M50 0 C50 40 150 32 150 72"/>
+            <path class="luz ln2" pathLength="1" d="M150 0 L150 72"/>
+            <path class="luz ln3" pathLength="1" d="M250 0 C250 40 150 32 150 72"/>
+          </svg>
+          <div class="l-ecos-nucleo">
+            <div class="l-ecos-hub"><img src="/assets/greenia-marca.svg" width="22" height="22" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></div>
+            <div class="l-ecos-niveis"><span class="n1">Rápido</span><span class="n2">Equilibrado</span><span class="n3">Avançado</span><i aria-hidden="true"></i></div>
+          </div>
+          <p class="l-ecos-criterios">Segurança <i aria-hidden="true">·</i> Desempenho <i aria-hidden="true">·</i> Custo</p>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- Implantação -->
-  <section class="l-secao" id="implantacao" style="padding-top:88px">
+  <section class="l-secao" id="implantacao">
     <div class="l-dentro">
       <div class="l-cab">
-        <p class="l-rotulo">Implantação</p>
+        <p class="l-rotulo"><span class="n">06</span>Implantação</p>
         <h2 class="l-h2">Dois jeitos de começar</h2>
         <p class="l-sub">A configuração é guiada e em linguagem simples. A implantação não exige integração com outros sistemas.</p>
       </div>
@@ -306,7 +323,7 @@
   <section class="l-dentro" id="custo">
     <div class="l-bloco">
       <div>
-        <p class="l-rotulo">Custo e créditos</p>
+        <p class="l-rotulo"><span class="n">07</span>Custo e créditos</p>
         <h2 class="l-h2">Controle o custo sem contar tokens</h2>
         <p class="l-sub">A empresa trabalha com créditos mensais, para a empresa inteira. Ninguém precisa entender tokens ou escolher modelos.</p>
         <ul class="l-itens">
@@ -340,10 +357,10 @@
   </section>
 
   <!-- Perguntas -->
-  <section class="l-secao" id="perguntas" style="padding-top:88px">
+  <section class="l-secao" id="perguntas">
     <div class="l-dentro">
       <div class="l-cab">
-        <p class="l-rotulo">Perguntas frequentes</p>
+        <p class="l-rotulo"><span class="n">08</span>Perguntas frequentes</p>
         <h2 class="l-h2">O que costumam perguntar</h2>
       </div>
       <div class="l-faq">
@@ -367,7 +384,7 @@
   <section class="l-dentro" id="contato">
     <div class="l-contato">
       <div>
-        <p class="l-rotulo">Contato</p>
+        <p class="l-rotulo"><span class="n">09</span>Contato</p>
         <h2 class="l-h2">Agende uma apresentação</h2>
         <p class="l-sub">Conte um pouco sobre a sua empresa. A equipe comercial responde por email para marcar uma apresentação.</p>
         <p class="l-contato-intro">No atendimento comercial:</p>

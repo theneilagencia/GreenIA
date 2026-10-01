@@ -36,3 +36,13 @@ if (cena && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
   addEventListener('scroll', () => { if (!pedido) pedido = requestAnimationFrame(mover); }, { passive: true });
   mover();
 }
+
+// Modelos de IA: brilho do cartão acompanha o cursor (só com mouse e movimento liberado).
+const ecos = document.querySelector('.l-ecos');
+if (ecos && matchMedia('(hover: hover) and (prefers-reduced-motion: no-preference)').matches) {
+  ecos.addEventListener('pointermove', e => {
+    const r = ecos.getBoundingClientRect();
+    ecos.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    ecos.style.setProperty('--my', `${e.clientY - r.top}px`);
+  }, { passive: true });
+}

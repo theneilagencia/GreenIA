@@ -63,9 +63,7 @@ export function pagina({ titulo, md }) {
 <title>${titulo} · GreenIA</title>
 <meta name="robots" content="${rascunho ? 'noindex' : 'index'}">
 <link rel="icon" href="/assets/greenia-marca.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
+<link rel="stylesheet" href="/fontes/fontes.css">
 <link rel="stylesheet" href="/estilo.css">
 </head>
 <body>

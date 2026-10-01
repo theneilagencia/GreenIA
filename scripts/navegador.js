@@ -12,8 +12,8 @@ export async function subirComNavegador({ adminEmail = 'admin@empresa-exemplo.co
   const base = `http://127.0.0.1:${app.servidor.address().port}`;
   const navegador = await chromium.launch({ executablePath: CHROMIUM });
   const contexto = await navegador.newContext({ viewport: { width: largura, height: altura }, deviceScaleFactor: 1 });
-  // Sem acesso ao Google Fonts no teste: a página usa as fontes do sistema.
-  await contexto.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  // As páginas não chamam terceiros (fontes servidas pelo próprio servidor); qualquer pedido externo é cortado.
+  await contexto.route(u => !u.href.startsWith(base), r => r.abort());
   return {
     app, base, navegador, contexto,
     async entrar(email, pagina) {

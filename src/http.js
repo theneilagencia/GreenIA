@@ -76,14 +76,15 @@ export function enviarCsv(res, nome, linhas) {
 
 // CSP: só o próprio servidor, mais as fontes do Google (com fonte do sistema de reserva).
 export function cabecalhosSeguranca(res) {
-  res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   res.setHeader('x-content-type-options', 'nosniff');
   res.setHeader('referrer-policy', 'same-origin');
   res.setHeader('x-frame-options', 'DENY');
 }
 
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 
 // Revalidação a cada carga (no-cache + ETag): o navegador guarda os arquivos, mas confere com o servidor e
 // recebe 304 quando nada mudou. Um deploy novo aparece na hora, sem misturar módulos antigos e novos.
@@ -93,7 +94,8 @@ export async function servirEstatico(res, raiz, caminho, req = null) {
   try {
     const dados = await readFile(arquivo);
     const etag = `"${createHash('sha1').update(dados).digest('base64url').slice(0, 20)}"`;
-    const cab = { 'content-type': TIPOS[extname(arquivo)], 'cache-control': 'no-cache', etag };
+    // Fontes têm a versão no nome do arquivo: podem ficar em cache sem revalidar.
+    const cab = { 'content-type': TIPOS[extname(arquivo)], 'cache-control': extname(arquivo) === '.woff2' ? 'public, max-age=31536000, immutable' : 'no-cache', etag };
     if (req?.headers['if-none-match'] === etag) { res.writeHead(304, cab); res.end(); return true; }
     res.writeHead(200, cab);
     res.end(dados);

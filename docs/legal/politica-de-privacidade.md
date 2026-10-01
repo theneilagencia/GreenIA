@@ -80,7 +80,6 @@ uma resposta onde a técnica não basta.
 | Exportações | Operador, tipo, justificativa, data, tamanho, sucesso ou falha | Banco da plataforma | Sim, sem prazo de eliminação | O arquivo exportado é entregue a quem pediu (seção 12) |
 | Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem | Banco da plataforma | Sim (seção 14) | Pelo serviço de email, aos admins da plataforma |
 | Logs técnicos | Mensagens de operação do servidor (falhas, rotinas, avisos) | Logs do provedor de hospedagem | Sim, pelo prazo do provedor | Ficam no provedor |
-| Navegação na página de vendas e nas telas | Endereço IP e navegador, ao carregar as fontes tipográficas | Google Fonts | Não armazenamos | Sim, ao Google (seção 19) |
 
 ### 4.2 Dados processados sem ficar guardados
 
@@ -303,7 +302,6 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 | Auditoria e acessos da operação | Segurança e prestação de contas | Legítimo interesse / cumprimento de obrigação | Necessária |
 | Logs técnicos | Operação e segurança | Legítimo interesse | Necessária |
 | Formulário comercial | Atendimento a pedido do titular | Procedimentos preliminares a contrato, a pedido do titular / legítimo interesse | Necessária |
-| Fontes tipográficas (Google Fonts) | Exibição da página | [PENDÊNCIA JURÍDICA] | Necessária |
 
 ## 16. Direitos dos titulares
 
@@ -357,7 +355,6 @@ Inventário de fornecedores confirmados:
 | Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), comprovado no serviço | Executar e guardar a GreenIA |
 | OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | [PENDÊNCIA: não comprovada nesta auditoria] | Gerar respostas |
 | Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | [PENDÊNCIA: depende do fabricante] | Gerar respostas |
-| Google Fonts | Fontes tipográficas carregadas pelas páginas | IP e navegador de quem abre a página | [PENDÊNCIA: não comprovada nesta auditoria] | Exibir as páginas |
 | Provedor de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | [PENDÊNCIA: provedor não identificado] | Enviar códigos e avisos |
 | Servidor de email do Cliente (opcional) | Envio dos emails do ambiente dele | Idem | Definido pelo Cliente | Idem |
 
@@ -368,8 +365,8 @@ A TheNeil não vende dados pessoais. [PENDÊNCIA JURÍDICA: confirmar esta afirm
 - **Cookies essenciais:** sessão da empresa, sessão do console e o contexto da empresa (30 dias). São necessários para
   entrar e não são usados para publicidade.
 - **Armazenamento local do navegador:** guarda preferências de tela, como a última tela visitada.
-- **Rastreamento:** não há ferramentas de análise ou publicidade nas páginas da GreenIA. As fontes tipográficas vêm do
-  Google Fonts (seção 19).
+- **Rastreamento:** não há ferramentas de análise ou publicidade nas páginas da GreenIA. As fontes tipográficas são
+  servidas pelo próprio servidor da GreenIA, sem chamada a terceiros.
 
 ## 21. Alterações desta Política
 

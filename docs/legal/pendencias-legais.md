@@ -12,7 +12,7 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 | Acordo de tratamento de dados (DPA) com clientes | Aberto | Formaliza o papel de operadora | **Sim** | Não | Não |
 | Bases legais | Proposta (Política, seção 15) | Não publicar sem aprovação | **Sim** | Não | Não |
 | Transferência internacional (Render nos EUA; OpenRouter e fabricantes) | Fato registrado; mecanismo aberto | Exigência de transparência e de mecanismo jurídico | **Sim** | Não | Não |
-| Termos com o OpenRouter e localização dele e do Google Fonts | Aberto | Mapa de terceiros incompleto | Sim | Não | Sim (contratos) |
+| Termos com o OpenRouter e localização dele | Aberto (Google Fonts removido em 2026-10-01: fontes servidas pelo próprio servidor) | Mapa de terceiros incompleto | Sim | Não | Sim (contratos) |
 | Provedor de email da plataforma | **Não identificado** | Mapa de terceiros incompleto | Não | Sim (confirmar a variável `SMTP_URL` sem expor segredo) | Sim |
 | Incidentes: prazo de comunicação, processo e responsáveis | Aberto | Cláusula sem prazo | **Sim** | Sim (procedimento) | Não |
 | Registros sem prazo (atividade, consumo, auditoria, acessos, exportações, relatos, contatos comerciais) | **Pendência de governança** | **Bloqueia publicação da Política** (definir prazo ou redação aprovada) | Sim | **Sim** | Não |
@@ -32,7 +32,6 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 | Render (EUA, Virgínia) | Todo o armazenamento: bancos, backups, cópias diárias do disco, logs | Permanente enquanto houver serviço |
 | OpenRouter (localização a comprovar) | Conteúdo de cada pedido à IA | A cada pedido |
 | Fabricantes dos modelos (localização variável) | Conteúdo de cada pedido, via OpenRouter | A cada pedido |
-| Google Fonts (localização a comprovar) | IP e navegador de quem abre as páginas | Ao carregar as páginas |
 | Provedor de email (a identificar) | Destinatário e conteúdo dos emails (códigos, avisos, relatos, contatos) | A cada email |
 
 ## 3. Matriz de retenção (resumo)
@@ -64,7 +63,7 @@ física de blocos.
 | 1 | **Resolvido em 2026-10-01** (Termos usam "TheNeil") · Conflito de termos | Os Termos (cláusula 1) chamam a TheNeil de "Operadora". Na Política, "operadora" é o papel da LGPD | Nos Termos, usar "TheNeil" ou "Fornecedora" e reservar "operadora" ao sentido da LGPD |
 | 2 | **Resolvido** ("Cliente" nos dois) · Termos diferentes para o mesmo conceito | Termos: "Cliente", "Usuário", "Ambiente". Política: "empresa cliente", "usuário", "ambiente" | Unificar: "Cliente (empresa cliente)" nos dois, com a mesma definição |
 | 3 | **Resolvido** (Termos 12.3 citam as finalidades próprias) · Conflito de escopo | Termos 12.3: a TheNeil usa o Conteúdo "apenas para prestar o serviço". A Política mostra finalidades próprias (segurança, auditoria, cobrança) sobre registros, que não são Conteúdo | Manter 12.3 restrito ao Conteúdo e remeter os registros à Política |
-| 4 | **Mantido só na Política** (decisão de 2026-10-01) · Obrigação só na Política | Google Fonts aparece na Política (19) e não nos Termos (11.1) | Nos Termos, remeter à lista de fornecedores da Política |
+| 4 | **Resolvido em 2026-10-01** (Google Fonts deixou de ser usado; fontes servidas pelo próprio servidor) · Obrigação só na Política | Google Fonts aparecia na Política (19) e não nos Termos (11.1) | — |
 | 5 | **Resolvido** (Termos 18.1 e 22.2) · Obrigação só na Política | Relatos de problema e contatos comerciais sem prazo (Política 10.5 e 14); os Termos 18.1 não citam os relatos | Incluir "relatos de problema" na lista de registros dos Termos 18.1 |
 | 6 | **Resolvido** (resumo nos Termos 15) · Duplicação | Acesso da equipe de operação descrito por completo nos dois (Termos 15; Política 9) | Aceitável por transparência; manter os dois textos idênticos nos pontos factuais |
 | 7 | **Resolvido** (resumo nos Termos 16) · Duplicação | Retenção e cópias (Termos 16; Política 10) | Nos Termos, versão curta com remissão à Política, para evitar divergência futura |
@@ -86,7 +85,7 @@ final e a aprovação de merge e deploy. A data de vigência (30/11/2026) não a
 4. Prazos dos registros sem prazo, ou redação aprovada pelo jurídico.
 5. Prazo entre cancelamento e exclusão definitiva.
 6. Prazo e processo de comunicação de incidentes.
-7. Provedor de email identificado; localização do OpenRouter e do Google Fonts conforme documentação deles.
+7. Provedor de email identificado; localização do OpenRouter conforme documentação dele.
 8. Procedimento, prazo e verificação de identidade no atendimento aos titulares (o canal está definido).
 9. Limpeza de retenção ativa em produção (`RETENCAO_APLICAR=1`) com os backups atuais classificados. Sem isso, os
    prazos de 15 e 38 dias não se sustentam.

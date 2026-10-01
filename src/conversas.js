@@ -516,6 +516,13 @@ export function rotasConversas(app, r) {
       ? [{ type: 'text', text: sistema }, ...ctx.partes.map((p, i) => ({ type: 'text', text: p, ...(i === 0 && ctx.cacheavel ? { cache_control: { type: 'ephemeral' } } : {}) }))]
       : [sistema, ...ctx.partes].join('\n\n');
     const mensagens = [{ role: 'system', content: conteudoSistema }, ...h.mensagens];
+    // Pesquisa na internet: sem busca nativa no fornecedor (ex.: Claude pelo Bedrock), o plugin web do OpenRouter
+    // usa a última mensagem da pessoa como consulta. Numa execução ela costuma ser só o gatilho ("Execute agora."),
+    // e a busca voltava fontes sem relação com o trabalho. O tema (objetivo do Quick Win) vai junto, só no envio.
+    if (pesquisa?.disponivel && !sigilosa && qw?.espec?.objetivo) {
+      const u = mensagens.findLastIndex(x => x.role === 'user');
+      if (u > 0) mensagens[u] = { ...mensagens[u], content: comTemaDaPesquisa(mensagens[u].content, qw.espec.objetivo) };
+    }
     // Para limpar um erro do provedor que repita o pedido antes de ele ir para o registro (registro-seguro.js).
     const conteudoDoPedido = mensagens.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
 
@@ -661,4 +668,10 @@ export function apagarVencidas(app) {
   }
   if (vencidas.length) consolidarWal(app.db);
   return vencidas.length;
+}
+
+// Tema da pesquisa na frente da mensagem enviada (texto simples ou partes, com imagem).
+export function comTemaDaPesquisa(conteudo, objetivo) {
+  const tema = `Tema da pesquisa na internet: ${String(objetivo).replace(/\s+/g, ' ').trim().slice(0, 400)}`;
+  return typeof conteudo === 'string' ? `${tema}\n\n${conteudo}` : [{ type: 'text', text: tema }, ...conteudo];
 }

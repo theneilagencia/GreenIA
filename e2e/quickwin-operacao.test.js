@@ -74,8 +74,11 @@ test('operação de conteúdo: peças por canal, pesquisa, exemplo contextual, r
   const antes = OR.chamadas.length;
   await p.click('[data-testar]');
   await p.waitForSelector('#teste-resultado .qc-ok');
-  const exec = OR.chamadas.slice(antes).find(b => !texto(b.messages[0].content).includes('conferente'));
-  assert.ok(exec.plugins, 'o teste executa de verdade, com pesquisa');
+  // Execução em etapas: a coleta (pesquisa) vem primeiro; os entregáveis estão no prompt da produção.
+  const exec = OR.chamadas.slice(antes).find(b => !texto(b.messages[0].content).includes('conferente') && texto(b.messages[0].content).includes('Entregáveis (entregue todos'));
+  const coleta = OR.chamadas.slice(antes).find(b => b.plugins);
+  assert.ok(coleta && /Etapa 1 de 2 desta execução: pesquisa/.test(texto(coleta.messages[0].content)), 'o teste executa de verdade, com pesquisa (etapa de coleta)');
+  assert.equal(exec.plugins, undefined, 'a produção usa as notas da pesquisa, sem pesquisar de novo');
   assert.match(texto(exec.messages[0].content), /Instagram · Carrossel \(8 slides\)/);
   assert.doesNotMatch(texto(exec.messages[0].content), /Instagram · Reels/);
   // Resultado separado por canal e peça, com fontes; filtro por canal.

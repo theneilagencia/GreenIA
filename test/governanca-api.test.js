@@ -251,8 +251,10 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   const chamadas = arquivos.flatMap(p => (readFileSync(p, 'utf8').match(/\bia\.enviar\(/g) || []).map(() => p.slice(raiz.length)));
   // Caminhos autorizados, cada um com a sua finalidade. Uma chamada nova (em outro módulo ou num destes) falha aqui.
   const AUTORIZADOS = {
-    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0'],
-    // Uma chamada só (chamarGovernado), para as finalidades da criação: quick_win_estrutura e quick_win_exemplo.
+    // A coleta (pesquisa) da execução em etapas usa o mesmo recurso já roteado e conferido para a execução.
+    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0', 'coleta da execução em etapas (pesquisa)'],
+    // Uma chamada só (chamarGovernado), para as finalidades da criação: quick_win_estrutura, quick_win_exemplo e
+    // quick_win_interpretacao (o plano da operação).
     'quickwin-estrutura.js': ['chamada curta da criação'],
   };
   assert.deepEqual(chamadas.sort(), Object.entries(AUTORIZADOS).flatMap(([arq, fins]) => fins.map(() => arq)).sort(), 'só os caminhos autorizados executam modelo');
@@ -278,8 +280,11 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf('app.ia.enviar('), 'a execução vem depois da decisão');
   assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf('app.ia.enviar('), 'conferência final dos guardrails antes do envio');
   // Pesquisa na internet: só na execução, só liberada pela governança e nunca em conversa sigilosa; nunca na conferência.
-  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 1, 'uma só chamada com pesquisa');
-  assert.match(conv, /pesquisaWeb: pesquisa\?\.disponivel && !sigilosa \? \{ max: 5 \} : null/);
+  // Duas chamadas podem pesquisar: a coleta da execução em etapas (só com a pesquisa liberada e sem sigilo) e a
+  // execução de uma etapa só quando a coleta não trouxe notas. Nunca as duas na mesma execução.
+  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 2, 'só a coleta e a execução de uma etapa pesquisam');
+  assert.match(conv, /const emEtapas = !!\(execucaoQw && pesquisa\?\.disponivel && !sigilosa\);/);
+  assert.match(conv, /pesquisaWeb: pesquisa\?\.disponivel && !sigilosa && !notas \? \{ max: 5 \} : null/);
   assert.match(conv, /!cfg\.pesquisaWeb\?\.ativa \? 'nao_liberada' : sigilosa \? 'sigilosa' : areaReforcada \? 'area_reforcada'/);
   assert.match(conv, /rotaSigilo = conferirEnvio\(alt\.modelo\)/, 'a busca por outro recurso passa pelos guardrails');
   assert.ok(conv.indexOf('avaliarProcessamentoSigiloso({ cfg, sigilosa })') < conv.indexOf('tornarSigilosa(app, pessoa, conv, motivo)', conv.indexOf('r.post(\'/api/conversas/:id/mensagens\'')), 'a política decide antes de marcar a conversa');

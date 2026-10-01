@@ -35,7 +35,9 @@ const O_QUE_ENVIAR = {
   organizar_informacoes: 'Cole as anotações ou envie o arquivo que deve ser organizado.',
   criar_relatorio: 'Envie os dados ou documentos do período.',
 };
-export const oQueEnviar = qw => O_QUE_ENVIAR[qw?.arquetipo] || 'Envie o documento ou descreva o que deseja analisar.';
+// Com plano (entradas declaradas), o que pedir vem dele: "Envie: 3 propostas de fornecedores".
+export const oQueEnviar = qw => (qw?.entregas?.entradas?.length ? `Envie: ${qw.entregas.entradas.join('; ')}.`
+  : O_QUE_ENVIAR[qw?.arquetipo] || 'Envie o documento ou descreva o que deseja analisar.');
 
 // ---- Cabeçalho de página ------------------------------------------------------------------------------------
 export function cabecalhoPg({ trilha = [], titulo, descricao = '', lado = '', meta = '' }) {
@@ -60,11 +62,11 @@ export function progressoEtapas(etapas, atual, { concluidas = atual } = {}) {
 
 // ---- Progresso da execução (Analisando · Organizando · Conferindo) ------------------------------------------
 const FASES = ['Analisando', 'Organizando', 'Conferindo'];
-export const faseDaEtapa = etapa => (!etapa ? 0 : /^Analisando/.test(etapa) ? 0 : /^Organizando/.test(etapa) ? 1 : 2);
+export const faseDaEtapa = etapa => (!etapa ? 0 : /^(Analisando|Pesquisando)/.test(etapa) ? 0 : /^Organizando/.test(etapa) ? 1 : 2);
 export function progressoExecucao(etapa) {
   const f = faseDaEtapa(etapa), ajustando = /^Ajustando/.test(etapa || '');
   return `<div class="exec-progresso" role="status" aria-live="polite" aria-label="${esc(etapa || 'Analisando…')}">
-    ${FASES.map((n, i) => `<span class="exec-fase ${i < f ? 'feita' : i === f ? 'ativa' : ''}"><span class="exec-ponto" aria-hidden="true"></span>${i === 2 && ajustando ? 'Ajustando' : n}</span>`).join('<span class="exec-sep" aria-hidden="true"></span>')}
+    ${FASES.map((n, i) => `<span class="exec-fase ${i < f ? 'feita' : i === f ? 'ativa' : ''}"><span class="exec-ponto" aria-hidden="true"></span>${i === 2 && ajustando ? 'Ajustando' : i === 0 && /^Pesquisando/.test(etapa || '') ? 'Pesquisando' : n}</span>`).join('<span class="exec-sep" aria-hidden="true"></span>')}
   </div>`;
 }
 
@@ -145,42 +147,49 @@ export async function lerEventos(resposta, aoEvento) {
   if (resto.trim()) aoEvento(JSON.parse(resto));
 }
 
-// ---- Resultado por canal e entregável -----------------------------------------------------------------------
-// O resultado de um Quick Win com entregas por canal vem com um título por peça ("## LinkedIn · Copy"). Aqui ele
-// é separado em grupos (um por canal, "Geral" para o resto) e cartões (um por peça), cada um copiável. As fontes
-// da pesquisa ficam num bloco próprio, com os endereços. Sem títulos de peça, devolve null (resultado comum).
-export function separarPorCanal(texto) {
+// ---- Resultado por entregável (e por canal, quando há) ------------------------------------------------------
+// O resultado de um Quick Win com vários entregáveis vem com um título por entregável ("## Riscos", "## LinkedIn ·
+// Copy"). Aqui ele é separado em cartões (um por entregável, cada um copiável), agrupados por canal só quando há
+// canal. As fontes da pesquisa ficam num bloco próprio. porSecao: separar mesmo sem canal (vários entregáveis).
+// Sem títulos que separem, devolve null (resultado comum, num bloco só).
+export function separarPorCanal(texto, { porSecao = false } = {}) {
   const ls = String(texto || '').replace(/\r/g, '').split('\n'), pecas = [];
   let atual = null, antes = [];
   for (const l of ls) {
-    const m = /^\s*##\s+(.+?)\s*$/.exec(l);
+    const m = /^\s*#{1,2}\s+(.+?)\s*$/.exec(l);
     if (m) { atual = { titulo: m[1].replace(/[*_]/g, ''), linhas: [] }; pecas.push(atual); continue; }
     (atual ? atual.linhas : antes).push(l);
   }
-  if (!pecas.some(p => p.titulo.includes(' · '))) return null;
-  const grupos = new Map();
-  // A seção de fontes não é uma peça: vira o bloco de fontes (os endereços da pesquisa, quando vieram).
   const fontes = pecas.find(p => /^fontes da pesquisa$/i.test(p.titulo));
-  for (const p of pecas.filter(x => x !== fontes)) {
-    const [canal, peca] = p.titulo.includes(' · ') ? p.titulo.split(' · ') : ['Geral', p.titulo];
+  const resto = pecas.filter(x => x !== fontes);
+  const comCanal = resto.some(p => p.titulo.includes(' · '));
+  if (!comCanal && !(porSecao && resto.length >= 2)) return null;
+  const grupos = new Map();
+  for (const p of resto) {
+    const [canal, peca] = comCanal ? (p.titulo.includes(' · ') ? p.titulo.split(' · ') : ['Geral', p.titulo]) : ['', p.titulo];
     if (!grupos.has(canal)) grupos.set(canal, []);
     grupos.get(canal).push({ titulo: peca, canal, texto: p.linhas.join('\n').trim() });
   }
   return { introducao: antes.join('\n').trim(), grupos: [...grupos.entries()].map(([canal, itens]) => ({ canal, itens })), fontesTexto: fontes ? fontes.linhas.join('\n').trim() : '' };
 }
+// renderizar: o do md.js. As tabelas de cada cartão ficam em sep.tabelas, na ordem dos botões "Baixar em CSV".
 export function htmlPorCanal(sep, renderizar, fontes = []) {
   const web = (fontes || []).filter(f => f && typeof f === 'object' && f.url);
-  return `<div class="qw-canais">
-    ${sep.introducao ? `<div class="qw-canais-intro">${renderizar(sep.introducao).html}</div>` : ''}
+  const tabelas = [];
+  const ren = t => { const r = renderizar(t), base = tabelas.length; tabelas.push(...(r.tabelas || [])); return r.html.replace(/data-csv="(\d+)"/g, (_, n) => `data-csv="${base + Number(n)}"`); };
+  const html = `<div class="qw-canais">
+    ${sep.introducao ? `<div class="qw-canais-intro">${ren(sep.introducao)}</div>` : ''}
     ${sep.grupos.length > 1 ? `<div class="segmento-sutil qw-canais-filtro" role="group" aria-label="Mostrar">
       <button type="button" data-canal="*" aria-pressed="true">Tudo</button>${sep.grupos.map(g => `<button type="button" data-canal="${esc(g.canal)}" aria-pressed="false">${esc(g.canal)}</button>`).join('')}</div>` : ''}
-    ${sep.grupos.map(g => `<section class="qw-canal" data-grupo="${esc(g.canal)}" aria-label="${esc(g.canal)}"><h4 class="qw-canal-nome">${esc(g.canal)}</h4>
+    ${sep.grupos.map(g => `<section class="qw-canal" data-grupo="${esc(g.canal)}" aria-label="${esc(g.canal || 'Entregáveis')}">${g.canal ? `<h4 class="qw-canal-nome">${esc(g.canal)}</h4>` : ''}
       ${g.itens.map((it, i) => `<article class="qw-peca"><div class="qw-peca-cabeca"><b>${esc(it.titulo)}</b>${/^Briefing \(/.test(it.texto) ? '<span class="tag">Briefing</span>' : ''}
         <button type="button" class="link-sutil" data-copiar-peca="${esc(g.canal)}|${i}">Copiar</button></div>
-        <div class="qw-peca-corpo">${renderizar(it.texto).html}</div></article>`).join('')}</section>`).join('')}
+        <div class="qw-peca-corpo">${ren(it.texto)}</div></article>`).join('')}</section>`).join('')}
     ${web.length ? `<section class="qw-fontes" aria-label="Fontes da pesquisa"><b>Fontes da pesquisa</b><ul>${web.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a></li>`).join('')}</ul></section>`
-      : sep.fontesTexto ? `<section class="qw-fontes" aria-label="Fontes citadas"><b>Fontes citadas</b>${renderizar(sep.fontesTexto).html}</section>` : ''}
+      : sep.fontesTexto ? `<section class="qw-fontes" aria-label="Fontes citadas"><b>Fontes citadas</b>${ren(sep.fontesTexto)}</section>` : ''}
   </div>`;
+  sep.tabelas = tabelas;
+  return html;
 }
 export function ligarPorCanal(raiz, sep, aviso = () => {}) {
   raiz.querySelectorAll('[data-canal]').forEach(b => { b.onclick = () => {

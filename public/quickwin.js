@@ -32,6 +32,7 @@ export async function rotaQuickWin(hash) {
   if (hash === '#/qw/nova') return assistenteQw();
   if (hash === '#/qw/nova/modelos') return novaOrigem();
   if ((m = /^#\/qw\/(\d+)\/ajustar$/.exec(hash))) return assistenteQw(Number(m[1]));
+  if ((m = /^#\/qw\/(\d+)\/atualizar$/.exec(hash))) return assistenteQw(Number(m[1]), { atualizar: true });
   if ((m = /^#\/qw\/(\d+)\/publicar$/.exec(hash))) return publicarQw(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/versoes$/.exec(hash))) return versoesQw(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/editar$/.exec(hash))) return configurar(Number(m[1]));
@@ -109,6 +110,8 @@ function acoesQw(q, { naPagina = false } = {}) {
   if (!naPagina) out.push({ rotulo: 'Abrir', href: `#/qw/${q.id}` });
   if (q.podeEditar && e.id !== 'arquivado') out.push({ rotulo: 'Editar', href: q.v2 ? `#/qw/${q.id}/ajustar` : `#/qw/${q.id}/editar` });
   if (q.podeEditar && q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Testar', href: `#/qw/${q.id}/teste` });
+  // Quick Win antigo (sem plano de operação): a GreenIA sugere a estrutura; nada muda até a pessoa publicar.
+  if (q.podeEditar && !q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Atualizar para Quick Win inteligente', href: `#/qw/${q.id}/atualizar` });
   if (E.podeCriarQw) out.push({ rotulo: 'Duplicar', acao: 'duplicar', id: q.id });
   if (q.podeEditar && q.v2 && q.versao) out.push({ rotulo: 'Ver versões', href: `#/qw/${q.id}/versoes` });
   if (q.podeEditar && q.v2) out.push({ rotulo: 'Acesso e dados', href: `#/qw/${q.id}/editar` });

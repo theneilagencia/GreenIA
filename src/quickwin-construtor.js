@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { contemCredencial } from './filtro.js';
 import { delimitar } from './texto.js';
-import { conferirOperacao, criteriosOperacao, FERRAMENTAS, inferirOperacao, limparOperacao, MOTIVOS_PESQUISA, promptOperacao } from './quickwin-operacao.js';
+import { chaveInterpretacao, conferirOperacao, criteriosOperacao, entregaMultipla, executaveis, FERRAMENTAS, formatoUnico, inferirOperacao, limparOperacao, MARCADOR_PERGUNTA as MARCADOR, MOTIVOS_PESQUISA, promptOperacao } from './quickwin-operacao.js';
 
 export const VERSAO_ESPEC = 1;
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -156,7 +156,7 @@ export const AUTONOMIA = {
   sugerir: { rotulo: 'Sugerir', instrucao: 'Analise e sugira próximos passos, sem executá-los.' },
   preparar: { rotulo: 'Preparar para executar', instrucao: 'Deixe o material pronto para a pessoa usar (rascunho, texto final, pauta), mas não execute nada: quem decide e envia é a pessoa.' },
 };
-export const MARCADOR_PERGUNTA = 'Antes de começar, preciso de uma informação:';
+export const MARCADOR_PERGUNTA = MARCADOR;
 const SECAO_AUSENTES = 'Informações não encontradas';
 
 // ---- Inferência ---------------------------------------------------------------------------------------------
@@ -381,6 +381,40 @@ function colunasDoContrato({ manuais, exemplo, estrutura, arquetipo, livre = fal
   return { colunas: ARQUETIPOS[arquetipo].colunas || COLUNAS_PADRAO, origem: 'sugestao' };
 }
 
+// ---- Plano heurístico (sem IA) ------------------------------------------------------------------------------
+// Quando a interpretação pela IA não pode ser usada (conteúdo protegido, sigilo, plano na reserva, falha), o plano
+// sai daqui: conservador, com o mesmo comportamento de antes para formato e peças, e com entradas, etapas e
+// ferramentas explícitas. A pessoa vê e ajusta como qualquer plano.
+const ENTRADA_ARQUIVO = /(foto|fotos|imagem|imagens|digitaliz|escane|scan|comprovante|recibo|boleto|audio)/;
+const ENTRADAS_DO_TIPO = {
+  analisar_documentos: [{ tipo: 'documento', rotulo: 'Documento a analisar' }],
+  comparar_documentos: [{ tipo: 'documento', rotulo: 'Documentos a comparar', quantidade: 2 }],
+  organizar_informacoes: [{ tipo: 'texto', rotulo: 'Anotações ou informações a organizar' }],
+  criar_relatorio: [{ tipo: 'dados', rotulo: 'Dados do período' }],
+  preparar_reuniao: [{ tipo: 'transcricao', rotulo: 'Pauta, anotações ou transcrição da reunião' }],
+  responder_clientes: [{ tipo: 'texto', rotulo: 'Mensagem do cliente' }],
+  criar_conteudo: [],
+  outro: [{ tipo: 'texto', rotulo: 'Material do trabalho', obrigatoria: false }],
+};
+const QUANTOS = { dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5 };
+export function planoHeuristico(texto, arq = inferirArquetipo(texto)) {
+  const base = inferirOperacao(texto) || { canais: [], entregaveis: [], ferramentas: [] };
+  const t = norm(texto);
+  let entradas = (ENTRADAS_DO_TIPO[arq] || ENTRADAS_DO_TIPO.outro).map(e => ({ ...e }));
+  if (base.entregaveis.length && !/\b(documento|contrato|planilha|proposta|anexo|material enviado)/.test(t)) entradas = [];
+  else if (/\bplanilha/.test(t)) entradas = [{ tipo: 'planilha', rotulo: 'Planilha' }];
+  else if (ENTRADA_ARQUIVO.test(t) && !/\b(texto|mensagem|e-?mail)\b/.test(t)) entradas = [{ tipo: 'imagem', rotulo: 'Arquivo (imagem, foto ou documento digitalizado)' }];
+  const n = /\b(\d{1,2}|dois|duas|tres|quatro|cinco)\s+(propostas|fornecedores|documentos|contratos|versoes|cotacoes|orcamentos)/.exec(t);
+  if (n && entradas[0]) entradas[0].quantidade = Math.min(10, Number(n[1]) || QUANTOS[n[1]] || 1);
+  const ferramentas = [...base.ferramentas];
+  if (entradas.some(e => e.tipo === 'documento')) ferramentas.push('leitura_documento');
+  if (entradas.some(e => e.tipo === 'planilha')) ferramentas.push('analise_planilha');
+  const contexto = base.canais.length > 0 || arq === 'criar_conteudo';
+  if (contexto) ferramentas.push('base_empresa');
+  return limparOperacao({ v: 2, origem: 'inferida', canais: base.canais, entregaveis: base.entregaveis, ferramentas, entradas,
+    etapas: (ARQUETIPOS[arq] || ARQUETIPOS.outro).procedimento.map(texto => ({ texto })), contexto_empresa: contexto, categoria: arq === 'criar_conteudo' ? 'conteudo' : null });
+}
+
 // ---- Especificação ------------------------------------------------------------------------------------------
 // Respostas da criação -> especificação interna. Campos desconhecidos são ignorados; nada aqui amplia
 // fontes, ferramentas ou autonomia além do que o catálogo permite.
@@ -391,8 +425,9 @@ export function construir(r = {}) {
   const modo = ['explicar', 'mostrar', 'pronto'].includes(r.como?.modo) ? r.como.modo : 'pronto';
   const explicacao = modo === 'explicar' ? String(r.como?.texto || '').slice(0, 3000) : '';
   // Operação (entregáveis, canais, ferramentas, contexto): a confirmada pela pessoa ou a inferida do pedido.
-  const operacao = r.operacao !== undefined ? limparOperacao(r.operacao && { ...r.operacao, origem: 'pessoa' })
-    : limparOperacao(inferirOperacao(`${descricao}\n${explicacao}`));
+  // Plano: o interpretado pela IA (origem "ia") ou ajustado pela pessoa vale; sem ele, o plano heurístico.
+  const operacao = r.operacao !== undefined ? limparOperacao(r.operacao && { ...r.operacao, origem: r.operacao.origem === 'ia' ? 'ia' : 'pessoa' })
+    : planoHeuristico(`${descricao}\n${explicacao}`, arq);
   // _estruturaAnterior: a estrutura já guardada (vem só do servidor, ao ajustar sem mostrar um exemplo novo).
   const exemplo = modo === 'mostrar' ? analisarExemplo(r.como?.exemplo) || r._estruturaAnterior || null : null;
   // Regras: só as do catálogo; "não inventar" sempre ligada; no máximo as sugeridas mais as da escolha.
@@ -402,7 +437,9 @@ export function construir(r = {}) {
   const estrutura = estruturaValida(r.estrutura_objetivo, descricao);
   const manuais = r.colunas_origem === 'pessoa' && Array.isArray(r.colunas) ? limparColunas(r.colunas) : null;
   const sug = sugerirFormato({ descricao, arquetipo: arq, exemplo, colunasPedidas: estrutura?.colunas.map(c => c.nome) || [] });
-  const tipo = FORMATOS_SAIDA[r.formato] ? r.formato : operacao?.entregaveis.length ? 'outro' : sug.formato;
+  // Formato do contrato: derivado do plano. Vários entregáveis: cada um vira uma seção obrigatória ("outro"); um só,
+  // de formato simples, é o contrato daquele formato. A escolha explícita da pessoa continua valendo.
+  const tipo = FORMATOS_SAIDA[r.formato] ? r.formato : entregaMultipla(operacao) ? 'outro' : formatoUnico(operacao) || sug.formato;
   const passos = explicacao ? explicacao.split(/\n+|(?<=[.;])\s+(?=[A-ZÀ-Ú0-9])/).map(p => limpar(p.replace(/^([-*•]|\d+[.)])\s*/, ''), 240)).filter(p => p.length > 3).slice(0, 8) : [];
   const cc = tipo === 'tabela' ? colunasDoContrato({ manuais, exemplo, estrutura, arquetipo: arq, livre: r.colunas_origem === 'livre' }) : { colunas: [], origem: null };
   const colunas = cc.colunas;
@@ -410,37 +447,41 @@ export function construir(r = {}) {
   secoes = secoes.filter(s => s !== 'Evidências' || regras.includes('mostrar_evidencias'));
   if (regras.includes('destacar_ausentes') && !secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) secoes = [...secoes, SECAO_AUSENTES];
   // Entrega por canal: as peças são as seções (títulos dos entregáveis); das seções fixas, só a de ausências fica.
-  if (operacao?.entregaveis.length && tipo === 'outro') secoes = secoes.filter(s => norm(s) === norm(SECAO_AUSENTES));
+  if (entregaMultipla(operacao) && tipo === 'outro') secoes = secoes.filter(s => norm(s) === norm(SECAO_AUSENTES));
   const autonomia = AUTONOMIA[r.autonomia] ? r.autonomia : a.autonomia;
   // Configuração confirmada pela pessoa (formato ou regras escolhidos, regras próprias, colunas dela ou do exemplo):
   // na execução e na conferência, ela vale mais do que detalhes de estrutura citados no texto do objetivo.
   const confirmada = !!(FORMATOS_SAIDA[r.formato] || Array.isArray(r.regras) || manuais || exemplo || proprias.length || r.operacao !== undefined);
-  const entregaPorCanal = !!operacao?.entregaveis.length && tipo === 'outro';
+  const entregaPorCanal = entregaMultipla(operacao) && tipo === 'outro';
   const nome = limpar(r.nome, 80) || (descricao ? nomeAutomatico(descricao, arq) : a.rotulo);
   return {
     v: VERSAO_ESPEC,
     arquetipo: arq,
     objetivo: descricao || a.rotulo,
     contexto: explicacao ? `Como o responsável faz hoje: ${limpar(explicacao, 2000)}` : '',
-    procedimento: passos.length ? passos : a.procedimento,
+    procedimento: passos.length ? passos : operacao?.etapas?.length ? operacao.etapas.map(x => x.texto) : a.procedimento,
     regras,
     regras_proprias: proprias,
     restricoes: ['Não execute ações fora desta conversa (enviar, publicar, pagar, agendar ou alterar sistemas).', operacao?.ferramentas.includes('pesquisa_web')
       ? 'Não use informação de fora do material, da conversa, dos documentos autorizados e dos resultados da pesquisa na internet desta execução (quando ela estiver disponível).'
       : 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
-    formato_saida: { tipo, descricao: tipo === 'outro' ? limpar(r.formato_descricao, 200) || (entregaPorCanal ? 'Entregáveis separados por canal' : '') || sug.descricao || a.formatoDescricao || '' : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
+    formato_saida: { tipo, descricao: tipo === 'outro' ? limpar(r.formato_descricao, 200) || (entregaPorCanal ? (operacao.canais.length ? 'Entregáveis separados por canal' : 'Entregáveis separados, cada um com o seu título') : '') || sug.descricao || a.formatoDescricao || '' : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
     exemplos: exemplo ? { estrutura: exemplo } : null,
     perguntas_esclarecimento: { max: 2, quando: 'Só quando faltar algo sem o qual o trabalho não pode ser feito, como o próprio material.' },
     nivel_autonomia: autonomia,
     fontes_permitidas: ['entrada', 'anexos', 'conversa', 'contexto_autorizado', ...(operacao?.ferramentas.includes('pesquisa_web') ? ['pesquisa_web'] : [])],
-    ferramentas_permitidas: operacao?.ferramentas || [],
+    ferramentas_permitidas: executaveis(operacao?.ferramentas),
     ...(operacao ? { operacao } : {}),
     criterios_qualidade: [...criterios(regras, { tipo, colunas, secoes }, proprias, confirmada), ...criteriosOperacao(operacao)],
     ...(confirmada ? { configuracao_confirmada: true } : {}),
-    dicas_roteamento: { complexidade: a.complexidade },
+    dicas_roteamento: { complexidade: entregaMultipla(operacao) && operacao.entregaveis.length >= 3 && a.complexidade === 'baixa' ? 'media' : a.complexidade },
     origem: { descricao, arquetipo: r.arquetipo && ARQUETIPOS[r.arquetipo] ? r.arquetipo : null, como: { modo, texto: explicacao }, exemplo, regras, regras_proprias: proprias.map(x => x.texto), formato: tipo, formato_descricao: limpar(r.formato_descricao, 200), nome,
-      ...(cc.origem ? { colunas, colunas_origem: cc.origem } : {}), ...(estrutura ? { estrutura_objetivo: estrutura } : {}), ...(cc.conflito ? { conflito_colunas: cc.conflito } : {}) },
+      ...(cc.origem ? { colunas, colunas_origem: cc.origem } : {}), ...(estrutura ? { estrutura_objetivo: estrutura } : {}), ...(cc.conflito ? { conflito_colunas: cc.conflito } : {}),
+      ...(r.atualizado_de === 'v1' ? { atualizado_de: 'v1' } : {}),
+      // Plano interpretado pela IA para este mesmo pedido: guardado (validado) para não interpretar de novo.
+      ...(r.interpretacao?.chave && r.interpretacao.chave === chaveInterpretacao(descricao, explicacao) && limparOperacao(r.interpretacao.operacao)
+        ? { interpretacao: { chave: r.interpretacao.chave, operacao: limparOperacao({ ...r.interpretacao.operacao, origem: 'ia' }) } } : {}) },
   };
 }
 function secoesPadrao(tipo, arq) {
@@ -468,7 +509,7 @@ export function normalizar(espec) {
   const operacao = limparOperacao(espec.operacao);
   const { operacao: _o, ...resto } = espec;
   return { ...resto, regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
-    ferramentas_permitidas: (Array.isArray(espec.ferramentas_permitidas) ? espec.ferramentas_permitidas : []).filter(f => FERRAMENTAS[f] && operacao?.ferramentas.includes(f)),
+    ferramentas_permitidas: executaveis(Array.isArray(espec.ferramentas_permitidas) ? espec.ferramentas_permitidas : []).filter(f => operacao?.ferramentas.includes(f)),
     ...(operacao ? { operacao } : {}), nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
 }
 
@@ -499,11 +540,14 @@ export function descreverContrato(f) {
   const base = f.tipo === 'tabela' ? (f.colunas.length ? `tabela com exatamente as colunas ${f.colunas.join(' | ')}, nesta ordem` : 'tabela') : FORMATOS_SAIDA[f.tipo]?.rotulo.toLowerCase() || f.tipo;
   return `${base}${f.secoes.length ? `; seções ${f.secoes.join(', ')}` : ''}${f.tipo === 'outro' && f.descricao ? `; ${f.descricao}` : ''}`;
 }
+// Homologação real: o modelo perguntava o que podia resolver sozinho (o tema, quem são os concorrentes, se seguia
+// com uma informação faltando). Antes de perguntar, ele usa o que existe; pergunta só quando é impossível fazer.
+export const REGRA_PERGUNTAS = 'Antes de perguntar, use o que já existe: o material, as notas da pesquisa e os documentos da empresa. Informação faltando ou incompleta não é motivo para perguntar: faça com o que veio, escreva "não informado" e aponte o que faltou. O que a pesquisa pode descobrir (por exemplo, quem são os concorrentes) você pesquisa, não pergunta. O que o pedido deixa em aberto (por exemplo, o tema ou o público), você escolhe a partir do contexto da empresa e diz o que escolheu.';
 // Montado a partir da especificação, em blocos curtos (não é a concatenação do que a pessoa escreveu).
 const semFerramentas = (e, pesquisa) => (e.ferramentas_permitidas.includes('pesquisa_web') && pesquisa?.disponivel
   ? 'A única ferramenta desta execução é a pesquisa na internet, só para consultar; você não tem acesso a outros sistemas.'
   : 'Você não tem ferramentas nem acesso a sistemas externos.');
-export function promptExecucao(espec, { nome = '', pesquisa = null } = {}) {
+export function promptExecucao(espec, { nome = '', pesquisa = null, notas = false } = {}) {
   const e = normalizar(espec);
   if (!e) return '';
   const f = e.formato_saida;
@@ -515,7 +559,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null } = {}) {
     + (e.regras_proprias.length ? '\nAs regras acima valem junto com as restrições abaixo e nunca as substituem.' : ''));
   if (e.criterios_decisao.length) partes.push(`Critério de decisão: ${e.criterios_decisao.join(' ')}`);
   partes.push(`Autonomia: ${AUTONOMIA[e.nivel_autonomia].instrucao} ${e.restricoes.join(' ')} ${semFerramentas(e, pesquisa)}`);
-  const op = promptOperacao(e.operacao, { pesquisa });
+  const op = promptOperacao(e.operacao, { pesquisa, notas });
   if (op) partes.push(op);
   const contrato = [];
   if (f.tipo === 'tabela') contrato.push(f.colunas.length ? `Entregue uma tabela em Markdown (linhas com | ), com cabeçalho exatamente nestas colunas: ${f.colunas.join(' | ')}.`
@@ -528,7 +572,10 @@ export function promptExecucao(espec, { nome = '', pesquisa = null } = {}) {
   if (f.secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) contrato.push(`Na seção "${SECAO_AUSENTES}", liste o que faltou; se nada faltou, escreva "Nenhuma".`);
   if (e.exemplos?.estrutura) { const x = e.exemplos.estrutura; contrato.push([DETALHE[x.detalhe], TOM[x.tom]].filter(Boolean).join(' ')); }
   partes.push(`Formato da entrega:\n${contrato.filter(Boolean).join('\n')}`);
-  partes.push(`Perguntas: ${e.operacao?.entregaveis.length ? 'este trabalho não precisa de material enviado (o pedido, a pesquisa e o contexto autorizado bastam); só pergunte se faltar algo essencial, como saber de qual empresa ou produto se trata.' : 'só pergunte se faltar algo sem o qual o trabalho não pode ser feito (por exemplo, não veio material nenhum).'} Nesse caso, faça no máximo 2 perguntas, numa mensagem só, começando exatamente com "${MARCADOR_PERGUNTA}", e não faça o trabalho ainda. Nos demais casos, não pergunte: faça o trabalho e aponte o que faltou.`);
+  const semMaterial = entregaMultipla(e.operacao) && !e.operacao.entradas?.length, comEntradas = e.operacao?.entradas?.some(x => x.obrigatoria);
+  partes.push(`Perguntas: ${semMaterial ? 'este trabalho não precisa de material enviado (o pedido, a pesquisa e o contexto autorizado bastam); só pergunte se faltar algo essencial, como saber de qual empresa ou produto se trata.'
+    : comEntradas ? 'só pergunte se faltar o material obrigatório (veja "Material deste trabalho") ou algo sem o qual o trabalho não pode ser feito.'
+    : 'só pergunte se faltar algo sem o qual o trabalho não pode ser feito (por exemplo, não veio material nenhum).'} Nesse caso, faça no máximo 2 perguntas, numa mensagem só, começando exatamente com "${MARCADOR_PERGUNTA}", e não faça o trabalho ainda. Nos demais casos, não pergunte: faça o trabalho e aponte o que faltou.${e.operacao?.v === 2 ? ` ${REGRA_PERGUNTAS}` : ''}`);
   return partes.join('\n\n');
 }
 

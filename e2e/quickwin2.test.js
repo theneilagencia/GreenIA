@@ -124,7 +124,8 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   // Usar agora: o que enviar → Executar → resultado com conferência logo abaixo.
   await p.click('.sucesso a:has-text("Usar agora")');
   await p.waitForSelector('#entrada-qw');
-  assert.match(await p.textContent('label[for=entrada-qw]'), /Envie os documentos que devem ser comparados\./);
+  // O que enviar vem do plano do Quick Win (o material que cada execução recebe).
+  assert.match(await p.textContent('label[for=entrada-qw]'), /Envie: Documentos a comparar \(2\)\./);
   await p.fill('#entrada-qw', 'Pedido 882: 40 rolamentos. Nota 45.117: 38 rolamentos.');
   const antes = OR.chamadas.length;
   await p.click('#executar-btn');

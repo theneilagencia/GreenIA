@@ -31,10 +31,11 @@ export const lerArquivo = f => new Promise((ok, falha) => {
 export const testeQw = qw => assistenteQw(qw.id, { passo: 4 });
 export const publicarQw = id => assistenteQw(id, { passo: REVISAR });
 
-export async function assistenteQw(id = null, { passo = 0 } = {}) {
+export async function assistenteQw(id = null, { passo = 0, atualizar = false } = {}) {
   const qw = id ? await api(`/api/quick-wins/${id}`) : null;
-  if (qw && (!qw.podeEditar || !qw.v2)) return irPara(`#/qw/${id}`);
-  const o = qw?.assistente || {};
+  if (qw && (!qw.podeEditar || (!qw.v2 && !atualizar))) return irPara(`#/qw/${id}`);
+  // "Atualizar para Quick Win inteligente": o antigo (sem especificação) começa do que ele já descreve.
+  const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : {});
   const W = {
     id, qw, passo, maximo: passo, editando: !!qw,
     descricao: o.descricao || '', arquetipo: o.arquetipo || null,
@@ -52,8 +53,12 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
       colunas: o.colunas || null, colunas_origem: o.colunas_origem || null, estrutura_objetivo: paraEnvio(o.estrutura_objetivo),
       ...(qw.operacao?.origem === 'pessoa' ? { operacao: qw.operacao } : {}) }) : null,
     teste: { modo: 'auto', texto: '', anexo: null, exemplo: null }, resultado: null, publicado: null,
-    // Entregas por canal (operação): a que a pessoa confirmou vale; senão, a GreenIA infere do pedido a cada sugestão.
-    operacao: qw?.operacao?.origem === 'pessoa' ? structuredClone(qw.operacao) : null, operacaoPessoa: qw?.operacao?.origem === 'pessoa', catalogo: null, lacunas: [], pesquisaLiberada: false,
+    // Plano da operação (o que entra, as etapas, o que sai, as ferramentas): o interpretado pela GreenIA ou o
+    // ajustado pela pessoa. Um Quick Win antigo (sem plano) recebe a estrutura sugerida só como sugestão: nada muda
+    // até a pessoa aceitar.
+    operacao: ['pessoa', 'ia'].includes(qw?.operacao?.origem) ? structuredClone(qw.operacao) : null, operacaoPessoa: qw?.operacao?.origem === 'pessoa', catalogo: null, lacunas: [], pesquisaLiberada: false,
+    plano: o.interpretacao ? { chave: o.interpretacao.chave, fonte: 'ia', operacao: o.interpretacao.operacao } : null, planoDe: o.interpretacao ? chavePlano(o.descricao || '', o.como?.modo === 'explicar' ? o.como.texto || '' : '') : null,
+    legado: !!qw && (atualizar || qw.operacao?.v !== 2), planoAceito: !!qw && qw.operacao?.v === 2, editandoPlano: false, indisponiveis: [],
   };
   const publicada = qw?.versao;
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
@@ -61,6 +66,7 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine ao GreenIA como realizar esse trabalho.',
         lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
       ${publicada ? aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`) : ''}
+      ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}
       <div id="progresso"></div>
       <div id="etapa"></div>
     </div></div>`;
@@ -72,6 +78,33 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
 }
 
 const assinatura = a => JSON.stringify(a);
+const chavePlano = (descricao, processo) => `${descricao}\n${processo}`;
+// Vários entregáveis (seções ou peças próprias) ou um só de formato simples (o contrato daquele formato).
+const FORMATO_TIPO = { resumo: 'resumo', lista: 'lista', tabela: 'tabela', relatorio: 'relatorio' };
+export const multipla = op => !!op?.entregaveis?.length && (op.entregaveis.length > 1 || op.entregaveis.some(e => e.canal || !FORMATO_TIPO[e.tipo]));
+const formatoDoPlano = op => (op?.entregaveis?.length === 1 && !multipla(op) ? FORMATO_TIPO[op.entregaveis[0].tipo] : null);
+const rotuloEnt = (W, e) => `${e.canal ? `${W.catalogo?.canais.find(c => c.id === e.canal)?.rotulo || e.canal} · ` : ''}${e.rotulo || (e.tipo === 'outro' && e.config?.detalhe) || W.catalogo?.entregaveis.find(t => t.id === e.tipo)?.rotulo || e.tipo}`;
+
+// Interpretação do pedido: o plano da operação, uma vez por pedido (objetivo + como faz hoje). A resposta é do
+// pedido que a originou; se a pessoa mudou o pedido enquanto ela vinha, não vale.
+async function interpretarPlano(W) {
+  const proc = W.modoProc === 'explicar' ? W.processo.trim() : '';
+  const chave = chavePlano(W.descricao, proc);
+  if (!W.descricao || (W.plano && W.planoDe === chave)) return W.plano;
+  let r;
+  try { r = await api('/api/quick-wins/assistente/interpretar', { metodo: 'POST', corpo: { descricao: W.descricao, processo: proc, ...(W.id ? { quick_win_id: W.id } : {}) } }); }
+  catch (e) { if (e.status === 422) throw e; r = { fonte: 'heuristica', operacao: null, lacunas: [] }; }
+  if (chavePlano(W.descricao, W.modoProc === 'explicar' ? W.processo.trim() : '') !== chave) return interpretarPlano(W);
+  W.plano = r; W.planoDe = chave; W.lacunas = r.lacunas || []; W.pesquisaLiberada = !!r.pesquisaLiberada; W.indisponiveis = r.ferramentasIndisponiveis || [];
+  // O plano novo vale se a pessoa não ajustou o dela; num Quick Win antigo, fica como sugestão até ela aceitar.
+  if (!W.operacaoPessoa && !(W.legado && !W.planoAceito) && r.operacao) { W.operacao = structuredClone(r.operacao); W.planoAceito = true; aplicarFormato(W); }
+  return W.plano;
+}
+function aplicarFormato(W) {
+  if (W.formatoPessoa) return;
+  if (multipla(W.operacao)) W.formato = 'outro';
+  else if (formatoDoPlano(W.operacao)) W.formato = formatoDoPlano(W.operacao);
+}
 // Regra própria: texto curto, sem repetir outra. O servidor aplica os mesmos limites.
 const MAX_PROPRIAS = 5;
 function adicionarPropria(W, texto) {
@@ -86,7 +119,8 @@ function respostas(W) {
     : W.processo.trim() ? { modo: 'explicar', texto: W.processo.trim() } : { modo: 'pronto' };
   return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias],
     colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W),
-    ...(W.operacaoPessoa ? { operacao: W.operacao } : {}) };
+    ...(W.operacaoPessoa || (W.operacao && W.planoAceito) ? { operacao: W.operacao } : {}),
+    ...(W.plano?.fonte === 'ia' && W.plano.chave ? { interpretacao: { chave: W.plano.chave, operacao: W.plano.operacao } } : {}) };
 }
 const paraEnvio = e => (e ? { chave: e.chave, colunas: e.colunas || [], falhou: !!e.falhou } : null);
 const estruturaDoObjetivo = W => W.estruturas.get(W.descricao) || null;
@@ -182,6 +216,7 @@ function guardarEtapa(W) {
   const mudou = (campo, valor) => { if (W[campo] !== valor) { W[campo] = valor; W.sugestao = null; } };
   if (W.passo === 0 && $('objetivo')) mudou('descricao', $('objetivo').value.trim());
   if (W.passo === 1) {
+    guardarPlano(W);
     if ($('processo')) mudou('processo', $('processo').value);
     if ($('exemplo')) mudou('exemplo', $('exemplo').value.trim());
   }
@@ -218,18 +253,18 @@ async function sugerir(W) {
   if (W.sugestao && W.sugestaoChave === (est?.chave ?? null)) return W.sugestao;
   const r = respostas(W), desc = W.descricao;
   const s = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: desc, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo }, estrutura: est,
-    ...(W.operacaoPessoa ? { operacao: W.operacao } : {}) } });
+    ...(W.operacao && (W.operacaoPessoa || W.planoAceito) ? { operacao: W.operacao } : {}) } });
   if (W.descricao !== desc) return sugerir(W);   // o objetivo mudou enquanto a sugestão vinha: ela não vale para o atual
   W.sugestao = s;
   W.catalogo = s.catalogo; W.lacunas = s.lacunas || []; W.pesquisaLiberada = !!s.pesquisaLiberada;
-  if (!W.operacaoPessoa) W.operacao = s.operacao ? structuredClone(s.operacao) : null;
-  if (W.operacao?.entregaveis?.length && !W.formatoPessoa) W.formato = 'outro';
+  if (!W.operacaoPessoa && !W.planoAceito) W.operacao = s.operacao ? structuredClone(s.operacao) : null;
+  aplicarFormato(W);
   W.sugestaoChave = est?.chave ?? null;
   const sugeridas = W.sugestao.regras.map(x => x.id);
   // Mantém as escolhas anteriores que continuam valendo; "não inventar" sempre.
   W.regras = W.regras ? new Set(['nao_inventar', ...[...W.regras].filter(x => sugeridas.includes(x))]) : new Set(W.sugestao.regras.filter(x => x.marcada).map(x => x.id));
   if (W.regras.size <= 1) W.sugestao.regras.forEach(x => x.marcada && W.regras.add(x.id));
-  if ((!W.formato || !W.formatoPessoa || (W.modoProc === 'exemplo' && W.exemplo)) && !W.operacao?.entregaveis?.length) W.formato = W.sugestao.formato.sugerido;
+  if ((!W.formato || !W.formatoPessoa || (W.modoProc === 'exemplo' && W.exemplo)) && !multipla(W.operacao) && !formatoDoPlano(W.operacao)) W.formato = W.sugestao.formato.sugerido;
   return W.sugestao;
 }
 
@@ -262,8 +297,8 @@ const ETAPA_HTML = [
     <textarea class="campo-amplo" id="objetivo" maxlength="1000" aria-describedby="micro-objetivo" placeholder="Ex.: Analisar propostas comerciais e apontar valores, prazos, riscos e o que estiver faltando">${esc(W.descricao)}</textarea>
     <p class="exemplos">Exemplos: ${EXEMPLOS.map(([t], i) => `<button type="button" data-exemplo="${i}">${esc(t)}</button>`).join('<span class="ponto-sep" aria-hidden="true">·</span>')}</p>
     ${rodape(W)}`,
-  // 2. Processo
-  W => `${pergunta('O que normalmente precisa ser considerado para fazer isso bem?', W.modoProc === 'exemplo'
+  // 2. Processo (com o entendimento do trabalho: o plano que a GreenIA montou do pedido)
+  async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${pergunta('O que normalmente precisa ser considerado para fazer isso bem?', W.modoProc === 'exemplo'
       ? 'Mostre um resultado que você considera bom. A GreenIA aprende a estrutura, o nível de detalhe e o tom. O exemplo em si não é guardado.'
       : 'Conte o que precisa ser analisado, conferido ou considerado. Não precisa ser completo.', 'micro-processo')}
     ${W.modoProc === 'exemplo' ? `
@@ -278,7 +313,7 @@ const ETAPA_HTML = [
       <p class="dica bloco-extra">Se deixar em branco, a GreenIA segue uma estrutura sugerida para esse tipo de trabalho.</p>
       <p class="exemplos"><button type="button" id="sugerir-estrutura">Ver a estrutura sugerida</button><span class="ponto-sep" aria-hidden="true">·</span><button type="button" id="modo-exemplo">Prefiro mostrar um exemplo de resultado</button></p>
       <div id="estrutura">${W.estruturaSugerida ? htmlEstrutura(W.estruturaSugerida) : ''}</div>`}
-    ${rodape(W)}`,
+    ${rodape(W)}`; },
   // 3. Regras
   async W => {
     const s = await sugerir(W);
@@ -301,7 +336,7 @@ const ETAPA_HTML = [
     if (W.passo !== 3) return '';   // a pessoa saiu da etapa: nada muda nas colunas por causa desta resposta
     definirColunas(W, s);
     const sug = s.formato.sugerido;
-    const porCanal = !!W.operacao?.entregaveis?.length;
+    const porCanal = multipla(W.operacao);
     return `${pergunta('Como você quer receber a resposta?', '')}
       ${porCanal ? htmlEntregas(W) : ''}
       <div class="${porCanal ? 'oculto' : ''}" id="formato-unico">
@@ -315,7 +350,7 @@ const ETAPA_HTML = [
       <div id="saida-outro" class="bloco-extra ${W.formato === 'outro' ? '' : 'oculto'}"><label class="legenda" for="formato-descricao">Como o resultado deve vir?</label>
         <input class="entrada" id="formato-descricao" maxlength="200" value="${esc(W.formatoDescricao || s.formato.descricao || '')}" placeholder="Ex.: mensagem pronta para enviar ao cliente, com o que conferir antes"></div>
       ${htmlColunas(W)}
-      <p class="exemplos"><button type="button" id="por-canal">Entregar peças por canal (LinkedIn, Instagram, email...)</button></p>
+      <p class="exemplos"><button type="button" id="por-canal">Entregar mais de um resultado (seções, peças ou canais)</button></p>
       </div>
       ${rodape(W)}`;
   },
@@ -330,7 +365,10 @@ const ETAPA_HTML = [
     const r = W.resultado;
     const pronto = r && !r.erro && !r.rodando;
     const pausado = pronto && r.qualidade?.status === 'pergunta';
+    // Lacuna necessária sem resposta: o teste pode rodar, mas a GreenIA avisa antes (e vai perguntar na hora).
+    const faltando = (W.lacunas || []).filter(l => l.obrigatoria && !(W.operacao?.contexto_respostas || []).some(x => x.id === l.id && x.resposta));
     return `${pergunta('Vamos testar antes de colocar em uso', 'O teste roda o Quick Win completo, com a conferência de qualidade. Nada fica disponível para a equipe ainda.', 'micro-teste')}
+      ${faltando.length ? aviso(`<b>Falta uma informação para este trabalho:</b> ${faltando.map(l => esc(l.pergunta)).join(' ')}`, 'info', '<button type="button" class="btn btn-linha btn-pequeno" id="responder-lacunas">Responder agora</button>') : ''}
       <div class="segmento-sutil" role="group" aria-label="Material do teste">
         ${[['auto', 'Exemplo pronto'], ['colar', 'Colar um texto'], ['arquivo', 'Enviar um arquivo']].map(([v, t]) => `<button type="button" data-material="${v}" aria-pressed="${W.teste.modo === v}">${t}</button>`).join('')}</div>
       <div id="teste-corpo">${W.teste.modo === 'auto' ? (ex?.modo === 'texto' ? `<pre class="previa-texto" aria-label="Material fictício do teste">${esc(ex.texto)}</pre><p class="dica bloco-extra">${esc(ex.aviso)}</p>`
@@ -371,16 +409,92 @@ const ETAPA_HTML = [
       <div class="linha-botoes"><a class="btn btn-verde btn-grande" href="#/qw/${W.id}/usar">Usar agora</a><a class="btn btn-linha btn-grande" href="#/quick-wins">Voltar para Quick Wins</a></div></div>`,
 ];
 
-// ---- Entregas por canal (etapa Resultado) ------------------------------------------------------------------
-// O que o Quick Win entrega: canais, peças (cada uma com a configuração do formato), pesquisa na internet e o
-// contexto mínimo que falta. A GreenIA sugere pelo pedido; qualquer ajuste vira a decisão da pessoa.
+// ---- Entendimento do trabalho (o plano da operação) ---------------------------------------------------------
+// "Entendi que este Quick Win vai fazer": objetivo, o que precisa, como faz, o que entrega e o que usa. A pessoa
+// confirma, ajusta (entradas e etapas aqui; entregáveis na etapa Resultado), responde o que falta e escolhe as
+// sugestões. Num Quick Win antigo, a estrutura aparece como sugestão: só vale se a pessoa usar.
+function htmlPlano(W) {
+  const sugerido = W.legado && !W.planoAceito;
+  const op = sugerido ? W.plano?.operacao : W.operacao;
+  if (!op) return '';
+  const cat = W.catalogo || { entradas: [], ferramentas: [], entregaveis: [], canais: [] };
+  const rotuloF = f => cat.ferramentas.find(x => x.id === f)?.rotulo || f;
+  const entregas = op.entregaveis?.length ? op.entregaveis.map(e => rotuloEnt(W, e)) : [FORMATOS_SAIDA[W.formato || W.sugestao?.formato?.sugerido]?.rotulo || 'Resultado no formato combinado'];
+  const respostas = new Map((op.contexto_respostas || []).map(r => [r.id, r.resposta]));
+  // Perguntas: as do plano (respondidas continuam visíveis, com a resposta) e as de comunicação que faltarem.
+  const lacunas = sugerido ? [] : [...(op.lacunas || []), ...(W.lacunas || []).filter(l => !(op.lacunas || []).some(x => x.id === l.id))];
+  const editar = W.editandoPlano && !sugerido;
+  const precisa = op.entradas?.length ? op.entradas.map((x, i) => editar ? `<li class="plano-entrada">
+      <select class="entrada" data-x-tipo="${i}" aria-label="Tipo do material ${i + 1}">${cat.entradas.map(t => `<option value="${esc(t.id)}" ${t.id === x.tipo ? 'selected' : ''}>${esc(t.rotulo)}</option>`).join('')}</select>
+      <input class="entrada" data-x-rotulo="${i}" maxlength="80" value="${esc(x.rotulo)}" aria-label="Descrição do material ${i + 1}">
+      <span class="cfg-grupo"><input class="entrada cfg" type="number" min="1" max="10" data-x-qtd="${i}" value="${esc(x.quantidade || 1)}" aria-label="Quantidade do material ${i + 1}"><span class="dica" aria-hidden="true">un.</span></span>
+      <label class="dica"><input type="checkbox" data-x-obrig="${i}" ${x.obrigatoria ? 'checked' : ''}> obrigatório</label>
+      <button type="button" class="link-sutil" data-x-remover="${i}" aria-label="Remover o material ${i + 1}">Remover</button></li>`
+    : `<li>${esc(x.rotulo)}${x.quantidade > 1 ? ` (${x.quantidade})` : ''}${x.obrigatoria ? '' : ' <span class="dica">(opcional)</span>'}</li>`).join('') : '<li class="dica">Nenhum material: só o pedido do dia.</li>';
+  return `<section class="plano" id="plano" aria-labelledby="plano-titulo">
+    <h4 id="plano-titulo">${sugerido ? 'Sugestão: a GreenIA estruturaria este Quick Win assim' : 'Entendi que este Quick Win vai fazer:'}</h4>
+    <dl class="plano-lista">
+      <div><dt>Objetivo</dt><dd>${esc(op.resumo || W.descricao)}</dd></div>
+      <div><dt>Vai precisar de</dt><dd><ul>${precisa}${op.contexto_empresa ? '<li>Contexto da empresa (documentos autorizados)</li>' : ''}</ul>
+        ${editar ? '<button type="button" class="link-sutil" id="x-adicionar">+ Adicionar material</button>' : ''}</dd></div>
+      <div><dt>Vai fazer</dt><dd>${editar ? `<label class="sr" for="plano-etapas">Etapas, uma por linha</label><textarea class="campo-amplo menor" id="plano-etapas">${esc((op.etapas || []).map(x => x.texto).join('\n'))}</textarea><p class="dica">Uma etapa por linha.</p>`
+        : `<ol>${(op.etapas || []).map(x => `<li>${esc(x.texto)}</li>`).join('') || '<li class="dica">Do jeito que o trabalho pedir.</li>'}</ol>`}</dd></div>
+      <div><dt>Vai entregar</dt><dd><ul>${entregas.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${sugerido ? '' : '<button type="button" class="link-sutil" id="plano-entregas">Ajustar o que vai entregar</button>'}</dd></div>
+      <div><dt>Vai usar</dt><dd><ul>${(op.ferramentas || []).map(f => { const ind = W.indisponiveis.find(x => x.id === f); return `<li>${esc(rotuloF(f))}${ind ? ` <span class="dica">(não disponível: entrega ${esc(ind.alternativa)})</span>` : f === 'pesquisa_web' && !W.pesquisaLiberada ? ' <span class="dica">(ainda não liberada pela empresa: o resultado sai parcial)</span>' : ''}</li>`; }).join('') || '<li>IA da GreenIA</li>'}</ul></dd></div>
+    </dl>
+    ${lacunas.length ? `<div class="lacunas" id="plano-lacunas"><p class="legenda">Para o resultado não sair genérico</p>${lacunas.map(l => `<div><label for="lacuna-${esc(l.id)}">${esc(l.pergunta)}${l.obrigatoria ? ' <span class="tag">Necessário</span>' : ''}</label>
+      <input class="entrada" id="lacuna-${esc(l.id)}" data-lacuna="${esc(l.id)}" data-pergunta="${esc(l.pergunta)}" maxlength="600" value="${esc(respostas.get(l.id) || '')}" placeholder="${esc(l.exemplo || '')}"></div>`).join('')}
+      <p class="dica">Sem a resposta, a GreenIA usa o que estiver nos documentos da empresa ou pergunta na hora.</p></div>` : ''}
+    ${!sugerido && op.sugestoes?.length ? `<div class="plano-sugestoes"><p class="legenda">Sugestões da GreenIA (só entram se você quiser)</p><ul>${op.sugestoes.map((x, i) => `<li><span>${esc(x.texto)}</span><button type="button" class="btn btn-linha btn-pequeno" data-sugestao="${i}">Incluir</button></li>`).join('')}</ul></div>` : ''}
+    <div class="plano-acoes">${sugerido ? '<button type="button" class="btn btn-verde btn-pequeno" id="plano-usar">Usar esta estrutura</button><span class="dica">Ou siga sem mudar: o Quick Win continua como está.</span>'
+      : `<button type="button" class="btn btn-linha btn-pequeno" id="plano-ok" aria-pressed="${!!W.planoConfirmado}">${W.planoConfirmado ? 'Confirmado' : 'Está certo'}</button><button type="button" class="link-sutil" id="plano-editar">${editar ? 'Concluir edição' : 'Editar'}</button>`}</div>
+  </section>`;
+}
+// Guarda o que está na tela do plano (respostas, materiais e etapas). Qualquer mudança é decisão da pessoa.
+function guardarPlano(W) {
+  if (!W.operacao || !$('plano')) return;
+  const op = structuredClone(W.operacao);
+  const lac = [...document.querySelectorAll('#plano [data-lacuna]')];
+  if (lac.length) {
+    const outras = (op.contexto_respostas || []).filter(r => !lac.some(i => i.dataset.lacuna === r.id));
+    op.contexto_respostas = [...outras, ...lac.map(i => ({ id: i.dataset.lacuna, pergunta: i.dataset.pergunta, resposta: i.value.trim() })).filter(r => r.resposta)];
+  }
+  if (document.querySelector('[data-x-tipo]')) op.entradas = op.entradas.map((x, i) => ({ ...x, tipo: document.querySelector(`[data-x-tipo="${i}"]`).value, rotulo: document.querySelector(`[data-x-rotulo="${i}"]`).value.trim() || x.rotulo,
+    quantidade: Number(document.querySelector(`[data-x-qtd="${i}"]`).value) || 1, obrigatoria: document.querySelector(`[data-x-obrig="${i}"]`).checked }));
+  if ($('plano-etapas')) op.etapas = $('plano-etapas').value.split('\n').map(t => t.trim()).filter(t => t.length >= 3).slice(0, 10).map((texto, i) => ({ ...(op.etapas?.[i] || {}), id: `p${i + 1}`, texto }));
+  if (JSON.stringify(op) !== JSON.stringify(W.operacao)) { W.operacao = { ...op, origem: 'pessoa' }; W.operacaoPessoa = true; }
+}
+function ligarPlano(W) {
+  const redesenhar = foco => { guardarEtapa(W); desenhar(W, { foco: false }).then(() => (typeof foco === 'function' ? foco() : $(foco))?.focus()); };
+  $('plano-ok')?.addEventListener('click', () => { W.planoConfirmado = true; W.editandoPlano = false; redesenhar('plano-ok'); });
+  $('plano-editar')?.addEventListener('click', () => { W.editandoPlano = !W.editandoPlano; redesenhar(W.editandoPlano ? () => document.querySelector('[data-x-rotulo]') || $('plano-etapas') : 'plano-editar'); });
+  $('plano-entregas')?.addEventListener('click', () => irEtapa(W, 3));
+  $('plano-usar')?.addEventListener('click', () => { W.operacao = { ...structuredClone(W.plano.operacao), origem: 'pessoa' }; W.operacaoPessoa = true; W.planoAceito = true; W.formatoPessoa = false; aplicarFormato(W); W.sugestao = null; redesenhar('plano-ok'); });
+  $('x-adicionar')?.addEventListener('click', () => { guardarEtapa(W); W.operacao = { ...W.operacao, origem: 'pessoa', entradas: [...(W.operacao.entradas || []), { id: '', tipo: 'documento', rotulo: 'Documento', quantidade: 1, obrigatoria: true }] }; W.operacaoPessoa = true;
+    desenhar(W, { foco: false }).then(() => document.querySelector(`[data-x-rotulo="${W.operacao.entradas.length - 1}"]`)?.focus()); });
+  document.querySelectorAll('[data-x-remover]').forEach(b => { b.onclick = () => { guardarEtapa(W); W.operacao = { ...W.operacao, origem: 'pessoa', entradas: W.operacao.entradas.filter((_, i) => i !== Number(b.dataset.xRemover)) }; W.operacaoPessoa = true; desenhar(W, { foco: false }).then(() => $('x-adicionar')?.focus()); }; });
+  document.querySelectorAll('[data-sugestao]').forEach(b => { b.onclick = () => {
+    guardarEtapa(W);
+    const op = structuredClone(W.operacao), [x] = op.sugestoes.splice(Number(b.dataset.sugestao), 1);
+    if (x.entregavel) {
+      // Um resultado só (formato simples) que ganha outro entregável: o atual vira o primeiro da lista.
+      if (!op.entregaveis.length) op.entregaveis.push({ id: 'e1', tipo: FORMATO_TIPO[W.formato] ? W.formato : 'resumo', canal: null, config: {} });
+      op.entregaveis.push({ id: '', tipo: x.entregavel.tipo, canal: null, config: {}, ...(x.entregavel.rotulo ? { rotulo: x.entregavel.rotulo } : {}) });
+    } else op.criterios = [...(op.criterios || []), x.texto].slice(0, 6);
+    W.operacao = { ...op, origem: 'pessoa' }; W.operacaoPessoa = true; W.formatoPessoa = false; aplicarFormato(W); W.sugestao = null;
+    desenhar(W, { foco: false }).then(() => (document.querySelector('[data-sugestao]') || $('plano-ok'))?.focus());
+  }; });
+}
+
+// ---- Entregáveis (etapa Resultado) --------------------------------------------------------------------------
+// O que o Quick Win entrega: os entregáveis (cada um com título próprio, tipo, configuração e, só em conteúdo, um
+// canal), a pesquisa na internet e os canais. Vale para qualquer trabalho. A GreenIA sugere pelo plano; qualquer
+// ajuste vira a decisão da pessoa. As perguntas de contexto ficam no entendimento do trabalho (etapa Processo).
 const PECA_DO_CANAL = { linkedin: 'copy', instagram: 'legenda', facebook: 'copy', tiktok: 'roteiro', youtube: 'roteiro', x: 'copy', blog: 'texto', email: 'texto' };
 const TAMANHOS = [['', 'Padrão'], ['curto', 'Curto'], ['medio', 'Médio'], ['longo', 'Longo']];
 function htmlEntregas(W) {
   const op = W.operacao, cat = W.catalogo || { canais: [], entregaveis: [], ferramentas: [] };
   const tipo = id => cat.entregaveis.find(e => e.id === id) || { config: {} };
-  const respostas = new Map((op.contexto_respostas || []).map(r => [r.id, r.resposta]));
-  const lacunas = [...W.lacunas, ...(op.contexto_respostas || []).filter(r => !W.lacunas.some(l => l.id === r.id)).map(r => ({ id: r.id, pergunta: r.pergunta, exemplo: '' }))];
   const cfg = (e, i) => {
     const t = tipo(e.tipo).config;
     if (e.tipo === 'outro') return `<input class="entrada" data-e-detalhe="${i}" maxlength="160" value="${esc(e.config?.detalhe || '')}" placeholder="O que entregar" aria-label="O que entregar na peça ${i + 1}">`;
@@ -390,22 +504,21 @@ function htmlEntregas(W) {
   };
   return `<section class="entregas" id="entregas" aria-labelledby="entregas-titulo">
     <h4 id="entregas-titulo">O que este Quick Win entrega</h4>
-    <p class="dica">A GreenIA separou o pedido em peças. Cada peça sai com título próprio e adaptada ao canal. Ajuste o que quiser.</p>
-    <fieldset><legend class="legenda">Canais</legend><div class="canais-opcoes">${cat.canais.map(c => `<label><input type="checkbox" name="canal" value="${esc(c.id)}" ${op.canais.includes(c.id) ? 'checked' : ''}> ${esc(c.rotulo)}</label>`).join('')}</div></fieldset>
-    <p class="legenda" id="pecas-titulo">Peças</p>
-    <ol class="entregaveis-lista" aria-labelledby="pecas-titulo">${op.entregaveis.map((e, i) => `<li>
+    <p class="dica">A GreenIA separou o trabalho em entregáveis. Cada um sai com título próprio${op.canais.length ? ' e, no conteúdo, adaptado ao canal' : ''}. Ajuste o que quiser.</p>
+    <details class="canais-detalhe" ${op.canais.length ? 'open' : ''}><summary>Canais (opcional, para conteúdo)</summary>
+      <fieldset><legend class="sr">Canais</legend><div class="canais-opcoes">${cat.canais.map(c => `<label><input type="checkbox" name="canal" value="${esc(c.id)}" ${op.canais.includes(c.id) ? 'checked' : ''}> ${esc(c.rotulo)}</label>`).join('')}</div></fieldset></details>
+    <p class="legenda" id="pecas-titulo">Entregáveis</p>
+    <ol class="entregaveis-lista ${op.canais.length ? '' : 'sem-canal'}" aria-labelledby="pecas-titulo">${op.entregaveis.map((e, i) => `<li>
+      <input class="entrada" data-e-rotulo="${i}" maxlength="60" value="${esc(e.rotulo || '')}" placeholder="${esc(tipo(e.tipo).rotulo || 'Título')}" aria-label="Título do entregável ${i + 1}">
       <select class="entrada" data-e-tipo="${i}" aria-label="Tipo da peça ${i + 1}">${cat.entregaveis.map(t => `<option value="${esc(t.id)}" ${t.id === e.tipo ? 'selected' : ''}>${esc(t.rotulo)}${t.visual ? ' (briefing)' : ''}</option>`).join('')}</select>
-      <select class="entrada" data-e-canal="${i}" aria-label="Canal da peça ${i + 1}"><option value="">Sem canal</option>${cat.canais.map(c => `<option value="${esc(c.id)}" ${c.id === e.canal ? 'selected' : ''}>${esc(c.rotulo)}</option>`).join('')}</select>
+      ${op.canais.length ? `<select class="entrada" data-e-canal="${i}" aria-label="Canal da peça ${i + 1}"><option value="">Sem canal</option>${cat.canais.map(c => `<option value="${esc(c.id)}" ${c.id === e.canal ? 'selected' : ''}>${esc(c.rotulo)}</option>`).join('')}</select>` : ''}
       ${cfg(e, i)}
       <button type="button" class="link-sutil" data-e-remover="${i}" aria-label="Remover a peça ${i + 1}">Remover</button></li>`).join('')}</ol>
-    ${op.entregaveis.length < 10 ? '<button type="button" class="link-sutil" id="add-entregavel">+ Adicionar peça</button>' : ''}
+    ${op.entregaveis.length < 10 ? '<button type="button" class="link-sutil" id="add-entregavel">+ Adicionar entregável</button>' : ''}
     ${op.entregaveis.some(e => tipo(e.tipo).visual) ? '<p class="dica">Imagem, carrossel, Reels e vídeo saem como briefing para quem produz: a arte final não é gerada aqui.</p>' : ''}
     <label class="ferramenta"><input type="checkbox" id="pesquisa-web" ${op.ferramentas.includes('pesquisa_web') ? 'checked' : ''}>
       <span><b>Pesquisar na internet antes de escrever</b><br><span class="dica">${W.pesquisaLiberada ? 'Usa fontes reais e mostra de onde veio cada tema. Não roda com informação sigilosa.'
         : 'A empresa ainda não liberou a pesquisa na internet (quem administra libera em Configurações). Até lá, o resultado sai parcial, sem temas confirmados como atuais.'}</span></span></label>
-    ${lacunas.length ? `<div class="lacunas"><p class="legenda">Para o resultado não sair genérico</p>${lacunas.map(l => `<div><label for="lacuna-${esc(l.id)}">${esc(l.pergunta)}</label>
-      <input class="entrada" id="lacuna-${esc(l.id)}" data-lacuna="${esc(l.id)}" maxlength="600" value="${esc(respostas.get(l.id) || '')}" placeholder="${esc(l.exemplo || '')}"></div>`).join('')}
-      <p class="dica">Opcional. Sem a resposta, a GreenIA usa o que estiver nos documentos da empresa ou pergunta na hora.</p></div>` : ''}
     <p class="exemplos"><button type="button" id="formato-unico-btn">Prefiro um resultado só (texto, lista, tabela...)</button></p>
   </section>`;
 }
@@ -417,13 +530,15 @@ function guardarEntregas(W) {
     const config = {};
     const sl = n(document.querySelector(`[data-e-slides="${i}"]`)?.value), du = n(document.querySelector(`[data-e-duracao="${i}"]`)?.value);
     const ta = document.querySelector(`[data-e-tamanho="${i}"]`)?.value, de = document.querySelector(`[data-e-detalhe="${i}"]`)?.value.trim();
-    if (tipo === e.tipo) { if (sl) config.slides = sl; if (du) config.duracao = du; if (ta) config.tamanho = ta; if (de) config.detalhe = de; }
-    return { ...e, tipo, canal: document.querySelector(`[data-e-canal="${i}"]`)?.value || null, config };
+    if (tipo === e.tipo) { if (sl) config.slides = sl; if (du) config.duracao = du; if (ta) config.tamanho = ta; if (de) config.detalhe = de; if (e.config?.colunas) config.colunas = e.config.colunas; }
+    const rotulo = document.querySelector(`[data-e-rotulo="${i}"]`)?.value.trim();
+    const { rotulo: _r, ...resto } = e;
+    return { ...resto, ...(rotulo ? { rotulo } : {}), tipo, canal: document.querySelector(`[data-e-canal="${i}"]`)?.value || null, config };
   });
   const novo = { ...op, canais: [...document.querySelectorAll('input[name=canal]:checked')].map(i => i.value), entregaveis,
     ferramentas: $('pesquisa-web')?.checked ? ['pesquisa_web'] : [],
-    contexto_respostas: [...document.querySelectorAll('[data-lacuna]')].map(i => ({ id: i.dataset.lacuna, resposta: i.value.trim() })).filter(r => r.resposta) };
-  if (JSON.stringify(novo) !== JSON.stringify(op)) { W.operacao = novo; W.operacaoPessoa = true; }
+    contexto_respostas: op.contexto_respostas || [] };
+  if (JSON.stringify(novo) !== JSON.stringify(op)) { W.operacao = { ...novo, origem: 'pessoa' }; W.operacaoPessoa = true; }
 }
 function ligarEntregas(W) {
   const mudar = (fn, foco) => { guardarEtapa(W); fn(W.operacao); W.operacaoPessoa = true; desenhar(W, { foco: false }).then(() => (typeof foco === 'function' ? foco() : $(foco))?.focus()); };
@@ -437,7 +552,8 @@ function ligarEntregas(W) {
     () => document.querySelector(`[data-e-tipo="${W.operacao.entregaveis.length - 1}"]`)));
   $('formato-unico-btn')?.addEventListener('click', () => {
     guardarEtapa(W);
-    W.operacao = { canais: [], entregaveis: [], ferramentas: [], contexto_respostas: W.operacao?.contexto_respostas || [] };
+    // Um resultado só: os entregáveis saem; o resto do plano (material, etapas, ferramentas, respostas) continua.
+    W.operacao = { ...(W.operacao || {}), canais: [], entregaveis: [], ferramentas: (W.operacao?.ferramentas || []), contexto_respostas: W.operacao?.contexto_respostas || [], origem: 'pessoa' };
     W.operacaoPessoa = true; W.formatoPessoa = true;
     const sug = W.sugestao?.formato?.sugerido;
     W.formato = sug && sug !== 'outro' ? sug : 'resumo';
@@ -445,9 +561,12 @@ function ligarEntregas(W) {
   });
   $('por-canal')?.addEventListener('click', () => {
     guardarEtapa(W);
-    W.operacao = { canais: ['linkedin'], entregaveis: [{ id: '', tipo: 'copy', canal: 'linkedin', config: {} }], ferramentas: W.operacao?.ferramentas || [], contexto_respostas: W.operacao?.contexto_respostas || [] };
+    // Mais de um resultado: o formato atual vira o primeiro entregável e a pessoa acrescenta os demais (com canal,
+    // se for conteúdo).
+    const primeiro = { id: '', tipo: FORMATO_TIPO[W.formato] || 'resumo', canal: null, config: {} };
+    W.operacao = { ...(W.operacao || {}), canais: [], entregaveis: [primeiro, { id: '', tipo: 'lista', rotulo: 'Pontos de atenção', canal: null, config: {} }], ferramentas: W.operacao?.ferramentas || [], contexto_respostas: W.operacao?.contexto_respostas || [], origem: 'pessoa' };
     W.operacaoPessoa = true; W.formato = 'outro'; W.formatoPessoa = true;
-    desenhar(W, { foco: false }).then(() => document.querySelector('input[name=canal]')?.focus());
+    desenhar(W, { foco: false }).then(() => document.querySelector('[data-e-rotulo]')?.focus());
   });
 }
 
@@ -502,7 +621,7 @@ async function rodarTeste(W, conversa, corpo) {
     });
     if (falha) throw new Error(falha);
     const { html, tabelas } = renderizar(saida);
-    W.resultado = { html, tabelas, saida, sep: separarPorCanal(saida), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id };
+    W.resultado = { html, tabelas, saida, sep: separarPorCanal(saida, { porSecao: multipla(W.operacao) }), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id };
     W.qw = await api(`/api/quick-wins/${W.id}`);
   } catch (e) { W.resultado = { erro: e.message }; }
   await desenhar(W, { foco: false });
@@ -533,6 +652,7 @@ const ETAPA_LIGAR = [
     $('objetivo').addEventListener('keydown', ev => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) continuar(W); });
   },
   W => {
+    ligarPlano(W);
     const trocar = modo => { guardarEtapa(W); W.modoProc = modo; W.sugestao = null; desenhar(W, { foco: false }).then(() => $(modo === 'exemplo' ? 'exemplo' : 'processo')?.focus()); };
     $('modo-exemplo')?.addEventListener('click', () => trocar('exemplo'));
     $('modo-explicar')?.addEventListener('click', () => trocar('explicar'));
@@ -585,12 +705,13 @@ const ETAPA_LIGAR = [
     document.querySelector('[data-responder]')?.addEventListener('click', () => responderEContinuar(W));
     if (W.resultado?.sep && $('resultado-teste')) ligarPorCanal($('resultado-teste'), W.resultado.sep, m => toast(m));
     document.querySelector('[data-ajustar]')?.addEventListener('click', () => irEtapa(W, 0));
+    $('responder-lacunas')?.addEventListener('click', () => irEtapa(W, 1).then(() => document.querySelector('#plano [data-lacuna]')?.focus()));
     document.querySelector('[data-revisar-assim]')?.addEventListener('click', () => irEtapa(W, REVISAR));
     if ($('teste-arquivo')) {
       $('teste-arquivo').onclick = () => $('teste-input').click();
       $('teste-input').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { W.teste.anexo = await lerArquivo(f); $('teste-nome').textContent = f.name; } catch (e) { erroEtapa(e.message); } };
     }
-    document.querySelectorAll('#teste-resultado [data-csv]').forEach(b => { b.onclick = () => baixarCsv(W.resultado.tabelas[Number(b.dataset.csv)], `${(W.qw?.nome || 'resultado').replace(/[^\wÀ-ú -]/g, '')}.csv`); });
+    document.querySelectorAll('#teste-resultado [data-csv]').forEach(b => { b.onclick = () => baixarCsv((W.resultado.sep?.tabelas || W.resultado.tabelas)[Number(b.dataset.csv)], `${(W.qw?.nome || 'resultado').replace(/[^\wÀ-ú -]/g, '')}.csv`); });
   },
   W => {
     const editar = (ver, edicao, campo) => { $(ver).classList.add('oculto'); $(edicao).classList.remove('oculto'); $(campo).focus(); };

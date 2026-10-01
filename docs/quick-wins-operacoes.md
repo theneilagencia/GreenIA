@@ -162,3 +162,60 @@ Cada execução tem uma linha em `roteamento`, que é o *run*. `roteamento.quali
 - `pesquisa`: exigida, feita, número de fontes e motivo.
 
 Nada disso guarda conteúdo.
+
+## 4. Arquitetura generalista: qualquer trabalho vira uma operação
+
+A versão anterior só estruturava entregáveis quando o pedido citava canais ou peças de marketing
+(`inferirOperacao`). Sem isso, o Quick Win caía no formato único (resumo, lista, tabela ou relatório) escolhido por
+palavra-chave do tipo de trabalho. Contratos, propostas, planilhas e reuniões ficavam com um relatório genérico.
+
+### Causa raiz
+- Criação 100% determinística por palavra-chave: entregáveis só com canal ou com 2+ peças do catálogo de marketing.
+- Lacunas só para trabalho com canal (`lacunasDeContexto`).
+- Prompt e exemplo de teste pensados para conteúdo ("este trabalho não precisa de material").
+- Wizard binário: "peças por canal" ou "formato único". Resultado separado só por título com canal (" · ").
+
+### Modelo de operação (`espec.operacao`, v: 2)
+| Campo | O que é |
+|---|---|
+| `resumo` | o que o Quick Win faz, numa frase |
+| `entradas[]` | material de cada execução: `tipo` (documento, planilha, transcricao, texto, imagem, audio, dados), `rotulo`, `quantidade`, `obrigatoria` |
+| `etapas[]` | como fazer, em ordem, com `ferramenta` opcional; viram o "Como fazer" do prompt |
+| `entregaveis[]` | `tipo` (catálogo amplo: resumo, lista, tabela, matriz, analise, riscos, recomendacao, plano_acao, checklist, ata, relatorio, copy, legenda, carrossel, reels, imagem...), `rotulo` semântico livre, `descricao`, `depende_de`, `config` (slides, duração, colunas) e `canal` opcional |
+| `ferramentas[]` | pesquisa_web (executável, governada), base_empresa, leitura_documento, analise_planilha, geracao_imagem (indisponível: entrega o briefing) |
+| `criterios[]` | critérios de qualidade do plano (entram na conferência) |
+| `lacunas[]` | perguntas mínimas que mudam o resultado (`obrigatoria` quando sem a resposta não dá para fazer) |
+| `sugestoes[]` | itens úteis não pedidos; só entram se a pessoa incluir |
+| `contexto_empresa`, `categoria` | se depende da empresa; a categoria só organiza (não muda o motor) |
+
+Canal é só um metadado do entregável. O `formato_saida` é derivado do plano: vários entregáveis viram seções
+obrigatórias (conferidas pelo código); um só, de formato simples, é o contrato daquele formato (tabela continua
+com colunas e as mesmas conferências).
+
+### Interpretação (`src/quickwin-interpretacao.js`)
+- `POST /api/quick-wins/assistente/interpretar`: uma chamada pela governança da criação (`chamarGovernado`, finalidade
+  `quick_win_interpretacao`, decisão e consumo registrados), cacheada por pedido.
+- A resposta é validada contra o catálogo (`limparOperacao`): ids renumerados com dependências, textos limpos e
+  limitados, tipos e ferramentas desconhecidos descartados, credencial derruba o plano. Canal citado no pedido e
+  ausente nas peças é recuperado da leitura determinística (`garantirCanais`).
+- Sem IA usável (dados protegidos, sigilo, reserva do plano, falha, resposta ilegível): `planoHeuristico`, com o
+  comportamento anterior de formato e peças e com entradas, etapas e ferramentas explícitas. Nunca trava.
+
+### Execução
+- Prompt: material do trabalho (obrigatório pede antes de inventar), entregáveis com "O que é" e "Feito a partir de",
+  critérios do plano, ferramenta indisponível com a alternativa, regra de perguntas (usar o que existe; perguntar só
+  quando impossível).
+- Em etapas quando há pesquisa liberada: 1) coleta (plugin web, notas com fonte); 2) produção a partir das notas, sem
+  nova pesquisa. As notas entram na conferência de qualidade. Coleta sem notas: a produção pesquisa sozinha.
+- Trabalho que depende da empresa: a consulta às bases também procura o que descreve a empresa.
+- Exemplo pronto pelo tipo de entrada (contrato, propostas, planilha, transcrição fictícios), marcado como material
+  de teste fictício.
+
+### UX
+- Depois do objetivo: "Entendi que este Quick Win vai fazer" (objetivo, vai precisar de, vai fazer, vai entregar,
+  vai usar), com confirmar, editar materiais e etapas, responder lacunas e incluir sugestões.
+- Etapa Resultado: editor universal de entregáveis (título, tipo, configuração; canais recolhidos quando não há).
+- Resultado: um cartão por entregável (agrupado por canal só quando há canal), tabelas com CSV por cartão.
+- Quick Win antigo: na edição, a estrutura aparece como sugestão ("Usar esta estrutura"). Sem especificação (v1):
+  "Atualizar para Quick Win inteligente"; quem usa continua no comportamento antigo até a primeira publicação
+  (`origem.atualizado_de = 'v1'`), sem mudar formato, modelo ou troca da configuração antiga.

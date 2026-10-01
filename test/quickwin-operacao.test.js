@@ -30,7 +30,7 @@ function roteiro(b) {
   const titulos = [...sis.matchAll(/\d+\. ## ([^\\(]+?)(?: \(|\\n|")/g)].map(m => m[1].trim()).filter(t => modo !== 'faltando' || !/Legenda/.test(t));
   const empresa = sis.includes('Apy Mine') ? 'Apy Mine' : 'a empresa';
   const corpo = titulos.map(t => `## ${t}\n${/Imagem|Carrossel|Reels|Vídeo/.test(t) ? `${OP.MARCA_BRIEFING}\nSlide 1: segurança na ${empresa}.` : `Texto sobre ${empresa} para ${t}.`}`).join('\n\n');
-  const fontes = b.plugins ? `\n\n## ${OP.SECAO_FONTES}\n${FONTES_FALSAS.map(f => `- ${f.titulo}: ${f.url}`).join('\n')}` : '\n\nPesquisa na internet não realizada.';
+  const fontes = b.plugins || sis.includes('Notas da pesquisa desta execu') ? `\n\n## ${OP.SECAO_FONTES}\n${FONTES_FALSAS.map(f => `- ${f.titulo}: ${f.url}`).join('\n')}` : '\n\nPesquisa na internet não realizada.';
   return corpo + fontes;
 }
 
@@ -127,12 +127,18 @@ test('aceite A e B (Apy Mine): pesquisa real, contexto da empresa, todos os entr
   const q = await criar(APY);
   const r = await executar(ana, q.id, 'Pedido de teste: faça o trabalho desta semana.');
   assert.equal(r.status, 200, JSON.stringify(r.erro));
-  const exec = r.chamadas.find(b => !ehConferencia(b));
+  // Execução em etapas: 1) coleta (pesquisa, só notas com fonte); 2) produção a partir das notas, sem nova pesquisa.
+  const [exec, producao] = r.chamadas.filter(b => !ehConferencia(b));
   assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }], 'a execução pesquisou de verdade');
+  assert.match(sistemaDe(exec), /Etapa 1 de 2 desta execução: pesquisa na internet/);
+  assert.equal(producao.plugins, undefined, 'a produção não pesquisa de novo');
+  assert.match(sistemaDe(producao), /a pesquisa na internet desta execução já foi feita/);
+  assert.match(sistemaDe(producao), /<pesquisa nome=/);
   assert.ok(r.chamadas.filter(ehConferencia).every(b => !b.plugins), 'a conferência nunca pesquisa');
+  assert.ok(r.chamadas.filter(ehConferencia).every(b => JSON.stringify(b.messages).includes('Notas da pesquisa desta execu')), 'a conferência recebe as notas da pesquisa');
   // Contexto da empresa: a mensagem de hoje é genérica, mas a consulta à base usa o objetivo do Quick Win.
   assert.match(sistemaDe(exec), /mineradora de médio porte/);
-  assert.match(sistemaDe(exec), /nesta execução você tem acesso a uma pesquisa na internet/);
+  assert.match(sistemaDe(producao), /mineradora de médio porte/);
   for (const t of ['LinkedIn · Copy', 'Instagram · Legenda', 'Instagram · Carrossel', 'Instagram · Imagem', 'Instagram · Reels', 'Temas sugeridos']) assert.match(r.texto, new RegExp(`## ${t}`));
   assert.match(r.texto, /Apy Mine/);
   assert.equal(r.fim.qualidade.status, 'aprovado');
@@ -265,7 +271,9 @@ test('aceite E: excluir preserva histórico, some do catálogo, respeita permiss
 
 test('compatibilidade: Quick Win antigo (sem operação) segue igual; especificação forjada não liga ferramenta', async () => {
   const e = C.construir({ descricao: 'Resumir textos longos', formato: 'lista' });
-  assert.equal(e.operacao, undefined);
+  // Todo Quick Win tem plano (entradas e etapas); um trabalho simples continua com um único formato e sem ferramenta.
+  assert.equal(e.operacao.v, 2);
+  assert.deepEqual(e.operacao.entregaveis, []);
   assert.deepEqual(e.ferramentas_permitidas, []);
   assert.match(C.promptExecucao(e, { nome: 'x' }), /Você não tem ferramentas nem acesso a sistemas externos\./);
   // Ferramenta sem a operação que a pede: descartada na leitura.
@@ -280,7 +288,9 @@ test('compatibilidade: Quick Win antigo (sem operação) segue igual; especifica
 test('inferência: canal coordenado herda as peças já pedidas ("posts para LinkedIn e Instagram e um Reels")', () => {
   const r = t => OP.inferirOperacao(t).entregaveis.map(OP.rotuloEntregavel);
   assert.deepEqual(r('Crie posts para LinkedIn e Instagram e um Reels'), ['LinkedIn · Copy', 'Instagram · Legenda', 'Instagram · Reels']);
-  assert.deepEqual(r('Crie copy e carrossel para LinkedIn e Instagram'), ['LinkedIn · Copy', 'LinkedIn · Carrossel', 'Instagram · Legenda', 'Instagram · Carrossel']);
+  assert.deepEqual(r('Crie copy e carrossel para LinkedIn e Instagram'), ['LinkedIn · Copy', 'Instagram · Legenda', 'LinkedIn · Carrossel', 'Instagram · Carrossel']);
+  // Lista compartilhada por canais coordenados: cada peça nos canais em que faz sentido (Reels só no Instagram).
+  assert.deepEqual(r('Crie conteúdo para LinkedIn e Instagram com copy, carrossel e Reels.'), ['LinkedIn · Copy', 'Instagram · Legenda', 'LinkedIn · Carrossel', 'Instagram · Carrossel', 'Instagram · Reels']);
   assert.deepEqual(r('Crie uma copy para LinkedIn'), ['LinkedIn · Copy']);
 });
 

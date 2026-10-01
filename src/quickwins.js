@@ -13,6 +13,7 @@ import { basesVisiveis, trechosDasBases } from './bases.js';
 import { acharModelo, custoEstimado, ehClasse, lerModelos, NOMES_CLASSE, resolverClasse } from './modelos.js';
 import * as QW2 from './quickwin-construtor.js';
 import { chamarGovernado, estruturarObjetivo } from './quickwin-estrutura.js';
+import { interpretar } from './quickwin-interpretacao.js';
 import * as OP from './quickwin-operacao.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
@@ -86,7 +87,7 @@ function versaoDe(db, q) {
 // O que o Quick Win entrega, em linguagem comum (canal · entregável) e se pesquisa na internet.
 function entregasDe(espec) {
   const op = QW2.normalizar(espec)?.operacao;
-  return op ? { entregaveis: op.entregaveis.map(OP.rotuloEntregavel), pesquisa: op.ferramentas.includes('pesquisa_web') } : null;
+  return op ? { entregaveis: op.entregaveis.map(OP.rotuloEntregavel), pesquisa: op.ferramentas.includes('pesquisa_web'), entradas: (op.entradas || []).map(x => `${x.rotulo}${x.quantidade > 1 ? ` (${x.quantidade})` : ''}`) } : null;
 }
 
 // Classe de partida de um Quick Win 2.0, pela dica de complexidade da especificação. É só um piso para o
@@ -108,7 +109,8 @@ const ESPEC = Symbol('especificacao');
 function doAssistente(app, cfg, a, atual = {}) {
   const op = a?.operacao && typeof a.operacao === 'object' ? a.operacao : null;
   if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto), ...QW2.limparColunas(a?.colunas),
-    ...(op?.contexto_respostas || []).map(r => r?.resposta), ...(op?.entregaveis || []).map(e => e?.config?.detalhe)]))
+    ...(op?.contexto_respostas || []).map(r => r?.resposta), ...(op?.entregaveis || []).flatMap(e => [e?.config?.detalhe, e?.rotulo, e?.descricao]),
+    ...(op?.entradas || []).map(x => x?.rotulo), ...(op?.etapas || []).map(x => x?.texto), ...(op?.criterios || [])]))
     throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
   // Regras próprias: ajustar sem mandar a lista mantém as que já estão no rascunho (lista vazia remove todas).
   const anterior = json(atual.especificacao, null);
@@ -118,12 +120,18 @@ function doAssistente(app, cfg, a, atual = {}) {
     : anterior?.origem?.colunas_origem === 'pessoa' ? { colunas: anterior.origem.colunas, colunas_origem: 'pessoa' } : {};
   const estrutura_objetivo = a?.estrutura_objetivo !== undefined ? a.estrutura_objetivo : anterior?.origem?.estrutura_objetivo || null;
   // Operação: a confirmada na tela vale; sem ela, a que a pessoa já tinha confirmado continua; senão, é inferida.
-  const operacao = a?.operacao !== undefined ? { operacao: a.operacao } : anterior?.operacao?.origem === 'pessoa' ? { operacao: anterior.operacao } : {};
-  const espec = QW2.construir({ ...a, ...colunas, ...operacao, estrutura_objetivo, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
-  const v = { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
+  // Plano: o enviado pela tela vale (interpretado pela IA ou ajustado pela pessoa); sem ele, o já confirmado continua.
+  const operacao = a?.operacao !== undefined ? { operacao: a.operacao } : ['pessoa', 'ia'].includes(anterior?.operacao?.origem) ? { operacao: anterior.operacao } : {};
+  const interpretacao = a?.interpretacao !== undefined ? a.interpretacao : anterior?.origem?.interpretacao || null;
+  // Atualização de um Quick Win antigo (sem especificação): marcada, para a equipe continuar no comportamento antigo
+  // até a publicação da primeira versão (efetivo). Nada da configuração antiga (formato, modelo, troca) muda aqui.
+  const deV1 = !!atual.id && !atual.especificacao;
+  const atualizado_de = deV1 ? 'v1' : anterior?.origem?.atualizado_de || null;
+  const espec = QW2.construir({ ...a, ...colunas, ...operacao, interpretacao, atualizado_de, estrutura_objetivo, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
+  const v = deV1 ? { [ESPEC]: JSON.stringify(espec) } : { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
   if (!atual.id || a?.nome) v.nome = espec.origem.nome;
   if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(v.nome || atual.nome, espec.regras)).slice(0, 200);
-  const classe = classeSugerida(app, cfg, espec, atual.sigiloso);
+  const classe = deV1 ? null : classeSugerida(app, cfg, espec, atual.sigiloso);
   if (classe && (!atual.modelo || ehClasse(atual.modelo))) v.modelo = classe;
   return v;
 }
@@ -226,6 +234,8 @@ export function criarQuickWins(app) {
     // Só o trabalho muda com a versão; dados, sigilo, bases e áreas são sempre os atuais.
     efetivo(q, teste = false) {
       if (!q?.especificacao) return q;
+      // Antigo em atualização: quem usa continua no comportamento antigo até a primeira publicação (o teste já usa o novo).
+      if (!teste && !q.versao_publicada && json(q.especificacao, null)?.origem?.atualizado_de === 'v1') return q;
       const v = !teste && q.versao_publicada ? um(app.db, 'select numero, especificacao, nome, para_que_serve, formato from quick_win_versoes where id = ?', q.versao_publicada) : null;
       const espec = QW2.normalizar(json(v ? v.especificacao : q.especificacao, null));
       return espec ? { ...q, ...(v ? { nome: v.nome, para_que_serve: v.para_que_serve, formato: v.formato } : {}), espec, versao: v?.numero ?? null } : q;
@@ -236,7 +246,10 @@ export function criarQuickWins(app) {
       // Consulta às bases: o pedido de hoje somado ao que define o trabalho (objetivo, contexto e respostas de
       // contexto). Só a mensagem atual não acha o documento "sobre a empresa" num pedido como "pesquise os temas".
       const op = qw.espec?.operacao;
-      const consulta = qw.espec ? [qw.espec.objetivo, qw.espec.contexto, ...(op?.contexto_respostas || []).map(r => r.resposta), texto].filter(Boolean).join('\n') : texto;
+      // Trabalho que depende da empresa (plano): a busca também procura o que descreve a empresa. Homologação real:
+      // "Pesquise concorrentes..." não tem palavra em comum com "Sobre a empresa...", e o contexto não chegava.
+      const sobreEmpresa = OP.usaContextoEmpresa(op) ? 'sobre a empresa somos atuamos atua produtos serviços clientes público mercado setor' : '';
+      const consulta = qw.espec ? [qw.espec.objetivo, qw.espec.contexto, ...(op?.contexto_respostas || []).map(r => r.resposta), sobreEmpresa, texto].filter(Boolean).join('\n') : texto;
       const arquivos = todos(app.db, 'select id, titulo, texto, sigiloso from documentos where quick_win_id = ? order by id', qw.id);
       const partes = [], fontes = [], pecas = [];
       let sigiloso = arquivos.some(a => a.sigiloso);
@@ -332,8 +345,23 @@ export function rotasQuickWins(app, r) {
     return { ...QW2.sugerir({ descricao, arquetipo: corpo.arquetipo, como, estrutura: corpo.estrutura || null }), sugestoes: QW2.SUGESTOES,
       operacao, lacunas: OP.lacunasDeContexto({ descricao, processo, operacao, temBase }), temBase,
       catalogo: { canais: Object.entries(OP.CANAIS).map(([id, c]) => ({ id, rotulo: c.rotulo })), entregaveis: Object.entries(OP.ENTREGAVEIS).map(([id, e]) => ({ id, rotulo: e.rotulo, visual: !!e.visual, config: e.config || {} })),
-        ferramentas: Object.entries(OP.FERRAMENTAS).map(([id, f]) => ({ id, rotulo: f.rotulo })) },
+        ferramentas: Object.entries(OP.FERRAMENTAS).map(([id, f]) => ({ id, rotulo: f.rotulo, disponivel: f.disponivel !== false })),
+        entradas: Object.entries(OP.ENTRADAS).map(([id, x]) => ({ id, rotulo: x.rotulo })) },
       pesquisaLiberada: !!lerConfig(app.db).pesquisaWeb?.ativa };
+  });
+  // Interpretação do pedido: o plano da operação (entradas, etapas, entregáveis, ferramentas, lacunas, sugestões),
+  // pela IA e pela governança da criação; sem IA, o plano heurístico. A tela mostra "Entendi que este Quick Win vai
+  // fazer" e a pessoa confirma ou ajusta. O mesmo pedido já interpretado é reaproveitado sem chamada.
+  r.post('/api/quick-wins/assistente/interpretar', async ({ pessoa, corpo }) => {
+    if (!podeMontar(pessoa)) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar Quick Wins. Fale com o admin.');
+    const descricao = String(corpo.descricao || '').slice(0, 1000), processo = String(corpo.processo || '').slice(0, 3000);
+    if (QW2.conferirSegredos([descricao, processo]))
+      throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
+    const qw = corpo.quick_win_id ? carregar(pessoa, corpo.quick_win_id, true) : null;
+    const r2 = await interpretar(app, pessoa, { descricao, processo, qw });
+    const temBase = basesVisiveis(app.db, pessoa).length > 0;
+    return { ...r2, lacunas: OP.lacunasDeContexto({ descricao, processo, operacao: r2.operacao, temBase }), temBase, pesquisaLiberada: !!lerConfig(app.db).pesquisaWeb?.ativa,
+      ferramentasIndisponiveis: (r2.operacao?.ferramentas || []).filter(f => OP.FERRAMENTAS[f]?.disponivel === false).map(f => ({ id: f, rotulo: OP.FERRAMENTAS[f].rotulo, alternativa: OP.FERRAMENTAS[f].alternativa })) };
   });
   // Estrutura pedida no objetivo (colunas): uma chamada de IA, governada, só para um objetivo novo ou alterado.
   // A tela chama ao preparar a etapa Resultado; o mesmo objetivo já estruturado é reaproveitado sem chamada.
@@ -371,14 +399,15 @@ export function rotasQuickWins(app, r) {
     if (plano.modo === 'texto') return { modo: 'texto', texto: plano.texto, aviso: OP.AVISO_EXEMPLO };
     const chave = `${q.id}:${OP.chaveExemplo(espec)}`;
     if (exemplos.has(chave)) return { modo: 'texto', texto: exemplos.get(chave), aviso: OP.AVISO_EXEMPLO, cache: true };
-    const pedido = `${espec.objetivo}${espec.formato_saida?.colunas?.length ? `\nCampos do resultado: ${espec.formato_saida.colunas.join(', ')}` : ''}`;
+    const pedido = OP.pedidoDoExemplo(espec, plano.entradas || []);
     const r2 = await chamarGovernado(app, pessoa, { conteudo: pedido, qw: q, origem: 'quick_win_exemplo',
       mensagens: [{ role: 'system', content: OP.PROMPT_EXEMPLO }, { role: 'user', content: delimitar('objetivo', 'Objetivo', pedido) }] });
-    const texto = String(r2.texto || '').trim().slice(0, 4000);
-    if (r2.recusado || r2.falhou || texto.length < 20 || contemCredencial(texto)) {
+    const material = String(r2.texto || '').trim().slice(0, 4000);
+    if (r2.recusado || r2.falhou || material.length < 20 || contemCredencial(material)) {
       registrar(app, 'quickwin.example_skipped', pessoa.id, { quick_win: q.id, motivo: r2.motivo || (r2.falhou ? 'falha_na_execucao' : 'resposta_invalida') });
       return fallback;
     }
+    const texto = OP.comoMaterialDeTeste(material);
     exemplos.set(chave, texto);
     if (exemplos.size > 200) exemplos.delete(exemplos.keys().next().value);
     registrar(app, 'quickwin.example_generated', pessoa.id, { quick_win: q.id, roteamento: r2.rotaId });

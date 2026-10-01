@@ -104,15 +104,27 @@
 .lv .l-link{display:inline-flex;align-items:center;gap:6px;font:500 15px var(--sans);color:var(--ink);text-decoration:none;border-bottom:1px solid var(--hair-2);padding-bottom:2px;transition:border-color .2s var(--ease)}
 .lv .l-link:hover{border-color:var(--ink)}
 
-/* Perguntas frequentes */
+/* Perguntas frequentes: summary em bloco (flex em <summary> falha no Safari do iOS), ícone posicionado no
+   canto e alinhado à primeira linha, área de toque inteira, sem hover preso no toque. */
 .lv .l-faq{border-top:1px solid var(--hair-2)}
 .lv .l-faq details{border-bottom:1px solid var(--hair)}
-.lv .l-faq summary{padding:22px 4px;font:400 19px/1.35 var(--serif);letter-spacing:-.01em;transition:color .2s var(--ease)}
-.lv .l-faq summary::after{content:'';width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--hair-2);
-  background:linear-gradient(var(--ink-2),var(--ink-2)) center/10px 1.5px no-repeat,linear-gradient(var(--ink-2),var(--ink-2)) center/1.5px 10px no-repeat;transition:transform .3s var(--ease),background-color .2s}
-.lv .l-faq details[open] summary::after{transform:rotate(45deg)}
-.lv .l-faq summary:hover::after{background-color:var(--paper)}
-.lv .l-faq p{padding:0 4px;font-size:15.5px}
+.lv .l-faq summary{display:block;position:relative;padding:20px 48px 20px 0;font:400 17.5px/1.4 var(--serif);letter-spacing:-.01em;color:var(--ink);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:color .2s var(--ease)}
+.lv .l-faq summary::after{content:'';position:absolute;right:6px;top:18px;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--hair-2);background-color:transparent;
+  background-image:linear-gradient(var(--ink-2),var(--ink-2)),linear-gradient(var(--ink-2),var(--ink-2));background-position:center;background-size:10px 1.5px,1.5px 10px;background-repeat:no-repeat;
+  transition:transform .3s var(--ease),background-color .2s var(--ease),box-shadow .2s var(--ease)}
+.lv .l-faq details[open] summary::after{transform:rotate(45deg);background-color:var(--paper);box-shadow:inset 0 0 0 1px rgba(20,20,19,.24)}
+.lv .l-faq summary:focus{outline:none}
+.lv .l-faq summary:focus-visible{outline:2px solid color-mix(in srgb,var(--acento) 60%,transparent);outline-offset:4px;border-radius:6px}
+.lv .l-faq p{margin:-4px 0 0;padding:0 0 22px;font-size:15.5px;line-height:1.65;max-width:68ch}
+@media (hover:hover) and (pointer:fine){
+  .lv .l-faq summary:hover::after{background-color:var(--paper)}
+}
+@media (min-width:760px){
+  .lv .l-faq summary{padding:22px 56px 22px 0;font-size:19px}
+  .lv .l-faq summary::after{top:21px}
+  .lv .l-faq p{padding-right:52px}
+}
 
 /* Contato */
 .lv .l-form{border-color:var(--hair-2);border-radius:var(--r-lg);box-shadow:var(--sombra-2)}
@@ -240,7 +252,6 @@
   .lv .l-coluna:hover{transform:translateY(-2px);box-shadow:var(--sombra-2)}
   .lv .l-comp tbody tr:hover>*{background:color-mix(in srgb,var(--bg) 70%,var(--paper))}
   .lv .l-comp tbody tr:hover>td:last-child{background:var(--tinta-2)}
-  .lv .l-faq summary:hover{color:var(--acento)}
   .lv .btn-verde:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 8px 18px -10px rgba(20,20,19,.6)}
 }
 
@@ -267,6 +278,7 @@
   .lv #perguntas .l-cab{display:block;position:sticky;top:96px;margin:0}
   .lv #perguntas .l-faq{border-top:0}
   .lv #perguntas .l-faq details:first-child summary{padding-top:6px}
+  .lv #perguntas .l-faq details:first-child summary::after{top:4px}
 }
 
 /* ----------------------------------------------------------------- Mobile primeiro: toque e telas estreitas */

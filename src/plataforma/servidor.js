@@ -195,7 +195,7 @@ function checarRecurso(P, id, t, metodo, caminho) {
   if (caminho === '/api/quick-wins' && metodo === 'POST') {
     if (plano && !f.quick_wins) throw new ErroHttp(403, 'recurso_do_plano', 'Quick wins não fazem parte do plano desta empresa.');
     const max = plano?.limits?.max_quick_wins || 0;
-    if (max && um(t.db, 'select count(*) as n from quick_wins').n >= max) throw new ErroHttp(409, 'limite_quick_wins', `O plano desta empresa permite até ${max} quick wins.`);
+    if (max && um(t.db, 'select count(*) as n from quick_wins where excluido_em is null').n >= max) throw new ErroHttp(409, 'limite_quick_wins', `O plano desta empresa permite até ${max} quick wins.`);
   }
   if (caminho.startsWith('/api/bases') && plano && !f.knowledge) throw new ErroHttp(403, 'recurso_do_plano', 'A base de conhecimento não faz parte do plano desta empresa.');
 }

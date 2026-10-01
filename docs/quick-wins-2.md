@@ -90,7 +90,7 @@ A especificação só é gravada pelo construtor:
   e um critério do Quality Check no grupo "Regras respeitadas". Elas nunca ampliam fontes, ferramentas, autonomia ou
   restrições. Ajustar sem mandar a lista mantém as regras atuais. Uma lista vazia remove todas. Especificações
   antigas, sem o campo, valem como lista vazia.
-- `ferramentas_permitidas` é sempre vazio.
+- `ferramentas_permitidas` só aceita ferramentas do catálogo que a operação do Quick Win pede (hoje, `pesquisa_web`); o resto é descartado. A pesquisa só roda se a empresa liberar e o conteúdo permitir (ver `docs/quick-wins-operacoes.md`).
 - A autonomia é limitada a: apenas analisar, sugerir ou preparar para executar. Nunca há ação externa.
 
 ## Execução
@@ -203,3 +203,8 @@ inventar.
   - a conferência aparece logo abaixo do resultado;
   - as mensagens seguintes são conversa normal;
   - "Nova execução" roda o trabalho de novo, com conferência, no próximo envio.
+
+## Operações (entregas por canal, pesquisa, exemplo contextual, exclusão)
+
+Ver `docs/quick-wins-operacoes.md`: causas raiz investigadas, entregáveis e canais, pesquisa na internet governada,
+exemplo pronto contextual, pausa e retomada, exclusão sem perder histórico e a auditoria.

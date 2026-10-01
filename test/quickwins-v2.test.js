@@ -233,11 +233,11 @@ test('versões: quem usa recebe a publicada; o teste usa o rascunho; publicar a 
   assert.match(sistemaDe(await executar(carlos, q.id, 'pedido 40, nota 38')), /ordem de prioridade/);
   const v = (await ana.get(`/api/quick-wins/${q.id}/versoes`)).dados.versoes;
   assert.deepEqual(v.map(x => [x.numero, x.atual]), [[2, true], [1, false]]);
-  assert.equal((await carlos.get(`/api/quick-wins/${q.id}/versoes`)).status, 404, 'versões são de quem gere');
+  assert.equal((await carlos.get(`/api/quick-wins/${q.id}/versoes`)).status, 403, 'versões são de quem gere');
   p = (await ana.post(`/api/quick-wins/${q.id}/versoes/1/restaurar`, {})).dados;
   assert.equal(p.versao, 1);
   assert.doesNotMatch(sistemaDe(await executar(carlos, q.id, 'pedido 40, nota 38')), /ordem de prioridade/);
-  assert.equal((await carlos.post(`/api/quick-wins/${q.id}/publicar`, {})).status, 404, 'só quem gere publica');
+  assert.equal((await carlos.post(`/api/quick-wins/${q.id}/publicar`, {})).status, 403, 'só quem gere publica');
 });
 
 test('governança soberana: o Quick Win não libera dado bloqueado, credencial nem troca a rota de dado protegido', async () => {

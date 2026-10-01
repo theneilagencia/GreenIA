@@ -4,7 +4,8 @@ import { createServer } from 'node:http';
 import { criarOpenRouter } from '../src/ia.js';
 
 // responder(corpo): texto da resposta (opcional), para roteirizar respostas nos testes.
-export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null } = {}) {
+export const FONTES_FALSAS = [{ url: 'https://noticias.exemplo/mineracao-segura', titulo: 'Segurança na mineração em 2026' }, { url: 'https://revista.exemplo/esg-mineracao', titulo: 'ESG e mineração' }];
+export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS } = {}) {
   const chamadas = [];
   const srv = createServer(async (req, res) => {
     if (req.url.endsWith('/models')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data: modelos })); }
@@ -24,6 +25,9 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
     for (const parte of roteiro != null ? [roteiro] : [`Resposta de ${respondeu}`, ` para: ${String(ultima).slice(0, 40)}`]) {
       res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: { content: parte } }] })}\n\n`);
     }
+    // Pesquisa na internet (plugin "web"): o OpenRouter devolve as citações como anotações url_citation.
+    if (b.plugins?.some(p => p.id === 'web') && fontes.length)
+      res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: { annotations: fontes.map(f => ({ type: 'url_citation', url_citation: { url: f.url, title: f.titulo, content: 'trecho' } })) } }] })}\n\n`);
     res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: {} }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: custo, cache_discount: 0.0001 } })}\n\n`);
     res.end('data: [DONE]\n\n');
   });

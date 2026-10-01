@@ -12,7 +12,7 @@ test('tipo de trabalho: sugestão clicada vale; sem ela, inferido da descrição
   assert.equal(C.inferirArquetipo('Responda os emails dos clientes sobre atraso'), 'responder_clientes');
   assert.equal(C.inferirArquetipo('Analise este contrato e aponte riscos'), 'analisar_documentos');
   assert.equal(C.inferirArquetipo('xyz'), 'outro');
-  assert.deepEqual(C.SUGESTOES.map(s => s.rotulo), ['Analisar documentos', 'Organizar informações', 'Criar relatório', 'Preparar reunião', 'Responder clientes', 'Comparar documentos', 'Outro']);
+  assert.deepEqual(C.SUGESTOES.map(s => s.rotulo), ['Analisar documentos', 'Organizar informações', 'Criar relatório', 'Preparar reunião', 'Responder clientes', 'Comparar documentos', 'Criar conteúdo', 'Outro']);
 });
 
 test('nome e descrição automáticos', () => {

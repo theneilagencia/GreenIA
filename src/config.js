@@ -23,6 +23,12 @@ export const PADRAO = {
   // Controle proporcional para dado pessoal processado normalmente: só recursos com fornecedor fixo e pedido de
   // não uso para treino. Não bloqueia nem torna a conversa sigilosa.
   protecaoDadosPessoais: true,
+  // Pesquisa na internet nos Quick Wins que pedem (ex.: "temas em alta"). Desligada por padrão: ligada, o pedido de
+  // pesquisa sai para o serviço de busca do provedor de IA. Mesmo ligada, não roda em conversa sigilosa, em área com
+  // proteção reforçada nem com dado que a política manda proteger.
+  pesquisaWeb: { ativa: false },
+  // Modelos iniciais (globais) que esta empresa ocultou do próprio catálogo (índices do arquivo da instalação).
+  modelosOcultos: [],
   // Retenção separada do processamento: tipos de dado que podem ser processados, mas não ficam guardados no
   // histórico (a mensagem, o anexo e a resposta ficam só como um registro de que houve processamento).
   naoArmazenar: [],

@@ -6,6 +6,7 @@
 import { createHash } from 'node:crypto';
 import { contemCredencial } from './filtro.js';
 import { delimitar } from './texto.js';
+import { conferirOperacao, criteriosOperacao, FERRAMENTAS, inferirOperacao, limparOperacao, MOTIVOS_PESQUISA, promptOperacao } from './quickwin-operacao.js';
 
 export const VERSAO_ESPEC = 1;
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -56,6 +57,14 @@ export const ARQUETIPOS = {
     regras: ['comparar_valores', 'destacar_ausentes', 'mostrar_evidencias', 'preservar_dados'], formato: 'tabela',
     colunas: ['Item', 'Documento 1', 'Documento 2', 'Diferença', 'Relevância'], secoes: ['Pontos de atenção'],
   },
+  criar_conteudo: {
+    rotulo: 'Criar conteúdo', verbo: 'Criar', objeto: 'conteúdo', complexidade: 'media', autonomia: 'preparar',
+    palavras: ['conteudo', 'post', 'posts', 'linkedin', 'instagram', 'tiktok', 'youtube', 'carrossel', 'legenda', 'copy', 'reels', 'roteiro', 'campanha', 'redes sociais', 'marketing', 'newsletter', 'blog'],
+    procedimento: ['Entenda o objetivo, o público e o contexto da empresa antes de escrever.', 'Escolha os temas mais relevantes para a empresa agora, com base no que foi pesquisado ou enviado.',
+      'Escreva cada peça pensando no canal dela: linguagem, tamanho e formato próprios.', 'Revise se cada peça fala da empresa de verdade, sem promessas nem dados inventados.'],
+    regras: ['adaptar_canal', 'citar_fontes', 'linguagem_simples'], formato: 'outro', formatoDescricao: 'Entregáveis separados por canal',
+    secoes: [],
+  },
   outro: {
     rotulo: 'Outro', verbo: 'Fazer', objeto: 'tarefa', complexidade: 'baixa', autonomia: 'sugerir', palavras: [],
     procedimento: ['Leia todo o material enviado.', 'Faça o que foi pedido, passo a passo.', 'Revise o resultado antes de entregar.'],
@@ -100,6 +109,12 @@ export const REGRAS = {
   registrar_decisoes: { rotulo: 'Registrar decisões, responsáveis e prazos', grupo: 'completo',
     instrucao: 'Registre as decisões, os responsáveis e os prazos que aparecem no material.',
     criterio: 'Decisões, responsáveis e prazos do material foram registrados.' },
+  adaptar_canal: { rotulo: 'Adaptar cada peça ao canal', grupo: 'regras',
+    instrucao: 'Adapte cada peça ao canal dela (linguagem, tamanho e formato). Não repita o mesmo texto em canais diferentes.',
+    criterio: 'Cada peça foi adaptada ao canal dela.' },
+  citar_fontes: { rotulo: 'Mostrar as fontes do que foi pesquisado', grupo: 'invencao',
+    instrucao: 'Tudo o que vier de pesquisa precisa ter a fonte listada. O que não foi pesquisado não é apresentado como atual nem como "em alta".',
+    criterio: 'O que foi apresentado como pesquisado tem fonte listada.' },
   manter_estrutura: { rotulo: 'Seguir a estrutura do exemplo', grupo: 'formato',
     instrucao: 'Siga a estrutura, o nível de detalhe e a linguagem do exemplo mostrado pelo responsável.',
     criterio: 'O resultado segue a estrutura combinada.' },
@@ -158,7 +173,7 @@ export function inferirArquetipo(descricao, escolhido = null) {
 }
 
 // Formas comuns de um verbo no começo do pedido (imperativo, presente, gerúndio) para o infinitivo.
-const VERBOS = ['analisar', 'organizar', 'criar', 'preparar', 'responder', 'comparar', 'resumir', 'conferir', 'revisar', 'extrair', 'listar', 'redigir', 'escrever',
+const VERBOS = ['analisar', 'organizar', 'criar', 'pesquisar', 'preparar', 'responder', 'comparar', 'resumir', 'conferir', 'revisar', 'extrair', 'listar', 'redigir', 'escrever',
   'calcular', 'classificar', 'verificar', 'avaliar', 'montar', 'gerar', 'traduzir', 'identificar', 'elaborar', 'consolidar', 'separar', 'checar', 'ler', 'fazer', 'transformar', 'produzir', 'acompanhar', 'controlar'];
 const TERCEIRA = { ler: 'lê', fazer: 'faz', traduzir: 'traduz', produzir: 'produz', redigir: 'redige', conferir: 'confere', extrair: 'extrai', resumir: 'resume' };
 function formasDe(inf) {
@@ -375,6 +390,9 @@ export function construir(r = {}) {
   const a = ARQUETIPOS[arq];
   const modo = ['explicar', 'mostrar', 'pronto'].includes(r.como?.modo) ? r.como.modo : 'pronto';
   const explicacao = modo === 'explicar' ? String(r.como?.texto || '').slice(0, 3000) : '';
+  // Operação (entregáveis, canais, ferramentas, contexto): a confirmada pela pessoa ou a inferida do pedido.
+  const operacao = r.operacao !== undefined ? limparOperacao(r.operacao && { ...r.operacao, origem: 'pessoa' })
+    : limparOperacao(inferirOperacao(`${descricao}\n${explicacao}`));
   // _estruturaAnterior: a estrutura já guardada (vem só do servidor, ao ajustar sem mostrar um exemplo novo).
   const exemplo = modo === 'mostrar' ? analisarExemplo(r.como?.exemplo) || r._estruturaAnterior || null : null;
   // Regras: só as do catálogo; "não inventar" sempre ligada; no máximo as sugeridas mais as da escolha.
@@ -384,35 +402,41 @@ export function construir(r = {}) {
   const estrutura = estruturaValida(r.estrutura_objetivo, descricao);
   const manuais = r.colunas_origem === 'pessoa' && Array.isArray(r.colunas) ? limparColunas(r.colunas) : null;
   const sug = sugerirFormato({ descricao, arquetipo: arq, exemplo, colunasPedidas: estrutura?.colunas.map(c => c.nome) || [] });
-  const tipo = FORMATOS_SAIDA[r.formato] ? r.formato : sug.formato;
+  const tipo = FORMATOS_SAIDA[r.formato] ? r.formato : operacao?.entregaveis.length ? 'outro' : sug.formato;
   const passos = explicacao ? explicacao.split(/\n+|(?<=[.;])\s+(?=[A-ZÀ-Ú0-9])/).map(p => limpar(p.replace(/^([-*•]|\d+[.)])\s*/, ''), 240)).filter(p => p.length > 3).slice(0, 8) : [];
   const cc = tipo === 'tabela' ? colunasDoContrato({ manuais, exemplo, estrutura, arquetipo: arq, livre: r.colunas_origem === 'livre' }) : { colunas: [], origem: null };
   const colunas = cc.colunas;
   let secoes = exemplo?.tipo === tipo && exemplo.secoes.length && tipo !== 'tabela' ? exemplo.secoes : tipo === 'tabela' ? (a.secoes || []).filter(s => s !== 'Resumo') : (a.formato === tipo || tipo === 'outro' ? a.secoes : secoesPadrao(tipo, arq));
   secoes = secoes.filter(s => s !== 'Evidências' || regras.includes('mostrar_evidencias'));
   if (regras.includes('destacar_ausentes') && !secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) secoes = [...secoes, SECAO_AUSENTES];
+  // Entrega por canal: as peças são as seções (títulos dos entregáveis); das seções fixas, só a de ausências fica.
+  if (operacao?.entregaveis.length && tipo === 'outro') secoes = secoes.filter(s => norm(s) === norm(SECAO_AUSENTES));
   const autonomia = AUTONOMIA[r.autonomia] ? r.autonomia : a.autonomia;
   // Configuração confirmada pela pessoa (formato ou regras escolhidos, regras próprias, colunas dela ou do exemplo):
   // na execução e na conferência, ela vale mais do que detalhes de estrutura citados no texto do objetivo.
-  const confirmada = !!(FORMATOS_SAIDA[r.formato] || Array.isArray(r.regras) || manuais || exemplo || proprias.length);
+  const confirmada = !!(FORMATOS_SAIDA[r.formato] || Array.isArray(r.regras) || manuais || exemplo || proprias.length || r.operacao !== undefined);
+  const entregaPorCanal = !!operacao?.entregaveis.length && tipo === 'outro';
   const nome = limpar(r.nome, 80) || (descricao ? nomeAutomatico(descricao, arq) : a.rotulo);
   return {
     v: VERSAO_ESPEC,
     arquetipo: arq,
     objetivo: descricao || a.rotulo,
-    contexto: explicacao ? `Como o responsável faz hoje: ${limpar(explicacao, 600)}` : '',
+    contexto: explicacao ? `Como o responsável faz hoje: ${limpar(explicacao, 2000)}` : '',
     procedimento: passos.length ? passos : a.procedimento,
     regras,
     regras_proprias: proprias,
-    restricoes: ['Não execute ações fora desta conversa (enviar, publicar, pagar, agendar ou alterar sistemas).', 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
+    restricoes: ['Não execute ações fora desta conversa (enviar, publicar, pagar, agendar ou alterar sistemas).', operacao?.ferramentas.includes('pesquisa_web')
+      ? 'Não use informação de fora do material, da conversa, dos documentos autorizados e dos resultados da pesquisa na internet desta execução (quando ela estiver disponível).'
+      : 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
-    formato_saida: { tipo, descricao: tipo === 'outro' ? limpar(r.formato_descricao, 200) || sug.descricao || a.formatoDescricao || '' : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
+    formato_saida: { tipo, descricao: tipo === 'outro' ? limpar(r.formato_descricao, 200) || (entregaPorCanal ? 'Entregáveis separados por canal' : '') || sug.descricao || a.formatoDescricao || '' : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
     exemplos: exemplo ? { estrutura: exemplo } : null,
     perguntas_esclarecimento: { max: 2, quando: 'Só quando faltar algo sem o qual o trabalho não pode ser feito, como o próprio material.' },
     nivel_autonomia: autonomia,
-    fontes_permitidas: ['entrada', 'anexos', 'conversa', 'contexto_autorizado'],
-    ferramentas_permitidas: [],
-    criterios_qualidade: criterios(regras, { tipo, colunas, secoes }, proprias, confirmada),
+    fontes_permitidas: ['entrada', 'anexos', 'conversa', 'contexto_autorizado', ...(operacao?.ferramentas.includes('pesquisa_web') ? ['pesquisa_web'] : [])],
+    ferramentas_permitidas: operacao?.ferramentas || [],
+    ...(operacao ? { operacao } : {}),
+    criterios_qualidade: [...criterios(regras, { tipo, colunas, secoes }, proprias, confirmada), ...criteriosOperacao(operacao)],
     ...(confirmada ? { configuracao_confirmada: true } : {}),
     dicas_roteamento: { complexidade: a.complexidade },
     origem: { descricao, arquetipo: r.arquetipo && ARQUETIPOS[r.arquetipo] ? r.arquetipo : null, como: { modo, texto: explicacao }, exemplo, regras, regras_proprias: proprias.map(x => x.texto), formato: tipo, formato_descricao: limpar(r.formato_descricao, 200), nome,
@@ -441,7 +465,11 @@ function criterios(regras, contrato, proprias = [], confirmada = false) {
 // Validação de uma especificação vinda do banco (defensiva): o que não é conhecido não entra no prompt.
 export function normalizar(espec) {
   if (!espec || espec.v !== VERSAO_ESPEC) return null;
-  return { ...espec, regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias), ferramentas_permitidas: [], nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
+  const operacao = limparOperacao(espec.operacao);
+  const { operacao: _o, ...resto } = espec;
+  return { ...resto, regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
+    ferramentas_permitidas: (Array.isArray(espec.ferramentas_permitidas) ? espec.ferramentas_permitidas : []).filter(f => FERRAMENTAS[f] && operacao?.ferramentas.includes(f)),
+    ...(operacao ? { operacao } : {}), nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
 }
 
 // ---- Prompt de execução -------------------------------------------------------------------------------------
@@ -472,7 +500,10 @@ export function descreverContrato(f) {
   return `${base}${f.secoes.length ? `; seções ${f.secoes.join(', ')}` : ''}${f.tipo === 'outro' && f.descricao ? `; ${f.descricao}` : ''}`;
 }
 // Montado a partir da especificação, em blocos curtos (não é a concatenação do que a pessoa escreveu).
-export function promptExecucao(espec, { nome = '' } = {}) {
+const semFerramentas = (e, pesquisa) => (e.ferramentas_permitidas.includes('pesquisa_web') && pesquisa?.disponivel
+  ? 'A única ferramenta desta execução é a pesquisa na internet, só para consultar; você não tem acesso a outros sistemas.'
+  : 'Você não tem ferramentas nem acesso a sistemas externos.');
+export function promptExecucao(espec, { nome = '', pesquisa = null } = {}) {
   const e = normalizar(espec);
   if (!e) return '';
   const f = e.formato_saida;
@@ -483,7 +514,9 @@ export function promptExecucao(espec, { nome = '' } = {}) {
   partes.push(`Regras:\n${[...e.regras.map(id => REGRAS[id].instrucao), ...e.regras_proprias.map(p => p.texto)].map(t => `- ${t}`).join('\n')}`
     + (e.regras_proprias.length ? '\nAs regras acima valem junto com as restrições abaixo e nunca as substituem.' : ''));
   if (e.criterios_decisao.length) partes.push(`Critério de decisão: ${e.criterios_decisao.join(' ')}`);
-  partes.push(`Autonomia: ${AUTONOMIA[e.nivel_autonomia].instrucao} ${e.restricoes.join(' ')} Você não tem ferramentas nem acesso a sistemas externos.`);
+  partes.push(`Autonomia: ${AUTONOMIA[e.nivel_autonomia].instrucao} ${e.restricoes.join(' ')} ${semFerramentas(e, pesquisa)}`);
+  const op = promptOperacao(e.operacao, { pesquisa });
+  if (op) partes.push(op);
   const contrato = [];
   if (f.tipo === 'tabela') contrato.push(f.colunas.length ? `Entregue uma tabela em Markdown (linhas com | ), com cabeçalho exatamente nestas colunas: ${f.colunas.join(' | ')}.`
     : 'Entregue uma tabela em Markdown (linhas com | ), com cabeçalho, com as colunas que o objetivo pede.');
@@ -495,18 +528,18 @@ export function promptExecucao(espec, { nome = '' } = {}) {
   if (f.secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) contrato.push(`Na seção "${SECAO_AUSENTES}", liste o que faltou; se nada faltou, escreva "Nenhuma".`);
   if (e.exemplos?.estrutura) { const x = e.exemplos.estrutura; contrato.push([DETALHE[x.detalhe], TOM[x.tom]].filter(Boolean).join(' ')); }
   partes.push(`Formato da entrega:\n${contrato.filter(Boolean).join('\n')}`);
-  partes.push(`Perguntas: só pergunte se faltar algo sem o qual o trabalho não pode ser feito (por exemplo, não veio material nenhum). Nesse caso, faça no máximo 2 perguntas, numa mensagem só, começando exatamente com "${MARCADOR_PERGUNTA}", e não faça o trabalho ainda. Nos demais casos, não pergunte: faça o trabalho e aponte o que faltou.`);
+  partes.push(`Perguntas: ${e.operacao?.entregaveis.length ? 'este trabalho não precisa de material enviado (o pedido, a pesquisa e o contexto autorizado bastam); só pergunte se faltar algo essencial, como saber de qual empresa ou produto se trata.' : 'só pergunte se faltar algo sem o qual o trabalho não pode ser feito (por exemplo, não veio material nenhum).'} Nesse caso, faça no máximo 2 perguntas, numa mensagem só, começando exatamente com "${MARCADOR_PERGUNTA}", e não faça o trabalho ainda. Nos demais casos, não pergunte: faça o trabalho e aponte o que faltou.`);
   return partes.join('\n\n');
 }
 
 // Mensagens depois de uma execução: a conversa continua normal. O modelo sabe qual foi o trabalho e segue as
 // mesmas restrições, mas atende ao pedido atual (ajuste, pergunta, resumo), sem reaplicar o contrato de saída.
-export function contextoDaExecucao(espec, { nome = '' } = {}) {
+export function contextoDaExecucao(espec, { nome = '', pesquisa = null } = {}) {
   const e = normalizar(espec);
   if (!e) return '';
   return [`\nEsta conversa começou com o Quick Win "${nome}". Objetivo do trabalho: ${e.objetivo}`,
     'O resultado desse trabalho está no histórico. Agora atenda ao pedido atual da pessoa (ajuste, pergunta, resumo, explicação, comparação): siga o que ela pedir, inclusive no formato. Não repita o formato anterior se ela não pedir.',
-    `${REGRAS.nao_inventar.instrucao} ${e.restricoes.join(' ')} Você não tem ferramentas nem acesso a sistemas externos.`].join('\n\n');
+    `${REGRAS.nao_inventar.instrucao} ${e.restricoes.join(' ')} ${semFerramentas(e, pesquisa)}`].join('\n\n');
 }
 
 // ---- Quality Check ------------------------------------------------------------------------------------------
@@ -599,9 +632,13 @@ export function pedidoDeCorrecao(problemas, espec = null) {
 }
 
 // Resumo que a pessoa vê (sem código, sem modelo, sem detalhe técnico).
-export function resumoQualidade({ status, falhas = [], verificados = GRUPOS, tentativas = 0 } = {}) {
+export function resumoQualidade({ status, falhas = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null } = {}) {
+  const avisos = [];
+  if (pesquisa && !pesquisa.feita) avisos.push(`Resultado parcial: a pesquisa na internet não foi feita (${MOTIVOS_PESQUISA[pesquisa.motivo] || 'motivo não informado'}). Os temas não foram confirmados como atuais.`);
+  if (entregaveis && entregaveis.encontrados < entregaveis.esperados) avisos.push(`Vieram ${entregaveis.encontrados} de ${entregaveis.esperados} entregáveis.`);
   return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g) })),
-    problemas: status === 'inconsistente' ? falhas.map(g => PROBLEMAS[g]) : [] };
+    problemas: status === 'inconsistente' ? falhas.map(g => PROBLEMAS[g]) : [], avisos,
+    ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}) };
 }
 
 // ---- Entrada de teste gerada (sintética, sem dado real) ----------------------------------------------------
@@ -623,12 +660,20 @@ export const regrasPrincipais = espec => { const e = normalizar(espec); return e
 // governança para a resposta (nada aqui escolhe modelo). No máximo MAX_CORRECOES correções e uma nova conferência
 // por correção. Sem conferência pela IA (plano na reserva ou falha dela), só o contrato determinístico vale e o
 // resultado fica "parcial": nunca aprovado sem ter sido conferido.
-export async function conferirComCorrecao({ espec, resposta, entrada = '', mensagens, chamar, usarIA = true, etapa = () => {} }) {
+export async function conferirComCorrecao({ espec, resposta, entrada = '', mensagens, chamar, usarIA = true, etapa = () => {}, pesquisa = null }) {
   const e = normalizar(espec);
+  // Contrato de saída + entregáveis da operação (todos determinísticos). A pesquisa não se corrige com uma nova
+  // chamada: se ela era exigida e não aconteceu, o resultado fica parcial (nunca aprovado), com o motivo.
+  const conferirContratoEOperacao = t => {
+    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa });
+    return { ...d, falhas: [...new Set([...d.falhas, ...o.falhas])], detalhes: [...d.detalhes, ...o.detalhes], op: o };
+  };
   if (String(resposta).trim().startsWith(MARCADOR_PERGUNTA)) return { texto: resposta, custo: 0, economia: 0, registro: { status: 'pergunta', falhas: [], tentativas: 0, verificados: [] } };
   let texto = resposta, custo = 0, economia = 0, tentativas = 0;
   const somar = r => { custo += r.custo || 0; economia += r.economia || 0; };
-  const conferir = async (t, d = conferirContrato(e, t, entrada)) => {
+  let ultimaOp = null;
+  const conferir = async (t, d = conferirContratoEOperacao(t)) => {
+    ultimaOp = d.op;
     let ia = null;
     if (usarIA) { try { const r = await chamar(mensagensQualidade(e, { entrada, resultado: t, indicios: d.numerosSemFonte })); somar(r); ia = lerVeredito(e, r.texto); } catch { ia = null; } }
     return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], verificouIA: !!ia, estruturaOk: d.estruturaOk };
@@ -644,12 +689,14 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
     // Barreira: a correção não pode tirar do contrato um resultado que estava dentro dele (coluna acrescentada,
     // removida, renomeada ou fora de ordem). Nesse caso a correção é descartada, sem nova chamada, e o resultado
     // original segue com os problemas que ele tinha: nunca aparece como "corrigido".
-    const d = conferirContrato(e, candidato, entrada);
+    const d = conferirContratoEOperacao(candidato);
     if (c.estruturaOk && !d.estruturaOk) { barreira = true; break; }
     texto = candidato;
     etapa('Conferindo o resultado…');
     c = await conferir(texto, d);
   }
-  const status = c.falhas.length ? 'inconsistente' : !c.verificouIA ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
-  return { texto, custo, economia, registro: { status, falhas: c.falhas, tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}) } };
+  const semPesquisa = ultimaOp?.pesquisa && !ultimaOp.pesquisa.feita;
+  const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
+  return { texto, custo, economia, registro: { status, falhas: c.falhas, tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
+    ...(ultimaOp?.entregaveis ? { entregaveis: ultimaOp.entregaveis } : {}), ...(ultimaOp?.pesquisa ? { pesquisa: ultimaOp.pesquisa } : {}) } };
 }

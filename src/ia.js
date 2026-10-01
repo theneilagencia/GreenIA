@@ -20,6 +20,9 @@ export function montarCorpo(mensagens, op) {
     if (op.reserva) corpo.models = [op.modelo, op.reserva];
   }
   if (op.maxTokens) corpo.max_tokens = op.maxTokens;
+  // Pesquisa na internet (plugin "web" do OpenRouter): só quando a governança liberou para esta chamada.
+  // As citações voltam como anotações "url_citation" e viram as fontes da resposta.
+  if (op.pesquisaWeb) corpo.plugins = [{ id: 'web', max_results: Math.min(10, Math.max(1, Number(op.pesquisaWeb.max) || 5)) }];
   return corpo;
 }
 
@@ -70,6 +73,10 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
           if (d.provider) fim.fornecedor = d.provider;
           const texto = d.choices?.[0]?.delta?.content;
           if (texto) yield { tipo: 'texto', texto };
+          for (const a of [...(d.choices?.[0]?.delta?.annotations || []), ...(d.choices?.[0]?.message?.annotations || [])]) {
+            const c = a?.type === 'url_citation' ? a.url_citation || a : null;
+            if (c?.url && /^https?:\/\//.test(c.url)) yield { tipo: 'fonte', url: String(c.url).slice(0, 500), titulo: String(c.title || c.url).slice(0, 200) };
+          }
           if (d.usage) {
             fim.custo = Number(d.usage.cost ?? 0);
             fim.economia = Number(d.usage.cache_discount ?? 0);

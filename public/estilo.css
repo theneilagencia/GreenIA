@@ -1474,3 +1474,42 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .btn-icone:disabled{opacity:.35;cursor:default}
 .btn-icone:not(:disabled):hover{border-color:var(--forest)}
 .colunas #adicionar-coluna{margin-top:10px}
+
+/* ---- Quick Wins como operações: entregas por canal, resultado por peça, exclusão ---------------------------- */
+.modal-acoes{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:18px}
+.modal p{font:400 14.5px/1.6 var(--sans);color:var(--muted);margin:0 0 16px}
+.modal .entrada{width:100%;margin-top:6px}
+.entregas{border:1px solid var(--line);border-radius:var(--raio-painel,12px);background:var(--surface);padding:14px 16px;margin-top:14px}
+.entregas fieldset{border:0;padding:0;margin:0;min-width:0}
+.link-perigo{color:var(--red-text)} .link-perigo:hover{color:var(--red-text)}
+.entregas h4{font:600 14px/1.4 var(--sans);margin:0 0 4px;color:var(--ink)}
+.entregas .dica{margin:0 0 10px}
+.canais-opcoes{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.canais-opcoes label{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--paper);font:500 13.5px/1 var(--sans);cursor:pointer}
+.canais-opcoes label:has(input:checked){border-color:var(--forest);background:var(--mint);color:var(--forest-text)}
+.entregaveis-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.entregaveis-lista li{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto auto;gap:8px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.entregaveis-lista select,.entregaveis-lista input{min-height:40px;min-width:0;width:100%}
+.entregaveis-lista .cfg{width:88px}
+.cfg-grupo{display:flex;align-items:center;gap:6px;min-width:0} .cfg-grupo .cfg{width:64px;flex:1 1 64px} .cfg-grupo .dica{margin:0}
+.ferramenta{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font:400 14px/1.5 var(--sans)}
+.ferramenta input{margin-top:3px}
+.lacunas{display:grid;gap:10px;margin-top:12px}
+.lacunas label{font:500 13.5px/1.4 var(--sans);color:var(--ink)}
+@media (max-width:620px){
+  .entregaveis-lista li{grid-template-columns:1fr 1fr}
+  .entregaveis-lista .cfg{width:100%}
+}
+.qw-canais{display:grid;gap:14px}
+.qw-canais-filtro{margin:0}
+.qw-canal-nome{font:600 12px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 8px}
+.qw-peca{border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:12px 14px;margin-bottom:10px}
+.qw-peca-cabeca{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.qw-peca-cabeca b{font:600 14.5px/1.4 var(--sans);color:var(--ink)}
+.qw-peca-cabeca .link-sutil{margin-left:auto}
+.qw-peca-corpo{overflow-wrap:anywhere}
+.qw-fontes{border-top:1px solid var(--line);padding-top:10px;font:400 13.5px/1.6 var(--sans)}
+.qw-fontes ul{margin:6px 0 0;padding-left:18px}
+.qw-fontes a{color:var(--forest-text);overflow-wrap:anywhere}
+.responder-continuar{margin-top:12px;display:grid;gap:8px}
+.fontes a.selo{text-decoration:none}

@@ -5,7 +5,7 @@ import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { assistenteQw, publicarQw, versoesQw, usarQw, testeQw } from '/quickwin2.js';
-import { aviso, cabecalhoPg, estadoQw, estadoVazio, FORMATOS_SAIDA, ligarMenus, marcaQw, menuAcoes, seloQw } from '/qw-ui.js';
+import { aviso, cabecalhoPg, confirmarExclusao, estadoQw, estadoVazio, FORMATOS_SAIDA, ligarMenus, marcaQw, menuAcoes, seloQw } from '/qw-ui.js';
 import { secaoMedicao } from '/medicao.js';
 
 const $ = id => document.getElementById(id);
@@ -113,7 +113,17 @@ function acoesQw(q, { naPagina = false } = {}) {
   if (q.podeEditar && q.v2 && q.versao) out.push({ rotulo: 'Ver versões', href: `#/qw/${q.id}/versoes` });
   if (q.podeEditar && q.v2) out.push({ rotulo: 'Acesso e dados', href: `#/qw/${q.id}/editar` });
   if (q.podeEditar && e.id !== 'arquivado') out.push({ rotulo: 'Arquivar', acao: 'arquivar', id: q.id, perigo: true });
+  if (q.podeEditar) out.push({ rotulo: 'Excluir Quick Win', acao: 'excluir', id: q.id, perigo: true });
   return out;
+}
+// Excluir: modal próprio (digitar o nome); o servidor confere a permissão e preserva o histórico.
+export async function excluirQw(q) {
+  if (!await confirmarExclusao(q)) return false;
+  await api(`/api/quick-wins/${q.id}`, { metodo: 'DELETE' });
+  await recarregarLateral();
+  toast('Quick Win excluído. As execuções anteriores continuam guardadas.');
+  irPara('#/quick-wins');
+  return true;
 }
 function ligarAcoesQw(raiz, itens, recarregar) {
   raiz.addEventListener('click', async ev => {
@@ -130,6 +140,7 @@ function ligarAcoesQw(raiz, itens, recarregar) {
         toast('Cópia criada como rascunho.');
         irPara(`#/qw/${novo.id}`);
       }
+      if (b.dataset.acao === 'excluir') await excluirQw(q);
       if (b.dataset.acao === 'arquivar') {
         if (!confirm(`Arquivar "${q.nome}"? Ele sai da lista da equipe; o histórico fica guardado.`)) return;
         await api(`/api/quick-wins/${q.id}`, { metodo: 'PUT', corpo: { status: 'descartado' } });
@@ -163,7 +174,8 @@ async function paginaQuickWin(id) {
         ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<span class="dica">Pedido original: ${esc(qw.assistente.descricao)}</span>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}
         ${!qw.v2 && qw.problema ? secao('Problema que resolve', esc(qw.problema)) : ''}
         ${qw.v2 ? secao('Regras', (regras || []).length ? `<ul>${regras.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '') : ''}
-        ${secao('Formato do resultado', qw.v2 ? esc(FORMATOS_SAIDA[qw.formato_saida]?.rotulo || '') : esc(FORMATOS[qw.formato] || ''))}
+        ${qw.entregas?.entregaveis?.length ? secao('Entrega', `<ul>${qw.entregas.entregaveis.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${qw.entregas.pesquisa ? '<span class="dica">Pesquisa na internet antes de escrever, quando a empresa libera.</span>' : ''}`)
+          : secao('Formato do resultado', qw.v2 ? esc(FORMATOS_SAIDA[qw.formato_saida]?.rotulo || '') : esc(FORMATOS[qw.formato] || ''))}
         ${qw.v2 && qw.podeEditar ? secao('Último teste', qw.ultimo_teste ? `${esc(RESUMO_TESTE[qw.ultimo_teste.status] || '')}<span class="dica">${dataCurta(qw.ultimo_teste.em)}</span>` : '<span class="dica">Ainda não testado.</span>') : ''}
         ${qw.v2 ? secao('Versão publicada', qw.versao ? `v${qw.versao}${qw.podeEditar ? ` <a class="link-sutil" href="#/qw/${id}/versoes" style="margin-left:8px">Ver versões</a>` : ''}` : '<span class="dica">Ainda não publicado.</span>') : ''}
         ${!qw.v2 ? secao('Estado', `${ESTADOS[qw.status]} <span class="dica">${EXPLICA[qw.status]}</span>`) : ''}
@@ -198,7 +210,7 @@ const RESUMO_TESTE = { aprovado: 'Resultado conferido', corrigido: 'Resultado co
 
 // Criar: do zero, de um modelo inicial ou duplicando um existente.
 async function novaOrigem() {
-  const { modelos } = await api('/api/quick-wins/modelos-iniciais');
+  const { modelos, podeOcultar } = await api('/api/quick-wins/modelos-iniciais');
   const minhas = E.permQw.areas;
   const existentes = E.quickWins;
   $('principal').innerHTML = `${cabecalho('Registrar quick win')}
@@ -208,8 +220,9 @@ async function novaOrigem() {
         <div class="opcoes">${minhas.map((a, i) => `<label><input type="checkbox" name="area" value="${a.id}" ${i === 0 ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('') || '<span class="dica">Você não pode criar quick wins em nenhuma área.</span>'}
         ${E.permQw.todaEmpresa ? '<label><input type="checkbox" id="toda"> Toda a empresa</label>' : ''}</div><p></p></div>
       <h3>Começar do zero</h3><div class="linha-botoes"><button class="btn btn-verde" id="do-zero">Quick win em branco</button></div>
-      <h3>Começar de um modelo</h3><div class="lista">${modelos.map((m, i) => `<button class="lista-item" data-modelo="${i}"><span class="passo" style="background:${esc(m.cor)};color:#fff;margin:0;width:32px;height:32px;font-size:13px">${esc(m.icone)}</span>
-        <span class="principal-texto"><b>${esc(m.nome)}</b><span>${esc(m.para_que_serve)}</span></span></button>`).join('')}</div>
+      <h3>Começar de um modelo</h3><div class="lista">${modelos.map(m => `<div class="lista-item-linha" style="display:flex;align-items:center;gap:8px"><button class="lista-item" style="flex:1" data-modelo="${m.indice}"><span class="passo" style="background:${esc(m.cor)};color:#fff;margin:0;width:32px;height:32px;font-size:13px">${esc(m.icone)}</span>
+        <span class="principal-texto"><b>${esc(m.nome)}</b><span>${esc(m.para_que_serve)}</span></span></button>${podeOcultar ? `<button type="button" class="link-sutil" data-ocultar="${m.indice}" aria-label="Ocultar o modelo ${esc(m.nome)} do catálogo da empresa">Ocultar</button>` : ''}</div>`).join('') || '<span class="dica">Nenhum modelo disponível.</span>'}</div>
+      ${podeOcultar ? '<p class="dica">Ocultar tira o modelo só do catálogo desta empresa. Os Quick Wins já criados a partir dele continuam.</p>' : ''}
       ${existentes.length ? `<h3>Duplicar um existente</h3><div class="lista">${existentes.map(q => `<button class="lista-item" data-duplicar="${q.id}"><span class="cor" style="width:12px;height:12px;border-radius:3px;background:${esc(q.cor)}"></span>
         <span class="principal-texto"><b>${esc(q.nome)}</b><span>Copia instruções, arquivos e configuração. Nunca as conversas.</span></span></button>`).join('')}</div>` : ''}
     </div></div>`;
@@ -225,6 +238,10 @@ async function novaOrigem() {
   };
   $('do-zero').onclick = () => criar({ nome: 'Novo quick win' });
   document.querySelectorAll('[data-modelo]').forEach(b => { b.onclick = () => criar({ modelo_inicial: Number(b.dataset.modelo) }); });
+  document.querySelectorAll('[data-ocultar]').forEach(b => { b.onclick = async () => {
+    try { await api(`/api/quick-wins/modelos-iniciais/${b.dataset.ocultar}/ocultar`, { metodo: 'POST', corpo: {} }); toast('Modelo oculto do catálogo da empresa.'); novaOrigem(); }
+    catch (e) { toast(e.message, 6000); }
+  }; });
   document.querySelectorAll('[data-duplicar]').forEach(b => { b.onclick = () => criar({ duplicar_de: Number(b.dataset.duplicar) }); });
 }
 
@@ -304,7 +321,7 @@ async function configurar(id) {
         <button class="btn btn-verde" id="salvar">Salvar</button>
         <button type="button" class="btn btn-linha" id="testar">Salvar e testar</button>
         <a class="btn btn-texto" href="#/qw/${id}">Voltar</a>
-        <button type="button" class="btn btn-perigo btn-pequeno" id="excluir" style="margin-left:auto">Excluir quick win</button>
+        <button type="button" class="btn btn-perigo btn-pequeno" id="excluir" style="margin-left:auto">Excluir Quick Win</button>
       </div>
     </form></div>`;
   ligarCabecalho();
@@ -334,10 +351,7 @@ async function configurar(id) {
   };
   $('form-qw').onsubmit = async ev => { ev.preventDefault(); if (await salvar()) toast('Quick win salvo.'); };
   $('testar').onclick = async () => { if (await salvar()) irPara(`#/qw/${id}/teste`); };
-  $('excluir').onclick = async () => {
-    if (!confirm('Excluir este quick win e o histórico de medição e decisões? Para manter o histórico, use o estado Descartado.')) return;
-    await api(`/api/quick-wins/${id}`, { metodo: 'DELETE' }); await recarregarLateral(); irPara('#/quick-wins');
-  };
+  $('excluir').onclick = async () => { try { await excluirQw(qw); } catch (e) { toast(e.message, 6000); } };
   $('add-arquivo').onclick = () => $('arquivo-qw').click();
   $('arquivo-qw').onchange = async ev => {
     const f = ev.target.files[0];

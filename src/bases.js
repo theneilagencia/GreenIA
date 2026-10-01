@@ -65,7 +65,7 @@ export function rotasBases(app, r) {
   r.get('/api/conhecimento', ({ pessoa }) => {
     const ids = basesVisiveis(app.db, pessoa);
     const docs = ids.length ? todos(app.db, `${LISTA} where d.id in (${ids.map(() => '?').join(',')}) order by d.toda_empresa desc, a.nome, d.titulo`, ...ids) : [];
-    const qws = todos(app.db, "select q.id, q.nome, q.bases, q.toda_empresa, (select group_concat(area_id) from quick_win_areas where quick_win_id = q.id) as areas from quick_wins q where q.status not in ('identificado', 'descartado')");
+    const qws = todos(app.db, "select q.id, q.nome, q.bases, q.toda_empresa, (select group_concat(area_id) from quick_win_areas where quick_win_id = q.id) as areas from quick_wins q where q.excluido_em is null and q.status not in ('identificado', 'descartado')");
     const usa = (q, d) => {
       const b = JSON.parse(q.bases || '{}');
       if (b.modo === 'escolhidas') return (b.ids || []).includes(d.id);

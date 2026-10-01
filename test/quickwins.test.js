@@ -92,7 +92,7 @@ test('quick win de ponta a ponta: configurar com arquivo, testar, ativar, conver
   assert.equal(uso.porModelo.length, 1);
   assert.ok(uso.custo > 0);
   // Quem usa não vê o uso nem a configuração completa.
-  assert.equal((await carlos.get(`/api/quick-wins/${qw.id}/uso`)).status, 404);
+  assert.equal((await carlos.get(`/api/quick-wins/${qw.id}/uso`)).status, 403);
   assert.equal((await carlos.get(`/api/quick-wins/${qw.id}`)).dados.instrucoes, undefined);
 });
 

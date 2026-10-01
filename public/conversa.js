@@ -120,7 +120,9 @@ function htmlMensagem(m) {
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
   const revisar = execucao && m.qualidade.status === 'inconsistente';
   const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeAjustar: !!C.qw?.podeEditar, ajustarHref: C.qw ? `#/qw/${C.qw.id}/ajustar` : '' }) : '';
-  const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => `<span class="selo">${ICONE.doc} ${esc(f)}</span>`).join('')}</div>` : '';
+  // Fontes: documentos da empresa (título) e, quando houve pesquisa na internet, os endereços consultados.
+  const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => (f && typeof f === 'object' && /^https?:\/\//.test(f.url || '')
+    ? `<a class="selo" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a>` : `<span class="selo">${ICONE.doc} ${esc(f)}</span>`)).join('')}</div>` : '';
   return `<div class="resposta${anim}" data-msg="${m.id}">
     <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}

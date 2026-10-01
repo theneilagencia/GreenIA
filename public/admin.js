@@ -605,6 +605,7 @@ async function abaPoliticas() {
         <tr><td data-r="Tipo"><b>Informação estratégica sem marcação</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Nomes, cargos, emails e telefones de trabalho são conteúdo normal. Estratégia sem marcação não é adivinhada: a pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
       <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="protecao-pessoais" ${c.protecaoDadosPessoais !== false ? 'checked' : ''}> Dados pessoais processados normalmente só vão para recursos com modelo definido (não gratuito nem automático) em que o não uso para treino foi declarado pelo admin, comprovado na rota autorizada ou é pedido em cada chamada, e não vão para recursos em que o admin proibiu dados pessoais. O pedido em cada chamada limita o roteamento aos fornecedores que o serviço de acesso a modelos classifica como não coletando os dados, pelas políticas que eles informam: é um filtro, não uma garantia contratual. A conversa não vira sigilosa.</span></label>
+      <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="pesquisa-web" ${c.pesquisaWeb?.ativa ? 'checked' : ''}> Permitir que Quick Wins pesquisem na internet (por exemplo, "temas em alta"). Ligado, o pedido de pesquisa sai para o serviço de busca do provedor de IA e as fontes aparecem no resultado. A pesquisa não roda em conversa sigilosa, em área com proteção reforçada nem com dado que a política manda proteger. Desligado, esses Quick Wins entregam um resultado parcial, sem pesquisa.</span></label>
       <p class="dica">"Guardar no histórico": sem a marca, a mensagem é processada normalmente, mas o conteúdo, os anexos e a resposta não ficam guardados. Poder processar não é o mesmo que poder guardar.</p>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 
@@ -644,7 +645,7 @@ async function abaPoliticas() {
     ev.preventDefault();
     try {
       await api('/api/admin/config', { metodo: 'PUT', corpo: { acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`input[name="d-${k}"]:checked`).value])),
-        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked } });
+        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked, pesquisaWeb: { ativa: $('pesquisa-web').checked } } });
       toast('Regras de dados salvas.'); abaPoliticas();
     } catch (e) { falhar(e); }
   };

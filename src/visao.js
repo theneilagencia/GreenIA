@@ -30,12 +30,12 @@ export function visaoGeral(app) {
     pessoasCadastradas: um(db, 'select count(*) as n from pessoas where ativo = 1').n,
     areasAtivas: um(db, `select count(distinct ap.area_id) as n from uso u join area_pessoas ap on ap.pessoa_id = u.pessoa_id where ${noMes}`, mes).n,
     areasCadastradas: um(db, 'select count(*) as n from areas').n,
-    quickWinsEmCirculacao: um(db, `select count(*) as n from quick_wins where status in (${EM_CIRCULACAO.map(() => '?').join(',')})`, ...EM_CIRCULACAO).n,
+    quickWinsEmCirculacao: um(db, `select count(*) as n from quick_wins where excluido_em is null and status in (${EM_CIRCULACAO.map(() => '?').join(',')})`, ...EM_CIRCULACAO).n,
     execucoes: um(db, `select count(distinct conversa_id) as n from uso u where ${noMes} and u.quick_win_id is not null and u.teste = 0`, mes).n,
     conversas: um(db, `select count(distinct conversa_id) as n from uso u where ${noMes} and u.teste = 0`, mes).n,
   };
 
-  const porStatus = Object.fromEntries(todos(db, 'select status, count(*) as n from quick_wins group by status').map(x => [x.status, x.n]));
+  const porStatus = Object.fromEntries(todos(db, 'select status, count(*) as n from quick_wins where excluido_em is null group by status').map(x => [x.status, x.n]));
   const fb = um(db, `select sum(case when feedback = 'serviu' then 1 else 0 end) as serviu, sum(case when feedback = 'ajustes' then 1 else 0 end) as ajustes,
     sum(case when feedback = 'nao_serviu' then 1 else 0 end) as nao_serviu from conversas where substr(atualizado_em, 1, 7) = ? and teste = 0`, mes);
   const resultado = {
@@ -59,9 +59,9 @@ export function visaoGeral(app) {
     where c.teste = 0 and c.feedback is null and substr(c.atualizado_em, 1, 7) = ? and exists (select 1 from mensagens m where m.conversa_id = c.id and m.papel = 'assistant')
     group by q.id having n >= 3 order by n desc limit 5`, mes);
   for (const q of semAvaliacao) atencao.push({ tipo: 'sem_avaliacao', texto: `${q.nome}: ${q.n} conversas sem avaliação neste mês`, link: `#/qw/${q.id}` });
-  const semDono = todos(db, `select id, nome from quick_wins where responsavel_id is null and status in (${EM_CIRCULACAO.map(() => '?').join(',')}) limit 5`, ...EM_CIRCULACAO);
+  const semDono = todos(db, `select id, nome from quick_wins where excluido_em is null and responsavel_id is null and status in (${EM_CIRCULACAO.map(() => '?').join(',')}) limit 5`, ...EM_CIRCULACAO);
   for (const q of semDono) atencao.push({ tipo: 'sem_responsavel', texto: `${q.nome} está em circulação sem responsável`, link: `#/qw/${q.id}/editar` });
-  const emAvaliacao = todos(db, "select id, nome from quick_wins where status = 'em_avaliacao' and not exists (select 1 from decisoes d where d.quick_win_id = quick_wins.id and d.em > quick_wins.atualizado_em) limit 5");
+  const emAvaliacao = todos(db, "select id, nome from quick_wins where excluido_em is null and status = 'em_avaliacao' and not exists (select 1 from decisoes d where d.quick_win_id = quick_wins.id and d.em > quick_wins.atualizado_em) limit 5");
   for (const q of emAvaliacao) atencao.push({ tipo: 'decisao', texto: `${q.nome} está em avaliação e aguarda decisão`, link: `#/qw/${q.id}` });
   if (plano && ['aviso', 'pacote', 'reserva', 'esgotado'].includes(plano.fase)) atencao.push({ tipo: 'creditos', texto: { aviso: `Créditos do mês em ${plano.percentual}%`, pacote: 'Os créditos do plano acabaram: em uso o pacote extra', reserva: 'Os créditos do mês acabaram: só a classe Rápido até a renovação', esgotado: 'Créditos e reserva do mês esgotados: envio pausado até a renovação' }[plano.fase], link: '#/uso' });
   if (!plano && cfg.tetoMensal && custoMes.c >= cfg.tetoMensal * 0.8) atencao.push({ tipo: 'creditos', texto: 'Consumo acima de 80% do teto mensal', link: '#/configuracoes' });
@@ -88,7 +88,7 @@ export function visaoGeral(app) {
     { id: 'pessoas', nome: 'Pessoas', texto: 'Pessoas cadastradas nas áreas', feito: um(db, 'select count(*) as n from area_pessoas').n > 1, link: '#/pessoas' },
     { id: 'politicas', nome: 'Políticas', texto: 'Regras de dados revisadas e um modelo homologado', feito: um(db, "select count(*) as n from eventos where tipo in ('config.changed', 'policy.updated')").n > 0 && homologados.length > 0, link: '#/politicas' },
     { id: 'conhecimento', nome: 'Conhecimento', texto: 'Primeiros documentos das áreas', feito: um(db, 'select count(*) as n from documentos where quick_win_id is null').n > 0, link: '#/conhecimento' },
-    { id: 'quickwin', nome: 'Quick wins', texto: 'Configure o primeiro uso recorrente da equipe', feito: um(db, 'select count(*) as n from quick_wins').n > 0, link: '#/qw/nova' },
+    { id: 'quickwin', nome: 'Quick wins', texto: 'Configure o primeiro uso recorrente da equipe', feito: um(db, 'select count(*) as n from quick_wins where excluido_em is null').n > 0, link: '#/qw/nova' },
     { id: 'publicar', nome: 'Publicar', texto: 'Quick win disponível para a equipe testar', feito: adocao.quickWinsEmCirculacao > 0, link: '#/quick-wins' },
   ];
 

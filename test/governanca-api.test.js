@@ -252,13 +252,17 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   // Caminhos autorizados, cada um com a sua finalidade. Uma chamada nova (em outro módulo ou num destes) falha aqui.
   const AUTORIZADOS = {
     'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0'],
-    'quickwin-estrutura.js': ['quick_win_estrutura'],
+    // Uma chamada só (chamarGovernado), para as finalidades da criação: quick_win_estrutura e quick_win_exemplo.
+    'quickwin-estrutura.js': ['chamada curta da criação'],
   };
   assert.deepEqual(chamadas.sort(), Object.entries(AUTORIZADOS).flatMap(([arq, fins]) => fins.map(() => arq)).sort(), 'só os caminhos autorizados executam modelo');
   // A estruturação só existe com a finalidade quick_win_estrutura, registrada na decisão e no consumo.
   const est = readFileSync(join(raiz, 'quickwin-estrutura.js'), 'utf8');
   assert.match(est, /export const ORIGEM_ESTRUTURA = 'quick_win_estrutura';/, 'finalidade da estruturação explícita');
-  assert.equal((est.match(/ORIGEM_ESTRUTURA/g) || []).length >= 4 && /origem: ORIGEM_ESTRUTURA, quick_win/.test(est) && /VERSAO_ROTEADOR, ORIGEM_ESTRUTURA/.test(est), true, 'decisão e créditos registrados com a finalidade quick_win_estrutura');
+  assert.equal(/chamarGovernado\(app, pessoa, \{ conteudo: descricao, mensagens: mensagensEstrutura\(descricao\), qw, origem: ORIGEM_ESTRUTURA \}\)/.test(est) && /\{ origem, quick_win/.test(est) && /VERSAO_ROTEADOR, origem/.test(est), true, 'decisão e créditos registrados com a finalidade da chamada');
+  const qws = readFileSync(join(raiz, 'quickwins.js'), 'utf8');
+  assert.equal((qws.match(/chamarGovernado\(/g) || []).length, 1, 'exemplo do teste: uma chamada governada');
+  assert.match(qws, /origem: 'quick_win_exemplo'/, 'finalidade do exemplo explícita');
   const antesDoEnvio = trecho => { const i = est.indexOf(trecho); assert.ok(i >= 0 && i < est.indexOf('app.ia.enviar('), `estruturação: "${trecho}" antes do envio`); };
   ['cienciaPendente(app, pessoa)', 'app.limites?.checar(pessoa, cfg)', 'checarPlano(app)', 'decidir(tipos, cfg.acoesChat)', 'contemCredencial(textoDe(mensagens))',
     'modeloPermitido(app.db, cfg, pessoa', 'const rota = rotear({', 'avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa: false })', 'insert into roteamento'].forEach(antesDoEnvio);
@@ -273,6 +277,10 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   assert.match(conv, /app\.ia\.enviar\(mensagens, \{ modelo: atual\.id, reserva: sigilosa \|\| atual !== m \? null : rota\.reserva, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'executa o que o roteador decidiu (modelo, reserva e rota de sigilo)');
   assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf('app.ia.enviar('), 'a execução vem depois da decisão');
   assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf('app.ia.enviar('), 'conferência final dos guardrails antes do envio');
+  // Pesquisa na internet: só na execução, só liberada pela governança e nunca em conversa sigilosa; nunca na conferência.
+  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 1, 'uma só chamada com pesquisa');
+  assert.match(conv, /pesquisaWeb: pesquisa\?\.disponivel && !sigilosa \? \{ max: 5 \} : null/);
+  assert.match(conv, /!cfg\.pesquisaWeb\?\.ativa \? 'nao_liberada' : sigilosa \? 'sigilosa' : areaReforcada \? 'area_reforcada'/);
   assert.match(conv, /rotaSigilo = conferirEnvio\(alt\.modelo\)/, 'a busca por outro recurso passa pelos guardrails');
   assert.ok(conv.indexOf('avaliarProcessamentoSigiloso({ cfg, sigilosa })') < conv.indexOf('tornarSigilosa(app, pessoa, conv, motivo)', conv.indexOf('r.post(\'/api/conversas/:id/mensagens\'')), 'a política decide antes de marcar a conversa');
   // O endpoint de chat do provedor só existe no cliente de IA.

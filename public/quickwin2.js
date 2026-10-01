@@ -5,7 +5,8 @@ import { api, esc, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { renderizar, baixarCsv } from '/md.js';
-import { aviso, cabecalhoPg, FORMATOS_SAIDA, lerEventos, ligarVerResultado, oQueEnviar, painelQualidade, progressoEtapas, progressoExecucao } from '/qw-ui.js';
+import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
+import { excluirQw } from '/quickwin.js';
 
 const $ = id => document.getElementById(id);
 const ACEITOS = '.pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff';
@@ -48,18 +49,23 @@ export async function assistenteQw(id = null, { passo = 0 } = {}) {
     estruturas: new Map(o.estrutura_objetivo ? [[o.descricao || '', { ...o.estrutura_objetivo }]] : []), pendentes: new Map(), vez: 0,
     colunas: o.colunas ? [...o.colunas] : null, colunasOrigem: o.colunas_origem || null, colunasDescricao: o.descricao || '',
     salvo: qw ? assinatura({ descricao: o.descricao || '', arquetipo: o.arquetipo || null, como: o.como || {}, regras: o.regras || [], formato: o.formato || null, formato_descricao: o.formato_descricao || '', regras_proprias: o.regras_proprias || [],
-      colunas: o.colunas || null, colunas_origem: o.colunas_origem || null, estrutura_objetivo: paraEnvio(o.estrutura_objetivo) }) : null,
-    teste: { modo: 'auto', texto: '', anexo: null, entradaAuto: null }, resultado: null, publicado: null,
+      colunas: o.colunas || null, colunas_origem: o.colunas_origem || null, estrutura_objetivo: paraEnvio(o.estrutura_objetivo),
+      ...(qw.operacao?.origem === 'pessoa' ? { operacao: qw.operacao } : {}) }) : null,
+    teste: { modo: 'auto', texto: '', anexo: null, exemplo: null }, resultado: null, publicado: null,
+    // Entregas por canal (operação): a que a pessoa confirmou vale; senão, a GreenIA infere do pedido a cada sugestão.
+    operacao: qw?.operacao?.origem === 'pessoa' ? structuredClone(qw.operacao) : null, operacaoPessoa: qw?.operacao?.origem === 'pessoa', catalogo: null, lacunas: [], pesquisaLiberada: false,
   };
   const publicada = qw?.versao;
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine ao GreenIA como realizar esse trabalho.' })}
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine ao GreenIA como realizar esse trabalho.',
+        lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
       ${publicada ? aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`) : ''}
       <div id="progresso"></div>
       <div id="etapa"></div>
     </div></div>`;
   ligarCabecalho();
+  $('excluir-qw')?.addEventListener('click', () => excluirQw(W.qw).catch(e => toast(e.message, 6000)));
   ligarVerResultado($('etapa'));
   await desenhar(W, { foco: false });
   if (W.passo === 0) $('objetivo')?.focus();
@@ -79,7 +85,8 @@ function respostas(W) {
     ? (W.exemplo || W.estruturaAnterior ? { modo: 'mostrar', exemplo: W.exemplo } : { modo: 'pronto' })
     : W.processo.trim() ? { modo: 'explicar', texto: W.processo.trim() } : { modo: 'pronto' };
   return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias],
-    colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W) };
+    colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W),
+    ...(W.operacaoPessoa ? { operacao: W.operacao } : {}) };
 }
 const paraEnvio = e => (e ? { chave: e.chave, colunas: e.colunas || [], falhou: !!e.falhou } : null);
 const estruturaDoObjetivo = W => W.estruturas.get(W.descricao) || null;
@@ -185,6 +192,7 @@ function guardarEtapa(W) {
     const campos = [...document.querySelectorAll('[data-coluna]')].map(i => i.value.trim());
     if (document.querySelector('[data-coluna]') && !mesmas(campos, W.colunas || [])) { W.colunas = campos; marcarPessoa(W); }
     if ($('formato-descricao')) W.formatoDescricao = $('formato-descricao').value.trim();
+    if ($('entregas')) guardarEntregas(W);
   }
   if (W.passo === 4 && $('teste-texto')) W.teste.texto = $('teste-texto').value;
   return true;
@@ -209,15 +217,19 @@ async function sugerir(W) {
   const est = estruturaAtual(W);
   if (W.sugestao && W.sugestaoChave === (est?.chave ?? null)) return W.sugestao;
   const r = respostas(W), desc = W.descricao;
-  const s = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: desc, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo }, estrutura: est } });
+  const s = await api('/api/quick-wins/assistente/sugerir', { metodo: 'POST', corpo: { descricao: desc, arquetipo: W.arquetipo, como: { modo: r.como.modo, texto: r.como.texto, exemplo: r.como.exemplo }, estrutura: est,
+    ...(W.operacaoPessoa ? { operacao: W.operacao } : {}) } });
   if (W.descricao !== desc) return sugerir(W);   // o objetivo mudou enquanto a sugestão vinha: ela não vale para o atual
   W.sugestao = s;
+  W.catalogo = s.catalogo; W.lacunas = s.lacunas || []; W.pesquisaLiberada = !!s.pesquisaLiberada;
+  if (!W.operacaoPessoa) W.operacao = s.operacao ? structuredClone(s.operacao) : null;
+  if (W.operacao?.entregaveis?.length && !W.formatoPessoa) W.formato = 'outro';
   W.sugestaoChave = est?.chave ?? null;
   const sugeridas = W.sugestao.regras.map(x => x.id);
   // Mantém as escolhas anteriores que continuam valendo; "não inventar" sempre.
   W.regras = W.regras ? new Set(['nao_inventar', ...[...W.regras].filter(x => sugeridas.includes(x))]) : new Set(W.sugestao.regras.filter(x => x.marcada).map(x => x.id));
   if (W.regras.size <= 1) W.sugestao.regras.forEach(x => x.marcada && W.regras.add(x.id));
-  if (!W.formato || !W.formatoPessoa || (W.modoProc === 'exemplo' && W.exemplo)) W.formato = W.sugestao.formato.sugerido;
+  if ((!W.formato || !W.formatoPessoa || (W.modoProc === 'exemplo' && W.exemplo)) && !W.operacao?.entregaveis?.length) W.formato = W.sugestao.formato.sugerido;
   return W.sugestao;
 }
 
@@ -235,6 +247,7 @@ async function salvar(W) {
   }
   W.salvo = ass;
   W.resultado = null;   // o trabalho mudou: o teste anterior não vale mais para esta versão
+  W.teste.exemplo = null;   // e o exemplo pronto é refeito para o trabalho novo
 }
 
 const rodape = (W, { voltar = true, continuar = 'Continuar', extra = '' } = {}) => `<div id="erro-etapa" class="msg-etapa"></div><div class="etapa-rodape">
@@ -288,7 +301,10 @@ const ETAPA_HTML = [
     if (W.passo !== 3) return '';   // a pessoa saiu da etapa: nada muda nas colunas por causa desta resposta
     definirColunas(W, s);
     const sug = s.formato.sugerido;
+    const porCanal = !!W.operacao?.entregaveis?.length;
     return `${pergunta('Como você quer receber a resposta?', '')}
+      ${porCanal ? htmlEntregas(W) : ''}
+      <div class="${porCanal ? 'oculto' : ''}" id="formato-unico">
       <p class="saida-motivo"><b>Sugestão da GreenIA:</b> ${esc(s.formato.motivo)}</p>
       <fieldset class="saidas"><legend class="sr">Formato do resultado</legend>
         ${ORDEM_SAIDAS.map(id => `<label class="saida"><input type="radio" name="saida" value="${id}" ${W.formato === id ? 'checked' : ''}>
@@ -299,23 +315,32 @@ const ETAPA_HTML = [
       <div id="saida-outro" class="bloco-extra ${W.formato === 'outro' ? '' : 'oculto'}"><label class="legenda" for="formato-descricao">Como o resultado deve vir?</label>
         <input class="entrada" id="formato-descricao" maxlength="200" value="${esc(W.formatoDescricao || s.formato.descricao || '')}" placeholder="Ex.: mensagem pronta para enviar ao cliente, com o que conferir antes"></div>
       ${htmlColunas(W)}
+      <p class="exemplos"><button type="button" id="por-canal">Entregar peças por canal (LinkedIn, Instagram, email...)</button></p>
+      </div>
       ${rodape(W)}`;
   },
   // 5. Testar (também é a tela de teste de um Quick Win já criado)
   async W => {
-    if (W.teste.modo === 'auto' && !W.teste.entradaAuto) W.teste.entradaAuto = (await api(`/api/quick-wins/assistente/entrada-teste?arquetipo=${encodeURIComponent(W.qw?.arquetipo || W.sugestao?.arquetipo || '')}`)).texto;
+    // Exemplo pronto: contextual e fictício, feito para este Quick Win (ou a orientação de enviar arquivo ou completar).
+    if (W.teste.modo === 'auto' && !W.teste.exemplo && W.id) {
+      try { W.teste.exemplo = await api(`/api/quick-wins/${W.id}/exemplo-teste`, { metodo: 'POST', corpo: {} }); }
+      catch { W.teste.exemplo = { modo: 'insuficiente', mensagem: 'Este Quick Win ainda não tem contexto suficiente para gerar um exemplo automático. Complete as informações acima, cole um texto ou envie um arquivo.' }; }
+    }
+    const ex = W.teste.exemplo;
     const r = W.resultado;
     const pronto = r && !r.erro && !r.rodando;
+    const pausado = pronto && r.qualidade?.status === 'pergunta';
     return `${pergunta('Vamos testar antes de colocar em uso', 'O teste roda o Quick Win completo, com a conferência de qualidade. Nada fica disponível para a equipe ainda.', 'micro-teste')}
       <div class="segmento-sutil" role="group" aria-label="Material do teste">
         ${[['auto', 'Exemplo pronto'], ['colar', 'Colar um texto'], ['arquivo', 'Enviar um arquivo']].map(([v, t]) => `<button type="button" data-material="${v}" aria-pressed="${W.teste.modo === v}">${t}</button>`).join('')}</div>
-      <div id="teste-corpo">${W.teste.modo === 'auto' ? `<pre class="previa-texto" aria-label="Material fictício do teste">${esc(W.teste.entradaAuto || '')}</pre><p class="dica bloco-extra">Material fictício, parecido com o do seu trabalho. Nada real é usado.</p>`
+      <div id="teste-corpo">${W.teste.modo === 'auto' ? (ex?.modo === 'texto' ? `<pre class="previa-texto" aria-label="Material fictício do teste">${esc(ex.texto)}</pre><p class="dica bloco-extra">${esc(ex.aviso)}</p>`
+          : aviso(esc(ex?.mensagem || ''), 'info', `${ex?.modo === 'arquivo' ? '' : '<button type="button" class="btn btn-linha btn-pequeno" data-material="colar">Colar um texto</button>'}<button type="button" class="btn btn-linha btn-pequeno" data-material="arquivo">Enviar um arquivo</button>`))
         : W.teste.modo === 'colar' ? `<label class="sr" for="teste-texto">Texto do teste</label><textarea class="campo-amplo menor" id="teste-texto" placeholder="Cole um trecho do seu dia a dia">${esc(W.teste.texto)}</textarea>`
         : `<div class="arquivo-escolhido"><button type="button" class="btn btn-linha" id="teste-arquivo">${ICONE.clipe} Escolher arquivo</button><input type="file" id="teste-input" hidden accept="${ACEITOS}"><span class="dica" id="teste-nome">${esc(W.teste.anexo?.nome || 'PDF, Word, planilha ou imagem com texto')}</span></div>`}</div>
       <div id="teste-resultado">${r ? htmlResultado(W) : ''}</div>
-      ${rodape(W, { continuar: pronto ? (r.qualidade?.status === 'inconsistente' ? '' : 'Revisar e publicar') : '',
-        extra: pronto ? `${r.qualidade?.status === 'inconsistente' ? '<button type="button" class="btn btn-linha" data-revisar-assim>Revisar mesmo assim</button><button type="button" class="btn btn-verde" data-ajustar>Ajustar Quick Win</button>' : ''}<button type="button" class="btn btn-linha" data-testar>Testar de novo</button>`
-          : `<button type="button" class="btn btn-verde" data-testar ${r?.rodando ? 'disabled' : ''}>${r?.rodando ? 'Testando…' : 'Testar agora'}</button>` })}`;
+      ${rodape(W, { continuar: pronto ? (['inconsistente', 'pergunta'].includes(r.qualidade?.status) ? '' : 'Revisar e publicar') : '',
+        extra: pronto ? `${r.qualidade?.status === 'inconsistente' ? '<button type="button" class="btn btn-linha" data-revisar-assim>Revisar mesmo assim</button><button type="button" class="btn btn-verde" data-ajustar>Ajustar Quick Win</button>' : '<button type="button" class="btn btn-texto" data-ajustar>Ajustar Quick Win</button>'}${pausado ? '' : '<button type="button" class="btn btn-linha" data-testar>Testar novamente</button>'}`
+          : `<button type="button" class="btn btn-verde" data-testar ${r?.rodando || (W.teste.modo === 'auto' && ex?.modo !== 'texto') ? 'disabled' : ''}>${r?.rodando ? 'Testando…' : 'Testar agora'}</button>` })}`;
   },
   // 6. Revisar e publicar
   async W => {
@@ -346,6 +371,86 @@ const ETAPA_HTML = [
       <div class="linha-botoes"><a class="btn btn-verde btn-grande" href="#/qw/${W.id}/usar">Usar agora</a><a class="btn btn-linha btn-grande" href="#/quick-wins">Voltar para Quick Wins</a></div></div>`,
 ];
 
+// ---- Entregas por canal (etapa Resultado) ------------------------------------------------------------------
+// O que o Quick Win entrega: canais, peças (cada uma com a configuração do formato), pesquisa na internet e o
+// contexto mínimo que falta. A GreenIA sugere pelo pedido; qualquer ajuste vira a decisão da pessoa.
+const PECA_DO_CANAL = { linkedin: 'copy', instagram: 'legenda', facebook: 'copy', tiktok: 'roteiro', youtube: 'roteiro', x: 'copy', blog: 'texto', email: 'texto' };
+const TAMANHOS = [['', 'Padrão'], ['curto', 'Curto'], ['medio', 'Médio'], ['longo', 'Longo']];
+function htmlEntregas(W) {
+  const op = W.operacao, cat = W.catalogo || { canais: [], entregaveis: [], ferramentas: [] };
+  const tipo = id => cat.entregaveis.find(e => e.id === id) || { config: {} };
+  const respostas = new Map((op.contexto_respostas || []).map(r => [r.id, r.resposta]));
+  const lacunas = [...W.lacunas, ...(op.contexto_respostas || []).filter(r => !W.lacunas.some(l => l.id === r.id)).map(r => ({ id: r.id, pergunta: r.pergunta, exemplo: '' }))];
+  const cfg = (e, i) => {
+    const t = tipo(e.tipo).config;
+    if (e.tipo === 'outro') return `<input class="entrada" data-e-detalhe="${i}" maxlength="160" value="${esc(e.config?.detalhe || '')}" placeholder="O que entregar" aria-label="O que entregar na peça ${i + 1}">`;
+    if (t.slides !== undefined) return `<span class="cfg-grupo"><input class="entrada cfg" type="number" min="2" max="20" data-e-slides="${i}" value="${esc(e.config?.slides ?? t.slides)}" aria-label="Quantidade de slides da peça ${i + 1}"><span class="dica" aria-hidden="true">slides</span></span>`;
+    if (t.duracao !== undefined) return `<span class="cfg-grupo"><input class="entrada cfg" type="number" min="10" max="600" step="5" data-e-duracao="${i}" value="${esc(e.config?.duracao ?? t.duracao)}" aria-label="Duração em segundos da peça ${i + 1}"><span class="dica" aria-hidden="true">seg</span></span>`;
+    return `<select class="entrada cfg" data-e-tamanho="${i}" aria-label="Tamanho da peça ${i + 1}">${TAMANHOS.map(([v, r]) => `<option value="${v}" ${(e.config?.tamanho || '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
+  };
+  return `<section class="entregas" id="entregas" aria-labelledby="entregas-titulo">
+    <h4 id="entregas-titulo">O que este Quick Win entrega</h4>
+    <p class="dica">A GreenIA separou o pedido em peças. Cada peça sai com título próprio e adaptada ao canal. Ajuste o que quiser.</p>
+    <fieldset><legend class="legenda">Canais</legend><div class="canais-opcoes">${cat.canais.map(c => `<label><input type="checkbox" name="canal" value="${esc(c.id)}" ${op.canais.includes(c.id) ? 'checked' : ''}> ${esc(c.rotulo)}</label>`).join('')}</div></fieldset>
+    <p class="legenda" id="pecas-titulo">Peças</p>
+    <ol class="entregaveis-lista" aria-labelledby="pecas-titulo">${op.entregaveis.map((e, i) => `<li>
+      <select class="entrada" data-e-tipo="${i}" aria-label="Tipo da peça ${i + 1}">${cat.entregaveis.map(t => `<option value="${esc(t.id)}" ${t.id === e.tipo ? 'selected' : ''}>${esc(t.rotulo)}${t.visual ? ' (briefing)' : ''}</option>`).join('')}</select>
+      <select class="entrada" data-e-canal="${i}" aria-label="Canal da peça ${i + 1}"><option value="">Sem canal</option>${cat.canais.map(c => `<option value="${esc(c.id)}" ${c.id === e.canal ? 'selected' : ''}>${esc(c.rotulo)}</option>`).join('')}</select>
+      ${cfg(e, i)}
+      <button type="button" class="link-sutil" data-e-remover="${i}" aria-label="Remover a peça ${i + 1}">Remover</button></li>`).join('')}</ol>
+    ${op.entregaveis.length < 10 ? '<button type="button" class="link-sutil" id="add-entregavel">+ Adicionar peça</button>' : ''}
+    ${op.entregaveis.some(e => tipo(e.tipo).visual) ? '<p class="dica">Imagem, carrossel, Reels e vídeo saem como briefing para quem produz: a arte final não é gerada aqui.</p>' : ''}
+    <label class="ferramenta"><input type="checkbox" id="pesquisa-web" ${op.ferramentas.includes('pesquisa_web') ? 'checked' : ''}>
+      <span><b>Pesquisar na internet antes de escrever</b><br><span class="dica">${W.pesquisaLiberada ? 'Usa fontes reais e mostra de onde veio cada tema. Não roda com informação sigilosa.'
+        : 'A empresa ainda não liberou a pesquisa na internet (quem administra libera em Configurações). Até lá, o resultado sai parcial, sem temas confirmados como atuais.'}</span></span></label>
+    ${lacunas.length ? `<div class="lacunas"><p class="legenda">Para o resultado não sair genérico</p>${lacunas.map(l => `<div><label for="lacuna-${esc(l.id)}">${esc(l.pergunta)}</label>
+      <input class="entrada" id="lacuna-${esc(l.id)}" data-lacuna="${esc(l.id)}" maxlength="600" value="${esc(respostas.get(l.id) || '')}" placeholder="${esc(l.exemplo || '')}"></div>`).join('')}
+      <p class="dica">Opcional. Sem a resposta, a GreenIA usa o que estiver nos documentos da empresa ou pergunta na hora.</p></div>` : ''}
+    <p class="exemplos"><button type="button" id="formato-unico-btn">Prefiro um resultado só (texto, lista, tabela...)</button></p>
+  </section>`;
+}
+function guardarEntregas(W) {
+  const op = W.operacao || { canais: [], entregaveis: [], ferramentas: [], contexto_respostas: [] };
+  const n = v => (v === '' || v == null ? undefined : Number(v));
+  const entregaveis = op.entregaveis.map((e, i) => {
+    const tipo = document.querySelector(`[data-e-tipo="${i}"]`)?.value || e.tipo;
+    const config = {};
+    const sl = n(document.querySelector(`[data-e-slides="${i}"]`)?.value), du = n(document.querySelector(`[data-e-duracao="${i}"]`)?.value);
+    const ta = document.querySelector(`[data-e-tamanho="${i}"]`)?.value, de = document.querySelector(`[data-e-detalhe="${i}"]`)?.value.trim();
+    if (tipo === e.tipo) { if (sl) config.slides = sl; if (du) config.duracao = du; if (ta) config.tamanho = ta; if (de) config.detalhe = de; }
+    return { ...e, tipo, canal: document.querySelector(`[data-e-canal="${i}"]`)?.value || null, config };
+  });
+  const novo = { ...op, canais: [...document.querySelectorAll('input[name=canal]:checked')].map(i => i.value), entregaveis,
+    ferramentas: $('pesquisa-web')?.checked ? ['pesquisa_web'] : [],
+    contexto_respostas: [...document.querySelectorAll('[data-lacuna]')].map(i => ({ id: i.dataset.lacuna, resposta: i.value.trim() })).filter(r => r.resposta) };
+  if (JSON.stringify(novo) !== JSON.stringify(op)) { W.operacao = novo; W.operacaoPessoa = true; }
+}
+function ligarEntregas(W) {
+  const mudar = (fn, foco) => { guardarEtapa(W); fn(W.operacao); W.operacaoPessoa = true; desenhar(W, { foco: false }).then(() => (typeof foco === 'function' ? foco() : $(foco))?.focus()); };
+  document.querySelectorAll('input[name=canal]').forEach(c => { c.onchange = () => mudar(op => {
+    if (!c.checked) op.entregaveis = op.entregaveis.filter(e => e.canal !== c.value);
+    else if (!op.entregaveis.some(e => e.canal === c.value)) op.entregaveis.push({ id: '', tipo: PECA_DO_CANAL[c.value] || 'texto', canal: c.value, config: {} });
+  }, () => document.querySelector(`input[name=canal][value="${c.value}"]`)); });
+  document.querySelectorAll('[data-e-tipo]').forEach(sel => { sel.onchange = () => mudar(() => {}, () => document.querySelector(`[data-e-tipo="${sel.dataset.eTipo}"]`)); });
+  document.querySelectorAll('[data-e-remover]').forEach(b => { b.onclick = () => mudar(op => { op.entregaveis.splice(Number(b.dataset.eRemover), 1); }, 'add-entregavel'); });
+  $('add-entregavel')?.addEventListener('click', () => mudar(op => { op.entregaveis.push({ id: '', tipo: 'texto', canal: op.canais[0] || null, config: {} }); },
+    () => document.querySelector(`[data-e-tipo="${W.operacao.entregaveis.length - 1}"]`)));
+  $('formato-unico-btn')?.addEventListener('click', () => {
+    guardarEtapa(W);
+    W.operacao = { canais: [], entregaveis: [], ferramentas: [], contexto_respostas: W.operacao?.contexto_respostas || [] };
+    W.operacaoPessoa = true; W.formatoPessoa = true;
+    const sug = W.sugestao?.formato?.sugerido;
+    W.formato = sug && sug !== 'outro' ? sug : 'resumo';
+    desenhar(W, { foco: false }).then(() => document.querySelector('input[name=saida]:checked')?.focus());
+  });
+  $('por-canal')?.addEventListener('click', () => {
+    guardarEtapa(W);
+    W.operacao = { canais: ['linkedin'], entregaveis: [{ id: '', tipo: 'copy', canal: 'linkedin', config: {} }], ferramentas: W.operacao?.ferramentas || [], contexto_respostas: W.operacao?.contexto_respostas || [] };
+    W.operacaoPessoa = true; W.formato = 'outro'; W.formatoPessoa = true;
+    desenhar(W, { foco: false }).then(() => document.querySelector('input[name=canal]')?.focus());
+  });
+}
+
 const htmlEstrutura = passos => `<div class="estrutura"><p>A GreenIA seguiria estes passos:</p><ol>${passos.map(p => `<li>${esc(p)}</li>`).join('')}</ol>
   <button type="button" class="btn btn-linha btn-pequeno" id="usar-estrutura">Usar estes passos e ajustar</button></div>`;
 
@@ -354,23 +459,39 @@ function htmlResultado(W) {
   if (r.rodando) return `<div class="resultado">${progressoExecucao(r.etapa)}</div>`;
   if (r.erro) return `<div class="resultado">${aviso(esc(r.erro), 'erro')}</div>`;
   const q = r.qualidade, revisar = q?.status === 'inconsistente';
-  const corpo = `<div class="resultado-corpo bolha-ia ${revisar ? 'oculto' : ''}" id="resultado-teste">${r.html}</div>`;
+  // Entrega por canal: um grupo por canal e um cartão por peça, com as fontes da pesquisa à parte.
+  const sep = r.sep, conteudo = sep ? htmlPorCanal(sep, renderizar, r.fontes) : r.html;
+  const corpo = `<div class="resultado-corpo ${sep ? '' : 'bolha-ia'} ${revisar ? 'oculto' : ''}" id="resultado-teste">${conteudo}</div>`;
+  // A execução pausou para pedir contexto: a pessoa responde aqui e a mesma execução continua.
+  const responder = q?.status === 'pergunta' ? `<div class="responder-continuar"><label class="legenda" for="responder-texto">Sua resposta</label>
+      <textarea class="campo-amplo menor" id="responder-texto" placeholder="Responda à pergunta acima para a GreenIA continuar"></textarea>
+      <div><button type="button" class="btn btn-verde" data-responder>Responder e continuar</button></div></div>` : '';
   return `<section class="resultado" aria-label="Resultado do teste">
-    <div class="resultado-cabeca"><b>Resultado do teste</b>${r.conversa ? `<a class="link-sutil" href="#/c/${r.conversa}">Continuar como conversa</a>` : ''}</div>
-    ${revisar ? `${painelQualidade(q, { id: 'teste' })}<div style="margin-top:12px">${corpo}</div>` : `${corpo}${painelQualidade(q, { id: 'teste' })}`}</section>`;
+    <div class="resultado-cabeca"><b>${q?.status === 'pergunta' ? 'A GreenIA precisa de uma informação' : 'Resultado do teste'}</b>${r.conversa ? `<a class="link-sutil" href="#/c/${r.conversa}">Continuar como conversa</a>` : ''}</div>
+    ${revisar ? `${painelQualidade(q, { id: 'teste' })}<div style="margin-top:12px">${corpo}</div>` : `${corpo}${painelQualidade(q, { id: 'teste' })}`}${responder}</section>`;
 }
 
 // Executa o teste aqui mesmo: conversa de teste (fora da medição), execução explícita, etapas e conferência.
 async function testar(W) {
   guardarEtapa(W);
-  const texto = W.teste.modo === 'auto' ? W.teste.entradaAuto : W.teste.modo === 'colar' ? W.teste.texto.trim() : 'Faça o trabalho com o arquivo anexado.';
+  if (W.teste.modo === 'auto' && W.teste.exemplo?.modo !== 'texto') return erroEtapa(W.teste.exemplo?.mensagem || 'Cole um texto ou envie um arquivo para o teste.');
+  const texto = W.teste.modo === 'auto' ? W.teste.exemplo.texto : W.teste.modo === 'colar' ? W.teste.texto.trim() : 'Faça o trabalho com o arquivo anexado.';
   if (W.teste.modo === 'colar' && !texto) return erroEtapa('Cole um texto para o teste ou use o exemplo pronto.');
   if (W.teste.modo === 'arquivo' && !W.teste.anexo) return erroEtapa('Escolha um arquivo para o teste ou use o exemplo pronto.');
-  W.resultado = { rodando: true, etapa: null };
+  await rodarTeste(W, null, { texto, anexos: W.teste.modo === 'arquivo' ? [W.teste.anexo] : [], executar_quick_win: true });
+}
+// Responder e continuar: a resposta vai para a mesma conversa e a execução pausada continua (com a conferência).
+async function responderEContinuar(W) {
+  const texto = $('responder-texto')?.value.trim();
+  if (!texto) return $('responder-texto')?.focus();
+  await rodarTeste(W, W.resultado.conversa, { texto });
+}
+async function rodarTeste(W, conversa, corpo) {
+  W.resultado = { rodando: true, etapa: null, conversa };
   await desenhar(W, { foco: false });
   try {
-    const conv = (await api('/api/conversas', { metodo: 'POST', corpo: { quick_win_id: W.id, teste: true } })).conversa;
-    const r = await api(`/api/conversas/${conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: W.teste.modo === 'arquivo' ? [W.teste.anexo] : [], executar_quick_win: true }, bruto: true });
+    const conv = conversa ? { id: conversa } : (await api('/api/conversas', { metodo: 'POST', corpo: { quick_win_id: W.id, teste: true } })).conversa;
+    const r = await api(`/api/conversas/${conv.id}/mensagens`, { metodo: 'POST', corpo, bruto: true });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).mensagem || 'Não foi possível testar agora.');
     let saida = '', fim = null, falha = null;
     await lerEventos(r, ev => {
@@ -381,7 +502,7 @@ async function testar(W) {
     });
     if (falha) throw new Error(falha);
     const { html, tabelas } = renderizar(saida);
-    W.resultado = { html, tabelas, qualidade: fim?.qualidade || null, conversa: conv.id };
+    W.resultado = { html, tabelas, saida, sep: separarPorCanal(saida), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id };
     W.qw = await api(`/api/quick-wins/${W.id}`);
   } catch (e) { W.resultado = { erro: e.message }; }
   await desenhar(W, { foco: false });
@@ -456,10 +577,13 @@ const ETAPA_LIGAR = [
     $('adicionar-coluna')?.addEventListener('click', () => refazer(c => c.push(''), () => $(`coluna-${W.colunas.length - 1}`)));
     $('usar-sugestao-colunas')?.addEventListener('click', () => { guardarEtapa(W); W.colunas = [...W.novaSugestao]; W.colunasOrigem = 'objetivo'; W.novaSugestao = null; desenhar(W, { foco: false }).then(() => $('coluna-0')?.focus()); });
     $('manter-colunas')?.addEventListener('click', () => { guardarEtapa(W); W.colunasDescricao = W.descricao; W.novaSugestao = null; desenhar(W, { foco: false }).then(() => $('coluna-0')?.focus()); });
+    ligarEntregas(W);
   },
   W => {
     document.querySelectorAll('[data-material]').forEach(b => { b.onclick = () => { guardarEtapa(W); W.teste.modo = b.dataset.material; W.resultado = W.resultado?.rodando ? W.resultado : null; desenhar(W, { foco: false }); }; });
     document.querySelectorAll('[data-testar]').forEach(b => { b.onclick = () => testar(W); });
+    document.querySelector('[data-responder]')?.addEventListener('click', () => responderEContinuar(W));
+    if (W.resultado?.sep && $('resultado-teste')) ligarPorCanal($('resultado-teste'), W.resultado.sep, m => toast(m));
     document.querySelector('[data-ajustar]')?.addEventListener('click', () => irEtapa(W, 0));
     document.querySelector('[data-revisar-assim]')?.addEventListener('click', () => irEtapa(W, REVISAR));
     if ($('teste-arquivo')) {

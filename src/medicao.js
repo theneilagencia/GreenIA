@@ -55,7 +55,7 @@ function validarMedicao(c) {
 
 export function rotasMedicao(app, r) {
   const gerido = (pessoa, id) => {
-    const q = um(app.db, 'select * from quick_wins where id = ?', Number(id));
+    const q = um(app.db, 'select * from quick_wins where id = ? and excluido_em is null', Number(id));
     if (!q || !podeGerir(app.db, pessoa, q)) throw erro(404, 'quick_win', 'Quick win não encontrado.');
     return q;
   };

@@ -493,7 +493,7 @@ export function usoDaEmpresa(P, companyId) {
   return {
     mes, plano: situacaoPlano(t), custoUsd: custo.c, respostas: custo.n, pessoasAtivas: custo.p, conversas: custo.conv,
     ultimoUso: um(t.db, 'select max(em) as em from uso').em, pessoas: um(t.db, 'select count(*) as n from pessoas where ativo = 1').n,
-    quickWins: um(t.db, 'select count(*) as n from quick_wins').n, documentos: um(t.db, 'select count(*) as n from documentos').n,
+    quickWins: um(t.db, 'select count(*) as n from quick_wins where excluido_em is null').n, documentos: um(t.db, 'select count(*) as n from documentos').n,
   };
 }
 export function ambienteDaEmpresa(P, c) {

@@ -52,7 +52,7 @@ export function criarLimites(app) {
   };
 }
 
-const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
+const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
 
 function validarConfig(c, { multi = false, atual = null } = {}) {
   const v = {};
@@ -80,6 +80,7 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
   // Ação desconhecida vale "bloquear" (fail closed). Salvar grava o formato atual (acoesVersao 2).
   if (c.acoesChat !== undefined) { v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : ACOES.includes(c.acoesChat[t]) ? c.acoesChat[t] : 'bloquear'])); v.acoesVersao = 2; }
   if (c.protecaoDadosPessoais !== undefined) v.protecaoDadosPessoais = c.protecaoDadosPessoais !== false;   // só false explícito desliga
+  if (c.pesquisaWeb !== undefined) v.pesquisaWeb = { ativa: c.pesquisaWeb?.ativa === true };   // só true explícito liga
   if (c.naoArmazenar !== undefined) v.naoArmazenar = (Array.isArray(c.naoArmazenar) ? c.naoArmazenar : []).filter(t => TIPOS_DADO.includes(t) && t !== 'credencial');
   for (const k of ['tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa']) if (c[k] !== undefined) { v[k] = Number(c[k]) || 0; if (v[k] < 0) throw erro(400, k, 'Use zero para sem limite.'); }
   return v;
@@ -237,7 +238,7 @@ export function rotasAdmin(app, r) {
     return { quickWins: todos(app.db, `select q.id, q.nome, q.cor, q.status, q.sigiloso, q.toda_empresa, q.modelo, p.email as criado_por, q.atualizado_em,
         (select count(distinct conversa_id) from uso u where u.quick_win_id = q.id and u.teste = 0 and substr(u.em, 1, 7) = ?) as conversas,
         (select coalesce(sum(custo), 0) from uso u where u.quick_win_id = q.id and u.teste = 0 and substr(u.em, 1, 7) = ?) as custo
-      from quick_wins q left join pessoas p on p.id = q.criado_por order by q.nome`, mes, mes)
+      from quick_wins q left join pessoas p on p.id = q.criado_por where q.excluido_em is null order by q.nome`, mes, mes)
       .map(q => ({ ...q, sigiloso: !!q.sigiloso, toda_empresa: !!q.toda_empresa, areas: areasDoQw(app.db, q.id).map(a => areas.get(a)) })) };
   }, { admin: true });
 

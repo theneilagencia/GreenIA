@@ -4,15 +4,16 @@
 import { readFileSync } from 'node:fs';
 import { erro } from './http.js';
 import { consolidarWal, exec, json, todos, transacao, um } from './db.js';
-import { acoesDoQuickWin, lerConfig, TIPOS_DADO } from './config.js';
-import { ACOES } from './filtro.js';
+import { acoesDoQuickWin, lerConfig, salvarConfig, TIPOS_DADO } from './config.js';
+import { ACOES, contemCredencial } from './filtro.js';
 import { registrar } from './eventos.js';
 import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
-import { trechosDasBases } from './bases.js';
+import { basesVisiveis, trechosDasBases } from './bases.js';
 import { acharModelo, custoEstimado, ehClasse, lerModelos, NOMES_CLASSE, resolverClasse } from './modelos.js';
 import * as QW2 from './quickwin-construtor.js';
-import { estruturarObjetivo } from './quickwin-estrutura.js';
+import { chamarGovernado, estruturarObjetivo } from './quickwin-estrutura.js';
+import * as OP from './quickwin-operacao.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -75,10 +76,17 @@ function versaoDe(db, q) {
   const pub = q.versao_publicada ? um(db, 'select id, numero, especificacao, publicada_em from quick_win_versoes where id = ?', q.versao_publicada) : null;
   const teste = um(db, "select r.qualidade, r.em from roteamento r join conversas c on c.id = r.conversa_id where r.quick_win_id = ? and r.teste = 1 and r.qualidade is not null order by r.id desc limit 1", q.id);
   return {
-    publico: { v2: true, versao: pub?.numero ?? null, regras: QW2.regrasPrincipais(pub ? json(pub.especificacao, null) : espec), formato_saida: (pub ? json(pub.especificacao, {}) : espec)?.formato_saida?.tipo || null },
-    gestao: { assistente: espec?.origem || null, rascunho_alterado: !pub || pub.especificacao !== q.especificacao, regras_rascunho: QW2.regrasPrincipais(espec),
+    publico: { v2: true, versao: pub?.numero ?? null, regras: QW2.regrasPrincipais(pub ? json(pub.especificacao, null) : espec), formato_saida: (pub ? json(pub.especificacao, {}) : espec)?.formato_saida?.tipo || null,
+      entregas: entregasDe(pub ? json(pub.especificacao, null) : espec) },
+    gestao: { assistente: espec?.origem || null, operacao: QW2.normalizar(espec)?.operacao || null, rascunho_alterado: !pub || pub.especificacao !== q.especificacao, regras_rascunho: QW2.regrasPrincipais(espec),
       arquetipo: espec?.arquetipo || null, ultimo_teste: teste ? { ...QW2.resumoQualidade(json(teste.qualidade, {})), em: teste.em } : null },
   };
+}
+
+// O que o Quick Win entrega, em linguagem comum (canal · entregável) e se pesquisa na internet.
+function entregasDe(espec) {
+  const op = QW2.normalizar(espec)?.operacao;
+  return op ? { entregaveis: op.entregaveis.map(OP.rotuloEntregavel), pesquisa: op.ferramentas.includes('pesquisa_web') } : null;
 }
 
 // Classe de partida de um Quick Win 2.0, pela dica de complexidade da especificação. É só um piso para o
@@ -98,7 +106,9 @@ const ESPEC = Symbol('especificacao');
 
 // Respostas da criação em 5 etapas -> campos do Quick Win. Segredo no que a pessoa escreveu ou mostrou: recusa.
 function doAssistente(app, cfg, a, atual = {}) {
-  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto), ...QW2.limparColunas(a?.colunas)]))
+  const op = a?.operacao && typeof a.operacao === 'object' ? a.operacao : null;
+  if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto), ...QW2.limparColunas(a?.colunas),
+    ...(op?.contexto_respostas || []).map(r => r?.resposta), ...(op?.entregaveis || []).map(e => e?.config?.detalhe)]))
     throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
   // Regras próprias: ajustar sem mandar a lista mantém as que já estão no rascunho (lista vazia remove todas).
   const anterior = json(atual.especificacao, null);
@@ -107,7 +117,9 @@ function doAssistente(app, cfg, a, atual = {}) {
   const colunas = a?.colunas !== undefined ? { colunas: a.colunas, colunas_origem: a.colunas_origem }
     : anterior?.origem?.colunas_origem === 'pessoa' ? { colunas: anterior.origem.colunas, colunas_origem: 'pessoa' } : {};
   const estrutura_objetivo = a?.estrutura_objetivo !== undefined ? a.estrutura_objetivo : anterior?.origem?.estrutura_objetivo || null;
-  const espec = QW2.construir({ ...a, ...colunas, estrutura_objetivo, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
+  // Operação: a confirmada na tela vale; sem ela, a que a pessoa já tinha confirmado continua; senão, é inferida.
+  const operacao = a?.operacao !== undefined ? { operacao: a.operacao } : anterior?.operacao?.origem === 'pessoa' ? { operacao: anterior.operacao } : {};
+  const espec = QW2.construir({ ...a, ...colunas, ...operacao, estrutura_objetivo, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
   const v = { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
   if (!atual.id || a?.nome) v.nome = espec.origem.nome;
   if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(v.nome || atual.nome, espec.regras)).slice(0, 200);
@@ -200,9 +212,11 @@ function estimativas(app, qw) {
 export function criarQuickWins(app) {
   return {
     // Quick win para uso numa conversa: em circulação e visível; fora de circulação (ou teste), só para quem gerencia.
-    paraUso(pessoa, id, teste = false) {
+    // Excluído: fora do catálogo e de conversas novas. Uma conversa que já existia (incluirExcluido) continua
+    // legível e pode seguir, com a governança atual: o histórico não se perde.
+    paraUso(pessoa, id, teste = false, { incluirExcluido = false } = {}) {
       const q = um(app.db, 'select * from quick_wins where id = ?', Number(id));
-      if (!q) return null;
+      if (!q || (q.excluido_em && !incluirExcluido)) return null;
       const gere = podeGerir(app.db, pessoa, q);
       if (teste || !EM_CIRCULACAO.includes(q.status)) return gere ? q : null;
       return visivel(app.db, pessoa, q) || gere ? q : null;
@@ -219,13 +233,17 @@ export function criarQuickWins(app) {
 
     // Contexto: instruções (na persona), arquivos do quick win e bases escolhidas.
     contexto(pessoa, qw, texto) {
+      // Consulta às bases: o pedido de hoje somado ao que define o trabalho (objetivo, contexto e respostas de
+      // contexto). Só a mensagem atual não acha o documento "sobre a empresa" num pedido como "pesquise os temas".
+      const op = qw.espec?.operacao;
+      const consulta = qw.espec ? [qw.espec.objetivo, qw.espec.contexto, ...(op?.contexto_respostas || []).map(r => r.resposta), texto].filter(Boolean).join('\n') : texto;
       const arquivos = todos(app.db, 'select id, titulo, texto, sigiloso from documentos where quick_win_id = ? order by id', qw.id);
       const partes = [], fontes = [], pecas = [];
       let sigiloso = arquivos.some(a => a.sigiloso);
       if (arquivos.length) {
         const total = arquivos.reduce((n, a) => n + a.texto.length, 0);
         // O que de fato entra no contexto (arquivo inteiro ou trecho), com o título: conferido pela política de credenciais.
-        const usados = total <= MAX_ARQUIVOS_INTEIROS ? arquivos.map(a => ({ documento_id: a.id, texto: a.texto })) : buscar(app.db, texto, arquivos.map(a => a.id), 8);
+        const usados = total <= MAX_ARQUIVOS_INTEIROS ? arquivos.map(a => ({ documento_id: a.id, texto: a.texto })) : buscar(app.db, consulta, arquivos.map(a => a.id), 8);
         const titulo = id => arquivos.find(a => a.id === id).titulo;
         pecas.push(...usados.map(u => ({ origem: 'quick_win', documento: u.documento_id, texto: `${titulo(u.documento_id)}\n${u.texto}` })));
         const corpo = usados.map(u => delimitar('documento', titulo(u.documento_id), u.texto)).join('\n\n');
@@ -237,7 +255,7 @@ export function criarQuickWins(app) {
         const areas = areasDoQw(app.db, qw.id);
         const ids = b.modo === 'escolhidas' ? b.ids
           : todos(app.db, `select id from documentos where quick_win_id is null and (toda_empresa = 1 ${areas.length ? `or area_id in (${areas.join(',')})` : ''})`).map(d => d.id);
-        const t = trechosDasBases(app.db, texto, ids);
+        const t = trechosDasBases(app.db, consulta, ids);
         if (t.parte) { partes.push(t.parte); fontes.push(...t.fontes); pecas.push(...t.pecas); sigiloso ||= t.sigiloso; }
       }
       return { partes, fontes: [...new Set(fontes)], sigiloso, cacheavel: arquivos.length > 0, pecas };
@@ -247,14 +265,17 @@ export function criarQuickWins(app) {
 
 export function rotasQuickWins(app, r) {
   app.quickWins = criarQuickWins(app);
+  // Não existe, foi excluído ou a pessoa não o vê: 404 (não revela nada). Vê, mas não gere: 403 nas ações de gestão.
   const carregar = (pessoa, id, gerir = false) => {
-    const q = um(app.db, 'select * from quick_wins where id = ?', Number(id));
-    if (!q || (gerir ? !podeGerir(app.db, pessoa, q) : !app.quickWins.paraUso(pessoa, q.id) && !podeGerir(app.db, pessoa, q))) throw erro(404, 'quick_win', 'Quick win não encontrado.');
+    const q = um(app.db, 'select * from quick_wins where id = ? and excluido_em is null', Number(id));
+    const gere = q && podeGerir(app.db, pessoa, q);
+    if (!q || (!gere && !app.quickWins.paraUso(pessoa, q.id))) throw erro(404, 'quick_win', 'Quick win não encontrado.');
+    if (gerir && !gere) throw erro(403, 'sem_permissao', 'Você não tem permissão para gerenciar este Quick Win.');
     return q;
   };
 
   r.get('/api/quick-wins', ({ pessoa }) => ({
-    quickWins: todos(app.db, 'select * from quick_wins order by nome')
+    quickWins: todos(app.db, 'select * from quick_wins where excluido_em is null order by nome')
       .filter(q => app.quickWins.paraUso(pessoa, q.id) || podeGerir(app.db, pessoa, q))
       .map(q => ({ id: q.id, nome: q.nome, cor: q.cor, icone: q.icone, status: q.status, para_que_serve: q.para_que_serve, podeEditar: podeGerir(app.db, pessoa, q) })),
   }));
@@ -270,7 +291,7 @@ export function rotasQuickWins(app, r) {
         (select count(*) from conversas c where c.quick_win_id = q.id and c.teste = 0 and c.feedback is not null) as avaliadas,
         (select count(*) from medicoes m where m.quick_win_id = q.id and m.antes_valor is not null and m.depois_valor is not null) as medicoes,
         (select d.decisao from decisoes d where d.quick_win_id = q.id order by d.id desc limit 1) as decisao
-      from quick_wins q left join pessoas p on p.id = q.responsavel_id order by q.atualizado_em desc`, mes, mes, mes)
+      from quick_wins q left join pessoas p on p.id = q.responsavel_id where q.excluido_em is null order by q.atualizado_em desc`, mes, mes, mes)
       .filter(q => podeGerir(app.db, pessoa, q));
     const nomesAreas = new Map(todos(app.db, 'select id, nome from areas').map(a => [a.id, a.nome]));
     return { quickWins: lista.map(q => ({ id: q.id, nome: q.nome, cor: q.cor, status: q.status, problema: q.problema, responsavel: q.responsavel_nome,
@@ -279,7 +300,22 @@ export function rotasQuickWins(app, r) {
       aceitacao: q.avaliadas ? Math.round(q.serviu / q.avaliadas * 100) : null, avaliadas: q.avaliadas, medicoes: q.medicoes, decisao: q.decisao })) };
   });
 
-  r.get('/api/quick-wins/modelos-iniciais', () => ({ modelos: JSON.parse(readFileSync(MODELOS_INICIAIS, 'utf8')) }));
+  // Modelos iniciais: globais (iguais para todas as empresas, no arquivo da instalação). Cada empresa pode ocultar
+  // um modelo do próprio catálogo; o arquivo e as outras empresas não mudam, e nada é apagado.
+  const ocultos = () => new Set(lerConfig(app.db).modelosOcultos || []);
+  const podeOcultar = pessoa => pessoa.admin || permissoesQw(app.db, pessoa).todaEmpresa;
+  r.get('/api/quick-wins/modelos-iniciais', ({ pessoa }) => {
+    const fora = ocultos();
+    return { modelos: JSON.parse(readFileSync(MODELOS_INICIAIS, 'utf8')).map((m, indice) => ({ ...m, indice })).filter(m => !fora.has(m.indice)), podeOcultar: podeOcultar(pessoa) };
+  });
+  r.post('/api/quick-wins/modelos-iniciais/:indice/ocultar', ({ pessoa, params }) => {
+    if (!podeOcultar(pessoa)) throw erro(403, 'sem_permissao', 'Você não tem permissão para mudar o catálogo de modelos da empresa.');
+    const i = Number(params.indice), lista = JSON.parse(readFileSync(MODELOS_INICIAIS, 'utf8'));
+    if (!Number.isInteger(i) || !lista[i]) throw erro(404, 'modelo_inicial', 'Modelo inicial não encontrado.');
+    salvarConfig(app.db, { modelosOcultos: [...new Set([...ocultos(), i])].sort((a, b) => a - b) });
+    registrar(app, 'quickwin.hidden', pessoa.id, { modelo_inicial: i, global: true });
+    return { ok: true };
+  });
 
   // Criação em 5 etapas: sugestões (tipo de trabalho, nome, descrição, regras, formato) sem chamar a IA.
   const podeMontar = pessoa => permissoesQw(app.db, pessoa).criar || pessoa.admin || pessoa.areas.some(a => a.responsavel);
@@ -288,7 +324,16 @@ export function rotasQuickWins(app, r) {
     const como = corpo.como || {};
     if (QW2.conferirSegredos([corpo.descricao, como.texto, como.exemplo]))
       throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
-    return { ...QW2.sugerir({ descricao: String(corpo.descricao || '').slice(0, 1000), arquetipo: corpo.arquetipo, como, estrutura: corpo.estrutura || null }), sugestoes: QW2.SUGESTOES };
+    const descricao = String(corpo.descricao || '').slice(0, 1000), processo = como.modo === 'explicar' ? String(como.texto || '').slice(0, 3000) : '';
+    // Operação: a que a pessoa já confirmou (enviada pela tela) ou a inferida do pedido; e o contexto que falta,
+    // sem perguntar o que as bases autorizadas da empresa já têm.
+    const operacao = corpo.operacao !== undefined ? OP.limparOperacao(corpo.operacao) : OP.limparOperacao(OP.inferirOperacao(`${descricao}\n${processo}`));
+    const temBase = basesVisiveis(app.db, pessoa).length > 0;
+    return { ...QW2.sugerir({ descricao, arquetipo: corpo.arquetipo, como, estrutura: corpo.estrutura || null }), sugestoes: QW2.SUGESTOES,
+      operacao, lacunas: OP.lacunasDeContexto({ descricao, processo, operacao, temBase }), temBase,
+      catalogo: { canais: Object.entries(OP.CANAIS).map(([id, c]) => ({ id, rotulo: c.rotulo })), entregaveis: Object.entries(OP.ENTREGAVEIS).map(([id, e]) => ({ id, rotulo: e.rotulo, visual: !!e.visual, config: e.config || {} })),
+        ferramentas: Object.entries(OP.FERRAMENTAS).map(([id, f]) => ({ id, rotulo: f.rotulo })) },
+      pesquisaLiberada: !!lerConfig(app.db).pesquisaWeb?.ativa };
   });
   // Estrutura pedida no objetivo (colunas): uma chamada de IA, governada, só para um objetivo novo ou alterado.
   // A tela chama ao preparar a etapa Resultado; o mesmo objetivo já estruturado é reaproveitado sem chamada.
@@ -309,6 +354,36 @@ export function rotasQuickWins(app, r) {
     return { texto: texto.slice(0, 8000), estrutura: QW2.analisarExemplo(texto) };
   }, { limiteMb: 35 });
   r.get('/api/quick-wins/assistente/entrada-teste', ({ query }) => ({ texto: QW2.entradaDeTeste(query.arquetipo) }));
+
+  // Exemplo pronto do teste: contextual e fictício. Conteúdo por canal: o pedido do dia a dia, montado aqui.
+  // Outros trabalhos: material fictício escrito pela IA a partir do objetivo, pela mesma governança da criação
+  // (uma chamada por versão do trabalho; o mesmo rascunho reaproveita). Depende de arquivo: pede o arquivo.
+  // Sem contexto ou sem IA: a mensagem de fallback, nunca um exemplo sem relação com o trabalho.
+  const exemplos = new Map();
+  r.post('/api/quick-wins/:id/exemplo-teste', async ({ pessoa, params }) => {
+    const q = carregar(pessoa, params.id, true);
+    const espec = QW2.normalizar(json(q.especificacao, null));
+    const fallback = { modo: 'insuficiente', mensagem: OP.SEM_CONTEXTO_EXEMPLO };
+    if (!espec) return fallback;
+    const plano = OP.planoDoExemplo(espec);
+    if (plano.modo === 'insuficiente') return fallback;
+    if (plano.modo === 'arquivo') return { modo: 'arquivo', mensagem: OP.PEDE_ARQUIVO_EXEMPLO };
+    if (plano.modo === 'texto') return { modo: 'texto', texto: plano.texto, aviso: OP.AVISO_EXEMPLO };
+    const chave = `${q.id}:${OP.chaveExemplo(espec)}`;
+    if (exemplos.has(chave)) return { modo: 'texto', texto: exemplos.get(chave), aviso: OP.AVISO_EXEMPLO, cache: true };
+    const pedido = `${espec.objetivo}${espec.formato_saida?.colunas?.length ? `\nCampos do resultado: ${espec.formato_saida.colunas.join(', ')}` : ''}`;
+    const r2 = await chamarGovernado(app, pessoa, { conteudo: pedido, qw: q, origem: 'quick_win_exemplo',
+      mensagens: [{ role: 'system', content: OP.PROMPT_EXEMPLO }, { role: 'user', content: delimitar('objetivo', 'Objetivo', pedido) }] });
+    const texto = String(r2.texto || '').trim().slice(0, 4000);
+    if (r2.recusado || r2.falhou || texto.length < 20 || contemCredencial(texto)) {
+      registrar(app, 'quickwin.example_skipped', pessoa.id, { quick_win: q.id, motivo: r2.motivo || (r2.falhou ? 'falha_na_execucao' : 'resposta_invalida') });
+      return fallback;
+    }
+    exemplos.set(chave, texto);
+    if (exemplos.size > 200) exemplos.delete(exemplos.keys().next().value);
+    registrar(app, 'quickwin.example_generated', pessoa.id, { quick_win: q.id, roteamento: r2.rotaId });
+    return { modo: 'texto', texto, aviso: OP.AVISO_EXEMPLO };
+  });
 
   r.get('/api/quick-wins/:id', ({ pessoa, params }) => publico(app.db, pessoa, carregar(pessoa, params.id)));
 
@@ -411,12 +486,13 @@ export function rotasQuickWins(app, r) {
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
   });
 
+  // Excluir: sai do catálogo da empresa (soft delete). Versões, medições, decisões, arquivos, conversas, uso e
+  // eventos continuam; uma execução em andamento termina normalmente. Só quem gere o Quick Win pode excluir.
   r.del('/api/quick-wins/:id', ({ pessoa, params }) => {
     const q = carregar(pessoa, params.id, true);
-    for (const d of todos(app.db, 'select id from documentos where quick_win_id = ?', q.id)) desindexar(app.db, d.id);
-    exec(app.db, 'delete from quick_wins where id = ?', q.id);
-    registrar(app, 'quickwin.deleted', pessoa.id, { quick_win: q.id });
-    consolidarWal(app.db);
+    exec(app.db, "update quick_wins set excluido_em = ?, excluido_por = ?, atualizado_em = datetime('now') where id = ? and excluido_em is null", app.agora().toISOString(), pessoa.id, q.id);
+    registrar(app, 'quickwin.deleted', pessoa.id, { quick_win: q.id, versoes: um(app.db, 'select count(*) as n from quick_win_versoes where quick_win_id = ?', q.id).n,
+      conversas: um(app.db, 'select count(*) as n from conversas where quick_win_id = ?', q.id).n, soft: true });
     return { ok: true };
   });
 

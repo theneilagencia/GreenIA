@@ -46,7 +46,7 @@ test('quick win: usuário comum só cria se o admin autorizar; cria nas própria
   // Um quick win da Ana, dani usa mas não configura.
   const daAna = (await ana.post('/api/quick-wins', { nome: 'Da Ana', areas: [A.id] })).dados;
   await ana.put(`/api/quick-wins/${daAna.id}`, { status: 'ativo' });
-  assert.equal((await dani.put(`/api/quick-wins/${daAna.id}`, { nome: 'x' })).status, 404);
+  assert.equal((await dani.put(`/api/quick-wins/${daAna.id}`, { nome: 'x' })).status, 403);
   // "Toda a empresa" é autorização à parte.
   await admin.put('/api/admin/quick-wins-permissoes', { responsaveis: true, grupos: [grupo.id], todaEmpresa: { grupos: [grupo.id] } });
   assert.equal((await dani.post('/api/quick-wins', { nome: 'Para todos', toda_empresa: true })).status, 200);

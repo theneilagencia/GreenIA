@@ -79,13 +79,14 @@ export function painelQualidade(q, { id = '', podeAjustar = false, ajustarHref =
       <div class="qc-topo"><span class="qc-icone" aria-hidden="true">${ICONE.check}</span><div>
         <b class="qc-titulo">Resultado conferido</b>
         <p>${q.status === 'corrigido' ? 'Ajustamos o resultado automaticamente para atender às regras deste Quick Win.' : 'A resposta atendeu às regras definidas para este Quick Win.'}</p></div></div>
-      ${itens.length ? `<ul class="qc-itens">${itens.map(i => `<li><span aria-hidden="true">${ICONE.check}</span>${esc(i.rotulo)}</li>`).join('')}</ul>` : ''}
+      ${itens.length || q.pesquisa?.feita ? `<ul class="qc-itens">${itens.map(i => `<li><span aria-hidden="true">${ICONE.check}</span>${esc(i.rotulo)}</li>`).join('')}${q.pesquisa?.feita ? `<li><span aria-hidden="true">${ICONE.check}</span>Pesquisa na internet com ${q.pesquisa.fontes} ${q.pesquisa.fontes === 1 ? 'fonte' : 'fontes'}</li>` : ''}</ul>` : ''}
     </section>`;
   }
+  // Parcial com motivo (pesquisa não feita, entregável faltando): o motivo aparece; sem motivo, o texto genérico.
   if (q.status === 'parcial') return `<section class="qc qc-parcial" role="status" aria-label="Conferência de qualidade">
       <div class="qc-topo"><span class="qc-icone" aria-hidden="true">◐</span><div>
-        <b class="qc-titulo">Conferência incompleta</b>
-        <p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p></div></div></section>`;
+        <b class="qc-titulo">${(q.avisos || []).length ? 'Resultado parcial' : 'Conferência incompleta'}</b>
+        ${(q.avisos || []).length ? q.avisos.map(a => `<p>${esc(a)}</p>`).join('') : '<p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p>'}</div></div></section>`;
   return `<section class="qc qc-revisar" role="alert" aria-label="Conferência de qualidade">
       <div class="qc-topo"><span class="qc-icone" aria-hidden="true">!</span><div>
         <b class="qc-titulo">Encontramos pontos para revisar</b>
@@ -142,4 +143,89 @@ export async function lerEventos(resposta, aoEvento) {
     for (const l of linhas.filter(Boolean)) aoEvento(JSON.parse(l));
   }
   if (resto.trim()) aoEvento(JSON.parse(resto));
+}
+
+// ---- Resultado por canal e entregável -----------------------------------------------------------------------
+// O resultado de um Quick Win com entregas por canal vem com um título por peça ("## LinkedIn · Copy"). Aqui ele
+// é separado em grupos (um por canal, "Geral" para o resto) e cartões (um por peça), cada um copiável. As fontes
+// da pesquisa ficam num bloco próprio, com os endereços. Sem títulos de peça, devolve null (resultado comum).
+export function separarPorCanal(texto) {
+  const ls = String(texto || '').replace(/\r/g, '').split('\n'), pecas = [];
+  let atual = null, antes = [];
+  for (const l of ls) {
+    const m = /^\s*##\s+(.+?)\s*$/.exec(l);
+    if (m) { atual = { titulo: m[1].replace(/[*_]/g, ''), linhas: [] }; pecas.push(atual); continue; }
+    (atual ? atual.linhas : antes).push(l);
+  }
+  if (!pecas.some(p => p.titulo.includes(' · '))) return null;
+  const grupos = new Map();
+  // A seção de fontes não é uma peça: vira o bloco de fontes (os endereços da pesquisa, quando vieram).
+  const fontes = pecas.find(p => /^fontes da pesquisa$/i.test(p.titulo));
+  for (const p of pecas.filter(x => x !== fontes)) {
+    const [canal, peca] = p.titulo.includes(' · ') ? p.titulo.split(' · ') : ['Geral', p.titulo];
+    if (!grupos.has(canal)) grupos.set(canal, []);
+    grupos.get(canal).push({ titulo: peca, canal, texto: p.linhas.join('\n').trim() });
+  }
+  return { introducao: antes.join('\n').trim(), grupos: [...grupos.entries()].map(([canal, itens]) => ({ canal, itens })), fontesTexto: fontes ? fontes.linhas.join('\n').trim() : '' };
+}
+export function htmlPorCanal(sep, renderizar, fontes = []) {
+  const web = (fontes || []).filter(f => f && typeof f === 'object' && f.url);
+  return `<div class="qw-canais">
+    ${sep.introducao ? `<div class="qw-canais-intro">${renderizar(sep.introducao).html}</div>` : ''}
+    ${sep.grupos.length > 1 ? `<div class="segmento-sutil qw-canais-filtro" role="group" aria-label="Mostrar">
+      <button type="button" data-canal="*" aria-pressed="true">Tudo</button>${sep.grupos.map(g => `<button type="button" data-canal="${esc(g.canal)}" aria-pressed="false">${esc(g.canal)}</button>`).join('')}</div>` : ''}
+    ${sep.grupos.map(g => `<section class="qw-canal" data-grupo="${esc(g.canal)}" aria-label="${esc(g.canal)}"><h4 class="qw-canal-nome">${esc(g.canal)}</h4>
+      ${g.itens.map((it, i) => `<article class="qw-peca"><div class="qw-peca-cabeca"><b>${esc(it.titulo)}</b>${/^Briefing \(/.test(it.texto) ? '<span class="tag">Briefing</span>' : ''}
+        <button type="button" class="link-sutil" data-copiar-peca="${esc(g.canal)}|${i}">Copiar</button></div>
+        <div class="qw-peca-corpo">${renderizar(it.texto).html}</div></article>`).join('')}</section>`).join('')}
+    ${web.length ? `<section class="qw-fontes" aria-label="Fontes da pesquisa"><b>Fontes da pesquisa</b><ul>${web.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a></li>`).join('')}</ul></section>`
+      : sep.fontesTexto ? `<section class="qw-fontes" aria-label="Fontes citadas"><b>Fontes citadas</b>${renderizar(sep.fontesTexto).html}</section>` : ''}
+  </div>`;
+}
+export function ligarPorCanal(raiz, sep, aviso = () => {}) {
+  raiz.querySelectorAll('[data-canal]').forEach(b => { b.onclick = () => {
+    raiz.querySelectorAll('[data-canal]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    raiz.querySelectorAll('[data-grupo]').forEach(g => g.classList.toggle('oculto', b.dataset.canal !== '*' && g.dataset.grupo !== b.dataset.canal));
+  }; });
+  raiz.querySelectorAll('[data-copiar-peca]').forEach(b => { b.onclick = async () => {
+    const [canal, i] = b.dataset.copiarPeca.split('|');
+    const it = sep.grupos.find(g => g.canal === canal)?.itens[Number(i)];
+    try { await navigator.clipboard.writeText(it?.texto || ''); aviso('Copiado.'); } catch { aviso('Não foi possível copiar. Selecione o texto e copie.'); }
+  }; });
+}
+
+// ---- Excluir Quick Win (modal próprio, sem alerta do navegador) ---------------------------------------------
+// Pede o nome do Quick Win para confirmar. Resolve true só quando a pessoa confirma.
+export function confirmarExclusao(qw) {
+  return new Promise(resolve => {
+    const anterior = document.activeElement;
+    const fundo = document.createElement('div');
+    fundo.className = 'modal-fundo';
+    fundo.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="excluir-titulo" aria-describedby="excluir-texto">
+      <h2 id="excluir-titulo">Excluir este Quick Win?</h2>
+      <p id="excluir-texto">Esta ação remove o Quick Win do catálogo da empresa. As execuções anteriores e seus registros continuam preservados.</p>
+      <label class="legenda" for="excluir-nome">Para confirmar, digite o nome: <b>${esc(qw.nome)}</b></label>
+      <input class="entrada" id="excluir-nome" autocomplete="off" spellcheck="false">
+      <div class="modal-acoes"><button type="button" class="btn btn-texto" data-cancelar>Cancelar</button>
+        <button type="button" class="btn btn-perigo" data-confirmar disabled>Excluir Quick Win</button></div></div>`;
+    document.body.appendChild(fundo);
+    const campo = fundo.querySelector('#excluir-nome'), ok = fundo.querySelector('[data-confirmar]');
+    const igual = () => campo.value.trim().toLowerCase() === String(qw.nome).trim().toLowerCase();
+    const fechar = v => { fundo.remove(); document.removeEventListener('keydown', tecla, true); anterior?.focus?.(); resolve(v); };
+    const tecla = ev => {
+      if (ev.key === 'Escape') { ev.preventDefault(); fechar(false); }
+      if (ev.key === 'Tab') {   // foco preso no modal
+        const f = [...fundo.querySelectorAll('input, button:not([disabled])')];
+        if (ev.shiftKey && document.activeElement === f[0]) { ev.preventDefault(); f.at(-1).focus(); }
+        else if (!ev.shiftKey && document.activeElement === f.at(-1)) { ev.preventDefault(); f[0].focus(); }
+      }
+    };
+    document.addEventListener('keydown', tecla, true);
+    campo.oninput = () => { ok.disabled = !igual(); };
+    campo.onkeydown = ev => { if (ev.key === 'Enter' && igual()) fechar(true); };
+    fundo.querySelector('[data-cancelar]').onclick = () => fechar(false);
+    ok.onclick = () => igual() && fechar(true);
+    fundo.onclick = ev => { if (ev.target === fundo) fechar(false); };
+    campo.focus();
+  });
 }

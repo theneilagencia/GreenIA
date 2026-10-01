@@ -72,7 +72,7 @@ create table if not exists quick_wins (
   problema text not null default '', objetivo text not null default '', processo_atual text not null default '', resultado text not null default '',
   responsavel_id integer references pessoas(id) on delete set null,
   criado_por integer, criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')),
-  especificacao text, versao_publicada integer);
+  especificacao text, versao_publicada integer, excluido_em text, excluido_por integer);
 -- Versões publicadas de um Quick Win 2.0: o que as pessoas usam. O rascunho fica em quick_wins.especificacao.
 -- Só o trabalho é versionado; áreas, regras de dados, sigilo e bases valem na hora (governança).
 create table if not exists quick_win_versoes (
@@ -271,6 +271,13 @@ const MIGRACOES = [
     if (!tem('quick_wins', 'especificacao')) db.exec('alter table quick_wins add column especificacao text');
     if (!tem('quick_wins', 'versao_publicada')) db.exec('alter table quick_wins add column versao_publicada integer');
     if (!tem('roteamento', 'qualidade')) db.exec('alter table roteamento add column qualidade text');
+  },
+  // 13. Exclusão de Quick Win sem perder histórico (soft delete): versões, medições, decisões, arquivos, conversas
+  //     e eventos continuam; o Quick Win só sai do catálogo da empresa. Só acrescenta colunas.
+  db => {
+    const tem = (t, c) => db.prepare(`pragma table_info(${t})`).all().some(x => x.name === c);
+    if (!tem('quick_wins', 'excluido_em')) db.exec('alter table quick_wins add column excluido_em text');
+    if (!tem('quick_wins', 'excluido_por')) db.exec('alter table quick_wins add column excluido_por integer');
   },
 ];
 

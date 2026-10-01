@@ -147,7 +147,10 @@ test('blacklist: cada entrada do código está documentada no registro, e cada l
 
 test('as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor', () => {
   const PROIBIDO = [
-    /garant\w*\s+(?:o\s+)?compliance/i, /compliance\s+garantid/i, /100\s*%\s+(?:em\s+)?compliance/i, /\bLGPD\b/i,
+    /garant\w*\s+(?:o\s+)?compliance/i, /compliance\s+garantid/i, /100\s*%\s+(?:em\s+)?compliance/i,
+    // LGPD: menção objetiva, sem absoluto. Conformidade, adequação ou certificação atribuídas à GreenIA reprovam.
+    /100\s*%[^.]{0,20}LGPD/i, /conformidade\s+com\s+a\s+LGPD/i, /(?:adequad|aderente|certificad|homologad|compat[íi]vel)\w*\s+(?:à|a|com\s+a)\s+LGPD/i,
+    /LGPD\s+(?:garantid|assegurad|complet|total)/i, /garant\w*[^.]{0,40}\bLGPD\b|\bLGPD\b[^.]{0,40}garant/i, /cumpre\s+a\s+LGPD/i,
     /prote[çc][ãa]o garantida/i, /todos os modelos\s+(?:t[êe]m|tem)\s+reten/i, /nenhum modelo usa/i,
     /bloqueamos (?:seus )?dados/i, /modelos? homologad/i, /openrouter/i, /processad\w* sempre com seguran[çc]a/i,
     /\bCPF\b[^.]{0,40}\b(?:sempre )?bloquead/i,
@@ -155,6 +158,8 @@ test('as páginas não fazem promessa jurídica, não generalizam garantias e n�
   for (const p of PAGINAS) {
     const t = semTags(ler(p));
     for (const re of PROIBIDO) assert.doesNotMatch(t, re, `${p}: ${re}`);
+    // Toda frase com LGPD fala dos controles que apoiam a empresa, nunca de conformidade da GreenIA.
+    for (const f of t.split(/(?<=[.!?])\s+/).filter(x => /\bLGPD\b/.test(x))) assert.match(f, /apoiam/, `${p}: LGPD fora da formulação de apoio: "${f}"`);
   }
   // O conceito aprovado e a responsabilidade da empresa estão na página de vendas.
   const v = semTags(ler('public/vendas.html'));

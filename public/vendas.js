@@ -1,12 +1,8 @@
-// Página de vendas: formulário de contato e plano escolhido nos botões.
+// Página de vendas: formulário de contato.
 import '/surgir.js';
 
 const $ = id => document.getElementById(id);
 const form = $('form-contato');
-
-for (const a of document.querySelectorAll('[data-plano]')) a.addEventListener('click', () => {
-  if (!$('c-msg').value) $('c-msg').value = `Tenho interesse no plano GreenIA ${a.dataset.plano}.`;
-});
 
 form.addEventListener('submit', async ev => {
   ev.preventDefault();
@@ -26,7 +22,7 @@ form.addEventListener('submit', async ev => {
   }
 });
 
-// 2.0 Políticas de IA: parallax discreto na foto (até 14 px), só com movimento liberado.
+// Controle e confidencialidade: parallax discreto na foto (até 14 px), só com movimento liberado.
 const cena = document.querySelector('.l-cena-foto');
 if (cena && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
   let pedido = 0;

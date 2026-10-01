@@ -14,16 +14,22 @@ const lead = { nome: 'Ana Souza', email: 'ana@cliente.com.br', empresa: 'Cliente
 
 test('a raiz abre a página de vendas só com PAGINA_INICIAL=vendas', async () => {
   const v = await (await fetch(`${V.base}/`)).text();
-  assert.match(v, /A infraestrutura de IA da sua empresa/);
-  assert.match(v, /US\$ 750/);
+  assert.match(v, /IA para a empresa inteira, com regras, sigilo e custo sob controle/);
   const c = await (await fetch(`${C.base}/`)).text();
-  assert.doesNotMatch(c, /A infraestrutura de IA da sua empresa/);
+  assert.doesNotMatch(c, /IA para a empresa inteira, com regras, sigilo e custo sob controle/);
   assert.equal((await fetch(`${C.base}/vendas.html`, { redirect: 'manual' })).status, 302);
   assert.equal((await contato(C, lead)).status, 404);
 });
 
 test('a página não promete o que não existe nem mostra custo de fornecedor', async () => {
   const v = await (await fetch(`${V.base}/`)).text();
+  // Venda consultiva: sem preço, sem plano com valor e sem cadastro autônomo; o CTA principal é a apresentação.
+  assert.doesNotMatch(v, /US\$|R\$|por mês<\/span>|data-plano|Criar conta|Cadastre-se|Teste grátis/i);
+  assert.match(v, /href="#contato">Agendar apresentação</);
+  // Prumo Discovery: convite, nunca requisito.
+  assert.match(v, /href="https:\/\/theneil\.com\.br\/prumo-discovery-lp\.html"/);
+  assert.match(v, /A GreenIA funciona com ou sem o Prumo/);
+  assert.doesNotMatch(v, /(?:exige|requer|precisa d[eo]|obrigat[óo]ri\w*|só funciona com)[^.<]{0,40}Prumo|Prumo[^.<]{0,40}(?:obrigat[óo]ri|exigid|requisito)/i);
   for (const proibido of [/\bSSO\b/, /\bSCIM\b/, /\bSLA\b/, /0,01/, /por token/i, /OpenRouter/]) assert.doesNotMatch(v, proibido);
   // Títulos sem ponto final.
   for (const [, t] of v.matchAll(/<h[123][^>]*>([^<]+)<\/h[123]>/g)) assert.doesNotMatch(t.trim(), /\.$/, t);

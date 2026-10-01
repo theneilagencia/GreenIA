@@ -7,34 +7,35 @@
 > - **[DADO DA THENEIL]**: depende da identificação legal (Etapa 6).
 >
 > Nenhuma base legal, papel jurídico ou prazo foi preenchido por inferência.
+>
+> **Correspondência com a produção:** este texto descreve a versão da GreenIA que inclui a governança de acesso da
+> equipe de operação, a consolidação do WAL e a política de retenção (Etapas 1 a 3), ainda **não publicada em
+> produção** (produção em `227fd36` em 2026-10-01). O documento só pode ser publicado junto com o deploy dessa versão.
 
-Versão: [PENDÊNCIA JURÍDICA: número] · Vigência: [PENDÊNCIA JURÍDICA: data]
+Versão: rascunho 0.2, de 1º de outubro de 2026 · Vigência: [PENDÊNCIA JURÍDICA: data de publicação]
 
 ## 1. Quem somos e como falar conosco
 
-A GreenIA é operada por:
-- **Razão social:** [DADO DA THENEIL: razão social]
-- **CNPJ:** [DADO DA THENEIL: CNPJ]
-- **Sede:** [DADO DA THENEIL: endereço]
-
-Contato de privacidade:
-- **Email:** [DADO DA THENEIL: email de privacidade]
-- **Encarregado (DPO):** [PENDÊNCIA JURÍDICA: indicação de encarregado e forma de contato].
+A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA** ("TheNeil", "nós"), pessoa jurídica de direito privado:
+- **CNPJ:** 37.749.373/0001-70
+- **Sede:** Rua G, nº 277, Montserrat, Betim/MG
+- **Contato:** hello@theneil.com.br · www.theneil.com.br
+- **Canal de privacidade e de atendimento aos titulares:** [DADO DA THENEIL: confirmar se é hello@theneil.com.br ou um canal próprio]
+- **Encarregado (DPO):** pendente de definição.
 
 Neste documento:
-- "nós" e "TheNeil": a operadora da GreenIA;
-- "empresa cliente": quem contrata a GreenIA;
-- "usuário": a pessoa autorizada pela empresa cliente a usar o ambiente.
+- **"Cliente":** a empresa que contrata a GreenIA;
+- **"usuário":** a pessoa autorizada pelo Cliente a usar o ambiente.
 
 ## 2. A quem esta Política se aplica
 
 - **Usuários** dos ambientes das empresas clientes, inclusive os administradores.
 - **Pessoas cujos dados aparecem no conteúdo** que os usuários inserem (por exemplo, clientes ou colaboradores da
-  empresa cliente citados numa conversa ou num documento).
+  Cliente citados numa conversa ou num documento).
 - **Visitantes** da página de vendas da GreenIA e quem envia o formulário de contato.
 - **Equipe de operação** da TheNeil, quanto aos registros de acesso.
 
-A empresa cliente pode ter sua própria política de privacidade e sua política de uso de IA (disponível dentro do
+O Cliente pode ter sua própria política de privacidade e sua política de uso de IA (disponível dentro do
 ambiente, em "Política de uso de IA"), que valem em conjunto com esta.
 
 ## 3. Papéis no tratamento de dados
@@ -44,16 +45,16 @@ uma resposta onde a técnica não basta.
 
 | Tratamento | Finalidade | Quem define a finalidade | Papel provável | Pendência |
 |---|---|---|---|---|
-| Conteúdo inserido no ambiente (mensagens, anexos, documentos, quick wins, respostas) | Uso da IA pela empresa cliente | Empresa cliente | Empresa cliente: controladora. TheNeil: operadora | [PENDÊNCIA JURÍDICA: confirmar e formalizar em acordo de tratamento (DPA)] |
-| Configurações do ambiente (regras de dados, política de uso, papéis, retenção) | Governança do uso pela empresa cliente | Empresa cliente | Idem | Idem |
-| Contas dos usuários (email, nome, papel, vínculo) e autenticação | Dar acesso ao ambiente da empresa cliente e proteger a plataforma | Empresa cliente (quem entra) e TheNeil (como a autenticação funciona) | Misto: operadora para o acesso; possível controladora para a segurança da plataforma | [PENDÊNCIA JURÍDICA] |
-| Registros de consumo (créditos por área, pessoa e quick win) | Controle de uso pela empresa cliente; cobrança pela TheNeil | Ambas | Misto | [PENDÊNCIA JURÍDICA] |
-| Eventos de atividade do ambiente | Prestação de contas à empresa cliente (tela "Atividade") | Empresa cliente | Operadora | [PENDÊNCIA JURÍDICA] |
+| Conteúdo inserido no ambiente (mensagens, anexos, documentos, quick wins, respostas) | Uso da IA pelo Cliente | Cliente | Cliente: controlador. TheNeil: operadora | [PENDÊNCIA JURÍDICA: confirmar e formalizar em acordo de tratamento (DPA)] |
+| Configurações do ambiente (regras de dados, política de uso, papéis, retenção) | Governança do uso pelo Cliente | Cliente | Idem | Idem |
+| Contas dos usuários (email, nome, papel, vínculo) e autenticação | Dar acesso ao ambiente do Cliente e proteger a plataforma | Cliente (quem entra) e TheNeil (como a autenticação funciona) | Misto: operadora para o acesso; possível controladora para a segurança da plataforma | [PENDÊNCIA JURÍDICA] |
+| Registros de consumo (créditos por área, pessoa e quick win) | Controle de uso pelo Cliente; cobrança pela TheNeil | Ambas | Misto | [PENDÊNCIA JURÍDICA] |
+| Eventos de atividade do ambiente | Prestação de contas ao Cliente (tela "Atividade") | Cliente | Operadora | [PENDÊNCIA JURÍDICA] |
 | Auditoria da plataforma (alterações administrativas, IP e navegador de quem agiu) | Segurança e prestação de contas da plataforma | TheNeil | Possível controladora | [PENDÊNCIA JURÍDICA] |
-| Acessos e exportações da equipe de operação | Segurança, transparência e responsabilização da operação | TheNeil (e visível para a empresa cliente) | Possível controladora | [PENDÊNCIA JURÍDICA] |
+| Acessos e exportações da equipe de operação | Segurança, transparência e responsabilização da operação | TheNeil (e visível para o Cliente) | Possível controladora | [PENDÊNCIA JURÍDICA] |
 | Formulário de contato da página de vendas | Atendimento comercial | TheNeil | Controladora | [PENDÊNCIA JURÍDICA: confirmar] |
 | Logs técnicos do servidor e do provedor | Operação, diagnóstico e segurança | TheNeil | Possível controladora | [PENDÊNCIA JURÍDICA] |
-| Relatos de problema ("Reportar problema") | Suporte interno da empresa cliente | Empresa cliente | Operadora | [PENDÊNCIA JURÍDICA] |
+| Relatos de problema ("Reportar problema") | Suporte interno do Cliente | Cliente | Operadora | [PENDÊNCIA JURÍDICA] |
 
 ## 4. Que dados tratamos
 
@@ -62,7 +63,7 @@ uma resposta onde a técnica não basta.
 | Categoria | Exemplos | Onde fica | Armazenado? | Enviado a terceiros? |
 |---|---|---|---|---|
 | Conta | Email, nome (quando informado), empresa, papel e permissões, status | Banco da plataforma e banco da empresa | Sim | Email: só ao serviço de email, para enviar códigos e avisos |
-| Domínios autorizados | Domínios de email da empresa cliente | Banco da empresa | Sim | Não |
+| Domínios autorizados | Domínios de email do Cliente | Banco da empresa | Sim | Não |
 | Autenticação | Código de acesso (guardado só como hash), sessões (só hash do token), cookies de sessão | Banco da plataforma; navegador | Sim (código vale 10 min, sessão até 12 h; acesso da equipe de operação até 60 min) | O código vai por email |
 | Conversas e prompts | Mensagens dos usuários | Banco da empresa | Sim, pelo prazo de retenção da empresa, salvo tipos de dado marcados para não guardar | Sim, ao recurso de IA (seção 6) |
 | Respostas | Texto gerado pela IA | Banco da empresa | Sim (mesma regra) | Não |
@@ -83,7 +84,7 @@ uma resposta onde a técnica não basta.
 
 ### 4.2 Dados processados sem ficar guardados
 
-A empresa cliente pode marcar tipos de dado como "processar sem guardar". A mensagem que os contém, os anexos e a
+O Cliente pode marcar tipos de dado como "processar sem guardar". A mensagem que os contém, os anexos e a
 resposta são processados e enviados à IA, mas não entram no histórico nem no banco.
 
 ### 4.3 Dados bloqueados antes do envio
@@ -101,7 +102,7 @@ identificados e sem o texto.
 - marcação de confidencial;
 - senhas e chaves de acesso.
 
-5.2. Para cada tipo, a empresa cliente escolhe: processar normalmente, só com proteção ou não enviar. Senhas e chaves
+5.2. Para cada tipo, o Cliente escolhe: processar normalmente, só com proteção ou não enviar. Senhas e chaves
 de acesso reconhecidas são sempre bloqueadas, inclusive em documentos da base, arquivos de quick win e no histórico da
 conversa.
 
@@ -111,7 +112,7 @@ conversa.
 - formatos fora dos padrões (por exemplo, CPF com espaços ou PIX por telefone) podem não ser reconhecidos.
 
 5.4. **Informações sigilosas:**
-- Com a opção de sigilo ligada pela empresa cliente, a conversa sigilosa só usa recursos de IA autorizados para esse
+- Com a opção de sigilo ligada pelo Cliente, a conversa sigilosa só usa recursos de IA autorizados para esse
   fim; se não houver, nada é enviado.
 - Com a opção desligada (padrão), o conteúdo sigiloso não é enviado.
 
@@ -125,14 +126,14 @@ de diversos fabricantes. O pedido é composto por:
 - as instruções do quick win;
 - os trechos de documentos usados.
 
-Os fabricantes envolvidos dependem dos modelos que cada empresa cliente libera.
+Os fabricantes envolvidos dependem dos modelos que cado Cliente libera.
 
 6.2. Antes do envio, valem as regras da seção 5.
 
 6.3. **Filtro "sem coleta":** por padrão, toda chamada pede ao OpenRouter que use só fornecedores que ele classifica
 como não coletando os dados, segundo as políticas que esses fornecedores informam. Esse filtro depende de informação
 declarada e disponibilizada pelos fornecedores. **Não é uma verificação independente da GreenIA nem uma garantia
-contratual.** O administrador da empresa cliente pode desligá-lo.
+contratual.** O administrador do Cliente pode desligá-lo.
 
 6.4. Para informações sigilosas, a GreenIA só usa rotas autorizadas cujos atributos declarados (por exemplo, retenção
 zero e ausência de uso para treino) atendem aos requisitos, com o fornecedor fixado. Esses atributos são declarados
@@ -150,32 +151,32 @@ cópias diárias do disco feitas pelo provedor.
 JURÍDICA: localização dos fornecedores conforme documentação deles; não foi comprovada nesta auditoria.]
 
 7.3. **Há, portanto, transferência internacional de dados pessoais.** [PENDÊNCIA JURÍDICA: mecanismo aplicável à
-transferência internacional, cláusulas ou documentos necessários e eventual DPA com a empresa cliente e com os
+transferência internacional, cláusulas ou documentos necessários e eventual DPA com o Cliente e com os
 fornecedores.]
 
 ## 8. Quem pode ver as conversas
 
 - **Colegas:** um usuário não vê as conversas de outro.
-- **Administradores da empresa cliente:** nenhuma tela da GreenIA mostra a eles o conteúdo das conversas dos usuários;
+- **Administradores do Cliente:** nenhuma tela da GreenIA mostra a eles o conteúdo das conversas dos usuários;
   as telas de administração mostram dados de uso.
 - **Equipe de operação, pela interface:** entra com o perfil de administrador, que também não mostra o conteúdo das
   conversas.
 - **Exportação:** a exportação completa do banco do ambiente (seção 12) contém as conversas.
 - **Acesso técnico:** o acesso à infraestrutura alcança o banco.
-- **Relatos de problema:** o texto escrito em "Reportar problema" aparece para os administradores da empresa cliente e é
+- **Relatos de problema:** o texto escrito em "Reportar problema" aparece para os administradores do Cliente e é
   enviado a eles por email. Não escreva informação sigilosa nesse campo.
 
 ## 9. Acesso da equipe de operação
 
-9.1. **Acesso operacional.** Para suporte, solicitação da empresa cliente, incidente ou outro motivo, a equipe de operação
+9.1. **Acesso operacional.** Para suporte, solicitação do Cliente, incidente ou outro motivo, a equipe de operação
 pode entrar no ambiente pelo console da plataforma:
 - **Motivo:** só com um tipo (suporte, solicitação do cliente, incidente ou outro) e uma justificativa por escrito.
 - **Prazo:** o acesso dura no máximo 60 minutos.
-- **Registro e visibilidade:** fica registrado e aparece na hora para a empresa cliente em "Acessos da equipe de
+- **Registro e visibilidade:** fica registrado e aparece na hora para o Cliente em "Acessos da equipe de
   operação", com operador, tipo, justificativa, início, fim, duração e status.
 - **Aviso:** os administradores recebem aviso por email, quando o envio está disponível.
-- **Encerramento:** um administrador da empresa cliente pode encerrar o acesso a qualquer momento.
-- **Sem aprovação prévia:** o acesso operacional **não depende, hoje, de aprovação prévia da empresa cliente**.
+- **Encerramento:** um administrador do Cliente pode encerrar o acesso a qualquer momento.
+- **Sem aprovação prévia:** o acesso operacional **não depende, hoje, de aprovação prévia do Cliente**.
 
 9.2. **Exportação.** A equipe de operação pode exportar uma cópia completa do banco do ambiente, com tipo e justificativa
 registrados. Cada exportação aparece na mesma tela e gera aviso. Também não depende de aprovação prévia.
@@ -190,7 +191,7 @@ futura.
 
 ### 10.1 Conteúdo no ambiente ativo
 
-- As conversas ficam guardadas pelo prazo de retenção que a empresa cliente define (de 1 a 3.650 dias sem atividade;
+- As conversas ficam guardadas pelo prazo de retenção que o Cliente define (de 1 a 3.650 dias sem atividade;
   padrão de 90 dias) e são apagadas automaticamente depois disso.
 - O usuário pode apagar as próprias conversas a qualquer momento.
 - Documentos e quick wins ficam até serem removidos.
@@ -199,6 +200,11 @@ futura.
 
 ### 10.2 Cópias de segurança
 
+> **Situação:** política técnica implementada, **ainda não ativada em produção**. Os prazos abaixo passam a valer a
+> partir da ativação da limpeza no deploy controlado [PENDÊNCIA DE GOVERNANÇA: data de ativação]. Até lá, a cópia diária
+> do disco feita pelo provedor (7 dias) e a rotação dos backups automáticos (7 cópias por banco) já funcionam; a
+> eliminação por idade, a de backups manuais e a da cópia de ambiente excluído ainda não.
+
 | Camada | Prazo da camada |
 |---|---|
 | Backup automático diário | Até 7 dias |
@@ -206,7 +212,7 @@ futura.
 | Backup manual de manutenção | 30 dias desde a criação |
 | Cópia de recuperação de ambiente excluído | 30 dias desde a exclusão |
 
-As cópias do provedor incluem os backups locais. No pior caso operacional, um dado excluído pode permanecer:
+As cópias do provedor incluem os backups locais. Com a limpeza ativa, no pior caso operacional, um dado excluído pode permanecer:
 - até **15 dias** nas cópias diárias;
 - até **38 dias** em backup manual ou na cópia de recuperação de um ambiente excluído.
 
@@ -238,21 +244,21 @@ para segurança, operação e cumprimento de obrigações". Esta Política não 
 
 ## 11. Suspensão, cancelamento e exclusão definitiva
 
-- **Suspensão:** ninguém da empresa cliente entra no ambiente, as sessões são encerradas e os dados continuam guardados.
+- **Suspensão:** ninguém do Cliente entra no ambiente, as sessões são encerradas e os dados continuam guardados.
 - **Cancelamento:** o ambiente é encerrado para os usuários, e os dados continuam guardados até a exclusão definitiva.
   [PENDÊNCIA DE GOVERNANÇA / JURÍDICA: prazo entre o cancelamento e a exclusão definitiva. Hoje não há prazo
   automático.]
 - **Exclusão definitiva:** feita pela TheNeil depois do cancelamento, com confirmação. A plataforma guarda uma cópia de
-  recuperação por 30 dias e depois a elimina, salvo preservação (10.3). As cópias diárias seguem a seção 10.2.
+  recuperação e a elimina 30 dias depois, salvo preservação (10.3), a partir da ativação da limpeza em produção (10.2). As cópias diárias seguem a seção 10.2.
 
-[PENDÊNCIA JURÍDICA: devolução dos dados à empresa cliente no encerramento.]
+[PENDÊNCIA JURÍDICA: devolução dos dados ao Cliente no encerramento.]
 
 ## 12. Exportações
 
 - **Quem exporta:** a exportação completa do banco de um ambiente é feita pela equipe de operação, com tipo e
   justificativa.
 - **Registro:** cada exportação, com sucesso ou falha, aparece em "Acessos da equipe de operação" e gera aviso aos
-  administradores da empresa cliente.
+  administradores do Cliente.
 - **Fora do servidor:** o arquivo exportado deixa o servidor e não segue a política de retenção da seção 10. A guarda e a
   eliminação ficam sob a responsabilidade de quem o recebeu. [PENDÊNCIA DE GOVERNANÇA: política própria de guarda,
   entrega e eliminação de arquivos exportados.]
@@ -264,11 +270,11 @@ A GreenIA envia emails para:
 - convites;
 - avisos de consumo (80% e esgotamento);
 - avisos de acesso e exportação pela equipe de operação;
-- relatos de problema (aos administradores da empresa cliente);
+- relatos de problema (aos administradores do Cliente);
 - contatos comerciais (aos administradores da plataforma);
 - avisos administrativos da plataforma.
 
-O envio usa o servidor de email da plataforma ou, se a empresa cliente configurar, o servidor de email da própria
+O envio usa o servidor de email da plataforma ou, se o Cliente configurar, o servidor de email da própria
 empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plataforma (marca branca).
 
 [PENDÊNCIA: identificar o provedor real do servidor de email da plataforma em produção; não foi comprovado nesta auditoria.]
@@ -291,8 +297,8 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 
 | Tratamento | Finalidade | Base legal provável (proposta) | Confirmação jurídica |
 |---|---|---|---|
-| Conteúdo no ambiente | Uso da IA pela empresa cliente | Definida pela empresa cliente, como controladora | Necessária |
-| Contas e autenticação | Execução do contrato com a empresa cliente; segurança | Execução de contrato / legítimo interesse | Necessária |
+| Conteúdo no ambiente | Uso da IA pelo Cliente | Definida pelo Cliente, como controlador | Necessária |
+| Contas e autenticação | Execução do contrato com o Cliente; segurança | Execução de contrato / legítimo interesse | Necessária |
 | Consumo e cobrança | Controle de uso e faturamento | Execução de contrato | Necessária |
 | Auditoria e acessos da operação | Segurança e prestação de contas | Legítimo interesse / cumprimento de obrigação | Necessária |
 | Logs técnicos | Operação e segurança | Legítimo interesse | Necessária |
@@ -308,8 +314,8 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 - informação sobre compartilhamento;
 - revisão de decisões automatizadas, quando aplicável.
 
-16.2. **Quando o dado está no ambiente de uma empresa cliente** (por exemplo, conversas e documentos), a empresa
-cliente decide sobre esse tratamento, e o pedido deve ser dirigido a ela. A TheNeil apoia a empresa cliente conforme o
+16.2. **Quando o dado está no ambiente de umo Cliente** (por exemplo, conversas e documentos), a empresa
+cliente decide sobre esse tratamento, e o pedido deve ser dirigido a ela. A TheNeil apoia o Cliente conforme o
 contrato. [PENDÊNCIA JURÍDICA: confirmar este encaminhamento.]
 
 16.3. **Canal e procedimento:**
@@ -338,9 +344,9 @@ Esses controles reduzem riscos. **Nenhum sistema está livre de incidentes**, e 
 ## 18. Incidentes
 
 Em caso de incidente de segurança que envolva dados pessoais, a TheNeil avalia o ocorrido, adota medidas de contenção
-e comunica a empresa cliente e, quando aplicável, a autoridade e os titulares.
+e comunica o Cliente e, quando aplicável, a autoridade e os titulares.
 
-[PENDÊNCIA JURÍDICA / OPERACIONAL: prazo de comunicação à empresa cliente, processo formal e responsabilidades.]
+[PENDÊNCIA JURÍDICA / OPERACIONAL: prazo de comunicação ao Cliente, processo formal e responsabilidades.]
 
 ## 19. Terceiros
 
@@ -350,10 +356,10 @@ Inventário de fornecedores confirmados:
 |---|---|---|---|---|
 | Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), comprovado no serviço | Executar e guardar a GreenIA |
 | OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | [PENDÊNCIA: não comprovada nesta auditoria] | Gerar respostas |
-| Fabricantes dos modelos liberados pela empresa cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | [PENDÊNCIA: depende do fabricante] | Gerar respostas |
+| Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | [PENDÊNCIA: depende do fabricante] | Gerar respostas |
 | Google Fonts | Fontes tipográficas carregadas pelas páginas | IP e navegador de quem abre a página | [PENDÊNCIA: não comprovada nesta auditoria] | Exibir as páginas |
 | Provedor de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | [PENDÊNCIA: provedor não identificado] | Enviar códigos e avisos |
-| Servidor de email da empresa cliente (opcional) | Envio dos emails do ambiente dela | Idem | Definido pela empresa cliente | Idem |
+| Servidor de email do Cliente (opcional) | Envio dos emails do ambiente dele | Idem | Definido pelo Cliente | Idem |
 
 A TheNeil não vende dados pessoais. [PENDÊNCIA JURÍDICA: confirmar esta afirmação comercial antes de publicar.]
 

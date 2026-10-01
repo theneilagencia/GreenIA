@@ -6,8 +6,9 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 
 | Item | Status | Impacto | Jurídico? | Produto? | Dado da TheNeil? |
 |---|---|---|---|---|---|
-| Identificação (razão social, CNPJ, endereço, contato) | Aberto | Bloqueia publicação dos dois documentos e do rodapé da LP | Não | Não | **Sim** |
-| Contato de privacidade e encarregado (DPO) | Aberto | Bloqueia publicação | Sim | Não | **Sim** |
+| Identificação (razão social, CNPJ, endereço, contato) | **Resolvido** em 2026-10-01: NEIL INOVAÇÃO E TECNOLOGIA LTDA, CNPJ 37.749.373/0001-70 (dígitos conferidos), sede na Rua G, nº 277, Montserrat, Betim/MG, hello@theneil.com.br, www.theneil.com.br (informados pela TheNeil) | — | Não | Não | — |
+| Canal de privacidade e de titulares | Aberto: confirmar se é hello@theneil.com.br ou um canal próprio | Bloqueia publicação | Não | Não | **Sim** |
+| Encarregado (DPO) | Pendente de definição (registrado assim na Política) | Bloqueia publicação | **Sim** | Não | **Sim** |
 | Controlador e operador por tratamento | Proposta (matriz na Política, seção 3) | Define obrigações de cada parte | **Sim** | Não | Não |
 | Acordo de tratamento de dados (DPA) com clientes | Aberto | Formaliza o papel de operadora | **Sim** | Não | Não |
 | Bases legais | Proposta (Política, seção 15) | Não publicar sem aprovação | **Sim** | Não | Não |
@@ -21,7 +22,7 @@ Acompanha `docs/legal/termos-de-uso.md` e `docs/legal/politica-de-privacidade.md
 | Exportações: política de guarda e eliminação fora do servidor; hipóteses de exportação sem pedido do cliente | Aberto | Arquivo exportado fica fora da retenção | Sim | Sim (processo) | Não |
 | Direitos dos titulares: canal, responsável, prazo, verificação de identidade | Aberto | Seção sem procedimento | **Sim** | Não | **Sim** (canal) |
 | "A TheNeil não vende dados pessoais" | A confirmar | Afirmação comercial | Sim | Não | Sim |
-| Ativação da limpeza em produção (`RETENCAO_APLICAR=1`) e classificação dos backups atuais | Aprovado, executa no deploy | **Os prazos de 15 e 38 dias só valem depois disso** | Não | **Sim** | Não |
+| Ativação da limpeza em produção (`RETENCAO_APLICAR=1`) e classificação dos backups atuais | Aprovado, executa no deploy. A Política diz "política técnica implementada, ainda não ativada em produção" | **Os prazos de 15 e 38 dias só valem depois disso** | Não | **Sim** | Não |
 | Antecedência e forma de aviso de alterações | Aberto | Alinhar Termos (26) e Política (21) | Sim | Não | Não |
 
 ## 2. Mapa de transferências
@@ -60,13 +61,13 @@ física de blocos.
 
 | # | Tipo | Onde | Proposta |
 |---|---|---|---|
-| 1 | **Conflito de termos** | Os Termos (cláusula 1) chamam a TheNeil de "Operadora". Na Política, "operadora" é o papel da LGPD | Nos Termos, usar "TheNeil" ou "Fornecedora" e reservar "operadora" ao sentido da LGPD |
-| 2 | Termos diferentes para o mesmo conceito | Termos: "Cliente", "Usuário", "Ambiente". Política: "empresa cliente", "usuário", "ambiente" | Unificar: "Cliente (empresa cliente)" nos dois, com a mesma definição |
-| 3 | Conflito de escopo | Termos 12.3: a TheNeil usa o Conteúdo "apenas para prestar o serviço". A Política mostra finalidades próprias (segurança, auditoria, cobrança) sobre registros, que não são Conteúdo | Manter 12.3 restrito ao Conteúdo e remeter os registros à Política |
-| 4 | Obrigação só na Política | Google Fonts aparece na Política (19) e não nos Termos (11.1) | Nos Termos, remeter à lista de fornecedores da Política |
-| 5 | Obrigação só na Política | Relatos de problema e contatos comerciais sem prazo (Política 10.5 e 14); os Termos 18.1 não citam os relatos | Incluir "relatos de problema" na lista de registros dos Termos 18.1 |
-| 6 | Duplicação | Acesso da equipe de operação descrito por completo nos dois (Termos 15; Política 9) | Aceitável por transparência; manter os dois textos idênticos nos pontos factuais |
-| 7 | Duplicação | Retenção e cópias (Termos 16; Política 10) | Nos Termos, versão curta com remissão à Política, para evitar divergência futura |
+| 1 | **Resolvido em 2026-10-01** (Termos usam "TheNeil") · Conflito de termos | Os Termos (cláusula 1) chamam a TheNeil de "Operadora". Na Política, "operadora" é o papel da LGPD | Nos Termos, usar "TheNeil" ou "Fornecedora" e reservar "operadora" ao sentido da LGPD |
+| 2 | **Resolvido** ("Cliente" nos dois) · Termos diferentes para o mesmo conceito | Termos: "Cliente", "Usuário", "Ambiente". Política: "empresa cliente", "usuário", "ambiente" | Unificar: "Cliente (empresa cliente)" nos dois, com a mesma definição |
+| 3 | **Resolvido** (Termos 12.3 citam as finalidades próprias) · Conflito de escopo | Termos 12.3: a TheNeil usa o Conteúdo "apenas para prestar o serviço". A Política mostra finalidades próprias (segurança, auditoria, cobrança) sobre registros, que não são Conteúdo | Manter 12.3 restrito ao Conteúdo e remeter os registros à Política |
+| 4 | **Mantido só na Política** (decisão de 2026-10-01) · Obrigação só na Política | Google Fonts aparece na Política (19) e não nos Termos (11.1) | Nos Termos, remeter à lista de fornecedores da Política |
+| 5 | **Resolvido** (Termos 18.1 e 22.2) · Obrigação só na Política | Relatos de problema e contatos comerciais sem prazo (Política 10.5 e 14); os Termos 18.1 não citam os relatos | Incluir "relatos de problema" na lista de registros dos Termos 18.1 |
+| 6 | **Resolvido** (resumo nos Termos 15) · Duplicação | Acesso da equipe de operação descrito por completo nos dois (Termos 15; Política 9) | Aceitável por transparência; manter os dois textos idênticos nos pontos factuais |
+| 7 | **Resolvido** (resumo nos Termos 16) · Duplicação | Retenção e cópias (Termos 16; Política 10) | Nos Termos, versão curta com remissão à Política, para evitar divergência futura |
 | 8 | Obrigação só nos Termos | Uso proibido e responsabilidade do Cliente pela base legal do conteúdo (Termos 7.3 e 20) | Na Política 16.2, remeter à responsabilidade da empresa cliente como controladora |
 | 9 | Pendência em comum | Aviso de alterações (Termos 26; Política 21) | Decidir uma regra única para os dois |
 | 10 | Pendência em comum | Prazo entre cancelamento e exclusão (Termos 17.3; Política 11) | Mesma decisão nos dois |
@@ -75,7 +76,7 @@ física de blocos.
 
 ## 5. Pontos que impedem a publicação
 
-1. Identificação legal da TheNeil e contato de privacidade (Etapa 6).
+1. Canal de privacidade e de titulares confirmado; encarregado definido (a identificação legal está preenchida).
 2. Papéis (controlador e operador), DPA e bases legais aprovados pelo jurídico.
 3. Mecanismo de transferência internacional.
 4. Prazos dos registros sem prazo, ou redação aprovada pelo jurídico.
@@ -85,4 +86,4 @@ física de blocos.
 8. Canal e procedimento de atendimento aos titulares.
 9. Limpeza de retenção ativa em produção (`RETENCAO_APLICAR=1`) com os backups atuais classificados. Sem isso, os
    prazos de 15 e 38 dias não se sustentam.
-10. Correção do conflito "Operadora" nos Termos (item 4.1).
+10. ~~Correção do conflito "Operadora" nos Termos~~ (resolvido).

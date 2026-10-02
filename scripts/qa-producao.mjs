@@ -33,7 +33,11 @@ const local = AUTOTESTE ? await (async () => {
   return { S, OR };
 })() : null;
 const BASE = (AUTOTESTE ? local.S.base : process.env.QA_BASE || 'https://greenia.theneil.com.br').replace(/\/$/, '');
-const CONTA = 'viniicus@apymine.com';
+const CONTA = process.env.QA_CONTA || 'vinicius@apymine.com';
+const EMPRESA = process.env.QA_EMPRESA || '';
+// QA_CODIGO_FIFO: o código de acesso chega por um canal local (FIFO) e vai direto para o campo da tela de login;
+// o script não o imprime, não o guarda e não o reutiliza. Nesse modo o navegador é sem janela.
+const FIFO = process.env.QA_CODIGO_FIFO || '';
 const RODADA = new Date().toISOString().replace(/[:.]/g, '-');
 const SAIDA = join(process.cwd(), 'qa-producao-saida', RODADA); mkdirSync(SAIDA, { recursive: true });
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -42,21 +46,70 @@ const R = { autoteste: AUTOTESTE, base: BASE, conta: CONTA, rodada: RODADA, inte
 const salvar = () => writeFileSync(join(SAIDA, 'relatorio.json'), JSON.stringify(R, null, 2));
 const log = (...a) => console.log(...a);
 
+// ---- sessão --------------------------------------------------------------------------------------------------
+// QA_MODO_API=1: sem navegador (onde o navegador não confia no certificado do proxy da rede). Mesmo fluxo da tela:
+// abre o endereço da empresa, pede o código, entra com ele e segue com a sessão só na memória deste processo.
+const MODO_API = process.env.QA_MODO_API === '1';
+let navegador = null, pagina = null, api, enviar;
+if (MODO_API) {
+  const jar = new Map(); let csrf = '';
+  const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36 GreenIA-QA';
+  const pedir = async (metodo, caminho, corpo, redirecionar = 'follow') => {
+    const r = await fetch(BASE + caminho, { method: metodo, redirect: redirecionar, headers: { 'user-agent': UA, ...(jar.size ? { cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') } : {}),
+      ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(metodo !== 'GET' && csrf ? { 'x-csrf': csrf } : {}) }, body: corpo !== undefined ? JSON.stringify(corpo) : undefined });
+    for (const sc of r.headers.getSetCookie?.() || []) { const [kv] = sc.split(';'); const i = kv.indexOf('='); const k = kv.slice(0, i), v = kv.slice(i + 1); if (v) jar.set(k, v); else jar.delete(k); }
+    return r;
+  };
+  const ciencia = async () => { const p = await (await pedir('GET', '/api/politica')).json(); await pedir('POST', '/api/politica/ciencia', { versao: p.versao }); };
+  api = async (metodo, caminho, corpo) => {
+    let r = await pedir(metodo, caminho, corpo); if (r.status === 428) { await ciencia(); r = await pedir(metodo, caminho, corpo); }
+    const t = await r.text(); let dados; try { dados = JSON.parse(t); } catch { dados = t; }
+    return { status: r.status, dados };
+  };
+  enviar = async (convId, corpo) => {
+    const t0 = performance.now(), linhas = [];
+    let r = await pedir('POST', `/api/conversas/${convId}/mensagens`, corpo); if (r.status === 428) { await ciencia(); r = await pedir('POST', `/api/conversas/${convId}/mensagens`, corpo); }
+    if (!r.headers.get('content-type')?.includes('ndjson')) return { status: r.status, erro: await r.text(), ms: performance.now() - t0 };
+    const dec = new TextDecoder(); let resto = '';
+    for await (const pedaco of r.body) { resto += dec.decode(pedaco, { stream: true }); const ls = resto.split('\n'); resto = ls.pop();
+      for (const l of ls) if (l.trim()) { try { linhas.push({ ms: performance.now() - t0, ...JSON.parse(l) }); } catch {} } }
+    return { status: r.status, linhas, ms: performance.now() - t0 };
+  };
+  if (EMPRESA) await pedir('GET', `/${EMPRESA}/entrar`, undefined, 'manual');
+  const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
+  if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status, (await c.text()).slice(0, 200)); process.exit(1); }
+  log('CODIGO_SOLICITADO');
+  const { readFileSync } = await import('node:fs');
+  const e = await pedir('POST', '/api/login/entrar', { email: CONTA, codigo: readFileSync(FIFO, 'utf8').trim() });   // bloqueia até o código chegar pelo canal local
+  const d = await e.json().catch(() => ({}));
+  if (e.status !== 200) { log('LOGIN_RECUSADO', e.status, String(d.mensagem || d.erro || '').slice(0, 200)); process.exit(1); }
+  csrf = d.csrf;
+  await ciencia().catch(() => {});
+} else {
 // ---- navegador com janela; a pessoa entra -------------------------------------------------------------------
-const opcoes = { headless: AUTOTESTE, ...(process.env.CHROMIUM && existsSync(process.env.CHROMIUM) ? { executablePath: process.env.CHROMIUM } : { channel: process.env.QA_CANAL || 'chrome' }) };
-const navegador = await chromium.launch(opcoes);
-const pagina = await (await navegador.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
-await pagina.goto(`${BASE}/entrar`);
+const opcoes = { headless: AUTOTESTE || !!FIFO, ...(process.env.CHROMIUM && existsSync(process.env.CHROMIUM) ? { executablePath: process.env.CHROMIUM } : { channel: process.env.QA_CANAL || 'chrome' }) };
+navegador = await chromium.launch(opcoes);
+pagina = await (await navegador.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
+await pagina.goto(EMPRESA ? `${BASE}/${EMPRESA}/entrar` : `${BASE}/entrar`);
 log(`\nLOGIN_QA_NECESSARIO — conta ${CONTA}: entre pela janela que abriu (o código vai para o seu e-mail).`);
 if (AUTOTESTE) { await pagina.fill('#email', CONTA); await pagina.click('#btn-email'); await pagina.waitForSelector('#codigo', { state: 'visible' });
   await pagina.fill('#codigo', /(\d{6})/.exec(local.S.app.email.enviados.filter(m => m.para === CONTA).at(-1).assunto)[1]); await pagina.click('#btn-codigo'); }
+if (FIFO) {
+  const { readFileSync } = await import('node:fs');
+  await pagina.fill('#email', CONTA); await pagina.click('#btn-email');
+  const ok = await pagina.waitForSelector('#codigo', { state: 'visible', timeout: 30e3 }).then(() => true).catch(() => false);
+  if (!ok) { log('CODIGO_NAO_SOLICITADO', (await pagina.textContent('body')).replace(/\s+/g, ' ').slice(0, 300)); await navegador?.close(); process.exit(1); }
+  log('CODIGO_SOLICITADO');
+  const codigo = readFileSync(FIFO, 'utf8').trim();   // bloqueia até o código chegar pelo canal local
+  await pagina.fill('#codigo', codigo); await pagina.click('#btn-codigo');
+}
 await pagina.waitForURL(/\/app(\b|#|\/|$)/, { timeout: 15 * 60e3 });
 // Ciência da política, se a tela pedir (é o fluxo normal da aplicação).
 const ciencia = await pagina.waitForSelector('#dar-ciencia', { timeout: 4000 }).catch(() => null);
 if (ciencia) await ciencia.click();
 
 // Chamada pela própria página: o cookie e o CSRF ficam no navegador e nunca voltam para o script.
-async function api(metodo, caminho, corpo) {
+api = async function (metodo, caminho, corpo) {
   return pagina.evaluate(async ({ metodo, caminho, corpo }) => {
     if (!window.__qaCsrf) window.__qaCsrf = (await (await fetch('/api/eu', { credentials: 'same-origin' })).json()).csrf;
     const ir = () => fetch(caminho, { method: metodo, credentials: 'same-origin', headers: { ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(metodo !== 'GET' ? { 'x-csrf': window.__qaCsrf } : {}) }, body: corpo !== undefined ? JSON.stringify(corpo) : undefined });
@@ -67,7 +120,7 @@ async function api(metodo, caminho, corpo) {
   }, { metodo, caminho, corpo });
 }
 // Envio de mensagem (resposta em linhas JSON), com o instante de cada etapa para medir coleta, produção e conferência.
-async function enviar(convId, corpo) {
+enviar = async function (convId, corpo) {
   return pagina.evaluate(async ({ convId, corpo }) => {
     const t0 = performance.now(), linhas = [];
     const ir = () => fetch(`/api/conversas/${convId}/mensagens`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf': window.__qaCsrf }, body: JSON.stringify(corpo) });
@@ -80,19 +133,20 @@ async function enviar(convId, corpo) {
     return { status: r.status, linhas, ms: performance.now() - t0 };
   }, { convId, corpo });
 }
+}
 
 const eu = (await api('GET', '/api/eu')).dados;
 log('LOGIN_QA_CONCLUIDO=true');
-R.login = { concluido: true, empresa: new URL(pagina.url()).pathname.split('/').filter(Boolean)[0] || null, admin: !!eu.pessoa?.admin, emailCorreto: norm(eu.pessoa?.email) === norm(CONTA) };
-if (!R.login.emailCorreto) { R.erros.push('a sessão aberta não é da conta autorizada'); salvar(); log('A conta logada não é a autorizada para o QA. Parando.'); await navegador.close(); process.exit(1); }
+R.login = { concluido: true, empresa: EMPRESA || (pagina ? new URL(pagina.url()).pathname.split('/').filter(Boolean)[0] : null) || null, admin: !!eu.pessoa?.admin, emailCorreto: norm(eu.pessoa?.email) === norm(CONTA) };
+if (!R.login.emailCorreto) { R.erros.push('a sessão aberta não é da conta autorizada'); salvar(); log('A conta logada não é a autorizada para o QA. Parando.'); await navegador?.close(); process.exit(1); }
 R.credencial = eu.iaConfigurada === true;
 log(`OPENROUTER_CREDENTIAL_CONFIGURED=${R.credencial}`);
-if (!R.credencial) { salvar(); log('A chave precisa ser configurada pela própria interface da GreenIA. Parando.'); await navegador.close(); process.exit(0); }
+if (!R.credencial) { salvar(); log('A chave precisa ser configurada pela própria interface da GreenIA. Parando.'); await navegador?.close(); process.exit(0); }
 
 // Área onde a conta pode criar (o Quick Win fica em rascunho, nunca publicado).
 const perm = eu.quickWins || {};
 const destino = perm.areas?.length ? { areas: [perm.areas[0].id] } : perm.todaEmpresa ? { toda_empresa: true } : null;
-if (!perm.criar || !destino) { R.erros.push('a conta não pode criar Quick Wins'); salvar(); log('A conta não pode criar Quick Wins. Parando.'); await navegador.close(); process.exit(1); }
+if (!perm.criar || !destino) { R.erros.push('a conta não pode criar Quick Wins'); salvar(); log('A conta não pode criar Quick Wins. Parando.'); await navegador?.close(); process.exit(1); }
 // Modelos de cada classe (configuração da empresa, só leitura; precisa de admin).
 const modelos = R.login.admin ? (await api('GET', '/api/admin/modelos')).dados?.config?.padroes : null;
 R.padroesClasse = modelos ? { rapido: modelos.rapido, equilibrado: modelos.equilibrado, avancado: modelos.avancado } : 'nao_observavel_sem_admin';
@@ -312,4 +366,4 @@ async function limpar() {
   }
   salvar();
 }
-async function sair() { await api('POST', '/api/sair', {}).catch(() => {}); await navegador.close(); if (local) { await local.S.fechar(); await local.OR.fechar(); } }
+async function sair() { await api('POST', '/api/sair', {}).catch(() => {}); await navegador?.close(); if (local) { await local.S.fechar(); await local.OR.fechar(); } }

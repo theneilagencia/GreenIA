@@ -21,7 +21,10 @@ import { criarOpenRouter, criarIndisponivel } from '../src/ia.js';
 import { json, um } from '../src/db.js';
 import { limparCacheInterpretacao } from '../src/quickwin-interpretacao.js';
 import { rotuloEntregavel, MARCADOR_PERGUNTA } from '../src/quickwin-operacao.js';
-import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha } from './qa-cenarios.mjs';
+import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha, SMOKE15, MATERIAIS_TEXTO, SURPRESA10 } from './qa-cenarios.mjs';
+// QA_PARTES=homologacao: só os 15 casos principais e os 10 surpresa (com as classes); padrão: tudo.
+const PARTES = (process.env.QA_PARTES || 'tudo').split(',');
+const roda = p => PARTES.includes('tudo') || PARTES.includes(p);
 
 const RODADA = new Date().toISOString().replace(/[:.]/g, '-');
 const SAIDA = join(process.cwd(), 'qa-candidato-saida', RODADA); mkdirSync(SAIDA, { recursive: true });
@@ -153,6 +156,62 @@ function avaliar(it, esp) {
   return { resultado: it.fonte === 'heuristica' ? 'FALLBACK' : f.length ? 'FAIL' : 'PASS', falhas: f };
 }
 
+// ---- Homologação: 15 casos principais e 10 surpresa, de ponta a ponta, com critério de pessoa leiga ------------
+// Reprova o caso se: canal que não foi pedido, estrutura genérica de social media, pedido de configuração técnica,
+// pergunta em caso normal (com material), resultado "inconsistente" (o "Ajustar Quick Win" da tela), invenção
+// apontada pela conferência, ou texto que só descreve o que faria.
+R.homologacao = { principais: [], surpresa: [] };
+const QUER_CANAL = /linkedin|instagram|facebook|tiktok|youtube|reels|blog|newsletter/i;
+function usabilidade(pedido, it, x, esperado, { vago = false } = {}) {
+  const op = it.operacao || {}, f = [];
+  if (!vago && !(op.entregaveis || []).length) f.push('plano sem entregáveis');
+  if ((op.entregaveis || []).some(e => e.canal) && !QUER_CANAL.test(pedido)) f.push('canal que não foi pedido');
+  if (/configur(e|ar) (o|a) (modelo|prompt|json)|ajuste o quick win|edite a configura/i.test(x.texto)) f.push('pede configuração técnica');
+  if (vago) { if (!x.pergunta && !(it.lacunas || op.lacunas || []).some(l => l.obrigatoria)) f.push('vago sem pergunta'); }
+  else {
+    if (x.pergunta) f.push('pergunta num caso com material');
+    if (x.status === 'inconsistente') f.push('inconsistente (pede ajustar e testar de novo)');
+    if (x.qualidade?.itens?.some(i => i.id === 'invencao' && i.conferido && !i.ok)) f.push('conferência aponta invenção');
+    if (/^\s*(vou|irei|posso|eu faria|o plano é)\b/i.test(x.texto)) f.push('só descreve o que faria');
+    if (esperado && !esperado.test(x.texto)) f.push('não usou o material');
+  }
+  return f;
+}
+const materialDe = chave => chave === 'contrato' ? { texto: 'Material anexo (fictício).', anexos: [arquivo('contrato-qa.docx', docx(CONTRATO))] }
+  : chave === 'propostas' ? { texto: 'Propostas anexas (fictícias).', anexos: PROPOSTAS.map((p, i) => arquivo(`proposta-qa-${i + 1}.docx`, docx(p))) }
+  : chave === 'planilha' ? { texto: 'Planilha anexa (fictícia).', anexos: [arquivo('custos-qa.xlsx', xlsx(planilha(), 'Custos'))] }
+  : chave === 'reuniao' ? { texto: TRANSCRICAO.join('\n') }
+  : chave === 'curriculos' ? { texto: 'Vaga (fictícia): planejador de manutenção. Requisitos: 4+ anos em planejamento, SAP PM, inglês intermediário.', anexos: CVS.map((c, i) => arquivo(`cv-qa-${i + 1}.docx`, docx(c))) }
+  : chave ? { texto: MATERIAIS_TEXTO[chave] } : { texto: 'Execute agora.' };
+if (roda('homologacao')) {
+  log('\n[H1] 15 casos principais');
+  for (const [id, pedido, material, esperado] of SMOKE15) {
+    try {
+      const it = await interpretar(pedido); const qw = await criar(pedido, it);
+      const x = await executar(qw.id, materialDe(material), `h_${id}`);
+      writeFileSync(join(SAIDA, `h-${id}.md`), x.texto);
+      const falhas = usabilidade(pedido, it, x, esperado, { vago: id.endsWith('vago') });
+      R.homologacao.principais.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], objetivo: x.qualidade?.objetivo || null,
+        entregaveis: x.qualidade?.entregaveis || null, fontes: x.fontes.length, modelos: x.modelos, ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
+      log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, `US$${x.custo.toFixed(4)}`, falhas.join('; ')); salvar();
+    } catch (e) { R.homologacao.principais.push({ id, erro: String(e.message) }); salvar(); }
+  }
+  log('\n[H2] 10 surpresa (motor congelado; material do "Exemplo pronto")');
+  for (const [id, pedido] of SURPRESA10) {
+    try {
+      const it = await interpretar(pedido); const qw = await criar(pedido, it);
+      rotulo = `h_${id}_exemplo`; const ex = (await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados; await esperar();
+      if (ex.modo !== 'texto') { R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, exemplo: ex.modo, utilizavel: false, falhas: [`exemplo pronto não gerou texto (${ex.modo})`] }); salvar(); continue; }
+      const x = await executar(qw.id, { texto: ex.texto }, `h_${id}`);
+      writeFileSync(join(SAIDA, `h-${id}.md`), `${ex.texto}\n\n---\n\n${x.texto}`);
+      const falhas = usabilidade(pedido, it, x, null);
+      R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
+      log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, falhas.join('; ')); salvar();
+    } catch (e) { R.homologacao.surpresa.push({ id, erro: String(e.message) }); salvar(); }
+  }
+}
+
+if (roda('tudo')) {
 log('\n[1] interpretação com IA real');
 for (const [id, pedido, esp] of BATERIA) {
   const it = await interpretar(pedido), a = avaliar(it, esp);
@@ -222,6 +281,7 @@ for (const [id, pedido, corpo] of [['sem_propostas', 'Compare os três fornecedo
 }
 
 // ---- classes de modelo (configuração da empresa fictícia; o Quick Win fixa a classe) ----------------------------
+}
 log('\n[5] classes');
 await ana.put('/api/admin/modelos-config', { acessoPerfis: { avancado: { todos: true, grupos: [], areas: [] } } });
 const padroes = (await ana.get('/api/admin/modelos')).dados.config.padroes;

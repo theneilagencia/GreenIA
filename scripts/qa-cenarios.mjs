@@ -66,3 +66,44 @@ export function planilha() {
     L.push([`L${String(i).padStart(3, '0')}`, `2026-09-${String(1 + (i % 28)).padStart(2, '0')}`, cats[i % 6], `CC-${100 + (i % 9)}`, p, [41, 77, 95, 109].includes(i) ? '' : r]); }
   return L;
 }
+
+// ---- Homologação do candidato: 15 casos principais (pedido, material fictício e o que um leigo precisa ver) -------
+export const SMOKE15 = [
+  ['01-contrato', 'Analise este contrato e destaque riscos, obrigações, prazos e multas.', 'contrato', /risco/i],
+  ['02-fornecedores', 'Compare três propostas de fornecedores considerando preço, prazo, escopo e risco.', 'propostas', /182\.000[\s\S]*158\.500|158\.500[\s\S]*182\.000/],
+  ['03-planilha', 'Analise esta planilha mensal e identifique desvios relevantes, maiores gastos e itens fora do padrão.', 'planilha', /L118/],
+  ['04-ata', 'Transforme esta reunião em ata, decisões e próximos passos.', 'reuniao', /TC-04|sábado/i],
+  ['05-relatorio', 'Prepare um relatório executivo mensal com principais fatos, riscos e decisões necessárias.', 'indicadores', /1,92/],
+  ['06-concorrentes', 'Pesquise os principais concorrentes de software de gestão documental para mineradoras no Brasil e monte uma matriz de posicionamento.', null, /\|.*\|/],
+  ['07-curriculos', 'Analise estes currículos e monte uma comparação objetiva com base nos requisitos da vaga.', 'curriculos', /Candidato A[\s\S]*Candidato B|Candidato B[\s\S]*Candidato A/],
+  ['08-reclamacoes', 'Analise estas reclamações de clientes e agrupe os principais motivos, frequência e prioridade.', 'reclamacoes', /atraso/i],
+  ['09-pendencias', 'Organize estas pendências operacionais e gere um plano de ação com prioridade e responsável.', 'pendencias', /Carla|Rafael/],
+  ['10-nao-conformidades', 'Analise estes registros de não conformidade e agrupe por causa, frequência e impacto.', 'nc', /EPI|treinamento/i],
+  ['11-checklist', 'Transforme este procedimento em um checklist operacional.', 'procedimento', /bloqueio|etiqueta/i],
+  ['12-apresentacao', 'Estruture uma apresentação executiva com problema, análise, recomendação e próximos passos.', 'indicadores', /recomend/i],
+  ['13-email', 'Transforme estas informações em um e-mail executivo curto e objetivo.', 'indicadores', /assunto/i],
+  ['14-social', 'Crie conteúdo para LinkedIn e Instagram com copy, carrossel e Reels.', 'tema', /LinkedIn[\s\S]*Instagram|Instagram[\s\S]*LinkedIn/],
+  ['15-vago', 'Melhore isso.', null, null],
+];
+export const MATERIAIS_TEXTO = {
+  reclamacoes: ['Reclamações de setembro (fictícias):', '1. Pedido 5531 chegou 10 dias atrasado.', '2. Produto veio com a embalagem danificada.', '3. Atraso de 7 dias, sem aviso.', '4. Cobrança em duplicidade no boleto.', '5. Atraso de 12 dias; atendente não soube informar.', '6. Embalagem rasgada, item riscado.'].join('\n'),
+  pendencias: ['Pendências (fictícias):', '- Comprar luvas para o almoxarifado — pedido da Carla, até sexta.', '- Revisar a escala do turno da noite — Rafael, sem prazo.', '- Trocar lâmpadas do galpão 2 — aguardando fornecedor.', '- Atualizar a planilha de estoque — Carla, até dia 15.'].join('\n'),
+  nc: ['Registros de não conformidade (fictícios):', 'NC-01: operador sem EPI na área de carga — impacto alto.', 'NC-02: checklist de empilhadeira não preenchido — causa: falta de treinamento.', 'NC-03: operador sem EPI no turno da noite — impacto alto.', 'NC-04: extintor vencido no galpão 3 — impacto médio.', 'NC-05: checklist não preenchido — causa: falta de treinamento.'].join('\n'),
+  procedimento: ['Procedimento (fictício) de manutenção na correia:', 'Antes de intervir, desligue a correia no painel, aplique o bloqueio com cadeado pessoal e coloque a etiqueta de "Não ligar".', 'Teste a partida para confirmar que está desenergizada. Faça a manutenção. Retire ferramentas, remova o bloqueio e avise o operador antes de religar.'].join(' '),
+  indicadores: ['Indicadores de setembro/2026 (fictícios):', 'Receita: R$ 1,92 mi (meta R$ 2,10 mi; agosto R$ 1,85 mi).', 'Chamados de suporte: 318 (agosto: 240); tempo médio 6,4 h (meta 4 h).', 'Projeto Norte QA: 3 semanas de atraso por falta de acesso ao ambiente do cliente.', 'Decisão pendente: contratar mais 2 analistas de suporte (R$ 28 mil/mês).'].join('\n'),
+  tema: 'Tema (fictício): lançamento do módulo de compliance documental da Empresa QA.',
+};
+// 10 pedidos surpresa da homologação do candidato: escritos com o motor congelado (351ce9e); o material de cada um é
+// o "Exemplo pronto" gerado pela própria GreenIA (o fluxo que reprovou em produção).
+export const SURPRESA10 = [
+  ['U01', 'Revise as cotações de frete recebidas e indique a transportadora mais vantajosa para cada rota.'],
+  ['U02', 'Identifique no relatório de estoque os itens abaixo do ponto de pedido e sugira a quantidade a comprar.'],
+  ['U03', 'Prepare a régua de cobrança para clientes com faturas vencidas há mais de 30 dias.'],
+  ['U04', 'Avalie as respostas da avaliação de reação do treinamento e aponte o que melhorar na próxima turma.'],
+  ['U05', 'Liste as ordens de serviço de facilities abertas há mais de 15 dias e agrupe por tipo de serviço.'],
+  ['U06', 'Compare o orçamento de marketing previsto com o gasto real do trimestre e explique os desvios.'],
+  ['U07', 'Resuma a ata do conselho e destaque as deliberações que dependem da diretoria.'],
+  ['U08', 'Verifique se as notas de entrega batem com os pedidos de compra e aponte as divergências.'],
+  ['U09', 'Classifique os chamados do atendimento por urgência e sugira uma resposta padrão para cada grupo.'],
+  ['U10', 'Analise o relatório de auditoria de qualidade e monte o plano de ação para cada achado.'],
+];

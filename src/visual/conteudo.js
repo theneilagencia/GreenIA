@@ -125,6 +125,8 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
       const ordenada = ordenada0 || numerada;
       // Introdução da lista ("Categorias de verificação:", sem valor depois dos dois-pontos) não é item: vira o
       // subtítulo do que vem a seguir, nunca uma caixa de marcar.
+      // "- Título: Etapas iniciais" dentro da lista também é cabeçalho do grupo seguinte, nunca texto do item.
+      for (const x of itens) { const m = TITULO_LINHA.exec(x.texto); if (m && x.marcado === null) x.texto = `${m[1].trim()}:`; }
       for (let k = 0; k < itens.length - 1; k++) if (/:\s*$/.test(itens[k].texto) && itens[k].marcado === null) {
         lista(itens.slice(0, k).filter(x => x.texto && !CTA.test(x.texto)), ordenada);
         add({ tipo: 'subtitulo', texto: itens[k].texto.replace(/:\s*$/, '') });

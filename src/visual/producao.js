@@ -52,6 +52,8 @@ export function secaoDaPeca(texto, rotulo, nPecas = 1) {
 
 // Pedido comparativo (tipo comparação, ou o trabalho compara/confronta itens) cuja peça não traz estrutura comparativa:
 // a matriz itens x critérios que o resultado tem (em outra seção) entra na peça. Comparação não fica implícita.
+// Formato que a pessoa pediu (e não só o que a interpretação escolheu): fica, mesmo que a peça precise de mais área.
+export const PEDE_FORMATO = /\b(16:9|4:3|1:1|4:5|9:16|1\.91:1|a4|a3|paisagem|retrato|quadrad[oa]|vertical|horizontal|stories|widescreen|tela cheia)\b/i;
 export const temComparacao = conteudo => conteudo.secoes.some(s => s.itens.some(i => i.comparacao));
 export function comComparacao(conteudo, { resposta, visual, espec }) {
   const comparativo = visual?.tipo === 'comparison' || /\bcompar|\bconfront|\bversus\b|\bmatriz\b/i.test(`${espec?.objetivo || ''} ${visual?.rotulo || ''}`);
@@ -193,7 +195,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const idioma = idiomaDe(resto);
     const exigidos = op.entregaveis.length === 1 ? (espec.invariantes?.entregaveis || []) : [];
     const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
-    let r = produzirSemCorte({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc }, { formatoPedido: !!visual.formato });
+    let r = produzirSemCorte({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc }, { formatoPedido: !!visual.formato && PEDE_FORMATO.test(`${espec?.objetivo || ''} ${qw?.descricao || ''}`) });
     // Diagrama sem formato pedido: a orientação da página segue o desenho (fluxo longo de cima para baixo cabe melhor
     // em pé). Fica a que permite o texto maior sem falha.
     if (!visual.formato && tr.foco === 'diagrama') {

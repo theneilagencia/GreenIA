@@ -124,7 +124,9 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
       if (!plano.multipagina && !opcoes.colunasTentadas) {
         opcoes.colunasTentadas = true;
         let melhor = null;
-        for (const k of [1, 2, 3].filter(x => x !== (opcoes.colunas || null))) {
+        // Página larga (tela, paisagem): até 4 colunas.
+        const grades = FORMATOS[plano.formato].w > FORMATOS[plano.formato].h * 1.3 ? [1, 2, 3, 4] : [1, 2, 3];
+        for (const k of grades.filter(x => x !== (opcoes.colunas || null))) {
           for (let e = teto; e > minEscala - 1e-9; e -= 0.05) {
             if (melhor && e <= melhor.e) break;
             const t = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, colunas: k, escala: e } });

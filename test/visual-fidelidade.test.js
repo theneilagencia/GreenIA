@@ -199,3 +199,24 @@ test('13. cronograma: fase, período e descrição de todas as fases, em ordem',
   for (const [f, p, d] of fases) { const i = txt.indexOf(norm(f)); assert.ok(i > pos, `${f} fora de ordem ou ausente`); pos = i; assert.ok(txt.includes(norm(p)) && txt.includes(norm(d)), `${f}: período/descrição`); }
   assert.ok(!x.registro.erros.length, JSON.stringify(x.registro));
 });
+
+// ---- Rodada final (bateria em produção 00e8ddf) ---------------------------------------------------------------
+test('6b. "- Título: X" dentro de uma lista vira cabeçalho do grupo, nunca texto do item', () => {
+  const md = '### Página 1\n- Título: Etapas iniciais\n- 1: A área faz o pedido\n- 2: O gestor aprova\n\n### Página 2\n- Título: Conclusão\n- 3: Compras emite o pedido';
+  const { conteudo, x } = peca(md, { tipo: 'infographic' }, { titulo: 'Compras' });
+  assert.ok(!desenhado(x.paginas).includes('titulo:'));
+  const subs = conteudo.secoes.flatMap(s => s.itens).filter(i => i.tipo === 'subtitulo').map(i => i.texto);
+  assert.deepEqual(subs, ['Etapas iniciais', 'Conclusão']);
+});
+
+test('5b. formato escolhido pela interpretação não prende a peça: só o que a pessoa pediu fica; painel largo tenta mais colunas', async () => {
+  const { PEDE_FORMATO } = await import('../src/visual/producao.js');
+  assert.ok(PEDE_FORMATO.test('Monte um dashboard em 16:9 para a TV'));
+  assert.ok(PEDE_FORMATO.test('Quero um post quadrado'));
+  assert.ok(!PEDE_FORMATO.test('Monte um dashboard de uma página com os indicadores do mês'));
+  const md = ['Resumo', 'Canais', 'Evolução', 'Desempenho'].map((t, k) => `### ${t}\n${Array.from({ length: 5 }, (_, j) => `- Indicador ${k}${j}: ${(k + 1) * 100 + j}`).join('\n')}`).join('\n\n');
+  const conteudo = analisarConteudo(md, { titulo: 'Painel' });
+  const tr = tracos(limparVisual({ tipo: 'dashboard', formato: '16:9' }), { secoes: conteudo.secoes.length });
+  const r = produzirSemCorte({ plano: planejar(conteudo, tr, { titulo: 'Painel' }), conteudo, identidade: ID, tr, assets: {}, opcoes: {} });
+  assert.equal(r.paginas.length, 1); assert.ok(!corta(r), JSON.stringify(r.registro)); assert.ok(dentro(r.paginas[0]));
+});

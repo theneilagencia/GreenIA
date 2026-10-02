@@ -429,6 +429,9 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
     if (op.entregaveis.some(e => ['tabela', 'matriz'].includes(e.tipo))) partes.push('Tabelas e matrizes: em Markdown (linhas com | ), com cabeçalho, dentro da seção delas.');
     const canais = [...new Set(op.entregaveis.map(e => e.canal).filter(Boolean))];
     if (canais.length) partes.push(`Adapte cada peça ao canal dela (não repita o mesmo texto em todos):\n${canais.map(c => `- ${CANAIS[c].rotulo}: ${CANAIS[c].estilo}.`).join('\n')}`);
+    // QA em produção: sem dado no material, o copy prometia "até 15 horas por semana", "diagnóstico gratuito" e
+    // "as empresas que atendemos" — afirmação de propaganda que ninguém deu.
+    if (canais.length) partes.push('Nas peças, número, resultado de cliente, prazo, preço, oferta (como "gratuito") ou prêmio só entram se estiverem no material ou no contexto autorizado. Sem isso, fale do benefício sem número e sem promessa.');
     if (op.entregaveis.some(ehVisual)) partes.push(`Peças visuais (imagem, carrossel, Reels, vídeo): você não gera a arte nem o vídeo. Entregue o briefing para quem vai produzir: comece a peça com a linha "${MARCA_BRIEFING}" e descreva o que mostrar em cada parte (slide, cena ou tela), o texto que aparece, o estilo visual e a chamada para ação. No Reels e no vídeo, inclua o roteiro com o tempo de cada cena.`);
     if (op.entregaveis.some(e => e.tipo === 'temas')) partes.push('Em "Temas sugeridos", liste os temas em ordem de prioridade, cada um com uma frase sobre por que ele é relevante para a empresa agora.');
   }

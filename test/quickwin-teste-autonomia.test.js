@@ -84,3 +84,9 @@ test('conferência: critério que depende de material ausente é atendido quando
   assert.match(p, /Critério que depende de um material que não está na entrada[^\n]*é atendido quando o resultado diz que esse material não veio/);
   assert.match(p, /Marque falha se o resultado supõe o conteúdo desse material/);
 });
+
+test('peças por canal: número, resultado de cliente e oferta só entram se estiverem no material', () => {
+  const p = OP.promptOperacao({ ...PLANO, v: 2, canais: ['linkedin', 'instagram'] });
+  assert.match(p, /número, resultado de cliente, prazo, preço, oferta \(como "gratuito"\) ou prêmio só entram se estiverem no material/);
+  assert.doesNotMatch(OP.promptOperacao({ ...PLANO, v: 2, entregaveis: [{ id: 'e1', tipo: 'resumo' }] }), /oferta \(como "gratuito"\)/, 'sem canal, nada muda');
+});

@@ -541,7 +541,9 @@ export const chaveExemplo = espec => createHash('sha256').update(JSON.stringify(
 // Como o teste deve começar: 'texto' (pedido fictício montado aqui ou pela IA), 'arquivo' ou 'insuficiente'.
 // Homologação real: um nome fictício no pedido de teste fazia o modelo perguntar sobre ele mesmo com a base da
 // empresa disponível. A base vem primeiro; o fictício só vale se não houver nada sobre a empresa.
-const CONTEXTO_DO_TESTE = 'Use o contexto da empresa que está nos documentos autorizados. Só se não houver nada sobre a empresa, use a Empresa Exemplo Ltda. (fictícia), do mesmo setor do objetivo.';
+// QA em produção: escrita como condição ("só se não houver…"), a instrução fazia o modelo perguntar se devia usar a
+// empresa fictícia. A decisão vem pronta: é um teste, e sem contexto ele segue com a fictícia, sem perguntar.
+const CONTEXTO_DO_TESTE = 'Use o contexto da empresa que está nos documentos autorizados. Se não houver nada sobre a empresa, use a Empresa Exemplo Ltda. (fictícia), do mesmo setor do objetivo, sem perguntar: isto é um teste, e a empresa fictícia é a escolha certa nesse caso.';
 // Material fictício gerado para o teste: vai com a indicação de que ele é o material desta execução (sem isso, um
 // modelo perguntava se devia usar o documento "de outra empresa").
 export const comoMaterialDeTeste = texto => `Material de teste (fictício) desta execução: use-o como o material do trabalho. Nomes, empresas e números dele são fictícios: não pergunte sobre eles, faça o trabalho.\n\n${texto}`;

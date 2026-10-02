@@ -603,8 +603,9 @@ export function rotasConversas(app, r) {
         // Política de autonomia: a execução voltou só com perguntas. Uma vez, pela mesma rota, a IA reavalia: o que
         // é preferência vira escolha registrada e o trabalho sai; o que é necessário continua sendo perguntado.
         // Segunda vez só se a estrutura do plano garante que nada indispensável falta (sem material obrigatório e com
-        // o contexto da empresa no envio): a dúvida que restou é de preferência.
-        const semObrigatorio = !(qw?.espec?.operacao?.entradas || []).some(x => x.obrigatoria) && ctx.partes.length > 0;
+        // o contexto da empresa no envio, ou numa conversa de teste, em que o material é o exemplo fictício): a dúvida
+        // que restou é de preferência.
+        const semObrigatorio = !(qw?.espec?.operacao?.entradas || []).some(x => x.obrigatoria) && (ctx.partes.length > 0 || !!conv.teste);
         if (espec && qw.espec.operacao?.v === 2 && resposta.trim().startsWith(MARCADOR_PERGUNTA) && !contemCredencial(resposta)
           && (autonomia === 0 || (autonomia === 1 && semObrigatorio))) {
           perguntaInicial ??= resposta;

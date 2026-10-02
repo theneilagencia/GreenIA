@@ -79,7 +79,7 @@ test('operação de conteúdo: peças por canal, pesquisa, exemplo contextual, r
   const coleta = OR.chamadas.slice(antes).find(b => b.plugins);
   assert.ok(coleta && /Etapa 1 de 2 desta execução: pesquisa/.test(texto(coleta.messages[0].content)), 'o teste executa de verdade, com pesquisa (etapa de coleta)');
   assert.equal(exec.plugins, undefined, 'a produção usa as notas da pesquisa, sem pesquisar de novo');
-  assert.match(texto(exec.messages[0].content), /Instagram · Carrossel \(8 slides\)/);
+  assert.match(texto(exec.messages[0].content), /Instagram · Carrossel \(8 slides[,)]/);
   assert.doesNotMatch(texto(exec.messages[0].content), /Instagram · Reels/);
   // Resultado separado por canal e peça, com fontes; filtro por canal.
   assert.deepEqual(await p.locator('.qw-canal-nome').allTextContents(), ['Geral', 'LinkedIn', 'Instagram']);

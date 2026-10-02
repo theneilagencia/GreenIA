@@ -80,6 +80,18 @@ export const FERRAMENTAS = {
   pesquisa_web: { rotulo: 'Pesquisar na internet', executavel: true, palavras: ['pesquis', 'tendenc', 'em alta', 'trend', 'noticia', 'atualidade', 'mais recente', 'ultimas novidades', 'esta semana', 'na internet', 'na web', 'google', 'concorrent', 'o que esta sendo falado'] },
 };
 
+// O pedido pede pesquisa na internet? "Pesquisa" que é o MATERIAL ("respostas da pesquisa de clima", "resultados
+// da pesquisa de satisfação") não é ação de pesquisar: tratar como tal mandaria o assunto interno para a busca
+// externa (QA-08). Regra de linguagem, não de setor.
+const PESQUISA_COMO_MATERIAL = /\b(respostas?|resultados?|dados|planilha|questionarios?|formularios?|tabulacao|base)\s+d[aeo]s?\s+pesquisas?\b/;
+export function pedePesquisaWeb(texto) {
+  const t = norm(texto);
+  if (!tem(t, FERRAMENTAS.pesquisa_web.palavras)) return false;
+  if (!PESQUISA_COMO_MATERIAL.test(t)) return true;
+  // Material de pesquisa citado: só vale se outra palavra (não "pesquisa") também pedir a internet.
+  return tem(t.replace(/\bpesquis\w*/g, ' '), FERRAMENTAS.pesquisa_web.palavras);
+}
+
 // ---- Entradas (o material que cada execução precisa) ---------------------------------------------------------
 export const ENTRADAS = {
   documento: { rotulo: 'Documento (PDF, Word)' }, planilha: { rotulo: 'Planilha' }, transcricao: { rotulo: 'Transcrição ou anotações' },
@@ -132,7 +144,7 @@ function oracoesComCanal(t) {
 export function inferirOperacao(texto) {
   const t = String(texto || '');
   const canais = Object.keys(CANAIS).filter(c => tem(t, CANAIS[c].palavras));
-  const ferramentas = Object.keys(FERRAMENTAS).filter(f => tem(t, FERRAMENTAS[f].palavras));
+  const ferramentas = Object.keys(FERRAMENTAS).filter(f => f === 'pesquisa_web' ? pedePesquisaWeb(t) : tem(t, FERRAMENTAS[f].palavras));
   const oracoes = oracoesComCanal(t);
   const entregaveis = [], visto = new Set();
   const somar = (tipo, canal) => {

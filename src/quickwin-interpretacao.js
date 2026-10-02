@@ -10,7 +10,7 @@ import { registrar } from './eventos.js';
 import { json } from './db.js';
 import { chamarGovernado } from './quickwin-estrutura.js';
 import { planoHeuristico } from './quickwin-construtor.js';
-import { CANAIS, chaveInterpretacao, ENTRADAS, ENTREGAVEIS, FERRAMENTAS, inferirOperacao, limparOperacao } from './quickwin-operacao.js';
+import { CANAIS, chaveInterpretacao, ENTRADAS, ENTREGAVEIS, FERRAMENTAS, inferirOperacao, limparOperacao, pedePesquisaWeb } from './quickwin-operacao.js';
 
 export { chaveInterpretacao };
 export const ORIGEM_INTERPRETACAO = 'quick_win_interpretacao';
@@ -68,8 +68,12 @@ const UNIDADES = /^(dias?|semanas?|meses|mes|mês|anos?|horas?|minutos?|segundos
 const VAGOS = new Set(['conteudo', 'conteudos', 'trabalho', 'tarefa', 'algo', 'isso', 'material', 'texto', 'um', 'uma']);
 const PALAVRAS_VAZIAS = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'o', 'a', 'os', 'as', 'um', 'uma', 'com', 'para', 'em', 'no', 'na', 'nos', 'nas', 'mais', 'relevantes', 'principais', 'cada', 'seu', 'sua', 'seus', 'suas']);
 const singular = p => (!p ? '' : /(r|s|z)es$/.test(p) ? p.slice(0, -2) : /oes$/.test(p) ? `${p.slice(0, -3)}ão` : p.replace(/s$/, ''));
-const itens = trecho => trecho.split(/,|\s+e\s+|\s+ou\s+/).map(x => x.trim().replace(/^(o|a|os|as|um|uma|uns|umas|seus?|suas?)\s+/, '').trim()).filter(x => x.length >= 3);
-const VERBO_ENTREGA = /\b(?:destaque|destacar|identifique|identificar|liste|listar|aponte|apontar|extraia|extrair|monte|montar|gere|gerar|prepare|preparar|elabore|elaborar|produza|produzir|redija|redigir|indique|indicar|traga|entregue|crie|criar|transforme[^.;]*?\bem|transformar[^.;]*?\bem)\s+([^.;:]+)/g;
+// Item que aponta para o próprio material ("este documento", "isso") não é entregável: é a entrada.
+const DEMONSTRATIVO = /^(este|esta|estes|estas|esse|essa|esses|essas|isso|isto|aquele|aquela|aqueles|aquelas)\b/;
+const itens = trecho => trecho.split(/,|\s+e\s+|\s+ou\s+/).map(x => x.trim().replace(/^(por|em|o|a|os|as|um|uma|uns|umas|seus?|suas?)\s+/, '').replace(/^(o|a|os|as)\s+/, '').trim()).filter(x => x.length >= 3 && !DEMONSTRATIVO.test(x));
+const VERBO_ENTREGA = /\b(?:destaque|destacar|identifique|identificar|liste|listar|aponte|apontar|extraia|extrair|monte|montar|gere|gerar|prepare|preparar|elabore|elaborar|produza|produzir|redija|redigir|indique|indicar|traga|entregue|crie|criar|sugira|sugerir|recomende|recomendar|transforme[^.;]*?\bem|transformar[^.;]*?\bem|organize[^.;]*?\b(?:em|por)|organizar[^.;]*?\b(?:em|por)|agrupe(?:[^.;]*?\bpor)?|agrupar(?:[^.;]*?\bpor)?|estruture[^.;]*?\bcom|estruturar[^.;]*?\bcom)\s+([^.;:]+)/g;
+// "relatório executivo com fatos, riscos e decisões": a lista depois do "com" também é pedida.
+const LISTA_COM = /\bcom\s+([^.;:]+)/;
 const CORTE = /\s+(?:considerando|com base|levando|para|sobre|a partir|usando|que|do mes|do mês|de cada|com\s)/;
 export function invariantesDoPedido(pedido) {
   const t = String(pedido || '').toLowerCase();
@@ -78,24 +82,41 @@ export function invariantesDoPedido(pedido) {
   const cr = /\b(?:considerando|com base em|levando em conta|em termos de|pelos critérios de|pelos criterios de)\s+([^.;]+)/.exec(t);
   const criterios = cr ? itens(cr[1]).slice(0, 8) : [];
   const entregaveis = [];
-  for (const m of t.matchAll(VERBO_ENTREGA)) for (const x of itens(m[1].split(CORTE)[0])) if (!VAGOS.has(norm(x)) && !CANAIS_DE(x)) entregaveis.push(x);
+  for (const m of t.matchAll(VERBO_ENTREGA)) {
+    const com = LISTA_COM.exec(m[1]);
+    // Em "tabela/matriz/planilha/quadro/lista com A, B e C" a lista são os CAMPOS (colunas), não entregáveis.
+    const cabeca = m[1].split(CORTE)[0];
+    const deCampos = /\b(tabela|matriz|planilha|quadro|lista|relacao|relação|cadastro|formulario|formulário)\b/.test(cabeca);
+    const trechos = [cabeca, ...(com && !deCampos && /,|\s+e\s+/.test(com[1]) ? [com[1].split(CORTE)[0]] : [])];
+    for (const trecho of trechos) for (const x of itens(trecho)) if (!VAGOS.has(norm(x)) && !CANAIS_DE(x)) entregaveis.push(x);
+  }
   return { quantidade, criterios, entregaveis: [...new Set(entregaveis)].slice(0, 6), comparacao: /^\s*(compar|confront)/.test(norm(pedido)) && criterios.length > 0,
-    pesquisa: tem(pedido, FERRAMENTAS.pesquisa_web.palavras) };
+    pesquisa: pedePesquisaWeb(pedido) };
 }
+const MATERIAL = /^(propost|fornecedor|documento|contrat|curricul|candidat|arquivo|planilh|cotac|orcament|relatori|apolice|nota|pedido|versao|vers|anexo|edita|laudo|parecer|fatura|boleto)/;
 const tem = (texto, palavras) => palavras.some(p => new RegExp(`(^|[^a-z0-9])${p}`).test(` ${norm(texto)} `));
 const CANAIS_DE = x => Object.values(CANAIS).some(c => tem(x, c.palavras));
 const raizes = x => norm(x).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PALAVRAS_VAZIAS.has(w)).map(w => w.slice(0, 5));
-const textoDoPlano = op => norm([...(op.entregaveis || []).flatMap(e => [e.rotulo, ENTREGAVEIS[e.tipo]?.rotulo, e.descricao, ...(e.config?.colunas || [])]), ...(op.criterios || []), ...(op.etapas || []).map(x => x.texto)].join(' '));
+// Rótulo e colunas: o que vira seção ou campo conferível. A descrição não conta: "relatório com fatos, riscos e
+// decisões" numa descrição não obriga o resultado a trazer cada um (QA-03).
+const textoDosEntregaveis = op => norm((op.entregaveis || []).flatMap(e => [e.rotulo, ENTREGAVEIS[e.tipo]?.rotulo, ...(e.config?.colunas || [])]).join(' '));
+const textoCompleto = op => norm([...(op.entregaveis || []).flatMap(e => [e.rotulo, ENTREGAVEIS[e.tipo]?.rotulo, e.descricao, ...(e.config?.colunas || [])]), ...(op.criterios || []), ...(op.etapas || []).map(x => x.texto)].join(' '));
 const cobre = (texto, item) => { const r = raizes(item); return r.length > 0 && r.some(w => texto.includes(w)); };
 const tipoPorPalavra = item => Object.entries(ENTREGAVEIS).find(([id, e]) => id !== 'outro' && raizes(item).some(w => norm(e.rotulo).startsWith(w) || w.startsWith(norm(id).slice(0, 5))))?.[0] || 'lista';
 // Garante as invariantes no plano (só acrescenta; nada que a IA trouxe é tirado). Devolve o plano e o que mudou.
-export function garantirInvariantes(op, pedido) {
+// `soEntregaveis`: o plano heurístico tem etapas genéricas do arquétipo ("prazos", "riscos"); elas não contam como
+// cobertura de um item pedido — só os entregáveis contam.
+export function garantirInvariantes(op, pedido, { soEntregaveis = false } = {}) {
   if (!op) return { op, corrigidas: [] };
+  const textoDoPlano = p => soEntregaveis ? textoDosEntregaveis(p) : textoCompleto(p);
   const inv = invariantesDoPedido(pedido), corrigidas = [];
   const novo = structuredClone(op);
-  if (inv.quantidade && novo.entradas?.length && !novo.entradas.some(x => x.quantidade === inv.quantidade.n)) {
-    const alvo = novo.entradas.find(x => x.obrigatoria) || novo.entradas[0];
-    alvo.quantidade = inv.quantidade.n; corrigidas.push('quantidade');
+  // A quantidade só vale para a entrada quando conta o MATERIAL ("três propostas", "dois contratos"); "em cinco
+  // pontos" ou "dez ideias" contam o resultado, não o que entra (QA-05).
+  const alvoQtd = inv.quantidade && (novo.entradas || []).find(x => cobre(norm(`${x.rotulo} ${x.tipo}`), inv.quantidade.de)
+    || (MATERIAL.test(norm(inv.quantidade.de)) && (x.obrigatoria || novo.entradas.length === 1)));
+  if (alvoQtd && !novo.entradas.some(x => x.quantidade === inv.quantidade.n)) {
+    alvoQtd.quantidade = inv.quantidade.n; corrigidas.push('quantidade');
   }
   if (inv.comparacao && !novo.entregaveis.some(e => ['tabela', 'matriz'].includes(e.tipo))) {
     novo.entregaveis.unshift({ id: 'inv_cmp', tipo: 'matriz', rotulo: 'Matriz comparativa', canal: null, config: {} }); corrigidas.push('comparacao');
@@ -125,7 +146,8 @@ export function lerInterpretacao(texto, pedido = '') {
   if (!d || typeof d !== 'object' || !Array.isArray(d.entregaveis)) return null;
   const base = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }), pedido);
   if (!base?.entregaveis.length) return null;
-  const { op, corrigidas } = pedido ? garantirInvariantes(base, pedido) : { op: base, corrigidas: [] };
+  // Cobertura só pelos entregáveis (QA-03): item pedido que aparece só numa etapa não vira seção conferível.
+  const { op, corrigidas } = pedido ? garantirInvariantes(base, pedido, { soEntregaveis: true }) : { op: base, corrigidas: [] };
   if (contemCredencial(JSON.stringify(op))) return null;
   if (corrigidas.length) Object.defineProperty(op, 'corrigidas', { value: corrigidas, enumerable: false });
   return op;
@@ -137,11 +159,20 @@ const cache = new Map();
 export const limparCacheInterpretacao = () => cache.clear();   // homologação: medir a variação entre rodadas
 export async function interpretar(app, pessoa, { descricao, processo = '', qw = null }) {
   const chave = chaveInterpretacao(descricao, processo);
-  const heuristico = motivo => ({ chave, fonte: 'heuristica', motivo, operacao: planoHeuristico(`${descricao}\n${processo}`) });
+  // Sem IA, o mesmo motor: as invariantes do pedido (itens pedidos, comparação, quantidade, pesquisa) valem
+  // também para o plano heurístico. QA 2026-10: sem isto, todo pedido fora de conteúdo por canal caía num
+  // formato genérico sem os entregáveis que o próprio pedido lista.
+  const heuristico = motivo => {
+    const pedido = `${descricao}\n${processo}`;
+    return { chave, fonte: 'heuristica', motivo, operacao: garantirInvariantes(planoHeuristico(pedido), pedido, { soEntregaveis: true }).op };
+  };
   if (!String(descricao).trim()) return { chave, fonte: 'vazio', operacao: null };
   const guardada = json(qw?.especificacao, null)?.origem?.interpretacao;
   if (guardada?.chave === chave && guardada.operacao) return { chave, fonte: 'ia', operacao: guardada.operacao, cache: true };
-  const memo = cache.get(`${app.tenant?.id || ''}:${chave}`);
+  // Por empresa: a empresa da plataforma é `tenant.companyId` (QA-02: `tenant.id` não existe, e o prefixo vazio
+  // fazia o cache, que é do processo, ser um só para todas as empresas).
+  const escopo = `${app.tenant?.companyId ?? app.tenant?.id ?? ''}:${chave}`;
+  const memo = cache.get(escopo);
   if (memo) return { chave, fonte: 'ia', operacao: memo, cache: true };
   const r = await chamarGovernado(app, pessoa, { conteudo: `${descricao}\n${processo}`, mensagens: mensagensInterpretacao(descricao, processo), qw, origem: ORIGEM_INTERPRETACAO });
   if (r.recusado || r.falhou) {
@@ -150,9 +181,12 @@ export async function interpretar(app, pessoa, { descricao, processo = '', qw = 
   }
   const op = lerInterpretacao(r.texto, `${descricao}\n${processo}`);
   registrar(app, 'quickwin.interpreted', pessoa.id, { quick_win: qw?.id ?? null, roteamento: r.rotaId, legivel: !!op,
-    entregaveis: op?.entregaveis.length ?? 0, entradas: op?.entradas?.length ?? 0, lacunas: op?.lacunas?.length ?? 0, ferramentas: op?.ferramentas || [], invariantes: op?.corrigidas || [] });
+    entregaveis: op?.entregaveis.length ?? 0, entradas: op?.entradas?.length ?? 0, lacunas: op?.lacunas?.length ?? 0, ferramentas: op?.ferramentas || [],
+    // Só o tipo de cada correção: o item ("entregavel:multas rescisórias") é texto do pedido e não vai para a
+    // auditoria (QA-07). A contagem diz quanto foi corrigido.
+    invariantes: [...new Set((op?.corrigidas || []).map(c => c.split(':')[0]))], invariantes_n: op?.corrigidas?.length || 0 });
   if (!op) return heuristico('resposta_invalida');
-  cache.set(`${app.tenant?.id || ''}:${chave}`, op);
+  cache.set(escopo, op);
   if (cache.size > 300) cache.delete(cache.keys().next().value);
   return { chave, fonte: 'ia', operacao: op };
 }

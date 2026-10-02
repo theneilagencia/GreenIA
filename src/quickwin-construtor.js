@@ -409,7 +409,9 @@ export function planoHeuristico(texto, arq = inferirArquetipo(texto)) {
   const ferramentas = [...base.ferramentas];
   if (entradas.some(e => e.tipo === 'documento')) ferramentas.push('leitura_documento');
   if (entradas.some(e => e.tipo === 'planilha')) ferramentas.push('analise_planilha');
-  const contexto = base.canais.length > 0 || arq === 'criar_conteudo';
+  // Contexto da empresa: pela linguagem do pedido (fala da empresa, do mercado ou dos concorrentes dela), não
+  // por canal; trabalho de conteúdo continua usando, como antes.
+  const contexto = base.canais.length > 0 || arq === 'criar_conteudo' || /\b(empresa|nossa|nosso|nossas|nossos|concorrent\w*|posicionamento|mercado)\b/.test(t);
   if (contexto) ferramentas.push('base_empresa');
   return limparOperacao({ v: 2, origem: 'inferida', canais: base.canais, entregaveis: base.entregaveis, ferramentas, entradas,
     etapas: (ARQUETIPOS[arq] || ARQUETIPOS.outro).procedimento.map(texto => ({ texto })), contexto_empresa: contexto, categoria: arq === 'criar_conteudo' ? 'conteudo' : null });

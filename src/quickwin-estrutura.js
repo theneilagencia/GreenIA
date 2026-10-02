@@ -92,7 +92,10 @@ export async function chamarGovernado(app, pessoa, { conteudo, mensagens, qw = n
   const inicio = Date.now();
   let texto = '', fim = null;
   try {
-    for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || reforcada || dadosPessoais })) {
+    // Prazo: chamada curta da criação (interpretação, estrutura). Sem ele, um provedor que aceita a conexão e não
+    // responde deixava a tela esperando para sempre (QA-09); com ele, a falha cai no plano sem IA, como as outras.
+    const sinal = AbortSignal.timeout(app.prazoChamadaCurtaMs ?? 45e3);
+    for await (const ev of app.ia.enviar(mensagens, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || reforcada || dadosPessoais, sinal })) {
       if (ev.tipo === 'texto') texto += ev.texto; else fim = ev;
     }
   } catch (e) {

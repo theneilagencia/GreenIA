@@ -18,7 +18,7 @@ import { chromium } from 'playwright-core';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { arquivo, docx, xlsx } from '../test/arquivos.js';
-import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha } from './qa-cenarios.mjs';
+import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha, SMOKE15, MATERIAIS_TEXTO } from './qa-cenarios.mjs';
 
 // QA_AUTOTESTE=1: só para conferir o roteiro — sobe a GreenIA local com OpenRouter falso, navegador sem janela e
 // login automático da conta LOCAL. Nunca toca a produção nem a IA real.
@@ -29,7 +29,7 @@ const local = AUTOTESTE ? await (async () => {
   const S = await subir({ ia: OR.ia }); salvarConfig(S.app.db, { dominios: ['apymine.com'] });
   const admin = await S.cliente().entrar('admin@exemplo.com.br');
   const a = (await admin.post('/api/admin/areas', { nome: 'QA' })).dados;
-  await admin.post('/api/admin/pessoas', { email: 'viniicus@apymine.com', nome: 'QA', areas: [{ id: a.id, responsavel: true }] });
+  await admin.post('/api/admin/pessoas', { email: process.env.QA_CONTA || 'vinicius@apymine.com', nome: 'QA', areas: [{ id: a.id, responsavel: true }] });
   return { S, OR };
 })() : null;
 const BASE = (AUTOTESTE ? local.S.base : process.env.QA_BASE || 'https://greenia.theneil.com.br').replace(/\/$/, '');
@@ -153,8 +153,14 @@ R.padroesClasse = modelos ? { rapido: modelos.rapido, equilibrado: modelos.equil
 const eventosDesde = new Date(Date.now() - 60e3).toISOString().slice(0, 10);
 const custoDe = async () => {
   if (!R.login.admin) return null;
-  const r = await api('GET', `/api/admin/eventos?tipo=credits.consumed&de=${eventosDesde}`);
-  return Array.isArray(r.dados?.eventos) ? r.dados.eventos.map(e => ({ id: e.id, em: e.em, ...(typeof e.detalhes === 'string' ? JSON.parse(e.detalhes) : e.detalhes || {}) })) : null;
+  const todos = [];
+  for (let pagina = 0; pagina < 50; pagina++) {
+    const r = await api('GET', `/api/admin/eventos?tipo=credits.consumed&de=${eventosDesde}&pagina=${pagina}`);
+    if (!Array.isArray(r.dados?.eventos)) return pagina ? todos : null;
+    todos.push(...r.dados.eventos.map(e => ({ id: e.id, em: e.em, ...(typeof e.detalhes === 'string' ? JSON.parse(e.detalhes) : e.detalhes || {}) })));
+    if (r.dados.eventos.length < 100) break;
+  }
+  return todos;
 };
 
 // ---- interpretação, criação e execução ------------------------------------------------------------------------
@@ -241,6 +247,78 @@ for (const [id, area, pedido, esp] of SURPRESA) {
   R.surpresa.push({ id, area, pedido, fonte: it.fonte, ms: it.ms, ...a, plano: resumoOp(it.operacao) });
   log(a.resultado, id, area, `${it.ms}ms`, a.falhas.join('; '));
   salvar();
+}
+
+// ---- H. Homologação: "Exemplo pronto" sem viés de canal, 15 casos e 20 surpresa de ponta a ponta -----------------
+R.homologacao = { exemploPronto: [], principais: [], surpresa: [] };
+const QUER_CANAL = /linkedin|instagram|facebook|tiktok|youtube|reels|blog|newsletter|redes sociais/i;
+const SOCIAL = /\b(LinkedIn|Instagram|Reels|Carrossel|Legenda|Copy)\b/;
+function usabilidade(pedido, it, x, esperado, vago = false) {
+  const op = it.operacao || {}, f = [];
+  if (!vago && !(op.entregaveis || []).length) f.push('plano sem entregáveis');
+  if ((op.entregaveis || []).some(e => e.canal) && !QUER_CANAL.test(pedido)) f.push('canal que não foi pedido');
+  if (!QUER_CANAL.test(pedido) && SOCIAL.test((x.texto.match(/^##.*$/gm) || []).join(' '))) f.push('seção de social media sem pedido');
+  if (/configur(e|ar) (o|a) (modelo|prompt|json)|ajuste o quick win|edite a configura/i.test(x.texto)) f.push('pede configuração técnica');
+  if (vago) { if (!x.pergunta && !(it.lacunas || op.lacunas || []).some(l => l.obrigatoria)) f.push('vago sem pergunta'); }
+  else {
+    if (x.pergunta) f.push('pergunta num caso com material');
+    if (x.qualidade?.status === 'inconsistente') f.push('inconsistente (pede ajustar e testar de novo)');
+    if (x.qualidade?.itens?.some(i => i.id === 'invencao' && i.conferido && !i.ok)) f.push('conferência aponta invenção');
+    if (/^\s*(vou|irei|posso|eu faria|o plano é)\b/i.test(x.texto)) f.push('só descreve o que faria');
+    if (esperado && !esperado.test(x.texto)) f.push('não usou o material');
+  }
+  return f;
+}
+const materialDe = chave => chave === 'contrato' ? { texto: 'Material anexo (fictício).', anexos: [arquivo('contrato-qa.docx', docx(CONTRATO))] }
+  : chave === 'propostas' ? { texto: 'Propostas anexas (fictícias).', anexos: PROPOSTAS.map((p, i) => arquivo(`proposta-qa-${i + 1}.docx`, docx(p))) }
+  : chave === 'planilha' ? { texto: 'Planilha anexa (fictícia).', anexos: [arquivo('custos-qa.xlsx', xlsx(planilha(), 'Custos'))] }
+  : chave === 'reuniao' ? { texto: TRANSCRICAO.join('\n') }
+  : chave === 'curriculos' ? { texto: 'Vaga (fictícia): planejador de manutenção. Requisitos: 4+ anos em planejamento, SAP PM, inglês intermediário.', anexos: CVS.map((c, i) => arquivo(`cv-qa-${i + 1}.docx`, docx(c))) }
+  : chave ? { texto: MATERIAIS_TEXTO[chave] } : { texto: 'Execute agora.' };
+const EXEMPLO_SEM_SOCIAL = [['contrato', 'Analise este contrato e destaque riscos, obrigações, prazos e multas.'], ['reclamacoes', 'Analise estas reclamações e agrupe os principais motivos, frequência e prioridade.'],
+  ['checklist', 'Transforme este procedimento em um checklist operacional.'], ['email', 'Transforme estas informações em um e-mail executivo curto e objetivo.'], ['planilha', 'Analise esta planilha mensal e identifique desvios relevantes.'],
+  ['reuniao', 'Transforme esta reunião em ata, decisões e próximos passos.'], ['fornecedores', 'Compare três propostas de fornecedores considerando preço, prazo e escopo.'], ['relatorio', 'Prepare um relatório executivo mensal com fatos, riscos e decisões.'],
+  ['compliance', 'Confira estes documentos e identifique requisitos ausentes e evidências pendentes.'], ['projetos', 'Transforme este relatório de projeto em status executivo, riscos, bloqueios e próximos passos.']];
+if (process.env.QA_PARTES !== 'legado') {
+  log('\n[H0] "Exemplo pronto" em pedidos que não são social media');
+  for (const [id, pedido] of EXEMPLO_SEM_SOCIAL) {
+    try {
+      const it = await interpretar(pedido); const qw = await criar(`Exemplo ${id}`, pedido, it);
+      const ex = (await api('POST', `/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados;
+      const x = ex.modo === 'texto' ? await executar(qw.id, { texto: ex.texto }) : null;
+      if (x) writeFileSync(join(SAIDA, `exemplo-${id}.md`), `${ex.texto}\n\n---\n\n${x.texto}`);
+      const plano = resumoOp(it.operacao), falhas = [];
+      if ((it.operacao?.entregaveis || []).some(e => e.canal) || SOCIAL.test(plano.entregaveis.join(' '))) falhas.push('plano com canal ou peça de social media');
+      if (SOCIAL.test(String(ex.texto || ''))) falhas.push('exemplo pronto fala em social media');
+      if (x) falhas.push(...usabilidade(pedido, it, x, null));
+      R.homologacao.exemploPronto.push({ id, pedido, fonte: it.fonte, plano, exemplo: ex.modo, checker: x?.qualidade?.status || null, avisos: x?.qualidade?.avisos || [], falhas });
+      log(falhas.length ? 'FAIL' : 'PASS', 'exemplo', id, it.fonte, ex.modo, x?.qualidade?.status || '', falhas.join('; ')); salvar();
+    } catch (e) { R.homologacao.exemploPronto.push({ id, erro: String(e.message) }); salvar(); }
+  }
+  log('\n[H1] 15 casos principais');
+  for (const [id, pedido, material, esperado] of SMOKE15) {
+    try {
+      const it = await interpretar(pedido); const qw = await criar(`Caso ${id}`, pedido, it);
+      const x = await executar(qw.id, materialDe(material));
+      writeFileSync(join(SAIDA, `caso-${id}.md`), x.texto);
+      const falhas = usabilidade(pedido, it, x, esperado, id.endsWith('vago'));
+      R.homologacao.principais.push({ id, pedido, fonte: it.fonte, plano: resumoOp(it.operacao), checker: x.qualidade?.status || null, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [],
+        objetivo: x.qualidade?.objetivo || null, entregaveis: x.qualidade?.entregaveis || null, pesquisa: x.qualidade?.pesquisa || null, fontes: x.fontes.length, modelo: x.modelo, tempos: x.tempos, conv: x.conv.id, erro: x.erro, falhas });
+      log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.qualidade?.status || x.erro || '', `${Math.round(x.tempos.total)}ms`, falhas.join('; ')); salvar();
+    } catch (e) { R.homologacao.principais.push({ id, erro: String(e.message) }); salvar(); }
+  }
+  log('\n[H2] 20 surpresa de ponta a ponta (material do "Exemplo pronto")');
+  for (const [id, area, pedido, esp] of SURPRESA) {
+    try {
+      const it = await interpretar(pedido); const a = avaliarPlano(it, esp); const qw = await criar(`Surpresa ${id}`, pedido, it);
+      const ex = (await api('POST', `/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados;
+      const x = ex.modo === 'texto' ? await executar(qw.id, { texto: ex.texto }) : null;
+      if (x) writeFileSync(join(SAIDA, `surpresa-${id}.md`), `${ex.texto}\n\n---\n\n${x.texto}`);
+      const falhas = [...a.falhas, ...(x ? usabilidade(pedido, it, x, null, !!esp.vago) : [`exemplo pronto: ${ex.modo}`])];
+      R.homologacao.surpresa.push({ id, area, pedido, fonte: it.fonte, plano: resumoOp(it.operacao), exemplo: ex.modo, checker: x?.qualidade?.status || null, avisos: x?.qualidade?.avisos || [], tempos: x?.tempos || null, conv: x?.conv?.id || null, falhas });
+      log(falhas.length ? 'FAIL' : 'PASS', id, area, it.fonte, x?.qualidade?.status || ex.modo, falhas.join('; ')); salvar();
+    } catch (e) { R.homologacao.surpresa.push({ id, erro: String(e.message) }); salvar(); }
+  }
 }
 
 // ---- 4. Execuções reais com material fictício ------------------------------------------------------------------
@@ -335,14 +413,16 @@ if (eventos) {
   const conv = new Map(); for (const e of eventos) if (e.conversa) conv.set(e.conversa, (conv.get(e.conversa) || 0) + Number(e.custo || 0));
   const interp = eventos.filter(e => e.origem === 'quick_win_interpretacao').map(e => Number(e.custo || 0));
   for (const x of Object.values(R.execucoes)) if (x?.conv) x.custo = conv.get(x.conv) ?? null;
+  for (const x of [...(R.homologacao?.exemploPronto || []), ...(R.homologacao?.principais || []), ...(R.homologacao?.surpresa || [])]) if (x?.conv) x.custo = conv.get(x.conv) ?? null;
   for (const c of Object.values(typeof R.classes === 'object' ? R.classes : {})) for (const x of Object.values(c)) x.custo = conv.get(x.conv) ?? null;
   const execs = [...conv.values()];
   R.custos = { interpretacao: { n: interp.length, medio: interp.length ? interp.reduce((a, b) => a + b, 0) / interp.length : null, maximo: interp.length ? Math.max(...interp) : null },
     execucao: { n: execs.length, medio: execs.length ? execs.reduce((a, b) => a + b, 0) / execs.length : null, maximo: execs.length ? Math.max(...execs) : null },
     total: eventos.filter(e => R.criados.includes(e.quick_win) || conv.has(e.conversa)).reduce((s, e) => s + Number(e.custo || 0), 0) };
 } else R.custos = 'nao_observavel_sem_admin';
-const tI = [...R.interpretacoes, ...R.surpresa].map(x => x.ms), tE = Object.values(R.execucoes).filter(x => x?.tempos).map(x => x.tempos.total);
-const tC = Object.values(R.execucoes).map(x => x?.tempos?.coleta).filter(v => v != null), tQ = Object.values(R.execucoes).map(x => x?.tempos?.conferencia).filter(v => v != null);
+const todasExec = [...Object.values(R.execucoes), ...(R.homologacao?.principais || []), ...(R.homologacao?.surpresa || [])];
+const tI = [...R.interpretacoes, ...R.surpresa].map(x => x.ms), tE = todasExec.filter(x => x?.tempos).map(x => x.tempos.total);
+const tC = todasExec.map(x => x?.tempos?.coleta).filter(v => v != null), tQ = todasExec.map(x => x?.tempos?.conferencia).filter(v => v != null);
 R.performance = { interpretacao: { mediana: mediana(tI), maximo: Math.max(...tI) }, execucao_total: { mediana: mediana(tE), maximo: Math.max(...tE) },
   pesquisa: tC.length ? { mediana: mediana(tC), maximo: Math.max(...tC) } : null, checker: tQ.length ? { mediana: mediana(tQ), maximo: Math.max(...tQ) } : null };
 salvar();

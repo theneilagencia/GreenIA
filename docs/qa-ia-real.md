@@ -30,7 +30,7 @@ node scripts/qa-candidato.mjs
 node scripts/qa-producao.mjs          # https://greenia.theneil.com.br
 ```
 
-- Abre a tela de login. Entre com `viniicus@apymine.com` e o código que chega no seu e-mail.
+- Abre a tela de login. Entre com `vinicius@apymine.com` e o código que chega no seu e-mail.
 - Confere a conta e o estado da chave (`iaConfigurada`), cria só Quick Wins **"QA - …" em rascunho** (nunca
   publicados), executa em modo de teste com material fictício e, no fim, exclui (exclusão lógica) só o que criou,
   conferindo: some do catálogo, nova execução bloqueada, histórico preservado. Depois sai da conta.

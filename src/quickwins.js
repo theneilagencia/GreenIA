@@ -15,6 +15,8 @@ import * as QW2 from './quickwin-construtor.js';
 import { chamarGovernado, estruturarObjetivo } from './quickwin-estrutura.js';
 import { interpretar } from './quickwin-interpretacao.js';
 import * as OP from './quickwin-operacao.js';
+import { integracoesLigadas } from './integracoes/rotas.js';
+import { necessidadesDoPedido, resolverNecessidades } from './integracoes/plano.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -360,7 +362,14 @@ export function rotasQuickWins(app, r) {
     const qw = corpo.quick_win_id ? carregar(pessoa, corpo.quick_win_id, true) : null;
     const r2 = await interpretar(app, pessoa, { descricao, processo, qw });
     const temBase = basesVisiveis(app.db, pessoa).length > 0;
-    return { ...r2, lacunas: OP.lacunasDeContexto({ descricao, processo, operacao: r2.operacao, temBase }), temBase, pesquisaLiberada: !!lerConfig(app.db).pesquisaWeb?.ativa,
+    // Integration Builder (só com o recurso ligado para a pessoa): o que o Quick Win precisa fazer fora da GreenIA e,
+    // para cada ação, se já há integração ativa (✓), se precisa configurar (⚠) ou se a política não permite (✕).
+    let integracoes;
+    if (r2.operacao && integracoesLigadas(app, pessoa)) {
+      if (!r2.operacao.integracoes?.length) { const n = necessidadesDoPedido(`${descricao}\n${processo}`); if (n.length) r2.operacao = { ...r2.operacao, integracoes: n }; }
+      if (r2.operacao.integracoes?.length) integracoes = resolverNecessidades(app, r2.operacao.integracoes, { pessoa, quickWinId: qw?.id || null });
+    }
+    return { ...r2, ...(integracoes ? { integracoes } : {}), lacunas: OP.lacunasDeContexto({ descricao, processo, operacao: r2.operacao, temBase }), temBase, pesquisaLiberada: !!lerConfig(app.db).pesquisaWeb?.ativa,
       ferramentasIndisponiveis: (r2.operacao?.ferramentas || []).filter(f => OP.FERRAMENTAS[f]?.disponivel === false).map(f => ({ id: f, rotulo: OP.FERRAMENTAS[f].rotulo, alternativa: OP.FERRAMENTAS[f].alternativa })) };
   });
   // Estrutura pedida no objetivo (colunas): uma chamada de IA, governada, só para um objetivo novo ou alterado.

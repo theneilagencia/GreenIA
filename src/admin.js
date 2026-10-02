@@ -1,4 +1,5 @@
 // Painel do admin: configurações, uso e custo, eventos, quick wins e limites de gasto.
+import { validarPolitica } from './integracoes/politicas.js';
 import { erro, enviarCsv } from './http.js';
 import { todos, um } from './db.js';
 import { lerConfig, salvarConfig, TIPOS_DADO, PADRAO as PADRAO_CFG } from './config.js';
@@ -55,7 +56,7 @@ export function criarLimites(app) {
   };
 }
 
-const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa', 'identidadeVisual', 'producaoVisual'];
+const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa', 'identidadeVisual', 'producaoVisual', 'integracoes'];
 
 function validarConfig(c, { multi = false, atual = null } = {}) {
   const v = {};
@@ -89,6 +90,15 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
     for (const l of ['logoClaro', 'logoEscuro']) if (c.identidadeVisual?.regras?.[l] && !iv.regras[l]) throw erro(400, 'logo', 'A versão do logo precisa ser PNG, JPG, WEBP ou SVG (sem script), com até 300 KB.');
     for (const l of ['logoClaro', 'logoEscuro']) if (iv.regras[l] && !dadosDaImagem(iv.regras[l])) throw erro(400, 'logo', 'A versão do logo não é uma imagem válida.');
     v.identidadeVisual = iv;
+  }
+  if (c.integracoes !== undefined) {
+    const i = c.integracoes || {}, a = atual?.integracoes || PADRAO_CFG.integracoes;
+    let politicas = a.politicas || [];
+    if (i.politicas !== undefined) { try { politicas = validarPolitica(i.politicas); } catch (e) { throw erro(400, 'integracoes', e.message); } }
+    const pessoas = i.pessoas !== undefined ? (Array.isArray(i.pessoas) ? i.pessoas : []).map(x => String(x).trim().toLowerCase()).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)).slice(0, 200) : a.pessoas || [];
+    const lim = Number(i.limite_minuto_empresa ?? a.limite_minuto_empresa);
+    v.integracoes = { ativa: i.ativa !== undefined ? i.ativa === true : !!a.ativa, pessoas, politicas, limite_minuto_empresa: Number.isFinite(lim) ? Math.min(3000, Math.max(1, Math.round(lim))) : 300,
+      rede_privada_autorizada: i.rede_privada_autorizada !== undefined ? i.rede_privada_autorizada === true : !!a.rede_privada_autorizada };
   }
   if (c.producaoVisual !== undefined) v.producaoVisual = { imagens: { ativa: c.producaoVisual?.imagens?.ativa === true, modelo: atual?.producaoVisual?.imagens?.modelo || PADRAO_CFG.producaoVisual.imagens.modelo } };
   if (c.pesquisaWeb !== undefined) {

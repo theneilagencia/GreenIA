@@ -31,6 +31,8 @@ export const PERMISSOES = {
   'knowledge.manage': ['Gerenciar a base de conhecimento', 'company'],
   'quickwin.manage': ['Gerenciar quick wins de toda a empresa', 'company'],
   'chat.use': ['Usar conversas e quick wins', 'company'],
+  'integrations.manage': ['Configurar integrações (conectores, credenciais, testes e publicação)', 'company'],
+  'integrations.approve': ['Aprovar integrações e operações sensíveis em sistemas externos', 'company'],
 };
 export const PERMISSOES_EMPRESA = Object.keys(PERMISSOES).filter(k => PERMISSOES[k][1] === 'company');
 export const PERMISSOES_PLATAFORMA = Object.keys(PERMISSOES).filter(k => PERMISSOES[k][1] === 'platform');

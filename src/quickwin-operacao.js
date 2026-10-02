@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto';
 import { detectar, detectarReforcado } from './filtro.js';
 import { limparVisual, TIPOS as TIPOS_VISUAIS, FORMATOS as FORMATOS_VISUAIS } from './visual/contrato.js';
+import { limparNecessidades } from './integracoes/necessidades.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const limpar = (s, max) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -313,7 +314,9 @@ export function limparOperacao(op, ajustes = null) {
     if (id && pergunta && resposta && !contexto_respostas.some(x => x.id === id)) contexto_respostas.push({ id, pergunta, resposta });
   }
   const resumo = texto(op.resumo, 300), categoria = texto(op.categoria, 40);
-  if (!canais.length && !entregaveis.length && !ferramentas.length && !contexto_respostas.length && !entradas.length && !etapas.length) return null;
+  // Necessidades de integração (ações fora da GreenIA): validadas aqui; quem resolve e executa é integracoes/plano.js.
+  const integracoes = limparNecessidades(op.integracoes);
+  if (!canais.length && !entregaveis.length && !ferramentas.length && !contexto_respostas.length && !entradas.length && !etapas.length && !integracoes.length) return null;
   const out = { canais, entregaveis, ferramentas, contexto_respostas, origem: ['pessoa', 'ia'].includes(op.origem) ? op.origem : 'inferida' };
   // Campos do plano: só quando existem (um plano antigo, só de canais, continua igual).
   if (entradas.length) out.entradas = entradas;
@@ -324,6 +327,7 @@ export function limparOperacao(op, ajustes = null) {
   if (op.contexto_empresa === true) out.contexto_empresa = true;
   if (resumo) out.resumo = resumo;
   if (categoria) out.categoria = categoria;
+  if (integracoes.length) out.integracoes = integracoes;
   if (op.v === 2 || entradas.length || etapas.length) out.v = 2;
   return out;
 }

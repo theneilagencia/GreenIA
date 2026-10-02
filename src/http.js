@@ -30,6 +30,15 @@ export function criarRoteador() {
   };
 }
 
+// Corpo bruto (texto), para quem precisa dos bytes exatos (assinatura de webhook).
+export function lerBruto(req, limiteMb = 1) {
+  return new Promise((resolve, reject) => {
+    const partes = []; let total = 0;
+    req.on('data', c => { total += c.length; if (total > limiteMb * 1024 * 1024) { reject(erro(413, 'grande_demais', `Envio acima de ${limiteMb} MB.`)); req.destroy(); return; } partes.push(c); });
+    req.on('end', () => resolve(Buffer.concat(partes).toString('utf8')));
+    req.on('error', reject);
+  });
+}
 export function lerCorpo(req, limiteMb = 1) {
   return new Promise((resolve, reject) => {
     const partes = [];

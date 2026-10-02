@@ -1,15 +1,17 @@
 // GreenIA Lite: um processo, um arquivo SQLite, uma empresa por instalação.
+import { tmpdir } from 'node:os';
+import { chaveMestra } from './plataforma/segredo.js';
 import { configurarOcr } from './ocr.js';
 import { erroParaLog } from './registro-seguro.js';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { abrirBanco, exec, um } from './db.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
 import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO } from './plano.js';
 import { semProvedor } from './sem-provedor.js';
-import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from './http.js';
+import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
 import { rotasModelos } from './modelos.js';
@@ -25,6 +27,7 @@ import { rotasVisao } from './visao.js';
 import { rotasOperador } from './operador.js';
 import { rotasVendas } from './vendas.js';
 import { rotasArtefatos } from './visual/rotas.js';
+import { rotasIntegracoes } from './integracoes/rotas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html', '/termos': 'termos.html', '/privacidade': 'privacidade.html' };
@@ -57,6 +60,10 @@ export function criarApp(op = {}) {
   // Modo multiempresa: esta aplicação é uma empresa (tenant) dentro da plataforma. Login, sessão,
   // pessoas e permissões vêm do banco da plataforma (src/plataforma); aqui ficam os dados do produto.
   app.tenant = op.tenant || null;
+  // Integration Builder: identificador da empresa em toda linha (segunda barreira, além do banco por empresa) e a
+  // chave-mestra que cifra os segredos dos conectores (a da plataforma, ou a da instalação única).
+  app.tenantId = app.tenant?.companyId != null ? String(app.tenant.companyId) : 'local';
+  app.mestra = op.mestra || (() => (app._mestra ??= chaveMestra({ pasta: op.banco && op.banco !== ':memory:' ? dirname(op.banco) : join(tmpdir(), `greenia-${process.pid}`) })));
   if (!app.tenant) for (const e of app.operadores) garantirOperador(app, e);
 
   const r = criarRoteador();
@@ -86,7 +93,7 @@ export function criarApp(op = {}) {
     return out;
   };
   app.limitesArquivo = LIMITES_ARQUIVO;
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
@@ -118,6 +125,8 @@ export function permissaoAdmin(caminho, metodo) {
   if (/^\/api\/admin\/(uso|visao-geral)/.test(caminho)) return 'usage.read';
   if (/^\/api\/admin\/(eventos|problemas)/.test(caminho)) return ler ? 'audit.read' : 'settings.manage';
   if (/^\/api\/admin\/(config|smtp)/.test(caminho)) return 'settings.manage';
+  if (/^\/api\/admin\/integracoes\/aprovacoes\/[^/]+\/decidir$/.test(caminho)) return 'integrations.approve';
+  if (caminho.startsWith('/api/admin/integracoes')) return 'integrations.manage';
   return 'company.manage';
 }
 
@@ -146,11 +155,11 @@ async function tratar(app, r, req, res, externo) {
       if (app.tenant) {
         const perms = sessao.pessoa.permissoes || [];
         if (rota.op.admin && !perms.includes(permissaoAdmin(url.pathname, req.method))) throw new ErroHttp(403, 'sem_permissao', 'Você não tem permissão para isso.');
-        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes|artefatos)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
+        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes|artefatos|integracoes)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
         app.checarRecurso?.(req.method, url.pathname);
       } else if (rota.op.admin && !sessao.pessoa.admin) throw new ErroHttp(403, 'so_admin', 'Só o admin pode fazer isso.');
     }
-    const corpo = req.method === 'GET' ? {} : await lerCorpo(req, rota.op.limiteMb ?? 1);
+    const corpo = req.method === 'GET' ? {} : rota.op.bruto ? await lerBruto(req, rota.op.limiteMb ?? 1) : await lerCorpo(req, rota.op.limiteMb ?? 1);
     const ctx = { app, req, res, cookies, sessao, pessoa: sessao?.pessoa, params: rota.params, query: Object.fromEntries(url.searchParams), corpo };
     ctx.creditos = !rota.op.maquina && !veDolar(app, ctx.pessoa);   // rotas com token do operador respondem em dólar
     let out = await rota.h(ctx);

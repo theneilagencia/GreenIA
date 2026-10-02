@@ -166,6 +166,54 @@ create table if not exists uso (
   id integer primary key, em text not null, pessoa_id integer, conversa_id integer, quick_win_id integer,
   modelo_pedido text, modelo_usado text, fornecedor text, custo real not null default 0,
   economia real not null default 0, ms integer, sigilosa integer not null default 0, teste integer not null default 0);
+
+-- Integration Builder (governado). Toda linha tem tenant_id (o banco já é da empresa; o tenant_id é a segunda
+-- barreira contra acesso cruzado e entra em toda consulta). Nenhuma tabela guarda segredo em claro.
+create table if not exists connectors (
+  id text primary key, tenant_id text not null, nome text not null, sistema text not null, tipo text not null, auth_type text not null,
+  base_url text, allowed_hosts text not null default '[]', spec text not null default '{}', config text not null default '{}',
+  secret_ref text, status text not null, origem text not null, versao integer not null default 1, aprovado_versao integer,
+  criado_por integer, criado_em text not null, atualizado_em text not null, ultima_validacao text);
+create index if not exists connectors_tenant on connectors(tenant_id, status);
+create table if not exists connector_versions (
+  id integer primary key, tenant_id text not null, connector_id text not null references connectors(id) on delete cascade, versao integer not null,
+  hash text not null, snapshot text not null, motivo text, criado_por integer, criado_em text not null, unique(connector_id, versao));
+create table if not exists capabilities (
+  id text primary key, tenant_id text not null, connector_id text not null references connectors(id) on delete cascade, nome text not null,
+  descricao text, categoria text not null, operation_id text not null, modo text not null, classe text not null, efeitos text not null,
+  risco text not null, requer_aprovacao integer not null default 0, inputs text, outputs text, status text not null, versao integer not null,
+  criado_em text not null, atualizado_em text not null);
+create index if not exists capabilities_tenant on capabilities(tenant_id, status);
+create table if not exists capability_mappings (
+  id integer primary key, tenant_id text not null, capability_id text not null references capabilities(id) on delete cascade,
+  direcao text not null, regras text not null, versao integer not null, criado_em text not null);
+create table if not exists connector_secrets_ref (
+  key_id text primary key, tenant_id text not null, connector_id text, provider text not null, tipo text not null,
+  cifrado text not null, mascara text, criado_em text not null, rotacionado_em text);
+create table if not exists integration_approvals (
+  id text primary key, tenant_id text not null, tipo text not null, connector_id text, connector_versao integer, capability_id text,
+  run_id text, plano_id text, passo_id text, resumo text not null, risco text, status text not null, solicitado_por integer,
+  decidido_por integer, motivo text, criado_em text not null, decidido_em text);
+create index if not exists approvals_tenant on integration_approvals(tenant_id, status);
+create table if not exists connector_runs (
+  id text primary key, tenant_id text not null, connector_id text not null, connector_versao integer, capability_id text, operation_id text,
+  plano_id text, passo_id text, modo text not null, idempotency_key text, status text not null, http_status integer, ms integer,
+  bytes integer, tentativas integer not null default 0, erro_codigo text, pessoa_id integer, quick_win_id integer, custo real not null default 0,
+  criado_em text not null);
+create unique index if not exists runs_idem on connector_runs(tenant_id, connector_id, operation_id, idempotency_key) where idempotency_key is not null;
+create index if not exists runs_tenant on connector_runs(tenant_id, connector_id, criado_em);
+create table if not exists webhook_configs (
+  id text primary key, tenant_id text not null, connector_id text references connectors(id) on delete cascade, evento text not null,
+  filtros text not null default '{}', segredos text not null, quick_win_id integer, ativo integer not null default 1,
+  criado_em text not null, rotacionado_em text);
+create table if not exists webhook_entregas (
+  tenant_id text not null, webhook_id text not null, entrega_id text not null, recebido_em text not null, primary key (webhook_id, entrega_id));
+create table if not exists oauth_estados (
+  estado_hash text primary key, tenant_id text not null, connector_id text not null, pessoa_id integer not null, redirect text not null,
+  verificador text not null, expira integer not null);
+create table if not exists integ_planos (
+  id text primary key, tenant_id text not null, quick_win_id integer, conversa_id integer, pessoa_id integer, gatilho text not null default 'manual',
+  passos text not null, estado text not null default '{}', status text not null, criado_em text not null, atualizado_em text not null);
 `;
 
 // Consolida o WAL no banco e trunca o arquivo -wal: o conteúdo apagado (já zerado no banco por secure_delete)
@@ -299,6 +347,8 @@ const MIGRACOES = [
     if (!tem('quick_wins', 'excluido_por')) db.exec('alter table quick_wins add column excluido_por integer');
   },
   // 14. Produção visual: as tabelas artefatos_visuais e visual_assets vêm pelo ESQUEMA (só acrescenta).
+  () => {},
+  // 15. Integration Builder: tabelas novas vêm pelo ESQUEMA (create if not exists; nada existente muda).
   () => {},
 ];
 

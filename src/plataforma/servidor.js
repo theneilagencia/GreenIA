@@ -155,7 +155,7 @@ function abrirTenant(P, id) {
     },
     get enviados() { return P.email.enviados; },
   };
-  t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id } });
+  t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id }, mestra: P.mestra });
   t.emailProprio = smtpProprio;   // o teste do admin da empresa usa só o email dela, sem cair no da plataforma
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],

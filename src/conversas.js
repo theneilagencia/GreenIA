@@ -17,6 +17,7 @@ import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { conferirComCorrecao, contextoDaExecucao, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
 import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, temArtefatoVisual } from './quickwin-operacao.js';
 import { gravarVisuais, produzirVisuais, resumoArtefato } from './visual/producao.js';
+import { precisaIntegracao, prepararExecucao, concluirExecucao, limparResposta } from './integracoes/quickwin.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -291,6 +292,13 @@ export function rotasConversas(app, r) {
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
     const anexos = await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []);
     if (!texto && !anexos.length) throw erro(400, 'vazia', 'Escreva uma mensagem.');
+    // Integrações (recurso atrás de flag): leituras dos sistemas externos viram anexos (material, não instrução) e
+    // passam pelo mesmo filtro, sigilo e roteamento abaixo. Sem necessidade declarada, nada muda.
+    let integ = null;
+    if (execucaoQw && precisaIntegracao(app, pessoa, qw)) {
+      try { integ = await prepararExecucao(app, pessoa, { qw, conv, lookup: app.dnsLookup }); anexos.push(...integ.anexos); }
+      catch (e) { app.log?.('integracoes', erroParaLog(e)); integ = null; }
+    }
     if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Esta mensagem é longa demais para enviar de uma vez (até ${MAX_TEXTO.toLocaleString('pt-BR')} caracteres). Divida em partes ou envie o material como anexo.`);
     if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');
     await app.limites?.checar(pessoa, cfg);
@@ -529,7 +537,7 @@ export function rotasConversas(app, r) {
     const montarSistema = (base, extra = '') => ctx.partes.length && cache
       ? [{ type: 'text', text: base }, ...ctx.partes.map((p, i) => ({ type: 'text', text: p, ...(i === 0 && ctx.cacheavel ? { cache_control: { type: 'ephemeral' } } : {}) })), ...(extra ? [{ type: 'text', text: extra }] : [])]
       : [base, ...ctx.partes, ...(extra ? [extra] : [])].join('\n\n');
-    const conteudoSistema = montarSistema(sistema);
+    const conteudoSistema = montarSistema(integ?.instrucao ? `${sistema}\n\n${integ.instrucao}` : sistema);
     const mensagens = [{ role: 'system', content: conteudoSistema }, ...h.mensagens];
     // Para limpar um erro do provedor que repita o pedido antes de ele ir para o registro (registro-seguro.js).
     const conteudoDoPedido = mensagens.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
@@ -641,7 +649,7 @@ export function rotasConversas(app, r) {
     // Quality Check (Quick Win 2.0): pelo mesmo recurso e pela mesma rota já decididos e conferidos acima
     // (mesmo sigilo, fornecedor e preferência de não treino). A defesa final de credenciais vale também para
     // cada chamada da conferência. Na reserva do plano, só a conferência determinística (sem gastar créditos).
-    let registroQualidade = null, custoExtra = 0, economiaExtra = 0;
+    let registroQualidade = null, custoExtra = 0, economiaExtra = 0, integResumo = null;
     // Chamadas extras da execução (conferência e plano visual): o MESMO recurso e a mesma rota já decididos e
     // conferidos acima, com a defesa final de credenciais em cada uma.
     const chamar = async msgs => {
@@ -660,6 +668,13 @@ export function rotasConversas(app, r) {
       const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
+      // Escritas nos sistemas externos (com os dados do bloco estruturado, que sai do texto mostrado), sob a política.
+      if (integ && registroQualidade.status !== 'pergunta') {
+        const l = limparResposta(resposta); resposta = l.texto;
+        linha({ t: 'etapa', v: 'Executando as integrações…' });
+        try { integResumo = await concluirExecucao(app, pessoa, { prep: integ, dados: l.dados, lookup: app.dnsLookup }); registroQualidade.integracoes = { plano: integ.plano, status: integResumo.status }; }
+        catch (e) { app.log?.('integracoes', erroParaLog(e)); registroQualidade.integracoes = { plano: integ.plano, falhou: true }; }
+      }
       linha({ t: 'texto', v: resposta });
       registrar(app, 'quickwin.quality_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, versao: qw.versao ?? null, roteamento: rotaId, ...registroQualidade });
       // Ciclo da execução (só metadados): pausada à espera de contexto, ou concluída (teste ou uso real).
@@ -712,7 +727,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
-      ...(registroQualidade ? { qualidade: resumoQualidade(registroQualidade) } : {}), ...(artefatos.length ? { artefatos } : {}) });
+      ...(registroQualidade ? { qualidade: resumoQualidade(registroQualidade) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
     res.end();
   }
 }

@@ -205,3 +205,24 @@ test('produção (qw de posts): a explicação de como se faz hoje não vira se�
   const r = await qa.post('/api/quick-wins/assistente/interpretar', { descricao: pedido, processo: como });
   assert.ok(!r.dados.operacao.entregaveis.map(rotuloEntregavel).some(x => /vicios|cta bem|artes graficas/i.test(x)), 'sem IA, a explicação virou seção');
 });
+
+test('produção (qw de posts): plano guardado por uma regra de leitura anterior não é reaproveitado depois da correção', async () => {
+  const { createHash } = await import('node:crypto');
+  const { json, exec, um } = await import('../src/db.js');
+  const pedido = 'Criar posts completos para as redes sociais da empresa';
+  const como = 'crio uma postagem com um copy e cta bem desenvolvido, sem os vicios de escrita de textos gerados por IA, além de artes graficas alinhadas com a marca';
+  const it = (await qa.post('/api/quick-wins/assistente/interpretar', { descricao: pedido, processo: como })).dados;
+  const area = (await qa.get('/api/eu')).dados.quickWins.areas[0].id;
+  const qw = (await qa.post('/api/quick-wins', { areas: [area], assistente: { descricao: pedido, como: { modo: 'explicar', texto: como }, operacao: it.operacao } })).dados;
+  // O que ficou guardado antes da correção: a chave da versão anterior e as seções espúrias que aquela leitura gerava.
+  const limpar = (s, max) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
+  const chaveAntiga = createHash('sha256').update(`${OP.VERSAO_INTERPRETACAO - 1}:${limpar(pedido, 1000)}\n${limpar(como, 3000)}`).digest('hex').slice(0, 32);
+  const espuria = { ...it.operacao, entregaveis: [...it.operacao.entregaveis, { id: 'inv_9', tipo: 'lista', rotulo: 'Cta bem desenvolvido', canal: null, config: {} }] };
+  const row = um(S.app.db, 'select especificacao from quick_wins where id = ?', qw.id), esp = json(row.especificacao, {});
+  esp.origem = { ...(esp.origem || {}), interpretacao: { chave: chaveAntiga, operacao: espuria } };
+  exec(S.app.db, 'update quick_wins set especificacao = ? where id = ?', JSON.stringify(esp), qw.id);
+  const r = (await qa.post('/api/quick-wins/assistente/interpretar', { descricao: pedido, processo: como, quick_win_id: qw.id })).dados;
+  assert.ok(!r.cache, 'o plano da regra anterior foi reaproveitado');
+  assert.ok(!r.operacao.entregaveis.map(rotuloEntregavel).some(x => /cta bem/i.test(x)), 'seção espúria do plano antigo voltou');
+  assert.ok(OP.VERSAO_INTERPRETACAO >= 2, 'a leitura do pedido mudou (restrições e explicação de como se faz hoje): a versão da interpretação precisa mudar junto');
+});

@@ -108,7 +108,10 @@ export const ENTRADAS = {
 export const executaveis = lista => (lista || []).filter(f => FERRAMENTAS[f]?.executavel);
 export const MAX_ENTRADAS = 5, MAX_ETAPAS = 10, MAX_LACUNAS = 4, MAX_SUGESTOES = 5, MAX_CRITERIOS = 6;
 // Chave do pedido interpretado (objetivo + como a pessoa faz hoje): o plano da IA só vale para o pedido de onde saiu.
-export const VERSAO_INTERPRETACAO = 1;
+// A versão entra na chave: quando a leitura do pedido muda, os planos lidos pela regra anterior (guardados no Quick
+// Win ou no cache) deixam de valer e são interpretados de novo. v2: restrições e a explicação de como se faz hoje
+// não viram entregáveis (planos v1 de Quick Wins de conteúdo traziam essas seções espúrias).
+export const VERSAO_INTERPRETACAO = 2;
 export const chaveInterpretacao = (descricao, processo = '') => createHash('sha256').update(`${VERSAO_INTERPRETACAO}:${limpar(descricao, 1000)}\n${limpar(processo, 3000)}`).digest('hex').slice(0, 32);
 const idDe = (s, max = 30) => norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, max);
 

@@ -29,7 +29,16 @@ export function blocoGrafico(it, spec, largura, altura, C) {
   const cores = C.T.serie;
   const prims = [];
   const tam = C.tip.legenda;
-  const legendaH = series.length > 1 ? tam * 2.2 : 0;
+  const legendaH = series.length > 1 || spec.tipo !== 'pizza' ? tam * 2.2 : 0;
+  // Uma série só: o nome dela (o que está sendo medido) em cima, como legenda.
+  if (series.length === 1 && spec.tipo !== 'pizza') {
+    const t = texto(it.cabecalho[series[0]], { familia: C.T.fonteCorpo, peso: 600, tam, cor: C.T.suave, largura, lh: 1.2, papel: 'legenda' });
+    prims.push(caixa(t.prim, 0, 0));
+  }
+  if (spec.tipo === 'pizza') {
+    const t = texto(it.cabecalho[series[0]], { familia: C.T.fonteCorpo, peso: 600, tam, cor: C.T.suave, largura, lh: 1.2, papel: 'legenda' });
+    prims.push(caixa(t.prim, 0, 0));
+  }
   if (series.length > 1) {
     let x = 0;
     series.forEach((k, i) => {
@@ -39,7 +48,7 @@ export function blocoGrafico(it, spec, largura, altura, C) {
       x += Math.min(largura / series.length, t.w + tam * 4);
     });
   }
-  const area = { x: 0, y: legendaH, w: largura, h: altura - legendaH };
+  const area = { x: 0, y: legendaH || (spec.tipo === 'pizza' ? tam * 2.2 : 0), w: largura, h: altura - (legendaH || (spec.tipo === 'pizza' ? tam * 2.2 : 0)) };
   const f = { pizza, progresso, barras_h: barrasH, linhas: linhasG }[spec.tipo] || barras;
   prims.push(...f(dados, area, C, cores, it, series));
   return { h: altura, prims };

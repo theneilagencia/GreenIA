@@ -498,6 +498,7 @@ export function iaTrocavel(inicial, { aoRecusar = null, bloqueio = null } = {}) 
   let atual = inicial;
   const ia = {
     get configurada() { return atual.configurada; }, get simulada() { return atual.simulada; },
+    get geraImagem() { return typeof atual.gerarImagem === 'function' && atual.geraImagem !== false && atual.configurada !== false; },
     listarModelos: (...a) => atual.listarModelos(...a),
     conta: (...a) => (atual.conta ? atual.conta(...a) : Promise.resolve(null)),
     // Envio: se a chave em uso já foi recusada pelo OpenRouter, não insiste (revalida no máximo a cada
@@ -505,6 +506,14 @@ export function iaTrocavel(inicial, { aoRecusar = null, bloqueio = null } = {}) 
     async *enviar(...a) {
       if (bloqueio) await bloqueio();
       try { yield* atual.enviar(...a); }
+      catch (e) { if (e?.status === 401) aoRecusar?.(); throw e; }
+    },
+    // Geração de imagem (asset da produção visual): mesma chave e mesmo bloqueio do envio. Sem o recurso na IA
+    // atual (simulada, sem chave), a produção visual segue sem imagem gerada.
+    async gerarImagem(...a) {
+      if (typeof atual.gerarImagem !== 'function') throw Object.assign(new Error('sem gerador de imagem'), { status: 501 });
+      if (bloqueio) await bloqueio();
+      try { return await atual.gerarImagem(...a); }
       catch (e) { if (e?.status === 401) aoRecusar?.(); throw e; }
     },
     trocar(nova) { atual = nova; },

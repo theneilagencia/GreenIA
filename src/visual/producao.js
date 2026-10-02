@@ -49,7 +49,7 @@ function tituloDaSecao(texto) {
 export function decisaoImagem(app, cfg, governanca) {
   const g = cfg.producaoVisual?.imagens || {};
   if (!g.ativa) return { pode: false, motivo: 'nao_liberado' };
-  if (typeof app.ia?.gerarImagem !== 'function') return { pode: false, motivo: 'sem_provedor' };
+  if (typeof app.ia?.gerarImagem !== 'function' || app.ia.geraImagem === false) return { pode: false, motivo: 'sem_provedor' };
   if (governanca.sigilosa) return { pode: false, motivo: 'sigilosa' };
   if (governanca.areaReforcada) return { pode: false, motivo: 'area_reforcada' };
   if (governanca.protegidos) return { pode: false, motivo: 'dados_protegidos' };

@@ -221,7 +221,7 @@ function capa(C, pg, itens, assets) {
   const p = novaPagina(C, { papel: 'capa' });
   const retrato = h > w;
   const heroi = assets.heroi;
-  const painelW = retrato ? w : heroi ? w * 0.58 : w, painelH = retrato ? h * (heroi ? 0.58 : 0.66) : h;
+  const painelW = retrato ? w : heroi ? w * 0.58 : w, painelH = retrato ? (heroi ? h * 0.58 : h) : h;
   p.prims.push({ t: 'rect', x: 0, y: 0, w: painelW, h: painelH, fill: T.primaria, papel: 'fundo_capa' });
   if (heroi) {
     const ix = retrato ? 0 : painelW, iy = retrato ? painelH : 0, iw = retrato ? w : w - painelW, ih = retrato ? h - painelH : h;
@@ -281,12 +281,23 @@ function destaque(C, pg, itens, assets, { numero, total }) {
   const st = pg.subtitulo ? texto(pg.subtitulo, { familia: T.fonteCorpo, peso: 400, tam: tip.h3, cor: corTexto, largura: larg, lh: 1.35, papel: 'subtitulo' }) : null;
   const tituloH = (tt ? tt.h + tip.corpo * 1.2 : 0) + (st ? st.h + tip.corpo * 1.1 : 0);
   const area = { x: M, y: 0, w: larg, h: fundoY - topo - tip.corpo * 1.5 - tituloH };
-  const dist = distribuir(pg.blocos, { ...area, y: 0 }, C2, itens, assets, 'uma_coluna');
+  let dist = distribuir(pg.blocos, { ...area, y: 0 }, C2, itens, assets, 'uma_coluna'), Cb = C2;
+  // Página de leitura rápida com pouco texto: o corpo cresce (em degraus), sem passar da área.
+  if (C.op.preencher !== false && dist.h < area.h * 0.45) {
+    for (const f of [1.45, 1.25, 1.1]) {
+      const C3 = escalarCorpo(C2, f), d = distribuir(pg.blocos, { ...area, y: 0 }, C3, itens, assets, 'uma_coluna');
+      if (d.h <= area.h * 0.7) { dist = d; Cb = C3; p.escalaCorpo = f; break; }
+    }
+  }
   const total_h = tituloH + dist.h;
-  let y = Math.max(topo + (escuro ? 0 : tip.corpo), topo + (fundoY - topo - tip.corpo * 1.5 - total_h) / 2);
+  // Páginas de conteúdo de uma sequência (carrossel): o título fica sempre na mesma altura (leitura de uma página
+  // para a outra); capa, fechamento e peça única: o conjunto centrado.
+  const sequencia = !escuro && total > 1;
+  let y = sequencia ? topo + (fundoY - topo) * 0.16 : Math.max(topo + (escuro ? 0 : tip.corpo), topo + (fundoY - topo - tip.corpo * 1.5 - total_h) / 2);
+  if (sequencia && y + total_h > fundoY - tip.corpo * 1.5) y = Math.max(topo + tip.corpo, fundoY - tip.corpo * 1.5 - total_h);
   if (tt) { p.prims.push(caixa(tt.prim, M, y)); p.blocos.push({ id: `titulo_${numero}`, tipo: 'titulo', refs: pg.refs || [], x: M, y, w: larg, h: tt.h }); y += tt.h + tip.corpo * 1.2; }
   if (st) { p.prims.push(caixa(st.prim, M, y)); y += st.h + tip.corpo * 1.1; }
-  colocar(p, { itens: dist.itens.map(x => ({ ...x, y: x.y + y })) }, C2);
+  colocar(p, { itens: dist.itens.map(x => ({ ...x, y: x.y + y })) }, Cb);
   p.prims.push(...mover(lg.prims, 0, fundoY + (baseH - lg.h)));
   if (ind) p.prims.push(caixa(ind.prim, w - M - larg * 0.3, fundoY + (baseH - ind.h)));
   p.areaUtil = { x: M, y: topo, w: larg, h: fundoY - topo };
@@ -325,8 +336,19 @@ function conteudoPagina(C, pg, itens, assets, { numero, total }) {
 }
 
 // Página única com vários blocos: faixa de título, indicadores e painéis em colunas (alvenaria).
+// Página única: se o conteúdo ocupa pouco da área, o corpo cresce em degraus (como nos slides), sem passar dela.
 function painel(C, pg, itens, assets) {
-  const { M, w, h, tip, T } = C;
+  const base = painel_(C, pg, itens, assets);
+  if (C.op.preencher === false || base.ocupacao >= 0.55) return base;
+  for (const f of [1.5, 1.3, 1.15]) {
+    const p = painel_(escalarCorpo(C, f), pg, itens, assets, C);
+    if (p.ocupacao <= 0.9) { p.escalaCorpo = f; return p; }
+  }
+  return base;
+}
+function painel_(C, pg, itens, assets, C0 = C) {
+  const { M, w, h, T } = C;
+  const tip = C0.tip === C.tip ? C.tip : { ...C.tip, h1: C0.tip.h1, h3: C0.tip.h3, display: C0.tip.display };
   const p = novaPagina(C, { papel: 'conteudo' });
   // Faixa de título na cor principal.
   const lg = logoPrims(C, 0, 0, tip.h1 * 1.1, (w - 2 * M) * 0.22, { sobreEscuro: true });
@@ -342,22 +364,32 @@ function painel(C, pg, itens, assets) {
   p.blocos.push({ id: 'cabecalho', tipo: 'titulo', refs: pg.refs || [], x: M, y: M * 0.8, w: larg, h: faixaH - M * 1.5 });
   const rd = rodape(C, 1, 1);
   p.prims.push(...rd.prims);
+  const inicioCorpo = p.prims.length;
   const area = { x: M, y: faixaH + tip.corpo * 1.3, w: w - 2 * M, h: rd.topo - faixaH - tip.corpo * 1.3 };
   p.areaUtil = area;
   // Grupos: blocos da mesma seção ficam juntos num painel.
   const grupos = [];
   for (const b of pg.blocos) { const g = grupos.at(-1); if (g && g.secao === b.secao && b.secao) g.blocos.push(b); else grupos.push({ secao: b.secao, blocos: [b] }); }
-  const largos = new Set(['grafico', 'diagrama', 'linha_tempo', 'imagem']);
-  const ehLargo = g => g.blocos.some(b => largos.has(b.tipo) || (b.tipo === 'tabela' && (itens.get(b.refs[0])?.cabecalho?.length || 0) >= 4) || (b.tipo === 'indicadores' && (itens.get(b.refs[0])?.itens?.length || 0) >= 3) || b.tipo === 'cartoes');
-  const nCol = C.op.colunas || Math.max(1, Math.min(3, Math.floor((area.w + C.gap) / (tip.corpo * 20 + C.gap))));
+  // Colunas pela largura legível; com dois ou mais gráficos, duas colunas (gráfico estreito demais não lê).
+  const nAuto = Math.max(1, Math.min(3, Math.floor((area.w + C.gap) / (tip.corpo * 20 + C.gap))));
+  const nCol = C.op.colunas || (grupos.filter(g => g.blocos.some(b => b.tipo === 'grafico')).length >= 2 ? Math.min(2, nAuto) : nAuto);
   const gap = C.gap, pad = tip.corpo * 0.9;
   const wCol = (area.w - gap * (nCol - 1)) / nCol;
+  // Ocupa a largura toda: diagrama, linha do tempo, imagem, cartões, tabela larga, faixa de indicadores; gráfico só
+  // quando a coluna fica estreita demais para ele (num painel largo, gráficos ficam lado a lado).
+  const ehLargo = g => g.blocos.some(b => ['diagrama', 'linha_tempo', 'imagem', 'cartoes'].includes(b.tipo) || (b.tipo === 'grafico' && wCol < tip.corpo * 20)
+    || (b.tipo === 'tabela' && (itens.get(b.refs[0])?.cabecalho?.length || 0) >= 4) || (b.tipo === 'indicadores' && (itens.get(b.refs[0])?.itens?.length || 0) >= 3));
   let alturas = Array(nCol).fill(area.y);
   const desenharGrupo = (g, x, yy, larg_) => {
     const inner = larg_ - pad * 2;
     let hy = pad;
     const partes = [];
-    for (const b of g.blocos) { const d = desenharBloco(b, inner, { ...C, dentroPainel: true }, itens, { assets }); partes.push({ b, d, y: hy }); hy += d.h + tip.corpo * 0.75; }
+    for (const b of g.blocos) {
+      // Título do bloco igual ao da página (peça de uma seção só): não repete.
+      const bb = b.titulo && pg.titulo && b.titulo.toLowerCase() === pg.titulo.toLowerCase() ? { ...b, semTitulo: true } : b;
+      const d = desenharBloco(bb, inner, { ...C, dentroPainel: true }, itens, { assets, alturaLivre: area.h - tip.corpo * 3 });
+      partes.push({ b, d, y: hy }); hy += d.h + tip.corpo * 0.75;
+    }
     const hh = hy - tip.corpo * 0.75 + pad;
     p.prims.push({ t: 'rect', x, y: yy, w: larg_, h: hh, r: T.cantos + 2, fill: T.superficie, papel: 'painel' });
     for (const q of partes) { p.prims.push(...mover(q.d.prims, x + pad, yy + q.y)); p.blocos.push({ id: q.b.id, tipo: q.b.tipo, refs: q.b.refs || [], x: x + pad, y: yy + q.y, w: inner, h: q.d.h, placeholder: !!q.d.placeholder }); }
@@ -373,6 +405,13 @@ function painel(C, pg, itens, assets) {
       const hh = desenharGrupo(g, area.x + k * (wCol + gap), alturas[k], wCol);
       alturas[k] += hh + gap;
     }
+  }
+  p.ocupacao = (Math.max(...alturas) - gap - area.y) / area.h;
+  // Pouco conteúdo: o corpo desce para o terço superior do espaço livre (nunca colado no topo de uma página vazia).
+  if (p.ocupacao < 0.6 && C0.op.preencher !== false) {
+    const dy = (1 - p.ocupacao) * area.h * 0.22;
+    p.prims = [...p.prims.slice(0, inicioCorpo), ...mover(p.prims.slice(inicioCorpo), 0, dy)];
+    p.blocos = p.blocos.map(b => (b.id === 'cabecalho' ? b : { ...b, y: b.y + dy }));
   }
   return p;
 }

@@ -130,15 +130,16 @@ function fluxoDe(linhas) {
     return x;
   };
   for (const l of linhas) {
-    const partes = String(l).split(SETA).map(p => p.trim()).filter(Boolean);
+    // "(sim) Etapa" ou "[não] Etapa": o rótulo é do ramo que chega nesta etapa; a etapa é só "Etapa".
+    const partes = String(l).split(SETA).map(p => p.trim()).filter(Boolean).map(p => {
+      const m = /^\(([^)]{1,20})\)\s*(.+)$/.exec(p) || /^\[([^\]]{1,20})\]\s*(.+)$/.exec(p);
+      return m ? { texto: m[2], rotulo: limparInline(m[1]) } : { texto: p, rotulo: null };
+    });
     for (let k = 0; k + 1 < partes.length; k++) {
-      let destino = partes[k + 1], rotulo = null;
-      const m = /^\(([^)]{1,20})\)\s*(.+)$/.exec(destino) || /^\[([^\]]{1,20})\]\s*(.+)$/.exec(destino);
-      if (m) { rotulo = limparInline(m[1]); destino = m[2]; }
-      const a = no(partes[k]), b = no(destino);
+      const a = no(partes[k].texto), b = no(partes[k + 1].texto), rotulo = partes[k + 1].rotulo;
       if (a !== b && !ligacoes.some(x => x.de === a.id && x.para === b.id)) ligacoes.push({ de: a.id, para: b.id, ...(rotulo ? { rotulo } : {}) });
     }
-    if (partes.length === 1) no(partes[0]);
+    if (partes.length === 1) no(partes[0].texto);
   }
   return { tipo: 'fluxo', nos, ligacoes };
 }

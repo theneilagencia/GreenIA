@@ -1,6 +1,7 @@
 // OpenRouter falso: servidor HTTP local com o mesmo protocolo (SSE), que grava
 // cada chamada. Serve para testar o cliente de verdade, sem rede.
 import { createServer } from 'node:http';
+import { Resvg } from '@resvg/resvg-js';
 import { criarOpenRouter } from '../src/ia.js';
 
 // responder(corpo): texto da resposta (opcional), para roteirizar respostas nos testes.
@@ -8,7 +9,10 @@ export const FONTES_FALSAS = [{ url: 'https://noticias.exemplo/mineracao-segura'
 // chave: se informada, só aceita "Bearer <chave>" (401 nas demais), como o OpenRouter; autorizacoes guarda o
 // cabeçalho recebido em cada chamada de chat, para conferir QUAL chave a GreenIA usou (nunca vai para fixture).
 // anotacoes: função opcional (corpo, fontes) => chunks SSE extras com as citações, para simular outros formatos.
-export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null } = {}) {
+// imagem: função opcional (corpo) => data URL da imagem gerada (geração de imagem, sem streaming); null => 500.
+// Sem ela, um pedido de imagem recebe uma imagem PNG pequena.
+export const PNG_FALSO = `data:image/png;base64,${Buffer.from(new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><defs><linearGradient id="g"><stop offset="0" stop-color="#2E7D4F"/><stop offset="1" stop-color="#9AD1B0"/></linearGradient></defs><rect width="640" height="400" fill="url(#g)"/><circle cx="420" cy="180" r="120" fill="#fff" opacity=".35"/></svg>').render().asPng()).toString('base64')}`;
+export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null, imagem = null } = {}) {
   const chamadas = [], autorizacoes = [];
   const srv = createServer(async (req, res) => {
     if (chave && req.headers.authorization !== `Bearer ${chave}`) { res.writeHead(401, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'No auth credentials found' } })); }
@@ -20,6 +24,12 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
     const b = JSON.parse(corpo);
     chamadas.push(b);
     autorizacoes.push(req.headers.authorization || null);
+    if (b.modalities?.includes('image')) {
+      const url = imagem ? imagem(b) : PNG_FALSO;
+      if (!url) { res.writeHead(500, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'falhou' } })); }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ model: b.model, choices: [{ message: { role: 'assistant', content: '', images: [{ type: 'image_url', image_url: { url } }] } }], usage: { cost: 0.039 } }));
+    }
     // O OpenRouter tenta o principal e, se falhar, os da lista "models".
     const tentar = [b.model, ...(b.models || []).filter(m => m !== b.model)];
     const respondeu = tentar.find(m => !falhar.has(m));
@@ -41,7 +51,7 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/v1`;
-  return { chamadas, autorizacoes, base, falhar, set responder(f) { responder = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
+  return { chamadas, autorizacoes, base, falhar, set responder(f) { responder = f; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.

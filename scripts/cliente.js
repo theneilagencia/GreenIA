@@ -33,6 +33,7 @@ export function cliente(app, base) {
     },
     get csrf() { return csrf; },
     set csrf(v) { csrf = v; },
+    get cookie() { return cookie; },   // para baixar arquivos (binário) com a mesma sessão
   };
   return c;
 }

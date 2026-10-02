@@ -59,35 +59,50 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
   let { r, c } = rodar();
   tentativas.push({ n: 0, erros: [...new Set(c.erros.map(e => e.codigo))], acao: 'primeira_composicao', escala: opcoes.escala });
   let correcoes = 0;
-  while (c.erros.length && correcoes < MAX_CORRECOES_VISUAIS) {
-    const codigos = new Set(c.erros.map(e => e.codigo));
-    let acao = null;
-    if (codigos.has('conteudo_faltando')) {
-      // Recompor: os itens que não apareceram entram como bloco padrão na página da seção deles.
+  // Estratégias, em ordem. Cada uma devolve o nome da ação quando mudou algo; a que não se aplica (ou não muda nada)
+  // passa a vez à seguinte. Uma rodada = uma ação, sempre registrada.
+  const estrategias = [
+    codigos => {
+      if (!codigos.has('conteudo_faltando')) return null;
+      // Recompor: o item que não está em bloco nenhum entra como bloco padrão na página da seção dele.
       const faltam = new Set(c.erros.find(e => e.codigo === 'conteudo_faltando').itens || []);
       const itens = itensPorId(conteudo);
+      let mudou = false;
       for (const id of faltam) {
-        const it = itens.get(id); if (!it) continue;
-        const ja = plano.paginas.some(p => p.blocos.some(b => b.refs?.includes(id)));
-        if (ja) continue;
+        const it = itens.get(id);
+        if (!it || plano.paginas.some(p => p.blocos.some(b => b.refs?.includes(id)))) continue;
         const alvo = plano.paginas.find(p => p.blocos.some(b => b.secao === it.secao)) || plano.paginas.filter(p => p.papel !== 'capa').at(-1) || plano.paginas.at(-1);
         const tipo = { tabela: 'tabela', lista: it.checklist ? 'checklist' : 'lista', indicadores: 'indicadores', fluxo: 'diagrama', citacao: 'citacao', subtitulo: 'subtitulo' }[it.tipo] || 'texto';
         alvo.blocos.push({ id: `b_r${id.replace(/\W/g, '')}`, tipo, refs: [id], secao: it.secao, ...(tipo === 'diagrama' ? { diagrama: { tipo: 'fluxo' } } : {}) });
+        mudou = true;
       }
-      acao = 'recompor_conteudo';
-    } else if (codigos.has('dados_incorretos')) {
+      // Item que está num bloco mas não aparece inteiro (gráfico que não mostra uma coluna): ganha a tabela.
+      if (!mudou) for (const id of faltam) {
+        const it = itens.get(id);
+        if (it?.tipo !== 'tabela' || plano.paginas.some(p => p.blocos.some(b => b.tipo === 'tabela' && b.refs?.includes(id)))) continue;
+        const pg = plano.paginas.find(p => p.blocos.some(b => b.refs?.includes(id)));
+        const i = pg.blocos.findIndex(b => b.refs?.includes(id));
+        pg.blocos.splice(i + 1, 0, { id: `b_t${id.replace(/\W/g, '')}`, tipo: 'tabela', refs: [id], secao: it.secao });
+        mudou = true;
+      }
+      return mudou ? 'recompor_conteudo' : null;
+    },
+    codigos => {
+      if (!codigos.has('dados_incorretos')) return null;
       // Número fora do conteúdo só pode ter vindo de um título escrito no plano: volta ao título da seção.
       const titulos = new Map(conteudo.secoes.map(s => [s.id, s.titulo || '']));
+      let mudou = false;
       for (const p of plano.paginas) {
         if (p.papel === 'capa') continue;
-        p.subtitulo = '';
         const secao = p.secao || p.blocos[0]?.secao;
-        if (secao && titulos.has(secao)) p.titulo = titulos.get(secao);
+        const novo = secao && titulos.has(secao) ? titulos.get(secao) : p.titulo;
+        if (p.subtitulo || novo !== p.titulo) { p.subtitulo = ''; p.titulo = novo; mudou = true; }
       }
-      acao = 'titulos_do_conteudo';
-    } else if ([...codigos].some(k => GEOMETRIA.has(k)) && !(codigos.size === 1 && codigos.has('paginas') && c.erros[0].obtido < c.erros[0].esperado)) {
-      // Transbordo: primeiro a escala (até o mínimo legível), depois as colunas, depois a paginação.
-      let feito = false;
+      return mudou ? 'titulos_do_conteudo' : null;
+    },
+    codigos => {
+      if (![...codigos].some(k => GEOMETRIA.has(k)) || (codigos.size === 1 && codigos.has('paginas') && c.erros.find(e => e.codigo === 'paginas').obtido < c.erros.find(e => e.codigo === 'paginas').esperado)) return null;
+      // Transbordo: primeiro a escala (até o mínimo legível), depois as colunas, o layout denso e a paginação.
       if (opcoes.escala > minEscala + 1e-9) {
         let e = Math.max(minEscala, opcoes.escala - 0.05);
         for (; e > minEscala - 1e-9; e -= 0.04) {
@@ -95,37 +110,44 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
           if (cabe(t, plano, tr)) break;
         }
         opcoes.escala = Math.round(Math.max(minEscala, e) * 100) / 100;
-        acao = 'reduzir_escala'; feito = true;
-        // Na escala mínima e ainda sem caber: a próxima rodada tenta colunas e paginação.
+        return 'reduzir_escala';
       }
-      if (!feito && !plano.multipagina && !opcoes.colunasTentadas) {
-        const atual = opcoes.colunas || null;
-        let melhor = null;
-        for (const k of [1, 2, 3].filter(x => x !== atual)) {
-          const t = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, colunas: k } });
-          if (cabe(t, plano, tr)) { melhor = k; break; }
-        }
+      if (!plano.multipagina && !opcoes.colunasTentadas) {
         opcoes.colunasTentadas = true;
-        if (melhor) { opcoes.colunas = melhor; acao = 'reorganizar_colunas'; feito = true; }
-        else if (plano.impacto) { plano.impacto = false; plano.paginas.forEach(p => { if (p.layout === 'destaque') p.layout = 'painel'; }); opcoes.escala = 1; acao = 'layout_denso'; feito = true; }
+        for (const k of [1, 2, 3].filter(x => x !== (opcoes.colunas || null))) {
+          const t = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, colunas: k } });
+          if (cabe(t, plano, tr)) { opcoes.colunas = k; return 'reorganizar_colunas'; }
+        }
       }
-      if (!feito) {
-        // Paginação: a página que transborda continua na seguinte (listas e tabelas partidas, título repetido).
-        const estouradas = new Set(c.erros.filter(e => e.codigo === 'transbordo' || e.codigo === 'corte').map(e => r.paginas.find(p => p.numero === e.pagina)?.origem).filter(Boolean));
-        let mudou = false;
-        for (const p of plano.paginas) if ((estouradas.has(p.id) || !estouradas.size) && p.layout !== 'continuo' && p.papel !== 'capa') { p.layout = 'continuo'; p.repetirTitulo = true; mudou = true; }
-        if (mudou) { if (!plano.multipagina) { plano.multipagina = true; plano.continuacao = true; } acao = 'paginar'; }
-      }
-    } else if (codigos.has('contraste')) {
+      if (plano.impacto && !plano.multipagina) { plano.impacto = false; plano.paginas.forEach(p => { if (p.layout === 'destaque') p.layout = 'painel'; }); opcoes.escala = 1; return 'layout_denso'; }
+      // Paginação: a página que transborda continua na seguinte (listas e tabelas partidas, título repetido).
+      const estouradas = new Set(c.erros.filter(e => e.codigo === 'transbordo' || e.codigo === 'corte').map(e => r.paginas.find(p => p.numero === e.pagina)?.origem).filter(Boolean));
+      let mudou = false;
+      for (const p of plano.paginas) if ((estouradas.has(p.id) || !estouradas.size) && p.layout !== 'continuo' && p.papel !== 'capa') { p.layout = 'continuo'; p.repetirTitulo = true; mudou = true; }
+      if (!mudou) return null;
+      if (!plano.multipagina) { plano.multipagina = true; plano.continuacao = true; }
+      return 'paginar';
+    },
+    codigos => {
+      if (!codigos.has('contraste')) return null;
       opcoes.ajustesCor = [...(opcoes.ajustesCor || [])];
+      const antes = opcoes.ajustesCor.length;
       for (const e of c.erros.filter(x => x.codigo === 'contraste' && x.fundo)) {
         const pg = r.paginas.find(p => p.numero === e.pagina), p = pg?.prims[e.prim];
         if (p) opcoes.ajustesCor.push({ de: p.cor, para: ajustarContraste(p.cor, e.fundo, e.minimo + 0.2), pagina: e.pagina, papel: p.papel });
       }
-      acao = 'ajustar_contraste';
-    } else if (codigos.has('legibilidade') && opcoes.escala < 1) {
-      opcoes.escala = Math.min(1, opcoes.escala + 0.1); acao = 'aumentar_escala';
-    }
+      return opcoes.ajustesCor.length > antes ? 'ajustar_contraste' : null;
+    },
+    codigos => {
+      if (!codigos.has('legibilidade') || opcoes.escala >= 1) return null;
+      opcoes.escala = Math.min(1, opcoes.escala + 0.1);
+      return 'aumentar_escala';
+    },
+  ];
+  while (c.erros.length && correcoes < MAX_CORRECOES_VISUAIS) {
+    const codigos = new Set(c.erros.map(e => e.codigo));
+    let acao = null;
+    for (const estrategia of estrategias) { acao = estrategia(codigos); if (acao) break; }
     if (!acao) break;   // nada a fazer pelo layout (ex.: o pedido exige algo que o conteúdo não tem)
     correcoes++;
     ({ r, c } = rodar());

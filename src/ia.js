@@ -33,6 +33,7 @@ export function montarCorpo(mensagens, op) {
 export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', fetch: f = globalThis.fetch, titulo = 'GreenIA' }) {
   const cab = { authorization: `Bearer ${chave}`, 'content-type': 'application/json', 'x-title': titulo };
   return {
+    geraImagem: true,
     // Conta no OpenRouter: dados da chave (uso, limite, uso do dia/semana/mês) e créditos comprados e gastos.
     // Cada parte falha sozinha (a de créditos pode exigir outro tipo de chave). A chave nunca sai daqui.
     async conta() {
@@ -117,7 +118,7 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
 export const MSG_SEM_CHAVE = 'A IA ainda não está configurada: falta a chave do OpenRouter (informada no console da plataforma, em Uso, ou na variável OPENROUTER_API_KEY do servidor). Avise o admin.';
 export function criarIndisponivel() {
   return {
-    configurada: false,
+    configurada: false, geraImagem: false,
     async conta() { return null; },
     async listarModelos() { return []; },
     async *enviar() { throw new ErroIA(MSG_SEM_CHAVE, 503); },

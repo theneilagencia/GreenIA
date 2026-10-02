@@ -93,8 +93,10 @@ function blocosDaSecao(s, tr) {
       const querGrafico = g && (tr.foco === 'grafico' || ['presentation', 'report', 'infographic', 'training_material'].includes(tr.tipo) || tr.impacto);
       if (querGrafico) {
         out.push({ refs: [it.id], secao: s.id, tipo: 'grafico', grafico: g });
-        // Num dashboard, relatório ou comparativo os números também ficam em tabela (o valor exato à vista).
-        if (['dashboard', 'report', 'comparison', 'one_page', 'document', 'proposal', 'custom'].includes(tr.tipo) || it.cabecalho.length > 2) out.push(b);
+        // A tabela fica junto quando o gráfico não mostra todos os valores exatos (várias séries em linha, muitos
+        // pontos, colunas que não viraram série) ou quando a peça é um documento (relatório, proposta).
+        const semValores = (g.tipo === 'linhas' && g.series.length > 1) || it.linhas.length > 12 || it.cabecalho.length - 1 > g.series.length;
+        if (semValores || ['report', 'document', 'proposal'].includes(tr.tipo)) out.push(b);
         continue;
       }
     }

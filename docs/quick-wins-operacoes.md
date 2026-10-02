@@ -119,7 +119,9 @@ Pipeline (entre colchetes, o que esta evolução acrescenta):
 
 ### Arte final × briefing
 
-Não há ferramenta de imagem nem de vídeo liberada. Os entregáveis de imagem, carrossel, vídeo e Reels saem como briefing ou roteiro, com o rótulo "Briefing (a arte final não é gerada aqui)". O prompt e a conferência deixam essa diferença explícita.
+Entregável com `visual` (apresentação, peça, carrossel, infográfico, one-page...) sai como artefato pronto pela
+produção visual (`docs/producao-visual.md`). Sem `visual` (Quick Wins anteriores) e em vídeo e Reels, a peça
+continua saindo como briefing ou roteiro, com o rótulo "Briefing (a arte final não é gerada aqui)".
 
 ### Pausar e retomar
 

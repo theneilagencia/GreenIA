@@ -132,8 +132,14 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
   const todos = paginas.flatMap(pg => pg.prims);
   const visivel = plano(textoDe(todos.filter(p => p.t === 'text')));
   const faltando = [];
+  // Como cada item foi mostrado: uma tabela só em gráfico precisa dos rótulos, dos valores e do nome das séries
+  // (o cabeçalho da coluna de rótulos não aparece num gráfico); em tabela ou cartões, de tudo.
+  const comoTabela = new Set(pl.paginas.flatMap(p => p.blocos.filter(b => ['tabela', 'cartoes', 'texto'].includes(b.tipo)).flatMap(b => b.refs || [])));
+  const series = new Map(pl.paginas.flatMap(p => p.blocos.filter(b => b.tipo === 'grafico').map(b => [b.refs[0], b.grafico?.series || []])));
   for (const s of conteudo.secoes) for (const it of s.itens) {
-    const partes = it.tipo === 'lista' ? it.itens.map(x => x.texto) : it.tipo === 'tabela' ? [...it.cabecalho, ...it.linhas.flat()] : it.tipo === 'indicadores' ? it.itens.flatMap(x => [x.valor, x.rotulo]) : it.tipo === 'fluxo' ? it.nos.map(x => x.rotulo) : [it.texto];
+    const soGrafico = it.tipo === 'tabela' && series.has(it.id) && !comoTabela.has(it.id);
+    const partes = soGrafico ? [...series.get(it.id).map(k => it.cabecalho[k]), ...it.linhas.flatMap(l => [l[0], ...series.get(it.id).map(k => l[k])])]
+      : it.tipo === 'lista' ? it.itens.map(x => x.texto) : it.tipo === 'tabela' ? [...it.cabecalho, ...it.linhas.flat()] : it.tipo === 'indicadores' ? it.itens.flatMap(x => [x.valor, x.rotulo]) : it.tipo === 'fluxo' ? it.nos.map(x => x.rotulo) : [it.texto];
     const ausentes = partes.filter(t => { const k = plano(t); return k && !visivel.includes(k.slice(0, 60)); });
     if (ausentes.length) faltando.push({ item: it.id, secao: s.id, exemplos: ausentes.slice(0, 2) });
   }

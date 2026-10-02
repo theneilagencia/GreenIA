@@ -17,7 +17,8 @@ import { svgDaPagina } from './svg.js';
 import { pngDaPagina, jpgDaPagina } from './raster.js';
 import { pdfDasPaginas } from './pdf.js';
 import { carregarAssets, guardarAsset, resumoArtefato } from './producao.js';
-import { corValida, HEX } from './marca.js';
+import { corValida, HEX, resolverIdentidade } from './marca.js';
+import { lerConfig } from '../config.js';
 
 const MAX_TEXTO_EDICAO = 800;
 const cache = new Map();
@@ -261,7 +262,8 @@ export function rotasArtefatos(app, r) {
     const visual = limparVisual({ tipo: corpo.tipo, formato: corpo.formato, paginas: corpo.paginas });
     if (!visual || (tipoDe(corpo.tipo) === 'custom' && !corpo.rotulo)) throw erro(400, 'tipo', 'Escolha o tipo do novo artefato.');
     if (corpo.rotulo) visual.rotulo = String(corpo.rotulo).slice(0, 60);
-    const conteudo = json(a.conteudo, {}), identidade = json(a.identidade, {});
+    // Artefato novo: identidade atual da empresa (as versões antigas guardam a delas, para o histórico).
+    const conteudo = json(a.conteudo, {}), identidade = resolverIdentidade(lerConfig(app.db));
     const tr = tracos(visual, { secoes: conteudo.secoes.length });
     const plano = planejar(conteudo, tr, { titulo: a.titulo });
     const opcoes0 = json(a.opcoes, {});

@@ -18,6 +18,8 @@ import { inferirEstilo, resolverIdentidade } from './marca.js';
 import { produzir, produzirSemCorte } from './motor.js';
 import { asset, inspecionarImagem, decodificarDataUrl, MAX_BYTES_ASSET } from './assets.js';
 import { renderizavel } from './webp.js';
+import { projetarDesign } from './design.js';
+import { chromiumDisponivel } from './chromium.js';
 import { rotuloEntregavel } from '../quickwin-operacao.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -126,7 +128,7 @@ const dataDe = (app, idioma = 'pt') => app.agora().toLocaleDateString(idioma ===
 const idiomaDe = texto => { const t = ` ${norm(texto)} `; const en = (t.match(/ (the|and|of|to|with|for|is|are|this|that) /g) || []).length, pt = (t.match(/ (de|da|do|que|com|para|os|as|uma|não|nao|e) /g) || []).length; return en > pt * 1.5 ? 'en' : 'pt'; };
 
 // Produz os artefatos de uma execução (sem gravar: a gravação vem depois da resposta, com o id dela).
-export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, usarIA = true, governanca = {}, etapa = () => {} }) {
+export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, chamarDesign = null, usarIA = true, governanca = {}, etapa = () => {} }) {
   const op = espec?.operacao;
   const visuais = entregaveisVisuais(op);
   if (!visuais.length) return null;
@@ -135,6 +137,8 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
   const custos = { plano_visual: 0, imagem: 0, render: 0 };
   const ms = { plano: 0, assets: 0, composicao: 0, conferencia: 0 };
   const artefatos = [], ignorados = [];
+  // Design pela IA (diretora de arte): precisa do navegador isolado e de chamada de IA; senão, motor clássico.
+  const nav = usarIA && (chamarDesign || chamar) ? await chromiumDisponivel() : { ok: false, motivo: 'sem_ia' };
   for (const e of visuais) {
     const visual = limparVisual(e.visual);
     const rotulo = e.rotulo || visual.rotulo || '';
@@ -170,7 +174,8 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
       const alvo = plano.paginas.find(p => p.papel === 'conteudo') || plano.paginas[0];
       alvo.blocos.unshift({ id: 'b_img', tipo: 'imagem', asset: 'heroi', refs: [], proposito: limpar(visual.imagemDescricao || 'foto real a ser fornecida', 80) });
       imagem = { pedida: 'real', gerada: false, motivo: 'precisa_ser_real' };
-    } else if (visual.imagem) {
+    } else if (visual.imagem || (nav.ok && (tr.impacto || tr.capa))) {
+      // Imagem ilustrativa: pedida pelo entregável ou, no design pela IA, para peça de impacto e capa.
       const d = decisaoImagem(app, cfg, governanca);
       imagem = { pedida: 'conceitual', gerada: false, motivo: d.motivo || null };
       if (d.pode) {
@@ -195,6 +200,27 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const idioma = idiomaDe(resto);
     const exigidos = op.entregaveis.length === 1 ? (espec.invariantes?.entregaveis || []) : [];
     const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
+    // Design pela IA. Conferido no navegador; falhou duas vezes ou indisponível: motor clássico (com o motivo).
+    let motivoClassico = nav.ok ? null : nav.motivo;
+    if (nav.ok && imagem?.pedida !== 'real') {
+      const c0 = Date.now();
+      const ativos = {};
+      if (assets.heroi?.dataUrl) { const d = decodificarDataUrl(assets.heroi.dataUrl); if (d) ativos.heroi = d; }
+      if (identidade.logo?.dataUrl) { const d = decodificarDataUrl(identidade.logo.dataUrl); if (d) ativos.logo = d; }
+      const formato = plano.formato;
+      const dz = await projetarDesign({ chamar: chamarDesign || chamar, plano, conteudo, tr: { ...tr, formato }, identidade, assets: ativos, objetivo: espec.objetivo, publico: visual.publico, titulo, data: opc.data, etapa });
+      custos.plano_visual += dz.custo || 0;
+      ms.composicao += Date.now() - c0;
+      if (dz.ok) {
+        artefatos.push({ entregavel: e.id, rotulo: rotulo || tr.rotulo, tipo: tr.tipo, tipoRotulo: tr.rotulo, titulo, formato, conteudo,
+          plano: { ...plano, formato, motor: 'design', design: dz.design }, opcoes: opc, identidade, assets, imagem, render: dz.render,
+          registro: { status: dz.tentativas ? 'corrigido' : 'aprovado', correcoes: dz.tentativas, erros: [], avisos: [], paginas: dz.design.paginas.length, plano: origemPlano, motor: 'design', imagem, ms: { total: Date.now() - c0 } },
+          status: dz.tentativas ? 'corrigido' : 'aprovado', avisos: [], exportacoes: plano.exportacoes, paginas: dz.design.paginas.length });
+        continue;
+      }
+      motivoClassico = dz.motivo || 'conferencia';
+      app.log?.('design', `motor clássico: ${motivoClassico}${dz.codigos?.length ? ` (${dz.codigos.join(',')})` : ''}${dz.erro ? ` ${dz.erro}` : ''}`);
+    }
     let r = produzirSemCorte({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc }, { formatoPedido: !!visual.formato && PEDE_FORMATO.test(`${espec?.objetivo || ''} ${qw?.descricao || ''}`) });
     // Diagrama sem formato pedido: a orientação da página segue o desenho (fluxo longo de cima para baixo cabe melhor
     // em pé). Fica a que permite o texto maior sem falha.
@@ -206,9 +232,9 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     }
     ms.composicao += r.registro.ms.composicao; ms.conferencia += r.registro.ms.conferencia;
     const avisos = [...r.explicacoes];
-    if (imagem?.pedida === 'conceitual' && !imagem.gerada) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);
+    if (imagem?.pedida === 'conceitual' && !imagem.gerada && visual.imagem) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);
     artefatos.push({ entregavel: e.id, rotulo: rotulo || tr.rotulo, tipo: tr.tipo, tipoRotulo: tr.rotulo, titulo, formato: plano.formato, conteudo, plano: r.plano, opcoes: r.opcoes, identidade, assets, imagem,
-      registro: { ...r.registro, plano: origemPlano, imagem }, status: r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
+      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico } : {}) }, status: r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
   }
   return { artefatos, ignorados, custos, ms: { ...ms, total: Date.now() - t0 } };
 }
@@ -230,8 +256,9 @@ export function gravarVisuais(app, producao, { pessoa, conv, qw, respId, rotaId 
       conv.id, respId, rotaId, conv.quick_win_id, qw?.versao ?? null, pessoa.id, a.entregavel, a.tipo, a.rotulo, a.titulo || a.rotulo, a.formato, a.paginas,
       JSON.stringify(a.conteudo), JSON.stringify(a.plano), JSON.stringify(opcoes), JSON.stringify(a.identidade), JSON.stringify({ ...a.registro, avisos: a.avisos }), a.status, JSON.stringify(a.exportacoes), agora).lastInsertRowid);
     exec(app.db, 'update artefatos_visuais set base_id = ? where id = ?', id, id);
+    if (a.render) guardarRender(app, id, a.render);
     registrar(app, 'visual.produced', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId, artefato: id, tipo: a.tipo, formato: a.formato,
-      paginas: a.paginas, status: a.status, correcoes: a.registro.correcoes, plano: a.registro.plano, imagem: a.imagem ? { gerada: !!a.imagem.gerada, motivo: a.imagem.motivo || null } : null,
+      paginas: a.paginas, status: a.status, correcoes: a.registro.correcoes, plano: a.registro.plano, motor: a.registro.motor || 'classico', motivo_classico: a.registro.motivo_classico || null, imagem: a.imagem ? { gerada: !!a.imagem.gerada, motivo: a.imagem.motivo || null } : null,
       escala: a.registro.escala, ms: a.registro.ms?.total ?? null });
     return resumoArtefato(app, um(app.db, 'select * from artefatos_visuais where id = ?', id));
   });
@@ -243,3 +270,12 @@ export function resumoArtefato(app, a) {
   return { id: a.id, base_id: a.base_id, versao: a.versao, tipo: a.tipo, rotulo: a.rotulo, titulo: a.titulo, formato: a.formato, paginas: a.paginas, status: a.status,
     exportacoes: json(a.exportacoes, []), avisos: q.avisos || [], correcoes: q.correcoes || 0, criado_em: a.criado_em, mensagem_id: a.mensagem_id };
 }
+
+// Páginas renderizadas do design pela IA (prévia JPEG por página e PDF), por versão.
+export function guardarRender(app, artefatoId, render) {
+  const agora = app.agora().toISOString();
+  exec(app.db, 'delete from artefatos_render where artefato_id = ?', artefatoId);
+  render.previas.forEach((b, k) => exec(app.db, 'insert into artefatos_render (artefato_id, chave, mime, dados, criado_em) values (?, ?, ?, ?, ?)', artefatoId, `p${k + 1}.jpg`, 'image/jpeg', b, agora));
+  if (render.pdf) exec(app.db, 'insert into artefatos_render (artefato_id, chave, mime, dados, criado_em) values (?, ?, ?, ?, ?)', artefatoId, 'doc.pdf', 'application/pdf', render.pdf, agora);
+}
+export const lerRender = (app, artefatoId, chave) => um(app.db, 'select mime, dados from artefatos_render where artefato_id = ? and chave = ?', artefatoId, chave);

@@ -4,7 +4,7 @@
 //   QA_BASE=https://<endereço> QA_EMPRESA=<slug> QA_CODIGO_FIFO=/fifo QA_COMANDOS=/fifo2 node scripts/qa-integracoes-producao.mjs
 //
 // Login único (o código chega uma vez pelo FIFO e não é guardado nem impresso; cookie e CSRF só na memória).
-// Comandos: saude | ligar | cenarios | limpar | desligar | sair. "ligar" liga o recurso SÓ para a conta de QA;
+// Comandos: saude | ligar | cenarios | visual | limpar | desligar | sair. "ligar" liga o recurso SÓ para a conta de QA;
 // "desligar" devolve a configuração de integrações ao estado anterior. Conectores criados começam com "QA - " e
 // são revogados no "limpar"; Quick Wins "QA - " vão para a exclusão lógica. Credenciais usadas são fictícias e
 // geradas na hora; o relatório nunca as contém (o script confere).
@@ -261,6 +261,59 @@ async function cenarios() {
   log(`CENARIOS_FIM versao=${R.versao} ${linhas.join(' ')} vazamento_relatorio=${!!R.vazamento_no_relatorio}`);
 }
 
+// ---- Design pela IA (peças visuais) ----------------------------------------------------------------------------
+const VISUAIS = [
+  { nome: 'Apresentação executiva', descricao: 'Transforme os números do trimestre em uma apresentação executiva de 6 slides para a diretoria.',
+    material: 'Resultados do 3º trimestre de 2026 (dados fictícios, empresa Exemplo QA): Receita R$ 12,4 milhões (meta R$ 12,0 milhões). Margem EBITDA 18%. Custo de frete subiu 9%. Clientes ativos: 1.240 (eram 1.180). Projetos: novo centro de distribuição 70% concluído; ERP em homologação. Riscos: atraso de fornecedor de embalagens; câmbio. Próximos passos: renegociar frete até 30/11; concluir o CD em dezembro.' },
+  { nome: 'Cartaz de evento', descricao: 'Crie um cartaz para divulgar a Semana de Segurança da empresa.',
+    material: 'Semana Interna de Prevenção de Acidentes (fictícia): 13 a 17 de outubro de 2026, às 9h, no refeitório. Atividades: palestras diárias, gincana de segurança, campanha de vacinação. Tema: Cuidar de você é o nosso jeito de trabalhar.' },
+  { nome: 'One-page de contrato', descricao: 'Analise este contrato e crie um one-page visual com riscos, prazos e obrigações principais.',
+    material: 'CONTRATO DE LOCAÇÃO DE EQUIPAMENTOS Nº QA-12/2026 (fictício). Vigência: 24 meses a partir de 01/11/2026. Valor: R$ 36.000 por mês, reajuste anual pelo IPCA. Multa por rescisão antecipada: 30% do saldo. Manutenção preventiva pela locadora a cada 90 dias. Seguro pela locatária. Aviso prévio de 60 dias.' },
+  { nome: 'Infográfico de processo', descricao: 'Transforme este processo de compras em um infográfico.',
+    material: 'Processo de compras (fictício): 1) a área faz o pedido no portal; 2) o gestor aprova em até 2 dias; 3) Compras cota com 3 fornecedores; 4) pedidos acima de R$ 5.000 vão para a diretoria; 5) Compras emite o pedido; 6) o almoxarifado recebe e confere; 7) a área retira o material. Prazo total: até 10 dias úteis.' },
+  { nome: 'Post para LinkedIn', descricao: 'Crie um post visual para o LinkedIn anunciando o novo centro de distribuição.',
+    material: 'Novo centro de distribuição (fictício) em Contagem/MG: 12 mil m², início da operação em dezembro de 2026, 80 novas vagas, entregas na região metropolitana em até 24 horas.' },
+];
+async function visual() {
+  R.visual = [];
+  const pasta = join(RAIZ, 'visual'); mkdirSync(pasta, { recursive: true });
+  for (const caso of VISUAIS) {
+    const reg = { nome: caso.nome };
+    try {
+      const q = await quickWin(caso.nome, caso.descricao);
+      const e = await executar(q, caso.material);
+      reg.qualidade = e.qualidade; reg.ms = e.ms; reg.erro = e.erro;
+      reg.artefatos = [];
+      for (const a of e.fim?.artefatos || []) {
+        const det = (await api('GET', `/api/artefatos/${a.id}`)).dados;
+        const A = { id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, avisos: a.avisos };
+        for (let n = 1; n <= Math.min(a.paginas || 1, 8); n++) {
+          const p = await binario(`/api/artefatos/${a.id}/paginas/${n}`);
+          if (p.status === 200) writeFileSync(join(pasta, `${slug(caso.nome)}-p${n}.${/jpeg/.test(p.tipo) ? 'jpg' : 'png'}`), p.dados);
+          (A.previas ||= []).push({ n, status: p.status, tipo: p.tipo, kb: Math.round(p.dados.length / 1024) });
+        }
+        const pdf = await binario(`/api/artefatos/${a.id}/baixar?formato=pdf`);
+        A.pdf = { status: pdf.status, ok: pdf.dados.subarray(0, 5).toString() === '%PDF-', kb: Math.round(pdf.dados.length / 1024) };
+        if (pdf.status === 200) writeFileSync(join(pasta, `${slug(caso.nome)}.pdf`), pdf.dados);
+        const png = await binario(`/api/artefatos/${a.id}/baixar?formato=png&pagina=1`);
+        A.png = { status: png.status, kb: Math.round(png.dados.length / 1024) };
+        A.versoes = det?.versoes?.length;
+        reg.artefatos.push(A);
+      }
+      reg.motor = (e.fim?.artefatos || []).length ? 'ver_evento' : null;
+    } catch (err) { reg.erro = String(err.message || err).slice(0, 200); }
+    R.visual.push(reg); salvar();
+    log(`   visual ${caso.nome}: ${reg.qualidade} artefatos=${(reg.artefatos || []).map(a => `${a.tipo}/${a.paginas}p/${a.status}/${a.previas?.[0]?.tipo}`).join(',')} ${reg.erro || ''}`);
+  }
+  // Motor e motivo de cada peça (eventos visual.produced: só metadados).
+  const ev = (await api('GET', '/api/admin/eventos?tipo=visual.produced')).dados;
+  const prod = ev?.eventos || [];
+  R.visual_eventos = prod.slice(0, 10).map(x => { const d = typeof x.detalhes === 'string' ? JSON.parse(x.detalhes) : x.detalhes; return { artefato: d?.artefato, tipo: d?.tipo, motor: d?.motor, motivo_classico: d?.motivo_classico, imagem: d?.imagem, status: d?.status }; });
+  salvar();
+  log(`VISUAL_FIM ${JSON.stringify(R.visual_eventos)}`);
+}
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').toLowerCase();
+
 let configAnterior = null;
 async function ligar() {
   const cfg = (await api('GET', '/api/admin/config')).dados;
@@ -305,6 +358,7 @@ for (;;) {
     if (cmd === 'saude') { const s = (await api('GET', '/api/saude')).dados; const eu2 = (await api('GET', '/api/eu')).dados; R.versao = s?.versao; log(`SAUDE versao=${s?.versao} sessao=${String(eu2?.pessoa?.email).toLowerCase() === CONTA} integracoes=${eu2?.integracoes === true} ia=${eu2?.iaConfigurada === true}`); }
     else if (cmd === 'ligar') await ligar();
     else if (cmd === 'cenarios') await cenarios();
+    else if (cmd === 'visual') await visual();
     else if (cmd === 'limpar') await limpar();
     else if (cmd === 'desligar') await desligar();
     else if (cmd === 'sair') { await api('POST', '/api/sair', {}).catch(() => {}); clearInterval(vivo); log('SESSAO_ENCERRADA'); process.exit(0); }

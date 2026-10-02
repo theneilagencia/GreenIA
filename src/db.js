@@ -156,6 +156,10 @@ create table if not exists artefatos_visuais (
   qualidade text not null default '{}', status text not null, exportacoes text not null default '[]',
   editado_por integer, criado_em text not null);
 create index if not exists artefatos_conversa on artefatos_visuais (conversa_id, atual);
+-- Design feito pela IA: páginas já renderizadas (prévia JPEG por página e o PDF), por versão do artefato.
+create table if not exists artefatos_render (
+  artefato_id integer not null references artefatos_visuais(id) on delete cascade, chave text not null, mime text not null, dados blob not null,
+  criado_em text not null, primary key (artefato_id, chave));
 -- Imagens usadas pelos artefatos (geradas ou enviadas). Só o binário e metadados técnicos.
 create table if not exists visual_assets (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade, pessoa_id integer not null,
@@ -350,6 +354,15 @@ const MIGRACOES = [
   () => {},
   // 15. Integration Builder: tabelas novas vêm pelo ESQUEMA (create if not exists; nada existente muda).
   () => {},
+  // 16. Design por IA: imagens ilustrativas geradas passam a valer para todas as empresas (decisão da plataforma);
+  //     a empresa ainda pode desligar em Configurações. A tabela artefatos_render vem pelo ESQUEMA.
+  db => {
+    const r = db.prepare("select valor from config where chave = 'producaoVisual'").get();
+    if (!r) return;
+    let v; try { v = JSON.parse(r.valor); } catch { v = {}; }
+    v.imagens = { ...(v.imagens || {}), ativa: true };
+    db.prepare("update config set valor = ? where chave = 'producaoVisual'").run(JSON.stringify(v));
+  },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

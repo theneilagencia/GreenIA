@@ -1,4 +1,5 @@
 // GreenIA Lite: um processo, um arquivo SQLite, uma empresa por instalação.
+import { caminhoChromium } from './visual/chromium.js';
 import { tmpdir } from 'node:os';
 import { chaveMestra } from './plataforma/segredo.js';
 import { configurarOcr } from './ocr.js';
@@ -73,7 +74,7 @@ export function criarApp(op = {}) {
     return { empresa: c.empresa, logo: c.logo, corMarca: c.corMarca, privacyNote: c.privacyNote, retencaoDias: c.retencaoDias };
   }, { publica: true });
   // versao: o commit publicado (o Render informa em RENDER_GIT_COMMIT), para conferir qual versão está no ar.
-  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false, versao: VERSAO }; }, { publica: true });
+  r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium() }; }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
     unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),

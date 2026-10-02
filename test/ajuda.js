@@ -2,6 +2,8 @@
 import { criarApp } from '../src/servidor.js';
 import { cliente } from '../scripts/cliente.js';
 
+// Os testes do motor clássico rodam sem o design pela IA; os testes do design ligam DESIGN_IA=1.
+process.env.DESIGN_IA ??= '0';
 export async function subir(op = {}) {
   const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail: 'admin@exemplo.com.br', rajada: 1000, ...op });
   await new Promise(r => app.servidor.listen(0, '127.0.0.1', r));

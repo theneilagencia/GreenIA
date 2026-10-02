@@ -30,7 +30,7 @@ export const PADRAO = {
   // Produção visual dos Quick Wins. Identidade visual (regras da empresa e preferências) e o gerador de imagem, que
   // vem desligado: ligado, só o tema da peça (nunca o conteúdo) vai para o modelo de imagem. Ver src/visual.
   identidadeVisual: { regras: {}, preferencias: {} },
-  producaoVisual: { imagens: { ativa: false, modelo: 'google/gemini-2.5-flash-image' } },
+  producaoVisual: { imagens: { ativa: true, modelo: 'google/gemini-2.5-flash-image' } },
   // Integration Builder (governado): desligado por padrão. pessoas: lista de emails que veem o recurso (vazia =
   // todas com permissão); politicas: regras da empresa (vazia = política padrão); limite de chamadas por minuto.
   integracoes: { ativa: false, pessoas: [], politicas: [], limite_minuto_empresa: 300, rede_privada_autorizada: false },

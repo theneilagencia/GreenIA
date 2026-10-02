@@ -360,7 +360,7 @@ test('interpretação: o plano da IA decide (tipo desconhecido vira custom); sem
   assert.equal(OP.limparOperacao({ entregaveis: [{ tipo: 'video', visual: { tipo: 'poster' } }] }).entregaveis[0].visual, undefined);
 });
 
-test('identidade visual no admin: regras validadas (logo SVG com script recusado), preferência não vira regra, imagens desligadas por padrão', async () => {
+test('identidade visual no admin: regras validadas (logo SVG com script recusado), preferência não vira regra, imagens desligadas quando a empresa desliga', async () => {
   assert.equal(lerConfig(S.app.db).producaoVisual.imagens.ativa, false);
   const ok = await admin.put('/api/admin/config', { identidadeVisual: { regras: { cores: { primaria: '#123456', verde: '#00FF00' }, tipografia: { titulos: 'serif', corpo: 'comic' }, coresProibidas: ['#FF0000', 'x'], regras: ['Sem fotos de pessoas'] }, preferencias: { cores: { destaque: '#AA5500' } } } });
   assert.equal(ok.status, 200, JSON.stringify(ok.dados));

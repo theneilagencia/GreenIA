@@ -2,6 +2,8 @@
 import { request } from 'node:http';
 import { criarPlataforma } from '../src/plataforma/servidor.js';
 
+// Os testes do motor clássico rodam sem o design pela IA; os testes do design ligam DESIGN_IA=1.
+process.env.DESIGN_IA ??= '0';
 export async function subirPlataforma(op = {}) {
   const P = criarPlataforma({ cookieSeguro: false, log: () => {}, admins: ['ops@theneil.com.br'], hostPlataforma: 'plataforma.teste', urlBase: 'http://plataforma.teste', ...op });
   await new Promise(r => P.servidor.listen(0, '127.0.0.1', r));

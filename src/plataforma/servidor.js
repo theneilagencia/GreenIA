@@ -2,6 +2,7 @@
 // Resolve a empresa (tenant) pelo domínio próprio, pelo subdomínio ou pelo caminho /<slug>,
 // sempre no servidor, e entrega a requisição ao ambiente daquela empresa com a sessão e as
 // permissões lidas do banco da plataforma. O console do operador da plataforma fica em /plataforma.
+import { caminhoChromium } from '../visual/chromium.js';
 import { erroParaLog } from '../registro-seguro.js';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -305,7 +306,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
       // Host da plataforma: console, APIs da plataforma, página inicial e caminhos /<slug>.
       if (caminho === '/plataforma' || caminho === '/plataforma/') return await servirPagina(res, 'plataforma.html');
       if (caminho.startsWith('/api/plataforma/')) return await despachar(P, rPlat, req, res, url, cookies, null);
-      if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false, versao: VERSAO });
+      if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium() });
       if (caminho === '/' ) {
         if (P.paginaInicial === 'vendas') return await servirPagina(res, 'vendas.html');
         res.writeHead(302, { location: '/plataforma' }); return res.end();

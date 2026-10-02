@@ -16,7 +16,9 @@ import { corta, montar, produzir, produzirSemCorte } from './motor.js';
 import { svgDaPagina } from './svg.js';
 import { pngDaPagina, jpgDaPagina } from './raster.js';
 import { pdfDasPaginas } from './pdf.js';
-import { carregarAssets, guardarAsset, resumoArtefato } from './producao.js';
+import { carregarAssets, guardarAsset, resumoArtefato, guardarRender, lerRender } from './producao.js';
+import { renderizarDesign, exportarDesign, conferirDesign, paginasParaPrompt } from './design.js';
+import { decodificarDataUrl } from './assets.js';
 import { corValida, HEX, resolverIdentidade } from './marca.js';
 import { lerConfig } from '../config.js';
 
@@ -28,6 +30,22 @@ export function meuArtefato(app, pessoa, id) {
   const a = um(app.db, 'select a.* from artefatos_visuais a join conversas c on c.id = a.conversa_id where a.id = ? and a.pessoa_id = ? and c.pessoa_id = ?', Number(id), pessoa.id, pessoa.id);
   if (!a) throw erro(404, 'artefato', 'Artefato não encontrado.');
   return a;
+}
+
+// Design feito pela IA: HTML/CSS guardado no plano e páginas já renderizadas (artefatos_render).
+export const ehDesign = a => json(a.plano, {}).motor === 'design';
+function ativosDoDesign(app, a, opcoes = json(a.opcoes, {}), identidade = json(a.identidade, {})) {
+  const out = {};
+  const h = carregarAssets(app, a.conversa_id, opcoes.assets).heroi;
+  if (h?.dataUrl) { const d = decodificarDataUrl(h.dataUrl); if (d) out.heroi = d; }
+  if (identidade.logo?.dataUrl) { const d = decodificarDataUrl(identidade.logo.dataUrl); if (d) out.logo = d; }
+  return out;
+}
+async function renderDoDesign(app, a) {
+  const plano = json(a.plano, {});
+  const r = await renderizarDesign(plano.design, { formato: a.formato, identidade: json(a.identidade, {}), assets: ativosDoDesign(app, a) });
+  guardarRender(app, a.id, r);
+  return r;
 }
 
 // Páginas compostas de uma versão (determinístico: plano + conteúdo + opções + identidade guardados).
@@ -70,7 +88,8 @@ function enviarArquivo(res, mime, nome, dados, { inline = false } = {}) {
 }
 
 // Exporta uma versão. Devolve { mime, nome, dados }.
-export function exportar(app, a, formato, pagina = null) {
+export async function exportar(app, a, formato, pagina = null) {
+  if (ehDesign(a)) return exportarDoDesign(app, a, formato, pagina);
   if (EXPORTACOES_FUTURAS.includes(formato)) throw erro(400, 'formato_nao_suportado', `A exportação em ${formato.toUpperCase()} ainda não está disponível. Use PDF, PNG, JPG ou SVG.`);
   if (!EXPORTACOES[formato]) throw erro(400, 'formato', 'Formato de exportação inválido.');
   const paginas = paginasDoArtefato(app, a);
@@ -81,6 +100,26 @@ export function exportar(app, a, formato, pagina = null) {
   const ext = formato;
   if (pagina || paginas.length === 1) { const n = pagina || 1; return { mime: EXPORTACOES[formato].mime, nome: nomeArquivo(a, ext, paginas.length > 1 ? n : null), dados: um_(paginas[n - 1]) }; }
   return { mime: 'application/zip', nome: nomeArquivo(a, 'zip'), dados: zip(paginas.map(p => ({ nome: nomeArquivo(a, ext, p.numero), dados: um_(p) }))) };
+}
+
+async function exportarDoDesign(app, a, formato, pagina) {
+  if (EXPORTACOES_FUTURAS.includes(formato)) throw erro(400, 'formato_nao_suportado', `A exportação em ${formato.toUpperCase()} ainda não está disponível. Use PDF, PNG, JPG ou SVG.`);
+  if (!EXPORTACOES[formato]) throw erro(400, 'formato', 'Formato de exportação inválido.');
+  const plano = json(a.plano, {}), n = plano.design.paginas.length;
+  if (pagina !== null && !(pagina >= 1 && pagina <= n)) throw erro(400, 'pagina', 'Página inexistente.');
+  if (formato === 'pdf') {
+    if (pagina === null) { const r = lerRender(app, a.id, 'doc.pdf') ? null : await renderDoDesign(app, a); return { mime: EXPORTACOES.pdf.mime, nome: nomeArquivo(a, 'pdf'), dados: Buffer.from(lerRender(app, a.id, 'doc.pdf')?.dados || r.pdf) }; }
+    const so = { css: plano.design.css, paginas: [plano.design.paginas[pagina - 1]] };
+    const r = await renderizarDesign(so, { formato: a.formato, identidade: json(a.identidade, {}), assets: ativosDoDesign(app, a) });
+    return { mime: EXPORTACOES.pdf.mime, nome: nomeArquivo(a, 'pdf'), dados: Buffer.from(r.pdf) };
+  }
+  const tipo = formato === 'jpg' ? 'jpg' : 'png';
+  const imgs = await exportarDesign(pagina ? { css: plano.design.css, paginas: [plano.design.paginas[pagina - 1]] } : plano.design, { formato: a.formato, identidade: json(a.identidade, {}), assets: ativosDoDesign(app, a), tipo });
+  const fmt = FORMATOS[a.formato] || FORMATOS.a4, esc = Math.max(1, fmt.png);
+  const um_ = b => (formato === 'svg' ? Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${fmt.w}" height="${fmt.h}" viewBox="0 0 ${fmt.w} ${fmt.h}"><image width="${fmt.w}" height="${fmt.h}" href="data:image/png;base64,${Buffer.from(b).toString('base64')}"/></svg>`) : Buffer.from(b));
+  void esc;
+  if (pagina || imgs.length === 1) { const k = pagina || 1; return { mime: EXPORTACOES[formato].mime, nome: nomeArquivo(a, formato, n > 1 ? k : null), dados: um_(imgs[0]) }; }
+  return { mime: 'application/zip', nome: nomeArquivo(a, 'zip'), dados: zip(imgs.map((b, k) => ({ nome: nomeArquivo(a, formato, k + 1), dados: um_(b) }))) };
 }
 
 // Modelo editável para a tela: páginas, blocos e os textos de cada item (sem detalhe técnico de composição).
@@ -194,6 +233,63 @@ function novaVersao(app, pessoa, a, { conteudo, plano, opcoes, identidade, titul
   return um(app.db, 'select * from artefatos_visuais where id = ?', novo);
 }
 
+// Nova versão de um design da IA (edição, imagem nova, restauração): o HTML recebe as mudanças de texto, ordem e
+// cor (variáveis CSS), é renderizado de novo e passa pela mesma conferência. Sem chamada de IA.
+const escHtml = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function trocarTexto(html, de, para) {
+  if (!de || de === para) return html;
+  for (const v of [escHtml(de), de]) if (html.includes(v)) return html.split(v).join(escHtml(para));
+  return html;
+}
+function fragmentosDoItem(it) {
+  if (it.tipo === 'lista') return it.itens.map(x => x.texto);
+  if (it.tipo === 'tabela') return [...it.cabecalho, ...it.linhas.flat()];
+  if (it.tipo === 'indicadores') return it.itens.flatMap(x => [x.valor, x.rotulo, x.detalhe || '']);
+  if (it.tipo === 'fluxo') return it.nos.map(n => n.rotulo);
+  return [it.texto || ''];
+}
+async function novaVersaoDesign(app, pessoa, a, ed) {
+  const NAO = ['bloco', 'formato'];
+  if (ed.campos.some(c => NAO.includes(c))) throw erro(422, 'design_ia', 'Esta peça foi desenhada pela IA: troque o tipo de bloco ou o formato criando outra peça a partir dela (Derivar).');
+  const antes = json(a.plano, {}), conteudoAntes = json(a.conteudo, {});
+  let paginasHtml = [...antes.design.paginas];
+  // Ordem e remoção de páginas: o HTML acompanha o plano (mesmos ids, mesma posição de origem).
+  const pos = new Map(antes.paginas.map((p, k) => [p.id, k]));
+  paginasHtml = ed.plano.paginas.map(p => paginasHtml[pos.get(p.id)]).filter(h => h !== undefined);
+  // Textos: cada fragmento que mudou é trocado literalmente no HTML.
+  const velhos = new Map(conteudoAntes.secoes.flatMap(x => x.itens.map(i => [i.id, i])));
+  const trocas = [];
+  for (const sec of ed.conteudo.secoes) for (const it of sec.itens) {
+    const v = velhos.get(it.id); if (!v) continue;
+    const fa = fragmentosDoItem(v), fb = fragmentosDoItem(it);
+    fa.forEach((f, k) => { if (fb[k] !== undefined && fb[k] !== f) trocas.push([f, fb[k]]); });
+    if (fb.length < fa.length) fa.slice(fb.length).forEach(f => trocas.push([f, '']));
+  }
+  if (ed.titulo !== a.titulo) trocas.push([a.titulo, ed.titulo]);
+  for (const p of ed.plano.paginas) { const q = antes.paginas.find(x => x.id === p.id); if (q && q.titulo !== p.titulo) trocas.push([q.titulo || '', p.titulo || '']); if (q && q.subtitulo !== p.subtitulo) trocas.push([q.subtitulo || '', p.subtitulo || '']); }
+  paginasHtml = paginasHtml.map(h => trocas.reduce((acc, [de, para]) => trocarTexto(acc, de, para), h));
+  const plano = { ...ed.plano, motor: 'design', design: { css: antes.design.css, paginas: paginasHtml } };
+  const b = { ...a, plano: JSON.stringify(plano), opcoes: JSON.stringify(ed.opcoes), identidade: JSON.stringify(ed.identidade) };
+  const render = await renderizarDesign(plano.design, { formato: a.formato, identidade: ed.identidade, assets: ativosDoDesign(app, b, ed.opcoes, ed.identidade) });
+  const q = conferirDesign(render.medidas, { conteudo: ed.conteudo, paginas: paginasParaPrompt(plano, ed.conteudo), formato: a.formato, extras: [ed.titulo, ed.opcoes.data || '', ed.identidade.empresa || ''], imagens: render.imagens });
+  const graves = q.falhas.filter(f => ['fora_da_pagina', 'texto_cortado', 'sobreposicao', 'fonte_pequena', 'margem'].includes(f.codigo));
+  if (graves.length && !ed.campos.includes('restauracao')) throw erro(422, 'nao_cabe', `Com essa mudança a peça deixa de passar na conferência (${graves[0].msg.replace(/^Página \d+: /, '')}). Encurte o texto ou desfaça a mudança.`);
+  const status = q.ok ? 'aprovado' : 'parcial';
+  const qa = json(a.qualidade, {});
+  const novo = transacao(app.db, () => {
+    exec(app.db, 'update artefatos_visuais set atual = 0 where base_id = ?', a.base_id);
+    const v = um(app.db, 'select max(versao) as v from artefatos_visuais where base_id = ?', a.base_id).v + 1;
+    return Number(exec(app.db, `insert into artefatos_visuais (base_id, versao, atual, conversa_id, mensagem_id, roteamento_id, quick_win_id, quick_win_versao, pessoa_id, entregavel_id, derivado_de, tipo, rotulo, titulo, formato, paginas,
+      conteudo, plano, opcoes, identidade, qualidade, status, exportacoes, editado_por, criado_em) values (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      a.base_id, v, a.conversa_id, a.mensagem_id, a.roteamento_id, a.quick_win_id, a.quick_win_versao, a.pessoa_id, a.entregavel_id, a.derivado_de, a.tipo, a.rotulo, ed.titulo, a.formato, paginasHtml.length,
+      JSON.stringify(ed.conteudo), JSON.stringify(plano), JSON.stringify(ed.opcoes), JSON.stringify(ed.identidade),
+      JSON.stringify({ ...qa, status, motor: 'design', avisos: q.ok ? [] : ['Depois da edição, a conferência apontou ajustes: confira a peça antes de usar.'], codigos: q.codigos }), status, a.exportacoes, pessoa.id, app.agora().toISOString()).lastInsertRowid);
+  });
+  guardarRender(app, novo, render);
+  registrar(app, ed.campos.includes('restauracao') ? 'visual.restored' : 'visual.edited', pessoa.id, { conversa: a.conversa_id, quick_win: a.quick_win_id, artefato: novo, base: a.base_id, campos: ed.campos, status, motor: 'design' });
+  return um(app.db, 'select * from artefatos_visuais where id = ?', novo);
+}
+
 export function rotasArtefatos(app, r) {
   r.get('/api/artefatos', ({ pessoa, query }) => {
     const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(query.conversa), pessoa.id);
@@ -208,8 +304,17 @@ export function rotasArtefatos(app, r) {
   });
 
   // Prévia de uma página (a mesma composição da exportação), em PNG.
-  r.get('/api/artefatos/:id/paginas/:n', ({ pessoa, params, query, res }) => {
+  r.get('/api/artefatos/:id/paginas/:n', async ({ pessoa, params, query, res }) => {
     const a = meuArtefato(app, pessoa, params.id);
+    if (ehDesign(a)) {
+      const n = Number(String(params.n).replace(/\.(png|jpg)$/, ''));
+      if (!(n >= 1 && n <= json(a.plano, {}).design.paginas.length)) throw erro(404, 'pagina', 'Página inexistente.');
+      let x = lerRender(app, a.id, `p${n}.jpg`);
+      if (!x) { await renderDoDesign(app, a); x = lerRender(app, a.id, `p${n}.jpg`); }
+      const b = Buffer.from(x.dados);
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': b.length, 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' });
+      return res.end(b);
+    }
     const paginas = paginasDoArtefato(app, a), n = Number(String(params.n).replace(/\.png$/, ''));
     if (!(n >= 1 && n <= paginas.length)) throw erro(404, 'pagina', 'Página inexistente.');
     const fmt = FORMATOS[a.formato] || FORMATOS.a4;
@@ -220,26 +325,27 @@ export function rotasArtefatos(app, r) {
     res.end(png);
   });
 
-  r.get('/api/artefatos/:id/baixar', ({ pessoa, params, query, res }) => {
+  r.get('/api/artefatos/:id/baixar', async ({ pessoa, params, query, res }) => {
     const a = meuArtefato(app, pessoa, params.id);
     const formato = String(query.formato || 'pdf').toLowerCase();
     const t = Date.now();
-    const x = exportar(app, a, formato, query.pagina ? Number(query.pagina) : null);
+    const x = await exportar(app, a, formato, query.pagina ? Number(query.pagina) : null);
     registrar(app, 'visual.exported', pessoa.id, { conversa: a.conversa_id, quick_win: a.quick_win_id, artefato: a.id, formato, pagina: query.pagina ? Number(query.pagina) : null, bytes: x.dados.length, ms: Date.now() - t });
     enviarArquivo(res, x.mime, x.nome, x.dados);
   });
 
-  r.patch('/api/artefatos/:id', ({ pessoa, params, corpo }) => {
+  r.patch('/api/artefatos/:id', async ({ pessoa, params, corpo }) => {
     const a = meuArtefato(app, pessoa, params.id);
     if (!a.atual) throw erro(409, 'versao_antiga', 'Edite a versão atual (ou restaure esta versão antes).');
     const ed = aplicarEdicoes(a, corpo);
     if (!ed.campos.length) throw erro(400, 'sem_edicao', 'Nada para alterar.');
-    const novo = novaVersao(app, pessoa, a, ed);
+    if (ehDesign(a) && ed.campos.includes('imagem')) throw erro(422, 'design_ia', 'Esta peça foi desenhada pela IA: para trocar a imagem, envie uma nova imagem.');
+    const novo = ehDesign(a) ? await novaVersaoDesign(app, pessoa, a, ed) : novaVersao(app, pessoa, a, ed);
     return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
   }, { limiteMb: 2 });
 
   // Imagem fornecida pela pessoa (foto do produto, da equipe...): validada pelos bytes, nunca executada.
-  r.post('/api/artefatos/:id/imagem', ({ pessoa, params, corpo }) => {
+  r.post('/api/artefatos/:id/imagem', async ({ pessoa, params, corpo }) => {
     const a = meuArtefato(app, pessoa, params.id);
     if (!a.atual) throw erro(409, 'versao_antiga', 'Edite a versão atual.');
     const dataUrl = String(corpo.imagem || '');
@@ -249,6 +355,13 @@ export function rotasArtefatos(app, r) {
     if (g.w > 10000 || g.h > 10000) throw erro(400, 'imagem', 'Imagem com dimensões grandes demais.');
     const ed = aplicarEdicoes(a, {});
     ed.opcoes.assets = { ...(ed.opcoes.assets || {}), heroi: g.id };
+    if (ehDesign(a)) {
+      // No design da IA a imagem entra no lugar que o design já reservou para ela.
+      if (!json(a.plano, {}).design.paginas.some(h => h.includes('/assets/heroi'))) throw erro(422, 'design_ia', 'Esta peça foi desenhada sem espaço de imagem. Para usar uma foto, derive uma nova peça (por exemplo, um cartaz) a partir dela.');
+      ed.campos = ['imagem'];
+      const novo = await novaVersaoDesign(app, pessoa, a, ed);
+      return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
+    }
     // Sem lugar para a imagem (capa ou peça de impacto já usam a imagem principal): ela entra na primeira página.
     const usaHeroi = ed.plano.paginas.some(p => p.papel === 'capa' || p.layout === 'destaque') || ed.plano.paginas.some(p => p.blocos.some(b => b.tipo === 'imagem'));
     if (!usaHeroi) (ed.plano.paginas.find(p => p.papel !== 'capa') || ed.plano.paginas[0]).blocos.unshift({ id: `b_img${Date.now() % 1e6}`, tipo: 'imagem', asset: 'heroi', refs: [], proposito: '' });
@@ -284,10 +397,16 @@ export function rotasArtefatos(app, r) {
     return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
   });
 
-  r.post('/api/artefatos/:id/restaurar', ({ pessoa, params }) => {
+  r.post('/api/artefatos/:id/restaurar', async ({ pessoa, params }) => {
     const a = meuArtefato(app, pessoa, params.id);
     if (a.atual) throw erro(409, 'ja_atual', 'Esta já é a versão atual.');
     const atual = um(app.db, 'select * from artefatos_visuais where base_id = ? and atual = 1', a.base_id) || a;
+    if (ehDesign(a)) {
+      // Restaurar um design: a versão antiga volta como está (mesmo HTML e conteúdo), renderizada de novo.
+      const base = { ...atual, plano: a.plano, conteudo: a.conteudo, titulo: a.titulo, formato: a.formato };
+      const novo = await novaVersaoDesign(app, pessoa, base, { conteudo: json(a.conteudo, {}), plano: json(a.plano, {}), opcoes: json(a.opcoes, {}), identidade: json(a.identidade, {}), titulo: a.titulo, campos: ['restauracao'] });
+      return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
+    }
     const novo = novaVersao(app, pessoa, atual, { conteudo: json(a.conteudo, {}), plano: json(a.plano, {}), opcoes: json(a.opcoes, {}), identidade: json(a.identidade, {}), titulo: a.titulo, campos: ['restauracao'], acao: 'visual.restored' });
     return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
   });

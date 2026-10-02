@@ -252,7 +252,7 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   // Caminhos autorizados, cada um com a sua finalidade. Uma chamada nova (em outro módulo ou num destes) falha aqui.
   const AUTORIZADOS = {
     // A coleta (pesquisa) da execução em etapas usa o mesmo recurso já roteado e conferido para a execução.
-    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0', 'coleta da execução em etapas (pesquisa)'],
+    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0', 'coleta da execução em etapas (pesquisa)', 'desenho das peças visuais (classe validada por modeloPermitido)'],
     // Uma chamada só (chamarGovernado), para as finalidades da criação: quick_win_estrutura, quick_win_exemplo e
     // quick_win_interpretacao (o plano da operação).
     'quickwin-estrutura.js': ['chamada curta da criação'],
@@ -272,6 +272,10 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   assert.match(est, /const m = rota\.modelo;/);
   assert.match(est, /insert into uso/, 'estruturação: consumo registrado');
   const conv = readFileSync(join(raiz, 'conversas.js'), 'utf8');
+  // O desenho das peças só troca de recurso para uma classe que o seletor valida para a pessoa e o Quick Win, e
+  // nunca com sigilo, área reforçada ou dado pessoal; tem a mesma defesa de credencial da execução.
+  assert.match(conv, /if \(!sigilosa && !areaReforcada && !dadosPessoais\) \{\s*try \{ const m = modeloPermitido\(app\.db, cfg, pessoa, 'classe:avancado', \{ qw \}\)/);
+  assert.match(conv, /const chamarDesign = modeloDesign === atual\.id \? chamar : async msgs => \{[\s\S]{0,300}contemCredencial\(txt\)/);
   // A conferência usa o recurso e a rota já decididos e conferidos (nunca escolhe modelo), depois da execução.
   assert.match(conv, /app\.ia\.enviar\(msgs, \{ modelo: atual\.id, reserva: null, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'a conferência de qualidade usa a mesma decisão');
   assert.ok(conv.indexOf('app.ia.enviar(msgs') > conv.indexOf('app.ia.enviar(mensagens'), 'a conferência vem depois da execução');

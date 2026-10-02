@@ -169,3 +169,42 @@ Visualizar (navegação entre páginas, miniaturas, setas do teclado, celular), 
 Novo renderer ou formato (PPTX, DOCX): uma função a partir das páginas compostas (`paginasDoArtefato`) e uma
 entrada em `EXPORTACOES`. Novo provedor de imagem: implementar `gerarImagem(prompt, op)` no cliente de IA. Novo
 tipo de artefato: uma linha de traços em `TIPOS` (ou nenhuma: vira `custom`). Novo tipo de asset: `TIPOS_ASSET`.
+
+## 11. Design pela IA (diretora de arte)
+
+Para chegar ao acabamento de um estúdio de design, as peças passam a ser **desenhadas pela IA em HTML/CSS** e
+compostas num navegador. O motor clássico (composição determinística em SVG) continua como garantia.
+
+```
+conteúdo conferido -> plano (quais itens vão em cada página) -> imagem ilustrativa (governada)
+  -> IA desenha cada página (HTML/CSS, lotes de 4 páginas com o mesmo CSS) -> limpeza
+  -> Chromium isolado (render + medidas) -> conferência -> [1 correção] -> artefato "design"
+                                                      \-> falhou de novo / indisponível -> motor clássico
+```
+
+- **Quem desenha**: a classe Avançada, quando a pessoa e o Quick Win podem usá-la e nada pede proteção extra
+  (sigilo, área reforçada, dado pessoal); senão, o mesmo recurso da execução. Mesmas defesas de credencial.
+- **Entrada da IA**: só o conteúdo da peça (itens com id, texto literal), a paleta, as fontes empacotadas,
+  o formato e os assets disponíveis (`asset:heroi`, `asset:logo`). Tabelas numéricas levam `barras_prontas`
+  (percentual de cada barra) para os gráficos não estimarem tamanhos.
+- **Limpeza** (`design.js`): fora `<script>`, eventos `on*`, `<iframe>`, `<link>`, `<object>`, `<form>`,
+  `<foreignObject>`, `@import`, `@font-face`, `url()`/`src`/`href` que não sejam assets da peça ou âncoras do SVG,
+  `position:fixed`, animações.
+- **Navegador isolado** (`chromium.js`): JavaScript da página desligado, CSP `default-src 'none'`, rede
+  bloqueada (só a origem virtual `design.greenia.local` responde: fontes empacotadas e assets da peça), um
+  trabalho por vez, navegador fechado ao fim, guarda de memória (`DESIGN_MEMORIA_MIN_MB`, padrão 160).
+- **Conferência no navegador**: texto fora da página, encostado na borda (margem de segurança), cortado por
+  contêiner, sobreposto a outro texto, fonte abaixo do mínimo do formato, contraste medido nos **pixels reais**
+  em volta de cada texto (pega gradiente e foto), número fora do conteúdo, texto de exemplo, conteúdo da página
+  que não apareceu literalmente e número de páginas. Falhou: uma correção com a lista exata; falhou de novo:
+  motor clássico (`qualidade.motivo_classico`).
+- **Saídas**: prévia JPEG por página e PDF (texto vetorial) guardados em `artefatos_render`; PNG/JPG em alta e
+  PDF de uma página gerados na hora; SVG embute a imagem da página.
+- **Edição**: texto, título, títulos de página, ordem, remoção de páginas e cores (variáveis CSS
+  `--primaria`, `--secundaria`, `--destaque`, `--fundo`, `--texto`) viram nova versão renderizada e conferida,
+  sem IA. Formato e tipo de bloco: derivar uma nova peça. Imagem nova entra no lugar reservado pelo design.
+- **Imagens ilustrativas**: ligadas para todas as empresas (migração 16; a empresa pode desligar em
+  Configurações). No design pela IA, peças de impacto e capas recebem uma imagem, sempre sob a governança
+  de sempre (sem sigilo, sem área reforçada, sem dado protegido, fora da reserva; só o tema vai ao modelo).
+- **Infraestrutura**: a imagem Docker instala `chromium`; `CHROMIUM_PATH` aponta o executável; `DESIGN_IA=0`
+  desliga o design pela IA (só motor clássico). `/api/saude` informa `design: true` quando o navegador existe.

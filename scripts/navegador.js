@@ -4,6 +4,8 @@ import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 import { criarApp } from '../src/servidor.js';
 
+// Os testes do motor clássico rodam sem o design pela IA; os testes do design ligam DESIGN_IA=1.
+process.env.DESIGN_IA ??= '0';
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM].find(p => p && existsSync(p));
 
 export async function subirComNavegador({ adminEmail = 'admin@empresa-exemplo.com.br', largura = 1280, altura = 820, ...extra } = {}) {

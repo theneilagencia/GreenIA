@@ -661,6 +661,21 @@ export function rotasConversas(app, r) {
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
     };
+    // Design das peças visuais: a classe Avançada quando a pessoa (e o Quick Win) pode usá-la e nada pede proteção
+    // extra (sigilo, área reforçada, dado pessoal); senão, o mesmo recurso da execução. Mesmas defesas de chamar().
+    let modeloDesign = atual.id;
+    if (!sigilosa && !areaReforcada && !dadosPessoais) {
+      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
+    }
+    const chamarDesign = modeloDesign === atual.id ? chamar : async msgs => {
+      const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
+      if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
+      let t = '', f = null;
+      for await (const ev of app.ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino })) {
+        if (ev.tipo === 'texto') t += ev.texto; else f = ev;
+      }
+      return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
+    };
     if (espec) {
       linha({ t: 'etapa', v: 'Conferindo o resultado…' });
       // O bloco de dados para as integrações sai antes da conferência (não é parte do texto entregue).
@@ -706,7 +721,7 @@ export function rotasConversas(app, r) {
       else {
         linha({ t: 'etapa', v: 'Montando o visual…' });
         try {
-          visuais = await produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, usarIA: !reservaDoPlano,
+          visuais = await produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, chamarDesign, usarIA: !reservaDoPlano,
             governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) custoVisual = visuais.custos;
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); registroQualidade.visual = { falhou: true }; }

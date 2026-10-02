@@ -164,7 +164,7 @@ function finalizarPlano(p, tr) {
   let b = 0;
   for (const pg of p.paginas) for (const bl of pg.blocos) bl.id = `b${++b}`;
   return { v: 1, tipo: tr.tipo, rotulo: tr.rotulo, formato: tr.formato, canvas: { w: FORMATOS[tr.formato].w, h: FORMATOS[tr.formato].h }, multipagina: tr.multipagina,
-    fluxo: tr.fluxo, impacto: tr.impacto, paginas: p.paginas.map(pg => ({ refs: [], subtitulo: '', objetivo: '', ...pg })), exportacoes: exportacoesPadrao(tr) };
+    fluxo: tr.fluxo, impacto: tr.impacto, paginas: p.paginas.map((pg, i) => ({ refs: [], subtitulo: '', objetivo: '', ...pg, id: pg.id || `p${i + 1}` })), exportacoes: exportacoesPadrao(tr) };
 }
 
 // ---- Plano pela IA ----------------------------------------------------------------------------------------------
@@ -239,6 +239,10 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
       blocos.push(bloco);
     }
     const pg = { papel, layout, objetivo: limpar(p?.objetivo, 160), titulo: titulo_(p?.titulo, 90), subtitulo: titulo_(p?.subtitulo, 240), blocos, refs: [] };
+    // Sem título da IA: o título da seção do conteúdo (uma página nunca fica sem nome se o conteúdo dá um).
+    const secao = conteudo.secoes.find(s => s.id === blocos[0]?.secao);
+    if (!pg.titulo && papel !== 'capa' && secao?.titulo && blocos.every(b => b.secao === secao.id || b.tipo === 'cta')) pg.titulo = limpar(secao.titulo, 90);
+    if (!pg.titulo && papel !== 'capa' && secao?.titulo) { const b0 = blocos.find(b => b.secao === secao.id); if (b0 && !b0.titulo) b0.titulo = limpar(secao.titulo, 90); }
     if (papel === 'capa' && !pg.titulo) pg.titulo = limpar(titulo || conteudo.titulo || tr.rotulo, 90);
     if (!blocos.length && papel !== 'capa') continue;
     paginas.push(pg);

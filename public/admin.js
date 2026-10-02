@@ -438,9 +438,13 @@ const provedorDe = smtp => smtp.modo === 'api' ? smtp.api : smtp.modo === 'smtp'
 const nomeDoRemetente = r => (/^\s*(.*?)\s*</.exec(r || '')?.[1] || 'GreenIA').replace(/^"|"$/g, '');
 const RETENCOES = [[30, '30 dias'], [90, '90 dias'], [180, '6 meses'], [365, '1 ano']];
 
+const CORES_VISUAIS = [['primaria', 'Cor principal'], ['secundaria', 'Cor secundária'], ['destaque', 'Cor de destaque'], ['texto', 'Cor do texto']];
+const PADRAO_VISUAL = { primaria: '#1F3A5F', secundaria: '#3A7CA5', destaque: '#D9822B', texto: '#18212B' };
 async function abaConfig() {
   const c = await api('/api/admin/config');
   let logo = c.logo;
+  const iv = c.identidadeVisual?.regras || {};
+  let logoClaro = iv.logoClaro || '';
   const multi = !!E.plataforma, un = emCreditos() ? 'créditos' : 'US$';
   let dominios = [...c.dominios];
   const smtp = c.smtp || {};
@@ -486,6 +490,16 @@ async function abaConfig() {
         ${limite('c-teto', 'Limite do mês para a empresa toda', 'Quando a empresa inteira chegar a esse total no mês, as novas mensagens ficam bloqueadas até o mês seguinte.', c.tetoMensal, un, emCreditos() ? 1 : 0.01)}
         ${limite('c-teto-p', 'Limite do mês por pessoa', 'Cada pessoa pode usar até esse total no mês. Útil para ninguém consumir o plano sozinho.', c.tetoPessoaMensal, un, emCreditos() ? 1 : 0.01)}
         ${limite('c-dia', 'Limite de respostas por pessoa por dia', 'Quantas respostas da IA cada pessoa pode pedir por dia.', c.limiteDiarioPessoa, 'respostas por dia')}`)}
+      ${caixa(5, 'Identidade visual das peças', 'Apresentações, páginas executivas, infográficos e outras peças que os Quick Wins produzem seguem estas regras. Tudo é opcional: sem regra, a GreenIA usa um visual neutro e profissional. O logo e a cor principal vêm ' + (multi ? 'de <a href="#/empresa/marca">Branding</a>.' : 'do bloco Empresa, acima.'), `
+        <div class="grade-2">${CORES_VISUAIS.map(([k, r]) => `<div class="campo"><span class="legenda">${r}</span><div class="linha-botoes"><input type="color" id="iv-${k}" value="${esc(iv.cores?.[k] || PADRAO_VISUAL[k])}" aria-label="${r}">
+          <label class="dica"><input type="checkbox" data-iv-usar="${k}" ${iv.cores?.[k] ? 'checked' : ''}> regra da marca</label></div></div>`).join('')}</div>
+        <div class="grade-2"><div class="campo"><label for="iv-tit">Fonte dos títulos</label><select class="entrada" id="iv-tit"><option value="">Padrão</option><option value="sans" ${iv.tipografia?.titulos === 'sans' ? 'selected' : ''}>Sem serifa (moderna)</option><option value="serif" ${iv.tipografia?.titulos === 'serif' ? 'selected' : ''}>Com serifa (editorial)</option></select></div>
+          <div class="campo"><label for="iv-cantos">Cantos</label><select class="entrada" id="iv-cantos"><option value="">Padrão</option>${[[0, 'Retos'], [6, 'Suaves'], [14, 'Arredondados']].map(([v, r]) => `<option value="${v}" ${iv.cantos === v ? 'selected' : ''}>${r}</option>`).join('')}</select></div></div>
+        <div class="campo"><span class="legenda">Logo para fundo escuro (versão clara)</span><div class="linha-botoes"><span id="iv-logo-prev">${iv.logoClaro ? `<img src="${esc(iv.logoClaro)}" alt="Logo claro" style="max-height:40px;background:#1F3A5F;padding:4px;border-radius:4px">` : '<span class="dica">Sem versão clara: nas capas escuras o logo vai num selo claro.</span>'}</span>
+          <label class="btn btn-linha btn-pequeno" style="cursor:pointer">Escolher arquivo<input type="file" id="iv-logo" hidden accept=".png,.jpg,.jpeg,.svg,.webp"></label><button type="button" class="btn-texto btn-pequeno" id="iv-logo-tirar">Remover</button></div></div>
+        <div class="campo"><label for="iv-proibidas">Cores que nunca podem ser usadas</label><input class="entrada" id="iv-proibidas" placeholder="#FF0000, #00FF00" value="${esc((iv.coresProibidas || []).join(', '))}"><span class="ajuda">Códigos de cor separados por vírgula.</span></div>
+        <div class="campo"><label for="iv-regras">Regras visuais e tom (uma por linha)</label><textarea class="entrada" id="iv-regras" rows="3" placeholder="Ex.: sempre em português formal; destacar segurança primeiro">${esc([...(iv.regras || []), ...(iv.tom ? [`Tom: ${iv.tom}`] : [])].join('\n'))}</textarea></div>
+        <label class="opcoes"><span><input type="checkbox" id="iv-imagens" ${c.producaoVisual?.imagens?.ativa ? 'checked' : ''}> Permitir gerar imagens ilustrativas para as peças. Ligado, só o tema da peça (nunca o conteúdo, números ou nomes) vai para o modelo de imagem; não roda em conversa sigilosa, em área com proteção reforçada, com dado que a política manda proteger nem na reserva do plano. Desligado, as peças usam tipografia, formas, gráficos e as imagens que vocês enviarem.</span></label>`)}
       <div class="cfg-salvar"><span class="dica" id="c-sujo"></span><button class="btn btn-verde">Salvar configurações</button></div>
     </form>`;
 
@@ -543,6 +557,17 @@ async function abaConfig() {
     $('c-logo').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; logo = await lerDataUrl(f); $('c-logo-prev').innerHTML = `<img src="${esc(logo)}" alt="Logo novo" style="max-height:48px">`; };
     $('c-logo-tirar').onclick = () => { logo = ''; $('c-logo-prev').innerHTML = '<span class="dica">Sem logo.</span>'; };
   }
+  $('iv-logo').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; logoClaro = await lerDataUrl(f); $('iv-logo-prev').innerHTML = `<img src="${esc(logoClaro)}" alt="Logo claro novo" style="max-height:40px;background:#1F3A5F;padding:4px;border-radius:4px">`; sujo(); };
+  $('iv-logo-tirar').onclick = () => { logoClaro = ''; $('iv-logo-prev').innerHTML = '<span class="dica">Sem versão clara.</span>'; sujo(); };
+  // Identidade visual: só o que foi marcado como regra vai para a regra da empresa (nada é inventado).
+  const lerIdentidade = () => {
+    const linhas = $('iv-regras').value.split('\n').map(x => x.trim()).filter(Boolean);
+    const tom = linhas.find(l => /^tom\s*:/i.test(l))?.replace(/^tom\s*:\s*/i, '') || '';
+    const regras = { cores: Object.fromEntries(CORES_VISUAIS.filter(([k]) => document.querySelector(`[data-iv-usar="${k}"]`).checked).map(([k]) => [k, $(`iv-${k}`).value.toUpperCase()])),
+      tipografia: $('iv-tit').value ? { titulos: $('iv-tit').value } : {}, ...($('iv-cantos').value !== '' ? { cantos: Number($('iv-cantos').value) } : {}),
+      ...(logoClaro ? { logoClaro } : {}), coresProibidas: $('iv-proibidas').value.split(/[\s,;]+/).filter(Boolean), regras: linhas.filter(l => !/^tom\s*:/i.test(l)), tom };
+    return { regras, preferencias: c.identidadeVisual?.preferencias || {} };
+  };
   const sujo = () => { $('c-sujo').textContent = 'Há alterações não salvas.'; };
   $('form-cfg').addEventListener('input', sujo);
 
@@ -550,7 +575,8 @@ async function abaConfig() {
     await api('/api/admin/config', { metodo: 'PUT', corpo: {
       ...(multi ? {} : { empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', privacyNote: $('c-priv').value }),
       dominios, smtp: lerEmail(), retencaoDias: Number($('c-ret').value),
-      tetoMensal: valorLimite('c-teto'), tetoPessoaMensal: valorLimite('c-teto-p'), limiteDiarioPessoa: valorLimite('c-dia') } });
+      tetoMensal: valorLimite('c-teto'), tetoPessoaMensal: valorLimite('c-teto-p'), limiteDiarioPessoa: valorLimite('c-dia'),
+      identidadeVisual: lerIdentidade(), producaoVisual: { imagens: { ativa: $('iv-imagens').checked } } } });
     $('c-sujo').textContent = '';
   };
   $('c-smtp-teste').onclick = ev => ocupado(ev.currentTarget, async () => {

@@ -48,7 +48,7 @@ export function limparIdentidade(v = {}) {
   const cores = c => Object.fromEntries(CAMPOS_COR.map(k => [k, hex(c?.[k])]).filter(([, x]) => x));
   const tipo = t => Object.fromEntries(['titulos', 'corpo'].map(k => [k, FAMILIAS_ACEITAS.includes(t?.[k]) ? t[k] : null]).filter(([, x]) => x));
   const cantos = x => (Number.isFinite(Number(x)) && x !== '' && x !== null ? Math.max(0, Math.min(24, Math.round(Number(x)))) : null);
-  const logo = x => (typeof x === 'string' && /^data:image\/(png|svg\+xml|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(x) && x.length <= 400_000 ? x : null);
+  const logo = x => (typeof x === 'string' && /^data:image\/(png|svg\+xml|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(x) && x.length <= 400_000 && dadosDaImagem(x) ? x : null);
   const parte = (p, regras) => {
     const o = {};
     const c = cores(p?.cores); if (Object.keys(c).length) o.cores = c;

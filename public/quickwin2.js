@@ -4,6 +4,7 @@
 import { api, esc, ICONE, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
+import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
@@ -580,7 +581,7 @@ function htmlResultado(W) {
   const q = r.qualidade, revisar = q?.status === 'inconsistente';
   // Entrega por canal: um grupo por canal e um cartão por peça, com as fontes da pesquisa à parte.
   const sep = r.sep, conteudo = sep ? htmlPorCanal(sep, renderizar, r.fontes) : r.html;
-  const corpo = `<div class="resultado-corpo ${sep ? '' : 'bolha-ia'} ${revisar ? 'oculto' : ''}" id="resultado-teste">${conteudo}</div>`;
+  const corpo = `${htmlArtefatos(r.artefatos)}<div class="resultado-corpo ${sep ? '' : 'bolha-ia'} ${revisar ? 'oculto' : ''}" id="resultado-teste">${conteudo}</div>`;
   // A execução pausou para pedir contexto: a pessoa responde aqui e a mesma execução continua.
   const responder = q?.status === 'pergunta' ? `<div class="responder-continuar"><label class="legenda" for="responder-texto">Sua resposta</label>
       <textarea class="campo-amplo menor" id="responder-texto" placeholder="Responda à pergunta acima para a GreenIA continuar"></textarea>
@@ -621,11 +622,21 @@ async function rodarTeste(W, conversa, corpo) {
     });
     if (falha) throw new Error(falha);
     const { html, tabelas } = renderizar(saida);
-    W.resultado = { html, tabelas, saida, sep: separarPorCanal(saida, { porSecao: multipla(W.operacao) }), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id };
+    W.resultado = { html, tabelas, saida, sep: separarPorCanal(saida, { porSecao: multipla(W.operacao) }), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id, artefatos: fim?.artefatos || [] };
     W.qw = await api(`/api/quick-wins/${W.id}`);
   } catch (e) { W.resultado = { erro: e.message }; }
   await desenhar(W, { foco: false });
   $('teste-resultado')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+}
+// Artefatos do teste: uma edição troca o cartão pela nova versão; um artefato derivado entra na lista.
+function ligarArtefatosDoTeste(W) {
+  const raiz = $('teste-resultado');
+  if (!raiz || !W.resultado?.artefatos?.length) return;
+  ligarArtefatos(raiz, { aoMudar: async novo => {
+    const lista = W.resultado.artefatos, i = lista.findIndex(x => x.base_id === novo.base_id);
+    if (i >= 0) lista[i] = novo; else lista.push(novo);
+    await desenhar(W, { foco: false });
+  } });
 }
 
 async function publicar(W) {
@@ -712,6 +723,7 @@ const ETAPA_LIGAR = [
       $('teste-input').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { W.teste.anexo = await lerArquivo(f); $('teste-nome').textContent = f.name; } catch (e) { erroEtapa(e.message); } };
     }
     document.querySelectorAll('#teste-resultado [data-csv]').forEach(b => { b.onclick = () => baixarCsv((W.resultado.sep?.tabelas || W.resultado.tabelas)[Number(b.dataset.csv)], `${(W.qw?.nome || 'resultado').replace(/[^\wÀ-ú -]/g, '')}.csv`); });
+    ligarArtefatosDoTeste(W);
   },
   W => {
     const editar = (ver, edicao, campo) => { $(ver).classList.add('oculto'); $(edicao).classList.remove('oculto'); $(campo).focus(); };

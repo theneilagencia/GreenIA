@@ -1,7 +1,9 @@
 // Painel do admin: configurações, uso e custo, eventos, quick wins e limites de gasto.
 import { erro, enviarCsv } from './http.js';
 import { todos, um } from './db.js';
-import { lerConfig, salvarConfig, TIPOS_DADO } from './config.js';
+import { lerConfig, salvarConfig, TIPOS_DADO, PADRAO as PADRAO_CFG } from './config.js';
+import { limparIdentidade } from './visual/marca.js';
+import { dadosDaImagem } from './visual/assets.js';
 import { ACOES } from './filtro.js';
 import { registrar } from './eventos.js';
 import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
@@ -53,7 +55,7 @@ export function criarLimites(app) {
   };
 }
 
-const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa'];
+const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa', 'identidadeVisual', 'producaoVisual'];
 
 function validarConfig(c, { multi = false, atual = null } = {}) {
   const v = {};
@@ -81,6 +83,14 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
   // Ação desconhecida vale "bloquear" (fail closed). Salvar grava o formato atual (acoesVersao 2).
   if (c.acoesChat !== undefined) { v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : ACOES.includes(c.acoesChat[t]) ? c.acoesChat[t] : 'bloquear'])); v.acoesVersao = 2; }
   if (c.protecaoDadosPessoais !== undefined) v.protecaoDadosPessoais = c.protecaoDadosPessoais !== false;   // só false explícito desliga
+  // Identidade visual dos artefatos (regras da empresa e preferências): só valores reconhecidos, nada obrigatório.
+  if (c.identidadeVisual !== undefined) {
+    const iv = limparIdentidade(c.identidadeVisual || {});
+    for (const l of ['logoClaro', 'logoEscuro']) if (c.identidadeVisual?.regras?.[l] && !iv.regras[l]) throw erro(400, 'logo', 'A versão do logo precisa ser PNG, JPG, WEBP ou SVG (sem script), com até 300 KB.');
+    for (const l of ['logoClaro', 'logoEscuro']) if (iv.regras[l] && !dadosDaImagem(iv.regras[l])) throw erro(400, 'logo', 'A versão do logo não é uma imagem válida.');
+    v.identidadeVisual = iv;
+  }
+  if (c.producaoVisual !== undefined) v.producaoVisual = { imagens: { ativa: c.producaoVisual?.imagens?.ativa === true, modelo: atual?.producaoVisual?.imagens?.modelo || PADRAO_CFG.producaoVisual.imagens.modelo } };
   if (c.pesquisaWeb !== undefined) {
     // só true explícito liga. Perfil público (QA-04): o único contexto da empresa que pode ir para a busca na
     // internet. Campo com dado pessoal, financeiro, credencial ou marcação de uso interno é recusado, não cortado.

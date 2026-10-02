@@ -602,6 +602,8 @@ export function contextoDaExecucao(espec, { nome = '', pesquisa = null } = {}) {
 // ---- Quality Check ------------------------------------------------------------------------------------------
 export const GRUPOS = ['regras', 'completo', 'formato', 'invencao'];
 export const ROTULOS_QUALIDADE = { regras: 'Regras respeitadas', completo: 'Resultado completo', formato: 'Formato correto', invencao: 'Nenhuma informação inventada detectada' };
+// Grupo de um problema determinístico (contrato de saída e operação), pelo que ele diz.
+const grupoDoDetalhe = t => (/Faltaram entregáveis/.test(t) ? 'completo' : /Nomes de exemplo|arquivo ou link/.test(t) ? 'invencao' : /briefing|Faltaram as seções/.test(t) ? 'regras' : 'formato');
 export const PROBLEMAS = { regras: 'Uma das regras do Quick Win não foi seguida.', completo: 'Faltou parte do que foi pedido.', formato: 'O resultado não veio no formato combinado.', invencao: 'O resultado pode ter informação que não está no material.' };
 export const MAX_CORRECOES = 1;
 
@@ -680,14 +682,17 @@ export function lerVeredito(espec, texto) {
   let d; try { d = JSON.parse(m[0]); } catch { return null; }
   if (!Array.isArray(d?.criterios)) return null;
   const porId = new Map(espec.criterios_qualidade.map(c => [c.id, c]));
-  const falhas = [], motivos = [];
+  const falhas = [], motivos = [], razoes = [];
   for (const c of d.criterios) {
     const crit = porId.get(String(c?.id));
     if (!crit || c.ok !== false) continue;
     falhas.push(crit.grupo);
+    // Falha sempre com motivo: o do conferente, ou (sem ele) o critério que não foi atendido.
     motivos.push(`${crit.texto}${c.motivo ? ` (${limpar(c.motivo, 200)})` : ''}`);
+    razoes.push({ grupo: crit.grupo, motivo: c.motivo ? `${limpar(c.motivo, 200)} (critério: ${limpar(crit.texto, 160)})` : `Critério não atendido: ${limpar(crit.texto, 200)}` });
   }
-  return { falhas: [...new Set(falhas)], motivos, objetivo: d.objetivo_atingido === false ? false : d.objetivo_atingido === true ? true : null };
+  if (d.objetivo_atingido === false) razoes.push({ grupo: 'objetivo', motivo: d.motivo_objetivo ? limpar(d.motivo_objetivo, 200) : 'O conferente indicou que o objetivo central não foi entregue.' });
+  return { falhas: [...new Set(falhas)], motivos, razoes, objetivo: d.objetivo_atingido === false ? false : d.objetivo_atingido === true ? true : null };
 }
 export function pedidoDeCorrecao(problemas, espec = null) {
   const f = espec?.configuracao_confirmada ? espec.formato_saida : null;
@@ -701,13 +706,14 @@ const AVISO_OBJETIVO = {
   tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };
-export function resumoQualidade({ status, falhas = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null } = {}) {
+export function resumoQualidade({ status, falhas = [], razoes = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null } = {}) {
   const avisos = [];
   if (objetivo && objetivo.atingido === false) avisos.push(AVISO_OBJETIVO[objetivo.motivo] || AVISO_OBJETIVO.conferencia);
   if (pesquisa && !pesquisa.feita) avisos.push(`Resultado parcial: a pesquisa na internet não foi feita (${MOTIVOS_PESQUISA[pesquisa.motivo] || 'motivo não informado'}). Os temas não foram confirmados como atuais.`);
   if (entregaveis && entregaveis.encontrados < entregaveis.esperados) avisos.push(`Vieram ${entregaveis.encontrados} de ${entregaveis.esperados} entregáveis.`);
-  return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g) })),
-    problemas: status === 'inconsistente' ? falhas.map(g => PROBLEMAS[g]) : [], avisos,
+  const motivoDe = g => razoes.filter(r => r.grupo === g).map(r => r.motivo);
+  return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g), ...(falhas.includes(g) && motivoDe(g).length ? { motivos: motivoDe(g).slice(0, 3) } : {}) })),
+    problemas: status === 'inconsistente' ? falhas.flatMap(g => (motivoDe(g).length ? motivoDe(g).slice(0, 3).map(m => `${PROBLEMAS[g]} ${m}`) : [PROBLEMAS[g]])) : [], avisos,
     ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}),
     ...(objetivo ? { objetivo: { atingido: objetivo.atingido !== false, motivo: objetivo.motivo || null } } : {}) };
 }
@@ -747,7 +753,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
     ultimaOp = d.op;
     let ia = null;
     if (usarIA) { try { const r = await chamar(mensagensQualidade(e, { entrada, resultado: t, indicios: d.numerosSemFonte })); somar(r); ia = lerVeredito(e, r.texto); } catch { ia = null; } }
-    return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], verificouIA: !!ia, estruturaOk: d.estruturaOk, objetivoIA: ia?.objetivo ?? null };
+    return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], razoes: [...d.detalhes.map(t => ({ grupo: grupoDoDetalhe(t), motivo: t })), ...(ia?.razoes || [])], verificouIA: !!ia, estruturaOk: d.estruturaOk, objetivoIA: ia?.objetivo ?? null };
   };
   let c = await conferir(texto), barreira = false;
   while (c.falhas.length && usarIA && tentativas < MAX_CORRECOES) {
@@ -771,7 +777,9 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   // conferência dizendo que o centro do pedido não foi entregue, o resultado fica parcial, nunca aprovado.
   const objetivo = ultimaOp?.objetivo || (c.objetivoIA === false ? { atingido: false, motivo: 'conferencia' } : null);
   const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa || objetivo?.atingido === false ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
-  return { texto, custo, economia, registro: { status, falhas: c.falhas, tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
+  // Cada grupo que falhou leva o motivo (do conferente ou determinístico); nunca só "faltou parte do que foi pedido".
+  const razoes = c.falhas.flatMap(g => { const rs = (c.razoes || []).filter(r => r.grupo === g); return rs.length ? rs : [{ grupo: g, motivo: `${PROBLEMAS[g]} O conferente não informou o motivo; nenhuma falha determinística foi encontrada.` }]; });
+  return { texto, custo, economia, registro: { status, falhas: c.falhas, ...(razoes.length ? { razoes: razoes.slice(0, 12) } : {}), tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
     ...(objetivo ? { objetivo: { atingido: false, motivo: objetivo.motivo } } : {}),
     ...(ultimaOp?.entregaveis ? { entregaveis: ultimaOp.entregaveis } : {}), ...(ultimaOp?.pesquisa ? { pesquisa: ultimaOp.pesquisa } : {}) } };
 }

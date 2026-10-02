@@ -15,7 +15,7 @@ import { analisarConteudo } from './conteudo.js';
 import { FORMATOS, limparVisual, tracos } from './contrato.js';
 import { lerPlano, mensagensPlano, planejar } from './plano.js';
 import { inferirEstilo, resolverIdentidade } from './marca.js';
-import { produzir } from './motor.js';
+import { produzir, produzirSemCorte } from './motor.js';
 import { asset, inspecionarImagem, decodificarDataUrl, MAX_BYTES_ASSET } from './assets.js';
 import { renderizavel } from './webp.js';
 import { rotuloEntregavel } from '../quickwin-operacao.js';
@@ -50,12 +50,30 @@ export function secaoDaPeca(texto, rotulo, nPecas = 1) {
   return nPecas === 1 && comTitulo.length === 1 ? comTitulo[0].texto : propria;
 }
 
+// Pedido comparativo (tipo comparação, ou o trabalho compara/confronta itens) cuja peça não traz estrutura comparativa:
+// a matriz itens x critérios que o resultado tem (em outra seção) entra na peça. Comparação não fica implícita.
+export const temComparacao = conteudo => conteudo.secoes.some(s => s.itens.some(i => i.comparacao));
+export function comComparacao(conteudo, { resposta, visual, espec }) {
+  const comparativo = visual?.tipo === 'comparison' || /\bcompar|\bconfront|\bversus\b|\bmatriz\b/i.test(`${espec?.objetivo || ''} ${visual?.rotulo || ''}`);
+  if (!comparativo || temComparacao(conteudo)) return conteudo;
+  const todo = analisarConteudo(String(resposta || ''), {});
+  const tabela = todo.secoes.flatMap(s => s.itens).find(i => i.comparacao);
+  if (!tabela) return conteudo;
+  const secoes = [...conteudo.secoes];
+  const pos = secoes.length && !secoes[0].titulo ? 1 : 0;
+  secoes.splice(pos, 0, { id: 'cmp', titulo: 'Comparação', pagina: null, itens: [{ ...tabela }] });
+  secoes.forEach((s, k) => { const id = `s${k + 1}`; s.itens.forEach((it, j) => { it.id = `${id}.i${j + 1}`; }); s.id = id; });
+  return { ...conteudo, secoes };
+}
+
 // "Título: ..." na primeira linha da seção (pedido no prompt): o título da peça.
+// Aceita o "Título:" depois de cabeçalhos ("### Página 1"), antes do primeiro conteúdo.
 function tituloDaSecao(texto) {
   const ls = String(texto || '').split('\n');
-  const k = ls.findIndex(l => l.trim());
-  const m = k >= 0 ? /^\s*\**\s*(?:t[ií]tulo|title)\s*\**\s*:\s*\**(.+?)\**\s*$/i.exec(ls[k]) : null;
-  return m ? { titulo: limpar(m[1], 90), resto: ls.slice(k + 1).join('\n') } : { titulo: '', resto: texto };
+  let k = 0;
+  while (k < ls.length && (!ls[k].trim() || /^\s*#{1,6}\s/.test(ls[k]))) k++;
+  const m = k < ls.length ? /^\s*\**\s*(?:t[ií]tulo|title)\s*\**\s*:\s*\**(.+?)\**\s*$/i.exec(ls[k]) : null;
+  return m ? { titulo: limpar(m[1], 90), resto: [...ls.slice(0, k), ...ls.slice(k + 1)].join('\n') } : { titulo: '', resto: texto };
 }
 
 // ---- Gerador de imagem (asset), governado ---------------------------------------------------------------------
@@ -125,7 +143,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     if (contemCredencial(resto)) { ignorados.push({ entregavel: e.id, motivo: 'credencial' }); continue; }
     if (visuais.length > 1) etapa(`Montando o visual: ${rotulo || tracos(visual).rotulo}…`);
     const titulo = tituloDado || rotulo || qw?.nome || '';
-    const conteudo = analisarConteudo(resto, { titulo });
+    const conteudo = comComparacao(analisarConteudo(resto, { titulo }), { resposta, visual, espec });
     const tr = tracos(visual, { secoes: conteudo.secoes.length });
     const identidade = resolverIdentidade(cfg, { inferida: inferirEstilo(`${espec.objetivo || ''} ${visual.estilo || ''}`) });
     // Plano visual.
@@ -175,7 +193,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const idioma = idiomaDe(resto);
     const exigidos = op.entregaveis.length === 1 ? (espec.invariantes?.entregaveis || []) : [];
     const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
-    let r = produzir({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc });
+    let r = produzirSemCorte({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc }, { formatoPedido: !!visual.formato });
     // Diagrama sem formato pedido: a orientação da página segue o desenho (fluxo longo de cima para baixo cabe melhor
     // em pé). Fica a que permite o texto maior sem falha.
     if (!visual.formato && tr.foco === 'diagrama') {

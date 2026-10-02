@@ -23,7 +23,7 @@ export const CODIGOS = {
   legibilidade: 'Texto pequeno demais para o formato', margem: 'Conteúdo fora das margens', alinhamento: 'Blocos desalinhados', consistencia: 'Tamanhos de texto inconsistentes entre páginas',
   logo_deformado: 'Logo com proporção alterada', logo_ausente: 'Logo da empresa não aparece', densidade: 'Texto demais para a área', hierarquia: 'Hierarquia de títulos invertida',
   repeticao: 'Texto repetido em várias partes', quebra: 'Palavra partida no meio por falta de espaço', asset_ausente: 'Imagem não fornecida (espaço reservado)', marca: 'Cor proibida pela marca',
-  espaco_vazio: 'Página com muito espaço vazio e texto pequeno', conteudo_faltando: 'Parte do conteúdo não aparece na peça', dados_incorretos: 'Número que não está no conteúdo', paginas: 'Número de páginas diferente do pedido', objetivo: 'O que o pedido exige não aparece na peça',
+  espaco_vazio: 'Página com muito espaço vazio e texto pequeno', comparacao: 'Comparação sem a tabela ou a matriz completa', conteudo_faltando: 'Parte do conteúdo não aparece na peça', dados_incorretos: 'Número que não está no conteúdo', paginas: 'Número de páginas diferente do pedido', objetivo: 'O que o pedido exige não aparece na peça',
 };
 
 const dentro = (px, py, r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
@@ -47,7 +47,7 @@ const textoDe = prims => prims.filter(p => p.t === 'text').map(p => p.linhas.red
 
 export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = null, exigidos = [], opcoes = {} }) {
   const falhas = [];
-  const f = (codigo, gravidade, pagina, detalhe = '', extra = {}) => falhas.push({ codigo, grupo: ['conteudo_faltando', 'dados_incorretos', 'paginas', 'objetivo'].includes(codigo) ? 'semantico' : 'visual', gravidade, pagina, detalhe, ...extra });
+  const f = (codigo, gravidade, pagina, detalhe = '', extra = {}) => falhas.push({ codigo, grupo: ['conteudo_faltando', 'dados_incorretos', 'paginas', 'objetivo', 'comparacao'].includes(codigo) ? 'semantico' : 'visual', gravidade, pagina, detalhe, ...extra });
   const fmt = FORMATOS[pl.formato];
   const minimo = fmt.minimo;
   const tamanhosPorPapel = new Map();
@@ -66,6 +66,12 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
       const a = blocos[i], b = blocos[j], s = inter(a, b);
       if (s > 0.02 * Math.min(a.w * a.h, b.w * b.h) && s > 4) f('sobreposicao', 'erro', n, `${a.tipo} e ${b.tipo}`, { blocos: [a.id, b.id] });
     }
+    // Qualquer elemento de conteúdo (não só texto) fora do canvas é corte.
+    for (const p of pg.prims) {
+      if (['decoracao', 'fundo', 'fundo_capa', 'faixa', 'imagem'].includes(p.papel) || p.t === 'text' || p.t === 'path') continue;
+      const bx = p.t === 'circle' ? { x: p.cx - p.r, y: p.cy - p.r, w: p.r * 2, h: p.r * 2 } : p.t === 'line' ? { x: Math.min(p.x1, p.x2), y: Math.min(p.y1, p.y2), w: Math.abs(p.x2 - p.x1), h: Math.abs(p.y2 - p.y1) } : { x: p.x, y: p.y, w: p.w || 0, h: p.h || 0 };
+      if ([bx.x, bx.y, bx.w, bx.h].every(Number.isFinite) && (bx.x < -1 || bx.y < -1 || bx.x + bx.w > pg.w + 1 || bx.y + bx.h > pg.h + 1)) { f('corte', 'erro', n, `${p.papel || p.t} sai da página`); break; }
+    }
     pg.prims.forEach((p, idx) => {
       if (p.t === 'image' && p.papel === 'logo' && p.nw && p.nh) {
         // O desenho usa "contain": confere que a caixa leva a proporção natural (nunca esticado).
@@ -82,6 +88,7 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
       for (const l of p.linhas) if (medir(l, fonte, p.tam) > p.w + 1) { f('texto_cortado', 'erro', n, `"${l.slice(0, 30)}"`); break; }
       // Palavra partida à força: em título, número ou rótulo é erro (lê mal); em texto corrido, aviso.
       if (p.partidas) f('quebra', ['h1', 'h2', 'h3', 'display', 'kpi', 'kpi_rotulo', 'tabela_cabecalho', 'cta', 'subtitulo'].includes(p.papel) ? 'erro' : 'aviso', n, `"${p.linhas.find(l => l.endsWith('-'))?.slice(0, 30) || ''}"`);
+      if (p.linhas.length > 1 && p.lh < p.tam * (p.tam >= 24 || ['h1', 'h2', 'display', 'kpi'].includes(p.papel) ? 1.0 : 1.15) - 0.05) f('legibilidade', 'erro', n, `entrelinha de ${p.lh.toFixed(1)}px para texto de ${p.tam.toFixed(1)}px`);
       if (p.papel === 'eixo' && p.tam < minimo * 0.8 - 0.05) f('legibilidade', 'erro', n, `rótulo de eixo de ${p.tam.toFixed(1)}px`);
       if (p.tam < minimo - 0.05 && !['eixo', 'marcador'].includes(p.papel)) f('legibilidade', 'erro', n, `texto de ${p.tam.toFixed(1)}px (mínimo ${minimo}px) em "${p.linhas[0]?.slice(0, 30)}"`);
       // Contraste: no começo e no meio da primeira linha.
@@ -114,7 +121,10 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
         // Diagrama, gráfico ou cronograma na largura toda: a altura vem da forma do desenho, não é página vazia.
         const formaLarga = cb.some(b => ['diagrama', 'grafico', 'linha_tempo', 'imagem'].includes(b.tipo) && b.w >= area.w * 0.85);
         if (ocupacao < 0.3 && !formaLarga) f('espaco_vazio', mediana < fmt.corpo * 1.15 ? 'erro' : 'aviso', n, `conteúdo ocupa ${Math.round(ocupacao * 100)}% da área útil com texto de ${mediana.toFixed(1)}px`, { ocupacao });
-        if (mediana < minimo * 1.1 && ocupacao < 0.6) f('legibilidade', 'erro', n, `texto de ${mediana.toFixed(1)}px com ${Math.round(ocupacao * 100)}% da área ocupada: havia espaço para texto maior`);
+        // Limite por tipo de bloco: página de dados (tabela, gráfico, indicadores) tolera texto menor que texto corrido.
+        const dados = cb.filter(b => ['tabela', 'grafico', 'indicadores'].includes(b.tipo)).length >= Math.ceil(cb.length / 2);
+        const piso = fmt.corpo * (dados ? 0.75 : 0.85);
+        if (mediana < Math.max(piso, minimo * 1.1) && ocupacao < 0.5) f('legibilidade', 'erro', n, `texto de ${mediana.toFixed(1)}px (piso ${piso.toFixed(1)}px) com ${Math.round(ocupacao * 100)}% da área ocupada: havia espaço para texto maior`);
       }
     }
     // Hierarquia: título da página maior que o texto de corpo.
@@ -160,6 +170,13 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
     // Célula de marcar: as opções aparecem como caixa desenhada + texto (os colchetes não são texto).
     const ausentes = partes.flatMap(t => (/\[[ xX]?\]/.test(String(t || '')) ? String(t).split(/\[[ xX]?\]/).map(x => x.trim()).filter(Boolean) : [t])).filter(t => { const k = plano(t); return k && !visivel.includes(k.slice(0, 60)); });
     if (ausentes.length) faltando.push({ item: it.id, secao: s.id, exemplos: ausentes.slice(0, 2) });
+  }
+  // Comparação: cada matriz itens x critérios do conteúdo é desenhada como tabela ou cartões, com todos os itens e
+  // todos os critérios visíveis. Parágrafo, lista solta ou só um gráfico não é comparação materializada.
+  const estruturados = new Set(pl.paginas.flatMap(p => p.blocos.filter(b => ['tabela', 'cartoes'].includes(b.tipo)).flatMap(b => b.refs || [])));
+  for (const s of conteudo.secoes) for (const it of s.itens) if (it.comparacao) {
+    const faltam = [...it.comparacao.itens, ...it.comparacao.criterios].filter(t => { const k = plano(t); return k && !visivel.includes(k.slice(0, 60)); });
+    if (!estruturados.has(it.id) || faltam.length) f('comparacao', 'erro', null, !estruturados.has(it.id) ? `matriz ${it.id} sem tabela ou cartões` : `faltam na matriz: ${faltam.slice(0, 3).join(', ')}`, { itens: [it.id] });
   }
   if (faltando.length) f('conteudo_faltando', 'erro', null, faltando.map(x => `${x.item}: "${String(x.exemplos[0]).slice(0, 40)}"`).join('; '), { itens: faltando.map(x => x.item) });
   // Fidelidade: todo número na peça está no conteúdo (ou no título dado, ou na data do rodapé).

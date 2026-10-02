@@ -111,11 +111,24 @@ paralelas com os mesmos campos (uma fase, um fornecedor por seção) viram um it
 dado ("não informado") não vai para a peça; a peça usa a seção do resultado que traz o conteúdo dela ("Título:").
 Peça de página única (cartaz, one-page, post, capa) nunca ganha segunda página: o que não couber é dito.
 
+Comparação é estrutura, não texto: listas "item: valores" com os mesmos itens (fornecedores, opções) viram uma
+matriz itens x critérios (`comparacao: { itens, criterios }`), desenhada sempre como tabela ou cartões; num pedido
+comparativo sem matriz na peça, a matriz do resultado entra nela; a conferência reprova matriz ausente ou incompleta
+(`comparacao`) e a correção a materializa. Números são dados: o valor exibido é o texto original inteiro
+("+3,3%", "4,3 de 5", "1.234,56", "$12,345.67", "3 h 40 min"), com o número normalizado ao lado, nunca cortado no
+separador decimal. Checklist distingue título ("Título:" em qualquer linha), introdução de lista (vira subtítulo),
+item marcável ("[ ]") e nota (sem caixa). Fluxo com setas, com ou sem "Fluxo:" antes, vira diagrama de nós e
+ligações. Capa: título único e subtítulo sem partes repetidas. Página única que corta tenta o formato maior da
+família (sem formato pedido); edição ou variação que cortaria é recusada (nunca um artefato cortado).
+
 Espaço vazio e legibilidade são medidos no renderer: página de leitura com menos de 30% da área útil ocupada e texto
 no tamanho base (ou menor) é reprovada (`espaco_vazio`), como texto pequeno com espaço sobrando; capa, fechamento,
 peça de impacto e desenho na largura toda (diagrama, gráfico, cronograma) não entram nessa regra.
 
-Correção automática, em ordem, uma ação por rodada: recompor o que faltou, títulos do conteúdo, reduzir a escala
+Legibilidade: mínimo do formato, entrelinha mínima, e piso por tipo de página (dados 0,75 do corpo; texto 0,85) quando
+sobra espaço. A conferência textual guarda o motivo de cada falha (do conferente ou determinístico).
+
+Correção automática, em ordem, uma ação por rodada: materializar a comparação, recompor o que faltou, títulos do conteúdo, reduzir a escala
 (até o mínimo legível), outra grade de colunas com o maior texto que cabe, reduzir a escala (até o mínimo legível), layout denso, página de
 continuação (só em peça multipágina), preencher (texto maior quando sobra espaço), ajustar contraste, aumentar escala. No máximo `MAX_CORRECOES_VISUAIS = 4`. Estados: `aprovado`, `corrigido`, `parcial` (com explicação
 objetiva: continuação, imagem reservada, páginas a menos) e `inconsistente`.

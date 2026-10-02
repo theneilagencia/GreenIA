@@ -96,7 +96,7 @@ function blocosDaSecao(s, tr) {
         // A tabela fica junto quando o gráfico não mostra todos os valores exatos (várias séries em linha, muitos
         // pontos, colunas que não viraram série) ou quando a peça é um documento (relatório, proposta).
         const semValores = (g.tipo === 'linhas' && g.series.length > 1) || it.linhas.length > 12 || it.cabecalho.length - 1 > g.series.length;
-        if (semValores || ['report', 'document', 'proposal'].includes(tr.tipo)) out.push(b);
+        if (semValores || it.comparacao || ['report', 'document', 'proposal'].includes(tr.tipo)) out.push(b);
         continue;
       }
     }
@@ -105,6 +105,18 @@ function blocosDaSecao(s, tr) {
   return out;
 }
 
+// Capa: título único e subtítulo sem repetição (cada parte uma vez, nada que já está no título).
+const partesDoItem = it => (it?.tipo === 'lista' ? it.itens.map(x => x.texto) : [textoDoItem(it)]);
+const chaveCapa = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+export function textoDeCapa(titulo, partes) {
+  const vistos = [chaveCapa(titulo)], out = [];
+  for (const p of partes.map(x => String(x || '').trim()).filter(Boolean)) {
+    const k = chaveCapa(p);
+    if (!k || vistos.some(v => v === k || v.includes(k))) continue;
+    out.push(p); vistos.push(k);
+  }
+  return out.join(' · ');
+}
 export function planejar(conteudo, tr, { titulo = '' } = {}) {
   const secoes = conteudo.secoes;
   const tituloGeral = limpar(titulo || conteudo.titulo || secoes[0]?.titulo || tr.rotulo, 90);
@@ -118,7 +130,7 @@ export function planejar(conteudo, tr, { titulo = '' } = {}) {
   const refSubtitulo = intro ? [intro.itens[0].id] : [];
   // Seção "Capa" escrita pela execução: numa peça sem capa, vira o subtítulo do cabeçalho (nunca um bloco "Capa").
   const secCapa = corpo[0]?.capa && corpo[0].itens.every(x => ['paragrafo', 'subtitulo', 'lista'].includes(x.tipo)) && corpo[0].itens.map(textoDoItem).join(' ').length <= 300 ? corpo[0] : null;
-  if (secCapa && !(tr.multipagina && tr.capa)) { subtitulo = [subtitulo, ...secCapa.itens.map(textoDoItem)].filter(Boolean).join(' · '); refSubtitulo.push(...secCapa.itens.map(x => x.id)); corpo = corpo.slice(1); }
+  if (secCapa && !(tr.multipagina && tr.capa)) { subtitulo = textoDeCapa(tituloGeral, [subtitulo, ...secCapa.itens.flatMap(partesDoItem)]); refSubtitulo.push(...secCapa.itens.map(x => x.id)); corpo = corpo.slice(1); }
   if (tr.multipagina) {
     // Capa: a primeira seção pode ser ela mesma ("Página 1: título e subtítulo"), quando é curta e só de texto.
     let capa = null, comCapa = tr.capa;
@@ -132,7 +144,7 @@ export function planejar(conteudo, tr, { titulo = '' } = {}) {
     }
     if (comCapa) {
       // Título da capa: o título da peça; a seção curta que virou capa dá o subtítulo (o título dela só vale sem título dado).
-      pag({ papel: 'capa', layout: 'capa', titulo: limpar((titulo || conteudo.titulo) ? tituloGeral : capa?.titulo || tituloGeral, 90), subtitulo: limpar(capa ? capa.itens.map(textoDoItem).join(' · ') : subtitulo, 240),
+      pag({ papel: 'capa', layout: 'capa', titulo: limpar((titulo || conteudo.titulo) ? tituloGeral : capa?.titulo || tituloGeral, 90), subtitulo: limpar(capa ? textoDeCapa(tituloGeral, capa.itens.flatMap(partesDoItem)) : subtitulo, 240),
         blocos: [], refs: [...refSubtitulo, ...(capa ? capa.itens.map(x => x.id) : [])], secao: capa?.id || null });
     }
     if (tr.fluxo === 'continuo') {
@@ -237,6 +249,8 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
       // Semântica antes da forma: caixa de marcar só em checklist; diagrama de processo só em fluxo ou etapas em ordem.
       if (tipo === 'checklist' && !(it.tipo === 'lista' && it.checklist)) tipo = 'lista';
       if (tipo === 'diagrama' && it.tipo === 'lista' && !it.ordenada) tipo = 'lista';
+      // Comparação (itens x critérios) é sempre uma estrutura comparativa desenhada: tabela ou cartões.
+      if (it.comparacao && !['tabela', 'cartoes'].includes(tipo)) tipo = 'tabela';
       const bloco = { tipo, refs, secao: it.secao };
       const t = titulo_(b?.titulo, 90); if (t) bloco.titulo = t;
       if (tipo === 'grafico') {
@@ -264,8 +278,8 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
     if (papel === 'capa' && !pg.titulo) pg.titulo = limpar(titulo || conteudo.titulo || tr.rotulo, 90);
     // A capa não desenha blocos: o que a IA pôs nela vira subtítulo (curto) ou segue para a página seguinte.
     if (papel === 'capa' && blocos.length) {
-      const textos = blocos.flatMap(b => b.refs.map(r => textoDoItem(itens.get(r))));
-      const junto = [pg.subtitulo, ...textos.filter(t => !pg.subtitulo?.toLowerCase().includes(t.toLowerCase()) && t.toLowerCase() !== (pg.titulo || '').toLowerCase())].filter(Boolean).join(' · ');
+      const textos = blocos.flatMap(b => b.refs.flatMap(r => partesDoItem(itens.get(r))));
+      const junto = textoDeCapa(pg.titulo, [pg.subtitulo, ...textos]);
       if (blocos.every(b => ['texto', 'lista', 'subtitulo'].includes(b.tipo)) && junto.length <= 240) { pg.subtitulo = junto; pg.refs.push(...blocos.flatMap(b => b.refs)); }
       else daCapa.push(...blocos);
       pg.blocos = [];

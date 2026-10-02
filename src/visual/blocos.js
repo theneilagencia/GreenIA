@@ -55,7 +55,8 @@ export function blocoLista(it, largura, C, { checklist = false, tam = C.tip.corp
     const nivel = x.nivel === 2 ? 1 : 0, dx = nivel * recuo;
     const t = texto(x.texto, { familia: C.T.fonteCorpo, peso: 400, tam, cor: C.T.texto, largura: largura - recuo - dx, lh: 1.38, papel: 'corpo' });
     const meio = y + t.prim.lh / 2;
-    if (checklist) {
+    // Caixa de marcar só em item marcável de verdade ("[ ]" no conteúdo); nota no meio de um checklist vai com marcador.
+    if (checklist && x.marcado !== undefined) {
       const s = tam * 0.98, by = meio - s / 2;
       if (x.marcado) {
         prims.push({ t: 'rect', x: dx, y: by, w: s, h: s, r: 3, fill: C.T.primaria, papel: 'marcador' });

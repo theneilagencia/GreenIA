@@ -63,6 +63,23 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
   // passa a vez à seguinte. Uma rodada = uma ação, sempre registrada.
   const estrategias = [
     codigos => {
+      if (!codigos.has('comparacao')) return null;
+      // Comparação sem estrutura: a matriz ganha a tabela, logo depois de onde o item aparece (ou na página da seção).
+      const ids = new Set(c.erros.filter(e => e.codigo === 'comparacao').flatMap(e => e.itens || []));
+      const itens = itensPorId(conteudo);
+      let mudou = false;
+      for (const id of ids) {
+        if (plano.paginas.some(p => p.blocos.some(b => ['tabela', 'cartoes'].includes(b.tipo) && b.refs?.includes(id)))) continue;
+        const it = itens.get(id); if (!it) continue;
+        const pg = plano.paginas.find(p => p.blocos.some(b => b.refs?.includes(id))) || plano.paginas.find(p => p.blocos.some(b => b.secao === it.secao)) || plano.paginas.filter(p => p.papel !== 'capa').at(-1);
+        const i = pg.blocos.findIndex(b => b.refs?.includes(id));
+        const novo = { id: `b_c${id.replace(/\W/g, '')}`, tipo: 'tabela', refs: [id], secao: it.secao };
+        if (i >= 0 && !['grafico'].includes(pg.blocos[i].tipo)) pg.blocos.splice(i, 1, novo); else pg.blocos.splice(i + 1, 0, novo);
+        mudou = true;
+      }
+      return mudou ? 'materializar_comparacao' : null;
+    },
+    codigos => {
       if (!codigos.has('conteudo_faltando')) return null;
       // Recompor: o item que não está em bloco nenhum entra como bloco padrão na página da seção dele.
       const faltam = new Set(c.erros.find(e => e.codigo === 'conteudo_faltando').itens || []);
@@ -193,3 +210,20 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
     explicacoes, conferencia: c,
   };
 }
+
+// Peça de página única sem formato pedido que ainda corta depois das correções: tenta o formato maior da mesma
+// família (mais área, mesma natureza), antes de aceitar corte. O primeiro que cabe inteiro fica.
+const MAIORES = { '1:1': ['4:5', '9:16'], '4:5': ['9:16'], '1.91:1': ['16:9', 'a4_paisagem'], '16:9': ['a4_paisagem', 'a4'], a4: ['a4_paisagem'], a4_paisagem: ['a4'], '9:16': [] };
+const CORTE = ['transbordo', 'corte', 'texto_cortado'];
+export const corta = r => r.registro.erros.some(k => CORTE.includes(k));
+export function produzirSemCorte(entrada, { formatoPedido = false } = {}) {
+  let r = produzir(entrada);
+  if (r.plano.multipagina || formatoPedido || !corta(r)) return r;
+  for (const f of MAIORES[entrada.plano.formato] || []) {
+    const plano = { ...structuredClone(entrada.plano), formato: f, canvas: { w: FORMATOS[f].w, h: FORMATOS[f].h } };
+    const r2 = produzir({ ...entrada, plano, tr: { ...entrada.tr, formato: f, dim: FORMATOS[f] } });
+    if (!corta(r2)) { r2.explicacoes = [...r2.explicacoes, `O conteúdo não cabia em ${FORMATOS[entrada.plano.formato].rotulo} sem cortar: a peça saiu em ${FORMATOS[f].rotulo}.`]; return r2; }
+  }
+  return r;
+}
+

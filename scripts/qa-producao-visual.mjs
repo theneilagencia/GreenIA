@@ -16,7 +16,7 @@ if (!BASE || !FIFO) { console.log('Informe QA_BASE e QA_CODIGO_FIFO.'); process.
 const RAIZ = join(process.cwd(), 'qa-producao-saida', `visual-${new Date().toISOString().replace(/[:.]/g, '-')}`); mkdirSync(RAIZ, { recursive: true });
 let SAIDA = RAIZ;
 let R = { base: BASE, criados: [], casos: [], regressao: [], exclusao: {}, erros: [] };
-const CRIADOS = [];
+const CRIADOS = [], CONVERSAS = {};
 const salvar = () => writeFileSync(join(SAIDA, 'relatorio.json'), JSON.stringify(R, null, 2));
 const log = (...a) => console.log(...a);
 
@@ -86,9 +86,9 @@ const CASOS = [
     material: 'Atendimento — setembro de 2026 (fictício). Chamados recebidos: 3.420. Resolvidos no primeiro contato: 71%. Tempo médio de resposta: 3 h 40 min. Satisfação (CSAT): 4,3 de 5. Chamados por canal: telefone 1.210, chat 1.540, e-mail 670. Evolução de chamados: junho 2.980, julho 3.150, agosto 3.300, setembro 3.420. Meta de resolução no primeiro contato: 75%.' },
   { nome: 'Infográfico', descricao: 'Crie um infográfico explicando o processo de compra de materiais de escritório.',
     material: 'Processo de compra de materiais de escritório (fictício): 1. A área faz o pedido no portal. 2. O gestor aprova em até 2 dias. 3. Compras cota com 3 fornecedores. 4. Pedidos acima de R$ 5.000 vão para a diretoria. 5. Compras emite o pedido. 6. O almoxarifado recebe e confere. 7. A área retira o material. Prazo total: até 10 dias úteis.' },
-  { nome: 'Post social', descricao: 'Crie um post quadrado para as redes sociais anunciando a Semana de Segurança.',
+  { nome: 'Poster', descricao: 'Crie um cartaz para o mural anunciando a Semana de Segurança.',
     material: 'Semana Interna de Prevenção de Acidentes (SIPAT) da Empresa Exemplo QA, de 13 a 17 de outubro de 2026. Palestras diárias às 9h no refeitório, gincana de segurança e campanha de vacinação. Tema: "Cuidar de você é o nosso jeito de trabalhar".' },
-  { nome: 'Pedido visual surpresa', descricao: 'Quero uma linha do tempo visual com as fases do projeto de mudança de escritório para mostrar à equipe.',
+  { nome: 'Timeline', descricao: 'Quero uma linha do tempo visual com as fases do projeto de mudança de escritório para mostrar à equipe.',
     material: 'Mudança de escritório (fictícia). Fase 1 — planejamento: setembro de 2026. Fase 2 — obras no novo andar: outubro e novembro. Fase 3 — mudança de TI e móveis: 5 a 7 de dezembro. Fase 4 — primeiro dia no novo escritório: 8 de dezembro. Fase 5 — ajustes e devolução do prédio antigo: até 31 de janeiro de 2027.' }
 ];
 const REGRESSAO = [
@@ -110,7 +110,7 @@ async function rodar(caso, visual) {
     R.criados.push(q.dados.id); CRIADOS.push(q.dados.id); salvar(); reg.qw = q.dados.id;
     await api('PUT', `/api/quick-wins/${q.dados.id}`, { nome: `QA - ${caso.nome}` });
     const conv = (await api('POST', '/api/conversas', { quick_win_id: q.dados.id, teste: true })).dados.conversa;
-    reg.conversa = conv.id;
+    reg.conversa = conv.id; (CONVERSAS[q.dados.id] = conv.id);
     let r = await enviar(conv.id, { executar_quick_win: true, texto: caso.material });
     let texto = r.linhas.filter(l => l.t === 'texto').map(l => l.v).join('');
     if (texto.trim().startsWith('Antes de começar')) { reg.perguntou = true; r = await enviar(conv.id, { executar_quick_win: true, texto: 'Use só o material enviado acima; pode decidir o restante.' }); texto = r.linhas.filter(l => l.t === 'texto').map(l => l.v).join(''); }
@@ -158,9 +158,11 @@ async function bateria(nome) {
   const alvo = R.casos.find(c => c.artefatos?.length)?.artefatos[0];
   if (alvo) {
     const ed = await api('PATCH', `/api/artefatos/${alvo.id}`, { titulo: 'QA - título editado' });
-    const der = await api('POST', `/api/artefatos/${alvo.id}/derivar`, { tipo: 'poster', formato: '4:5' });
+    const der = await api('POST', `/api/artefatos/${alvo.id}/derivar`, { tipo: 'one_page', formato: 'a4' });
     const res = await api('POST', `/api/artefatos/${alvo.id}/restaurar`, {});   // a versão 1 (não atual) volta como nova versão
     const dv = der.dados?.artefato;
+    const hist = await api('GET', `/api/artefatos/${alvo.id}`);
+    R.historico = (hist.dados?.versoes || []).map(v => ({ versao: v.versao, atual: v.atual, status: v.status }));
     R.edicao = { editar: ed.status, versao: ed.dados?.artefato?.versao ?? null, tituloEditado: ed.dados?.artefato?.titulo === 'QA - título editado', derivar: der.status,
       derivado: dv ? { tipo: dv.tipo, formato: dv.formato, status: dv.status } : null, restaurar: res.status, versaoRestaurada: res.dados?.artefato?.versao ?? null };
     if (dv) { const p = await binario(`/api/artefatos/${dv.id}/paginas/1`); if (p.status === 200) writeFileSync(join(SAIDA, `derivado-${dv.id}.png`), p.dados); }
@@ -175,7 +177,10 @@ async function limpar() {
     const q = (await api('GET', `/api/quick-wins/${id}`)).dados;
     if (!q || !String(q.nome).startsWith('QA - ')) { ex[id] = 'nao_excluido_nome_nao_confere'; continue; }
     const del = await api('DELETE', `/api/quick-wins/${id}`, {});
-    ex[id] = { excluido: del.status === 200, someDoCatalogo: (await api('GET', `/api/quick-wins/${id}`)).status === 404 };
+    const nova = await api('POST', '/api/conversas', { quick_win_id: id, teste: true });
+    const conv = CONVERSAS[id];
+    ex[id] = { excluido: del.status === 200, someDoCatalogo: (await api('GET', `/api/quick-wins/${id}`)).status === 404, novaExecucaoBloqueada: nova.status >= 400,
+      historicoPreservado: conv ? (await api('GET', `/api/conversas/${conv}`)).status === 200 : null };
   }
   writeFileSync(join(RAIZ, 'exclusao.json'), JSON.stringify(ex, null, 1));
   log(`LIMPEZA_FIM ${Object.values(ex).filter(x => x.excluido && x.someDoCatalogo).length}/${CRIADOS.length}`);

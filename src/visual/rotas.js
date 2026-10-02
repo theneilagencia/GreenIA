@@ -12,7 +12,7 @@ import { registrar } from '../eventos.js';
 import { EXPORTACOES, EXPORTACOES_FUTURAS, FORMATOS, formatoValido, limparVisual, tipoDe, tracos, TIPOS } from './contrato.js';
 import { planejar, BLOCOS, graficoParaTabela as planejarGrafico } from './plano.js';
 import { itensPorId } from './conteudo.js';
-import { montar, produzir } from './motor.js';
+import { corta, montar, produzir, produzirSemCorte } from './motor.js';
 import { svgDaPagina } from './svg.js';
 import { pngDaPagina, jpgDaPagina } from './raster.js';
 import { pdfDasPaginas } from './pdf.js';
@@ -178,6 +178,8 @@ function novaVersao(app, pessoa, a, { conteudo, plano, opcoes, identidade, titul
   const { escala, colunas, colunasTentadas, ...resto } = opcoes;
   void escala; void colunas; void colunasTentadas;
   const r = produzir({ plano, conteudo, identidade, tr, assets, opcoes: resto, textosLivres: [titulo] });
+  // Edição que faria uma peça de página única cortar conteúdo não é gravada (a restauração devolve o que existia).
+  if (!r.plano.multipagina && corta(r) && !campos.includes('restauracao')) throw erro(422, 'nao_cabe', 'Com essa mudança o conteúdo não cabe inteiro na página sem cortar. Escolha outro formato ou tire parte do texto.');
   const q = json(a.qualidade, {});
   const novo = transacao(app.db, () => {
     exec(app.db, 'update artefatos_visuais set atual = 0 where base_id = ?', a.base_id);
@@ -268,7 +270,9 @@ export function rotasArtefatos(app, r) {
     const plano = planejar(conteudo, tr, { titulo: a.titulo });
     const opcoes0 = json(a.opcoes, {});
     const assets = carregarAssets(app, a.conversa_id, opcoes0.assets);
-    const x = produzir({ plano, conteudo, identidade, tr, assets, opcoes: { data: opcoes0.data, idioma: opcoes0.idioma }, textosLivres: [a.titulo] });
+    const x = produzirSemCorte({ plano, conteudo, identidade, tr, assets, opcoes: { data: opcoes0.data, idioma: opcoes0.idioma }, textosLivres: [a.titulo] }, { formatoPedido: !!corpo.formato });
+    // Nunca um artefato cortado: o que não cabe numa página só é dito, e nada é gravado.
+    if (corta(x)) throw erro(422, 'nao_cabe', `O conteúdo não cabe inteiro numa página de ${tr.rotulo} sem cortar. Escolha um tipo de várias páginas (apresentação, relatório) ou um one-page em A4.`);
     const id = Number(exec(app.db, `insert into artefatos_visuais (versao, atual, conversa_id, mensagem_id, roteamento_id, quick_win_id, quick_win_versao, pessoa_id, entregavel_id, derivado_de, tipo, rotulo, titulo, formato, paginas,
       conteudo, plano, opcoes, identidade, qualidade, status, exportacoes, editado_por, criado_em) values (1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       a.conversa_id, a.mensagem_id, a.roteamento_id, a.quick_win_id, a.quick_win_versao, pessoa.id, a.entregavel_id, a.base_id, tr.tipo, tr.rotulo, a.titulo, x.plano.formato, x.paginas.length,

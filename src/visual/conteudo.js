@@ -28,19 +28,31 @@ const META_DESIGN = /^[*_]*(formato|layout|paleta( de cores)?|tipografia|orienta
 const LACUNA = /^(?:n[aã]o (?:informad[oa]s?|dispon[ií]ve(?:l|is)|fornecid[oa]s?|identificad[oa]s?|consta)|sem (?:informa[cç][aã]o|dados?)|n\/a|n\.?\s?d\.?|-|—)\.?$/i;
 // "Descrição: não informado" -> "" ; "Data: não informado | Setor: A" -> "Setor: A".
 const semLacunas = t => String(t || '').split(/\s+\|\s+/).filter(p => { const v = ROTULADA.test(p.trim()) ? p.slice(p.indexOf(':') + 1).trim() : p.trim(); return v && !LACUNA.test(v.replace(/[*_]/g, '')); }).join(' | ');
+const TITULO_LINHA = /^\s*[*_]*\s*(?:t[ií]tulo|title)\s*[*_]*\s*:\s*[*_]*(.+?)[*_]*\s*$/i;
 const CTA = /^(?:chamada(?: para a[cç][aã]o)?|cta|call to action)\s*:\s*(.+)$/i;
 const SETA = /\s*(?:->|→|=>|⇒|➜|➔)\s*/;
 
-// Número com rótulo ("Receita: R$ 1,2 mi", "R$ 1,2 mi — receita do mês", "12% de redução").
-const VALOR = /^(?:\d{1,3}\s?h\s?\d{1,2}(?:\s?min)?|[+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|p\.p\.|mil|mi|bi|milh[oõ]es|bilh[oõ]es|k|h|horas?|min|minutos?|dias?( [úu]teis)?|semanas?|meses|anos?|x|vezes|pontos?|t|kg|km|un\.?|unidades|pessoas|clientes|itens)?)$/i;
+// Número com rótulo ("Receita: R$ 1,2 mi", "R$ 1,2 mi — receita do mês", "12% de redução"). O número é um dado:
+// o token vai inteiro (milhar e decimal, pt-BR e en-US: "1.234,56", "1,234.56", "+3,3%", "4,3 de 5", "4.3 out of 5")
+// e nunca é cortado no separador decimal; o que aparece na peça é o texto original (valor), e o número normalizado
+// fica ao lado (numero), para gráfico e conferência — o texto exibido nunca é reconstruído a partir dele.
+const NUM_TOKEN = String.raw`\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?`;
+const UNID = String.raw`%|pp|p\.p\.|mil|mi|bi|milh[oõ]es|bilh[oõ]es|k|h|horas?|min|minutos?|dias?(?: [úu]teis)?|semanas?|meses|anos?|x|vezes|pontos?|t|kg|km|un\.?|unidades|pessoas|clientes|itens`;
+const VAL = String.raw`(?:\d{1,3}\s?h\s?\d{1,2}(?:\s?min)?|[+\-−]?\s?(?:R\$|US\$|€|\$)?\s?(?:${NUM_TOKEN})(?![\d]|[.,]\d)(?:\s?(?:${UNID})(?![a-zà-ú]))?(?:\s+(?:de|of|out of)\s+(?:${NUM_TOKEN})(?![\d]|[.,]\d))?(?:\/[a-zà-ú]+)?)`;
+const VALOR = new RegExp(`^${VAL}$`, 'i');
+const COM_DETALHE = new RegExp(String.raw`^(.{2,48}?)\s*[:–—]\s*(${VAL})(?:\s*[(;–—-]\s*|,\s+|\s+(?=[a-zà-ú(]))(.{2,80})$`, 'i');
+const VALOR_PRIMEIRO = new RegExp(String.raw`^(${VAL})\s+(?:[–—-]\s*)?(.{3,60})$`, 'i');
+// Round-trip: o valor tirado do texto tem de estar nele inteiro (sem dígito ou decimal colado depois).
+const inteiro = (t, v) => { const i = t.indexOf(v); return i >= 0 && !/^[.,]?\d/.test(t.slice(i + v.length)); };
+const comNumero = k => (k && inteiro(k.fonte, k.valor) ? { rotulo: k.rotulo, valor: k.valor, numero: valorNumerico(k.valor), ...(k.detalhe ? { detalhe: k.detalhe } : {}), texto: k.fonte } : null);
 function indicador(texto) {
   const t = limparInline(texto);
   let m = /^(.{2,48}?)\s*[:–—]\s*(.{1,32})$/.exec(t);
-  if (m && (VALOR.test(m[2].trim()) || /^\d[\d.,]*\s+de\s+\d[\d.,]*$/.test(m[2].trim()))) return { rotulo: m[1].trim(), valor: m[2].trim() };
-  m = /^(.{2,48}?)\s*[:–—]\s*([+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|mil|mi|bi|milh[oõ]es|k|h|dias?|meses|anos?)?)\s*[(,;–—-]\s*(.{2,80})$/i.exec(t);
-  if (m) return { rotulo: m[1].trim(), valor: m[2].trim(), detalhe: m[3].replace(/\)$/, '').trim() };
-  m = /^([+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|mil|mi|bi|milh[oõ]es|k|h|dias?|meses|anos?|x)?)\s+(?:[–—-]\s*)?(.{3,60})$/i.exec(t);
-  if (m && VALOR.test(m[1].trim()) && /^[a-zà-ú(]/i.test(m[2])) return { rotulo: m[2].trim(), valor: m[1].trim() };
+  if (m && VALOR.test(m[2].trim())) return comNumero({ fonte: t, rotulo: m[1].trim(), valor: m[2].trim() });
+  m = COM_DETALHE.exec(t);
+  if (m) return comNumero({ fonte: t, rotulo: m[1].trim(), valor: m[2].trim(), detalhe: m[3].replace(/^\(|\)$/g, '').trim() });
+  m = VALOR_PRIMEIRO.exec(t);
+  if (m && /^[a-zà-ú(]/i.test(m[2])) return comNumero({ fonte: t, rotulo: m[2].trim(), valor: m[1].trim() });
   return null;
 }
 export { indicador };
@@ -50,7 +62,9 @@ const CARTAO = /^([^:]{2,48}):\s+(.{3,})$/;
 
 export function analisarConteudo(markdown, { titulo = '' } = {}) {
   // Instrução de design que a execução às vezes escreve no conteúdo ("Formato: A4 retrato") não é conteúdo da peça.
-  const linhas = String(markdown || '').replace(/\r/g, '').split('\n').filter(l => !META_DESIGN.test(l.trim()));
+  // "Título: ..." é estrutura (o título da peça), em qualquer linha: nunca vira texto do corpo.
+  let tituloAchado = '';
+  const linhas = String(markdown || '').replace(/\r/g, '').split('\n').filter(l => !META_DESIGN.test(l.trim())).filter(l => { const m = TITULO_LINHA.exec(l); if (m && !tituloAchado) tituloAchado = m[1]; return !m; });
   const secoes = [];
   let n = 0;
   const novaSecao = (t = null, pagina = null) => { const s = { id: `s${secoes.length + 1}`, titulo: t, pagina, itens: [] }; secoes.push(s); return s; };
@@ -97,14 +111,24 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
       continue;
     }
     if (ITEM.test(l)) {
-      const itens = [], ordenada = /^\s*\d/.test(l);
+      const itens = []; let numerada = false; const ordenada0 = /^\s*\d/.test(l);
       while (i < linhas.length && (ITEM.test(linhas[i]) || (/^\s{2,}\S/.test(linhas[i]) && itens.length && !ITEM.test(linhas[i])))) {
         const bruto = linhas[i++];
         if (!ITEM.test(bruto)) { itens[itens.length - 1].texto += ` ${limparInline(bruto)}`; continue; }
         const nivel = /^\s{2,}/.test(bruto) ? 2 : 1;
         let texto = bruto.replace(ITEM, '').replace(/^(?:[-*+•]\s+)+/, '');
+        // "- 1. passo": número escrito dentro do marcador é a ordem da lista, não texto.
+        if (/^\d{1,2}[.)]\s+\S/.test(texto)) { texto = texto.replace(/^\d{1,2}[.)]\s+/, ''); numerada = true; }
         const ck = /^\[( |x|X)\]\s+(.*)$/.exec(texto);
         itens.push({ texto: limparInline(ck ? ck[2] : texto), marcado: ck ? ck[1] !== ' ' : null, nivel });
+      }
+      const ordenada = ordenada0 || numerada;
+      // Introdução da lista ("Categorias de verificação:", sem valor depois dos dois-pontos) não é item: vira o
+      // subtítulo do que vem a seguir, nunca uma caixa de marcar.
+      for (let k = 0; k < itens.length - 1; k++) if (/:\s*$/.test(itens[k].texto) && itens[k].marcado === null) {
+        lista(itens.slice(0, k).filter(x => x.texto && !CTA.test(x.texto)), ordenada);
+        add({ tipo: 'subtitulo', texto: itens[k].texto.replace(/:\s*$/, '') });
+        itens.splice(0, k + 1); k = -1;
       }
       // "Chamada: ..." no fim de uma lista é a chamada para ação, não mais um item.
       const ctaLista = itens.filter(x => CTA.test(x.texto));
@@ -116,6 +140,12 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
     const par = [];
     while (i < linhas.length && linhas[i].trim() && !/^\s*#{1,6}\s/.test(linhas[i]) && !ITEM.test(linhas[i]) && !ehTabela(linhas[i], linhas[i + 1]) && !/^\s*>/.test(linhas[i])) par.push(linhas[i++]);
     if (par.length === 1 && /^\s*\*\*[^*]+\*\*:?\s*$/.test(par[0])) { add({ tipo: 'subtitulo', texto: limparInline(par[0]).replace(/:$/, '') }); continue; }
+    // Fluxo com introdução ("Fluxo:" numa linha, ou "Fluxo: A -> B -> C"): a introdução vira subtítulo e o resto é
+    // o fluxo desenhado (nós e ligações), nunca uma frase com setas.
+    if (par.length >= 2 && /:\s*$/.test(par[0]) && !SETA.test(par[0]) && par.slice(1).every(x => SETA.test(x))) { add({ tipo: 'subtitulo', texto: limparInline(par[0]).replace(/:\s*$/, '') }); add(fluxoDe(par.slice(1))); continue; }
+    if (par.length === 1 && /^[^:>→]{2,40}:\s*\S/.test(par[0]) && (par[0].match(new RegExp(SETA.source, 'g')) || []).length >= 2 && !SETA.test(par[0].split(':')[0])) {
+      const i = par[0].indexOf(':'); add({ tipo: 'subtitulo', texto: limparInline(par[0].slice(0, i)) }); add(fluxoDe([par[0].slice(i + 1).trim()])); continue;
+    }
     if (par.every(x => SETA.test(x))) { add(fluxoDe(par)); continue; }
     // Linhas "Rótulo: valor" seguidas, sem marcador de lista: cada linha é um item (nunca um parágrafo emendado).
     if (par.length >= 2 && par.filter(x => ROTULADA.test(x.trim())).length >= Math.ceil(par.length * 0.6)) {
@@ -146,6 +176,34 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
       return it;
     }).filter(Boolean);
   }
+  // Comparação: listas "Item: valores" com o mesmo conjunto de itens (os mesmos fornecedores em "Preços" e em
+  // "Prazos") são uma matriz itens x critérios. Vira uma tabela de verdade, no lugar da primeira lista, com a
+  // estrutura explícita (comparacao: itens, critérios); as outras listas saem (o conteúdo delas está na matriz).
+  {
+    const ENT = /^([^:]{1,40}):\s+(.+)$/;
+    const chaveEnt = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const listas = [];
+    // Texto original de cada linha (lista ou indicadores): o valor da célula é o que estava escrito, não remontado.
+    const linhasDe = it => (it.tipo === 'lista' ? (it.itens.every(x => x.marcado === undefined) ? it.itens.map(x => x.texto) : null) : it.tipo === 'indicadores' && it.itens.every(x => x.texto) ? it.itens.map(x => x.texto) : null);
+    for (const s of secoes) for (const it of s.itens) { const ls = linhasDe(it); if (ls && ls.length >= 2 && ls.every(t => ENT.test(t))) listas.push({ s, it, ls, chave: ls.map(t => chaveEnt(ENT.exec(t)[1])).sort().join('|') }); }
+    const porChave = new Map();
+    for (const l of listas) { if (!porChave.has(l.chave)) porChave.set(l.chave, []); porChave.get(l.chave).push(l); }
+    for (const grupo of porChave.values()) {
+      if (grupo.length < 2 || new Set(grupo[0].ls.map(t => chaveEnt(ENT.exec(t)[1]))).size !== grupo[0].ls.length) continue;
+      const itensCmp = grupo[0].ls.map(t => ENT.exec(t)[1].trim());
+      const criterios = grupo.map((g, k) => g.s.titulo || `Critério ${k + 1}`);
+      const valorDe = (g, nome) => ENT.exec(g.ls.find(t => chaveEnt(ENT.exec(t)[1]) === chaveEnt(nome)))[2].trim();
+      const tabela = { tipo: 'tabela', cabecalho: ['', ...criterios], linhas: itensCmp.map(nome => [nome, ...grupo.map(g => valorDe(g, nome))]), comparacao: { itens: itensCmp, criterios } };
+      const primeira = grupo[0];
+      primeira.s.itens[primeira.s.itens.indexOf(primeira.it)] = tabela;
+      for (const g of grupo.slice(1)) { g.s.itens.splice(g.s.itens.indexOf(g.it), 1); if (!g.s.itens.length) g.s.titulo = null; }
+      if (primeira.s.titulo && criterios.length > 1) primeira.s.titulo = 'Comparação';
+    }
+  }
+  // Tabela com itens nas linhas e dois ou mais critérios em texto (matriz qualitativa) também é comparação.
+  for (const s of secoes) for (const it of s.itens) if (it.tipo === 'tabela' && !it.comparacao && it.linhas.length >= 2 && it.cabecalho.length >= 3
+    && it.cabecalho.slice(1).filter((_, k) => it.linhas.some(l => valorNumerico(l[k + 1]) === null)).length >= 1)
+    it.comparacao = { itens: it.linhas.map(l => l[0]), criterios: it.cabecalho.slice(1) };
   // Registros paralelos: seções seguidas, cada uma só com campos "Rótulo: valor" e os mesmos rótulos (uma fase, um
   // fornecedor, uma etapa por seção) viram um item só, em ordem: nenhuma fase some por ser uma seção curta.
   for (let k = 0; k < secoes.length; k++) {
@@ -167,7 +225,7 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
   // Seções vazias (só título) saem; uma seção sem título no começo é a introdução.
   const validas = secoes.filter(s => s.itens.length || s.titulo);
   validas.forEach((s, k) => { const novo = `s${k + 1}`; s.itens.forEach((it, j) => { it.id = `${novo}.i${j + 1}`; }); s.id = novo; });
-  const conteudo = { titulo: limparInline(titulo) || null, secoes: validas };
+  const conteudo = { titulo: limparInline(titulo || tituloAchado) || null, secoes: validas };
   return conteudo;
 }
 

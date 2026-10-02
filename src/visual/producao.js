@@ -12,7 +12,7 @@ import { registrar } from '../eventos.js';
 import { contemCredencial, detectar } from '../filtro.js';
 import { erroParaLog } from '../registro-seguro.js';
 import { analisarConteudo } from './conteudo.js';
-import { limparVisual, tracos } from './contrato.js';
+import { FORMATOS, limparVisual, tracos } from './contrato.js';
 import { lerPlano, mensagensPlano, planejar } from './plano.js';
 import { inferirEstilo, resolverIdentidade } from './marca.js';
 import { produzir } from './motor.js';
@@ -152,7 +152,16 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     ms.assets += Date.now() - b;
     const idioma = idiomaDe(resto);
     const exigidos = op.entregaveis.length === 1 ? (espec.invariantes?.entregaveis || []) : [];
-    const r = produzir({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' } });
+    const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
+    let r = produzir({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc });
+    // Diagrama sem formato pedido: a orientação da página segue o desenho (fluxo longo de cima para baixo cabe melhor
+    // em pé). Fica a que permite o texto maior sem falha.
+    if (!visual.formato && tr.foco === 'diagrama') {
+      const outro = plano.formato === 'a4_paisagem' ? 'a4' : 'a4_paisagem';
+      const p2 = { ...structuredClone(plano), formato: outro, canvas: { w: FORMATOS[outro].w, h: FORMATOS[outro].h } };
+      const r2 = produzir({ plano: p2, conteudo, identidade, tr: { ...tr, formato: outro, dim: FORMATOS[outro] }, assets, exigidos, textosLivres: [titulo], opcoes: opc });
+      if (!r2.registro.erros.length && (r.registro.erros.length || r2.registro.escala > r.registro.escala + 0.04)) r = r2;
+    }
     ms.composicao += r.registro.ms.composicao; ms.conferencia += r.registro.ms.conferencia;
     const avisos = [...r.explicacoes];
     if (imagem?.pedida === 'conceitual' && !imagem.gerada) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);

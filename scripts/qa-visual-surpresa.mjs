@@ -404,11 +404,17 @@ for (const [i, c] of SURPRESA.entries()) {
     const plano = planejar(conteudo, tr, { titulo });
     const idioma = /^title:/im.test(c.conteudo) ? 'en' : 'pt';
     const t = Date.now();
-    const x = produzir({ plano, conteudo, identidade: marca, tr, opcoes: { data: idioma === 'en' ? '10/2/2026' : '02/10/2026', idioma }, textosLivres: [titulo] });
-    Object.assign(r, { status: x.registro.status, paginas: x.paginas.length, formato: plano.formato, correcoes: x.registro.correcoes, acoes: x.registro.tentativas.map(a => a.acao),
+    const opc = { data: idioma === 'en' ? '10/2/2026' : '02/10/2026', idioma };
+    let x = produzir({ plano, conteudo, identidade: marca, tr, opcoes: opc, textosLivres: [titulo] });
+    if (!visual.formato && tr.foco === 'diagrama') {   // mesma regra de src/visual/producao.js
+      const outro = plano.formato === 'a4_paisagem' ? 'a4' : 'a4_paisagem';
+      const x2 = produzir({ plano: { ...structuredClone(plano), formato: outro, canvas: { w: FORMATOS[outro].w, h: FORMATOS[outro].h } }, conteudo, identidade: marca, tr: { ...tr, formato: outro, dim: FORMATOS[outro] }, opcoes: opc, textosLivres: [titulo] });
+      if (!x2.registro.erros.length && (x.registro.erros.length || x2.registro.escala > x.registro.escala + 0.04)) x = x2;
+    }
+    Object.assign(r, { status: x.registro.status, paginas: x.paginas.length, formato: x.plano.formato, correcoes: x.registro.correcoes, acoes: x.registro.tentativas.map(a => a.acao),
       erros: x.registro.erros, avisos: x.registro.avisos, explicacoes: x.explicacoes, ms: Date.now() - t });
     x.paginas.forEach((p, k) => writeFileSync(join(SAIDA, `${n}-${k + 1}.png`), pngDaPagina(p, Math.min(1, 900 / Math.max(p.w, p.h))).bytes));
-    writeFileSync(join(SAIDA, `${n}.pdf`), pdfDasPaginas(x.paginas, { escala: FORMATOS[plano.formato].pdf, titulo }));
+    writeFileSync(join(SAIDA, `${n}.pdf`), pdfDasPaginas(x.paginas, { escala: FORMATOS[x.plano.formato].pdf, titulo }));
   }
   resultados.push(r);
   console.log(`${n} ${c.area.padEnd(24)} ${r.reconhecido ? `${r.tipo.padEnd(18)} ${String(r.status).padEnd(13)} ${r.paginas}p ${r.correcoes} corr. ${r.erros?.join(',') || ''}` : 'NÃO RECONHECIDO'}`);

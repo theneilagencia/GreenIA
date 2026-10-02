@@ -29,7 +29,7 @@ const VALOR = /^[+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|p\.p\.|mi
 function indicador(texto) {
   const t = limparInline(texto);
   let m = /^(.{2,48}?)\s*[:–—]\s*(.{1,32})$/.exec(t);
-  if (m && VALOR.test(m[2].trim()) ) return { rotulo: m[1].trim(), valor: m[2].trim() };
+  if (m && (VALOR.test(m[2].trim()) || /^\d[\d.,]*\s+de\s+\d[\d.,]*$/.test(m[2].trim()))) return { rotulo: m[1].trim(), valor: m[2].trim() };
   m = /^(.{2,48}?)\s*[:–—]\s*([+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|mil|mi|bi|milh[oõ]es|k|h|dias?|meses|anos?)?)\s*[(,;–—-]\s*(.{2,80})$/i.exec(t);
   if (m) return { rotulo: m[1].trim(), valor: m[2].trim(), detalhe: m[3].replace(/\)$/, '').trim() };
   m = /^([+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|mil|mi|bi|milh[oõ]es|k|h|dias?|meses|anos?|x)?)\s+(?:[–—-]\s*)?(.{3,60})$/i.exec(t);

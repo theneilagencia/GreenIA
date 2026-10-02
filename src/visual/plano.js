@@ -128,7 +128,8 @@ export function planejar(conteudo, tr, { titulo = '' } = {}) {
       else if (tr.paginas && corpo.length >= tr.paginas) comCapa = false;
     }
     if (comCapa) {
-      pag({ papel: 'capa', layout: 'capa', titulo: limpar(capa?.titulo || tituloGeral, 90), subtitulo: limpar(capa ? capa.itens.map(x => x.texto).join(' ') : subtitulo, 240),
+      // Título da capa: o título da peça; a seção curta que virou capa dá o subtítulo (o título dela só vale sem título dado).
+      pag({ papel: 'capa', layout: 'capa', titulo: limpar((titulo || conteudo.titulo) ? tituloGeral : capa?.titulo || tituloGeral, 90), subtitulo: limpar(capa ? capa.itens.map(x => x.texto).join(' ') : subtitulo, 240),
         blocos: [], refs: [...refSubtitulo, ...(capa ? capa.itens.map(x => x.id) : [])], secao: capa?.id || null });
     }
     if (tr.fluxo === 'continuo') {

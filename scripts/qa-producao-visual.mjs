@@ -50,12 +50,18 @@ async function enviar(convId, corpo) {
   }
 }
 if (EMPRESA) await pedir('GET', `/${EMPRESA}/entrar`, undefined, 'manual');
-const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
-if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status); process.exit(1); }
-log('CODIGO_SOLICITADO');
-const e = await pedir('POST', '/api/login/entrar', { email: CONTA, codigo: readFileSync(FIFO, 'utf8').trim() });
-const d = await e.json().catch(() => ({}));
-if (e.status !== 200) { log('LOGIN_RECUSADO', e.status, String(d.mensagem || d.erro || '').slice(0, 200)); process.exit(1); }
+// Código vencido ou recusado: pede outro e espera de novo pelo canal local (até 3 tentativas).
+let e, d = {};
+for (let tentativa = 1; ; tentativa++) {
+  const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
+  if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status); process.exit(1); }
+  log('CODIGO_SOLICITADO');
+  e = await pedir('POST', '/api/login/entrar', { email: CONTA, codigo: readFileSync(FIFO, 'utf8').trim() });
+  d = await e.json().catch(() => ({}));
+  if (e.status === 200) break;
+  log('LOGIN_RECUSADO', e.status, String(d.mensagem || d.erro || '').slice(0, 200));
+  if (tentativa >= 3) process.exit(1);
+}
 csrf = d.csrf; await ciencia().catch(() => {});
 const eu = (await api('GET', '/api/eu')).dados;
 if (String(eu.pessoa?.email).toLowerCase() !== CONTA) { log('Conta inesperada. Parando.'); process.exit(1); }

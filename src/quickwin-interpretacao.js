@@ -70,7 +70,10 @@ const PALAVRAS_VAZIAS = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'o', 'a', 
 const singular = p => (!p ? '' : /(r|s|z)es$/.test(p) ? p.slice(0, -2) : /oes$/.test(p) ? `${p.slice(0, -3)}ão` : p.replace(/s$/, ''));
 // Item que aponta para o próprio material ("este documento", "isso") não é entregável: é a entrada.
 const DEMONSTRATIVO = /^(este|esta|estes|estas|esse|essa|esses|essas|isso|isto|aquele|aquela|aqueles|aquelas)\b/;
-const itens = trecho => trecho.split(/,|\s+e\s+|\s+ou\s+/).map(x => x.trim().replace(/^(por|em|o|a|os|as|um|uma|uns|umas|seus?|suas?)\s+/, '').replace(/^(o|a|os|as)\s+/, '').trim()).filter(x => x.length >= 3 && !DEMONSTRATIVO.test(x));
+// Restrição ("sem os vícios de escrita", "não usar jargão", "além de artes bem definidas") diz COMO fazer: nunca é um
+// entregável a conferir como seção.
+const RESTRICAO = /^(sem|não|nao|nunca|evit\w*|exceto|salvo|além de|alem de|inclusive|apenas|somente)\b/;
+const itens = trecho => trecho.split(/,|\s+e\s+|\s+ou\s+/).map(x => x.trim().replace(/^(por|em|o|a|os|as|um|uma|uns|umas|seus?|suas?)\s+/, '').replace(/^(o|a|os|as)\s+/, '').trim()).filter(x => x.length >= 3 && !DEMONSTRATIVO.test(x) && !RESTRICAO.test(norm(x)));
 // Leitura do pedido por orações (QA-10): cada verbo de tarefa abre uma oração, e a CLASSE do verbo diz o que o
 // objeto dele é. Verbos de entrega ("destaque riscos e multas") listam o que sai; verbos de resultado com "em" ou
 // "por" ("transforme a reunião em ata e decisões", "agrupe por motivo e prioridade") listam o que sai depois do
@@ -194,10 +197,14 @@ const tipoPorPalavra = item => Object.entries(ENTREGAVEIS).find(([id, e]) => id 
 // Garante as invariantes no plano (só acrescenta; nada que a IA trouxe é tirado). Devolve o plano e o que mudou.
 // `soEntregaveis`: o plano heurístico tem etapas genéricas do arquétipo ("prazos", "riscos"); elas não contam como
 // cobertura de um item pedido — só os entregáveis contam.
-export function garantirInvariantes(op, pedido, { soEntregaveis = false } = {}) {
+// `contexto` (opcional): o texto livre de como a pessoa faz hoje. Ele é prosa (restrições, hábitos, estilo), não uma
+// lista do que entregar: dele só vale o sinal de pesquisa na internet. Entregáveis, quantidade e critérios saem só
+// do pedido (QA em produção: a explicação de um Quick Win de posts virou seis seções obrigatórias).
+export function garantirInvariantes(op, pedido, { soEntregaveis = false, contexto = '' } = {}) {
   if (!op) return { op, corrigidas: [] };
   const textoDoPlano = p => soEntregaveis ? textoDosEntregaveis(p) : textoCompleto(p);
   const inv = invariantesDoPedido(pedido), corrigidas = [];
+  if (contexto && !inv.pesquisa) inv.pesquisa = pedePesquisaWeb(contexto);
   const novo = structuredClone(op);
   // A quantidade só vale para a entrada quando conta o MATERIAL ("três propostas", "dois contratos"); "em cinco
   // pontos" ou "dez ideias" contam o resultado, não o que entra (QA-05).
@@ -271,7 +278,7 @@ const PACOTE_VIDEO = [{ tipo: 'outro', rotulo: 'Conceito', config: { detalhe: 'i
   { tipo: 'video', rotulo: 'Briefing de produção' }, { tipo: 'outro', rotulo: 'Prompt para ferramenta de vídeo', config: { detalhe: 'prompt para uma ferramenta de geração de vídeo' } }];
 
 // Resposta da IA -> plano validado. null: ilegível, sem entregável ou com algo que parece segredo (nada é inventado).
-export function lerInterpretacao(texto, pedido = '') {
+export function lerInterpretacao(texto, pedido = '', contexto = '') {
   const m = /\{[\s\S]*\}/.exec(String(texto || ''));
   if (!m) return null;
   let d; try { d = JSON.parse(m[0]); } catch { return null; }
@@ -279,10 +286,10 @@ export function lerInterpretacao(texto, pedido = '') {
   // QA-12: correções estruturais (dependência inexistente, para si mesma ou para frente) não são silenciosas: cada
   // uma entra como metadado técnico (tipo, ação e motivo, sem texto do plano) e a validação sabe que houve.
   const ajustes = [];
-  const base = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }, ajustes), pedido);
+  const base = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }, ajustes), contexto ? `${pedido}\n${contexto}` : pedido);
   if (!base?.entregaveis.length) return null;
   // Cobertura só pelos entregáveis (QA-03): item pedido que aparece só numa etapa não vira seção conferível.
-  const r = pedido ? garantirInvariantes(base, pedido, { soEntregaveis: true }) : { op: base, corrigidas: [] };
+  const r = pedido ? garantirInvariantes(base, pedido, { soEntregaveis: true, contexto }) : { op: base, corrigidas: [] };
   const { op } = r, corrigidas = [...r.corrigidas, ...ajustes.map(a => `estrutura:${a.acao}_${a.motivo}`)];
   if (contemCredencial(JSON.stringify(op))) return null;
   if (corrigidas.length) Object.defineProperty(op, 'corrigidas', { value: corrigidas, enumerable: false });
@@ -339,7 +346,7 @@ export async function interpretar(app, pessoa, { descricao, processo = '', qw = 
   // formato genérico sem os entregáveis que o próprio pedido lista.
   const heuristico = motivo => {
     const pedido = `${descricao}\n${processo}`;
-    return { chave, fonte: 'heuristica', motivo, operacao: garantirInvariantes(comLeituraDoPedido(planoHeuristico(pedido), descricao), pedido, { soEntregaveis: true }).op };
+    return { chave, fonte: 'heuristica', motivo, operacao: garantirInvariantes(comLeituraDoPedido(planoHeuristico(pedido), descricao), descricao, { soEntregaveis: true, contexto: processo }).op };
   };
   if (!String(descricao).trim()) return { chave, fonte: 'vazio', operacao: null };
   const guardada = json(qw?.especificacao, null)?.origem?.interpretacao;
@@ -354,7 +361,7 @@ export async function interpretar(app, pessoa, { descricao, processo = '', qw = 
     registrar(app, 'quickwin.interpretation_skipped', pessoa.id, { quick_win: qw?.id ?? null, motivo: r.motivo || 'falha_na_execucao' });
     return heuristico(r.motivo || 'falha_na_execucao');
   }
-  const op = lerInterpretacao(r.texto, `${descricao}\n${processo}`);
+  const op = lerInterpretacao(r.texto, descricao, processo);
   const estrutura = op?.ajustes?.length ? { normalizadas: op.ajustes.filter(a => a.acao === 'normalizada').length, removidas: op.ajustes.filter(a => a.acao === 'removida').length } : null;
   registrar(app, 'quickwin.interpreted', pessoa.id, { quick_win: qw?.id ?? null, roteamento: r.rotaId, legivel: !!op,
     entregaveis: op?.entregaveis.length ?? 0, entradas: op?.entradas?.length ?? 0, lacunas: op?.lacunas?.length ?? 0, ferramentas: op?.ferramentas || [],

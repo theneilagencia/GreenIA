@@ -190,3 +190,18 @@ test('QA-12: dependência inválida é normalizada quando dá, removida quando n
   // Plano válido não registra correção estrutural.
   assert.equal(lerInterpretacao(JSON.stringify({ entregaveis: [{ id: 'a', tipo: 'resumo' }, { id: 'b', tipo: 'lista', rotulo: 'Ações', depende_de: ['a'] }] }), 'Resuma e liste ações.').ajustes, undefined);
 });
+
+test('produção (qw de posts): a explicação de como se faz hoje não vira seção obrigatória; restrição nunca é entregável', async () => {
+  const { interpretar: interp, lerInterpretacao: ler, invariantesDoPedido: inv } = await import('../src/quickwin-interpretacao.js');
+  const pedido = 'Criar posts completos para as redes sociais da empresa';
+  const como = 'pesquiso os assuntos em alta ligados ao que a empresa faz, crio uma postagem que relacione com as entregas da empresa com um copy e cta bem desenvolvido, sem os vicios de escrita de textos gerados por IA, além de artes graficas alinhadas com a marca, adaptadas para cada rede social';
+  const ia = JSON.stringify({ entradas: [], etapas: [{ texto: 'Pesquisar temas' }], entregaveis: [{ id: 'e1', tipo: 'temas', rotulo: 'Temas em alta' }, { id: 'e2', tipo: 'copy', canal: 'linkedin' }, { id: 'e3', tipo: 'imagem', canal: 'instagram', rotulo: 'Briefing visual' }], ferramentas: ['pesquisa_web'] });
+  const op = ler(ia, pedido, como);
+  const rotulos = op.entregaveis.map(rotuloEntregavel);
+  for (const espurio of [/postagem/i, /cta/i, /vicios/i, /artes graficas/i, /entregas da empresa/i]) assert.ok(!rotulos.some(r => espurio.test(r)), `${espurio} virou entregável: [${rotulos}]`);
+  assert.ok(op.ferramentas.includes('pesquisa_web'), 'o sinal de pesquisa da explicação continua valendo');
+  assert.deepEqual(inv('Revise o texto sem mudar o sentido e liste os erros, além de sugestões, sem jargão.').entregaveis, ['erros'], 'restrições ("sem…", "além de…") não são entregáveis');
+  // Sem IA, o mesmo: a explicação não gera seções.
+  const r = await qa.post('/api/quick-wins/assistente/interpretar', { descricao: pedido, processo: como });
+  assert.ok(!r.dados.operacao.entregaveis.map(rotuloEntregavel).some(x => /vicios|cta bem|artes graficas/i.test(x)), 'sem IA, a explicação virou seção');
+});

@@ -126,7 +126,7 @@ function itensDaOracao({ classe, objeto, verbo = '' }) {
   const dois = objeto.indexOf(':');
   if (dois >= 0 && classe !== 'material') return itens(objeto.slice(dois + 1).split(CORTE)[0]).filter(x => !FORMATO.test(x));
   if (classe === 'entrega') {
-    // "Extraia de cada nota fiscal o fornecedor, a data e o valor": "de cada nota fiscal" é a origem (material).
+    // "Extraia de cada documento o nome, a data e o valor": "de cada documento" é a origem (material).
     const origem = /^(?:de|do|da|dos|das)\s+(?:cada\s+)?[^,]+?\s+(?=(?:o|a|os|as)\s)/.exec(objeto);
     if (origem && /^(extra|tir|retir|copi|pux)/.test(verbo)) return itensDaOracao({ classe, objeto: objeto.slice(origem[0].length), verbo: '' });
     if (INTERROGATIVO.test(objeto)) return [objeto.replace(/\s+/g, ' ').slice(0, 60)];

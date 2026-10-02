@@ -27,6 +27,10 @@ export const PADRAO = {
   // pesquisa sai para o serviço de busca do provedor de IA. Mesmo ligada, não roda em conversa sigilosa, em área com
   // proteção reforçada nem com dado que a política manda proteger.
   pesquisaWeb: { ativa: false },
+  // Produção visual dos Quick Wins. Identidade visual (regras da empresa e preferências) e o gerador de imagem, que
+  // vem desligado: ligado, só o tema da peça (nunca o conteúdo) vai para o modelo de imagem. Ver src/visual.
+  identidadeVisual: { regras: {}, preferencias: {} },
+  producaoVisual: { imagens: { ativa: false, modelo: 'google/gemini-2.5-flash-image' } },
   // Modelos iniciais (globais) que esta empresa ocultou do próprio catálogo (índices do arquivo da instalação).
   modelosOcultos: [],
   // Retenção separada do processamento: tipos de dado que podem ser processados, mas não ficam guardados no

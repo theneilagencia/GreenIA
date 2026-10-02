@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { contemCredencial } from './filtro.js';
 import { delimitar } from './texto.js';
-import { chaveInterpretacao, conferirOperacao, criteriosOperacao, entregaMultipla, executaveis, FERRAMENTAS, formatoUnico, inferirOperacao, limparOperacao, MARCADOR_PERGUNTA as MARCADOR, MOTIVOS_PESQUISA, promptOperacao } from './quickwin-operacao.js';
+import { chaveInterpretacao, conferirOperacao, criteriosOperacao, entregaMultipla, executaveis, FERRAMENTAS, formatoUnico, garantirVisual, inferirOperacao, limparOperacao, MARCADOR_PERGUNTA as MARCADOR, MOTIVOS_PESQUISA, promptOperacao } from './quickwin-operacao.js';
 
 export const VERSAO_ESPEC = 1;
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -413,8 +413,9 @@ export function planoHeuristico(texto, arq = inferirArquetipo(texto)) {
   // por canal; trabalho de conteúdo continua usando, como antes.
   const contexto = base.canais.length > 0 || arq === 'criar_conteudo' || /\b(empresa|nossa|nosso|nossas|nossos|concorrent\w*|posicionamento|mercado)\b/.test(t);
   if (contexto) ferramentas.push('base_empresa');
-  return limparOperacao({ v: 2, origem: 'inferida', canais: base.canais, entregaveis: base.entregaveis, ferramentas, entradas,
+  const op = limparOperacao({ v: 2, origem: 'inferida', canais: base.canais, entregaveis: base.entregaveis, ferramentas, entradas,
     etapas: (ARQUETIPOS[arq] || ARQUETIPOS.outro).procedimento.map(texto => ({ texto })), contexto_empresa: contexto, categoria: arq === 'criar_conteudo' ? 'conteudo' : null });
+  return garantirVisual(op, texto).op;
 }
 
 // ---- Especificação ------------------------------------------------------------------------------------------

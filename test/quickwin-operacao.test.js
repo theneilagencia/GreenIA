@@ -114,7 +114,9 @@ test('criação: contexto acumulativo, entrega por canal no contrato, lacunas s�
   await ana.put(`/api/quick-wins/${q.id}`, { assistente: { descricao: APY, regras: ['nao_inventar', 'adaptar_canal'] } });
   assert.equal(espec(q.id).operacao.entregaveis.length, 5);
   const p = C.promptExecucao(C.normalizar(espec(q.id)), { nome: 'x' });
-  assert.match(p, /## Instagram · Carrossel \(8 slides\)/);
+  // Produção visual: o carrossel sai como artefato pronto (os 8 slides são as páginas dele).
+  assert.match(p, /## Instagram · Carrossel \(8 slides, artefato visual pronto: Carrossel\)/);
+  assert.equal(espec(q.id).operacao.entregaveis.find(x => x.tipo === 'carrossel').visual.paginas, 8);
   assert.match(p, /Contexto informado pelo responsável:\n- Como a marca costuma falar \(tom de voz\)\? Técnico e acessível\./);
   // Segredo nas respostas de contexto: recusado.
   const seg = await ana.put(`/api/quick-wins/${q.id}`, { assistente: { descricao: APY, operacao: { ...op, contexto_respostas: [{ id: 'empresa', resposta: 'senha: Abc123!@#xyz token sk-or-v1-1234567890abcdef1234567890abcdef' }] } } });

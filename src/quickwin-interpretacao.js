@@ -10,7 +10,8 @@ import { registrar } from './eventos.js';
 import { json } from './db.js';
 import { chamarGovernado } from './quickwin-estrutura.js';
 import { planoHeuristico } from './quickwin-construtor.js';
-import { CANAIS, chaveInterpretacao, ENTRADAS, ENTREGAVEIS, FERRAMENTAS, inferirOperacao, limparOperacao, pedePesquisaWeb } from './quickwin-operacao.js';
+import { CANAIS, chaveInterpretacao, ENTRADAS, ENTREGAVEIS, FERRAMENTAS, garantirVisual, inferirOperacao, limparOperacao, pedePesquisaWeb } from './quickwin-operacao.js';
+import { FORMATOS as FORMATOS_VISUAIS, TIPOS as TIPOS_VISUAIS } from './visual/contrato.js';
 
 export { chaveInterpretacao };
 export const ORIGEM_INTERPRETACAO = 'quick_win_interpretacao';
@@ -26,9 +27,10 @@ export const PROMPT_INTERPRETACAO = [
   '- resumo: uma frase com o que o Quick Win faz.',
   `- entregaveis: o que a pessoa pediu para receber, em ordem. Cada um com "id" (e1, e2...), "tipo" (um destes: ${catalogo(ENTREGAVEIS)}), "rotulo" curto nas palavras do trabalho (ex.: "Riscos", "Obrigações", "Matriz de posicionamento", "Decisões", "Próximos passos"), "descricao" (uma frase) e, se usar outro entregável como base, "depende_de" com os ids dele. Só o que foi pedido ou o que o pedido claramente implica; um trabalho simples pode ter um entregável só.`,
   `- canal: só em peça de conteúdo para um canal (${Object.keys(CANAIS).join(', ')}); nos demais, não use. Se o pedido cita canais, cada peça de cada canal é um entregável próprio com o "canal" preenchido (ex.: a copy do LinkedIn e a legenda do Instagram são dois entregáveis). Tabela e matriz podem ter "config":{"colunas":[...]} quando o pedido nomeia as colunas ou critérios (ex.: preço, prazo, escopo, risco).`,
+  `- visual: só quando o resultado de um entregável é para VER, um artefato visual pronto (o pedido diz apresentação, slides, página visual ou executiva, one-page, infográfico, fluxograma, mapa de processo, dashboard, matriz ou comparativo visual, cronograma, cartaz, capa, arte ou peça para divulgar, carrossel, anúncio, material de treinamento, relatório visual, "algo visual", ou o uso claramente pede uma peça para apresentar ou publicar). Não use quando o resultado é texto para ler ou colar (resumo, lista, e-mail, legenda, copy). Formato: "visual":{"tipo":"<tipo semântico em inglês, ex.: ${Object.keys(TIPOS_VISUAIS).filter(t => t !== 'custom').join(', ')}; outro tipo é aceito>","paginas":<número, só se o pedido disser>,"formato":"<só se o pedido ou o uso disser: ${Object.keys(FORMATOS_VISUAIS).join(', ')}>","publico":"<quem vai ver, se der para saber>","imagem":"conceitual" (ilustração que pode ser gerada) ou "real" (foto que precisa ser real, como do produto), só se a peça pede imagem}. A GreenIA compõe a peça (layout, gráficos, diagramas, marca da empresa): o entregável continua tendo o conteúdo dele.`,
   `- entradas: o material que CADA execução recebe, com "tipo" (um destes: ${catalogo(ENTRADAS)}), "rotulo", "quantidade" quando o pedido diz (ex.: 3 propostas) e "obrigatoria". Pesquisa e criação de conteúdo sem material: lista vazia.`,
   '- etapas: de 3 a 7 passos curtos de como fazer, em ordem (ex.: extrair, normalizar, comparar, destacar riscos). Etapa que usa ferramenta tem "ferramenta".',
-  `- ferramentas: só as necessárias, destas: ${catalogo(FERRAMENTAS)}. pesquisa_web só se o trabalho precisa de informação atual ou de fora da empresa. base_empresa se precisa do contexto da empresa. leitura_documento e analise_planilha conforme as entradas. geracao_imagem só se pede imagem pronta (a GreenIA entrega o briefing).`,
+  `- ferramentas: só as necessárias, destas: ${catalogo(FERRAMENTAS)}. pesquisa_web só se o trabalho precisa de informação atual ou de fora da empresa. base_empresa se precisa do contexto da empresa. leitura_documento e analise_planilha conforme as entradas. geracao_imagem só se pede uma imagem e ela não vai virar um entregável com "visual" (sem visual, a GreenIA entrega o briefing). producao_visual quando algum entregável tem "visual".`,
   '- contexto_empresa: true se o resultado precisa falar da empresa (conteúdo, posicionamento, concorrentes, apresentação comercial).',
   '- lacunas: no máximo 3 perguntas, só sobre o que falta e muda o resultado (ex.: mercado ou região de uma pesquisa de concorrentes; de onde vêm os dados de um relatório; quais critérios pesam mais). Não pergunte o que dá para inferir, o que chega no material de cada execução nem o que está nos documentos da empresa. Cada uma com "id" curto, "pergunta", "motivo", "exemplo" de resposta e "obrigatoria". obrigatoria: true SÓ quando, sem a resposta, o trabalho não pode ser feito ou muda de significado, e ela não pode ser inferida, pesquisada nem escolhida pela GreenIA. Preferência nunca é obrigatória: tema, tom, público, critério ou limite de corte, indicadores, nível de detalhe, ordem, formato e o que a pesquisa descobre. A GreenIA escolhe, faz e diz o que escolheu.',
   '- sugestoes: até 4 coisas úteis que a pessoa NÃO pediu, como pergunta curta (ex.: "Extrair também prazos e multas?"). Quando a sugestão é um entregável, inclua "entregavel":{"tipo":"...","rotulo":"..."}. Não as coloque em entregaveis: a pessoa decide.',
@@ -235,6 +237,9 @@ export function garantirInvariantes(op, pedido, { soEntregaveis = false, context
     novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: x.tipo, rotulo: x.rotulo, canal: null, config: {} }); corrigidas.push(`entregavel:${x.rotulo}`);
   }
   if (inv.pesquisa && !novo.ferramentas.includes('pesquisa_web')) { novo.ferramentas.push('pesquisa_web'); corrigidas.push('pesquisa'); }
+  // Artefato visual nomeado no pedido ("uma apresentação", "um infográfico"): nunca se perde (a IA decide o resto).
+  const gv = garantirVisual(limparOperacao(novo), pedido);
+  if (gv.mudou) { Object.assign(novo, structuredClone(gv.op)); corrigidas.push('visual'); }
   // Nada a entregar que o pedido nomeie: o mínimo, literal. O trabalho que o verbo principal nomeia ("Análise"), com
   // o pedido como descrição; sem verbo reconhecível, um entregável "outro" com o próprio pedido. Nunca um relatório
   // genérico de modelo (QA-10).

@@ -8,6 +8,7 @@
 // o conteúdo permite (conversas.js decide), e nada aqui executa ação externa.
 import { createHash } from 'node:crypto';
 import { detectar, detectarReforcado } from './filtro.js';
+import { limparVisual, TIPOS as TIPOS_VISUAIS, FORMATOS as FORMATOS_VISUAIS } from './visual/contrato.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const limpar = (s, max) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -78,6 +79,9 @@ export const FERRAMENTAS = {
   leitura_documento: { rotulo: 'Leitura de documentos (PDF, Word, imagem)', palavras: [] },
   analise_planilha: { rotulo: 'Leitura de planilhas', palavras: [] },
   geracao_imagem: { rotulo: 'Geração de imagem', palavras: [], disponivel: false, alternativa: 'o briefing da imagem para quem vai produzir' },
+  // Produção visual: o entregável sai como artefato pronto (PDF, PNG, JPG, SVG), composto pela GreenIA a partir do
+  // conteúdo da execução (src/visual). Descritiva: entra quando um entregável tem `visual`; não depende de liberação.
+  producao_visual: { rotulo: 'Produção visual (artefato pronto em PDF e imagem)', palavras: [] },
   geracao_video: { rotulo: 'Geração de vídeo', palavras: [], disponivel: false, alternativa: 'o pacote de produção (conceito, roteiro, storyboard com as cenas, locução, briefing e prompt para a ferramenta de vídeo) para quem vai produzir' },
   pesquisa_web: { rotulo: 'Pesquisar na internet', executavel: true, palavras: ['pesquis', 'tendenc', 'em alta', 'trend', 'noticia', 'atualidade', 'mais recente', 'ultimas novidades', 'esta semana', 'na internet', 'na web', 'google', 'concorrent', 'o que esta sendo falado'] },
 };
@@ -111,7 +115,8 @@ export const MAX_ENTRADAS = 5, MAX_ETAPAS = 10, MAX_LACUNAS = 4, MAX_SUGESTOES =
 // A versão entra na chave: quando a leitura do pedido muda, os planos lidos pela regra anterior (guardados no Quick
 // Win ou no cache) deixam de valer e são interpretados de novo. v2: restrições e a explicação de como se faz hoje
 // não viram entregáveis (planos v1 de Quick Wins de conteúdo traziam essas seções espúrias).
-export const VERSAO_INTERPRETACAO = 2;
+// v3: entregável pode pedir um artefato visual pronto (produção visual).
+export const VERSAO_INTERPRETACAO = 3;
 export const chaveInterpretacao = (descricao, processo = '') => createHash('sha256').update(`${VERSAO_INTERPRETACAO}:${limpar(descricao, 1000)}\n${limpar(processo, 3000)}`).digest('hex').slice(0, 32);
 const idDe = (s, max = 30) => norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, max);
 
@@ -206,7 +211,7 @@ const lista = v => (Array.isArray(v) ? v : []);
 export function limparOperacao(op, ajustes = null) {
   if (!op || typeof op !== 'object') return null;
   const canais = [...new Set(lista(op.canais).filter(c => CANAIS[c]))];
-  const ferramentas = [...new Set(lista(op.ferramentas).filter(f => FERRAMENTAS[f]))];
+  let ferramentas = [...new Set(lista(op.ferramentas).filter(f => FERRAMENTAS[f]))];
   const entregaveis = [], novoId = new Map(), naPosicao = new Map();
   for (const [pos, e] of lista(op.entregaveis).entries()) {
     if (!ENTREGAVEIS[e?.tipo] || entregaveis.length >= MAX_ENTREGAVEIS) continue;
@@ -234,6 +239,12 @@ export function limparOperacao(op, ajustes = null) {
     const descricao = texto(e.descricao, 200);
     if (descricao) item.descricao = descricao;
     if (lista(e.depende_de).length) item.depende_de = lista(e.depende_de).map(String);
+    // Artefato visual pedido para este entregável (qualquer tipo: apresentação, one-page, infográfico, peça...).
+    // Vídeo e Reels não são compostos (a peça final é vídeo): continuam como pacote de produção.
+    const visual = !['video', 'reels', 'roteiro'].includes(e.tipo) ? limparVisual(e.visual) : null;
+    // Os slides pedidos no entregável são as páginas da peça (uma fonte só).
+    if (visual && config.slides) visual.paginas = config.slides;
+    if (visual) item.visual = visual;
     entregaveis.push(item);
   }
   // Dependências (QA-12): só entre entregáveis que ficaram, sempre para um anterior (sem ciclo). Uma referência que
@@ -257,6 +268,10 @@ export function limparOperacao(op, ajustes = null) {
     }
     if (ok.length) e.depende_de = ok.slice(0, 5); else delete e.depende_de;
   }
+  // Com produção visual, a arte da peça é composta aqui: a geração de imagem deixa de ser "ferramenta indisponível"
+  // (ela é só um fornecedor opcional de imagem, liberado pela empresa). Sem entregável visual, a capacidade sai.
+  if (entregaveis.some(e => e.visual)) ferramentas = [...ferramentas.filter(f => f !== 'geracao_imagem' || entregaveis.some(e => !e.visual && ENTREGAVEIS[e.tipo]?.visual)), ...(ferramentas.includes('producao_visual') ? [] : ['producao_visual'])];
+  else ferramentas = ferramentas.filter(f => f !== 'producao_visual');
   const entradas = [];
   for (const x of lista(op.entradas)) {
     if (!ENTRADAS[x?.tipo] || entradas.length >= MAX_ENTRADAS) continue;
@@ -315,7 +330,7 @@ export function limparOperacao(op, ajustes = null) {
 
 // Entrega com vários resultados (peças, seções próprias ou canal), em vez de um único formato (texto, lista,
 // tabela, relatório). Um único entregável de formato simples continua sendo o contrato daquele formato.
-export const entregaMultipla = op => !!op?.entregaveis?.length && (op.entregaveis.length > 1 || op.entregaveis.some(e => e.canal || !ENTREGAVEIS[e.tipo]?.formato));
+export const entregaMultipla = op => !!op?.entregaveis?.length && (op.entregaveis.length > 1 || op.entregaveis.some(e => e.canal || e.visual || !ENTREGAVEIS[e.tipo]?.formato));
 export const formatoUnico = op => (op?.entregaveis?.length === 1 && !entregaMultipla(op) ? ENTREGAVEIS[op.entregaveis[0].tipo].formato : null);
 
 export const rotuloEntregavel = e => `${e.canal ? `${CANAIS[e.canal].rotulo} · ` : ''}${e.rotulo || (e.tipo === 'outro' && e.config?.detalhe ? limpar(e.config.detalhe, 40) : ENTREGAVEIS[e.tipo].rotulo)}`;
@@ -327,9 +342,43 @@ const descreverConfig = e => {
   if (c.tamanho) p.push(`tamanho ${TAMANHOS[c.tamanho]}`);
   if (c.detalhe && e.tipo !== 'outro') p.push(c.detalhe);
   if (c.colunas?.length) p.push(`colunas: ${c.colunas.join(' | ')}`);
+  if (e.visual) p.push(descreverVisual(c.slides ? { ...e.visual, paginas: null } : e.visual));
   return p.join(', ');
 };
-export const ehVisual = e => !!ENTREGAVEIS[e.tipo]?.visual;
+export const descreverVisual = v => `artefato visual pronto: ${v.rotulo || TIPOS_VISUAIS[v.tipo]?.rotulo || 'artefato visual'}${v.paginas ? `, ${v.paginas} ${v.paginas === 1 ? 'página' : 'páginas'}` : ''}${v.formato ? `, formato ${FORMATOS_VISUAIS[v.formato].rotulo}` : ''}`;
+// Peça que sai como BRIEFING (imagem, carrossel, vídeo sem produção visual). Com `visual`, a GreenIA compõe a peça.
+export const ehVisual = e => !!ENTREGAVEIS[e.tipo]?.visual && !e.visual;
+export const temArtefatoVisual = op => !!op?.entregaveis?.some(e => e.visual);
+
+// ---- Produção visual: o que o pedido diz explicitamente ------------------------------------------------------
+// Rede de segurança da interpretação (quem decide é a IA, pelo sentido do pedido): um artefato visual nomeado no
+// pedido ("transforme em uma apresentação", "um infográfico", "um fluxograma") nunca se perde. Também é a leitura do
+// plano heurístico, quando a IA não pode ser usada.
+const PEDE_VISUAL = [
+  [/\b(apresentac\w*|slides?|deck)\b/, 'presentation', ['apresentacao']], [/\bone[- ]?pag\w*|\bpagina (visual|executiva|unica)|\bresumo visual|\bfolha unica/, 'one_page', ['resumo', 'relatorio']],
+  [/\binfografic\w*/, 'infographic', []], [/\bfluxograma|\bdiagrama\b/, 'diagram', []], [/\bmapa (de|do) processo/, 'process_map', []], [/\bdashboard|\bpainel (visual|executivo)/, 'dashboard', []],
+  [/\bcronograma visual|\blinha do tempo visual/, 'timeline', []], [/\bcartaz|\bposter\b/, 'poster', []], [/\bcarross\w*/, 'carousel', ['carrossel']],
+  [/\b(arte|artes|peca grafica|pecas graficas|criativo|criativos|banner)\b/, 'social_post', ['imagem']], [/\bmaterial (visual )?de treinamento|\bmaterial didatico/, 'training_material', []],
+  [/\brelatorio visual/, 'report', ['relatorio']], [/\b(matriz|comparativo|tabela) visual/, 'comparison', ['matriz', 'tabela']], [/\bchecklist visual/, 'checklist', ['checklist']],
+];
+export function visualDoPedido(texto) {
+  const t = norm(texto);
+  const achado = PEDE_VISUAL.find(([re]) => re.test(t));
+  if (!achado) return null;
+  const n = /\b(\d{1,2})\s*(slides?|paginas?|telas|cards|laminas|quadros)\b/.exec(t);
+  return { tipo: achado[1], tiposEntregavel: achado[2], ...(n ? { paginas: Number(n[1]) } : {}) };
+}
+export function garantirVisual(op, pedido) {
+  if (!op || op.entregaveis.some(e => e.visual)) return { op, mudou: false };
+  const v = visualDoPedido(pedido);
+  if (!v) return { op, mudou: false };
+  const novo = structuredClone(op);
+  const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}) };
+  const alvo = novo.entregaveis.find(e => v.tiposEntregavel.includes(e.tipo)) || (novo.entregaveis.length === 1 && !['video', 'reels', 'roteiro'].includes(novo.entregaveis[0].tipo) ? novo.entregaveis[0] : null);
+  if (alvo) alvo.visual = visual;
+  else novo.entregaveis.push({ id: `vis_${novo.entregaveis.length}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {}, visual });
+  return { op: limparOperacao(novo), mudou: true };
+}
 export const MARCA_BRIEFING = 'Briefing (a arte final não é gerada aqui)';
 // QA-04: nenhuma matriz de "Concorrente A–E". Nome que não veio da pesquisa nem do material não existe no resultado.
 const SEM_MARCADORES = 'Nomes de empresas, concorrentes, produtos e fontes só se vierem das notas da pesquisa ou do material: nunca use nomes de exemplo ("Concorrente A", "Empresa X") no lugar deles. O que a pesquisa não identificou, diga que não identificou.';
@@ -434,6 +483,8 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
     // QA em produção: sem dado no material, o copy prometia "até 15 horas por semana", "diagnóstico gratuito" e
     // "as empresas que atendemos" — afirmação de propaganda que ninguém deu.
     if (canais.length) partes.push('Nas peças, número, resultado de cliente, prazo, preço, oferta (como "gratuito") ou prêmio só entram se estiverem no material ou no contexto autorizado. Sem isso, fale do benefício sem número e sem promessa.');
+    const visuais = op.entregaveis.filter(e => e.visual);
+    if (visuais.length) partes.push(promptVisual(visuais));
     if (op.entregaveis.some(ehVisual)) partes.push(`Peças visuais (imagem, carrossel, Reels, vídeo): você não gera a arte nem o vídeo. Entregue o briefing para quem vai produzir: comece a peça com a linha "${MARCA_BRIEFING}" e descreva o que mostrar em cada parte (slide, cena ou tela), o texto que aparece, o estilo visual e a chamada para ação. No Reels e no vídeo, inclua o roteiro com o tempo de cada cena.`);
     if (op.entregaveis.some(e => e.tipo === 'temas')) partes.push('Em "Temas sugeridos", liste os temas em ordem de prioridade, cada um com uma frase sobre por que ele é relevante para a empresa agora.');
   }
@@ -448,6 +499,19 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
       : `Pesquisa: a pesquisa na internet NÃO está disponível nesta execução (${pesquisa?.motivo || 'não liberada'}). Não simule uma pesquisa e não apresente temas, fatos ou números como atuais ou "em alta". Comece o resultado com a linha "Pesquisa na internet não realizada: ${pesquisa?.motivo || 'não liberada'}." e use só o material, o contexto autorizado e o que for conhecimento geral, deixando claro que não foi pesquisado. A falta da pesquisa não impede o trabalho: faça todos os entregáveis assim, e o tema que não pôde ser confirmado vai como sugestão, nunca como tendência atual. ${SEM_MARCADORES}`);
   }
   return partes.join('\n\n');
+}
+
+// Peças visuais: a execução escreve o CONTEÚDO, organizado para a peça; o design (composição, cores, fontes,
+// imagens) é da produção visual. Separar conteúdo de design é o que deixa a peça conferível e editável.
+export function promptVisual(visuais) {
+  const lista = visuais.map(e => `"${rotuloEntregavel(e)}" (${descreverVisual(e.visual)})`).join('; ');
+  return [`Peças visuais: ${lista}. A GreenIA monta o arquivo final (PDF e imagem) a partir do CONTEÚDO que você escrever na seção de cada peça. Na seção da peça:`,
+    '- primeira linha: "Título: <título da peça, até 10 palavras>";',
+    '- uma subseção "### <título curto>" por página, na ordem da narrativa (com um número de páginas pedido, exatamente esse número de subseções, contando a capa como a primeira); numa peça de uma página só, uma subseção por bloco de informação;',
+    '- frases curtas e tópicos; número sempre com rótulo, no formato "Rótulo: valor" (ex.: "Prazo: 12 meses");',
+    '- dados em tabela Markdown; etapas de um processo numeradas; fluxo com setas ("Recebe o pedido -> Aprovado? -> (sim) Faturar"); marcos de tempo como "Data: o que acontece";',
+    '- peça de leitura rápida (post, anúncio, cartaz, carrossel): até 40 palavras por página e, no fim, uma linha "Chamada: <ação>";',
+    '- não descreva cores, fontes, layout nem imagens, não escreva briefing nem prompt de imagem, e não invente números para preencher a peça.'].join('\n');
 }
 
 // Etapa de coleta (pesquisa) de uma execução em etapas: só as notas, com fonte, sem fazer os entregáveis. A coleta

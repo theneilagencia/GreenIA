@@ -15,7 +15,8 @@ import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { conferirComCorrecao, contextoDaExecucao, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
-import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta } from './quickwin-operacao.js';
+import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, temArtefatoVisual } from './quickwin-operacao.js';
+import { gravarVisuais, produzirVisuais, resumoArtefato } from './visual/producao.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -641,17 +642,19 @@ export function rotasConversas(app, r) {
     // (mesmo sigilo, fornecedor e preferência de não treino). A defesa final de credenciais vale também para
     // cada chamada da conferência. Na reserva do plano, só a conferência determinística (sem gastar créditos).
     let registroQualidade = null, custoExtra = 0, economiaExtra = 0;
+    // Chamadas extras da execução (conferência e plano visual): o MESMO recurso e a mesma rota já decididos e
+    // conferidos acima, com a defesa final de credenciais em cada uma.
+    const chamar = async msgs => {
+      const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
+      if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
+      let t = '', f = null;
+      for await (const ev of app.ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+        if (ev.tipo === 'texto') t += ev.texto; else f = ev;
+      }
+      return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
+    };
     if (espec) {
       linha({ t: 'etapa', v: 'Conferindo o resultado…' });
-      const chamar = async msgs => {
-        const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
-        if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
-        let t = '', f = null;
-        for await (const ev of app.ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
-          if (ev.tipo === 'texto') t += ev.texto; else f = ev;
-        }
-        return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
-      };
       const entradaQc = [...ctx.partes, ...(notas ? [delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)] : []), ...h.mensagens.map(x => x.content)].join('\n\n').slice(-30000);
       if (fontesWeb.length) registrar(app, 'quickwin.tool_used', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, ferramenta: 'pesquisa_web', fontes: fontesWeb.length, roteamento: rotaId });
       const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
@@ -666,7 +669,26 @@ export function rotasConversas(app, r) {
         entregaveis: registroQualidade.entregaveis || null, pesquisa: registroQualidade.pesquisa ? { feita: registroQualidade.pesquisa.feita, fontes: registroQualidade.pesquisa.fontes } : null,
         objetivo: registroQualidade.objetivo ? registroQualidade.objetivo.motivo : null });
     }
-    if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra + custoColeta, economia: (fim?.economia || 0) + economiaExtra + economiaColeta };
+    // Produção visual: os entregáveis que pedem um artefato visual viram peças prontas, a partir do conteúdo já
+    // conferido. Etapas separadas e auditáveis (conteúdo -> plano -> assets -> composição -> conferência ->
+    // correção). Com a retenção que não guarda este conteúdo, não há artefato (ele teria de ficar guardado).
+    let visuais = null, custoVisual = { plano_visual: 0, imagem: 0 };
+    if (espec && registroQualidade?.status !== 'pergunta' && temArtefatoVisual(qw.espec.operacao)) {
+      if (naoGuardar) registroQualidade.visual = { nao_guardado: true };
+      else {
+        linha({ t: 'etapa', v: 'Montando o visual…' });
+        try {
+          visuais = await produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, usarIA: !reservaDoPlano,
+            governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
+          if (visuais) custoVisual = visuais.custos;
+        } catch (e) { app.log?.('produção visual', erroParaLog(e)); registroQualidade.visual = { falhou: true }; }
+      }
+    }
+    const custoBase = fim?.custo || 0;
+    if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra + custoColeta + custoVisual.plano_visual + custoVisual.imagem, economia: (fim?.economia || 0) + economiaExtra + economiaColeta };
+    // Custo por etapa (só números): execução, conferência, pesquisa, plano visual e imagem. A composição e a
+    // exportação rodam no servidor, sem custo de IA.
+    if (registroQualidade) registroQualidade.custos = { execucao: custoBase, conferencia: custoExtra, pesquisa: custoColeta, plano_visual: custoVisual.plano_visual, imagem: custoVisual.imagem, render: 0 };
     const ms = Date.now() - inicio;
     const usado = fim?.modelo || atual.id;
     // O selecionado caiu no fornecedor e a reserva (que passou pelas mesmas regras) respondeu.
@@ -679,6 +701,10 @@ export function rotasConversas(app, r) {
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
     exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
       usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
+    const artefatos = visuais ? gravarVisuais(app, visuais, { pessoa, conv, qw, respId, rotaId }) : [];
+    if (visuais) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes })),
+      ignorados: visuais.ignorados, ms: visuais.ms };
+    if (registroQualidade?.visual?.nao_guardado) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o artefato visual não foi gerado.');
     if (registroQualidade) exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
@@ -686,7 +712,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
-      ...(registroQualidade ? { qualidade: resumoQualidade(registroQualidade) } : {}) });
+      ...(registroQualidade ? { qualidade: resumoQualidade(registroQualidade) } : {}), ...(artefatos.length ? { artefatos } : {}) });
     res.end();
   }
 }
@@ -694,6 +720,8 @@ export function rotasConversas(app, r) {
 export function detalhe(app, c, pessoa = null) {
   const cfg = lerConfig(app.db);
   const anexos = todos(app.db, 'select mensagem_id, nome from anexos where conversa_id = ?', c.id);
+  // Artefatos visuais de cada resposta (a versão atual de cada um): pertencem à execução e à conversa.
+  const artefatos = todos(app.db, 'select * from artefatos_visuais where conversa_id = ? and atual = 1 order by id', c.id).map(a => resumoArtefato(app, a));
   const expira = new Date(new Date(c.atualizado_em).getTime() + cfg.retencaoDias * 864e5).toISOString();
   return {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
@@ -701,6 +729,7 @@ export function detalhe(app, c, pessoa = null) {
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
     mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa, r.qualidade as rota_qualidade from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
       .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: resumoQualidade(json(rota_qualidade, {})) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
+        ...(artefatos.some(a => a.mensagem_id === m.id) ? { artefatos: artefatos.filter(a => a.mensagem_id === m.id) } : {}),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
         rota_explicacao_simples: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null,
         ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),

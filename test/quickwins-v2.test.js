@@ -166,7 +166,11 @@ test('execução com Quality Check aprovado: prompt gerado da especificação, e
   assert.equal(r.fim.modelo, null, 'sem identificador técnico para quem não administra');
   // Registro sem conteúdo; custo das duas chamadas somado.
   const rota = um(S.app.db, 'select qualidade, custo_real from roteamento where conversa_id = ?', r.conv.id);
-  assert.deepEqual(json(rota.qualidade), { status: 'aprovado', falhas: [], tentativas: 0, verificados: ['regras', 'completo', 'formato', 'invencao'] });
+  // Custo por etapa (só números): execução e conferência; sem pesquisa e sem produção visual neste Quick Win.
+  const { custos, ...qualidade } = json(rota.qualidade);
+  assert.deepEqual(qualidade, { status: 'aprovado', falhas: [], tentativas: 0, verificados: ['regras', 'completo', 'formato', 'invencao'] });
+  assert.deepEqual(Object.keys(custos), ['execucao', 'conferencia', 'pesquisa', 'plano_visual', 'imagem', 'render']);
+  assert.equal(custos.plano_visual + custos.imagem + custos.pesquisa, 0);
   assert.ok(Math.abs(rota.custo_real - 2 * 0.00123) < 1e-9);
   assert.ok(Math.abs(um(S.app.db, 'select custo from uso where conversa_id = ?', r.conv.id).custo - 2 * 0.00123) < 1e-9);
   const ev = um(S.app.db, "select detalhes from eventos where tipo = 'quickwin.quality_checked' order by id desc limit 1").detalhes;

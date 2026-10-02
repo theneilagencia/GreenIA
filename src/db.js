@@ -142,6 +142,25 @@ create table if not exists roteamento (
   qualidade text);
 create index if not exists roteamento_em on roteamento (em);
 
+-- Produção visual: artefatos de uma execução (apresentação, one-page, infográfico, peça...). Pertencem à conversa
+-- (apagados com ela, pela retenção) e a quem a criou. Cada edição é uma nova versão (mesma base_id); só uma é atual.
+-- Guarda o conteúdo estruturado, o plano visual, as opções de composição e a identidade usada: o arquivo final
+-- (PDF, PNG, JPG, SVG) é refeito a partir deles, sempre igual.
+create table if not exists artefatos_visuais (
+  id integer primary key, base_id integer, versao integer not null default 1, atual integer not null default 1,
+  conversa_id integer not null references conversas(id) on delete cascade, mensagem_id integer references mensagens(id) on delete set null,
+  roteamento_id integer, quick_win_id integer references quick_wins(id) on delete set null, quick_win_versao integer,
+  pessoa_id integer not null references pessoas(id) on delete cascade, entregavel_id text, derivado_de integer,
+  tipo text not null, rotulo text not null, titulo text not null, formato text not null, paginas integer not null default 1,
+  conteudo text not null, plano text not null, opcoes text not null default '{}', identidade text not null default '{}',
+  qualidade text not null default '{}', status text not null, exportacoes text not null default '[]',
+  editado_por integer, criado_em text not null);
+create index if not exists artefatos_conversa on artefatos_visuais (conversa_id, atual);
+-- Imagens usadas pelos artefatos (geradas ou enviadas). Só o binário e metadados técnicos.
+create table if not exists visual_assets (
+  id integer primary key, conversa_id integer not null references conversas(id) on delete cascade, pessoa_id integer not null,
+  tipo text not null, origem text not null, mime text not null, w integer, h integer, bytes blob not null, sha text, criado_em text not null);
+
 -- Uso da IA: uma linha por resposta, sem conteúdo.
 create table if not exists uso (
   id integer primary key, em text not null, pessoa_id integer, conversa_id integer, quick_win_id integer,
@@ -279,6 +298,8 @@ const MIGRACOES = [
     if (!tem('quick_wins', 'excluido_em')) db.exec('alter table quick_wins add column excluido_em text');
     if (!tem('quick_wins', 'excluido_por')) db.exec('alter table quick_wins add column excluido_por integer');
   },
+  // 14. Produção visual: as tabelas artefatos_visuais e visual_assets vêm pelo ESQUEMA (só acrescenta).
+  () => {},
 ];
 
 export function migrar(db, lista = MIGRACOES) {

@@ -24,6 +24,7 @@ import { rotasMedicao } from './medicao.js';
 import { rotasVisao } from './visao.js';
 import { rotasOperador } from './operador.js';
 import { rotasVendas } from './vendas.js';
+import { rotasArtefatos } from './visual/rotas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html', '/termos': 'termos.html', '/privacidade': 'privacidade.html' };
@@ -85,7 +86,7 @@ export function criarApp(op = {}) {
     return out;
   };
   app.limitesArquivo = LIMITES_ARQUIVO;
-  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas]) modulo(app, r);
+  for (const modulo of [rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
@@ -145,7 +146,7 @@ async function tratar(app, r, req, res, externo) {
       if (app.tenant) {
         const perms = sessao.pessoa.permissoes || [];
         if (rota.op.admin && !perms.includes(permissaoAdmin(url.pathname, req.method))) throw new ErroHttp(403, 'sem_permissao', 'Você não tem permissão para isso.');
-        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
+        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes|artefatos)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
         app.checarRecurso?.(req.method, url.pathname);
       } else if (rota.op.admin && !sessao.pessoa.admin) throw new ErroHttp(403, 'so_admin', 'Só o admin pode fazer isso.');
     }

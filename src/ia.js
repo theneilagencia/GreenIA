@@ -53,6 +53,23 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
       }));
     },
 
+    // Geração de imagem (asset da produção visual): uma chamada sem streaming a um modelo que devolve imagem. Só
+    // é chamada quando a empresa liberou e a governança permite (src/visual/producao.js). Devolve a imagem como
+    // data URL e o custo; o texto do pedido não volta.
+    async gerarImagem(prompt, op = {}) {
+      let r;
+      try {
+        r = await f(`${base}/chat/completions`, { method: 'POST', headers: cab, signal: op.sinal,
+          body: JSON.stringify({ model: op.modelo, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'], stream: false, usage: { include: true },
+            provider: { data_collection: 'deny' } }) });
+      } catch { throw new ErroIA('Não foi possível falar com o serviço de imagem.'); }
+      if (!r.ok) throw new ErroIA(`O serviço de imagem respondeu ${r.status}.`, r.status >= 500 ? 502 : r.status);
+      const d = await r.json().catch(() => ({}));
+      const url = d.choices?.[0]?.message?.images?.map(i => i?.image_url?.url || i?.url).find(u => /^data:image\/(png|jpeg|webp);base64,/.test(String(u || '')));
+      if (!url) throw new ErroIA('O serviço de imagem não devolveu imagem.');
+      return { dataUrl: url, custo: Number(d.usage?.cost ?? 0), modelo: d.model || op.modelo };
+    },
+
     async *enviar(mensagens, op) {
       let r;
       try {
@@ -104,6 +121,7 @@ export function criarIndisponivel() {
     async conta() { return null; },
     async listarModelos() { return []; },
     async *enviar() { throw new ErroIA(MSG_SEM_CHAVE, 503); },
+    async gerarImagem() { throw new ErroIA(MSG_SEM_CHAVE, 503); },
   };
 }
 

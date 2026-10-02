@@ -152,7 +152,16 @@ test('critério de aceite: as 7 frases recebem a mesma estrutura de operação (
     // Teste real: material fictício do tipo da entrada e execução completa, com um resultado por entregável.
     const ex = (await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados;
     assert.equal(ex.modo, 'texto', `${nome}: exemplo pronto`);
-    const r = await executar(qw.id, { texto: ex.texto });
+    let r = await executar(qw.id, { texto: ex.texto });
+    // QA-04: pesquisa de concorrentes sem contexto de mercado seguro (a base é interna e não vai para a busca)
+    // pergunta o mínimo, sem chamar a IA; respondido, a execução segue na mesma conversa.
+    if (nome === 'concorrentes') {
+      assert.equal(r.fim.qualidade.status, 'pergunta', nome);
+      assert.equal(r.chamadas.length, 0, 'a pergunta de mercado não chama a IA');
+      const antes = OR.chamadas.length;
+      r = { ...(await enviarMensagem(ana, r.conv.id, { texto: 'Software B2B de gestão de fornecedores no Brasil.' })), conv: r.conv };
+      r.chamadas = OR.chamadas.slice(antes);
+    }
     assert.equal(r.status, 200, JSON.stringify(r.erro));
     assert.equal(r.falha, undefined, `${nome}: ${JSON.stringify(r.falha)}`);
     if (e2.operacao.entregaveis.length > 1) {
@@ -341,7 +350,7 @@ test('homologação real: plano da IA sem canal para peças de um pedido com can
 
 test('trabalho que depende da empresa: o contexto da base chega mesmo sem palavra em comum com o pedido', async () => {
   const { qw } = await criarComPlano(FRASES.concorrentes);
-  const r = await executar(qw.id, { texto: 'Execute agora.' });
+  const r = await executar(qw.id, { texto: 'Execute agora para o mercado de software B2B no Brasil.' });
   const producao = r.chamadas.find(b => tipoDe(b) === 'execucao');
   assert.match(sis(producao), /software B2B para gestão de fornecedores/);
 });
@@ -386,12 +395,14 @@ test('invariantes do pedido: o que o pedido diz explicitamente não se perde qua
   const ata = garantirInvariantes(OP.limparOperacao({ v: 2, origem: 'ia', entregaveis: [{ tipo: 'ata', rotulo: 'Ata da reunião' }, { tipo: 'lista', rotulo: 'Decisões tomadas' }] }), FRASES.reuniao);
   assert.deepEqual(ata.op.entregaveis.map(OP.rotuloEntregavel), ['Ata da reunião', 'Decisões tomadas', 'Próximos passos']);
   const pesquisa = garantirInvariantes(OP.limparOperacao({ v: 2, origem: 'ia', entregaveis: [{ tipo: 'matriz', rotulo: 'Matriz de posicionamento' }] }), FRASES.concorrentes);
-  assert.deepEqual(pesquisa.corrigidas, ['pesquisa']);
+  // "Pesquise concorrentes": o que se pesquisa também é pedido (a lista de concorrentes), além da matriz.
+  assert.deepEqual(pesquisa.corrigidas, ['entregavel:concorrentes', 'pesquisa']);
   // Plano que já cobre tudo (redação diferente) não muda: estabilidade semântica, não texto idêntico.
   const cobre = OP.limparOperacao({ v: 2, origem: 'ia', entradas: [{ tipo: 'planilha', rotulo: 'Planilha do mês' }], entregaveis: [{ tipo: 'relatorio', rotulo: 'Análise dos desvios' }] });
   assert.deepEqual(garantirInvariantes(cobre, FRASES.planilha).corrigidas, []);
   // Nada por setor: só números, listas após "considerando", objetos de verbos de entrega e "comparar".
-  assert.deepEqual(invariantesDoPedido('Revise 2 dias de escala e liste conflitos e horas extras.'), { quantidade: null, criterios: [], entregaveis: ['conflitos', 'horas extras'], comparacao: false, pesquisa: false });
+  const { quantidade, criterios, entregaveis, comparacao, pesquisa: pede } = invariantesDoPedido('Revise 2 dias de escala e liste conflitos e horas extras.');
+  assert.deepEqual({ quantidade, criterios, entregaveis, comparacao, pesquisa: pede }, { quantidade: null, criterios: [], entregaveis: ['conflitos', 'horas extras'], comparacao: false, pesquisa: false });
   assert.deepEqual(invariantesDoPedido('Compare 4 currículos considerando experiência e inglês.').quantidade, { n: 4, de: 'currículos' });
 });
 

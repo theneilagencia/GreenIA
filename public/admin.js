@@ -10,6 +10,8 @@ import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
 const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+// Perfil público para pesquisa externa (mesmos campos de src/quickwin-operacao.js PERFIL_PUBLICO).
+const PERFIL_PUBLICO = { nome: 'Nome público', setor: 'Setor', categoria: 'Categoria de produto ou serviço', regiao: 'País ou região', mercado: 'Mercado-alvo' };
 const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', pessoal_restrito: 'Dado pessoal restrito (disciplinar, remuneração individual)', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
 // Tratamento proporcional: seguir normalmente, só com proteção (guardrails) ou não enviar.
 const ACAO = { permitir: 'Processar normalmente', proteger: 'Só com proteção', bloquear: 'Não enviar' };
@@ -606,6 +608,10 @@ async function abaPoliticas() {
       </tbody></table></div>
       <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="protecao-pessoais" ${c.protecaoDadosPessoais !== false ? 'checked' : ''}> Dados pessoais processados normalmente só vão para recursos com modelo definido (não gratuito nem automático) em que o não uso para treino foi declarado pelo admin, comprovado na rota autorizada ou é pedido em cada chamada, e não vão para recursos em que o admin proibiu dados pessoais. O pedido em cada chamada limita o roteamento aos fornecedores que o serviço de acesso a modelos classifica como não coletando os dados, pelas políticas que eles informam: é um filtro, não uma garantia contratual. A conversa não vira sigilosa.</span></label>
       <label class="opcoes" style="margin-top:12px"><span><input type="checkbox" id="pesquisa-web" ${c.pesquisaWeb?.ativa ? 'checked' : ''}> Permitir que Quick Wins pesquisem na internet (por exemplo, "temas em alta"). Ligado, o pedido de pesquisa sai para o serviço de busca do provedor de IA e as fontes aparecem no resultado. A pesquisa não roda em conversa sigilosa, em área com proteção reforçada nem com dado que a política manda proteger. Desligado, esses Quick Wins entregam um resultado parcial, sem pesquisa.</span></label>
+      <fieldset class="perfil-publico" style="margin-top:10px;border:0;padding:0"><legend><b>Perfil público para pesquisas na internet</b></legend>
+        <p class="dica">Só o que já é público. É o único contexto da empresa que pode ir para a busca na internet: documentos, anexos e instruções internas nunca vão. Em branco, o Quick Win pergunta o mercado quando a pesquisa precisar.</p>
+        ${Object.entries(PERFIL_PUBLICO).map(([k, r]) => `<div class="campo"><label for="perfil-${k}">${r}</label><input class="entrada" id="perfil-${k}" maxlength="80" value="${esc(c.pesquisaWeb?.perfil?.[k] || '')}"></div>`).join('')}
+      </fieldset>
       <p class="dica">"Guardar no histórico": sem a marca, a mensagem é processada normalmente, mas o conteúdo, os anexos e a resposta não ficam guardados. Poder processar não é o mesmo que poder guardar.</p>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 
@@ -645,7 +651,7 @@ async function abaPoliticas() {
     ev.preventDefault();
     try {
       await api('/api/admin/config', { metodo: 'PUT', corpo: { acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`input[name="d-${k}"]:checked`).value])),
-        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked, pesquisaWeb: { ativa: $('pesquisa-web').checked } } });
+        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked, pesquisaWeb: { ativa: $('pesquisa-web').checked, perfil: Object.fromEntries(Object.keys(PERFIL_PUBLICO).map(k => [k, $(`perfil-${k}`).value])) } } });
       toast('Regras de dados salvas.'); abaPoliticas();
     } catch (e) { falhar(e); }
   };

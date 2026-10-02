@@ -62,3 +62,42 @@ test('QA-07: a auditoria da interpretação registra o tipo da correção, não 
   assert.match(ev, /"entregavel"/, 'a correção continua registrada pelo tipo');
   assert.doesNotMatch(ev, /sigilosa|delibera/i, 'texto do pedido foi para a auditoria');
 });
+
+test('QA-12: correção estrutural do plano chega na resposta e na auditoria só como contagem', async () => {
+  OR.responder = () => JSON.stringify({ entradas: [{ tipo: 'documento', rotulo: 'Relatórios', obrigatoria: true }], etapas: [{ texto: 'Ler' }],
+    entregaveis: [{ id: 'e1', tipo: 'lista', rotulo: 'Pendências sigilosas' }, { id: 'e2', tipo: 'tabela', rotulo: 'Prazos', depende_de: ['e9', 'e2', '1'] }] });
+  try {
+    const r = await ana.post('/api/quick-wins/assistente/interpretar', { descricao: 'Revise os relatórios e liste pendências e prazos de cada área.' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.dados.ajustes_estruturais, { normalizadas: 1, removidas: 2 });
+    assert.deepEqual(r.dados.operacao.entregaveis[1].depende_de, ['e1']);
+    const ev = JSON.parse(todos(S.P.tenant(A.id).db, "select detalhes from eventos where tipo = 'quickwin.interpreted' order by id desc limit 1")[0].detalhes);
+    assert.deepEqual(ev.estrutura, { normalizadas: 1, removidas: 2 });
+    assert.ok(ev.invariantes.includes('estrutura'));
+    assert.doesNotMatch(JSON.stringify(ev), /sigilosas|Prazos|e9/);
+  } finally { OR.responder = () => PLANO; }
+});
+
+test('QA-02 (revalidação): a mesma frase em empresas e contextos diferentes — caches, planos e eventos independentes', async () => {
+  const FRASE = 'Analise as reclamações do mês e agrupe por motivo, frequência e prioridade.';
+  const planoDe = rotulo => JSON.stringify({ entradas: [{ tipo: 'texto', rotulo, obrigatoria: true }], etapas: [{ texto: 'Ler' }], entregaveis: [{ id: 'e1', tipo: 'tabela', rotulo: 'Motivos' }] });
+  OR.responder = b => planoDe(JSON.stringify(b).includes('Como a pessoa faz hoje') ? 'Exportação do CRM' : 'Reclamações coladas');
+  try {
+    const antes = OR.chamadas.length;
+    const ra = await ana.post('/api/quick-wins/assistente/interpretar', { descricao: FRASE });
+    const rb = await bia.post('/api/quick-wins/assistente/interpretar', { descricao: FRASE, processo: 'Hoje exporto do CRM toda segunda.' });
+    const rb2 = await bia.post('/api/quick-wins/assistente/interpretar', { descricao: FRASE });
+    assert.equal(OR.chamadas.length, antes + 3, 'cada empresa e cada contexto interpretam por si');
+    assert.equal(ra.dados.operacao.entradas[0].rotulo, 'Reclamações coladas');
+    assert.equal(rb.dados.operacao.entradas[0].rotulo, 'Exportação do CRM');
+    assert.equal(rb2.dados.operacao.entradas[0].rotulo, 'Reclamações coladas');
+    assert.notEqual(ra.dados.chave, rb.dados.chave, 'outro contexto, outra chave');
+    assert.equal(ra.dados.chave, rb2.dados.chave, 'mesma frase, mesma chave...');
+    assert.notEqual(rb2.dados.cache, true, '...mas o cache de A não serve a B');
+    const n = c => todos(S.P.tenant(c.id).db, "select 1 from eventos where tipo = 'quickwin.interpreted'").length;
+    const [na, nb] = [n(A), n(B)];
+    await ana.post('/api/quick-wins/assistente/interpretar', { descricao: FRASE });
+    assert.equal(n(A), na, 'na mesma empresa, reaproveita sem novo evento');
+    assert.equal(n(B), nb, 'nada de A aparece em B');
+  } finally { OR.responder = () => PLANO; }
+});

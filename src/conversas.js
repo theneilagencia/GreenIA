@@ -15,7 +15,7 @@ import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { conferirComCorrecao, contextoDaExecucao, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
-import { MOTIVOS_PESQUISA, promptColeta } from './quickwin-operacao.js';
+import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta } from './quickwin-operacao.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -352,15 +352,22 @@ export function rotasConversas(app, r) {
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.
     // Mesma rota, mesmo recurso e mesmas regras nas duas etapas.
+    // QA-04: a coleta é a única chamada com a pesquisa, e ela leva só o contexto externo seguro (tema, perfil público
+    // classificado pelo admin, resposta de mercado do responsável, o que a pessoa escreveu nesta execução). Sem as
+    // instruções da empresa, a base, os anexos ou o histórico. Sem contexto de mercado seguro quando a pesquisa
+    // precisa dele: nenhuma chamada; a execução pergunta o mínimo.
     const emEtapas = !!(execucaoQw && pesquisa?.disponivel && !sigilosa);
-    const sistemaColeta = emEtapas ? `${persona(cfg, responsaveis(app, pessoa, qw), null, !!app.tenant)}\n\n${promptColeta(qw.espec.operacao, { objetivo: qw.espec.objetivo })}` : null;
+    const textosDaPessoa = emEtapas ? [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto).filter(t => t !== NAO_GUARDADO), texto] : [];
+    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa }) : null;
+    const perguntaMercado = externo && !externo.suficiente ? perguntaDeMercado(qw.espec.objetivo) : null;
+    const sistemaColeta = emEtapas ? promptColeta(qw.espec.operacao) : null;
     const sistemaProducao = emEtapas ? persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, pesquisa, true) : null;
     // Política de credenciais sobre tudo o que vai compor o envio, parte por parte, antes de montar o payload:
     // instruções (da empresa e do quick win), arquivos do quick win, trechos da base e o histórico da conversa.
     // A mensagem e os anexos já passaram pela mesma regra no passo 1. Uma parte com segredo bloqueia a chamada
     // inteira: nada é enviado, nem o restante, nem por outro recurso, reserva ou nova tentativa.
     const pecasDoEnvio = [
-      { origem: 'instrucoes', texto: sistema }, ...(emEtapas ? [{ origem: 'instrucoes', texto: sistemaColeta }, { origem: 'instrucoes', texto: sistemaProducao }] : []),
+      { origem: 'instrucoes', texto: sistema }, ...(emEtapas ? [{ origem: 'instrucoes', texto: sistemaColeta }, { origem: 'instrucoes', texto: externo.consulta }, { origem: 'instrucoes', texto: sistemaProducao }] : []),
       ...(ctx.pecas || ctx.partes.map(texto => ({ origem: 'contexto', texto }))),
       ...todos(app.db, "select texto from mensagens where conversa_id = ? and papel != 'aviso'", conv.id).map(m => ({ origem: 'historico', texto: m.texto })),
       ...todos(app.db, 'select texto from anexos where conversa_id = ?', conv.id).map(a => ({ origem: 'historico', texto: a.texto })),
@@ -523,13 +530,6 @@ export function rotasConversas(app, r) {
       : [base, ...ctx.partes, ...(extra ? [extra] : [])].join('\n\n');
     const conteudoSistema = montarSistema(sistema);
     const mensagens = [{ role: 'system', content: conteudoSistema }, ...h.mensagens];
-    // Pesquisa na internet: sem busca nativa no fornecedor (ex.: Claude pelo Bedrock), o plugin web do OpenRouter
-    // usa a última mensagem da pessoa como consulta. Numa execução ela costuma ser só o gatilho ("Execute agora."),
-    // e a busca voltava fontes sem relação com o trabalho. O tema (objetivo do Quick Win) vai junto, só no envio.
-    if (pesquisa?.disponivel && !sigilosa && qw?.espec?.objetivo) {
-      const u = mensagens.findLastIndex(x => x.role === 'user');
-      if (u > 0) mensagens[u] = { ...mensagens[u], content: comTemaDaPesquisa(mensagens[u].content, qw.espec.objetivo) };
-    }
     // Para limpar um erro do provedor que repita o pedido antes de ele ir para o registro (registro-seguro.js).
     const conteudoDoPedido = mensagens.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
 
@@ -561,12 +561,13 @@ export function rotasConversas(app, r) {
     const fontesWeb = [];
     const tentados = [m.id];
     let perguntaInicial = null, autonomia = 0;
-    // Etapa 1 (coleta): pesquisa com o plugin web. Falhou ou não trouxe notas: a produção pesquisa sozinha, como
-    // numa execução de uma etapa só (nada é simulado). Notas com algo que parece segredo não seguem.
+    // Etapa 1 (coleta): pesquisa com o plugin web, só com o contexto externo seguro. Falhou ou não trouxe notas: a
+    // produção segue sem pesquisa e o resultado fica parcial (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
-    if (emEtapas) {
+    if (emEtapas && !perguntaMercado) {
       linha({ t: 'etapa', v: 'Pesquisando na internet…' });
-      const paraColeta = [{ role: 'system', content: montarSistema(sistemaColeta) }, ...mensagens.slice(1)];
+      // O plugin de busca usa a última mensagem da pessoa como consulta: ela é o contexto externo seguro, e só ele.
+      const paraColeta = [{ role: 'system', content: sistemaColeta }, { role: 'user', content: externo.consulta }];
       try {
         let t = '';
         for await (const ev of app.ia.enviar(paraColeta, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, pesquisaWeb: { max: 5 } })) {
@@ -580,13 +581,15 @@ export function rotasConversas(app, r) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
       }
       if (notas) mensagens[0] = { role: 'system', content: montarSistema(sistemaProducao, delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)) };
+      // Coleta sem notas: a produção não pesquisa sozinha (levaria o contexto interno para a busca). Resultado parcial.
+      else mensagens[0] = { role: 'system', content: montarSistema(persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, { disponivel: false, motivo: MOTIVOS_PESQUISA.sem_fontes, codigo: 'sem_fontes' })) };
     }
     // Execução. Informação sigilosa não tem reserva do fornecedor: se o recurso cair antes de responder, a busca
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
-    for (;;) {
+    if (perguntaMercado) resposta = perguntaMercado;
+    else for (;;) {
       try {
-        for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais,
-          pesquisaWeb: pesquisa?.disponivel && !sigilosa && !notas ? { max: 5 } : null })) {
+        for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
           if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); continue; }
           if (ev.tipo === 'texto') {
             primeiroToken ??= Date.now() - inicio;
@@ -651,14 +654,16 @@ export function rotasConversas(app, r) {
       const entradaQc = [...ctx.partes, ...(notas ? [delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)] : []), ...h.mensagens.map(x => x.content)].join('\n\n').slice(-30000);
       if (fontesWeb.length) registrar(app, 'quickwin.tool_used', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, ferramenta: 'pesquisa_web', fontes: fontesWeb.length, roteamento: rotaId });
       const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
-        pesquisa: pesquisa ? { disponivel: pesquisa.disponivel, motivo: pesquisa.codigo || (pesquisa.disponivel && !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
+        pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
       linha({ t: 'texto', v: resposta });
       registrar(app, 'quickwin.quality_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, versao: qw.versao ?? null, roteamento: rotaId, ...registroQualidade });
       // Ciclo da execução (só metadados): pausada à espera de contexto, ou concluída (teste ou uso real).
-      if (registroQualidade.status === 'pergunta') registrar(app, 'quickwin.context_requested', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId });
+      if (registroQualidade.status === 'pergunta') registrar(app, 'quickwin.context_requested', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId,
+        ...(perguntaMercado ? { motivo: 'contexto_externo_insuficiente' } : {}) });
       else registrar(app, conv.teste ? 'quickwin.tested' : 'quickwin.executed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, versao: qw.versao ?? null, roteamento: rotaId, status: registroQualidade.status,
-        entregaveis: registroQualidade.entregaveis || null, pesquisa: registroQualidade.pesquisa ? { feita: registroQualidade.pesquisa.feita, fontes: registroQualidade.pesquisa.fontes } : null });
+        entregaveis: registroQualidade.entregaveis || null, pesquisa: registroQualidade.pesquisa ? { feita: registroQualidade.pesquisa.feita, fontes: registroQualidade.pesquisa.fontes } : null,
+        objetivo: registroQualidade.objetivo ? registroQualidade.objetivo.motivo : null });
     }
     if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra + custoColeta, economia: (fim?.economia || 0) + economiaExtra + economiaColeta };
     const ms = Date.now() - inicio;
@@ -711,10 +716,4 @@ export function apagarVencidas(app) {
   }
   if (vencidas.length) consolidarWal(app.db);
   return vencidas.length;
-}
-
-// Tema da pesquisa na frente da mensagem enviada (texto simples ou partes, com imagem).
-export function comTemaDaPesquisa(conteudo, objetivo) {
-  const tema = `Tema da pesquisa na internet: ${String(objetivo).replace(/\s+/g, ' ').trim().slice(0, 400)}`;
-  return typeof conteudo === 'string' ? `${tema}\n\n${conteudo}` : [{ type: 'text', text: tema }, ...conteudo];
 }

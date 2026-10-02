@@ -658,7 +658,8 @@ export function promptQualidade(espec) {
       ? [`Intenção do trabalho: ${intencaoDoTrabalho(e)}`, `Contrato confirmado pelo responsável: ${descreverContrato(e.formato_saida)}.`, PRECEDENCIA_CONFERENCIA]
       : [`Objetivo do trabalho: ${e.objetivo}`]),
     `CRITÉRIOS:\n${e.criterios_qualidade.map(c => `- ${c.id}: ${c.texto}`).join('\n')}`,
-    'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}]}',
+    'Diga também se o OBJETIVO central foi atingido. "objetivo_atingido": false quando o resultado é honesto mas não entrega o centro do pedido (por exemplo: a pesquisa não identificou o que era para identificar, o material não tinha os dados pedidos, a peça final não pôde ser produzida, as seções principais ficaram como "não encontrado"). true quando entrega, mesmo com algum detalhe faltando. Honestidade não é falha de critério: não marque critério como falho só porque o resultado admite que algo não foi encontrado.',
+    'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
 }
 export function mensagensQualidade(espec, { entrada, resultado, indicios = [] }) {
@@ -679,7 +680,7 @@ export function lerVeredito(espec, texto) {
     falhas.push(crit.grupo);
     motivos.push(`${crit.texto}${c.motivo ? ` (${limpar(c.motivo, 200)})` : ''}`);
   }
-  return { falhas: [...new Set(falhas)], motivos };
+  return { falhas: [...new Set(falhas)], motivos, objetivo: d.objetivo_atingido === false ? false : d.objetivo_atingido === true ? true : null };
 }
 export function pedidoDeCorrecao(problemas, espec = null) {
   const f = espec?.configuracao_confirmada ? espec.formato_saida : null;
@@ -688,13 +689,20 @@ export function pedidoDeCorrecao(problemas, espec = null) {
 }
 
 // Resumo que a pessoa vê (sem código, sem modelo, sem detalhe técnico).
-export function resumoQualidade({ status, falhas = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null } = {}) {
+const AVISO_OBJETIVO = {
+  ferramenta_indisponivel: 'Resultado parcial: a peça final (vídeo ou imagem) não é gerada aqui. O que veio é o material para produzi-la.',
+  tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
+  conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
+};
+export function resumoQualidade({ status, falhas = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null } = {}) {
   const avisos = [];
+  if (objetivo && objetivo.atingido === false) avisos.push(AVISO_OBJETIVO[objetivo.motivo] || AVISO_OBJETIVO.conferencia);
   if (pesquisa && !pesquisa.feita) avisos.push(`Resultado parcial: a pesquisa na internet não foi feita (${MOTIVOS_PESQUISA[pesquisa.motivo] || 'motivo não informado'}). Os temas não foram confirmados como atuais.`);
   if (entregaveis && entregaveis.encontrados < entregaveis.esperados) avisos.push(`Vieram ${entregaveis.encontrados} de ${entregaveis.esperados} entregáveis.`);
   return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g) })),
     problemas: status === 'inconsistente' ? falhas.map(g => PROBLEMAS[g]) : [], avisos,
-    ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}) };
+    ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}),
+    ...(objetivo ? { objetivo: { atingido: objetivo.atingido !== false, motivo: objetivo.motivo || null } } : {}) };
 }
 
 // ---- Entrada de teste gerada (sintética, sem dado real) ----------------------------------------------------
@@ -721,7 +729,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   // Contrato de saída + entregáveis da operação (todos determinísticos). A pesquisa não se corrige com uma nova
   // chamada: se ela era exigida e não aconteceu, o resultado fica parcial (nunca aprovado), com o motivo.
   const conferirContratoEOperacao = t => {
-    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa });
+    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa, entrada });
     return { ...d, falhas: [...new Set([...d.falhas, ...o.falhas])], detalhes: [...d.detalhes, ...o.detalhes], op: o };
   };
   if (String(resposta).trim().startsWith(MARCADOR_PERGUNTA)) return { texto: resposta, custo: 0, economia: 0, registro: { status: 'pergunta', falhas: [], tentativas: 0, verificados: [] } };
@@ -732,7 +740,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
     ultimaOp = d.op;
     let ia = null;
     if (usarIA) { try { const r = await chamar(mensagensQualidade(e, { entrada, resultado: t, indicios: d.numerosSemFonte })); somar(r); ia = lerVeredito(e, r.texto); } catch { ia = null; } }
-    return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], verificouIA: !!ia, estruturaOk: d.estruturaOk };
+    return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], verificouIA: !!ia, estruturaOk: d.estruturaOk, objetivoIA: ia?.objetivo ?? null };
   };
   let c = await conferir(texto), barreira = false;
   while (c.falhas.length && usarIA && tentativas < MAX_CORRECOES) {
@@ -752,7 +760,11 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
     c = await conferir(texto, d);
   }
   const semPesquisa = ultimaOp?.pesquisa && !ultimaOp.pesquisa.feita;
-  const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
+  // Resultado honesto não é objetivo atingido (QA-15): sem a peça final, com as tabelas sem dados ou com a
+  // conferência dizendo que o centro do pedido não foi entregue, o resultado fica parcial, nunca aprovado.
+  const objetivo = ultimaOp?.objetivo || (c.objetivoIA === false ? { atingido: false, motivo: 'conferencia' } : null);
+  const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa || objetivo?.atingido === false ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
   return { texto, custo, economia, registro: { status, falhas: c.falhas, tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
+    ...(objetivo ? { objetivo: { atingido: false, motivo: objetivo.motivo } } : {}),
     ...(ultimaOp?.entregaveis ? { entregaveis: ultimaOp.entregaveis } : {}), ...(ultimaOp?.pesquisa ? { pesquisa: ultimaOp.pesquisa } : {}) } };
 }

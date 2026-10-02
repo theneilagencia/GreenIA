@@ -111,11 +111,13 @@ test('A: pesquisa com a chave do console, plugin web, data_collection=deny, font
   const exec = r.chamadas.find(b => !ehConferencia(b));
   assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }]);
   assert.equal(exec.provider.data_collection, 'deny');
-  // Homologação real: sem busca nativa (Haiku pelo Bedrock), a consulta é a última mensagem da pessoa. O gatilho
-  // "Execute agora." trazia fontes sem relação; o tema do Quick Win vai na mensagem enviada (não na gravada).
-  const ultimaEnviada = exec.messages.filter(x => x.role === 'user').at(-1).content;
-  assert.match(ultimaEnviada, /^Tema da pesquisa na internet: Pesquise temas recentes relacionados à inteligência artificial aplicada à mineração/);
-  assert.match(ultimaEnviada, /Execute agora\.$/);
+  // Homologação real: sem busca nativa (Haiku pelo Bedrock), a consulta é a última mensagem da pessoa. QA-04: a
+  // coleta leva só o contexto externo seguro, que é essa consulta: o tema do Quick Win. O gatilho "Execute agora."
+  // não diz nada e fica de fora; a mensagem gravada continua a da pessoa.
+  assert.deepEqual(exec.messages.map(x => x.role), ['system', 'user'], 'a coleta não leva histórico');
+  const ultimaEnviada = exec.messages.at(-1).content;
+  assert.match(ultimaEnviada, /^Tema da pesquisa: Pesquise temas recentes relacionados à inteligência artificial aplicada à mineração/);
+  assert.doesNotMatch(ultimaEnviada, /Execute agora/);
   assert.equal(um(S.P.tenant(A.id).db, "select texto from mensagens where conversa_id = ? and papel = 'user'", r.conv.id).texto, 'Execute agora.');
   assert.ok(r.chamadas.filter(ehConferencia).every(b => !b.plugins && b.provider.data_collection === 'deny'));
   assert.deepEqual(r.fim.fontes.filter(f => f.url).map(f => [f.url, f.titulo]), FONTES.map(f => [f.url, f.titulo]));
@@ -153,7 +155,11 @@ test('F: pesquisa + contexto da empresa + entregáveis separados por canal, brie
   assert.equal(r.falha, undefined, JSON.stringify(r.falha));
   const exec = r.chamadas.find(b => !ehConferencia(b));
   assert.deepEqual(exec.plugins, [{ id: 'web', engine: 'exa', max_results: 5 }]);
-  assert.match(sistemaDe(exec), /organização documental/, 'contexto da empresa enviado');
+  // QA-04: a base da empresa vai para a produção (o modelo), nunca para a coleta (a busca na internet).
+  assert.doesNotMatch(JSON.stringify(exec.messages), /organização documental/, 'contexto interno na busca externa');
+  const producao = r.chamadas.filter(b => !ehConferencia(b))[1];
+  assert.equal(producao.plugins, undefined);
+  assert.match(sistemaDe(producao), /organização documental/, 'contexto da empresa enviado à produção');
   for (const t of ['LinkedIn · Copy', 'LinkedIn · Carrossel', 'LinkedIn · Imagem', 'Instagram · Legenda', 'Instagram · Carrossel', 'Instagram · Imagem', 'Instagram · Reels'])
     assert.match(r.texto, new RegExp(`## ${t}`), t);
   for (const t of ['LinkedIn · Imagem', 'Instagram · Imagem']) assert.match(r.texto.split(`## ${t}`)[1], new RegExp(OP.MARCA_BRIEFING.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -170,7 +176,7 @@ test('isolamento: a empresa B não lê a credencial nem a configura; sem liberar
   const r = await executar(bia, q.id, 'Execute agora.');
   assert.equal(r.falha, undefined);
   assert.ok(r.chamadas.every(b => !b.plugins), 'sem pesquisa quando a empresa não liberou');
-  assert.ok(r.chamadas.every(b => !JSON.stringify(b.messages).includes('Tema da pesquisa na internet')), 'sem pesquisa, nada de tema');
+  assert.ok(r.chamadas.every(b => !JSON.stringify(b.messages).includes('Tema da pesquisa:')), 'sem pesquisa, nada de tema');
   assert.equal(r.fim.qualidade.pesquisa.feita, false);
   assert.equal(r.fim.fontes?.filter(f => f.url).length ?? 0, 0);
   // Nenhum dado da empresa A no banco da B.

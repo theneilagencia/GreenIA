@@ -136,8 +136,10 @@ test('aceite A e B (Apy Mine): pesquisa real, contexto da empresa, todos os entr
   assert.match(sistemaDe(producao), /<pesquisa nome=/);
   assert.ok(r.chamadas.filter(ehConferencia).every(b => !b.plugins), 'a conferência nunca pesquisa');
   assert.ok(r.chamadas.filter(ehConferencia).every(b => JSON.stringify(b.messages).includes('Notas da pesquisa desta execu')), 'a conferência recebe as notas da pesquisa');
-  // Contexto da empresa: a mensagem de hoje é genérica, mas a consulta à base usa o objetivo do Quick Win.
-  assert.match(sistemaDe(exec), /mineradora de médio porte/);
+  // Contexto da empresa: a mensagem de hoje é genérica, mas a consulta à base usa o objetivo do Quick Win. QA-04: a
+  // base vai só para a produção; a coleta (a busca na internet) leva só o contexto externo seguro.
+  assert.doesNotMatch(JSON.stringify(exec.messages), /mineradora de médio porte/, 'contexto interno na busca externa');
+  assert.match(String(exec.messages.at(-1).content), /^Tema da pesquisa: Pesquise os temas em alta da semana sobre mineração/);
   assert.match(sistemaDe(producao), /mineradora de médio porte/);
   for (const t of ['LinkedIn · Copy', 'Instagram · Legenda', 'Instagram · Carrossel', 'Instagram · Imagem', 'Instagram · Reels', 'Temas sugeridos']) assert.match(r.texto, new RegExp(`## ${t}`));
   assert.match(r.texto, /Apy Mine/);

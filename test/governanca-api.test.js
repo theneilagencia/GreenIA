@@ -280,11 +280,11 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf('app.ia.enviar('), 'a execução vem depois da decisão');
   assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf('app.ia.enviar('), 'conferência final dos guardrails antes do envio');
   // Pesquisa na internet: só na execução, só liberada pela governança e nunca em conversa sigilosa; nunca na conferência.
-  // Duas chamadas podem pesquisar: a coleta da execução em etapas (só com a pesquisa liberada e sem sigilo) e a
-  // execução de uma etapa só quando a coleta não trouxe notas. Nunca as duas na mesma execução.
-  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 2, 'só a coleta e a execução de uma etapa pesquisam');
+  // Uma chamada só pesquisa: a coleta da execução em etapas (só com a pesquisa liberada e sem sigilo). QA-04: ela leva
+  // só o contexto externo seguro (sem instruções, base, anexos nem histórico); a produção nunca pesquisa sozinha.
+  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 1, 'só a coleta pesquisa');
   assert.match(conv, /const emEtapas = !!\(execucaoQw && pesquisa\?\.disponivel && !sigilosa\);/);
-  assert.match(conv, /pesquisaWeb: pesquisa\?\.disponivel && !sigilosa && !notas \? \{ max: 5 \} : null/);
+  assert.match(conv, /const paraColeta = \[\{ role: 'system', content: sistemaColeta \}, \{ role: 'user', content: externo\.consulta \}\];/);
   assert.match(conv, /!cfg\.pesquisaWeb\?\.ativa \? 'nao_liberada' : sigilosa \? 'sigilosa' : areaReforcada \? 'area_reforcada'/);
   assert.match(conv, /rotaSigilo = conferirEnvio\(alt\.modelo\)/, 'a busca por outro recurso passa pelos guardrails');
   assert.ok(conv.indexOf('avaliarProcessamentoSigiloso({ cfg, sigilosa })') < conv.indexOf('tornarSigilosa(app, pessoa, conv, motivo)', conv.indexOf('r.post(\'/api/conversas/:id/mensagens\'')), 'a política decide antes de marcar a conversa');

@@ -6,6 +6,7 @@ import { ACOES } from './filtro.js';
 import { registrar } from './eventos.js';
 import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
 import { areasDoQw } from './quickwins.js';
+import { PERFIL_PUBLICO, perfilPublico } from './quickwin-operacao.js';
 import { explicarFalhaEmail, normalizarSmtpUrl } from './email.js';
 
 // Contraste (WCAG) para a checagem automática da cor de marca.
@@ -80,7 +81,18 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
   // Ação desconhecida vale "bloquear" (fail closed). Salvar grava o formato atual (acoesVersao 2).
   if (c.acoesChat !== undefined) { v.acoesChat = Object.fromEntries(TIPOS_DADO.map(t => [t, t === 'credencial' ? 'bloquear' : ACOES.includes(c.acoesChat[t]) ? c.acoesChat[t] : 'bloquear'])); v.acoesVersao = 2; }
   if (c.protecaoDadosPessoais !== undefined) v.protecaoDadosPessoais = c.protecaoDadosPessoais !== false;   // só false explícito desliga
-  if (c.pesquisaWeb !== undefined) v.pesquisaWeb = { ativa: c.pesquisaWeb?.ativa === true };   // só true explícito liga
+  if (c.pesquisaWeb !== undefined) {
+    // só true explícito liga. Perfil público (QA-04): o único contexto da empresa que pode ir para a busca na
+    // internet. Campo com dado pessoal, financeiro, credencial ou marcação de uso interno é recusado, não cortado.
+    const pedido = c.pesquisaWeb?.perfil;
+    let perfil = atual?.pesquisaWeb?.perfil || {};
+    if (pedido !== undefined) {
+      perfil = perfilPublico(pedido);
+      const recusados = Object.keys(PERFIL_PUBLICO).filter(k => typeof pedido?.[k] === 'string' && pedido[k].trim() && !perfil[k]);
+      if (recusados.length) throw erro(400, 'perfil_publico', `Use só informação pública no perfil para pesquisa: ${recusados.map(k => PERFIL_PUBLICO[k]).join(', ')} tem dado que não pode sair para a internet.`);
+    }
+    v.pesquisaWeb = { ativa: c.pesquisaWeb?.ativa === true, perfil };
+  }
   if (c.naoArmazenar !== undefined) v.naoArmazenar = (Array.isArray(c.naoArmazenar) ? c.naoArmazenar : []).filter(t => TIPOS_DADO.includes(t) && t !== 'credencial');
   for (const k of ['tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa']) if (c[k] !== undefined) { v[k] = Number(c[k]) || 0; if (v[k] < 0) throw erro(400, k, 'Use zero para sem limite.'); }
   return v;

@@ -1513,6 +1513,12 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .qw-peca-cabeca b{font:600 14.5px/1.4 var(--sans);color:var(--ink)}
 .qw-peca-cabeca .link-sutil{margin-left:auto}
 .qw-peca-corpo{overflow-wrap:anywhere}
+/* Tabela do resultado no celular: as palavras não se partem ("Fornece|dor", "R$ 182.0|00,00"); a tabela rola dentro
+   do próprio cartão, nunca a página. */
+.qw-canais,.qw-canal,.qw-peca,.qw-peca-corpo{min-width:0;max-width:100%}
+.qw-peca-corpo{contain:inline-size}
+.qw-peca-corpo .tabela-wrap,.bolha-ia .tabela-wrap{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.qw-peca-corpo th,.qw-peca-corpo td,.bolha-ia th,.bolha-ia td{overflow-wrap:normal;word-break:normal;hyphens:manual;min-width:7.5em}
 .qw-fontes{border-top:1px solid var(--line);padding-top:10px;font:400 13.5px/1.6 var(--sans)}
 .qw-fontes ul{margin:6px 0 0;padding-left:18px}
 .qw-fontes a{color:var(--forest-text);overflow-wrap:anywhere}

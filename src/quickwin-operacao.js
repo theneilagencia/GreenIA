@@ -7,6 +7,7 @@
 // uma propriedade do entregável. A operação nunca amplia governança: a ferramenta só roda se a empresa liberou e
 // o conteúdo permite (conversas.js decide), e nada aqui executa ação externa.
 import { createHash } from 'node:crypto';
+import { detectar, detectarReforcado } from './filtro.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const limpar = (s, max) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -77,13 +78,20 @@ export const FERRAMENTAS = {
   leitura_documento: { rotulo: 'Leitura de documentos (PDF, Word, imagem)', palavras: [] },
   analise_planilha: { rotulo: 'Leitura de planilhas', palavras: [] },
   geracao_imagem: { rotulo: 'Geração de imagem', palavras: [], disponivel: false, alternativa: 'o briefing da imagem para quem vai produzir' },
+  geracao_video: { rotulo: 'Geração de vídeo', palavras: [], disponivel: false, alternativa: 'o pacote de produção (conceito, roteiro, storyboard com as cenas, locução, briefing e prompt para a ferramenta de vídeo) para quem vai produzir' },
   pesquisa_web: { rotulo: 'Pesquisar na internet', executavel: true, palavras: ['pesquis', 'tendenc', 'em alta', 'trend', 'noticia', 'atualidade', 'mais recente', 'ultimas novidades', 'esta semana', 'na internet', 'na web', 'google', 'concorrent', 'o que esta sendo falado'] },
 };
 
 // O pedido pede pesquisa na internet? "Pesquisa" que é o MATERIAL ("respostas da pesquisa de clima", "resultados
 // da pesquisa de satisfação") não é ação de pesquisar: tratar como tal mandaria o assunto interno para a busca
 // externa (QA-08). Regra de linguagem, não de setor.
-const PESQUISA_COMO_MATERIAL = /\b(respostas?|resultados?|dados|planilha|questionarios?|formularios?|tabulacao|base)\s+d[aeo]s?\s+pesquisas?\b/;
+// "Revise esta pesquisa", "resuma a pesquisa anexada": a pesquisa é o documento que a pessoa traz, não uma busca.
+const PESQUISA_COMO_MATERIAL = new RegExp([
+  '\\b(respostas?|resultados?|dados|planilha|questionarios?|formularios?|tabulacao|base)\\s+d[aeo]s?\\s+pesquisas?\\b',
+  '\\b(est[ae]s?|ess[ae]s?|nest[ae]s?|ness[ae]s?|dest[ae]s?|dess[ae]s?|aquel[ae]s?)\\s+pesquisas?\\b',
+  '\\bpesquisas?\\s+(anexad[ao]s?|em anexo|enviad[ao]s?|recebid[ao]s?|interna|internas|ja feita|realizada|realizadas)\\b',
+  '\\b(revis\\w*|corrij\\w*|corrig\\w*|leia|ler|resum\\w*|avali\\w*|analis\\w*|confir\\w*|melhor\\w*|formate|formatar|padroniz\\w*|traduz\\w*)\\s+(a|as|o|os|minha|nossa)?\\s*pesquisas?\\b',
+].join('|'));
 export function pedePesquisaWeb(texto) {
   const t = norm(texto);
   if (!tem(t, FERRAMENTAS.pesquisa_web.palavras)) return false;
@@ -190,12 +198,14 @@ export function inferirOperacao(texto) {
 // curtos e limpos, ids renumerados (as dependências acompanham) e limites. Nada fora disso entra no prompt.
 const texto = (v, max) => limpar(typeof v === 'string' ? v : '', max).replace(/[<>]/g, '');
 const lista = v => (Array.isArray(v) ? v : []);
-export function limparOperacao(op) {
+// `ajustes` (opcional): recebe, só como metadado técnico, cada correção estrutural feita aqui (dependência
+// normalizada ou removida). Nada do texto do plano vai nele.
+export function limparOperacao(op, ajustes = null) {
   if (!op || typeof op !== 'object') return null;
   const canais = [...new Set(lista(op.canais).filter(c => CANAIS[c]))];
   const ferramentas = [...new Set(lista(op.ferramentas).filter(f => FERRAMENTAS[f]))];
-  const entregaveis = [], novoId = new Map();
-  for (const e of lista(op.entregaveis)) {
+  const entregaveis = [], novoId = new Map(), naPosicao = new Map();
+  for (const [pos, e] of lista(op.entregaveis).entries()) {
     if (!ENTREGAVEIS[e?.tipo] || entregaveis.length >= MAX_ENTREGAVEIS) continue;
     const canal = CANAIS[e.canal] && !SEM_CANAL.has(e.tipo) ? e.canal : null;
     if (canal && !canais.includes(canal)) canais.push(canal);
@@ -215,6 +225,7 @@ export function limparOperacao(op) {
     if (e.tipo === 'outro' && !detalhe && !rotulo) continue;   // "outro" sem descrição não diz o que entregar
     const id = `e${entregaveis.length + 1}`;
     if (e.id) novoId.set(String(e.id), id);
+    naPosicao.set(pos + 1, id);
     const item = { id, tipo: e.tipo, canal, config };
     if (rotulo && norm(rotulo) !== norm(ENTREGAVEIS[e.tipo].rotulo)) item.rotulo = rotulo;
     const descricao = texto(e.descricao, 200);
@@ -222,11 +233,26 @@ export function limparOperacao(op) {
     if (lista(e.depende_de).length) item.depende_de = lista(e.depende_de).map(String);
     entregaveis.push(item);
   }
-  // Dependências: só entre entregáveis que ficaram, sempre para um anterior (sem ciclo).
+  // Dependências (QA-12): só entre entregáveis que ficaram, sempre para um anterior (sem ciclo). Uma referência que
+  // não é um id do plano é normalizada quando aponta sem ambiguidade para um entregável (pela posição, "2", ou pelo
+  // rótulo ou tipo de um único anterior); senão sai. Cada correção é contada em `ajustes`, sem texto do plano.
+  const anota = (acao, motivo) => ajustes?.push({ tipo: 'dependencia', acao, motivo });
   for (const [i, e] of entregaveis.entries()) {
     if (!e.depende_de) continue;
-    const ok = [...new Set(e.depende_de.map(d => novoId.get(d)).filter(d => d && Number(d.slice(1)) - 1 < i))].slice(0, 5);
-    if (ok.length) e.depende_de = ok; else delete e.depende_de;
+    const ok = [];
+    for (const d of e.depende_de) {
+      let alvo = novoId.get(d), motivo = null;
+      if (!alvo && /^\d{1,2}$/.test(d.trim())) { alvo = naPosicao.get(Number(d)); motivo = 'posicao'; }
+      if (!alvo) {
+        const n = norm(d).trim(), cands = entregaveis.slice(0, i).filter(x => n && (norm(x.rotulo || '') === n || x.tipo === n || norm(ENTREGAVEIS[x.tipo].rotulo) === n));
+        if (cands.length === 1) { alvo = cands[0].id; motivo = 'rotulo'; }
+      }
+      if (!alvo) { anota('removida', 'inexistente'); continue; }
+      if (Number(alvo.slice(1)) - 1 >= i) { anota('removida', alvo === e.id ? 'propria' : 'ciclo'); continue; }
+      if (motivo) anota('normalizada', motivo);
+      if (!ok.includes(alvo)) ok.push(alvo);
+    }
+    if (ok.length) e.depende_de = ok.slice(0, 5); else delete e.depende_de;
   }
   const entradas = [];
   for (const x of lista(op.entradas)) {
@@ -302,6 +328,8 @@ const descreverConfig = e => {
 };
 export const ehVisual = e => !!ENTREGAVEIS[e.tipo]?.visual;
 export const MARCA_BRIEFING = 'Briefing (a arte final não é gerada aqui)';
+// QA-04: nenhuma matriz de "Concorrente A–E". Nome que não veio da pesquisa nem do material não existe no resultado.
+const SEM_MARCADORES = 'Nomes de empresas, concorrentes, produtos e fontes só se vierem das notas da pesquisa ou do material: nunca use nomes de exemplo ("Concorrente A", "Empresa X") no lugar deles. O que a pesquisa não identificou, diga que não identificou.';
 export const SECAO_FONTES = 'Fontes da pesquisa';
 
 // ---- Contexto que falta (perguntas mínimas) -----------------------------------------------------------------
@@ -330,6 +358,52 @@ export function lacunasDeContexto({ descricao = '', processo = '', operacao = nu
 
 // ---- Prompt de entrega --------------------------------------------------------------------------------------
 export const MARCADOR_PERGUNTA = 'Antes de começar, preciso de uma informação:';
+
+// ---- Contexto externo da pesquisa (QA-04) -------------------------------------------------------------------
+// O que vai para o serviço de busca na internet é montado aqui, peça por peça, e só com o que pode sair:
+//  - o tema do trabalho (objetivo do Quick Win);
+//  - o perfil público da empresa que o admin classificou como apto para pesquisa externa (nome público, setor,
+//    categoria, país ou região, mercado-alvo);
+//  - a resposta do responsável a uma pergunta sobre mercado, setor, categoria ou região;
+//  - o que a pessoa escreveu nesta execução, se for curto e disser algo além do gatilho ("Execute agora").
+// Nunca vão: documentos da base, anexos, texto longo colado, instruções da empresa, histórico, nomes de quem usa.
+// Uma peça com dado que o filtro reconhece (pessoal, financeiro, credencial, marcação de uso interno) não sai.
+// Sem contexto de mercado seguro quando a pesquisa precisa dele, a execução pergunta o mínimo, sem pesquisar.
+export const PERFIL_PUBLICO = { nome: 'Nome público', setor: 'Setor', categoria: 'Categoria de produto ou serviço', regiao: 'País ou região', mercado: 'Mercado-alvo' };
+export function perfilPublico(p) {
+  const out = {};
+  for (const k of Object.keys(PERFIL_PUBLICO)) {
+    const v = limpar(typeof p?.[k] === 'string' ? p[k] : '', 80).replace(/[<>]/g, '');
+    if (v && pecaSegura(v)) out[k] = v;
+  }
+  return out;
+}
+// Para fora vale uma régua mais estrita que a do envio ao modelo: além do filtro de dados (pessoal, financeiro,
+// credencial) e da marcação de uso interno, nenhum email (também o de trabalho), telefone, valor em dinheiro,
+// sequência longa de números (documento, contrato, conta) nem endereço de site interno.
+const PARA_FORA = /[\w.+-]+@[\w-]+\.[\w.]+|\bR\$|\b(?:US\$|USD|EUR|BRL)\s?\d|\(?\b\d{2}\)?\s?\d{4,5}-?\d{4}\b|\d[\d.\-/]{5,}\d|\b(?:confidencial|sigilos[oa]|restrito|reservad[oa]|interno|interna)\b|https?:\/\//i;
+const pecaSegura = t => !detectar(t).length && !detectarReforcado(t).length && !PARA_FORA.test(norm(t));
+const PEDE_MERCADO = /\b(concorren\w*|competidor\w*|mercados?|setor|segmentos?|posicionamento|benchmark\w*|players?)\b/;
+export const pesquisaPrecisaDeMercado = (op, objetivo = '') => !!op?.ferramentas?.includes('pesquisa_web') && PEDE_MERCADO.test(norm(objetivo));
+// Palavras de tarefa e de estrutura (iguais em qualquer área): o que sobra delas é o assunto concreto do pedido.
+const GENERICAS = /^(pesquis|levant|mape|identif|liste|lista|compar|mont|gere|gera|cri[ae]|faca|faze|anali|princip|concorr|competi|mercad|setor|segment|empres|noss|matri|posici|tabel|relat|recom|oport|mudan|recent|tenden|impact|quais|qual|pode|expli|sinte|resum|desta|apont|avali|atua|ultim|prep|elab|estrat|difer|pont|fort|frac|amea|swot|quem|sao|dele|cada|outr|sobre|para|entre|como|onde|playe|bench|seman|mes|trimes|ano|execu|docum|entreg|resul|produt|servi|client|negoc|area|lider|perfi|preco|valor|dest|ness|nest|dess|isso|isto|este|esta|esse|essa|aqui|agora|hoje|mais|menos|muito|todo|toda|deve|devem|quer|precis|vamo|vou|favor|ajud|traga|busq|encontr|descubr|inform|dado|gostar|modo|forma|tipo|lado|todos|todas|pelo|pela|seus|suas|meus|minh|tamb|ainda|tema|temas|assunt|conte|segu|plani|mand|envi|anex|arqui|abaix|acima|confor|sempre|melhor|rapid|urgen|obrig|quero|queri|exec|usar|usem|ajust|revis|termin|comec|fazer|feito|pront|certo|beleza|claro|pois|entao|depois|antes|logo)/;
+const temAssunto = texto => norm(texto).split(/[^a-z0-9]+/).some(w => w.length >= 4 && !GENERICAS.test(w));
+const SOBRE_MERCADO = /mercad|setor|segment|categor|regia|pais|nicho|concorr|ramo|atuac/;
+export function contextoExternoDaPesquisa({ objetivo = '', op = null, perfil = null, textosDaPessoa = [] } = {}) {
+  const peca = (s, max = 300) => { const t = limpar(s, 2000).replace(/[<>]/g, ''); return t && t.length <= max && pecaSegura(t) ? t : ''; };
+  const tema = peca(objetivo, 400);
+  const p = perfilPublico(perfil);
+  const respostas = (op?.contexto_respostas || []).filter(r => SOBRE_MERCADO.test(norm(`${r.id} ${r.pergunta}`))).map(r => peca(r.resposta, 200)).filter(Boolean);
+  const daPessoa = textosDaPessoa.map(t => peca(t)).filter(t => t && temAssunto(t)).slice(-2);
+  const precisaMercado = pesquisaPrecisaDeMercado(op, objetivo);
+  const suficiente = !precisaMercado || !!(p.setor || p.categoria || p.mercado) || respostas.length > 0 || daPessoa.length > 0 || temAssunto(tema);
+  const linhas = [tema && `Tema da pesquisa: ${tema}`, ...Object.entries(p).map(([k, v]) => `${PERFIL_PUBLICO[k]}: ${v}`),
+    ...respostas.map(r => `Mercado informado pelo responsável: ${r}`), ...daPessoa.map(t => `Pedido desta execução: ${t}`)].filter(Boolean);
+  return { consulta: linhas.join('\n').slice(0, 1200), suficiente, precisaMercado,
+    origens: { tema: !!tema, perfil: Object.keys(p), responsavel: respostas.length, pessoa: daPessoa.length } };
+}
+export const perguntaDeMercado = objetivo => `${MARCADOR_PERGUNTA} qual mercado ou categoria devo considerar ${/concorren|competidor/.test(norm(objetivo)) ? 'para identificar os concorrentes' : 'nesta pesquisa'}?`
+  + ' (Ex.: software de gestão para clínicas no Brasil.) Os documentos internos da empresa não são enviados para a busca na internet; só o que você informar aqui e o perfil público configurado pelo admin.';
 // Contexto da empresa: o plano diz quando o trabalho depende dela; um plano antigo (só canais e peças) mantém a
 // regra de antes (trabalho de comunicação é sobre a empresa).
 export const usaContextoEmpresa = op => !!op && (op.contexto_empresa === true || (op.v !== 2 && !!(op.canais?.length || op.entregaveis?.length)));
@@ -355,24 +429,28 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
     if (op.entregaveis.some(ehVisual)) partes.push(`Peças visuais (imagem, carrossel, Reels, vídeo): você não gera a arte nem o vídeo. Entregue o briefing para quem vai produzir: comece a peça com a linha "${MARCA_BRIEFING}" e descreva o que mostrar em cada parte (slide, cena ou tela), o texto que aparece, o estilo visual e a chamada para ação. No Reels e no vídeo, inclua o roteiro com o tempo de cada cena.`);
     if (op.entregaveis.some(e => e.tipo === 'temas')) partes.push('Em "Temas sugeridos", liste os temas em ordem de prioridade, cada um com uma frase sobre por que ele é relevante para a empresa agora.');
   }
+  // Peça final que a GreenIA não produz (vídeo, imagem): o que ela produz não é pedido como material (QA-06).
+  if (op.ferramentas?.some(f => FERRAMENTAS[f]?.disponivel === false)) partes.push('Conceito, roteiro, storyboard, cenas, locução, briefing e prompt são o que VOCÊ produz neste trabalho: nunca os peça como material. Só pergunte se o tema ou a campanha não estiverem em lugar nenhum (mensagem, anexos, contexto ou documentos autorizados). Não apresente arquivo, link ou "vídeo pronto": diga que a peça final não é gerada aqui.');
   if (op.criterios?.length) partes.push(`O resultado precisa atender a:\n${op.criterios.map(c => `- ${c}`).join('\n')}`);
   for (const f of op.ferramentas || []) if (FERRAMENTAS[f]?.disponivel === false)
     partes.push(`Ferramenta indisponível: "${FERRAMENTAS[f].rotulo}" não existe nesta execução. Não simule a ferramenta: entregue ${FERRAMENTAS[f].alternativa} e diga isso no resultado.`);
   if (op.ferramentas?.includes('pesquisa_web')) {
     partes.push(pesquisa?.disponivel
-      ? `Pesquisa: ${notas ? 'a pesquisa na internet desta execução já foi feita, e as notas dela estão entre as marcas <pesquisa>. Use só essas notas' : 'nesta execução você tem acesso a uma pesquisa na internet. Use os resultados dela'} para os temas, fatos e números atuais. Não invente tendências, números, datas ou fontes. No fim, inclua a seção "## ${SECAO_FONTES}" com o título e o endereço de cada fonte usada.`
-      : `Pesquisa: a pesquisa na internet NÃO está disponível nesta execução (${pesquisa?.motivo || 'não liberada'}). Não simule uma pesquisa e não apresente temas, fatos ou números como atuais ou "em alta". Comece o resultado com a linha "Pesquisa na internet não realizada: ${pesquisa?.motivo || 'não liberada'}." e use só o material, o contexto autorizado e o que for conhecimento geral, deixando claro que não foi pesquisado.`);
+      ? `Pesquisa: ${notas ? 'a pesquisa na internet desta execução já foi feita, e as notas dela estão entre as marcas <pesquisa>. Use só essas notas' : 'nesta execução você tem acesso a uma pesquisa na internet. Use os resultados dela'} para os temas, fatos e números atuais. Não invente tendências, números, datas ou fontes. ${SEM_MARCADORES} No fim, inclua a seção "## ${SECAO_FONTES}" com o título e o endereço de cada fonte usada.`
+      : `Pesquisa: a pesquisa na internet NÃO está disponível nesta execução (${pesquisa?.motivo || 'não liberada'}). Não simule uma pesquisa e não apresente temas, fatos ou números como atuais ou "em alta". Comece o resultado com a linha "Pesquisa na internet não realizada: ${pesquisa?.motivo || 'não liberada'}." e use só o material, o contexto autorizado e o que for conhecimento geral, deixando claro que não foi pesquisado. ${SEM_MARCADORES}`);
   }
   return partes.join('\n\n');
 }
 
-// Etapa de coleta (pesquisa) de uma execução em etapas: só as notas, com fonte, sem fazer os entregáveis.
-export function promptColeta(op, { objetivo = '' } = {}) {
+// Etapa de coleta (pesquisa) de uma execução em etapas: só as notas, com fonte, sem fazer os entregáveis. A coleta
+// recebe só o contexto externo seguro (contextoExternoDaPesquisa), na mensagem da pessoa: é ela que vira a consulta
+// do serviço de busca. Nada do contexto interno vai nesta chamada.
+export function promptColeta(op) {
   const ents = entregaMultipla(op) ? ` Depois, numa próxima etapa, as notas serão usadas para produzir: ${op.entregaveis.map(rotuloEntregavel).join('; ')}.` : '';
-  return [`Etapa 1 de 2 desta execução: pesquisa na internet. Objetivo do trabalho: ${objetivo}`,
+  return ['Etapa 1 de 2 desta execução: pesquisa na internet. O que pesquisar está na mensagem a seguir (tema e contexto público).',
     `Nesta etapa, pesquise o que o trabalho precisa (temas, fatos, números e acontecimentos atuais).${ents}`,
     'Entregue só as notas da pesquisa, em tópicos curtos: o fato ou tema, por que importa para o trabalho e a fonte (título e endereço). Não faça os entregáveis ainda.',
-    'Não invente fatos, números, datas ou fontes. O que não encontrar, diga que não encontrou.'].join('\n');
+    'Não invente fatos, números, datas, nomes ou fontes. O que não encontrar, diga que não encontrou.'].join('\n');
 }
 
 // Critérios de qualidade da operação (conferidos pela IA, dentro da mesma conferência).
@@ -400,10 +478,37 @@ const casa = (ts, e) => {
   const rot = norm(rotuloEntregavel(e));
   return ts.some(t => t.includes(rot) || (t.includes(tipo) && (!canal || t.includes(canal))));
 };
-export function conferirOperacao(op, texto, { pesquisa = null } = {}) {
+// Nome de exemplo no lugar de um nome real ("Concorrente A", "Empresa X") que não está no material: invenção.
+const MARCADOR_GENERICO = /\b([Cc]oncorrentes?|[Ee]mpresas?|[Ff]ornecedor(?:es)?|[Mm]arcas?|[Pp]layers?|[Cc]ompetidor(?:es)?|[Pp]rodutos?|[Cc]lientes?)[ \t]+(?:[A-E]|[1-5]|X|Y|Z)(?![\wÀ-ú])/g;
+// Arquivo ou link de mídia apresentado como entregue sem ferramenta que o produza (QA-06): simulação.
+const ARQUIVO_SIMULADO = /\b[\w-]+\.(mp4|mov|avi|webm|mkv|png|jpe?g|gif|psd)\b|\[(?:link|arquivo|download|v[ií]deo|imagem)[^\]]*\]|\b(baixe|fa[cç]a o download|clique (?:aqui|no link))\b/i;
+const VAZIA = /^(?:[-–—?]|n\/?a|nd|n\.d\.|sem dados?|sem informa[cç][aã]o|n[aã]o (?:informad[oa]|encontrad[oa]|identificad[oa]|dispon[ií]vel|localizad[oa]|consta)|a (?:definir|confirmar|pesquisar)|desconhecid[oa])\.?$/i;
+// Tabela do resultado com a maior parte das células sem dado: resultado honesto, objetivo não atingido (QA-15).
+function tabelasSemDados(texto) {
+  const ls = String(texto || '').split('\n');
+  let total = 0, vazias = 0;
+  for (let i = 0; i < ls.length - 1; i++) {
+    if (!(/^\s*\|.*\|/.test(ls[i]) && /^\s*\|?\s*:?-{2,}/.test(ls[i + 1]))) continue;
+    for (let j = i + 2; j < ls.length && /^\s*\|.*\|/.test(ls[j]); j++) {
+      const cel = ls[j].split('|').slice(1, -1).map(c => c.replace(/[*_]/g, '').trim()).slice(1);   // a 1ª coluna é o nome do item
+      total += cel.length; vazias += cel.filter(c => !c || VAZIA.test(c)).length;
+    }
+  }
+  return total >= 4 && vazias / total >= 0.6;
+}
+export function conferirOperacao(op, texto, { pesquisa = null, entrada = '' } = {}) {
   const falhas = [], detalhes = [];
-  const out = { falhas, detalhes, entregaveis: null, pesquisa: null };
+  const out = { falhas, detalhes, entregaveis: null, pesquisa: null, objetivo: null };
   if (!op) return out;
+  const marcadores = [...new Set([...String(texto || '').matchAll(MARCADOR_GENERICO)].map(m => m[0]))].filter(m => !norm(entrada).includes(norm(m)));
+  if (marcadores.length) { falhas.push('invencao'); detalhes.push(`Nomes de exemplo no lugar de nomes reais: ${marcadores.slice(0, 5).join(', ')}. Use só nomes que vieram da pesquisa ou do material; o que não foi identificado fica como não identificado.`); }
+  const semFerramenta = (op.ferramentas || []).filter(f => FERRAMENTAS[f]?.disponivel === false);
+  if (semFerramenta.length) {
+    const arq = ARQUIVO_SIMULADO.exec(String(texto || ''));
+    if (arq && !norm(entrada).includes(norm(arq[0]))) { falhas.push('invencao'); detalhes.push(`O resultado apresenta um arquivo ou link de mídia ("${limpar(arq[0], 40)}") que não foi gerado: a peça final não é produzida aqui.`); }
+    out.objetivo = { atingido: false, motivo: 'ferramenta_indisponivel', ferramentas: semFerramenta };
+  }
+  if (!out.objetivo && tabelasSemDados(texto)) out.objetivo = { atingido: false, motivo: 'tabela_sem_dados' };
   if (entregaMultipla(op)) {
     const ts = titulos(texto);
     const faltam = op.entregaveis.filter(e => !casa(ts, e));

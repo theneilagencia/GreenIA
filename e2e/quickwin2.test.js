@@ -125,7 +125,8 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.click('.sucesso a:has-text("Usar agora")');
   await p.waitForSelector('#entrada-qw');
   // O que enviar vem do plano do Quick Win (o material que cada execução recebe).
-  assert.match(await p.textContent('label[for=entrada-qw]'), /Envie: Documentos a comparar \(2\)\./);
+  // QA-10: sem IA, o material é o que o pedido nomeia ("compare A com B": os dois), não um rótulo de modelo.
+  assert.match(await p.textContent('label[for=entrada-qw]'), /Envie: Pedidos de compra; Notas de entrega\./);
   await p.fill('#entrada-qw', 'Pedido 882: 40 rolamentos. Nota 45.117: 38 rolamentos.');
   const antes = OR.chamadas.length;
   await p.click('#executar-btn');

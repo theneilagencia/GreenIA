@@ -71,27 +71,111 @@ const singular = p => (!p ? '' : /(r|s|z)es$/.test(p) ? p.slice(0, -2) : /oes$/.
 // Item que aponta para o próprio material ("este documento", "isso") não é entregável: é a entrada.
 const DEMONSTRATIVO = /^(este|esta|estes|estas|esse|essa|esses|essas|isso|isto|aquele|aquela|aqueles|aquelas)\b/;
 const itens = trecho => trecho.split(/,|\s+e\s+|\s+ou\s+/).map(x => x.trim().replace(/^(por|em|o|a|os|as|um|uma|uns|umas|seus?|suas?)\s+/, '').replace(/^(o|a|os|as)\s+/, '').trim()).filter(x => x.length >= 3 && !DEMONSTRATIVO.test(x));
-const VERBO_ENTREGA = /\b(?:destaque|destacar|identifique|identificar|liste|listar|aponte|apontar|extraia|extrair|monte|montar|gere|gerar|prepare|preparar|elabore|elaborar|produza|produzir|redija|redigir|indique|indicar|traga|entregue|crie|criar|sugira|sugerir|recomende|recomendar|transforme[^.;]*?\bem|transformar[^.;]*?\bem|organize[^.;]*?\b(?:em|por)|organizar[^.;]*?\b(?:em|por)|agrupe(?:[^.;]*?\bpor)?|agrupar(?:[^.;]*?\bpor)?|estruture[^.;]*?\bcom|estruturar[^.;]*?\bcom)\s+([^.;:]+)/g;
+// Leitura do pedido por orações (QA-10): cada verbo de tarefa abre uma oração, e a CLASSE do verbo diz o que o
+// objeto dele é. Verbos de entrega ("destaque riscos e multas") listam o que sai; verbos de resultado com "em" ou
+// "por" ("transforme a reunião em ata e decisões", "agrupe por motivo e prioridade") listam o que sai depois do
+// "em"/"por"; verbos de comparação pedem uma comparação estruturada; verbos de material ("analise este contrato")
+// dizem o que entra. É gramática do português, igual em qualquer área: nenhum setor, nenhum exemplo de teste.
+const V = s => s.split(' ');
+const VERBOS = {
+  entrega: V('destaque destacar identifique identificar liste listar aponte apontar extraia extrair monte montar gere gerar prepare preparar elabore elaborar produza produzir redija redigir indique indicar traga trazer entregue entregar crie criar sugira sugerir recomende recomendar explique explicar mapeie mapear calcule calcular proponha propor priorize priorizar estime estimar descreva descrever defina definir pesquise pesquisar levante levantar busque buscar encontre encontrar escreva escrever construa construir desenhe desenhar planeje planejar consolide consolidar'),
+  em: V('transforme transformar organize organizar padronize padronizar converta converter reúna reuna reunir junte juntar estruture estruturar divida dividir separe separar agrupe agrupar classifique classificar distribua distribuir resuma resumir sintetize sintetizar'),
+  compara: V('compare comparar confronte confrontar cruze cruzar'),
+  material: V('analise analisar leia ler revise revisar confira conferir verifique verificar avalie avaliar examine examinar audite auditar use usar considere considerar melhore melhorar corrija corrigir traduza traduzir ajuste ajustar atualize atualizar complete completar'),
+};
+const CLASSE = new Map(Object.entries(VERBOS).flatMap(([c, vs]) => vs.map(v => [v, c])));
+// Um verbo só abre oração no começo de uma frase ou depois de vírgula, ";", ":" ou "e" ("o ajuste" não é verbo).
+const ABRE = new RegExp(`(^|[.;:,\\n]\\s*|\\s(?:e|e depois|depois|e então|e entao)\\s+)(${[...CLASSE.keys()].join('|')})(?=\\s|$)`, 'g');
+// Verbo fora das listas ("quantifique as horas", "ranqueie os fornecedores", "simule o impacto"): pela forma do
+// imperativo (termina em -e ou -a) e pela sintaxe (vem no começo da oração e é seguido de artigo, demonstrativo,
+// número ou interrogativo). Vale como verbo de entrega: o objeto dele é o que sai.
+const NAO_VERBO = new Set(V('sobre desde entre conforme sempre frente parte grande nome base onde antes tarde pouca muita toda cada nenhuma alguma outra mesma própria propria apenas quase durante mediante perante ainda agora tabela lista planilha proposta pesquisa empresa equipe semana reunião reuniao ideia mensagem campanha pauta meta norma regra área area fase etapa'));
+const IMPERATIVO = /(^|[.;:,\n]\s*|\s(?:e|e depois|depois)\s+)([a-zà-ú]{4,}(?:e|a))(?=\s+(?:o|a|os|as|um|uma|uns|umas|est[ae]s?|ess[ae]s?|cada|quais|qual|se|todos|todas|três|tres|dois|duas|\d))/g;
+export function oracoesDoPedido(pedido) {
+  const t = String(pedido || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const achados = [...t.matchAll(ABRE)].map(m => ({ i: m.index + m[1].length, verbo: m[2] }));
+  for (const m of t.matchAll(IMPERATIVO)) {
+    const i = m.index + m[1].length;
+    if (!NAO_VERBO.has(m[2]) && !CLASSE.has(m[2]) && !achados.some(a => a.i === i)) achados.push({ i, verbo: m[2], desconhecido: true });
+  }
+  achados.sort((a, b) => a.i - b.i);
+  return achados.map((x, k) => {
+    const fim = k + 1 < achados.length ? achados[k + 1].i : t.length;
+    const objeto = t.slice(x.i + x.verbo.length, fim).replace(/(\s+(e|e depois|depois|e então|e entao))?[\s,.;:]*$/, '').split(/[.;]/)[0].trim();
+    return { verbo: x.verbo, classe: CLASSE.get(x.verbo) || 'entrega', objeto };
+  });
+}
 // "relatório executivo com fatos, riscos e decisões": a lista depois do "com" também é pedida.
 const LISTA_COM = /\bcom\s+([^.;:]+)/;
-const CORTE = /\s+(?:considerando|com base|levando|para|sobre|a partir|usando|que|do mes|do mês|de cada|com\s)/;
+const CORTE = /\s+(?:considerando|com base|levando|para|sobre|a partir|usando|que|do mes|do mês|de cada|em termos|dest[ae]s?|dess[ae]s?|nest[ae]s?|ness[ae]s?)\b/;
+const CORTE_SEM_QUE = /\s+(?:considerando|com base|levando|para|sobre|a partir|usando|do mes|do mês|de cada|em termos|dest[ae]s?|dess[ae]s?|nest[ae]s?|ness[ae]s?)\b/;
+const NOME_VAZIO = /^(pontos?|itens?|casos?|aspectos?|questões|questoes|trechos?|coisas?|partes?|elementos?|informações|informacoes)$/;
+const INTERROGATIVO = /^(quais|qual|como|onde|quando|por que|porque|por quê|se)\b/;
+// "em cinco pontos", "em 3 parágrafos": é formato, não entregável.
+const FORMATO = /^(\d{1,3}|um|uma|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez|poucos?|poucas?)\s+(pontos?|tópicos?|topicos?|linhas?|parágrafos?|paragrafos?|frases?|slides?|páginas?|paginas?|itens|bullets?)\b/;
+const VAGO_OBJ = /^(isso|isto|aquilo|algo|tudo|aqui|o que (eu )?(mandei|enviei)|para mim|pra mim)\b/;
+// Nome do trabalho quando o pedido não lista nenhum resultado ("Analise o histórico de manutenção").
+const NOME_DO_VERBO = { analise: 'Análise', analisar: 'Análise', examine: 'Análise', examinar: 'Análise', avalie: 'Avaliação', avaliar: 'Avaliação', revise: 'Revisão', revisar: 'Revisão',
+  confira: 'Conferência', conferir: 'Conferência', verifique: 'Conferência', verificar: 'Conferência', audite: 'Auditoria', auditar: 'Auditoria', leia: 'Leitura comentada', ler: 'Leitura comentada',
+  melhore: 'Versão melhorada', melhorar: 'Versão melhorada', corrija: 'Versão corrigida', corrigir: 'Versão corrigida', traduza: 'Tradução', traduzir: 'Tradução', ajuste: 'Versão ajustada', ajustar: 'Versão ajustada',
+  atualize: 'Versão atualizada', atualizar: 'Versão atualizada', complete: 'Versão completa', completar: 'Versão completa', compare: 'Comparação', comparar: 'Comparação', cruze: 'Cruzamento', cruzar: 'Cruzamento', confronte: 'Comparação', confrontar: 'Comparação' };
+const TIPO_DO_NOME = { 'Análise': 'analise', 'Avaliação': 'analise', 'Revisão': 'lista', 'Conferência': 'checklist', 'Auditoria': 'checklist', Comparação: 'matriz', Cruzamento: 'tabela' };
+function itensDaOracao({ classe, objeto, verbo = '' }) {
+  if (!objeto || VAGO_OBJ.test(objeto)) return [];
+  // "Consolide a operação do mês: resumo, riscos e ata": antes dos dois-pontos está o assunto; depois, o que sai.
+  const dois = objeto.indexOf(':');
+  if (dois >= 0 && classe !== 'material') return itens(objeto.slice(dois + 1).split(CORTE)[0]).filter(x => !FORMATO.test(x));
+  if (classe === 'entrega') {
+    // "Extraia de cada nota fiscal o fornecedor, a data e o valor": "de cada nota fiscal" é a origem (material).
+    const origem = /^(?:de|do|da|dos|das)\s+(?:cada\s+)?[^,]+?\s+(?=(?:o|a|os|as)\s)/.exec(objeto);
+    if (origem && /^(extra|tir|retir|copi|pux)/.test(verbo)) return itensDaOracao({ classe, objeto: objeto.slice(origem[0].length), verbo: '' });
+    if (INTERROGATIVO.test(objeto)) return [objeto.replace(/\s+/g, ' ').slice(0, 60)];
+    const com = LISTA_COM.exec(objeto);
+    // Em "tabela/matriz/planilha/quadro/lista com A, B e C" a lista são os CAMPOS (colunas), não entregáveis.
+    const comLista = com && /,|\s+e\s+/.test(com[1].split(CORTE)[0]);
+    let cabeca = (comLista ? objeto.slice(0, com.index) : objeto).split(CORTE)[0];
+    // "os pontos que exigem decisão": o nome sozinho não diz nada; a oração que o qualifica é o entregável.
+    if (itens(cabeca).every(x => NOME_VAZIO.test(x))) cabeca = (comLista ? objeto.slice(0, com.index) : objeto).split(CORTE_SEM_QUE)[0];
+    const deCampos = /\b(tabela|matriz|planilha|quadro|lista|relacao|relação|cadastro|formulario|formulário)\b/.test(cabeca);
+    return [...itens(cabeca), ...(comLista && !deCampos ? itens(com[1].split(CORTE)[0]) : [])];
+  }
+  if (classe === 'em') {
+    const m = new RegExp(`\\s(?:em|por|entre${/^estrutur/.test(verbo) ? '|com' : ''})\\s+(.+)$`).exec(` ${objeto}`);
+    // O que vem depois do "em" é lido como uma entrega ("em uma tabela com Cliente, Valor e Status": os campos).
+    if (m) return itensDaOracao({ classe: 'entrega', objeto: m[1] }).filter(x => !FORMATO.test(x));
+    // Sem "em/por": em "agrupe os motivos, frequência e prioridade" o objeto já são os grupos; em "resuma os
+    // pontos de insatisfação" (plural, que não é um material), o que sai. "Resuma o documento" é só o material.
+    if (/^(agrup|classific|separ|divid|distribu)/.test(verbo) || (/^(resum|sintetiz)/.test(verbo) && /^(os|as)\s/.test(objeto) && !ehMaterial(objeto.replace(/^(os|as)\s+/, '')))) return itensDaOracao({ classe: 'entrega', objeto });
+    return [];
+  }
+  return [];
+}
 export function invariantesDoPedido(pedido) {
   const t = String(pedido || '').toLowerCase();
-  const q = /\b(\d{1,2}|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(\p{L}+)/u.exec(t);
-  const quantidade = q && !UNIDADES.test(q[2]) ? { n: Number(q[1]) || NUMEROS[q[1]], de: q[2] } : null;
+  // Quantidade (QA-05): de todas as contagens do pedido, vale a que conta um MATERIAL ("os 2 relatórios"); sem
+  // nenhuma, a primeira que não é unidade de tempo nem de formato ("em 3 parágrafos", "6 meses").
+  const contagens = [...t.matchAll(/\b(\d{1,2}|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(?:(?:principais|primeiros|primeiras|últimos|ultimos|últimas|ultimas|maiores|menores)\s+)?(\p{L}+)/gu)]
+    .filter(m => !UNIDADES.test(m[2]) && !FORMATO.test(`${m[1]} ${m[2]}`));
+  const q = contagens.find(m => MATERIAL.test(norm(m[2]))) || contagens[0];
+  const quantidade = q ? { n: Number(q[1]) || NUMEROS[q[1]], de: q[2] } : null;
   const cr = /\b(?:considerando|com base em|levando em conta|em termos de|pelos critérios de|pelos criterios de)\s+([^.;]+)/.exec(t);
   const criterios = cr ? itens(cr[1]).slice(0, 8) : [];
+  const oracoes = oracoesDoPedido(pedido);
   const entregaveis = [];
-  for (const m of t.matchAll(VERBO_ENTREGA)) {
-    const com = LISTA_COM.exec(m[1]);
-    // Em "tabela/matriz/planilha/quadro/lista com A, B e C" a lista são os CAMPOS (colunas), não entregáveis.
-    const cabeca = m[1].split(CORTE)[0];
-    const deCampos = /\b(tabela|matriz|planilha|quadro|lista|relacao|relação|cadastro|formulario|formulário)\b/.test(cabeca);
-    const trechos = [cabeca, ...(com && !deCampos && /,|\s+e\s+/.test(com[1]) ? [com[1].split(CORTE)[0]] : [])];
-    for (const trecho of trechos) for (const x of itens(trecho)) if (!VAGOS.has(norm(x)) && !CANAIS_DE(x)) entregaveis.push(x);
-  }
-  return { quantidade, criterios, entregaveis: [...new Set(entregaveis)].slice(0, 6), comparacao: /^\s*(compar|confront)/.test(norm(pedido)) && criterios.length > 0,
-    pesquisa: pedePesquisaWeb(pedido) };
+  for (const o of oracoes) for (const x of itensDaOracao(o)) if (!VAGO_OBJ.test(x) && !VAGOS.has(norm(x)) && !CANAIS_DE(x)) entregaveis.push(x);
+  // Resultado que o próprio verbo nomeia ("resuma", "compare"), quando o pedido não lista outro para ele.
+  const implicitos = [];
+  if (oracoes.some(o => ['resuma', 'resumir', 'sintetize', 'sintetizar'].includes(o.verbo) && !itensDaOracao(o).length)) implicitos.push({ tipo: 'resumo', rotulo: 'Resumo' });
+  const compara = oracoes.find(o => o.classe === 'compara');
+  // A comparação leva o objeto dela no nome ("Comparação: orçamento aprovado com o realizado por centro de custo").
+  // "A com B e diga o que não bate": o par comparado termina no "com B".
+  const objetoDaComparacao = compara?.objeto.replace(/^(est[ae]s?|ess[ae]s?|[oa]s?|um|uma)\s+/, '').split(CORTE)[0].replace(/^(.+?\scom\s.+?)\s+e\s+.*$/, '$1').trim();
+  const vago = !entregaveis.length && oracoes.length > 0 && oracoes.every(o => !o.objeto || VAGO_OBJ.test(o.objeto) || DEMONSTRATIVO.test(o.objeto) && o.objeto.split(' ').length <= 1);
+  const principal = oracoes.find(o => NOME_DO_VERBO[o.verbo]);
+  return { quantidade, criterios, entregaveis: [...new Set(entregaveis)].slice(0, 6),
+    comparacao: (/^\s*(compar|confront)/.test(norm(pedido)) && criterios.length > 0) || (!!compara && (criterios.length > 0 || /\s(com|e|entre)\s|s\b/.test(compara.objeto))),
+    pesquisa: pedePesquisaWeb(pedido), implicitos, vago, principal: principal ? NOME_DO_VERBO[principal.verbo] : null,
+    rotuloComparacao: objetoDaComparacao ? cap(`comparação: ${objetoDaComparacao}`).slice(0, 60) : 'Matriz comparativa' };
 }
 const MATERIAL = /^(propost|fornecedor|documento|contrat|curricul|candidat|arquivo|planilh|cotac|orcament|relatori|apolice|nota|pedido|versao|vers|anexo|edita|laudo|parecer|fatura|boleto)/;
 const tem = (texto, palavras) => palavras.some(p => new RegExp(`(^|[^a-z0-9])${p}`).test(` ${norm(texto)} `));
@@ -102,6 +186,10 @@ const raizes = x => norm(x).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PA
 const textoDosEntregaveis = op => norm((op.entregaveis || []).flatMap(e => [e.rotulo, ENTREGAVEIS[e.tipo]?.rotulo, ...(e.config?.colunas || [])]).join(' '));
 const textoCompleto = op => norm([...(op.entregaveis || []).flatMap(e => [e.rotulo, ENTREGAVEIS[e.tipo]?.rotulo, e.descricao, ...(e.config?.colunas || [])]), ...(op.criterios || []), ...(op.etapas || []).map(x => x.texto)].join(' '));
 const cobre = (texto, item) => { const r = raizes(item); return r.length > 0 && r.some(w => texto.includes(w)); };
+// Item pedido explicitamente: coberto só se o NÚCLEO dele (o primeiro nome, sem qualificador) está no plano. "Casos
+// acima de 20 horas" não é coberto por "Horas extras por departamento".
+const QUALIFICADORES = new Set(['maior', 'menor', 'princ', 'relev', 'possi', 'prova', 'impor', 'novos', 'novas', 'atuai', 'recen', 'mais', 'todos', 'todas', 'cada', 'outro', 'outra', 'event', 'ultim', 'prime']);
+const cobreNucleo = (texto, item) => { const r = raizes(item).filter(w => !QUALIFICADORES.has(w)); return r.length > 0 ? texto.includes(r[0]) : cobre(texto, item); };
 const tipoPorPalavra = item => Object.entries(ENTREGAVEIS).find(([id, e]) => id !== 'outro' && raizes(item).some(w => norm(e.rotulo).startsWith(w) || w.startsWith(norm(id).slice(0, 5))))?.[0] || 'lista';
 // Garante as invariantes no plano (só acrescenta; nada que a IA trouxe é tirado). Devolve o plano e o que mudou.
 // `soEntregaveis`: o plano heurístico tem etapas genéricas do arquétipo ("prazos", "riscos"); elas não contam como
@@ -119,7 +207,9 @@ export function garantirInvariantes(op, pedido, { soEntregaveis = false } = {}) 
     alvoQtd.quantidade = inv.quantidade.n; corrigidas.push('quantidade');
   }
   if (inv.comparacao && !novo.entregaveis.some(e => ['tabela', 'matriz'].includes(e.tipo))) {
-    novo.entregaveis.unshift({ id: 'inv_cmp', tipo: 'matriz', rotulo: 'Matriz comparativa', canal: null, config: {} }); corrigidas.push('comparacao');
+    // Comparação como único resultado pedido: é uma tabela (o formato clássico); com outros resultados, a matriz.
+    const sozinha = !novo.entregaveis.length && !inv.entregaveis.length;
+    novo.entregaveis.unshift({ id: 'inv_cmp', tipo: sozinha ? 'tabela' : 'matriz', rotulo: inv.rotuloComparacao || 'Matriz comparativa', canal: null, config: {} }); corrigidas.push('comparacao');
   }
   if (inv.criterios.length) {
     const tab = novo.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
@@ -131,12 +221,54 @@ export function garantirInvariantes(op, pedido, { soEntregaveis = false } = {}) 
       novo.criterios = [...(novo.criterios || []), `Considera todos estes critérios: ${inv.criterios.join(', ')}.`]; corrigidas.push('criterios');
     }
   }
-  for (const item of inv.entregaveis) if (!cobre(textoDoPlano(novo), item)) {
+  for (const item of inv.entregaveis) if (!cobreNucleo(textoDoPlano(novo), item)) {
     novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: tipoPorPalavra(item), rotulo: cap(item).slice(0, 60), canal: null, config: {} }); corrigidas.push(`entregavel:${item}`);
   }
+  for (const x of inv.implicitos) if (!novo.entregaveis.some(e => e.tipo === x.tipo) && !cobre(textoDoPlano(novo), x.rotulo)) {
+    novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: x.tipo, rotulo: x.rotulo, canal: null, config: {} }); corrigidas.push(`entregavel:${x.rotulo}`);
+  }
   if (inv.pesquisa && !novo.ferramentas.includes('pesquisa_web')) { novo.ferramentas.push('pesquisa_web'); corrigidas.push('pesquisa'); }
+  // Nada a entregar que o pedido nomeie: o mínimo, literal. O trabalho que o verbo principal nomeia ("Análise"), com
+  // o pedido como descrição; sem verbo reconhecível, um entregável "outro" com o próprio pedido. Nunca um relatório
+  // genérico de modelo (QA-10).
+  if (!novo.entregaveis.length && !novo.canais?.length) {
+    const literal = limpar(String(pedido).split('\n')[0], 160);
+    novo.entregaveis.push(inv.principal
+      ? { id: 'inv_min', tipo: TIPO_DO_NOME[inv.principal] || 'analise', rotulo: inv.principal, descricao: literal, canal: null, config: {} }
+      : { id: 'inv_min', tipo: 'outro', canal: null, config: { detalhe: literal } });
+    corrigidas.push('minimo');
+  }
+  // Pedido sem objeto ("Melhore isso.") ou cuja intenção não deu para ler (o mínimo literal): a única pergunta que
+  // importa, obrigatória. Nunca um plano que finge saber o que fazer.
+  const literalSo = novo.entregaveis.length === 1 && novo.entregaveis[0].id === 'inv_min' && novo.entregaveis[0].tipo === 'outro';
+  if ((inv.vago || literalSo) && !(novo.lacunas || []).some(l => l.obrigatoria)) {
+    novo.lacunas = [{ id: 'objetivo', pergunta: 'O que exatamente deve ser feito, e com qual material?', motivo: 'O pedido não diz sobre o que é o trabalho nem o que deve sair dele.', exemplo: 'Ex.: melhorar a clareza do e-mail para clientes que vou colar; manter o tom formal.', obrigatoria: true }, ...(novo.lacunas || [])];
+    corrigidas.push('lacuna');
+  }
+  // QA-06: o que o Quick Win PRODUZ (roteiro, briefing, conceito...) nunca é material obrigatório, a não ser que o
+  // pedido diga que vem pronto ("a partir do roteiro enviado"). A peça final que a GreenIA não gera (vídeo) vira o
+  // pacote de produção, e a ferramenta indisponível fica declarada: o resultado é parcial, nunca um arquivo simulado.
+  const produzidos = norm(novo.entregaveis.map(e => `${e.rotulo || ''} ${ENTREGAVEIS[e.tipo]?.rotulo || ''}`).join(' '));
+  for (const x of novo.entradas || []) {
+    const palavra = PRODUZIVEL.exec(norm(x.rotulo))?.[0];
+    const doPedido = palavra && new RegExp(`(a partir|com base|usando|use|anexad|enviad|recebid|que (vou|vamos) (enviar|mandar))[^.;]{0,30}${palavra}|${palavra}\\w*\\s+(enviad|anexad|recebid|pront|aprovad)`).test(norm(pedido));
+    if (x.obrigatoria && palavra && !doPedido && (PRODUZIVEL.test(produzidos) || pedeVideoFinal(pedido))) { x.obrigatoria = false; corrigidas.push('produzivel'); }
+  }
+  if (pedeVideoFinal(pedido) && !novo.entregaveis.some(e => e.canal)) {
+    if (!novo.ferramentas.includes('geracao_video')) { novo.ferramentas.push('geracao_video'); corrigidas.push('ferramenta'); }
+    for (const p of PACOTE_VIDEO) if (!novo.entregaveis.some(e => e.tipo === p.tipo && (!p.rotulo || norm(e.rotulo || '').includes(norm(p.rotulo).slice(0, 6))))) {
+      novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, canal: null, config: {}, ...p }); corrigidas.push(`entregavel:${p.rotulo || p.tipo}`);
+    }
+    novo.entregaveis = novo.entregaveis.filter((e, i, a) => !(e.tipo === 'video' && !e.rotulo && a.some(o => o !== e && o.tipo === 'video')));
+  }
   return { op: corrigidas.length ? limparOperacao(novo) : op, corrigidas };
 }
+const PRODUZIVEL = /\b(roteiro|briefing|storyboard|conceito|locucao|narracao|copy|legenda|prompt|cenas?|texto do (post|anuncio|video)|mensage(m|ns) principa\w*)\b/;
+const pedeVideoFinal = pedido => /\b(video|videos|filme|animacao|motion)\b/.test(norm(pedido)) && /\b(final|pronto|finalizado|editado|completo)\b|\b(crie|criar|produza|produzir|gere|gerar|faca|fazer|edite|editar|monte|montar|grave|gravar)\s+(o|a|um|uma|os|as)?\s*(video|videos|filme|animacao)\b/.test(norm(pedido));
+// Pacote de produção de um vídeo (o que a GreenIA entrega no lugar do arquivo de vídeo).
+const PACOTE_VIDEO = [{ tipo: 'outro', rotulo: 'Conceito', config: { detalhe: 'ideia central, mensagem e tom' } }, { tipo: 'roteiro', rotulo: 'Roteiro' },
+  { tipo: 'outro', rotulo: 'Storyboard e cenas', config: { detalhe: 'cena a cena, com o que aparece e o tempo' } }, { tipo: 'texto', rotulo: 'Locução' },
+  { tipo: 'video', rotulo: 'Briefing de produção' }, { tipo: 'outro', rotulo: 'Prompt para ferramenta de vídeo', config: { detalhe: 'prompt para uma ferramenta de geração de vídeo' } }];
 
 // Resposta da IA -> plano validado. null: ilegível, sem entregável ou com algo que parece segredo (nada é inventado).
 export function lerInterpretacao(texto, pedido = '') {
@@ -144,13 +276,56 @@ export function lerInterpretacao(texto, pedido = '') {
   if (!m) return null;
   let d; try { d = JSON.parse(m[0]); } catch { return null; }
   if (!d || typeof d !== 'object' || !Array.isArray(d.entregaveis)) return null;
-  const base = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }), pedido);
+  // QA-12: correções estruturais (dependência inexistente, para si mesma ou para frente) não são silenciosas: cada
+  // uma entra como metadado técnico (tipo, ação e motivo, sem texto do plano) e a validação sabe que houve.
+  const ajustes = [];
+  const base = garantirCanais(limparOperacao({ ...d, canais: [], v: 2, origem: 'ia' }, ajustes), pedido);
   if (!base?.entregaveis.length) return null;
   // Cobertura só pelos entregáveis (QA-03): item pedido que aparece só numa etapa não vira seção conferível.
-  const { op, corrigidas } = pedido ? garantirInvariantes(base, pedido, { soEntregaveis: true }) : { op: base, corrigidas: [] };
+  const r = pedido ? garantirInvariantes(base, pedido, { soEntregaveis: true }) : { op: base, corrigidas: [] };
+  const { op } = r, corrigidas = [...r.corrigidas, ...ajustes.map(a => `estrutura:${a.acao}_${a.motivo}`)];
   if (contemCredencial(JSON.stringify(op))) return null;
   if (corrigidas.length) Object.defineProperty(op, 'corrigidas', { value: corrigidas, enumerable: false });
+  if (ajustes.length) Object.defineProperty(op, 'ajustes', { value: ajustes, enumerable: false });
   return op;
+}
+
+// Plano sem IA (QA-10): as etapas são as orações do próprio pedido, na ordem (e não um procedimento genérico de
+// modelo), e o material é o que o pedido nomeia ("esta planilha", "os currículos", "a transcrição"), com o tipo
+// que o nome dele diz. O que não dá para ler fica como estava no plano conservador.
+const MATERIAL_TIPO = [[/^(planilh|tabel|base de dados|cadastr|inventari|extrat|mediç|medic|backlog|histori|registr|lancament|lançament)/, 'planilha'],
+  [/^(transcri|reuni|ata\b|atas\b|notas d[oa]s? (reuni|comit|conselh))/, 'transcricao'],
+  [/^(contrat|propost|document|relatóri|relatori|polític|politic|procediment|manua|apólic|apolic|currícul|curricul|laudo|parecer|edita|nota|pedido|instruç|instruc|requisiç|requisic|cláusul|clausul|orçament|orcament|cotaç|cotac|fatura|boleto|apresentaç|apresentac|pesquisa)/, 'documento'],
+  [/^(anotaç|anotac|mensage|e-?mail|reclamaç|reclamac|comentári|comentari|respost|texto|chamad|ocorrênci|ocorrenci|feedback|avaliaç|avaliac)/, 'texto']];
+const tipoDoMaterial = nome => MATERIAL_TIPO.find(([re]) => re.test(nome))?.[1] || null;
+// O objeto é material quando o nome diz (planilha, contrato...), quando é contado ("os três estudos") ou quando vem
+// anexado, enviado ou colado.
+const ANEXADO = /\b(anexad[oa]s?|em anexo|enviad[oa]s?|recebid[oa]s?|colad[oa]s?|abaixo)\b/;
+const CONTADO = /^(\d{1,2}|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez)\s/;
+const ehMaterial = nome => !!tipoDoMaterial(nome) || CONTADO.test(nome) || ANEXADO.test(nome);
+export function comLeituraDoPedido(op, pedido) {
+  if (!op) return op;
+  const oracoes = oracoesDoPedido(pedido).filter(o => o.objeto);
+  if (!oracoes.length) return op;
+  const etapas = [...oracoes.map(o => ({ texto: cap(`${o.verbo} ${o.objeto}`).slice(0, 160) })), { texto: 'Conferir que cada item pedido foi entregue e apontar o que faltou no material' }];
+  const materiais = [];
+  for (const o of oracoes) {
+    // "Estruture uma apresentação", "monte um checklist": artigo indefinido é o que se produz, não o que entra.
+    const origem = /^(?:de|do|da|dos|das)\s+(?:cada\s+)?([^,]+?)\s+(?=(?:o|a|os|as)\s)/.exec(o.objeto);
+    if (o.classe === 'entrega' && origem) { const t = tipoDoMaterial(origem[1]) || 'documento'; if (!materiais.some(m => m.tipo === t)) materiais.push({ tipo: t, rotulo: cap(origem[1]).slice(0, 80), obrigatoria: true }); continue; }
+    if ((o.classe === 'entrega' && !/^(est[ae]s?|ess[ae]s?|[oa]s?)\s/.test(o.objeto)) || /^(um|uma|uns|umas)\s/.test(o.objeto)) continue;
+    // O material é o objeto do verbo, até onde começa o resultado ("em ata...", "e identifique...").
+    const nome = o.objeto.replace(/^se\s+/, '').replace(/^(est[ae]s?|ess[ae]s?|[oa]s?|um|uma|seus?|suas?|nossos?|nossas?)\s+/, '').split(/\s(?:em|por|e|para|considerando|com base|está|esta|estão|estao|tem|têm|foi|foram)\s/)[0].trim();
+    // "Compare A com B", "cruze A com B": dois materiais.
+    const par = o.classe === 'compara' && /\scom\s/.test(nome);
+    const nomes = par ? nome.split(/\s+com\s+(?:[oa]s?\s+)?/).slice(0, 2) : [nome];
+    for (const n of nomes) {
+      const tipo = tipoDoMaterial(n) || (par || CONTADO.test(n) || ANEXADO.test(n) ? 'documento' : null);
+      if (tipo && !materiais.some(m => norm(m.rotulo) === norm(n))) materiais.push({ tipo, rotulo: cap(n).slice(0, 80), obrigatoria: true });
+    }
+  }
+  if (materiais.length) etapas.unshift({ texto: `Ler todo o material: ${materiais.map(m => m.rotulo).join('; ')}`.slice(0, 160) });
+  return limparOperacao({ ...op, etapas, ...(materiais.length && !(op.canais || []).length ? { entradas: materiais.slice(0, 3) } : {}) });
 }
 
 // Plano do pedido: interpretado pela IA (governado) ou heurístico. Um plano já interpretado para o mesmo pedido
@@ -164,7 +339,7 @@ export async function interpretar(app, pessoa, { descricao, processo = '', qw = 
   // formato genérico sem os entregáveis que o próprio pedido lista.
   const heuristico = motivo => {
     const pedido = `${descricao}\n${processo}`;
-    return { chave, fonte: 'heuristica', motivo, operacao: garantirInvariantes(planoHeuristico(pedido), pedido, { soEntregaveis: true }).op };
+    return { chave, fonte: 'heuristica', motivo, operacao: garantirInvariantes(comLeituraDoPedido(planoHeuristico(pedido), descricao), pedido, { soEntregaveis: true }).op };
   };
   if (!String(descricao).trim()) return { chave, fonte: 'vazio', operacao: null };
   const guardada = json(qw?.especificacao, null)?.origem?.interpretacao;
@@ -173,20 +348,21 @@ export async function interpretar(app, pessoa, { descricao, processo = '', qw = 
   // fazia o cache, que é do processo, ser um só para todas as empresas).
   const escopo = `${app.tenant?.companyId ?? app.tenant?.id ?? ''}:${chave}`;
   const memo = cache.get(escopo);
-  if (memo) return { chave, fonte: 'ia', operacao: memo, cache: true };
+  if (memo) return { chave, fonte: 'ia', operacao: memo.op, cache: true, ...(memo.estrutura ? { ajustes_estruturais: memo.estrutura } : {}) };
   const r = await chamarGovernado(app, pessoa, { conteudo: `${descricao}\n${processo}`, mensagens: mensagensInterpretacao(descricao, processo), qw, origem: ORIGEM_INTERPRETACAO });
   if (r.recusado || r.falhou) {
     registrar(app, 'quickwin.interpretation_skipped', pessoa.id, { quick_win: qw?.id ?? null, motivo: r.motivo || 'falha_na_execucao' });
     return heuristico(r.motivo || 'falha_na_execucao');
   }
   const op = lerInterpretacao(r.texto, `${descricao}\n${processo}`);
+  const estrutura = op?.ajustes?.length ? { normalizadas: op.ajustes.filter(a => a.acao === 'normalizada').length, removidas: op.ajustes.filter(a => a.acao === 'removida').length } : null;
   registrar(app, 'quickwin.interpreted', pessoa.id, { quick_win: qw?.id ?? null, roteamento: r.rotaId, legivel: !!op,
     entregaveis: op?.entregaveis.length ?? 0, entradas: op?.entradas?.length ?? 0, lacunas: op?.lacunas?.length ?? 0, ferramentas: op?.ferramentas || [],
     // Só o tipo de cada correção: o item ("entregavel:multas rescisórias") é texto do pedido e não vai para a
     // auditoria (QA-07). A contagem diz quanto foi corrigido.
-    invariantes: [...new Set((op?.corrigidas || []).map(c => c.split(':')[0]))], invariantes_n: op?.corrigidas?.length || 0 });
+    invariantes: [...new Set((op?.corrigidas || []).map(c => c.split(':')[0]))], invariantes_n: op?.corrigidas?.length || 0, ...(estrutura ? { estrutura } : {}) });
   if (!op) return heuristico('resposta_invalida');
-  cache.set(escopo, op);
+  cache.set(escopo, { op, estrutura });
   if (cache.size > 300) cache.delete(cache.keys().next().value);
-  return { chave, fonte: 'ia', operacao: op };
+  return { chave, fonte: 'ia', operacao: op, ...(estrutura ? { ajustes_estruturais: estrutura } : {}) };
 }

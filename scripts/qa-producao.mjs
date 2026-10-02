@@ -1,7 +1,6 @@
 // QA dos Quick Wins com IA real, em produção, pelo fluxo de quem usa. Roda na máquina de quem conduz o QA:
 //
-//   node scripts/qa-producao.mjs                (padrão: https://greenia.theneil.com.br)
-//   QA_BASE=https://... QA_CANAL=chrome node scripts/qa-producao.mjs
+//   QA_BASE=https://<endereço da GreenIA> node scripts/qa-producao.mjs   (QA_CANAL=chrome por padrão)
 //
 // Abre um navegador COM JANELA. A pessoa entra com o próprio código de acesso, na tela da GreenIA; o script nunca
 // lê, pede ou guarda o código, o cookie, o CSRF nem a chave do OpenRouter. Todas as chamadas são feitas DE DENTRO da
@@ -32,7 +31,8 @@ const local = AUTOTESTE ? await (async () => {
   await admin.post('/api/admin/pessoas', { email: process.env.QA_CONTA || 'vinicius@apymine.com', nome: 'QA', areas: [{ id: a.id, responsavel: true }] });
   return { S, OR };
 })() : null;
-const BASE = (AUTOTESTE ? local.S.base : process.env.QA_BASE || 'https://greenia.theneil.com.br').replace(/\/$/, '');
+if (!AUTOTESTE && !process.env.QA_BASE) { console.log('Informe o endereço da GreenIA em QA_BASE (ex.: QA_BASE=https://seu-endereco node scripts/qa-producao.mjs).'); process.exit(1); }
+const BASE = (AUTOTESTE ? local.S.base : process.env.QA_BASE).replace(/\/$/, '');
 const CONTA = process.env.QA_CONTA || 'vinicius@apymine.com';
 const EMPRESA = process.env.QA_EMPRESA || '';
 // QA_CODIGO_FIFO: o código de acesso chega por um canal local (FIFO) e vai direto para o campo da tela de login;

@@ -5,3 +5,5 @@ dados/
 *.sqlite-shm
 .env
 capturas/tmp/
+qa-producao-saida/
+qa-candidato-saida/

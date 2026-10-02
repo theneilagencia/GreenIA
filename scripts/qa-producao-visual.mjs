@@ -13,8 +13,10 @@ import { join } from 'node:path';
 const BASE = String(process.env.QA_BASE || '').replace(/\/$/, ''), EMPRESA = process.env.QA_EMPRESA || '', FIFO = process.env.QA_CODIGO_FIFO || '';
 const CONTA = process.env.QA_CONTA || 'vinicius@apymine.com';
 if (!BASE || !FIFO) { console.log('Informe QA_BASE e QA_CODIGO_FIFO.'); process.exit(1); }
-const SAIDA = join(process.cwd(), 'qa-producao-saida', `visual-${new Date().toISOString().replace(/[:.]/g, '-')}`); mkdirSync(SAIDA, { recursive: true });
-const R = { base: BASE, criados: [], casos: [], regressao: [], exclusao: {}, erros: [] };
+const RAIZ = join(process.cwd(), 'qa-producao-saida', `visual-${new Date().toISOString().replace(/[:.]/g, '-')}`); mkdirSync(RAIZ, { recursive: true });
+let SAIDA = RAIZ;
+let R = { base: BASE, criados: [], casos: [], regressao: [], exclusao: {}, erros: [] };
+const CRIADOS = [];
 const salvar = () => writeFileSync(join(SAIDA, 'relatorio.json'), JSON.stringify(R, null, 2));
 const log = (...a) => console.log(...a);
 
@@ -50,18 +52,13 @@ async function enviar(convId, corpo) {
   }
 }
 if (EMPRESA) await pedir('GET', `/${EMPRESA}/entrar`, undefined, 'manual');
-// Código vencido ou recusado: pede outro e espera de novo pelo canal local (até 3 tentativas).
-let e, d = {};
-for (let tentativa = 1; ; tentativa++) {
-  const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
-  if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status); process.exit(1); }
-  log('CODIGO_SOLICITADO');
-  e = await pedir('POST', '/api/login/entrar', { email: CONTA, codigo: readFileSync(FIFO, 'utf8').trim() });
-  d = await e.json().catch(() => ({}));
-  if (e.status === 200) break;
-  log('LOGIN_RECUSADO', e.status, String(d.mensagem || d.erro || '').slice(0, 200));
-  if (tentativa >= 3) process.exit(1);
-}
+// Login único: o código chega uma vez pelo FIFO, vai direto para o login e não é guardado nem repetido.
+const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
+if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status); process.exit(1); }
+log('CODIGO_SOLICITADO');
+const e = await pedir('POST', '/api/login/entrar', { email: CONTA, codigo: readFileSync(FIFO, 'utf8').trim() });
+const d = await e.json().catch(() => ({}));
+if (e.status !== 200) { log('LOGIN_RECUSADO', e.status, String(d.mensagem || d.erro || '').slice(0, 200)); process.exit(1); }
 csrf = d.csrf; await ciencia().catch(() => {});
 const eu = (await api('GET', '/api/eu')).dados;
 if (String(eu.pessoa?.email).toLowerCase() !== CONTA) { log('Conta inesperada. Parando.'); process.exit(1); }
@@ -70,30 +67,6 @@ R.versao = (await api('GET', '/api/saude')).dados?.versao || null;
 const perm = eu.quickWins || {};
 const destino = perm.areas?.length ? { areas: [perm.areas[0].id] } : perm.todaEmpresa ? { toda_empresa: true } : null;
 if (!perm.criar || !destino) { log('A conta não pode criar Quick Wins.'); process.exit(1); }
-
-// QA_CONVERSAS=39,40: guarda o texto das respostas e o modelo editável dos artefatos de rodadas anteriores (material
-// fictício), para reproduzir localmente. QA_ESPERAR=1: depois disso, espera um sinal no mesmo FIFO (o deploy da
-// correção) antes de rodar os casos, mantendo a sessão viva.
-if (process.env.QA_CONVERSAS) {
-  mkdirSync(join(SAIDA, 'antigas'), { recursive: true });
-  for (const id of process.env.QA_CONVERSAS.split(',').map(Number).filter(Boolean)) {
-    const c = await api('GET', `/api/conversas/${id}`);
-    if (c.status !== 200) { log(`conversa ${id}: ${c.status}`); continue; }
-    const arts = [];
-    for (const a of c.dados.artefatos || []) arts.push((await api('GET', `/api/artefatos/${a.id}`)).dados);
-    writeFileSync(join(SAIDA, 'antigas', `${id}.json`), JSON.stringify({ mensagens: c.dados.mensagens.map(m => ({ papel: m.papel, texto: m.texto })), artefatos: arts }, null, 1));
-  }
-  log('ANTIGAS_SALVAS');
-}
-if (process.env.QA_ESPERAR === '1') {
-  log('AGUARDANDO_SINAL');
-  const vivo = setInterval(() => api('GET', '/api/eu').catch(() => {}), 4 * 60e3);
-  const { readFile } = await import('node:fs/promises');
-  await readFile(FIFO, 'utf8');
-  clearInterval(vivo);
-  R.versao = (await api('GET', '/api/saude')).dados?.versao || null;
-  log('SINAL_RECEBIDO versao=' + R.versao);
-}
 
 // ---- casos (tudo fictício) ---------------------------------------------------------------------------------------
 const CASOS = [
@@ -134,7 +107,7 @@ async function rodar(caso, visual) {
       entregaveis: (it.operacao?.entregaveis || []).map(x => x.tipo), lacunas: (it.operacao?.lacunas || []).length, fonte: it.fonte || null };
     const q = await api('POST', '/api/quick-wins', { nome: `QA - ${caso.nome}`, ...destino, assistente: { descricao: caso.descricao, operacao: it.operacao, interpretacao: { chave: it.chave, operacao: it.operacao } } });
     if (q.status !== 200) throw new Error(`criação ${q.status}: ${JSON.stringify(q.dados).slice(0, 200)}`);
-    R.criados.push(q.dados.id); salvar(); reg.qw = q.dados.id;
+    R.criados.push(q.dados.id); CRIADOS.push(q.dados.id); salvar(); reg.qw = q.dados.id;
     await api('PUT', `/api/quick-wins/${q.dados.id}`, { nome: `QA - ${caso.nome}` });
     const conv = (await api('POST', '/api/conversas', { quick_win_id: q.dados.id, teste: true })).dados.conversa;
     reg.conversa = conv.id;
@@ -176,31 +149,60 @@ async function rodar(caso, visual) {
   return reg;
 }
 
-for (const caso of CASOS) { R.casos.push(await rodar(caso, true)); salvar(); }
-for (const caso of REGRESSAO) { R.regressao.push(await rodar(caso, false)); salvar(); }
-
-// Edição sem regenerar, derivação e restauração, num artefato real.
-const alvo = R.casos.find(c => c.artefatos?.length)?.artefatos[0];
-if (alvo) {
-  const ed = await api('PATCH', `/api/artefatos/${alvo.id}`, { titulo: 'QA - título editado' });
-  const der = await api('POST', `/api/artefatos/${alvo.id}/derivar`, { tipo: 'poster', formato: '4:5' });
-  const res = await api('POST', `/api/artefatos/${alvo.id}/restaurar`, {});   // a versão 1 (não atual) volta como nova versão
-  const dv = der.dados?.artefato;
-  R.edicao = { editar: ed.status, versao: ed.dados?.artefato?.versao ?? null, tituloEditado: ed.dados?.artefato?.titulo === 'QA - título editado', derivar: der.status,
-    derivado: dv ? { tipo: dv.tipo, formato: dv.formato, status: dv.status } : null, restaurar: res.status, versaoRestaurada: res.dados?.artefato?.versao ?? null };
-  if (dv) { const p = await binario(`/api/artefatos/${dv.id}/paginas/1`); if (p.status === 200) writeFileSync(join(SAIDA, `derivado-${dv.id}.png`), p.dados); }
+async function bateria(nome) {
+  SAIDA = join(RAIZ, nome); mkdirSync(SAIDA, { recursive: true });
+  R = { base: BASE, bateria: nome, versao: (await api('GET', '/api/saude')).dados?.versao || null, criados: [], casos: [], regressao: [], erros: [] };
+  for (const caso of CASOS) { R.casos.push(await rodar(caso, true)); salvar(); }
+  for (const caso of REGRESSAO) { R.regressao.push(await rodar(caso, false)); salvar(); }
+  // Edição sem regenerar, derivação e restauração, num artefato real.
+  const alvo = R.casos.find(c => c.artefatos?.length)?.artefatos[0];
+  if (alvo) {
+    const ed = await api('PATCH', `/api/artefatos/${alvo.id}`, { titulo: 'QA - título editado' });
+    const der = await api('POST', `/api/artefatos/${alvo.id}/derivar`, { tipo: 'poster', formato: '4:5' });
+    const res = await api('POST', `/api/artefatos/${alvo.id}/restaurar`, {});   // a versão 1 (não atual) volta como nova versão
+    const dv = der.dados?.artefato;
+    R.edicao = { editar: ed.status, versao: ed.dados?.artefato?.versao ?? null, tituloEditado: ed.dados?.artefato?.titulo === 'QA - título editado', derivar: der.status,
+      derivado: dv ? { tipo: dv.tipo, formato: dv.formato, status: dv.status } : null, restaurar: res.status, versaoRestaurada: res.dados?.artefato?.versao ?? null };
+    if (dv) { const p = await binario(`/api/artefatos/${dv.id}/paginas/1`); if (p.status === 200) writeFileSync(join(SAIDA, `derivado-${dv.id}.png`), p.dados); }
+  }
+  R.idInexistente = (await api('GET', '/api/artefatos/999999999')).status;   // id que não é seu/não existe: 404
   salvar();
+  log(`BATERIA_FIM ${nome} versao=${R.versao}: ${R.casos.filter(c => c.ok).length}/${R.casos.length} visuais ok; textuais ${R.regressao.filter(c => c.ok).length}/${R.regressao.length}; edicao=${JSON.stringify(R.edicao || null)}`);
 }
-// Isolamento entre pessoas: id inexistente não abre.
-R.idInexistente = (await api('GET', '/api/artefatos/999999999')).status;
+async function limpar() {
+  const ex = {};
+  for (const id of CRIADOS) {
+    const q = (await api('GET', `/api/quick-wins/${id}`)).dados;
+    if (!q || !String(q.nome).startsWith('QA - ')) { ex[id] = 'nao_excluido_nome_nao_confere'; continue; }
+    const del = await api('DELETE', `/api/quick-wins/${id}`, {});
+    ex[id] = { excluido: del.status === 200, someDoCatalogo: (await api('GET', `/api/quick-wins/${id}`)).status === 404 };
+  }
+  writeFileSync(join(RAIZ, 'exclusao.json'), JSON.stringify(ex, null, 1));
+  log(`LIMPEZA_FIM ${Object.values(ex).filter(x => x.excluido && x.someDoCatalogo).length}/${CRIADOS.length}`);
+}
 
-// ---- exclusão lógica do que esta rodada criou -------------------------------------------------------------------
-for (const id of R.criados) {
-  const q = (await api('GET', `/api/quick-wins/${id}`)).dados;
-  if (!q || !String(q.nome).startsWith('QA - ')) { R.exclusao[id] = 'nao_excluido_nome_nao_confere'; continue; }
-  const del = await api('DELETE', `/api/quick-wins/${id}`, {});
-  R.exclusao[id] = { excluido: del.status === 200, someDoCatalogo: (await api('GET', `/api/quick-wins/${id}`)).status === 404 };
+// ---- comandos (a sessão fica só na memória deste processo, viva entre os deploys) ---------------------------------
+// QA_COMANDOS: FIFO local com um comando por escrita: saude | antigas 39,40 | bateria <nome> | limpar | sair
+const { readFile } = await import('node:fs/promises');
+const vivo = setInterval(() => api('GET', '/api/eu').catch(() => {}), 4 * 60e3);
+for (;;) {
+  log('PRONTO');
+  const [cmd, arg] = (await readFile(process.env.QA_COMANDOS, 'utf8')).trim().split(/\s+/);
+  try {
+    if (cmd === 'saude') { const s = (await api('GET', '/api/saude')).dados; const eu2 = (await api('GET', '/api/eu')).dados; log(`SAUDE versao=${s?.versao} ia=${s?.ia} sessao=${String(eu2?.pessoa?.email).toLowerCase() === CONTA} openrouter=${eu2?.iaConfigurada === true}`); }
+    else if (cmd === 'antigas') {
+      mkdirSync(join(RAIZ, 'antigas'), { recursive: true });
+      for (const id of String(arg || '').split(',').map(Number).filter(Boolean)) {
+        const cv = await api('GET', `/api/conversas/${id}`);
+        if (cv.status !== 200) { log(`conversa ${id}: ${cv.status}`); continue; }
+        const arts = []; for (const a of cv.dados.artefatos || []) arts.push((await api('GET', `/api/artefatos/${a.id}`)).dados);
+        writeFileSync(join(RAIZ, 'antigas', `${id}.json`), JSON.stringify({ mensagens: cv.dados.mensagens.map(m => ({ papel: m.papel, texto: m.texto })), artefatos: arts }, null, 1));
+      }
+      log('ANTIGAS_SALVAS');
+    }
+    else if (cmd === 'bateria') await bateria(arg || 'b');
+    else if (cmd === 'limpar') await limpar();
+    else if (cmd === 'sair') { await api('POST', '/api/sair', {}).catch(() => {}); clearInterval(vivo); log('SESSAO_ENCERRADA'); process.exit(0); }
+    else log('COMANDO_DESCONHECIDO');
+  } catch (err) { log('ERRO_COMANDO', String(err.message || err).slice(0, 200)); }
 }
-salvar();
-await api('POST', '/api/sair', {}).catch(() => {});
-log(`Fim. ${R.casos.filter(c => c.ok).length}/${R.casos.length} visuais ok; regressão ${R.regressao.filter(c => c.ok).length}/${R.regressao.length}. Relatório: ${join(SAIDA, 'relatorio.json')}`);

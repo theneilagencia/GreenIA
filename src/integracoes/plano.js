@@ -115,11 +115,15 @@ export async function executarPlano(app, pessoa, id, contexto = {}, op = {}) {
     if (deps.some(s => s === 'FAILED' || s === 'BLOCKED')) { estado.passos[passo.id] = { status: 'BLOCKED', motivo: 'uma etapa anterior não foi concluída' }; continue; }
     if (deps.some(s => !['SUCCESS', 'PARTIAL'].includes(s))) continue;   // espera (aprovação pendente)
     const fonte = { entrada: contexto.entrada || {}, resultado: contexto.resultado || {}, passos: saidas };
-    let entrada = contexto.dados?.[passo.id] || {};
-    if (passo.entrada) { const m = mapear(fonte, passo.entrada); if (m.erros.length) { estado.passos[passo.id] = { status: 'FAILED', motivo: `dados de entrada: ${m.erros.slice(0, 3).map(x => x.campo).join(', ')}` }; continue; } entrada = m.dados; }
+    // Etapa que aguardava aprovação: executa com a MESMA entrada que foi aprovada (guardada no plano, na empresa).
+    const pendente = estado.pendentes?.[passo.id];
+    let entrada = contexto.dados?.[passo.id] || pendente || {};
+    if (passo.entrada && !(pendente && !contexto.dados?.[passo.id])) { const m = mapear(fonte, passo.entrada); if (m.erros.length) { estado.passos[passo.id] = { status: 'FAILED', motivo: `dados de entrada: ${m.erros.slice(0, 3).map(x => x.campo).join(', ')}` }; continue; } entrada = m.dados; }
     const r = await executarCapability(app, { capabilityId: passo.capability_id, entrada, pessoa, modo: 'real', planoId: p.id, passoId: passo.id, quickWinId: p.quick_win_id, lookup: op.lookup });
     estado.passos[passo.id] = { status: r.status, http_status: r.http_status ?? null, erro: r.erro || null, aprovacao: r.aprovacao || null, run: r.run_id || null, ...(r.duplicado_evitado ? { duplicado_evitado: true } : {}) };
     if (r.dados !== undefined) saidas[passo.id] = r.dados;
+    estado.pendentes = estado.pendentes || {};
+    if (r.status === 'APPROVAL_REQUIRED') estado.pendentes[passo.id] = entrada; else delete estado.pendentes[passo.id];
   }
   // Compensação: escrita concluída seguida de falha numa etapa dependente vira SUGESTÃO para uma pessoa (nunca automática).
   const ops = p.passos;

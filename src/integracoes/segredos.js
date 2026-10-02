@@ -6,7 +6,8 @@ import { cifrar, decifrar } from '../plataforma/segredo.js';
 import { exec, um, json } from '../db.js';
 
 export const PROVIDER = 'greenia-local';
-const mascarar = v => { const s = String(v || ''); return s.length <= 8 ? '••••' : `${s.slice(0, 3)}…${s.slice(-4)}`; };
+// Nenhum pedaço do valor volta à tela: a máscara diz só que existe.
+const mascarar = () => '••••••••';
 
 // valor: string, ou objeto (OAuth: { client_id, client_secret, access_token, refresh_token, expira }).
 export function guardarSegredo(app, { conectorId, tipo, valor, keyId = null }) {

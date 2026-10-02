@@ -367,7 +367,15 @@ export function rotasQuickWins(app, r) {
     let integracoes;
     if (r2.operacao && integracoesLigadas(app, pessoa)) {
       if (!r2.operacao.integracoes?.length) { const n = necessidadesDoPedido(`${descricao}\n${processo}`); if (n.length) r2.operacao = { ...r2.operacao, integracoes: n }; }
-      if (r2.operacao.integracoes?.length) integracoes = resolverNecessidades(app, r2.operacao.integracoes, { pessoa, quickWinId: qw?.id || null });
+      if (r2.operacao.integracoes?.length) {
+        integracoes = resolverNecessidades(app, r2.operacao.integracoes, { pessoa, quickWinId: qw?.id || null });
+        // Uma gravação feita pela integração não é um entregável de texto: sai da lista (fica ao menos um entregável).
+        const palavras = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2);
+        const escritas = r2.operacao.integracoes.filter(n => n.modo === 'write').map(n => new Set(palavras(n.acao)));
+        const ents = r2.operacao.entregaveis || [];
+        const fica = ents.filter(e => { const p = palavras(e.rotulo || ''); return !(p.length && escritas.some(w => p.every(x => w.has(x)))); });
+        if (fica.length && fica.length < ents.length) r2.operacao = { ...r2.operacao, entregaveis: fica };
+      }
     }
     return { ...r2, ...(integracoes ? { integracoes } : {}), lacunas: OP.lacunasDeContexto({ descricao, processo, operacao: r2.operacao, temBase }), temBase, pesquisaLiberada: !!lerConfig(app.db).pesquisaWeb?.ativa,
       ferramentasIndisponiveis: (r2.operacao?.ferramentas || []).filter(f => OP.FERRAMENTAS[f]?.disponivel === false).map(f => ({ id: f, rotulo: OP.FERRAMENTAS[f].rotulo, alternativa: OP.FERRAMENTAS[f].alternativa })) };

@@ -88,6 +88,7 @@ const SECOES_ADMIN = () => [
     { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: 'pessoas', ver: () => pode('user.read') },
     { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
     { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
+    { id: 'integracoes', nome: 'Integrações', icone: 'link', ver: () => !!E.integracoes && (pode('integrations.manage') || pode('integrations.approve')) },
   ] },
   // Administração da empresa (multiempresa): usuários, roles, marca, landing page, URL e configurações.
   E.plataforma ? { titulo: 'Empresa', itens: [
@@ -100,7 +101,7 @@ const SECOES_ADMIN = () => [
     { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
   ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];
-const ROTAS_ADMIN = /^#\/(visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|empresa\/)/;
+const ROTAS_ADMIN = /^#\/(visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|integracoes|empresa\/)/;
 // Contexto da tela. Quem não administra nunca está na Administração, nem digitando o endereço.
 export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '') && administra();
 const itensAdmin = () => SECOES_ADMIN().flatMap(g => g.itens).filter(i => !i.ver || i.ver());
@@ -114,7 +115,7 @@ const inicioAdmin = () => ultima('admin') || `#/${itensAdmin()[0]?.id || 'visao-
 const inicioUso = () => ultima('uso') || '#/nova';
 
 // Rota da API que cada tela da administração lê. A resposta do servidor decide; a tela só reage.
-const API_DA_TELA = { 'visao-geral': 'visao-geral', uso: 'uso', pessoas: 'pessoas', modelos: 'modelos', politicas: 'politica/versoes', atividade: 'eventos', configuracoes: 'config', empresa: 'config' };
+const API_DA_TELA = { 'visao-geral': 'visao-geral', uso: 'uso', pessoas: 'pessoas', modelos: 'modelos', politicas: 'politica/versoes', atividade: 'eventos', configuracoes: 'config', empresa: 'config', integracoes: 'integracoes' };
 const recusado = () => { toast('Esta área é da administração da empresa.'); irPara('#/nova'); };
 async function conferirNoServidor(h) {
   const tela = /^#\/([\w-]+)/.exec(h)?.[1];
@@ -246,6 +247,7 @@ async function rota() {
     else if (h === '#/nova') await vistaConversa({});
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);
+    else if ((h === '#/integracoes' || h.startsWith('#/integracoes/')) && E.integracoes) await (await import('/integracoes.js')).rotaIntegracoes(h);
     else if (h === '#/visao-geral' && pode('usage.read')) await (await import('/visao.js')).vistaGeral();
     else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await import('/empresa.js')).rotaEmpresa(m[1]);
     else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await import('/admin.js')).rotaGestao(m[1], m[2]);
@@ -278,7 +280,7 @@ async function iniciar() {
   definirCsrf(eu.csrf);
   Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar,
     plano: eu.plano, operador: eu.operador, unidade: eu.unidade, iaConfigurada: eu.iaConfigurada,
-    permissoes: eu.permissoes || null, plataforma: eu.plataforma || null, bases: eu.bases || { areas: [], paraRevisar: 0 } });
+    permissoes: eu.permissoes || null, integracoes: !!eu.integracoes, plataforma: eu.plataforma || null, bases: eu.bases || { areas: [], paraRevisar: 0 } });
   definirUnidade(eu.unidade);
   aplicarMarca(publico);
   await definirMarcaPropria(publico);

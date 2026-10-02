@@ -1,7 +1,7 @@
 // Componentes da jornada de Quick Wins: cabeçalho de página, progresso das etapas, estado do Quick Win,
 // progresso da execução, conferência de qualidade, avisos, menu de ações e estado vazio. Só HTML e pequenos
 // ligadores; os estilos ficam em estilo.css (bloco "Quick Wins"). Nada técnico chega à tela.
-import { esc, ICONE } from '/comum.js';
+import { api, esc, ICONE, toast } from '/comum.js';
 
 // ---- Estado do Quick Win (o que a pessoa entende) -----------------------------------------------------------
 const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];
@@ -238,3 +238,26 @@ export function confirmarExclusao(qw) {
     campo.focus();
   });
 }
+
+// Integrações executadas pelo Quick Win: cada etapa com o status (sucesso, parcial, falha, bloqueada pela política
+// ou aguardando aprovação). Nada de dado técnico: só sistema, ação e o que aconteceu.
+const STATUS_INTEG = { SUCCESS: ['✓', 'concluída'], PARTIAL: ['⚠', 'parcial'], FAILED: ['✕', 'falhou'], BLOCKED: ['✕', 'bloqueada'], APPROVAL_REQUIRED: ['⏸', 'aguardando aprovação'], SIMULATED: ['✓', 'simulada'], DENIED: ['✕', 'negada pela política'] };
+export function painelIntegracoes(integ) {
+  if (!integ?.passos?.length) return '';
+  const geral = integ.motivo === 'resultado_nao_conferido' ? '<p class="dica">As gravações em sistemas externos não foram feitas: o resultado não passou na conferência.</p>' : '';
+  return `<div class="painel-integracoes"><b>Integrações</b>${geral}<ul>${integ.passos.map(p => { const [s, t] = STATUS_INTEG[p.status] || ['•', p.status ? String(p.status).toLowerCase() : 'não executada'];
+    return `<li><span aria-hidden="true">${s}</span> ${esc(p.acao)} <span class="dica">(${esc(p.sistema || 'sistema externo')} · ${esc(p.modo === 'read' ? 'consulta' : 'gravação')}: ${esc(t)})</span></li>`; }).join('')}</ul>
+    ${integ.passos.some(p => p.status === 'APPROVAL_REQUIRED') ? `<p class="dica">Quem aprova integrações na empresa recebe o pedido. Depois da aprovação, a etapa pode ser executada.</p>${integ.plano ? `<button type="button" class="btn btn-linha btn-pequeno" data-integ-executar="${esc(integ.plano)}">Executar etapas aprovadas</button>` : ''}` : ''}</div>`;
+}
+// Retomar o plano depois da aprovação: só executa o que foi aprovado (o servidor confere a aprovação e a entrada).
+document.addEventListener('click', async e => {
+  const b = e.target.closest?.('[data-integ-executar]');
+  if (!b) return;
+  b.disabled = true;
+  try {
+    const r = await api(`/api/integracoes/planos/${encodeURIComponent(b.dataset.integExecutar)}/executar`, { metodo: 'POST', corpo: {} });
+    const painel = b.closest('.painel-integracoes');
+    if (painel) painel.outerHTML = painelIntegracoes({ plano: r.id, status: r.status, passos: r.passos });
+    if (r.passos.some(p => p.status === 'APPROVAL_REQUIRED')) toast('Ainda há etapa aguardando aprovação.');
+  } catch (err) { toast(err.message); b.disabled = false; }
+});

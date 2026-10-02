@@ -76,7 +76,7 @@ export function rotasIntegracoes(app, r) {
     let ok = true;
     try { await concluirAutorizacao(app, pessoa, { state: query.state, code: query.code }); } catch { ok = false; }
     // Nunca devolve token: só volta para a tela de integrações, com o resultado.
-    res.writeHead(302, { location: `/app#integracoes${ok ? '' : '?oauth=erro'}`, 'cache-control': 'no-store' });
+    res.writeHead(302, { location: `/app#/integracoes${ok ? '' : '?oauth=erro'}`, 'cache-control': 'no-store' });
     res.end();
   });
   r.post('/api/integracoes/necessidades', ({ pessoa, corpo }) => { gate(pessoa); return seguro(app, () => {

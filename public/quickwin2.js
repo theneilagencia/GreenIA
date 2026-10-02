@@ -2,11 +2,11 @@
 // publicar; usar; versões. Nada técnico aparece: sem prompt, modelo, fornecedor, tokens ou JSON. A GreenIA
 // sugere; a pessoa confirma. Governança e conferência de qualidade continuam no servidor, iguais.
 import { api, esc, ICONE, toast } from '/comum.js';
-import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
+import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pode } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
-import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
+import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelIntegracoes, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
 
 const $ = id => document.getElementById(id);
@@ -96,7 +96,7 @@ async function interpretarPlano(W) {
   try { r = await api('/api/quick-wins/assistente/interpretar', { metodo: 'POST', corpo: { descricao: W.descricao, processo: proc, ...(W.id ? { quick_win_id: W.id } : {}) } }); }
   catch (e) { if (e.status === 422) throw e; r = { fonte: 'heuristica', operacao: null, lacunas: [] }; }
   if (chavePlano(W.descricao, W.modoProc === 'explicar' ? W.processo.trim() : '') !== chave) return interpretarPlano(W);
-  W.plano = r; W.planoDe = chave; W.lacunas = r.lacunas || []; W.pesquisaLiberada = !!r.pesquisaLiberada; W.indisponiveis = r.ferramentasIndisponiveis || [];
+  W.plano = r; W.planoDe = chave; W.lacunas = r.lacunas || []; W.pesquisaLiberada = !!r.pesquisaLiberada; W.indisponiveis = r.ferramentasIndisponiveis || []; W.integracoes = r.integracoes || [];
   // O plano novo vale se a pessoa não ajustou o dela; num Quick Win antigo, fica como sugestão até ela aceitar.
   if (!W.operacaoPessoa && !(W.legado && !W.planoAceito) && r.operacao) { W.operacao = structuredClone(r.operacao); W.planoAceito = true; aplicarFormato(W); }
   return W.plano;
@@ -442,6 +442,7 @@ function htmlPlano(W) {
         : `<ol>${(op.etapas || []).map(x => `<li>${esc(x.texto)}</li>`).join('') || '<li class="dica">Do jeito que o trabalho pedir.</li>'}</ol>`}</dd></div>
       <div><dt>Vai entregar</dt><dd><ul>${entregas.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${sugerido ? '' : '<button type="button" class="link-sutil" id="plano-entregas">Ajustar o que vai entregar</button>'}</dd></div>
       <div><dt>Vai usar</dt><dd><ul>${(op.ferramentas || []).map(f => { const ind = W.indisponiveis.find(x => x.id === f); return `<li>${esc(rotuloF(f))}${ind ? ` <span class="dica">(não disponível: entrega ${esc(ind.alternativa)})</span>` : f === 'pesquisa_web' && !W.pesquisaLiberada ? ' <span class="dica">(ainda não liberada pela empresa: o resultado sai parcial)</span>' : ''}</li>`; }).join('') || '<li>IA da GreenIA</li>'}</ul></dd></div>
+      ${!sugerido && W.integracoes?.length ? htmlIntegracoes(W.integracoes) : ''}
     </dl>
     ${lacunas.length ? `<div class="lacunas" id="plano-lacunas"><p class="legenda">Para o resultado não sair genérico</p>${lacunas.map(l => `<div><label for="lacuna-${esc(l.id)}">${esc(l.pergunta)}${l.obrigatoria ? ' <span class="tag">Necessário</span>' : ''}</label>
       <input class="entrada" id="lacuna-${esc(l.id)}" data-lacuna="${esc(l.id)}" data-pergunta="${esc(l.pergunta)}" maxlength="600" value="${esc(respostas.get(l.id) || '')}" placeholder="${esc(l.exemplo || '')}"></div>`).join('')}
@@ -450,6 +451,18 @@ function htmlPlano(W) {
     <div class="plano-acoes">${sugerido ? '<button type="button" class="btn btn-verde btn-pequeno" id="plano-usar">Usar esta estrutura</button><span class="dica">Ou siga sem mudar: o Quick Win continua como está.</span>'
       : `<button type="button" class="btn btn-linha btn-pequeno" id="plano-ok" aria-pressed="${!!W.planoConfirmado}">${W.planoConfirmado ? 'Confirmado' : 'Está certo'}</button><button type="button" class="link-sutil" id="plano-editar">${editar ? 'Concluir edição' : 'Editar'}</button>`}</div>
   </section>`;
+}
+// Integration Builder (só com o recurso ligado): o que o trabalho precisa fazer em sistemas fora da GreenIA.
+// ✓ disponível · ⚠ precisa configurar (ou pede aprovação a cada execução) · ✕ a política da empresa não permite.
+const SIMBOLO_INTEG = { disponivel: ['✓', 'disponível'], requer_aprovacao: ['⚠', 'disponível com aprovação a cada execução'], configurar: ['⚠', 'precisa configurar'], nao_permitido: ['✕', 'não permitido pela política da empresa'] };
+function htmlIntegracoes(lista) {
+  const falta = lista.filter(n => n.estado === 'configurar');
+  const sistemas = [...new Set(falta.map(n => n.sistema).filter(Boolean))];
+  return `<div><dt>Sistemas externos</dt><dd>
+    ${sistemas.length ? `<p>Este Quick Win precisa acessar ${esc(sistemas.join(', '))}.</p>` : ''}
+    <ul class="plano-integracoes">${lista.map(n => { const [s, t] = SIMBOLO_INTEG[n.estado] || ['⚠', n.estado]; return `<li><span aria-hidden="true">${s}</span> ${esc(n.acao)} <span class="dica">(${esc(n.sistema_resolvido || n.sistema || 'sistema externo')}: ${esc(t)})</span></li>`; }).join('')}</ul>
+    ${falta.length ? (pode('integrations.manage') ? '<a class="btn btn-linha btn-pequeno" href="#/integracoes/nova">Configurar integração</a>' : '<p class="dica">Peça a quem administra a GreenIA para configurar a integração. Sem ela, o Quick Win entrega o resultado sem acessar o sistema.</p>') : ''}
+    <p class="dica">A GreenIA só lê ou grava em sistemas externos por integrações aprovadas pela empresa; gravar sempre segue a política e pode pedir aprovação.</p></dd></div>`;
 }
 // Guarda o que está na tela do plano (respostas, materiais e etapas). Qualquer mudança é decisão da pessoa.
 function guardarPlano(W) {
@@ -588,7 +601,7 @@ function htmlResultado(W) {
       <div><button type="button" class="btn btn-verde" data-responder>Responder e continuar</button></div></div>` : '';
   return `<section class="resultado" aria-label="Resultado do teste">
     <div class="resultado-cabeca"><b>${q?.status === 'pergunta' ? 'A GreenIA precisa de uma informação' : 'Resultado do teste'}</b>${r.conversa ? `<a class="link-sutil" href="#/c/${r.conversa}">Continuar como conversa</a>` : ''}</div>
-    ${revisar ? `${painelQualidade(q, { id: 'teste' })}<div style="margin-top:12px">${corpo}</div>` : `${corpo}${painelQualidade(q, { id: 'teste' })}`}${responder}</section>`;
+    ${revisar ? `${painelQualidade(q, { id: 'teste' })}<div style="margin-top:12px">${corpo}</div>` : `${corpo}${painelQualidade(q, { id: 'teste' })}${painelIntegracoes(q?.integracoes)}`}${responder}</section>`;
 }
 
 // Executa o teste aqui mesmo: conversa de teste (fora da medição), execução explícita, etapas e conferência.

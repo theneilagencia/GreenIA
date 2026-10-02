@@ -2,7 +2,7 @@
 import { api, esc, ICONE, iconeIA, toast } from '/comum.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia, cartaoBase } from '/app.js';
-import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelQualidade, progressoExecucao } from '/qw-ui.js';
+import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 
 const $ = id => document.getElementById(id);
@@ -120,7 +120,7 @@ function htmlMensagem(m) {
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
   const revisar = execucao && m.qualidade.status === 'inconsistente';
-  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeAjustar: !!C.qw?.podeEditar, ajustarHref: C.qw ? `#/qw/${C.qw.id}/ajustar` : '' }) : '';
+  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeAjustar: !!C.qw?.podeEditar, ajustarHref: C.qw ? `#/qw/${C.qw.id}/ajustar` : '' }) + painelIntegracoes(m.qualidade.integracoes) : '';
   // Fontes: documentos da empresa (título) e, quando houve pesquisa na internet, os endereços consultados.
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => (f && typeof f === 'object' && /^https?:\/\//.test(f.url || '')
     ? `<a class="selo" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a>` : `<span class="selo">${ICONE.doc} ${esc(f)}</span>`)).join('')}</div>` : '';

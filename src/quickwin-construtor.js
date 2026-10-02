@@ -706,7 +706,7 @@ const AVISO_OBJETIVO = {
   tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };
-export function resumoQualidade({ status, falhas = [], razoes = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null } = {}) {
+export function resumoQualidade({ status, falhas = [], razoes = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null, integracoes = null } = {}) {
   const avisos = [];
   if (objetivo && objetivo.atingido === false) avisos.push(AVISO_OBJETIVO[objetivo.motivo] || AVISO_OBJETIVO.conferencia);
   if (pesquisa && !pesquisa.feita) avisos.push(`Resultado parcial: a pesquisa na internet não foi feita (${MOTIVOS_PESQUISA[pesquisa.motivo] || 'motivo não informado'}). Os temas não foram confirmados como atuais.`);
@@ -715,7 +715,8 @@ export function resumoQualidade({ status, falhas = [], razoes = [], verificados 
   return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g), ...(falhas.includes(g) && motivoDe(g).length ? { motivos: motivoDe(g).slice(0, 3) } : {}) })),
     problemas: status === 'inconsistente' ? falhas.flatMap(g => (motivoDe(g).length ? motivoDe(g).slice(0, 3).map(m => `${PROBLEMAS[g]} ${m}`) : [PROBLEMAS[g]])) : [], avisos,
     ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}),
-    ...(objetivo ? { objetivo: { atingido: objetivo.atingido !== false, motivo: objetivo.motivo || null } } : {}) };
+    ...(objetivo ? { objetivo: { atingido: objetivo.atingido !== false, motivo: objetivo.motivo || null } } : {}),
+    ...(integracoes ? { integracoes: { plano: integracoes.plano || null, status: integracoes.status || null, motivo: integracoes.motivo || null, passos: (integracoes.passos || []).slice(0, 10) } } : {}) };
 }
 
 // ---- Entrada de teste gerada (sintética, sem dado real) ----------------------------------------------------

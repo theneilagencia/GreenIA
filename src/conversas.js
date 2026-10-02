@@ -17,7 +17,7 @@ import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { conferirComCorrecao, contextoDaExecucao, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
 import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, temArtefatoVisual } from './quickwin-operacao.js';
 import { gravarVisuais, produzirVisuais, resumoArtefato } from './visual/producao.js';
-import { precisaIntegracao, prepararExecucao, concluirExecucao, limparResposta } from './integracoes/quickwin.js';
+import { precisaIntegracao, prepararExecucao, concluirExecucao, limparResposta, lerPlano as lerPlanoInteg, resumoPlano as resumoPlanoInteg } from './integracoes/quickwin.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
 const AGORA = app => app.agora().toISOString();
@@ -663,20 +663,33 @@ export function rotasConversas(app, r) {
     };
     if (espec) {
       linha({ t: 'etapa', v: 'Conferindo o resultado…' });
+      // O bloco de dados para as integrações sai antes da conferência (não é parte do texto entregue).
+      let dadosInteg = {};
+      if (integ) { const l = limparResposta(resposta); resposta = l.texto; dadosInteg = l.dados; }
       const entradaQc = [...ctx.partes, ...(notas ? [delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)] : []), ...h.mensagens.map(x => x.content)].join('\n\n').slice(-30000);
       if (fontesWeb.length) registrar(app, 'quickwin.tool_used', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, ferramenta: 'pesquisa_web', fontes: fontesWeb.length, roteamento: rotaId });
-      const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
+      // Correções também podem trazer o bloco de dados das integrações: sai do texto e os dados mais recentes valem.
+      const chamarQc = !integ ? chamar : async m => { const r = await chamar(m); const l = limparResposta(r.texto); if (Object.keys(l.dados).length) dadosInteg = l.dados; return { ...r, texto: l.texto }; };
+      const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
       // Escritas nos sistemas externos (com os dados do bloco estruturado, que sai do texto mostrado), sob a política.
-      if (integ && registroQualidade.status !== 'pergunta') {
+      if (integ) {
         const l = limparResposta(resposta); resposta = l.texto;
-        linha({ t: 'etapa', v: 'Executando as integrações…' });
-        try { integResumo = await concluirExecucao(app, pessoa, { prep: integ, dados: l.dados, lookup: app.dnsLookup }); registroQualidade.integracoes = { plano: integ.plano, status: integResumo.status }; }
-        catch (e) { app.log?.('integracoes', erroParaLog(e)); registroQualidade.integracoes = { plano: integ.plano, falhou: true }; }
+        if (Object.keys(l.dados).length) dadosInteg = l.dados;
+        const passosDe = r => (r?.passos || []).map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null }));
+        // Escrita só com resultado conferido: pergunta pendente ou resultado inconsistente não grava em sistema externo.
+        if (['pergunta', 'inconsistente'].includes(registroQualidade.status)) {
+          const p = lerPlanoInteg(app, integ.plano);
+          registroQualidade.integracoes = { plano: integ.plano, status: 'BLOCKED', motivo: 'resultado_nao_conferido', passos: p ? passosDe(resumoPlanoInteg(app, p)) : [] };
+        } else {
+          linha({ t: 'etapa', v: 'Executando as integrações…' });
+          try { integResumo = await concluirExecucao(app, pessoa, { prep: integ, dados: dadosInteg, lookup: app.dnsLookup }); registroQualidade.integracoes = { plano: integ.plano, status: integResumo.status, passos: passosDe(integResumo) }; }
+          catch (e) { app.log?.('integracoes', erroParaLog(e)); registroQualidade.integracoes = { plano: integ.plano, status: 'FAILED', falhou: true, passos: [] }; }
+        }
       }
       linha({ t: 'texto', v: resposta });
-      registrar(app, 'quickwin.quality_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, versao: qw.versao ?? null, roteamento: rotaId, ...registroQualidade });
+      registrar(app, 'quickwin.quality_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, versao: qw.versao ?? null, roteamento: rotaId, ...registroQualidade, ...(registroQualidade.integracoes ? { integracoes: { plano: registroQualidade.integracoes.plano, status: registroQualidade.integracoes.status } } : {}) });
       // Ciclo da execução (só metadados): pausada à espera de contexto, ou concluída (teste ou uso real).
       if (registroQualidade.status === 'pergunta') registrar(app, 'quickwin.context_requested', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId,
         ...(perguntaMercado ? { motivo: 'contexto_externo_insuficiente' } : {}) });

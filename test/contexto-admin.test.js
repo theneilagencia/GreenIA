@@ -11,7 +11,7 @@ import { ROLES_SISTEMA } from '../src/plataforma/rbac.js';
 // Todas as rotas /api/admin declaradas no código, com o método.
 const SRC = new URL('../src/', import.meta.url).pathname;
 const ROTAS = [];
-for (const f of readdirSync(SRC).filter(f => f.endsWith('.js'))) {
+for (const f of [...readdirSync(SRC).filter(f => f.endsWith('.js')), ...readdirSync(SRC + 'integracoes').filter(f => f.endsWith('.js')).map(f => `integracoes/${f}`)]) {
   for (const m of readFileSync(SRC + f, 'utf8').matchAll(/\br\.(get|post|put|patch|del)\('(\/api\/admin[^']*)'/g))
     ROTAS.push([{ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', del: 'DELETE' }[m[1]], m[2].replace(/:\w+/g, '1')]);
 }

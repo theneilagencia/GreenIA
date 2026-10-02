@@ -27,7 +27,7 @@ import { rotasVisao } from './visao.js';
 import { rotasOperador } from './operador.js';
 import { rotasVendas } from './vendas.js';
 import { rotasArtefatos } from './visual/rotas.js';
-import { rotasIntegracoes } from './integracoes/rotas.js';
+import { integracoesLigadas, rotasIntegracoes } from './integracoes/rotas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html', '/termos': 'termos.html', '/privacidade': 'privacidade.html' };
@@ -77,6 +77,7 @@ export function criarApp(op = {}) {
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
     unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),
+    ...(integracoesLigadas(app, sessao.pessoa) ? { integracoes: true } : {}),
     ...(app.extraEu?.(sessao) ?? {}),
   }));
   app.contexto = criarContexto(app);

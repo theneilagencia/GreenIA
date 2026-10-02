@@ -1602,3 +1602,7 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
   .visualizador-acoes{justify-content:flex-start}
   .editor-par{grid-template-columns:1fr}
 }
+/* Integrações do Quick Win (status por etapa) */
+.painel-integracoes{margin-top:12px;padding:10px 12px;border:1px solid var(--borda,#e3e6e4);border-radius:10px;font-size:14px}
+.painel-integracoes ul,.plano-integracoes{margin:6px 0 0;padding-left:0;list-style:none}
+.painel-integracoes li,.plano-integracoes li{margin:3px 0}

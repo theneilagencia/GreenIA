@@ -512,10 +512,11 @@ export function promptVisual(visuais) {
   const lista = visuais.map(e => `"${rotuloEntregavel(e)}" (${descreverVisual(e.visual)})`).join('; ');
   return [`Peças visuais: ${lista}. A GreenIA monta o arquivo final (PDF e imagem) a partir do CONTEÚDO que você escrever na seção de cada peça. Na seção da peça:`,
     '- primeira linha: "Título: <título da peça, até 10 palavras>";',
+    '- a seção da peça é completa sozinha: repita nela a tabela, os números e a recomendação que a peça mostra, mesmo que já estejam em outra seção do resultado;',
     '- uma subseção "### <título curto>" por página, na ordem da narrativa (com um número de páginas pedido, exatamente esse número de subseções, contando a capa como a primeira); numa peça de uma página só, uma subseção por bloco de informação;',
-    '- frases curtas e tópicos, um por linha começando com "- "; número sempre com rótulo, no formato "- Rótulo: valor" (ex.: "- Prazo: 12 meses"); cada informação aparece uma vez só;',
+    '- frases curtas e tópicos, um por linha começando com "- "; número sempre acompanhado do que ele mede (ex.: "- Prazo: 12 meses"); cada informação aparece uma vez só;',
     '- a capa (quando houver) é a primeira subseção, com o subtítulo; campo sem informação no material fica de fora da peça (não repita "não informado" em cada linha; se a falta importa, diga uma vez numa linha);',
-    '- checklist para marcar: lista com "- [ ] item";',
+    '- checklist para marcar: cada item numa linha como "- [ ] Extintores no lugar" (um marcador só por linha);',
     '- dados em tabela Markdown; etapas de um processo numeradas; fluxo com setas ("Recebe o pedido -> Aprovado? -> (sim) Faturar"); marcos de tempo como "Data: o que acontece";',
     '- peça de leitura rápida (post, anúncio, cartaz, carrossel): até 40 palavras por página e, no fim, uma linha "Chamada: <ação>";',
     '- não descreva cores, fontes, layout nem imagens, não escreva briefing nem prompt de imagem, e não invente números para preencher a peça.'].join('\n');

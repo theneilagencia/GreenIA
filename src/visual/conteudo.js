@@ -29,7 +29,7 @@ const CTA = /^(?:chamada(?: para a[cç][aã]o)?|cta|call to action)\s*:\s*(.+)$/
 const SETA = /\s*(?:->|→|=>|⇒|➜|➔)\s*/;
 
 // Número com rótulo ("Receita: R$ 1,2 mi", "R$ 1,2 mi — receita do mês", "12% de redução").
-const VALOR = /^[+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|p\.p\.|mil|mi|bi|milh[oõ]es|bilh[oõ]es|k|h|horas?|min|minutos?|dias?( [úu]teis)?|semanas?|meses|anos?|x|vezes|pontos?|t|kg|km|un\.?|unidades|pessoas|clientes|itens)?$/i;
+const VALOR = /^(?:\d{1,3}\s?h\s?\d{1,2}(?:\s?min)?|[+\-−]?\s?(?:R\$|US\$|€|\$)?\s?\d[\d.,]*\s?(?:%|pp|p\.p\.|mil|mi|bi|milh[oõ]es|bilh[oõ]es|k|h|horas?|min|minutos?|dias?( [úu]teis)?|semanas?|meses|anos?|x|vezes|pontos?|t|kg|km|un\.?|unidades|pessoas|clientes|itens)?)$/i;
 function indicador(texto) {
   const t = limparInline(texto);
   let m = /^(.{2,48}?)\s*[:–—]\s*(.{1,32})$/.exec(t);
@@ -99,7 +99,7 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
         const bruto = linhas[i++];
         if (!ITEM.test(bruto)) { itens[itens.length - 1].texto += ` ${limparInline(bruto)}`; continue; }
         const nivel = /^\s{2,}/.test(bruto) ? 2 : 1;
-        let texto = bruto.replace(ITEM, '');
+        let texto = bruto.replace(ITEM, '').replace(/^(?:[-*+•]\s+)+/, '');
         const ck = /^\[( |x|X)\]\s+(.*)$/.exec(texto);
         itens.push({ texto: limparInline(ck ? ck[2] : texto), marcado: ck ? ck[1] !== ' ' : null, nivel });
       }

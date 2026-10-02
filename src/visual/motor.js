@@ -39,8 +39,8 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
   const minEscala = Math.ceil(Math.max(0.55, FORMATOS[plano.formato].minimo / FORMATOS[plano.formato].corpo) * 100) / 100;
   const tentativas = [];
   // 1. Ajuste de escala (composição, não correção): o maior tamanho de texto em que tudo cabe, até o teto do tipo.
+  const teto = plano.impacto ? ESCALA_MAX.impacto : plano.multipagina ? ESCALA_MAX.secao : ESCALA_MAX.painel;
   if (!continuo && !op0.escala) {
-    const teto = plano.impacto ? ESCALA_MAX.impacto : plano.multipagina ? ESCALA_MAX.secao : ESCALA_MAX.painel;
     for (let e = teto; e >= 1 - 1e-9; e -= 0.05) {
       const r = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, escala: e } });
       if (cabe(r, plano, tr)) { opcoes.escala = Math.round(e * 100) / 100; break; }
@@ -102,7 +102,20 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
     },
     codigos => {
       if (![...codigos].some(k => GEOMETRIA.has(k)) || (codigos.size === 1 && codigos.has('paginas') && c.erros.find(e => e.codigo === 'paginas').obtido < c.erros.find(e => e.codigo === 'paginas').esperado)) return null;
-      // Transbordo: primeiro a escala (até o mínimo legível), depois as colunas, o layout denso e a paginação.
+      // Transbordo numa página única: primeiro outra grade de colunas, com o maior texto que cabe nela (texto
+      // menor numa grade ruim deixa a página meio vazia); depois a escala, o layout denso e a paginação.
+      if (!plano.multipagina && !opcoes.colunasTentadas) {
+        opcoes.colunasTentadas = true;
+        let melhor = null;
+        for (const k of [1, 2, 3].filter(x => x !== (opcoes.colunas || null))) {
+          for (let e = teto; e > minEscala - 1e-9; e -= 0.05) {
+            if (melhor && e <= melhor.e) break;
+            const t = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, colunas: k, escala: e } });
+            if (cabe(t, plano, tr)) { melhor = { k, e: Math.round(e * 100) / 100 }; break; }
+          }
+        }
+        if (melhor) { opcoes.colunas = melhor.k; opcoes.escala = melhor.e; return 'reorganizar_colunas'; }
+      }
       if (opcoes.escala > minEscala + 1e-9) {
         let e = Math.max(minEscala, opcoes.escala - 0.05);
         for (; e > minEscala - 1e-9; e -= 0.04) {
@@ -111,13 +124,6 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
         }
         opcoes.escala = Math.round(Math.max(minEscala, e) * 100) / 100;
         return 'reduzir_escala';
-      }
-      if (!plano.multipagina && !opcoes.colunasTentadas) {
-        opcoes.colunasTentadas = true;
-        for (const k of [1, 2, 3].filter(x => x !== (opcoes.colunas || null))) {
-          const t = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, colunas: k } });
-          if (cabe(t, plano, tr)) { opcoes.colunas = k; return 'reorganizar_colunas'; }
-        }
       }
       if (plano.impacto && !plano.multipagina) { plano.impacto = false; plano.paginas.forEach(p => { if (p.layout === 'destaque') p.layout = 'painel'; }); opcoes.escala = 1; return 'layout_denso'; }
       // Paginação: a página que transborda continua na seguinte (listas e tabelas partidas, título repetido).

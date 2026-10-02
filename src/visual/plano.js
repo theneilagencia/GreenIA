@@ -258,6 +258,13 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
     paginas.push(pg);
   }
   if (!paginas.length) return null;
+  // Fluxo contínuo (relatório, documento, proposta) sem número de páginas pedido: as páginas de conteúdo da IA viram
+  // um fluxo só (o título de cada uma passa para o primeiro bloco). Página quase vazia por seção curta não existe.
+  if (tr.fluxo === 'continuo' && !tr.paginas && paginas.filter(p => p.papel !== 'capa').length > 1) {
+    const capas = paginas.filter(p => p.papel === 'capa');
+    const blocos = paginas.filter(p => p.papel !== 'capa').flatMap(p => p.blocos.map((b, k) => (k === 0 && !b.titulo && p.titulo ? { ...b, titulo: p.titulo } : b)));
+    paginas.splice(0, paginas.length, ...capas, { papel: 'continuo', layout: 'continuo', objetivo: '', titulo: capas.length ? '' : limpar(titulo || conteudo.titulo || tr.rotulo, 90), subtitulo: '', blocos, refs: [] });
+  }
   if (!tr.multipagina && paginas.length > 1) {
     // Página única: tudo numa página (a IA não decide virar multipágina).
     const una = { ...paginas.find(p => p.papel !== 'capa') || paginas[0], papel: 'conteudo', layout: tr.impacto ? 'destaque' : 'painel', blocos: paginas.flatMap(p => p.blocos) };

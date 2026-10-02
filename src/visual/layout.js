@@ -377,8 +377,8 @@ function painel_(C, pg, itens, assets, C0 = C) {
   const wCol = (area.w - gap * (nCol - 1)) / nCol;
   // Ocupa a largura toda: diagrama, linha do tempo, imagem, cartões, tabela larga, faixa de indicadores; gráfico só
   // quando a coluna fica estreita demais para ele (num painel largo, gráficos ficam lado a lado).
-  const ehLargo = g => g.blocos.some(b => ['diagrama', 'linha_tempo', 'imagem', 'cartoes'].includes(b.tipo) || (b.tipo === 'grafico' && wCol < tip.corpo * 20)
-    || (b.tipo === 'tabela' && (itens.get(b.refs[0])?.cabecalho?.length || 0) >= 4) || (b.tipo === 'indicadores' && (itens.get(b.refs[0])?.itens?.length || 0) >= 3));
+  const ehLargo = g => g.blocos.some(b => ['diagrama', 'linha_tempo', 'imagem', 'cartoes'].includes(b.tipo) || (b.tipo === 'grafico' && wCol < tip.corpo * 15)
+    || (b.tipo === 'tabela' && (itens.get(b.refs[0])?.cabecalho?.length || 0) >= 4) || (b.tipo === 'indicadores' && (itens.get(b.refs[0])?.itens?.length || 0) >= 3 && wCol < tip.corpo * 14));
   let alturas = Array(nCol).fill(area.y);
   const desenharGrupo = (g, x, yy, larg_) => {
     const inner = larg_ - pad * 2;

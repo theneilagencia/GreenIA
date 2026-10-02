@@ -216,7 +216,8 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
     const layout = LAYOUTS.includes(p?.layout) ? p.layout : papel === 'capa' ? 'capa' : tr.impacto ? 'destaque' : tr.multipagina ? 'auto' : 'painel';
     const blocos = [];
     for (const b of Array.isArray(p?.blocos) ? p.blocos : []) {
-      const refs = [...new Set((Array.isArray(b?.refs) ? b.refs : []).map(String).filter(r => itens.has(r)))];
+      // Cada item aparece uma vez só na peça (a IA às vezes repete o mesmo parágrafo em blocos diferentes).
+      const refs = [...new Set((Array.isArray(b?.refs) ? b.refs : []).map(String).filter(r => itens.has(r) && !usados.has(r)))];
       if (!refs.length) continue;
       const it = itens.get(refs[0]);
       const aceitos = ACEITA[it.tipo] || ['texto'];

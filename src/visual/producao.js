@@ -17,6 +17,7 @@ import { lerPlano, mensagensPlano, planejar } from './plano.js';
 import { inferirEstilo, resolverIdentidade } from './marca.js';
 import { produzir } from './motor.js';
 import { asset, inspecionarImagem, decodificarDataUrl, MAX_BYTES_ASSET } from './assets.js';
+import { renderizavel } from './webp.js';
 import { rotuloEntregavel } from '../quickwin-operacao.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -64,10 +65,15 @@ export function pedidoDeImagem({ titulo, objetivo, estilo = '', tipo }) {
 }
 
 export function guardarAsset(app, { conversaId, pessoaId, tipo, origem, dataUrl }) {
-  const d = decodificarDataUrl(dataUrl);
-  if (!d || d.bytes.length > MAX_BYTES_ASSET) return null;
+  const d0 = decodificarDataUrl(dataUrl);
+  if (!d0 || d0.bytes.length > MAX_BYTES_ASSET) return null;
+  const i0 = inspecionarImagem(d0.bytes);
+  if (!i0 || i0.mime !== d0.mime) return null;
+  // WEBP é guardado já como PNG (o renderizador e o PDF não leem WEBP).
+  const d = i0.mime === 'image/webp' ? decodificarDataUrl(renderizavel(dataUrl)) : d0;
+  if (!d || d.bytes.length > MAX_BYTES_ASSET * 4) return null;
   const info = inspecionarImagem(d.bytes);
-  if (!info || info.mime !== d.mime) return null;
+  if (!info) return null;
   const id = Number(exec(app.db, 'insert into visual_assets (conversa_id, pessoa_id, tipo, origem, mime, w, h, bytes, sha, criado_em) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     conversaId, pessoaId, tipo, origem, info.mime, Math.round(info.w), Math.round(info.h), d.bytes, createHash('sha256').update(d.bytes).digest('hex').slice(0, 32), app.agora().toISOString()).lastInsertRowid);
   return { id, mime: info.mime, w: info.w, h: info.h };
@@ -140,10 +146,11 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
             etapa('Gerando a imagem da peça…');
             const g = await app.ia.gerarImagem(pedido, { modelo: d.modelo, sinal: AbortSignal.timeout(90_000) });
             custos.imagem += g.custo || 0;
-            const info = decodificarDataUrl(g.dataUrl) && inspecionarImagem(decodificarDataUrl(g.dataUrl).bytes);
+            const url = renderizavel(g.dataUrl);
+            const info = url && decodificarDataUrl(url) && inspecionarImagem(decodificarDataUrl(url).bytes);
             if (info) {
               imagem = { ...imagem, gerada: true, provedor: 'servico_de_ia', modelo: g.modelo, motivo: null };
-              assets.heroi = { ...asset({ id: 'heroi', tipo: 'imagem_gerada', origem: 'gerado', proposito: 'imagem da peça' }), dataUrl: g.dataUrl, w: info.w, h: info.h };
+              assets.heroi = { ...asset({ id: 'heroi', tipo: 'imagem_gerada', origem: 'gerado', proposito: 'imagem da peça' }), dataUrl: url, w: info.w, h: info.h };
             } else imagem.motivo = 'falhou';
           } catch (err) { imagem.motivo = 'falhou'; app.log?.('imagem', erroParaLog(err)); }
         }

@@ -360,6 +360,11 @@ const PEDE_VISUAL = [
   [/\bcronograma visual|\blinha do tempo visual/, 'timeline', []], [/\bcartaz|\bposter\b/, 'poster', []], [/\bcarross\w*/, 'carousel', ['carrossel']],
   [/\b(arte|artes|peca grafica|pecas graficas|criativo|criativos|banner)\b/, 'social_post', ['imagem']], [/\bmaterial (visual )?de treinamento|\bmaterial didatico/, 'training_material', []],
   [/\brelatorio visual/, 'report', ['relatorio']], [/\b(matriz|comparativo|tabela) visual/, 'comparison', ['matriz', 'tabela']], [/\bchecklist visual/, 'checklist', ['checklist']],
+  // Peça para ver (não o texto do post): formato, imagem ou feed junto de "post"; capa; linha do tempo; painel de números.
+  [/\b(post|posts|postagem|postagens|stories|story)\b.*\b(quadrad\w*|imagem|visual|arte|feed|vertical|1:1|4:5|9:16)\b|\b(quadrad\w*|imagem|visual|arte|feed|vertical)\b.*\b(post|posts|postagem|stories|story)\b/, 'social_post', ['imagem']],
+  [/\bcapa\b/, 'cover', []], [/\blinha do tempo\b/, 'timeline', []], [/\bpainel\b.*\b(indicador\w*|kpis?|metricas?|numeros)\b/, 'dashboard', []],
+  // Último recurso: o pedido diz que quer algo visual, sem dizer o quê.
+  [/\b(algo|peca|material|versao|resumo|pagina) (bem )?visua(l|is)\b|\bvisualmente\b/, 'one_page', ['resumo', 'relatorio']],
 ];
 export function visualDoPedido(texto) {
   const t = norm(texto);

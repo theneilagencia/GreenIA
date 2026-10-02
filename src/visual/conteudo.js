@@ -22,6 +22,9 @@ const META = /^(escolhas feitas|observa[cç][oõ]es para quem (?:vai )?produzir|
 const ehTabela = (l, prox) => /^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{2,}/.test(prox || '');
 const celulas = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => limparInline(c));
 const ITEM = /^\s*([-*+•]|\d{1,2}[.)])\s+/;
+const ROTULADA = /^\**[^:*]{2,48}\**:\**\s*\S/;
+const META_DESIGN = /^[*_]*(formato|layout|paleta( de cores)?|tipografia|orienta[cç][aã]o|dimens[oõ]es|propor[cç][aã]o)[*_]*\s*:\s*.{0,60}$/i;
+const CTA = /^(?:chamada(?: para a[cç][aã]o)?|cta|call to action)\s*:\s*(.+)$/i;
 const SETA = /\s*(?:->|→|=>|⇒|➜|➔)\s*/;
 
 // Número com rótulo ("Receita: R$ 1,2 mi", "R$ 1,2 mi — receita do mês", "12% de redução").
@@ -42,12 +45,21 @@ export { indicador };
 const CARTAO = /^([^:]{2,48}):\s+(.{3,})$/;
 
 export function analisarConteudo(markdown, { titulo = '' } = {}) {
-  const linhas = String(markdown || '').replace(/\r/g, '').split('\n');
+  // Instrução de design que a execução às vezes escreve no conteúdo ("Formato: A4 retrato") não é conteúdo da peça.
+  const linhas = String(markdown || '').replace(/\r/g, '').split('\n').filter(l => !META_DESIGN.test(l.trim()));
   const secoes = [];
   let n = 0;
   const novaSecao = (t = null, pagina = null) => { const s = { id: `s${secoes.length + 1}`, titulo: t, pagina, itens: [] }; secoes.push(s); return s; };
   let atual = null, ignorar = false;
   const add = item => { if (ignorar) return; if (!atual) atual = novaSecao(); item.id = `${atual.id}.i${atual.itens.length + 1}`; atual.itens.push(item); n++; };
+  const lista = (limpos, ordenada) => {
+    if (!limpos.length) return;
+    // Fluxo: itens com setas ("A -> B -> C") descrevem um processo, não uma lista.
+    if (limpos.filter(x => SETA.test(x.texto)).length >= Math.max(1, limpos.length * 0.6)) { add(fluxoDe(limpos.map(x => x.texto))); return; }
+    const kpis = limpos.map(x => indicador(x.texto));
+    if (limpos.length >= 2 && kpis.filter(Boolean).length >= Math.ceil(limpos.length * 0.6)) { add({ tipo: 'indicadores', itens: limpos.map((x, k) => kpis[k] || { rotulo: x.texto, valor: '' }) }); return; }
+    add({ tipo: 'lista', ordenada, checklist: limpos.some(x => x.marcado !== null), itens: limpos.map(x => ({ texto: x.texto, ...(x.marcado !== null ? { marcado: x.marcado } : {}), ...(x.nivel > 1 ? { nivel: 2 } : {}) })) });
+  };
   let i = 0;
   while (i < linhas.length) {
     const l = linhas[i];
@@ -88,16 +100,7 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
         const ck = /^\[( |x|X)\]\s+(.*)$/.exec(texto);
         itens.push({ texto: limparInline(ck ? ck[2] : texto), marcado: ck ? ck[1] !== ' ' : null, nivel });
       }
-      const limpos = itens.filter(x => x.texto);
-      if (!limpos.length) continue;
-      // Fluxo: itens com setas ("A -> B -> C") descrevem um processo, não uma lista.
-      if (limpos.filter(x => SETA.test(x.texto)).length >= Math.max(1, limpos.length * 0.6)) { add(fluxoDe(limpos.map(x => x.texto))); continue; }
-      const kpis = limpos.map(x => indicador(x.texto));
-      if (limpos.length >= 2 && kpis.filter(Boolean).length >= Math.ceil(limpos.length * 0.6)) {
-        add({ tipo: 'indicadores', itens: limpos.map((x, k) => kpis[k] || { rotulo: x.texto, valor: '' }) });
-        continue;
-      }
-      add({ tipo: 'lista', ordenada, checklist: limpos.some(x => x.marcado !== null), itens: limpos.map(x => ({ texto: x.texto, ...(x.marcado !== null ? { marcado: x.marcado } : {}), ...(x.nivel > 1 ? { nivel: 2 } : {}) })) });
+      lista(itens.filter(x => x.texto), ordenada);
       continue;
     }
     // Parágrafo: linhas seguidas. Linha só em negrito vira subtítulo. Setas: fluxo.
@@ -105,9 +108,16 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
     while (i < linhas.length && linhas[i].trim() && !/^\s*#{1,6}\s/.test(linhas[i]) && !ITEM.test(linhas[i]) && !ehTabela(linhas[i], linhas[i + 1]) && !/^\s*>/.test(linhas[i])) par.push(linhas[i++]);
     if (par.length === 1 && /^\s*\*\*[^*]+\*\*:?\s*$/.test(par[0])) { add({ tipo: 'subtitulo', texto: limparInline(par[0]).replace(/:$/, '') }); continue; }
     if (par.every(x => SETA.test(x))) { add(fluxoDe(par)); continue; }
+    // Linhas "Rótulo: valor" seguidas, sem marcador de lista: cada linha é um item (nunca um parágrafo emendado).
+    if (par.length >= 2 && par.filter(x => ROTULADA.test(x.trim())).length >= Math.ceil(par.length * 0.6)) {
+      const ctas = par.map(x => CTA.exec(limparInline(x))).filter(Boolean);
+      lista(par.filter(x => !CTA.test(limparInline(x))).map(x => ({ texto: limparInline(x), marcado: null, nivel: 1 })).filter(x => x.texto), false);
+      for (const c of ctas) add({ tipo: 'paragrafo', texto: c[1].trim(), cta: true });
+      continue;
+    }
     const texto = limparInline(par.join(' '));
     // "Chamada: Fale com a equipe" -> chamada para ação (o rótulo "Chamada:" é instrução de estrutura, não aparece).
-    const cta = /^(?:chamada(?: para a[cç][aã]o)?|cta|call to action)\s*:\s*(.+)$/i.exec(texto);
+    const cta = CTA.exec(texto);
     if (cta) { add({ tipo: 'paragrafo', texto: cta[1].trim(), cta: true }); continue; }
     const k = indicador(texto);
     if (k && texto.length <= 60) add({ tipo: 'indicadores', itens: [k] });

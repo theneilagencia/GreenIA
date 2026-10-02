@@ -2,6 +2,7 @@
 // (codificação WinAnsi, a mesma régua de caracteres da composição) e as imagens em JPEG (direto) ou em pixels
 // (PNG, WEBP, GIF e SVG decodificados pelo resvg; transparência como máscara). O texto é texto de verdade:
 // selecionável e pesquisável.
+import { hrefRenderizavel } from './webp.js';
 import { deflateSync } from 'node:zlib';
 import { carregarFonte, codigoWinAnsi, metricas, medir, WINANSI } from './fontes.js';
 
@@ -110,8 +111,9 @@ export function pdfDasPaginas(paginas, { escala = 0.75, titulo = '', autor = '' 
     fontes.set(k, r);
     return r;
   };
-  const imagemRef = (href, nw, nh) => {
-    if (imagens.has(href)) return imagens.get(href);
+  const imagemRef = (href0, nw, nh) => {
+    if (imagens.has(href0)) return imagens.get(href0);
+    const href = hrefRenderizavel(href0);
     const d = decodificarDataUrl(href);
     if (!d) return null;
     const info = inspecionarImagem(d.bytes);
@@ -139,7 +141,7 @@ export function pdfDasPaginas(paginas, { escala = 0.75, titulo = '', autor = '' 
       definir(obj, stream(`<< /Type /XObject /Subtype /Image /Width ${px.w} /Height ${px.h} /ColorSpace /DeviceRGB /BitsPerComponent 8${smask}`, cores));
     }
     const r = { nome, obj, w: info.w, h: info.h };
-    imagens.set(href, r);
+    imagens.set(href0, r);
     return r;
   };
   const opacidade = a => {

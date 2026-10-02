@@ -71,6 +71,30 @@ const perm = eu.quickWins || {};
 const destino = perm.areas?.length ? { areas: [perm.areas[0].id] } : perm.todaEmpresa ? { toda_empresa: true } : null;
 if (!perm.criar || !destino) { log('A conta não pode criar Quick Wins.'); process.exit(1); }
 
+// QA_CONVERSAS=39,40: guarda o texto das respostas e o modelo editável dos artefatos de rodadas anteriores (material
+// fictício), para reproduzir localmente. QA_ESPERAR=1: depois disso, espera um sinal no mesmo FIFO (o deploy da
+// correção) antes de rodar os casos, mantendo a sessão viva.
+if (process.env.QA_CONVERSAS) {
+  mkdirSync(join(SAIDA, 'antigas'), { recursive: true });
+  for (const id of process.env.QA_CONVERSAS.split(',').map(Number).filter(Boolean)) {
+    const c = await api('GET', `/api/conversas/${id}`);
+    if (c.status !== 200) { log(`conversa ${id}: ${c.status}`); continue; }
+    const arts = [];
+    for (const a of c.dados.artefatos || []) arts.push((await api('GET', `/api/artefatos/${a.id}`)).dados);
+    writeFileSync(join(SAIDA, 'antigas', `${id}.json`), JSON.stringify({ mensagens: c.dados.mensagens.map(m => ({ papel: m.papel, texto: m.texto })), artefatos: arts }, null, 1));
+  }
+  log('ANTIGAS_SALVAS');
+}
+if (process.env.QA_ESPERAR === '1') {
+  log('AGUARDANDO_SINAL');
+  const vivo = setInterval(() => api('GET', '/api/eu').catch(() => {}), 4 * 60e3);
+  const { readFile } = await import('node:fs/promises');
+  await readFile(FIFO, 'utf8');
+  clearInterval(vivo);
+  R.versao = (await api('GET', '/api/saude')).dados?.versao || null;
+  log('SINAL_RECEBIDO versao=' + R.versao);
+}
+
 // ---- casos (tudo fictício) ---------------------------------------------------------------------------------------
 const CASOS = [
   { nome: 'Apresentação executiva', descricao: 'Transforme os números do trimestre em uma apresentação executiva de 6 slides para a diretoria.',
@@ -87,15 +111,15 @@ const CASOS = [
     material: 'Itens da inspeção (fictícios): extintores no lugar e lacrados; saídas de emergência desobstruídas; corredores sinalizados; empilhadeiras com check-list do operador; EPIs disponíveis (capacete, luva, óculos, protetor auricular); iluminação de emergência funcionando; vazamentos ou derramamentos; quadro elétrico fechado; primeiros socorros completo.' },
   { nome: 'Dashboard', descricao: 'Monte um dashboard de uma página com os indicadores de atendimento do mês.',
     material: 'Atendimento — setembro de 2026 (fictício). Chamados recebidos: 3.420. Resolvidos no primeiro contato: 71%. Tempo médio de resposta: 3 h 40 min. Satisfação (CSAT): 4,3 de 5. Chamados por canal: telefone 1.210, chat 1.540, e-mail 670. Evolução de chamados: junho 2.980, julho 3.150, agosto 3.300, setembro 3.420. Meta de resolução no primeiro contato: 75%.' },
-  { nome: 'Infográfico', descricao: 'Crie um infográfico explicando o processo de admissão de novos colaboradores.',
-    material: 'Processo de admissão (fictício): 1. Gestor abre a vaga aprovada. 2. RH envia a lista de documentos ao candidato. 3. Candidato envia documentos em até 5 dias. 4. Exame admissional. 5. Assinatura do contrato. 6. Cadastro na folha e nos acessos de TI. 7. Integração no primeiro dia (segurança, cultura, ferramentas). Prazo total: até 15 dias.' },
+  { nome: 'Infográfico', descricao: 'Crie um infográfico explicando o processo de compra de materiais de escritório.',
+    material: 'Processo de compra de materiais de escritório (fictício): 1. A área faz o pedido no portal. 2. O gestor aprova em até 2 dias. 3. Compras cota com 3 fornecedores. 4. Pedidos acima de R$ 5.000 vão para a diretoria. 5. Compras emite o pedido. 6. O almoxarifado recebe e confere. 7. A área retira o material. Prazo total: até 10 dias úteis.' },
   { nome: 'Post social', descricao: 'Crie um post quadrado para as redes sociais anunciando a Semana de Segurança.',
     material: 'Semana Interna de Prevenção de Acidentes (SIPAT) da Empresa Exemplo QA, de 13 a 17 de outubro de 2026. Palestras diárias às 9h no refeitório, gincana de segurança e campanha de vacinação. Tema: "Cuidar de você é o nosso jeito de trabalhar".' },
   { nome: 'Pedido visual surpresa', descricao: 'Quero uma linha do tempo visual com as fases do projeto de mudança de escritório para mostrar à equipe.',
     material: 'Mudança de escritório (fictícia). Fase 1 — planejamento: setembro de 2026. Fase 2 — obras no novo andar: outubro e novembro. Fase 3 — mudança de TI e móveis: 5 a 7 de dezembro. Fase 4 — primeiro dia no novo escritório: 8 de dezembro. Fase 5 — ajustes e devolução do prédio antigo: até 31 de janeiro de 2027.' }
 ];
 const REGRESSAO = [
-  { nome: 'Resumo de documento', descricao: 'Resuma este documento em tópicos curtos.', material: 'Política de viagens (fictícia): viagens nacionais precisam de aprovação do gestor com 7 dias de antecedência. Hospedagem até R$ 380 por noite. Reembolso em até 10 dias com nota fiscal.' },
+  { nome: 'Resumo de documento', descricao: 'Resuma este documento em tópicos curtos.', material: 'Política de viagens (fictícia): viagens nacionais precisam de aprovação do gestor com 7 dias de antecedência. Hospedagem até R$ 380 por noite. Reembolso em até 10 dias com comprovante.' },
   { nome: 'Pendências', descricao: 'Liste as pendências e os responsáveis deste e-mail.', material: 'E-mail (fictício): Oi time, ficou pendente o envio do relatório de estoque (Paulo, sexta), a revisão do contrato de frete (Marta, dia 10) e a compra dos uniformes (Rui, sem data).' }
 ];
 
@@ -118,6 +142,7 @@ async function rodar(caso, visual) {
     let texto = r.linhas.filter(l => l.t === 'texto').map(l => l.v).join('');
     if (texto.trim().startsWith('Antes de começar')) { reg.perguntou = true; r = await enviar(conv.id, { executar_quick_win: true, texto: 'Use só o material enviado acima; pode decidir o restante.' }); texto = r.linhas.filter(l => l.t === 'texto').map(l => l.v).join(''); }
     const fim = r.linhas.find(l => l.t === 'fim');
+    writeFileSync(join(SAIDA, `${slug(caso.nome)}.md`), texto);
     reg.execucao = { status: r.status, erro: r.erro || r.linhas.find(l => l.t === 'erro')?.mensagem || null, ms: Math.round(r.ms), qualidade: fim?.qualidade?.status || null, custo: fim?.custo ?? null,
       etapas: r.linhas.filter(l => l.t === 'etapa').map(l => `${l.v}@${Math.round(l.ms)}`), caracteres: texto.length };
     const arts = fim?.artefatos || [];

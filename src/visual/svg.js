@@ -1,6 +1,7 @@
 // Renderização SVG de uma página composta. O SVG é a fonte do PNG e do JPG (resvg) e uma exportação por si.
 // `embutirFontes`: o SVG baixado leva as fontes (base64), para abrir igual em qualquer lugar; o usado no PNG não
 // precisa (o resvg carrega os mesmos arquivos de fonte).
+import { hrefRenderizavel } from './webp.js';
 import { carregarFonte, metricas } from './fontes.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -36,7 +37,7 @@ export function svgDaPagina(pagina, { embutirFontes = false, id = 'p' } = {}) {
         const par = p.ajuste === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet';
         let cp = '';
         if (p.r) { const cid = `${id}c${clip++}`; defs.push(`<clipPath id="${cid}"><rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="${n(p.r)}"/></clipPath>`); cp = ` clip-path="url(#${cid})"`; }
-        corpo.push(`<image href="${p.href}" x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" preserveAspectRatio="${par}"${cp}/>`);
+        corpo.push(`<image href="${hrefRenderizavel(p.href) || ''}" x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" preserveAspectRatio="${par}"${cp}/>`);
         break;
       }
       case 'text': corpo.push(textoSvg(p)); usadas.add(`${p.familia}:${carregarFonte(p.familia, p.peso).peso}`); break;

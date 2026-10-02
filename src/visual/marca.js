@@ -8,6 +8,7 @@
 // por um pedido; o pedido de agora vale mais do que uma preferência antiga; nada é apresentado como regra da
 // empresa se não veio dela.
 import { dadosDaImagem } from './assets.js';
+import { renderizavel } from './webp.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 export const HEX = /^#[0-9a-f]{6}$/i;
@@ -112,7 +113,7 @@ export function resolverIdentidade(cfg = {}, { inferida = {} } = {}) {
   const logoPrincipal = typeof cfg.logo === 'string' && cfg.logo.startsWith('data:image/') ? cfg.logo : null;
   const logo = logoPrincipal || regras.logoEscuro || regras.logoClaro || null;
   origem.logo = logo ? 'empresa' : 'ausente';
-  const info = l => { const d = l && dadosDaImagem(l); return d && d.w && d.h ? { dataUrl: l, mime: d.mime, w: d.w, h: d.h } : null; };
+  const info = l0 => { const l = l0 && renderizavel(l0), d = l && dadosDaImagem(l); return d && d.w && d.h ? { dataUrl: l, mime: d.mime, w: d.w, h: d.h } : null; };
   return {
     empresa: String(cfg.empresa || '').trim().slice(0, 80) || null,
     cores, tipografia, cantos,

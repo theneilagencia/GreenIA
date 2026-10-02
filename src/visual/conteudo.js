@@ -17,6 +17,7 @@ const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 // "Página 2: Riscos", "Slide 3 - Próximos passos", "Tela 1", "Lâmina 4." -> número e título.
 const PAGINA = /^(?:p[aá]gina|slide|tela|l[aâ]mina|card|quadro|parte)\s*(\d{1,2})\s*(?:[:.\-–—)]\s*)?/i;
 // Seções que não são conteúdo da peça (meta da execução): ficam no resultado em texto, fora do visual.
+const CAPA = /^(capa|cover|abertura|slide de abertura|p[aá]gina de abertura)$/i;
 const META = /^(escolhas feitas|observa[cç][oõ]es para quem (?:vai )?produzir|notas? de produ[cç][aã]o|briefing)\b/i;
 
 const ehTabela = (l, prox) => /^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{2,}/.test(prox || '');
@@ -74,6 +75,8 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
       if (META.test(t)) { ignorar = true; atual = null; i++; continue; }
       ignorar = false;
       if (nivel >= 4 && atual) add({ tipo: 'subtitulo', texto: t });
+      // "Capa" / "Slide 1 — Capa": a seção traz o que vai na capa; "Capa" é estrutura, não título de conteúdo.
+      else if (CAPA.test(t)) { atual = novaSecao(null, pagina); atual.capa = true; }
       else atual = novaSecao(t || null, pagina);
       i++; continue;
     }

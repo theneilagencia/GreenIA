@@ -116,12 +116,15 @@ export function planejar(conteudo, tr, { titulo = '' } = {}) {
   const intro = secoes[0] && !secoes[0].titulo && secoes[0].itens.length === 1 && secoes[0].itens[0].tipo === 'paragrafo' && secoes[0].itens[0].texto.length <= 220 ? secoes[0] : null;
   if (intro) { subtitulo = intro.itens[0].texto; corpo = secoes.slice(1); }
   const refSubtitulo = intro ? [intro.itens[0].id] : [];
+  // Seção "Capa" escrita pela execução: numa peça sem capa, vira o subtítulo do cabeçalho (nunca um bloco "Capa").
+  const secCapa = corpo[0]?.capa && corpo[0].itens.every(x => ['paragrafo', 'subtitulo', 'lista'].includes(x.tipo)) && corpo[0].itens.map(textoDoItem).join(' ').length <= 300 ? corpo[0] : null;
+  if (secCapa && !(tr.multipagina && tr.capa)) { subtitulo = [subtitulo, ...secCapa.itens.map(textoDoItem)].filter(Boolean).join(' · '); refSubtitulo.push(...secCapa.itens.map(x => x.id)); corpo = corpo.slice(1); }
   if (tr.multipagina) {
     // Capa: a primeira seção pode ser ela mesma ("Página 1: título e subtítulo"), quando é curta e só de texto.
     let capa = null, comCapa = tr.capa;
     if (tr.capa) {
       const s0 = corpo[0];
-      const curta = s0 && s0.itens.length <= 2 && s0.itens.every(x => x.tipo === 'paragrafo' || x.tipo === 'subtitulo') && textoDoItemTotal(s0) <= 260;
+      const curta = s0 && ((s0.itens.length <= 2 && s0.itens.every(x => x.tipo === 'paragrafo' || x.tipo === 'subtitulo') && textoDoItemTotal(s0) <= 260) || s0 === secCapa || (s0.capa && textoDoItemTotal(s0) <= 300));
       // Número de páginas pedido: a capa conta. Conteúdo com uma seção por página já completo: a primeira seção
       // curta vira a capa; longa, a peça fica sem capa (nada é espremido nem acrescentado).
       if (curta && (s0.pagina === 1 || corpo.length > 1) && (!tr.paginas || corpo.length >= tr.paginas)) { capa = s0; corpo = corpo.slice(1); }
@@ -129,7 +132,7 @@ export function planejar(conteudo, tr, { titulo = '' } = {}) {
     }
     if (comCapa) {
       // Título da capa: o título da peça; a seção curta que virou capa dá o subtítulo (o título dela só vale sem título dado).
-      pag({ papel: 'capa', layout: 'capa', titulo: limpar((titulo || conteudo.titulo) ? tituloGeral : capa?.titulo || tituloGeral, 90), subtitulo: limpar(capa ? capa.itens.map(x => x.texto).join(' ') : subtitulo, 240),
+      pag({ papel: 'capa', layout: 'capa', titulo: limpar((titulo || conteudo.titulo) ? tituloGeral : capa?.titulo || tituloGeral, 90), subtitulo: limpar(capa ? capa.itens.map(textoDoItem).join(' · ') : subtitulo, 240),
         blocos: [], refs: [...refSubtitulo, ...(capa ? capa.itens.map(x => x.id) : [])], secao: capa?.id || null });
     }
     if (tr.fluxo === 'continuo') {
@@ -249,6 +252,9 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
     if (!pg.titulo && papel !== 'capa' && secao?.titulo) { const b0 = blocos.find(b => b.secao === secao.id); if (b0 && !b0.titulo) b0.titulo = limpar(secao.titulo, 90); }
     if (papel === 'capa' && !pg.titulo) pg.titulo = limpar(titulo || conteudo.titulo || tr.rotulo, 90);
     if (!blocos.length && papel !== 'capa') continue;
+    // Página de impacto (fundo escuro, texto grande) só em peça de impacto ou capa/fechamento: tabela, gráfico,
+    // diagrama e cronograma são para ler e ficam no layout de leitura.
+    if (pg.layout === 'destaque' && !tr.impacto && papel === 'conteudo' && blocos.some(b => ['tabela', 'grafico', 'diagrama', 'linha_tempo'].includes(b.tipo))) pg.layout = tr.multipagina ? 'auto' : 'painel';
     paginas.push(pg);
   }
   if (!paginas.length) return null;

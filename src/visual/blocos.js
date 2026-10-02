@@ -163,8 +163,13 @@ export function blocoTabela(it, largura, C, { tam = C.tip.tabela, linhas = null,
   const fB = carregarFonte(C.T.fonteCorpo, 700), fR = carregarFonte(C.T.fonteCorpo, 400);
   const pad = tam * 0.65;
   const numerica = cab.map((_, k) => k > 0 && it.linhas.length > 0 && it.linhas.filter(l => valorNumerico(l[k]) !== null).length >= Math.ceil(it.linhas.length * 0.8));
-  const natural = cab.map((h, k) => Math.max(medir(textoSeguro(h, fB), fB, tam), ...it.linhas.map(l => medir(textoSeguro(l[k] || '', fR), fR, tam))) + pad * 2);
-  const minimo = cab.map((h, k) => Math.max(...[h, ...it.linhas.map(l => l[k] || '')].flatMap(s => String(s).split(/\s+/)).map(w => medir(textoSeguro(w, fB), fB, tam))) + pad * 2);
+  // Célula de marcar ("[ ] Conforme [ ] Não conforme"): uma caixa desenhada por opção, nunca colchetes no texto.
+  const opcoes = c => (/^\s*(\[[ xX]?\]\s*[^[\]]+?\s*){1,4}$/.test(String(c || '')) ? [...String(c).matchAll(/\[([ xX]?)\]\s*([^[\]]+)/g)].map(m => ({ marcado: /x/i.test(m[1]), texto: m[2].trim() })) : null);
+  const lado = tam * 0.85, gap = tam * 0.45;
+  const medirCel = (c, f, palavra) => { const o = opcoes(c); if (!o) return palavra ? Math.max(...String(c || '').split(/\s+/).map(w => medir(textoSeguro(w, f), f, tam))) : medir(textoSeguro(c || '', f), f, tam);
+    return lado + gap + Math.max(...o.map(x => palavra ? Math.max(...x.texto.split(/\s+/).map(w => medir(textoSeguro(w, f), f, tam))) : medir(textoSeguro(x.texto, f), f, tam))); };
+  const natural = cab.map((h, k) => Math.max(medir(textoSeguro(h, fB), fB, tam), ...it.linhas.map(l => medirCel(l[k], fR, false))) + pad * 2);
+  const minimo = cab.map((h, k) => Math.max(medirCel(h, fB, true), ...it.linhas.map(l => medirCel(l[k], fB, true))) + pad * 2);
   let larg;
   const soma = natural.reduce((a, b) => a + b, 0);
   if (soma <= largura) larg = natural.map(w => w + (largura - soma) / nc);
@@ -178,15 +183,27 @@ export function blocoTabela(it, largura, C, { tam = C.tip.tabela, linhas = null,
     larg = larg.map(w => w * largura / s2);
   }
   const prims = [];
-  const linhaH = (cells, peso) => Math.max(...cells.map((c, k) => texto(c || '', { familia: C.T.fonteCorpo, peso, tam, cor: C.T.texto, largura: larg[k] - pad * 2, lh: 1.3 }).h)) + pad * 1.5;
+  const celula = (c, k, peso, cor, papel) => {
+    const ops = papel !== 'cabecalho' && opcoes(c);
+    const base = { familia: C.T.fonteCorpo, peso: k === 0 && papel !== 'cabecalho' ? 600 : peso, tam, cor, lh: 1.3, papel: papel === 'cabecalho' ? 'tabela_cabecalho' : 'tabela' };
+    if (!ops) { const t = texto(c || '', { ...base, largura: larg[k] - pad * 2, alin: numerica[k] ? 'end' : 'start' }); return { h: t.h, prims: [t.prim] }; }
+    const ps = []; let yy = 0;
+    for (const o of ops) {
+      const t = texto(o.texto, { ...base, largura: larg[k] - pad * 2 - lado - gap });
+      ps.push({ t: 'rect', x: 0, y: yy + (tam * 1.3 - lado) / 2, w: lado, h: lado, r: 2, fill: o.marcado ? C.T.primaria : '#FFFFFF', stroke: C.T.texto, sw: 1, papel: 'caixa_marcar' });
+      ps.push(caixa(t.prim, lado + gap, yy));
+      yy += t.h + tam * 0.25;
+    }
+    return { h: yy - tam * 0.25, prims: ps };
+  };
+  const linhaH = (cells, peso, papel) => Math.max(...cells.map((c, k) => celula(c, k, peso, C.T.texto, papel).h)) + pad * 1.5;
   let y = 0;
   const desenharLinha = (cells, peso, fundo, cor, papel) => {
-    const h = linhaH(cells, peso);
+    const h = linhaH(cells, peso, papel);
     if (fundo) prims.push({ t: 'rect', x: 0, y, w: largura, h, fill: fundo, papel: papel === 'cabecalho' ? 'cabecalho' : 'zebra' });
     let x = 0;
     cells.forEach((c, k) => {
-      const t = texto(c || '', { familia: C.T.fonteCorpo, peso: k === 0 && papel !== 'cabecalho' ? 600 : peso, tam, cor, largura: larg[k] - pad * 2, lh: 1.3, alin: numerica[k] ? 'end' : 'start', papel: papel === 'cabecalho' ? 'tabela_cabecalho' : 'tabela' });
-      prims.push(caixa(t.prim, x + pad, y + pad * 0.75));
+      for (const p of celula(c, k, peso, cor, papel).prims) prims.push({ ...p, x: (p.x || 0) + x + pad, y: (p.y || 0) + y + pad * 0.75 });
       x += larg[k];
     });
     y += h;
@@ -198,7 +215,7 @@ export function blocoTabela(it, largura, C, { tam = C.tip.tabela, linhas = null,
     prims.push({ t: 'line', x1: 0, y1: y, x2: largura, y2: y, cor: C.T.linha, sw: 1, papel: 'grade' });
   });
   // Altura de cada linha (para partir a tabela entre páginas sem cortar uma linha ao meio).
-  const alturas = [linhaH(cab, 700), ...corpo.map(l => linhaH(cab.map((_, k) => l[k] ?? ''), 400))];
+  const alturas = [linhaH(cab, 700, 'cabecalho'), ...corpo.map(l => linhaH(cab.map((_, k) => l[k] ?? ''), 400))];
   return { h: y, prims, alturas, larguras: larg };
 }
 

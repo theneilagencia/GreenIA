@@ -140,7 +140,8 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
     const soGrafico = it.tipo === 'tabela' && series.has(it.id) && !comoTabela.has(it.id);
     const partes = soGrafico ? [...series.get(it.id).map(k => it.cabecalho[k]), ...it.linhas.flatMap(l => [l[0], ...series.get(it.id).map(k => l[k])])]
       : it.tipo === 'lista' ? it.itens.map(x => x.texto) : it.tipo === 'tabela' ? [...it.cabecalho, ...it.linhas.flat()] : it.tipo === 'indicadores' ? it.itens.flatMap(x => [x.valor, x.rotulo]) : it.tipo === 'fluxo' ? it.nos.map(x => x.rotulo) : [it.texto];
-    const ausentes = partes.filter(t => { const k = plano(t); return k && !visivel.includes(k.slice(0, 60)); });
+    // Célula de marcar: as opções aparecem como caixa desenhada + texto (os colchetes não são texto).
+    const ausentes = partes.flatMap(t => (/\[[ xX]?\]/.test(String(t || '')) ? String(t).split(/\[[ xX]?\]/).map(x => x.trim()).filter(Boolean) : [t])).filter(t => { const k = plano(t); return k && !visivel.includes(k.slice(0, 60)); });
     if (ausentes.length) faltando.push({ item: it.id, secao: s.id, exemplos: ausentes.slice(0, 2) });
   }
   if (faltando.length) f('conteudo_faltando', 'erro', null, faltando.map(x => `${x.item}: "${String(x.exemplos[0]).slice(0, 40)}"`).join('; '), { itens: faltando.map(x => x.item) });

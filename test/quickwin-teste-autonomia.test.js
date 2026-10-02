@@ -53,3 +53,17 @@ test('teste sem documentos da empresa: o exemplo decide pela empresa fictícia e
   assert.notEqual(r.fim.qualidade.status, 'pergunta');
   assert.equal(json(um(S.app.db, "select detalhes from eventos where tipo = 'quickwin.autonomy_checked' order by id desc limit 1").detalhes).resultado, 'executou_com_escolhas');
 });
+
+// QA em produção (qw de posts com pesquisa, empresa sem pesquisa liberada e sem base): o modelo recusou todas as peças
+// ("sem pesquisa e sem documentos não é possível"). A falta da pesquisa e da base não impede o trabalho.
+test('sem pesquisa liberada e sem base: o prompt manda fazer todos os entregáveis, com o tema como sugestão', () => {
+  const op = { ...PLANO, v: 2, contexto_empresa: true, ferramentas: ['pesquisa_web', 'base_empresa'] };
+  const p = OP.promptOperacao(op, { pesquisa: { disponivel: false, motivo: OP.MOTIVOS_PESQUISA.nao_liberada } });
+  assert.match(p, /A falta da pesquisa não impede o trabalho: faça todos os entregáveis/);
+  assert.match(p, /vai como sugestão, nunca como tendência atual/);
+  const ex = OP.planoDoExemplo({ objetivo: PEDIDO, operacao: { ...op, canais: ['linkedin', 'instagram'] } }, { temBase: false });
+  assert.match(ex.texto, /Público, tom e tema são escolhas, não fatos/);
+  assert.match(ex.texto, /faça todas as peças/);
+  // Com pesquisa disponível, nada muda.
+  assert.doesNotMatch(OP.promptOperacao(op, { pesquisa: { disponivel: true } }), /A falta da pesquisa/);
+});

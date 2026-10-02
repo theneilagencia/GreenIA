@@ -440,7 +440,7 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
   if (op.ferramentas?.includes('pesquisa_web')) {
     partes.push(pesquisa?.disponivel
       ? `Pesquisa: ${notas ? 'a pesquisa na internet desta execução já foi feita, e as notas dela estão entre as marcas <pesquisa>. Use só essas notas' : 'nesta execução você tem acesso a uma pesquisa na internet. Use os resultados dela'} para os temas, fatos e números atuais. Não invente tendências, números, datas ou fontes. ${SEM_MARCADORES} No fim, inclua a seção "## ${SECAO_FONTES}" com o título e o endereço de cada fonte usada.`
-      : `Pesquisa: a pesquisa na internet NÃO está disponível nesta execução (${pesquisa?.motivo || 'não liberada'}). Não simule uma pesquisa e não apresente temas, fatos ou números como atuais ou "em alta". Comece o resultado com a linha "Pesquisa na internet não realizada: ${pesquisa?.motivo || 'não liberada'}." e use só o material, o contexto autorizado e o que for conhecimento geral, deixando claro que não foi pesquisado. ${SEM_MARCADORES}`);
+      : `Pesquisa: a pesquisa na internet NÃO está disponível nesta execução (${pesquisa?.motivo || 'não liberada'}). Não simule uma pesquisa e não apresente temas, fatos ou números como atuais ou "em alta". Comece o resultado com a linha "Pesquisa na internet não realizada: ${pesquisa?.motivo || 'não liberada'}." e use só o material, o contexto autorizado e o que for conhecimento geral, deixando claro que não foi pesquisado. A falta da pesquisa não impede o trabalho: faça todos os entregáveis assim, e o tema que não pôde ser confirmado vai como sugestão, nunca como tendência atual. ${SEM_MARCADORES}`);
   }
   return partes.join('\n\n');
 }
@@ -552,7 +552,7 @@ const CONTEXTO_DO_TESTE = 'Use o contexto da empresa que está nos documentos au
 export const comoMaterialDeTeste = texto => `Material de teste (fictício) desta execução: use-o como o material do trabalho. Nomes, empresas e números dele são fictícios: não pergunte sobre eles, faça o trabalho.\n\n${texto}`;
 // Sem documento nenhum da empresa na base, o teste não tem de onde tirar o contexto: o exemplo já é o material
 // fictício (marcado como tal), e a decisão vem pronta. Com base, o contexto vem dela.
-const CONTEXTO_SEM_BASE = 'A empresa ainda não tem documentos na base: este teste é para a Empresa Exemplo Ltda. (fictícia), do mesmo setor do objetivo. Escolha o público, o tom e o tema mais prováveis para ela e registre essas escolhas em "Escolhas feitas".';
+const CONTEXTO_SEM_BASE = 'A empresa ainda não tem documentos na base: este teste é para a Empresa Exemplo Ltda. (fictícia), do mesmo setor do objetivo. Público, tom e tema são escolhas, não fatos: escolha os mais prováveis para ela, faça todas as peças e registre essas escolhas em "Escolhas feitas", sem inventar números, clientes ou resultados.';
 export function planoDoExemplo(espec, { temBase = true } = {}) {
   const r = planoDoExemplo_(espec, temBase);
   return r.modo === 'texto' && !temBase && r.semBase ? { modo: 'texto', texto: comoMaterialDeTeste(r.texto) } : r;

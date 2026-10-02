@@ -43,7 +43,8 @@ test('teste sem documentos da empresa: o exemplo decide pela empresa fictícia e
   const qw = (await ana.post('/api/quick-wins', { areas: [ana.area], assistente: { descricao: PEDIDO, operacao: it.operacao, interpretacao: { chave: it.chave, operacao: it.operacao } } })).dados;
   const ex = (await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados;
   assert.equal(ex.modo, 'texto');
-  assert.match(ex.texto, /sem perguntar: isto é um teste/, 'a decisão vem pronta no exemplo');
+  assert.match(ex.texto, /^Material de teste \(fictício\)/, 'sem base, o exemplo é material fictício');
+  assert.match(ex.texto, /este teste é para a Empresa Exemplo Ltda\. \(fictícia\)/, 'a decisão vem pronta no exemplo');
   const conv = (await ana.post('/api/conversas', { quick_win_id: qw.id, teste: true })).dados.conversa;
   const r = await enviarMensagem(ana, conv.id, { executar_quick_win: true, texto: ex.texto });
   assert.equal(r.status, 200, JSON.stringify(r.erro));

@@ -547,7 +547,15 @@ const CONTEXTO_DO_TESTE = 'Use o contexto da empresa que está nos documentos au
 // Material fictício gerado para o teste: vai com a indicação de que ele é o material desta execução (sem isso, um
 // modelo perguntava se devia usar o documento "de outra empresa").
 export const comoMaterialDeTeste = texto => `Material de teste (fictício) desta execução: use-o como o material do trabalho. Nomes, empresas e números dele são fictícios: não pergunte sobre eles, faça o trabalho.\n\n${texto}`;
-export function planoDoExemplo(espec) {
+// Sem documento nenhum da empresa na base, o teste não tem de onde tirar o contexto: o exemplo já é o material
+// fictício (marcado como tal), e a decisão vem pronta. Com base, o contexto vem dela.
+const CONTEXTO_SEM_BASE = 'A empresa ainda não tem documentos na base: este teste é para a Empresa Exemplo Ltda. (fictícia), do mesmo setor do objetivo. Escolha o público, o tom e o tema mais prováveis para ela e registre essas escolhas em "Escolhas feitas".';
+export function planoDoExemplo(espec, { temBase = true } = {}) {
+  const r = planoDoExemplo_(espec, temBase);
+  return r.modo === 'texto' && !temBase && r.semBase ? { modo: 'texto', texto: comoMaterialDeTeste(r.texto) } : r;
+}
+function planoDoExemplo_(espec, temBase) {
+  const contextoTeste = temBase ? CONTEXTO_DO_TESTE : CONTEXTO_SEM_BASE;
   const obj = norm(espec?.objetivo || '');
   if (!obj || obj.length < 12) return { modo: 'insuficiente' };
   const op = espec.operacao;
@@ -558,17 +566,17 @@ export function planoDoExemplo(espec) {
     const ents = op.entradas || [];
     if (ents.length && ents.every(e => ['imagem', 'audio'].includes(e.tipo))) return { modo: 'arquivo' };
     if (ents.length) return { modo: 'ia', entradas: ents };
-    if (op.canais?.length) return planoDoExemplo({ ...espec, operacao: { ...op, v: undefined } });
+    if (op.canais?.length) return planoDoExemplo_({ ...espec, operacao: { ...op, v: undefined } }, temBase);
     const pesquisa = op.ferramentas?.includes('pesquisa_web') ? ' Pesquise antes de produzir.' : '';
-    const contexto = !usaContextoEmpresa(op) || op.contexto_respostas?.length ? '' : `\n${CONTEXTO_DO_TESTE}`;
-    return { modo: 'texto', texto: `Pedido de teste: faça o trabalho conforme o objetivo do Quick Win.${pesquisa}${lista ? `\nEntregue: ${lista}.` : ''}${contexto}` };
+    const contexto = !usaContextoEmpresa(op) || op.contexto_respostas?.length ? '' : `\n${contextoTeste}`;
+    return { modo: 'texto', semBase: !!contexto, texto: `Pedido de teste: faça o trabalho conforme o objetivo do Quick Win.${pesquisa}${lista ? `\nEntregue: ${lista}.` : ''}${contexto}` };
   }
   if (!op?.entregaveis?.length && ENTRADA_ARQUIVO.test(obj) && !/\b(texto|mensagem|e-?mail)\b/.test(obj)) return { modo: 'arquivo' };
   // Operação de conteúdo: o pedido de teste é o próprio pedido do dia a dia, sem material (o contexto vem da base).
   if (op?.entregaveis?.length) {
     const pesquisa = op.ferramentas?.includes('pesquisa_web') ? ' Pesquise os temas antes de escrever.' : '';
-    const contexto = op.contexto_respostas?.length ? '' : `\n${CONTEXTO_DO_TESTE}`;
-    return { modo: 'texto', texto: `Pedido de teste: faça o trabalho desta semana conforme o objetivo do Quick Win.${pesquisa}\nEntregue: ${lista}.${contexto}` };
+    const contexto = op.contexto_respostas?.length ? '' : `\n${contextoTeste}`;
+    return { modo: 'texto', semBase: !!contexto, texto: `Pedido de teste: faça o trabalho desta semana conforme o objetivo do Quick Win.${pesquisa}\nEntregue: ${lista}.${contexto}` };
   }
   return { modo: 'ia' };   // material fictício gerado pela IA, a partir do objetivo (quickwin-estrutura.js)
 }

@@ -393,7 +393,7 @@ export function rotasQuickWins(app, r) {
     const espec = QW2.normalizar(json(q.especificacao, null));
     const fallback = { modo: 'insuficiente', mensagem: OP.SEM_CONTEXTO_EXEMPLO };
     if (!espec) return fallback;
-    const plano = OP.planoDoExemplo(espec);
+    const plano = OP.planoDoExemplo(espec, { temBase: basesVisiveis(app.db, pessoa).length > 0 });
     if (plano.modo === 'insuficiente') return fallback;
     if (plano.modo === 'arquivo') return { modo: 'arquivo', mensagem: OP.PEDE_ARQUIVO_EXEMPLO };
     if (plano.modo === 'texto') return { modo: 'texto', texto: plano.texto, aviso: OP.AVISO_EXEMPLO };

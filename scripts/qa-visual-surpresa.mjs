@@ -104,10 +104,10 @@ Produto avariado? -> (sim) Abrir análise com a qualidade
 
 ### Observações
 - O reembolso sai em até 5 dias úteis após a conferência.` },
-  { area: 'Vendas', pedido: 'Prepare uma apresentação de 5 slides com a proposta comercial para a Construtora Exemplo.', conteudo: `Título: Proposta de gestão de frotas — Construtora Exemplo
+  { area: 'Vendas', pedido: 'Prepare uma apresentação de 5 slides com a proposta comercial para a Cliente Exemplo.', conteudo: `Título: Proposta de gestão de frotas — Cliente Exemplo
 
 ### Proposta de gestão de frotas
-Construtora Exemplo · Outubro de 2026
+Cliente Exemplo · Outubro de 2026
 
 ### O desafio
 - 86 veículos em 4 canteiros.

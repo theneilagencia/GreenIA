@@ -90,3 +90,8 @@ test('peças por canal: número, resultado de cliente e oferta só entram se est
   assert.match(p, /número, resultado de cliente, prazo, preço, oferta \(como "gratuito"\) ou prêmio só entram se estiverem no material/);
   assert.doesNotMatch(OP.promptOperacao({ ...PLANO, v: 2, entregaveis: [{ id: 'e1', tipo: 'resumo' }] }), /oferta \(como "gratuito"\)/, 'sem canal, nada muda');
 });
+
+test('material só citado e não obrigatório (guia da marca): não vira pergunta', () => {
+  const p = OP.promptOperacao({ ...PLANO, v: 2, criterios: ['As orientações visuais respeitam o guia da marca.'] });
+  assert.match(p, /Material que o trabalho só cita[^\n]*se ele não veio, não pergunte por ele\. Faça o trabalho/);
+});

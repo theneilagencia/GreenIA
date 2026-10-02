@@ -419,6 +419,8 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
   if (usaContextoEmpresa(op)) partes.push('Use o contexto da empresa que está nos documentos autorizados e no contexto acima: o resultado tem de ser sobre ela, não genérico. Se não houver nenhuma informação sobre a empresa, a marca ou o produto e o trabalho depender disso, pergunte antes de fazer.');
   if (op.entradas?.length) partes.push(`Material deste trabalho:\n${op.entradas.map(e => `- ${e.rotulo}${e.quantidade > 1 ? ` (${e.quantidade})` : ''}: ${e.obrigatoria ? 'obrigatório' : 'opcional'}`).join('\n')}\n`
     + `Se faltar material obrigatório (não veio na mensagem, nos anexos nem nos documentos autorizados), não faça o trabalho com dados de exemplo nem inventados: peça o que falta, numa mensagem começando exatamente com "${MARCADOR_PERGUNTA}". Material que veio incompleto: faça com o que veio e aponte o que faltou.`);
+  // QA em produção: o critério "respeitar o brandbook" fazia o modelo parar e perguntar se o guia estava disponível.
+  partes.push('Material que o trabalho só cita (um guia da marca, uma referência, um modelo) e que não é obrigatório: se ele não veio, não pergunte por ele. Faça o trabalho e diga, onde ele faria diferença, que ele não foi fornecido.');
   if (entregaMultipla(op)) {
     const porId = new Map(op.entregaveis.map(e => [e.id, rotuloEntregavel(e)]));
     partes.push(`Entregáveis (entregue todos, nesta ordem, cada um com o título exato "## <título>"):\n${op.entregaveis.map((e, i) => {

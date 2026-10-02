@@ -76,3 +76,11 @@ test('sem pesquisa liberada e sem base: o prompt manda fazer todos os entregáve
   // Com pesquisa disponível, nada muda.
   assert.doesNotMatch(OP.promptOperacao(op, { pesquisa: { disponivel: true } }), /A falta da pesquisa/);
 });
+
+test('conferência: critério que depende de material ausente é atendido quando o resultado diz que ele não veio', async () => {
+  const C = await import('../src/quickwin-construtor.js');
+  const p = C.promptQualidade(C.construir({ descricao: PEDIDO, operacao: { ...PLANO, v: 2, criterios: ['As orientações visuais respeitam o guia da marca.'] } }));
+  assert.match(p, /As orientações visuais respeitam o guia da marca/);
+  assert.match(p, /Critério que depende de um material que não está na entrada[^\n]*é atendido quando o resultado diz que esse material não veio/);
+  assert.match(p, /Marque falha se o resultado supõe o conteúdo desse material/);
+});

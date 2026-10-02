@@ -659,6 +659,9 @@ export function promptQualidade(espec) {
       : [`Objetivo do trabalho: ${e.objetivo}`]),
     `CRITÉRIOS:\n${e.criterios_qualidade.map(c => `- ${c.id}: ${c.texto}`).join('\n')}`,
     'Diga também se o OBJETIVO central foi atingido. "objetivo_atingido": false quando o resultado é honesto mas não entrega o centro do pedido (por exemplo: a pesquisa não identificou o que era para identificar, o material não tinha os dados pedidos, a peça final não pôde ser produzida, as seções principais ficaram como "não encontrado"). true quando entrega, mesmo com algum detalhe faltando. Honestidade não é falha de critério: não marque critério como falho só porque o resultado admite que algo não foi encontrado.',
+    // QA em produção: um critério que depende de material ausente (o guia da marca, por exemplo) falhava nos dois
+    // sentidos — "inventado" quando o resultado supunha o material, "incompleto" quando dizia que ele não veio.
+    'Critério que depende de um material que não está na entrada (um guia de marca, um documento, um dado) é atendido quando o resultado diz que esse material não veio e faz o resto sem inventá-lo. Marque falha se o resultado supõe o conteúdo desse material como se o tivesse.',
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
 }

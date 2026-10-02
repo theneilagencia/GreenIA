@@ -591,7 +591,9 @@ export function conferirOperacao(op, texto, { pesquisa = null, entrada = '' } = 
   if (!out.objetivo && tabelasSemDados(texto)) out.objetivo = { atingido: false, motivo: 'tabela_sem_dados' };
   if (entregaMultipla(op)) {
     const ts = titulos(texto);
-    const faltam = op.entregaveis.filter(e => !casa(ts, e));
+    // Peça visual: o conteúdo dela vem numa seção com "Título:" (formato pedido em promptVisual), que pode ter outro nome.
+    const secaoDePeca = String(texto || '').split(/\n(?=\s*#{1,2}\s)/).some(b => /^\s*#{1,2}\s[^\n]*\n+\s*\**\s*(?:t[ií]tulo|title)\s*\**\s*:/i.test(b));
+    const faltam = op.entregaveis.filter(e => !casa(ts, e) && !(e.visual && secaoDePeca));
     if (faltam.length) { falhas.push('completo'); detalhes.push(`Faltaram entregáveis: ${faltam.map(rotuloEntregavel).join(', ')}.`); }
     const semBriefing = op.entregaveis.filter(e => ehVisual(e) && casa(ts, e) && !norm(secaoDe(texto, rotuloEntregavel(e))).includes('briefing'));
     if (semBriefing.length) { falhas.push('regras'); detalhes.push(`Peça visual sem a marcação de briefing: ${semBriefing.map(rotuloEntregavel).join(', ')}.`); }

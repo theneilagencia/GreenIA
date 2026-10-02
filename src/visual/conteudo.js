@@ -25,6 +25,9 @@ const celulas = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').m
 const ITEM = /^\s*([-*+•]|\d{1,2}[.)])\s+/;
 const ROTULADA = /^\**[^:*]{2,48}\**:\**\s*\S/;
 const META_DESIGN = /^[*_]*(formato|layout|paleta( de cores)?|tipografia|orienta[cç][aã]o|dimens[oõ]es|propor[cç][aã]o)[*_]*\s*:\s*.{0,60}$/i;
+const LACUNA = /^(?:n[aã]o (?:informad[oa]s?|dispon[ií]ve(?:l|is)|fornecid[oa]s?|identificad[oa]s?|consta)|sem (?:informa[cç][aã]o|dados?)|n\/a|n\.?\s?d\.?|-|—)\.?$/i;
+// "Descrição: não informado" -> "" ; "Data: não informado | Setor: A" -> "Setor: A".
+const semLacunas = t => String(t || '').split(/\s+\|\s+/).filter(p => { const v = ROTULADA.test(p.trim()) ? p.slice(p.indexOf(':') + 1).trim() : p.trim(); return v && !LACUNA.test(v.replace(/[*_]/g, '')); }).join(' | ');
 const CTA = /^(?:chamada(?: para a[cç][aã]o)?|cta|call to action)\s*:\s*(.+)$/i;
 const SETA = /\s*(?:->|→|=>|⇒|➜|➔)\s*/;
 
@@ -103,7 +106,10 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
         const ck = /^\[( |x|X)\]\s+(.*)$/.exec(texto);
         itens.push({ texto: limparInline(ck ? ck[2] : texto), marcado: ck ? ck[1] !== ' ' : null, nivel });
       }
-      lista(itens.filter(x => x.texto), ordenada);
+      // "Chamada: ..." no fim de uma lista é a chamada para ação, não mais um item.
+      const ctaLista = itens.filter(x => CTA.test(x.texto));
+      lista(itens.filter(x => x.texto && !CTA.test(x.texto)), ordenada);
+      for (const x of ctaLista) add({ tipo: 'paragrafo', texto: CTA.exec(x.texto)[1].trim(), cta: true });
       continue;
     }
     // Parágrafo: linhas seguidas. Linha só em negrito vira subtítulo. Setas: fluxo.
@@ -126,9 +132,41 @@ export function analisarConteudo(markdown, { titulo = '' } = {}) {
     if (k && texto.length <= 60) add({ tipo: 'indicadores', itens: [k] });
     else if (texto) add({ tipo: 'paragrafo', texto });
   }
+  // Campo opcional sem dado ("Descrição: não informado") não vai para a peça: sai a linha, a coluna inteira de
+  // lacunas sai da tabela e a célula solta vira "—". O que falta de verdade fica na seção de lacunas do resultado.
+  for (const s of secoes) {
+    s.itens = s.itens.map(it => {
+      if (it.tipo === 'lista') { const itens = it.itens.map(x => ({ ...x, texto: semLacunas(x.texto) })).filter(x => x.texto); return itens.length ? { ...it, itens } : null; }
+      if (it.tipo === 'paragrafo') { const t = semLacunas(it.texto); return t ? { ...it, texto: t } : null; }
+      if (it.tipo === 'indicadores') { const itens = it.itens.filter(x => !LACUNA.test(String(x.valor || '').trim()) && !LACUNA.test(String(x.rotulo || '').trim())); return itens.length ? { ...it, itens } : null; }
+      if (it.tipo === 'tabela') {
+        const manter = it.cabecalho.map((_, k) => k === 0 || it.linhas.some(l => !LACUNA.test(String(l[k] || '').trim())));
+        return { ...it, cabecalho: it.cabecalho.filter((_, k) => manter[k]), linhas: it.linhas.map(l => l.filter((_, k) => manter[k]).map(c => (LACUNA.test(String(c || '').trim()) ? '—' : c))) };
+      }
+      return it;
+    }).filter(Boolean);
+  }
+  // Registros paralelos: seções seguidas, cada uma só com campos "Rótulo: valor" e os mesmos rótulos (uma fase, um
+  // fornecedor, uma etapa por seção) viram um item só, em ordem: nenhuma fase some por ser uma seção curta.
+  for (let k = 0; k < secoes.length; k++) {
+    const campos = s => (s.titulo && s.itens.length === 1 && s.itens[0].tipo === 'lista' && s.itens[0].itens.every(x => ROTULADA.test(x.texto)) ? s.itens[0].itens.map(x => x.texto.split(':')[0].trim().toLowerCase()).join('|') : null);
+    const chave = campos(secoes[k]);
+    if (!chave) continue;
+    let j = k + 1;
+    while (j < secoes.length && campos(secoes[j]) === chave) j++;
+    if (j - k < 2) continue;
+    const grupo = secoes.slice(k, j), rotulos = chave.split('|');
+    const tempo = rotulos.findIndex(r => /^(per[ií]odo|data|datas|prazo|quando|m[eê]s|in[ií]cio|fim|date|when|period)$/.test(r));
+    const valores = sec => sec.itens[0].itens.map(x => x.texto.slice(x.texto.indexOf(':') + 1).trim());
+    const item = tempo >= 0
+      ? { tipo: 'lista', ordenada: false, checklist: false, itens: grupo.map(sec => { const v = valores(sec); return { texto: `${v[tempo]}: ${[sec.titulo, ...v.filter((_, i) => i !== tempo)].join(' — ')}` }; }) }
+      : { tipo: 'tabela', cabecalho: ['', ...grupo[0].itens[0].itens.map(x => x.texto.split(':')[0].trim())], linhas: grupo.map(sec => [sec.titulo, ...valores(sec)]) };
+    secoes[k] = { ...secoes[k], titulo: secoes[k].pai || null, itens: [item] };
+    secoes.splice(k + 1, j - k - 1);
+  }
   // Seções vazias (só título) saem; uma seção sem título no começo é a introdução.
   const validas = secoes.filter(s => s.itens.length || s.titulo);
-  validas.forEach((s, k) => { const novo = `s${k + 1}`; if (s.id !== novo) { s.itens.forEach((it, j) => { it.id = `${novo}.i${j + 1}`; }); s.id = novo; } });
+  validas.forEach((s, k) => { const novo = `s${k + 1}`; s.itens.forEach((it, j) => { it.id = `${novo}.i${j + 1}`; }); s.id = novo; });
   const conteudo = { titulo: limparInline(titulo) || null, secoes: validas };
   return conteudo;
 }

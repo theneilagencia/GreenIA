@@ -663,6 +663,9 @@ export function promptQualidade(espec) {
     // QA em produção: um critério que depende de material ausente (o guia da marca, por exemplo) falhava nos dois
     // sentidos — "inventado" quando o resultado supunha o material, "incompleto" quando dizia que ele não veio.
     'Critério que depende de um material que não está na entrada (um guia de marca, um documento, um dado) é atendido quando o resultado diz que esse material não veio e faz o resto sem inventá-lo. Marque falha se o resultado supõe o conteúdo desse material como se o tivesse.',
+    // Produção visual: o arquivo é montado depois, a partir do conteúdo. A conferência textual julga o conteúdo; a
+    // aparência (layout, legibilidade, composição) é da conferência visual.
+    ...((e.operacao?.entregaveis || []).some(x => x.visual) ? ['Peças visuais: a GreenIA monta o arquivo final (PDF e imagem) depois, a partir do conteúdo escrito na seção de cada peça. Confira o conteúdo dessas peças (fidelidade à entrada, completude, invenção, critérios), não a aparência: não marque falha porque a peça veio como texto estruturado em vez do arquivo, por não ter imagem, cores ou layout, nem pelo número de páginas do arquivo.'] : []),
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
 }

@@ -214,18 +214,30 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
   const semNumeroNovo = t => [...numerosDe(t)].every(n => numeros.has(n));
   const titulo_ = (t, max) => { const x = limpar(t, max); return x && semNumeroNovo(x) ? x : ''; };
   const usados = new Set(), paginas = [];
+  let daCapa = [];   // blocos que a IA pôs na capa e não cabem no subtítulo: vão para a próxima página de conteúdo
   for (const p of d.paginas.slice(0, MAX_PAGINAS)) {
     const papel = ['capa', 'conteudo', 'fechamento'].includes(p?.papel) ? p.papel : 'conteudo';
     const layout = LAYOUTS.includes(p?.layout) ? p.layout : papel === 'capa' ? 'capa' : tr.impacto ? 'destaque' : tr.multipagina ? 'auto' : 'painel';
     const blocos = [];
+    // Um bloco desenha um item (só o bloco de texto junta parágrafos): bloco da IA com várias refs vira um bloco por
+    // item, senão os itens além do primeiro sumiriam da peça (contados como usados e nunca desenhados).
+    const pedidos = [];
     for (const b of Array.isArray(p?.blocos) ? p.blocos : []) {
       // Cada item aparece uma vez só na peça (a IA às vezes repete o mesmo parágrafo em blocos diferentes).
       const refs = [...new Set((Array.isArray(b?.refs) ? b.refs : []).map(String).filter(r => itens.has(r) && !usados.has(r)))];
       if (!refs.length) continue;
+      const juntaTexto = (b?.tipo === 'texto' || !BLOCOS.includes(b?.tipo)) && refs.every(r => itens.get(r).tipo === 'paragrafo');
+      if (juntaTexto) { pedidos.push({ b, refs }); refs.forEach(r => usados.add(r)); continue; }
+      refs.forEach((r, k) => { pedidos.push({ b: k ? { ...b, titulo: '' } : b, refs: [r] }); usados.add(r); });
+    }
+    for (const { b, refs } of pedidos) {
       const it = itens.get(refs[0]);
       const aceitos = ACEITA[it.tipo] || ['texto'];
-      let tipo = BLOCOS.includes(b?.tipo) && aceitos.includes(b.tipo) ? b.tipo : aceitos[0];
-      const bloco = { tipo, refs: tipo === 'tabela' || tipo === 'grafico' || tipo === 'diagrama' ? [refs[0]] : refs.filter(r => (ACEITA[itens.get(r).tipo] || []).includes(tipo) || r === refs[0]), secao: it.secao };
+      let tipo = BLOCOS.includes(b?.tipo) && aceitos.includes(b.tipo) ? b.tipo : it.cta ? 'cta' : aceitos[0];
+      // Semântica antes da forma: caixa de marcar só em checklist; diagrama de processo só em fluxo ou etapas em ordem.
+      if (tipo === 'checklist' && !(it.tipo === 'lista' && it.checklist)) tipo = 'lista';
+      if (tipo === 'diagrama' && it.tipo === 'lista' && !it.ordenada) tipo = 'lista';
+      const bloco = { tipo, refs, secao: it.secao };
       const t = titulo_(b?.titulo, 90); if (t) bloco.titulo = t;
       if (tipo === 'grafico') {
         const auto = graficoParaTabela(it);
@@ -242,7 +254,6 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
       if (bloco.tipo === 'cartoes' && it.tipo === 'lista' && !ehCartoes(it)) bloco.tipo = 'lista';
       if (bloco.tipo === 'linha_tempo' && it.tipo !== 'lista') bloco.tipo = aceitos[0];
       if (bloco.tipo === 'indicadores' && it.tipo === 'lista' && !it.itens.every(x => indicador(x.texto))) bloco.tipo = 'lista';
-      bloco.refs.forEach(r => usados.add(r));
       blocos.push(bloco);
     }
     const pg = { papel, layout, objetivo: limpar(p?.objetivo, 160), titulo: titulo_(p?.titulo, 90), subtitulo: titulo_(p?.subtitulo, 240), blocos, refs: [] };
@@ -251,12 +262,21 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
     if (!pg.titulo && papel !== 'capa' && secao?.titulo && blocos.every(b => b.secao === secao.id || b.tipo === 'cta')) pg.titulo = limpar(secao.titulo, 90);
     if (!pg.titulo && papel !== 'capa' && secao?.titulo) { const b0 = blocos.find(b => b.secao === secao.id); if (b0 && !b0.titulo) b0.titulo = limpar(secao.titulo, 90); }
     if (papel === 'capa' && !pg.titulo) pg.titulo = limpar(titulo || conteudo.titulo || tr.rotulo, 90);
-    if (!blocos.length && papel !== 'capa') continue;
+    // A capa não desenha blocos: o que a IA pôs nela vira subtítulo (curto) ou segue para a página seguinte.
+    if (papel === 'capa' && blocos.length) {
+      const textos = blocos.flatMap(b => b.refs.map(r => textoDoItem(itens.get(r))));
+      const junto = [pg.subtitulo, ...textos.filter(t => !pg.subtitulo?.toLowerCase().includes(t.toLowerCase()) && t.toLowerCase() !== (pg.titulo || '').toLowerCase())].filter(Boolean).join(' · ');
+      if (blocos.every(b => ['texto', 'lista', 'subtitulo'].includes(b.tipo)) && junto.length <= 240) { pg.subtitulo = junto; pg.refs.push(...blocos.flatMap(b => b.refs)); }
+      else daCapa.push(...blocos);
+      pg.blocos = [];
+    } else if (daCapa.length) { pg.blocos.unshift(...daCapa); daCapa = []; }
+    if (!pg.blocos.length && papel !== 'capa') continue;
     // Página de impacto (fundo escuro, texto grande) só em peça de impacto ou capa/fechamento: tabela, gráfico,
     // diagrama e cronograma são para ler e ficam no layout de leitura.
     if (pg.layout === 'destaque' && !tr.impacto && papel === 'conteudo' && blocos.some(b => ['tabela', 'grafico', 'diagrama', 'linha_tempo'].includes(b.tipo))) pg.layout = tr.multipagina ? 'auto' : 'painel';
     paginas.push(pg);
   }
+  if (daCapa.length) { const ult = paginas.filter(p => p.papel !== 'capa').at(-1); if (ult) ult.blocos.push(...daCapa); else paginas.push({ papel: 'conteudo', layout: tr.multipagina ? 'auto' : 'painel', objetivo: '', titulo: '', subtitulo: '', blocos: daCapa, refs: [] }); }
   if (!paginas.length) return null;
   // Fluxo contínuo (relatório, documento, proposta) sem número de páginas pedido: as páginas de conteúdo da IA viram
   // um fluxo só (o título de cada uma passa para o primeiro bloco). Página quase vazia por seção curta não existe.

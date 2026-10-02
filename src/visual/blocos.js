@@ -28,6 +28,8 @@ export function texto(str, { familia = 'sans', peso = 400, tam, cor, largura, lh
   return { h: linhas.length * lhPx, w: larg, linhas, tam: tamanho, prim: { t: 'text', x: 0, y: 0, w: largura, linhas: [...linhas], familia, peso, tam: tamanho, lh: lhPx, cor, alin, papel, texto: t, ...(linhas.partidas ? { partidas: linhas.partidas } : {}) } };
 }
 
+// Palavras como a quebra de linha as vê: moeda fica junto do número ("R$ 48.000" não se separa).
+const PALAVRAS = /(?<!R\$|US\$|€|\$)\s+/;
 const caixa = (prim, x = 0, y = 0) => ({ ...prim, x, y });
 function icone(nome, x, y, tam, cor, espessura = 1.8) {
   const d = ICONES[nome];
@@ -166,8 +168,8 @@ export function blocoTabela(it, largura, C, { tam = C.tip.tabela, linhas = null,
   // Célula de marcar ("[ ] Conforme [ ] Não conforme"): uma caixa desenhada por opção, nunca colchetes no texto.
   const opcoes = c => (/^\s*(\[[ xX]?\]\s*[^[\]]+?\s*){1,4}$/.test(String(c || '')) ? [...String(c).matchAll(/\[([ xX]?)\]\s*([^[\]]+)/g)].map(m => ({ marcado: /x/i.test(m[1]), texto: m[2].trim() })) : null);
   const lado = tam * 0.85, gap = tam * 0.45;
-  const medirCel = (c, f, palavra) => { const o = opcoes(c); if (!o) return palavra ? Math.max(...String(c || '').split(/\s+/).map(w => medir(textoSeguro(w, f), f, tam))) : medir(textoSeguro(c || '', f), f, tam);
-    return lado + gap + Math.max(...o.map(x => palavra ? Math.max(...x.texto.split(/\s+/).map(w => medir(textoSeguro(w, f), f, tam))) : medir(textoSeguro(x.texto, f), f, tam))); };
+  const medirCel = (c, f, palavra) => { const o = opcoes(c); if (!o) return palavra ? Math.max(...String(c || '').split(PALAVRAS).map(w => medir(textoSeguro(w, f), f, tam))) : medir(textoSeguro(c || '', f), f, tam);
+    return lado + gap + Math.max(...o.map(x => palavra ? Math.max(...x.texto.split(PALAVRAS).map(w => medir(textoSeguro(w, f), f, tam))) : medir(textoSeguro(x.texto, f), f, tam))); };
   const natural = cab.map((h, k) => Math.max(medir(textoSeguro(h, fB), fB, tam), ...it.linhas.map(l => medirCel(l[k], fR, false))) + pad * 2);
   const minimo = cab.map((h, k) => Math.max(medirCel(h, fB, true), ...it.linhas.map(l => medirCel(l[k], fB, true))) + pad * 2);
   let larg;
@@ -224,7 +226,7 @@ const separarData = s => { const m = /^(.{1,28}?)\s*(?::|–|—|-)\s+(.+)$/.exe
 export function blocoLinhaTempo(it, largura, C) {
   const itens = it.itens.map(x => separarData(x.texto)), n = itens.length;
   const prims = [];
-  const horizontal = n <= 6 && largura >= C.tip.corpo * 40;
+  const horizontal = !C.tip._colunaTempo && n <= 6 && largura >= C.tip.corpo * 40;
   if (horizontal) {
     const slot = largura / n, r = C.tip.corpo * 0.42, yLinha = C.tip.corpo * 0.6 + r;
     prims.push({ t: 'line', x1: slot / 2, y1: yLinha, x2: largura - slot / 2, y2: yLinha, cor: C.T.linha, sw: Math.max(2, C.tip.corpo * 0.18), papel: 'decoracao' });
@@ -240,6 +242,26 @@ export function blocoLinhaTempo(it, largura, C) {
     });
     return { h, prims };
   }
+  // Vertical: com largura sobrando (muitos marcos num painel largo), a sequência corre em colunas, em ordem
+  // (de cima para baixo, depois a coluna seguinte), em vez de um fio estreito à esquerda com o resto vazio.
+  const nc = C.tip._colunaTempo ? 1 : Math.min(Math.ceil(n / 3), Math.max(1, Math.floor(largura / (C.tip.corpo * 22))));
+  if (nc > 1) {
+    const gap = C.tip.corpo * 1.5, wc = (largura - gap * (nc - 1)) / nc, porCol = Math.ceil(n / nc);
+    let h = 0;
+    for (let k = 0; k < nc; k++) {
+      const parte = it.itens.slice(k * porCol, (k + 1) * porCol);
+      if (!parte.length) continue;
+      const v = blocoLinhaTempo({ ...it, itens: parte }, wc, { ...C, tip: { ...C.tip, _colunaTempo: true } });
+      prims.push(...v.prims.map(q => mover1(q, k * (wc + gap), 0)));
+      h = Math.max(h, v.h);
+    }
+    return { h, prims };
+  }
+  return verticalTempo(itens, largura, C, prims);
+}
+const mover1 = (q, dx, dy) => mover([q], dx, dy)[0];
+function verticalTempo(itens, largura, C, prims) {
+  const n = itens.length;
   let y = 0;
   const r = C.tip.corpo * 0.38, xL = r + 1, recuo = r * 2 + C.tip.corpo * 0.9;
   const pontos = [];

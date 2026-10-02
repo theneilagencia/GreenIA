@@ -126,13 +126,30 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
         return 'reduzir_escala';
       }
       if (plano.impacto && !plano.multipagina) { plano.impacto = false; plano.paginas.forEach(p => { if (p.layout === 'destaque') p.layout = 'painel'; }); opcoes.escala = 1; return 'layout_denso'; }
+      // Peça de página única (cartaz, one-page, post, capa) nunca ganha segunda página: sem mais o que reorganizar,
+      // fica como está e a conferência diz o que não coube (nada é omitido em silêncio).
+      if (!plano.multipagina) return null;
       // Paginação: a página que transborda continua na seguinte (listas e tabelas partidas, título repetido).
       const estouradas = new Set(c.erros.filter(e => e.codigo === 'transbordo' || e.codigo === 'corte').map(e => r.paginas.find(p => p.numero === e.pagina)?.origem).filter(Boolean));
       let mudou = false;
       for (const p of plano.paginas) if ((estouradas.has(p.id) || !estouradas.size) && p.layout !== 'continuo' && p.papel !== 'capa') { p.layout = 'continuo'; p.repetirTitulo = true; mudou = true; }
       if (!mudou) return null;
-      if (!plano.multipagina) { plano.multipagina = true; plano.continuacao = true; }
       return 'paginar';
+    },
+    codigos => {
+      // Página vazia com texto pequeno: o maior texto que ainda cabe (em outra grade, se a peça é de uma página).
+      if (!codigos.has('espaco_vazio') && !codigos.has('legibilidade')) return null;
+      const cap = Math.max(teto, 1) * 1.3;
+      let melhor = null;
+      for (const k of plano.multipagina ? [opcoes.colunas || null] : [opcoes.colunas || null, 1, 2, 3]) {
+        for (let e = cap; e > Math.max(opcoes.escala, melhor?.e || 0) + 0.04; e -= 0.05) {
+          const t = montar({ plano, conteudo, identidade, assets, opcoes: { ...opcoes, escala: e, ...(k ? { colunas: k } : {}) } });
+          if (cabe(t, plano, tr)) { melhor = { k, e: Math.round(e * 100) / 100 }; break; }
+        }
+      }
+      if (!melhor) return null;
+      opcoes.escala = melhor.e; if (melhor.k) opcoes.colunas = melhor.k;
+      return 'preencher';
     },
     codigos => {
       if (!codigos.has('contraste')) return null;
@@ -164,6 +181,7 @@ export function produzir({ plano: planoInicial, conteudo, identidade, tr, assets
   const imagemPedida = op0.imagemPedida && r.paginas.some(p => p.blocos.some(b => b.placeholder));
   const status = !restantes.length ? (plano.continuacao || imagemPedida ? 'parcial' : correcoes ? 'corrigido' : 'aprovado') : soPaginas ? 'parcial' : 'inconsistente';
   const explicacoes = [
+    ...(!plano.multipagina && restantes.some(k => k === 'transbordo' || k === 'corte') ? ['O conteúdo não coube em uma página mesmo no menor texto legível: divida o conteúdo ou escolha um formato de várias páginas.'] : []),
     ...restantes.map(k => CODIGOS[k] + (k === 'paginas' ? ` (${c.erros.find(e => e.codigo === 'paginas').detalhe})` : k === 'objetivo' ? ` (${c.erros.find(e => e.codigo === 'objetivo').detalhe})` : '')),
     ...(plano.continuacao ? ['O conteúdo não coube em uma página: a peça ganhou página de continuação.'] : []),
     ...(imagemPedida ? ['A imagem da peça não foi gerada nem fornecida: há um espaço reservado para ela.'] : []),

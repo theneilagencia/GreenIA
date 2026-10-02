@@ -23,7 +23,7 @@ export const CODIGOS = {
   legibilidade: 'Texto pequeno demais para o formato', margem: 'Conteúdo fora das margens', alinhamento: 'Blocos desalinhados', consistencia: 'Tamanhos de texto inconsistentes entre páginas',
   logo_deformado: 'Logo com proporção alterada', logo_ausente: 'Logo da empresa não aparece', densidade: 'Texto demais para a área', hierarquia: 'Hierarquia de títulos invertida',
   repeticao: 'Texto repetido em várias partes', quebra: 'Palavra partida no meio por falta de espaço', asset_ausente: 'Imagem não fornecida (espaço reservado)', marca: 'Cor proibida pela marca',
-  conteudo_faltando: 'Parte do conteúdo não aparece na peça', dados_incorretos: 'Número que não está no conteúdo', paginas: 'Número de páginas diferente do pedido', objetivo: 'O que o pedido exige não aparece na peça',
+  espaco_vazio: 'Página com muito espaço vazio e texto pequeno', conteudo_faltando: 'Parte do conteúdo não aparece na peça', dados_incorretos: 'Número que não está no conteúdo', paginas: 'Número de páginas diferente do pedido', objetivo: 'O que o pedido exige não aparece na peça',
 };
 
 const dentro = (px, py, r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
@@ -82,6 +82,7 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
       for (const l of p.linhas) if (medir(l, fonte, p.tam) > p.w + 1) { f('texto_cortado', 'erro', n, `"${l.slice(0, 30)}"`); break; }
       // Palavra partida à força: em título, número ou rótulo é erro (lê mal); em texto corrido, aviso.
       if (p.partidas) f('quebra', ['h1', 'h2', 'h3', 'display', 'kpi', 'kpi_rotulo', 'tabela_cabecalho', 'cta', 'subtitulo'].includes(p.papel) ? 'erro' : 'aviso', n, `"${p.linhas.find(l => l.endsWith('-'))?.slice(0, 30) || ''}"`);
+      if (p.papel === 'eixo' && p.tam < minimo * 0.8 - 0.05) f('legibilidade', 'erro', n, `rótulo de eixo de ${p.tam.toFixed(1)}px`);
       if (p.tam < minimo - 0.05 && !['eixo', 'marcador'].includes(p.papel)) f('legibilidade', 'erro', n, `texto de ${p.tam.toFixed(1)}px (mínimo ${minimo}px) em "${p.linhas[0]?.slice(0, 30)}"`);
       // Contraste: no começo e no meio da primeira linha.
       const pontos = [[caixa.x + 2, caixa.y + p.lh / 2], [caixa.x + Math.min(caixa.w, medir(p.linhas[0] || '', fonte, p.tam)) / 2, caixa.y + p.lh / 2]];
@@ -100,6 +101,22 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
         tamanhosPorPapel.get(k).add(Math.round(p.tam * 10) / 10);
       }
     });
+    // Espaço vazio e texto pequeno à toa (métrica do renderer, não da IA): numa página de leitura (não capa,
+    // fechamento ou peça de impacto), a extensão dos blocos de conteúdo sobre a área útil. Pouca ocupação com texto
+    // ainda no tamanho base (ou menor) é página desequilibrada: havia espaço para ler melhor.
+    if (pg.areaUtil && !pg.impacto && !['capa', 'fechamento'].includes(pg.papelPlano || pg.papel)) {
+      const cb = blocos.filter(b => !['cabecalho', 'titulo', 'capa'].includes(b.tipo) && b.w > 0 && b.h > 0);
+      if (cb.length) {
+        const x0 = Math.min(...cb.map(b => b.x)), x1 = Math.max(...cb.map(b => b.x + b.w)), y0 = Math.min(...cb.map(b => b.y)), y1 = Math.max(...cb.map(b => b.y + b.h));
+        const ocupacao = Math.min(1, (x1 - x0) / area.w) * Math.min(1, (y1 - y0) / area.h);
+        const corpos = pg.prims.filter(p => p.t === 'text' && !FORA_DO_DADO.has(p.papel) && !['h1', 'h2', 'display', 'kicker', 'eixo', 'marcador', 'rodape'].includes(p.papel)).map(p => p.tam).sort((a, b) => a - b);
+        const mediana = corpos.length ? corpos[corpos.length >> 1] : fmt.corpo;
+        // Diagrama, gráfico ou cronograma na largura toda: a altura vem da forma do desenho, não é página vazia.
+        const formaLarga = cb.some(b => ['diagrama', 'grafico', 'linha_tempo', 'imagem'].includes(b.tipo) && b.w >= area.w * 0.85);
+        if (ocupacao < 0.3 && !formaLarga) f('espaco_vazio', mediana < fmt.corpo * 1.15 ? 'erro' : 'aviso', n, `conteúdo ocupa ${Math.round(ocupacao * 100)}% da área útil com texto de ${mediana.toFixed(1)}px`, { ocupacao });
+        if (mediana < minimo * 1.1 && ocupacao < 0.6) f('legibilidade', 'erro', n, `texto de ${mediana.toFixed(1)}px com ${Math.round(ocupacao * 100)}% da área ocupada: havia espaço para texto maior`);
+      }
+    }
     // Hierarquia: título da página maior que o texto de corpo.
     const t1 = Math.max(0, ...pg.prims.filter(p => p.t === 'text' && ['h1', 'display'].includes(p.papel)).map(p => p.tam));
     const corpoMax = Math.max(0, ...pg.prims.filter(p => p.t === 'text' && p.papel === 'corpo').map(p => p.tam));

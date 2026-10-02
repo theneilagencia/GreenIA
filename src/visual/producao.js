@@ -35,6 +35,21 @@ export function secaoDoResultado(texto, rotulo) {
   return ls.slice(i + 1, fim < 0 ? undefined : fim).join('\n').trim();
 }
 
+// Seções "## ..." do resultado, cada uma com o seu texto.
+function secoesDoResultado(texto) {
+  const ls = String(texto || '').split('\n'), out = [];
+  for (const l of ls) { if (/^\s*#{1,2}\s+/.test(l)) out.push({ titulo: l.replace(/^\s*#+\s*/, ''), linhas: [] }); else if (out.length) out.at(-1).linhas.push(l); }
+  return out.map(x => ({ titulo: x.titulo, texto: x.linhas.join('\n').trim() }));
+}
+// Seção da peça: a do entregável; quando ela não traz "Título:" (o formato pedido para o conteúdo da peça) e uma
+// outra seção traz, com uma peça só, o conteúdo da peça é essa outra (a execução escreveu a peça em seção própria).
+export function secaoDaPeca(texto, rotulo, nPecas = 1) {
+  const propria = secaoDoResultado(texto, rotulo);
+  if (propria && tituloDaSecao(propria).titulo) return propria;
+  const comTitulo = secoesDoResultado(texto).filter(x => tituloDaSecao(x.texto).titulo);
+  return nPecas === 1 && comTitulo.length === 1 ? comTitulo[0].texto : propria;
+}
+
 // "Título: ..." na primeira linha da seção (pedido no prompt): o título da peça.
 function tituloDaSecao(texto) {
   const ls = String(texto || '').split('\n');
@@ -104,7 +119,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const visual = limparVisual(e.visual);
     const rotulo = e.rotulo || visual.rotulo || '';
     // A seção do entregável ("## <título>"); com um entregável só e sem a seção, o resultado inteiro é o conteúdo.
-    const secao = secaoDoResultado(resposta, rotuloEntregavel(e)) || (op.entregaveis.length === 1 ? String(resposta || '').replace(/^\s*#{1,2}\s+.*$/m, '') : '');
+    const secao = secaoDaPeca(resposta, rotuloEntregavel(e), visuais.length) || (op.entregaveis.length === 1 ? String(resposta || '').replace(/^\s*#{1,2}\s+.*$/m, '') : '');
     const { titulo: tituloDado, resto } = tituloDaSecao(secao);
     if (!resto.trim()) { ignorados.push({ entregavel: e.id, motivo: 'sem_conteudo' }); continue; }
     if (contemCredencial(resto)) { ignorados.push({ entregavel: e.id, motivo: 'credencial' }); continue; }

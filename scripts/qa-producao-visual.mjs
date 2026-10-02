@@ -116,7 +116,7 @@ async function rodar(caso, visual) {
     if (texto.trim().startsWith('Antes de começar')) { reg.perguntou = true; r = await enviar(conv.id, { executar_quick_win: true, texto: 'Use só o material enviado acima; pode decidir o restante.' }); texto = r.linhas.filter(l => l.t === 'texto').map(l => l.v).join(''); }
     const fim = r.linhas.find(l => l.t === 'fim');
     writeFileSync(join(SAIDA, `${slug(caso.nome)}.md`), texto);
-    reg.execucao = { status: r.status, erro: r.erro || r.linhas.find(l => l.t === 'erro')?.mensagem || null, ms: Math.round(r.ms), qualidade: fim?.qualidade?.status || null, custo: fim?.custo ?? null,
+    reg.execucao = { status: r.status, erro: r.erro || r.linhas.find(l => l.t === 'erro')?.mensagem || null, ms: Math.round(r.ms), qualidade: fim?.qualidade?.status || null, qualidadeDetalhe: fim?.qualidade ? JSON.stringify(fim.qualidade).slice(0, 2000) : null, custo: fim?.custo ?? null,
       etapas: r.linhas.filter(l => l.t === 'etapa').map(l => `${l.v}@${Math.round(l.ms)}`), caracteres: texto.length };
     const arts = fim?.artefatos || [];
     reg.artefatos = [];

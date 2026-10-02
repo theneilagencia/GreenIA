@@ -494,7 +494,7 @@ export function compor({ plano, conteudo, identidade, assets = {}, opcoes = {} }
     else if (pg.layout === 'destaque' || plano.impacto) paginas.push(destaque(C, pg, itens, assets, n));
     else if (pg.layout === 'painel' || !plano.multipagina) paginas.push(painel(C, pg, itens, assets));
     else paginas.push(conteudoPagina(C, pg, itens, assets, n));
-    for (let k = antes; k < paginas.length; k++) paginas[k].origem = pg.id;
+    for (let k = antes; k < paginas.length; k++) Object.assign(paginas[k], { origem: pg.id, papelPlano: pg.papel, impacto: !!(plano.impacto || pg.layout === 'destaque') });
     void i;
   });
   // Numeração final (o fluxo contínuo pode ter criado páginas): refaz o número nas páginas de conteúdo.

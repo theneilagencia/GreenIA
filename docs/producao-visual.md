@@ -105,9 +105,19 @@ pelo fundo real sob o texto), legibilidade (mínimo por formato), margens, alinh
 ou ausente, densidade, hierarquia, repetição, asset ausente e cor proibida. Semântica: conteúdo faltando (todo
 item aparece), dados incorretos (todo número na peça está no conteúdo), páginas pedidas e o que o pedido exige.
 
+Fidelidade antes do layout: um bloco desenha um item (bloco do plano com vários itens vira um bloco por item; a
+capa não desenha blocos, então o que o plano põe nela vira subtítulo ou segue para a página seguinte); seções
+paralelas com os mesmos campos (uma fase, um fornecedor por seção) viram um item só, em ordem; campo opcional sem
+dado ("não informado") não vai para a peça; a peça usa a seção do resultado que traz o conteúdo dela ("Título:").
+Peça de página única (cartaz, one-page, post, capa) nunca ganha segunda página: o que não couber é dito.
+
+Espaço vazio e legibilidade são medidos no renderer: página de leitura com menos de 30% da área útil ocupada e texto
+no tamanho base (ou menor) é reprovada (`espaco_vazio`), como texto pequeno com espaço sobrando; capa, fechamento,
+peça de impacto e desenho na largura toda (diagrama, gráfico, cronograma) não entram nessa regra.
+
 Correção automática, em ordem, uma ação por rodada: recompor o que faltou, títulos do conteúdo, reduzir a escala
-(até o mínimo legível), reorganizar colunas, layout denso, página de continuação, ajustar contraste, aumentar
-escala. No máximo `MAX_CORRECOES_VISUAIS = 4`. Estados: `aprovado`, `corrigido`, `parcial` (com explicação
+(até o mínimo legível), outra grade de colunas com o maior texto que cabe, reduzir a escala (até o mínimo legível), layout denso, página de
+continuação (só em peça multipágina), preencher (texto maior quando sobra espaço), ajustar contraste, aumentar escala. No máximo `MAX_CORRECOES_VISUAIS = 4`. Estados: `aprovado`, `corrigido`, `parcial` (com explicação
 objetiva: continuação, imagem reservada, páginas a menos) e `inconsistente`.
 
 ## 7. Integração com a execução (`src/conversas.js`)

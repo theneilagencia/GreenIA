@@ -550,12 +550,17 @@ const CONTEXTO_DO_TESTE = 'Use o contexto da empresa que está nos documentos au
 // Material fictício gerado para o teste: vai com a indicação de que ele é o material desta execução (sem isso, um
 // modelo perguntava se devia usar o documento "de outra empresa").
 export const comoMaterialDeTeste = texto => `Material de teste (fictício) desta execução: use-o como o material do trabalho. Nomes, empresas e números dele são fictícios: não pergunte sobre eles, faça o trabalho.\n\n${texto}`;
-// Sem documento nenhum da empresa na base, o teste não tem de onde tirar o contexto: o exemplo já é o material
-// fictício (marcado como tal), e a decisão vem pronta. Com base, o contexto vem dela.
-const CONTEXTO_SEM_BASE = 'A empresa ainda não tem documentos na base: este teste é para a Empresa Exemplo Ltda. (fictícia), do mesmo setor do objetivo. Público, tom e tema são escolhas, não fatos: escolha os mais prováveis para ela, faça todas as peças e registre essas escolhas em "Escolhas feitas", sem inventar números, clientes ou resultados.';
+// Sem documento nenhum da empresa na base, o teste não tem de onde tirar o contexto (QA em produção: com o objetivo
+// citando a empresa real e sem pesquisa, o modelo recusava todas as peças por não ter fatos sobre ela). O material do
+// teste passa a ser o perfil de uma empresa fictícia, escrito pela IA como os outros materiais fictícios, e o pedido
+// de teste vai junto. Se a IA não escrever o perfil, vale o pedido de teste sozinho (`reserva`). Com base, o
+// contexto vem dela.
+const CONTEXTO_SEM_BASE = 'A empresa ainda não tem documentos na base: este teste é para a Empresa Exemplo Ltda. (fictícia), descrita no material acima. O que faltar nele (público, tom ou tema) é escolha, não fato: escolha o mais provável, faça todas as peças e registre essas escolhas em "Escolhas feitas", sem inventar números, clientes ou resultados.';
+export const PERFIL_FICTICIO = { id: 'perfil_teste', tipo: 'texto', rotulo: 'Perfil da Empresa Exemplo Ltda. (fictícia): setor, o que ela oferece, público, tom de voz e o tema desta semana', quantidade: 1, obrigatoria: true };
 export function planoDoExemplo(espec, { temBase = true } = {}) {
   const r = planoDoExemplo_(espec, temBase);
-  return r.modo === 'texto' && !temBase && r.semBase ? { modo: 'texto', texto: comoMaterialDeTeste(r.texto) } : r;
+  if (r.modo !== 'texto' || temBase || !r.semBase) return r;
+  return { modo: 'ia', entradas: [PERFIL_FICTICIO], pedidoTeste: r.texto, reserva: comoMaterialDeTeste(r.texto) };
 }
 function planoDoExemplo_(espec, temBase) {
   const contextoTeste = temBase ? CONTEXTO_DO_TESTE : CONTEXTO_SEM_BASE;

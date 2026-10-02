@@ -20,6 +20,7 @@ function responder(b) {
   const sis = texto(b.messages[0].content), ultima = texto(b.messages.at(-1).content);
   if (sis.includes('PLANO DE TRABALHO')) return JSON.stringify(PLANO);
   if (sis.includes('conferente de qualidade')) return '{"criterios":[],"objetivo_atingido":true}';
+  if (sis.includes('material FICTÍCIO')) return 'Empresa Exemplo Ltda. (fictícia): consultoria de logística para pequenas indústrias. Público: gestores de operação. Tom: direto. Tema da semana: estoque parado.';
   if (!sis.includes('Você está executando o Quick Win')) return 'Certo.';
   // Modelo teimoso: pergunta na execução e na primeira reavaliação; só a reavaliação final resolve.
   if (!ultima.includes('não há nada indispensável faltando')) return `${MARCADOR_PERGUNTA} uso a Empresa Exemplo Ltda. ou a sua empresa?`;
@@ -44,6 +45,8 @@ test('teste sem documentos da empresa: o exemplo decide pela empresa fictícia e
   const ex = (await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados;
   assert.equal(ex.modo, 'texto');
   assert.match(ex.texto, /^Material de teste \(fictício\)/, 'sem base, o exemplo é material fictício');
+  assert.match(ex.texto, /consultoria de logística para pequenas indústrias/, 'sem base, o material do teste é o perfil de uma empresa fictícia');
+  assert.match(ex.texto, /Entregue: LinkedIn · Copy; Instagram · Carrossel\./, 'o pedido de teste vai junto do perfil');
   assert.match(ex.texto, /este teste é para a Empresa Exemplo Ltda\. \(fictícia\)/, 'a decisão vem pronta no exemplo');
   const conv = (await ana.post('/api/conversas', { quick_win_id: qw.id, teste: true })).dados.conversa;
   const r = await enviarMensagem(ana, conv.id, { executar_quick_win: true, texto: ex.texto });
@@ -62,8 +65,14 @@ test('sem pesquisa liberada e sem base: o prompt manda fazer todos os entregáve
   assert.match(p, /A falta da pesquisa não impede o trabalho: faça todos os entregáveis/);
   assert.match(p, /vai como sugestão, nunca como tendência atual/);
   const ex = OP.planoDoExemplo({ objetivo: PEDIDO, operacao: { ...op, canais: ['linkedin', 'instagram'] } }, { temBase: false });
-  assert.match(ex.texto, /Público, tom e tema são escolhas, não fatos/);
-  assert.match(ex.texto, /faça todas as peças/);
+  assert.equal(ex.modo, 'ia', 'sem base, o material do teste é escrito pela IA (perfil fictício)');
+  assert.deepEqual(ex.entradas, [OP.PERFIL_FICTICIO]);
+  assert.match(ex.pedidoTeste, /é escolha, não fato: escolha o mais provável, faça todas as peças/);
+  assert.match(ex.reserva, /^Material de teste \(fictício\)[\s\S]*Entregue: /, 'sem o perfil, o pedido de teste sozinho');
+  // Com base, nada muda: o pedido de teste usa o contexto dela.
+  const comBase = OP.planoDoExemplo({ objetivo: PEDIDO, operacao: { ...op, canais: ['linkedin', 'instagram'] } });
+  assert.equal(comBase.modo, 'texto');
+  assert.match(comBase.texto, /Use o contexto da empresa que está nos documentos autorizados/);
   // Com pesquisa disponível, nada muda.
   assert.doesNotMatch(OP.promptOperacao(op, { pesquisa: { disponivel: true } }), /A falta da pesquisa/);
 });

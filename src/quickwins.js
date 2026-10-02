@@ -393,11 +393,12 @@ export function rotasQuickWins(app, r) {
     const espec = QW2.normalizar(json(q.especificacao, null));
     const fallback = { modo: 'insuficiente', mensagem: OP.SEM_CONTEXTO_EXEMPLO };
     if (!espec) return fallback;
-    const plano = OP.planoDoExemplo(espec, { temBase: basesVisiveis(app.db, pessoa).length > 0 });
+    const temBase = basesVisiveis(app.db, pessoa).length > 0;
+    const plano = OP.planoDoExemplo(espec, { temBase });
     if (plano.modo === 'insuficiente') return fallback;
     if (plano.modo === 'arquivo') return { modo: 'arquivo', mensagem: OP.PEDE_ARQUIVO_EXEMPLO };
     if (plano.modo === 'texto') return { modo: 'texto', texto: plano.texto, aviso: OP.AVISO_EXEMPLO };
-    const chave = `${q.id}:${OP.chaveExemplo(espec)}`;
+    const chave = `${q.id}:${temBase ? 1 : 0}:${OP.chaveExemplo(espec)}`;
     if (exemplos.has(chave)) return { modo: 'texto', texto: exemplos.get(chave), aviso: OP.AVISO_EXEMPLO, cache: true };
     const pedido = OP.pedidoDoExemplo(espec, plano.entradas || []);
     const r2 = await chamarGovernado(app, pessoa, { conteudo: pedido, qw: q, origem: 'quick_win_exemplo',
@@ -405,9 +406,9 @@ export function rotasQuickWins(app, r) {
     const material = String(r2.texto || '').trim().slice(0, 4000);
     if (r2.recusado || r2.falhou || material.length < 20 || contemCredencial(material)) {
       registrar(app, 'quickwin.example_skipped', pessoa.id, { quick_win: q.id, motivo: r2.motivo || (r2.falhou ? 'falha_na_execucao' : 'resposta_invalida') });
-      return fallback;
+      return plano.reserva ? { modo: 'texto', texto: plano.reserva, aviso: OP.AVISO_EXEMPLO } : fallback;
     }
-    const texto = OP.comoMaterialDeTeste(material);
+    const texto = `${OP.comoMaterialDeTeste(material)}${plano.pedidoTeste ? `\n\n${plano.pedidoTeste}` : ''}`;
     exemplos.set(chave, texto);
     if (exemplos.size > 200) exemplos.delete(exemplos.keys().next().value);
     registrar(app, 'quickwin.example_generated', pessoa.id, { quick_win: q.id, roteamento: r2.rotaId });

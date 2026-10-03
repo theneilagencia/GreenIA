@@ -162,7 +162,7 @@ function medirNoNavegador() {
         if (Number(ca.webkitLineClamp) > 0 && a.scrollHeight > a.clientHeight + 1) { cortado = true; break; }
       }
       const cor = rgba(cs.color);
-      textos.push({ t: t.slice(0, 300), x: box.left - pr.left, y: box.top - pr.top, w: box.right - box.left, h: box.bottom - box.top, fs: parseFloat(cs.fontSize), peso: Number(cs.fontWeight) || 400,
+      textos.push({ i: textos.length, t: t.slice(0, 300), x: box.left - pr.left, y: box.top - pr.top, w: box.right - box.left, h: box.bottom - box.top, fs: parseFloat(cs.fontSize), peso: Number(cs.fontWeight) || 400,
         cor: cor ? [cor.r, cor.g, cor.b] : [0, 0, 0], alfa: (cor?.a ?? 1) * Number(cs.opacity || 1), cortado, sombra: cs.textShadow && cs.textShadow !== 'none' });
     }
     return { n: k + 1, w: pr.width, h: pr.height, texto: pg.innerText.replace(/\s+/g, ' ').trim(), textos };
@@ -185,26 +185,39 @@ function contrasteNosPixels(img, escala, caixa, cor) {
   const cs = amostras.map(lb => { const [a, b] = [lt, lb].sort((p, q) => q - p); return (a + 0.05) / (b + 0.05); }).sort((a, b) => a - b);
   return cs[Math.floor(cs.length * 0.2)];
 }
+// Luminância típica do fundo em volta do texto (mediana das amostras): base do ajuste determinístico de cor.
+function fundoNosPixels(img, escala, caixa) {
+  const { width: W, height: H, data } = img;
+  const pad = 3 * escala, x0 = Math.max(0, Math.floor(caixa.x * escala - pad)), y0 = Math.max(0, Math.floor(caixa.y * escala - pad)), x1 = Math.min(W - 1, Math.ceil((caixa.x + caixa.w) * escala + pad)), y1 = Math.min(H - 1, Math.ceil((caixa.y + caixa.h) * escala + pad));
+  const l = [];
+  for (let x = x0; x <= x1; x += Math.max(1, Math.floor((x1 - x0) / 40))) { for (const y of [y0, y1]) { const i = (y * W + x) * 4; l.push(lum(data[i], data[i + 1], data[i + 2])); } }
+  l.sort((a, b) => a - b);
+  return l.length ? l[Math.floor(l.length / 2)] : 1;
+}
 
 // Conferência do design renderizado. Devolve falhas legíveis (vão para a correção) e códigos.
 export function conferirDesign(medidas, { conteudo, paginas, formato, extras = [], imagens = [] }) {
   const dim = FORMATOS[formato] || FORMATOS.a4, falhas = [];
   const tol = Math.round(Math.min(dim.w, dim.h) * 0.06) / 2;
-  const add = (codigo, msg) => falhas.push({ codigo, msg });
+  const add = (codigo, msg, alvo = null) => falhas.push({ codigo, msg, ...(alvo ? { alvo } : {}) });
   if (medidas.length !== paginas.length) add('paginas', `Vieram ${medidas.length} páginas; eram ${paginas.length}. Entregue exatamente ${paginas.length}.`);
   const permitidos = numerosDe([textoDoConteudo(conteudo), ...extras].join('\n'));
   for (const pg of medidas) {
     const img = imagens[pg.n - 1];
     for (const t of pg.textos) {
       const curto = `"${t.t.slice(0, 50)}"`;
-      if (t.x < -1 || t.y < -1 || t.x + t.w > dim.w + 1 || t.y + t.h > dim.h + 1) add('fora_da_pagina', `Página ${pg.n}: o texto ${curto} sai da página.`);
-      else if (t.x < tol || t.y < tol || t.x + t.w > dim.w - tol || t.y + t.h > dim.h - tol) add('margem', `Página ${pg.n}: o texto ${curto} encosta na borda (deixe ${Math.round(tol * 2)}px de margem).`);
+      // Deslocamento que põe o texto dentro da área segura (base do ajuste determinístico; null se não cabe).
+      const dx = t.w > dim.w - 2 * tol ? null : t.x < tol ? Math.ceil(tol - t.x + 2) : t.x + t.w > dim.w - tol ? -Math.ceil(t.x + t.w - (dim.w - tol) + 2) : 0;
+      const dy = t.h > dim.h - 2 * tol ? null : t.y < tol ? Math.ceil(tol - t.y + 2) : t.y + t.h > dim.h - tol ? -Math.ceil(t.y + t.h - (dim.h - tol) + 2) : 0;
+      const mover = dx === null || dy === null ? null : { pagina: pg.n, i: t.i, dx, dy };
+      if (t.x < -1 || t.y < -1 || t.x + t.w > dim.w + 1 || t.y + t.h > dim.h + 1) add('fora_da_pagina', `Página ${pg.n}: o texto ${curto} sai da página.`, mover);
+      else if (t.x < tol || t.y < tol || t.x + t.w > dim.w - tol || t.y + t.h > dim.h - tol) add('margem', `Página ${pg.n}: o texto ${curto} encosta na borda (deixe ${Math.round(tol * 2)}px de margem).`, mover);
       else if (t.cortado) add('texto_cortado', `Página ${pg.n}: o texto ${curto} está cortado pelo contêiner (aumente a área ou reduza o tamanho).`);
       if (t.fs < dim.minimo) add('fonte_pequena', `Página ${pg.n}: o texto ${curto} tem ${Math.round(t.fs)}px; o mínimo é ${dim.minimo + 2}px.`);
       if (img && t.alfa > 0.05) {
         const grande = t.fs >= 24 || (t.fs >= 18.6 && t.peso >= 700);
         const c = contrasteNosPixels(img.pixels, img.escala, t, t.cor);
-        if (c < (grande ? 3 : 4.5)) add('contraste', `Página ${pg.n}: o texto ${curto} tem contraste ${c.toFixed(1)}:1 com o fundo (mínimo ${grande ? 3 : 4.5}:1).`);
+        if (c < (grande ? 3 : 4.5)) add('contraste', `Página ${pg.n}: o texto ${curto} tem contraste ${c.toFixed(1)}:1 com o fundo (mínimo ${grande ? 3 : 4.5}:1).`, { pagina: pg.n, i: t.i, fundo: fundoNosPixels(img.pixels, img.escala, t), minimo: grande ? 3 : 4.5 });
       }
     }
     // Sobreposição de textos de nós diferentes.
@@ -228,7 +241,63 @@ export function conferirDesign(medidas, { conteudo, paginas, formato, extras = [
   // Uma falha por código e página basta para a correção (lista curta e exata).
   const vistos = new Set();
   const unicas = falhas.filter(f => { const k = f.msg.slice(0, 60); if (vistos.has(k)) return false; vistos.add(k); return true; });
-  return { ok: !unicas.length, falhas: unicas.slice(0, 30), codigos: [...new Set(unicas.map(f => f.codigo))] };
+  return { ok: !unicas.length, falhas: unicas.slice(0, 30), codigos: [...new Set(unicas.map(f => f.codigo))],
+    alvos: unicas.filter(f => f.alvo).map(f => ({ codigo: f.codigo, ...f.alvo })) };
+}
+
+// ---- Ajuste determinístico (QF-05) -----------------------------------------------------------------------------
+// Depois da correção pela IA, falhas só de margem, texto fora da página ou contraste ainda têm conserto sem nova
+// chamada: o bloco do texto é deslocado para dentro da área segura e/ou a cor do texto vira a mais legível (escuro ou
+// branco) sobre o fundo medido. O HTML ajustado é o da própria página (só ganha estilo inline nos blocos tocados) e
+// passa de novo pela mesma conferência; se ainda reprovar, o motor clássico entra com o motivo registrado.
+export const AJUSTAVEIS = new Set(['margem', 'fora_da_pagina', 'contraste']);
+export const ajustavel = q => !q.ok && q.codigos.length > 0 && q.codigos.every(c => AJUSTAVEIS.has(c)) && (q.alvos || []).length > 0
+  && q.alvos.length === q.falhas.filter(f => AJUSTAVEIS.has(f.codigo)).length;
+const ESCURO = [17, 17, 17], CLARO = [255, 255, 255];
+export function corLegivel(fundo) {
+  const r = c => { const l = lum(...c); const [a, b] = [l, fundo].sort((p, q) => q - p); return (a + 0.05) / (b + 0.05); };
+  const e = r(ESCURO), c = r(CLARO);
+  return e >= c ? { cor: '#111111', contraste: e } : { cor: '#FFFFFF', contraste: c };
+}
+// Instruções por página: [{ i, dx, dy } | { i, cor }]. Aplicadas no DOM renderizado e devolvidas como HTML de página.
+function aplicarNoNavegador(ajustes) {
+  const out = [];
+  for (const pg of document.querySelectorAll('section.pagina')) {
+    const n = Number(pg.dataset.n), meus = ajustes.filter(a => a.pagina === n);
+    if (meus.length) {
+      const nos = [];
+      const walker = document.createTreeWalker(pg, NodeFilter.SHOW_TEXT);
+      for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+        if (!t.textContent.replace(/\s+/g, ' ').trim()) continue;
+        const el = t.parentElement, cs = getComputedStyle(el);
+        if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue;
+        const r = document.createRange(); r.selectNodeContents(t);
+        if (![...r.getClientRects()].some(x => x.width > 0 && x.height > 0)) continue;
+        nos.push(el);
+      }
+      const movidos = new Set();
+      for (const a of meus) {
+        const el = nos[a.i]; if (!el) continue;
+        if (a.cor) el.style.color = a.cor;
+        if (a.dx || a.dy) {
+          // Bloco transformável mais próximo (elemento inline não aceita translate); cada bloco é deslocado uma vez.
+          let b = el; while (b && b !== pg && getComputedStyle(b).display === 'inline') b = b.parentElement;
+          if (!b || b === pg || movidos.has(b)) continue;
+          movidos.add(b);
+          b.style.translate = `${a.dx || 0}px ${a.dy || 0}px`;
+        }
+      }
+    }
+    out.push(pg.innerHTML);
+  }
+  return out;
+}
+export async function ajustarDesign(design, alvos, { formato, identidade, assets = {} }) {
+  const dim = FORMATOS[formato] || FORMATOS.a4;
+  const ajustes = alvos.map(a => (a.codigo === 'contraste' ? { pagina: a.pagina, i: a.i, cor: corLegivel(a.fundo).cor } : { pagina: a.pagina, i: a.i, dx: a.dx, dy: a.dy }));
+  const mapa = new Map(Object.entries(assets).filter(([, a]) => a?.bytes).map(([k, a]) => [k, a]));
+  const paginas = await comPagina({ largura: dim.w, altura: dim.h, escala: 1, documento: documentoDesign(design, { formato, identidade }), assets: mapa }, page => page.evaluate(aplicarNoNavegador, ajustes));
+  return { css: design.css, paginas, ajustes: ajustes.length };
 }
 function fragmentos(it) {
   const curto = s => { const t = String(s || ''); return t.length > 140 ? t.slice(0, 110) : t; };   // parágrafo longo: o começo literal basta
@@ -279,7 +348,7 @@ export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, 
   if (!paginas.length || paginas.length > MAX_PAGINAS_DESIGN) return { ok: false, motivo: 'paginas' };
   const temAsset = { heroi: !!assets.heroi?.bytes, logo: !!assets.logo?.bytes };
   const extras = [titulo, data, identidade.empresa || '', ...plano.paginas.flatMap(p => [p.titulo || '', p.subtitulo || ''])];
-  let custo = 0, tentativas = 0;
+  let custo = 0, tentativas = 0, ajusteFeito = null;
   const pedirLote = async (lote, primeira, css, feedback) => {
     const r = await chamar(mensagensDesign({ paginas: lote, tr, identidade, objetivo, publico, titulo, data, assets: temAsset, css, feedback, primeira }));
     custo += r.custo || 0;
@@ -303,7 +372,18 @@ export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, 
       etapa('Conferindo o design…');
       const render = await renderizarDesign(design, { formato: tr.formato, identidade, assets });
       const q = conferirDesign(render.medidas, { conteudo, paginas, formato: tr.formato, extras, imagens: render.imagens });
-      if (q.ok || tentativas >= 1) return { ok: q.ok, design, render, falhas: q.falhas, codigos: q.codigos, custo, tentativas, motivo: q.ok ? null : 'conferencia' };
+      if (q.ok) return { ok: true, design, render, falhas: [], codigos: [], custo, tentativas, ajuste: ajusteFeito, motivo: null };
+      if (tentativas >= 1) {
+        // Última chance, sem IA: ajuste determinístico (uma vez) quando todas as falhas têm conserto.
+        if (!ajusteFeito && ajustavel(q)) {
+          ajusteFeito = { codigos: q.codigos, alvos: q.alvos.length };
+          etapa('Ajustando margens e contraste…');
+          const aj = await ajustarDesign(design, q.alvos, { formato: tr.formato, identidade, assets });
+          design = { css: aj.css, paginas: aj.paginas };
+          continue;
+        }
+        return { ok: false, design, render, falhas: q.falhas, codigos: q.codigos, custo, tentativas, ajuste: ajusteFeito, motivo: 'conferencia' };
+      }
       tentativas++;
       etapa('Ajustando o design…');
       const porPagina = new Map();

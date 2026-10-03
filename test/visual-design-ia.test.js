@@ -203,3 +203,100 @@ test('peça de impacto: imagem ilustrativa gerada (liberada para todos por padr�
   assert.equal(json(row.plano).motor, 'design', JSON.stringify(json(row.qualidade)));
   assert.ok(json(row.plano).design.paginas[0].includes(`${ORIGEM}/assets/heroi`));
 });
+
+// ---- QF-05: escolha do motor, fallback sempre explícito, ajuste determinístico ----------------------------------
+import { motorDoDesign, categoriaDoFallback } from '../src/visual/producao.js';
+import { projetarDesign, ajustavel, corLegivel } from '../src/visual/design.js';
+import { planejar } from '../src/visual/plano.js';
+import { tracos } from '../src/visual/contrato.js';
+
+test('QF-05 escolha: IA quando ligada, saudável e permitida; clássico com categoria e motivo em cada outro caminho (nunca silencioso)', () => {
+  const ok = { ok: true };
+  assert.deepEqual(motorDoDesign({ usarIA: true, temChamada: true, nav: ok, tr: {} }), { pedido: 'ai', categoria: null, motivo: null });
+  const casos = [
+    [{ usarIA: true, nav: { ok: false, motivo: 'desligado' } }, 'CONFIG_FALLBACK', 'desligado'],
+    [{ usarIA: true, nav: { ok: false, motivo: 'sem_chromium' } }, 'PROVIDER_FALLBACK', 'sem_chromium'],
+    [{ usarIA: false, nav: ok }, 'POLICY_FALLBACK', 'reserva_do_plano'],
+    [{ usarIA: true, temChamada: false, nav: ok }, 'CONFIG_FALLBACK', 'sem_ia'],
+    [{ usarIA: true, nav: ok, tr: { imagemFinal: true } }, 'EXPECTED_FALLBACK', 'imagem_final_composicao_deterministica'],
+    [{ usarIA: true, nav: ok, imagem: { pedida: 'real' } }, 'EXPECTED_FALLBACK', 'imagem_real_com_espaco_reservado'],
+  ];
+  for (const [entrada, categoria, motivo] of casos) {
+    const s = motorDoDesign({ temChamada: true, tr: {}, ...entrada });
+    assert.deepEqual([s.pedido, s.categoria, s.motivo], ['classic', categoria, motivo], JSON.stringify(entrada));
+  }
+  assert.equal(categoriaDoFallback({ motivo: 'conferencia' }), 'VALIDATION_FALLBACK');
+  assert.equal(categoriaDoFallback({ motivo: 'resposta_invalida' }), 'VALIDATION_FALLBACK');
+  assert.equal(categoriaDoFallback({ motivo: 'paginas' }), 'EXPECTED_FALLBACK');
+  assert.equal(categoriaDoFallback({ motivo: 'falha_render', erro: 'The operation was aborted due to timeout' }), 'TIMEOUT_FALLBACK');
+  assert.equal(categoriaDoFallback({ motivo: 'sem_chromium' }), 'PROVIDER_FALLBACK');
+  assert.equal(categoriaDoFallback({ motivo: 'falha_render', erro: 'boom' }), 'ERROR_FALLBACK');
+  assert.deepEqual(corLegivel(1), { cor: '#111111', contraste: corLegivel(1).contraste });
+  assert.equal(corLegivel(0.01).cor, '#FFFFFF');
+});
+
+const CONT = () => analisarConteudo('### Riscos\n- Atraso de fornecedor.\n- Câmbio.', { titulo: 'Resumo' });
+const PEDACO = (estilo) => `<style>.w{position:absolute;inset:60px;font-size:26px}</style><section class="pagina"><div class="w"><h1 style="font-size:40px">Resumo</h1><p>Riscos</p></div><p style="${estilo}">Atraso de fornecedor.</p><p style="position:absolute;left:60px;top:420px;font-size:26px">Câmbio.</p></section>`;
+async function projetar(resposta) {
+  const conteudo = CONT(), tr = { ...tracos({ tipo: 'one_page', formato: '16:9' }), formato: '16:9' };
+  const plano = planejar(conteudo, tr, { titulo: 'Resumo' });
+  let n = 0;
+  const r = await projetarDesign({ chamar: async () => { n++; if (resposta instanceof Error) throw resposta; return { texto: resposta, custo: 0 }; }, plano, conteudo, tr, identidade: resolverIdentidade({}), objetivo: 'x', titulo: 'Resumo', data: '01/01/2026' });
+  return { ...r, chamadas: n };
+}
+
+test('QF-05 ajuste determinístico: texto na borda e com pouco contraste é consertado sem nova chamada e o design pela IA é usado', async () => {
+  const r = await projetar(PEDACO('position:absolute;left:4px;top:300px;font-size:26px;color:#C8C8C8'));
+  assert.equal(r.ok, true, JSON.stringify(r.falhas));
+  assert.deepEqual(r.ajuste.codigos.sort(), ['contraste', 'margem']);
+  assert.equal(r.chamadas, 2, 'design + uma correção pela IA; o ajuste não chama a IA');
+  assert.match(r.design.paginas[0], /translate:|translate /);
+  assert.match(r.design.paginas[0], /color: rgb\(17, 17, 17\)|#111111/);
+});
+
+test('QF-05 validação: falha sem conserto determinístico (conteúdo omitido) → VALIDATION_FALLBACK com códigos; resposta ilegível também', async () => {
+  const r = await projetar('<section class="pagina"><div style="position:absolute;inset:60px;font-size:26px">Resumo</div></section>');
+  assert.equal(r.ok, false);
+  assert.equal(r.motivo, 'conferencia');
+  assert.ok(r.codigos.includes('conteudo_omitido'));
+  assert.equal(r.ajuste, null);
+  assert.equal(categoriaDoFallback(r), 'VALIDATION_FALLBACK');
+  const lixo = await projetar('não é html');
+  assert.equal(lixo.ok, false);
+  assert.equal(categoriaDoFallback(lixo), 'VALIDATION_FALLBACK');
+});
+
+test('QF-05 tempo esgotado e falha do provedor: fallback explícito, sem repetição infinita', async () => {
+  const t = await projetar(Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }));
+  assert.equal(t.ok, false);
+  assert.equal(t.chamadas, 1, 'sem nova tentativa depois de estourar o tempo');
+  assert.equal(categoriaDoFallback(t), 'TIMEOUT_FALLBACK');
+  const f = await projetar(new Error('provedor fora do ar'));
+  assert.equal(f.ok, false);
+  assert.equal(categoriaDoFallback(f), 'ERROR_FALLBACK');
+});
+
+test('QF-05 na execução: evento com motor pedido/usado, categoria e motivo; IA usada quando o design passa; clássico com motivo quando não; checker nos dois', async () => {
+  const ev = () => todos(S.app.db, "select detalhes from eventos where tipo = 'visual.produced' order by id desc limit 1").map(e => JSON.parse(e.detalhes))[0];
+  modoDesign = 'bom';
+  const a = await executar('deck');
+  const e1 = ev();
+  assert.deepEqual([e1.motor_pedido, e1.motor_usado, e1.fallback_usado, e1.fallback_categoria], ['ai', 'ai', false, null]);
+  assert.ok(e1.ms_design > 0);
+  assert.ok(a.fim.qualidade?.status, 'conferência do texto rodou');
+  modoDesign = 'ruim';
+  const b = await executar('deck');
+  const e2 = ev();
+  assert.deepEqual([e2.motor_pedido, e2.motor_usado, e2.fallback_usado, e2.fallback_categoria, e2.fallback_motivo], ['ai', 'classic', true, 'VALIDATION_FALLBACK', 'conferencia']);
+  assert.ok(e2.detalhe_classico, 'códigos da conferência do design');
+  assert.ok(b.fim.qualidade?.status, 'conferência do texto rodou');
+  assert.ok(['aprovado', 'corrigido', 'parcial', 'inconsistente'].includes(b.fim.artefatos[0].status), 'conferência visual do clássico rodou');
+  // Design pela IA desligado: o clássico continua funcionando, com o motivo de configuração.
+  process.env.DESIGN_IA = '0';
+  try {
+    const c = await executar('deck');
+    const e3 = ev();
+    assert.deepEqual([e3.motor_pedido, e3.motor_usado, e3.fallback_categoria, e3.fallback_motivo], ['classic', 'classic', 'CONFIG_FALLBACK', 'desligado']);
+    assert.ok(c.fim.artefatos?.length);
+  } finally { process.env.DESIGN_IA = '1'; modoDesign = 'bom'; }
+});

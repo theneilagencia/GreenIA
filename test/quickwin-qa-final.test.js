@@ -94,3 +94,17 @@ test('avisos de configuração trazem a ação: pesquisa, imagem, fonte obrigat�
   const f = acoesDoAviso({ fontes: { obrigatorias_falharam: [{ titulo: 'Conhecimento da empresa', motivo: 'Nenhum trecho' }] }, quick_win: 7 });
   assert.deepEqual(f.map(a => a.href), ['#/conhecimento', '#/qw/7/editar?foco=fontes-qw']);
 });
+
+// QA final (produção): nomes do material, ano ausente e contagem de slides no objetivo.
+import { REGRA_PERGUNTAS } from '../src/quickwin-construtor.js';
+test('execução: data sem ano ou prazo relativo nunca é motivo para perguntar', () => {
+  assert.match(REGRA_PERGUNTAS, /Data sem ano, dia sem mês ou prazo relativo \("sexta", "amanhã"\) nunca é motivo para perguntar/);
+});
+test('conferente: objetivo "não atingido" só por contagem de slides de peça visual vira observação', () => {
+  const e = construir({ descricao: 'Transforme o relatório em uma apresentação de 5 slides', operacao: { canais: [], ferramentas: [], entregaveis: [{ id: 'e1', tipo: 'apresentacao', visual: { tipo: 'presentation', paginas: 5 } }], origem: 'pessoa' } });
+  const v = lerVeredito(e, JSON.stringify({ criterios: [], objetivo_atingido: false, motivo_objetivo: 'Resultado tem 4 slides em vez de exatamente 5' }));
+  assert.equal(v.objetivo, true);
+  assert.ok(v.leves.some(l => /4 slides/.test(l)));
+  const v2 = lerVeredito(e, JSON.stringify({ criterios: [], objetivo_atingido: false, motivo_objetivo: 'Não traz a recomendação pedida' }));
+  assert.equal(v2.objetivo, false);
+});

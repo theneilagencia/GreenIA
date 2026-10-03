@@ -128,6 +128,27 @@ export function carregarAssets(app, conversaId, refs = {}) {
 const dataDe = (app, idioma = 'pt') => app.agora().toLocaleDateString(idioma === 'en' ? 'en-US' : 'pt-BR', { timeZone: process.env.PLATAFORMA_FUSO || 'America/Sao_Paulo' });
 const idiomaDe = texto => { const t = ` ${norm(texto)} `; const en = (t.match(/ (the|and|of|to|with|for|is|are|this|that) /g) || []).length, pt = (t.match(/ (de|da|do|que|com|para|os|as|uma|não|nao|e) /g) || []).length; return en > pt * 1.5 ? 'en' : 'pt'; };
 
+// ---- Escolha do motor do design (QF-05) -------------------------------------------------------------------------
+// IA primeiro quando ligada, saudável, permitida e a peça é elegível; clássico com motivo estruturado nos demais casos.
+// Nunca "pula" a IA sem motivo: cada caminho devolve a categoria (§12) e o motivo, que vão para o evento.
+export function motorDoDesign({ usarIA = true, temChamada = true, nav = { ok: false, motivo: 'sem_ia' }, tr = {}, imagem = null } = {}) {
+  if (tr.imagemFinal) return { pedido: 'classic', categoria: 'EXPECTED_FALLBACK', motivo: 'imagem_final_composicao_deterministica' };
+  if (imagem?.pedida === 'real') return { pedido: 'classic', categoria: 'EXPECTED_FALLBACK', motivo: 'imagem_real_com_espaco_reservado' };
+  if (!usarIA) return { pedido: 'classic', categoria: 'POLICY_FALLBACK', motivo: 'reserva_do_plano' };
+  if (!temChamada) return { pedido: 'classic', categoria: 'CONFIG_FALLBACK', motivo: 'sem_ia' };
+  if (!nav?.ok) return { pedido: 'classic', categoria: nav?.motivo === 'desligado' ? 'CONFIG_FALLBACK' : 'PROVIDER_FALLBACK', motivo: nav?.motivo || 'navegador_indisponivel' };
+  return { pedido: 'ai', categoria: null, motivo: null };
+}
+// Categoria do fallback depois de tentar a IA (resultado de projetarDesign).
+export function categoriaDoFallback(dz) {
+  const m = dz?.motivo || 'falha';
+  if (m === 'conferencia' || m === 'resposta_invalida') return 'VALIDATION_FALLBACK';
+  if (m === 'paginas') return 'EXPECTED_FALLBACK';
+  if (/tempo|timeout/i.test(m) || /tempo|timeout/i.test(dz?.erro || '')) return 'TIMEOUT_FALLBACK';
+  if (/chromium|navegador|indispon/i.test(m)) return 'PROVIDER_FALLBACK';
+  return 'ERROR_FALLBACK';
+}
+
 // Produz os artefatos de uma execução (sem gravar: a gravação vem depois da resposta, com o id dela).
 export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, chamarDesign = null, usarIA = true, governanca = {}, etapa = () => {} }) {
   const op = espec?.operacao;
@@ -206,9 +227,10 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const exigidos = op.entregaveis.length === 1 ? (espec.invariantes?.entregaveis || []) : [];
     const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
     // Design pela IA. Conferido no navegador; falhou duas vezes ou indisponível: motor clássico (com o motivo).
-    let motivoClassico = nav.ok ? null : nav.motivo, detalheClassico = null;
     // Imagem final: composição determinística (texto, logo e chamada nunca saem do modelo de imagem nem do design livre).
-    if (nav.ok && imagem?.pedida !== 'real' && !tr.imagemFinal) {
+    const sel = motorDoDesign({ usarIA, temChamada: !!(chamarDesign || chamar), nav, tr, imagem });
+    let motivoClassico = sel.motivo, detalheClassico = null, categoria = sel.categoria, dzInfo = null;
+    if (sel.pedido === 'ai') {
       const c0 = Date.now();
       const ativos = {};
       if (assets.heroi?.dataUrl) { const d = decodificarDataUrl(assets.heroi.dataUrl); if (d) ativos.heroi = d; }
@@ -217,14 +239,17 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
       const dz = await projetarDesign({ chamar: chamarDesign || chamar, plano, conteudo, tr: { ...tr, formato }, identidade, assets: ativos, objetivo: espec.objetivo, publico: visual.publico, titulo, data: opc.data, etapa });
       custos.plano_visual += dz.custo || 0;
       ms.composicao += Date.now() - c0;
+      dzInfo = { tentativas: dz.tentativas ?? null, ajuste: dz.ajuste || null, ms: Date.now() - c0 };
       if (dz.ok) {
         artefatos.push({ entregavel: e.id, rotulo: rotulo || tr.rotulo, tipo: tr.tipo, tipoRotulo: tr.rotulo, titulo, formato, conteudo,
           plano: { ...plano, formato, motor: 'design', design: dz.design }, opcoes: opc, identidade, assets, imagem, render: dz.render,
-          registro: { status: dz.tentativas ? 'corrigido' : 'aprovado', correcoes: dz.tentativas, erros: [], avisos: [], paginas: dz.design.paginas.length, plano: origemPlano, motor: 'design', imagem, ms: { total: Date.now() - c0 } },
+          registro: { status: dz.tentativas || dz.ajuste ? 'corrigido' : 'aprovado', correcoes: dz.tentativas, erros: [], avisos: [], paginas: dz.design.paginas.length, plano: origemPlano, motor: 'design', imagem, ms: { total: Date.now() - c0 },
+            motor_pedido: 'ai', motor_usado: 'ai', design: dzInfo },
           status: dz.tentativas ? 'corrigido' : 'aprovado', avisos: [], exportacoes: plano.exportacoes, paginas: dz.design.paginas.length });
         continue;
       }
       motivoClassico = dz.motivo || 'conferencia';
+      categoria = categoriaDoFallback(dz);
       // Diagnóstico técnico curto (sem conteúdo da peça): o que impediu o design pela IA.
       detalheClassico = dz.erro ? String(dz.erro).replace(/https?:\/\/\S+/g, '[url]').slice(0, 160) : (dz.codigos || []).join(',') || null;
       app.log?.('design', `motor clássico: ${motivoClassico}${dz.codigos?.length ? ` (${dz.codigos.join(',')})` : ''}${dz.erro ? ` ${dz.erro}` : ''}`);
@@ -247,7 +272,8 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     else if (imagem?.pedida === 'conceitual' && !imagem.gerada && visual.imagem) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);
     artefatos.push({ entregavel: e.id, rotulo: rotulo || tr.rotulo, tipo: tr.tipo, tipoRotulo: tr.rotulo, titulo, formato: plano.formato, conteudo, plano: r.plano, opcoes: r.opcoes, identidade, assets, imagem,
       ...(finalSemImagem ? { imagem_final: { gerada: false, motivo: imagem?.motivo || null, briefing: imagem?.briefing || null } } : tr.imagemFinal ? { imagem_final: { gerada: true } } : {}),
-      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico, ...(detalheClassico ? { detalhe_classico: detalheClassico } : {}) } : {}) }, status: finalSemImagem && r.registro.status !== 'reprovado' ? 'parcial' : r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
+      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico, ...(detalheClassico ? { detalhe_classico: detalheClassico } : {}) } : {}),
+        motor_pedido: sel.pedido, motor_usado: 'classic', fallback_categoria: categoria || 'UNEXPECTED_FALLBACK', fallback_motivo: motivoClassico || 'sem_motivo', ...(dzInfo ? { design: dzInfo } : {}) }, status: finalSemImagem && r.registro.status !== 'reprovado' ? 'parcial' : r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
   }
   return { artefatos, ignorados, custos, ms: { ...ms, total: Date.now() - t0 } };
 }
@@ -271,7 +297,9 @@ export function gravarVisuais(app, producao, { pessoa, conv, qw, respId, rotaId 
     exec(app.db, 'update artefatos_visuais set base_id = ? where id = ?', id, id);
     if (a.render) guardarRender(app, id, a.render);
     registrar(app, 'visual.produced', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId, artefato: id, tipo: a.tipo, formato: a.formato,
-      paginas: a.paginas, status: a.status, correcoes: a.registro.correcoes, plano: a.registro.plano, motor: a.registro.motor || 'classico', motivo_classico: a.registro.motivo_classico || null, detalhe_classico: a.registro.detalhe_classico || null, imagem: a.imagem ? { gerada: !!a.imagem.gerada, motivo: a.imagem.motivo || null } : null,
+      paginas: a.paginas, status: a.status, correcoes: a.registro.correcoes, plano: a.registro.plano, motor: a.registro.motor || 'classico', motivo_classico: a.registro.motivo_classico || null, detalhe_classico: a.registro.detalhe_classico || null,
+      motor_pedido: a.registro.motor_pedido || null, motor_usado: a.registro.motor_usado || null, fallback_usado: a.registro.motor_usado === 'classic', fallback_categoria: a.registro.fallback_categoria || null,
+      fallback_motivo: a.registro.fallback_motivo || null, design_tentativas: a.registro.design?.tentativas ?? null, design_ajuste: a.registro.design?.ajuste ? a.registro.design.ajuste.codigos : null, ms_design: a.registro.design?.ms ?? null, imagem: a.imagem ? { gerada: !!a.imagem.gerada, motivo: a.imagem.motivo || null } : null,
       escala: a.registro.escala, ms: a.registro.ms?.total ?? null });
     return resumoArtefato(app, um(app.db, 'select * from artefatos_visuais where id = ?', id));
   });

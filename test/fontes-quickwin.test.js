@@ -397,3 +397,13 @@ test('generalização (24 pedidos novos): imagem final × briefing × outra peç
     assert.equal(c.ignorar ? 'ignorar' : c.exclusiva ? 'exclusiva' : c.papel, esperado, t);
   }
 });
+
+test('persona: a lista de responsáveis serve só para indicar quem procurar; nomes do material são dados do trabalho', async () => {
+  const q = await criarQw('Transforme anotações de reunião em tarefas com responsável e prazo');
+  modo = 'usa_fonte';
+  const antes = OR.chamadas.length;
+  await executar(q.id, { texto: 'Anotações fictícias: Bruno liga para o fornecedor amanhã.' });
+  const sis = JSON.stringify(OR.chamadas.slice(antes)[0].messages[0].content);
+  assert.match(sis, /indique quem procurar: Ana Lima/);
+  assert.match(sis, /nome de pessoa que aparece no material ou na conversa é dado do trabalho e deve ser usado normalmente/);
+});

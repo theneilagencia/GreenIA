@@ -1,0 +1,72 @@
+# Blueprint do Render: um serviço web (Docker) com disco para o SQLite.
+# No Render: New > Blueprint > escolha este repositório. Os segredos são pedidos na criação.
+services:
+  - type: web
+    name: greenia
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: virginia        # não há região no Brasil; Virgínia é a mais próxima
+    plan: starter           # disco persistente exige plano pago
+    healthCheckPath: /api/saude
+    autoDeploy: true
+    domains:
+      - greenia.theneil.com.br
+    disk:
+      name: dados
+      mountPath: /app/dados
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_EMAIL
+        sync: false         # um ou mais emails de admin (vírgula); entram de qualquer domínio
+      - key: OPENROUTER_API_KEY
+        sync: false         # pedido na criação; nunca no repositório
+      # Plano contratado (definido pela TheNeil; o admin da empresa não altera).
+      # Plano principal: 25000 créditos, reserva 5000, preço 750. Plano de entrada: 10000, 2000, 290.
+      - key: PLANO_CREDITOS
+        value: "25000"
+      - key: PLANO_RESERVA
+        value: "5000"
+      - key: PLANO_PRECO_USD
+        value: "750"
+      - key: OPERADOR_EMAIL
+        sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
+      # Multiempresa: uma instalação para todas as empresas. Console da plataforma em /plataforma.
+      # Na primeira subida, a instalação que já existia (dados/greenia.sqlite) vira a primeira empresa.
+      - key: MULTIEMPRESA
+        value: "1"
+      - key: PLATAFORMA_HOST
+        value: greenia.theneil.com.br
+      - key: PLATAFORMA_ADMINS
+        sync: false         # emails dos administradores da plataforma, separados por vírgula
+      - key: PLATAFORMA_FUSO
+        value: America/Sao_Paulo   # só para exibir datas no console e nos emails; os prazos são calculados em UTC
+      - key: SMTP_URL
+        sync: false         # smtps://usuario:senha@servidor:465 — envia os códigos do console enquanto o SMTP não é configurado nele
+      - key: SMTP_REMETENTE
+        sync: false         # ex.: GreenIA <nao-responda@seudominio.com.br>
+      # Em vez de SMTP_URL, pode usar variáveis separadas (a senha entra como está, sem codificar):
+      # SMTP_SERVIDOR (ex.: smtp.kinghost.net), SMTP_PORTA (465), SMTP_USUARIO (email completo), SMTP_SENHA
+      # O plano gratuito do Render bloqueia SMTP de saída (portas 25, 465 e 587). Nele, use envio por API:
+      # EMAIL_API=resend ou brevo e EMAIL_API_CHAVE=<chave do provedor>. Tem prioridade sobre o SMTP.
+      # Domínio próprio das empresas cadastrado sozinho no Render (opcional):
+      # - key: RENDER_API_KEY      # chave da API do Render (Account Settings > API Keys); nunca no repositório
+      #   sync: false
+      # - key: RENDER_SERVICE_ID   # id deste serviço (srv-...)
+      #   sync: false
+      # - key: RENDER_ALVO         # endereço onrender.com do serviço, alvo do CNAME das empresas
+      #   sync: false
+      # - key: PLATAFORMA_SUBDOMINIO   # com DNS curinga *.base, cada empresa ganha empresa.base
+      #   value: ia.theneil.com.br
+      # Esta é a instalação do operador: a raiz abre a página de vendas e /operador junta os clientes.
+      # Ela mesma aparece no console (tem plano); não precisa de OPERADOR_TOKEN.
+      - key: PAGINA_INICIAL
+        value: vendas
+      - key: CUSTO_INFRA_USD
+        value: "7"
+      # Clientes no console: crie INSTANCIAS no painel do Render (Environment), separadas por ponto e vírgula:
+      #   Cliente A|https://ia.clientea.com.br|token-a;Cliente B|https://ia.clienteb.com.br|token-b
+      # Instalação de cliente: use deploy/render-cliente.yaml.
+      - key: BACKUP_HORA
+        value: "06:00"
+      - key: BACKUP_MANTER
+        value: "7"

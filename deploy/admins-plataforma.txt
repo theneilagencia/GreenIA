@@ -1,0 +1,4 @@
+# Administradores da plataforma (acesso ao console em /plataforma).
+# Um email por linha. Lido a cada inicialização, junto com PLATAFORMA_ADMINS e OPERADOR_EMAIL.
+# Só acrescenta: tirar um email daqui não remove o acesso; para isso use o console.
+vinicius.debian@theneil.com.br

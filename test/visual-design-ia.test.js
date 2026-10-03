@@ -254,6 +254,14 @@ test('QF-05 ajuste determinístico: texto na borda e com pouco contraste é cons
   assert.match(r.design.paginas[0], /color: rgb\(17, 17, 17\)|#111111/);
 });
 
+test('QF-05 ajuste determinístico: texto pequeno sobe para o mínimo (com a margem e o contraste) sem nova chamada', async () => {
+  const r = await projetar(PEDACO('position:absolute;left:4px;top:300px;font-size:11px;color:#C8C8C8'));
+  assert.equal(r.ok, true, JSON.stringify(r.falhas));
+  assert.deepEqual(r.ajuste.codigos.sort(), ['contraste', 'fonte_pequena', 'margem']);
+  assert.equal(r.chamadas, 2);
+  assert.match(r.design.paginas[0], /font-size: \d+px !important/);
+});
+
 test('QF-05 validação: falha sem conserto determinístico (conteúdo omitido) → VALIDATION_FALLBACK com códigos; resposta ilegível também', async () => {
   const r = await projetar('<section class="pagina"><div style="position:absolute;inset:60px;font-size:26px">Resumo</div></section>');
   assert.equal(r.ok, false);

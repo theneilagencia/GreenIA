@@ -56,7 +56,7 @@ export default async function (c, quais = '') {
     const q = await novo('Documento com PDF obrigatório', 'Responda dúvidas da equipe sobre o regulamento interno de horas extras, citando o item do regulamento.');
     const up = await c.api('POST', `/api/quick-wins/${q.id}/arquivos`, { arquivo: { nome: 'regulamento-horas-extras-qa.pdf', base64: b64(pdf(['REGULAMENTO DE HORAS EXTRAS QA (fictício)', 'Item 3.1: o limite é de 22 horas extras por mês.', 'Item 3.2: horas extras aos domingos exigem autorização do gerente da área.', 'Item 3.3: o banco de horas vence em 90 dias.'])) }, titulo: 'Regulamento de horas extras QA', papel: 'REQUIRED_SOURCE' });
     const e = await exec(q.id, { texto: 'Qual é o limite mensal de horas extras e em quanto tempo vence o banco de horas?' });
-    const certo = /22 horas/.test(e.texto) && /90 dias/.test(e.texto);
+    const certo = /(22|vinte e duas) horas/i.test(e.texto) && /(90|noventa) dias/i.test(e.texto);   // número em algarismo ou por extenso
     return { upload: up.status, fontes_qw: (await fontesDe(q.id)).map(f => [f.tipo, f.papel, f.status]), ...e, certo, citou: /Fonte:|Item 3\.[13]/.test(e.texto),
       veredito: up.status === 200 && certo && ok(e) && usou(e, /horas extras/i) ? 'OK' : 'FALHA' };
   });

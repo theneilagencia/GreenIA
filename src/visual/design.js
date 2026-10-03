@@ -213,7 +213,7 @@ export function conferirDesign(medidas, { conteudo, paginas, formato, extras = [
       if (t.x < -1 || t.y < -1 || t.x + t.w > dim.w + 1 || t.y + t.h > dim.h + 1) add('fora_da_pagina', `Página ${pg.n}: o texto ${curto} sai da página.`, mover);
       else if (t.x < tol || t.y < tol || t.x + t.w > dim.w - tol || t.y + t.h > dim.h - tol) add('margem', `Página ${pg.n}: o texto ${curto} encosta na borda (deixe ${Math.round(tol * 2)}px de margem).`, mover);
       else if (t.cortado) add('texto_cortado', `Página ${pg.n}: o texto ${curto} está cortado pelo contêiner (aumente a área ou reduza o tamanho).`);
-      if (t.fs < dim.minimo) add('fonte_pequena', `Página ${pg.n}: o texto ${curto} tem ${Math.round(t.fs)}px; o mínimo é ${dim.minimo + 2}px.`);
+      if (t.fs < dim.minimo) add('fonte_pequena', `Página ${pg.n}: o texto ${curto} tem ${Math.round(t.fs)}px; o mínimo é ${dim.minimo + 2}px.`, { pagina: pg.n, i: t.i, fs: dim.minimo + 2 });
       if (img && t.alfa > 0.05) {
         const grande = t.fs >= 24 || (t.fs >= 18.6 && t.peso >= 700);
         const c = contrasteNosPixels(img.pixels, img.escala, t, t.cor);
@@ -246,11 +246,11 @@ export function conferirDesign(medidas, { conteudo, paginas, formato, extras = [
 }
 
 // ---- Ajuste determinístico (QF-05) -----------------------------------------------------------------------------
-// Depois da correção pela IA, falhas só de margem, texto fora da página ou contraste ainda têm conserto sem nova
-// chamada: o bloco do texto é deslocado para dentro da área segura e/ou a cor do texto vira a mais legível (escuro ou
-// branco) sobre o fundo medido. O HTML ajustado é o da própria página (só ganha estilo inline nos blocos tocados) e
+// Depois da correção pela IA, falhas só de margem, texto fora da página, contraste ou fonte pequena ainda têm conserto
+// sem nova chamada: o bloco do texto é deslocado para dentro da área segura, a cor do texto vira a mais legível (escuro
+// ou branco) sobre o fundo medido e/ou o texto pequeno sobe para o tamanho mínimo. O HTML ajustado é o da própria página (só ganha estilo inline nos blocos tocados) e
 // passa de novo pela mesma conferência; se ainda reprovar, o motor clássico entra com o motivo registrado.
-export const AJUSTAVEIS = new Set(['margem', 'fora_da_pagina', 'contraste']);
+export const AJUSTAVEIS = new Set(['margem', 'fora_da_pagina', 'contraste', 'fonte_pequena']);
 export const ajustavel = q => !q.ok && q.codigos.length > 0 && q.codigos.every(c => AJUSTAVEIS.has(c)) && (q.alvos || []).length > 0
   && q.alvos.length === q.falhas.filter(f => AJUSTAVEIS.has(f.codigo)).length;
 const ESCURO = [17, 17, 17], CLARO = [255, 255, 255];
@@ -292,6 +292,7 @@ function aplicarNoNavegador(ajustes) {
             el.style.setProperty('box-decoration-break', 'clone', 'important');
           }
         }
+        if (a.fs) el.style.setProperty('font-size', `${a.fs}px`, 'important');
         if (a.dx || a.dy) {
           // Bloco transformável mais próximo (elemento inline não aceita translate); cada bloco é deslocado uma vez.
           let b = el; while (b && b !== pg && getComputedStyle(b).display === 'inline') b = b.parentElement;
@@ -307,7 +308,8 @@ function aplicarNoNavegador(ajustes) {
 }
 export async function ajustarDesign(design, alvos, { formato, identidade, assets = {} }) {
   const dim = FORMATOS[formato] || FORMATOS.a4;
-  const ajustes = alvos.map(a => { if (a.codigo !== 'contraste') return { pagina: a.pagina, i: a.i, dx: a.dx, dy: a.dy }; const l = corLegivel(a.fundo); return { pagina: a.pagina, i: a.i, cor: l.cor, tarja: l.contraste < (a.minimo || 4.5) + 0.5 }; });
+  const ajustes = alvos.map(a => { if (a.codigo === 'fonte_pequena') return { pagina: a.pagina, i: a.i, fs: a.fs };
+    if (a.codigo !== 'contraste') return { pagina: a.pagina, i: a.i, dx: a.dx, dy: a.dy }; const l = corLegivel(a.fundo); return { pagina: a.pagina, i: a.i, cor: l.cor, tarja: l.contraste < (a.minimo || 4.5) + 0.5 }; });
   const mapa = new Map(Object.entries(assets).filter(([, a]) => a?.bytes).map(([k, a]) => [k, a]));
   const paginas = await comPagina({ largura: dim.w, altura: dim.h, escala: 1, documento: documentoDesign(design, { formato, identidade }), assets: mapa }, page => page.evaluate(aplicarNoNavegador, ajustes));
   return { css: design.css, paginas, ajustes: ajustes.length };
@@ -390,7 +392,7 @@ export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, 
         // Última chance, sem IA: ajuste determinístico (uma vez) quando todas as falhas têm conserto.
         if (!ajusteFeito && ajustavel(q)) {
           ajusteFeito = { codigos: q.codigos, alvos: q.alvos.length };
-          etapa('Ajustando margens e contraste…');
+          etapa('Ajustando margens, contraste e tamanho do texto…');
           const aj = await ajustarDesign(design, q.alvos, { formato: tr.formato, identidade, assets });
           design = { css: aj.css, paginas: aj.paginas };
           continue;

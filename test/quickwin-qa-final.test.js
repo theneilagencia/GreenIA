@@ -36,3 +36,13 @@ test('conferente: motivo que confirma o resultado ("está correto", "cálculo le
     assert.deepEqual(v(m).falhas, [], m);
   assert.equal(v('O valor de R$ 9.999 não está na entrada.').falhas.length, 1);
 });
+
+test('conferente: datas sem ano nos dois sentidos, reformulação e aproximação não reprovam; contexto da empresa é observação', () => {
+  const e = construir({ descricao: 'Crie uma timeline do projeto com as etapas e datas' });
+  const p = promptQualidade(e);
+  assert.match(p, /tanto deixar a data sem ano quanto usar o ano que decorre do material está certo/);
+  assert.match(p, /A GreenIA é a plataforma, não a empresa do trabalho/);
+  const v = lerVeredito({ ...e, criterios_qualidade: [...e.criterios_qualidade, { id: 'contexto_empresa', grupo: 'completo', texto: 'Usa o contexto da empresa.' }] }, '{"criterios":[{"id":"contexto_empresa","ok":false,"motivo":"genérico"}]}');
+  assert.deepEqual(v.falhas, []);
+  assert.equal(v.leves.length, 1);
+});

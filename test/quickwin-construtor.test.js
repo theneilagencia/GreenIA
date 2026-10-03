@@ -84,7 +84,11 @@ test('contrato de saída: formato, colunas, seções e números sem fonte', () =
   const bom = '| Item | Documento 1 | Documento 2 | Diferença | Relevância |\n|---|---|---|---|---|\n| A | 40 | 38 | 2 | Alta |\n## Pontos de atenção\nx\n## Informações não encontradas\nNenhuma';
   assert.deepEqual(C.conferirContrato(e, bom, 'pedido 40, nota 38').falhas, []);
   assert.deepEqual(C.conferirContrato(e, 'texto sem tabela', '').falhas, ['formato']);
-  assert.deepEqual(C.conferirContrato(e, bom.replace('Relevância', 'Obs'), '').falhas, ['formato']);
+  // Colunas sugeridas pelo tipo de trabalho não são contrato (QA profundo): renomear não reprova; as da pessoa, sim.
+  assert.equal(e.formato_saida.origem_colunas, 'sugestao');
+  assert.deepEqual(C.conferirContrato(e, bom.replace('Relevância', 'Obs'), '').falhas, []);
+  const daPessoa = C.construir({ descricao: 'Compare pedido e nota', arquetipo: 'comparar_documentos', formato: 'tabela', colunas: ['Item', 'Documento 1', 'Documento 2', 'Diferença', 'Relevância'], colunas_origem: 'pessoa' });
+  assert.deepEqual(C.conferirContrato(daPessoa, bom.replace('Relevância', 'Obs'), '').falhas, ['formato']);
   assert.deepEqual(C.conferirContrato(e, bom.replace('## Informações não encontradas\nNenhuma', ''), '').falhas, ['regras']);
   assert.deepEqual(C.conferirContrato(e, '', '').falhas, ['completo', 'formato']);
   assert.deepEqual(C.conferirContrato(e, bom.replace('| 40 |', '| 1.250 |'), 'pedido 40, nota 38').numerosSemFonte, ['1.250']);

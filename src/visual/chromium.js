@@ -57,9 +57,12 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
     const exe = caminhoChromium();
     if (!chromium || !exe) throw new Indisponivel('sem_chromium');
     if (memoriaLivreMb() < MEMORIA_MIN_MB) throw new Indisponivel('memoria');
+    // Contêiner sem HOME gravável (roda como "node"): perfil, cache e configuração vão para /tmp; sem coletor de falhas.
+    const tmp = process.env.TMPDIR || '/tmp';
     const nav = await chromium.launch({ executablePath: exe, timeout: 30_000,
-      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
-        '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1', '--js-flags=--max-old-space-size=96'] });
+      env: { ...process.env, HOME: process.env.DESIGN_HOME || tmp, XDG_CONFIG_HOME: `${tmp}/.config`, XDG_CACHE_HOME: `${tmp}/.cache` },
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
+        '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1'] });
     try {
       const ctx = await nav.newContext({ javaScriptEnabled: false, viewport: { width: Math.round(largura), height: Math.round(altura) }, deviceScaleFactor: escala,
         acceptDownloads: false, bypassCSP: false, serviceWorkers: 'block' });

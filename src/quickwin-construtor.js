@@ -75,6 +75,7 @@ export const SUGESTOES = Object.entries(ARQUETIPOS).map(([id, a]) => ({ id, rotu
 
 // ---- Regras (poucas, em linguagem comum). "Não inventar" vale sempre. ---------------------------------------
 // grupo: o item do resumo de qualidade em que a regra é conferida.
+const REGRAS_LEVES = new Set(['mostrar_evidencias', 'comparar_valores', 'identificar_riscos', 'priorizar_itens', 'linguagem_simples', 'tom_cordial', 'registrar_decisoes', 'adaptar_canal', 'citar_fontes']);
 export const REGRAS = {
   nao_inventar: { rotulo: 'Não inventar informações', travada: true, grupo: 'invencao',
     instrucao: 'Use só o que está no material enviado, nesta conversa e nos documentos autorizados. Não crie nomes, números, datas, valores, fatos ou fontes.',
@@ -158,6 +159,7 @@ export const AUTONOMIA = {
 };
 export const MARCADOR_PERGUNTA = MARCADOR;
 const SECAO_AUSENTES = 'Informações não encontradas';
+const ESTILO_DENTRO = { resumo: 'dentro de cada entregável, texto curto e direto', lista: 'dentro de cada entregável, em tópicos', tabela: 'dentro de cada entregável, use tabela quando os itens tiverem os mesmos campos', relatorio: 'dentro de cada entregável, subtítulos curtos' };
 
 // ---- Inferência ---------------------------------------------------------------------------------------------
 export function inferirArquetipo(descricao, escolhido = null) {
@@ -442,7 +444,11 @@ export function construir(r = {}) {
   const sug = sugerirFormato({ descricao, arquetipo: arq, exemplo, colunasPedidas: estrutura?.colunas.map(c => c.nome) || [] });
   // Formato do contrato: derivado do plano. Vários entregáveis: cada um vira uma seção obrigatória ("outro"); um só,
   // de formato simples, é o contrato daquele formato. A escolha explícita da pessoa continua valendo.
-  const tipo = FORMATOS_SAIDA[r.formato] ? r.formato : entregaMultipla(operacao) ? 'outro' : formatoUnico(operacao) || sug.formato;
+  // Vários entregáveis: a estrutura é a do plano (uma seção por entregável), mesmo com um formato escolhido; o
+  // formato escolhido vira o estilo de dentro de cada entregável (sem seções genéricas por cima das do plano).
+  const multipla = entregaMultipla(operacao);
+  const estiloEscolhido = multipla && FORMATOS_SAIDA[r.formato] && r.formato !== 'outro' ? r.formato : null;
+  const tipo = multipla ? 'outro' : FORMATOS_SAIDA[r.formato] ? r.formato : formatoUnico(operacao) || sug.formato;
   const passos = explicacao ? explicacao.split(/\n+|(?<=[.;])\s+(?=[A-ZÀ-Ú0-9])/).map(p => limpar(p.replace(/^([-*•]|\d+[.)])\s*/, ''), 240)).filter(p => p.length > 3).slice(0, 8) : [];
   const cc = tipo === 'tabela' ? colunasDoContrato({ manuais, exemplo, estrutura, arquetipo: arq, livre: r.colunas_origem === 'livre' }) : { colunas: [], origem: null };
   const colunas = cc.colunas;
@@ -469,7 +475,8 @@ export function construir(r = {}) {
       ? 'Não use informação de fora do material, da conversa, dos documentos autorizados e dos resultados da pesquisa na internet desta execução (quando ela estiver disponível).'
       : 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
-    formato_saida: { tipo, descricao: tipo === 'outro' ? limpar(r.formato_descricao, 200) || (entregaPorCanal ? (operacao.canais.length ? 'Entregáveis separados por canal' : 'Entregáveis separados, cada um com o seu título') : '') || sug.descricao || a.formatoDescricao || '' : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
+    formato_saida: { tipo, descricao: tipo === 'outro' ? [limpar(r.formato_descricao, 200) || (entregaPorCanal ? (operacao.canais.length ? 'Entregáveis separados por canal' : 'Entregáveis separados, cada um com o seu título') : '') || sug.descricao || a.formatoDescricao || '',
+      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
     exemplos: exemplo ? { estrutura: exemplo } : null,
     perguntas_esclarecimento: { max: 2, quando: 'Só quando faltar algo sem o qual o trabalho não pode ser feito, como o próprio material.' },
     nivel_autonomia: autonomia,
@@ -494,7 +501,10 @@ function secoesPadrao(tipo, arq) {
   return [];
 }
 function criterios(regras, contrato, proprias = [], confirmada = false) {
-  const out = regras.map(id => ({ id, grupo: REGRAS[id].grupo, texto: REGRAS[id].criterio }));
+  // Regras de estilo e de apoio (destacar riscos, mostrar evidências, priorizar, tom...) são conferidas como aviso:
+  // a falha delas não reprova um resultado correto. Integridade (não inventar, preservar dados, apontar ausências,
+  // não prometer) continua grave.
+  const out = regras.map(id => ({ id, grupo: REGRAS[id].grupo, texto: REGRAS[id].criterio, ...(REGRAS_LEVES.has(id) ? { leve: true } : {}) }));
   for (const p of proprias) out.push({ id: p.id, grupo: 'regras', texto: `Regra do responsável: "${p.texto}". Foi seguida em tudo a que se aplica no material.` });
   out.push({ id: 'completo', grupo: 'completo', texto: confirmada
     ? 'O resultado cobre a intenção do trabalho e todo o material relevante da entrada, dentro do contrato confirmado. Campo, coluna ou formato que não está no contrato não é exigido.'
@@ -546,7 +556,7 @@ export function descreverContrato(f) {
 // Homologação real: o modelo perguntava o que podia resolver sozinho (o tema, quem são os concorrentes, se seguia
 // com uma informação faltando). Antes de perguntar, ele usa o que existe; pergunta só quando é impossível fazer.
 export const SECAO_ESCOLHAS = 'Escolhas feitas';
-export const REGRA_PERGUNTAS = `Política de autonomia: antes de perguntar, use o que já existe (o material, as notas da pesquisa e os documentos da empresa). Só é motivo para perguntar o que for NECESSÁRIO: material obrigatório que não veio (por exemplo, o documento ou as propostas) ou informação indispensável que não está em lugar nenhum e não dá para inferir. Dúvida de PREFERÊNCIA nunca é motivo para perguntar: estilo, nível de detalhe, ordem, critério de desempate, custo total ou só o valor, tema, assunto, foco, tom ou público (escolha o mais relevante para a empresa a partir dos documentos dela), o que a pesquisa pode descobrir (por exemplo, quem são os concorrentes), qualquer escolha reversível. Nesses casos, faça uma escolha razoável, faça o trabalho e termine com a seção "## ${SECAO_ESCOLHAS}", uma linha por escolha (o que você assumiu e como pedir diferente). Informação faltando ou incompleta no material também não é motivo para perguntar: escreva "não informado" e aponte o que faltou.`;
+export const REGRA_PERGUNTAS = `Política de autonomia: antes de perguntar, use o que já existe (o material, as notas da pesquisa e os documentos da empresa). Só é motivo para perguntar o que for NECESSÁRIO: material obrigatório que não veio (por exemplo, o documento ou as propostas) ou informação indispensável que não está em lugar nenhum e não dá para inferir. Dúvida de PREFERÊNCIA nunca é motivo para perguntar: estilo, nível de detalhe, ordem, critério de desempate, custo total ou só o valor, tema, assunto, foco, tom ou público (escolha o mais relevante para a empresa a partir dos documentos dela), o que a pesquisa pode descobrir (por exemplo, quem são os concorrentes), qualquer escolha reversível. Nesses casos, faça uma escolha razoável, faça o trabalho e termine com a seção "## ${SECAO_ESCOLHAS}", uma linha por escolha (o que você assumiu e como pedir diferente). Informação faltando ou incompleta no material também não é motivo para perguntar: escreva "não informado" e aponte o que faltou. Nunca pergunte se o material é real, fictício, de teste ou de exemplo: trate o material recebido como o material do trabalho.`;
 // Segunda reavaliação, só quando a estrutura do plano garante que nada indispensável falta: o trabalho não exige
 // material obrigatório e o contexto da empresa chegou. Aí a dúvida é de preferência por definição.
 export const PEDIDO_AUTONOMIA_FINAL = `Este trabalho não exige material obrigatório e o contexto da empresa está nos documentos acima: não há nada indispensável faltando. Faça o trabalho agora, completo e no formato combinado, escolhendo você o que estiver em aberto (tema, foco, público, base) a partir do contexto da empresa, e termine com a seção "## ${SECAO_ESCOLHAS}". Não pergunte e não comente esta instrução.`;
@@ -572,8 +582,10 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
   const op = promptOperacao(e.operacao, { pesquisa, notas });
   if (op) partes.push(op);
   const contrato = [];
-  if (f.tipo === 'tabela') contrato.push(f.colunas.length ? `Entregue uma tabela em Markdown (linhas com | ), com cabeçalho exatamente nestas colunas: ${f.colunas.join(' | ')}.`
-    : 'Entregue uma tabela em Markdown (linhas com | ), com cabeçalho, com as colunas que o objetivo pede.');
+  if (f.tipo === 'tabela') contrato.push(f.colunas.length && f.origem_colunas === 'sugestao'
+    ? `Entregue uma tabela em Markdown (linhas com | ), com cabeçalho. As colunas são as que o objetivo e o material pedem; ${f.colunas.join(' | ')} é só uma sugestão: não crie coluna que ficaria "não informado" em todas as linhas.`
+    : f.colunas.length ? `Entregue uma tabela em Markdown (linhas com | ), com cabeçalho exatamente nestas colunas: ${f.colunas.join(' | ')}.`
+      : 'Entregue uma tabela em Markdown (linhas com | ), com cabeçalho, com as colunas que o objetivo pede.');
   else if (f.tipo === 'lista') contrato.push('Entregue em tópicos (uma linha por item, começando com "- ").');
   else if (f.tipo === 'resumo') contrato.push('Entregue um resumo em parágrafos curtos.');
   else if (f.tipo === 'relatorio') contrato.push('Entregue um relatório com um título curto para cada seção (linhas começando com "## ").');
@@ -629,7 +641,7 @@ export function conferirContrato(espec, texto, fonte = '') {
   if (f.tipo === 'tabela') {
     const tb = tabelas(t);
     if (!tb.length) { falhas.push('formato'); detalhes.push('Faltou a tabela.'); }
-    else if (espec.configuracao_confirmada && f.colunas.length) {
+    else if (espec.configuracao_confirmada && f.colunas.length && f.origem_colunas !== 'sugestao') {
       // Contrato confirmado: exatamente estas colunas, com estes nomes, nesta ordem. Coluna a mais não é aceita.
       const cab = tb[0], esperado = f.colunas.map(plano), recebido = cab.map(plano);
       const faltam = f.colunas.filter((c, i) => !recebido.includes(esperado[i]));
@@ -638,7 +650,7 @@ export function conferirContrato(espec, texto, fonte = '') {
       if (extras.length) detalhes.push(`Colunas fora do combinado: ${extras.join(', ')}. Use só as colunas combinadas.`);
       if (!faltam.length && !extras.length && recebido.join('|') !== esperado.join('|')) detalhes.push(`As colunas não estão na ordem combinada: ${f.colunas.join(' | ')}.`);
       if (detalhes.length) falhas.push('formato');
-    } else {
+    } else if (f.origem_colunas !== 'sugestao') {
       const cab = tb[0].map(norm);
       const faltam = f.colunas.filter(c => !cab.some(h => h.includes(norm(c)) || norm(c).includes(h)));
       if (faltam.length) { falhas.push('formato'); detalhes.push(`Faltaram as colunas: ${faltam.join(', ')}.`); }
@@ -668,6 +680,10 @@ export function promptQualidade(espec) {
     // Produção visual: o arquivo é montado depois, a partir do conteúdo. A conferência textual julga o conteúdo; a
     // aparência (layout, legibilidade, composição) é da conferência visual.
     ...((e.operacao?.entregaveis || []).some(x => x.visual) ? ['Peças visuais: a GreenIA monta o arquivo final (PDF e imagem) depois, a partir do conteúdo escrito na seção de cada peça. Confira o conteúdo dessas peças (fidelidade à entrada, completude, invenção, critérios), não a aparência: não marque falha porque a peça veio como texto estruturado em vez do arquivo, por não ter imagem, cores ou layout, nem pelo número de páginas do arquivo.'] : []),
+    // QA profundo em produção: o conferente reprovava cálculo correto feito com os números da entrada, seção a mais
+    // sem fato novo e o ano óbvio das datas do material.
+    'Não é invenção: cálculo correto feito com os números da entrada (soma, diferença, percentual, variação, total, ordenação) e o ano que o próprio material deixa claro. Seção ou observação a mais, sem fato novo, não reprova o resultado. Marque falha de invenção só para nome, número, data, valor ou fato que não dá para tirar da entrada.',
+    ...(e.acoes_externas?.length ? [`Ações em sistemas externos (${e.acoes_externas.join('; ')}) são executadas pela GreenIA DEPOIS desta conferência, sob a política da empresa e com aprovação quando exigida. Não exija que o resultado diga que a ação foi feita, nem marque falha por ela não estar feita: confira só o conteúdo que vai alimentar a ação.`] : []),
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
 }
@@ -683,16 +699,18 @@ export function lerVeredito(espec, texto) {
   if (!Array.isArray(d?.criterios)) return null;
   const porId = new Map(espec.criterios_qualidade.map(c => [c.id, c]));
   const falhas = [], motivos = [], razoes = [];
+  const leves = [];
   for (const c of d.criterios) {
-    const crit = porId.get(String(c?.id));
+    const crit = porId.get(String(c?.id)) || (REGRAS[String(c?.id)] ? { id: String(c.id), grupo: REGRAS[c.id].grupo, texto: REGRAS[c.id].criterio, leve: REGRAS_LEVES.has(String(c.id)) } : null);
     if (!crit || c.ok !== false) continue;
+    if (crit.leve || REGRAS_LEVES.has(crit.id)) { leves.push(c.motivo ? limpar(c.motivo, 200) : `Critério não atendido: ${limpar(crit.texto, 200)}`); continue; }
     falhas.push(crit.grupo);
     // Falha sempre com motivo: o do conferente, ou (sem ele) o critério que não foi atendido.
     motivos.push(`${crit.texto}${c.motivo ? ` (${limpar(c.motivo, 200)})` : ''}`);
     razoes.push({ grupo: crit.grupo, motivo: c.motivo ? `${limpar(c.motivo, 200)} (critério: ${limpar(crit.texto, 160)})` : `Critério não atendido: ${limpar(crit.texto, 200)}` });
   }
   if (d.objetivo_atingido === false) razoes.push({ grupo: 'objetivo', motivo: d.motivo_objetivo ? limpar(d.motivo_objetivo, 200) : 'O conferente indicou que o objetivo central não foi entregue.' });
-  return { falhas: [...new Set(falhas)], motivos, razoes, objetivo: d.objetivo_atingido === false ? false : d.objetivo_atingido === true ? true : null };
+  return { falhas: [...new Set(falhas)], motivos, razoes, leves, objetivo: d.objetivo_atingido === false ? false : d.objetivo_atingido === true ? true : null };
 }
 export function pedidoDeCorrecao(problemas, espec = null) {
   const f = espec?.configuracao_confirmada ? espec.formato_saida : null;
@@ -706,8 +724,8 @@ const AVISO_OBJETIVO = {
   tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };
-export function resumoQualidade({ status, falhas = [], razoes = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null, integracoes = null } = {}) {
-  const avisos = [];
+export function resumoQualidade({ status, falhas = [], razoes = [], verificados = GRUPOS, tentativas = 0, entregaveis = null, pesquisa = null, objetivo = null, integracoes = null, observacoes = [], fontes = null } = {}) {
+  const avisos = [...(observacoes || []).map(o => `Observação da conferência: ${o}`)];
   if (objetivo && objetivo.atingido === false) avisos.push(AVISO_OBJETIVO[objetivo.motivo] || AVISO_OBJETIVO.conferencia);
   if (pesquisa && !pesquisa.feita) avisos.push(`Resultado parcial: a pesquisa na internet não foi feita (${MOTIVOS_PESQUISA[pesquisa.motivo] || 'motivo não informado'}). Os temas não foram confirmados como atuais.`);
   if (entregaveis && entregaveis.encontrados < entregaveis.esperados) avisos.push(`Vieram ${entregaveis.encontrados} de ${entregaveis.esperados} entregáveis.`);
@@ -754,7 +772,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
     ultimaOp = d.op;
     let ia = null;
     if (usarIA) { try { const r = await chamar(mensagensQualidade(e, { entrada, resultado: t, indicios: d.numerosSemFonte })); somar(r); ia = lerVeredito(e, r.texto); } catch { ia = null; } }
-    return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], razoes: [...d.detalhes.map(t => ({ grupo: grupoDoDetalhe(t), motivo: t })), ...(ia?.razoes || [])], verificouIA: !!ia, estruturaOk: d.estruturaOk, objetivoIA: ia?.objetivo ?? null };
+    return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], razoes: [...d.detalhes.map(t => ({ grupo: grupoDoDetalhe(t), motivo: t })), ...(ia?.razoes || [])], leves: ia?.leves || [], verificouIA: !!ia, estruturaOk: d.estruturaOk, objetivoIA: ia?.objetivo ?? null };
   };
   let c = await conferir(texto), barreira = false;
   while (c.falhas.length && usarIA && tentativas < MAX_CORRECOES) {
@@ -780,7 +798,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa || objetivo?.atingido === false ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
   // Cada grupo que falhou leva o motivo (do conferente ou determinístico); nunca só "faltou parte do que foi pedido".
   const razoes = c.falhas.flatMap(g => { const rs = (c.razoes || []).filter(r => r.grupo === g); return rs.length ? rs : [{ grupo: g, motivo: `${PROBLEMAS[g]} O conferente não informou o motivo; nenhuma falha determinística foi encontrada.` }]; });
-  return { texto, custo, economia, registro: { status, falhas: c.falhas, ...(razoes.length ? { razoes: razoes.slice(0, 12) } : {}), tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
+  return { texto, custo, economia, registro: { status, falhas: c.falhas, ...(razoes.length ? { razoes: razoes.slice(0, 12) } : {}), ...(c.leves?.length ? { observacoes: c.leves.slice(0, 4) } : {}), tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
     ...(objetivo ? { objetivo: { atingido: false, motivo: objetivo.motivo } } : {}),
     ...(ultimaOp?.entregaveis ? { entregaveis: ultimaOp.entregaveis } : {}), ...(ultimaOp?.pesquisa ? { pesquisa: ultimaOp.pesquisa } : {}) } };
 }

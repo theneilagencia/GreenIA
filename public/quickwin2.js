@@ -64,7 +64,7 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false } =
   const publicada = qw?.versao;
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine ao GreenIA como realizar esse trabalho.',
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine à GreenIA como realizar esse trabalho.',
         lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
       ${publicada ? aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`) : ''}
       ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}

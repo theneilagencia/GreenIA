@@ -291,6 +291,18 @@ async function novaVersaoDesign(app, pessoa, a, ed) {
 }
 
 export function rotasArtefatos(app, r) {
+  // Diagnóstico do navegador de composição (admin): compõe uma página mínima e mede. Sem conteúdo de ninguém.
+  r.get('/api/admin/visual/diagnostico', async () => {
+    const t0 = Date.now();
+    const { chromiumDisponivel, caminhoChromium, memoriaLivreMb } = await import('./chromium.js');
+    const disp = await chromiumDisponivel();
+    const base = { disponivel: disp.ok, motivo: disp.motivo || null, chromium: !!caminhoChromium(), memoria_livre_mb: Math.round(memoriaLivreMb()) };
+    if (!disp.ok) return base;
+    try {
+      const r0 = await renderizarDesign({ css: '.t{position:absolute;left:60px;top:60px;font-size:40px}', paginas: ['<p class="t">GreenIA</p>'] }, { formato: '16:9', identidade: resolverIdentidade({}) });
+      return { ...base, ok: true, ms: Date.now() - t0, pdf_kb: Math.round((r0.pdf?.length || 0) / 1024), textos: r0.medidas[0]?.textos?.length ?? 0 };
+    } catch (e) { return { ...base, ok: false, ms: Date.now() - t0, erro: String(e?.message || e).replace(/https?:\/\/\S+/g, '[url]').slice(0, 400), tipo: e?.motivo || e?.name || null }; }
+  }, { admin: true });
   r.get('/api/artefatos', ({ pessoa, query }) => {
     const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(query.conversa), pessoa.id);
     if (!conv) throw erro(404, 'conversa', 'Conversa não encontrada.');

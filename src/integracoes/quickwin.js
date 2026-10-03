@@ -18,8 +18,15 @@ export async function prepararExecucao(app, pessoa, { qw, conv, lookup } = {}) {
   const plano = criarPlano(app, pessoa, { quickWinId: qw.id, conversaId: conv.id, necessidades: qw.espec.operacao.integracoes });
   const r = await executarPlano(app, pessoa, plano.id, {}, { apenas: 'read', lookup });
   const p = lerPlano(app, plano.id);
+  // Lista grande: o material leva o total e diz que só os primeiros itens vieram (contagem nunca pelo recorte).
+  const material = v => {
+    const total = Array.isArray(v) ? v.length : null;
+    const json = JSON.stringify(redigir(v), null, 1);
+    const cortado = (total !== null && total > 50) || json.length > 20000;
+    return `${total !== null ? `Total de registros retornados pelo sistema: ${total}.${cortado ? ' Abaixo vêm só os primeiros: para contagens e totais, use o total acima; não conte pelo recorte.' : ''}\n` : cortado ? 'Resposta longa: abaixo vem só o começo.\n' : ''}${json.slice(0, 20000)}`;
+  };
   const anexos = p.passos.filter(x => x.modo === 'read' && p.estado.saidas?.[x.id] !== undefined).map(x => ({
-    nome: `Dados de ${x.sistema}: ${x.acao}`.slice(0, 120), texto: JSON.stringify(redigir(p.estado.saidas[x.id]), null, 1).slice(0, 20000), tipo: 'integracao',
+    nome: `Dados de ${x.sistema}: ${x.acao}`.slice(0, 120), texto: material(p.estado.saidas[x.id]), tipo: 'integracao',
   }));
   const escritas = p.passos.filter(x => x.modo === 'write' && x.capability_id);
   const instrucao = escritas.length ? [

@@ -182,6 +182,8 @@ export function invariantesDoPedido(pedido) {
     pesquisa: pedePesquisaWeb(pedido), implicitos, vago, principal: principal ? NOME_DO_VERBO[principal.verbo] : null,
     rotuloComparacao: objetoDaComparacao ? cap(`comparação: ${objetoDaComparacao}`).slice(0, 60) : 'Matriz comparativa' };
 }
+const ATRIBUTO = /^(?:(?:o|a|os|as|um|uma)\s+)?(?:numero|numeros|nome|nomes|quantidade|quantidades|melhor|pior|total|totais|status|situacao|grafico|graficos|percentual|percentuais)$/;
+const SO_FORMA = /^(?:topicos?(?:\s+curtos?)?|bullets?|lista(?:\s+curta)?|pagina visual|visual|com\s+.+|formato\s+.+|em\s+topicos)$/;
 const MATERIAL = /^(propost|fornecedor|documento|contrat|curricul|candidat|arquivo|planilh|cotac|orcament|relatori|apolice|nota|pedido|versao|vers|anexo|edita|laudo|parecer|fatura|boleto)/;
 const tem = (texto, palavras) => palavras.some(p => new RegExp(`(^|[^a-z0-9])${p}`).test(` ${norm(texto)} `));
 const CANAIS_DE = x => Object.values(CANAIS).some(c => tem(x, c.palavras));
@@ -230,8 +232,16 @@ export function garantirInvariantes(op, pedido, { soEntregaveis = false, context
       novo.criterios = [...(novo.criterios || []), `Considera todos estes critérios: ${inv.criterios.join(', ')}.`]; corrigidas.push('criterios');
     }
   }
-  for (const item of inv.entregaveis) if (!cobreNucleo(textoDoPlano(novo), item)) {
-    novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: tipoPorPalavra(item), rotulo: cap(item).slice(0, 60), canal: null, config: {} }); corrigidas.push(`entregavel:${item}`);
+  // Campo ou qualidade de um entregável ("o número", "a melhor", "as datas", "gráfico") não é entregável: vai dentro
+  // dele. Componente pedido ("com fatos, riscos e decisões") entra como parte conferível, achada em qualquer lugar.
+  for (const item of inv.entregaveis) if (!ATRIBUTO.test(norm(item)) && !cobreNucleo(textoDoPlano(novo), item)) {
+    novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: tipoPorPalavra(item), rotulo: cap(item).slice(0, 60), canal: null, config: {}, componente: true }); corrigidas.push(`entregavel:${item}`);
+  }
+  // Entregável do plano que é só forma ("Tópicos curtos", "Página visual", "Com indicadores") ou campo ("Número",
+  // "Datas"), ao lado de outro entregável: sai (a forma e o campo valem para o entregável principal).
+  if (novo.entregaveis.length > 1) {
+    const fica = novo.entregaveis.filter(e => !(['lista', 'texto', 'resumo', 'outro'].includes(e.tipo) && !e.visual && !e.canal && e.rotulo && (ATRIBUTO.test(norm(e.rotulo)) || SO_FORMA.test(norm(e.rotulo)))));
+    if (fica.length && fica.length < novo.entregaveis.length) { corrigidas.push('entregavel:atributo'); novo.entregaveis = fica; }
   }
   for (const x of inv.implicitos) if (!novo.entregaveis.some(e => e.tipo === x.tipo) && !cobre(textoDoPlano(novo), x.rotulo)) {
     novo.entregaveis.push({ id: `inv_${novo.entregaveis.length}`, tipo: x.tipo, rotulo: x.rotulo, canal: null, config: {} }); corrigidas.push(`entregavel:${x.rotulo}`);
@@ -296,6 +306,11 @@ export function lerInterpretacao(texto, pedido = '', contexto = '') {
   // Cobertura só pelos entregáveis (QA-03): item pedido que aparece só numa etapa não vira seção conferível.
   const r = pedido ? garantirInvariantes(base, pedido, { soEntregaveis: true, contexto }) : { op: base, corrigidas: [] };
   const { op } = r, corrigidas = [...r.corrigidas, ...ajustes.map(a => `estrutura:${a.acao}_${a.motivo}`)];
+  // Pesquisa na internet só quando o pedido pede (QA profundo: a IA a punha em "sugira ideias" e "consulte no ERP",
+  // e o resultado ficava sempre parcial onde a pesquisa não é liberada).
+  if (pedido && op.ferramentas.includes('pesquisa_web') && !pedePesquisaWeb(contexto ? `${pedido}\n${contexto}` : pedido)) {
+    op.ferramentas = op.ferramentas.filter(f => f !== 'pesquisa_web'); corrigidas.push('pesquisa:sem_pedido');
+  }
   if (contemCredencial(JSON.stringify(op))) return null;
   if (corrigidas.length) Object.defineProperty(op, 'corrigidas', { value: corrigidas, enumerable: false });
   if (ajustes.length) Object.defineProperty(op, 'ajustes', { value: ajustes, enumerable: false });

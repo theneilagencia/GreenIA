@@ -84,7 +84,7 @@ export const FERRAMENTAS = {
   // conteúdo da execução (src/visual). Descritiva: entra quando um entregável tem `visual`; não depende de liberação.
   producao_visual: { rotulo: 'Produção visual (artefato pronto em PDF e imagem)', palavras: [] },
   geracao_video: { rotulo: 'Geração de vídeo', palavras: [], disponivel: false, alternativa: 'o pacote de produção (conceito, roteiro, storyboard com as cenas, locução, briefing e prompt para a ferramenta de vídeo) para quem vai produzir' },
-  pesquisa_web: { rotulo: 'Pesquisar na internet', executavel: true, palavras: ['pesquis', 'tendenc', 'em alta', 'trend', 'noticia', 'atualidade', 'mais recente', 'ultimas novidades', 'esta semana', 'na internet', 'na web', 'google', 'concorrent', 'o que esta sendo falado'] },
+  pesquisa_web: { rotulo: 'Pesquisar na internet', executavel: true, palavras: ['pesquis', 'tendenc', 'em alta', 'trend', 'noticia', 'atualidade', 'mais recente', 'ultimas novidades', 'esta semana', 'na internet', 'na web', 'google', 'concorrent', 'o que esta sendo falado', 'benchmark', 'referencias externas', 'fontes externas', 'dados publicos', 'cotacao atual', 'preco atual', 'precos atuais'] },
 };
 
 // O pedido pede pesquisa na internet? "Pesquisa" que é o MATERIAL ("respostas da pesquisa de clima", "resultados
@@ -117,7 +117,7 @@ export const MAX_ENTRADAS = 5, MAX_ETAPAS = 10, MAX_LACUNAS = 4, MAX_SUGESTOES =
 // Win ou no cache) deixam de valer e são interpretados de novo. v2: restrições e a explicação de como se faz hoje
 // não viram entregáveis (planos v1 de Quick Wins de conteúdo traziam essas seções espúrias).
 // v3: entregável pode pedir um artefato visual pronto (produção visual).
-export const VERSAO_INTERPRETACAO = 3;
+export const VERSAO_INTERPRETACAO = 4;
 export const chaveInterpretacao = (descricao, processo = '') => createHash('sha256').update(`${VERSAO_INTERPRETACAO}:${limpar(descricao, 1000)}\n${limpar(processo, 3000)}`).digest('hex').slice(0, 32);
 const idDe = (s, max = 30) => norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, max);
 
@@ -240,6 +240,7 @@ export function limparOperacao(op, ajustes = null) {
     const descricao = texto(e.descricao, 200);
     if (descricao) item.descricao = descricao;
     if (lista(e.depende_de).length) item.depende_de = lista(e.depende_de).map(String);
+    if (e.componente === true) item.componente = true;
     // Artefato visual pedido para este entregável (qualquer tipo: apresentação, one-page, infográfico, peça...).
     // Vídeo e Reels não são compostos (a peça final é vídeo): continuam como pacote de produção.
     const visual = !['video', 'reels', 'roteiro'].includes(e.tipo) ? limparVisual(e.visual) : null;
@@ -366,7 +367,7 @@ const PEDE_VISUAL = [
   [/\brelatorio visual/, 'report', ['relatorio']], [/\b(matriz|comparativo|tabela) visual/, 'comparison', ['matriz', 'tabela']], [/\bchecklist visual/, 'checklist', ['checklist']],
   // Peça para ver (não o texto do post): formato, imagem ou feed junto de "post"; capa; linha do tempo; painel de números.
   [/\b(post|posts|postagem|postagens|stories|story)\b.*\b(quadrad\w*|imagem|visual|arte|feed|vertical|1:1|4:5|9:16)\b|\b(quadrad\w*|imagem|visual|arte|feed|vertical)\b.*\b(post|posts|postagem|stories|story)\b/, 'social_post', ['imagem']],
-  [/\bcapa\b/, 'cover', []], [/\blinha do tempo\b/, 'timeline', []], [/\bpainel\b.*\b(indicador\w*|kpis?|metricas?|numeros)\b/, 'dashboard', []],
+  [/\bcapa\b/, 'cover', []], [/\blinha do tempo\b|\btimeline\b|\bgantt\b|\broadmap visual/, 'timeline', []], [/\bpainel\b.*\b(indicador\w*|kpis?|metricas?|numeros)\b/, 'dashboard', []],
   // Último recurso: o pedido diz que quer algo visual, sem dizer o quê.
   [/\b(algo|peca|material|versao|resumo|pagina) (bem )?visua(l|is)\b|\bvisualmente\b/, 'one_page', ['resumo', 'relatorio']],
 ];
@@ -573,10 +574,13 @@ function tabelasSemDados(texto) {
   let total = 0, vazias = 0;
   for (let i = 0; i < ls.length - 1; i++) {
     if (!(/^\s*\|.*\|/.test(ls[i]) && /^\s*\|?\s*:?-{2,}/.test(ls[i + 1]))) continue;
-    for (let j = i + 2; j < ls.length && /^\s*\|.*\|/.test(ls[j]); j++) {
-      const cel = ls[j].split('|').slice(1, -1).map(c => c.replace(/[*_]/g, '').trim()).slice(1);   // a 1ª coluna é o nome do item
-      total += cel.length; vazias += cel.filter(c => !c || VAZIA.test(c)).length;
-    }
+    const linhas = [];
+    for (let j = i + 2; j < ls.length && /^\s*\|.*\|/.test(ls[j]); j++) linhas.push(ls[j].split('|').slice(1, -1).map(c => c.replace(/[*_]/g, '').trim()).slice(1));   // a 1ª coluna é o nome do item
+    // Coluna inteira sem dado, numa tabela que tem dado em outra coluna, é coluna sobrando (não é falta de dado).
+    const ncol = Math.max(0, ...linhas.map(l => l.length));
+    const cheias = [...Array(ncol).keys()].filter(k => linhas.some(l => l[k] && !VAZIA.test(l[k])));
+    const usar = cheias.length ? [...Array(ncol).keys()].filter(k => cheias.includes(k) || !linhas.every(l => !l[k] || VAZIA.test(l[k]))) : [...Array(ncol).keys()];
+    for (const l of linhas) { const cel = usar.map(k => l[k]); total += cel.length; vazias += cel.filter(c => !c || VAZIA.test(c)).length; }
   }
   return total >= 4 && vazias / total >= 0.6;
 }
@@ -597,7 +601,9 @@ export function conferirOperacao(op, texto, { pesquisa = null, entrada = '' } = 
     const ts = titulos(texto);
     // Peça visual: o conteúdo dela vem numa seção com "Título:" (formato pedido em promptVisual), que pode ter outro nome.
     const secaoDePeca = String(texto || '').split(/\n(?=\s*#{1,2}\s)/).some(b => /^\s*#{1,2}\s[^\n]*\n+\s*\**\s*(?:t[ií]tulo|title)\s*\**\s*:/i.test(b));
-    const faltam = op.entregaveis.filter(e => !casa(ts, e) && !(e.visual && secaoDePeca));
+    // Componente pedido dentro de outro entregável ("com riscos e decisões") conta se o assunto aparece no resultado.
+    const noTexto = e => { const rs = norm(rotuloEntregavel(e)).split(/[^a-z0-9]+/).filter(w => w.length >= 4).map(w => w.slice(0, 5)); return rs.length && rs.every(r => norm(texto).includes(r)); };
+    const faltam = op.entregaveis.filter(e => !casa(ts, e) && !(e.visual && secaoDePeca) && !(e.componente && noTexto(e)));
     if (faltam.length) { falhas.push('completo'); detalhes.push(`Faltaram entregáveis: ${faltam.map(rotuloEntregavel).join(', ')}.`); }
     const semBriefing = op.entregaveis.filter(e => ehVisual(e) && casa(ts, e) && !norm(secaoDe(texto, rotuloEntregavel(e))).includes('briefing'));
     if (semBriefing.length) { falhas.push('regras'); detalhes.push(`Peça visual sem a marcação de briefing: ${semBriefing.map(rotuloEntregavel).join(', ')}.`); }

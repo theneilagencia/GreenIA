@@ -143,7 +143,10 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const visual = limparVisual(e.visual);
     const rotulo = e.rotulo || visual.rotulo || '';
     // A seção do entregável ("## <título>"); com um entregável só e sem a seção, o resultado inteiro é o conteúdo.
-    const secao = secaoDaPeca(resposta, rotuloEntregavel(e), visuais.length) || (op.entregaveis.length === 1 ? String(resposta || '').replace(/^\s*#{1,2}\s+.*$/m, '') : '');
+    // Sem a seção da peça: com uma peça só, o resultado inteiro (sem as seções de meta) é o conteúdo dela — a peça
+    // pedida nunca some porque a execução deu outro nome à seção (QA profundo: dashboard sem artefato).
+    const semMeta = t => String(t || '').split(/\n(?=\s*#{1,2}\s)/).filter(b => !/^\s*#{1,2}\s*(informa[cç][oõ]es n[aã]o encontradas|escolhas feitas|pontos de aten[cç][aã]o)\b/i.test(b)).join('\n');
+    const secao = secaoDaPeca(resposta, rotuloEntregavel(e), visuais.length) || (op.entregaveis.length === 1 || visuais.length === 1 ? semMeta(resposta).replace(/^\s*#{1,2}\s+.*$/m, '') : '');
     const { titulo: tituloDado, resto } = tituloDaSecao(secao);
     if (!resto.trim()) { ignorados.push({ entregavel: e.id, motivo: 'sem_conteudo' }); continue; }
     if (contemCredencial(resto)) { ignorados.push({ entregavel: e.id, motivo: 'credencial' }); continue; }
@@ -201,7 +204,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const exigidos = op.entregaveis.length === 1 ? (espec.invariantes?.entregaveis || []) : [];
     const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
     // Design pela IA. Conferido no navegador; falhou duas vezes ou indisponível: motor clássico (com o motivo).
-    let motivoClassico = nav.ok ? null : nav.motivo;
+    let motivoClassico = nav.ok ? null : nav.motivo, detalheClassico = null;
     if (nav.ok && imagem?.pedida !== 'real') {
       const c0 = Date.now();
       const ativos = {};
@@ -219,6 +222,8 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
         continue;
       }
       motivoClassico = dz.motivo || 'conferencia';
+      // Diagnóstico técnico curto (sem conteúdo da peça): o que impediu o design pela IA.
+      detalheClassico = dz.erro ? String(dz.erro).replace(/https?:\/\/\S+/g, '[url]').slice(0, 160) : (dz.codigos || []).join(',') || null;
       app.log?.('design', `motor clássico: ${motivoClassico}${dz.codigos?.length ? ` (${dz.codigos.join(',')})` : ''}${dz.erro ? ` ${dz.erro}` : ''}`);
     }
     let r = produzirSemCorte({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc }, { formatoPedido: !!visual.formato && PEDE_FORMATO.test(`${espec?.objetivo || ''} ${qw?.descricao || ''}`) });
@@ -234,7 +239,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const avisos = [...r.explicacoes];
     if (imagem?.pedida === 'conceitual' && !imagem.gerada && visual.imagem) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);
     artefatos.push({ entregavel: e.id, rotulo: rotulo || tr.rotulo, tipo: tr.tipo, tipoRotulo: tr.rotulo, titulo, formato: plano.formato, conteudo, plano: r.plano, opcoes: r.opcoes, identidade, assets, imagem,
-      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico } : {}) }, status: r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
+      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico, ...(detalheClassico ? { detalhe_classico: detalheClassico } : {}) } : {}) }, status: r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
   }
   return { artefatos, ignorados, custos, ms: { ...ms, total: Date.now() - t0 } };
 }
@@ -258,7 +263,7 @@ export function gravarVisuais(app, producao, { pessoa, conv, qw, respId, rotaId 
     exec(app.db, 'update artefatos_visuais set base_id = ? where id = ?', id, id);
     if (a.render) guardarRender(app, id, a.render);
     registrar(app, 'visual.produced', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId, artefato: id, tipo: a.tipo, formato: a.formato,
-      paginas: a.paginas, status: a.status, correcoes: a.registro.correcoes, plano: a.registro.plano, motor: a.registro.motor || 'classico', motivo_classico: a.registro.motivo_classico || null, imagem: a.imagem ? { gerada: !!a.imagem.gerada, motivo: a.imagem.motivo || null } : null,
+      paginas: a.paginas, status: a.status, correcoes: a.registro.correcoes, plano: a.registro.plano, motor: a.registro.motor || 'classico', motivo_classico: a.registro.motivo_classico || null, detalhe_classico: a.registro.detalhe_classico || null, imagem: a.imagem ? { gerada: !!a.imagem.gerada, motivo: a.imagem.motivo || null } : null,
       escala: a.registro.escala, ms: a.registro.ms?.total ?? null });
     return resumoArtefato(app, um(app.db, 'select * from artefatos_visuais where id = ?', id));
   });

@@ -275,7 +275,9 @@ export function rotasConversas(app, r) {
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
-    const texto = String(corpo.texto || '').trim();
+    // Executar sem escrever nada é um pedido válido (QA profundo): o Quick Win decide se o material obrigatório faltou
+    // e pede (pergunta de esclarecimento) ou faz o trabalho, se ele não precisa de material.
+    const texto = String(corpo.texto || '').trim() || (corpo.executar_quick_win === true && qw?.espec && !(corpo.anexos || []).length ? 'Execute este Quick Win. (Nenhum material foi enviado nesta mensagem.)' : '');
     // Execução do Quick Win 2.0 (prompt de execução + Quality Check), pelo estado da conversa, nunca pelo texto.
     // Ter Quick Win (ou especificação) é contexto da conversa, NÃO evidência de execução. É execução quando:
     //  - há pedido explícito (a ação "Executar" da tela envia executar_quick_win);
@@ -685,7 +687,10 @@ export function rotasConversas(app, r) {
       if (fontesWeb.length) registrar(app, 'quickwin.tool_used', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, ferramenta: 'pesquisa_web', fontes: fontesWeb.length, roteamento: rotaId });
       // Correções também podem trazer o bloco de dados das integrações: sai do texto e os dados mais recentes valem.
       const chamarQc = !integ ? chamar : async m => { const r = await chamar(m); const l = limparResposta(r.texto); if (Object.keys(l.dados).length) dadosInteg = l.dados; return { ...r, texto: l.texto }; };
-      const qc = await conferirComCorrecao({ espec, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
+      // Ações externas (Integration Builder) acontecem depois da conferência: o conferente não as cobra do texto.
+      const acoesExternas = integ ? (lerPlanoInteg(app, integ.plano)?.passos || []).filter(x => x.modo === 'write').map(x => `${x.acao} (${x.sistema})`.slice(0, 160)) : [];
+      const especQc = acoesExternas.length ? { ...espec, acoes_externas: acoesExternas } : espec;
+      const qc = await conferirComCorrecao({ espec: especQc, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
       // Escritas nos sistemas externos (com os dados do bloco estruturado, que sai do texto mostrado), sob a política.

@@ -23,7 +23,9 @@ function candidatos(app, n) {
   const caps = todos(app.db, "select c.id, c.categoria, c.status, k.sistema, k.nome as conector_nome, k.status as conector_status from capabilities c join connectors k on k.id = c.connector_id where c.tenant_id = ? and k.tenant_id = ? and c.status != 'revogada' and k.status != 'REVOKED'", app.tenantId, app.tenantId);
   const sis = norm(n.sistema);
   const pontua = c => (c.categoria === n.categoria ? 2 : (PARENTES[n.categoria] || []).includes(c.categoria) ? 1 : 0) + (sis && (norm(c.sistema).includes(sis) || sis.includes(norm(c.sistema)) || norm(c.conector_nome).includes(sis)) ? 2 : 0);
-  return caps.map(c => ({ ...c, pontos: pontua(c) })).filter(c => c.pontos >= 2 && (c.categoria === n.categoria || (PARENTES[n.categoria] || []).includes(c.categoria))).sort((a, b) => b.pontos - a.pontos);
+  // Sistema nomeado no pedido ("no ERP") precisa bater com o sistema da integração: categoria igual sozinha não basta.
+  const doSistema = c => !sis || norm(c.sistema).includes(sis) || sis.includes(norm(c.sistema)) || norm(c.conector_nome).includes(sis);
+  return caps.map(c => ({ ...c, pontos: pontua(c) })).filter(c => c.pontos >= 2 && doSistema(c) && (c.categoria === n.categoria || (PARENTES[n.categoria] || []).includes(c.categoria))).sort((a, b) => b.pontos - a.pontos);
 }
 // Estado de cada necessidade: disponivel (pode rodar), requer_aprovacao (roda com aprovação), configurar (falta
 // integração ativa) ou nao_permitido (a política nega).

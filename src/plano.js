@@ -10,6 +10,7 @@ import { lerConfig, salvarConfig } from './config.js';
 import { acharModelo, homologadoPadrao, lerModelos, AUTO } from './modelos.js';
 
 export const CREDITO_USD = 0.01;
+export const TAXA_INTERMEDIARIO = 1.055;   // o OpenRouter cobra 5,5% sobre a compra de créditos
 export const creditosDe = usd => Math.round((Number(usd) || 0) / CREDITO_USD * 10) / 10;
 
 export function lerPlano(env = {}) {
@@ -183,7 +184,7 @@ export function resumoOperador(app) {
   if (!s) return null;
   const mes = app.agora().toISOString().slice(0, 7);
   const custoIa = um(app.db, 'select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?', mes).c;
-  const custoComTaxa = custoIa * 1.055;
+  const custoComTaxa = custoIa * TAXA_INTERMEDIARIO;
   const pacotes = todos(app.db, 'select p.em, p.creditos, p.validade, p.origem, p.observacao, coalesce(p.operador, pe.email) as por from pacotes p left join pessoas pe on pe.id = p.pessoa_id order by p.id desc limit 20');
   return { ...s, custoIa, custoComTaxa, precoUsd: app.plano.precoUsd, lucroSemServidor: app.plano.precoUsd ? app.plano.precoUsd - custoComTaxa : null, pacotes };
 }

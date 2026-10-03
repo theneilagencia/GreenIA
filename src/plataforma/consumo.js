@@ -6,7 +6,8 @@ import { lerAjuste, salvarAjuste } from './db.js';
 import * as E from './empresas.js';
 import { registrarLeitura } from './chave-validade.js';
 
-export const TAXA_INTERMEDIARIO = 1.055;   // o OpenRouter cobra 5,5% sobre a compra de créditos
+import { TAXA_INTERMEDIARIO } from './margem.js';
+export { TAXA_INTERMEDIARIO };
 const CACHE_MS = 5 * 60e3, DIAS = 30;
 const num = v => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 const diaIso = d => d.toISOString().slice(0, 10);
@@ -47,6 +48,18 @@ function seriePorEmpresa(P, c, desde) {
 // Custo mensal do servidor (fatura do Render), informado pelo operador: a instalação é uma só para todas as empresas,
 // então cada empresa ativa responde por uma parte igual.
 export const custoServidor = P => Number(lerAjuste(P.db, 'custo_servidor_usd', 0)) || 0;
+export function infraPorEmpresa(P) {
+  const n = um(P.db, "select count(*) as n from companies where status != 'cancelada' or status is null").n;
+  return n ? custoServidor(P) / n : 0;
+}
+// Conciliação com o OpenRouter: o que a chave gastou no mês (UTC) contra o que virou crédito nas empresas. Diferença
+// acima de 1% (e de US$ 0,10) é custo cobrado que não virou crédito: margem saindo sem aparecer.
+export function conciliar(conta, custoMes) {
+  const or = conta?.chave?.mes;
+  if (or === null || or === undefined) return { disponivel: false };
+  const diferenca = or - custoMes, percentual = custoMes > 0 ? diferenca / custoMes * 100 : null;
+  return { disponivel: true, openrouterMes: or, registradoMes: custoMes, diferenca, percentual, alerta: diferenca > 0.1 && (percentual === null || percentual > 1) };
+}
 // Receita de tabela de pacotes liberados no mês: preço do pacote do plano proporcional aos créditos liberados.
 function receitaPacotes(t, plano, mes) {
   const r = plano?.rules || {};
@@ -62,7 +75,7 @@ export function resumoConsumo(P) {
   const diaDoMes = agora.getUTCDate(), diasNoMes = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 1, 0)).getUTCDate();
   const total = new Map(dias.map(d => [d, 0]));
   const ativas = todos(P.db, "select * from companies where status != 'cancelada' or status is null order by name");
-  const infraPorEmpresa = ativas.length ? custoServidor(P) / ativas.length : 0;
+  const infra = infraPorEmpresa(P);
   const empresas = ativas.map(c => {
     const serie = seriePorEmpresa(P, c, desde);
     for (const [d, v] of serie) if (total.has(d)) total.set(d, total.get(d) + v.custo);
@@ -82,8 +95,8 @@ export function resumoConsumo(P) {
       // intermediário − parte do servidor. Empresa sem preço de plano (ex.: Liberado) não tem receita nem margem.
       receitaUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) : null,
       receitaPacotesUsd: plano?.price_usd != null ? receitaPacotes(P.tenant(c.id), plano, mes) : null,
-      infraUsd: infraPorEmpresa,
-      margemUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) - custoMes * TAXA_INTERMEDIARIO - infraPorEmpresa : null,
+      infraUsd: infra,
+      margemUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) - custoMes * TAXA_INTERMEDIARIO - infra : null,
       serie: dias.map(d => Math.round((serie.get(d)?.custo || 0) * 1e4) / 1e4),
     };
   });

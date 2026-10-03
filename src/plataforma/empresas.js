@@ -16,6 +16,7 @@ import { roleDeSistema, acharRoleDaEmpresa, permissoesDaRole, ehAdminPlataforma 
 import { encerrarAcessosAbertos } from './acessos.js';
 import { agendarExclusao, reverterExclusao, motivoQueImpede, MENSAGENS_IMPEDIMENTO, concluirExclusao } from './encerramento.js';
 import { encerrarNecessidadesDaEmpresa } from './exportacoes.js';
+import { exigirMargem } from './margem.js';
 import { gravarManifesto, PRAZOS_PADRAO } from '../retencao.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
@@ -76,6 +77,8 @@ export function salvarPlano(P, dados, ator, origem, id = null) {
   const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, !!(d.features || {})[k]]));
   const limits = Object.fromEntries(Object.keys(LIMITES).map(k => { const bruto = (d.limits || {})[k]; const v = Math.floor(Number(bruto === undefined ? LIMITES_PADRAO[k] : bruto || 0)); if (!(v >= 0 && v <= 1_000_000)) throw erro(400, k, `Limite inválido: ${LIMITES[k]}.`); return [k, v]; }));
   const rules = { reserve_fast_only: (d.rules || {}).reserve_fast_only !== false, pack_credits: Math.max(0, Math.floor(Number((d.rules || {}).pack_credits) || 0)), pack_price_usd: Math.max(0, Number((d.rules || {}).pack_price_usd) || 0) };
+  // Margem desenhada: preço de plano ou pacote que não cobre a IA no pior caso com a margem mínima não é salvo.
+  exigirMargem({ credits, reserve, price_usd: price, rules });
   const settings = typeof d.settings === 'object' && d.settings ? d.settings : {};
   if (JSON.stringify(settings).length > 5000) throw erro(400, 'settings', 'Configurações específicas grandes demais.');
   const status = d.status === 'inativo' ? 'inativo' : 'ativo';

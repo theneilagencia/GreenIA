@@ -13,7 +13,8 @@ import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fech
 import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemChaveOpenRouter } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
-import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo, custoServidor } from './consumo.js';
+import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo, custoServidor, infraPorEmpresa, conciliar } from './consumo.js';
+import { economiaDoPlano, MARGEM_MINIMA } from './margem.js';
 import { alertaEmail, falhasEmail } from './email-falhas.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
@@ -185,7 +186,12 @@ export function rotasPlataforma(P, r) {
   r.post('/api/plataforma/contatos/:id/liberar', ({ sessao, params, origem }) => { precisa(sessao, 'platform.settings.manage'); liberarHoldContato(P, params.id, { por: sessao.email, ator: sessao.userId, origem }); return { ok: true }; });
 
   // ------------------------------------------------ Planos
-  r.get('/api/plataforma/planos', ({ sessao }) => { precisa(sessao, 'platform.companies.manage'); return { planos: E.listarPlanos(P) }; });
+  // Cada plano com a economia no pior caso (franquia e reserva inteiras), já com a parte do servidor de cada empresa.
+  r.get('/api/plataforma/planos', ({ sessao }) => {
+    precisa(sessao, 'platform.companies.manage');
+    const infra = infraPorEmpresa(P);
+    return { planos: E.listarPlanos(P).map(p => ({ ...p, economia: economiaDoPlano(p, { infra }) })), margemMinima: MARGEM_MINIMA };
+  });
   r.post('/api/plataforma/planos', ({ sessao, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); return E.salvarPlano(P, corpo, sessao.userId, origem); });
   r.put('/api/plataforma/planos/:id', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); return E.salvarPlano(P, corpo, sessao.userId, origem, params.id); });
 
@@ -259,7 +265,7 @@ export function rotasPlataforma(P, r) {
     const [conta, resumo] = [await contaOpenRouter(P, { forcar: !!query.forcar }), resumoConsumo(P)];
     const saldo = conta.saldo ?? conta.chave?.restante ?? null;
     const chaveConfig = origemChaveOpenRouter(P);
-    return { conta, chaveConfig, validadeChave: situacaoChave(P, chaveConfig), ...resumo, alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
+    return { conta, chaveConfig, validadeChave: situacaoChave(P, chaveConfig), ...resumo, conciliacao: conciliar(conta, resumo.plataforma.custoMes), alerta: { limiarUsd: limiarSaldo(P), abaixo: saldo !== null && saldo < limiarSaldo(P), diasRestantes: saldo !== null && resumo.media7 > 0 ? Math.floor(saldo / resumo.media7) : null } };
   });
   r.get('/api/plataforma/empresas/:id/consumo', ({ sessao, params }) => {
     precisa(sessao, 'platform.companies.manage');

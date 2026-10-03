@@ -94,3 +94,39 @@ test('receita e margem do console: plano + pacotes do mês, menos IA com a taxa 
   const aud = (await ops.get('/api/plataforma/auditoria')).dados;
   assert.ok(JSON.stringify(aud).includes('platform.server_cost_changed'));
 });
+
+test('margem desenhada: planos mostram a margem no pior caso; preço de plano ou pacote abaixo da margem mínima não é salvo; sem preço fica marcado', async () => {
+  const r = (await ops.get('/api/plataforma/planos')).dados;
+  assert.equal(r.margemMinima, 0.5);
+  const team = r.planos.find(p => p.credits === 10000 && p.price_usd === 290), company = r.planos.find(p => p.credits === 25000 && p.price_usd === 750);
+  // Pior caso só de IA (sem servidor): (créditos + reserva) × US$ 0,01 × 1,055.
+  assert.equal(team.economia.custoIaPiorCaso, 126.6);
+  assert.ok(Math.abs(team.economia.margemSoIa - (290 - 126.6) / 290) < 1e-9);
+  assert.equal(company.economia.custoIaPiorCaso, 316.5);
+  assert.ok(Math.abs(team.economia.pacote.margem - (250 - 105.5) / 250) < 1e-9);
+  assert.ok(r.planos.find(p => !p.credits).economia.semTeto, 'Liberado: sem teto de custo');
+  // Abaixo da margem: recusado, com o preço mínimo.
+  const base = { name: 'Barato', credits: 10000, reserve: 2000, limits: {}, features: {}, rules: { pack_credits: 10000, pack_price_usd: 250 } };
+  const caro = await ops.post('/api/plataforma/planos', { ...base, price_usd: 200 });
+  assert.equal(caro.status, 400);
+  assert.match(caro.dados.mensagem, /preço mínimo é US\$ 254/);
+  const pacote = await ops.post('/api/plataforma/planos', { ...base, price_usd: 290, rules: { pack_credits: 10000, pack_price_usd: 150 } });
+  assert.equal(pacote.status, 400);
+  assert.match(pacote.dados.mensagem, /margem do pacote/);
+  // Sem preço (piloto/cortesia) é permitido e aparece como custo sem receita.
+  const piloto = await ops.post('/api/plataforma/planos', { ...base, name: 'Piloto margem', price_usd: 0 });
+  assert.equal(piloto.status, 200);
+  const lista = (await ops.get('/api/plataforma/planos')).dados.planos;
+  assert.ok(lista.find(p => p.name === 'Piloto margem').economia.semReceita);
+});
+
+test('conciliação com o OpenRouter: gasto da chave no mês contra o registrado como crédito; alerta quando passa de 1%', async () => {
+  const mes = (await ops.get('/api/plataforma/consumo')).dados.plataforma.custoMes;
+  conta = { chave: { label: 'prod', usage: 100, limit: null, limit_remaining: null, usage_daily: 1, usage_weekly: 5, usage_monthly: mes * 1.04 }, creditos: { total_credits: 200, total_usage: 150 } };
+  let c = (await ops.get('/api/plataforma/consumo?forcar=1')).dados.conciliacao;
+  assert.equal(c.alerta, true);
+  assert.ok(Math.abs(c.percentual - 4) < 1e-6);
+  conta = { ...conta, chave: { ...conta.chave, usage_monthly: mes * 1.005 } };
+  c = (await ops.get('/api/plataforma/consumo?forcar=1')).dados.conciliacao;
+  assert.equal(c.alerta, false, 'meio por cento: dentro da tolerância');
+});

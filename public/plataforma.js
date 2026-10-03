@@ -429,13 +429,19 @@ async function vistaUsuarios() {
 }
 
 // ---------------------------------------------------------------- Planos
+const pctM = v => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+// Margem do plano no pior caso: sem teto (créditos ilimitados) e sem preço são riscos de custo, não margem.
+const margemPlano = e => !e ? '–' : e.semTeto ? '<span class="selo selo-ambar">Sem teto de custo</span>' : e.semReceita ? `<span class="selo selo-ambar">Sem receita · até ${usd(e.custoPiorCaso)}/mês</span>`
+  : `${e.abaixo ? '<span class="selo selo-vermelho">' : ''}${pctM(e.margem)}${e.abaixo ? '</span>' : ''}`;
 async function vistaPlanos() {
   carregando('Planos');
-  C.planos = (await api('/api/plataforma/planos')).planos;
+  const rp = await api('/api/plataforma/planos'); C.planos = rp.planos;
   tela('Planos', `<p class="lead">Créditos, limites e recursos de cada plano. Alterar um plano vale na hora para todas as empresas vinculadas.</p>
-    ${tabela(['Plano', 'Status', '#Créditos', '#Reserva', '#Preço', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
+    <p class="dica">Margem no pior caso: a empresa usa toda a franquia e toda a reserva (US$ 0,01 por crédito + 5,5% do OpenRouter) e a parte dela no servidor. Planos e pacotes com preço abaixo de ${pctM(rp.margemMinima)} não são salvos.</p>
+    ${tabela(['Plano', 'Status', '#Créditos', '#Reserva', '#Preço', '#Margem no pior caso', '#Margem do pacote', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
       <td data-r="Status">${p.status === 'ativo' ? '<span class="selo selo-verde">Ativo</span>' : '<span class="selo selo-cinza">Inativo</span>'}</td>
-      <td class="num" data-r="Créditos">${p.credits ? num(p.credits) : 'Ilimitado'}</td><td class="num" data-r="Reserva">${num(p.reserve)}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}`,
+      <td class="num" data-r="Créditos">${p.credits ? num(p.credits) : 'Ilimitado'}</td><td class="num" data-r="Reserva">${num(p.reserve)}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td>
+      <td class="num" data-r="Margem no pior caso">${margemPlano(p.economia)}</td><td class="num" data-r="Margem do pacote">${p.economia?.pacote ? pctM(p.economia.pacote.margem) : '–'}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}`,
   '<a class="btn btn-verde btn-pequeno" href="#/planos/novo">Novo plano</a>');
 }
 
@@ -613,6 +619,9 @@ async function vistaUso(forcar = false) {
     <form class="or-alerta" id="f-alerta"><label for="al-usd">Avisar os admins da plataforma por email quando o saldo ficar abaixo de</label>
       <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="al-usd" type="number" min="0" step="1" value="${esc(u.alerta.limiarUsd)}"></span><button class="btn btn-linha btn-pequeno">Salvar alerta</button><span class="dica">No máximo um email por dia.</span></form>
 
+    ${u.conciliacao?.disponivel ? `<div class="faixa-aviso ${u.conciliacao.alerta ? 'atencao' : 'ok'}" role="status"><b>Conciliação com o OpenRouter (mês)</b><br>
+      Gasto da chave: ${usd4(u.conciliacao.openrouterMes)} · registrado como crédito nas empresas: ${usd4(u.conciliacao.registradoMes)} · diferença: ${usd4(u.conciliacao.diferenca)}${u.conciliacao.percentual !== null ? ` (${u.conciliacao.percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)` : ''}.
+      ${u.conciliacao.alerta ? 'Há custo cobrado que não virou crédito: a margem está saindo sem aparecer no consumo das empresas.' : 'O que o OpenRouter cobrou está virando crédito.'}</div>` : ''}
     <div class="secao-titulo"><h3>Consumo da plataforma · últimos 30 dias</h3></div>
     <div class="indicadores"><div class="indicador"><span>Hoje</span><b>${usd4(pl.custoHoje)}</b></div><div class="indicador"><span>Últimos 7 dias</span><b>${usd4(pl.custo7)}</b></div>
       <div class="indicador"><span>Mês até hoje</span><b>${usd4(pl.custoMes)}</b></div><div class="indicador"><span>Projeção do mês</span><b>${usd4(pl.projecaoMes)}</b></div>

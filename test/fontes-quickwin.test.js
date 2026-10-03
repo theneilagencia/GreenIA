@@ -405,5 +405,8 @@ test('persona: a lista de responsáveis serve só para indicar quem procurar; no
   await executar(q.id, { texto: 'Anotações fictícias: Bruno liga para o fornecedor amanhã.' });
   const sis = JSON.stringify(OR.chamadas.slice(antes)[0].messages[0].content);
   assert.match(sis, /indique quem procurar: Ana Lima/);
-  assert.match(sis, /nome de pessoa que aparece no material ou na conversa é dado do trabalho e deve ser usado normalmente/);
+  assert.match(sis, /[Nn]ome de pessoa que aparece no material ou na conversa é dado do trabalho e deve ser usado normalmente/);
+  assert.match(sis, /não use esses nomes como responsável, autor, assinatura ou destinatário do trabalho/);
+  const qc = OR.chamadas.slice(antes).find(b => JSON.stringify(b.messages[0].content).includes('conferente de qualidade'));
+  assert.match(JSON.stringify(qc.messages[1].content), /NÃO fazem parte do material do trabalho e não precisam aparecer no resultado/);
 });

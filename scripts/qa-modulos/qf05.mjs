@@ -13,6 +13,8 @@ const CASOS = [
 ];
 // Classificação do motivo (§12). O motor clássico na imagem final é a composição determinística pedida (§26).
 export function classificar(ev) {
+  // Versão com registro estruturado (e702aca+): o próprio evento traz motor e categoria.
+  if (ev.motor_usado) return { motor: ev.motor_usado, categoria: ev.fallback_categoria || null, motivo: ev.fallback_motivo || null, pedido: ev.motor_pedido, ajuste: ev.design_ajuste || null, tentativas: ev.design_tentativas ?? null, ms_design: ev.ms_design ?? null };
   if (ev.motor === 'design') return { motor: 'ai', categoria: null };
   const m = ev.motivo_classico;
   if (ev.tipo === 'image' && !m) return { motor: 'classic', categoria: 'EXPECTED_FALLBACK', motivo: 'composicao_deterministica_da_imagem_final' };
@@ -45,12 +47,12 @@ export default async function (c, rodada = 'qf05') {
       const ev = a ? lista.find(x => x.artefato === a.id) : null;
       const cl = ev ? classificar(ev) : { motor: null, categoria: arts.length ? 'SEM_EVENTO' : 'SEM_ARTEFATO' };
       out.push({ caso: caso.id, quickwin_id: cr.qw.id, execution_id: e.conv, artifact_id: a?.id || null, visual_type: a?.tipo || null,
-        design_engine_requested: ev ? (ev.tipo === 'image' ? 'classic(imagem final)' : 'ai') : null, design_engine_selected: cl.motor, fallback_used: cl.motor === 'classic',
+        design_engine_requested: ev ? (cl.pedido || (ev.tipo === 'image' ? 'classic(imagem final)' : 'ai')) : null, ajuste_deterministico: cl.ajuste || null, design_tentativas: cl.tentativas ?? null, ms_design: cl.ms_design ?? null, design_engine_selected: cl.motor, fallback_used: cl.motor === 'classic',
         fallback_category: cl.categoria, fallback_reason: cl.motivo || null, codigos_conferencia_design: ev?.detalhe_classico || null,
         imagem: ev?.imagem || null, status_artefato: a?.status || null, qualidade: e.exec?.qualidade?.status || null, correcoes: ev?.correcoes ?? null,
         ms_execucao: e.exec?.ms ?? null, ms_visual: ev?.ms ?? null, ms_total: Date.now() - t0, exportacoes: a?.exportacoes || null });
     }
-    const u = out.filter(x => x.caso === caso.id).map(x => `${x.visual_type}:${x.design_engine_selected}${x.fallback_category ? `/${x.fallback_category}:${x.fallback_reason}${x.codigos_conferencia_design ? `[${x.codigos_conferencia_design}]` : ''}` : ''} q=${x.qualidade}`).join(' ');
+    const u = out.filter(x => x.caso === caso.id).map(x => `${x.visual_type}:${x.design_engine_requested}->${x.design_engine_selected}${x.ajuste_deterministico ? `(ajuste:${x.ajuste_deterministico})` : ''}${x.fallback_category ? `/${x.fallback_category}:${x.fallback_reason}${x.codigos_conferencia_design ? `[${x.codigos_conferencia_design}]` : ''}` : ''} q=${x.qualidade}`).join(' ');
     c.log(`${caso.id}: ${u}`);
     c.salvar(`30-${rodada}`, out);
   }

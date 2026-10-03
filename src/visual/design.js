@@ -278,7 +278,20 @@ function aplicarNoNavegador(ajustes) {
       const movidos = new Set();
       for (const a of meus) {
         const el = nos[a.i]; if (!el) continue;
-        if (a.cor) el.style.color = a.cor;
+        if (a.cor) {
+          // Cor da peça com !important ou texto translúcido não podem vencer o ajuste; fundo médio (nem escuro nem
+          // branco dão contraste suficiente) ganha uma tarja atrás do texto.
+          el.style.setProperty('color', a.cor, 'important');
+          el.style.setProperty('opacity', '1', 'important');
+          el.style.setProperty('text-shadow', 'none', 'important');
+          if (a.tarja) {
+            el.style.setProperty('background-color', a.cor === '#111111' ? 'rgba(255,255,255,0.94)' : 'rgba(17,17,17,0.9)', 'important');
+            el.style.setProperty('padding', '0.15em 0.35em', 'important');
+            el.style.setProperty('border-radius', '4px', 'important');
+            el.style.setProperty('-webkit-box-decoration-break', 'clone', 'important');
+            el.style.setProperty('box-decoration-break', 'clone', 'important');
+          }
+        }
         if (a.dx || a.dy) {
           // Bloco transformável mais próximo (elemento inline não aceita translate); cada bloco é deslocado uma vez.
           let b = el; while (b && b !== pg && getComputedStyle(b).display === 'inline') b = b.parentElement;
@@ -294,7 +307,7 @@ function aplicarNoNavegador(ajustes) {
 }
 export async function ajustarDesign(design, alvos, { formato, identidade, assets = {} }) {
   const dim = FORMATOS[formato] || FORMATOS.a4;
-  const ajustes = alvos.map(a => (a.codigo === 'contraste' ? { pagina: a.pagina, i: a.i, cor: corLegivel(a.fundo).cor } : { pagina: a.pagina, i: a.i, dx: a.dx, dy: a.dy }));
+  const ajustes = alvos.map(a => { if (a.codigo !== 'contraste') return { pagina: a.pagina, i: a.i, dx: a.dx, dy: a.dy }; const l = corLegivel(a.fundo); return { pagina: a.pagina, i: a.i, cor: l.cor, tarja: l.contraste < (a.minimo || 4.5) + 0.5 }; });
   const mapa = new Map(Object.entries(assets).filter(([, a]) => a?.bytes).map(([k, a]) => [k, a]));
   const paginas = await comPagina({ largura: dim.w, altura: dim.h, escala: 1, documento: documentoDesign(design, { formato, identidade }), assets: mapa }, page => page.evaluate(aplicarNoNavegador, ajustes));
   return { css: design.css, paginas, ajustes: ajustes.length };

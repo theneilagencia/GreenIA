@@ -300,3 +300,11 @@ test('QF-05 na execução: evento com motor pedido/usado, categoria e motivo; IA
     assert.ok(c.fim.artefatos?.length);
   } finally { process.env.DESIGN_IA = '1'; modoDesign = 'bom'; }
 });
+
+test('QF-05 ajuste de contraste vence cor !important e fundo médio (tarja atrás do texto)', async () => {
+  const html = `<style>.w{position:absolute;inset:60px;font-size:26px}.cinza{color:#8A8A8A !important;background:#777777;position:absolute;left:60px;top:300px;font-size:26px;padding:20px}</style><section class="pagina"><div class="w"><h1 style="font-size:40px">Resumo</h1><p>Riscos</p></div><p class="cinza">Atraso de fornecedor.</p><p style="position:absolute;left:60px;top:440px;font-size:26px">Câmbio.</p></section>`;
+  const r = await projetar(html);
+  assert.equal(r.ok, true, JSON.stringify(r.falhas));
+  assert.deepEqual(r.ajuste.codigos, ['contraste']);
+  assert.match(r.design.paginas[0], /color: rgb\(\d+, \d+, \d+\) !important|color: #(111111|FFFFFF) !important/i);
+});

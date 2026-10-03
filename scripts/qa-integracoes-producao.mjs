@@ -54,9 +54,12 @@ async function enviar(convId, corpo) {
 }
 if (EMPRESA) await pedir('GET', `/${EMPRESA}/entrar`, undefined, 'manual');
 // Login único: o código chega uma vez pelo FIFO, vai direto para o login e não é guardado nem repetido.
-const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
-if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status); process.exit(1); }
-log('CODIGO_SOLICITADO');
+// QA_CODIGO_JA_PEDIDO=1: o código já foi pedido por uma sessão anterior deste script (não pede outro).
+if (process.env.QA_CODIGO_JA_PEDIDO !== '1') {
+  const c = await pedir('POST', '/api/login/codigo', { email: CONTA });
+  if (c.status !== 200) { log('CODIGO_NAO_SOLICITADO', c.status); process.exit(1); }
+  log('CODIGO_SOLICITADO');
+}
 const e = await pedir('POST', '/api/login/entrar', { email: CONTA, codigo: readFileSync(FIFO, 'utf8').trim() });
 const d = await e.json().catch(() => ({}));
 if (e.status !== 200) { log('LOGIN_RECUSADO', e.status, String(d.mensagem || d.erro || '').slice(0, 200)); process.exit(1); }

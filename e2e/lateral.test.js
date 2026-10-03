@@ -136,6 +136,7 @@ test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierar
     assert.deepEqual(await principais(p), ['conversas', 'quick-wins', 'conhecimento'], String(largura));
     assert.equal(await p.locator('#lateral .recentes-lat .item-lat.sub:not(.ver-todas)').count(), 5);
     for (const it of ['quick-wins', 'conhecimento']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível no menu sem rolar (${largura})`);
+    assert.ok(await visivelNaJanela(p, '#lateral .ver-todas'), `"Ver todas" visível (${largura})`);
     const alturas = await p.$$eval('#lateral .item-lat.item-principal, #lateral .recentes-lat .item-lat.sub', l => l.map(a => a.getBoundingClientRect().height));
     if (largura < 900) assert.ok(alturas.every(h => h >= 44), `alvos de toque (${largura}): ${alturas}`);
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `sem rolagem horizontal (${largura})`);
@@ -144,5 +145,25 @@ test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierar
     await p.waitForURL(/#\/quick-wins$/);
   }
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('tela baixa (320x568), admin com 100 conversas: todos os itens principais, inclusive Administração, e "Ver todas" à vista sem rolar', async () => {
+  const id = um(N.app.db, "select id from pessoas where email = 'admin@empresa-exemplo.com.br'").id;
+  for (let k = 1; k <= 100; k++) exec(N.app.db, "insert into conversas (pessoa_id, titulo, criado_em, atualizado_em) values (?, ?, datetime('now'), datetime('now'))", id, `Admin ${k}`);
+  const ctx = await N.navegador.newContext({ viewport: { width: 320, height: 568 } });
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const p = await N.entrar('admin@empresa-exemplo.com.br', await ctx.newPage());
+  for (const [largura, altura] of [[320, 568], [1280, 600]]) {
+    await p.setViewportSize({ width: largura, height: altura });
+    await p.goto(`${N.base}/app#/nova`);
+    await p.waitForSelector('#lateral [data-item="administracao"]', { state: 'attached' });
+    await p.waitForSelector('#lateral [data-item="conversas"][aria-current="page"]', { state: 'attached' }); await p.waitForTimeout(400);
+    if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); }
+    for (const it of ['conversas', 'quick-wins', 'conhecimento', 'administracao']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
+    assert.ok(await visivelNaJanela(p, '#lateral .ver-todas'), `"Ver todas" visível (${largura}x${altura})`);
+    await p.screenshot({ path: `capturas/tmp/lateral-admin-${largura}x${altura}.png` });
+    for (const it of ['quick-wins']) { await p.click(`#lateral [data-item="${it}"]`); await p.waitForURL(/#\/quick-wins$/); }
+  }
   await ctx.close();
 });

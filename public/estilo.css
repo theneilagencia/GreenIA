@@ -1640,3 +1640,17 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 /* Telas baixas e celular: a lista de recentes é a parte que rola; os itens principais nunca saem da tela. */
 .recentes-lat{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
 @media (max-width: 900px){.recentes-lat{max-height:24vh}}
+/* Itens principais nunca somem: só a lista de recentes encolhe (e rola) quando falta altura; "Ver todas" fica fixo
+   no fim dela. */
+.lateral-rolagem{display:flex;flex-direction:column}
+.lateral-rolagem>*{flex-shrink:0}
+.lateral-rolagem>.recentes-lat{flex:0 1 auto;min-height:76px}
+.recentes-lat .ver-todas{position:sticky;bottom:0;background:var(--surface)}
+/* Tela baixa: o rodapé da lateral (política, reportar) vai para o fim da rolagem e as recentes ficam em ~2 linhas,
+   para Conversas, Quick Wins, Conhecimento e Administração continuarem à vista. */
+@media (max-height: 640px){
+  .lateral{overflow-y:auto}
+  .lateral>*{flex-shrink:0}
+  .lateral-rolagem{flex:none;overflow:visible}
+  .lateral-rolagem>.recentes-lat{max-height:96px;min-height:0}
+}

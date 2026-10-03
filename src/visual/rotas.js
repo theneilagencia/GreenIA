@@ -16,7 +16,10 @@ import { corta, montar, produzir, produzirSemCorte } from './motor.js';
 import { svgDaPagina } from './svg.js';
 import { pngDaPagina, jpgDaPagina } from './raster.js';
 import { pdfDasPaginas } from './pdf.js';
-import { carregarAssets, guardarAsset, resumoArtefato, guardarRender, lerRender } from './producao.js';
+import { carregarAssets, decisaoImagem, guardarAsset, MOTIVOS_IMAGEM, pedidoDeImagem, resumoArtefato, guardarRender, lerRender } from './producao.js';
+import { checarPlano } from '../plano.js';
+import { contemCredencial, detectar } from '../filtro.js';
+import { renderizavel } from './webp.js';
 import { renderizarDesign, exportarDesign, conferirDesign, paginasParaPrompt } from './design.js';
 import { decodificarDataUrl } from './assets.js';
 import { corValida, HEX, resolverIdentidade } from './marca.js';
@@ -220,6 +223,9 @@ function novaVersao(app, pessoa, a, { conteudo, plano, opcoes, identidade, titul
   // Edição que faria uma peça de página única cortar conteúdo não é gravada (a restauração devolve o que existia).
   if (!r.plano.multipagina && corta(r) && !campos.includes('restauracao')) throw erro(422, 'nao_cabe', 'Com essa mudança o conteúdo não cabe inteiro na página sem cortar. Escolha outro formato ou tire parte do texto.');
   const q = json(a.qualidade, {});
+  // Imagem final sem imagem: nunca aprovada como imagem (fica parcial até haver uma imagem gerada ou enviada).
+  const finalSemImagem = tr.imagemFinal && !assets.heroi;
+  const status = finalSemImagem && r.registro.status !== 'inconsistente' ? 'parcial' : r.registro.status;
   const novo = transacao(app.db, () => {
     exec(app.db, 'update artefatos_visuais set atual = 0 where base_id = ?', a.base_id);
     const v = um(app.db, 'select max(versao) as v from artefatos_visuais where base_id = ?', a.base_id).v + 1;
@@ -227,7 +233,8 @@ function novaVersao(app, pessoa, a, { conteudo, plano, opcoes, identidade, titul
       conteudo, plano, opcoes, identidade, qualidade, status, exportacoes, editado_por, criado_em) values (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       a.base_id, v, a.conversa_id, a.mensagem_id, a.roteamento_id, a.quick_win_id, a.quick_win_versao, a.pessoa_id, a.entregavel_id, a.derivado_de, a.tipo, a.rotulo, titulo, r.plano.formato, r.paginas.length,
       JSON.stringify(conteudo), JSON.stringify(r.plano), JSON.stringify({ ...r.opcoes, assets: opcoes.assets || {} }), JSON.stringify(identidade),
-      JSON.stringify({ ...r.registro, plano: q.plano || 'deterministico', imagem: q.imagem || null, avisos: r.explicacoes }), r.registro.status, a.exportacoes, pessoa.id, app.agora().toISOString()).lastInsertRowid);
+      JSON.stringify({ ...r.registro, plano: q.plano || 'deterministico', imagem: q.imagem || null, ...(finalSemImagem ? { imagem_final: { gerada: false, motivo: q.imagem_final?.motivo || null, briefing: q.imagem_final?.briefing || null } } : tr.imagemFinal ? { imagem_final: { gerada: true } } : {}),
+        avisos: [...(finalSemImagem ? ['Imagem final ainda sem imagem gerada: a peça está só com tipografia e cores.'] : []), ...r.explicacoes] }), status, a.exportacoes, pessoa.id, app.agora().toISOString()).lastInsertRowid);
   });
   registrar(app, acao, pessoa.id, { conversa: a.conversa_id, quick_win: a.quick_win_id, artefato: novo, base: a.base_id, campos, status: r.registro.status, correcoes: r.registro.correcoes });
   return um(app.db, 'select * from artefatos_visuais where id = ?', novo);
@@ -381,6 +388,42 @@ export function rotasArtefatos(app, r) {
     const novo = novaVersao(app, pessoa, a, ed);
     return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
   }, { limiteMb: 8 });
+
+  // Gerar a imagem de novo (nova imagem ou variação, com estilo opcional): sob a mesma governança da execução
+  // (empresa liberou, provedor existe, conversa não sigilosa, área sem proteção reforçada, sem dado protegido, plano
+  // fora da reserva). Texto, logo e chamada continuam compostos pela GreenIA. Cada imagem gera uma versão nova.
+  r.post('/api/artefatos/:id/gerar-imagem', async ({ pessoa, params, corpo }) => {
+    const a = meuArtefato(app, pessoa, params.id);
+    if (!a.atual) throw erro(409, 'versao_antiga', 'Edite a versão atual.');
+    if (ehDesign(a)) throw erro(422, 'design_ia', 'Esta peça foi desenhada pela IA: derive uma imagem final a partir dela para gerar outra imagem.');
+    const conv = um(app.db, 'select id, sigilosa, quick_win_id from conversas where id = ?', a.conversa_id);
+    const q = json(a.qualidade, {});
+    const areaReforcada = conv.quick_win_id ? todos(app.db, 'select a.sigilosa from quick_win_areas q join areas a on a.id = q.area_id where q.quick_win_id = ?', conv.quick_win_id).some(x => x.sigilosa) : pessoa.areas.some(x => x.sigilosa);
+    const plano0 = checarPlano(app);
+    const d = decisaoImagem(app, lerConfig(app.db), { sigilosa: !!conv.sigilosa, areaReforcada, protegidos: q.imagem?.motivo === 'dados_protegidos', reserva: plano0?.fase === 'reserva' });
+    if (!d.pode) throw erro(409, 'imagem_indisponivel', `A imagem não pode ser gerada agora: ${MOTIVOS_IMAGEM[d.motivo] || 'indisponível'}.`, { motivo: d.motivo });
+    const estilo = String(corpo.estilo || '').replace(/[<>]/g, '').slice(0, 160);
+    const qw = conv.quick_win_id ? um(app.db, 'select objetivo from quick_wins where id = ?', conv.quick_win_id) : null;
+    let pedido = pedidoDeImagem({ titulo: a.titulo, objetivo: qw?.objetivo || '', estilo, tipo: a.rotulo, final: !!json(a.plano, {}).imagemFinal });
+    if (corpo.variacao) pedido += ' Faça uma variação diferente da anterior (outro enquadramento e composição).';
+    if (detectar(pedido).length || contemCredencial(pedido)) throw erro(422, 'imagem_indisponivel', `A imagem não pode ser gerada: ${MOTIVOS_IMAGEM.pedido_inseguro}.`);
+    const t0 = Date.now();
+    let g;
+    try { g = await app.ia.gerarImagem(pedido, { modelo: d.modelo, sinal: AbortSignal.timeout(90_000) }); }
+    catch { throw erro(502, 'imagem_falhou', 'O gerador de imagem falhou. Tente de novo em instantes.'); }
+    const url = renderizavel(g?.dataUrl);
+    const salvo = url ? guardarAsset(app, { conversaId: a.conversa_id, pessoaId: pessoa.id, tipo: 'imagem_gerada', origem: 'gerado', dataUrl: url }) : null;
+    if (!salvo) throw erro(502, 'imagem_falhou', 'O gerador de imagem devolveu uma imagem inválida.');
+    exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)',
+      app.agora().toISOString(), pessoa.id, a.conversa_id, conv.quick_win_id, d.modelo, g.modelo || d.modelo, null, g.custo || 0, Date.now() - t0);
+    const ed = aplicarEdicoes(a, {});
+    ed.opcoes.assets = { ...(ed.opcoes.assets || {}), heroi: salvo.id };
+    ed.campos = ['imagem'];
+    const usaHeroi = ed.plano.paginas.some(p => p.papel === 'capa' || p.layout === 'destaque') || ed.plano.paginas.some(p => p.blocos.some(b => b.tipo === 'imagem'));
+    if (!usaHeroi) (ed.plano.paginas.find(p => p.papel !== 'capa') || ed.plano.paginas[0]).blocos.unshift({ id: `b_img${Date.now() % 1e6}`, tipo: 'imagem', asset: 'heroi', refs: [], proposito: '' });
+    const novo = novaVersao(app, pessoa, a, { ...ed, acao: 'visual.image_generated' });
+    return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
+  });
 
   // Outro artefato com o MESMO conteúdo (apresentação -> one-page, post -> carrossel...): sem nova execução e sem
   // custo de IA (planejador determinístico).

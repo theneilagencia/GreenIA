@@ -263,7 +263,13 @@ function destaque(C, pg, itens, assets, { numero, total }) {
   p.prims.push({ t: 'rect', x: 0, y: 0, w, h, fill: fundo, papel: 'fundo' });
   const heroi = numero === 1 ? assets.heroi : null;
   let topo = M;
-  if (heroi) {
+  // Imagem final: a imagem ocupa a peça inteira; o texto fica sobre uma faixa escura translúcida (legível).
+  if (heroi && C.plano.imagemFinal) {
+    p.prims.push({ t: 'image', x: 0, y: 0, w, h, href: heroi.dataUrl, nw: heroi.w, nh: heroi.h, ajuste: 'cover', papel: 'imagem', assetId: heroi.id || null });
+    p.blocos.push({ id: 'heroi', tipo: 'imagem', refs: [], x: 0, y: 0, w, h, sangria: true });
+    p.prims.push({ t: 'rect', x: 0, y: h * 0.38, w, h: h * 0.62, fill: T.primaria, opacidade: 0.82, papel: 'fundo' });
+    topo = h * 0.38 + M * 0.6;
+  } else if (heroi) {
     const ih = h * 0.42;
     p.prims.push({ t: 'image', x: 0, y: 0, w, h: ih, href: heroi.dataUrl, nw: heroi.w, nh: heroi.h, ajuste: 'cover', papel: 'imagem', assetId: heroi.id || null });
     p.blocos.push({ id: 'heroi', tipo: 'imagem', refs: [], x: 0, y: 0, w, h: ih, sangria: true });

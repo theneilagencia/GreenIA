@@ -54,7 +54,8 @@ export const ENTREGAVEIS = {
   texto: { rotulo: 'Texto', palavras: ['texto'] },
   copy: { rotulo: 'Copy', palavras: ['copy', 'post\\b', 'posts\\b', 'publicac', 'postagem'] },
   legenda: { rotulo: 'Legenda', palavras: ['legenda'] },
-  imagem: { rotulo: 'Imagem', palavras: ['imagem', 'imagens', 'arte\\b', 'artes\\b', 'criativo', 'banner', 'ilustrac'], visual: true },
+  imagem: { rotulo: 'Imagem (briefing)', secao: 'Imagem', descricao: 'Gera direção visual e instruções, sem produzir a imagem.', palavras: ['imagem', 'imagens', 'arte\\b', 'artes\\b', 'criativo', 'banner', 'ilustrac'], visual: true },
+  imagem_final: { rotulo: 'Imagem final', descricao: 'Gera a peça visual pronta.', palavras: [], imagemFinal: true },
   carrossel: { rotulo: 'Carrossel', palavras: ['carrossel', 'carrosseis', 'carousel'], visual: true, config: { slides: 6 } },
   roteiro: { rotulo: 'Roteiro', palavras: ['roteiro'], config: { duracao: 60 } },
   reels: { rotulo: 'Reels', palavras: ['reels?\\b', 'reel\\b'], visual: true, config: { duracao: 30 } },
@@ -243,7 +244,9 @@ export function limparOperacao(op, ajustes = null) {
     if (e.componente === true) item.componente = true;
     // Artefato visual pedido para este entregável (qualquer tipo: apresentação, one-page, infográfico, peça...).
     // Vídeo e Reels não são compostos (a peça final é vídeo): continuam como pacote de produção.
-    const visual = !['video', 'reels', 'roteiro'].includes(e.tipo) ? limparVisual(e.visual) : null;
+    // Imagem final: sempre um artefato do tipo imagem, com a imagem gerada como parte da peça (nunca briefing).
+    const visual = e.tipo === 'imagem_final' ? { ...limparVisual({ ...(e.visual || {}), tipo: 'image' }), tipo: 'image', imagem: e.visual?.imagem === 'real' ? 'real' : 'conceitual' }
+      : !['video', 'reels', 'roteiro'].includes(e.tipo) ? limparVisual(e.visual) : null;
     // Os slides pedidos no entregável são as páginas da peça (uma fonte só).
     if (visual && config.slides) visual.paginas = config.slides;
     if (visual) item.visual = visual;
@@ -338,7 +341,7 @@ export function limparOperacao(op, ajustes = null) {
 export const entregaMultipla = op => !!op?.entregaveis?.length && (op.entregaveis.length > 1 || op.entregaveis.some(e => e.canal || e.visual || !ENTREGAVEIS[e.tipo]?.formato));
 export const formatoUnico = op => (op?.entregaveis?.length === 1 && !entregaMultipla(op) ? ENTREGAVEIS[op.entregaveis[0].tipo].formato : null);
 
-export const rotuloEntregavel = e => `${e.canal ? `${CANAIS[e.canal].rotulo} · ` : ''}${e.rotulo || (e.tipo === 'outro' && e.config?.detalhe ? limpar(e.config.detalhe, 40) : ENTREGAVEIS[e.tipo].rotulo)}`;
+export const rotuloEntregavel = e => `${e.canal ? `${CANAIS[e.canal].rotulo} · ` : ''}${e.rotulo || (e.tipo === 'outro' && e.config?.detalhe ? limpar(e.config.detalhe, 40) : ENTREGAVEIS[e.tipo].secao || ENTREGAVEIS[e.tipo].rotulo)}`;
 const descreverConfig = e => {
   const c = e.config || {}, p = [];
   if (c.quantidade > 1) p.push(`${c.quantidade} opções`);
@@ -360,6 +363,8 @@ export const temArtefatoVisual = op => !!op?.entregaveis?.some(e => e.visual);
 // pedido ("transforme em uma apresentação", "um infográfico", "um fluxograma") nunca se perde. Também é a leitura do
 // plano heurístico, quando a IA não pode ser usada.
 const PEDE_VISUAL = [
+  // Imagem pronta (a imagem é a peça): antes de "arte"/"imagem" genéricos, que viram peça composta ou briefing.
+  [/\b(imagem|imagens|arte) (final|finais|pronta|prontas)\b|\b(gere|gerar|crie|criar|produza|produzir|faca|fazer|quero|preciso de) (uma |a |as |duas |tres )?(imagem|imagens)\b(?! de referencia)/, 'image', ['imagem_final', 'imagem']],
   [/\b(apresentac\w*|slides?|deck)\b/, 'presentation', ['apresentacao']], [/\bone[- ]?pag\w*|\bpagina (visual|executiva|unica)|\bresumo visual|\bfolha unica/, 'one_page', ['resumo', 'relatorio']],
   [/\binfografic\w*/, 'infographic', []], [/\bfluxograma|\bdiagrama\b/, 'diagram', []], [/\bmapa (de|do) processo/, 'process_map', []], [/\bdashboard|\bpainel (visual|executivo)/, 'dashboard', []],
   [/\bcronograma visual|\blinha do tempo visual/, 'timeline', []], [/\bcartaz|\bposter\b/, 'poster', []], [/\bcarross\w*/, 'carousel', ['carrossel']],
@@ -376,16 +381,19 @@ export function visualDoPedido(texto) {
   const achado = PEDE_VISUAL.find(([re]) => re.test(t));
   if (!achado) return null;
   const n = /\b(\d{1,2})\s*(slides?|paginas?|telas|cards|laminas|quadros)\b/.exec(t);
-  return { tipo: achado[1], tiposEntregavel: achado[2], ...(n ? { paginas: Number(n[1]) } : {}) };
+  // Proporção pedida com todas as letras (1:1, 4:5, 16:9, 9:16, 1.91:1, stories): vale para a peça.
+  const f = /\b(1:1|4:5|16:9|9:16|1\.91:1)\b/.exec(t)?.[1] || (/\bstor(y|ies)\b/.test(t) ? '9:16' : null);
+  return { tipo: achado[1], tiposEntregavel: achado[2], ...(n ? { paginas: Number(n[1]) } : {}), ...(f ? { formato: f } : {}) };
 }
 export function garantirVisual(op, pedido) {
   if (!op || op.entregaveis.some(e => e.visual)) return { op, mudou: false };
   const v = visualDoPedido(pedido);
   if (!v) return { op, mudou: false };
   const novo = structuredClone(op);
-  const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}) };
+  const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) };
   const alvo = novo.entregaveis.find(e => v.tiposEntregavel.includes(e.tipo)) || (novo.entregaveis.length === 1 && !['video', 'reels', 'roteiro'].includes(novo.entregaveis[0].tipo) ? novo.entregaveis[0] : null);
-  if (alvo) alvo.visual = visual;
+  if (alvo && v.tipo === 'image') { alvo.tipo = 'imagem_final'; alvo.visual = visual; }
+  else if (alvo) alvo.visual = visual;
   else novo.entregaveis.push({ id: `vis_${novo.entregaveis.length}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {}, visual });
   return { op: limparOperacao(novo), mudou: true };
 }

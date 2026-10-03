@@ -585,7 +585,6 @@ export function rotasQuickWins(app, r) {
   });
   r.post('/api/quick-wins/:id/fontes/link', async ({ pessoa, params, corpo }) => {
     const q = carregar(pessoa, params.id, true);
-    if (contemCredencial(String(corpo.url || ''))) throw erro(422, 'dado_bloqueado', 'Por segurança, o link não pode levar senha, chave ou token.', { tipos: ['credencial'] });
     if (todos(app.db, "select 1 from documentos where quick_win_id = ? and tipo_fonte = 'url'", q.id).length >= 20) throw erro(400, 'limite', 'Este Quick Win já tem 20 links como fonte.');
     const id = await F.adicionarLink(app, pessoa, q, { url: corpo.url, titulo: corpo.titulo, papel: corpo.papel });
     return { fonte: F.fontesDoQw(app, q).find(f => f.documento_id === id), fontes: F.fontesDoQw(app, q) };

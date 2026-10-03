@@ -96,8 +96,9 @@ export function decisaoImagem(app, cfg, governanca) {
 }
 export const MOTIVOS_IMAGEM = { nao_liberado: 'a geração de imagem não está liberada pela empresa', sem_provedor: 'não há gerador de imagem disponível', sigilosa: 'a conversa tem informação sigilosa',
   area_reforcada: 'a área pede proteção reforçada', dados_protegidos: 'o pedido tem dados que a política manda proteger', reserva_do_plano: 'os créditos do mês estão no modo econômico', falhou: 'o gerador de imagem falhou', pedido_inseguro: 'o tema da imagem tem dado protegido' };
-export function pedidoDeImagem({ titulo, objetivo, estilo = '', tipo }) {
+export function pedidoDeImagem({ titulo, objetivo, estilo = '', tipo, final = false }) {
   const tema = limpar(`${titulo}. ${objetivo}`, 260).replace(/\d[\d.,%]*/g, '').replace(/[<>]/g, '');
+  if (final) return `Crie a imagem principal de uma peça pronta para publicar sobre: ${tema}. ${estilo ? `Estilo: ${limpar(estilo, 120)}.` : 'Estilo profissional, contemporâneo e atraente, com boa iluminação.'} Composição com o assunto principal na parte de cima e área mais limpa na parte de baixo (o texto será aplicado depois). Sem nenhum texto, letra, número, logotipo ou marca d'água na imagem. Sem pessoas reais identificáveis.`;
   return `Crie uma imagem ${/foto|fotograf/i.test(estilo) ? 'fotográfica' : 'ilustrativa'} para ilustrar uma peça visual (${tipo}) sobre: ${tema}. ${estilo ? `Estilo: ${limpar(estilo, 120)}.` : 'Estilo limpo, profissional e contemporâneo.'} Sem nenhum texto, letra, número, logotipo ou marca d'água na imagem. Sem pessoas reais identificáveis.`;
 }
 
@@ -180,9 +181,10 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     } else if (visual.imagem || (nav.ok && (tr.impacto || tr.capa))) {
       // Imagem ilustrativa: pedida pelo entregável ou, no design pela IA, para peça de impacto e capa.
       const d = decisaoImagem(app, cfg, governanca);
-      imagem = { pedida: 'conceitual', gerada: false, motivo: d.motivo || null };
+      // O briefing da imagem existe sempre (é o fallback da imagem final quando ela não pode ser gerada).
+      const pedido = pedidoDeImagem({ titulo, objetivo: espec.objetivo, estilo: visual.estilo, tipo: tr.rotulo, final: tr.imagemFinal });
+      imagem = { pedida: 'conceitual', gerada: false, motivo: d.motivo || null, ...(tr.imagemFinal ? { briefing: pedido } : {}) };
       if (d.pode) {
-        const pedido = pedidoDeImagem({ titulo, objetivo: espec.objetivo, estilo: visual.estilo, tipo: tr.rotulo });
         if (detectar(pedido).length || contemCredencial(pedido)) imagem.motivo = 'pedido_inseguro';
         else {
           try {
@@ -205,7 +207,8 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     const opc = { data: dataDe(app, idioma), idioma, imagemPedida: imagem?.pedida === 'real' };
     // Design pela IA. Conferido no navegador; falhou duas vezes ou indisponível: motor clássico (com o motivo).
     let motivoClassico = nav.ok ? null : nav.motivo, detalheClassico = null;
-    if (nav.ok && imagem?.pedida !== 'real') {
+    // Imagem final: composição determinística (texto, logo e chamada nunca saem do modelo de imagem nem do design livre).
+    if (nav.ok && imagem?.pedida !== 'real' && !tr.imagemFinal) {
       const c0 = Date.now();
       const ativos = {};
       if (assets.heroi?.dataUrl) { const d = decodificarDataUrl(assets.heroi.dataUrl); if (d) ativos.heroi = d; }
@@ -237,9 +240,14 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
     }
     ms.composicao += r.registro.ms.composicao; ms.conferencia += r.registro.ms.conferencia;
     const avisos = [...r.explicacoes];
-    if (imagem?.pedida === 'conceitual' && !imagem.gerada && visual.imagem) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);
+    // Imagem final sem imagem gerada: nunca aprovada como imagem. Sai a peça só com tipografia, marcada como parcial,
+    // com o motivo e o briefing da imagem para quem for produzi-la.
+    const finalSemImagem = tr.imagemFinal && !imagem?.gerada;
+    if (finalSemImagem) avisos.push(`Imagem final não gerada (${MOTIVOS_IMAGEM[imagem?.motivo] || 'indisponível'}). Resultado parcial: a peça saiu só com tipografia e cores; o briefing da imagem está junto, para produzir depois.`);
+    else if (imagem?.pedida === 'conceitual' && !imagem.gerada && visual.imagem) avisos.push(`A peça saiu sem imagem gerada (${MOTIVOS_IMAGEM[imagem.motivo] || 'indisponível'}): o visual usa tipografia, formas e cores.`);
     artefatos.push({ entregavel: e.id, rotulo: rotulo || tr.rotulo, tipo: tr.tipo, tipoRotulo: tr.rotulo, titulo, formato: plano.formato, conteudo, plano: r.plano, opcoes: r.opcoes, identidade, assets, imagem,
-      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico, ...(detalheClassico ? { detalhe_classico: detalheClassico } : {}) } : {}) }, status: r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
+      ...(finalSemImagem ? { imagem_final: { gerada: false, motivo: imagem?.motivo || null, briefing: imagem?.briefing || null } } : tr.imagemFinal ? { imagem_final: { gerada: true } } : {}),
+      registro: { ...r.registro, plano: origemPlano, imagem, motor: 'classico', ...(motivoClassico ? { motivo_classico: motivoClassico, ...(detalheClassico ? { detalhe_classico: detalheClassico } : {}) } : {}) }, status: finalSemImagem && r.registro.status !== 'reprovado' ? 'parcial' : r.registro.status, avisos, exportacoes: r.plano.exportacoes, paginas: r.paginas.length });
   }
   return { artefatos, ignorados, custos, ms: { ...ms, total: Date.now() - t0 } };
 }
@@ -259,7 +267,7 @@ export function gravarVisuais(app, producao, { pessoa, conv, qw, respId, rotaId 
     const id = Number(exec(app.db, `insert into artefatos_visuais (versao, atual, conversa_id, mensagem_id, roteamento_id, quick_win_id, quick_win_versao, pessoa_id, entregavel_id, tipo, rotulo, titulo, formato, paginas,
       conteudo, plano, opcoes, identidade, qualidade, status, exportacoes, criado_em) values (1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       conv.id, respId, rotaId, conv.quick_win_id, qw?.versao ?? null, pessoa.id, a.entregavel, a.tipo, a.rotulo, a.titulo || a.rotulo, a.formato, a.paginas,
-      JSON.stringify(a.conteudo), JSON.stringify(a.plano), JSON.stringify(opcoes), JSON.stringify(a.identidade), JSON.stringify({ ...a.registro, avisos: a.avisos }), a.status, JSON.stringify(a.exportacoes), agora).lastInsertRowid);
+      JSON.stringify(a.conteudo), JSON.stringify(a.plano), JSON.stringify(opcoes), JSON.stringify(a.identidade), JSON.stringify({ ...a.registro, avisos: a.avisos, ...(a.imagem_final ? { imagem_final: a.imagem_final } : {}) }), a.status, JSON.stringify(a.exportacoes), agora).lastInsertRowid);
     exec(app.db, 'update artefatos_visuais set base_id = ? where id = ?', id, id);
     if (a.render) guardarRender(app, id, a.render);
     registrar(app, 'visual.produced', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId, artefato: id, tipo: a.tipo, formato: a.formato,
@@ -273,7 +281,8 @@ export function gravarVisuais(app, producao, { pessoa, conv, qw, respId, rotaId 
 export function resumoArtefato(app, a) {
   const q = json(a.qualidade, {});
   return { id: a.id, base_id: a.base_id, versao: a.versao, tipo: a.tipo, rotulo: a.rotulo, titulo: a.titulo, formato: a.formato, paginas: a.paginas, status: a.status,
-    exportacoes: json(a.exportacoes, []), avisos: q.avisos || [], correcoes: q.correcoes || 0, criado_em: a.criado_em, mensagem_id: a.mensagem_id };
+    exportacoes: json(a.exportacoes, []), avisos: q.avisos || [], correcoes: q.correcoes || 0, criado_em: a.criado_em, mensagem_id: a.mensagem_id,
+    ...(q.imagem_final ? { imagem_final: { gerada: !!q.imagem_final.gerada, motivo: q.imagem_final.motivo || null, briefing: q.imagem_final.briefing || null } } : {}) };
 }
 
 // Páginas renderizadas do design pela IA (prévia JPEG por página e PDF), por versão.

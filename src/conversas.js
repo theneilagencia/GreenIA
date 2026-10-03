@@ -304,7 +304,7 @@ export function rotasConversas(app, r) {
     const avisosLinks = [];
     for (const l of links) {
       try {
-        const r = await lerLink(l.url, { lookup: app.dnsLookup, maxBytes: 2 * 1024 * 1024 });
+        const r = await lerLink(l.url, { lookup: app.dnsLookup, maxBytes: 2 * 1024 * 1024, buscar: app.buscarLink });
         anexos.push({ nome: `${r.titulo || 'Página'} (${mascararUrl(l.url)})`.slice(0, 200), texto: r.texto.slice(0, app.limitesArquivo?.anexoCaracteres ?? 200000), papel: l.papel, tipo_fonte: 'url', url_exibida: mascararUrl(l.url) });
         registrar(app, 'source.added', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipo: 'url', papel: l.papel || 'SUPPLEMENTARY', host: new URL(l.url).hostname });
       } catch (e) {
@@ -783,8 +783,13 @@ export function rotasConversas(app, r) {
     exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
       usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
     const artefatos = visuais ? gravarVisuais(app, visuais, { pessoa, conv, qw, respId, rotaId }) : [];
-    if (visuais) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes })),
+    if (visuais) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
+    // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.
+    if (visuais && artefatos.some(a => a.imagem_final && !a.imagem_final.gerada) && ['aprovado', 'corrigido'].includes(registroQualidade.status)) {
+      registroQualidade.status = 'parcial';
+      registroQualidade.objetivo = { atingido: false, motivo: 'imagem_nao_gerada' };
+    }
     if (registroQualidade?.visual?.nao_guardado) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o artefato visual não foi gerado.');
     if (registroQualidade) exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
     exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -839,7 +844,6 @@ function linksDoEnvio(corpo, texto) {
   }
   for (const m of String(texto || '').match(URL_NO_TEXTO) || []) { const url = m.replace(/[.,;:!?]+$/, ''); if (!out.some(x => x.url === url)) out.push({ url, papel: null }); }
   if (out.length > 3) throw erro(400, 'links', 'Envie até 3 links por mensagem.');
-  if (out.some(l => contemCredencial(l.url))) throw erro(422, 'dado_bloqueado', 'Por segurança, o link não pode levar senha, chave ou token. Nenhum conteúdo foi enviado.', { tipos: ['credencial'] });
   return out;
 }
 // Fontes para a conferência: as do Quick Win (contexto) e o material desta conversa com papel definido.

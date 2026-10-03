@@ -2,6 +2,7 @@
 // progresso da execução, conferência de qualidade, avisos, menu de ações e estado vazio. Só HTML e pequenos
 // ligadores; os estilos ficam em estilo.css (bloco "Quick Wins"). Nada técnico chega à tela.
 import { api, esc, ICONE, toast } from '/comum.js';
+import { htmlFontesUsadas } from '/fontes.js';
 
 // ---- Estado do Quick Win (o que a pessoa entende) -----------------------------------------------------------
 const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];
@@ -73,7 +74,8 @@ export function progressoExecucao(etapa) {
 // ---- Conferência de qualidade -------------------------------------------------------------------------------
 // aprovado/corrigido: positivo e discreto. parcial: neutro, nunca linguagem de aprovação. inconsistente: pontos
 // para revisar, com o resultado atrás de "Ver resultado". pergunta: nada (não houve resultado a conferir).
-export function painelQualidade(q, { id = '', podeAjustar = false, ajustarHref = '' } = {}) {
+export const painelQualidade = (q, ...r) => painelQualidadeBase(q, ...r) + (q && q.status !== 'pergunta' ? htmlFontesUsadas(q) : '');
+function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = '' } = {}) {
   if (!q || q.status === 'pergunta') return '';
   if (q.status === 'aprovado' || q.status === 'corrigido') {
     const itens = (q.itens || []).filter(i => i.conferido && i.ok);

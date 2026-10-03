@@ -7,6 +7,7 @@ import { vistaConversa } from '/conversa.js';
 import { assistenteQw, publicarQw, versoesQw, usarQw, testeQw } from '/quickwin2.js';
 import { aviso, cabecalhoPg, confirmarExclusao, estadoQw, estadoVazio, FORMATOS_SAIDA, ligarMenus, marcaQw, menuAcoes, seloQw } from '/qw-ui.js';
 import { secaoMedicao } from '/medicao.js';
+import { montarFontes } from '/fontes.js';
 
 const $ = id => document.getElementById(id);
 const FEEDBACK = { serviu: 'Serviu', ajustes: 'Serviu com ajustes', nao_serviu: 'Não serviu' };
@@ -290,12 +291,7 @@ async function configurar(id) {
         </div>
       </div>
       <div class="grupo-form"><h3>Arquivos e bases</h3>
-        <div class="campo"><span class="legenda">Arquivos deste quick win</span><span class="ajuda">Modelos, checklists, tabelas de regras, exemplos. Entram em todas as conversas.</span>
-          <div class="lista" style="margin-top:8px">${qw.arquivos.map(a => `<div class="lista-item"><span class="principal-texto"><b>${esc(a.titulo)}</b><span>${esc(a.arquivo)} · ${a.caracteres.toLocaleString('pt-BR')} caracteres${a.sigiloso ? ' · sigiloso' : ''}</span></span>
-            <button type="button" class="icone-btn" data-tirar-arquivo="${a.id}" aria-label="Remover ${esc(a.titulo)}">${ICONE.lixo}</button></div>`).join('') || '<div class="lista-item"><span class="dica">Nenhum arquivo ainda.</span></div>'}</div>
-          <div class="linha-botoes" style="margin-top:10px"><button type="button" class="btn btn-linha btn-pequeno" id="add-arquivo">${ICONE.clipe} Adicionar arquivo</button>
-            <label class="dica"><input type="checkbox" id="arquivo-sigiloso"> marcar como sigiloso</label>
-            <input type="file" id="arquivo-qw" hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff"></div></div>
+        <div class="campo" id="fontes-qw"></div>
         <div class="campo"><span class="legenda">Bases de conhecimento</span><div class="opcoes">
           ${radio('bases', 'nenhuma', qw.bases.modo, 'Nenhuma')}${radio('bases', 'area', qw.bases.modo, 'A da área')}${radio('bases', 'escolhidas', qw.bases.modo, 'Escolher documentos')}</div>
           <div class="opcoes" id="bases-escolhidas" style="margin-top:8px">${bases.documentos.map(d => `<label><input type="checkbox" name="base" value="${d.id}" ${qw.bases.ids.includes(d.id) ? 'checked' : ''}> ${esc(d.titulo)}</label>`).join('') || '<span class="dica">Nenhum documento de base disponível.</span>'}</div></div>
@@ -355,15 +351,5 @@ async function configurar(id) {
   $('form-qw').onsubmit = async ev => { ev.preventDefault(); if (await salvar()) toast('Quick win salvo.'); };
   $('testar').onclick = async () => { if (await salvar()) irPara(`#/qw/${id}/teste`); };
   $('excluir').onclick = async () => { try { await excluirQw(qw); } catch (e) { toast(e.message, 6000); } };
-  $('add-arquivo').onclick = () => $('arquivo-qw').click();
-  $('arquivo-qw').onchange = async ev => {
-    const f = ev.target.files[0];
-    if (!f) return;
-    const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
-    try { await api(`/api/quick-wins/${id}/arquivos`, { metodo: 'POST', corpo: { arquivo: { nome: f.name, base64 }, sigiloso: $('arquivo-sigiloso').checked } }); toast('Arquivo adicionado.'); configurar(id); }
-    catch (e) { toast(e.message, 6000); }
-  };
-  document.querySelectorAll('[data-tirar-arquivo]').forEach(b => { b.onclick = async () => {
-    await api(`/api/quick-wins/${id}/arquivos/${b.dataset.tirarArquivo}`, { metodo: 'DELETE' }); configurar(id);
-  }; });
+  montarFontes($('fontes-qw'), { idAtual: id, obterId: async () => id });
 }

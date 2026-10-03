@@ -25,6 +25,8 @@ const FRASES = {
 };
 const VAGO = 'Quero analisar meus fornecedores';
 const IMAGEM = 'Gere a imagem pronta do anúncio de lançamento do nosso produto, com o texto do anúncio.';
+// Briefing: a pessoa quer as instruções para outra pessoa produzir (não a imagem pronta).
+const IMAGEM_BRIEFING = 'Prepare o briefing da imagem do anúncio de lançamento para o designer produzir, com o texto do anúncio.';
 // O plano que um bom modelo devolve para cada pedido (formato do PROMPT_INTERPRETACAO).
 const PLANOS = {
   [FRASES.contratos]: { resumo: 'Lê contratos de fornecedores e aponta riscos e obrigações.', categoria: 'contratos',
@@ -61,6 +63,9 @@ const PLANOS = {
     entregaveis: [{ id: 'e1', tipo: 'analise', rotulo: 'Análise dos fornecedores' }],
     lacunas: [{ id: 'objetivo', pergunta: 'O que você quer saber dos fornecedores: desempenho, custo, risco ou conformidade?', obrigatoria: true }, { id: 'dados', pergunta: 'De onde vêm os dados dos fornecedores?', obrigatoria: true }] },
   [IMAGEM]: { resumo: 'Prepara a imagem do anúncio.', categoria: 'conteudo', contexto_empresa: true, entradas: [],
+    etapas: [{ texto: 'Escrever o texto do anúncio' }, { texto: 'Descrever a imagem', ferramenta: 'geracao_imagem' }],
+    entregaveis: [{ id: 'e1', tipo: 'texto', rotulo: 'Texto do anúncio' }, { id: 'e2', tipo: 'imagem', rotulo: 'Imagem do anúncio' }], ferramentas: ['geracao_imagem', 'base_empresa'] },
+  [IMAGEM_BRIEFING]: { resumo: 'Prepara a imagem do anúncio.', categoria: 'conteudo', contexto_empresa: true, entradas: [],
     etapas: [{ texto: 'Escrever o texto do anúncio' }, { texto: 'Descrever a imagem', ferramenta: 'geracao_imagem' }],
     entregaveis: [{ id: 'e1', tipo: 'texto', rotulo: 'Texto do anúncio' }, { id: 'e2', tipo: 'imagem', rotulo: 'Imagem do anúncio' }], ferramentas: ['geracao_imagem', 'base_empresa'] },
 };
@@ -273,8 +278,18 @@ test('H. pedido vago: o Quick Win pergunta o mínimo necessário', async () => {
   assert.match(it.lacunas[0].pergunta, /desempenho, custo, risco ou conformidade/);
 });
 
-test('I. ferramenta ausente: a GreenIA explica e entrega a alternativa possível (nunca simula)', async () => {
+test('I. imagem pronta pedida vira "Imagem final" (gerada pela GreenIA, com fallback honesto), nunca briefing', async () => {
   const { it, espec } = await criarComPlano(IMAGEM);
+  const fin = espec.operacao.entregaveis.find(e => e.tipo === 'imagem_final');
+  assert.ok(fin, 'entregável Imagem final');
+  assert.equal(fin.visual.tipo, 'image');
+  assert.equal(fin.visual.imagem, 'conceitual');
+  assert.ok(!it.ferramentasIndisponiveis.some(f => f.id === 'geracao_imagem'), 'a geração de imagem não é ferramenta ausente');
+  assert.doesNotMatch(C.promptExecucao(espec, { nome: 'x' }), /Briefing \(a arte final não é gerada aqui\)/);
+});
+
+test('I2. ferramenta ausente (briefing pedido): a GreenIA explica e entrega a alternativa possível (nunca simula)', async () => {
+  const { it, espec } = await criarComPlano(IMAGEM_BRIEFING);
   assert.deepEqual(it.ferramentasIndisponiveis.map(f => f.id), ['geracao_imagem']);
   const p = C.promptExecucao(espec, { nome: 'x' });
   assert.match(p, /Ferramenta indisponível: "Geração de imagem" não existe nesta execução\. Não simule a ferramenta: entregue o briefing da imagem/);

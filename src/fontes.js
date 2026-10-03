@@ -49,15 +49,18 @@ export function textoDoHtml(html) {
 }
 export class ErroFonte extends Error { constructor(codigo, mensagem) { super(mensagem); this.codigo = codigo; } }
 // Lê um link público (só https). Link que exige login não é "adivinhado": falha com o motivo.
-export async function lerLink(url, { lookup, tempoMs = 15000, maxBytes = 4 * 1024 * 1024 } = {}) {
+// `buscar` (padrão: buscaSegura) só existe para os testes servirem páginas falsas; quem chama em produção não passa.
+export async function lerLink(url, { lookup, tempoMs = 15000, maxBytes = 4 * 1024 * 1024, buscar = buscaSegura } = {}) {
   let u;
   try { u = new URL(String(url).trim()); } catch { throw new ErroFonte('link_invalido', 'Link inválido.'); }
   if (u.protocol !== 'https:') throw new ErroFonte('so_https', 'Use um link https.');
   if (u.username || u.password) throw new ErroFonte('credencial_no_link', 'O link não pode ter usuário ou senha.');
+  // Nomes de rede interna: nem chegam ao DNS (a rede segura também bloqueia pelo IP resolvido).
+  if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|.*\.intranet|.*\.lan|metadata(\..*)?)$/i.test(u.hostname)) throw new ErroFonte('destino_bloqueado', 'Este endereço não pode ser acessado (rede interna ou endereço reservado).');
   const host = u.hostname.toLowerCase(), hosts = [...new Set([host, host.startsWith('www.') ? host.slice(4) : `www.${host}`])];
   let r;
   try {
-    r = await buscaSegura({ url: u.toString(), metodo: 'GET', hosts, redePrivada: false, tempoMs, maxBytes, lookup,
+    r = await buscar({ url: u.toString(), metodo: 'GET', hosts, redePrivada: false, tempoMs, maxBytes, lookup,
       cabecalhos: { accept: 'text/html,application/xhtml+xml,text/plain,application/json,application/pdf;q=0.9,*/*;q=0.5', 'user-agent': 'GreenIA-Fontes/1.0' } });
   } catch (e) {
     if (e instanceof ErroRede) throw new ErroFonte(e.codigo === 'host_nao_autorizado' ? 'redirecionamento_externo' : e.codigo, e.codigo === 'destino_bloqueado' ? 'Este endereço não pode ser acessado (rede interna ou endereço reservado).'
@@ -101,7 +104,7 @@ export async function adicionarLink(app, pessoa, qw, { url, titulo, papel = 'KNO
   const p = papelValido(papel) || 'KNOWLEDGE_BASE';
   const exibida = mascararUrl(url);
   try {
-    const r = await lerLink(url, { lookup: app.dnsLookup });
+    const r = await lerLink(url, { lookup: app.dnsLookup, buscar: app.buscarLink });
     const id = gravar(app, { qwId: qw.id, pessoaId: pessoa.id, titulo: String(titulo || '').trim() || r.titulo, nome: exibida, texto: r.texto, papel: p, tipo: 'url', url, mime: r.mime });
     registrar(app, 'source.added', pessoa.id, { quick_win: qw.id, fonte: id, tipo: 'url', papel: p, host: new URL(url).hostname, caracteres: r.texto.length });
     return id;
@@ -179,7 +182,8 @@ export function comandoDeFonte(texto) {
   return { ...acao, filtro: filtro[1], trecho: t };
 }
 export function aplicarComandoDeFonte(app, conv, cmd) {
-  const anexos = todos(app.db, 'select id, nome, tipo_fonte, papel, ignorada from anexos where conversa_id = ? order by id desc', conv.id);
+  // Só o material que foi lido (link que falhou não é alvo de "use", "só referência"...).
+  const anexos = todos(app.db, "select id, nome, tipo_fonte, papel, ignorada from anexos where conversa_id = ? and texto not like '[Este link não pôde ser lido%' order by id desc", conv.id);
   const pelo = anexos.filter(cmd.filtro);
   const nomeado = pelo.find(a => cmd.trecho.includes(String(a.nome).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\.[a-z0-9]+$/, '')));
   const alvo = nomeado || pelo[0];

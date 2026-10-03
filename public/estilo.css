@@ -1606,3 +1606,21 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .painel-integracoes{margin-top:12px;padding:10px 12px;border:1px solid var(--borda,#e3e6e4);border-radius:10px;font-size:14px}
 .painel-integracoes ul,.plano-integracoes{margin:6px 0 0;padding-left:0;list-style:none}
 .painel-integracoes li,.plano-integracoes li{margin:3px 0}
+/* Fontes do Quick Win (arquivos, links, conhecimento da empresa) e papel do material na conversa */
+.fontes{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.fontes h4{margin:0 0 4px}
+.fontes-lista{list-style:none;margin:10px 0;padding:0;display:grid;gap:8px}
+.fonte-item{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.fonte-item .principal-texto{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.fonte-item select{max-width:100%}
+.fontes-acoes{flex-wrap:wrap;gap:8px}
+.fonte-link,.link-novo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.fonte-link .entrada,.link-novo .entrada{flex:1 1 220px;min-width:0}
+.fonte-link.oculto,.link-novo.oculto{display:none}
+.papel-anexo{font:500 11px var(--sans);border:1px solid var(--line);border-radius:4px;background:transparent;max-width:120px}
+.anexo-chip{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.fontes-usadas{margin-top:10px;font-size:13px}
+.fontes-usadas ul{margin:4px 0 0;padding-left:18px}
+.fonte-item .principal-texto{display:flex;flex-direction:column;gap:2px}
+.fonte-item .principal-texto b{text-transform:none;letter-spacing:0;font-size:14px}
+.fontes>p.dica:last-child{line-height:1.5}

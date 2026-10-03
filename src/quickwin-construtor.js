@@ -616,7 +616,7 @@ export function contextoDaExecucao(espec, { nome = '', pesquisa = null } = {}) {
 export const GRUPOS = ['regras', 'completo', 'formato', 'invencao'];
 export const ROTULOS_QUALIDADE = { regras: 'Regras respeitadas', completo: 'Resultado completo', formato: 'Formato correto', invencao: 'Nenhuma informação inventada detectada' };
 // Grupo de um problema determinístico (contrato de saída e operação), pelo que ele diz.
-const grupoDoDetalhe = t => (/Faltaram entregáveis|Fonte obrigatória/.test(t) ? 'completo' : /Nomes de exemplo|arquivo ou link|copiado da referência/.test(t) ? 'invencao' : /briefing|Faltaram as seções/.test(t) ? 'regras' : 'formato');
+const grupoDoDetalhe = t => (/Faltaram entregáveis|Fonte obrigatória/.test(t) ? 'completo' : /Nomes de exemplo|arquivo ou link|copiado da referência/.test(t) ? 'invencao' : /briefing/.test(t) || (/^Faltaram as seções: /.test(t) && norm(t.replace(/^Faltaram as seções: |\.$/g, '')) === norm(SECAO_AUSENTES)) ? 'regras' : 'formato');
 export const PROBLEMAS = { regras: 'Uma das regras do Quick Win não foi seguida.', completo: 'Faltou parte do que foi pedido.', formato: 'O resultado não veio no formato combinado.', invencao: 'O resultado pode ter informação que não está no material.' };
 export const MAX_CORRECOES = 1;
 
@@ -723,6 +723,7 @@ export function pedidoDeCorrecao(problemas, espec = null) {
 // Resumo que a pessoa vê (sem código, sem modelo, sem detalhe técnico).
 const AVISO_OBJETIVO = {
   ferramenta_indisponivel: 'Resultado parcial: a peça final (vídeo ou imagem) não é gerada aqui. O que veio é o material para produzi-la.',
+  imagem_nao_gerada: 'Resultado parcial: a imagem final não foi gerada. A peça saiu só com tipografia e cores, com o briefing da imagem para produzir depois.',
   tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };

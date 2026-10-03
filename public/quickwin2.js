@@ -8,6 +8,7 @@ import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelIntegracoes, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
+import { montarFontes } from '/fontes.js';
 
 const $ = id => document.getElementById(id);
 const ACEITOS = '.pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff';
@@ -353,6 +354,7 @@ const ETAPA_HTML = [
       ${htmlColunas(W)}
       <p class="exemplos"><button type="button" id="por-canal">Entregar mais de um resultado (seções, peças ou canais)</button></p>
       </div>
+      <div id="fontes-qw"></div>
       ${rodape(W)}`;
   },
   // 5. Testar (também é a tela de teste de um Quick Win já criado)
@@ -524,12 +526,12 @@ function htmlEntregas(W) {
     <p class="legenda" id="pecas-titulo">Entregáveis</p>
     <ol class="entregaveis-lista ${op.canais.length ? '' : 'sem-canal'}" aria-labelledby="pecas-titulo">${op.entregaveis.map((e, i) => `<li>
       <input class="entrada" data-e-rotulo="${i}" maxlength="60" value="${esc(e.rotulo || '')}" placeholder="${esc(tipo(e.tipo).rotulo || 'Título')}" aria-label="Título do entregável ${i + 1}">
-      <select class="entrada" data-e-tipo="${i}" aria-label="Tipo da peça ${i + 1}">${cat.entregaveis.map(t => `<option value="${esc(t.id)}" ${t.id === e.tipo ? 'selected' : ''}>${esc(t.rotulo)}${t.visual ? ' (briefing)' : ''}</option>`).join('')}</select>
+      <select class="entrada" data-e-tipo="${i}" aria-label="Tipo da peça ${i + 1}">${cat.entregaveis.map(t => `<option value="${esc(t.id)}" ${t.id === e.tipo ? 'selected' : ''}>${esc(t.rotulo)}${t.visual && !/briefing/i.test(t.rotulo) ? ' (briefing)' : ''}</option>`).join('')}</select>
       ${op.canais.length ? `<select class="entrada" data-e-canal="${i}" aria-label="Canal da peça ${i + 1}"><option value="">Sem canal</option>${cat.canais.map(c => `<option value="${esc(c.id)}" ${c.id === e.canal ? 'selected' : ''}>${esc(c.rotulo)}</option>`).join('')}</select>` : ''}
       ${cfg(e, i)}
       <button type="button" class="link-sutil" data-e-remover="${i}" aria-label="Remover a peça ${i + 1}">Remover</button></li>`).join('')}</ol>
     ${op.entregaveis.length < 10 ? '<button type="button" class="link-sutil" id="add-entregavel">+ Adicionar entregável</button>' : ''}
-    ${op.entregaveis.some(e => tipo(e.tipo).visual) ? '<p class="dica">Imagem, carrossel, Reels e vídeo saem como briefing para quem produz: a arte final não é gerada aqui.</p>' : ''}
+    ${op.entregaveis.some(e => tipo(e.tipo).visual) ? '<p class="dica">Imagem (briefing), carrossel, Reels e vídeo saem como briefing para quem produz. Para a peça pronta, use "Imagem final".</p>' : ''}
     <label class="ferramenta"><input type="checkbox" id="pesquisa-web" ${op.ferramentas.includes('pesquisa_web') ? 'checked' : ''}>
       <span><b>Pesquisar na internet antes de escrever</b><br><span class="dica">${W.pesquisaLiberada ? 'Usa fontes reais e mostra de onde veio cada tema. Não roda com informação sigilosa.'
         : 'A empresa ainda não liberou a pesquisa na internet (quem administra libera em Configurações). Até lá, o resultado sai parcial, sem temas confirmados como atuais.'}</span></span></label>
@@ -722,6 +724,8 @@ const ETAPA_LIGAR = [
     $('usar-sugestao-colunas')?.addEventListener('click', () => { guardarEtapa(W); W.colunas = [...W.novaSugestao]; W.colunasOrigem = 'objetivo'; W.novaSugestao = null; desenhar(W, { foco: false }).then(() => $('coluna-0')?.focus()); });
     $('manter-colunas')?.addEventListener('click', () => { guardarEtapa(W); W.colunasDescricao = W.descricao; W.novaSugestao = null; desenhar(W, { foco: false }).then(() => $('coluna-0')?.focus()); });
     ligarEntregas(W);
+    // Fontes (separadas dos entregáveis): o rascunho é salvo na primeira fonte adicionada.
+    montarFontes($('fontes-qw'), { idAtual: W.id, obterId: async () => { if (!W.id) { guardarEtapa(W); await salvar(W); } return W.id; } });
   },
   W => {
     document.querySelectorAll('[data-material]').forEach(b => { b.onclick = () => { guardarEtapa(W); W.teste.modo = b.dataset.material; W.resultado = W.resultado?.rodando ? W.resultado : null; desenhar(W, { foco: false }); }; });

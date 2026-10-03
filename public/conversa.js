@@ -84,8 +84,11 @@ function desenhar() {
       <div class="sugestoes" id="sugestoes"></div>
       ${qw?.v2 && C.proximaExecucao ? `<div class="proxima-execucao" role="status"><span>${ICONE.raio}</span><span><b>Nova execução do Quick Win.</b> O próximo envio roda o trabalho completo, com conferência.</span><button type="button" class="btn btn-texto btn-pequeno" id="cancelar-execucao">Cancelar</button></div>` : ''}
       <div class="anexos-pendentes" id="anexos"></div>
+      <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
+        <button type="button" class="btn btn-linha btn-pequeno" id="link-ok">Adicionar link</button></div>
       <div class="caixa">
         <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem com texto)">${ICONE.clipe}</button>
+        <button class="anexar" id="anexar-link" aria-label="Adicionar link" aria-expanded="false" aria-controls="link-novo" title="Adicionar link como fonte (página pública https)">${ICONE.link || '🔗'}</button>
         <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff">
         <textarea id="entrada" rows="1" placeholder="${esc(!qw ? 'Pergunte alguma coisa…' : !qw.v2 ? 'Cole o texto ou anexe…' : !C.mensagens.length || C.proximaExecucao ? 'Cole o texto ou anexe o material…' : 'Peça um ajuste, faça uma pergunta ou continue a conversa…')}" aria-label="Mensagem"></textarea>
         ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
@@ -153,7 +156,10 @@ function ajustarAltura() { const t = $('entrada'); t.style.height = 'auto'; t.st
 function atualizarEnviar() { $('enviar').disabled = C.enviando || (!$('entrada').value.trim() && !C.anexos.length); }
 
 function desenharAnexos() {
-  $('anexos').innerHTML = C.anexos.map((a, i) => `<span class="anexo-chip">${ICONE.doc} ${esc(a.nome)}<button type="button" data-tirar="${i}" aria-label="Tirar ${esc(a.nome)}">×</button></span>`).join('');
+  // Papel do material (fontes): material da execução (padrão), só referência de estilo ou fonte principal.
+  const papel = (a, i) => `<select class="papel-anexo" data-papel-anexo="${i}" aria-label="Como usar ${esc(a.nome)}">${[['', 'Material'], ['REFERENCE', 'Só referência'], ['REQUIRED_SOURCE', 'Fonte principal']].map(([v, r]) => `<option value="${v}" ${(a.papel || '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
+  $('anexos').innerHTML = C.anexos.map((a, i) => `<span class="anexo-chip">${a.link ? ICONE.link : ICONE.doc} ${esc(a.nome)}${papel(a, i)}<button type="button" data-tirar="${i}" aria-label="Tirar ${esc(a.nome)}">×</button></span>`).join('');
+  $('anexos').querySelectorAll('[data-papel-anexo]').forEach(s => { s.onchange = () => { C.anexos[Number(s.dataset.papelAnexo)].papel = s.value || undefined; }; });
   $('anexos').querySelectorAll('[data-tirar]').forEach(b => { b.onclick = () => { C.anexos.splice(Number(b.dataset.tirar), 1); desenharAnexos(); atualizarEnviar(); }; });
 }
 
@@ -172,6 +178,18 @@ function ligar() {
     await carregarModelos(); desenhar(); recarregarLateral();
   };
   $('anexar').onclick = () => $('arquivo').click();
+  $('anexar-link').onclick = () => { const c = $('link-novo'); c.classList.toggle('oculto'); $('anexar-link').setAttribute('aria-expanded', String(!c.classList.contains('oculto'))); if (!c.classList.contains('oculto')) $('link-url').focus(); };
+  const addLink = () => {
+    const url = $('link-url').value.trim();
+    if (!/^https:\/\/\S+$/i.test(url)) return toast('Use um link que comece com https://', 6000);
+    if (C.anexos.filter(a => a.link).length >= 3) return toast('Até 3 links por mensagem.', 6000);
+    let nome = url; try { const u = new URL(url); nome = u.host + u.pathname; } catch { /* mostra o texto digitado */ }
+    C.anexos.push({ link: true, url, nome: nome.slice(0, 80), tamanho: 0 });
+    $('link-url').value = ''; $('link-novo').classList.add('oculto'); $('anexar-link').setAttribute('aria-expanded', 'false');
+    desenharAnexos(); atualizarEnviar();
+  };
+  $('link-ok').onclick = addLink;
+  $('link-url').onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); addLink(); } };
   $('arquivo').onchange = async ev => {
     // O campo pode ser redesenhado enquanto os arquivos são lidos (a resposta anterior terminou): a lista e o
     // elemento ficam guardados antes da leitura, e o anexo entra no campo atual.
@@ -249,7 +267,8 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   }
   C.pensando = true; C.etapa = null; C.execucao = false; C.noFim = true; desenharMensagens();
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
-  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos, ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
+  const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
+  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;

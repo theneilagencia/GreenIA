@@ -22,7 +22,9 @@ export function htmlArtefatos(lista = []) {
 
 function cartao(a) {
   const [rotulo, tom] = STATUS[a.status] || STATUS.aprovado;
-  const formatos = [...new Set(['pdf', ...(a.exportacoes || []), 'png'])].filter(f => EXP[f]);
+  // Imagem final: PNG e JPG (a peça é uma imagem); os demais tipos sempre com PDF.
+  const formatos = a.tipo === 'image' ? [...new Set([...(a.exportacoes || []), 'png', 'jpg'])].filter(f => EXP[f] && f !== 'pdf') : [...new Set(['pdf', ...(a.exportacoes || []), 'png'])].filter(f => EXP[f]);
+  const fin = a.imagem_final;
   return `<article class="artefato" data-artefato="${a.id}">
     <button type="button" class="artefato-miniatura" data-ver="${a.id}" aria-label="Visualizar ${esc(a.rotulo)}">
       <img src="${imagem(a, 1, true)}" alt="Primeira página de ${esc(a.titulo)}" loading="lazy"></button>
@@ -31,10 +33,12 @@ function cartao(a) {
       <span class="artefato-nome">${esc(a.titulo)}</span>
       <span class="dica">${paginasTxt(a.paginas)} · ${esc(FORMATOS[a.formato] || a.formato)}${a.versao > 1 ? ` · versão ${a.versao}` : ''}</span>
       ${a.avisos?.length ? `<ul class="artefato-avisos">${a.avisos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${fin && !fin.gerada && fin.briefing ? `<details class="artefato-briefing"><summary>Briefing da imagem</summary><p>${esc(fin.briefing)}</p></details>` : ''}
       <div class="artefato-acoes">
         <button type="button" class="btn btn-verde btn-pequeno" data-ver="${a.id}">Visualizar</button>
         ${formatos.map(f => `<a class="btn btn-linha btn-pequeno" href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${f !== 'pdf' && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
         <button type="button" class="btn btn-texto btn-pequeno" data-editar="${a.id}">Editar</button>
+        ${fin ? `<button type="button" class="btn btn-texto btn-pequeno" data-gerar-imagem="${a.id}">${fin.gerada ? 'Gerar outra imagem' : 'Tentar gerar a imagem'}</button>${fin.gerada ? `<button type="button" class="btn btn-texto btn-pequeno" data-variacao="${a.id}">Variação</button>` : ''}` : ''}
       </div>
     </div></article>`;
 }
@@ -43,6 +47,13 @@ function cartao(a) {
 export function ligarArtefatos(raiz, { aoMudar = () => {} } = {}) {
   raiz.querySelectorAll('[data-ver]').forEach(b => { b.onclick = () => abrirVisualizador(Number(b.dataset.ver), { aoMudar }); });
   raiz.querySelectorAll('[data-editar]').forEach(b => { b.onclick = () => abrirEditor(Number(b.dataset.editar), { aoMudar }); });
+  // Imagem final: nova imagem ou variação (governada no servidor); cada uma vira uma versão nova da peça.
+  raiz.querySelectorAll('[data-gerar-imagem], [data-variacao]').forEach(b => { b.onclick = async () => {
+    const id = Number(b.dataset.gerarImagem || b.dataset.variacao);
+    b.disabled = true; const antes = b.textContent; b.textContent = 'Gerando…';
+    try { const r = await api(`/api/artefatos/${id}/gerar-imagem`, { metodo: 'POST', corpo: { variacao: !!b.dataset.variacao } }); toast('Nova versão com a imagem gerada.'); aoMudar(r.artefato); }
+    catch (e) { toast(e.message, 7000); b.disabled = false; b.textContent = antes; }
+  }; });
 }
 
 // ---- Modal (foco preso, Esc fecha) -----------------------------------------------------------------------------

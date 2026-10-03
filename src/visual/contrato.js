@@ -45,6 +45,8 @@ export const TIPOS = {
   timeline: { rotulo: 'Cronograma', formato: 'a4_paisagem', multipagina: false, foco: 'linha_tempo' },
   poster: { rotulo: 'Cartaz', formato: 'a4', multipagina: false, impacto: true },
   cover: { rotulo: 'Capa', formato: 'a4', multipagina: false, impacto: true },
+  // Imagem final: a imagem gerada É a peça (texto, logo e chamada compostos por cima, de forma determinística).
+  image: { rotulo: 'Imagem final', formato: '1:1', multipagina: false, impacto: true, imagemFinal: true },
   social_post: { rotulo: 'Peça para redes sociais', formato: '1:1', multipagina: false, impacto: true },
   carousel: { rotulo: 'Carrossel', formato: '4:5', multipagina: true, capa: true, impacto: true, fluxo: 'secao' },
   ad: { rotulo: 'Anúncio', formato: '1:1', multipagina: false, impacto: true },
@@ -58,7 +60,7 @@ const APELIDOS_TIPO = { apresentacao: 'presentation', slides: 'presentation', de
   resumo_visual: 'one_page', pagina_executiva: 'one_page', relatorio: 'report', relatorio_visual: 'report', infografico: 'infographic', fluxograma: 'diagram', flowchart: 'diagram', diagrama: 'diagram',
   mapa_de_processo: 'process_map', processo: 'process_map', painel: 'dashboard', comparativo: 'comparison', matriz: 'comparison', matrix: 'comparison', comparacao: 'comparison', cronograma: 'timeline',
   linha_do_tempo: 'timeline', cartaz: 'poster', capa: 'cover', post: 'social_post', social: 'social_post', peca: 'social_post', arte: 'social_post', carrossel: 'carousel', anuncio: 'ad',
-  treinamento: 'training_material', training: 'training_material', proposta: 'proposal', documento: 'document', guia: 'training_material', manual: 'document' };
+  imagem: 'image', imagem_final: 'image', imagem_pronta: 'image', treinamento: 'training_material', training: 'training_material', proposta: 'proposal', documento: 'document', guia: 'training_material', manual: 'document' };
 export function tipoDe(t) {
   const k = norm(t).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   return TIPOS[k] ? k : APELIDOS_TIPO[k] || 'custom';
@@ -106,7 +108,7 @@ export function tracos(visual, { secoes = 1 } = {}) {
   else if (visual?.paginas === 1) multipagina = false;
   if (multipagina === null) multipagina = secoes > 4;
   return { tipo: visual?.tipo || 'custom', rotulo: visual?.rotulo || t.rotulo, formato, dim: FORMATOS[formato], multipagina, capa: multipagina && !!t.capa,
-    impacto: !!t.impacto, fluxo: t.fluxo || (FORMATOS[formato].w > FORMATOS[formato].h * 1.2 ? 'secao' : 'continuo'), foco: t.foco || null, paginas: visual?.paginas || null };
+    impacto: !!t.impacto, imagemFinal: !!t.imagemFinal, fluxo: t.fluxo || (FORMATOS[formato].w > FORMATOS[formato].h * 1.2 ? 'secao' : 'continuo'), foco: t.foco || null, paginas: visual?.paginas || null };
 }
 
-export const exportacoesPadrao = tr => (tr.multipagina ? ['pdf', 'png'] : tr.impacto ? ['png', 'jpg', 'pdf'] : ['pdf', 'png']);
+export const exportacoesPadrao = tr => (tr.imagemFinal ? ['png', 'jpg'] : tr.multipagina ? ['pdf', 'png'] : tr.impacto ? ['png', 'jpg', 'pdf'] : ['pdf', 'png']);

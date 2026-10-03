@@ -182,7 +182,7 @@ function finalizarPlano(p, tr) {
   let b = 0;
   for (const pg of p.paginas) for (const bl of pg.blocos) bl.id = `b${++b}`;
   return { v: 1, tipo: tr.tipo, rotulo: tr.rotulo, formato: tr.formato, canvas: { w: FORMATOS[tr.formato].w, h: FORMATOS[tr.formato].h }, multipagina: tr.multipagina,
-    fluxo: tr.fluxo, impacto: tr.impacto, paginas: p.paginas.map((pg, i) => ({ refs: [], subtitulo: '', objetivo: '', ...pg, id: pg.id || `p${i + 1}` })), exportacoes: exportacoesPadrao(tr) };
+    fluxo: tr.fluxo, impacto: tr.impacto, ...(tr.imagemFinal ? { imagemFinal: true } : {}), paginas: p.paginas.map((pg, i) => ({ refs: [], subtitulo: '', objetivo: '', ...pg, id: pg.id || `p${i + 1}` })), exportacoes: exportacoesPadrao(tr) };
 }
 
 // ---- Plano pela IA ----------------------------------------------------------------------------------------------

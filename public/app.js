@@ -81,8 +81,13 @@ const SECOES_USO = () => [
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
+    // Administração no primeiro nível de Trabalho, só para quem já tem permissão (a mesma regra do alternador).
+    { id: 'administracao', nome: 'Administração', icone: 'engrenagem', ver: () => administra(), href: () => inicioAdmin(), ativo: () => false },
   ] },
 ];
+// Conversas recentes na lateral: no máximo RECENTES_LATERAL, subordinadas a "Conversas"; o histórico completo é a
+// tela de Conversas (#/conversas). A lista é a mesma de sempre (E.conversas), sem cópia paralela.
+export const RECENTES_LATERAL = 5;
 const SECOES_ADMIN = () => [
   { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
   { titulo: 'Gestão', itens: [
@@ -131,9 +136,11 @@ export function desenharLateral() {
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
     const selo = i.selo?.();
-    return `<a class="item-lat${ativo ? ' ativo' : ''}" href="#/${i.id}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
+    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(i.href ? i.href() : `#/${i.id}`)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
-  const recentes = E.conversas.slice(0, 6).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}"><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: a GreenIA usa só recursos autorizados para informação confidencial">Sigilosa</span>' : ''}</a>`).join('');
+  const lista = E.conversas || [];
+  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: a GreenIA usa só recursos autorizados para informação confidencial">Sigilosa</span>' : ''}</a>`).join('')}
+    ${lista.length > RECENTES_LATERAL ? `<a class="item-lat sub ver-todas" href="#/conversas">Ver todas (${lista.length})</a>` : ''}</div>` : '';
   const adm = emAdministracao(h);
   $('lateral').classList.toggle('modo-admin', adm);
   document.body.dataset.contexto = adm ? 'admin' : 'uso';
@@ -277,7 +284,7 @@ function destacarCampo(id, tentativas = 30) {
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.
 function itensPaleta() {
   const telas = [...SECOES_USO().map(g => [g, 'Ir para']), ...SECOES_ADMIN().map(g => [g, 'Administração'])]
-    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: `#/${i.id}` })));
+    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: i.href ? i.href() : `#/${i.id}` })));
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
     ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo quick win', icone: 'raio', href: '#/qw/nova' }] : []),

@@ -1626,3 +1626,17 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .fontes>p.dica:last-child{line-height:1.5}
 .qc-acoes{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .campo-destacado{outline:3px solid var(--verde, #2f7d4f);outline-offset:4px;border-radius:6px;transition:outline-color .4s}
+/* Lateral: itens principais (Conversas, Quick Wins, Conhecimento, Administração) com mais peso; conversas recentes
+   como subitens de Conversas (menores, recuadas, truncadas), no máximo 5, com "Ver todas" quando houver mais. */
+.item-lat.item-principal{font-weight:500;color:var(--ink)}
+.item-lat.item-principal.ativo{font-weight:600}
+.recentes-lat{margin:2px 0 6px 17px;padding-left:8px;border-left:1px solid var(--line)}
+.recentes-lat .item-lat.sub{padding:5px 8px;font-size:12.5px;font-weight:400;color:var(--muted);min-height:32px}
+.recentes-lat .item-lat.sub.ativo{color:var(--ink);font-weight:500}
+.recentes-lat .item-lat.sub .nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recentes-lat .ver-todas{color:var(--forest);font-weight:500}
+.item-lat:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+@media (max-width: 900px){.item-lat.item-principal,.recentes-lat .item-lat.sub{min-height:44px}}
+/* Telas baixas e celular: a lista de recentes é a parte que rola; os itens principais nunca saem da tela. */
+.recentes-lat{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
+@media (max-width: 900px){.recentes-lat{max-height:24vh}}

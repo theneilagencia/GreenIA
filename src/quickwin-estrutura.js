@@ -11,6 +11,7 @@ import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO } from './filtro.js';
 import { acharModelo, AUTO, modeloPermitido } from './modelos.js';
 import { checarPlano, verificarAvisos } from './plano.js';
+import { comUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { analisarPedido, analiseIndisponivel, rotear, AUTOMATICO, VERSAO_ROTEADOR } from './roteador.js';
@@ -40,7 +41,10 @@ export async function estruturarObjetivo(app, pessoa, { descricao, qw = null }) 
 
 // Chamada curta de IA na criação de um Quick Win, pela governança do envio (ver o comentário do topo). Devolve
 // { texto, rotaId }, { recusado, motivo } (não saiu: nada foi enviado) ou { falhou } (o recurso falhou).
-export async function chamarGovernado(app, pessoa, { conteudo, mensagens, qw = null, origem }) {
+export function chamarGovernado(app, pessoa, op) {
+  return comUso(app, { pessoa_id: pessoa.id, quick_win_id: op.qw?.id ?? null }, () => chamarGovernadoNoContexto(app, pessoa, op));
+}
+async function chamarGovernadoNoContexto(app, pessoa, { conteudo, mensagens, qw = null, origem }) {
   const recusa = motivo => ({ recusado: true, motivo });
   const cfg = lerConfig(app.db);
   if (cienciaPendente(app, pessoa)) return recusa('ciencia_pendente');
@@ -106,8 +110,8 @@ export async function chamarGovernado(app, pessoa, { conteudo, mensagens, qw = n
   // Consumo contabilizado como qualquer resposta: registro da decisão, uso e evento de créditos (sem conteúdo).
   const ms = Date.now() - inicio, usado = fim?.modelo || m.id;
   exec(app.db, "update roteamento set modelo_usado = ?, custo_real = ?, resultado = ?, ms_total = ? where id = ?", usado, fim?.custo || 0, usado === m.id ? 'respondido' : 'respondido_pela_reserva', ms, rotaId);
-  exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, null, ?, ?, ?, ?, ?, ?, ?, 0, 0)',
-    agora(), pessoa.id, qw?.id ?? null, m.id, usado, fim?.fornecedor || null, fim?.custo || 0, fim?.economia || 0, ms);
+  registrarUso(app, { em: agora(), pessoa_id: pessoa.id, quick_win_id: qw?.id ?? null, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor || null,
+    custo: fim?.custo || 0, economia: fim?.economia || 0, ms });
   registrar(app, 'credits.consumed', pessoa.id, { origem, quick_win: qw?.id ?? null, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
   verificarAvisos(app).catch(e => app.log?.('avisos do plano', e.message));
   return { texto, rotaId };

@@ -29,6 +29,7 @@ import { rotasOperador } from './operador.js';
 import { rotasVendas } from './vendas.js';
 import { rotasArtefatos } from './visual/rotas.js';
 import { integracoesLigadas, rotasIntegracoes } from './integracoes/rotas.js';
+import { contabilizarIA } from './custo-ia.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html', '/termos': 'termos.html', '/privacidade': 'privacidade.html' };
@@ -46,8 +47,10 @@ export const VERSAO = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT |
 export function criarApp(op = {}) {
   const db = abrirBanco(op.banco ?? ':memory:');
   const app = {
-    db, ia: op.ia ?? criarSimulada(), agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log, ocr: op.ocr, limitesOcr: op.limitesOcr,
+    db, agora: op.agora ?? (() => new Date()), cookieSeguro: op.cookieSeguro ?? true, log: op.log ?? console.log, ocr: op.ocr, limitesOcr: op.limitesOcr,
   };
+  // Todo custo cobrado pelo provedor vira crédito, inclusive o de chamadas interrompidas (src/custo-ia.js).
+  app.ia = contabilizarIA(app, op.ia ?? criarSimulada());
   app.email = op.email ?? criarEmail({ lerSmtp: () => lerConfig(db).smtp, log: app.log });
   // ADMIN_EMAIL: um ou mais emails (separados por vírgula), sempre admins e ativos.
   for (const e of String(op.adminEmail || '').split(/[\s,;]+/).filter(Boolean)) garantirAdmin(app, e);

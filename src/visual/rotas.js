@@ -18,6 +18,7 @@ import { pngDaPagina, jpgDaPagina } from './raster.js';
 import { pdfDasPaginas } from './pdf.js';
 import { carregarAssets, decisaoImagem, guardarAsset, MOTIVOS_IMAGEM, pedidoDeImagem, resumoArtefato, guardarRender, lerRender } from './producao.js';
 import { checarPlano } from '../plano.js';
+import { comUso, anotarUso, registrarUso } from '../custo-ia.js';
 import { contemCredencial, detectar } from '../filtro.js';
 import { renderizavel } from './webp.js';
 import { renderizarDesign, exportarDesign, conferirDesign, paginasParaPrompt } from './design.js';
@@ -395,11 +396,13 @@ export function rotasArtefatos(app, r) {
   // Gerar a imagem de novo (nova imagem ou variação, com estilo opcional): sob a mesma governança da execução
   // (empresa liberou, provedor existe, conversa não sigilosa, área sem proteção reforçada, sem dado protegido, plano
   // fora da reserva). Texto, logo e chamada continuam compostos pela GreenIA. Cada imagem gera uma versão nova.
-  r.post('/api/artefatos/:id/gerar-imagem', async ({ pessoa, params, corpo }) => {
+  r.post('/api/artefatos/:id/gerar-imagem', ({ pessoa, params, corpo }) => comUso(app, { pessoa_id: pessoa.id }, () => gerarImagemDoArtefato({ pessoa, params, corpo })));
+  async function gerarImagemDoArtefato({ pessoa, params, corpo }) {
     const a = meuArtefato(app, pessoa, params.id);
     if (!a.atual) throw erro(409, 'versao_antiga', 'Edite a versão atual.');
     if (ehDesign(a)) throw erro(422, 'design_ia', 'Esta peça foi desenhada pela IA: derive uma imagem final a partir dela para gerar outra imagem.');
     const conv = um(app.db, 'select id, sigilosa, quick_win_id from conversas where id = ?', a.conversa_id);
+    anotarUso({ conversa_id: a.conversa_id, quick_win_id: conv.quick_win_id ?? null, sigilosa: Number(!!conv.sigilosa) });
     const q = json(a.qualidade, {});
     const areaReforcada = conv.quick_win_id ? todos(app.db, 'select a.sigilosa from quick_win_areas q join areas a on a.id = q.area_id where q.quick_win_id = ?', conv.quick_win_id).some(x => x.sigilosa) : pessoa.areas.some(x => x.sigilosa);
     const plano0 = checarPlano(app);
@@ -417,8 +420,8 @@ export function rotasArtefatos(app, r) {
     const url = renderizavel(g?.dataUrl);
     const salvo = url ? guardarAsset(app, { conversaId: a.conversa_id, pessoaId: pessoa.id, tipo: 'imagem_gerada', origem: 'gerado', dataUrl: url }) : null;
     if (!salvo) throw erro(502, 'imagem_falhou', 'O gerador de imagem devolveu uma imagem inválida.');
-    exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)',
-      app.agora().toISOString(), pessoa.id, a.conversa_id, conv.quick_win_id, d.modelo, g.modelo || d.modelo, null, g.custo || 0, Date.now() - t0);
+    registrarUso(app, { em: app.agora().toISOString(), pessoa_id: pessoa.id, conversa_id: a.conversa_id, quick_win_id: conv.quick_win_id, modelo_pedido: d.modelo, modelo_usado: g.modelo || d.modelo,
+      custo: g.custo || 0, ms: Date.now() - t0 });
     const ed = aplicarEdicoes(a, {});
     ed.opcoes.assets = { ...(ed.opcoes.assets || {}), heroi: salvo.id };
     ed.campos = ['imagem'];
@@ -426,7 +429,7 @@ export function rotasArtefatos(app, r) {
     if (!usaHeroi) (ed.plano.paginas.find(p => p.papel !== 'capa') || ed.plano.paginas[0]).blocos.unshift({ id: `b_img${Date.now() % 1e6}`, tipo: 'imagem', asset: 'heroi', refs: [], proposito: '' });
     const novo = novaVersao(app, pessoa, a, { ...ed, acao: 'visual.image_generated' });
     return { artefato: resumoArtefato(app, novo), editavel: editavel(app, novo) };
-  });
+  }
 
   // Outro artefato com o MESMO conteúdo (apresentação -> one-page, post -> carrossel...): sem nova execução e sem
   // custo de IA (planejador determinístico).

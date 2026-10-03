@@ -256,6 +256,9 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
     // Uma chamada só (chamarGovernado), para as finalidades da criação: quick_win_estrutura, quick_win_exemplo e
     // quick_win_interpretacao (o plano da operação).
     'quickwin-estrutura.js': ['chamada curta da criação'],
+    // Camada de registro do custo (src/custo-ia.js): repassa a chamada que as rotas acima já rotearam e conferiram,
+    // sem escolher modelo nem mudar o pedido; só soma o custo cobrado ao pedido.
+    'custo-ia.js': ['registro do custo da chamada já roteada'],
   };
   assert.deepEqual(chamadas.sort(), Object.entries(AUTORIZADOS).flatMap(([arq, fins]) => fins.map(() => arq)).sort(), 'só os caminhos autorizados executam modelo');
   // A estruturação só existe com a finalidade quick_win_estrutura, registrada na decisão e no consumo.
@@ -270,7 +273,7 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
     'modeloPermitido(app.db, cfg, pessoa', 'const rota = rotear({', 'avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa: false })', 'insert into roteamento'].forEach(antesDoEnvio);
   assert.match(est, /app\.ia\.enviar\(mensagens, \{ modelo: m\.id, reserva: rota\.reserva, sigilosa: false/, 'estruturação: executa o que o roteador decidiu');
   assert.match(est, /const m = rota\.modelo;/);
-  assert.match(est, /insert into uso/, 'estruturação: consumo registrado');
+  assert.match(est, /registrarUso\(app, \{/, 'estruturação: consumo registrado (src/custo-ia.js)');
   const conv = readFileSync(join(raiz, 'conversas.js'), 'utf8');
   // O desenho das peças só troca de recurso para uma classe que o seletor valida para a pessoa e o Quick Win, e
   // nunca com sigilo, área reforçada ou dado pessoal; tem a mesma defesa de credencial da execução.

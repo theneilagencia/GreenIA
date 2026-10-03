@@ -81,7 +81,10 @@ for (const [largura, email] of [[1280, 'lia'], [390, 'w390']]) {
     await p.waitForFunction(() => [...document.querySelectorAll('.fonte-item')].some(li => li.textContent.includes('Política de Viagens QA') && li.querySelector('select').value === 'REQUIRED_SOURCE'));
     const id = Number(/#\/qw\/(\d+)/.exec(p.url())?.[1]);
     assert.ok(id, 'rascunho criado');
-    assert.equal(um(N.app.db, "select papel from documentos where quick_win_id = ? and tipo_fonte = 'url'", id).papel, 'REQUIRED_SOURCE');
+    // O select muda na hora; o papel é gravado pela API logo depois (sob carga, alguns ms a mais).
+    const papel = () => um(N.app.db, "select papel from documentos where quick_win_id = ? and tipo_fonte = 'url'", id).papel;
+    for (let i = 0; i < 50 && papel() !== 'REQUIRED_SOURCE'; i++) await p.waitForTimeout(100);
+    assert.equal(papel(), 'REQUIRED_SOURCE');
     assert.ok(await semRolagem(p), 'criação sem rolagem horizontal');
     await p.screenshot({ path: `capturas/tmp/fontes-criacao-${largura}.png`, fullPage: true });
     // Conversa: "Adicionar link" e o papel de cada anexo.

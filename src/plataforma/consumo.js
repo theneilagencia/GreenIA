@@ -44,13 +44,26 @@ function seriePorEmpresa(P, c, desde) {
   return new Map(todos(t.db, 'select substr(em, 1, 10) as d, sum(custo) as custo, count(*) as n from uso where em >= ? group by d', desde).map(x => [x.d, { custo: x.custo, respostas: x.n }]));
 }
 
+// Custo mensal do servidor (fatura do Render), informado pelo operador: a instalação é uma só para todas as empresas,
+// então cada empresa ativa responde por uma parte igual.
+export const custoServidor = P => Number(lerAjuste(P.db, 'custo_servidor_usd', 0)) || 0;
+// Receita de tabela de pacotes liberados no mês: preço do pacote do plano proporcional aos créditos liberados.
+function receitaPacotes(t, plano, mes) {
+  const r = plano?.rules || {};
+  if (!(r.pack_credits > 0) || !(r.pack_price_usd > 0)) return 0;
+  const creditos = um(t.db, "select coalesce(sum(creditos), 0) as n from pacotes where substr(em, 1, 7) = ?", mes).n;
+  return creditos * r.pack_price_usd / r.pack_credits;
+}
+
 export function resumoConsumo(P) {
   const agora = P.agora(), hoje = diaIso(agora), mes = hoje.slice(0, 7);
   const dias = Array.from({ length: DIAS }, (_, i) => diaIso(new Date(agora.getTime() - (DIAS - 1 - i) * 864e5)));
   const desde = dias[0], seteDias = dias.slice(-7);
   const diaDoMes = agora.getUTCDate(), diasNoMes = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 1, 0)).getUTCDate();
   const total = new Map(dias.map(d => [d, 0]));
-  const empresas = todos(P.db, "select * from companies where status != 'cancelada' or status is null order by name").map(c => {
+  const ativas = todos(P.db, "select * from companies where status != 'cancelada' or status is null order by name");
+  const infraPorEmpresa = ativas.length ? custoServidor(P) / ativas.length : 0;
+  const empresas = ativas.map(c => {
     const serie = seriePorEmpresa(P, c, desde);
     for (const [d, v] of serie) if (total.has(d)) total.set(d, total.get(d) + v.custo);
     const u = E.usoDaEmpresa(P, c.id), plano = E.lerPlanoPorId(P, c.plan_id);
@@ -65,7 +78,12 @@ export function resumoConsumo(P) {
       id: c.id, name: c.name, status: c.status, plano: plano?.name || null, ilimitado: !!sp?.ilimitado,
       creditos: sp?.creditos ?? null, usados: sp?.usados ?? null, percentual: sp?.percentual ?? null, fase: sp?.fase || null, projecao, alerta,
       custoMes, custoHoje, custo7, respostas: u.respostas, pessoasAtivas: u.pessoasAtivas, conversas: u.conversas,
-      receitaUsd: plano?.price_usd ?? null, margemUsd: plano?.price_usd != null ? plano.price_usd - custoMes * TAXA_INTERMEDIARIO : null,
+      // Receita de tabela (preço do plano + pacotes do mês), não o faturado. Margem: receita − IA com a taxa do
+      // intermediário − parte do servidor. Empresa sem preço de plano (ex.: Liberado) não tem receita nem margem.
+      receitaUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) : null,
+      receitaPacotesUsd: plano?.price_usd != null ? receitaPacotes(P.tenant(c.id), plano, mes) : null,
+      infraUsd: infraPorEmpresa,
+      margemUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) - custoMes * TAXA_INTERMEDIARIO - infraPorEmpresa : null,
       serie: dias.map(d => Math.round((serie.get(d)?.custo || 0) * 1e4) / 1e4),
     };
   });
@@ -77,6 +95,8 @@ export function resumoConsumo(P) {
     plataforma: {
       custoMes, custoHoje: total.get(hoje) || 0, custo7: seteDias.reduce((s, d) => s + total.get(d), 0),
       custoMesComTaxa: custoMes * TAXA_INTERMEDIARIO, receitaMes: empresas.reduce((s, e) => s + (e.receitaUsd || 0), 0),
+      receitaPacotes: empresas.reduce((s, e) => s + (e.receitaPacotesUsd || 0), 0), custoServidor: custoServidor(P),
+      margemMes: empresas.reduce((s, e) => s + (e.receitaUsd || 0), 0) - custoMes * TAXA_INTERMEDIARIO - custoServidor(P),
       projecaoMes: diaDoMes ? custoMes / diaDoMes * diasNoMes : custoMes,
     },
     empresas,

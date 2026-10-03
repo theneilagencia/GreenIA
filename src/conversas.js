@@ -8,6 +8,7 @@ import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, 
 import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
+import { comUso, anotarUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
 import { aplicarComandoDeFonte, comandoDeFonte, ErroFonte, lerLink, mascararUrl, mudaramDesde, papelValido } from './fontes.js';
@@ -260,7 +261,7 @@ export function rotasConversas(app, r) {
   }
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
   r.post('/api/conversas/:id/mensagens', async ctx => {
-    try { return await enviarMensagem(ctx); } catch (e) {
+    try { return await comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem(ctx)); } catch (e) {
       if (BLOQUEIOS.has(e.codigo)) {
         const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(ctx.params.id), ctx.pessoa.id);
         if (conv) aviso(app, conv.id, `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
@@ -278,6 +279,7 @@ export function rotasConversas(app, r) {
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
+    anotarUso({ conversa_id: conv.id, quick_win_id: conv.quick_win_id ?? null, teste: Number(!!conv.teste), sigilosa: Number(!!conv.sigilosa) });
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
     // Executar sem escrever nada é um pedido válido (QA profundo): o Quick Win decide se o material obrigatório faltou
     // e pede (pergunta de esclarecimento) ou faz o trabalho, se ele não precisa de material.
@@ -795,8 +797,8 @@ export function rotasConversas(app, r) {
     }
     if (registroQualidade?.visual?.nao_guardado) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o artefato visual não foi gerado.');
     if (registroQualidade) exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
-    exec(app.db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, fornecedor, custo, economia, ms, sigilosa, teste) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      AGORA(app), pessoa.id, conv.id, conv.quick_win_id, m.id, usado, fim?.fornecedor, fim?.custo || 0, fim?.economia || 0, ms, Number(sigilosa), conv.teste);
+    registrarUso(app, { em: AGORA(app), pessoa_id: pessoa.id, conversa_id: conv.id, quick_win_id: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor,
+      custo: fim?.custo || 0, economia: fim?.economia || 0, ms, sigilosa: Number(sigilosa), teste: conv.teste });
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));

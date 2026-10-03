@@ -45,6 +45,17 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
       return { chave, creditos };
     },
 
+    // Custo cobrado de uma geração (para chamadas que não devolveram o custo no fim do stream). null: ainda não disponível.
+    async custoDaGeracao(id) {
+      try {
+        const r = await f(`${base}/generation?id=${encodeURIComponent(id)}`, { headers: cab });
+        if (!r.ok) return null;
+        const d = (await r.json()).data || {};
+        const c = Number(d.total_cost ?? d.usage);
+        return Number.isFinite(c) ? c : null;
+      } catch { return null; }
+    },
+
     async listarModelos() {
       const r = await f(`${base}/models`, { headers: cab });
       if (!r.ok) throw new ErroIA(`OpenRouter respondeu ${r.status} na lista de modelos.`);
@@ -67,7 +78,8 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
       if (!r.ok) throw new ErroIA(`O serviço de imagem respondeu ${r.status}.`, r.status >= 500 ? 502 : r.status);
       const d = await r.json().catch(() => ({}));
       const url = d.choices?.[0]?.message?.images?.map(i => i?.image_url?.url || i?.url).find(u => /^data:image\/(png|jpeg|webp);base64,/.test(String(u || '')));
-      if (!url) throw new ErroIA('O serviço de imagem não devolveu imagem.');
+      // Cobrada sem imagem válida: o custo segue no erro, para virar crédito (src/custo-ia.js).
+      if (!url) throw Object.assign(new ErroIA('O serviço de imagem não devolveu imagem.'), { custo: Number(d.usage?.cost ?? 0), geracao: d.id || null });
       return { dataUrl: url, custo: Number(d.usage?.cost ?? 0), modelo: d.model || op.modelo };
     },
 
@@ -81,6 +93,7 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
         throw new ErroIA(d.error?.message ? `O serviço de IA recusou: ${d.error.message}` : `O serviço de IA respondeu ${r.status}.`, r.status >= 500 ? 502 : r.status);
       }
       const fim = { modelo: null, fornecedor: null, custo: 0, economia: 0, tokensEntrada: 0, tokensSaida: 0 };
+      let gerou = false;
       const dec = new TextDecoder();
       let resto = '';
       for await (const pedaco of r.body) {
@@ -90,6 +103,8 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
         for (const l of linhas) {
           if (!l.startsWith('data: ') || l === 'data: [DONE]') continue;
           let d; try { d = JSON.parse(l.slice(6)); } catch { continue; }
+          // Identificação da geração: com ela, o custo de uma chamada interrompida é buscado depois (src/custo-ia.js).
+          if (d.id && !gerou) { gerou = true; op.aoGerar?.(d.id); }
           if (d.error) throw new ErroIA(`O serviço de IA falhou: ${d.error.message || 'erro'}`);
           if (d.model) fim.modelo = d.model;
           if (d.provider) fim.fornecedor = d.provider;

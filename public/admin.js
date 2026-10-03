@@ -336,7 +336,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
   const tipo = k => u.porTipo.find(x => x.tipo === k) || { conversas: 0, custo: 0 };
   const col = emCreditos() ? '#Créditos' : '#Custo';
   const linhas = (lista, rotulo) => lista.map(x => `<tr><td>${rotulo(x)}</td><td class="num">${num(x.conversas)}</td><td class="num">${num(x.respostas)}</td><td class="num">${us(x.custo)}</td></tr>`);
-  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo serviço de IA em cada resposta.'} Conversas de teste de quick win não entram.</p>
+  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo serviço de IA em cada resposta.'} Testes de quick win aparecem à parte: ficam fora dos recortes abaixo, mas consomem créditos do plano.</p>
     <div class="filtros"><div class="campo"><label for="mes">Mês</label><input class="entrada" type="month" id="mes" value="${u.mes}"></div>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/uso?mes=${u.mes}&formato=csv">Baixar CSV</a></div>
     <div class="indicadores">
@@ -347,6 +347,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
       <div class="indicador"><span>Tempo médio de resposta</span><b>${(t.ms / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s</b></div>
       <div class="indicador"><span>Conversas normais</span><b>${num(tipo('normal').conversas)}</b><small>${us(tipo('normal').custo)}</small></div>
       <div class="indicador"><span>Conversas sigilosas</span><b>${num(tipo('sigilosa').conversas)}</b><small>${us(tipo('sigilosa').custo)}</small></div>
+      ${u.testes?.respostas ? `<div class="indicador"><span>Testes de quick win</span><b>${us(u.testes.custo)}</b><small>${num(u.testes.conversas)} testes · contam no plano</small></div>` : ''}
     </div>
     <h3>Tendência</h3><p class="dica">Seis meses até o mês escolhido.</p>
     ${barrasMes(u.tendencia, u.mes)}

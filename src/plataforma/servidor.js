@@ -502,6 +502,7 @@ export function iaTrocavel(inicial, { aoRecusar = null, bloqueio = null } = {}) 
     get geraImagem() { return typeof atual.gerarImagem === 'function' && atual.geraImagem !== false && atual.configurada !== false; },
     listarModelos: (...a) => atual.listarModelos(...a),
     conta: (...a) => (atual.conta ? atual.conta(...a) : Promise.resolve(null)),
+    custoDaGeracao: (...a) => (atual.custoDaGeracao ? atual.custoDaGeracao(...a) : Promise.resolve(null)),
     // Envio: se a chave em uso já foi recusada pelo OpenRouter, não insiste (revalida no máximo a cada
     // 10 minutos); se um envio receber 401, registra a recusa na hora (alerta e bloqueio imediatos).
     async *enviar(...a) {

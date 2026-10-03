@@ -196,6 +196,8 @@ function uso(app, mes) {
         union all select u.*, ap.area_id from uso u join area_pessoas ap on ap.pessoa_id = u.pessoa_id where u.quick_win_id is null and u.teste = 0 and substr(u.em, 1, 7) = ?
       ) x join areas a on a.id = x.area_id group by a.id order by custo desc`, mes, mes),
     pacotes: app.plano ? todos(app.db, 'select em, creditos, validade, origem, observacao from pacotes order by id desc limit 12') : [],
+    // Testes de quick win ficam fora dos recortes acima, mas são custo real e consomem créditos do plano.
+    testes: um(app.db, "select count(*) as respostas, count(distinct conversa_id) as conversas, coalesce(sum(custo), 0) as custo from uso where teste = 1 and substr(em, 1, 7) = ?", mes),
   };
 }
 

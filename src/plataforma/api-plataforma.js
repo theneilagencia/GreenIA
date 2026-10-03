@@ -13,7 +13,7 @@ import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fech
 import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemChaveOpenRouter } from './servidor.js';
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
-import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo } from './consumo.js';
+import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo, custoServidor } from './consumo.js';
 import { alertaEmail, falhasEmail } from './email-falhas.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
@@ -243,11 +243,12 @@ export function rotasPlataforma(P, r) {
 
   r.get('/api/plataforma/uso', ({ sessao }) => {
     precisa(sessao, 'platform.companies.manage');
+    // Receita e margem pela mesma conta do consumo (planos + pacotes − IA com taxa − parte do servidor).
+    const economia = new Map(resumoConsumo(P).empresas.map(e => [e.id, e]));
     const linhas = todos(P.db, 'select * from companies order by name').map(c => {
-      const u = E.usoDaEmpresa(P, c.id), plano = E.lerPlanoPorId(P, c.plan_id);
-      const receita = plano?.price_usd ?? null, custo = u.custoUsd * 1.055;
+      const u = E.usoDaEmpresa(P, c.id), plano = E.lerPlanoPorId(P, c.plan_id), x = economia.get(c.id);
       return { ...publicaEmpresa(P, c.id), plano: plano?.name || null, creditos: plano?.credits || 0, usados: u.plano?.usados ?? null, percentual: u.plano?.percentual ?? null, fase: u.plano?.fase || null,
-        pessoasAtivas: u.pessoasAtivas, conversas: u.conversas, custoUsd: u.custoUsd, receitaUsd: receita, margemUsd: receita !== null ? receita - custo : null };
+        pessoasAtivas: u.pessoasAtivas, conversas: u.conversas, custoUsd: u.custoUsd, receitaUsd: x ? x.receitaUsd : null, margemUsd: x ? x.margemUsd : null };
     });
     return { mes: P.agora().toISOString().slice(0, 7), empresas: linhas };
   });
@@ -381,6 +382,17 @@ export function rotasPlataforma(P, r) {
     const cfg = origemChaveOpenRouter(P);
     P.aoTrocarIA?.();
     return { chaveConfig: cfg, validadeChave: situacaoChave(P, cfg) };
+  });
+
+  // Custo mensal do servidor (fatura do Render): entra na margem, dividido entre as empresas ativas.
+  r.put('/api/plataforma/consumo/servidor', ({ sessao, corpo, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const v = Number(corpo.custoUsd);
+    if (!Number.isFinite(v) || v < 0 || v > 100000) throw erro(400, 'custo_servidor', 'Informe um valor em dólares entre 0 e 100.000.');
+    const antes = custoServidor(P);
+    salvarAjuste(P.db, 'custo_servidor_usd', Math.round(v * 100) / 100);
+    auditar(P, { usuario: sessao.userId, acao: 'platform.server_cost_changed', entidade: 'platform_settings', antes: { custoUsd: antes }, depois: { custoUsd: v }, origem });
+    return { custoUsd: custoServidor(P) };
   });
 
   r.put('/api/plataforma/consumo/alerta', async ({ sessao, corpo, origem }) => {

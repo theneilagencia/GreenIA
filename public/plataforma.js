@@ -616,7 +616,10 @@ async function vistaUso(forcar = false) {
     <div class="secao-titulo"><h3>Consumo da plataforma · últimos 30 dias</h3></div>
     <div class="indicadores"><div class="indicador"><span>Hoje</span><b>${usd4(pl.custoHoje)}</b></div><div class="indicador"><span>Últimos 7 dias</span><b>${usd4(pl.custo7)}</b></div>
       <div class="indicador"><span>Mês até hoje</span><b>${usd4(pl.custoMes)}</b></div><div class="indicador"><span>Projeção do mês</span><b>${usd4(pl.projecaoMes)}</b></div>
-      <div class="indicador"><span>Receita do mês (planos)</span><b>${usd(pl.receitaMes)}</b></div><div class="indicador"><span>Margem estimada</span><b>${usd(pl.receitaMes - pl.custoMesComTaxa)}</b></div></div>
+      <div class="indicador"><span>Receita de tabela do mês (planos + pacotes)</span><b>${usd(pl.receitaMes)}</b></div><div class="indicador"><span>Margem estimada (após taxa de 5,5% e servidor)</span><b>${usd(pl.margemMes)}</b></div></div>
+    <p class="dica">Receita de tabela: preço do plano de cada empresa ativa${pl.receitaPacotes ? ` e ${usd(pl.receitaPacotes)} em pacotes liberados no mês` : ' e os pacotes liberados no mês'}, não o valor faturado. Servidor: ${pl.custoServidor ? `${usd(pl.custoServidor)} por mês, dividido entre as empresas ativas` : 'não informado (informe a fatura mensal abaixo)'}.</p>
+    <form class="or-alerta" id="f-servidor"><label for="srv-usd">Custo mensal do servidor (fatura do Render), em dólares</label>
+      <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="srv-usd" type="number" min="0" step="0.01" value="${esc(pl.custoServidor || 0)}"></span><button class="btn btn-linha btn-pequeno">Salvar custo do servidor</button></form>
     ${grafBarras(u.serie.map(x => ({ d: x.dia, v: x.custo })), 'Custo diário de IA da plataforma nos últimos 30 dias')}
     <p class="dica">Custo real de cada resposta, registrado pela GreenIA. A margem desconta a taxa de 5,5% do OpenRouter na compra de créditos.</p>
 
@@ -662,6 +665,7 @@ async function vistaUso(forcar = false) {
     if (!confirm(kc.variavelTambem ? 'Remover a chave salva no console? A plataforma volta a usar a chave da variável OPENROUTER_API_KEY.' : 'Remover a chave salva no console? Sem outra chave, a IA das empresas para de responder.')) return;
     try { await api('/api/plataforma/openrouter/chave', { metodo: 'DELETE' }); toast('Chave removida.'); vistaUso(true); } catch (x) { falhar(x); }
   });
+  $('f-servidor').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/consumo/servidor', { metodo: 'PUT', corpo: { custoUsd: Number($('srv-usd').value) } }); toast('Custo do servidor salvo.'); vistaUso(); } catch (x) { falhar(x); } };
   $('f-alerta').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/consumo/alerta', { metodo: 'PUT', corpo: { limiarUsd: Number($('al-usd').value) } }); toast('Alerta salvo.'); vistaUso(); } catch (x) { falhar(x); } };
   $('principal').onclick = async ev => {
     const f = ev.target.closest('[data-filtro]');

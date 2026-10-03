@@ -73,3 +73,24 @@ test('cliente do OpenRouter lê /key e /credits e tolera a parte que falhar', as
   assert.deepEqual(pedidos.map(p => p[0]).sort(), ['https://openrouter.ai/api/v1/credits', 'https://openrouter.ai/api/v1/key']);
   assert.ok(pedidos.every(p => p[1] === 'Bearer sk-teste'));
 });
+
+test('receita e margem do console: plano + pacotes do mês, menos IA com a taxa e a parte do servidor; servidor configurável e auditado', async () => {
+  assert.equal((await ops.put('/api/plataforma/consumo/servidor', { custoUsd: -1 })).status, 400);
+  assert.equal((await ops.put('/api/plataforma/consumo/servidor', { custoUsd: 30 })).dados.custoUsd, 30);
+  const p = (await ops.get('/api/plataforma/planos')).dados.planos.find(x => x.credits > 0);   // o plano da Alfa
+  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/pacotes`, { creditos: 5000 })).status, 200);
+  const r = (await ops.get('/api/plataforma/consumo')).dados;
+  const e = r.empresas.find(x => x.id === A.id), n = r.empresas.length;
+  const pacote = 5000 * p.rules.pack_price_usd / p.rules.pack_credits;
+  assert.equal(e.receitaPacotesUsd, pacote);
+  assert.equal(e.receitaUsd, p.price_usd + pacote);
+  assert.ok(Math.abs(e.infraUsd - 30 / n) < 1e-9, 'servidor dividido entre as empresas ativas');
+  assert.ok(Math.abs(e.margemUsd - (p.price_usd + pacote - e.custoMes * 1.055 - 30 / n)) < 1e-9);
+  assert.equal(r.plataforma.custoServidor, 30);
+  assert.ok(Math.abs(r.plataforma.margemMes - (r.plataforma.receitaMes - r.plataforma.custoMesComTaxa - 30)) < 1e-9);
+  // A tela de uso por empresa usa a mesma conta.
+  const u = (await ops.get('/api/plataforma/uso')).dados.empresas.find(x => x.id === A.id);
+  assert.equal(u.margemUsd, e.margemUsd);
+  const aud = (await ops.get('/api/plataforma/auditoria')).dados;
+  assert.ok(JSON.stringify(aud).includes('platform.server_cost_changed'));
+});

@@ -58,7 +58,9 @@ create table if not exists documentos (
   quick_win_id integer references quick_wins(id) on delete cascade,
   sigiloso integer not null default 0, texto text not null, enviado_por integer,
   pasta text not null default '', revisado_em text, revisado_por integer,
-  criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')));
+  criado_em text not null default (datetime('now')), atualizado_em text not null default (datetime('now')),
+  papel text not null default 'KNOWLEDGE_BASE', tipo_fonte text not null default 'file', url_cifrada text, url_exibida text,
+  status text not null default 'READY', erro text, hash text, versao_fonte integer not null default 1, mime text);
 create virtual table if not exists trechos using fts5(texto, documento_id unindexed, tokenize = 'unicode61 remove_diacritics 2');
 
 create table if not exists quick_wins (
@@ -78,7 +80,7 @@ create table if not exists quick_wins (
 create table if not exists quick_win_versoes (
   id integer primary key, quick_win_id integer not null references quick_wins(id) on delete cascade,
   numero integer not null, especificacao text not null, nome text not null, para_que_serve text not null default '',
-  formato text not null default 'texto', teste text, publicada_em text not null, publicada_por integer, unique (quick_win_id, numero));
+  formato text not null default 'texto', teste text, publicada_em text not null, publicada_por integer, fontes text, unique (quick_win_id, numero));
 create table if not exists quick_win_areas (
   quick_win_id integer not null references quick_wins(id) on delete cascade,
   area_id integer not null references areas(id) on delete cascade, primary key (quick_win_id, area_id));
@@ -97,7 +99,8 @@ create table if not exists mensagens (
 -- Anexos: só o texto extraído, apagado junto com a conversa.
 create table if not exists anexos (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade,
-  mensagem_id integer references mensagens(id) on delete cascade, nome text not null, texto text not null);
+  mensagem_id integer references mensagens(id) on delete cascade, nome text not null, texto text not null,
+  papel text not null default 'SUPPLEMENTARY', tipo_fonte text not null default 'conversation_material', url_exibida text, ignorada integer not null default 0);
 
 -- Medição manual dos quick wins (lançada pelo responsável) e decisões.
 create table if not exists medicoes (
@@ -362,6 +365,18 @@ const MIGRACOES = [
     let v; try { v = JSON.parse(r.valor); } catch { v = {}; }
     v.imagens = { ...(v.imagens || {}), ativa: true };
     db.prepare("update config set valor = ? where chave = 'producaoVisual'").run(JSON.stringify(v));
+  },
+  // 17. Fontes do Quick Win: papel, tipo, link (cifrado; só a forma mascarada aparece), situação da leitura e versão
+  //     da fonte nos documentos; papel nos anexos da conversa; fontes ligadas a cada versão publicada.
+  db => {
+    const tem = (t, c) => !!db.prepare(`select 1 from pragma_table_info('${t}') where name = ?`).get(c);
+    const add = (t, c, def) => { if (!tem(t, c)) db.exec(`alter table ${t} add column ${c} ${def}`); };
+    add('documentos', 'papel', "text not null default 'KNOWLEDGE_BASE'"); add('documentos', 'tipo_fonte', "text not null default 'file'");
+    add('documentos', 'url_cifrada', 'text'); add('documentos', 'url_exibida', 'text'); add('documentos', 'status', "text not null default 'READY'");
+    add('documentos', 'erro', 'text'); add('documentos', 'hash', 'text'); add('documentos', 'versao_fonte', 'integer not null default 1'); add('documentos', 'mime', 'text');
+    add('anexos', 'papel', "text not null default 'SUPPLEMENTARY'"); add('anexos', 'tipo_fonte', "text not null default 'conversation_material'");
+    add('anexos', 'url_exibida', 'text'); add('anexos', 'ignorada', 'integer not null default 0');
+    add('quick_win_versoes', 'fontes', 'text');
   },
 ];
 

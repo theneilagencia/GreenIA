@@ -17,6 +17,8 @@ import { interpretar } from './quickwin-interpretacao.js';
 import * as OP from './quickwin-operacao.js';
 import { integracoesLigadas } from './integracoes/rotas.js';
 import { necessidadesDoPedido, resolverNecessidades } from './integracoes/plano.js';
+import * as F from './fontes.js';
+import { INSTRUCAO_FONTES, PAPEIS, papelValido } from './fontes.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -68,7 +70,8 @@ function publico(db, pessoa, q) {
   if (!base.podeEditar) return base;
   if (v2) Object.assign(base, v2.gestao);
   return { ...base, processo_atual: q.processo_atual, resultado: q.resultado, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
-    dados: acoesDoQuickWin(q.dados, lerConfig(db)), arquivos: todos(db, 'select id, titulo, arquivo, sigiloso, length(texto) as caracteres from documentos where quick_win_id = ? order by id', q.id) };
+    dados: acoesDoQuickWin(q.dados, lerConfig(db)), arquivos: todos(db, "select id, titulo, arquivo, sigiloso, length(texto) as caracteres, papel, tipo_fonte as tipo, status, erro, url_exibida as url from documentos where quick_win_id = ? and coalesce(tipo_fonte, 'file') = 'file' order by id", q.id),
+    fontes: F.fontesDoQw({ db }, q) };
 }
 
 // Quick Win 2.0 (com especificação): o que quem usa vê (versão atual) e o que quem gere vê (rascunho, respostas
@@ -168,7 +171,10 @@ function validar(app, pessoa, atual, c) {
   }
   if (c.bases !== undefined) {
     const modo = ['nenhuma', 'area', 'escolhidas'].includes(c.bases?.modo) ? c.bases.modo : 'area';
-    v.bases = JSON.stringify({ modo, ids: modo === 'escolhidas' ? (c.bases.ids || []).map(Number) : [] });
+    // Documentos escolhidos: só os da base que esta pessoa pode ver (o que já estava escolhido continua). O papel
+    // diz como o conhecimento da empresa entra (base de conhecimento, fonte obrigatória, complementar, referência).
+    const antes = json(atual?.bases, { ids: [] }).ids || [], visiveis = new Set([...(pessoa.admin ? todos(app.db, 'select id from documentos where quick_win_id is null').map(d => d.id) : basesVisiveis(app.db, pessoa)), ...antes]);
+    v.bases = JSON.stringify({ modo, ids: modo === 'escolhidas' ? (c.bases.ids || []).map(Number).filter(id => visiveis.has(id)) : [], ...(papelValido(c.bases?.papel) ? { papel: c.bases.papel } : {}) });
   }
   if (c.modelo !== undefined) v.modelo = c.modelo || null;
   // Áreas: só as que a pessoa gerencia; "toda a empresa", só o admin.
@@ -252,17 +258,32 @@ export function criarQuickWins(app) {
       // "Pesquise concorrentes..." não tem palavra em comum com "Sobre a empresa...", e o contexto não chegava.
       const sobreEmpresa = OP.usaContextoEmpresa(op) ? 'sobre a empresa somos atuamos atua produtos serviços clientes público mercado setor' : '';
       const consulta = qw.espec ? [qw.espec.objetivo, qw.espec.contexto, ...(op?.contexto_respostas || []).map(r => r.resposta), sobreEmpresa, texto].filter(Boolean).join('\n') : texto;
-      const arquivos = todos(app.db, 'select id, titulo, texto, sigiloso from documentos where quick_win_id = ? order by id', qw.id);
-      const partes = [], fontes = [], pecas = [];
+      // Fontes do Quick Win (arquivos e links), cada uma com código [F1], [F2]... e papel. A referência entra
+      // separada (modelo de estilo, nunca fato); a que não pôde ser lida não entra, mas é informada (obrigatória
+      // ilegível impede o "aprovado"). Ver src/fontes.js.
+      const docs = todos(app.db, "select id, titulo, texto, sigiloso, papel, status, erro, tipo_fonte from documentos where quick_win_id = ? order by id", qw.id);
+      const arquivos = docs.filter(a => (a.status || 'READY') === 'READY' && a.texto);
+      const partes = [], fontes = [], pecas = [], detalhe = [];
+      const codigo = new Map(docs.map((a, i) => [a.id, `F${i + 1}`]));
+      for (const a of docs) detalhe.push({ codigo: codigo.get(a.id), id: `doc:${a.id}`, titulo: a.titulo, papel: a.papel || 'KNOWLEDGE_BASE', tipo: a.tipo_fonte || 'file', status: arquivos.includes(a) ? 'READY' : (a.status === 'READY' ? 'FAILED' : a.status), erro: a.erro || null, usada: false });
       let sigiloso = arquivos.some(a => a.sigiloso);
       if (arquivos.length) {
-        const total = arquivos.reduce((n, a) => n + a.texto.length, 0);
+        const fatos = arquivos.filter(a => a.papel !== 'REFERENCE'), refs = arquivos.filter(a => a.papel === 'REFERENCE');
+        const total = fatos.reduce((n, a) => n + a.texto.length, 0);
         // O que de fato entra no contexto (arquivo inteiro ou trecho), com o título: conferido pela política de credenciais.
-        const usados = total <= MAX_ARQUIVOS_INTEIROS ? arquivos.map(a => ({ documento_id: a.id, texto: a.texto })) : buscar(app.db, consulta, arquivos.map(a => a.id), 8);
-        const titulo = id => arquivos.find(a => a.id === id).titulo;
-        pecas.push(...usados.map(u => ({ origem: 'quick_win', documento: u.documento_id, texto: `${titulo(u.documento_id)}\n${u.texto}` })));
-        const corpo = usados.map(u => delimitar('documento', titulo(u.documento_id), u.texto)).join('\n\n');
-        partes.push(`Arquivos de referência deste quick win (use em todas as respostas):\n\n${corpo}`);
+        let usados = total <= MAX_ARQUIVOS_INTEIROS ? fatos.map(a => ({ documento_id: a.id, texto: a.texto })) : buscar(app.db, consulta, fatos.map(a => a.id), 8);
+        // Fonte obrigatória grande: algum trecho dela sempre entra (a busca pode não achar nada pelo pedido do dia).
+        for (const a of fatos.filter(x => x.papel === 'REQUIRED_SOURCE' && !usados.some(u => u.documento_id === x.id)))
+          usados.push(...(buscar(app.db, consulta, [a.id], 3).length ? buscar(app.db, consulta, [a.id], 3) : [{ documento_id: a.id, texto: a.texto.slice(0, 6000) }]));
+        // Referência: o começo basta para estilo, estrutura e linguagem.
+        const usadosRef = refs.map(a => ({ documento_id: a.id, texto: a.texto.slice(0, 6000) }));
+        const doc = id => arquivos.find(a => a.id === id);
+        const rotuloDe = id => `[${codigo.get(id)}] ${doc(id).titulo} — ${PAPEIS[doc(id).papel]?.rotulo || PAPEIS.KNOWLEDGE_BASE.rotulo}`;
+        pecas.push(...[...usados, ...usadosRef].map(u => ({ origem: 'quick_win', documento: u.documento_id, texto: `${doc(u.documento_id).titulo}\n${u.texto}` })));
+        const blocos = [INSTRUCAO_FONTES];
+        if (usados.length) blocos.push(`Fontes de conhecimento deste quick win (use em todas as respostas):\n\n${usados.map(u => delimitar('documento', rotuloDe(u.documento_id), u.texto)).join('\n\n')}`);
+        if (usadosRef.length) blocos.push(`REFERÊNCIAS (só modelo de estilo, estrutura e linguagem; NÃO são fatos deste caso):\n\n${usadosRef.map(u => delimitar('referencia', rotuloDe(u.documento_id), u.texto)).join('\n\n')}`);
+        partes.push(blocos.join('\n\n'));
         fontes.push(...arquivos.map(a => a.titulo));
       }
       const b = json(qw.bases, { modo: 'area' });
@@ -271,9 +292,16 @@ export function criarQuickWins(app) {
         const ids = b.modo === 'escolhidas' ? b.ids
           : todos(app.db, `select id from documentos where quick_win_id is null and (toda_empresa = 1 ${areas.length ? `or area_id in (${areas.join(',')})` : ''})`).map(d => d.id);
         const t = trechosDasBases(app.db, consulta, ids);
-        if (t.parte) { partes.push(t.parte); fontes.push(...t.fontes); pecas.push(...t.pecas); sigiloso ||= t.sigiloso; }
+        const papel = papelValido(b.papel) || 'KNOWLEDGE_BASE';
+        if (t.parte) {
+          partes.push(papel === 'REFERENCE' ? t.parte.replace(/^[^\n]*\n/, 'REFERÊNCIAS da base da empresa (só modelo de estilo, estrutura e linguagem; NÃO são fatos deste caso):\n') : t.parte);
+          fontes.push(...t.fontes); pecas.push(...t.pecas); sigiloso ||= t.sigiloso;
+        }
+        // Só entra na lista quando contribuiu ou quando a pessoa deu um papel a ela (obrigatória sem trecho = falha).
+        if (t.parte || b.papel) detalhe.push({ codigo: 'BASE', id: 'base', titulo: 'Conhecimento da empresa', papel, tipo: 'company_knowledge', status: t.parte || papel !== 'REQUIRED_SOURCE' ? 'READY' : 'FAILED', erro: t.parte ? null : 'Nenhum trecho da base tem relação com este pedido.', documentos: t.fontes, usada: !!t.parte });
       }
-      return { partes, fontes: [...new Set(fontes)], sigiloso, cacheavel: arquivos.length > 0, pecas };
+      return { partes, fontes: [...new Set(fontes)], sigiloso, cacheavel: arquivos.length > 0, pecas, detalhe,
+        textos: Object.fromEntries(arquivos.map(a => [`doc:${a.id}`, a.texto])) };
     },
   };
 }
@@ -467,8 +495,8 @@ export function rotasQuickWins(app, r) {
         ...(v2[ESPEC] ? { [ESPEC]: v2[ESPEC] } : {}) });
       gravar(app, novo, v, areas);
       if (origem) {
-        for (const a of todos(app.db, 'select titulo, arquivo, sigiloso, texto from documentos where quick_win_id = ?', origem.id)) {
-          const d = Number(exec(app.db, 'insert into documentos (titulo, arquivo, quick_win_id, sigiloso, texto, enviado_por) values (?, ?, ?, ?, ?, ?)', a.titulo, a.arquivo, novo, a.sigiloso, a.texto, pessoa.id).lastInsertRowid);
+        for (const a of todos(app.db, "select titulo, arquivo, sigiloso, texto, papel, tipo_fonte, url_cifrada, url_exibida, status, erro, hash, mime from documentos where quick_win_id = ? and coalesce(status, 'READY') = 'READY'", origem.id)) {
+          const d = Number(exec(app.db, 'insert into documentos (titulo, arquivo, quick_win_id, sigiloso, texto, enviado_por, papel, tipo_fonte, url_cifrada, url_exibida, hash, mime) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', a.titulo, a.arquivo, novo, a.sigiloso, a.texto, pessoa.id, a.papel || 'KNOWLEDGE_BASE', a.tipo_fonte || 'file', a.url_cifrada, a.url_exibida, a.hash, a.mime).lastInsertRowid);
           indexar(app.db, d, a.texto);
         }
       }
@@ -509,6 +537,7 @@ export function rotasQuickWins(app, r) {
       const n = (um(app.db, 'select max(numero) as n from quick_win_versoes where quick_win_id = ?', q.id).n || 0) + 1;
       const vid = Number(exec(app.db, 'insert into quick_win_versoes (quick_win_id, numero, especificacao, nome, para_que_serve, formato, teste, publicada_em, publicada_por) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         q.id, n, atual.especificacao, atual.nome, atual.para_que_serve, atual.formato, teste?.qualidade ?? null, app.agora().toISOString(), pessoa.id).lastInsertRowid);
+      exec(app.db, 'update quick_win_versoes set fontes = ? where id = ?', JSON.stringify(F.retratoFontes(app, atual)), vid);
       exec(app.db, 'update quick_wins set versao_publicada = ? where id = ?', vid, q.id);
       return n;
     });
@@ -545,13 +574,41 @@ export function rotasQuickWins(app, r) {
 
   r.post('/api/quick-wins/:id/arquivos', async ({ pessoa, params, corpo }) => {
     const q = carregar(pessoa, params.id, true);
-    const { nome, texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr, limitesOcr: app.limitesOcr });
-    const id = Number(exec(app.db, 'insert into documentos (titulo, arquivo, quick_win_id, sigiloso, texto, enviado_por) values (?, ?, ?, ?, ?, ?)',
-      (String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '')).slice(0, 200), nome, q.id, Number(!!corpo.sigiloso), texto, pessoa.id).lastInsertRowid);
-    indexar(app.db, id, texto);
-    registrar(app, 'knowledge.added', pessoa.id, { quick_win: q.id, documento: id, sigiloso: !!corpo.sigiloso });
+    await F.adicionarArquivo(app, pessoa, q, { arquivo: corpo.arquivo, titulo: corpo.titulo, papel: corpo.papel, sigiloso: corpo.sigiloso });
     return publico(app.db, pessoa, q);
   }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
+
+  // Fontes (arquivos, links e conhecimento da empresa, cada um com papel). Ver src/fontes.js.
+  r.get('/api/quick-wins/:id/fontes', ({ pessoa, params }) => {
+    const q = carregar(pessoa, params.id, true);
+    return { fontes: F.fontesDoQw(app, q), papeis: Object.entries(F.PAPEIS).map(([id, p]) => ({ id, ...p })) };
+  });
+  r.post('/api/quick-wins/:id/fontes/link', async ({ pessoa, params, corpo }) => {
+    const q = carregar(pessoa, params.id, true);
+    if (contemCredencial(String(corpo.url || ''))) throw erro(422, 'dado_bloqueado', 'Por segurança, o link não pode levar senha, chave ou token.', { tipos: ['credencial'] });
+    if (todos(app.db, "select 1 from documentos where quick_win_id = ? and tipo_fonte = 'url'", q.id).length >= 20) throw erro(400, 'limite', 'Este Quick Win já tem 20 links como fonte.');
+    const id = await F.adicionarLink(app, pessoa, q, { url: corpo.url, titulo: corpo.titulo, papel: corpo.papel });
+    return { fonte: F.fontesDoQw(app, q).find(f => f.documento_id === id), fontes: F.fontesDoQw(app, q) };
+  });
+  r.put('/api/quick-wins/:id/fontes/:doc', async ({ pessoa, params, corpo }) => {
+    const q = carregar(pessoa, params.id, true);
+    if (params.doc === 'base') {
+      const b = json(q.bases, { modo: 'area', ids: [] });
+      const papel = F.papelValido(corpo.papel); if (!papel) throw erro(400, 'papel', 'Papel inválido.');
+      exec(app.db, "update quick_wins set bases = ?, atualizado_em = datetime('now') where id = ?", JSON.stringify({ ...b, papel }), q.id);
+      registrar(app, 'source.role_changed', pessoa.id, { quick_win: q.id, fonte: 'base', papel });
+    } else {
+      if (corpo.arquivo) await F.substituirArquivo(app, pessoa, q, params.doc, corpo.arquivo);
+      if (corpo.papel) F.mudarPapel(app, pessoa, q, params.doc, corpo.papel);
+    }
+    return { fontes: F.fontesDoQw(app, um(app.db, 'select * from quick_wins where id = ?', q.id)) };
+  }, { limiteMb: 35 });
+  r.del('/api/quick-wins/:id/fontes/:doc', ({ pessoa, params }) => {
+    const q = carregar(pessoa, params.id, true);
+    F.removerFonte(app, pessoa, q, params.doc);
+    consolidarWal(app.db);
+    return { fontes: F.fontesDoQw(app, q) };
+  });
 
   r.del('/api/quick-wins/:id/arquivos/:doc', ({ pessoa, params }) => {
     const q = carregar(pessoa, params.id, true);

@@ -3,6 +3,7 @@
 // de execução e o prompt de conferência. Tudo determinístico: criar um Quick Win não chama a IA, não gasta
 // créditos e não passa por fora da governança. A especificação só descreve o trabalho: ela nunca decide
 // classificação, fontes, ferramentas, modelo, retenção ou permissões (isso continua na governança da empresa).
+import { conferirFontes } from './fontes-conferencia.js';
 import { createHash } from 'node:crypto';
 import { contemCredencial } from './filtro.js';
 import { delimitar } from './texto.js';
@@ -615,7 +616,7 @@ export function contextoDaExecucao(espec, { nome = '', pesquisa = null } = {}) {
 export const GRUPOS = ['regras', 'completo', 'formato', 'invencao'];
 export const ROTULOS_QUALIDADE = { regras: 'Regras respeitadas', completo: 'Resultado completo', formato: 'Formato correto', invencao: 'Nenhuma informação inventada detectada' };
 // Grupo de um problema determinístico (contrato de saída e operação), pelo que ele diz.
-const grupoDoDetalhe = t => (/Faltaram entregáveis/.test(t) ? 'completo' : /Nomes de exemplo|arquivo ou link/.test(t) ? 'invencao' : /briefing|Faltaram as seções/.test(t) ? 'regras' : 'formato');
+const grupoDoDetalhe = t => (/Faltaram entregáveis|Fonte obrigatória/.test(t) ? 'completo' : /Nomes de exemplo|arquivo ou link|copiado da referência/.test(t) ? 'invencao' : /briefing|Faltaram as seções/.test(t) ? 'regras' : 'formato');
 export const PROBLEMAS = { regras: 'Uma das regras do Quick Win não foi seguida.', completo: 'Faltou parte do que foi pedido.', formato: 'O resultado não veio no formato combinado.', invencao: 'O resultado pode ter informação que não está no material.' };
 export const MAX_CORRECOES = 1;
 
@@ -682,6 +683,7 @@ export function promptQualidade(espec) {
     ...((e.operacao?.entregaveis || []).some(x => x.visual) ? ['Peças visuais: a GreenIA monta o arquivo final (PDF e imagem) depois, a partir do conteúdo escrito na seção de cada peça. Confira o conteúdo dessas peças (fidelidade à entrada, completude, invenção, critérios), não a aparência: não marque falha porque a peça veio como texto estruturado em vez do arquivo, por não ter imagem, cores ou layout, nem pelo número de páginas do arquivo.'] : []),
     // QA profundo em produção: o conferente reprovava cálculo correto feito com os números da entrada, seção a mais
     // sem fato novo e o ano óbvio das datas do material.
+    'Material marcado como REFERÊNCIA serve só de modelo de estilo, estrutura e linguagem: nome, número, data, cliente ou condição do resultado que só existe na referência é invenção. Fonte obrigatória precisa ter sido usada no que for relevante.',
     'Não é invenção: cálculo correto feito com os números da entrada (soma, diferença, percentual, variação, total, ordenação) e o ano que o próprio material deixa claro. Seção ou observação a mais, sem fato novo, não reprova o resultado. Marque falha de invenção só para nome, número, data, valor ou fato que não dá para tirar da entrada.',
     ...(e.acoes_externas?.length ? [`Ações em sistemas externos (${e.acoes_externas.join('; ')}) são executadas pela GreenIA DEPOIS desta conferência, sob a política da empresa e com aprovação quando exigida. Não exija que o resultado diga que a ação foi feita, nem marque falha por ela não estar feita: confira só o conteúdo que vai alimentar a ação.`] : []),
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
@@ -729,11 +731,15 @@ export function resumoQualidade({ status, falhas = [], razoes = [], verificados 
   if (objetivo && objetivo.atingido === false) avisos.push(AVISO_OBJETIVO[objetivo.motivo] || AVISO_OBJETIVO.conferencia);
   if (pesquisa && !pesquisa.feita) avisos.push(`Resultado parcial: a pesquisa na internet não foi feita (${MOTIVOS_PESQUISA[pesquisa.motivo] || 'motivo não informado'}). Os temas não foram confirmados como atuais.`);
   if (entregaveis && entregaveis.encontrados < entregaveis.esperados) avisos.push(`Vieram ${entregaveis.encontrados} de ${entregaveis.esperados} entregáveis.`);
+  for (const l of fontes?.links_falharam || []) avisos.push(l);
+  if (fontes?.alteradas_desde_versao) avisos.push(`As fontes mudaram desde a versão v${fontes.alteradas_desde_versao}; este resultado usou as fontes atuais.`);
+  for (const f of fontes?.obrigatorias_falharam || []) avisos.push(`Resultado parcial: a fonte obrigatória "${f.titulo}" não pôde ser usada (${String(f.motivo).replace(/\.$/, '')}).`);
   const motivoDe = g => razoes.filter(r => r.grupo === g).map(r => r.motivo);
   return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g), ...(falhas.includes(g) && motivoDe(g).length ? { motivos: motivoDe(g).slice(0, 3) } : {}) })),
     problemas: status === 'inconsistente' ? falhas.flatMap(g => (motivoDe(g).length ? motivoDe(g).slice(0, 3).map(m => `${PROBLEMAS[g]} ${m}`) : [PROBLEMAS[g]])) : [], avisos,
     ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}),
     ...(objetivo ? { objetivo: { atingido: objetivo.atingido !== false, motivo: objetivo.motivo || null } } : {}),
+    ...(fontes ? { fontes: { usadas: (fontes.usadas || []).slice(0, 20), lista: (fontes.lista || []).slice(0, 30), obrigatorias_falharam: fontes.obrigatorias_falharam || [], ...(fontes.alteradas_desde_versao ? { alteradas_desde_versao: fontes.alteradas_desde_versao } : {}) } } : {}),
     ...(integracoes ? { integracoes: { plano: integracoes.plano || null, status: integracoes.status || null, motivo: integracoes.motivo || null, passos: (integracoes.passos || []).slice(0, 10) } } : {}) };
 }
 
@@ -756,14 +762,18 @@ export const regrasPrincipais = espec => { const e = normalizar(espec); return e
 // governança para a resposta (nada aqui escolhe modelo). No máximo MAX_CORRECOES correções e uma nova conferência
 // por correção. Sem conferência pela IA (plano na reserva ou falha dela), só o contrato determinístico vale e o
 // resultado fica "parcial": nunca aprovado sem ter sido conferido.
-export async function conferirComCorrecao({ espec, resposta, entrada = '', mensagens, chamar, usarIA = true, etapa = () => {}, pesquisa = null }) {
+export async function conferirComCorrecao({ espec, resposta, entrada = '', mensagens, chamar, usarIA = true, etapa = () => {}, pesquisa = null, fontes = null }) {
   const e = normalizar(espec);
   // Contrato de saída + entregáveis da operação (todos determinísticos). A pesquisa não se corrige com uma nova
   // chamada: se ela era exigida e não aconteceu, o resultado fica parcial (nunca aprovado), com o motivo.
   const conferirContratoEOperacao = t => {
     const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa, entrada });
-    return { ...d, falhas: [...new Set([...d.falhas, ...o.falhas])], detalhes: [...d.detalhes, ...o.detalhes], op: o };
+    // Fidelidade às fontes (fonte obrigatória usada; referência não vira fato). Ver src/fontes-conferencia.js.
+    const f = conferirFontes(fontes, t, entrada);
+    ultimasFontes = f;
+    return { ...d, falhas: [...new Set([...d.falhas, ...o.falhas, ...f.falhas])], detalhes: [...d.detalhes, ...o.detalhes, ...f.detalhes], op: o };
   };
+  let ultimasFontes = null;
   if (String(resposta).trim().startsWith(MARCADOR_PERGUNTA)) return { texto: resposta, custo: 0, economia: 0, registro: { status: 'pergunta', falhas: [], tentativas: 0, verificados: [] } };
   let texto = resposta, custo = 0, economia = 0, tentativas = 0;
   const somar = r => { custo += r.custo || 0; economia += r.economia || 0; };
@@ -795,10 +805,14 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   // Resultado honesto não é objetivo atingido (QA-15): sem a peça final, com as tabelas sem dados ou com a
   // conferência dizendo que o centro do pedido não foi entregue, o resultado fica parcial, nunca aprovado.
   const objetivo = ultimaOp?.objetivo || (c.objetivoIA === false ? { atingido: false, motivo: 'conferencia' } : null);
-  const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa || objetivo?.atingido === false ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
+  // Fonte obrigatória que não pôde ser lida: nada a corrigir no texto, mas o resultado nunca sai aprovado.
+  const semObrigatoria = !!ultimasFontes?.obrigatoriasFalharam?.length;
+  const status = c.falhas.length ? 'inconsistente' : !c.verificouIA || semPesquisa || semObrigatoria || objetivo?.atingido === false ? 'parcial' : tentativas ? 'corrigido' : 'aprovado';
+  const registroFontes = fontes?.detalhe?.length ? { fontes: { usadas: ultimasFontes?.usadas || [], obrigatorias_falharam: ultimasFontes?.obrigatoriasFalharam || [],
+    lista: fontes.detalhe.map(x => ({ codigo: x.codigo, id: x.id, titulo: x.titulo, papel: x.papel, tipo: x.tipo, status: x.status })) } } : {};
   // Cada grupo que falhou leva o motivo (do conferente ou determinístico); nunca só "faltou parte do que foi pedido".
   const razoes = c.falhas.flatMap(g => { const rs = (c.razoes || []).filter(r => r.grupo === g); return rs.length ? rs : [{ grupo: g, motivo: `${PROBLEMAS[g]} O conferente não informou o motivo; nenhuma falha determinística foi encontrada.` }]; });
   return { texto, custo, economia, registro: { status, falhas: c.falhas, ...(razoes.length ? { razoes: razoes.slice(0, 12) } : {}), ...(c.leves?.length ? { observacoes: c.leves.slice(0, 4) } : {}), tentativas, verificados: c.verificouIA ? GRUPOS : ['formato'], ...(barreira ? { correcao_descartada: 'contrato' } : {}),
     ...(objetivo ? { objetivo: { atingido: false, motivo: objetivo.motivo } } : {}),
-    ...(ultimaOp?.entregaveis ? { entregaveis: ultimaOp.entregaveis } : {}), ...(ultimaOp?.pesquisa ? { pesquisa: ultimaOp.pesquisa } : {}) } };
+    ...(ultimaOp?.entregaveis ? { entregaveis: ultimaOp.entregaveis } : {}), ...(ultimaOp?.pesquisa ? { pesquisa: ultimaOp.pesquisa } : {}), ...registroFontes } };
 }

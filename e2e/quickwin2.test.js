@@ -73,7 +73,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   // Etapa 1: só a pergunta, o campo, exemplos discretos e Continuar.
   await p.waitForSelector('#objetivo');
   assert.equal((await p.textContent('#pergunta')).trim(), 'O que você quer que a IA faça?');
-  assert.match(await p.textContent('.pg-cabeca'), /Ensine ao GreenIA como realizar esse trabalho\./);
+  assert.match(await p.textContent('.pg-cabeca'), /Ensine à GreenIA como realizar esse trabalho\./);
   assert.equal(await p.locator('.passos [aria-current="step"]').textContent(), '1Objetivo');
   assert.equal(await p.locator('.pergunta').count(), 1, 'uma etapa por vez');
   assert.equal(await p.locator('.chip, .cartao-opcao').count(), 0, 'sem chips grandes');

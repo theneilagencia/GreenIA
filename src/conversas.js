@@ -10,6 +10,7 @@ import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
+import { aplicarComandoDeFonte, comandoDeFonte, ErroFonte, lerLink, mascararUrl, mudaramDesde, papelValido } from './fontes.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
@@ -154,8 +155,8 @@ function instrucoesQw(qw, execucao, pesquisa = null, notas = false) {
 function historico(app, conv, limiteChars, atual = null) {
   const msgs = todos(app.db, "select id, papel, texto from mensagens where conversa_id = ? and papel != 'aviso' order by id", conv.id)
     .map(m => atual && m.id === atual.id ? { ...m, texto: atual.texto } : m);
-  const anexos = [...todos(app.db, 'select mensagem_id, nome, texto from anexos where conversa_id = ?', conv.id).filter(x => !atual?.anexos || x.mensagem_id !== atual.id),
-    ...(atual?.anexos || []).map(a => ({ mensagem_id: atual.id, nome: a.nome, texto: a.texto }))];
+  const anexos = [...todos(app.db, 'select mensagem_id, nome, texto, papel, ignorada from anexos where conversa_id = ?', conv.id).filter(x => !atual?.anexos || x.mensagem_id !== atual.id),
+    ...(atual?.anexos || []).map(a => ({ mensagem_id: atual.id, nome: a.nome, texto: a.texto, papel: a.papel }))];
   // Anexos de mensagens antigas são reenviados só até um orçamento (do mais novo para o mais antigo):
   // uma conversa longa com arquivos grandes não multiplica o consumo a cada resposta.
   let orcamento = app.limitesArquivo?.historicoAnexosCaracteres ?? Infinity;
@@ -164,7 +165,10 @@ function historico(app, conv, limiteChars, atual = null) {
   for (const x of [...anexos].reverse()) {
     const cabe = x.mensagem_id === ultimaDaPessoa || x.texto.length <= orcamento;
     if (cabe && x.mensagem_id !== ultimaDaPessoa) orcamento -= x.texto.length;
-    conteudo.set(x, cabe ? delimitar('anexo', x.nome, x.texto) : `[Anexo "${x.nome}" enviado antes nesta conversa. O conteúdo não foi reenviado para economizar créditos; se precisar dele de novo, peça para a pessoa anexar outra vez.]`);
+    // Papel do material (fontes): ignorado pela pessoa não vai; referência vai marcada como modelo, nunca fato.
+    if (x.ignorada) { conteudo.set(x, `[Material "${x.nome}": a pessoa pediu para ignorar. Não use o conteúdo dele.]`); continue; }
+    const rotulo = x.papel === 'REFERENCE' ? `${x.nome} — REFERÊNCIA (só modelo de estilo e estrutura; não é fato deste caso)` : x.papel === 'REQUIRED_SOURCE' ? `${x.nome} — FONTE PRINCIPAL (use no que for relevante)` : x.nome;
+    conteudo.set(x, cabe ? delimitar(x.papel === 'REFERENCE' ? 'referencia' : 'anexo', rotulo, x.texto) : `[Anexo "${x.nome}" enviado antes nesta conversa. O conteúdo não foi reenviado para economizar créditos; se precisar dele de novo, peça para a pessoa anexar outra vez.]`);
   }
   const comAnexos = msgs.map(m => {
     const a = anexos.filter(x => x.mensagem_id === m.id).map(x => `\n\n${conteudo.get(x)}`).join('');
@@ -292,7 +296,29 @@ export function rotasConversas(app, r) {
     // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
     const cancelado = new AbortController();
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
-    const anexos = await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []);
+    const anexos = (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
+      .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
+    // Links (fontes): os enviados no campo próprio e os colados na mensagem de um Quick Win são lidos pela rede
+    // segura (só https público). O que não pôde ser lido entra como aviso explícito, nunca em silêncio.
+    const links = linksDoEnvio(corpo, qw ? texto : '');
+    const avisosLinks = [];
+    for (const l of links) {
+      try {
+        const r = await lerLink(l.url, { lookup: app.dnsLookup, maxBytes: 2 * 1024 * 1024 });
+        anexos.push({ nome: `${r.titulo || 'Página'} (${mascararUrl(l.url)})`.slice(0, 200), texto: r.texto.slice(0, app.limitesArquivo?.anexoCaracteres ?? 200000), papel: l.papel, tipo_fonte: 'url', url_exibida: mascararUrl(l.url) });
+        registrar(app, 'source.added', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipo: 'url', papel: l.papel || 'SUPPLEMENTARY', host: new URL(l.url).hostname });
+      } catch (e) {
+        const motivo = e instanceof ErroFonte ? e.message : 'Não foi possível ler o link.';
+        avisosLinks.push(`O link ${mascararUrl(l.url)} não pôde ser lido: ${motivo}`);
+        anexos.push({ nome: `Link não lido (${mascararUrl(l.url)})`, texto: `[Este link não pôde ser lido: ${motivo} Não suponha o conteúdo dele; diga à pessoa que ele não foi usado.]`, papel: l.papel, tipo_fonte: 'url', url_exibida: mascararUrl(l.url), falhou: true });
+        registrar(app, 'source.failed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, tipo: 'url', motivo: e instanceof ErroFonte ? e.codigo : 'falha_leitura' });
+      }
+    }
+    // Comando sobre o material da conversa ("ignore esse documento", "use só esta planilha", "considere este link
+    // apenas como referência", "esse PDF é a fonte principal"): muda o papel do material, que vale daqui em diante.
+    const cmdFonte = !anexos.length && comandoDeFonte(texto);
+    const fonteMudou = cmdFonte ? aplicarComandoDeFonte(app, conv, cmdFonte) : null;
+    if (fonteMudou) registrar(app, 'source.role_changed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, anexo: fonteMudou.anexo, acao: fonteMudou.acao });
     if (!texto && !anexos.length) throw erro(400, 'vazia', 'Escreva uma mensagem.');
     // Integrações (recurso atrás de flag): leituras dos sistemas externos viram anexos (material, não instrução) e
     // passam pelo mesmo filtro, sigilo e roteamento abaixo. Sem necessidade declarada, nada muda.
@@ -525,7 +551,7 @@ export function rotasConversas(app, r) {
     const agora = AGORA(app);
     const naoGuardar = tipos.some(t => (cfg.naoArmazenar || []).includes(t));
     const msgId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, naoGuardar ? NAO_GUARDADO : texto, agora).lastInsertRowid);
-    if (!naoGuardar) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto) values (?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto);
+    if (!naoGuardar) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida) values (?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null);
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
@@ -690,9 +716,16 @@ export function rotasConversas(app, r) {
       // Ações externas (Integration Builder) acontecem depois da conferência: o conferente não as cobra do texto.
       const acoesExternas = integ ? (lerPlanoInteg(app, integ.plano)?.passos || []).filter(x => x.modo === 'write').map(x => `${x.acao} (${x.sistema})`.slice(0, 160)) : [];
       const especQc = acoesExternas.length ? { ...espec, acoes_externas: acoesExternas } : espec;
-      const qc = await conferirComCorrecao({ espec: especQc, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }),
+      const fontesQc = fontesDaExecucao(app, conv, ctx);
+      const qc = await conferirComCorrecao({ espec: especQc, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }), fontes: fontesQc,
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
+      // Fontes da execução: as que foram usadas, as que falharam e se mudaram desde a versão publicada em uso.
+      if (registroQualidade.fontes || avisosLinks.length) {
+        const ver = qw.versao ? um(app.db, 'select fontes from quick_win_versoes where quick_win_id = ? and numero = ?', qw.id, qw.versao) : null;
+        registroQualidade.fontes = { ...(registroQualidade.fontes || {}), ...(ver?.fontes && mudaramDesde(app, qw, json(ver.fontes, null)) ? { alteradas_desde_versao: qw.versao } : {}),
+          ...(avisosLinks.length ? { links_falharam: avisosLinks.slice(0, 5) } : {}) };
+      }
       // Escritas nos sistemas externos (com os dados do bloco estruturado, que sai do texto mostrado), sob a política.
       if (integ) {
         const l = limparResposta(resposta); resposta = l.texto;
@@ -794,4 +827,28 @@ export function apagarVencidas(app) {
   }
   if (vencidas.length) consolidarWal(app.db);
   return vencidas.length;
+}
+
+// Links do envio: o campo próprio (com papel) e, num Quick Win, os https colados na mensagem. No máximo 3.
+const URL_NO_TEXTO = /https:\/\/[^\s<>"')\]]+/gi;
+function linksDoEnvio(corpo, texto) {
+  const out = [];
+  for (const l of Array.isArray(corpo.links) ? corpo.links : []) {
+    const url = String(typeof l === 'string' ? l : l?.url || '').trim();
+    if (url) out.push({ url, papel: papelValido(l?.papel) || null });
+  }
+  for (const m of String(texto || '').match(URL_NO_TEXTO) || []) { const url = m.replace(/[.,;:!?]+$/, ''); if (!out.some(x => x.url === url)) out.push({ url, papel: null }); }
+  if (out.length > 3) throw erro(400, 'links', 'Envie até 3 links por mensagem.');
+  if (out.some(l => contemCredencial(l.url))) throw erro(422, 'dado_bloqueado', 'Por segurança, o link não pode levar senha, chave ou token. Nenhum conteúdo foi enviado.', { tipos: ['credencial'] });
+  return out;
+}
+// Fontes para a conferência: as do Quick Win (contexto) e o material desta conversa com papel definido.
+function fontesDaExecucao(app, conv, ctx) {
+  const detalhe = [...(ctx.detalhe || [])], textos = { ...(ctx.textos || {}) };
+  for (const a of todos(app.db, "select id, nome, texto, papel, ignorada, tipo_fonte from anexos where conversa_id = ? and papel in ('REFERENCE', 'REQUIRED_SOURCE') order by id", conv.id)) {
+    if (a.ignorada) continue;
+    detalhe.push({ codigo: `A${a.id}`, id: `anexo:${a.id}`, titulo: a.nome, papel: a.papel, tipo: a.tipo_fonte || 'conversation_material', status: /^\[Este link não pôde ser lido/.test(a.texto) ? 'FAILED' : 'READY' });
+    textos[`anexo:${a.id}`] = a.texto;
+  }
+  return detalhe.length ? { detalhe, textos } : null;
 }

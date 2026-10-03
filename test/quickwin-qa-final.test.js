@@ -27,3 +27,12 @@ test('conferente: contagem de slides/páginas de peça visual vira observação;
   const semVisual = comCriterio(construir({ descricao: 'Escreva o roteiro de uma apresentação de 5 slides', operacao: { canais: [], ferramentas: [], entregaveis: [{ id: 'e1', tipo: 'texto', rotulo: 'Roteiro' }], origem: 'pessoa' } }));
   assert.deepEqual(lerVeredito(semVisual, veredito).falhas, ['completo']);
 });
+
+test('conferente: motivo que confirma o resultado ("está correto", "cálculo legítimo") ou só pede ênfase não reprova', () => {
+  const e = construir({ descricao: 'Some as vendas do trimestre por região' });
+  const id = e.criterios_qualidade[0].id;
+  const v = m => lerVeredito(e, JSON.stringify({ criterios: [{ id, ok: false, motivo: m }] }));
+  for (const m of ['Total 2.110; soma: 710+715+685 = 2.110. Verificação: está correto.', 'A data 31/10/2027 foi calculada, o que é correto, mas o ano não estava explícito.', 'Embora seja cálculo legítimo, falta o ano.', 'Os marcos deveriam estar mais enfatizados.'])
+    assert.deepEqual(v(m).falhas, [], m);
+  assert.equal(v('O valor de R$ 9.999 não está na entrada.').falhas.length, 1);
+});

@@ -118,7 +118,7 @@ export const MAX_ENTRADAS = 5, MAX_ETAPAS = 10, MAX_LACUNAS = 4, MAX_SUGESTOES =
 // Win ou no cache) deixam de valer e são interpretados de novo. v2: restrições e a explicação de como se faz hoje
 // não viram entregáveis (planos v1 de Quick Wins de conteúdo traziam essas seções espúrias).
 // v3: entregável pode pedir um artefato visual pronto (produção visual).
-export const VERSAO_INTERPRETACAO = 4;
+export const VERSAO_INTERPRETACAO = 5;
 export const chaveInterpretacao = (descricao, processo = '') => createHash('sha256').update(`${VERSAO_INTERPRETACAO}:${limpar(descricao, 1000)}\n${limpar(processo, 3000)}`).digest('hex').slice(0, 32);
 const idDe = (s, max = 30) => norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, max);
 

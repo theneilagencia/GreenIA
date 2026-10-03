@@ -12,8 +12,18 @@ export const FONTES_FALSAS = [{ url: 'https://noticias.exemplo/mineracao-segura'
 // imagem: função opcional (corpo) => data URL da imagem gerada (geração de imagem, sem streaming); null => 500.
 // Sem ela, um pedido de imagem recebe uma imagem PNG pequena.
 export const PNG_FALSO = `data:image/png;base64,${Buffer.from(new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><defs><linearGradient id="g"><stop offset="0" stop-color="#2E7D4F"/><stop offset="1" stop-color="#9AD1B0"/></linearGradient></defs><rect width="640" height="400" fill="url(#g)"/><circle cx="420" cy="180" r="120" fill="#fff" opacity=".35"/></svg>').render().asPng()).toString('base64')}`;
-export async function openRouterFalso({ modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null, imagem = null } = {}) {
-  const chamadas = [], autorizacoes = [];
+// Revisão dos achados da conferência (segunda leitura): por padrão o "modelo" confirma todos os achados, com um trecho
+// que existe no resultado — os testes antigos continuam com a mesma semântica. `revisao(b)` troca esse comportamento.
+const conteudo = c => (typeof c === 'string' ? c : (c || []).map(p => p.text).join('\n'));
+export const ehRevisao = b => conteudo(b.messages?.[0]?.content).includes('revisor da conferência');
+export function confirmarAchados(b) {
+  const u = conteudo(b.messages.at(-1).content);
+  const resultado = (/<resultado[^>]*>\n([\s\S]*?)\n<\/resultado>/.exec(u)?.[1] || '').split('\n').find(l => l.trim()) || '';
+  const ids = [...u.matchAll(/^- ([a-z_0-9]+) \(/gm)].map(m => m[1]);
+  return JSON.stringify({ achados: ids.map(id => ({ id, confirmado: true, trecho: resultado.trim().slice(0, 40), prova: 'confirmado no teste' })) });
+}
+export async function openRouterFalso({ revisao = confirmarAchados, modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null, imagem = null } = {}) {
+  const chamadas = [], autorizacoes = [], revisoes = [];
   const srv = createServer(async (req, res) => {
     if (chave && req.headers.authorization !== `Bearer ${chave}`) { res.writeHead(401, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'No auth credentials found' } })); }
     if (req.url.endsWith('/models')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data: modelos })); }
@@ -22,7 +32,7 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
     let corpo = '';
     for await (const c of req) corpo += c;
     const b = JSON.parse(corpo);
-    chamadas.push(b);
+    (ehRevisao(b) ? revisoes : chamadas).push(b);
     autorizacoes.push(req.headers.authorization || null);
     if (b.modalities?.includes('image')) {
       const url = imagem ? imagem(b) : PNG_FALSO;
@@ -38,7 +48,7 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     res.write(': OPENROUTER PROCESSING\n\n');
     const ultima = b.messages.filter(m => m.role === 'user').at(-1)?.content || '';
-    const roteiro = responder?.(b);
+    const roteiro = ehRevisao(b) && revisao ? revisao(b) : responder?.(b);
     for (const parte of roteiro != null ? [roteiro] : [`Resposta de ${respondeu}`, ` para: ${String(ultima).slice(0, 40)}`]) {
       res.write(`data: ${JSON.stringify({ model: respondeu, provider: fornecedor, choices: [{ delta: { content: parte } }] })}\n\n`);
     }
@@ -51,7 +61,7 @@ export async function openRouterFalso({ modelos = [], falhar = new Set(), custo 
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/v1`;
-  return { chamadas, autorizacoes, base, falhar, set responder(f) { responder = f; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
+  return { chamadas, revisoes, autorizacoes, base, falhar, set responder(f) { responder = f; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.

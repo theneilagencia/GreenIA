@@ -791,7 +791,7 @@ export function rotasConversas(app, r) {
     // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.
     if (visuais && artefatos.some(a => a.imagem_final && !a.imagem_final.gerada) && ['aprovado', 'corrigido'].includes(registroQualidade.status)) {
       registroQualidade.status = 'parcial';
-      registroQualidade.objetivo = { atingido: false, motivo: 'imagem_nao_gerada' };
+      registroQualidade.objetivo = { atingido: false, motivo: 'imagem_nao_gerada', imagem_motivo: artefatos.find(a => a.imagem_final && !a.imagem_final.gerada)?.imagem_final?.motivo || null };
     }
     if (registroQualidade?.visual?.nao_guardado) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o artefato visual não foi gerado.');
     if (registroQualidade) exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
@@ -801,7 +801,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
-      ...(registroQualidade ? { qualidade: resumoQualidade(registroQualidade) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
+      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
     res.end();
   }
 }
@@ -817,7 +817,7 @@ export function detalhe(app, c, pessoa = null) {
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
     mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa, r.qualidade as rota_qualidade from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
-      .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: resumoQualidade(json(rota_qualidade, {})) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
+      .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: resumoQualidade({ ...json(rota_qualidade, {}), quick_win: c.quick_win_id }) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         ...(artefatos.some(a => a.mensagem_id === m.id) ? { artefatos: artefatos.filter(a => a.mensagem_id === m.id) } : {}),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
         rota_explicacao_simples: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null,

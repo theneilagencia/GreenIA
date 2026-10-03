@@ -15,6 +15,7 @@ export const irPara = hash => { if (location.hash === hash) rota(); else locatio
 export const ehAdmin = () => !!E.eu?.admin;
 // Permissão granular (multiempresa); na instalação única, as telas de gestão são do admin.
 export const pode = perm => (E.permissoes ? E.permissoes.includes(perm) : ehAdmin());
+window.__greeniaPode = pode;   // telas que não importam este módulo (avisos com ação) consultam a permissão
 export const ehGestor = () => ehAdmin() || E.eu?.areas.some(a => a.responsavel) || !!E.podeCriarQw;
 
 function iniciais(p) {
@@ -232,7 +233,9 @@ async function rota() {
   lembreteAoSair();
   const fimTransicao = transicao();
   $('lateral').classList.remove('aberta');
-  const h = location.hash;
+  // Link direto para um campo ("?foco=<id>", vindo de um aviso com ação): a tela abre e o campo fica em destaque.
+  const [h, consulta = ''] = location.hash.split('?');
+  const foco = /^foco=([a-z0-9-]+)$/.exec(consulta)?.[1] || null;
   // Administração: quem autoriza é o servidor. Quem não administra pergunta a ele (e recebe 403) antes de
   // qualquer tela da administração ser desenhada; a recusa leva de volta ao uso normal.
   if (ROTAS_ADMIN.test(h)) {
@@ -258,6 +261,17 @@ async function rota() {
   }
   desenharLateral();
   fimTransicao();
+  if (foco) destacarCampo(foco);
+}
+// O campo pode ser desenhado depois (telas que carregam dados): tenta por alguns segundos.
+function destacarCampo(id, tentativas = 30) {
+  const el = document.getElementById(id);
+  if (!el) { if (tentativas > 0) setTimeout(() => destacarCampo(id, tentativas - 1), 200); return; }
+  const alvo = el.closest('label, .campo, section, .grupo-form') || el;
+  alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  alvo.classList.add('campo-destacado');
+  setTimeout(() => alvo.classList.remove('campo-destacado'), 4000);
+  (el.matches('input, select, textarea, button, a') ? el : el.querySelector('input, select, textarea, button, a'))?.focus({ preventScroll: true });
 }
 
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.

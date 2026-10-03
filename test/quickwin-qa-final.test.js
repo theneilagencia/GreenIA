@@ -46,3 +46,51 @@ test('conferente: datas sem ano nos dois sentidos, reformulação e aproximaçã
   assert.deepEqual(v.falhas, []);
   assert.equal(v.leves.length, 1);
 });
+
+// QF-04: revisão dos achados do conferente (segunda leitura com o trecho exato).
+import { aplicarRevisao, conferirComCorrecao, mensagensRevisao, PROMPT_REVISAO } from '../src/quickwin-construtor.js';
+const IA = { falhas: ['invencao', 'completo'], achados: [{ id: 'nao_inventar', grupo: 'invencao', criterio: 'Não inventa.', motivo: 'ano inferido' }, { id: 'completo', grupo: 'completo', criterio: 'Completo.', motivo: 'faltou X' }],
+  motivos: ['m1', 'm2'], razoes: [{ grupo: 'invencao', motivo: 'm1' }, { grupo: 'completo', motivo: 'm2' }], leves: [] };
+const RES = '| Etapa | Início |\n|---|---|\n| Levantamento | 01/10/2026 |';
+test('revisão: só achado confirmado com trecho real reprova; não confirmado, trecho inexistente ou invenção sem trecho viram observação', () => {
+  const r1 = aplicarRevisao(IA, JSON.stringify({ achados: [{ id: 'nao_inventar', confirmado: false }, { id: 'completo', confirmado: true, trecho: '', prova: 'falta X' }] }), RES);
+  assert.deepEqual(r1.falhas, ['completo']);
+  assert.equal(r1.revisados, 1);
+  const r2 = aplicarRevisao(IA, JSON.stringify({ achados: [{ id: 'nao_inventar', confirmado: true, trecho: 'Etapa inventada 2099' }] }), RES);
+  assert.deepEqual(r2.falhas, [], 'trecho que não existe no resultado não sustenta o achado');
+  const r3 = aplicarRevisao(IA, JSON.stringify({ achados: [{ id: 'nao_inventar', confirmado: true, trecho: '' }] }), RES);
+  assert.deepEqual(r3.falhas, [], 'invenção precisa do trecho');
+  const r4 = aplicarRevisao(IA, JSON.stringify({ achados: [{ id: 'nao_inventar', confirmado: true, trecho: 'Levantamento | 01/10/2026' }] }), RES);
+  assert.deepEqual(r4.falhas, ['invencao']);
+  assert.equal(aplicarRevisao(IA, 'não sei', RES), null, 'revisão ilegível: nada muda');
+  assert.match(mensagensRevisao({ entrada: 'e', resultado: RES, achados: IA.achados })[1].content, /- nao_inventar \(invencao\)/);
+  assert.match(PROMPT_REVISAO, /cálculo correto com a entrada, data ou ano que decorre do material/);
+});
+test('revisão no fluxo: falso positivo do conferente não reprova; revisão que falha mantém o achado', async () => {
+  const espec = construir({ descricao: 'Crie uma timeline do projeto com as etapas e datas' });
+  const ids = espec.criterios_qualidade.map(c => c.id);
+  const qcFalha = JSON.stringify({ criterios: ids.map(id => ({ id, ok: id !== 'nao_inventar', motivo: 'ano inferido' })), objetivo_atingido: true });
+  const qcOk = JSON.stringify({ criterios: ids.map(id => ({ id, ok: true })), objetivo_atingido: true });
+  const mk = revisao => { let qc = 0; return async m => { const s = String(m[0].content); if (s.includes('revisor da conferência')) { if (revisao === 'erro') throw new Error('falhou'); return { texto: revisao }; }
+    if (s.includes('conferente de qualidade')) return { texto: qc++ ? qcOk : qcFalha }; return { texto: RES2 }; }; };
+  const RES2 = `${(espec.operacao?.entregaveis || []).map(e => `## ${OP.rotuloEntregavel(e)}\n${RES}`).join('\n\n') || RES}\n\n${(espec.formato_saida.secoes || []).map(x => `## ${x}\n- Nenhuma`).join('\n\n')}`;
+  const base = { espec, resposta: RES2, entrada: 'levantamento 01/10 a 15/10; produção 02/02/2027', mensagens: [{ role: 'system', content: 'x' }, { role: 'user', content: 'y' }] };
+  const a = await conferirComCorrecao({ ...base, chamar: mk(JSON.stringify({ achados: [{ id: 'nao_inventar', confirmado: false, prova: 'o ano decorre do material' }] })) });
+  assert.equal(a.registro.status, 'aprovado', JSON.stringify(a.registro));
+  assert.ok(a.registro.observacoes?.some(o => /não confirmado/.test(o)));
+  const b = await conferirComCorrecao({ ...base, chamar: mk('erro') });
+  assert.equal(b.registro.status, 'corrigido', 'achado mantido → correção');
+});
+
+// Aviso causado por configuração leva o link da tela onde se libera (pedido do responsável em produção).
+import { acoesDoAviso, resumoQualidade } from '../src/quickwin-construtor.js';
+test('avisos de configuração trazem a ação: pesquisa, imagem, fonte obrigatória; motivo que não é configuração não traz', () => {
+  const p = resumoQualidade({ status: 'parcial', pesquisa: { exigida: true, feita: false, motivo: 'nao_liberada' } });
+  assert.deepEqual(p.acoes.map(a => [a.href, a.permissao]), [['#/politicas?foco=pesquisa-web', 'policy.manage']]);
+  assert.ok(p.avisos.some(a => /pesquisa na internet não foi feita/.test(a)));
+  assert.equal(resumoQualidade({ status: 'parcial', pesquisa: { exigida: true, feita: false, motivo: 'sigilosa' } }).acoes, undefined, 'sigilo não é configuração a liberar');
+  assert.deepEqual(acoesDoAviso({ objetivo: { motivo: 'imagem_nao_gerada', imagem_motivo: 'nao_liberado' } }).map(a => a.href), ['#/configuracoes?foco=iv-imagens']);
+  assert.deepEqual(acoesDoAviso({ objetivo: { motivo: 'imagem_nao_gerada', imagem_motivo: 'area_reforcada' } }), []);
+  const f = acoesDoAviso({ fontes: { obrigatorias_falharam: [{ titulo: 'Conhecimento da empresa', motivo: 'Nenhum trecho' }] }, quick_win: 7 });
+  assert.deepEqual(f.map(a => a.href), ['#/conhecimento', '#/qw/7/editar?foco=fontes-qw']);
+});

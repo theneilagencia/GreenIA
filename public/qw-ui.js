@@ -74,7 +74,17 @@ export function progressoExecucao(etapa) {
 // ---- Conferência de qualidade -------------------------------------------------------------------------------
 // aprovado/corrigido: positivo e discreto. parcial: neutro, nunca linguagem de aprovação. inconsistente: pontos
 // para revisar, com o resultado atrás de "Ver resultado". pergunta: nada (não houve resultado a conferir).
-export const painelQualidade = (q, ...r) => painelQualidadeBase(q, ...r) + (q && q.status !== 'pergunta' ? htmlFontesUsadas(q) : '');
+export const painelQualidade = (q, ...r) => painelQualidadeBase(q, ...r) + (q && q.status !== 'pergunta' ? htmlAcoes(q) + htmlFontesUsadas(q) : '');
+// Ações dos avisos causados por configuração: link para a tela (e o campo) onde se libera ou ajusta. Quem não tem a
+// permissão vê onde pedir. 'quick_win': quem gere o Quick Win (a própria tela confere).
+function htmlAcoes(q) {
+  const acoes = q?.acoes || [];
+  if (!acoes.length) return '';
+  const podeMudar = a => !a.permissao || a.permissao === 'quick_win' || (window.__greeniaPode ? window.__greeniaPode(a.permissao) : false);
+  return `<div class="qc-acoes">${acoes.map(a => podeMudar(a)
+    ? `<a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>`
+    : `<p class="dica">Para resolver, peça a quem administra a empresa: ${esc(a.onde)}.</p>`).join('')}</div>`;
+}
 function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = '' } = {}) {
   if (!q || q.status === 'pergunta') return '';
   if (q.status === 'aprovado' || q.status === 'corrigido') {

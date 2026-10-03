@@ -3,6 +3,7 @@
 // o resultado certo e a correção recolocou Status. Aqui um "modelo" falso reproduz esse comportamento: o conferente
 // exige todo campo que encontra no texto que recebe (inclusive no objetivo) e a correção acrescenta a coluna que o
 // conferente disser que faltou. O que o código consegue comparar passa a ser conferido só pelo código.
+import { confirmarAchados } from './openrouter-falso.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../src/quickwin-construtor.js';
@@ -28,8 +29,9 @@ function modelo({ semantica = false, teimosa = false, acrescenta = false } = {})
   const chamadas = [];
   let regraFalhou = false;
   const chamar = async msgs => {
-    chamadas.push(msgs);
     const sis = texto(msgs[0]);
+    if (sis.includes('revisor da conferência')) return { texto: confirmarAchados({ messages: msgs }) };
+    chamadas.push(msgs);
     if (sis.includes('conferente de qualidade')) {
       const pedidos = [...new Set(sis.match(CAMPOS) || [])];
       const cab = cabecalho(texto(msgs[1]).split('<resultado')[1] || '');

@@ -97,3 +97,28 @@ for (const [largura, email] of [[1280, 'lia'], [390, 'w390']]) {
     await ctx.close();
   });
 }
+
+test('aviso de configuração com link: "Liberar a pesquisa na internet" leva a Políticas com o campo em destaque', async () => {
+  const admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');
+  const area = (await admin.get('/api/admin/areas')).dados;
+  const areaId = (Array.isArray(area) ? area : area.areas)[0].id;
+  const q = (await admin.post('/api/quick-wins', { assistente: { descricao: 'Pesquise na internet as tendências do setor de viagens corporativas',
+    operacao: { canais: [], entregaveis: [{ id: 'e1', tipo: 'resumo', rotulo: 'Tendências' }], ferramentas: ['pesquisa_web'], origem: 'pessoa' } }, areas: [areaId] })).dados;
+  const ctx = await N.navegador.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const p = await N.entrar('admin@empresa-exemplo.com.br', await ctx.newPage());
+  assert.equal((await admin.post(`/api/quick-wins/${q.id}/publicar`, {})).status, 200);
+  await p.goto(`${N.base}/app#/qw/${q.id}/usar`);
+  await p.waitForSelector('#entrada-qw');
+  await p.fill('#entrada-qw', 'Faça o levantamento.');
+  await p.click('#executar-btn');
+  const link = p.locator('.qc-acoes a:has-text("Liberar a pesquisa na internet")');
+  await link.waitFor({ timeout: 30000 });
+  assert.equal(await link.getAttribute('href'), '#/politicas?foco=pesquisa-web');
+  await link.click();
+  await p.waitForSelector('.campo-destacado #pesquisa-web, #pesquisa-web');
+  await p.waitForFunction(() => document.activeElement?.id === 'pesquisa-web' && !!document.querySelector('.campo-destacado'));
+  await p.waitForTimeout(900);
+  await p.screenshot({ path: 'capturas/tmp/aviso-link-politicas.png' });
+  await ctx.close();
+});

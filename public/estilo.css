@@ -1624,3 +1624,5 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .fonte-item .principal-texto{display:flex;flex-direction:column;gap:2px}
 .fonte-item .principal-texto b{text-transform:none;letter-spacing:0;font-size:14px}
 .fontes>p.dica:last-child{line-height:1.5}
+.qc-acoes{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.campo-destacado{outline:3px solid var(--verde, #2f7d4f);outline-offset:4px;border-radius:6px;transition:outline-color .4s}

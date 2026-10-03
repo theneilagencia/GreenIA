@@ -95,6 +95,9 @@ export const FERRAMENTAS = {
 const PESQUISA_COMO_MATERIAL = new RegExp([
   '\\b(respostas?|resultados?|dados|planilha|questionarios?|formularios?|tabulacao|base)\\s+d[aeo]s?\\s+pesquisas?\\b',
   '\\b(est[ae]s?|ess[ae]s?|nest[ae]s?|ness[ae]s?|dest[ae]s?|dess[ae]s?|aquel[ae]s?)\\s+pesquisas?\\b',
+  // "pesquisa de clima", "se houver pesquisa de satisfação, use-a": o tipo de pesquisa é um documento interno.
+  '\\bpesquisas?\\s+de\\s+(clima|satisfacao|opiniao|engajamento|nps|cultura|desligamento|reacao|avaliacao)\\b',
+  '\\bse (houver|tiver|existir) (uma |a |alguma )?pesquisas?\\b',
   '\\bpesquisas?\\s+(anexad[ao]s?|em anexo|enviad[ao]s?|recebid[ao]s?|interna|internas|ja feita|realizada|realizadas)\\b',
   '\\b(revis\\w*|corrij\\w*|corrig\\w*|leia|ler|resum\\w*|avali\\w*|analis\\w*|confir\\w*|melhor\\w*|formate|formatar|padroniz\\w*|traduz\\w*)\\s+(a|as|o|os|minha|nossa)?\\s*pesquisas?\\b',
 ].join('|'));

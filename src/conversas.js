@@ -709,7 +709,10 @@ export function rotasConversas(app, r) {
       // O bloco de dados para as integrações sai antes da conferência (não é parte do texto entregue).
       let dadosInteg = {};
       if (integ) { const l = limparResposta(resposta); resposta = l.texto; dadosInteg = l.dados; }
-      const entradaQc = [...ctx.partes, ...(notas ? [delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)] : []), ...h.mensagens.map(x => x.content)].join('\n\n').slice(-30000);
+      // Contexto autorizado que a execução também recebeu (responsáveis do Quick Win, na persona): o conferente
+      // precisa dele para não marcar como inventado um nome que veio daí.
+      const resp = responsaveis(app, pessoa, qw);
+      const entradaQc = [...ctx.partes, ...(notas ? [delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)] : []), ...h.mensagens.map(x => x.content)].join('\n\n').slice(-29000) + (resp.length ? `\n\nResponsáveis deste Quick Win (contexto autorizado): ${resp.join('; ')}` : '');
       if (fontesWeb.length) registrar(app, 'quickwin.tool_used', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, ferramenta: 'pesquisa_web', fontes: fontesWeb.length, roteamento: rotaId });
       // Correções também podem trazer o bloco de dados das integrações: sai do texto e os dados mais recentes valem.
       const chamarQc = !integ ? chamar : async m => { const r = await chamar(m); const l = limparResposta(r.texto); if (Object.keys(l.dados).length) dadosInteg = l.dados; return { ...r, texto: l.texto }; };

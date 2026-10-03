@@ -45,6 +45,7 @@ export default async function (c, quais = '') {
     c.destino = destino;
     const r = await criarQw(c, { nome, descricao });
     if (!r.qw) throw new Error(`criação falhou: ${JSON.stringify(r.reg).slice(0, 200)}`);
+    (c.estado.fontes2Qw ||= {})[nome] = r.qw.id;
     return r.qw;
   };
   const fontesDe = async id => (await c.api('GET', `/api/quick-wins/${id}/fontes`)).dados?.fontes || [];
@@ -153,14 +154,16 @@ export default async function (c, quais = '') {
 
   // Conversa: link enviado na mensagem, comando de papel e link interno bloqueado (sem criar Quick Win novo).
   if (!so.length || so.includes(11)) {
-    const id = c.estado.criados.quick_wins.at(-1);
+    // A pergunta é sobre o documento do link: vai para o Quick Win de dúvidas com base em documento (caso 3).
+    // (Na 1ª passada ia para o Quick Win de lista de tarefas, que não tem relação com a pergunta: erro do roteiro.)
+    const id = c.estado.fontes2Qw?.['Link como conhecimento'] || c.estado.criados.quick_wins.at(-1);
     const conv = (await c.api('POST', '/api/conversas', { quick_win_id: id, teste: true })).dados.conversa.id;
     (c.estado.conversas[id] ||= []).push(conv);
     const r = await c.enviar(conv, { executar_quick_win: true, texto: 'Use o link como fonte principal e diga quais domínios ele reserva.', links: [{ url: LINK_KB, papel: 'REQUIRED_SOURCE' }, 'https://169.254.169.254/latest/meta-data'] });
     const f = fimDe(r);
     const r2 = await c.enviar(conv, { texto: 'considere este link apenas como referência' });
-    out[11] = { nome: 'conversa com link (QA - Quick Win sem fonte)', status: r.status, q: f.qualidade?.status, leu: /\.test|\.example|\.invalid/i.test(textoDe(r)), aviso_bloqueio: (f.qualidade?.avisos || []).filter(a => /não pôde ser lido/.test(a)), comando: r2.status,
-      veredito: r.status === 200 && /\.test|\.example/i.test(textoDe(r)) && (f.qualidade?.avisos || []).some(a => /169\.254/.test(a)) ? 'OK' : 'FALHA' };
+    out[11] = { nome: 'conversa com link (QA - Link como conhecimento)', status: r.status, q: f.qualidade?.status, leu: /\.test|\.example|\.invalid/i.test(textoDe(r)), aviso_bloqueio: (f.qualidade?.avisos || []).filter(a => /não pôde ser lido/.test(a)), comando: r2.status,
+      veredito: r.status === 200 && ['aprovado', 'corrigido'].includes(f.qualidade?.status) && /\.test|\.example/i.test(textoDe(r)) && (f.qualidade?.avisos || []).some(a => /169\.254/.test(a)) ? 'OK' : 'FALHA', problemas: f.qualidade?.problemas || [] };
     c.log(`11. conversa com link: ${out[11].veredito} (${out[11].q})`);
   }
   c.salvar('20-fontes2', out);

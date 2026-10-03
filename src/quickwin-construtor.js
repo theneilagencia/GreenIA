@@ -684,7 +684,7 @@ export function promptQualidade(espec) {
     // QA profundo em produção: o conferente reprovava cálculo correto feito com os números da entrada, seção a mais
     // sem fato novo e o ano óbvio das datas do material.
     'Material marcado como REFERÊNCIA serve só de modelo de estilo, estrutura e linguagem: nome, número, data, cliente ou condição do resultado que só existe na referência é invenção. Fonte obrigatória precisa ter sido usada no que for relevante.',
-    'Não é invenção: cálculo correto feito com os números da entrada (soma, diferença, percentual, variação, total, ordenação) e o ano que o próprio material deixa claro. Seção ou observação a mais, sem fato novo, não reprova o resultado. Marque falha de invenção só para nome, número, data, valor ou fato que não dá para tirar da entrada.',
+    'Não é invenção: cálculo correto feito com os números e as datas da entrada (soma, diferença, percentual, variação, total, ordenação, duração em dias ou semanas entre duas datas do material, data de fim de uma etapa que começa quando a anterior termina) e o ano que o próprio material deixa claro (datas sem ano: o ano corrente). Coluna ou campo derivado assim também não é invenção. Seção ou observação a mais, sem fato novo, não reprova o resultado. Marque falha de invenção só para nome, número, data, valor ou fato que não dá para tirar da entrada.',
     ...(e.acoes_externas?.length ? [`Ações em sistemas externos (${e.acoes_externas.join('; ')}) são executadas pela GreenIA DEPOIS desta conferência, sob a política da empresa e com aprovação quando exigida. Não exija que o resultado diga que a ação foi feita, nem marque falha por ela não estar feita: confira só o conteúdo que vai alimentar a ação.`] : []),
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
@@ -705,7 +705,10 @@ export function lerVeredito(espec, texto) {
   for (const c of d.criterios) {
     const crit = porId.get(String(c?.id)) || (REGRAS[String(c?.id)] ? { id: String(c.id), grupo: REGRAS[c.id].grupo, texto: REGRAS[c.id].criterio, leve: REGRAS_LEVES.has(String(c.id)) } : null);
     if (!crit || c.ok !== false) continue;
-    if (crit.leve || REGRAS_LEVES.has(crit.id)) { leves.push(c.motivo ? limpar(c.motivo, 200) : `Critério não atendido: ${limpar(crit.texto, 200)}`); continue; }
+    // Número de slides/páginas de uma peça visual é conferido pela produção visual (que monta as páginas), não
+    // pelo texto: aqui vira observação, nunca reprovação.
+    const contagemVisual = (espec.operacao?.entregaveis || []).some(x => x.visual) && /\b(slides?|p[aá]ginas?|telas|l[aâ]minas|cards)\b/i.test(`${crit.texto} ${c.motivo || ''}`) && /\b(exatamente|\d+|n[uú]mero|quantidade|divid)/i.test(`${crit.texto} ${c.motivo || ''}`);
+    if (crit.leve || REGRAS_LEVES.has(crit.id) || contagemVisual) { leves.push(c.motivo ? limpar(c.motivo, 200) : `Critério não atendido: ${limpar(crit.texto, 200)}`); continue; }
     falhas.push(crit.grupo);
     // Falha sempre com motivo: o do conferente, ou (sem ele) o critério que não foi atendido.
     motivos.push(`${crit.texto}${c.motivo ? ` (${limpar(c.motivo, 200)})` : ''}`);

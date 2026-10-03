@@ -43,6 +43,7 @@ function roteiro(b) {
   if (ehConferencia(b)) { const ids = [...JSON.stringify(b.messages[0].content).matchAll(/- ([a-z_0-9]+): /g)].map(m => m[1]); return JSON.stringify({ criterios: ids.map(id => ({ id, ok: true })), objetivo_atingido: true }); }
   if (ehCorrecao(b)) return USA;
   const sis = JSON.stringify(b.messages[0].content);
+  if (modo === 'imagem_longa') return '## Imagem final\nTítulo: Novo Horário de Atendimento\n\n### Página 1\n- O atendimento mudou\n- Novo horário: segunda a sábado, das 8h às 20h\n- Vigência: a partir de 1º de novembro\n- Venha nos visitar\n- Chamada: Conheça nosso novo horário\n\n- #Atendimento #Loja #Novidade #Horario #Cliente #Equipe #Comercio #Funcionamento';
   if (modo === 'imagem') return '## Imagem final\nTítulo: Lançamento da linha Verde\n### Chamada\n- Conheça a nova linha sustentável.\nChamada: Saiba mais';
   return { usa_fonte: USA, ignora: IGNORA, copia: COPIA_REFERENCIA }[modo] || USA;
 }
@@ -268,6 +269,19 @@ test('conhecimento da empresa como fonte (papel próprio); escolher documento in
   }
 });
 
+test('conhecimento da empresa na execução: trecho da base entra com o papel e aparece em "Fontes usadas"', async () => {
+  const d = await admin.post('/api/bases/documentos', { toda_empresa: true, titulo: 'Manual de diárias da empresa', arquivo: arquivo('manual.txt', Buffer.from('Manual de diárias da empresa. Hospedagem até R$ 410 por noite em capitais. Reembolso em 12 dias úteis.')) });
+  assert.equal(d.status, 200, JSON.stringify(d.dados));
+  const q = await criarQw();
+  await ana.put(`/api/quick-wins/${q.id}/fontes/base`, { papel: 'REQUIRED_SOURCE' });
+  modo = 'usa_fonte';
+  const antes = OR.chamadas.length;
+  const r = await executar(q.id, { texto: 'Qual o limite de hospedagem em capitais e o prazo de reembolso?' });
+  assert.match(JSON.stringify(OR.chamadas.slice(antes)[0].messages[0].content), /Manual de diárias da empresa/);
+  assert.ok(r.fim.qualidade.fontes.usadas.some(u => u.tipo === 'company_knowledge'), JSON.stringify(r.fim.qualidade.fontes));
+  assert.ok(['aprovado', 'corrigido'].includes(r.fim.qualidade.status));
+});
+
 test('H/I. multiempresa e acesso: quem não gere o Quick Win não lista, não lê nem muda as fontes (sem revelar)', async () => {
   const q = await criarQw();
   await ana.post(`/api/quick-wins/${q.id}/arquivos`, { arquivo: arquivo('x.txt', Buffer.from('Conteúdo fictício da Ana.')) });
@@ -323,6 +337,21 @@ test('Imagem final: com gerador, a imagem é gerada e a peça sai pronta (PNG/JP
   assert.equal(g.dados.artefato.imagem_final.gerada, true);
   // Outra pessoa não gera imagem na peça de quem executou (IDOR).
   assert.equal((await carlos.post(`/api/artefatos/${art.id}/gerar-imagem`, {})).status, 404);
+});
+
+test('Imagem final com texto mais longo: nova imagem e variação recompõem sem cortar (mesmo ajuste da execução)', async () => {
+  const q = (await ana.post('/api/quick-wins', { assistente: { descricao: 'Gere a imagem final de um post quadrado anunciando o novo horário', operacao: { entregaveis: [{ id: 'e1', tipo: 'imagem_final', rotulo: 'Post quadrado' }], canais: [], ferramentas: [], origem: 'pessoa' } }, areas: [A.id] })).dados;
+  modo = 'imagem_longa';
+  const r = await executar(q.id, { texto: 'Novo horário (fictício): segunda a sábado, das 8h às 20h.' });
+  const art = r.fim.artefatos[0];
+  assert.equal(art.imagem_final.gerada, true);
+  let id = art.id;
+  for (const variacao of [true, false]) {
+    const g = await ana.post(`/api/artefatos/${id}/gerar-imagem`, { variacao });
+    assert.equal(g.status, 200, JSON.stringify(g.dados));
+    id = g.dados.artefato.id;
+  }
+  assert.equal((await ana.post(`/api/artefatos/${art.id}/gerar-imagem`, {})).status, 409, 'versão antiga não é editada');
 });
 
 test('Imagem final sem gerador: parcial, com briefing da imagem; nunca aprovada como imagem', async () => {

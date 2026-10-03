@@ -219,7 +219,10 @@ function novaVersao(app, pessoa, a, { conteudo, plano, opcoes, identidade, titul
   const assets = carregarAssets(app, a.conversa_id, opcoes.assets);
   const { escala, colunas, colunasTentadas, ...resto } = opcoes;
   void escala; void colunas; void colunasTentadas;
-  const r = produzir({ plano, conteudo, identidade, tr, assets, opcoes: resto, textosLivres: [titulo] });
+  let r = produzir({ plano, conteudo, identidade, tr, assets, opcoes: resto, textosLivres: [titulo] });
+  // Só a imagem mudou (nova imagem, variação, foto enviada): o conteúdo é o mesmo, então o ajuste que a composição
+  // anterior encontrou (escala do texto, colunas) continua valendo quando o recomeço do zero cortaria o texto.
+  if (corta(r) && campos.every(c => c === 'imagem')) r = produzir({ plano, conteudo, identidade, tr, assets, opcoes, textosLivres: [titulo] });
   // Edição que faria uma peça de página única cortar conteúdo não é gravada (a restauração devolve o que existia).
   if (!r.plano.multipagina && corta(r) && !campos.includes('restauracao')) throw erro(422, 'nao_cabe', 'Com essa mudança o conteúdo não cabe inteiro na página sem cortar. Escolha outro formato ou tire parte do texto.');
   const q = json(a.qualidade, {});

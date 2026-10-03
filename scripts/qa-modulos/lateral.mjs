@@ -21,25 +21,26 @@ export default async function (c) {
     const ctx = await nav.newContext({ viewport: { width: 1280, height: 800 } });
     await ctx.addCookies(c.cookiesNavegador());
     const p = await ctx.newPage(); const erros = []; p.on('pageerror', e => erros.push(e.message.slice(0, 200)));
-    for (const [largura, altura] of [[1280, 800], [1440, 900]]) {
+    for (const [largura, altura] of [[1280, 800], [1440, 900], [1280, 600]]) {
       await p.setViewportSize({ width: largura, height: altura });
       await p.goto(`${c.BASE}/app#/nova`, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {});
       await p.waitForSelector('#lateral .item-lat.item-principal', { timeout: 30000 });
       const r = await ler(p);
       r.qwVisivel = await visivel(p, '#lateral [data-item="quick-wins"]'); r.conhecimentoVisivel = await visivel(p, '#lateral [data-item="conhecimento"]');
-      out.telas.push({ largura, ...r }); await p.screenshot({ path: `${pasta}/lateral-${largura}.png` });
+      r.conversasVisivel = await visivel(p, '#lateral [data-item="conversas"]'); r.adminVisivel = await visivel(p, '#lateral [data-item="administracao"]'); r.verTodasVisivel = await visivel(p, '#lateral .ver-todas');
+      out.telas.push({ tela: `${largura}x${altura}`, ...r }); await p.screenshot({ path: `${pasta}/lateral-${largura}x${altura}.png` });
     }
     // Estados ativos nas rotas (sem criar nada).
     out.ativos = {};
     const qw = (await c.api('GET', '/api/quick-wins')).dados;
-    const umQw = (qw?.quick_wins || qw?.itens || qw || [])[0]?.id;
+    const umQw = (qw?.quickWins || [])[0]?.id;
     const hashes = ['#/quick-wins', '#/qw/nova', ...(umQw ? [`#/qw/${umQw}`, `#/qw/${umQw}/ajustar`] : []), '#/conhecimento', '#/conversas'];
-    for (const h of hashes) { await p.goto(`${c.BASE}/app${h}`); await p.waitForTimeout(1500); out.ativos[h] = (await ler(p)).ativo; }
+    for (const h of hashes) { await p.goto(`${c.BASE}/app${h}`); await p.waitForTimeout(600); out.ativos[h] = (await ler(p)).ativo; }
     // "Ver todas" → lista existente.
     await p.goto(`${c.BASE}/app#/nova`); await p.waitForTimeout(1500);
     if (await p.locator('#lateral .ver-todas').count()) {
       await p.click('#lateral .ver-todas'); await p.waitForURL(/#\/conversas$/, { timeout: 15000 });
-      await p.waitForSelector('.lista .lista-item', { timeout: 20000 }).catch(() => {});
+      await p.waitForFunction(() => document.querySelector('#principal h1')?.textContent.trim() === 'Conversas' && document.querySelector('.lista .lista-item'), null, { timeout: 30000 }).catch(() => {});
       out.verTodas = { url: p.url().replace(/^.*#/, '#'), itens: await p.locator('.lista .lista-item').count() };
       await p.screenshot({ path: `${pasta}/ver-todas.png` });
     }
@@ -48,14 +49,15 @@ export default async function (c) {
     await p.click('#lateral [data-item="quick-wins"]'); await p.waitForURL(/#\/quick-wins$/, { timeout: 15000 });
     out.cliqueQuickWins = p.url().replace(/^.*#/, '#');
     // Celular e tablet: menu aberto.
-    for (const largura of [320, 390, 768]) {
-      await p.setViewportSize({ width: largura, height: 740 });
-      await p.goto(`${c.BASE}/app#/nova`); await p.waitForTimeout(1500);
+    for (const [largura, altura] of [[320, 568], [320, 740], [390, 844], [768, 1024]]) {
+      await p.setViewportSize({ width: largura, height: altura });
+      await p.goto(`${c.BASE}/app#/nova`); await p.waitForTimeout(2000);
       if (await p.locator('#menu').isVisible() && !(await p.locator('#lateral.aberta').count())) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(400); }
       const r = await ler(p);
       r.qwVisivel = await visivel(p, '#lateral [data-item="quick-wins"]'); r.conhecimentoVisivel = await visivel(p, '#lateral [data-item="conhecimento"]');
+      r.conversasVisivel = await visivel(p, '#lateral [data-item="conversas"]'); r.adminVisivel = await visivel(p, '#lateral [data-item="administracao"]'); r.verTodasVisivel = await visivel(p, '#lateral .ver-todas');
       r.alvosMin = Math.min(...await p.$$eval('#lateral .item-lat.item-principal, #lateral .recentes-lat .item-lat.sub', l => l.map(a => Math.round(a.getBoundingClientRect().height))));
-      out.telas.push({ largura, ...r }); await p.screenshot({ path: `${pasta}/lateral-${largura}.png` });
+      out.telas.push({ tela: `${largura}x${altura}`, ...r }); await p.screenshot({ path: `${pasta}/lateral-${largura}x${altura}.png` });
     }
     // Teclado: foco visível.
     await p.setViewportSize({ width: 1280, height: 800 });

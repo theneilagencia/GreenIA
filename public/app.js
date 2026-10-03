@@ -251,6 +251,8 @@ async function rota() {
     if (it?.ver && !it.ver()) return irPara(inicioAdmin() === h ? `#/${itensAdmin()[0].id}` : inicioAdmin());
   }
   if (h) guardarUltima(h);
+  // O item ativo da lateral acompanha a rota já no clique, sem esperar a tela carregar os dados.
+  if (E.eu) desenharLateral();
   let m;
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });

@@ -129,7 +129,8 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.click('.troca-contexto a:has-text("Usar GreenIA")');
   // Volta para onde a pessoa estava no uso (aqui, o quick win).
   await p.waitForURL(new RegExp(`#/qw/${qwId}$`));
-  await p.waitForFunction(() => document.body.dataset.contexto !== 'admin');
+  // A lateral troca de contexto já no clique; o cabeçalho troca quando a tela do quick win termina de carregar.
+  await p.waitForFunction(() => document.body.dataset.contexto !== 'admin' && !document.querySelector('.selo-contexto'));
   assert.equal(await p.locator('.troca-contexto a.ativo').textContent(), 'Usar GreenIA');
   assert.equal(await p.locator('.selo-contexto').count(), 0);
   assert.equal(await p.locator('.lateral a[href="#/configuracoes"]').count(), 0, 'no uso, a lateral não mostra a administração');

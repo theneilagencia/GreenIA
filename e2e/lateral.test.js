@@ -89,6 +89,15 @@ test('estado ativo: Conversas nas rotas de conversa; Quick Wins em todas as rota
   await ctx.close();
 });
 
+test('estado ativo acompanha o clique mesmo com a tela ainda carregando (rede lenta)', async () => {
+  const { ctx, p } = await abrir('c5', '#/nova');
+  await p.route(/\/api\/quick-wins/, async r => { await new Promise(ok => setTimeout(ok, 3000)); await r.continue(); });
+  await p.click('#lateral [data-item="quick-wins"]');
+  await p.waitForTimeout(500);
+  assert.deepEqual(await p.$$eval('#lateral .item-lat.item-principal[aria-current="page"]', l => l.map(a => a.dataset.item)), ['quick-wins']);
+  await ctx.close();
+});
+
 test('Administração: aparece no primeiro nível só para quem tem permissão e leva à administração (H)', async () => {
   const { ctx, p } = await abrir('c1', '#/nova');
   assert.equal(await p.locator('#lateral [data-item="administracao"]').count(), 0, 'sem permissão: não aparece');

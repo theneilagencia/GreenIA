@@ -17,7 +17,7 @@ export { TAXA_INTERMEDIARIO };
 // fica visível, mas não é editável aqui (mudá-lo mudaria a contagem de créditos de todas as empresas).
 export const PREMISSAS_PADRAO = Object.freeze({
   ai_credit_base_cost: CREDITO_USD,
-  ai_provider_fee_rate: TAXA_INTERMEDIARIO - 1,
+  ai_provider_fee_rate: Math.round((TAXA_INTERMEDIARIO - 1) * 1e6) / 1e6,   // 0,055 (sem ruído de ponto flutuante)
   tax_rate: 0.12,
   payment_fx_rate: 0.03,
   support_operation_rate: 0.15,

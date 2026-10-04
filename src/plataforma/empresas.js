@@ -17,7 +17,7 @@ import { encerrarAcessosAbertos } from './acessos.js';
 import { agendarExclusao, reverterExclusao, motivoQueImpede, MENSAGENS_IMPEDIMENTO, concluirExclusao } from './encerramento.js';
 import { encerrarNecessidadesDaEmpresa } from './exportacoes.js';
 import { exigirMargem, infraPorEmpresa, lerPremissas } from './margem.js';
-import { PLANOS_COMERCIAIS, regrasComerciais, CAPACITY_PACK } from './catalogo.js';
+import { PLANOS_COMERCIAIS, regrasComerciais, CAPACITY_PACK, AJUSTES_PRECO } from './catalogo.js';
 import { gravarManifesto, PRAZOS_PADRAO } from '../retencao.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
@@ -52,11 +52,27 @@ function semearLiberado(P) {
 }
 
 export function semearPlanos(P) {
-  if (um(P.db, 'select 1 from plans')) { semearLiberado(P); return migrarCatalogo(P); }
+  if (um(P.db, 'select 1 from plans')) { semearLiberado(P); migrarCatalogo(P); return ajustarPrecos(P); }
   const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true]));
   for (const p of PLANOS_COMERCIAIS) salvarPlano(P, { ...p, limits: LIMITES_PADRAO, features, rules: regrasComerciais() }, null, {});
   semearLiberado(P);
   salvarAjuste(P.db, CHAVE_CATALOGO, true);
+  for (const a of AJUSTES_PRECO) salvarAjuste(P.db, a.chave, true);   // a semente já nasce com os preços atuais
+}
+
+// Ajustes de preço do catálogo (uma vez cada, auditados): só quando o plano ainda tem o preço anterior de catálogo.
+export function ajustarPrecos(P) {
+  for (const a of AJUSTES_PRECO) {
+    if (lerAjuste(P.db, a.chave, false)) continue;
+    transacao(P.db, () => {
+      const p = um(P.db, 'select id, price_usd from plans where lower(name) = lower(?)', a.plano);
+      if (p && Number(p.price_usd) === a.de) {
+        salvarPlano(P, { price_usd: a.para }, null, {}, p.id, { semTrava: true });
+        auditar(P, { usuario: null, acao: 'plan.migrated', entidade: 'plan', id: p.id, antes: { price_usd: a.de }, depois: { price_usd: a.para }, origem: { migracao: a.chave } });
+      }
+      salvarAjuste(P.db, a.chave, true);
+    });
+  }
 }
 
 // Migração do catálogo (out/2026), uma vez e sem apagar nada: os planos comerciais são atualizados NO MESMO REGISTRO

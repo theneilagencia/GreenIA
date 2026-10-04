@@ -14,8 +14,16 @@ export const PLANOS_COMERCIAIS = Object.freeze([
   { name: 'GreenIA Starter', description: 'Para começar com uma equipe pequena', price_usd: 199, credits: 2000 },
   { name: 'GreenIA Team', description: 'Para uma área ou um time que usa a IA todo dia', price_usd: 399, credits: 5000 },
   { name: 'GreenIA Business', description: 'Para várias áreas da empresa', price_usd: 749, credits: 10000 },
-  { name: 'GreenIA Company', description: 'Para levar a IA a toda a empresa', price_usd: 1749, credits: 25000 },
+  { name: 'GreenIA Company', description: 'Para levar a IA a toda a empresa', price_usd: 1799, credits: 25000 },
 ].map(p => Object.freeze({ ...p, reserve: Math.round(p.credits * RESERVA_PADRAO) })));
 
 // Regras de consumo de todo plano comercial: reserva só na classe Rápido e o Capacity Pack como pacote.
 export const regrasComerciais = () => ({ reserve_fast_only: true, pack_name: CAPACITY_PACK.nome, pack_credits: CAPACITY_PACK.creditos, pack_price_usd: CAPACITY_PACK.preco_usd });
+
+// Ajustes de preço posteriores à migração do catálogo: cada um roda uma vez e só troca o preço que ainda está no valor
+// anterior de catálogo (um preço ajustado pelo operador no console não é sobrescrito).
+// - 2026-10b: Company de US$ 1.749 para US$ 1.799, para os quatro planos ficarem na meta de margem total (52%) com a
+//   infraestrutura de referência (US$ 7,25 por empresa).
+export const AJUSTES_PRECO = Object.freeze([
+  Object.freeze({ chave: 'catalogo_2026_10b_company', plano: 'GreenIA Company', de: 1749, para: 1799 }),
+]);

@@ -22,14 +22,14 @@ services:
         sync: false         # pedido na criação; nunca no repositório
       # Plano contratado (definido pela TheNeil; o admin da empresa não altera).
       # Catálogo (out/2026): Starter 2000 + 400 por US$ 199; Team 5000 + 1000 por US$ 399; Business 10000 + 2000 por
-      # US$ 749; Company 25000 + 5000 por US$ 1749 (src/plataforma/catalogo.js). No modo multiempresa os planos ficam no
+      # US$ 749; Company 25000 + 5000 por US$ 1799 (src/plataforma/catalogo.js). No modo multiempresa os planos ficam no
       # console da plataforma; estes valores só escolhem o plano da instalação única importada na primeira subida.
       - key: PLANO_CREDITOS
         value: "25000"
       - key: PLANO_RESERVA
         value: "5000"
       - key: PLANO_PRECO_USD
-        value: "1749"
+        value: "1799"
       - key: OPERADOR_EMAIL
         sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
       # Multiempresa: uma instalação para todas as empresas. Console da plataforma em /plataforma.

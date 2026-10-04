@@ -30,8 +30,8 @@ test('planos: margem total no pior caso com status, preço mínimo, Capacity Pac
   await p.waitForSelector('text=GreenIA Starter');
   const texto = await p.locator('main, #conteudo, body').first().innerText();
   for (const n of ['GreenIA Starter', 'GreenIA Team', 'GreenIA Business', 'GreenIA Company', 'Capacity Pack', 'Premissas econômicas', 'Margem total']) assert.match(texto, new RegExp(n));
-  assert.match(texto, /Abaixo da meta/, 'Company fica entre o piso e a meta');
-  assert.match(texto, /Saudável/);
+  assert.doesNotMatch(texto, /Abaixo da meta|Abaixo do piso/, 'os quatro planos na meta');
+  assert.equal((texto.match(/Saudável/g) || []).length >= 5, true, 'quatro planos + Capacity Pack saudáveis');
   assert.match(texto, /Sem teto de custo/, 'Liberado sinalizado');
   await p.waitForTimeout(900); await p.screenshot({ path: 'capturas/tmp/planos-console.png', fullPage: true });
   // Editor: a prévia muda ao digitar e o preço abaixo do piso não é salvo.

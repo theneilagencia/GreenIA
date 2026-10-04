@@ -12,7 +12,7 @@ import { subir } from './ajuda.js';
 import { abrirBanco, exec, todos, um } from '../src/db.js';
 import { PLANOS_COMERCIAIS, CAPACITY_PACK, PACOTE_LEGADO, regrasComerciais } from '../src/plataforma/catalogo.js';
 import { economiaDoPlano, economiaDoPacote, exigirMargem, precoMinimo, statusMargem, validarPremissas, conta, PREMISSAS_PADRAO, custoPorCredito, taxaProporcional } from '../src/plataforma/margem.js';
-import { migrarCatalogo } from '../src/plataforma/empresas.js';
+import { migrarCatalogo, ajustarPrecos } from '../src/plataforma/empresas.js';
 import { situacaoPlano, checarPlano, liberarPacote, RESERVA_POR_EXECUCAO } from '../src/plano.js';
 import { comUso } from '../src/custo-ia.js';
 import { decisaoImagem, motorDoDesign } from '../src/visual/producao.js';
@@ -23,9 +23,9 @@ const quase = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} ≠ $
 const abertos = [];
 after(async () => { for (const f of abertos) await f(); });
 
-test('catálogo: Starter 199/2.000/400, Team 399/5.000/1.000, Business 749/10.000/2.000, Company 1.749/25.000/5.000; Capacity Pack 229/2.000', () => {
+test('catálogo: Starter 199/2.000/400, Team 399/5.000/1.000, Business 749/10.000/2.000, Company 1.799/25.000/5.000; Capacity Pack 229/2.000', () => {
   assert.deepEqual(PLANOS_COMERCIAIS.map(p => [p.name, p.price_usd, p.credits, p.reserve]), [
-    ['GreenIA Starter', 199, 2000, 400], ['GreenIA Team', 399, 5000, 1000], ['GreenIA Business', 749, 10000, 2000], ['GreenIA Company', 1749, 25000, 5000]]);
+    ['GreenIA Starter', 199, 2000, 400], ['GreenIA Team', 399, 5000, 1000], ['GreenIA Business', 749, 10000, 2000], ['GreenIA Company', 1799, 25000, 5000]]);
   for (const p of PLANOS_COMERCIAIS) assert.equal(p.reserve, p.credits * 0.2, 'reserva = 20% da franquia');
   assert.deepEqual([CAPACITY_PACK.nome, CAPACITY_PACK.preco_usd, CAPACITY_PACK.creditos], ['Capacity Pack', 229, 2000]);
   assert.deepEqual(regrasComerciais(), { reserve_fast_only: true, pack_name: 'Capacity Pack', pack_credits: 2000, pack_price_usd: 229 });
@@ -43,14 +43,15 @@ test('premissas: crédito US$ 0,01 + 5,5% = US$ 0,01055; custos proporcionais 12
 test('margem total no pior caso, calculada das premissas (infraestrutura de referência US$ 7,25): faixas, preço mínimo e folga', () => {
   const infra = 7.25;
   const m = Object.fromEntries(PLANOS_COMERCIAIS.map(p => [p.name, economiaDoPlano({ ...p, rules: regrasComerciais() }, { infra, premissas: pr })]));
-  // Sanidade com o briefing (aproximado): Starter ~53,6%, Team ~52,3%, Business ~52,1%, Company ~51,5%.
+  // Sanidade (aproximado): Starter ~53,6%, Team ~52,3%, Business ~52,1%, Company ~52,0% (US$ 1.799, na meta).
   quase(m['GreenIA Starter'].margem, 0.536, 0.001); quase(m['GreenIA Team'].margem, 0.523, 0.001);
-  quase(m['GreenIA Business'].margem, 0.521, 0.001); quase(m['GreenIA Company'].margem, 0.515, 0.001);
-  // Conta explícita do Company: 1.749 × 30% + 30.000 × 0,01055 + 7,25.
+  quase(m['GreenIA Business'].margem, 0.521, 0.001); quase(m['GreenIA Company'].margem, 0.520, 0.001);
+  // Conta explícita do Company: 1.799 × 30% + 30.000 × 0,01055 + 7,25.
   const c = m['GreenIA Company'];
-  quase(c.custoPiorCaso, Math.round((1749 * 0.3 + 30000 * 0.01055 + 7.25) * 100) / 100, 0.006);
-  assert.equal(c.status, 'alerta', '50% ≤ margem < 52%: alerta');
-  assert.equal(m['GreenIA Starter'].status, 'saudavel');
+  quase(c.custoPiorCaso, Math.round((1799 * 0.3 + 30000 * 0.01055 + 7.25) * 100) / 100, 0.006);
+  for (const e of Object.values(m)) assert.equal(e.status, 'saudavel', 'os quatro planos na meta de 52% com a infraestrutura de referência');
+  // Com o preço anterior (US$ 1.749) o Company ficava na faixa de alerta (entre o piso e a meta).
+  assert.equal(economiaDoPlano({ credits: 25000, reserve: 5000, price_usd: 1749, rules: regrasComerciais() }, { infra, premissas: pr }).status, 'alerta');
   for (const e of Object.values(m)) {
     assert.ok(e.margem >= 0.5, 'todos acima do piso');
     quase(e.folga, e.margem - 0.5);
@@ -139,7 +140,7 @@ test('migração do catálogo: Team e Company atualizados no MESMO registro (emp
   assert.equal(por('GreenIA Team').id, team, 'mesmo id');
   assert.deepEqual([por('GreenIA Team').price_usd, por('GreenIA Team').credits, por('GreenIA Team').reserve], [399, 5000, 1000]);
   assert.equal(por('GreenIA Company').id, company);
-  assert.deepEqual([por('GreenIA Company').price_usd, por('GreenIA Company').credits, por('GreenIA Company').reserve], [1749, 25000, 5000]);
+  assert.deepEqual([por('GreenIA Company').price_usd, por('GreenIA Company').credits, por('GreenIA Company').reserve], [1799, 25000, 5000]);
   assert.ok(por('GreenIA Starter') && por('GreenIA Business'));
   for (const n of ['GreenIA Starter', 'GreenIA Team', 'GreenIA Business', 'GreenIA Company']) assert.deepEqual([por(n).rules.pack_credits, por(n).rules.pack_price_usd], [2000, 229]);
   assert.deepEqual([por('Piloto especial').price_usd, por('Piloto especial').credits], [0, 1000], 'plano do operador intocado');
@@ -152,6 +153,25 @@ test('migração do catálogo: Team e Company atualizados no MESMO registro (emp
   migrarCatalogo(P);
   assert.equal(todos(P.db, "select 1 from audit_log where action in ('plan.migrated', 'plan.created')").length, 4);
   assert.equal(todos(P.db, "select 1 from plans where name like 'GreenIA %'").length, 5);
+});
+
+test('ajuste de preço do Company (US$ 1.749 → 1.799): uma vez, auditado, e só se o preço ainda é o de catálogo', async () => {
+  const S = await subirPlataforma(); abertos.push(S.fechar);
+  const { P } = S;
+  const company = um(P.db, "select id from plans where name = 'GreenIA Company'").id;
+  // Plataforma que já tinha migrado para US$ 1.749 e ainda não recebeu o ajuste.
+  exec(P.db, 'update plans set price_usd = 1749 where id = ?', company);
+  exec(P.db, "delete from platform_settings where key = 'catalogo_2026_10b_company'");
+  ajustarPrecos(P);
+  assert.equal(um(P.db, 'select price_usd from plans where id = ?', company).price_usd, 1799);
+  assert.equal(todos(P.db, "select 1 from audit_log where action = 'plan.migrated' and entity_id = ?", company).length, 1);
+  ajustarPrecos(P);   // idempotente
+  assert.equal(todos(P.db, "select 1 from audit_log where action = 'plan.migrated' and entity_id = ?", company).length, 1);
+  // Preço ajustado pelo operador não é sobrescrito.
+  exec(P.db, 'update plans set price_usd = 1900 where id = ?', company);
+  exec(P.db, "delete from platform_settings where key = 'catalogo_2026_10b_company'");
+  ajustarPrecos(P);
+  assert.equal(um(P.db, 'select price_usd from plans where id = ?', company).price_usd, 1900);
 });
 
 test('migração do banco da empresa: pacotes antigos ganham produto legado e o valor da época, sem mudar créditos', () => {

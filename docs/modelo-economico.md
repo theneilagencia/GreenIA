@@ -20,7 +20,7 @@ Onde está no código:
 | GreenIA Starter | US$ 199 | 2.000 | 400 |
 | GreenIA Team | US$ 399 | 5.000 | 1.000 |
 | GreenIA Business | US$ 749 | 10.000 | 2.000 |
-| GreenIA Company | US$ 1.749 | 25.000 | 5.000 |
+| GreenIA Company | US$ 1.799 | 25.000 | 5.000 |
 | Capacity Pack | US$ 229 | +2.000 | — |
 
 Todos os planos: usuários ilimitados, as mesmas funcionalidades, a mesma infraestrutura compartilhada e os mesmos
@@ -69,6 +69,9 @@ saudável. A prévia mostra também a margem com 25/50/75/100% da franquia, mas 
   (US$ 250 por 10.000 créditos). Créditos e consumo não mudaram. Não há como vender o pacote antigo: a liberação nova
   é por quantidade de Capacity Packs, com créditos e valor calculados no servidor pelas regras do plano. Créditos
   avulsos ficam registrados como cortesia, sem receita.
+- **Company a US$ 1.799** (era US$ 1.749 na primeira versão do catálogo): com US$ 1.749 a margem total no pior caso
+  ficava entre o piso e a meta (51,5% com US$ 7,25 de infraestrutura por empresa). O ajuste roda uma vez
+  (`catalogo_2026_10b_company`), fica na auditoria e só troca o preço se ele ainda é US$ 1.749.
 - **Execuções simultâneas na reserva**: cada execução ocupa uma vaga de `RESERVA_POR_EXECUCAO` créditos até terminar;
   uma nova só começa se a reserva que sobra cobre as em andamento. Na franquia e nos packs, uma execução que já
   começou termina e desconta da reserva (nunca além dela).

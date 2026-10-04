@@ -14,7 +14,7 @@ QUICK WIN → necessidades → resolução (capability) → conector → configu
 
 | Chave | Onde | Padrão | Efeito |
 |---|---|---|---|
-| `integracoes.ativa` | Configurações da empresa (`PUT /api/admin/config`) | `false` | Liga o recurso na empresa. Desligado: todas as rotas respondem 404 e o Quick Win funciona como antes. |
+| `integracoes.ativa` | Tela Configurações da empresa, bloco "Integrações com sistemas da empresa" (ou `PUT /api/admin/config`) | `false` | Liga o recurso na empresa. Desligado: todas as rotas respondem 404 e o Quick Win funciona como antes. Ligar pela tela vale para a empresa toda (limpa `integracoes.pessoas`). |
 | `integracoes.pessoas` | idem | `[]` | Lista de e-mails que veem o recurso (vazia = todos da empresa com a permissão). Usada para liberar só a conta de QA. |
 | `integracoes.politicas` | idem | `[]` (usa a política padrão) | Regras da empresa (dados, não código). |
 | `integracoes.rede_privada_autorizada` | idem | `false` | Segunda chave para rede interna (a primeira fica no conector). |

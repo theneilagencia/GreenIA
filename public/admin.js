@@ -2,7 +2,7 @@
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
 import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, ocupado, toast, vazioHtml } from '/comum.js';
-import { E, cabecalho, ligarCabecalho, pode, recarregarBases } from '/app.js';
+import { E, cabecalho, desenharLateral, ligarCabecalho, pode, recarregarBases } from '/app.js';
 import { renderizar } from '/md.js';
 import { avisoCor } from '/cor.js';
 import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
@@ -501,6 +501,8 @@ async function abaConfig() {
         <div class="campo"><label for="iv-proibidas">Cores que nunca podem ser usadas</label><input class="entrada" id="iv-proibidas" placeholder="#FF0000, #00FF00" value="${esc((iv.coresProibidas || []).join(', '))}"><span class="ajuda">Códigos de cor separados por vírgula.</span></div>
         <div class="campo"><label for="iv-regras">Regras visuais e tom (uma por linha)</label><textarea class="entrada" id="iv-regras" rows="3" placeholder="Ex.: sempre em português formal; destacar segurança primeiro">${esc([...(iv.regras || []), ...(iv.tom ? [`Tom: ${iv.tom}`] : [])].join('\n'))}</textarea></div>
         <label class="opcoes"><span><input type="checkbox" id="iv-imagens" ${c.producaoVisual?.imagens?.ativa ? 'checked' : ''}> Permitir gerar imagens ilustrativas para as peças. Ligado, só o tema da peça (nunca o conteúdo, números ou nomes) vai para o modelo de imagem; não roda em conversa sigilosa, em área com proteção reforçada, com dado que a política manda proteger nem na reserva do plano. Desligado, as peças usam tipografia, formas, gráficos e as imagens que vocês enviarem.</span></label>`)}
+      ${caixa(6, 'Integrações com sistemas da empresa', 'Permite que os Quick Wins leiam dados dos sistemas da empresa (CRM, ERP e outros) e, com aprovação, gravem resultados neles.', `
+        <label class="opcoes"><span><input type="checkbox" id="cfg-integracoes" ${c.integracoes?.ativa ? 'checked' : ''}> Ligar as integrações para toda a empresa. Ligado, aparece em Administração o menu Integrações, onde cada sistema é cadastrado, testado e aprovado antes de ser usado; credenciais ficam guardadas cifradas e nunca vão para a IA, e gravações dependem de aprovação. Desligado, o menu some e os Quick Wins funcionam normalmente, sem acessar sistemas; nada do que já foi cadastrado é apagado.</span></label>`, ' id="cfg-bloco-integracoes"')}
       <div class="cfg-salvar"><span class="dica" id="c-sujo"></span><button class="btn btn-verde">Salvar configurações</button></div>
     </form>`;
 
@@ -577,8 +579,13 @@ async function abaConfig() {
       ...(multi ? {} : { empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', privacyNote: $('c-priv').value }),
       dominios, smtp: lerEmail(), retencaoDias: Number($('c-ret').value),
       tetoMensal: valorLimite('c-teto'), tetoPessoaMensal: valorLimite('c-teto-p'), limiteDiarioPessoa: valorLimite('c-dia'),
-      identidadeVisual: lerIdentidade(), producaoVisual: { imagens: { ativa: $('iv-imagens').checked } } } });
+      identidadeVisual: lerIdentidade(), producaoVisual: { imagens: { ativa: $('iv-imagens').checked } },
+      // Integrações: liga ou desliga para a empresa toda (sem lista de pessoas).
+      integracoes: { ativa: $('cfg-integracoes').checked, pessoas: [] } } });
     $('c-sujo').textContent = '';
+    // O menu Integrações aparece ou some na hora, conforme o servidor (que também respeita a chave de emergência).
+    const eu = await api('/api/eu').catch(() => null);
+    if (eu) { E.integracoes = !!eu.integracoes; desenharLateral(); }
   };
   $('c-smtp-teste').onclick = ev => ocupado(ev.currentTarget, async () => {
     $('c-teste-res').textContent = '';

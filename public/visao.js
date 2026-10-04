@@ -30,7 +30,7 @@ export async function vistaGeral() {
   ]) : p ? faixa([
     ['Créditos usados', num(Math.round(p.usados)), `${p.percentual}% dos ${num(p.creditos)} do plano`],
     ['Previsão para o mês', v.uso.previsao !== null ? num(Math.round(v.uso.previsao)) : 'após o 3º dia', v.uso.previsao !== null && v.uso.previsao > p.creditos ? 'acima do plano' : 'no ritmo atual'],
-    ['Pacote extra disponível', num(Math.round(p.pacoteDisponivel)), p.pacoteDisponivel ? 'usado depois do plano' : 'nenhum'],
+    ['Capacity Pack disponível', num(Math.round(p.pacoteDisponivel)), p.pacoteDisponivel ? 'usado depois do plano' : 'nenhum'],
     ['Renovação', new Date(`${p.renova}T12:00:00`).toLocaleDateString('pt-BR'), p.fase === 'reserva' ? 'hoje só a classe Rápido' : p.fase === 'esgotado' ? 'envio pausado' : ''],
   ]) + `<div class="barra ${p.percentual >= 100 ? 'erro' : p.percentual >= 80 ? 'atencao' : ''}" role="progressbar" aria-label="Créditos do plano usados" aria-valuenow="${p.percentual}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p.percentual}%"></span></div>`
     : faixa([

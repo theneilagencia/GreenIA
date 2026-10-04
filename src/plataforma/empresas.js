@@ -16,7 +16,8 @@ import { roleDeSistema, acharRoleDaEmpresa, permissoesDaRole, ehAdminPlataforma 
 import { encerrarAcessosAbertos } from './acessos.js';
 import { agendarExclusao, reverterExclusao, motivoQueImpede, MENSAGENS_IMPEDIMENTO, concluirExclusao } from './encerramento.js';
 import { encerrarNecessidadesDaEmpresa } from './exportacoes.js';
-import { exigirMargem } from './margem.js';
+import { exigirMargem, infraPorEmpresa, lerPremissas } from './margem.js';
+import { PLANOS_COMERCIAIS, regrasComerciais, CAPACITY_PACK } from './catalogo.js';
 import { gravarManifesto, PRAZOS_PADRAO } from '../retencao.js';
 import { validarSlug, validarDominio, validarCor, validarCorPrincipal, validarImagem, texto, validarLink, validarEmail } from './validar.js';
 
@@ -51,11 +52,37 @@ function semearLiberado(P) {
 }
 
 export function semearPlanos(P) {
-  if (um(P.db, 'select 1 from plans')) return semearLiberado(P);
-  const base = { features: Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 } };
-  salvarPlano(P, { name: 'GreenIA Team', description: 'Para começar com uma área ou um time', price_usd: 290, credits: 10000, reserve: 2000, limits: LIMITES_PADRAO, ...base }, null, {});
-  salvarPlano(P, { name: 'GreenIA Company', description: 'Para levar a IA a todas as áreas', price_usd: 750, credits: 25000, reserve: 5000, limits: { ...LIMITES_PADRAO, max_concurrent: 20 }, ...base, features: { ...base.features, custom_domain: true } }, null, {});
+  if (um(P.db, 'select 1 from plans')) { semearLiberado(P); return migrarCatalogo(P); }
+  const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true]));
+  for (const p of PLANOS_COMERCIAIS) salvarPlano(P, { ...p, limits: LIMITES_PADRAO, features, rules: regrasComerciais() }, null, {});
   semearLiberado(P);
+  salvarAjuste(P.db, CHAVE_CATALOGO, true);
+}
+
+// Migração do catálogo (out/2026), uma vez e sem apagar nada: os planos comerciais são atualizados NO MESMO REGISTRO
+// (mesmo id; as empresas vinculadas continuam vinculadas), os que faltam são criados e o pacote passa a ser o Capacity
+// Pack. Planos criados pelo operador com outros nomes (piloto, cortesia) não são tocados. Pacotes já liberados nas
+// empresas não mudam (cada registro guarda produto e preço da época).
+const CHAVE_CATALOGO = 'catalogo_2026_10';
+export function migrarCatalogo(P) {
+  if (lerAjuste(P.db, CHAVE_CATALOGO, false)) return;
+  const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true]));
+  transacao(P.db, () => {
+    for (const p of PLANOS_COMERCIAIS) {
+      const atual = um(P.db, 'select id from plans where lower(name) = lower(?)', p.name);
+      if (atual) {
+        const antes = lerPlanoPorId(P, atual.id);
+        salvarPlano(P, { ...p, status: 'ativo', rules: { ...antes.rules, ...regrasComerciais() } }, null, {}, atual.id, { semTrava: true });
+        auditar(P, { usuario: null, acao: 'plan.migrated', entidade: 'plan', id: atual.id, antes: { price_usd: antes.price_usd, credits: antes.credits, reserve: antes.reserve, rules: antes.rules },
+          depois: { price_usd: p.price_usd, credits: p.credits, reserve: p.reserve, rules: regrasComerciais() }, origem: { migracao: CHAVE_CATALOGO } });
+      } else {
+        const novo = salvarPlano(P, { ...p, limits: LIMITES_PADRAO, features, rules: regrasComerciais() }, null, {}, null, { semTrava: true });
+        auditar(P, { usuario: null, acao: 'plan.created', entidade: 'plan', id: novo.id, depois: { name: p.name, price_usd: p.price_usd, credits: p.credits, reserve: p.reserve }, origem: { migracao: CHAVE_CATALOGO } });
+      }
+    }
+    salvarAjuste(P.db, CHAVE_CATALOGO, true);
+  });
+  for (const c of todos(P.db, 'select id from companies where plan_id is not null')) P.aplicarAoTenant?.(c.id);
 }
 
 const dePlano = p => p && ({ ...p, limits: { ...LIMITES_PADRAO, ...json(p.limits, {}) }, features: json(p.features, {}), rules: json(p.rules, {}), settings: json(p.settings, {}) });
@@ -63,7 +90,7 @@ export const lerPlanoPorId = (P, id) => dePlano(um(P.db, 'select * from plans wh
 export const listarPlanos = P => todos(P.db, 'select * from plans order by status, credits = 0, credits').map(dePlano)
   .map(p => ({ ...p, empresas: um(P.db, 'select count(*) as n from companies where plan_id = ?', p.id).n }));
 
-export function salvarPlano(P, dados, ator, origem, id = null) {
+export function salvarPlano(P, dados, ator, origem, id = null, { semTrava = false } = {}) {
   const antes = id ? lerPlanoPorId(P, id) : null;
   if (id && !antes) throw erro(404, 'plano', 'Plano não encontrado.');
   const d = { ...antes, ...dados };
@@ -76,9 +103,11 @@ export function salvarPlano(P, dados, ator, origem, id = null) {
   if (price !== null && !(price >= 0)) throw erro(400, 'price_usd', 'Preço inválido.');
   const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, !!(d.features || {})[k]]));
   const limits = Object.fromEntries(Object.keys(LIMITES).map(k => { const bruto = (d.limits || {})[k]; const v = Math.floor(Number(bruto === undefined ? LIMITES_PADRAO[k] : bruto || 0)); if (!(v >= 0 && v <= 1_000_000)) throw erro(400, k, `Limite inválido: ${LIMITES[k]}.`); return [k, v]; }));
-  const rules = { reserve_fast_only: (d.rules || {}).reserve_fast_only !== false, pack_credits: Math.max(0, Math.floor(Number((d.rules || {}).pack_credits) || 0)), pack_price_usd: Math.max(0, Number((d.rules || {}).pack_price_usd) || 0) };
-  // Margem desenhada: preço de plano ou pacote que não cobre a IA no pior caso com a margem mínima não é salvo.
-  exigirMargem({ credits, reserve, price_usd: price, rules });
+  const rules = { reserve_fast_only: (d.rules || {}).reserve_fast_only !== false, ...((d.rules || {}).pack_name ? { pack_name: texto(d.rules.pack_name, 40, 'pack_name') } : {}),
+    pack_credits: Math.max(0, Math.floor(Number((d.rules || {}).pack_credits) || 0)), pack_price_usd: Math.max(0, Number((d.rules || {}).pack_price_usd) || 0) };
+  // Margem total no pior caso abaixo do piso: o plano (ou o pacote dele) não é salvo.
+  // A migração do catálogo grava os valores definidos pela formação de preço; ela confere a margem nos testes.
+  if (!semTrava) exigirMargem({ credits, reserve, price_usd: price, rules }, { infra: infraPorEmpresa(P), premissas: lerPremissas(P) });
   const settings = typeof d.settings === 'object' && d.settings ? d.settings : {};
   if (JSON.stringify(settings).length > 5000) throw erro(400, 'settings', 'Configurações específicas grandes demais.');
   const status = d.status === 'inativo' ? 'inativo' : 'ativo';
@@ -505,12 +534,26 @@ export function ambienteDaEmpresa(P, c) {
   const t = P.tenant(c.id);
   return { url: urlDaEmpresa(P, c), banco: c.banco.split('/').slice(-2).join('/'), tamanhoMb: Math.round(tamanho / 1048576 * 10) / 10, ia: t.ia.configurada !== false, smtp: !!lerConfig(t.db).smtp.url };
 }
+// Liberação de pacote pelo operador. O cliente nunca define créditos nem preço: `packs` é a quantidade de Capacity
+// Packs e o servidor calcula créditos e valor pelas regras do plano da empresa. Créditos avulsos só como cortesia
+// (sem receita), registrados como tal.
 export function liberarPacoteNaEmpresa(P, companyId, dados, ator, origem, email) {
   const t = P.tenant(companyId);
   if (!t.plano) throw erro(400, 'sem_plano', 'Vincule um plano à empresa antes de liberar pacotes.');
-  const s = liberarPacote(t, null, dados.creditos, { observacao: dados.observacao, validade: dados.validade || null, origem: 'console', operador: email });
-  avisarPacote(t, Math.floor(Number(dados.creditos))).catch(() => {});
-  auditar(P, { usuario: ator, empresa: companyId, acao: 'creditpack.added', entidade: 'pacote', depois: { creditos: Number(dados.creditos), validade: dados.validade || null, observacao: dados.observacao || '' }, origem });
+  const plano = lerPlanoPorId(P, lerEmpresa(P, companyId).plan_id);
+  let creditos, preco, produto;
+  if (dados.packs !== undefined && dados.packs !== null && dados.packs !== '') {
+    const n = Math.floor(Number(dados.packs));
+    if (!(n >= 1 && n <= 50) || n !== Number(dados.packs)) throw erro(400, 'packs', 'Informe de 1 a 50 Capacity Packs.');
+    const r = plano?.rules || {};
+    if (!(r.pack_credits > 0) || !(r.pack_price_usd > 0)) throw erro(400, 'sem_pacote', 'O plano desta empresa não tem Capacity Pack.');
+    creditos = n * r.pack_credits; preco = n * r.pack_price_usd; produto = CAPACITY_PACK.produto;
+  } else {
+    creditos = Math.floor(Number(dados.creditos)); preco = 0; produto = 'cortesia';
+  }
+  const s = liberarPacote(t, null, creditos, { observacao: dados.observacao, validade: dados.validade || null, origem: 'console', operador: email, produto, precoUsd: preco });
+  avisarPacote(t, creditos).catch(() => {});
+  auditar(P, { usuario: ator, empresa: companyId, acao: 'creditpack.added', entidade: 'pacote', depois: { produto, packs: produto === CAPACITY_PACK.produto ? creditos / plano.rules.pack_credits : null, creditos, preco_usd: preco, validade: dados.validade || null, observacao: dados.observacao || '' }, origem });
   return s;
 }
 

@@ -6,6 +6,7 @@
 import { erro } from './http.js';
 import { exec, todos, um } from './db.js';
 import { registrar } from './eventos.js';
+import { aoFecharUso } from './custo-ia.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { acharModelo, homologadoPadrao, lerModelos, AUTO } from './modelos.js';
 
@@ -69,13 +70,25 @@ export function situacaoPlano(app) {
 const dataBr = iso => iso.split('-').reverse().join('/');
 export const MSG = {
   reserva: s => `Os créditos deste ciclo foram usados. Até ${dataBr(s.renova)}, a GreenIA segue disponível com a classe Rápido.`,
-  esgotado: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um pacote adicional de créditos. O histórico continua disponível.`,
+  esgotado: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um Capacity Pack. O histórico continua disponível.`,
 };
 
-// Antes de cada envio: bloqueia no fim da reserva.
+// Execuções simultâneas na reserva: cada uma ocupa uma vaga de RESERVA_POR_EXECUCAO créditos até terminar. Assim
+// várias requisições ao mesmo tempo não passam do teto (franquia + Capacity Packs + reserva): a nova só começa se a
+// reserva que sobra cobre as que já estão em andamento. Na reserva só a classe Rápido responde e as etapas caras ficam
+// desligadas, então uma execução cabe com folga nessa vaga.
+export const RESERVA_POR_EXECUCAO = 2;
+
+// Antes de cada envio: bloqueia no fim da reserva (contando as execuções que já estão em andamento).
 export function checarPlano(app) {
   const s = situacaoPlano(app);
   if (s?.fase === 'esgotado') throw erro(429, 'plano_esgotado', MSG.esgotado(s));
+  if (s?.fase === 'reserva') {
+    const emAndamento = app.execucoesNaReserva || 0;
+    if (s.naReserva + (emAndamento + 1) * RESERVA_POR_EXECUCAO > s.reserva) throw erro(429, 'plano_esgotado', MSG.esgotado(s));
+    // A vaga só existe dentro de um pedido que gasta IA (contexto de uso); fora dele não há execução a reservar.
+    if (aoFecharUso(() => { app.execucoesNaReserva = Math.max(0, (app.execucoesNaReserva || 1) - 1); })) app.execucoesNaReserva = emAndamento + 1;
+  }
   return s;
 }
 
@@ -117,15 +130,17 @@ export function detalhesEmCreditos(texto) {
   try { const d = JSON.parse(texto); if ('custo' in d) { d.creditos = creditosDe(d.custo); delete d.custo; } return JSON.stringify(d); } catch { return texto; }
 }
 
-// Pacote extra liberado pelo operador.
-export function liberarPacote(app, pessoa, creditos, { observacao = '', validade = null, origem = 'painel', operador = pessoa?.email } = {}) {
+// Pacote liberado pelo operador: Capacity Pack (com o valor de tabela) ou cortesia (sem receita).
+export function liberarPacote(app, pessoa, creditos, { observacao = '', validade = null, origem = 'painel', operador = pessoa?.email, produto = 'cortesia', precoUsd = 0 } = {}) {
   const n = Math.floor(Number(creditos) || 0);
   if (n <= 0 || n > 1_000_000) throw erro(400, 'creditos', 'Informe a quantidade de créditos do pacote.');
   if (validade && (!/^\d{4}-\d{2}-\d{2}$/.test(validade) || validade < app.agora().toISOString().slice(0, 10))) throw erro(400, 'validade', 'A validade precisa ser uma data futura.');
   const obs = String(observacao || '').slice(0, 300);
   const quem = String(operador || '').slice(0, 200) || null;
-  exec(app.db, 'insert into pacotes (em, creditos, pessoa_id, observacao, validade, origem, operador) values (?, ?, ?, ?, ?, ?, ?)', app.agora().toISOString(), n, pessoa?.id ?? null, obs, validade || null, origem, quem);
-  registrar(app, 'creditpack.added', pessoa?.id ?? null, { creditos: n, validade: validade || null, origem, operador: quem });
+  const preco = Math.max(0, Number(precoUsd) || 0);
+  exec(app.db, 'insert into pacotes (em, creditos, pessoa_id, observacao, validade, origem, operador, produto, preco_usd) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    app.agora().toISOString(), n, pessoa?.id ?? null, obs, validade || null, origem, quem, String(produto || 'cortesia').slice(0, 40), preco);
+  registrar(app, 'creditpack.added', pessoa?.id ?? null, { creditos: n, produto, validade: validade || null, origem, operador: quem });
   return situacaoPlano(app);
 }
 
@@ -134,11 +149,11 @@ const ETAPAS = [
   { id: 'aviso80', quando: s => s.usados >= s.creditos * 0.8, assunto: 'sua organização usou 80% dos créditos deste ciclo',
     texto: s => `Sua organização usou ${s.percentual}% dos créditos deste ciclo.\n\nAo chegar a 100%, a GreenIA continua disponível temporariamente com a classe Rápido. Os créditos renovam em ${dataBr(s.renova)}.` },
   { id: 'plano100', quando: s => s.usados >= s.creditos && s.pacoteDisponivel <= 0, assunto: 'créditos do ciclo usados: a GreenIA segue com a classe Rápido',
-    texto: s => `Os créditos deste ciclo foram usados. Até ${dataBr(s.renova)}, a GreenIA segue disponível com a classe Rápido, dentro de uma reserva de continuidade.\n\nPara voltar a usar as classes Equilibrado e Avançado antes da renovação, fale com a equipe que opera a GreenIA sobre um pacote adicional de créditos.` },
+    texto: s => `Os créditos deste ciclo foram usados. Até ${dataBr(s.renova)}, a GreenIA segue disponível com a classe Rápido, dentro de uma reserva de continuidade.\n\nPara voltar a usar as classes Equilibrado e Avançado antes da renovação, fale com a equipe que opera a GreenIA sobre um Capacity Pack.` },
   { id: 'reserva90', quando: s => s.fase !== 'pacote' && s.naReserva >= s.reserva * 0.9, assunto: 'a reserva de continuidade está perto do fim',
-    texto: s => `A reserva de continuidade deste ciclo está em ${s.percentualReserva}%.\n\nQuando ela terminar, novas mensagens ficam pausadas até ${dataBr(s.renova)}. O histórico continua disponível. Um pacote adicional de créditos evita a pausa.` },
+    texto: s => `A reserva de continuidade deste ciclo está em ${s.percentualReserva}%.\n\nQuando ela terminar, novas mensagens ficam pausadas até ${dataBr(s.renova)}. O histórico continua disponível. Um Capacity Pack evita a pausa.` },
   { id: 'esgotado', quando: s => s.fase === 'esgotado', assunto: 'capacidade do ciclo usada: novas mensagens pausadas até a renovação',
-    texto: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um pacote adicional de créditos.\n\nConversas, quick wins e conhecimento continuam disponíveis para consulta.` },
+    texto: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um Capacity Pack.\n\nConversas, quick wins e conhecimento continuam disponíveis para consulta.` },
 ];
 
 const EVENTOS_ETAPA = { aviso80: ['credits.threshold_80'], plano100: ['credits.exhausted', 'reserve.started'], reserva90: ['reserve.threshold_90'], esgotado: ['reserve.exhausted'], renovado: ['credits.renewed'] };
@@ -175,7 +190,7 @@ export async function verificarAvisos(app) {
 export async function avisarPacote(app, creditos) {
   const reg = lerConfig(app.db).avisosPlano || {};
   salvarConfig(app.db, { avisosPlano: { ...reg, enviados: (reg.enviados || []).filter(e => e === 'aviso80') } });
-  await enviarParaTodos(app, 'pacote adicional de créditos liberado', `Foram liberados ${creditos.toLocaleString('pt-BR')} créditos adicionais. As classes Rápido, Equilibrado e Avançado estão disponíveis de novo. Créditos de pacote permanecem até serem usados.`);
+  await enviarParaTodos(app, 'créditos adicionais liberados', `Foram liberados ${creditos.toLocaleString('pt-BR')} créditos adicionais. As classes Rápido, Equilibrado e Avançado estão disponíveis de novo. Créditos de pacote permanecem até serem usados.`);
 }
 
 // Resumo para o operador: custo real do mês e, se o preço estiver configurado, o lucro.

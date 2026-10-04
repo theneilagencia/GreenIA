@@ -36,8 +36,12 @@ export function registrarUso(app, linha) {
   return id;
 }
 
+// Ação a executar quando o pedido terminar (ex.: liberar a vaga de execução reservada no fim da reserva).
+export function aoFecharUso(fn) { const ctx = ALS.getStore(); if (!ctx) return false; (ctx.finais ||= []).push(fn); return true; }
+
 function fechar(app, ctx) {
   ctx.fechado = true;
+  for (const fn of ctx.finais || []) { try { fn(); } catch { /* nada a desfazer */ } }
   const falta = ctx.cobrado - ctx.registrado;
   if (falta > 1e-9) ajustar(app, ctx, falta, 'custo_nao_registrado');
 }

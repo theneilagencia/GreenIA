@@ -120,7 +120,7 @@ O console (`/operador`) junta todas as instalações de clientes numa tela: plan
 | `OCR_*` | Opcional | Limites técnicos do OCR (concorrência, tamanho, páginas, resolução, memória e tempo). Padrões medidos para uma instância de 512 MB; lista e medições em `docs/ocr-memoria.md`. O OCR é local: a imagem não sai do servidor |
 | `INSTANCIAS` | Instalação do operador | Uma instalação por linha ou separadas por `;`, no formato `Nome|https://endereco|token` |
 | `CUSTO_INFRA_USD` | Instalação de cada cliente | Custo mensal do servidor, para a margem |
-| `PACOTE_CREDITOS`, `PACOTE_PRECO_USD` | Instalação de cada cliente | Pacote de referência para a receita (padrão: 10.000 créditos por US$ 250) |
+| `PACOTE_CREDITOS`, `PACOTE_PRECO_USD` | Instalação de cada cliente | Capacity Pack desta instalação (padrão: 2.000 créditos por US$ 229); o operador libera por quantidade e o valor entra na receita |
 
 Como ativar:
 

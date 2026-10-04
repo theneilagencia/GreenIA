@@ -14,7 +14,7 @@ import { publicaEmpresa, salvarChaveOpenRouter, removerChaveOpenRouter, origemCh
 import { validarEmail, validarDominio, texto } from './validar.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo, custoServidor, infraPorEmpresa, conciliar } from './consumo.js';
-import { economiaDoPlano, MARGEM_MINIMA } from './margem.js';
+import { economiaDoPlano, lerPremissas, salvarPremissas, NOMES_PREMISSAS, PREMISSAS_PADRAO } from './margem.js';
 import { alertaEmail, falhasEmail } from './email-falhas.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
@@ -186,11 +186,29 @@ export function rotasPlataforma(P, r) {
   r.post('/api/plataforma/contatos/:id/liberar', ({ sessao, params, origem }) => { precisa(sessao, 'platform.settings.manage'); liberarHoldContato(P, params.id, { por: sessao.email, ator: sessao.userId, origem }); return { ok: true }; });
 
   // ------------------------------------------------ Planos
-  // Cada plano com a economia no pior caso (franquia e reserva inteiras), já com a parte do servidor de cada empresa.
+  // Cada plano com a economia no pior caso (franquia e reserva inteiras, custos proporcionais à receita, IA com a taxa e a
+  // parte de cada empresa na infraestrutura), calculada a partir das premissas econômicas.
   r.get('/api/plataforma/planos', ({ sessao }) => {
     precisa(sessao, 'platform.companies.manage');
-    const infra = infraPorEmpresa(P);
-    return { planos: E.listarPlanos(P).map(p => ({ ...p, economia: economiaDoPlano(p, { infra }) })), margemMinima: MARGEM_MINIMA };
+    const infra = infraPorEmpresa(P), premissas = lerPremissas(P);
+    return { planos: E.listarPlanos(P).map(p => ({ ...p, economia: economiaDoPlano(p, { infra, premissas }) })), premissas, infraPorEmpresa: infra,
+      margemMinima: premissas.min_total_margin_rate, metaMargem: premissas.target_total_margin_rate };
+  });
+  // Prévia ao editar um plano: a mesma conta do salvamento, sem gravar nada (a trava continua no salvamento).
+  r.post('/api/plataforma/planos/previa', ({ sessao, corpo }) => {
+    precisa(sessao, 'platform.plans.manage');
+    const p = { credits: Math.max(0, Math.floor(Number(corpo.credits) || 0)), reserve: Math.max(0, Math.floor(Number(corpo.reserve) || 0)),
+      price_usd: corpo.price_usd === '' || corpo.price_usd == null ? null : Math.max(0, Number(corpo.price_usd) || 0),
+      rules: { pack_credits: Math.max(0, Math.floor(Number(corpo.rules?.pack_credits) || 0)), pack_price_usd: Math.max(0, Number(corpo.rules?.pack_price_usd) || 0) } };
+    return { economia: economiaDoPlano(p, { infra: infraPorEmpresa(P), premissas: lerPremissas(P) }) };
+  });
+  // Premissas econômicas (um lugar só): impostos, pagamento/câmbio, suporte/operação, taxa do intermediário, piso e meta.
+  r.get('/api/plataforma/premissas', ({ sessao }) => { precisa(sessao, 'platform.companies.manage'); return { premissas: lerPremissas(P), padrao: PREMISSAS_PADRAO, nomes: NOMES_PREMISSAS }; });
+  r.put('/api/plataforma/premissas', ({ sessao, corpo, origem }) => {
+    precisa(sessao, 'platform.settings.manage');
+    const antes = lerPremissas(P), depois = salvarPremissas(P, corpo || {});
+    auditar(P, { usuario: sessao.userId, acao: 'platform.economics_changed', entidade: 'platform_settings', antes, depois, origem });
+    return { premissas: depois };
   });
   r.post('/api/plataforma/planos', ({ sessao, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); return E.salvarPlano(P, corpo, sessao.userId, origem); });
   r.put('/api/plataforma/planos/:id', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); return E.salvarPlano(P, corpo, sessao.userId, origem, params.id); });

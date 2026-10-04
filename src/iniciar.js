@@ -1,4 +1,5 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
+import { CAPACITY_PACK } from './plataforma/catalogo.js';
 import { conferirSaldo, contaOpenRouter } from './plataforma/consumo.js';
 import { conferirChave, impressaoChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
@@ -49,7 +50,7 @@ export async function iniciar(env = process.env) {
       token: env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length >= 24 ? env.OPERADOR_TOKEN : null,
       instancias: lerInstancias(env.INSTANCIAS),
       custoInfraUsd: Number(env.CUSTO_INFRA_USD) || 0,
-      pacote: { creditos: Number(env.PACOTE_CREDITOS) || 10000, precoUsd: Number(env.PACOTE_PRECO_USD) || 250 },
+      pacote: { creditos: Number(env.PACOTE_CREDITOS) || CAPACITY_PACK.creditos, precoUsd: Number(env.PACOTE_PRECO_USD) || CAPACITY_PACK.preco_usd },   // Capacity Pack
     },
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
   });

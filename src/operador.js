@@ -10,8 +10,9 @@ import { todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { lerModelos } from './modelos.js';
 import { ehOperador, liberarPacote, avisarPacote, situacaoPlano } from './plano.js';
+import { PREMISSAS_PADRAO, conta } from './plataforma/margem.js';
+import { CAPACITY_PACK } from './plataforma/catalogo.js';
 
-const TAXA_OPENROUTER = 1.055;
 
 export function lerInstancias(texto = '') {
   return String(texto).split(/[\n;]+/).map(l => l.trim()).filter(Boolean).map(l => {
@@ -27,11 +28,12 @@ export function resumoInstancia(app) {
   const s = situacaoPlano(app);
   const op = app.operacao || {};
   const custoIa = um(db, 'select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?', mes).c;
-  const custoComTaxa = custoIa * TAXA_OPENROUTER;
-  const creditosPacoteMes = um(db, 'select coalesce(sum(creditos), 0) as n from pacotes where substr(em, 1, 7) = ?', mes).n;
-  const receitaPacotes = op.pacote ? creditosPacoteMes / op.pacote.creditos * op.pacote.precoUsd : null;
-  const receita = app.plano?.precoUsd ? app.plano.precoUsd + (receitaPacotes || 0) : null;
-  const custoTotal = custoComTaxa + (op.custoInfraUsd || 0);
+  // Margem TOTAL do mês (mesma conta da plataforma, com as premissas padrão): receita − impostos − pagamento/câmbio −
+  // suporte/operação − IA com a taxa − infraestrutura. Pacotes: o valor de tabela gravado em cada liberação.
+  const pr = PREMISSAS_PADRAO, custoComTaxa = custoIa * (1 + pr.ai_provider_fee_rate);
+  const receitaPacotes = um(db, 'select coalesce(sum(preco_usd), 0) as v from pacotes where substr(em, 1, 7) = ?', mes).v;
+  const receita = app.plano?.precoUsd ? app.plano.precoUsd + receitaPacotes : null;
+  const conta_ = receita !== null ? conta({ receita, creditos: custoIa / pr.ai_credit_base_cost, infra: op.custoInfraUsd || 0 }, pr) : null;
   const modelos = lerModelos(db).filter(m => m.liberado);
   const classes = Object.fromEntries(['rapido', 'equilibrado', 'avancado'].map(k => {
     const m = modelos.find(x => x.id === cfg.padroes[k]);
@@ -45,7 +47,7 @@ export function resumoInstancia(app) {
   if (s?.fase === 'esgotado') alertas.push({ nivel: 'erro', texto: 'Capacidade do ciclo usada: envio pausado' });
   else if (s?.fase === 'reserva') alertas.push({ nivel: 'atencao', texto: `Na reserva de continuidade (${s.percentualReserva}%)` });
   else if (s?.fase === 'aviso') alertas.push({ nivel: 'atencao', texto: `Créditos do ciclo em ${s.percentual}%` });
-  if (receita !== null && receita - custoTotal < receita * 0.5) alertas.push({ nivel: 'atencao', texto: 'Margem do mês abaixo de 50%' });
+  if (conta_ && conta_.margem < pr.min_total_margin_rate) alertas.push({ nivel: 'atencao', texto: `Margem total do mês abaixo de ${Math.round(pr.min_total_margin_rate * 100)}%` });
   const trintaDias = new Date(agora.getTime() - 30 * 864e5).toISOString();
   if (variacoes.some(v => v.em >= trintaDias)) alertas.push({ nivel: 'atencao', texto: 'Preço de modelo mudou mais de 20% nos últimos 30 dias' });
   if (!modelos.some(m => m.homologado)) alertas.push({ nivel: 'atencao', texto: 'Nenhum modelo homologado para conversas sigilosas' });
@@ -56,8 +58,10 @@ export function resumoInstancia(app) {
     empresa: cfg.empresa, mes, geradoEm: agora.toISOString(),
     plano: app.plano ? { creditos: app.plano.creditos, reserva: app.plano.reserva, precoUsd: app.plano.precoUsd } : null,
     situacao: s,
-    financeiro: { custoIa, custoComTaxa, custoInfraUsd: op.custoInfraUsd || 0, receita, receitaPacotes, margem: receita !== null ? receita - custoTotal : null, margemPct: receita ? Math.round((receita - custoTotal) / receita * 100) : null },
-    pacotes: todos(db, 'select p.em, p.creditos, p.validade, p.origem, p.observacao, coalesce(p.operador, pe.email) as operador from pacotes p left join pessoas pe on pe.id = p.pessoa_id order by p.id desc limit 20'),
+    financeiro: { custoIa, custoComTaxa, custoInfraUsd: op.custoInfraUsd || 0, receita, receitaPacotes, custosProporcionais: conta_ ? conta_.proporcionais : null,
+      margem: conta_ ? conta_.contribuicao : null, margemPct: conta_ ? Math.round(conta_.margem * 1000) / 10 : null },
+    pacote: op.pacote ? { nome: CAPACITY_PACK.nome, creditos: op.pacote.creditos, precoUsd: op.pacote.precoUsd } : null,
+    pacotes: todos(db, 'select p.em, p.creditos, p.validade, p.origem, p.observacao, p.produto, p.preco_usd, coalesce(p.operador, pe.email) as operador from pacotes p left join pessoas pe on pe.id = p.pessoa_id order by p.id desc limit 20'),
     classes, variacoes,
     modelos: modelos.map(m => ({ id: m.id, nome: m.nome, classe: m.perfil, homologado: !!m.homologado, precoEntrada: m.precoEntrada, precoSaida: m.precoSaida })),
     alertas,
@@ -90,10 +94,20 @@ function checarToken(app, req) {
   falhas.delete(ip);
 }
 
+// Capacity Packs: o operador informa a quantidade; créditos e valor saem do pacote desta instalação. Créditos avulsos só
+// como cortesia (sem receita).
 async function liberar(app, pessoa, corpo, origem, operador) {
   if (!app.plano) throw erro(400, 'sem_plano', 'Esta instalação não tem plano configurado (PLANO_CREDITOS).');
-  liberarPacote(app, pessoa, corpo.creditos, { observacao: corpo.observacao, validade: corpo.validade || null, origem, operador });
-  await avisarPacote(app, Math.floor(Number(corpo.creditos)));
+  let creditos, precoUsd, produto;
+  if (corpo.packs !== undefined && corpo.packs !== null && corpo.packs !== '') {
+    const n = Math.floor(Number(corpo.packs));
+    if (!(n >= 1 && n <= 50) || n !== Number(corpo.packs)) throw erro(400, 'packs', 'Informe de 1 a 50 Capacity Packs.');
+    const pk = app.operacao?.pacote;
+    if (!pk) throw erro(400, 'sem_pacote', 'Esta instalação não tem Capacity Pack configurado.');
+    creditos = n * pk.creditos; precoUsd = n * pk.precoUsd; produto = CAPACITY_PACK.produto;
+  } else { creditos = Math.floor(Number(corpo.creditos)); precoUsd = 0; produto = 'cortesia'; }
+  liberarPacote(app, pessoa, creditos, { observacao: corpo.observacao, validade: corpo.validade || null, origem, operador, produto, precoUsd });
+  await avisarPacote(app, creditos);
   return resumoInstancia(app);
 }
 
@@ -131,7 +145,7 @@ export function rotasOperador(app, r) {
 
   r.post('/api/operador/instancias/:id/pacotes', async ({ pessoa, params, corpo }) => {
     soOperador(pessoa);
-    const dados = { creditos: corpo.creditos, validade: corpo.validade || null, observacao: corpo.observacao || '' };
+    const dados = { packs: corpo.packs ?? null, creditos: corpo.creditos, validade: corpo.validade || null, observacao: corpo.observacao || '' };
     if (params.id === 'local') return { resumo: await liberar(app, pessoa, dados, 'console', pessoa.email) };
     const inst = (app.operacao?.instancias || [])[Number(params.id)];
     if (!inst) throw erro(404, 'instancia', 'Instalação não encontrada.');

@@ -1,5 +1,6 @@
 // Banco de uma empresa: um arquivo SQLite (WAL). Cada empresa tem o seu arquivo (instalação única
 // ou dados/empresas/<company_id>.sqlite no modo multiempresa), então nenhuma tabela tem coluna de cliente.
+import { PACOTE_LEGADO } from './plataforma/catalogo.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -127,8 +128,10 @@ create table if not exists leads (id integer primary key, em text not null, nome
   cargo text not null default '', pessoas text not null default '', mensagem text not null default '', ip text);
 
 -- Pacotes extras de créditos, liberados pelo operador da plataforma.
+-- produto: capacity_pack, cortesia ou pacote_legado_10000; preco_usd: valor de tabela da liberação (receita).
 create table if not exists pacotes (id integer primary key, em text not null, creditos integer not null, pessoa_id integer,
-  observacao text not null default '', validade text, origem text not null default 'manual', operador text);
+  observacao text not null default '', validade text, origem text not null default 'manual', operador text,
+  produto text, preco_usd real not null default 0);
 
 -- Decisões de roteamento: por que cada resposta usou aquele modelo. Só sinais, rótulos e números;
 -- nenhum trecho da mensagem, dos anexos ou dos documentos.
@@ -377,6 +380,15 @@ const MIGRACOES = [
     add('anexos', 'papel', "text not null default 'SUPPLEMENTARY'"); add('anexos', 'tipo_fonte', "text not null default 'conversation_material'");
     add('anexos', 'url_exibida', 'text'); add('anexos', 'ignorada', 'integer not null default 0');
     add('quick_win_versoes', 'fontes', 'text');
+  },
+  // 18. Capacity Pack (out/2026): cada liberação guarda o produto e o valor de tabela. As liberações anteriores eram do
+  //     pacote de +10.000 créditos por US$ 250: recebem esse produto e o valor proporcional da época (nada é apagado;
+  //     os créditos e o consumo não mudam).
+  db => {
+    for (const [coluna, def] of [['produto', 'text'], ['preco_usd', 'real not null default 0']]) {
+      if (!db.prepare('pragma table_info(pacotes)').all().some(c => c.name === coluna)) db.exec(`alter table pacotes add column ${coluna} ${def}`);
+    }
+    db.prepare('update pacotes set produto = ?, preco_usd = creditos * ? / ? where produto is null').run(PACOTE_LEGADO.produto, PACOTE_LEGADO.preco_usd, PACOTE_LEGADO.creditos);
   },
 ];
 

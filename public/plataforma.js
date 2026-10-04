@@ -228,12 +228,16 @@ async function abaResumo(d, id) {
     <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'créditos ilimitados'} · ${usd(p.price_usd)}</option>`).join('')}</select>
       <button class="btn btn-linha">Alterar plano</button></form>
     ${u.plano ? `<div class="indicadores"><div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${u.plano.percentual}% de ${num(u.plano.creditos)}`}</small></div>
-      <div class="indicador"><span>Pacote disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b></div><div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b></div>
+      <div class="indicador"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div><div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b></div>
       <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} cadastradas</small></div></div>
-      <details><summary class="btn-texto" style="padding-left:0">Liberar pacote de créditos</summary>
-        <form id="f-pacote" class="linha-botoes" style="margin-top:10px"><input class="entrada" id="p-creditos" type="number" min="1" value="10000" style="max-width:140px" aria-label="Créditos">
+      <details><summary class="btn-texto" style="padding-left:0">Liberar Capacity Pack</summary>
+        <form id="f-pacote" class="linha-botoes" style="margin-top:10px">
+          <select class="entrada" id="p-tipo" style="max-width:220px" aria-label="Tipo"><option value="packs">Capacity Pack</option><option value="cortesia">Cortesia (créditos sem receita)</option></select>
+          <input class="entrada" id="p-qtd" type="number" min="1" max="50" value="1" style="max-width:110px" aria-label="Quantidade de Capacity Packs">
+          <input class="entrada oculto" id="p-creditos" type="number" min="1" value="500" style="max-width:130px" aria-label="Créditos de cortesia">
         <input class="entrada" id="p-validade" type="date" style="max-width:170px" aria-label="Validade"><input class="entrada" id="p-obs" placeholder="Observação" maxlength="300" style="max-width:260px" aria-label="Observação">
-        <button class="btn btn-linha">Liberar</button></form></details>` : '<p class="dica">Sem plano vinculado: a empresa usa sem cota e vê o custo em dólar.</p>'}
+        <button class="btn btn-linha">Liberar</button></form>
+        <p class="dica" id="p-resumo"></p></details>` : '<p class="dica">Sem plano vinculado: a empresa usa sem cota e vê o custo em dólar.</p>'}
     <div class="secao-titulo"><h3>Dados cadastrais</h3></div>
     <form id="f-dados" novalidate><div class="grade-2">
       <div class="campo"><label for="d-nome">Nome</label><input class="entrada" id="d-nome" value="${esc(e.name)}" maxlength="80"></div>
@@ -267,7 +271,25 @@ async function abaResumo(d, id) {
   secaoExportacoes(id);
   if (e.status === 'cancelada') secaoEncerramento(id);
   $('f-plano').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: $('s-plano').value || null } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
-  if ($('f-pacote')) $('f-pacote').onsubmit = async ev => { ev.preventDefault(); if (!confirm(`Liberar ${num($('p-creditos').value)} créditos? Os admins da empresa recebem um email.`)) return; try { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { creditos: Number($('p-creditos').value), validade: $('p-validade').value || null, observacao: $('p-obs').value } }); toast('Pacote liberado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); } };
+  if ($('f-pacote')) {
+    // Créditos e valor saem das regras do plano no servidor; aqui só a quantidade (ou os créditos de cortesia).
+    const pk = C.planos.find(x => x.id === e.plano?.id)?.rules || {};
+    const resumo = () => {
+      const packs = $('p-tipo').value === 'packs';
+      $('p-qtd').classList.toggle('oculto', !packs); $('p-creditos').classList.toggle('oculto', packs);
+      const n = Number($('p-qtd').value) || 0;
+      $('p-resumo').textContent = packs ? (pk.pack_credits ? `${num(n * pk.pack_credits)} créditos · ${usd(n * pk.pack_price_usd)} de receita · acumulam, sem reserva nova` : 'O plano desta empresa não tem Capacity Pack.')
+        : 'Cortesia: créditos sem receita, registrados como tal.';
+    };
+    ['p-tipo', 'p-qtd'].forEach(x => $(x).addEventListener('input', resumo)); resumo();
+    $('f-pacote').onsubmit = async ev => {
+      ev.preventDefault();
+      const packs = $('p-tipo').value === 'packs';
+      const corpo = packs ? { packs: Number($('p-qtd').value) } : { creditos: Number($('p-creditos').value) };
+      if (!confirm(`${packs ? `Liberar ${num(corpo.packs)} Capacity Pack(s)` : `Liberar ${num(corpo.creditos)} créditos de cortesia`}? Os admins da empresa recebem um email.`)) return;
+      try { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { ...corpo, validade: $('p-validade').value || null, observacao: $('p-obs').value } }); toast('Créditos liberados.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); }
+    };
+  }
   $('f-dados').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); toast('Dados salvos.'); } catch (x) { falhar(x); } };
 }
 
@@ -429,41 +451,85 @@ async function vistaUsuarios() {
 }
 
 // ---------------------------------------------------------------- Planos
-const pctM = v => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
-// Margem do plano no pior caso: sem teto (créditos ilimitados) e sem preço são riscos de custo, não margem.
-const margemPlano = e => !e ? '–' : e.semTeto ? '<span class="selo selo-ambar">Sem teto de custo</span>' : e.semReceita ? `<span class="selo selo-ambar">Sem receita · até ${usd(e.custoPiorCaso)}/mês</span>`
-  : `${e.abaixo ? '<span class="selo selo-vermelho">' : ''}${pctM(e.margem)}${e.abaixo ? '</span>' : ''}`;
+// Margem TOTAL no pior caso (franquia + reserva inteiras): receita − impostos − pagamento/câmbio − suporte/operação −
+// IA com a taxa do intermediário − parte da infraestrutura. Tudo vem calculado do servidor, a partir das premissas.
+const pctM = v => `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+const SELO_MARGEM = { critico: ['selo-vermelho', 'Abaixo do piso'], alerta: ['selo-ambar', 'Abaixo da meta'], saudavel: ['selo-verde', 'Saudável'] };
+const seloMargem = st => st ? `<span class="selo ${SELO_MARGEM[st][0]}">${SELO_MARGEM[st][1]}</span>` : '';
+const margemPlano = e => !e ? '–' : e.semTeto ? '<span class="selo selo-ambar">Sem teto de custo (interno)</span>' : e.semReceita ? `<span class="selo selo-ambar">Sem receita · até ${usd(e.custoPiorCaso)}/mês</span>`
+  : `<b>${pctM(e.margem)}</b> ${seloMargem(e.status)}`;
+const PREMISSAS_EDITAVEIS = ['tax_rate', 'payment_fx_rate', 'support_operation_rate', 'ai_provider_fee_rate', 'min_total_margin_rate', 'target_total_margin_rate'];
 async function vistaPlanos() {
   carregando('Planos');
-  const rp = await api('/api/plataforma/planos'); C.planos = rp.planos;
+  const [rp, pm] = await Promise.all([api('/api/plataforma/planos'), api('/api/plataforma/premissas')]);
+  C.planos = rp.planos;
+  const pk = rp.planos.find(p => p.economia?.pacote)?.economia.pacote;
   tela('Planos', `<p class="lead">Créditos, limites e recursos de cada plano. Alterar um plano vale na hora para todas as empresas vinculadas.</p>
-    <p class="dica">Margem no pior caso: a empresa usa toda a franquia e toda a reserva (US$ 0,01 por crédito + 5,5% do OpenRouter) e a parte dela no servidor. Planos e pacotes com preço abaixo de ${pctM(rp.margemMinima)} não são salvos.</p>
-    ${tabela(['Plano', 'Status', '#Créditos', '#Reserva', '#Preço', '#Margem no pior caso', '#Margem do pacote', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
+    <p class="dica">Margem total no pior caso: a empresa usa toda a franquia e toda a reserva. Desconta impostos, pagamento/câmbio, suporte/operação, a IA (US$ ${pm.premissas.ai_credit_base_cost.toLocaleString('pt-BR')} por crédito + ${pctM(pm.premissas.ai_provider_fee_rate)} do intermediário) e a parte de cada empresa na infraestrutura (${usd(rp.infraPorEmpresa)} hoje). Piso ${pctM(rp.margemMinima)}: abaixo disso o plano não é salvo. Meta ${pctM(rp.metaMargem)}.</p>
+    ${tabela(['Plano', 'Status', '#Créditos + reserva', '#Preço', '#Margem total', '#Preço mínimo (piso)', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
       <td data-r="Status">${p.status === 'ativo' ? '<span class="selo selo-verde">Ativo</span>' : '<span class="selo selo-cinza">Inativo</span>'}</td>
-      <td class="num" data-r="Créditos">${p.credits ? num(p.credits) : 'Ilimitado'}</td><td class="num" data-r="Reserva">${num(p.reserve)}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td>
-      <td class="num" data-r="Margem no pior caso">${margemPlano(p.economia)}</td><td class="num" data-r="Margem do pacote">${p.economia?.pacote ? pctM(p.economia.pacote.margem) : '–'}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}`,
+      <td class="num" data-r="Créditos + reserva">${p.credits ? `${num(p.credits)} + ${num(p.reserve)}` : 'Ilimitado'}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td>
+      <td class="num" data-r="Margem total">${margemPlano(p.economia)}</td><td class="num" data-r="Preço mínimo">${p.economia?.precoMinimo ? usd(p.economia.precoMinimo) : '–'}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}
+    ${pk ? `<p class="dica"><b>${esc(pk.nome || 'Capacity Pack')}</b>: +${num(pk.creditos)} créditos por ${usd(pk.preco)} · margem total ${pctM(pk.margem)} ${seloMargem(pk.status)} · usa a infraestrutura que a empresa já tem, sem reserva nova; os créditos acumulam.</p>` : ''}
+    <div class="secao-titulo"><h3>Premissas econômicas</h3></div>
+    <p class="dica">Valem para todas as margens e travas. Percentuais da receita, exceto a taxa do intermediário (sobre o custo de IA). O custo-base do crédito é a definição do crédito no consumo e não muda aqui.</p>
+    <form id="f-premissas" class="grade-2">${PREMISSAS_EDITAVEIS.map(k => `<div class="campo"><label for="pm-${k}">${esc(pm.nomes[k])} (%)</label><input class="entrada" id="pm-${k}" type="number" min="0" max="99" step="0.1" value="${Math.round(pm.premissas[k] * 1000) / 10}"></div>`).join('')}
+      <div class="linha-botoes"><button class="btn btn-linha btn-pequeno">Salvar premissas</button></div></form>`,
   '<a class="btn btn-verde btn-pequeno" href="#/planos/novo">Novo plano</a>');
+  $('f-premissas').onsubmit = async ev => {
+    ev.preventDefault();
+    try { await api('/api/plataforma/premissas', { metodo: 'PUT', corpo: Object.fromEntries(PREMISSAS_EDITAVEIS.map(k => [k, Number($(`pm-${k}`).value) / 100])) }); toast('Premissas salvas.'); vistaPlanos(); } catch (x) { falhar(x); }
+  };
+}
+
+// Prévia da economia do plano em edição: a mesma conta do salvamento (a trava é sempre o pior caso).
+const linhaEco = (r, v) => `<tr><td>${r}</td><td class="num">${v}</td></tr>`;
+function previaHtml(e) {
+  if (!e) return '';
+  if (e.semTeto) return '<p class="dica">Créditos ilimitados: plano interno, sem teto de custo e sem margem.</p>';
+  if (e.semReceita) return `<p class="dica">Sem preço: plano sem receita (piloto ou cortesia). Custo máximo no mês: ${usd(e.custoPiorCaso)}.</p>`;
+  const sim = e.simulacao.map(x => `<td class="num">${pctM(x.margem)}</td>`).join('');
+  return `<div class="indicadores"><div class="indicador"><span>Margem total no pior caso</span><b>${pctM(e.margem)}</b><small>${seloMargem(e.status)}</small></div>
+      <div class="indicador"><span>Preço mínimo para o piso</span><b>${usd(e.precoMinimo)}</b><small>folga de ${pctM(e.folga)} sobre o piso</small></div>
+      <div class="indicador"><span>Contribuição no pior caso</span><b>${usd(e.contribuicao)}</b><small>de ${usd(e.preco)}</small></div></div>
+    <div class="tabela-rolagem"><table class="tabela"><tbody>
+      ${linhaEco(`Capacidade máxima (créditos + reserva)`, num(e.capacidadePiorCaso))}${linhaEco('Custo máximo de IA (com a taxa)', usd(e.custoIaPiorCaso))}
+      ${linhaEco('Impostos', usd(e.impostos))}${linhaEco('Pagamento e câmbio', usd(e.pagamento))}${linhaEco('Suporte e operação', usd(e.suporte))}
+      ${linhaEco('Infraestrutura alocada', usd(e.infra))}${linhaEco('<b>Custo total</b>', `<b>${usd(e.custoPiorCaso)}</b>`)}
+      ${linhaEco('Margem de IA (diagnóstico, não é a trava)', pctM(e.margemIa))}</tbody></table></div>
+    <p class="dica">Margem total com uso parcial da franquia (a trava considera sempre o pior caso):</p>
+    <div class="tabela-rolagem"><table class="tabela"><thead><tr><th>25%</th><th>50%</th><th>75%</th><th>100%</th><th>100% + reserva</th></tr></thead><tbody><tr>${sim}</tr></tbody></table></div>
+    ${e.pacote ? `<p class="dica">${esc(e.pacote.nome || 'Capacity Pack')}: margem total ${pctM(e.pacote.margem)} ${seloMargem(e.pacote.status)} · preço mínimo ${usd(e.pacote.precoMinimo)}.</p>` : ''}`;
 }
 
 async function vistaPlano(id) {
   if (!C.planos.length) C.planos = (await api('/api/plataforma/planos')).planos;
-  const p = id === 'novo' ? { name: '', description: '', status: 'ativo', credits: 10000, reserve: 2000, price_usd: '', limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, features: Object.fromEntries(Object.keys(C.catalogo.recursos).map(k => [k, true])), rules: { reserve_fast_only: true, pack_credits: 10000, pack_price_usd: 250 }, settings: {} } : C.planos.find(x => x.id === id);
+  const p = id === 'novo' ? { name: '', description: '', status: 'ativo', credits: 2000, reserve: 400, price_usd: '', limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, features: Object.fromEntries(Object.keys(C.catalogo.recursos).map(k => [k, true])), rules: { reserve_fast_only: true, pack_name: 'Capacity Pack', pack_credits: 2000, pack_price_usd: 229 }, settings: {} } : C.planos.find(x => x.id === id);
   if (!p) return tela('Plano', '<p>Plano não encontrado.</p>', '', '#/planos');
   tela(id === 'novo' ? 'Novo plano' : p.name, `<form id="f-plano" novalidate>
     <div class="grade-2"><div class="campo"><label for="pl-nome">Nome</label><input class="entrada" id="pl-nome" value="${esc(p.name)}" maxlength="60"></div>
       <div class="campo"><label for="pl-status">Status</label><select class="entrada" id="pl-status"><option value="ativo" ${p.status === 'ativo' ? 'selected' : ''}>Ativo</option><option value="inativo" ${p.status !== 'ativo' ? 'selected' : ''}>Inativo (não aparece para novas empresas)</option></select></div></div>
     <div class="campo"><label for="pl-desc">Descrição</label><input class="entrada" id="pl-desc" value="${esc(p.description)}" maxlength="300"></div>
     <div class="grade-2"><div class="campo"><label for="pl-cred">Créditos por mês</label><input class="entrada" id="pl-cred" type="number" min="0" value="${p.credits}"><span class="ajuda">0 = ilimitado (sem teto de créditos, sem reserva e sem avisos de consumo).</span></div>
-      <div class="campo"><label for="pl-res">Reserva de continuidade</label><input class="entrada" id="pl-res" type="number" min="0" value="${p.reserve}"><span class="ajuda">Usada depois dos créditos, só na classe Rápido.</span></div>
+      <div class="campo"><label for="pl-res">Reserva de continuidade</label><input class="entrada" id="pl-res" type="number" min="0" value="${p.reserve}"><span class="ajuda">Usada depois dos créditos e dos Capacity Packs, só na classe Rápido. Padrão: 20% da franquia.</span></div>
       <div class="campo"><label for="pl-preco">Preço mensal (US$)</label><input class="entrada" id="pl-preco" type="number" min="0" step="0.01" value="${p.price_usd ?? ''}"><span class="ajuda">Só o operador vê. A empresa nunca vê valores em dólar.</span></div></div>
+    <h3>Economia no pior caso</h3><div id="pl-previa" aria-live="polite">${previaHtml(p.economia)}</div>
     <h3>Limites</h3><div class="grade-2">${Object.entries(C.catalogo.limites).map(([k, n]) => `<div class="campo"><label for="pl-l-${k}">${esc(n)}</label><input class="entrada" id="pl-l-${k}" type="number" min="0" value="${p.limits[k] ?? 0}"></div>`).join('')}</div>
     <h3>Recursos</h3><div class="checagens">${Object.entries(C.catalogo.recursos).map(([k, n]) => `<label><input type="checkbox" data-f="${k}" ${p.features[k] ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div>
     <h3>Regras de consumo</h3><div class="grade-2">
-      <div class="campo"><label for="pl-pc">Créditos do pacote adicional</label><input class="entrada" id="pl-pc" type="number" min="0" value="${p.rules.pack_credits ?? 0}"></div>
-      <div class="campo"><label for="pl-pp">Preço do pacote (US$)</label><input class="entrada" id="pl-pp" type="number" min="0" step="0.01" value="${p.rules.pack_price_usd ?? 0}"></div></div>
+      <div class="campo"><label for="pl-pc">Créditos do Capacity Pack</label><input class="entrada" id="pl-pc" type="number" min="0" value="${p.rules.pack_credits ?? 0}"></div>
+      <div class="campo"><label for="pl-pp">Preço do Capacity Pack (US$)</label><input class="entrada" id="pl-pp" type="number" min="0" step="0.01" value="${p.rules.pack_price_usd ?? 0}"><span class="ajuda">O pacote não traz reserva nova e usa a infraestrutura que a empresa já tem; os créditos acumulam.</span></div></div>
     <label class="dica" style="display:flex;gap:8px;margin-bottom:12px"><input type="checkbox" id="pl-rr" ${p.rules.reserve_fast_only !== false ? 'checked' : ''}> Na reserva, só a classe Rápido</label>
     <div class="campo"><label for="pl-set">Configurações específicas (JSON)</label><textarea class="entrada" id="pl-set" rows="3" style="font-family:monospace">${esc(JSON.stringify(p.settings || {}, null, 2))}</textarea></div>
     <p class="msg-erro oculto" id="pl-erro" role="alert"></p><div class="linha-botoes"><button class="btn btn-verde">Salvar plano</button></div></form>`, '', '#/planos');
+  // Prévia ao digitar (sem gravar): mesma conta e mesma trava do servidor.
+  let tPrevia;
+  const atualizarPrevia = () => { clearTimeout(tPrevia); tPrevia = setTimeout(async () => {
+    try { const r = await api('/api/plataforma/planos/previa', { metodo: 'POST', corpo: { credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: $('pl-preco').value, rules: { pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) } } });
+      $('pl-previa').innerHTML = previaHtml(r.economia); } catch { /* a prévia é só informativa */ }
+  }, 250); };
+  ['pl-cred', 'pl-res', 'pl-preco', 'pl-pc', 'pl-pp'].forEach(x => $(x).addEventListener('input', atualizarPrevia));
+  if (id === 'novo') atualizarPrevia();
   $('f-plano').onsubmit = async ev => {
     ev.preventDefault();
     try {
@@ -471,7 +537,7 @@ async function vistaPlano(id) {
       try { settings = JSON.parse($('pl-set').value || '{}'); } catch { throw new Error('As configurações específicas precisam ser um JSON válido.'); }
       const corpo = { name: $('pl-nome').value, status: $('pl-status').value, description: $('pl-desc').value, credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: $('pl-preco').value,
         limits: Object.fromEntries(Object.keys(C.catalogo.limites).map(k => [k, Number($(`pl-l-${k}`).value)])), features: Object.fromEntries([...document.querySelectorAll('[data-f]')].map(x => [x.dataset.f, x.checked])),
-        rules: { reserve_fast_only: $('pl-rr').checked, pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) }, settings };
+        rules: { reserve_fast_only: $('pl-rr').checked, pack_name: p.rules.pack_name || 'Capacity Pack', pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) }, settings };
       await api(id === 'novo' ? '/api/plataforma/planos' : `/api/plataforma/planos/${id}`, { metodo: id === 'novo' ? 'POST' : 'PUT', corpo });
       C.planos = []; toast('Plano salvo.'); location.hash = '#/planos';
     } catch (x) { mostrarErro('pl-erro', x); }
@@ -625,12 +691,12 @@ async function vistaUso(forcar = false) {
     <div class="secao-titulo"><h3>Consumo da plataforma · últimos 30 dias</h3></div>
     <div class="indicadores"><div class="indicador"><span>Hoje</span><b>${usd4(pl.custoHoje)}</b></div><div class="indicador"><span>Últimos 7 dias</span><b>${usd4(pl.custo7)}</b></div>
       <div class="indicador"><span>Mês até hoje</span><b>${usd4(pl.custoMes)}</b></div><div class="indicador"><span>Projeção do mês</span><b>${usd4(pl.projecaoMes)}</b></div>
-      <div class="indicador"><span>Receita de tabela do mês (planos + pacotes)</span><b>${usd(pl.receitaMes)}</b></div><div class="indicador"><span>Margem estimada (após taxa de 5,5% e servidor)</span><b>${usd(pl.margemMes)}</b></div></div>
-    <p class="dica">Receita de tabela: preço do plano de cada empresa ativa${pl.receitaPacotes ? ` e ${usd(pl.receitaPacotes)} em pacotes liberados no mês` : ' e os pacotes liberados no mês'}, não o valor faturado. Servidor: ${pl.custoServidor ? `${usd(pl.custoServidor)} por mês, dividido entre as empresas ativas` : 'não informado (informe a fatura mensal abaixo)'}.</p>
+      <div class="indicador"><span>Receita de tabela do mês (planos + Capacity Packs)</span><b>${usd(pl.receitaMes)}</b></div><div class="indicador"><span>Margem total do mês</span><b>${usd(pl.margemMes)}</b><small>${pl.margemMesPct !== null && pl.margemMesPct !== undefined ? pctM(pl.margemMesPct) + ' da receita' : 'sem receita no mês'}</small></div></div>
+    <p class="dica">Receita de tabela: preço do plano de cada empresa${pl.receitaPacotes ? ` e ${usd(pl.receitaPacotes)} em Capacity Packs liberados no mês` : ' e os Capacity Packs liberados no mês'}, não o valor faturado; planos internos e sem preço não entram. Margem total: receita − impostos, pagamento/câmbio e suporte/operação (${usd(pl.custosProporcionais || 0)}) − IA com a taxa do intermediário − servidor. Servidor: ${pl.custoServidor ? `${usd(pl.custoServidor)} por mês, dividido entre as empresas ativas` : 'não informado (informe a fatura mensal abaixo)'}.</p>
     <form class="or-alerta" id="f-servidor"><label for="srv-usd">Custo mensal do servidor (fatura do Render), em dólares</label>
       <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="srv-usd" type="number" min="0" step="0.01" value="${esc(pl.custoServidor || 0)}"></span><button class="btn btn-linha btn-pequeno">Salvar custo do servidor</button></form>
     ${grafBarras(u.serie.map(x => ({ d: x.dia, v: x.custo })), 'Custo diário de IA da plataforma nos últimos 30 dias')}
-    <p class="dica">Custo real de cada resposta, registrado pela GreenIA. A margem desconta a taxa de 5,5% do OpenRouter na compra de créditos.</p>
+    <p class="dica">Custo real de cada resposta, registrado pela GreenIA (sem a taxa do intermediário, que entra na margem).</p>
 
     <div class="secao-titulo"><h3>Consumo por empresa</h3>
       <div class="pilulas" role="group" aria-label="Filtro"><button type="button" class="pilula" data-filtro="todas" aria-pressed="${filtro === 'todas'}">Todas<span>${u.empresas.length}</span></button><button type="button" class="pilula" data-filtro="alerta" aria-pressed="${filtro === 'alerta'}">Com alerta<span>${comAlerta}</span></button></div></div>

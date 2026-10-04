@@ -9,7 +9,7 @@ import { um } from '../src/db.js';
 const TOKEN = 'token-de-teste-com-mais-de-24-caracteres';
 let C, O, adminC, op;
 before(async () => {
-  C = await subir({ plano: { creditos: 10000, reserva: 2000, precoUsd: 750 }, operacao: { token: TOKEN, custoInfraUsd: 7, pacote: { creditos: 10000, precoUsd: 250 } } });
+  C = await subir({ plano: { creditos: 10000, reserva: 2000, precoUsd: 750 }, operacao: { token: TOKEN, custoInfraUsd: 7, pacote: { creditos: 2000, precoUsd: 229 } } });
   exec(C, "insert into uso (em, pessoa_id, conversa_id, custo) values (?, 1, 1, 12.5)", new Date().toISOString());
   O = await subir({ adminEmail: 'suporte@operadora.com', operadores: ['suporte@operadora.com'], operacao: { instancias: lerInstancias(`Cliente A|${C.base}|${TOKEN};Cliente fora|http://127.0.0.1:9|x`) } });
   adminC = await C.cliente().entrar('admin@exemplo.com.br');
@@ -46,20 +46,27 @@ test('console junta as instalações e mostra quem não responde', async () => {
   const a = instancias.find(i => i.nome === 'Cliente A');
   assert.equal(a.ok, true);
   assert.equal(a.resumo.plano.creditos, 10000);
-  assert.ok(Math.abs(a.resumo.financeiro.margem - (750 - 12.5 * 1.055 - 7)) < 0.01);
+  // Margem total: receita − 30% (impostos 12% + pagamento/câmbio 3% + suporte/operação 15%) − IA com a taxa − infraestrutura.
+  assert.ok(Math.abs(a.resumo.financeiro.margem - (750 - 750 * 0.30 - 12.5 * 1.055 - 7)) < 0.01);
+  assert.ok(Math.abs(a.resumo.financeiro.margemPct - Math.round((750 - 225 - 12.5 * 1.055 - 7) / 750 * 1000) / 10) < 0.01);
   assert.equal(instancias.find(i => i.nome === 'Cliente fora').ok, false);
 });
 
-test('pacote liberado pelo console chega à instalação do cliente, com operador e validade', async () => {
-  const r = await op.post('/api/operador/instancias/0/pacotes', { creditos: 10000, validade: '2099-12-31', observacao: 'Pedido 42' });
+test('Capacity Pack liberado pelo console chega à instalação do cliente: créditos e valor calculados no servidor; créditos avulsos são cortesia', async () => {
+  const r = await op.post('/api/operador/instancias/0/pacotes', { packs: 1, validade: '2099-12-31', observacao: 'Pedido 42' });
   assert.equal(r.status, 200);
-  assert.equal(r.dados.resumo.financeiro.receitaPacotes, 250);
+  assert.equal(r.dados.resumo.financeiro.receitaPacotes, 229);
   const p = um(C.app.db, 'select * from pacotes order by id desc limit 1');
-  assert.deepEqual([p.creditos, p.origem, p.operador, p.validade, p.observacao], [10000, 'console', 'suporte@operadora.com', '2099-12-31', 'Pedido 42']);
-  assert.ok(C.app.email.enviados.some(m => m.para === 'admin@exemplo.com.br' && /pacote adicional/.test(m.assunto)));
+  assert.deepEqual([p.creditos, p.produto, p.preco_usd, p.origem, p.operador, p.validade, p.observacao], [2000, 'capacity_pack', 229, 'console', 'suporte@operadora.com', '2099-12-31', 'Pedido 42']);
+  assert.ok(C.app.email.enviados.some(m => m.para === 'admin@exemplo.com.br' && /créditos adicionais liberados/.test(m.assunto)));
+  assert.equal((await op.post('/api/operador/instancias/0/pacotes', { packs: 0 })).status, 502, 'quantidade inválida recusada na instalação');
+  // Créditos avulsos: cortesia, sem receita.
+  const c = await op.post('/api/operador/instancias/0/pacotes', { creditos: 500, observacao: 'Cortesia' });
+  assert.equal(c.dados.resumo.financeiro.receitaPacotes, 229);
+  assert.deepEqual({ ...um(C.app.db, 'select produto, preco_usd from pacotes order by id desc limit 1') }, { produto: 'cortesia', preco_usd: 0 });
   // O admin do cliente vê o pacote em créditos, sem dólar.
   const uso = (await adminC.get('/api/admin/uso')).dados;
-  assert.equal(uso.pacotes[0].creditos, 10000);
+  assert.equal(uso.pacotes[1].creditos, 2000);
   assert.ok(!JSON.stringify(uso).includes('US$'));
   assert.equal(uso.totais.custo, 1250);   // 12,5 dólares = 1.250 créditos
   assert.equal(uso.tendencia.at(-1).custo, 1250);

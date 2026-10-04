@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { subirPlataforma } from './ajuda-plataforma.js';
-import { exec } from '../src/db.js';
+import { exec, todos } from '../src/db.js';
 import { conferirSaldo } from '../src/plataforma/consumo.js';
 
 let S, ops, A, conta, chamadasConta = 0;
@@ -74,45 +74,63 @@ test('cliente do OpenRouter lê /key e /credits e tolera a parte que falhar', as
   assert.ok(pedidos.every(p => p[1] === 'Bearer sk-teste'));
 });
 
-test('receita e margem do console: plano + pacotes do mês, menos IA com a taxa e a parte do servidor; servidor configurável e auditado', async () => {
+test('receita e margem TOTAL do console: plano + Capacity Packs do mês − custos proporcionais − IA com a taxa − parte da infraestrutura; servidor configurável e auditado', async () => {
   assert.equal((await ops.put('/api/plataforma/consumo/servidor', { custoUsd: -1 })).status, 400);
   assert.equal((await ops.put('/api/plataforma/consumo/servidor', { custoUsd: 30 })).dados.custoUsd, 30);
   const p = (await ops.get('/api/plataforma/planos')).dados.planos.find(x => x.credits > 0);   // o plano da Alfa
-  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/pacotes`, { creditos: 5000 })).status, 200);
+  // O operador informa a quantidade de Capacity Packs; créditos e valor saem das regras do plano (nunca do pedido).
+  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/pacotes`, { packs: 2 })).status, 200);
+  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/pacotes`, { packs: 0 })).status, 400);
+  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/pacotes`, { packs: 1.5 })).status, 400);
+  assert.equal((await ops.post(`/api/plataforma/empresas/${A.id}/pacotes`, { creditos: 300, observacao: 'cortesia' })).status, 200);   // cortesia: sem receita
+  const linhas = todos(S.P.tenant(A.id).db, 'select creditos, produto, preco_usd from pacotes order by id').map(x => ({ ...x }));
+  assert.deepEqual(linhas, [{ creditos: 2 * p.rules.pack_credits, produto: 'capacity_pack', preco_usd: 2 * p.rules.pack_price_usd }, { creditos: 300, produto: 'cortesia', preco_usd: 0 }]);
   const r = (await ops.get('/api/plataforma/consumo')).dados;
   const e = r.empresas.find(x => x.id === A.id), n = r.empresas.length;
-  const pacote = 5000 * p.rules.pack_price_usd / p.rules.pack_credits;
+  const pacote = 2 * p.rules.pack_price_usd, receita = p.price_usd + pacote;
   assert.equal(e.receitaPacotesUsd, pacote);
-  assert.equal(e.receitaUsd, p.price_usd + pacote);
+  assert.equal(e.receitaUsd, receita);
   assert.ok(Math.abs(e.infraUsd - 30 / n) < 1e-9, 'servidor dividido entre as empresas ativas');
-  assert.ok(Math.abs(e.margemUsd - (p.price_usd + pacote - e.custoMes * 1.055 - 30 / n)) < 1e-9);
+  const esperado = receita - receita * 0.30 - e.custoMes * 1.055 - 30 / n;
+  assert.ok(Math.abs(e.margemUsd - esperado) < 1e-9, `${e.margemUsd} ≠ ${esperado}`);
+  assert.ok(Math.abs(e.margemPct - esperado / receita) < 1e-9);
   assert.equal(r.plataforma.custoServidor, 30);
-  assert.ok(Math.abs(r.plataforma.margemMes - (r.plataforma.receitaMes - r.plataforma.custoMesComTaxa - 30)) < 1e-9);
+  assert.ok(Math.abs(r.plataforma.margemMes - (r.plataforma.receitaMes * 0.70 - r.plataforma.custoMesComTaxa - 30)) < 1e-9);
   // A tela de uso por empresa usa a mesma conta.
   const u = (await ops.get('/api/plataforma/uso')).dados.empresas.find(x => x.id === A.id);
   assert.equal(u.margemUsd, e.margemUsd);
   const aud = (await ops.get('/api/plataforma/auditoria')).dados;
   assert.ok(JSON.stringify(aud).includes('platform.server_cost_changed'));
+  assert.equal((await ops.put('/api/plataforma/consumo/servidor', { custoUsd: 0 })).status, 200);
 });
 
-test('margem desenhada: planos mostram a margem no pior caso; preço de plano ou pacote abaixo da margem mínima não é salvo; sem preço fica marcado', async () => {
+test('planos no console: margem TOTAL no pior caso com detalhamento, status, preço mínimo e folga; trava de 50% no salvamento; sem preço e sem teto marcados', async () => {
   const r = (await ops.get('/api/plataforma/planos')).dados;
-  assert.equal(r.margemMinima, 0.5);
-  const team = r.planos.find(p => p.credits === 10000 && p.price_usd === 290), company = r.planos.find(p => p.credits === 25000 && p.price_usd === 750);
-  // Pior caso só de IA (sem servidor): (créditos + reserva) × US$ 0,01 × 1,055.
-  assert.equal(team.economia.custoIaPiorCaso, 126.6);
-  assert.ok(Math.abs(team.economia.margemSoIa - (290 - 126.6) / 290) < 1e-9);
-  assert.equal(company.economia.custoIaPiorCaso, 316.5);
-  assert.ok(Math.abs(team.economia.pacote.margem - (250 - 105.5) / 250) < 1e-9);
+  assert.deepEqual([r.margemMinima, r.metaMargem], [0.5, 0.52]);
+  const starter = r.planos.find(p => p.name === 'GreenIA Starter');
+  const e = starter.economia;
+  // 199: impostos 12%, pagamento/câmbio 3%, suporte 15%, IA (2.000 + 400) × 0,01 × 1,055, infraestrutura 0 (servidor sem fatura).
+  assert.deepEqual([e.capacidadePiorCaso, e.impostos, e.pagamento, e.suporte, e.custoIaPiorCaso, e.infra], [2400, 23.88, 5.97, 29.85, 25.32, 0]);
+  assert.ok(Math.abs(e.margem - (199 - 199 * 0.3 - 25.32) / 199) < 1e-9);
+  assert.equal(e.status, 'saudavel');
+  assert.ok(Math.abs(e.folga - (e.margem - 0.5)) < 1e-12);
+  assert.ok(Math.abs(e.precoMinimo - Math.ceil(25.32 / 0.2 * 100) / 100) < 1e-9);
+  assert.equal(e.simulacao.length, 5);
+  assert.ok(e.margemIa > e.margem, 'margem de IA é só diagnóstico (maior que a total)');
   assert.ok(r.planos.find(p => !p.credits).economia.semTeto, 'Liberado: sem teto de custo');
-  // Abaixo da margem: recusado, com o preço mínimo.
-  const base = { name: 'Barato', credits: 10000, reserve: 2000, limits: {}, features: {}, rules: { pack_credits: 10000, pack_price_usd: 250 } };
-  const caro = await ops.post('/api/plataforma/planos', { ...base, price_usd: 200 });
+  // Abaixo do piso: recusado, com o preço mínimo calculado pela margem total.
+  const base = { name: 'Barato', credits: 10000, reserve: 2000, limits: {}, features: {}, rules: { pack_credits: 2000, pack_price_usd: 229 } };
+  const caro = await ops.post('/api/plataforma/planos', { ...base, price_usd: 600 });
   assert.equal(caro.status, 400);
-  assert.match(caro.dados.mensagem, /preço mínimo é US\$ 254/);
-  const pacote = await ops.post('/api/plataforma/planos', { ...base, price_usd: 290, rules: { pack_credits: 10000, pack_price_usd: 150 } });
+  assert.match(caro.dados.mensagem, /margem total no pior caso/);
+  assert.match(caro.dados.mensagem, /preço mínimo é US\$ 633\.00/);
+  const pacote = await ops.post('/api/plataforma/planos', { ...base, price_usd: 749, rules: { pack_credits: 2000, pack_price_usd: 40 } });
   assert.equal(pacote.status, 400);
-  assert.match(pacote.dados.mensagem, /margem do pacote/);
+  assert.match(pacote.dados.mensagem, /Capacity Pack/);
+  // Prévia: a mesma conta, sem gravar.
+  const pv = (await ops.post('/api/plataforma/planos/previa', { credits: 10000, reserve: 2000, price_usd: 600 })).dados.economia;
+  assert.equal(pv.status, 'critico');
+  assert.equal(pv.precoMinimo, 633);
   // Sem preço (piloto/cortesia) é permitido e aparece como custo sem receita.
   const piloto = await ops.post('/api/plataforma/planos', { ...base, name: 'Piloto margem', price_usd: 0 });
   assert.equal(piloto.status, 200);

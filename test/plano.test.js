@@ -94,7 +94,7 @@ test('pacote do operador volta todos os modelos, o que sobra passa para o mês s
   const r = (await op.post('/api/operador/pacotes', { creditos: 20 })).dados.resumo;
   assert.equal(r.fase, 'pacote');
   assert.equal(r.pacoteDisponivel, 10);                  // 10 cobriram o que passou do plano
-  assert.ok(emails('admin@exemplo.com.br').some(a => /pacote adicional/.test(a)));
+  assert.ok(emails('admin@exemplo.com.br').some(a => /créditos adicionais liberados/.test(a)));
   const antes = OR.chamadas.length;
   await enviar(EQUILIBRADO);                             // pacote 10 → 6
   assert.equal(OR.chamadas[antes].model, EQUILIBRADO);

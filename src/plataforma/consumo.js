@@ -6,8 +6,8 @@ import { lerAjuste, salvarAjuste } from './db.js';
 import * as E from './empresas.js';
 import { registrarLeitura } from './chave-validade.js';
 
-import { TAXA_INTERMEDIARIO } from './margem.js';
-export { TAXA_INTERMEDIARIO };
+import { TAXA_INTERMEDIARIO, custoServidor, infraPorEmpresa, lerPremissas, conta } from './margem.js';
+export { TAXA_INTERMEDIARIO, custoServidor, infraPorEmpresa };
 const CACHE_MS = 5 * 60e3, DIAS = 30;
 const num = v => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 const diaIso = d => d.toISOString().slice(0, 10);
@@ -45,13 +45,6 @@ function seriePorEmpresa(P, c, desde) {
   return new Map(todos(t.db, 'select substr(em, 1, 10) as d, sum(custo) as custo, count(*) as n from uso where em >= ? group by d', desde).map(x => [x.d, { custo: x.custo, respostas: x.n }]));
 }
 
-// Custo mensal do servidor (fatura do Render), informado pelo operador: a instalação é uma só para todas as empresas,
-// então cada empresa ativa responde por uma parte igual.
-export const custoServidor = P => Number(lerAjuste(P.db, 'custo_servidor_usd', 0)) || 0;
-export function infraPorEmpresa(P) {
-  const n = um(P.db, "select count(*) as n from companies where status != 'cancelada' or status is null").n;
-  return n ? custoServidor(P) / n : 0;
-}
 // Conciliação com o OpenRouter: o que a chave gastou no mês (UTC) contra o que virou crédito nas empresas. Diferença
 // acima de 1% (e de US$ 0,10) é custo cobrado que não virou crédito: margem saindo sem aparecer.
 export function conciliar(conta, custoMes) {
@@ -60,12 +53,10 @@ export function conciliar(conta, custoMes) {
   const diferenca = or - custoMes, percentual = custoMes > 0 ? diferenca / custoMes * 100 : null;
   return { disponivel: true, openrouterMes: or, registradoMes: custoMes, diferenca, percentual, alerta: diferenca > 0.1 && (percentual === null || percentual > 1) };
 }
-// Receita de tabela de pacotes liberados no mês: preço do pacote do plano proporcional aos créditos liberados.
-function receitaPacotes(t, plano, mes) {
-  const r = plano?.rules || {};
-  if (!(r.pack_credits > 0) || !(r.pack_price_usd > 0)) return 0;
-  const creditos = um(t.db, "select coalesce(sum(creditos), 0) as n from pacotes where substr(em, 1, 7) = ?", mes).n;
-  return creditos * r.pack_price_usd / r.pack_credits;
+// Receita de Capacity Packs (e pacotes legados) liberados no mês: o preço gravado em cada liberação. Cortesia não tem
+// receita. Registros antigos guardam o valor da época (migração do banco da empresa).
+function receitaPacotes(t, mes) {
+  return um(t.db, "select coalesce(sum(preco_usd), 0) as v from pacotes where substr(em, 1, 7) = ?", mes).v;
 }
 
 export function resumoConsumo(P) {
@@ -75,7 +66,9 @@ export function resumoConsumo(P) {
   const diaDoMes = agora.getUTCDate(), diasNoMes = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 1, 0)).getUTCDate();
   const total = new Map(dias.map(d => [d, 0]));
   const ativas = todos(P.db, "select * from companies where status != 'cancelada' or status is null order by name");
-  const infra = infraPorEmpresa(P);
+  const infra = infraPorEmpresa(P), pr = lerPremissas(P);
+  // Custo real do mês em créditos (o registrado em dólar ÷ custo-base do crédito), para a mesma conta da margem.
+  const emCreditos = usd => usd / pr.ai_credit_base_cost;
   const empresas = ativas.map(c => {
     const serie = seriePorEmpresa(P, c, desde);
     for (const [d, v] of serie) if (total.has(d)) total.set(d, total.get(d) + v.custo);
@@ -91,12 +84,14 @@ export function resumoConsumo(P) {
       id: c.id, name: c.name, status: c.status, plano: plano?.name || null, ilimitado: !!sp?.ilimitado,
       creditos: sp?.creditos ?? null, usados: sp?.usados ?? null, percentual: sp?.percentual ?? null, fase: sp?.fase || null, projecao, alerta,
       custoMes, custoHoje, custo7, respostas: u.respostas, pessoasAtivas: u.pessoasAtivas, conversas: u.conversas,
-      // Receita de tabela (preço do plano + pacotes do mês), não o faturado. Margem: receita − IA com a taxa do
-      // intermediário − parte do servidor. Empresa sem preço de plano (ex.: Liberado) não tem receita nem margem.
-      receitaUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) : null,
-      receitaPacotesUsd: plano?.price_usd != null ? receitaPacotes(P.tenant(c.id), plano, mes) : null,
-      infraUsd: infra,
-      margemUsd: plano?.price_usd != null ? plano.price_usd + receitaPacotes(P.tenant(c.id), plano, mes) - custoMes * TAXA_INTERMEDIARIO - infra : null,
+      // Receita de tabela (preço do plano + Capacity Packs do mês), não o faturado. Margem TOTAL do mês: receita −
+      // impostos − pagamento/câmbio − suporte/operação − IA real com a taxa − parte da infraestrutura. Empresa sem preço
+      // de plano (ex.: Liberado, interno) não tem receita nem margem e não entra na receita comercial.
+      ...(() => {
+        if (plano?.price_usd == null) return { receitaUsd: null, receitaPacotesUsd: null, infraUsd: infra, margemUsd: null, margemPct: null, statusMargem: null };
+        const pacotes = receitaPacotes(P.tenant(c.id), mes), r = conta({ receita: plano.price_usd + pacotes, creditos: emCreditos(custoMes), infra }, pr);
+        return { receitaUsd: r.receita, receitaPacotesUsd: pacotes, infraUsd: infra, custosProporcionaisUsd: r.proporcionais, custoIaComTaxaUsd: r.ia, margemUsd: r.contribuicao, margemPct: r.margem };
+      })(),
       serie: dias.map(d => Math.round((serie.get(d)?.custo || 0) * 1e4) / 1e4),
     };
   });
@@ -107,9 +102,13 @@ export function resumoConsumo(P) {
     mes, hoje, dias, serie, media7,
     plataforma: {
       custoMes, custoHoje: total.get(hoje) || 0, custo7: seteDias.reduce((s, d) => s + total.get(d), 0),
-      custoMesComTaxa: custoMes * TAXA_INTERMEDIARIO, receitaMes: empresas.reduce((s, e) => s + (e.receitaUsd || 0), 0),
+      custoMesComTaxa: custoMes * (1 + pr.ai_provider_fee_rate), receitaMes: empresas.reduce((s, e) => s + (e.receitaUsd || 0), 0),
       receitaPacotes: empresas.reduce((s, e) => s + (e.receitaPacotesUsd || 0), 0), custoServidor: custoServidor(P),
-      margemMes: empresas.reduce((s, e) => s + (e.receitaUsd || 0), 0) - custoMes * TAXA_INTERMEDIARIO - custoServidor(P),
+      // Margem total da plataforma no mês: toda a IA (inclusive de empresas sem receita) e o servidor inteiro.
+      ...(() => {
+        const r = conta({ receita: empresas.reduce((s, e) => s + (e.receitaUsd || 0), 0), creditos: emCreditos(custoMes), infra: custoServidor(P) }, pr);
+        return { custosProporcionais: r.proporcionais, margemMes: r.contribuicao, margemMesPct: r.margem };
+      })(),
       projecaoMes: diaDoMes ? custoMes / diaDoMes * diasNoMes : custoMes,
     },
     empresas,

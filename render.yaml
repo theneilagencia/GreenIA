@@ -21,13 +21,15 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false         # pedido na criação; nunca no repositório
       # Plano contratado (definido pela TheNeil; o admin da empresa não altera).
-      # Plano principal: 25000 créditos, reserva 5000, preço 750. Plano de entrada: 10000, 2000, 290.
+      # Catálogo (out/2026): Starter 2000 + 400 por US$ 199; Team 5000 + 1000 por US$ 399; Business 10000 + 2000 por
+      # US$ 749; Company 25000 + 5000 por US$ 1749 (src/plataforma/catalogo.js). No modo multiempresa os planos ficam no
+      # console da plataforma; estes valores só escolhem o plano da instalação única importada na primeira subida.
       - key: PLANO_CREDITOS
         value: "25000"
       - key: PLANO_RESERVA
         value: "5000"
       - key: PLANO_PRECO_USD
-        value: "750"
+        value: "1749"
       - key: OPERADOR_EMAIL
         sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
       # Multiempresa: uma instalação para todas as empresas. Console da plataforma em /plataforma.

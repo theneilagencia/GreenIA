@@ -9,12 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends chromium fonts-
   && rm -rf /var/lib/apt/lists/* /usr/share/doc/* /usr/share/man/*
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+RUN npm ci --ignore-scripts
 COPY src ./src
+COPY test ./test
 COPY public ./public
 COPY scripts/backup.js scripts/restaurar.js scripts/verificar.js scripts/entrada.sh ./scripts/
 COPY modelos-quick-win.json ./
 COPY deploy/admins-plataforma.txt ./deploy/
+RUN npm test
 RUN mkdir -p /app/dados && chown node:node /app/dados && chmod +x scripts/entrada.sh
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

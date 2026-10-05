@@ -9,7 +9,7 @@ import { todos } from '../src/db.js';
 import { mkdirSync } from 'node:fs';
 mkdirSync('capturas/tmp', { recursive: true });
 
-const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM].find(p => p && existsSync(p));
+const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 let S, nav, ctx, p, empresa;
 before(async () => {
   S = await subirPlataforma();

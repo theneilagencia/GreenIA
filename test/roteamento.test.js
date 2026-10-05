@@ -88,6 +88,8 @@ test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, prefer�
   const tela = (await admin.get('/api/admin/roteamento')).dados;
   assert.ok(!JSON.stringify(tela).includes('Aurora'));
   assert.ok(!('custo_estimado' in tela.decisoes[0]) && !('custo_real' in tela.decisoes[0]), 'sem valores em dólar');
+  assert.ok(tela.resumo.calibracao.observadas >= 1);
+  assert.ok(tela.resumo.calibracao.taxaMenorClasseSuficiente === null || (tela.resumo.calibracao.taxaMenorClasseSuficiente >= 0 && tela.resumo.calibracao.taxaMenorClasseSuficiente <= 100));
 });
 
 test('sem acesso à classe necessária: a mais capaz permitida, com a causa na auditoria e na explicação', async () => {

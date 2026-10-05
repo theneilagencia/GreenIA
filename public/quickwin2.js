@@ -386,8 +386,9 @@ const ETAPA_HTML = [
   // 6. Revisar e publicar
   async W => {
     if (!W.qw) throw new Error('Crie o Quick Win antes de publicar.');
-    const q = W.qw, a = q.assistente || {}, areas = E.permQw.areas;
-    const teste = W.resultado?.qualidade || q.ultimo_teste || null;
+    const q = await api(`/api/quick-wins/${W.id}`), a = q.assistente || {}, areas = E.permQw.areas;
+    W.qw = q;
+    const teste = q.ultimo_teste || null;
     const considera = a.como?.modo === 'explicar' && a.como.texto ? esc(a.como.texto.length > 220 ? `${a.como.texto.slice(0, 220)}…` : a.como.texto)
       : a.como?.modo === 'mostrar' ? 'A estrutura do exemplo que você mostrou.' : 'A estrutura sugerida para esse tipo de trabalho.';
     return `${pergunta('Revise e publique', 'Confira o que a equipe vai usar. Você pode ajustar depois; cada publicação vira uma nova versão.')}

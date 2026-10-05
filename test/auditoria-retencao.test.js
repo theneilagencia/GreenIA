@@ -247,6 +247,7 @@ test('segredos em texto, PDF, PPTX, imagem e PDF escaneado (OCR): bloqueados ant
     PDF: { texto: 'Veja o anexo.', anexos: [arquivo('acesso.pdf', pdf(segredo))] },
     PPTX: { texto: 'Veja o anexo.', anexos: [arquivo('acesso.pptx', pptx([segredo]))] },
     imagem: { texto: 'Veja o anexo.', anexos: [arquivo('acesso.png', imagem('segredo.png'))] },
+    'imagem com fragmento curto após OCR': { texto: 'Veja o anexo.', anexos: [arquivo('acesso-curto.png', imagem('segredo-fragmentado.png'))] },
     'PDF escaneado': { texto: 'Veja o anexo.', anexos: [arquivo('acesso.pdf', pdfEscaneado([jpegDe('segredo.jpg')]))] },
   };
   for (const [nome, { texto, ...extra }] of Object.entries(casos)) {

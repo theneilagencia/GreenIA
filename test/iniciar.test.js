@@ -14,17 +14,19 @@ async function subirProcesso(extra) {
   const porta = 20000 + Math.floor(Math.random() * 20000);
   const env = { ...process.env, PORTA: String(porta), HOST: '127.0.0.1', BANCO: join(mkdtempSync(join(tmpdir(), 'greenia-')), 'g.sqlite'), OPENROUTER_API_KEY: '', NODE_ENV: 'development', ...extra };
   const p = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', 'src/iniciar.js'], { env, stdio: 'pipe' });
+  const fim = new Promise(r => p.on('exit', r));
   let saida = '';
   p.stdout.on('data', d => { saida += d; });
   p.stderr.on('data', d => { saida += d; });
   let ok = false;
-  for (let i = 0; i < 50 && !ok; i++) {
+  // A sondagem do Chromium em produção disputa CPU com a suíte completa no CI.
+  // Aguarda prontidão, sem mudar os asserts de saúde ou aceitar processo encerrado.
+  for (let i = 0; i < 300 && !ok && p.exitCode === null; i++) {
     await new Promise(r => setTimeout(r, 100));
     ok = await fetch(`http://127.0.0.1:${porta}/api/saude`).then(r => r.ok).catch(() => false);
   }
   const saude = ok ? await fetch(`http://127.0.0.1:${porta}/api/saude`).then(r => r.json()) : null;
-  const fim = new Promise(r => p.on('exit', r));
-  p.kill('SIGTERM');
+  if (p.exitCode === null) p.kill('SIGTERM');
   return { ok, saida, saude, codigo: await fim };
 }
 

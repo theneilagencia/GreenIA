@@ -1,6 +1,7 @@
 // E2E no navegador: login por código → chat → quick win (conversa, ajuste, retomada, feedback).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
@@ -54,6 +55,10 @@ test('login → chat → quick win', async () => {
   await p.keyboard.press('Enter');
   await p.waitForFunction(() => document.querySelectorAll('.rodape-resposta').length >= 2);
   await p.waitForSelector('[data-csv]');   // tabela da resposta, com download em CSV
+  const [download] = await Promise.all([p.waitForEvent('download', { timeout: 10000 }), p.locator('[data-csv]').first().click()]);
+  const csv = await readFile(await download.path(), 'utf8');
+  assert.equal(csv.charCodeAt(0), 0xfeff, 'CSV da conversa preserva UTF-8 com BOM');
+  assert.ok(csv.includes(';') && csv.split('\r\n').length >= 2, 'download contém cabeçalho e dados da tabela');
   assert.match(await p.textContent('.coluna'), /Revise antes de usar/);
   // Feedback no topo.
   await p.click('[data-fb="serviu"]');

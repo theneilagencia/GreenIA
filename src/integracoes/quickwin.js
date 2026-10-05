@@ -31,6 +31,7 @@ export async function prepararExecucao(app, pessoa, { qw, conv, lookup } = {}) {
   const escritas = p.passos.filter(x => x.modo === 'write' && x.capability_id);
   const instrucao = escritas.length ? [
     'Ações em sistemas externos: a GreenIA executa, sob a política da empresa e com aprovação quando exigida. Não diga que registrou, enviou ou alterou algo: isso aparece na tela, com o status de cada etapa.',
+    'A aprovação acontece em Administração → Integrações, por uma pessoa autorizada. Depois, use Executar etapas aprovadas na conversa. Nunca peça para aprovar respondendo no chat: uma mensagem não concede aprovação.',
     `Ao final da resposta, inclua um bloco \`\`\`dados_integracao com um JSON de um objeto por etapa, só com dados do material: ${escritas.map(x => `"${x.id}" (${x.acao}): campos ${camposDe(lerCapability(app, x.capability_id)?.inputs).join(', ') || 'livres'}`).join('; ')}.`,
   ].join('\n') : '';
   return { plano: plano.id, anexos, instrucao, leituras: r };

@@ -75,8 +75,9 @@ const REGRAS = {
     if (/\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/.test(t)) return true;  // JWT
     if (/\b[a-z][a-z0-9+.-]*:\/\/[^\s:@\/]+:[^\s@\/]{3,}@/i.test(t)) return true;             // usuário:senha em URL
     const chave = String.raw`(?:senha|password|passwd|pwd|token|api[\s_-]?key|chave\s+de\s+api|secret|segredo|client[\s_-]?secret)`;
-    // palavra-chave seguida de ":" ou "=" e um valor; ou de "é" e um valor com número ou símbolo
-    return new RegExp(`\\b${chave}\\s*[:=]\\s*["'\`]?\\S{3,}`, 'i').test(t)
+    // OCR pode ler os sublinhados como espaços: "QA_Ficticia..." vira "QA Ficticia...".
+    // Um valor explícito de dois caracteres também é credencial, mesmo com fragmentos depois dele.
+    return new RegExp(`\\b${chave}\\s*[:=]\\s*["'\`]?\\S{2,}`, 'i').test(t)
       || new RegExp(`\\b${chave}\\s+(?:é|e|eh)\\s+["'\`]?(?=\\S*[\\d@#$%&*!])\\S{4,}`, 'i').test(t);
   },
   rg(t) {

@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 
-const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM].find(p => p && existsSync(p));
+const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const LOGO = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40"><rect width="120" height="40" fill="#7A4A12"/></svg>').toString('base64');
 let S, nav, ctx, P;
 

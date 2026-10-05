@@ -156,6 +156,12 @@ test('A (só leitura) e B (escrita com aprovação): leitura vira material; escr
   await p.screenshot({ path: 'capturas/tmp/integracoes-execucao.png', fullPage: true });
   assert.equal(API.estado.faturas.size, 1);
   assert.equal([...API.estado.faturas.values()][0].descricao, 'QA fatura fictícia E2E');
+  await p.reload();
+  await p.waitForSelector('.painel-integracoes');
+  assert.match(await p.locator('.painel-integracoes').innerText(), /concluída[\s\S]*concluída/);
+  assert.doesNotMatch(await p.locator('.painel-integracoes').innerText(), /aguardando aprovação/);
+  assert.equal(await p.locator('[data-integ-executar]').count(), 0);
+  assert.equal(API.estado.faturas.size, 1, 'reabrir não repete a gravação');
   const de = await admin.get(`/api/admin/integracoes/${lerCap.id}`);
   assert.ok(de.dados.execucoes.some(x => x.status === 'SUCCESS' && x.operation_id === 'criarFatura' && x.modo === 'real'));
 });

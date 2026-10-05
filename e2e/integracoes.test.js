@@ -123,7 +123,7 @@ test('tela: Quick Win pede a integração; assistente de 8 passos cria, testa, a
 
 test('A (só leitura) e B (escrita com aprovação): leitura vira material; escrita espera aprovação, grava uma vez a entrada aprovada', async () => {
   const lerCap = await conector('ERP Fictício', [{ operation_id: 'listarClientes', efeitos: { personal_data: false } }, 'criarFatura']);
-  const descricao = 'Consulte os clientes no ERP Fictício e registre uma fatura no ERP Fictício.';
+  const descricao = 'Consulte os clientes no sistema ERP Fictício e registre uma fatura no mesmo sistema.';
   const it = (await admin.post('/api/quick-wins/assistente/interpretar', { descricao })).dados;
   assert.deepEqual(it.integracoes.map(n => [n.sistema_resolvido, n.estado]), [['ERP Fictício', 'disponivel'], ['ERP Fictício', 'requer_aprovacao']]);
   const area = (await admin.get('/api/admin/areas')).dados.areas?.[0]?.id ?? (await admin.post('/api/admin/areas', { nome: 'Financeiro' })).dados.id;

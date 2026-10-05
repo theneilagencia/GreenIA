@@ -173,3 +173,15 @@ test('fluxo RH/Administrativo: entrada → validação → encaminhamento → ac
   assert.deepEqual(estados(resolverNecessidades(a, n, { pessoa: ADM })),
     [['read_data', 'disponivel'], ['read_data', 'disponivel'], ['send_message', 'configurar'], ['update_record', 'requer_aprovacao'], ['update_record', 'requer_aprovacao']]);
 });
+
+test('nome composto após sistema e referência ao mesmo sistema resolvem o conector aprovado', () => {
+  const a = app();
+  ativo(a, 'Sandbox Tarefas', [['tarefas', 'GET', 'read_data', { read: true }], ['notas', 'POST', 'create_record', { write: true }]]);
+  const n = necessidadesDoPedido('Consulte tarefas no sistema Sandbox Tarefas e faça um resumo. Depois registre uma nota fictícia no mesmo sistema, somente após aprovação humana. Não apagar registros.');
+  assert.deepEqual(n.map(x => [x.categoria, x.modo]), [['read_data', 'read'], ['create_record', 'write']]);
+  assert.deepEqual(estados(resolverNecessidades(a, n, { pessoa: ADM })), [['read_data', 'disponivel'], ['create_record', 'requer_aprovacao']]);
+  assert.deepEqual(n[1].depende_de, ['n1']);
+  assert.deepEqual(necessidadesDoPedido('Registre uma nota no mesmo sistema.'), [], 'sem antecedente não inventa destino');
+  assert.deepEqual(necessidadesDoPedido('Crie uma legenda no Instagram.'), [], 'canais de conteúdo continuam sem integração');
+  a.db.close();
+});

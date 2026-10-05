@@ -1,0 +1,23 @@
+name: GreenIA regression
+on:
+  pull_request:
+    branches: [greenia-lite]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - name: Unit and integration regression
+        run: node --disable-warning=ExperimentalWarning --test --test-concurrency=1 --test-timeout=120000 "test/*.test.js"
+      - name: Browser regression
+        run: node --disable-warning=ExperimentalWarning --test --test-concurrency=1 --test-timeout=120000 "e2e/*.test.js"

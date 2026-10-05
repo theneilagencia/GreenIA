@@ -386,12 +386,12 @@ async function blocoPlano(pacotes = []) {
     <div class="indicadores">
       <div class="indicador"><span>Créditos do mês</span><b>${p.ilimitado ? 'Ilimitado' : num(p.creditos)}</b></div>
       <div class="indicador"><span>Usados</span><b>${num(Math.round(p.usados))}</b><small>${p.ilimitado ? 'sem limite no plano' : `${p.percentual}% do plano`}</small></div>
-      ${p.pacoteDisponivel > 0 ? `<div class="indicador"><span>Capacity Pack disponível</span><b>${num(Math.round(p.pacoteDisponivel))}</b></div>` : ''}
+      ${p.pacoteDisponivel > 0 ? `<div class="indicador"><span>Créditos adicionais disponíveis</span><b>${num(Math.round(p.pacoteDisponivel))}</b></div>` : ''}
       <div class="indicador"><span>Renovação</span><b>${dataBr(p.renova)}</b></div>
     </div>
     ${p.ilimitado ? '' : `<div class="barra" role="progressbar" aria-label="Créditos do plano usados" aria-valuenow="${p.percentual}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p.percentual}%"></span></div>`}
     <p class="dica">Os créditos do plano renovam todo dia 1. ${p.fase === 'reserva' || p.fase === 'esgotado' ? esc(p.mensagem) : 'Ao atingir o limite contratado, a GreenIA pode atender solicitações elegíveis na classe Rápido, dentro da reserva operacional do plano. Esgotada a reserva, novas mensagens pausam até a renovação ou a liberação de um Capacity Pack.'}</p>`;
-  if (pacotes.length) html += `<h3>Capacity Packs e créditos adicionais</h3><p class="dica">Usados depois dos créditos do plano, do mais antigo para o mais novo. Sem validade, ficam até serem usados.</p>
+  if (pacotes.length) html += `<h3>Créditos adicionais (Capacity Packs)</h3><p class="dica">Usados depois dos créditos do plano, do mais antigo para o mais novo. Sem validade, ficam até serem usados.</p>
     ${tabela(['Liberado em', 'Tipo', '#Créditos', 'Validade', 'Origem', 'Observação'], pacotes.map(x => `<tr><td data-r="Liberado em">${dataBr(x.em.slice(0, 10))}</td><td data-r="Tipo">${{ capacity_pack: 'Capacity Pack', pacote_legado_10000: 'Pacote adicional', cortesia: 'Cortesia' }[x.produto] || 'Créditos adicionais'}</td><td class="num" data-r="Créditos">${num(x.creditos)}</td>
       <td data-r="Validade">${x.validade ? dataBr(x.validade) : 'sem validade'}</td><td data-r="Origem">${ORIGEM[x.origem] || esc(x.origem)}</td><td data-r="Observação">${esc(x.observacao) || '<span class="dica">–</span>'}</td></tr>`))}`;
   return html;
@@ -457,7 +457,7 @@ async function abaConfig() {
     <div class="cfg-valor ${valor > 0 ? '' : 'oculto'}" id="v-${id}"><input class="entrada" type="number" min="1" step="${passo}" id="${id}" value="${valor > 0 ? valor : ''}" inputmode="numeric"><span class="dica">${sufixo}</span></div></div>`;
   $('conteudo').innerHTML = `<form id="form-cfg" class="cfg">
       <p class="lead">Ajustes gerais do ambiente. Cada bloco explica para que serve; o que não for mexido continua como está.</p>
-      ${multi ? '<div class="faixa-aviso ok">Nome, logomarca, cores e aviso de privacidade ficam em <a href="#/empresa/marca">Branding</a>.</div>' : ''}
+      ${multi ? '<div class="faixa-aviso ok">Nome, logomarca, cores e aviso de privacidade ficam em <a href="#/empresa/marca">Marca e identidade visual</a>.</div>' : ''}
       ${multi ? '' : caixa('·', 'Empresa', 'Como a empresa aparece para as pessoas.', `
         <div class="campo"><label for="c-empresa">Nome da empresa</label><input class="entrada" id="c-empresa" value="${esc(c.empresa)}" required maxlength="80"></div>
         <div class="campo"><span class="legenda">Logo</span><div class="linha-botoes"><span id="c-logo-prev">${logo ? `<img src="${esc(logo)}" alt="Logo atual" style="max-height:48px">` : '<span class="dica">Sem logo.</span>'}</span>
@@ -493,7 +493,7 @@ async function abaConfig() {
         ${limite('c-teto', 'Limite do mês para a empresa toda', 'Quando a empresa inteira chegar a esse total no mês, as novas mensagens ficam bloqueadas até o mês seguinte.', c.tetoMensal, un, emCreditos() ? 1 : 0.01)}
         ${limite('c-teto-p', 'Limite do mês por pessoa', 'Cada pessoa pode usar até esse total no mês. Útil para ninguém consumir o plano sozinho.', c.tetoPessoaMensal, un, emCreditos() ? 1 : 0.01)}
         ${limite('c-dia', 'Limite de respostas por pessoa por dia', 'Quantas respostas da IA cada pessoa pode pedir por dia.', c.limiteDiarioPessoa, 'respostas por dia')}`)}
-      ${caixa(5, 'Identidade visual das peças', 'Apresentações, páginas executivas, infográficos e outras peças que os Quick Wins produzem seguem estas regras. Tudo é opcional: sem regra, a GreenIA usa um visual neutro e profissional. O logo e a cor principal vêm ' + (multi ? 'de <a href="#/empresa/marca">Branding</a>.' : 'do bloco Empresa, acima.'), `
+      ${caixa(5, 'Identidade visual das peças', 'Apresentações, páginas executivas, infográficos e outras peças que os Quick Wins produzem seguem estas regras. Tudo é opcional: sem regra, a GreenIA usa um visual neutro e profissional. O logo e a cor principal vêm ' + (multi ? 'de <a href="#/empresa/marca">Marca e identidade visual</a>.' : 'do bloco Empresa, acima.'), `
         <div class="grade-2">${CORES_VISUAIS.map(([k, r]) => `<div class="campo"><span class="legenda">${r}</span><div class="linha-botoes"><input type="color" id="iv-${k}" value="${esc(iv.cores?.[k] || PADRAO_VISUAL[k])}" aria-label="${r}">
           <label class="dica"><input type="checkbox" data-iv-usar="${k}" ${iv.cores?.[k] ? 'checked' : ''}> regra da marca</label></div></div>`).join('')}</div>
         <div class="grade-2"><div class="campo"><label for="iv-tit">Fonte dos títulos</label><select class="entrada" id="iv-tit"><option value="">Padrão</option><option value="sans" ${iv.tipografia?.titulos === 'sans' ? 'selected' : ''}>Sem serifa (moderna)</option><option value="serif" ${iv.tipografia?.titulos === 'serif' ? 'selected' : ''}>Com serifa (editorial)</option></select></div>

@@ -17,7 +17,7 @@ import { criarConector, atualizarConector, definirCapabilities, lerConector, mud
 import { configurarCredencial, testarConector, publicar, revogar } from '../src/integracoes/ciclo.js';
 import { decidir as decidirAprovacao, aprovacoesPendentes } from '../src/integracoes/aprovacoes.js';
 import { executarCapability, limparLimites, metricas } from '../src/integracoes/runtime.js';
-import { necessidadesDoPedido, resolverNecessidades, criarPlano, executarPlano } from '../src/integracoes/plano.js';
+import { necessidadesDoPedido, resolverNecessidades, criarPlano, executarPlano, lerPlano, resumoPlano } from '../src/integracoes/plano.js';
 import { iniciarAutorizacao, concluirAutorizacao } from '../src/integracoes/oauth.js';
 import { criarWebhook, receberWebhook, assinar, rotacionarSegredo } from '../src/integracoes/webhooks.js';
 import { apiFalsa, OPENAPI_FALSA } from './integracoes-fake.js';
@@ -230,7 +230,15 @@ test('plano de execução: dependências, saída de uma etapa vira entrada da ou
   const e1 = await executarPlano(app, ADM, p.id, { resultado: { valor: '150,00' } });
   assert.equal(e1.status, 'aguardando_aprovacao');
   assert.deepEqual(e1.passos.map(x => x.status), ['SUCCESS', 'APPROVAL_REQUIRED']);
+  assert.equal(e1.passos[1].aprovacao_status, 'pendente');
+  const antesDaDecisao = api.estado.faturas.size;
   decidirAprovacao(app, ADM, e1.passos[1].aprovacao, { aprovar: true });
+  const autorizado = resumoPlano(app, lerPlano(app, p.id));
+  assert.equal(autorizado.passos[1].aprovacao_status, 'aprovada');
+  assert.equal(autorizado.passos[1].status, 'APPROVAL_REQUIRED', 'autorização recebida ainda não é execução');
+  assert.equal(api.estado.faturas.size, antesDaDecisao, 'consultar a autorização não grava');
+  assert.ok(Number.isFinite(Date.parse(autorizado.atualizado_em)));
+  assert.equal(autorizado.estado, undefined, 'a tela não recebe as saídas brutas do plano');
   const e2 = await executarPlano(app, ADM, p.id, { resultado: { valor: '150,00' } });
   assert.equal(e2.status, 'concluido', JSON.stringify(e2));
   assert.deepEqual([...api.estado.faturas.values()].at(-1), { id: api.estado.faturas.size, cliente_id: 1, valor: 150, descricao: 'Fatura fictícia' });

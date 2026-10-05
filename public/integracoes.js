@@ -15,6 +15,9 @@ const pagina = (titulo, html, acoes = '') => { $('principal').innerHTML = `${cab
 export const STATUS = { DRAFT: 'Rascunho', DISCOVERED: 'Descoberta', CONFIGURED: 'Configurada', TESTING: 'Em teste', REVIEW_REQUIRED: 'Aguardando aprovação', APPROVED: 'Aprovada', ACTIVE: 'Ativa', PAUSED: 'Pausada', FAILED: 'Falhou no teste', REVOKED: 'Revogada' };
 const RISCO = { LOW: 'Baixo', MEDIUM: 'Médio', HIGH: 'Alto', CRITICAL: 'Crítico' };
 const CLASSE = { SAFE_READ: 'Só leitura', SIDE_EFFECT: 'Cria ou altera', DESTRUCTIVE: 'Apaga' };
+const ESTADO_EXECUCAO = { SUCCESS: 'Concluída', SIMULATED: 'Simulada', PARTIAL: 'Concluída parcialmente', FAILED: 'Não foi possível concluir', BLOCKED: 'Bloqueada', DENIED: 'Negada pela política', APPROVAL_REQUIRED: 'Aguardando autorização', PENDENTE: 'Não executada' };
+const EFEITOS_LEGIVEIS = { read: 'consulta informações', write: 'cria ou altera dados', external_side_effect: 'faz alterações em outro sistema', irreversible: 'pode realizar uma ação que não pode ser desfeita', financial: 'envolve valores financeiros', personal_data: 'trata dados pessoais', privileged: 'usa acesso privilegiado', communication: 'envia comunicações', bulk: 'atua sobre vários registros' };
+const efeitosLegiveis = lista => (lista || []).map(x => esc(EFEITOS_LEGIVEIS[x] || `Efeito declarado: ${x}`)).join(', ') || 'Nenhum efeito informado';
 const AUTH = [['none', 'Sem autenticação'], ['api_key', 'Chave de API'], ['bearer', 'Token (Bearer)'], ['basic', 'Usuário e senha'], ['oauth2_client_credentials', 'OAuth2 (aplicação)'], ['oauth2_authorization_code', 'OAuth2 (login no sistema)'], ['custom_header', 'Cabeçalho personalizado']];
 const selo = (t, tipo = '') => `<span class="selo-int ${tipo}">${esc(t)}</span>`;
 const seloRisco = r => selo(`Risco ${RISCO[r] || r}`, r === 'LOW' ? 'ok' : r === 'MEDIUM' ? 'atencao' : 'erro');
@@ -211,7 +214,7 @@ function passoTeste() {
     <p class="dica">Consultas rodam de verdade, em modo teste. Escritas são só simuladas: nada muda no sistema externo.</p>
     ${r ? `<p class="${r.passou ? 'ok-int' : 'erro-int'}"><b>${r.passou ? '✓ Passou no teste' : '✕ Não passou no teste'}</b></p>
       <div class="lista-int">${r.itens.map(i => `<div class="linha-op"><span class="${i.ok ? 'ok-int' : 'erro-int'}">${i.ok ? '✓' : '✕'}</span><span>${esc(NOMES_TESTE[i.id] || i.id)}<small>${esc(i.detalhe)}</small></span></div>`).join('')}</div>
-      <h3>Ações</h3>${r.resultados.map(x => `<div class="linha-op"><span>${selo(x.status, ['SUCCESS', 'SIMULATED'].includes(x.status) ? 'ok' : 'erro')}</span><span>${esc(x.nome || x.capability)}<small>${x.ms != null ? `${x.ms} ms` : ''}${x.erro ? ` · ${esc(x.erro)}` : ''}${x.motivo ? ` · ${esc(x.motivo)}` : ''}</small></span></div>`).join('')}` : `<p>Status: ${seloStatus(c.status)}</p>`}`,
+      <h3>Ações</h3>${r.resultados.map(x => `<div class="linha-op"><span>${selo(ESTADO_EXECUCAO[x.status] || x.status, ['SUCCESS', 'SIMULATED'].includes(x.status) ? 'ok' : 'erro')}</span><span>${esc(x.nome || x.capability)}<small>${x.ms != null ? `${x.ms} ms` : ''}${x.erro ? ` · ${esc(x.erro)}` : ''}${x.motivo ? ` · ${esc(x.motivo)}` : ''}</small></span></div>`).join('')}` : `<p>Status: ${seloStatus(c.status)}</p>`}`,
   `<button class="btn${r?.passou ? '' : ' btn-verde'}" id="testar">${r ? 'Testar de novo' : 'Testar agora'}</button>${r?.passou ? '<button class="btn btn-verde" id="seguir">Continuar</button>' : ''}`);
   $('testar').onclick = e => ocupado(e.target, async () => {
     try { W.teste = await api(`/api/admin/integracoes/${W.id}/testar`, { metodo: 'POST', corpo: {} }); W.aprovacao = W.teste.aprovacao?.id || null; W.conector = await api(`/api/admin/integracoes/${W.id}`); passoTeste(); } catch (err) { toast(err.message); }
@@ -247,13 +250,14 @@ function passoPublicar() {
 function telaAprovacao(a) {
   const r = a.resumo || {};
   if (a.tipo === 'execucao') return `<h2>Executar uma ação em ${esc(r.sistema)}?</h2>
-    <p>${esc(r.acao)} ${seloRisco(a.risco)}</p><p class="dica">Efeitos: ${(r.efeitos || []).map(esc).join(', ') || '—'}</p>
-    <h3>Dados que serão enviados</h3>${Object.entries(r.dados || {}).map(([k, v]) => `<div class="linha-op"><b>${esc(k)}</b><span>${esc(v)}</span></div>`).join('') || '<p class="dica">Nenhum.</p>'}`;
+    <p>${esc(r.acao)} ${seloRisco(a.risco)}</p><p class="dica">Efeitos: ${efeitosLegiveis(r.efeitos)}.</p>
+    <p class="dica">A autorização vale para esta ação e estes dados. Aprovar não realiza a gravação: ela será retomada no trabalho de quem pediu.</p>
+    <h3>Dados que serão enviados</h3>${Object.entries(r.dados || {}).map(([k, v]) => `<div class="linha-op"><b>${esc(({ userId: 'Identificador do usuário', customerId: 'Identificador do cliente', title: 'Título', body: 'Conteúdo', email: 'Email', amount: 'Valor' })[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' '))}</b><span>${esc(v && typeof v === 'object' ? JSON.stringify(v, null, 2) : v)}</span></div>`).join('') || '<p class="dica">Nenhum.</p>'}`;
   return `<h2>Revisar a integração com ${esc(r.sistema)}</h2>
     <p>${seloRisco(r.risco)} versão ${Number(r.versao) || ''} · ${esc(AUTH.find(([v]) => v === r.autenticacao)?.[1] || r.autenticacao || '')}</p>
     <h3>Esta integração poderá</h3><ul>${(r.podera || []).map(p => `<li>${esc(p.frase)} ${seloRisco(p.risco)}<br><small class="dica">${esc(p.endpoint)}${p.le?.length ? ` · lê: ${p.le.slice(0, 8).map(esc).join(', ')}` : ''}${p.escreve?.length ? ` · grava: ${p.escreve.slice(0, 8).map(esc).join(', ')}` : ''}</small></li>`).join('')}</ul>
     <h3>Esta integração não poderá</h3><ul>${(r.nao_podera || []).length ? r.nao_podera.map(x => `<li>${esc(x)}</li>`).join('') : '<li>fazer nada além das ações acima</li>'}<li>acessar endereços fora de: ${(r.hosts || []).map(esc).join(', ')}</li></ul>
-    <h3>Efeitos</h3><p>${(r.efeitos || []).map(esc).join(', ') || '—'}</p>
+    <h3>Efeitos</h3><p>${efeitosLegiveis(r.efeitos)}.</p>
     ${(r.escopos || []).length ? `<p class="dica">Permissões pedidas ao sistema: ${r.escopos.map(esc).join(', ')}</p>` : ''}
     <h3>Exemplos</h3><ul>${(r.exemplos || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
 }
@@ -266,11 +270,13 @@ function ligarAprovacao(a, depois) {
   if ($('negar')) $('negar').onclick = decidir(false);
 }
 async function vistaAprovacao(id) {
+  const destino = new URLSearchParams(location.hash.split('?')[1] || '').get('voltar');
+  const voltar = /^#\/c\/\d+$/.test(destino || '') ? destino : '#/integracoes';
   const d = await api('/api/admin/integracoes/aprovacoes');
   const a = d.pendentes.find(x => x.id === id);
-  if (!a) { toast('Esta aprovação já foi decidida.'); return irPara('#/integracoes'); }
-  pagina('Aprovação', `${ESTILO}${telaAprovacao(a)}<div class="linha-botoes" style="margin-top:18px"><a class="btn-texto" href="#/integracoes">Voltar</a>${botoesAprovacao()}</div>`);
-  ligarAprovacao(a, () => irPara('#/integracoes'));
+  if (!a) { toast('Esta aprovação já foi decidida.'); return irPara(voltar); }
+  pagina('Aprovação', `${ESTILO}${telaAprovacao(a)}<div class="linha-botoes" style="margin-top:18px"><a class="btn-texto" href="${esc(voltar)}">${voltar === '#/integracoes' ? 'Voltar' : 'Voltar ao trabalho'}</a>${botoesAprovacao()}</div>`);
+  ligarAprovacao(a, () => irPara(voltar));
 }
 
 // ---- Detalhe -------------------------------------------------------------------------------------------------
@@ -290,7 +296,7 @@ async function vistaConector(id) {
     <div class="linha-botoes">${acoes.join('')}</div>
     <h2>Ações disponíveis</h2>${c.capabilities.length ? c.capabilities.map(x => `<div class="linha-op"><span>${selo(x.status === 'ativa' ? '✓ ativa' : x.status, x.status === 'ativa' ? 'ok' : '')}</span><span>${esc(x.frase || x.nome)} ${seloRisco(x.risco)}<small>${esc(CLASSE[x.classe] || x.classe)}</small></span></div>`).join('') : '<p class="dica">Nenhuma ação escolhida.</p>'}
     <h2>Uso</h2><p class="dica">${Number(mt.execucoes || 0)} execuções · ${mt.taxa_sucesso ?? '—'}% de sucesso · ${Number(mt.falhas || 0)} falhas · ${Number(mt.repeticoes || 0)} repetições · ${Number(mt.bloqueios || 0)} bloqueadas · tempo médio ${mt.latencia_media_ms ?? '—'} ms</p>
-    ${(c.execucoes || []).length ? `<div class="lista-int">${c.execucoes.slice(0, 15).map(x => `<div class="linha-op"><span>${selo(x.status, ['SUCCESS', 'SIMULATED'].includes(x.status) ? 'ok' : ['FAILED', 'BLOCKED'].includes(x.status) ? 'erro' : 'atencao')}</span><span>${esc(c.capabilities.find(k => k.id === x.capability_id)?.nome || x.operation_id || '')}<small>${esc(x.modo || '')} · ${esc(new Date(x.criado_em).toLocaleString('pt-BR'))}${x.erro_codigo ? ` · ${esc(x.erro_codigo)}` : ''}</small></span></div>`).join('')}</div>` : ''}
+    ${(c.execucoes || []).length ? `<div class="lista-int">${c.execucoes.slice(0, 15).map(x => `<div class="linha-op"><span>${selo(ESTADO_EXECUCAO[x.status] || x.status, ['SUCCESS', 'SIMULATED'].includes(x.status) ? 'ok' : ['FAILED', 'BLOCKED'].includes(x.status) ? 'erro' : 'atencao')}</span><span>${esc(c.capabilities.find(k => k.id === x.capability_id)?.nome || x.operation_id || '')}<small>${esc(x.modo || '')} · ${esc(new Date(x.criado_em).toLocaleString('pt-BR'))}${x.erro_codigo ? ` · ${esc(x.erro_codigo)}` : ''}</small></span></div>`).join('')}</div>` : ''}
     <h2>Versões</h2>${(c.versoes || []).map(v => `<div class="linha-op"><b>v${v.versao}</b><span>${esc(v.motivo || '')}<small>${esc(new Date(v.criado_em).toLocaleString('pt-BR'))}</small></span></div>`).join('')}`,
   '<a class="btn-texto" href="#/integracoes" style="margin-left:auto">Todas as integrações</a>');
   for (const b of document.querySelectorAll('[data-acao]')) b.onclick = e => ocupado(e.target, async () => {

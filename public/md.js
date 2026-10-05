@@ -24,8 +24,8 @@ export function renderizar(texto, { csvHref } = {}) {
       tabelas.push([cab, ...corpo]);
       out.push(`<div class="tabela-wrap"><table><thead><tr>${cab.map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${
         corpo.map(r => `<tr>${cab.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-        <div>${csvHref ? `<a role="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}" href="${esc(csvHref(tabelas.length - 1))}" download="tabela.csv">Baixar tabela em CSV</a>`
-          : `<button type="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}">Baixar tabela em CSV</button>`}</div>`);
+        <div>${csvHref ? `<a role="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}" href="${esc(csvHref(tabelas.length - 1))}" download="tabela.csv">Baixar tabela (.csv)</a>`
+          : `<button type="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}">Baixar tabela (.csv)</button>`}</div>`);
       continue;
     }
     const h = /^(#{1,4})\s+(.*)$/.exec(l);

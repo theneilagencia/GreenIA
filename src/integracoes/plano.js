@@ -144,8 +144,10 @@ export async function executarPlano(app, pessoa, id, contexto = {}, op = {}) {
 }
 // O que a tela mostra: etapa, sistema, ação, status, aprovação e resultado (sem dados brutos para quem não pediu).
 export function resumoPlano(app, p) {
-  return { id: p.id, status: p.status, gatilho: p.gatilho, quick_win_id: p.quick_win_id, avisos: p.estado.avisos || [], compensacoes: p.estado.compensacoes || [],
+  return { id: p.id, status: p.status, atualizado_em: p.atualizado_em, gatilho: p.gatilho, quick_win_id: p.quick_win_id, avisos: p.estado.avisos || [], compensacoes: p.estado.compensacoes || [],
     passos: p.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, depende_de: x.depende_de, status: p.estado.passos?.[x.id]?.status, motivo: p.estado.passos?.[x.id]?.motivo || p.estado.passos?.[x.id]?.erro?.mensagem || null,
-      aprovacao: p.estado.passos?.[x.id]?.aprovacao || null, http_status: p.estado.passos?.[x.id]?.http_status ?? null, tem_resultado: p.estado.saidas?.[x.id] !== undefined })) };
+      aprovacao: p.estado.passos?.[x.id]?.aprovacao || null,
+      aprovacao_status: p.estado.passos?.[x.id]?.aprovacao ? um(app.db, 'select status from integration_approvals where id = ? and tenant_id = ?', p.estado.passos[x.id].aprovacao, app.tenantId)?.status || null : null,
+      http_status: p.estado.passos?.[x.id]?.http_status ?? null, tem_resultado: p.estado.saidas?.[x.id] !== undefined })) };
 }
 export { classeDaOperacao };

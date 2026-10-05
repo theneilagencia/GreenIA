@@ -47,9 +47,10 @@ for (const [email, n] of [['c0', 0], ['c1', 1], ['c5', 5], ['c10', 10], ['c50', 
     assert.equal(await p.locator('#lateral .recentes-lat .item-lat.sub:not(.ver-todas)').count(), Math.min(n, 5));
     assert.equal(await p.locator('#lateral .ver-todas').count(), n > 5 ? 1 : 0);
     for (const sel of ['[data-item="quick-wins"]', '[data-item="conhecimento"]']) assert.ok(await visivelNaJanela(p, `#lateral ${sel}`), `${sel} visível sem rolar`);
-    // Ordem: Quick Wins vem logo depois do bloco de Conversas (nunca depois de uma lista ilimitada).
+    // Destinos principais aparecem antes do histórico recente, independentemente da quantidade de conversas.
     const ordem = await p.$$eval('#lateral .lateral-rolagem a', l => l.map(a => a.dataset.item || (a.classList.contains('ver-todas') ? 'ver-todas' : 'recente')));
-    assert.ok(ordem.indexOf('quick-wins') <= 1 + Math.min(n, 5) + (n > 5 ? 1 : 0), JSON.stringify(ordem));
+    assert.equal(ordem.indexOf('quick-wins'), 1, JSON.stringify(ordem));
+    if (n) assert.ok(ordem.indexOf('conhecimento') < ordem.indexOf('recente'), JSON.stringify(ordem));
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'sem rolagem horizontal');
     if (n === 100) await p.screenshot({ path: 'capturas/tmp/lateral-100-1280.png' });
     assert.deepEqual(erros, []);

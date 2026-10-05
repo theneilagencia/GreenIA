@@ -5,5 +5,7 @@ dados/
 *.sqlite-shm
 .env
 capturas/tmp/
+capturas/ux/
+capturas/ux-responsiva/
 qa-producao-saida/
 qa-candidato-saida/

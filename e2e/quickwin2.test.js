@@ -108,7 +108,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   assert.equal(await p.locator('[data-material="auto"]').getAttribute('aria-pressed'), 'true');
   await clicar('[data-testar]');
   await p.waitForSelector('#teste-resultado .qc');
-  assert.match(await p.textContent('.qc'), /Resultado conferido.*A resposta atendeu às regras definidas para este Quick Win\./s);
+  assert.match(await p.textContent('.qc'), /Resultado conferido.*A resposta foi conferida pelas regras deste Quick Win\. Revise antes de usar\./s);
   assert.ok(await p.locator('#resultado-teste table').count() >= 1, 'o resultado é o trabalho (tabela)');
   const ordem = await p.evaluate(() => { const r = document.getElementById('resultado-teste'), q = document.querySelector('#teste-resultado .qc'); return r.compareDocumentPosition(q) & Node.DOCUMENT_POSITION_FOLLOWING; });
   assert.ok(ordem, 'conferência abaixo do resultado');
@@ -444,6 +444,7 @@ test('concorrência: resposta atrasada não vale para outro objetivo, não desen
   const atual = () => p.$eval('.passos [aria-current="step"]', e => e.textContent.trim());
   const pergunta = () => p.$eval('#pergunta', e => e.textContent.trim());
   const avancar = async (...sels) => { for (const s of sels) { await p.click('[data-continuar]'); await p.waitForSelector(s); } };
+  p.on('dialog', d => d.accept()); // Estes casos abandonam alterações deliberadamente para testar respostas atrasadas.
   const novo = async obj => { await p.goto(`${N.base}/app#/quick-wins`); await p.waitForSelector('.qw-lista'); await p.goto(`${N.base}/app#/qw/nova`); await p.waitForSelector('#objetivo'); await p.fill('#objetivo', obj); };
   const PERGUNTA_PROCESSO = /O que normalmente precisa ser considerado/;
 

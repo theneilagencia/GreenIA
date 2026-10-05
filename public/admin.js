@@ -182,7 +182,9 @@ async function abaModelos() {
     <h3>Catálogo técnico</h3>
     ${!sig.ativo ? '<div class="faixa-aviso"><b>Informações sigilosas: desligado.</b> Hoje elas não são enviadas para recursos de IA. Para permitir o processamento com guardrails de proteção, ligue a opção em <a href="#/politicas">Políticas de IA → Informações sigilosas</a>.</div>'
       : padrao ? `<div class="faixa-aviso ok"><b>Informações sigilosas: ligado.</b> Recurso autorizado disponível para todas as pessoas: ${esc(padrao.nome)}. Ninguém precisa escolher.</div>`
-      : '<div class="faixa-aviso erro"><b>Informações sigilosas: ligado, mas sem recurso autorizado.</b> Essas conversas são bloqueadas com segurança: nada é enviado e você recebe um aviso. Para resolver, escolha "Seguir recomendações da GreenIA" acima ou homologue um modelo abaixo.</div>'}
+      : `<div class="faixa-aviso erro"><b>Informações sigilosas: ligado, mas sem recurso autorizado.</b> Essas conversas são bloqueadas com segurança: nada é enviado e você recebe um aviso. ${recomendado
+        ? 'O modo recomendado já está ativo. Solicite ao administrador da plataforma uma rota autorizada para dados sigilosos, com fornecedor definido, não uso para treino e retenção zero comprovados.'
+        : 'Verifique com o administrador da plataforma se há uma rota autorizada no modo recomendado, ou homologue um modelo abaixo com fornecedor definido, não uso para treino e retenção zero comprovados.'}</div>`}
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
     ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>

@@ -139,6 +139,12 @@ test('uso e custo: por mês, área, quick win, pessoa, modelo e tipo; CSV; event
   assert.ok(u.porArea.some(a => a.area === 'Área Alfa'));
   assert.ok(u.porModelo.length >= 1);
   assert.ok(u.porTipo.some(t => t.tipo === 'normal'));
+  assert.ok(u.roteamento.decisoes >= 1);
+  assert.ok(u.roteamento.automaticas >= 1);
+  assert.ok(u.roteamento.classes.rapido + u.roteamento.classes.equilibrado + u.roteamento.classes.avancado <= u.roteamento.decisoes);
+  assert.ok(u.roteamento.taxaRapido >= 0 && u.roteamento.taxaRapido <= 1);
+  assert.ok(u.roteamento.taxaMenorClasseSuficiente >= 0 && u.roteamento.taxaMenorClasseSuficiente <= 1);
+  assert.ok(u.roteamento.custoMedio >= 0);
   const csv = await admin.get('/api/admin/uso?formato=csv');
   assert.match(csv.headers.get('content-type'), /text\/csv/);
   assert.match(csv.dados, /Por pessoa;ana@exemplo\.com\.br/);

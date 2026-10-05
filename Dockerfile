@@ -12,11 +12,12 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY src ./src
 COPY test ./test
+COPY e2e ./e2e
 COPY public ./public
 COPY scripts/backup.js scripts/restaurar.js scripts/verificar.js scripts/entrada.sh ./scripts/
 COPY modelos-quick-win.json ./
 COPY deploy/admins-plataforma.txt ./deploy/
-RUN npm test
+RUN npm test && npm run test:e2e
 RUN mkdir -p /app/dados && chown node:node /app/dados && chmod +x scripts/entrada.sh
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

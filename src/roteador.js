@@ -400,9 +400,17 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   }
 
   const ref = candidatos.find(c => c.id === cfg.padroes.avancado) || candidatos.filter(c => c.nivel === 3)[0];
+  const menorNivelSuficiente = suficientes.length ? Math.min(...suficientes.map(c => c.nivel)) : null;
+  const calibracao = {
+    menorNivelSuficiente,
+    nivelSelecionado: modo === 'externo' ? null : escolhido.nivel,
+    acimaDaMenorClasse: modo === 'automatico' && menorNivelSuficiente != null && escolhido.nivel > menorNivelSuficiente,
+    abaixoDoNecessario: fallback?.tipo === 'abaixo_do_necessario',
+    motivo: motivoEscolha,
+  };
   const decisao = {
     modelo: escolhido.m, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes },
-    politicas, motivoEscolha, fallback, reserva, reservaDescartada,
+    politicas, motivoEscolha, fallback, reserva, reservaDescartada, calibracao,
     candidatos: candidatos.map(saida),
     elegiveisQueAtendem: suficientes.length,
     custoEstimado: modo === 'externo' ? null : escolhido.custo ?? null, custoReferencia: modo === 'externo' ? null : ref?.custo ?? null,
@@ -421,6 +429,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   function semModelo(causa) {
     const d = { modelo: null, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes }, politicas, motivoEscolha: null,
       fallback: { tipo: 'sem_modelo', causa, causas: [...new Set(candidatos.flatMap(c => c.motivos.filter(y => GOVERNANCA.includes(y))))] }, reserva: null, reservaDescartada: null,
+      calibracao: { menorNivelSuficiente: null, nivelSelecionado: null, acimaDaMenorClasse: false, abaixoDoNecessario: false, motivo: null },
       candidatos: candidatos.map(saida), elegiveisQueAtendem: 0, custoEstimado: null, custoReferencia: null };
     d.explicacao = explicar(a, d);
     return d;

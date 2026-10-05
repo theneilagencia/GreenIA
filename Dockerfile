@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends chromium fonts-
   && rm -rf /var/lib/apt/lists/* /usr/share/doc/* /usr/share/man/*
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci --ignore-scripts && npx playwright install chromium
 COPY . .
 RUN mkdir -p /app/dados
 RUN npm test && npm run test:e2e

@@ -185,3 +185,14 @@ test('nome composto após sistema e referência ao mesmo sistema resolvem o cone
   assert.deepEqual(necessidadesDoPedido('Crie uma legenda no Instagram.'), [], 'canais de conteúdo continuam sem integração');
   a.db.close();
 });
+
+test('nome curto identifica seu sistema, sem casar letras dentro de outro nome', () => {
+  const a = app();
+  ativo(a, 'CRM Fictício', [['clientes', 'GET', 'read_data', { read: true }]]);
+  ativo(a, 'Sistema F', [['tarefas', 'GET', 'read_data', { read: true }]]);
+  const n = necessidadesDoPedido('Consulte a disponibilidade no Sistema F.');
+  assert.equal(n[0].sistema, 'Sistema F');
+  assert.equal(resolverNecessidades(a, n, { pessoa: ADM })[0].sistema_resolvido, 'Sistema F');
+  assert.equal(resolverNecessidades(a, [{ ...n[0], sistema: 'Sistema Z' }], { pessoa: ADM })[0].estado, 'configurar');
+  a.db.close();
+});

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { criarApp } from '../src/servidor.js';
 import { detalhe } from '../src/conversas.js';
+import { prepararExecucao } from '../src/integracoes/quickwin.js';
 import { salvarConfig } from '../src/config.js';
 import { todos, um, exec } from '../src/db.js';
 import { descobrir } from '../src/integracoes/descoberta.js';
@@ -325,4 +326,20 @@ test('reabrir conversa mostra a gravação concluída sem repetir chamada nem ex
   assert.equal(um(app.db, "select count(*) as n from connector_runs where plano_id = ? and status = 'SUCCESS'", p.id).n, chamadas);
   assert.equal(JSON.parse(um(app.db, 'select qualidade from roteamento where resposta_id = ?', mensagem).qualidade).integracoes.status, pendente.status, 'a conferência histórica é preservada');
   app.db.close();
+});
+
+test('listas longas preservam o total no runtime e o recorte só acontece no material da IA', async () => {
+  const app = appComFlag();
+  try {
+    await conectorAtivo(app);
+    api.estado.clientes = Array.from({ length: 75 }, (_, i) => ({ id: i + 1, nome: `Cliente fictício ${i + 1}`, api_key: api.chave }));
+    const r = await executarCapability(app, { capabilityId: capDe(app, 'listarClientes'), pessoa: ADM });
+    assert.equal(r.dados.length, 75);
+    assert.equal(r.dados[74].api_key, '[redigido]');
+    const prep = await prepararExecucao(app, ADM, { qw: { espec: { operacao: { integracoes: [{ acao: 'Consultar clientes no CRM Fictício', categoria: 'read_data', sistema: 'CRM Fictício', modo: 'read' }] } } }, conv: {} });
+    assert.match(prep.anexos[0].texto, /Total de registros retornados pelo sistema: 75/);
+    assert.match(prep.anexos[0].texto, /só os primeiros/);
+    assert.doesNotMatch(prep.anexos[0].texto, /Cliente fictício 51/);
+    assert.ok(!prep.anexos[0].texto.includes(api.chave));
+  } finally { api.estado.clientes = null; app.db.close(); }
 });

@@ -44,11 +44,11 @@ export function apagarSegredo(app, ref) {
 
 // Remoção de credenciais de qualquer objeto ou texto antes de log, auditoria, erro ou tela.
 const CHAVE_SENSIVEL = /(authorization|auth|token|secret|senha|password|passwd|api[-_]?key|apikey|cookie|set-cookie|refresh|client[-_]?secret|private[-_]?key|signature|assinatura|credencial|credential|bearer)/i;
-export function redigir(v, segredos = [], prof = 0) {
+export function redigir(v, segredos = [], prof = 0, limiteItens = 50) {
   if (prof > 8) return '[…]';
   if (typeof v === 'string') { let s = v; for (const x of segredos.filter(x => typeof x === 'string' && x.length >= 4)) s = s.split(x).join('[redigido]'); return s.replace(/(bearer|basic)\s+[\w.~+/=-]{6,}/gi, '$1 [redigido]'); }
-  if (Array.isArray(v)) return v.slice(0, 50).map(x => redigir(x, segredos, prof + 1));
-  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, CHAVE_SENSIVEL.test(k) ? '[redigido]' : redigir(x, segredos, prof + 1)]));
+  if (Array.isArray(v)) return v.slice(0, limiteItens).map(x => redigir(x, segredos, prof + 1, limiteItens));
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, CHAVE_SENSIVEL.test(k) ? '[redigido]' : redigir(x, segredos, prof + 1, limiteItens)]));
   return v;
 }
 // Valores secretos de um segredo lido (para tirar de mensagens de erro e respostas ecoadas).

@@ -5,7 +5,7 @@
 import http from 'node:http';
 
 export async function apiFalsa({ chave = 'chave-secreta-de-teste-123', instavel = 2 } = {}) {
-  const estado = { chamadas: [], faturas: new Map(), instavel, apagados: 0 };
+  const estado = { chamadas: [], faturas: new Map(), instavel, apagados: 0, clientes: null };
   const srv = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x');
     let corpo = '';
@@ -22,7 +22,7 @@ export async function apiFalsa({ chave = 'chave-secreta-de-teste-123', instavel 
       if (u.pathname === '/eco-auth') return json(200, { recebido: req.headers.authorization || req.headers['x-api-key'] || null });
       if (u.pathname === '/redireciona') { res.writeHead(302, { location: u.searchParams.get('para') }); return res.end(); }
       if (!autorizado) return json(401, { erro: 'nao_autorizado', detalhe: `chave recebida: ${req.headers['x-api-key'] || req.headers.authorization || ''}` });
-      if (u.pathname === '/clientes' && req.method === 'GET') return json(200, [{ id: 1, nome: 'Cliente Fictício A', email: 'a@exemplo.test' }, { id: 2, nome: 'Cliente Fictício B', email: 'b@exemplo.test' }]);
+      if (u.pathname === '/clientes' && req.method === 'GET') return json(200, estado.clientes || [{ id: 1, nome: 'Cliente Fictício A', email: 'a@exemplo.test' }, { id: 2, nome: 'Cliente Fictício B', email: 'b@exemplo.test' }]);
       if (/^\/clientes\/\d+$/.test(u.pathname) && req.method === 'GET') return json(200, { id: Number(u.pathname.split('/')[2]), nome: 'Cliente Fictício' });
       if (/^\/clientes\/\d+$/.test(u.pathname) && req.method === 'DELETE') { estado.apagados++; return json(200, { ok: true }); }
       if (u.pathname === '/faturas' && req.method === 'POST') {

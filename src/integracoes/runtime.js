@@ -218,7 +218,9 @@ export async function executarCapability(app, { capabilityId, entrada = {}, pess
   const gravidade = gravidadeEsquema(erros);
   if (gravidade === 'inconsistente') return fim('FAILED', { erro: { codigo: 'resposta_fora_do_esquema', mensagem: `A resposta não segue o formato declarado (${erros.slice(0, 3).map(x => `${x.caminho}: ${x.erro}`).join('; ')}).` }, inconsistente: true });
   const regrasSaida = mapeamento(app, cap.id, 'saida');
-  let saida = redigir(util, autent.segredos);
+  // A resposta já tem limite de bytes. Remover segredos não pode mudar sua
+  // cardinalidade antes do mapeamento e do cálculo de totais do Quick Win.
+  let saida = redigir(util, autent.segredos, 0, Infinity);
   if (regrasSaida) { const m = mapear(saida, regrasSaida); saida = m.dados; if (m.erros.length) return fim('PARTIAL', { dados: saida, avisos: m.erros.map(x => `${x.campo}: ${x.erro}`) }); }
   return fim(gravidade === 'parcial' ? 'PARTIAL' : 'SUCCESS', { dados: saida, ...(gravidade ? { avisos: erros.slice(0, 5).map(x => `${x.caminho}: ${x.erro}`) } : {}) });
 }

@@ -4,6 +4,8 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { criarApp } from '../src/servidor.js';
+import { detalhe } from '../src/conversas.js';
+import { prepararExecucao } from '../src/integracoes/quickwin.js';
 import { salvarConfig } from '../src/config.js';
 import { todos, um, exec } from '../src/db.js';
 import { descobrir } from '../src/integracoes/descoberta.js';
@@ -295,4 +297,49 @@ test('limite de taxa por conector', async () => {
   for (let i = 0; i < 4; i++) sts.push((await executarCapability(app, { capabilityId: capDe(app, 'listarClientes'), pessoa: ADM })).status);
   assert.ok(sts.includes('BLOCKED'), JSON.stringify(sts));
   void createHash;
+});
+
+test('reabrir conversa mostra a gravação concluída sem repetir chamada nem expor dados do plano', async () => {
+  const app = appComFlag();
+  await conectorAtivo(app);
+  const agora = app.agora().toISOString();
+  const id = Number(exec(app.db, 'insert into conversas (pessoa_id, criado_em, atualizado_em) values (?, ?, ?)', ADM.id, agora, agora).lastInsertRowid);
+  const p = criarPlano(app, ADM, { conversaId: id, necessidades: [{ id: 'nota', acao: 'Registrar fatura no CRM Fictício', categoria: 'create_record', sistema: 'CRM Fictício', modo: 'write', depende_de: [],
+    entrada: [{ de: null, para: 'cliente_id', padrao: 1 }, { de: null, para: 'valor', padrao: 10 }, { de: null, para: 'descricao', padrao: 'QA histórico fictício' }] }] });
+  const pendente = await executarPlano(app, ADM, p.id, {});
+  const mensagem = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'assistant', 'Resultado fictício', ?)", id, agora).lastInsertRowid);
+  const historico = { status: 'aprovado', integracoes: { plano: p.id, status: pendente.status, passos: pendente.passos } };
+  exec(app.db, "insert into roteamento (em, modo, complexidade, conversa_id, resposta_id, qualidade) values (?, 'auto', 'simples', ?, ?, ?)", agora, id, mensagem, JSON.stringify(historico));
+  const c = um(app.db, 'select * from conversas where id = ?', id);
+  const ler = () => detalhe(app, c, ADM).mensagens[0].qualidade.integracoes;
+  assert.equal(ler().passos[0].status, 'APPROVAL_REQUIRED');
+  decidirAprovacao(app, ADM, pendente.passos[0].aprovacao, { aprovar: true });
+  await executarPlano(app, ADM, p.id, {});
+  const chamadas = um(app.db, "select count(*) as n from connector_runs where plano_id = ? and status = 'SUCCESS'", p.id).n;
+  for (let i = 0; i < 2; i++) {
+    const r = ler();
+    assert.equal(r.status, 'concluido');
+    assert.equal(r.passos[0].status, 'SUCCESS');
+    assert.equal(r.passos[0].entrada, undefined);
+    assert.equal(r.passos[0].resultado, undefined);
+  }
+  assert.equal(um(app.db, "select count(*) as n from connector_runs where plano_id = ? and status = 'SUCCESS'", p.id).n, chamadas);
+  assert.equal(JSON.parse(um(app.db, 'select qualidade from roteamento where resposta_id = ?', mensagem).qualidade).integracoes.status, pendente.status, 'a conferência histórica é preservada');
+  app.db.close();
+});
+
+test('listas longas preservam o total no runtime e o recorte só acontece no material da IA', async () => {
+  const app = appComFlag();
+  try {
+    await conectorAtivo(app);
+    api.estado.clientes = Array.from({ length: 75 }, (_, i) => ({ id: i + 1, nome: `Cliente fictício ${i + 1}`, api_key: api.chave }));
+    const r = await executarCapability(app, { capabilityId: capDe(app, 'listarClientes'), pessoa: ADM });
+    assert.equal(r.dados.length, 75);
+    assert.equal(r.dados[74].api_key, '[redigido]');
+    const prep = await prepararExecucao(app, ADM, { qw: { espec: { operacao: { integracoes: [{ acao: 'Consultar clientes no CRM Fictício', categoria: 'read_data', sistema: 'CRM Fictício', modo: 'read' }] } } }, conv: {} });
+    assert.match(prep.anexos[0].texto, /Total de registros retornados pelo sistema: 75/);
+    assert.match(prep.anexos[0].texto, /só os primeiros/);
+    assert.doesNotMatch(prep.anexos[0].texto, /Cliente fictício 51/);
+    assert.ok(!prep.anexos[0].texto.includes(api.chave));
+  } finally { api.estado.clientes = null; app.db.close(); }
 });

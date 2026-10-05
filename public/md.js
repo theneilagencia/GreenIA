@@ -1,17 +1,15 @@
 // Markdown mínimo para as respostas: parágrafos, títulos, listas, checklist,
 // negrito, itálico, código e tabelas. Escapa tudo antes de formatar.
 import { esc } from '/comum.js';
+import { celulas, ehTabela, gerarCsv } from '/tabelas.js';
 
 const inline = s => esc(s)
   .replace(/`([^`]+)`/g, '<code>$1</code>')
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
 
-const celulas = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
-const ehTabela = (l, prox) => /^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{2,}/.test(prox || '');
-
 // Devolve { html, tabelas }: tabelas guarda as linhas de cada tabela, para o CSV.
-export function renderizar(texto) {
+export function renderizar(texto, { csvHref } = {}) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n');
   const out = [], tabelas = [];
   let i = 0;
@@ -26,7 +24,8 @@ export function renderizar(texto) {
       tabelas.push([cab, ...corpo]);
       out.push(`<div class="tabela-wrap"><table><thead><tr>${cab.map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${
         corpo.map(r => `<tr>${cab.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-        <div><button type="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}">Baixar tabela em CSV</button></div>`);
+        <div>${csvHref ? `<a role="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}" href="${esc(csvHref(tabelas.length - 1))}" download="tabela.csv">Baixar tabela em CSV</a>`
+          : `<button type="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}">Baixar tabela em CSV</button>`}</div>`);
       continue;
     }
     const h = /^(#{1,4})\s+(.*)$/.exec(l);
@@ -50,10 +49,7 @@ export function renderizar(texto) {
 }
 
 export function baixarCsv(linhas, nome = 'tabela.csv') {
-  // Proteção contra fórmula na planilha (=, +, -, @ no começo), sem corromper número negativo ("-12,5%", "-1.234,00").
-  const numero = s => /^[-+]?\s?(R\$\s?)?\d[\d.,\s]*%?$/.test(s);
-  const cel = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s) && !numero(s)) s = "'" + s; return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const blob = new Blob(['﻿' + linhas.map(l => l.map(cel).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob([gerarCsv(linhas)], { type: 'text/csv;charset=utf-8' });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: nome });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);

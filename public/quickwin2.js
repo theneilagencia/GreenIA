@@ -637,7 +637,7 @@ async function rodarTeste(W, conversa, corpo) {
     });
     if (falha) throw new Error(falha);
     const { html, tabelas } = renderizar(saida);
-    W.resultado = { html, tabelas, saida, sep: separarPorCanal(saida, { porSecao: multipla(W.operacao) }), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id, artefatos: fim?.artefatos || [] };
+    W.resultado = { html, tabelas, saida, mensagem: fim?.id, guardado: fim?.guardado, sep: separarPorCanal(saida, { porSecao: multipla(W.operacao) }), fontes: fim?.fontes || [], qualidade: fim?.qualidade || null, conversa: conv.id, artefatos: fim?.artefatos || [] };
     W.qw = await api(`/api/quick-wins/${W.id}`);
   } catch (e) { W.resultado = { erro: e.message }; }
   await desenhar(W, { foco: false });
@@ -739,7 +739,18 @@ const ETAPA_LIGAR = [
       $('teste-arquivo').onclick = () => $('teste-input').click();
       $('teste-input').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { W.teste.anexo = await lerArquivo(f); $('teste-nome').textContent = f.name; } catch (e) { erroEtapa(e.message); } };
     }
-    document.querySelectorAll('#teste-resultado [data-csv]').forEach(b => { b.onclick = () => baixarCsv((W.resultado.sep?.tabelas || W.resultado.tabelas)[Number(b.dataset.csv)], `${(W.qw?.nome || 'resultado').replace(/[^\wÀ-ú -]/g, '')}.csv`); });
+    document.querySelectorAll('#teste-resultado [data-csv]').forEach(b => {
+      const r = W.resultado, linhas = (r.sep?.tabelas || r.tabelas)[Number(b.dataset.csv)];
+      // Os cartões podem reagrupar as tabelas por canal: o índice do download é o da resposta original.
+      const indice = r.tabelas.findIndex(t => JSON.stringify(t) === JSON.stringify(linhas));
+      if (r.mensagem && r.guardado !== false && indice >= 0) {
+        const a = document.createElement('a');
+        a.className = b.className; a.textContent = b.textContent; a.dataset.csv = b.dataset.csv;
+        a.setAttribute('role', 'button'); a.download = 'tabela.csv';
+        a.href = `/api/conversas/${r.conversa}/mensagens/${r.mensagem}/tabelas/${indice}/csv`;
+        b.replaceWith(a);
+      } else b.onclick = () => baixarCsv(linhas, `${(W.qw?.nome || 'resultado').replace(/[^\wÀ-ú -]/g, '')}.csv`);
+    });
     ligarArtefatosDoTeste(W);
   },
   W => {

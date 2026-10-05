@@ -55,6 +55,7 @@ test('login → chat → quick win', async () => {
   await p.keyboard.press('Enter');
   await p.waitForFunction(() => document.querySelectorAll('.rodape-resposta').length >= 2);
   await p.waitForSelector('[data-csv]');   // tabela da resposta, com download em CSV
+  assert.match(await p.locator('[data-csv]').first().getAttribute('href'), /^\/api\/conversas\/\d+\/mensagens\/\d+\/tabelas\/\d+\/csv$/, 'CSV usa download autenticado do servidor');
   const [download] = await Promise.all([p.waitForEvent('download', { timeout: 10000 }), p.locator('[data-csv]').first().click()]);
   const csv = await readFile(await download.path(), 'utf8');
   assert.equal(csv.charCodeAt(0), 0xfeff, 'CSV da conversa preserva UTF-8 com BOM');

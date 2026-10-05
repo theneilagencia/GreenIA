@@ -167,7 +167,9 @@ test('execução com Quality Check aprovado: prompt gerado da especificação, e
   // Registro sem conteúdo; custo das duas chamadas somado.
   const rota = um(S.app.db, 'select qualidade, custo_real from roteamento where conversa_id = ?', r.conv.id);
   // Custo por etapa (só números): execução e conferência; sem pesquisa e sem produção visual neste Quick Win.
-  const { custos, ...qualidade } = json(rota.qualidade);
+  const { custos, assinatura_teste, ...qualidade } = json(rota.qualidade);
+  assert.match(assinatura_teste, /^[a-f0-9]{64}$/);
+  assert.equal(r.fim.qualidade.assinatura_teste, undefined, 'a assinatura interna não aparece no resultado público');
   assert.deepEqual(qualidade, { status: 'aprovado', falhas: [], tentativas: 0, verificados: ['regras', 'completo', 'formato', 'invencao'] });
   assert.deepEqual(Object.keys(custos), ['execucao', 'conferencia', 'pesquisa', 'plano_visual', 'imagem', 'render']);
   assert.equal(custos.plano_visual + custos.imagem + custos.pesquisa, 0);
@@ -432,8 +434,12 @@ test('regras próprias: salvas, publicadas, herdadas na nova versão, removidas,
   await ana.put(`/api/quick-wins/${q.id}`, { assistente: { ...ASSISTENTE, descricao: `${ASSISTENTE.descricao}, item por item` } });
   assert.deepEqual(espec(q.id).regras_proprias.map(x => x.texto), [REGRA], 'ajustar sem a lista mantém as regras próprias');
   await ana.put(`/api/quick-wins/${q.id}`, { assistente: { ...ASSISTENTE, regras_proprias: [REGRA, 'Ordenar os valores do maior para o menor'] } });
+  assert.equal((await ana.get(`/api/quick-wins/${q.id}`)).dados.ultimo_teste, null,
+    'alterar as regras invalida o teste do rascunho anterior');
   p = (await ana.post(`/api/quick-wins/${q.id}/publicar`, {})).dados;
   assert.equal(p.versao, 2);
+  assert.equal(um(S.app.db, 'select teste from quick_win_versoes where quick_win_id = ? and numero = 2', q.id).teste, null,
+    'a nova versão não herda a aprovação de regras que não foram testadas');
   assert.deepEqual(publicada(q.id).regras_proprias.map(x => x.texto), [REGRA, 'Ordenar os valores do maior para o menor']);
   // Restaurar a v1 volta exatamente às regras da v1.
   await ana.post(`/api/quick-wins/${q.id}/versoes/1/restaurar`, {});
@@ -453,4 +459,28 @@ test('regras próprias: salvas, publicadas, herdadas na nova versão, removidas,
   // Segredo numa regra própria: recusado, como no resto da criação.
   const seg = await ana.post('/api/quick-wins', { assistente: { ...ASSISTENTE, regras_proprias: ['Use a senha: Sup3r$ecreta!2026'] }, areas: [A.id] });
   assert.equal(seg.status, 422);
+});
+
+test('o selo e a publicação exigem teste do rascunho e das fontes atuais', async () => {
+  modo = 'bom';
+  const q = await criar();
+  const atual = async () => (await ana.get(`/api/quick-wins/${q.id}`)).dados.ultimo_teste;
+  await executar(ana, q.id, 'Pedido: 40 rolamentos. Nota: 38 rolamentos.', { teste: true });
+  assert.equal((await atual()).status, 'aprovado');
+  await ana.post(`/api/quick-wins/${q.id}/publicar`, {});
+  assert.ok(um(S.app.db, 'select teste from quick_win_versoes where quick_win_id = ? and numero = 1', q.id).teste);
+  await ana.put(`/api/quick-wins/${q.id}`, { nome: 'Comparação QA renomeada' });
+  assert.equal((await atual()).status, 'aprovado', 'renomear não muda o trabalho testado');
+  await ana.post(`/api/quick-wins/${q.id}/arquivos`, { arquivo: arquivo('referencia.txt', Buffer.from('Modelo fictício de comparação.')), papel: 'REFERENCE' });
+  assert.equal(await atual(), null, 'uma fonte adicionada não foi coberta pelo teste anterior');
+  await executar(ana, q.id, 'Pedido: 40 rolamentos. Nota: 38 rolamentos.', { teste: true });
+  assert.equal((await atual()).status, 'aprovado');
+  const fonte = (await ana.get(`/api/quick-wins/${q.id}/fontes`)).dados.fontes.find(f => f.tipo === 'file');
+  await ana.put(`/api/quick-wins/${q.id}/fontes/${fonte.documento_id}`, { papel: 'KNOWLEDGE_BASE' });
+  assert.equal(await atual(), null, 'trocar estilo por fato exige nova conferência');
+  await ana.post(`/api/quick-wins/${q.id}/publicar`, {});
+  assert.equal(um(S.app.db, 'select teste from quick_win_versoes where quick_win_id = ? and numero = 2', q.id).teste, null);
+  await executar(ana, q.id, 'Pedido: 40 rolamentos. Nota: 38 rolamentos.', { teste: true });
+  await ana.put(`/api/quick-wins/${q.id}/fontes/${fonte.documento_id}`, { arquivo: arquivo('referencia.txt', Buffer.from('Modelo fictício atualizado.')) });
+  assert.equal(await atual(), null, 'substituir conteúdo também invalida a conferência anterior');
 });

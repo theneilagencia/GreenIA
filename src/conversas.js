@@ -2,6 +2,7 @@
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
 import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
+import { assinaturaTeste } from './quickwin-teste.js';
 import { consolidarWal, exec, json, todos, um } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
@@ -290,6 +291,7 @@ export function rotasConversas(app, r) {
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
+    const assinaturaDoTeste = conv.teste && qw?.espec ? assinaturaTeste(app.db, qw) : null;
     anotarUso({ conversa_id: conv.id, quick_win_id: conv.quick_win_id ?? null, teste: Number(!!conv.teste), sigilosa: Number(!!conv.sigilosa) });
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
     // Executar sem escrever nada é um pedido válido (QA profundo): o Quick Win decide se o material obrigatório faltou
@@ -807,7 +809,10 @@ export function rotasConversas(app, r) {
       registroQualidade.objetivo = { atingido: false, motivo: 'imagem_nao_gerada', imagem_motivo: artefatos.find(a => a.imagem_final && !a.imagem_final.gerada)?.imagem_final?.motivo || null };
     }
     if (registroQualidade?.visual?.nao_guardado) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o artefato visual não foi gerado.');
-    if (registroQualidade) exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
+    if (registroQualidade) {
+      if (assinaturaDoTeste) registroQualidade.assinatura_teste = assinaturaDoTeste;
+      exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
+    }
     registrarUso(app, { em: AGORA(app), pessoa_id: pessoa.id, conversa_id: conv.id, quick_win_id: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor,
       custo: fim?.custo || 0, economia: fim?.economia || 0, ms, sigilosa: Number(sigilosa), teste: conv.teste });
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });

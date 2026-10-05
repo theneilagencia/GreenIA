@@ -1,0 +1,16 @@
+name: Smart routing v3 temporary validation
+on:
+  push:
+    branches:
+      - codex/smart-routing-v3
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test

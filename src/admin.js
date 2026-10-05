@@ -182,12 +182,13 @@ function metricasRoteamento(app, mes) {
     from roteamento where teste = 0 and substr(em, 1, 7) = ? and resultado like 'respondido%'`, mes);
   const automaticas = linhas.filter(x => x.modo === 'automatico');
   const classes = { rapido: 0, equilibrado: 0, avancado: 0 };
-  let menorClasse = 0, acima = 0, abaixo = 0, refeitas = 0, escaladas = 0, naoServiu = 0, sucesso = 0, custoSucesso = 0, custoTotal = 0, referencia = 0;
+  let calibradas = 0, menorClasse = 0, acima = 0, abaixo = 0, refeitas = 0, escaladas = 0, naoServiu = 0, sucesso = 0, custoSucesso = 0, custoTotal = 0, referencia = 0;
   for (const l of linhas) {
     if (l.classe in classes) classes[l.classe]++;
     const req = jsonSeguro(l.requisitos);
     const cal = req.calibracao || {};
     if (l.modo === 'automatico' && cal.nivelSelecionado != null && cal.menorNivelSuficiente != null) {
+      calibradas++;
       if (cal.acimaDaMenorClasse) acima++; else menorClasse++;
     }
     const fb = jsonSeguro(l.fallback, null);
@@ -205,13 +206,13 @@ function metricasRoteamento(app, mes) {
   }
   const n = linhas.length, na = automaticas.length;
   return {
-    decisoes: n, automaticas: na, classes,
+    decisoes: n, automaticas: na, calibradas, classes,
     menorClasseSuficiente: menorClasse,
     acimaDaMenorClasse: acima,
     abaixoDoNecessario: abaixo,
     refeitas, escaladas, feedbackNaoServiu: naoServiu,
     taxaRapido: n ? classes.rapido / n : 0,
-    taxaMenorClasseSuficiente: na ? menorClasse / na : 0,
+    taxaMenorClasseSuficiente: calibradas ? menorClasse / calibradas : 0,
     respostasBemSucedidasObservadas: sucesso,
     custoMedio: sucesso ? custoSucesso / sucesso : 0,
     custo: custoTotal,

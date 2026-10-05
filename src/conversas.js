@@ -830,12 +830,24 @@ export function detalhe(app, c, pessoa = null) {
   // Artefatos visuais de cada resposta (a versão atual de cada um): pertencem à execução e à conversa.
   const artefatos = todos(app.db, 'select * from artefatos_visuais where conversa_id = ? and atual = 1 order by id', c.id).map(a => resumoArtefato(app, a));
   const expira = new Date(new Date(c.atualizado_em).getTime() + cfg.retencaoDias * 864e5).toISOString();
+  const qualidadeAtual = valor => {
+    const q = resumoQualidade({ ...json(valor, {}), quick_win: c.quick_win_id });
+    // A conferência é histórica; o estado das ações externas continua evoluindo
+    // depois dela. Reabrir a conversa deve mostrar o plano atual, sem executá-lo.
+    const i = q.integracoes;
+    const p = i?.plano && i.motivo !== 'resultado_nao_conferido' ? lerPlanoInteg(app, i.plano) : null;
+    if (p && p.conversa_id === c.id && p.pessoa_id === c.pessoa_id) {
+      const atual = resumoPlanoInteg(app, p);
+      q.integracoes = { ...i, status: atual.status, passos: atual.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null })) };
+    }
+    return q;
+  };
   return {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
     mensagens: todos(app.db, 'select m.id, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa, r.qualidade as rota_qualidade from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
-      .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: resumoQualidade({ ...json(rota_qualidade, {}), quick_win: c.quick_win_id }) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
+      .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: qualidadeAtual(rota_qualidade) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         ...(artefatos.some(a => a.mensagem_id === m.id) ? { artefatos: artefatos.filter(a => a.mensagem_id === m.id) } : {}),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
         rota_explicacao_simples: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null,

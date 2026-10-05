@@ -51,6 +51,22 @@ test('fluxo completo: pedido simples no Rápido, contrato com riscos no Avançad
   assert.equal(tela.fornecedor, null);
 });
 
+test('v3: tarefa simples fica na menor classe suficiente mesmo com preferência por qualidade', async () => {
+  await liberarClasses(true);
+  await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true, preferencia: 'qualidade' } });
+  const conv = await conversa();
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Reescreva esta frase de forma mais curta: a reunião foi concluída com sucesso.' });
+  assert.equal(r.status, 200);
+  assert.equal(OR.chamadas.at(-1).model, RAPIDO);
+  const rota = ultimaRota();
+  assert.equal(rota.classe_necessaria, 'rapido');
+  assert.equal(rota.classe, 'rapido');
+  assert.equal(rota.requisitos.calibracao.menorNivelSuficiente, 1);
+  assert.equal(rota.requisitos.calibracao.acimaDaMenorClasse, false);
+  assert.match(rota.motivo_escolha, /menor_classe_suficiente|menor_custo|unico_que_atende/);
+  await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true, preferencia: 'equilibrio' } });
+});
+
 test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, preferência, resultado) sem guardar conteúdo', async () => {
   const conv = await conversa();
   const segredo = 'Projeto Aurora com margem de 37 por cento';
@@ -58,12 +74,13 @@ test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, prefer�
   const rota = ultimaRota();
   for (const campo of ['versao', 'em', 'origem', 'classe_pedida', 'classe_necessaria', 'classe', 'modelo', 'modo', 'complexidade', 'preferencia', 'motivo_escolha', 'resultado', 'explicacao'])
     assert.ok(rota[campo] !== null && rota[campo] !== undefined && rota[campo] !== '', campo);
-  assert.equal(rota.versao, '2.0');
+  assert.equal(rota.versao, '3.0');
   assert.equal(rota.classe_pedida, 'auto');
   assert.equal(rota.preferencia, 'equilibrio');
   assert.equal(rota.resultado, 'respondido');
   assert.ok(rota.janela_minima > 0 && rota.janela_desejada >= rota.janela_minima);
   assert.ok(rota.requisitos.dimensoes.geral >= 1 && rota.requisitos.determinantes.length);
+  assert.ok(rota.requisitos.calibracao && rota.requisitos.calibracao.nivelSelecionado >= 1, 'v3 registra calibração sem conteúdo');
   assert.ok(rota.candidatos.length >= 3 && rota.candidatos.every(c => c.status && Array.isArray(c.motivos)));
   assert.ok(rota.politicas.includes('fornecedor_sem_treino'));
   const linha = JSON.stringify(um(S.app.db, 'select * from roteamento where id = ?', rota.id));
@@ -71,6 +88,8 @@ test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, prefer�
   const tela = (await admin.get('/api/admin/roteamento')).dados;
   assert.ok(!JSON.stringify(tela).includes('Aurora'));
   assert.ok(!('custo_estimado' in tela.decisoes[0]) && !('custo_real' in tela.decisoes[0]), 'sem valores em dólar');
+  assert.ok(tela.resumo.calibracao.observadas >= 1);
+  assert.ok(tela.resumo.calibracao.taxaMenorClasseSuficiente === null || (tela.resumo.calibracao.taxaMenorClasseSuficiente >= 0 && tela.resumo.calibracao.taxaMenorClasseSuficiente <= 100));
 });
 
 test('sem acesso à classe necessária: a mais capaz permitida, com a causa na auditoria e na explicação', async () => {

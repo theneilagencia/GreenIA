@@ -27,7 +27,7 @@
 import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO } from './modelos.js';
 export { AUTOMATICO };
 
-export const VERSAO_ROTEADOR = '2.0';
+export const VERSAO_ROTEADOR = '3.0';
 export const NIVEL = { rapido: 1, equilibrado: 2, avancado: 3 };
 const CLASSE_DO_NIVEL = { 1: 'rapido', 2: 'equilibrado', 3: 'avancado' };
 export const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
@@ -253,6 +253,15 @@ const cabe = (m, t) => !m.contexto || t <= m.contexto * MARGEM_JANELA;
 // exigência), não a classe: um modelo da mesma classe mais forte na dimensão exigida ganha margem; um de
 // classe acima e igual naquela dimensão, não. Duas classes acima do mínimo é penalizado (gasto sem ganho).
 const podeMargem = req => req.complexidade !== 'simples' || !!req.dimensoes.precisao || !!req.dimensoes.nova_tentativa;
+// Para demanda simples, custo baixo não é apenas um peso: se a menor classe que atende também respeita
+// governança e janela, não há benefício em comparar uma classe acima só porque ela tem mais capacidade ociosa.
+// A exceção é estrutural (classe mínima do Quick Win/nova tentativa, contexto ou capacidade explícita), já tratada
+// pelas restrições antes desta etapa. Isso cria abundância no uso cotidiano sem reduzir qualidade ou segurança.
+const menorClasseSuficiente = (lista, req) => {
+  if (!lista.length || podeMargem(req)) return lista;
+  const menor = Math.min(...lista.map(c => c.nivel));
+  return lista.filter(c => c.nivel === menor);
+};
 function relevantes(req) {
   const caps = Object.entries(req.capacidade);
   const topo = Math.max(0, ...caps.map(([, n]) => n));
@@ -355,10 +364,12 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     motivoEscolha = modo === 'quick_win' ? 'definido_pelo_quick_win' : modo === 'padrao' ? 'padrao_da_empresa' : 'escolha_da_pessoa';
     if (escolhido.motivos.includes('capacidade_insuficiente')) fallback = fallback || { tipo: 'abaixo_do_necessario_por_escolha', classeNecessaria: req.classe, classeUsada: escolhido.classe };
   } else if (suficientes.length) {
-    const ordem = pontuar(suficientes);
+    const faixa = menorClasseSuficiente(suficientes, req);
+    const ordem = pontuar(faixa);
     escolhido = ordem[0];
-    const maisBarato = suficientes.slice().sort((p, q) => (p.custo ?? Infinity) - (q.custo ?? Infinity))[0];
+    const maisBarato = faixa.slice().sort((p, q) => (p.custo ?? Infinity) - (q.custo ?? Infinity))[0];
     motivoEscolha = suficientes.length === 1 ? 'unico_que_atende'
+      : faixa.length < suficientes.length ? (escolhido === maisBarato ? 'menor_classe_suficiente' : 'melhor_na_menor_classe_suficiente')
       : margemDe(escolhido, req) === 1 && podeMargem(req) && P.Q > 0 && escolhido !== maisBarato ? 'margem_de_capacidade'
         : escolhido === maisBarato ? 'menor_custo'
           : maisBarato.dominadoPor ? 'menor_custo_entre_os_nao_dominados'
@@ -389,9 +400,17 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   }
 
   const ref = candidatos.find(c => c.id === cfg.padroes.avancado) || candidatos.filter(c => c.nivel === 3)[0];
+  const menorNivelSuficiente = suficientes.length ? Math.min(...suficientes.map(c => c.nivel)) : null;
+  const calibracao = {
+    menorNivelSuficiente,
+    nivelSelecionado: modo === 'externo' ? null : escolhido.nivel,
+    acimaDaMenorClasse: modo === 'automatico' && menorNivelSuficiente != null && escolhido.nivel > menorNivelSuficiente,
+    abaixoDoNecessario: fallback?.tipo === 'abaixo_do_necessario',
+    motivo: motivoEscolha,
+  };
   const decisao = {
     modelo: escolhido.m, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes },
-    politicas, motivoEscolha, fallback, reserva, reservaDescartada,
+    politicas, motivoEscolha, fallback, reserva, reservaDescartada, calibracao,
     candidatos: candidatos.map(saida),
     elegiveisQueAtendem: suficientes.length,
     custoEstimado: modo === 'externo' ? null : escolhido.custo ?? null, custoReferencia: modo === 'externo' ? null : ref?.custo ?? null,
@@ -410,6 +429,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   function semModelo(causa) {
     const d = { modelo: null, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes }, politicas, motivoEscolha: null,
       fallback: { tipo: 'sem_modelo', causa, causas: [...new Set(candidatos.flatMap(c => c.motivos.filter(y => GOVERNANCA.includes(y))))] }, reserva: null, reservaDescartada: null,
+      calibracao: { menorNivelSuficiente: null, nivelSelecionado: null, acimaDaMenorClasse: false, abaixoDoNecessario: false, motivo: null },
       candidatos: candidatos.map(saida), elegiveisQueAtendem: 0, custoEstimado: null, custoReferencia: null };
     d.explicacao = explicar(a, d);
     return d;
@@ -435,7 +455,9 @@ export const TEXTO = {
   resposta_anterior_nao_resolveu: 'a resposta anterior não resolveu', resposta_anterior_nao_resolveu_limite: 'a resposta anterior não resolveu (subida limitada a uma classe acima do que a tarefa pede)',
   menor_custo_entre_os_nao_dominados: 'o de menor consumo entre os que não são superados por outro mais capaz e mais barato', resposta_anterior_nao_resolveu_sem_classe_acima: 'a resposta anterior não resolveu (já estava na classe mais alta)',
   analise_indisponivel: 'a análise automática não foi possível; usada a exigência padrão',
-  unico_que_atende: 'o único modelo permitido que atende', menor_custo: 'o de menor consumo entre os que atendem', padrao_da_classe: 'o modelo padrão da classe, com consumo próximo do menor',
+  unico_que_atende: 'o único modelo permitido que atende', menor_custo: 'o de menor consumo entre os que atendem',
+  menor_classe_suficiente: 'a menor classe capaz de atender, pelo menor consumo', melhor_na_menor_classe_suficiente: 'o melhor recurso dentro da menor classe capaz de atender',
+  padrao_da_classe: 'o modelo padrão da classe, com consumo próximo do menor',
   margem_de_capacidade: 'uma classe acima do mínimo, pela preferência da empresa', janela_para_o_historico: 'o que comporta todo o histórico da conversa', melhor_utilidade: 'o melhor equilíbrio entre consumo e capacidade',
   mais_capaz_permitido: 'o mais capaz entre os permitidos', reserva_fora_da_classe_do_quick_win: 'a reserva é de outra classe e o quick win fixa a classe',
   nao_homologado: 'conversa sigilosa (só homologados)', plano_na_reserva: 'créditos do mês no fim (só Rápido)', gratuito_treina_com_dados: 'modelos gratuitos treinam com os dados',

@@ -171,6 +171,54 @@ function smtpDoFormulario(f = {}, atual = {}) {
 }
 
 const seisMesesAntes = mes => { const [a, m] = mes.split('-').map(Number); const d = new Date(Date.UTC(a, m - 6, 1)); return d.toISOString().slice(0, 7); };
+
+const jsonSeguro = (v, padrao = {}) => { try { return v ? JSON.parse(v) : padrao; } catch { return padrao; } };
+// Calibração do roteador com dados observados, sem conteúdo das conversas. "Acima da menor classe"
+// não é automaticamente erro: em tarefas não simples pode ser uma decisão deliberada de qualidade.
+// "Abaixo do necessário" é sempre uma limitação registrada (governança/disponibilidade).
+function metricasRoteamento(app, mes) {
+  const linhas = todos(app.db, `select modo, complexidade, classe, requisitos, fallback, resultado, custo_real, custo_referencia,
+      feedback, refeito, nova_tentativa_de, qualidade, ms_total
+    from roteamento where teste = 0 and substr(em, 1, 7) = ? and resultado like 'respondido%'`, mes);
+  const automaticas = linhas.filter(x => x.modo === 'automatico');
+  const classes = { rapido: 0, equilibrado: 0, avancado: 0 };
+  let calibradas = 0, menorClasse = 0, acima = 0, abaixo = 0, refeitas = 0, escaladas = 0, naoServiu = 0, sucesso = 0, custoSucesso = 0, custoTotal = 0, referencia = 0;
+  for (const l of linhas) {
+    if (l.classe in classes) classes[l.classe]++;
+    const req = jsonSeguro(l.requisitos);
+    const cal = req.calibracao || {};
+    if (l.modo === 'automatico' && cal.nivelSelecionado != null && cal.menorNivelSuficiente != null) {
+      calibradas++;
+      if (cal.acimaDaMenorClasse) acima++; else menorClasse++;
+    }
+    const fb = jsonSeguro(l.fallback, null);
+    if (fb?.tipo === 'abaixo_do_necessario' || cal.abaixoDoNecessario) abaixo++;
+    refeitas += Number(!!l.refeito);
+    escaladas += Number(l.nova_tentativa_de != null);
+    naoServiu += Number(l.feedback === 'nao_serviu');
+    const q = jsonSeguro(l.qualidade, null);
+    const falhouQualidade = q && ['falhou', 'reprovado'].includes(q.status);
+    const ok = !l.refeito && l.feedback !== 'nao_serviu' && !falhouQualidade;
+    const custo = Number(l.custo_real) || 0;
+    custoTotal += custo;
+    referencia += Number(l.custo_referencia) || 0;
+    if (ok) { sucesso++; custoSucesso += custo; }
+  }
+  const n = linhas.length, na = automaticas.length;
+  return {
+    decisoes: n, automaticas: na, calibradas, classes,
+    menorClasseSuficiente: menorClasse,
+    acimaDaMenorClasse: acima,
+    abaixoDoNecessario: abaixo,
+    refeitas, escaladas, feedbackNaoServiu: naoServiu,
+    taxaRapido: n ? classes.rapido / n : 0,
+    taxaMenorClasseSuficiente: calibradas ? menorClasse / calibradas : 0,
+    respostasBemSucedidasObservadas: sucesso,
+    custoMedio: sucesso ? custoSucesso / sucesso : 0,
+    custo: custoTotal,
+    custoReferencia: referencia,
+  };
+}
 // Uso agregado do mês (conversas de teste não contam).
 function uso(app, mes) {
   const base = "from uso u where u.teste = 0 and substr(u.em, 1, 7) = ?";
@@ -199,6 +247,7 @@ function uso(app, mes) {
     pacotes: app.plano ? todos(app.db, 'select em, produto, creditos, validade, origem, observacao from pacotes order by id desc limit 12') : [],
     // Testes de quick win ficam fora dos recortes acima, mas são custo real e consomem créditos do plano.
     testes: um(app.db, "select count(*) as respostas, count(distinct conversa_id) as conversas, coalesce(sum(custo), 0) as custo from uso where teste = 1 and substr(em, 1, 7) = ?", mes),
+    roteamento: metricasRoteamento(app, mes),
   };
 }
 

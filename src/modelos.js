@@ -294,6 +294,12 @@ export function rotasModelos(app, r) {
     const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : null);
     const classificacao = Object.entries(porTipo).map(([tipo, g]) => ({ tipo, n: g.n, percentual: pct(g.n, linhas.length), naoServiuPercentual: pct(g.naoServiu, g.comFeedback),
       refeitoPercentual: pct(g.refeitos, g.n), tipoDecidiuPercentual: pct(g.tipoDecidiu, g.n), exigida: g.exigida })).sort((a, b) => b.n - a.n);
+    // Calibração v3: a menor classe suficiente é calculada no momento da decisão, depois de todas as regras.
+    // "Acima" não é erro por si só: pode ser margem deliberada de qualidade numa tarefa não simples.
+    const calib = linhas.map(l => json(l.requisitos, {}).calibracao).filter(Boolean);
+    const menorClasseSuficiente = calib.filter(x => x.nivelSelecionado != null && x.menorNivelSuficiente != null && !x.acimaDaMenorClasse).length;
+    const acimaDaMenorClasse = calib.filter(x => x.acimaDaMenorClasse).length;
+    const abaixoDoNecessario = calib.filter(x => x.abaixoDoNecessario).length;
     // Latência por modelo: só observação (não entra na escolha). Mediana do primeiro token e do total.
     const mediana = l => { const v = l.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; };
     const lat = {};
@@ -317,6 +323,13 @@ export function rotasModelos(app, r) {
         // Qualidade da estimativa: realizado ÷ estimado nas respostas com os dois (1,0 = estimativa exata).
         realizadoSobreEstimado: consumo.estReal > 0 ? Math.round(consumo.real / consumo.estReal * 100) / 100 : null,
         classificacao, latencia,
+        calibracao: {
+          observadas: calib.length,
+          menorClasseSuficiente,
+          acimaDaMenorClasse,
+          abaixoDoNecessario,
+          taxaMenorClasseSuficiente: pct(menorClasseSuficiente, calib.length),
+        },
       },
       decisoes,
     };

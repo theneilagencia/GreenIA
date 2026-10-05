@@ -109,7 +109,7 @@ export function modeloNaReserva(app, cfg, m, sigilosa) {
 }
 
 // Converte custos em créditos e tira preços de qualquer resposta JSON.
-const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'custoPorExecucao', 'previsao', 'tetoMensal', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa']);
+const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'custoPorExecucao', 'custoReferencia', 'previsao', 'tetoMensal', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa']);
 const CHAVES_PRECO = new Set(['precoEntrada', 'precoSaida', 'preco_entrada', 'preco_saida']);
 export function emCreditos(v, chave) {
   if (Array.isArray(v)) return v.map(x => emCreditos(x));

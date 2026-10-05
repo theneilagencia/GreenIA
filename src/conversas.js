@@ -505,7 +505,7 @@ export function rotasConversas(app, r) {
       JSON.stringify({ ...analise.sinais, insatisfacao: analise.insatisfacao, anterior: analise.anterior?.classe || null, analiseFalhou: !!analise.falhou }),
       rota.requisitos.classe, rota.modelo?.id || null, rota.modelo?.id === AUTO ? null : rota.modelo?.perfil || null, JSON.stringify(rota.politicas), JSON.stringify(rota.candidatos),
       analise.tokensEntrada, analise.tokensSaida, rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, Number(sigilosa), conv.teste,
-      origem, classePedida, rota.preferencia, JSON.stringify({ nivel: rota.requisitos.nivel, dimensoes: rota.requisitos.dimensoes, motivos: rota.requisitos.motivos, determinantes: rota.requisitos.determinantes }),
+      origem, classePedida, rota.preferencia, JSON.stringify({ nivel: rota.requisitos.nivel, dimensoes: rota.requisitos.dimensoes, motivos: rota.requisitos.motivos, determinantes: rota.requisitos.determinantes, calibracao: rota.calibracao }),
       rota.requisitos.janelaMinima, rota.requisitos.janelaDesejada, rota.motivoEscolha, rota.fallback ? JSON.stringify(rota.fallback) : null,
       rota.reserva || (rota.reservaDescartada ? `descartada:${rota.reservaDescartada}` : null), resultado, solicitado, decisaoSolicitado, motivoSolicitado,
       sigilosa ? 'on' : null, guardrails(), motivoBloqueio).lastInsertRowid);

@@ -1,6 +1,7 @@
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
+import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { consolidarWal, exec, json, todos, um } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
@@ -219,6 +220,16 @@ export function rotasConversas(app, r) {
     const conv = minhaConversa(app, pessoa, params.id);
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     return detalhe(app, conv, pessoa);
+  });
+
+  r.get('/api/conversas/:id/mensagens/:mensagem/tabelas/:indice/csv', ({ pessoa, params, res }) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    if (!/^[1-9]\d*$/.test(params.mensagem) || !/^(0|[1-9]\d*)$/.test(params.indice)) throw erro(404, 'tabela', 'Tabela não encontrada.');
+    const mensagem = um(app.db, "select texto from mensagens where id = ? and conversa_id = ? and papel = 'assistant'", Number(params.mensagem), conv.id);
+    const tabela = mensagem && extrairTabelas(mensagem.texto)[Number(params.indice)];
+    if (!tabela) throw erro(404, 'tabela', 'Tabela não encontrada.');
+    res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="tabela.csv"', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+    res.end(gerarCsv(tabela));
   });
 
   r.patch('/api/conversas/:id', ({ pessoa, params, corpo }) => {
@@ -802,7 +813,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'credits.consumed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, classe: m.perfil, modelo_usado: usado, custo: fim?.custo || 0 });
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
-    linha({ t: 'fim', id: respId, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
+    linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
       ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
     res.end();
   }

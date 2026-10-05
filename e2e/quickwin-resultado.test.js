@@ -62,6 +62,7 @@ test('resultado modular: um cartão por entregável e CSV de cada tabela (UTF-8,
   assert.equal(await p.locator('#teste-resultado .resultado-corpo.bolha-ia').count(), 0, 'não é um bloco só');
   assert.equal(await p.locator('#teste-resultado .qw-peca [data-csv]').count(), 2, 'tabela e matriz, cada uma com o seu CSV');
   const baixar = async i => {
+    assert.match(await p.locator('#teste-resultado .qw-peca [data-csv]').nth(i).getAttribute('href'), /^\/api\/conversas\/\d+\/mensagens\/\d+\/tabelas\/\d+\/csv$/, 'CSV do cartão usa a resposta guardada');
     const [d] = await Promise.all([p.waitForEvent('download'), p.locator('#teste-resultado .qw-peca [data-csv]').nth(i).click()]);
     return readFileSync(await d.path(), 'utf8');
   };

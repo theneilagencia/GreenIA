@@ -508,16 +508,17 @@ test('concorrência: resposta atrasada não vale para outro objetivo, não desen
 
 test('a revisão não reaproveita a conferência em memória depois de mudar uma fonte', async () => {
   qc = 'ok';
-  const lia = await cliente(N.app, N.base).entrar('lia@empresa-exemplo.com.br');
-  const q = (await lia.post('/api/quick-wins', { assistente: { descricao: 'Compare pedidos com notas de entrega', formato: 'tabela' }, areas: [areaCompras] })).dados;
   const p = await N.contexto.newPage();
-  await N.entrar('lia@empresa-exemplo.com.br', p);
+  const eu = await (await p.request.get(`${N.base}/api/eu`)).json();
+  assert.equal(eu.pessoa.email, 'lia@empresa-exemplo.com.br');
+  const headers = { 'x-csrf': eu.csrf };
+  const q = await (await p.request.post(`${N.base}/api/quick-wins`, { headers, data: { assistente: { descricao: 'Compare pedidos com notas de entrega', formato: 'tabela' }, areas: [areaCompras] } })).json();
   await p.goto(`${N.base}/app#/qw/${q.id}/teste`);
   await p.waitForSelector('[data-testar]:not([disabled])');
   await p.click('[data-testar]');
   await p.waitForSelector('#teste-resultado .qc');
   assert.match(await p.textContent('#teste-resultado .qc'), /Resultado conferido/);
-  assert.equal((await lia.post(`/api/quick-wins/${q.id}/arquivos`, { arquivo: arquivo('nova-fonte.txt', Buffer.from('Referência fictícia adicionada após o teste.')), papel: 'REFERENCE' })).status, 200);
+  assert.equal((await p.request.post(`${N.base}/api/quick-wins/${q.id}/arquivos`, { headers, data: { arquivo: arquivo('nova-fonte.txt', Buffer.from('Referência fictícia adicionada após o teste.')), papel: 'REFERENCE' } })).status(), 200);
   await p.click('[data-continuar]');
   await p.waitForSelector('.resumo-pub');
   assert.match(await p.textContent('.resumo-pub'), /Ainda não testado/);

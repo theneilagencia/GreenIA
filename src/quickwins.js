@@ -19,6 +19,7 @@ import { integracoesLigadas } from './integracoes/rotas.js';
 import { necessidadesDoPedido, resolverNecessidades } from './integracoes/plano.js';
 import * as F from './fontes.js';
 import { INSTRUCAO_FONTES, PAPEIS, papelValido } from './fontes.js';
+import { testeAtual } from './quickwin-teste.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
 const FORMATOS = ['texto', 'lista', 'tabela', 'checklist'];
@@ -80,7 +81,7 @@ function versaoDe(db, q) {
   if (!q.especificacao) return null;
   const espec = json(q.especificacao, null);
   const pub = q.versao_publicada ? um(db, 'select id, numero, especificacao, publicada_em from quick_win_versoes where id = ?', q.versao_publicada) : null;
-  const teste = um(db, "select r.qualidade, r.em from roteamento r join conversas c on c.id = r.conversa_id where r.quick_win_id = ? and r.teste = 1 and r.qualidade is not null order by r.id desc limit 1", q.id);
+  const teste = testeAtual(db, q);
   return {
     publico: { v2: true, versao: pub?.numero ?? null, regras: QW2.regrasPrincipais(pub ? json(pub.especificacao, null) : espec), formato_saida: (pub ? json(pub.especificacao, {}) : espec)?.formato_saida?.tipo || null,
       entregas: entregasDe(pub ? json(pub.especificacao, null) : espec) },
@@ -530,10 +531,11 @@ export function rotasQuickWins(app, r) {
       if (!q.modelo) { const c = classeSugerida(app, cfg, json(q.especificacao, {}), q.sigiloso); if (!c) throw erro(503, 'sem_modelo', 'A empresa ainda não liberou recursos de IA para Quick Wins. Fale com o administrador.'); mudar.modelo = c; }
     }
     const { v, areas } = validar(app, pessoa, q, mudar);
-    const teste = um(app.db, 'select qualidade from roteamento where quick_win_id = ? and teste = 1 and qualidade is not null order by id desc limit 1', q.id);
+    let teste = null;
     const numero = transacao(app.db, () => {
       gravar(app, q.id, v, areas);
       const atual = um(app.db, 'select * from quick_wins where id = ?', q.id);
+      teste = testeAtual(app.db, atual);
       const n = (um(app.db, 'select max(numero) as n from quick_win_versoes where quick_win_id = ?', q.id).n || 0) + 1;
       const vid = Number(exec(app.db, 'insert into quick_win_versoes (quick_win_id, numero, especificacao, nome, para_que_serve, formato, teste, publicada_em, publicada_por) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         q.id, n, atual.especificacao, atual.nome, atual.para_que_serve, atual.formato, teste?.qualidade ?? null, app.agora().toISOString(), pessoa.id).lastInsertRowid);

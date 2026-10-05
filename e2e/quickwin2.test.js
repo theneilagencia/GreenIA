@@ -8,11 +8,12 @@ import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
 import { openRouterFalso } from '../test/openrouter-falso.js';
+import { arquivo } from '../test/arquivos.js';
 
 const TECNICO = /prompt|temperatura|tokens?\b|json|openrouter|mistral|gpt|claude|provedor|especifica[çc][ãa]o|contrato de sa[íi]da|governan[çc]a|ROUTING_|classe:/i;
 const APROVACAO = /✓|conferid|concluíd|aprovad|validad|verificad|certificad|garantid|sucesso|tudo certo/i;
 const QC_OK = '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"formato","ok":true}]}';
-let N, OR, qc = 'ok';
+let N, OR, areaCompras, qc = 'ok';
 const texto = c => (typeof c === 'string' ? c : c.map(p => p.text).join('\n'));
 
 // IA falsa: na execução, devolve exatamente as colunas e seções que o prompt de execução pede; na conversa
@@ -47,6 +48,7 @@ before(async () => {
   salvarConfig(N.app.db, { dominios: ['empresa-exemplo.com.br'] });
   const admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');
   const area = (await admin.post('/api/admin/areas', { nome: 'Compras' })).dados.id;
+  areaCompras = area;
   await admin.post('/api/admin/pessoas', { email: 'lia@empresa-exemplo.com.br', nome: 'Lia Prado', areas: [{ id: area, responsavel: true }] });
   await admin.post('/api/admin/pessoas', { email: 'rui@empresa-exemplo.com.br', nome: 'Rui Alves', areas: [{ id: area }] });
   await admin.put(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}`, { liberado: true, perfil: 'rapido' });
@@ -502,4 +504,24 @@ test('concorrência: resposta atrasada não vale para outro objetivo, não desen
   assert.match(await p.textContent('#colunas-origem'), /Pelo que você escreveu no objetivo/);
   await p.unroute('**/api/quick-wins/assistente/estrutura');
   assert.deepEqual(erros, []);
+});
+
+test('a revisão não reaproveita a conferência em memória depois de mudar uma fonte', async () => {
+  qc = 'ok';
+  const p = await N.contexto.newPage();
+  const eu = await (await p.request.get(`${N.base}/api/eu`)).json();
+  assert.equal(eu.pessoa.email, 'lia@empresa-exemplo.com.br');
+  const headers = { 'x-csrf': eu.csrf };
+  const q = await (await p.request.post(`${N.base}/api/quick-wins`, { headers, data: { assistente: { descricao: 'Compare pedidos com notas de entrega', formato: 'tabela' }, areas: [areaCompras] } })).json();
+  await p.goto(`${N.base}/app#/qw/${q.id}/teste`);
+  await p.waitForSelector('[data-testar]:not([disabled])');
+  await p.click('[data-testar]');
+  await p.waitForSelector('#teste-resultado .qc');
+  assert.match(await p.textContent('#teste-resultado .qc'), /Resultado conferido/);
+  assert.equal((await p.request.post(`${N.base}/api/quick-wins/${q.id}/arquivos`, { headers, data: { arquivo: arquivo('nova-fonte.txt', Buffer.from('Referência fictícia adicionada após o teste.')), papel: 'REFERENCE' } })).status(), 200);
+  await p.click('[data-continuar]');
+  await p.waitForSelector('.resumo-pub');
+  assert.match(await p.textContent('.resumo-pub'), /Ainda não testado/);
+  assert.doesNotMatch(await p.textContent('.resumo-pub'), /Resultado conferido/);
+  await p.close();
 });

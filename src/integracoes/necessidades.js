@@ -9,9 +9,10 @@ const corta = (s, n) => String(s ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().
 // Leitura genérica (sem IA): só conta como ação externa quando o pedido nomeia um sistema fora da GreenIA
 // ("no CRM", "no sistema", "no ERP", "na planilha online", "no <Nome Próprio>"). Sem isso, nenhuma necessidade:
 // Quick Wins de texto, análise e produção visual seguem exatamente como antes.
-const SISTEMA = /\b(?:no|na|do|da|ao|à|pelo|pela|via|para o|para a)\s+((?:sistema|crm|erp|portal|plataforma|planilha online|banco de dados|api|aplicativo|app|helpdesk|service desk|intranet|ferramenta|software|site)(?:\s+(?:de|do|da)\s+[\wÀ-ú-]+|\s+(?!(?:e|ou|de|do|da|com|para|sem|que|os|as|o|a|um|uma|em|no|na|depois|então)\b)[A-Za-zÀ-ú][\wÀ-ú-]{2,})?|[A-Z][\wÀ-ú-]+(?:\s+[A-Z][\wÀ-ú-]+)?)|\b(?:por|via|pelo)\s+(e-?mail|sms|whatsapp)\b/;
+const SISTEMA = /\b(?:no|na|do|da|ao|à|pelo|pela|via|para o|para a)\s+((?:sistema|crm|erp|portal|plataforma|planilha online|banco de dados|api|aplicativo|app|helpdesk|service desk|intranet|ferramenta|software|site)(?:\s+(?:de|do|da)\s+[\wÀ-ú-]+|\s+(?!(?:e|ou|de|do|da|com|para|sem|que|os|as|o|a|um|uma|em|no|na|depois|então)\b)[A-Za-zÀ-ú][\wÀ-ú-]*(?:\s+[A-Z][\wÀ-ú-]*){0,3})?|[A-Z][\wÀ-ú-]+(?:\s+[A-Z][\wÀ-ú-]*)?)|\b(?:por|via|pelo)\s+(e-?mail|sms|whatsapp)\b/;
 // Nome próprio que não é sistema externo: canais de conteúdo (a peça é produzida aqui), lugares, formatos e meses.
 const NAO_SISTEMA = /^(instagram|linkedin|tiktok|youtube|facebook|twitter|x|threads|pinterest|kwai|blog|brasil|portugal|europa|america|sao paulo|rio|excel|word|powerpoint|pdf|markdown|janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|greenia|quick win)\b/;
+const MESMO_SISTEMA = /\b(?:no|na|do|da|ao|à|pelo|pela|via|para o|para a)\s+(?:mesmo|mesma)\s+(?:sistema|crm|erp|portal|plataforma|api|aplicativo|app|ferramenta|software)\b/i;
 const VERBOS = [
   ['delete_record', /\b(apag|exclu|remov|delet)\w*/],
   ['send_message', /\b(envi|mand|dispar|notifi|respond|avis|comuniq|comunic|encaminh)\w*\b[^.]{0,60}\b(e-?mail|mensage|sms|notifica|alerta|aviso|comunicado|cliente|solicitante|chamado|ticket|gestor|responsavel|equipe|fornecedor|colaborador)/],
@@ -45,7 +46,7 @@ export function necessidadesDoPedido(texto) {
   const out = [];
   for (const f of frases.slice(0, 20)) {
     const m = SISTEMA.exec(f);
-    const sistema = m && (m[1] || m[2]);
+    const sistema = MESMO_SISTEMA.test(f) ? out.at(-1)?.sistema : m && (m[1] || m[2]);
     if (!sistema || NAO_SISTEMA.test(norm(sistema))) continue;
     const t = norm(f);
     // O verbo que aparece primeiro na cláusula decide a categoria.
@@ -64,4 +65,3 @@ export function limparNecessidades(lista) {
     ...(Array.isArray(n?.entrada) ? { entrada: n.entrada } : {}),
   })).filter(n => n.acao);
 }
-

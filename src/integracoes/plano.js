@@ -12,6 +12,8 @@ import { executarCapability } from './runtime.js';
 import { mapear, validarRegras } from './mapeamento.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const normSistema = s => norm(s).replace(/^(?:sistema|portal|plataforma|api|aplicativo|app|ferramenta|software)\s+(?!(?:de|do|da)\b)/, '');
+const contemNome = (nome, parte) => nome === parte || nome.startsWith(`${parte} `) || nome.endsWith(` ${parte}`) || nome.includes(` ${parte} `);
 const corta = (s, n) => String(s ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
 
 import { necessidadesDoPedido, limparNecessidades } from './necessidades.js';
@@ -21,10 +23,11 @@ export { necessidadesDoPedido, limparNecessidades };
 const PARENTES = { read_data: ['search', 'query_database'], search: ['read_data'], create_record: ['write_data'], update_record: ['write_data'], write_data: ['create_record', 'update_record'] };
 function candidatos(app, n) {
   const caps = todos(app.db, "select c.id, c.categoria, c.status, k.sistema, k.nome as conector_nome, k.status as conector_status from capabilities c join connectors k on k.id = c.connector_id where c.tenant_id = ? and k.tenant_id = ? and c.status != 'revogada' and k.status != 'REVOKED'", app.tenantId, app.tenantId);
-  const sis = norm(n.sistema);
-  const pontua = c => (c.categoria === n.categoria ? 2 : (PARENTES[n.categoria] || []).includes(c.categoria) ? 1 : 0) + (sis && (norm(c.sistema).includes(sis) || sis.includes(norm(c.sistema)) || norm(c.conector_nome).includes(sis)) ? 2 : 0);
+  const sis = normSistema(n.sistema);
+  const combina = c => contemNome(normSistema(c.sistema), sis) || contemNome(sis, normSistema(c.sistema)) || contemNome(norm(c.conector_nome), sis);
+  const pontua = c => (c.categoria === n.categoria ? 2 : (PARENTES[n.categoria] || []).includes(c.categoria) ? 1 : 0) + (sis && combina(c) ? 2 : 0);
   // Sistema nomeado no pedido ("no ERP") precisa bater com o sistema da integração: categoria igual sozinha não basta.
-  const doSistema = c => !sis || norm(c.sistema).includes(sis) || sis.includes(norm(c.sistema)) || norm(c.conector_nome).includes(sis);
+  const doSistema = c => !sis || combina(c);
   return caps.map(c => ({ ...c, pontos: pontua(c) })).filter(c => c.pontos >= 2 && doSistema(c) && (c.categoria === n.categoria || (PARENTES[n.categoria] || []).includes(c.categoria))).sort((a, b) => b.pontos - a.pontos);
 }
 // Estado de cada necessidade: disponivel (pode rodar), requer_aprovacao (roda com aprovação), configurar (falta

@@ -604,7 +604,8 @@ export function excluirEmpresa(P, companyId, confirmacao, ator, origem, { via = 
     copia = join(pasta, `${companyId}-${nome}`);
     writeFileSync(copia, dados);
     const dias = P.retencao?.excluidasDias ?? PRAZOS_PADRAO.excluidasDias;
-    gravarManifesto(copia, { companyId, excluida_em: P.agora().toISOString(), expira_em: new Date(P.agora().getTime() + dias * 864e5).toISOString(), motivo: 'exclusao_definitiva' });
+    const excluidaEm = P.agora();
+    gravarManifesto(copia, { companyId, excluida_em: excluidaEm.toISOString(), expira_em: new Date(excluidaEm.getTime() + dias * 864e5).toISOString(), motivo: 'exclusao_definitiva' });
   }
   const t = P.tenants.get(companyId);
   if (t) { try { t.db.close(); } catch { /* já fechado */ } P.tenants.delete(companyId); }

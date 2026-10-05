@@ -30,7 +30,7 @@ export async function vistaGeral() {
   ]) : p ? faixa([
     ['Créditos usados', num(Math.round(p.usados)), `${p.percentual}% dos ${num(p.creditos)} do plano`],
     ['Previsão para o mês', v.uso.previsao !== null ? num(Math.round(v.uso.previsao)) : 'após o 3º dia', v.uso.previsao !== null && v.uso.previsao > p.creditos ? 'acima do plano' : 'no ritmo atual'],
-    ['Capacity Pack disponível', num(Math.round(p.pacoteDisponivel)), p.pacoteDisponivel ? 'usado depois do plano' : 'nenhum'],
+    ['Créditos adicionais disponíveis', num(Math.round(p.pacoteDisponivel)), p.pacoteDisponivel ? 'Capacity Pack · usado depois do plano' : 'nenhum'],
     ['Renovação', new Date(`${p.renova}T12:00:00`).toLocaleDateString('pt-BR'), p.fase === 'reserva' ? 'hoje só a classe Rápido' : p.fase === 'esgotado' ? 'envio pausado' : ''],
   ]) + `<div class="barra ${p.percentual >= 100 ? 'erro' : p.percentual >= 80 ? 'atencao' : ''}" role="progressbar" aria-label="Créditos do plano usados" aria-valuenow="${p.percentual}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p.percentual}%"></span></div>`
     : faixa([
@@ -41,18 +41,22 @@ export async function vistaGeral() {
 
   const r = v.resultado, a = v.adocao, av = r.avaliacoes;
   const totalAv = av.serviu + av.ajustes + av.nao_serviu;
+  const registros = v.atencao.filter(x => ['governanca', 'politica'].includes(x.tipo));
+  const atuais = v.atencao.filter(x => !['governanca', 'politica'].includes(x.tipo));
+  const listaAtencao = itens => `<div class="lista">${itens.map(x => `<a class="lista-item" href="${esc(x.link)}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<br><span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`;
   $('principal').innerHTML = `${cabecalho('Visão geral', `<span class="dica">${MESES[Number(mes) - 1]} de ${ano}</span>`)}
     <div class="pagina"><div class="pagina-dentro">
       ${pendentes.length ? `<div class="secao-titulo" style="margin-top:0"><h3>Implantação</h3><span class="dica">${v.implantacao.length - pendentes.length} de ${v.implantacao.length} etapas concluídas</span></div>
         <div class="etapas">${v.implantacao.map((e, i) => `<a class="etapa" href="${e.link}"><span class="passo ${e.feito ? 'feito' : ''}" aria-hidden="true">${e.feito ? '✓' : i + 1}</span>
           <span class="t"><b>${esc(e.nome)}</b><span>${esc(e.texto)}</span></span><span class="dica">${e.feito ? 'Concluída' : 'Pendente'}</span></a>`).join('')}</div>` : ''}
 
-      <div class="secao-titulo" ${pendentes.length ? '' : 'style="margin-top:0"'}><h3>Uso do mês</h3><a class="btn-texto btn-pequeno" href="#/uso">Ver uso e créditos</a></div>
-      ${usoMes}
-
-      <div class="secao-titulo"><h3>Atenção</h3></div>
-      ${v.atencao.length ? `<div class="lista">${v.atencao.map(x => `<a class="lista-item" href="${x.link}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<br><span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`
+      <div class="secao-titulo"><h3>Atenção agora</h3></div>
+      ${atuais.length ? listaAtencao(atuais)
         : '<div class="lista"><div class="lista-item"><span class="dica">Nada pede ação agora.</span></div></div>'}
+      ${registros.length ? `<details class="qw-acompanhamento"><summary>Registros anteriores de governança (${registros.length})</summary><p class="dica">Ocorrências registradas, que podem já ter sido tratadas. Bloqueios de dados correspondem a este mês; alertas de governança, aos últimos 7 dias. Confira o estado atual antes de alterar configurações.</p>${listaAtencao(registros)}</details>` : ''}
+
+      <div class="secao-titulo"><h3>Uso do mês</h3><a class="btn-texto btn-pequeno" href="#/uso">Ver uso e créditos</a></div>
+      ${usoMes}
 
       <div class="secao-titulo"><h3>Adoção</h3></div>
       ${faixa([

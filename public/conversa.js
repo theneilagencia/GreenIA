@@ -11,6 +11,9 @@ const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuraç
 const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 const FEEDBACK = [['serviu', 'Serviu'], ['ajustes', 'Serviu com ajustes'], ['nao_serviu', 'Não serviu']];
 let C = null;       // estado da conversa aberta
+document.addEventListener('greenia:integracao-atualizada', ev => {
+  for (const m of C?.mensagens || []) if (m.qualidade?.integracoes?.plano === ev.detail.plano) m.qualidade.integracoes = { ...m.qualidade.integracoes, ...ev.detail };
+});
 const vistos = new Set();   // mensagens já mostradas (só as novas animam)
 
 // enviarAgora: { texto, anexos } para já executar ao abrir (Quick Win: "Executar" e o teste da criação).
@@ -94,6 +97,7 @@ function desenhar() {
         ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
         <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}</button>
       </div>
+      ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar em outro caso →</a></p>` : ''}
       <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
     </div></div>
     <div class="sr" aria-live="polite" id="ao-vivo"></div>`;
@@ -123,13 +127,14 @@ function htmlMensagem(m) {
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
   const revisar = execucao && m.qualidade.status === 'inconsistente';
-  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeAjustar: !!C.qw?.podeEditar, ajustarHref: C.qw ? `#/qw/${C.qw.id}/ajustar` : '' }) + painelIntegracoes(m.qualidade.integracoes) : '';
+  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeAjustar: !!C.qw?.podeEditar, ajustarHref: C.qw ? `#/qw/${C.qw.id}/ajustar` : '' }) : '';
+  const integracoes = execucao ? painelIntegracoes(m.qualidade.integracoes) : '';
   // Fontes: documentos da empresa (título) e, quando houve pesquisa na internet, os endereços consultados.
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => (f && typeof f === 'object' && /^https?:\/\//.test(f.url || '')
     ? `<a class="selo" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a>` : `<span class="selo">${ICONE.doc} ${esc(f)}</span>`)).join('')}</div>` : '';
   return `<div class="resposta${anim}" data-msg="${m.id}">
     <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
-    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}
+    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${integracoes}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
         <button type="button" data-copiar="${m.id}">Copiar</button>${!C.qw?.v2 && (m.modelo || m.classe || m.rota_modo) ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
         ${m.rota_explicacao && !C.qw?.v2 ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}`}
@@ -142,10 +147,11 @@ function desenharMensagens() {
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
     : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
-        <h2>Como a GreenIA pode ajudar hoje</h2><p>Posso resumir, rascunhar, conferir e organizar. Por onde começamos?</p>${cartaoBase()}</div>`;
+        <h2>Como a GreenIA pode ajudar hoje</h2><p>Escolha uma tarefa pronta ou conte o que precisa fazer.</p><div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Peça para resumir, rascunhar, conferir ou organizar. Use um exemplo abaixo.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div>${cartaoBase()}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
   sugestoes();
+  $('comecar-pedido')?.addEventListener('click', () => $('entrada').focus());
   // Artefatos visuais: visualizar, baixar e editar. Uma edição cria nova versão; a conversa é relida do servidor.
   ligarArtefatos($('coluna'), { aoMudar: () => recarregarConversa(false) });
   rolarSeNoFim();

@@ -106,7 +106,7 @@ export function aplicarMarca(p) {
   const tons = {
     '--forest': c, '--forest-hover': misturar(c, '#000000', 0.12), '--forest-text': c,
     '--forest-strong': c, '--forest-strong-hover': misturar(c, '#000000', 0.18),
-    '--deep': misturar(c, '#000000', 0.7), '--mint': misturar(c, '#FFFFFF', 0.94), '--leaf': misturar(c, '#FFFFFF', 0.3), '--disabled': misturar(c, '#FFFFFF', 0.55), '--sage': misturar(c, '#FFFFFF', 0.55),
+    '--deep': misturar(c, '#000000', 0.7), '--mint': misturar(c, '#FFFFFF', 0.94), '--leaf': c, '--disabled': misturar(c, '#FFFFFF', 0.55), '--sage': misturar(c, '#FFFFFF', 0.55),
   };
   for (const [k, v] of Object.entries(tons)) raiz.setProperty(k, v);
 }
@@ -138,8 +138,12 @@ export function toast(texto, ms, tipo) {
   for (const antigo of document.querySelectorAll('.toast')) antigo.remove();   // um aviso por vez, sem sobrepor
   const t = document.createElement('div');
   t.className = `toast ${tipo}`; t.setAttribute('role', tipo === 'erro' ? 'alert' : 'status'); t.textContent = texto;
+  if (tipo === 'erro') {
+    const fechar = document.createElement('button'); fechar.type = 'button'; fechar.className = 'toast-fechar';
+    fechar.textContent = '×'; fechar.setAttribute('aria-label', 'Fechar aviso de erro'); fechar.onclick = () => t.remove(); t.append(fechar);
+  }
   document.body.append(t);
-  setTimeout(() => t.remove(), ms || (tipo === 'erro' ? 6500 : 3600));
+  if (tipo !== 'erro') setTimeout(() => t.remove(), ms || 3600);
 }
 
 // Carregando: esqueleto no lugar do conteúdo.

@@ -12,9 +12,9 @@ const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rola
 
 const TELAS = {
   usuarios: ['Usuários', 'user.read', telaUsuarios],
-  roles: ['Roles e permissões', 'role.manage', telaRoles],
-  marca: ['Branding', 'branding.manage', telaMarca],
-  landing: ['Landing Page', 'landing_page.manage', telaLanding],
+  roles: ['Perfis e permissões', 'role.manage', telaRoles],
+  marca: ['Marca e identidade visual', 'branding.manage', telaMarca],
+  landing: ['Página de apresentação', 'landing_page.manage', telaLanding],
   url: ['URL e domínio', 'url.manage', telaUrl],
   acessos: ['Acessos da equipe de operação', 'audit.read', telaAcessos],
 };

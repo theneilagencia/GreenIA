@@ -7,6 +7,7 @@
 import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, rodapePlataformaHtml, toast, transicao, vazioHtml } from '/comum.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
+import { iniciarAcessibilidade, conterFoco, fecharComEscape } from '/acessibilidade.js';
 
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
 const $ = id => document.getElementById(id);
@@ -36,7 +37,7 @@ export function cabecalho(titulo, acoes = '') {
   return `<header class="cabeca">
     <div class="cabeca-titulo">
       <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}</button>
-      ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1>${esc(titulo)}</h1>${acoes}
+      ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
@@ -46,9 +47,27 @@ export function cabecalho(titulo, acoes = '') {
 }
 
 export function ligarCabecalho() {
-  $('sair').onclick = async () => { await api('/api/sair', { metodo: 'POST' }); location.href = '/'; };
-  $('menu').onclick = () => { const a = $('lateral').classList.toggle('aberta'); $('menu').setAttribute('aria-expanded', String(a)); };
+  $('sair').onclick = async e => {
+    e.currentTarget.disabled = true;
+    try { await api('/api/sair', { metodo: 'POST' }); location.href = '/'; }
+    catch (err) { toast(`Não foi possível sair. ${err.message}`, 6000); $('sair').disabled = false; }
+  };
+  $('menu').onclick = () => {
+    if ($('lateral').classList.contains('aberta')) return fecharNavegacao(true);
+    $('lateral').classList.add('aberta'); $('menu').setAttribute('aria-expanded', 'true');
+    $('lateral').querySelector('a,button')?.focus();
+  };
 }
+function fecharNavegacao(devolverFoco = false) {
+  $('lateral').classList.remove('aberta');
+  $('menu')?.setAttribute('aria-expanded', 'false');
+  if (devolverFoco) $('menu')?.focus();
+}
+document.addEventListener('keydown', ev => {
+  if (!$('lateral')?.classList.contains('aberta') || !matchMedia('(max-width:900px)').matches || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+  if (ev.key === 'Escape') { ev.preventDefault(); fecharNavegacao(true); }
+  else conterFoco(ev, $('lateral'));
+});
 
 // Quem administra a base de uma área vê isso no menu: quantos documentos pedem revisão, ou "Admin da base".
 const seloBase = () => {
@@ -99,9 +118,9 @@ const SECOES_ADMIN = () => [
   // Administração da empresa (multiempresa): usuários, roles, marca, landing page, URL e configurações.
   E.plataforma ? { titulo: 'Empresa', itens: [
     { id: 'empresa/usuarios', nome: 'Usuários', icone: 'pessoas', ver: () => pode('user.read') },
-    { id: 'empresa/roles', nome: 'Roles e permissões', icone: 'chave', ver: () => pode('role.manage') },
-    { id: 'empresa/marca', nome: 'Branding', icone: 'pincel', ver: () => pode('branding.manage') },
-    { id: 'empresa/landing', nome: 'Landing Page', icone: 'pagina', ver: () => pode('landing_page.manage') },
+    { id: 'empresa/roles', nome: 'Perfis e permissões', icone: 'chave', ver: () => pode('role.manage') },
+    { id: 'empresa/marca', nome: 'Marca e identidade visual', icone: 'pincel', ver: () => pode('branding.manage') },
+    { id: 'empresa/landing', nome: 'Página de apresentação', icone: 'pagina', ver: () => pode('landing_page.manage') },
     { id: 'empresa/url', nome: 'URL e domínio', icone: 'link', ver: () => pode('url.manage') },
     { id: 'empresa/acessos', nome: 'Acessos da equipe de operação', icone: 'escudo', ver: () => pode('audit.read') },
     { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
@@ -157,7 +176,8 @@ export function desenharLateral() {
       : `<a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)">${ICONE.mais} Nova conversa</a>`}
     <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Navegação">
-      ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(i => item(i) + (i.id === 'conversas' && !adm ? recentes : '')).join('')}`).join('')}
+      ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(item).join('')}`).join('')}
+      ${!adm && recentes ? `<section class="recentes-grupo" aria-label="Conversas recentes"><h2>Conversas recentes</h2>${recentes}</section>` : ''}
     </nav>
     <div class="lateral-pe">
       <button class="btn-lat" id="ver-politica">Política de uso de IA</button>
@@ -202,10 +222,10 @@ function abrirPolitica() {
     <div class="item"><h3>Privacidade das suas conversas</h3><p>${esc(E.publico.privacyNote)}</p></div>
     <div class="item"><h3>Revise antes de usar</h3><p>A IA ajuda, mas pode errar. Confira o resultado antes de enviar ou decidir.</p></div>
     <a href="/politica" class="btn-texto" style="padding-left:0">Abrir a política completa</a></div></div>`;
-  const fechar = () => { $('modal').innerHTML = ''; $('ver-politica')?.focus(); };
+  const fechar = () => { limparEscape(); $('modal').innerHTML = ''; $('ver-politica')?.focus(); };
+  const limparEscape = fecharComEscape(document.querySelector('.modal'), fechar);
   $('fechar-modal').onclick = fechar;
   $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
-  document.addEventListener('keydown', function esc(ev) { if (ev.key === 'Escape') { fechar(); document.removeEventListener('keydown', esc); } });
   document.querySelector('.modal').focus();
 }
 
@@ -220,7 +240,8 @@ async function reportarProblema() {
       <span class="ajuda">Conte o que aconteceu e onde. Não cole dados sigilosos aqui: descreva sem eles. O admin recebe por email.</span></div>
     <p class="msg-erro oculto" id="erro-problema" role="alert"></p>
     <div class="linha-botoes"><button class="btn btn-verde">Enviar</button><button type="button" class="btn btn-texto" id="cancelar-problema">Cancelar</button></div></form></div>`;
-  const fechar = () => { $('modal').innerHTML = ''; $('reportar')?.focus(); };
+  const fechar = () => { limparEscape(); $('modal').innerHTML = ''; $('reportar')?.focus(); };
+  const limparEscape = fecharComEscape(document.querySelector('.modal'), fechar);
   $('fechar-modal').onclick = fechar;
   $('cancelar-problema').onclick = fechar;
   $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
@@ -237,9 +258,11 @@ async function reportarProblema() {
 const GESTAO = ['uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configuracoes', 'conhecimento'];
 
 async function rota() {
+  const antes = new CustomEvent('greenia:antes-navegar', { cancelable: true });
+  if (!document.dispatchEvent(antes)) return;
   lembreteAoSair();
   const fimTransicao = transicao();
-  $('lateral').classList.remove('aberta');
+  fecharNavegacao();
   // Link direto para um campo ("?foco=<id>", vindo de um aviso com ação): a tela abre e o campo fica em destaque.
   const [h, consulta = ''] = location.hash.split('?');
   const foco = /^foco=([a-z0-9-]+)$/.exec(consulta)?.[1] || null;
@@ -271,6 +294,7 @@ async function rota() {
   desenharLateral();
   fimTransicao();
   if (foco) destacarCampo(foco);
+  else if (document.activeElement === document.body || $('lateral').contains(document.activeElement)) $('principal').querySelector('h1')?.focus({ preventScroll: true });
 }
 // O campo pode ser desenhado depois (telas que carregam dados): tenta por alguns segundos.
 function destacarCampo(id, tentativas = 30) {
@@ -309,7 +333,8 @@ async function iniciar() {
   await definirMarcaPropria(publico);
   if (publico.favicon) document.querySelector('link[rel="icon"]').href = publico.favicon;
   if (publico.empresa) document.title = MARCA.propria ? publico.empresa : `GreenIA · ${publico.empresa}`;
-  document.getElementById('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
+  document.getElementById('fundo-lateral').onclick = () => fecharNavegacao(true);
+  iniciarAcessibilidade();
   await recarregarLateral();
   window.addEventListener('hashchange', rota);
   iniciarPaleta(itensPaleta, { atalhos: { c: () => irPara('#/nova') } });
@@ -333,6 +358,7 @@ export async function pedirCiencia() {
     await api('/api/politica/ciencia', { metodo: 'POST', corpo: { versao: pol.versao } });
     E.eu.ciencia_versao = pol.versao;
     $('modal').innerHTML = '';
+    $('principal').querySelector('h1')?.focus({ preventScroll: true });
   };
 }
 iniciar();

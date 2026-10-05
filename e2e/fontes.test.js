@@ -61,10 +61,11 @@ for (const [largura, email] of [[1280, 'lia'], [390, 'w390']]) {
     const erros = [];
     p.on('pageerror', e => erros.push(e.message));
     await ateResultado(p);
+    await p.waitForFunction(() => !document.querySelector('#fontes-qw')?.textContent.includes('Carregando…'));
     assert.ok(await p.locator('#entregas').count(), 'entregáveis na mesma etapa');
     const cab = await p.textContent('#fontes-qw');
-    assert.match(cab, /Fontes de conhecimento e referência/);
-    for (const b of ['Enviar arquivo', 'Adicionar link', 'Usar conhecimento da empresa', 'Adicionar referência']) assert.match(cab, new RegExp(b));
+    assert.match(cab, /Materiais que este Quick Win usa/);
+    for (const b of ['Enviar arquivo', 'Adicionar link', 'Conhecimento da empresa', 'Adicionar exemplo de estilo']) assert.match(cab, new RegExp(b));
     // Link: lido e listado como pronto (o rascunho é criado na primeira fonte).
     await p.click('[data-fonte-acao="link"]');
     await p.fill('#fonte-url', 'https://politicas.exemplo.test/viagens?token=abc123');

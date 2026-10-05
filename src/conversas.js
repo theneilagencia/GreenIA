@@ -748,7 +748,7 @@ export function rotasConversas(app, r) {
       if (integ) {
         const l = limparResposta(resposta); resposta = l.texto;
         if (Object.keys(l.dados).length) dadosInteg = l.dados;
-        const passosDe = r => (r?.passos || []).map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null }));
+        const passosDe = r => (r?.passos || []).map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null, aprovacao_status: x.aprovacao_status || null }));
         // Escrita só com resultado conferido: pergunta pendente ou resultado inconsistente não grava em sistema externo.
         if (['pergunta', 'inconsistente'].includes(registroQualidade.status)) {
           const p = lerPlanoInteg(app, integ.plano);
@@ -838,7 +838,7 @@ export function detalhe(app, c, pessoa = null) {
     const p = i?.plano && i.motivo !== 'resultado_nao_conferido' ? lerPlanoInteg(app, i.plano) : null;
     if (p && p.conversa_id === c.id && p.pessoa_id === c.pessoa_id) {
       const atual = resumoPlanoInteg(app, p);
-      q.integracoes = { ...i, status: atual.status, passos: atual.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null })) };
+      q.integracoes = { ...i, status: atual.status, atualizado_em: atual.atualizado_em, passos: atual.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null, aprovacao_status: x.aprovacao_status || null })) };
     }
     return q;
   };

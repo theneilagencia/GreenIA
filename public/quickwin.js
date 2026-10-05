@@ -69,6 +69,7 @@ async function listaQuickWins() {
         cta: E.podeCriarQw ? `<a class="btn btn-verde btn-grande" href="#/qw/nova">Criar meu primeiro Quick Win</a>` : '',
         exemplos: E.podeCriarQw ? [['Analisar propostas', 'Aponta valores, prazos, riscos e o que falta.'], ['Comparar documentos', 'Mostra item por item o que não bate.'], ['Preparar reuniões', 'Monta pauta, pontos de atenção e perguntas.']] : [],
       }) : ''}
+      ${itens.length ? `<div class="filtros-biblioteca"><div class="campo"><label for="buscar-qw">Encontrar uma tarefa</label><input class="entrada" type="search" id="buscar-qw" placeholder="Busque pelo nome ou pelo que precisa fazer" aria-describedby="contagem-qw"></div><span class="dica" id="contagem-qw" role="status">${ativos.length} ${ativos.length === 1 ? 'tarefa disponível na lista' : 'tarefas na lista'}</span></div><p class="dica oculto" id="qw-busca-vazia">Nenhuma tarefa encontrada. Tente outra palavra.</p>` : ''}
       ${bloco(gere ? 'Publicados' : 'Disponíveis para você', prontos)}
       ${bloco('Em preparo', preparo, 'Só quem gerencia vê e usa')}
       ${arquivados.length ? `<details class="qw-acompanhamento"><summary>Arquivados (${arquivados.length})</summary><ul class="qw-lista" style="margin-top:14px">${arquivados.map(itemQw).join('')}</ul></details>` : ''}
@@ -92,6 +93,20 @@ async function listaQuickWins() {
   ligarCabecalho();
   ligarMenus();
   ligarAcoesQw($('principal'), itens, listaQuickWins);
+  const normalizarBusca = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  $('buscar-qw')?.addEventListener('input', ev => {
+    const termo = normalizarBusca(ev.target.value.trim());
+    let n = 0;
+    for (const li of document.querySelectorAll('.qw-item')) {
+      li.hidden = !normalizarBusca(li.querySelector('.qw-item-link')?.textContent).includes(termo);
+      if (!li.hidden && (termo || !li.closest('details'))) n++;
+    }
+    for (const bloco of document.querySelectorAll('.qw-bloco')) bloco.hidden = ![...bloco.querySelectorAll('.qw-item')].some(li => !li.hidden);
+    const arquivo = document.querySelector('details.qw-acompanhamento:has(.qw-lista)');
+    if (arquivo) arquivo.open = !!termo && [...arquivo.querySelectorAll('.qw-item')].some(li => !li.hidden);
+    $('contagem-qw').textContent = `${n} ${n === 1 ? 'tarefa encontrada' : 'tarefas encontradas'}${termo ? ', incluindo arquivadas' : ''}`;
+    $('qw-busca-vazia').classList.toggle('oculto', n > 0);
+  });
 }
 
 // Uma linha da biblioteca: marca, nome, descrição, estado e, quando faz sentido, a versão.
@@ -117,6 +132,7 @@ function acoesQw(q, { naPagina = false } = {}) {
   if (q.podeEditar && q.v2 && q.versao) out.push({ rotulo: 'Ver versões', href: `#/qw/${q.id}/versoes` });
   if (q.podeEditar && q.v2) out.push({ rotulo: 'Acesso e dados', href: `#/qw/${q.id}/editar` });
   if (q.podeEditar && e.id !== 'arquivado') out.push({ rotulo: 'Arquivar', acao: 'arquivar', id: q.id, perigo: true });
+  if (q.podeEditar && e.id === 'arquivado') out.push({ rotulo: 'Restaurar em preparo', acao: 'restaurar', id: q.id });
   if (q.podeEditar) out.push({ rotulo: 'Excluir Quick Win', acao: 'excluir', id: q.id, perigo: true });
   return out;
 }
@@ -150,6 +166,13 @@ function ligarAcoesQw(raiz, itens, recarregar) {
         await api(`/api/quick-wins/${q.id}`, { metodo: 'PUT', corpo: { status: 'descartado' } });
         await recarregarLateral();
         toast('Quick Win arquivado.');
+        recarregar(q.id);
+      }
+      if (b.dataset.acao === 'restaurar') {
+        if (!confirm(`Restaurar "${q.nome}" em preparo? O histórico será preservado. Revise antes de colocar em uso para a equipe.`)) return;
+        await api(`/api/quick-wins/${q.id}`, { metodo: 'PUT', corpo: { status: 'em_configuracao' } });
+        await recarregarLateral();
+        toast('Quick Win restaurado em preparo. Revise antes de colocar em uso.');
         recarregar(q.id);
       }
     } catch (e) { toast(e.message, 6000); }

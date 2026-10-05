@@ -11,6 +11,26 @@ import { excluirQw } from '/quickwin.js';
 import { montarFontes } from '/fontes.js';
 
 const $ = id => document.getElementById(id);
+let wizardAtual = null;
+function pendente(W) {
+  if (!W || !document.querySelector('.qw-wizard')) return false;
+  guardarEtapa(W);
+  return !!W.edicaoPendente && !!W.descricao && assinatura(respostas(W)) !== W.salvo;
+}
+function estadoRascunho(W, texto) {
+  const el = $('estado-rascunho');
+  if (el && wizardAtual === W) el.textContent = texto;
+}
+window.addEventListener('beforeunload', ev => {
+  if (pendente(wizardAtual) || wizardAtual?.salvando && document.querySelector('.qw-wizard')) { ev.preventDefault(); ev.returnValue = ''; }
+});
+document.addEventListener('greenia:antes-navegar', ev => {
+  const W = wizardAtual;
+  if (!W || !document.querySelector('.qw-wizard')) return;
+  if (W.salvando || pendente(W) && !confirm('Há alterações que ainda não foram salvas. Sair sem salvar?')) {
+    ev.preventDefault(); history.replaceState(null, '', W.rotaAtiva);
+  }
+});
 const ACEITOS = '.pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff';
 const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 const ETAPAS = ['Objetivo', 'Processo', 'Regras', 'Resultado', 'Testar'];
@@ -63,16 +83,34 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false } =
     legado: !!qw && (atualizar || qw.operacao?.v !== 2), planoAceito: !!qw && qw.operacao?.v === 2, editandoPlano: false, indisponiveis: [],
   };
   const publicada = qw?.versao;
+  wizardAtual = W;
+  W.rotaAtiva = location.hash;
+  if (qw) W.salvo = assinatura(respostas(W));
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
-    <div class="pagina"><div class="pg">
+    <div class="pagina"><div class="pg qw-wizard">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine à GreenIA como realizar esse trabalho.',
         lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
       ${publicada ? aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`) : ''}
       ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}
       <div id="progresso"></div>
+      <div class="rascunho-barra"><span id="estado-rascunho" role="status">${qw ? 'Rascunho carregado' : 'Seu rascunho será salvo ao continuar'}</span><button type="button" class="btn btn-linha btn-pequeno" id="salvar-rascunho">Salvar rascunho</button></div>
       <div id="etapa"></div>
     </div></div>`;
   ligarCabecalho();
+  $('salvar-rascunho').onclick = async e => {
+    guardarEtapa(W);
+    if (!W.descricao) return erroEtapa('Descreva o objetivo antes de salvar.');
+    e.target.disabled = true;
+    try { await salvar(W); } catch (err) { erroEtapa(err.message); }
+    finally { if (e.target.isConnected) e.target.disabled = false; }
+  };
+  const marcarEdicao = () => { W.edicaoPendente = true; W.revisaoEdicao = (W.revisaoEdicao || 0) + 1; estadoRascunho(W, 'Alterações ainda não salvas · continue ou salve o rascunho'); };
+  $('etapa').addEventListener('input', ev => { if (!ev.target.closest('#fontes-qw')) marcarEdicao(); });
+  $('etapa').addEventListener('change', ev => { if (!ev.target.closest('#fontes-qw')) marcarEdicao(); });
+  $('etapa').addEventListener('click', ev => {
+    const b = ev.target.closest('button');
+    if (b && !b.closest('#fontes-qw') && !b.matches('[data-continuar],[data-voltar],[data-ir-etapa],[data-ir-teste]')) marcarEdicao();
+  });
   $('excluir-qw')?.addEventListener('click', () => excluirQw(W.qw).catch(e => toast(e.message, 6000)));
   ligarVerResultado($('etapa'));
   await desenhar(W, { foco: false });
@@ -202,6 +240,7 @@ async function desenhar(W, { foco = true } = {}) {
   if (foco) { $('pergunta')?.focus(); window.scrollTo?.({ top: 0 }); }
 }
 async function irEtapa(W, n) {
+  if (W.salvando) return;
   if (!guardarEtapa(W)) return;
   W.passo = Math.max(0, n);
   W.maximo = Math.max(W.maximo, W.passo);
@@ -236,11 +275,12 @@ function guardarEtapa(W) {
 }
 
 async function continuar(W) {
+  if (W.salvando) return;
   guardarEtapa(W);
   if (W.passo === 0) {
     if (!W.descricao) return erroEtapa('Conte com suas palavras o que a IA deve fazer.');
   }
-  if (W.passo === 3) {
+  if (W.passo <= 3) {
     const botao = document.querySelector('[data-continuar]');
     botao.disabled = true; botao.textContent = 'Salvando…';
     try { await salvar(W); } catch (e) { botao.disabled = false; botao.textContent = 'Continuar'; return erroEtapa(e.message); }
@@ -272,17 +312,29 @@ async function sugerir(W) {
 
 // Salva (cria ou ajusta o rascunho) só quando algo mudou. O rascunho nunca muda a versão publicada.
 async function salvar(W) {
+  if (W.salvando) return W.salvando;
+  W.salvando = salvarAgora(W);
+  try { await W.salvando; }
+  catch (e) { estadoRascunho(W, 'Não foi possível salvar · suas alterações continuam nesta tela'); throw e; }
+  finally { W.salvando = null; }
+}
+async function salvarAgora(W) {
+  const revisao = W.revisaoEdicao || 0;
   const a = respostas(W), ass = assinatura(a);
-  if (W.id && W.salvo === ass) return;
+  if (W.id && W.salvo === ass) { W.edicaoPendente = false; estadoRascunho(W, 'Rascunho salvo'); return; }
+  estadoRascunho(W, 'Salvando rascunho…');
   if (W.id) W.qw = await api(`/api/quick-wins/${W.id}`, { metodo: 'PUT', corpo: { assistente: a } });
   else {
     const areas = E.permQw.areas.slice(0, 1).map(x => x.id);
     W.qw = await api('/api/quick-wins', { metodo: 'POST', corpo: { assistente: a, areas, toda_empresa: !areas.length && E.permQw.todaEmpresa } });
     W.id = W.qw.id;
     history.replaceState(null, '', `#/qw/${W.id}/ajustar`);
+    W.rotaAtiva = location.hash;
     await recarregarLateral();
   }
   W.salvo = ass;
+  if ((W.revisaoEdicao || 0) === revisao) W.edicaoPendente = false;
+  estadoRascunho(W, W.edicaoPendente ? 'Há novas alterações ainda não salvas' : 'Rascunho salvo · a versão publicada não muda');
   W.resultado = null;   // o trabalho mudou: o teste anterior não vale mais para esta versão
   W.teste.exemplo = null;   // e o exemplo pronto é refeito para o trabalho novo
 }

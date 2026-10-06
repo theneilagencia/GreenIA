@@ -1,7 +1,9 @@
+import { idsVigentes, metadados, validarGovernanca, guardarGovernanca, dependencias } from './governanca-conhecimento.js';
+import { podeGerir as podeGerirQw } from './quickwins.js';
 // Bases de conhecimento: documentos por área ou da empresa toda. O texto é
 // extraído no envio e indexado para a busca.
 import { erro } from './http.js';
-import { consolidarWal, exec, todos, um } from './db.js';
+import { consolidarWal, exec, todos, um, transacao } from './db.js';
 import { registrar } from './eventos.js';
 import { delimitar, extrairTexto } from './texto.js';
 import { buscar, desindexar, indexar } from './busca.js';
@@ -41,7 +43,7 @@ export function resumoBases(db, pessoa) {
 
 // Trechos das bases para uma pergunta: texto para o modelo, fontes e se algum é sigiloso.
 export function trechosDasBases(db, consulta, ids) {
-  const achados = buscar(db, consulta, ids, 5);
+  const achados = buscar(db, consulta, idsVigentes(db, ids), 5);
   if (!achados.length) return { parte: null, fontes: [], sigiloso: false, pecas: [] };
   const docs = new Map(todos(db, `select id, titulo, sigiloso from documentos where id in (${[...new Set(achados.map(a => a.documento_id))].join(',')})`).map(d => [d.id, d]));
   const parte = 'Trechos das bases de conhecimento que podem ajudar (cite o título do documento quando usar):\n\n'
@@ -55,24 +57,24 @@ export function trechosDasBases(db, consulta, ids) {
 
 export function rotasBases(app, r) {
   r.get('/api/bases/documentos', ({ pessoa }) => {
-    if (pessoa.admin) return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null order by d.toda_empresa desc, a.nome, d.titulo`) };
+    if (pessoa.admin) return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null order by d.toda_empresa desc, a.nome, d.titulo`).map(d=>metadados(app.db,d)) };
     const minhas = areasQueAdministra(pessoa);
     if (!minhas.length) return { documentos: [] };
-    return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null and d.area_id in (${minhas.map(() => '?').join(',')}) order by a.nome, d.titulo`, ...minhas) };
+    return { documentos: todos(app.db, `${LISTA} where d.quick_win_id is null and d.area_id in (${minhas.map(() => '?').join(',')}) order by a.nome, d.titulo`, ...minhas).map(d=>metadados(app.db,d)) };
   });
 
   // Conhecimento que a IA pode usar para esta pessoa, e em quais quick wins cada documento entra.
   r.get('/api/conhecimento', ({ pessoa }) => {
     const ids = basesVisiveis(app.db, pessoa);
     const docs = ids.length ? todos(app.db, `${LISTA} where d.id in (${ids.map(() => '?').join(',')}) order by d.toda_empresa desc, a.nome, d.titulo`, ...ids) : [];
-    const qws = todos(app.db, "select q.id, q.nome, q.bases, q.toda_empresa, (select group_concat(area_id) from quick_win_areas where quick_win_id = q.id) as areas from quick_wins q where q.excluido_em is null and q.status not in ('identificado', 'descartado')");
+    const qws = todos(app.db, "select q.*,(select group_concat(area_id) from quick_win_areas where quick_win_id = q.id) as areas from quick_wins q where q.excluido_em is null and q.status not in ('identificado', 'descartado')").filter(q=>app.quickWins.paraUso(pessoa,q.id)||podeGerirQw(app.db,pessoa,q));
     const usa = (q, d) => {
       const b = JSON.parse(q.bases || '{}');
       if (b.modo === 'escolhidas') return (b.ids || []).includes(d.id);
       if (b.modo === 'area') return d.toda_empresa || String(q.areas || '').split(',').map(Number).includes(d.area_id);
       return false;
     };
-    return { documentos: docs.map(d => ({ ...d, quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.adminBase) };
+    return { documentos: docs.map(d => ({ ...metadados(app.db,d), quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.adminBase) };
   });
 
   r.get('/api/bases/resumo', ({ pessoa }) => resumoBases(app.db, pessoa));
@@ -93,32 +95,43 @@ export function rotasBases(app, r) {
     const areaId = todaEmpresa ? null : Number(corpo.area_id) || null;
     if (todaEmpresa ? !pessoa.admin : !areaId || !podeGerirArea(pessoa, areaId)) throw erro(403, 'sem_permissao', 'Só o admin da empresa ou um administrador da base desta área envia documentos para ela.');
     if (areaId && !um(app.db, 'select 1 from areas where id = ? and ativa = 1', areaId)) throw erro(404, 'area', 'Área não encontrada ou desativada.');
+    const gov = validarGovernanca(app.db,corpo,{toda_empresa:Number(todaEmpresa),area_id:areaId,enviado_por:pessoa.id});
     const { nome, texto } = await extrairTexto(corpo.arquivo || {}, { ocr: app.ocr, limitesOcr: app.limitesOcr });
     const titulo = String(corpo.titulo || '').trim() || nome.replace(/\.[^.]+$/, '');
     // Quem envia conferiu o conteúdo: o documento nasce revisado (o prazo de revisão conta daqui).
-    const id = Number(exec(app.db, "insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por, pasta, revisado_em, revisado_por) values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
+    const id = transacao(app.db,()=>{ const id=Number(exec(app.db, "insert into documentos (titulo, arquivo, area_id, toda_empresa, sigiloso, texto, enviado_por, pasta, revisado_em, revisado_por) values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
       titulo.slice(0, 200), nome, areaId, Number(todaEmpresa), Number(!!corpo.sigiloso), texto, pessoa.id, pasta(corpo.pasta), pessoa.id).lastInsertRowid);
-    indexar(app.db, id, texto);
+    guardarGovernanca(app,pessoa,um(app.db,'select * from documentos where id = ?',id),gov);
+    indexar(app.db, id, texto);return id; });
     registrar(app, 'knowledge.added', pessoa.id, { documento: id, area: areaId, toda_empresa: todaEmpresa, sigiloso: !!corpo.sigiloso });
-    return um(app.db, `${LISTA} where d.id = ?`, id);
+    return metadados(app.db,um(app.db, `${LISTA} where d.id = ?`, id));
   }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
 
   r.put('/api/bases/documentos/:id', async ({ pessoa, params, corpo }) => {
     const d = um(app.db, 'select * from documentos where id = ?', Number(params.id));
     if (!podeGerirDoc(pessoa, d)) throw erro(404, 'documento', 'Documento não encontrado.');
-    if (corpo.arquivo) {
-      const { nome, texto } = await extrairTexto(corpo.arquivo, { ocr: app.ocr, limitesOcr: app.limitesOcr });
-      exec(app.db, "update documentos set arquivo = ?, texto = ?, atualizado_em = datetime('now') where id = ?", nome, texto, d.id);
-      indexar(app.db, d.id, texto);
-    }
-    if (corpo.titulo) exec(app.db, 'update documentos set titulo = ? where id = ?', String(corpo.titulo).trim().slice(0, 200), d.id);
-    if (corpo.sigiloso !== undefined) exec(app.db, 'update documentos set sigiloso = ? where id = ?', Number(!!corpo.sigiloso), d.id);
-    if (corpo.pasta !== undefined) exec(app.db, 'update documentos set pasta = ? where id = ?', pasta(corpo.pasta), d.id);
-    // Revisar: a pessoa confirma que o conteúdo continua certo. Substituir o arquivo também conta.
-    if (corpo.revisado || corpo.arquivo) exec(app.db, "update documentos set revisado_em = datetime('now'), revisado_por = ? where id = ?", pessoa.id, d.id);
-    registrar(app, 'knowledge.updated', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso, pasta: corpo.pasta, revisado: !!corpo.revisado });
-    return um(app.db, `${LISTA} where d.id = ?`, d.id);
+    const antes=metadados(app.db,d),gov=validarGovernanca(app.db,corpo,d);
+    const f=corpo.arquivo?await extrairTexto(corpo.arquivo,{ocr:app.ocr,limitesOcr:app.limitesOcr}):null;
+    transacao(app.db,()=>{
+      if(f) {exec(app.db,"update documentos set arquivo = ?, texto = ?, atualizado_em = datetime('now') where id = ?",f.nome,f.texto,d.id);indexar(app.db,d.id,f.texto);}
+      if(corpo.titulo) exec(app.db,'update documentos set titulo = ? where id = ?',String(corpo.titulo).trim().slice(0,200),d.id);
+      if(corpo.sigiloso!==undefined) exec(app.db,'update documentos set sigiloso = ? where id = ?',Number(!!corpo.sigiloso),d.id);
+      if(corpo.pasta!==undefined) exec(app.db,'update documentos set pasta = ? where id = ?',pasta(corpo.pasta),d.id);
+      if(corpo.revisado||f) exec(app.db,"update documentos set revisado_em = datetime('now'), revisado_por = ? where id = ?",pessoa.id,d.id);
+      guardarGovernanca(app,pessoa,um(app.db,'select * from documentos where id = ?',d.id),gov,antes);
+    });
+    registrar(app, 'knowledge.updated', pessoa.id, { documento: d.id, substituido: !!corpo.arquivo, sigiloso: corpo.sigiloso, pasta: corpo.pasta, revisado: !!corpo.revisado, antes: { titulo:antes.titulo,pasta:antes.pasta,sigiloso:!!antes.sigiloso,validade:antes.validade,suspenso:antes.suspenso,responsavel_id:antes.responsavel_id }, depois: { titulo:corpo.titulo||d.titulo,pasta:corpo.pasta??d.pasta,sigiloso:corpo.sigiloso??!!d.sigiloso,validade:gov.validade,suspenso:!!gov.suspenso,responsavel_id:gov.responsavel_id } });
+    return metadados(app.db,um(app.db, `${LISTA} where d.id = ?`, d.id));
   }, { limiteMb: 35 });   // arquivo de até 25 MB, em base64
+
+  r.get('/api/bases/documentos/:id/governanca',({pessoa,params})=>{
+    const d=um(app.db,'select * from documentos where id = ?',Number(params.id));
+    if(!podeGerirDoc(pessoa,d)) throw erro(404,'documento','Documento não encontrado.');
+    return {documento:metadados(app.db,um(app.db,`${LISTA} where d.id = ?`,d.id)),
+      pessoas:todos(app.db,'select p.id,p.nome from pessoas p where p.ativo = 1 and (? = 1 or exists(select 1 from area_pessoas ap where ap.pessoa_id = p.id and ap.area_id = ?)) order by p.nome',d.toda_empresa,d.area_id),
+      dependencias:dependencias(app.db,pessoa,d,podeGerirQw),
+      historico:todos(app.db,'select h.versao,h.em,p.nome as por,h.mudanca from conhecimento_historico h left join pessoas p on p.id = h.pessoa_id where h.documento_id = ? order by h.id desc limit 30',d.id).map(h=>({...h,mudanca:JSON.parse(h.mudanca)}))};
+  });
 
   r.del('/api/bases/documentos/:id', ({ pessoa, params }) => {
     const d = um(app.db, 'select * from documentos where id = ?', Number(params.id));

@@ -1,3 +1,4 @@
+import { detalheExecucao } from '/execucao-detalhe.js';
 import { conviteGuia } from '/onboarding.js';
 // Vista de uma conversa (chat geral ou dentro de um quick win).
 import { api, esc, ICONE, iconeIA, toast } from '/comum.js';
@@ -138,7 +139,7 @@ function htmlMensagem(m) {
     <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${integracoes}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
         <button type="button" data-copiar="${m.id}">Copiar</button>${!C.qw?.v2 && (m.modelo || m.classe || m.rota_modo) ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
-        ${m.rota_explicacao && !C.qw?.v2 ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}`}
+        ${m.rota_explicacao && !C.qw?.v2 ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}${detalheExecucao(m)}`}
     </div></div>`;
 }
 

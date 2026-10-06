@@ -107,7 +107,7 @@ test('Administração: aparece no primeiro nível só para quem tem permissão e
   const pa = await N.entrar('admin@empresa-exemplo.com.br', await a.newPage());
   await pa.goto(`${N.base}/app#/nova`);
   await pa.waitForSelector('#lateral [data-item="administracao"]');
-  assert.deepEqual(await principais(pa), ['conversas', 'quick-wins', 'conhecimento', 'administracao']);
+  assert.deepEqual(await principais(pa), ['conversas', 'quick-wins', 'pendencias', 'conhecimento', 'administracao']);
   await pa.click('#lateral [data-item="administracao"]');
   await pa.waitForFunction(() => document.body.dataset.contexto === 'admin');
   await a.close();
@@ -161,7 +161,7 @@ test('tela baixa (320x568), admin com 100 conversas: todos os itens principais, 
     await p.waitForSelector('#lateral [data-item="administracao"]', { state: 'attached' });
     await p.waitForSelector('#lateral [data-item="conversas"][aria-current="page"]', { state: 'attached' }); await p.waitForTimeout(400);
     if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); }
-    for (const it of ['conversas', 'quick-wins', 'conhecimento', 'administracao']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
+    for (const it of ['conversas', 'quick-wins', 'pendencias', 'conhecimento', 'administracao']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
     assert.ok(await visivelNaJanela(p, '#lateral .ver-todas'), `"Ver todas" visível (${largura}x${altura})`);
     await p.screenshot({ path: `capturas/tmp/lateral-admin-${largura}x${altura}.png` });
     for (const it of ['quick-wins']) { await p.click(`#lateral [data-item="${it}"]`); await p.waitForURL(/#\/quick-wins$/); }

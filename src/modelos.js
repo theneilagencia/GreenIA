@@ -1,6 +1,7 @@
 // Modelos de IA da empresa (seção 9): catálogo liberado, perfis, acesso por
 // grupo ou área, homologação para dados sigilosos, reservas e modo automático.
 import { erro } from './http.js';
+import { POOLS_RECOMENDADOS, confirmadoParaPool } from './pools-modelos.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, salvarConfig, PADRAO } from './config.js';
 import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada, protecaoDoRecurso, capacidadesDeDados } from './sigilo.js';
@@ -96,10 +97,9 @@ export function resolverClasse(db, cfg, id, { sigilosa = false } = {}) {
   const c = CLASSE.exec(id || '');
   if (!c) return id;
   const padrao = cfg.padroes[c[1]];
-  if (!sigilosa) return padrao || null;
-  const homologados = lerModelos(db).filter(m => m.liberado && m.homologado && m.perfil === c[1]);
-  if (homologados.some(m => m.id === padrao)) return padrao;
-  return homologados[0]?.id || homologadoPadrao(db, cfg)?.id || null;
+  const disponiveis = lerModelos(db).filter(m => m.liberado && m.noCatalogo && m.perfil === c[1] && (!sigilosa || m.homologado));
+  if (disponiveis.some(m => m.id === padrao)) return padrao;
+  return disponiveis[0]?.id || (sigilosa ? homologadoPadrao(db, cfg)?.id : null) || null;
 }
 export const classeDe = (db, cfg, id) => (ehClasse(id) ? id : (acharModelo(db, cfg, id)?.perfil ? `classe:${acharModelo(db, cfg, id).perfil}` : null));
 
@@ -165,6 +165,7 @@ export const custoEstimado = (m, entrada, saida) =>
 // do ar ou mudar de preço mais de 20%.
 export async function atualizarCatalogo(app) {
   const lista = await app.ia.listarModelos();
+  if (!Array.isArray(lista) || !lista.length) throw new Error('O catálogo de IA está temporariamente indisponível. A configuração anterior foi preservada.');
   app.catalogo = lista;
   const porId = new Map(lista.map(m => [m.id, m]));
   for (const m of lerModelos(app.db)) {
@@ -177,8 +178,29 @@ export async function atualizarCatalogo(app) {
     exec(app.db, 'update modelos set nome = ?, preco_entrada = ?, preco_saida = ?, contexto = ?, no_catalogo = 1, aviso = ?, atualizado_em = ? where id = ?',
       n.nome, n.precoEntrada, n.precoSaida, n.contexto, aviso, app.agora().toISOString(), m.id);
   }
+  ampliarPoolsRecomendados(app, lista);
   return lista.length;
 }
+// Só adiciona modelos confirmados ao modo recomendado. Não altera acesso, padrão,
+// homologação, veto, capacidades manuais ou modelos já cadastrados/desativados.
+export function ampliarPoolsRecomendados(app, catalogo = app.catalogo || [], emTransacao = false) {
+  if (lerConfig(app.db).governanca?.modo === 'manual') return [];
+  const porId = new Map(catalogo.map(m => [m.id, m])), adicionados = [];
+  const inserir = () => {
+    for (const p of POOLS_RECOMENDADOS) {
+      const m = porId.get(p.id);
+      if (!confirmadoParaPool(m, p.perfil) || um(app.db, 'select 1 from modelos where id = ?', p.id)) continue;
+      exec(app.db, 'insert into modelos (id,nome,fornecedor,liberado,perfil,preco_entrada,preco_saida,contexto,no_catalogo,atualizado_em) values (?,?,?,1,?,?,?,?,1,?)',
+        m.id, m.nome, m.id.split('/')[0], p.perfil, m.precoEntrada, m.precoSaida, m.contexto, app.agora().toISOString());
+      adicionados.push({ id: m.id, perfil: p.perfil });
+    }
+    if (adicionados.length) registrar(app, 'model.pool_expanded', null, { modelos: adicionados, origem: 'catalogo_confirmado' });
+  };
+  if (emTransacao) inserir(); else transacao(app.db, inserir);
+  if (adicionados.length && !emTransacao) app.log?.('model.pool_expanded', JSON.stringify(adicionados));
+  return adicionados;
+}
+
 const fmt = p => (p === null || p === undefined ? '?' : `US$ ${(p * 1e6).toFixed(2)}`);
 
 // Toda mudança na configuração de modelos passa por aqui: se havia um homologado
@@ -213,7 +235,7 @@ function avisarPrecoAoOperador(app, m, n) {
     .catch(e => app.log('aviso de preço', e.message));
 }
 
-// Recomendações da GreenIA para modelos e roteamento: um modelo sugerido por nível, roteamento automático
+// Recomendações da GreenIA para modelos e roteamento: conjunto curado por nível, roteamento automático
 // com preferência Equilíbrio, fornecedor sem treino, Automático do OpenRouter desligado e acesso por nível
 // no padrão. Homologações (da empresa e da plataforma) e vetos da plataforma não mudam: são regras, não ajustes.
 export function aplicarRecomendacoes(app, pessoa = null) {
@@ -221,7 +243,7 @@ export function aplicarRecomendacoes(app, pessoa = null) {
     salvarConfig(app.db, { padroes: structuredClone(PADRAO.padroes), acessoPerfis: structuredClone(PADRAO.acessoPerfis), perfisQuickWin: [...PADRAO.perfisQuickWin],
       exigirSemTreino: true, automatico: false, roteamento: { ativo: true, preferencia: 'equilibrio' },
       governanca: { modo: 'recomendado', em: app.agora().toISOString(), por: pessoa?.email || null } });
-    const sugeridos = new Set(SUGESTAO.map(m => m.id));
+    const sugeridos = new Set(POOLS_RECOMENDADOS.map(m => m.id));
     for (const m of SUGESTAO) {
       if (!um(app.db, 'select 1 from modelos where id = ?', m.id)) exec(app.db, 'insert into modelos (id, nome, fornecedor, perfil, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?, ?)',
         m.id, m.nome, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
@@ -229,6 +251,7 @@ export function aplicarRecomendacoes(app, pessoa = null) {
     }
     // Fora das sugestões, fica liberado só o que é regra de sigilo (homologado pela empresa ou pela plataforma).
     for (const m of lerModelos(app.db)) if (!sugeridos.has(m.id) && m.liberado && !m.homologacaoEmpresa && !m.autorizacaoPlataforma) exec(app.db, 'update modelos set liberado = 0, reserva = null where id = ?', m.id);
+    ampliarPoolsRecomendados(app, app.catalogo || [], true);
     registrar(app, 'governance.mode_changed', pessoa?.id ?? null, { modo: 'recomendado' });
   });
 }

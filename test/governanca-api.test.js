@@ -203,7 +203,7 @@ test('caso B: solicitado não elegível com alternativa: substituído, executa n
   assert.ok(r.texto.length > 0);
   assert.notEqual(r.fim.rota.solicitacao.modelo_selecionado, 'nao/existe');
   assert.deepEqual({ ...r.fim.rota.solicitacao, modelo_selecionado: null }, { modelo_solicitado: 'nao/existe', modelo_selecionado: null, decisao: 'substituido', motivo: 'requested_model_not_found' });
-  assert.equal(executados(n).length, 1);
+  assert.equal(OR.chamadas.length - n, 1, 'uma chamada, com alternativas elegíveis no corpo');
 });
 
 test('caso B2: o selecionado cai no fornecedor e a reserva responde: registrado como substituição por indisponibilidade', async () => {

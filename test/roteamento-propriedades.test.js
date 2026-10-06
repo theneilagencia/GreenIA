@@ -111,7 +111,7 @@ test(`governança, janela e permissão: nunca violadas (${N} cenários)`, () => 
       assert.ok(NIVEL[r.perfil] >= NIVEL[m.perfil], 'reserva não é inferior');
       if (c.reservaDoPlano) assert.equal(r.perfil, 'rapido');
     }
-    if (qwFixo && !rota.fallback) assert.equal(rota.modelo.id, c.cfg.padroes[c.qw.modelo.slice(7)], 'quick win fixo nunca ignorado');
+    if (qwFixo && !rota.fallback) assert.equal(rota.motivoEscolha, 'melhor_modelo_no_nivel', 'quick win com classe fixa usa a seleção no seu conjunto');
     if (qwFixo) assert.equal(rota.modelo.perfil, c.qw.modelo.slice(7), 'quick win fixo: nem trocando por janela sai da classe');
   }
   assert.ok(escolhas > N * 0.3, `cenários com escolha: ${escolhas}`);

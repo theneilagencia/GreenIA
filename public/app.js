@@ -40,6 +40,7 @@ export function cabecalho(titulo, acoes = '') {
       ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
+      <a class="icone-btn ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Ajuda e primeiros passos">?</a>
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
         <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}</button></div>
@@ -280,6 +281,7 @@ async function rota() {
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
+    else if (h === '#/primeiros-passos') (await import('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);
     else if ((h === '#/integracoes' || h.startsWith('#/integracoes/')) && E.integracoes) await (await import('/integracoes.js')).rotaIntegracoes(h);
@@ -313,6 +315,7 @@ function itensPaleta() {
     .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: i.href ? i.href() : `#/${i.id}` })));
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
+    { grupo: 'Ajuda', nome: 'Primeiros passos', icone: 'livro', href: '#/primeiros-passos' },
     ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo quick win', icone: 'raio', href: '#/qw/nova' }] : []),
     { grupo: 'Ações', nome: 'Política de uso de IA', icone: 'escudo', acao: abrirPolitica },
     ...telas,

@@ -1,5 +1,6 @@
 import { detalheExecucao } from '/execucao-detalhe.js';
 import { conviteGuia } from '/onboarding.js';
+import { htmlComecar, ligarComecar } from '/ajude-comecar.js';
 // Vista de uma conversa (chat geral ou dentro de um quick win).
 import { api, esc, ICONE, iconeIA, toast } from '/comum.js';
 import { renderizar, baixarCsv } from '/md.js';
@@ -149,10 +150,14 @@ function desenharMensagens() {
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
     : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
-        <h2>Como a GreenIA pode ajudar hoje</h2><p>Escolha uma tarefa pronta ou conte o que precisa fazer.</p>${conviteGuia()}<div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Peça para resumir, rascunhar, conferir ou organizar. Use um exemplo abaixo.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div>${cartaoBase()}</div>`;
+        <h2>Como a GreenIA pode ajudar hoje</h2><p>Crie, analise, planeje, consulte o conhecimento ou execute um processo da empresa.</p><div class="comecar-convite"><button type="button" class="btn btn-verde" id="me-ajude-comecar" aria-expanded="false" aria-controls="ajude-comecar">Me ajude a começar</button><span>Escolha seu objetivo e receba orientação para o próximo passo.</span></div>${htmlComecar()}<div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Conte seu objetivo, o contexto e o resultado que precisa receber.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div>${conviteGuia()}${cartaoBase()}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
   sugestoes();
+  ligarComecar({ estado: C, aplicar: texto => {
+    if ($('entrada').value.trim() && !confirm('Substituir o pedido que você já começou a escrever? Os anexos serão mantidos.')) return false;
+    $('entrada').value = texto; ajustarAltura(); atualizarEnviar(); return true;
+  } });
   $('comecar-pedido')?.addEventListener('click', () => $('entrada').focus());
   // Artefatos visuais: visualizar, baixar e editar. Uma edição cria nova versão; a conversa é relida do servidor.
   ligarArtefatos($('coluna'), { aoMudar: () => recarregarConversa(false) });

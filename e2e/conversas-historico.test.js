@@ -11,6 +11,7 @@ test('histórico: busca, menu, renomear, cancelamento e exclusão individual e t
  await p.goto(N.base+'/app#/conversas');await p.waitForSelector('.hc-conversa');assert.equal(await p.locator('.hc-conversa').count(),50);
  await p.getByRole('button',{name:'Carregar mais conversas'}).click();await p.waitForFunction(()=>document.querySelectorAll('.hc-conversa').length===53);
  await p.fill('#hc-busca','Aurora');await p.waitForFunction(()=>document.querySelectorAll('.hc-conversa').length===1);
+ assert.equal(await p.locator('.hc-resumo').textContent(),'1 conversa encontrada');
  await p.locator('.hc-lista .hc-acoes').click();await p.getByRole('menuitem',{name:'Renomear',exact:true}).click();
  await p.getByRole('dialog').getByRole('textbox',{name:'Nome da conversa'}).fill('Proposta Aurora revisada');await p.getByRole('button',{name:'Salvar nome',exact:true}).click();await p.waitForSelector('.hc-modal-fundo',{state:'detached'});
  assert.ok(await p.locator('.hc-conversa').filter({hasText:'Proposta Aurora revisada'}).count());

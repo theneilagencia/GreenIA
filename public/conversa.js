@@ -1,3 +1,4 @@
+import { excluirConversa, renomearConversa } from '/historico-conversas.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
 import { conviteGuia } from '/onboarding.js';
 import { htmlComecar, ligarComecar } from '/ajude-comecar.js';
@@ -67,7 +68,7 @@ function desenhar() {
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
   $('principal').innerHTML = `
     ${cabecalho(titulo(), conv ? `<button class="icone-btn" id="renomear" title="Renomear" aria-label="Renomear conversa">${ICONE.lapis}</button>
-      <button class="icone-btn" id="apagar" title="Apagar" aria-label="Apagar conversa">${ICONE.lixo}</button>` : '')}
+      <button class="icone-btn" id="apagar" title="Excluir conversa" aria-label="Excluir conversa">${ICONE.lixo}</button>` : '')}
     <div class="barra-conversa">
       ${qw ? `<a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste · fora da medição</span>' : qw.v2 ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}` : ''}
       ${C.opcoes.length > 1 && !qw?.v2 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível
@@ -230,19 +231,9 @@ function ligar() {
   $('cancelar-execucao')?.addEventListener('click', () => alternar(false));
   document.querySelectorAll('[data-fb]').forEach(b => { b.onclick = () => darFeedback(b.dataset.fb); });
   const ren = $('renomear'), apg = $('apagar');
-  if (ren) ren.onclick = async () => {
-    const novo = prompt('Novo nome da conversa:', C.conv.titulo);
-    if (!novo) return;
-    C.conv = (await api(`/api/conversas/${C.conv.id}`, { metodo: 'PATCH', corpo: { titulo: novo } })).conversa;
-    desenhar(); recarregarLateral();
-  };
-  if (apg) apg.onclick = async () => {
-    if (!confirm('Apagar esta conversa e os anexos? Não dá para desfazer.')) return;
-    await api(`/api/conversas/${C.conv.id}`, { metodo: 'DELETE' });
-    toast('Conversa apagada.');
-    await recarregarLateral();
-    irPara(C.qw ? `#/qw/${C.qw.id}` : '#/nova');
-  };
+  if (ren) ren.onclick = () => { const estado=C; renomearConversa(estado.conv, async c => { if(C!==estado)return; C.conv = c; desenhar(); }); };
+  if (apg) apg.onclick = () => { if (C.enviando) return toast('Aguarde a resposta terminar antes de excluir.'); excluirConversa(C.conv); };
+
 }
 
 async function darFeedback(valor) {

@@ -144,20 +144,24 @@ test('runtime: leitura passa; escrita pede aprovação e só executa a entrada a
   const ler = await executarCapability(app, { capabilityId: capDe(app, 'listarClientes'), pessoa: ADM });
   assert.equal(ler.status, 'SUCCESS'); assert.equal(ler.dados.length, 2);
   const entrada = { cliente_id: 1, valor: 99.9, descricao: 'Fatura fictícia' };
-  const w1 = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: 'p1', passoId: 'n1' });
+  const plano = criarPlano(app, ADM, { necessidades: [{ id: 'n1', acao: 'Criar fatura no CRM Fictício', categoria: 'create_record', sistema: 'CRM Fictício', modo: 'write', capability_id: capDe(app, 'criarFatura'), depende_de: [] }] });
+  const w1 = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: plano.id, passoId: 'n1' });
   assert.equal(w1.status, 'APPROVAL_REQUIRED');
   assert.equal(api.estado.faturas.size, 0, 'nada foi escrito antes da aprovação');
   decidirAprovacao(app, ADM, w1.aprovacao, { aprovar: true });
   // Entrada diferente da aprovada: não executa (pede nova aprovação).
-  const outra = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada: { ...entrada, valor: 999999 }, planoId: 'p1', passoId: 'n1' });
+  const outra = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada: { ...entrada, valor: 999999 }, planoId: plano.id, passoId: 'n1' });
   assert.equal(outra.status, 'APPROVAL_REQUIRED');
   const pend = aprovacoesPendentes(app).find(a => a.id === outra.aprovacao); decidirAprovacao(app, ADM, pend.id, { aprovar: false });
-  const w2 = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: 'p1', passoId: 'n1' });
+  const w2 = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: plano.id, passoId: 'n1' });
   assert.equal(w2.status, 'SUCCESS'); assert.equal(api.estado.faturas.size, 1);
-  const w3 = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: 'p1', passoId: 'n1' });
+  const w3 = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: plano.id, passoId: 'n1' });
   assert.ok(w3.duplicado_evitado); assert.equal(api.estado.faturas.size, 1, 'a mesma operação não duplica');
   const del = await executarCapability(app, { capabilityId: capDe(app, 'apagarCliente'), pessoa: ADM, entrada: { id: '1' } });
   assert.equal(del.status, 'BLOCKED'); assert.equal(api.estado.apagados, 0, 'apagar nunca roda automaticamente');
+  exec(app.db, 'delete from integ_planos where id = ?', plano.id);
+  const excluido = await executarCapability(app, { capabilityId: capDe(app, 'criarFatura'), pessoa: ADM, entrada, planoId: plano.id, passoId: 'n1' });
+  assert.equal(excluido.status, 'BLOCKED'); assert.equal(excluido.erro.codigo, 'plano_excluido'); assert.equal(api.estado.faturas.size, 1);
   const m = metricas(app);
   assert.ok(m.execucoes >= 2 && m.aprovacoes.aprovadas >= 1 && m.aprovacoes.negadas >= 1 && m.bloqueios >= 1, JSON.stringify(m));
   const evs = todos(app.db, 'select tipo from eventos').map(e => e.tipo);

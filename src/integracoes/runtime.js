@@ -118,6 +118,8 @@ export async function executarCapability(app, { capabilityId, entrada = {}, pess
   let dados = entrada;
   if (regrasEntrada) { const m = mapear(entrada, regrasEntrada); if (m.erros.length) return { ...base, status: 'FAILED', erro: { codigo: 'mapeamento', mensagem: `Mapeamento da entrada falhou: ${m.erros.slice(0, 3).map(x => `${x.campo} (${x.erro})`).join(', ')}.` } }; dados = m.dados; }
 
+  if (planoId && !um(app.db, 'select id from integ_planos where id = ? and tenant_id = ?', planoId, app.tenantId))
+    return { ...base, status: 'BLOCKED', erro: { codigo: 'plano_excluido', mensagem: 'O trabalho desta conversa não está mais disponível.' } };
   const controle = controlesDoPlano(app, planoId);
   if (!teste) {
     const impedimento = impedimentoControle(controle, cap, dados);

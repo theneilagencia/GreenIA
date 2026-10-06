@@ -68,8 +68,8 @@ test('"Ver todas" leva à lista completa existente; títulos longos são truncad
   assert.ok(caixa.height < 60, 'uma linha só');
   await p.click('#lateral .ver-todas');
   await p.waitForURL(/#\/conversas$/);
-  await p.waitForSelector('.lista .lista-item');
-  assert.equal(await p.locator('.lista .lista-item').count(), 10);
+  await p.waitForSelector('.hc-lista .hc-conversa');
+  assert.equal(await p.locator('.hc-lista .hc-conversa').count(), 10);
   assert.equal(await p.getAttribute('#lateral [data-item="conversas"]', 'aria-current'), 'page');
   await ctx.close();
 });

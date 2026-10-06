@@ -39,7 +39,7 @@ test('registro: cada claim sustentado está na superfície, com evidência no c�
     assert.ok(S[r.superficie].includes(r.texto), `${r.id}: texto não está em "${r.superficie}": "${r.texto}"`);
     // 6534041: produção de referência. Os demais: commits da liberação candidata (governança, retenção, identificação legal,
     // encerramento e exportações).
-    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
+    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
     const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(r.evidencia) || [];
     assert.ok(arquivo && simbolo, `${r.id}: evidência mal descrita: ${r.evidencia}`);
     assert.ok(existsSync(raiz + arquivo) && ler(arquivo).includes(simbolo), `${r.id}: ${arquivo} não contém "${simbolo}"`);
@@ -165,8 +165,8 @@ test('as páginas não fazem promessa jurídica, não generalizam garantias e n�
   }
   // O conceito aprovado e a responsabilidade da empresa estão na página de vendas.
   const v = semTags(ler('public/vendas.html'));
-  for (const frase of ['IA disponível, mas com controle', 'Permita o uso de informações sigilosas com guardrails de proteção', 'Sua empresa decide. A GreenIA aplica.',
-    'Controle o custo sem contar tokens', 'permanece responsável por suas obrigações legais e regulatórias'])
+  for (const frase of ['As regras da empresa acompanham o uso da IA', 'A empresa pode habilitar o uso de informações sigilosas por recursos autorizados', 'Regras definidas pela empresa',
+    'Créditos compartilhados pela empresa', 'permanece responsável por suas obrigações legais e regulatórias'])
     assert.ok(v.includes(frase), frase);
 });
 
@@ -237,7 +237,7 @@ test('telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu
   const blocos = [...html.matchAll(/<figure\b[\s\S]*?<\/figure>/g)].map(m => m[0]);
   // A tela de envio (políticas) fica ao lado da foto, fora de um figure: o bloco vai da janela ao fim da seção.
   const cena = html.slice(html.indexOf('l-cena-janela'), html.indexOf('</section>', html.indexOf('l-cena-janela')));
-  const comNumeros = [...blocos, cena].filter(b => /class="(?:num|l-inst-uso|m-bolha)[^"]*"/.test(b));
+  const comNumeros = [...blocos, cena].filter(b => /class="(?:num|l-inst-uso|m-bolha|qw-demo)[^"]*"/.test(b));
   assert.ok(comNumeros.length >= 5, `telas com números: ${comNumeros.length}`);
   for (const b of comNumeros) assert.match(semTags(b), /dados fictícios|exemplo ilustrativo/i, semTags(b).slice(0, 120));
   // Menu antigo (uso e gestão misturados) não volta; o topo mostra o alternador de contexto do produto.

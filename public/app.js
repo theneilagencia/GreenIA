@@ -12,6 +12,13 @@ import { iniciarAcessibilidade, conterFoco, fecharComEscape } from '/acessibilid
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
 const $ = id => document.getElementById(id);
 
+// O histórico pode restaurar o DOM privado pelo back/forward cache sem consultar a sessão.
+// Esvazia a página antes de congelar e exige uma leitura nova ao restaurá-la.
+window.addEventListener('pagehide', ev => { if (ev.persisted) document.body.replaceChildren(); });
+window.addEventListener('pageshow', ev => {
+  if (ev.persisted) { document.body.replaceChildren(); location.reload(); }
+});
+
 export const irPara = hash => { if (location.hash === hash) rota(); else location.hash = hash; };
 export const ehAdmin = () => !!E.eu?.admin;
 // Permissão granular (multiempresa); na instalação única, as telas de gestão são do admin.
@@ -51,7 +58,7 @@ export function ligarCabecalho() {
   $('ajuda-tela').onclick = ev => { const b=ev.currentTarget;import('/ajuda-contextual.js').then(m=>m.abrirAjuda(b)); };
   $('sair').onclick = async e => {
     e.currentTarget.disabled = true;
-    try { await api('/api/sair', { metodo: 'POST' }); location.href = '/'; }
+    try { await api('/api/sair', { metodo: 'POST' }); document.body.replaceChildren(); location.replace('/'); }
     catch (err) { toast(`Não foi possível sair. ${err.message}`, 6000); $('sair').disabled = false; }
   };
   $('menu').onclick = () => {
@@ -370,4 +377,8 @@ export async function pedirCiencia() {
     $('principal').querySelector('h1')?.focus({ preventScroll: true });
   };
 }
-iniciar();
+iniciar().catch(e => {
+  if (e.status === 401) return; // a API já encaminhou para a entrada
+  $('principal').innerHTML = `<div class="pagina"><div class="pagina-dentro"><div class="faixa-aviso erro" role="alert"><strong>Não foi possível abrir o ambiente.</strong><p>${esc(e.message || 'Verifique sua conexão.')}</p><button class="btn" id="reabrir-ambiente">Tentar novamente</button></div></div></div>`;
+  $('reabrir-ambiente').onclick = () => location.reload();
+});

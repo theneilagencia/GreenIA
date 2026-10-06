@@ -315,6 +315,12 @@ test('modo recomendado e manual: as mesmas regras obrigatórias; o manual muda s
   }
   // Ajuste manual pelo admin passa a empresa para o modo manual, com registro.
   await admin.put('/api/admin/governanca', { modo: 'recomendado' });
+  const original = (await admin.get('/api/admin/modelos')).dados.config;
+  const eventosAntes = um(S.app.db, "select count(*) as n from eventos where tipo = 'governance.mode_changed'").n;
+  assert.equal((await admin.put('/api/admin/modelos-config', original)).status, 200);
+  assert.equal((await admin.put('/api/admin/modelos-config', { roteamento: { preferencia: 'equilibrio', ativo: true } })).status, 200);
+  assert.equal((await admin.get('/api/admin/governanca')).dados.modo, 'recomendado', 'salvar sem alteração preserva recomendações');
+  assert.equal(um(S.app.db, "select count(*) as n from eventos where tipo = 'governance.mode_changed'").n, eventosAntes);
   await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true, preferencia: 'qualidade' } });
   assert.equal((await admin.get('/api/admin/governanca')).dados.modo, 'manual');
   assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'governance.mode_changed' and detalhes like '%manual%'"));

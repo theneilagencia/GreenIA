@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {subirComNavegador} from '../scripts/navegador.js';
 import {cliente} from '../scripts/cliente.js';
 let N,c;const erros=[];
-before(async()=>{N=await subirComNavegador();c=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');await c.put('/api/admin/modelos-config',{exigirSemTreino:true});const k=c.cookie.indexOf('=');await N.contexto.addCookies([{name:c.cookie.slice(0,k),value:c.cookie.slice(k+1),url:N.base}]);});
+before(async()=>{N=await subirComNavegador();c=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');await c.put('/api/admin/modelos-config',{roteamento:{ativo:true,preferencia:'qualidade'}});const k=c.cookie.indexOf('=');await N.contexto.addCookies([{name:c.cookie.slice(0,k),value:c.cookie.slice(k+1),url:N.base}]);});
 after(async()=>{await N.fechar();assert.deepEqual(erros,[]);});
 async function abrir(hash){const p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));await p.goto(N.base+'/app'+hash);return p;}
 test('histórico de modelos apresenta campos legíveis e fornecedor em detalhes',async()=>{

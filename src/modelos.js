@@ -1,6 +1,7 @@
 // Modelos de IA da empresa (seção 9): catálogo liberado, perfis, acesso por
 // grupo ou área, homologação para dados sigilosos, reservas e modo automático.
 import { erro } from './http.js';
+import { isDeepStrictEqual } from 'node:util';
 import { POOLS_RECOMENDADOS, confirmadoParaPool } from './pools-modelos.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, salvarConfig, PADRAO } from './config.js';
@@ -447,6 +448,9 @@ export function rotasModelos(app, r) {
     for (const [k, id] of Object.entries(novo.padroes || {})) {
       if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
+    // Salvar os mesmos valores não é uma escolha pelo modo manual.
+    // Compara objetos sem depender da ordem das propriedades do JSON.
+    if (Object.keys(novo).every(k => isDeepStrictEqual(novo[k], cfg[k]))) return { ok: true };
     mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino, roteamento: novo.roteamento }, () => salvarConfig(app.db, novo));
     paraManual(app, pessoa, 'model.config_changed');
     const trocas = Object.keys(NOMES_CLASSE).filter(k => novo.padroes && novo.padroes[k] !== cfg.padroes[k]);

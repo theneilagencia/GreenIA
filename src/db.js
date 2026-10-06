@@ -223,6 +223,10 @@ create table if not exists webhook_entregas (
 create table if not exists oauth_estados (
   estado_hash text primary key, tenant_id text not null, connector_id text not null, pessoa_id integer not null, redirect text not null,
   verificador text not null, expira integer not null);
+create table if not exists qw_pedidos_conexao (
+  id text primary key, tenant_id text not null, quick_win_id integer not null references quick_wins(id), pessoa_id integer not null,
+  necessidades text not null, status text not null default 'pendente', criado_em text not null);
+create index if not exists qw_pedidos_tenant on qw_pedidos_conexao(tenant_id,status);
 create table if not exists integ_planos (
   id text primary key, tenant_id text not null, quick_win_id integer, conversa_id integer, pessoa_id integer, gatilho text not null default 'manual',
   passos text not null, estado text not null default '{}', status text not null, criado_em text not null, atualizado_em text not null);

@@ -15,7 +15,7 @@ const camposDe = e => Object.keys(e?.properties || {}).slice(0, 20);
 export const precisaIntegracao = (app, pessoa, qw) => !!qw?.espec?.operacao?.integracoes?.length && integracoesLigadas(app, pessoa);
 
 export async function prepararExecucao(app, pessoa, { qw, conv, lookup } = {}) {
-  const plano = criarPlano(app, pessoa, { quickWinId: qw.id, conversaId: conv.id, necessidades: qw.espec.operacao.integracoes });
+  const plano = criarPlano(app, pessoa, { quickWinId: qw.id, conversaId: conv.id, necessidades: qw.espec.operacao.integracoes, controles: qw.espec.operacao.controles });
   const r = await executarPlano(app, pessoa, plano.id, {}, { apenas: 'read', lookup });
   const p = lerPlano(app, plano.id);
   // Lista grande: o material leva o total e diz que só os primeiros itens vieram (contagem nunca pelo recorte).

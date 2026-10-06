@@ -65,10 +65,12 @@ test('tela: Quick Win pede a integração; assistente de 8 passos cria, testa, a
   await p.waitForSelector('#objetivo');
   await p.fill('#objetivo', 'Consulte os clientes no CRM Fictício e faça um resumo.');
   await p.click('[data-continuar]'); await p.waitForSelector('#plano');
-  const plano = await p.locator('#plano').innerText();
-  assert.match(plano, /Este Quick Win precisa acessar CRM Fictício/);
-  assert.match(plano, /precisa configurar/);
-  assert.equal(await p.locator('#plano a[href="#/integracoes/nova"]').count(), 1, 'CTA Configurar integração');
+  const plano = await p.locator('#qw-sistemas-escolhidos').innerText();
+  assert.match(plano, /CRM Fictício/);
+  assert.match(plano, /Aguardando preparação/);
+  await p.click('[data-prep-pedir]');
+  await p.waitForSelector('text=Pedido registrado. Quem prepara conexões');
+  assert.equal((await admin.get('/api/quick-wins/pedidos-conexao')).dados.pedidos.length, 1);
   await p.screenshot({ path: 'capturas/tmp/integracoes-qw-precisa.png' });
 
   // Assistente.
@@ -118,7 +120,17 @@ test('tela: Quick Win pede a integração; assistente de 8 passos cria, testa, a
   await p.waitForSelector('#objetivo');
   await p.fill('#objetivo', 'Consulte os clientes no CRM Fictício e faça um resumo.');
   await p.click('[data-continuar]'); await p.waitForSelector('#plano');
-  assert.match(await p.locator("#plano").innerText(), /CRM Fictício: disponível com aprovação/, "lista de clientes tem e-mail (dado pessoal): a política pede aprovação");
+  assert.match(await p.locator("#qw-sistemas-escolhidos").innerText(), /Disponível com aprovação/, "lista de clientes tem e-mail (dado pessoal): a política pede aprovação");
+  await p.locator('summary').filter({ hasText: 'Usar também um sistema da empresa' }).click();
+  await p.selectOption('#qw-sistema', 'CRM Fictício');
+  await p.waitForSelector('#qw-acao-disponivel');
+  const escolhas = await p.locator('#qw-acao-disponivel option').all();
+  assert.ok(escolhas.length >= 2, 'ações prontas oferecidas sem acesso técnico');
+  await p.selectOption('#qw-acao-disponivel', await escolhas.at(-1).getAttribute('value'));
+  await p.click('#qw-adicionar-acao');
+  await p.waitForFunction(() => document.querySelectorAll('[data-prep-remover]').length === 2);
+  assert.match(await p.locator('#qw-sistemas-escolhidos').innerText(), /Alteração/);
+  assert.equal(API.estado.faturas.size, 0, 'montar o trabalho não executa a ação escolhida');
   assert.deepEqual(erros, []);
 });
 

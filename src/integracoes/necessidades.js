@@ -62,6 +62,7 @@ export function limparNecessidades(lista) {
   return (Array.isArray(lista) ? lista : []).slice(0, 10).map((n, i) => ({
     id: corta(n?.id || `n${i + 1}`, 20).replace(/[^\w-]/g, '') || `n${i + 1}`, acao: corta(n?.acao, 160), categoria: CATEGORIAS.includes(n?.categoria) ? n.categoria : 'custom',
     sistema: corta(n?.sistema, 60) || null, modo: n?.modo === 'read' ? 'read' : 'write', depende_de: (Array.isArray(n?.depende_de) ? n.depende_de : []).map(x => corta(x, 20)).slice(0, 5),
+    ...(typeof n?.capability_id === 'string' && /^[\w-]{1,80}$/.test(n.capability_id) ? { capability_id: n.capability_id } : {}),
     ...(Array.isArray(n?.entrada) ? { entrada: n.entrada } : {}),
   })).filter(n => n.acao);
 }

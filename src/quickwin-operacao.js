@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto';
 import { detectar, detectarReforcado } from './filtro.js';
 import { limparVisual, TIPOS as TIPOS_VISUAIS, FORMATOS as FORMATOS_VISUAIS } from './visual/contrato.js';
+import { limparControles } from './integracoes/controle-qw.js';
 import { limparNecessidades } from './integracoes/necessidades.js';
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -335,6 +336,7 @@ export function limparOperacao(op, ajustes = null) {
   if (resumo) out.resumo = resumo;
   if (categoria) out.categoria = categoria;
   if (integracoes.length) out.integracoes = integracoes;
+  if (op.controles) out.controles = limparControles(op.controles);
   if (op.v === 2 || entradas.length || etapas.length) out.v = 2;
   return out;
 }

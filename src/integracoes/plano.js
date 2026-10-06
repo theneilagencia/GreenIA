@@ -8,6 +8,7 @@ import { lerConfig } from '../config.js';
 import { CATEGORIAS, classeDaOperacao, efeitosPadrao, classificarRisco } from './riscos.js';
 import { decidir } from './politicas.js';
 import { ErroIntegracao, lerCapability, lerConector, novoId } from './conectores.js';
+import { limparControles } from './controle-qw.js';
 import { executarCapability } from './runtime.js';
 import { mapear, validarRegras } from './mapeamento.js';
 
@@ -28,7 +29,7 @@ function candidatos(app, n) {
   const pontua = c => (c.categoria === n.categoria ? 2 : (PARENTES[n.categoria] || []).includes(c.categoria) ? 1 : 0) + (sis && combina(c) ? 2 : 0);
   // Sistema nomeado no pedido ("no ERP") precisa bater com o sistema da integração: categoria igual sozinha não basta.
   const doSistema = c => !sis || combina(c);
-  return caps.map(c => ({ ...c, pontos: pontua(c) })).filter(c => c.pontos >= 2 && doSistema(c) && (c.categoria === n.categoria || (PARENTES[n.categoria] || []).includes(c.categoria))).sort((a, b) => b.pontos - a.pontos);
+  return caps.filter(c => !n.capability_id || c.id === n.capability_id).map(c => ({ ...c, pontos: pontua(c) })).filter(c => c.pontos >= 2 && doSistema(c) && (c.categoria === n.categoria || (PARENTES[n.categoria] || []).includes(c.categoria))).sort((a, b) => b.pontos - a.pontos);
 }
 // Estado de cada necessidade: disponivel (pode rodar), requer_aprovacao (roda com aprovação), configurar (falta
 // integração ativa) ou nao_permitido (a política nega).
@@ -83,7 +84,7 @@ function conferirLigacoes(passos) {
   }
   return avisos;
 }
-export function criarPlano(app, pessoa, { quickWinId = null, conversaId = null, necessidades, gatilho = 'manual' }) {
+export function criarPlano(app, pessoa, { quickWinId = null, conversaId = null, necessidades, controles = null, gatilho = 'manual' }) {
   const resolvidas = resolverNecessidades(app, necessidades, { pessoa, quickWinId });
   const passos = resolvidas.map(n => {
     const cap = n.capability_id ? lerCapability(app, n.capability_id) : null;
@@ -94,7 +95,7 @@ export function criarPlano(app, pessoa, { quickWinId = null, conversaId = null, 
   ordemTopologica(passos);
   const avisos = conferirLigacoes(passos);
   const id = novoId('pln'), t = app.agora().toISOString();
-  const estado = { passos: Object.fromEntries(passos.map(p => [p.id, { status: p.estado_inicial === 'nao_permitido' ? 'BLOCKED' : p.estado_inicial === 'configurar' ? 'BLOCKED' : 'PENDENTE', motivo: p.estado_inicial === 'configurar' ? 'falta configurar a integração' : p.estado_inicial === 'nao_permitido' ? 'a política não permite' : null }])), avisos, saidas: {} };
+  const estado = { ...(controles ? { controles: limparControles(controles) } : {}), passos: Object.fromEntries(passos.map(p => [p.id, { status: p.estado_inicial === 'nao_permitido' ? 'BLOCKED' : p.estado_inicial === 'configurar' ? 'BLOCKED' : 'PENDENTE', motivo: p.estado_inicial === 'configurar' ? 'falta configurar a integração' : p.estado_inicial === 'nao_permitido' ? 'a política não permite' : null }])), avisos, saidas: {} };
   exec(app.db, 'insert into integ_planos (id, tenant_id, quick_win_id, conversa_id, pessoa_id, gatilho, passos, estado, status, criado_em, atualizado_em) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     id, app.tenantId, quickWinId, conversaId, pessoa?.id ?? null, ['manual', 'scheduled', 'event', 'webhook'].includes(gatilho) ? gatilho : 'manual', JSON.stringify(passos), JSON.stringify(estado), 'pronto', t, t);
   registrar(app, 'PLAN_CREATED', pessoa?.id, { plano: id, quick_win: quickWinId, passos: passos.length, gatilho });
@@ -112,6 +113,10 @@ export async function executarPlano(app, pessoa, id, contexto = {}, op = {}) {
   if (!p) throw new ErroIntegracao(404, 'nao_encontrado', 'Plano não encontrado.');
   if (p.pessoa_id && pessoa && p.pessoa_id !== pessoa.id && !pessoa.admin) throw new ErroIntegracao(404, 'nao_encontrado', 'Plano não encontrado.');
   const estado = p.estado, saidas = estado.saidas || {};
+  const controle = limparControles(estado.controles);
+  if (controle && p.passos.length > controle.max_acoes) {
+    for (const passo of p.passos) if (!['SUCCESS', 'PARTIAL'].includes(estado.passos[passo.id].status)) estado.passos[passo.id] = { status: 'BLOCKED', motivo: `Este trabalho permite no máximo ${controle.max_acoes} ações externas por execução.` };
+  }
   for (const passo of ordemTopologica(p.passos)) {
     const st = estado.passos[passo.id];
     if (['SUCCESS', 'PARTIAL', 'FAILED', 'BLOCKED'].includes(st.status)) continue;
@@ -147,6 +152,7 @@ export function resumoPlano(app, p) {
   return { id: p.id, status: p.status, atualizado_em: p.atualizado_em, gatilho: p.gatilho, quick_win_id: p.quick_win_id, avisos: p.estado.avisos || [], compensacoes: p.estado.compensacoes || [],
     passos: p.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, depende_de: x.depende_de, status: p.estado.passos?.[x.id]?.status, motivo: p.estado.passos?.[x.id]?.motivo || p.estado.passos?.[x.id]?.erro?.mensagem || null,
       aprovacao: p.estado.passos?.[x.id]?.aprovacao || null,
+      aprovador: p.estado.controles?.aprovador_id ? um(app.db, 'select nome from pessoas where id = ?', p.estado.controles.aprovador_id)?.nome || 'Pessoa responsável pela aprovação' : null,
       aprovacao_status: p.estado.passos?.[x.id]?.aprovacao ? um(app.db, 'select status from integration_approvals where id = ? and tenant_id = ?', p.estado.passos[x.id].aprovacao, app.tenantId)?.status || null : null,
       http_status: p.estado.passos?.[x.id]?.http_status ?? null, tem_resultado: p.estado.saidas?.[x.id] !== undefined })) };
 }

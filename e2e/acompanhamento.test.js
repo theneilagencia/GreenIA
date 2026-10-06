@@ -66,3 +66,10 @@ test('detalhe da execução pertence à conversa privada e distingue conferênci
  exec(N.app.db,"insert into roteamento(conversa_id,resposta_id,pessoa_id,qualidade,em,modo,complexidade) values (?,?,?,?,?,'automatico','baixa')",d.id,msg,usuario.pessoa.id,JSON.stringify({status:'parcial',criterios:[],motivo:'Conferência fictícia incompleta'}),new Date().toISOString());
  const p=await abrir(usuario,`#/c/${d.id}`);await p.waitForSelector('.execucao-detalhe');await p.locator('.execucao-detalhe summary').click();assert.match(await p.textContent('.execucao-detalhe'),/Conferência incompleta|Nenhuma ação externa registrada/);assert.equal((await admin.get(`/api/conversas/${d.id}`)).status,404);await p.close();
 });
+test('pendência de integração abre o detalhe correto em vez da lista geral',async()=>{
+ const {criarConector}=await import('../src/integracoes/conectores.js');
+ salvarConfig(N.app.db,{integracoes:{ativa:true,pessoas:[]}});
+ const c=criarConector(N.app,{id:admin.pessoa.id,admin:true},{nome:'QA integração com falha',sistema:'Sistema fictício',base_url:'https://api.exemplo.test',auth_type:'none',operacoes:[{operation_id:'consultar',metodo:'GET',caminho:'/itens',resumo:'Consultar itens',classe:'SAFE_READ',categoria:'read_data'}]});
+ exec(N.app.db,"update connectors set status = 'FAILED' where id = ?",c.id);
+ const p=await abrir(admin,'#/pendencias');await p.waitForSelector('#pend-lista');await p.selectOption('#pend-tipo','integracao');const link=p.locator(`#pend-lista a[href="#/integracoes/c/${c.id}"]`);assert.equal(await link.count(),1);await link.click();await p.waitForSelector('h1');await p.waitForFunction(()=>document.querySelector('#principal')?.textContent.includes('QA integração com falha'));assert.equal(new URL(p.url()).hash,`#/integracoes/c/${c.id}`);assert.match(await p.textContent('#principal'),/Falhou no teste|QA integração com falha/);await p.close();
+});

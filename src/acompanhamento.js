@@ -43,7 +43,7 @@ export function rotasAcompanhamento(app,r) {
   if(integracoesLigadas(app,pessoa)&&permitido(app,pessoa,'integrations.manage')) {
    const cs=todos(app.db,'select id,nome,status from connectors where tenant_id = ?',app.tenantId);
    passo('integracoes','Confira as integrações, se necessárias',cs.some(c=>c.status==='ACTIVE'),'Esta etapa é opcional. Qualquer escrita continua exigindo aprovação.','#/integracoes');
-   cs.filter(c=>['FAILED','REVIEW_REQUIRED','PAUSED'].includes(c.status)).slice(0,20).forEach(c=>pendencias.push({tipo:'integracao',titulo:c.nome,texto:`Integração ${c.status==='FAILED'?'com falha':c.status==='PAUSED'?'pausada':'aguardando aprovação'}.`,href:`#/integracoes/${c.id}`}));
+   cs.filter(c=>['FAILED','REVIEW_REQUIRED','PAUSED'].includes(c.status)).slice(0,20).forEach(c=>pendencias.push({tipo:'integracao',titulo:c.nome,texto:`Integração ${c.status==='FAILED'?'com falha':c.status==='PAUSED'?'pausada':'aguardando aprovação'}.`,href:`#/integracoes/c/${c.id}`}));
   }
   if(integracoesLigadas(app,pessoa)&&permitido(app,pessoa,'integrations.approve')) {
    const n=um(app.db,"select count(*) as n from integration_approvals where tenant_id = ? and status = 'pendente'",app.tenantId).n;

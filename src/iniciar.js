@@ -1,5 +1,6 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
 import { CAPACITY_PACK } from './plataforma/catalogo.js';
+import { iniciarProgramadas, recuperarProgramadas, rodadaProgramadas } from './qw-programacao.js';
 import { conferirSaldo, contaOpenRouter } from './plataforma/consumo.js';
 import { conferirChave, impressaoChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
@@ -68,6 +69,8 @@ export async function iniciar(env = process.env) {
   tarefa(() => rodadaRetencao({ dados: dirname(banco), bancos: { dbs: [app.db], arquivos: [banco] }, prazos: prazosDe(env), aplicar: env.RETENCAO_APLICAR === '1',
     log: app.log, auditar: (acao, dados) => registrar(app, acao, null, dados), consolidar: consolidarWal }), 3600e3);
   const porta = Number(env.PORTA || env.PORT || 8080);   // PORT: definida por plataformas como o Render
+  const pararProgramadas = iniciarProgramadas(app);
+  app.servidor.once('close', pararProgramadas);
   app.servidor.listen(porta, env.HOST || '0.0.0.0', () => app.log(`GreenIA Lite em http://localhost:${porta}`));
   const parar = () => { app.servidor.close(); app.db.close(); process.exit(0); };
   process.on('SIGTERM', parar);
@@ -107,6 +110,18 @@ export async function iniciarPlataforma(env = process.env) {
   if (!iaReal()) P.log(producao ? 'ATENÇÃO: sem chave do OpenRouter. A IA está desligada até a chave ser informada no console (Uso) ou em OPENROUTER_API_KEY.' : 'Sem chave do OpenRouter: usando a IA simulada.');
   const tarefa = (fn, ms) => { const t = () => Promise.resolve().then(fn).catch(e => P.log('tarefa', e.message)); t(); setInterval(t, ms).unref(); };
   const todas = fn => () => Promise.all([...P.tenants.values()].map(t => Promise.resolve().then(() => fn(t)).catch(e => P.log('tarefa', e.message))));
+  for (const t of P.tenants.values()) recuperarProgramadas(t);
+  // Uma empresa por vez; a fila local guarda o progresso mesmo durante reinícios.
+  let programando = false;
+  const programadas = setInterval(async () => {
+    if (programando) return;
+    programando = true;
+    try { for (const t of P.tenants.values()) {try{await rodadaProgramadas(t);}catch{P.log('programações','falha na rodada da empresa');}} }
+    catch { P.log('programações', 'falha na rodada'); }
+    finally { programando = false; }
+  }, 30000);
+  programadas.unref();
+  P.servidor.once('close', () => clearInterval(programadas));
   tarefa(todas(apagarVencidas), 3600e3);
   // Retenção das cópias e consolidação do WAL de todos os bancos, de hora em hora (docs/politica-retencao.md).
   P.retencao = prazosDe(env);

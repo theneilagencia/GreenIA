@@ -584,6 +584,7 @@ export function rotasQuickWins(app, r) {
   r.del('/api/quick-wins/:id', ({ pessoa, params }) => {
     const q = carregar(pessoa, params.id, true);
     exec(app.db, "update quick_wins set excluido_em = ?, excluido_por = ?, atualizado_em = datetime('now') where id = ? and excluido_em is null", app.agora().toISOString(), pessoa.id, q.id);
+    app.aoExcluirQuickWin?.(q.id);
     registrar(app, 'quickwin.deleted', pessoa.id, { quick_win: q.id, versoes: um(app.db, 'select count(*) as n from quick_win_versoes where quick_win_id = ?', q.id).n,
       conversas: um(app.db, 'select count(*) as n from conversas where quick_win_id = ?', q.id).n, soft: true });
     return { ok: true };

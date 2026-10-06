@@ -108,7 +108,7 @@ export async function recarregarBases() {
 const SECOES_USO = () => [
   { titulo: 'Trabalho', itens: [
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
-    { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
+    { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/') },
     { id: 'pendencias', nome: 'Pendências', icone: 'atividade', ver: () => ehGestor() || !!E.bases?.areas?.length || pode('audit.read') || pode('integrations.approve') || pode('user.read') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
     // Administração no primeiro nível de Trabalho, só para quem já tem permissão (a mesma regra do alternador).
@@ -285,7 +285,7 @@ async function rota() {
     else if (h === '#/revisao-acessos') await (await import('/acompanhamento.js')).vistaRevisaoAcessos();
     else if (h === '#/primeiros-passos') (await import('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
-    else if (h === '#/quick-wins' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);
+    else if (h === '#/quick-wins' || h === '#/quick-wins/programados' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);
     else if ((h === '#/integracoes' || h.startsWith('#/integracoes/')) && E.integracoes) await (await import('/integracoes.js')).rotaIntegracoes(h);
     else if (h === '#/visao-geral' && pode('usage.read')) await (await import('/visao.js')).vistaGeral();
     else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await import('/empresa.js')).rotaEmpresa(m[1]);

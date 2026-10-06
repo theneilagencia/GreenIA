@@ -1,4 +1,5 @@
 import { rotasAcompanhamento } from './acompanhamento.js';
+import { rotasProgramacao } from './qw-programacao.js';
 // GreenIA Lite: um processo, um arquivo SQLite, uma empresa por instalação.
 import { caminhoChromium } from './visual/chromium.js';
 import { tmpdir } from 'node:os';
@@ -99,7 +100,7 @@ export function criarApp(op = {}) {
     return out;
   };
   app.limitesArquivo = LIMITES_ARQUIVO;
-  for (const modulo of [rotasAcompanhamento, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes]) modulo(app, r);
+  for (const modulo of [rotasAcompanhamento, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));

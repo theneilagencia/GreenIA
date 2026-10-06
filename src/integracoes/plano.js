@@ -129,6 +129,7 @@ export async function executarPlano(app, pessoa, id, contexto = {}, op = {}) {
     const pendente = estado.pendentes?.[passo.id];
     let entrada = contexto.dados?.[passo.id] || pendente || {};
     if (passo.entrada && !(pendente && !contexto.dados?.[passo.id])) { const m = mapear(fonte, passo.entrada); if (m.erros.length) { estado.passos[passo.id] = { status: 'FAILED', motivo: `dados de entrada: ${m.erros.slice(0, 3).map(x => x.campo).join(', ')}` }; continue; } entrada = m.dados; }
+    pessoa = app.pessoaDaProgramacao?.(p.conversa_id,pessoa) || pessoa;
     const r = await executarCapability(app, { capabilityId: passo.capability_id, entrada, pessoa, modo: 'real', planoId: p.id, passoId: passo.id, quickWinId: p.quick_win_id, lookup: op.lookup });
     estado.passos[passo.id] = { status: r.status, http_status: r.http_status ?? null, erro: r.erro || null, aprovacao: r.aprovacao || null, run: r.run_id || null, ...(r.duplicado_evitado ? { duplicado_evitado: true } : {}) };
     if (r.dados !== undefined) saidas[passo.id] = r.dados;

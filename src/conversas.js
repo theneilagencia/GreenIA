@@ -245,7 +245,7 @@ export function rotasConversas(app, r) {
       from conversas where pessoa_id = ? ${filtro} order by atualizado_em desc limit 200`, ...p) };
   });
 
-  r.post('/api/conversas', ({ pessoa, corpo }) => {
+  const criarConversa = ({ pessoa, corpo }) => {
     const qw = corpo.quick_win_id ? carregarQw(pessoa, corpo.quick_win_id, !!corpo.teste) : null;
     if (corpo.quick_win_id && !qw) throw erro(404, 'quick_win', 'Quick win não encontrado.');
     const agora = AGORA(app);
@@ -256,7 +256,9 @@ export function rotasConversas(app, r) {
     const motivo = motivosFixos(app, pessoa, qw);
     if (motivo) tornarSigilosa(app, pessoa, conv, motivo);
     return detalhe(app, conv, pessoa);
-  });
+  };
+  r.post('/api/conversas', criarConversa);
+  app.criarConversaProgramada = pessoa => quickWinId => criarConversa({ pessoa, corpo: { quick_win_id: quickWinId } });
 
   r.get('/api/conversas/:id', ({ pessoa, params }) => {
     const conv = minhaConversa(app, pessoa, params.id);
@@ -311,7 +313,7 @@ export function rotasConversas(app, r) {
     throw erro(422, 'dado_bloqueado', `Por segurança, este envio foi bloqueado: há uma senha, chave de acesso ou outro segredo no pedido. ${onde}`, { tipos: ['credencial'] });
   }
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
-  r.post('/api/conversas/:id/mensagens', async ctx => {
+  const executarMensagem = async ctx => {
     const id = Number(ctx.params.id);
     minhaConversa(app, ctx.pessoa, id);
     enviosAtivos.set(id, (enviosAtivos.get(id) || 0) + 1);
@@ -322,8 +324,11 @@ export function rotasConversas(app, r) {
       }
       throw e;
     } finally { const n = enviosAtivos.get(id) - 1; if (n) enviosAtivos.set(id, n); else enviosAtivos.delete(id); }
-  }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
-  async function enviarMensagem({ pessoa, params, corpo, res }) {
+  };
+  r.post('/api/conversas/:id/mensagens', executarMensagem, { limiteMb: 42 });
+  // Entrada interna: o navegador nunca pode marcar uma solicitação como programada.
+  app.executarConversaProgramada = ctx => executarMensagem({ ...ctx, programada: true });
+  async function enviarMensagem({ pessoa, params, corpo, res, programada = false }) {
     // Rajada: no máximo RAJADA envios por minuto por pessoa (protege créditos e o fornecedor).
     const instante = Date.now(), recentes = (rajadas.get(pessoa.id) || []).filter(t => t > instante - 60e3);
     if (recentes.length >= (app.rajada ?? RAJADA)) throw erro(429, 'rajada', 'Muitas mensagens em pouco tempo. Espere um minuto e envie de novo.');
@@ -333,6 +338,12 @@ export function rotasConversas(app, r) {
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
+    if (programada && qw?.espec?.operacao?.integracoes?.some(n => n.modo === 'write')) {
+      const c = qw.espec.operacao.controles;
+      if (c?.modo === 'preparar' || c?.modo === 'consultar') {
+        // Preparar/consultar continuam restritivos. Uma rotina não amplia o modo publicado.
+      } else qw.espec.operacao.controles = { max_acoes: 10, max_registros: 10, ...c, modo: 'aprovar' };
+    }
     const assinaturaDoTeste = conv.teste && qw?.espec ? assinaturaTeste(app.db, qw) : null;
     anotarUso({ conversa_id: conv.id, quick_win_id: conv.quick_win_id ?? null, teste: Number(!!conv.teste), sigilosa: Number(!!conv.sigilosa) });
     if (conv.quick_win_id && !qw) throw erro(403, 'quick_win', 'Este quick win não está disponível para você agora.');
@@ -382,7 +393,7 @@ export function rotasConversas(app, r) {
     let integ = null;
     if (execucaoQw && precisaIntegracao(app, pessoa, qw)) {
       try { integ = await prepararExecucao(app, pessoa, { qw, conv, lookup: app.dnsLookup }); anexos.push(...integ.anexos); }
-      catch (e) { app.log?.('integracoes', erroParaLog(e)); integ = null; }
+      catch (e) { app.log?.('integracoes', erroParaLog(e)); if(programada)throw e; integ = null; }
     }
     if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Esta mensagem é longa demais para enviar de uma vez (até ${MAX_TEXTO.toLocaleString('pt-BR')} caracteres). Divida em partes ou envie o material como anexo.`);
     if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');

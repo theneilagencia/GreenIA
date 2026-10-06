@@ -161,6 +161,24 @@ function abrirTenant(P, id) {
     const pid = sincronizarPessoa(P, id, u.id), perms = permissoesNaEmpresa(P.db, u.id, id);
     return { id: pid, nome: u.name || 'Pessoa da empresa', aprova: perms.has('integrations.approve'), prepara: perms.has('integrations.manage') };
   }).filter(p => p.id);
+  t.pessoaParaProgramacao = pessoaId => {
+    const c = E.lerEmpresa(P, id);
+    const local = um(t.db, 'select user_id from pessoas where id=?', pessoaId);
+    const membro = local?.user_id && um(P.db, "select 1 from users u join company_users cu on cu.user_id=u.id where u.id=? and cu.company_id=? and u.status='ativo' and cu.status='ativo'", local.user_id, id);
+    if (c?.status !== 'ativa' || !membro) return null;
+    const perms = permissoesNaEmpresa(P.db, local.user_id, id);
+    if (!perms.has('chat.use') || !E.lerPlanoPorId(P, c.plan_id)?.features?.quick_wins) return null;
+    const pid = sincronizarPessoa(P, id, local.user_id);
+    const p = carregarPessoa(t.db, pid);
+    return p && { ...p, admin: perms.has('company.manage'), permissoes: [...perms] };
+  };
+  t.reservarProgramacao = () => {
+    const c = E.lerEmpresa(P, id), limite = E.lerPlanoPorId(P, c.plan_id)?.limits?.max_concurrent ?? E.LIMITES_PADRAO.max_concurrent;
+    const n = P.emAndamento.get(id) || 0;
+    if (limite && n >= limite) return false;
+    P.emAndamento.set(id, n + 1);
+    return () => P.emAndamento.set(id, Math.max(0, (P.emAndamento.get(id) || 1) - 1));
+  };
   t.emailProprio = smtpProprio;   // o teste do admin da empresa usa só o email dela, sem cair no da plataforma
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],

@@ -74,7 +74,7 @@ test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, prefer�
   const rota = ultimaRota();
   for (const campo of ['versao', 'em', 'origem', 'classe_pedida', 'classe_necessaria', 'classe', 'modelo', 'modo', 'complexidade', 'preferencia', 'motivo_escolha', 'resultado', 'explicacao'])
     assert.ok(rota[campo] !== null && rota[campo] !== undefined && rota[campo] !== '', campo);
-  assert.equal(rota.versao, '3.0');
+  assert.equal(rota.versao, '3.1');
   assert.equal(rota.classe_pedida, 'auto');
   assert.equal(rota.preferencia, 'equilibrio');
   assert.equal(rota.resultado, 'respondido');

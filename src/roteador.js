@@ -24,10 +24,12 @@
 //
 // A explicação mostrada à pessoa é montada a partir dos códigos da decisão (nunca de texto livre),
 // e o registro de auditoria guarda os mesmos códigos, sem nenhum trecho do pedido.
-import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO } from './modelos.js';
+import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO, ehClasse } from './modelos.js';
+import { todos } from './db.js';
+import { afinidadeDaTarefa } from './pools-modelos.js';
 export { AUTOMATICO };
 
-export const VERSAO_ROTEADOR = '3.0';
+export const VERSAO_ROTEADOR = '3.1';
 export const NIVEL = { rapido: 1, equilibrado: 2, avancado: 3 };
 const CLASSE_DO_NIVEL = { 1: 'rapido', 2: 'equilibrado', 3: 'avancado' };
 export const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
@@ -225,6 +227,7 @@ export function capacidadesDe(m) {
 // RESTRIÇÕES (hard constraints): tiram o modelo da lista. Nenhuma preferência passa por cima delas.
 // Cada uma devolve o código do motivo quando o modelo viola a regra.
 export const RESTRICOES = [
+  ['fora_do_catalogo', c => !c.m.noCatalogo],
   ['capacidade_insuficiente', (c, x) => DIM_CAPACIDADE.some(d => (x.req.capacidade[d] || 0) > c.cap[d]) || c.nivel < x.req.classeMinima],
   ['nao_homologado', (c, x) => x.sigilosa && !c.m.homologado],
   ['plano_na_reserva', (c, x) => x.reservaDoPlano && c.nivel > 1],
@@ -236,7 +239,7 @@ export const RESTRICOES = [
   ['sem_acesso_a_classe', (c, x) => !x.perfis.has(c.classe) && !(x.qw && c.classe === x.classeQw)],
   ['contexto_insuficiente', (c, x) => !cabe(c.m, x.req.janelaMinima)],
 ];
-const GOVERNANCA = ['nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'protecao_insuficiente', 'sem_acesso_a_classe', 'contexto_insuficiente'];
+const GOVERNANCA = ['fora_do_catalogo', 'nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'protecao_insuficiente', 'sem_acesso_a_classe', 'contexto_insuficiente'];
 
 // PREFERÊNCIAS (soft): só ordenam os modelos que passaram por todas as restrições.
 // C: custo (log da razão sobre o mais barato do conjunto); Q: margem de capacidade relevante;
@@ -278,21 +281,47 @@ function margemDe(c, req) {
 // desempate (como o padrão da classe) escolha um modelo pior e mais caro.
 function domina(o, c) {
   if (o === c || o.custo == null || c.custo == null || o.custo > c.custo || o.nivel < c.nivel || Number(o.cabeTudo) < Number(c.cabeTudo)) return false;
+  if ((o.desempenho?.penalidade || 0) > (c.desempenho?.penalidade || 0)) return false;
   if (DIM_CAPACIDADE.some(d => o.cap[d] < c.cap[d])) return false;
   return o.nivel > c.nivel || DIM_CAPACIDADE.some(d => o.cap[d] > c.cap[d]);
 }
 const deficit = (c, req) => DIM_CAPACIDADE.reduce((s, d) => s + Math.max(0, (req.capacidade[d] || 0) - c.cap[d]), 0) + Math.max(0, req.classeMinima - c.nivel);
+
+// Evidência observada da própria empresa, sem conteúdo de conversa. Amostra pequena
+// é neutra; falhas e latência só desempatarão recursos que já passaram nas regras.
+export function desempenhoRecente(db, agora = new Date()) {
+  const desde = new Date(agora.getTime() - 7 * 864e5).toISOString(), grupos = new Map();
+  const adicionar = (id, falhou, ms) => {
+    if (!id) return;
+    const g = grupos.get(id) || { amostras: 0, falhas: 0, tempos: [] };
+    g.amostras++; g.falhas += Number(falhou);
+    if (!falhou && Number.isFinite(ms) && ms > 0) g.tempos.push(ms);
+    grupos.set(id, g);
+  };
+  for (const r of todos(db, "select modelo,modelo_usado,resultado,ms_primeiro_token from roteamento where em >= ? and (resultado like 'respondido%' or resultado = 'falha_na_execucao') order by id desc limit 200", desde)) {
+    const falhou = r.resultado === 'falha_na_execucao';
+    const trocou = !falhou && r.modelo_usado && r.modelo_usado !== r.modelo;
+    adicionar(r.modelo, falhou || trocou, r.ms_primeiro_token);
+    if (trocou) adicionar(r.modelo_usado, false, null);
+  }
+  return new Map([...grupos].map(([id, g]) => {
+    const tempos = g.tempos.sort((a,b) => a-b), mediana = tempos.length ? tempos[Math.floor(tempos.length/2)] : null;
+    const penalidade = g.amostras < 5 ? 0 : 2 * g.falhas/g.amostras + (mediana ? Math.min(0.4, 0.15*Math.log1p(mediana/1000)) : 0);
+    return [id, { amostras: g.amostras, falhas: g.falhas, primeiroTokenMediano: mediana, penalidade: Math.round(penalidade*1000)/1000 }];
+  }));
+}
 
 /**
  * 3 a 5. Candidatos, seleção e fallbacks.
  * @param {object} ctx { db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual, origem }
  *   origem: 'auto' | 'pessoa' | 'quick_win' | 'padrao' (de onde veio o pedido de classe)
  */
-export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, dadosPessoais = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [] }) {
+export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, dadosPessoais = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [], agora = new Date() }) {
   // Nível de proteção que o conteúdo exige: 3 sigiloso; 2 dado pessoal ou área reforçada; 1 comum.
   const protecao = sigilosa ? 3 : (reforcada || dadosPessoais) ? 2 : 1;
   const a = analise, perfis = perfisDe(cfg, pessoa);
   // excluir: recursos que já falharam nesta solicitação (a busca por outro recurso elegível passa pelas mesmas regras).
+  const desempenho = desempenhoRecente(db, agora);
   const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO && !excluir.includes(m.id));
   const classeQw = qwClasse(qw, lista);
   const qwFixo = qw && !qw.pode_trocar;
@@ -313,7 +342,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   const x = { req, sigilosa, reforcada, protecao, reservaDoPlano, cfg, perfis, qw, classeQw };
   const candidatos = lista.map(m => {
     const c = { id: m.id, classe: m.perfil, nivel: NIVEL[m.perfil] || 1, cap: capacidadesDe(m), explicitas: !!m.capacidades, contexto: m.contexto,
-      custo: custoDe(m, a.tokens.custoEntrada, a.tokens.saida), cabeTudo: cabe(m, req.janelaDesejada), padrao: cfg.padroes[m.perfil] === m.id, m };
+      custo: custoDe(m, a.tokens.custoEntrada, a.tokens.saida), cabeTudo: cabe(m, req.janelaDesejada), padrao: cfg.padroes[m.perfil] === m.id, desempenho: desempenho.get(m.id) || null, afinidade: afinidadeDaTarefa(m.id, a.tipos), m };
     c.motivos = RESTRICOES.filter(([, viola]) => viola(c, x)).map(([cod]) => cod);
     return c;
   });
@@ -323,14 +352,14 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
 
   // Preferências: dominância primeiro (tira quem é menos capaz e mais caro que outro), depois a utilidade.
   // Com a dominância, o bônus do padrão da classe não consegue escolher um modelo pior e mais caro.
-  const pontuar = (conjunto, { margem = podeMargem(req) } = {}) => {
+  const pontuar = (conjunto, { margem = podeMargem(req), afinidade = false } = {}) => {
     const vivos = conjunto.filter(c => !conjunto.some(o => domina(o, c)));
     for (const c of conjunto) if (!vivos.includes(c)) { c.dominadoPor = conjunto.find(o => domina(o, c)).id; c.utilidade = null; }
     const conhecidos = vivos.map(c => c.custo).filter(v => v != null && v > 0);
     const min = conhecidos.length ? Math.min(...conhecidos) : 1, max = conhecidos.length ? Math.max(...conhecidos) : 1;
     for (const c of vivos) {
       const rel = (c.custo != null && c.custo > 0 ? c.custo : max * 1.5) / min;   // sem preço: tratado como mais caro
-      c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao) + P.H * Number(c.cabeTudo)) * 1000) / 1000;
+      c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao) + P.H * Number(c.cabeTudo) - (c.desempenho?.penalidade || 0) + (afinidade && P.Q > 0 && c.custo != null && c.custo <= min * 1.5 ? c.afinidade : 0)) * 1000) / 1000;
     }
     return vivos.slice().sort((p, q) => q.utilidade - p.utilidade || (p.custo ?? Infinity) - (q.custo ?? Infinity) || p.id.localeCompare(q.id));
   };
@@ -341,6 +370,25 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     // Automático do OpenRouter: fora da governança da GreenIA. Só registrado.
     modo = 'externo'; motivoEscolha = 'servico_decide';
     escolhido = { id: AUTO, classe: null, nivel: 0, custo: null, motivos: [], m: modeloManual };
+  } else if (modeloManual && ehClasse(pedido) && !(qwFixo && !ehClasse(qw.modelo)) && cfg.roteamento?.ativo !== false) {
+    modo = origem === 'quick_win' || qwFixo ? 'quick_win' : origem === 'padrao' ? 'padrao' : 'manual';
+    const classe = modeloManual.perfil;
+    const pool = elegiveis.filter(c => c.classe === classe);
+    if (!pool.length) {
+      const maiores = qwFixo ? [] : elegiveis.filter(c => c.nivel >= NIVEL[classe]);
+      if (!maiores.length) return semModelo('contexto_insuficiente');
+      escolhido = pontuar(maiores, { margem: false })[0];
+      fallback = { tipo: 'trocado_por_falta_de_contexto', de: modeloManual.id, classePedida: classe };
+      motivoEscolha = 'janela_para_o_historico';
+    } else {
+    if (modo === 'manual' && NIVEL[classe] < req.classeMinima) return semModelo('capacidade_insuficiente');
+    const aptos = pool.filter(c => !c.motivos.includes('capacidade_insuficiente'));
+    const menorFalta = Math.min(...pool.map(c => deficit(c, req)));
+    escolhido = pontuar(aptos.length ? aptos : pool.filter(c => deficit(c, req) === menorFalta), { afinidade: true })[0];
+    motivoEscolha = 'melhor_modelo_no_nivel';
+    if (candidatos.find(c => c.id === modeloManual.id)?.motivos.includes('contexto_insuficiente')) fallback = { tipo: 'trocado_por_falta_de_contexto', de: modeloManual.id, classePedida: classe };
+    if (!aptos.length) fallback = { tipo: 'abaixo_do_necessario_por_escolha', classeNecessaria: req.classe, classeUsada: classe };
+    }
   } else if (modeloManual) {
     modo = origem === 'quick_win' || qwFixo ? 'quick_win' : origem === 'padrao' ? 'padrao' : 'manual';
     escolhido = candidatos.find(c => c.id === modeloManual.id);
@@ -367,6 +415,9 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     const faixa = menorClasseSuficiente(suficientes, req);
     const ordem = pontuar(faixa);
     escolhido = ordem[0];
+    // Primeiro decide o nível; a afinidade só refina modelos nesse nível e com custo próximo.
+    const noNivel = faixa.filter(c => c.classe === escolhido.classe);
+    if (noNivel.length > 1) escolhido = pontuar(noNivel, { afinidade: true })[0];
     const maisBarato = faixa.slice().sort((p, q) => (p.custo ?? Infinity) - (q.custo ?? Infinity))[0];
     motivoEscolha = suficientes.length === 1 ? 'unico_que_atende'
       : faixa.length < suficientes.length ? (escolhido === maisBarato ? 'menor_classe_suficiente' : 'melhor_na_menor_classe_suficiente')
@@ -399,6 +450,12 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     else reserva = r.id;
   }
 
+  if (!reserva && !idReserva && !sigilosa && modo !== 'externo' && (modo === 'automatico' || ehClasse(pedido)) && !(qwFixo && !ehClasse(qw.modelo))) {
+    const alternativas = suficientes.filter(c => c.id !== escolhido.id && c.classe === escolhido.classe);
+    const outraOrigem = alternativas.filter(c => c.m.fornecedor !== escolhido.m.fornecedor);
+    reserva = pontuar(outraOrigem.length ? outraOrigem : alternativas, { margem: false })[0]?.id || null;
+  }
+
   const ref = candidatos.find(c => c.id === cfg.padroes.avancado) || candidatos.filter(c => c.nivel === 3)[0];
   const menorNivelSuficiente = suficientes.length ? Math.min(...suficientes.map(c => c.nivel)) : null;
   const calibracao = {
@@ -421,7 +478,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   // Candidato no registro: o suficiente para reconstruir a decisão (capacidades, janela, custo, utilidade).
   function saida(c) {
     return { id: c.id, classe: c.classe, capacidades: c.explicitas ? c.cap : undefined, custo: c.custo === null ? null : Math.round(c.custo * 1e6) / 1e6, cabeTudo: c.cabeTudo,
-      utilidade: c.utilidade ?? null, dominadoPor: c.dominadoPor || undefined,
+      utilidade: c.utilidade ?? null, desempenho: c.desempenho || undefined, afinidade: c.afinidade || 0, dominadoPor: c.dominadoPor || undefined,
       status: c === escolhido ? 'escolhido' : c.motivos.some(y => GOVERNANCA.includes(y)) ? 'excluido' : c.motivos.length ? 'insuficiente' : 'preterido', motivos: c.motivos,
       // Informação sigilosa: por que a rota deste recurso não passou nos guardrails (camada central, sigilo.js).
       guardrails: sigilosa && c.m.sigilo && !c.m.sigilo.elegivel ? c.m.sigilo.motivos : undefined };
@@ -455,6 +512,7 @@ export const TEXTO = {
   resposta_anterior_nao_resolveu: 'a resposta anterior não resolveu', resposta_anterior_nao_resolveu_limite: 'a resposta anterior não resolveu (subida limitada a uma classe acima do que a tarefa pede)',
   menor_custo_entre_os_nao_dominados: 'o de menor consumo entre os que não são superados por outro mais capaz e mais barato', resposta_anterior_nao_resolveu_sem_classe_acima: 'a resposta anterior não resolveu (já estava na classe mais alta)',
   analise_indisponivel: 'a análise automática não foi possível; usada a exigência padrão',
+  melhor_modelo_no_nivel: 'o modelo mais adequado entre os permitidos no nível escolhido',
   unico_que_atende: 'o único modelo permitido que atende', menor_custo: 'o de menor consumo entre os que atendem',
   menor_classe_suficiente: 'a menor classe capaz de atender, pelo menor consumo', melhor_na_menor_classe_suficiente: 'o melhor recurso dentro da menor classe capaz de atender',
   padrao_da_classe: 'o modelo padrão da classe, com consumo próximo do menor',

@@ -89,14 +89,14 @@ async function abaModelos() {
         <span class="escolha-titulo">Configurar manualmente</span>
         <span class="escolha-desc">Você ajusta modelos e acesso abaixo. Qualquer ajuste abaixo passa a empresa para este modo.</span></label>
     </div></div>`;
-  $('conteudo').innerHTML = `${cartaoGov}<p class="lead">As pessoas trabalham com classes: Rápido, Equilibrado e Avançado. Aqui a empresa decide qual modelo técnico atende cada classe. Trocar o modelo de uma classe muda todos os usos de uma vez, sem mudar o trabalho de ninguém.</p>
-    <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Classe</th><th>Modelo técnico</th><th>Reserva se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
-      ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {};
-        return `<tr><td data-r="Classe"><b>${v}</b></td><td data-r="Modelo">${x ? `${esc(x.nome)}<br><span class="dica">${esc(x.id)}${x.homologado ? ' · homologado' : ''}</span>` : '<span class="selo selo-ambar">sem modelo</span>'}</td>
-          <td data-r="Reserva">${r ? esc(r.nome) : '<span class="dica">sem reserva</span>'}</td><td data-r="Consumo">${x ? fmtCusto(x.custoConversa, { conversa: true }) : '—'}</td>
+  $('conteudo').innerHTML = `${cartaoGov}<p class="lead">As pessoas trabalham com classes: Rápido, Equilibrado e Avançado. Cada nível pode reunir vários modelos. A GreenIA escolhe entre os liberados conforme a tarefa, a capacidade, o contexto, o consumo, as regras de dados e o desempenho observado quando há amostra suficiente. No Automático, ela também escolhe o nível adequado. O modelo padrão serve como preferência, sem fixar todas as respostas nele.</p>
+    <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Classe</th><th>Modelos do nível</th><th>Alternativa se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
+      ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {}; const pool = liberados.filter(y => y.perfil === k && y.noCatalogo);
+        return `<tr><td data-r="Classe"><b>${v}</b></td><td data-r="Modelos do nível"><b>${pool.length} ${pool.length === 1 ? 'modelo disponível' : 'modelos disponíveis'}</b><br><span class="dica">${pool.map(y => esc(y.nome)).join(' · ') || 'Nenhum modelo disponível'}${x ? `<br>Preferência: ${esc(x.nome)}` : ''}</span></td>
+          <td data-r="Reserva">${r ? esc(r.nome) : pool.length > 1 ? '<span class="dica">Seleção automática no mesmo nível, quando elegível. Em sigilo, nova conferência das regras.</span>' : '<span class="dica">Sem alternativa no nível</span>'}</td><td data-r="Consumo">${x ? fmtCusto(x.custoConversa, { conversa: true }) : '—'}</td>
           <td data-r="Quem usa">${k === 'rapido' || a.todos ? 'Todas as pessoas' : (a.grupos || []).length + (a.areas || []).length ? 'Grupos e áreas escolhidos' : 'Só pelo quick win'}</td></tr>`; }).join('')}
     </tbody></table></div>
-    <p class="dica">Para trocar o modelo de uma classe, use "Modelo de cada classe" mais abaixo. Toda troca fica no histórico.</p>
+    <p class="dica">O consumo depende do modelo selecionado; a estimativa acima é do modelo de preferência. Configure modelos e capacidades no catálogo abaixo. O roteamento registra a escolha e suas alternativas, sem guardar o conteúdo do pedido.</p>
     <h3>Catálogo técnico</h3>
     ${!sig.ativo ? '<div class="faixa-aviso"><b>Informações sigilosas: desligado.</b> Hoje elas não são enviadas para recursos de IA. Para permitir o processamento com guardrails de proteção, ligue a opção em <a href="#/politicas">Políticas de IA → Informações sigilosas</a>.</div>'
       : padrao ? `<div class="faixa-aviso ok"><b>Informações sigilosas: ligado.</b> Recurso autorizado disponível para todas as pessoas: ${esc(padrao.nome)}. Ninguém precisa escolher.</div>`
@@ -677,7 +677,7 @@ async function abaHistoricoModelos() {
     ${tabela(['Quando', 'O que mudou', 'Quem', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(NOMES_EVENTO[e.tipo] || e.tipo)}</td><td>${esc(e.pessoa || 'sistema')}</td>
       <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhuma alteração registrada ainda.')}`;
 }
-const NOMES_EVENTO = { 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Classes e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%' };
+const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Classes e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%' };
 
 // ---------------------------------------------------------------- rotas
 const TELAS = {

@@ -206,7 +206,8 @@ test('quick win: fixo define a classe (com a análise registrada); flexível ent
   const contrato = analisarPedido({ texto: caso('C').texto, anexos: caso('C').anexos });
   const fixo = rotear({ db, cfg, pessoa, qw: { modelo: 'classe:rapido', pode_trocar: false }, pedido: 'classe:rapido', analise: contrato, modeloManual: rapido, origem: 'quick_win' });
   assert.equal(fixo.modo, 'quick_win');
-  assert.equal(fixo.modelo.id, rapido.id, 'o quick win fixo manda');
+  assert.equal(fixo.modelo.perfil, rapido.perfil, 'a classe fixa do quick win manda');
+  assert.equal(fixo.modelo.id, 'x/rapido-curto', 'seleciona a alternativa mais econômica dentro da classe');
   assert.equal(fixo.requisitos.classe, 'avancado', 'mas a análise roda');
   assert.equal(fixo.fallback.tipo, 'abaixo_do_necessario_por_escolha');
   assert.ok(fixo.politicas.includes('quick_win_define_o_modelo'));

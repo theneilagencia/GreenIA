@@ -7,7 +7,7 @@ import { consolidarWal, exec, json, todos, um } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, origensComCredencial, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
-import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
+import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, lerModelos, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
 import { comUso, anotarUso, registrarUso } from './custo-ia.js';
@@ -461,6 +461,9 @@ export function rotasConversas(app, r) {
     if (!automatico) {
       try {
         manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
+        if (ehClasse(pedido) && (areaReforcada || dadosPessoais) && (manual.protecao ?? 0) < 2) {
+          manual = lerModelos(app.db).find(m => m.liberado && m.noCatalogo && m.perfil === manual.perfil && (m.protecao ?? 0) >= 2 && (!sigilosa || m.homologado)) || manual;
+        }
         if (sigilosa && !manual.homologado) throw Object.assign(new Error('não autorizado para dado sigiloso'), { motivo: 'nao_homologado' });
         // Pelo atributo efetivo do recurso (nível de proteção), e não pelo rótulo: o Automático do serviço de IA
         // não tem fornecedor controlável e fica de fora; os demais, conforme o que oferecem.
@@ -483,14 +486,14 @@ export function rotasConversas(app, r) {
       }
     }
     const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'externo' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
-    let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, modeloManual: manual, origem: substituida ? 'auto' : origem });
+    let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, agora: app.agora(), modeloManual: manual, origem: substituida ? 'auto' : origem });
     // Modelo solicitado que passou pela validação mas o roteador recusou (janela, política, classe mínima):
     // mesma resolução, no automático, com o mesmo registro. Quick win e padrão da empresa seguem as regras deles.
     if (!rota.modelo && manual && origem === 'pessoa' && manual.id !== AUTO) {
       motivoSolicitado = MOTIVO_DA_CAUSA[rota.fallback?.causa] || 'requested_model_not_available';
       substituida = { tipo: 'escolha_substituida', motivo: rota.fallback?.causa || 'indisponivel', classePedida: String(pedido).replace(/^classe:/, '') };
       manual = null; trocaDoPlano = false; automatico = true;
-      rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto' });
+      rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, agora: app.agora(), modeloManual: null, origem: 'auto' });
     }
     if (trocaDoPlano) { rota.fallback = rota.fallback || { tipo: 'trocado_pela_reserva_do_plano', classePedida }; motivoSolicitado = 'requested_model_plan_restricted'; }
     if (rota.fallback?.tipo === 'trocado_por_falta_de_contexto' && origem === 'pessoa') motivoSolicitado = 'requested_model_context_limit';
@@ -667,8 +670,8 @@ export function rotasConversas(app, r) {
         break;
       } catch (e) {
         falha = e;
-        if (!sigilosa || resposta || tentados.length >= 3) break;
-        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, modeloManual: null, origem: 'auto', excluir: tentados });
+        if (!sigilosa || resposta || tentados.length >= 3 || (qwFixo && !ehClasse(qw.modelo))) break;
+        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: !automatico && ehClasse(pedido) ? pedido : AUTOMATICO, analise, agora: app.agora(), modeloManual: !automatico && ehClasse(pedido) ? manual : null, origem: !automatico ? origem : 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }), nova_rota: alt.modelo.id });

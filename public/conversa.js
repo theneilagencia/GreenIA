@@ -164,7 +164,7 @@ function desenharMensagens() {
   rolarSeNoFim();
 }
 
-function rolarSeNoFim() { if (C.noFim) $('msgs').scrollTop = $('msgs').scrollHeight; }
+function rolarSeNoFim() { const msgs = $('msgs'); if (C?.noFim && msgs) msgs.scrollTop = msgs.scrollHeight; }
 function ajustarAltura() { const t = $('entrada'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; t.style.overflowY = t.scrollHeight > 220 ? 'auto' : 'hidden'; }
 function atualizarEnviar() { $('enviar').disabled = C.enviando || (!$('entrada').value.trim() && !C.anexos.length); }
 
@@ -181,7 +181,8 @@ function ligar() {
   t.addEventListener('input', () => { ajustarAltura(); atualizarEnviar(); });
   t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!$('enviar').disabled) enviar(); } });
   $('enviar').onclick = () => enviar();
-  $('msgs').addEventListener('scroll', () => { const m = $('msgs'); C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
+  const estado = C;
+  $('msgs').addEventListener('scroll', ev => { const m = ev.currentTarget; if (C === estado && m.isConnected) C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
   if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
   $('sigilosa').onclick = async () => {
     if (!confirm('Ligar esta opção torna a conversa sigilosa até ela ser apagada. A GreenIA passa a usar só os recursos autorizados para informação confidencial. Continuar?')) return;

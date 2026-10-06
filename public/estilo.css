@@ -1711,3 +1711,37 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 @media(max-width:900px){.app .icone-btn,.app .btn-pequeno{min-width:44px;min-height:44px}.app .cabeca h1{font-size:18px}.app .recentes-grupo{margin-top:12px}}
 @media(max-width:560px){.caminhos-inicio{grid-template-columns:1fr}.caminho-inicio{padding:16px}.rascunho-barra{align-items:flex-start;flex-wrap:wrap}.painel-integracoes .linha-botoes{flex-direction:column;align-items:stretch}.continuar-caso a{min-height:44px}.app .pagina h2{font-size:24px}}
 @media(max-height:640px){.app .recentes-grupo .recentes-lat{max-height:76px;min-height:0}}
+
+/* Primeiros passos e biblioteca: leitura guiada, estados explícitos e navegação por bases. */
+.ajuda-guia{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--forest-text);font:600 18px var(--sans);border:1px solid var(--line);border-radius:50%}
+.guia-convite{max-width:720px;margin:18px auto;padding:18px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.guia-convite p{font-size:14px;line-height:1.5;margin:5px 0 12px;color:var(--muted)}
+.guia-pagina{max-width:780px;margin:auto}.guia-etapas{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}
+.guia-etapas [aria-current="step"]{background:var(--forest-strong);color:#fff;border-color:var(--forest-strong)}
+.guia-cartao{padding:28px;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface)}
+.guia-cartao h2{line-height:1.25;margin:12px 0 18px;white-space:normal}.guia-cartao h2:focus{outline:none}
+.guia-cartao p{font-size:16px;line-height:1.65}.guia-cartao blockquote{margin:24px 0;padding:16px 20px;border-left:3px solid var(--forest);background:var(--paper);font-size:16px;line-height:1.6}
+.guia-cuidado{padding:16px 0 20px}.guia-cuidado p{font-size:14px;color:var(--muted);margin:8px 0}
+.guia-rodape{display:flex;justify-content:space-between;gap:16px;margin:24px 0}
+.conhecimento-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.conhecimento-topo>div{max-width:720px}.conhecimento-topo .lead{margin-top:0}
+.conhecimento-vistas{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}.conhecimento-resumo{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;padding:16px 0;border-top:1px solid var(--line);margin-bottom:18px;font-size:14px}
+.conhecimento-resumo b{font-size:18px;margin-right:5px}.conhecimento-resumo .btn-texto{font:inherit;color:var(--forest-text)}
+.conhecimento-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px;margin-top:24px}.conhecimento-bases h2{font-size:18px!important;margin:0 0 12px}
+.conhecimento-base{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:10px 12px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted);font:400 14px/1.4 var(--sans);text-align:left;cursor:pointer}
+.conhecimento-base span:first-child{overflow-wrap:anywhere}.conhecimento-base[aria-pressed="true"]{border-color:var(--line-strong);background:var(--mint);color:var(--forest-text);font-weight:600}.conhecimento-base:hover{background:var(--sand)}
+.conhecimento-biblioteca{min-width:0}.conhecimento-biblioteca .filtros-biblioteca{margin-top:0}.conhecimento-biblioteca .campo{min-width:140px}
+.conhecimento-resultados{display:flex;justify-content:space-between;gap:14px;align-items:center;font-size:14px}.conhecimento-resultados p{margin:10px 0}
+.conhecimento-documentos{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0 24px;padding:0}
+.conhecimento-documento{padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--paper);overflow-wrap:anywhere;min-width:0}.conhecimento-doc-topo{display:flex;align-items:start;justify-content:space-between;gap:8px}.conhecimento-doc-topo h3{font-size:18px;line-height:1.35;margin:0}.conhecimento-doc-topo .selo{flex-shrink:0}
+.conhecimento-documento p{margin:10px 0}.conhecimento-documento summary{font-size:14px;cursor:pointer;color:var(--forest-text);padding:8px 0;min-height:44px}.conhecimento-revisao{font-size:14px;color:var(--muted)}.conhecimento-revisao.pendente{color:var(--amber-text)}
+.conhecimento-vazio{padding:28px;border:1px dashed var(--line-strong);border-radius:12px;margin-top:16px}.conhecimento-vazio h3{margin-top:0;font-size:18px}.conhecimento-vazio p{font-size:14px;color:var(--muted)}
+.conhecimento-envio{padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:24px}.conhecimento-envio>summary{font-weight:600;cursor:pointer;color:var(--forest-text);min-height:44px;display:list-item;padding:10px 0}.conhecimento-envio input[type="file"],.conhecimento-editor input[type="file"]{width:100%;font-size:14px;min-height:44px}
+.conhecimento-envio .linha-botoes{margin-top:20px}.conhecimento-envio [hidden],.conhecimento-editor [hidden],#conhecimento-erro[hidden]{display:none!important}
+.conhecimento-editor{max-height:85dvh;overflow-y:auto}.conhecimento-editor h2{font-size:22px}.conhecimento-editor .campo{margin:16px 0}.conhecimento-remover{margin-top:24px;padding-top:14px;border-top:1px solid var(--line);font-size:14px}.conhecimento-remover summary{cursor:pointer;color:var(--red);padding:10px 0;min-height:44px}
+.conhecimento-audiencia{font-size:14px;border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}.conhecimento-audiencia summary{cursor:pointer;min-height:44px}
+@media(max-width:1100px){.conhecimento-documentos{grid-template-columns:1fr}.conhecimento-layout{grid-template-columns:180px minmax(0,1fr);gap:20px}}
+@media(max-width:760px){.conhecimento-layout{grid-template-columns:1fr;gap:20px}.conhecimento-topo{flex-direction:column}.conhecimento-bases>p{margin-bottom:0}#conhecimento-colecoes{display:flex;flex-wrap:wrap;gap:6px}.conhecimento-base{width:auto;max-width:100%;border-color:var(--line)}.guia-cartao{padding:20px}.conhecimento-envio{padding:16px}.conhecimento-documento{padding:16px}.conhecimento-topo .btn{align-self:flex-start}.conhecimento-resultados{flex-wrap:wrap}.cabeca-acoes .ajuda-guia{min-width:44px;min-height:44px}}
+@media(prefers-reduced-motion:reduce){.app .lateral{transition:none!important}}
+@media(max-width:560px){.app .cabeca .migalha,.app .cabeca .avatar{display:none}.app .cabeca-titulo{min-width:0}.app .cabeca h1{white-space:normal;overflow-wrap:anywhere}.app .cabeca .selo-contexto{display:none}}
+.conhecimento-ajuda{font-size:14px;color:var(--muted)}.conhecimento-ajuda summary{cursor:pointer;color:var(--forest-text);min-height:44px;padding:10px 0}.conhecimento-ajuda p{margin-top:4px}
+@media(max-width:760px){.conhecimento-topo .linha-botoes{flex-direction:row;flex-wrap:wrap;gap:10px}}

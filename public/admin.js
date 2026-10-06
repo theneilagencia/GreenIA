@@ -27,7 +27,6 @@ const colunasPreco = () => (emCreditos() ? ['#Consumo por conversa típica'] : [
 const celulasPreco = x => (emCreditos() ? `<td class="num">${fmtCusto(x.custoConversa, { conversa: true })}</td>`
   : `<td class="num">${porMilhao(x.precoEntrada)}</td><td class="num">${porMilhao(x.precoSaida)}</td><td class="num">${fmtCusto(x.custoConversa)}</td>`);
 const dataHora = iso => (iso ? new Date(iso.replace(' ', 'T') + (iso.length === 19 ? 'Z' : '')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
-const lerBase64 = f => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.readAsDataURL(f); });
 const lerDataUrl = f => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(f); });
 const falhar = e => toast(e.message || 'Algo deu errado.', 6000);
 const caixas = (nome, lista, marcados = []) => `<div class="caixas">${lista.map(i => `<label><input type="checkbox" name="${nome}" value="${i.id}" ${marcados.includes(i.id) ? 'checked' : ''}> ${esc(i.nome || i.email)}</label>`).join('') || '<span class="dica">Nada para escolher ainda.</span>'}</div>`;
@@ -37,89 +36,6 @@ const tabela = (cab, linhas, vazio = 'Nada por aqui ainda.') => `<div class="tab
 
 
 // ---------------------------------------------------------------- Áreas e pessoas
-// ---------------------------------------------------------------- Bases de conhecimento
-// Cada área com a sua base: quem administra, os documentos por pasta, e revisão de cada um.
-// Quem administra só vê aqui as bases das áreas em que recebeu a permissão.
-const vencida = d => d.revisado_em && Date.now() - Date.parse(d.revisado_em.replace(' ', 'T') + (d.revisado_em.length === 19 ? 'Z' : '')) > (E.bases?.diasRevisao || 180) * 864e5;
-async function abaBases() {
-  const [{ documentos }, { areas, todaEmpresa }] = await Promise.all([api('/api/bases/documentos'), api('/api/bases/areas')]);
-  const pastas = [...new Set(documentos.map(d => d.pasta).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'pt-BR'));
-  const bases = [...areas.map(a => ({ ...a, chave: String(a.id) })), ...(todaEmpresa ? [{ chave: 'toda', nome: 'Toda a empresa', descricao: 'Documentos que valem para todas as áreas. Só o admin da empresa administra.', administradores: [], membros: null }] : [])];
-  const docsDe = b => documentos.filter(d => (b.chave === 'toda' ? d.toda_empresa : d.area_id === b.id));
-  const linhaDoc = d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}<br><span class="dica">${esc(d.arquivo)} · ${num(d.caracteres)} caracteres</span></td>
-      <td data-r="Revisão">${d.revisado_em ? `${dataHora(d.revisado_em)}<br><span class="dica">${esc(d.revisado_por || '')}</span>${vencida(d) ? ' <span class="selo selo-ambar">revisar</span>' : ''}` : '<span class="selo selo-ambar">nunca revisado</span>'}</td>
-      <td data-r="Atualizado">${dataHora(d.atualizado_em)}</td>
-      <td data-r="Ações"><div class="linha-botoes">
-        <button class="btn-texto btn-pequeno" data-revisado="${d.id}" title="Confirma que o conteúdo continua certo">Marcar revisado</button>
-        <button class="btn-texto btn-pequeno" data-editar-doc="${d.id}">Editar</button>
-        <label class="btn-texto btn-pequeno" style="cursor:pointer">Substituir arquivo<input type="file" hidden data-substituir="${d.id}" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff"></label>
-        <button class="btn-texto btn-pequeno" data-remover="${d.id}">Remover</button></div></td></tr>
-    <tr class="oculto" id="doc-ed-${d.id}"><td colspan="4"><div class="editor"><div class="filtros">
-      <div class="campo"><label>Título</label><input class="entrada" data-titulo="${d.id}" value="${esc(d.titulo)}" maxlength="200"></div>
-      <div class="campo"><label>Pasta</label><input class="entrada" data-pasta="${d.id}" value="${esc(d.pasta)}" maxlength="80" list="pastas" placeholder="sem pasta"></div>
-      <label class="dica"><input type="checkbox" data-sigiloso="${d.id}" ${d.sigiloso ? 'checked' : ''}> sigiloso (a conversa que usar vira sigilosa)</label>
-      <button class="btn btn-verde btn-pequeno" data-salvar-doc="${d.id}">Salvar</button></div></div></td></tr>`;
-  const porPasta = lista => {
-    const grupos = new Map();
-    for (const d of lista) { const k = d.pasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(d); }
-    return [...grupos.entries()].sort(([x], [y]) => (!x) - (!y) || x.localeCompare(y, 'pt-BR')).map(([k, ds]) => `
-      ${grupos.size > 1 || k ? `<div class="pasta-titulo">Pasta: ${esc(k || 'sem pasta')} <span class="dica">· ${ds.length}</span></div>` : ''}
-      <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Revisado</th><th>Atualizado</th><th>Ações</th></tr></thead><tbody>${ds.map(linhaDoc).join('')}</tbody></table></div>`).join('');
-  };
-  $('conteudo').innerHTML = `<datalist id="pastas">${pastas.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
-    ${bases.length ? '' : '<div class="faixa-aviso atencao">Você não administra a base de nenhuma área ativa.</div>'}
-    <form class="grupo-form" id="enviar-doc"><h3>Adicionar conteúdo</h3>
-      <div class="filtros">
-        <div class="campo"><label for="doc-destino">Base</label><select class="entrada" id="doc-destino">${bases.map(b => `<option value="${b.chave}">${esc(b.nome)}</option>`).join('')}</select></div>
-        <div class="campo"><label for="doc-arquivo">Arquivo</label><input id="doc-arquivo" type="file" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff" required></div>
-        <div class="campo"><label for="doc-titulo">Título (opcional)</label><input class="entrada" id="doc-titulo" maxlength="200"></div>
-        <div class="campo"><label for="doc-pasta">Pasta (opcional)</label><input class="entrada" id="doc-pasta" maxlength="80" list="pastas" placeholder="Ex.: Políticas, Manuais"></div>
-      </div>
-      <label class="dica"><input type="checkbox" id="doc-sigiloso"> documento sigiloso (a conversa que usar vira sigilosa)</label>
-      <div class="linha-botoes" style="margin-top:8px"><button class="btn btn-verde btn-pequeno" id="btn-doc" ${bases.length ? '' : 'disabled'}>Enviar</button></div>
-      <p class="dica">PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem, até 25 MB (cerca de 800 páginas). Imagem e PDF escaneado são lidos por OCR.</p>
-    </form>
-    ${bases.map(b => { const ds = docsDe(b); return `<section class="base-area">
-      <div class="secao-titulo"><h3>Base: ${esc(b.nome)}</h3><span class="dica">${ds.length} ${ds.length === 1 ? 'documento' : 'documentos'}</span></div>
-      ${b.descricao ? `<p class="dica" style="margin-top:-4px">${esc(b.descricao)}</p>` : ''}
-      ${b.membros !== null ? `<details class="base-pessoas"><summary>${b.membros} ${b.membros === 1 ? 'pessoa usa' : 'pessoas usam'} esta base · administram: ${b.administradores.map(x => esc(x.nome || x.email)).join(', ') || 'só o admin da empresa'}</summary>
-        <div class="chips" style="margin-top:8px">${b.pessoas.map(x => `<span class="chip${x.adminBase ? ' resp' : ''}">${esc(x.nome || x.email)}${x.adminBase ? ' · administra' : ''}</span>`).join('')}</div>
-        <p class="dica">${S.eu.admin ? 'Pessoas e permissões são definidas em <a href="#/pessoas">Pessoas e áreas</a>.' : 'Quem faz parte da área e quem administra a base é definido pelo admin da empresa.'}</p></details>` : ''}
-      ${ds.length ? porPasta(ds) : '<div class="lista"><div class="lista-item"><span class="dica">Nenhum documento nesta base ainda.</span></div></div>'}</section>`; }).join('')}`;
-  $('enviar-doc').onsubmit = async ev => {
-    ev.preventDefault();
-    const f = $('doc-arquivo').files[0];
-    if (!f) return;
-    $('btn-doc').disabled = true;
-    const destino = $('doc-destino').value;
-    try {
-      await api('/api/bases/documentos', { metodo: 'POST', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) }, titulo: $('doc-titulo').value, pasta: $('doc-pasta').value, sigiloso: $('doc-sigiloso').checked,
-        ...(destino === 'toda' ? { toda_empresa: true } : { area_id: Number(destino) }) } });
-      toast('Documento enviado e indexado.'); abaConhecimento();
-    } catch (e) { falhar(e); $('btn-doc').disabled = false; }
-  };
-  $('conteudo').onchange = async ev => {
-    try {
-      const sub = ev.target.closest('[data-substituir]');
-      if (sub?.files[0]) { const f = sub.files[0]; await api(`/api/bases/documentos/${sub.dataset.substituir}`, { metodo: 'PUT', corpo: { arquivo: { nome: f.name, base64: await lerBase64(f) } } }); toast('Documento substituído.'); abaConhecimento(); }
-    } catch (e) { falhar(e); }
-  };
-  $('conteudo').onclick = async ev => {
-    const t = ev.target.closest('button');
-    if (!t) return;
-    const d = x => document.querySelector(x);
-    try {
-      if (t.dataset.editarDoc) $(`doc-ed-${t.dataset.editarDoc}`).classList.toggle('oculto');
-      else if (t.dataset.salvarDoc) {
-        const id = t.dataset.salvarDoc;
-        await api(`/api/bases/documentos/${id}`, { metodo: 'PUT', corpo: { titulo: d(`[data-titulo="${id}"]`).value, pasta: d(`[data-pasta="${id}"]`).value, sigiloso: d(`[data-sigiloso="${id}"]`).checked } });
-        toast('Documento atualizado.'); abaConhecimento();
-      } else if (t.dataset.revisado) { await api(`/api/bases/documentos/${t.dataset.revisado}`, { metodo: 'PUT', corpo: { revisado: true } }); toast('Marcado como revisado.'); abaConhecimento(); }
-      else if (t.dataset.remover && confirm('Remover este documento da base? A IA deixa de usá-lo.')) { await api(`/api/bases/documentos/${t.dataset.remover}`, { metodo: 'DELETE' }); toast('Documento removido.'); abaConhecimento(); }
-    } catch (e) { falhar(e); }
-  };
-}
-
 // ---------------------------------------------------------------- Quick wins
 async function abaCriacaoQw() {
   const [perm, { pessoas }, { grupos }] = await Promise.all([api('/api/admin/quick-wins-permissoes'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
@@ -603,18 +519,8 @@ async function abaConfig() {
 // ---------------------------------------------------------------- Conhecimento
 // Para todos: que conhecimento a IA pode usar. Para quem gere áreas: envio e organização.
 async function abaConhecimento() {
-  recarregarBases();   // o selo do menu acompanha o que foi enviado ou revisado
-  const k = await api('/api/conhecimento');
-  const visao = `<p class="lead">Que conhecimento a IA pode usar nas suas tarefas. Os documentos da sua área e os da empresa toda entram nas respostas do chat e dos quick wins; quando a busca encontra documentos, a resposta lista os documentos consultados.</p>
-    ${k.documentos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Documento</th><th>Área</th><th>Quick wins que usam</th><th>Atualizado</th></tr></thead><tbody>
-      ${k.documentos.map(d => `<tr><td data-r="Documento"><b>${esc(d.titulo)}</b>${d.sigiloso ? ' <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</td><td data-r="Área">${d.toda_empresa ? 'Empresa toda' : esc(d.area || '')}${d.pasta ? `<br><span class="dica">${esc(d.pasta)}</span>` : ''}</td>
-        <td data-r="Quick wins">${d.quickWins.map(q => `<a href="#/qw/${q.id}">${esc(q.nome)}</a>`).join(', ') || '<span class="dica">só no chat</span>'}</td><td data-r="Atualizado">${dataHora(d.atualizado_em)}</td></tr>`).join('')}
-    </tbody></table></div>` : '<div class="lista"><div class="lista-item"><span class="dica">Ainda não há documentos disponíveis para você.</span></div></div>'}`;
-  if (!k.podeGerir) { $('conteudo').innerHTML = visao; return; }
-  await abaBases();
-  $('conteudo').insertAdjacentHTML('afterbegin', `<p class="lead">${S.eu.admin ? 'Como admin da empresa, você administra a base de todas as áreas e a da empresa toda.' : 'Você administra a base de conhecimento destas áreas: adiciona, edita, organiza em pastas, revisa e remove conteúdos. As bases de outras áreas só podem ser mudadas por quem recebeu a permissão nelas.'} O que entra aqui a IA usa nas respostas das pessoas da área, citando a fonte.</p>
-    <div class="secao-titulo"><h3>Bases que você administra</h3></div>`);
-  $('conteudo').insertAdjacentHTML('beforeend', `<details class="base-visao"><summary>Tudo o que a IA pode usar para você (${k.documentos.length})</summary>${visao}</details>`);
+  await recarregarBases();
+  await (await import('/conhecimento.js')).vistaConhecimento();
 }
 
 // ---------------------------------------------------------------- Políticas de IA

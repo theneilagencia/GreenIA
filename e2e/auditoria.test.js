@@ -84,6 +84,9 @@ test('admin: a Administração mostra os recursos sem o provedor; a tela de uso 
   await p.waitForSelector('text=Pode receber:');
   assert.doesNotMatch(await p.evaluate(() => document.body.innerText), /open\s*router/i, 'Administração');
   await p.goto(`${N.base}/app#/conhecimento`);
+  await p.waitForSelector('[data-conhecimento-vista="gerir"]');
+  await p.click('[data-conhecimento-vista="gerir"]');
+  await p.click('#envio-conhecimento>summary');
   await p.waitForSelector('#doc-arquivo', { state: 'attached' });
   assert.match(await p.evaluate(() => document.body.innerText), /Imagem e PDF escaneado são lidos por OCR/);
 });

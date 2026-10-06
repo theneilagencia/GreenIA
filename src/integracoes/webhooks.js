@@ -3,7 +3,7 @@
 // isolamento por empresa (o webhook só existe no banco dela, com tenant_id) e rotação de segredo (o anterior vale
 // por um período de transição). O corpo recebido não é guardado: só metadados.
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { exec, um, json } from '../db.js';
+import { exec, um, json, transacao } from '../db.js';
 import { registrar } from '../eventos.js';
 import { cifrar, decifrar } from '../plataforma/segredo.js';
 import { ErroIntegracao, novoId } from './conectores.js';
@@ -48,12 +48,15 @@ export function receberWebhook(app, id, { cabecalhos, corpoBruto }) {
   const recebida = Buffer.from(assinatura, 'hex');
   const ok = validos.some(seg => { const esperado = Buffer.from(assinar(seg, ts, corpoBruto), 'hex'); return esperado.length === recebida.length && timingSafeEqual(esperado, recebida); });
   if (!ok) negar('assinatura');
-  try { exec(app.db, 'insert into webhook_entregas (tenant_id, webhook_id, entrega_id, recebido_em) values (?, ?, ?, ?)', app.tenantId, w.id, entrega, new Date(agora).toISOString()); }
-  catch { negar('replay', 409); }
-  exec(app.db, 'delete from webhook_entregas where tenant_id = ? and recebido_em < ?', app.tenantId, new Date(agora - 7 * 864e5).toISOString());
-  registrar(app, 'WEBHOOK_RECEIVED', null, { webhook: w.id, evento: w.evento, bytes: Buffer.byteLength(corpoBruto || '') });
-  // Gatilho: um plano em espera para o Quick Win ligado (a execução continua governada pelo plano e pela política).
-  if (w.quick_win_id) exec(app.db, "insert into integ_planos (id, tenant_id, quick_win_id, gatilho, passos, estado, status, criado_em, atualizado_em) values (?, ?, ?, 'webhook', '[]', ?, 'aguardando', ?, ?)",
-    novoId('pln'), app.tenantId, w.quick_win_id, JSON.stringify({ webhook: w.id, entrega }), new Date(agora).toISOString(), new Date(agora).toISOString());
+  if(um(app.db,'select 1 from webhook_entregas where tenant_id=? and webhook_id=? and entrega_id=?',app.tenantId,w.id,entrega))negar('replay',409);
+  // Entrega aceita e tarefa persistida juntas: uma queda não perde o gatilho confirmado.
+  transacao(app.db,()=>{
+    exec(app.db, 'insert into webhook_entregas (tenant_id, webhook_id, entrega_id, recebido_em) values (?, ?, ?, ?)', app.tenantId, w.id, entrega, new Date(agora).toISOString());
+    exec(app.db, 'delete from webhook_entregas where tenant_id = ? and recebido_em < ?', app.tenantId, new Date(agora - 7 * 864e5).toISOString());
+    registrar(app, 'WEBHOOK_RECEIVED', null, { webhook: w.id, evento: w.evento, bytes: Buffer.byteLength(corpoBruto || '') });
+    if (w.quick_win_id) exec(app.db, "insert into integ_planos (id, tenant_id, quick_win_id, gatilho, passos, estado, status, criado_em, atualizado_em) values (?, ?, ?, 'webhook', '[]', ?, 'aguardando', ?, ?)",
+      novoId('pln'), app.tenantId, w.quick_win_id, JSON.stringify({ webhook: w.id, entrega }), new Date(agora).toISOString(), new Date(agora).toISOString());
+    app.aoReceberEventoProgramado?.(w.id, entrega);
+  });
   return { recebido: true };
 }

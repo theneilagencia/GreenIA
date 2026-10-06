@@ -30,6 +30,9 @@ const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-dig
 
 export async function rotaQuickWin(hash) {
   let m;
+  if (hash === '#/quick-wins/programados') return (await import('/qw-programacao.js')).listaProgramadas();
+  if ((m = /^#\/qw\/(\d+)\/programacoes$/.exec(hash))) return (await import('/qw-programacao.js')).listaProgramadas(Number(m[1]));
+  if ((m = /^#\/qw\/(\d+)\/programar(?:\/([\w-]+))?$/.exec(hash))) return (await import('/qw-programacao.js')).formularioProgramacao(Number(m[1]), m[2]);
   if (hash === '#/quick-wins') return listaQuickWins();
   if (hash === '#/qw/nova') return assistenteQw();
   if (hash === '#/qw/nova/modelos') return novaOrigem();
@@ -63,7 +66,7 @@ async function listaQuickWins() {
       <ul class="qw-lista">${lista.map(itemQw).join('')}</ul></section>` : '');
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg larga">
-      ${cabecalhoPg({ titulo: 'Quick Wins', descricao: 'Trabalhos que sua equipe pode executar com a IA seguindo regras definidas.', lado: ativos.length ? cta : '' })}
+      ${cabecalhoPg({ titulo: 'Quick Wins', descricao: 'Trabalhos que sua equipe pode executar com a IA seguindo regras definidas.', lado: `<a class="btn btn-linha" href="#/quick-wins/programados">Programados</a>${ativos.length ? cta : ''}` })}
       <section class="qw-inicio-guiado" aria-label="Por onde começar com Quick Wins"><div><h2>Trabalhos preparados pela empresa</h2><p>Escolha um trabalho, envie os materiais e acompanhe o resultado.</p></div><div class="qw-caminhos"><button type="button" data-qw-ir="qw-prontos"><b>Usar um trabalho pronto</b><span>Veja os disponíveis abaixo.</span></button>${E.podeCriarQw ? '<a href="#/qw/nova"><b>Criar um trabalho guiado</b><span>Defina o objetivo, os sistemas e quem acompanha.</span></a>' : ''}${preparo.length ? '<button type="button" data-qw-ir="qw-preparacoes"><b>Continuar uma preparação</b><span>Retome os rascunhos e confira o que falta.</span></button>' : ''}</div></section>
       ${!ativos.length ? estadoVazio({
         titulo: E.podeCriarQw ? 'Crie um trabalho que sua equipe poderá repetir com segurança.' : 'Ainda não há Quick Wins disponíveis para você.',
@@ -130,6 +133,7 @@ function acoesQw(q, { naPagina = false } = {}) {
   if (!naPagina) out.push({ rotulo: 'Abrir', href: `#/qw/${q.id}` });
   if (q.podeEditar && e.id !== 'arquivado') out.push({ rotulo: 'Editar', href: q.v2 ? `#/qw/${q.id}/ajustar` : `#/qw/${q.id}/editar` });
   if (q.podeEditar && q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Testar', href: `#/qw/${q.id}/teste` });
+  if (q.v2 && q.versao && e.id === 'publicado') out.push({ rotulo: 'Programações', href: `#/qw/${q.id}/programacoes` });
   // Quick Win antigo (sem plano de operação): a GreenIA sugere a estrutura; nada muda até a pessoa publicar.
   if (q.podeEditar && !q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Atualizar para Quick Win inteligente', href: `#/qw/${q.id}/atualizar` });
   if (E.podeCriarQw) out.push({ rotulo: 'Duplicar', acao: 'duplicar', id: q.id });
@@ -199,7 +203,7 @@ async function paginaQuickWin(id) {
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta,
-        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar'), 'Mais ações')}` })}
+        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/programacoes">${qw.podeEditar ? 'Programar' : 'Programações'}</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => !['Editar','Programações'].includes(a.rotulo)), 'Mais ações')}` })}
       ${aviso2}
       <div class="secoes">
         ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<span class="dica">Pedido original: ${esc(qw.assistente.descricao)}</span>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}

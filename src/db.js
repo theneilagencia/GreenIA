@@ -1,3 +1,4 @@
+import { ESQUEMA_PROGRAMACAO } from './qw-programacao-schema.js';
 import { fazerBackupLocal } from './backup.js';
 // Banco de uma empresa: um arquivo SQLite (WAL). Cada empresa tem o seu arquivo (instalação única
 // ou dados/empresas/<company_id>.sqlite no modo multiempresa), então nenhuma tabela tem coluna de cliente.
@@ -247,14 +248,15 @@ export function abrirBanco(arquivo = ':memory:') {
   // página livre do banco nem, por consequência, nos backups, que são cópias dele.
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000; pragma secure_delete = on;');
   const novo = !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'config'").get();
-  // Uma cópia consistente antes do primeiro acréscimo de governança, sem mudar dados antigos.
-  if(!novo && arquivo !== ':memory:' && !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'conhecimento_governanca'").get()) {
+  // Uma cópia consistente antes das tabelas aditivas de governança ou programação.
+  if(!novo && arquivo !== ':memory:' && (!db.prepare("select 1 from sqlite_master where type = 'table' and name = 'conhecimento_governanca'").get() || !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'qw_programacoes'").get())) {
     const pastaBase=process.env.BACKUP_PASTA||join(basename(dirname(arquivo))==='empresas'?dirname(dirname(arquivo)):dirname(arquivo),'backups');
     const pasta=basename(dirname(arquivo))==='empresas'?join(pastaBase,basename(arquivo,'.sqlite')):pastaBase;
-    try {const b=fazerBackupLocal(db,{pasta,manter:Number(process.env.BACKUP_MANTER||14)});console.log('backup pré-governança concluído',b.tamanho);}catch(e){db.close();throw e;}
+    try {const b=fazerBackupLocal(db,{pasta,manter:Number(process.env.BACKUP_MANTER||14)});console.log('backup pré-atualização concluído',b.tamanho);}catch(e){db.close();throw e;}
   }
   db.exec(ESQUEMA);
   db.exec(ESQUEMA_GOV);
+  transacao(db,()=>db.exec(ESQUEMA_PROGRAMACAO));
   // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.
   if (novo) db.exec(`pragma user_version = ${MIGRACOES.length}`);
   else migrar(db);

@@ -39,7 +39,7 @@ test('registro: cada claim sustentado está na superfície, com evidência no c�
     assert.ok(S[r.superficie].includes(r.texto), `${r.id}: texto não está em "${r.superficie}": "${r.texto}"`);
     // 6534041: produção de referência. Os demais: commits da liberação candidata (governança, retenção, identificação legal,
     // encerramento e exportações).
-    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812', 'f70e85c'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
+    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812', 'f70e85c', 'programados-v1'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
     const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(r.evidencia) || [];
     assert.ok(arquivo && simbolo, `${r.id}: evidência mal descrita: ${r.evidencia}`);
     assert.ok(existsSync(raiz + arquivo) && ler(arquivo).includes(simbolo), `${r.id}: ${arquivo} não contém "${simbolo}"`);

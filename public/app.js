@@ -5,6 +5,7 @@
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
 import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, rodapePlataformaHtml, toast, transicao, vazioHtml } from '/comum.js';
+import { ligarAcoesConversas } from '/historico-conversas.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { iniciarAcessibilidade, conterFoco, fecharComEscape } from '/acessibilidade.js';
@@ -170,8 +171,8 @@ export function desenharLateral() {
     return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(i.href ? i.href() : `#/${i.id}`)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const lista = E.conversas || [];
-  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat" title="Conversa sigilosa: a GreenIA usa só recursos autorizados para informação confidencial">Sigilosa</span>' : ''}</a>`).join('')}
-    ${lista.length > RECENTES_LATERAL ? `<a class="item-lat sub ver-todas" href="#/conversas">Ver todas (${lista.length})</a>` : ''}</div>` : '';
+  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">···</button></div>`).join('')}
+    ${(E.totalConversas || lista.length) > RECENTES_LATERAL ? `<a class="item-lat sub ver-todas" href="#/conversas">Ver todas (${E.totalConversas || lista.length})</a>` : ''}</div>` : '';
   const adm = emAdministracao(h);
   $('lateral').classList.toggle('modo-admin', adm);
   document.body.dataset.contexto = adm ? 'admin' : 'uso';
@@ -201,30 +202,18 @@ export function desenharLateral() {
   $('ver-politica').onclick = abrirPolitica;
   $('abrir-busca').onclick = () => abrirPaleta();
   $('reportar').onclick = reportarProblema;
+  ligarAcoesConversas($('lateral'), lista, async () => { if (location.hash === '#/conversas' || location.hash.startsWith('#/c/')) irPara(location.hash); });
 }
 
 export async function recarregarLateral() {
   const [c, q] = await Promise.all([api('/api/conversas?todas=1'), api('/api/quick-wins').catch(() => ({ quickWins: [] }))]);
-  E.conversas = c.conversas;
+  E.conversas = c.conversas; E.totalConversas = c.total;
   E.quickWins = q.quickWins || [];
   desenharLateral();
 }
 
-// Lista de conversas, com convite para organizar o uso recorrente em quick wins.
-async function vistaConversas() {
-  const { conversas } = await api('/api/conversas?todas=1');
-  const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  $('principal').innerHTML = `${cabecalho('Conversas', `<a class="btn btn-verde btn-pequeno" href="#/nova">${ICONE.mais} Nova conversa</a>`)}
-    <div class="pagina"><div class="pagina-dentro estreita">
-      ${cartaoBase()}
-      <p class="lead">Nenhuma tela da plataforma mostra o conteúdo das suas conversas a colegas ou ao admin, e conversas sem uso são apagadas depois de ${E.retencaoDias} dias. Tarefas que se repetem funcionam melhor como quick win: instruções, arquivos e conhecimento já configurados, com o uso acompanhado.</p>
-      ${conversas.length ? `<div class="lista">${conversas.map(c => `<a class="lista-item" href="#/c/${c.id}"><span class="principal-texto"><b>${esc(c.titulo)}</b>
-        <span>${dataCurta(c.atualizado_em)}${c.quick_win ? ` · ${esc(c.quick_win)}` : ' · conversa livre'}</span></span>${c.sigilosa ? '<span class="selo selo-sigilosa">Sigilosa</span>' : ''}</a>`).join('')}</div>`
-        : vazioHtml({ icone: 'conversa', titulo: 'Nenhuma conversa ainda', texto: 'Comece uma conversa para qualquer tarefa, ou abra um quick win para um trabalho que se repete.', acao: '<a class="btn btn-verde" href="#/nova">Nova conversa</a>' })}
-      <div class="linha-botoes" style="margin-top:16px"><a class="btn btn-linha" href="#/quick-wins">Ver quick wins</a></div>
-    </div></div>`;
-  ligarCabecalho();
-}
+async function vistaConversas() { await (await import('/historico-conversas.js')).vistaHistorico(); }
+
 
 function abrirPolitica() {
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-politica" tabindex="-1">

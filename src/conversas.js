@@ -3,7 +3,7 @@
 import { erro } from './http.js';
 import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { assinaturaTeste } from './quickwin-teste.js';
-import { consolidarWal, exec, json, todos, um } from './db.js';
+import { consolidarWal, exec, json, todos, um, transacao } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, origensComCredencial, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
@@ -189,14 +189,55 @@ function historico(app, conv, limiteChars, atual = null) {
 }
 
 export function rotasConversas(app, r) {
+  const enviosAtivos = new Map();
+  const ocupado = ids => ids.some(id => enviosAtivos.has(id)) || ids.some(id => um(app.db, "select 1 from connector_runs r join integ_planos p on p.id = r.plano_id where p.conversa_id = ? and r.status = 'EM_ANDAMENTO'", id));
+  function excluir(pessoa, conversas) {
+    const ids = conversas.map(c => c.id);
+    if (ocupado(ids)) throw erro(409, 'conversa_em_uso', 'Uma conversa ainda está processando uma resposta ou uma integração. Aguarde a conclusão e tente novamente.');
+    transacao(app.db, () => {
+      for (const c of conversas) {
+        // Remove o material dos planos; mantém metadados de auditoria e invalida aprovações pendentes.
+        exec(app.db, `update integration_approvals set resumo = '{}', status = case when status = 'pendente' then 'negada' else status end,
+          motivo = case when status = 'pendente' then 'Conversa excluída pela pessoa' else motivo end
+          where plano_id in (select id from integ_planos where conversa_id = ?)` , c.id);
+        exec(app.db, 'delete from integ_planos where conversa_id = ?', c.id);
+        exec(app.db, 'delete from conversas where id = ? and pessoa_id = ?', c.id, pessoa.id);
+        registrar(app, 'conversation.deleted', pessoa.id, { conversa: c.id, quick_win: c.quick_win_id, por: 'pessoa' });
+      }
+    });
+    consolidarWal(app.db);
+    return ids.length;
+  }
+  r.get('/api/conversas/resumo-exclusao', ({ pessoa }) => {
+    const r = um(app.db, 'select count(*) as total, coalesce(max(id),0) as ate_id, coalesce(sum(teste),0) as testes from conversas where pessoa_id = ?', pessoa.id);
+    return { ...r, conversas: r.total - r.testes };
+  });
+  r.del('/api/conversas', ({ pessoa, corpo }) => {
+    if (corpo.confirmacao !== 'EXCLUIR_TODAS' || !Number.isSafeInteger(corpo.ate_id) || corpo.ate_id < 0)
+      throw erro(400, 'confirmacao', 'Confirme a exclusão das suas conversas.');
+    const lista = todos(app.db, 'select id,quick_win_id from conversas where pessoa_id = ? and id <= ?', pessoa.id, corpo.ate_id);
+    return { ok: true, excluidas: excluir(pessoa, lista) };
+  });
   const carregarQw = (pessoa, id, teste, op = {}) => {
     const q = app.quickWins?.paraUso(pessoa, id, teste, op) ?? null;
     return q && app.quickWins.efetivo ? app.quickWins.efetivo(q, teste) : q;
   };
 
   r.get('/api/conversas', ({ pessoa, query }) => {
-    if (query.todas) return { conversas: todos(app.db, `select c.id, c.titulo, c.sigilosa, c.quick_win_id, q.nome as quick_win, c.feedback, c.atualizado_em
-      from conversas c left join quick_wins q on q.id = c.quick_win_id where c.pessoa_id = ? and c.teste = 0 order by c.atualizado_em desc limit 200`, pessoa.id) };
+    if (query.todas) {
+      const paginada = query.pagina !== undefined;
+      const pagina = Math.max(0, Math.min(100000, Number.parseInt(query.pagina, 10) || 0));
+      const tamanho = paginada ? 50 : 200;
+      const termo = String(query.busca || '').trim().slice(0, 120).replace(/[\\%_]/g, '\\$&');
+      const tipo = ['livres','quickwins','sigilosas'].includes(query.tipo) ? query.tipo : '';
+      const onde = `c.pessoa_id = ? and c.teste = 0 ${termo ? "and (c.titulo like ? escape '\\' or q.nome like ? escape '\\')" : ''}
+        ${tipo === 'livres' ? 'and c.quick_win_id is null' : tipo === 'quickwins' ? 'and c.quick_win_id is not null' : tipo === 'sigilosas' ? 'and c.sigilosa = 1' : ''}`;
+      const args = [pessoa.id, ...(termo ? [`%${termo}%`, `%${termo}%`] : [])];
+      const total = um(app.db, `select count(*) as n from conversas c left join quick_wins q on q.id = c.quick_win_id where ${onde}`, ...args).n;
+      const conversas = todos(app.db, `select c.id, c.titulo, c.sigilosa, c.quick_win_id, q.nome as quick_win, c.feedback, c.atualizado_em
+        from conversas c left join quick_wins q on q.id = c.quick_win_id where ${onde} order by c.atualizado_em desc,c.id desc limit ? offset ?`, ...args, tamanho, paginada ? pagina * tamanho : 0);
+      return { conversas, total, mais: (paginada ? pagina * tamanho : 0) + conversas.length < total };
+    }
     const filtro = query.quick_win ? 'and quick_win_id = ? and teste = 0' : 'and quick_win_id is null';
     const p = query.quick_win ? [pessoa.id, Number(query.quick_win)] : [pessoa.id];
     return { conversas: todos(app.db, `select id, titulo, sigilosa, quick_win_id, feedback, atualizado_em,
@@ -251,9 +292,7 @@ export function rotasConversas(app, r) {
 
   r.del('/api/conversas/:id', ({ pessoa, params }) => {
     const conv = minhaConversa(app, pessoa, params.id);
-    exec(app.db, 'delete from conversas where id = ?', conv.id);
-    registrar(app, 'conversation.deleted', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, por: 'pessoa' });
-    consolidarWal(app.db);   // o conteúdo apagado sai também do WAL
+    excluir(pessoa, [conv]);
     return { ok: true };
   });
 
@@ -273,13 +312,16 @@ export function rotasConversas(app, r) {
   }
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
   r.post('/api/conversas/:id/mensagens', async ctx => {
+    const id = Number(ctx.params.id);
+    minhaConversa(app, ctx.pessoa, id);
+    enviosAtivos.set(id, (enviosAtivos.get(id) || 0) + 1);
     try { return await comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem(ctx)); } catch (e) {
       if (BLOQUEIOS.has(e.codigo)) {
         const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(ctx.params.id), ctx.pessoa.id);
         if (conv) aviso(app, conv.id, `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
       }
       throw e;
-    }
+    } finally { const n = enviosAtivos.get(id) - 1; if (n) enviosAtivos.set(id, n); else enviosAtivos.delete(id); }
   }, { limiteMb: 42 });   // até 30 MB de anexos, em base64
   async function enviarMensagem({ pessoa, params, corpo, res }) {
     // Rajada: no máximo RAJADA envios por minuto por pessoa (protege créditos e o fornecedor).

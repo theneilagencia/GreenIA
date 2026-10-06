@@ -15,6 +15,7 @@ import { decidir as decidirPolitica } from './politicas.js';
 import { TIPOS_EXECUTAVEIS } from './riscos.js';
 import { ErroIntegracao, conectorOu404, lerCapability, mapeamento, novoId } from './conectores.js';
 import { execucaoAprovada, solicitarExecucao } from './aprovacoes.js';
+import { controlesDoPlano, impedimentoControle, excedeuSaida } from './controle-qw.js';
 import { tokenDeAcesso } from './oauth.js';
 
 // ---- Limite de taxa (janela de 60 s, em memória por processo) ---------------------------------------------------
@@ -117,6 +118,12 @@ export async function executarCapability(app, { capabilityId, entrada = {}, pess
   let dados = entrada;
   if (regrasEntrada) { const m = mapear(entrada, regrasEntrada); if (m.erros.length) return { ...base, status: 'FAILED', erro: { codigo: 'mapeamento', mensagem: `Mapeamento da entrada falhou: ${m.erros.slice(0, 3).map(x => `${x.campo} (${x.erro})`).join(', ')}.` } }; dados = m.dados; }
 
+  const controle = controlesDoPlano(app, planoId);
+  if (!teste) {
+    const impedimento = impedimentoControle(controle, cap, dados);
+    if (impedimento) { registrar(app, 'CONNECTOR_BLOCKED', pessoa?.id, { ...base, motivo: 'limite_trabalho', plano: planoId }); return { ...base, status: 'BLOCKED', erro: { codigo: 'limite_trabalho', mensagem: impedimento } }; }
+  }
+
   // Política (fora do modo teste): ALLOW, DENY ou REQUIRE_APPROVAL.
   if (!teste) {
     const cfg = lerConfig(app.db).integracoes || {};
@@ -126,7 +133,7 @@ export async function executarCapability(app, { capabilityId, entrada = {}, pess
       registrar(app, 'CONNECTOR_BLOCKED', pessoa?.id, { ...base, motivo: 'politica', regra: d.regra });
       return { ...base, status: 'BLOCKED', erro: { codigo: 'politica', mensagem: d.motivo || 'A política da empresa não permite esta operação.' } };
     }
-    if (d.decisao === 'REQUIRE_APPROVAL') {
+    if (d.decisao === 'REQUIRE_APPROVAL' || (controle?.modo === 'aprovar' && cap.modo === 'write')) {
       const a = execucaoAprovada(app, { c, cap, planoId, passoId, entrada: dados });
       if (a?.status === 'negada' && a.mesmaEntrada) return { ...base, status: 'BLOCKED', erro: { codigo: 'aprovacao_negada', mensagem: 'A execução foi negada na aprovação.' }, aprovacao: a.id };
       if (!(a?.status === 'aprovada' && a.mesmaEntrada)) {
@@ -214,6 +221,7 @@ export async function executarCapability(app, { capabilityId, entrada = {}, pess
   if (texto.trim()) { try { corpo = JSON.parse(texto); } catch { return fim('FAILED', { erro: { codigo: 'resposta_nao_json', mensagem: 'A resposta não veio no formato esperado.' } }); } }
   if (op.graphql && corpo?.errors?.length) return fim('FAILED', { erro: { codigo: 'graphql', mensagem: 'A API GraphQL devolveu erro.' } });
   const util = op.graphql ? corpo?.data?.[op.graphql.campo] : corpo;
+  if (cap.modo === 'read' && excedeuSaida(controle, util)) return fim('BLOCKED', { erro: { codigo: 'limite_registros', mensagem: `A consulta retornou mais de ${controle.max_registros} itens. O material não foi encaminhado à IA; reduza a consulta.` } });
   const erros = op.response_schema ? validarEsquema(util, op.response_schema) : [];
   const gravidade = gravidadeEsquema(erros);
   if (gravidade === 'inconsistente') return fim('FAILED', { erro: { codigo: 'resposta_fora_do_esquema', mensagem: `A resposta não segue o formato declarado (${erros.slice(0, 3).map(x => `${x.caminho}: ${x.erro}`).join('; ')}).` }, inconsistente: true });

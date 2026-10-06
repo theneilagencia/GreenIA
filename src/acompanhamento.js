@@ -5,6 +5,7 @@ import { todos, um, exec, json } from './db.js';
 import { lerConfig } from './config.js';
 import { podeGerir } from './quickwins.js';
 import { metadados } from './governanca-conhecimento.js';
+import { pedidosConexao } from './qw-preparacao.js';
 import { integracoesLigadas } from './integracoes/rotas.js';
 import { resolverNecessidades } from './integracoes/plano.js';
 import { registrar } from './eventos.js';
@@ -41,6 +42,7 @@ export function rotasAcompanhamento(app,r) {
    for(const q of qs.filter(q=>['em_configuracao','em_teste','em_avaliacao'].includes(q.status)).slice(0,30)) pendencias.push({tipo:'quickwin',titulo:q.nome,texto:q.status==='em_avaliacao'?'Registre uma decisão sobre este Quick Win.':'Conclua a preparação e confira o teste.',href:`#/qw/${q.id}`});
   }
   if(integracoesLigadas(app,pessoa)&&permitido(app,pessoa,'integrations.manage')) {
+   for(const p of pedidosConexao(app).filter(p=>p.status==='pendente')) pendencias.push({tipo:'integracao',titulo:`Preparar conexão: ${p.trabalho}`,texto:'A equipe pediu acesso a um sistema para este trabalho. Confira as ações e prepare a conexão autorizada.',href:'#/integracoes'});
    const cs=todos(app.db,'select id,nome,status from connectors where tenant_id = ?',app.tenantId);
    passo('integracoes','Confira as integrações, se necessárias',cs.some(c=>c.status==='ACTIVE'),'Esta etapa é opcional. Qualquer escrita continua exigindo aprovação.','#/integracoes');
    cs.filter(c=>['FAILED','REVIEW_REQUIRED','PAUSED'].includes(c.status)).slice(0,20).forEach(c=>pendencias.push({tipo:'integracao',titulo:c.nome,texto:`Integração ${c.status==='FAILED'?'com falha':c.status==='PAUSED'?'pausada':'aguardando aprovação'}.`,href:`#/integracoes/c/${c.id}`}));

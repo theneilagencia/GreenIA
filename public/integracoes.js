@@ -40,7 +40,14 @@ export async function rotaIntegracoes(h) {
 }
 
 async function vistaLista() {
+  if (!pode('integrations.manage')) {
+    const { pendentes } = await api('/api/integracoes/aprovacoes');
+    pagina('Aprovações', `${ESTILO}<p>Revise o que cada ação fará antes de autorizar.</p><div class="lista-int">${pendentes.map(a => `<a class="item-int" href="#/integracoes/aprovacao/${esc(a.id)}">${esc(a.resumo?.nome || a.resumo?.capability || 'Revisar ação')} · ${seloRisco(a.risco)}</a>`).join('') || '<p>Nenhuma aprovação pendente.</p>'}</div>`);
+    return;
+  }
   const d = await api('/api/admin/integracoes');
+  let pedidos = [], erroPedidos = '';
+  if (pode('integrations.manage')) { try { pedidos = (await api('/api/quick-wins/pedidos-conexao')).pedidos.filter(p => p.status === 'pendente'); } catch (e) { erroPedidos = e.message; } }
   const conectores = d.conectores.length ? `<div class="lista-int">${d.conectores.map(c => `<a class="item-int" href="#/integracoes/c/${esc(c.id)}" style="text-decoration:none;color:inherit">
       <h3>${esc(c.nome)} ${seloStatus(c.status)}</h3><p>${esc(c.sistema)} · versão ${c.versao} · ${c.capabilities.length} ${c.capabilities.length === 1 ? 'ação' : 'ações'}</p>
       <p>${c.capabilities.slice(0, 4).map(x => selo(x.frase || x.nome, x.modo === 'read' ? 'ok' : 'atencao')).join('')}</p></a>`).join('')}</div>`
@@ -49,9 +56,10 @@ async function vistaLista() {
       <h3>${a.tipo === 'publicacao' ? 'Publicar integração' : 'Executar ação'}: ${esc(a.resumo.sistema || '')} ${seloRisco(a.risco)}</h3><p>${esc(a.tipo === 'publicacao' ? `${(a.resumo.podera || []).length} ações para revisar` : a.resumo.acao || '')}</p></a>`).join('')}</div>` : '';
   const mt = d.metricas || {};
   pagina('Integrações', `${ESTILO}<p class="lead">Sistemas externos que os Quick Wins podem usar, sempre pela GreenIA: credenciais no cofre, política da empresa e aprovação para qualquer escrita.</p>
-    ${pend}<h2>Integrações da empresa</h2>${conectores}
+    ${pend}${erroPedidos ? `<p role="alert">Não foi possível carregar pedidos de conexão: ${esc(erroPedidos)}</p>` : ''}${pedidos.length ? `<section aria-label="Pedidos de preparação"><h2>Conexões que a equipe precisa</h2><p>Prepare o acesso técnico e volte aqui para conferir. Nenhuma permissão é concedida pelo pedido.</p><div class="lista-int">${pedidos.map(p => `<article class="item-int"><h3>${esc(p.trabalho)}</h3><ul>${p.necessidades.map(n => `<li>${esc(n.sistema || 'Sistema da empresa')}: ${esc(n.acao)}</li>`).join('')}</ul><div class="linha-botoes"><a class="btn btn-linha" href="#/integracoes/nova">Preparar conexão</a><a class="btn-texto" href="#/qw/${p.quick_win_id}">Ver trabalho</a><button type="button" class="btn btn-linha" data-pedido-pronto="${esc(p.id)}">Conferir se está pronta</button></div><p role="status" data-pedido-status="${esc(p.id)}"></p></article>`).join('')}</div></section>` : ''}<h2>Integrações da empresa</h2>${conectores}
     <h2>Uso</h2><p class="dica">${Number(mt.execucoes || 0)} execuções · ${mt.taxa_sucesso ?? '—'}% de sucesso · ${Number(mt.falhas || 0)} falhas · ${Number(mt.bloqueios || 0)} bloqueadas pela política · ${Number(mt.aprovacoes?.pendentes || 0)} aprovações pendentes</p>`,
   pode('integrations.manage') ? '<a class="btn btn-verde" href="#/integracoes/nova" style="margin-left:auto">Nova integração</a>' : '');
+  document.querySelectorAll('[data-pedido-pronto]').forEach(b => b.onclick = async () => { b.disabled = true; try { await api(`/api/quick-wins/pedidos-conexao/${b.dataset.pedidoPronto}/concluir`, { metodo: 'POST' }); toast('Conexão pronta para retomar o trabalho.'); await vistaLista(); } catch (e) { b.closest('article').querySelector('[role="status"]').textContent = e.message; b.disabled = false; } });
 }
 
 // ---- Assistente --------------------------------------------------------------------------------------------
@@ -252,7 +260,7 @@ function telaAprovacao(a) {
   if (a.tipo === 'execucao') return `<h2>Executar uma ação em ${esc(r.sistema)}?</h2>
     <p>${esc(r.acao)} ${seloRisco(a.risco)}</p><p class="dica">Efeitos: ${efeitosLegiveis(r.efeitos)}.</p>
     <p class="dica">A autorização vale para esta ação e estes dados. Aprovar não realiza a gravação: ela será retomada no trabalho de quem pediu.</p>
-    <h3>Dados que serão enviados</h3>${Object.entries(r.dados || {}).map(([k, v]) => `<div class="linha-op"><b>${esc(({ userId: 'Identificador do usuário', customerId: 'Identificador do cliente', title: 'Título', body: 'Conteúdo', email: 'Email', amount: 'Valor' })[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' '))}</b><span>${esc(v && typeof v === 'object' ? JSON.stringify(v, null, 2) : v)}</span></div>`).join('') || '<p class="dica">Nenhum.</p>'}`;
+    ${r.expira_em ? `<p class="dica">Este pedido vale até ${esc(new Date(r.expira_em).toLocaleString('pt-BR'))}. Depois, é necessário revisar uma nova execução.</p>` : ''}<h3>Dados que serão enviados</h3>${Object.entries(r.dados || {}).map(([k, v]) => `<div class="linha-op"><b>${esc(({ userId: 'Identificador do usuário', customerId: 'Identificador do cliente', title: 'Título', body: 'Conteúdo', email: 'Email', amount: 'Valor' })[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' '))}</b><span>${esc(v && typeof v === 'object' ? JSON.stringify(v, null, 2) : v)}</span></div>`).join('') || '<p class="dica">Nenhum.</p>'}`;
   return `<h2>Revisar a integração com ${esc(r.sistema)}</h2>
     <p>${seloRisco(r.risco)} versão ${Number(r.versao) || ''} · ${esc(AUTH.find(([v]) => v === r.autenticacao)?.[1] || r.autenticacao || '')}</p>
     <h3>Esta integração poderá</h3><ul>${(r.podera || []).map(p => `<li>${esc(p.frase)} ${seloRisco(p.risco)}<br><small class="dica">${esc(p.endpoint)}${p.le?.length ? ` · lê: ${p.le.slice(0, 8).map(esc).join(', ')}` : ''}${p.escreve?.length ? ` · grava: ${p.escreve.slice(0, 8).map(esc).join(', ')}` : ''}</small></li>`).join('')}</ul>
@@ -272,9 +280,8 @@ function ligarAprovacao(a, depois) {
 async function vistaAprovacao(id) {
   const destino = new URLSearchParams(location.hash.split('?')[1] || '').get('voltar');
   const voltar = /^#\/c\/\d+$/.test(destino || '') ? destino : '#/integracoes';
-  const d = await api('/api/admin/integracoes/aprovacoes');
-  const a = d.pendentes.find(x => x.id === id);
-  if (!a) { toast('Esta aprovação já foi decidida.'); return irPara(voltar); }
+  const a = await api(`/api/integracoes/aprovacoes/${encodeURIComponent(id)}`);
+  if (a.status !== 'pendente') { toast('Esta aprovação já foi decidida.'); return irPara(voltar); }
   pagina('Aprovação', `${ESTILO}${telaAprovacao(a)}<div class="linha-botoes" style="margin-top:18px"><a class="btn-texto" href="${esc(voltar)}">${voltar === '#/integracoes' ? 'Voltar' : 'Voltar ao trabalho'}</a>${botoesAprovacao()}</div>`);
   ligarAprovacao(a, () => irPara(voltar));
 }

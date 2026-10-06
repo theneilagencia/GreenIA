@@ -8,6 +8,7 @@ import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelIntegracoes, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
+import { htmlSistemas, htmlPessoasLimites, guardarPreparacao, ligarPreparacao } from '/qw-preparacao.js';
 import { montarFontes } from '/fontes.js';
 
 const $ = id => document.getElementById(id);
@@ -41,6 +42,9 @@ const EXEMPLOS = [
   ['comparar propostas', 'Comparar propostas de fornecedores e mostrar, item por item, o que muda em valor, prazo e condições.', 'comparar_documentos'],
   ['preparar um resumo', 'Preparar um resumo curto de documentos longos, com o que pede decisão.', null],
   ['organizar informações', 'Organizar anotações soltas em uma lista de tarefas com responsável e prazo.', 'organizar_informacoes'],
+  ['conferir fornecedores', 'Conferir documentos de fornecedores, consultar o cadastro no sistema de fornecedores e preparar atualizações para aprovação.', null],
+  ['organizar atendimento', 'Consultar chamados no sistema de atendimento, preparar respostas e atualizar o registro depois de aprovação.', null],
+  ['acompanhar compras', 'Comparar propostas, consultar pedidos no ERP e preparar um resumo para o responsável pela compra.', null],
   ['identificar riscos', 'Identificar riscos em contratos e documentos, mostrando de onde veio cada um.', 'analisar_documentos'],
 ];
 
@@ -59,7 +63,7 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false } =
   // "Atualizar para Quick Win inteligente": o antigo (sem especificação) começa do que ele já descreve.
   const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : {});
   const W = {
-    id, qw, passo, maximo: passo, editando: !!qw,
+    id, qw, responsavelId: qw?.responsavel?.id || E.eu.id, controles: qw?.operacao?.controles ? structuredClone(qw.operacao.controles) : null, passo, maximo: passo, editando: !!qw,
     descricao: o.descricao || '', arquetipo: o.arquetipo || null,
     modoProc: o.como?.modo === 'mostrar' ? 'exemplo' : 'explicar', processo: o.como?.modo === 'explicar' ? o.como.texto || '' : '',
     exemplo: '', exemploNome: '', estruturaAnterior: o.exemplo || null, estruturaSugerida: null,
@@ -157,9 +161,9 @@ function respostas(W) {
   const como = W.modoProc === 'exemplo'
     ? (W.exemplo || W.estruturaAnterior ? { modo: 'mostrar', exemplo: W.exemplo } : { modo: 'pronto' })
     : W.processo.trim() ? { modo: 'explicar', texto: W.processo.trim() } : { modo: 'pronto' };
-  return { descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias],
+  return { responsavel_id: W.responsavelId, descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formato === 'outro' ? W.formatoDescricao : '', regras_proprias: [...W.proprias],
     colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W),
-    ...(W.operacaoPessoa || (W.operacao && W.planoAceito) ? { operacao: W.operacao } : {}),
+    ...(W.operacaoPessoa || (W.operacao && W.planoAceito) ? { operacao: { ...W.operacao, ...(W.controles ? { controles: W.controles } : {}) } } : {}),
     ...(W.plano?.fonte === 'ia' && W.plano.chave ? { interpretacao: { chave: W.plano.chave, operacao: W.plano.operacao } } : {}) };
 }
 const paraEnvio = e => (e ? { chave: e.chave, colunas: e.colunas || [], falhou: !!e.falhou } : null);
@@ -235,6 +239,7 @@ async function desenhar(W, { foco = true } = {}) {
   if (vez !== W.vez || passo !== W.passo) return;
   el.innerHTML = `<div class="etapa-foco">${html}</div>`;
   ETAPA_LIGAR[W.passo]?.(W);
+  ligarPreparacao(W, { salvar: async () => { guardarEtapa(W); await salvar(W); }, redesenhar: async () => { guardarEtapa(W); await desenhar(W, { foco: false }); } });
   el.querySelector('[data-voltar]')?.addEventListener('click', () => irEtapa(W, W.passo - 1));
   if (W.passo !== REVISAR) el.querySelector('[data-continuar]')?.addEventListener('click', () => continuar(W));
   if (foco) { $('pergunta')?.focus(); window.scrollTo?.({ top: 0 }); }
@@ -254,6 +259,7 @@ function erroEtapa(msg) {
 
 // Guarda o que está na tela da etapa atual (voltar e avançar nunca perdem o que a pessoa escreveu).
 function guardarEtapa(W) {
+  guardarPreparacao(W);
   const mudou = (campo, valor) => { if (W[campo] !== valor) { W[campo] = valor; W.sugestao = null; } };
   if (W.passo === 0 && $('objetivo')) mudou('descricao', $('objetivo').value.trim());
   if (W.passo === 1) {
@@ -323,10 +329,10 @@ async function salvarAgora(W) {
   const a = respostas(W), ass = assinatura(a);
   if (W.id && W.salvo === ass) { W.edicaoPendente = false; estadoRascunho(W, 'Rascunho salvo'); return; }
   estadoRascunho(W, 'Salvando rascunho…');
-  if (W.id) W.qw = await api(`/api/quick-wins/${W.id}`, { metodo: 'PUT', corpo: { assistente: a } });
+  if (W.id) W.qw = await api(`/api/quick-wins/${W.id}`, { metodo: 'PUT', corpo: { assistente: a, responsavel_id: W.responsavelId } });
   else {
     const areas = E.permQw.areas.slice(0, 1).map(x => x.id);
-    W.qw = await api('/api/quick-wins', { metodo: 'POST', corpo: { assistente: a, areas, toda_empresa: !areas.length && E.permQw.todaEmpresa } });
+    W.qw = await api('/api/quick-wins', { metodo: 'POST', corpo: { assistente: a, responsavel_id: W.responsavelId, areas, toda_empresa: !areas.length && E.permQw.todaEmpresa } });
     W.id = W.qw.id;
     history.replaceState(null, '', `#/qw/${W.id}/ajustar`);
     W.rotaAtiva = location.hash;
@@ -352,7 +358,7 @@ const ETAPA_HTML = [
     <p class="exemplos">Exemplos: ${EXEMPLOS.map(([t], i) => `<button type="button" data-exemplo="${i}">${esc(t)}</button>`).join('<span class="ponto-sep" aria-hidden="true">·</span>')}</p>
     ${rodape(W)}`,
   // 2. Processo (com o entendimento do trabalho: o plano que a GreenIA montou do pedido)
-  async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${pergunta('O que normalmente precisa ser considerado para fazer isso bem?', W.modoProc === 'exemplo'
+  async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${await htmlSistemas(W)}${pergunta('O que normalmente precisa ser considerado para fazer isso bem?', W.modoProc === 'exemplo'
       ? 'Mostre um resultado que você considera bom. A GreenIA aprende a estrutura, o nível de detalhe e o tom. O exemplo em si não é guardado.'
       : 'Conte o que precisa ser analisado, conferido ou considerado. Não precisa ser completo.', 'micro-processo')}
     ${W.modoProc === 'exemplo' ? `
@@ -376,6 +382,7 @@ const ETAPA_HTML = [
         <span>${esc(r.rotulo)}</span>${r.travada ? '<span class="tag">Sempre ativa</span>' : ''}</label></li>`).join('')}
         ${W.proprias.map((t, i) => `<li class="regra-propria"><span class="regra-marca" aria-hidden="true">${ICONE.check}</span><span>${esc(t)}</span>
           <button type="button" class="link-sutil" data-remover-regra="${i}" aria-label="Remover a regra: ${esc(t)}">Remover</button></li>`).join('')}</ul>
+      ${await htmlPessoasLimites(W)}
       ${W.proprias.length >= MAX_PROPRIAS ? `<p class="dica bloco-extra">Você já adicionou ${MAX_PROPRIAS} regras suas.</p>`
         : `<div class="nova-regra"><button type="button" class="link-sutil" id="adicionar-regra" aria-expanded="false" aria-controls="nova-regra">+ Adicionar regra</button>
         <div class="nova-regra-campo oculto" id="nova-regra"><label class="sr" for="nova-regra-texto">Nova regra</label>
@@ -449,6 +456,8 @@ const ETAPA_HTML = [
           <div class="oculto" id="nome-edicao"><label class="sr" for="nome">Nome do Quick Win</label><input class="entrada" id="nome" maxlength="80" value="${esc(q.nome)}"></div></div></li>
         <li><span class="r">Faz</span><div><div class="editavel" id="desc-ver"><span id="desc-atual">${esc(q.para_que_serve)}</span><button type="button" class="link-sutil" id="editar-desc">Editar</button></div>
           <div class="oculto" id="desc-edicao"><label class="sr" for="desc">O que o Quick Win faz</label><textarea class="entrada" id="desc" rows="2" maxlength="200">${esc(q.para_que_serve)}</textarea></div></div></li>
+        <li><span class="r">Acompanha</span><div>${esc(q.responsavel?.nome || 'Responsável ainda não definido')}</div></li>
+        ${q.operacao?.integracoes?.length ? `<li><span class="r">Sistemas</span><div>${q.operacao.integracoes.map(n => `${esc(n.sistema || 'Sistema da empresa')}: ${esc(n.acao)}`).join('<br>')}<p class="dica">${q.operacao.controles?.modo === 'preparar' ? 'Prepara o resultado sem acessar sistemas.' : q.operacao.controles?.modo === 'consultar' ? 'Somente consultas, sem alterações.' : 'Alterações sujeitas às regras e à aprovação.'} ${q.operacao.controles ? `Até ${q.operacao.controles.max_acoes} ações externas e ${q.operacao.controles.max_registros} itens por ação.` : ''}</p></div></li>` : ''}
         <li><span class="r">Considera</span><div>${considera}</div></li>
         <li><span class="r">Respeita</span><ul>${(q.regras_rascunho || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul></li>
         <li><span class="r">Entrega</span><div>${esc(FORMATOS_SAIDA[a.formato]?.rotulo || '')}${a.formato === 'outro' && a.formato_descricao ? ` · ${esc(a.formato_descricao)}` : ''}${a.formato === 'tabela' && a.colunas?.length ? ` · ${esc(a.colunas.join(', '))}` : ''}</div></li>
@@ -497,7 +506,6 @@ function htmlPlano(W) {
         : `<ol>${(op.etapas || []).map(x => `<li>${esc(x.texto)}</li>`).join('') || '<li class="dica">Do jeito que o trabalho pedir.</li>'}</ol>`}</dd></div>
       <div><dt>Vai entregar</dt><dd><ul>${entregas.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${sugerido ? '' : '<button type="button" class="link-sutil" id="plano-entregas">Ajustar o que vai entregar</button>'}</dd></div>
       <div><dt>Vai usar</dt><dd><ul>${(op.ferramentas || []).map(f => { const ind = W.indisponiveis.find(x => x.id === f); return `<li>${esc(rotuloF(f))}${ind ? ` <span class="dica">(não disponível: entrega ${esc(ind.alternativa)})</span>` : f === 'pesquisa_web' && !W.pesquisaLiberada ? ' <span class="dica">(ainda não liberada pela empresa: o resultado sai parcial)</span>' : ''}</li>`; }).join('') || '<li>IA da GreenIA</li>'}</ul></dd></div>
-      ${!sugerido && W.integracoes?.length ? htmlIntegracoes(W.integracoes) : ''}
     </dl>
     ${lacunas.length ? `<div class="lacunas" id="plano-lacunas"><p class="legenda">Para o resultado não sair genérico</p>${lacunas.map(l => `<div><label for="lacuna-${esc(l.id)}">${esc(l.pergunta)}${l.obrigatoria ? ' <span class="tag">Necessário</span>' : ''}</label>
       <input class="entrada" id="lacuna-${esc(l.id)}" data-lacuna="${esc(l.id)}" data-pergunta="${esc(l.pergunta)}" maxlength="600" value="${esc(respostas.get(l.id) || '')}" placeholder="${esc(l.exemplo || '')}"></div>`).join('')}
@@ -508,18 +516,7 @@ function htmlPlano(W) {
   </section>`;
 }
 // Integration Builder (só com o recurso ligado): o que o trabalho precisa fazer em sistemas fora da GreenIA.
-// ✓ disponível · ⚠ precisa configurar (ou pede aprovação a cada execução) · ✕ a política da empresa não permite.
-const SIMBOLO_INTEG = { disponivel: ['✓', 'disponível'], requer_aprovacao: ['⚠', 'disponível com aprovação a cada execução'], configurar: ['⚠', 'precisa configurar'], nao_permitido: ['✕', 'não permitido pela política da empresa'] };
-function htmlIntegracoes(lista) {
-  const falta = lista.filter(n => n.estado === 'configurar');
-  const sistemas = [...new Set(falta.map(n => n.sistema).filter(Boolean))];
-  return `<div><dt>Sistemas externos</dt><dd>
-    ${sistemas.length ? `<p>Este Quick Win precisa acessar ${esc(sistemas.join(', '))}.</p>` : ''}
-    <ul class="plano-integracoes">${lista.map(n => { const [s, t] = SIMBOLO_INTEG[n.estado] || ['⚠', n.estado]; return `<li><span aria-hidden="true">${s}</span> ${esc(n.acao)} <span class="dica">(${esc(n.sistema_resolvido || n.sistema || 'sistema externo')}: ${esc(t)})</span></li>`; }).join('')}</ul>
-    ${falta.length ? (pode('integrations.manage') ? '<a class="btn btn-linha btn-pequeno" href="#/integracoes/nova">Configurar integração</a>' : '<p class="dica">Peça a quem administra a GreenIA para configurar a integração. Sem ela, o Quick Win entrega o resultado sem acessar o sistema.</p>') : ''}
-    <p class="dica">A GreenIA só lê ou grava em sistemas externos por integrações aprovadas pela empresa; gravar sempre segue a política e pode pedir aprovação.</p></dd></div>`;
-}
-// Guarda o que está na tela do plano (respostas, materiais e etapas). Qualquer mudança é decisão da pessoa.
+// Guarda as escolhas do plano sem perder os dados do trabalho.
 function guardarPlano(W) {
   if (!W.operacao || !$('plano')) return;
   const op = structuredClone(W.operacao);

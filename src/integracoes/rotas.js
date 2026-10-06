@@ -85,7 +85,12 @@ export function rotasIntegracoes(app, r) {
   }); });
   r.post('/api/integracoes/planos', ({ pessoa, corpo }) => { gate(pessoa); return seguro(app, () => {
     const necessidades = Array.isArray(corpo.necessidades) ? corpo.necessidades : necessidadesDoPedido(corpo.descricao);
-    return resumoPlano(app, criarPlano(app, pessoa, { quickWinId: Number(corpo.quick_win_id) || null, conversaId: Number(corpo.conversa_id) || null, necessidades, gatilho: corpo.gatilho }));
+    const qid = Number(corpo.quick_win_id) || null;
+    const q = qid ? app.quickWins.paraUso(pessoa, qid) : null;
+    if (qid && !q) throw erro(404, 'quick_win', 'Trabalho não encontrado para este perfil.');
+    const efetivo = q ? app.quickWins.efetivo(q) : null;
+    return resumoPlano(app, criarPlano(app, pessoa, { quickWinId: qid, conversaId: Number(corpo.conversa_id) || null,
+      necessidades: efetivo?.espec?.operacao?.integracoes || necessidades, controles: efetivo?.espec?.operacao?.controles || null, gatilho: corpo.gatilho }));
   }); });
   r.get('/api/integracoes/planos/:id', ({ pessoa, params }) => { gate(pessoa); return seguro(app, () => {
     const p = lerPlano(app, params.id);
@@ -97,6 +102,7 @@ export function rotasIntegracoes(app, r) {
     if (!p || (p.pessoa_id && p.pessoa_id !== pessoa.id)) throw new ErroIntegracao(404, 'nao_encontrado', 'Plano não encontrado.');
     return executarPlano(app, pessoa, p.id, { entrada: corpo.entrada || {}, resultado: corpo.resultado || {}, dados: corpo.dados || {} }, { lookup: app.dnsLookup });
   }); }, { limiteMb: 1 });
+  r.get('/api/integracoes/aprovacoes', ({ pessoa }) => { gate(pessoa); if (!pode(pessoa, 'integrations.approve')) throw new ErroIntegracao(403, 'sem_permissao', 'Você não pode revisar aprovações.'); return seguro(app, () => ({ pendentes: aprovacoesPendentes(app).filter(a => !a.resumo?.aprovador_id || a.resumo.aprovador_id === pessoa.id).map(a => ({ id: a.id, tipo: a.tipo, status: a.status, risco: a.risco, resumo: a.resumo, criado_em: a.criado_em })) })); });
   r.get('/api/integracoes/aprovacoes/:id', ({ pessoa, params }) => { gate(pessoa); return seguro(app, () => {
     const a = lerAprovacao(app, params.id);
     if (!a || (a.solicitado_por !== pessoa.id && !pode(pessoa, 'integrations.approve'))) throw new ErroIntegracao(404, 'nao_encontrado', 'Aprovação não encontrada.');

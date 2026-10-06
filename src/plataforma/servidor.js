@@ -157,6 +157,10 @@ function abrirTenant(P, id) {
     get enviados() { return P.email.enviados; },
   };
   t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id }, mestra: P.mestra });
+  t.pessoasDoTrabalho = () => todos(P.db, "select u.id, u.name from users u join company_users cu on cu.user_id = u.id where cu.company_id = ? and cu.status = 'ativo' and u.status = 'ativo'", id).map(u => {
+    const pid = sincronizarPessoa(P, id, u.id), perms = permissoesNaEmpresa(P.db, u.id, id);
+    return { id: pid, nome: u.name || 'Pessoa da empresa', aprova: perms.has('integrations.approve'), prepara: perms.has('integrations.manage') };
+  }).filter(p => p.id);
   t.emailProprio = smtpProprio;   // o teste do admin da empresa usa só o email dela, sem cair no da plataforma
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],

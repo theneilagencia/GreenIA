@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { exec, um, todos, json } from '../db.js';
 import { registrar } from '../eventos.js';
 import { ErroIntegracao, capabilitiesDe, conectorOu404, mudarStatus, novoId } from './conectores.js';
+import { controlesDoPlano, pessoasDoTrabalho } from './controle-qw.js';
 import { classificarRisco, NIVEIS } from './riscos.js';
 
 const agora = app => app.agora().toISOString();
@@ -56,7 +57,8 @@ export function solicitarExecucao(app, pessoa, { c, cap, entrada, planoId, passo
   if (existente) return lerAprovacao(app, existente.id);
   const id = novoId('apr');
   const previa = Object.fromEntries(Object.entries(entrada && typeof entrada === 'object' ? entrada : {}).slice(0, 30).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v).slice(0, 200) : String(v).slice(0, 200)]));
-  const resumo = { sistema: c.sistema, acao: cap.nome, modo: cap.modo, classe: cap.classe, risco: cap.risco, efeitos: Object.keys(cap.efeitos).filter(k => cap.efeitos[k]), dados: previa, hash: h, versao: c.versao };
+  const controle = controlesDoPlano(app, planoId);
+  const resumo = { ...(controle ? { expira_em: new Date(app.agora().getTime() + 24 * 60 * 60 * 1000).toISOString(), ...(controle.aprovador_id ? { aprovador_id: controle.aprovador_id } : {}) } : {}), sistema: c.sistema, acao: cap.nome, modo: cap.modo, classe: cap.classe, risco: cap.risco, efeitos: Object.keys(cap.efeitos).filter(k => cap.efeitos[k]), dados: previa, hash: h, versao: c.versao };
   exec(app.db, `insert into integration_approvals (id, tenant_id, tipo, connector_id, connector_versao, capability_id, plano_id, passo_id, resumo, risco, status, solicitado_por, criado_em)
     values (?, ?, 'execucao', ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)`, id, app.tenantId, c.id, c.versao, cap.id, planoId ?? null, passoId ?? null, JSON.stringify(resumo), cap.risco, pessoa?.id ?? null, agora(app));
   registrar(app, 'APPROVAL_REQUESTED', pessoa?.id, { aprovacao: id, tipo: 'execucao', connector: c.id, capability: cap.id, risco: cap.risco });
@@ -73,7 +75,12 @@ export const aprovacoesPendentes = app => todos(app.db, "select id from integrat
 export function decidir(app, pessoa, id, { aprovar, motivo = '' }) {
   const a = lerAprovacao(app, id);
   if (!a) throw new ErroIntegracao(404, 'nao_encontrado', 'Aprovação não encontrada.');
+  if (a.resumo.aprovador_id && (a.resumo.aprovador_id !== pessoa?.id || !pessoasDoTrabalho(app).some(p => p.id === pessoa.id && p.aprova))) throw new ErroIntegracao(403, 'aprovador', 'Esta alteração deve ser revisada pela pessoa definida no trabalho, com permissão de aprovação ativa.');
   if (a.status !== 'pendente') throw new ErroIntegracao(409, 'decidida', `Esta aprovação já está ${a.status}.`);
+  if (a.resumo.expira_em && Date.parse(a.resumo.expira_em) <= app.agora().getTime()) {
+    exec(app.db, "update integration_approvals set status='invalidada', motivo='prazo de aprovação encerrado', decidido_em=? where id=? and tenant_id=?", agora(app), a.id, app.tenantId);
+    throw new ErroIntegracao(409, 'aprovacao_expirada', 'O prazo deste pedido terminou. Gere uma nova execução para revisar os dados atuais.');
+  }
   const c = conectorOu404(app, a.connector_id);
   if (a.connector_versao !== c.versao) {
     exec(app.db, "update integration_approvals set status = 'invalidada', motivo = 'o conector mudou de versão', decidido_em = ? where id = ? and tenant_id = ?", agora(app), a.id, app.tenantId);
@@ -96,8 +103,19 @@ export function decidir(app, pessoa, id, { aprovar, motivo = '' }) {
 export function execucaoAprovada(app, { c, cap, planoId, passoId, entrada }) {
   // A decisão vale para ESTA entrada (hash): a de outra entrada da mesma etapa não conta.
   const h = hashEntrada(entrada);
-  const lista = todos(app.db, "select id, status, resumo from integration_approvals where tenant_id = ? and tipo = 'execucao' and capability_id = ? and plano_id is ? and passo_id is ? and connector_versao = ? order by criado_em desc",
+  const lista = todos(app.db, "select id, status, resumo, decidido_por from integration_approvals where tenant_id = ? and tipo = 'execucao' and capability_id = ? and plano_id is ? and passo_id is ? and connector_versao = ? order by criado_em desc",
     app.tenantId, cap.id, planoId ?? null, passoId ?? null, c.versao).filter(a => json(a.resumo, {}).hash === h);
+  for (const x of lista) {
+    const resumo = json(x.resumo, {});
+    const expirou = resumo.expira_em && Date.parse(resumo.expira_em) <= app.agora().getTime();
+    const aprovador = resumo.aprovador_id || (resumo.expira_em ? x.decidido_por : null);
+    const perdeuPermissao = x.status === 'aprovada' && aprovador && !pessoasDoTrabalho(app).some(p => p.id === aprovador && p.aprova);
+    if ((expirou || perdeuPermissao) && ['pendente', 'aprovada'].includes(x.status)) {
+      exec(app.db, "update integration_approvals set status='invalidada', motivo=? where id=? and tenant_id=?", expirou ? 'prazo de aprovação encerrado' : 'permissão de aprovação retirada', x.id, app.tenantId);
+      registrar(app, 'APPROVAL_INVALIDATED', null, { aprovacao: x.id, motivo: expirou ? 'prazo' : 'permissao' });
+      x.status = 'invalidada';
+    }
+  }
   const a = lista.find(x => x.status === 'aprovada') || lista.find(x => x.status === 'negada') || lista[0];
   return a ? { status: a.status, id: a.id, mesmaEntrada: true } : null;
 }

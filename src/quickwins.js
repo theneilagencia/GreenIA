@@ -19,6 +19,8 @@ import { integracoesLigadas } from './integracoes/rotas.js';
 import { necessidadesDoPedido, resolverNecessidades } from './integracoes/plano.js';
 import * as F from './fontes.js';
 import { INSTRUCAO_FONTES, PAPEIS, papelValido } from './fontes.js';
+import { validarControles } from './integracoes/controle-qw.js';
+import { rotasPreparacao } from './qw-preparacao.js';
 import { testeAtual } from './quickwin-teste.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
@@ -116,7 +118,7 @@ function doAssistente(app, cfg, a, atual = {}) {
   const op = a?.operacao && typeof a.operacao === 'object' ? a.operacao : null;
   if (QW2.conferirSegredos([a?.descricao, a?.como?.texto, a?.como?.exemplo, a?.nome, a?.para_que_serve, a?.formato_descricao, ...QW2.regrasProprias(a?.regras_proprias).map(x => x.texto), ...QW2.limparColunas(a?.colunas),
     ...(op?.contexto_respostas || []).map(r => r?.resposta), ...(op?.entregaveis || []).flatMap(e => [e?.config?.detalhe, e?.rotulo, e?.descricao]),
-    ...(op?.entradas || []).map(x => x?.rotulo), ...(op?.etapas || []).map(x => x?.texto), ...(op?.criterios || [])]))
+    ...(op?.entradas || []).map(x => x?.rotulo), ...(op?.etapas || []).map(x => x?.texto), ...(op?.criterios || []), ...(op?.integracoes || []).flatMap(n => [n?.sistema, n?.acao])]))
     throw erro(422, 'dado_bloqueado', 'Por segurança, senhas, chaves de acesso e outros segredos não podem fazer parte de um Quick Win. Tire o segredo do texto e tente de novo.', { tipos: ['credencial'] });
   // Regras próprias: ajustar sem mandar a lista mantém as que já estão no rascunho (lista vazia remove todas).
   const anterior = json(atual.especificacao, null);
@@ -146,7 +148,7 @@ function validar(app, pessoa, atual, c) {
   const cfg = lerConfig(app.db);
   if (c.assistente) c = { ...c, ...doAssistente(app, cfg, c.assistente, atual), assistente: undefined };
   const v = {};
-  if (c[ESPEC] !== undefined) v.especificacao = c[ESPEC];
+  if (c[ESPEC] !== undefined) { v.especificacao = c[ESPEC]; validarControles(app, QW2.normalizar(json(c[ESPEC], {}))?.operacao?.controles); }
   if (c.nome !== undefined) { v.nome = String(c.nome).trim().slice(0, 80); if (!v.nome) throw erro(400, 'nome', 'Dê um nome ao quick win.'); }
   if (c.cor !== undefined) { if (!/^#[0-9a-fA-F]{6}$/.test(c.cor)) throw erro(400, 'cor', 'Cor inválida.'); v.cor = c.cor; }
   if (c.icone !== undefined) v.icone = String(c.icone).trim().slice(0, 2);
@@ -363,6 +365,7 @@ export function rotasQuickWins(app, r) {
 
   // Criação em 5 etapas: sugestões (tipo de trabalho, nome, descrição, regras, formato) sem chamar a IA.
   const podeMontar = pessoa => permissoesQw(app.db, pessoa).criar || pessoa.admin || pessoa.areas.some(a => a.responsavel);
+  rotasPreparacao(app, r, { carregar, podeMontar });
   r.post('/api/quick-wins/assistente/sugerir', ({ pessoa, corpo }) => {
     if (!podeMontar(pessoa)) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar Quick Wins. Fale com o admin.');
     const como = corpo.como || {};
@@ -484,6 +487,7 @@ export function rotasQuickWins(app, r) {
     delete dados.id;
     // Quick Win 2.0: a especificação é montada das respostas da criação (ou copiada, ao duplicar).
     const v2 = corpo.assistente ? doAssistente(app, cfg, corpo.assistente) : origem?.especificacao ? { [ESPEC]: origem.especificacao } : {};
+    validarControles(app, QW2.normalizar(json(v2[ESPEC], {}))?.operacao?.controles);
     delete dados.especificacao;
     Object.assign(dados, v2);
     const id = transacao(app.db, () => {

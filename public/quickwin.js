@@ -64,6 +64,7 @@ async function listaQuickWins() {
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg larga">
       ${cabecalhoPg({ titulo: 'Quick Wins', descricao: 'Trabalhos que sua equipe pode executar com a IA seguindo regras definidas.', lado: ativos.length ? cta : '' })}
+      <section class="qw-inicio-guiado" aria-label="Por onde começar com Quick Wins"><div><h2>Trabalhos preparados pela empresa</h2><p>Escolha um trabalho, envie os materiais e acompanhe o resultado.</p></div><div class="qw-caminhos"><button type="button" data-qw-ir="qw-prontos"><b>Usar um trabalho pronto</b><span>Veja os disponíveis abaixo.</span></button>${E.podeCriarQw ? '<a href="#/qw/nova"><b>Criar um trabalho guiado</b><span>Defina o objetivo, os sistemas e quem acompanha.</span></a>' : ''}${preparo.length ? '<button type="button" data-qw-ir="qw-preparacoes"><b>Continuar uma preparação</b><span>Retome os rascunhos e confira o que falta.</span></button>' : ''}</div></section>
       ${!ativos.length ? estadoVazio({
         titulo: E.podeCriarQw ? 'Crie um trabalho que sua equipe poderá repetir com segurança.' : 'Ainda não há Quick Wins disponíveis para você.',
         texto: E.podeCriarQw ? 'Descreva o que precisa ser feito, defina as regras e teste antes de colocar em uso.' : 'Quando alguém da sua área publicar um Quick Win, ele aparece aqui.',
@@ -71,8 +72,8 @@ async function listaQuickWins() {
         exemplos: E.podeCriarQw ? [['Analisar propostas', 'Aponta valores, prazos, riscos e o que falta.'], ['Comparar documentos', 'Mostra item por item o que não bate.'], ['Preparar reuniões', 'Monta pauta, pontos de atenção e perguntas.']] : [],
       }) : ''}
       ${itens.length ? `<div class="filtros-biblioteca"><div class="campo"><label for="buscar-qw">Encontrar uma tarefa</label><input class="entrada" type="search" id="buscar-qw" placeholder="Busque pelo nome ou pelo que precisa fazer" aria-describedby="contagem-qw"></div><span class="dica" id="contagem-qw" role="status">${ativos.length} ${ativos.length === 1 ? 'tarefa disponível na lista' : 'tarefas na lista'}</span></div><p class="dica oculto" id="qw-busca-vazia">Nenhuma tarefa encontrada. Tente outra palavra.</p>` : ''}
-      ${bloco(gere ? 'Publicados' : 'Disponíveis para você', prontos)}
-      ${bloco('Em preparo', preparo, 'Só quem gerencia vê e usa')}
+      <div id="qw-prontos">${bloco(gere ? 'Publicados' : 'Disponíveis para você', prontos)}${!prontos.length ? '<p class="dica">Nenhum trabalho publicado disponível. Quem prepara pode criar e testar antes de liberar para a equipe.</p>' : ''}</div>
+      <div id="qw-preparacoes">${bloco('Em preparo', preparo, 'Só quem gerencia vê e usa')}</div>
       ${arquivados.length ? `<details class="qw-acompanhamento"><summary>Arquivados (${arquivados.length})</summary><ul class="qw-lista" style="margin-top:14px">${arquivados.map(itemQw).join('')}</ul></details>` : ''}
       ${port?.quickWins.length ? `<details class="qw-acompanhamento"><summary>Acompanhamento de uso e resultados</summary><p class="dica">Consumo e uso vêm dos registros da plataforma. “Serviu” é uma avaliação das pessoas; não comprova ganho financeiro. Benefícios dependem de medições informadas pela equipe.</p>
         <div class="ciclo" style="margin-top:16px">
@@ -94,6 +95,7 @@ async function listaQuickWins() {
   ligarCabecalho();
   ligarMenus();
   ligarAcoesQw($('principal'), itens, listaQuickWins);
+  document.querySelectorAll('[data-qw-ir]').forEach(b => b.onclick = () => { const el = document.getElementById(b.dataset.qwIr); if (el) { el.tabIndex = -1; el.scrollIntoView({ block: 'start' }); el.focus({ preventScroll: true }); } });
   ligarVisao('quickwins',$('buscar-qw')?.closest('.filtros-biblioteca'),()=>({busca:$('buscar-qw').value}),v=>{$('buscar-qw').value=String(v.busca||'');$('buscar-qw').dispatchEvent(new Event('input',{bubbles:true}));});
   const normalizarBusca = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   $('buscar-qw')?.addEventListener('input', ev => {

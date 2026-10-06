@@ -296,3 +296,11 @@
   .l-ecos-logo{width:54px;height:54px;border-radius:16px}
   .l-ecos-niveis span{font-size:14px}
 }
+.lv #quick-wins>.l-dentro>.l-sub{max-width:760px;margin-bottom:16px}
+.lv main>section[id],.lv #implantacao,.lv #conhecimento{scroll-margin-top:84px}
+.lv #quick-wins .qw-demo{margin-top:32px}
+.lv #integracoes .l-sub,.lv #como .l-sub{max-width:820px;margin-bottom:18px}
+.lv #integracoes .l-nota,.lv #como .l-nota{max-width:820px}
+.lv .l-tela-real{margin:40px 0 0}
+.lv .l-tela-real img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:16px;box-shadow:var(--sombra-1)}
+.lv .l-tela-real .l-legenda{margin-top:12px}

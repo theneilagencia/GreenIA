@@ -1750,3 +1750,24 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 @media(max-width:600px){.acomp-lista>li,.acomp-passos>li{padding:18px;gap:12px;flex-wrap:wrap}.acomp-lista>li>.btn,.acomp-passos>li>.btn{width:100%;justify-content:center}.acomp-passos>li>div{flex-basis:calc(100% - 50px)}.acomp-lista>li>div{flex-basis:100%}.acompanhamento .filtros-biblioteca{display:grid;grid-template-columns:1fr}.acomp-resumo{padding:18px}}
 /* Em telas baixas, preserve os cinco destinos principais e o acesso ao histórico. */
 @media(max-height:640px){.app .recentes-grupo{margin-top:4px}.app .recentes-grupo h2{margin-bottom:2px}.app .recentes-grupo .recentes-lat{max-height:44px;min-height:0}}
+
+/* Ajuda orientada ao primeiro trabalho, dentro da conversa. */
+.comecar-convite{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0}
+.comecar-convite>span{font-size:14px;color:var(--muted)}
+.ajude-comecar{border:1px solid var(--line-strong);border-radius:16px;background:var(--paper);padding:24px;margin:20px auto;text-align:left;max-width:720px}
+.ajude-comecar h3{font-size:22px;margin:8px 0 12px}
+.comecar-caminhos{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+.comecar-caminhos .caminho-inicio:last-child{grid-column:1/-1}
+.ajude-comecar label{display:block;font-weight:600;margin:18px 0 8px}
+.ajude-comecar textarea{resize:vertical;min-height:100px}
+.boas-vindas .ajude-comecar p{margin:12px 0;font-size:14px}
+.ajude-comecar form>.btn{margin:8px 8px 8px 0}
+.ajude-comecar .linha-botoes{margin-top:16px}
+@media(max-width:560px){.ajude-comecar{padding:16px}.comecar-caminhos{grid-template-columns:1fr}.comecar-convite{align-items:stretch;text-align:left;flex-direction:column}.ajude-comecar .btn{white-space:normal}}
+.ajude-comecar:not(.oculto)~.caminhos-inicio,.ajude-comecar:not(.oculto)~.guia-convite,.ajude-comecar:not(.oculto)~.cartao-base{display:none}
+.inicio-orientado>img,.inicio-orientado>h2,.inicio-orientado>p,.inicio-orientado>.comecar-convite>span{display:none}
+.inicio-orientado{padding-top:0}
+.inicio-orientado .comecar-convite{margin:12px 0;justify-content:flex-start}
+.inicio-orientado .ajude-comecar{margin-top:12px}
+.comecar-caminhos .caminho-inicio{padding:16px;gap:8px}
+.comecar-caminhos .caminho-inicio b{font-size:16px}

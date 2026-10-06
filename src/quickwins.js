@@ -554,6 +554,17 @@ export function rotasQuickWins(app, r) {
       .map(x => ({ numero: x.numero, nome: x.nome, publicada_em: x.publicada_em, publicada_por: x.publicada_por, atual: x.id === q.versao_publicada, teste: json(x.teste, null)?.status || null })) };
   });
 
+  r.get('/api/quick-wins/:id/comparar',({pessoa,params,query})=>{
+    const q=carregar(pessoa,params.id,true);
+    const resumo=numero=>{
+      const v=um(app.db,'select * from quick_win_versoes where quick_win_id = ? and numero = ?',q.id,Number(numero));
+      if(!v) throw erro(404,'versao','Versão não encontrada.');
+      const e=json(v.especificacao,{});
+      return {numero:v.numero,campos:{'Nome':v.nome,'Finalidade':v.para_que_serve,'Objetivo':e.objetivo||'', 'Formato':e.formato_saida?.tipo||v.formato,'Descrição da entrega':e.formato_saida?.descricao||'', 'Colunas':e.formato_saida?.colunas||[], 'Regras':QW2.regrasPrincipais(e),'Critérios de conferência':(e.criterios_qualidade||[]).map(c=>c.texto||''), 'Integrações declaradas':(e.operacao?.integracoes||[]).map(n=>`${n.sistema||'Sistema'} · ${n.acao||'Ação declarada'}`)}};
+    };
+    return {antes:resumo(query.antes),depois:resumo(query.depois),nota:'Bases, áreas, sigilo e permissões seguem a configuração atual e não são restaurados por esta comparação.'};
+  });
+
   // Restaurar: a versão escolhida volta a ser a atual e também vira o rascunho (para ajustar a partir dela).
   r.post('/api/quick-wins/:id/versoes/:numero/restaurar', ({ pessoa, params }) => {
     const q = carregar(pessoa, params.id, true);

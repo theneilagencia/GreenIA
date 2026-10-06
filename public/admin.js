@@ -1,3 +1,5 @@
+import { detalheAuditoria } from '/auditoria-detalhe.js';
+import { ligarVisao } from '/preferencias.js';
 // Gestão da GreenIA: telas de uso, pessoas, modelos, políticas, atividade,
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
@@ -278,6 +280,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
       u.porQuickWin.map(x => `<tr><td>${x.id ? `<a href="#/qw/${x.id}">${esc(x.quick_win)}</a>` : esc(x.quick_win)}</td><td class="num">${num(x.execucoes)}</td><td class="num">${x.id ? us(x.custoPorExecucao) : '–'}</td><td class="num">${x.id ? num(x.semAvaliacao) : '–'}</td><td class="num">${us(x.custo)}</td></tr>`))}
     <h3>Por pessoa</h3>${tabela(['Pessoa', '#Conversas', '#Respostas', col], linhas(u.porPessoa, x => `${esc(x.nome)} <span class="dica">${esc(x.email)}</span>`))}
     <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', col], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}`;
+  ligarVisao('uso',$('mes').closest('.filtros'),()=>({mes:$('mes').value}),v=>{if(/^\d{4}-\d{2}$/.test(v.mes))abaUso(v.mes);});
   $('mes').onchange = ev => abaUso(ev.target.value);
 }
 
@@ -331,9 +334,10 @@ async function abaEventos(filtro = {}, pagina = 0) {
       <a class="btn btn-linha btn-pequeno" href="/api/admin/eventos?${q}&formato=csv">Baixar CSV</a></form>
     <p class="dica">${num(d.total)} eventos.</p>
     ${tabela(['Quando', 'Tipo', 'Pessoa', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(e.tipo)}</td><td>${esc(e.pessoa || '—')}</td>
-      <td><code style="font-size:12.5px;white-space:pre-wrap;word-break:break-word">${esc(e.detalhes)}</code></td></tr>`), 'Nenhum evento com esses filtros.')}
+      <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhum evento com esses filtros.')}
     <div class="linha-botoes" style="margin-top:12px">${pagina > 0 ? '<button class="btn btn-linha btn-pequeno" id="ev-ant">Anteriores</button>' : ''}${(pagina + 1) * 100 < d.total ? '<button class="btn btn-linha btn-pequeno" id="ev-prox">Mais antigos</button>' : ''}</div>`;
   const ler = () => ({ tipo: $('ev-tipo').value, pessoa: $('ev-pessoa').value, de: $('ev-de').value, ate: $('ev-ate').value });
+  ligarVisao('atividade',$('filtro-ev').parentElement,ler,v=>abaEventos(v));
   $('filtro-ev').onsubmit = ev => { ev.preventDefault(); abaEventos(ler()); };
   if ($('ev-ant')) $('ev-ant').onclick = () => abaEventos(filtro, pagina - 1);
   if ($('ev-prox')) $('ev-prox').onclick = () => abaEventos(filtro, pagina + 1);

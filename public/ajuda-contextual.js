@@ -1,0 +1,19 @@
+import { esc } from '/comum.js';
+import { fecharComEscape } from '/acessibilidade.js';
+const ajuda={
+ conhecimento:['Encontre uma fonte confiável','Disponível para mim mostra as bases permitidas para você. Use busca e pastas para encontrar documentos.','Quem administra pode definir responsável, validade e suspensão. Um documento suspenso ou vencido não entra em novas respostas.'],
+ qw:['Use uma tarefa preparada','Abra o Quick Win, envie o material do caso e confira o resultado. Para outro caso, comece uma nova execução.','A conferência verifica regras configuradas. Ela não concede aprovação humana nem comprova que uma ação externa foi executada.'],
+ integracoes:['Conecte apenas o que a tarefa precisa','Confira sistema, conta, permissões e efeitos antes de aprovar. Credenciais devem ser informadas somente no campo próprio.','Aprovar não executa. Qualquer escrita continua dependente de autorização e das regras da empresa.'],
+ pendencias:['Resolva uma coisa de cada vez','Escolha um assunto e abra a tela indicada. Depois de resolver, atualize a lista.','A lista só mostra o que seu perfil pode acompanhar. Ocorrências anteriores podem já ter sido tratadas.'],
+ preparacao:['Prepare o ambiente','Confira pessoas, recursos, política e fontes. As etapas mostram configurações atuais, não uma certificação.','Integrações são opcionais. Publicar um Quick Win exige conferir o teste da tarefa.'],
+ atividade:['Entenda o registro','Filtre tipo, pessoa e período. Abra o detalhe para entender a alteração registrada.','A administração acompanha eventos e dados de uso; não recebe o conteúdo das conversas pessoais.'],
+ 'revisao-acessos':['Confira os vínculos','Revise áreas, grupos e quem administra as bases. Registre o que foi conferido.','Registrar a revisão não altera acesso. Para mudar permissões, abra o cadastro da pessoa.'],
+ uso:['Acompanhe o consumo','Consumo realizado vem dos registros de uso. Previsão é uma estimativa para o restante do período.','Limites e regras do plano continuam sendo aplicados. Uma projeção não representa uma cobrança já realizada.'],
+ default:['Conte o que precisa e confira o resultado','Para uma tarefa pronta, escolha um Quick Win. Para um pedido diferente, explique o resultado esperado e envie o material necessário.','Nunca envie senhas ou chaves. A opção de dados sigilosos reforça a proteção e não contorna bloqueios.']};
+export function abrirAjuda(origem) {
+ const h=location.hash.split('/')[1],a=ajuda[h==='quick-wins'?'qw':h]||ajuda.default,host=document.getElementById('modal');if(host.querySelector('[role="dialog"]'))return;
+ host.innerHTML=`<div class="fundo-modal"><section class="modal ajuda-contextual" role="dialog" aria-modal="true" aria-labelledby="ajuda-titulo" tabindex="-1"><div class="modal-topo"><h2 id="ajuda-titulo">${esc(a[0])}</h2><button class="icone-btn" id="ajuda-fechar" aria-label="Fechar ajuda">×</button></div><p>${esc(a[1])}</p><div class="guia-cuidado"><b>Antes de continuar</b><p>${esc(a[2])}</p></div><a class="btn btn-linha" href="#/primeiros-passos" id="ajuda-guia">Ver guia completo</a><p class="dica">Esta ajuda usa orientações fixas aprovadas. Não consulta seus arquivos nem consome créditos de IA.</p></section></div>`;
+ const fechar=()=>{limpar();host.innerHTML='';origem?.focus();};const limpar=fecharComEscape(host.querySelector('.modal'),fechar);
+ host.querySelector('#ajuda-fechar').onclick=fechar;host.querySelector('#ajuda-guia').onclick=fechar;host.querySelector('#ajuda-fechar').focus();
+ const sair=()=>{if(host.querySelector('#ajuda-titulo')){limpar();host.innerHTML='';}document.removeEventListener('greenia:antes-navegar',sair);};document.addEventListener('greenia:antes-navegar',sair,{once:true});
+}

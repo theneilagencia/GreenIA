@@ -45,7 +45,7 @@ export async function vistaGeral() {
   const atuais = v.atencao.filter(x => !['governanca', 'politica'].includes(x.tipo));
   const listaAtencao = itens => `<div class="lista">${itens.map(x => `<a class="lista-item" href="${esc(x.link)}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<br><span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`;
   $('principal').innerHTML = `${cabecalho('Visão geral', `<span class="dica">${MESES[Number(mes) - 1]} de ${ano}</span>`)}
-    <div class="pagina"><div class="pagina-dentro">
+    <div class="pagina"><div class="pagina-dentro"><div class="linha-botoes"><a class="btn btn-linha" href="#/preparacao">Preparar o ambiente</a><a class="btn btn-linha" href="#/pendencias">Ver pendências</a></div>
       ${pendentes.length ? `<div class="secao-titulo" style="margin-top:0"><h3>Implantação</h3><span class="dica">${v.implantacao.length - pendentes.length} de ${v.implantacao.length} etapas concluídas</span></div>
         <div class="etapas">${v.implantacao.map((e, i) => `<a class="etapa" href="${e.link}"><span class="passo ${e.feito ? 'feito' : ''}" aria-hidden="true">${e.feito ? '✓' : i + 1}</span>
           <span class="t"><b>${esc(e.nome)}</b><span>${esc(e.texto)}</span></span><span class="dica">${e.feito ? 'Concluída' : 'Pendente'}</span></a>`).join('')}</div>` : ''}
@@ -67,7 +67,7 @@ export async function vistaGeral() {
       ])}
 
       <div class="secao-titulo"><h3>Resultado</h3><a class="btn-texto btn-pequeno" href="#/quick-wins">Ver quick wins</a></div>
-      ${faixa([
+      <p class="dica">Estados vêm do cadastro dos Quick Wins. Avaliações são informadas pelos usuários; medições de benefício são registradas pela equipe.</p>${faixa([
         ['Em teste', num(r.porStatus.em_teste), ''],
         ['Aprovados ou em expansão', num((r.porStatus.aprovado || 0) + (r.porStatus.em_expansao || 0)), ''],
         ['Descartados', num(r.porStatus.descartado), ''],

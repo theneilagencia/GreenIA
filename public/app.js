@@ -40,7 +40,7 @@ export function cabecalho(titulo, acoes = '') {
       ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
-      <a class="icone-btn ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Ajuda e primeiros passos">?</a>
+      <button type="button" class="icone-btn ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" title="Ajuda desta tela">i</button><a class="icone-btn ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Ajuda e primeiros passos">?</a>
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
         <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}</button></div>
@@ -48,6 +48,7 @@ export function cabecalho(titulo, acoes = '') {
 }
 
 export function ligarCabecalho() {
+  $('ajuda-tela').onclick = ev => { const b=ev.currentTarget;import('/ajuda-contextual.js').then(m=>m.abrirAjuda(b)); };
   $('sair').onclick = async e => {
     e.currentTarget.disabled = true;
     try { await api('/api/sair', { metodo: 'POST' }); location.href = '/'; }
@@ -100,6 +101,7 @@ const SECOES_USO = () => [
   { titulo: 'Trabalho', itens: [
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/qw/') },
+    { id: 'pendencias', nome: 'Pendências', icone: 'atividade', ver: () => ehGestor() || !!E.bases?.areas?.length || pode('audit.read') || pode('integrations.approve') || pode('user.read') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
     // Administração no primeiro nível de Trabalho, só para quem já tem permissão (a mesma regra do alternador).
     { id: 'administracao', nome: 'Administração', icone: 'engrenagem', ver: () => administra(), href: () => inicioAdmin(), ativo: () => false },
@@ -111,6 +113,8 @@ export const RECENTES_LATERAL = 5;
 const SECOES_ADMIN = () => [
   { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
   { titulo: 'Gestão', itens: [
+    { id: 'preparacao', nome: 'Preparar o ambiente', icone: 'visao', ver: () => ['company.manage','usage.read','models.manage','user.read','policy.manage','settings.manage','integrations.manage','integrations.approve'].some(pode) },
+    { id: 'revisao-acessos', nome: 'Revisar acessos', icone: 'escudo', ver: () => pode('user.read') },
     { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: 'pessoas', ver: () => pode('user.read') },
     { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
     { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
@@ -127,7 +131,7 @@ const SECOES_ADMIN = () => [
     { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
   ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];
-const ROTAS_ADMIN = /^#\/(visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|integracoes|empresa\/)/;
+const ROTAS_ADMIN = /^#\/(preparacao|revisao-acessos|visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|integracoes|empresa\/)/;
 // Contexto da tela. Quem não administra nunca está na Administração, nem digitando o endereço.
 export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '') && administra();
 const itensAdmin = () => SECOES_ADMIN().flatMap(g => g.itens).filter(i => !i.ver || i.ver());
@@ -281,6 +285,8 @@ async function rota() {
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
+    else if (h === '#/pendencias' || h === '#/preparacao') await (await import('/acompanhamento.js')).vistaAcompanhamento(h === '#/preparacao');
+    else if (h === '#/revisao-acessos') await (await import('/acompanhamento.js')).vistaRevisaoAcessos();
     else if (h === '#/primeiros-passos') (await import('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);

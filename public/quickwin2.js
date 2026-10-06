@@ -871,14 +871,22 @@ export async function versoesQw(id) {
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Versões']], titulo: 'Versões', descricao: 'Cada publicação vira uma versão. A equipe usa sempre a versão atual.' })}
       ${qw.rascunho_alterado && qw.versao ? aviso(`<b>Rascunho em edição: v${qw.versao + 1}.</b> Ainda não publicado.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar nova versão</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar</a>`) : ''}
+      ${versoes.length>1?`<details class="qw-acompanhamento"><summary>Comparar versões</summary><form id="comparar-versoes" class="grade-2"><div class="campo"><label for="versao-antes">Versão anterior</label><select class="entrada" id="versao-antes">${versoes.map((v,i)=>`<option value="${v.numero}" ${i===1?'selected':''}>v${v.numero}</option>`).join('')}</select></div><div class="campo"><label for="versao-depois">Comparar com</label><select class="entrada" id="versao-depois">${versoes.map(v=>`<option value="${v.numero}">v${v.numero}</option>`).join('')}</select></div><button class="btn btn-linha">Ver diferenças</button></form><div id="versoes-diferencas" role="status"></div></details>`:''}
       <ul class="execucoes">${versoes.map(v => `<li><div class="execucao" style="padding:14px 4px;display:flex;flex-direction:column;flex:1"><b>v${v.numero}${v.atual ? ' · Versão atual' : ''}</b>
         <span class="dica">${dataCurta(v.publicada_em)}${v.publicada_por ? ` · ${esc(v.publicada_por)}` : ''}${v.teste ? ` · teste ${v.teste === 'inconsistente' ? 'com pontos para revisar' : v.teste === 'parcial' ? 'com conferência incompleta' : 'conferido'}` : ''}</span></div>
         ${v.atual ? '' : `<button type="button" class="btn btn-linha btn-pequeno" data-restaurar="${v.numero}">Restaurar esta versão</button>`}</li>`).join('') || '<li><span class="dica" style="padding:14px 4px">Ainda não publicado.</span></li>'}</ul>
     </div></div>`;
   ligarCabecalho();
+  if($('comparar-versoes')) $('comparar-versoes').onsubmit=async ev=>{
+    ev.preventDefault();const b=ev.target.querySelector('button');b.disabled=true;
+    try {const c=await api(`/api/quick-wins/${id}/comparar?antes=${$('versao-antes').value}&depois=${$('versao-depois').value}`);const texto=v=>Array.isArray(v)?v.map(x=>typeof x==='string'?x:JSON.stringify(x)).join('\n'):String(v??'');
+      $('versoes-diferencas').innerHTML=`<p class="dica">${esc(c.nota)}</p>`+Object.entries(c.antes.campos).map(([k,v])=>JSON.stringify(v)===JSON.stringify(c.depois.campos[k])?'':`<article class="comparacao-campo"><h3>${esc(k)}</h3><div class="grade-2"><div><b>v${c.antes.numero}</b><p>${esc(texto(v)||'Não definido')}</p></div><div><b>v${c.depois.numero}</b><p>${esc(texto(c.depois.campos[k])||'Não definido')}</p></div></div></article>`).join('');
+      if(!$('versoes-diferencas').querySelector('article'))$('versoes-diferencas').insertAdjacentHTML('beforeend','<p>Nenhuma diferença nos campos comparados.</p>');
+    }catch(e){$('versoes-diferencas').textContent=e.message;}finally{b.disabled=false;}
+  };
   document.querySelectorAll('[data-restaurar]').forEach(b => { b.onclick = async () => {
     if (!confirm(`Voltar para a v${b.dataset.restaurar}? Quem usa passa a receber essa versão agora, e o rascunho passa a ser ela.`)) return;
-    await api(`/api/quick-wins/${id}/versoes/${b.dataset.restaurar}/restaurar`, { metodo: 'POST', corpo: {} });
-    toast(`v${b.dataset.restaurar} é a versão atual.`); versoesQw(id);
+    b.disabled=true;try {await api(`/api/quick-wins/${id}/versoes/${b.dataset.restaurar}/restaurar`, { metodo: 'POST', corpo: {} });
+    toast(`v${b.dataset.restaurar} é a versão atual.`);await versoesQw(id);}catch(e){toast(e.message);b.disabled=false;}
   }; });
 }

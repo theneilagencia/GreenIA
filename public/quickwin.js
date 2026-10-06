@@ -1,3 +1,4 @@
+import { ligarVisao } from '/preferencias.js';
 // Quick wins: portfólio (o ciclo de adoção), página do quick win e configuração.
 // Um quick win é uma unidade operacional de adoção de IA: problema, responsável,
 // instruções, conhecimento, classe de modelo, uso, avaliação, resultado e decisão.
@@ -73,7 +74,7 @@ async function listaQuickWins() {
       ${bloco(gere ? 'Publicados' : 'Disponíveis para você', prontos)}
       ${bloco('Em preparo', preparo, 'Só quem gerencia vê e usa')}
       ${arquivados.length ? `<details class="qw-acompanhamento"><summary>Arquivados (${arquivados.length})</summary><ul class="qw-lista" style="margin-top:14px">${arquivados.map(itemQw).join('')}</ul></details>` : ''}
-      ${port?.quickWins.length ? `<details class="qw-acompanhamento"><summary>Acompanhamento de uso</summary>
+      ${port?.quickWins.length ? `<details class="qw-acompanhamento"><summary>Acompanhamento de uso e resultados</summary><p class="dica">Consumo e uso vêm dos registros da plataforma. “Serviu” é uma avaliação das pessoas; não comprova ganho financeiro. Benefícios dependem de medições informadas pela equipe.</p>
         <div class="ciclo" style="margin-top:16px">
           <div><b>Identificar</b><span>${cont('identificado')} identificados</span></div>
           <div><b>Testar</b><span>${cont('em_configuracao') + cont('em_teste')} em configuração ou teste</span></div>
@@ -93,6 +94,7 @@ async function listaQuickWins() {
   ligarCabecalho();
   ligarMenus();
   ligarAcoesQw($('principal'), itens, listaQuickWins);
+  ligarVisao('quickwins',$('buscar-qw')?.closest('.filtros-biblioteca'),()=>({busca:$('buscar-qw').value}),v=>{$('buscar-qw').value=String(v.busca||'');$('buscar-qw').dispatchEvent(new Event('input',{bubbles:true}));});
   const normalizarBusca = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   $('buscar-qw')?.addEventListener('input', ev => {
     const termo = normalizarBusca(ev.target.value.trim());
@@ -216,12 +218,12 @@ async function paginaQuickWin(id) {
           <button class="icone-btn" data-apagar="${c.id}" aria-label="Apagar ${esc(c.titulo)}" title="Apagar">${ICONE.lixo}</button></li>`).join('')}</ul>`
           : `<p class="dica">Nenhuma execução ainda.${podeUsar ? ` <a class="link-sutil" href="${usarHref(qw)}">Usar agora</a>` : ''}</p>`}
       </section>
-      ${qw.podeEditar && !qw.v2 ? '<section id="medicao-qw" class="qw-bloco" aria-label="Medição"></section>' : ''}
+      ${qw.podeEditar ? '<section id="medicao-qw" class="qw-bloco" aria-label="Medição"></section>' : ''}
     </div></div>`;
   ligarCabecalho();
   ligarMenus();
   ligarAcoesQw($('principal'), [{ ...qw, estado: e }], () => paginaQuickWin(id));
-  if (qw.podeEditar && !qw.v2) secaoMedicao($('medicao-qw'), id).catch(err => { $('medicao-qw').innerHTML = `<p class="dica">${esc(err.message)}</p>`; });
+  if (qw.podeEditar) secaoMedicao($('medicao-qw'), id).catch(err => { $('medicao-qw').innerHTML = `<p class="dica">${esc(err.message)}</p>`; });
   document.querySelectorAll('[data-sug]').forEach(b => { b.onclick = async () => { await vistaConversa({ qw }); const t = $('entrada'); t.value = b.textContent; t.dispatchEvent(new Event('input')); t.focus(); history.replaceState(null, '', `#/qw/${id}/nova`); }; });
   document.querySelectorAll('[data-renomear]').forEach(b => { b.onclick = async () => {
     const atual = lista.conversas.find(c => String(c.id) === b.dataset.renomear);

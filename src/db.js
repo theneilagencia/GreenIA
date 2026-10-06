@@ -1,9 +1,11 @@
+import { fazerBackupLocal } from './backup.js';
 // Banco de uma empresa: um arquivo SQLite (WAL). Cada empresa tem o seu arquivo (instalação única
 // ou dados/empresas/<company_id>.sqlite no modo multiempresa), então nenhuma tabela tem coluna de cliente.
+import { ESQUEMA_GOV } from './governanca-conhecimento.js';
 import { PACOTE_LEGADO } from './plataforma/catalogo.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, basename, join } from 'node:path';
 
 const ESQUEMA = `
 create table if not exists config (chave text primary key, valor text not null);
@@ -241,7 +243,14 @@ export function abrirBanco(arquivo = ':memory:') {
   // página livre do banco nem, por consequência, nos backups, que são cópias dele.
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000; pragma secure_delete = on;');
   const novo = !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'config'").get();
+  // Uma cópia consistente antes do primeiro acréscimo de governança, sem mudar dados antigos.
+  if(!novo && arquivo !== ':memory:' && !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'conhecimento_governanca'").get()) {
+    const pastaBase=process.env.BACKUP_PASTA||join(basename(dirname(arquivo))==='empresas'?dirname(dirname(arquivo)):dirname(arquivo),'backups');
+    const pasta=basename(dirname(arquivo))==='empresas'?join(pastaBase,basename(arquivo,'.sqlite')):pastaBase;
+    try {const b=fazerBackupLocal(db,{pasta,manter:Number(process.env.BACKUP_MANTER||14)});console.log('backup pré-governança concluído',b.tamanho);}catch(e){db.close();throw e;}
+  }
   db.exec(ESQUEMA);
+  db.exec(ESQUEMA_GOV);
   // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.
   if (novo) db.exec(`pragma user_version = ${MIGRACOES.length}`);
   else migrar(db);

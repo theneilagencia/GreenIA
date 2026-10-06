@@ -48,7 +48,7 @@ async function s3(metodo, alvo, corpo) {
 }
 
 // Faz o backup. Devolve o caminho local e, se houver, a URL no S3.
-export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env } = {}) {
+export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, agora = new Date() } = {}) {
   mkdirSync(pasta, { recursive: true });
   const nome = `greenia-${agora.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-')}.sqlite.gz`;
   const temp = join(pasta, `.${nome}.tmp`);
@@ -61,9 +61,15 @@ export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', m
   // Retenção local: fica com os mais recentes.
   const antigos = readdirSync(pasta).filter(f => /^greenia-\d{8}-\d{6}\.sqlite\.gz$/.test(f)).sort().reverse().slice(Math.max(1, manter));
   for (const f of antigos) rmSync(join(pasta, f));
+  return { local, tamanho:gz.length, nome };
+}
+
+export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env } = {}) {
+  const { local,tamanho,nome }=fazerBackupLocal(db,{pasta,manter,agora});
+  const gz=readFileSync(local);
   const alvo = alvoS3(destino, nome, env);
   if (alvo) await s3('PUT', alvo, gz);
-  return { local, tamanho: gz.length, remoto: alvo?.url || null };
+  return { local, tamanho, remoto: alvo?.url || null };
 }
 
 // Confere se um arquivo SQLite está íntegro e é um banco da GreenIA.

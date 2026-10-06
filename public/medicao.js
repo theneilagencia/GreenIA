@@ -1,3 +1,4 @@
+import { E } from '/app.js';
 // Medição do quick win, vista por quem gerencia: uso automático por mês,
 // comparação entre modelos, medição manual (antes e depois) e decisões.
 import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
@@ -20,18 +21,18 @@ export async function secaoMedicao(alvo, id) {
     <div class="campo"><span class="legenda">Origem</span><div class="opcoes">${Object.keys(ORIGENS).map(o => `<label><input type="radio" name="${k}-origem" value="${o}" ${(m[`${k}_origem`] || 'medido') === o ? 'checked' : ''}> ${o === 'medido' ? 'Medido' : 'Informado por alguém'}</label>`).join('')}</div></div></fieldset>`;
 
   alvo.innerHTML = `
-    <h3>Uso por mês</h3>
+    <h3>Uso por mês</h3><p class="dica">Medido pela plataforma: registros de uso e consumo. Avaliações são respostas das pessoas, não uma medição automática da qualidade.</p>
     ${d.usoMensal.length ? `<div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Mês</th><th>Conversas</th><th>Mensagens</th><th>Pessoas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>Sem retorno</th><th>${emCreditos() ? 'Créditos' : 'Custo de IA'}</th></tr></thead><tbody>
       ${d.usoMensal.map(u => `<tr><td>${mesNome(u.mes)}</td><td>${u.conversas}</td><td>${u.mensagens}</td><td>${u.pessoas}</td><td>${u.serviu}</td><td>${u.ajustes}</td><td>${u.nao_serviu}</td><td>${u.sem_feedback}</td><td>${brl(u.custo)}</td></tr>`).join('')}
     </tbody></table></div>` : '<p class="dica">Ainda sem uso. Os números aparecem quando alguém conversar neste quick win.</p>'}
     <p class="dica">Cada conversa conta como um uso. Você vê só os números. O conteúdo das conversas é de cada pessoa.</p>
 
     ${uso.porModelo.length > 1 ? `<h3>Modelos neste mês</h3><div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Modelo</th><th>Conversas</th><th>Serviu</th><th>Com ajustes</th><th>Não serviu</th><th>${emCreditos() ? 'Créditos por conversa' : 'Custo médio por conversa'}</th><th>Tempo médio</th></tr></thead><tbody>
-      ${uso.porModelo.map(m => `<tr><td>${esc(m.modelo)}</td><td>${m.conversas}</td><td>${m.serviu}</td><td>${m.ajustes}</td><td>${m.nao_serviu}</td><td>${brl(m.custoMedio)}</td><td>${num((m.ms / 1000).toFixed(1))} s</td></tr>`).join('')}
+      ${uso.porModelo.map((m,i) => `<tr><td>${esc(E.eu?.admin?m.modelo:'Recurso '+(i+1))}</td><td>${m.conversas}</td><td>${m.serviu}</td><td>${m.ajustes}</td><td>${m.nao_serviu}</td><td>${brl(m.custoMedio)}</td><td>${num((m.ms / 1000).toFixed(1))} s</td></tr>`).join('')}
     </tbody></table></div><p class="dica">Ajuda a decidir se vale trocar o modelo padrão.</p>` : ''}
 
     <h3>Medição antes e depois</h3>
-    <p class="dica">Lance um indicador que a equipe já acompanha. Sem o valor de antes, nada é calculado.</p>
+    <p class="dica">Lance um indicador que a equipe já acompanha. Identifique se foi medido pela equipe ou informado por alguém. A variação é calculada a partir desses valores; não é benefício verificado pela plataforma. Sem o valor de antes, nada é calculado.</p>
     <div class="lista" id="medicoes">${d.medicoes.map(m => `<div class="lista-item">
       <span class="principal-texto"><b>${esc(m.indicador)}${m.unidade ? ` (${esc(m.unidade)})` : ''}</b><span class="chip">${TIPOS[m.tipo] || 'Outro'}</span>
         <span>${m.antes_valor !== null ? `Antes: ${num(m.antes_valor)} (${dataBr(m.antes_data)}, ${ORIGENS[m.antes_origem]})` : 'Sem ponto de partida'}${m.depois_valor !== null ? ` · Depois: ${num(m.depois_valor)} (${dataBr(m.depois_data)}, ${ORIGENS[m.depois_origem]})` : ''}${m.variacao !== null ? ` · Variação: ${m.variacao > 0 ? '+' : ''}${num(+m.variacao.toFixed(2))}${m.percentual !== null ? ` (${m.percentual > 0 ? '+' : ''}${num(Math.round(m.percentual))}%)` : ''}` : ''}${m.observacao ? `<br>${esc(m.observacao)}` : ''}</span></span>

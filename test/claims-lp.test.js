@@ -39,7 +39,7 @@ test('registro: cada claim sustentado está na superfície, com evidência no c�
     assert.ok(S[r.superficie].includes(r.texto), `${r.id}: texto não está em "${r.superficie}": "${r.texto}"`);
     // 6534041: produção de referência. Os demais: commits da liberação candidata (governança, retenção, identificação legal,
     // encerramento e exportações).
-    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
+    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812', 'f70e85c'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
     const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(r.evidencia) || [];
     assert.ok(arquivo && simbolo, `${r.id}: evidência mal descrita: ${r.evidencia}`);
     assert.ok(existsSync(raiz + arquivo) && ler(arquivo).includes(simbolo), `${r.id}: ${arquivo} não contém "${simbolo}"`);
@@ -165,8 +165,8 @@ test('as páginas não fazem promessa jurídica, não generalizam garantias e n�
   }
   // O conceito aprovado e a responsabilidade da empresa estão na página de vendas.
   const v = semTags(ler('public/vendas.html'));
-  for (const frase of ['As regras da empresa acompanham o uso da IA', 'A empresa pode habilitar o uso de informações sigilosas por recursos autorizados', 'Regras definidas pela empresa',
-    'Créditos compartilhados pela empresa', 'permanece responsável por suas obrigações legais e regulatórias'])
+  for (const frase of ['Sua empresa define o que pode ser enviado à IA', 'Só segue por recursos autorizados', 'tipos de dados que reconhece',
+    'Os créditos mensais são compartilhados pela equipe', 'permanece responsável por suas obrigações legais e regulatórias'])
     assert.ok(v.includes(frase), frase);
 });
 
@@ -223,10 +223,10 @@ test('fornecedor: atributos declarados, nunca garantia verificada de retenção 
 
 test('roteamento e créditos: sem troca automática de recurso; continuidade sempre com a ressalva da reserva', () => {
   assert.doesNotMatch(texto, /troca (?:é|e) feita|troca\w* automaticamente|troca autom[áa]tica/i);
-  assert.match(texto, /a troca pode ser feita na classe/);
-  for (const f of frases(texto).filter(x => /quando os créditos acabam|ao atingir o limite|ao chegar a 100%/i.test(x)))
+  assert.match(texto, /A disponibilidade de modelos pode evoluir/);
+  for (const f of frases(texto).filter(x => !x.endsWith('?') && /quando os créditos acabam|ao atingir o limite|ao chegar a 100%/i.test(x)))
     assert.match(f, /reserva/i, `continuidade sem ressalva: "${f}"`);
-  assert.match(texto, /Esgotada a reserva, novas mensagens pausam/);
+  assert.match(texto, /Quando a reserva termina, novos envios pausam/);
   assert.doesNotMatch(texto, /pessoas sem limite|sem limite de pessoas|usuários ilimitados/i);
   assert.doesNotMatch(texto, /só o necessário/i);
   assert.doesNotMatch(texto, /Só domínios autorizados/i);
@@ -238,16 +238,14 @@ test('telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu
   // A tela de envio (políticas) fica ao lado da foto, fora de um figure: o bloco vai da janela ao fim da seção.
   const cena = html.slice(html.indexOf('l-cena-janela'), html.indexOf('</section>', html.indexOf('l-cena-janela')));
   const comNumeros = [...blocos, cena].filter(b => /class="(?:num|l-inst-uso|m-bolha|qw-demo)[^"]*"/.test(b));
-  assert.ok(comNumeros.length >= 5, `telas com números: ${comNumeros.length}`);
+  assert.ok(comNumeros.length >= 3, `telas com números: ${comNumeros.length}`);
   for (const b of comNumeros) assert.match(semTags(b), /dados fictícios|exemplo ilustrativo/i, semTags(b).slice(0, 120));
-  // Menu antigo (uso e gestão misturados) não volta; o topo mostra o alternador de contexto do produto.
-  const topo = blocos.find(b => b.includes('m-lat'));
-  assert.doesNotMatch(topo, /<b>Trabalho<\/b>/);
-  assert.doesNotMatch(topo, /Pessoas e áreas/);
-  assert.match(topo, /Usar GreenIA/);
-  assert.match(topo, /Administração/);
-  assert.match(topo, /Áreas e grupos/);
-  for (const item of ['Conversas', 'Quick wins</span>', 'Conhecimento']) assert.ok(!topo.includes(item), `item de uso no menu da Administração: ${item}`);
+  // A gestão agora é mostrada numa captura real do produto, com dados fictícios.
+  const real = blocos.find(b => b.includes('lp-gestao-demo.webp'));
+  assert.ok(real, 'captura real da gestão ausente');
+  assert.match(real, /Tela real da plataforma em ambiente de demonstração\. Dados fictícios/);
+  assert.ok(existsSync(raiz + 'public/assets/lp-gestao-demo.webp'));
+
 });
 
 test('comparação com terceiros: a página fala do que a GreenIA faz, sem generalizar sobre outros produtos', () => {

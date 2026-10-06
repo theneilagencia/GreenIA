@@ -14,9 +14,9 @@ const lead = { nome: 'Ana Souza', email: 'ana@cliente.com.br', empresa: 'Cliente
 
 test('a raiz abre a página de vendas só com PAGINA_INICIAL=vendas', async () => {
   const v = await (await fetch(`${V.base}/`)).text();
-  assert.match(v, /IA para a empresa inteira, com regras, sigilo e custo sob controle/);
+  assert.match(v, /IA para toda a empresa, com sigilo e controle de custos/);
   const c = await (await fetch(`${C.base}/`)).text();
-  assert.doesNotMatch(c, /IA para a empresa inteira, com regras, sigilo e custo sob controle/);
+  assert.doesNotMatch(c, /IA para toda a empresa, com sigilo e controle de custos/);
   assert.equal((await fetch(`${C.base}/vendas.html`, { redirect: 'manual' })).status, 302);
   assert.equal((await contato(C, lead)).status, 404);
 });
@@ -30,7 +30,7 @@ test('a página não promete o que não existe nem mostra custo de fornecedor', 
   assert.match(v, /href="#contato">Solicitar demonstração</);
   // Prumo Discovery: convite, nunca requisito.
   assert.match(v, /href="https:\/\/theneil\.com\.br\/prumo-discovery-lp\.html"/);
-  assert.match(v, /A GreenIA funciona com ou sem o Prumo/);
+  assert.match(v, /Preciso contratar o Prumo Discovery\?[^<]*<\/summary><p>Não\./);
   assert.doesNotMatch(v, /(?:exige|requer|precisa d[eo]|obrigat[óo]ri\w*|só funciona com)[^.<]{0,40}Prumo|Prumo[^.<]{0,40}(?:obrigat[óo]ri|exigid|requisito)/i);
   for (const proibido of [/\bSSO\b/, /\bSCIM\b/, /\bSLA\b/, /0,01/, /por token/i, /OpenRouter/]) assert.doesNotMatch(v, proibido);
   // Títulos sem ponto final.
@@ -64,12 +64,13 @@ test('limite de contatos por endereço', async () => {
   assert.equal((await contato(V, lead, h)).status, 429);
 });
 
-test('a LP apresenta trabalhos, orientação inicial e condições reais de integração', async () => {
+test('a LP mantém a demonstração e condições de integração com uma estrutura comercial curta', async () => {
   const v = await (await fetch(`${V.base}/`)).text();
-  for (const escopo of ['Criar e comunicar', 'Analisar e decidir', 'Planejar e organizar', 'Consultar o conhecimento da empresa', 'Executar processos da empresa']) assert.ok(v.includes(escopo));
-  assert.match(v, /Me ajude a começar/);
+  assert.ok(v.indexOf('id="quick-wins"') < v.indexOf('id="como"'));
+  assert.doesNotMatch(v, /id="trabalhos"/);
+  assert.match(v, /Na rotina: preparar propostas, analisar documentos, organizar projetos e consultar procedimentos/);
   assert.match(v, /Simulação · dados fictícios/);
   assert.match(v, /Nenhum sistema externo é acessado/);
-  assert.match(v, /Esse pedido não conecta o sistema automaticamente/);
-  assert.match(v, /a ação disponível e autorizada/);
+  assert.match(v, /Pedir uma conexão pela plataforma não a ativa automaticamente/);
+  assert.match(v, /a ação disponível e permissão de uso/);
 });

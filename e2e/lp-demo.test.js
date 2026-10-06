@@ -47,6 +47,11 @@ test('LP: redução de movimento, leitura no celular e formulário com tentativa
     }
     await p.getByRole('button', { name: 'Reiniciar demonstração' }).click();
     assert.equal(await p.locator('.qw-demo').getAttribute('data-playing'), 'false');
+    await p.locator('.l-tela-real').scrollIntoViewIfNeeded();
+    await p.waitForFunction(() => document.querySelector('.l-tela-real img').naturalWidth === 1280);
+    assert.ok(await p.locator('a[href^="#"]').evaluateAll(es => es.every(a => document.getElementById(a.getAttribute('href').slice(1)))));
+    await p.getByText('O Quick Win executa tudo sozinho?', { exact: true }).click();
+    assert.ok(await p.getByText('Depende do fluxo preparado.', { exact: false }).isVisible());
     await p.locator('#c-enviar').click(); assert.ok(await p.getByText('Preencha nome, email e empresa.').isVisible());
     await p.fill('#c-nome', 'Ana QA'); await p.fill('#c-email', 'ana@cliente.com.br'); await p.fill('#c-empresa', 'Empresa QA');
     await p.route('**/api/contato', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"mensagem":"Tente de novo."}' }));

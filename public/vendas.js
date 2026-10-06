@@ -1,6 +1,7 @@
 // Página de vendas: formulário de contato.
 import '/surgir.js';
 import '/lp-quickwin-demo.js';
+import '/lp-operacoes.js';
 
 const $ = id => document.getElementById(id);
 const form = $('form-contato');

@@ -23,9 +23,11 @@ test('a raiz abre a página de vendas só com PAGINA_INICIAL=vendas', async () =
 
 test('a página não promete o que não existe nem mostra custo de fornecedor', async () => {
   const v = await (await fetch(`${V.base}/`)).text();
+  const comercial = v.replace(/<figure class="qw-demo"[\s\S]*?<\/figure>/, "");
+  // Valores dos documentos fictícios são próprios do exemplo, não preço de plano.
   // Venda consultiva: sem preço, sem plano com valor e sem cadastro autônomo; o CTA principal é a apresentação.
-  assert.doesNotMatch(v, /US\$|R\$|por mês<\/span>|data-plano|Criar conta|Cadastre-se|Teste grátis/i);
-  assert.match(v, /href="#contato">Agendar apresentação</);
+  assert.doesNotMatch(comercial, /US\$|R\$|por mês<\/span>|data-plano|Criar conta|Cadastre-se|Teste grátis/i);
+  assert.match(v, /href="#contato">Solicitar demonstração</);
   // Prumo Discovery: convite, nunca requisito.
   assert.match(v, /href="https:\/\/theneil\.com\.br\/prumo-discovery-lp\.html"/);
   assert.match(v, /A GreenIA funciona com ou sem o Prumo/);
@@ -60,4 +62,14 @@ test('limite de contatos por endereço', async () => {
   const h = { 'x-forwarded-for': '10.1.1.1' };
   for (let i = 0; i < 5; i++) assert.equal((await contato(V, lead, h)).status, 200);
   assert.equal((await contato(V, lead, h)).status, 429);
+});
+
+test('a LP apresenta trabalhos, orientação inicial e condições reais de integração', async () => {
+  const v = await (await fetch(`${V.base}/`)).text();
+  for (const escopo of ['Criar e comunicar', 'Analisar e decidir', 'Planejar e organizar', 'Consultar o conhecimento da empresa', 'Executar processos da empresa']) assert.ok(v.includes(escopo));
+  assert.match(v, /Me ajude a começar/);
+  assert.match(v, /Simulação · dados fictícios/);
+  assert.match(v, /Nenhum sistema externo é acessado/);
+  assert.match(v, /Esse pedido não conecta o sistema automaticamente/);
+  assert.match(v, /a ação disponível e autorizada/);
 });

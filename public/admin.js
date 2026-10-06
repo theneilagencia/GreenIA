@@ -163,7 +163,11 @@ async function abaModelos() {
   };
   document.querySelectorAll('input[name="gov"]').forEach(t => { t.onchange = async () => {
       if (t.value === 'recomendado' && !confirm('Seguir as recomendações troca os ajustes manuais de modelos, níveis e roteamento pelas recomendações da GreenIA. As autorizações para dados sigilosos continuam valendo. Continuar?')) { abaModelos(); return; }
-      try { await api('/api/admin/governanca', { metodo: 'PUT', corpo: { modo: t.value } }); toast(t.value === 'recomendado' ? 'A empresa segue as recomendações da GreenIA.' : 'Configuração manual ligada.'); abaModelos(); } catch (e) { falhar(e); }
+      // Evita salvar o formulário antigo enquanto a escolha está sendo aplicada.
+      document.querySelectorAll('#conteudo input, #conteudo select, #conteudo button').forEach(e => { e.disabled = true; });
+      try { await api('/api/admin/governanca', { metodo: 'PUT', corpo: { modo: t.value } }); toast(t.value === 'recomendado' ? 'A empresa segue as recomendações da GreenIA.' : 'Configuração manual ligada.'); }
+      catch (e) { falhar(e); }
+      finally { await abaModelos(); }
   }; });
   $('conteudo').onclick = async ev => {
     const t = ev.target.closest('button');

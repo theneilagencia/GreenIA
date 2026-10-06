@@ -675,7 +675,7 @@ async function abaHistoricoModelos() {
   const d = await api('/api/admin/eventos?prefixo=model.');
   $('conteudo').innerHTML = `<p class="lead">Toda alteração de modelos fica registrada: liberação, classe, reserva, homologação e troca do modelo de cada classe.</p>
     ${tabela(['Quando', 'O que mudou', 'Quem', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(NOMES_EVENTO[e.tipo] || e.tipo)}</td><td>${esc(e.pessoa || 'sistema')}</td>
-      <td><code style="font-size:12px;white-space:pre-wrap;word-break:break-word">${esc(e.detalhes)}</code></td></tr>`), 'Nenhuma alteração registrada ainda.')}`;
+      <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhuma alteração registrada ainda.')}`;
 }
 const NOMES_EVENTO = { 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Classes e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%' };
 
@@ -699,5 +699,10 @@ export async function rotaGestao(id, sub = '') {
     <div id="conteudo">${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
   $('conteudo').onclick = null; $('conteudo').onchange = null;
-  try { await (atual ? atual[2] : t.fn)(); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
+  const conteudo = $('conteudo');
+  try { await (atual ? atual[2] : t.fn)(); } catch (e) {
+    if (!conteudo.isConnected) return;
+    conteudo.innerHTML = `<div class="faixa-aviso erro" role="alert"><strong>Não foi possível carregar esta tela.</strong><p>${esc(e.message || 'Verifique sua conexão e tente novamente.')}</p><button type="button" class="btn" id="tentar-carregar">Tentar novamente</button></div>`;
+    $('tentar-carregar').onclick = () => rotaGestao(id, sub);
+  }
 }

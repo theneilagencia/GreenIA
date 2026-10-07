@@ -26,7 +26,7 @@ Criar uma empresa cria o registro e o banco dela na hora, sem novo deploy. O ID 
 
 1. Domínio próprio cadastrado (`app.empresa.com.br`) → empresa dona do domínio.
 2. Subdomínio da plataforma (`empresa.greenia.theneil.com.br`, com DNS curinga) → empresa pelo slug.
-3. Caminho (`greenia.theneil.com.br/empresa`) → abre a landing da empresa e grava um cookie de contexto. As chamadas seguintes no mesmo endereço usam esse contexto.
+3. Caminho (`www.greenia.com.br/empresa`) → abre a landing da empresa e grava um cookie de contexto. As chamadas seguintes no mesmo endereço usam esse contexto.
 
 A sessão guarda `company_id`. Se o tenant resolvido for diferente do da sessão, a sessão não vale. Trocar ID ou URL manualmente não dá acesso a outra empresa.
 

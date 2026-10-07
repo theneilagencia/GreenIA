@@ -12,7 +12,6 @@ services:
     domains:
       - www.greenia.com.br      # endereço principal
       - greenia.com.br          # o Render redireciona para o www
-      - greenia.theneil.com.br  # endereço anterior: mantido para links antigos
     disk:
       name: dados
       mountPath: /app/dados

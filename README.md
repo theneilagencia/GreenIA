@@ -39,7 +39,7 @@ O arquivo `render.yaml` já descreve o serviço:
 - Docker, plano Starter, região Virgínia;
 - disco de 1 GB para o banco;
 - verificação de saúde em `/api/saude`;
-- domínio `www.greenia.com.br` (com `greenia.com.br` redirecionando para ele; o endereço anterior `greenia.theneil.com.br` continua aceito).
+- domínio `www.greenia.com.br` (com `greenia.com.br` redirecionando para ele).
 
 Passos:
 

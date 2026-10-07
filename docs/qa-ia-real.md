@@ -27,7 +27,7 @@ node scripts/qa-candidato.mjs
 ## 2. Produção, pelo fluxo de quem usa
 
 ```
-QA_BASE=https://greenia.theneil.com.br QA_EMPRESA=apy-mine node scripts/qa-producao.mjs
+QA_BASE=https://www.greenia.com.br QA_EMPRESA=apy-mine node scripts/qa-producao.mjs
 ```
 
 - Abre a tela de login. Entre com `vinicius@apymine.com` e o código que chega no seu e-mail.

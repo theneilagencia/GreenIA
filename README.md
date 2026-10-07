@@ -39,14 +39,14 @@ O arquivo `render.yaml` já descreve o serviço:
 - Docker, plano Starter, região Virgínia;
 - disco de 1 GB para o banco;
 - verificação de saúde em `/api/saude`;
-- domínio `greenia.theneil.com.br`.
+- domínio `www.greenia.com.br` (com `greenia.com.br` redirecionando para ele; o endereço anterior `greenia.theneil.com.br` continua aceito).
 
 Passos:
 
 1. No Render, clique em **New → Blueprint** e escolha este repositório. Ele pede `ADMIN_EMAIL` e `OPENROUTER_API_KEY`: preencha lá, nunca no repositório. Sem a chave, o serviço sobe com a IA desligada e o painel mostra o aviso.
    No modo multiempresa, a chave do OpenRouter também pode ser informada (ou trocada) pelo admin da plataforma no console, em **Uso → Chave do OpenRouter**: ela é testada no OpenRouter, guardada cifrada (AES-256-GCM) e vale na hora para todas as empresas, sem reiniciar; a do console vale no lugar de `OPENROUTER_API_KEY`. A chave-mestra da cifra vem de `CHAVE_MESTRA` (recomendado em produção) ou, sem ela, de um arquivo `dados/.chave-mestra` gerado na primeira vez. Se a chave-mestra mudar, informe a chave do OpenRouter de novo.
 2. Espere a primeira publicação ficar verde (**Live**).
-3. No DNS de `theneil.com.br`, crie um registro **CNAME** de `greenia` apontando para o endereço `*.onrender.com` do serviço. O Render mostra esse endereço em **Settings → Custom Domains** e emite o HTTPS sozinho.
+3. No DNS de `greenia.com.br`, crie um registro **CNAME** de `www` apontando para o endereço `*.onrender.com` do serviço e um registro **A** na raiz (`@`) apontando para `216.24.57.1` (IP do Render para domínio raiz). O Render mostra esses valores em **Settings → Custom Domains** e emite o HTTPS sozinho.
 4. Entre com o `ADMIN_EMAIL`. Enquanto não houver SMTP, o código aparece em **Logs** no Render. Configure o SMTP no painel (porta 587 ou 465) para as outras pessoas receberem o código por email.
 5. No Render, abra **Shell** e rode `node scripts/verificar.js`. Ele confere com o OpenRouter de verdade:
    - a chave e o limite de gasto;

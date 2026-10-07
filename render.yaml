@@ -10,7 +10,9 @@ services:
     healthCheckPath: /api/saude
     autoDeploy: true
     domains:
-      - greenia.theneil.com.br
+      - www.greenia.com.br      # endereço principal
+      - greenia.com.br          # o Render redireciona para o www
+      - greenia.theneil.com.br  # endereço anterior: mantido para links antigos
     disk:
       name: dados
       mountPath: /app/dados
@@ -37,7 +39,7 @@ services:
       - key: MULTIEMPRESA
         value: "1"
       - key: PLATAFORMA_HOST
-        value: greenia.theneil.com.br
+        value: www.greenia.com.br
       - key: PLATAFORMA_ADMINS
         sync: false         # emails dos administradores da plataforma, separados por vírgula
       - key: PLATAFORMA_FUSO

@@ -1781,3 +1781,26 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 /* Rotinas dos Quick Wins: leitura curta, ações visíveis e histórico sob demanda. */
 .qw-rotinas{display:grid;gap:18px;margin-top:24px}.qw-rotina-card{padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}.qw-rotina-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.qw-rotina-topo h3{margin:0 0 6px}.qw-rotina-historico{margin-top:18px}.qw-rotina-historico summary{cursor:pointer}.qw-rotina-historico ul{list-style:none;padding:0}.qw-rotina-historico li{display:flex;gap:16px;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}.qw-rotina-historico li .dica{display:block;margin-top:5px}.qw-rotina-form>section{padding:24px 0;border-bottom:1px solid var(--line)}.qw-rotina-form .rotulo{margin-bottom:16px}.qw-rotina-form textarea{width:100%;box-sizing:border-box}
 @media(max-width:600px){.qw-rotina-card{padding:18px}.qw-rotina-topo,.qw-rotina-historico li{flex-direction:column}.qw-rotina-form .duas-col{grid-template-columns:1fr}}
+
+/* Acompanhamento: títulos de cartões usam a escala da interface, sem herdar a serifa editorial. */
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos) h2{
+  font:600 16px/1.4 var(--sans);letter-spacing:-.01em;text-wrap:pretty;overflow-wrap:anywhere;margin:0 0 4px;
+}
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos)>li{
+  padding:16px;gap:14px;border-color:var(--line);border-radius:var(--raio-painel);background:var(--paper);
+}
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos) p{
+  font:400 14px/1.55 var(--sans);margin:4px 0 8px;
+}
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos) .dica{font-size:13px}
+.app .pagina .acompanhamento .acomp-resumo{
+  padding:16px 18px;margin:20px 0;border-color:var(--line);border-radius:var(--raio-painel);background:var(--surface);
+}
+.app .pagina .acompanhamento .acomp-resumo>b{font:600 14px/1.5 var(--sans)}
+.app .pagina .acompanhamento .acomp-resumo .dica{margin:8px 0 14px}
+.app .pagina .acompanhamento .acomp-resumo progress{accent-color:var(--forest)}
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos){gap:10px;margin:20px 0}
+@media(max-width:600px){
+  .app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos)>li{padding:14px;gap:12px}
+  .app .pagina .acompanhamento .acomp-resumo{padding:14px}
+}

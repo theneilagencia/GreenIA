@@ -23,7 +23,7 @@ test('a raiz abre a página de vendas só com PAGINA_INICIAL=vendas', async () =
 
 test('a página não promete o que não existe nem mostra custo de fornecedor', async () => {
   const v = await (await fetch(`${V.base}/`)).text();
-  const comercial = v.replace(/<figure class="qw-demo"[\s\S]*?<\/figure>/, "");
+  const comercial = v.replace(/<figure class="(?:qw-demo|op-demo)[^\"]*"[\s\S]*?<\/figure>/g, "");
   // Valores dos documentos fictícios são próprios do exemplo, não preço de plano.
   // Venda consultiva: sem preço, sem plano com valor e sem cadastro autônomo; o CTA principal é a apresentação.
   assert.doesNotMatch(comercial, /US\$|R\$|por mês<\/span>|data-plano|Criar conta|Cadastre-se|Teste grátis/i);

@@ -54,7 +54,11 @@ test('auditoria apresenta autor e detalhe legível e permite salvar filtros',asy
 test('layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisão',async()=>{
  const p=await abrir(admin,'#/pendencias');for(const width of [320,390,768,1280]){
   await p.setViewportSize({width,height:850});for(const hash of ['#/pendencias','#/preparacao','#/revisao-acessos']){
-   await p.goto(N.base+'/app'+hash);await p.waitForSelector('.acompanhamento');assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,hash+' '+width);
+   await p.goto(N.base+'/app'+hash);await p.waitForSelector('.acompanhamento');await p.waitForFunction(titulo=>document.querySelector('.cabeca h1')?.textContent.trim()===titulo,({'#/pendencias':'Pendências','#/preparacao':'Preparar o ambiente','#/revisao-acessos':'Revisar acessos'})[hash]);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,hash+' '+width);
+   const titulos=await p.locator('.acomp-lista h2,.acomp-passos h2').evaluateAll(els=>els.map(el=>({size:getComputedStyle(el).fontSize,family:getComputedStyle(el).fontFamily,weight:getComputedStyle(el).fontWeight})));
+   for(const t of titulos){assert.equal(t.size,'16px',hash+' '+width);assert.match(t.family,/Inter/);assert.equal(t.weight,'600');}
+   if(hash==='#/preparacao'&&width===1280)await p.screenshot({path:'/tmp/greenia-preparacao-tipografia.png'});
+   if(hash==='#/pendencias'&&width===1280)await p.screenshot({path:'/tmp/greenia-pendencias-tipografia.png'});
    assert.equal(await p.locator('#ajuda-tela').isVisible(),true);if(width===390&&hash==='#/pendencias')await p.screenshot({path:'capturas/tmp/pendencias-mobile.png',fullPage:true});
   }
  }await p.screenshot({path:'capturas/tmp/acompanhamento-mobile.png',fullPage:true});await p.close();

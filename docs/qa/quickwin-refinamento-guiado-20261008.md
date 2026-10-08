@@ -30,12 +30,18 @@ Ambiente local isolado, dados sintéticos, Chromium Headless Shell e provedor de
 | `node --test test/quickwin-refinamento.test.js` | 9/9 aprovados |
 | Regressões do construtor e API de versões, incluindo os testes de refinamento | 33/33 aprovados |
 | `node --test e2e/quickwin2.test.js` | 8/8 aprovados |
+| Suíte geral `node --test --test-concurrency=1 test/*.test.js` | 796/796 aprovados |
 | Sintaxe dos módulos alterados e `git diff --check` | Aprovados |
 
 O navegador validou: aprovação obrigatória por campo, orientação salva sem publicação, botão que permanece no resultado, resultado inconsistente, conferência parcial, criação e edição de versões, restauração, estrutura das colunas, respostas atrasadas, mudança de fontes e uso em celular. O cenário novo validou sugestões de IA, aprovação de objetivo/processo/entregáveis, regra não selecionada intacta, versão publicada e governança intactas, preservação de arquivo, repetição da mesma entrada e comparação antes/depois. Não houve erro JavaScript nesse cenário nem rolagem horizontal.
 
-A suíte geral `npm test` registrou 746 testes aprovados, mas não terminou neste ambiente; foi interrompida após deixar de avançar. Portanto, este relatório não declara aprovação da suíte geral. Os testes específicos e de navegador acima concluíram normalmente. Antes de merge/deploy, completar a suíte geral no ambiente de CI e validar sugestões com o provedor real em homologação.
+A suíte geral concluiu com **796/796 testes aprovados**, sem falhas, cancelamentos ou testes ignorados, usando `CHROMIUM_PATH` para o Chromium Headless Shell e `--test-concurrency=1`. A tentativa anterior que não concluiu não é usada como evidência de aprovação. A execução atual levou 365 segundos e inclui as regressões de OCR, retenção, governança, versões e renderização real.
 
 ## Publicação
 
-Sem merge, deploy ou publicação automática de Quick Wins. Nenhuma migração de banco é necessária. Publicar o rascunho continua sendo uma ação separada da pessoa autorizada.
+A implantação do código em produção foi autorizada pelo usuário em 08/10/2026. O estado do merge, do deploy e do QA com o provedor real é registrado no PR #31. Nenhuma migração de banco é necessária. Publicar o rascunho de um Quick Win continua sendo uma ação separada da pessoa autorizada.
+
+Destino confirmado: serviço Render `greenia`, `srv-darrnsfavr4c73fu4m9g`, workspace `tea-d4d77godl3ps73bsu3l0`, branch `greenia-lite`. O merge dispara o deploy automático, sem disparo manual duplicado. A versão de referência para reversão é `e2c3cd805d4afb556e7e1bae33cf90a23af9515c`, deploy `dep-db41cuuq1p3s73dalh6g`. Os logs confirmam o backup diário concluído em 08/10/2026 às 06:00 UTC; este trabalho não afirma ter criado um backup adicional. Se o QA reprovar, reverter somente os arquivos da implementação, preservando alterações concorrentes, e acompanhar o novo deploy. Não há restauração automática de bancos.
+
+O QA de produção utiliza um Quick Win novo com fornecedores fictícios, sem publicar o rascunho nem modificar Quick Wins preexistentes. A entrada fixa contém Alfa (R$ 100, 10 dias) e Beta (R$ 80, prazo não informado). O controle anterior ao deploy foi executado com IA real e aprovado pela conferência.
+

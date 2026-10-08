@@ -76,14 +76,12 @@ export function progressoExecucao(etapa) {
 // para revisar, com o resultado atrás de "Ver resultado". pergunta: nada (não houve resultado a conferir).
 export const painelQualidade = (q, ...r) => painelQualidadeBase(q, ...r) + (q && q.status !== 'pergunta' ? htmlAcoes(q) + htmlFontesUsadas(q) : '');
 // Ações dos avisos causados por configuração: link para a tela (e o campo) onde se libera ou ajusta. Quem não tem a
-// permissão vê onde pedir. 'quick_win': quem gere o Quick Win (a própria tela confere).
+// permissão também pode abrir o link; a tela e o servidor verificam o acesso antes de exibir ou salvar dados.
 function htmlAcoes(q) {
   const acoes = q?.acoes || [];
   if (!acoes.length) return '';
   const podeMudar = a => !a.permissao || a.permissao === 'quick_win' || (window.__greeniaPode ? window.__greeniaPode(a.permissao) : false);
-  return `<div class="qc-acoes">${acoes.map(a => podeMudar(a)
-    ? `<a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>`
-    : `<p class="dica">Para resolver, peça a quem administra a empresa: ${esc(a.onde)}.</p>`).join('')}</div>`;
+  return `<div class="qc-acoes">${acoes.map(a => `<div><a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>${podeMudar(a) ? '' : `<p class="dica">A alteração exige permissão. Peça a quem administra a empresa para revisar ${esc(a.onde)}.</p>`}</div>`).join('')}</div>`;
 }
 function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = '' } = {}) {
   if (!q || q.status === 'pergunta') return '';

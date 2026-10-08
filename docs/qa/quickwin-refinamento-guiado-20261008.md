@@ -31,6 +31,7 @@ Ambiente local isolado, dados sintéticos, Chromium Headless Shell e provedor de
 | Regressões do construtor e API de versões, incluindo os testes de refinamento | 33/33 aprovados |
 | `node --test e2e/quickwin2.test.js` | 8/8 aprovados |
 | Suíte geral `node --test --test-concurrency=1 test/*.test.js` | 796/796 aprovados |
+| Suíte completa de navegador `node --test --test-concurrency=1 e2e/*.test.js` | 110/110 aprovados |
 | Sintaxe dos módulos alterados e `git diff --check` | Aprovados |
 
 O navegador validou: aprovação obrigatória por campo, orientação salva sem publicação, botão que permanece no resultado, resultado inconsistente, conferência parcial, criação e edição de versões, restauração, estrutura das colunas, respostas atrasadas, mudança de fontes e uso em celular. O cenário novo validou sugestões de IA, aprovação de objetivo/processo/entregáveis, regra não selecionada intacta, versão publicada e governança intactas, preservação de arquivo, repetição da mesma entrada e comparação antes/depois. Não houve erro JavaScript nesse cenário nem rolagem horizontal.
@@ -44,4 +45,3 @@ A implantação do código em produção foi autorizada pelo usuário em 08/10/2
 Destino confirmado: serviço Render `greenia`, `srv-darrnsfavr4c73fu4m9g`, workspace `tea-d4d77godl3ps73bsu3l0`, branch `greenia-lite`. O merge dispara o deploy automático, sem disparo manual duplicado. A versão de referência para reversão é `e2c3cd805d4afb556e7e1bae33cf90a23af9515c`, deploy `dep-db41cuuq1p3s73dalh6g`. Os logs confirmam o backup diário concluído em 08/10/2026 às 06:00 UTC; este trabalho não afirma ter criado um backup adicional. Se o QA reprovar, reverter somente os arquivos da implementação, preservando alterações concorrentes, e acompanhar o novo deploy. Não há restauração automática de bancos.
 
 O QA de produção utiliza um Quick Win novo com fornecedores fictícios, sem publicar o rascunho nem modificar Quick Wins preexistentes. A entrada fixa contém Alfa (R$ 100, 10 dias) e Beta (R$ 80, prazo não informado). O controle anterior ao deploy foi executado com IA real e aprovado pela conferência.
-

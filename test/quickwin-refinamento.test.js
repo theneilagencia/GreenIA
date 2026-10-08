@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
-import { construir, promptExecucao, promptQualidade } from '../src/quickwin-construtor.js';
+import { construir, promptExecucao, promptQualidade, normalizar, conferirComCorrecao } from '../src/quickwin-construtor.js';
 import { salvarConfig } from '../src/config.js';
 import { exec, um, todos } from '../src/db.js';
 import { sugerirRefinamento, validarAlteracoes } from '../public/qw-refinamento.js';
@@ -167,4 +167,36 @@ test('não sobrescreve uma tela aberta antes de mudar o responsável ou o rascun
   const antigo = q.assinatura_rascunho;
   const r = await propor({ assinatura_base: antigo });
   assert.equal(r.status, 409);
+});
+
+
+test('processo aprovado orienta execução e conferência sem trocar contrato, regras ou ferramentas', async () => {
+  const base = construir({ descricao: 'Comparar propostas', formato: 'tabela', colunas: ['Fornecedor', 'Preço', 'Prazo'], colunas_origem: 'pessoa', regras: ['nao_inventar'] });
+  const e = construir({ ...base.origem, como: { modo: 'explicar', texto: 'Antes da tabela, indicar a proposta de menor preço e ressalvar o prazo ausente. Não decidir contratação.' } });
+  assert.deepEqual(e.formato_saida, base.formato_saida);
+  assert.deepEqual(e.ferramentas_permitidas, base.ferramentas_permitidas);
+  assert.deepEqual(e.regras, base.regras);
+  const n = normalizar(e);
+  assert.equal(n.criterios_qualidade.filter(c => c.id === 'processo_confirmado').length, 1);
+  assert.equal(normalizar(n).criterios_qualidade.filter(c => c.id === 'processo_confirmado').length, 1, 'normalização não duplica critério');
+  assert.match(promptExecucao(e), /não a mova para depois/);
+  assert.match(promptQualidade(e), /processo_confirmado:.*Antes da tabela/);
+  const table = '| Fornecedor | Preço | Prazo |\n| --- | --- | --- |\n| Beta | R$ 80 | não informado |';
+  const nota = 'Beta é o menor preço; o prazo não foi informado.';
+  const resto = base.formato_saida.secoes.map(s => `## ${s}\nNenhuma.`).join('\n');
+  const chamar = async mensagens => {
+    const sistema = mensagens[0].content;
+    if (sistema.includes('revisor da conferência')) return { texto: JSON.stringify({ achados: [{ id: 'processo_confirmado', confirmado: true, trecho: nota, prova: 'A orientação aparece depois da tabela.' }] }) };
+    if (sistema.includes('conferente de qualidade')) {
+      const t = mensagens.at(-1).content;
+      const correto = t.indexOf(nota) < t.indexOf('| Fornecedor');
+      return { texto: JSON.stringify({ criterios: [{ id: 'processo_confirmado', ok: correto, motivo: correto ? '' : 'A orientação aparece depois da tabela.' }] }) };
+    }
+    return { texto: `${nota}\n\n${table}\n${resto}` };
+  };
+  const r = await conferirComCorrecao({ espec: e, resposta: `${table}\n${nota}\n${resto}`, entrada: 'Beta: R$ 80; prazo não informado.', mensagens: [{ role: 'system', content: promptExecucao(e) }], chamar });
+  assert.equal(r.registro.status, 'corrigido');
+  assert.ok(r.texto.indexOf(nota) < r.texto.indexOf('| Fornecedor'), 'a correção atende à sequência aprovada');
+  const falha = await conferirComCorrecao({ espec: e, resposta: `${table}\n${nota}\n${resto}`, entrada: 'Beta: R$ 80; prazo não informado.', mensagens: [{ role: 'system', content: promptExecucao(e) }], chamar: async m => m[0].content.includes('conferente de qualidade') || m[0].content.includes('revisor da conferência') ? chamar(m) : { texto: `${table}\n${nota}\n${resto}` } });
+  assert.equal(falha.registro.status, 'inconsistente', 'ignorar o processo nunca sai aprovado');
 });

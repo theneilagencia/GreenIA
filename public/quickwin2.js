@@ -735,7 +735,7 @@ function htmlRefinamento(W) {
     <button type="button" class="btn btn-verde" id="salvar-refinamento" ${!W.resultado?.conversa ? 'disabled' : ''}>Analisar e sugerir mudanças</button><p class="dica" role="status" id="refinamento-progresso"></p>
     ${!W.resultado?.conversa ? '<p class="dica">Execute um teste nesta tela para receber sugestões baseadas no resultado.</p><button type="button" class="btn btn-linha" data-retomar-teste>Testar para refinar</button>' : ''}
     </div><p class="msg-erro" id="refinamento-erro" role="alert"></p><div id="refinamento-sugestoes"></div>
-    <p class="dica">A versão publicada continua em uso. Depois de aprovar, repita o mesmo teste e compare os resultados antes de publicar.</p></section>`;
+    <p class="dica">Nenhuma versão será publicada automaticamente. Depois de aprovar, repita o mesmo teste e compare os resultados antes de publicar.</p></section>`;
 }
 function ligarRefinamento(W) {
   document.querySelector('[data-abrir-refinamento]')?.addEventListener('click', async () => { if (!W.resultado?.conversa) await carregarContextoRefinamento(W); await abrirRefinamento(W); });

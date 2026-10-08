@@ -523,7 +523,9 @@ export function normalizar(espec) {
   if (!espec || espec.v !== VERSAO_ESPEC) return null;
   const operacao = limparOperacao(espec.operacao);
   const { operacao: _o, ...resto } = espec;
-  return { ...resto, regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
+  const processo = espec.origem?.como?.modo === 'explicar' ? String(espec.origem.como.texto || '').trim() : '';
+  const criteriosProcesso = processo ? [{ id: 'processo_confirmado', grupo: 'completo', texto: `Processo confirmado: ${processo}. O resultado respeita o conteúdo, a sequência narrativa e os limites indicados, dentro de cada peça. Confira somente instruções verificáveis no resultado; não exija relato das etapas internas. Isso não muda colunas, títulos, formatos, permissões ou regras do contrato confirmado.` }] : [];
+  return { ...resto, criterios_qualidade: [...(espec.criterios_qualidade || []).filter(c => c.id !== 'processo_confirmado'), ...criteriosProcesso], regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
     ferramentas_permitidas: executaveis(Array.isArray(espec.ferramentas_permitidas) ? espec.ferramentas_permitidas : []).filter(f => operacao?.ferramentas.includes(f)),
     ...(operacao ? { operacao } : {}), nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
 }
@@ -533,7 +535,7 @@ export function normalizar(espec) {
 // e regras. Sem isso, um campo que a pessoa tirou ou renomeou, mas que o texto do objetivo ainda cita, poderia
 // voltar na execução, na conferência ou na correção.
 export const PRECEDENCIA_EXECUCAO = 'O objetivo descreve o trabalho e a intenção. Para estrutura, formato, campos, ordem e regras, a autoridade final é a configuração confirmada abaixo (Regras e Formato da entrega): se o objetivo citar outros campos, outra ordem ou outro formato, siga a configuração.';
-export const PRECEDENCIA_CONFERENCIA = 'O formato, os campos e a ordem já foram conferidos pelo sistema contra o contrato confirmado: não os avalie. Avalie só os CRITÉRIOS abaixo, dentro desse contrato, e não exija campo, coluna, formato ou regra que não esteja no contrato ou nos critérios.';
+export const PRECEDENCIA_CONFERENCIA = 'O formato, os campos e a ordem das seções e dos entregáveis já foram conferidos pelo sistema contra o contrato confirmado: não os avalie. A sequência narrativa dentro de uma peça continua sujeita às instruções do processo confirmado, quando houver. Avalie só os CRITÉRIOS abaixo, dentro desse contrato, e não exija campo, coluna, formato ou regra que não esteja no contrato ou nos critérios.';
 
 // Intenção do trabalho para a conferência, sem a estrutura antiga do objetivo. Os trechos de estrutura são os que a
 // estruturação encontrou e o servidor conferiu (a evidência de cada coluna, localizada no próprio objetivo): o
@@ -597,6 +599,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
   if (f.secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) contrato.push(`Na seção "${SECAO_AUSENTES}", liste o que faltou; se nada faltou, escreva "Nenhuma".`);
   if (e.exemplos?.estrutura) { const x = e.exemplos.estrutura; contrato.push([DETALHE[x.detalhe], TOM[x.tom]].filter(Boolean).join(' ')); }
   partes.push(`Formato da entrega:\n${contrato.filter(Boolean).join('\n')}`);
+  if (e.origem?.como?.modo === 'explicar' && e.origem.como.texto) partes.push(`Orientação confirmada do processo: ${e.origem.como.texto}\nAplique também a ordem narrativa solicitada, dentro dos formatos e títulos confirmados. Se o processo pede uma orientação antes da tabela, escreva-a antes da tabela da peça; não a mova para depois nem crie um entregável novo. Isso não amplia ferramentas, fontes ou autonomia e não substitui as regras.`);
   const semMaterial = entregaMultipla(e.operacao) && !e.operacao.entradas?.length, comEntradas = e.operacao?.entradas?.some(x => x.obrigatoria);
   partes.push(`Perguntas: ${semMaterial ? 'este trabalho não precisa de material enviado (o pedido, a pesquisa e o contexto autorizado bastam); só pergunte se faltar algo essencial, como saber de qual empresa ou produto se trata.'
     : comEntradas ? 'só pergunte se faltar o material obrigatório (veja "Material deste trabalho") ou algo sem o qual o trabalho não pode ser feito.'

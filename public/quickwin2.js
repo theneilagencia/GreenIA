@@ -110,11 +110,13 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
     finally { if (e.target.isConnected) e.target.disabled = false; }
   };
   const marcarEdicao = () => { W.edicaoPendente = true; W.revisaoEdicao = (W.revisaoEdicao || 0) + 1; estadoRascunho(W, 'Alterações ainda não salvas · continue ou salve o rascunho'); };
-  $('etapa').addEventListener('input', ev => { if (!ev.target.closest('#fontes-qw')) marcarEdicao(); });
-  $('etapa').addEventListener('change', ev => { if (!ev.target.closest('#fontes-qw')) marcarEdicao(); });
+  $('etapa').addEventListener('input', ev => { if (!ev.target.closest('#fontes-qw, #refinar-qw')) marcarEdicao(); });
+  $('etapa').addEventListener('change', ev => { if (!ev.target.closest('#fontes-qw, #refinar-qw')) marcarEdicao(); });
   $('etapa').addEventListener('click', ev => {
     const b = ev.target.closest('button');
-    if (b && !b.closest('#fontes-qw') && !b.matches('[data-continuar],[data-voltar],[data-ir-etapa],[data-ir-teste]')) marcarEdicao();
+    // Feedback e seleção de propostas não editam o rascunho. A aprovação marca
+    // e salva as mudanças no próprio handler, antes de este clique propagar.
+    if (b && !b.closest('#fontes-qw, #refinar-qw') && !b.matches('[data-continuar],[data-voltar],[data-ir-etapa],[data-ir-teste],[data-ajustar],[data-repetir-teste]')) marcarEdicao();
   });
   $('excluir-qw')?.addEventListener('click', () => excluirQw(W.qw).catch(e => toast(e.message, 6000)));
   ligarVerResultado($('etapa'));

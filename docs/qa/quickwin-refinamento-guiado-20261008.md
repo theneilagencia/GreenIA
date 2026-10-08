@@ -45,3 +45,10 @@ A implantação do código em produção foi autorizada pelo usuário em 08/10/2
 Destino confirmado: serviço Render `greenia`, `srv-darrnsfavr4c73fu4m9g`, workspace `tea-d4d77godl3ps73bsu3l0`, branch `greenia-lite`. O merge dispara o deploy automático, sem disparo manual duplicado. A versão de referência para reversão é `e2c3cd805d4afb556e7e1bae33cf90a23af9515c`, deploy `dep-db41cuuq1p3s73dalh6g`. Os logs confirmam o backup diário concluído em 08/10/2026 às 06:00 UTC; este trabalho não afirma ter criado um backup adicional. Se o QA reprovar, reverter somente os arquivos da implementação, preservando alterações concorrentes, e acompanhar o novo deploy. Não há restauração automática de bancos.
 
 O QA de produção utiliza um Quick Win novo com fornecedores fictícios, sem publicar o rascunho nem modificar Quick Wins preexistentes. A entrada fixa contém Alfa (R$ 100, 10 dias) e Beta (R$ 80, prazo não informado). O controle anterior ao deploy foi executado com IA real e aprovado pela conferência.
+
+
+## QA funcional com IA real
+
+Na versão `d22f608`, o acesso pelo detalhe abriu o refinamento sem voltar ao objetivo. Um teste atual é exigido quando o resultado não está na sessão. As sugestões reais consideraram o feedback e o prazo ausente do Beta. Aprovar sem selecionar campo foi recusado. Apenas a regra selecionada foi aprovada no Quick Win de QA, ainda não publicado. A repetição usou o mesmo texto e passou pela conferência. A comparação preservou o teste anterior (conversa 47) e apresentou o posterior (conversa 48), agora com recomendação de menor preço e ressalva do prazo ausente. Nenhum Quick Win preexistente foi modificado.
+
+O QA detectou um aviso falso de edição pendente após a aprovação, causado pelo listener genérico de clique marcar edição depois de a gravação começar. O ajuste isola os controles de refinamento desse listener: feedback e seleção de proposta não editam o rascunho; a aprovação continua marcando e salvando os campos aprovados. A regressão de navegador verifica o aviso de rascunho salvo após a aprovação. O resultado da validação e do deploy desse ajuste é registrado no PR correspondente.

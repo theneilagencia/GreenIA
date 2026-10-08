@@ -689,11 +689,11 @@ async function desenharRefinamento(W) {
     <p class="dica">${W.qw.versao ? `A equipe continua usando a versão ${W.qw.versao}. ` : ''}Você aprova cada alteração no rascunho. Publicar é uma ação separada.</p>
     <div id="estado-rascunho" role="status">${W.refinarAprovado ? 'Rascunho salvo · a versão publicada não muda' : ''}</div>
     <div id="etapa">
+    ${c?.teste_anterior ? '<p class="dica">Este resultado é anterior ao rascunho atual. As propostas considerarão a configuração atual e este resultado histórico.</p>' : ''}
     ${W.erroContexto ? aviso(esc(W.erroContexto), 'erro') : ''}
     ${r?.rodando ? `<div id="teste-resultado">${htmlResultado(W)}</div>` : W.refinarAprovado ? `<section class="editor"><h3>Alterações aplicadas ao rascunho</h3><p>${esc(W.refinarAprovado.map(a => a.rotulo).join(', '))}. O material anterior foi preservado para repetir o caso.</p>${W.materialComparacao?.teste?.anexo?.nome ? `<p class="dica">Arquivo: <span id="teste-nome">${esc(W.materialComparacao.teste.anexo.nome)}</span></p>` : ''}</section>${r?.erro ? aviso(esc(r.erro), 'erro') : ''}<div id="teste-resultado">${htmlComparacao(W)}</div>${r?.conversa && r.conversa !== W.compararCom?.conversa && !r.erro ? '<button type="button" class="btn btn-linha" id="nova-rodada-refinamento">Refinar este novo resultado</button>' : ''}` : r?.conversa ? `
       <section class="editor refinamento-contexto"><h3>Resultado que vamos melhorar</h3><p>Execução ${r.conversa}${c?.teste?.em ? ` · ${dataCurta(c.teste.em)}` : ''}</p>
         ${c?.historico?.length > 1 ? `<label for="escolher-resultado">Usar outro resultado seu</label><select class="entrada" id="escolher-resultado">${c.historico.map(t=>`<option value="${t.id}" ${t.id===r.conversa?'selected':''}>${dataCurta(t.em)} · execução ${t.id}</option>`).join('')}</select>` : ''}
-        ${c?.teste_anterior ? '<p class="dica">Este resultado é anterior ao rascunho atual. As propostas considerarão a configuração atual e este resultado histórico.</p>' : ''}
         ${r.qualidade?.problemas?.length ? `<ul class="refinamento-problemas">${r.qualidade.problemas.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>` : '<p class="dica">A conferência não impede que você peça um resultado melhor.</p>'}
         <details><summary>Ver o resultado e a conferência</summary><div class="resultado-corpo">${r.html}</div>${painelQualidade(r.qualidade,{id:'refinamento-contexto'})}<a class="link-sutil" href="#/c/${r.conversa}">Abrir a conversa original</a></details>
         <p class="dica">${W.materialUltimoTeste ? 'O material deste caso está disponível para repetir o teste.' : 'O material não foi guardado pela política de retenção. Reenvie-o para testar novamente.'}</p></section>
@@ -882,6 +882,13 @@ async function rodarTeste(W, conversa, corpo) {
     }
     W.historicoTestes.push(structuredClone(W.resultado));
     W.qw = await api(`/api/quick-wins/${W.id}`);
+    if (W.modoRefinamento) {
+      try { W.contextoRefinamento = await api(`/api/quick-wins/${W.id}/refinamento?conversa=${conv.id}${fim?.id ? `&mensagem=${fim.id}` : ''}`); }
+      catch {
+        const em = new Date().toISOString(), c = W.contextoRefinamento || {};
+        W.contextoRefinamento = { ...c, teste: { ...c.teste, conversa: conv.id, em }, historico: [{ id: conv.id, em }, ...(c.historico || []).filter(t => t.id !== conv.id)] };
+      }
+    }
   } catch (e) { W.resultado = { erro: e.message }; }
   await desenhar(W, { foco: false });
   $('teste-resultado')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });

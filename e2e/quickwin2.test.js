@@ -47,6 +47,7 @@ before(async () => {
   N = await subirComNavegador({ adminEmail: 'admin@empresa-exemplo.com.br', ia: OR.ia });
   salvarConfig(N.app.db, { dominios: ['empresa-exemplo.com.br'] });
   const admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');
+  N.qaAdmin = admin;
   const area = (await admin.post('/api/admin/areas', { nome: 'Compras' })).dados.id;
   areaCompras = area;
   await admin.post('/api/admin/pessoas', { email: 'lia@empresa-exemplo.com.br', nome: 'Lia Prado', areas: [{ id: area, responsavel: true }] });
@@ -112,6 +113,23 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   assert.ok(await p.locator('#resultado-teste table').count() >= 1, 'o resultado é o trabalho (tabela)');
   const ordem = await p.evaluate(() => { const r = document.getElementById('resultado-teste'), q = document.querySelector('#teste-resultado .qc'); return r.compareDocumentPosition(q) & Node.DOCUMENT_POSITION_FOLLOWING; });
   assert.ok(ordem, 'conferência abaixo do resultado');
+  // Refinar depois do teste salva uma orientação sem publicar e mantém o caso de comparação.
+  await p.click('#refinar-qw summary');
+  const exemploAntes = await p.textContent('[aria-label="Material fictício do teste"]');
+  await p.click('#salvar-refinamento');
+  assert.match(await p.textContent('#refinamento-erro'), /Descreva o que precisa mudar/);
+  const orientacao = 'Começar pela recomendação e destacar os riscos antes da conclusão.';
+  await p.fill('#refinamento-texto', orientacao);
+  assert.equal(await p.getAttribute('#refinamento-texto', 'maxlength'), '160');
+  await p.click('#salvar-refinamento');
+  await p.waitForFunction(() => !document.querySelector('#resultado-teste') && document.querySelector('[data-testar]') && !document.querySelector('#refinamento-texto'));
+  assert.equal(await p.textContent('[aria-label="Material fictício do teste"]'), exemploAntes);
+  const idRefinado = /#\/qw\/(\d+)/.exec(p.url())[1];
+  const salvoRefinado = (await N.qaAdmin.get(`/api/quick-wins/${idRefinado}`)).dados;
+  assert.ok(salvoRefinado.assistente.regras_proprias.includes(orientacao));
+  assert.equal(salvoRefinado.versao, null, 'refinar não publica');
+  await p.click('[data-testar]');
+  await p.waitForSelector('#teste-resultado .qc');
   // Revisar e publicar.
   await clicar('[data-continuar]');
   await p.waitForSelector('.resumo-pub');
@@ -151,6 +169,10 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.click('#nova-execucao');
   await p.waitForSelector('.proxima-execucao');
   n = OR.chamadas.length;
+  await p.route(/\/api\/conversas\/\d+$/, async r => {
+    if (r.request().method() === 'GET') await new Promise(ok => setTimeout(ok, 600));
+    await r.continue();
+  });
   await p.fill('#entrada', 'Pedido 883: 10 correias. Nota: 9 correias.');
   await p.keyboard.press('Enter');
   await p.waitForFunction(() => document.querySelectorAll('.resposta .qc').length === 2);
@@ -161,6 +183,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.goto(`${N.base}/app#/quick-wins`);
   await p.waitForSelector('.qw-item');
   assert.match(await p.textContent('.qw-item'), /Comparar pedidos de compra.*v1.*Publicado.*Usar/s);
+  await p.waitForLoadState('networkidle');
   assert.deepEqual(erros, []);
 });
 

@@ -326,7 +326,11 @@ async function enviar(reenvio = null, { executar = false } = {}) {
 }
 
 async function recarregarConversa(redesenharTudo) {
-  const d = await api(`/api/conversas/${C.conv.id}`);
+  const atual = C;
+  let d;
+  try { d = await api(`/api/conversas/${atual.conv.id}`); }
+  catch (e) { if (e.name === 'AbortError') return; throw e; }
+  if (C !== atual || !$('coluna')) return;
   const sigAntes = C.conv.sigilosa;
   C.conv = d.conversa;
   if (redesenharTudo) { C.mensagens = d.mensagens; d.mensagens.forEach(m => vistos.add(String(m.id))); }

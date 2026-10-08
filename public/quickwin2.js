@@ -438,6 +438,7 @@ const ETAPA_HTML = [
         : W.teste.modo === 'colar' ? `<label class="sr" for="teste-texto">Texto do teste</label><textarea class="campo-amplo menor" id="teste-texto" placeholder="Cole um trecho do seu dia a dia">${esc(W.teste.texto)}</textarea>`
         : `<div class="arquivo-escolhido"><button type="button" class="btn btn-linha" id="teste-arquivo">${ICONE.clipe} Escolher arquivo</button><input type="file" id="teste-input" hidden accept="${ACEITOS}"><span class="dica" id="teste-nome">${esc(W.teste.anexo?.nome || 'PDF, Word, planilha ou imagem com texto')}</span></div>`}</div>
       <div id="teste-resultado">${r ? htmlResultado(W) : ''}</div>
+      ${r && !r.rodando ? htmlRefinamento(W) : ''}
       ${rodape(W, { continuar: pronto ? (['inconsistente', 'pergunta'].includes(r.qualidade?.status) ? '' : 'Revisar e publicar') : '',
         extra: pronto ? `${r.qualidade?.status === 'inconsistente' ? '<button type="button" class="btn btn-linha" data-revisar-assim>Revisar mesmo assim</button><button type="button" class="btn btn-verde" data-ajustar>Ajustar Quick Win</button>' : '<button type="button" class="btn btn-texto" data-ajustar>Ajustar Quick Win</button>'}${pausado ? '' : '<button type="button" class="btn btn-linha" data-testar>Testar novamente</button>'}`
           : `<button type="button" class="btn btn-verde" data-testar ${r?.rodando || (W.teste.modo === 'auto' && ex?.modo !== 'texto') ? 'disabled' : ''}>${r?.rodando ? 'Testando…' : 'Testar agora'}</button>` })}`;
@@ -461,7 +462,7 @@ const ETAPA_HTML = [
         <li><span class="r">Considera</span><div>${considera}</div></li>
         <li><span class="r">Respeita</span><ul>${(q.regras_rascunho || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul></li>
         <li><span class="r">Entrega</span><div>${esc(FORMATOS_SAIDA[a.formato]?.rotulo || '')}${a.formato === 'outro' && a.formato_descricao ? ` · ${esc(a.formato_descricao)}` : ''}${a.formato === 'tabela' && a.colunas?.length ? ` · ${esc(a.colunas.join(', '))}` : ''}</div></li>
-        <li><span class="r">Teste</span><div>${teste ? painelQualidade(teste, { id: 'revisao' }) || '<span class="dica">A IA pediu mais informação no último teste.</span>' : '<span class="dica">Ainda não testado.</span> <button type="button" class="link-sutil" data-ir-teste>Testar agora</button>'}</div></li>
+        <li><span class="r">Teste</span><div>${teste ? (painelQualidade(teste, { id: 'revisao' }) || '<span class="dica">A IA pediu mais informação no último teste.</span>') + htmlRefinamento(W) : '<span class="dica">Ainda não testado.</span> <button type="button" class="link-sutil" data-ir-teste>Testar agora</button>'}</div></li>
         ${areas.length > 1 || E.permQw.todaEmpresa ? `<li><span class="r">Quem usa</span><div class="opcoes">${areas.map(x => `<label><input type="checkbox" name="area" value="${x.id}" ${q.areas.includes(x.id) ? 'checked' : ''}> ${esc(x.nome)}</label>`).join('')}
           ${E.permQw.todaEmpresa ? `<label><input type="checkbox" id="toda" ${q.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></li>` : ''}
       </ul>
@@ -639,6 +640,43 @@ function ligarEntregas(W) {
 const htmlEstrutura = passos => `<div class="estrutura"><p>A GreenIA seguiria estes passos:</p><ol>${passos.map(p => `<li>${esc(p)}</li>`).join('')}</ol>
   <button type="button" class="btn btn-linha btn-pequeno" id="usar-estrutura">Usar estes passos e ajustar</button></div>`;
 
+function htmlRefinamento(W) {
+  return `<details class="editor bloco-extra" id="refinar-qw"><summary>Refinar Quick Win</summary>
+    <p>O resultado não ficou como você esperava? Acrescente uma orientação ou escolha o que precisa ajustar.</p>
+    <label class="legenda" for="refinamento-texto">O que deve mudar no próximo resultado?</label>
+    <textarea class="entrada" id="refinamento-texto" maxlength="160" rows="3" placeholder="Ex.: Começar com uma recomendação e explicar os riscos antes da conclusão.">${esc(W.refinamentoTexto || '')}</textarea>
+    <p class="dica">Até 160 caracteres. A orientação será adicionada às regras deste Quick Win. Para mudanças maiores, use as opções abaixo.</p>
+    <p class="msg-erro" id="refinamento-erro" role="alert"></p>
+    <button type="button" class="btn btn-linha" id="salvar-refinamento">Salvar orientação no rascunho</button>
+    <div class="linha-botoes bloco-extra">${[['Objetivo',0],['Processo e sistemas',1],['Regras e limites',2],['Formato e fontes',3]].map(([t,n]) => `<button type="button" class="btn btn-texto" data-refinar-etapa="${n}">${t}</button>`).join('')}</div>
+    <p class="dica">Depois de salvar, teste novamente e confira o resultado antes de publicar. A versão usada pela equipe só muda quando você publicar.</p></details>`;
+}
+function ligarRefinamento(W) {
+  $('refinamento-texto')?.addEventListener('input', ev => { W.refinamentoTexto = ev.target.value; });
+  document.querySelectorAll('[data-refinar-etapa]').forEach(b => { b.onclick = () => irEtapa(W, Number(b.dataset.refinarEtapa)); });
+  $('salvar-refinamento')?.addEventListener('click', async ev => {
+    const texto = String(W.refinamentoTexto || '').trim().replace(/\s+/g, ' '), erro = $('refinamento-erro');
+    if (texto.length < 3) { erro.textContent = 'Descreva o que precisa mudar antes de salvar.'; $('refinamento-texto').focus(); return; }
+    if (texto.length > 160) { erro.textContent = 'Use até 160 caracteres ou ajuste o processo nas opções abaixo.'; return; }
+    const existe = W.proprias.some(t => t.toLowerCase() === texto.toLowerCase());
+    if (!existe && W.proprias.length >= MAX_PROPRIAS) { erro.textContent = 'As cinco regras próprias já estão preenchidas. Abra Regras e limites para revisar uma delas.'; return; }
+    if (!guardarEtapa(W)) return;
+    if (!existe) W.proprias.push(texto);
+    W.edicaoPendente = true;
+    const exemplo = W.teste.exemplo, b = ev.currentTarget;
+    b.disabled = true;
+    try {
+      await salvar(W);
+      W.teste.exemplo = exemplo; // repetir o mesmo caso permite comparar o resultado
+      W.refinamentoTexto = '';
+      W.passo = 4;
+      await desenhar(W);
+      toast('Orientação salva no rascunho. Teste novamente para conferir o resultado.');
+    } catch (e) { if (erro.isConnected) erro.textContent = e.message || 'Não foi possível salvar. Sua orientação continua aqui.'; }
+    finally { if (b.isConnected) b.disabled = false; }
+  });
+}
+
 function htmlResultado(W) {
   const r = W.resultado;
   if (r.rodando) return `<div class="resultado">${progressoExecucao(r.etapa)}</div>`;
@@ -778,6 +816,7 @@ const ETAPA_LIGAR = [
     montarFontes($('fontes-qw'), { idAtual: W.id, obterId: async () => { if (!W.id) { guardarEtapa(W); await salvar(W); } return W.id; } });
   },
   W => {
+    ligarRefinamento(W);
     document.querySelectorAll('[data-material]').forEach(b => { b.onclick = () => { guardarEtapa(W); W.teste.modo = b.dataset.material; W.resultado = W.resultado?.rodando ? W.resultado : null; desenhar(W, { foco: false }); }; });
     document.querySelectorAll('[data-testar]').forEach(b => { b.onclick = () => testar(W); });
     document.querySelector('[data-responder]')?.addEventListener('click', () => responderEContinuar(W));
@@ -804,6 +843,7 @@ const ETAPA_LIGAR = [
     ligarArtefatosDoTeste(W);
   },
   W => {
+    ligarRefinamento(W);
     const editar = (ver, edicao, campo) => { $(ver).classList.add('oculto'); $(edicao).classList.remove('oculto'); $(campo).focus(); };
     $('editar-nome').onclick = () => editar('nome-ver', 'nome-edicao', 'nome');
     $('editar-desc').onclick = () => editar('desc-ver', 'desc-edicao', 'desc');

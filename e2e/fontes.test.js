@@ -29,13 +29,14 @@ const buscarFalso = async o => {
   if (!u.hostname.endsWith('.exemplo.test')) return buscaSegura(o);
   return { status: 200, cabecalhos: { 'content-type': 'text/html' }, corpo: Buffer.from('<html><head><title>Política de Viagens QA</title></head><body><h1>Política</h1><p>Hospedagem até R$ 410 por noite.</p></body></html>') };
 };
-let N, OR;
+let N, OR, adminQA;
 before(async () => {
   OR = await openRouterFalso({ responder });
   N = await subirComNavegador({ adminEmail: 'admin@empresa-exemplo.com.br', ia: OR.ia });
   N.app.buscarLink = buscarFalso;
   salvarConfig(N.app.db, { dominios: ['empresa-exemplo.com.br'], empresa: 'Empresa Exemplo' });
   const admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');
+  adminQA = admin;
   const area = (await admin.post('/api/admin/areas', { nome: 'Viagens' })).dados.id;
   for (const e of ['lia', 'w390']) await admin.post('/api/admin/pessoas', { email: `${e}@empresa-exemplo.com.br`, nome: e, areas: [{ id: area, responsavel: true }] });
   await admin.put(`/api/admin/modelos/${encodeURIComponent('mistralai/mistral-small')}`, { liberado: true, perfil: 'rapido' });
@@ -124,5 +125,34 @@ test('aviso de configuração com link: "Liberar a pesquisa na internet" leva a 
   await p.waitForFunction(() => document.activeElement?.id === 'pesquisa-web' && !!document.querySelector('.campo-destacado'));
   await p.waitForTimeout(900);
   await p.screenshot({ path: 'capturas/tmp/aviso-link-politicas.png' });
+  await ctx.close();
+});
+
+
+test('proteção reforçada: link visível para usuário comum; servidor impede alteração da área', async () => {
+  const admin = adminQA;
+  const area = (await admin.post('/api/admin/areas', { nome: 'Proteção QA', sigilosa: true })).dados;
+  const pessoa = (await admin.get('/api/admin/pessoas')).dados.pessoas.find(p => p.email === 'lia@empresa-exemplo.com.br');
+  await admin.post(`/api/admin/areas/${area.id}/pessoas`, { pessoas: [pessoa.id], adminBase: false });
+  salvarConfig(N.app.db, { pesquisaWeb: { ativa: true } });
+  const q = (await admin.post('/api/quick-wins', { assistente: { descricao: 'Pesquise na internet tendências de viagens', operacao: { canais: [], entregaveis: [{ id: 'e1', tipo: 'resumo', rotulo: 'Tendências' }], ferramentas: ['pesquisa_web'], origem: 'pessoa' } }, areas: [area.id] })).dados;
+  assert.equal((await admin.post(`/api/quick-wins/${q.id}/publicar`, {})).status, 200);
+  const comum = await cliente(N.app, N.base).entrar('lia@empresa-exemplo.com.br');
+  assert.equal((await comum.put(`/api/admin/areas/${area.id}`, { sigilosa: false })).status, 403);
+  const ctx = await N.navegador.newContext({ viewport: { width: 390, height: 844 } });
+  const p = await N.entrar('lia@empresa-exemplo.com.br', await ctx.newPage());
+  await p.goto(`${N.base}/app#/qw/${q.id}/usar`);
+  await p.waitForSelector('#entrada-qw');
+  await p.fill('#entrada-qw', 'Prepare sugestões para a próxima reunião.');
+  await p.click('#executar-btn');
+  const link = p.getByRole('link', { name: 'Revisar a proteção da área →', exact: true });
+  await link.waitFor({ timeout: 30000 });
+  assert.equal(await link.getAttribute('href'), '#/pessoas');
+  assert.ok(await p.getByText('A alteração exige permissão.', { exact: false }).isVisible());
+  assert.ok(await semRolagem(p));
+  await link.click();
+  await p.waitForURL('**/app#/nova');
+  assert.equal(await p.locator('[data-campo="sigilosa"]').count(), 0);
+  assert.equal((await admin.get(`/api/admin/areas/${area.id}`)).dados.area.sigilosa, true);
   await ctx.close();
 });

@@ -88,7 +88,10 @@ test('avisos de configuração trazem a ação: pesquisa, imagem, fonte obrigat�
   const p = resumoQualidade({ status: 'parcial', pesquisa: { exigida: true, feita: false, motivo: 'nao_liberada' } });
   assert.deepEqual(p.acoes.map(a => [a.href, a.permissao]), [['#/politicas?foco=pesquisa-web', 'policy.manage']]);
   assert.ok(p.avisos.some(a => /pesquisa na internet não foi feita/.test(a)));
-  assert.equal(resumoQualidade({ status: 'parcial', pesquisa: { exigida: true, feita: false, motivo: 'sigilosa' } }).acoes, undefined, 'sigilo não é configuração a liberar');
+  assert.equal(resumoQualidade({ status: 'parcial', pesquisa: { exigida: true, feita: false, motivo: 'sigilosa' } }).acoes[0].rotulo, 'Consultar as regras de sigilo', 'sigilo oferece consulta, não liberação automática');
+  const reforcada = acoesDoAviso({ pesquisa: { feita: false, motivo: 'area_reforcada' } });
+  assert.deepEqual(reforcada.map(a => [a.href, a.permissao]), [['#/pessoas', 'user.update']]);
+  assert.equal(acoesDoAviso({ pesquisa: { feita: true, motivo: 'area_reforcada' } }).length, 0);
   assert.deepEqual(acoesDoAviso({ objetivo: { motivo: 'imagem_nao_gerada', imagem_motivo: 'nao_liberado' } }).map(a => a.href), ['#/configuracoes?foco=iv-imagens']);
   assert.deepEqual(acoesDoAviso({ objetivo: { motivo: 'imagem_nao_gerada', imagem_motivo: 'area_reforcada' } }), []);
   const f = acoesDoAviso({ fontes: { obrigatorias_falharam: [{ titulo: 'Conhecimento da empresa', motivo: 'Nenhum trecho' }] }, quick_win: 7 });

@@ -776,11 +776,19 @@ const AVISO_OBJETIVO = {
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };
 // Aviso causado por configuração vem com a AÇÃO: onde liberar ou ajustar (link da tela, já no campo certo) e quem pode
-// (permissão). A tela mostra o link a quem pode mudar e, aos demais, a quem pedir.
+// (permissão). O link é visível para todos; a autorização continua na tela e no servidor.
 export function acoesDoAviso({ pesquisa = null, objetivo = null, fontes = null, quick_win = null } = {}) {
   const out = [];
   if (pesquisa && !pesquisa.feita && pesquisa.motivo === 'nao_liberada')
     out.push({ motivo: 'pesquisa_nao_liberada', rotulo: 'Liberar a pesquisa na internet', href: '#/politicas?foco=pesquisa-web', permissao: 'policy.manage', onde: 'Políticas de IA › Regras de uso' });
+  const revisoesPesquisa = {
+    area_reforcada: { rotulo: 'Revisar a proteção da área', href: '#/pessoas', permissao: 'user.update', onde: 'Áreas e grupos › Proteção da área' },
+    dados_protegidos: { rotulo: 'Revisar as regras de proteção dos dados', href: '#/politicas', permissao: 'policy.manage', onde: 'Políticas de IA › Regras de uso' },
+    sigilosa: { rotulo: 'Consultar as regras de sigilo', href: '#/politicas', permissao: 'policy.manage', onde: 'Políticas de IA › Regras de uso' },
+    reserva_do_plano: { rotulo: 'Consultar consumo e limites', href: '#/uso', permissao: 'usage.read', onde: 'Uso e créditos' },
+  };
+  if (pesquisa && !pesquisa.feita && revisoesPesquisa[pesquisa.motivo])
+    out.push({ motivo: `pesquisa_${pesquisa.motivo}`, ...revisoesPesquisa[pesquisa.motivo] });
   if (objetivo?.motivo === 'imagem_nao_gerada' && ['nao_liberado', 'sem_provedor'].includes(objetivo.imagem_motivo))
     out.push({ motivo: 'imagem_nao_liberada', rotulo: 'Liberar a geração de imagens', href: '#/configuracoes?foco=iv-imagens', permissao: 'settings.manage', onde: 'Configurações › Identidade visual' });
   for (const f of fontes?.obrigatorias_falharam || []) {

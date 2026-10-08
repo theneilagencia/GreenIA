@@ -478,7 +478,7 @@ export function construir(r = {}) {
       : 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
     formato_saida: { tipo, descricao: tipo === 'outro' ? [limpar(r.formato_descricao, 200) || (entregaPorCanal ? (operacao.canais.length ? 'Entregáveis separados por canal' : 'Entregáveis separados, cada um com o seu título') : '') || sug.descricao || a.formatoDescricao || '',
-      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : '', colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
+      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : limpar(r.formato_descricao, 200), colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
     exemplos: exemplo ? { estrutura: exemplo } : null,
     perguntas_esclarecimento: { max: 2, quando: 'Só quando faltar algo sem o qual o trabalho não pode ser feito, como o próprio material.' },
     nivel_autonomia: autonomia,
@@ -553,7 +553,7 @@ export function intencaoDoTrabalho(e) {
 }
 export function descreverContrato(f) {
   const base = f.tipo === 'tabela' ? (f.colunas.length ? `tabela com exatamente as colunas ${f.colunas.join(' | ')}, nesta ordem` : 'tabela') : FORMATOS_SAIDA[f.tipo]?.rotulo.toLowerCase() || f.tipo;
-  return `${base}${f.secoes.length ? `; seções ${f.secoes.join(', ')}` : ''}${f.tipo === 'outro' && f.descricao ? `; ${f.descricao}` : ''}`;
+  return `${base}${f.secoes.length ? `; seções ${f.secoes.join(', ')}` : ''}${f.descricao ? `; ${f.descricao}` : ''}`;
 }
 // Homologação real: o modelo perguntava o que podia resolver sozinho (o tema, quem são os concorrentes, se seguia
 // com uma informação faltando). Antes de perguntar, ele usa o que existe; pergunta só quando é impossível fazer.
@@ -592,6 +592,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
   else if (f.tipo === 'resumo') contrato.push('Entregue um resumo em parágrafos curtos.');
   else if (f.tipo === 'relatorio') contrato.push('Entregue um relatório com um título curto para cada seção (linhas começando com "## ").');
   else contrato.push(`Entregue no formato: ${f.descricao || 'o que o trabalho pedir'}.`);
+  if (f.tipo !== 'outro' && f.descricao) contrato.push(`Orientação para os entregáveis: ${f.descricao}`);
   if (f.secoes.length) contrato.push(`${f.tipo === 'tabela' ? 'Depois da tabela, inclua' : 'Use'} estas seções, nesta ordem, cada uma com título "## Nome": ${f.secoes.join('; ')}.`);
   if (f.secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) contrato.push(`Na seção "${SECAO_AUSENTES}", liste o que faltou; se nada faltou, escreva "Nenhuma".`);
   if (e.exemplos?.estrutura) { const x = e.exemplos.estrutura; contrato.push([DETALHE[x.detalhe], TOM[x.tom]].filter(Boolean).join(' ')); }

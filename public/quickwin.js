@@ -36,7 +36,7 @@ export async function rotaQuickWin(hash) {
   if (hash === '#/quick-wins') return listaQuickWins();
   if (hash === '#/qw/nova') return assistenteQw();
   if (hash === '#/qw/nova/modelos') return novaOrigem();
-  if ((m = /^#\/qw\/(\d+)\/refinar$/.exec(hash))) return assistenteQw(Number(m[1]), { passo: 5, refinar: true });
+  if ((m = /^#\/qw\/(\d+)\/refinar(?:\/(\d+)(?:\/(\d+))?)?$/.exec(hash))) return assistenteQw(Number(m[1]), { refinar: true, conversaId: m[2] ? Number(m[2]) : null, mensagemId: m[3] ? Number(m[3]) : null });
   if ((m = /^#\/qw\/(\d+)\/ajustar$/.exec(hash))) return assistenteQw(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/atualizar$/.exec(hash))) return assistenteQw(Number(m[1]), { atualizar: true });
   if ((m = /^#\/qw\/(\d+)\/publicar$/.exec(hash))) return publicarQw(Number(m[1]));

@@ -2,7 +2,7 @@
 // Nenhuma sugestão concede ferramentas, permissões ou publica uma versão.
 export function sugerirRefinamento({ descricao = '', processo = '', proprias = [], formatoDescricao = '', resultado, feedback }) {
   const texto = String(feedback || '').trim().replace(/\s+/g, ' ');
-  if (texto.length < 3 || texto.length > 160) throw new Error('Descreva o que precisa mudar em 3 a 160 caracteres.');
+  if (texto.length < 3 || texto.length > 1000) throw new Error('Descreva o que precisa mudar em 3 a 1000 caracteres.');
   const problemas = (resultado?.qualidade?.problemas || []).filter(p => typeof p === 'string');
   const motivo = problemas.length ? `A conferência apontou: ${problemas.join('; ')}. Sua orientação: ${texto}` : `Sua orientação sobre o resultado: ${texto}`;
   return [

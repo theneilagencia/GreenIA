@@ -44,11 +44,12 @@ test('exige edição autorizada e teste pertencente à pessoa e ao Quick Win', a
   assert.equal((await propor({ feedback: 'ab' })).status, 422);
 });
 
-test('falha da IA oferece orientação explícita, sem interpretar resposta inválida como sugestão', async () => {
+test('falha da IA mantém feedback sem inventar sugestões nem alterar o rascunho', async () => {
   resposta = '{"sugestoes":[{"campo":"permissoes","depois":"admin","motivo":"liberar"}]}';
   const r = await propor();
-  assert.equal(r.dados.fonte, 'orientacao');
-  assert.equal(r.dados.sugestoes.length, 4);
+  assert.equal(r.dados.fonte, 'indisponivel');
+  assert.equal(r.dados.sugestoes.length, 0);
+  assert.match(r.dados.mensagem, /orientação foi mantida/);
   resposta = JSON.stringify({ sugestoes: [{ campo: 'regras', depois: 'Começar pela recomendação.', motivo: 'Revisar início' }] });
 });
 
@@ -56,9 +57,75 @@ test('sigilo impede enviar material e resultado para análise adicional', async 
   exec(S.app.db, 'update conversas set sigilosa = 1 where id = ?', conv.id);
   const n = OR.chamadas.length;
   const r = await propor();
-  assert.equal(r.dados.fonte, 'orientacao');
+  assert.equal(r.dados.fonte, 'indisponivel');
   assert.equal(OR.chamadas.length, n);
   exec(S.app.db, 'update conversas set sigilosa = 0 where id = ?', conv.id);
+});
+
+test('reabrir recupera resultado, material e histórico próprio sem refazer o editor', async () => {
+  const r = await admin.get(`/api/quick-wins/${q.id}/refinamento?conversa=${conv.id}`);
+  assert.equal(r.status, 200, JSON.stringify(r.dados));
+  assert.equal(r.dados.teste.conversa, conv.id);
+  assert.equal(r.dados.teste.saida, 'Resumo do material enviado.');
+  assert.match(r.dados.teste.texto, /Documento de exemplo/);
+  assert.equal(r.dados.teste.disponivel, true);
+  assert.equal(r.dados.historico.length, 1);
+  assert.ok([403, 404].includes((await usuario.get(`/api/quick-wins/${q.id}/refinamento?conversa=${conv.id}`)).status));
+});
+
+test('repete material guardado em novo teste e mantém ligação para comparar após reabrir', async () => {
+  const novo = (await admin.post('/api/conversas', { quick_win_id: q.id, teste: true })).dados.conversa;
+  const r = await enviarMensagem(admin, novo.id, { repetir_conversa_id: conv.id, texto: 'NÃO USAR ESTE TEXTO' });
+  assert.equal(r.status, 200, JSON.stringify(r));
+  const mensagens = todos(S.app.db, 'select texto from mensagens where conversa_id = ? and papel = ?', novo.id, 'user');
+  assert.equal(mensagens[0].texto, 'Documento de exemplo com recomendação de revisão.');
+  const contexto = (await admin.get(`/api/quick-wins/${q.id}/refinamento?conversa=${novo.id}`)).dados;
+  assert.equal(contexto.teste.qualidade.conversa_base, conv.id);
+  assert.equal(contexto.anterior.conversa, conv.id);
+  assert.equal(contexto.anterior.saida, 'Resumo do material enviado.');
+  const deNovo = await admin.req('POST', `/api/conversas/${novo.id}/mensagens`, { repetir_conversa_id: conv.id });
+  assert.equal(deNovo.status, 409);
+});
+
+test('repetição recusa conversa de outra pessoa, outro Quick Win e conversa regular como destino', async () => {
+  const outro = (await admin.post('/api/quick-wins', { assistente: { descricao: 'Preparar pauta', formato: 'lista' }, toda_empresa: true })).dados;
+  const nova = (await admin.post('/api/conversas', { quick_win_id: outro.id, teste: true })).dados.conversa;
+  assert.equal((await admin.req('POST', `/api/conversas/${nova.id}/mensagens`, { repetir_conversa_id: conv.id })).status, 404);
+  const regular = (await admin.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
+  assert.equal((await admin.req('POST', `/api/conversas/${regular.id}/mensagens`, { repetir_conversa_id: conv.id })).status, 409);
+  const usuarioConv = (await usuario.post('/api/conversas', {})).dados.conversa;
+  exec(S.app.db, 'update conversas set quick_win_id = ? where id = ?', q.id, usuarioConv.id);
+  assert.equal((await admin.get(`/api/quick-wins/${q.id}/refinamento?conversa=${usuarioConv.id}`)).status, 404);
+});
+
+test('retenção impede repetir ou analisar conteúdo não guardado', async () => {
+  const antes = um(S.app.db, "select id, texto from mensagens where conversa_id = ? and papel = 'user'", conv.id);
+  exec(S.app.db, 'update mensagens set texto = ? where id = ?', '[Conteúdo processado e não guardado, pela política de retenção da empresa.]', antes.id);
+  try {
+    assert.equal((await admin.get(`/api/quick-wins/${q.id}/refinamento?conversa=${conv.id}`)).dados.teste.disponivel, false);
+    const n = OR.chamadas.length;
+    const proposta = await propor();
+    assert.equal(proposta.dados.fonte, 'indisponivel');
+    assert.match(proposta.dados.mensagem, /retenção/);
+    assert.equal(OR.chamadas.length, n);
+    const novo = (await admin.post('/api/conversas', { quick_win_id: q.id, teste: true })).dados.conversa;
+    assert.equal((await admin.req('POST', `/api/conversas/${novo.id}/mensagens`, { repetir_conversa_id: conv.id })).status, 409);
+  } finally { exec(S.app.db, 'update mensagens set texto = ? where id = ?', antes.texto, antes.id); }
+});
+
+test('resultado de execução regular pode ser refinado sem usar resposta de conversa posterior', async () => {
+  const regular = (await admin.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
+  const executada = await enviarMensagem(admin, regular.id, { texto: 'Material desta execução regular.', executar_quick_win: true });
+  assert.equal(executada.status, 200);
+  const respostaId = executada.fim.id;
+  exec(S.app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'assistant', ?, ?)", regular.id, 'Conversa posterior sem conferência.', new Date().toISOString());
+  const c = (await admin.get(`/api/quick-wins/${q.id}/refinamento?conversa=${regular.id}`)).dados;
+  assert.equal(c.teste.saida, 'Resumo do material enviado.');
+  assert.notEqual(c.teste.saida, 'Conversa posterior sem conferência.', new Date().toISOString());
+  const r = await propor({ conversa_id: regular.id });
+  assert.equal(r.dados.fonte, 'ia');
+  assert.doesNotMatch(JSON.stringify(OR.chamadas.at(-1).messages), /Conversa posterior sem conferência/);
+  assert.ok(respostaId);
 });
 
 test('aprovação rejeita sugestão desatualizada e conserva a especificação', async () => {

@@ -122,7 +122,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.fill('#refinamento-texto', orientacao);
   assert.equal(await p.getAttribute('#refinamento-texto', 'maxlength'), '160');
   await p.click('#salvar-refinamento');
-  await p.waitForFunction(() => !document.querySelector('#resultado-teste') && document.querySelector('[data-testar]') && !document.querySelector('#refinamento-texto'));
+  await p.waitForFunction(() => !document.querySelector('#resultado-teste') && document.querySelector('[data-testar]') && document.querySelector('#refinamento-texto')?.value === '');
   assert.equal(await p.textContent('[aria-label="Material fictício do teste"]'), exemploAntes);
   const idRefinado = /#\/qw\/(\d+)/.exec(p.url())[1];
   const salvoRefinado = (await N.qaAdmin.get(`/api/quick-wins/${idRefinado}`)).dados;
@@ -154,6 +154,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   assert.equal(OR.chamadas.length - antes, 2, 'execução + conferência');
   assert.match(await p.textContent('.rotulo-execucao'), /Resultado do Quick Win/);
   assert.match(await p.textContent('.resposta .qc'), /Resultado conferido/);
+  assert.equal(await p.locator('.resposta a:has-text("Refinar Quick Win")').count(), 1);
   assert.equal(await p.locator('#modelo').count(), 0, 'sem seletor de modelo');
   await semTecnico('resultado');
   // Mensagem seguinte: conversa normal (sem rótulo de execução, sem conferência, uma chamada).
@@ -184,6 +185,14 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.waitForSelector('.qw-item');
   assert.match(await p.textContent('.qw-item'), /Comparar pedidos de compra.*v1.*Publicado.*Usar/s);
   await p.waitForLoadState('networkidle');
+  // A opção deve ser encontrada no detalhe, na reabertura do teste e pela rota direta.
+  await p.goto(`${N.base}/app#/qw/${idRefinado}`);
+  await p.waitForSelector(`a[href="#/qw/${idRefinado}/refinar"]`);
+  await p.goto(`${N.base}/app#/qw/${idRefinado}/teste`);
+  await p.waitForSelector('#refinar-qw');
+  await p.goto(`${N.base}/app#/qw/${idRefinado}/refinar`);
+  await p.waitForSelector('#refinar-qw[open]');
+  assert.equal(await p.locator('#refinamento-texto').isVisible(), true);
   assert.deepEqual(erros, []);
 });
 

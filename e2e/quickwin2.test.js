@@ -20,10 +20,16 @@ const texto = c => (typeof c === 'string' ? c : c.map(p => p.text).join('\n'));
 // normal, responde à pergunta; na conferência, o veredito do cenário; na estruturação do objetivo, os campos que
 // cada objetivo do teste nomeia (com o trecho de origem), ou uma resposta ilegível no cenário de falha.
 const CAMPOS = { 'Cliente, Valor e Status': ['Cliente', 'Valor', 'Status'], 'Fornecedor, Vencimento, Valor contratado e Situação': ['Fornecedor', 'Vencimento', 'Valor contratado', 'Situação'] };
-let estruturaFalha = false;
+let estruturaFalha = false, refinamentoIA = false;
 const ehEstruturacao = b => texto(b.messages[0].content).includes('Você organiza o pedido');
 function responder(b) {
   const sis = texto(b.messages[0].content), ultima = String(b.messages.at(-1).content);
+  if (refinamentoIA && sis.includes('Você refina Quick Wins')) return JSON.stringify({ sugestoes: [
+    { campo: 'objetivo', depois: 'Resumir documentos e priorizar riscos', motivo: 'O teste não priorizou riscos.' },
+    { campo: 'processo', depois: 'Ler o material e começar pela recomendação.', motivo: 'A recomendação deve aparecer antes da conclusão.' },
+    { campo: 'regras', depois: 'Destacar riscos antes da conclusão.', motivo: 'Atender ao feedback sobre os riscos.' },
+    { campo: 'entregaveis', depois: 'Resumo com recomendação e riscos no início.', motivo: 'Ajustar a ordem do resultado observado.' }
+  ] });
   if (ehEstruturacao(b)) {
     if (estruturaFalha) return 'sem resposta';
     const campos = Object.entries(CAMPOS).find(([k]) => ultima.includes(k))?.[1] || [];
@@ -122,14 +128,20 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.fill('#refinamento-texto', orientacao);
   assert.equal(await p.getAttribute('#refinamento-texto', 'maxlength'), '160');
   await p.click('#salvar-refinamento');
+  await p.waitForSelector('[data-aprovar-campo="regras"]');
+  await p.click('#aprovar-refinamento');
+  assert.match(await p.textContent('#refinamento-erro'), /Selecione pelo menos/);
+  await p.check('[data-aprovar-campo="regras"]');
+  await p.click('#aprovar-refinamento');
   await p.waitForFunction(() => !document.querySelector('#resultado-teste') && document.querySelector('[data-testar]') && document.querySelector('#refinamento-texto')?.value === '');
   assert.equal(await p.textContent('[aria-label="Material fictício do teste"]'), exemploAntes);
   const idRefinado = /#\/qw\/(\d+)/.exec(p.url())[1];
   const salvoRefinado = (await N.qaAdmin.get(`/api/quick-wins/${idRefinado}`)).dados;
   assert.ok(salvoRefinado.assistente.regras_proprias.includes(orientacao));
   assert.equal(salvoRefinado.versao, null, 'refinar não publica');
-  await p.click('[data-testar]');
+  await p.click('[data-repetir-teste]');
   await p.waitForSelector('#teste-resultado .qc');
+  assert.match(await p.textContent('[aria-label="Comparação dos testes"]'), /Antes do refinamento.*Depois do refinamento/s);
   // Revisar e publicar.
   await clicar('[data-continuar]');
   await p.waitForSelector('.resumo-pub');
@@ -277,8 +289,9 @@ test('etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (
   assert.ok(await p.locator('#resultado-teste').isVisible());
   assert.equal(await p.locator('[data-continuar]').count(), 0, 'publicar não é a ação principal com pontos para revisar');
   await p.click('[data-ajustar]');
-  await p.waitForSelector('#objetivo');
-  assert.match(await p.inputValue('#objetivo'), /Cliente, Valor e Status/, 'ajustar volta ao início com tudo preenchido');
+  await p.waitForSelector('#refinar-qw[open]');
+  assert.equal(await p.locator('#objetivo').count(), 0, 'refinar permanece na tela do resultado');
+  assert.equal(await p.evaluate(() => document.activeElement?.id), 'refinamento-texto');
   qc = 'ok';
   assert.deepEqual(erros, []);
 });
@@ -557,4 +570,52 @@ test('a revisão não reaproveita a conferência em memória depois de mudar uma
   assert.match(await p.textContent('.resumo-pub'), /Ainda não testado/);
   assert.doesNotMatch(await p.textContent('.resumo-pub'), /Resultado conferido/);
   await p.close();
+});
+
+
+test('refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar', async () => {
+  qc = 'ok'; refinamentoIA = true;
+  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 }, storageState: await N.contexto.storageState() });
+  await cel.route(u => !u.href.startsWith(N.base), r => r.abort());
+  const p = await cel.newPage();
+  await p.goto(`${N.base}/app`);
+  if (p.url().includes('/entrar')) await N.entrar('lia@empresa-exemplo.com.br', p);
+  const erros = []; p.on('pageerror', e => erros.push(e.message));
+  try {
+    const criado = await N.qaAdmin.post('/api/quick-wins', { assistente: { descricao: 'Resumir documentos', formato: 'resumo', regras_proprias: ['Manter nomes originais'] }, areas: [areaCompras] });
+    assert.equal(criado.status, 200, JSON.stringify(criado.dados));
+    const id = criado.dados.id;
+    await N.qaAdmin.post(`/api/quick-wins/${id}/publicar`, {});
+    const antes = (await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados;
+    const versoes = (await N.qaAdmin.get(`/api/quick-wins/${id}/versoes`)).dados;
+    await p.goto(`${N.base}/app#/qw/${id}/teste`);
+    await p.waitForSelector('[data-material="arquivo"]');
+    await p.click('[data-material="arquivo"]');
+    await p.setInputFiles('#teste-input', { name: 'teste.txt', mimeType: 'text/plain', buffer: Buffer.from('O relatório aponta risco de atraso e recomenda revisar o cronograma.') });
+    await p.click('[data-testar]');
+    await p.waitForSelector('#teste-resultado .qc');
+    const entradaOriginal = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
+    await p.click('[data-ajustar]');
+    assert.equal(await p.locator('#objetivo').count(), 0);
+    await p.fill('#refinamento-texto', 'Começar pela recomendação e pelos riscos.');
+    await p.click('#salvar-refinamento');
+    await p.waitForSelector('[data-aprovar-campo="objetivo"]');
+    assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'refinamento sem rolagem horizontal');
+    assert.equal((await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados.rascunho_alterado, false, 'sugerir não altera');
+    for (const campo of ['objetivo', 'processo', 'entregaveis']) await p.check(`[data-aprovar-campo="${campo}"]`);
+    await p.click('#aprovar-refinamento');
+    await p.waitForSelector('[data-repetir-teste]');
+    const depois = (await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados;
+    assert.equal(depois.versao, antes.versao);
+    assert.deepEqual((await N.qaAdmin.get(`/api/quick-wins/${id}/versoes`)).dados, versoes);
+    assert.deepEqual(depois.assistente.regras_proprias, antes.assistente.regras_proprias, 'regra não selecionada permanece intacta');
+    for (const campo of ['sigiloso', 'dados', 'bases', 'responsavel']) assert.deepEqual(depois[campo], antes[campo], campo);
+    assert.equal(await p.textContent('#teste-nome'), 'teste.txt');
+    await p.click('[data-repetir-teste]');
+    await p.waitForSelector('#teste-resultado .qc');
+    const entradaRepetida = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
+    assert.equal(texto(entradaRepetida.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'mesmo texto extraído do arquivo');
+    assert.match(await p.textContent('[aria-label="Comparação dos testes"]'), /Antes do refinamento.*Depois do refinamento/s);
+    assert.deepEqual(erros, []);
+  } finally { refinamentoIA = false; await cel.close(); }
 });

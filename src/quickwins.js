@@ -21,6 +21,7 @@ import * as F from './fontes.js';
 import { INSTRUCAO_FONTES, PAPEIS, papelValido } from './fontes.js';
 import { validarControles } from './integracoes/controle-qw.js';
 import { rotasPreparacao } from './qw-preparacao.js';
+import { proporRefinamento, assinaturaRascunho } from './quickwin-refinamento.js';
 import { testeAtual } from './quickwin-teste.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
@@ -72,7 +73,7 @@ function publico(db, pessoa, q) {
   if (v2) Object.assign(base, v2.publico);
   if (!base.podeEditar) return base;
   if (v2) Object.assign(base, v2.gestao);
-  return { ...base, processo_atual: q.processo_atual, resultado: q.resultado, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
+  return { ...base, assinatura_rascunho: assinaturaRascunho(db, q), processo_atual: q.processo_atual, resultado: q.resultado, instrucoes: q.instrucoes, exemplo_entrada: q.exemplo_entrada, exemplo_saida: q.exemplo_saida, bases: json(q.bases, { modo: 'area', ids: [] }),
     dados: acoesDoQuickWin(q.dados, lerConfig(db)), arquivos: todos(db, "select id, titulo, arquivo, sigiloso, length(texto) as caracteres, papel, tipo_fonte as tipo, status, erro, url_exibida as url from documentos where quick_win_id = ? and coalesce(tipo_fonte, 'file') = 'file' order by id", q.id),
     fontes: F.fontesDoQw({ db }, q) };
 }
@@ -511,8 +512,11 @@ export function rotasQuickWins(app, r) {
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', id));
   });
 
+  r.post('/api/quick-wins/:id/refinamento', ({ pessoa, params, corpo }) => proporRefinamento(app, pessoa, carregar(pessoa, params.id, true), corpo));
+
   r.put('/api/quick-wins/:id', ({ pessoa, params, corpo }) => {
     const q = carregar(pessoa, params.id, true);
+    if (corpo.assinatura_refinamento && corpo.assinatura_refinamento !== assinaturaRascunho(app.db, q)) throw erro(409, 'rascunho_alterado', 'O rascunho ou suas fontes mudaram. Reabra o teste e gere novas sugestões antes de aprovar.');
     const { v, areas } = validar(app, pessoa, q, corpo);
     transacao(app.db, () => gravar(app, q.id, v, areas));
     registrar(app, 'quickwin.updated', pessoa.id, { quick_win: q.id, campos: Object.keys(v) });

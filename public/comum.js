@@ -18,7 +18,8 @@ export function fmtCusto(v, { conversa = false } = {}) {
 }
 export const definirCsrf = t => { csrf = t; };
 
-export async function api(caminho, { metodo = 'GET', corpo, bruto = false } = {}) {
+export async function api(caminho, { metodo = 'GET', corpo, bruto = false, independenteDaRota = false } = {}) {
+  const rotaDeLeitura = metodo === 'GET' && !independenteDaRota ? location.hash : null;
   const r = await fetch(caminho, {
     method: metodo, credentials: 'same-origin',
     headers: { ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(metodo !== 'GET' ? { 'x-csrf': csrf } : {}) },
@@ -27,6 +28,7 @@ export async function api(caminho, { metodo = 'GET', corpo, bruto = false } = {}
   if (bruto) return r;
   const dados = await r.json().catch(() => ({}));
   if (r.status === 401 && !caminho.startsWith('/api/login')) { location.replace('/entrar'); throw Object.assign(new Error('sem sessão'), { status: 401 }); }
+  if (rotaDeLeitura !== null && rotaDeLeitura !== location.hash) throw Object.assign(new Error('Navegação substituída'), { name: 'AbortError' });
   // A administração é autorizada só pelo servidor: um 403 dele numa leitura da administração avisa a tela, que
   // volta ao uso normal. A tela nunca decide sozinha.
   if (r.status === 403 && metodo === 'GET' && caminho.startsWith('/api/admin/')) dispatchEvent(new CustomEvent('greenia:admin-recusado'));

@@ -48,7 +48,7 @@ export function cabecalho(titulo, acoes = '') {
       ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
-      <button type="button" class="icone-btn ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" title="Ajuda desta tela">i</button><a class="icone-btn ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Ajuda e primeiros passos">?</a>
+      <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" title="Como usar esta tela">Ajuda</button><a class="btn btn-texto ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Guia de primeiros passos">Guia</a>
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
         <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}</button></div>
@@ -206,7 +206,7 @@ export function desenharLateral() {
 }
 
 export async function recarregarLateral() {
-  const [c, q] = await Promise.all([api('/api/conversas?todas=1'), api('/api/quick-wins').catch(() => ({ quickWins: [] }))]);
+  const [c, q] = await Promise.all([api('/api/conversas?todas=1', { independenteDaRota: true }), api('/api/quick-wins', { independenteDaRota: true }).catch(() => ({ quickWins: [] }))]);
   E.conversas = c.conversas; E.totalConversas = c.total;
   E.quickWins = q.quickWins || [];
   desenharLateral();
@@ -258,9 +258,17 @@ async function reportarProblema() {
 
 const GESTAO = ['uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configuracoes', 'conhecimento'];
 
+// A resposta de uma navegação antiga não substitui a tela atual.
+let versaoNavegacao = 0;
 async function rota() {
   const antes = new CustomEvent('greenia:antes-navegar', { cancelable: true });
   if (!document.dispatchEvent(antes)) return;
+  const versao = ++versaoNavegacao;
+  const importarTela = async nome => {
+    const modulo = await import(nome);
+    if (versao !== versaoNavegacao) throw Object.assign(new Error('Navegação substituída'), { name: 'AbortError' });
+    return modulo;
+  };
   lembreteAoSair();
   const fimTransicao = transicao();
   fecharNavegacao();
@@ -281,20 +289,22 @@ async function rota() {
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
-    else if (h === '#/pendencias' || h === '#/preparacao') await (await import('/acompanhamento.js')).vistaAcompanhamento(h === '#/preparacao');
-    else if (h === '#/revisao-acessos') await (await import('/acompanhamento.js')).vistaRevisaoAcessos();
-    else if (h === '#/primeiros-passos') (await import('/onboarding.js')).vistaOnboarding();
+    else if (h === '#/pendencias' || h === '#/preparacao') await (await importarTela('/acompanhamento.js')).vistaAcompanhamento(h === '#/preparacao');
+    else if (h === '#/revisao-acessos') await (await importarTela('/acompanhamento.js')).vistaRevisaoAcessos();
+    else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
-    else if (h === '#/quick-wins' || h === '#/quick-wins/programados' || h.startsWith('#/qw/')) await (await import('/quickwin.js')).rotaQuickWin(h);
-    else if ((h === '#/integracoes' || h.startsWith('#/integracoes/')) && E.integracoes) await (await import('/integracoes.js')).rotaIntegracoes(h);
-    else if (h === '#/visao-geral' && pode('usage.read')) await (await import('/visao.js')).vistaGeral();
-    else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await import('/empresa.js')).rotaEmpresa(m[1]);
-    else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await import('/admin.js')).rotaGestao(m[1], m[2]);
+    else if (h === '#/quick-wins' || h === '#/quick-wins/programados' || h.startsWith('#/qw/')) await (await importarTela('/quickwin.js')).rotaQuickWin(h);
+    else if ((h === '#/integracoes' || h.startsWith('#/integracoes/')) && E.integracoes) await (await importarTela('/integracoes.js')).rotaIntegracoes(h);
+    else if (h === '#/visao-geral' && pode('usage.read')) await (await importarTela('/visao.js')).vistaGeral();
+    else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await importarTela('/empresa.js')).rotaEmpresa(m[1]);
+    else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await importarTela('/admin.js')).rotaGestao(m[1], m[2]);
     else return irPara('#/nova');   // o início de todos, inclusive de quem administra, é o uso normal
   } catch (e) {
+    if (versao !== versaoNavegacao || e.name === 'AbortError') return;
     $('principal').innerHTML = `${cabecalho('GreenIA')}<div class="pagina"><div class="pagina-dentro"><p class="lead">${esc(e.message)}</p><a class="btn btn-verde" href="#/nova">Nova conversa</a></div></div>`;
     ligarCabecalho();
   }
+  if (versao !== versaoNavegacao) return;
   desenharLateral();
   fimTransicao();
   if (foco) destacarCampo(foco);

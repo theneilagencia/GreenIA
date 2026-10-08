@@ -1,0 +1,84 @@
+/* Escala da interface privada. Carregado após os estilos dos componentes.
+   Conteúdo de conversas e artefatos conserva sua própria hierarquia de leitura. */
+.app{
+  --ui-texto:14px;--ui-apoio:13px;--ui-titulo:20px;--ui-secao:16px;
+  font-size:var(--ui-texto);line-height:1.55;
+}
+.app .cabeca h1{font:600 var(--ui-titulo)/1.3 var(--sans);letter-spacing:-.015em}
+.app .pagina{padding:24px 28px 48px}
+.app .pagina :is(h2,.pg-titulo h2,.pergunta,.sucesso h2){
+  font:600 var(--ui-titulo)/1.35 var(--sans);letter-spacing:-.015em;overflow-wrap:anywhere;
+}
+.app .pagina h3{font:600 var(--ui-secao)/1.4 var(--sans);letter-spacing:-.005em;overflow-wrap:anywhere}
+.app .pagina :is(.lead,.pg-desc,.secao-conteudo,.resumo-pub>li,.regras-lista .regra-propria){font:400 var(--ui-texto)/1.6 var(--sans)}
+.app :is(.dica,.ajuda,.legenda,.qw-item-meta,.qc-itens){font-size:var(--ui-apoio);line-height:1.5}
+.app .pagina :is(.lead,.pg-desc){margin-bottom:20px}
+.app .pagina :is(.editor,.grupo-form,.conhecimento-envio,.conhecimento-documento){padding:16px;border-radius:var(--raio-painel)}
+.app .pagina :is(.conhecimento-doc-topo h3,.conhecimento-vazio h3,.item-int h3){font:600 15px/1.4 var(--sans);margin:0 0 4px}
+.app .pagina .conhecimento-bases h2{font-size:var(--ui-secao)!important}
+.app .pagina .indicador b{font:600 24px/1.25 var(--sans);font-variant-numeric:tabular-nums}
+.app .boas-vindas h2{font:600 24px/1.3 var(--sans);letter-spacing:-.02em}
+.app .caminho-inicio b{font:600 16px/1.4 var(--sans)}
+.app .pagina .vazio b{font:600 var(--ui-secao)/1.4 var(--sans)}
+.app :is(.btn,.btn-pequeno,.btn-texto){font-size:var(--ui-texto);line-height:1.4;min-height:40px}
+.app .entrada{font-size:var(--ui-texto);line-height:1.5;min-height:40px}
+.app .pagina :is(.campo,.pg-titulo-texto,.pg-acoes,.filtros-biblioteca,.grade-2>*,.grade-3>*){min-width:0}
+.app .pagina :is(input,select,textarea){min-width:0;max-width:100%}
+.app .pagina .lista-item-linha .lista-item{min-width:0;width:auto}
+.app .pagina .lista-item-linha .link-sutil{flex:none}
+.app .pagina .principal-texto span{overflow-wrap:anywhere}
+.app .pagina .pg-titulo-texto{flex-basis:240px}
+.app .pagina :is(.pg-acoes,.linha-botoes,.filtros){flex-wrap:wrap}
+.app .pagina .btn{max-width:100%;white-space:normal;text-align:center;overflow-wrap:anywhere}
+.app .pagina :is(.secao-titulo,.conhecimento-vistas){margin-top:24px}
+.app .pagina .secao-titulo h3{margin:0}
+.app .pagina :is(.selo,.selo-int,.qw-status){max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.app .pagina :is(.acomp-lista,.acomp-passos)>li{border-color:var(--line);background:var(--paper);border-radius:var(--raio-painel)}
+.app .pagina .acomp-resumo{border-color:var(--line);background:var(--surface);border-radius:var(--raio-painel)}
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos) h2{font:600 15px/1.4 var(--sans)}
+.app .pagina .acompanhamento .btn{min-height:44px}
+/* Integrações herdam a marca e os mesmos estados do restante da aplicação. */
+.app .pagina .item-int{border:1px solid var(--line);border-radius:var(--raio-painel);padding:14px;min-width:0;overflow-wrap:anywhere;background:var(--paper)}
+.app .pagina a.item-int:hover{border-color:var(--line-strong);background:var(--surface)}
+.app .pagina .selo-int{font:500 12px/1.6 var(--sans);background:var(--sand);color:var(--muted)}
+.app .pagina .selo-int.ok,.app .pagina .passos-int li.feito{background:var(--mint);color:var(--forest-text)}
+.app .pagina .selo-int.atencao{background:var(--amber-bg);color:var(--amber-text)}
+.app .pagina .selo-int.erro{background:var(--red-bg);color:var(--red-text)}
+.app .pagina .passos-int li{background:var(--sand);color:var(--muted);font-size:13px}
+.app .pagina .passos-int li.atual{background:var(--forest-strong);color:#fff}
+.app .pagina .ok-int{color:var(--forest-text)}
+.app .pagina .erro-int{color:var(--red-text)}
+.app .pagina .linha-op{border-color:var(--line)}
+.app .pagina .linha-op small{color:var(--muted)}
+.app .pagina .campo-int :is(input,select,textarea){font:400 var(--ui-texto)/1.5 var(--sans);padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--raio);background:var(--paper);color:var(--ink);min-height:40px}
+#modal .modal h2{font:600 18px/1.4 var(--sans);letter-spacing:-.01em;overflow-wrap:anywhere}
+#modal .modal p{font:400 14px/1.6 var(--sans)}
+#modal .ajuda-contextual{max-width:540px;padding:24px}
+#modal .ajuda-contextual .modal-topo{gap:16px;align-items:flex-start}
+#modal .ajuda-contextual .modal-topo h2{margin:0 0 16px}
+#modal .ajuda-contextual .icone-btn{min-width:40px;min-height:40px;flex:none}
+#modal .ajuda-contextual .guia-cuidado{padding:14px 16px;margin:16px 0 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--raio)}
+#modal .ajuda-contextual .guia-cuidado p{margin:6px 0 0}
+#modal .ajuda-contextual .dica{font-size:13px;margin:16px 0 0}
+@media(max-width:760px){
+  #modal .modal .grade-2{grid-template-columns:minmax(0,1fr)}
+  #modal .modal :is(.btn,.btn-texto,.icone-btn){min-height:44px}
+  #modal .modal .entrada{font-size:16px;min-height:44px}
+  #modal .ajuda-contextual{max-width:100%;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+  .app .cabeca{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+  .app .cabeca-titulo{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;min-width:0;align-items:center}
+  .app .cabeca :is(.migalha,.selo-contexto){display:none}
+  .app .cabeca-titulo>h1{white-space:normal;overflow-wrap:anywhere}
+  .app .cabeca-titulo>.btn{grid-column:1 / -1;justify-self:start}
+  .app .cabeca-acoes{gap:0;align-self:start;flex-wrap:nowrap}
+  .app .pagina{padding:20px 16px 40px}
+  .app .cabeca h1{font-size:18px}
+  .app :is(.btn,.btn-pequeno,.btn-texto,.icone-btn,.btn-icone){min-height:44px}
+  .app :is(.icone-btn,.btn-icone){min-width:44px}
+  .app .entrada,.app .pagina .campo-int :is(input,select,textarea){font-size:16px;min-height:44px}
+  .app .pagina .filtros-biblioteca .campo{min-width:0;flex-basis:100%}
+  .app .pagina :is(.grade-2,.grade-3,.duas-col,.qw-limites){grid-template-columns:minmax(0,1fr)}
+  .app .pagina :is(.pg-acoes,.pg-titulo-texto){max-width:100%}
+  .app .pagina :is(.escolhas,.rt-pref,.or-grade){grid-template-columns:minmax(0,1fr)}
+  .app .pagina :is(.btn-texto,.link-sutil){display:inline-flex;align-items:center;min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+}

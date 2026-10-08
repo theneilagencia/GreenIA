@@ -605,6 +605,7 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     for (const campo of ['objetivo', 'processo', 'entregaveis']) await p.check(`[data-aprovar-campo="${campo}"]`);
     await p.click('#aprovar-refinamento');
     await p.waitForSelector('[data-repetir-teste]');
+    assert.match(await p.textContent('#estado-rascunho'), /Rascunho salvo/, 'aprovação concluída não deixa aviso falso de edição pendente');
     const depois = (await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados;
     assert.equal(depois.versao, antes.versao);
     assert.deepEqual((await N.qaAdmin.get(`/api/quick-wins/${id}/versoes`)).dados, versoes);

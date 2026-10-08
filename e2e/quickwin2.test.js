@@ -617,6 +617,9 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     const entradaRepetida = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
     assert.equal(texto(entradaRepetida.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'mesmo texto extraído do arquivo');
     assert.match(await p.textContent('[aria-label="Comparação dos testes"]'), /Antes do refinamento.*Depois do refinamento/s);
+    const novaConversa = /refinar\/(\d+)/.exec(p.url())[1];
+    await p.click('#nova-rodada-refinamento');
+    assert.equal(await p.inputValue('#escolher-resultado'), novaConversa, 'a nova execução fica selecionada sem recarregar');
     await p.reload();
     await p.waitForSelector('[aria-label="Comparação dos testes"]');
     await p.click('#nova-rodada-refinamento');

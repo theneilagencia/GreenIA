@@ -58,13 +58,13 @@ export const lerArquivo = f => new Promise((ok, falha) => {
 export const testeQw = qw => assistenteQw(qw.id, { passo: 4 });
 export const publicarQw = id => assistenteQw(id, { passo: REVISAR });
 
-export async function assistenteQw(id = null, { passo = 0, atualizar = false } = {}) {
+export async function assistenteQw(id = null, { passo = 0, atualizar = false, refinar = false } = {}) {
   const qw = id ? await api(`/api/quick-wins/${id}`) : null;
   if (qw && (!qw.podeEditar || (!qw.v2 && !atualizar))) return irPara(`#/qw/${id}`);
   // "Atualizar para Quick Win inteligente": o antigo (sem especificação) começa do que ele já descreve.
   const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : {});
   const W = {
-    id, qw, responsavelId: qw?.responsavel?.id || E.eu.id, controles: qw?.operacao?.controles ? structuredClone(qw.operacao.controles) : null, passo, maximo: passo, editando: !!qw,
+    id, qw, abrirRefinamento: refinar, responsavelId: qw?.responsavel?.id || E.eu.id, controles: qw?.operacao?.controles ? structuredClone(qw.operacao.controles) : null, passo, maximo: passo, editando: !!qw,
     descricao: o.descricao || '', arquetipo: o.arquetipo || null,
     modoProc: o.como?.modo === 'mostrar' ? 'exemplo' : 'explicar', processo: o.como?.modo === 'explicar' ? o.como.texto || '' : '',
     exemplo: '', exemploNome: '', estruturaAnterior: o.exemplo || null, estruturaSugerida: null,
@@ -240,6 +240,11 @@ async function desenhar(W, { foco = true } = {}) {
   if (vez !== W.vez || passo !== W.passo) return;
   el.innerHTML = `<div class="etapa-foco">${html}</div>`;
   ETAPA_LIGAR[W.passo]?.(W);
+  if (W.abrirRefinamento && $('refinar-qw')) {
+    W.abrirRefinamento = false;
+    $('refinar-qw').open = true;
+    requestAnimationFrame(() => { $('refinamento-texto')?.focus(); $('refinar-qw')?.scrollIntoView({ block: 'center' }); });
+  }
   ligarPreparacao(W, { salvar: async () => { guardarEtapa(W); await salvar(W); }, redesenhar: async () => { guardarEtapa(W); await desenhar(W, { foco: false }); } });
   el.querySelector('[data-voltar]')?.addEventListener('click', () => irEtapa(W, W.passo - 1));
   if (W.passo !== REVISAR) el.querySelector('[data-continuar]')?.addEventListener('click', () => continuar(W));
@@ -440,7 +445,7 @@ const ETAPA_HTML = [
         : W.teste.modo === 'colar' ? `<label class="sr" for="teste-texto">Texto do teste</label><textarea class="campo-amplo menor" id="teste-texto" placeholder="Cole um trecho do seu dia a dia">${esc(W.teste.texto)}</textarea>`
         : `<div class="arquivo-escolhido"><button type="button" class="btn btn-linha" id="teste-arquivo">${ICONE.clipe} Escolher arquivo</button><input type="file" id="teste-input" hidden accept="${ACEITOS}"><span class="dica" id="teste-nome">${esc(W.teste.anexo?.nome || 'PDF, Word, planilha ou imagem com texto')}</span></div>`}</div>
       <div id="teste-resultado">${r ? htmlResultado(W) : ''}</div>
-      ${r && !r.rodando && !r.erro ? htmlRefinamento(W) : ''}${htmlComparacao(W)}
+      ${W.id && !r?.rodando ? htmlRefinamento(W) : ''}${htmlComparacao(W)}
       ${rodape(W, { continuar: pronto ? (['inconsistente', 'pergunta'].includes(r.qualidade?.status) ? '' : 'Revisar e publicar') : '',
         extra: pronto ? `${r.qualidade?.status === 'inconsistente' ? '<button type="button" class="btn btn-linha" data-revisar-assim>Revisar mesmo assim</button><button type="button" class="btn btn-verde" data-ajustar>Refinar Quick Win</button>' : '<button type="button" class="btn btn-texto" data-ajustar>Refinar Quick Win</button>'}${pausado ? '' : '<button type="button" class="btn btn-linha" data-testar>Testar novamente</button>'}`
           : `<button type="button" class="btn btn-verde" data-testar ${r?.rodando || (W.teste.modo === 'auto' && ex?.modo !== 'texto') ? 'disabled' : ''}>${r?.rodando ? 'Testando…' : 'Testar agora'}</button>` })}`;
@@ -464,7 +469,7 @@ const ETAPA_HTML = [
         <li><span class="r">Considera</span><div>${considera}</div></li>
         <li><span class="r">Respeita</span><ul>${(q.regras_rascunho || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul></li>
         <li><span class="r">Entrega</span><div>${esc(FORMATOS_SAIDA[a.formato]?.rotulo || '')}${a.formato === 'outro' && a.formato_descricao ? ` · ${esc(a.formato_descricao)}` : ''}${a.formato === 'tabela' && a.colunas?.length ? ` · ${esc(a.colunas.join(', '))}` : ''}</div></li>
-        <li><span class="r">Teste</span><div>${teste ? (painelQualidade(teste, { id: 'revisao' }) || '<span class="dica">A IA pediu mais informação no último teste.</span>') + htmlRefinamento(W) : '<span class="dica">Ainda não testado.</span> <button type="button" class="link-sutil" data-ir-teste>Testar agora</button>'}</div></li>
+        <li><span class="r">Teste</span><div>${teste ? (painelQualidade(teste, { id: 'revisao' }) || '<span class="dica">A IA pediu mais informação no último teste.</span>') : '<span class="dica">Ainda não testado.</span> <button type="button" class="link-sutil" data-ir-teste>Testar agora</button>'}${htmlRefinamento(W)}</div></li>
         ${areas.length > 1 || E.permQw.todaEmpresa ? `<li><span class="r">Quem usa</span><div class="opcoes">${areas.map(x => `<label><input type="checkbox" name="area" value="${x.id}" ${q.areas.includes(x.id) ? 'checked' : ''}> ${esc(x.nome)}</label>`).join('')}
           ${E.permQw.todaEmpresa ? `<label><input type="checkbox" id="toda" ${q.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></li>` : ''}
       </ul>
@@ -651,11 +656,13 @@ function htmlRefinamento(W) {
     <textarea class="entrada" id="refinamento-texto" maxlength="160" rows="3" placeholder="Ex.: Começar com uma recomendação e explicar os riscos antes da conclusão.">${esc(W.refinamentoTexto || '')}</textarea>
     <p class="dica">Até 160 caracteres. As sugestões organizam sua orientação nos campos do Quick Win. Nada será alterado sem sua aprovação.</p>
     <p class="msg-erro" id="refinamento-erro" role="alert"></p>
-    <button type="button" class="btn btn-linha" id="salvar-refinamento">Ver sugestões de ajuste</button>
+    <button type="button" class="btn btn-linha" id="salvar-refinamento" ${!W.resultado?.conversa ? 'disabled' : ''}>Ver sugestões de ajuste</button>
+    ${!W.resultado?.conversa ? '<p class="dica">Execute um teste nesta tela para receber sugestões baseadas no resultado.</p><button type="button" class="btn btn-linha" data-retomar-teste>Testar para refinar</button>' : ''}
     <div id="refinamento-sugestoes"></div>
     <p class="dica">A versão publicada continua em uso. Depois de aprovar, repita o mesmo teste e compare os resultados antes de publicar.</p></details>`;
 }
 function ligarRefinamento(W) {
+  document.querySelector('[data-retomar-teste]')?.addEventListener('click', () => W.passo === 4 ? testar(W) : irEtapa(W, 4));
   $('refinamento-texto')?.addEventListener('input', ev => {
     W.refinamentoTexto = ev.target.value;
     W.sugestoesRefinamento = null;

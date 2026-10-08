@@ -1,8 +1,10 @@
 # Refinamento guiado de Quick Wins
 
-Implementação na branch `feat/quickwin-guided-refinement`, a partir de `greenia-lite` (`4aa27532052d0ace6048d8958a3e5cf8aff043c4`).
+Implementação na branch `feat/quickwin-guided-refinement`, a partir de `greenia-lite`, incorporando a atualização de acesso ao refinamento até `e2c3cd805d4afb556e7e1bae33cf90a23af9515c`.
 
 ## Comportamento
+
+Os pontos de entrada no detalhe e na conversa foram preservados. Quando o editor é reaberto sem um resultado em memória, o botão **Testar para refinar** permite executar um teste atual sem voltar à etapa inicial.
 
 O botão **Refinar Quick Win** abre o refinamento na própria tela do resultado. Não navega para a primeira etapa do editor. A pessoa descreve o problema; a GreenIA analisa a configuração, o resultado guardado, o material do teste e a conferência e sugere textos para objetivo, processo, regras ou descrição dos entregáveis. Cada sugestão mostra o valor atual, o valor proposto e a justificativa. Nenhuma caixa começa selecionada. A pessoa pode editar a proposta e aprovar somente os campos desejados.
 
@@ -26,7 +28,7 @@ Ambiente local isolado, dados sintéticos, Chromium Headless Shell e provedor de
 | Verificação | Resultado |
 | --- | --- |
 | `node --test test/quickwin-refinamento.test.js` | 9/9 aprovados |
-| Regressões do construtor e API de versões, com os testes de refinamento então presentes | 32/32 aprovados |
+| Regressões do construtor e API de versões, incluindo os testes de refinamento | 33/33 aprovados |
 | `node --test e2e/quickwin2.test.js` | 8/8 aprovados |
 | Sintaxe dos módulos alterados e `git diff --check` | Aprovados |
 

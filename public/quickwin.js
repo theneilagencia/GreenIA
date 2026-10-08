@@ -36,6 +36,7 @@ export async function rotaQuickWin(hash) {
   if (hash === '#/quick-wins') return listaQuickWins();
   if (hash === '#/qw/nova') return assistenteQw();
   if (hash === '#/qw/nova/modelos') return novaOrigem();
+  if ((m = /^#\/qw\/(\d+)\/refinar$/.exec(hash))) return assistenteQw(Number(m[1]), { passo: 5, refinar: true });
   if ((m = /^#\/qw\/(\d+)\/ajustar$/.exec(hash))) return assistenteQw(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/atualizar$/.exec(hash))) return assistenteQw(Number(m[1]), { atualizar: true });
   if ((m = /^#\/qw\/(\d+)\/publicar$/.exec(hash))) return publicarQw(Number(m[1]));
@@ -203,7 +204,7 @@ async function paginaQuickWin(id) {
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta,
-        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/programacoes">${qw.podeEditar ? 'Programar' : 'Programações'}</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => !['Editar','Programações'].includes(a.rotulo)), 'Mais ações')}` })}
+        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/programacoes">${qw.podeEditar ? 'Programar' : 'Programações'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => !['Editar','Programações'].includes(a.rotulo)), 'Mais ações')}` })}
       ${aviso2}
       <div class="secoes">
         ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<span class="dica">Pedido original: ${esc(qw.assistente.descricao)}</span>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}

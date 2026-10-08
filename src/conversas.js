@@ -3,6 +3,7 @@
 import { erro } from './http.js';
 import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { assinaturaTeste } from './quickwin-teste.js';
+import { lerMaterialRefinamento } from './quickwin-refinamento.js';
 import { consolidarWal, exec, json, todos, um, transacao } from './db.js';
 import { acoesDoQuickWin, lerConfig } from './config.js';
 import { registrar } from './eventos.js';
@@ -338,6 +339,14 @@ export function rotasConversas(app, r) {
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
+    let repeticao = null;
+    if (corpo.repetir_conversa_id !== undefined) {
+      if (!conv.teste || !qw || um(app.db, 'select 1 from mensagens where conversa_id = ?', conv.id)) throw erro(409, 'repeticao_invalida', 'Repita o material em um novo teste deste Quick Win.');
+      repeticao = lerMaterialRefinamento(app, pessoa, conv.quick_win_id, corpo.repetir_conversa_id, corpo.repetir_mensagem_id);
+      if (!repeticao.disponivel) throw erro(409, 'material_nao_guardado', 'A política de retenção não guardou este material. Envie-o novamente para testar.');
+      if (repeticao.sigilosa && !conv.sigilosa) { tornarSigilosa(app, pessoa, conv, 'manual'); conv.sigilosa = 1; }
+      corpo = { texto: repeticao.texto, executar_quick_win: true, anexos: [] };
+    }
     if (programada && qw?.espec?.operacao?.integracoes?.some(n => n.modo === 'write')) {
       const c = qw.espec.operacao.controles;
       if (c?.modo === 'preparar' || c?.modo === 'consultar') {
@@ -364,11 +373,11 @@ export function rotasConversas(app, r) {
     // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
     const cancelado = new AbortController();
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
-    const anexos = (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
+    const anexos = repeticao ? repeticao.anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
       .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
     // Links (fontes): os enviados no campo próprio e os colados na mensagem de um Quick Win são lidos pela rede
     // segura (só https público). O que não pôde ser lido entra como aviso explícito, nunca em silêncio.
-    const links = linksDoEnvio(corpo, qw ? texto : '');
+    const links = repeticao ? [] : linksDoEnvio(corpo, qw ? texto : '');
     const avisosLinks = [];
     for (const l of links) {
       try {
@@ -867,6 +876,7 @@ export function rotasConversas(app, r) {
     if (registroQualidade?.visual?.nao_guardado) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o artefato visual não foi gerado.');
     if (registroQualidade) {
       if (assinaturaDoTeste) registroQualidade.assinatura_teste = assinaturaDoTeste;
+      if (repeticao) { registroQualidade.conversa_base = repeticao.conversa; registroQualidade.mensagem_base = repeticao.mensagem; }
       exec(app.db, 'update roteamento set qualidade = ? where id = ?', JSON.stringify(registroQualidade), rotaId);
     }
     registrarUso(app, { em: AGORA(app), pessoa_id: pessoa.id, conversa_id: conv.id, quick_win_id: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor,

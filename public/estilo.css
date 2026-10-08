@@ -1804,3 +1804,17 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
   .app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos)>li{padding:14px;gap:12px}
   .app .pagina .acompanhamento .acomp-resumo{padding:14px}
 }
+
+/* Refinamento: foco no caso e aprovação por campo. */
+.refinamento-passos{display:flex;gap:16px;list-style:none;padding:0;margin:24px 0;flex-wrap:wrap}
+.refinamento-passos li{display:flex;align-items:center;gap:8px;color:var(--muted);flex:1;min-width:150px}
+.refinamento-passos li span{display:grid;place-items:center;width:28px;height:28px;border:1px solid var(--line);border-radius:50%;flex-shrink:0}
+.refinamento-passos li[aria-current]{color:var(--forest-text);font-weight:700}
+.refinamento-passos li[aria-current] span{background:var(--forest);color:white}
+.refinamento-proposta{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px}
+.refinamento-valor-atual{white-space:pre-wrap;overflow-wrap:anywhere;border-radius:8px;padding:12px;background:var(--surface);margin-top:8px}
+.refinamento-comparacao>*{min-width:0}
+.refinamento-comparacao .resultado-corpo{overflow-x:auto;overflow-wrap:anywhere;max-height:650px;margin:12px 0}
+.refinamento-comparacao .resultado-corpo table{min-width:unset}
+.refinamento-aprovacao{position:sticky;bottom:0;background:var(--paper);padding:16px 0;border-top:1px solid var(--line)}
+.qw-refinamento #refinamento-sugestoes{scroll-margin-top:20px}

@@ -13,7 +13,7 @@ import { arquivo } from '../test/arquivos.js';
 const TECNICO = /prompt|temperatura|tokens?\b|json|openrouter|mistral|gpt|claude|provedor|especifica[çc][ãa]o|contrato de sa[íi]da|governan[çc]a|ROUTING_|classe:/i;
 const APROVACAO = /✓|conferid|concluíd|aprovad|validad|verificad|certificad|garantid|sucesso|tudo certo/i;
 const QC_OK = '{"criterios":[{"id":"nao_inventar","ok":true},{"id":"formato","ok":true}]}';
-let N, OR, areaCompras, qc = 'ok';
+let N, OR, areaCompras, estadoLia, qc = 'ok';
 const texto = c => (typeof c === 'string' ? c : c.map(p => p.text).join('\n'));
 
 // IA falsa: na execução, devolve exatamente as colunas e seções que o prompt de execução pede; na conversa
@@ -67,6 +67,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   const erros = [];
   p.on('pageerror', e => erros.push(e.message));
   await N.entrar('lia@empresa-exemplo.com.br', p);
+  estadoLia = await N.contexto.storageState();
   let cliques = 0;
   const clicar = async sel => { cliques++; await p.click(sel); };
   const semTecnico = async onde => assert.doesNotMatch(await p.textContent('#principal'), TECNICO, onde);
@@ -119,29 +120,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   assert.ok(await p.locator('#resultado-teste table').count() >= 1, 'o resultado é o trabalho (tabela)');
   const ordem = await p.evaluate(() => { const r = document.getElementById('resultado-teste'), q = document.querySelector('#teste-resultado .qc'); return r.compareDocumentPosition(q) & Node.DOCUMENT_POSITION_FOLLOWING; });
   assert.ok(ordem, 'conferência abaixo do resultado');
-  // Refinar depois do teste salva uma orientação sem publicar e mantém o caso de comparação.
-  await p.click('#refinar-qw summary');
-  const exemploAntes = await p.textContent('[aria-label="Material fictício do teste"]');
-  await p.click('#salvar-refinamento');
-  assert.match(await p.textContent('#refinamento-erro'), /Descreva o que precisa mudar/);
-  const orientacao = 'Começar pela recomendação e destacar os riscos antes da conclusão.';
-  await p.fill('#refinamento-texto', orientacao);
-  assert.equal(await p.getAttribute('#refinamento-texto', 'maxlength'), '160');
-  await p.click('#salvar-refinamento');
-  await p.waitForSelector('[data-aprovar-campo="regras"]');
-  await p.click('#aprovar-refinamento');
-  assert.match(await p.textContent('#refinamento-erro'), /Selecione pelo menos/);
-  await p.check('[data-aprovar-campo="regras"]');
-  await p.click('#aprovar-refinamento');
-  await p.waitForFunction(() => !document.querySelector('#resultado-teste') && document.querySelector('[data-testar]') && document.querySelector('#refinamento-texto')?.value === '');
-  assert.equal(await p.textContent('[aria-label="Material fictício do teste"]'), exemploAntes);
   const idRefinado = /#\/qw\/(\d+)/.exec(p.url())[1];
-  const salvoRefinado = (await N.qaAdmin.get(`/api/quick-wins/${idRefinado}`)).dados;
-  assert.ok(salvoRefinado.assistente.regras_proprias.includes(orientacao));
-  assert.equal(salvoRefinado.versao, null, 'refinar não publica');
-  await p.click('[data-repetir-teste]');
-  await p.waitForSelector('#teste-resultado .qc');
-  assert.match(await p.textContent('[aria-label="Comparação dos testes"]'), /Antes do refinamento.*Depois do refinamento/s);
   // Revisar e publicar.
   await clicar('[data-continuar]');
   await p.waitForSelector('.resumo-pub');
@@ -201,9 +180,9 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.goto(`${N.base}/app#/qw/${idRefinado}`);
   await p.waitForSelector(`a[href="#/qw/${idRefinado}/refinar"]`);
   await p.goto(`${N.base}/app#/qw/${idRefinado}/teste`);
-  await p.waitForSelector('#refinar-qw');
+  await p.waitForSelector('[data-testar]');
   await p.goto(`${N.base}/app#/qw/${idRefinado}/refinar`);
-  await p.waitForSelector('#refinar-qw[open]');
+  await p.waitForSelector('#refinar-qw');
   assert.equal(await p.locator('#refinamento-texto').isVisible(), true);
   assert.deepEqual(erros, []);
 });
@@ -289,7 +268,7 @@ test('etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (
   assert.ok(await p.locator('#resultado-teste').isVisible());
   assert.equal(await p.locator('[data-continuar]').count(), 0, 'publicar não é a ação principal com pontos para revisar');
   await p.click('[data-ajustar]');
-  await p.waitForSelector('#refinar-qw[open]');
+  await p.waitForSelector('#refinar-qw');
   assert.equal(await p.locator('#objetivo').count(), 0, 'refinar permanece na tela do resultado');
   assert.equal(await p.evaluate(() => document.activeElement?.id), 'refinamento-texto');
   qc = 'ok';
@@ -575,12 +554,13 @@ test('a revisão não reaproveita a conferência em memória depois de mudar uma
 
 test('refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar', async () => {
   qc = 'ok'; refinamentoIA = true;
-  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 }, storageState: await N.contexto.storageState() });
+  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 }, ...(estadoLia ? { storageState: estadoLia } : {}) });
   await cel.route(u => !u.href.startsWith(N.base), r => r.abort());
   const p = await cel.newPage();
-  await p.goto(`${N.base}/app`);
-  if (p.url().includes('/entrar')) await N.entrar('lia@empresa-exemplo.com.br', p);
+  if (estadoLia) { await p.goto(`${N.base}/app`); await p.waitForSelector('#principal h1'); }
+  else await N.entrar('lia@empresa-exemplo.com.br', p);
   const erros = []; p.on('pageerror', e => erros.push(e.message));
+  p.setDefaultTimeout(10000);
   try {
     const criado = await N.qaAdmin.post('/api/quick-wins', { assistente: { descricao: 'Resumir documentos', formato: 'resumo', regras_proprias: ['Manter nomes originais'] }, areas: [areaCompras] });
     assert.equal(criado.status, 200, JSON.stringify(criado.dados));
@@ -597,9 +577,23 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     const entradaOriginal = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
     await p.click('[data-ajustar]');
     assert.equal(await p.locator('#objetivo').count(), 0);
+    assert.match(p.url(), /refinar/);
+    assert.equal(await p.locator('[data-continuar]').count(), 0, 'refinamento tem jornada própria');
+    refinamentoIA = false;
     await p.fill('#refinamento-texto', 'Começar pela recomendação e pelos riscos.');
     await p.click('#salvar-refinamento');
+    await p.waitForFunction(() => document.getElementById('refinamento-erro')?.textContent.includes('nenhuma alteração'));
+    assert.equal(await p.inputValue('#refinamento-texto'), 'Começar pela recomendação e pelos riscos.');
+    assert.equal(await p.locator('[data-aprovar-campo]').count(), 0, 'falha não oferece sugestões genéricas');
+    refinamentoIA = true;
+    await p.click('#salvar-refinamento');
     await p.waitForSelector('[data-aprovar-campo="objetivo"]');
+    assert.equal(await p.isDisabled('#aprovar-refinamento'), true, 'aprovação exige seleção explícita');
+    await p.screenshot({ path: '/tmp/greenia-refinamento-revisao-mobile.png', fullPage: true });
+    await p.setViewportSize({ width: 320, height: 800 });
+    assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'propostas cabem em 320px');
+    await p.setViewportSize({ width: 390, height: 800 });
+    assert.match(await p.locator('.refinamento-valor-atual').first().textContent(), /Resumir documentos/);
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'refinamento sem rolagem horizontal');
     assert.equal((await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados.rascunho_alterado, false, 'sugerir não altera');
     for (const campo of ['objetivo', 'processo', 'entregaveis']) await p.check(`[data-aprovar-campo="${campo}"]`);
@@ -612,11 +606,37 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     assert.deepEqual(depois.assistente.regras_proprias, antes.assistente.regras_proprias, 'regra não selecionada permanece intacta');
     for (const campo of ['sigiloso', 'dados', 'bases', 'responsavel']) assert.deepEqual(depois[campo], antes[campo], campo);
     assert.equal(await p.textContent('#teste-nome'), 'teste.txt');
+    const falharEnvio = r => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ mensagem: 'Falha temporária no teste. Tente novamente.' }) });
+    await p.route(/\/api\/conversas\/\d+\/mensagens$/, falharEnvio);
     await p.click('[data-repetir-teste]');
-    await p.waitForSelector('#teste-resultado .qc');
+    await p.waitForFunction(() => document.getElementById('etapa')?.textContent.includes('Falha temporária'));
+    assert.equal(await p.isDisabled('[data-repetir-teste]'), false, 'falha permite repetir sem perder material');
+    await p.unroute(/\/api\/conversas\/\d+\/mensagens$/, falharEnvio);
+    await p.click('[data-repetir-teste]');
+    await p.waitForSelector('.refinamento-comparacao > section:last-child .qc');
     const entradaRepetida = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
     assert.equal(texto(entradaRepetida.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'mesmo texto extraído do arquivo');
     assert.match(await p.textContent('[aria-label="Comparação dos testes"]'), /Antes do refinamento.*Depois do refinamento/s);
+    await p.reload();
+    await p.waitForSelector('[aria-label="Comparação dos testes"]');
+    await p.click('#nova-rodada-refinamento');
+    await p.waitForSelector('#refinamento-texto');
+    assert.match(await p.textContent('.refinamento-contexto'), /Resultado que vamos melhorar/);
+    await p.fill('#refinamento-texto', 'Melhorar o resultado reaberto.');
+    await p.click('#salvar-refinamento');
+    await p.waitForSelector('[data-aprovar-campo="regras"]');
+    await p.check('[data-aprovar-campo="regras"]');
+    await p.click('#aprovar-refinamento');
+    await p.waitForSelector('[data-repetir-teste]');
+    await p.click('[data-repetir-teste]');
+    await p.waitForSelector('.refinamento-comparacao > section:last-child .qc');
+    const repetidaServidor = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
+    assert.equal(texto(repetidaServidor.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'arquivo preservado após reabrir');
+    await p.goto(`${N.base}/app#/qw/${id}/refinar`);
+    await p.waitForSelector('[aria-label="Comparação dos testes"]');
+    assert.ok(await p.locator('.refinamento-comparacao table').count() >= 2, 'comparação renderiza as tabelas');
+    assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'comparação cabe no celular');
+    await p.screenshot({ path: '/tmp/greenia-refinamento-comparacao-mobile.png', fullPage: true });
     assert.deepEqual(erros, []);
   } finally { refinamentoIA = false; await cel.close(); }
 });

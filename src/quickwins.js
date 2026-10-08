@@ -21,7 +21,7 @@ import * as F from './fontes.js';
 import { INSTRUCAO_FONTES, PAPEIS, papelValido } from './fontes.js';
 import { validarControles } from './integracoes/controle-qw.js';
 import { rotasPreparacao } from './qw-preparacao.js';
-import { proporRefinamento, assinaturaRascunho } from './quickwin-refinamento.js';
+import { proporRefinamento, assinaturaRascunho, contextoRefinamento } from './quickwin-refinamento.js';
 import { testeAtual } from './quickwin-teste.js';
 
 const MODELOS_INICIAIS = new URL('../modelos-quick-win.json', import.meta.url);
@@ -512,6 +512,7 @@ export function rotasQuickWins(app, r) {
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', id));
   });
 
+  r.get('/api/quick-wins/:id/refinamento', ({ pessoa, params, query }) => contextoRefinamento(app, pessoa, carregar(pessoa, params.id, true), query.conversa, query.mensagem));
   r.post('/api/quick-wins/:id/refinamento', ({ pessoa, params, corpo }) => proporRefinamento(app, pessoa, carregar(pessoa, params.id, true), corpo));
 
   r.put('/api/quick-wins/:id', ({ pessoa, params, corpo }) => {
@@ -520,6 +521,13 @@ export function rotasQuickWins(app, r) {
     const { v, areas } = validar(app, pessoa, q, corpo);
     transacao(app.db, () => gravar(app, q.id, v, areas));
     registrar(app, 'quickwin.updated', pessoa.id, { quick_win: q.id, campos: Object.keys(v) });
+    if (corpo.assinatura_refinamento) {
+      const antes = json(q.especificacao, {}).origem || {}, depois = json(v.especificacao ?? q.especificacao, {}).origem || {};
+      const valores = o => ({ objetivo: o.descricao, processo: o.como, regras: o.regras_proprias, entregaveis: o.formato_descricao });
+      const a = valores(antes), d = valores(depois);
+      const campos = Object.keys(a).filter(c => JSON.stringify(a[c]) !== JSON.stringify(d[c]));
+      registrar(app, 'quickwin.refinement_applied', pessoa.id, { quick_win: q.id, campos });
+    }
     if (v.status && v.status !== q.status) registrar(app, 'quickwin.status_changed', pessoa.id, { quick_win: q.id, de: q.status, para: v.status });
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
   });

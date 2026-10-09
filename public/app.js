@@ -51,7 +51,7 @@ export function cabecalho(titulo, acoes = '') {
       <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" title="Como usar esta tela">Ajuda</button><a class="btn btn-texto ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Guia de primeiros passos">Guia</a>
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
-        <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}</button></div>
+        <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}<span>Sair</span></button></div>
     </div></header>${E.plano?.mensagem ? `<div class="faixa-plano faixa-aviso ${E.plano.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status">${esc(E.plano.mensagem)}</div>` : ''}`;
 }
 
@@ -294,15 +294,16 @@ async function rota() {
     else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h === '#/quick-wins/programados' || h.startsWith('#/qw/')) await (await importarTela('/quickwin.js')).rotaQuickWin(h);
-    else if ((h === '#/integracoes' || h.startsWith('#/integracoes/')) && E.integracoes) await (await importarTela('/integracoes.js')).rotaIntegracoes(h);
+    else if ((h === '#/integracoes' || h.startsWith('#/integracoes?') || h.startsWith('#/integracoes/')) && E.integracoes) await (await importarTela('/integracoes.js')).rotaIntegracoes(h);
     else if (h === '#/visao-geral' && pode('usage.read')) await (await importarTela('/visao.js')).vistaGeral();
     else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await importarTela('/empresa.js')).rotaEmpresa(m[1]);
     else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await importarTela('/admin.js')).rotaGestao(m[1], m[2]);
     else return irPara('#/nova');   // o início de todos, inclusive de quem administra, é o uso normal
   } catch (e) {
     if (versao !== versaoNavegacao || e.name === 'AbortError') return;
-    $('principal').innerHTML = `${cabecalho('GreenIA')}<div class="pagina"><div class="pagina-dentro"><p class="lead">${esc(e.message)}</p><a class="btn btn-verde" href="#/nova">Nova conversa</a></div></div>`;
+    $('principal').innerHTML = `${cabecalho('GreenIA')}<div class="pagina"><div class="pagina-dentro"><div class="faixa-aviso erro" role="alert"><h2>Não foi possível abrir esta tela</h2><p>A tarefa não foi concluída. Tente novamente para continuar no mesmo lugar.</p><details><summary>Ver o motivo</summary><p>${esc(e.message)}</p></details></div><button type="button" class="btn btn-verde" id="tentar-tela">Tentar novamente</button><a class="btn btn-linha" href="${/^#\/qw\/(\d+)/.test(h) ? `#/qw/${h.match(/^#\/qw\/(\d+)/)[1]}` : emAdministracao() ? inicioAdmin() : '#/conversas'}">Voltar</a></div></div>`;
     ligarCabecalho();
+    $('tentar-tela').onclick = () => rota();
   }
   if (versao !== versaoNavegacao) return;
   desenharLateral();

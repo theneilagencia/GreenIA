@@ -31,7 +31,7 @@ const ESTILO = `<style>.selo-int{display:inline-block;font-size:12px;padding:2px
 
 export async function rotaIntegracoes(h) {
   let m;
-  if (h === '#/integracoes') return vistaLista();
+  if (h === '#/integracoes' || h.startsWith('#/integracoes?')) return vistaLista();
   if (h === '#/integracoes/nova') return assistente({ passo: 1 });
   if ((m = /^#\/integracoes\/c\/([\w-]+)$/.exec(h))) return vistaConector(m[1]);
   if ((m = /^#\/integracoes\/c\/([\w-]+)\/passo\/(\d)$/.exec(h))) return assistente({ id: m[1], passo: Number(m[2]) });
@@ -56,9 +56,11 @@ async function vistaLista() {
       <h3>${a.tipo === 'publicacao' ? 'Publicar integração' : 'Executar ação'}: ${esc(a.resumo.sistema || '')} ${seloRisco(a.risco)}</h3><p>${esc(a.tipo === 'publicacao' ? `${(a.resumo.podera || []).length} ações para revisar` : a.resumo.acao || '')}</p></a>`).join('')}</div>` : '';
   const mt = d.metricas || {};
   pagina('Integrações', `${ESTILO}<p class="lead">Sistemas externos que os Quick Wins podem usar, sempre pela GreenIA: credenciais no cofre, política da empresa e aprovação para qualquer escrita.</p>
-    ${pend}${erroPedidos ? `<p role="alert">Não foi possível carregar pedidos de conexão: ${esc(erroPedidos)}</p>` : ''}${pedidos.length ? `<section aria-label="Pedidos de preparação"><h2>Conexões que a equipe precisa</h2><p>Prepare o acesso técnico e volte aqui para conferir. Nenhuma permissão é concedida pelo pedido.</p><div class="lista-int">${pedidos.map(p => `<article class="item-int"><h3>${esc(p.trabalho)}</h3><ul>${p.necessidades.map(n => `<li>${esc(n.sistema || 'Sistema da empresa')}: ${esc(n.acao)}</li>`).join('')}</ul><div class="linha-botoes"><a class="btn btn-linha" href="#/integracoes/nova">Preparar conexão</a><a class="btn-texto" href="#/qw/${p.quick_win_id}">Ver trabalho</a><button type="button" class="btn btn-linha" data-pedido-pronto="${esc(p.id)}">Conferir se está pronta</button></div><p role="status" data-pedido-status="${esc(p.id)}"></p></article>`).join('')}</div></section>` : ''}<h2>Integrações da empresa</h2>${conectores}
+    ${pend}${erroPedidos ? `<p role="alert">Não foi possível carregar pedidos de conexão: ${esc(erroPedidos)}</p>` : ''}${pedidos.length ? `<section aria-label="Pedidos de preparação"><h2>Conexões que a equipe precisa</h2><p>Prepare o acesso técnico e volte aqui para conferir. Nenhuma permissão é concedida pelo pedido.</p><div class="lista-int">${pedidos.map(p => `<article class="item-int" data-pedido="${esc(p.id)}" tabindex="-1"><h3>${esc(p.trabalho)}</h3><ul>${p.necessidades.map(n => `<li>${esc(n.sistema || 'Sistema da empresa')}: ${esc(n.acao)}</li>`).join('')}</ul><div class="linha-botoes"><a class="btn btn-linha" href="#/integracoes/nova">Preparar conexão</a><a class="btn-texto" href="#/qw/${p.quick_win_id}">Ver trabalho</a><button type="button" class="btn btn-linha" data-pedido-pronto="${esc(p.id)}">Conferir se está pronta</button></div><p role="status" data-pedido-status="${esc(p.id)}"></p></article>`).join('')}</div></section>` : ''}<h2>Integrações da empresa</h2>${conectores}
     <h2>Uso</h2><p class="dica">${Number(mt.execucoes || 0)} execuções · ${mt.taxa_sucesso ?? '—'}% de sucesso · ${Number(mt.falhas || 0)} falhas · ${Number(mt.bloqueios || 0)} bloqueadas pela política · ${Number(mt.aprovacoes?.pendentes || 0)} aprovações pendentes</p>`,
   pode('integrations.manage') ? '<a class="btn btn-verde" href="#/integracoes/nova" style="margin-left:auto">Nova integração</a>' : '');
+  const solicitado = new URLSearchParams(location.hash.split('?')[1] || '').get('pedido');
+  if (solicitado) document.querySelector(`[data-pedido="${CSS.escape(solicitado)}"]`)?.focus();
   document.querySelectorAll('[data-pedido-pronto]').forEach(b => b.onclick = async () => { b.disabled = true; try { await api(`/api/quick-wins/pedidos-conexao/${b.dataset.pedidoPronto}/concluir`, { metodo: 'POST' }); toast('Conexão pronta para retomar o trabalho.'); await vistaLista(); } catch (e) { b.closest('article').querySelector('[role="status"]').textContent = e.message; b.disabled = false; } });
 }
 

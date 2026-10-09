@@ -49,7 +49,7 @@ test('guia: quatro passos para usuário, progresso retomável, conclusão e ajud
 test('guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; adiar não altera ciência ou acesso', async () => {
   const p = await abrir('gestora', '#/primeiros-passos'); assert.equal(await p.locator('[data-guia-passo]').count(), 5);
   const q = await abrir('admin', '#/primeiros-passos'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
-  await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('[data-adiar-guia]'); await q.click('[data-adiar-guia]'); await q.reload(); await q.waitForSelector('#entrada');
+  await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('.inicio-ajuda'); await q.locator('.inicio-ajuda > summary').click(); await q.waitForSelector('[data-adiar-guia]'); await q.click('[data-adiar-guia]'); await q.reload(); await q.waitForSelector('#entrada');
   assert.equal(await q.locator('.guia-convite').count(), 0); assert.equal(await q.locator('[aria-label="Ajuda e primeiros passos"]').count(), 1);
   assert.equal((await admin.get('/api/eu')).dados.pessoa.admin, true);
   await p.close(); await q.close();

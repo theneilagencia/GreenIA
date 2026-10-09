@@ -81,7 +81,7 @@ test('admin: a Administração mostra os recursos sem o provedor; a tela de uso 
   await p.waitForSelector('#entrada');
   assert.doesNotMatch(await p.evaluate(() => document.body.innerText), TECNICO, 'tela de uso');
   await p.goto(`${N.base}/app#/modelos`);
-  await p.waitForSelector('text=Pode receber:');
+  await p.waitForSelector('#modelos-manuais');await p.locator('#modelos-manuais > summary').click();await p.waitForSelector('text=Pode receber:');
   assert.doesNotMatch(await p.evaluate(() => document.body.innerText), /open\s*router/i, 'Administração');
   await p.goto(`${N.base}/app#/conhecimento`);
   await p.waitForSelector('[data-conhecimento-vista="gerir"]');

@@ -87,7 +87,7 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
 test('admin da empresa: vê o que cada recurso pode receber, sem o provedor; as políticas oferecem as três ações e a retenção', async () => {
   const p = await N.entrar('admin@empresa-exemplo.com.br');
   await p.goto(`${N.base}/app#/modelos`);
-  await p.waitForSelector('text=Pode receber:');
+  await p.waitForSelector('#modelos-manuais');await p.locator('#modelos-manuais > summary').click();await p.waitForSelector('text=Pode receber:');
   const modelos = await p.evaluate(() => document.body.innerText);
   assert.match(modelos, /Pode receber: conteúdo comum, dados pessoais/);
   assert.doesNotMatch(modelos, /open\s*router/i);

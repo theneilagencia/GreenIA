@@ -93,13 +93,11 @@ function desenhar() {
       <div class="anexos-pendentes" id="anexos"></div>
       <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
         <button type="button" class="btn btn-linha btn-pequeno" id="link-ok">Adicionar link</button></div>
-      <div class="caixa">
-        <button class="anexar" id="anexar" aria-label="Anexar arquivo" title="Anexar arquivo (PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem com texto)">${ICONE.clipe}</button>
-        <button class="anexar" id="anexar-link" aria-label="Adicionar link" aria-expanded="false" aria-controls="link-novo" title="Adicionar link como fonte (página pública https)">${ICONE.link || '🔗'}</button>
+      <div class="acoes-material"><button type="button" class="btn btn-linha" id="anexar" aria-label="Anexar arquivo">${ICONE.clipe} Anexar arquivo</button><button type="button" class="btn btn-linha" id="anexar-link" aria-label="Adicionar link" aria-expanded="false" aria-controls="link-novo">${ICONE.link || ''} Adicionar link</button><span class="dica">PDF, Word, apresentação, planilha, texto ou imagem. Links devem ser páginas públicas.</span></div><div class="caixa">
         <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff">
         <textarea id="entrada" rows="1" placeholder="${esc(!qw ? 'Pergunte alguma coisa…' : !qw.v2 ? 'Cole o texto ou anexe…' : !C.mensagens.length || C.proximaExecucao ? 'Cole o texto ou anexe o material…' : 'Peça um ajuste, faça uma pergunta ou continue a conversa…')}" aria-label="Mensagem"></textarea>
         ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
-        <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}</button>
+        <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}<span>Enviar</span></button>
       </div>
       ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar em outro caso →</a></p>` : ''}
       <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
@@ -115,7 +113,7 @@ function desenhar() {
 
 function sugestoes() {
   const lista = C.qw ? C.qw.sugestoes || [] : SUGESTOES_CHAT;
-  $('sugestoes').innerHTML = C.mensagens.length ? '' : lista.map(s => `<button type="button">${esc(s)}</button>`).join('');
+  $('sugestoes').innerHTML = C.mensagens.length ? '' : `<details><summary>Ver exemplos de pedidos</summary>${lista.map(s => `<button type="button">${esc(s)}</button>`).join('')}</details>`;
   $('sugestoes').querySelectorAll('button').forEach(b => { b.onclick = () => { $('entrada').value = b.textContent; ajustarAltura(); $('entrada').focus(); atualizarEnviar(); }; });
 }
 
@@ -151,7 +149,7 @@ function desenharMensagens() {
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
     : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
-        <h2>Como a GreenIA pode ajudar hoje</h2><p>Crie, analise, planeje, consulte o conhecimento ou execute um processo da empresa.</p><div class="comecar-convite"><button type="button" class="btn btn-verde" id="me-ajude-comecar" aria-expanded="false" aria-controls="ajude-comecar">Me ajude a começar</button><span>Escolha seu objetivo e receba orientação para o próximo passo.</span></div>${htmlComecar()}<div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Conte seu objetivo, o contexto e o resultado que precisa receber.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div>${conviteGuia()}${cartaoBase()}</div>`;
+        <h2>O que você precisa fazer?</h2><p>Conte o que precisa receber ou escolha uma tarefa pronta.</p><div class="comecar-convite"><button type="button" class="btn btn-verde" id="me-ajude-comecar" aria-expanded="false" aria-controls="ajude-comecar">Me ajude a começar</button><span>Escolha seu objetivo e receba orientação para o próximo passo.</span></div>${htmlComecar()}<div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Conte seu objetivo, o contexto e o resultado que precisa receber.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div><details class="inicio-ajuda"><summary>Guia e orientações para começar</summary>${conviteGuia()}${cartaoBase()}</details></div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
   sugestoes();

@@ -6,6 +6,7 @@ import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pode } from '/
 import { vistaConversa } from '/conversa.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
+import { resumoConferencia } from '/jornadas.js';
 import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelIntegracoes, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
 import { validarAlteracoes } from '/qw-refinamento.js';
@@ -100,7 +101,7 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
     <div class="pagina"><div class="pg qw-wizard">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine à GreenIA como realizar esse trabalho.',
         lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
-      ${publicada ? aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`) : ''}
+      ${publicada ? `<div id="aviso-versao">${aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`)}</div>` : ''}
       ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}
       <div id="progresso"></div>
       <div class="rascunho-barra"><span id="estado-rascunho" role="status">${qw ? 'Rascunho carregado' : 'Seu rascunho será salvo ao continuar'}</span><button type="button" class="btn btn-linha btn-pequeno" id="salvar-rascunho">Salvar rascunho</button></div>
@@ -481,7 +482,7 @@ const ETAPA_HTML = [
         ${areas.length > 1 || E.permQw.todaEmpresa ? `<li><span class="r">Quem usa</span><div class="opcoes">${areas.map(x => `<label><input type="checkbox" name="area" value="${x.id}" ${q.areas.includes(x.id) ? 'checked' : ''}> ${esc(x.nome)}</label>`).join('')}
           ${E.permQw.todaEmpresa ? `<label><input type="checkbox" id="toda" ${q.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></li>` : ''}
       </ul>
-      ${rodape(W, { continuar: 'Publicar Quick Win' })}`;
+      ${!teste || ['parcial','inconsistente','pergunta'].includes(teste.status) ? `<section class="faixa-aviso atencao"><h3>Este trabalho ainda precisa de revisão</h3><p>${esc(resumoConferencia(teste))}</p><a class="btn btn-linha" href="#/qw/${W.id}/refinar">Refinar e testar</a><label class="opcoes"><input type="checkbox" id="ciencia-ressalvas"> Conferi as ressalvas e quero disponibilizar esta versão para o público selecionado.</label></section>` : ''}<p class="dica">Publicar disponibiliza o trabalho para as pessoas selecionadas. Suas conversas continuam privadas. Agendamentos existentes precisam de revisão quando a versão mudar.</p>${rodape(W, { continuar: 'Publicar Quick Win' })}`;
   },
   // 7. Publicado
   W => `<div class="sucesso" role="status"><span class="sucesso-icone" aria-hidden="true">${ICONE.check}</span>
@@ -693,8 +694,8 @@ async function desenharRefinamento(W) {
     ${W.erroContexto ? aviso(esc(W.erroContexto), 'erro') : ''}
     ${r?.rodando ? `<div id="teste-resultado">${htmlResultado(W)}</div>` : W.refinarAprovado ? `<section class="editor"><h3>Alterações aplicadas ao rascunho</h3><p>${esc(W.refinarAprovado.map(a => a.rotulo).join(', '))}. O material anterior foi preservado para repetir o caso.</p>${W.materialComparacao?.teste?.anexo?.nome ? `<p class="dica">Arquivo: <span id="teste-nome">${esc(W.materialComparacao.teste.anexo.nome)}</span></p>` : ''}</section>${r?.erro ? aviso(esc(r.erro), 'erro') : ''}<div id="teste-resultado">${htmlComparacao(W)}</div>${r?.conversa && r.conversa !== W.compararCom?.conversa && !r.erro ? '<button type="button" class="btn btn-linha" id="nova-rodada-refinamento">Refinar este novo resultado</button>' : ''}` : r?.conversa ? `
       <section class="editor refinamento-contexto"><h3>Resultado que vamos melhorar</h3><p>Execução ${r.conversa}${c?.teste?.em ? ` · ${dataCurta(c.teste.em)}` : ''}</p>
-        ${c?.historico?.length > 1 ? `<label for="escolher-resultado">Usar outro resultado seu</label><select class="entrada" id="escolher-resultado">${c.historico.map(t=>`<option value="${t.id}" ${t.id===r.conversa?'selected':''}>${dataCurta(t.em)} · execução ${t.id}</option>`).join('')}</select>` : ''}
-        ${r.qualidade?.problemas?.length ? `<ul class="refinamento-problemas">${r.qualidade.problemas.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>` : '<p class="dica">A conferência não impede que você peça um resultado melhor.</p>'}
+        ${c?.historico?.length > 1 ? `<label for="escolher-resultado">Usar outro resultado seu</label><select class="entrada" id="escolher-resultado">${c.historico.map(t=>`<option value="${t.id}" ${t.id===r.conversa?'selected':''}>${new Date(t.em).toLocaleString('pt-BR', {dateStyle:'short',timeStyle:'short'})} · ${esc(t.titulo || `Resultado ${t.id}`)}</option>`).join('')}</select>` : ''}
+        <p class="faixa-aviso">${esc(resumoConferencia(r.qualidade))}</p><div class="refinamento-trecho">${renderizar((r.saida || '').slice(0, 350)).html}</div>${r.qualidade?.problemas?.length ? `<ul class="refinamento-problemas">${r.qualidade.problemas.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>` : '<p class="dica">A conferência não impede que você peça um resultado melhor.</p>'}
         <details><summary>Ver o resultado e a conferência</summary><div class="resultado-corpo">${r.html}</div>${painelQualidade(r.qualidade,{id:'refinamento-contexto'})}<a class="link-sutil" href="#/c/${r.conversa}">Abrir a conversa original</a></details>
         <p class="dica">${W.materialUltimoTeste ? 'O material deste caso está disponível para repetir o teste.' : 'O material não foi guardado pela política de retenção. Reenvie-o para testar novamente.'}</p></section>
       ${htmlRefinamento(W)}` : `<section class="editor"><h3>Comece por um resultado real</h3><p>Envie o material e execute um teste. Depois, conte o que precisa melhorar. Não é necessário refazer o editor.</p>
@@ -763,8 +764,8 @@ function ligarRefinamento(W) {
       $('refinamento-feedback').hidden = true;
       $('refinamento-titulo').textContent = 'Vamos melhorar assim';
       document.querySelectorAll('.refinamento-passos li').forEach((l,i)=> { if(i===1)l.setAttribute('aria-current','step');else l.removeAttribute('aria-current'); });
-      $('refinamento-sugestoes').innerHTML = '<p>Confira o que vai mudar. Ao continuar, a GreenIA aplica os ajustes ao rascunho e testa novamente com o mesmo material.</p><button type="button" class="link-sutil" id="rever-orientacao">Mudar minha orientação</button>' + W.sugestoesRefinamento.map(s => `<fieldset class="bloco-extra refinamento-proposta"><legend><label><input type="checkbox" data-aprovar-campo="${s.campo}" checked> ${esc(s.rotulo)}</label></legend>
-        <p>${esc(s.depois)}</p><details><summary>Ver detalhes ou ajustar esta sugestão</summary><p class="dica">${esc(s.motivo)}</p><div class="grade-2"><div><b>Como está hoje</b><div class="refinamento-valor-atual">${esc(s.antes || 'Sem orientação específica')}</div></div><div>
+      $('refinamento-sugestoes').innerHTML = '<p>Confira o que vai mudar. Ao continuar, a GreenIA aplica os ajustes ao rascunho e testa novamente com o mesmo material.</p><button type="button" class="link-sutil" id="rever-orientacao">Mudar minha orientação</button>' + W.sugestoesRefinamento.map(s => `<fieldset class="bloco-extra refinamento-proposta"><legend>Ajuste ${W.sugestoesRefinamento.indexOf(s) + 1}</legend>
+        <p><b>Como ficará:</b> ${esc(s.depois)}</p><p class="dica">${esc(s.motivo)}</p><details><summary>Ver detalhes ou ajustar esta sugestão</summary><label><input type="checkbox" data-aprovar-campo="${s.campo}" checked> Aplicar esta mudança em ${esc(s.rotulo)}</label><p class="dica">${esc(s.motivo)}</p><div class="grade-2"><div><b>Como está hoje</b><div class="refinamento-valor-atual">${esc(s.antes || 'Sem orientação específica')}</div></div><div>
         ${s.adicao ? '<p class="dica">Acrescentar uma regra, preservando as atuais.</p>' : ''}
         <label class="legenda" for="refinar-${s.campo}">Alteração proposta para ${esc(s.rotulo)}</label>
         <textarea class="entrada" rows="3" id="refinar-${s.campo}" data-valor-campo="${s.campo}">${esc(s.depois)}</textarea><p class="dica">Até ${s.max} caracteres. Revise o texto antes de aprovar.</p>
@@ -908,13 +909,15 @@ function ligarArtefatosDoTeste(W) {
 }
 
 async function publicar(W) {
-  const corpo = { nome: $('nome').value.trim() || W.qw.nome, para_que_serve: $('desc').value.trim() || W.qw.para_que_serve };
+  const corpo = { ciencia_ressalvas: !!$('ciencia-ressalvas')?.checked, nome: $('nome').value.trim() || W.qw.nome, para_que_serve: $('desc').value.trim() || W.qw.para_que_serve };
   if (document.querySelector('input[name=area]') || $('toda')) { corpo.areas = [...document.querySelectorAll('input[name=area]:checked')].map(i => Number(i.value)); corpo.toda_empresa = $('toda')?.checked || false; }
   const b = document.querySelector('[data-continuar]');
+  if ($('ciencia-ressalvas') && !$('ciencia-ressalvas').checked) return erroEtapa('Confira as ressalvas do teste e confirme antes de publicar.');
   b.disabled = true; b.textContent = 'Publicando…';
   try {
     W.publicado = await api(`/api/quick-wins/${W.id}/publicar`, { metodo: 'POST', corpo });
     W.qw = W.publicado;
+    $('aviso-versao')?.remove();
     W.edicaoPendente = false;
     estadoRascunho(W, 'Versão publicada');
     await recarregarLateral();
@@ -1043,7 +1046,7 @@ export async function usarQw(id) {
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Usar']], titulo: qw.nome, descricao: esc(qw.para_que_serve || '') })}
       ${teste ? aviso('<b>Ainda não publicado.</b> Esta execução é um teste e não entra na medição.') : ''}
       <form class="usar-caixa" id="executar" novalidate>
-        <label class="pergunta" for="entrada-qw" id="pergunta" style="display:block;font-size:20px">${esc(oQueEnviar(qw))}</label>
+        <label class="pergunta" for="entrada-qw" id="pergunta">Material para este trabalho</label><p>${esc(oQueEnviar(qw))}</p>${qw.entregas?.orientacao ? `<details><summary>Conferir a orientação completa do trabalho</summary><p>${esc(qw.entregas.orientacao)}</p></details>` : ''}
         <textarea class="campo-amplo" id="entrada-qw" placeholder="Cole o texto aqui ou anexe o arquivo"></textarea>
         <div class="anexos-pendentes" id="anexos-qw" style="margin-top:10px"></div>
         <div id="erro-exec"></div>

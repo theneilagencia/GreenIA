@@ -46,9 +46,9 @@ export async function vistaGeral() {
   const listaAtencao = itens => `<div class="lista">${itens.map(x => `<a class="lista-item" href="${esc(x.link)}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<br><span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`;
   $('principal').innerHTML = `${cabecalho('Visão geral', `<span class="dica">${MESES[Number(mes) - 1]} de ${ano}</span>`)}
     <div class="pagina"><div class="pagina-dentro"><div class="linha-botoes"><a class="btn btn-linha" href="#/preparacao">Preparar o ambiente</a><a class="btn btn-linha" href="#/pendencias">Ver pendências</a></div>
-      ${pendentes.length ? `<div class="secao-titulo" style="margin-top:0"><h3>Implantação</h3><span class="dica">${v.implantacao.length - pendentes.length} de ${v.implantacao.length} etapas concluídas</span></div>
-        <div class="etapas">${v.implantacao.map((e, i) => `<a class="etapa" href="${e.link}"><span class="passo ${e.feito ? 'feito' : ''}" aria-hidden="true">${e.feito ? '✓' : i + 1}</span>
-          <span class="t"><b>${esc(e.nome)}</b><span>${esc(e.texto)}</span></span><span class="dica">${e.feito ? 'Concluída' : 'Pendente'}</span></a>`).join('')}</div>` : ''}
+      ${pendentes.length ? `<div class="secao-titulo" style="margin-top:0"><h3>Implantação</h3><span class="dica">${v.implantacao.length - pendentes.length} de ${v.implantacao.length} itens disponíveis para conferir</span></div>
+        <div class="etapas">${v.implantacao.map((e, i) => `<a class="etapa" href="${e.link}"><span class="passo ${e.feito ? 'feito' : ''}" aria-hidden="true">${i + 1}</span>
+          <span class="t"><b>${esc(e.nome)}</b><span>${esc(e.texto)}</span></span><span class="dica">${e.feito ? 'Disponível para conferir' : 'Precisa preparar'}</span></a>`).join('')}</div>` : ''}
 
       <div class="secao-titulo"><h3>Atenção agora</h3></div>
       ${atuais.length ? listaAtencao(atuais)
@@ -56,7 +56,7 @@ export async function vistaGeral() {
       ${registros.length ? `<details class="qw-acompanhamento"><summary>Registros anteriores de governança (${registros.length})</summary><p class="dica">Ocorrências registradas, que podem já ter sido tratadas. Bloqueios de dados correspondem a este mês; alertas de governança, aos últimos 7 dias. Confira o estado atual antes de alterar configurações.</p>${listaAtencao(registros)}</details>` : ''}
 
       <div class="secao-titulo"><h3>Uso do mês</h3><a class="btn-texto btn-pequeno" href="#/uso">Ver uso e créditos</a></div>
-      ${usoMes}
+      ${usoMes}${p && !p.ilimitado && v.uso.previsao > p.creditos ? '<div class="faixa-aviso atencao"><p>No ritmo atual, o uso pode ultrapassar os créditos do plano. Confira o consumo antes de ajustar limites.</p><a class="btn btn-linha" href="#/uso">Conferir uso e créditos</a></div>' : ''}
 
       <div class="secao-titulo"><h3>Adoção</h3></div>
       ${faixa([

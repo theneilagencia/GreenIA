@@ -105,3 +105,30 @@ test('outro gestor pode pausar mas não executar como o responsável',async t=>{
 test('excluir Quick Win pausa programações e cancela somente trabalhos na fila',async t=>{
  const S=await fixture(t),s=await S.criar();await S.ativar(s);await S.a.post(S.base(s)+'/executar',{});assert.equal((await S.a.del(`/api/quick-wins/${S.q.id}`)).status,200);assert.equal(um(S.app.db,'select ativa from qw_programacoes').ativa,0);assert.equal(um(S.app.db,'select status from qw_programadas_execucoes').status,'cancelada');await rodadaProgramadas(S.app);assert.equal(um(S.app.db,'select count(*) n from conversas').n,0);
 });
+
+
+test('conferência de horário é calculada no servidor e não grava agendamento', async t => {
+ const S=await fixture(t);
+ const r=await S.a.post(`/api/quick-wins/${S.q.id}/programacoes/previa`,{agenda:S.corpo.agenda});
+ assert.equal(r.status,200);assert.equal(r.dados.proxima_em,'2026-10-06T11:00:00.000Z');
+ assert.equal(um(S.app.db,'select count(*) n from qw_programacoes').n,0);
+ assert.equal((await S.a.post(`/api/quick-wins/${S.q.id}/programacoes/previa`,{agenda:{...S.corpo.agenda,fuso:'invalido'}})).status,400);
+});
+test('repetir pedido de criação preserva uma única rotina e rejeita alteração do pedido', async t => {
+ const S=await fixture(t),requisicao_id='79c412ca-a614-4f06-9af3-dd76558fa664';
+ const s=await S.criar({requisicao_id});const repetida=await S.criar({requisicao_id});
+ assert.equal(s.id,repetida.id);assert.equal(um(S.app.db,'select count(*) n from qw_programacoes').n,1);
+ const r=await S.a.post(`/api/quick-wins/${S.q.id}/programacoes`,{...S.corpo,requisicao_id,entrada:'Outro conteúdo fictício.'});
+ assert.equal(r.status,409);assert.equal(um(S.app.db,'select count(*) n from qw_programacoes').n,1);
+ await S.a.post('/api/admin/pessoas',{email:'gestor@exemplo.com.br',nome:'Gestor',papel:'admin',areas:[]});const g=await S.cliente().entrar('gestor@exemplo.com.br');
+ const outro=await g.post(`/api/quick-wins/${S.q.id}/programacoes`,{...S.corpo,requisicao_id});assert.equal(outro.status,409);assert.doesNotMatch(JSON.stringify(outro.dados),/três revisões/);
+});
+test('contexto usa a versão publicada, não inventa fontes e não é exposto ao usuário comum', async t => {
+ const S=await fixture(t);const antes=(await S.a.get(`/api/quick-wins/${S.q.id}/programacoes`)).dados.contexto;
+ assert.equal(antes.versao,1);assert.deepEqual(antes.fontes,[]);assert.deepEqual(antes.consultas,[]);
+ exec(S.app.db,'update quick_wins set especificacao=? where id=?',JSON.stringify(construir({descricao:'Rascunho diferente que não foi publicado',formato:'texto'})),S.q.id);
+ assert.deepEqual((await S.a.get(`/api/quick-wins/${S.q.id}/programacoes`)).dados.contexto,antes);
+ await S.a.post('/api/admin/pessoas',{email:'usuario@exemplo.com.br',nome:'Usuário',areas:[]});const u=await S.cliente().entrar('usuario@exemplo.com.br');
+ assert.equal((await u.get(`/api/quick-wins/${S.q.id}/programacoes`)).dados.contexto,null);
+ assert.equal((await u.post(`/api/quick-wins/${S.q.id}/programacoes/previa`,{agenda:S.corpo.agenda})).status,403);
+});

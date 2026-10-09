@@ -96,7 +96,7 @@ function versaoDe(db, q) {
 // O que o Quick Win entrega, em linguagem comum (canal · entregável) e se pesquisa na internet.
 function entregasDe(espec) {
   const op = QW2.normalizar(espec)?.operacao;
-  return op ? { entregaveis: op.entregaveis.map(OP.rotuloEntregavel), pesquisa: op.ferramentas.includes('pesquisa_web'), entradas: (op.entradas || []).map(x => `${x.rotulo}${x.quantidade > 1 ? ` (${x.quantidade})` : ''}`) } : null;
+  return op ? { entregaveis: op.entregaveis.map(OP.rotuloEntregavel), pesquisa: op.ferramentas.includes('pesquisa_web'), orientacao: espec.objetivo || '', materiais: (op.entradas || []).map(x => ({ rotulo: x.rotulo, quantidade: x.quantidade, obrigatoria: x.obrigatoria })), entradas: (op.entradas || []).map(x => `${x.rotulo}${x.quantidade > 1 ? ` (${x.quantidade})` : ''}`) } : null;
 }
 
 // Classe de partida de um Quick Win 2.0, pela dica de complexidade da especificação. É só um piso para o
@@ -559,7 +559,7 @@ export function rotasQuickWins(app, r) {
       exec(app.db, 'update quick_wins set versao_publicada = ? where id = ?', vid, q.id);
       return n;
     });
-    registrar(app, 'quickwin.published', pessoa.id, { quick_win: q.id, versao: numero, testado: !!teste });
+    registrar(app, 'quickwin.published', pessoa.id, { quick_win: q.id, versao: numero, testado: !!teste, ciencia_ressalvas: corpo.ciencia_ressalvas === true });
     if (v.status) registrar(app, 'quickwin.status_changed', pessoa.id, { quick_win: q.id, de: q.status, para: v.status });
     return publico(app.db, pessoa, um(app.db, 'select * from quick_wins where id = ?', q.id));
   });

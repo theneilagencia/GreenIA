@@ -15,6 +15,7 @@ test('recomendações são padrão e persistem após salvar, navegar e recarrega
     p.once('dialog', d => d.accept());
     await recomendado.check();
     await p.waitForFunction(() => document.querySelector('input[name="gov"][value="recomendado"]')?.checked && !document.querySelector('input[name="gov"][value="recomendado"]').disabled);
+    await p.locator('#modelos-manuais > summary').click();
     await Promise.all([p.waitForResponse(r => r.url().endsWith('/api/admin/modelos-config') && r.request().method() === 'PUT'), p.getByRole('button', { name: 'Salvar configuração de modelos', exact: true }).click()]);
     await p.waitForFunction(() => document.querySelector('input[name="gov"][value="recomendado"]')?.checked);
     await p.reload(); await recomendado.waitFor(); assert.equal(await recomendado.isChecked(), true);

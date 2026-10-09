@@ -10,7 +10,7 @@ import { cifrar, decifrar } from './plataforma/segredo.js';
 import { podeGerir } from './quickwins.js';
 import { registrar } from './eventos.js';
 import { cienciaPendente } from './politica.js';
-import { executarPlano, lerPlano } from './integracoes/plano.js';
+import { executarPlano, lerPlano, resolverNecessidades } from './integracoes/plano.js';
 import { integracoesLigadas } from './integracoes/rotas.js';
 import { creditosDe } from './plano.js';
 
@@ -215,19 +215,37 @@ export function rotasProgramacao(app,r) {
   r.get('/api/quick-wins/:id/programacoes',({pessoa,params})=>{
     const q=app.quickWins.paraUso(pessoa,Number(params.id),false);if(!q)throw erro(404,'quick_win','Quick Win não encontrado.');
     const podeEditar=podeGerir(app.db,pessoa,q)&&(!pessoa.permissoes||pessoa.permissoes.includes('quickwin.manage'));
-    return {podeEditar,programacoes:todos(app.db,'select * from qw_programacoes where quick_win_id=? order by criado_em desc',q.id).map(s=>publico(app,pessoa,s)),
+    const publicada=q.versao_publicada?um(app.db,'select numero,nome,especificacao from quick_win_versoes where id=?',q.versao_publicada):null;
+    const spec=json(publicada?.especificacao,{});
+    const fontes=podeEditar?todos(app.db,"select titulo from documentos where quick_win_id=? and coalesce(status,'READY')='READY'",q.id).map(f=>f.titulo):[];
+    const consultas=podeEditar&&integracoesLigadas(app,pessoa)?resolverNecessidades(app,spec.operacao?.integracoes||[],{pessoa,quickWinId:q.id}).filter(n=>n.modo==='read'&&n.capability_id&&['disponivel','requer_aprovacao'].includes(n.estado)).map(n=>({sistema:n.sistema_resolvido||n.sistema,acao:n.acao})):[];
+    return {podeEditar,contexto:podeEditar?{versao:publicada?.numero,nome:publicada?.nome,tarefa:spec.objetivo||q.para_que_serve||q.nome,entradas:spec.operacao?.entradas||[],entregas:(spec.operacao?.entregaveis||[]).map(e=>e.rotulo||e.tipo),fontes,consultas}:null,programacoes:todos(app.db,'select * from qw_programacoes where quick_win_id=? order by criado_em desc',q.id).map(s=>publico(app,pessoa,s)),
       eventos:podeEditar&&integracoesLigadas(app,pessoa)?todos(app.db,'select id,evento from webhook_configs where quick_win_id=? and tenant_id=? and ativo=1',q.id,app.tenantId):[]};
+  });
+  r.post('/api/quick-wins/:id/programacoes/previa',({pessoa,params,corpo})=>{
+    gerir(app,pessoa,params.id);qwAtual(app,pessoa,Number(params.id));
+    const agenda=validarAgenda(corpo.agenda);
+    return {proxima_em:proximaOcorrencia(agenda,app.agora())};
   });
   r.post('/api/quick-wins/:id/programacoes',({pessoa,params,corpo})=>{
     gerir(app,pessoa,params.id);const q=qwAtual(app,pessoa,Number(params.id));
     if(pessoa.adminPlataforma)throw erro(403,'responsavel','Use uma pessoa da empresa como responsável, fora do acesso temporário de suporte.');
     if(cienciaPendente(app,pessoa))throw erro(409,'politica_alterada','Registre ciência da política atual antes de programar.');
-    if(um(app.db,'select count(*) as n from qw_programacoes where quick_win_id=?',q.id).n>=10)throw erro(409,'limite','Este Quick Win já tem 10 programações.');
     const tipo=corpo.tipo;if(!['horario','evento'].includes(tipo))throw erro(400,'tipo','Escolha horário ou evento.');
     const agenda=tipo==='horario'?validarAgenda(corpo.agenda):{};
     const creditos=Number(corpo.limite_creditos),maxDia=Number(corpo.max_dia||1);
     if(!Number.isFinite(creditos)||creditos<1||creditos>100000||!Number.isInteger(maxDia)||maxDia<1||maxDia>24)throw erro(400,'limite','Defina um limite mensal de créditos e até 24 execuções por dia.');
-    const s={id:randomUUID(),quick_win_id:q.id,versao_id:q.versao_publicada,pessoa_id:pessoa.id,nome:String(corpo.nome||'Rotina da equipe').trim().slice(0,80)||'Rotina da equipe',tipo,agenda:JSON.stringify(agenda),webhook_id:tipo==='evento'?String(corpo.webhook_id||''):null,entrada_cifrada:JSON.stringify(cifrar(app.mestra(),validarEntrada(app,corpo.entrada||''))),limite_creditos:creditos,max_dia:maxDia};
+    const entrada=validarEntrada(app,corpo.entrada||'');
+    const requisicao=corpo.requisicao_id;
+    if(requisicao&&!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requisicao))throw erro(400,'requisicao','Reabra o formulário de agendamento.');
+    const s={id:requisicao||randomUUID(),quick_win_id:q.id,versao_id:q.versao_publicada,pessoa_id:pessoa.id,nome:String(corpo.nome||'Rotina da equipe').trim().slice(0,80)||'Rotina da equipe',tipo,agenda:JSON.stringify(agenda),webhook_id:tipo==='evento'?String(corpo.webhook_id||''):null,entrada_cifrada:JSON.stringify(cifrar(app.mestra(),entrada)),limite_creditos:creditos,max_dia:maxDia};
+    const anterior=requisicao&&porId(app,requisicao);
+    if(anterior){
+      if(anterior.pessoa_id!==pessoa.id||anterior.quick_win_id!==q.id)throw erro(409,'requisicao','Não foi possível confirmar este pedido. Reabra o agendamento.');
+      if(['nome','tipo','agenda','webhook_id','limite_creditos','max_dia','versao_id'].some(k=>anterior[k]!==s[k])||decifrar(app.mestra(),json(anterior.entrada_cifrada,null))!==entrada)throw erro(409,'requisicao_alterada','Este agendamento já foi salvo. Abra os agendamentos do Quick Win para conferir e ajustar.');
+      return publico(app,pessoa,anterior);
+    }
+    if(um(app.db,'select count(*) as n from qw_programacoes where quick_win_id=?',q.id).n>=10)throw erro(409,'limite','Este Quick Win já tem 10 programações.');
     conferirRotina(app,s);
     exec(app.db,'insert into qw_programacoes(id,quick_win_id,versao_id,pessoa_id,nome,tipo,agenda,webhook_id,entrada_cifrada,ativa,proxima_em,limite_creditos,max_dia,criado_em,atualizado_em) values(?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)',s.id,s.quick_win_id,s.versao_id,s.pessoa_id,s.nome,s.tipo,s.agenda,s.webhook_id,s.entrada_cifrada,tipo==='horario'?proximaOcorrencia(agenda,app.agora()):null,creditos,maxDia,AGORA(app),AGORA(app));
     registrar(app,'quickwin.schedule_created',pessoa.id,{programacao:s.id,quick_win:q.id,tipo,versao:s.versao_id});return publico(app,pessoa,porId(app,s.id));

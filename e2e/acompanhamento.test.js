@@ -46,7 +46,7 @@ test('revisão de acesso exige conferência e registra sem mudar papel',async()=
 });
 test('comparação apresenta diferença de objetivo sem restaurar automaticamente; resultados acessíveis ao gestor',async()=>{
  const p=await abrir(gestor,`#/qw/${q.id}/versoes`);await p.waitForSelector('#comparar-versoes',{state:'attached'});await p.locator('details:has(#comparar-versoes)>summary').click();await p.click('#comparar-versoes button');await p.waitForSelector('.comparacao-campo');assert.match(await p.textContent('#versoes-diferencas'),/Preparar resumo 1|Preparar resumo 2/);assert.equal(um(N.app.db,'select numero from quick_win_versoes where id = (select versao_publicada from quick_wins where id = ?)',q.id).numero,2);
- await p.goto(N.base+`/app#/qw/${q.id}`);await p.waitForSelector('#medicao-qw');await p.waitForSelector('#nova-med');assert.match(await p.textContent('#medicao-qw'),/não é benefício verificado/);await p.close();
+ await p.goto(N.base+`/app#/qw/${q.id}`);await p.waitForSelector('#medicao-qw',{state:'attached'});await p.locator('details:has(#medicao-qw)>summary').click();await p.waitForSelector('#nova-med');assert.match(await p.textContent('#medicao-qw'),/não é benefício verificado/);await p.close();
 });
 test('auditoria apresenta autor e detalhe legível e permite salvar filtros',async()=>{
  const p=await abrir(admin,'#/atividade');await p.waitForSelector('.auditoria-detalhe');await p.locator('.auditoria-detalhe summary').first().click();assert.match(await p.locator('.auditoria-detalhe').first().textContent(),/Autor:|Registro só de inclusão/);await p.click('[data-visao-salvar]');await p.close();

@@ -40,7 +40,8 @@ for(const width of [1280,390,320])test(`interface privada: 29 telas em ${width}p
  writeFileSync('/tmp/greenia-ux/medicoes.json',JSON.stringify(medicoes,null,2));assert.deepEqual(falhas,[]);
 });
 test('estado de erro e diálogo: mensagem legível, recuperação e foco por teclado',async()=>{
- await p.setViewportSize({width:390,height:844});await p.route('**/api/acompanhamento',r=>r.abort());await p.goto(S.base+'/app#/pendencias');await p.reload();await p.waitForSelector('.cabeca h1');await p.waitForFunction(()=>!document.querySelector('#principal').hasAttribute('aria-busy'));assert.match(await p.locator('#principal').innerText(),/Nova conversa/);
+ await p.setViewportSize({width:390,height:844});await p.route('**/api/acompanhamento',r=>r.abort());await p.goto(S.base+'/app#/pendencias');await p.reload();await p.waitForSelector('.cabeca h1');await p.waitForFunction(()=>!document.querySelector('#principal').hasAttribute('aria-busy'));assert.match(await p.locator('#principal').innerText(),/Tentar novamente/);
+ assert.equal(new URL(p.url()).hash,'#/pendencias');
  await p.unroute('**/api/acompanhamento');await p.goto(S.base+'/app#/pendencias');await p.reload();await p.waitForSelector('#pend-lista');await p.click('#ajuda-tela');await p.waitForSelector('[role=dialog]');
  assert.equal(await p.locator('#ajuda-tela').innerText(),'Ajuda');
  assert.ok(await p.locator('.modal-fundo').evaluate(el=>{const r=el.getBoundingClientRect();return getComputedStyle(el).position==='fixed'&&r.top===0&&r.bottom<=innerHeight+1;}));

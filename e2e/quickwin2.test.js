@@ -137,7 +137,8 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.waitForSelector('#entrada-qw');
   // O que enviar vem do plano do Quick Win (o material que cada execução recebe).
   // QA-10: sem IA, o material é o que o pedido nomeia ("compare A com B": os dois), não um rótulo de modelo.
-  assert.match(await p.textContent('label[for=entrada-qw]'), /Envie: Pedidos de compra; Notas de entrega\./);
+  assert.equal(await p.textContent('label[for=entrada-qw]'), 'Material para este trabalho');
+  assert.match(await p.textContent('#principal'), /Envie: Pedidos de compra; Notas de entrega\./);
   await p.fill('#entrada-qw', 'Pedido 882: 40 rolamentos. Nota 45.117: 38 rolamentos.');
   const antes = OR.chamadas.length;
   await p.click('#executar-btn');
@@ -587,7 +588,8 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     assert.equal(await p.locator('[data-aprovar-campo]').count(), 0, 'falha não oferece sugestões genéricas');
     refinamentoIA = true;
     await p.click('#salvar-refinamento');
-    await p.waitForSelector('[data-aprovar-campo="objetivo"]');
+    await p.waitForSelector('.refinamento-proposta');
+    for (const detalhes of await p.locator('.refinamento-proposta details').all()) await detalhes.locator('summary').click();
     assert.equal(await p.isDisabled('#aprovar-refinamento'), false, 'plataforma prepara ajustes para aprovação em um clique');
     await p.uncheck('[data-aprovar-campo="regras"]');
     await p.screenshot({ path: '/tmp/greenia-refinamento-revisao-mobile.png', fullPage: true });
@@ -631,7 +633,8 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     assert.match(await p.textContent('.refinamento-contexto'), /Resultado que vamos melhorar/);
     await p.fill('#refinamento-texto', 'Melhorar o resultado reaberto.');
     await p.click('#salvar-refinamento');
-    await p.waitForSelector('[data-aprovar-campo="regras"]');
+    await p.waitForSelector('.refinamento-proposta');
+    for (const detalhes of await p.locator('.refinamento-proposta details').all()) await detalhes.locator('summary').click();
     await p.check('[data-aprovar-campo="regras"]');
     await p.click('#aprovar-refinamento');
     await p.waitForSelector('[data-repetir-teste]');

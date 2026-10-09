@@ -24,7 +24,10 @@ export async function rotaEmpresa(aba) {
   if (!t || !pode(t[1])) { location.hash = '#/nova'; return; }
   $('principal').innerHTML = `${cabecalho(t[0])}<div class="pagina"><div class="pagina-dentro"><div id="conteudo">${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
-  try { await t[2](); } catch (e) { $('conteudo').innerHTML = `<div class="faixa-aviso erro">${esc(e.message)}</div>`; }
+  try { await t[2](); } catch (e) {
+    $('conteudo').innerHTML = `<div class="faixa-aviso erro" role="alert"><h2>Não foi possível abrir esta tela</h2><p>${esc(e.message)}</p><button class="btn btn-verde" id="empresa-tentar">Tentar novamente</button></div>`;
+    $('empresa-tentar').onclick = () => rotaEmpresa(aba);
+  }
 }
 
 // ---------------------------------------------------------------- Usuários e convites
@@ -37,7 +40,7 @@ async function telaUsuarios() {
     ${podeCriar ? `<form id="f-convite" class="filtros">
       <div class="campo"><label for="cv-email">Email</label><input class="entrada" id="cv-email" type="email" required></div>
       <div class="campo"><label for="cv-nome">Nome</label><input class="entrada" id="cv-nome" maxlength="120"></div>
-      <div class="campo"><label for="cv-role">Role</label><select class="entrada" id="cv-role">${opcoes(roles.find(r => r.key === 'member')?.id)}</select></div>
+      <div class="campo"><label for="cv-role">Perfil</label><select class="entrada" id="cv-role">${opcoes(roles.find(r => r.key === 'member')?.id)}</select></div>
       <button class="btn btn-verde btn-pequeno">Convidar</button></form>` : ''}
     <div class="filtros"><div class="campo"><label for="u-busca">Buscar</label><input class="entrada" id="u-busca" placeholder="nome ou email"></div>
       <div class="campo"><label for="u-status">Status</label><select class="entrada" id="u-status"><option value="">Todos</option><option value="ativo">Ativos</option><option value="convidado">Convidados</option><option value="inativo">Inativos</option></select></div></div>
@@ -45,10 +48,10 @@ async function telaUsuarios() {
   const desenhar = () => {
     const q = $('u-busca').value.toLowerCase(), st = $('u-status').value;
     const lista = usuarios.filter(u => (!q || u.email.includes(q) || (u.name || '').toLowerCase().includes(q)) && (!st || u.status === st));
-    $('u-lista').innerHTML = tabela(['Pessoa', 'Role', 'Status', ''], lista.map(u => {
+    $('u-lista').innerHTML = tabela(['Pessoa', 'Perfil', 'Status', ''], lista.map(u => {
       const proprio = u.id === eu;
       return `<tr><td data-r="Pessoa"><b>${esc(u.name || u.email)}</b>${proprio ? ' <span class="dica">(você)</span>' : ''}<br><span class="dica">${esc(u.email)}</span></td>
-        <td data-r="Role">${podeRoles && !proprio ? `<select class="entrada" data-role="${u.id}" aria-label="Role de ${esc(u.email)}">${opcoes(u.role_id)}</select>` : esc(u.role)}</td>
+        <td data-r="Perfil">${podeRoles && !proprio ? `<select class="entrada" data-role="${u.id}" aria-label="Perfil de ${esc(u.email)}">${opcoes(u.role_id)}</select>` : esc(u.role)}</td>
         <td data-r="Status"><span class="selo ${STATUS[u.status][1]}">${STATUS[u.status][0]}</span></td>
         <td><div class="linha-botoes">${u.status === 'convidado' && podeCriar ? `<button class="btn-texto btn-pequeno" data-reenviar="${u.id}">Reenviar convite</button>` : ''}
           ${podeEditar && !proprio ? `<button class="btn-texto btn-pequeno" data-status="${u.id}" data-novo="${u.status === 'inativo' ? 'ativo' : 'inativo'}">${u.status === 'inativo' ? 'Reativar' : 'Desativar'}</button>` : ''}
@@ -64,7 +67,10 @@ async function telaUsuarios() {
   $('u-lista').onchange = async ev => {
     const s = ev.target.closest('[data-role]');
     if (!s) return;
-    try { await api(`/api/empresa/usuarios/${s.dataset.role}`, { metodo: 'PUT', corpo: { role_id: s.value } }); toast('Role alterada.'); } catch (e) { falhar(e); telaUsuarios(); }
+    const pessoa = usuarios.find(u => String(u.id) === s.dataset.role), perfil = roles.find(r => String(r.id) === s.value);
+    if (!confirm(`Alterar o perfil de ${pessoa.name || pessoa.email} para ${perfil?.name || s.selectedOptions[0].textContent}? Isso altera o que essa pessoa pode acessar e fazer.\n${perfil?.description || ''}`)) { s.value = pessoa.role_id; return; }
+    s.disabled = true;
+    try { await api(`/api/empresa/usuarios/${s.dataset.role}`, { metodo: 'PUT', corpo: { role_id: s.value } }); pessoa.role_id = s.value; toast('Perfil alterado.'); } catch (e) { s.value = pessoa.role_id; falhar(e); } finally { s.disabled = false; }
   };
   $('u-lista').onclick = async ev => {
     const b = ev.target.closest('button');
@@ -86,28 +92,29 @@ async function telaUsuarios() {
 async function telaRoles() {
   const { roles, permissoes, podeCriar } = await api('/api/empresa/roles');
   const desc = Object.fromEntries(permissoes.map(p => [p.key, p.description]));
-  $('conteudo').innerHTML = `<p class="lead">Roles de sistema valem para todas as empresas e não mudam. Roles próprias combinam as permissões que a empresa precisa.</p>
-    ${!podeCriar ? '<div class="faixa-aviso atencao">Roles próprias não estão liberadas para esta empresa. Você pode usar as roles de sistema.</div>' : ''}
-    ${tabela(['Role', 'Permissões', 'Usuários', ''], roles.map(r => `<tr><td data-r="Role"><b>${esc(r.name)}</b>${r.system ? ' <span class="selo selo-cinza">Sistema</span>' : ''}<br><span class="dica">${esc(r.description)}</span></td>
+  $('conteudo').innerHTML = `<p class="lead">Perfis de sistema valem para todas as empresas e não mudam. Perfis próprios combinam as permissões que a empresa precisa.</p>
+    ${!podeCriar ? '<div class="faixa-aviso atencao">Perfis próprios não estão liberados para esta empresa. Você pode usar os perfis de sistema.</div>' : ''}
+    ${tabela(['Perfil', 'Permissões', 'Usuários', ''], roles.map(r => `<tr><td data-r="Perfil"><b>${esc(r.name)}</b>${r.system ? ' <span class="selo selo-cinza">Sistema</span>' : ''}<br><span class="dica">${esc(r.description)}</span></td>
       <td data-r="Permissões"><div class="chips">${r.permissoes.map(p => `<span class="chip" title="${esc(desc[p] || p)}">${esc(desc[p] || p)}</span>`).join('') || '<span class="dica">nenhuma</span>'}</div></td>
       <td data-r="Usuários">${r.usuarios}</td>
-      <td>${!r.system && podeCriar ? `<div class="linha-botoes"><button class="btn-texto btn-pequeno" data-editar="${r.id}">Editar</button><button class="btn-texto btn-pequeno" data-excluir="${r.id}">Remover</button></div>` : ''}</td></tr>`), 'Nenhuma role.')}
-    ${podeCriar ? '<div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde" id="nova-role">Nova role</button></div>' : ''}
+      <td>${!r.system && podeCriar ? `<div class="linha-botoes"><button class="btn-texto btn-pequeno" data-editar="${r.id}">Editar</button><button class="btn-texto btn-pequeno" data-excluir="${r.id}">Remover</button></div>` : ''}</td></tr>`), 'Nenhum perfil.')}
+    ${podeCriar ? '<div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde" id="nova-role">Novo perfil</button></div>' : ''}
     <div id="editor-role"></div>`;
   const editor = r => {
-    $('editor-role').innerHTML = `<form id="f-role" style="margin-top:20px"><h3>${r ? 'Editar role' : 'Nova role'}</h3>
+    $('editor-role').innerHTML = `<form id="f-role" style="margin-top:20px"><h3>${r ? 'Editar perfil' : 'Novo perfil'}</h3>
       <div class="grade-2"><div class="campo"><label for="r-nome">Nome</label><input class="entrada" id="r-nome" value="${esc(r?.name || '')}" maxlength="60"></div>
         <div class="campo"><label for="r-desc">Descrição</label><input class="entrada" id="r-desc" value="${esc(r?.description || '')}" maxlength="200"></div></div>
       <span class="legenda">Permissões</span>
       <div class="checagens">${permissoes.map(p => `<label><input type="checkbox" data-perm="${p.key}" ${r?.permissoes.includes(p.key) ? 'checked' : ''}> <span>${esc(p.description)}<small>${esc(p.key)}</small></span></label>`).join('')}</div>
       <p class="msg-erro oculto" id="r-erro" role="alert"></p>
-      <div class="linha-botoes"><button class="btn btn-verde">Salvar role</button><button type="button" class="btn-texto" id="r-cancelar">Cancelar</button></div></form>`;
+      <div class="linha-botoes"><button class="btn btn-verde">Salvar perfil</button><button type="button" class="btn-texto" id="r-cancelar">Cancelar</button></div></form>`;
     $('r-nome').focus();
     $('r-cancelar').onclick = () => { $('editor-role').innerHTML = ''; };
     $('f-role').onsubmit = async ev => {
       ev.preventDefault();
       const corpo = { name: $('r-nome').value, description: $('r-desc').value, permissoes: [...document.querySelectorAll('[data-perm]')].filter(x => x.checked).map(x => x.dataset.perm) };
-      try { await api(r ? `/api/empresa/roles/${r.id}` : '/api/empresa/roles', { metodo: r ? 'PUT' : 'POST', corpo }); toast('Role salva.'); telaRoles(); } catch (e) { mostrarErro('r-erro', e); }
+      if (r && JSON.stringify([...corpo.permissoes].sort()) !== JSON.stringify([...r.permissoes].sort()) && !confirm(`Alterar as permissões deste perfil? A mudança afeta ${r.usuarios} pessoas vinculadas. Confira as permissões selecionadas antes de continuar.`)) return;
+      try { await api(r ? `/api/empresa/roles/${r.id}` : '/api/empresa/roles', { metodo: r ? 'PUT' : 'POST', corpo }); toast('Perfil salvo.'); telaRoles(); } catch (e) { mostrarErro('r-erro', e); }
     };
   };
   $('nova-role')?.addEventListener('click', () => editor(null));
@@ -116,8 +123,8 @@ async function telaRoles() {
     if (!b) return;
     if (b.dataset.editar) editor(roles.find(x => x.id === b.dataset.editar));
     if (b.dataset.excluir) {
-      if (!confirm('Remover esta role?')) return;
-      try { await api(`/api/empresa/roles/${b.dataset.excluir}`, { metodo: 'DELETE' }); toast('Role removida.'); telaRoles(); } catch (e) { falhar(e); }
+      if (!confirm('Remover este perfil?')) return;
+      try { await api(`/api/empresa/roles/${b.dataset.excluir}`, { metodo: 'DELETE' }); toast('Perfil removido.'); telaRoles(); } catch (e) { falhar(e); }
     }
   };
 }
@@ -141,7 +148,7 @@ async function telaLanding() {
   $('conteudo').innerHTML = renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
   if (!podeEditar) return;
   const ler = ligarLanding(landing);
-  const salvar = async status => { try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'Landing page voltou para rascunho: a página pública mostra só a versão simples.' : landing?.status === 'publicada' ? 'Landing page salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); } };
+  const salvar = async status => { if ((status === 'publicada' || (!status && landing?.status === 'publicada')) && !confirm('Salvar e atualizar a página pública agora? As alterações ficarão visíveis para quem acessar a página.')) return; try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Landing page publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'Landing page voltou para rascunho: a página pública mostra só a versão simples.' : landing?.status === 'publicada' ? 'Landing page salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); } };
   $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
   for (const b of document.querySelectorAll('[data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));
   document.querySelector('[data-acao="despublicar"]')?.addEventListener('click', () => salvar('rascunho'));

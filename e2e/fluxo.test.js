@@ -109,6 +109,8 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   p.on('pageerror', e => erros.push(e.message));
   await N.entrar('admin@empresa-exemplo.com.br', p);
   await p.goto(`${N.base}/app#/qw/${qwId}`);
+  await p.waitForSelector('#medicao-qw',{state:'attached'});
+  await p.locator('details:has(#medicao-qw)>summary').click();
   await p.waitForSelector('#nova-med');
   await p.click('#nova-med');
   await p.fill('#indicador', 'minutos por pedido');

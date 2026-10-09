@@ -1,3 +1,4 @@
+import { nomeEvento } from '/jornadas.js';
 import { detalheAuditoria } from '/auditoria-detalhe.js';
 import { ligarVisao } from '/preferencias.js';
 // Gestão da GreenIA: telas de uso, pessoas, modelos, políticas, atividade,
@@ -17,7 +18,7 @@ const PERFIL_PUBLICO = { nome: 'Nome público', setor: 'Setor', categoria: 'Cate
 const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', pessoal_restrito: 'Dado pessoal restrito (disciplinar, remuneração individual)', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
 // Tratamento proporcional: seguir normalmente, só com proteção (guardrails) ou não enviar.
 const ACAO = { permitir: 'Processar normalmente', proteger: 'Só com proteção', bloquear: 'Não enviar' };
-const EFEITO = { permitir: 'Segue as regras gerais; a conversa não vira sigilosa', proteger: 'A conversa vira sigilosa: segue só com os guardrails', bloquear: 'Não é enviado; a pessoa vê o motivo' };
+const EFEITO = { permitir: 'Segue as regras gerais; a conversa não vira sigilosa', proteger: 'A conversa vira sigilosa: segue só com as proteções autorizadas', bloquear: 'Não é enviado; a pessoa vê o motivo' };
 const seletorAcao = (nome, rotulo, atual) => `<span class="segmento" role="radiogroup" aria-label="${rotulo}">${Object.entries(ACAO).map(([v, r]) => `<label><input type="radio"${v === 'bloquear' ? ' class="perigo"' : ''} name="${nome}" value="${v}" ${atual === v ? 'checked' : ''}><span>${r}</span></label>`).join('')}</span>`;
 const STATUS = { rascunho: 'Rascunho', ativo: 'Ativo', pausado: 'Pausado' };
 
@@ -98,13 +99,13 @@ async function abaModelos() {
     </tbody></table></div>
     <p class="dica">O consumo depende do modelo selecionado; a estimativa acima é do modelo de preferência. Configure modelos e capacidades no catálogo abaixo. O roteamento registra a escolha e suas alternativas, sem guardar o conteúdo do pedido.</p>
     <h3>Catálogo técnico</h3>
-    ${!sig.ativo ? '<div class="faixa-aviso"><b>Informações sigilosas: desligado.</b> Hoje elas não são enviadas para recursos de IA. Para permitir o processamento com guardrails de proteção, ligue a opção em <a href="#/politicas">Políticas de IA → Informações sigilosas</a>.</div>'
+    ${!sig.ativo ? '<div class="faixa-aviso"><b>Informações sigilosas: desligado.</b> Hoje elas não são enviadas para recursos de IA. Para permitir o processamento com proteções obrigatórias de dados, ligue a opção em <a href="#/politicas">Políticas de IA → Informações sigilosas</a>.</div>'
       : padrao ? `<div class="faixa-aviso ok"><b>Informações sigilosas: ligado.</b> Recurso autorizado disponível para todas as pessoas: ${esc(padrao.nome)}. Ninguém precisa escolher.</div>`
       : `<div class="faixa-aviso erro"><b>Informações sigilosas: ligado, mas sem recurso autorizado.</b> Essas conversas são bloqueadas com segurança: nada é enviado e você recebe um aviso. ${recomendado
         ? 'O modo recomendado já está ativo. Solicite ao administrador da plataforma uma rota autorizada para dados sigilosos, com fornecedor definido, não uso para treino e retenção zero comprovados.'
         : 'Verifique com o administrador da plataforma se há uma rota autorizada no modo recomendado, ou homologue um modelo abaixo com fornecedor definido, não uso para treino e retenção zero comprovados.'}</div>`}
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
-    ${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
+    <details id="modelos-manuais" ${recomendado?'':'open'}><summary>Configurar modelos manualmente</summary><p class="dica">No modo recomendado, a GreenIA cuida da escolha. Alterar estes controles muda a empresa para o modo manual; as regras de sigilo continuam valendo.</p>${tabela(['Modelo', 'Classe', ...colunasPreco(), '#Contexto', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
       <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
       <td><select data-perfil="${esc(x.id)}" aria-label="Perfil de ${esc(x.nome)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}" ${x.perfil === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
       ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
@@ -147,7 +148,7 @@ async function abaModelos() {
       <label class="opcoes"><span><input type="checkbox" id="automatico" ${cfg.automatico ? 'checked' : ''}> Oferecer também o "Automático do serviço de IA" no seletor (o serviço de IA escolhe qualquer modelo do mercado, fora das classes e das regras de roteamento da empresa; nunca recebe informação sigilosa)</span></label>
       <p class="dica">O recomendado é o roteamento da GreenIA, em Modelos → Roteamento: ele escolhe entre os modelos liberados aqui, respeitando acesso, sigilo e plano, e registra o motivo de cada escolha.</p>
       <div class="linha-botoes" style="margin:18px 0"><button class="btn btn-verde">Salvar configuração de modelos</button></div>
-    </form>`;
+    </form></details>`;
 
   const salvarModelo = async (id, corpo, msg) => { try { await api(`/api/admin/modelos/${encodeURIComponent(id)}`, { metodo: 'PUT', corpo }); toast(msg); } catch (e) { falhar(e); } abaModelos(); };
   $('conteudo').onchange = ev => {
@@ -260,11 +261,11 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
   const tipo = k => u.porTipo.find(x => x.tipo === k) || { conversas: 0, custo: 0 };
   const col = emCreditos() ? '#Créditos' : '#Custo';
   const linhas = (lista, rotulo) => lista.map(x => `<tr><td>${rotulo(x)}</td><td class="num">${num(x.conversas)}</td><td class="num">${num(x.respostas)}</td><td class="num">${us(x.custo)}</td></tr>`);
-  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo serviço de IA em cada resposta.'} Testes de quick win aparecem à parte: ficam fora dos recortes abaixo, mas consomem créditos do plano.</p>
+  $('conteudo').innerHTML = `${await blocoPlano(u.pacotes)}<p class="lead">${emCreditos() ? 'Créditos consumidos em cada resposta, conforme o modelo e o tamanho do pedido.' : 'Custo real informado pelo serviço de IA em cada resposta.'} O total do mês escolhido inclui uso e testes. Os recortes detalhados abaixo mostram o uso fora dos testes. O saldo do plano acima corresponde ao ciclo atual.</p>
     <div class="filtros"><div class="campo"><label for="mes">Mês</label><input class="entrada" type="month" id="mes" value="${u.mes}"></div>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/uso?mes=${u.mes}&formato=csv">Baixar CSV</a></div>
     <div class="indicadores">
-      <div class="indicador"><span>${emCreditos() ? 'Créditos usados' : 'Custo de IA'}</span><b>${us(t.custo)}</b></div>
+      <div class="indicador"><span>${emCreditos() ? 'Total de créditos no mês escolhido' : 'Custo total no mês escolhido'}</span><b>${us(t.custo + (u.testes?.custo || 0))}</b><small>Inclui uso e testes</small></div><div class="indicador"><span>Uso fora dos testes</span><b>${us(t.custo)}</b></div>
       <div class="indicador"><span>Conversas</span><b>${num(t.conversas)}</b><small>${num(t.respostas)} respostas</small></div>
       <div class="indicador"><span>Pessoas que usaram</span><b>${num(t.pessoas)}</b></div>
       <div class="indicador"><span>Economia com cache</span><b>${us(t.economia)}</b></div>
@@ -273,7 +274,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
       <div class="indicador"><span>Conversas sigilosas</span><b>${num(tipo('sigilosa').conversas)}</b><small>${us(tipo('sigilosa').custo)}</small></div>
       ${u.testes?.respostas ? `<div class="indicador"><span>Testes de quick win</span><b>${us(u.testes.custo)}</b><small>${num(u.testes.conversas)} testes · contam no plano</small></div>` : ''}
     </div>
-    <h3>Tendência</h3><p class="dica">Seis meses até o mês escolhido.</p>
+    <details class="uso-detalhes"><summary>Ver detalhes do consumo por tarefa, pessoa e recurso</summary><h3>Tendência</h3><p class="dica">Seis meses até o mês escolhido.</p>
     ${barrasMes(u.tendencia, u.mes)}
     <h3>Por classe</h3><p class="dica">A classe pedida em cada resposta. Rápido para o dia a dia, Avançado para análises longas.</p>
     ${tabela(['Classe', '#Conversas', '#Respostas', col], linhas(u.porClasse, x => esc(NOME_CLASSE[x.classe] || 'Outro')))}
@@ -283,7 +284,7 @@ async function abaUso(mes = new Date().toISOString().slice(0, 7)) {
     ${tabela(['Quick win', '#Execuções', emCreditos() ? '#Créditos por execução' : '#Custo por execução', '#Sem avaliação', col],
       u.porQuickWin.map(x => `<tr><td>${x.id ? `<a href="#/qw/${x.id}">${esc(x.quick_win)}</a>` : esc(x.quick_win)}</td><td class="num">${num(x.execucoes)}</td><td class="num">${x.id ? us(x.custoPorExecucao) : '–'}</td><td class="num">${x.id ? num(x.semAvaliacao) : '–'}</td><td class="num">${us(x.custo)}</td></tr>`))}
     <h3>Por pessoa</h3>${tabela(['Pessoa', '#Conversas', '#Respostas', col], linhas(u.porPessoa, x => `${esc(x.nome)} <span class="dica">${esc(x.email)}</span>`))}
-    <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', col], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}`;
+    <h3>Por modelo</h3>${tabela(['Modelo que respondeu', '#Conversas', '#Respostas', col], linhas(u.porModelo, x => `${esc(x.modelo)}${x.fornecedor ? ` <span class="dica">via ${esc(x.fornecedor)}</span>` : ''}`))}</details>`;
   ligarVisao('uso',$('mes').closest('.filtros'),()=>({mes:$('mes').value}),v=>{if(/^\d{4}-\d{2}$/.test(v.mes))abaUso(v.mes);});
   $('mes').onchange = ev => abaUso(ev.target.value);
 }
@@ -330,14 +331,14 @@ async function abaEventos(filtro = {}, pagina = 0) {
     <h2 style="margin-top:32px">Eventos</h2>
     <p class="lead">Registro só de inclusão: logins, mudanças de configuração, uso (sem conteúdo), bloqueios, conversas sigilosas, exclusões.</p>
     <form class="filtros" id="filtro-ev">
-      <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo"><option value="">Todos</option>${d.tipos.map(t => `<option ${t === filtro.tipo ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+      <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo"><option value="">Todos</option>${d.tipos.map(t => `<option value="${esc(t)}" ${t === filtro.tipo ? 'selected' : ''}>${esc(nomeEvento(t))} · ${esc(t)}</option>`).join('')}</select></div>
       <div class="campo"><label for="ev-pessoa">Pessoa (email)</label><input class="entrada" id="ev-pessoa" value="${esc(filtro.pessoa || '')}"></div>
       <div class="campo"><label for="ev-de">De</label><input class="entrada" type="date" id="ev-de" value="${esc(filtro.de || '')}"></div>
       <div class="campo"><label for="ev-ate">Até</label><input class="entrada" type="date" id="ev-ate" value="${esc(filtro.ate || '')}"></div>
       <button class="btn btn-linha btn-pequeno">Filtrar</button>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/eventos?${q}&formato=csv">Baixar CSV</a></form>
     <p class="dica">${num(d.total)} eventos.</p>
-    ${tabela(['Quando', 'Tipo', 'Pessoa', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(e.tipo)}</td><td>${esc(e.pessoa || '—')}</td>
+    ${tabela(['Quando', 'Tipo', 'Pessoa', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(nomeEvento(e.tipo))}<br><span class="dica">${esc(e.tipo)}</span></td><td>${esc(e.pessoa || '—')}</td>
       <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhum evento com esses filtros.')}
     <div class="linha-botoes" style="margin-top:12px">${pagina > 0 ? '<button class="btn btn-linha btn-pequeno" id="ev-ant">Anteriores</button>' : ''}${(pagina + 1) * 100 < d.total ? '<button class="btn btn-linha btn-pequeno" id="ev-prox">Mais antigos</button>' : ''}</div>`;
   const ler = () => ({ tipo: $('ev-tipo').value, pessoa: $('ev-pessoa').value, de: $('ev-de').value, ate: $('ev-ate').value });
@@ -376,7 +377,7 @@ async function abaConfig() {
   let dominios = [...c.dominios];
   const smtp = c.smtp || {};
   let prov = provedorDe(smtp);
-  const caixa = (n, titulo, porque, corpo, extra = '') => `<section class="cfg-caixa"${extra}><div class="cfg-topo"><span class="url-num">${n}</span><div><h3>${titulo}</h3><p class="dica">${porque}</p></div></div>${corpo}</section>`;
+  const caixa = (n, titulo, porque, corpo, extra = '') => `<details class="cfg-caixa"${extra}><summary class="cfg-topo"><span class="url-num">${n}</span><div><h3>${titulo}</h3><p class="dica">${porque}</p></div></summary>${corpo}</details>`;
   const limite = (id, rotulo, explica, valor, sufixo, passo = 1) => `<div class="cfg-limite"><label class="cfg-liga"><input type="checkbox" data-liga="${id}" ${valor > 0 ? 'checked' : ''}> <span><b>${rotulo}</b><small>${explica}</small></span></label>
     <div class="cfg-valor ${valor > 0 ? '' : 'oculto'}" id="v-${id}"><input class="entrada" type="number" min="1" step="${passo}" id="${id}" value="${valor > 0 ? valor : ''}" inputmode="numeric"><span class="dica">${sufixo}</span></div></div>`;
   $('conteudo').innerHTML = `<form id="form-cfg" class="cfg">
@@ -501,6 +502,11 @@ async function abaConfig() {
   $('form-cfg').addEventListener('input', sujo);
 
   const salvar = async () => {
+    const efeitos = [];
+    if (JSON.stringify(dominios) !== JSON.stringify(c.dominios)) efeitos.push('Domínios de acesso: a alteração afeta quem pode entrar na empresa.');
+    if (Number($('c-ret').value) !== c.retencaoDias) efeitos.push('Prazo de conservação das conversas: o servidor pode apagar conteúdo quando vencer o novo prazo.');
+    if ($('cfg-integracoes').checked !== !!c.integracoes?.ativa) efeitos.push('Acesso às integrações: a alteração vale para a empresa toda.');
+    if (efeitos.length && !confirm(`Salvar estas alterações?\n${efeitos.join('\n')}`)) return false;
     await api('/api/admin/config', { metodo: 'PUT', corpo: {
       ...(multi ? {} : { empresa: $('c-empresa').value, logo, corMarca: $('c-cor-usar').checked ? $('c-cor').value : '', privacyNote: $('c-priv').value }),
       dominios, smtp: lerEmail(), retencaoDias: Number($('c-ret').value),
@@ -512,15 +518,16 @@ async function abaConfig() {
     // O menu Integrações aparece ou some na hora, conforme o servidor (que também respeita a chave de emergência).
     const eu = await api('/api/eu').catch(() => null);
     if (eu) { E.integracoes = !!eu.integracoes; desenharLateral(); }
+    return true;
   };
   $('c-smtp-teste').onclick = ev => ocupado(ev.currentTarget, async () => {
     $('c-teste-res').textContent = '';
-    try { await salvar(); const r = await api('/api/admin/smtp/teste', { metodo: 'POST' }); $('c-teste-res').textContent = r.via === 'empresa' ? `Enviado pelo email da empresa para ${r.para}. Confira a caixa de entrada e o spam.` : `Enviado pelo email da plataforma para ${r.para} (a empresa ainda não tem email próprio configurado).`; toast('Email de teste enviado.'); }
+    try { if (!await salvar()) return; const r = await api('/api/admin/smtp/teste', { metodo: 'POST' }); $('c-teste-res').textContent = r.via === 'empresa' ? `Enviado pelo email da empresa para ${r.para}. Confira a caixa de entrada e o spam.` : `Enviado pelo email da plataforma para ${r.para} (a empresa ainda não tem email próprio configurado).`; toast('Email de teste enviado.'); }
     catch (e) { $('c-teste-res').textContent = e.message; falhar(e); }
   });
   $('form-cfg').onsubmit = async ev => {
     ev.preventDefault();
-    await ocupado(ev.submitter, async () => { try { await salvar(); toast('Configurações salvas.'); abaConfig(); } catch (e) { falhar(e); } });
+    await ocupado(ev.submitter, async () => { try { if (!await salvar()) return; toast('Configurações salvas.'); abaConfig(); } catch (e) { falhar(e); } });
   };
 }
 
@@ -543,16 +550,16 @@ async function abaPoliticas() {
     <div class="secao-titulo"><h3>Informações sigilosas</h3></div>
     <div class="editor" id="sigilo-politica"><div class="linha-switch">
       <button type="button" class="switch" id="sigilo-ativo" role="switch" aria-checked="${sig.ativo}" aria-labelledby="sigilo-titulo"><span></span></button>
-      <label class="ls-titulo" id="sigilo-titulo" for="sigilo-ativo">Permitir processamento de informações sigilosas com guardrails de proteção</label>
+      <label class="ls-titulo" id="sigilo-titulo" for="sigilo-ativo">Permitir processamento de informações sigilosas com proteções obrigatórias de dados</label>
       <span class="estado ${sig.ativo ? 'on' : ''}">${sig.ativo ? 'ON' : 'OFF'}</span>
-      <p class="ls-desc">Quando ativado, a GreenIA permite o uso de IA com informações sigilosas aplicando automaticamente os guardrails de proteção antes de cada processamento.
+      <p class="ls-desc">Quando ativado, a GreenIA permite o uso de IA com informações sigilosas aplicando automaticamente os proteções obrigatórias de dados antes de cada processamento.
         ${sig.ativo ? 'Sem um recurso autorizado disponível, nada é enviado e você é avisado.' : 'Desligado, informações sigilosas não são enviadas para recursos de IA.'}</p>
     </div></div>
     <form id="form-dados"><div class="secao-titulo"><h3>Tipos de dado reconhecidos</h3><span class="dica">Vale para o chat e é o padrão de cada quick win novo</span></div>
       <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th><th>Guardar no histórico</th></tr></thead><tbody>
         ${Object.entries(DADOS).map(([k, v]) => `<tr><td data-r="Tipo"><b>${v}</b></td><td data-r="Regra">${seletorAcao(`d-${k}`, v, c.acoesChat[k])}</td>
           <td data-r="Efeito" class="dica">${EFEITO[c.acoesChat[k]] || EFEITO.bloquear}</td>
-          <td data-r="Guardar no histórico"><label class="dica"><input type="checkbox" data-guardar="${k}" ${(c.naoArmazenar || []).includes(k) ? '' : 'checked'}> guardar</label></td></tr>`).join('')}
+          <td data-r="Guardar no histórico"><label class="dica"><input type="checkbox" aria-label="Guardar ${esc(v)} no histórico" data-guardar="${k}" ${(c.naoArmazenar || []).includes(k) ? '' : 'checked'}> guardar</label></td></tr>`).join('')}
         <tr><td data-r="Tipo"><b>Senhas, chaves de acesso e outros segredos</b></td><td data-r="Regra">Bloqueados quando reconhecidos</td><td data-r="Efeito" class="dica">Regra de segurança da GreenIA; não depende da opção acima e não pode ser alterada</td></tr>
         <tr><td data-r="Tipo"><b>Informação estratégica sem marcação</b></td><td data-r="Regra">Marcação manual</td><td data-r="Efeito" class="dica">Nomes, cargos, emails e telefones de trabalho são conteúdo normal. Estratégia sem marcação não é adivinhada: a pessoa marca a conversa como sigilosa, ou o documento é marcado como sigiloso</td></tr>
       </tbody></table></div>
@@ -574,7 +581,7 @@ async function abaPoliticas() {
       <tr><td data-r="Gatilho">Documento sigiloso usado na resposta</td><td data-r="Situação">marcado no envio do documento</td></tr>
       <tr><td data-r="Gatilho">Marcação manual pela pessoa</td><td data-r="Situação">sempre disponível no chat</td></tr>
     </tbody></table></div>
-    <p class="dica">Conversa sigilosa segue só por recursos que passam em todos os guardrails: autorizados, com o fornecedor fixado, retenção zero e ausência de uso para treino comprovadas. Se o recurso cair, a GreenIA procura outro que passe nos mesmos guardrails; se não houver, nada é enviado.</p>
+    <p class="dica">Conversa sigilosa segue só por recursos que passam em todas as proteções obrigatórias: autorizados, com o fornecedor fixado, retenção zero e ausência de uso para treino comprovadas. Se o recurso cair, a GreenIA procura outro que passe nas mesmas proteções; se não houver, nada é enviado.</p>
     ${homologados.length ? `<div class="tabela-rolagem" style="margin-top:10px"><table class="tabela"><thead><tr><th>Modelo homologado</th><th>Classe</th><th>Fornecedor fixado</th><th>Homologado por</th></tr></thead><tbody>
       ${homologados.map(x => `<tr><td>${esc(x.nome)}</td><td>${PERFIS[x.perfil] || ''}</td><td>${esc(x.homologacao?.fornecedor || '')}</td><td>${esc(x.homologacao?.quem || '')} · ${dataHora(x.homologacao?.em)}</td></tr>`).join('')}</tbody></table></div>` : ''}
 
@@ -594,7 +601,7 @@ async function abaPoliticas() {
     </tbody></table></div>`;
   $('sigilo-ativo').onclick = async () => {
     const ativo = !sig.ativo;
-    if (ativo && !confirm('Ligar o processamento de informações sigilosas com guardrails de proteção? A GreenIA só usará recursos autorizados que atendem aos guardrails.')) return;
+    if (ativo && !confirm('Ligar o processamento de informações sigilosas com proteções obrigatórias de dados? A GreenIA só usará recursos autorizados que atendem às proteções obrigatórias.')) return;
     try { await api('/api/admin/sigilo', { metodo: 'PUT', corpo: { ativo } }); toast(ativo ? 'Processamento protegido ligado.' : 'Processamento de informações sigilosas desligado.'); abaPoliticas(); } catch (e) { falhar(e); }
   };
   $('form-dados').onsubmit = async ev => {

@@ -72,3 +72,8 @@ PR #43 integrado; Render live em 09/10/2026 às 15:39:10 UTC; saúde servindo `f
 | RQ-30 | Refinar pelo botão do alerta, sem voltar à edição | Ação principal “Refinar Quick Win” leva ao caso exato, incluindo conversa e mensagem. Diagnóstico prepara orientação editável; material anterior é reaproveitado. Melhorar somente uma resposta é ação separada e não envia automaticamente. | Teste do caminho exato em 1280/390/320, erro 503 sem perder orientação, versão publicada preservada. Aplicação e comparação cobertas pela bateria guiada. Produção ainda pendente neste commit. |
 
 Relatório e evidências: `orientacao-resultados-refinamento-20261009.md`. Corrigir estes problemas não encerra automaticamente os 24 itens do documento de auditoria nem comprova usabilidade com participantes.
+
+
+### Evidência real da reabertura
+
+PR #44, produção `81b5deb`: botão do alerta da conversa 67 abriu refinamento do resultado 174; material anterior disponível, diagnóstico preparou orientação e a IA gerou proposta. Nenhum editor inicial apareceu. A versão da equipe não foi publicada durante a verificação. Testes fictícios cobrem aplicar/retestar/comparar. A consulta histórica deixou de ser apresentada como gravação bloqueada; proteção de pesquisa permaneceu ativa. Pequeno ajuste posterior de título distingue problema de linguagem de entrega incompleta; 4/4 testes de serviço e 1/1 de navegador passaram.

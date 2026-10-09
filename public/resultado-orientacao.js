@@ -12,12 +12,16 @@ export function pontosDoResultado(q) {
     const item = (q.itens || []).find(x => x.conferido && !x.ok && (x.motivos || []).some(m => detalhe.includes(m)));
     const t = norm(detalhe);
     const grupo = item?.id || (/faltou parte/.test(t) ? 'completo' : /formato combinado/.test(t) ? 'formato' : /informacao que nao esta/.test(t) ? 'invencao' : 'regras');
-    const [titulo, padrao] = GRUPOS[grupo] || GRUPOS.regras;
+    let [titulo, padrao] = GRUPOS[grupo] || GRUPOS.regras;
     const motivo = detalhe.replace(/^(Uma das regras do Quick Win não foi seguida\.|Faltou parte do que foi pedido\.|O resultado não veio no formato combinado\.|O resultado pode ter informação que não está no material\.)\s*/,'');
-    const observacao = motivo.split(/\s*\(critério:/i)[0].split(/(?<=[.!?])\s+/)[0] || titulo + '.';
+    let observacao = motivo.split(/\s*\(critério:/i)[0].split(/(?<=[.!?])\s+/)[0] || titulo + '.';
     let fazer = padrao;
     if (/responsave|prazos|kpis|indicadores/.test(t) && grupo === 'completo') fazer = 'Peça para incluir um plano de ação com responsáveis, prazos e indicadores de acompanhamento. Use apenas dados confirmados; o que faltar deve ser indicado.';
-    if (/linguagem|tom |narrativa|frases|marcas de ia|termos tecnicos/.test(t)) fazer = 'Peça para simplificar a linguagem, variar as frases e retirar construções artificiais, preservando o conteúdo.';
+    if (/linguagem|tom |narrativa|frases|marcas de ia|termos tecnicos/.test(t)) {
+      titulo = 'A linguagem precisa de ajuste';
+      observacao = 'A conferência apontou problemas no tom ou na construção das frases.';
+      fazer = 'Peça para simplificar a linguagem, variar as frases e retirar construções artificiais, preservando o conteúdo.';
+    }
     return { id: i, titulo, observacao, fazer, detalhe };
   });
 }

@@ -13,6 +13,8 @@ test('diagnóstico editorial oferece ajuste concreto e preserva a evidência com
   const pontos=pontosDoResultado(q);
   assert.match(pontos[0].fazer,/responsáveis, prazos e indicadores/);
   assert.match(pontos[1].fazer,/simplificar a linguagem/);
+  assert.equal(pontos[1].titulo,'A linguagem precisa de ajuste');
+  assert.doesNotMatch(pontos[1].observacao,/critério|marcas de IA|Faltou parte/);
   assert.equal(pontos[0].detalhe,q.problemas[0]);
   assert.doesNotMatch(pontos[0].observacao,/critério/);
   assert.match(pedidoMelhoria(q),/material já enviado/);

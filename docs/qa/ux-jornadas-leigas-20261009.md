@@ -57,4 +57,8 @@ A primeira rodada de 111 cenários encontrou expectativas antigas de campos agor
 
 ## Situação da publicação
 
-Implementação registrada no commit `35e201c`, branch local `fix/ux-guided-audit`. A consulta do GitHub confirmou que o repositório `theneilagencia/GreenIA` é público e pertence à conta conectada, com permissão administrativa. A revisão automática rejeitou o push porque a autorização de implementação não foi considerada autorização explícita de publicação pública do código. Não foi usado outro canal para contornar a rejeição. A versão observada na GreenIA continua `31f8f46`; as novas correções ainda não foram publicadas. Disparo pelo relógio real e aviso por email dependem da publicação e verificação posterior.
+PR 38 integrado na branch `greenia-lite`: https://github.com/theneilagencia/GreenIA/pull/38
+
+A saúde pública da aplicação respondeu `ok: true`, IA disponível e versão `2a840b2`, confirmando a atualização.
+
+O login seguro não foi confirmado nesta rodada. Assim, disparo de agendamento no horário real e recebimento do email **continuam pendentes de verificação autenticada**. Não foi criado novo agendamento de QA em produção. Os testes locais validam persistência e execução com relógio simulado, sem substituir essa verificação real.

@@ -813,11 +813,12 @@ export function rotasConversas(app, r) {
       if (integ) {
         const l = limparResposta(resposta); resposta = l.texto;
         if (Object.keys(l.dados).length) dadosInteg = l.dados;
-        const passosDe = r => (r?.passos || []).map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null, aprovacao_status: x.aprovacao_status || null }));
+        const passosDe = r => (r?.passos || []).map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, motivo: x.motivo || null, connector_id: x.connector_id || null, aprovacao: x.aprovacao || null, aprovador: x.aprovador || null, aprovacao_status: x.aprovacao_status || null }));
         // Escrita só com resultado conferido: pergunta pendente ou resultado inconsistente não grava em sistema externo.
         if (['pergunta', 'inconsistente'].includes(registroQualidade.status)) {
           const p = lerPlanoInteg(app, integ.plano);
-          registroQualidade.integracoes = { plano: integ.plano, status: 'BLOCKED', motivo: 'resultado_nao_conferido', passos: p ? passosDe(resumoPlanoInteg(app, p)) : [] };
+          const temEscrita = p?.passos?.some(x => x.modo === 'write');
+          registroQualidade.integracoes = { plano: integ.plano, status: temEscrita ? 'BLOCKED' : p?.status || 'BLOCKED', ...(temEscrita ? { motivo: 'resultado_nao_conferido' } : {}), passos: p ? passosDe(resumoPlanoInteg(app, p)) : [] };
         } else {
           linha({ t: 'etapa', v: 'Executando as integrações…' });
           try { integResumo = await concluirExecucao(app, pessoa, { prep: integ, dados: dadosInteg, lookup: app.dnsLookup }); registroQualidade.integracoes = { plano: integ.plano, status: integResumo.status, passos: passosDe(integResumo) }; }
@@ -901,10 +902,11 @@ export function detalhe(app, c, pessoa = null) {
     // A conferência é histórica; o estado das ações externas continua evoluindo
     // depois dela. Reabrir a conversa deve mostrar o plano atual, sem executá-lo.
     const i = q.integracoes;
-    const p = i?.plano && i.motivo !== 'resultado_nao_conferido' ? lerPlanoInteg(app, i.plano) : null;
+    const p = i?.plano ? lerPlanoInteg(app, i.plano) : null;
     if (p && p.conversa_id === c.id && p.pessoa_id === c.pessoa_id) {
       const atual = resumoPlanoInteg(app, p);
-      q.integracoes = { ...i, status: atual.status, atualizado_em: atual.atualizado_em, passos: atual.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, aprovacao: x.aprovacao || null, aprovacao_status: x.aprovacao_status || null })) };
+      const bloqueioQualidade = i.motivo === 'resultado_nao_conferido' && atual.passos.some(x=>x.modo==='write');
+      q.integracoes = { ...i, status: bloqueioQualidade ? i.status : atual.status, motivo: bloqueioQualidade ? i.motivo : null, atualizado_em: atual.atualizado_em, passos: atual.passos.map(x => ({ id: x.id, acao: x.acao, sistema: x.sistema, modo: x.modo, status: x.status || null, motivo: x.motivo || null, connector_id: x.connector_id || null, aprovacao: x.aprovacao || null, aprovador: x.aprovador || null, aprovacao_status: x.aprovacao_status || null })) };
     }
     return q;
   };

@@ -129,7 +129,7 @@ test('aviso de configuração com link: "Liberar a pesquisa na internet" leva a 
 });
 
 
-test('proteção reforçada: link visível para usuário comum; servidor impede alteração da área', async () => {
+test('proteção reforçada: usuário comum recebe causa, impacto e relato existente; servidor impede alteração da área', async () => {
   const admin = adminQA;
   const area = (await admin.post('/api/admin/areas', { nome: 'Proteção QA', sigilosa: true })).dados;
   const pessoa = (await admin.get('/api/admin/pessoas')).dados.pessoas.find(p => p.email === 'lia@empresa-exemplo.com.br');
@@ -145,13 +145,16 @@ test('proteção reforçada: link visível para usuário comum; servidor impede 
   await p.waitForSelector('#entrada-qw');
   await p.fill('#entrada-qw', 'Prepare sugestões para a próxima reunião.');
   await p.click('#executar-btn');
-  const link = p.getByRole('link', { name: 'Revisar a proteção da área →', exact: true });
-  await link.waitFor({ timeout: 30000 });
-  assert.equal(await link.getAttribute('href'), '#/pessoas');
-  assert.ok(await p.getByText('A alteração exige permissão.', { exact: false }).isVisible());
+  const solicitar = p.getByRole('button', { name: 'Solicitar revisão ao administrador', exact: true });
+  await solicitar.waitFor({ timeout: 30000 });
+  assert.match(await p.locator('.qc-limitacao').innerText(),/pesquisa na internet foi bloqueada pela proteção da área.*temas atuais não foram confirmados.*Você não pode alterar/s);
+  assert.equal(await p.getByRole('link', { name: 'Revisar a proteção da área →', exact: true }).count(),0);
   assert.ok(await semRolagem(p));
-  await link.click();
-  await p.waitForURL('**/app#/nova');
+  await solicitar.click();
+  await p.getByRole('dialog').waitFor();
+  assert.match(await p.inputValue('#descricao-problema'),/pesquisa_area_reforcada/);
+  await p.getByRole('button',{name:'Cancelar',exact:true}).click();
+  assert.ok(new URL(p.url()).hash.startsWith('#/c/'),'permanece no trabalho');
   assert.equal(await p.locator('[data-campo="sigilosa"]').count(), 0);
   assert.equal((await admin.get(`/api/admin/areas/${area.id}`)).dados.area.sigilosa, true);
   await ctx.close();

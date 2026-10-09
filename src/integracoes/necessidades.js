@@ -11,7 +11,7 @@ const corta = (s, n) => String(s ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().
 // Quick Wins de texto, análise e produção visual seguem exatamente como antes.
 const SISTEMA = /\b(?:no|na|do|da|ao|à|pelo|pela|via|para o|para a)\s+((?:sistema|crm|erp|portal|plataforma|planilha online|banco de dados|api|aplicativo|app|helpdesk|service desk|intranet|ferramenta|software|site)(?:\s+(?:de|do|da)\s+[\wÀ-ú-]+|\s+(?!(?:e|ou|de|do|da|com|para|sem|que|os|as|o|a|um|uma|em|no|na|depois|então)\b)[A-Za-zÀ-ú][\wÀ-ú-]*(?:\s+[A-Z][\wÀ-ú-]*){0,3})?|[A-Z][\wÀ-ú-]+(?:\s+[A-Z][\wÀ-ú-]*)?)|\b(?:por|via|pelo)\s+(e-?mail|sms|whatsapp)\b/;
 // Nome próprio que não é sistema externo: canais de conteúdo (a peça é produzida aqui), lugares, formatos e meses.
-const NAO_SISTEMA = /^(instagram|linkedin|tiktok|youtube|facebook|twitter|x|threads|pinterest|kwai|blog|brasil|portugal|europa|america|sao paulo|rio|excel|word|powerpoint|pdf|markdown|janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|greenia|quick win)\b/;
+const NAO_SISTEMA = /^(fase|etapa|internet|web|instagram|linkedin|tiktok|youtube|facebook|twitter|x|threads|pinterest|kwai|blog|brasil|portugal|europa|america|sao paulo|rio|excel|word|powerpoint|pdf|markdown|janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|greenia|quick win)\b/;
 const MESMO_SISTEMA = /\b(?:no|na|do|da|ao|à|pelo|pela|via|para o|para a)\s+(?:mesmo|mesma)\s+(?:sistema|crm|erp|portal|plataforma|api|aplicativo|app|ferramenta|software)\b/i;
 const VERBOS = [
   ['delete_record', /\b(apag|exclu|remov|delet)\w*/],

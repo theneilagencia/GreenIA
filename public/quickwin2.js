@@ -7,6 +7,7 @@ import { vistaConversa } from '/conversa.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { resumoConferencia } from '/jornadas.js';
+import { pontosDoResultado } from '/resultado-orientacao.js';
 import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelIntegracoes, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
 import { validarAlteracoes } from '/qw-refinamento.js';
@@ -708,7 +709,7 @@ async function desenharRefinamento(W) {
     ${r?.rodando ? `<div id="teste-resultado">${htmlResultado(W)}</div>` : W.refinarAprovado ? `<section class="editor"><h3>Alterações aplicadas ao rascunho</h3><p>${esc(W.refinarAprovado.map(a => a.rotulo).join(', '))}. O material anterior foi preservado para repetir o caso.</p>${W.materialComparacao?.teste?.anexo?.nome ? `<p class="dica">Arquivo: <span id="teste-nome">${esc(W.materialComparacao.teste.anexo.nome)}</span></p>` : ''}</section>${r?.erro ? aviso(esc(r.erro), 'erro') : ''}<div id="teste-resultado">${htmlComparacao(W)}</div>${r?.conversa && r.conversa !== W.compararCom?.conversa && !r.erro ? '<button type="button" class="btn btn-linha" id="nova-rodada-refinamento">Refinar este novo resultado</button>' : ''}` : r?.conversa ? `
       <section class="editor refinamento-contexto"><h3>Resultado que vamos melhorar</h3><p>Execução ${r.conversa}${c?.teste?.em ? ` · ${dataCurta(c.teste.em)}` : ''}</p>
         ${c?.historico?.length > 1 ? `<label for="escolher-resultado">Usar outro resultado seu</label><select class="entrada" id="escolher-resultado">${c.historico.map(t=>`<option value="${t.id}" ${t.id===r.conversa?'selected':''}>${new Date(t.em).toLocaleString('pt-BR', {dateStyle:'short',timeStyle:'short'})} · ${esc(t.titulo || `Resultado ${t.id}`)}</option>`).join('')}</select>` : ''}
-        <p class="faixa-aviso">${esc(resumoConferencia(r.qualidade))}</p><div class="refinamento-trecho">${renderizar((r.saida || '').slice(0, 350)).html}</div>${r.qualidade?.problemas?.length ? `<ul class="refinamento-problemas">${r.qualidade.problemas.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>` : '<p class="dica">A conferência não impede que você peça um resultado melhor.</p>'}
+        <p class="faixa-aviso">${r.qualidade?.problemas?.length ? 'A conferência encontrou estes pontos. Vamos usá-los para preparar o ajuste.' : esc(resumoConferencia(r.qualidade))}</p><div class="refinamento-trecho">${renderizar((r.saida || '').slice(0, 350)).html}</div>${r.qualidade?.problemas?.length ? `<ul class="refinamento-problemas qc-orientacoes">${pontosDoResultado(r.qualidade).slice(0,3).map(p=>`<li><b>${esc(p.titulo)}</b><p>${esc(p.observacao)}</p><p><strong>Como melhorar:</strong> ${esc(p.fazer)}</p></li>`).join('')}</ul><button type="button" class="btn btn-linha" id="usar-diagnostico">Usar estes pontos como orientação</button>` : '<p class="dica">A conferência não impede que você peça um resultado melhor.</p>'}
         <details><summary>Ver o resultado e a conferência</summary><div class="resultado-corpo">${r.html}</div>${painelQualidade(r.qualidade,{id:'refinamento-contexto'})}<a class="link-sutil" href="#/c/${r.conversa}">Abrir a conversa original</a></details>
         <p class="dica">${W.materialUltimoTeste ? 'O material deste caso está disponível para repetir o teste.' : 'O material não foi guardado pela política de retenção. Reenvie-o para testar novamente.'}</p></section>
       ${htmlRefinamento(W)}` : `<section class="editor"><h3>Comece por um resultado real</h3><p>Envie o material e execute um teste. Depois, conte o que precisa melhorar. Não é necessário refazer o editor.</p>
@@ -718,6 +719,13 @@ async function desenharRefinamento(W) {
     </div><p class="bloco-extra"><a class="link-sutil" href="#/qw/${W.id}">Voltar ao Quick Win</a></p></div></div>`;
   ligarCabecalho();
   ligarRefinamento(W);
+  $('usar-diagnostico')?.addEventListener('click', () => {
+    if (W.refinamentoTexto?.trim() && !confirm('Substituir sua orientação pelos pontos da conferência?')) return;
+    W.refinamentoTexto = [...new Set(pontosDoResultado(W.resultado?.qualidade).slice(0,3).map(p=>p.fazer))].join('\n');
+    $('refinamento-texto').value = W.refinamentoTexto;
+    $('refinamento-texto').dispatchEvent(new Event('input'));
+    $('refinamento-texto').focus();
+  });
   $('escolher-resultado')?.addEventListener('change', async e => {
     try { await carregarContextoRefinamento(W, Number(e.target.value)); W.sugestoesRefinamento = null; await desenharRefinamento(W); }
     catch (err) { W.erroContexto = err.message; await desenharRefinamento(W); }

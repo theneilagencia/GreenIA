@@ -8,6 +8,7 @@ import { renderizar, baixarCsv } from '/md.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia, cartaoBase } from '/app.js';
 import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
+import { pedidoMelhoria } from '/resultado-orientacao.js';
 
 const $ = id => document.getElementById(id);
 const SUGESTOES_CHAT = ['Resuma um texto em poucos pontos', 'Rascunhe um email curto e cordial', 'Organize estas anotações em uma lista', 'Revise este texto e deixe mais claro'];
@@ -129,14 +130,15 @@ function htmlMensagem(m) {
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
   const revisar = execucao && m.qualidade.status === 'inconsistente';
-  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeAjustar: !!C.qw?.podeEditar, ajustarHref: C.qw ? `#/qw/${C.qw.id}/ajustar` : '' }) : '';
-  const integracoes = execucao ? painelIntegracoes(m.qualidade.integracoes) : '';
+  const refinarHref = C.qw?.v2 && C.qw.status !== 'descartado' ? `#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}` : '';
+  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeMelhorar: true, podeAjustar: !!C.qw?.podeEditar, ajustarHref: refinarHref }) : '';
+  const integracoes = execucao ? painelIntegracoes(m.qualidade.integracoes, { refinarHref: C.qw?.podeEditar ? refinarHref : '' }) : '';
   // Fontes: documentos da empresa (título) e, quando houve pesquisa na internet, os endereços consultados.
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => (f && typeof f === 'object' && /^https?:\/\//.test(f.url || '')
     ? `<a class="selo" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a>` : `<span class="selo">${ICONE.doc} ${esc(f)}</span>`)).join('')}</div>` : '';
   return `<div class="resposta${anim}" data-msg="${m.id}">
     <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
-    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${integracoes}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}
+    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}${integracoes}
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
         <button type="button" data-copiar="${m.id}">Copiar</button>${execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado' ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}${!C.qw?.v2 && (m.modelo || m.classe || m.rota_modo) ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
         ${m.rota_explicacao && !C.qw?.v2 ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}${detalheExecucao(m)}`}
@@ -218,6 +220,16 @@ function ligar() {
     desenharAnexos(); atualizarEnviar();
   };
   $('coluna').addEventListener('click', ev => {
+    const melhorar = ev.target.closest('[data-melhorar-resultado]');
+    if (melhorar) {
+      const m = C.mensagens.find(x => String(x.id) === melhorar.dataset.melhorarResultado);
+      if (m) {
+        if ($('entrada').value.trim() && !confirm('Substituir o pedido que você começou a escrever? Os anexos serão mantidos.')) return;
+        $('entrada').value = pedidoMelhoria(m.qualidade); C.proximaExecucao = false;
+        desenhar(); $('entrada').focus(); ajustarAltura(); atualizarEnviar();
+        toast('Pedido preparado. Confira o texto e clique em Enviar. Nenhuma nova execução foi iniciada.');
+      }
+    }
     const cp = ev.target.closest('[data-copiar]');
     if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); navigator.clipboard?.writeText(m.texto).then(() => toast('Resposta copiada.')); }
     const csv = ev.target.closest('[data-csv]');

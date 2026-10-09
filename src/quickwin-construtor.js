@@ -814,7 +814,7 @@ export function resumoQualidade({ status, falhas = [], razoes = [], verificados 
   return { status, tentativas, itens: status === 'pergunta' ? [] : GRUPOS.map(g => ({ id: g, rotulo: ROTULOS_QUALIDADE[g], ok: !falhas.includes(g), conferido: verificados.includes(g), ...(falhas.includes(g) && motivoDe(g).length ? { motivos: motivoDe(g).slice(0, 3) } : {}) })),
     ...(acoes.length ? { acoes } : {}),
     problemas: status === 'inconsistente' ? falhas.flatMap(g => (motivoDe(g).length ? motivoDe(g).slice(0, 3).map(m => `${PROBLEMAS[g]} ${m}`) : [PROBLEMAS[g]])) : [], avisos,
-    ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, fontes: pesquisa.fontes || 0 } } : {}),
+    ...(entregaveis ? { entregaveis } : {}), ...(pesquisa ? { pesquisa: { exigida: true, feita: !!pesquisa.feita, motivo: pesquisa.motivo || null, fontes: pesquisa.fontes || 0 } } : {}),
     ...(objetivo ? { objetivo: { atingido: objetivo.atingido !== false, motivo: objetivo.motivo || null } } : {}),
     ...(fontes ? { fontes: { usadas: (fontes.usadas || []).slice(0, 20), lista: (fontes.lista || []).slice(0, 30), obrigatorias_falharam: fontes.obrigatorias_falharam || [], ...(fontes.alteradas_desde_versao ? { alteradas_desde_versao: fontes.alteradas_desde_versao } : {}) } } : {}),
     ...(integracoes ? { integracoes: { plano: integracoes.plano || null, status: integracoes.status || null, motivo: integracoes.motivo || null, passos: (integracoes.passos || []).slice(0, 10) } } : {}) };

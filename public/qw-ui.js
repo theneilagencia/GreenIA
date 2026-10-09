@@ -3,6 +3,7 @@
 // ligadores; os estilos ficam em estilo.css (bloco "Quick Wins"). Nada técnico chega à tela.
 import { api, esc, ICONE, toast } from '/comum.js';
 import { htmlFontesUsadas } from '/fontes.js';
+import { pontosDoResultado, orientacaoConfiguracao, orientacaoIntegracao } from '/resultado-orientacao.js';
 
 // ---- Estado do Quick Win (o que a pessoa entende) -----------------------------------------------------------
 const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];
@@ -74,16 +75,19 @@ export function progressoExecucao(etapa) {
 // ---- Conferência de qualidade -------------------------------------------------------------------------------
 // aprovado/corrigido: positivo e discreto. parcial: neutro, nunca linguagem de aprovação. inconsistente: pontos
 // para revisar, com o resultado atrás de "Ver resultado". pergunta: nada (não houve resultado a conferir).
-export const painelQualidade = (q, ...r) => painelQualidadeBase(q, ...r) + (q && q.status !== 'pergunta' ? htmlAcoes(q) + htmlFontesUsadas(q) : '');
+export const painelQualidade = (q, opcoes = {}) => painelQualidadeBase(q, opcoes) + (q && q.status !== 'pergunta' ? htmlAcoes(q, opcoes) + htmlFontesUsadas(q) : '');
 // Ações dos avisos causados por configuração: link para a tela (e o campo) onde se libera ou ajusta. Quem não tem a
 // permissão também pode abrir o link; a tela e o servidor verificam o acesso antes de exibir ou salvar dados.
-function htmlAcoes(q) {
+function htmlAcoes(q, { podeAjustar = false } = {}) {
   const acoes = q?.acoes || [];
   if (!acoes.length) return '';
-  const podeMudar = a => !a.permissao || a.permissao === 'quick_win' || (window.__greeniaPode ? window.__greeniaPode(a.permissao) : false);
-  return `<div class="qc-acoes">${acoes.map(a => `<div><a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>${podeMudar(a) ? '' : `<p class="dica">A alteração exige permissão. Peça a quem administra a empresa para revisar ${esc(a.onde)}.</p>`}</div>`).join('')}</div>`;
+  const podeMudar = a => !a.permissao || (a.permissao === 'quick_win' ? podeAjustar : !!window.__greeniaPode?.(a.permissao));
+  return `<div class="qc-acoes qc-limitacoes">${acoes.map(a => {
+    const o = orientacaoConfiguracao(a);
+    return `<section class="qc-limitacao"><b>${esc(o.aconteceu)}</b><p>${esc(o.impacto)}</p><p><strong>O que fazer:</strong> ${esc(o.fazer)}</p>${podeMudar(a) ? `<a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>` : `<p class="dica">Você não pode alterar esta configuração. Quem administra a empresa pode revisar ${esc(a.onde)}.</p><button type="button" class="btn btn-linha btn-pequeno" data-relatar-limitacao="${esc(a.motivo)}" data-local-limitacao="${esc(a.onde)}">Solicitar revisão ao administrador</button>`}</section>`;
+  }).join('')}</div>`;
 }
-function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = '' } = {}) {
+function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = '', podeMelhorar = false } = {}) {
   if (!q || q.status === 'pergunta') return '';
   if (q.status === 'aprovado' || q.status === 'corrigido') {
     const itens = (q.itens || []).filter(i => i.conferido && i.ok);
@@ -98,14 +102,14 @@ function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = ''
   if (q.status === 'parcial') return `<section class="qc qc-parcial" role="status" aria-label="Conferência de qualidade">
       <div class="qc-topo"><span class="qc-icone" aria-hidden="true">◐</span><div>
         <b class="qc-titulo">${(q.avisos || []).length ? 'Resultado parcial' : 'Conferência incompleta'}</b>
-        ${(q.avisos || []).length ? q.avisos.map(a => `<p>${esc(a)}</p>`).join('') : '<p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p>'}</div></div></section>`;
+        ${(q.avisos || []).length ? q.avisos.map(a => `<p>${esc(a)}</p>`).join('') : '<p>A conferência completa não pôde ser feita agora. Revise antes de usar.</p>'}<p><strong>Próximo passo:</strong> ${(q.acoes || []).length ? 'Veja abaixo a causa e a ação para resolver a limitação.' : 'Confira os dados no material original. Se faltar conteúdo, envie o que falta nesta conversa. Se a conferência não terminou, repita o teste antes de publicar.'}</p></div></div></section>`;
+  const pontos = pontosDoResultado(q);
   return `<section class="qc qc-revisar" role="alert" aria-label="Conferência de qualidade">
       <div class="qc-topo"><span class="qc-icone" aria-hidden="true">!</span><div>
         <b class="qc-titulo">Encontramos pontos para revisar</b>
-        <p>O resultado não atendeu a todas as regras deste Quick Win. Confira antes de usar.</p></div></div>
-      ${(q.problemas || []).length ? `<ul class="qc-pontos">${q.problemas.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
-      <div class="qc-acoes"><button type="button" class="btn btn-linha btn-pequeno" data-ver-resultado="${esc(id)}" aria-expanded="false" aria-controls="resultado-${esc(id)}">Ver resultado</button>
-        ${podeAjustar && ajustarHref ? `<a class="btn btn-texto btn-pequeno" href="${ajustarHref}">Ajustar Quick Win</a>` : ''}</div>
+        <p>O resultado está disponível, mas precisa dos ajustes abaixo antes de ser usado.</p></div></div>
+      ${pontos.length ? `<ul class="qc-pontos qc-orientacoes">${pontos.slice(0,3).map(p => `<li><b>${esc(p.titulo)}</b><p>${esc(p.observacao)}</p><p><strong>Como melhorar:</strong> ${esc(p.fazer)}</p></li>`).join('')}</ul><details class="qc-diagnostico"><summary>Ver diagnóstico completo${pontos.length>3 ? ` · ${pontos.length} pontos` : ''}</summary><ul>${pontos.map(p=>`<li>${esc(p.detalhe)}</li>`).join('')}</ul></details>` : '<p>Confira o resultado com o material enviado e explique o que esperava receber.</p>'}
+      <div class="qc-acoes">${podeAjustar && ajustarHref ? `<a class="btn btn-verde btn-pequeno" href="${esc(ajustarHref)}">Refinar Quick Win</a>` : ''}${podeMelhorar ? `<button type="button" class="btn ${podeAjustar && ajustarHref ? 'btn-linha' : 'btn-verde'} btn-pequeno" data-melhorar-resultado="${esc(id)}">Preparar pedido de melhoria</button>` : ''}<button type="button" class="btn btn-linha btn-pequeno" data-ver-resultado="${esc(id)}" aria-expanded="false" aria-controls="resultado-${esc(id)}">Ver resultado</button></div><p class="dica">${podeAjustar && ajustarHref ? 'Refinar ajusta o rascunho a partir deste caso; publicar continua sendo uma decisão separada. ' : ''}${podeMelhorar ? 'Preparar o pedido preenche a conversa para você conferir e enviar. Isso não muda o Quick Win da equipe.' : ''}</p>
     </section>`;
 }
 // "Ver resultado" de uma conferência com pontos para revisar (delegado, em qualquer página).
@@ -252,21 +256,27 @@ export function confirmarExclusao(qw) {
 // Integrações executadas pelo Quick Win: cada etapa com o status (sucesso, parcial, falha, bloqueada pela política
 // ou aguardando aprovação). Nada de dado técnico: só sistema, ação e o que aconteceu.
 const STATUS_INTEG = { SUCCESS: ['✓', 'concluída'], PARTIAL: ['⚠', 'parcial'], FAILED: ['✕', 'falhou'], BLOCKED: ['✕', 'bloqueada'], APPROVAL_REQUIRED: ['⏸', 'aguardando aprovação'], SIMULATED: ['✓', 'simulada'], DENIED: ['✕', 'negada pela política'] };
-export function painelIntegracoes(integ) {
+export function painelIntegracoes(integ, { refinarHref = '' } = {}) {
   if (!integ?.passos?.length) return '';
   const pendentes = integ.passos.filter(p => p.status === 'APPROVAL_REQUIRED');
   const autorizadas = pendentes.filter(p => p.aprovacao_status === 'aprovada');
   const aguardando = pendentes.filter(p => !p.aprovacao_status || p.aprovacao_status === 'pendente');
   const concluida = integ.passos.every(p => p.status === 'SUCCESS');
   const simulada = integ.passos.every(p => p.status === 'SIMULATED');
-  const impedida = integ.motivo === 'resultado_nao_conferido';
-  const titulo = impedida ? 'Gravações bloqueadas · revise o resultado' : concluida ? 'Ações no sistema concluídas' : simulada ? 'Simulação concluída · nenhuma ação real' : autorizadas.length ? aguardando.length ? 'Autorização parcial · outras etapas aguardam decisão' : 'Autorização recebida · falta executar' : aguardando.length ? 'Aguardando autorização' : 'Ações no sistema precisam de atenção';
-  const geral = integ.motivo === 'resultado_nao_conferido' ? '<p class="dica">As gravações em sistemas externos não foram feitas: o resultado não passou na conferência.</p>' : '';
+  const temEscrita = integ.passos.some(p=>p.modo==='write');
+  const impedida = temEscrita && integ.motivo === 'resultado_nao_conferido';
+  const titulo = impedida ? 'Alterações no sistema não realizadas' : concluida ? temEscrita ? 'Ações no sistema concluídas' : 'Consultas concluídas' : simulada ? 'Simulação concluída · nenhuma ação real' : autorizadas.length ? aguardando.length ? 'Autorização parcial · outras etapas aguardam decisão' : 'Autorização recebida · falta executar' : aguardando.length ? 'Aguardando autorização' : temEscrita ? 'Ações no sistema precisam de atenção' : 'Não foi possível concluir todas as consultas';
+  const geral = impedida ? '<p class="dica">As gravações em sistemas externos não foram feitas: o resultado não passou na conferência.</p>' : '';
   const data = integ.atualizado_em && !Number.isNaN(Date.parse(integ.atualizado_em)) ? `<time class="dica" datetime="${esc(integ.atualizado_em)}">Atualizado em ${esc(new Date(integ.atualizado_em).toLocaleString('pt-BR'))}</time>` : '';
   const voltar = /^#\/c\/\d+$/.test(location.hash) ? `?voltar=${encodeURIComponent(location.hash)}` : '';
-  return `<section class="painel-integracoes" aria-label="Estado atual das ações externas"><div class="integ-resumo"><b>${titulo}</b>${data}</div><p class="dica">Resultado preparado → revisão humana, quando necessária → execução no sistema. A conferência da IA não autoriza alterações.</p>${geral}<ol>${integ.passos.map(p => { const [s, t] = STATUS_INTEG[p.status] || ['•', 'não executada'];
+  return `<section class="painel-integracoes" aria-label="Estado atual das ações externas"><div class="integ-resumo"><b>${titulo}</b>${data}</div><p class="dica">${temEscrita ? 'A conferência do texto não autoriza alterações no sistema. A aprovação continua obrigatória quando exigida.' : 'Estas etapas consultam dados; não fazem alterações em sistemas externos.'}</p>${geral}<ol>${integ.passos.map(p => { const [s, t] = STATUS_INTEG[p.status] || ['•', 'não executada'];
     const estado = p.status === 'APPROVAL_REQUIRED' && p.aprovacao_status === 'aprovada' ? 'autorizada · falta executar' : p.status === 'APPROVAL_REQUIRED' && ['negada', 'invalidada'].includes(p.aprovacao_status) ? p.aprovacao_status === 'negada' ? 'autorização negada' : 'autorização invalidada · revise o pedido' : t;
-    return `<li><span aria-hidden="true">${s}</span><div><b>${esc(p.sistema || 'Sistema externo')} · ${p.modo === 'read' ? 'Consulta' : 'Gravação'}</b><span class="integ-estado">${esc(estado)}</span><details><summary>Ver ação solicitada</summary><p>${esc(p.acao)}${p.aprovador && p.status === 'APPROVAL_REQUIRED' ? `<span class="dica">Quem aprova: ${esc(p.aprovador)}</span>` : ''}</p></details></div></li>`; }).join('')}</ol>
+    const o = orientacaoIntegracao(p, integ);
+    const podeConfigurar = !!window.__greeniaPode?.('integrations.manage');
+    const local = /^[\w-]{1,80}$/.test(p.connector_id || '') ? `#/integracoes/c/${p.connector_id}` : '#/integracoes';
+    const acao = o.destino === 'conexao' || o.destino === 'politica' ? podeConfigurar ? `<a class="btn btn-linha btn-pequeno" href="${local}">Revisar ${o.destino==='politica' ? 'regras da integração' : 'conexão e ação'}</a>` : `<p class="dica">Quem administra as integrações pode avaliar este impedimento.</p><button type="button" class="btn btn-linha btn-pequeno" data-relatar-limitacao="${esc(p.modo==='read' ? 'Consulta não concluída' : 'Ação não concluída')}" data-local-limitacao="Integrações">Solicitar revisão ao administrador</button>` : '';
+    return `<li><span aria-hidden="true">${s}</span><div><b>${esc(p.sistema || 'Sistema externo')} · ${p.modo === 'read' ? 'Consulta' : 'Alteração no sistema'}</b><span class="integ-estado">${esc(estado)}</span><p>${esc(o.impacto)}</p>${o.fazer ? `<p><strong>O que fazer:</strong> ${esc(o.fazer)}</p>` : ''}${acao}<details><summary>Ver ação e motivo</summary><p>${esc(p.acao)}</p>${p.motivo ? `<p>Motivo registrado: ${esc(p.motivo)}</p>` : ''}${p.aprovador && p.status === 'APPROVAL_REQUIRED' ? `<p class="dica">Quem aprova: ${esc(p.aprovador)}</p>` : ''}</details></div></li>`; }).join('')}</ol>
+    ${impedida && refinarHref ? `<a class="btn btn-linha btn-pequeno" href="${esc(refinarHref)}">Refinar Quick Win a partir deste resultado</a>` : ''}
     ${!impedida && pendentes.length ? `<p class="dica">A gravação depende de autorização humana. Atualize o estado depois da decisão; nada será executado ao atualizar.</p><div class="linha-botoes">${integ.plano ? `<button type="button" class="btn btn-linha btn-pequeno" data-integ-atualizar="${esc(integ.plano)}">Atualizar autorização</button>` : ''}${pendentes.filter(p => p.aprovacao && p.aprovacao_status !== 'aprovada' && (!p.aprovacao_status || p.aprovacao_status === 'pendente') && window.__greeniaPode?.('integrations.approve')).map(p => `<a class="btn btn-linha btn-pequeno" href="#/integracoes/aprovacao/${encodeURIComponent(p.aprovacao)}${voltar}">Revisar solicitação</a>`).join('')}${autorizadas.length && integ.plano ? `<button type="button" class="btn btn-verde btn-pequeno" data-integ-executar="${esc(integ.plano)}">Executar etapas aprovadas</button>` : ''}</div>` : ''}<div class="integ-erro" role="alert"></div></section>`;
 }
 // Retomar o plano depois da aprovação: só executa o que foi aprovado (o servidor confere a aprovação e a entrada).

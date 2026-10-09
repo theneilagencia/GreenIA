@@ -231,7 +231,7 @@ function abrirPolitica() {
 }
 
 // Problema reportado: vai para o admin por email. Sem dado sigiloso na descrição.
-async function reportarProblema() {
+async function reportarProblema(contexto = '') {
   const { tipos } = await api('/api/problemas/tipos');
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-problema" tabindex="-1" id="form-problema" novalidate>
     <div class="modal-topo"><div class="rotulo">Reportar problema</div><button type="button" class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}<span>Fechar</span></button></div>
@@ -246,6 +246,7 @@ async function reportarProblema() {
   $('fechar-modal').onclick = fechar;
   $('cancelar-problema').onclick = fechar;
   $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
+  if (typeof contexto === 'string') $('descricao-problema').value = contexto;
   $('descricao-problema').focus();
   $('form-problema').onsubmit = async ev => {
     ev.preventDefault();
@@ -255,6 +256,12 @@ async function reportarProblema() {
     } catch (e) { $('erro-problema').textContent = e.message; $('erro-problema').classList.remove('oculto'); }
   };
 }
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest?.('[data-relatar-limitacao]');
+  if (!b) return;
+  reportarProblema(`Peço uma revisão de configuração: ${b.dataset.relatarLimitacao}.\nOnde revisar: ${b.dataset.localLimitacao || 'Integrações'}.\nAvalie a necessidade e a proteção dos dados antes de alterar. Não incluí o conteúdo da conversa neste relato.`).catch(e => toast(`Não foi possível abrir a solicitação. Tente novamente. ${e.message}`));
+});
 
 const GESTAO = ['uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configuracoes', 'conhecimento'];
 

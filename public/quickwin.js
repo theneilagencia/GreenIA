@@ -322,7 +322,7 @@ async function configurar(id) {
           : `<div class="linha-botoes"><span>${qw.responsavel ? esc(qw.responsavel.nome) : 'sem responsável'}</span>${qw.responsavel?.id !== E.eu.id ? '<label class="dica"><input type="checkbox" id="assumir"> assumir como responsável</label>' : ''}</div>`}
           <span class="ajuda">Quem responde pelo resultado e pelas decisões deste quick win.</span></div>
       </div>
-      ${qw.v2 ? `<div class="grupo-form"><h3>O que a IA deve fazer</h3><p class="lead">O trabalho deste Quick Win é montado pela GreenIA a partir das suas respostas. Para mudar o que ele faz, use <a href="#/qw/${id}/ajustar">Ajustar Quick Win</a>.</p></div>` : ''}
+      ${qw.v2 ? `<div class="grupo-form"><h3>O que a IA deve fazer</h3><p class="lead">O trabalho deste Quick Win é montado pela GreenIA a partir das suas respostas. Para editar a configuração diretamente, use <a href="#/qw/${id}/ajustar">Editar instruções</a>. Para melhorar um resultado, abra a conversa e use Refinar Quick Win.</p></div>` : ''}
       <div class="grupo-form${qw.v2 ? ' oculto' : ''}"><h3>O que a IA deve fazer</h3>
         <div class="campo"><label for="instrucoes">Instruções</label><textarea class="entrada" id="instrucoes" rows="7">${esc(qw.instrucoes)}</textarea><span class="ajuda">Em português comum. Valem para todas as conversas deste quick win.</span></div>
         <div class="campo"><span class="legenda">Formato preferido da resposta</span><div class="opcoes">${Object.entries(FORMATOS).map(([v, r]) => radio('formato', v, qw.formato, r)).join('')}</div></div>

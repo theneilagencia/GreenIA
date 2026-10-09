@@ -155,11 +155,13 @@ export async function excluirQw(q) {
   return true;
 }
 function ligarAcoesQw(raiz, itens, recarregar) {
-  raiz.addEventListener('click', async ev => {
-    const b = ev.target.closest('[data-acao]');
-    if (!b) return;
+  // O conteúdo muda na navegação, mas #principal permanece. Ligar aos botões
+  // desta tela evita acumular ações de bibliotecas e detalhes anteriores.
+  raiz.querySelectorAll('[data-acao]').forEach(b => b.addEventListener('click', async () => {
+    if (b.disabled) return;
     const q = itens.find(x => String(x.id) === b.dataset.id);
     if (!q) return;
+    b.disabled = true;
     b.closest('details')?.removeAttribute('open');
     try {
       if (b.dataset.acao === 'duplicar') {
@@ -185,7 +187,8 @@ function ligarAcoesQw(raiz, itens, recarregar) {
         recarregar(q.id);
       }
     } catch (e) { toast(e.message, 6000); }
-  });
+    finally { b.disabled = false; }
+  }));
 }
 
 // Detalhe: o que ele faz, regras, formato, último teste e versão. Ações principais: Usar e Editar.

@@ -25,7 +25,7 @@ A captura enviada pelo usuário às 12:17 mostrou a versão `aff718c`, Quick Win
 - Nome: dois cenários aprovados na bateria inicial; agendamento: três cenários aprovados. Persistência de nome e disparo real já tinham evidência em produção no relatório anterior.
 - Matriz final de interface + detalhe: **7/7 aprovados**. Abrange 29 telas privadas em 1280/390/320 px, nove telas do console, foco/diálogos/recuperação e navegação rápida.
 - Detalhe: 1440/1280/1024/768/390/320 px; nome longo; abrir/cancelar; captura visual desktop/celular; resposta lenta com falha.
-- Publicação e inspeção real: **pendentes no momento deste commit**. O PR receberá SHA servida e conferência real antes do encerramento ao usuário.
+- Publicação e inspeção real: **validadas em `f45a851`**, PR #43 integrado, deploy live em 09/10/2026 às 15:39:10 UTC. Saúde e rodapé confirmaram a versão. A mesma tela real da captura foi recarregada; título/status separados das ações. Editar nome abriu campo preenchido e focado; cancelar fechou formulário e devolveu foco. Nenhuma gravação no Quick Win real. Captura da página publicada preservada como evidência para o usuário.
 
 ## Limites
 

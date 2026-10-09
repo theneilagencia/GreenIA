@@ -388,9 +388,9 @@ const ETAPA_HTML = [
     <p class="exemplos">Exemplos: ${EXEMPLOS.map(([t], i) => `<button type="button" data-exemplo="${i}">${esc(t)}</button>`).join('<span class="ponto-sep" aria-hidden="true">·</span>')}</p>
     ${rodape(W)}`,
   // 2. Processo (com o entendimento do trabalho: o plano que a GreenIA montou do pedido)
-  async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${await htmlSistemas(W)}${pergunta('O que normalmente precisa ser considerado para fazer isso bem?', W.modoProc === 'exemplo'
+  async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${await htmlSistemas(W)}${pergunta('Como você quer que este trabalho aconteça?', W.modoProc === 'exemplo'
       ? 'Mostre um resultado que você considera bom. A GreenIA aprende a estrutura, o nível de detalhe e o tom. O exemplo em si não é guardado.'
-      : 'Conte o que precisa ser analisado, conferido ou considerado. Não precisa ser completo.', 'micro-processo')}
+      : 'Explique a ordem, o que deve ser considerado e em quais momentos você quer decidir. A plataforma organiza o processo.', 'micro-processo')}
     ${W.modoProc === 'exemplo' ? `
       <label class="sr" for="exemplo">Exemplo de um bom resultado</label>
       <textarea class="campo-amplo" id="exemplo" maxlength="8000" aria-describedby="micro-processo" placeholder="Cole aqui um resultado bom (uma tabela, uma lista, um relatório)">${esc(W.exemplo)}</textarea>
@@ -398,8 +398,9 @@ const ETAPA_HTML = [
         <input type="file" id="ex-input" hidden accept="${ACEITOS}"><span class="dica" id="ex-nome">${esc(W.exemploNome || (W.estruturaAnterior && !W.exemplo ? 'Um exemplo já foi analisado. Envie outro se quiser trocar.' : ''))}</span></div>
       <p class="bloco-extra"><button type="button" class="link-sutil" id="modo-explicar">Prefiro explicar com minhas palavras</button></p>`
     : `
-      <label class="sr" for="processo">O que precisa ser considerado</label>
-      <textarea class="campo-amplo menor" id="processo" maxlength="3000" aria-describedby="micro-processo" placeholder="Ex.: Confiro valor, prazo de entrega e multa. Vejo se falta assinatura. Anoto o que precisa de decisão.">${esc(W.processo)}</textarea>
+      <label class="sr" for="processo">Como o trabalho deve acontecer</label>
+      <textarea class="campo-amplo menor" id="processo" maxlength="3000" aria-describedby="micro-processo" placeholder="Ex.: Primeiro sugira temas atuais relacionados ao assunto que eu enviar. Espere minha escolha antes de escrever o artigo.">${esc(W.processo)}</textarea>
+      <p class="dica">Você pode pedir etapas e decisões: “Primeiro sugira opções. Espere minha escolha. Depois produza o resultado”.</p>
       <p class="dica bloco-extra">Se deixar em branco, a GreenIA segue uma estrutura sugerida para esse tipo de trabalho.</p>
       <p class="exemplos"><button type="button" id="sugerir-estrutura">Ver a estrutura sugerida</button><span class="ponto-sep" aria-hidden="true">·</span><button type="button" id="modo-exemplo">Prefiro mostrar um exemplo de resultado</button></p>
       <div id="estrutura">${W.estruturaSugerida ? htmlEstrutura(W.estruturaSugerida) : ''}</div>`}
@@ -749,11 +750,11 @@ async function desenharRefinamento(W) {
 
 function htmlRefinamento(W) {
   return `<section class="editor bloco-extra" id="refinar-qw"><h3 id="refinamento-titulo">Conte o que precisa melhorar</h3><div id="refinamento-feedback">
-    <p>Descreva o que não ficou satisfatório. A plataforma prepara os ajustes. Você confere o resumo e pede um novo teste.</p>
+    <p>Conte o que precisa melhorar ou como o trabalho deve acontecer. A plataforma prepara os ajustes; você confere antes de aplicar.</p>
 
-    <label class="legenda" for="refinamento-texto">O que deve mudar no próximo resultado?</label>
+    <label class="legenda" for="refinamento-texto">O que deve mudar no resultado ou na forma de trabalhar?</label>
     <textarea class="entrada" id="refinamento-texto" maxlength="1000" rows="5" placeholder="O que faltou, o que saiu errado e como você esperava receber? Ex.: Quero uma recomendação antes da tabela, explicando os riscos sem inventar prazos.">${esc(W.refinamentoTexto || '')}</textarea>
-    <p class="dica">Descreva com suas palavras. A GreenIA vai comparar sua orientação com o resultado, o material e a conferência.</p>
+    <p class="dica">Exemplo: “Primeiro sugira temas atuais relacionados ao assunto que eu enviar. Espere minha escolha antes de escrever o artigo”. A GreenIA usa também o resultado, o material e a conferência anteriores.</p>
     <button type="button" class="btn btn-verde" id="salvar-refinamento" ${!W.resultado?.conversa ? 'disabled' : ''}>Preparar ajustes</button><p class="dica" role="status" id="refinamento-progresso"></p>
     ${!W.resultado?.conversa ? '<p class="dica">Execute um teste nesta tela para receber sugestões baseadas no resultado.</p><button type="button" class="btn btn-linha" data-retomar-teste>Testar para refinar</button>' : ''}
     </div><p class="msg-erro" id="refinamento-erro" role="alert"></p><div id="refinamento-sugestoes"></div>
@@ -790,7 +791,7 @@ function ligarRefinamento(W) {
         ${s.adicao ? '<p class="dica">Acrescentar uma regra, preservando as atuais.</p>' : ''}
         <label class="legenda" for="refinar-${s.campo}">Alteração proposta para ${esc(s.rotulo)}</label>
         <textarea class="entrada" rows="3" id="refinar-${s.campo}" data-valor-campo="${s.campo}">${esc(s.depois)}</textarea><p class="dica">Até ${s.max} caracteres. Revise o texto antes de aprovar.</p>
-        ${s.campo === 'entregaveis' ? '<p class="dica">Os formatos e canais continuam iguais; muda somente a orientação da entrega.</p>' : ''}</div></div></details></fieldset>`).join('') + `<div class="refinamento-aprovacao"><p id="refinamento-selecao" role="status">${W.sugestoesRefinamento.length} ajustes preparados. A equipe só recebe a nova versão depois de publicar.</p><button type="button" class="btn btn-verde" id="aprovar-refinamento">${W.materialUltimoTeste ? 'Aplicar ajustes e testar' : 'Aplicar ajustes ao rascunho'}</button></div>`;
+        ${s.campo === 'entregaveis' ? '<p class="dica">Os formatos e canais continuam iguais; muda somente a orientação da entrega.</p>' : ''}</div></div></details></fieldset>`).join('') + `<div class="refinamento-aprovacao"><p id="refinamento-selecao" role="status">${W.sugestoesRefinamento.length} ${W.sugestoesRefinamento.length === 1 ? 'ajuste preparado' : 'ajustes preparados'}. A equipe só recebe a nova versão depois de publicar.</p><button type="button" class="btn btn-verde" id="aprovar-refinamento">${W.materialUltimoTeste ? 'Aplicar ajustes e testar' : 'Aplicar ajustes ao rascunho'}</button></div>`;
       $('rever-orientacao').onclick = () => { document.querySelectorAll('.refinamento-passos li').forEach((l,i)=> { if(i===0)l.setAttribute('aria-current','step');else l.removeAttribute('aria-current'); }); W.sugestoesRefinamento = null; $('refinamento-titulo').textContent = 'Conte o que precisa melhorar'; $('refinamento-feedback').hidden = false; $('refinamento-sugestoes').innerHTML = ''; $('refinamento-texto').focus(); };
       document.querySelectorAll('[data-aprovar-campo]').forEach(c => c.addEventListener('change', () => {
         const n=document.querySelectorAll('[data-aprovar-campo]:checked').length;

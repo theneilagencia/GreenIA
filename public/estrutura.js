@@ -208,13 +208,16 @@ function salvarAoSair(el, atual, fn) {
 const PERM = [['membro', 'Membro'], ['admin', 'Admin da base']];
 function painelArea(a) {
   if (!a) return null;
+  const consulta = new URLSearchParams(location.hash.split('?')[1] || '');
+  const voltar = consulta.get('voltar');
+  const orientacao = Number(consulta.get('area')) === a.id && /^\d+$/.test(voltar || '') ? `<p class="px-ajuda"><b>Pesquisa na internet</b><br>Revise a proteção abaixo. Depois, volte à conversa para conferir se ainda há outro bloqueio.<br><a class="btn btn-linha btn-pequeno" href="#/c/${voltar}">Voltar e conferir a pesquisa</a></p>` : '';
   const adm = a.pessoas.filter(m => m.adminBase).length;
-  return `${topo('Áreas', a.nome)}<div class="px-corpo">
+  return `${topo('Áreas', a.nome)}<div class="px-corpo">${orientacao}
     <div class="px-cabeca">${marca(a.nome, 'marca-g')}<input class="px-titulo" id="px-titulo" value="${esc(a.nome)}" maxlength="80" aria-label="Nome da área"></div>
     <textarea class="px-desc" id="px-desc" rows="2" maxlength="400" placeholder="Adicionar descrição: o que a área faz e o que a base dela tem…" aria-label="Descrição da área">${esc(a.descricao)}</textarea>
     <dl class="px-props">
       <dt>Situação</dt><dd>${seg([['1', 'Ativa'], ['0', 'Desativada']], a.ativa ? '1' : '0', 'data-campo="ativa"', 'Situação da área')}</dd>
-      <dt>Proteção</dt><dd>${seg([['0', 'Padrão'], ['1', 'Reforçada']], a.sigilosa ? '1' : '0', 'data-campo="sigilosa"', 'Proteção das conversas da área')}<small>Reforçada: a GreenIA avalia o conteúdo com mais rigor. O que for sigiloso segue só com os guardrails de proteção; o resto segue as regras gerais.</small></dd>
+      <dt>Proteção</dt><dd id="protecao-area" tabindex="-1">${seg([['0', 'Padrão'], ['1', 'Reforçada']], a.sigilosa ? '1' : '0', 'data-campo="sigilosa"', 'Proteção das conversas da área')}<small>Reforçada: bloqueia pesquisas na internet para os Quick Wins vinculados a esta área e avalia o conteúdo com mais rigor. Mudar para Padrão afeta todos esses trabalhos; não é uma liberação individual.</small></dd>
       <dt>Base de conhecimento</dt><dd><span>${plural(a.documentos, 'documento', 'documentos')}</span> · <a href="#/conhecimento">abrir a base</a></dd>
     </dl>
     ${a.ativa ? '' : '<div class="px-aviso">Desativada: ninguém vê a base desta área e a IA não usa os documentos dela. Pessoas e documentos continuam guardados.</div>'}
@@ -241,7 +244,7 @@ function ligarArea(id) {
   ligarControles(document.querySelector('.px'), {
     seg: (d, v) => {
       if (d.campo === 'ativa' && v === '0' && !confirm(`Desativar ${a.nome}? As pessoas deixam de ver a base e a IA para de usar os documentos. Nada é apagado.`)) return;
-      if (d.campo === 'sigilosa' && v === '1' && !confirm('Ligar a proteção reforçada? A GreenIA passa a avaliar o conteúdo desta área com mais rigor, e o que for sigiloso segue só com os guardrails de proteção. Continuar?')) return;
+      if (d.campo === 'sigilosa' && !confirm(v === '1' ? 'Ligar a proteção reforçada? A pesquisa na internet será bloqueada para os Quick Wins desta área. O conteúdo será avaliado com mais rigor. Continuar?' : `Mudar a proteção de ${a.nome} para Padrão? Esta mudança vale para TODOS os Quick Wins desta área. A pesquisa só poderá ocorrer se a empresa permitir e o conteúdo não exigir sigilo. Confirme apenas se a política da empresa autoriza reduzir esta proteção.`)) return;
       if (d.campo) salvar(() => api(url, { metodo: 'PUT', corpo: { [d.campo]: v === '1' } }));
       if (d.perm) salvar(() => api(`${url}/pessoas/${d.perm}`, { metodo: 'PUT', corpo: { adminBase: v === 'admin' } }));
     },
@@ -399,7 +402,14 @@ async function abrir(aba, opcoes) {
 export const abaAreas = () => abrir('areas', () => ({
   titulo: 'Áreas', busca: 'Buscar área', acao: 'Nova área',
   filtros: pilulas([['ativas', 'Ativas', ativas().length], ['desativadas', 'Desativadas', S.areas.length - ativas().length], ['todas', 'Todas', S.areas.length]], S.filtro.areas || 'ativas'),
-}));
+})).then(() => {
+  const q = new URLSearchParams(location.hash.split('?')[1] || '');
+  const id = Number(q.get('area'));
+  if (id && S.areas.some(a => a.id === id)) {
+    abrirPainel('area', id);
+    if (q.get('foco') === 'protecao-area') $('protecao-area')?.focus();
+  }
+});
 export const abaPessoas = () => abrir('pessoas', () => {
   const f = S.filtro.pessoas || 'todas';
   return { titulo: 'Pessoas', busca: 'Buscar pessoa', acao: E.plataforma ? 'Convidar' : 'Nova pessoa',

@@ -147,7 +147,7 @@ test('aceite A e B (Apy Mine): pesquisa real, contexto da empresa, todos os entr
   assert.match(r.texto, /Apy Mine/);
   assert.equal(r.fim.qualidade.status, 'aprovado');
   assert.deepEqual(r.fim.qualidade.entregaveis, { esperados: 6, encontrados: 6 });
-  assert.deepEqual(r.fim.qualidade.pesquisa, { exigida: true, feita: true, fontes: 2 });
+  assert.deepEqual(r.fim.qualidade.pesquisa, { exigida: true, feita: true, motivo: null, fontes: 2 });
   assert.deepEqual(r.fim.fontes.filter(f => f.url).map(f => f.url), FONTES_FALSAS.map(f => f.url));
   const msg = um(S.app.db, "select fontes from mensagens where conversa_id = ? and papel = 'assistant'", r.conv.id);
   assert.equal(json(msg.fontes, []).filter(f => f.url).length, 2, 'fontes da pesquisa guardadas na resposta');

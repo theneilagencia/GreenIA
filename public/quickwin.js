@@ -126,7 +126,7 @@ function itemQw(q) {
   return `<li class="qw-item">${marcaQw(q)}
     <a class="qw-item-link" href="#/qw/${q.id}"><span class="qw-item-nome">${esc(q.nome)}</span><span class="qw-item-desc">${esc(q.para_que_serve || '')}</span></a>
     <div class="qw-item-lado">${meta ? `<span class="qw-item-meta">${esc(meta)}</span>` : ''}${seloQw(q)}</div>
-    <div class="qw-item-acoes">${podeUsar ? `<a class="btn btn-linha btn-pequeno" href="${usarHref(q)}" aria-label="Usar ${esc(q.nome)}">Usar</a>` : ''}
+    <div class="qw-item-acoes">${podeUsar ? `<a class="btn btn-linha btn-pequeno" href="${usarHref(q)}" aria-label="Usar ${esc(q.nome)}">Usar</a>` : ''}${q.podeEditar && q.v2 && q.versao && e.id === 'publicado' ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${q.id}/programar" aria-label="Agendar ${esc(q.nome)}">Agendar</a>` : ''}
       ${menuAcoes(acoesQw(q), `Mais ações para ${q.nome}`)}</div></li>`;
 }
 function acoesQw(q, { naPagina = false } = {}) {
@@ -134,7 +134,7 @@ function acoesQw(q, { naPagina = false } = {}) {
   if (!naPagina) out.push({ rotulo: 'Abrir', href: `#/qw/${q.id}` });
   if (q.podeEditar && e.id !== 'arquivado') out.push({ rotulo: 'Editar', href: q.v2 ? `#/qw/${q.id}/ajustar` : `#/qw/${q.id}/editar` });
   if (q.podeEditar && q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Testar', href: `#/qw/${q.id}/teste` });
-  if (q.v2 && q.versao && e.id === 'publicado') out.push({ rotulo: 'Programações', href: `#/qw/${q.id}/programacoes` });
+  if (q.v2 && q.versao && e.id === 'publicado') out.push({ rotulo: 'Ver agendamentos', href: `#/qw/${q.id}/programacoes` });
   // Quick Win antigo (sem plano de operação): a GreenIA sugere a estrutura; nada muda até a pessoa publicar.
   if (q.podeEditar && !q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Atualizar para Quick Win inteligente', href: `#/qw/${q.id}/atualizar` });
   if (E.podeCriarQw) out.push({ rotulo: 'Duplicar', acao: 'duplicar', id: q.id });
@@ -204,7 +204,7 @@ async function paginaQuickWin(id) {
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta,
-        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/programacoes">${qw.podeEditar ? 'Programar' : 'Programações'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => !['Editar','Programações'].includes(a.rotulo)), 'Mais ações')}` })}
+        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
       ${aviso2}
       <div class="secoes">
         ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<span class="dica">Pedido original: ${esc(qw.assistente.descricao)}</span>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}

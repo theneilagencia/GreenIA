@@ -6,6 +6,34 @@ import {exec,um} from '../src/db.js';
 import {construir} from '../src/quickwin-construtor.js';
 import {rodadaProgramadas} from '../src/qw-programacao.js';
 
+test('agendar parte da lista em um clique e o menu não fica sob outras linhas',async()=>{
+ const N=await subirComNavegador();try{
+  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const qs=[];
+  for(const nome of ['A - Resumo fictício','B - Outro trabalho fictício','C - Terceiro trabalho fictício']){
+   const q=(await a.post('/api/quick-wins',{nome,toda_empresa:true})).dados;qs.push(q);
+   const spec=JSON.stringify(construir({descricao:'Organizar atividades informadas',formato:'texto'}));const v=exec(N.app.db,'insert into quick_win_versoes(quick_win_id,numero,especificacao,nome,publicada_em) values(?,1,?,?,?)',q.id,spec,nome,new Date().toISOString()).lastInsertRowid;
+   exec(N.app.db,"update quick_wins set especificacao=?,versao_publicada=?,status='em_uso' where id=?",spec,v,q.id);
+  }
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(N.base+'/app#/quick-wins');
+  const linha=p.locator('.qw-item').filter({has:p.locator(`a.qw-item-link[href="#/qw/${qs[0].id}"]`)});
+  await linha.getByRole('link',{name:`Agendar ${qs[0].nome}`,exact:true}).waitFor();
+  await linha.locator('.menu-acoes summary').click();const menu=linha.getByRole('menuitem',{name:'Ver agendamentos',exact:true});await menu.waitFor();
+  assert.ok(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.right-8,r.top+r.height/2));}),'o lado direito do menu deve receber o clique, sem botões de outras linhas por cima');
+  const box=await menu.boundingBox();await menu.click({position:{x:box.width-8,y:box.height/2}});
+  await p.getByRole('heading',{name:'Este Quick Win ainda não tem agendamento',exact:true}).waitFor();
+  assert.equal(await p.getByRole('link',{name:'Escolher um Quick Win',exact:true}).count(),0,'não manda escolher novamente o trabalho selecionado');
+  assert.equal(await p.getByRole('link',{name:'Agendar este Quick Win',exact:true}).getAttribute('href'),`#/qw/${qs[0].id}/programar`);
+  await p.getByRole('link',{name:'Agendar este Quick Win',exact:true}).click();await p.waitForSelector('#rotina-form');
+  await p.goto(N.base+'/app#/quick-wins');await linha.getByRole('link',{name:`Agendar ${qs[0].nome}`,exact:true}).click();await p.waitForSelector('#rotina-form');
+  assert.equal(new URL(p.url()).hash,`#/qw/${qs[0].id}/programar`);
+  await p.goto(N.base+`/app#/qw/${qs[0].id}`);await p.getByRole('link',{name:'Agendar',exact:true}).click();await p.waitForSelector('#rotina-form');
+  await p.setViewportSize({width:390,height:844});await p.goto(N.base+'/app#/quick-wins');await linha.getByRole('link',{name:`Agendar ${qs[0].nome}`,exact:true}).waitFor();await p.waitForFunction(()=>document.getElementById('lateral').getBoundingClientRect().right<=1);
+  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await linha.locator('.menu-acoes summary').click();await menu.waitFor();
+  assert.ok(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.right-8,r.top+r.height/2));}));
+  await p.screenshot({path:'/tmp/greenia-menu-agendamento-mobile.png',fullPage:true});await menu.click();await p.getByRole('heading',{name:'Este Quick Win ainda não tem agendamento',exact:true}).waitFor();assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }finally{await N.fechar();}
+});
+
 test('programação simples confere e ativa, funciona após fechar aba e cabe no celular',async()=>{
  const N=await subirComNavegador();try{
   const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const q=(await a.post('/api/quick-wins',{nome:'Resumo fictício de QA',toda_empresa:true})).dados;

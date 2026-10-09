@@ -6,7 +6,7 @@ A revisão cobre implementação, navegação no navegador, APIs, persistência 
 
 **Não existe garantia absoluta de ausência de defeitos.** A aprovação é restrita aos cenários efetivamente executados. Testes locais usam empresas, pessoas e materiais fictícios, com provedores controlados. Verificações de produção são identificadas separadamente. Uma simulação local não prova execução automática em produção ou recebimento de email.
 
-Versão de produção no início: `03e10d8`. Correções principais publicadas pelo PR #41: `b2facb9`, com nome criado/editado/recarregado em produção. Complemento da descrição automática do trabalho: em publicação nesta rodada.
+Versão de produção no início: `03e10d8`. Correções principais publicadas pelo PR #41: `b2facb9`, com nome criado/editado/recarregado em produção. Complemento da descrição automática publicado pelo PR #42: **`aff718c`**, confirmado pelo serviço de saúde e pela interface. Criação, cancelamento, edição e recarga foram novamente conferidos nessa versão.
 
 ## Rastreabilidade dos pedidos
 
@@ -141,4 +141,10 @@ Em Atividade, filtro `email.failed` desde 09/10/2026 retornou zero eventos. Há 
 
 Ainda não comprovado: compreensão por participantes leigos/não nativos digitais; uso com leitores de tela reais; dispositivos e navegadores fora da matriz Chromium; todas as combinações de conectores corporativos reais e suas indisponibilidades. Não foram alteradas permissões, políticas, retenção, credenciais nem recursos corporativos reais para testar caminhos negativos em produção; esses casos foram executados em empresas isoladas.
 
-Validação pós-publicação de `b2facb9`: saúde confirmou a nova versão; campo de nome visível antes do objetivo; rascunho fictício salvo e retomado após recarga; “Editar nome” junto ao título; novo nome salvo e conservado após segunda recarga. Item fictício arquivado de forma recuperável, sem publicação/execução/agendamento. O achado QA-12 gerou complemento separado, ainda sujeito à confirmação da nova versão e descrição real.
+Validação pós-publicação de `b2facb9`: saúde confirmou a nova versão; campo de nome visível antes do objetivo; rascunho fictício salvo e retomado após recarga; “Editar nome” junto ao título; novo nome salvo e conservado após segunda recarga. Item fictício arquivado de forma recuperável, sem publicação/execução/agendamento. O achado QA-12 gerou o PR #42, publicado em `aff718c`. Na nova criação fictícia, nome e objetivo foram recuperados após recarga; “O que ele faz” exibiu “Resume anotações fictícias de reunião, sem inventar informações.”; cancelar não gravou; salvar um novo nome e recarregar manteve o nome e a descrição correta. Os dois novos rascunhos foram arquivados recuperavelmente. A lista Programados foi reaberta nessa versão: as duas rotinas fictícias estavam pausadas, com resultados concluídos disponíveis. Nenhuma nova programação, execução ou publicação de Quick Win foi feita nessa etapa.
+
+## Encerramento verificável desta rodada
+
+Correções integradas pelos PRs #41 e #42; versão final servida: `aff718c`. Durante a troca de versão houve uma resposta transitória 502; a consulta seguinte respondeu com saúde positiva e a versão nova. Navegação autenticada, gravação e recarga foram concluídas depois da atualização. A captura `greenia-editar-nome-producao-1791552423320.jpg` registra o botão ao lado do título, campo, salvar/cancelar, descrição correta e versão publicada, usando somente um item fictício arquivado.
+
+A descrição automática corrigida é utilizada na criação ou quando precisa ser gerada. Descrições existentes e explicitamente informadas são preservadas; não foi executada substituição em massa de textos de Quick Wins existentes. Os achados históricos QF-05/QF-09, recebimento de email e validação com participantes continuam registrados no controle de pedidos.

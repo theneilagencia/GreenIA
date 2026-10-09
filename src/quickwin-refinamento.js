@@ -28,7 +28,7 @@ export function lerMaterialRefinamento(app, pessoa, quickWinId, conversaId, mens
 }
 
 export function contextoRefinamento(app, pessoa, q, conversaId, mensagemId = null) {
-  const historico = todos(app.db, `select c.id, c.atualizado_em as em from conversas c where c.quick_win_id = ? and c.pessoa_id = ?
+  const historico = todos(app.db, `select c.id, c.titulo, c.atualizado_em as em from conversas c where c.quick_win_id = ? and c.pessoa_id = ?
     and exists (select 1 from roteamento r where r.conversa_id = c.id and r.qualidade is not null) order by c.id desc limit 20`, q.id, pessoa.id);
   const id = conversaId || historico[0]?.id;
   const teste = id ? lerMaterialRefinamento(app, pessoa, q.id, id, mensagemId) : null;

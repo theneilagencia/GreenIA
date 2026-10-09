@@ -82,3 +82,12 @@
   .app .pagina :is(.escolhas,.rt-pref,.or-grade){grid-template-columns:minmax(0,1fr)}
   .app .pagina :is(.btn-texto,.link-sutil){display:inline-flex;align-items:center;min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
 }
+
+/* Ações essenciais com texto visível e espaço para toque. */
+.acoes-material{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
+.acoes-material .dica{flex-basis:100%;margin:0}
+.app .enviar{width:auto;min-width:44px;min-height:44px;padding:8px 12px;gap:6px}
+.app .icone-btn:has(span){gap:6px;width:auto}
+.inicio-ajuda,.uso-detalhes,#modelos-manuais{margin:16px 0}
+.inicio-ajuda>summary,.uso-detalhes>summary,#modelos-manuais>summary{padding:12px 0;cursor:pointer;font-weight:600}
+@media(max-width:390px){.app .enviar{padding:8px}.app .caixa{gap:4px}.acoes-material .btn{flex:1}}

@@ -207,7 +207,7 @@ async function paginaQuickWin(id) {
         lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
       ${aviso2}
       <div class="secoes">
-        ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<span class="dica">Pedido original: ${esc(qw.assistente.descricao)}</span>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}
+        ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<details><summary>Ver a orientação completa</summary><p>${esc(qw.assistente.descricao)}</p></details>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}
         ${!qw.v2 && qw.problema ? secao('Problema que resolve', esc(qw.problema)) : ''}
         ${qw.v2 ? secao('Regras', (regras || []).length ? `<ul>${regras.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '') : ''}
         ${qw.entregas?.entregaveis?.length ? secao('Entrega', `<ul>${qw.entregas.entregaveis.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${qw.entregas.pesquisa ? '<span class="dica">Pesquisa na internet antes de escrever, quando a empresa libera.</span>' : ''}`)
@@ -225,7 +225,7 @@ async function paginaQuickWin(id) {
           <button class="icone-btn" data-apagar="${c.id}" aria-label="Apagar ${esc(c.titulo)}" title="Apagar">${ICONE.lixo}</button></li>`).join('')}</ul>`
           : `<p class="dica">Nenhuma execução ainda.${podeUsar ? ` <a class="link-sutil" href="${usarHref(qw)}">Usar agora</a>` : ''}</p>`}
       </section>
-      ${qw.podeEditar ? '<section id="medicao-qw" class="qw-bloco" aria-label="Medição"></section>' : ''}
+      ${qw.podeEditar ? '<details class="qw-bloco"><summary>Acompanhar uso, medições e decisões</summary><section id="medicao-qw" aria-label="Medição"></section></details>' : ''}
     </div></div>`;
   ligarCabecalho();
   ligarMenus();

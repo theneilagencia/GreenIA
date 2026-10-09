@@ -284,7 +284,7 @@ export function limparOperacao(op, ajustes = null) {
   const entradas = [];
   for (const x of lista(op.entradas)) {
     if (!ENTRADAS[x?.tipo] || entradas.length >= MAX_ENTRADAS) continue;
-    const rotulo = texto(x.rotulo, 80) || ENTRADAS[x.tipo].rotulo;
+    const rotulo = texto(x.rotulo, 500) || ENTRADAS[x.tipo].rotulo;
     entradas.push({ id: `i${entradas.length + 1}`, tipo: x.tipo, rotulo, quantidade: Math.min(10, Math.max(1, Number(x.quantidade) || 1)), obrigatoria: x.obrigatoria !== false });
   }
   const etapas = [];

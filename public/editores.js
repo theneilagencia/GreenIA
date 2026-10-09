@@ -223,7 +223,7 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
       <div class="campo"><label for="ld-seo-title">Título da página</label>${inp('ld-seo-title', l.seo?.title, 70)}</div>
       <div class="campo"><label for="ld-seo-description">Descrição</label>${inp('ld-seo-description', l.seo?.description, 160)}</div></div>`)}
     <p class="msg-erro oculto" id="ld-erro" role="alert"></p>
-    ${pode ? `<div class="linha-botoes"><button class="btn btn-verde" data-acao="salvar">Salvar</button>
+    ${pode ? `<div class="linha-botoes"><button class="btn btn-verde" data-acao="salvar">${l.status === 'publicada' ? 'Salvar e atualizar a página' : 'Salvar rascunho'}</button>
       ${l.status === 'publicada' ? '<button type="button" class="btn btn-linha" data-acao="despublicar">Voltar para rascunho</button>' : '<button type="button" class="btn btn-linha" data-acao="publicar">Salvar e publicar</button>'}</div>` : ''}
   </form>`;
 }

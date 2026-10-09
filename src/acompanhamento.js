@@ -16,8 +16,8 @@ function assinatura(p,v,tenant) {return createHash('sha256').update(JSON.stringi
 export function rotasAcompanhamento(app,r) {
  const exigir=(p,perm)=>{if(!permitido(app,p,perm)) throw erro(403,'sem_permissao','Você não tem permissão para esta consulta.');};
  r.get('/api/acompanhamento',({pessoa})=>{
-  const passos=[],pendencias=[];
-  const passo=(id,titulo,pronto,descricao,href)=>passos.push({id,titulo,pronto:!!pronto,descricao,href});
+  const passos=[],pendencias=[],avisos=[];
+  const passo=(id,titulo,pronto,descricao,href)=>passos.push({id,titulo,pronto:!!pronto,descricao,href,opcional:id==='integracoes'});
   if(permitido(app,pessoa,'user.read')) {
    const n=um(app.db,'select count(*) as n from pessoas where ativo = 1').n;
    passo('pessoas','Prepare as pessoas e áreas',n>1,`${n} pessoas ativas no ambiente. Confira os vínculos e acessos.`,app.tenant?'#/empresa/usuarios':'#/pessoas');
@@ -42,7 +42,7 @@ export function rotasAcompanhamento(app,r) {
    for(const q of qs.filter(q=>['em_configuracao','em_teste','em_avaliacao'].includes(q.status)).slice(0,30)) pendencias.push({tipo:'quickwin',titulo:q.nome,texto:q.status==='em_avaliacao'?'Registre uma decisão sobre este Quick Win.':'Conclua a preparação e confira o teste.',href:`#/qw/${q.id}`});
   }
   if(integracoesLigadas(app,pessoa)&&permitido(app,pessoa,'integrations.manage')) {
-   for(const p of pedidosConexao(app).filter(p=>p.status==='pendente')) pendencias.push({tipo:'integracao',titulo:`Preparar conexão: ${p.trabalho}`,texto:'A equipe pediu acesso a um sistema para este trabalho. Confira as ações e prepare a conexão autorizada.',href:'#/integracoes'});
+   for(const p of pedidosConexao(app).filter(p=>p.status==='pendente')) pendencias.push({tipo:'integracao',titulo:`Preparar conexão: ${p.trabalho}`,texto:'A equipe pediu acesso a um sistema para este trabalho. Confira as ações e prepare a conexão autorizada.',href:`#/integracoes?pedido=${encodeURIComponent(p.id)}`});
    const cs=todos(app.db,'select id,nome,status from connectors where tenant_id = ?',app.tenantId);
    passo('integracoes','Confira as integrações, se necessárias',cs.some(c=>c.status==='ACTIVE'),'Esta etapa é opcional. Qualquer escrita continua exigindo aprovação.','#/integracoes');
    cs.filter(c=>['FAILED','REVIEW_REQUIRED','PAUSED'].includes(c.status)).slice(0,20).forEach(c=>pendencias.push({tipo:'integracao',titulo:c.nome,texto:`Integração ${c.status==='FAILED'?'com falha':c.status==='PAUSED'?'pausada':'aguardando aprovação'}.`,href:`#/integracoes/c/${c.id}`}));
@@ -55,9 +55,9 @@ export function rotasAcompanhamento(app,r) {
    const n=um(app.db,'select count(*) as n from problemas where resolvido = 0').n;
    if(n) pendencias.push({tipo:'problema',titulo:`${n} problemas reportados`,texto:'Consulte os relatos e acompanhe a resolução.',href:'#/atividade'});
    const ev=um(app.db,"select em from eventos where tipo = 'governance.blocked' order by id desc limit 1");
-   if(ev&&dias(ev.em)<7) pendencias.push({tipo:'governanca',titulo:'Bloqueio de governança registrado recentemente',texto:'Consulte a Atividade para verificar a causa. Este aviso não significa que o bloqueio continua ativo.',href:'#/atividade'});
+   if(ev&&dias(ev.em)<7) avisos.push({tipo:'governanca',titulo:'Bloqueio de governança registrado recentemente',texto:'Consulte a Atividade para verificar a causa. Este aviso não significa que o bloqueio continua ativo.',href:'#/atividade'});
   }
-  return {passos,pendencias,atualizado_em:app.agora().toISOString()};
+  return {passos,pendencias,avisos,atualizado_em:app.agora().toISOString()};
  });
  r.get('/api/acompanhamento/integracoes/:id',({pessoa,params})=>{
   exigir(pessoa,'integrations.manage');if(!integracoesLigadas(app,pessoa))throw erro(404,'integracao','Integração não encontrada.');

@@ -1,0 +1,37 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {subirComNavegador} from '../scripts/navegador.js';
+import {cliente} from '../scripts/cliente.js';
+import {exec} from '../src/db.js';
+
+test('erro de tela conserva a rota e tentar novamente abre o mesmo trabalho',async()=>{
+ const N=await subirComNavegador();try{
+ const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const q=(await a.post('/api/quick-wins',{nome:'Trabalho fictício para recuperação',toda_empresa:true})).dados;
+ const p=await N.entrar('admin@empresa-exemplo.com.br');const erros=[];p.on('pageerror',e=>erros.push(e.message));
+ await p.route(`**/api/quick-wins/${q.id}`,r=>r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Falha temporária'})}));
+ await p.goto(N.base+`/app#/qw/${q.id}`);await p.getByRole('button',{name:'Tentar novamente',exact:true}).waitFor();
+ assert.equal(new URL(p.url()).hash,`#/qw/${q.id}`);assert.equal(await p.locator('#principal a[href="#/nova"]').count(),0);
+ await p.unroute(`**/api/quick-wins/${q.id}`);await p.getByRole('button',{name:'Tentar novamente',exact:true}).click();await p.getByRole('heading',{name:'Trabalho fictício para recuperação',exact:true}).waitFor();
+ assert.match(await p.textContent('#principal'),/Trabalho fictício para recuperação/);assert.deepEqual(erros,[]);
+ }finally{await N.fechar();}
+});
+test('ações visíveis, exemplos recolhidos e configuração com cancelamento preservam controles',async()=>{
+ const N=await subirComNavegador();try{
+ const p=await N.entrar('admin@empresa-exemplo.com.br');await p.setViewportSize({width:320,height:800});await p.waitForSelector('#entrada');
+ for(const [id,nome] of [['anexar','Anexar arquivo'],['anexar-link','Adicionar link'],['enviar','Enviar'],['sair','Sair']])assert.match(await p.innerText('#'+id),new RegExp(nome));
+ assert.equal(await p.isVisible('#sugestoes button'),false);await p.locator('#sugestoes summary').click();await p.locator('#sugestoes button').first().click();assert.ok((await p.inputValue('#entrada')).length>0);
+ await p.waitForFunction(()=>document.getElementById('lateral').getBoundingClientRect().right<=1);assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await p.goto(N.base+'/app#/configuracoes');await p.waitForSelector('#form-cfg');const d=p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')});assert.equal(await p.isVisible('#cfg-integracoes'),false);await d.locator('summary').click();const antes=await p.isChecked('#cfg-integracoes');await p.setChecked('#cfg-integracoes',!antes);
+ p.once('dialog',async dialog=>{assert.match(dialog.message(),/empresa toda/);await dialog.dismiss();});await p.locator('.cfg-salvar button').click();assert.equal(await p.isChecked('#cfg-integracoes'),!antes,'cancelar conserva a edição para revisão');
+ const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');assert.equal((await a.get('/api/admin/config')).dados.integracoes.ativa,antes,'cancelar não grava nem muda o acesso');
+ }finally{await N.fechar();}
+});
+test('registro histórico de bloqueio fica fora da contagem de pendências',async()=>{
+ const N=await subirComNavegador();try{
+ const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const antes=(await a.get('/api/acompanhamento')).dados;
+ exec(N.app.db,"insert into eventos(tipo,pessoa_id,detalhes,em) values('governance.blocked',?,?,datetime('now'))",a.pessoa.id,'{}');const depois=(await a.get('/api/acompanhamento')).dados;
+ assert.equal(depois.pendencias.length,antes.pendencias.length);assert.equal(depois.avisos.length,1);
+ const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(N.base+'/app#/pendencias');await p.waitForSelector('#pend-contagem');assert.doesNotMatch(await p.innerText('#pend-lista'),/Bloqueio de governança/);
+ await p.getByText('Registros recentes para consultar (1)',{exact:true}).click();assert.match(await p.innerText('#principal'),/não significa que o bloqueio continua ativo/);
+ }finally{await N.fechar();}
+});

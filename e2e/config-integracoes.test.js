@@ -17,9 +17,11 @@ test('admin liga as integrações para a empresa toda em Configurações; o menu
   const ctx = await N.navegador.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
   const p = await N.entrar('admin@empresa-exemplo.com.br', await ctx.newPage());
+  p.on('dialog', d => d.accept());
   const erros = []; p.on('pageerror', e => erros.push(e.message));
   await p.goto(`${N.base}/app#/configuracoes`);
-  await p.waitForSelector('#cfg-integracoes');
+  await p.waitForSelector('#cfg-integracoes', { state: 'attached' });
+  await p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')}).locator('summary').click();
   assert.equal(await p.isChecked('#cfg-integracoes'), false, 'desligado por padrão');
   assert.equal(await p.locator('#lateral [data-item="integracoes"]').count(), 0);
   await p.check('#cfg-integracoes');
@@ -34,7 +36,8 @@ test('admin liga as integrações para a empresa toda em Configurações; o menu
   await p.waitForLoadState('networkidle'); await p.waitForTimeout(300);   // a tela termina de carregar antes de sair dela
   // Desliga: o menu some e a API de integrações deixa de existir.
   await p.goto(`${N.base}/app#/configuracoes`);
-  await p.waitForSelector('#cfg-integracoes'); await p.waitForLoadState('networkidle');
+  await p.waitForSelector('#cfg-integracoes', { state: 'attached' });
+  await p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')}).locator('summary').click(); await p.waitForLoadState('networkidle');
   assert.equal(await p.isChecked('#cfg-integracoes'), true);
   await p.uncheck('#cfg-integracoes');
   await p.click('#form-cfg .cfg-salvar .btn-verde');

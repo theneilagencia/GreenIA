@@ -24,6 +24,7 @@ test('login: reenvio invalida o código anterior; limite do servidor continua va
   assert.equal(await q.locator('#reenviar').isDisabled(), true, 'evita pedidos repetidos imediatos');
   await q.clock.fastForward(61000);
   await Promise.all([q.waitForResponse(r => r.url().endsWith('/api/login/codigo')), q.click('#reenviar')]);
+  await q.waitForFunction(() => document.querySelector('#reenviar')?.textContent === 'Enviar novo código');
   assert.match(await q.textContent('#enviado-para'), /email mais recente/);
   await q.fill('#codigo', antigo);
   await Promise.all([q.waitForResponse(r => r.url().endsWith('/api/login/entrar')), q.click('#btn-codigo')]);
@@ -31,6 +32,7 @@ test('login: reenvio invalida o código anterior; limite do servidor continua va
   assert.match(await q.textContent('#erro-codigo'), /inválido ou vencido/);
   await q.clock.fastForward(61000);
   await Promise.all([q.waitForResponse(r => r.url().endsWith('/api/login/codigo')), q.click('#reenviar')]);
+  await q.waitForFunction(() => document.querySelector('#reenviar')?.textContent === 'Enviar novo código');
   const novo = codigo();
   await q.clock.fastForward(61000);
   const [limite] = await Promise.all([q.waitForResponse(r => r.url().endsWith('/api/login/codigo')), q.click('#reenviar')]);

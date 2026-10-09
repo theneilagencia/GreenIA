@@ -54,6 +54,8 @@ test('troca rápida de telas: resposta lenta não deixa conteúdo de outra rota'
  let liberar,avisar;const iniciado=new Promise(r=>avisar=r),espera=new Promise(r=>liberar=r);
  await p.route('**/api/acompanhamento',async r=>{avisar();await espera;await r.continue();});
  await p.evaluate(()=>location.hash='#/pendencias');await iniciado;
+ assert.equal(await p.locator('#entrada').count(),0,'a tela anterior não oferece ações durante a navegação');
+ assert.equal(await p.locator('#principal').getAttribute('aria-busy'),'true');
  await p.evaluate(()=>location.hash='#/integracoes');liberar();
  await p.waitForFunction(()=>document.querySelector('.cabeca h1')?.textContent==='Integrações'&&!document.querySelector('#principal').hasAttribute('aria-busy'));
  assert.equal(await p.locator('#pend-lista').count(),0);assert.match(await p.locator('#principal').innerText(),/Integrações da empresa/);assert.match(p.url(),/#\/integracoes$/);

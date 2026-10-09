@@ -67,8 +67,8 @@ function desenhar() {
   const modeloAtual = C.opcoes.find(o => o.id === C.modelo);
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
   $('principal').innerHTML = `
-    ${cabecalho(titulo(), conv ? `<button class="icone-btn" id="renomear" title="Renomear" aria-label="Renomear conversa">${ICONE.lapis}</button>
-      <button class="icone-btn" id="apagar" title="Excluir conversa" aria-label="Excluir conversa">${ICONE.lixo}</button>` : '')}
+    ${cabecalho(titulo(), conv ? `<button class="icone-btn" id="renomear" title="Renomear" aria-label="Renomear conversa">${ICONE.lapis}<span>Renomear</span></button>
+      <button class="icone-btn" id="apagar" title="Excluir conversa" aria-label="Excluir conversa">${ICONE.lixo}<span>Excluir</span></button>` : '')}
     <div class="barra-conversa">
       ${qw ? `<a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste · fora da medição</span>' : qw.v2 ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}` : ''}
       ${C.opcoes.length > 1 && !qw?.v2 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível

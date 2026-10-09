@@ -4,6 +4,25 @@ import {subirComNavegador} from '../scripts/navegador.js';
 import {cliente} from '../scripts/cliente.js';
 import {exec} from '../src/db.js';
 
+test('espera orientada e falha de preparação permitem repetir ou voltar sem perder o objetivo',async()=>{
+ const N=await subirComNavegador();try{
+ const p=await N.entrar('admin@empresa-exemplo.com.br');
+ let liberar,avisar;const espera=new Promise(r=>liberar=r),iniciado=new Promise(r=>avisar=r);
+ await p.route('**/api/quick-wins/assistente/sugerir',async r=>{avisar();await espera;await r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Serviço temporariamente indisponível.'})});});
+ await p.goto(N.base+'/app#/qw/nova');await p.waitForSelector('#objetivo');
+ const objetivo='Resumir um relatório fictício e preservar os valores e os riscos.';await p.fill('#objetivo',objetivo);await p.locator('[data-continuar]').click();await iniciado;
+ assert.match(await p.locator('#etapa').innerText(),/organizando as etapas.*aproveitando o que você já informou/s);
+ assert.equal(await p.locator('#etapa').getAttribute('aria-busy'),'true');liberar();
+ await p.getByRole('button',{name:'Tentar novamente',exact:true}).waitFor();assert.equal(await p.locator('#etapa').getAttribute('aria-busy'),null);
+ await p.getByRole('button',{name:'Voltar à etapa anterior',exact:true}).click();assert.equal(await p.inputValue('#objetivo'),objetivo);
+ await p.unroute('**/api/quick-wins/assistente/sugerir');
+ await p.route('**/api/quick-wins/assistente/sugerir',r=>r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Falha temporária.'})}));
+ await p.locator('[data-continuar]').click();await p.getByRole('button',{name:'Tentar novamente',exact:true}).waitFor();await p.unroute('**/api/quick-wins/assistente/sugerir');
+ await p.getByRole('button',{name:'Tentar novamente',exact:true}).click();await p.waitForSelector('#processo');assert.equal(await p.locator('#etapa').getAttribute('aria-busy'),null);
+ const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');assert.equal((await a.get('/api/quick-wins')).dados.quickWins.length,1,'a recuperação não cria outro rascunho');
+ }finally{await N.fechar();}
+});
+
 test('erro de tela conserva a rota e tentar novamente abre o mesmo trabalho',async()=>{
  const N=await subirComNavegador();try{
  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const q=(await a.post('/api/quick-wins',{nome:'Trabalho fictício para recuperação',toda_empresa:true})).dados;
@@ -41,6 +60,7 @@ test('navegar entre biblioteca e detalhe não repete confirmação nem gravaçã
  const p=await N.entrar('admin@empresa-exemplo.com.br');let confirmacoes=0,gravacoes=0;
  p.on('dialog',async d=>{confirmacoes++;await d.accept();});p.on('request',r=>{if(r.method()==='PUT'&&r.url()===`${N.base}/api/quick-wins/${q.id}`)gravacoes++;});
  await p.goto(N.base+'/app#/quick-wins');await p.locator(`.qw-item-link[href="#/qw/${q.id}"]`).waitFor();
+ assert.match(await p.locator('.menu-acoes summary').first().innerText(),/Mais ações/,'ação identificada por texto visível');
  for(let i=0;i<3;i++){
   await p.locator(`.qw-item-link[href="#/qw/${q.id}"]`).click();await p.getByRole('heading',{name:q.nome,exact:true}).waitFor();
   if(i<2){await p.locator('#principal a[href="#/quick-wins"]').click();await p.locator(`.qw-item-link[href="#/qw/${q.id}"]`).waitFor();}

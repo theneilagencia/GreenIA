@@ -44,7 +44,7 @@ export function cabecalho(titulo, acoes = '') {
   const grupo = grupoAtual();
   return `<header class="cabeca">
     <div class="cabeca-titulo">
-      <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}</button>
+      <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}<span>Menu</span></button>
       ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
@@ -171,7 +171,7 @@ export function desenharLateral() {
     return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(i.href ? i.href() : `#/${i.id}`)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const lista = E.conversas || [];
-  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">···</button></div>`).join('')}
+  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">Ações</button></div>`).join('')}
     ${(E.totalConversas || lista.length) > RECENTES_LATERAL ? `<a class="item-lat sub ver-todas" href="#/conversas">Ver todas (${E.totalConversas || lista.length})</a>` : ''}</div>` : '';
   const adm = emAdministracao(h);
   $('lateral').classList.toggle('modo-admin', adm);
@@ -217,7 +217,7 @@ async function vistaConversas() { await (await import('/historico-conversas.js')
 
 function abrirPolitica() {
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-politica" tabindex="-1">
-    <div class="modal-topo"><div class="rotulo">Política de uso de IA</div><button class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <div class="modal-topo"><div class="rotulo">Política de uso de IA</div><button class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}<span>Fechar</span></button></div>
     <h2 id="titulo-politica">Como a empresa usa IA</h2>
     <div class="item"><h3>Conversa normal e conversa sigilosa</h3><p>Dado pessoal, de cliente, financeiro, jurídico ou estratégico só entra em conversa sigilosa, em que a GreenIA usa apenas os recursos de IA autorizados para esse tipo de informação.</p></div>
     <div class="item"><h3>Privacidade das suas conversas</h3><p>${esc(E.publico.privacyNote)}</p></div>
@@ -234,7 +234,7 @@ function abrirPolitica() {
 async function reportarProblema() {
   const { tipos } = await api('/api/problemas/tipos');
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-problema" tabindex="-1" id="form-problema" novalidate>
-    <div class="modal-topo"><div class="rotulo">Reportar problema</div><button type="button" class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <div class="modal-topo"><div class="rotulo">Reportar problema</div><button type="button" class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}<span>Fechar</span></button></div>
     <h2 id="titulo-problema">O que aconteceu?</h2>
     <div class="campo"><span class="legenda">Tipo</span><div class="opcoes">${Object.entries(tipos).map(([v, r], i) => `<label><input type="radio" name="tipo" value="${v}" ${i === 0 ? 'checked' : ''}> ${esc(r)}</label>`).join('')}</div></div>
     <div class="campo"><label for="descricao-problema">Descrição</label><textarea class="entrada" id="descricao-problema" rows="5" maxlength="4000"></textarea>
@@ -285,6 +285,10 @@ async function rota() {
   if (h) guardarUltima(h);
   // O item ativo da lateral acompanha a rota já no clique, sem esperar a tela carregar os dados.
   if (E.eu) desenharLateral();
+  // A tela anterior deixa de oferecer ações enquanto o próximo destino está sendo aberto.
+  // Isso impede usar um seletor ou resultado antigo como se pertencesse à nova conversa.
+  $('principal').setAttribute('aria-busy', 'true');
+  $('principal').innerHTML = '<div class="pagina" role="status"><p>Abrindo a tela escolhida…</p></div>';
   let m;
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
@@ -304,6 +308,8 @@ async function rota() {
     $('principal').innerHTML = `${cabecalho('GreenIA')}<div class="pagina"><div class="pagina-dentro"><div class="faixa-aviso erro" role="alert"><h2>Não foi possível abrir esta tela</h2><p>A tarefa não foi concluída. Tente novamente para continuar no mesmo lugar.</p><details><summary>Ver o motivo</summary><p>${esc(e.message)}</p></details></div><button type="button" class="btn btn-verde" id="tentar-tela">Tentar novamente</button><a class="btn btn-linha" href="${/^#\/qw\/(\d+)/.test(h) ? `#/qw/${h.match(/^#\/qw\/(\d+)/)[1]}` : emAdministracao() ? inicioAdmin() : '#/conversas'}">Voltar</a></div></div>`;
     ligarCabecalho();
     $('tentar-tela').onclick = () => rota();
+  } finally {
+    if (versao === versaoNavegacao) $('principal').removeAttribute('aria-busy');
   }
   if (versao !== versaoNavegacao) return;
   desenharLateral();

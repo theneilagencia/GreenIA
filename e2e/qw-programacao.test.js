@@ -63,9 +63,19 @@ test('agendamento em processamento orienta a espera e só oferece resultado apó
    assert.match(await p.locator('.qw-rotina-card').innerText(),/preparando e conferindo.*atualiza o andamento automaticamente/);
    assert.equal(await p.locator('.qw-rotina-card a[href="#/c/123"]').count(),0,'não abre conversa vazia como resultado');
   }
+  await p.locator('.qw-rotina-card .qw-rotina-historico summary').click();
+  await p.locator('.qw-rotina-card .qw-rotina-historico summary').focus();
   status='concluida'; // A atualização automática deve disponibilizar o resultado, sem outro clique.
   await p.getByRole('link',{name:'Ver último resultado',exact:true}).waitFor({timeout:12000});assert.equal(await p.getByRole('link',{name:'Ver último resultado',exact:true}).getAttribute('href'),'#/c/123');
   assert.equal(await p.getByRole('button',{name:'Executar agora',exact:true}).isEnabled(),true);
-  await p.locator('.qw-rotina-card .qw-rotina-historico summary').click();assert.equal(await p.getByRole('link',{name:'Abrir resultado',exact:true}).getAttribute('href'),'#/c/123');
+  assert.equal(await p.locator('.qw-rotina-card .qw-rotina-historico').evaluate(e=>e.open),true,'a atualização não fecha o histórico que a pessoa está lendo');
+  assert.equal(await p.evaluate(()=>document.activeElement.matches('.qw-rotina-card .qw-rotina-historico summary')),true,'o foco do teclado permanece no histórico');
+  assert.equal(await p.getByRole('link',{name:'Abrir resultado',exact:true}).getAttribute('href'),'#/c/123');
+  let liberar,avisar;const espera=new Promise(r=>liberar=r),iniciado=new Promise(r=>avisar=r);
+  await p.unroute('**/api/quick-wins-programados');
+  await p.route('**/api/quick-wins-programados',async r=>{avisar();await espera;await r.fulfill({contentType:'application/json',body:JSON.stringify({programacoes:[]})});});
+  await p.getByRole('button',{name:'Atualizar status',exact:true}).click();await iniciado;
+  await p.goto(N.base+'/app#/nova');await p.waitForSelector('#entrada');liberar();
+  await p.waitForLoadState('networkidle');assert.equal(await p.locator('#entrada').count(),1,'resposta atrasada não substitui a nova conversa por agendamentos');
  }finally{await N.fechar();}
 });

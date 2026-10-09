@@ -78,13 +78,13 @@ export function progressoExecucao(etapa) {
 export const painelQualidade = (q, opcoes = {}) => painelQualidadeBase(q, opcoes) + (q && q.status !== 'pergunta' ? htmlAcoes(q, opcoes) + htmlFontesUsadas(q) : '');
 // Ações dos avisos causados por configuração: link para a tela (e o campo) onde se libera ou ajusta. Quem não tem a
 // permissão também pode abrir o link; a tela e o servidor verificam o acesso antes de exibir ou salvar dados.
-function htmlAcoes(q, { podeAjustar = false } = {}) {
+function htmlAcoes(q, { podeAjustar = false, resolverPesquisa = false } = {}) {
   const acoes = q?.acoes || [];
   if (!acoes.length) return '';
   const podeMudar = a => !a.permissao || (a.permissao === 'quick_win' ? podeAjustar : !!window.__greeniaPode?.(a.permissao));
   return `<div class="qc-acoes qc-limitacoes">${acoes.map(a => {
     const o = orientacaoConfiguracao(a);
-    return `<section class="qc-limitacao"><b>${esc(o.aconteceu)}</b><p>${esc(o.impacto)}</p><p><strong>O que fazer:</strong> ${esc(o.fazer)}</p>${podeMudar(a) ? `<a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>` : `<p class="dica">Você não pode alterar esta configuração. Quem administra a empresa pode revisar ${esc(a.onde)}.</p><button type="button" class="btn btn-linha btn-pequeno" data-relatar-limitacao="${esc(a.motivo)}" data-local-limitacao="${esc(a.onde)}">Solicitar revisão ao administrador</button>`}</section>`;
+    return `<section class="qc-limitacao"><b>${esc(o.aconteceu)}</b><p>${esc(o.impacto)}</p><p><strong>O que fazer:</strong> ${esc(o.fazer)}</p>${podeMudar(a) ? resolverPesquisa && a.motivo === 'pesquisa_area_reforcada' ? '<button type="button" class="btn btn-linha btn-pequeno" data-resolver-pesquisa>Ver como liberar a pesquisa</button>' : `<a class="btn btn-linha btn-pequeno" href="${esc(a.href)}">${esc(a.rotulo)} →</a>` : `<p class="dica">Você não pode alterar esta configuração. Quem administra a empresa pode revisar ${esc(a.onde)}.</p><button type="button" class="btn btn-linha btn-pequeno" data-relatar-limitacao="${esc(a.motivo)}" data-local-limitacao="${esc(a.onde)}">Solicitar revisão ao administrador</button>`}</section>`;
   }).join('')}</div>`;
 }
 function painelQualidadeBase(q, { id = '', podeAjustar = false, ajustarHref = '', podeMelhorar = false } = {}) {

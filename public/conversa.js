@@ -9,6 +9,7 @@ import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia, 
 import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { pedidoMelhoria } from '/resultado-orientacao.js';
+import { avisoPesquisa, abrirOrientacaoPesquisa, pedeLiberacaoPesquisa } from '/pesquisa-orientacao.js';
 
 const $ = id => document.getElementById(id);
 const SUGESTOES_CHAT = ['Resuma um texto em poucos pontos', 'Rascunhe um email curto e cordial', 'Organize estas anotações em uma lista', 'Revise este texto e deixe mais claro'];
@@ -16,6 +17,7 @@ const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuraç
 const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 const FEEDBACK = [['serviu', 'Serviu'], ['ajustes', 'Serviu com ajustes'], ['nao_serviu', 'Não serviu']];
 let C = null;       // estado da conversa aberta
+let materialEmRevisao = null; // só em memória, durante a ida à configuração da pesquisa
 document.addEventListener('greenia:integracao-atualizada', ev => {
   for (const m of C?.mensagens || []) if (m.qualidade?.integracoes?.plano === ev.detail.plano) m.qualidade.integracoes = { ...m.qualidade.integracoes, ...ev.detail };
 });
@@ -35,7 +37,13 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
   }
   await carregarModelos();
   if (C !== estado) return;
+  if (materialEmRevisao?.conversa === id && materialEmRevisao.pessoa === E.eu?.email) {
+    C.anexos = materialEmRevisao.anexos;
+    C.textoRetomado = materialEmRevisao.texto;
+    materialEmRevisao = null;
+  }
   desenhar();
+  if (C.textoRetomado) { $('entrada').value = C.textoRetomado; ajustarAltura(); atualizarEnviar(); }
   // Ação explícita de execução do Quick Win ("Executar", teste da criação): o servidor faz a execução completa.
   if (enviarAgora) { $('entrada').value = enviarAgora.texto || ''; C.anexos = enviarAgora.anexos || []; ajustarAltura(); desenharAnexos(); atualizarEnviar(); await enviar(null, { executar: true }); }
 }
@@ -89,7 +97,7 @@ function desenhar() {
       `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/ajustar">Ajustar</a>`)}</div>` : ''}
     <div class="mensagens" id="msgs"><div class="coluna" id="coluna"></div></div>
     <div class="compositor"><div style="max-width:760px;margin:0 auto">
-      <div class="sugestoes" id="sugestoes"></div>
+      ${avisoPesquisa(C.conv?.pesquisa)}<div class="sugestoes" id="sugestoes"></div>
       ${qw?.v2 && C.proximaExecucao ? `<div class="proxima-execucao" role="status"><span>${ICONE.raio}</span><span><b>Nova execução do Quick Win.</b> O próximo envio roda o trabalho completo, com conferência.</span><button type="button" class="btn btn-texto btn-pequeno" id="cancelar-execucao">Cancelar</button></div>` : ''}
       <div class="anexos-pendentes" id="anexos"></div>
       <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
@@ -131,7 +139,7 @@ function htmlMensagem(m) {
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
   const revisar = execucao && m.qualidade.status === 'inconsistente';
   const refinarHref = C.qw?.v2 && C.qw.status !== 'descartado' ? `#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}` : '';
-  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeMelhorar: true, podeAjustar: !!C.qw?.podeEditar, ajustarHref: refinarHref }) : '';
+  const qc = execucao ? painelQualidade(m.qualidade, { id: m.id, podeMelhorar: true, podeAjustar: !!C.qw?.podeEditar, ajustarHref: refinarHref, resolverPesquisa: !!C.conv?.pesquisa?.bloqueada }) : '';
   const integracoes = execucao ? painelIntegracoes(m.qualidade.integracoes, { refinarHref: C.qw?.podeEditar ? refinarHref : '' }) : '';
   // Fontes: documentos da empresa (título) e, quando houve pesquisa na internet, os endereços consultados.
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => (f && typeof f === 'object' && /^https?:\/\//.test(f.url || '')
@@ -178,6 +186,7 @@ function desenharAnexos() {
 }
 
 function ligar() {
+  $('resolver-pesquisa')?.addEventListener('click', resolverPesquisa);
   const t = $('entrada');
   t.addEventListener('input', () => { ajustarAltura(); atualizarEnviar(); });
   t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!$('enviar').disabled) enviar(); } });
@@ -220,6 +229,7 @@ function ligar() {
     desenharAnexos(); atualizarEnviar();
   };
   $('coluna').addEventListener('click', ev => {
+    if (ev.target.closest('[data-resolver-pesquisa]')) resolverPesquisa();
     const melhorar = ev.target.closest('[data-melhorar-resultado]');
     if (melhorar) {
       const m = C.mensagens.find(x => String(x.id) === melhorar.dataset.melhorarResultado);
@@ -246,6 +256,23 @@ function ligar() {
 
 }
 
+function resolverPesquisa() {
+  const s = C;
+  materialEmRevisao = { conversa: C.conv.id, pessoa: E.eu?.email, texto: $('entrada').value, anexos: [...C.anexos] };
+  const d = abrirOrientacaoPesquisa(C.conv.pesquisa, C.conv.id);
+  $('conferir-pesquisa').onclick = async () => {
+    const status = $('pesquisa-verificacao'), botao = $('conferir-pesquisa');
+    botao.disabled = true; status.textContent = 'Conferindo as regras atuais…';
+    try {
+      const atual = await api(`/api/conversas/${s.conv.id}`);
+      if (C !== s) { d.fechar(); return; }
+      C.conv.pesquisa = atual.conversa.pesquisa;
+      if (C.conv.pesquisa && !C.conv.pesquisa.bloqueada) { d.fechar(); desenhar(); toast('As configurações permitem a pesquisa. Execute novamente; os resultados anteriores não mudam.'); }
+      else { d.fechar(); if(C.conv.pesquisa) { resolverPesquisa(); $('pesquisa-verificacao').textContent = 'A pesquisa continua bloqueada. Revise as regras indicadas; nenhuma proteção foi alterada.'; } else { desenhar(); toast('Este Quick Win não prevê pesquisa na internet. Revise o trabalho antes de executar.'); } }
+    } catch(e) { status.textContent = `Não foi possível conferir agora. ${e.message} Seu texto foi mantido.`; botao.disabled = false; }
+  };
+}
+
 async function darFeedback(valor) {
   let motivo = null;
   if (valor === 'nao_serviu') motivo = prompt('Quer contar por quê? (opcional)') || null;
@@ -266,6 +293,10 @@ export function lembreteAoSair() {
 }
 
 async function enviar(reenvio = null, { executar = false } = {}) {
+  if (!reenvio && C.conv?.pesquisa?.bloqueada && pedeLiberacaoPesquisa($('entrada').value)) {
+    resolverPesquisa();
+    return;
+  }
   // "Nova execução" (explícita) vale só para o próximo envio.
   if (C.proximaExecucao) {
     executar = true; C.proximaExecucao = false;

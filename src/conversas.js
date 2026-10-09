@@ -19,7 +19,7 @@ import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
 import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
-import { conferirComCorrecao, contextoDaExecucao, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
+import { conferirComCorrecao, contextoDaExecucao, escolhaHumanaPrevista, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
 import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, temArtefatoVisual } from './quickwin-operacao.js';
 import { gravarVisuais, produzirVisuais, resumoArtefato } from './visual/producao.js';
 import { precisaIntegracao, prepararExecucao, concluirExecucao, limparResposta, lerPlano as lerPlanoInteg, resumoPlano as resumoPlanoInteg } from './integracoes/quickwin.js';
@@ -678,6 +678,8 @@ export function rotasConversas(app, r) {
     const fontesWeb = [];
     const tentados = [m.id];
     let perguntaInicial = null, autonomia = 0;
+    let escolhaNaoPreparada = false;
+    const deveEsperarEscolha = espec && escolhaHumanaPrevista(espec) && (corpo.executar_quick_win === true || ultimaQualidade?.status !== 'pergunta' || ultimaQualidade?.escolha_repetir);
     // Etapa 1 (coleta): pesquisa com o plugin web, só com o contexto externo seguro. Falhou ou não trouxe notas: a
     // produção segue sem pesquisa e o resultado fica parcial (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
@@ -716,6 +718,10 @@ export function rotasConversas(app, r) {
           } else fim = ev;
         }
         if (!resposta) throw new ErroIA('A IA não respondeu.');
+        if (deveEsperarEscolha && !resposta.trim().startsWith(MARCADOR_PERGUNTA)) {
+          escolhaNaoPreparada = true;
+          resposta = `${MARCADOR_PERGUNTA}\nNão foi possível preparar as opções para sua escolha nesta tentativa. A etapa seguinte não foi realizada. Peça “Sugira as opções para eu escolher” para tentar novamente; o material anterior foi mantido.`;
+        }
         falha = null;
         // Política de autonomia: a execução voltou só com perguntas. Uma vez, pela mesma rota, a IA reavalia: o que
         // é preferência vira escolha registrada e o trabalho sai; o que é necessário continua sendo perguntado.
@@ -723,7 +729,7 @@ export function rotasConversas(app, r) {
         // o contexto da empresa no envio, ou numa conversa de teste, em que o material é o exemplo fictício): a dúvida
         // que restou é de preferência.
         const semObrigatorio = !(qw?.espec?.operacao?.entradas || []).some(x => x.obrigatoria) && (ctx.partes.length > 0 || !!conv.teste);
-        if (espec && qw.espec.operacao?.v === 2 && resposta.trim().startsWith(MARCADOR_PERGUNTA) && !contemCredencial(resposta)
+        if (espec && !escolhaHumanaPrevista(espec) && qw.espec.operacao?.v === 2 && resposta.trim().startsWith(MARCADOR_PERGUNTA) && !contemCredencial(resposta)
           && (autonomia === 0 || (autonomia === 1 && semObrigatorio))) {
           perguntaInicial ??= resposta;
           mensagens.push({ role: 'assistant', content: resposta }, { role: 'user', content: autonomia === 0 ? PEDIDO_AUTONOMIA : PEDIDO_AUTONOMIA_FINAL });
@@ -803,6 +809,7 @@ export function rotasConversas(app, r) {
       const qc = await conferirComCorrecao({ espec: especQc, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }), fontes: fontesQc,
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
+      if (escolhaNaoPreparada) registroQualidade.escolha_repetir = true;
       // Fontes da execução: as que foram usadas, as que falharam e se mudaram desde a versão publicada em uso.
       if (registroQualidade.fontes || avisosLinks.length) {
         const ver = qw.versao ? um(app.db, 'select fontes from quick_win_versoes where quick_win_id = ? and numero = ?', qw.id, qw.versao) : null;
@@ -913,7 +920,8 @@ export function detalhe(app, c, pessoa = null) {
   return {
     conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
-      atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias },
+      atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias,
+      pesquisa: situacaoPesquisa(app, c, pessoa) },
     mensagens: todos(app.db, 'select m.id, m.criado_em, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa, r.qualidade as rota_qualidade from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.resposta_id = m.id where m.conversa_id = ? order by m.id', c.id)
       .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: qualidadeAtual(rota_qualidade) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         ...(artefatos.some(a => a.mensagem_id === m.id) ? { artefatos: artefatos.filter(a => a.mensagem_id === m.id) } : {}),
@@ -921,6 +929,22 @@ export function detalhe(app, c, pessoa = null) {
         rota_explicacao_simples: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null,
         ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),
   };
+}
+
+// Diagnóstico atual, independente da conferência histórica ou do texto produzido pela IA.
+// Não altera configuração nem autoriza uma chamada de pesquisa.
+export function situacaoPesquisa(app, c, pessoa) {
+  if (!c.quick_win_id || !pessoa) return null;
+  let qw;
+  try {
+    qw = app.quickWins?.paraUso(pessoa, c.quick_win_id, !!c.teste, { incluirExcluido: true });
+    if (qw && app.quickWins.efetivo) qw = app.quickWins.efetivo(qw, !!c.teste);
+  } catch { return null; }
+  if (!qw?.espec?.ferramentas_permitidas?.includes('pesquisa_web')) return null;
+  const cfg = lerConfig(app.db);
+  const areas = todos(app.db, 'select a.id, a.nome from quick_win_areas q join areas a on a.id=q.area_id where q.quick_win_id=? and a.sigilosa=1', qw.id);
+  return { bloqueada: !cfg.pesquisaWeb?.ativa || !!c.sigilosa || !!qw.sigiloso || areas.length > 0,
+    empresa_liberou: !!cfg.pesquisaWeb?.ativa, sigilosa: !!c.sigilosa || !!qw.sigiloso, areas };
 }
 
 // Retenção: apaga conversas (e anexos) sem atividade há mais do que o prazo.

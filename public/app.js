@@ -281,7 +281,8 @@ async function rota() {
   fecharNavegacao();
   // Link direto para um campo ("?foco=<id>", vindo de um aviso com ação): a tela abre e o campo fica em destaque.
   const [h, consulta = ''] = location.hash.split('?');
-  const foco = /^foco=([a-z0-9-]+)$/.exec(consulta)?.[1] || null;
+  const focoPedido = new URLSearchParams(consulta).get('foco');
+  const foco = /^[a-z0-9-]+$/.test(focoPedido || '') ? focoPedido : null;
   // Administração: quem autoriza é o servidor. Quem não administra pergunta a ele (e recebe 403) antes de
   // qualquer tela da administração ser desenhada; a recusa leva de volta ao uso normal.
   if (ROTAS_ADMIN.test(h)) {

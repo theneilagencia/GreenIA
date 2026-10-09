@@ -1865,3 +1865,8 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
   .qw-detalhe .pg-acoes>.menu-acoes{margin-left:0}
   .qw-detalhe .qw-renomear{padding:16px;margin-top:0}
 }
+.pesquisa-pendente{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin-bottom:10px;background:var(--fundo,#f8f7f3);border:1px solid var(--borda,#dedbd3);border-radius:10px;font-size:13px}
+.pesquisa-pendente p{margin:3px 0 0;color:var(--muted,#666);line-height:1.4}
+.pesquisa-resolucao{max-height:85dvh;overflow:auto}
+.pesquisa-resolucao h2{font-size:20px;margin:0}
+.pesquisa-resolucao .btn{white-space:normal}

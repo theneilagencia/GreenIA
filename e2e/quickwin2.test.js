@@ -93,7 +93,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await clicar('[data-continuar]');
   // Etapa 2: nada obrigatório.
   await p.waitForSelector('#processo');
-  assert.match(await p.textContent('#pergunta'), /O que normalmente precisa ser considerado para fazer isso bem\?/);
+  assert.match(await p.textContent('#pergunta'), /Como você quer que este trabalho aconteça\?/);
   await clicar('[data-continuar]');
   // Etapa 3: regras em lista simples; "não inventar" sempre ativa.
   await p.waitForSelector('input[name=regra]');
@@ -471,7 +471,7 @@ test('concorrência: resposta atrasada não vale para outro objetivo, não desen
   const avancar = async (...sels) => { for (const s of sels) { await p.click('[data-continuar]'); await p.waitForSelector(s); } };
   p.on('dialog', d => d.accept()); // Estes casos abandonam alterações deliberadamente para testar respostas atrasadas.
   const novo = async obj => { await p.goto(`${N.base}/app#/quick-wins`); await p.waitForSelector('.qw-lista'); await p.goto(`${N.base}/app#/qw/nova`); await p.waitForSelector('#objetivo'); await p.fill('#objetivo', obj); };
-  const PERGUNTA_PROCESSO = /O que normalmente precisa ser considerado/;
+  const PERGUNTA_PROCESSO = /Como você quer que este trabalho aconteça/;
 
   // Caso 1: A pendente → volta → B → avança; a resposta de A chega depois.
   await novo(OBJ_A);

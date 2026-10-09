@@ -121,7 +121,7 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
     const b = ev.target.closest('button');
     // Feedback e seleção de propostas não editam o rascunho. A aprovação marca
     // e salva as mudanças no próprio handler, antes de este clique propagar.
-    if (b && !b.closest('#fontes-qw, #refinar-qw') && !b.matches('[data-continuar],[data-voltar],[data-ir-etapa],[data-ir-teste],[data-ajustar],[data-repetir-teste]')) marcarEdicao();
+    if (b && !b.closest('#fontes-qw, #refinar-qw') && !b.matches('[data-continuar],[data-voltar],[data-ir-etapa],[data-ir-teste],[data-ajustar],[data-repetir-teste],[data-testar],[data-responder],[data-revisar-assim]')) marcarEdicao();
   });
   $('excluir-qw')?.addEventListener('click', () => excluirQw(W.qw).catch(e => toast(e.message, 6000)));
   ligarVerResultado($('etapa'));
@@ -685,7 +685,7 @@ async function desenharRefinamento(W) {
   const r = W.resultado, c = W.contextoRefinamento;
   $('principal').innerHTML = `${cabecalho('Quick Wins')}<div class="pagina"><div class="pg qw-wizard qw-refinamento">
     ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [W.qw.nome, `#/qw/${W.id}`], ['Refinar']], titulo: 'Refinar Quick Win', descricao: 'Melhore o próximo resultado a partir do que aconteceu neste caso.' })}
-    <ol class="refinamento-passos" aria-label="Etapas do refinamento">${['Explicar o problema','Revisar mudanças','Testar e comparar'].map((t,i) => `<li ${i+1===etapa ? 'aria-current="step"' : ''}><span>${i+1}</span>${t}</li>`).join('')}</ol>
+    <ol class="refinamento-passos" aria-label="Etapas do refinamento">${['O que precisa melhorar','Ajustes sugeridos','Novo resultado'].map((t,i) => `<li ${i+1===etapa ? 'aria-current="step"' : ''}><span>${i+1}</span>${t}</li>`).join('')}</ol>
     <p class="dica">${W.qw.versao ? `A equipe continua usando a versão ${W.qw.versao}. ` : ''}Você aprova cada alteração no rascunho. Publicar é uma ação separada.</p>
     <div id="estado-rascunho" role="status">${W.refinarAprovado ? 'Rascunho salvo · a versão publicada não muda' : ''}</div>
     <div id="etapa">
@@ -727,15 +727,15 @@ async function desenharRefinamento(W) {
 
 function htmlRefinamento(W) {
   return `<section class="editor bloco-extra" id="refinar-qw"><h3 id="refinamento-titulo">Conte o que precisa melhorar</h3><div id="refinamento-feedback">
-    <p>Descreva o que não ficou satisfatório. Revise as sugestões e aprove somente os campos que deseja mudar.</p>
+    <p>Descreva o que não ficou satisfatório. A plataforma prepara os ajustes. Você confere o resumo e pede um novo teste.</p>
 
     <label class="legenda" for="refinamento-texto">O que deve mudar no próximo resultado?</label>
     <textarea class="entrada" id="refinamento-texto" maxlength="1000" rows="5" placeholder="O que faltou, o que saiu errado e como você esperava receber? Ex.: Quero uma recomendação antes da tabela, explicando os riscos sem inventar prazos.">${esc(W.refinamentoTexto || '')}</textarea>
     <p class="dica">Descreva com suas palavras. A GreenIA vai comparar sua orientação com o resultado, o material e a conferência.</p>
-    <button type="button" class="btn btn-verde" id="salvar-refinamento" ${!W.resultado?.conversa ? 'disabled' : ''}>Analisar e sugerir mudanças</button><p class="dica" role="status" id="refinamento-progresso"></p>
+    <button type="button" class="btn btn-verde" id="salvar-refinamento" ${!W.resultado?.conversa ? 'disabled' : ''}>Preparar ajustes</button><p class="dica" role="status" id="refinamento-progresso"></p>
     ${!W.resultado?.conversa ? '<p class="dica">Execute um teste nesta tela para receber sugestões baseadas no resultado.</p><button type="button" class="btn btn-linha" data-retomar-teste>Testar para refinar</button>' : ''}
     </div><p class="msg-erro" id="refinamento-erro" role="alert"></p><div id="refinamento-sugestoes"></div>
-    <p class="dica">Nenhuma versão será publicada automaticamente. Depois de aprovar, repita o mesmo teste e compare os resultados antes de publicar.</p></section>`;
+    <p class="dica">Nenhuma versão será publicada automaticamente. Ao aprovar, a GreenIA repete o teste quando o material está disponível. Confira o novo resultado antes de publicar.</p></section>`;
 }
 function ligarRefinamento(W) {
   document.querySelector('[data-abrir-refinamento]')?.addEventListener('click', async () => { if (!W.resultado?.conversa) await carregarContextoRefinamento(W); await abrirRefinamento(W); });
@@ -761,14 +761,14 @@ function ligarRefinamento(W) {
       if (!proposta.sugestoes?.length || proposta.fonte !== 'ia') throw new Error(proposta.mensagem || 'Não foi possível analisar agora. Tente novamente; sua orientação foi mantida.');
       erro.textContent = '';
       $('refinamento-feedback').hidden = true;
-      $('refinamento-titulo').textContent = 'Escolha o que quer mudar';
+      $('refinamento-titulo').textContent = 'Vamos melhorar assim';
       document.querySelectorAll('.refinamento-passos li').forEach((l,i)=> { if(i===1)l.setAttribute('aria-current','step');else l.removeAttribute('aria-current'); });
-      $('refinamento-sugestoes').innerHTML = '<p>Estas propostas consideram seu resultado e sua orientação. Marque só as mudanças que deseja aplicar; você também pode editar o texto proposto.</p><button type="button" class="link-sutil" id="rever-orientacao">Mudar minha orientação</button>' + W.sugestoesRefinamento.map(s => `<fieldset class="bloco-extra refinamento-proposta"><legend><label><input type="checkbox" data-aprovar-campo="${s.campo}"> Alterar ${esc(s.rotulo)}</label></legend>
-        <p class="dica">${esc(s.motivo)}</p><div class="grade-2"><div><b>Como está hoje</b><div class="refinamento-valor-atual">${esc(s.antes || 'Sem orientação específica')}</div></div><div>
+      $('refinamento-sugestoes').innerHTML = '<p>Confira o que vai mudar. Ao continuar, a GreenIA aplica os ajustes ao rascunho e testa novamente com o mesmo material.</p><button type="button" class="link-sutil" id="rever-orientacao">Mudar minha orientação</button>' + W.sugestoesRefinamento.map(s => `<fieldset class="bloco-extra refinamento-proposta"><legend><label><input type="checkbox" data-aprovar-campo="${s.campo}" checked> ${esc(s.rotulo)}</label></legend>
+        <p>${esc(s.depois)}</p><details><summary>Ver detalhes ou ajustar esta sugestão</summary><p class="dica">${esc(s.motivo)}</p><div class="grade-2"><div><b>Como está hoje</b><div class="refinamento-valor-atual">${esc(s.antes || 'Sem orientação específica')}</div></div><div>
         ${s.adicao ? '<p class="dica">Acrescentar uma regra, preservando as atuais.</p>' : ''}
         <label class="legenda" for="refinar-${s.campo}">Alteração proposta para ${esc(s.rotulo)}</label>
         <textarea class="entrada" rows="3" id="refinar-${s.campo}" data-valor-campo="${s.campo}">${esc(s.depois)}</textarea><p class="dica">Até ${s.max} caracteres. Revise o texto antes de aprovar.</p>
-        ${s.campo === 'entregaveis' ? '<p class="dica">Os formatos e canais continuam iguais; muda somente a orientação da entrega.</p>' : ''}</div></div></fieldset>`).join('') + '<div class="refinamento-aprovacao"><p id="refinamento-selecao" role="status">Marque pelo menos uma mudança para continuar.</p><button type="button" class="btn btn-verde" id="aprovar-refinamento" disabled>Aplicar ao rascunho</button></div>';
+        ${s.campo === 'entregaveis' ? '<p class="dica">Os formatos e canais continuam iguais; muda somente a orientação da entrega.</p>' : ''}</div></div></details></fieldset>`).join('') + `<div class="refinamento-aprovacao"><p id="refinamento-selecao" role="status">${W.sugestoesRefinamento.length} ajustes preparados. A equipe só recebe a nova versão depois de publicar.</p><button type="button" class="btn btn-verde" id="aprovar-refinamento">${W.materialUltimoTeste ? 'Aplicar ajustes e testar' : 'Aplicar ajustes ao rascunho'}</button></div>`;
       $('rever-orientacao').onclick = () => { document.querySelectorAll('.refinamento-passos li').forEach((l,i)=> { if(i===0)l.setAttribute('aria-current','step');else l.removeAttribute('aria-current'); }); W.sugestoesRefinamento = null; $('refinamento-titulo').textContent = 'Conte o que precisa melhorar'; $('refinamento-feedback').hidden = false; $('refinamento-sugestoes').innerHTML = ''; $('refinamento-texto').focus(); };
       document.querySelectorAll('[data-aprovar-campo]').forEach(c => c.addEventListener('change', () => {
         const n=document.querySelectorAll('[data-aprovar-campo]:checked').length;
@@ -804,8 +804,10 @@ function ligarRefinamento(W) {
           W.refinamentos.push({ feedback: W.refinamentoTexto, alteracoes: aprovadas, conversa: resultado?.conversa });
           W.refinarAprovado = aprovadas;
           W.refinamentoTexto = ''; W.sugestoesRefinamento = null; W.passo = 4;
-          await desenhar(W);
-          toast('Alterações aprovadas no rascunho. Repita o mesmo teste para comparar.');
+          if (W.materialComparacao) {
+            W.teste = structuredClone(W.materialComparacao.teste);
+            await rodarTeste(W, null, structuredClone(W.materialComparacao.corpo));
+          } else { await desenhar(W); toast('Ajustes salvos. Envie o material novamente para testar.'); }
         } catch (e) {
           if (anteriores) Object.assign(W, anteriores);
           if (erro.isConnected) erro.textContent = e.message || 'Não foi possível salvar. Revise e tente novamente.';
@@ -823,7 +825,8 @@ function htmlComparacao(W) {
     <div class="grade-2 refinamento-comparacao"><section><h4>Antes do refinamento</h4><details><summary>Conferência anterior</summary>${painelQualidade(antes.qualidade, { id: 'comparacao-antes' })}</details><div class="resultado-corpo">${renderizar(antes.saida || '').html}</div>${antes.conversa ? `<a class="link-sutil" href="#/c/${antes.conversa}">Abrir teste anterior</a>` : ''}</section>
     ${agora && agora.conversa !== antes.conversa && !agora.rodando && !agora.erro ? `<section><h4>Depois do refinamento</h4>${painelQualidade(agora.qualidade, { id: 'comparacao-depois' })}<div class="resultado-corpo">${renderizar(agora.saida || '').html}</div>${agora.conversa ? `<a class="link-sutil" href="#/c/${agora.conversa}">Abrir novo teste</a>` : ''}</section>` : '<section><h4>Depois do refinamento</h4><p>Execute novamente para ver o novo resultado.</p></section>'}</div>
     ${!W.materialComparacao ? '<p class="msg-erro">O material não foi guardado. Abra um novo teste e envie o material novamente para comparar.</p>' : ''}${W.historicoTestes.length ? `<details><summary>Histórico de testes desta sessão</summary><ol>${W.historicoTestes.map((t, i) => `<li><a class="link-sutil" href="#/c/${t.conversa}">Teste ${i + 1}</a></li>`).join('')}</ol></details>` : ''}
-    <button type="button" class="btn btn-linha" data-repetir-teste ${agora?.rodando || !W.materialComparacao ? 'disabled' : ''}>Executar novamente o mesmo teste</button></section>`;
+    <div class="linha-botoes"><button type="button" class="btn btn-linha" data-repetir-teste ${agora?.rodando || !W.materialComparacao ? 'disabled' : ''}>Executar novamente o mesmo teste</button>
+    ${agora?.conversa && agora.conversa !== antes.conversa && !agora.rodando && !agora.erro && agora.qualidade?.status !== 'pergunta' ? `<a class="btn btn-verde" href="#/qw/${W.id}/publicar">Revisar e publicar</a>` : ''}</div></section>`;
 }
 
 function htmlResultado(W) {
@@ -912,6 +915,8 @@ async function publicar(W) {
   try {
     W.publicado = await api(`/api/quick-wins/${W.id}/publicar`, { metodo: 'POST', corpo });
     W.qw = W.publicado;
+    W.edicaoPendente = false;
+    estadoRascunho(W, 'Versão publicada');
     await recarregarLateral();
     W.passo = SUCESSO;
     await desenhar(W);

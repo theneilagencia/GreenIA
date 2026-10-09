@@ -1252,7 +1252,7 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 
 /* Menu de ações */
 .menu-acoes{position:relative}
-.menu-acoes summary{list-style:none;cursor:pointer}
+.menu-acoes summary{list-style:none;cursor:pointer;gap:6px;font-size:14px;white-space:nowrap}
 .menu-acoes summary::-webkit-details-marker{display:none}
 .menu-lista{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:210px;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:var(--sombra-2);padding:6px;display:flex;flex-direction:column}
 .menu-lista a,.menu-lista button{display:block;width:100%;text-align:left;background:none;border:none;border-radius:6px;padding:9px 10px;font:400 14px var(--sans);color:var(--ink);text-decoration:none}
@@ -1446,7 +1446,8 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
   .etapa-rodape .btn{min-height:46px;width:100%}
   .qw-item{grid-template-columns:auto minmax(0,1fr) auto;padding:14px 4px}
   .qw-item-lado{grid-column:2;grid-row:2;justify-content:flex-start}
-  .qw-item-acoes{grid-column:2 / -1;grid-row:3;justify-content:flex-start}
+  .qw-item-acoes{grid-column:1 / -1;grid-row:3;justify-content:flex-start;flex-wrap:wrap;min-width:0}
+  .qw-item .menu-lista{left:0;right:auto}
   .qw-vazio-exemplos{grid-template-columns:1fr}
   .secao,.resumo-pub>li{grid-template-columns:1fr;gap:4px}
   .pg-acoes{width:100%} .pg-acoes .btn{flex:1;min-height:44px}
@@ -1819,3 +1820,9 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .refinamento-comparacao .resultado-corpo table{min-width:unset}
 .refinamento-aprovacao{position:sticky;bottom:0;background:var(--paper);padding:16px 0;border-top:1px solid var(--line)}
 .qw-refinamento #refinamento-sugestoes{scroll-margin-top:20px}
+
+/* Texto visível para identificar ações e manter leitura em telas estreitas. */
+.icone-btn:has(>span){gap:6px;font:500 14px var(--sans)}
+@media(max-width:600px){.execucoes li{flex-wrap:wrap;padding-bottom:8px}.execucoes a.execucao{flex-basis:100%}}
+
+.pg-nome{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.pg-nome h2{min-width:0;overflow-wrap:anywhere}.pg-nome .btn{flex:none;min-height:44px}.qw-renomear{padding:18px 0;border-bottom:1px solid var(--line);margin-bottom:18px}.qw-renomear .entrada{width:100%;max-width:560px}

@@ -41,10 +41,10 @@ export const oQueEnviar = qw => (qw?.entregas?.entradas?.length ? `Envie: ${qw.e
   : O_QUE_ENVIAR[qw?.arquetipo] || 'Envie o documento ou descreva o que deseja analisar.');
 
 // ---- Cabeçalho de página ------------------------------------------------------------------------------------
-export function cabecalhoPg({ trilha = [], titulo, descricao = '', lado = '', meta = '' }) {
+export function cabecalhoPg({ trilha = [], titulo, descricao = '', lado = '', meta = '', tituloAcoes = '' }) {
   return `<div class="pg-cabeca">
     ${trilha.length ? `<nav class="pg-trilha" aria-label="Você está em">${trilha.map(([t, h]) => (h ? `<a href="${h}">${esc(t)}</a>` : `<span>${esc(t)}</span>`)).join('<span class="sep" aria-hidden="true">/</span>')}</nav>` : ''}
-    <div class="pg-titulo"><div class="pg-titulo-texto"><h2>${esc(titulo)}</h2>${meta ? `<div class="pg-meta">${meta}</div>` : ''}${descricao ? `<p class="pg-desc">${descricao}</p>` : ''}</div>${lado ? `<div class="pg-acoes">${lado}</div>` : ''}</div>
+    <div class="pg-titulo"><div class="pg-titulo-texto">${tituloAcoes ? `<div class="pg-nome"><h2>${esc(titulo)}</h2>${tituloAcoes}</div>` : `<h2>${esc(titulo)}</h2>`}${meta ? `<div class="pg-meta">${meta}</div>` : ''}${descricao ? `<p class="pg-desc">${descricao}</p>` : ''}</div>${lado ? `<div class="pg-acoes">${lado}</div>` : ''}</div>
   </div>`;
 }
 
@@ -131,7 +131,7 @@ export const estadoVazio = ({ titulo, texto, cta = '', exemplos = [] }) => `<div
   </div>`;
 
 // Menu "…" acessível: <details> nativo (teclado e leitor de tela), fecha ao clicar fora ou com Esc.
-export const menuAcoes = (itens, rotulo = 'Mais ações') => (itens.length ? `<details class="menu-acoes"><summary class="icone-btn" aria-label="${esc(rotulo)}" title="${esc(rotulo)}">${PONTOS}</summary>
+export const menuAcoes = (itens, rotulo = 'Mais ações') => (itens.length ? `<details class="menu-acoes"><summary class="icone-btn" aria-label="${esc(rotulo)}">${PONTOS}<span>Mais ações</span></summary>
   <div class="menu-lista" role="menu">${itens.map(i => (i.href ? `<a role="menuitem" href="${i.href}">${esc(i.rotulo)}</a>` : `<button type="button" role="menuitem" data-acao="${esc(i.acao)}" data-id="${esc(i.id ?? '')}"${i.perigo ? ' class="perigo"' : ''}>${esc(i.rotulo)}</button>`)).join('')}</div></details>` : '');
 const PONTOS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
 let menusLigados = false;

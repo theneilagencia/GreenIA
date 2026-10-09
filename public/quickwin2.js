@@ -66,7 +66,7 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
   const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : {});
   const W = {
     id, qw, modoRefinamento: refinar, abrirRefinamento: refinar, responsavelId: qw?.responsavel?.id || E.eu.id, controles: qw?.operacao?.controles ? structuredClone(qw.operacao.controles) : null, passo, maximo: passo, editando: !!qw,
-    descricao: o.descricao || '', arquetipo: o.arquetipo || null,
+    nome: qw?.nome || '', descricao: o.descricao || '', arquetipo: o.arquetipo || null,
     modoProc: o.como?.modo === 'mostrar' ? 'exemplo' : 'explicar', processo: o.como?.modo === 'explicar' ? o.como.texto || '' : '',
     exemplo: '', exemploNome: '', estruturaAnterior: o.exemplo || null, estruturaSugerida: null,
     sugestao: null, regras: o.regras ? new Set(o.regras) : null, proprias: [...(o.regras_proprias || [])], formato: o.formato || null, formatoDescricao: o.formato_descricao || '',
@@ -170,7 +170,7 @@ function respostas(W) {
   const como = W.modoProc === 'exemplo'
     ? (W.exemplo || W.estruturaAnterior ? { modo: 'mostrar', exemplo: W.exemplo } : { modo: 'pronto' })
     : W.processo.trim() ? { modo: 'explicar', texto: W.processo.trim() } : { modo: 'pronto' };
-  return { responsavel_id: W.responsavelId, descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formatoDescricao, regras_proprias: [...W.proprias],
+  return { ...(W.nome ? { nome: W.nome } : {}), responsavel_id: W.responsavelId, descricao: W.descricao, arquetipo: W.arquetipo, como, regras: [...(W.regras || [])], formato: W.formato, formato_descricao: W.formatoDescricao, regras_proprias: [...W.proprias],
     colunas: W.formato === 'tabela' && W.colunas ? W.colunas.filter(Boolean) : null, colunas_origem: W.formato === 'tabela' ? W.colunasOrigem : null, estrutura_objetivo: estruturaAtual(W),
     ...(W.operacaoPessoa || (W.operacao && W.planoAceito) ? { operacao: { ...W.operacao, ...(W.controles ? { controles: W.controles } : {}) } } : {}),
     ...(W.plano?.fonte === 'ia' && W.plano.chave ? { interpretacao: { chave: W.plano.chave, operacao: W.plano.operacao } } : {}) };
@@ -242,11 +242,21 @@ async function desenhar(W, { foco = true } = {}) {
   // Cada desenho tem a sua vez: se a pessoa já foi para outra etapa enquanto este carregava (uma resposta que
   // demorou), ele não desenha, não liga eventos, não navega e não pega o foco.
   const vez = ++W.vez, passo = W.passo;
-  el.innerHTML = '<p class="dica">Carregando…</p>';
+  el.setAttribute('aria-busy', 'true');
+  el.innerHTML = `<div role="status"><p><b>${passo === 1 ? 'A GreenIA está organizando as etapas deste trabalho.' : 'A GreenIA está preparando esta etapa.'}</b></p><p class="dica">Estamos aproveitando o que você já informou para orientar o próximo passo. Isso pode levar alguns instantes. Não precisa enviar novamente.</p></div>`;
   let html;
   try { html = await ETAPA_HTML[passo](W); }
-  catch (e) { if (vez === W.vez) el.innerHTML = aviso(esc(e.message), 'erro'); return; }
+  catch (e) {
+    if (vez === W.vez && passo === W.passo) {
+      el.removeAttribute('aria-busy');
+      el.innerHTML = aviso(`<b>Não foi possível preparar esta etapa.</b><p>${esc(e.message)}</p><p>Você pode tentar novamente ou voltar para conferir o que escreveu.</p>`, 'erro', '<button type="button" class="btn btn-verde" data-repetir-etapa>Tentar novamente</button>' + (passo > 0 ? '<button type="button" class="btn btn-linha" data-voltar-etapa>Voltar à etapa anterior</button>' : '<a class="btn btn-linha" href="#/quick-wins">Voltar aos Quick Wins</a>'));
+      el.querySelector('[data-repetir-etapa]').onclick = () => desenhar(W);
+      el.querySelector('[data-voltar-etapa]')?.addEventListener('click', () => irEtapa(W, passo - 1));
+    }
+    return;
+  }
   if (vez !== W.vez || passo !== W.passo) return;
+  el.removeAttribute('aria-busy');
   el.innerHTML = `<div class="etapa-foco">${html}</div>`;
   ETAPA_LIGAR[W.passo]?.(W);
   if (W.abrirRefinamento && $('refinar-qw')) {
@@ -277,6 +287,7 @@ function guardarEtapa(W) {
   guardarPreparacao(W);
   const mudou = (campo, valor) => { if (W[campo] !== valor) { W[campo] = valor; W.sugestao = null; } };
   if (W.passo === 0 && $('objetivo')) mudou('descricao', $('objetivo').value.trim());
+  if (W.passo === 0 && $('nome-inicial')) W.nome = $('nome-inicial').value.trim();
   if (W.passo === 1) {
     guardarPlano(W);
     if ($('processo')) mudou('processo', $('processo').value);
@@ -368,9 +379,11 @@ const pergunta = (texto, micro, idMicro = 'micro') => `<h3 class="pergunta" id="
 
 const ETAPA_HTML = [
   // 1. Objetivo
-  W => `${pergunta('O que você quer que a IA faça?', 'Descreva o trabalho como explicaria para alguém da sua equipe.', 'micro-objetivo')}
+  W => `    <label class="legenda" for="nome-inicial">Nome do Quick Win (opcional)</label><input class="entrada" id="nome-inicial" maxlength="80" value="${esc(W.nome)}" aria-describedby="nome-inicial-ajuda" placeholder="Ex.: Resumo da reunião semanal"><p class="dica" id="nome-inicial-ajuda">Use um nome que sua equipe reconheça. Se deixar em branco, a GreenIA sugere um nome. Você pode editar depois.</p>
+    ${pergunta('O que você quer que a IA faça?', 'Descreva o trabalho como explicaria para alguém da sua equipe.', 'micro-objetivo')}
     <label class="sr" for="objetivo">O que a IA deve fazer</label>
     <textarea class="campo-amplo" id="objetivo" maxlength="1000" aria-describedby="micro-objetivo" placeholder="Ex.: Analisar propostas comerciais e apontar valores, prazos, riscos e o que estiver faltando">${esc(W.descricao)}</textarea>
+
     <p class="exemplos">Exemplos: ${EXEMPLOS.map(([t], i) => `<button type="button" data-exemplo="${i}">${esc(t)}</button>`).join('<span class="ponto-sep" aria-hidden="true">·</span>')}</p>
     ${rodape(W)}`,
   // 2. Processo (com o entendimento do trabalho: o plano que a GreenIA montou do pedido)

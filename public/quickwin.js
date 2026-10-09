@@ -2,7 +2,7 @@ import { ligarVisao } from '/preferencias.js';
 // Quick wins: portfólio (o ciclo de adoção), página do quick win e configuração.
 // Um quick win é uma unidade operacional de adoção de IA: problema, responsável,
 // instruções, conhecimento, classe de modelo, uso, avaliação, resultado e decisão.
-import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
+import { api, emCreditos, esc, fmtCusto, ICONE, ocupado, toast } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { assistenteQw, publicarQw, versoesQw, usarQw, testeQw } from '/quickwin2.js';
@@ -206,8 +206,9 @@ async function paginaQuickWin(id) {
     : qw.rascunho_alterado ? aviso(`<b>Há alterações em rascunho (v${qw.versao + 1}).</b> A equipe continua usando a v${qw.versao} até você publicar.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/ajustar">Continuar editando</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/teste">Testar e publicar</a>`) : '';
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta,
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta, tituloAcoes: qw.podeEditar ? '<button type="button" class="btn btn-linha" id="qw-editar-nome" aria-controls="qw-nome-form" aria-expanded="false">Editar nome</button>' : '',
         lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
+      ${qw.podeEditar ? `<form class="qw-renomear" id="qw-nome-form" hidden><label class="legenda" for="qw-nome">Nome do Quick Win</label><input class="entrada" id="qw-nome" maxlength="80" required value="${esc(qw.nome)}" aria-describedby="qw-nome-ajuda"><p class="dica" id="qw-nome-ajuda">O novo nome aparece no catálogo para quem já tem acesso. As regras, os agendamentos e o histórico de versões continuam os mesmos.</p><div class="linha-botoes"><button type="submit" class="btn btn-verde" id="qw-nome-salvar">Salvar nome</button><button type="button" class="btn btn-texto" id="qw-nome-cancelar">Cancelar</button></div><p id="qw-nome-erro" role="alert"></p></form>` : ''}
       ${aviso2}
       <div class="secoes">
         ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<details><summary>Ver a orientação completa</summary><p>${esc(qw.assistente.descricao)}</p></details>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}
@@ -224,14 +225,17 @@ async function paginaQuickWin(id) {
       <section class="qw-bloco" aria-labelledby="t-exec"><div class="qw-lista-cabeca"><h3 id="t-exec">Suas execuções</h3><span class="dica">Só você vê. Ficam salvas por até ${E.retencaoDias} dias sem uso.</span></div>
         ${lista.conversas.length ? `<ul class="execucoes">${lista.conversas.map(c => `<li>
           <a class="execucao" href="#/c/${c.id}"><b>${esc(c.titulo)}</b><span>${dataCurta(c.atualizado_em)} · ${c.feedback ? FEEDBACK[c.feedback] : c.tem_resposta ? 'Sem avaliação' : 'sem resposta'}${c.sigilosa ? ' · Sigilosa' : ''}</span></a>
-          <button class="icone-btn" data-renomear="${c.id}" aria-label="Renomear ${esc(c.titulo)}" title="Renomear">${ICONE.lapis}</button>
-          <button class="icone-btn" data-apagar="${c.id}" aria-label="Apagar ${esc(c.titulo)}" title="Apagar">${ICONE.lixo}</button></li>`).join('')}</ul>`
+          <button class="icone-btn" data-renomear="${c.id}" aria-label="Renomear ${esc(c.titulo)}" title="Renomear">${ICONE.lapis}<span>Renomear</span></button>
+          <button class="icone-btn" data-apagar="${c.id}" aria-label="Apagar ${esc(c.titulo)}" title="Apagar">${ICONE.lixo}<span>Excluir</span></button></li>`).join('')}</ul>`
           : `<p class="dica">Nenhuma execução ainda.${podeUsar ? ` <a class="link-sutil" href="${usarHref(qw)}">Usar agora</a>` : ''}</p>`}
       </section>
       ${qw.podeEditar ? '<details class="qw-bloco"><summary>Acompanhar uso, medições e decisões</summary><section id="medicao-qw" aria-label="Medição"></section></details>' : ''}
     </div></div>`;
   ligarCabecalho();
   ligarMenus();
+  $('qw-editar-nome')?.addEventListener('click', () => { $('qw-nome-form').hidden=false; $('qw-editar-nome').setAttribute('aria-expanded','true'); $('qw-nome').focus(); });
+  $('qw-nome-cancelar')?.addEventListener('click', () => { $('qw-nome').value=qw.nome; $('qw-nome-erro').textContent=''; $('qw-nome-form').hidden=true; $('qw-editar-nome').setAttribute('aria-expanded','false'); $('qw-editar-nome').focus(); });
+  $('qw-nome-form')?.addEventListener('submit', ev => { ev.preventDefault(); const nome=$('qw-nome').value.trim(); if(!nome){$('qw-nome-erro').textContent='Escreva um nome para este Quick Win.';$('qw-nome').focus();return;} const rota=location.hash;ocupado($('qw-nome-salvar'),async()=>{try{await api(`/api/quick-wins/${id}`,{metodo:'PUT',corpo:{nome}});if(location.hash===rota){await paginaQuickWin(id);toast('Nome salvo. O catálogo já mostra o novo nome.');}await recarregarLateral();}catch(err){if(location.hash===rota){$('qw-nome-erro').textContent=`Não foi possível salvar o nome. O texto foi mantido para tentar novamente. ${err.message}`;}}}); });
   ligarAcoesQw($('principal'), [{ ...qw, estado: e }], () => paginaQuickWin(id));
   if (qw.podeEditar) secaoMedicao($('medicao-qw'), id).catch(err => { $('medicao-qw').innerHTML = `<p class="dica">${esc(err.message)}</p>`; });
   document.querySelectorAll('[data-sug]').forEach(b => { b.onclick = async () => { await vistaConversa({ qw }); const t = $('entrada'); t.value = b.textContent; t.dispatchEvent(new Event('input')); t.focus(); history.replaceState(null, '', `#/qw/${id}/nova`); }; });

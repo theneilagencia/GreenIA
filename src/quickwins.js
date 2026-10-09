@@ -150,7 +150,11 @@ function validar(app, pessoa, atual, c) {
   if (c.assistente) c = { ...c, ...doAssistente(app, cfg, c.assistente, atual), assistente: undefined };
   const v = {};
   if (c[ESPEC] !== undefined) { v.especificacao = c[ESPEC]; validarControles(app, QW2.normalizar(json(c[ESPEC], {}))?.operacao?.controles); }
-  if (c.nome !== undefined) { v.nome = String(c.nome).trim().slice(0, 80); if (!v.nome) throw erro(400, 'nome', 'Dê um nome ao quick win.'); }
+  if (c.nome !== undefined) {
+    v.nome = String(c.nome).trim().slice(0, 80);
+    if (!v.nome) throw erro(400, 'nome', 'Dê um nome ao quick win.');
+    if (QW2.conferirSegredos([String(c.nome)])) throw erro(422, 'dado_bloqueado', 'Por segurança, senhas e chaves de acesso não podem fazer parte do nome de um Quick Win.', { tipos: ['credencial'] });
+  }
   if (c.cor !== undefined) { if (!/^#[0-9a-fA-F]{6}$/.test(c.cor)) throw erro(400, 'cor', 'Cor inválida.'); v.cor = c.cor; }
   if (c.icone !== undefined) v.icone = String(c.icone).trim().slice(0, 2);
   for (const k of ['para_que_serve', 'instrucoes', 'exemplo_entrada', 'exemplo_saida', 'problema', 'objetivo', 'processo_atual', 'resultado']) if (c[k] !== undefined) v[k] = String(c[k]).slice(0, k === 'instrucoes' ? 8000 : 2000);

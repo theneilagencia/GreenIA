@@ -325,7 +325,7 @@ async function abaEventos(filtro = {}, pagina = 0) {
   const q = new URLSearchParams(Object.entries(filtro).filter(([, v]) => v));
   const [d, { problemas }] = await Promise.all([api(`/api/admin/eventos?${q}&pagina=${pagina}`), api('/api/admin/problemas')]);
   const abertos = problemas.filter(p => !p.resolvido).length;
-  $('conteudo').innerHTML = `<p class="lead">${abertos ? `${abertos} em aberto.` : 'Nenhum problema em aberto.'} Cada um também chega por email.</p>
+  $('conteudo').innerHTML = `<p class="lead">${abertos ? `${abertos} em aberto.` : 'Nenhum problema em aberto.'} Os problemas ficam registrados aqui. A GreenIA também tenta avisar por email; o recebimento depende do serviço de envio.</p>
     ${tabela(['Quando', 'Pessoa', 'Tipo', 'Descrição', 'Resolvido'], problemas.map(p => `<tr><td style="white-space:nowrap">${dataHora(p.em)}</td><td>${esc(p.nome || '')}<br><span class="dica">${esc(p.email || '')}</span></td><td>${esc(p.tipo)}</td>
       <td style="white-space:pre-wrap;word-break:break-word">${esc(p.descricao)}</td><td><input type="checkbox" data-problema="${p.id}" ${p.resolvido ? 'checked' : ''} aria-label="Resolvido"></td></tr>`), 'Ninguém reportou problema.')}
     <h2 style="margin-top:32px">Eventos</h2>
@@ -397,7 +397,7 @@ async function abaConfig() {
           <div class="chips-entrada" id="c-chips"></div>
           <div class="linha-botoes"><input class="entrada" id="c-dom-novo" placeholder="suaempresa.com.br" autocomplete="off" inputmode="url" style="max-width:320px"><button type="button" class="btn btn-linha btn-pequeno" id="c-dom-add">Adicionar</button></div>
           <span class="ajuda">O domínio é o que vem depois do @. Exemplo: para <b>ana@suaempresa.com.br</b>, adicione <b>suaempresa.com.br</b>.${multi ? ' Sem nenhum domínio, só entra quem for convidado.' : ''}</span></div>`)}
-      ${caixa(2, 'Envio de emails', 'A GreenIA manda por email o código de acesso, convites e avisos de uso. ' + (multi ? 'Se não configurar nada, os emails saem pelo servidor da plataforma, e isso já funciona.' : 'Sem isso, os códigos de acesso não chegam.'), `
+      ${caixa(2, 'Envio de emails', 'A GreenIA usa email para códigos de acesso, convites e avisos de uso. ' + (multi ? 'Sem um envio próprio configurado, usa o serviço da plataforma. Para conferir o recebimento, envie um email de teste abaixo e verifique a caixa de entrada e o spam.' : 'Configure o envio e use o teste abaixo para conferir o recebimento dos códigos de acesso.'), `
         <div class="campo"><span class="legenda">Por onde os emails saem</span>
           <div class="opcoes-email" role="radiogroup" aria-label="Provedor de email">
             ${multi ? `<label class="opcao"><input type="radio" name="prov" value="" ${prov === '' ? 'checked' : ''}><span><b>Servidor da plataforma</b><small>Recomendado. Nada a configurar.</small></span></label>` : ''}

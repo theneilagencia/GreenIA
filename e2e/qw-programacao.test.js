@@ -52,9 +52,9 @@ test('agendamento em processamento orienta a espera e só oferece resultado apó
  const N=await subirComNavegador();try{
   const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
   const q=(await a.post('/api/quick-wins',{nome:'QA fictício estados da execução',toda_empresa:true})).dados;
-  const p=await N.entrar('admin@empresa-exemplo.com.br');let status='na_fila';
+  const p=await N.entrar('admin@empresa-exemplo.com.br');let status='na_fila',falha=false;
   const rotina={id:'qa-estados',nome:q.nome,quick_win_id:q.id,quick_win:q.nome,minha:true,podeEditar:true,ativa:true,responsavel:'Pessoa de teste',tipo:'horario',agenda:{frequencia:'diaria',hora:'09:00',fuso:'America/Sao_Paulo'},proxima_em:'2026-10-10T12:00:00Z',creditos_usados:0,limite_creditos:100,max_dia:1};
-  await p.route('**/api/quick-wins-programados',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({programacoes:[{...rotina,execucoes:[{id:'qa-execucao',status,conversa_id:123,criada_em:'2026-10-09T12:00:00Z'}]}]})}));
+  await p.route('**/api/quick-wins-programados',r=>r.fulfill(falha?{status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Falha temporária.'})}:{contentType:'application/json',body:JSON.stringify({programacoes:[{...rotina,execucoes:[{id:'qa-execucao',status,conversa_id:123,criada_em:'2026-10-09T12:00:00Z'}]}]})}));
   await p.goto(N.base+'/app#/quick-wins/programados');
   for(const estado of ['na_fila','executando']){
    status=estado;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();
@@ -63,9 +63,21 @@ test('agendamento em processamento orienta a espera e só oferece resultado apó
    assert.match(await p.locator('.qw-rotina-card').innerText(),/preparando e conferindo.*atualiza o andamento automaticamente/);
    assert.equal(await p.locator('.qw-rotina-card a[href="#/c/123"]').count(),0,'não abre conversa vazia como resultado');
   }
+  falha=true;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();await p.locator('#rotina-status-atualizacao:not([hidden])').waitFor();assert.match(await p.innerText('#rotina-status-atualizacao'),/último status recebido/);assert.equal(await p.locator('.qw-rotina-card').count(),1,'erro de leitura conserva a rotina exibida');
+  falha=false;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();await p.locator('#rotina-status-atualizacao').waitFor({state:'hidden'});
+  await p.locator('.qw-rotina-card .qw-rotina-historico summary').click();
+  await p.locator('.qw-rotina-card .qw-rotina-historico summary').focus();
   status='concluida'; // A atualização automática deve disponibilizar o resultado, sem outro clique.
   await p.getByRole('link',{name:'Ver último resultado',exact:true}).waitFor({timeout:12000});assert.equal(await p.getByRole('link',{name:'Ver último resultado',exact:true}).getAttribute('href'),'#/c/123');
   assert.equal(await p.getByRole('button',{name:'Executar agora',exact:true}).isEnabled(),true);
-  await p.locator('.qw-rotina-card .qw-rotina-historico summary').click();assert.equal(await p.getByRole('link',{name:'Abrir resultado',exact:true}).getAttribute('href'),'#/c/123');
+  assert.equal(await p.locator('.qw-rotina-card .qw-rotina-historico').evaluate(e=>e.open),true,'a atualização não fecha o histórico que a pessoa está lendo');
+  assert.equal(await p.evaluate(()=>document.activeElement.matches('.qw-rotina-card .qw-rotina-historico summary')),true,'o foco do teclado permanece no histórico');
+  assert.equal(await p.getByRole('link',{name:'Abrir resultado',exact:true}).getAttribute('href'),'#/c/123');
+  let liberar,avisar;const espera=new Promise(r=>liberar=r),iniciado=new Promise(r=>avisar=r);
+  await p.unroute('**/api/quick-wins-programados');
+  await p.route('**/api/quick-wins-programados',async r=>{avisar();await espera;await r.fulfill({contentType:'application/json',body:JSON.stringify({programacoes:[]})});});
+  await p.getByRole('button',{name:'Atualizar status',exact:true}).click();await iniciado;
+  await p.goto(N.base+'/app#/nova');await p.waitForSelector('#entrada');liberar();
+  await p.waitForLoadState('networkidle');assert.equal(await p.locator('#entrada').count(),1,'resposta atrasada não substitui a nova conversa por agendamentos');
  }finally{await N.fechar();}
 });

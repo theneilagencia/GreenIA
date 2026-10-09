@@ -554,11 +554,11 @@ test('a revisão não reaproveita a conferência em memória depois de mudar uma
 
 test('refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar', async () => {
   qc = 'ok'; refinamentoIA = true;
-  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 }, ...(estadoLia ? { storageState: estadoLia } : {}) });
+  await N.qaAdmin.post('/api/admin/pessoas', { email: 'refinamento@empresa-exemplo.com.br', nome: 'QA Refinamento', areas: [{ id: areaCompras, responsavel: true }] });
+  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 } });
   await cel.route(u => !u.href.startsWith(N.base), r => r.abort());
   const p = await cel.newPage();
-  if (estadoLia) { await p.goto(`${N.base}/app`); await p.waitForSelector('#principal h1'); }
-  else await N.entrar('lia@empresa-exemplo.com.br', p);
+  await N.entrar('refinamento@empresa-exemplo.com.br', p);
   const erros = []; p.on('pageerror', e => erros.push(e.message));
   p.setDefaultTimeout(10000);
   try {
@@ -588,7 +588,8 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     refinamentoIA = true;
     await p.click('#salvar-refinamento');
     await p.waitForSelector('[data-aprovar-campo="objetivo"]');
-    assert.equal(await p.isDisabled('#aprovar-refinamento'), true, 'aprovação exige seleção explícita');
+    assert.equal(await p.isDisabled('#aprovar-refinamento'), false, 'plataforma prepara ajustes para aprovação em um clique');
+    await p.uncheck('[data-aprovar-campo="regras"]');
     await p.screenshot({ path: '/tmp/greenia-refinamento-revisao-mobile.png', fullPage: true });
     await p.setViewportSize({ width: 320, height: 800 });
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'propostas cabem em 320px');
@@ -599,6 +600,8 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     for (const campo of ['objetivo', 'processo', 'entregaveis']) await p.check(`[data-aprovar-campo="${campo}"]`);
     await p.click('#aprovar-refinamento');
     await p.waitForSelector('[data-repetir-teste]');
+    await p.waitForSelector('.refinamento-comparacao > section:last-child .qc');
+    assert.equal(await p.getByRole('link', { name: 'Revisar e publicar', exact: true }).count(), 1, 'aprovar aplica ajustes e repete o mesmo teste automaticamente');
     assert.match(await p.textContent('#estado-rascunho'), /Rascunho salvo/, 'aprovação concluída não deixa aviso falso de edição pendente');
     const depois = (await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados;
     assert.equal(depois.versao, antes.versao);
@@ -617,6 +620,7 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     const entradaRepetida = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
     assert.equal(texto(entradaRepetida.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'mesmo texto extraído do arquivo');
     assert.match(await p.textContent('[aria-label="Comparação dos testes"]'), /Antes do refinamento.*Depois do refinamento/s);
+    assert.equal(await p.getByRole('link', { name: 'Revisar e publicar', exact: true }).getAttribute('href'), `#/qw/${id}/publicar`, 'comparação oferece revisão da nova versão');
     const novaConversa = /refinar\/(\d+)/.exec(p.url())[1];
     await p.click('#nova-rodada-refinamento');
     assert.equal(await p.inputValue('#escolher-resultado'), novaConversa, 'a nova execução fica selecionada sem recarregar');
@@ -631,7 +635,6 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     await p.check('[data-aprovar-campo="regras"]');
     await p.click('#aprovar-refinamento');
     await p.waitForSelector('[data-repetir-teste]');
-    await p.click('[data-repetir-teste]');
     await p.waitForSelector('.refinamento-comparacao > section:last-child .qc');
     const repetidaServidor = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
     assert.equal(texto(repetidaServidor.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'arquivo preservado após reabrir');
@@ -640,6 +643,10 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     assert.ok(await p.locator('.refinamento-comparacao table').count() >= 2, 'comparação renderiza as tabelas');
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'comparação cabe no celular');
     await p.screenshot({ path: '/tmp/greenia-refinamento-comparacao-mobile.png', fullPage: true });
+    await p.getByRole('link', { name: 'Revisar e publicar', exact: true }).click();
+    await p.waitForSelector('.resumo-pub');
+    assert.match(await p.textContent('.resumo-pub'), /Resultado conferido/);
+    assert.equal((await N.qaAdmin.get(`/api/quick-wins/${id}`)).dados.versao, antes.versao, 'abrir revisão não publica automaticamente');
     assert.deepEqual(erros, []);
   } finally { refinamentoIA = false; await cel.close(); }
 });

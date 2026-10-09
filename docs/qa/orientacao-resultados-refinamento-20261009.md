@@ -10,7 +10,7 @@ A mesma tela apresentava uma consulta de leitura como “Gravações bloqueadas�
 
 | Jornada | Comportamento e próximo passo | Validação |
 |---|---|---|
-| Alerta → refinamento | Botão principal “Refinar Quick Win” abre conversa e mensagem exatas. Não abre o editor. | Regressão específica de navegador; produção a conferir após deploy. |
+| Alerta → refinamento | Botão principal “Refinar Quick Win” abre conversa e mensagem exatas. Não abre o editor. | Regressão específica de navegador; caso real conferido em `7f99701`. |
 | Refinar | Mostra resultado, pontos e material anterior. “Usar estes pontos como orientação” prepara feedback editável; “Preparar ajustes” apresenta proposta; revisão aplica somente ao rascunho; teste compara e publicação permanece separada. | Bateria guiada cobre aplicar, repetir arquivo e comparar; falha 503 conserva texto e versão publicada. |
 | Melhorar uma resposta | “Preparar pedido de melhoria” preenche mensagem baseada no diagnóstico, sem enviar ou executar automaticamente. | Contagem de mensagens não muda; entrada focada. |
 | Resultado limitado | Explica acontecimento, impacto e o que fazer. Mostra link apenas com permissão; sem ela abre formulário existente de solicitação, sem envio automático. | Pesquisa liberada/bloqueada, administrador/usuário comum; cancelamento não perde conversa. |
@@ -45,4 +45,7 @@ A bateria técnica não comprova compreensão por usuários leigos. Recebimento 
 
 ## Ajuste descoberto na conferência real
 
-O motivo sobre linguagem ainda herdava o título “A entrega ficou incompleta” do grupo histórico. O resumo agora usa “A linguagem precisa de ajuste” e explica problemas no tom/construção das frases; o diagnóstico integral permanece disponível. Testes afetados: **4/4 serviço e 1/1 navegador** após esta alteração. Produção deste ajuste de texto a conferir após o segundo deploy.
+O motivo sobre linguagem ainda herdava o título “A entrega ficou incompleta” do grupo histórico. O resumo agora usa “A linguagem precisa de ajuste” e explica problemas no tom/construção das frases; o diagnóstico integral permanece disponível. Testes afetados: **4/4 serviço e 1/1 navegador** após esta alteração. Produção deste ajuste confirmada em `7f99701`: Render live às 18:02:42 UTC; saúde e interface confirmadas. Repetido o alerta real → refinamento → orientação → proposta; diagnóstico de linguagem com título correto. Captura `greenia-refinamento-1791569042373.jpg`. Aplicação e publicação do Quick Win real não realizadas; aplicação/reteste/comparação continuam comprovados com dados fictícios.
+
+
+Registro final mantido no ramo de QA e no PR, sem novo deploy apenas documental. Escopo de aceite: entrada pelo alerta, contexto/proposta real e orientações observadas. Limites de toda a auditoria permanecem explícitos.

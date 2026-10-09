@@ -123,7 +123,8 @@ Referências de avaliação: [WCAG 2.2 (W3C)](https://www.w3.org/TR/WCAG22/), [m
 - Regressão de APIs afetadas pelo nome: **58/58 aprovados**.
 - Segunda bateria completa de navegador: **115 aprovados / 2 falhos / 117 cenários**. O texto visível de “Mais ações” revelou transbordamento da biblioteca móvel, corrigido com quebra de linha e alinhamento do menu. O teste de login avançava o relógio antes da atualização da interface; passou a esperar os estados visíveis. Repetição isolada do login: **1/1 aprovado**.
 - Execuções intermediárias interrompidas não foram contabilizadas como aprovação completa.
-- Regressão final de navegador: em execução.
+- Última bateria integral de navegador: **118 aprovados / 1 falho / 119 cenários**, sem cancelamentos ou testes ignorados. O teste antigo de edição procurava qualquer botão contendo “Editar”, acionou o novo “Editar nome” e aguardou indevidamente o editor de regras. A seleção foi corrigida para o link de nome exato “Editar”. A suíte completa de criação/publicação/refinamento foi repetida após esse ajuste; resultado registrado abaixo. Nenhum comportamento da plataforma foi alterado para fazer essa asserção passar.
+- Repetição da suíte afetada (`e2e/quickwin2.test.js`): **8/8 aprovados**, sem cancelamentos ou testes ignorados. Com a correção somente do seletor de teste, os 119 cenários têm resultado aprovado entre a bateria integral e a repetição afetada; não se apresenta a execução integral anterior como 119/119.
 - Nome visível e atualização de agendamentos, após os ajustes finais: **5/5 cenários de navegador aprovados**, incluindo persistência, permissões, erro/repetição, localização da ação, histórico/foco e status desatualizado.
 
 Comandos: Node 24, `--test-concurrency=1`, servidor `test/*.test.js`, navegador `e2e/*.test.js`, Chromium Headless Shell explicitamente configurado. Logs completos são mantidos no ambiente de QA; o relatório não publica dados corporativos, credenciais nem identificadores de infraestrutura.
@@ -131,6 +132,8 @@ Comandos: Node 24, `--test-concurrency=1`, servidor `test/*.test.js`, navegador 
 ## Produção e verificações pendentes
 
 A execução automática real de hoje está documentada no relatório de agendamento: task fictícia, publicação v3, rotina ativa, disparo às 09:07 de Brasília sem execução manual, resultado privado com três entregáveis, números/riscos/data preservados, resultado mantido após recarga. Rotina foi pausada e tarefa arquivada ao terminar. Nesta rodada foi reaberto o histórico e conferida a persistência do resultado e de “Sem avaliação”.
+
+Refinamento real também foi reaberto nesta rodada: o item fictício foi restaurado em preparo, abriu a jornada própria “Refinar Quick Win”, recuperou a execução das 09:07 como resultado selecionado, mostrou o trecho do resultado/conferência e identificou material disponível para repetir. A pergunta “O que deve mudar no próximo resultado?” apareceu com orientação cotidiana. Não foram preparados nem aplicados novos ajustes; nenhuma versão foi publicada. O item foi novamente arquivado e a versão v3 permaneceu identificada.
 
 Em Atividade, filtro `email.failed` desde 09/10/2026 retornou zero eventos. Há falhas históricas anteriores. **Zero eventos de falha não prova recebimento de um aviso específico.** Email permanece não comprovado sem acesso à caixa de entrada ou evidência de entrega.
 

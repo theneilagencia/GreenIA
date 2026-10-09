@@ -139,7 +139,7 @@ function doAssistente(app, cfg, a, atual = {}) {
   const espec = QW2.construir({ ...a, ...colunas, ...operacao, interpretacao, atualizado_de, estrutura_objetivo, regras_proprias: proprias, _estruturaAnterior: anterior?.origem?.exemplo || null, nome: a?.nome || (atual.especificacao ? atual.nome : '') });
   const v = deV1 ? { [ESPEC]: JSON.stringify(espec) } : { [ESPEC]: JSON.stringify(espec), formato: QW2.FORMATOS_SAIDA[espec.formato_saida.tipo].legado, pode_trocar: 1 };
   if (!atual.id || a?.nome) v.nome = espec.origem.nome;
-  if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(v.nome || atual.nome, espec.regras)).slice(0, 200);
+  if (!atual.id || a?.para_que_serve !== undefined || !atual.para_que_serve) v.para_que_serve = String(a?.para_que_serve || QW2.descricaoAutomatica(QW2.nomeAutomatico(espec.objetivo, espec.arquetipo), espec.regras)).slice(0, 200);
   const classe = deV1 ? null : classeSugerida(app, cfg, espec, atual.sigiloso);
   if (classe && (!atual.modelo || ehClasse(atual.modelo))) v.modelo = classe;
   return v;

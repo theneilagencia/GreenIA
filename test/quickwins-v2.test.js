@@ -105,6 +105,18 @@ test('criação: sugestões sem IA, nome e descrição automáticos, "não inven
   assert.doesNotMatch(visto, /Você está executando|criterios_qualidade|prompt/i);
 });
 
+test('nome escolhido identifica o trabalho; descrição automática continua baseada no objetivo', async () => {
+  const q = (await ana.post('/api/quick-wins', { assistente: { descricao: 'Organizar minhas anotações da semana', nome: 'Rotina Alfa' }, areas: [A.id] })).dados;
+  assert.equal(q.nome, 'Rotina Alfa');
+  assert.match(q.para_que_serve, /^Organiza anotações da semana/);
+  assert.doesNotMatch(q.para_que_serve, /Rotina Alfa/);
+  const r = await ana.put(`/api/quick-wins/${q.id}`, { nome: 'Rotina Beta' });
+  assert.equal(r.status, 200);
+  const depois = (await ana.get(`/api/quick-wins/${q.id}`)).dados;
+  assert.equal(depois.nome, 'Rotina Beta');
+  assert.equal(depois.para_que_serve, q.para_que_serve);
+});
+
 test('a especificação só sai do construtor: campos forjados pela API não ampliam fontes, ferramentas ou autonomia', async () => {
   const q = await criar({ ferramentas_permitidas: ['email'], fontes_permitidas: ['internet'], autonomia: 'executar', regras: ['nao_inventar', 'regra_inexistente'] });
   let e = json(um(S.app.db, 'select especificacao from quick_wins where id = ?', q.id).especificacao);

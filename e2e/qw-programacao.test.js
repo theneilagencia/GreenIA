@@ -47,3 +47,25 @@ test('programação simples confere e ativa, funciona após fechar aba e cabe no
   p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));await p.goto(N.base+'/app#/quick-wins/programados');await p.waitForSelector('.qw-rotina-card');await p.click('.qw-rotina-historico summary');await p.waitForSelector('text=Abrir resultado');assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.getByRole('link',{name:'Abrir resultado'}).click();await p.waitForSelector('.resposta');assert.deepEqual(erros,[]);
  }finally{await N.fechar();}
 });
+
+test('agendamento em processamento orienta a espera e só oferece resultado após concluir',async()=>{
+ const N=await subirComNavegador();try{
+  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
+  const q=(await a.post('/api/quick-wins',{nome:'QA fictício estados da execução',toda_empresa:true})).dados;
+  const p=await N.entrar('admin@empresa-exemplo.com.br');let status='na_fila';
+  const rotina={id:'qa-estados',nome:q.nome,quick_win_id:q.id,quick_win:q.nome,minha:true,podeEditar:true,ativa:true,responsavel:'Pessoa de teste',tipo:'horario',agenda:{frequencia:'diaria',hora:'09:00',fuso:'America/Sao_Paulo'},proxima_em:'2026-10-10T12:00:00Z',creditos_usados:0,limite_creditos:100,max_dia:1};
+  await p.route('**/api/quick-wins-programados',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({programacoes:[{...rotina,execucoes:[{id:'qa-execucao',status,conversa_id:123,criada_em:'2026-10-09T12:00:00Z'}]}]})}));
+  await p.goto(N.base+'/app#/quick-wins/programados');
+  for(const estado of ['na_fila','executando']){
+   status=estado;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();
+   await p.getByRole('button',{name:'Execução em andamento',exact:true}).waitFor();
+   assert.equal(await p.getByRole('button',{name:'Execução em andamento',exact:true}).isDisabled(),true);
+   assert.match(await p.locator('.qw-rotina-card').innerText(),/preparando e conferindo.*atualiza o andamento automaticamente/);
+   assert.equal(await p.locator('.qw-rotina-card a[href="#/c/123"]').count(),0,'não abre conversa vazia como resultado');
+  }
+  status='concluida'; // A atualização automática deve disponibilizar o resultado, sem outro clique.
+  await p.getByRole('link',{name:'Ver último resultado',exact:true}).waitFor({timeout:12000});assert.equal(await p.getByRole('link',{name:'Ver último resultado',exact:true}).getAttribute('href'),'#/c/123');
+  assert.equal(await p.getByRole('button',{name:'Executar agora',exact:true}).isEnabled(),true);
+  await p.locator('.qw-rotina-card .qw-rotina-historico summary').click();assert.equal(await p.getByRole('link',{name:'Abrir resultado',exact:true}).getAttribute('href'),'#/c/123');
+ }finally{await N.fechar();}
+});

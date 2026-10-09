@@ -223,7 +223,7 @@ async function paginaQuickWin(id) {
       ${!qw.v2 && (qw.sugestoes || []).length ? `<section class="qw-bloco"><div class="qw-lista-cabeca"><h3>Para começar</h3></div><div class="sugestoes">${qw.sugestoes.map((s, i) => `<button type="button" data-sug="${i}">${esc(s)}</button>`).join('')}</div></section>` : ''}
       <section class="qw-bloco" aria-labelledby="t-exec"><div class="qw-lista-cabeca"><h3 id="t-exec">Suas execuções</h3><span class="dica">Só você vê. Ficam salvas por até ${E.retencaoDias} dias sem uso.</span></div>
         ${lista.conversas.length ? `<ul class="execucoes">${lista.conversas.map(c => `<li>
-          <a class="execucao" href="#/c/${c.id}"><b>${esc(c.titulo)}</b><span>${dataCurta(c.atualizado_em)} · ${c.feedback ? FEEDBACK[c.feedback] : c.tem_resposta ? 'sem retorno ainda' : 'sem resposta'}${c.sigilosa ? ' · Sigilosa' : ''}</span></a>
+          <a class="execucao" href="#/c/${c.id}"><b>${esc(c.titulo)}</b><span>${dataCurta(c.atualizado_em)} · ${c.feedback ? FEEDBACK[c.feedback] : c.tem_resposta ? 'Sem avaliação' : 'sem resposta'}${c.sigilosa ? ' · Sigilosa' : ''}</span></a>
           <button class="icone-btn" data-renomear="${c.id}" aria-label="Renomear ${esc(c.titulo)}" title="Renomear">${ICONE.lapis}</button>
           <button class="icone-btn" data-apagar="${c.id}" aria-label="Apagar ${esc(c.titulo)}" title="Apagar">${ICONE.lixo}</button></li>`).join('')}</ul>`
           : `<p class="dica">Nenhuma execução ainda.${podeUsar ? ` <a class="link-sutil" href="${usarHref(qw)}">Usar agora</a>` : ''}</p>`}

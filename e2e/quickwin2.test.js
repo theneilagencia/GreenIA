@@ -320,9 +320,9 @@ test('editar um Quick Win publicado cria a próxima versão sem mexer na publica
   // O contexto já tem a sessão da Lia (os testes anteriores entraram): sem pedir mais um código.
   await p.goto(`${N.base}/app#/quick-wins`);
   await p.click('a.qw-item-link:has-text("Comparar pedidos de compra")');
-  await p.getByRole('link', { name: 'Editar', exact: true }).waitFor();
+  await p.getByRole('link', { name: 'Editar instruções', exact: true }).waitFor();
   assert.match(await p.textContent('.pg-meta'), /Publicado.*Versão publicada: v1/s);
-  await p.getByRole('link', { name: 'Editar', exact: true }).click();
+  await p.getByRole('link', { name: 'Editar instruções', exact: true }).click();
   await p.waitForSelector('#objetivo');
   assert.match(await p.textContent('.aviso-linha'), /Versão publicada: v1\..*editando a v2.*continua usando a v1/s);
   assert.match(await p.inputValue('#objetivo'), /Compare pedidos de compra/, 'o que foi ensinado vem preenchido');

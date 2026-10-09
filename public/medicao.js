@@ -14,6 +14,7 @@ const TIPOS = { tempo: 'Tempo', financeiro: 'Financeiro', qualidade: 'Qualidade'
 
 export async function secaoMedicao(alvo, id) {
   const [d, uso] = await Promise.all([api(`/api/quick-wins/${id}/medicao`), api(`/api/quick-wins/${id}/uso`)]);
+  if (!alvo?.isConnected) return;
   const hoje = new Date().toISOString().slice(0, 10);
   const lado = (k, m = {}) => `<fieldset class="lado"><legend>${k === 'antes' ? 'Antes (ponto de partida)' : 'Depois'}</legend>
     <div class="campo"><label for="${k}-valor">Valor</label><input class="entrada" id="${k}-valor" inputmode="decimal" value="${esc(num(m[`${k}_valor`]))}"></div>

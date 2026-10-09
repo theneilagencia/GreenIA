@@ -554,11 +554,11 @@ test('a revisão não reaproveita a conferência em memória depois de mudar uma
 
 test('refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar', async () => {
   qc = 'ok'; refinamentoIA = true;
-  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 }, ...(estadoLia ? { storageState: estadoLia } : {}) });
+  await N.qaAdmin.post('/api/admin/pessoas', { email: 'refinamento@empresa-exemplo.com.br', nome: 'QA Refinamento', areas: [{ id: areaCompras, responsavel: true }] });
+  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 } });
   await cel.route(u => !u.href.startsWith(N.base), r => r.abort());
   const p = await cel.newPage();
-  if (estadoLia) { await p.goto(`${N.base}/app`); await p.waitForSelector('#principal h1'); }
-  else await N.entrar('lia@empresa-exemplo.com.br', p);
+  await N.entrar('refinamento@empresa-exemplo.com.br', p);
   const erros = []; p.on('pageerror', e => erros.push(e.message));
   p.setDefaultTimeout(10000);
   try {
@@ -635,7 +635,6 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     await p.check('[data-aprovar-campo="regras"]');
     await p.click('#aprovar-refinamento');
     await p.waitForSelector('[data-repetir-teste]');
-    await p.click('[data-repetir-teste]');
     await p.waitForSelector('.refinamento-comparacao > section:last-child .qc');
     const repetidaServidor = OR.chamadas.filter(b => texto(b.messages[0].content).includes('Você está executando o Quick Win')).at(-1);
     assert.equal(texto(repetidaServidor.messages.at(-1).content), texto(entradaOriginal.messages.at(-1).content), 'arquivo preservado após reabrir');

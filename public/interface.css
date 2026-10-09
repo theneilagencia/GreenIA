@@ -66,7 +66,7 @@
   #modal .modal .entrada{font-size:16px;min-height:44px}
   #modal .ajuda-contextual{max-width:100%;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
   .app .cabeca{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
-  .app .cabeca-titulo{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;min-width:0;align-items:center}
+  .app .cabeca-titulo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;min-width:0;align-items:center}
   .app .cabeca :is(.migalha,.selo-contexto){display:none}
   .app .cabeca-titulo>h1{white-space:normal;overflow-wrap:anywhere}
   .app .cabeca-titulo>.btn{grid-column:1 / -1;justify-self:start}

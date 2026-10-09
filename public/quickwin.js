@@ -196,7 +196,7 @@ async function paginaQuickWin(id) {
   const [qw, lista] = await Promise.all([api(`/api/quick-wins/${id}`), api(`/api/conversas?quick_win=${id}`)]);
   const e = estadoQw(qw);
   const podeUsar = e.id === 'publicado' || (qw.podeEditar && e.id !== 'arquivado');
-  const editar = qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="${qw.v2 ? `#/qw/${id}/ajustar` : `#/qw/${id}/editar`}">Editar</a>` : '';
+  const editar = qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-texto qw-acao-secundaria" href="${qw.v2 ? `#/qw/${id}/ajustar` : `#/qw/${id}/editar`}">Editar instruções</a>` : '';
   const meta = [seloQw(qw), qw.v2 && qw.versao ? `<span>Versão publicada: v${qw.versao}</span>` : '', qw.v2 && qw.versao && qw.podeEditar && qw.rascunho_alterado ? `<span>Rascunho em edição: v${qw.versao + 1}</span>` : '',
     qw.sigiloso ? '<span class="selo selo-sigilosa">Trata dados sigilosos</span>' : ''].filter(Boolean).join('');
   const secao = (rotulo, conteudo) => (conteudo ? `<div class="secao"><div class="secao-rotulo">${rotulo}</div><div class="secao-conteudo">${conteudo}</div></div>` : '');
@@ -205,9 +205,9 @@ async function paginaQuickWin(id) {
     : !qw.versao ? aviso('<b>Ainda não está disponível para a equipe.</b> Teste e publique quando estiver pronto.', 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar</a>`)
     : qw.rascunho_alterado ? aviso(`<b>Há alterações em rascunho (v${qw.versao + 1}).</b> A equipe continua usando a v${qw.versao} até você publicar.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/ajustar">Continuar editando</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/teste">Testar e publicar</a>`) : '';
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
-    <div class="pagina"><div class="pg">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta, tituloAcoes: qw.podeEditar ? '<button type="button" class="btn btn-linha" id="qw-editar-nome" aria-controls="qw-nome-form" aria-expanded="false">Editar nome</button>' : '',
-        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-linha" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
+    <div class="pagina"><div class="pg qw-detalhe">
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta, tituloAcoes: qw.podeEditar ? '<button type="button" class="btn btn-texto qw-nome-acao" id="qw-editar-nome" aria-controls="qw-nome-form" aria-expanded="false">Editar nome</button>' : '',
+        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-texto qw-acao-secundaria" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
       ${qw.podeEditar ? `<form class="qw-renomear" id="qw-nome-form" hidden><label class="legenda" for="qw-nome">Nome do Quick Win</label><input class="entrada" id="qw-nome" maxlength="80" required value="${esc(qw.nome)}" aria-describedby="qw-nome-ajuda"><p class="dica" id="qw-nome-ajuda">O novo nome aparece no catálogo para quem já tem acesso. As regras, os agendamentos e o histórico de versões continuam os mesmos.</p><div class="linha-botoes"><button type="submit" class="btn btn-verde" id="qw-nome-salvar">Salvar nome</button><button type="button" class="btn btn-texto" id="qw-nome-cancelar">Cancelar</button></div><p id="qw-nome-erro" role="alert"></p></form>` : ''}
       ${aviso2}
       <div class="secoes">
@@ -237,7 +237,10 @@ async function paginaQuickWin(id) {
   $('qw-nome-cancelar')?.addEventListener('click', () => { $('qw-nome').value=qw.nome; $('qw-nome-erro').textContent=''; $('qw-nome-form').hidden=true; $('qw-editar-nome').setAttribute('aria-expanded','false'); $('qw-editar-nome').focus(); });
   $('qw-nome-form')?.addEventListener('submit', ev => { ev.preventDefault(); const nome=$('qw-nome').value.trim(); if(!nome){$('qw-nome-erro').textContent='Escreva um nome para este Quick Win.';$('qw-nome').focus();return;} const rota=location.hash;ocupado($('qw-nome-salvar'),async()=>{try{await api(`/api/quick-wins/${id}`,{metodo:'PUT',corpo:{nome}});if(location.hash===rota){await paginaQuickWin(id);toast('Nome salvo. O catálogo já mostra o novo nome.');}await recarregarLateral();}catch(err){if(location.hash===rota){$('qw-nome-erro').textContent=`Não foi possível salvar o nome. O texto foi mantido para tentar novamente. ${err.message}`;}}}); });
   ligarAcoesQw($('principal'), [{ ...qw, estado: e }], () => paginaQuickWin(id));
-  if (qw.podeEditar) secaoMedicao($('medicao-qw'), id).catch(err => { $('medicao-qw').innerHTML = `<p class="dica">${esc(err.message)}</p>`; });
+  if (qw.podeEditar) {
+    const alvoMedicao = $('medicao-qw');
+    secaoMedicao(alvoMedicao, id).catch(err => { if (alvoMedicao?.isConnected) alvoMedicao.innerHTML = `<p class="dica">${esc(err.message)}</p>`; });
+  }
   document.querySelectorAll('[data-sug]').forEach(b => { b.onclick = async () => { await vistaConversa({ qw }); const t = $('entrada'); t.value = b.textContent; t.dispatchEvent(new Event('input')); t.focus(); history.replaceState(null, '', `#/qw/${id}/nova`); }; });
   document.querySelectorAll('[data-renomear]').forEach(b => { b.onclick = async () => {
     const atual = lista.conversas.find(c => String(c.id) === b.dataset.renomear);

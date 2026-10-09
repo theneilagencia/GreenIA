@@ -52,9 +52,9 @@ test('agendamento em processamento orienta a espera e só oferece resultado apó
  const N=await subirComNavegador();try{
   const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
   const q=(await a.post('/api/quick-wins',{nome:'QA fictício estados da execução',toda_empresa:true})).dados;
-  const p=await N.entrar('admin@empresa-exemplo.com.br');let status='na_fila';
+  const p=await N.entrar('admin@empresa-exemplo.com.br');let status='na_fila',falha=false;
   const rotina={id:'qa-estados',nome:q.nome,quick_win_id:q.id,quick_win:q.nome,minha:true,podeEditar:true,ativa:true,responsavel:'Pessoa de teste',tipo:'horario',agenda:{frequencia:'diaria',hora:'09:00',fuso:'America/Sao_Paulo'},proxima_em:'2026-10-10T12:00:00Z',creditos_usados:0,limite_creditos:100,max_dia:1};
-  await p.route('**/api/quick-wins-programados',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({programacoes:[{...rotina,execucoes:[{id:'qa-execucao',status,conversa_id:123,criada_em:'2026-10-09T12:00:00Z'}]}]})}));
+  await p.route('**/api/quick-wins-programados',r=>r.fulfill(falha?{status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Falha temporária.'})}:{contentType:'application/json',body:JSON.stringify({programacoes:[{...rotina,execucoes:[{id:'qa-execucao',status,conversa_id:123,criada_em:'2026-10-09T12:00:00Z'}]}]})}));
   await p.goto(N.base+'/app#/quick-wins/programados');
   for(const estado of ['na_fila','executando']){
    status=estado;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();
@@ -63,6 +63,8 @@ test('agendamento em processamento orienta a espera e só oferece resultado apó
    assert.match(await p.locator('.qw-rotina-card').innerText(),/preparando e conferindo.*atualiza o andamento automaticamente/);
    assert.equal(await p.locator('.qw-rotina-card a[href="#/c/123"]').count(),0,'não abre conversa vazia como resultado');
   }
+  falha=true;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();await p.locator('#rotina-status-atualizacao:not([hidden])').waitFor();assert.match(await p.innerText('#rotina-status-atualizacao'),/último status recebido/);assert.equal(await p.locator('.qw-rotina-card').count(),1,'erro de leitura conserva a rotina exibida');
+  falha=false;await p.getByRole('button',{name:'Atualizar status',exact:true}).click();await p.locator('#rotina-status-atualizacao').waitFor({state:'hidden'});
   await p.locator('.qw-rotina-card .qw-rotina-historico summary').click();
   await p.locator('.qw-rotina-card .qw-rotina-historico summary').focus();
   status='concluida'; // A atualização automática deve disponibilizar o resultado, sem outro clique.

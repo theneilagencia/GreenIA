@@ -46,6 +46,8 @@ P1: impede concluir ou pode induzir ação errada. P2: dificulta compreensão ou
 | QA-07 | Interpretação demorada mostrava apenas “Carregando…” | Compreensão: pessoa não sabe o que está acontecendo e pode reenviar | P2 | Explicar que a plataforma organiza etapas e aproveita informações já dadas; estado de processamento identificável; sem percentual fictício |
 | QA-08 | Primeira bateria: histórico de modelos não abriu em uma passagem a 320 px; execução selecionada apresentou classe divergente em outra passagem | Funcionamento/transição: tela anterior podia oferecer controles enquanto novo destino carregava | P1 | Ao navegar, retirar controles anteriores e mostrar “Abrindo a tela escolhida…” com estado ocupado; testar atraso de rede e regressão completa; registrar primeira falha e repetição |
 | QA-09 | Atividade exibia vários tipos conhecidos como “Registro de atividade” seguido de código técnico | Compreensão: administrador precisa interpretar o código para entender o ocorrido | P2 | Rótulos cotidianos para tipos conhecidos; preservar código e detalhes para rastreabilidade |
+| QA-10 | Erro de leitura na atualização da lista de programações conservava o último status sem informar a falha | Compreensão/funcionamento: status antigo pode parecer informação atual | P1 | Avisar que são os últimos dados recebidos, manter a lista e oferecer “Atualizar”; repetir automaticamente; teste 503 seguido de recuperação |
+| QA-11 | Usuário relata dificuldade para localizar o nome mesmo após descrição da correção | Compreensão: recurso existente continua difícil de descobrir | P1 | Campo visível antes do objetivo na criação e “Editar nome” ao lado do título, fora de menus; teste verifica posição/visibilidade e funcionamento em 320 px |
 
 Correções anteriores revalidadas: confirmação/gravação duplicadas após navegar entre biblioteca e detalhe; resultado agendado oferecido antes de concluir; “Sem retorno ainda” confundindo ausência de avaliação com ausência de resposta. Evidências e PRs estão no relatório de agendamento.
 
@@ -53,11 +55,11 @@ Correções anteriores revalidadas: confirmação/gravação duplicadas após na
 
 ### Criar e nomear
 
-1. “O que você quer que a IA faça?” — descrever trabalho; “Nome do Quick Win (opcional)” com exemplo reconhecível pela equipe. Deixar vazio permite sugestão automática.
+1. “Nome do Quick Win (opcional)” aparece primeiro, com exemplo reconhecível pela equipe. Deixar vazio permite sugestão automática. Logo abaixo, “O que você quer que a IA faça?” orienta a descrição do trabalho.
 2. A GreenIA organiza o trabalho usando o contexto autorizado. Pergunta somente o que faltar; etapas, regras e entregas seguem o assistente existente.
 3. Testar, conferir e publicar. Sucesso identifica versão e disponibilidade para a equipe.
 
-Para mudar somente o nome: abrir o trabalho → “Editar nome” → escrever → “Salvar nome”. Cancelar não grava. Vazio pede um nome; falha mantém texto e permite repetir. Alterar nome não publica nova operação, não ativa agendas, não amplia acesso e não reescreve o nome de versões históricas.
+Para mudar somente o nome: abrir o trabalho → “Editar nome”, ao lado do título → escrever → “Salvar nome”. A ação está visível, fora de menus e blocos recolhidos. Cancelar não grava. Vazio pede um nome; falha mantém texto e permite repetir. Alterar nome não publica nova operação, não ativa agendas, não amplia acesso e não reescreve o nome de versões históricas.
 
 ### Refinar
 
@@ -91,6 +93,7 @@ Em pendências: mostrar primeiro decisões que precisam de ação; registros his
 | Nome editado | Salvar novo nome: detalhe, catálogo e leitura pela equipe exibem o nome após recarga |
 | Nome seguro | Sem autorização: ação ausente e API 403; credencial no nome: API recusa; versão, operação, status e agenda preservados |
 | Nome com erro | Cancelar não grava; vazio informa correção; 503 mantém texto; repetir salva uma vez |
+| Nome fácil de encontrar | Campo antes do objetivo e botão junto ao título; ambos visíveis sem abrir menu/ajuda; sem transbordamento a 320 px |
 | Refinamento contextual | Entrada pelo resultado/detalhe abre refinamento próprio; mostra resultado acessível e aproveita diagnóstico/contexto |
 | Refinamento controlado | Aplicar somente o ajuste conferido; rascunho não altera versão publicada; conflito não sobrescreve |
 | Repetição comparável | Mesmo material disponível gera novo teste e comparação; troca de material fica identificada |
@@ -102,6 +105,7 @@ Em pendências: mostrar primeiro decisões que precisam de ação; registros his
 | Disparo real | Horário vencido dispara sem “Executar agora”; resultado final persiste e pode ser aberto depois |
 | Resultado pronto | Fila/em execução sem link prematuro; conclusão disponibiliza resultado pela atualização automática |
 | Leitura preservada | Atualização mantém histórico aberto/foco; resposta atrasada não substitui outra rota |
+| Status com leitura falha | Falha 503 conserva lista, identifica informação anterior e oferece recuperação; leitura seguinte remove aviso e atualiza os dados |
 | Governança preservada | Tenants e resultados privados isolados; sigilo, ciência, aprovações, permissões, retenção e limites continuam aplicados |
 | Recuperação de etapa | Erro permite repetir/voltar com objetivo intacto e único rascunho; processamento explica o que acontece |
 | Ações compreensíveis | Ações essenciais possuem texto visível e nome acessível; não dependem de tooltip/ícone |
@@ -115,9 +119,12 @@ Referências de avaliação: [WCAG 2.2 (W3C)](https://www.w3.org/TR/WCAG22/), [m
 - Primeira execução de servidor: **796 aprovados / 10 falhos / 806 cenários**. As dez falhas se concentraram no design visual e identificaram Chromium indisponível no processo de teste. A bateria foi reiniciada com `CHROMIUM_PATH` correto; não foram consideradas aprovação do recurso.
 - Primeira execução de navegador: **114 aprovados / 2 falhos / 116 cenários**. Histórico de modelos e seleção de nível divergente foram investigados, com correção da transição; execução isolada de interface/pools: **8/8 aprovados**. Uma execução isolada aprovada não apaga a falha inicial.
 - Novo teste de recuperação inicialmente falhou porque a asserção lia `dados.length` em vez de `dados.quickWins.length`. O fluxo já havia passado pelas ações; a asserção foi corrigida e a regressão repetida.
-- Regressão final de servidor: em execução.
+- Regressão final de servidor: **806/806 aprovados**, sem cancelamentos ou testes ignorados.
+- Regressão de APIs afetadas pelo nome: **58/58 aprovados**.
+- Segunda bateria completa de navegador: **115 aprovados / 2 falhos / 117 cenários**. O texto visível de “Mais ações” revelou transbordamento da biblioteca móvel, corrigido com quebra de linha e alinhamento do menu. O teste de login avançava o relógio antes da atualização da interface; passou a esperar os estados visíveis. Repetição isolada do login: **1/1 aprovado**.
+- Execuções intermediárias interrompidas não foram contabilizadas como aprovação completa.
 - Regressão final de navegador: em execução.
-- Nome de Quick Win, acrescentado durante o QA por pedido explícito: em verificação separada.
+- Nome visível e atualização de agendamentos, após os ajustes finais: **5/5 cenários de navegador aprovados**, incluindo persistência, permissões, erro/repetição, localização da ação, histórico/foco e status desatualizado.
 
 Comandos: Node 24, `--test-concurrency=1`, servidor `test/*.test.js`, navegador `e2e/*.test.js`, Chromium Headless Shell explicitamente configurado. Logs completos são mantidos no ambiente de QA; o relatório não publica dados corporativos, credenciais nem identificadores de infraestrutura.
 

@@ -34,6 +34,7 @@ A consulta complementar ao histórico de conversas retornou erro nesta rodada. N
 | RQ-24 | Critérios objetivos e testes | Cenários verificáveis, falhas iniciais preservadas, resultados finais e limitações explícitos | Relatório e logs de regressão | Em execução | Não encerrado antecipadamente |
 | RQ-25 | Novo QA profundo de todos os últimos pedidos | Cruzar pedido → código → teste → produção; corrigir falhas e repetir verificações afetadas | Este controle + relatório | Em execução | Não encerrado antecipadamente |
 | RQ-26 | Tracking e implementação em produção | Estado por pedido; nome e correções publicados e persistência real comprovada | Este controle + PR/versionamento | Em execução | Não encerrado antecipadamente |
+| RQ-27 | “Não consigo encontrá-la facilmente” — localização do nome, 09/10 | Campo de nome visível antes do objetivo; “Editar nome” junto ao título, fora de menus; salvar/cancelar no mesmo contexto | `quickwin2.js`, `quickwin.js`, `qw-ui.js`; `quickwin-nome` | Correção adicional pronta; teste da posição visível aprovado | **Aguardando publicação e conferência visual real** |
 
 ## Pendências históricas que não serão apagadas pelo novo QA
 

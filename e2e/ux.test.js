@@ -37,6 +37,7 @@ test('login: reenvio invalida o código anterior; limite do servidor continua va
   await q.clock.fastForward(61000);
   const [limite] = await Promise.all([q.waitForResponse(r => r.url().endsWith('/api/login/codigo')), q.click('#reenviar')]);
   assert.equal(limite.status(), 429);
+  await q.waitForFunction(() => document.querySelector('#erro-codigo')?.textContent.includes('Muitos códigos'));
   assert.match(await q.textContent('#erro-codigo'), /Muitos códigos/);
   await q.fill('#codigo', novo); await q.click('#btn-codigo'); await q.waitForURL(/\/app/);
   await ctx.close();

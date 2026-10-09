@@ -5,6 +5,16 @@ import { cabecalhoPg, estadoQw } from '/qw-ui.js';
 const $=id=>document.getElementById(id);
 let atualizacaoProgramadas=null;
 let versaoLista=0;
+async function atualizarLista(qid,rota){
+  try{await listaProgramadas(qid);}
+  catch(e){
+    if(location.hash!==rota)return;
+    const aviso=$('rotina-status-atualizacao');
+    if(aviso){aviso.hidden=false;aviso.textContent='Não foi possível atualizar o andamento agora. A tela mostra o último status recebido. Tentaremos novamente; você também pode usar “Atualizar status”.';}
+    clearTimeout(atualizacaoProgramadas);
+    atualizacaoProgramadas=setTimeout(()=>{if(location.hash===rota&&$('rotina-atualizar'))atualizarLista(qid,rota);},15000);
+  }
+}
 const STATUS={na_fila:'Na fila',executando:'Em execução',concluida:'Concluída',revisar:'Resultado para revisar',aguardando_material:'Precisa de informações',aguardando_aprovacao:'Aguardando aprovação',falhou:'Não concluída',bloqueada:'Bloqueada',interrompida:'Interrompida',cancelada:'Cancelada'};
 const MOTIVOS={responsavel_inativo:'Responsável sem acesso ativo',quick_win_indisponivel:'Quick Win indisponível',versao_alterada:'Revise a nova versão publicada',politica_alterada:'Responsável precisa ler a política atual',limite_programacao:'Limite mensal atingido',entrada_bloqueada:'Entrada bloqueada pela política',retencao:'Entrada incompatível com a retenção',evento_indisponivel:'Evento indisponível',execucao_bloqueada:'Revise acesso, créditos e regras',reinicio_durante_execucao:'O servidor reiniciou. Confira antes de executar novamente',recuperada_apos_reinicio:'Resultado recuperado após reinício',execucao_falhou:'Confira a conversa antes de tentar novamente',retomada_bloqueada:'As condições de execução mudaram',aprovacao_negada:'Alteração não aprovada',aprovacao_expirada_ou_invalidada:'A aprovação expirou ou foi invalidada',programacao_pausada:'Programação pausada',programacao_alterada:'Programação revisada'};
 const nomeFuso=f=>({'America/Sao_Paulo':'Brasília','America/Manaus':'Manaus','America/Rio_Branco':'Rio Branco','Europe/Lisbon':'Lisboa','UTC':'UTC'}[f]||f);
@@ -35,14 +45,14 @@ export async function listaProgramadas(qid=null){
   const podeAgendar=qid&&dados.podeEditar&&q?.versao&&estadoQw(q).id==='publicado';
   const vazio=q?`<div class="vazio"><h2>Este Quick Win ainda não tem agendamento</h2><p>${esc(q.nome)}</p><p>${podeAgendar?'Escolha o dia, o horário e o material para a IA executar automaticamente.':'Quem gerencia este Quick Win pode preparar o agendamento depois de publicá-lo.'}</p>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Agendar este Quick Win</a>`:`<a class="btn btn-linha" href="#/qw/${qid}">Voltar ao Quick Win</a>`}</div>`:'<div class="vazio"><h2>Nenhum Quick Win agendado</h2><p>Escolha um trabalho publicado e clique em “Agendar”, ao lado de “Usar”.</p><a class="btn btn-verde" href="#/quick-wins">Escolher um Quick Win para agendar</a></div>';
   $('principal').innerHTML=`${cabecalho('Quick Wins')}<div class="pagina"><div class="pg">${cabecalhoPg({trilha:[['Quick Wins','#/quick-wins'],...(q?[[q.nome,`#/qw/${qid}`]]:[])],titulo:q?`Agendamentos de ${q.nome}`:'Quick Wins agendados',descricao:'A IA executa no horário escolhido. Consulte aqui o andamento e o resultado.',lado:temAgendamentos?`<button id="rotina-atualizar" class="btn btn-linha">Atualizar status</button>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Criar outro agendamento</a>`:''}`:''})}
-    <div class="qw-rotinas">${temAgendamentos?dados.programacoes.map(s=>`${!qid?`<a class="link-sutil" href="#/qw/${s.quick_win_id}">${esc(s.quick_win)}</a>`:''}${card(s,qid||s.quick_win_id)}`).join(''):vazio}</div>
+    <p id="rotina-status-atualizacao" class="dica" role="status" hidden></p><div class="qw-rotinas">${temAgendamentos?dados.programacoes.map(s=>`${!qid?`<a class="link-sutil" href="#/qw/${s.quick_win_id}">${esc(s.quick_win)}</a>`:''}${card(s,qid||s.quick_win_id)}`).join(''):vazio}</div>
     ${temAgendamentos?'<details class="qw-rotina-historico" data-historico="funcionamento"><summary>Como os agendamentos funcionam</summary><p class="dica">A IA continua trabalhando mesmo com o computador fechado. O resultado fica na conversa do responsável. Ações em sistemas aguardam aprovação quando prevista. Se o serviço ficar indisponível, pode haver atraso; execuções acumuladas não são realizadas em lote.</p></details>':''}</div></div>`;
-  ligarCabecalho();ligar(()=>listaProgramadas(qid));document.querySelectorAll('[data-ler-politica]').forEach(b=>b.onclick=()=>document.getElementById('ver-politica')?.click());
+  ligarCabecalho();ligar(()=>atualizarLista(qid,rota));document.querySelectorAll('[data-ler-politica]').forEach(b=>b.onclick=()=>document.getElementById('ver-politica')?.click());
   for(const id of abertos)principal.querySelector(`details[data-historico="${CSS.escape(id)}"]`)?.setAttribute('open','');
   if(foco){const destino=foco.id?document.getElementById(foco.id):foco.rotina&&foco.acao?principal.querySelector(`[data-programacao="${CSS.escape(foco.rotina)}"] ${foco.acao==='summary'?'summary':`[data-${foco.acao}]`}`):null;destino?.focus({preventScroll:true});}
   const processando=dados.programacoes.some(s=>s.execucoes.some(emAndamento));
   clearTimeout(atualizacaoProgramadas);
-  if(processando||dados.programacoes.some(s=>s.ativa))atualizacaoProgramadas=setTimeout(()=>{if(location.hash===rota&&document.getElementById('rotina-atualizar'))listaProgramadas(qid).catch(()=>{});},processando?5000:30000);
+  if(processando||dados.programacoes.some(s=>s.ativa))atualizacaoProgramadas=setTimeout(()=>{if(location.hash===rota&&document.getElementById('rotina-atualizar'))atualizarLista(qid,rota);},processando?5000:30000);
 }
 export async function formularioProgramacao(qid,id=null){
   const [q,d,s]=await Promise.all([api(`/api/quick-wins/${qid}`),api(`/api/quick-wins/${qid}/programacoes`),id?api(`/api/quick-wins/${qid}/programacoes/${id}/configuracao`):null]);

@@ -38,6 +38,11 @@ A mesma tela apresentava uma consulta de leitura como “Gravações bloqueadas�
 
 ## Limites e pendências
 
-Produção ainda não certificada neste commit. Depois do deploy, repetir o botão do alerta real e verificar orientação/proposta; registrar versão e efeito observado. Não alterar nem publicar o Quick Win real apenas para provar o teste.
+Produção `81b5deb`, PR #44: Render live às 17:58:26 UTC; saúde confirma a versão. Na conversa 67, o botão do alerta abriu `#/qw/490/refinar/67/174`, sem campo do editor. Resultado, diagnóstico e material anterior disponíveis. “Usar estes pontos como orientação” preencheu o feedback; “Preparar ajustes” gerou uma proposta real e exibiu “Aplicar ajustes e testar”. A proposta não foi aplicada ao Quick Win real nem publicada. Aplicação, repetição do material e comparação foram validadas com dados fictícios na bateria de navegador. A restrição de pesquisa continua ativa; a consulta histórica é corretamente apresentada sem afirmar gravação.
 
 A bateria técnica não comprova compreensão por usuários leigos. Recebimento de email, integrações externas de negócio e todos os 24 itens da auditoria continuam sujeitos aos limites do controle de pedidos. Este relatório não declara auditoria completa encerrada.
+
+
+## Ajuste descoberto na conferência real
+
+O motivo sobre linguagem ainda herdava o título “A entrega ficou incompleta” do grupo histórico. O resumo agora usa “A linguagem precisa de ajuste” e explica problemas no tom/construção das frases; o diagnóstico integral permanece disponível. Testes afetados: **4/4 serviço e 1/1 navegador** após esta alteração. Produção deste ajuste de texto a conferir após o segundo deploy.

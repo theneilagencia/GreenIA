@@ -6,7 +6,7 @@ A revisão cobre implementação, navegação no navegador, APIs, persistência 
 
 **Não existe garantia absoluta de ausência de defeitos.** A aprovação é restrita aos cenários efetivamente executados. Testes locais usam empresas, pessoas e materiais fictícios, com provedores controlados. Verificações de produção são identificadas separadamente. Uma simulação local não prova execução automática em produção ou recebimento de email.
 
-Versão de produção no início: `03e10d8`. Correções desta rodada e resultado final: atualizar após a regressão e a publicação.
+Versão de produção no início: `03e10d8`. Correções principais publicadas pelo PR #41: `b2facb9`, com nome criado/editado/recarregado em produção. Complemento da descrição automática do trabalho: em publicação nesta rodada.
 
 ## Rastreabilidade dos pedidos
 
@@ -48,6 +48,7 @@ P1: impede concluir ou pode induzir ação errada. P2: dificulta compreensão ou
 | QA-09 | Atividade exibia vários tipos conhecidos como “Registro de atividade” seguido de código técnico | Compreensão: administrador precisa interpretar o código para entender o ocorrido | P2 | Rótulos cotidianos para tipos conhecidos; preservar código e detalhes para rastreabilidade |
 | QA-10 | Erro de leitura na atualização da lista de programações conservava o último status sem informar a falha | Compreensão/funcionamento: status antigo pode parecer informação atual | P1 | Avisar que são os últimos dados recebidos, manter a lista e oferecer “Atualizar”; repetir automaticamente; teste 503 seguido de recuperação |
 | QA-11 | Usuário relata dificuldade para localizar o nome mesmo após descrição da correção | Compreensão: recurso existente continua difícil de descobrir | P1 | Campo visível antes do objetivo na criação e “Editar nome” ao lado do título, fora de menus; teste verifica posição/visibilidade e funcionamento em 320 px |
+| QA-12 | Teste real do nome em `b2facb9`: “O que ele faz” repetiu o nome personalizado, embora o objetivo estivesse salvo corretamente | Compreensão: nome arbitrário não explica a tarefa e pode induzir interpretação errada | P1 | Descrição automática deriva do objetivo; nome identifica o trabalho. Preservar descrições explicitamente informadas e manter operação intacta ao renomear; regressão de API e navegador |
 
 Correções anteriores revalidadas: confirmação/gravação duplicadas após navegar entre biblioteca e detalhe; resultado agendado oferecido antes de concluir; “Sem retorno ainda” confundindo ausência de avaliação com ausência de resposta. Evidências e PRs estão no relatório de agendamento.
 
@@ -126,6 +127,7 @@ Referências de avaliação: [WCAG 2.2 (W3C)](https://www.w3.org/TR/WCAG22/), [m
 - Última bateria integral de navegador: **118 aprovados / 1 falho / 119 cenários**, sem cancelamentos ou testes ignorados. O teste antigo de edição procurava qualquer botão contendo “Editar”, acionou o novo “Editar nome” e aguardou indevidamente o editor de regras. A seleção foi corrigida para o link de nome exato “Editar”. A suíte completa de criação/publicação/refinamento foi repetida após esse ajuste; resultado registrado abaixo. Nenhum comportamento da plataforma foi alterado para fazer essa asserção passar.
 - Repetição da suíte afetada (`e2e/quickwin2.test.js`): **8/8 aprovados**, sem cancelamentos ou testes ignorados. Com a correção somente do seletor de teste, os 119 cenários têm resultado aprovado entre a bateria integral e a repetição afetada; não se apresenta a execução integral anterior como 119/119.
 - Nome visível e atualização de agendamentos, após os ajustes finais: **5/5 cenários de navegador aprovados**, incluindo persistência, permissões, erro/repetição, localização da ação, histórico/foco e status desatualizado.
+- Complemento após o achado real QA-12: **60/60 cenários afetados aprovados**, incluindo as duas jornadas de nome no navegador e APIs de criação, versões, refinamento, preparação, governança e programação. O objetivo continua distinto do nome e a descrição se mantém ao renomear.
 
 Comandos: Node 24, `--test-concurrency=1`, servidor `test/*.test.js`, navegador `e2e/*.test.js`, Chromium Headless Shell explicitamente configurado. Logs completos são mantidos no ambiente de QA; o relatório não publica dados corporativos, credenciais nem identificadores de infraestrutura.
 
@@ -139,4 +141,4 @@ Em Atividade, filtro `email.failed` desde 09/10/2026 retornou zero eventos. Há 
 
 Ainda não comprovado: compreensão por participantes leigos/não nativos digitais; uso com leitores de tela reais; dispositivos e navegadores fora da matriz Chromium; todas as combinações de conectores corporativos reais e suas indisponibilidades. Não foram alteradas permissões, políticas, retenção, credenciais nem recursos corporativos reais para testar caminhos negativos em produção; esses casos foram executados em empresas isoladas.
 
-Validação pós-publicação das correções desta rodada: pendente até concluir testes e verificar a nova versão servida.
+Validação pós-publicação de `b2facb9`: saúde confirmou a nova versão; campo de nome visível antes do objetivo; rascunho fictício salvo e retomado após recarga; “Editar nome” junto ao título; novo nome salvo e conservado após segunda recarga. Item fictício arquivado de forma recuperável, sem publicação/execução/agendamento. O achado QA-12 gerou complemento separado, ainda sujeito à confirmação da nova versão e descrição real.

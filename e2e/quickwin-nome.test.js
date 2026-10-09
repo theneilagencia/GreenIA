@@ -10,7 +10,7 @@ test('pessoa define o nome na criação e o rascunho mantém nome e objetivo ap�
  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(N.base+'/app#/qw/nova');await p.waitForSelector('#nome-inicial');
  assert.equal(await p.locator('#nome-inicial').isVisible(),true);assert.ok(await p.locator('#nome-inicial').evaluate(el=>el.getBoundingClientRect().top<document.getElementById('objetivo').getBoundingClientRect().top),'nome aparece antes do objetivo');
  await p.fill('#nome-inicial','Resumo da reunião semanal');await p.fill('#objetivo','Resumir anotações fictícias de reunião e destacar decisões.');await p.locator('[data-continuar]').click();await p.waitForSelector('#processo');
- const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const q=(await a.get('/api/quick-wins')).dados.quickWins[0];assert.equal(q.nome,'Resumo da reunião semanal');
+ const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const q=(await a.get('/api/quick-wins')).dados.quickWins[0];assert.equal(q.nome,'Resumo da reunião semanal');assert.match(q.para_que_serve,/^Resume anotações fictícias/,'a descrição explica o objetivo, sem repetir o nome escolhido');
  await p.reload();await p.waitForSelector('#nome-inicial');assert.equal(await p.inputValue('#nome-inicial'),q.nome);assert.match(await p.inputValue('#objetivo'),/destacar decisões/);
  }finally{await N.fechar();}
 });

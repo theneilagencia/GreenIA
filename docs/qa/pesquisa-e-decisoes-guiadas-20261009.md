@@ -49,4 +49,12 @@ A proteção reforçada continua bloqueando pesquisa. A tela explica que mudar p
 8. Antes da escolha, não há entrega final; escolha continua execução com conferência. A IA não amplia ferramentas ou autonomia.
 9. Rascunho/teste não muda versão publicada sem a ação de publicação.
 
-Produção desta rodada: pendente da conferência após o deploy. A liberação efetiva da pesquisa para o trabalho real continua dependendo de decisão autorizada sobre a política; este QA não reduz a proteção da área. Qualidade de trend topics reais, validação com participantes e demais itens da auditoria não são encerrados por simulações.
+## Publicação e conferência real
+
+PR #46 integrado. Render `dep-db4jejdg1s2s73aaustg` live em 09/10/2026 às 18:50:38 UTC; saúde e rodapé confirmam `121ef54`.
+
+Na sessão de produção disponível (Apy Mine), criado rascunho explicitamente fictício 496 pela UI. A pessoa escreveu a sequência no campo de processo, salvou, recarregou e retomou: texto persistiu. A organização real da plataforma apresentou quatro etapas: pesquisar tendências relacionadas ao assunto, sugerir temas, aguardar escolha e escrever o artigo. Nenhuma publicação ou mudança de proteção foi realizada. Captura `greenia-comportamento-1791572127260.jpg` registra campo preenchido após recarga e versão de produção.
+
+**Limitação concreta:** a sessão atual pertence à Apy Mine e não abriu a conversa 68 / Quick Win 490 da captura, que pertence a outro contexto. Não foi feita troca de conta nem contorno de isolamento. Assim, diagnóstico de pesquisa e proposta de refinamento do caso 490 nesta versão não foram conferidos ao vivo. O fluxo de liberação, inclusive permissões, persistência e retorno, e a aplicação/teste/continuação após escolha foram aprovados com dados fictícios no navegador local. Não se equipara esse teste à execução real de trend topics.
+
+ A liberação efetiva da pesquisa para o trabalho real continua dependendo de decisão autorizada sobre a política; este QA não reduz a proteção da área. Qualidade de trend topics reais, validação com participantes e demais itens da auditoria não são encerrados por simulações.

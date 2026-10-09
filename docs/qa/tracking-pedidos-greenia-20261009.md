@@ -87,7 +87,11 @@ PRs #44/#45 integrados; Render live às 18:02:42 UTC, saúde e interface confirm
 
 | ID | Pedido | Correção/aceite | Estado |
 |---|---|---|---|
-| RQ-31 | Pessoa leiga não sabe liberar pesquisa na conversa comum | Diagnóstico atual junto ao campo; pedido explícito abre orientação; área correta e alcance identificados; volta recalcula; sem permissão abre solicitação existente, sem envio | Código e testes aprovados; produção a conferir. Proteção real não será reduzida apenas para validar |
-| RQ-32 | Sugerir temas atuais correlacionados primeiro; pessoa inclui comportamento sozinha pela UX/UI | Criação e refinamento aceitam ordem/decisões em palavras comuns; proposta transforma em processo; autonomia respeita espera; falha do modelo não entrega etapa seguinte; artigo após escolha passa por conferência | Aplicação e continuação testadas pela interface com dados fictícios; produção a conferir. Trend topics reais exigem pesquisa autorizada |
+| RQ-31 | Pessoa leiga não sabe liberar pesquisa na conversa comum | Diagnóstico atual junto ao campo; pedido explícito abre orientação; área correta e alcance identificados; volta recalcula; sem permissão abre solicitação existente, sem envio | Publicado em `121ef54`; código e testes de navegador aprovados. Caso 490 não conferido nesta versão: sessão de produção disponível pertence a outra empresa. Proteção real mantida |
+| RQ-32 | Sugerir temas atuais correlacionados primeiro; pessoa inclui comportamento sozinha pela UX/UI | Criação e refinamento aceitam ordem/decisões em palavras comuns; proposta transforma em processo; autonomia respeita espera; falha do modelo não entrega etapa seguinte; artigo após escolha passa por conferência | Publicado em `121ef54`; criação pela UI, texto salvo/retomado e organização real em quatro etapas conferidos no rascunho fictício 496 em produção. Aplicação/refinamento e continuação testados localmente com dados fictícios. Trend topics reais exigem pesquisa autorizada |
 
 Relatório: `pesquisa-e-decisoes-guiadas-20261009.md`. O QA anterior não cobria estes dois percursos. Esta reabertura substitui a conclusão ampla de aplicação integral dos conceitos, sem apagar evidências e pendências anteriores.
+
+### Conferência final desta rodada
+
+PR #46 integrado; Render live às 18:50:38 UTC; produção `121ef54`. Captura `greenia-comportamento-1791572127260.jpg`. Rascunho fictício 496 mantido sem publicação para revisão. A sessão atual não dá acesso ao caso 490; não foi certificado o diagnóstico de pesquisa desse caso na nova versão. 56/56 testes de serviço, 8/8 jornadas e 7/7 entradas/permissões aprovados; duas jornadas afetadas repetidas após defesa contra modelo que ignora a espera (2/2). Registro final no ramo de QA, sem novo deploy apenas para documentação.

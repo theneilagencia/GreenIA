@@ -26,6 +26,7 @@ test('execução aguarda escolha sem reavaliação automática; recarga preserva
   if(s.includes('conferente de qualidade')) return '{"criterios":[],"objetivo_atingido":true}';
   if(s.includes('Você refina Quick Wins')) return JSON.stringify({sugestoes:[{campo:'processo',depois:processo,motivo:'A pessoa quer escolher antes da redação.'}]});
   const escolha=b.messages.some(m=>m.role==='user'&&JSON.stringify(m.content).includes('Escolho o tema 2'));
+  if(escolha){assert.match(s,/ETAPA DE ENTREGA/);assert.doesNotMatch(s,/ETAPA ATUAL CONFIRMADA/);}
   return escolha?'## Artigo\nArtigo sobre reduzir trabalho repetitivo, segundo o material enviado.':`${MARCADOR_PERGUNTA}\n1. Reduzir tarefas manuais\n2. Conferir resultados\n3. Organizar informações\nQual tema você escolhe?`;
  }});
  const S=await subir({ia:O.ia});try{
@@ -43,6 +44,13 @@ test('execução aguarda escolha sem reavaliação automática; recarga preserva
  const final=(await a.get(`/api/conversas/${c.id}`)).dados;
  assert.notEqual(final.mensagens.at(-1).qualidade.status,'pergunta');
  assert.match(final.mensagens.at(-1).texto,/Artigo/);
+ assert.equal(JSON.parse(um(S.app.db,'select qualidade from roteamento where conversa_id=? and resposta_id is not null order by id desc limit 1',c.id).qualidade).escolha_informada,true);
+ const novo=(await a.post('/api/conversas',{quick_win_id:q.id,teste:true})).dados.conversa;
+ await enviarMensagem(a,novo.id,{repetir_conversa_id:c.id});
+ const repetido=(await a.get(`/api/conversas/${novo.id}`)).dados;
+ assert.notEqual(repetido.mensagens.at(-1).qualidade.status,'pergunta');
+ assert.equal(JSON.parse(um(S.app.db,'select qualidade from roteamento where conversa_id=? and resposta_id is not null order by id desc limit 1',novo.id).qualidade).escolha_informada,true);
+ assert.match(repetido.mensagens.at(-1).texto,/Artigo/);
  }finally{await S.fechar();await O.fechar();}
 });
 

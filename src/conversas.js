@@ -679,7 +679,8 @@ export function rotasConversas(app, r) {
     const tentados = [m.id];
     let perguntaInicial = null, autonomia = 0;
     let escolhaNaoPreparada = false;
-    const deveEsperarEscolha = espec && escolhaHumanaPrevista(espec) && (corpo.executar_quick_win === true || ultimaQualidade?.status !== 'pergunta' || ultimaQualidade?.escolha_repetir);
+    const escolhaInformada = !!(repeticao?.escolhaInformada || (corpo.executar_quick_win !== true && ultimaQualidade?.status === 'pergunta' && !ultimaQualidade?.escolha_repetir));
+    const deveEsperarEscolha = espec && escolhaHumanaPrevista(espec) && !escolhaInformada;
     let preparacoesEscolha = 0, custoPreparacaoEscolha = 0, economiaPreparacaoEscolha = 0;
     const escolhaIndisponivel = () => `${MARCADOR_PERGUNTA}\nNão foi possível preparar as opções para sua escolha nesta tentativa. A etapa seguinte não foi realizada. Peça “Sugira as opções para eu escolher” para tentar novamente; o material anterior foi mantido.`;
     const orientarEscolha = () => {
@@ -713,6 +714,7 @@ export function rotasConversas(app, r) {
     // Execução. Informação sigilosa não tem reserva do fornecedor: se o recurso cair antes de responder, a busca
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
     if (deveEsperarEscolha) orientarEscolha();
+    else if (espec && escolhaHumanaPrevista(espec) && escolhaInformada) mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nETAPA DE ENTREGA: a escolha desta etapa já foi enviada pela pessoa e está no material autorizado. Use essa escolha para produzir o resultado final. Não repita a escolha nem anuncie uma informação faltante se ela já está no material. O prefixo de pergunta serve somente para uma informação indispensável realmente ausente, nunca para introduzir o artigo ou explicar o histórico. Preserve as limitações de pesquisa e todas as regras de conferência.` };
     if (perguntaMercado) resposta = perguntaMercado;
     else for (;;) {
       try {
@@ -834,6 +836,7 @@ export function rotasConversas(app, r) {
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
       if (escolhaNaoPreparada) registroQualidade.escolha_repetir = true;
+      if (escolhaInformada && espec && escolhaHumanaPrevista(espec)) registroQualidade.escolha_informada = true;
       // Fontes da execução: as que foram usadas, as que falharam e se mudaram desde a versão publicada em uso.
       if (registroQualidade.fontes || avisosLinks.length) {
         const ver = qw.versao ? um(app.db, 'select fontes from quick_win_versoes where quick_win_id = ? and numero = ?', qw.id, qw.versao) : null;

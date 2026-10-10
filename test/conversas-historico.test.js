@@ -4,6 +4,26 @@ import { criarSimulada } from '../src/ia.js';
 import { subir } from './ajuda.js';
 import { exec, um } from '../src/db.js';
 
+test('resposta aparece uma vez com a rota atual; histórico de auditoria e outras conversas não duplicam conteúdo', async()=>{
+ const S=await subir();try{
+  const a=await S.cliente().entrar('admin@exemplo.com.br');
+  const c=(await a.post('/api/conversas',{})).dados.conversa;
+  const outra=(await a.post('/api/conversas',{})).dados.conversa;
+  const em=S.app.agora().toISOString();
+  const m=Number(exec(S.app.db,"insert into mensagens(conversa_id,papel,texto,criado_em) values(?,'assistant','Escolha um tema.',?)",c.id,em).lastInsertRowid);
+  const rota=(cid,exp,q)=>exec(S.app.db,"insert into roteamento(em,pessoa_id,conversa_id,resposta_id,modo,complexidade,explicacao,qualidade) values(?,?,?,?,'automatico','baixa',?,?)",em,a.pessoa.id,cid,m,exp,JSON.stringify(q));
+  rota(c.id,'Histórico antigo',{status:'inconsistente',falhas:['completo']});
+  rota(c.id,'Rota atual',{status:'pergunta',falhas:[],verificados:[]});
+  rota(outra.id,'Não pertence a esta conversa',{status:'aprovado',falhas:[]});
+  const d=(await a.get(`/api/conversas/${c.id}`)).dados;
+  assert.equal(d.mensagens.length,1);
+  assert.equal(d.mensagens[0].id,m);
+  assert.equal(d.mensagens[0].rota_explicacao,'Rota atual');
+  assert.equal(d.mensagens[0].qualidade.status,'pergunta');
+  assert.equal(um(S.app.db,'select count(*) as n from roteamento where resposta_id=?',m).n,3,'a auditoria é preservada');
+ }finally{await S.fechar();}
+});
+
 test('histórico paginado pesquisa e filtra só conversas da pessoa; excluir todas passa de 200 e preserva novas',async()=>{
  const S=await subir();try{
   const c=await S.cliente().entrar('admin@exemplo.com.br'),outra=await S.cliente().entrar('outra@exemplo.com.br');

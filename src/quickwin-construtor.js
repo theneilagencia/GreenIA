@@ -218,7 +218,7 @@ export function nomeAutomatico(descricao, arquetipo = inferirArquetipo(descricao
       if (objeto.length >= 8 || [verbo, ...objeto, w].join(' ').length > 50) break;
       objeto.push(w);
     }
-    while (objeto.length && (ARTIGOS.has(norm(objeto.at(-1))) || ['de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'com', 'sobre', 'por', 'a', 'ao'].includes(norm(objeto.at(-1))))) objeto.pop();
+    while (objeto.length && (ARTIGOS.has(norm(objeto.at(-1))) || ['de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'com', 'sobre', 'por', 'pelo', 'pela', 'pelos', 'pelas', 'a', 'ao'].includes(norm(objeto.at(-1))))) objeto.pop();
     const nome = [cap(verbo), ...objeto].join(' ');
     if (objeto.length) return nome.slice(0, 60);
     return `${cap(verbo)} ${a.objeto}`.slice(0, 60);
@@ -562,7 +562,8 @@ export function descreverContrato(f) {
 export const SECAO_ESCOLHAS = 'Escolhas feitas';
 export function escolhaHumanaPrevista(espec) {
   const t = norm([espec?.origem?.como?.texto, ...(espec?.procedimento || []), ...(espec?.operacao?.etapas || []).map(x => x.texto)].filter(Boolean).join('\n')).replace(/(?:nao espere|nao aguarde|sem esperar)[^.\n]*/g, '');
-  return /esper[ae]|aguard[ae]|so (depois|apos)|antes de (escrever|produzir)/.test(t) && /minha (escolha|aprovacao|confirmacao)|(?:usuario|pessoa) (escolh|aprov|confirm)|(?:escolha|aprovacao|confirmacao) (?:do usuario|da pessoa)/.test(t);
+  const decisao = /(?:minha|nossa) (?:escolha|selecao|decisao|aprovacao|confirmacao)|(?:eu|nos|usuario|pessoa|responsavel) (?:escolh|selecion|decid|aprov|confirm)|(?:escolha|selecao|decisao|aprovacao|confirmacao) (?:do usuario|da pessoa|do responsavel)/.test(t);
+  return decisao && /esper[ae]|aguard[ae]|so (?:depois|apos)|(?:depois|apos) (?:que )?(?:eu|nos|o usuario|a pessoa|o responsavel) |antes de (?:escrever|produzir)/.test(t);
 }
 export const REGRA_PERGUNTAS = `Política de autonomia: antes de perguntar, use o que já existe (o material, as notas da pesquisa e os documentos da empresa). Só é motivo para perguntar o que for NECESSÁRIO: material obrigatório que não veio (por exemplo, o documento ou as propostas) ou informação indispensável que não está em lugar nenhum e não dá para inferir. Dúvida de PREFERÊNCIA nunca é motivo para perguntar: estilo, nível de detalhe, ordem, critério de desempate, custo total ou só o valor, tema, assunto, foco, tom ou público (escolha o mais relevante para a empresa a partir dos documentos dela), o que a pesquisa pode descobrir (por exemplo, quem são os concorrentes), qualquer escolha reversível. Nesses casos, faça uma escolha razoável, faça o trabalho e termine com a seção "## ${SECAO_ESCOLHAS}", uma linha por escolha (o que você assumiu e como pedir diferente). Informação faltando ou incompleta no material também não é motivo para perguntar: escreva "não informado" e aponte o que faltou. Nunca pergunte se o material é real, fictício, de teste ou de exemplo: trate o material recebido como o material do trabalho. Data sem ano, dia sem mês ou prazo relativo ("sexta", "amanhã") nunca é motivo para perguntar. Datas sem ano: use o ano que decorre do próprio material (a data com ano mais próxima e a ordem das etapas); se não decorrer, deixe a data sem ano. Nunca use um ano que não sai do material.`;
 // Segunda reavaliação, só quando a estrutura do plano garante que nada indispensável falta: o trabalho não exige
@@ -702,10 +703,16 @@ export function promptQualidade(espec) {
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
 }
-export function mensagensQualidade(espec, { entrada, resultado, indicios = [] }) {
+function estadoPesquisaConferencia(espec, pesquisa) {
+  if (!espec?.operacao?.ferramentas?.includes('pesquisa_web') || !pesquisa) return '';
+  const feita = pesquisa.disponivel === true && pesquisa.fontes?.length > 0;
+  return feita ? 'Estado da pesquisa confirmado pela plataforma: realizada nesta execução. Confira as afirmações contra as fontes e notas disponíveis.'
+    : 'Estado da pesquisa confirmado pela plataforma: não realizada nesta execução. A ausência de pesquisa é uma limitação operacional; o resultado ficará parcial, nunca aprovado. Não marque inconsistência só por faltar pesquisa, dados atuais ou fontes que não puderam ser obtidos. Se o texto admite a limitação, mantenha objetivo_atingido false quando o centro do pedido não foi entregue. Afirmações de pesquisa realizada, tendências verificadas, fatos ou fontes inventados continuam sendo falhas; formato, conteúdo do material e demais critérios continuam sendo conferidos.';
+}
+export function mensagensQualidade(espec, { entrada, resultado, indicios = [], pesquisa = null }) {
   const corpo = [delimitar('entrada', 'Material e pedido', entrada || '(sem material: só o pedido da conversa)'), delimitar('resultado', 'Resultado', resultado)];
   if (indicios.length) corpo.push(`Números do resultado que não aparecem na entrada (podem ser cálculos legítimos; confira): ${indicios.join(', ')}`);
-  return [{ role: 'system', content: promptQualidade(espec) }, { role: 'user', content: corpo.join('\n\n') }];
+  return [{ role: 'system', content: [promptQualidade(espec), estadoPesquisaConferencia(espec, pesquisa)].filter(Boolean).join('\n\n') }, { role: 'user', content: corpo.join('\n\n') }];
 }
 export function lerVeredito(espec, texto) {
   const m = /\{[\s\S]*\}/.exec(String(texto || ''));
@@ -751,8 +758,8 @@ export const PROMPT_REVISAO = [
   'Confirme um achado só se ele for verdadeiro: para informação inventada ou errada, copie em "trecho" o pedaço EXATO do resultado (até 120 caracteres) e diga em "prova" por que ele não sai da entrada (cálculo correto com a entrada, data ou ano que decorre do material, reformulação, sugestão ou próximo passo pedido NÃO são invenção). Não confirme como falha: data deixada sem ano (ou com o ano que decorre do material), nem a ausência de nomes de contatos que não estão no material do trabalho. Para algo que falta, deixe "trecho" vazio e diga em "prova" o que a entrada pede e não aparece no resultado. Se o resultado na verdade atende, "confirmado": false.',
   'Responda somente com JSON: {"achados":[{"id":"<id do critério>","confirmado":true,"trecho":"<trecho exato ou vazio>","prova":"<frase curta>"}]}',
 ].join('\n\n');
-export function mensagensRevisao({ entrada, resultado, achados }) {
-  return [{ role: 'system', content: PROMPT_REVISAO }, { role: 'user', content: [delimitar('entrada', 'Material e pedido', entrada || '(sem material)'), delimitar('resultado', 'Resultado', resultado),
+export function mensagensRevisao({ entrada, resultado, achados, espec = null, pesquisa = null }) {
+  return [{ role: 'system', content: [PROMPT_REVISAO, estadoPesquisaConferencia(espec, pesquisa)].filter(Boolean).join('\n\n') }, { role: 'user', content: [delimitar('entrada', 'Material e pedido', entrada || '(sem material)'), delimitar('resultado', 'Resultado', resultado),
     delimitar('achados', 'Achados da primeira leitura', achados.map(a => `- ${a.id} (${a.grupo}): ${a.criterio}${a.motivo ? ` — apontado: ${a.motivo}` : ''}`).join('\n'))].join('\n\n') }];
 }
 const normTrecho = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[*_`#|>]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -863,9 +870,9 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   const conferir = async (t, d = conferirContratoEOperacao(t)) => {
     ultimaOp = d.op;
     let ia = null;
-    if (usarIA) { try { const r = await chamar(mensagensQualidade(e, { entrada, resultado: t, indicios: d.numerosSemFonte })); somar(r); ia = lerVeredito(e, r.texto); } catch { ia = null; } }
+    if (usarIA) { try { const r = await chamar(mensagensQualidade(e, { entrada, resultado: t, indicios: d.numerosSemFonte, pesquisa })); somar(r); ia = lerVeredito(e, r.texto); } catch { ia = null; } }
     // Achados da IA passam por uma revisão focada; só os confirmados reprovam (a revisão que falha não muda nada).
-    if (ia?.achados?.length) { try { const r2 = await chamar(mensagensRevisao({ entrada, resultado: t, achados: ia.achados })); somar(r2); ia = aplicarRevisao(ia, r2.texto, t) || ia; } catch { /* mantém os achados */ } }
+    if (ia?.achados?.length) { try { const r2 = await chamar(mensagensRevisao({ entrada, resultado: t, achados: ia.achados, espec: e, pesquisa })); somar(r2); ia = aplicarRevisao(ia, r2.texto, t) || ia; } catch { /* mantém os achados */ } }
     return { falhas: [...new Set([...d.falhas, ...(ia?.falhas || [])])], problemas: [...d.detalhes, ...(ia?.motivos || [])], razoes: [...d.detalhes.map(t => ({ grupo: grupoDoDetalhe(t), motivo: t })), ...(ia?.razoes || [])], leves: ia?.leves || [], verificouIA: !!ia, estruturaOk: d.estruturaOk, objetivoIA: ia?.objetivo ?? null };
   };
   let c = await conferir(texto), barreira = false;

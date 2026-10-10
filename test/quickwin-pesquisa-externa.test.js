@@ -150,6 +150,8 @@ test('o que a pessoa cola de material na execução (texto longo, anexo, dado pe
 });
 
 test('unidade: o contexto externo só junta peças seguras e diz quando falta mercado', () => {
+  for (const pedido of ['Sugira temas atuais relacionados ao meu assunto.', 'Apresente pautas recentes sobre mineração.', 'Liste notícias atuais do setor.']) assert.equal(OP.pedePesquisaWeb(pedido),true,pedido);
+  for (const pedido of ['Atualize esta pesquisa interna.', 'Resuma a pesquisa de clima enviada.', 'Organize os temas do documento.']) assert.equal(OP.pedePesquisaWeb(pedido),false,pedido);
   const op = { ferramentas: ['pesquisa_web'], contexto_respostas: [{ id: 'mercado', pergunta: 'Em qual mercado a empresa compete?', resposta: 'Varejo de moda no Nordeste' }, { id: 'empresa', pergunta: 'O que a empresa faz?', resposta: 'Somos a Loja X, faturamos R$ 3 mi' }] };
   const x = OP.contextoExternoDaPesquisa({ objetivo: PEDIDO, op, perfil: { setor: 'Moda', nome: 'Loja X', extra: 'não entra' }, textosDaPessoa: ['Execute agora.', 'ok'] });
   assert.equal(x.suficiente, true);
@@ -180,4 +182,41 @@ test('checker: honesto não é aprovado — a conferência diz que o objetivo n�
   assert.match(C.resumoQualidade(r.registro).avisos.join(' '), /objetivo central não foi atingido/);
   const ok = await C.conferirComCorrecao({ espec, resposta: '## Concorrentes\n- Real Um\n\n## Análise\nTexto.\n\n## Informações não encontradas\nNenhuma', mensagens: [], chamar: async () => ({ texto: '{"criterios":[],"objetivo_atingido":true}' }), pesquisa: { disponivel: true, fontes: [{ url: 'https://x.exemplo' }] } });
   assert.equal(ok.registro.status, 'aprovado');
+});
+
+test('pesquisa bloqueada chega à conferência e à revisão como estado confiável; falta de pesquisa não vira erro de conteúdo', async () => {
+  const espec = C.construir({ descricao: 'Pesquise temas atuais sobre mineração.', operacao: { v: 2, ferramentas: ['pesquisa_web'], entregaveis: [{ tipo: 'texto', rotulo: 'Temas' }] } });
+  const resultado = '## Temas\nNão foi possível pesquisar na internet. Os temas atuais não foram verificados.\n\n## Informações não encontradas\nTendências atuais.';
+  for (const motivo of ['nao_liberada', 'area_reforcada', 'sem_fontes']) {
+    const pesquisa = { disponivel: motivo === 'sem_fontes', motivo, fontes: [] };
+    let chamadas = 0;
+    const r = await C.conferirComCorrecao({ espec, resposta: resultado, mensagens: [], pesquisa, chamar: async msgs => {
+      chamadas++;
+      assert.match(msgs[0].content, /Estado da pesquisa confirmado pela plataforma: não realizada/);
+      if (msgs[0].content.includes('revisor da conferência')) return {texto:'{"achados":[{"id":"pesquisa","confirmado":false,"trecho":"","prova":"O texto admite a limitação da pesquisa."}]}'};
+      // Exercita revisão de falso positivo, não apenas um primeiro veredito favorável.
+      return {texto:'{"criterios":[{"id":"pesquisa","ok":false,"motivo":"Não houve pesquisa nem fontes atuais."}],"objetivo_atingido":false}'};
+    }});
+    assert.equal(r.registro.status, 'parcial');
+    assert.deepEqual(r.registro.falhas, []);
+    assert.equal(r.registro.tentativas, 0, 'não tenta corrigir bloqueio escrevendo outro texto');
+    assert.equal(r.registro.pesquisa.feita, false);
+    assert.equal(chamadas, 2);
+  }
+});
+
+test('bloqueio não apaga invenção; pesquisa concluída não recebe instrução de limitação e continua sendo conferida', async () => {
+  const espec = C.construir({ descricao: 'Pesquise temas atuais sobre mineração.', operacao: { v: 2, ferramentas: ['pesquisa_web'], entregaveis: [{ tipo: 'texto', rotulo: 'Temas' }] } });
+  const resultado = 'Tendência verificada: Mercado Inventado cresceu 900%.\n\n## Informações não encontradas\nNenhuma.';
+  const r = await C.conferirComCorrecao({ espec, resposta: resultado, mensagens: [], pesquisa: { disponivel:false, motivo:'area_reforcada', fontes:[] }, chamar: async msgs => {
+    if (msgs[0].content.includes('revisor da conferência')) return {texto:JSON.stringify({achados:[{id:'nao_inventar',confirmado:true,trecho:'Mercado Inventado cresceu 900%',prova:'Dado ausente da entrada.'}]})};
+    if (msgs[0].content.includes('conferente de qualidade')) return {texto:'{"criterios":[{"id":"nao_inventar","ok":false,"motivo":"Mercado Inventado cresceu 900% não tem fonte."}]}'};
+    return {texto:resultado};
+  }});
+  assert.equal(r.registro.status,'inconsistente');
+  assert.ok(r.registro.falhas.includes('invencao'));
+  assert.equal(r.registro.pesquisa.feita,false);
+  const msgs = C.mensagensQualidade(espec,{entrada:'Material de QA',resultado,pesquisa:{disponivel:true,fontes:[{url:'https://fonte.exemplo'}]}});
+  assert.match(msgs[0].content,/Estado da pesquisa confirmado pela plataforma: realizada nesta execução/);
+  assert.doesNotMatch(msgs[0].content,/A ausência de pesquisa é uma limitação/);
 });

@@ -93,8 +93,40 @@ test('pessoa muda o comportamento pelo refinamento: sugerir → esperar escolha 
  assert.equal(salvo.versao_publicada,v);
  const novo=N.app.db.prepare('select id from conversas where quick_win_id=? and teste=1 order by id desc limit 1').get(qw.id).id;
  const d=(await a.get(`/api/conversas/${novo}`)).dados;assert.equal(d.mensagens.at(-1).qualidade.status,'pergunta');
+ const msgAtual=d.mensagens.at(-1).id;
+ exec(N.app.db,"insert into roteamento(conversa_id,resposta_id,pessoa_id,qualidade,em,modo,complexidade) values(?,?,?,?,?,'automatico','baixa')",novo,msgAtual,a.pessoa.id,JSON.stringify({status:'pergunta',falhas:[],verificados:[]}),em);
  await p.goto(N.base+`/app#/c/${novo}`);await p.waitForSelector('#entrada');await p.fill('#entrada','Escolho o tema 2: conferir resultados.');await p.getByRole('button',{name:'Enviar',exact:true}).click();
  await p.waitForFunction(()=>document.querySelector('#coluna')?.textContent.includes('Artigo de QA sobre conferir os resultados'));
  assert.notEqual((await a.get(`/api/conversas/${novo}`)).dados.mensagens.at(-1).qualidade.status,'pergunta');
+ assert.equal(await p.locator(`#resultado-${msgAtual}`).count(),1,'a pergunta aparece uma única vez mesmo com mais de um registro de rota');
+ }finally{await N.fechar();await O.fechar();}
+});
+
+test('salvar processo sem avançar atualiza etapas e pesquisa; falha conserva orientação e não salva plano antigo',async()=>{
+ const processo='Sugira temas atuais sobre mineração. Aguarde eu escolher antes de escrever o artigo.';
+ const O=await openRouterFalso({responder:b=>{
+  const s=String(b.messages[0].content);
+  if(s.includes('PLANO DE TRABALHO')) {
+   const novo=JSON.stringify(b.messages).includes('Aguarde eu escolher');
+   return JSON.stringify({resumo:novo?'Pesquisar temas e esperar escolha':'Escrever artigo',entradas:[],etapas:[{texto:novo?processo:'Escrever o artigo.'}],entregaveis:[{id:'e1',tipo:'texto',rotulo:'Artigo'}],ferramentas:novo?['pesquisa_web']:[],contexto_empresa:false});
+  }
+  return 'Certo.';
+ }});
+ const N=await subirComNavegador({ia:O.ia});try{
+ const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
+ await a.put('/api/admin/modelos/mistralai%2Fmistral-small',{liberado:true,perfil:'rapido'});
+ const qw=(await a.post('/api/quick-wins',{assistente:{nome:'QA salvar orientação',descricao:'Escrever artigo sobre o assunto enviado.',operacao:{v:2,origem:'ia',entregaveis:[{id:'e1',tipo:'texto',rotulo:'Artigo'}],ferramentas:[]}},toda_empresa:true})).dados;
+ const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(N.base+`/app#/qw/${qw.id}/ajustar`);await p.getByRole('button',{name:'Voltar para Processo',exact:true}).click();await p.waitForSelector('#processo');
+ await p.fill('#processo',processo);
+ await p.route('**/api/quick-wins/assistente/interpretar',route=>route.fulfill({status:503,contentType:'application/json',body:'{"mensagem":"Indisponível no QA"}'}));
+ await p.getByRole('button',{name:'Salvar rascunho',exact:true}).click();await p.waitForFunction(()=>document.body.innerText.includes('Não foi possível organizar esta orientação'));
+ assert.equal(await p.inputValue('#processo'),processo);
+ assert.deepEqual(JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id=?').get(qw.id).especificacao).operacao.ferramentas,[],'erro não salva plano obsoleto como sucesso');
+ await p.unroute('**/api/quick-wins/assistente/interpretar');
+ await p.getByRole('button',{name:'Salvar rascunho',exact:true}).click();await p.waitForFunction(()=>document.getElementById('estado-rascunho')?.textContent.includes('Rascunho salvo'));
+ const salvo=JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id=?').get(qw.id).especificacao);
+ assert.match(salvo.origem.como.texto,/Aguarde eu escolher/);assert.ok(salvo.operacao.ferramentas.includes('pesquisa_web'));
+ await p.waitForSelector('#processo');assert.match(await p.locator('#plano').innerText(),/Aguarde eu escolher/,'resumo mostrado já reflete o processo salvo');
+ await p.reload();await p.getByRole('button',{name:'Voltar para Processo',exact:true}).click();await p.waitForSelector('#processo');assert.equal(await p.inputValue('#processo'),processo);
  }finally{await N.fechar();await O.fechar();}
 });

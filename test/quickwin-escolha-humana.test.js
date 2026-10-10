@@ -12,6 +12,12 @@ test('decisão explicitamente configurada tem precedência; preferência comum c
  assert.match(promptExecucao(e),/Decisão humana prevista.*apresente somente a etapa anterior e pare.*Não produza as etapas seguintes/s);
  assert.equal(escolhaHumanaPrevista({procedimento:['Escolha o tema mais relevante e escreva.']}),false);
  assert.equal(escolhaHumanaPrevista({procedimento:['Não espere minha escolha antes de escrever.']}),false);
+ for (const texto of ['Sugira os temas e aguarde eu escolher antes de escrever.', 'Escreva somente depois que eu escolher um tema.', 'Mostre as opções. Aguarde a decisão do usuário.', 'Espere minha seleção para produzir o artigo.', 'Após a pessoa confirmar, escreva o artigo.']) {
+  assert.equal(escolhaHumanaPrevista(construir({...ensino,como:{modo:'explicar',texto},operacao:{...ensino.operacao,etapas:[{texto}]}})),true,texto);
+ }
+ for (const texto of ['Escolha o melhor tema com base no material e escreva.', 'Não aguarde eu escolher. Faça o artigo.', 'Sem esperar minha seleção, escreva.']) {
+  assert.equal(escolhaHumanaPrevista({procedimento:[texto]}),false,texto);
+ }
 });
 test('execução aguarda escolha sem reavaliação automática; recarga preserva estado e resposta continua execução',async()=>{
  const O=await openRouterFalso({responder:b=>{

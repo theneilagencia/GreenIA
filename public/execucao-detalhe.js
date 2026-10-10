@@ -1,0 +1,7 @@
+import { esc } from '/comum.js';
+export function detalheExecucao(m) {
+ if(!m.qualidade||m.qualidade.status==='pergunta'||m.carregando||m.erro)return '';
+ const q=m.qualidade,estados={conferido:'Regras conferidas',consistente:'Regras conferidas',ok:'Regras conferidas',inconsistente:'Há pontos para revisar',parcial:'Conferência incompleta'};
+ const fontes=(m.fontes||[]).map(f=>typeof f==='string'?f:f.titulo||f.nome||'Fonte consultada');
+ return `<details class="execucao-detalhe"><summary>Entenda esta execução</summary><p class="dica">Registro desta resposta${m.criado_em?' · '+esc(new Date(m.criado_em).toLocaleString('pt-BR')):''}. O estado atual das ações externas aparece no painel próprio.</p><ol class="execucao-linha"><li><b>Fontes utilizadas</b><p>${fontes.length?fontes.map(f=>esc(f)).join(' · '):'Nenhuma fonte registrada nesta resposta.'}</p></li><li><b>Resultado preparado</b><p>A resposta foi gerada para este caso. Revise antes de usar.</p></li><li><b>Conferência das regras</b><p>${esc(estados[q.status]||'Consulte a conferência exibida no resultado.')}</p></li><li><b>Ações externas</b><p>${q.integracoes?.passos?.length?'Consulte o painel de ações: aprovação e execução são estados diferentes.':'Nenhuma ação externa registrada nesta execução.'}</p></li></ol><p class="dica">Este registro não comprova que todas as fontes disponíveis foram consultadas nem certifica a exatidão do resultado.</p></details>`;
+}

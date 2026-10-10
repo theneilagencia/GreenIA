@@ -1,0 +1,9 @@
+node_modules
+dados
+capturas
+docs
+e2e
+test
+.git
+.env
+*.sqlite*

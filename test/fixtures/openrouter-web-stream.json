@@ -1,0 +1,84 @@
+{
+  "_sobre": "Fixture sanitizada com a estrutura REAL observada na homologação (OpenRouter, plugin web, streaming; Gemini 3.5 Flash Lite, Claude Haiku 4.5 e Claude Sonnet 5): as citações chegam em choices[0].delta.annotations como {type:'url_citation', url_citation:{url,title,start_index,end_index}}, sem 'content'; o Sonnet repetiu uma URL (8 anotações, 7 únicas). Os chunks reais também trazem 'service_tier'. URLs .exemplo; casos defensivos (tipo 'file' e URL não http) acrescentados. Sem chave, sem conteúdo real.",
+  "fontes": [
+    {
+      "url": "https://www.mineracao.exemplo/ia-rejeitos-2026",
+      "titulo": "IA na gestão de barragens de rejeitos"
+    },
+    {
+      "url": "https://tecnologia.exemplo/visao-computacional-mina",
+      "titulo": "Visão computacional na segurança de minas"
+    }
+  ],
+  "chunks": [
+    {
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "role": "assistant",
+            "content": "",
+            "annotations": [
+              {
+                "type": "url_citation",
+                "url_citation": {
+                  "url": "https://www.mineracao.exemplo/ia-rejeitos-2026",
+                  "title": "IA na gestão de barragens de rejeitos",
+                  "start_index": 0,
+                  "end_index": 0
+                }
+              },
+              {
+                "type": "url_citation",
+                "url_citation": {
+                  "url": "https://tecnologia.exemplo/visao-computacional-mina",
+                  "title": "Visão computacional na segurança de minas",
+                  "start_index": 0,
+                  "end_index": 0
+                }
+              }
+            ]
+          },
+          "finish_reason": null
+        }
+      ],
+      "service_tier": "standard"
+    },
+    {
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "annotations": [
+              {
+                "type": "url_citation",
+                "url_citation": {
+                  "url": "https://www.mineracao.exemplo/ia-rejeitos-2026",
+                  "title": "IA na gestão de barragens de rejeitos",
+                  "start_index": 10,
+                  "end_index": 40
+                }
+              },
+              {
+                "type": "file",
+                "file": {
+                  "name": "ignorar"
+                }
+              },
+              {
+                "type": "url_citation",
+                "url_citation": {
+                  "url": "javascript:alert(1)",
+                  "title": "não é link"
+                }
+              }
+            ]
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "service_tier": "standard"
+    }
+  ]
+}

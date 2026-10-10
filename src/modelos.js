@@ -1,0 +1,480 @@
+// Modelos de IA da empresa (seção 9): catálogo liberado, perfis, acesso por
+// grupo ou área, homologação para dados sigilosos, reservas e modo automático.
+import { erro } from './http.js';
+import { isDeepStrictEqual } from 'node:util';
+import { POOLS_RECOMENDADOS, confirmadoParaPool } from './pools-modelos.js';
+import { exec, json, todos, transacao, um } from './db.js';
+import { lerConfig, salvarConfig, PADRAO } from './config.js';
+import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada, protecaoDoRecurso, capacidadesDeDados } from './sigilo.js';
+import { registrar } from './eventos.js';
+import { enviarAvisoOperador, situacaoPlano } from './plano.js';
+
+export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+export const AUTO = 'openrouter/auto';
+// Roteamento da GreenIA: o modelo sai da análise de cada pedido, dentro das regras da empresa (ver roteador.js).
+export const AUTOMATICO = 'classe:auto';
+// Dimensões de capacidade que o admin pode informar por modelo (as mesmas do roteador).
+// Prioridade para o tipo principal nas métricas de classificação (mais exigente primeiro).
+const NIVEL_TIPO = { raciocinio: 5, programacao: 4, analise: 3, extracao: 2, sintese: 2, redacao: 2, traducao: 1, classificacao: 1 };
+export const CAPACIDADES = ['geral', 'raciocinio', 'programacao', 'precisao', 'leitura_longa'];
+const roteamentoLigado = cfg => cfg.roteamento?.ativo !== false;
+// Modelos gratuitos: o fornecedor costuma guardar e treinar com os dados.
+export const ehGratuito = id => /:free$/.test(id) || id === 'openrouter/free';
+const AVISO_GRATUITO = 'Modelo gratuito: o fornecedor pode guardar e treinar com os dados. Não serve para conversas sigilosas e costuma ser recusado quando a exigência de "sem treino" está ligada.';
+
+// Sugestão inicial (análise em docs/modelos-sugeridos.md, 26/09/2026).
+const SUGESTAO = [
+  { id: 'google/gemini-3.5-flash-lite', nome: 'Gemini 3.5 Flash Lite', perfil: 'rapido', entrada: 0.30, saida: 2.50, contexto: 1048576 },
+  { id: 'anthropic/claude-haiku-4.5', nome: 'Claude Haiku 4.5', perfil: 'equilibrado', entrada: 1, saida: 5, contexto: 200000 },
+  { id: 'anthropic/claude-sonnet-5', nome: 'Claude Sonnet 5', perfil: 'avancado', entrada: 2, saida: 10, contexto: 1000000 },
+];
+
+// Instalação nova: um modelo por perfil, liberado e editável. Nenhum homologado:
+// homologar é decisão do admin, com registro.
+export function semearSugestao(db) {
+  if (um(db, 'select 1 from modelos limit 1')) return;
+  // Preços por token, da página do modelo no OpenRouter; a atualização diária corrige.
+  for (const m of SUGESTAO) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil, preco_entrada, preco_saida, contexto) values (?, ?, ?, 1, ?, ?, ?, ?)',
+    m.id, m.nome, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
+}
+
+// Linha do catálogo. "homologado" quer dizer: este recurso pode receber informação sigilosa AGORA, segundo a
+// camada central (sigilo.js), que avalia a rota real (fornecedor, endpoint, retenção, treino, homologação da
+// empresa, autorização e veto da plataforma). Todos os usos (roteador, seletor, envio) leem este campo.
+const deLinha = (m, cfg) => {
+  if (!m) return m;
+  const base = {
+    id: m.id, nome: m.nome || m.id, fornecedor: m.fornecedor, precoEntrada: m.preco_entrada, precoSaida: m.preco_saida, contexto: m.contexto,
+    liberado: !!m.liberado, perfil: m.perfil, reserva: m.reserva,
+    homologacaoEmpresa: m.homologado ? json(m.homologacao, null) : null, autorizacaoPlataforma: json(m.autorizacao_plataforma, null), vetadoPlataforma: !!m.vetado_plataforma,
+    noCatalogo: !!m.no_catalogo, aviso: m.aviso, capacidades: json(m.capacidades, null), atributos: json(m.atributos, null),
+  };
+  const sigilo = avaliarRecurso(base, cfg);
+  // "homologacao" continua com o registro da rota que vale (compatível com as telas e o envio).
+  const r = { ...base, sigilo, homologado: sigilo.elegivel, homologacao: sigilo.rota ? { ...sigilo.rota, origem: sigilo.origem } : base.homologacaoEmpresa };
+  // Nível de proteção que o recurso oferece (sigilo.js): quais dados ele pode receber.
+  return { ...r, protecao: protecaoDoRecurso(r, cfg), dados: capacidadesDeDados(r, cfg) };
+};
+
+export const lerModelos = db => { const cfg = lerConfig(db); return todos(db, 'select * from modelos order by perfil, nome').map(m => deLinha(m, cfg)); };
+
+export function acharModelo(db, cfg, id) {
+  if (id === AUTO) return cfg.automatico ? { id: AUTO, nome: 'Automático', fornecedor: 'openrouter', perfil: 'rapido', liberado: true, homologado: false, sigilo: { elegivel: false, motivos: ['sem_rota_fixa'] } } : null;
+  return deLinha(um(db, 'select * from modelos where id = ?', id), cfg);
+}
+
+export function perfisDe(cfg, pessoa) {
+  const out = new Set(['rapido']);
+  for (const perfil of ['equilibrado', 'avancado']) {
+    const a = cfg.acessoPerfis[perfil] || {};
+    if (a.todos || (a.grupos || []).some(g => pessoa.grupos.includes(g)) || (a.areas || []).some(x => pessoa.areas.some(pa => pa.id === x))) out.add(perfil);
+  }
+  return out;
+}
+
+export const paraTodos = (cfg, m) => m.perfil === 'rapido' || !!cfg.acessoPerfis[m.perfil]?.todos;
+export const podeUsar = (cfg, pessoa, m) => !!m?.liberado && perfisDe(cfg, pessoa).has(m.perfil);
+
+// O homologado padrão: o escolhido pelo admin, se ainda serve; senão, o primeiro
+// homologado liberado e disponível para todos.
+export function homologadoPadrao(db, cfg) {
+  const serve = m => m && m.liberado && m.homologado && paraTodos(cfg, m);
+  const escolhido = cfg.padroes.homologado && acharModelo(db, cfg, cfg.padroes.homologado);
+  return serve(escolhido) ? escolhido : lerModelos(db).find(serve) || null;
+}
+
+// Classes operacionais: o trabalho escolhe a classe; a empresa decide o modelo por trás.
+// "classe:equilibrado" vale o modelo padrão da classe no momento do envio (em conversa
+// sigilosa, um homologado da classe). Trocar o modelo da classe muda todos os usos de uma vez.
+export const NOMES_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const CLASSE = /^classe:(rapido|equilibrado|avancado)$/;
+export const ehClasse = id => CLASSE.test(id || '');
+// Apelido do Automático do serviço de IA para quem não administra (o identificador técnico não sai do servidor).
+export const AUTO_EXTERNO = 'classe:externo';
+export const doApelido = id => (id === AUTO_EXTERNO ? AUTO : id);
+// O que quem não administra vê de um pedido de modelo: nível, automático ou apelido; nunca o identificador técnico.
+export const paraPessoa = (db, cfg, id) => (!id ? null : id === AUTO ? AUTO_EXTERNO : ehClasse(id) || id === AUTOMATICO ? id : classeDe(db, cfg, id));
+export function resolverClasse(db, cfg, id, { sigilosa = false } = {}) {
+  const c = CLASSE.exec(id || '');
+  if (!c) return id;
+  const padrao = cfg.padroes[c[1]];
+  const disponiveis = lerModelos(db).filter(m => m.liberado && m.noCatalogo && m.perfil === c[1] && (!sigilosa || m.homologado));
+  if (disponiveis.some(m => m.id === padrao)) return padrao;
+  return disponiveis[0]?.id || (sigilosa ? homologadoPadrao(db, cfg)?.id : null) || null;
+}
+export const classeDe = (db, cfg, id) => (ehClasse(id) ? id : (acharModelo(db, cfg, id)?.perfil ? `classe:${acharModelo(db, cfg, id).perfil}` : null));
+
+// Opções do seletor de uma conversa: classes, não fornecedores. O admin vê o modelo por trás.
+export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } = {}) {
+  const perfis = perfisDe(cfg, pessoa);
+  const qwClasse = qw?.modelo ? classeDe(db, cfg, qw.modelo) : null;
+  const out = [];
+  if (roteamentoLigado(cfg) && (!qw || qw.pode_trocar) && (!sigilosa || homologadoPadrao(db, cfg))) {
+    out.push({ id: AUTOMATICO, nome: 'Automático', descricao: 'A GreenIA escolhe a classe certa para cada pedido', perfil: 'auto', homologado: sigilosa, classe: true, automatico: true });
+  }
+  for (const [perfil, nome] of Object.entries(NOMES_CLASSE)) {
+    const id = `classe:${perfil}`;
+    const doQw = qwClasse === id;
+    if (qw && !qw.pode_trocar && !doQw) continue;
+    if (!doQw && !perfis.has(perfil) && !(sigilosa && homologadoPadrao(db, cfg)?.perfil === perfil)) continue;
+    const m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
+    if (!m?.liberado || (sigilosa && !m.homologado)) continue;
+    if (sigilosa && m.perfil !== perfil && !doQw) continue;     // classe sem homologado próprio não aparece em conversa sigilosa
+    out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, nivel: nome, perfil, homologado: m.homologado, classe: true });
+  }
+  // Para quem não administra, o Automático do serviço de IA não leva o nome nem o identificador do provedor.
+  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO_EXTERNO, nome: pessoa.admin ? 'Automático do serviço de IA (fora das classes)' : 'Automático do serviço de IA', perfil: 'rapido', homologado: false });
+  return out;
+}
+
+// Valida o modelo (ou a classe) pedido para um envio. Devolve o modelo técnico ou lança erro.
+export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = false } = {}) {
+  const m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
+  if (!m || !m.liberado) throw erro(403, 'modelo_nao_liberado', 'Esta classe de modelo não está disponível na empresa.');
+  const garantia = sigilosa && homologadoPadrao(db, cfg)?.id === m.id;
+  const doQw = qw && (id === qw.modelo || m.id === resolverClasse(db, cfg, qw.modelo, { sigilosa }));
+  const ok = qw ? doQw || (!!qw.pode_trocar && podeUsar(cfg, pessoa, m)) || garantia : podeUsar(cfg, pessoa, m) || garantia;
+  if (!ok) throw erro(403, 'modelo_sem_acesso', 'Você não tem acesso a esta classe de modelo.');
+  return m;
+}
+
+// Autorizações e vetos da plataforma para informação sigilosa. A autorização da plataforma é o requisito
+// mínimo (e, no modo recomendado, vale como a homologação da empresa); fica numa coluna própria, separada da
+// homologação da empresa. A empresa pode restringir (no modo manual, homologa só o que quiser), nunca remover
+// o mínimo. Quem usa não altera nada disso.
+export function aplicarHomologacoesPlataforma(db, lista = [], agora = new Date(), vetos = []) {
+  const recomendado = lerConfig(db).governanca?.modo !== 'manual';
+  const ids = new Set(lista.map(h => h.id));
+  const vetados = new Set(vetos.map(v => v.id));
+  for (const id of vetados) if (!um(db, 'select 1 from modelos where id = ?', id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado) values (?, ?, ?, 0)', id, id, id.split('/')[0]);
+  exec(db, 'update modelos set vetado_plataforma = 0');
+  for (const id of vetados) exec(db, 'update modelos set vetado_plataforma = 1 where id = ?', id);
+  for (const h of lista) {
+    const registro = JSON.stringify({ fornecedor: h.fornecedor, endpoint: h.endpoint || h.fornecedor, retencaoZero: h.retencaoZero !== false, semTreino: h.semTreino !== false,
+      justificativa: h.justificativa, por: h.por || null, em: h.em || agora.toISOString() });
+    if (!um(db, 'select 1 from modelos where id = ?', h.id)) exec(db, 'insert into modelos (id, nome, fornecedor, liberado, perfil) values (?, ?, ?, ?, ?)', h.id, h.nome || h.id, h.id.split('/')[0], Number(recomendado), h.perfil);
+    else if (recomendado) exec(db, 'update modelos set liberado = 1 where id = ?', h.id);
+    exec(db, 'update modelos set autorizacao_plataforma = ? where id = ?', registro, h.id);
+  }
+  exec(db, `update modelos set autorizacao_plataforma = null where autorizacao_plataforma is not null and id not in (${[...ids].map(() => '?').join(',') || "''"})`, ...ids);
+}
+
+export const custoEstimado = (m, entrada, saida) =>
+  m && m.precoEntrada != null && m.precoSaida != null ? m.precoEntrada * entrada + m.precoSaida * saida : null;
+
+// Atualização diária pelo OpenRouter: preços, e aviso se um modelo liberado sair
+// do ar ou mudar de preço mais de 20%.
+export async function atualizarCatalogo(app) {
+  const lista = await app.ia.listarModelos();
+  if (!Array.isArray(lista) || !lista.length) throw new Error('O catálogo de IA está temporariamente indisponível. A configuração anterior foi preservada.');
+  app.catalogo = lista;
+  const porId = new Map(lista.map(m => [m.id, m]));
+  for (const m of lerModelos(app.db)) {
+    const n = porId.get(m.id);
+    if (!n) { exec(app.db, "update modelos set no_catalogo = 0, aviso = 'Saiu do catálogo do serviço de IA.', atualizado_em = ? where id = ?", app.agora().toISOString(), m.id); continue; }
+    const mudou = (a, b) => a > 0 && Math.abs(b - a) / a > 0.2;
+    const aviso = mudou(m.precoEntrada, n.precoEntrada) || mudou(m.precoSaida, n.precoSaida)
+      ? `Preço mudou mais de 20% (entrada ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)}; saída ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens).` : m.aviso?.startsWith('Preço') ? m.aviso : null;
+    if (aviso && aviso !== m.aviso) avisarPrecoAoOperador(app, m, n);
+    exec(app.db, 'update modelos set nome = ?, preco_entrada = ?, preco_saida = ?, contexto = ?, no_catalogo = 1, aviso = ?, atualizado_em = ? where id = ?',
+      n.nome, n.precoEntrada, n.precoSaida, n.contexto, aviso, app.agora().toISOString(), m.id);
+  }
+  ampliarPoolsRecomendados(app, lista);
+  return lista.length;
+}
+// Só adiciona modelos confirmados ao modo recomendado. Não altera acesso, padrão,
+// homologação, veto, capacidades manuais ou modelos já cadastrados/desativados.
+export function ampliarPoolsRecomendados(app, catalogo = app.catalogo || [], emTransacao = false) {
+  if (lerConfig(app.db).governanca?.modo === 'manual') return [];
+  const porId = new Map(catalogo.map(m => [m.id, m])), adicionados = [];
+  const inserir = () => {
+    for (const p of POOLS_RECOMENDADOS) {
+      const m = porId.get(p.id);
+      if (!confirmadoParaPool(m, p.perfil) || um(app.db, 'select 1 from modelos where id = ?', p.id)) continue;
+      exec(app.db, 'insert into modelos (id,nome,fornecedor,liberado,perfil,preco_entrada,preco_saida,contexto,no_catalogo,atualizado_em) values (?,?,?,1,?,?,?,?,1,?)',
+        m.id, m.nome, m.id.split('/')[0], p.perfil, m.precoEntrada, m.precoSaida, m.contexto, app.agora().toISOString());
+      adicionados.push({ id: m.id, perfil: p.perfil });
+    }
+    if (adicionados.length) registrar(app, 'model.pool_expanded', null, { modelos: adicionados, origem: 'catalogo_confirmado' });
+  };
+  if (emTransacao) inserir(); else transacao(app.db, inserir);
+  if (adicionados.length && !emTransacao) app.log?.('model.pool_expanded', JSON.stringify(adicionados));
+  return adicionados;
+}
+
+const fmt = p => (p === null || p === undefined ? '?' : `US$ ${(p * 1e6).toFixed(2)}`);
+
+// Toda mudança na configuração de modelos passa por aqui: se havia um homologado
+// disponível para todos e a mudança o tira, ela é recusada.
+function mudar(app, pessoa, tipo, detalhes, fn) {
+  transacao(app.db, () => {
+    const antes = !!homologadoPadrao(app.db, lerConfig(app.db));
+    fn();
+    if (antes && !homologadoPadrao(app.db, lerConfig(app.db))) {
+      throw erro(409, 'sem_homologado', 'É preciso ter pelo menos um modelo homologado disponível para todos. Homologue outro modelo antes.');
+    }
+    registrar(app, tipo, pessoa.id, detalhes);
+  });
+  app.aoMudarModelos?.();
+}
+
+// Preço de um modelo liberado mudou mais de 20%: o operador recebe email (a empresa vê só o aviso no painel).
+// Troca do modelo por trás de uma classe: os admins recebem um aviso, sem alarde.
+function avisarModeloAlterado(app, trocas) {
+  const admins = todos(app.db, "select email from pessoas where papel = 'admin' and ativo = 1").map(a => a.email);
+  const linhas = trocas.map(([k, m]) => `- Classe ${NOMES_CLASSE[k]}: agora atendida por ${m?.nome || 'outro modelo'}`).join('\n');
+  const texto = `O modelo por trás de uma classe foi atualizado:\n\n${linhas}\n\nNada muda na forma de usar: as pessoas continuam escolhendo a classe, e as conversas seguem normalmente. O histórico da troca fica em Modelos.`;
+  for (const para of admins) app.email.enviar(para, 'GreenIA: modelo de uma classe atualizado', texto).catch(e => app.log('email de modelo', e.message));
+}
+
+function avisarPrecoAoOperador(app, m, n) {
+  if (!m.liberado) return;
+  registrar(app, 'model.price_changed', null, { modelo: m.id, classe: m.perfil, entrada: [m.precoEntrada, n.precoEntrada], saida: [m.precoSaida, n.precoSaida] });
+  if (!app.operadores?.length) return;
+  enviarAvisoOperador(app, `preço do modelo ${m.nome} mudou mais de 20%`,
+    `O modelo ${m.id} (${m.perfil}) mudou de preço no OpenRouter.\nEntrada: ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)} por milhão de tokens.\nSaída: ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens.\n\nOs créditos acompanham o custo real, então a margem não muda. Se o aumento for grande, considere trocar o modelo padrão do perfil por um equivalente mais barato.${m.homologado ? '\n\nAtenção: este modelo está homologado para conversas sigilosas.' : ''}`)
+    .catch(e => app.log('aviso de preço', e.message));
+}
+
+// Recomendações da GreenIA para modelos e roteamento: conjunto curado por nível, roteamento automático
+// com preferência Equilíbrio, fornecedor sem treino, Automático do OpenRouter desligado e acesso por nível
+// no padrão. Homologações (da empresa e da plataforma) e vetos da plataforma não mudam: são regras, não ajustes.
+export function aplicarRecomendacoes(app, pessoa = null) {
+  transacao(app.db, () => {
+    salvarConfig(app.db, { padroes: structuredClone(PADRAO.padroes), acessoPerfis: structuredClone(PADRAO.acessoPerfis), perfisQuickWin: [...PADRAO.perfisQuickWin],
+      exigirSemTreino: true, automatico: false, roteamento: { ativo: true, preferencia: 'equilibrio' },
+      governanca: { modo: 'recomendado', em: app.agora().toISOString(), por: pessoa?.email || null } });
+    const sugeridos = new Set(POOLS_RECOMENDADOS.map(m => m.id));
+    for (const m of SUGESTAO) {
+      if (!um(app.db, 'select 1 from modelos where id = ?', m.id)) exec(app.db, 'insert into modelos (id, nome, fornecedor, perfil, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?, ?)',
+        m.id, m.nome, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
+      exec(app.db, 'update modelos set liberado = 1, perfil = ?, reserva = null where id = ?', m.perfil, m.id);
+    }
+    // Fora das sugestões, fica liberado só o que é regra de sigilo (homologado pela empresa ou pela plataforma).
+    for (const m of lerModelos(app.db)) if (!sugeridos.has(m.id) && m.liberado && !m.homologacaoEmpresa && !m.autorizacaoPlataforma) exec(app.db, 'update modelos set liberado = 0, reserva = null where id = ?', m.id);
+    ampliarPoolsRecomendados(app, app.catalogo || [], true);
+    registrar(app, 'governance.mode_changed', pessoa?.id ?? null, { modo: 'recomendado' });
+  });
+}
+export const VALE_SEMPRE = 'Nos dois modos, a GreenIA sempre protege informação sigilosa, respeita o que a plataforma autoriza ou proíbe, o acesso de cada grupo e o plano contratado. Nenhum ajuste manual desliga essas regras.';
+// Ajuste de modelos ou do roteamento pelo admin: a empresa passa ao modo manual, com registro (nunca em silêncio).
+function paraManual(app, pessoa, motivo) {
+  const cfg = lerConfig(app.db);
+  if (cfg.governanca?.modo === 'manual') return;
+  salvarConfig(app.db, { governanca: { modo: 'manual', em: app.agora().toISOString(), por: pessoa?.email || null } });
+  registrar(app, 'governance.mode_changed', pessoa?.id ?? null, { modo: 'manual', motivo });
+}
+
+export function rotasModelos(app, r) {
+  semearSugestao(app.db);
+
+  r.get('/api/modelos', ({ pessoa, query }) => {
+    const cfg = lerConfig(app.db);
+    const qw = query.quick_win ? um(app.db, 'select id, modelo, pode_trocar from quick_wins where id = ?', Number(query.quick_win)) : null;
+    const reserva = situacaoPlano(app)?.fase === 'reserva';
+    const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' })
+      .map(o => (reserva && o.id !== AUTOMATICO && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
+    const h = homologadoPadrao(app.db, cfg);
+    const padrao = qw?.modelo && (!qw.pode_trocar || !roteamentoLigado(cfg)) ? classeDe(app.db, cfg, qw.modelo) : roteamentoLigado(cfg) ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat);
+    return { opcoes, padrao, roteamento: roteamentoLigado(cfg), homologadoPadrao: h ? `classe:${h.perfil}` : null, perfis: PERFIS };
+  });
+
+  r.get('/api/admin/modelos', () => {
+    const cfg = lerConfig(app.db);
+    const h = homologadoPadrao(app.db, cfg);
+    return { modelos: lerModelos(app.db).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500), sigiloTexto: m.sigilo.motivos.map(c => MOTIVOS_GUARDRAIL[c] || c) })), perfis: PERFIS, homologadoPadrao: h?.id || null, garantia: !!h,
+      config: { padroes: cfg.padroes, acessoPerfis: cfg.acessoPerfis, perfisQuickWin: cfg.perfisQuickWin, exigirSemTreino: cfg.exigirSemTreino, automatico: cfg.automatico, roteamento: cfg.roteamento } };
+  }, { admin: true });
+
+  // Roteamento: configuração, números dos últimos 30 dias e as decisões recentes, com requisitos,
+  // candidatos e fallbacks. Nenhum conteúdo de conversa é guardado nem sai daqui; custos viram créditos.
+  // Indicadores do roteador contam só decisões da GreenIA que viraram resposta: o Automático do
+  // OpenRouter (fora da governança) e os envios bloqueados ficam de fora.
+  r.get('/api/admin/roteamento', ({ query }) => {
+    const cfg = lerConfig(app.db);
+    const desde = new Date(app.agora().getTime() - 30 * 864e5).toISOString();
+    const base = "from roteamento where em >= ? and coalesce(teste, 0) = 0 and modo != 'externo' and coalesce(resultado, 'respondido') like 'respondido%'";
+    const contar = campo => Object.fromEntries(todos(app.db, `select ${campo} as k, count(*) as n ${base} group by k`, desde).map(x => [x.k ?? 'sem', x.n]));
+    const soma = um(app.db, `select count(*) as n, sum(custo_estimado) as est, sum(case when custo_estimado is not null then custo_referencia end) as ref,
+      sum(case when fallback like ? then 1 else 0 end) as limitadas, sum(case when fallback like ? then 1 else 0 end) as abaixoPorEscolha ${base}`, '%"abaixo_do_necessario"%', '%abaixo_do_necessario_por_escolha%', desde);
+    const fora = um(app.db, "select sum(case when modo = 'externo' then 1 else 0 end) as externo, sum(case when resultado = 'bloqueado' then 1 else 0 end) as bloqueadas from roteamento where em >= ? and coalesce(teste, 0) = 0", desde);
+    // Consumo: o realizado (medido pelo fornecedor), o estimado pelo roteador e a referência hipotética
+    // "tudo no Avançado". A diferença entre estimado e referência é consumo EVITADO ESTIMADO, não economia
+    // financeira: não se sabe se o Avançado daria resultado melhor, nem o custo real dele.
+    const consumo = um(app.db, `select sum(custo_real) as real, sum(case when custo_real is not null then custo_estimado end) as estReal, sum(custo_estimado) as est,
+      sum(case when custo_estimado is not null then custo_referencia end) as ref ${base}`, desde);
+    // Classificação por tipo principal: volume, "não serviu" na resposta, pedido refeito e se o tipo decidiu a exigência.
+    const linhas = todos(app.db, `select tipos, requisitos, feedback, refeito, classe_necessaria, classe ${base}`, desde);
+    const porTipo = {};
+    for (const l of linhas) {
+      const tipos = json(l.tipos, []), req = json(l.requisitos, {});
+      const t = tipos.includes('consulta') ? 'consulta' : tipos.includes('indeterminado') ? 'indeterminado'
+        : tipos.slice().sort((x, y) => (NIVEL_TIPO[y] ?? 1) - (NIVEL_TIPO[x] ?? 1))[0] || 'consulta';
+      const g = porTipo[t] ||= { n: 0, comFeedback: 0, naoServiu: 0, refeitos: 0, tipoDecidiu: 0, exigida: {} };
+      g.n++; if (l.feedback) g.comFeedback++; if (l.feedback === 'nao_serviu') g.naoServiu++; if (l.refeito) g.refeitos++;
+      if ((req.determinantes || []).includes(`tipo_${t}`)) g.tipoDecidiu++;
+      g.exigida[l.classe_necessaria] = (g.exigida[l.classe_necessaria] || 0) + 1;
+    }
+    const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : null);
+    const classificacao = Object.entries(porTipo).map(([tipo, g]) => ({ tipo, n: g.n, percentual: pct(g.n, linhas.length), naoServiuPercentual: pct(g.naoServiu, g.comFeedback),
+      refeitoPercentual: pct(g.refeitos, g.n), tipoDecidiuPercentual: pct(g.tipoDecidiu, g.n), exigida: g.exigida })).sort((a, b) => b.n - a.n);
+    // Calibração v3: a menor classe suficiente é calculada no momento da decisão, depois de todas as regras.
+    // "Acima" não é erro por si só: pode ser margem deliberada de qualidade numa tarefa não simples.
+    const calib = linhas.map(l => json(l.requisitos, {}).calibracao).filter(Boolean);
+    const menorClasseSuficiente = calib.filter(x => x.nivelSelecionado != null && x.menorNivelSuficiente != null && !x.acimaDaMenorClasse).length;
+    const acimaDaMenorClasse = calib.filter(x => x.acimaDaMenorClasse).length;
+    const abaixoDoNecessario = calib.filter(x => x.abaixoDoNecessario).length;
+    // Latência por modelo: só observação (não entra na escolha). Mediana do primeiro token e do total.
+    const mediana = l => { const v = l.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; };
+    const lat = {};
+    for (const l of todos(app.db, `select modelo_usado as m, ms_primeiro_token as p, ms_total as t ${base} and ms_total is not null`, desde)) (lat[l.m] ||= []).push(l);
+    const latencia = Object.entries(lat).map(([modelo, l]) => ({ modelo, n: l.length, primeiroTokenMs: mediana(l.map(x => x.p)), totalMs: mediana(l.map(x => x.t)) })).sort((a, b) => b.n - a.n);
+    const limite = Math.min(100, Math.max(1, Number(query.limite) || 40));
+    const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.origem, r.classe_pedida, r.preferencia, r.complexidade, r.tipos, r.precisao, r.sinais, r.requisitos,
+      r.classe_necessaria, r.modelo, r.classe, r.politicas, r.candidatos, r.janela_minima, r.janela_desejada, r.motivo_escolha, r.fallback, r.reserva, r.resultado,
+      r.modelo_usado, r.explicacao, r.versao, r.sigilosa, r.ms_primeiro_token, r.ms_total, r.feedback, r.refeito, r.nova_tentativa_de, q.nome as quick_win
+      from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id order by r.id desc limit ?`, limite)
+      .map(d => ({ ...d, sigilosa: !!d.sigilosa, refeito: !!d.refeito, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), requisitos: json(d.requisitos, {}),
+        politicas: json(d.politicas, []), candidatos: json(d.candidatos, []), fallback: json(d.fallback, null) }));
+    return {
+      config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
+      resumo: {
+        decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), porNecessaria: contar('classe_necessaria'),
+        limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { externo: fora.externo || 0, bloqueadas: fora.bloqueadas || 0 },
+        consumo: { realizado: { custo: consumo.real || 0 }, estimado: { custo: consumo.est || 0 }, referencia: { custo: consumo.ref || 0 } },
+        // Referência hipotética: percentual de consumo evitado, estimado, contra "tudo no Avançado padrão".
+        consumoEvitadoEstimadoPercentual: consumo.ref > 0 ? Math.round((1 - consumo.est / consumo.ref) * 100) : null,
+        // Qualidade da estimativa: realizado ÷ estimado nas respostas com os dois (1,0 = estimativa exata).
+        realizadoSobreEstimado: consumo.estReal > 0 ? Math.round(consumo.real / consumo.estReal * 100) / 100 : null,
+        classificacao, latencia,
+        calibracao: {
+          observadas: calib.length,
+          menorClasseSuficiente,
+          acimaDaMenorClasse,
+          abaixoDoNecessario,
+          taxaMenorClasseSuficiente: pct(menorClasseSuficiente, calib.length),
+        },
+      },
+      decisoes,
+    };
+  }, { admin: true });
+
+  r.get('/api/admin/modelos/catalogo', async ({ query }) => {
+    if (!app.catalogo) await atualizarCatalogo(app).catch(() => { app.catalogo = []; });
+    const q = String(query.busca || '').toLowerCase();
+    return { modelos: app.catalogo.filter(m => !q || m.id.toLowerCase().includes(q) || m.nome.toLowerCase().includes(q)).slice(0, 50).map(m => ({ ...m, custoConversa: custoEstimado(m, 12000, 1500) })) };
+  }, { admin: true });
+
+  r.put('/api/admin/modelos/:id', ({ pessoa, params, corpo }) => {
+    const id = params.id;
+    if (corpo.perfil && !PERFIS[corpo.perfil]) throw erro(400, 'perfil', 'Perfil inválido.');
+    const cat = (app.catalogo || []).find(m => m.id === id);
+    const atual = um(app.db, 'select * from modelos where id = ?', id);
+    // A empresa pode restringir um recurso autorizado pela plataforma (não liberar, trocar de nível): restringir não remove o mínimo.
+    if (!atual && !cat && !corpo.perfil) throw erro(404, 'modelo', 'Modelo não encontrado no catálogo.');
+    const reserva = corpo.reserva === undefined ? atual?.reserva : corpo.reserva || null;
+    if (reserva) {
+      const rs = um(app.db, 'select perfil, liberado from modelos where id = ?', reserva);
+      if (!rs?.liberado || rs.perfil !== (corpo.perfil || atual?.perfil)) throw erro(400, 'reserva', 'O reserva precisa estar liberado e ser do mesmo perfil.');
+    }
+    // Capacidades explícitas (opcional): 1 a 3 por dimensão; o que não for informado segue a classe.
+    // Atributos de dados declarados pelo admin (contrato, política do fornecedor): valem na elegibilidade.
+    let atributos;
+    if (corpo.atributos !== undefined) {
+      const a = corpo.atributos || {};
+      const limpo = { semTreino: typeof a.semTreino === 'boolean' ? a.semTreino : null, retencaoZero: typeof a.retencaoZero === 'boolean' ? a.retencaoZero : null,
+        dadosPessoais: ['permitido', 'proibido'].includes(a.dadosPessoais) ? a.dadosPessoais : null, regiao: a.regiao ? String(a.regiao).slice(0, 60) : null };
+      atributos = Object.values(limpo).some(v => v !== null) ? JSON.stringify(limpo) : null;
+    }
+    let capacidades;
+    if (corpo.capacidades !== undefined) {
+      const limpo = Object.fromEntries(CAPACIDADES.filter(d => [1, 2, 3].includes(Number(corpo.capacidades?.[d]))).map(d => [d, Number(corpo.capacidades[d])]));
+      capacidades = Object.keys(limpo).length ? JSON.stringify(limpo) : null;
+    }
+    mudar(app, pessoa, 'model.changed', { modelo: id, liberado: corpo.liberado, perfil: corpo.perfil, reserva, capacidades: capacidades === undefined ? undefined : json(capacidades, null), atributos: atributos === undefined ? undefined : json(atributos, null) }, () => {
+      if (!atual) exec(app.db, 'insert into modelos (id, nome, fornecedor, preco_entrada, preco_saida, contexto) values (?, ?, ?, ?, ?, ?)',
+        id, cat?.nome || id, id.split('/')[0], cat?.precoEntrada ?? null, cat?.precoSaida ?? null, cat?.contexto ?? null);
+      exec(app.db, 'update modelos set liberado = coalesce(?, liberado), perfil = coalesce(?, perfil), reserva = ? where id = ?',
+        corpo.liberado === undefined ? null : Number(!!corpo.liberado), corpo.perfil ?? null, reserva, id);
+      if (capacidades !== undefined) exec(app.db, 'update modelos set capacidades = ? where id = ?', capacidades, id);
+      if (atributos !== undefined) exec(app.db, 'update modelos set atributos = ? where id = ?', atributos, id);
+      if (ehGratuito(id)) exec(app.db, 'update modelos set aviso = ? where id = ?', AVISO_GRATUITO, id);
+      // Modelo que deixa de ser liberado perde a homologação.
+      if (corpo.liberado === false) exec(app.db, 'update modelos set homologado = 0 where id = ?', id);
+    });
+    paraManual(app, pessoa, 'model.changed');
+    return acharModelo(app.db, lerConfig(app.db), id);
+  }, { admin: true });
+
+  r.post('/api/admin/modelos/:id/homologar', ({ pessoa, params, corpo }) => {
+    const m = um(app.db, 'select * from modelos where id = ?', params.id);
+    if (!m?.liberado) throw erro(400, 'nao_liberado', 'Libere o modelo antes de homologar.');
+    if (m.vetado_plataforma) throw erro(409, 'vetado_pela_plataforma', 'A equipe da plataforma não autoriza este modelo para dados sigilosos. Homologue outro modelo.');
+    if (ehGratuito(m.id) || m.id === AUTO) throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o modo automático não podem ser homologados: não há fornecedor fixo com retenção zero.');
+    const fornecedor = String(corpo.fornecedor || '').trim();
+    const endpoint = String(corpo.endpoint || fornecedor).trim();   // a rota fixada no envio (provider.only)
+    const justificativa = String(corpo.justificativa || '').trim();
+    if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado.');
+    if (corpo.semTreino !== true || corpo.retencaoZero !== true) throw erro(400, 'garantias', 'Confirme que o fornecedor não treina com os dados e não guarda nada (retenção zero).');
+    if (justificativa.length < 10) throw erro(400, 'justificativa', 'Escreva a justificativa da homologação.');
+    // Atributos da rota homologada: as garantias ficam gravadas (e são conferidas a cada envio), não presumidas.
+    const registro = { quem: pessoa.email, em: app.agora().toISOString(), fornecedor, endpoint, retencaoZero: true, semTreino: true, justificativa };
+    mudar(app, pessoa, 'model.certified', { modelo: m.id, fornecedor }, () => {
+      exec(app.db, 'update modelos set homologado = 1, homologacao = ? where id = ?', JSON.stringify(registro), m.id);
+    });
+    return acharModelo(app.db, lerConfig(app.db), m.id);
+  }, { admin: true });
+
+  r.del('/api/admin/modelos/:id/homologar', ({ pessoa, params }) => {
+    mudar(app, pessoa, 'model.uncertified', { modelo: params.id }, () => exec(app.db, 'update modelos set homologado = 0 where id = ?', params.id));
+    return { ok: true };
+  }, { admin: true });
+
+  r.put('/api/admin/modelos-config', ({ pessoa, corpo }) => {
+    const cfg = lerConfig(app.db);
+    const novo = {};
+    if (corpo.padroes) novo.padroes = { ...cfg.padroes, ...corpo.padroes };
+    if (corpo.acessoPerfis) {
+      const limpo = a => ({ todos: !!a?.todos, grupos: (a?.grupos || []).map(Number), areas: (a?.areas || []).map(Number) });
+      novo.acessoPerfis = { equilibrado: limpo(corpo.acessoPerfis.equilibrado), avancado: limpo(corpo.acessoPerfis.avancado) };
+    }
+    if (corpo.perfisQuickWin) novo.perfisQuickWin = corpo.perfisQuickWin.filter(p => PERFIS[p]);
+    if (corpo.exigirSemTreino !== undefined) novo.exigirSemTreino = !!corpo.exigirSemTreino;
+    if (corpo.automatico !== undefined) novo.automatico = !!corpo.automatico;
+    if (corpo.roteamento) {
+      const pref = ['economia', 'equilibrio', 'qualidade'].includes(corpo.roteamento.preferencia) ? corpo.roteamento.preferencia : cfg.roteamento?.preferencia || 'equilibrio';
+      novo.roteamento = { ativo: corpo.roteamento.ativo !== undefined ? !!corpo.roteamento.ativo : cfg.roteamento?.ativo !== false, preferencia: pref };
+    }
+    for (const [k, id] of Object.entries(novo.padroes || {})) {
+      if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
+    }
+    // Salvar os mesmos valores não é uma escolha pelo modo manual.
+    // Compara objetos sem depender da ordem das propriedades do JSON.
+    if (Object.keys(novo).every(k => isDeepStrictEqual(novo[k], cfg[k]))) return { ok: true };
+    mudar(app, pessoa, 'model.config_changed', { campos: Object.keys(novo), exigirSemTreino: novo.exigirSemTreino, roteamento: novo.roteamento }, () => salvarConfig(app.db, novo));
+    paraManual(app, pessoa, 'model.config_changed');
+    const trocas = Object.keys(NOMES_CLASSE).filter(k => novo.padroes && novo.padroes[k] !== cfg.padroes[k]);
+    if (trocas.length) avisarModeloAlterado(app, trocas.map(k => [k, acharModelo(app.db, lerConfig(app.db), novo.padroes[k])]));
+    return { ok: true };
+  }, { admin: true });
+
+  // Modo de governança: seguir as recomendações da GreenIA ou ajustar manualmente. O texto é para quem não
+  // conhece modelos: o que muda, e o que vale nos dois modos.
+  // "Permitir processamento de informações sigilosas com guardrails de proteção" (ON/OFF). Só o admin muda;
+  // só true liga. Ligar não libera nenhum recurso: os guardrails continuam decidindo cada envio.
+  r.get('/api/admin/sigilo', () => ({ ativo: politicaSigiloLigada(lerConfig(app.db)) }), { admin: true });
+  r.put('/api/admin/sigilo', ({ pessoa, corpo }) => {
+    if (typeof corpo.ativo !== 'boolean') throw erro(400, 'ativo', 'Informe ativo: true ou false.');
+    salvarConfig(app.db, { [POLITICA_SIGILO]: corpo.ativo });
+    registrar(app, 'policy.sensitive_processing_changed', pessoa.id, { ativo: corpo.ativo });
+    app.aoMudarModelos?.();   // a Política de Uso descreve a opção: muda a seção, nova versão, nova ciência
+    return { ativo: politicaSigiloLigada(lerConfig(app.db)) };
+  }, { admin: true });
+  r.get('/api/admin/governanca', () => ({ ...(lerConfig(app.db).governanca || { modo: 'recomendado' }), valeSempre: VALE_SEMPRE }), { admin: true });
+  r.put('/api/admin/governanca', ({ pessoa, corpo }) => {
+    if (!['recomendado', 'manual'].includes(corpo.modo)) throw erro(400, 'modo', 'Escolha "recomendado" ou "manual".');
+    if (corpo.modo === 'recomendado') aplicarRecomendacoes(app, pessoa);
+    else paraManual(app, pessoa, 'escolha_do_admin');
+    return { ...lerConfig(app.db).governanca, valeSempre: VALE_SEMPRE };
+  }, { admin: true });
+}

@@ -1,0 +1,97 @@
+// Rotas públicas de cada empresa: marca e landing page (/api/publico) e login por código no ambiente da empresa.
+import { erro } from '../http.js';
+import { exec, um } from '../db.js';
+import { lerConfig } from '../config.js';
+import { dominioPermitido } from '../auth.js';
+import { ehAdminPlataforma, roleDeSistema, permissoesNaEmpresa } from './rbac.js';
+import * as E from './empresas.js';
+import { auditar } from './auditoria.js';
+import { normEmail, emailValido, enviarCodigo, conferirCodigo, abrirSessao, fecharSessao, lerSessaoBruta, checarCsrf } from './sessao.js';
+
+// Quem pode entrar no ambiente da empresa: admin da plataforma, pessoa com vínculo (ativo ou convidado),
+// ou alguém de um domínio permitido pela empresa (entra como membro, se o ambiente estiver ativo).
+function acesso(P, c, email) {
+  const u = E.acharUsuario(P, email);
+  if (u && u.status !== 'ativo') return { ok: false, motivo: 'bloqueado' };
+  const v = u && um(P.db, 'select status, role_id from company_users where company_id = ? and user_id = ?', c.id, u.id);
+  // Admin da plataforma sem vínculo nesta empresa não entra pela tela de login: o acesso da equipe GreenIA é só
+  // pelo console, com motivo, prazo e registro visível para a empresa. Com vínculo, entra como qualquer pessoa.
+  const operadorSemVinculo = u && !v && ehAdminPlataforma(P.db, u.id);
+  if (v?.status === 'inativo') return { ok: false, motivo: 'inativo' };
+  if (c.status === 'suspensa' || c.status === 'cancelada') return { ok: false, motivo: 'indisponivel' };
+  if (v) {
+    // Em implantação, só quem administra a empresa entra (a role vale mesmo antes do primeiro acesso).
+    if (c.status === 'em_implantacao' && !um(P.db, "select 1 from role_permissions where role_id = ? and permission_key = 'company.manage'", v.role_id)) return { ok: false, motivo: 'implantacao' };
+    return { ok: true, u, vinculo: v };
+  }
+  if (operadorSemVinculo) return { ok: false, motivo: 'operador' };
+  if (c.status === 'ativa' && dominioPermitido(lerConfig(P.tenant(c.id).db), email)) return { ok: true, u, novo: true };
+  return { ok: false, motivo: 'fora' };
+}
+const MENSAGENS = {
+  fora: 'Este email não tem acesso a este ambiente. Peça um convite ao administrador da sua empresa.',
+  inativo: 'Seu acesso está desativado. Fale com o administrador da sua empresa.',
+  bloqueado: 'Seu acesso está bloqueado. Fale com o administrador.',
+  indisponivel: 'O ambiente desta empresa está indisponível no momento.',
+  implantacao: 'O ambiente desta empresa ainda está em implantação.',
+  operador: 'Administradores da plataforma entram neste ambiente pelo console, informando o motivo do acesso.',
+};
+
+export function rotasAuthEmpresa(P, r) {
+  r.post('/api/login/codigo', async ({ corpo, companyId, empresa }) => {
+    const email = normEmail(corpo.email);
+    if (!emailValido(email)) throw erro(400, 'email_invalido', 'Informe um email válido.');
+    const a = acesso(P, empresa, email);
+    if (!a.ok) throw erro(403, 'dominio', MENSAGENS[a.motivo]);
+    const nome = E.lerMarca(P, companyId)?.display_name || empresa.name;
+    await enviarCodigo(P, email, companyId, P.emailDa(companyId), `Seu código de acesso à GreenIA da ${nome}`);
+    return { ok: true };
+  }, { publica: true });
+
+  r.post('/api/login/entrar', ({ corpo, res, companyId, empresa, origem }) => {
+    const email = normEmail(corpo.email);
+    conferirCodigo(P, email, companyId, String(corpo.codigo || '').trim());
+    const a = acesso(P, empresa, email);
+    if (!a.ok) throw erro(403, 'dominio', MENSAGENS[a.motivo]);
+    const u = a.u || E.garantirUsuario(P, email);
+    if (a.novo) {
+      exec(P.db, "insert into company_users (company_id, user_id, role_id, status, created_at, updated_at) values (?, ?, ?, 'ativo', ?, ?) on conflict do nothing", companyId, u.id, roleDeSistema(P.db, 'member').id, P.agora().toISOString(), P.agora().toISOString());
+      auditar(P, { usuario: u.id, empresa: companyId, acao: 'user.joined_by_domain', entidade: 'company_user', id: u.id, depois: { email, role: 'member' }, origem });
+    } else if (a.vinculo?.status === 'convidado') exec(P.db, "update company_users set status = 'ativo', updated_at = ? where company_id = ? and user_id = ?", P.agora().toISOString(), companyId, u.id);
+    P.sincronizarPessoa(companyId, u.id);
+    const csrf = abrirSessao(P, res, u.id, companyId);
+    return { ok: true, csrf };
+  }, { publica: true });
+
+  r.post('/api/sair', ({ req, res, cookies, companyId, origem }) => {
+    checarCsrf(lerSessaoBruta(P, cookies, companyId) || { csrf: '' }, req);
+    fecharSessao(P, res, cookies, companyId, origem);
+    return { ok: true };
+  }, { publica: true });
+}
+
+export function rotasPublicoEmpresa(P, r) {
+  // Marca, textos de login e landing page da empresa. Sem sessão; nada sensível.
+  r.get('/api/publico', ({ companyId, empresa, cookies, query }) => {
+    const b = E.lerMarca(P, companyId);
+    const cfg = lerConfig(P.tenant(companyId).db);
+    const l = E.lerLanding(P, companyId);
+    const publicada = empresa.status === 'ativa' && l.status === 'publicada';
+    // Prévia (?previa=1): quem pode editar a landing, ou o admin da plataforma, vê a página completa
+    // mesmo em rascunho ou com a empresa em implantação. Os visitantes continuam vendo a versão simples.
+    const naoPublica = publicada ? null : l.status !== 'publicada' ? 'a landing está em rascunho' : `a empresa está ${(E.STATUS_EMPRESA[empresa.status] || empresa.status).toLowerCase()}`;
+    let previa = false;
+    if (query?.previa) {
+      const s = lerSessaoBruta(P, cookies, companyId), sp = lerSessaoBruta(P, cookies, null);
+      previa = !!(s && permissoesNaEmpresa(P.db, s.user_id, companyId).has('landing_page.manage')) || !!(sp && ehAdminPlataforma(P.db, sp.user_id));
+    }
+    return {
+      multiempresa: true, empresa: b.display_name || empresa.name, logo: b.logo, corMarca: b.primary_color, corSecundaria: b.secondary_color,
+      favicon: b.favicon ? '/icone' : null, privacyNote: b.privacy_note || cfg.privacyNote, retencaoDias: cfg.retencaoDias,
+      loginTitulo: b.login_title, loginTexto: b.login_text, status: empresa.status,
+      aviso: { em_implantacao: 'Este ambiente está em implantação.', suspensa: 'Este ambiente está indisponível no momento.', cancelada: 'Este ambiente foi encerrado.' }[empresa.status] || null,
+      landing: publicada || previa ? l.content : null, seo: l.seo,
+      ...(previa ? { previa: { visivelAoPublico: publicada, motivo: naoPublica } } : {}),
+    };
+  }, { publica: true });
+}

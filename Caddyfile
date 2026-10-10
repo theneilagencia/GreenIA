@@ -1,0 +1,11 @@
+# HTTPS automático (Let's Encrypt) para o domínio do .env.
+{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy greenia:8080 {
+		# Respostas da IA chegam em partes: repassar sem segurar.
+		flush_interval -1
+	}
+	request_body {
+		max_size 40MB
+	}
+}

@@ -1,0 +1,23 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {subirPlataforma} from './ajuda-plataforma.js';
+import {exec,um} from '../src/db.js';
+test('painéis multiempresa: IDs iguais nunca compartilham registros, permissões atuais são exigidas',async t=>{
+ const S=await subirPlataforma();t.after(()=>S.fechar());const ops=await S.navegador().entrarConsole('ops@theneil.com.br');
+ const plano=(await ops.get('/api/plataforma/planos')).dados.planos.find(p=>p.name.includes('Company'));
+ const A=(await ops.post('/api/plataforma/empresas',{name:'Empresa Alfa QA',slug:'alfa',plan_id:plano.id,admin_email:'ana@alfa.com',status:'ativa'})).dados;
+ const B=(await ops.post('/api/plataforma/empresas',{name:'Empresa Beta QA',slug:'beta',plan_id:plano.id,admin_email:'bia@beta.com',status:'ativa'})).dados;
+ const a=S.navegador();await a.get('/alfa');assert.equal((await a.entrarEmpresa('ana@alfa.com')).status,200);
+ const b=S.navegador();await b.get('/beta');assert.equal((await b.entrarEmpresa('bia@beta.com')).status,200);
+ const qa=(await a.post('/api/quick-wins',{nome:'Processo Alfa',toda_empresa:true,painel_modelo:'fornecedores'})).dados;
+ assert.equal((await b.get(`/api/quick-wins/${qa.id}/painel`)).status,404);
+ const qb=(await b.post('/api/quick-wins',{nome:'Processo Beta',toda_empresa:true,painel_modelo:'fornecedores'})).dados;assert.equal(qa.id,qb.id);
+ const db=S.P.tenant(A.id).db,p=um(db,"select id from pessoas where email='ana@alfa.com'").id,em=new Date().toISOString();
+ const c=Number(exec(db,'insert into conversas(pessoa_id,quick_win_id,criado_em,atualizado_em) values(?,?,?,?)',p,qa.id,em,em).lastInsertRowid);
+ const m=Number(exec(db,"insert into mensagens(conversa_id,papel,texto,criado_em) values(?,'assistant','Documento QA',?)",c,em).lastInsertRowid);
+ exec(db,"insert into roteamento(em,pessoa_id,conversa_id,resposta_id,quick_win_id,modo,complexidade,resultado,versao,qualidade) values(?,?,?,?,?,'auto','baixa','respondido','teste','{\"status\":\"aprovado\"}')",em,p,c,m,qa.id);
+ const base=`/api/quick-wins/${qa.id}/painel`,d=(await a.post(`${base}/preparar`,{mensagem:m})).dados;
+ assert.ok(d.id,JSON.stringify(d));
+ assert.equal((await a.post(`${base}/registros/${d.id}`,{dados:[{fornecedor:'Fornecedor Alfa',documento:'Documento QA',situacao:'conferido',pendencia:''}],versao:d.versao,escopo:'equipe',confirmado:true})).status,200);
+ assert.equal((await a.get(base)).dados.total,1);assert.equal((await b.get(base)).dados.total,0);assert.equal((await b.post(`${base}/preparar`,{mensagem:m})).status,404);assert.equal(um(S.P.tenant(B.id).db,'select count(*) n from qw_painel_registros').n,0);
+});

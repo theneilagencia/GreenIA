@@ -13,9 +13,34 @@ import { excluirQw } from '/quickwin.js';
 import { validarAlteracoes } from '/qw-refinamento.js';
 import { htmlSistemas, htmlPessoasLimites, guardarPreparacao, ligarPreparacao } from '/qw-preparacao.js';
 import { montarFontes } from '/fontes.js';
+import { abrirOrientacaoPesquisa } from '/pesquisa-orientacao.js';
 
 const $ = id => document.getElementById(id);
 let wizardAtual = null;
+// A comparação e o teste usam o mesmo diagnóstico atual da conversa, com a área exata.
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-resolver-pesquisa]');
+  const contexto = b?.closest('[data-conversa-pesquisa]');
+  if (!contexto || b.disabled) return;
+  const conversa = Number(contexto.dataset.conversaPesquisa);
+  if (!Number.isSafeInteger(conversa) || conversa < 1) return;
+  b.disabled = true;
+  async function conferir() {
+    const atual = (await api(`/api/conversas/${conversa}`)).conversa.pesquisa;
+    if (!b.isConnected) return;
+    if (!atual?.bloqueada) { toast('A pesquisa não está bloqueada agora. Execute novamente para conferir o resultado; os testes anteriores não mudam.'); return; }
+    const d = abrirOrientacaoPesquisa(atual, conversa, b);
+    $('conferir-pesquisa').onclick = async () => {
+      const botao = $('conferir-pesquisa'), status = $('pesquisa-verificacao');
+      botao.disabled = true; status.textContent = 'Conferindo as regras atuais…';
+      try { d.fechar(); await conferir(); if ($('pesquisa-verificacao')) $('pesquisa-verificacao').textContent = 'A pesquisa continua bloqueada. Revise os pontos indicados; nenhuma proteção foi alterada.'; }
+      catch (e) { toast(`Não foi possível conferir agora. ${e.message} O resultado foi mantido.`); }
+    };
+  }
+  try { await conferir(); }
+  catch (e) { toast(`Não foi possível conferir a pesquisa. ${e.message} O resultado foi mantido.`); }
+  finally { if (b.isConnected) b.disabled = false; }
+});
 function pendente(W) {
   if (!W || !document.querySelector('.qw-wizard')) return false;
   guardarEtapa(W);
@@ -856,8 +881,8 @@ function htmlComparacao(W) {
   if (!antes) return '';
   return `<section class="editor bloco-extra" aria-label="Comparação dos testes"><h3>Comparar resultados</h3>
     <p class="dica">O teste anterior permanece no histórico. Compare conteúdo e conferência; a comparação não garante melhoria.</p>
-    <div class="grade-2 refinamento-comparacao"><section><h4>Antes do refinamento</h4><details><summary>Conferência anterior</summary>${painelQualidade(antes.qualidade, { id: 'comparacao-antes' })}</details><div class="resultado-corpo">${renderizar(antes.saida || '').html}</div>${antes.conversa ? `<a class="link-sutil" href="#/c/${antes.conversa}">Abrir teste anterior</a>` : ''}</section>
-    ${agora && agora.conversa !== antes.conversa && !agora.rodando && !agora.erro ? `<section><h4>Depois do refinamento</h4>${painelQualidade(agora.qualidade, { id: 'comparacao-depois' })}<div class="resultado-corpo">${renderizar(agora.saida || '').html}</div>${agora.conversa ? `<a class="link-sutil" href="#/c/${agora.conversa}">Abrir novo teste</a>` : ''}</section>` : '<section><h4>Depois do refinamento</h4><p>Execute novamente para ver o novo resultado.</p></section>'}</div>
+    <div class="grade-2 refinamento-comparacao"><section data-conversa-pesquisa="${Number(antes.conversa)}"><h4>Antes do refinamento</h4><details><summary>Conferência anterior</summary>${painelQualidade(antes.qualidade, { id: 'comparacao-antes', resolverPesquisa: true })}</details><div class="resultado-corpo">${renderizar(antes.saida || '').html}</div>${antes.conversa ? `<a class="link-sutil" href="#/c/${antes.conversa}">Abrir teste anterior</a>` : ''}</section>
+    ${agora && agora.conversa !== antes.conversa && !agora.rodando && !agora.erro ? `<section data-conversa-pesquisa="${Number(agora.conversa)}"><h4>Depois do refinamento</h4>${painelQualidade(agora.qualidade, { id: 'comparacao-depois', resolverPesquisa: true })}<div class="resultado-corpo">${renderizar(agora.saida || '').html}</div>${agora.conversa ? `<a class="link-sutil" href="#/c/${agora.conversa}">Abrir novo teste</a>` : ''}</section>` : '<section><h4>Depois do refinamento</h4><p>Execute novamente para ver o novo resultado.</p></section>'}</div>
     ${!W.materialComparacao ? '<p class="msg-erro">O material não foi guardado. Abra um novo teste e envie o material novamente para comparar.</p>' : ''}${W.historicoTestes.length ? `<details><summary>Histórico de testes desta sessão</summary><ol>${W.historicoTestes.map((t, i) => `<li><a class="link-sutil" href="#/c/${t.conversa}">Teste ${i + 1}</a></li>`).join('')}</ol></details>` : ''}
     <div class="linha-botoes"><button type="button" class="btn btn-linha" data-repetir-teste ${agora?.rodando || !W.materialComparacao ? 'disabled' : ''}>Executar novamente o mesmo teste</button>
     ${agora?.conversa && agora.conversa !== antes.conversa && !agora.rodando && !agora.erro && agora.qualidade?.status !== 'pergunta' ? `<a class="btn btn-verde" href="#/qw/${W.id}/publicar">Revisar e publicar</a>` : ''}</div></section>`;
@@ -875,9 +900,9 @@ function htmlResultado(W) {
   const responder = q?.status === 'pergunta' ? `<div class="responder-continuar"><label class="legenda" for="responder-texto">Sua resposta</label>
       <textarea class="campo-amplo menor" id="responder-texto" placeholder="Responda à pergunta acima para a GreenIA continuar"></textarea>
       <div><button type="button" class="btn btn-verde" data-responder>Responder e continuar</button></div></div>` : '';
-  return `<section class="resultado" aria-label="Resultado do teste">
+  return `<section class="resultado" aria-label="Resultado do teste" data-conversa-pesquisa="${Number(r.conversa)}">
     <div class="resultado-cabeca"><b>${q?.status === 'pergunta' ? 'A GreenIA precisa de uma informação' : 'Resultado do teste'}</b>${r.conversa ? `<a class="link-sutil" href="#/c/${r.conversa}">Continuar como conversa</a>` : ''}</div>
-    ${revisar ? `${painelQualidade(q, { id: 'teste' })}<div style="margin-top:12px">${corpo}</div>` : `${corpo}${painelQualidade(q, { id: 'teste' })}${painelIntegracoes(q?.integracoes)}`}${responder}</section>`;
+    ${revisar ? `${painelQualidade(q, { id: 'teste', resolverPesquisa: true })}<div style="margin-top:12px">${corpo}</div>` : `${corpo}${painelQualidade(q, { id: 'teste', resolverPesquisa: true })}${painelIntegracoes(q?.integracoes)}`}${responder}</section>`;
 }
 
 // Executa o teste aqui mesmo: conversa de teste (fora da medição), execução explícita, etapas e conferência.

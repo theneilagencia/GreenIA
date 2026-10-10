@@ -19,6 +19,7 @@ test('nome e descrição automáticos', () => {
   assert.equal(C.nomeAutomatico('Analise as propostas comerciais que recebo'), 'Analisar propostas comerciais');
   assert.equal(C.nomeAutomatico('Quero que a IA resuma os relatórios de visita'), 'Resumir relatórios de visita');
   assert.equal(C.nomeAutomatico('Conferindo notas de entrega'), 'Conferir notas de entrega');
+  assert.equal(C.nomeAutomatico('Preparar um artigo sobre o assunto informado pela pessoa.'), 'Preparar artigo sobre o assunto informado');
   assert.equal(C.nomeAutomatico('', 'criar_relatorio'), 'Criar relatório');
   assert.ok(C.nomeAutomatico('Organize '.repeat(3) + 'a '.repeat(80)).length <= 60);
   assert.equal(C.descricaoAutomatica('Analisar propostas comerciais', ['identificar_riscos']), 'Analisa propostas comerciais e destaca riscos e pontos de atenção, sem inventar informações.');

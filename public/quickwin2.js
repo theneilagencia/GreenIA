@@ -113,7 +113,10 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
     guardarEtapa(W);
     if (!W.descricao) return erroEtapa('Descreva o objetivo antes de salvar.');
     e.target.disabled = true;
-    try { await salvar(W); } catch (err) { erroEtapa(err.message); }
+    try {
+      await salvar(W);
+      if (wizardAtual === W && W.passo === 1) await desenhar(W, { foco: false });
+    } catch (err) { erroEtapa(err.message); }
     finally { if (e.target.isConnected) e.target.disabled = false; }
   };
   const marcarEdicao = () => { W.edicaoPendente = true; W.revisaoEdicao = (W.revisaoEdicao || 0) + 1; estadoRascunho(W, 'Alterações ainda não salvas · continue ou salve o rascunho'); };
@@ -144,7 +147,7 @@ const rotuloEnt = (W, e) => `${e.canal ? `${W.catalogo?.canais.find(c => c.id ==
 async function interpretarPlano(W) {
   const proc = W.modoProc === 'explicar' ? W.processo.trim() : '';
   const chave = chavePlano(W.descricao, proc);
-  if (!W.descricao || (W.plano && W.planoDe === chave)) return W.plano;
+  if (!W.descricao || (W.plano?.operacao && W.planoDe === chave)) return W.plano;
   let r;
   try { r = await api('/api/quick-wins/assistente/interpretar', { metodo: 'POST', corpo: { descricao: W.descricao, processo: proc, ...(W.id ? { quick_win_id: W.id } : {}) } }); }
   catch (e) { if (e.status === 422) throw e; r = { fonte: 'heuristica', operacao: null, lacunas: [] }; }
@@ -353,6 +356,14 @@ async function salvar(W) {
 }
 async function salvarAgora(W) {
   const revisao = W.revisaoEdicao || 0;
+  // Ao salvar a orientação do processo, os recursos e etapas precisam refletir esse texto,
+  // inclusive quando a pessoa salva sem avançar para a próxima tela.
+  if (W.passo === 1 && !W.operacaoPessoa && !(W.legado && !W.planoAceito)) {
+    estadoRascunho(W, 'Organizando sua orientação antes de salvar…');
+    await interpretarPlano(W);
+    if (wizardAtual !== W) return;
+    if (!W.plano?.operacao) throw new Error('Não foi possível organizar esta orientação. Tente salvar novamente; o texto continua nesta tela.');
+  }
   const a = respostas(W), ass = assinatura(a);
   if (W.id && W.salvo === ass) { W.edicaoPendente = false; estadoRascunho(W, 'Rascunho salvo'); return; }
   estadoRascunho(W, 'Salvando rascunho…');

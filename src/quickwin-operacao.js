@@ -104,6 +104,8 @@ const PESQUISA_COMO_MATERIAL = new RegExp([
 ].join('|'));
 export function pedePesquisaWeb(texto) {
   const t = norm(texto);
+  // Atualidade é um requisito de pesquisa, mesmo quando a pessoa não sabe pedir uma ferramenta.
+  if (/\b(?:temas|pautas|noticias)\s+(?:atuais|recentes)\b/.test(t)) return true;
   if (!tem(t, FERRAMENTAS.pesquisa_web.palavras)) return false;
   if (!PESQUISA_COMO_MATERIAL.test(t)) return true;
   // Material de pesquisa citado: só vale se outra palavra (não "pesquisa") também pedir a internet.

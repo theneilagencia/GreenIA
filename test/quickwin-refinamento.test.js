@@ -10,7 +10,7 @@ import { sugerirRefinamento, validarAlteracoes } from '../public/qw-refinamento.
 let S, OR, admin, usuario, q, conv;
 let resposta = JSON.stringify({ sugestoes: [{ campo: 'regras', depois: 'Começar pela recomendação.', motivo: 'O resultado testado não apresentou recomendação.' }] });
 before(async () => {
-  OR = await openRouterFalso({ responder: b => String(b.messages[0].content).includes('Você refina Quick Wins') ? resposta : 'Resumo do material enviado.' });
+  OR = await openRouterFalso({ responder: b => String(b.messages[0].content).includes('Você refina Quick Wins') ? (typeof resposta === 'function' ? resposta(b) : resposta) : 'Resumo do material enviado.' });
   S = await subir({ ia: OR.ia });
   salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
   admin = await S.cliente().entrar('admin@exemplo.com.br');
@@ -60,6 +60,27 @@ test('sigilo impede enviar material e resultado para análise adicional', async 
   assert.equal(r.dados.fonte, 'indisponivel');
   assert.equal(OR.chamadas.length, n);
   exec(S.app.db, 'update conversas set sigilosa = 0 where id = ?', conv.id);
+});
+
+test('recupera proposta que eliminou a escolha e explica a validação na segunda tentativa', async () => {
+  const antes = um(S.app.db, 'select * from quick_wins where id = ?', q.id);
+  const n = OR.chamadas.length;
+  let tentativas = 0;
+  const original = resposta;
+  try {
+    resposta = b => {
+      tentativas++;
+      if (tentativas === 1) return JSON.stringify({ sugestoes: [{ campo: 'processo', depois: 'Sugira três temas e escreva um artigo.', motivo: 'Organizar a entrega.' }] });
+      assert.match(b.messages[0].content, /decisao_humana_ausente/);
+      assert.match(b.messages[0].content, /Espere minha escolha antes de produzir o resultado final/);
+      return JSON.stringify({ sugestoes: [{ campo: 'processo', depois: 'Sugira três temas. Espere minha escolha antes de produzir o resultado final. Escreva até 200 palavras com um exemplo em três passos.', motivo: 'Preserva a escolha e reduz o texto genérico.' }] });
+    };
+    const r = await propor({ feedback: 'Primeiro sugira três temas e aguarde minha escolha antes de escrever até 200 palavras.' });
+    assert.equal(r.dados.fonte, 'ia');
+    assert.equal(OR.chamadas.length - n, 2);
+    assert.match(r.dados.sugestoes[0].depois, /200 palavras/);
+    assert.deepEqual(um(S.app.db, 'select * from quick_wins where id = ?', q.id), antes);
+  } finally { resposta = original; }
 });
 
 test('reabrir recupera resultado, material e histórico próprio sem refazer o editor', async () => {

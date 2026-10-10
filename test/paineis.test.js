@@ -5,8 +5,15 @@ import { exec, um, todos } from '../src/db.js';
 import { salvarConfig } from '../src/config.js';
 import { MODELOS_PAINEL } from '../src/paineis-modelos.js';
 import { extrairSugestao, validarLinhas } from '../src/paineis.js';
+import { apagarVencidas } from '../src/conversas.js';
 const LINHA={fornecedor:'Fornecedor Exemplo',documento:'Certidão',situacao:'pendente',pendencia:'Documento vencido'};
 const TEXTO='Fornecedor Exemplo | Certidão | pendente | Documento vencido';
+// Barreiras determinísticas: mudanças acontecem enquanto a extração está em andamento.
+function iaSuspensa(linha=LINHA) {
+ let iniciou,liberar;
+ const inicio=new Promise(r=>{iniciou=r;}),espera=new Promise(r=>{liberar=r;});
+ return {inicio,liberar,ia:{async *enviar(){iniciou();await espera;yield {tipo:'texto',texto:JSON.stringify({itens:[Object.fromEntries(Object.entries(linha).map(([k,v])=>[k,{valor:v,trecho:v}]))]})};yield {tipo:'fim',custo:0.001,modelo:'mistralai/mistral-small'};}}};
+}
 function seed(app,q,p,{teste=0,sigilosa=0,status='parcial',texto=TEXTO}={}) {
  const em=app.agora().toISOString();
  const c=Number(exec(app.db,'insert into conversas(pessoa_id,quick_win_id,teste,sigilosa,criado_em,atualizado_em) values(?,?,?,?,?,?)',p,q,teste,sigilosa,em,em).lastInsertRowid);
@@ -43,3 +50,55 @@ test('paginação conserva todos os indicadores e permite alcançar registros an
 test('sigilo não dispara chamada de extração e compartilhamento segue bloqueado',async t=>{let chamadas=0;const s=await setup(t,{ia:{async *enviar(){chamadas++;}}});exec(s.S.app.db,'update conversas set sigilosa=1 where id=?',s.f.c);const d=await s.preparar();assert.equal(chamadas,0);assert.equal(d.motivo,'sigilo');assert.equal(d.podeCompartilhar,false);assert.equal((await s.confirmar(d,{escopo:'equipe'})).status,403);});
 test('falha de IA mantém caminho manual, sem incluir dados no histórico',async t=>{const s=await setup(t,{ia:{async *enviar(){throw new Error('QA indisponível');}}});await s.a.put('/api/admin/modelos/mistralai%2Fmistral-small',{liberado:true,perfil:'rapido'});const d=await s.preparar();assert.equal(d.motivo,'falha_preparacao');assert.equal(d.dados[0].fornecedor,'');assert.equal((await s.a.get(s.b)).dados.total,0);assert.equal((await s.confirmar(d)).status,200);});
 test('datas mensais respeitam Brasília, revisões têm motivo e não expõem dados a terceiros',async t=>{const s=await setup(t);s.S.app.agora=()=>new Date('2026-11-01T01:30:00Z');await s.a.entrar('admin@exemplo.com.br');await s.u.entrar('usuario@exemplo.com.br');const d=await s.preparar();await s.confirmar(d);assert.equal((await s.a.get(s.b)).dados.meses[0].mes,'2026-10');const r=(await s.a.get(`${s.b}/registros/${d.id}`)).dados;assert.equal(r.revisoes.length,1);assert.equal(r.revisoes[0].motivo,'Conferência inicial');assert.equal((await s.u.get(`${s.b}/registros/${d.id}`)).status,404);});
+
+test('QA profundo: excluir origem durante extração não cria órfãos e libera preparação em andamento',async t=>{
+ const gate=iaSuspensa(),s=await setup(t,{ia:gate.ia});await s.a.put('/api/admin/modelos/mistralai%2Fmistral-small',{liberado:true,perfil:'rapido'});
+ const pedido=s.a.post(`${s.b}/preparar`,{mensagem:s.f.m});await gate.inicio;
+ await s.a.del(`/api/conversas/${s.f.c}`);gate.liberar();const r=await pedido;
+ assert.equal(r.status,404);assert.equal(um(s.S.app.db,'select count(*) n from qw_painel_registros').n,0);
+ assert.equal(s.S.app._painelPreparando.size,0);assert.equal((await s.a.get(s.b)).dados.total,0);
+});
+test('QA profundo: política de armazenamento alterada durante IA é aplicada antes da persistência',async t=>{
+ const linha={...LINHA,pendencia:'CPF 529.982.247-25'},gate=iaSuspensa(linha),s=await setup(t,{ia:gate.ia});
+ exec(s.S.app.db,'update mensagens set texto=? where id=?',`${TEXTO} | ${linha.pendencia}`,s.f.m);
+ await s.a.put('/api/admin/modelos/mistralai%2Fmistral-small',{liberado:true,perfil:'rapido'});
+ const pedido=s.a.post(`${s.b}/preparar`,{mensagem:s.f.m});await gate.inicio;salvarConfig(s.S.app.db,{naoArmazenar:['cpf']});gate.liberar();
+ assert.equal((await pedido).status,403);assert.equal(um(s.S.app.db,'select count(*) n from qw_painel_registros').n,0);assert.equal(s.S.app._painelPreparando.size,0);
+});
+test('QA profundo: correções concorrentes aceitam uma versão e preservam indicador e trilha coerentes',async t=>{
+ const s=await setup(t),d=await s.preparar();await s.confirmar(d);const atual=await s.preparar();
+ const respostas=await Promise.all([s.confirmar(atual,{motivo:'Primeira alteração',dados:[{...LINHA,fornecedor:'Primeiro'}]}),s.confirmar(atual,{motivo:'Segunda alteração',dados:[{...LINHA,fornecedor:'Segundo'}]})]);
+ assert.deepEqual(respostas.map(r=>r.status).sort(),[200,409]);const painel=(await s.a.get(s.b)).dados;
+ assert.equal(painel.total,1);assert.equal(painel.totalExecucoes,1);assert.equal(painel.registros[0].versao,3);assert.equal(todos(s.S.app.db,'select * from qw_painel_revisoes').length,2);
+});
+test('QA profundo: múltiplos itens, repetição do caso em outra conversa e busca não equivalem a deduplicação de negócio',async t=>{
+ const s=await setup(t),d=await s.preparar();await s.confirmar(d,{dados:[LINHA,{...LINHA,documento:'Contrato',situacao:'conferido',pendencia:''}]});
+ const f=seed(s.S.app,s.q.id,s.a.pessoa.id),out=await s.a.post(`${s.b}/preparar`,{mensagem:f.m});await s.confirmar(out.dados);
+ const p=(await s.a.get(s.b)).dados;assert.equal(p.total,3);assert.equal(p.totalExecucoes,2);assert.equal(p.situacoes.pendente,2);assert.equal(p.situacoes.conferido,1);
+ assert.equal((await s.a.get(`${s.b}?busca=sem-correspondencia`)).dados.total,3);
+});
+test('QA profundo: ações validam calendário real, aceitam prazo vazio e não aceitam estados de fornecedores',async t=>{
+ const s=await setup(t,{modelo:'acoes'}),d=await s.preparar(),linha={acao:'Revisar contrato',responsavel:'Equipe',prazo:'2028-02-29',situacao:'pendente'};
+ for(const prazo of ['2026-02-29','2026-04-31','09/10/2026'])assert.equal((await s.confirmar(d,{dados:[{...linha,prazo}]})).status,400);
+ assert.equal((await s.confirmar(d,{dados:[{...linha,situacao:'conferido'}]})).status,400);
+ assert.equal((await s.confirmar(d,{dados:[linha,{...linha,acao:'Concluir revisão',prazo:'',situacao:'concluida'}]})).status,200);
+ const p=(await s.a.get(s.b)).dados;assert.equal(p.total,2);assert.equal(p.situacoes.concluida,1);
+});
+test('QA profundo: sigilo do Quick Win após compartilhamento recolhe acesso sem apagar registro pessoal',async t=>{
+ const s=await setup(t),d=await s.preparar();await s.confirmar(d,{escopo:'equipe'});assert.equal((await s.u.get(s.b)).dados.total,1);
+ exec(s.S.app.db,'update quick_wins set sigiloso=1 where id=?',s.q.id);
+ const r=await s.u.get(s.b);assert.ok(r.status===404||r.status===403||r.status===200&&r.dados.total===0);
+ assert.doesNotMatch(JSON.stringify(r.dados),/Fornecedor Exemplo|Documento vencido/);assert.equal((await s.a.get(s.b)).dados.total,1);
+});
+test('QA profundo: leitura repetida de indicadores não chama IA nem altera custo, versões ou dados',async t=>{
+ const s=await setup(t),d=await s.preparar();await s.confirmar(d);const antes=todos(s.S.app.db,'select * from uso'),registro=um(s.S.app.db,'select * from qw_painel_registros');
+ await Promise.all(Array.from({length:12},()=>s.a.get(s.b)));
+ assert.deepEqual(todos(s.S.app.db,'select * from uso'),antes);assert.deepEqual(um(s.S.app.db,'select * from qw_painel_registros'),registro);
+});
+test('QA profundo: expiração real da retenção elimina histórico e revisões e recalcula indicadores',async t=>{
+ const s=await setup(t),d=await s.preparar();await s.confirmar(d,{escopo:'equipe'});salvarConfig(s.S.app.db,{retencaoDias:1});
+ exec(s.S.app.db,'update conversas set atualizado_em=? where id=?',new Date(s.S.app.agora().getTime()-2*864e5).toISOString(),s.f.c);
+ assert.equal(apagarVencidas(s.S.app),1);assert.equal((await s.a.get(s.b)).dados.total,0);assert.equal((await s.u.get(s.b)).dados.total,0);
+ assert.equal(um(s.S.app.db,'select count(*) n from qw_painel_registros').n,0);assert.equal(um(s.S.app.db,'select count(*) n from qw_painel_revisoes').n,0);
+ assert.equal((await s.a.get(`${s.b}/registros/${d.id}`)).status,404);
+});

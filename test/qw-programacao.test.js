@@ -90,7 +90,7 @@ test('integração programada aguarda aprovação e retoma uma vez com as mesmas
  const ap=Object.values(estado.passos).find(p=>p.aprovacao).aprovacao;const raw=um(app.db,'select resumo from integration_approvals where id=?',ap);exec(app.db,'update integration_approvals set resumo=? where id=?',JSON.stringify({...JSON.parse(raw.resumo),expira_em:'2000-01-01T00:00:00.000Z'}),ap);await rodadaProgramadas(app);assert.equal(um(app.db,'select status from qw_programadas_execucoes where id=?',e2.id).status,'bloqueada');assert.equal(um(app.db,'select ativa from qw_programacoes where id=?',s2.id).ativa,0);assert.equal(API.estado.faturas.size,antes+1);
 });
 test('perda de permissão granular e capacidade do plano impedem execução multiempresa',async t=>{
- const {subirPlataforma}=await import('./ajuda-plataforma.js');const S=await subirPlataforma();t.after(()=>S.fechar());const ops=await S.navegador().entrarConsole('ops@theneil.com.br');const plano=(await ops.get('/api/plataforma/planos')).dados.planos.find(p=>p.name.includes('Company'));const c=(await ops.post('/api/plataforma/empresas',{name:'QA programados',slug:'qa-programados',plan_id:plano.id,admin_email:'ana@qa.test',status:'ativa'})).dados;
+ const {subirPlataforma}=await import('./ajuda-plataforma.js');const S=await subirPlataforma({admins:['ops@operadora.test']});t.after(()=>S.fechar());const ops=await S.navegador().entrarConsole('ops@operadora.test');const plano=(await ops.get('/api/plataforma/planos')).dados.planos.find(p=>p.name.includes('Company'));const c=(await ops.post('/api/plataforma/empresas',{name:'QA programados',slug:'qa-programados',plan_id:plano.id,admin_email:'ana@qa.test',status:'ativa'})).dados;
  const ana=S.navegador();await ana.get('/qa-programados');await ana.entrarEmpresa('ana@qa.test');const P=S.P||S.app;assert.ok(P, Object.keys(S).join(','));const tenant=P.tenants.get(c.id);assert.ok(tenant);const pessoa=(await ana.get('/api/eu')).dados.pessoa;assert.ok(tenant.pessoaParaProgramacao(pessoa.id));exec(P.db,"update company_users set status='inativo' where company_id=?",c.id);assert.equal(tenant.pessoaParaProgramacao(pessoa.id),null);exec(P.db,"update company_users set status='ativo' where company_id=?",c.id);exec(P.db,"update plans set features='{}' where id=?",plano.id);assert.equal(tenant.pessoaParaProgramacao(pessoa.id),null);
 });
 
@@ -131,4 +131,14 @@ test('contexto usa a versão publicada, não inventa fontes e não é exposto ao
  await S.a.post('/api/admin/pessoas',{email:'usuario@exemplo.com.br',nome:'Usuário',areas:[]});const u=await S.cliente().entrar('usuario@exemplo.com.br');
  assert.equal((await u.get(`/api/quick-wins/${S.q.id}/programacoes`)).dados.contexto,null);
  assert.equal((await u.post(`/api/quick-wins/${S.q.id}/programacoes/previa`,{agenda:S.corpo.agenda})).status,403);
+});
+
+test('QA profundo: execução programada gera resultado e não confirma automaticamente histórico de negócio',async t=>{
+ const S=await fixture(t);assert.equal((await S.a.post(`/api/quick-wins/${S.q.id}/painel`,{modelo:'fornecedores'})).status,200);
+ const s=await S.criar();await S.ativar(s);await S.a.post(S.base(s)+'/executar',{});await rodadaProgramadas(S.app);
+ const e=um(S.app.db,'select * from qw_programadas_execucoes where programacao_id=?',s.id);assert.ok(e.conversa_id,JSON.stringify(e));
+ assert.ok(um(S.app.db,"select 1 from mensagens where conversa_id=? and papel='assistant'",e.conversa_id));
+ assert.equal(um(S.app.db,'select count(*) n from qw_painel_registros').n,0);
+ const p=await S.a.get(`/api/quick-wins/${S.q.id}/painel`);assert.equal(p.status,200);assert.equal(p.dados.total,0);assert.equal(p.dados.totalExecucoes,0);
+ await rodadaProgramadas(S.app);assert.equal(um(S.app.db,'select count(*) n from qw_programadas_execucoes').n,1);assert.equal(um(S.app.db,'select count(*) n from qw_painel_registros').n,0);
 });

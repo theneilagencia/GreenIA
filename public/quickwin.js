@@ -30,6 +30,11 @@ const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-dig
 
 export async function rotaQuickWin(hash) {
   let m;
+  if (hash === '#/quick-wins/processos') return (await import('/paineis.js')).escolherProcesso();
+  if ((m = /^#\/qw\/(\d+)\/acompanhamento\/preparar$/.exec(hash))) return (await import('/paineis.js')).escolherProcesso(Number(m[1]));
+  if ((m = /^#\/qw\/(\d+)\/acompanhamento\/registro\/(\d+)$/.exec(hash))) return (await import('/paineis.js')).conferirRegistro(Number(m[1]), { registro: Number(m[2]) });
+  if ((m = /^#\/qw\/(\d+)\/acompanhamento\/resultado\/(\d+)$/.exec(hash))) return (await import('/paineis.js')).conferirRegistro(Number(m[1]), { mensagem: Number(m[2]) });
+  if ((m = /^#\/qw\/(\d+)\/acompanhamento(?:\?pagina=(\d+))?$/.exec(hash))) return (await import('/paineis.js')).painelNegocio(Number(m[1]));
   if (hash === '#/quick-wins/programados') return (await import('/qw-programacao.js')).listaProgramadas();
   if ((m = /^#\/qw\/(\d+)\/programacoes$/.exec(hash))) return (await import('/qw-programacao.js')).listaProgramadas(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/programar(?:\/([\w-]+))?$/.exec(hash))) return (await import('/qw-programacao.js')).formularioProgramacao(Number(m[1]), m[2]);
@@ -60,14 +65,14 @@ async function listaQuickWins() {
   const itens = detalhes.map(q => ({ ...q, estado: estadoQw(q) })).sort((a, b) => ordem[a.estado.id] - ordem[b.estado.id] || a.nome.localeCompare(b.nome, 'pt-BR'));
   const ativos = itens.filter(q => q.estado.id !== 'arquivado'), arquivados = itens.filter(q => q.estado.id === 'arquivado');
   const prontos = ativos.filter(q => q.estado.id === 'publicado'), preparo = ativos.filter(q => q.estado.id !== 'publicado');
-  const cta = E.podeCriarQw ? `<a class="btn btn-verde" href="#/qw/nova">${ICONE.mais} Criar Quick Win</a>` : '';
+  const cta = E.podeCriarQw ? `<a class="btn btn-verde" href="#/qw/nova">${ICONE.mais} Criar Quick Win</a><a class="btn btn-linha" href="#/quick-wins/processos">Escolher processo com acompanhamento</a>` : '';
   const cont = st => (port?.quickWins || []).filter(q => q.status === st).length;
   const bloco = (titulo, lista, dica = '') => (lista.length ? `<section class="qw-bloco" aria-labelledby="t-${titulo.length}">
       <div class="qw-lista-cabeca"><h3 id="t-${titulo.length}">${esc(titulo)}</h3>${dica ? `<span class="dica">${esc(dica)}</span>` : ''}</div>
       <ul class="qw-lista">${lista.map(itemQw).join('')}</ul></section>` : '');
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg larga">
-      ${cabecalhoPg({ titulo: 'Quick Wins', descricao: 'Trabalhos que sua equipe pode executar com a IA seguindo regras definidas.', lado: `<a class="btn btn-linha" href="#/quick-wins/programados">Programados</a>${ativos.length ? cta : ''}` })}
+      ${cabecalhoPg({ titulo: 'Quick Wins', descricao: 'Trabalhos que sua equipe pode executar com a IA seguindo regras definidas.', lado: `<a class="btn btn-linha" href="#/quick-wins/programados">Programados</a>${cta}` })}
       <section class="qw-inicio-guiado" aria-label="Por onde começar com Quick Wins"><div><h2>Trabalhos preparados pela empresa</h2><p>Escolha um trabalho, envie os materiais e acompanhe o resultado.</p></div><div class="qw-caminhos"><button type="button" data-qw-ir="qw-prontos"><b>Usar um trabalho pronto</b><span>Veja os disponíveis abaixo.</span></button>${E.podeCriarQw ? '<a href="#/qw/nova"><b>Criar um trabalho guiado</b><span>Defina o objetivo, os sistemas e quem acompanha.</span></a>' : ''}${preparo.length ? '<button type="button" data-qw-ir="qw-preparacoes"><b>Continuar uma preparação</b><span>Retome os rascunhos e confira o que falta.</span></button>' : ''}</div></section>
       ${!ativos.length ? estadoVazio({
         titulo: E.podeCriarQw ? 'Crie um trabalho que sua equipe poderá repetir com segurança.' : 'Ainda não há Quick Wins disponíveis para você.',
@@ -210,6 +215,7 @@ async function paginaQuickWin(id) {
         lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-texto qw-acao-secundaria" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw, { naPagina: true }).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
       ${qw.podeEditar ? `<form class="qw-renomear" id="qw-nome-form" hidden><label class="legenda" for="qw-nome">Nome do Quick Win</label><input class="entrada" id="qw-nome" maxlength="80" required value="${esc(qw.nome)}" aria-describedby="qw-nome-ajuda"><p class="dica" id="qw-nome-ajuda">O novo nome aparece no catálogo para quem já tem acesso. As regras, os agendamentos e o histórico de versões continuam os mesmos.</p><div class="linha-botoes"><button type="submit" class="btn btn-verde" id="qw-nome-salvar">Salvar nome</button><button type="button" class="btn btn-texto" id="qw-nome-cancelar">Cancelar</button></div><p id="qw-nome-erro" role="alert"></p></form>` : ''}
       ${aviso2}
+      ${qw.painel ? `<section class="faixa-aviso info"><b>Este processo tem acompanhamento de resultados</b><p>Confira os dados de cada execução e acompanhe os registros confirmados.</p><a class="btn btn-linha" href="#/qw/${id}/acompanhamento">Acompanhar resultados</a></section>` : qw.podeEditar ? `<details><summary>Acompanhar dados de negócio</summary><p>Escolha um processo com campos e indicadores prontos.</p><a class="btn btn-linha" href="#/qw/${id}/acompanhamento/preparar">Preparar acompanhamento</a></details>` : ''}
       <div class="secoes">
         ${secao('O que ele faz', `${esc(qw.para_que_serve || '')}${qw.v2 && qw.podeEditar && qw.assistente?.descricao ? `<details><summary>Ver a orientação completa</summary><p>${esc(qw.assistente.descricao)}</p></details>` : !qw.v2 && qw.objetivo ? `<span class="dica">Objetivo: ${esc(qw.objetivo)}</span>` : ''}`)}
         ${!qw.v2 && qw.problema ? secao('Problema que resolve', esc(qw.problema)) : ''}

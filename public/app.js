@@ -305,7 +305,7 @@ async function rota() {
     else if (h === '#/revisao-acessos') await (await importarTela('/acompanhamento.js')).vistaRevisaoAcessos();
     else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
-    else if (h === '#/quick-wins' || h === '#/quick-wins/programados' || h.startsWith('#/qw/')) await (await importarTela('/quickwin.js')).rotaQuickWin(h);
+    else if (h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/')) await (await importarTela('/quickwin.js')).rotaQuickWin(h);
     else if ((h === '#/integracoes' || h.startsWith('#/integracoes?') || h.startsWith('#/integracoes/')) && E.integracoes) await (await importarTela('/integracoes.js')).rotaIntegracoes(h);
     else if (h === '#/visao-geral' && pode('usage.read')) await (await importarTela('/visao.js')).vistaGeral();
     else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await importarTela('/empresa.js')).rotaEmpresa(m[1]);

@@ -1,3 +1,4 @@
+import { MODELOS_PAINEL } from './paineis-modelos.js';
 // Quick wins: espaços de trabalho de uma tarefa repetitiva, configurados pelo
 // responsável da área (instruções, arquivos, bases, modelo, formato, dados) e
 // usados pelo time em conversas próprias, com feedback e medição.
@@ -66,6 +67,7 @@ function publico(db, pessoa, q) {
   const base = {
     id: q.id, nome: q.nome, cor: q.cor, icone: q.icone, para_que_serve: q.para_que_serve, status: q.status, formato: q.formato,
     sugestoes: json(q.sugestoes, []), modelo: q.modelo, pode_trocar: !!q.pode_trocar, sigiloso: !!q.sigiloso, toda_empresa: !!q.toda_empresa,
+    painel: um(db, 'select modelo,versao from qw_paineis where quick_win_id = ?', q.id) || null,
     areas, podeEditar: podeGerir(db, pessoa, q), problema: q.problema, objetivo: q.objetivo,
     responsavel: q.responsavel_id ? um(db, 'select id, nome, email from pessoas where id = ?', q.responsavel_id) || null : null,
   };
@@ -477,6 +479,7 @@ export function rotasQuickWins(app, r) {
   // para outra área). Duplicar copia instruções, arquivos e configuração, nunca conversas.
   r.post('/api/quick-wins', ({ pessoa, corpo }) => {
     if (!permissoesQw(app.db, pessoa).criar) throw erro(403, 'sem_permissao', 'Você não tem autorização para criar quick wins. Fale com o admin.');
+    if (corpo.painel_modelo && !Object.hasOwn(MODELOS_PAINEL, corpo.painel_modelo)) throw erro(400, 'painel_modelo', 'Escolha um processo da lista.');
     let base = {};
     let origem = null;
     if (corpo.duplicar_de) {
@@ -504,6 +507,7 @@ export function rotasQuickWins(app, r) {
         problema: corpo.problema || '', objetivo: corpo.objetivo || '', processo_atual: corpo.processo_atual || '', responsavel_id: corpo.responsavel_id || pessoa.id,
         ...(v2[ESPEC] ? { [ESPEC]: v2[ESPEC] } : {}) });
       gravar(app, novo, v, areas);
+      if (corpo.painel_modelo) exec(app.db, 'insert into qw_paineis(quick_win_id,modelo,versao,criado_por,criado_em) values(?,?,?,?,?)', novo, corpo.painel_modelo, MODELOS_PAINEL[corpo.painel_modelo].versao, pessoa.id, app.agora().toISOString());
       if (origem) {
         for (const a of todos(app.db, "select titulo, arquivo, sigiloso, texto, papel, tipo_fonte, url_cifrada, url_exibida, status, erro, hash, mime from documentos where quick_win_id = ? and coalesce(status, 'READY') = 'READY'", origem.id)) {
           const d = Number(exec(app.db, 'insert into documentos (titulo, arquivo, quick_win_id, sigiloso, texto, enviado_por, papel, tipo_fonte, url_cifrada, url_exibida, hash, mime) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', a.titulo, a.arquivo, novo, a.sigiloso, a.texto, pessoa.id, a.papel || 'KNOWLEDGE_BASE', a.tipo_fonte || 'file', a.url_cifrada, a.url_exibida, a.hash, a.mime).lastInsertRowid);

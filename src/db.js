@@ -1,3 +1,4 @@
+import { ESQUEMA_PAINEIS } from './paineis-modelos.js';
 import { ESQUEMA_PROGRAMACAO } from './qw-programacao-schema.js';
 import { fazerBackupLocal } from './backup.js';
 // Banco de uma empresa: um arquivo SQLite (WAL). Cada empresa tem o seu arquivo (instalação única
@@ -249,7 +250,7 @@ export function abrirBanco(arquivo = ':memory:') {
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000; pragma secure_delete = on;');
   const novo = !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'config'").get();
   // Uma cópia consistente antes das tabelas aditivas de governança ou programação.
-  if(!novo && arquivo !== ':memory:' && (!db.prepare("select 1 from sqlite_master where type = 'table' and name = 'conhecimento_governanca'").get() || !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'qw_programacoes'").get())) {
+  if(!novo && arquivo !== ':memory:' && (!db.prepare("select 1 from sqlite_master where type = 'table' and name = 'conhecimento_governanca'").get() || !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'qw_programacoes'").get() || !db.prepare("select 1 from sqlite_master where type = 'table' and name = 'qw_paineis'").get())) {
     const pastaBase=process.env.BACKUP_PASTA||join(basename(dirname(arquivo))==='empresas'?dirname(dirname(arquivo)):dirname(arquivo),'backups');
     const pasta=basename(dirname(arquivo))==='empresas'?join(pastaBase,basename(arquivo,'.sqlite')):pastaBase;
     try {const b=fazerBackupLocal(db,{pasta,manter:Number(process.env.BACKUP_MANTER||14)});console.log('backup pré-atualização concluído',b.tamanho);}catch(e){db.close();throw e;}
@@ -257,6 +258,7 @@ export function abrirBanco(arquivo = ':memory:') {
   db.exec(ESQUEMA);
   db.exec(ESQUEMA_GOV);
   transacao(db,()=>db.exec(ESQUEMA_PROGRAMACAO));
+  transacao(db,()=>db.exec(ESQUEMA_PAINEIS));
   // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.
   if (novo) db.exec(`pragma user_version = ${MIGRACOES.length}`);
   else migrar(db);

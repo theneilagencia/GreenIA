@@ -1,0 +1,20 @@
+{
+  "services_focused": {
+    "pass": 44,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 1139.671788,
+    "node": "22.23.3"
+  },
+  "browser_focused": {
+    "pass": 7,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 37280.3528,
+    "node": "22.23.3"
+  },
+  "new_services": 9,
+  "new_browser": 3,
+  "production_business_mutations": false,
+  "continuous_panel_sync": "not_implemented"
+}

@@ -1,0 +1,3164 @@
+{
+  "version": "d795447b0d04ca8a82100ea9dd6dbeda8d414507",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/acompanhamento",
+      "source": "src/acompanhamento.js",
+      "line": 18
+    },
+    {
+      "method": "GET",
+      "path": "/api/acompanhamento/integracoes/:id",
+      "source": "src/acompanhamento.js",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/api/acompanhamento/acessos",
+      "source": "src/acompanhamento.js",
+      "line": 74
+    },
+    {
+      "method": "POST",
+      "path": "/api/acompanhamento/acessos/:id/revisar",
+      "source": "src/acompanhamento.js",
+      "line": 81
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/config",
+      "source": "src/admin.js",
+      "line": 259
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/config",
+      "source": "src/admin.js",
+      "line": 267
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/smtp/teste",
+      "source": "src/admin.js",
+      "line": 280
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/uso",
+      "source": "src/admin.js",
+      "line": 293
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/eventos",
+      "source": "src/admin.js",
+      "line": 304
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/quick-wins",
+      "source": "src/admin.js",
+      "line": 319
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/quick-wins-permissoes",
+      "source": "src/admin.js",
+      "line": 329
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/quick-wins-permissoes",
+      "source": "src/admin.js",
+      "line": 331
+    },
+    {
+      "method": "POST",
+      "path": "/api/login/codigo",
+      "source": "src/auth.js",
+      "line": 75
+    },
+    {
+      "method": "POST",
+      "path": "/api/login/entrar",
+      "source": "src/auth.js",
+      "line": 93
+    },
+    {
+      "method": "POST",
+      "path": "/api/sair",
+      "source": "src/auth.js",
+      "line": 114
+    },
+    {
+      "method": "GET",
+      "path": "/api/bases/documentos",
+      "source": "src/bases.js",
+      "line": 59
+    },
+    {
+      "method": "GET",
+      "path": "/api/conhecimento",
+      "source": "src/bases.js",
+      "line": 67
+    },
+    {
+      "method": "GET",
+      "path": "/api/bases/resumo",
+      "source": "src/bases.js",
+      "line": 80
+    },
+    {
+      "method": "GET",
+      "path": "/api/bases/areas",
+      "source": "src/bases.js",
+      "line": 84
+    },
+    {
+      "method": "POST",
+      "path": "/api/bases/documentos",
+      "source": "src/bases.js",
+      "line": 93
+    },
+    {
+      "method": "PUT",
+      "path": "/api/bases/documentos/:id",
+      "source": "src/bases.js",
+      "line": 110
+    },
+    {
+      "method": "GET",
+      "path": "/api/bases/documentos/:id/governanca",
+      "source": "src/bases.js",
+      "line": 127
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bases/documentos/:id",
+      "source": "src/bases.js",
+      "line": 136
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversas/resumo-exclusao",
+      "source": "src/conversas.js",
+      "line": 212
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/conversas",
+      "source": "src/conversas.js",
+      "line": 216
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversas",
+      "source": "src/conversas.js",
+      "line": 227
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversas",
+      "source": "src/conversas.js",
+      "line": 261
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversas/:id",
+      "source": "src/conversas.js",
+      "line": 264
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversas/:id/mensagens/:mensagem/tabelas/:indice/csv",
+      "source": "src/conversas.js",
+      "line": 270
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversas/:id",
+      "source": "src/conversas.js",
+      "line": 280
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/conversas/:id",
+      "source": "src/conversas.js",
+      "line": 296
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversas/:id/mensagens",
+      "source": "src/conversas.js",
+      "line": 329
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integracoes",
+      "source": "src/integracoes/rotas.js",
+      "line": 45
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/descobrir",
+      "source": "src/integracoes/rotas.js",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes",
+      "source": "src/integracoes/rotas.js",
+      "line": 53
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integracoes/aprovacoes",
+      "source": "src/integracoes/rotas.js",
+      "line": 54
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/aprovacoes/:id/decidir",
+      "source": "src/integracoes/rotas.js",
+      "line": 55
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/webhooks",
+      "source": "src/integracoes/rotas.js",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/webhooks/:id/rotacionar",
+      "source": "src/integracoes/rotas.js",
+      "line": 60
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integracoes/:id",
+      "source": "src/integracoes/rotas.js",
+      "line": 61
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/integracoes/:id",
+      "source": "src/integracoes/rotas.js",
+      "line": 62
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/integracoes/:id/credencial",
+      "source": "src/integracoes/rotas.js",
+      "line": 64
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/integracoes/:id/capabilities",
+      "source": "src/integracoes/rotas.js",
+      "line": 65
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/:id/testar",
+      "source": "src/integracoes/rotas.js",
+      "line": 66
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/:id/publicar",
+      "source": "src/integracoes/rotas.js",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/:id/pausar",
+      "source": "src/integracoes/rotas.js",
+      "line": 68
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/:id/retomar",
+      "source": "src/integracoes/rotas.js",
+      "line": 69
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/:id/revogar",
+      "source": "src/integracoes/rotas.js",
+      "line": 70
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integracoes/:id/oauth/iniciar",
+      "source": "src/integracoes/rotas.js",
+      "line": 71
+    },
+    {
+      "method": "GET",
+      "path": "/api/integracoes/oauth/retorno",
+      "source": "src/integracoes/rotas.js",
+      "line": 74
+    },
+    {
+      "method": "POST",
+      "path": "/api/integracoes/necessidades",
+      "source": "src/integracoes/rotas.js",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/api/integracoes/planos",
+      "source": "src/integracoes/rotas.js",
+      "line": 86
+    },
+    {
+      "method": "GET",
+      "path": "/api/integracoes/planos/:id",
+      "source": "src/integracoes/rotas.js",
+      "line": 95
+    },
+    {
+      "method": "POST",
+      "path": "/api/integracoes/planos/:id/executar",
+      "source": "src/integracoes/rotas.js",
+      "line": 100
+    },
+    {
+      "method": "GET",
+      "path": "/api/integracoes/aprovacoes",
+      "source": "src/integracoes/rotas.js",
+      "line": 105
+    },
+    {
+      "method": "GET",
+      "path": "/api/integracoes/aprovacoes/:id",
+      "source": "src/integracoes/rotas.js",
+      "line": 106
+    },
+    {
+      "method": "POST",
+      "path": "/api/integracoes/webhooks/:id",
+      "source": "src/integracoes/rotas.js",
+      "line": 113
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/medicao",
+      "source": "src/medicao.js",
+      "line": 66
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/medicoes",
+      "source": "src/medicao.js",
+      "line": 71
+    },
+    {
+      "method": "PUT",
+      "path": "/api/quick-wins/:id/medicoes/:m",
+      "source": "src/medicao.js",
+      "line": 80
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/quick-wins/:id/medicoes/:m",
+      "source": "src/medicao.js",
+      "line": 90
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/decisoes",
+      "source": "src/medicao.js",
+      "line": 97
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/medicao.csv",
+      "source": "src/medicao.js",
+      "line": 112
+    },
+    {
+      "method": "POST",
+      "path": "/api/problemas",
+      "source": "src/medicao.js",
+      "line": 124
+    },
+    {
+      "method": "GET",
+      "path": "/api/problemas/tipos",
+      "source": "src/medicao.js",
+      "line": 138
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/problemas",
+      "source": "src/medicao.js",
+      "line": 140
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/problemas/:id",
+      "source": "src/medicao.js",
+      "line": 145
+    },
+    {
+      "method": "GET",
+      "path": "/api/modelos",
+      "source": "src/modelos.js",
+      "line": 271
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/modelos",
+      "source": "src/modelos.js",
+      "line": 282
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/roteamento",
+      "source": "src/modelos.js",
+      "line": 293
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/modelos/catalogo",
+      "source": "src/modelos.js",
+      "line": 362
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/modelos/:id",
+      "source": "src/modelos.js",
+      "line": 368
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/modelos/:id/homologar",
+      "source": "src/modelos.js",
+      "line": 409
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/modelos/:id/homologar",
+      "source": "src/modelos.js",
+      "line": 428
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/modelos-config",
+      "source": "src/modelos.js",
+      "line": 433
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sigilo",
+      "source": "src/modelos.js",
+      "line": 465
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/sigilo",
+      "source": "src/modelos.js",
+      "line": 466
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/governanca",
+      "source": "src/modelos.js",
+      "line": 473
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/governanca",
+      "source": "src/modelos.js",
+      "line": 474
+    },
+    {
+      "method": "GET",
+      "path": "/api/operador/instancia",
+      "source": "src/operador.js",
+      "line": 130
+    },
+    {
+      "method": "POST",
+      "path": "/api/operador/instancia/pacotes",
+      "source": "src/operador.js",
+      "line": 131
+    },
+    {
+      "method": "GET",
+      "path": "/api/operador/instancias",
+      "source": "src/operador.js",
+      "line": 134
+    },
+    {
+      "method": "POST",
+      "path": "/api/operador/instancias/:id/pacotes",
+      "source": "src/operador.js",
+      "line": 146
+    },
+    {
+      "method": "GET",
+      "path": "/api/paineis-modelos",
+      "source": "src/paineis.js",
+      "line": 89
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/painel",
+      "source": "src/paineis.js",
+      "line": 90
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/painel",
+      "source": "src/paineis.js",
+      "line": 105
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/painel/preparar",
+      "source": "src/paineis.js",
+      "line": 115
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/painel/registros/:registro",
+      "source": "src/paineis.js",
+      "line": 143
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/painel/registros/:registro",
+      "source": "src/paineis.js",
+      "line": 147
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/painel/registros/:registro/retirar",
+      "source": "src/paineis.js",
+      "line": 168
+    },
+    {
+      "method": "GET",
+      "path": "/api/areas",
+      "source": "src/pessoas.js",
+      "line": 54
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/areas",
+      "source": "src/pessoas.js",
+      "line": 58
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/areas/:id",
+      "source": "src/pessoas.js",
+      "line": 62
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/areas",
+      "source": "src/pessoas.js",
+      "line": 68
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/areas/:id",
+      "source": "src/pessoas.js",
+      "line": 77
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/areas/:id/pessoas",
+      "source": "src/pessoas.js",
+      "line": 105
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/areas/:id/pessoas/:pessoa",
+      "source": "src/pessoas.js",
+      "line": 122
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/areas/:id/pessoas/:pessoa",
+      "source": "src/pessoas.js",
+      "line": 134
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/areas/:id",
+      "source": "src/pessoas.js",
+      "line": 143
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/pessoas",
+      "source": "src/pessoas.js",
+      "line": 154
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/pessoas",
+      "source": "src/pessoas.js",
+      "line": 161
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/pessoas/:id",
+      "source": "src/pessoas.js",
+      "line": 180
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/grupos",
+      "source": "src/pessoas.js",
+      "line": 208
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/grupos",
+      "source": "src/pessoas.js",
+      "line": 219
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/grupos/:id",
+      "source": "src/pessoas.js",
+      "line": 228
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/grupos/:id",
+      "source": "src/pessoas.js",
+      "line": 243
+    },
+    {
+      "method": "GET",
+      "path": "/api/operador/plano",
+      "source": "src/plano.js",
+      "line": 212
+    },
+    {
+      "method": "POST",
+      "path": "/api/operador/pacotes",
+      "source": "src/plano.js",
+      "line": 213
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/resumo",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 19
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/usuarios",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 34
+    },
+    {
+      "method": "POST",
+      "path": "/api/empresa/usuarios",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 35
+    },
+    {
+      "method": "PUT",
+      "path": "/api/empresa/usuarios/:uid",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 41
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/empresa/usuarios/:uid",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 47
+    },
+    {
+      "method": "POST",
+      "path": "/api/empresa/usuarios/:uid/reenviar",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 52
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/roles",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 63
+    },
+    {
+      "method": "POST",
+      "path": "/api/empresa/roles",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 68
+    },
+    {
+      "method": "PUT",
+      "path": "/api/empresa/roles/:id",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 74
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/empresa/roles/:id",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 82
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/marca",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 93
+    },
+    {
+      "method": "PUT",
+      "path": "/api/empresa/marca",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 94
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/landing",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 95
+    },
+    {
+      "method": "PUT",
+      "path": "/api/empresa/landing",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 96
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/url",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 97
+    },
+    {
+      "method": "PUT",
+      "path": "/api/empresa/url",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 102
+    },
+    {
+      "method": "POST",
+      "path": "/api/empresa/dominio/verificar",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 108
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/acessos-greenia",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 113
+    },
+    {
+      "method": "POST",
+      "path": "/api/empresa/acessos-greenia/:id/encerrar",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 114
+    },
+    {
+      "method": "GET",
+      "path": "/api/empresa/auditoria",
+      "source": "src/plataforma/api-empresa.js",
+      "line": 121
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/login/codigo",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 28
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/login/entrar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/sair",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 58
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/eu",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 64
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/empresas",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 84
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 90
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/empresas/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 97
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/empresas/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 107
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/status",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 108
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/plano",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 109
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/empresas/:id/url",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 110
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/empresas/:id/marca",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 111
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/empresas/:id/landing",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 112
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/empresas/:id/concessoes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 113
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/usuarios",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 115
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/empresas/:id/usuarios/:uid",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 116
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/plataforma/empresas/:id/usuarios/:uid",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 117
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/pacotes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 119
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/dominio/verificar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 124
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/exportar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 130
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/exportacoes/:id/arquivo",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 139
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/exportacoes/:id/encerrar-necessidade",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 146
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/exportacoes/:id/hold",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 147
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/exportacoes/:id/liberar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 148
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/exportacoes/:id/declarar-eliminacao",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 149
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/excluir",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 151
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/entrar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 155
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/empresas/:id/acessos",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 171
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/acessos/:id/encerrar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 172
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/contatos",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 183
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/contatos/:id/interacao",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 184
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/contatos/:id/hold",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 185
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/contatos/:id/liberar",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 186
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/planos",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 191
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/planos/previa",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 198
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/premissas",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 206
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/premissas",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 207
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/planos",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 213
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/planos/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 214
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/usuarios",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 217
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/usuarios/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 226
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/admins",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 241
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/plataforma/admins/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 250
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/ambientes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 263
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/uso",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 268
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/consumo",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 281
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/empresas/:id/consumo",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 288
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/homologacoes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 310
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/homologacoes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 311
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/plataforma/homologacoes/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 326
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/vetos-sigilo",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 334
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/plataforma/vetos-sigilo/:id",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 344
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/openrouter/chave/validade",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 354
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/openrouter/chave",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 379
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/plataforma/openrouter/chave",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 399
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/consumo/servidor",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 412
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/consumo/alerta",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 422
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/auditoria",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 433
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/configuracoes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 439
+    },
+    {
+      "method": "PUT",
+      "path": "/api/plataforma/configuracoes",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 450
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/smtp/teste",
+      "source": "src/plataforma/api-plataforma.js",
+      "line": 468
+    },
+    {
+      "method": "POST",
+      "path": "/api/login/codigo",
+      "source": "src/plataforma/api-publica.js",
+      "line": 41
+    },
+    {
+      "method": "POST",
+      "path": "/api/login/entrar",
+      "source": "src/plataforma/api-publica.js",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/api/sair",
+      "source": "src/plataforma/api-publica.js",
+      "line": 66
+    },
+    {
+      "method": "GET",
+      "path": "/api/publico",
+      "source": "src/plataforma/api-publica.js",
+      "line": 75
+    },
+    {
+      "method": "GET",
+      "path": "/api/encerramento",
+      "source": "src/plataforma/encerramento.js",
+      "line": 159
+    },
+    {
+      "method": "POST",
+      "path": "/api/encerramento/codigo",
+      "source": "src/plataforma/encerramento.js",
+      "line": 165
+    },
+    {
+      "method": "POST",
+      "path": "/api/encerramento/excluir",
+      "source": "src/plataforma/encerramento.js",
+      "line": 176
+    },
+    {
+      "method": "POST",
+      "path": "/api/encerramento/devolucao",
+      "source": "src/plataforma/encerramento.js",
+      "line": 194
+    },
+    {
+      "method": "GET",
+      "path": "/api/plataforma/exclusoes",
+      "source": "src/plataforma/encerramento.js",
+      "line": 273
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/exclusao/hold",
+      "source": "src/plataforma/encerramento.js",
+      "line": 274
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/exclusao/confirmar-data",
+      "source": "src/plataforma/encerramento.js",
+      "line": 275
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/empresas/:id/exclusao/liberar",
+      "source": "src/plataforma/encerramento.js",
+      "line": 276
+    },
+    {
+      "method": "POST",
+      "path": "/api/plataforma/devolucoes/:id/gerar",
+      "source": "src/plataforma/encerramento.js",
+      "line": 277
+    },
+    {
+      "method": "GET",
+      "path": "/api/politica",
+      "source": "src/politica.js",
+      "line": 117
+    },
+    {
+      "method": "POST",
+      "path": "/api/politica/ciencia",
+      "source": "src/politica.js",
+      "line": 122
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/politica",
+      "source": "src/politica.js",
+      "line": 130
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/politica/versoes",
+      "source": "src/politica.js",
+      "line": 138
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins",
+      "source": "src/quickwins.js",
+      "line": 330
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/portfolio",
+      "source": "src/quickwins.js",
+      "line": 337
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/modelos-iniciais",
+      "source": "src/quickwins.js",
+      "line": 360
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/modelos-iniciais/:indice/ocultar",
+      "source": "src/quickwins.js",
+      "line": 364
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/assistente/sugerir",
+      "source": "src/quickwins.js",
+      "line": 376
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/assistente/interpretar",
+      "source": "src/quickwins.js",
+      "line": 396
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/assistente/estrutura",
+      "source": "src/quickwins.js",
+      "line": 424
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/assistente/exemplo",
+      "source": "src/quickwins.js",
+      "line": 434
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/assistente/entrada-teste",
+      "source": "src/quickwins.js",
+      "line": 440
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/exemplo-teste",
+      "source": "src/quickwins.js",
+      "line": 447
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id",
+      "source": "src/quickwins.js",
+      "line": 474
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/estimativas",
+      "source": "src/quickwins.js",
+      "line": 476
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins",
+      "source": "src/quickwins.js",
+      "line": 480
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/refinamento",
+      "source": "src/quickwins.js",
+      "line": 523
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/refinamento",
+      "source": "src/quickwins.js",
+      "line": 524
+    },
+    {
+      "method": "PUT",
+      "path": "/api/quick-wins/:id",
+      "source": "src/quickwins.js",
+      "line": 526
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/publicar",
+      "source": "src/quickwins.js",
+      "line": 544
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/versoes",
+      "source": "src/quickwins.js",
+      "line": 575
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/comparar",
+      "source": "src/quickwins.js",
+      "line": 581
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/versoes/:numero/restaurar",
+      "source": "src/quickwins.js",
+      "line": 593
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/quick-wins/:id",
+      "source": "src/quickwins.js",
+      "line": 604
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/arquivos",
+      "source": "src/quickwins.js",
+      "line": 613
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/fontes",
+      "source": "src/quickwins.js",
+      "line": 620
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/fontes/link",
+      "source": "src/quickwins.js",
+      "line": 624
+    },
+    {
+      "method": "PUT",
+      "path": "/api/quick-wins/:id/fontes/:doc",
+      "source": "src/quickwins.js",
+      "line": 630
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/quick-wins/:id/fontes/:doc",
+      "source": "src/quickwins.js",
+      "line": 643
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/quick-wins/:id/arquivos/:doc",
+      "source": "src/quickwins.js",
+      "line": 650
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/uso",
+      "source": "src/quickwins.js",
+      "line": 663
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/assistente/preparacao",
+      "source": "src/qw-preparacao.js",
+      "line": 20
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/preparacao",
+      "source": "src/qw-preparacao.js",
+      "line": 30
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/pedir-conexao",
+      "source": "src/qw-preparacao.js",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/pedidos-conexao",
+      "source": "src/qw-preparacao.js",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/pedidos-conexao/:id/concluir",
+      "source": "src/qw-preparacao.js",
+      "line": 49
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins-programados",
+      "source": "src/qw-programacao.js",
+      "line": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/programacoes/:programacao/configuracao",
+      "source": "src/qw-programacao.js",
+      "line": 201
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/quick-wins/:id/programacoes/:programacao",
+      "source": "src/qw-programacao.js",
+      "line": 205
+    },
+    {
+      "method": "GET",
+      "path": "/api/quick-wins/:id/programacoes",
+      "source": "src/qw-programacao.js",
+      "line": 215
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/programacoes/previa",
+      "source": "src/qw-programacao.js",
+      "line": 225
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/programacoes",
+      "source": "src/qw-programacao.js",
+      "line": 230
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/programacoes/:programacao/estado",
+      "source": "src/qw-programacao.js",
+      "line": 253
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-wins/:id/programacoes/:programacao/executar",
+      "source": "src/qw-programacao.js",
+      "line": 261
+    },
+    {
+      "method": "GET",
+      "path": "/api/publico",
+      "source": "src/servidor.js",
+      "line": 78
+    },
+    {
+      "method": "GET",
+      "path": "/api/saude",
+      "source": "src/servidor.js",
+      "line": 83
+    },
+    {
+      "method": "GET",
+      "path": "/api/eu",
+      "source": "src/servidor.js",
+      "line": 84
+    },
+    {
+      "method": "POST",
+      "path": "/api/contato",
+      "source": "src/vendas.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/api/operador/leads",
+      "source": "src/vendas.js",
+      "line": 37
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/visao-geral",
+      "source": "src/visao.js",
+      "line": 99
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/visual/diagnostico",
+      "source": "src/visual/rotas.js",
+      "line": 306
+    },
+    {
+      "method": "GET",
+      "path": "/api/artefatos",
+      "source": "src/visual/rotas.js",
+      "line": 317
+    },
+    {
+      "method": "GET",
+      "path": "/api/artefatos/:id",
+      "source": "src/visual/rotas.js",
+      "line": 323
+    },
+    {
+      "method": "GET",
+      "path": "/api/artefatos/:id/paginas/:n",
+      "source": "src/visual/rotas.js",
+      "line": 330
+    },
+    {
+      "method": "GET",
+      "path": "/api/artefatos/:id/baixar",
+      "source": "src/visual/rotas.js",
+      "line": 351
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/artefatos/:id",
+      "source": "src/visual/rotas.js",
+      "line": 360
+    },
+    {
+      "method": "POST",
+      "path": "/api/artefatos/:id/imagem",
+      "source": "src/visual/rotas.js",
+      "line": 371
+    },
+    {
+      "method": "POST",
+      "path": "/api/artefatos/:id/gerar-imagem",
+      "source": "src/visual/rotas.js",
+      "line": 399
+    },
+    {
+      "method": "POST",
+      "path": "/api/artefatos/:id/derivar",
+      "source": "src/visual/rotas.js",
+      "line": 436
+    },
+    {
+      "method": "POST",
+      "path": "/api/artefatos/:id/restaurar",
+      "source": "src/visual/rotas.js",
+      "line": 461
+    }
+  ],
+  "test_files": [
+    {
+      "file": "test/acesso-greenia.test.js",
+      "titles": [
+        "acesso sem tipo, com tipo inválido ou sem justificativa é bloqueado e não abre sessão nem registro",
+        "acesso válido: operador, empresa, tipo, justificativa, início, prazo de 60 minutos e status aberto",
+        "o acesso aparece na hora para o admin da empresa; outra empresa não vê nem encerra",
+        "sair encerra o acesso e registra fim e duração",
+        "o acesso expira em 60 minutos: a sessão cai e o registro fecha no horário do vencimento",
+        "acesso vencido sem nenhuma requisição não aparece como aberto na tela da empresa",
+        "admin da empresa encerra o acesso: a sessão do operador cai na hora",
+        "suspender a empresa encerra o acesso aberto (não fica aberto sem sessão)",
+        "novo acesso do mesmo operador substitui o anterior, que fecha com duração",
+        "sem porta lateral: admin da plataforma sem vínculo não entra pela tela de login da empresa",
+        "admin da plataforma com vínculo na empresa entra como qualquer pessoa, sem poderes de operador",
+        "sessão de operador de uma empresa não vale em outra",
+        "o operador continua sem ler conversas das pessoas, e a tela de acessos não traz conteúdo",
+        "exportação: sem motivo é bloqueada; com motivo gera registro próprio, visível só para a empresa, e avisa os admins",
+        "exportação que falha também fica registrada, como falha",
+        "aviso por email aos admins é complemento: sem email, o acesso abre e fica registrado como falha do aviso",
+        "marca branca: a empresa vê "
+      ]
+    },
+    {
+      "file": "test/acompanhamento.test.js",
+      "titles": [
+        "pendências respeitam bases e responsabilidades; usuário comum não recebe cadastro ou relatos",
+        "metadados e histórico não revelam conteúdo nem área alheia",
+        "suspensão impede inferência, mantém cadastro e pode ser retomada",
+        "validade vencida impede inferência e futuro mantém fonte; data inválida não altera arquivo",
+        "responsável exige acesso à base e dependências só incluem quick wins gerenciados",
+        "histórico registra mudanças sem arquivar o texto e exclusão elimina metadados em cascata",
+        "revisão de acesso registra conferência sem mudar permissões e detecta vínculo posterior",
+        "comparação de versões é restrita e não retorna prompt técnico",
+        "multiempresa exige permissão granular, mesmo para admin local",
+        "impacto de integração respeita ativação, permissão e empresa sem executar ações externas",
+        "banco existente recebe backup consistente antes das tabelas aditivas; documentos e índice preservados"
+      ]
+    },
+    {
+      "file": "test/admin.test.js",
+      "titles": [
+        "quick win: usuário comum só cria se o admin autorizar; cria nas próprias áreas e gerencia o que criou",
+        "política: a seção automática muda com a política de informação sigilosa e gera nova versão; nunca cita fornecedor; preço não; ciência pendente bloqueia o envio",
+        "teto de gasto mensal interrompe os envios; limite diário por pessoa também",
+        "configurações: cor de marca com contraste baixo é recusada; domínios e retenção validados; só o admin",
+        "uso e custo: por mês, área, quick win, pessoa, modelo e tipo; CSV; eventos com filtro, sem conteúdo"
+      ]
+    },
+    {
+      "file": "test/admins-arquivo.test.js",
+      "titles": [
+        "lista de administradores em arquivo: um email por linha, comentários e linhas inválidas ignorados",
+        "o arquivo do repositório tem só emails válidos"
+      ]
+    },
+    {
+      "file": "test/area-reforcada.test.js",
+      "titles": [
+        "0. controle: numa área comum, sem exigência de ",
+        "1. área sigilosa + PDF sem informação sigilosa → não bloqueia; segue as regras gerais, mesmo sem recurso autorizado",
+        "2. área sigilosa + documento com CPF → dado pessoal: segue a política (padrão: normal, sem virar sigilosa); com ",
+        "3. área sigilosa + dados bancários → política de informação sigilosa",
+        "4. área sigilosa + credencial → bloqueio (regra de segurança), nada enviado, nada guardado",
+        "5. área sigilosa + documento público → processa quando as demais regras são atendidas",
+        "6. área sigilosa + conteúdo sigiloso + processamento sigiloso desligado → não envia",
+        "7. área sigilosa + conteúdo sigiloso + nenhum recurso autorizado → não envia, admin avisado, mensagem simples",
+        "8. recurso autorizado indisponível → nunca cai para recurso não autorizado (nem a reserva configurada)",
+        "9. créditos no fim → nunca usa recurso não autorizado nem fora da proteção da área para manter continuidade",
+        "10. nova tentativa, fallback, anexos e API passam de novo pela mesma governança",
+        "regressão: PDF institucional sem dado sigiloso em área reforçada não é bloqueado por causa da área",
+        "regressão: o único bloqueio legítimo de conteúdo comum na área é não haver recurso compatível; mensagem simples, sem marcar a conversa"
+      ]
+    },
+    {
+      "file": "test/areas.test.js",
+      "titles": [
+        "admin cria área com descrição, adiciona pessoas como membros ou administradores da base e vê quem está em cada área",
+        "administrador da base gere só a base da própria área; membro só consulta",
+        "a permissão da base é independente do responsável pela área e pode ser tirada",
+        "área desativada sai do uso sem apagar nada; só dá para excluir depois de desativar",
+        "renomear para um nome que já existe é recusado",
+        "grupo mostra o que libera; o editor da pessoa salva áreas e grupos juntos",
+        "quem ganha a permissão de administrar a base recebe email com o link; o resumo conta o que pede revisão"
+      ]
+    },
+    {
+      "file": "test/auditoria-retencao.test.js",
+      "titles": [
+        "guardar = não: texto, PDF, PPTX, imagem e PDF escaneado são processados por inteiro e não deixam rastro",
+        "guardar = sim: o mesmo conteúdo fica no histórico, com o texto lido por OCR como anexo",
+        "guardar = não com erros: provedor que repete o pedido, tempo esgotado, nova tentativa, reserva, leitor e OCR",
+        "erro do provedor com guardar = sim: o registro de diagnóstico não guarda o trecho do pedido",
+        "sanitização: exceção e erro do provedor saem sem o conteúdo",
+        "segredos em texto, PDF, PPTX, imagem e PDF escaneado (OCR): bloqueados antes de qualquer envio, sem guardar",
+        "OCR não é atalho: imagem com dado sensível segue a mesma política do texto digitado",
+        "sem texto legível ou sem OCR: mensagem técnica de leitura, nunca de segurança ou de política",
+        "OCR: tempo esgotado encerra a leitura sem deixar worker nem arquivo",
+        "arquivos: PDF com texto, PDF escaneado, PPTX e imagem viram texto pelo mesmo caminho",
+        "quick win ",
+        "classificação preservada: lista de regressão com as ações padrão"
+      ]
+    },
+    {
+      "file": "test/auditoria-tenants.test.js",
+      "titles": [
+        "guardar = não na empresa A: imagem por OCR processada sem rastro em nenhum banco, arquivo ou memória; a B não é afetada"
+      ]
+    },
+    {
+      "file": "test/backup.test.js",
+      "titles": [
+        "assinatura SigV4 igual ao exemplo da documentação da AWS (GET Object)",
+        "backup com o servidor no ar, retenção local, envio ao S3 e restauração com conferência",
+        "restauração recusa arquivo corrompido ou que não é da GreenIA, sem mexer no banco atual",
+        "migração: cada mudança de estrutura roda uma vez, em ordem; uma falha não deixa pela metade",
+        "migração 1: banco da versão anterior ganha os oito estados do quick win, responsável e tipo de medição"
+      ]
+    },
+    {
+      "file": "test/bases.test.js",
+      "titles": [
+        "admin cria áreas e pessoas; email inválido é recusado; o último admin não sai",
+        "só o responsável da área (ou o admin) envia documentos; só o admin, para a empresa toda",
+        "formatos: PDF com texto, DOCX, XLSX, CSV, TXT e MD; imagem ou PDF sem texto legível recebe o aviso técnico de leitura",
+        "quem é da área vê o documento da área; quem não é, não vê; o da empresa toda aparece para todos",
+        "sem resposta na base, a instrução indica o responsável da área",
+        "substituir e remover documento: a busca acompanha",
+        "sigilosa por documento sigiloso da base: não vai a modelo não homologado; reenvia ao homologado; a chave trava"
+      ]
+    },
+    {
+      "file": "test/chat.test.js",
+      "titles": [
+        "chat com streaming: persona no system, resposta gravada, custo informado pelo OpenRouter",
+        "preferências de privacidade em toda chamada: normal pede fornecedor sem treino; o admin pode desligar",
+        "modelo fora da lista liberada nunca é usado: o pedido segue no automático, sem perguntar nada à pessoa",
+        "acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat",
+        "trocar de modelo no meio da conversa funciona e fica registrado na conversa",
+        "falha do modelo principal usa o reserva e registra qual respondeu",
+        "filtro no servidor: CPF é dado pessoal e segue normalmente por padrão; proteger e bloquear são política da empresa; credencial nunca sai",
+        "sigilosa pela chave manual",
+        "sigilosa por dado que a política manda proteger (dados bancários); CNPJ de empresa é conteúdo normal",
+        "área com proteção reforçada: conteúdo comum segue as regras gerais, mesmo sem recurso para dado sigiloso",
+        "conversa marcada só pela área (regra antiga): sem sinal de conteúdo sigiloso, volta às regras gerais; com sinal, continua sigilosa",
+        "sigilosa: o seletor mostra só homologados, e a pessoa usa o homologado padrão mesmo sem o perfil",
+        "sem nenhum homologado disponível para todos, a configuração é recusada",
+        "privacidade: outra pessoa e o admin não leem a conversa pela API",
+        "retenção: conversas sem uso há mais que o prazo são apagadas, com registro"
+      ]
+    },
+    {
+      "file": "test/chave-openrouter.test.js",
+      "titles": [
+        "admin informa a chave: formato, teste no OpenRouter, cifrada, máscara e troca na hora",
+        "depois de reiniciar, a chave salva volta sozinha; remover volta para a variável"
+      ]
+    },
+    {
+      "file": "test/chave-validade.test.js",
+      "titles": [
+        "1, 2 e 3. chave nova inicia o contador; troca reinicia e descarta o vencimento informado da anterior",
+        "7. cálculo em UTC + duração: 100, 90, 89, 88, 83, 60 e 0 dias de uso; vencimento do provedor por duração exata",
+        "7b. o fuso da plataforma só muda a exibição; o cálculo é o mesmo em qualquer fuso",
+        "8 e 14–16. prazo: 7 e 730 aceitos; fora do limite, decimal, zero, negativo, nulo e texto rejeitados; mudar o prazo não reinicia o início",
+        "6–12. cada estágio envia um email por chave e por destinatário; o job repetido não duplica; a troca reinicia os estágios",
+        "10b. falha no envio não marca como enviado; sucesso parcial reenvia só para quem faltou",
+        "13. duas instâncias no mesmo banco, ao mesmo tempo: um email só",
+        "4, 5 e 23. recusa num envio: alerta e email imediatos, prevalece sobre o prazo, bloqueia novos envios; a troca tira o alerta na hora",
+        "24. sem vencimento no OpenRouter não é chave inválida; OpenRouter fora do ar não é recusa",
+        "17 e 18. OPENROUTER_API_KEY: início persistido entre reinícios; chave nova reinicia o ciclo; voltar à antiga não reinicia",
+        "19–21. a chave completa não aparece em respostas, HTML, logs, auditoria, emails nem no banco (fora da cifra)",
+        "22. empresas não acessam a chave nem a configuração, e nada da chave aparece nas APIs da empresa"
+      ]
+    },
+    {
+      "file": "test/claims-evidencias.test.js",
+      "titles": [
+        "conversa apagada: o conteúdo sai do banco, é zerado no arquivo principal e o arquivo temporário (WAL) é consolidado e truncado na hora",
+        "Visão geral: envio bloqueado pelas regras de dados aparece como ponto de atenção, sem o conteúdo"
+      ]
+    },
+    {
+      "file": "test/claims-lp.test.js",
+      "titles": [
+        "registro: toda linha tem as 13 colunas, estado válido, superfície conhecida e id único",
+        "registro: cada claim sustentado está na superfície, com evidência no código e teste existente",
+        "${r.teste}",
+        "fora da página: claims obsoletos, não sustentados e futuros não aparecem em nenhuma superfície",
+        "trechos sensíveis (dados, segurança, privacidade, custo, conferência, fornecedores) só entram com registro sustentado",
+        "blacklist: formulações proibidas não aparecem, salvo dentro de frase registrada que as sustenta",
+        "blacklist B20: ",
+        "blacklist B23: ",
+        "blacklist B24: ",
+        "blacklist: cada entrada do código está documentada no registro, e cada liberação aponta para uma entrada existente",
+        "as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor",
+        "dados: CNPJ não é ",
+        "confidencial só por marcação reconhecida, nunca por ser uma proposta; guardrails de sigilo não são atribuídos a CPF/CNPJ",
+        "credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as partes do envio, sem absoluto (P1 resolvida)",
+        "ambiente: sem ",
+        "fornecedor: atributos declarados, nunca garantia verificada de retenção ou treino",
+        "roteamento e créditos: sem troca automática de recurso; continuidade sempre com a ressalva da reserva",
+        "telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu é o da Administração atual",
+        "comparação com terceiros: a página fala do que a GreenIA faz, sem generalizar sobre outros produtos"
+      ]
+    },
+    {
+      "file": "test/claims-textos-internos.test.js",
+      "titles": [
+        "textos internos: nenhuma formulação retirada volta à política, ao admin, às mensagens de bloqueio ou aos avisos",
+        "política: diz o escopo real de visibilidade, acesso técnico, backup, credenciais e regras por parte do envio",
+        "admin: a opção de dados pessoais descreve o pedido sem treino como filtro, não como garantia"
+      ]
+    },
+    {
+      "file": "test/classificacao-proporcional.test.js",
+      "titles": [
+        "1-6. conteúdo normal processa, em área normal e reforçada, mesmo sem recurso autorizado para sigilo",
+        "7-9. dado pessoal não bloqueia nem torna a conversa sigilosa por si só, em mensagem, PDF ou área reforçada",
+        "10-13. dado sensível e informação confidencial: só com guardrails; sem recurso autorizado ou com a opção desligada, nada sai",
+        "14-17. credenciais e segredos: bloqueio absoluto, em mensagem e em PDF, com qualquer configuração",
+        "18-22. sem recurso elegível, créditos no fim, nova tentativa, API e anexos: a mesma governança, nunca recurso não autorizado",
+        "23-25. histórico: processado fica com mensagem, anexo e resposta; bloqueado registra a tentativa sem conteúdo e sem marcar a conversa",
+        "quick win ",
+        "empresas que já existiam: regras antigas viram as proporcionais; o "
+      ]
+    },
+    {
+      "file": "test/cnpj.test.js",
+      "titles": [
+        "classificação: CPF é dado pessoal; CNPJ é identificação de empresa, sem os controles de dado pessoal",
+        "documento com CNPJ e dados de pessoas físicas: cada dado pelo próprio conteúdo",
+        "uso: CNPJ sozinho processa normalmente, sem controles de dado pessoal; com CPF do representante, os controles valem pelo CPF"
+      ]
+    },
+    {
+      "file": "test/consumo.test.js",
+      "titles": [
+        "console mostra saldo, créditos e uso da chave no OpenRouter, e o consumo diário da plataforma e da empresa",
+        "só o admin da plataforma vê; a empresa não vê a conta nem o consumo das outras",
+        "saldo abaixo do alerta avisa os admins por email, no máximo uma vez por dia; o limite é configurável",
+        "cliente do OpenRouter lê /key e /credits e tolera a parte que falhar",
+        "receita e margem TOTAL do console: plano + Capacity Packs do mês − custos proporcionais − IA com a taxa − parte da infraestrutura; servidor configurável e auditado",
+        "planos no console: margem TOTAL no pior caso com detalhamento, status, preço mínimo e folga; trava de 50% no salvamento; sem preço e sem teto marcados",
+        "conciliação com o OpenRouter: gasto da chave no mês contra o registrado como crédito; alerta quando passa de 1%"
+      ]
+    },
+    {
+      "file": "test/contatos.test.js",
+      "titles": [
+        "formulário cria o contato com last_interaction_at; o mesmo email volta ao mesmo contato; email aos admins sem o conteúdo",
+        "interação real registrada no console move last_interaction_at; data futura é recusada; automação não move",
+        "24 meses: até o limite fica; passou, dry-run só registra e aplicar elimina os dados pessoais; agregado não reidentifica",
+        "hold (obrigação legal, contrato ou litígio) impede a eliminação; liberado, segue a regra",
+        "limite de 500 não apaga: 510 contatos ficam todos; a listagem é paginada",
+        "migração: provada por contagem, sem perda, sem duplicar o mesmo email, idempotente, com rollback sem perda"
+      ]
+    },
+    {
+      "file": "test/contexto-admin.test.js",
+      "titles": [
+        "as rotas administrativas foram encontradas no código",
+        "quem não é admin recebe 403 em toda rota administrativa, com ou sem parâmetros de ",
+        "quem não é admin continua sem acesso depois de tentar; o admin segue com a mesma sessão nos dois contextos",
+        "multiempresa: membro, leitor e gestor não têm a permissão das rotas de configuração",
+        "a tela não decide: quem não administra pergunta ao servidor, e cada tela aponta para uma leitura que existe"
+      ]
+    },
+    {
+      "file": "test/contraste.test.js",
+      "titles": [
+        "texto pequeno com contraste de pelo menos 4,5:1",
+        "verde e âmbar de texto pequeno são os pedidos",
+        "esquema de cor da empresa: toda cor aceita pelo servidor mantém 4,5:1 nos tons derivados",
+        "a cor sugerida é o mesmo tom, mais escuro, e sempre passa no mínimo (servidor e navegador iguais)",
+        "variantes do selo vêm depois da regra base (senão o fundo areia apaga a cor e o selo escuro fica ilegível)"
+      ]
+    },
+    {
+      "file": "test/conversas-historico.test.js",
+      "titles": [
+        "resposta aparece uma vez com a rota atual; histórico de auditoria e outras conversas não duplicam conteúdo",
+        "histórico paginado pesquisa e filtra só conversas da pessoa; excluir todas passa de 200 e preserva novas",
+        "excluir conversa limpa mensagens e anexos, invalida aprovação e remove material de integração",
+        "exclusão é recusada durante resposta em andamento e funciona após a conclusão"
+      ]
+    },
+    {
+      "file": "test/credenciais-contexto.test.js",
+      "titles": [
+        "uma regra só: contemCredencial é a mesma regra do tipo ",
+        "base de conhecimento: o documento pode ser guardado, mas o trecho com segredo nunca entra no contexto, em qualquer formato (inclusive OCR)",
+        "base de conhecimento: pergunta que não recupera o trecho com segredo processa normalmente",
+        "quick win: arquivo, instruções e exemplos com segredo bloqueiam em uso e em teste; sem segredo, processa",
+        "histórico: um segredo guardado antes (ex.: conteúdo anterior à regra) bloqueia a nova chamada que o reenviaria",
+        "contexto composto: mensagem segura + base com segredo, e mensagem segura + quick win com segredo, são bloqueadas",
+        "defesa final: um caminho que montasse contexto sem passar pela conferência é barrado antes do envio, e nada fica gravado"
+      ]
+    },
+    {
+      "file": "test/credencial-quickwin-plataforma.test.js",
+      "titles": [
+        "sem credencial configurada: o Quick Win de pesquisa não quebra, não simula e não chama o provedor",
+        "admin da empresa não configura a chave; a do console é testada, cifrada e nunca volta",
+        "A: pesquisa com a chave do console, plugin web, data_collection=deny, fontes reais do payload e tool_used só com metadados",
+        "três níveis: Rápido, Equilibrado e Avançado usam o modelo configurado, a mesma chave, web e deny",
+        "F: pesquisa + contexto da empresa + entregáveis separados por canal, briefing nas imagens e roteiro de Reels",
+        "isolamento: a empresa B não lê a credencial nem a configura; sem liberar pesquisa, nada de plugin e resultado parcial"
+      ]
+    },
+    {
+      "file": "test/csv-conversas.test.js",
+      "titles": [
+        "CSV: índices das tabelas, UTF-8, proteção contra fórmula e números negativos",
+        "CSV de conversa: download autenticado contém só a tabela pedida, sem cache",
+        "CSV de conversa: outro usuário, admin e visitante não acessam o conteúdo",
+        "CSV de conversa: índices inválidos, mensagem da pessoa, conteúdo não guardado e exclusão não expõem dados"
+      ]
+    },
+    {
+      "file": "test/custo-ia.test.js",
+      "titles": [
+        "chamada refeita: o custo da primeira (que a rota sobrescreveu) entra na linha de uso do pedido",
+        "execução que falha depois de gastar (nada gravado pela rota): uma linha com o custo, atribuída à conversa",
+        "stream interrompido: o custo é buscado no provedor pela identificação da geração e vira crédito",
+        "quem para de ler antes do fim também paga: o custo vem do provedor",
+        "caminho feliz: nada muda (sem ajuste, sem linha a mais) e imagem cobrada sem imagem entra no pedido",
+        "cliente OpenRouter: avisa a geração no stream, busca o custo da geração e devolve o custo junto do erro de imagem"
+      ]
+    },
+    {
+      "file": "test/email-falhas.test.js",
+      "titles": [
+        "login da empresa com email falhando: 503 claro, motivo registrado sem segredos, aviso no console; volta ao normal quando o envio funciona",
+        "email próprio da empresa falhando: o código sai pelo email da plataforma e a falha fica registrada",
+        "admin da empresa: vê a falha do email próprio (explicada, sem segredo) e o teste não cai em silêncio no email da plataforma",
+        "explicações de falha de email: senha recusada, domínio não verificado, conexão bloqueada, remetente recusado",
+        "semSegredos tira senha de URL, chaves de API e Bearer"
+      ]
+    },
+    {
+      "file": "test/encerramento.test.js",
+      "titles": [
+        "cancelar registra cancelled_at e delete_after = +30 dias corridos e bloqueia o uso na hora, inclusive da equipe de operação",
+        "antes de 30 dias não exclui; no prazo exclui sozinha (dry-run só registra); revalida e é idempotente",
+        "hold impede a exclusão automática e a do console; liberado, a exclusão segue",
+        "exclusão antecipada pelo Cliente: código no email do admin, identificador e ciência de irreversível",
+        "exclusão antecipada sem autorização falha: quem não é admin, código errado, pedido informal e hold",
+        "devolução: pedido verificado, cópia SQLite gerada pela operação, link de uso único até 7 dias, entrega registrada",
+        "link de devolução vence em 7 dias: a cópia sai do servidor sem download",
+        "sem o endereço público da plataforma, o link de devolução não é gerado (nada é exportado)",
+        "empresa cancelada antes do controle: data estimada nunca exclui sozinha nem vence antes de 30 dias da migração; só com confirmação"
+      ]
+    },
+    {
+      "file": "test/encontrar.test.js",
+      "titles": [
+        "página: /encontrar abre no endereço da plataforma; /entrar sem empresa leva para lá",
+        "email com acesso recebe os links das empresas disponíveis; suspensa fica de fora",
+        "email sem acesso: mesma resposta, nenhum email enviado",
+        "limites: no máximo 3 emails por hora para o mesmo endereço, e 10 pedidos por IP",
+        "domínio próprio entra no link só depois de verificado",
+        "administrador da plataforma recebe o link do console",
+        "endereço de empresa inexistente: página da marca com o caminho para encontrar; sem hífen leva ao endereço certo"
+      ]
+    },
+    {
+      "file": "test/exportacoes.test.js",
+      "titles": [
+        "pedido do Cliente, incidente e obrigação legal exportam: cópia no servidor, hash, registro e aviso",
+        "download registrado (quem e quando); necessidade encerrada calcula expires_at = +7 dias; elimina no prazo",
+        "hold (obrigação legal ou incidente) suspende o prazo; ao liberar, o tempo restante volta a correr",
+        "cópia baixada: a eliminação externa só é declarada (não é provada) e exige download"
+      ]
+    },
+    {
+      "file": "test/filtro.test.js",
+      "titles": [
+        "não dispara em datas, valores, números de pedido e textos comuns",
+        "devolve só os tipos, nunca os valores",
+        "decidir: credencial sempre bloqueada, mesmo marcada como permitir"
+      ]
+    },
+    {
+      "file": "test/fontes-quickwin.test.js",
+      "titles": [
+        "HTML vira texto com a estrutura útil; script, estilo e navegação nunca entram",
+        "link mascarado: sem usuário, senha nem query (token, assinatura)",
+        "link inseguro nunca é buscado: http, localhost, loopback, rede interna, metadados, IPv6 local, credencial e DNS rebinding",
+        "link que exige login e formato binário: falha com o motivo, sem adivinhar o conteúdo",
+        "conferência de fidelidade: obrigatória usada, obrigatória ilegível, referência copiada como fato, base não confundida",
+        "comandos de fonte na conversa: ignorar, só esta, só referência, fonte principal, usar",
+        "Imagem final: tipo próprio (peça pronta, PNG e JPG), distinto de Imagem (briefing); pedido explícito vira imagem final",
+        "A/B. arquivo como fonte obrigatória e link como base de conhecimento: papel, situação, sem link real na tela",
+        "E. execução usa as fontes com código e papel; fonte obrigatória usada → aprovado; ",
+        "F/G. obrigatória ignorada é corrigida; obrigatória que não pôde ser lida → parcial com o motivo (nunca aprovado); opcional ausente não bloqueia",
+        "C. referência só influencia estilo: dado copiado dela é corrigido; nunca entra como fato",
+        "D. planilha como fonte (XLSX) com papel; troca de papel e substituição criam nova versão da fonte",
+        "J. versão publicada guarda o retrato das fontes; fonte alterada depois é avisada na execução",
+        "conhecimento da empresa como fonte (papel próprio); escolher documento invisível para a pessoa não é aceito",
+        "conhecimento da empresa na execução: trecho da base entra com o papel e aparece em ",
+        "H/I. multiempresa e acesso: quem não gere o Quick Win não lista, não lê nem muda as fontes (sem revelar)",
+        "conversa: link enviado é lido pela rede segura; link inseguro vira aviso explícito; comando muda o papel do material",
+        "Imagem final: com gerador, a imagem é gerada e a peça sai pronta (PNG/JPG); nova imagem e variação viram versões",
+        "Imagem final com texto mais longo: nova imagem e variação recompõem sem cortar (mesmo ajuste da execução)",
+        "Imagem final sem gerador: parcial, com briefing da imagem; nunca aprovada como imagem",
+        "generalização (24 pedidos novos): imagem final × briefing × outra peça × sem visual; comandos de fonte",
+        "persona: a lista de responsáveis serve só para indicar quem procurar; nomes do material são dados do trabalho"
+      ]
+    },
+    {
+      "file": "test/fontes.test.js",
+      "titles": [
+        "nenhuma página nem gerador chama o Google Fonts; todas usam /fontes/fontes.css",
+        "fontes servidas com tipo font/woff2, cache longo e CSP só com fontes locais"
+      ]
+    },
+    {
+      "file": "test/generico.test.js",
+      "titles": [
+        "nenhum nome de cliente, área fixa ou ERP no código da aplicação"
+      ]
+    },
+    {
+      "file": "test/governanca-api.test.js",
+      "titles": [
+        "invariante (10 casos): modelo proibido nunca é executado; com alternativa é substituído, sem alternativa bloqueia",
+        "invariante 7b: Automático do OpenRouter ligado pela empresa nunca recebe dado sigiloso",
+        "invariante 8: capacidade abaixo da classe mínima do quick win não é usada",
+        "invariante 9: janela insuficiente do modelo solicitado: vai para um que lê tudo",
+        "invariante 4: fora do plano (créditos no fim): só o nível econômico",
+        "invariante (propriedade): 120 entradas aleatórias de API nunca executam modelo proibido",
+        "caso A: solicitado elegível é usado (solicitado == selecionado)",
+        "caso B: solicitado não elegível com alternativa: substituído, executa normalmente; o admin vê o motivo exato",
+        "caso B2: o selecionado cai no fornecedor e a reserva responde: registrado como substituição por indisponibilidade",
+        "caso C: solicitado não elegível e sem alternativa: bloqueio seguro, nada enviado, admin avisado",
+        "uma só rota de execução: toda chamada à IA passa pelo roteador e pela governança",
+        "modo recomendado e manual: as mesmas regras obrigatórias; o manual muda só o grau de controle",
+        "hierarquia: modelo homologado pela empresa MAS proibido pela plataforma não é elegível; a empresa não reverte",
+        "admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, alerta legível, manual e volta",
+        "ignorância deliberada: as tarefas se resolvem só com a intenção",
+        "matriz da pessoa leiga: nenhum cenário pede decisão técnica, homologação, política, permissão ou reserva"
+      ]
+    },
+    {
+      "file": "test/governanca-contextual.test.js",
+      "titles": [
+        "recursos: nível de proteção calculado dos atributos da rota real, não de uma chave binária",
+        "dados pessoais e identificadores: processam com os controles proporcionais, sem bloqueio nem conversa sigilosa",
+        "a política da empresa é a autoridade: sem a proteção de dados pessoais, vale o recurso que ela liberou",
+        "documentos e contexto: PDF, PPTX, reunião, RH sem conteúdo sensível, contrato e relatório processam, também em área reforçada",
+        "conteúdo sensível e confidencial: controles adicionais; sem recurso compatível, não envia e explica em linguagem simples",
+        "segredos: senha, API key, token e segredo em PDF ou PPTX são bloqueados sempre",
+        "fallback: nunca um recurso incompatível ou não autorizado; sem compatível, nada sai; nova tentativa e API repetem a avaliação",
+        "retenção separada do processamento: guardar, processar sem guardar e bloqueio sem guardar",
+        "regressão crítica: PDF institucional de ~9.500 caracteres, área reforçada, sem recurso para confidencial, opção ON ou OFF → processa"
+      ]
+    },
+    {
+      "file": "test/iniciar.test.js",
+      "titles": [
+        "npm start: sobe, responde em /api/saude e para com SIGTERM",
+        "produção sem OPENROUTER_API_KEY: sobe com a IA desligada e avisa, sem cair na simulada",
+        "com a IA desligada, a mensagem volta com o aviso claro e o admin sabe pelo /api/eu"
+      ]
+    },
+    {
+      "file": "test/integracoes-generalizacao.test.js",
+      "titles": [
+        "caso Financeiro: conciliar recebimentos (leitura liberada), lançar baixa (aprovação), apagar título (negado)",
+        "caso Gestão: indicadores do BI (leitura), tarefa no gerenciador de projetos (aprovação), sistema sem integração (configurar)",
+        "caso RH/Administrativo: dado pessoal pede aprovação até na leitura; política da empresa (dados) libera o que ela decidir",
+        "fluxo Financeiro: negócio concluído → validação → emissão do documento → envio → registro",
+        "fluxo Gestão: dados → indicador → alerta → responsável → decisão",
+        "fluxo RH/Administrativo: entrada → validação → encaminhamento → acompanhamento → conclusão",
+        "nome composto após sistema e referência ao mesmo sistema resolvem o conector aprovado",
+        "nome curto identifica seu sistema, sem casar letras dentro de outro nome"
+      ]
+    },
+    {
+      "file": "test/integracoes-motor.test.js",
+      "titles": [
+        "risco e classe: leitura baixa, escrita média, destrutivo/financeiro crítico, automação de navegador alta",
+        "políticas são dados: padrão (ler, aprovar escrita, negar destrutivo), regra da empresa, invariantes que nenhuma regra afrouxa",
+        "mapeamento: DSL segura (renomear, tipos, data, enum, juntar, dividir, padrão); sem eval e sem __proto__",
+        "esquema: tipos, obrigatórios, enum, itens; gravidade parcial x inconsistente",
+        "descoberta: OpenAPI 3, Swagger 2 e GraphQL viram operações declarativas; documentação é dado não confiável",
+        "ciclo de vida: nada vai de DRAFT para ACTIVE; publicar exige teste e aprovação da MESMA versão; versão nova invalida aprovação",
+        "runtime: leitura passa; escrita pede aprovação e só executa a entrada aprovada; destrutivo negado; idempotência evita duplicar",
+        "repetição só quando segura: 503 em leitura repete; escrita sem idempotência não; tempo esgotado; resposta fora do esquema não passa em silêncio",
+        "modo teste: escrita é simulada (nada enviado); leitura de verdade; teste reprova credencial inválida",
+        "reutilização: a capability publicada serve a vários Quick Wins da empresa; resolução indica disponível, configurar ou não permitido",
+        "plano de execução: dependências, saída de uma etapa vira entrada da outra, aprovação pausa, falha bloqueia dependentes, compensação só sugerida",
+        "OAuth: client credentials; authorization code com state de uso único, mesma pessoa, redirect exato e PKCE",
+        "webhook: assinatura, janela de tempo, replay, rotação de segredo",
+        "limite de taxa por conector",
+        "reabrir conversa mostra a gravação concluída sem repetir chamada nem expor dados do plano",
+        "listas longas preservam o total no runtime e o recorte só acontece no material da IA"
+      ]
+    },
+    {
+      "file": "test/integracoes-seguranca.test.js",
+      "titles": [
+        "SSRF: localhost, 127.0.0.1, metadados, rede privada, CGNAT, IPv6 local e mapeado são bloqueados",
+        "SSRF: DNS rebinding (um IP bom e um interno, ou troca entre resolução e conexão) não alcança a rede interna",
+        "allowlist de hosts, protocolo, credencial na URL e redirecionamento para fora ou para IP interno",
+        "cabeçalho com quebra de linha, nome inválido ou proibido é recusado (header injection)",
+        "tempo limite e resposta grande demais",
+        "redirecionamento para outro host da allowlist não leva a credencial",
+        "redação: nada de token, senha, chave ou Authorization em log e auditoria",
+        "credencial não aparece em log, erro, auditoria, resposta nem no banco em claro; erro do sistema externo que ecoa a chave é redigido",
+        "caminho com "
+      ]
+    },
+    {
+      "file": "test/integracoes-tenants.test.js",
+      "titles": [
+        "desligado por padrão: rotas de integração respondem 404 e o Quick Win não mostra nada de integração",
+        "ciclo completo pela API e Quick Win: leitura vira material; escrita pede aprovação, executa só a entrada aprovada e não duplica",
+        "isolamento entre empresas: conector, credencial, aprovação, plano e catálogo da Alfa não existem para a Beta",
+        "sem permissão: quem não administra não configura nem aprova integrações"
+      ]
+    },
+    {
+      "file": "test/jornadas.test.js",
+      "titles": [
+        "conferência parcial ou desconhecida nunca sugere ausência de problemas"
+      ]
+    },
+    {
+      "file": "test/landing-modelo.test.js",
+      "titles": [
+        "empresa nova já tem a landing publicada e preenchida, com SEO",
+        "todas as seções novas são salvas e validadas",
+        "marca: favicon em JPG ou WEBP é aceito, e o ícone da aba não fica em cache",
+        "marca nasce com título e texto do login e aviso de privacidade de exemplo, editáveis",
+        "marca branca: o aviso de privacidade de exemplo não cita a plataforma; o texto antigo gravado é trocado, o editado fica",
+        "multiempresa: o aviso de administrar a base leva ao endereço da própria empresa",
+        "todas as seções opcionais podem ser escondidas, inclusive O que você encontra e Institucional",
+        "admin da empresa edita a landing sem plano definido; quando trava, o motivo é o verdadeiro",
+        "prévia: quem edita vê a landing completa em rascunho ou em implantação; visitante nunca",
+        "domínio próprio vale em qualquer plano; empresas antigas recebem a liberação; o operador ainda pode travar"
+      ]
+    },
+    {
+      "file": "test/legais.test.js",
+      "titles": [
+        "páginas legais geradas em dia com docs/legal (rode node scripts/gerar-legais.js depois de editar o .md)",
+        "termos e privacidade no ar na instalação de vendas e na plataforma, com noindex e faixa de candidata até a publicação final",
+        "identificação legal igual no rodapé da LP, nos Termos e na Política",
+        "LP: acesso da equipe sem aprovação prévia inventada; retenção sem prazo na página; nada de ",
+        "termos e privacidade só no endereço canônico da plataforma; no endereço de uma empresa levam à plataforma e o resto continua igual",
+        "versão final 1.0: sem marcação de pendência, rascunho ou texto interno; vigência de 30/11/2026; publicação marcada",
+        "registro da aprovação: o hash anotado bate com os documentos (mudou o texto, atualize o registro)"
+      ]
+    },
+    {
+      "file": "test/limites-upload.test.js",
+      "titles": [
+        "mais anexos do que o permitido por mensagem é recusado",
+        "anexo com texto demais é recusado com a estimativa de páginas e a sugestão da base",
+        "a soma do texto dos anexos de uma mensagem tem teto",
+        "arquivo acima do tamanho máximo é recusado",
+        "anexos antigos saem do histórico quando passam do orçamento; o da mensagem atual vai sempre"
+      ]
+    },
+    {
+      "file": "test/login.test.js",
+      "titles": [
+        "código por email: só domínio permitido; entra, recebe cookie HttpOnly e SameSite=Lax",
+        "fora dos domínios, só entra quem o admin cadastrou; ADMIN_EMAIL é sempre admin",
+        "ADMIN_EMAIL com vários emails, de qualquer domínio, entra como admin",
+        "cookie Secure quando a instalação usa HTTPS",
+        "código errado conta tentativa; depois de 5, nem o certo entra; código vale uma vez só",
+        "no máximo 3 códigos a cada 15 minutos; código vencido não entra",
+        "sem sessão: 401; escrita sem token CSRF ou com Origin de fora: 403",
+        "páginas saem com cabeçalhos de segurança e sem script de terceiros"
+      ]
+    },
+    {
+      "file": "test/medicao.test.js",
+      "titles": [
+        "medição sem valor antes mostra ",
+        "uso automático por mês: conversas (não mensagens), pessoas, feedback e custo",
+        "decisão com data, quem decidiu e por quê; CSV com uso, medições e decisões; só quem gerencia",
+        "problema reportado: gravado, email ao admin, evento sem a descrição",
+        "modelo gratuito: liberado com aviso, nunca homologado"
+      ]
+    },
+    {
+      "file": "test/migracao-qw2.test.js",
+      "titles": [
+        "banco anterior ao Quick Win 2.0 sobe com a estrutura nova e os dados intactos"
+      ]
+    },
+    {
+      "file": "test/modelo-economico.test.js",
+      "titles": [
+        "catálogo: Starter 199/2.000/400, Team 399/5.000/1.000, Business 749/10.000/2.000, Company 1.799/25.000/5.000; Capacity Pack 229/2.000",
+        "premissas: crédito US$ 0,01 + 5,5% = US$ 0,01055; custos proporcionais 12% + 3% + 15% = 30%; piso 50% e meta 52%",
+        "margem total no pior caso, calculada das premissas (infraestrutura de referência US$ 7,25): faixas, preço mínimo e folga",
+        "trava: abaixo de 50% é erro; exatamente no preço mínimo passa; a média de uso não contorna a trava",
+        "premissas validadas no servidor: frações entre 0 e 1, meta ≥ piso, custos + piso < 100%; o custo-base do crédito não é editável",
+        "plataforma nova: os quatro planos, o Liberado e o Capacity Pack; mesmos limites e recursos; premissas pelo console (auditadas) mudam as margens",
+        "migração do catálogo: Team e Company atualizados no MESMO registro (empresas continuam vinculadas), Starter e Business criados, planos do operador intocados, idempotente",
+        "ajuste de preço do Company (US$ 1.749 → 1.799): uma vez, auditado, e só se o preço ainda é o de catálogo",
+        "migração do banco da empresa: pacotes antigos ganham produto legado e o valor da época, sem mudar créditos",
+        "consumo: franquia primeiro, depois Capacity Packs (do mais antigo), por último a reserva; pausa no fim; renovação zera a franquia e o pack acumula",
+        "reserva: só classe Rápido, sem imagem, sem design pela IA, sem conferência por IA, sem estrutura de Quick Win; execuções simultâneas não passam do teto"
+      ]
+    },
+    {
+      "file": "test/modelo-limites.test.js",
+      "titles": [
+        "personalização: nome comum aparece nos quatro campos; nome de 80 caracteres usa as formas genéricas inteiras"
+      ]
+    },
+    {
+      "file": "test/multiempresa-extra.test.js",
+      "titles": [
+        "domínio próprio: provedor recebe o cadastro, DNS certo vira verificado, errado fica pendente com orientação",
+        "provedor Render: chamadas corretas à API, sem expor a chave em erro",
+        "respostas simultâneas: acima do limite do plano, 429 só para aquela empresa",
+        "exportar e excluir: só empresa cancelada, com confirmação; guarda cópia e apaga o banco"
+      ]
+    },
+    {
+      "file": "test/multiempresa.test.js",
+      "titles": [
+        "console: só admin da plataforma entra; pessoa comum não recebe código",
+        "fluxo de aceite: criar empresa, plano, admin, marca, landing, URL e publicar",
+        "admin da empresa entra, convida usuário, cria role e define permissões",
+        "admin da empresa personaliza dentro do que foi concedido; o operador bloqueia e sobrescreve",
+        "isolamento: nada da empresa A é alcançável a partir da empresa B",
+        "domínio próprio e subdomínio resolvem a empresa; duplicidade e domínio da plataforma são recusados",
+        "suspender derruba as sessões e bloqueia o acesso; reativar libera",
+        "admin da plataforma entra em qualquer ambiente, com registro na auditoria",
+        "planos por configuração: limite de usuários, recursos e mudança de plano valem na hora",
+        "último admin da empresa não sai; próprio usuário não se rebaixa",
+        "auditoria registra usuário, empresa, ação, antes, depois e origem",
+        "importação: a instalação única vira a primeira empresa, com pessoas e admins"
+      ]
+    },
+    {
+      "file": "test/ocr-legibilidade.test.js",
+      "titles": [
+        "avaliação de legibilidade: texto real passa; ruído (mesmo com confiança de página acima do antigo mínimo de 30) não",
+        "girar: 90° horário, 270°, 180° e volta completa, em cinza",
+        "regressão: imagens de pé continuam lidas como antes",
+        "rotação: foto de lado (PNG e JPEG) e PDF escaneado de uma página de lado são lidos",
+        "rotação em todas as orientações: 90°, 180° e 270° em PNG, JPEG e PDF de uma página dão o mesmo texto da imagem de pé",
+        "conteúdo visual com texto: o texto é lido, o visual não vira texto; só visual: recusado",
+        "radiografia sintética (confiança de página acima do antigo mínimo): o ruído é descartado e as etiquetas de lado são lidas",
+        "imagem sem texto legível e PDF escaneado sem texto legível: mensagem própria, técnica, sem jargão",
+        "chat: imagem só com ruído não chama a IA e mostra a mensagem própria",
+        "chat: senha numa imagem de lado agora é lida e bloqueada como credencial (antes saía ruído)",
+        "chat: foto de lado com texto comum é lida e enviada normalmente"
+      ]
+    },
+    {
+      "file": "test/ocr-protecao.test.js",
+      "titles": [
+        "limites centralizados e configuráveis por variável de ambiente (padrão: 1 leitura por vez)",
+        "dimensões pelo cabeçalho (sem decodificar) e imagens de um PDF pelos dicionários",
+        "concorrência: 1 leitura por vez no processo, mesmo com pedidos de pessoas e empresas diferentes",
+        "concorrência: com a fila cheia ou a espera esgotada, resposta técnica controlada (sem fila persistente)",
+        "limites de tamanho, páginas e pixels: recusa técnica antes de abrir o OCR",
+        "PDF escaneado: 1, 5, 10, 20 e 30 páginas página a página; acima do limite, recusa técnica",
+        "imagem acima da resolução de leitura: reduzida (em cinza) antes do OCR, e o texto continua legível",
+        "guarda de memória: sem margem, a leitura não começa; durante a leitura, acima do limite, ela é interrompida",
+        "tempo esgotado, erro de OCR, erro numa página intermediária, cancelamento, imagem inválida e PDF corrompido",
+        "memória volta a um patamar estável depois das leituras (sem retenção acidental de objetos)",
+        "sem rastro: nenhum arquivo temporário e nenhuma métrica com conteúdo",
+        "diagnóstico no servidor real (processo limpo, limites padrão): nada passa do limite operacional"
+      ]
+    },
+    {
+      "file": "test/operador.test.js",
+      "titles": [
+        "INSTANCIAS: nome, url e token por linha ou ponto e vírgula",
+        "rota de token: sem token, token errado e bloqueio após tentativas",
+        "cliente não acessa o console nem com sessão de admin",
+        "console junta as instalações e mostra quem não responde",
+        "Capacity Pack liberado pelo console chega à instalação do cliente: créditos e valor calculados no servidor; créditos avulsos são cortesia",
+        "troca do modelo por trás de uma classe avisa os admins, sem tom de erro"
+      ]
+    },
+    {
+      "file": "test/paineis-tenants.test.js",
+      "titles": [
+        "painéis multiempresa: IDs iguais nunca compartilham registros, permissões atuais são exigidas"
+      ]
+    },
+    {
+      "file": "test/paineis.test.js",
+      "titles": [
+        "catálogo, preparação atômica e nenhuma publicação automática",
+        "dados preparados não contam; confirmação e repetição não duplicam registros",
+        "registro privado invisível até confirmação explícita de compartilhamento; conversa permanece privada",
+        "nova proteção de sigilo esconde dados anteriormente compartilhados",
+        "resultado de teste é visível para revisão, mas não entra no histórico",
+        "pergunta, inconsistência, falta de conferência e conteúdo não guardado não geram registros",
+        "parcial exige ciência; validação bloqueia campo ausente, estado inválido e confirmação ausente",
+        "correção mantém mês de confirmação, exige motivo e versão atual; revisões auditáveis",
+        "retirada com motivo recalcula indicadores e impede nova confirmação",
+        "apagar conversa apaga registros e revisões por retenção, sem dados órfãos",
+        "governança de armazenamento e credenciais continua aplicada a dados conferidos manualmente",
+        "usuário de consulta não grava nem prepara",
+        "estado agregado e data de ações são validados, não inferidos pelo painel",
+        "extração descarta campos sem evidência literal e não aceita dados ou estados fora do catálogo",
+        "sugestão governada prepara campos, contabiliza custo e reaproveita sem nova chamada",
+        "paginação conserva todos os indicadores e permite alcançar registros anteriores",
+        "sigilo não dispara chamada de extração e compartilhamento segue bloqueado",
+        "falha de IA mantém caminho manual, sem incluir dados no histórico",
+        "datas mensais respeitam Brasília, revisões têm motivo e não expõem dados a terceiros"
+      ]
+    },
+    {
+      "file": "test/planilha.test.js",
+      "titles": [
+        "números em formatos comuns (pt-BR, ponto, moeda, porcentagem) e texto não é número",
+        "totais, vazios, fora do padrão, variação e somas por categoria sobre todas as linhas (inclusive as últimas)",
+        "XLSX e CSV: o texto extraído leva os cálculos conferidos"
+      ]
+    },
+    {
+      "file": "test/plano-liberado.test.js",
+      "titles": [
+        "o plano Liberado existe, com todos os recursos e sem limites",
+        "empresa no Liberado: plano ilimitado, sem bloqueio nem limite de mensagens, e sem dólar para o cliente"
+      ]
+    },
+    {
+      "file": "test/plano.test.js",
+      "titles": [
+        "variáveis do servidor: PLANO_CREDITOS e reserva de 20% por padrão",
+        "operador de outro domínio entra; só ele vê dólar e preços dos modelos",
+        "mês completo: 80%, só rápido em 100%, bloqueio no fim da reserva, avisos por email",
+        "o cliente vê créditos, nunca dólar: uso, eventos, tetos e CSV",
+        "pacote do operador volta todos os modelos, o que sobra passa para o mês seguinte, e a renovação avisa",
+        "mês que terminou só no rápido: na virada, o admin recebe o aviso de renovação",
+        "sem plano, nada muda: o admin vê dólar e não há bloqueio",
+        "preço de modelo liberado muda mais de 20%: evento e email ao operador; a empresa não é avisada sem decisão do operador"
+      ]
+    },
+    {
+      "file": "test/pools-modelos.test.js",
+      "titles": [
+        "catálogo confirmado amplia para três modelos por nível e registra uma única inclusão idempotente",
+        "modo manual, modelos desativados, vetos e capacidades existentes nunca são sobrescritos",
+        "falta de catálogo, preço inválido, teto excedido e contexto desconhecido não liberam novos recursos",
+        "escolha de cada nível compara seus modelos em vez de fixar o padrão; Automático usa o menor nível suficiente",
+        "capacidade explícita relevante vence opção insuficiente dentro do mesmo nível",
+        "dados sigilosos nunca usam modelos novos sem autorização e não têm reserva livre do fornecedor",
+        "modelo técnico explicitamente fixado no Quick Win continua fixo",
+        "modelo retirado do catálogo não participa; falha de consulta preserva catálogo conhecido",
+        "falhas e latência só pesam com amostra suficiente, são auditadas e não escapam do nível",
+        "dados antigos, bloqueios de governança e resultados ainda incompletos não contaminam desempenho",
+        "curadoria seleciona modelos diferentes para tarefas distintas no mesmo nível, com custo e governança mantidos"
+      ]
+    },
+    {
+      "file": "test/producao-visual-tenants.test.js",
+      "titles": [
+        "isolamento: o artefato visual da empresa A não abre, não baixa e não se edita na empresa B; a identidade visual é por empresa"
+      ]
+    },
+    {
+      "file": "test/producao-visual.test.js",
+      "titles": [
+        "execução com artefato: plano visual pela IA (mesma rota), artefato guardado na execução, custos por etapa, auditoria sem conteúdo",
+        "plano visual ilegível: o planejador determinístico assume, sem perder o artefato",
+        "edição sem refazer a execução: texto, título, ordem, formato e cores viram nova versão conferida; restaurar; regra da marca não muda",
+        "reuso de conteúdo: derivar outro artefato (one-page, infográfico, carrossel) sem nova execução e sem IA",
+        "acesso: só quem executou vê, baixa, edita ou deriva o artefato (outra pessoa e o admin recebem 404)",
+        "gerador de imagem liberado: imagem vira asset (só o tema vai para o modelo), custo separado; falha do provedor não perde o artefato",
+        "governança do gerador de imagem: sigilo, área reforçada, dado protegido e reserva do plano bloqueiam; sem provedor, sem chamada",
+        "imagem que precisa ser real: espaço reservado explícito e resultado parcial; a foto enviada entra numa nova versão (validada pelos bytes)",
+        "regressão: Quick Wins sem visual (resumir, comparar cláusulas, listar pendências) não ganham produção visual",
+        "interpretação: o plano da IA decide (tipo desconhecido vira custom); sem IA, a leitura do pedido reconhece o visual; pedido de texto não vira visual",
+        "identidade visual no admin: regras validadas (logo SVG com script recusado), preferência não vira regra, imagens desligadas quando a empresa desliga",
+        "retenção: conteúdo que a empresa não guarda não gera artefato guardado, e a pessoa é avisada"
+      ]
+    },
+    {
+      "file": "test/provedor-oculto.test.js",
+      "titles": [
+        "filtro de saída: substitui o nome, a URL, a chave e o identificador do provedor",
+        "código das páginas da empresa não contém o nome do provedor (só o painel global e o console do operador)",
+        "respostas da API da empresa, para quem usa e para o admin da empresa, nunca citam o provedor",
+        "arquivos da interface: revalidação a cada carga (deploy novo aparece na hora) e 304 quando nada mudou"
+      ]
+    },
+    {
+      "file": "test/quickwin-construtor.test.js",
+      "titles": [
+        "tipo de trabalho: sugestão clicada vale; sem ela, inferido da descrição",
+        "nome e descrição automáticos",
+        "regras: poucas, ",
+        "exemplo: extrai estrutura, detalhe e tom; não vai inteiro para a execução",
+        "especificação: estrutura completa, sem ferramentas, autonomia do catálogo, explicação vira procedimento",
+        "entradas de teste geradas: sintéticas, sem segredo e sem dado que a política bloqueie ou proteja",
+        "contrato de saída: formato, colunas, seções e números sem fonte",
+        "conferência pela IA: JSON lido com segurança; critério desconhecido ignorado",
+        "correção automática: aprova, corrige, respeita o limite, reserva sem IA e falha da conferência",
+        "regras próprias: dados estruturados na especificação, na execução e no Quality Check"
+      ]
+    },
+    {
+      "file": "test/quickwin-contrato.test.js",
+      "titles": [
+        "caso real de produção: contrato Cliente | Valor, resultado Cliente | Valor → aprovado, sem correção, sem Status",
+        "coluna extra: Cliente | Valor | Status fora do contrato Cliente | Valor → formato falha; corrigido só se voltar ao contrato",
+        "correção por outro motivo: resolve a regra e continua exatamente Cliente | Valor; Status nunca reaparece",
+        "renomeação: Cliente | Valor total | Situação na execução, conferência e correção; Valor e Status não voltam",
+        "adição manual: Responsável passa a ser exigido; o objetivo original não limita o contrato",
+        "ordem confirmada faz parte do contrato; especificação sem confirmação continua tolerante como antes",
+        "intenção do trabalho: sem estrutura localizável e colunas da pessoa, o texto original não vai para a conferência"
+      ]
+    },
+    {
+      "file": "test/quickwin-escolha-humana.test.js",
+      "titles": [
+        "decisão explicitamente configurada tem precedência; preferência comum continua automática",
+        "execução aguarda escolha sem reavaliação automática; recarga preserva estado e resposta continua execução",
+        "se o modelo ignora a escolha, não entrega artigo nem executa próxima etapa; tentativa permanece pendente",
+        "plataforma explicita etapa atual e recupera opções uma vez; custo inclui tentativa descartada e escolha retoma",
+        "falha do provedor na recuperação conserva a espera e o custo da primeira chamada, sem nova rota"
+      ]
+    },
+    {
+      "file": "test/quickwin-estrutura.test.js",
+      "titles": [
+        "A e B: colunas nomeadas no objetivo viram o contrato (execução e Quality Check usam as mesmas)",
+        "origem conferida: campo inventado ou renomeado pela IA é descartado; resposta ilegível não inventa nada",
+        "C e D: sem campos nomeados, nenhuma coluna tratada como pedida",
+        "E, F e G: exemplo define como antes; compatível sem duplicar; conflitante mantém o exemplo e registra",
+        "edição manual é soberana; falha da IA não inventa colunas; Quick Win antigo igual",
+        "uma chamada por objetivo novo; mesmo objetivo salvo = 0 chamadas; objetivo alterado = 1; consumo registrado",
+        "C, D e campo inventado pela IA, pelo servidor",
+        "governança da chamada: permissão, segredo, dados, política, limites, plano e falha da IA (sem bloquear a criação)",
+        "plano na reserva: nenhuma chamada extra na criação",
+        "colunas Cliente/Valor/Status + regra própria ",
+        "precedência: configuração confirmada vale mais que o objetivo na execução e na conferência; especificação antiga igual",
+        "soberania na execução, no Quality Check e na correção: remover, renomear, adicionar e ordenar"
+      ]
+    },
+    {
+      "file": "test/quickwin-generalista.test.js",
+      "titles": [
+        "critério de aceite: as 7 frases recebem a mesma estrutura de operação (não só a de social media)",
+        "A. social media continua: canal é só um metadado do entregável",
+        "B. contrato: documento → resumo, riscos e obrigações, com dependências, critérios e sugestão opcional",
+        "C. fornecedores: 3 propostas → tabela, análise e riscos; sem os arquivos, pede antes de responder",
+        "D. pesquisa de mercado: web + contexto da empresa, em etapas; a lacuna de mercado é perguntada",
+        "E. planilha: dados → resumo, desvios e prioridades; sugestão aceita vira entregável",
+        "F. reunião: transcrição → ata, decisões, próximos passos e pendências",
+        "G. relatório: um entregável só é o contrato do formato (relatório), com a lacuna da origem dos dados",
+        "H. pedido vago: o Quick Win pergunta o mínimo necessário",
+        "I. imagem pronta pedida vira ",
+        "I2. ferramenta ausente (briefing pedido): a GreenIA explica e entrega a alternativa possível (nunca simula)",
+        "J. Quick Win antigo: continua funcionando e é atualizado sem perder histórico (só vale ao publicar)",
+        "interpretação: sem IA usável, plano heurístico (nunca trava); resposta com segredo ou fora do catálogo é descartada",
+        "homologação real: plano da IA sem canal para peças de um pedido com canais recupera os canais do pedido",
+        "trabalho que depende da empresa: o contexto da base chega mesmo sem palavra em comum com o pedido",
+        "rótulo vindo da IA não repete o canal do entregável",
+        "política de autonomia: pergunta de preferência não bloqueia (vira escolha registrada); a necessária continua bloqueando",
+        "invariantes do pedido: o que o pedido diz explicitamente não se perde quando o plano da IA varia",
+        "política de autonomia: sem material obrigatório e com o contexto da empresa, a insistência em perguntar o tema não bloqueia"
+      ]
+    },
+    {
+      "file": "test/quickwin-interpretacao-tenants.test.js",
+      "titles": [
+        "o mesmo pedido em duas empresas: cada uma interpreta, chama e registra o seu plano",
+        "QA-07: a auditoria da interpretação registra o tipo da correção, não o texto do pedido",
+        "QA-12: correção estrutural do plano chega na resposta e na auditoria só como contagem",
+        "QA-02 (revalidação): a mesma frase em empresas e contextos diferentes — caches, planos e eventos independentes"
+      ]
+    },
+    {
+      "file": "test/quickwin-operacao.test.js",
+      "titles": [
+        "inferência: canais, entregáveis ligados ao canal, pesquisa e só valores do catálogo",
+        "criação: contexto acumulativo, entrega por canal no contrato, lacunas só quando a base não tem o contexto",
+        "aceite A e B (Apy Mine): pesquisa real, contexto da empresa, todos os entregáveis por canal, fontes guardadas",
+        "aceite A (falhas): sem pesquisa liberada, entregável faltando ou conversa sigilosa, o resultado não passa como aprovado",
+        "aceite C: teste contextual e real (exemplo fictício do Quick Win, mesma engine, fora da medição)",
+        "aceite D: falta contexto essencial, a execução pergunta, pausa e continua com a resposta",
+        "aceite E: excluir preserva histórico, some do catálogo, respeita permissão e não afeta outra empresa nem o modelo global",
+        "compatibilidade: Quick Win antigo (sem operação) segue igual; especificação forjada não liga ferramenta",
+        "inferência: canal coordenado herda as peças já pedidas (",
+        "citações no formato oficial do OpenRouter (message.annotations e delta.annotations); só http(s)"
+      ]
+    },
+    {
+      "file": "test/quickwin-pesquisa-externa.test.js",
+      "titles": [
+        "só contexto interno: nenhuma busca, a pergunta mínima de mercado, sem ",
+        "contexto público disponível: o perfil classificado pelo admin vai para a busca, e só ele",
+        "perfil público com dado que não pode sair é recusado; o perfil salvo continua",
+        "sem contexto nenhum (empresa sem base e sem perfil): pergunta; pedido com o mercado no próprio objetivo: pesquisa",
+        "isolamento: o perfil e a base de uma empresa nunca vão para a busca da outra",
+        "o que a pessoa cola de material na execução (texto longo, anexo, dado pessoal) não vai para a busca",
+        "unidade: o contexto externo só junta peças seguras e diz quando falta mercado",
+        "checker: matriz com ",
+        "checker: honesto não é aprovado — a conferência diz que o objetivo não foi atingido, e o status é parcial",
+        "pesquisa bloqueada chega à conferência e à revisão como estado confiável; falta de pesquisa não vira erro de conteúdo",
+        "bloqueio não apaga invenção; pesquisa concluída não recebe instrução de limitação e continua sendo conferida"
+      ]
+    },
+    {
+      "file": "test/quickwin-qa-final.test.js",
+      "titles": [
+        "conferente: duração entre datas do material e campo derivado não são invenção",
+        "conferente: contagem de slides/páginas de peça visual vira observação; o mesmo critério sem peça visual reprova",
+        "conferente: motivo que confirma o resultado (",
+        "conferente: datas sem ano nos dois sentidos, reformulação e aproximação não reprovam; contexto da empresa é observação",
+        "revisão: só achado confirmado com trecho real reprova; não confirmado, trecho inexistente ou invenção sem trecho viram observação",
+        "revisão no fluxo: falso positivo do conferente não reprova; revisão que falha mantém o achado",
+        "avisos de configuração trazem a ação: pesquisa, imagem, fonte obrigatória; motivo que não é configuração não traz",
+        "execução: data sem ano ou prazo relativo nunca é motivo para perguntar",
+        "conferente: objetivo "
+      ]
+    },
+    {
+      "file": "test/quickwin-qa-universalidade.test.js",
+      "titles": [
+        "QA-01 sem IA: contexto da empresa pela linguagem do pedido, não só para conteúdo de canal",
+        "QA-03: componente pedido que só estava na descrição vira seção conferível",
+        "QA-05: a quantidade do pedido conta o material, não o resultado",
+        "QA-08: ",
+        "QA-09: provedor que aceita a conexão e não responde não pendura a interpretação",
+        "QA-05: mais ambiguidade numérica — conta o material, nunca o formato, o período ou o resultado",
+        "QA-08: ",
+        "QA-10: sem IA, os três pedidos da missão saem com a estrutura que pedem (não um relatório genérico)",
+        "QA-10: sem IA, pedido sem objeto pergunta o mínimo (obrigatório); pedido sem lista sai com o trabalho literal",
+        "QA-06: o que o Quick Win produz nunca é material obrigatório; vídeo final vira pacote de produção, parcial",
+        "QA-06: A (campanha no contexto) entrega o pacote e fica parcial; C (sem ferramenta) não aceita arquivo simulado",
+        "QA-12: dependência inválida é normalizada quando dá, removida quando não dá, e a validação sabe",
+        "produção (qw de posts): a explicação de como se faz hoje não vira seção obrigatória; restrição nunca é entregável",
+        "produção (qw de posts): plano guardado por uma regra de leitura anterior não é reaproveitado depois da correção"
+      ]
+    },
+    {
+      "file": "test/quickwin-refinamento.test.js",
+      "titles": [
+        "sugestões contextualizadas pela IA não alteram o Quick Win e usam o resultado guardado",
+        "exige edição autorizada e teste pertencente à pessoa e ao Quick Win",
+        "falha da IA mantém feedback sem inventar sugestões nem alterar o rascunho",
+        "sigilo impede enviar material e resultado para análise adicional",
+        "recupera proposta que eliminou a escolha e explica a validação na segunda tentativa",
+        "reabrir recupera resultado, material e histórico próprio sem refazer o editor",
+        "repete material guardado em novo teste e mantém ligação para comparar após reabrir",
+        "repetição recusa conversa de outra pessoa, outro Quick Win e conversa regular como destino",
+        "retenção impede repetir ou analisar conteúdo não guardado",
+        "resultado de execução regular pode ser refinado sem usar resposta de conversa posterior",
+        "aprovação rejeita sugestão desatualizada e conserva a especificação",
+        "seleção explícita por campo e limites protegem as regras atuais",
+        "orientação dos entregáveis vale na execução e na conferência sem trocar formato ou ferramentas",
+        "teste de outro Quick Win não é usado no refinamento",
+        "não sobrescreve uma tela aberta antes de mudar o responsável ou o rascunho",
+        "processo aprovado orienta execução e conferência sem trocar contrato, regras ou ferramentas"
+      ]
+    },
+    {
+      "file": "test/quickwin-teste-autonomia.test.js",
+      "titles": [
+        "teste sem documentos da empresa: o exemplo decide pela empresa fictícia e a execução não para numa pergunta de preferência",
+        "sem pesquisa liberada e sem base: o prompt manda fazer todos os entregáveis, com o tema como sugestão",
+        "conferência: critério que depende de material ausente é atendido quando o resultado diz que ele não veio",
+        "peças por canal: número, resultado de cliente e oferta só entram se estiverem no material",
+        "material só citado e não obrigatório (guia da marca): não vira pergunta"
+      ]
+    },
+    {
+      "file": "test/quickwin-v1-atualizacao.test.js",
+      "titles": [
+        "v1 (simples, tabela, modelo fixado, com histórico e conversas): antes, prévia, atualização, publicação e restauração"
+      ]
+    },
+    {
+      "file": "test/quickwins-v2-tenants.test.js",
+      "titles": [
+        "isolamento: Quick Win 2.0 da empresa A não aparece nem abre na empresa B"
+      ]
+    },
+    {
+      "file": "test/quickwins-v2.test.js",
+      "titles": [
+        "criação: sugestões sem IA, nome e descrição automáticos, ",
+        "nome escolhido identifica o trabalho; descrição automática continua baseada no objetivo",
+        "a especificação só sai do construtor: campos forjados pela API não ampliam fontes, ferramentas ou autonomia",
+        "segurança: credencial na descrição, na explicação ou no exemplo (texto e arquivo) não entra no Quick Win",
+        "execução com Quality Check aprovado: prompt gerado da especificação, etapas, resultado conferido e mesma rota",
+        "Quality Check reprova, corrige sozinho e confere de novo",
+        "Quality Check: limite de tentativas e falha final com mensagem simples",
+        "versões: quem usa recebe a publicada; o teste usa o rascunho; publicar a nova; restaurar a anterior",
+        "governança soberana: o Quick Win não libera dado bloqueado, credencial nem troca a rota de dado protegido",
+        "ciclo de vida: execução tem Quality Check; ajuste e pergunta seguintes são conversa normal; nova execução tem de novo",
+        "ciclo de vida: a resposta a uma pergunta de esclarecimento continua a mesma execução",
+        "ciclo de vida: Quick Win antigo continua igual (sem Quality Check, instruções em todas as mensagens)",
+        "ciclo de vida (Cliente, Valor, Status): ",
+        "regras próprias: salvas, publicadas, herdadas na nova versão, removidas, na execução e no Quality Check",
+        "o selo e a publicação exigem teste do rascunho e das fontes atuais"
+      ]
+    },
+    {
+      "file": "test/quickwins.test.js",
+      "titles": [
+        "quick win de ponta a ponta: configurar com arquivo, testar, ativar, conversar com anexo, ajustar, retomar, feedback e uso",
+        "pessoa de outra área não vê o quick win; ",
+        "filtro no servidor: CPF bloqueado no quick win com ",
+        "perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick win, mas não troca para outro Avançado",
+        "sigilosa por quick win que trata dados sigilosos: nasce sigilosa; modelo não homologado nunca é usado; a GreenIA usa o homologado sem perguntar",
+        "apagar a conversa apaga os anexos; outra pessoa, o responsável e o admin não leem a conversa",
+        "duplicar para outra área copia instruções, arquivos e configuração, nunca conversas",
+        "estimativa de custo por conversa típica, por modelo, a partir do preço do catálogo"
+      ]
+    },
+    {
+      "file": "test/qw-preparacao.test.js",
+      "titles": [
+        "controles persistem na operação; valores inválidos ficam restritivos; nenhuma autorização nasce do texto",
+        "preparar, consultar, limites de ações e itens bloqueiam no servidor antes de efeitos externos",
+        "aprovador definido é obrigatório, entrada aprovada não duplica a escrita e autorização expira",
+        "catálogo não expõe credenciais; pedido é persistente, idempotente e só pode ser concluído com conexão pronta"
+      ]
+    },
+    {
+      "file": "test/qw-programacao.test.js",
+      "titles": [
+        "agenda usa fuso local, semana, mês e ignora horário inexistente",
+        "programação nasce pausada, protege entrada e executa no servidor sem navegador",
+        "equipe vê status mas não entrada nem conversa do responsável; usuário comum não programa",
+        "mudança de versão e revogação do responsável bloqueiam a fila antes de inferir",
+        "limite persiste após excluir a conversa; rotina não se sobrepõe",
+        "reinício preserva fila e pausa ação incerta sem repetir efeito externo",
+        "evento exige assinatura, deduplica entregas e aceita gatilho e fila atomicamente",
+        "configuração recusa credenciais e horários inválidos sem gravar",
+        "integração programada aguarda aprovação e retoma uma vez com as mesmas entradas",
+        "perda de permissão granular e capacidade do plano impedem execução multiempresa",
+        "fila sobrevive ao fechamento e reabertura do banco em disco",
+        "outro gestor pode pausar mas não executar como o responsável",
+        "excluir Quick Win pausa programações e cancela somente trabalhos na fila",
+        "conferência de horário é calculada no servidor e não grava agendamento",
+        "repetir pedido de criação preserva uma única rotina e rejeita alteração do pedido",
+        "contexto usa a versão publicada, não inventa fontes e não é exposto ao usuário comum"
+      ]
+    },
+    {
+      "file": "test/resultado-orientacao.test.js",
+      "titles": [
+        "etapa editorial e pesquisa na internet não viram sistema externo; sistema explicitamente nomeado permanece",
+        "diagnóstico editorial oferece ajuste concreto e preserva a evidência completa",
+        "consulta bloqueada não é descrita como gravação bloqueada pela qualidade",
+        "negação, falha, resultado parcial e aprovação nunca propõem repetir efeito incerto"
+      ]
+    },
+    {
+      "file": "test/retencao.test.js",
+      "titles": [
+        "prazos padrão: automático 7 dias, manual 30, empresa excluída 30; variáveis só aceitam números válidos",
+        "plano por camada: idade, manifesto, hold, sem classificação e itens fora do padrão",
+        "dry-run não apaga nada; aplicar apaga só o planejado; segunda rodada não tem mais nada (idempotente)",
+        "proteção: banco em uso dentro do padrão, link simbólico e hold criado depois do plano não são apagados",
+        "hold: precisa de motivo e responsável, só vale em backups, excluídas e restauração, e pode ser liberado",
+        "classificar um backup manual antigo: a data informada passa a valer para o prazo",
+        "backup automático atrasado vira alerta",
+        "backup manual: cópia consistente de cada banco, com manifesto, e entra na regra de 30 dias",
+        "WAL: a conversa apagada some do banco e do WAL logo depois da exclusão",
+        "WAL: consolidação periódica de todos os bancos, sem VACUUM e sem perder dados",
+        "empresa excluída: a cópia de recuperação ganha manifesto com prazo e entra na limpeza de 30 dias",
+        "S3 só com expiração declarada no bucket (S3_LIFECYCLE_DIAS de 1 a 7); sem ela, o destino é ignorado com aviso"
+      ]
+    },
+    {
+      "file": "test/revisao-final.test.js",
+      "titles": [
+        "elegibilidade por atributos: recursos equivalentes são elegíveis; um rótulo não substitui o atributo real",
+        "área reforçada sem recurso para confidencial, mas com recurso compatível com a área: documento comum processa",
+        "RH: classificado pelo conteúdo (casos A a F), não pelo departamento nem por palavras soltas",
+        "conteúdo sensível: classificação adequada, controles adicionais, bloqueio só sem caminho permitido",
+        "hard block: senha, API key, token, chave privada, seed phrase e credencial, em texto, PDF e PPTX",
+        "retenção: guardar = sim; guardar = não (processa, entrega, nada fica em banco, log, evento ou erro); bloqueado",
+        "quick win comercial com dados reais simulados (nomes, cargos, emails corporativos, clientes), em área reforçada"
+      ]
+    },
+    {
+      "file": "test/roteamento-matriz.test.js",
+      "titles": [
+        "1. tarefa simples não usa modelo avançado, em nenhuma preferência",
+        "2. tarefa complexa não usa modelo insuficiente, em nenhuma preferência",
+        "3. contexto grande: escolhe janela suficiente; volume sozinho não sobe a classe",
+        "3b. estimativa de tokens: conteúdo denso usa razão mais conservadora; a seleção usa a segura",
+        "4. assunto de alta precisão aumenta a exigência quando aplicável",
+        "5. pessoa sem acesso à classe necessária recebe o melhor modelo permitido, com a causa registrada",
+        "6. sigilo exclui os modelos não homologados; a escolha segue a capacidade entre os homologados",
+        "7. a preferência muda a decisão quando há alternativas equivalentes, e só então",
+        "8. falha da classificação não quebra a governança",
+        "9. fallback nunca viola política: o modelo usado não tem motivo de governança; a reserva passa pelas mesmas regras",
+        "10. mudança de configuração da empresa altera o conjunto de candidatos e a escolha",
+        "11. o motivo exibido corresponde à decisão real",
+        "12. solicitações diferentes, mesma pessoa e mesma configuração, não são obrigadas ao mesmo modelo",
+        "nova tentativa sobe a partir da classe usada antes; na classe mais alta, registra que não há acima",
+        "capacidade x classe: cada dimensão tem efeito próprio e registrado",
+        "quick win: fixo define a classe (com a análise registrada); flexível entra como piso do Automático",
+        "todo sinal da análise muda a escolha em pelo menos um caso de referência (nenhum sinal decorativo)",
+        "capacidades explícitas: modelo Equilibrado forte em programação atende código difícil antes de um Avançado mais caro",
+        "dominância: um desempate nunca escolhe modelo menos capaz e mais caro",
+        "nova tentativa é limitada: no máximo uma classe acima do que a tarefa pede, sem subir em cadeia",
+        "quick win fixo com conteúdo grande: troca só dentro da classe dele; com modelo técnico fixado, não troca"
+      ]
+    },
+    {
+      "file": "test/roteamento-propriedades.test.js",
+      "titles": [
+        "Qualidade nunca reduz a capacidade escolhida em relação a Equilíbrio e Economia",
+        "monotonicidade de nova tentativa: com falha anterior, a classe é igual ou maior",
+        "auditoria: toda decisão, inclusive bloqueada, é reconstruível e determinística"
+      ]
+    },
+    {
+      "file": "test/roteamento.test.js",
+      "titles": [
+        "fluxo completo: pedido simples no Rápido, contrato com riscos no Avançado; o modelo chamado é o decidido",
+        "v3: tarefa simples fica na menor classe suficiente mesmo com preferência por qualidade",
+        "auditoria: reconstrói a decisão (requisitos, candidatos, motivo, preferência, resultado) sem guardar conteúdo",
+        "sem acesso à classe necessária: a mais capaz permitida, com a causa na auditoria e na explicação",
+        "classe escolhida pela pessoa: respeitada, analisada e sinalizada quando fica abaixo do necessário",
+        "nova tentativa na mesma conversa sobe a partir da classe usada antes",
+        "roteamento desligado: padrão da empresa, registrado como padrão (não como escolha da pessoa)",
+        "decisão bloqueada também é registrada; nada é enviado nem gravado como mensagem",
+        "falha na análise do pedido: responde com a exigência padrão e a governança intacta",
+        "reserva de execução: só vai ao fornecedor se passar pelas regras; o uso da reserva fica no registro",
+        "Automático do serviço de IA: fora das regras de roteamento, identificado como tal e fora dos indicadores do roteador",
+        "admin: Automático é o padrão; liga, desliga e muda a preferência; a preferência chega à decisão",
+        "feedback "
+      ]
+    },
+    {
+      "file": "test/seguranca.test.js",
+      "titles": [
+        "rajada: acima do limite por minuto, 429 antes de chamar o modelo",
+        "arquivo compactado com extensão que não é DOCX nem XLSX é recusado",
+        "anexo e documento vão delimitados, sem como fechar a marca por dentro"
+      ]
+    },
+    {
+      "file": "test/sigilo-guardrails.test.js",
+      "titles": [
+        "camada central: fail closed; desconhecido nunca vale como permitido",
+        "classificação: CPF, CNPJ, cartão, banco, PIX, senha e API key detectados; categorias distintas",
+        "política OFF: informação sigilosa nunca é enviada; nada gravado; sem marcar a conversa; mensagem simples",
+        "política ON + rota válida: envia pela rota fixada, com retenção zero exigida; o registro reconstrói a decisão",
+        "política ON + guardrail inválido, autorização ausente ou desconhecida: nunca envia; admin avisado uma vez",
+        "economia nunca supera autorização: o barato não autorizado nunca é usado, mesmo para pedido simples",
+        "fallback: principal indisponível → outro recurso SÓ se autorizado e elegível; senão, nada mais é enviado",
+        "reserva do plano: créditos no fim continuam só com recurso autorizado; sem ele, nada é enviado",
+        "API, nova tentativa, anexo e streaming: a mesma governança em todo envio",
+        "invariante absoluta: nenhuma condição (barato, rápido, único disponível, reserva, créditos, fallback, API, retry) faz a informação sigilosa chegar a recurso não autorizado",
+        "nunca expor provider: respostas para quem usa não citam OpenRouter, fornecedor, rota nem identificador técnico",
+        "migração de bancos existentes: autorização da plataforma vai para coluna própria; homologações antigas ganham os atributos que já valiam"
+      ]
+    },
+    {
+      "file": "test/smtp-plataforma.test.js",
+      "titles": [
+        "SMTP da instalação anterior vira o da plataforma, uma vez, inclusive depois da importação",
+        "plataforma já importada sem SMTP: a cópia acontece na subida seguinte",
+        "variáveis do servidor têm prioridade; sem elas, vale o SMTP do console",
+        "produção sem SMTP: o console avisa que o email não está configurado, em vez de dizer que enviou",
+        "SMTP recusa o envio: o console mostra o motivo, sem o endereço com a senha",
+        "falha no envio do email não gasta o limite de pedidos de código",
+        "endereço SMTP com caracteres especiais na senha, codificados ou não",
+        "envio por API HTTPS (Resend e Brevo), sem expor a chave em erro",
+        "configurações da empresa: email em campos separados, senha nunca devolvida e mantida quando em branco",
+        "senha de app colada com os espaços de exibição ("
+      ]
+    },
+    {
+      "file": "test/usuario-leigo.test.js",
+      "titles": [
+        "11. nenhum modelo homologado: conversa sigilosa bloqueada com segurança, nada enviado, admin avisado uma vez",
+        "1. sigilosa sem modelo elegível para a pessoa (homologado só numa classe que ela não acessa): bloqueio seguro",
+        "2. sigilosa com modelo elegível em outro nível: a GreenIA usa o autorizado, sem perguntar",
+        "17. conteúdo confidencial detectado com escolha de modelo não autorizado: não vai ao não autorizado",
+        "9. pessoa sem conhecimento técnico: pede, e a GreenIA resolve; o seletor não mostra modelos técnicos",
+        "14. pedido simples usa o nível econômico",
+        "4. o necessário não está disponível para a pessoa: usa o mais capaz permitido e registra a causa",
+        "12. nível sem permissão para o grupo da pessoa, pedido à força: não é usado; o automático resolve",
+        "13. pedido que exige mais capacidade: sobe de nível sozinho quando a pessoa tem acesso",
+        "3 e 7. principal indisponível com reserva: a reserva responde, registrada, sem perguntar",
+        "8 e 16. principal e reserva fora: mensagem simples; nova tentativa funciona sem nada a configurar",
+        "5. conteúdo maior que a janela do nível econômico: vai para um que lê tudo, sem pedir nada",
+        "19. conteúdo incompatível com todos os modelos: bloqueio com orientação da tarefa, sem acionar o admin",
+        "15. anexo de tipo desconhecido: recusado com orientação simples, nada enviado",
+        "6. chave recusada pelo provedor: mensagem simples para quem usa; detalhe técnico e aviso só para o admin",
+        "18. Automático do provedor: nunca usado com dado sigiloso; fora dele, explicado sem termos técnicos",
+        "10. configuração incompleta (quick win fixo numa classe sem modelo liberado): atende no automático e avisa o admin",
+        "20. falha que exige o admin (nenhum modelo liberado): bloqueio simples, auditado, admin avisado",
+        "plataforma: a operadora autoriza um modelo para dado sigiloso em todas as empresas; a empresa não retira"
+      ]
+    },
+    {
+      "file": "test/vendas.test.js",
+      "titles": [
+        "a raiz abre a página de vendas só com PAGINA_INICIAL=vendas",
+        "a página não promete o que não existe nem mostra custo de fornecedor",
+        "a página da empresa orienta o uso e segue as mesmas regras de texto",
+        "contato válido vira lead, evento e email; inválido e robô não",
+        "limite de contatos por endereço",
+        "a LP mantém a demonstração e condições de integração com uma estrutura comercial curta"
+      ]
+    },
+    {
+      "file": "test/visual-bloqueadores.test.js",
+      "titles": [
+        "A. apresentação: nada do conteúdo some (blocos na capa, vários itens num bloco); riscos não viram checklist nem status vira processo",
+        "A. a capa não desenha blocos: o que a IA pôs nela vira subtítulo ou segue para a próxima página",
+        "C. comparação: a peça usa a seção que tem a peça (",
+        "C. comparação sem a tabela desenhada é reprovada pela conferência",
+        "D. texto abaixo do mínimo do formato é reprovado; texto pequeno com espaço sobrando também",
+        "E. página de leitura quase vazia com texto no tamanho base é reprovada; a correção preenche (texto maior)",
+        "E. cronograma longo num painel largo corre em colunas (sem fio estreito com o resto da página vazio)",
+        "F. cartaz com conteúdo demais não ganha segunda página: diz o que não coube",
+        "G. lacunas opcionais saem da peça (linha, célula, coluna e campos com |); o resto fica",
+        "H. conferência textual julga o conteúdo da peça visual, não a aparência; invenção continua reprovada"
+      ]
+    },
+    {
+      "file": "test/visual-design-ia.test.js",
+      "titles": [
+        "limpeza: script, eventos, iframe, link, @import, url() e src externos saem; assets da peça viram a origem isolada",
+        "isolamento do navegador: JavaScript da página não roda e nenhum pedido sai para a rede (mesmo sem a limpeza)",
+        "conferência no navegador: transbordo, margem, fonte pequena, contraste (nos pixels), sobreposição, número inventado e conteúdo omitido",
+        "Quick Win com peça desenhada pela IA: artefato ",
+        "design reprovado duas vezes: uma correção com a lista exata, depois motor clássico (a peça nunca sai quebrada)",
+        "peça de impacto: imagem ilustrativa gerada (liberada para todos por padrão) entra no design pela origem isolada",
+        "QF-05 escolha: IA quando ligada, saudável e permitida; clássico com categoria e motivo em cada outro caminho (nunca silencioso)",
+        "QF-05 ajuste determinístico: texto na borda e com pouco contraste é consertado sem nova chamada e o design pela IA é usado",
+        "QF-05 ajuste determinístico: texto pequeno sobe para o mínimo (com a margem e o contraste) sem nova chamada",
+        "QF-05 validação: falha sem conserto determinístico (conteúdo omitido) → VALIDATION_FALLBACK com códigos; resposta ilegível também",
+        "QF-05 tempo esgotado e falha do provedor: fallback explícito, sem repetição infinita",
+        "QF-05 na execução: evento com motor pedido/usado, categoria e motivo; IA usada quando o design passa; clássico com motivo quando não; checker nos dois",
+        "QF-05 ajuste de contraste vence cor !important e fundo médio (tarja atrás do texto)"
+      ]
+    },
+    {
+      "file": "test/visual-fidelidade.test.js",
+      "titles": [
+        "1. comparação (3 fornecedores x 5 critérios em listas paralelas) vira matriz desenhada; nenhum item ou critério some",
+        "1. comparação: plano que desenha a matriz como texto é corrigido para tabela; sem tabela, a conferência reprova",
+        "1. pedido comparativo cuja peça não tem matriz: a matriz do resultado entra na peça",
+        "2-4. números pt-BR e en-US: entrada -> parser -> renderer mantém o valor exato (nunca ",
+        "5. cartaz: uma página e todos os elementos dentro do canvas; conteúdo que não cabe no formato pequeno vai para o maior da família",
+        "5. a conferência acusa qualquer elemento fora do canvas (não só texto)",
+        "6-7. checklist: ",
+        "8. fluxo com setas (com ",
+        "9. capa: título único e subtítulo sem repetir partes nem o título",
+        "10. texto pequeno com espaço sobrando é reprovado, com limite por tipo de página; a correção aumenta o texto",
+        "11. conferência textual: toda falha tem motivo (do conferente ou determinístico), nunca só ",
+        "12. apresentação: o conteúdo esperado de cada slide está desenhado no slide dele",
+        "13. cronograma: fase, período e descrição de todas as fases, em ordem",
+        "6b. ",
+        "5b. formato escolhido pela interpretação não prende a peça: só o que a pessoa pediu fica; painel largo tenta mais colunas",
+        "Monte um dashboard em 16:9 para a TV",
+        "Quero um post quadrado",
+        "Monte um dashboard de uma página com os indicadores do mês"
+      ]
+    },
+    {
+      "file": "test/visual-motor.test.js",
+      "titles": [
+        "conteúdo: indicadores, listas, tabelas, fluxo, chamada e título viram itens com id; números para a fidelidade",
+        "contrato: tipo semântico extensível (desconhecido vira custom com o rótulo), formatos e traços sem switch de canal",
+        "página única (one-page): uma página, aprovada, todo o conteúdo e os valores exatos da tabela",
+        "multipágina (apresentação de 6): capa + uma seção por slide, número de páginas pedido, rodapé numerado",
+        "gráfico: escolha pela semântica dos dados (tempo -> linhas, partes de 100% -> pizza, categorias -> barras, conclusão -> progresso); rótulos com o valor do conteúdo",
+        "diagrama: fluxo com decisão em losango e ramos rotulados; processo numerado; linha do tempo",
+        "peça de impacto (post 1:1) com imagem gerada: imagem é asset (nunca texto), título forte e chamada",
+        "sem gerador de imagem: peça tipográfica (sem espaço reservado); imagem que precisa ser real vira espaço reservado explícito e a peça fica parcial",
+        "marca completa: logo da empresa em todas as páginas, cores da regra da empresa, origem de cada campo; a inferência do pedido não troca regra nem usa cor proibida",
+        "marca ausente: sistema visual neutro (origem padrão), sem logo inventado, contraste garantido",
+        "conteúdo longo: a correção automática reorganiza (escala, colunas, página de continuação) sem perder conteúdo; registro de cada rodada",
+        "conteúdo curto: texto maior para não deixar a página vazia, sem passar da área útil",
+        "inglês e português: escala do eixo e datas no idioma do conteúdo",
+        "conferência visual acusa: contraste, transbordo, número inventado, conteúdo faltando, logo deformado, dimensão errada",
+        "correção automática: contraste ruim da marca é corrigido e registrado; o limite de rodadas é respeitado",
+        "exportações reais: PDF (páginas, fontes embutidas, texto), PNG e JPG nas dimensões do formato, SVG com fontes, ZIP",
+        "renderização real: o PNG da página tem a cor da marca nos pixels (não só no DOM)",
+        "fontes: medida pela tabela da fonte, quebra sem cortar palavra, número nunca partido, texto seguro para WinAnsi",
+        "PDF: caminhos SVG (arcos, curvas, relativos) viram operadores válidos",
+        "plano pela IA: validado contra o conteúdo (refs, tipos, gráfico, números fora do conteúdo); item esquecido volta"
+      ]
+    },
+    {
+      "file": "e2e/acompanhamento.test.js",
+      "titles": [
+        "checklist real e pendências por perfil; usuário comum sem ações administrativas",
+        "conhecimento: responsável, validade, suspensão e histórico; falha preserva edição",
+        "filtros salvos retornam à consulta e ajuda fecha com Escape e devolve foco",
+        "revisão de acesso exige conferência e registra sem mudar papel",
+        "comparação apresenta diferença de objetivo sem restaurar automaticamente; resultados acessíveis ao gestor",
+        "auditoria apresenta autor e detalhe legível e permite salvar filtros",
+        "layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisão",
+        "detalhe da execução pertence à conversa privada e distingue conferência de ação externa",
+        "pendência de integração abre o detalhe correto em vez da lista geral"
+      ]
+    },
+    {
+      "file": "e2e/ajude-comecar.test.js",
+      "titles": [
+        "cinco caminhos preparam pedidos editáveis sem enviar ou criar conversa",
+        "voltar, fechar e redesenhar conservam contexto; pedido anterior exige confirmação; anexos mantidos",
+        "Conhecimento e processos encaminham aos recursos existentes sem executar ações externas",
+        "teclado, validação e layout mobile não deixam enviar ajuda vazia ou transbordar",
+        "pedido preparado só executa após envio explícito e recebe resposta pelo fluxo existente",
+        "pessoa comum recebe a mesma orientação e mantém o catálogo limitado ao seu acesso"
+      ]
+    },
+    {
+      "file": "e2e/auditoria.test.js",
+      "titles": [
+        "imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem bloqueado; sem texto, aviso técnico; guardar = não",
+        "admin: a Administração mostra os recursos sem o provedor; a tela de uso não mostra detalhe técnico"
+      ]
+    },
+    {
+      "file": "e2e/config-integracoes.test.js",
+      "titles": [
+        "admin liga as integrações para a empresa toda em Configurações; o menu aparece; desligar esconde de novo"
+      ]
+    },
+    {
+      "file": "e2e/conversas-historico.test.js",
+      "titles": [
+        "histórico: busca, menu, renomear, cancelamento e exclusão individual e total no celular",
+        "histórico: falha de exclusão preserva a conversa; ação da conversa aberta e acesso pela lateral"
+      ]
+    },
+    {
+      "file": "e2e/fluxo.test.js",
+      "titles": [
+        "login → chat → quick win",
+        "360 px: sem rolagem horizontal, menu abre a lateral",
+        "quem gerencia: medição e decisão; reportar problema; painel do admin com todas as abas"
+      ]
+    },
+    {
+      "file": "e2e/fontes.test.js",
+      "titles": [
+        "aviso de configuração com link: ",
+        "proteção reforçada: usuário comum recebe causa, impacto e relato existente; servidor impede alteração da área"
+      ]
+    },
+    {
+      "file": "e2e/governanca-persistencia.test.js",
+      "titles": [
+        "recomendações são padrão e persistem após salvar, navegar e recarregar"
+      ]
+    },
+    {
+      "file": "e2e/governanca.test.js",
+      "titles": [
+        "uso real: PDF e PPTX com dados pessoais processam em área reforçada; histórico, bloqueios e retenção após recarregar",
+        "admin da empresa: vê o que cada recurso pode receber, sem o provedor; as políticas oferecem as três ações e a retenção"
+      ]
+    },
+    {
+      "file": "e2e/integracoes.test.js",
+      "titles": [
+        "tela: Quick Win pede a integração; assistente de 8 passos cria, testa, aprova e publica; credencial não volta; Quick Win passa a ✓",
+        "A (só leitura) e B (escrita com aprovação): leitura vira material; escrita espera aprovação, grava uma vez a entrada aprovada",
+        "C credencial inválida, D tempo esgotado, E resposta fora do esquema: o teste reprova e a integração não publica",
+        "F 503 repetível: leitura repete com segurança e conclui; G irreversível: negado pela política, nada apagado",
+        "H: outra pessoa não abre o plano nem a aprovação de quem pediu; sem permissão, nada da administração de integrações"
+      ]
+    },
+    {
+      "file": "e2e/interface-uniformidade.test.js",
+      "titles": [
+        "estado de erro e diálogo: mensagem legível, recuperação e foco por teclado",
+        "troca rápida de telas: resposta lenta não deixa conteúdo de outra rota",
+        "console da operadora: nove telas com a mesma escala em desktop e celular"
+      ]
+    },
+    {
+      "file": "e2e/jornadas-leigas.test.js",
+      "titles": [
+        "espera orientada e falha de preparação permitem repetir ou voltar sem perder o objetivo",
+        "erro de tela conserva a rota e tentar novamente abre o mesmo trabalho",
+        "ações visíveis, exemplos recolhidos e configuração com cancelamento preservam controles",
+        "registro histórico de bloqueio fica fora da contagem de pendências",
+        "navegar entre biblioteca e detalhe não repete confirmação nem gravação de Quick Win"
+      ]
+    },
+    {
+      "file": "e2e/lateral.test.js",
+      "titles": [
+        "estado ativo: Conversas nas rotas de conversa; Quick Wins em todas as rotas filhas; Conhecimento (E, F, G)",
+        "estado ativo acompanha o clique mesmo com a tela ainda carregando (rede lenta)",
+        "Administração: aparece no primeiro nível só para quem tem permissão e leva à administração (H)",
+        "teclado: os itens principais são alcançáveis por Tab com foco visível",
+        "celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierarquia, Quick Wins acessível, alvos de toque e sem rolagem horizontal (J)",
+        "tela baixa (320x568), admin com 100 conversas: todos os itens principais, inclusive Administração, e "
+      ]
+    },
+    {
+      "file": "e2e/logout-cache.test.js",
+      "titles": [
+        "histórico real com back/forward cache não restaura conteúdo privado após logout",
+        "falha ao abrir ambiente apresenta recuperação e preserva mensagem escapada"
+      ]
+    },
+    {
+      "file": "e2e/lp-demo.test.js",
+      "titles": [
+        "LP: exemplo finito, pausa, etapas manuais e nenhum efeito externo",
+        "LP: redução de movimento, leitura no celular e formulário com tentativa recuperável"
+      ]
+    },
+    {
+      "file": "e2e/lp-operacoes.test.js",
+      "titles": [
+        "LP operações: animações finitas, controles, saída da tela e nenhum efeito externo",
+        "LP operações: movimento reduzido, teclado e etapas legíveis de 320 a 1280 pixels"
+      ]
+    },
+    {
+      "file": "e2e/marca-branca.test.js",
+      "titles": [
+        "ambiente da empresa: login, uso e administração sem a marca da plataforma",
+        "o console da plataforma continua com a marca da plataforma"
+      ]
+    },
+    {
+      "file": "e2e/modelos-admin.test.js",
+      "titles": [
+        "histórico de modelos apresenta campos legíveis e fornecedor em detalhes",
+        "falha de leitura permite tentar novamente sem alteração de configuração",
+        "falha tardia de leitura não substitui a tela escolhida após navegação"
+      ]
+    },
+    {
+      "file": "e2e/onboarding-conhecimento.test.js",
+      "titles": [
+        "guia: quatro passos para usuário, progresso retomável, conclusão e ajuda reaberta; conta diferente não herda conclusão",
+        "guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; adiar não altera ciência ou acesso",
+        "biblioteca: usuário só vê sua área e documentos comuns; filtros sem acentos e revisão não revelam bases alheias",
+        "gestão restrita: bases autorizadas, confirmação do envio, rede falha preserva arquivo, repetição grava uma vez",
+        "edição, substituição e revisão preservam a base; falha de rede mantém alterações; acesso à outra base continua recusado",
+        "biblioteca: filtros não descartam envio; saída não salva exige confirmação; Escape preserva edição quando descartada a saída",
+        "biblioteca e guia: 320, 390, 768 e 1280 px sem transbordamento, erros JavaScript ou acesso perdido",
+        "biblioteca grande: paginação preserva contagem e filtro; atualizar após revogar gestão remove ações",
+        "remover documento: cancelar preserva o arquivo; confirmar remove somente o documento escolhido"
+      ]
+    },
+    {
+      "file": "e2e/paineis.test.js",
+      "titles": [
+        "leigo: resultado → conferir → erro recuperável → confirmar → histórico → corrigir → recarregar",
+        "processo pronto cria rascunho com campos definidos e obriga teste/publicação",
+        "320/390/768/1280px: acompanhamento e conferência legíveis, foco, busca, escopo e retirada",
+        "paginação pelo link persiste após recarga e ajuda explica o acompanhamento"
+      ]
+    },
+    {
+      "file": "e2e/pesquisa-orientacao.test.js",
+      "titles": [
+        "comparação do refinamento resolve a pesquisa na área exata sem perder o resultado",
+        "conversa comum explica bloqueio atual, abre a área exata, confirma alcance e preserva o pedido",
+        "pessoa muda o comportamento pelo refinamento: sugerir → esperar escolha → escrever, sem editar campos técnicos",
+        "salvar processo sem avançar atualiza etapas e pesquisa; falha conserva orientação e não salva plano antigo"
+      ]
+    },
+    {
+      "file": "e2e/planos-console.test.js",
+      "titles": [
+        "planos: margem total no pior caso com status, preço mínimo, Capacity Pack e premissas; editor com prévia e trava do piso",
+        "empresa: libera Capacity Packs por quantidade; créditos e valor calculados no servidor"
+      ]
+    },
+    {
+      "file": "e2e/pools-modelos.test.js",
+      "titles": [
+        "admin vê os conjuntos e alternativas por nível; perfil comum continua com escolhas simples",
+        "Rápido, Equilibrado, Avançado e Automático executam pelo roteador e conservam o nível escolhido"
+      ]
+    },
+    {
+      "file": "e2e/producao-visual.test.js",
+      "titles": [
+        "artefato visual: cartão com miniatura real, visualizador multipágina, PDF e PNG baixados, edição em nova versão",
+        "celular (390px): cartão e visualizador sem rolagem horizontal, página inteira visível"
+      ]
+    },
+    {
+      "file": "e2e/quickwin-generalista.test.js",
+      "titles": [
+        "contrato: entendimento do trabalho, edição, sugestão aceita, entregáveis, teste real e um cartão por entregável",
+        "Quick Win antigo: ",
+        "celular (390px): entendimento, entregáveis e resultado sem rolagem horizontal"
+      ]
+    },
+    {
+      "file": "e2e/quickwin-nome.test.js",
+      "titles": [
+        "pessoa define o nome na criação e o rascunho mantém nome e objetivo após recarregar",
+        "editar nome tem cancelamento e recuperação, persiste para a equipe e preserva publicação, agenda e histórico"
+      ]
+    },
+    {
+      "file": "e2e/quickwin-operacao.test.js",
+      "titles": [
+        "operação de conteúdo: peças por canal, pesquisa, exemplo contextual, resultado por canal com fontes, pausa e retomada",
+        "excluir: só quem gere vê a ação; modal pede o nome; histórico preservado; nenhum alerta do navegador",
+        "celular: etapa de entregas e resultado por canal sem rolagem horizontal; quem só usa não vê "
+      ]
+    },
+    {
+      "file": "e2e/quickwin-resultado.test.js",
+      "titles": [
+        "resultado modular: um cartão por entregável e CSV de cada tabela (UTF-8, acentos e números intactos)"
+      ]
+    },
+    {
+      "file": "e2e/quickwin2.test.js",
+      "titles": [
+        "pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revisar → publicar → usar → conversar → nova execução",
+        "etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (◐) e pontos para revisar",
+        "celular: progresso compacto na criação; colega usa pela biblioteca, sem rolagem horizontal",
+        "editar um Quick Win publicado cria a próxima versão sem mexer na publicada; versões e restauração",
+        "colunas do objetivo: uma estruturação por objetivo, revisão e ajuste manual soberano, falha sem inventar",
+        "concorrência: resposta atrasada não vale para outro objetivo, não desenha etapa abandonada e não vence a mais nova",
+        "a revisão não reaproveita a conferência em memória depois de mudar uma fonte",
+        "refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar"
+      ]
+    },
+    {
+      "file": "e2e/qw-detalhe-layout.test.js",
+      "titles": [
+        "detalhe publicado: nome junto ao título, ações em outra linha e edição contida em todas as larguras"
+      ]
+    },
+    {
+      "file": "e2e/qw-preparacao.test.js",
+      "titles": [
+        "criador sem administração prepara conexão, define pessoas e limites, retoma rascunho no celular"
+      ]
+    },
+    {
+      "file": "e2e/qw-programacao.test.js",
+      "titles": [
+        "agendar parte da lista em um clique e o menu não fica sob outras linhas",
+        "programação simples confere e ativa, funciona após fechar aba e cabe no celular",
+        "agendamento em processamento orienta a espera e só oferece resultado após concluir"
+      ]
+    },
+    {
+      "file": "e2e/resultado-orientacao.test.js",
+      "titles": [
+        "alerta real → refinar o caso exato; melhoria não envia, não publica e conserva texto após erro"
+      ]
+    },
+    {
+      "file": "e2e/ux.test.js",
+      "titles": [
+        "login: reenvio invalida o código anterior; limite do servidor continua valendo; código mais recente entra",
+        "entrada e navegação: caminhos visíveis; Quick Wins aparece antes das conversas recentes; salto evita mudar a rota",
+        "rascunho: objetivo e processo salvos ao continuar são retomados após recarga; saída protege alterações não salvas",
+        "falha de rede ao salvar preserva o objetivo e permite repetir sem duplicar o rascunho",
+        "fontes: papel tem explicação acessível; URL inválida fica junto ao campo e não perde o formulário",
+        "busca encontra nomes sem acento e arquivados; restauração conserva histórico e não publica automaticamente",
+        "diálogos: Tab permanece no modal, Escape devolve foco e não fica associado ao diálogo fechado",
+        "mobile: menu tem foco contido, Escape fecha e restaura aria-expanded; principais precedem recentes",
+        "logout: falha de rede não afirma sucesso; aviso persiste e pode ser fechado; saída confirmada impede voltar à área privada"
+      ]
+    }
+  ],
+  "limitations": "Inventário estático de declarações literais r.*; títulos não são contagem de testes executados, nem medição de cobertura de ramificações."
+}

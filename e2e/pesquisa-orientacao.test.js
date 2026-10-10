@@ -6,6 +6,39 @@ import {exec} from '../src/db.js';
 import {construir} from '../src/quickwin-construtor.js';
 import {salvarConfig} from '../src/config.js';
 
+test('comparação do refinamento resolve a pesquisa na área exata sem perder o resultado',async()=>{
+ const N=await subirComNavegador();try{
+  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
+  const area=(await a.post('/api/admin/areas',{nome:'Editorial comparação'})).dados.id;
+  await a.put(`/api/admin/areas/${area}`,{sigilosa:true});
+  salvarConfig(N.app.db,{pesquisaWeb:{ativa:true}});
+  const qw=(await a.post('/api/quick-wins',{assistente:{nome:'QA comparação',descricao:'Pesquisar temas atuais.',operacao:{v:2,origem:'pessoa',entregaveis:[{id:'e1',tipo:'texto',rotulo:'Artigo'}],ferramentas:['pesquisa_web']}},areas:[area]})).dados;
+  const em=new Date().toISOString();let anterior,ultimo;
+  for(let i=0;i<2;i++){
+   const c=(await a.post('/api/conversas',{quick_win_id:qw.id,teste:true})).dados.conversa;
+   exec(N.app.db,"insert into mensagens(conversa_id,papel,texto,criado_em) values(?,'user','Assunto fictício de QA.',?)",c.id,em);
+   const msg=Number(exec(N.app.db,"insert into mensagens(conversa_id,papel,texto,criado_em) values(?,'assistant',?,?)",c.id,`Resultado fictício ${i+1} preservado.`,em).lastInsertRowid);
+   const qualidade={status:'parcial',falhas:[],verificados:[],pesquisa:{solicitada:true,feita:false,motivo:'area_reforcada'},...(anterior?{conversa_base:anterior.conversa,mensagem_base:anterior.mensagem}:{})};
+   exec(N.app.db,"insert into roteamento(conversa_id,resposta_id,pessoa_id,qualidade,em,modo,complexidade) values(?,?,?,?,?,'automatico','baixa')",c.id,msg,a.pessoa.id,JSON.stringify(qualidade),em);
+   ultimo={conversa:c.id,mensagem:msg};anterior ||= ultimo;
+  }
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.setViewportSize({width:390,height:900});
+  await p.goto(N.base+`/app#/qw/${qw.id}/refinar/${ultimo.conversa}/${ultimo.mensagem}`);
+  const depois=p.getByRole('region',{name:'Comparação dos testes'}).locator('[data-conversa-pesquisa]').filter({hasText:'Depois do refinamento'});
+  const abrir=depois.getByRole('button',{name:'Ver como liberar a pesquisa',exact:true});await abrir.click();
+  assert.match(await p.locator('.pesquisa-resolucao').innerText(),/Editorial comparação.*Não existe liberação apenas para este Quick Win/s);
+  await p.getByRole('button',{name:'Fechar',exact:true}).click();assert.equal(await abrir.evaluate(e=>e===document.activeElement),true);
+  await p.route(`**/api/conversas/${ultimo.conversa}`,r=>r.fulfill({status:503,contentType:'application/json',body:'{"mensagem":"Falha fictícia do QA"}'}));
+  await abrir.click();await p.waitForFunction(()=>document.body.innerText.includes('Não foi possível conferir a pesquisa'));
+  assert.match(await depois.innerText(),/Resultado fictício 2 preservado/);assert.equal(await abrir.isEnabled(),true);
+  await p.unroute(`**/api/conversas/${ultimo.conversa}`);await abrir.click();
+  await p.getByRole('button',{name:'Conferir novamente',exact:true}).click();await p.waitForFunction(()=>document.getElementById('pesquisa-verificacao')?.textContent.includes('continua bloqueada'));
+  await p.getByRole('link',{name:'Revisar a pesquisa em Editorial comparação',exact:true}).click();await p.waitForSelector('.px #protecao-area');
+  assert.equal(await p.inputValue('#px-titulo'),'Editorial comparação');
+  assert.equal(N.app.db.prepare('select sigilosa from areas where id=?').get(area).sigilosa,1);
+ }finally{await N.fechar();}
+});
+
 test('conversa comum explica bloqueio atual, abre a área exata, confirma alcance e preserva o pedido',async()=>{
  const N=await subirComNavegador();try{
  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');

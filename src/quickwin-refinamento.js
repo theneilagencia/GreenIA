@@ -23,8 +23,10 @@ export function lerMaterialRefinamento(app, pessoa, quickWinId, conversaId, mens
   if (!saida || !qualidade) throw erro(422, 'sem_resultado', 'Aguarde uma execução completa deste Quick Win.');
   const anexos = todos(app.db, 'select nome, texto, papel, tipo_fonte, url_exibida from anexos where conversa_id = ? and mensagem_id <= ? and ignorada = 0 order by id', conv.id, rota?.resposta_id || 0);
   const disponivel = mensagens.every(m => m.texto !== NAO_GUARDADO) && anexos.every(a => a.texto !== NAO_GUARDADO);
+  const anterior = json(um(app.db, 'select qualidade from roteamento where conversa_id = ? and resposta_id < ? and qualidade is not null order by id desc limit 1', conv.id, rota.resposta_id)?.qualidade, null);
+  const escolhaInformada = registro.status !== 'pergunta' && (registro.escolha_informada === true || (anterior?.status === 'pergunta' && !anterior.escolha_repetir && mensagens.filter(m => m.papel === 'user').length > 1));
   return { conversa: conv.id, mensagem: rota.resposta_id, em: conv.atualizado_em, sigilosa: !!conv.sigilosa, qualidade, saida, disponivel,
-    texto: disponivel ? mensagens.filter(m => m.papel === 'user').map(m => m.texto).join('\n\n') : '', anexos: disponivel ? anexos : [] };
+    escolhaInformada, texto: disponivel ? mensagens.filter(m => m.papel === 'user').map(m => m.texto).join('\n\n') : '', anexos: disponivel ? anexos : [] };
 }
 
 export function contextoRefinamento(app, pessoa, q, conversaId, mensagemId = null) {

@@ -680,6 +680,13 @@ export function rotasConversas(app, r) {
     let perguntaInicial = null, autonomia = 0;
     let escolhaNaoPreparada = false;
     const deveEsperarEscolha = espec && escolhaHumanaPrevista(espec) && (corpo.executar_quick_win === true || ultimaQualidade?.status !== 'pergunta' || ultimaQualidade?.escolha_repetir);
+    let preparacoesEscolha = 0, custoPreparacaoEscolha = 0, economiaPreparacaoEscolha = 0;
+    const escolhaIndisponivel = () => `${MARCADOR_PERGUNTA}\nNão foi possível preparar as opções para sua escolha nesta tentativa. A etapa seguinte não foi realizada. Peça “Sugira as opções para eu escolher” para tentar novamente; o material anterior foi mantido.`;
+    const orientarEscolha = () => {
+      // A decisão pendente é estado da plataforma, não uma preferência para o modelo inferir.
+      // Não acrescenta ferramentas, permissões ou contexto ao envio autorizado.
+      mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nETAPA ATUAL CONFIRMADA PELA PLATAFORMA: a pessoa ainda não escolheu. Nesta resposta, entregue SOMENTE as opções da etapa anterior e a pergunta de escolha. O artigo e os demais entregáveis finais ficam para depois: não os produza, nem tente atender agora ao formato da entrega final. Comece exatamente com "${MARCADOR_PERGUNTA}". Se a pesquisa não foi feita, declare a limitação e não apresente tendências como verificadas. Esta etapa não libera nenhuma ferramenta ou ação externa.` };
+    };
     // Etapa 1 (coleta): pesquisa com o plugin web, só com o contexto externo seguro. Falhou ou não trouxe notas: a
     // produção segue sem pesquisa e o resultado fica parcial (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
@@ -705,6 +712,7 @@ export function rotasConversas(app, r) {
     }
     // Execução. Informação sigilosa não tem reserva do fornecedor: se o recurso cair antes de responder, a busca
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
+    if (deveEsperarEscolha) orientarEscolha();
     if (perguntaMercado) resposta = perguntaMercado;
     else for (;;) {
       try {
@@ -719,8 +727,19 @@ export function rotasConversas(app, r) {
         }
         if (!resposta) throw new ErroIA('A IA não respondeu.');
         if (deveEsperarEscolha && !resposta.trim().startsWith(MARCADOR_PERGUNTA)) {
+          // Uma recuperação automática limitada evita pedir à pessoa que repita a orientação.
+          // Na reserva do plano não há chamada extra; credenciais nunca voltam ao provedor.
+          if (!preparacoesEscolha && !reservaDoPlano && !contemCredencial(resposta)) {
+            preparacoesEscolha++;
+            custoPreparacaoEscolha += Number(fim?.custo || 0);
+            economiaPreparacaoEscolha += Number(fim?.economia || 0);
+            fim = null;
+            mensagens.push({ role: 'user', content: `Prepare somente as opções para a escolha pendente. Não escreva a entrega final. Sua resposta deve começar exatamente com "${MARCADOR_PERGUNTA}", apresentar opções breves e terminar perguntando qual a pessoa escolhe. Preserve a limitação de pesquisa informada pela plataforma.` });
+            linha({ t: 'etapa', v: 'Preparando as opções para você escolher…' });
+            resposta = ''; continue;
+          }
           escolhaNaoPreparada = true;
-          resposta = `${MARCADOR_PERGUNTA}\nNão foi possível preparar as opções para sua escolha nesta tentativa. A etapa seguinte não foi realizada. Peça “Sugira as opções para eu escolher” para tentar novamente; o material anterior foi mantido.`;
+          resposta = escolhaIndisponivel();
         }
         falha = null;
         // Política de autonomia: a execução voltou só com perguntas. Uma vez, pela mesma rota, a IA reavalia: o que
@@ -749,6 +768,11 @@ export function rotasConversas(app, r) {
     }
     // A reavaliação falhou: fica a pergunta original (nada se perde, nada é inventado).
     if (falha && perguntaInicial && !resposta) { resposta = perguntaInicial; falha = null; }
+    if (falha && preparacoesEscolha) {
+      // Falha ou resposta parcial da recuperação não libera a entrega final. A primeira chamada
+      // permanece contabilizada e o trabalho continua disponível para uma próxima tentativa.
+      resposta = escolhaIndisponivel(); escolhaNaoPreparada = true; falha = null;
+    }
     if (perguntaInicial) registrar(app, 'quickwin.autonomy_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId,
       resultado: resposta.trim().startsWith(MARCADOR_PERGUNTA) ? 'pergunta_necessaria' : 'executou_com_escolhas', reavaliacoes: autonomia });
     if (falha) { const e = falha;
@@ -855,6 +879,10 @@ export function rotasConversas(app, r) {
           if (visuais) custoVisual = visuais.custos;
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); registroQualidade.visual = { falhou: true }; }
       }
+    }
+    if (preparacoesEscolha) {
+      fim = { ...(fim || {}), custo: Number(fim?.custo || 0) + custoPreparacaoEscolha, economia: Number(fim?.economia || 0) + economiaPreparacaoEscolha };
+      registrar(app, 'quickwin.choice_prepared', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, roteamento: rotaId, recuperacoes: preparacoesEscolha, preparada: !escolhaNaoPreparada });
     }
     const custoBase = fim?.custo || 0;
     if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra + custoColeta + custoVisual.plano_visual + custoVisual.imagem, economia: (fim?.economia || 0) + economiaExtra + economiaColeta };

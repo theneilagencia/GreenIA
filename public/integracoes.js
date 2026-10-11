@@ -23,12 +23,12 @@ const AUTH = [['none', 'Sem autenticação'], ['api_key', 'Chave de API'], ['bea
 const selo = (t, tipo = '') => `<span class="selo-int ${tipo}">${esc(t)}</span>`;
 const seloRisco = r => selo(`Risco ${RISCO[r] || r}`, r === 'LOW' ? 'ok' : r === 'MEDIUM' ? 'atencao' : 'erro');
 const seloStatus = s => selo(STATUS[s] || s, s === 'ACTIVE' ? 'ok' : ['FAILED', 'REVOKED'].includes(s) ? 'erro' : ['PAUSED', 'REVIEW_REQUIRED'].includes(s) ? 'atencao' : '');
-const ESTILO = `<style>.selo-int{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--cinza-claro,#eef1ef);margin-right:4px}
-.selo-int.ok{background:#e3f4ea;color:#1d6b3e}.selo-int.atencao{background:#fff4dc;color:#8a5a00}.selo-int.erro{background:#fde8e6;color:#9b2318}
-.passos-int{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px;padding:0;list-style:none}.passos-int li{font-size:13px;padding:4px 10px;border-radius:999px;background:#f1f3f2}.passos-int li.atual{background:#1d6b3e;color:#fff}.passos-int li.feito{background:#e3f4ea}
-.lista-int{display:grid;gap:10px}.item-int{border:1px solid #e3e6e4;border-radius:10px;padding:12px 14px}.item-int h3{margin:0 0 4px;font-size:15px}.item-int p{margin:4px 0}
-.ok-int{color:#1d6b3e}.erro-int{color:#9b2318}.campo-int{display:grid;gap:4px;margin:10px 0}.campo-int input,.campo-int select,.campo-int textarea{width:100%;max-width:640px}
-.linha-op{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef1ef}.linha-op small{display:block;color:#5d6862}</style>`;
+const ESTILO = `<style>.selo-int{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--sand);margin-right:4px}
+.selo-int.ok{background:var(--mint);color:var(--forest-text)}.selo-int.atencao{background:var(--amber-bg);color:var(--amber-text)}.selo-int.erro{background:var(--red-bg);color:var(--red-text)}
+.passos-int{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px;padding:0;list-style:none}.passos-int li{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--sand)}.passos-int li.atual{background:var(--forest-strong);color:var(--sobre-forte)}.passos-int li.feito{background:var(--mint)}
+.lista-int{display:grid;gap:10px}.item-int{border:1px solid var(--line);border-radius:10px;padding:12px 14px}.item-int h3{margin:0 0 4px;font-size:15px}.item-int p{margin:4px 0}
+.ok-int{color:var(--forest-text)}.erro-int{color:var(--red-text)}.campo-int{display:grid;gap:4px;margin:10px 0}.campo-int input,.campo-int select,.campo-int textarea{width:100%;max-width:640px}
+.linha-op{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.linha-op small{display:block;color:var(--muted)}</style>`;
 
 export async function rotaIntegracoes(h) {
   let m;

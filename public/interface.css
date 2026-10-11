@@ -136,3 +136,37 @@
 }
 /* Altura curta (teclado aberto no celular): a nota de rodapé do envio sai, sem mexer no layout durante o toque. */
 @media(max-width:760px) and (max-height:600px){.compositor .nota-compositor{display:none}}
+/* === Console (QA UX) === */
+/* Seções do console em h2 (logo abaixo do h1), com o mesmo visual dos antigos h3. */
+body.plataforma .pagina h2.h-secao{font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink);margin:28px 0 10px}
+body.plataforma .pagina .secao-titulo h2.h-secao{margin:0}
+/* Selos de status não quebram no meio da palavra ("Ativ/o"). */
+body.plataforma .pagina :is(td,.indicador,.or-sub) .selo{white-space:nowrap;overflow-wrap:normal;max-width:none}
+body.plataforma .pagina .indicador small .selo{display:inline-flex;width:auto}
+/* Valores técnicos (caminho do banco) quebram dentro do cartão; blocos de valor ficam juntos. */
+body.plataforma .valor-tecnico{font-size:12.5px;overflow-wrap:anywhere;word-break:break-all}
+body.plataforma .valor-bloco{display:block}
+/* Salvar sempre à vista nos formulários longos. */
+body.plataforma .barra-salvar{position:sticky;bottom:0;z-index:2;background:var(--paper);border-top:1px solid var(--line);padding:12px 0;margin-top:16px;align-items:center}
+/* Login do console: saídas para quem não é operador. */
+.entrar-console .login-saidas{text-align:center;margin:14px 0 0}
+/* Auditoria: o resumo indica que o detalhe abre. */
+body.plataforma .aud-detalhe summary{cursor:pointer;list-style:none}
+body.plataforma :is(span.aud-detalhe,.aud-detalhe summary){font-size:13px;color:var(--ink)}
+body.plataforma .aud-detalhe summary::-webkit-details-marker{display:none}
+body.plataforma .aud-abrir{color:var(--forest-text);font-weight:500;white-space:nowrap}
+body.plataforma .aud-detalhe[open] .aud-abrir{display:none}
+body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.5}
+@media(max-width:760px){
+  /* Abas da empresa em várias linhas: nenhuma fica escondida fora da tela. */
+  body.plataforma .subnav{flex-wrap:wrap;-webkit-mask-image:none;mask-image:none;overflow:visible}
+  body.plataforma .pagina .filtros>.campo{flex:1 1 100%}
+}
+@media(max-width:640px){
+  /* Tabela empilhada: rótulo à esquerda e o valor inteiro (texto + complemento) num bloco só, à direita. */
+  body.plataforma .tabela:not(.tabela-fixa) td{display:block;text-align:right;overflow-wrap:anywhere}
+  body.plataforma .tabela:not(.tabela-fixa) td::before{float:left;margin-right:12px}
+  body.plataforma .tabela:not(.tabela-fixa) td:first-child{text-align:left}
+  body.plataforma .tabela:not(.tabela-fixa) td:first-child::before{display:block;float:none;margin:0 0 2px}
+  body.plataforma .tabela:not(.tabela-fixa) td .entrada{max-width:60%;display:inline-block}
+}

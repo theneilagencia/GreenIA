@@ -25,16 +25,16 @@ export const STATUS_EMPRESA = { em_implantacao: 'Em implantação', ativa: 'Ativ
 
 // Recursos e limites controlados por plano (configuração, não código).
 export const RECURSOS = {
-  quick_wins: 'Quick wins', knowledge: 'Base de conhecimento', confidential: 'Conversas sigilosas',
-  custom_branding: 'Marca própria', landing_page: 'Landing page própria', custom_url: 'URL personalizada',
-  custom_roles: 'Roles personalizadas',
+  quick_wins: 'Quick Wins', knowledge: 'Base de conhecimento', confidential: 'Conversas sigilosas',
+  custom_branding: 'Marca própria', landing_page: 'Página de apresentação própria', custom_url: 'URL personalizada',
+  custom_roles: 'Perfis personalizados',
   // Domínio próprio não é recurso de plano: vale em todos (o operador ainda pode travar por empresa).
 };
-export const LIMITES = { max_users: 'Usuários (0 = sem limite)', messages_per_minute: 'Mensagens por minuto por pessoa', max_quick_wins: 'Quick wins (0 = sem limite)', max_concurrent: 'Respostas simultâneas da empresa (0 = sem limite)' };
+export const LIMITES = { max_users: 'Usuários (0 = sem limite)', messages_per_minute: 'Mensagens por minuto por pessoa', max_quick_wins: 'Quick Wins (0 = sem limite)', max_concurrent: 'Respostas simultâneas da empresa (0 = sem limite)' };
 // Valor de cada limite quando o plano ainda não o define. As respostas simultâneas protegem as outras empresas da mesma instalação.
 export const LIMITES_PADRAO = { max_users: 0, messages_per_minute: 12, max_quick_wins: 0, max_concurrent: 10 };
 // O que o operador da plataforma pode liberar ou não para o admin da empresa editar.
-export const CONCESSOES = { branding: 'Identidade visual', landing_page: 'Landing page', url: 'URL', domain: 'Domínio próprio', roles: 'Roles e permissões' };
+export const CONCESSOES = { branding: 'Identidade visual', landing_page: 'Página de apresentação', url: 'URL', domain: 'Domínio próprio', roles: 'Perfis e permissões' };
 export const CAMPOS_MARCA = ['display_name', 'logo', 'favicon', 'primary_color', 'secondary_color', 'login_title', 'login_text', 'privacy_note'];
 
 const agoraIso = P => P.agora().toISOString();
@@ -548,7 +548,9 @@ export function ambienteDaEmpresa(P, c) {
   let tamanho = 0;
   try { tamanho = statSync(c.banco).size; } catch { /* banco em memória nos testes */ }
   const t = P.tenant(c.id);
-  return { url: urlDaEmpresa(P, c), banco: c.banco.split('/').slice(-2).join('/'), tamanhoMb: Math.round(tamanho / 1048576 * 10) / 10, ia: t.ia.configurada !== false, smtp: !!lerConfig(t.db).smtp.url };
+  // Três estados da IA, pela chave efetiva: ligada (modelo real), simulada (sem chave, fora de produção) ou desligada.
+  const iaEstado = t.ia.configurada === false ? 'desligada' : t.ia.simulada ? 'simulada' : 'ligada';
+  return { url: urlDaEmpresa(P, c), banco: c.banco.split('/').slice(-2).join('/'), tamanhoMb: Math.round(tamanho / 1048576 * 10) / 10, ia: iaEstado === 'ligada', iaEstado, smtp: !!lerConfig(t.db).smtp.url };
 }
 // Liberação de pacote pelo operador. O cliente nunca define créditos nem preço: `packs` é a quantidade de Capacity
 // Packs e o servidor calcula créditos e valor pelas regras do plano da empresa. Créditos avulsos só como cortesia

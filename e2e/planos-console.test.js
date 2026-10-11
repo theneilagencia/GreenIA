@@ -54,8 +54,11 @@ test('empresa: libera Capacity Packs por quantidade; créditos e valor calculado
   await p.click('text=Liberar Capacity Pack');
   await p.fill('#p-qtd', '3');
   await p.waitForFunction(() => /6\.000 créditos/.test(document.getElementById('p-resumo').innerText));
-  p.once('dialog', d => d.accept());
+  // Confirmação no modal do console (não no diálogo do navegador), com o que vai ser liberado.
   await p.click('#f-pacote button');
+  const dialogo = p.getByRole('dialog');
+  assert.match(await dialogo.innerText(), /6\.000 créditos/);
+  await dialogo.getByRole('button', { name: 'Liberar 3 Capacity Packs' }).click();
   await p.waitForFunction(() => document.querySelector('#f-pacote') && /Capacity Pack disponível/.test(document.body.innerText));
   const linhas = todos(S.P.tenant(empresa.id).db, 'select creditos, produto, preco_usd from pacotes').map(x => ({ ...x }));
   assert.deepEqual(linhas, [{ creditos: 6000, produto: 'capacity_pack', preco_usd: 687 }]);

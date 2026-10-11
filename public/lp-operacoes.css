@@ -52,3 +52,8 @@
 @media(prefers-reduced-motion:reduce){.op-demo *{animation:none!important;transition:none!important}}
 
 .op-demo[data-stage="0"] .op-flow circle:nth-of-type(1),.op-demo[data-stage="1"] .op-flow circle:nth-of-type(2),.op-demo[data-stage="2"] .op-flow circle:nth-of-type(3){fill:#305d43;stroke:#305d43}
+/* Seções com linha e fundo próprios: o espaço fica dentro delas (antes o cartão da demonstração encostava no fim do
+   fundo e o cartão da seção anterior encostava na linha). Duas seções seguidas dividem a mesma linha. */
+.lv main>section.op-section{margin-top:calc(var(--sec) * .6);padding:var(--sec) 0}
+.lv main>section.op-section+section:not(.op-section){padding-top:calc(var(--sec) * .6)}
+.lv main>section.op-section+section.op-section{margin-top:0}

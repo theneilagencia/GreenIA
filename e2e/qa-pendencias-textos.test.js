@@ -3,7 +3,7 @@
 // apresentação com as ações alinhadas também no console.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 
@@ -78,4 +78,43 @@ test('Console: na página de apresentação, "Ver prévia" e "Ver a página no a
   assert.ok(itens.length >= 1);
   for (const y of itens) assert.ok(Math.abs(y - itens[0]) <= 2, JSON.stringify(itens));
   assert.deepEqual(p.erros, []);
+});
+
+test('Quick Wins: cada seção da biblioteca tem um nome próprio (sem id repetido entre "Publicados" e "Em preparo")', async () => {
+  const area = (await admin.get('/api/admin/areas')).dados;
+  const a = (area.areas || area)[0].id;
+  await admin.post('/api/quick-wins', { modelo_inicial: 0, areas: [a] });
+  const p = await pagina(admin);
+  await p.goto(`${S.base}/app#/quick-wins`);
+  await p.waitForSelector('.qw-bloco');
+  const ids = await p.locator('.qw-bloco[aria-labelledby]').evaluateAll(es => es.map(e => e.getAttribute('aria-labelledby')));
+  assert.ok(ids.length >= 2, JSON.stringify(ids));
+  assert.equal(new Set(ids).size, ids.length, JSON.stringify(ids));
+  for (const id of ids) assert.equal(await p.locator(`[id="${id}"]`).count(), 1);
+});
+
+test('Áreas com rolagem própria alcançáveis pelo teclado; página de vendas sem área lateral dentro de outra região', async () => {
+  const p = await pagina(admin, { width: 390, height: 844 });
+  await p.goto(`${S.base}/app#/politicas/texto`);
+  await p.waitForSelector('#pol-previa');
+  assert.equal(await p.locator('#pol-previa').getAttribute('tabindex'), '0');
+  // A página de vendas só é a inicial com paginaInicial = 'vendas'; aqui basta conferir o HTML servido.
+  await p.setContent(readFileSync(new URL('../public/vendas.html', import.meta.url), 'utf8'));
+  assert.equal(await p.locator('.l-comp-rolagem').getAttribute('tabindex'), '0');
+  assert.equal(await p.locator('main aside, [role=main] aside').count(), 0);
+});
+
+test('Sair do envio de documento com dados pendentes: modal da plataforma; "Sair sem salvar" segue para o destino', async () => {
+  const p = await pagina(admin);
+  const nativos = []; p.on('dialog', d => { nativos.push(d.message()); d.dismiss(); });
+  await p.goto(`${S.base}/app#/conhecimento`);
+  await p.waitForSelector('[data-conhecimento-vista="gerir"]');
+  await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#envio-conhecimento>summary');
+  await p.fill('#doc-titulo', 'Rascunho que vai ser descartado');
+  await p.evaluate(() => { location.hash = '#/nova'; });
+  const m = p.getByRole('dialog', { name: 'Sair sem salvar?' });
+  await m.waitFor();
+  await m.getByRole('button', { name: 'Sair sem salvar' }).click();
+  await p.waitForURL(/#\/nova$/);
+  assert.deepEqual(nativos, [], 'nenhum confirm() do navegador');
 });

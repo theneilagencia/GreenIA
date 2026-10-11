@@ -275,7 +275,7 @@ async function abaPolitica() {
     <form id="form-pol"><h2>Editar o texto</h2><div class="adm-pol-editor">
         <div class="campo"><label for="pol-texto">Texto da empresa</label><textarea class="entrada" id="pol-texto" rows="18" aria-describedby="pol-ajuda">${esc(p.texto)}</textarea>
           <span class="ajuda" id="pol-ajuda">Para um título, comece a linha com ##. Para um item de lista, comece com -. A prévia ao lado mostra como fica.</span></div>
-        <div class="campo"><span class="legenda" id="pol-previa-rotulo">Prévia</span><div class="bolha-ia adm-pol-previa" id="pol-previa" aria-labelledby="pol-previa-rotulo">${renderizar(p.texto).html}</div></div></div>
+        <div class="campo"><span class="legenda" id="pol-previa-rotulo">Prévia</span><div class="bolha-ia adm-pol-previa" id="pol-previa" role="region" tabindex="0" aria-labelledby="pol-previa-rotulo">${renderizar(p.texto).html}</div></div></div>
       <div class="linha-botoes"><button class="btn btn-verde">Publicar nova versão</button><a class="btn-texto" href="/politica" target="_blank">Ver a política publicada</a></div></form>
     <h2>Seção automática (não editável)</h2>
     <div class="bolha-ia">${renderizar(p.secao).html}</div>
@@ -731,13 +731,13 @@ async function abaRoteamento() {
     <h2>Decisões recentes</h2>
     <p class="dica">Cada registro guarda só critérios, regras e candidatos. O texto das conversas não fica aqui.</p>
     ${tabela(['Quando', 'Pessoa', 'Pedido', 'Nível exigido', 'Nível usado', 'Por quê'], d.decisoes.map(x => `<tr>
-      <td style="white-space:nowrap">${dataHora(x.em)}<br><span class="dica">${esc(RESULTADO[x.resultado] || x.resultado || '')}</span></td><td>${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
-      <td>${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''}${x.sigilosa ? ' · sigilosa' : ''}</span></td>
-      <td>${PERFIS[x.classe_necessaria] || '—'}</td><td><b>${PERFIS[x.classe] || (x.modo === 'externo' ? 'Serviço de IA' : '—')}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo || '')}</span>${x.fallback ? `<br><span class="selo selo-ambar">${esc(FALLBACK[x.fallback.tipo] || x.fallback.tipo)}</span>` : ''}</td>
-      <td style="min-width:260px">${esc(x.explicacao)}<details><summary class="dica" style="cursor:pointer">Requisitos, candidatos e critérios</summary>
+      <td data-r="Quando" style="white-space:nowrap">${dataHora(x.em)}<br><span class="dica">${esc(RESULTADO[x.resultado] || x.resultado || '')}</span></td><td data-r="Pessoa">${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
+      <td data-r="Pedido">${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''}${x.sigilosa ? ' · sigilosa' : ''}</span></td>
+      <td data-r="Nível exigido">${PERFIS[x.classe_necessaria] || '—'}</td><td data-r="Nível usado"><b>${PERFIS[x.classe] || (x.modo === 'externo' ? 'Serviço de IA' : '—')}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo || '')}</span>${x.fallback ? `<br><span class="selo selo-ambar">${esc(FALLBACK[x.fallback.tipo] || x.fallback.tipo)}</span>` : ''}</td>
+      <td data-r="Por quê" class="decisao-porque">${esc(x.explicacao)}<details><summary class="dica" style="cursor:pointer">Requisitos, candidatos e critérios</summary>
         <p class="dica">${esc(MODO[x.modo] || x.modo)} · preferência ${esc(x.preferencia || '—')} · requisitos: ${esc(Object.entries(x.requisitos.dimensoes || {}).map(([k, n]) => `${k} ${n}`).join(', ') || '—')}</p>
         <ul class="dica">${x.candidatos.map(k => `<li>${esc(k.id)} (${PERFIS[k.classe] || k.classe}): ${esc(STATUS_CAND[k.status] || k.status)}${k.motivos?.length ? ` · ${esc(k.motivos.map(m => MOTIVO_CAND[m] || m).join(', '))}` : ''}${k.custo != null ? ` · ${fmtCusto(k.custo)}` : ''}</li>`).join('')}</ul>
-        <span class="dica">Regras: ${esc(x.politicas.join(', ') || '—')} · escolha: ${esc(x.motivo_escolha || '—')}${x.reserva ? ` · reserva: ${esc(x.reserva)}` : ''} · versão ${esc(x.versao)}</span></details></td></tr>`), 'Nenhuma decisão registrada ainda.')}`;
+        <span class="dica">Regras: ${esc(x.politicas.join(', ') || '—')} · escolha: ${esc(x.motivo_escolha || '—')}${x.reserva ? ` · reserva: ${esc(x.reserva)}` : ''} · versão ${esc(x.versao)}</span></details></td></tr>`), 'Nenhuma decisão registrada ainda.').replace('class="tabela"', 'class="tabela tabela-decisoes"')}`;
   const vig = vigiarAlteracoes($('cfg-rota'), { barra: $('cfg-rota').querySelector('.linha-botoes') });
   $('cfg-rota').onsubmit = async ev => {
     ev.preventDefault();

@@ -57,8 +57,13 @@ window.addEventListener('beforeunload', ev => {
 document.addEventListener('greenia:antes-navegar', ev => {
   const W = wizardAtual;
   if (!W || !document.querySelector('.qw-wizard')) return;
-  if (W.salvando || pendente(W) && !confirm('Há alterações que ainda não foram salvas. Sair sem salvar?')) {
+  if (W.salvando) { ev.preventDefault(); history.replaceState(null, '', W.rotaAtiva); return; }
+  if (pendente(W)) {
+    // Decide no modal da plataforma; a rota fica onde está até a resposta.
+    const destino = location.hash;
     ev.preventDefault(); history.replaceState(null, '', W.rotaAtiva);
+    confirmar({ titulo: 'Sair sem salvar?', texto: 'Há alterações que ainda não foram salvas. Se sair agora, elas se perdem.', botao: 'Sair sem salvar', cancelar: 'Continuar editando', perigo: true })
+      .then(sair => { if (!sair) return; if (wizardAtual === W) wizardAtual = null; location.hash = destino; });
   }
 });
 const ACEITOS = '.pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff';

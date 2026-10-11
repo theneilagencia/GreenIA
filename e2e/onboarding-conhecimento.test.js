@@ -114,10 +114,12 @@ test('edição, substituição e revisão preservam a base; falha de rede manté
 test('biblioteca: filtros não descartam envio; saída não salva exige confirmação; Escape preserva edição quando descartada a saída', async () => {
   const p = await abrir('gestora'); await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#envio-conhecimento>summary');
   await p.fill('#doc-titulo', 'Título ainda não enviado'); await p.click('[data-limpar-conhecimento]'); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
-  p.once('dialog', d => d.dismiss()); await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
+  // Sair com envio pendente pergunta no modal da plataforma (nunca o confirm() do navegador); "Continuar editando" fica.
+  const continuar = async () => { const m = p.getByRole('dialog', { name: /Sair sem salvar|Descartar as alterações/ }); await m.waitFor(); await m.getByRole('button', { name: 'Continuar editando' }).click(); await m.waitFor({ state: 'detached' }); };
+  await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await continuar(); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
   await p.fill('#doc-titulo', ''); await p.click(`[data-editar-conhecimento="${antigo.id}"]`); await p.fill('#conhecimento-ed-nome', 'Alteração não salva');
-  p.once('dialog', d => d.dismiss()); await p.keyboard.press('Escape'); assert.equal(await p.inputValue('#conhecimento-ed-nome'), 'Alteração não salva');
-  p.once('dialog', d => d.accept()); await p.click('#conhecimento-ed-cancelar'); await p.waitForSelector('#conhecimento-ed-form', { state: 'detached' });
+  await p.keyboard.press('Escape'); await continuar(); assert.equal(await p.inputValue('#conhecimento-ed-nome'), 'Alteração não salva');
+  await p.click('#conhecimento-ed-cancelar'); await p.getByRole('dialog', { name: 'Descartar as alterações?' }).getByRole('button', { name: 'Descartar', exact: true }).click(); await p.waitForSelector('#conhecimento-ed-form', { state: 'detached' });
   assert.equal(await p.locator(`[data-editar-conhecimento="${antigo.id}"]`).evaluate(e => e === document.activeElement), true, 'devolve o foco ao botão de origem');
   assert.notEqual(um(N.app.db, 'select titulo from documentos where id = ?', antigo.id).titulo, 'Alteração não salva'); await p.close();
 });

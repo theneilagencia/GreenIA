@@ -68,8 +68,9 @@ async function listaQuickWins() {
   const prontos = ativos.filter(q => q.estado.id === 'publicado'), preparo = ativos.filter(q => q.estado.id !== 'publicado' && q.podeEditar);
   const cta = E.podeCriarQw ? `<a class="btn btn-verde" href="#/qw/nova">${ICONE.mais} Criar Quick Win</a>` : '';
   const cont = st => (port?.quickWins || []).filter(q => q.status === st).length;
-  const bloco = (titulo, lista, dica = '') => (lista.length ? `<section class="qw-bloco" aria-labelledby="t-${titulo.length}">
-      <div class="qw-lista-cabeca"><h2 id="t-${titulo.length}">${esc(titulo)}</h2>${dica ? `<span class="dica">${esc(dica)}</span>` : ''}</div>
+  const idBloco = t => `t-${t.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-')}`;   // um id por título (o tamanho do título colidia)
+  const bloco = (titulo, lista, dica = '') => (lista.length ? `<section class="qw-bloco" aria-labelledby="${idBloco(titulo)}">
+      <div class="qw-lista-cabeca"><h2 id="${idBloco(titulo)}">${esc(titulo)}</h2>${dica ? `<span class="dica">${esc(dica)}</span>` : ''}</div>
       <ul class="qw-lista">${lista.map(itemQw).join('')}</ul></section>` : '');
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg larga qw-biblioteca">

@@ -63,7 +63,10 @@ test('quick win: usuário comum só cria se o admin autorizar; cria nas própria
 test('política: a seção automática muda com a política de informação sigilosa e gera nova versão; nunca cita fornecedor; preço não; ciência pendente bloqueia o envio', async () => {
   const v1 = (await admin.get('/api/politica')).dados;
   assert.match(v1.secao, /A empresa não permite processar informações sigilosas com IA/);
-  assert.match(v1.secao, /Avançado: ninguém/);
+  // Nível sem acesso não aparece como "ninguém": sai da lista, e a nota explica a ausência.
+  assert.doesNotMatch(v1.secao, /ninguém/);
+  assert.doesNotMatch(v1.secao, /- Avançado:/);
+  assert.match(v1.secao, /Os níveis que não aparecem na lista não estão liberados nesta empresa/);
   await admin.put(`/api/admin/modelos/${enc(HOMOLOGADO)}`, { liberado: true, perfil: 'rapido' });
   await admin.post(`/api/admin/modelos/${enc(HOMOLOGADO)}/homologar`, { fornecedor: 'mistral', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no contrato.' });
   assert.equal((await admin.put('/api/admin/sigilo', { ativo: true })).status, 200);

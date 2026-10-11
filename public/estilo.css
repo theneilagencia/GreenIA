@@ -1870,3 +1870,15 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .pesquisa-resolucao{max-height:85dvh;overflow:auto}
 .pesquisa-resolucao h2{font-size:20px;margin:0}
 .pesquisa-resolucao .btn{white-space:normal}
+
+@media(pointer:coarse),(max-width:760px){
+  .rodape-resposta .link-sutil,.painel-negocio .link-sutil{display:inline-flex;align-items:center;min-height:44px;padding:6px 8px;box-sizing:border-box}
+  .painel-negocio td .link-sutil{display:flex}
+  .app .switch{width:48px;height:44px;min-height:44px;background:transparent}
+  .app .switch::before{content:'';position:absolute;width:34px;height:20px;left:7px;top:12px;border-radius:999px;background:var(--stone)}
+  .app .switch[aria-checked="true"]::before{background:var(--forest-strong)}
+  .app .switch span{top:15px;left:10px}
+  .app .switch[aria-checked="true"] span{left:27px}
+  .app .switch::after{inset:0}
+}
+.ld-campo-item{min-width:0;display:grid;gap:6px;font:500 12px/1.5 var(--sans)}

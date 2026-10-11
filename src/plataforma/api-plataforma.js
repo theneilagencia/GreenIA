@@ -325,7 +325,7 @@ export function rotasPlataforma(P, r) {
   });
   r.del('/api/plataforma/homologacoes/:id', ({ sessao, params, origem }) => {
     precisa(sessao, 'platform.settings.manage');
-    const id = decodeURIComponent(params.id);
+    const id = params.id;
     salvarAjuste(P.db, 'homologacoes_plataforma', lerHom().filter(h => h.id !== id));
     reaplicar();
     auditar(P, { usuario: sessao.userId, acao: 'platform.model_uncertified', entidade: 'platform_settings', antes: { modelo: id }, origem });
@@ -343,7 +343,7 @@ export function rotasPlataforma(P, r) {
   });
   r.del('/api/plataforma/vetos-sigilo/:id', ({ sessao, params, origem }) => {
     precisa(sessao, 'platform.settings.manage');
-    const id = decodeURIComponent(params.id);
+    const id = params.id;
     salvarAjuste(P.db, 'vetos_sigilo_plataforma', lerVetos().filter(v => v.id !== id));
     reaplicar();
     auditar(P, { usuario: sessao.userId, acao: 'platform.model_unvetoed', entidade: 'platform_settings', antes: { modelo: id }, origem });

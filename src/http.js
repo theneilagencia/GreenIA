@@ -13,6 +13,11 @@ export class ErroHttp extends Error {
 }
 export const erro = (status, codigo, mensagem, extra) => new ErroHttp(status, codigo, mensagem, extra);
 
+function decodificarParametro(valor) {
+  try { return decodeURIComponent(valor); }
+  catch { throw erro(400, 'endereco_invalido', 'O endereço está inválido. Abra novamente pelo menu.'); }
+}
+
 export function criarRoteador() {
   const rotas = [];
   const add = metodo => (caminho, h, op = {}) => rotas.push({
@@ -23,7 +28,7 @@ export function criarRoteador() {
     achar(metodo, caminho) {
       for (const r of rotas) {
         const m = r.re.exec(caminho);
-        if (m && r.metodo === metodo) return { ...r, params: Object.fromEntries(Object.entries(m.groups || {}).map(([k, v]) => [k, decodeURIComponent(v)])) };
+        if (m && r.metodo === metodo) return { ...r, params: Object.fromEntries(Object.entries(m.groups || {}).map(([k, v]) => [k, decodificarParametro(v)])) };
       }
       return null;
     },
@@ -58,10 +63,14 @@ export function lerCorpo(req, limiteMb = 1) {
 }
 
 export function lerCookies(req) {
-  const out = {};
+  const out = Object.create(null);
   for (const p of String(req.headers.cookie || '').split(';')) {
     const i = p.indexOf('=');
-    if (i > 0) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+    if (i > 0) {
+      const nome = p.slice(0, i).trim();
+      try { out[nome] = decodeURIComponent(p.slice(i + 1).trim()); }
+      catch { delete out[nome]; } // Cookie corrompido nunca autentica nem impede a entrada.
+    }
   }
   return out;
 }
@@ -98,7 +107,7 @@ const TIPOS = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=
 // Revalidação a cada carga (no-cache + ETag): o navegador guarda os arquivos, mas confere com o servidor e
 // recebe 304 quando nada mudou. Um deploy novo aparece na hora, sem misturar módulos antigos e novos.
 export async function servirEstatico(res, raiz, caminho, req = null) {
-  const arquivo = normalize(join(raiz, decodeURIComponent(caminho)));
+  const arquivo = normalize(join(raiz, decodificarParametro(caminho)));
   if (!arquivo.startsWith(normalize(raiz) + sep) || !TIPOS[extname(arquivo)]) return false;
   try {
     const dados = await readFile(arquivo);

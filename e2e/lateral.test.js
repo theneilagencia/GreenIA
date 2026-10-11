@@ -132,6 +132,7 @@ test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierar
   for (const largura of [320, 390, 768]) {
     await p.setViewportSize({ width: largura, height: 740 });
     await p.goto(`${N.base}/app#/nova`);
+    await p.waitForSelector('#entrada'); // Aguarda a conversa atual antes de abrir o menu.
     await p.waitForSelector('#lateral .item-lat.item-principal', { state: 'attached' });
     if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); }
     assert.deepEqual(await principais(p), ['conversas', 'quick-wins', 'conhecimento'], String(largura));

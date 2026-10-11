@@ -62,3 +62,44 @@ test('paginação pelo link persiste após recarga e ajuda explica o acompanhame
   const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento`);await p.getByRole('link',{name:'Próxima página'}).click();await p.getByText('Página 2 de 2',{exact:true}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);await p.reload();await p.getByText('Página 2 de 2',{exact:true}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);await p.getByRole('button',{name:'Ajuda desta tela'}).click();await p.getByRole('heading',{name:'Confira e acompanhe os registros'}).waitFor();
  }finally{await N.fechar();}
 });
+
+test('QA profundo UX: conflito real entre abas conserva preenchimento e impede sobrescrever correção',async()=>{
+ const N=await subirComNavegador();try{
+  const {q,a,m}=await fixture(N),b=`/api/quick-wins/${q.id}/painel`,d=(await a.post(`${b}/preparar`,{mensagem:m})).dados;
+  const dados=[{fornecedor:'Fornecedor Exemplo',documento:'Certidão',situacao:'pendente',pendencia:'Documento vencido'}];
+  await a.post(`${b}/registros/${d.id}`,{dados,versao:d.versao,escopo:'pessoal',confirmado:true,cienteParcial:true});
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.setViewportSize({width:390,height:900});await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento/registro/${d.id}`);
+  await p.getByRole('heading',{name:'Corrigir um registro'}).waitFor();
+  await p.getByLabel('Fornecedor *',{exact:true}).fill('Edição na tela');await p.getByLabel('Por que está corrigindo?').fill('Correção da tela');
+  const atual=(await a.get(`${b}/registros/${d.id}`)).dados;
+  assert.equal((await a.post(`${b}/registros/${d.id}`,{dados:[{...dados[0],fornecedor:'Correção salva em outra aba'}],versao:atual.versao,escopo:'pessoal',confirmado:true,cienteParcial:true,motivo:'Outra aba'})).status,200);
+  await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores deste acompanhamento.').check();
+  await p.getByRole('button',{name:'Salvar correção'}).click();await p.locator('#registro-erro').getByText(/Este registro mudou/).waitFor();
+  assert.equal(await p.getByLabel('Fornecedor *',{exact:true}).inputValue(),'Edição na tela');assert.equal(await p.getByRole('button',{name:'Salvar correção'}).isEnabled(),true);
+  assert.equal((await a.get(b)).dados.registros[0].dados[0].fornecedor,'Correção salva em outra aba');
+ }finally{await N.fechar();}
+});
+test('QA profundo UX: acrescentar e remover itens conserva dados, foco e confirmação humana',async()=>{
+ const N=await subirComNavegador();try{
+  const {q,a,c,m}=await fixture(N),p=await N.entrar('admin@empresa-exemplo.com.br');await p.setViewportSize({width:320,height:900});
+  await p.goto(`${N.base}/app#/c/${c}`);await p.getByRole('link',{name:'Conferir dados para o acompanhamento'}).click();await p.getByRole('heading',{name:'Confira antes de registrar'}).waitFor();
+  await p.getByLabel('Fornecedor *',{exact:true}).fill('Primeiro item');await p.getByLabel('Documento *',{exact:true}).fill('Certidão');
+  await p.getByRole('button',{name:'Adicionar um item'}).click();assert.equal(await p.locator('[data-item="1"][data-campo="fornecedor"]').evaluate(e=>e===document.activeElement),true);
+  await p.locator('[data-item="1"][data-campo="fornecedor"]').fill('Segundo item');await p.locator('[data-item="1"][data-campo="documento"]').fill('Contrato');
+  await p.getByRole('button',{name:'Remover este item'}).last().click();assert.equal(await p.getByLabel('Fornecedor *',{exact:true}).inputValue(),'Primeiro item');assert.equal(await p.locator('.painel-item').count(),1);
+  assert.equal((await a.get(`/api/quick-wins/${q.id}/painel`)).dados.total,0);assert.equal(await p.getByRole('radio',{name:'Só eu',exact:true}).isChecked(),true);
+  assert.equal(await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores deste acompanhamento.').isChecked(),false);
+  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }finally{await N.fechar();}
+});
+test('QA profundo UX: busca local conserva indicadores e explica contratação da integração contínua',async()=>{
+ const N=await subirComNavegador();try{
+  const {q,a,m}=await fixture(N),b=`/api/quick-wins/${q.id}/painel`,d=(await a.post(`${b}/preparar`,{mensagem:m})).dados;
+  await a.post(`${b}/registros/${d.id}`,{dados:[{fornecedor:'Fornecedor Exemplo',documento:'Certidão',situacao:'pendente',pendencia:'Documento vencido'}],versao:d.versao,escopo:'pessoal',confirmado:true,cienteParcial:true});
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento`);await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();
+  const antes=await p.getByRole('region',{name:'Indicadores do acompanhamento'}).innerText();await p.getByLabel('Encontrar um registro nesta página').fill('Nenhuma correspondência');
+  assert.equal(await p.locator('#painel-linhas tr:visible').count(),0);assert.equal(await p.getByRole('region',{name:'Indicadores do acompanhamento'}).innerText(),antes);
+  await p.getByText('O que este acompanhamento inclui',{exact:true}).click();await p.getByText(/atualização por sistemas externos e painéis personalizados dependem de contratação adicional/).waitFor();
+  await p.getByLabel('Encontrar um registro nesta página').fill('');assert.equal(await p.locator('#painel-linhas tr:visible').count(),1);
+ }finally{await N.fechar();}
+});

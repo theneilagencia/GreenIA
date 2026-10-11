@@ -65,12 +65,12 @@
   #modal .modal :is(.btn,.btn-texto,.icone-btn){min-height:44px}
   #modal .modal .entrada{font-size:16px;min-height:44px}
   #modal .ajuda-contextual{max-width:100%;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
-  .app .cabeca{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+  .app .cabeca{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
   .app .cabeca-titulo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;min-width:0;align-items:center}
   .app .cabeca :is(.migalha,.selo-contexto){display:none}
-  .app .cabeca-titulo>h1{white-space:normal;overflow-wrap:anywhere}
+  .app .cabeca-titulo>h1{white-space:normal;overflow-wrap:normal;word-break:normal;overflow:visible}
   .app .cabeca-titulo>.btn{grid-column:1 / -1;justify-self:start}
-  .app .cabeca-acoes{gap:0;align-self:start;flex-wrap:nowrap}
+  .app .cabeca-acoes{gap:8px;justify-self:end;align-self:start;flex-wrap:wrap;max-width:100%}
   .app .pagina{padding:20px 16px 40px}
   .app .cabeca h1{font-size:18px}
   .app :is(.btn,.btn-pequeno,.btn-texto,.icone-btn,.btn-icone){min-height:44px}
@@ -91,3 +91,15 @@
 .inicio-ajuda,.uso-detalhes,#modelos-manuais{margin:16px 0}
 .inicio-ajuda>summary,.uso-detalhes>summary,#modelos-manuais>summary{padding:12px 0;cursor:pointer;font-weight:600}
 @media(max-width:390px){.app .enviar{padding:8px}.app .caixa{gap:4px}.acoes-material .btn{flex:1}}
+
+@media(pointer:coarse),(max-width:760px){
+  .app summary{min-height:44px;box-sizing:border-box;padding:10px 0;cursor:pointer}
+  .app .pagina .migalhas a{display:inline-flex;align-items:center;min-height:44px}
+}
+@media(pointer:coarse),(max-width:760px){
+  .app summary{display:list-item}
+  .app .pg-trilha a,.app .qw-contexto{display:inline-flex;align-items:center;min-height:44px}
+  .app .segmento-sutil button{min-height:44px}
+  .app .btn-execucao{min-width:44px;min-height:44px}
+  .app .faixa-aviso a{display:inline-flex;align-items:center;min-height:44px}
+}

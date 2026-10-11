@@ -430,15 +430,81 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .data-br-nativo{position:absolute;left:0;bottom:0;width:100%;height:1px;padding:0;border:0;opacity:0;pointer-events:none}
 @media(pointer:coarse),(max-width:760px){.data-br-cal{width:44px}.data-br>.entrada{padding-right:48px}}
 
-/* === Cartões de caminho (Criar um Quick Win) === Link e botão com o mesmo desenho: conteúdo no topo (o botão
-   centralizava na vertical), título com duas linhas reservadas para as descrições começarem na mesma altura,
-   seta e destaque ao passar o mouse ou no foco, para ficar claro que o cartão é clicável. */
-.qw-caminhos{align-items:stretch}
-.qw-caminhos :is(a,button){display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px;min-height:100%;cursor:pointer;position:relative;padding:16px 40px 16px 16px;transition:border-color .15s ease,background-color .15s ease}
-.qw-caminhos :is(a,button) b{font-weight:600;line-height:1.35;min-height:2.7em;display:block}
-.qw-caminhos :is(a,button) span{margin-top:0;line-height:1.45}
-.qw-caminhos :is(a,button)::after{content:'→';position:absolute;top:16px;right:16px;color:var(--muted);transition:transform .15s ease,color .15s ease}
-.qw-caminhos :is(a,button):is(:hover,:focus-visible){border-color:var(--forest);background:var(--surface)}
-.qw-caminhos :is(a,button):is(:hover,:focus-visible)::after{color:var(--forest);transform:translateX(2px)}
-@media(max-width:640px){.qw-caminhos :is(a,button) b{min-height:0}}
-@media(prefers-reduced-motion:reduce){.qw-caminhos :is(a,button),.qw-caminhos :is(a,button)::after{transition:none}}
+/* === Layout: Quick Wins === Telas de Quick Win (biblioteca, página, usar, testar, editar, modelos, versões, publicar,
+   agendamentos, resultados do processo e processos prontos) no padrão comum: cartões lado a lado com .grade-cartoes e
+   .cartao (estilo.css), a mesma coluna, o mesmo cabeçalho, o mesmo marcador nos itens recolhíveis e ações alinhadas. */
+/* Criar um Quick Win e exemplos do estado vazio: grade e cartão padrão (substitui o antigo bloco "Cartões de caminho"). */
+.app .pagina .qw-inicio-guiado .grade-cartoes{margin-top:16px}
+.app .pagina .qw-vazio .qw-exemplos{list-style:none;margin:40px 0 0;padding:0}
+/* Processos prontos: as opções são cartões da grade, com o botão de opção alinhado à primeira linha do título. */
+.app .pagina .painel-modelos{border:0;padding:0;margin:8px 0 24px;min-width:0}
+.app .pagina .painel-modelos>legend{font:600 var(--ui-secao)/1.4 var(--sans);color:var(--ink);padding:0;margin:0 0 12px}
+.app .pagina .painel-modelos .grade-cartoes{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.app .pagina label.painel-escolha.cartao{display:flex!important;flex-direction:row;align-items:flex-start!important;gap:12px;margin:0;min-height:0}
+.app .pagina .painel-escolha>input{flex:none;margin:2px 0 0;width:18px;height:18px}
+.app .pagina .painel-escolha-texto{display:flex;flex-direction:column;gap:6px;min-width:0}
+.app .pagina .painel-escolha:has(input:checked){border-color:var(--forest);background:var(--surface)}
+.app .pagina .painel-escolha:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:2px}
+/* Resultados do processo: mesma coluna e cabeçalho das outras telas; indicadores alinhados em colunas iguais. */
+.app .pagina .painel-negocio .pg-cabeca .pg-desc b{color:var(--ink)}
+.app .pagina .painel-negocio .indicadores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.app .pagina .painel-negocio .faixa-aviso>h3:first-child{margin-top:0}
+.app .pagina .painel-negocio>details{margin:4px 0}
+/* Itens recolhíveis: o mesmo marcador (seta que gira) em todas as telas de Quick Win, no lugar do triângulo do navegador. */
+.app .pagina .pg details:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:44px;width:fit-content;max-width:100%;cursor:pointer}
+.app .pagina .pg details:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary::-webkit-details-marker{display:none}
+.app .pagina .pg details:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.app .pagina .pg details[open]:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary::before{transform:rotate(45deg)}
+.app .pagina .qw-usar details{margin:4px 0 12px}
+/* Seta de "Uso e decisão de todos os Quick Wins" e "Arquivados": tamanho fixo (no celular ela encolhia até virar um traço). */
+.app .pagina .qw-acompanhamento>summary{display:flex;align-items:center}
+.app .pagina .qw-acompanhamento>summary::before{flex:none}
+/* Menu "Mais ações": os três pontos alinhados ao texto, também no celular. */
+.app .pagina .menu-acoes>summary{display:inline-flex;align-items:center;gap:6px}
+/* Biblioteca: nomes e descrições quebram em até duas linhas (nada cortado em uma linha só); no celular as ações
+   começam na coluna do texto, alinhadas ao nome. */
+.app .pagina .qw-item-nome{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.app .pagina .qw-lista-cabeca{flex-wrap:wrap;row-gap:2px}
+.app .pagina .qw-lista-cabeca h2{white-space:nowrap}
+/* Execuções, versões e modelos: o título da linha quebra em duas linhas em vez de cortar. */
+.app .pagina .execucoes a.execucao b,.app .pagina .qw-modelos .lista-item .principal-texto b{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.app .pagina .qw-modelos .lista-item{align-items:flex-start}
+.app .pagina .qw-modelos .lista-item .principal-texto span{display:block;margin-top:2px}
+.app .pagina .qw-modelos fieldset.campo{border:0;padding:0;margin:0 0 12px;min-width:0}
+/* Rótulos de grupo (legend) alinhados aos rótulos dos campos, sem o recuo do navegador. */
+.app .pagina :is(.qw-config,.qw-modelos) legend,.app .pagina .pg fieldset.campo>legend{padding:0}
+/* Configurar: oito cores em duas linhas de quatro (sem uma amostra sozinha na linha) e a seção fixa com o mesmo
+   espaçamento das recolhíveis. */
+.app .pagina .qw-cores{display:grid;grid-template-columns:repeat(4,44px);gap:4px}
+.app .pagina .qw-config .grupo-form:not(details)>h2{margin:0 0 6px}
+.app .pagina .qw-config .grupo-form:not(details)>.lead{margin:0}
+/* Agendamentos: cartão padrão, conteúdo sem margens soltas, ações no pé alinhadas ao centro dos botões. */
+.app .pagina .qw-rotina-card.cartao{padding:20px;gap:8px}
+.app .pagina .qw-rotina-card>*{margin:0}
+.app .pagina .qw-rotina-topo h3{margin:0 0 2px}
+.app .pagina .qw-rotina-topo p{margin:0}
+.app .pagina .qw-rotina-card .cartao-acoes{padding-top:4px}
+.app .pagina .qw-rotina-card .qw-rotina-historico{margin:0}
+.app .pagina .qw-rotinas>.link-sutil{margin-bottom:-10px;width:fit-content}
+/* Avisos em linha: um link de texto no começo das ações fica alinhado ao texto do aviso. */
+.app .pagina .aviso-acoes>.btn-texto:first-child{padding-left:0;padding-right:8px}
+/* Editor (assistente): a situação do rascunho alinhada ao botão "Salvar rascunho". */
+.app .pagina .rascunho-barra{align-items:center}
+/* Teste: as três formas de enviar o material ficam lado a lado em colunas iguais (nenhuma sozinha na linha). */
+.app .pagina .qw-wizard .segmento-sutil{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.app .pagina .qw-wizard .segmento-sutil button{white-space:normal;line-height:1.25}
+/* Opções em cartão do preparo seguem o cartão padrão (raio, borda e espaçamento). */
+.app .pagina .qw-escolhas label{border-color:var(--line);border-radius:var(--cartao-raio);padding:var(--cartao-pad)}
+/* Título do cabeçalho nas telas de Quick Win (nome do Quick Win, às vezes longo): no celular quebra em até duas linhas. */
+@media(max-width:760px){.app #principal:has(.pg)>.cabeca .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}}
+@media(max-width:640px){
+  .app .pagina .qw-item-acoes{grid-column:2 / -1}
+  /* O menu abre a partir do começo da linha de ações (e não do botão "Mais ações"), para caber inteiro na tela. */
+  .app .pagina .qw-item-acoes>.menu-acoes{position:static}
+  .app .pagina .qw-item-acoes .menu-lista{left:0;right:auto;max-width:100%}
+  .app .pagina .qw-item-lado{grid-column:2 / -1}
+  .app .pagina .pg .pg-acoes{flex-wrap:wrap}
+  .app .pagina .pg .pg-acoes>.btn:not(.btn-texto){flex:1 1 auto;white-space:nowrap}
+  .app .pagina .qw-rotina-card.cartao{padding:16px}
+  .app .pagina .qw-rotina-topo{flex-direction:row;flex-wrap:wrap;gap:8px}
+}

@@ -153,13 +153,14 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
   $('principal').innerHTML = `${cabecalho(qw ? 'Editar Quick Win' : 'Criar Quick Win')}
     <div class="pagina"><div class="pg qw-wizard">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine à GreenIA como realizar esse trabalho.',
-        lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
+      })}
       ${publicada ? `<div id="aviso-versao">${aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`)}</div>` : ''}
       ${!qw && inicial ? aviso(`<b>Começando do modelo “${esc(inicial.nome)}”.</b> Ajuste o que quiser. Nada é criado até você continuar.`) : ''}
       ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}
       <div id="progresso"></div>
       <div id="etapa"></div>
       <div class="rascunho-barra" id="rascunho-barra"><span id="estado-rascunho" role="status">${qw ? 'Rascunho carregado' : 'Seu rascunho será salvo ao continuar'}</span><button type="button" class="btn btn-linha btn-pequeno" id="salvar-rascunho">Salvar rascunho</button></div>
+      ${qw ? '<section class="qw-zona-perigo" aria-labelledby="t-excluir-qw"><h2 id="t-excluir-qw">Excluir Quick Win</h2><p class="dica">Remove o Quick Win do catálogo. As execuções anteriores continuam guardadas.</p><button type="button" class="btn btn-perigo" id="excluir-qw">Excluir Quick Win…</button></section>' : ''}
     </div></div>`;
   ligarCabecalho();
   $('salvar-rascunho').onclick = async e => {

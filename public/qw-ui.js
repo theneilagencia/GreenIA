@@ -135,7 +135,7 @@ export const aviso = (html, tipo = 'info', acoes = '') => `<div class="aviso-lin
 export const estadoVazio = ({ titulo, texto, cta = '', exemplos = [] }) => `<div class="qw-vazio">
     <span class="qw-vazio-icone" aria-hidden="true">${ICONE.raio}</span>
     <h2>${esc(titulo)}</h2><p>${esc(texto)}</p>${cta}
-    ${exemplos.length ? `<ul class="qw-vazio-exemplos" aria-label="Exemplos">${exemplos.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('')}</ul>` : ''}
+    ${exemplos.length ? `<ul class="grade-cartoes qw-exemplos" aria-label="Exemplos">${exemplos.map(([t, d]) => `<li class="cartao"><b class="cartao-titulo">${esc(t)}</b><span class="cartao-texto">${esc(d)}</span></li>`).join('')}</ul>` : ''}
   </div>`;
 
 // Menu "…" acessível: <details> nativo (teclado e leitor de tela), fecha ao clicar fora ou com Esc.

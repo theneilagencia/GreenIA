@@ -727,3 +727,130 @@
 .l-rodape .l-rodape-legal::before{content:'';display:block;height:1px;margin-bottom:12px;background:var(--line)}
 .l-rodape .l-rodape-legal p{margin:0;font:400 12.5px/1.55 var(--sans);color:var(--muted)}
 .l-rodape .l-rodape-legal a{font-size:12.5px;min-height:0;display:inline;text-decoration:underline;text-underline-offset:2px}
+
+/* ============================================================ Tema escuro das páginas públicas
+   Vendas (vendas.html) e página de cada empresa (index.html) seguem o sistema (Automático) ou a escolha
+   guardada pelo tema.js, com os mesmos seletores do estilo.css. Os dois blocos de tokens abaixo têm o mesmo
+   conteúdo (um para o Automático, outro para o Escuro escolhido) e são o único lugar com valores do escuro
+   (também os usados por lp-vendas.css e lp-operacoes.css). As regras depois deles usam
+   var(--lpe-*, <cor do claro>): os --lpe-* só existem no escuro, então no claro cada regra repete o valor
+   original e nada muda. Cor da empresa: botões no tom da marca (--forest-strong, texto branco conferido no
+   servidor) e textos e ícones no tom clareado (--forest-text, ver tonsMarca em comum.js). As demonstrações
+   ilustradas da página de vendas (.qw-demo, .op-demo) continuam claras, como um cartão emoldurado. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-tema="claro"]) .l{
+    color-scheme:dark;
+    --bg:#161614; --bg-2:#201F1C; --paper:#1F1E1B; --ink:#EEEBE4; --ink-2:#D9D5CB; --muted:#B3AEA2; --faint:#A7A296;
+    --line:#33312C; --line-strong:#57544C; --clay:#D98A63;
+    --forest-text:inherit; --acento:var(--forest-text);
+    --tinta:color-mix(in srgb,var(--acento) 10%,var(--paper)); --tinta-2:color-mix(in srgb,var(--acento) 17%,var(--paper));
+    --hair:rgba(238,235,228,.1); --hair-2:rgba(238,235,228,.17);
+    --sombra-1:0 1px 2px rgba(0,0,0,.35); --sombra-2:0 1px 2px rgba(0,0,0,.35),0 18px 44px -24px rgba(0,0,0,.7);
+    --sombra-card:0 1px 2px rgba(0,0,0,.3),0 12px 32px -18px rgba(0,0,0,.6);
+    --lpe-sobre-tinta:#161614; --lpe-tinta-hover:#FFFFFF; --lpe-marca-ia:#74D09F; --lpe-campo:#171715;
+    --lpe-branco:#272622; --lpe-barra:#191917; --lpe-ponto:#3A3833; --lpe-lateral:#1A1A17; --lpe-trilho:#38362F;
+    --lpe-areia:#2A2925; --lpe-areia-2:#23221F; --lpe-verde:var(--mint);
+    --lpe-ambar-bg:#33281A; --lpe-ambar:#E8BE6E; --lpe-vermelho-bg:#3A221D; --lpe-vermelho-texto:#F3A797; --lpe-vermelho:#E07A66; --lpe-vermelho-suave:#2A1A17;
+    --lpe-escura:#0E0E0D; --lpe-escura-linha:inset 0 1px 0 #2A2925,inset 0 -1px 0 #2A2925; --lpe-destaque-borda:#3A3833;
+    --lpe-vidro-base:#1F1E1B; --lpe-vidro:rgba(28,27,24,.88); --lpe-vidro-borda:rgba(238,235,228,.1); --lpe-sigilo:#EEEBE4;
+    --lpe-botao:var(--forest-strong); --lpe-botao-hover:var(--forest-strong-hover);
+    --lpe-logo-filtro:invert(1); --lpe-logo-placa:#FAF9F5; --lpe-logo-pad:4px 8px;
+    --lpe-hair-3:rgba(238,235,228,.3); --lpe-hover:rgba(238,235,228,.07);
+    --lpe-op-fundo:linear-gradient(135deg,#1B1F1A,#161614); --lpe-op-nota:#3E4A3A;
+  }
+}
+:root[data-tema="escuro"] .l{
+  color-scheme:dark;
+  --bg:#161614; --bg-2:#201F1C; --paper:#1F1E1B; --ink:#EEEBE4; --ink-2:#D9D5CB; --muted:#B3AEA2; --faint:#A7A296;
+  --line:#33312C; --line-strong:#57544C; --clay:#D98A63;
+  --forest-text:inherit; --acento:var(--forest-text);
+  --tinta:color-mix(in srgb,var(--acento) 10%,var(--paper)); --tinta-2:color-mix(in srgb,var(--acento) 17%,var(--paper));
+  --hair:rgba(238,235,228,.1); --hair-2:rgba(238,235,228,.17);
+  --sombra-1:0 1px 2px rgba(0,0,0,.35); --sombra-2:0 1px 2px rgba(0,0,0,.35),0 18px 44px -24px rgba(0,0,0,.7);
+  --sombra-card:0 1px 2px rgba(0,0,0,.3),0 12px 32px -18px rgba(0,0,0,.6);
+  --lpe-sobre-tinta:#161614; --lpe-tinta-hover:#FFFFFF; --lpe-marca-ia:#74D09F; --lpe-campo:#171715;
+  --lpe-branco:#272622; --lpe-barra:#191917; --lpe-ponto:#3A3833; --lpe-lateral:#1A1A17; --lpe-trilho:#38362F;
+  --lpe-areia:#2A2925; --lpe-areia-2:#23221F; --lpe-verde:var(--mint);
+  --lpe-ambar-bg:#33281A; --lpe-ambar:#E8BE6E; --lpe-vermelho-bg:#3A221D; --lpe-vermelho-texto:#F3A797; --lpe-vermelho:#E07A66; --lpe-vermelho-suave:#2A1A17;
+  --lpe-escura:#0E0E0D; --lpe-escura-linha:inset 0 1px 0 #2A2925,inset 0 -1px 0 #2A2925; --lpe-destaque-borda:#3A3833;
+  --lpe-vidro-base:#1F1E1B; --lpe-vidro:rgba(28,27,24,.88); --lpe-vidro-borda:rgba(238,235,228,.1); --lpe-sigilo:#EEEBE4;
+  --lpe-botao:var(--forest-strong); --lpe-botao-hover:var(--forest-strong-hover);
+  --lpe-logo-filtro:invert(1); --lpe-logo-placa:#FAF9F5; --lpe-logo-pad:4px 8px;
+  --lpe-hair-3:rgba(238,235,228,.3); --lpe-hover:rgba(238,235,228,.07);
+  --lpe-op-fundo:linear-gradient(135deg,#1B1F1A,#161614); --lpe-op-nota:#3E4A3A;
+}
+/* Regras na mesma ordem das originais (assim a cascata entre elas fica igual à do claro). */
+.l .marca .ia{color:var(--lpe-marca-ia,#17764D)}
+.l .btn-verde{color:var(--lpe-sobre-tinta,#FAF9F5)}
+.l .btn-verde:hover:not(:disabled){background:var(--lpe-tinta-hover,#2B2A27)}
+.l .entrada{background:var(--lpe-campo,#fff)}
+.l-janela-barra{background:var(--lpe-barra,#FBFAF7)}
+.l-janela-barra i{background:var(--lpe-ponto,#E3DFD4)}
+.m-lat{background:var(--lpe-lateral,#F8F6F1)}
+.m-lat span.ativo{background:var(--lpe-branco,#fff)}
+.m-cartao{background:var(--lpe-branco,#fff)}
+.m-medidor{background:var(--lpe-trilho,#EEEBE3)}
+.m-atencao{background:var(--lpe-ambar-bg,#FBF3E4);color:var(--lpe-ambar,#8C621D)}
+.l-coluna.nova{background:var(--lpe-areia-2,#F6F4EE)}
+.l-escura{background:var(--lpe-escura,#141413);box-shadow:var(--lpe-escura-linha,none)}
+.m-selo{background:var(--lpe-ambar-bg,#FBF3E4);color:var(--lpe-ambar,#8C621D)}
+.m-selo.verde{background:var(--lpe-verde,#EDF3EE);color:var(--acento)}
+.m-ciclo span{background:var(--lpe-areia,#F3F0E9)}
+.m-ciclo span.feito{background:var(--lpe-verde,#EDF3EE)}
+.m-ciclo span.agora{color:var(--lpe-sobre-tinta,#FAF9F5)}
+.m-decisao span{background:var(--lpe-branco,#fff)}
+.m-decisao span.sim{color:var(--lpe-sobre-tinta,#FAF9F5)}
+.m-bolha{background:var(--lpe-lateral,#F8F6F1)}
+.m-bolha mark{background:var(--lpe-ambar-bg,#FBF3E4);color:var(--lpe-ambar,#8C621D)}
+.m-regra{background:var(--lpe-branco,#fff)}
+.m-regra .m-selo.cinza{background:var(--lpe-areia,#F3F0E9)}
+.m-regra .m-selo.escuro{color:var(--lpe-sobre-tinta,#FAF9F5)}
+.m-regra .m-selo.vermelho{background:var(--lpe-vermelho-bg,#FBEAE5);color:var(--lpe-vermelho-texto,#9B3522)}
+.m-aviso{background:var(--lpe-verde,#EDF3EE)}
+.l-inst-topo .isolado{background:var(--lpe-verde,#EDF3EE)}
+.l-plano.destaque{background:var(--lpe-escura,#141413);border-color:var(--lpe-destaque-borda,#141413)}
+.l-plano.destaque .btn-verde:hover{background:#fff}
+.p-marca .logo-empresa{background:var(--lpe-logo-placa,transparent);padding:var(--lpe-logo-pad,0);border-radius:6px}
+.p .l-hero .btn-verde{background:var(--lpe-botao,var(--forest))}
+.p .l-hero .btn-verde:hover{background:var(--lpe-botao-hover,var(--forest-hover))}
+.p-chat-barra .classe{background:var(--lpe-branco,#fff)}
+.p-chat-barra .troca i{background:var(--lpe-trilho,#DCD7CB)}
+.p-eu{background:var(--lpe-areia,#F3F0E9)}
+.p-eu .anexo{background:var(--lpe-branco,#fff)}
+.p-fonte{background:var(--lpe-verde,#EDF3EE)}
+.p-classes span{background:var(--lpe-branco,#fff)}
+.p-regra.sigilo{background:var(--lpe-areia-2,#F6F4EE)}
+.p-regra.nunca{background:var(--lpe-vermelho-bg,#FBEAE5)} .p-regra.nunca h3 i{background:var(--lpe-vermelho,#B3412E)} .p-regra.nunca ul{color:var(--lpe-vermelho-texto,#9B3522)}
+.p-fim{background:var(--lpe-escura,#141413);box-shadow:var(--lpe-escura-linha,none)}
+.p-fim .btn-verde{color:#141413}
+.p .btn-verde{background:var(--lpe-botao,var(--acento));color:#fff}
+.p .btn-verde:hover:not(:disabled){background:var(--lpe-botao-hover,color-mix(in srgb,var(--acento) 86%,#000))}
+.pp-pill{background:color-mix(in srgb,var(--lpe-vidro-base,#fff) 70%,transparent)}
+.pp-acoes .btn-linha{background:color-mix(in srgb,var(--lpe-vidro-base,#fff) 70%,transparent)}
+.pp-janela{box-shadow:0 1px 2px rgba(20,20,19,.05),0 40px 80px -36px color-mix(in srgb,var(--acento) 45%,rgba(20,20,19,.4)),0 0 0 8px color-mix(in srgb,var(--lpe-vidro-base,#fff) 55%,transparent)}
+.pp-janela-barra{background:var(--lpe-barra,#FBFAF7)}
+.pp-janela-barra i{background:var(--lpe-ponto,#E3DFD4)}
+.pp-flutua{background:color-mix(in srgb,var(--lpe-vidro-base,#fff) 92%,transparent)}
+.pp-passos li::before{background:var(--lpe-botao,var(--acento))}
+.pp-mini-chat .eu{background:var(--lpe-areia,#F3F0E9)}
+.pp-mini-chat .ia{background:var(--lpe-branco,#fff)}
+.pp-mini-chat .resp{background:var(--lpe-branco,#fff)}
+.pp-mini-chat .resp i{background:var(--lpe-trilho,#ECE9E1)}
+.pp-mini-qw span{background:var(--lpe-branco,#fff)}
+.pp-mini-docs b{background:linear-gradient(var(--lpe-branco,#fff) 55%,var(--tinta) 55%)}
+.pp-mini-classes .on{background:var(--lpe-branco,#fff)}
+.pp-regra.sigilo{--cor-regra:var(--lpe-sigilo,#1A1915);--fundo-regra:var(--lpe-areia,#EFEDE7)}
+.pp-regra.nunca{--cor-regra:var(--lpe-vermelho,#B3412E);--fundo-regra:var(--lpe-vermelho-bg,#FBEAE5);background:linear-gradient(180deg,var(--lpe-vermelho-suave,#FFF8F6),var(--paper) 70%)}
+.pp-regra.nunca ul{color:var(--lpe-vermelho-texto,#9B3522)}
+.pp-privacidade .pp-ci{background:var(--lpe-branco,#fff)}
+.pp-inst-link{background:var(--lpe-branco,#fff)}
+.pp-fim{background:var(--lpe-escura,#141413);box-shadow:var(--lpe-escura-linha,none)}
+.pp-rodape{background:var(--lpe-escura,#141413)}
+.l-cena-legenda{background:var(--lpe-vidro,rgba(250,249,245,.88));border-color:var(--lpe-vidro-borda,rgba(20,20,19,.06))}
+.l-cena .m-bolha mark{background:linear-gradient(var(--lpe-ambar-bg,#FBF3E4),var(--lpe-ambar-bg,#FBF3E4)) no-repeat 0 0/100% 100%}
+.m-lat .m-ctx{background:var(--lpe-areia,#EDEAE2)}
+.m-lat .m-ctx em.ativo{background:var(--lpe-branco,#fff)}
+.m-envio .m-anexo{background:var(--lpe-branco,#fff)}
+/* Logo monocromático preto (sobre transparente) no rodapé: fica branco no escuro. */
+.l-rodape .l-logo-mono{filter:var(--lpe-logo-filtro,none)}
+/* ============================================================ fim do tema escuro das páginas públicas */

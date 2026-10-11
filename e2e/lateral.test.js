@@ -58,14 +58,14 @@ for (const [email, n] of [['c0', 0], ['c1', 1], ['c5', 5], ['c10', 10], ['c50', 
   });
 }
 
-test('"Ver todas" leva à lista completa existente; títulos longos são truncados com o título no tooltip (C, I)', async () => {
+test('"Ver todas" leva à lista completa existente; títulos longos quebram em até 2 linhas, com o título completo no tooltip (C, I)', async () => {
   const { ctx, p } = await abrir('c10', '#/nova');
   const longo = p.locator('#lateral .recentes-lat .item-lat.sub').filter({ hasText: 'título muito comprido' });
   assert.ok(await longo.count());
   assert.match(await longo.getAttribute('title'), /truncamento elegante/);
   const caixa = await longo.boundingBox(), lateral = await p.locator('#lateral').boundingBox();
   assert.ok(caixa.x + caixa.width <= lateral.x + lateral.width + 1, 'não sai da lateral');
-  assert.ok(caixa.height < 60, 'uma linha só');
+  assert.ok(caixa.height < 60, 'no máximo duas linhas');
   await p.click('#lateral .ver-todas');
   await p.waitForURL(/#\/conversas$/);
   await p.waitForSelector('.hc-lista .hc-conversa');

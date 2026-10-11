@@ -442,3 +442,80 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .qw-caminhos :is(a,button):is(:hover,:focus-visible)::after{color:var(--forest);transform:translateX(2px)}
 @media(max-width:640px){.qw-caminhos :is(a,button) b{min-height:0}}
 @media(prefers-reduced-motion:reduce){.qw-caminhos :is(a,button),.qw-caminhos :is(a,button)::after{transition:none}}
+
+/* === Layout: uso e chat === Telas de quem usa (nova conversa, conversa, histórico, lateral, primeiros passos,
+   pendências, conhecimento, ajuda). Cartões no padrão .grade-cartoes/.cartao; títulos longos quebram em até duas
+   linhas (o título inteiro fica no title) em vez de cortar numa linha; telas da área com a mesma coluna. */
+/* Lateral: conversas recentes em até 2 linhas; o "⋯" acompanha a primeira linha. */
+.recentes-lat .item-lat.sub .nome{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.35}
+.recentes-lat .hc-recente>.hc-acoes{margin-top:2px}
+/* Celular: e-mail da conta quebra em vez de cortar. */
+.lateral .conta-lateral-nome :is(b,span){white-space:normal;text-overflow:clip;overflow-wrap:anywhere}
+/* Cabeçalho: título da tela em até 2 linhas, em todas as larguras. */
+.app .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:break-word;text-wrap:balance}
+@media(max-width:760px){.app .cabeca-titulo>h1{white-space:normal;text-overflow:clip}}
+@media(min-width:761px){.app .cabeca-titulo{align-items:baseline}}
+/* Faixa da conversa (nível, Quick Win, sigilo): no celular quebra em linhas em vez de rolar para o lado e cortar.
+   Com o teclado aberto (altura curta) continua numa linha que rola, para não roubar a área de leitura. */
+@media(max-width:760px) and (min-height:601px){
+  .barra-conversa{flex-wrap:wrap;overflow-x:visible;row-gap:0}
+  .barra-conversa::after{content:none}
+  .barra-conversa .qw-contexto{max-width:100%;white-space:normal}
+  .barra-conversa>*{flex:0 1 auto;min-width:0}
+  .barra-conversa .chave-sigilo{flex-wrap:wrap;column-gap:6px;row-gap:0}
+}
+/* Celular estreito: interruptor e rótulo com o efeito logo abaixo, "Saiba mais" ao lado; cabe numa linha só. */
+@media(max-width:480px) and (min-height:601px){
+  .barra-conversa .chave-sigilo{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"chave rotulo saiba" "chave efeito saiba";align-items:center;column-gap:8px;row-gap:0;width:100%}
+  .barra-conversa .chave-sigilo>.switch{grid-area:chave}
+  .barra-conversa .chave-sigilo>label{grid-area:rotulo;min-height:44px;align-self:end;align-items:flex-end;padding-bottom:2px}
+  .barra-conversa .chave-sigilo>#efeito-sigilo{grid-area:efeito;align-self:start;font-size:12px;line-height:1.3;padding-bottom:4px}
+  .barra-conversa .chave-sigilo>.saiba-sigilo{grid-area:saiba}
+}
+/* Rodapé da resposta: "Serviu?" com o mesmo desenho de Copiar/Gerar de novo; planilha separada do texto. */
+.app .feedback.avaliacao-resposta button{min-height:36px;padding:4px 14px;font:500 13px var(--sans);border-radius:var(--raio)}
+.app .feedback.avaliacao-resposta{gap:8px 12px}
+.bolha-ia .tabela-wrap+div{margin:0 0 12px}
+@media(max-width:760px){.rodape-resposta .revise,.feedback.avaliacao-resposta>.dica{flex-basis:100%}}
+@media(pointer:coarse),(max-width:760px){.app .feedback.avaliacao-resposta button{min-height:44px}}
+/* Nova conversa e "Como começar": cartões no padrão, duas colunas, sem cartão órfão esticado; painel alinhado à
+   coluna da conversa. */
+.caminhos-inicio.grade-cartoes{--cartao-min:280px}
+.comecar-caminhos.grade-cartoes{--cartao-min:240px}
+.app .caminho-inicio.cartao{border-color:var(--line-strong)}
+.app .caminho-inicio.cartao .cartao-titulo{font:600 16px/1.35 var(--sans)}
+.app .caminho-inicio.cartao .cartao-texto{font-size:14px}
+.app .caminho-inicio.cartao .cartao-acoes{padding-top:10px}
+.app .caminho-inicio .caminho-acao{margin:0}
+.comecar-caminhos .caminho-inicio:last-child{grid-column:auto}
+/* Título, descrição e ação de cada cartão nas mesmas linhas da grade (subgrid): quando um título quebra em duas
+   linhas, as descrições e as ações dos vizinhos acompanham, sem reservar espaço quando nenhum quebra. */
+@supports (grid-template-rows:subgrid){
+  :is(.caminhos-inicio,.comecar-caminhos).grade-cartoes>.cartao{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:6px;align-content:start}
+  :is(.caminhos-inicio,.comecar-caminhos).grade-cartoes>.cartao>.cartao-acoes{align-self:end}
+}
+.boas-vindas .ajude-comecar{max-width:none;margin:20px 0}
+.ajude-comecar .linha-botoes,.ajude-comecar>#comecar-fechar{margin-left:-8px}
+/* Primeiros passos: mesma coluna das outras telas; saída alinhada ao texto. */
+.pagina-dentro>.guia-pagina{margin:0}
+.guia-saida{align-items:baseline}
+.guia-saida>.btn-texto{margin-left:-8px}
+/* Conhecimento: documentos no padrão de cartão (ações no pé); ações do topo separadas do resumo no celular. */
+.conhecimento-documentos.grade-cartoes{--cartao-min:300px}
+.app .pagina .conhecimento-documento.cartao{padding:var(--cartao-pad);border-radius:var(--cartao-raio);gap:6px}
+.app .pagina .conhecimento-documento.cartao>p{margin:0}
+.conhecimento-documento .conhecimento-uso{margin:0}
+.conhecimento-documento .cartao-acoes .conhecimento-abrir{margin:0}
+.visoes-salvas{align-items:baseline}
+.visoes-salvas>.btn-texto:first-child{margin-left:-8px}
+@media(max-width:760px){.conhecimento-topo{margin-bottom:16px}}
+/* Filtros em grade conforme a largura da biblioteca: 4 colunas, 2×2 ou 1; nenhum campo sozinho esticado numa linha
+   e "Título de A a Z" sem corte. */
+.conhecimento-biblioteca{container-type:inline-size}
+.app .pagina .conhecimento-biblioteca .filtros-biblioteca{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr));align-items:end}
+@container (max-width:720px){.app .pagina .conhecimento-biblioteca .filtros-biblioteca{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:420px){.app .pagina .conhecimento-biblioteca .filtros-biblioteca{grid-template-columns:minmax(0,1fr)}}
+/* Ajuda da tela: título e "×" na mesma linha. */
+#modal .ajuda-contextual .modal-topo{align-items:center;margin-bottom:16px}
+#modal .ajuda-contextual .modal-topo h2{margin:0}
+#modal .ajuda-contextual #ajuda-fechar{font-size:22px;line-height:1;flex:none}

@@ -120,24 +120,34 @@ const SECOES_USO = () => [
 // Conversas recentes na lateral: no máximo RECENTES_LATERAL, subordinadas a "Conversas"; o histórico completo é a
 // tela de Conversas (#/conversas). A lista é a mesma de sempre (E.conversas), sem cópia paralela.
 export const RECENTES_LATERAL = 5;
+// Agrupada por tema, com um ícone diferente por item e rótulos curtos (o mesmo texto do título de cada tela).
 const SECOES_ADMIN = () => [
-  { itens: [{ id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') }] },
-  { titulo: 'Gestão', itens: [
-    { id: 'preparacao', nome: 'Preparar o ambiente', icone: 'visao', ver: () => ['company.manage','usage.read','models.manage','user.read','policy.manage','settings.manage','integrations.manage','integrations.approve'].some(pode) },
-    { id: 'revisao-acessos', nome: 'Revisar acessos', icone: 'escudo', ver: () => pode('user.read') },
-    { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') }, { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: 'pessoas', ver: () => pode('user.read') },
-    { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') }, { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
-    { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
-    { id: 'integracoes', nome: 'Integrações', icone: 'link', ver: () => !!E.integracoes && (pode('integrations.manage') || pode('integrations.approve')) },
+  { itens: [
+    { id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') },
+    { id: 'preparacao', nome: 'Preparar o ambiente', icone: 'lista', ver: () => ['company.manage','usage.read','models.manage','user.read','policy.manage','settings.manage','integrations.manage','integrations.approve'].some(pode) },
   ] },
-  // Administração da empresa (multiempresa): usuários, roles, marca, landing page, URL e configurações.
+  { titulo: 'Pessoas e acesso', itens: [
+    // Multiempresa: quem tem acesso e o perfil de cada um ficam em Usuários; áreas e grupos, na tela ao lado.
+    ...(E.plataforma ? [{ id: 'empresa/usuarios', nome: 'Usuários', icone: 'pessoas', ver: () => pode('user.read') }] : []),
+    { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: E.plataforma ? 'predio' : 'pessoas', ver: () => pode('user.read') },
+    ...(E.plataforma ? [{ id: 'empresa/roles', nome: 'Perfis e permissões', icone: 'chave', ver: () => pode('role.manage') }] : []),
+    { id: 'revisao-acessos', nome: 'Revisar acessos', icone: 'check', ver: () => pode('user.read') },
+    ...(E.plataforma ? [{ id: 'empresa/acessos', nome: 'Acessos do suporte', icone: 'cadeado', ver: () => pode('audit.read') }] : []),
+  ] },
+  { titulo: 'IA e regras', itens: [
+    { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') },
+    { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
+    { id: 'integracoes', nome: 'Integrações', icone: 'servidor', ver: () => !!E.integracoes && (pode('integrations.manage') || pode('integrations.approve')) },
+  ] },
+  { titulo: 'Uso e registro', itens: [
+    { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') },
+    { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
+  ] },
+  // Empresa: marca, página de apresentação, endereço e configurações gerais.
   E.plataforma ? { titulo: 'Empresa', itens: [
-    { id: 'empresa/usuarios', nome: 'Usuários', icone: 'pessoas', ver: () => pode('user.read') },
-    { id: 'empresa/roles', nome: 'Perfis e permissões', icone: 'chave', ver: () => pode('role.manage') },
     { id: 'empresa/marca', nome: 'Marca e identidade visual', icone: 'pincel', ver: () => pode('branding.manage') },
     { id: 'empresa/landing', nome: 'Página de apresentação', icone: 'pagina', ver: () => pode('landing_page.manage') },
     { id: 'empresa/url', nome: 'URL e domínio', icone: 'link', ver: () => pode('url.manage') },
-    { id: 'empresa/acessos', nome: 'Acessos da equipe de operação', icone: 'escudo', ver: () => pode('audit.read') },
     { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
   ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
 ];

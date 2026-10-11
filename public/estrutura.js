@@ -2,11 +2,14 @@
 // a lista fica sempre à vista, o painel abre o detalhe e cada mudança é salva na hora.
 // Teclado: / busca, C cria, J/K ou setas andam na lista, Enter abre, Esc fecha o painel.
 import { api, esc, toast, ICONE } from '/comum.js';
-import { E } from '/app.js';
+import { E, pode } from '/app.js';
+import { confirmar } from '/admin-ui.js';
 
 const $ = id => document.getElementById(id);
 const falhar = e => toast(e.message || 'Algo deu errado.', 6000);
-const S = { aba: '', areas: [], pessoas: [], grupos: [], aberto: null, filtro: {}, q: '' };
+const S = { aba: '', areas: [], pessoas: [], grupos: [], aberto: null, filtro: {}, q: '', perfis: {} };
+// Perfil de cada pessoa, com o mesmo nome e valor da tela Usuários (Membro, Gestor, Leitor, Admin da empresa).
+const perfilDe = p => S.perfis[String(p.email || '').toLowerCase()] || (p.papel === 'admin' ? 'Admin da empresa' : 'Membro');
 
 // Avatares e marcas em tons da paleta (texto com contraste de 4,5:1 ou mais sobre o fundo).
 const TONS = [['#DDEBE1', '#1B5E3F'], ['#F2E6D0', '#6E4C15'], ['#E6E3F2', '#453A78'], ['#E0ECF0', '#1F5566'], ['#F2E0DA', '#8A3B26'], ['#EAE8E1', '#4A4740']];
@@ -22,8 +25,11 @@ const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 
 // ---------------------------------------------------------------- dados
 async function carregar() {
-  const [a, p, g] = await Promise.all([api('/api/admin/areas'), api('/api/admin/pessoas'), api('/api/admin/grupos')]);
+  // Na multiempresa, o perfil mora em Usuários: lê de lá para mostrar o mesmo nome aqui.
+  const usuarios = E.plataforma && pode('user.read') ? api('/api/empresa/usuarios').catch(() => null) : null;
+  const [a, p, g, u] = await Promise.all([api('/api/admin/areas'), api('/api/admin/pessoas'), api('/api/admin/grupos'), usuarios]);
   S.areas = a.areas; S.pessoas = p.pessoas; S.grupos = g.grupos;
+  S.perfis = Object.fromEntries((u?.usuarios || []).map(x => [String(x.email).toLowerCase(), x.role]));
 }
 const ativas = () => S.areas.filter(a => a.ativa);
 const pessoa = id => S.pessoas.find(p => p.id === id);
@@ -38,27 +44,29 @@ async function salvar(fn) {
 const EXPLICA = {
   areas: 'Áreas são os departamentos da empresa. Cada uma tem a sua <b>base de conhecimento</b>: quem é membro usa; quem administra a base cuida dos documentos.',
   pessoas: 'Cada pessoa faz parte de uma ou mais áreas, com uma permissão em cada, e pode estar em grupos de permissão.',
-  grupos: 'Grupos de permissão juntam pessoas de <b>qualquer área</b> para liberar um recurso a mais: uma classe de modelo mais forte ou criar quick wins. <b>Não têm base de conhecimento.</b>',
+  grupos: 'Grupos de permissão juntam pessoas de <b>qualquer área</b> para liberar um recurso a mais: um nível de IA mais forte ou criar Quick Wins. <b>Não têm base de conhecimento.</b>',
 };
 const CONCEITOS = atual => `<div class="conceitos" role="note">
-  <a class="conceito${atual === 'areas' ? ' atual' : ''}" href="#/pessoas"><b>Área</b><span>Um departamento. Tem <b>base de conhecimento própria</b> e quick wins. Na área, cada pessoa é membro ou administra a base.</span></a>
+  <a class="conceito${atual === 'areas' ? ' atual' : ''}" href="#/pessoas"><b>Área</b><span>Um departamento. Tem <b>base de conhecimento própria</b> e Quick Wins. Na área, cada pessoa é membro ou administra a base.</span></a>
   <a class="conceito${atual === 'pessoas' ? ' atual' : ''}" href="#/pessoas/pessoas"><b>Pessoa</b><span>Quem usa a GreenIA. Faz parte de áreas e pode estar em grupos de permissão.</span></a>
-  <a class="conceito${atual === 'grupos' ? ' atual' : ''}" href="#/pessoas/grupos"><b>Grupo de permissão</b><span>Pessoas de <b>qualquer área</b> com um recurso a mais: classe de modelo ou criar quick wins. <b>Sem base de conhecimento.</b></span></a></div>`;
+  <a class="conceito${atual === 'grupos' ? ' atual' : ''}" href="#/pessoas/grupos"><b>Grupo de permissão</b><span>Pessoas de <b>qualquer área</b> com um recurso a mais: nível de IA ou criar Quick Wins. <b>Sem base de conhecimento.</b></span></a></div>`;
 const lerPref = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const gravarPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem armazenamento */ } };
 
-function casca({ titulo, busca, acao, filtros }) {
+function casca({ titulo, busca, acao, filtros, convidar = false }) {
   const aberto = lerPref('greenia.conceitos') !== '0' && !(S.areas.length && S.grupos.length);
   $('conteudo').innerHTML = `<div class="lx">
     <div class="lx-explica"><p>${EXPLICA[S.aba]}</p><button type="button" class="lx-entenda" id="lx-entenda" aria-expanded="${aberto}">Área, pessoa ou grupo?</button></div>
     <div id="lx-conceitos" ${aberto ? '' : 'hidden'}>${CONCEITOS(S.aba)}</div>
     <div class="lx-barra">
-      <div class="lx-titulo"><h3>${titulo}</h3><span class="lx-conta" id="lx-conta"></span></div>
+      <div class="lx-titulo"><h2>${titulo}</h2><span class="lx-conta" id="lx-conta"></span></div>
       <div class="lx-ferramentas">${filtros || ''}
         <label class="lx-busca">${ICONE.busca}<input id="lx-q" placeholder="${busca}" autocomplete="off" value="${esc(S.q)}" aria-label="${busca}"><kbd>/</kbd></label>
-        ${acao ? `<button class="btn btn-verde btn-pequeno" id="lx-novo">${ICONE.mais}${acao}<kbd class="kbd-claro">C</kbd></button>` : ''}</div></div>
-    <div class="lx-lista" id="lx-lista" role="list"></div>
-    <p class="lx-atalhos"><kbd>/</kbd> buscar <kbd>C</kbd> criar <kbd>J</kbd><kbd>K</kbd> navegar <kbd>Enter</kbd> abrir <kbd>Esc</kbd> fechar</p></div>`;
+        ${convidar ? `<a class="btn btn-linha btn-pequeno" id="lx-novo" href="#/empresa/usuarios?convidar=1">${ICONE.mais}Convidar em Usuários</a>`
+          : acao ? `<button class="btn btn-verde btn-pequeno" id="lx-novo">${ICONE.mais}${acao}<kbd class="kbd-claro">C</kbd></button>` : ''}</div></div>
+    <div class="lx-lista" id="lx-lista"></div>
+    <details class="lx-atalhos-ajuda"><summary><span aria-hidden="true">?</span> Atalhos de teclado</summary>
+      <p class="lx-atalhos"><kbd>/</kbd> buscar <kbd>C</kbd> criar <kbd>J</kbd><kbd>K</kbd> navegar <kbd>Enter</kbd> abrir <kbd>Esc</kbd> fechar</p></details></div>`;
   $('lx-entenda').onclick = ev => { const b = ev.currentTarget, v = b.getAttribute('aria-expanded') !== 'true'; b.setAttribute('aria-expanded', v); $('lx-conceitos').hidden = !v; gravarPref('greenia.conceitos', v ? '1' : '0'); };
   $('lx-q').oninput = ev => { S.q = ev.target.value; desenharLista(); };
   $('conteudo').onclick = ev => {
@@ -66,7 +74,7 @@ function casca({ titulo, busca, acao, filtros }) {
     if (f) { S.filtro[S.aba] = f.dataset.filtro; for (const x of document.querySelectorAll('[data-filtro]')) x.setAttribute('aria-pressed', x === f); desenharLista(); return; }
     const l = ev.target.closest('[data-abrir]');
     if (l) abrirPainel(l.dataset.tipo, Number(l.dataset.abrir));
-    if (ev.target.closest('#lx-novo')) novo();
+    if (ev.target.closest('button#lx-novo')) novo();
   };
   $('conteudo').onchange = null;
   ligarTeclas();
@@ -92,11 +100,11 @@ function listaAreas() {
   if (!S.areas.length) return vazio('Nenhuma área ainda', 'Crie a primeira área com o nome que a empresa usa para o departamento.', 'Nova área');
   if (!lista.length) return vazio('Nada encontrado', 'Mude a busca ou o filtro.');
   return `<div class="lx-cab lx-g-area" aria-hidden="true"><span>Área</span><span>Pessoas</span><span>Administram a base</span><span class="num">Documentos</span><span>Situação</span></div>
-    ${lista.map(a => { const adm = a.pessoas.filter(m => m.adminBase); return `<button type="button" class="lx-linha lx-g-area${a.ativa ? '' : ' inativa'}" role="listitem" data-tipo="area" data-abrir="${a.id}">
+    ${lista.map(a => { const adm = a.pessoas.filter(m => m.adminBase); return `<button type="button" class="lx-linha lx-g-area${a.ativa ? '' : ' inativa'}" data-tipo="area" data-abrir="${a.id}">
       <span class="lx-principal">${marca(a.nome)}<span class="lx-nome"><b>${esc(a.nome)}</b><small>${esc(a.descricao) || 'Sem descrição'}</small></span></span>
-      <span class="lx-c" data-r="Pessoas">${pilha(a.pessoas)}<span class="lx-num">${a.pessoas.length}</span></span>
-      <span class="lx-c" data-r="Administram">${adm.length ? `${pilha(adm, 3)}<span class="lx-texto">${esc(adm.map(m => (m.nome || m.email).split(' ')[0]).join(', '))}</span>` : `<span class="tag tag-ambar">${a.ativa ? 'ninguém ainda' : '—'}</span>`}</span>
-      <span class="lx-c num" data-r="Documentos"><span class="lx-num">${a.documentos}</span></span>
+      <span class="lx-c" data-r="Pessoas">${pilha(a.pessoas)}<span class="lx-num">${plural(a.pessoas.length, 'pessoa', 'pessoas')}</span></span>
+      <span class="lx-c" data-r="Administram">${adm.length ? `${pilha(adm, 3)}<span class="lx-texto">${esc(adm.map(m => (m.nome || m.email).split(' ')[0]).join(', '))}</span>` : `<span class="tag tag-ambar">${a.ativa ? 'ninguém administra a base' : '—'}</span>`}</span>
+      <span class="lx-c num" data-r="Documentos"><span class="lx-num">${plural(a.documentos, 'documento', 'documentos')}</span></span>
       <span class="lx-c" data-r="Situação">${a.ativa ? '<span class="tag tag-verde"><i></i>Ativa</span>' : '<span class="tag"><i></i>Desativada</span>'}${a.sigilosa ? '<span class="tag tag-escura">Proteção reforçada</span>' : ''}</span></button>`; }).join('')}`;
 }
 
@@ -107,12 +115,12 @@ function listaPessoas() {
   $('lx-conta').textContent = lista.length;
   if (!lista.length) return vazio('Ninguém encontrado', 'Mude a busca ou o filtro.');
   const nomeArea = id => ativas().find(a => a.id === id);
-  return `<div class="lx-cab lx-g-pessoa" aria-hidden="true"><span>Pessoa</span><span>Áreas</span><span>Grupos de permissão</span><span>Papel</span></div>
-    ${lista.map(p => { const as = p.areas.filter(m => nomeArea(m.id)); return `<button type="button" class="lx-linha lx-g-pessoa${p.ativo ? '' : ' inativa'}" role="listitem" data-tipo="pessoa" data-abrir="${p.id}">
+  return `<div class="lx-cab lx-g-pessoa" aria-hidden="true"><span>Pessoa</span><span>Áreas</span><span>Grupos de permissão</span><span>Perfil</span></div>
+    ${lista.map(p => { const as = p.areas.filter(m => nomeArea(m.id)); return `<button type="button" class="lx-linha lx-g-pessoa${p.ativo ? '' : ' inativa'}" data-tipo="pessoa" data-abrir="${p.id}">
       <span class="lx-principal">${avatar(p.nome, p.email, 'av-m')}<span class="lx-nome"><b>${esc(p.nome || p.email)}</b><small>${esc(p.email)}${p.ativo ? '' : ' · não pode entrar'}</small></span></span>
-      <span class="lx-c lx-tags" data-r="Áreas">${as.slice(0, 3).map(m => `<span class="tag${m.adminBase ? ' tag-verde' : ''}">${esc(nomeArea(m.id).nome)}${m.adminBase ? ' · admin da base' : ''}</span>`).join('')}${as.length > 3 ? `<span class="tag">+${as.length - 3}</span>` : ''}${!as.length ? '<span class="lx-vazio">sem área</span>' : ''}</span>
-      <span class="lx-c lx-tags" data-r="Grupos">${p.grupos.map(g => `<span class="tag tag-roxa">${esc(S.grupos.find(x => x.id === g)?.nome || '?')}</span>`).join('') || '<span class="lx-vazio">—</span>'}</span>
-      <span class="lx-c" data-r="Papel"><span class="lx-texto">${p.papel === 'admin' ? 'Admin da empresa' : 'Usuário'}</span></span></button>`; }).join('')}`;
+      <span class="lx-c lx-tags" data-r="Áreas">${as.slice(0, 3).map(m => `<span class="tag${m.adminBase ? ' tag-verde' : ''}">${esc(nomeArea(m.id).nome)}${m.adminBase ? ' · admin da base' : ''}</span>`).join('')}${as.length > 3 ? `<span class="tag">+${as.length - 3}</span>` : ''}${!as.length ? '<span class="lx-vazio">Sem área</span>' : ''}</span>
+      <span class="lx-c lx-tags" data-r="Grupos">${p.grupos.map(g => `<span class="tag tag-roxa">${esc(S.grupos.find(x => x.id === g)?.nome || '?')}</span>`).join('') || '<span class="lx-vazio">Sem grupos</span>'}</span>
+      <span class="lx-c" data-r="Perfil"><span class="lx-texto">${esc(perfilDe(p))}</span></span></button>`; }).join('')}`;
 }
 
 function listaGrupos() {
@@ -121,10 +129,10 @@ function listaGrupos() {
   if (!S.grupos.length) return vazio('Nenhum grupo ainda', 'Crie um grupo só quando precisar liberar um recurso para pessoas de áreas diferentes.', 'Novo grupo');
   if (!lista.length) return vazio('Nada encontrado', 'Mude a busca.');
   return `<div class="lx-cab lx-g-grupo" aria-hidden="true"><span>Grupo</span><span>Pessoas</span><span>Libera</span></div>
-    ${lista.map(g => { const ps = g.pessoas.map(pessoa).filter(Boolean); return `<button type="button" class="lx-linha lx-g-grupo" role="listitem" data-tipo="grupo" data-abrir="${g.id}">
+    ${lista.map(g => { const ps = g.pessoas.map(pessoa).filter(Boolean); return `<button type="button" class="lx-linha lx-g-grupo" data-tipo="grupo" data-abrir="${g.id}">
       <span class="lx-principal">${marca(g.nome)}<span class="lx-nome"><b>${esc(g.nome)}</b><small>${plural(ps.length, 'pessoa', 'pessoas')}</small></span></span>
       <span class="lx-c" data-r="Pessoas">${pilha(ps)}<span class="lx-num">${ps.length}</span></span>
-      <span class="lx-c lx-tags" data-r="Libera">${g.usos.map(u => `<span class="tag tag-roxa">${esc(u.texto)}</span>`).join('') || '<span class="tag tag-ambar">nada ainda</span>'}</span></button>`; }).join('')}`;
+      <span class="lx-c lx-tags" data-r="Libera">${g.usos.map(u => `<span class="tag tag-roxa">${esc(u.texto)}</span>`).join('') || '<span class="tag tag-ambar">ainda não libera nada</span>'}</span></button>`; }).join('')}`;
 }
 
 const vazio = (t, x, acao) => `<div class="lx-vazio-bloco"><b>${t}</b><p>${x}</p>${acao ? `<button class="btn btn-verde btn-pequeno" onclick="document.getElementById('lx-novo').click()">${ICONE.mais}${acao}</button>` : ''}</div>`;
@@ -221,7 +229,7 @@ function painelArea(a) {
       <dt>Base de conhecimento</dt><dd><span>${plural(a.documentos, 'documento', 'documentos')}</span> · <a href="#/conhecimento">abrir a base</a></dd>
     </dl>
     ${a.ativa ? '' : '<div class="px-aviso">Desativada: ninguém vê a base desta área e a IA não usa os documentos dela. Pessoas e documentos continuam guardados.</div>'}
-    <section class="px-secao"><div class="px-secao-topo"><h4>Pessoas</h4><span class="lx-conta">${a.pessoas.length}</span><span class="px-resumo">${plural(adm, 'administra', 'administram')} a base</span></div>
+    <section class="px-secao"><div class="px-secao-topo"><h3>Pessoas</h3><span class="lx-conta">${a.pessoas.length}</span><span class="px-resumo">${plural(adm, 'administra', 'administram')} a base</span></div>
       <p class="px-ajuda"><b>Membro</b> usa a base da área. <b>Admin da base</b> também adiciona, edita, organiza e remove os documentos desta área, e só desta.</p>
       ${combo()}
       ${a.pessoas.length ? `<div class="px-lista"><div class="px-lista-cab" aria-hidden="true"><span>Pessoa</span><span>Permissão</span><span>Responsável</span><span></span></div>
@@ -231,8 +239,8 @@ function painelArea(a) {
           <span class="px-resp">${interruptor(m.responsavel, `data-resp="${m.pessoa_id}"`, `${m.nome || m.email} é responsável pela área`)}</span>
           <button type="button" class="icone-btn px-tirar" data-acao="tirar" data-id="${m.pessoa_id}" aria-label="Remover ${esc(m.nome || m.email)} da área" title="Remover da área">${ICONE.fechar}</button></div>`).join('')}</div>`
         : '<p class="px-vazio">Ninguém nesta área ainda. Busque acima para adicionar.</p>'}
-      <p class="px-ajuda" style="margin-top:10px"><b>Responsável</b> gere os quick wins da área e é indicado pela IA como contato.</p></section>
-    ${a.ativa ? '' : `<section class="px-secao px-perigo"><h4>Excluir de vez</h4><p class="px-ajuda">Apaga a área e ${plural(a.documentos, 'documento', 'documentos')} da base. Não dá para desfazer.</p>
+      <p class="px-ajuda" style="margin-top:10px"><b>Responsável</b> gere os Quick Wins da área e é indicado pela IA como contato.</p></section>
+    ${a.ativa ? '' : `<section class="px-secao px-perigo"><h3>Excluir de vez</h3><p class="px-ajuda">Apaga a área e ${plural(a.documentos, 'documento', 'documentos')} da base. Não dá para desfazer.</p>
       <button type="button" class="btn btn-perigo btn-pequeno" data-acao="excluir">Excluir área</button></section>`}</div>`;
 }
 function ligarArea(id) {
@@ -242,9 +250,11 @@ function ligarArea(id) {
   ligarCombo(() => S.pessoas.filter(p => p.ativo && !a.pessoas.some(m => m.pessoa_id === p.id)),
     p => salvar(() => api(`${url}/pessoas`, { metodo: 'POST', corpo: { pessoas: [p.id] } })).then(() => $('px-add')?.focus()));
   ligarControles(document.querySelector('.px'), {
-    seg: (d, v) => {
-      if (d.campo === 'ativa' && v === '0' && !confirm(`Desativar ${a.nome}? As pessoas deixam de ver a base e a IA para de usar os documentos. Nada é apagado.`)) return;
-      if (d.campo === 'sigilosa' && !confirm(v === '1' ? 'Ligar a proteção reforçada? A pesquisa na internet será bloqueada para os Quick Wins desta área. O conteúdo será avaliado com mais rigor. Continuar?' : `Mudar a proteção de ${a.nome} para Padrão? Esta mudança vale para TODOS os Quick Wins desta área. A pesquisa só poderá ocorrer se a empresa permitir e o conteúdo não exigir sigilo. Confirme apenas se a política da empresa autoriza reduzir esta proteção.`)) return;
+    seg: async (d, v) => {
+      if (d.campo === 'ativa' && v === '0' && !await confirmar({ titulo: `Desativar ${a.nome}?`, texto: 'As pessoas deixam de ver a base e a IA para de usar os documentos. Nada é apagado.', botao: `Desativar ${a.nome}`, perigo: true })) return;
+      if (d.campo === 'sigilosa' && !await confirmar(v === '1'
+        ? { titulo: 'Ligar a proteção reforçada?', texto: 'A pesquisa na internet fica bloqueada para os Quick Wins desta área, e o conteúdo é avaliado com mais rigor.', botao: 'Ligar a proteção reforçada' }
+        : { titulo: `Mudar a proteção de ${a.nome} para Padrão?`, texto: ['Esta mudança vale para todos os Quick Wins desta área. A pesquisa só acontece se a empresa permitir e o conteúdo não exigir sigilo.', 'Confirme só se a política da empresa autoriza reduzir esta proteção.'], botao: 'Mudar para Padrão', perigo: true })) return;
       if (d.campo) salvar(() => api(url, { metodo: 'PUT', corpo: { [d.campo]: v === '1' } }));
       if (d.perm) salvar(() => api(`${url}/pessoas/${d.perm}`, { metodo: 'PUT', corpo: { adminBase: v === 'admin' } }));
     },
@@ -252,7 +262,7 @@ function ligarArea(id) {
     acao: async (k, d) => {
       if (k === 'tirar') salvar(() => api(`${url}/pessoas/${d.id}`, { metodo: 'DELETE' }));
       if (k === 'excluir') {
-        if (prompt(`Para excluir de vez, digite o nome da área (${a.nome}):`) !== a.nome) return toast('Exclusão cancelada.');
+        if (!await confirmar({ titulo: `Excluir ${a.nome} de vez?`, texto: `Apaga a área e ${plural(a.documentos, 'documento', 'documentos')} da base. Não dá para desfazer.`, botao: 'Excluir área', perigo: true, digitar: a.nome })) return;
         try { await api(url, { metodo: 'DELETE' }); toast('Área excluída.'); S.aberto = null; $('modal').innerHTML = ''; await carregar(); desenharLista(); } catch (e) { falhar(e); }
       }
     },
@@ -267,17 +277,17 @@ function painelPessoa(p) {
   return `${topo('Pessoas', p.nome || p.email)}<div class="px-corpo">
     <div class="px-cabeca">${avatar(p.nome, p.email, 'av-g')}<div style="flex:1;min-width:0">${editavel ? `<input class="px-titulo" id="px-titulo" value="${esc(p.nome)}" maxlength="120" aria-label="Nome">` : `<h2 class="px-titulo" id="px-titulo">${esc(p.nome || p.email)}</h2>`}<div class="px-sub">${esc(p.email)}</div></div></div>
     <dl class="px-props">
-      <dt>Papel</dt><dd>${editavel ? seg([['usuario', 'Usuário'], ['admin', 'Admin da empresa']], p.papel, 'data-campo="papel"', 'Papel') : `<span>${p.papel === 'admin' ? 'Admin da empresa' : 'Usuário'}</span> · <a href="#/empresa/usuarios">mudar em Usuários</a>`}</dd>
+      <dt>Perfil</dt><dd>${editavel ? seg([['usuario', 'Membro'], ['admin', 'Admin da empresa']], p.papel, 'data-campo="papel"', 'Perfil') : `<span>${esc(perfilDe(p))}</span> · <a href="#/empresa/usuarios">mudar em Usuários</a>`}</dd>
       ${editavel ? `<dt>Acesso</dt><dd>${interruptor(p.ativo, 'data-campo="ativo"', 'Pode entrar')}<span>${p.ativo ? 'Pode entrar' : 'Não pode entrar'}</span></dd>` : ''}
     </dl>
-    <section class="px-secao"><div class="px-secao-topo"><h4>Áreas</h4><span class="lx-conta">${p.areas.filter(m => ativas().some(a => a.id === m.id)).length}</span></div>
+    <section class="px-secao"><div class="px-secao-topo"><h3>Áreas</h3><span class="lx-conta">${p.areas.filter(m => ativas().some(a => a.id === m.id)).length}</span></div>
       <p class="px-ajuda">Em cada área: faz parte? E administra a base de conhecimento dela?</p>
       ${ativas().length ? `<div class="px-lista">${ativas().map(a => { const m = p.areas.find(x => x.id === a.id); return `<div class="px-linha px-g-area">
         <span class="lx-principal">${marca(a.nome)}<span class="lx-nome"><b>${esc(a.nome)}</b></span></span>
-        <span class="px-resp" title="Gere os quick wins da área e é indicado pela IA como contato">${interruptor(m?.responsavel, `data-resp="${a.id}"`, `Responsável por ${a.nome}`, !m)}<small>Responsável</small></span>
+        <span class="px-resp" title="Gere os Quick Wins da área e é indicado pela IA como contato">${interruptor(m?.responsavel, `data-resp="${a.id}"`, `Responsável por ${a.nome}`, !m)}<small>Responsável</small></span>
         ${seg(NIVEL, !m ? 'fora' : m.adminBase ? 'admin' : 'membro', `data-area="${a.id}"`, `${p.nome || p.email} em ${a.nome}`)}</div>`; }).join('')}</div>`
         : '<p class="px-vazio">Nenhuma área criada ainda. <a href="#/pessoas">Criar áreas</a>.</p>'}</section>
-    <section class="px-secao"><div class="px-secao-topo"><h4>Grupos de permissão</h4><span class="lx-conta">${p.grupos.length}</span></div>
+    <section class="px-secao"><div class="px-secao-topo"><h3>Grupos de permissão</h3><span class="lx-conta">${p.grupos.length}</span></div>
       <p class="px-ajuda">Recursos a mais, que valem em qualquer área.</p>
       ${S.grupos.length ? `<div class="px-lista">${S.grupos.map(g => `<div class="px-linha px-g-grupo">${interruptor(p.grupos.includes(g.id), `data-grupo="${g.id}"`, `No grupo ${g.nome}`)}
         <span class="lx-nome"><b>${esc(g.nome)}</b><small>${g.usos.length ? `Libera: ${esc(g.usos.map(u => u.texto).join(' · '))}` : 'Ainda não libera nenhum recurso'}</small></span></div>`).join('')}</div>`
@@ -314,17 +324,17 @@ function painelGrupo(g) {
   const ps = g.pessoas.map(pessoa).filter(Boolean);
   return `${topo('Grupos de permissão', g.nome)}<div class="px-corpo">
     <div class="px-cabeca">${marca(g.nome, 'marca-g')}<input class="px-titulo" id="px-titulo" value="${esc(g.nome)}" maxlength="80" aria-label="Nome do grupo"></div>
-    <section class="px-secao"><div class="px-secao-topo"><h4>Libera</h4></div>
+    <section class="px-secao"><div class="px-secao-topo"><h3>Libera</h3></div>
       ${g.usos.length ? `<div class="px-lista">${g.usos.map(u => `<div class="px-linha px-g-uso"><span class="tag tag-roxa">${esc(u.texto)}</span><a href="${u.onde}">alterar</a></div>`).join('')}</div>`
-        : '<div class="px-aviso">Este grupo ainda não libera nada. Escolha o que ele libera em <a href="#/modelos">Modelos</a> (classe Equilibrado ou Avançado) ou em <a href="#/pessoas/criacao">Quem cria quick wins</a>.</div>'}
+        : '<div class="px-aviso">Este grupo ainda não libera nada. Escolha o que ele libera em <a href="#/modelos">Modelos</a> (nível Equilibrado ou Avançado) ou em <a href="#/pessoas/criacao">Quem cria Quick Wins</a>.</div>'}
       <p class="px-ajuda">Grupo não dá acesso a conhecimento. Para isso, use as <a href="#/pessoas">áreas</a>.</p></section>
-    <section class="px-secao"><div class="px-secao-topo"><h4>Pessoas</h4><span class="lx-conta">${ps.length}</span></div>
+    <section class="px-secao"><div class="px-secao-topo"><h3>Pessoas</h3><span class="lx-conta">${ps.length}</span></div>
       ${combo()}
       ${ps.length ? `<div class="px-lista">${ps.map(p => `<div class="px-linha px-g-pessoa">
         <span class="lx-principal">${avatar(p.nome, p.email)}<span class="lx-nome"><b>${esc(p.nome || p.email)}</b><small>${esc(p.email)}</small></span></span>
         <button type="button" class="icone-btn px-tirar" data-acao="tirar" data-id="${p.id}" aria-label="Tirar ${esc(p.nome || p.email)} do grupo" title="Tirar do grupo">${ICONE.fechar}</button></div>`).join('')}</div>`
         : '<p class="px-vazio">Ninguém no grupo ainda. Busque acima para adicionar.</p>'}</section>
-    <section class="px-secao px-perigo"><h4>Excluir grupo</h4><p class="px-ajuda">Quem tinha um recurso só por este grupo perde o recurso.</p>
+    <section class="px-secao px-perigo"><h3>Excluir grupo</h3><p class="px-ajuda">Quem tinha um recurso só por este grupo perde o recurso.</p>
       <button type="button" class="btn btn-perigo btn-pequeno" data-acao="excluir">Excluir grupo</button></section></div>`;
 }
 function ligarGrupo(id) {
@@ -335,7 +345,7 @@ function ligarGrupo(id) {
   ligarControles(document.querySelector('.px'), {
     acao: async (k, d) => {
       if (k === 'tirar') salvar(() => api(url, { metodo: 'PUT', corpo: { pessoas: g.pessoas.filter(x => x !== Number(d.id)) } }));
-      if (k === 'excluir' && confirm(`Excluir o grupo ${g.nome}? Quem tinha um recurso só por ele perde o recurso.`)) {
+      if (k === 'excluir' && await confirmar({ titulo: `Excluir o grupo ${g.nome}?`, texto: 'Quem tinha um recurso só por este grupo perde o recurso.', botao: 'Excluir grupo', perigo: true })) {
         try { await api(url, { metodo: 'DELETE' }); toast('Grupo excluído.'); S.aberto = null; $('modal').innerHTML = ''; await carregar(); desenharLista(); } catch (e) { falhar(e); }
       }
     },
@@ -351,7 +361,7 @@ function painelNovaArea() {
 }
 function painelNovoGrupo() {
   return formNovo('Grupos de permissão', 'Novo grupo', `<input class="px-titulo" id="n-nome" maxlength="80" placeholder="Nome do grupo, como Gestores" aria-label="Nome do grupo" autofocus required>
-    <p class="px-ajuda">Depois de criar, adicione as pessoas e escolha o que o grupo libera em Modelos ou em Quem cria quick wins.</p>`, 'Criar grupo');
+    <p class="px-ajuda">Depois de criar, adicione as pessoas e escolha o que o grupo libera em Modelos ou em Quem cria Quick Wins.</p>`, 'Criar grupo');
 }
 function painelNovaPessoa() {
   return formNovo('Pessoas', 'Nova pessoa', `<input class="px-titulo" id="n-nome" maxlength="120" placeholder="Nome" aria-label="Nome" autofocus>
@@ -412,7 +422,7 @@ export const abaAreas = () => abrir('areas', () => ({
 });
 export const abaPessoas = () => abrir('pessoas', () => {
   const f = S.filtro.pessoas || 'todas';
-  return { titulo: 'Pessoas', busca: 'Buscar pessoa', acao: E.plataforma ? 'Convidar' : 'Nova pessoa',
+  return { titulo: 'Pessoas', busca: 'Buscar pessoa', acao: 'Nova pessoa', convidar: !!E.plataforma,
     filtros: `<label class="lx-seletor"><span class="sr">Área</span><select class="entrada entrada-pequena" id="lx-area">${[['todas', 'Todas as áreas'], ['sem', 'Sem área'], ...ativas().map(a => [String(a.id), a.nome])].map(([v, t]) => `<option value="${v}" ${v === f ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` };
 }).then(() => { $('lx-area').onchange = ev => { S.filtro.pessoas = ev.target.value; desenharLista(); }; });
 export const abaGrupos = () => abrir('grupos', () => ({ titulo: 'Grupos de permissão', busca: 'Buscar grupo', acao: 'Novo grupo' }));

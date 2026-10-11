@@ -2,9 +2,20 @@
 // A tela chama render*() para montar o formulário e ler*() para montar o corpo da requisição.
 import { esc } from '/comum.js';
 import { avisoCor, corLegivelOk } from '/cor.js';
+import { confirmar } from '/admin-ui.js';
+
+// Envio de arquivo com botão próprio em português ("Escolher arquivo"), no lugar do controle do navegador.
+// O campo continua no formulário (rótulo, foco e teclado), só fica visualmente escondido atrás do botão.
+const campoArquivo = (id, accept, desab = '', rotulo = 'Escolher arquivo') => `<span class="arquivo-campo"><label class="btn btn-linha btn-pequeno${desab ? ' desabilitado' : ''}" for="${id}">${rotulo}</label><input type="file" class="sr" id="${id}" accept="${accept}" ${desab}><span class="dica" data-arquivo-nome="${id}" aria-live="polite">Nenhum arquivo escolhido</span></span>`;
+document.addEventListener('change', ev => {
+  const el = ev.target;
+  if (el?.type !== 'file') return;
+  const nome = document.querySelector(`[data-arquivo-nome="${CSS.escape(el.id)}"]`);
+  if (nome) nome.textContent = el.files?.[0]?.name || 'Nenhum arquivo escolhido';
+});
 
 export const ROTULOS_MARCA = {
-  display_name: 'Nome exibido', logo: 'Logomarca', favicon: 'Favicon', primary_color: 'Cor principal', secondary_color: 'Cor secundária',
+  display_name: 'Nome exibido', logo: 'Logomarca', favicon: 'Ícone da aba', primary_color: 'Cor principal', secondary_color: 'Cor secundária',
   login_title: 'Título da tela de login', login_text: 'Texto da tela de login', privacy_note: 'Aviso de privacidade',
 };
 
@@ -72,7 +83,7 @@ export function renderMarca(m, { modo = 'empresa', pode = true, motivo = '' } = 
     <input class="entrada" id="mk-${k}" value="${esc(m[k] || '')}" placeholder="#1B7950" maxlength="7" style="max-width:140px" ${desab(k, b, modo, pode)}></div>
     ${k === 'primary_color' ? '<span class="ajuda">Usada nos botões (com texto branco por cima) e nos links. Precisa ser escura o bastante para o texto ser lido.</span><div class="aviso-cor" id="mk-primary_color-aviso" aria-live="polite"></div>' : ''}`);
   const img = (k, dica) => campo(k, `<div class="previa-marca" id="mk-${k}-previa">${m[k] ? `<img src="${esc(m[k])}" alt="">` : '<span class="dica">Nenhum arquivo</span>'}</div>
-    <div class="linha-botoes"><input type="file" id="mk-${k}" accept="image/png,image/jpeg,image/webp,image/svg+xml${k === 'favicon' ? ',image/x-icon' : ''}" ${desab(k, b, modo, pode)}>
+    <div class="linha-botoes">${campoArquivo(`mk-${k}`, `image/png,image/jpeg,image/webp,image/svg+xml${k === 'favicon' ? ',image/x-icon' : ''}`, desab(k, b, modo, pode))}
     ${m[k] ? `<button type="button" class="btn-texto" data-remover="${k}" ${desab(k, b, modo, pode)}>Remover</button>` : ''}</div><span class="ajuda">${dica}</span>`);
   // Textos: já vêm com um exemplo. "Usar o texto de exemplo" devolve o modelo, se a pessoa apagou ou mudou.
   const texto = (k, dica, max, linhas) => campo(k, `${linhas > 1
@@ -86,7 +97,7 @@ export function renderMarca(m, { modo = 'empresa', pode = true, motivo = '' } = 
     <div class="grade-2">
       <div>${campo('display_name', `<input class="entrada" id="mk-display_name" value="${esc(m.display_name)}" maxlength="80" ${desab('display_name', b, modo, pode)}>`)}
         ${cor('primary_color')}${cor('secondary_color')}</div>
-      <div>${img('logo', 'PNG, JPG, WEBP ou SVG, de qualquer tamanho: a imagem é ajustada sozinha. Prefira fundo transparente.')}${img('favicon', 'Ícone da aba do navegador. Qualquer imagem serve: vira um quadrado de 64×64. Sem favicon, usa o logo.')}</div>
+      <div>${img('logo', 'PNG, JPG, WEBP ou SVG, de qualquer tamanho: a imagem é ajustada sozinha. Prefira fundo transparente.')}${img('favicon', 'Ícone da aba do navegador. Qualquer imagem serve: vira um quadrado de 64×64. Sem ícone próprio, usa o logo.')}</div>
     </div>
     ${texto('login_title', 'O título grande da tela de entrada.', 120, 1)}
     ${texto('login_text', 'A frase logo abaixo do título, explicando como entrar.', 400, 2)}
@@ -180,16 +191,18 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
   // fica marcada; os textos continuam editáveis para quando ela voltar.
   const visivel = k => c.secoes?.[k] !== false;
   const APARECE = l.status === 'publicada' ? 'Aparece na página' : 'Aparece ao publicar';
-  const chave = k => `<span class="ld-vis" data-vis="${k}"><span class="ld-vis-txt">${visivel(k) ? APARECE : 'Oculta na página'}</span>
-    <button type="button" class="switch" role="switch" id="ld-sec-${k}" aria-checked="${visivel(k)}" aria-label="Mostrar esta seção na página" title="Mostrar esta seção na página" ${d}><span></span></button></span>`;
-  const bloco = (titulo, onde, corpo, aberto = false, secao = '') => `<details class="ld-bloco${secao && !visivel(secao) ? ' oculta' : ''}" ${aberto ? 'open' : ''} ${secao ? `data-secao="${secao}"` : ''}><summary><b>${titulo}</b><span class="dica">${onde}</span>${secao ? chave(secao) : ''}</summary>
-    <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor no título para mostrar de novo.</p>' : ''}${corpo}</div></details>`;
+  // O interruptor fica ao lado do título (à vista com o bloco fechado), mas fora do <summary>: o título só abre e fecha.
+  const chave = (k, titulo) => `<span class="ld-vis" data-vis="${k}"><span class="ld-vis-txt" aria-hidden="true">${visivel(k) ? APARECE : 'Oculta na página'}</span>
+    <button type="button" class="switch" role="switch" id="ld-sec-${k}" aria-checked="${visivel(k)}" aria-label="Mostrar a seção ${esc(titulo.replace(/^\d+\.\s*/, ''))} na página" title="Mostrar esta seção na página" ${d}><span></span></button></span>`;
+  const bloco = (titulo, onde, corpo, aberto = false, secao = '') => `<div class="ld-bloco-caixa${secao ? ' com-chave' : ''}"><details class="ld-bloco${secao && !visivel(secao) ? ' oculta' : ''}" ${aberto ? 'open' : ''} ${secao ? `data-secao="${secao}"` : ''}><summary><b>${titulo}</b> <span class="dica">${onde}</span></summary>
+    <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor ao lado do título para mostrar de novo.</p>' : ''}${corpo}</div></details>${secao ? chave(secao, titulo) : ''}</div>`;
   return `<form id="form-landing" novalidate class="ld-editor">
-    ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A landing page desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver os textos, mas não alterar.</div>` : ''}
-    <div class="faixa-aviso ${l.status === 'publicada' && !foraDoAr ? 'ok' : 'atencao'} ld-situacao"><span>${l.status !== 'publicada' ? '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a landing não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar. Use Ver prévia para conferir antes.'
+    ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A página de apresentação desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver os textos, mas não alterar.</div>` : ''}
+    <div class="faixa-aviso ${l.status === 'publicada' && !foraDoAr ? 'ok' : 'atencao'} ld-situacao"><span>${l.status !== 'publicada' ? '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a página não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar. Use Ver prévia para conferir antes.'
       : foraDoAr ? `<b>Publicada, mas ainda fora do ar.</b> O ambiente está ${esc(STATUS_AMBIENTE[l.empresaStatus] || l.empresaStatus)}: os visitantes veem só a versão simples até o operador da plataforma ativar a empresa. Use Ver prévia para conferir a página completa.`
         : '<b>Publicada e no ar.</b> A página já vem pronta com um modelo completo; troque o que quiser.'}</span>
-      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener" title="Página completa com o que está salvo, mesmo antes de publicar">Ver prévia</a>${l.status === 'publicada' && !foraDoAr ? `<a class="btn-texto btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : ''}` : ''}${pode && l.modelo ? '<button type="button" class="btn-texto btn-pequeno" id="ld-restaurar">Restaurar o modelo</button>' : ''}</span></div>
+      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener">Ver prévia do que está salvo</a>${l.status === 'publicada' && !foraDoAr ? `<a class="btn-texto btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : ''}` : ''}</span></div>
+    <datalist id="ld-destinos"><option value="/entrar">Tela de entrada</option><option value="#como-usar">Seção Como usar</option><option value="#sec-chamadas">Seção O que você encontra</option><option value="#sec-regras">Seção Regras de dados</option><option value="#sec-tarefas">Seção Boas tarefas</option><option value="/politica">Política de uso de IA</option></datalist>
     ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `
       <div class="grade-2"><div class="campo"><label for="ld-rotulo">Rótulo acima do título</label>${inp('ld-rotulo', c.rotulo, 80)}</div>
         <div class="campo"><label for="ld-titulo">Título</label>${inp('ld-titulo', c.titulo, 120)}</div></div>
@@ -197,9 +210,9 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
       <div class="campo"><label for="ld-descricao">Texto extra (opcional)</label><textarea class="entrada" id="ld-descricao" rows="2" maxlength="1200" ${d}>${esc(c.descricao)}</textarea></div>
       <div class="campo"><label for="ld-imagem">Imagem ao lado do título (opcional)</label>
         <div class="previa-marca" id="ld-imagem-previa">${c.imagem ? `<img src="${esc(c.imagem)}" alt="" style="max-height:80px">` : '<span class="dica">Sem imagem: aparece uma conversa de exemplo.</span>'}</div>
-        <div class="linha-botoes"><input type="file" id="ld-imagem" accept="image/png,image/jpeg,image/webp" ${d}>${c.imagem ? `<button type="button" class="btn-texto" id="ld-imagem-remover" ${d}>Remover</button>` : ''}</div><span class="ajuda">PNG, JPG ou WEBP de qualquer tamanho: a imagem é ajustada sozinha.</span></div>
+        <div class="linha-botoes">${campoArquivo('ld-imagem', 'image/png,image/jpeg,image/webp', d)}${c.imagem ? `<button type="button" class="btn-texto" id="ld-imagem-remover" ${d}>Remover</button>` : ''}</div><span class="ajuda">PNG, JPG ou WEBP de qualquer tamanho: a imagem é ajustada sozinha.</span></div>
       <span class="legenda">Botões</span><div class="repetidor">${slots(c.botoes, 3).map((b, i) => `<div class="linha"><label class="campo ld-campo-item">Texto do botão ${i + 1}<input class="entrada" data-botao-texto="${i}" value="${esc(b.texto || '')}" placeholder="Texto do botão" maxlength="40" ${d}></label>
-        <label class="campo ld-campo-item">Destino do botão ${i + 1}<input class="entrada" data-botao-link="${i}" value="${esc(b.link || '')}" placeholder="/entrar, #como-usar ou https://" ${d}></label>
+        <label class="campo ld-campo-item">Para onde o botão ${i + 1} leva<input class="entrada" data-botao-link="${i}" value="${esc(b.link || '')}" list="ld-destinos" placeholder="Escolha da lista ou cole um endereço" ${d}></label>
         <label class="campo ld-campo-item">Estilo do botão ${i + 1}<select aria-label="Estilo do botão ${i + 1}" class="entrada" data-botao-estilo="${i}" ${d}><option value="primario" ${b.estilo !== 'secundario' ? 'selected' : ''}>Principal</option><option value="secundario" ${b.estilo === 'secundario' ? 'selected' : ''}>Secundário</option></select></label></div>`).join('')}</div>
       <div class="campo"><label for="ld-destaques">Destaques abaixo dos botões (um por linha, até 4)</label><textarea class="entrada" id="ld-destaques" rows="3" ${d}>${esc((c.destaques || []).join('\n'))}</textarea></div>`, true)}
     ${bloco('2. Como usar', 'Passo a passo para começar', `${textos('como_usar')}
@@ -217,14 +230,16 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
       <div class="campo"><label for="ld-inst-titulo">Título</label>${inp('ld-inst-titulo', c.institucional?.titulo, 80)}</div>
       <div class="campo"><label for="ld-inst-texto">Texto</label><textarea class="entrada" id="ld-inst-texto" rows="3" maxlength="1200" ${d}>${esc(c.institucional?.texto || '')}</textarea></div>
       <span class="legenda">Links</span><div class="repetidor">${slots(c.institucional?.links, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><label class="campo ld-campo-item">Texto do link ${i + 1}<input class="entrada" data-link-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto do link" maxlength="40" ${d}></label>
-        <label class="campo ld-campo-item">Destino do link ${i + 1}<input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" placeholder="/politica ou https://" ${d}></label></div>`).join('')}</div>`, false, 'institucional')}
+        <label class="campo ld-campo-item">Para onde o link ${i + 1} leva<input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" list="ld-destinos" placeholder="Escolha da lista ou cole um endereço" ${d}></label></div>`).join('')}</div>`, false, 'institucional')}
     ${bloco('7. Fechamento', 'Chamada final antes do rodapé', textos('fim'))}
     ${bloco('8. Busca e compartilhamento', 'Como a página aparece no Google e em links', `<div class="grade-2">
       <div class="campo"><label for="ld-seo-title">Título da página</label>${inp('ld-seo-title', l.seo?.title, 70)}</div>
       <div class="campo"><label for="ld-seo-description">Descrição</label>${inp('ld-seo-description', l.seo?.description, 160)}</div></div>`)}
     <p class="msg-erro oculto" id="ld-erro" role="alert"></p>
-    ${pode ? `<div class="linha-botoes"><button class="btn btn-verde" data-acao="salvar">${l.status === 'publicada' ? 'Salvar e atualizar a página' : 'Salvar rascunho'}</button>
+    ${pode ? `<div class="linha-botoes ld-salvar"><button class="btn btn-verde" data-acao="salvar">${l.status === 'publicada' ? 'Salvar e atualizar a página' : 'Salvar rascunho'}</button>
       ${l.status === 'publicada' ? '<button type="button" class="btn btn-linha" data-acao="despublicar">Voltar para rascunho</button>' : '<button type="button" class="btn btn-linha" data-acao="publicar">Salvar e publicar</button>'}</div>` : ''}
+    ${pode && l.modelo ? `<section class="px-perigo ld-perigo" aria-labelledby="ld-perigo-titulo"><h2 id="ld-perigo-titulo">Voltar ao texto do modelo</h2><p class="dica">Troca todos os textos da página pelos do modelo. A mudança só vale quando você salvar.</p>
+      <button type="button" class="btn btn-perigo btn-pequeno" id="ld-restaurar">Restaurar o modelo</button></section>` : ''}
   </form>`;
 }
 
@@ -236,21 +251,22 @@ export function ligarLanding(l) {
   const vals = attr => todos(attr).map(e => e.value.trim());
   const pares = (a, b, ka, kb) => { const x = vals(a), y = vals(b); return x.map((v, i) => ({ [ka]: v, [kb]: y[i] })); };
   const linhas = id => $(id).value.split('\n').map(s => s.trim()).filter(Boolean);
-  // Interruptor no título do bloco: não abre nem fecha o bloco; marca a seção como oculta na hora.
+  // Interruptor ao lado do título do bloco: marca a seção como oculta na hora, sem abrir nem fechar o bloco.
   const mudarSecao = (k, v) => {
     const e = document.querySelector(`[data-vis="${k}"]`);
     e.querySelector('.switch').setAttribute('aria-checked', v);
     e.querySelector('.ld-vis-txt').textContent = v ? (l?.status === 'publicada' ? 'Aparece na página' : 'Aparece ao publicar') : 'Oculta na página';
-    e.closest('.ld-bloco').classList.toggle('oculta', !v);
+    e.closest('.ld-bloco-caixa').querySelector('.ld-bloco').classList.toggle('oculta', !v);
+    e.dispatchEvent(new Event('change', { bubbles: true }));   // conta como alteração do formulário
   };
   for (const e of todos('data-vis')) {
     const b = e.querySelector('.switch');
-    e.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); });
+    e.addEventListener('click', ev => { ev.preventDefault(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); });
     b.addEventListener('keydown', ev => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); } });
   }
   // Restaurar o modelo: devolve os textos originais nos campos (só vale ao salvar).
-  $('ld-restaurar')?.addEventListener('click', () => {
-    if (!l?.modelo || !confirm('Trocar todos os textos pelos do modelo? A mudança só vale quando você salvar.')) return;
+  $('ld-restaurar')?.addEventListener('click', async () => {
+    if (!l?.modelo || !await confirmar({ titulo: 'Restaurar os textos do modelo?', texto: 'Todos os textos da página são trocados pelos do modelo. Nada muda na página até você salvar.', botao: 'Restaurar o modelo', perigo: true })) return;
     const m = l.modelo, set = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
     const lista = (attr, arr, k) => todos(attr).forEach((e, i) => { e.value = arr?.[i]?.[k] ?? ''; });
     set('ld-rotulo', m.rotulo); set('ld-titulo', m.titulo); set('ld-subtitulo', m.subtitulo); set('ld-descricao', m.descricao);
@@ -316,7 +332,7 @@ export function renderUrl(u, { pode = { url: true, domain: true }, plataforma = 
   return `<p class="lead">Como as pessoas da empresa chegam ao ambiente. O ID interno nunca muda: trocar o endereço não perde nada.</p>
     <form id="f-url" novalidate class="url-passos">
       <section class="url-caixa">
-        <div class="url-topo"><span class="url-num">1</span><div><h3>Endereço na plataforma</h3><p class="dica">Já funciona, sem configurar nada. Ao trocar, o endereço antigo continua levando para cá.</p></div></div>
+        <div class="url-topo"><span class="url-num">1</span><div><h2>Endereço na plataforma</h2><p class="dica">Já funciona, sem configurar nada. Ao trocar, o endereço antigo continua levando para cá.</p></div></div>
         <div class="campo"><label for="url-slug">Identificador</label>
           <div class="url-prefixo"><span>${esc(base.replace(/^https?:\/\//, ''))}/</span><input class="entrada" id="url-slug" value="${esc(u.slug)}" maxlength="40" autocomplete="off" ${pode.url ? '' : 'disabled'}></div>
           <span class="ajuda">Letras minúsculas, números e hífens (3 a 40).</span></div>
@@ -324,7 +340,7 @@ export function renderUrl(u, { pode = { url: true, domain: true }, plataforma = 
         ${pode.url ? '' : '<p class="dica">O endereço desta empresa é gerenciado pela equipe da plataforma.</p>'}
       </section>
       <section class="url-caixa">
-        <div class="url-topo"><span class="url-num">2</span><div><h3>Domínio próprio <small>(opcional)</small> ${selo}</h3><p class="dica">Para usar um endereço da própria empresa, como <b>ia.suaempresa.com.br</b>. Use um subdomínio: o domínio principal (suaempresa.com.br) normalmente já é o site.</p></div></div>
+        <div class="url-topo"><span class="url-num">2</span><div><h2>Domínio próprio <small>(opcional)</small> ${selo}</h2><p class="dica">Para usar um endereço da própria empresa, como <b>ia.suaempresa.com.br</b>. Use um subdomínio: o domínio principal (suaempresa.com.br) normalmente já é o site.</p></div></div>
         ${pode.domain ? `
         <ol class="url-lista">
           <li><b>Escolha o endereço</b>

@@ -26,6 +26,7 @@ test('admin liga as integrações para a empresa toda em Configurações; o menu
   assert.equal(await p.locator('#lateral [data-item="integracoes"]').count(), 0);
   await p.check('#cfg-integracoes');
   await p.click('#form-cfg .cfg-salvar .btn-verde');
+  await p.getByRole('dialog').getByRole('button', { name: 'Salvar alterações', exact: true }).click();   // a confirmação é o modal da tela
   await p.waitForSelector('#lateral [data-item="integracoes"]');
   const cfg = lerConfig(N.app.db).integracoes;
   assert.equal(cfg.ativa, true);
@@ -41,6 +42,7 @@ test('admin liga as integrações para a empresa toda em Configurações; o menu
   assert.equal(await p.isChecked('#cfg-integracoes'), true);
   await p.uncheck('#cfg-integracoes');
   await p.click('#form-cfg .cfg-salvar .btn-verde');
+  await p.getByRole('dialog').getByRole('button', { name: 'Salvar alterações', exact: true }).click();   // a confirmação é o modal da tela
   await p.waitForSelector('#lateral [data-item="integracoes"]', { state: 'detached' });
   assert.equal(lerConfig(N.app.db).integracoes.ativa, false);
   const admin = await cliente(N.app, N.base).entrar('admin@empresa-exemplo.com.br');

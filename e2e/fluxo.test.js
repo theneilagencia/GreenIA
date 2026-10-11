@@ -61,7 +61,7 @@ test('login → chat → quick win', async () => {
   assert.equal(csv.charCodeAt(0), 0xfeff, 'CSV da conversa preserva UTF-8 com BOM');
   assert.ok(csv.includes(';') && csv.split('\r\n').length >= 2, 'download contém cabeçalho e dados da tabela');
   assert.match(await p.textContent('.coluna'), /Revise antes de usar/);
-  // Feedback no topo.
+  // Avaliação ao pé da última resposta.
   await p.click('[data-fb="serviu"]');
   await p.waitForSelector('[data-fb="serviu"][aria-pressed="true"]');
   // Retomar: a conversa está na página do quick win e abre com o histórico.

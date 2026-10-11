@@ -82,7 +82,7 @@ export function criarApp(op = {}) {
   // versao: o commit publicado (o Render informa em RENDER_GIT_COMMIT), para conferir qual versão está no ar.
   r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium() }; }, { publica: true });
   r.get('/api/eu', ({ sessao }) => ({
-    pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false,
+    pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false, iaSimulada: !!app.ia.simulada,
     unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),
     ...(integracoesLigadas(app, sessao.pessoa) ? { integracoes: true } : {}),
     ...(app.extraEu?.(sessao) ?? {}),

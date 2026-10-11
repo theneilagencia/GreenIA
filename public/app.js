@@ -37,7 +37,7 @@ function iniciais(p) {
 // Onde estou: grupo da seção atual (Trabalho, Gestão, Empresa) antes do título.
 function grupoAtual() {
   const h = location.hash || '';
-  for (const g of [...SECOES_USO(), ...SECOES_ADMIN()]) for (const i of g.itens) if (i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`)) return g.titulo || '';
+  for (const g of [...SECOES_USO(), ...SECOES_ADMIN()]) for (const i of g.itens) if ((i.secao || i.ativo) ? (i.secao || i.ativo)(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`)) return g.titulo || '';
   return '';
 }
 
@@ -50,7 +50,7 @@ export function cabecalho(titulo, acoes = '') {
       ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
-      <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" title="Como usar esta tela">Ajuda</button><a class="btn btn-texto ajuda-guia" href="#/primeiros-passos" aria-label="Ajuda e primeiros passos" title="Guia de primeiros passos">Guia</a>
+      <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-haspopup="dialog" title="Como usar esta tela e guia de primeiros passos">Ajuda</button>
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
         <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}<span>Sair</span></button></div>
@@ -59,16 +59,17 @@ export function cabecalho(titulo, acoes = '') {
 
 export function ligarCabecalho() {
   $('ajuda-tela').onclick = ev => { const b=ev.currentTarget;import('/ajuda-contextual.js').then(m=>m.abrirAjuda(b)); };
-  $('sair').onclick = async e => {
-    e.currentTarget.disabled = true;
-    try { await api('/api/sair', { metodo: 'POST' }); document.body.replaceChildren(); location.replace('/'); }
-    catch (err) { toast(`Não foi possível sair. ${err.message}`, 6000); $('sair').disabled = false; }
-  };
+  $('sair').onclick = sair;
   $('menu').onclick = () => {
     if ($('lateral').classList.contains('aberta')) return fecharNavegacao(true);
     $('lateral').classList.add('aberta'); $('menu').setAttribute('aria-expanded', 'true');
     $('lateral').querySelector('a,button')?.focus();
   };
+}
+async function sair(e) {
+  const b = e.currentTarget; b.disabled = true;
+  try { await api('/api/sair', { metodo: 'POST' }); document.body.replaceChildren(); location.replace('/'); }
+  catch (err) { toast(`Não foi possível sair. ${err.message}`, 6000); b.disabled = false; }
 }
 function fecharNavegacao(devolverFoco = false) {
   $('lateral').classList.remove('aberta');
@@ -109,7 +110,9 @@ export async function recarregarBases() {
 // Administração continua protegida no servidor pela permissão dela.
 const SECOES_USO = () => [
   { titulo: 'Trabalho', itens: [
-    { id: 'conversas', nome: 'Conversas', icone: 'conversa', ativo: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/') },
+    // Só o lugar atual fica ativo: em Nova conversa, o botão "Nova conversa"; numa conversa das recentes, ela própria.
+    { id: 'conversas', nome: 'Conversas', icone: 'conversa', secao: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/'),
+      ativo: h => h === '#/conversas' || (h.startsWith('#/c/') && !(E.conversas || []).slice(0, RECENTES_LATERAL).some(c => h === `#/c/${c.id}`)) },
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/') },
     { id: 'pendencias', nome: 'Pendências', icone: 'atividade', ver: () => ehGestor() || !!E.bases?.areas?.length || pode('audit.read') || pode('integrations.approve') || pode('user.read') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
@@ -182,13 +185,14 @@ export function desenharLateral() {
       <a href="${esc(adm ? inicioUso() : h || '#/nova')}" class="${adm ? '' : 'ativo'}" ${adm ? '' : 'aria-current="page"'}>Usar GreenIA</a>
       <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
   $('lateral').innerHTML = `
+    <button type="button" class="icone-btn fechar-lateral" id="fechar-lateral" aria-label="Fechar menu">${ICONE.fechar}</button>
     <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
     ${E.plataforma?.acessoOperador ? `<div class="faixa-aviso atencao acesso-operador" role="status"><b>Acesso da equipe de operação</b><br>Registrado e visível para a empresa. Vale até ${esc(new Date(E.plataforma.acessoOperador.expira).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))}.
       <button type="button" class="btn-texto btn-pequeno" id="encerrar-acesso">Encerrar acesso</button></div>` : ''}
     ${alternador}
     ${adm ? `<div class="aviso-contexto">${ICONE.engrenagem || ''}<span><b>Administração da empresa</b><small>Mudanças aqui valem para todas as pessoas.</small></span></div>`
-      : `<a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)">${ICONE.mais} Nova conversa</a>`}
+      : `<a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)" ${h === '#/nova' ? 'aria-current="page"' : ''}>${ICONE.mais} Nova conversa</a>`}
     <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Navegação">
       ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(item).join('')}`).join('')}
@@ -198,10 +202,13 @@ export function desenharLateral() {
       <button class="btn-lat" id="ver-politica">Política de uso de IA</button>
       <button class="btn-lat" id="reportar">Reportar problema</button>
       ${E.plataforma?.adminPlataforma ? '<a class="btn-lat" href="/plataforma">Console da plataforma</a>' : E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
+      ${E.eu ? `<div class="conta-lateral"><span class="avatar" aria-hidden="true">${esc(iniciais(E.eu))}</span><span class="conta-lateral-nome"><b>${esc(E.eu.nome || E.eu.email)}</b><span>${esc(E.eu.email)}</span></span><button type="button" class="btn-lat" id="sair-lateral">${ICONE.sair}<span>Sair</span></button></div>` : ''}
       ${rodapePlataformaHtml()}
     </div>`;
   if ($('encerrar-acesso')) $('encerrar-acesso').onclick = async () => { try { await api('/api/sair', { metodo: 'POST' }); } catch { /* a sessão já pode ter caído */ } location.href = '/plataforma'; };
   $('ver-politica').onclick = abrirPolitica;
+  $('fechar-lateral').onclick = () => fecharNavegacao(true);
+  if ($('sair-lateral')) $('sair-lateral').onclick = sair;
   $('abrir-busca').onclick = () => abrirPaleta();
   $('reportar').onclick = reportarProblema;
   ligarAcoesConversas($('lateral'), lista, async () => { if (location.hash === '#/conversas' || location.hash.startsWith('#/c/')) irPara(location.hash); });
@@ -221,7 +228,7 @@ function abrirPolitica() {
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-politica" tabindex="-1">
     <div class="modal-topo"><div class="rotulo">Política de uso de IA</div><button class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}<span>Fechar</span></button></div>
     <h2 id="titulo-politica">Como a empresa usa IA</h2>
-    <div class="item"><h3>Conversa normal e conversa sigilosa</h3><p>Dado pessoal, de cliente, financeiro, jurídico ou estratégico só entra em conversa sigilosa, em que a GreenIA usa apenas os recursos de IA autorizados para esse tipo de informação.</p></div>
+    <div class="item"><h3>Conversa normal e conversa sigilosa</h3><p>Dado pessoal, de cliente, financeiro, jurídico ou estratégico só entra em conversa sigilosa, em que a GreenIA usa apenas a IA aprovada para dados sigilosos.</p></div>
     <div class="item"><h3>Privacidade das suas conversas</h3><p>${esc(E.publico.privacyNote)}</p></div>
     <div class="item"><h3>Revise antes de usar</h3><p>A IA ajuda, mas pode errar. Confira o resultado antes de enviar ou decidir.</p></div>
     <a href="/politica" class="btn-texto" style="padding-left:0">Abrir a política completa</a></div></div>`;
@@ -345,7 +352,7 @@ function itensPaleta() {
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
     { grupo: 'Ajuda', nome: 'Primeiros passos', icone: 'livro', href: '#/primeiros-passos' },
-    ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo quick win', icone: 'raio', href: '#/qw/nova' }] : []),
+    ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo Quick Win', icone: 'raio', href: '#/qw/nova' }] : []),
     { grupo: 'Ações', nome: 'Política de uso de IA', icone: 'escudo', acao: abrirPolitica },
     ...telas,
     ...E.quickWins.map(q => ({ grupo: 'Quick Wins', nome: q.nome, icone: 'raio', href: `#/qw/${q.id}`, soNaBusca: E.quickWins.length > 5 })),
@@ -358,7 +365,7 @@ async function iniciar() {
   const [eu, publico] = await Promise.all([api('/api/eu'), api('/api/publico')]);
   definirCsrf(eu.csrf);
   Object.assign(E, { eu: eu.pessoa, publico, retencaoDias: publico.retencaoDias, permQw: eu.quickWins, podeCriarQw: eu.quickWins.criar,
-    plano: eu.plano, operador: eu.operador, unidade: eu.unidade, iaConfigurada: eu.iaConfigurada,
+    plano: eu.plano, operador: eu.operador, unidade: eu.unidade, iaConfigurada: eu.iaConfigurada, iaSimulada: !!eu.iaSimulada,
     permissoes: eu.permissoes || null, integracoes: !!eu.integracoes, plataforma: eu.plataforma || null, bases: eu.bases || { areas: [], paraRevisar: 0 } });
   definirUnidade(eu.unidade);
   aplicarMarca(publico);

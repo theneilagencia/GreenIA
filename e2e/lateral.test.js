@@ -74,13 +74,14 @@ test('"Ver todas" leva à lista completa existente; títulos longos são truncad
   await ctx.close();
 });
 
-test('estado ativo: Conversas nas rotas de conversa; Quick Wins em todas as rotas filhas; Conhecimento (E, F, G)', async () => {
+test('estado ativo: só o lugar atual (Nova conversa, a conversa recente aberta); Quick Wins em todas as rotas filhas; Conhecimento (E, F, G)', async () => {
   const { ctx, p } = await abrir('c5', '#/nova');
   const ativo = async () => p.$$eval('#lateral .item-lat.item-principal[aria-current="page"]', l => l.map(a => a.dataset.item));
-  assert.deepEqual(await ativo(), ['conversas']);
+  assert.deepEqual(await ativo(), [], 'em Nova conversa, "Conversas" não fica ativo');
+  assert.equal(await p.getAttribute('#lateral a.nova', 'aria-current'), 'page');
   const conv = um(N.app.db, "select c.id from conversas c join pessoas p on p.id = c.pessoa_id where p.email = 'c5@empresa-exemplo.com.br' order by c.atualizado_em desc limit 1").id;
   await p.goto(`${N.base}/app#/c/${conv}`); await p.waitForTimeout(400);
-  assert.deepEqual(await ativo(), ['conversas']);
+  assert.deepEqual(await ativo(), [], 'numa conversa recente, só ela fica ativa');
   assert.equal(await p.getAttribute(`#lateral .recentes-lat a[href="#/c/${conv}"]`, 'aria-current'), 'page');
   for (const h of ['#/quick-wins', '#/qw/nova', '#/qw/123', '#/qw/123/ajustar']) {
     await p.goto(`${N.base}/app${h}`); await p.waitForTimeout(400);
@@ -160,7 +161,7 @@ test('tela baixa (320x568), admin com 100 conversas: todos os itens principais, 
     await p.setViewportSize({ width: largura, height: altura });
     await p.goto(`${N.base}/app#/nova`);
     await p.waitForSelector('#lateral [data-item="administracao"]', { state: 'attached' });
-    await p.waitForSelector('#lateral [data-item="conversas"][aria-current="page"]', { state: 'attached' }); await p.waitForTimeout(400);
+    await p.waitForSelector('#lateral a.nova[aria-current="page"]', { state: 'attached' }); await p.waitForTimeout(400);
     if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); }
     for (const it of ['conversas', 'quick-wins', 'pendencias', 'conhecimento', 'administracao']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
     assert.ok(await visivelNaJanela(p, '#lateral .ver-todas'), `"Ver todas" visível (${largura}x${altura})`);

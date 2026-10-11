@@ -12,3 +12,7 @@
 .hc-recente>.hc-acoes{width:28px;min-width:28px;height:28px;min-height:28px;opacity:.7}
 .hc-recente:hover>.hc-acoes,.hc-recente>.hc-acoes:focus-visible,.hc-recente>.hc-acoes[aria-expanded="true"]{opacity:1}
 @media (hover:none){.hc-recente>.hc-acoes{opacity:1;width:40px;min-width:40px;height:40px;min-height:40px}.hc-linha>.hc-acoes{width:44px;min-width:44px;height:44px;min-height:44px}}
+
+/* "Excluir todas": ação de perigo, longe de "Nova conversa", junto do aviso de retenção no fim da lista. */
+.hc-retencao{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}.hc-retencao p{margin:0;flex:1 1 280px}.hc-retencao .btn svg{width:14px;height:14px}
+.hc-modal textarea.entrada{width:100%;box-sizing:border-box;resize:vertical}

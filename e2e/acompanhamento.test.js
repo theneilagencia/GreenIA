@@ -24,7 +24,7 @@ async function abrir(c,hash) {
 }
 test('checklist real e pendências por perfil; usuário comum sem ações administrativas',async()=>{
  const p=await abrir(admin,'#/preparacao');await p.waitForSelector('.acomp-passos');assert.match(await p.textContent('#principal'),/Situação calculada/);await p.click('a[href="#/pendencias"]');await p.waitForSelector('#pend-busca');
- const g=await abrir(gestor,'#/pendencias');await g.waitForSelector('#pend-busca');assert.doesNotMatch(await g.textContent('#pend-lista'),/acessos locais/);
+ const g=await abrir(gestor,'#/pendencias');await g.waitForSelector('#pend-lista');assert.doesNotMatch(await g.textContent('#pend-lista'),/acessos locais/);
  const u=await abrir(usuario,'#/pendencias');await u.waitForSelector('#pend-lista');assert.match(await u.textContent('#pend-lista'),/Nenhuma pendência/);assert.equal(await u.locator('a[href="#/revisao-acessos"]').count(),0);
  await p.close();await g.close();await u.close();
 });

@@ -38,10 +38,10 @@ test('guia: quatro passos para usuário, progresso retomável, conclusão e ajud
   await p.reload(); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
   await p.click('a[href="#/nova"]'); await p.waitForSelector('#entrada');
   assert.equal(await p.locator('#modal [role="dialog"]').count(), 0, 'guia não bloqueia o trabalho');
-  await p.click('[aria-label="Ajuda e primeiros passos"]'); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
+  await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
   await p.click('[data-guia-passo="3"]'); await p.click('#guia-seguir'); await p.waitForSelector('#entrada');
   assert.equal(await p.locator('.guia-convite').count(), 0);
-  await p.click('[aria-label="Ajuda e primeiros passos"]'); await p.waitForSelector('#guia-seguir'); assert.match(await p.textContent('.guia-pagina'), /Guia concluído/);
+  await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-seguir'); assert.match(await p.textContent('.guia-pagina'), /Guia concluído/);
   const q = await abrir('outra', '#/nova'); assert.equal(await q.locator('.guia-convite').count(), 1);
   await p.close(); await q.close();
 });
@@ -49,8 +49,8 @@ test('guia: quatro passos para usuário, progresso retomável, conclusão e ajud
 test('guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; adiar não altera ciência ou acesso', async () => {
   const p = await abrir('gestora', '#/primeiros-passos'); assert.equal(await p.locator('[data-guia-passo]').count(), 5);
   const q = await abrir('admin', '#/primeiros-passos'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
-  await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('.inicio-ajuda'); await q.locator('.inicio-ajuda > summary').click(); await q.waitForSelector('[data-adiar-guia]'); await q.click('[data-adiar-guia]'); await q.reload(); await q.waitForSelector('#entrada');
-  assert.equal(await q.locator('.guia-convite').count(), 0); assert.equal(await q.locator('[aria-label="Ajuda e primeiros passos"]').count(), 1);
+  await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('.guia-convite'); await q.waitForSelector('[data-adiar-guia]'); await q.click('[data-adiar-guia]'); await q.reload(); await q.waitForSelector('#entrada');
+  assert.equal(await q.locator('.guia-convite').count(), 0); assert.equal(await q.locator('#ajuda-tela').count(), 1);
   assert.equal((await admin.get('/api/eu')).dados.pessoa.admin, true);
   await p.close(); await q.close();
 });
@@ -62,7 +62,10 @@ test('biblioteca: usuário só vê sua área e documentos comuns; filtros sem ac
   assert.equal(await p.locator('#doc-arquivo').count(), 0);
   await p.fill('#conhecimento-busca', 'politica'); assert.equal(await p.locator('[data-documento]').count(), 1);
   await p.click('[data-limpar-conhecimento]'); await p.selectOption('#conhecimento-pasta', { label: 'Manuais' }); assert.match(await p.textContent('#conhecimento-lista'), /Manual comum/);
-  await p.click('[data-limpar-conhecimento]'); await p.click('[data-filtrar-revisao]'); assert.equal(await p.locator('[data-documento]').count(), 1); assert.match(await p.textContent('#conhecimento-lista'), /Política de viagens/);
+  // Quem só consulta não vê informação de gestão (revisão, responsável) nem os filtros de gestão.
+  await p.click('[data-limpar-conhecimento]'); assert.equal(await p.locator('[data-filtrar-revisao]').count(), 0);
+  assert.doesNotMatch(await p.textContent('#conhecimento-lista'), /Revisão recomendada|Conteúdo revisado|Responsável/);
+  assert.deepEqual(await p.locator('#conhecimento-status option').allTextContents(), ['Todos', 'Sigilosos']);
   await p.close();
 });
 
@@ -111,7 +114,7 @@ test('edição, substituição e revisão preservam a base; falha de rede manté
 test('biblioteca: filtros não descartam envio; saída não salva exige confirmação; Escape preserva edição quando descartada a saída', async () => {
   const p = await abrir('gestora'); await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#envio-conhecimento>summary');
   await p.fill('#doc-titulo', 'Título ainda não enviado'); await p.click('[data-limpar-conhecimento]'); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
-  p.once('dialog', d => d.dismiss()); await p.click('[aria-label="Ajuda e primeiros passos"]'); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
+  p.once('dialog', d => d.dismiss()); await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
   await p.fill('#doc-titulo', ''); await p.click(`[data-editar-conhecimento="${antigo.id}"]`); await p.fill('#conhecimento-ed-nome', 'Alteração não salva');
   p.once('dialog', d => d.dismiss()); await p.keyboard.press('Escape'); assert.equal(await p.inputValue('#conhecimento-ed-nome'), 'Alteração não salva');
   p.once('dialog', d => d.accept()); await p.click('#conhecimento-ed-cancelar'); await p.waitForSelector('#conhecimento-ed-form', { state: 'detached' });
@@ -126,7 +129,7 @@ test('biblioteca e guia: 320, 390, 768 e 1280 px sem transbordamento, erros Java
     for (const rota of ['#/conhecimento', '#/primeiros-passos']) {
       await p.goto(`${N.base}/app${rota}`); await p.waitForSelector(rota.includes('conhecimento') ? '#conhecimento-busca' : '#guia-seguir');
       assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${rota} ${width}`);
-      assert.ok(await p.locator('[aria-label="Ajuda e primeiros passos"]').isVisible());
+      assert.ok(await p.locator('#ajuda-tela').isVisible());
       await p.screenshot({ path: `capturas/tmp/${rota.includes('conhecimento') ? 'biblioteca' : 'guia'}-${width}.png` });
     }
   }

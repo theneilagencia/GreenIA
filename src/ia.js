@@ -141,26 +141,32 @@ export function criarIndisponivel() {
   };
 }
 
-// IA simulada, para demonstração e desenvolvimento sem chave. Responde de forma
-// previsível ao último pedido (tabela, resumo curto ou eco organizado).
+// IA simulada, para demonstração e desenvolvimento sem chave. Responde de forma previsível ao último pedido,
+// no formato pedido (email, lista, tabela, resumo, ou a combinação deles). O aviso de que a resposta é simulada
+// não entra no texto: a tela mostra um selo fora da resposta (/api/eu informa iaSimulada).
+const TABELA_SIMULADA = '| Item | Valor | Situação |\n|---|---|---|\n| Documento A | 10 | Conferido |\n| Documento B | 12 | Divergente |';
+const LISTA_SIMULADA = '- Confirmar o objetivo com quem pediu.\n- Reunir o material necessário.\n- Revisar o resultado antes de enviar.';
+const RESUMO_SIMULADO = '1. O material trata do pedido enviado.\n2. Há dois pontos que pedem atenção.\n3. O próximo passo é revisar e confirmar.';
+export function respostaSimulada(pedido) {
+  const pede = s => new RegExp(s, 'i').test(pedido);
+  const tabela = pede('tabela|coluna');
+  if (tabela && pede('tire|sem a coluna|remova')) return 'Pronto, sem a coluna pedida:\n\n| Item | Situação |\n|---|---|\n| Documento A | Conferido |\n| Documento B | Divergente |';
+  const email = pede('\\be-?mails?\\b'), lista = pede('\\blista\\b|\\bliste\\b|\\btópicos\\b|\\bpassos\\b'), resumo = pede('3 linhas|três linhas|\\bresum');
+  const partes = [];
+  if (resumo) partes.push(`Resumo em três linhas:\n${RESUMO_SIMULADO}`);
+  if (lista) partes.push(`${email ? 'Próximos passos' : 'Aqui está a lista'}:\n${LISTA_SIMULADA}`);
+  if (tabela) partes.push(`${pede('compar') ? 'Aqui está a comparação' : 'Aqui está a tabela'}:\n\n${TABELA_SIMULADA}\n\nRevise os itens marcados como divergentes.`);
+  if (email) return `Assunto: Retorno sobre o pedido\n\nOlá,\n\nCompartilho abaixo o que foi combinado.\n\n${partes.length ? `${partes.join('\n\n')}\n\n` : ''}Fico à disposição para ajustar o que for preciso.\n\nAtenciosamente,\n[Seu nome]`;
+  if (partes.length) return partes.join('\n\n');
+  return `Entendi o pedido. Organizei os pontos principais:\n\n- ${pedido.slice(0, 140) || 'sem texto'}\n- O próximo passo é revisar e confirmar.\n\nQuer que eu ajuste o formato?`;
+}
 export function criarSimulada() {
   return {
     simulada: true,
     async conta() { return null; },
     async listarModelos() { return []; },
     async *enviar(mensagens, op) {
-      const ultima = String(mensagens.filter(m => m.role === 'user').at(-1)?.content || '');
-      const pede = s => new RegExp(s, 'i').test(ultima);
-      let texto;
-      if (pede('tabela|coluna')) {
-        texto = pede('tire|sem a coluna|remova')
-          ? 'Pronto, sem a coluna pedida:\n\n| Item | Situação |\n|---|---|\n| Documento A | Conferido |\n| Documento B | Divergente |'
-          : 'Aqui está a comparação:\n\n| Item | Valor | Situação |\n|---|---|---|\n| Documento A | 10 | Conferido |\n| Documento B | 12 | Divergente |\n\nRevise os itens marcados como divergentes.';
-      } else if (pede('3 linhas|três linhas|resuma')) {
-        texto = 'Resumo em três linhas:\n1. O material trata do pedido enviado.\n2. Há dois pontos que pedem atenção.\n3. O próximo passo é revisar e confirmar.';
-      } else {
-        texto = `Entendi o pedido. Organizei os pontos principais:\n\n- ${ultima.slice(0, 140) || 'sem texto'}\n- Nada foi enviado a um modelo real: esta é a IA simulada.\n\nQuer que eu ajuste o formato?`;
-      }
+      const texto = respostaSimulada(String(mensagens.filter(m => m.role === 'user').at(-1)?.content || ''));
       for (const parte of texto.match(/.{1,24}/gs)) yield { tipo: 'texto', texto: parte };
       yield { tipo: 'fim', modelo: op.modelo, fornecedor: op.fornecedor || 'simulado', custo: 0.0004, economia: 0, tokensEntrada: 800, tokensSaida: 120 };
     },

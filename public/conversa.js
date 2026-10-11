@@ -1,4 +1,4 @@
-import { excluirConversa, renomearConversa } from '/historico-conversas.js';
+import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
 import { conviteGuia } from '/onboarding.js';
 import { htmlComecar, ligarComecar } from '/ajude-comecar.js';
@@ -76,26 +76,25 @@ function desenhar() {
   const modeloAtual = C.opcoes.find(o => o.id === C.modelo);
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
   $('principal').innerHTML = `
-    ${cabecalho(titulo(), conv ? `<button class="icone-btn" id="renomear" title="Renomear" aria-label="Renomear conversa">${ICONE.lapis}<span>Renomear</span></button>
-      <button class="icone-btn" id="apagar" title="Excluir conversa" aria-label="Excluir conversa">${ICONE.lixo}<span>Excluir</span></button>` : '')}
+    ${cabecalho(titulo(), conv ? `<button type="button" class="icone-btn hc-acoes acoes-conversa" id="acoes-conversa" data-hc-acoes="${conv.id}" aria-label="Ações da conversa" title="Ações da conversa" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button>` : '')}
     <div class="barra-conversa">
-      ${qw ? `<a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste: não conta nos resultados</span>' : qw.v2 ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}` : ''}
-      ${C.opcoes.length > 1 && !qw?.v2 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o recurso certo para cada pedido.">Nível
+      ${qw ? `<a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste: não conta nos resultados</span>' : qw.v2 || !qw.podeEditar ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}` : ''}
+      ${C.opcoes.length > 1 && !qw?.v2 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o nível certo para cada pedido.">Nível
         <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
           ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático (recomendado)' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
         </select></label>` : ''}
       <span id="selo-modelo"></span>
-      <span class="chave">
-        <button class="switch" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'disabled' : ''} aria-label="Esta conversa tem dados sigilosos"><span></span></button>
-        <span title="Ligue se a conversa tiver informação confidencial que a GreenIA não reconheceu sozinha. A partir daí, ela usa só os recursos autorizados para esse tipo de dado.">Dados sigilosos</span>
+      <span class="chave chave-sigilo">
+        <button type="button" class="switch" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'disabled' : ''} aria-labelledby="rotulo-sigilo" aria-describedby="efeito-sigilo"><span></span></button>
+        <label for="sigilosa" id="rotulo-sigilo">Dados sigilosos</label>
+        <span class="dica" id="efeito-sigilo">${sig ? 'Ligado até a conversa ser apagada' : 'Não dá para desligar depois'}</span>
+        <button type="button" class="btn-texto saiba-sigilo" id="saiba-sigilo" aria-haspopup="dialog">Saiba mais</button>
       </span>
-      ${sig ? `<span class="selo selo-sigilosa" title="Fica assim até ser apagada, porque o histórico já tem os dados. A GreenIA usa só os recursos autorizados para informação confidencial.">Sigilosa${conv.motivo_sigilosa ? ` · ${esc(conv.motivo_sigilosa)}` : ''}</span>` : ''}
-      ${qw && conv && !conv.teste ? `<span class="feedback" role="group" aria-label="Esta conversa serviu?"><span class="dica">Serviu?</span>
-        ${FEEDBACK.map(([v, r]) => `<button data-fb="${v}" aria-pressed="${conv.feedback === v}">${r}</button>`).join('')}</span>` : ''}
+      ${sig ? `<span class="selo selo-sigilosa">Sigilosa${conv.motivo_sigilosa ? ` · ${esc(conv.motivo_sigilosa)}` : ''}</span>` : ''}
     </div>
     ${qw && !qw.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Não entra nos resultados. Quando estiver bom, publique para a equipe.', 'info',
       `${['em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'].includes(qw.status) ? '' : `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar para a equipe</a>`}<a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/editar">Ajustar instruções</a><a class="btn btn-texto btn-pequeno" href="#/qw/${qw.id}">Voltar ao Quick Win</a>`)}</div>` : ''}
-    ${qw?.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Usa a versão em edição e não entra na medição.', 'info',
+    ${qw?.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Usa a versão em edição e não entra nos resultados.', 'info',
       `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/ajustar">Ajustar</a>`)}</div>` : ''}
     <div class="mensagens" id="msgs"><div class="coluna" id="coluna"></div></div>
     <div class="compositor"><div style="max-width:760px;margin:0 auto">
@@ -110,7 +109,7 @@ function desenhar() {
         ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
         <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}<span>Enviar</span></button>
       </div>
-      ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar em outro caso →</a></p>` : ''}
+      ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar com outro material →</a></p>` : ''}
       <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
     </div></div>
     <div class="sr" aria-live="polite" id="ao-vivo"></div>`;
@@ -149,19 +148,36 @@ function htmlMensagem(m) {
   return `<div class="resposta${anim}" data-msg="${m.id}">
     <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}${integracoes}
-      ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar</span>' : ''}
-        <button type="button" data-copiar="${m.id}">Copiar</button>${execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use')) ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para o acompanhamento</a><a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento">Acompanhar resultados</a>` : ''}${execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado' ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}${!C.qw?.v2 && (m.modelo || m.classe || m.rota_modo) ? `<span>${(m.rota_modo === 'externo' ? 'Escolha automática' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ' · escolha automática' : ''}`)}</span>` : ''}</div>
-        ${m.rota_explicacao && !C.qw?.v2 ? `<details class="rota-motivo"><summary>Por que esta escolha?</summary>${esc(m.rota_explicacao_simples || m.rota_explicacao)}</details>` : ''}${fontes}${detalheExecucao(m)}`}
+      ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar.</span>' : ''}
+        <button type="button" class="btn btn-linha btn-pequeno" data-copiar="${m.id}">Copiar</button>${execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use')) ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para o acompanhamento</a><a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento">Acompanhar resultados</a>` : ''}${execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado' ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}${E.iaSimulada ? '<span class="selo selo-simulada">Resposta simulada</span>' : ''}${infoResposta(m)}</div>
+        ${avaliacao(m)}${fontes}${detalheExecucao(m)}`}
     </div></div>`;
+}
+
+// Informação técnica da resposta (nível, motivo da escolha, simulação) recolhida num "i", fora do caminho da leitura.
+function infoResposta(m) {
+  const nivel = !C.qw?.v2 && (m.modelo || m.classe || m.rota_modo)
+    ? (m.rota_modo === 'externo' ? 'Escolha automática do nível.' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ', pela escolha automática do nível' : ''}.`) : '';
+  const motivo = m.rota_explicacao && !C.qw?.v2 ? esc(m.rota_explicacao_simples || m.rota_explicacao) : '';
+  const simulada = E.iaSimulada ? 'Ambiente de demonstração: a resposta foi simulada e nenhum modelo de IA real foi usado.' : '';
+  if (!nivel && !motivo && !simulada) return '';
+  return `<details class="info-resposta"><summary title="Sobre esta resposta"><span aria-hidden="true">i</span><span class="sr">Sobre esta resposta</span></summary><div class="info-resposta-texto">${[nivel, motivo, simulada].filter(Boolean).map(t => `<p>${t}</p>`).join('')}</div></details>`;
+}
+
+// Avaliação ao pé da última resposta, em qualquer conversa (menos nos testes de Quick Win).
+function avaliacao(m) {
+  if (!C.conv || C.conv.teste || m.id !== C.ultimaResposta) return '';
+  return `<div class="feedback avaliacao-resposta" role="group" aria-label="Esta resposta serviu?"><span class="dica">Serviu?</span>${FEEDBACK.map(([v, r]) => `<button type="button" data-fb="${v}" aria-pressed="${C.conv.feedback === v}">${r}</button>`).join('')}</div>`;
 }
 
 function desenharMensagens() {
   const vazio = !C.mensagens.length;
+  C.ultimaResposta = [...C.mensagens].reverse().find(m => m.papel === 'assistant' && !m.erro && !m.carregando && Number.isInteger(m.id))?.id ?? null;
   const boasVindas = C.qw
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
     : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
-        <h2>O que você precisa fazer?</h2><p>Conte o que precisa receber ou escolha uma tarefa pronta.</p><div class="comecar-convite"><button type="button" class="btn btn-verde" id="me-ajude-comecar" aria-expanded="false" aria-controls="ajude-comecar">Me ajude a começar</button><span>Escolha seu objetivo e receba orientação para o próximo passo.</span></div>${htmlComecar()}<div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Conte seu objetivo, o contexto e o resultado que precisa receber.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div><details class="inicio-ajuda"><summary>Guia e orientações para começar</summary>${conviteGuia()}${cartaoBase()}</details></div>`;
+        <h2>O que você precisa fazer?</h2><p>Conte o que precisa receber ou escolha uma tarefa pronta.</p><div class="comecar-convite"><button type="button" class="btn btn-verde" id="me-ajude-comecar" aria-expanded="false" aria-controls="ajude-comecar">Como começar</button><span>Escolha seu objetivo e receba orientação para o próximo passo.</span></div>${htmlComecar()}<div class="caminhos-inicio"><a class="caminho-inicio" href="#/quick-wins"><b>Usar uma tarefa pronta</b><span>Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="caminho-acao">Ver Quick Wins →</span></a><button type="button" class="caminho-inicio" id="comecar-pedido"><b>Fazer um pedido</b><span>Conte seu objetivo, o contexto e o resultado que precisa receber.</span><span class="caminho-acao">Escrever meu pedido →</span></button></div>${conviteGuia()}${cartaoBase()}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
   sugestoes();
@@ -175,7 +191,8 @@ function desenharMensagens() {
   rolarSeNoFim();
 }
 
-function rolarSeNoFim() { const msgs = $('msgs'); if (C?.noFim && msgs) msgs.scrollTop = msgs.scrollHeight; }
+// Conversa vazia começa no topo (título e "Como começar" à vista); com mensagens, acompanha o fim.
+function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!C.mensagens.length && !C.pensando) msgs.scrollTop = 0; else if (C.noFim) msgs.scrollTop = msgs.scrollHeight; }
 function ajustarAltura() { const t = $('entrada'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; t.style.overflowY = t.scrollHeight > 220 ? 'auto' : 'hidden'; }
 function atualizarEnviar() { $('enviar').disabled = C.enviando || (!$('entrada').value.trim() && !C.anexos.length); }
 
@@ -196,13 +213,8 @@ function ligar() {
   const estado = C;
   $('msgs').addEventListener('scroll', ev => { const m = ev.currentTarget; if (C === estado && m.isConnected) C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
   if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
-  $('sigilosa').onclick = async () => {
-    if (!confirm('Ligar esta opção torna a conversa sigilosa até ela ser apagada. A GreenIA passa a usar só os recursos autorizados para informação confidencial. Continuar?')) return;
-    await garantirConversa();
-    const d = await api(`/api/conversas/${C.conv.id}`, { metodo: 'PATCH', corpo: { sigilosa: true } });
-    C.conv = d.conversa; C.mensagens = d.mensagens;
-    await carregarModelos(); desenhar(); recarregarLateral();
-  };
+  $('sigilosa').onclick = explicarSigilo;
+  $('saiba-sigilo').onclick = explicarSigilo;
   $('anexar').onclick = () => $('arquivo').click();
   $('anexar-link').onclick = () => { const c = $('link-novo'); c.classList.toggle('oculto'); $('anexar-link').setAttribute('aria-expanded', String(!c.classList.contains('oculto'))); if (!c.classList.contains('oculto')) $('link-url').focus(); };
   const addLink = () => {
@@ -251,10 +263,10 @@ function ligar() {
   const alternar = v => { C.proximaExecucao = v; desenhar(); $('entrada').focus(); };
   $('nova-execucao')?.addEventListener('click', () => alternar(!C.proximaExecucao));
   $('cancelar-execucao')?.addEventListener('click', () => alternar(false));
-  document.querySelectorAll('[data-fb]').forEach(b => { b.onclick = () => darFeedback(b.dataset.fb); });
-  const ren = $('renomear'), apg = $('apagar');
-  if (ren) ren.onclick = () => { const estado=C; renomearConversa(estado.conv, async c => { if(C!==estado)return; C.conv = c; desenhar(); }); };
-  if (apg) apg.onclick = () => { if (C.enviando) return toast('Aguarde a resposta terminar antes de excluir.'); excluirConversa(C.conv); };
+  $('coluna').addEventListener('click', ev => { const b = ev.target.closest('[data-fb]'); if (b) darFeedback(b.dataset.fb); });
+  // Ações da conversa: o mesmo menu "⋯" da lateral e do histórico.
+  if (C.conv) ligarAcoesConversas(document.querySelector('.cabeca'), [C.conv], async c => { if (C === estado && c) { C.conv = c; desenhar(); } },
+    { antesDeExcluir: () => (C.enviando ? (toast('Aguarde a resposta terminar antes de excluir.'), false) : true) });
 
 }
 
@@ -275,12 +287,35 @@ function resolverPesquisa() {
   };
 }
 
+// "Dados sigilosos": explica o efeito definitivo num diálogo da plataforma antes de ligar; ligado, só explica.
+function explicarSigilo() {
+  const s = C;
+  if (s.conv?.sigilosa) return dialogo({ titulo: 'Esta conversa é sigilosa', texto: 'Nesta conversa, a GreenIA usa só os modelos de IA aprovados para dados sigilosos.',
+    conteudo: '<p class="hc-modal-nota">Não dá para desligar: a conversa continua sigilosa até ser apagada, porque o histórico já tem os dados. Para um assunto sem dados sigilosos, comece uma nova conversa.</p>', icone: 'escudo' });
+  dialogo({ titulo: 'Marcar como dados sigilosos?', texto: 'Use quando a conversa tiver informação confidencial que a GreenIA não reconheceu sozinha. A partir daí, ela usa só os modelos de IA aprovados para dados sigilosos.',
+    conteudo: '<p class="hc-modal-nota">É definitivo: a conversa continua sigilosa até ser apagada, porque o histórico já tem os dados. A marcação não libera dados que a política da empresa bloqueia.</p>',
+    acao: 'Marcar como sigilosa', icone: 'escudo', executar: async () => {
+      await garantirConversa();
+      const d = await api(`/api/conversas/${s.conv.id}`, { metodo: 'PATCH', corpo: { sigilosa: true } });
+      if (C !== s) return;
+      C.conv = d.conversa; C.mensagens = d.mensagens;
+      await carregarModelos(); desenhar(); recarregarLateral();
+    } });
+}
+
 async function darFeedback(valor) {
-  let motivo = null;
-  if (valor === 'nao_serviu') motivo = prompt('Quer contar por quê? (opcional)') || null;
-  C.conv = (await api(`/api/conversas/${C.conv.id}`, { metodo: 'PATCH', corpo: { feedback: valor, motivo } })).conversa;
-  document.querySelectorAll('[data-fb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fb === valor)));
-  toast('Obrigado pelo retorno.');
+  const s = C;
+  const salvar = async motivo => {
+    const conv = (await api(`/api/conversas/${s.conv.id}`, { metodo: 'PATCH', corpo: { feedback: valor, motivo } })).conversa;
+    if (C !== s) return;
+    C.conv = conv;
+    document.querySelectorAll('[data-fb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fb === valor)));
+    toast('Obrigado pelo retorno.');
+  };
+  if (valor !== 'nao_serviu') return salvar(null).catch(e => toast(e.message));
+  dialogo({ titulo: 'O que não serviu?', texto: 'Se quiser, conte o que faltou ou veio errado. A avaliação ajuda a melhorar as próximas respostas.',
+    conteudo: '<label class="hc-campo">Motivo (opcional)<textarea class="entrada" data-motivo rows="3" maxlength="500"></textarea></label>',
+    acao: 'Enviar avaliação', executar: fundo => salvar(fundo.querySelector('[data-motivo]').value.trim() || null) });
 }
 
 async function garantirConversa() {
@@ -291,7 +326,7 @@ async function garantirConversa() {
 
 // Sem feedback numa conversa com resposta: lembrete discreto ao sair.
 export function lembreteAoSair() {
-  if (C?.qw && C.conv && !C.conv.teste && !C.conv.feedback && C.mensagens.some(m => m.papel === 'assistant')) toast('Esta conversa serviu? Dê seu retorno no topo da conversa quando puder.', 5000);
+  if (C?.qw && C.conv && !C.conv.teste && !C.conv.feedback && C.mensagens.some(m => m.papel === 'assistant')) toast('Esta conversa serviu? Dê seu retorno ao pé da última resposta quando puder.', 5000);
 }
 
 async function enviar(reenvio = null, { executar = false } = {}) {

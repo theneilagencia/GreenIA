@@ -4,13 +4,14 @@ import { fecharComEscape } from '/acessibilidade.js';
 let fecharMenuAtual = null;
 let dialogoAtual = false;
 
-// Um diálogo para cada decisão, com cancelamento em foco e erro recuperável.
-function dialogo({ titulo, texto, conteudo = '', acao, perigosa = false, executar }) {
+// Um diálogo para cada decisão, com cancelamento em foco e erro recuperável. Sem `acao`, só informa (botão "Entendi").
+export function dialogo({ titulo, texto, conteudo = '', acao = null, perigosa = false, icone = null, executar }) {
   if (dialogoAtual) return;
   dialogoAtual = true; fecharMenuAtual?.();
   const anterior = document.activeElement;
   const fundo = document.createElement('div'); fundo.className = 'hc-modal-fundo';
-  fundo.innerHTML = `<section class="hc-modal" role="dialog" aria-modal="true" aria-labelledby="hc-titulo" aria-describedby="hc-descricao" tabindex="-1"><span class="hc-modal-icone">${ICONE[perigosa ? 'lixo' : 'lapis']}</span><h2 id="hc-titulo">${esc(titulo)}</h2><p id="hc-descricao">${esc(texto)}</p>${conteudo}<p class="hc-erro" role="alert" hidden></p><div class="hc-modal-acoes"><button type="button" class="btn btn-linha" data-cancelar>Cancelar</button><button type="button" class="btn ${perigosa ? 'hc-perigo' : 'btn-verde'}" data-confirmar>${esc(acao)}</button></div></section>`;
+  const botoes = acao ? `<button type="button" class="btn btn-linha" data-cancelar>Cancelar</button><button type="button" class="btn ${perigosa ? 'hc-perigo' : 'btn-verde'}" data-confirmar>${esc(acao)}</button>` : '<button type="button" class="btn btn-verde" data-cancelar>Entendi</button>';
+  fundo.innerHTML = `<section class="hc-modal" role="dialog" aria-modal="true" aria-labelledby="hc-titulo" aria-describedby="hc-descricao" tabindex="-1"><span class="hc-modal-icone">${ICONE[icone || (perigosa ? 'lixo' : 'lapis')]}</span><h2 id="hc-titulo">${esc(titulo)}</h2><p id="hc-descricao">${esc(texto)}</p>${conteudo}<p class="hc-erro" role="alert" hidden></p><div class="hc-modal-acoes">${botoes}</div></section>`;
   document.body.append(fundo);
   let ocupado = false;
   const cancelar = fundo.querySelector('[data-cancelar]'), confirmar = fundo.querySelector('[data-confirmar]');
@@ -21,7 +22,7 @@ function dialogo({ titulo, texto, conteudo = '', acao, perigosa = false, executa
   fundo.onclick = e => { if (e.target === fundo) fechar(); };
   const aceitar = fundo.querySelector('[data-aceitar]');
   if (aceitar) { confirmar.disabled = true; aceitar.onchange = () => { confirmar.disabled = !aceitar.checked; }; }
-  confirmar.onclick = async () => {
+  if (confirmar) confirmar.onclick = async () => {
     ocupado = true; confirmar.disabled = cancelar.disabled = true; const erro = fundo.querySelector('.hc-erro'); erro.hidden = true;
     try { await executar(fundo); ocupado = false; fechar(); }
     catch (e) { ocupado = false; confirmar.disabled = aceitar ? !aceitar.checked : false; cancelar.disabled = false; erro.textContent = e.message; erro.hidden = false; }
@@ -41,7 +42,7 @@ export function excluirConversa(c, depois = async () => {}) {
     toast('Conversa excluída.');
   }});
 }
-export function ligarAcoesConversas(raiz, conversas, depois) {
+export function ligarAcoesConversas(raiz, conversas, depois, { antesDeExcluir = () => true } = {}) {
   raiz.querySelectorAll('[data-hc-acoes]').forEach(b => { b.onclick = e => {
     e.preventDefault(); const c = conversas.find(c => String(c.id) === b.dataset.hcAcoes); if (!c) return;
     fecharMenuAtual?.(); const menu = document.createElement('div'); menu.className = 'hc-menu'; menu.setAttribute('role','menu'); menu.setAttribute('aria-label',`Ações de ${c.titulo}`);
@@ -53,7 +54,7 @@ export function ligarAcoesConversas(raiz, conversas, depois) {
     const fechar = () => {menu.remove(); document.removeEventListener('pointerdown',fora);menu.removeEventListener('keydown',tecla);b.setAttribute('aria-expanded','false');if(b.isConnected)b.focus();fecharMenuAtual=null;};
     fecharMenuAtual=fechar; document.addEventListener('pointerdown',fora);menu.addEventListener('keydown',tecla);
     menu.querySelector('[data-renomear]').onclick=()=>{fechar();renomearConversa(c,depois);};
-    menu.querySelector('[data-excluir]').onclick=()=>{fechar();excluirConversa(c,depois);}; menu.querySelector('button').focus();
+    menu.querySelector('[data-excluir]').onclick=()=>{fechar();if(antesDeExcluir())excluirConversa(c,depois);}; menu.querySelector('button').focus();
   }; });
 }
 function grupoData(iso) {
@@ -63,7 +64,7 @@ function grupoData(iso) {
 }
 export async function vistaHistorico() {
   const raiz=document.getElementById('principal');
-  raiz.innerHTML=`${cabecalho('Conversas')}<div class="pagina"><div class="pagina-dentro hc-pagina">${cartaoBase()}<div class="hc-intro"><div><span class="hc-eyebrow">Seu histórico</span><h2>Retome de onde parou</h2><p>Encontre uma conversa ou comece um novo trabalho.</p></div><div class="hc-intro-acoes"><a class="btn btn-verde btn-pequeno" href="#/nova">${ICONE.mais} Nova conversa</a><button class="btn btn-linha btn-pequeno" data-hc-todas>${ICONE.lixo} Excluir todas</button></div></div><div class="hc-barra"><label class="hc-busca">${ICONE.busca}<span class="sr">Buscar conversas</span><input type="search" id="hc-busca" placeholder="Buscar por nome ou Quick Win" autocomplete="off"></label><label class="hc-filtro"><span>Mostrar</span><select id="hc-tipo"><option value="">Todas as conversas</option><option value="livres">Conversas livres</option><option value="quickwins">Quick Wins</option><option value="sigilosas">Sigilosas</option></select></label></div><div class="hc-resumo" role="status" aria-live="polite"></div><div class="hc-lista" aria-label="Histórico de conversas"></div><button class="btn btn-linha hc-mais" hidden>Carregar mais conversas</button><p class="hc-retencao">Conversas sem uso são excluídas após ${Number(E.retencaoDias)} dias, conforme a configuração da empresa.</p></div></div>`;
+  raiz.innerHTML=`${cabecalho('Conversas')}<div class="pagina"><div class="pagina-dentro hc-pagina">${cartaoBase()}<div class="hc-intro"><div><span class="hc-eyebrow">Seu histórico</span><h2>Retome de onde parou</h2><p>Encontre uma conversa ou comece um novo trabalho.</p></div><div class="hc-intro-acoes"><a class="btn btn-verde btn-pequeno" href="#/nova">${ICONE.mais} Nova conversa</a></div></div><div class="hc-barra"><label class="hc-busca">${ICONE.busca}<span class="sr">Buscar conversas</span><input type="search" id="hc-busca" placeholder="Buscar por nome ou Quick Win" autocomplete="off"></label><label class="hc-filtro"><span>Mostrar</span><select id="hc-tipo"><option value="">Todas as conversas</option><option value="livres">Conversas livres</option><option value="quickwins">Quick Wins</option><option value="sigilosas">Sigilosas</option></select></label></div><div class="hc-resumo" role="status" aria-live="polite"></div><div class="hc-lista" aria-label="Histórico de conversas"></div><button class="btn btn-linha hc-mais" hidden>Carregar mais conversas</button><div class="hc-retencao"><p>Conversas sem uso são excluídas após ${Number(E.retencaoDias)} dias, conforme a configuração da empresa.</p><button type="button" class="btn btn-perigo btn-pequeno" data-hc-todas>${ICONE.lixo} Excluir todas</button></div></div></div>`;
   ligarCabecalho();
   const lista=raiz.querySelector('.hc-lista'),resumo=raiz.querySelector('.hc-resumo'),mais=raiz.querySelector('.hc-mais');
   let dados=[], pagina=0, versao=0, timer=0;

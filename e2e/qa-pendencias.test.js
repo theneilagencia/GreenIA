@@ -17,7 +17,7 @@ test('QA-G01/G03: título no celular e sigilo operáveis por teclado com área d
    if(width<760)await tituloLegivel(p,width);else await p.setViewportSize({width,height:900});
    if(width<760){const m=await p.locator('#sigilosa').boundingBox();assert.ok(m.width>=44&&m.height>=44,JSON.stringify(m));}
   }
-  p.once('dialog',d=>d.accept());await p.locator('#sigilosa').focus();await p.keyboard.press('Space');await p.waitForFunction(()=>document.querySelector('#sigilosa').getAttribute('aria-checked')==='true');assert.equal(await p.locator('#sigilosa').getAttribute('aria-checked'),'true');
+  await p.locator('#sigilosa').focus();await p.keyboard.press('Space');await p.getByRole('dialog').getByRole('button',{name:'Marcar como sigilosa'}).click();await p.waitForFunction(()=>document.querySelector('#sigilosa').getAttribute('aria-checked')==='true');assert.equal(await p.locator('#sigilosa').getAttribute('aria-checked'),'true');
  }finally{await N.fechar();}
 });
 test('QA-G02: editores da empresa e do console têm rótulos únicos persistentes e mantêm dados',async()=>{

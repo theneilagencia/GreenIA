@@ -88,7 +88,7 @@ const seloBase = () => {
   if (!b?.areas.length) return null;
   const nomes = b.areas.map(a => a.nome).join(', ');
   return b.paraRevisar ? { texto: String(b.paraRevisar), alerta: true, dica: `${b.paraRevisar} ${b.paraRevisar === 1 ? 'documento' : 'documentos'} da base de ${nomes} para revisar (nunca revisados ou há mais de ${b.diasRevisao} dias)` }
-    : { texto: 'Admin', dica: `Você administra a base de conhecimento de ${nomes}` };
+    : { texto: 'Você gerencia', dica: `Você administra a base de conhecimento de ${nomes}` };
 };
 
 // Cartão no início (nova conversa e lista de conversas) para quem administra a base de alguma área.
@@ -286,6 +286,15 @@ const GESTAO = ['uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configur
 
 // A resposta de uma navegação antiga não substitui a tela atual.
 let versaoNavegacao = 0;
+function telaIntegracoesDesligadas() {
+  if (E.eu) desenharLateral();
+  $('principal').innerHTML = `${cabecalho('Integrações')}<div class="pagina"><div class="pagina-dentro">
+    <div class="faixa-aviso info" role="status"><h2>As integrações estão desligadas nesta empresa</h2>
+      <p>Com elas ligadas, os Quick Wins podem consultar e atualizar outros sistemas da empresa, sempre com aprovação. ${pode('settings.manage') ? 'Para ligar, abra Configurações e use o bloco Integrações.' : 'Quem administra a empresa liga esse recurso em Configurações.'}</p>
+      ${pode('settings.manage') ? '<a class="btn btn-verde" href="#/configuracoes">Abrir Configurações</a>' : ''}</div></div></div>`;
+  ligarCabecalho();
+}
+
 async function rota() {
   const antes = new CustomEvent('greenia:antes-navegar', { cancelable: true });
   if (!document.dispatchEvent(antes)) return;
@@ -307,7 +316,9 @@ async function rota() {
   if (ROTAS_ADMIN.test(h)) {
     if (!administra()) return conferirNoServidor(h);
     const it = SECOES_ADMIN().flatMap(g => g.itens).find(i => h === `#/${i.id}` || h.startsWith(`#/${i.id}/`));
-    if (it?.ver && !it.ver()) return irPara(inicioAdmin() === h ? `#/${itensAdmin()[0].id}` : inicioAdmin());
+    // Integrações desligadas: a tela explica onde ligar, em vez de levar a outra tela sem dizer por quê.
+    if (/^#\/integracoes/.test(h) && !E.integracoes) return telaIntegracoesDesligadas();
+    if (it?.ver && !it.ver()) return trocarPara(inicioAdmin() === h ? `#/${itensAdmin()[0].id}` : inicioAdmin());
   }
   if (h) guardarUltima(h);
   // O item ativo da lateral acompanha a rota já no clique, sem esperar a tela carregar os dados.

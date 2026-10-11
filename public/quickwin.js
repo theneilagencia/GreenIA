@@ -240,7 +240,7 @@ async function paginaQuickWin(id) {
         ${lista.conversas.length ? `<ul class="execucoes">${lista.conversas.map(c => `<li>
           <a class="execucao" href="#/c/${c.id}"><b>${esc(c.titulo)}</b><span>${dataCurta(c.atualizado_em)} · ${c.feedback ? FEEDBACK[c.feedback] : c.tem_resposta ? 'Sem avaliação' : 'sem resposta'}${c.sigilosa ? ' · Sigilosa' : ''}</span></a>
           <button class="icone-btn" data-renomear="${c.id}" aria-label="Renomear ${esc(c.titulo)}" title="Renomear">${ICONE.lapis}<span>Renomear</span></button>
-          <button class="icone-btn" data-apagar="${c.id}" aria-label="Apagar ${esc(c.titulo)}" title="Apagar">${ICONE.lixo}<span>Excluir</span></button></li>`).join('')}</ul>`
+          <button class="icone-btn" data-apagar="${c.id}" aria-label="Excluir ${esc(c.titulo)}" title="Excluir">${ICONE.lixo}<span>Excluir</span></button></li>`).join('')}</ul>`
           : `<p class="dica">Nenhuma execução ainda.${podeUsar ? ` <a class="link-sutil" href="${usarHref(qw)}">Usar agora</a>` : ''}</p>`}
       </section>
       ${detalhes ? `<details class="qw-bloco qw-detalhes"><summary>Detalhes</summary><div class="secoes">${detalhes}</div></details>` : ''}

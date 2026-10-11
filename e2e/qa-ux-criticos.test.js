@@ -130,3 +130,12 @@ test('Recusa de tela da administração explica o próximo passo e não prende o
   await p.locator('.toast', { hasText: 'peça acesso a quem administra' }).waitFor();
   await p.goBack({ waitUntil: 'commit' }); await p.waitForURL(/#\/conversas$/);
 });
+
+test('A24: Integrações desligadas explicam onde ligar, sem levar a outra tela', async () => {
+  const p = await pagina(admin);
+  await p.goto(`${S.base}/app#/integracoes`);
+  await p.getByRole('heading', { name: 'As integrações estão desligadas nesta empresa' }).waitFor();
+  assert.match(p.url(), /#\/integracoes$/);
+  assert.equal(await p.getByRole('link', { name: 'Abrir Configurações' }).count(), 1);
+  assert.deepEqual(p.erros, []);
+});

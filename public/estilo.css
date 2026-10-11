@@ -155,7 +155,7 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .item-lat.sub{padding-left:16px;font-size:13px;color:var(--muted)}
 .item-lat.sub.ativo{color:var(--ink)}
 .vazio-lat{font:400 13px/1.5 var(--sans);color:var(--muted);padding:2px 8px 8px}
-.selo-lat{font:500 11px var(--sans);color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:0 6px;flex:none}
+.selo-lat{font:500 12px var(--sans);color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:0 6px;flex:none}
 .lateral-pe{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;display:flex;flex-direction:column;gap:1px}
 .lateral-pe .btn-lat{text-align:left;background:none;border:none;color:var(--muted);font:400 13px var(--sans);padding:6px 8px;text-decoration:none;border-radius:6px}
 .lateral-pe .btn-lat:hover{background:var(--sand);color:var(--ink)}

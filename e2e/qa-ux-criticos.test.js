@@ -124,8 +124,9 @@ test('C4/C5: Quick Win do formato anterior tem caminho para publicar e as telas 
 test('Recusa de tela da administração explica o próximo passo e não prende o Voltar', async () => {
   const p = await pagina(pessoa);
   await p.goto(`${S.base}/app#/conversas`);
+  await p.waitForSelector('.hc-conversa, .vazio');
   await p.goto(`${S.base}/app#/modelos`);
-  await p.waitForURL(/#\/nova$/);
+  await p.waitForFunction(() => location.hash === '#/nova', null, { timeout: 8000 }).catch(async e => { console.log('HASH', await p.evaluate(() => location.hash + ' | ' + document.querySelector('#principal')?.innerText.slice(0, 200) + ' | toast=' + document.querySelector('.toast')?.innerText)); throw e; });
   await p.locator('.toast', { hasText: 'peça acesso a quem administra' }).waitFor();
   await p.goBack({ waitUntil: 'commit' }); await p.waitForURL(/#\/conversas$/);
 });

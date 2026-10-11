@@ -91,7 +91,7 @@ for (const [largura, email] of [[1280, 'lia'], [390, 'w390']]) {
     await p.screenshot({ path: `capturas/tmp/fontes-criacao-${largura}.png`, fullPage: true });
     // Conversa: "Adicionar link" e o papel de cada anexo.
     await p.goto(`${N.base}/app#/nova`);
-    await p.waitForSelector('#anexar-link');
+    await p.waitForSelector('#mais-anexos');
     await p.click('#mais-anexos'); await p.click('#anexar-link');
     await p.fill('#link-url', 'https://politicas.exemplo.test/viagens');
     await p.click('#link-ok');

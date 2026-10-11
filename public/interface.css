@@ -442,3 +442,168 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .qw-caminhos :is(a,button):is(:hover,:focus-visible)::after{color:var(--forest);transform:translateX(2px)}
 @media(max-width:640px){.qw-caminhos :is(a,button) b{min-height:0}}
 @media(prefers-reduced-motion:reduce){.qw-caminhos :is(a,button),.qw-caminhos :is(a,button)::after{transition:none}}
+
+/* === Layout: administração === Formatação das telas de administração da empresa (rodada de alinhamento):
+   cabeçalhos de seção com a ação alinhada à borda, indicadores com rótulo, valor e nota na mesma altura em cada
+   linha, cartões no padrão comum (.grade-cartoes/.cartao), barras de filtro com a mesma altura, tabelas com a
+   primeira linha de texto alinhada e textos que quebram linha em vez de cortar com reticências. */
+
+/* Cabeçalho de seção: título (com a contagem ao lado) à esquerda, ação alinhada à borda direita do conteúdo. */
+body[data-contexto="admin"]{--adm-alvo:40px}
+@media(max-width:760px){body[data-contexto="admin"]{--adm-alvo:44px}}
+body[data-contexto="admin"] .pagina .secao-titulo{align-items:center;margin:28px 0 10px;min-height:40px}
+body[data-contexto="admin"] .pagina .secao-titulo h2{margin:0}
+body[data-contexto="admin"] .pagina .secao-titulo h2 .dica{font:400 13px var(--sans);margin-left:8px;white-space:nowrap}
+body[data-contexto="admin"] .pagina .secao-titulo>.btn-texto{margin-right:-8px;margin-left:auto;display:inline-flex;align-items:center}
+body[data-contexto="admin"] .pagina .secao-titulo>span.dica{margin-left:auto}
+body[data-contexto="admin"] .pagina .secao-titulo+:is(.indicadores,.lista,.tabela-rolagem,.grade-2,.faixa-aviso,p.dica){margin-top:0}
+
+/* Listas (Visão geral): título e explicação em linhas que quebram, sem cortar; a ação fica centralizada. */
+body[data-contexto="admin"] .lista-item .principal-texto b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.4}
+body[data-contexto="admin"] .lista-item .principal-texto>span.dica{display:block;margin-top:2px;line-height:1.45}
+body[data-contexto="admin"] .lista-item{min-height:56px;padding:12px 16px}
+
+/* Indicadores: o número de colunas segue a quantidade (sem um indicador sozinho numa linha), e rótulo, valor e nota
+   de cada linha ficam na mesma altura (subgrid), mesmo quando um rótulo quebra em duas linhas. */
+body[data-contexto="admin"] .pagina .indicadores{--n:4;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;margin:0 0 12px}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(3):last-child){--n:3}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(2):last-child){--n:2}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(5):last-child){--n:5}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(6):last-child){--n:3}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(9):last-child){--n:3}
+body[data-contexto="admin"] .pagina .indicador{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:4px;align-content:start;margin:0;border:0;box-shadow:0 0 0 1px var(--line);padding:14px 16px}
+body[data-contexto="admin"] .pagina .indicador>*{margin:0;min-width:0;overflow-wrap:anywhere}
+body[data-contexto="admin"] .pagina .indicador>span{align-self:start;line-height:1.35}
+body[data-contexto="admin"] .pagina .indicador>small{line-height:1.45}
+@media(max-width:1000px){
+  body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(4):last-child){--n:2}
+  body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(5):last-child){--n:3}
+}
+@media(max-width:640px){
+  body[data-contexto="admin"] .pagina .indicadores{--n:2!important}
+  body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(3):last-child){--n:1!important}
+}
+
+/* Barras de filtro: campos, botões e "Salvar filtros" alinhados pela base, com a mesma altura. */
+body[data-contexto="admin"] .pagina .filtros{align-items:flex-end;gap:12px}
+body[data-contexto="admin"] .pagina .filtros>.btn{min-height:var(--adm-alvo)}
+body[data-contexto="admin"] .pagina .filtros>.visoes-salvas{margin:0;min-height:var(--adm-alvo);align-items:center;gap:4px 8px}
+body[data-contexto="admin"] .pagina .filtros>.visoes-salvas .btn-texto{min-height:var(--adm-alvo);display:inline-flex;align-items:center}
+body[data-contexto="admin"] #filtro-ev .campo{flex:1 1 170px;min-width:0}
+body[data-contexto="admin"] #filtro-ev .data-br{max-width:none}
+body[data-contexto="admin"] #filtro-ev .entrada{width:100%}
+body[data-contexto="admin"] #filtro-ev>.visoes-salvas{flex-basis:100%}
+body[data-contexto="admin"] .filtros>.visoes-salvas>.btn-texto:first-child{margin-left:-8px}
+body[data-contexto="admin"] :is(#form-marca,#form-landing) textarea{field-sizing:content;min-height:4.6em;max-height:24em}
+
+/* Configurações e avisos no celular: "Editar" numa linha própria abaixo do texto (a explicação não fica espremida)
+   e links dentro do texto do aviso sem abrir espaço entre as linhas (o alvo de toque cresce com o espaçamento). */
+@media(max-width:640px){
+  body[data-contexto="admin"] .cfg-caixa>summary.cfg-topo{flex-wrap:wrap}
+  body[data-contexto="admin"] .cfg-topo>.cfg-abrir{order:3;flex-basis:calc(100% - 38px);margin-left:38px;min-height:44px}
+  body[data-contexto="admin"] .faixa-aviso a:not(.btn,.btn-texto){display:inline;min-height:0;padding:12px 0}
+  /* Tabela virada lista: célula com mais de um bloco (resumo + "Ver todos os detalhes", nome + email) fica com o
+     rótulo em cima e o conteúdo inteiro embaixo, alinhado à esquerda, em vez de espremido entre rótulo e borda. */
+  body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*){display:block;text-align:left}
+  body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*)::before{display:block;max-width:none;margin-bottom:4px}
+  body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*) .auditoria-resumo{margin:0 0 4px}
+  /* Situação da página de apresentação: as duas ações com a largura toda, texto no meio. */
+  body[data-contexto="admin"] .ld-situacao .linha-botoes{width:100%}
+  body[data-contexto="admin"] .ld-situacao .linha-botoes>:is(a,button){flex:1 1 100%;justify-content:center;min-height:44px;margin:0}
+  /* Escolha automática: o botão de opção fica na linha do título da preferência. */
+  body[data-contexto="admin"] .rt-pref label{align-items:flex-start!important}
+}
+
+/* Tabelas: a primeira linha de texto de cada célula na mesma altura (linhas com várias linhas de texto, controles
+   e selos ficavam centralizados, cada um numa altura). Emails ficam inteiros no desktop. */
+body[data-contexto="admin"] .pagina .tabela td{vertical-align:baseline}
+body[data-contexto="admin"] .pagina .tabela td .selo{white-space:normal;border-radius:6px;line-height:1.4;text-align:left}
+@media(min-width:761px){body[data-contexto="admin"] .pagina .tabela td.adm-email{white-space:nowrap}}
+body[data-contexto="admin"] .pagina .tabela td.adm-email{overflow-wrap:anywhere}
+
+/* Pessoas e abas: conceitos no padrão de cartão; barra com busca, filtros e ação na mesma altura (40 px); emails,
+   nomes e etiquetas quebram linha em vez de cortar. */
+body[data-contexto="admin"] .conceitos.grade-cartoes{--cartao-min:260px;margin:0 0 16px}
+body[data-contexto="admin"] .conceito.cartao{font:inherit;border-radius:var(--cartao-raio)}
+body[data-contexto="admin"] .conceito.cartao>.cartao-titulo{font:600 15px/1.35 var(--sans)}
+body[data-contexto="admin"] .conceito.cartao .cartao-texto{font:400 13.5px/1.5 var(--sans)}
+body[data-contexto="admin"] .conceito.cartao.atual{border-color:var(--forest-text);background:var(--mint)}
+body[data-contexto="admin"] .conceito.cartao.atual .cartao-texto{color:var(--ink)}
+body[data-contexto="admin"] .lx-barra{align-items:center;margin:4px 0 12px}
+body[data-contexto="admin"] .lx-ferramentas :is(.lx-seletor select,.lx-busca input){height:var(--adm-alvo);min-height:var(--adm-alvo)}
+body[data-contexto="admin"] .lx-ferramentas .pilulas{height:var(--adm-alvo);align-items:stretch}
+body[data-contexto="admin"] .lx-ferramentas .pilula{height:auto}
+body[data-contexto="admin"] .lx-ferramentas{flex:1 1 auto;justify-content:flex-end}
+body[data-contexto="admin"] .lx-ferramentas #lx-novo{min-height:var(--adm-alvo)}
+@media(max-width:640px){
+  body[data-contexto="admin"] .lx-ferramentas>:is(.lx-seletor,.pilulas){flex:1 1 140px}
+  body[data-contexto="admin"] .lx-ferramentas .lx-seletor select{width:100%}
+  body[data-contexto="admin"] .lx-ferramentas #lx-novo{flex:1 1 100%;justify-content:center;min-height:44px}
+}
+body[data-contexto="admin"] .lx-nome :is(b,small){white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+body[data-contexto="admin"] .lx-texto{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+body[data-contexto="admin"] :is(.lx-tags,.lx-c) .tag{white-space:normal;height:auto;min-height:22px;line-height:1.35;padding-top:2px;padding-bottom:2px;max-width:100%;overflow:visible;text-overflow:clip}
+body[data-contexto="admin"] .lx-linha{padding-top:8px;padding-bottom:8px}
+
+/* Perfis: nome e descrição numa coluna com largura de leitura, contagem sem quebra. */
+body[data-contexto="admin"] .adm-perfis .tabela td:first-child{min-width:200px;max-width:260px}
+body[data-contexto="admin"] .adm-perfis .tabela td:nth-child(3){white-space:nowrap}
+body[data-contexto="admin"] .adm-perfis .tabela td:first-child .dica{display:block;margin-top:4px}
+
+/* Quem cria Quick Wins: um nível de caixa só (o formulário não desenha outra caixa em volta dos escopos). */
+body[data-contexto="admin"] #perm-qw.grupo-form{border:0;padding:0;background:none;box-shadow:none}
+body[data-contexto="admin"] .adm-escopo{padding:16px 18px;margin:0 0 16px}
+body[data-contexto="admin"] .adm-escopo .opcoes{margin:4px 0 12px}
+body[data-contexto="admin"] .adm-escopo .duas-col{align-items:start}
+
+/* Modelos: o catálogo técnico vira cartões (antes uma tabela de dez colunas cortada à direita). */
+body[data-contexto="admin"] .adm-catalogo{--cartao-min:300px;margin:10px 0 14px}
+body[data-contexto="admin"] .adm-modelo{gap:10px}
+body[data-contexto="admin"] .adm-modelo.adm-modelo-fora{background:var(--surface)}
+body[data-contexto="admin"] .adm-modelo-id{font:400 12.5px var(--mono,ui-monospace,monospace);overflow-wrap:anywhere}
+body[data-contexto="admin"] .adm-modelo>.cartao-titulo{margin:0}
+body[data-contexto="admin"] .adm-modelo-dados{display:grid;grid-auto-flow:column;grid-template-rows:auto auto;grid-auto-columns:minmax(0,1fr);gap:2px 12px;margin:0}
+body[data-contexto="admin"] .adm-modelo-dados>div{display:contents}
+body[data-contexto="admin"] .adm-modelo-dados dt{font:500 12px/1.35 var(--sans);color:var(--muted);align-self:end;min-width:0}
+body[data-contexto="admin"] .adm-modelo-dados dd{margin:0;min-width:0;font:500 14px/1.4 var(--sans);font-variant-numeric:tabular-nums}
+body[data-contexto="admin"] .adm-modelo-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;align-items:end}
+body[data-contexto="admin"] .adm-modelo-campo{display:grid;gap:4px;min-width:0;font:500 12.5px var(--sans);color:var(--ink)}
+body[data-contexto="admin"] .adm-modelo-campo select{width:100%}
+body[data-contexto="admin"] .adm-modelo-liberado{grid-column:1/-1;min-height:32px}
+body[data-contexto="admin"] :is(.adm-modelo-sigilo,.adm-modelo-cap){display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-top:10px;border-top:1px solid var(--line);min-width:0}
+body[data-contexto="admin"] .adm-modelo-sigilo>.dica{display:block;overflow-wrap:anywhere;line-height:1.45}
+body[data-contexto="admin"] .adm-atributos{display:grid;gap:8px;margin-top:8px}
+body[data-contexto="admin"] .adm-atributos label{display:grid;gap:4px}
+body[data-contexto="admin"] .adm-atributos .btn{justify-self:start}
+body[data-contexto="admin"] #cfg-modelos .editor>b{display:block;margin-bottom:6px}
+body[data-contexto="admin"] #cfg-modelos .editor .opcoes{margin-bottom:8px}
+body[data-contexto="admin"] #cfg-modelos .editor .duas-col{align-items:start}
+
+/* Escolha automática: os cinco números numa linha só, no padrão de cartão. */
+body[data-contexto="admin"] .adm-resumo-rota{--cartao-min:180px;margin:4px 0 12px}
+body[data-contexto="admin"] .adm-numeros>.or-card{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:8px;align-content:start}
+body[data-contexto="admin"] .adm-numeros .or-rotulo{align-self:start}
+body[data-contexto="admin"] .adm-numeros .or-numero{font-size:28px;line-height:1.1}
+body[data-contexto="admin"] .pagina .tabela td:has(>.selo){min-width:170px}
+body[data-contexto="admin"] #modelos-manuais>h2{font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink);margin:28px 0 10px}
+
+/* Políticas: opções abaixo da tabela espaçadas e perfil público em duas colunas na largura de leitura. */
+body[data-contexto="admin"] #form-dados>label.opcoes{margin-top:16px!important}
+body[data-contexto="admin"] .perfil-publico{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:0 16px;max-width:var(--gestao-leitura);margin-top:20px!important}
+body[data-contexto="admin"] .perfil-publico>legend{padding:0;margin-bottom:4px;font:600 15px/1.3 var(--sans)}
+body[data-contexto="admin"] .perfil-publico>p{grid-column:1/-1;margin:0 0 12px}
+
+/* Página de apresentação: situação com as ações ao lado do texto; interruptor e seta no meio da linha do título. */
+body[data-contexto="admin"] .faixa-aviso.ld-situacao{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
+body[data-contexto="admin"] .ld-situacao>span:first-child{flex:1 1 320px}
+body[data-contexto="admin"] .ld-situacao .linha-botoes{align-items:center}
+body[data-contexto="admin"] .ld-situacao .linha-botoes .btn-texto{display:inline-flex;align-items:center}
+@media(min-width:641px){
+  body[data-contexto="admin"] .ld-bloco>summary{min-height:52px;align-items:center;box-sizing:border-box}
+  body[data-contexto="admin"] .ld-bloco-caixa>.ld-vis{top:0;height:52px;padding:0;display:inline-flex;align-items:center}
+  body[data-contexto="admin"] .ld-bloco-caixa.com-chave>.ld-bloco>summary::after{top:50%;margin-top:-6px}
+}
+
+/* URL e domínio: título e explicação de cada passo em linhas próprias, com o mesmo espaçamento. */
+body[data-contexto="admin"] .url-lista li>b{display:block;margin-bottom:4px}
+body[data-contexto="admin"] .url-lista li>b+.dica{display:block;margin-bottom:6px}

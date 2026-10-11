@@ -36,10 +36,10 @@ export async function telaRoles() {
   const desc = Object.fromEntries(permissoes.map(p => [p.key, p.description]));
   $('conteudo').innerHTML = `<p class="lead">Perfis de sistema valem para todas as empresas e não mudam. Perfis próprios combinam as permissões que a empresa precisa.</p>
     ${!podeCriar ? '<div class="faixa-aviso atencao">Perfis próprios não estão liberados para esta empresa. Você pode usar os perfis de sistema.</div>' : ''}
-    ${tabela(['Perfil', 'Permissões', 'Pessoas', ''], roles.map(r => `<tr><td data-r="Perfil"><b>${esc(r.name)}</b>${r.system ? ' <span class="selo selo-cinza">Sistema</span>' : ''}<br><span class="dica">${esc(r.description)}</span></td>
+    <div class="adm-perfis">${tabela(['Perfil', 'Permissões', 'Pessoas', ''], roles.map(r => `<tr><td data-r="Perfil"><b>${esc(r.name)}</b>${r.system ? ' <span class="selo selo-cinza">Sistema</span>' : ''}<br><span class="dica">${esc(r.description)}</span></td>
       <td data-r="Permissões"><div class="chips adm-chips">${r.permissoes.map(p => `<span class="chip" title="${esc(desc[p] || p)}">${esc(desc[p] || p)}</span>`).join('') || '<span class="dica">nenhuma</span>'}</div></td>
       <td data-r="Pessoas">${r.usuarios} ${r.usuarios === 1 ? 'pessoa' : 'pessoas'}</td>
-      <td data-r="Ações">${!r.system && podeCriar ? `<div class="linha-botoes"><button class="btn-texto btn-pequeno" data-editar="${r.id}">Editar</button><button class="btn btn-perigo btn-pequeno" data-excluir="${r.id}">Remover</button></div>` : '<span class="dica">—</span>'}</td></tr>`), 'Nenhum perfil.')}
+      <td data-r="Ações">${!r.system && podeCriar ? `<div class="linha-botoes"><button class="btn-texto btn-pequeno" data-editar="${r.id}">Editar</button><button class="btn btn-perigo btn-pequeno" data-excluir="${r.id}">Remover</button></div>` : '<span class="dica">—</span>'}</td></tr>`), 'Nenhum perfil.')}</div>
     ${podeCriar ? '<div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde" id="nova-role">Novo perfil</button></div>' : ''}
     <div id="editor-role"></div>`;
   const editor = r => {
@@ -79,7 +79,7 @@ async function telaMarca() {
   $('conteudo').innerHTML = `<p class="lead">A identidade visual aparece na página inicial, no login e no app. Itens definidos pelo operador da plataforma ficam travados.</p>${renderMarca(marca, { modo: 'empresa', pode: podeEditar, motivo })}`;
   if (!podeEditar) return;
   const ler = ligarMarca(marca);
-  const vig = vigiarAlteracoes($('form-marca'), { barra: $('form-marca').querySelector('.linha-botoes'), cliques: '[data-remover], [data-exemplo]' });
+  const vig = vigiarAlteracoes($('form-marca'), { barra: $('form-marca').querySelector(':scope > .linha-botoes'), cliques: '[data-remover], [data-exemplo]' });
   $('form-marca').onsubmit = async ev => {
     ev.preventDefault();
     try { const { corpo } = await ler(); await api('/api/empresa/marca', { metodo: 'PUT', corpo }); vig.limpar(); toast('Identidade visual salva. Recarregando…'); setTimeout(() => location.reload(), 900); }

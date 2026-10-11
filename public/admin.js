@@ -32,6 +32,9 @@ const num = v => Number(v || 0).toLocaleString('pt-BR');
 const colunasPreco = () => (emCreditos() ? ['#Consumo por conversa típica'] : ['#Entrada (1M)', '#Saída (1M)', '#Conversa típica']);
 const celulasPreco = x => (emCreditos() ? `<td class="num">${fmtCusto(x.custoConversa, { conversa: true })}</td>`
   : `<td class="num">${porMilhao(x.precoEntrada)}</td><td class="num">${porMilhao(x.precoSaida)}</td><td class="num">${fmtCusto(x.custoConversa)}</td>`);
+// No cartão do catálogo, o consumo (ou o preço, sem plano) aparece como dado, com o rótulo ao lado do valor.
+const metaPreco = x => (emCreditos() ? `<div><dt>Consumo por conversa típica</dt><dd>${fmtCusto(x.custoConversa, { conversa: true })}</dd></div>`
+  : `<div><dt>Entrada (1M)</dt><dd>${porMilhao(x.precoEntrada)}</dd></div><div><dt>Saída (1M)</dt><dd>${porMilhao(x.precoSaida)}</dd></div><div><dt>Conversa típica</dt><dd>${fmtCusto(x.custoConversa)}</dd></div>`);
 const dataHora = iso => (iso ? new Date(iso.replace(' ', 'T') + (iso.length === 19 ? 'Z' : '')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const lerDataUrl = f => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(f); });
 const falhar = e => toast(e.message || 'Algo deu errado.', 6000);
@@ -122,23 +125,31 @@ async function abaModelos() {
         ? 'O modo recomendado já está ativo. Solicite ao administrador da plataforma uma rota autorizada para dados sigilosos, com fornecedor definido, não uso para treino e retenção zero comprovados.'
         : 'Verifique com o administrador da plataforma se há uma rota autorizada no modo recomendado, ou aprove um modelo para dados sigilosos abaixo, com fornecedor definido, não uso para treino e retenção zero comprovados.'}</div>`}
     ${m.modelos.filter(x => x.aviso).map(x => `<div class="faixa-aviso atencao">${esc(x.nome)}: ${esc(x.aviso)}</div>`).join('')}
-    <details id="modelos-manuais" ${recomendado?'':'open'}><summary>Configurar modelos manualmente</summary><p class="dica">No modo recomendado, a GreenIA cuida da escolha. Alterar estes controles muda a empresa para o modo manual; as regras de sigilo continuam valendo.</p>${tabela(['Modelo', 'Nível', ...colunasPreco(), '#Tamanho do conteúdo', 'Liberado', 'Reserva', 'Dados sigilosos', 'Capacidades'], m.modelos.map(x => `<tr>
-      <td style="min-width:190px"><b>${esc(x.nome)}</b><br><span class="dica">${esc(x.id)}</span></td>
-      <td><select data-perfil="${esc(x.id)}" aria-label="Nível de ${esc(x.nome)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}" ${x.perfil === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
-      ${celulasPreco(x)}<td class="num">${x.contexto ? num(x.contexto) : '—'}</td>
-      <td><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"></td>
-      <td><select data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></td>
-      <td>${x.homologacaoEmpresa ? `<span class="selo">${ICONE.escudo} Homologado pela empresa</span> <span class="dica">aprovado para dados sigilosos</span><br><span class="dica">${esc(x.homologacaoEmpresa.fornecedor || '')} · ${esc(x.homologacaoEmpresa.quem || '')} · ${dataHora(x.homologacaoEmpresa.em)}</span><br><button type="button" class="btn btn-perigo btn-pequeno" data-retirar="${esc(x.id)}">Retirar aprovação</button>` : ''}
-        ${x.autorizacaoPlataforma ? `<span class="selo">${ICONE.escudo} Autorizado pela plataforma</span><br>` : ''}
+    <details id="modelos-manuais" ${recomendado?'':'open'}><summary>Configurar modelos manualmente</summary><p class="dica">No modo recomendado, a GreenIA cuida da escolha. Alterar estes controles muda a empresa para o modo manual; as regras de sigilo continuam valendo.</p><div class="grade-cartoes adm-catalogo">${m.modelos.map(x => `<article class="cartao sem-seta adm-modelo${x.liberado ? '' : ' adm-modelo-fora'}" aria-labelledby="mod-${esc(x.id).replace(/[^\w-]/g, '-')}">
+      <h3 class="cartao-titulo" id="mod-${esc(x.id).replace(/[^\w-]/g, '-')}">${esc(x.nome)}</h3>
+      <p class="cartao-meta"><span class="adm-modelo-id">${esc(x.id)}</span></p>
+      <dl class="adm-modelo-dados">${metaPreco(x)}<div><dt>Tamanho do conteúdo</dt><dd>${x.contexto ? num(x.contexto) : '—'}</dd></div></dl>
+      <div class="adm-modelo-campos">
+        <label class="adm-modelo-campo"><span>Nível</span><select class="entrada" data-perfil="${esc(x.id)}" aria-label="Nível de ${esc(x.nome)}">${Object.entries(PERFIS).map(([k, v]) => `<option value="${k}" ${x.perfil === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label class="adm-modelo-campo"><span>Reserva</span><select class="entrada" data-reserva="${esc(x.id)}" aria-label="Reserva de ${esc(x.nome)}">${opcao(liberados.filter(r => r.id !== x.id && r.perfil === x.perfil), x.reserva, 'sem reserva')}</select></label>
+        <label class="adm-marca adm-modelo-liberado"><input type="checkbox" data-liberado="${esc(x.id)}" ${x.liberado ? 'checked' : ''} aria-label="${esc(x.nome)} liberado"> <span>Liberado</span></label>
+      </div>
+      <div class="adm-modelo-sigilo"><span class="legenda">Dados sigilosos</span>
+        ${x.homologacaoEmpresa ? `<span class="selo">${ICONE.escudo} Homologado pela empresa</span> <span class="dica">aprovado para dados sigilosos</span><span class="dica">${esc(x.homologacaoEmpresa.fornecedor || '')} · ${esc(x.homologacaoEmpresa.quem || '')} · ${dataHora(x.homologacaoEmpresa.em)}</span>` : ''}
+        ${x.autorizacaoPlataforma ? `<span class="selo">${ICONE.escudo} Autorizado pela plataforma</span>` : ''}
         ${x.liberado && x.dados ? `<span class="dica">Pode receber: ${['conteúdo comum', x.dados.dadosPessoais && 'dados pessoais', x.dados.sensiveis && 'dados sensíveis e confidenciais'].filter(Boolean).join(', ')} · treino: ${esc(x.dados.semTreino)} · retenção zero: ${esc(x.dados.retencaoZero)}${x.dados.regiao ? ` · região: ${esc(x.dados.regiao)}` : ''}</span>
-        <details class="atributos"><summary class="dica">Atributos de dados</summary><div class="linha-botoes" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+        <details class="atributos"><summary class="dica">Atributos de dados</summary><div class="adm-atributos">
           <label class="dica">Uso para treino <select class="entrada" data-attr="semTreino" data-modelo="${esc(x.id)}">${[['', 'conforme a rota'], ['true', 'não treina (contrato)'], ['false', 'pode treinar']].map(([v, r]) => `<option value="${v}" ${String(x.atributos?.semTreino ?? '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
           <label class="dica">Dados pessoais <select class="entrada" data-attr="dadosPessoais" data-modelo="${esc(x.id)}">${[['', 'conforme os atributos'], ['permitido', 'permitido'], ['proibido', 'proibido']].map(([v, r]) => `<option value="${v}" ${(x.atributos?.dadosPessoais ?? '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-          <label class="dica">Região <input class="entrada" data-attr="regiao" data-modelo="${esc(x.id)}" value="${esc(x.atributos?.regiao || '')}" maxlength="60" style="width:120px"></label>
-          <button type="button" class="btn btn-linha btn-pequeno" data-salvar-attr="${esc(x.id)}">Salvar atributos</button></div></details><br>` : ''}
+          <label class="dica">Região <input class="entrada" data-attr="regiao" data-modelo="${esc(x.id)}" value="${esc(x.atributos?.regiao || '')}" maxlength="60"></label>
+          <button type="button" class="btn btn-linha btn-pequeno" data-salvar-attr="${esc(x.id)}">Salvar atributos</button></div></details>` : ''}
         ${x.homologado ? '<span class="dica">Recebe informação sigilosa (proteções obrigatórias atendidas)</span>' : (x.homologacaoEmpresa || x.autorizacaoPlataforma) ? `<span class="dica">Não recebe informação sigilosa: ${esc((x.sigiloTexto || []).join('; '))}</span>` : ''}
-        ${x.homologacaoEmpresa ? '' : x.vetadoPlataforma ? '<span class="dica">Proibido pela plataforma para dados sigilosos</span>' : x.liberado ? `<br><button type="button" class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Aprovar para dados sigilosos</button>` : '<span class="dica">libere antes</span>'}</td>
-      <td>${editorCapacidades(x)}</td></tr>`))}
+        ${x.homologacaoEmpresa || !x.vetadoPlataforma ? '' : '<span class="dica">Proibido pela plataforma para dados sigilosos</span>'}
+        ${!x.homologacaoEmpresa && !x.vetadoPlataforma && !x.liberado ? '<span class="dica">Libere o modelo antes de aprovar para dados sigilosos</span>' : ''}</div>
+      <div class="adm-modelo-cap"><span class="legenda">Capacidades</span>${editorCapacidades(x)}</div>
+      ${x.homologacaoEmpresa ? `<div class="cartao-acoes"><button type="button" class="btn btn-perigo btn-pequeno" data-retirar="${esc(x.id)}">Retirar aprovação</button></div>`
+        : !x.vetadoPlataforma && x.liberado ? `<div class="cartao-acoes"><button type="button" class="btn btn-linha btn-pequeno" data-homologar="${esc(x.id)}">Aprovar para dados sigilosos</button></div>` : ''}
+    </article>`).join('')}</div>
     <p class="dica">Capacidades: por padrão, cada modelo vale o nível dele em tudo. Informe só quando um modelo foge disso (por exemplo, um Equilibrado forte em programação, ou um Avançado fraco em leitura de documentos longos). A escolha automática compara essas capacidades com o que cada pedido exige; o nível continua valendo para acesso, plano e Quick Win.</p>
     <h2>Adicionar do catálogo de modelos</h2>
     <form class="filtros" id="busca-modelo"><div class="campo"><label for="q-modelo">Buscar por nome ou id</label><input class="entrada" id="q-modelo" placeholder="ex.: claude, gemini, gpt"></div><button class="btn btn-linha btn-pequeno">Buscar</button></form>
@@ -374,12 +385,12 @@ async function abaEventos(filtro = {}, pagina = 0) {
       <button class="btn btn-linha btn-pequeno">Filtrar</button>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/eventos?${q}&formato=csv">Baixar planilha</a></form>
     <p class="dica">${num(d.total)} eventos.</p>
-    ${tabela(['Quando', 'O que aconteceu', 'Pessoa', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(nomeEvento(e.tipo))}</td><td>${esc(e.pessoa || '—')}</td>
+    ${tabela(['Quando', 'O que aconteceu', 'Pessoa', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(nomeEvento(e.tipo))}</td><td class="adm-email">${esc(e.pessoa || '—')}</td>
       <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhum evento com esses filtros.')}
     <div class="linha-botoes" style="margin-top:12px">${pagina > 0 ? '<button class="btn btn-linha btn-pequeno" id="ev-ant">Anteriores</button>' : ''}${(pagina + 1) * 100 < d.total ? '<button class="btn btn-linha btn-pequeno" id="ev-prox">Mais antigos</button>' : ''}</div>`;
   // Datas digitadas em dd/mm/aaaa; a API recebe aaaa-mm-dd, como antes. Data inválida não filtra: o campo avisa.
   const ler = () => ({ tipo: $('ev-tipo').value, pessoa: $('ev-pessoa').value, de: lerData($('ev-de')) || '', ate: lerData($('ev-ate')) || '' });
-  ligarVisao('atividade',$('filtro-ev').parentElement,ler,v=>abaEventos(v));
+  ligarVisao('atividade',$('filtro-ev'),ler,v=>abaEventos(v));
   $('filtro-ev').onsubmit = ev => {
     ev.preventDefault();
     const ruim = ['ev-de', 'ev-ate'].map($).find(el => lerData(el) === null);
@@ -683,7 +694,7 @@ function barrasDist(titulo, dist, nomes) {
   const total = Object.values(dist).reduce((a, b) => a + b, 0);
   const linhas = Object.entries(nomes).filter(([k]) => dist[k]).map(([k, nome]) => { const n = dist[k], pct = Math.round(n / total * 100);
     return `<div class="rt-linha" title="${esc(nome)}: ${num(n)} ${n === 1 ? 'decisão' : 'decisões'} (${pct}%)"><span>${esc(nome)}</span><div class="barra"><span style="width:${pct}%"></span></div><b>${pct}%</b></div>`; });
-  return `<div class="or-card"><span class="or-rotulo">${esc(titulo)}</span>${linhas.join('') || '<p class="or-sub">Sem decisões ainda.</p>'}</div>`;
+  return `<div class="or-card cartao sem-seta"><span class="or-rotulo">${esc(titulo)}</span>${linhas.join('') || '<p class="or-sub">Sem decisões ainda.</p>'}</div>`;
 }
 async function abaRoteamento() {
   const d = await api('/api/admin/roteamento');
@@ -697,16 +708,16 @@ async function abaRoteamento() {
       <div class="linha-botoes" style="margin-top:12px"><button class="btn btn-verde">Salvar escolha automática</button></div>
     </form>
     <h2>Últimos 30 dias</h2>
-    <div class="or-grade">
-      <div class="or-card"><span class="or-rotulo">Decisões</span><b class="or-numero">${num(r.decisoes)}</b><span class="or-sub">respostas com a escolha registrada</span></div>
-      <div class="or-card"><span class="or-rotulo">Consumo realizado</span><b class="or-numero">${fmtCusto(r.consumo.realizado.custo)}</b><span class="or-sub">medido nas respostas</span></div>
-      <div class="or-card destaque"><span class="or-rotulo">Consumo evitado (estimativa)</span><b class="or-numero">${r.consumoEvitadoEstimadoPercentual === null ? '—' : `${r.consumoEvitadoEstimadoPercentual}%`}</b><span class="or-sub">comparado a usar sempre o nível Avançado. É uma estimativa, não economia medida.</span></div>
-      <div class="or-card"><span class="or-rotulo">Abaixo do necessário</span><b class="or-numero">${num(r.limitadas + r.abaixoPorEscolha)}</b><span class="or-sub">${num(r.limitadas)} por regras ou permissões, ${num(r.abaixoPorEscolha)} por escolha manual</span></div>
-      <div class="or-card"><span class="or-rotulo">Fora da escolha automática</span><b class="or-numero">${num(r.foraDoRoteador.externo + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.externo)} no Automático do serviço de IA, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
+    <div class="or-grade grade-cartoes adm-resumo-rota adm-numeros">
+      <div class="or-card cartao sem-seta"><span class="or-rotulo">Decisões</span><b class="or-numero">${num(r.decisoes)}</b><span class="or-sub">respostas com a escolha registrada</span></div>
+      <div class="or-card cartao sem-seta"><span class="or-rotulo">Consumo realizado</span><b class="or-numero">${fmtCusto(r.consumo.realizado.custo)}</b><span class="or-sub">medido nas respostas</span></div>
+      <div class="or-card cartao sem-seta destaque"><span class="or-rotulo">Consumo evitado (estimativa)</span><b class="or-numero">${r.consumoEvitadoEstimadoPercentual === null ? '—' : `${r.consumoEvitadoEstimadoPercentual}%`}</b><span class="or-sub">comparado a usar sempre o nível Avançado. É uma estimativa, não economia medida.</span></div>
+      <div class="or-card cartao sem-seta"><span class="or-rotulo">Abaixo do necessário</span><b class="or-numero">${num(r.limitadas + r.abaixoPorEscolha)}</b><span class="or-sub">${num(r.limitadas)} por regras ou permissões, ${num(r.abaixoPorEscolha)} por escolha manual</span></div>
+      <div class="or-card cartao sem-seta"><span class="or-rotulo">Fora da escolha automática</span><b class="or-numero">${num(r.foraDoRoteador.externo + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.externo)} no Automático do serviço de IA, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
     </div>
     <details class="uso-detalhes"><summary>Ver o diagnóstico da escolha automática</summary>
     <p class="dica">${r.realizadoSobreEstimado ? `Consumo estimado antes de cada resposta × consumo medido: ${Math.round(Math.min(r.realizadoSobreEstimado, 1 / r.realizadoSobreEstimado) * 100)}% de proximidade.` : 'Ainda sem amostra para comparar o consumo estimado com o medido.'}</p>
-    <div class="or-grade">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Nível exigido pelo pedido', r.porNecessaria, PERFIS)}${barrasDist('Nível usado', r.porClasse, PERFIS)}${barrasDist('Como o nível foi definido', r.porModo, MODO)}</div>
+    <div class="or-grade grade-cartoes adm-resumo-rota">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Nível exigido pelo pedido', r.porNecessaria, PERFIS)}${barrasDist('Nível usado', r.porClasse, PERFIS)}${barrasDist('Como o nível foi definido', r.porModo, MODO)}</div>
     <h3>Classificação dos pedidos</h3>
     <p class="dica">Quanto cada tipo de pedido aparece e como se sai. "Consulta" é o pedido sem tipo reconhecido: se ele for muito frequente ou concentrar "não serviu" e pedidos refeitos, a classificação precisa melhorar.</p>
     ${tabela(['Tipo principal', '#Pedidos', '#% do total', '#Não serviu', '#Refeitos', '#Tipo decidiu a exigência'], r.classificacao.map(c => `<tr><td>${esc(TIPO_TAREFA[c.tipo] || c.tipo)}</td>
@@ -741,7 +752,7 @@ async function abaRoteamento() {
 async function abaHistoricoModelos() {
   const d = await api('/api/admin/eventos?prefixo=model.');
   $('conteudo').innerHTML = `<p class="lead">Toda alteração de modelos fica registrada: liberação, nível, reserva, aprovação para dados sigilosos e troca do modelo de cada nível.</p>
-    ${tabela(['Quando', 'O que mudou', 'Quem', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(NOMES_EVENTO[e.tipo] || nomeEvento(e.tipo))}</td><td>${esc(e.pessoa || 'sistema')}</td>
+    ${tabela(['Quando', 'O que mudou', 'Quem', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(NOMES_EVENTO[e.tipo] || nomeEvento(e.tipo))}</td><td class="adm-email">${esc(e.pessoa || 'sistema')}</td>
       <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhuma alteração registrada ainda.')}`;
 }
 const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Níveis e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%' };

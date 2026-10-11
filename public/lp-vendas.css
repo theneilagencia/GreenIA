@@ -304,3 +304,7 @@
 .lv .l-tela-real{margin:40px 0 0}
 .lv .l-tela-real img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:16px;box-shadow:var(--sombra-1)}
 .lv .l-tela-real .l-legenda{margin-top:12px}
+/* Ritmo do cabeçalho de seção: a descrição fica perto do título dela (antes 64px abaixo, longe como se fosse outro
+   bloco) e parágrafos seguidos têm o mesmo espaço em todas as seções. */
+.lv .l-cab:has(+ .l-sub),.lv .l-cab:has(+ span + .l-sub){margin-bottom:24px}
+.lv .l-sub:has(+ .l-sub){margin-bottom:18px}

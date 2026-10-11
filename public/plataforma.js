@@ -584,7 +584,7 @@ function previaHtml(e) {
       ${linhaEco('Infraestrutura alocada', usd(e.infra))}${linhaEco('<b>Custo total</b>', `<b>${usd(e.custoPiorCaso)}</b>`)}
       ${linhaEco('Margem de IA (diagnóstico, não é a trava)', pctM(e.margemIa))}</tbody></table></div>
     <p class="dica">Margem total com uso parcial da franquia (a trava considera sempre o pior caso):</p>
-    <div class="tabela-rolagem"><table class="tabela"><thead><tr><th>25%</th><th>50%</th><th>75%</th><th>100%</th><th>100% + reserva</th></tr></thead><tbody><tr>${sim}</tr></tbody></table></div>
+    <div class="tabela-rolagem"><table class="tabela"><thead><tr><th class="num">25%</th><th class="num">50%</th><th class="num">75%</th><th class="num">100%</th><th class="num">100% + reserva</th></tr></thead><tbody><tr>${sim}</tr></tbody></table></div>
     ${e.pacote ? `<p class="dica">${esc(e.pacote.nome || 'Capacity Pack')}: margem total ${pctM(e.pacote.margem)} ${seloMargem(e.pacote.status)} · preço mínimo ${usd(e.pacote.precoMinimo)}.</p>` : ''}`;
 }
 

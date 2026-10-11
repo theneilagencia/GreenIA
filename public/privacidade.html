@@ -16,9 +16,11 @@
 .legal-indice li{break-inside:avoid;padding:3px 0;font:400 14.5px/1.5 var(--sans)}
 .legal h2[id]{scroll-margin-top:16px}
 .legal a{color:var(--forest-text)}
-.legal-rodape{max-width:1080px;margin:56px auto 0;padding:24px 24px calc(32px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 24px;font:400 14px/1.5 var(--sans);color:var(--muted)}
+.legal-rodape{max-width:712px;width:calc(100% - 48px);margin:56px auto 0;padding:24px 0 calc(32px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 24px;font:400 14px/1.5 var(--sans);color:var(--muted)}
 .legal-rodape a{color:var(--ink);text-decoration:none;min-height:24px}
 .legal-rodape a:hover{text-decoration:underline}
+/* Topo e rodapé na mesma coluna do texto (antes o topo e o rodapé iam a 1080px e o texto ficava em 760px). */
+.topo{max-width:760px}
 </style>
 </head>
 <body>

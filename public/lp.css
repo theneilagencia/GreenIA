@@ -508,7 +508,7 @@
 .pp-imagem img{display:block;width:100%;height:auto}
 
 .pp-confianca{list-style:none;padding:0;margin:64px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:1px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--line);box-shadow:var(--sombra-card)}
-.pp-confianca li{display:flex;align-items:center;gap:12px;padding:18px;background:var(--paper);min-width:0}
+.pp-confianca li{display:flex;align-items:flex-start;gap:12px;padding:18px;background:var(--paper);min-width:0}
 .pp-confianca b{display:block;font:600 14px var(--sans);color:var(--ink)}
 .pp-confianca small{display:block;font:400 13px/1.4 var(--sans);color:var(--muted)}
 .pp-ci{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--tinta);color:var(--acento);flex:none}
@@ -523,7 +523,7 @@
 
 /* Passos */
 .pp-passos{list-style:none;padding:0;margin:0;display:grid;gap:14px;counter-reset:passo}
-.pp-passos li{counter-increment:passo;position:relative;display:grid;gap:8px;padding:26px 24px 28px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:var(--sombra-card);transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
+.pp-passos li{counter-increment:passo;position:relative;display:grid;align-content:start;gap:8px;padding:26px 24px 28px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:var(--sombra-card);transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
 .pp-passos li:hover{transform:translateY(-3px);box-shadow:0 1px 2px rgba(20,20,19,.04),0 22px 44px -22px rgba(20,20,19,.25)}
 .pp-passos li::before{content:counter(passo);display:grid;place-items:center;width:40px;height:40px;margin-bottom:10px;border-radius:12px;background:var(--acento);color:#fff;font:600 16px var(--sans);box-shadow:0 8px 18px -8px color-mix(in srgb,var(--acento) 70%,transparent)}
 .pp-passos b{font:400 22px/1.2 var(--serif);color:var(--ink)}
@@ -578,7 +578,7 @@
 
 /* Tarefas */
 .pp-tarefas{display:grid;gap:10px}
-.pp-tarefas a{position:relative;display:grid;gap:8px;padding:20px 48px 20px 20px;border:1px solid var(--line);border-radius:16px;background:var(--paper);color:var(--ink);text-decoration:none;font:400 16px/1.45 var(--sans);box-shadow:0 1px 2px rgba(20,20,19,.04);transition:transform .2s cubic-bezier(.2,.7,.2,1),border-color .2s,box-shadow .2s}
+.pp-tarefas a{position:relative;display:grid;align-content:start;gap:8px;padding:20px 48px 20px 20px;border:1px solid var(--line);border-radius:16px;background:var(--paper);color:var(--ink);text-decoration:none;font:400 16px/1.45 var(--sans);box-shadow:0 1px 2px rgba(20,20,19,.04);transition:transform .2s cubic-bezier(.2,.7,.2,1),border-color .2s,box-shadow .2s}
 .pp-tarefas a:hover{transform:translateY(-2px);border-color:var(--borda-acento);box-shadow:0 18px 36px -22px color-mix(in srgb,var(--acento) 45%,rgba(20,20,19,.3))}
 .pp-tarefas a span{justify-self:start;padding:3px 9px;border-radius:7px;background:var(--tinta);font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--acento)}
 .pp-tarefa-seta{position:absolute;right:18px;top:20px;color:var(--faint);transition:color .2s,transform .2s}
@@ -722,6 +722,8 @@
 .l-prumo a{color:inherit;text-decoration:underline;text-underline-offset:3px}
 .l-prumo a:hover{color:var(--ink)}
 /* Rodapé legal: identificação da empresa, contato de privacidade e encarregado. */
-.l-rodape .l-rodape-legal{display:grid;gap:4px;padding-top:0;padding-bottom:calc(28px + env(safe-area-inset-bottom));border-top:1px solid var(--line);padding-top:16px}
+.l-rodape .l-rodape-legal{display:grid;gap:4px;padding-top:0;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+/* A linha acima dos dados legais acompanha a largura do conteúdo (antes passava da margem do rodapé). */
+.l-rodape .l-rodape-legal::before{content:'';display:block;height:1px;margin-bottom:12px;background:var(--line)}
 .l-rodape .l-rodape-legal p{margin:0;font:400 12.5px/1.55 var(--sans);color:var(--muted)}
 .l-rodape .l-rodape-legal a{font-size:12.5px;min-height:0;display:inline;text-decoration:underline;text-underline-offset:2px}

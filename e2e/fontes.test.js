@@ -92,7 +92,7 @@ for (const [largura, email] of [[1280, 'lia'], [390, 'w390']]) {
     // Conversa: "Adicionar link" e o papel de cada anexo.
     await p.goto(`${N.base}/app#/nova`);
     await p.waitForSelector('#anexar-link');
-    await p.click('#anexar-link');
+    await p.click('#mais-anexos'); await p.click('#anexar-link');
     await p.fill('#link-url', 'https://politicas.exemplo.test/viagens');
     await p.click('#link-ok');
     await p.waitForSelector('#anexos .anexo-chip select');

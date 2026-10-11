@@ -101,14 +101,24 @@ function desenhar() {
     <div class="compositor"><div style="max-width:760px;margin:0 auto">
       ${avisoPesquisa(C.conv?.pesquisa)}<div class="sugestoes" id="sugestoes"></div>
       ${qw?.v2 && C.proximaExecucao ? `<div class="proxima-execucao" role="status"><span>${ICONE.raio}</span><span><b>Nova execução do Quick Win.</b> O próximo envio roda o trabalho completo, com conferência.</span><button type="button" class="btn btn-texto btn-pequeno" id="cancelar-execucao">Cancelar</button></div>` : ''}
-      <div class="anexos-pendentes" id="anexos"></div>
-      <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
-        <button type="button" class="btn btn-linha btn-pequeno" id="link-ok">Adicionar link</button></div>
-      <div class="acoes-material"><button type="button" class="btn btn-linha" id="anexar" aria-label="Anexar arquivo">${ICONE.clipe} Anexar arquivo</button><button type="button" class="btn btn-linha" id="anexar-link" aria-label="Adicionar link" aria-expanded="false" aria-controls="link-novo">${ICONE.link || ''} Adicionar link</button><span class="dica">PDF, Word, apresentação, planilha, texto ou imagem. Links devem ser páginas públicas.</span></div><div class="caixa">
+      <div class="caixa caixa-chat" id="caixa-chat">
+        <div class="anexos-pendentes" id="anexos"></div>
+        <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
+          <button type="button" class="btn btn-linha btn-pequeno" id="link-ok">Adicionar</button><button type="button" class="btn-texto btn-pequeno" id="link-cancelar">Cancelar</button></div>
         <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff">
         <textarea id="entrada" rows="1" placeholder="${esc(!qw ? 'Pergunte alguma coisa…' : !qw.v2 ? 'Cole o texto ou anexe…' : !C.mensagens.length || C.proximaExecucao ? 'Cole o texto ou anexe o material…' : 'Peça um ajuste, faça uma pergunta ou continue a conversa…')}" aria-label="Mensagem"></textarea>
-        ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
-        <button class="enviar" id="enviar" aria-label="Enviar" disabled>${ICONE.enviar}<span>Enviar</span></button>
+        <div class="caixa-barra">
+          <div class="menu-anexos">
+            <button type="button" class="caixa-icone" id="mais-anexos" aria-label="Adicionar arquivo ou link" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-anexos" title="Adicionar arquivo ou link">${ICONE.mais}</button>
+            <div class="menu-anexos-lista" id="menu-anexos" role="menu" aria-label="Adicionar" hidden>
+              <button type="button" role="menuitem" id="anexar">${ICONE.clipe}<span><b>Anexar arquivo</b><small>PDF, Word, apresentação, planilha, texto ou imagem</small></span></button>
+              <button type="button" role="menuitem" id="anexar-link" aria-controls="link-novo" aria-expanded="false">${ICONE.link}<span><b>Adicionar link</b><small>Página pública usada como fonte</small></span></button>
+            </div>
+          </div>
+          ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
+          <button class="enviar" id="enviar" aria-label="Enviar" title="Enviar (Enter)" disabled>${ICONE.enviar}<span class="sr">Enviar</span></button>
+        </div>
+        <div class="caixa-soltar" aria-hidden="true">Solte os arquivos para anexar</div>
       </div>
       ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar com outro material →</a></p>` : ''}
       <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
@@ -228,23 +238,38 @@ function ligar() {
   if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
   $('sigilosa').onclick = explicarSigilo;
   $('saiba-sigilo').onclick = explicarSigilo;
-  $('anexar').onclick = () => $('arquivo').click();
-  $('anexar-link').onclick = () => { const c = $('link-novo'); c.classList.toggle('oculto'); $('anexar-link').setAttribute('aria-expanded', String(!c.classList.contains('oculto'))); if (!c.classList.contains('oculto')) $('link-url').focus(); };
+  // Menu "+" da caixa (como nos assistentes de chat): anexar arquivo ou link; Esc e clique fora fecham.
+  const menu = $('menu-anexos'), mais = $('mais-anexos');
+  const abrirMenu = aberto => {
+    menu.hidden = !aberto; mais.setAttribute('aria-expanded', String(aberto));
+    if (aberto) { menu.querySelector('[role=menuitem]').focus(); document.addEventListener('pointerdown', foraDoMenu, true); }
+    else document.removeEventListener('pointerdown', foraDoMenu, true);
+  };
+  const foraDoMenu = ev => { if (!ev.target.closest?.('.menu-anexos')) abrirMenu(false); };
+  mais.onclick = () => abrirMenu(menu.hidden);
+  menu.onkeydown = ev => {
+    const itens = [...menu.querySelectorAll('[role=menuitem]')], i = itens.indexOf(document.activeElement);
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); abrirMenu(false); mais.focus(); }
+    else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); itens[(i + (ev.key === 'ArrowDown' ? 1 : itens.length - 1)) % itens.length].focus(); }
+    else if (ev.key === 'Tab') abrirMenu(false);
+  };
+  const mostrarLink = aberto => { $('link-novo').classList.toggle('oculto', !aberto); $('anexar-link').setAttribute('aria-expanded', String(aberto)); if (aberto) $('link-url').focus(); else $('entrada').focus(); };
+  $('anexar').onclick = () => { abrirMenu(false); $('arquivo').click(); };
+  $('anexar-link').onclick = () => { abrirMenu(false); mostrarLink($('link-novo').classList.contains('oculto')); };
+  $('link-cancelar').onclick = () => { $('link-url').value = ''; mostrarLink(false); };
   const addLink = () => {
     const url = $('link-url').value.trim();
     if (!/^https:\/\/\S+$/i.test(url)) return toast('Use um link que comece com https://', 6000);
     if (C.anexos.filter(a => a.link).length >= 3) return toast('Até 3 links por mensagem.', 6000);
     let nome = url; try { const u = new URL(url); nome = u.host + u.pathname; } catch { /* mostra o texto digitado */ }
     C.anexos.push({ link: true, url, nome: nome.slice(0, 80), tamanho: 0 });
-    $('link-url').value = ''; $('link-novo').classList.add('oculto'); $('anexar-link').setAttribute('aria-expanded', 'false');
+    $('link-url').value = ''; mostrarLink(false);
     desenharAnexos(); atualizarEnviar();
   };
   $('link-ok').onclick = addLink;
-  $('link-url').onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); addLink(); } };
-  $('arquivo').onchange = async ev => {
-    // O campo pode ser redesenhado enquanto os arquivos são lidos (a resposta anterior terminou): a lista e o
-    // elemento ficam guardados antes da leitura, e o anexo entra no campo atual.
-    const campo = ev.target, arquivos = [...campo.files];
+  $('link-url').onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); addLink(); } else if (ev.key === 'Escape') { ev.preventDefault(); $('link-cancelar').click(); } };
+  // Arquivos entram pelo menu "+", arrastando para a caixa ou colando (Ctrl+V) no campo de texto.
+  const adicionarArquivos = async arquivos => {
     for (const f of arquivos) {
       if (C.anexos.length >= 5) { toast('Até 5 anexos por mensagem. Envie os demais na próxima.', 6000); break; }
       if (f.size > 25 * 1024 * 1024) { toast(`${f.name}: acima de 25 MB. Envie uma versão menor ou só a parte necessária.`, 6000); continue; }
@@ -252,9 +277,21 @@ function ligar() {
       const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
       C.anexos.push({ nome: f.name, base64, tamanho: f.size });
     }
-    campo.value = '';
     desenharAnexos(); atualizarEnviar();
   };
+  $('arquivo').onchange = ev => {
+    // O campo pode ser redesenhado enquanto os arquivos são lidos (a resposta anterior terminou): a lista fica
+    // guardada antes da leitura, e o anexo entra no campo atual.
+    const campo = ev.target, arquivos = [...campo.files];
+    campo.value = '';
+    return adicionarArquivos(arquivos);
+  };
+  const caixa = $('caixa-chat');
+  const temArquivos = ev => [...(ev.dataTransfer?.types || [])].includes('Files');
+  caixa.addEventListener('dragover', ev => { if (!temArquivos(ev)) return; ev.preventDefault(); caixa.classList.add('soltando'); });
+  caixa.addEventListener('dragleave', ev => { if (!caixa.contains(ev.relatedTarget)) caixa.classList.remove('soltando'); });
+  caixa.addEventListener('drop', ev => { if (!temArquivos(ev)) return; ev.preventDefault(); caixa.classList.remove('soltando'); adicionarArquivos([...ev.dataTransfer.files]); });
+  $('entrada').addEventListener('paste', ev => { const fs = [...(ev.clipboardData?.files || [])]; if (fs.length) { ev.preventDefault(); adicionarArquivos(fs); } });
   $('coluna').addEventListener('click', ev => {
     if (ev.target.closest('[data-resolver-pesquisa]')) resolverPesquisa();
     const melhorar = ev.target.closest('[data-melhorar-resultado]');

@@ -9,10 +9,10 @@ const entrega=`<details class="painel-escopo"><summary>O que este acompanhamento
 export async function escolherProcesso(id=null) {
  const [{modelos,permissoes},q]=await Promise.all([api('/api/paineis-modelos'),id?api(`/api/quick-wins/${id}`):null]);
  const areas=permissoes.areas||[];
- tela('Escolher um processo',`${id?voltar(id):'<a class="link-sutil" href="#/quick-wins">Voltar aos Quick Wins</a>'}<h2>${id?'Preparar o acompanhamento':'Comece com um processo pronto'}</h2><p>Os campos e indicadores já estão definidos. Escolha o trabalho que sua equipe precisa acompanhar.</p>${q?`<p>Quick Win: <b>${esc(q.nome)}</b>. As instruções e a versão publicada continuam sob seu controle.</p>`:''}
+ tela('Escolher um processo',`${id?voltar(id):'<a class="link-sutil" href="#/quick-wins">Voltar aos Quick Wins</a>'}<h2>${id?'Preparar os resultados do processo':'Comece com um processo pronto'}</h2><p>Os campos e indicadores já estão definidos. Escolha o trabalho que sua equipe precisa acompanhar.</p>${q?`<p>Quick Win: <b>${esc(q.nome)}</b>. As instruções e a versão publicada continuam sob seu controle.</p>`:''}
  <form id="processo-form"><fieldset><legend>Qual trabalho você quer acompanhar?</legend>${modelos.map((m,i)=>`<label class="painel-escolha"><input type="radio" name="modelo" value="${m.id}" ${i===0?'checked':''}><span><b>${esc(m.nome)}</b><small>${esc(m.descricao)}</small><small>Campos: ${m.campos.map(c=>esc(c.nome)).join(', ')}</small></span></label>`).join('')}</fieldset>
  ${!id?`<label class="legenda" for="processo-area">Quem poderá usar o Quick Win?</label><select class="entrada" id="processo-area" required>${permissoes.todaEmpresa?'<option value="empresa">Toda a empresa</option>':''}${areas.map(a=>`<option value="${a.id}">${esc(a.nome)}</option>`).join('')}</select><p class="dica">Ele será criado em preparo. Você vai testar antes de liberar para a equipe. Cada registro começa visível só para quem o criou.</p>`:'<p class="dica">A preparação não copia conversas para o histórico. Cada pessoa confere e confirma seus próprios registros.</p>'}
- <p id="processo-erro" role="alert"></p><button class="btn btn-verde" id="processo-criar" type="submit">${id?'Preparar acompanhamento':'Criar e testar este processo'}</button></form>${entrega}`);
+ <p id="processo-erro" role="alert"></p><button class="btn btn-verde" id="processo-criar" type="submit">${id?'Preparar resultados do processo':'Criar e testar este processo'}</button></form>${entrega}`);
  $('processo-form').onsubmit=async ev=>{
   ev.preventDefault();const b=$('processo-criar');b.disabled=true;
   try{
@@ -28,10 +28,12 @@ export async function escolherProcesso(id=null) {
 }
 export async function painelNegocio(id,pagina=Number(new URLSearchParams(location.hash.split('?')[1]||'').get('pagina'))||1) {
  const d=await api(`${base(id)}?pagina=${pagina}`);
- if(!d.configurado){tela('Resultados',`${voltar(id)}<h2>${esc(d.nome)}</h2><p>Este Quick Win ainda não tem um processo de acompanhamento preparado.</p>${d.podePreparar?`<a class="btn btn-verde" href="#/qw/${id}/acompanhamento/preparar">Escolher um processo</a>`:'<p>Peça a quem prepara este Quick Win para escolher um processo de acompanhamento.</p>'}${entrega}`);return;}
+ // Sem processo preparado não há resultados do processo. As medições de antes e depois são outra coisa: ficam em
+ // "Uso e decisão", na página do Quick Win, e a tela diz onde estão.
+ if(!d.configurado){tela('Resultados do processo',`${voltar(id)}<h2>${esc(d.nome)}</h2><p>Os resultados do processo ainda não foram preparados para este Quick Win. Eles registram os dados de cada execução com campos e indicadores prontos.</p><p class="dica">O uso por mês, as medições de antes e depois e as decisões ficam em “Uso e decisão”, na página do Quick Win.</p>${d.podePreparar?`<a class="btn btn-verde" href="#/qw/${id}/acompanhamento/preparar">Escolher um processo</a>`:'<p>Peça a quem prepara este Quick Win para escolher um processo.</p>'}${entrega}`);return;}
  const m=d.modelo;
  const rows=d.registros.flatMap(r=>r.dados.map(l=>({r,l})));
- tela('Resultados',`${voltar(id)}<div class="painel-titulo"><div><h2>${esc(d.nome)}</h2><p>${esc(m.nome)}</p></div><a class="btn btn-verde" href="#/qw/${id}/usar">Executar em outro caso</a></div>
+ tela('Resultados do processo',`${voltar(id)}<div class="painel-titulo"><div><h2>${esc(d.nome)}</h2><p>${esc(m.nome)}</p></div><a class="btn btn-verde" href="#/qw/${id}/usar">Executar em outro caso</a></div>
  <p class="dica">Você vê seus registros e os que foram compartilhados com a equipe autorizada. Conversas de outras pessoas continuam privadas.</p>
  <section aria-label="Indicadores do acompanhamento" class="indicadores"><div class="indicador"><span>${esc(m.unidade)} no histórico</span><b>${d.total}</b></div>${Object.entries(m.estados).map(([k,v])=>`<div class="indicador"><span>${esc(v)}</span><b>${d.situacoes[k]}</b></div>`).join('')}</section>
  <p class="dica">Última alteração: ${esc(data(d.atualizado_em))}. Os números são calculados sobre registros confirmados pelas pessoas. Não certificam autenticidade, compliance ou conclusão de ações externas.</p>

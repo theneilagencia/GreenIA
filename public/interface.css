@@ -231,3 +231,65 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 
 /* Pendências: filtros escondidos de verdade quando não há o que filtrar. */
 .filtros-biblioteca[hidden],#pend-visoes[hidden]{display:none}
+
+/* === Quick Wins (QA UX) === */
+/* Uma trilha só: com a trilha da página, a do cabeçalho some (o h1 já é o nome da página). */
+.app #principal:has(.pg-trilha)>.cabeca .migalha{display:none}
+/* Seções da página em h2 com a mesma aparência discreta de antes. */
+.app .pagina .qw-lista-cabeca h2{font:600 13px var(--sans)!important;letter-spacing:.02em;color:var(--muted)!important;margin:0!important;text-transform:none}
+.app .pagina .plano h2{font:600 14px/1.4 var(--sans);margin:0 0 10px;color:var(--ink)}
+.app .pagina .entregas h2{font:600 14px/1.4 var(--sans);margin:0 0 4px;color:var(--ink)}
+.rascunho-barra[hidden]{display:none}
+/* Página do Quick Win: o que ele faz, depois detalhes e resultados recolhidos. */
+.app .pagina .qw-o-que-faz p{margin:0;font-size:15px;line-height:1.6}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao)>summary{min-height:44px;display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;list-style:none}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao)>summary::-webkit-details-marker{display:none}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao)>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao)[open]>summary::before{transform:rotate(45deg)}
+.app .pagina .qw-detalhes>.secoes{margin-top:8px}
+.app .pagina .qw-resultados-processo{margin:4px 0 16px}
+.app .pagina .qw-resultados-processo h3{font:600 15px/1.4 var(--sans);margin:0 0 4px}
+.app .pagina .qw-nome-inicial{margin-top:20px}
+/* Sugestões: quebram em linhas (nada cortado na lateral no celular). */
+.app .pagina :is(.qw-detalhe,.qw-usar) .sugestoes{flex-wrap:wrap;overflow:visible;margin:0 0 12px;padding:0}
+.app .pagina :is(.qw-detalhe,.qw-usar) .sugestoes button{flex:0 1 auto;white-space:normal;min-height:44px}
+.app .pagina .qw-instrucoes{white-space:pre-wrap}
+/* Biblioteca no celular: "Agendados" e "Criar Quick Win" em largura total, um embaixo do outro. */
+@media(max-width:480px){.app .pagina .qw-biblioteca .pg-acoes{flex-direction:column;align-items:stretch}.app .pagina .qw-biblioteca .pg-acoes .btn{white-space:nowrap}}
+/* Modelos: prévia antes de criar. Agendados: opções diretas. */
+.app .pagina .qw-previa{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:var(--raio-painel);background:var(--paper)}
+.app .pagina .qw-previa h3{margin:0 0 4px}
+.app .pagina .qw-agendar-opcoes{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+/* Configurar: seções recolhíveis, barra fixa só com Salvar e Salvar e testar, exclusão no fim da página. */
+.app .pagina .qw-cfg-secao>summary{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none}
+.app .pagina .qw-cfg-secao>summary::-webkit-details-marker{display:none}
+.app .pagina .qw-cfg-secao>summary h2,.app .pagina .qw-config .grupo-form>h2,.app .pagina .qw-zona-perigo h2{font:600 var(--ui-secao)/1.4 var(--sans);margin:0}
+.app .pagina .qw-cfg-corpo{margin-top:12px}
+.app .pagina .qw-config .grupo-form{margin-bottom:12px}
+.app .pagina .qw-config fieldset{border:0;padding:0;margin:0 0 14px;min-width:0}
+.app .pagina .qw-config-barra{position:sticky;bottom:0;z-index:3;background:var(--paper);padding:12px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px;margin:0}
+.app .pagina .qw-zona-perigo{margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+.app .pagina .qw-zona-perigo .btn{margin-top:8px}
+@media(max-width:760px){.app .pagina .qw-config-barra .btn{flex:1 1 0;min-width:0}}
+/* Cor: a amostra é o controle (44 px), com o nome da cor para leitores de tela e a seleção na própria amostra. */
+.qw-cores{display:flex;flex-wrap:wrap;gap:4px}
+.qw-cor{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;cursor:pointer}
+.qw-cor input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.qw-cor-amostra{width:30px;height:30px;border-radius:8px;background:var(--qw-cor);box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
+.qw-cor:has(input:checked) .qw-cor-amostra{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink)}
+.qw-cor:has(input:checked)::after{content:'';position:absolute;width:10px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-2px) rotate(-45deg)}
+.qw-cor:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:1px}
+/* Alvos de toque: rótulo inteiro clicável com 44 px no celular. */
+@media(pointer:coarse),(max-width:760px){
+  .app .pagina .qw-opcoes-toque>label,.app .pagina .qw-opcao-toque{min-height:44px;align-items:center}
+  .app .pagina .qw-tabela-dados .segmento span{min-height:38px;display:inline-flex;align-items:center}
+}
+/* Uso e decisão: variação com sentido (texto e cor) e gráfico de conversas por mês. */
+.qw-variacao{display:block;font-weight:600}
+.qw-variacao-boa{color:var(--forest)}
+.qw-variacao-ruim{color:var(--red-text)}
+.qw-grafico{margin:8px 0 14px}
+.qw-grafico ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.qw-grafico li{display:grid;grid-template-columns:minmax(72px,auto) 1fr auto;align-items:center;gap:10px;font-size:13px}
+.qw-grafico-barra{height:10px;border-radius:5px;background:var(--sand)}
+.qw-grafico-barra::before{content:'';display:block;height:100%;width:var(--valor);min-width:2px;border-radius:inherit;background:var(--forest)}

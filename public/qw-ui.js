@@ -42,10 +42,14 @@ export const oQueEnviar = qw => (qw?.entregas?.entradas?.length ? `Envie: ${qw.e
   : O_QUE_ENVIAR[qw?.arquetipo] || 'Envie o documento ou descreva o que deseja analisar.');
 
 // ---- Cabeçalho de página ------------------------------------------------------------------------------------
+// O título da página é o h1 do cabeçalho (cabecalho(titulo) em app.js). Aqui ele aparece em destaque, sem repetir o
+// título para leitores de tela (role="none"); as seções da página começam em h2. A trilha desta página é a única:
+// a do cabeçalho some quando ela existe (interface.css, bloco Quick Wins).
 export function cabecalhoPg({ trilha = [], titulo, descricao = '', lado = '', meta = '', tituloAcoes = '' }) {
+  const t = `<h2 role="none">${esc(titulo)}</h2>`;
   return `<div class="pg-cabeca">
-    ${trilha.length ? `<nav class="pg-trilha" aria-label="Você está em">${trilha.map(([t, h]) => (h ? `<a href="${h}">${esc(t)}</a>` : `<span>${esc(t)}</span>`)).join('<span class="sep" aria-hidden="true">/</span>')}</nav>` : ''}
-    <div class="pg-titulo"><div class="pg-titulo-texto">${tituloAcoes ? `<div class="pg-nome"><h2>${esc(titulo)}</h2>${tituloAcoes}</div>` : `<h2>${esc(titulo)}</h2>`}${meta ? `<div class="pg-meta">${meta}</div>` : ''}${descricao ? `<p class="pg-desc">${descricao}</p>` : ''}</div>${lado ? `<div class="pg-acoes">${lado}</div>` : ''}</div>
+    ${trilha.length ? `<nav class="pg-trilha" aria-label="Você está em">${trilha.map(([t, h]) => (h ? `<a href="${h}">${esc(t)}</a>` : `<span aria-current="page">${esc(t)}</span>`)).join('<span class="sep" aria-hidden="true">/</span>')}</nav>` : ''}
+    <div class="pg-titulo"><div class="pg-titulo-texto">${tituloAcoes ? `<div class="pg-nome">${t}${tituloAcoes}</div>` : t}${meta ? `<div class="pg-meta">${meta}</div>` : ''}${descricao ? `<p class="pg-desc">${descricao}</p>` : ''}</div>${lado ? `<div class="pg-acoes">${lado}</div>` : ''}</div>
   </div>`;
 }
 
@@ -250,6 +254,35 @@ export function confirmarExclusao(qw) {
     ok.onclick = () => igual() && fechar(true);
     fundo.onclick = ev => { if (ev.target === fundo) fechar(false); };
     campo.focus();
+  });
+}
+
+// ---- Confirmação (modal próprio, sem alerta do navegador) ---------------------------------------------------
+// Resolve true quando a pessoa confirma. Foco no título, Esc e o fundo cancelam, Tab fica dentro do modal.
+export function confirmarAcao({ titulo, texto, confirmar = 'Confirmar', cancelar = 'Voltar sem alterar', perigo = false }) {
+  return new Promise(resolve => {
+    const anterior = document.activeElement;
+    const fundo = document.createElement('div');
+    fundo.className = 'modal-fundo';
+    fundo.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmar-titulo" aria-describedby="confirmar-texto">
+      <h2 id="confirmar-titulo" tabindex="-1">${esc(titulo)}</h2><p id="confirmar-texto">${esc(texto)}</p>
+      <div class="modal-acoes"><button type="button" class="btn btn-texto" data-cancelar>${esc(cancelar)}</button>
+        <button type="button" class="btn ${perigo ? 'btn-perigo' : 'btn-verde'}" data-confirmar>${esc(confirmar)}</button></div></div>`;
+    document.body.appendChild(fundo);
+    const fechar = v => { fundo.remove(); document.removeEventListener('keydown', tecla, true); anterior?.focus?.(); resolve(v); };
+    const tecla = ev => {
+      if (ev.key === 'Escape') { ev.preventDefault(); fechar(false); }
+      if (ev.key === 'Tab') {   // foco preso no modal
+        const f = [...fundo.querySelectorAll('button')];
+        if (ev.shiftKey && document.activeElement === f[0]) { ev.preventDefault(); f.at(-1).focus(); }
+        else if (!ev.shiftKey && document.activeElement === f.at(-1)) { ev.preventDefault(); f[0].focus(); }
+      }
+    };
+    document.addEventListener('keydown', tecla, true);
+    fundo.querySelector('[data-cancelar]').onclick = () => fechar(false);
+    fundo.querySelector('[data-confirmar]').onclick = () => fechar(true);
+    fundo.onclick = ev => { if (ev.target === fundo) fechar(false); };
+    fundo.querySelector('#confirmar-titulo').focus();
   });
 }
 

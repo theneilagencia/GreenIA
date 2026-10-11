@@ -62,7 +62,8 @@ document.addEventListener('greenia:antes-navegar', ev => {
 });
 const ACEITOS = '.pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff';
 const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-const ETAPAS = ['Objetivo', 'Processo', 'Regras', 'Resultado', 'Testar'];
+// Publicar é a última etapa visível: o indicador mostra o caminho inteiro até a equipe poder usar.
+const ETAPAS = ['Objetivo', 'Processo', 'Regras', 'Resultado', 'Testar', 'Publicar'];
 const REVISAR = 5, SUCESSO = 6;
 const ORDEM_SAIDAS = ['resumo', 'tabela', 'lista', 'relatorio', 'outro'];
 const EXEMPLOS = [
@@ -106,16 +107,18 @@ async function publicarAntigo(qw) {
   };
 }
 
-export async function assistenteQw(id = null, { passo = 0, atualizar = false, refinar = false, conversaId = null, mensagemId = null } = {}) {
+// inicial: { nome, descricao } de um modelo escolhido na biblioteca de modelos. Só pré-preenche: o Quick Win é criado ao
+// continuar, como na criação do zero.
+export async function assistenteQw(id = null, { passo = 0, atualizar = false, refinar = false, conversaId = null, mensagemId = null, inicial = null } = {}) {
   const qw = id ? await api(`/api/quick-wins/${id}`) : null;
   // Sem permissão, ou formato anterior (que se ajusta em Configurar): leva ao lugar certo e diz por quê.
   if (qw && !qw.podeEditar) { toast('Só quem gerencia este Quick Win pode alterá-lo.', 'info'); return trocarPara(`#/qw/${id}`); }
   if (qw && !qw.v2 && !atualizar) return trocarPara(`#/qw/${id}/editar`);
   // "Atualizar para Quick Win inteligente": o antigo (sem especificação) começa do que ele já descreve.
-  const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : {});
+  const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : !qw && inicial ? { descricao: String(inicial.descricao || '').slice(0, 1000) } : {});
   const W = {
     id, qw, modoRefinamento: refinar, abrirRefinamento: refinar, responsavelId: qw?.responsavel?.id || E.eu.id, controles: qw?.operacao?.controles ? structuredClone(qw.operacao.controles) : null, passo, maximo: passo, editando: !!qw,
-    nome: qw?.nome || '', descricao: o.descricao || '', arquetipo: o.arquetipo || null,
+    nome: qw?.nome || (!qw && inicial?.nome) || '', descricao: o.descricao || '', arquetipo: o.arquetipo || null,
     modoProc: o.como?.modo === 'mostrar' ? 'exemplo' : 'explicar', processo: o.como?.modo === 'explicar' ? o.como.texto || '' : '',
     exemplo: '', exemploNome: '', estruturaAnterior: o.exemplo || null, estruturaSugerida: null,
     sugestao: null, regras: o.regras ? new Set(o.regras) : null, proprias: [...(o.regras_proprias || [])], formato: o.formato || null, formatoDescricao: o.formato_descricao || '',
@@ -146,15 +149,16 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
     try { await carregarContextoRefinamento(W, conversaId, mensagemId); } catch (e) { W.erroContexto = e.message; }
     return desenharRefinamento(W);
   }
-  $('principal').innerHTML = `${cabecalho('Quick Wins')}
+  $('principal').innerHTML = `${cabecalho(qw ? 'Editar Quick Win' : 'Criar Quick Win')}
     <div class="pagina"><div class="pg qw-wizard">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine à GreenIA como realizar esse trabalho.',
         lado: qw ? '<button type="button" class="link-sutil link-perigo" id="excluir-qw">Excluir Quick Win</button>' : '' })}
       ${publicada ? `<div id="aviso-versao">${aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`)}</div>` : ''}
+      ${!qw && inicial ? aviso(`<b>Começando do modelo “${esc(inicial.nome)}”.</b> Ajuste o que quiser. Nada é criado até você continuar.`) : ''}
       ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}
       <div id="progresso"></div>
-      <div class="rascunho-barra"><span id="estado-rascunho" role="status">${qw ? 'Rascunho carregado' : 'Seu rascunho será salvo ao continuar'}</span><button type="button" class="btn btn-linha btn-pequeno" id="salvar-rascunho">Salvar rascunho</button></div>
       <div id="etapa"></div>
+      <div class="rascunho-barra" id="rascunho-barra"><span id="estado-rascunho" role="status">${qw ? 'Rascunho carregado' : 'Seu rascunho será salvo ao continuar'}</span><button type="button" class="btn btn-linha btn-pequeno" id="salvar-rascunho">Salvar rascunho</button></div>
     </div></div>`;
   ligarCabecalho();
   $('salvar-rascunho').onclick = async e => {
@@ -288,6 +292,8 @@ function htmlColunas(W) {
 
 async function desenhar(W, { foco = true } = {}) {
   if (W.modoRefinamento) return desenharRefinamento(W);
+  // A tela começa pela pergunta principal: "Salvar rascunho" aparece depois que há um rascunho ou da segunda etapa.
+  if ($('rascunho-barra')) $('rascunho-barra').hidden = !W.id && W.passo === 0;
   $('progresso').innerHTML = W.passo === SUCESSO ? '' : progressoEtapas(ETAPAS, Math.min(W.passo, 5), { concluidas: W.passo >= REVISAR ? 5 : Math.max(W.maximo, W.editando ? 4 : 0) });
   $('progresso').querySelectorAll('[data-ir-etapa]').forEach(b => { b.onclick = () => irEtapa(W, Number(b.dataset.irEtapa)); });
   const el = $('etapa');
@@ -435,16 +441,17 @@ async function salvarAgora(W) {
 const rodape = (W, { voltar = true, continuar = 'Continuar', extra = '' } = {}) => `<div id="erro-etapa" class="msg-etapa"></div><div class="etapa-rodape">
     ${voltar && W.passo > 0 ? '<button type="button" class="btn btn-texto" data-voltar>Voltar</button>' : '<a class="btn btn-texto" href="#/quick-wins">Cancelar</a>'}
     <div class="direita">${extra}${continuar ? `<button type="button" class="btn btn-verde" data-continuar>${continuar}</button>` : ''}</div></div>`;
-const pergunta = (texto, micro, idMicro = 'micro') => `<h3 class="pergunta" id="pergunta" tabindex="-1">${texto}</h3>${micro ? `<p class="micro" id="${idMicro}">${micro}</p>` : ''}`;
+const pergunta = (texto, micro, idMicro = 'micro') => `<h2 class="pergunta" id="pergunta" tabindex="-1">${texto}</h2>${micro ? `<p class="micro" id="${idMicro}">${micro}</p>` : ''}`;
 
 const ETAPA_HTML = [
   // 1. Objetivo
-  W => `    <label class="legenda" for="nome-inicial">Nome do Quick Win (opcional)</label><input class="entrada" id="nome-inicial" maxlength="80" value="${esc(W.nome)}" aria-describedby="nome-inicial-ajuda" placeholder="Ex.: Resumo da reunião semanal"><p class="dica" id="nome-inicial-ajuda">Use um nome que sua equipe reconheça. Se deixar em branco, a GreenIA sugere um nome. Você pode editar depois.</p>
-    ${pergunta('O que você quer que a IA faça?', 'Descreva o trabalho como explicaria para alguém da sua equipe.', 'micro-objetivo')}
+  W => `    ${pergunta('O que você quer que a IA faça?', 'Descreva o trabalho como explicaria para alguém da sua equipe.', 'micro-objetivo')}
     <label class="sr" for="objetivo">O que a IA deve fazer</label>
     <textarea class="campo-amplo" id="objetivo" maxlength="1000" aria-describedby="micro-objetivo" placeholder="Ex.: Analisar propostas comerciais e apontar valores, prazos, riscos e o que estiver faltando">${esc(W.descricao)}</textarea>
 
     <p class="exemplos">Exemplos: ${EXEMPLOS.map(([t], i) => `<button type="button" data-exemplo="${i}">${esc(t)}</button>`).join('<span class="ponto-sep" aria-hidden="true">·</span>')}</p>
+    <div class="campo qw-nome-inicial"><label class="legenda" for="nome-inicial">Nome do Quick Win (opcional)</label><input class="entrada" id="nome-inicial" maxlength="80" value="${esc(W.nome)}" aria-describedby="nome-inicial-ajuda" placeholder="Ex.: Resumo da reunião semanal"><p class="dica" id="nome-inicial-ajuda">Use um nome que sua equipe reconheça. Se deixar em branco, a GreenIA sugere um nome. Você pode editar depois.</p></div>
+    ${W.id ? '' : '<p class="dica">Prefere partir de um exemplo pronto? <a class="link-sutil" href="#/qw/nova/modelos">Começar de um modelo</a></p>'}
     ${rodape(W)}`,
   // 2. Processo (com o entendimento do trabalho: o plano que a GreenIA montou do pedido)
   async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${await htmlSistemas(W)}${pergunta('Como você quer que este trabalho aconteça?', W.modoProc === 'exemplo'
@@ -588,7 +595,7 @@ function htmlPlano(W) {
       <button type="button" class="link-sutil" data-x-remover="${i}" aria-label="Remover o material ${i + 1}">Remover</button></li>`
     : `<li>${esc(x.rotulo)}${x.quantidade > 1 ? ` (${x.quantidade})` : ''}${x.obrigatoria ? '' : ' <span class="dica">(opcional)</span>'}</li>`).join('') : '<li class="dica">Nenhum material: só o pedido do dia.</li>';
   return `<section class="plano" id="plano" aria-labelledby="plano-titulo">
-    <h4 id="plano-titulo">${sugerido ? 'Sugestão: a GreenIA estruturaria este Quick Win assim' : 'Entendi que este Quick Win vai fazer:'}</h4>
+    <h2 id="plano-titulo">${sugerido ? 'Sugestão: a GreenIA estruturaria este Quick Win assim' : 'Entendi que este Quick Win vai fazer:'}</h2>
     <dl class="plano-lista">
       <div><dt>Objetivo</dt><dd>${esc(op.resumo || W.descricao)}</dd></div>
       <div><dt>Vai precisar de</dt><dd><ul>${precisa}${op.contexto_empresa ? '<li>Contexto da empresa (documentos autorizados)</li>' : ''}</ul>
@@ -660,7 +667,7 @@ function htmlEntregas(W) {
     return `<select class="entrada cfg" data-e-tamanho="${i}" aria-label="Tamanho da peça ${i + 1}">${TAMANHOS.map(([v, r]) => `<option value="${v}" ${(e.config?.tamanho || '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
   };
   return `<section class="entregas" id="entregas" aria-labelledby="entregas-titulo">
-    <h4 id="entregas-titulo">O que este Quick Win entrega</h4>
+    <h2 id="entregas-titulo">O que este Quick Win entrega</h2>
     <p class="dica">A GreenIA separou o trabalho em entregáveis. Cada um sai com título próprio${op.canais.length ? ' e, no conteúdo, adaptado ao canal' : ''}. Ajuste o que quiser.</p>
     <details class="canais-detalhe" ${op.canais.length ? 'open' : ''}><summary>Canais (opcional, para conteúdo)</summary>
       <fieldset><legend class="sr">Canais</legend><div class="canais-opcoes">${cat.canais.map(c => `<label><input type="checkbox" name="canal" value="${esc(c.id)}" ${op.canais.includes(c.id) ? 'checked' : ''}> ${esc(c.rotulo)}</label>`).join('')}</div></fieldset></details>
@@ -758,7 +765,7 @@ async function abrirRefinamento(W) {
 async function desenharRefinamento(W) {
   const etapa = W.refinarAprovado ? 3 : W.sugestoesRefinamento?.length ? 2 : 1;
   const r = W.resultado, c = W.contextoRefinamento;
-  $('principal').innerHTML = `${cabecalho('Quick Wins')}<div class="pagina"><div class="pg qw-wizard qw-refinamento">
+  $('principal').innerHTML = `${cabecalho('Refinar Quick Win')}<div class="pagina"><div class="pg qw-wizard qw-refinamento">
     ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [W.qw.nome, `#/qw/${W.id}`], ['Refinar']], titulo: 'Refinar Quick Win', descricao: 'Melhore o próximo resultado a partir do que aconteceu neste caso.' })}
     <ol class="refinamento-passos" aria-label="Etapas do refinamento">${['O que precisa melhorar','Ajustes sugeridos','Novo resultado'].map((t,i) => `<li ${i+1===etapa ? 'aria-current="step"' : ''}><span>${i+1}</span>${t}</li>`).join('')}</ol>
     <p class="dica">${W.qw.versao ? `A equipe continua usando a versão ${W.qw.versao}. ` : ''}Você aprova cada alteração no rascunho. Publicar é uma ação separada.</p>
@@ -1116,18 +1123,27 @@ function ligarUsarEstrutura(W) {
 }
 
 // ---- Usar: o que enviar → Executar → resultado (na conversa) ------------------------------------------------
-export async function usarQw(id) {
+export async function usarQw(id, { testar = false } = {}) {
   const qw = await api(`/api/quick-wins/${id}`);
-  if (!qw.v2) return trocarPara(`#/qw/${id}/nova`);
-  const teste = !qw.versao;
+  const publicado = qw.v2 ? !!qw.versao : ['em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'].includes(qw.status);
+  const teste = testar || !publicado;
   if (teste && !qw.podeEditar) { toast('Este Quick Win ainda não foi publicado para a equipe.', 'info'); return trocarPara(`#/qw/${id}`); }
   const anexos = [];
-  $('principal').innerHTML = `${cabecalho('Quick Wins')}
-    <div class="pagina"><div class="pg">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Usar']], titulo: qw.nome, descricao: esc(qw.para_que_serve || '') })}
-      ${teste ? aviso('<b>Ainda não publicado.</b> Esta execução é um teste e não entra na medição.') : ''}
+  // Formato anterior: a mesma tela do formato novo (o que enviar, sugestões à vista e Executar). No teste, uma faixa
+  // diz que ele não conta nos resultados e oferece Voltar, Ajustar e Publicar.
+  const antigo = !qw.v2;
+  const faixaTeste = !antigo ? (teste ? aviso('<b>Ainda não publicado.</b> Esta execução é um teste e não entra nos resultados.') : '')
+    : teste ? aviso(`<b>Teste: não conta nos resultados.</b> Envie um caso real e confira o resultado.${publicado ? '' : ' Se estiver bom, publique para a equipe.'}`, 'info',
+      `<a class="btn btn-texto btn-pequeno" href="#/qw/${id}">Voltar ao Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${id}/editar">Ajustar</a>${publicado ? '' : `<a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar para a equipe</a>`}`) : '';
+  const sugestoes = antigo ? (qw.sugestoes || []).filter(Boolean) : [];
+  $('principal').innerHTML = `${cabecalho(teste && antigo ? 'Testar Quick Win' : qw.nome)}
+    <div class="pagina"><div class="pg qw-usar">
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], [teste && antigo ? 'Testar' : 'Usar']], titulo: qw.nome, descricao: esc(qw.para_que_serve || '') })}
+      ${faixaTeste}
       <form class="usar-caixa" id="executar" novalidate>
-        <label class="pergunta" for="entrada-qw" id="pergunta">Material para este trabalho</label><p>${esc(oQueEnviar(qw))}</p>${qw.entregas?.orientacao ? `<details><summary>Conferir a orientação completa do trabalho</summary><p>${esc(qw.entregas.orientacao)}</p></details>` : ''}
+        <label class="pergunta" for="entrada-qw" id="pergunta">${antigo ? 'O que enviar' : 'Material para este trabalho'}</label><p>${esc(oQueEnviar(qw))}</p>${qw.entregas?.orientacao ? `<details><summary>Conferir a orientação completa do trabalho</summary><p>${esc(qw.entregas.orientacao)}</p></details>` : ''}
+        ${antigo && teste && qw.instrucoes ? `<details><summary>Conferir as instruções que a IA segue</summary><p class="qw-instrucoes">${esc(qw.instrucoes)}</p></details>` : ''}
+        ${sugestoes.length ? `<div class="sugestoes qw-sugestoes" role="group" aria-label="Para começar">${sugestoes.map((t, i) => `<button type="button" data-sug-usar="${i}">${esc(t)}</button>`).join('')}</div>` : ''}
         <textarea class="campo-amplo" id="entrada-qw" placeholder="Cole o texto aqui ou anexe o arquivo"></textarea>
         <div class="anexos-pendentes" id="anexos-qw" style="margin-top:10px"></div>
         <div id="erro-exec"></div>
@@ -1154,13 +1170,14 @@ export async function usarQw(id) {
     if (!texto && !anexos.length) { $('erro-exec').innerHTML = aviso('Cole um texto ou anexe um arquivo.', 'erro'); $('entrada-qw').focus(); return; }
     await vistaConversa({ qw, teste, enviarAgora: { texto: texto || 'Faça o trabalho com o arquivo anexado.', anexos: [...anexos] } });
   };
+  document.querySelectorAll('[data-sug-usar]').forEach(b => { b.onclick = () => { $('entrada-qw').value = sugestoes[Number(b.dataset.sugUsar)]; $('entrada-qw').focus(); }; });
   $('entrada-qw').focus();
 }
 
 // ---- Versões ------------------------------------------------------------------------------------------------
 export async function versoesQw(id) {
   const [qw, { versoes }] = await Promise.all([api(`/api/quick-wins/${id}`), api(`/api/quick-wins/${id}/versoes`)]);
-  $('principal').innerHTML = `${cabecalho('Quick Wins')}
+  $('principal').innerHTML = `${cabecalho('Versões')}
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Versões']], titulo: 'Versões', descricao: 'Cada publicação vira uma versão. A equipe usa sempre a versão atual.' })}
       ${!qw.v2 ? aviso('<b>Este Quick Win usa o formato anterior, sem histórico de versões.</b> As alterações valem na hora para todos. Para guardar versões e poder restaurar uma anterior, atualize para o formato novo.', 'info', qw.podeEditar ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/atualizar">Atualizar formato</a>` : '') : ''}

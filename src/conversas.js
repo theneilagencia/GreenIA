@@ -156,9 +156,10 @@ function instrucoesQw(qw, execucao, pesquisa = null, notas = false) {
 // Histórico que cabe no contexto do modelo; as mais antigas saem primeiro, com aviso.
 // atual: a mensagem que está sendo enviada, com o conteúdo em memória. Com retenção desligada, o banco só tem
 // o marcador de "não guardado"; o que vai para a IA é o conteúdo real, que existe só durante o envio.
-function historico(app, conv, limiteChars, atual = null) {
+// ocultar: id da resposta que está sendo gerada de novo; ela continua guardada até a nova chegar, mas não vai para a IA.
+function historico(app, conv, limiteChars, atual = null, ocultar = null) {
   const msgs = todos(app.db, "select id, papel, texto from mensagens where conversa_id = ? and papel != 'aviso' order by id", conv.id)
-    .map(m => atual && m.id === atual.id ? { ...m, texto: atual.texto } : m);
+    .filter(m => m.id !== ocultar).map(m => atual && m.id === atual.id ? { ...m, texto: atual.texto } : m);
   const anexos = [...todos(app.db, 'select mensagem_id, nome, texto, papel, ignorada from anexos where conversa_id = ?', conv.id).filter(x => !atual?.anexos || x.mensagem_id !== atual.id),
     ...(atual?.anexos || []).map(a => ({ mensagem_id: atual.id, nome: a.nome, texto: a.texto, papel: a.papel }))];
   // Anexos de mensagens antigas são reenviados só até um orçamento (do mais novo para o mais antigo):
@@ -321,15 +322,41 @@ export function rotasConversas(app, r) {
     try { return await comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem(ctx)); } catch (e) {
       if (BLOQUEIOS.has(e.codigo)) {
         const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(ctx.params.id), ctx.pessoa.id);
-        if (conv) aviso(app, conv.id, `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
+        if (conv) aviso(app, conv.id, ctx.regerar ? `A nova resposta não foi gerada. ${e.message} A resposta anterior foi mantida.` : `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
       }
       throw e;
     } finally { const n = enviosAtivos.get(id) - 1; if (n) enviosAtivos.set(id, n); else enviosAtivos.delete(id); }
   };
   r.post('/api/conversas/:id/mensagens', executarMensagem, { limiteMb: 42 });
+  // "Gerar de novo" (QA UX M13): uma nova resposta ao MESMO último pedido, pelo mesmo caminho de um envio
+  // (executarMensagem → enviarMensagem): sessão/CSRF do roteador, dono da conversa, rajada, ciência da política,
+  // limites, plano e créditos (checarPlano), filtro de dados, sigilo e governança, roteamento, streaming e
+  // registro de custo (comUso/registrarUso, credits.consumed). Consome créditos como qualquer resposta.
+  // Histórico: o pedido da pessoa fica como está (não é duplicado); a resposta anterior é substituída pela nova
+  // só quando a nova chega (falhou ou foi bloqueada: a anterior continua). O uso, o custo e a decisão de
+  // roteamento da anterior permanecem registrados (a decisão fica marcada como refeita).
+  // Só a última resposta, só para quem é dono da conversa e fora dos testes e das execuções de Quick Win do
+  // formato novo (a resposta delas passa pela conferência e pode ter artefatos e registros de resultado ligados).
+  r.post('/api/conversas/:id/regenerar', ctx => {
+    const conv = minhaConversa(app, ctx.pessoa, ctx.params.id);
+    if (ocupado([conv.id])) throw erro(409, 'conversa_em_uso', 'Esta conversa ainda está processando uma resposta. Aguarde a conclusão e tente de novo.');
+    return executarMensagem({ ...ctx, corpo: { modelo: ctx.corpo?.modelo, mensagem_id: ctx.corpo?.mensagem_id }, regerar: true });
+  });
   // Entrada interna: o navegador nunca pode marcar uma solicitação como programada.
   app.executarConversaProgramada = ctx => executarMensagem({ ...ctx, programada: true });
-  async function enviarMensagem({ pessoa, params, corpo, res, programada = false }) {
+  // Alvo do "Gerar de novo": a última resposta (a que a tela pediu) e o pedido da pessoa logo antes dela.
+  function alvoDaRegeracao(conv, qw, mensagemId) {
+    if (conv.teste || qw?.espec) throw erro(409, 'regerar_indisponivel', 'Gerar de novo não está disponível nesta conversa. Peça um ajuste na mensagem ou use Nova execução.');
+    const [resposta, pedido] = todos(app.db, "select id, papel, texto from mensagens where conversa_id = ? and papel != 'aviso' order by id desc limit 2", conv.id);
+    if (resposta?.papel !== 'assistant' || pedido?.papel !== 'user' || Number(mensagemId) !== resposta.id)
+      throw erro(409, 'regerar_so_ultima', 'Só dá para gerar de novo a última resposta da conversa. Atualize a página e tente de novo.');
+    if (pedido.texto === NAO_GUARDADO || resposta.texto === NAO_GUARDADO)
+      throw erro(409, 'regerar_nao_guardado', 'Pela política de retenção da empresa, o pedido desta resposta não ficou guardado. Envie o pedido de novo.');
+    if (um(app.db, 'select 1 from artefatos_visuais where mensagem_id = ?', resposta.id)) throw erro(409, 'regerar_indisponivel', 'Gerar de novo não está disponível para esta resposta. Peça um ajuste na mensagem.');
+    const anexos = todos(app.db, 'select nome, texto, papel from anexos where mensagem_id = ? and ignorada = 0 order by id', pedido.id);
+    return { resposta: resposta.id, pedido: pedido.id, texto: pedido.texto, anexos };
+  }
+  async function enviarMensagem({ pessoa, params, corpo, res, programada = false, regerar = false }) {
     // Rajada: no máximo RAJADA envios por minuto por pessoa (protege créditos e o fornecedor).
     const instante = Date.now(), recentes = (rajadas.get(pessoa.id) || []).filter(t => t > instante - 60e3);
     if (recentes.length >= (app.rajada ?? RAJADA)) throw erro(429, 'rajada', 'Muitas mensagens em pouco tempo. Espere um minuto e envie de novo.');
@@ -340,7 +367,9 @@ export function rotasConversas(app, r) {
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
     let repeticao = null;
-    if (corpo.repetir_conversa_id !== undefined) {
+    const regeracao = regerar ? alvoDaRegeracao(conv, qw, corpo.mensagem_id) : null;
+    if (regeracao) corpo = { texto: regeracao.texto, modelo: corpo.modelo };
+    else if (corpo.repetir_conversa_id !== undefined) {
       if (!conv.teste || !qw || um(app.db, 'select 1 from mensagens where conversa_id = ?', conv.id)) throw erro(409, 'repeticao_invalida', 'Repita o material em um novo teste deste Quick Win.');
       repeticao = lerMaterialRefinamento(app, pessoa, conv.quick_win_id, corpo.repetir_conversa_id, corpo.repetir_mensagem_id);
       if (!repeticao.disponivel) throw erro(409, 'material_nao_guardado', 'A política de retenção não guardou este material. Envie-o novamente para testar.');
@@ -373,11 +402,11 @@ export function rotasConversas(app, r) {
     // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
     const cancelado = new AbortController();
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
-    const anexos = repeticao ? repeticao.anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
+    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
       .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
     // Links (fontes): os enviados no campo próprio e os colados na mensagem de um Quick Win são lidos pela rede
     // segura (só https público). O que não pôde ser lido entra como aviso explícito, nunca em silêncio.
-    const links = repeticao ? [] : linksDoEnvio(corpo, qw ? texto : '');
+    const links = repeticao || regeracao ? [] : linksDoEnvio(corpo, qw ? texto : '');
     const avisosLinks = [];
     for (const l of links) {
       try {
@@ -393,7 +422,7 @@ export function rotasConversas(app, r) {
     }
     // Comando sobre o material da conversa ("ignore esse documento", "use só esta planilha", "considere este link
     // apenas como referência", "esse PDF é a fonte principal"): muda o papel do material, que vale daqui em diante.
-    const cmdFonte = !anexos.length && comandoDeFonte(texto);
+    const cmdFonte = !regeracao && !anexos.length && comandoDeFonte(texto);   // ao gerar de novo, o comando já valeu
     const fonteMudou = cmdFonte ? aplicarComandoDeFonte(app, conv, cmdFonte) : null;
     if (fonteMudou) registrar(app, 'source.role_changed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, anexo: fonteMudou.anexo, acao: fonteMudou.acao });
     if (!texto && !anexos.length) throw erro(400, 'vazia', 'Escreva uma mensagem.');
@@ -422,6 +451,10 @@ export function rotasConversas(app, r) {
         politica.length ? `Pela política da empresa, esta mensagem não pode ser enviada à IA porque contém: ${politica.map(t => ROTULOS[t]).join(', ')}.` : null].filter(Boolean).join(' ');
       throw erro(422, 'dado_bloqueado', `${msg} Nenhum conteúdo foi enviado.`, { tipos: bloqueados });
     }
+    // A retenção mudou desde o pedido original e agora não guarda este conteúdo: a resposta nova não poderia ficar
+    // no histórico no lugar da anterior. Nada é enviado.
+    if (regeracao && tipos.some(t => (cfg.naoArmazenar || []).includes(t)))
+      throw erro(409, 'regerar_nao_guardado', 'Pela política de retenção da empresa, este pedido não pode ser guardado de novo. Envie o pedido outra vez numa nova mensagem.');
 
     // 2. Contexto (arquivos do quick win e bases) e gatilhos de conversa sigilosa.
     const ctx = await (app.contexto?.montar(pessoa, qw, texto) ?? { partes: [], fontes: [], sigiloso: false });
@@ -588,7 +621,7 @@ export function rotasConversas(app, r) {
       rota.reserva || (rota.reservaDescartada ? `descartada:${rota.reservaDescartada}` : null), resultado, solicitado, decisaoSolicitado, motivoSolicitado,
       sigilosa ? 'on' : null, guardrails(), motivoBloqueio).lastInsertRowid);
     // Nova tentativa: liga a decisão à anterior e marca a anterior como refeita (dado para calibração).
-    const ligarTentativa = id => { if (analise.insatisfacao && ant) { exec(app.db, 'update roteamento set nova_tentativa_de = ? where id = ?', ant.id, id); exec(app.db, 'update roteamento set refeito = 1 where id = ?', ant.id); } };
+    const ligarTentativa = id => { if ((analise.insatisfacao || regeracao) && ant) { exec(app.db, 'update roteamento set nova_tentativa_de = ? where id = ?', ant.id, id); exec(app.db, 'update roteamento set refeito = 1 where id = ?', ant.id); } };
 
     let m = rota.modelo;
     if (!m) {
@@ -630,8 +663,9 @@ export function rotasConversas(app, r) {
     //    processamento (sem o texto, o conteúdo do anexo, a resposta ou um título tirado do conteúdo).
     const agora = AGORA(app);
     const naoGuardar = tipos.some(t => (cfg.naoArmazenar || []).includes(t));
-    const msgId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, naoGuardar ? NAO_GUARDADO : texto, agora).lastInsertRowid);
-    if (!naoGuardar) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida) values (?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null);
+    // Gerar de novo: o pedido já está guardado (com os anexos) e não é duplicado.
+    const msgId = regeracao ? regeracao.pedido : Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, naoGuardar ? NAO_GUARDADO : texto, agora).lastInsertRowid);
+    if (!naoGuardar && !regeracao) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida) values (?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null);
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
@@ -639,7 +673,7 @@ export function rotasConversas(app, r) {
     ligarTentativa(rotaId);
 
     // Histórico no mesmo orçamento que a seleção usou: o que ela garantiu que cabe, cabe aqui.
-    const h = historico(app, conv, orcamentoHistorico(analise, m), naoGuardar ? { id: msgId, texto, anexos } : null);
+    const h = historico(app, conv, orcamentoHistorico(analise, m), naoGuardar ? { id: msgId, texto, anexos } : null, regeracao?.resposta ?? null);
     if (h.cortada && !conv.cortada) exec(app.db, 'update conversas set cortada = 1 where id = ?', conv.id);
     const cache = /^(anthropic|google)\//.test(m.id);
     const montarSistema = (base, extra = '') => ctx.partes.length && cache
@@ -653,9 +687,11 @@ export function rotasConversas(app, r) {
     // Defesa final, sobre o payload inteiro, imediatamente antes do envio: se algum caminho montou contexto sem
     // passar pela conferência acima, nada sai e a mensagem gravada é desfeita (a tentativa fica só como aviso).
     if (contemCredencial(conteudoDoPedido)) {
-      exec(app.db, 'delete from anexos where mensagem_id = ?', msgId);
-      exec(app.db, 'delete from mensagens where id = ?', msgId);
-      exec(app.db, 'update conversas set titulo = ? where id = ?', conv.titulo, conv.id);
+      if (!regeracao) {   // ao gerar de novo, o pedido e a resposta anterior já existiam e ficam
+        exec(app.db, 'delete from anexos where mensagem_id = ?', msgId);
+        exec(app.db, 'delete from mensagens where id = ?', msgId);
+        exec(app.db, 'update conversas set titulo = ? where id = ?', conv.titulo, conv.id);
+      }
       exec(app.db, "update roteamento set resultado = 'bloqueado', motivo_bloqueio = 'credencial_na_conferencia_final' where id = ?", rotaId);
       bloquearCredencial(pessoa, conv, ['envio_final'], []);
     }
@@ -902,6 +938,13 @@ export function rotasConversas(app, r) {
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, naoGuardar ? NAO_GUARDADO : resposta, usado, fim?.fornecedor, JSON.stringify([...ctx.fontes, ...(naoGuardar ? [] : fontesWeb)]), AGORA(app)).lastInsertRowid);
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
+    if (regeracao) {
+      // A nova resposta entra (id maior) e só então a anterior sai da conversa. O uso, o custo e a decisão de
+      // roteamento dela continuam registrados; a avaliação ("Serviu?") era dela e volta a ficar em aberto.
+      exec(app.db, "delete from mensagens where id = ? and conversa_id = ? and papel = 'assistant'", regeracao.resposta, conv.id);
+      exec(app.db, 'update conversas set feedback = null, feedback_motivo = null where id = ?', conv.id);
+      registrar(app, 'conversation.regenerated', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, resposta_anterior: regeracao.resposta, resposta: respId, roteamento: rotaId });
+    }
     exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
       usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
     const artefatos = visuais ? gravarVisuais(app, visuais, { pessoa, conv, qw, respId, rotaId }) : [];

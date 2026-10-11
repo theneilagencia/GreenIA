@@ -150,7 +150,7 @@ function htmlMensagem(m) {
     <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
     <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}${integracoes}
       ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar.</span>' : ''}
-        <button type="button" class="btn btn-linha btn-pequeno" data-copiar="${m.id}">Copiar</button>${execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use')) ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para o acompanhamento</a><a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento">Acompanhar resultados</a>` : ''}${execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado' ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}${E.iaSimulada ? '<span class="selo selo-simulada">Resposta simulada</span>' : ''}${infoResposta(m)}</div>
+        <button type="button" class="btn btn-linha btn-pequeno" data-copiar="${m.id}">Copiar</button>${m.id === C.podeRegerar ? `<button type="button" class="btn btn-linha btn-pequeno" data-regerar="${m.id}" ${C.enviando ? 'disabled' : ''} title="Pede outra resposta ao mesmo pedido. Usa créditos como uma nova mensagem.">Gerar de novo</button>` : ''}${execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use')) ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para o acompanhamento</a><a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento">Acompanhar resultados</a>` : ''}${execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado' ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}${E.iaSimulada ? '<span class="selo selo-simulada">Resposta simulada</span>' : ''}${infoResposta(m)}</div>
         ${avaliacao(m)}${fontes}${detalheExecucao(m)}`}
     </div></div>`;
 }
@@ -174,6 +174,12 @@ function avaliacao(m) {
 function desenharMensagens() {
   const vazio = !C.mensagens.length;
   C.ultimaResposta = [...C.mensagens].reverse().find(m => m.papel === 'assistant' && !m.erro && !m.carregando && Number.isInteger(m.id))?.id ?? null;
+  // "Gerar de novo": só a última resposta guardada, logo depois do pedido, na conversa livre e no Quick Win do
+  // formato anterior (testes e execuções do formato novo têm conferência própria). O servidor confere de novo.
+  const fim = C.mensagens.filter(m => m.papel !== 'aviso' && !m.erro);   // uma falha mostrada não conta: dá para tentar de novo
+  const ultima = fim.at(-1), pedido = fim.at(-2);
+  C.podeRegerar = C.conv && !C.conv.teste && !C.qw?.v2 && ultima?.id === C.ultimaResposta && pedido?.papel === 'user' && Number.isInteger(pedido.id)
+    && ultima.guardado !== false && !/^\[Conteúdo processado e não guardado/.test(ultima.texto) && !ultima.artefatos?.length ? ultima.id : null;
   const boasVindas = C.qw
     ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
@@ -262,6 +268,8 @@ function ligar() {
         toast('Pedido preparado. Confira o texto e clique em Enviar. Nenhuma nova execução foi iniciada.');
       })();
     }
+    const rg = ev.target.closest('[data-regerar]');
+    if (rg && !rg.disabled) gerarDeNovo(Number(rg.dataset.regerar));
     const cp = ev.target.closest('[data-copiar]');
     if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); navigator.clipboard?.writeText(m.texto).then(() => toast('Resposta copiada.')); }
     const csv = ev.target.closest('[data-csv]');
@@ -378,6 +386,12 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     C.enviando = false; desenharMensagens(); atualizarEnviar();
     return;
   }
+  await receberResposta(r);
+}
+
+// Resposta em streaming (uma linha JSON por evento), do envio normal e do "Gerar de novo".
+// manterErro: a falha continua à vista depois de reler a conversa (ao gerar de novo, a resposta anterior volta).
+async function receberResposta(r, { manterErro = false } = {}) {
   const resposta = { id: 'ia' + Date.now(), papel: 'assistant', texto: '', carregando: true };
   const leitor = r.body.getReader();
   const dec = new TextDecoder();
@@ -408,7 +422,45 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
   await recarregarConversa(true);
+  if (manterErro && resposta.erro && $('coluna')) { C.mensagens.push({ ...resposta, id: 'er' + Date.now() }); desenharMensagens(); }
   recarregarLateral();
+}
+
+// "Gerar de novo" (QA UX M13): o servidor refaz a última resposta pelo mesmo caminho do envio (mesmas regras,
+// mesmos créditos). A resposta anterior some da tela enquanto a nova é gerada e volta se algo der errado.
+async function gerarDeNovo(id, depoisDaCiencia = false) {
+  if (C.enviando || !C.conv) return;
+  const anterior = C.mensagens.find(m => m.id === id);
+  if (!anterior) return;
+  C.enviando = true; atualizarEnviar();
+  const pos = C.mensagens.indexOf(anterior);
+  C.mensagens.splice(pos, 1);
+  C.pensando = true; C.etapa = null; C.execucao = false; C.noFim = true; desenharMensagens();
+  $('ao-vivo').textContent = 'Gerando outra resposta…';
+  const voltar = texto => {
+    C.pensando = false;
+    if (!C.mensagens.some(m => m.id === anterior.id)) C.mensagens.splice(Math.min(pos, C.mensagens.length), 0, anterior);
+    C.mensagens.push({ id: 'er' + Date.now(), papel: 'assistant', texto, erro: true });
+    C.enviando = false; desenharMensagens(); atualizarEnviar();
+    $('ao-vivo').textContent = texto;
+  };
+  let r;
+  try { r = await api(`/api/conversas/${C.conv.id}/regenerar`, { metodo: 'POST', corpo: { mensagem_id: id, ...(C.qw?.v2 ? {} : { modelo: C.modelo }) }, bruto: true }); }
+  catch { return voltar('Não foi possível gerar outra resposta agora. Confira a conexão e tente de novo.'); }
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 428 && !depoisDaCiencia) {
+      // A política mudou: registra ciência e tenta de novo, como no envio.
+      C.pensando = false; C.mensagens.splice(pos, 0, anterior); C.enviando = false; desenharMensagens();
+      await pedirCiencia();
+      await new Promise(ok => { const t = setInterval(() => { if (!document.querySelector('#dar-ciencia')) { clearInterval(t); ok(); } }, 300); });
+      return gerarDeNovo(id, true);
+    }
+    // Bloqueio (sigilo, nada disponível, conversa mudou): relê a conversa (avisos e sigilo) sem perder a resposta.
+    if ([409, 503].includes(r.status)) await recarregarConversa(true).catch(() => {});
+    return voltar(d.mensagem || 'Não foi possível gerar outra resposta.');
+  }
+  await receberResposta(r, { manterErro: true });
 }
 
 async function recarregarConversa(redesenharTudo) {

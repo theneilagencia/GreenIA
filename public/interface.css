@@ -398,3 +398,18 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 @media(max-width:760px){
   :is(.app,.plataforma) label:has(>input:is([type=checkbox],[type=radio])):not(.segmento label):not(.chip-opcao):not(.escolha):not(.switch){display:inline-flex;align-items:center;gap:8px;min-height:44px}
 }
+
+/* === Conversa e conhecimento (QA UX 2) === */
+/* "Gerar de novo" no rodapé da última resposta, com o mesmo peso do "Copiar"; 44 px no celular. */
+.app .rodape-resposta [data-regerar]{min-height:36px;padding:4px 14px;font:500 13px var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:var(--raio)}
+.app .rodape-resposta [data-regerar]:disabled{opacity:.55;cursor:not-allowed}
+/* Conhecimento: "Abrir" no cartão e painel de leitura do texto extraído. */
+.conhecimento-documento .conhecimento-abrir{margin:4px 0}
+#modal .conhecimento-leitura{max-width:760px}
+.conhecimento-leitura [hidden]{display:none!important}
+.conhecimento-ler-texto{max-height:min(56vh,560px);overflow-y:auto;padding:12px 14px;margin:8px 0;border:1px solid var(--line);border-radius:var(--raio);background:var(--paper);overflow-wrap:anywhere}
+#modal .conhecimento-ler-texto p{margin:0 0 10px;color:var(--ink)}
+@media(max-width:760px){
+  .app .rodape-resposta [data-regerar],.app .conhecimento-documento .conhecimento-abrir{min-height:44px}
+  .conhecimento-ler-texto{max-height:60vh}
+}

@@ -23,7 +23,8 @@ export function basesVisiveis(db, pessoa) {
 const LISTA = `select d.id, d.titulo, d.arquivo, d.area_id, a.nome as area, a.ativa as area_ativa, d.toda_empresa, d.sigiloso, d.pasta,
   length(d.texto) as caracteres, d.atualizado_em, d.revisado_em, r.nome as revisado_por
   from documentos d left join areas a on a.id = d.area_id left join pessoas r on r.id = d.revisado_por`;
-const pasta = v => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
+export const LEITURA_CARACTERES = 20000;   // página de leitura do texto extraído (rota .../conteudo)
+const pasta = v =>String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
 
 function podeGerirDoc(pessoa, d) {
   if (!d || d.quick_win_id) return false;
@@ -75,6 +76,25 @@ export function rotasBases(app, r) {
       return false;
     };
     return { documentos: docs.map(d => ({ ...metadados(app.db,d), quickWins: qws.filter(q => usa(q, d)).map(q => ({ id: q.id, nome: q.nome })) })), podeGerir: pessoa.admin || pessoa.areas.some(a => a.adminBase) };
+  });
+
+  // Leitura do texto extraído para quem pode consultar a base (QA UX M17). Mesma regra da consulta pela IA:
+  // basesVisiveis (áreas de que a pessoa participa, ativas, e as da empresa toda; nunca arquivos de Quick Win)
+  // e só documentos vigentes (idsVigentes: suspenso ou com validade encerrada não entra em respostas, então
+  // também não abre aqui). Fora do alcance: 404, sem revelar se existe. Só o texto extraído, nunca o arquivo
+  // original, em páginas de até LEITURA_CARACTERES. Não há registro de leitura: o sistema não audita consultas.
+  r.get('/api/bases/documentos/:id/conteudo', ({ pessoa, params, query }) => {
+    const id = /^[1-9]\d*$/.test(params.id) ? Number(params.id) : 0;
+    if (!id || !basesVisiveis(app.db, pessoa).includes(id)) throw erro(404, 'documento', 'Documento não encontrado.');
+    if (!idsVigentes(app.db, [id]).length) throw erro(409, 'documento_fora_de_uso', 'Este documento está suspenso ou com a validade encerrada e não é usado nas respostas. Fale com quem administra a base.');
+    const d = metadados(app.db, um(app.db, `${LISTA} where d.id = ?`, id));
+    const total = um(app.db, 'select length(texto) as n from documentos where id = ?', id).n;
+    const inicio = Math.min(Math.max(0, Number.parseInt(query.inicio, 10) || 0), total);
+    // Contagem em caracteres do SQLite (length/substr), a mesma unidade de total e inicio.
+    const p = um(app.db, 'select substr(texto, ?, ?) as t, length(substr(texto, ?, ?)) as n from documentos where id = ?', inicio + 1, LEITURA_CARACTERES, inicio + 1, LEITURA_CARACTERES, id);
+    const texto = p.t || '', fim = inicio + (p.n || 0);
+    return { documento: { id: d.id, titulo: d.titulo, arquivo: d.arquivo, area: d.toda_empresa ? 'Toda a empresa' : d.area, pasta: d.pasta || null, sigiloso: !!d.sigiloso, atualizado_em: d.atualizado_em },
+      texto, inicio, fim, total, proximo: fim < total ? fim : null };
   });
 
   r.get('/api/bases/resumo', ({ pessoa }) => resumoBases(app.db, pessoa));

@@ -79,7 +79,7 @@ export async function vistaConhecimento() {
     const gerir = F.vista === 'gerir';
     const b = gerir && F.area ? areas.find(a => String(a.id) === F.area) : null;
     el('conhecimento-lista').innerHTML = `${b ? `<details class="conhecimento-audiencia"><summary>Quem usa e administra ${esc(b.nome)}?</summary><p>${b.membros} pessoas nesta área. Administram: ${b.administradores.map(p => esc(p.nome || p.email)).join(', ') || 'admin da empresa'}.</p><p class="dica">${esc(b.descricao || '')} ${E.eu.admin ? 'Pessoas e permissões são definidas em Pessoas e áreas.' : 'O admin da empresa define quem faz parte desta área.'}</p></details>` : ''}${filtrados.length ? `<ul class="conhecimento-documentos">${filtrados.slice(0, F.limite).map(d => `<li class="conhecimento-documento" data-documento="${d.id}"><div class="conhecimento-doc-topo"><h3>${esc(d.titulo)}</h3>${d.sigiloso ? '<span class="selo selo-sigilosa">Sigiloso</span>' : ''}${d.vigente===false?`<span class="selo">${d.suspenso?'Suspenso':'Validade encerrada'}</span>`:''}</div><p class="dica">${esc(d.toda_empresa ? 'Toda a empresa' : d.area || areas.find(a => a.id === d.area_id)?.nome || 'Área')} · ${esc(d.pasta || 'Sem pasta')}</p><p class="dica">${esc(d.arquivo || 'Documento')} · Atualizado em ${data(d.atualizado_em)}${k.podeGerir ? `<br>Responsável: ${esc(d.responsavel_nome||'não definido')}${d.validade?' · Válido até '+data(d.validade):''}` : ''}</p>${k.podeGerir ? `<p class="conhecimento-revisao ${revisar(d) ? 'pendente' : ''}">${revisar(d) ? 'Revisão recomendada' : 'Conteúdo revisado'} · ${d.revisado_em ? data(d.revisado_em) : 'nunca revisado'}</p>` : ''}
-      ${gerir ? `<div class="linha-botoes"><button type="button" class="btn btn-linha btn-pequeno" data-editar-conhecimento="${d.id}">Editar documento</button><button type="button" class="btn-texto btn-pequeno" data-revisar-conhecimento="${d.id}">Marcar revisado</button></div>` : `<details><summary>Como este conteúdo é usado?</summary><p class="dica">${d.vigente===false?'Não entra em novas respostas enquanto estiver suspenso ou vencido.':'Disponível para busca nas conversas.'} ${d.sigiloso ? 'Quando este conteúdo é usado, a conversa é tratada como sigilosa segundo a política.' : ''}</p>${(d.quickWins || []).filter(q => E.quickWins.some(v => v.id === q.id)).map(q => `<a class="btn-texto" href="#/qw/${q.id}">${esc(q.nome)}</a>`).join('')}</details>`}</li>`).join('')}</ul>${filtrados.length > F.limite ? '<button type="button" class="btn btn-linha" data-mais-conhecimento>Mostrar mais documentos</button>' : ''}` : `<div class="conhecimento-vazio"><h3>${ds.length ? 'Nenhum documento corresponde aos filtros' : 'Ainda não há documentos nesta visão'}</h3><p>${ds.length ? 'Tente outra palavra ou limpe os filtros.' : gerir ? 'Adicione um arquivo à base correta para disponibilizar o conhecimento.' : 'O responsável pela base pode disponibilizar os documentos permitidos para a sua área.'}</p></div>`}`;
+      ${gerir ? `<div class="linha-botoes"><button type="button" class="btn btn-linha btn-pequeno" data-editar-conhecimento="${d.id}">Editar documento</button><button type="button" class="btn-texto btn-pequeno" data-revisar-conhecimento="${d.id}">Marcar revisado</button></div>` : `${d.vigente===false?'':`<div class="linha-botoes"><button type="button" class="btn btn-linha btn-pequeno conhecimento-abrir" data-abrir-conhecimento="${d.id}" aria-haspopup="dialog">Abrir<span class="sr"> ${esc(d.titulo)}</span></button></div>`}<details><summary>Como este conteúdo é usado?</summary><p class="dica">${d.vigente===false?'Não entra em novas respostas enquanto estiver suspenso ou vencido.':'Disponível para busca nas conversas.'} ${d.sigiloso ? 'Quando este conteúdo é usado, a conversa é tratada como sigilosa segundo a política.' : ''}</p>${(d.quickWins || []).filter(q => E.quickWins.some(v => v.id === q.id)).map(q => `<a class="btn-texto" href="#/qw/${q.id}">${esc(q.nome)}</a>`).join('')}</details>`}</li>`).join('')}</ul>${filtrados.length > F.limite ? '<button type="button" class="btn btn-linha" data-mais-conhecimento>Mostrar mais documentos</button>' : ''}` : `<div class="conhecimento-vazio"><h3>${ds.length ? 'Nenhum documento corresponde aos filtros' : 'Ainda não há documentos nesta visão'}</h3><p>${ds.length ? 'Tente outra palavra ou limpe os filtros.' : gerir ? 'Adicione um arquivo à base correta para disponibilizar o conhecimento.' : 'O responsável pela base pode disponibilizar os documentos permitidos para a sua área.'}</p></div>`}`;
     el('envio-conhecimento')?.classList.toggle('oculto', !gerir);
   }
   function envioHtml() {
@@ -110,6 +110,40 @@ export async function vistaConhecimento() {
       } catch (e) { erro(e); if (el('btn-doc')) { el('btn-doc').disabled = false; el('btn-doc').textContent = confirmado ? 'Confirmar envio' : 'Revisar envio'; el('doc-voltar').disabled = false; } }
       finally { ocupado = false; ativa.ocupada = false; }
     };
+  }
+  // Leitura do texto extraído (QA UX M17), para quem pode consultar a base: o servidor aplica a mesma regra da
+  // consulta pela IA e devolve o texto em páginas. Não há download do arquivo original.
+  async function abrir(d, origem) {
+    const host = document.getElementById('modal');
+    host.innerHTML = `<div class="modal-fundo"><section class="modal conhecimento-leitura" role="dialog" aria-modal="true" aria-labelledby="conhecimento-ler-titulo" aria-describedby="conhecimento-ler-meta" tabindex="-1"><div class="modal-topo"><h2 id="conhecimento-ler-titulo" tabindex="-1">${esc(d.titulo)}</h2><button type="button" class="icone-btn" id="conhecimento-ler-fechar" aria-label="Fechar">×</button></div><p class="dica" id="conhecimento-ler-meta">${esc(d.toda_empresa ? 'Toda a empresa' : d.area || 'Área')} · Atualizado em ${data(d.atualizado_em)}${d.sigiloso ? ' · <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</p><p class="dica">Texto lido do arquivo ${esc(d.arquivo || '')}. Tabelas, imagens e formatação podem aparecer de forma simplificada.</p><div class="conhecimento-ler-texto" id="conhecimento-ler-texto" aria-busy="true"><p class="dica">Carregando o texto…</p></div><p class="msg-erro" id="conhecimento-ler-erro" role="alert" hidden></p><p class="dica" id="conhecimento-ler-aviso" role="status"></p><div class="linha-botoes"><button type="button" class="btn btn-linha" id="conhecimento-ler-mais" hidden>Mostrar mais do texto</button><button type="button" class="btn btn-linha" id="conhecimento-ler-ok">Fechar</button></div></section></div>`;
+    const $ = id => host.querySelector(`#${id}`);
+    const fechar = () => { limpar(); host.innerHTML = ''; origem?.isConnected ? origem.focus() : el('conhecimento-busca')?.focus(); };
+    const limpar = fecharComEscape(host.querySelector('.modal'), fechar);
+    ativa.dispensarEditor = () => { limpar(); if (host.querySelector('.conhecimento-leitura')) host.innerHTML = ''; };
+    $('conhecimento-ler-fechar').onclick = fechar; $('conhecimento-ler-ok').onclick = fechar;
+    $('conhecimento-ler-titulo').focus();
+    let lido = '';
+    const carregarParte = async inicio => {
+      const mais = $('conhecimento-ler-mais'); mais.disabled = true;
+      try {
+        const r = await api(`/api/bases/documentos/${d.id}/conteudo${inicio ? `?inicio=${inicio}` : ''}`);
+        if (!host.querySelector('.conhecimento-leitura')) return;
+        lido += r.texto;
+        const caixa = $('conhecimento-ler-texto');
+        caixa.setAttribute('aria-busy', 'false');
+        caixa.innerHTML = lido.trim() ? lido.split(/\n{2,}/).map(p => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('') : '<p class="dica">Este documento não tem texto legível.</p>';
+        $('conhecimento-ler-aviso').textContent = r.proximo === null ? (inicio ? 'Fim do documento.' : '') : `Mostrando ${r.fim.toLocaleString('pt-BR')} de ${r.total.toLocaleString('pt-BR')} caracteres.`;
+        mais.hidden = r.proximo === null; mais.disabled = false;
+        mais.onclick = () => carregarParte(r.proximo);
+      } catch (e) {
+        if (!host.querySelector('.conhecimento-leitura')) return;
+        $('conhecimento-ler-texto').setAttribute('aria-busy', 'false');
+        if (!lido) $('conhecimento-ler-texto').innerHTML = '';
+        $('conhecimento-ler-erro').textContent = e.status === 404 ? 'Este documento não está mais disponível para você. Atualize a biblioteca.' : e.message;
+        $('conhecimento-ler-erro').hidden = false; mais.disabled = false;
+      }
+    };
+    await carregarParte(0);
   }
   async function editar(d, origem) {
     let gov;try { gov=await api(`/api/bases/documentos/${d.id}/governanca`); } catch(e) { falha(e);return; }
@@ -157,6 +191,7 @@ export async function vistaConhecimento() {
     else if (b.hasAttribute('data-filtrar-revisao')) { F.status = 'revisar'; el('conhecimento-status').value = F.status; F.limite = 20; desenharLista(); }
     else if (b.hasAttribute('data-limpar-conhecimento')) { Object.assign(F, { busca: '', area: '', pasta: '', status: '', limite: 20 }); el('conhecimento-busca').value = ''; el('conhecimento-status').value = ''; pastas(); desenharLista(); el('conhecimento-busca').focus(); }
     else if (b.hasAttribute('data-mais-conhecimento')) { F.limite += 20; desenharLista(); }
+    else if (b.dataset.abrirConhecimento) { const d = k.documentos.find(d => String(d.id) === b.dataset.abrirConhecimento); if (d) abrir(d, b); }
     else if (b.dataset.editarConhecimento) { const d = documentos.find(d => String(d.id) === b.dataset.editarConhecimento); if (d && F.vista === 'gerir' && k.podeGerir) editar(d, b); }
     else if (b.dataset.revisarConhecimento && k.podeGerir && F.vista === 'gerir') {
       const d = documentos.find(d => String(d.id) === b.dataset.revisarConhecimento);

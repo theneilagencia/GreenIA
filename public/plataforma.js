@@ -2,6 +2,7 @@
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
 import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE, rodapePlataformaHtml } from '/comum.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
+import { campoData, lerData } from '/data-br.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
 const $ = id => document.getElementById(id);
@@ -97,6 +98,8 @@ function faixaChave() {
   if (!a || !NIVEL_FAIXA[a.nivel] || location.hash.startsWith('#/uso')) return '';   // em Uso, o card da chave já mostra
   return `<div class="faixa-aviso ${NIVEL_FAIXA[a.nivel]} faixa-chave" role="${a.nivel === 'atencao' ? 'status' : 'alert'}"><b>Chave do OpenRouter · ${esc(a.rotulo || '')}:</b> ${esc(a.texto)} <a href="#/uso" data-trocar-chave>Trocar a chave</a></div>`;
 }
+// Data dd/mm/aaaa do campo pt-BR em ISO (vazio → null); data inválida interrompe com a explicação.
+const dataOuErro = el => { const v = lerData(el); if (v === null) throw new Error(el.validationMessage || 'Use uma data válida no formato dd/mm/aaaa.'); return v || null; };
 const carregando = titulo => tela(titulo, carregandoHtml());
 // Coluna sem título (a dos botões) ganha o nome "Ações" para leitores de tela.
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => `<th${c.startsWith('#') ? ' class="num"' : ''}>${c ? esc(c.replace(/^#/, '')) : '<span class="sr">Ações</span>'}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
@@ -286,7 +289,7 @@ async function abaResumo(d, id) {
           <select class="entrada" id="p-tipo" style="max-width:220px" aria-label="Tipo"><option value="packs">Capacity Pack</option><option value="cortesia">Cortesia (créditos sem receita)</option></select>
           <input class="entrada" id="p-qtd" type="number" min="1" max="50" value="1" style="max-width:110px" aria-label="Quantidade de Capacity Packs">
           <input class="entrada oculto" id="p-creditos" type="number" min="1" value="500" style="max-width:130px" aria-label="Créditos de cortesia">
-        <input class="entrada" id="p-validade" type="date" style="max-width:170px" aria-label="Validade"><input class="entrada" id="p-obs" placeholder="Observação" maxlength="300" style="max-width:260px" aria-label="Observação">
+        ${campoData({ id: 'p-validade', min: new Date().toISOString().slice(0, 10), rotulo: 'a validade', extra: 'aria-label="Validade"' })}<input class="entrada" id="p-obs" placeholder="Observação" maxlength="300" style="max-width:260px" aria-label="Observação">
         <button class="btn btn-linha">Liberar</button></form>
         <p class="dica" id="p-resumo"></p></details>` : '<p class="dica">Sem plano vinculado: a empresa usa sem cota e vê o custo em dólar.</p>'}
     <div class="secao-titulo"><h2 class="h-secao">Dados cadastrais</h2></div>
@@ -352,7 +355,7 @@ async function abaResumo(d, id) {
       const corpo = packs ? { packs: Number($('p-qtd').value) } : { creditos: Number($('p-creditos').value) };
       const oque = packs ? `${num(corpo.packs)} ${corpo.packs === 1 ? 'Capacity Pack' : 'Capacity Packs'}` : `${num(corpo.creditos)} créditos de cortesia`;
       confirmarStatus({ rotulo: 'Capacity Pack', titulo: `Liberar ${oque} para a ${e.name}?`, botao: `Liberar ${oque}`, texto: `${$('p-resumo').textContent.replace(/\.?$/, '.')} Os admins da empresa recebem um email.`,
-        async aplicar() { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { ...corpo, validade: $('p-validade').value || null, observacao: $('p-obs').value } }); toast('Créditos liberados.'); vistaEmpresa(id, 'resumo'); } });
+        async aplicar() { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { ...corpo, validade: dataOuErro($('p-validade')), observacao: $('p-obs').value } }); toast('Créditos liberados.'); vistaEmpresa(id, 'resumo'); } });
     };
   }
   $('f-dados').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); toast('Dados salvos.'); } catch (x) { falhar(x); } };
@@ -712,7 +715,7 @@ function validadeHtml(v) {
           <span class="or-alerta-campo"><input class="entrada" id="val-rotacao" type="number" min="7" max="730" step="1" value="${esc(t.rotacaoDias)}" inputmode="numeric"><span>dias</span></span>
           <span class="dica">De 7 a 730. Mudar o prazo não reinicia a contagem: vale a partir do início (${noFuso(t.inicio, f)}).</span></div>
         ${podeInformar ? `<div class="campo"><label for="val-expira">Vencimento real da chave (opcional)</label>
-          <input class="entrada" id="val-expira" type="date" value="${esc(p.fonte === 'informada' ? p.dataInformada || '' : '')}" aria-describedby="val-expira-dica">
+          ${campoData({ id: 'val-expira', valor: p.fonte === 'informada' ? p.dataInformada || '' : '', rotulo: 'o vencimento', extra: 'aria-describedby="val-expira-dica"' })}
           <span class="dica" id="val-expira-dica">Só se você souber a data por outra fonte. Vale até 23:59 desse dia (${esc(f)}). Vale só para esta chave; se o OpenRouter informar a dele, a do OpenRouter prevalece.</span></div>` : ''}
         <button class="btn btn-linha btn-pequeno">Salvar</button>
       </form></details>
@@ -800,7 +803,7 @@ async function vistaUso(forcar = false) {
   if ($('f-validade')) $('f-validade').onsubmit = async ev => {
     ev.preventDefault();
     const corpo = { rotacaoDias: $('val-rotacao').value === '' ? null : Number($('val-rotacao').value) };
-    if ($('val-expira')) corpo.expiraEm = $('val-expira').value || null;
+    if ($('val-expira')) corpo.expiraEm = dataOuErro($('val-expira'));
     try { await api('/api/plataforma/openrouter/chave/validade', { metodo: 'PUT', corpo }); toast('Vencimento e rotação salvos.'); vistaUso(); } catch (x) { falhar(x); }
   };
   $('or-ver').onclick = ev => { const i = $('or-chave-in'), ver = i.type === 'password'; i.type = ver ? 'text' : 'password'; ev.currentTarget.textContent = ver ? 'Ocultar' : 'Mostrar'; ev.currentTarget.setAttribute('aria-pressed', ver); };
@@ -985,9 +988,9 @@ async function vistaConfiguracoes() {
       if (acao === 'interacao') return confirmarStatus({ rotulo: 'Contato comercial', titulo: `Registrar interação com ${b.dataset.nome}`, botao: 'Registrar interação',
         texto: 'A interação renova o prazo de eliminação do contato.',
         campos: `<div class="campo"><label for="ct-tipo">Tipo da interação</label><select class="entrada" id="ct-tipo"><option value="">Escolha</option>${Object.entries(TIPOS_INTERACAO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
-          <div class="campo"><label for="ct-em">Data da interação</label><input class="entrada" id="ct-em" type="date" max="${new Date().toISOString().slice(0, 10)}" aria-describedby="ct-em-ajuda"><span class="ajuda" id="ct-em-ajuda">Deixe em branco para hoje.</span></div>`,
+          <div class="campo"><label for="ct-em">Data da interação</label>${campoData({ id: 'ct-em', max: new Date().toISOString().slice(0, 10), rotulo: 'a data da interação', extra: 'aria-describedby="ct-em-ajuda"' })}<span class="ajuda" id="ct-em-ajuda">Deixe em branco para hoje.</span></div>`,
         validar: () => (!$('ct-tipo').value ? 'Escolha o tipo da interação.' : ''),
-        async aplicar() { await api(`/api/plataforma/contatos/${x}/interacao`, { metodo: 'POST', corpo: { tipo: $('ct-tipo').value, em: $('ct-em').value ? `${$('ct-em').value}T12:00:00Z` : null } }); toast('Contato atualizado.'); vistaConfiguracoes(); } });
+        async aplicar() { await api(`/api/plataforma/contatos/${x}/interacao`, { metodo: 'POST', corpo: { tipo: $('ct-tipo').value, em: dataOuErro($('ct-em')) ? `${dataOuErro($('ct-em'))}T12:00:00Z` : null } }); toast('Contato atualizado.'); vistaConfiguracoes(); } });
       if (acao === 'hold') return pedirHold({ titulo: 'Bloqueio legal do contato comercial', tipos: { legal: 'Obrigação legal', contrato: 'Contrato', litigio: 'Litígio' }, enviar: async corpo => { await api(`/api/plataforma/contatos/${x}/hold`, { metodo: 'POST', corpo }); vistaConfiguracoes(); } });
       if (acao === 'liberar') await api(`/api/plataforma/contatos/${x}/liberar`, { metodo: 'POST' });
       toast('Contato atualizado.'); vistaConfiguracoes();

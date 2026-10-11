@@ -211,11 +211,11 @@ test('operador: liberar Capacity Packs confirma no modal com a quantidade no bot
   try {
     await p.goto(`${N.base}/operador`); await p.waitForSelector('form[data-pacote="cli-1"]', { state: 'attached' });
     await p.locator('#cliente-cli-1>summary').click(); await p.fill('#q-cli-1', '2');
-    await p.click('form[data-pacote="cli-1"] button'); const m = modal('Liberar 2 Capacity Packs para Cliente Fictício?'); await m.waitFor();
+    await p.click('form[data-pacote="cli-1"] button:not(.data-br-cal)'); const m = modal('Liberar 2 Capacity Packs para Cliente Fictício?'); await m.waitFor();
     assert.match(await m.innerText(), /admins do cliente recebem um email/);
     await m.getByRole('button', { name: 'Cancelar', exact: true }).click(); await fechado();
-    assert.deepEqual(liberacoes, []); assert.equal(await p.locator('form[data-pacote="cli-1"] button').isEnabled(), true);
-    await p.click('form[data-pacote="cli-1"] button'); await modal(/Liberar 2 Capacity Packs/).getByRole('button', { name: 'Liberar 2 Capacity Packs', exact: true }).click();
+    assert.deepEqual(liberacoes, []); assert.equal(await p.locator('form[data-pacote="cli-1"] button:not(.data-br-cal)').isEnabled(), true);
+    await p.click('form[data-pacote="cli-1"] button:not(.data-br-cal)'); await modal(/Liberar 2 Capacity Packs/).getByRole('button', { name: 'Liberar 2 Capacity Packs', exact: true }).click();
     await p.waitForFunction(() => /Capacity Pack liberado/.test(document.querySelector('.toast')?.textContent || ''));
     assert.equal(liberacoes.length, 1); assert.equal(liberacoes[0].packs, 2);
   } finally { await p.unrouteAll({ behavior: 'ignoreErrors' }); }

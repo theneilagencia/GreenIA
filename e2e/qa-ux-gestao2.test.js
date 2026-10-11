@@ -196,7 +196,7 @@ test('A13/M28: registros do processo falam em "resultados do processo" e o prazo
     await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento/resultado/${m}`);
     await p.getByRole('heading', { name: 'Confira antes de registrar' }).waitFor();
     // Fora a citação do link da conversa, nenhum "acompanhamento" como nome da tela.
-    const texto = (await p.locator('#principal').innerText()).replace(/“Conferir dados para o acompanhamento”/g, '');
+    const texto = (await p.locator('#principal').innerText()).replace(/“Conferir dados para os resultados”/g, '');
     assert.doesNotMatch(texto, /acompanhamento/i);
     assert.equal(await p.getByRole('link', { name: 'Voltar aos resultados do processo' }).count(), 1);
     const prazo = p.getByLabel('Prazo', { exact: true });
@@ -210,7 +210,7 @@ test('A13/M28: registros do processo falam em "resultados do processo" e o prazo
     const [req] = await Promise.all([p.waitForRequest(r => /\/painel\/registros\/\d+$/.test(r.url()) && r.method() === 'POST'), p.getByRole('button', { name: 'Confirmar e incluir no histórico' }).click()]);
     assert.equal(req.postDataJSON().dados[0].prazo, '2026-10-15');
     await p.getByRole('heading', { level: 2, name: 'Ações da reunião' }).waitFor();
-    assert.doesNotMatch((await p.locator('#principal').innerText()).replace(/“Conferir dados para o acompanhamento”/g, ''), /acompanhamento/i);
+    assert.doesNotMatch((await p.locator('#principal').innerText()).replace(/“Conferir dados para os resultados”/g, ''), /acompanhamento/i);
     assert.equal(await p.getByRole('region', { name: 'Indicadores dos resultados do processo' }).count(), 1);
   } finally { await N.fechar(); }
 });

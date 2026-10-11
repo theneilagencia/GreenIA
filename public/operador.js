@@ -2,6 +2,7 @@
 // (o servidor só responde a quem é operador). Separado do painel do cliente.
 import { api, definirCsrf, esc, marcaHtml, toast } from '/comum.js';
 import { confirmar } from '/admin-ui.js';
+import { campoData, lerData } from '/data-br.js';
 
 const $ = id => document.getElementById(id);
 const num = v => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -94,7 +95,7 @@ function detalhe(i) {
           <td data-r="Validade">${p.validade ? data(p.validade) : 'sem validade'}</td><td data-r="Origem">${ORIGEM[p.origem] || esc(p.origem)}</td><td data-r="Observação">${esc(p.observacao) || '–'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="dica">Nenhum Capacity Pack liberado.</p>'}
       ${r.plano ? `<form data-pacote="${esc(i.id)}" class="filtros" style="margin-top:14px;align-items:flex-end">
         <div class="campo"><label for="q-${esc(i.id)}">Capacity Packs</label><input class="entrada" id="q-${esc(i.id)}" name="packs" type="number" min="1" max="50" step="1" required value="1"></div>
-        <div class="campo"><label for="v-${esc(i.id)}">Validade (opcional)</label><input class="entrada" id="v-${esc(i.id)}" name="validade" type="date" min="${hoje}"></div>
+        <div class="campo"><label for="v-${esc(i.id)}">Validade (opcional)</label>${campoData({ id: `v-${esc(i.id)}`, min: hoje, rotulo: 'a validade', extra: 'name="validade"' })}</div>
         <div class="campo" style="flex:1;min-width:200px"><label for="o-${esc(i.id)}">Observação</label><input class="entrada" id="o-${esc(i.id)}" name="observacao" maxlength="300" placeholder="Pedido, número da fatura…"></div>
         <button class="btn btn-verde">Liberar Capacity Pack</button></form>
         ${pad ? `<p class="dica">Capacity Pack: ${num(pad.creditos)} créditos por ${usd(pad.precoUsd)}; créditos e valor são calculados na instalação do cliente.</p>` : ''}` : ''}
@@ -105,8 +106,10 @@ async function liberar(ev) {
   ev.preventDefault();
   const f = ev.target, id = f.dataset.pacote;
   const inst = dados.instancias.find(i => i.id === id);
-  const corpo = { packs: Number(f.packs.value), validade: f.validade.value || null, observacao: f.observacao.value };
-  const botao = f.querySelector('button');
+  const validade = lerData(f.validade);
+  if (validade === null) { f.validade.reportValidity(); f.validade.focus(); return; }   // data inválida: não libera sem validade por engano
+  const corpo = { packs: Number(f.packs.value), validade: validade || null, observacao: f.observacao.value };
+  const botao = f.querySelector('button:not([type=button])');   // o de enviar (o do calendário é type=button)
   if (botao.disabled) return;
   const qtd = corpo.packs === 1 ? '1 Capacity Pack' : `${num(corpo.packs)} Capacity Packs`;
   botao.disabled = true;

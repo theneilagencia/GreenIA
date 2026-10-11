@@ -15,7 +15,7 @@ async function fixture(N){
 test('leigo: resultado → conferir → erro recuperável → confirmar → histórico → corrigir → recarregar',async()=>{
  const N=await subirComNavegador();try{
   const {q,c,m}=await fixture(N);const p=await N.entrar('admin@empresa-exemplo.com.br');const erros=[];p.on('pageerror',e=>erros.push(e.message));
-  await p.goto(`${N.base}/app#/c/${c}`);await p.getByRole('link',{name:'Conferir dados para o acompanhamento'}).click();
+  await p.goto(`${N.base}/app#/c/${c}`);await p.getByRole('link',{name:'Conferir dados para os resultados'}).click();
   await p.getByRole('heading',{name:'Confira antes de registrar'}).waitFor();
   await p.getByLabel('Fornecedor *',{exact:true}).fill('Fornecedor <Exemplo>');await p.getByLabel('Documento *',{exact:true}).fill('Certidão');await p.getByLabel('Situação *',{exact:true}).selectOption('pendente');await p.getByLabel('O que precisa resolver',{exact:true}).fill('Documento vencido');
   await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores dos resultados do processo.').check();
@@ -82,7 +82,7 @@ test('QA profundo UX: conflito real entre abas conserva preenchimento e impede s
 test('QA profundo UX: acrescentar e remover itens conserva dados, foco e confirmação humana',async()=>{
  const N=await subirComNavegador();try{
   const {q,a,c,m}=await fixture(N),p=await N.entrar('admin@empresa-exemplo.com.br');await p.setViewportSize({width:320,height:900});
-  await p.goto(`${N.base}/app#/c/${c}`);await p.getByRole('link',{name:'Conferir dados para o acompanhamento'}).click();await p.getByRole('heading',{name:'Confira antes de registrar'}).waitFor();
+  await p.goto(`${N.base}/app#/c/${c}`);await p.getByRole('link',{name:'Conferir dados para os resultados'}).click();await p.getByRole('heading',{name:'Confira antes de registrar'}).waitFor();
   await p.getByLabel('Fornecedor *',{exact:true}).fill('Primeiro item');await p.getByLabel('Documento *',{exact:true}).fill('Certidão');
   await p.getByRole('button',{name:'Adicionar um item'}).click();assert.equal(await p.locator('[data-item="1"][data-campo="fornecedor"]').evaluate(e=>e===document.activeElement),true);
   await p.locator('[data-item="1"][data-campo="fornecedor"]').fill('Segundo item');await p.locator('[data-item="1"][data-campo="documento"]').fill('Contrato');

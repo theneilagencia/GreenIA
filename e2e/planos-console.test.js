@@ -55,7 +55,7 @@ test('empresa: libera Capacity Packs por quantidade; créditos e valor calculado
   await p.fill('#p-qtd', '3');
   await p.waitForFunction(() => /6\.000 créditos/.test(document.getElementById('p-resumo').innerText));
   // Confirmação no modal do console (não no diálogo do navegador), com o que vai ser liberado.
-  await p.click('#f-pacote button');
+  await p.click('#f-pacote button:not(.data-br-cal)');
   const dialogo = p.getByRole('dialog');
   assert.match(await dialogo.innerText(), /6\.000 créditos/);
   await dialogo.getByRole('button', { name: 'Liberar 3 Capacity Packs' }).click();

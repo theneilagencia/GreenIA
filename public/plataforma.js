@@ -459,8 +459,8 @@ async function abaMarca(d, id) {
 }
 
 async function abaLanding(d, id) {
-  $('aba').innerHTML = renderLanding(d.landing, { urlPublica: d.empresa.url });
-  const ler = ligarLanding(d.landing);
+  $('aba').innerHTML = renderLanding(d.landing, { urlPublica: d.empresa.url, rotaPrevia: `/api/plataforma/empresas/${id}/landing/previa` });
+  const ler = ligarLanding(d.landing, { pedir: api });
   const salvar = async status => { try { await api(`/api/plataforma/empresas/${id}/landing`, { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : d.landing?.status === 'publicada' ? 'Página de apresentação salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); vistaEmpresa(id, 'landing'); } catch (x) { mostrarErro('ld-erro', x); } };
   $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
   for (const b of document.querySelectorAll('[data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));

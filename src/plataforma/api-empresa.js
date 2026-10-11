@@ -93,6 +93,8 @@ export function rotasEmpresa(P, r) {
   r.get('/api/empresa/marca', ({ sessao, companyId }) => { precisa(sessao, 'company.read'); const motivo = E.motivosBloqueio(P, companyId).branding || (sessao.perms.has('branding.manage') ? null : SEM_PERMISSAO('editar a identidade visual')); return { marca: E.lerMarca(P, companyId), pode: !motivo, motivo, campos: E.CAMPOS_MARCA }; });
   r.put('/api/empresa/marca', ({ sessao, companyId, corpo, origem }) => { precisa(sessao, 'branding.manage'); return E.salvarMarca(P, companyId, corpo, sessao.userId, origem, { escopo: 'empresa' }); }, { limiteMb: 2 });
   r.get('/api/empresa/landing', ({ sessao, companyId }) => { precisa(sessao, 'company.read'); const motivo = E.motivosBloqueio(P, companyId).landing_page || (sessao.perms.has('landing_page.manage') ? null : SEM_PERMISSAO('editar a landing page')); return { landing: E.lerLanding(P, companyId), pode: !motivo, motivo }; });
+  // Prévia do que está em edição (não grava): mesma permissão e mesmas validações do salvar.
+  r.post('/api/empresa/landing/previa', ({ sessao, companyId, corpo }) => { precisa(sessao, 'landing_page.manage'); return E.previaLanding(P, companyId, corpo, { escopo: 'empresa' }); }, { limiteMb: 3 });
   r.put('/api/empresa/landing', ({ sessao, companyId, corpo, origem }) => { precisa(sessao, 'landing_page.manage'); return E.salvarLanding(P, companyId, corpo, sessao.userId, origem, { escopo: 'empresa' }); }, { limiteMb: 3 });
   r.get('/api/empresa/url', ({ sessao, companyId, empresa }) => {
     precisa(sessao, 'company.read');

@@ -71,6 +71,12 @@ export function rotasAuthEmpresa(P, r) {
 }
 
 export function rotasPublicoEmpresa(P, r) {
+  // Quem pode ver a prévia: quem edita a landing na empresa ('empresa') ou o admin da plataforma ('plataforma').
+  const quemVePrevia = (cookies, companyId) => {
+    const s = lerSessaoBruta(P, cookies, companyId), sp = lerSessaoBruta(P, cookies, null);
+    if (sp && ehAdminPlataforma(P.db, sp.user_id)) return 'plataforma';
+    return s && permissoesNaEmpresa(P.db, s.user_id, companyId).has('landing_page.manage') ? 'empresa' : null;
+  };
   // Marca, textos de login e landing page da empresa. Sem sessão; nada sensível.
   r.get('/api/publico', ({ companyId, empresa, cookies, query }) => {
     const b = E.lerMarca(P, companyId);
@@ -80,11 +86,7 @@ export function rotasPublicoEmpresa(P, r) {
     // Prévia (?previa=1): quem pode editar a landing, ou o admin da plataforma, vê a página completa
     // mesmo em rascunho ou com a empresa em implantação. Os visitantes continuam vendo a versão simples.
     const naoPublica = publicada ? null : l.status !== 'publicada' ? 'a landing está em rascunho' : `a empresa está ${(E.STATUS_EMPRESA[empresa.status] || empresa.status).toLowerCase()}`;
-    let previa = false;
-    if (query?.previa) {
-      const s = lerSessaoBruta(P, cookies, companyId), sp = lerSessaoBruta(P, cookies, null);
-      previa = !!(s && permissoesNaEmpresa(P.db, s.user_id, companyId).has('landing_page.manage')) || !!(sp && ehAdminPlataforma(P.db, sp.user_id));
-    }
+    const previa = !!query?.previa && !!quemVePrevia(cookies, companyId);
     return {
       multiempresa: true, empresa: b.display_name || empresa.name, logo: b.logo, corMarca: b.primary_color, corSecundaria: b.secondary_color,
       favicon: b.favicon ? '/icone' : null, privacyNote: b.privacy_note || cfg.privacyNote, retencaoDias: cfg.retencaoDias,
@@ -94,4 +96,14 @@ export function rotasPublicoEmpresa(P, r) {
       ...(previa ? { previa: { visivelAoPublico: publicada, motivo: naoPublica } } : {}),
     };
   }, { publica: true });
+
+  // Prévia do que está em edição, aberta pelo editor (painel da empresa ou console): a página recebe o conteúdo do
+  // editor e o confere aqui, com as mesmas validações e a mesma limpeza do salvamento. Nada é gravado; só quem pode
+  // ver a prévia recebe a resposta, e ela devolve apenas o conteúdo já limpo (nunca o que chegou cru).
+  r.post('/api/publico/previa', ({ companyId, cookies, corpo }) => {
+    const quem = quemVePrevia(cookies, companyId);
+    if (!quem) throw erro(403, 'sem_permissao', 'Só quem edita a página de apresentação vê a prévia.');
+    const { content, seo } = E.previaLanding(P, companyId, corpo, { escopo: quem });
+    return { landing: content, seo };
+  }, { publica: true, limiteMb: 3 });
 }

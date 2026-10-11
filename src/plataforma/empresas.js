@@ -449,12 +449,25 @@ function validarConteudoLanding(c) {
   };
 }
 
+// Conteúdo e SEO como ficariam ao salvar: mesmas validações e limpeza, sobre o que já está salvo.
+function landingValidada(antes, dados) {
+  const content = dados.content ? validarConteudoLanding({ ...antes.content, ...dados.content, textos: { ...antes.content.textos, ...(dados.content.textos || {}) }, regras: { ...antes.content.regras, ...(dados.content.regras || {}) } }) : antes.content;
+  const seo = dados.seo ? { title: texto(dados.seo.title, LIMITES_LANDING.seo_title, 'seo'), description: texto(dados.seo.description, LIMITES_LANDING.seo_description, 'seo') } : antes.seo;
+  return { content, seo };
+}
+// Prévia do que está em edição: a mesma validação e a mesma trava do salvamento, sem gravar nem auditar nada.
+export function previaLanding(P, id, dados, { escopo = 'plataforma' } = {}) {
+  const antes = lerLanding(P, id);
+  if (!antes) throw erro(404, 'empresa', 'Empresa não encontrada.');
+  if (escopo === 'empresa' && !podeEditar(P, id).landing_page) throw erro(403, 'nao_concedido', motivosBloqueio(P, id).landing_page);
+  return landingValidada(antes, dados || {});
+}
+
 export function salvarLanding(P, id, dados, ator, origem, { escopo = 'plataforma' } = {}) {
   const antes = lerLanding(P, id);
   if (!antes) throw erro(404, 'empresa', 'Empresa não encontrada.');
   if (escopo === 'empresa' && !podeEditar(P, id).landing_page) throw erro(403, 'nao_concedido', motivosBloqueio(P, id).landing_page);
-  const content = dados.content ? validarConteudoLanding({ ...antes.content, ...dados.content, textos: { ...antes.content.textos, ...(dados.content.textos || {}) }, regras: { ...antes.content.regras, ...(dados.content.regras || {}) } }) : antes.content;
-  const seo = dados.seo ? { title: texto(dados.seo.title, LIMITES_LANDING.seo_title, 'seo'), description: texto(dados.seo.description, LIMITES_LANDING.seo_description, 'seo') } : antes.seo;
+  const { content, seo } = landingValidada(antes, dados);
   const status = dados.status === 'publicada' || dados.status === 'rascunho' ? dados.status : antes.status;
   exec(P.db, 'update landing_pages set content = ?, seo = ?, status = ?, updated_at = ? where company_id = ?', JSON.stringify(content), JSON.stringify(seo), status, agoraIso(P), id);
   auditar(P, { usuario: ator, empresa: id, acao: status !== antes.status ? `landing_page.${status === 'publicada' ? 'published' : 'unpublished'}` : 'landing_page.updated', entidade: 'landing_page', id, antes: { status: antes.status, content: antes.content, seo: antes.seo }, depois: { status, content, seo }, origem });

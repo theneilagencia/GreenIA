@@ -20,7 +20,7 @@ function carregar(app, pessoa, id) {
 function montagem(app,q) {
   const c = um(app.db,'select * from qw_paineis where quick_win_id = ?',q.id);
   const m = c && MODELOS_PAINEL[c.modelo];
-  if(!m || c.versao !== m.versao) throw erro(409,'sem_painel','Este Quick Win ainda não tem um processo de acompanhamento preparado.');
+  if(!m || c.versao !== m.versao) throw erro(409,'sem_painel','Este Quick Win ainda não tem os resultados do processo preparados.');
   return m;
 }
 function podeGravar(app,p) { if(app.tenant && !(p.permissoes||[]).includes('chat.use')) throw erro(403,'sem_permissao','Seu acesso é só de consulta.'); }
@@ -104,11 +104,11 @@ export function rotasPaineis(app,r) {
  });
  r.post('/api/quick-wins/:id/painel',({pessoa,params,corpo})=>{
   podeGravar(app,pessoa);const q=carregar(app,pessoa,params.id);
-  if(!podeGerir(app.db,pessoa,q))throw erro(403,'sem_permissao','Só quem prepara este Quick Win pode escolher o processo de acompanhamento.');
+  if(!podeGerir(app.db,pessoa,q))throw erro(403,'sem_permissao','Só quem prepara este Quick Win pode escolher o processo dos resultados.');
   const modelo=Object.hasOwn(MODELOS_PAINEL,corpo.modelo)?MODELOS_PAINEL[corpo.modelo]:null;
   if(!modelo)throw erro(400,'modelo','Escolha um processo da lista.');
   const existente=um(app.db,'select modelo from qw_paineis where quick_win_id=?',q.id);
-  if(existente&&existente.modelo!==modelo.id)throw erro(409,'modelo_fixo','Este acompanhamento já foi preparado. Crie outro Quick Win para um processo diferente.');
+  if(existente&&existente.modelo!==modelo.id)throw erro(409,'modelo_fixo','Os resultados do processo já foram preparados. Crie outro Quick Win para um processo diferente.');
   exec(app.db,'insert or ignore into qw_paineis(quick_win_id,modelo,versao,criado_por,criado_em) values(?,?,?,?,?)',q.id,modelo.id,modelo.versao,pessoa.id,agora(app));
   registrar(app,'business.panel_prepared',pessoa.id,{quick_win:q.id,modelo:modelo.id});return {ok:true};
  });
@@ -168,8 +168,8 @@ export function rotasPaineis(app,r) {
  r.post('/api/quick-wins/:id/painel/registros/:registro/retirar',({pessoa,params,corpo})=>{
   podeGravar(app,pessoa);const q=carregar(app,pessoa,params.id),row=um(app.db,"select * from qw_painel_registros where id=? and quick_win_id=? and pessoa_id=? and estado='confirmado'",Number(params.registro),q.id,pessoa.id);
   if(!row)throw erro(404,'registro','Registro não encontrado.');
-  if(row.versao!==corpo.versao)throw erro(409,'versao','Este registro mudou. Reabra o acompanhamento.');
-  const motivo=String(corpo.motivo||'').trim().slice(0,300);checarArmazenamento(app,{motivo});if(!motivo)throw erro(400,'motivo','Informe por que este registro deve sair do acompanhamento.');
+  if(row.versao!==corpo.versao)throw erro(409,'versao','Este registro mudou. Reabra os resultados do processo.');
+  const motivo=String(corpo.motivo||'').trim().slice(0,300);checarArmazenamento(app,{motivo});if(!motivo)throw erro(400,'motivo','Informe por que este registro deve sair dos resultados do processo.');
   const em=agora(app);transacao(app.db,()=>{
     exec(app.db,'insert into qw_painel_revisoes(registro_id,versao,dados,escopo,estado,motivo,pessoa_id,em) values(?,?,?,?,?,?,?,?)',row.id,row.versao,row.dados,row.escopo,row.estado,motivo,pessoa.id,em);
     exec(app.db,"update qw_painel_registros set estado='cancelado',versao=versao+1,atualizado_em=? where id=?",em,row.id);

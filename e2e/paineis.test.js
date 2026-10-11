@@ -18,11 +18,11 @@ test('leigo: resultado → conferir → erro recuperável → confirmar → hist
   await p.goto(`${N.base}/app#/c/${c}`);await p.getByRole('link',{name:'Conferir dados para o acompanhamento'}).click();
   await p.getByRole('heading',{name:'Confira antes de registrar'}).waitFor();
   await p.getByLabel('Fornecedor *',{exact:true}).fill('Fornecedor <Exemplo>');await p.getByLabel('Documento *',{exact:true}).fill('Certidão');await p.getByLabel('Situação *',{exact:true}).selectOption('pendente');await p.getByLabel('O que precisa resolver',{exact:true}).fill('Documento vencido');
-  await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores deste acompanhamento.').check();
+  await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores dos resultados do processo.').check();
   await p.route(`**/api/quick-wins/${q.id}/painel/registros/*`,r=>r.request().method()==='POST'?r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Falha temporária de QA.'})}):r.continue());
   await p.getByRole('button',{name:'Confirmar e incluir no histórico'}).click();await p.getByText('Os dados foram mantidos nesta tela.',{exact:false}).waitFor();assert.equal(await p.getByLabel('Fornecedor *',{exact:true}).inputValue(),'Fornecedor <Exemplo>');
   await p.unroute(`**/api/quick-wins/${q.id}/painel/registros/*`);await p.getByRole('button',{name:'Confirmar e incluir no histórico'}).click();await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);assert.match(await p.locator('#painel-linhas').innerText(),/Fornecedor <Exemplo>/);
-  await p.getByRole('link',{name:'Conferir ou corrigir'}).click();await p.getByRole('heading',{name:'Corrigir um registro'}).waitFor();await p.getByLabel('Situação *',{exact:true}).selectOption('conferido');await p.getByLabel('O que precisa resolver',{exact:true}).fill('');await p.getByLabel('Por que está corrigindo?').fill('Documento renovado');await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores deste acompanhamento.').check();await p.getByRole('button',{name:'Salvar correção'}).click();await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();await p.reload();await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();assert.match(await p.locator('#painel-linhas').innerText(),/Conferido/);assert.deepEqual(erros,[]);
+  await p.getByRole('link',{name:'Conferir ou corrigir'}).click();await p.getByRole('heading',{name:'Corrigir um registro'}).waitFor();await p.getByLabel('Situação *',{exact:true}).selectOption('conferido');await p.getByLabel('O que precisa resolver',{exact:true}).fill('');await p.getByLabel('Por que está corrigindo?').fill('Documento renovado');await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores dos resultados do processo.').check();await p.getByRole('button',{name:'Salvar correção'}).click();await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();await p.reload();await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();assert.match(await p.locator('#painel-linhas').innerText(),/Conferido/);assert.deepEqual(erros,[]);
  }finally{await N.fechar();}
 });
 test('processo pronto cria rascunho com campos definidos e obriga teste/publicação',async()=>{
@@ -32,7 +32,7 @@ test('processo pronto cria rascunho com campos definidos e obriga teste/publica�
   const q=N.app.db.prepare('select * from quick_wins order by id desc limit 1').get();assert.equal(q.versao_publicada,null);assert.equal(N.app.db.prepare('select modelo from qw_paineis where quick_win_id=?').get(q.id).modelo,'acoes');
  }finally{await N.fechar();}
 });
-test('320/390/768/1280px: acompanhamento e conferência legíveis, foco, busca, escopo e retirada',async()=>{
+test('320/390/768/1280px: resultados do processo e conferência legíveis, foco, busca, escopo e retirada',async()=>{
  const N=await subirComNavegador();try{
   const {q,a,m}=await fixture(N);const d=(await a.post(`/api/quick-wins/${q.id}/painel/preparar`,{mensagem:m})).dados;
   await a.post(`/api/quick-wins/${q.id}/painel/registros/${d.id}`,{dados:[{fornecedor:'Fornecedor Exemplo',documento:'Certidão',situacao:'pendente',pendencia:'Documento vencido'}],versao:d.versao,escopo:'pessoal',confirmado:true,cienteParcial:true});
@@ -46,10 +46,10 @@ test('320/390/768/1280px: acompanhamento e conferência legíveis, foco, busca, 
    await p.evaluate(()=>{document.querySelector('.pagina')?.scrollTo(0,0);});
    if([390,1280].includes(width))await p.screenshot({path:`/workspace/scratch/debf43e0be2e/qa-paineis/conferencia-${width}.png`,fullPage:true,animations:'disabled'});
   }
-  await p.getByText('Retirar este resultado do acompanhamento',{exact:true}).click();await p.getByLabel('Por que deseja retirar?').fill('Registro duplicado');await p.getByRole('button',{name:'Confirmar retirada do histórico'}).click();await p.getByRole('heading',{name:'Seu histórico começa com o primeiro registro'}).waitFor();
+  await p.getByText('Retirar este registro dos resultados do processo',{exact:true}).click();await p.getByLabel('Por que deseja retirar?').fill('Registro duplicado');await p.getByRole('button',{name:'Confirmar retirada do histórico'}).click();await p.getByRole('heading',{name:'Seu histórico começa com o primeiro registro'}).waitFor();
  }finally{await N.fechar();}
 });
-test('paginação pelo link persiste após recarga e ajuda explica o acompanhamento',async()=>{
+test('paginação pelo link persiste após recarga e ajuda explica os resultados do processo',async()=>{
  const N=await subirComNavegador();try{
   const {q,a,m}=await fixture(N);const d=(await a.post(`/api/quick-wins/${q.id}/painel/preparar`,{mensagem:m})).dados;
   await a.post(`/api/quick-wins/${q.id}/painel/registros/${d.id}`,{dados:[{fornecedor:'Fornecedor inicial',documento:'Certidão',situacao:'pendente',pendencia:'Documento vencido'}],versao:d.versao,escopo:'pessoal',confirmado:true,cienteParcial:true});
@@ -73,7 +73,7 @@ test('QA profundo UX: conflito real entre abas conserva preenchimento e impede s
   await p.getByLabel('Fornecedor *',{exact:true}).fill('Edição na tela');await p.getByLabel('Por que está corrigindo?').fill('Correção da tela');
   const atual=(await a.get(`${b}/registros/${d.id}`)).dados;
   assert.equal((await a.post(`${b}/registros/${d.id}`,{dados:[{...dados[0],fornecedor:'Correção salva em outra aba'}],versao:atual.versao,escopo:'pessoal',confirmado:true,cienteParcial:true,motivo:'Outra aba'})).status,200);
-  await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores deste acompanhamento.').check();
+  await p.getByLabel('Conferi as limitações do resultado parcial e os dados que quero registrar').check();await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores dos resultados do processo.').check();
   await p.getByRole('button',{name:'Salvar correção'}).click();await p.locator('#registro-erro').getByText(/Este registro mudou/).waitFor();
   assert.equal(await p.getByLabel('Fornecedor *',{exact:true}).inputValue(),'Edição na tela');assert.equal(await p.getByRole('button',{name:'Salvar correção'}).isEnabled(),true);
   assert.equal((await a.get(b)).dados.registros[0].dados[0].fornecedor,'Correção salva em outra aba');
@@ -88,7 +88,7 @@ test('QA profundo UX: acrescentar e remover itens conserva dados, foco e confirm
   await p.locator('[data-item="1"][data-campo="fornecedor"]').fill('Segundo item');await p.locator('[data-item="1"][data-campo="documento"]').fill('Contrato');
   await p.getByRole('button',{name:'Remover este item'}).last().click();assert.equal(await p.getByLabel('Fornecedor *',{exact:true}).inputValue(),'Primeiro item');assert.equal(await p.locator('.painel-item').count(),1);
   assert.equal((await a.get(`/api/quick-wins/${q.id}/painel`)).dados.total,0);assert.equal(await p.getByRole('radio',{name:'Só eu',exact:true}).isChecked(),true);
-  assert.equal(await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores deste acompanhamento.').isChecked(),false);
+  assert.equal(await p.getByLabel('Conferi os dados. Eles podem ser usados nos indicadores dos resultados do processo.').isChecked(),false);
   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }finally{await N.fechar();}
 });
@@ -97,9 +97,9 @@ test('QA profundo UX: busca local conserva indicadores e explica contratação d
   const {q,a,m}=await fixture(N),b=`/api/quick-wins/${q.id}/painel`,d=(await a.post(`${b}/preparar`,{mensagem:m})).dados;
   await a.post(`${b}/registros/${d.id}`,{dados:[{fornecedor:'Fornecedor Exemplo',documento:'Certidão',situacao:'pendente',pendencia:'Documento vencido'}],versao:d.versao,escopo:'pessoal',confirmado:true,cienteParcial:true});
   const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento`);await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();
-  const antes=await p.getByRole('region',{name:'Indicadores do acompanhamento'}).innerText();await p.getByLabel('Encontrar um registro nesta página').fill('Nenhuma correspondência');
-  assert.equal(await p.locator('#painel-linhas tr:visible').count(),0);assert.equal(await p.getByRole('region',{name:'Indicadores do acompanhamento'}).innerText(),antes);
-  await p.getByText('O que este acompanhamento inclui',{exact:true}).click();await p.getByText(/atualização por sistemas externos e painéis personalizados dependem de contratação adicional/).waitFor();
+  const antes=await p.getByRole('region',{name:'Indicadores dos resultados do processo'}).innerText();await p.getByLabel('Encontrar um registro nesta página').fill('Nenhuma correspondência');
+  assert.equal(await p.locator('#painel-linhas tr:visible').count(),0);assert.equal(await p.getByRole('region',{name:'Indicadores dos resultados do processo'}).innerText(),antes);
+  await p.getByText('O que os resultados do processo incluem',{exact:true}).click();await p.getByText(/atualização por sistemas externos e painéis personalizados dependem de contratação adicional/).waitFor();
   await p.getByLabel('Encontrar um registro nesta página').fill('');assert.equal(await p.locator('#painel-linhas tr:visible').count(),1);
  }finally{await N.fechar();}
 });

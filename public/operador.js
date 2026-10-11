@@ -1,6 +1,7 @@
 // Console do operador: todas as instalações de clientes numa tela. Valores em dólar
 // (o servidor só responde a quem é operador). Separado do painel do cliente.
 import { api, definirCsrf, esc, marcaHtml, toast } from '/comum.js';
+import { confirmar } from '/admin-ui.js';
 
 const $ = id => document.getElementById(id);
 const num = v => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -105,9 +106,12 @@ async function liberar(ev) {
   const f = ev.target, id = f.dataset.pacote;
   const inst = dados.instancias.find(i => i.id === id);
   const corpo = { packs: Number(f.packs.value), validade: f.validade.value || null, observacao: f.observacao.value };
-  if (!confirm(`Liberar ${num(corpo.packs)} Capacity Pack(s) para ${inst.nome}? Os admins do cliente recebem um email.`)) return;
   const botao = f.querySelector('button');
+  if (botao.disabled) return;
+  const qtd = corpo.packs === 1 ? '1 Capacity Pack' : `${num(corpo.packs)} Capacity Packs`;
   botao.disabled = true;
+  const ok = await confirmar({ titulo: `Liberar ${qtd} para ${inst.nome}?`, texto: [`Os créditos de ${qtd} entram no saldo do cliente${corpo.validade ? `, válidos até ${data(corpo.validade)}` : ''}.`, 'Os admins do cliente recebem um email avisando a liberação.'], botao: `Liberar ${qtd}` });
+  if (!ok) { botao.disabled = false; return; }
   try {
     await api(`/api/operador/instancias/${encodeURIComponent(id)}/pacotes`, { metodo: 'POST', corpo });
     toast(`Capacity Pack liberado para ${inst.nome}.`);

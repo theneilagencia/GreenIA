@@ -7,6 +7,8 @@ import { vistaConversa } from '/conversa.js';
 import { assistenteQw, publicarQw, versoesQw, usarQw, testeQw } from '/quickwin2.js';
 import { aviso, cabecalhoPg, confirmarExclusao, estadoQw, estadoVazio, FORMATOS_SAIDA, ligarMenus, marcaQw, menuAcoes, seloQw } from '/qw-ui.js';
 import { secaoMedicao } from '/medicao.js';
+import { confirmar } from '/admin-ui.js';
+import { renomearConversa, excluirConversa } from '/historico-conversas.js';
 import { montarFontes } from '/fontes.js';
 
 const $ = id => document.getElementById(id);
@@ -176,14 +178,14 @@ function ligarAcoesQw(raiz, itens, recarregar) {
       }
       if (b.dataset.acao === 'excluir') await excluirQw(q);
       if (b.dataset.acao === 'arquivar') {
-        if (!confirm(`Arquivar "${q.nome}"? Ele sai da lista da equipe; o histórico fica guardado.`)) return;
+        if (!await confirmar({ titulo: `Arquivar o Quick Win “${q.nome}”?`, texto: ['Ele sai da lista da equipe.', 'O histórico fica guardado, e você pode restaurá-lo depois em “Mais ações”.'], botao: 'Arquivar Quick Win', perigo: true })) return;
         await api(`/api/quick-wins/${q.id}`, { metodo: 'PUT', corpo: { status: 'descartado' } });
         await recarregarLateral();
         toast('Quick Win arquivado.');
         recarregar(q.id);
       }
       if (b.dataset.acao === 'restaurar') {
-        if (!confirm(`Restaurar "${q.nome}" em preparo? O histórico será preservado. Revise antes de colocar em uso para a equipe.`)) return;
+        if (!await confirmar({ titulo: `Restaurar o Quick Win “${q.nome}”?`, texto: ['Ele volta como “em preparo”, com o histórico preservado.', 'Revise antes de colocar em uso para a equipe.'], botao: 'Restaurar Quick Win' })) return;
         await api(`/api/quick-wins/${q.id}`, { metodo: 'PUT', corpo: { status: 'em_configuracao' } });
         await recarregarLateral();
         toast('Quick Win restaurado em preparo. Revise antes de colocar em uso.');
@@ -262,12 +264,11 @@ async function paginaQuickWin(id) {
   document.querySelectorAll('[data-sug]').forEach(b => { b.onclick = async () => { await vistaConversa({ qw }); const t = $('entrada'); t.value = b.textContent; t.dispatchEvent(new Event('input')); t.focus(); history.replaceState(null, '', `#/qw/${id}/nova`); }; });
   document.querySelectorAll('[data-renomear]').forEach(b => { b.onclick = async () => {
     const atual = lista.conversas.find(c => String(c.id) === b.dataset.renomear);
-    const novo = prompt('Novo nome da conversa:', atual.titulo);
-    if (novo) { await api(`/api/conversas/${atual.id}`, { metodo: 'PATCH', corpo: { titulo: novo } }); paginaQuickWin(id); }
+    if (atual) renomearConversa(atual, () => paginaQuickWin(id));
   }; });
   document.querySelectorAll('[data-apagar]').forEach(b => { b.onclick = async () => {
-    if (!confirm('Apagar esta conversa e os anexos? Não dá para desfazer.')) return;
-    await api(`/api/conversas/${b.dataset.apagar}`, { metodo: 'DELETE' }); toast('Conversa apagada.'); paginaQuickWin(id);
+    const atual = lista.conversas.find(c => String(c.id) === b.dataset.apagar);
+    if (atual) excluirConversa(atual, () => paginaQuickWin(id));
   }; });
 }
 const RESUMO_TESTE = { aprovado: 'Resultado conferido', corrigido: 'Resultado conferido, com ajuste automático', parcial: '◐ Conferência incompleta', inconsistente: 'Pontos para revisar', pergunta: 'A IA pediu mais informação' };

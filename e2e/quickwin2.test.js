@@ -352,8 +352,8 @@ test('editar um Quick Win publicado cria a próxima versão sem mexer na publica
   await p.goto(`${N.base}/app#/qw/${q.id}/versoes`);
   await p.waitForSelector('[data-restaurar="1"]');
   assert.match(await p.textContent('.execucoes'), /v2 · Versão atual.*v1/s);
-  p.once('dialog', d => d.accept());
   await p.click('[data-restaurar="1"]');
+  await p.getByRole('dialog', { name: /para a v1/ }).getByRole('button', { name: 'Voltar para a v1', exact: true }).click();
   await p.waitForFunction(() => /v1 · Versão atual/.test(document.querySelector('.execucoes')?.textContent || ''));
   const depois = await (await p.request.get(`${N.base}/api/quick-wins/${q.id}`)).json();
   assert.equal(depois.versao, 1);

@@ -102,9 +102,9 @@ test('edição, substituição e revisão preservam a base; falha de rede manté
   assert.match(await p.locator(`[data-documento="${d.id}"]`).innerText(), /Conteúdo revisado/);
   exec(N.app.db, "update documentos set revisado_em = datetime('now','-200 days') where id = ?", d.id);
   await p.click('[data-atualizar-conhecimento]'); await p.waitForSelector(`[data-documento="${d.id}"]:has-text("Revisão recomendada")`);
-  p.once('dialog', d => d.dismiss()); await p.click(`[data-revisar-conhecimento="${d.id}"]`);
+  await p.click(`[data-revisar-conhecimento="${d.id}"]`); await p.getByRole('dialog', { name: /Marcar .* como revisado/ }).getByRole('button', { name: 'Cancelar', exact: true }).click(); await p.locator('.adm-confirmar').waitFor({ state: 'detached' });
   assert.ok(Date.now() - Date.parse(um(N.app.db, 'select revisado_em from documentos where id = ?', d.id).revisado_em.replace(' ', 'T') + 'Z') > 180 * 864e5, 'não registra revisão sem confirmar');
-  p.once('dialog', d => d.accept()); await p.click(`[data-revisar-conhecimento="${d.id}"]`); await p.waitForSelector(`[data-documento="${d.id}"]:has-text("Conteúdo revisado")`);
+  await p.click(`[data-revisar-conhecimento="${d.id}"]`); await p.getByRole('dialog', { name: /Marcar .* como revisado/ }).getByRole('button', { name: 'Confirmar revisão', exact: true }).click(); await p.waitForSelector(`[data-documento="${d.id}"]:has-text("Conteúdo revisado")`);
   const c = clientes.get('gestora');
   assert.equal((await c.put(`/api/bases/documentos/${comum.id}`, { pasta: 'Tentativa' })).status, 404);
   assert.equal(um(N.app.db, 'select pasta from documentos where id = ?', comum.id).pasta, 'Manuais');
@@ -154,9 +154,10 @@ test('biblioteca grande: paginação preserva contagem e filtro; atualizar após
 test('remover documento: cancelar preserva o arquivo; confirmar remove somente o documento escolhido', async () => {
   const d = (await admin.post('/api/bases/documentos', { area_id: A.id, titulo: 'Documento temporário QA', pasta: '__sem', arquivo: arquivo('temporario.txt', 'Conteúdo de teste descartável.') })).dados;
   const p = await abrir('admin'); await p.click('[data-conhecimento-vista="gerir"]'); await p.selectOption('#conhecimento-pasta', { label: '__sem' }); assert.equal(await p.locator('[data-documento]').count(), 1, 'nome de pasta não se confunde com o filtro Sem pasta'); await p.click(`[data-editar-conhecimento="${d.id}"]`);
-  await p.click('.conhecimento-remover>summary'); p.once('dialog', d => d.dismiss()); await p.click('#conhecimento-ed-remover');
+  await p.click('.conhecimento-remover>summary'); await p.click('#conhecimento-ed-remover'); await p.getByRole('dialog', { name: /Remover .* da base/ }).getByRole('button', { name: 'Cancelar', exact: true }).click(); await p.locator('.adm-confirmar').waitFor({ state: 'detached' });
+  assert.ok(await p.locator('#conhecimento-ed-form').isVisible(), 'cancelar mantém o editor aberto');
   assert.ok(um(N.app.db, 'select id from documentos where id = ?', d.id));
-  p.once('dialog', d => d.accept()); await p.click('#conhecimento-ed-remover'); await p.waitForSelector('#conhecimento-ed-form', { state: 'detached' });
+  await p.click('#conhecimento-ed-remover'); await p.getByRole('dialog', { name: /Remover .* da base/ }).getByRole('button', { name: 'Remover documento', exact: true }).click(); await p.waitForSelector('#conhecimento-ed-form', { state: 'detached' });
   assert.equal(um(N.app.db, 'select id from documentos where id = ?', d.id), undefined);
   assert.ok(um(N.app.db, 'select id from documentos where id = ?', comum.id), 'não remove outro documento');
   await p.close();

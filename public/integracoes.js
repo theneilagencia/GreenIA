@@ -8,6 +8,7 @@
 // documentação da API pode ser colada (OpenAPI, Swagger, GraphQL) ou as ações descritas num formulário simples.
 import { api, esc, ocupado, toast, vazioHtml } from '/comum.js';
 import { cabecalho, ligarCabecalho, irPara, pode } from '/app.js';
+import { confirmar } from '/admin-ui.js';
 
 const $ = id => document.getElementById(id);
 const pagina = (titulo, html, acoes = '') => { $('principal').innerHTML = `${cabecalho(titulo, acoes)}<div class="pagina"><div class="pagina-dentro">${html}</div></div>`; ligarCabecalho(); };
@@ -311,7 +312,7 @@ async function vistaConector(id) {
   '<a class="btn-texto" href="#/integracoes" style="margin-left:auto">Todas as integrações</a>');
   for (const b of document.querySelectorAll('[data-acao]')) b.onclick = e => ocupado(e.target, async () => {
     const a = b.dataset.acao;
-    if (a === 'revogar' && !confirm('Revogar apaga a credencial e desliga todas as ações desta integração. Continuar?')) return;
+    if (a === 'revogar' && !await confirmar({ titulo: `Revogar a integração “${c.nome}”?`, texto: ['A credencial cadastrada é apagada e todas as ações desta integração são desligadas.', 'Os Quick Wins que dependem dela deixam de executar essas ações.'], botao: 'Revogar integração', perigo: true })) return;
     try { await api(`/api/admin/integracoes/${c.id}/${a}`, { metodo: 'POST' }); vistaConector(c.id); } catch (err) { toast(err.message); }
   });
 }

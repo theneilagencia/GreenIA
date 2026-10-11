@@ -29,10 +29,10 @@ export function ligarComecar({ estado, aplicar }) {
     raiz.querySelector('#comecar-fechar').onclick = () => { s.aberto = false; desenhar(); abrir.focus(); };
     const campo = raiz.querySelector('#comecar-objetivo');
     if (campo) campo.oninput = () => { s.respostas[s.caminho] = campo.value; };
-    raiz.querySelector('#comecar-form')?.addEventListener('submit', ev => {
+    raiz.querySelector('#comecar-form')?.addEventListener('submit', async ev => {
       ev.preventDefault(); const texto = campo.value.trim();
       if (!texto) { campo.setCustomValidity('Conte o que você precisa fazer.'); campo.reportValidity(); campo.oninput = () => { campo.setCustomValidity(''); s.respostas[s.caminho] = campo.value; }; return; }
-      if (!aplicar(`${c.pedido}\n\nMeu objetivo e contexto:\n${texto}`)) return;
+      if (!await aplicar(`${c.pedido}\n\nMeu objetivo e contexto:\n${texto}`)) return;
       s.aberto = false; desenhar(); document.getElementById('entrada').focus();
     });
   }

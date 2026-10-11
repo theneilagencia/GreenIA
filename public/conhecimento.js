@@ -3,6 +3,7 @@ import { ligarVisao } from '/preferencias.js';
 import { api, esc, toast } from '/comum.js';
 import { E, recarregarBases } from '/app.js';
 import { fecharComEscape } from '/acessibilidade.js';
+import { confirmar } from '/admin-ui.js';
 const ACEITOS = '.pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff';
 const normalizar = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const baseDe = d => d.toda_empresa ? 'toda' : String(d.area_id);
@@ -128,14 +129,15 @@ export async function vistaConhecimento() {
       try {
         if (!$('conhecimento-ed-nome').value.trim()) throw new Error('Informe um título para o documento.');
         const f = $('conhecimento-ed-arquivo').files[0]; conferirArquivo(f);
-        if(!d.suspenso && $('conhecimento-ed-suspenso').checked && !confirm('Suspender este documento? Ele deixará de entrar em novas respostas e Quick Wins vinculados.'))return;
+        if (!d.suspenso && $('conhecimento-ed-suspenso').checked && !await confirmar({ titulo: `Suspender “${d.titulo}”?`, texto: ['O documento deixa de entrar em novas respostas e nos Quick Wins vinculados.', 'Ele continua guardado na base, com seus vínculos, e pode voltar a ser usado depois.'], botao: 'Suspender documento' })) return;
+        if (salvando) return;
         salvando = true; ativa.ocupada = true; $('conhecimento-ed-form').inert = true; $('conhecimento-ed-salvar').disabled = true;
         await api(`/api/bases/documentos/${d.id}`, { metodo: 'PUT', corpo: { titulo: $('conhecimento-ed-nome').value.trim(), pasta: $('conhecimento-ed-pasta').value, sigiloso: $('conhecimento-ed-sigilo').checked, responsavel_id: $('conhecimento-ed-responsavel').value ? Number($('conhecimento-ed-responsavel').value) : null, validade: $('conhecimento-ed-validade').value || null, suspenso: $('conhecimento-ed-suspenso').checked, ...(f ? { arquivo: await arquivoBase64(f) } : {}) } });
         alterado = false; salvando = false; ativa.ocupada = false; fechar(); await atualizar('Documento atualizado.');
       } catch (e) { erro(e); salvando = false; ativa.ocupada = false; $('conhecimento-ed-form').inert = false; $('conhecimento-ed-salvar').disabled = false; }
     };
     $('conhecimento-ed-remover').onclick = async () => {
-      if (salvando || !confirm(`Remover permanentemente “${d.titulo}” da base? O conteúdo deixará de ser consultado pela IA.`)) return;
+      if (salvando || !await confirmar({ titulo: `Remover “${d.titulo}” da base?`, texto: ['A remoção é permanente: a IA deixa de consultar este conteúdo e não dá para desfazer.', 'Respostas já geradas não mudam.'], botao: 'Remover documento', perigo: true }) || salvando) return;
       salvando = true; ativa.ocupada = true;
       try { await api(`/api/bases/documentos/${d.id}`, { metodo: 'DELETE' }); alterado = false; salvando = false; ativa.ocupada = false; fechar(); await atualizar('Documento removido.'); }
       catch (e) { salvando = false; ativa.ocupada = false; erro(e); }
@@ -158,7 +160,7 @@ export async function vistaConhecimento() {
     else if (b.dataset.editarConhecimento) { const d = documentos.find(d => String(d.id) === b.dataset.editarConhecimento); if (d && F.vista === 'gerir' && k.podeGerir) editar(d, b); }
     else if (b.dataset.revisarConhecimento && k.podeGerir && F.vista === 'gerir') {
       const d = documentos.find(d => String(d.id) === b.dataset.revisarConhecimento);
-      if (!d || !confirm(`Você conferiu o conteúdo de “${d.titulo}” e confirma que continua correto?`)) return;
+      if (!d || !await confirmar({ titulo: `Marcar “${d.titulo}” como revisado?`, texto: 'Confirme só se você conferiu o conteúdo e ele continua correto. A data da revisão fica registrada.', botao: 'Confirmar revisão' })) return;
       b.disabled = true;
       try { await api(`/api/bases/documentos/${d.id}`, { metodo: 'PUT', corpo: { revisado: true } }); await atualizar('Revisão registrada.'); }
       catch (e) { falha(e); b.disabled = false; }

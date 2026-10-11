@@ -13,6 +13,7 @@ import { excluirQw } from '/quickwin.js';
 import { validarAlteracoes } from '/qw-refinamento.js';
 import { htmlSistemas, htmlPessoasLimites, guardarPreparacao, ligarPreparacao } from '/qw-preparacao.js';
 import { montarFontes } from '/fontes.js';
+import { confirmar } from '/admin-ui.js';
 import { abrirOrientacaoPesquisa } from '/pesquisa-orientacao.js';
 
 const $ = id => document.getElementById(id);
@@ -786,8 +787,9 @@ async function desenharRefinamento(W) {
     </div><p class="bloco-extra"><a class="link-sutil" href="#/qw/${W.id}">Voltar ao Quick Win</a></p></div></div>`;
   ligarCabecalho();
   ligarRefinamento(W);
-  $('usar-diagnostico')?.addEventListener('click', () => {
-    if (W.refinamentoTexto?.trim() && !confirm('Substituir sua orientação pelos pontos da conferência?')) return;
+  $('usar-diagnostico')?.addEventListener('click', async () => {
+    if (W.refinamentoTexto?.trim() && !await confirmar({ titulo: 'Substituir sua orientação?', texto: 'O que você escreveu sobre o que deve mudar será trocado pelos pontos que a conferência encontrou no resultado.', botao: 'Usar os pontos da conferência', cancelar: 'Manter meu texto' })) return;
+    if (!$('refinamento-texto')) return;
     W.refinamentoTexto = [...new Set(pontosDoResultado(W.resultado?.qualidade).slice(0,3).map(p=>p.fazer))].join('\n');
     $('refinamento-texto').value = W.refinamentoTexto;
     $('refinamento-texto').dispatchEvent(new Event('input'));
@@ -1196,7 +1198,7 @@ export async function versoesQw(id) {
     }catch(e){$('versoes-diferencas').textContent=e.message;}finally{b.disabled=false;}
   };
   document.querySelectorAll('[data-restaurar]').forEach(b => { b.onclick = async () => {
-    if (!confirm(`Voltar para a v${b.dataset.restaurar}? Quem usa passa a receber essa versão agora, e o rascunho passa a ser ela.`)) return;
+    if (b.disabled || !await confirmar({ titulo: `Voltar “${qw.nome}” para a v${b.dataset.restaurar}?`, texto: ['Quem usa este Quick Win passa a receber essa versão agora.', `O rascunho também passa a ser a v${b.dataset.restaurar}; alterações não publicadas do rascunho atual são substituídas.`], botao: `Voltar para a v${b.dataset.restaurar}` }) || !b.isConnected) return;
     b.disabled=true;try {await api(`/api/quick-wins/${id}/versoes/${b.dataset.restaurar}/restaurar`, { metodo: 'POST', corpo: {} });
     toast(`v${b.dataset.restaurar} é a versão atual.`);await versoesQw(id);}catch(e){toast(e.message);b.disabled=false;}
   }; });

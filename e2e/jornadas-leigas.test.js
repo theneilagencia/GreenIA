@@ -58,19 +58,19 @@ test('navegar entre biblioteca e detalhe não repete confirmação nem gravaçã
  const N=await subirComNavegador();try{
  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const q=(await a.post('/api/quick-wins',{nome:'QA fictício navegação',toda_empresa:true})).dados;
  const p=await N.entrar('admin@empresa-exemplo.com.br');let confirmacoes=0,gravacoes=0;
- p.on('dialog',async d=>{confirmacoes++;await d.accept();});p.on('request',r=>{if(r.method()==='PUT'&&r.url()===`${N.base}/api/quick-wins/${q.id}`)gravacoes++;});
+ p.on('dialog',async d=>{nativos++;await d.dismiss();});let nativos=0;const confirmar=async botao=>{const m=p.locator('.adm-confirmar');await m.waitFor();confirmacoes+=await m.count();await m.getByRole('button',{name:botao,exact:true}).click();await m.waitFor({state:'detached'});};p.on('request',r=>{if(r.method()==='PUT'&&r.url()===`${N.base}/api/quick-wins/${q.id}`)gravacoes++;});
  await p.goto(N.base+'/app#/quick-wins');await p.locator(`.qw-item-link[href="#/qw/${q.id}"]`).waitFor();
  assert.match(await p.locator('.menu-acoes summary').first().innerText(),/Mais ações/,'ação identificada por texto visível');
  for(let i=0;i<3;i++){
   await p.locator(`.qw-item-link[href="#/qw/${q.id}"]`).click();await p.getByRole('heading',{name:q.nome,exact:true}).waitFor();
   if(i<2){await p.locator('#principal a[href="#/quick-wins"]').click();await p.locator(`.qw-item-link[href="#/qw/${q.id}"]`).waitFor();}
  }
- await p.locator('summary[aria-label="Mais ações"]').click();await p.getByRole('menuitem',{name:'Arquivar',exact:true}).click();
+ await p.locator('summary[aria-label="Mais ações"]').click();await p.getByRole('menuitem',{name:'Arquivar',exact:true}).click();await confirmar('Arquivar Quick Win');
  await p.locator('[data-acao=restaurar]').waitFor({state:'attached'});
  assert.equal(confirmacoes,1);assert.equal(gravacoes,1);assert.equal((await a.get(`/api/quick-wins/${q.id}`)).dados.status,'descartado');
  assert.match(await p.locator('#principal').innerText(),/QA fictício navegação/);assert.equal(await p.locator('#buscar-qw').count(),0,'a ação mantém o detalhe, sem redesenhar a biblioteca anterior');
- await p.locator('summary[aria-label="Mais ações"]').click();await p.getByRole('menuitem',{name:'Restaurar em preparo',exact:true}).click();
+ await p.locator('summary[aria-label="Mais ações"]').click();await p.getByRole('menuitem',{name:'Restaurar em preparo',exact:true}).click();await confirmar('Restaurar Quick Win');
  await p.locator('[data-acao=arquivar]').waitFor({state:'attached'});
- assert.equal(confirmacoes,2);assert.equal(gravacoes,2);assert.equal((await a.get(`/api/quick-wins/${q.id}`)).dados.status,'em_configuracao');
+ assert.equal(confirmacoes,2);assert.equal(gravacoes,2);assert.equal(nativos,0,'sem diálogo nativo do navegador');assert.equal((await a.get(`/api/quick-wins/${q.id}`)).dados.status,'em_configuracao');
  }finally{await N.fechar();}
 });

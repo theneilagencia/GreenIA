@@ -110,7 +110,7 @@ test('busca encontra nomes sem acento e arquivados; restauração conserva hist�
   assert.equal(await p.locator('.qw-item:not([hidden])').count(), 1);
   assert.equal(await p.locator('details.qw-acompanhamento:has(.qw-lista)').getAttribute('open'), '');
   await p.locator('.qw-item:not([hidden]) details summary').click();
-  p.once('dialog', d => d.accept()); await p.click('[data-acao="restaurar"]');
+  await p.click('[data-acao="restaurar"]'); await p.getByRole('dialog', { name: /Restaurar o Quick Win/ }).getByRole('button', { name: 'Restaurar Quick Win', exact: true }).click();
   await p.waitForFunction(() => /restaurado em preparo/.test(document.querySelector('.toast')?.textContent));
   assert.equal((await admin.get(`/api/quick-wins/${qw.id}`)).dados.status, 'em_configuracao');
   assert.equal((await admin.get(`/api/conversas/${conv.id}`)).status, 200, 'histórico preservado');

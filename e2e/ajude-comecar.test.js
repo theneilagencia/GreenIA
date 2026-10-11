@@ -18,11 +18,11 @@ test('cinco caminhos preparam pedidos editáveis sem enviar ou criar conversa',a
 test('voltar, fechar e redesenhar conservam contexto; pedido anterior exige confirmação; anexos mantidos',async()=>{
  await abrir();await p.fill('#entrada','Pedido anterior');await p.locator('#arquivo').setInputFiles({name:'caso.txt',mimeType:'text/plain',buffer:Buffer.from('Informação fictícia')});await p.waitForSelector('.anexo-chip');
  await p.click('[data-comecar="0"]');await p.fill('#comecar-objetivo','Contexto fictício');await p.click('#comecar-voltar');await p.click('[data-comecar="0"]');assert.equal(await p.inputValue('#comecar-objetivo'),'Contexto fictício');
- p.once('dialog',d=>d.dismiss());await p.click('#comecar-form button[type=submit]');assert.equal(await p.inputValue('#entrada'),'Pedido anterior');
+ await p.click('#comecar-form button[type=submit]');await p.getByRole('dialog',{name:/Substituir o pedido/}).getByRole('button',{name:'Manter meu texto',exact:true}).click();await p.locator('.adm-confirmar').waitFor({state:'detached'});assert.equal(await p.inputValue('#entrada'),'Pedido anterior');
  await p.click('#comecar-fechar');assert.equal(await p.locator('#me-ajude-comecar').evaluate(e=>e===document.activeElement),true);await p.click('#me-ajude-comecar');assert.equal(await p.inputValue('#comecar-objetivo'),'Contexto fictício');
  // A seleção de nível redesenha a conversa e deve preservar a ajuda e o material.
  const modelo=p.locator('#modelo');if(await modelo.count()){const v=await modelo.locator('option:not([disabled])').last().getAttribute('value');await modelo.selectOption(v);assert.equal(await p.inputValue('#comecar-objetivo'),'Contexto fictício');}
- p.once('dialog',d=>d.accept());await p.click('#comecar-form button[type=submit]');assert.match(await p.inputValue('#entrada'),/Contexto fictício/);assert.equal(await p.locator('#anexos .anexo-chip').count(),1);
+ await p.click('#comecar-form button[type=submit]');await p.getByRole('dialog',{name:/Substituir o pedido/}).getByRole('button',{name:'Substituir pedido',exact:true}).click();await p.waitForFunction(()=>/Contexto fictício/.test(document.querySelector('#entrada').value));assert.equal(await p.locator('#anexos .anexo-chip').count(),1);
 });
 test('Conhecimento e processos encaminham aos recursos existentes sem executar ações externas',async()=>{
  await abrir();await p.click('[data-comecar="3"]');assert.match(await p.textContent('#comecar-material'),/autorizados.*fontes/);await p.getByRole('link',{name:'Ver conhecimento disponível',exact:true}).click();await p.waitForURL(/#\/conhecimento$/);

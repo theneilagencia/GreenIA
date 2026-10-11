@@ -1,4 +1,5 @@
 import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
+import { confirmar } from '/admin-ui.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
 import { conviteGuia } from '/onboarding.js';
 import { htmlComecar, ligarComecar } from '/ajude-comecar.js';
@@ -181,14 +182,20 @@ function desenharMensagens() {
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
   sugestoes();
-  ligarComecar({ estado: C, aplicar: texto => {
-    if ($('entrada').value.trim() && !confirm('Substituir o pedido que você já começou a escrever? Os anexos serão mantidos.')) return false;
+  ligarComecar({ estado: C, aplicar: async texto => {
+    if ($('entrada').value.trim() && !await substituirPedido()) return false;
+    if (!$('entrada')) return false;
     $('entrada').value = texto; ajustarAltura(); atualizarEnviar(); return true;
   } });
   $('comecar-pedido')?.addEventListener('click', () => $('entrada').focus());
   // Artefatos visuais: visualizar, baixar e editar. Uma edição cria nova versão; a conversa é relida do servidor.
   ligarArtefatos($('coluna'), { aoMudar: () => recarregarConversa(false) });
   rolarSeNoFim();
+}
+
+// Trocar o texto que a pessoa já escreveu pede confirmação no modal da plataforma (os anexos ficam).
+function substituirPedido() {
+  return confirmar({ titulo: 'Substituir o pedido que você começou?', texto: 'O texto que está na caixa de mensagem será trocado pelo pedido preparado. Os anexos continuam.', botao: 'Substituir pedido', cancelar: 'Manter meu texto' });
 }
 
 // Conversa vazia começa no topo (título e "Como começar" à vista); com mensagens, acompanha o fim.
@@ -247,12 +254,13 @@ function ligar() {
     const melhorar = ev.target.closest('[data-melhorar-resultado]');
     if (melhorar) {
       const m = C.mensagens.find(x => String(x.id) === melhorar.dataset.melhorarResultado);
-      if (m) {
-        if ($('entrada').value.trim() && !confirm('Substituir o pedido que você começou a escrever? Os anexos serão mantidos.')) return;
+      if (m) (async () => {
+        if ($('entrada').value.trim() && !await substituirPedido()) return;
+        if (!$('entrada') || !C?.mensagens.includes(m)) return;
         $('entrada').value = pedidoMelhoria(m.qualidade); C.proximaExecucao = false;
         desenhar(); $('entrada').focus(); ajustarAltura(); atualizarEnviar();
         toast('Pedido preparado. Confira o texto e clique em Enviar. Nenhuma nova execução foi iniciada.');
-      }
+      })();
     }
     const cp = ev.target.closest('[data-copiar]');
     if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); navigator.clipboard?.writeText(m.texto).then(() => toast('Resposta copiada.')); }

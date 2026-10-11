@@ -1,19 +1,17 @@
-// Administração da empresa (multiempresa): usuários e convites, roles e permissões, branding,
-// landing page e URL. Tudo dentro do próprio ambiente e do que o operador da plataforma liberou.
+// Administração da empresa (multiempresa): perfis e permissões (aba Perfis de Pessoas), branding,
+// landing page, URL e acessos do suporte. Usuários e convites ficam na aba Pessoas (estrutura.js).
+// Tudo dentro do próprio ambiente e do que o operador da plataforma liberou.
 import { api, carregandoHtml, esc, ocupado, toast, vazioHtml } from '/comum.js';
-import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
+import { cabecalho, ligarCabecalho, pode } from '/app.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro } from '/editores.js';
 import { confirmar, vigiarAlteracoes } from '/admin-ui.js';
 
 const $ = id => document.getElementById(id);
 const falhar = e => toast(e.message, 6000);
-const STATUS = { convidado: ['Convidado', 'selo-ambar'], ativo: ['Ativo', 'selo-verde'], inativo: ['Inativo', 'selo-cinza'] };
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => (c ? `<th>${esc(c)}</th>` : '<th><span class="sr">Ações</span></th>')).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
   : vazioHtml({ icone: 'pessoas', titulo: vazio }));
 
 const TELAS = {
-  usuarios: ['Usuários', 'user.read', telaUsuarios],
-  roles: ['Perfis e permissões', 'role.manage', telaRoles],
   marca: ['Marca e identidade visual', 'branding.manage', telaMarca],
   landing: ['Página de apresentação', 'landing_page.manage', telaLanding],
   url: ['URL e domínio', 'url.manage', telaUrl],
@@ -31,77 +29,9 @@ export async function rotaEmpresa(aba) {
   }
 }
 
-// ---------------------------------------------------------------- Usuários e convites
-async function telaUsuarios() {
-  const { usuarios, roles } = await api('/api/empresa/usuarios');
-  const eu = E.eu.userId;
-  const opcoes = sel => roles.map(r => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
-  const podeCriar = pode('user.create'), podeEditar = pode('user.update'), podeRoles = pode('role.manage'), podeRemover = pode('user.delete');
-  $('conteudo').innerHTML = `<p class="lead">Pessoas com acesso ao ambiente: ${esc(E.plataforma.empresa.name)}. O convite chega por email; no primeiro acesso, a pessoa fica ativa. Áreas e grupos de cada pessoa ficam em <a href="#/pessoas/pessoas">Áreas e grupos</a>.</p>
-    ${podeCriar ? `<div class="linha-botoes"><button type="button" class="btn btn-verde" id="abrir-convite" aria-expanded="false" aria-controls="f-convite">Convidar pessoa</button></div>
-    <form id="f-convite" class="adm-painel" hidden aria-labelledby="cv-titulo"><h2 id="cv-titulo">Convidar pessoa</h2>
-      <div class="filtros"><div class="campo"><label for="cv-email">Email</label><input class="entrada" id="cv-email" type="email" required></div>
-      <div class="campo"><label for="cv-nome">Nome</label><input class="entrada" id="cv-nome" maxlength="120"></div>
-      <div class="campo"><label for="cv-role">Perfil</label><select class="entrada" id="cv-role">${opcoes(roles.find(r => r.key === 'member')?.id)}</select></div></div>
-      <div class="linha-botoes"><button class="btn btn-verde btn-pequeno">Enviar convite</button><button type="button" class="btn-texto btn-pequeno" id="cv-cancelar">Cancelar</button></div></form>` : ''}
-    <h2>Pessoas com acesso</h2>
-    <div class="filtros"><div class="campo"><label for="u-busca">Buscar</label><input class="entrada" id="u-busca" type="search" placeholder="Nome ou email"></div>
-      <div class="campo"><label for="u-status">Situação</label><select class="entrada" id="u-status"><option value="">Todas</option><option value="ativo">Ativos</option><option value="convidado">Convidados</option><option value="inativo">Inativos</option></select></div></div>
-    <div id="u-lista"></div>`;
-  const desenhar = () => {
-    const q = $('u-busca').value.toLowerCase(), st = $('u-status').value;
-    const lista = usuarios.filter(u => (!q || u.email.includes(q) || (u.name || '').toLowerCase().includes(q)) && (!st || u.status === st));
-    $('u-lista').innerHTML = tabela(['Pessoa', 'Perfil', 'Situação', ''], lista.map(u => {
-      const proprio = u.id === eu;
-      return `<tr><td data-r="Pessoa"><b>${esc(u.name || u.email)}</b>${proprio ? ' <span class="dica">(você)</span>' : ''}<br><span class="dica">${esc(u.email)}</span></td>
-        <td data-r="Perfil">${podeRoles && !proprio ? `<select class="entrada" data-role="${u.id}" aria-label="Perfil de ${esc(u.email)}">${opcoes(u.role_id)}</select>` : esc(u.role)}</td>
-        <td data-r="Situação"><span class="selo ${STATUS[u.status][1]}">${STATUS[u.status][0]}</span></td>
-        <td data-r="Ações"><div class="linha-botoes">${u.status === 'convidado' && podeCriar ? `<button class="btn-texto btn-pequeno" data-reenviar="${u.id}">Reenviar convite</button>` : ''}
-          ${podeEditar && !proprio ? (u.status === 'inativo' ? `<button class="btn-texto btn-pequeno" data-status="${u.id}" data-novo="ativo">Reativar</button>` : `<button class="btn btn-perigo btn-pequeno" data-status="${u.id}" data-novo="inativo">Desativar</button>`) : ''}
-          ${podeRemover && !proprio ? `<button class="btn btn-perigo btn-pequeno" data-remover="${u.id}">Remover</button>` : ''}</div></td></tr>`;
-    }), usuarios.length ? 'Ninguém encontrado com esse filtro.' : 'Nenhum usuário ainda. Convide as primeiras pessoas.');
-  };
-  desenhar();
-  $('u-busca').oninput = desenhar; $('u-status').onchange = desenhar;
-  // Um único "Convidar" na administração: Áreas e grupos leva para cá com ?convidar=1.
-  const abrirConvite = v => { $('f-convite').hidden = !v; $('abrir-convite').setAttribute('aria-expanded', v); if (v) $('cv-email').focus(); else $('abrir-convite').focus(); };
-  if (podeCriar) {
-    $('abrir-convite').onclick = () => abrirConvite($('f-convite').hidden);
-    $('cv-cancelar').onclick = () => abrirConvite(false);
-    if (/[?&]convidar=1/.test(location.hash)) abrirConvite(true);
-  }
-  if (podeCriar) $('f-convite').onsubmit = async ev => {
-    ev.preventDefault();
-    try { await api('/api/empresa/usuarios', { metodo: 'POST', corpo: { email: $('cv-email').value, name: $('cv-nome').value, role_id: $('cv-role').value } }); toast('Convite enviado.'); telaUsuarios(); } catch (e) { falhar(e); }
-  };
-  $('u-lista').onchange = async ev => {
-    const s = ev.target.closest('[data-role]');
-    if (!s) return;
-    const pessoa = usuarios.find(u => String(u.id) === s.dataset.role), perfil = roles.find(r => String(r.id) === s.value);
-    const nome = pessoa.name || pessoa.email, novo = perfil?.name || s.selectedOptions[0].textContent;
-    if (!await confirmar({ titulo: `Mudar o perfil de ${nome} para ${novo}?`, texto: ['Isso muda o que essa pessoa pode acessar e fazer.', perfil?.description || ''], botao: `Mudar para ${novo}` })) { s.value = pessoa.role_id; return; }
-    s.disabled = true;
-    try { await api(`/api/empresa/usuarios/${s.dataset.role}`, { metodo: 'PUT', corpo: { role_id: s.value } }); pessoa.role_id = s.value; toast('Perfil alterado.'); } catch (e) { s.value = pessoa.role_id; falhar(e); } finally { s.disabled = false; }
-  };
-  $('u-lista').onclick = async ev => {
-    const b = ev.target.closest('button');
-    if (!b) return;
-    const u = usuarios.find(x => String(x.id) === (b.dataset.status || b.dataset.remover)), nome = u ? u.name || u.email : 'esta pessoa';
-    try {
-      if (b.dataset.reenviar) { await api(`/api/empresa/usuarios/${b.dataset.reenviar}/reenviar`, { metodo: 'POST' }); toast('Convite reenviado.'); }
-      else if (b.dataset.status) {
-        if (b.dataset.novo === 'inativo' && !await confirmar({ titulo: `Desativar ${nome}?`, texto: 'A pessoa perde o acesso na hora. O histórico continua no ambiente.', botao: `Desativar ${nome}`, perigo: true })) return;
-        await api(`/api/empresa/usuarios/${b.dataset.status}`, { metodo: 'PUT', corpo: { status: b.dataset.novo } }); toast('Status alterado.'); telaUsuarios();
-      } else if (b.dataset.remover) {
-        if (!await confirmar({ titulo: `Remover ${nome} da empresa?`, texto: 'A pessoa deixa de ter acesso ao ambiente. O histórico dela continua.', botao: `Remover ${nome}`, perigo: true })) return;
-        await api(`/api/empresa/usuarios/${b.dataset.remover}`, { metodo: 'DELETE' }); toast('Pessoa removida.'); telaUsuarios();
-      }
-    } catch (e) { falhar(e); }
-  };
-}
-
-// ---------------------------------------------------------------- Roles e permissões
-async function telaRoles() {
+// ---------------------------------------------------------------- Perfis e permissões
+// Aba Perfis da tela Pessoas (#/pessoas/perfis): desenha em #conteudo, como as outras abas.
+export async function telaRoles() {
   const { roles, permissoes, podeCriar } = await api('/api/empresa/roles');
   const desc = Object.fromEntries(permissoes.map(p => [p.key, p.description]));
   $('conteudo').innerHTML = `<p class="lead">Perfis de sistema valem para todas as empresas e não mudam. Perfis próprios combinam as permissões que a empresa precisa.</p>

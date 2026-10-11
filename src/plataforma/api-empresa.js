@@ -9,7 +9,7 @@ import { listarAcessos, acessoDaEmpresa, encerrarAcesso } from './acessos.js';
 import { exec } from '../db.js';
 import { verificarDominio, orientacaoDns } from './dominio.js';
 
-const SEM_PERMISSAO = o => `A sua role não tem a permissão de ${o}. Um admin da empresa pode dar a permissão em Roles e permissões.`;
+const SEM_PERMISSAO = o => `A sua role não tem a permissão de ${o}. Um admin da empresa pode dar a permissão em Pessoas, na aba Perfis.`;
 
 export function rotasEmpresa(P, r) {
   const precisa = (s, chave) => exigir(s.perms, chave);

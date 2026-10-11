@@ -25,7 +25,7 @@ async function abrir(c,hash) {
 test('checklist real e pendências por perfil; usuário comum sem ações administrativas',async()=>{
  const p=await abrir(admin,'#/preparacao');await p.waitForSelector('.acomp-passos');assert.match(await p.textContent('#principal'),/Situação calculada/);await p.click('a[href="#/pendencias"]');await p.waitForSelector('#pend-busca');
  const g=await abrir(gestor,'#/pendencias');await g.waitForSelector('#pend-lista');assert.doesNotMatch(await g.textContent('#pend-lista'),/acessos locais/);
- const u=await abrir(usuario,'#/pendencias');await u.waitForSelector('#pend-lista');assert.match(await u.textContent('#pend-lista'),/Nenhuma pendência/);assert.equal(await u.locator('a[href="#/revisao-acessos"]').count(),0);
+ const u=await abrir(usuario,'#/pendencias');await u.waitForSelector('#pend-lista');assert.match(await u.textContent('#pend-lista'),/Nenhuma pendência/);assert.equal(await u.locator('a[href^="#/pessoas"]').count(),0);
  await p.close();await g.close();await u.close();
 });
 test('conhecimento: responsável, validade, suspensão e histórico; falha preserva edição',async()=>{
@@ -42,7 +42,7 @@ test('filtros salvos retornam à consulta e ajuda fecha com Escape e devolve foc
  await p.click('#ajuda-tela');await p.waitForSelector('#ajuda-titulo');assert.match(await p.textContent('.ajuda-contextual'),/documento suspenso ou vencido/);await p.keyboard.press('Escape');assert.equal(await p.locator('#ajuda-titulo').count(),0);assert.equal(await p.evaluate(()=>document.activeElement.id),'ajuda-tela');await p.close();
 });
 test('revisão de acesso exige conferência e registra sem mudar papel',async()=>{
- const p=await abrir(admin,'#/revisao-acessos');await p.waitForSelector('#acesso-lista');await p.fill('#acesso-busca','usuario');const li=p.locator(`[data-acesso="${usuario.pessoa.id}"]`);await li.locator('summary').click();await li.locator('textarea').fill('Conferi área e base autorizada');await li.locator('form input[type=checkbox]').check();await li.locator('form button').click();await p.waitForFunction(()=>!document.querySelector('textarea')?.value);assert.equal(um(N.app.db,'select papel from pessoas where id = ?',usuario.pessoa.id).papel,'usuario');assert.ok(um(N.app.db,'select em from revisoes_acesso where pessoa_id = ?',usuario.pessoa.id));await p.close();
+ const p=await abrir(admin,'#/revisao-acessos');await p.waitForFunction(()=>location.hash==='#/pessoas?revisao=pendente');await p.waitForSelector('.lx-linha');await p.fill('#lx-q','usuario');await p.click(`[data-abrir="${usuario.pessoa.id}"]`);await p.waitForSelector('#px-rev-nota');await p.fill('#px-rev-nota','Conferi área e base autorizada');await p.click('#px-revisar button');assert.ok(!um(N.app.db,'select em from revisoes_acesso where pessoa_id = ?',usuario.pessoa.id),'sem a conferência marcada, não registra');await p.check('#px-rev-ok');await p.click('#px-revisar button');await p.waitForSelector('#px-rev-ultima:has-text("Última revisão em")');assert.equal(um(N.app.db,'select papel from pessoas where id = ?',usuario.pessoa.id).papel,'usuario');assert.ok(um(N.app.db,'select em from revisoes_acesso where pessoa_id = ?',usuario.pessoa.id));await p.close();
 });
 test('comparação apresenta diferença de objetivo sem restaurar automaticamente; resultados acessíveis ao gestor',async()=>{
  const p=await abrir(gestor,`#/qw/${q.id}/versoes`);await p.waitForSelector('#comparar-versoes',{state:'attached'});await p.locator('details:has(#comparar-versoes)>summary').click();await p.click('#comparar-versoes button');await p.waitForSelector('.comparacao-campo');assert.match(await p.textContent('#versoes-diferencas'),/Preparar resumo 1|Preparar resumo 2/);assert.equal(um(N.app.db,'select numero from quick_win_versoes where id = (select versao_publicada from quick_wins where id = ?)',q.id).numero,2);
@@ -53,8 +53,8 @@ test('auditoria apresenta autor e detalhe legível e permite salvar filtros',asy
 });
 test('layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisão',async()=>{
  const p=await abrir(admin,'#/pendencias');for(const width of [320,390,768,1280]){
-  await p.setViewportSize({width,height:850});for(const hash of ['#/pendencias','#/preparacao','#/revisao-acessos']){
-   await p.goto(N.base+'/app'+hash);await p.waitForSelector('.acompanhamento');await p.waitForFunction(titulo=>document.querySelector('.cabeca h1')?.textContent.trim()===titulo,({'#/pendencias':'Pendências','#/preparacao':'Preparar o ambiente','#/revisao-acessos':'Revisar acessos'})[hash]);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,hash+' '+width);
+  await p.setViewportSize({width,height:850});for(const hash of ['#/pendencias','#/preparacao']){
+   await p.goto(N.base+'/app'+hash);await p.waitForSelector('.acompanhamento');await p.waitForFunction(titulo=>document.querySelector('.cabeca h1')?.textContent.trim()===titulo,({'#/pendencias':'Pendências','#/preparacao':'Preparar o ambiente'})[hash]);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,hash+' '+width);
    const titulos=await p.locator('.acomp-lista h2,.acomp-passos h2').evaluateAll(els=>els.map(el=>({size:getComputedStyle(el).fontSize,family:getComputedStyle(el).fontFamily,weight:getComputedStyle(el).fontWeight})));
    for(const t of titulos){assert.equal(t.size,'15px',hash+' '+width);assert.match(t.family,/Inter/);assert.equal(t.weight,'600');}
    const descricoes=await p.locator('.acomp-lista>li>div>p:not(.dica),.acomp-passos>li>div>p:not(.dica)').evaluateAll(els=>els.map(el=>getComputedStyle(el).fontSize));for(const size of descricoes)assert.equal(size,'13px');
@@ -63,6 +63,8 @@ test('layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisã
    if(hash==='#/pendencias'&&width===1280)await p.screenshot({path:'/tmp/greenia-pendencias-tipografia.png'});
    assert.equal(await p.locator('#ajuda-tela').isVisible(),true);if(width===390&&hash==='#/pendencias')await p.screenshot({path:'capturas/tmp/pendencias-mobile.png',fullPage:true});
   }
+  // A revisão de acessos agora fica em Pessoas: a lista também cabe em cada largura.
+  await p.goto(N.base+'/app#/pessoas?revisao=pendente');await p.waitForSelector('.lx-lista');assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'#/pessoas '+width);
  }await p.screenshot({path:'capturas/tmp/acompanhamento-mobile.png',fullPage:true});await p.close();
 });
 test('detalhe da execução pertence à conversa privada e distingue conferência de ação externa',async()=>{

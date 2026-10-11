@@ -50,37 +50,40 @@ test('M32/A16: menu de admin com ícones únicos, rótulos curtos e o mesmo text
   assert.deepEqual(p.erros, []);
 });
 
-test('A16/M37: "Perfil" com os mesmos valores nas duas telas e um só Convidar, que abre o painel de convite', async () => {
+test('A16/M37: "Perfil" com os mesmos valores na lista, no detalhe e no convite, e um só Convidar, que abre o painel de convite', async () => {
   const p = await pagina(admin);
-  await abrir(p, 'pessoas/pessoas');
+  await abrir(p, 'pessoas');
   await p.waitForSelector('.lx-linha');
   const linha = p.locator('.lx-linha', { hasText: 'Marina Souza' });
   assert.match(await linha.innerText(), /Membro/);
   assert.doesNotMatch(await p.locator('#conteudo').innerText(), /\bPapel\b|\bUsuário\b/);
-  assert.equal(await p.locator('button#lx-novo').count(), 0, 'sem um segundo botão Convidar');
-  await p.getByRole('link', { name: 'Convidar em Usuários' }).click();
-  await p.waitForSelector('#f-convite:not([hidden])');
+  await linha.click();
+  assert.equal(await p.locator('#px-perfil option:checked').innerText(), 'Membro');
+  await p.keyboard.press('Escape');
+  await p.getByRole('dialog').waitFor({ state: 'detached' });
+  assert.equal(await p.getByRole('button', { name: /Convidar/ }).count(), 1, 'um só botão Convidar');
+  await p.getByRole('button', { name: 'Convidar pessoa' }).click();
+  await p.getByRole('dialog').waitFor();
   assert.equal(await p.evaluate(() => document.activeElement.id), 'cv-email');
-  assert.equal(await p.getByRole('button', { name: 'Convidar pessoa' }).getAttribute('aria-expanded'), 'true');
-  assert.match(await p.locator('#u-lista').innerText(), /Membro/);
+  assert.equal(await p.locator('#cv-role option:checked').innerText(), 'Membro');
   assert.deepEqual(p.erros, []);
 });
 
 test('M2/M3: remover pessoa é ação de perigo com confirmação própria, que diz o nome e a consequência', async () => {
   const p = await pagina(admin);
-  await abrir(p, 'empresa/usuarios');
-  const marina = (await admin.get('/api/empresa/usuarios')).dados.usuarios.find(x => x.email === 'marina@adm.test');
-  const remover = p.locator(`[data-remover="${marina.id}"]`);
+  await abrir(p, 'pessoas');
+  await p.locator('.lx-linha', { hasText: 'Marina Souza' }).click();
+  const remover = p.getByRole('button', { name: 'Remover Marina Souza' });
   assert.match(await remover.getAttribute('class'), /btn-perigo/);
   await remover.click();
-  const dialogo = p.getByRole('dialog');
+  const dialogo = p.locator('.adm-confirmar [role=dialog]');
   await dialogo.waitFor();
   assert.equal(await p.evaluate(() => document.activeElement.id), 'adm-conf-titulo', 'foco no título do modal');
   assert.match(await dialogo.innerText(), /Remover Marina Souza da empresa\?/);
   await p.keyboard.press('Escape');
   await dialogo.waitFor({ state: 'detached' });
   await remover.click();
-  await p.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click();
   assert.ok((await admin.get('/api/empresa/usuarios')).dados.usuarios.some(x => x.email === 'marina@adm.test'), 'cancelar não remove');
   assert.deepEqual(p.erros, []);
 });
@@ -167,7 +170,7 @@ test('A19/M29/M28: Políticas com Ligado/Desligado, efeito ao vivo e "Não envia
 
 test('A20/M34: Perfis no celular: permissões cabem na tela e o selo "Sistema" não quebra', async () => {
   const p = await pagina(admin, { width: 390, height: 844 });
-  await abrir(p, 'empresa/roles');
+  await abrir(p, 'pessoas/perfis');
   const m = await p.evaluate(() => {
     const fora = [...document.querySelectorAll('#conteudo .chip')].filter(c => c.getBoundingClientRect().right > innerWidth + 1).length;
     const selo = document.querySelector('#conteudo .selo'); const r = selo.getBoundingClientRect();
@@ -207,7 +210,7 @@ test('M39/A26/B2: Atividade sem códigos internos, com título dos problemas e h
   assert.ok(tipos.every(t => !/\b[a-z_]+\.[a-z_]+\b/.test(t)), JSON.stringify(tipos));
   const resumo = await p.locator('.auditoria-detalhe summary').allInnerTexts();
   assert.ok(resumo.every(t => !/Ver registro \d+/.test(t)), JSON.stringify(resumo.slice(0, 3)));
-  for (const rota of ['visao-geral', 'uso', 'modelos', 'modelos/roteamento', 'politicas', 'politicas/texto', 'configuracoes', 'empresa/usuarios', 'empresa/acessos', 'empresa/url', 'pessoas', 'pessoas/criacao']) {
+  for (const rota of ['visao-geral', 'uso', 'modelos', 'modelos/roteamento', 'politicas', 'politicas/texto', 'configuracoes', 'pessoas', 'pessoas/areas', 'pessoas/grupos', 'pessoas/perfis', 'empresa/acessos', 'empresa/url', 'pessoas/criacao']) {
     await abrir(p, rota);
     const pulo = await p.evaluate(() => {
       const hs = [...document.querySelectorAll('#principal :is(h1,h2,h3,h4)')].filter(h => h.getClientRects().length && !h.closest('[role=dialog]'));

@@ -5,7 +5,7 @@ import { ligarVisao } from '/preferencias.js';
 // configurações e conhecimento, abertas como rotas da aplicação. O servidor confere
 // cada permissão; aqui só se escolhe o que mostrar.
 import { api, carregandoHtml, emCreditos, esc, fmtCusto, ICONE, ocupado, toast, vazioHtml } from '/comum.js';
-import { E, cabecalho, desenharLateral, ligarCabecalho, pode, recarregarBases } from '/app.js';
+import { E, cabecalho, desenharLateral, ligarCabecalho, pode, recarregarBases, trocarPara } from '/app.js';
 import { renderizar } from '/md.js';
 import { avisoCor } from '/cor.js';
 import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
@@ -436,7 +436,7 @@ async function abaConfig() {
           <span class="ajuda">Usada nos botões (com texto branco por cima) e nos links. Precisa ser escura o bastante para o texto ser lido.</span><div class="aviso-cor" id="c-contraste" aria-live="polite"></div></div>
         <div class="campo"><label for="c-priv">Aviso de privacidade (aparece no login e no chat)</label><textarea class="entrada" id="c-priv" rows="2">${esc(c.privacyNote)}</textarea></div>`)}
       ${caixa(1, 'Quem pode entrar', multi ? 'Pessoas com email destes domínios entram sozinhas, como membros. Quem tem outro email só entra se for convidado.' : 'Só entram pessoas com email destes domínios.', `
-        ${multi ? '<p class="dica">Para convidar quem tem outro email, use <a href="#/empresa/usuarios">Usuários</a>.</p>' : ''}
+        ${multi ? '<p class="dica">Para convidar quem tem outro email, use <a href="#/pessoas?convidar=1">Convidar pessoa, em Pessoas</a>.</p>' : ''}
         <div class="campo"><label for="c-dom-novo">Domínios de email da empresa</label>
           <div class="chips-entrada" id="c-chips"></div>
           <div class="linha-botoes"><input class="entrada" id="c-dom-novo" placeholder="suaempresa.com.br" autocomplete="off" inputmode="url" style="max-width:320px"><button type="button" class="btn btn-linha btn-pequeno" id="c-dom-add">Adicionar</button></div>
@@ -749,8 +749,14 @@ const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'mo
 // ---------------------------------------------------------------- rotas
 const TELAS = {
   uso: { titulo: 'Uso e créditos', perm: 'usage.read', fn: abaUso },
-  // O título acompanha o rótulo do menu (na multiempresa, quem tem acesso fica em Usuários; aqui ficam áreas e grupos).
-  pessoas: { titulo: () => (E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas'), perm: 'user.read', sub: [['', 'Áreas', abaAreas], ['pessoas', 'Pessoas', abaPessoas], ['grupos', 'Grupos', abaGrupos], ['criacao', 'Quem cria Quick Wins', abaCriacaoQw]] },
+  // Pessoas: uma tela com abas. Cada aba aparece só para quem tem a permissão da tela que ela substitui
+  // (o servidor confere de novo em cada rota): Perfis é role.manage, Quem cria Quick Wins lê uma rota de company.manage.
+  pessoas: { titulo: 'Pessoas', perm: () => pode('user.read') || (!!E.plataforma && pode('role.manage')), abas: true, sub: [
+    ['', 'Pessoas', abaPessoas, () => pode('user.read')],
+    ['areas', 'Áreas', abaAreas, () => pode('user.read')],
+    ['grupos', 'Grupos', abaGrupos, () => pode('user.read')],
+    ['perfis', 'Perfis', async () => (await import('/empresa.js')).telaRoles(), () => !!E.plataforma && pode('role.manage')],
+    ['criacao', 'Quem cria Quick Wins', abaCriacaoQw, () => pode('company.manage')]] },
   modelos: { titulo: 'Modelos', perm: 'models.manage', sub: [['', 'Níveis e modelos', abaModelos], ['roteamento', 'Escolha automática', abaRoteamento], ['historico', 'Histórico', abaHistoricoModelos]] },
   politicas: { titulo: 'Políticas de IA', perm: 'policy.manage', sub: [['', 'Regras de uso', abaPoliticas], ['texto', 'Texto da política', abaPolitica]] },
   atividade: { titulo: 'Atividade', perm: 'audit.read', fn: abaEventos },
@@ -760,13 +766,22 @@ const TELAS = {
 
 export async function rotaGestao(id, sub = '') {
   const t = TELAS[id];
-  if (!t || (!t.todos && !pode(t.perm))) { location.hash = '#/nova'; return; }
-  const atual = t.sub ? (t.sub.find(x => x[0] === (sub || '')) || t.sub[0]) : null;
+  if (!t || (!t.todos && !(typeof t.perm === 'function' ? t.perm() : pode(t.perm)))) { location.hash = '#/nova'; return; }
+  const subs = t.sub?.filter(x => !x[3] || x[3]());
+  if (subs && !subs.length) { location.hash = '#/nova'; return; }
+  const atual = subs ? subs.find(x => x[0] === (sub || '')) : null;
+  // Aba que esta pessoa não pode ver (ou que não existe): vai para a primeira que ela pode, sem rastro no histórico.
+  if (subs && !atual) { trocarPara(`#/${id}${subs[0]?.[0] ? `/${subs[0][0]}` : ''}`); return; }
   const titulo = typeof t.titulo === 'function' ? t.titulo() : t.titulo;
+  const idAba = x => `aba-${id}-${x[0] || 'inicio'}`;
+  const navegacao = !subs ? '' : t.abas
+    ? `<div class="subnav abas" role="tablist" aria-label="${esc(titulo)}">${subs.map(x => `<a role="tab" id="${idAba(x)}" href="#/${id}${x[0] ? `/${x[0]}` : ''}" aria-controls="conteudo" aria-selected="${x === atual}" tabindex="${x === atual ? 0 : -1}" ${x === atual ? 'aria-current="page"' : ''}>${x[1]}</a>`).join('')}</div>`
+    : `<nav class="subnav" aria-label="${esc(titulo)}">${subs.map(x => `<a href="#/${id}${x[0] ? `/${x[0]}` : ''}" ${x === atual ? 'aria-current="page"' : ''}>${x[1]}</a>`).join('')}</nav>`;
   document.getElementById('principal').innerHTML = `${cabecalho(titulo)}<div class="pagina"><div class="pagina-dentro">
-    ${t.sub ? `<nav class="subnav" aria-label="${esc(titulo)}">${t.sub.map(x => `<a href="#/${id}${x[0] ? `/${x[0]}` : ''}" ${x === atual ? 'aria-current="page"' : ''}>${x[1]}</a>`).join('')}</nav>` : ''}
-    <div id="conteudo">${carregandoHtml()}</div></div></div>`;
+    ${navegacao}
+    <div id="conteudo"${t.abas ? ` role="tabpanel" aria-labelledby="${idAba(atual)}" tabindex="-1"` : ''}>${carregandoHtml()}</div></div></div>`;
   ligarCabecalho();
+  if (t.abas) ligarAbas(atual && idAba(atual));
   $('conteudo').onclick = null; $('conteudo').onchange = null;
   const conteudo = $('conteudo');
   try { await (atual ? atual[2] : t.fn)(); } catch (e) {
@@ -774,4 +789,23 @@ export async function rotaGestao(id, sub = '') {
     conteudo.innerHTML = `<div class="faixa-aviso erro" role="alert"><strong>Não foi possível carregar esta tela.</strong><p>${esc(e.message || 'Verifique sua conexão e tente novamente.')}</p><button type="button" class="btn" id="tentar-carregar">Tentar novamente</button></div>`;
     $('tentar-carregar').onclick = () => rotaGestao(id, sub);
   }
+}
+
+// Abas com teclado (padrão tablist): setas, Home e End mudam de aba; o foco fica na aba escolhida depois da troca.
+let focarAba = false;
+function ligarAbas(idAtual) {
+  const lista = document.querySelector('.subnav.abas');
+  if (!lista) return;
+  if (focarAba) { focarAba = false; document.getElementById(idAtual)?.focus(); }
+  lista.addEventListener('keydown', ev => {
+    const abas = [...lista.querySelectorAll('[role=tab]')], i = abas.indexOf(document.activeElement);
+    if (i < 0) return;
+    const alvo = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: abas.length - 1 }[ev.key];
+    if (alvo === undefined) return;
+    ev.preventDefault();
+    const a = abas[(alvo + abas.length) % abas.length];
+    a.focus();
+    focarAba = true;
+    location.hash = a.getAttribute('href');
+  });
 }

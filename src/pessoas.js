@@ -161,7 +161,7 @@ export function rotasPessoas(app, r) {
   r.post('/api/admin/pessoas', ({ pessoa, corpo, req }) => {
     const antesBase = adminsBase(app.db);
     // Multiempresa: usuários, convites, roles e status ficam na plataforma (Usuários, no admin da empresa).
-    if (app.tenant) throw erro(409, 'use_usuarios', 'Cadastre pessoas em Usuários. Aqui ficam as áreas e os grupos.');
+    if (app.tenant) throw erro(409, 'use_usuarios', 'Convide pessoas em Pessoas, no botão Convidar pessoa.');
     const email = String(corpo.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw erro(400, 'email', 'Email inválido.');
     // Fora dos domínios permitidos, só entra quem o admin cadastrou (a pessoa, não o domínio).
@@ -182,7 +182,7 @@ export function rotasPessoas(app, r) {
     const id = Number(params.id);
     const alvo = um(app.db, 'select id, papel, ativo from pessoas where id = ?', id);
     if (!alvo) throw erro(404, 'pessoa', 'Pessoa não encontrada.');
-    if (app.tenant && (corpo.papel !== undefined || corpo.ativo !== undefined)) throw erro(409, 'use_usuarios', 'Role e status são alterados em Usuários.');
+    if (app.tenant && (corpo.papel !== undefined || corpo.ativo !== undefined)) throw erro(409, 'use_usuarios', 'Perfil e situação são alterados no painel da pessoa, em Pessoas.');
     const papel = corpo.papel === undefined ? alvo.papel : corpo.papel === 'admin' ? 'admin' : 'usuario';
     const ativo = corpo.ativo === undefined ? alvo.ativo : Number(!!corpo.ativo);
     const admins = um(app.db, "select count(*) as n from pessoas where papel = 'admin' and ativo = 1 and id != ?", id).n;
@@ -208,9 +208,9 @@ export function rotasPessoas(app, r) {
   r.get('/api/admin/grupos', () => {
     const cfg = lerConfig(app.db), c = cfg.criarQuickWin;
     const usos = id => [
-      ...['equilibrado', 'avancado'].filter(k => (cfg.acessoPerfis[k]?.grupos || []).includes(id)).map(k => ({ texto: `Usar a classe ${k === 'avancado' ? 'Avançado' : 'Equilibrado'} no dia a dia`, onde: '#/modelos' })),
-      ...((c.grupos || []).includes(id) ? [{ texto: 'Criar quick wins nas suas áreas', onde: '#/pessoas/criacao' }] : []),
-      ...((c.todaEmpresa?.grupos || []).includes(id) ? [{ texto: 'Criar quick wins para a empresa toda', onde: '#/pessoas/criacao' }] : []),
+      ...['equilibrado', 'avancado'].filter(k => (cfg.acessoPerfis[k]?.grupos || []).includes(id)).map(k => ({ texto: `Usar o nível ${k === 'avancado' ? 'Avançado' : 'Equilibrado'} no dia a dia`, onde: '#/modelos' })),
+      ...((c.grupos || []).includes(id) ? [{ texto: 'Criar Quick Wins nas suas áreas', onde: '#/pessoas/criacao' }] : []),
+      ...((c.todaEmpresa?.grupos || []).includes(id) ? [{ texto: 'Criar Quick Wins para a empresa toda', onde: '#/pessoas/criacao' }] : []),
     ];
     return { grupos: todos(app.db, 'select id, nome from grupos order by nome').map(g => ({
       ...g, pessoas: todos(app.db, 'select pessoa_id from grupo_pessoas where grupo_id = ?', g.id).map(x => x.pessoa_id), usos: usos(g.id) })) };

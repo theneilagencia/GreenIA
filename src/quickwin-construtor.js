@@ -798,7 +798,7 @@ export function acoesDoAviso({ pesquisa = null, objetivo = null, fontes = null, 
   if (pesquisa && !pesquisa.feita && pesquisa.motivo === 'nao_liberada')
     out.push({ motivo: 'pesquisa_nao_liberada', rotulo: 'Liberar a pesquisa na internet', href: '#/politicas?foco=pesquisa-web', permissao: 'policy.manage', onde: 'Políticas de IA › Regras de uso' });
   const revisoesPesquisa = {
-    area_reforcada: { rotulo: 'Revisar a proteção da área', href: '#/pessoas', permissao: 'user.update', onde: 'Áreas e grupos › Proteção da área' },
+    area_reforcada: { rotulo: 'Revisar a proteção da área', href: '#/pessoas/areas', permissao: 'user.update', onde: 'Pessoas › Áreas › Proteção da área' },
     dados_protegidos: { rotulo: 'Revisar as regras de proteção dos dados', href: '#/politicas', permissao: 'policy.manage', onde: 'Políticas de IA › Regras de uso' },
     sigilosa: { rotulo: 'Consultar as regras de sigilo', href: '#/politicas', permissao: 'policy.manage', onde: 'Políticas de IA › Regras de uso' },
     reserva_do_plano: { rotulo: 'Consultar consumo e limites', href: '#/uso', permissao: 'usage.read', onde: 'Uso e créditos' },

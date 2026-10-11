@@ -109,7 +109,7 @@ test('tema escuro: telas principais sem contraste insuficiente e sem rolagem hor
     [marina, '/app#/nova', '#ajuda-tela'],
     [marina, `/app#/c/${conversa.id}`, '.bolha-ia'],
     [marina, '/app#/quick-wins', '.pagina .qw-marca'],
-    [admin, '/app#/pessoas/pessoas', 'text=Marina Tema'],
+    [admin, '/app#/pessoas', 'text=Marina Tema'],
     [admin, '/app#/visao-geral', '.indicadores'],
     [ops, '/plataforma#/empresas', 'text=Empresa Tema'],
   ];

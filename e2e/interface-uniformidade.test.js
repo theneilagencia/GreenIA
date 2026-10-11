@@ -6,7 +6,7 @@ import {salvarConfig} from '../src/config.js';
 import {mkdirSync,writeFileSync} from 'node:fs';
 
 let S,nav,ctx,p;const erros=[],medicoes=[];
-const telas=['nova','conversas','quick-wins','quick-wins/programados','qw/nova','qw/nova/modelos','conhecimento','pendencias','preparacao','revisao-acessos','primeiros-passos','visao-geral','uso','pessoas','modelos','modelos/roteamento','modelos/historico','politicas','politicas/texto','atividade','integracoes','integracoes/nova','configuracoes','empresa/usuarios','empresa/roles','empresa/marca','empresa/landing','empresa/url','empresa/acessos'];
+const telas=['nova','conversas','quick-wins','quick-wins/programados','qw/nova','qw/nova/modelos','conhecimento','pendencias','preparacao','pessoas/grupos','primeiros-passos','visao-geral','uso','pessoas','modelos','modelos/roteamento','modelos/historico','politicas','politicas/texto','atividade','integracoes','integracoes/nova','configuracoes','pessoas/areas','pessoas/perfis','empresa/marca','empresa/landing','empresa/url','empresa/acessos'];
 before(async()=>{
  S=await subirPlataforma();const ops=await S.navegador().entrarConsole('ops@theneil.com.br');
  const empresa=(await ops.post('/api/plataforma/empresas',{name:'Empresa Exemplo',slug:'ux-exemplo',status:'ativa',admin_email:'admin@empresa-exemplo.com.br'})).dados;

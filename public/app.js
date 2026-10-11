@@ -130,11 +130,9 @@ const SECOES_ADMIN = () => [
     { id: 'preparacao', nome: 'Preparar o ambiente', icone: 'lista', ver: () => ['company.manage','usage.read','models.manage','user.read','policy.manage','settings.manage','integrations.manage','integrations.approve'].some(pode) },
   ] },
   { titulo: 'Pessoas e acesso', itens: [
-    // Multiempresa: quem tem acesso e o perfil de cada um ficam em Usuários; áreas e grupos, na tela ao lado.
-    ...(E.plataforma ? [{ id: 'empresa/usuarios', nome: 'Usuários', icone: 'pessoas', ver: () => pode('user.read') }] : []),
-    { id: 'pessoas', nome: E.plataforma ? 'Áreas e grupos' : 'Pessoas e áreas', icone: E.plataforma ? 'predio' : 'pessoas', ver: () => pode('user.read') },
-    ...(E.plataforma ? [{ id: 'empresa/roles', nome: 'Perfis e permissões', icone: 'chave', ver: () => pode('role.manage') }] : []),
-    { id: 'revisao-acessos', nome: 'Revisar acessos', icone: 'check', ver: () => pode('user.read') },
+    // Uma tela só para pessoas, com abas (Pessoas, Áreas, Grupos, Perfis, Quem cria Quick Wins): cada aba aparece
+    // para quem tem a permissão dela (ABAS_PESSOAS em admin.js). Acessos do suporte continua separado.
+    { id: 'pessoas', nome: 'Pessoas', icone: 'pessoas', ver: () => pode('user.read') || (!!E.plataforma && pode('role.manage')) },
     ...(E.plataforma ? [{ id: 'empresa/acessos', nome: 'Acessos do suporte', icone: 'cadeado', ver: () => pode('audit.read') }] : []),
   ] },
   { titulo: 'IA e regras', itens: [
@@ -311,6 +309,10 @@ async function rota() {
   const [h, consulta = ''] = location.hash.split('?');
   const focoPedido = new URLSearchParams(consulta).get('foco');
   const foco = /^[a-z0-9-]+$/.test(focoPedido || '') ? focoPedido : null;
+  // Endereços antigos de pessoas (Usuários, Perfis e permissões, Revisar acessos, abas antigas): a tela agora é
+  // Pessoas, com abas. Troca o endereço sem deixar rastro no histórico e diz o motivo.
+  const novo = enderecoNovo(h, consulta);
+  if (novo) { toast('Este endereço mudou: usuários, áreas, grupos, perfis e revisão de acessos agora ficam em Pessoas, com abas.', 'info'); return trocarPara(novo); }
   // Administração: quem autoriza é o servidor. Quem não administra pergunta a ele (e recebe 403) antes de
   // qualquer tela da administração ser desenhada; a recusa leva de volta ao uso normal.
   if (ROTAS_ADMIN.test(h)) {
@@ -332,7 +334,6 @@ async function rota() {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
     else if (h === '#/pendencias' || h === '#/preparacao') await (await importarTela('/acompanhamento.js')).vistaAcompanhamento(h === '#/preparacao');
-    else if (h === '#/revisao-acessos') await (await importarTela('/acompanhamento.js')).vistaRevisaoAcessos();
     else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/')) await (await importarTela('/quickwin.js')).rotaQuickWin(h);
@@ -364,6 +365,18 @@ function destacarCampo(id, tentativas = 30) {
   alvo.classList.add('campo-destacado');
   setTimeout(() => alvo.classList.remove('campo-destacado'), 4000);
   (el.matches('input, select, textarea, button, a') ? el : el.querySelector('input, select, textarea, button, a'))?.focus({ preventScroll: true });
+}
+
+// Endereço antigo → aba equivalente de Pessoas (a consulta, como ?convidar=1 ou ?foco=, vai junto).
+export function enderecoNovo(h, consulta = '') {
+  const q = new URLSearchParams(consulta);
+  const com = (destino, extra = {}) => { for (const [k, v] of Object.entries(extra)) q.set(k, v); const s = q.toString(); return s ? `${destino}?${s}` : destino; };
+  if (h === '#/empresa/usuarios' || h === '#/pessoas/pessoas') return com('#/pessoas');
+  if (h === '#/empresa/roles') return com('#/pessoas/perfis');
+  if (h === '#/revisao-acessos') return com('#/pessoas', { revisao: 'pendente' });
+  // Antes, #/pessoas abria Áreas: o link para uma área (?area=) segue para a aba Áreas.
+  if (h === '#/pessoas' && q.has('area')) return com('#/pessoas/areas');
+  return null;
 }
 
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.

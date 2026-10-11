@@ -123,7 +123,7 @@ test('grupo mostra o que libera; o editor da pessoa salva áreas e grupos juntos
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false, grupos: [g.id] } } });
   await admin.put('/api/admin/quick-wins-permissoes', { grupos: [g.id] });
   lista = (await admin.get('/api/admin/grupos')).dados.grupos;
-  assert.deepEqual(lista.find(x => x.id === g.id).usos.map(u => u.texto), ['Usar a classe Avançado no dia a dia', 'Criar quick wins nas suas áreas']);
+  assert.deepEqual(lista.find(x => x.id === g.id).usos.map(u => u.texto), ['Usar o nível Avançado no dia a dia', 'Criar Quick Wins nas suas áreas']);
   const r = await admin.put(`/api/admin/pessoas/${pessoas.jose}`, { areas: [{ id: rh.id, adminBase: true, responsavel: false }], grupos: [g.id] });
   assert.equal(r.status, 200);
   const jose = (await admin.get('/api/admin/pessoas')).dados.pessoas.find(p => p.id === pessoas.jose);

@@ -20,10 +20,10 @@ export function rotasAcompanhamento(app,r) {
   const passo=(id,titulo,pronto,descricao,href)=>passos.push({id,titulo,pronto:!!pronto,descricao,href,opcional:id==='integracoes'});
   if(permitido(app,pessoa,'user.read')) {
    const n=um(app.db,'select count(*) as n from pessoas where ativo = 1').n;
-   passo('pessoas','Prepare as pessoas e áreas',n>1,`${n} pessoas ativas no ambiente. Confira os vínculos e acessos.`,app.tenant?'#/empresa/usuarios':'#/pessoas');
+   passo('pessoas','Prepare as pessoas e áreas',n>1,`${n} pessoas ativas no ambiente. Confira os vínculos e acessos.`,'#/pessoas');
    const rs=todos(app.db,'select p.*,r.em,r.assinatura from pessoas p left join revisoes_acesso r on r.pessoa_id = p.id where p.ativo = 1');
    const faltam=rs.filter(p=>dias(p.em)>90||p.assinatura!==assinatura(p,vinculos(app.db,p.id),!!app.tenant)).length;
-   if(faltam) pendencias.push({tipo:'acessos',titulo:`${faltam} acessos locais para revisar`,texto:'Confira áreas, grupos e administração das bases. Perfis da plataforma são revisados na tela Usuários.',href:'#/revisao-acessos'});
+   if(faltam) pendencias.push({tipo:'acessos',titulo:`${faltam} acessos locais para revisar`,texto:'Confira áreas, grupos e administração das bases. Em Pessoas, abra cada pessoa para ver tudo dela e registrar a revisão.',href:'#/pessoas?revisao=pendente'});
   }
   if(permitido(app,pessoa,'models.manage')) passo('recursos','Confira os recursos de IA',um(app.db,'select count(*) as n from modelos where liberado = 1').n>0,'Verifique os níveis disponíveis e os recursos autorizados para sigilo.','#/modelos');
   if(permitido(app,pessoa,'policy.manage')) {

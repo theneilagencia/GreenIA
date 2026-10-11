@@ -1,6 +1,6 @@
 // Editores de marca e de landing page, usados pelo console da plataforma e pelo admin da empresa.
 // A tela chama render*() para montar o formulário e ler*() para montar o corpo da requisição.
-import { esc } from '/comum.js';
+import { api, esc } from '/comum.js';
 import { avisoCor, corLegivelOk } from '/cor.js';
 import { confirmar } from '/admin-ui.js';
 
@@ -179,9 +179,10 @@ const TEXTOS_SECAO = {
 const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'É bloqueado']];
 
 const STATUS_AMBIENTE = { em_implantacao: 'em implantação', suspensa: 'suspenso', cancelada: 'encerrado' };
-const comPrevia = u => { const [base, hash = ''] = u.split('#'); return `${base}${base.includes('?') ? '&' : '?'}previa=1${hash ? `#${hash}` : ''}`; };
+const comPrevia = (u, edicao = false) => { const [base, hash = ''] = u.split('#'); return `${base}${base.includes('?') ? '&' : '?'}previa=1${edicao ? '&edicao=1' : ''}${hash ? `#${hash}` : ''}`; };
 
-export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } = {}) {
+// "Ver prévia": com edição liberada, abre a página com o que está nos campos (sem salvar); travada, mostra o que está salvo.
+export function renderLanding(l, { pode = true, urlPublica = '', motivo = '', rotaPrevia = '/api/empresa/landing/previa' } = {}) {
   const c = l.content, d = pode ? '' : 'disabled', t = c.textos || {};
   const foraDoAr = !!l.empresaStatus && l.empresaStatus !== 'ativa';
   const slots = (lista, n) => [...(lista || []), ...Array(n).fill({})].slice(0, n);
@@ -201,7 +202,7 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
     <div class="faixa-aviso ${l.status === 'publicada' && !foraDoAr ? 'ok' : 'atencao'} ld-situacao"><span>${l.status !== 'publicada' ? '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a página não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar. Use Ver prévia para conferir antes.'
       : foraDoAr ? `<b>Publicada, mas ainda fora do ar.</b> O ambiente está ${esc(STATUS_AMBIENTE[l.empresaStatus] || l.empresaStatus)}: os visitantes veem só a versão simples até o operador da plataforma ativar a empresa. Use Ver prévia para conferir a página completa.`
         : '<b>Publicada e no ar.</b> A página já vem pronta com um modelo completo; troque o que quiser.'}</span>
-      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `<a class="btn btn-linha btn-pequeno" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener">Ver prévia do que está salvo</a>${l.status === 'publicada' && !foraDoAr ? `<a class="btn-texto btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : ''}` : ''}</span></div>
+      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `${pode ? `<button type="button" class="btn btn-linha btn-pequeno" data-acao="previa" data-url="${esc(urlPublica)}" data-rota="${esc(rotaPrevia)}" aria-describedby="ld-previa-dica">Ver prévia</button><span class="sr" id="ld-previa-dica">Abre em outra aba o que está nos campos, sem salvar.</span>` : `<a class="btn btn-linha btn-pequeno" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener">Ver prévia</a>`}${l.status === 'publicada' && !foraDoAr ? `<a class="btn-texto btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : ''}` : ''}</span></div>
     <datalist id="ld-destinos"><option value="/entrar">Tela de entrada</option><option value="#como-usar">Seção Como usar</option><option value="#sec-chamadas">Seção O que você encontra</option><option value="#sec-regras">Seção Regras de dados</option><option value="#sec-tarefas">Seção Boas tarefas</option><option value="/politica">Política de uso de IA</option></datalist>
     ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `
       <div class="grade-2"><div class="campo"><label for="ld-rotulo">Rótulo acima do título</label>${inp('ld-rotulo', c.rotulo, 80)}</div>
@@ -243,7 +244,8 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '' } =
   </form>`;
 }
 
-export function ligarLanding(l) {
+// pedir: a função de chamada à API da tela (o console tem a sua, com a sessão do operador).
+export function ligarLanding(l, { pedir = api } = {}) {
   const $ = id => document.getElementById(id);
   let removerImagem = false;
   if ($('ld-imagem-remover')) $('ld-imagem-remover').onclick = () => { removerImagem = true; $('ld-imagem-previa').innerHTML = '<span class="dica">Será removida ao salvar</span>'; };
@@ -283,7 +285,7 @@ export function ligarLanding(l) {
     set('ld-seo-title', l.modeloSeo?.title); set('ld-seo-description', l.modeloSeo?.description);
     document.querySelectorAll('.ld-bloco').forEach(b => { b.open = true; });
   });
-  return async status => {
+  const ler = async status => {
     const img = $('ld-imagem').files?.[0] ? await ajustarImagem($('ld-imagem').files[0], AJUSTE_IMAGEM.imagem) : null;
     const be = vals('data-botao-estilo');
     const content = {
@@ -301,6 +303,30 @@ export function ligarLanding(l) {
     if (img) content.imagem = img; else if (removerImagem) content.imagem = '';
     return { content, seo: { title: $('ld-seo-title').value, description: $('ld-seo-description').value }, ...(status ? { status } : {}) };
   };
+  // Ver prévia do que está em edição, sem salvar: o servidor confere o conteúdo com as mesmas regras do salvar (sem
+  // gravar) e a página de apresentação, aberta em outra aba, pede o conteúdo a esta janela. A página só aceita o que
+  // vem da janela que a abriu e confere de novo no servidor do endereço da empresa antes de mostrar.
+  const bPrevia = document.querySelector('[data-acao="previa"]');
+  bPrevia?.addEventListener('click', async () => {
+    const erroEl = $('ld-erro');
+    erroEl?.classList.add('oculto');
+    const url = new URL(bPrevia.dataset.url, location.href), origem = url.origin;
+    let pronto;
+    const conteudo = new Promise(ok => { pronto = ok; });
+    let janela = null;
+    const responder = async ev => {
+      if (!janela || ev.source !== janela || ev.origin !== origem || ev.data?.tipo !== 'greenia-previa-pronta') return;
+      const d = await conteudo;
+      if (d) janela.postMessage({ tipo: 'greenia-previa', content: d.content, seo: d.seo }, origem);
+    };
+    window.addEventListener('message', responder);
+    setTimeout(() => window.removeEventListener('message', responder), 120000);
+    janela = window.open(comPrevia(url.href, true), '_blank');   // aberta no clique, para o navegador não bloquear
+    if (!janela) { window.removeEventListener('message', responder); return mostrarErro('ld-erro', new Error('O navegador bloqueou a nova aba. Permita janelas deste endereço e clique em Ver prévia de novo.')); }
+    try { pronto(await pedir(bPrevia.dataset.rota, { metodo: 'POST', corpo: await ler() })); }
+    catch (e) { pronto(null); janela.close(); mostrarErro('ld-erro', e); }
+  });
+  return ler;
 }
 
 // O erro aparece no fim do formulário e, quando é de um campo, o campo fica marcado e ganha o foco.

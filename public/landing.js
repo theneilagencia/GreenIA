@@ -51,12 +51,33 @@ const tarefaHtml = x => `<a href="/entrar">${x.tipo ? `<span>${esc(x.tipo)}</spa
 desenharChamadas(PADRAO_CHAMADAS);
 for (const a of document.querySelectorAll('#ld-tarefas a')) a.insertAdjacentHTML('beforeend', '<svg class="pp-tarefa-seta" width="16" height="16" aria-hidden="true"><use href="#i-seta"/></svg>');
 
+// Prévia do que está em edição (aberta por "Ver prévia" no editor): a página pede o conteúdo à janela que a abriu e
+// o confere no servidor (mesmas regras do salvar, sem gravar). Só vale para quem pode ver a prévia; sem resposta,
+// fica o que está salvo.
+async function conteudoEmEdicao() {
+  if (!p.previa || !new URLSearchParams(location.search).has('edicao') || !window.opener) return null;
+  const recebido = await new Promise(ok => {
+    const fim = setTimeout(() => ok(null), 15000);
+    window.addEventListener('message', ev => {
+      if (ev.source !== window.opener || ev.data?.tipo !== 'greenia-previa') return;
+      clearTimeout(fim); ok(ev.data);
+    });
+    window.opener.postMessage({ tipo: 'greenia-previa-pronta' }, '*');   // só o aviso; nenhum dado vai junto
+  });
+  if (!recebido) return null;
+  try {
+    const r = await fetch('/api/publico/previa', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: recebido.content, seo: recebido.seo }) });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+const emEdicao = await conteudoEmEdicao();
+if (emEdicao) { p.landing = emEdicao.landing; p.seo = emEdicao.seo; }
 // Prévia: quem pode editar vê a página completa, com uma faixa dizendo se os visitantes já veem esta versão.
 if (p.previa) {
   const sair = location.pathname + location.hash;
   document.body.insertAdjacentHTML('afterbegin', `<div class="pp-previa" role="status"><b>Prévia · só você vê</b><span>${p.previa.visivelAoPublico
     ? 'Esta versão já está no ar para os visitantes.'
-    : `Os visitantes ainda veem só a versão simples porque ${esc(p.previa.motivo || 'a página não está publicada')}.`} A prévia mostra o que está salvo.</span><a href="${esc(sair)}">Ver como visitante</a></div>`);
+    : `Os visitantes ainda veem só a versão simples porque ${esc(p.previa.motivo || 'a página não está publicada')}.`} ${emEdicao ? 'A prévia mostra o que está em edição, ainda sem salvar.' : 'A prévia mostra o que está salvo.'}</span><a href="${esc(sair)}">Ver como visitante</a></div>`);
   $('ld-aviso')?.classList.add('oculto');
 }
 const l = p.landing;

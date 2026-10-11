@@ -413,3 +413,19 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
   .app .rodape-resposta [data-regerar],.app .conhecimento-documento .conhecimento-abrir{min-height:44px}
   .conhecimento-ler-texto{max-height:60vh}
 }
+/* === Gestão (QA UX 2) === Largura única do conteúdo nas telas de gestão (administração no app e console da
+   plataforma). A página vai até --gestao-largura: tabelas, painéis e listas usam a largura toda. Formulários e
+   textos ficam na largura de leitura (--gestao-leitura), a mesma em todas as telas (antes variava entre 820, 860,
+   900 px e a largura toda). */
+:root{--gestao-largura:1080px;--gestao-leitura:860px}
+:is(body[data-contexto="admin"],body.plataforma) .pagina-dentro{max-width:var(--gestao-largura)}
+:is(body[data-contexto="admin"],body.plataforma) :is(.pagina-dentro.estreita,.cfg,.ld-editor,.url-passos,#form-marca,#f-dados,#f-nova,#f-cfg,#f-role,form#f-plano:not(.linha-botoes)){max-width:var(--gestao-leitura)}
+:is(body[data-contexto="admin"],body.plataforma) .pagina .lead{max-width:min(72ch,var(--gestao-leitura))}
+/* Campo de data em dd/mm/aaaa com o botão do calendário dentro do campo (data-br.js). */
+.data-br{position:relative;display:block;max-width:220px}
+.data-br>.entrada{width:100%;padding-right:44px}
+.data-br-cal{position:absolute;top:0;right:0;bottom:0;width:40px;display:grid;place-items:center;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:0 var(--raio,6px) var(--raio,6px) 0}
+.data-br-cal:hover{color:var(--ink)}
+.data-br-cal:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.data-br-nativo{position:absolute;left:0;bottom:0;width:100%;height:1px;padding:0;border:0;opacity:0;pointer-events:none}
+@media(pointer:coarse),(max-width:760px){.data-br-cal{width:44px}.data-br>.entrada{padding-right:48px}}

@@ -183,3 +183,42 @@ test('domínio próprio vale em qualquer plano; empresas antigas recebem a liber
   await ops.put(`/api/plataforma/empresas/${g.id}/concessoes`, { grants: { branding: true, landing_page: true, url: true, domain: false, roles: true } });
   assert.equal((await gil.get('/api/empresa/url')).dados.pode.domain, false);
 });
+
+test('prévia do que está em edição: mesmas validações do salvar, nunca grava, só para quem edita', async () => {
+  const h = (await ops.post('/api/plataforma/empresas', { name: 'Hotel', slug: 'hotel', admin_email: 'hu@hotel.com', status: 'ativa' })).dados;
+  await ops.post(`/api/plataforma/empresas/${h.id}/usuarios`, { email: 'mi@hotel.com', name: 'Mi', role_id: 'role_member', convidar: false });
+  const hu = S.navegador(); await hu.get('/hotel'); await hu.entrarEmpresa('hu@hotel.com');
+  const mi = S.navegador(); await mi.get('/hotel'); await mi.entrarEmpresa('mi@hotel.com');
+  const visitante = S.navegador(); await visitante.get('/hotel');
+  const antes = (await hu.get('/api/empresa/landing')).dados.landing;
+  const auditoria = () => S.P.db.prepare("select count(*) as n from audit_log where action like 'landing_page.%'").get().n;
+  const nAud = auditoria();
+  const edicao = { content: { titulo: 'Título em edição', textos: { fim_botao: 'Bora' } }, seo: { title: 'SEO em edição', description: '' } };
+  // Painel da empresa, console e a própria página (no endereço da empresa): devolvem o conteúdo limpo, mesclado ao salvo.
+  for (const [cli, rota] of [[hu, '/api/empresa/landing/previa'], [ops, `/api/plataforma/empresas/${h.id}/landing/previa`], [hu, '/api/publico/previa']]) {
+    const r = await cli.post(rota, edicao);
+    assert.equal(r.status, 200, `${rota}: ${JSON.stringify(r.dados)}`);
+    const l = r.dados.landing || r.dados.content;
+    assert.equal(l.titulo, 'Título em edição');
+    assert.equal(l.textos.fim_botao, 'Bora');
+    assert.equal(l.textos.fim_titulo, antes.content.textos.fim_titulo, 'o que não veio continua do salvo');
+    assert.equal(r.dados.seo.title, 'SEO em edição');
+  }
+  // Mesmas validações do salvar: link perigoso é recusado igual.
+  const ruim = { content: { botoes: [{ texto: 'Clique', link: 'javascript:alert(1)' }] } };
+  const [pv, sv] = [await hu.post('/api/publico/previa', ruim), await hu.put('/api/empresa/landing', ruim)];
+  assert.equal(pv.status, sv.status);
+  assert.equal(pv.dados.erro, sv.dados.erro);
+  // Nunca grava: nada mudou no salvo nem na auditoria.
+  const depois = (await hu.get('/api/empresa/landing')).dados.landing;
+  assert.deepEqual([depois.content, depois.seo, depois.status], [antes.content, antes.seo, antes.status]);
+  assert.equal(auditoria(), nAud);
+  // Quem não edita a landing não usa a prévia (nem pelo painel, nem pela página).
+  assert.equal((await mi.post('/api/empresa/landing/previa', edicao)).status, 403);
+  assert.equal((await mi.post('/api/publico/previa', edicao)).status, 403);
+  assert.equal((await visitante.post('/api/publico/previa', edicao)).status, 403);
+  // Concessão travada pelo operador vale também para a prévia da empresa.
+  await ops.put(`/api/plataforma/empresas/${h.id}/concessoes`, { grants: { branding: true, landing_page: false, url: true, domain: true, roles: true } });
+  assert.equal((await hu.post('/api/empresa/landing/previa', edicao)).status, 403);
+  assert.equal((await hu.post('/api/publico/previa', edicao)).status, 403);
+});

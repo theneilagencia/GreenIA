@@ -109,6 +109,7 @@ export function rotasPlataforma(P, r) {
   r.post('/api/plataforma/empresas/:id/plano', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); return resumoEmpresa(E.mudarPlano(P, params.id, corpo.plan_id || null, sessao.userId, origem)); });
   r.put('/api/plataforma/empresas/:id/url', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return resumoEmpresa(E.mudarUrl(P, params.id, corpo, sessao.userId, origem)); });
   r.put('/api/plataforma/empresas/:id/marca', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.salvarMarca(P, params.id, corpo, sessao.userId, origem); }, { limiteMb: 2 });
+  r.post('/api/plataforma/empresas/:id/landing/previa', ({ sessao, params, corpo }) => { precisa(sessao, 'platform.companies.manage'); return E.previaLanding(P, params.id, corpo); }, { limiteMb: 3 });
   r.put('/api/plataforma/empresas/:id/landing', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.salvarLanding(P, params.id, corpo, sessao.userId, origem); }, { limiteMb: 3 });
   r.put('/api/plataforma/empresas/:id/concessoes', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.salvarConcessoes(P, params.id, corpo, sessao.userId, origem); });
 

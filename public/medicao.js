@@ -3,6 +3,7 @@ import { E } from '/app.js';
 // administra vê também o modelo), medições de antes e depois e decisões.
 import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
 import { confirmarAcao } from '/qw-ui.js';
+import { campoData, lerData } from '/data-br.js';
 
 const $ = id => document.getElementById(id);
 const brl = v => fmtCusto(v);
@@ -39,7 +40,7 @@ export async function secaoMedicao(alvo, id) {
   const linhasModelo = E.eu?.admin && uso.porModelo?.length ? uso.porModelo : uso.porNivel || [];
   const lado = (k, m = {}) => `<fieldset class="lado"><legend>${k === 'antes' ? 'Antes (ponto de partida)' : 'Depois'}</legend>
     <div class="campo"><label for="${k}-valor">Valor</label><input class="entrada" id="${k}-valor" inputmode="decimal" value="${esc(numEntrada(m[`${k}_valor`]))}"></div>
-    <div class="campo"><label for="${k}-data">Data</label><input class="entrada" id="${k}-data" type="date" value="${esc(m[`${k}_data`] || hoje)}"></div>
+    <div class="campo"><label for="${k}-data">Data</label>${campoData({ id: `${k}-data`, valor: m[`${k}_data`] || hoje, rotulo: k === 'antes' ? 'a data de antes' : 'a data de depois' })}</div>
     <div class="campo"><span class="legenda">Origem</span><div class="opcoes qw-opcoes-toque">${Object.keys(ORIGENS).map(o => `<label><input type="radio" name="${k}-origem" value="${o}" ${(m[`${k}_origem`] || 'medido') === o ? 'checked' : ''}> ${o === 'medido' ? 'Medido' : 'Informado por alguém'}</label>`).join('')}</div></div></fieldset>`;
 
   alvo.innerHTML = `
@@ -93,8 +94,10 @@ export async function secaoMedicao(alvo, id) {
       ev.preventDefault();
       const corpo = { indicador: $('indicador').value, observacao: $('observacao').value, tipo: $('tipo-med').value, unidade: $('unidade-med').value };
       for (const k of ['antes', 'depois']) {
+        const data = lerData($(`${k}-data`));
+        if (data === null) { $(`${k}-data`).reportValidity(); $(`${k}-data`).focus(); return; }
         corpo[`${k}_valor`] = $(`${k}-valor`).value.trim();
-        corpo[`${k}_data`] = $(`${k}-data`).value;
+        corpo[`${k}_data`] = data;
         corpo[`${k}_origem`] = f.querySelector(`[name=${k}-origem]:checked`)?.value;
       }
       try {

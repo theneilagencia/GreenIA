@@ -11,6 +11,7 @@ import { avisoCor } from '/cor.js';
 import { abaAreas, abaPessoas, abaGrupos } from '/estrutura.js';
 import { confirmar, vigiarAlteracoes } from '/admin-ui.js';
 import { fecharComEscape } from '/acessibilidade.js';
+import { campoData, lerData } from '/data-br.js';
 
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
@@ -368,17 +369,23 @@ async function abaEventos(filtro = {}, pagina = 0) {
     <form class="filtros" id="filtro-ev">
       <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo"><option value="">Todos</option>${d.tipos.map(t => `<option value="${esc(t)}" ${t === filtro.tipo ? 'selected' : ''}>${esc(nomeEvento(t))}</option>`).join('')}</select></div>
       <div class="campo"><label for="ev-pessoa">Pessoa (email)</label><input class="entrada" id="ev-pessoa" value="${esc(filtro.pessoa || '')}"></div>
-      <div class="campo"><label for="ev-de">De</label><input class="entrada" type="date" id="ev-de" value="${esc(filtro.de || '')}"></div>
-      <div class="campo"><label for="ev-ate">Até</label><input class="entrada" type="date" id="ev-ate" value="${esc(filtro.ate || '')}"></div>
+      <div class="campo"><label for="ev-de">De</label>${campoData({ id: 'ev-de', valor: filtro.de, rotulo: 'a data inicial' })}</div>
+      <div class="campo"><label for="ev-ate">Até</label>${campoData({ id: 'ev-ate', valor: filtro.ate, rotulo: 'a data final' })}</div>
       <button class="btn btn-linha btn-pequeno">Filtrar</button>
       <a class="btn btn-linha btn-pequeno" href="/api/admin/eventos?${q}&formato=csv">Baixar planilha</a></form>
     <p class="dica">${num(d.total)} eventos.</p>
     ${tabela(['Quando', 'O que aconteceu', 'Pessoa', 'Detalhes'], d.eventos.map(e => `<tr><td style="white-space:nowrap">${dataHora(e.em)}</td><td>${esc(nomeEvento(e.tipo))}</td><td>${esc(e.pessoa || '—')}</td>
       <td>${detalheAuditoria(e)}</td></tr>`), 'Nenhum evento com esses filtros.')}
     <div class="linha-botoes" style="margin-top:12px">${pagina > 0 ? '<button class="btn btn-linha btn-pequeno" id="ev-ant">Anteriores</button>' : ''}${(pagina + 1) * 100 < d.total ? '<button class="btn btn-linha btn-pequeno" id="ev-prox">Mais antigos</button>' : ''}</div>`;
-  const ler = () => ({ tipo: $('ev-tipo').value, pessoa: $('ev-pessoa').value, de: $('ev-de').value, ate: $('ev-ate').value });
+  // Datas digitadas em dd/mm/aaaa; a API recebe aaaa-mm-dd, como antes. Data inválida não filtra: o campo avisa.
+  const ler = () => ({ tipo: $('ev-tipo').value, pessoa: $('ev-pessoa').value, de: lerData($('ev-de')) || '', ate: lerData($('ev-ate')) || '' });
   ligarVisao('atividade',$('filtro-ev').parentElement,ler,v=>abaEventos(v));
-  $('filtro-ev').onsubmit = ev => { ev.preventDefault(); abaEventos(ler()); };
+  $('filtro-ev').onsubmit = ev => {
+    ev.preventDefault();
+    const ruim = ['ev-de', 'ev-ate'].map($).find(el => lerData(el) === null);
+    if (ruim) { ruim.reportValidity(); ruim.focus(); return; }
+    abaEventos(ler());
+  };
   if ($('ev-ant')) $('ev-ant').onclick = () => abaEventos(filtro, pagina - 1);
   if ($('ev-prox')) $('ev-prox').onclick = () => abaEventos(filtro, pagina + 1);
   document.querySelectorAll('[data-problema]').forEach(c => { c.onchange = () => api(`/api/admin/problemas/${c.dataset.problema}`, { metodo: 'PUT', corpo: { resolvido: c.checked } }).then(() => toast(c.checked ? 'Marcado como resolvido.' : 'Reaberto.')).catch(falhar); });

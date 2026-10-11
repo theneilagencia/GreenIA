@@ -70,7 +70,11 @@ export function visaoGeral(app) {
   const modelos = lerModelos(db).filter(m => m.liberado);
   for (const m of modelos.filter(m => m.aviso && !m.aviso.startsWith('Preço'))) atencao.push({ tipo: 'modelo', texto: `${m.nome}: ${m.aviso}`, link: '#/modelos' });
   const homologados = modelos.filter(m => m.homologado);
-  if (!homologadoPadrao(db, cfg)) atencao.push({ tipo: 'modelo', texto: 'Nenhum modelo homologado disponível: conversas sigilosas não podem ser enviadas', link: '#/modelos' });
+  // A causa exata: sem nenhum homologado, ou com homologado que não está liberado para todas as pessoas
+  // (por exemplo, só no nível Avançado restrito ou só pelos Quick Wins). A regra é a mesma; muda só o texto.
+  if (!homologadoPadrao(db, cfg)) atencao.push(homologados.length
+    ? { tipo: 'modelo', texto: `Há ${homologados.length === 1 ? '1 modelo homologado' : `${homologados.length} modelos homologados`} (${homologados.length === 1 ? 'aprovado' : 'aprovados'} para dados sigilosos), mas ${homologados.length === 1 ? 'ele não está liberado' : 'nenhum está liberado'} para todas as pessoas: conversas sigilosas não podem ser enviadas`, acao: 'Em Modelos, libere o nível desse modelo para todas as pessoas ou aprove outro modelo de um nível liberado para todos.', link: '#/modelos' }
+    : { tipo: 'modelo', texto: 'Nenhum modelo homologado (aprovado para dados sigilosos): conversas sigilosas não podem ser enviadas', acao: 'Em Modelos, aprove um modelo para dados sigilosos.', link: '#/modelos' });
   else if (homologados.length < 2) atencao.push({ tipo: 'modelo', texto: 'Só um modelo homologado. O recomendado são dois, de fabricantes diferentes', link: '#/politicas' });
   if (app.ia.configurada === false) atencao.push({ tipo: 'ia', texto: 'A IA está desligada: falta a chave de acesso aos modelos no servidor', link: '#/configuracoes' });
   // Alertas de governança dos últimos 7 dias: o que aconteceu e o que resolve, em linguagem simples.

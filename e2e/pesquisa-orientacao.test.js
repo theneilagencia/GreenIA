@@ -67,9 +67,9 @@ test('conversa comum explica bloqueio atual, abre a área exata, confirma alcanc
  await p.getByRole('link',{name:'Revisar a pesquisa em Editorial QA',exact:true}).click();await p.waitForSelector('.px #protecao-area');
  assert.equal(await p.inputValue('#px-titulo'),'Editorial QA');
  assert.match(await p.locator('#protecao-area').innerText(),/afeta todos/);
- p.once('dialog',d=>d.dismiss());await p.locator('#protecao-area').getByRole('radio',{name:'Padrão',exact:true}).click();
+ await p.locator('#protecao-area').getByRole('radio',{name:'Padrão',exact:true}).click();await p.getByRole('dialog',{name:/Mudar a proteção/}).getByRole('button',{name:'Cancelar'}).click();
  assert.equal(N.app.db.prepare('select sigilosa from areas where id=?').get(area).sigilosa,1,'cancelar mantém a regra');
- p.once('dialog',d=>d.accept());await p.locator('#protecao-area').getByRole('radio',{name:'Padrão',exact:true}).click();
+ await p.locator('#protecao-area').getByRole('radio',{name:'Padrão',exact:true}).click();await p.getByRole('dialog',{name:/Mudar a proteção/}).getByRole('button',{name:'Mudar para Padrão'}).click();
  await p.waitForFunction(()=>document.getElementById('px-estado')?.textContent==='Salvo');
  assert.equal(N.app.db.prepare('select sigilosa from areas where id=?').get(area).sigilosa,0);
  await p.getByRole('link',{name:'Voltar e conferir a pesquisa',exact:true}).click();await p.waitForSelector('#entrada');

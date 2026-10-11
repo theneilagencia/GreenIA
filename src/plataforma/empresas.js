@@ -299,7 +299,7 @@ export function salvarConcessoes(P, id, { grants, locked }, ator, origem) {
 // que o cliente pode editar. O modelo também vai para o editor ("Usar o texto de exemplo").
 export const marcaPadrao = nome => ({
   login_title: 'Entre com o seu email de trabalho',
-  login_text: `Esta é a IA de uso interno de ${nome || 'sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,
+  login_text: `Esta é a IA de uso interno da equipe ${nome || 'da sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,
   privacy_note: 'Nenhuma tela da plataforma mostra o conteúdo das suas conversas a colegas ou ao admin; ele fica no banco da empresa, e você pode apagar as conversas quando quiser. As regras de dados da empresa são aplicadas a cada mensagem e anexo antes do envio à IA.',
 });
 export const TEXTOS_MARCA = Object.keys(marcaPadrao(''));

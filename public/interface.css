@@ -747,6 +747,8 @@ body[data-contexto="admin"] .url-lista li>b+.dica{display:block;margin-bottom:6p
   .app .pagina .pg .pg-acoes>.btn:not(.btn-texto){flex:1 1 auto;white-space:nowrap}
   .app .pagina .qw-rotina-card.cartao{padding:16px}
   .app .pagina .qw-rotina-topo{flex-direction:row;flex-wrap:wrap;gap:8px}
+}
+
 /* === Layout: console e públicas === Console da plataforma (/plataforma), operador (/operador) e login do console.
    Cada regra corrige um defeito de formatação visto nas capturas em 1920, 1366 e 390 px. */
 /* Cabeçalho na mesma coluna do conteúdo: em tela larga o título começava 270 px à esquerda do conteúdo e a ação

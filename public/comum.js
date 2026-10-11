@@ -103,15 +103,42 @@ export const iconeIA = () => (MARCA.propria ? '/icone' : '/assets/greenia-marca.
 // para bolhas e destaques. Sem cor de marca, fica o verde da GreenIA.
 const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
 export const misturar = (a, b, t) => '#' + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
-export function aplicarMarca(p) {
-  if (!/^#[0-9a-f]{6}$/i.test(p.corMarca || '')) return;
-  const c = p.corMarca, raiz = document.documentElement.style;
-  const tons = {
+const lumRel = c => hex(c).map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+const razao = (a, b) => { const [x, y] = [lumRel(a), lumRel(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+// O mesmo tom, clareado até ter `minimo` de contraste com todos os `fundos` (para o tema escuro).
+export const clarear = (c, fundos, minimo) => {
+  for (let t = 0; t <= 1; t += 0.02) { const m = misturar(c, '#ffffff', t); if (fundos.every(f => razao(m, f) >= minimo)) return m; }
+  return '#ffffff';
+};
+// Fundos do tema escuro (estilo.css): papel, campo, superfície, areia e areia de hover.
+export const FUNDOS_ESCUROS = ['#161614', '#1f1e1b', '#1c1b18', '#272622', '#2f2d29'];
+export function tonsMarca(c) {
+  const claro = {
     '--forest': c, '--forest-hover': misturar(c, '#000000', 0.12), '--forest-text': c,
     '--forest-strong': c, '--forest-strong-hover': misturar(c, '#000000', 0.18),
     '--deep': misturar(c, '#000000', 0.7), '--mint': misturar(c, '#FFFFFF', 0.94), '--leaf': c, '--disabled': misturar(c, '#FFFFFF', 0.55), '--sage': misturar(c, '#FFFFFF', 0.55),
   };
-  for (const [k, v] of Object.entries(tons)) raiz.setProperty(k, v);
+  // Tema escuro: o botão continua na cor da empresa (texto branco, conferido no servidor); texto, foco e
+  // barras usam o mesmo tom clareado até ficar legível nos fundos escuros; bolhas e selos levam um toque da cor.
+  const mint = misturar('#161614', c, 0.16);
+  const texto = clarear(c, [...FUNDOS_ESCUROS, mint], 4.5);
+  const escuro = {
+    '--forest': clarear(c, FUNDOS_ESCUROS, 3), '--forest-hover': texto, '--forest-text': texto,
+    '--forest-strong': c, '--forest-strong-hover': misturar(c, '#000000', 0.18),
+    '--deep': misturar(c, '#FFFFFF', 0.88), '--mint': mint, '--leaf': texto, '--disabled': misturar(c, '#161614', 0.6), '--sage': '#B3AEA2',
+    '--escolha-marcada': misturar('#161614', c, 0.1), '--ok-bg': misturar('#161614', c, 0.1), '--selecao': misturar('#161614', c, 0.35),
+    '--mint-borda': misturar('#161614', c, 0.35), '--ok-borda': misturar('#161614', c, 0.35),
+  };
+  return { claro, escuro };
+}
+// As cores entram numa folha própria (depois de estilo.css), com o bloco escuro nos mesmos seletores do tema.
+export function aplicarMarca(p) {
+  if (!/^#[0-9a-f]{6}$/i.test(p.corMarca || '')) return;
+  const { claro, escuro } = tonsMarca(p.corMarca);
+  const decl = o => Object.entries(o).map(([k, v]) => `${k}:${v}`).join(';');
+  let folha = document.getElementById('cores-marca');
+  if (!folha) { folha = document.createElement('style'); folha.id = 'cores-marca'; document.head.append(folha); }
+  folha.textContent = `:root{${decl(claro)}}\n@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]){${decl(escuro)}}}\n:root[data-tema="escuro"]{${decl(escuro)}}`;
 }
 
 // Logo da empresa ao lado da marca, num fundo claro para funcionar também na barra escura.

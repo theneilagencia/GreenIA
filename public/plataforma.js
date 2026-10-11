@@ -72,7 +72,8 @@ function lateral() {
     <nav class="lateral-rolagem" aria-label="Console">
       ${SECOES.map(([id, nome, ic]) => `<a class="item-lat${h.startsWith(`#/${id}`) ? ' ativo' : ''}" href="#/${id}" ${h.startsWith(`#/${id}`) ? 'aria-current="page"' : ''}>${ICONE[ic]}<span class="nome">${nome}</span></a>`).join('')}
     </nav>
-    <div class="lateral-pe"><span class="btn-lat" style="cursor:default">${esc(C.eu.usuario.email)}</span><button class="btn-lat" id="sair">Sair do console</button>${rodapePlataformaHtml({ powered: false })}</div>`;
+    <div class="lateral-pe"><span class="btn-lat" style="cursor:default">${esc(C.eu.usuario.email)}</span><button class="btn-lat" id="sair">Sair do console</button>${window.temaGreenIA ? window.temaGreenIA.seletorHtml('console-tema', 'tema-lateral') : ''}${rodapePlataformaHtml({ powered: false })}</div>`;
+  window.temaGreenIA?.ligarSeletor($('lateral'));
   $('abrir-busca').onclick = () => abrirPaleta();
   $('sair').onclick = async () => { await api('/api/plataforma/sair', { metodo: 'POST' }).catch(() => {}); location.reload(); };
 }

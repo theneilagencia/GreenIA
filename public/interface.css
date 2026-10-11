@@ -45,7 +45,7 @@
 .app .pagina .selo-int.atencao{background:var(--amber-bg);color:var(--amber-text)}
 .app .pagina .selo-int.erro{background:var(--red-bg);color:var(--red-text)}
 .app .pagina .passos-int li{background:var(--sand);color:var(--muted);font-size:13px}
-.app .pagina .passos-int li.atual{background:var(--forest-strong);color:#fff}
+.app .pagina .passos-int li.atual{background:var(--forest-strong);color:var(--sobre-forte)}
 .app .pagina .ok-int{color:var(--forest-text)}
 .app .pagina .erro-int{color:var(--red-text)}
 .app .pagina .linha-op{border-color:var(--line)}
@@ -173,7 +173,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 /* === Uso e chat (QA UX) === */
 /* Lateral: só o lugar atual em destaque ("Nova conversa" quando é a tela aberta). No celular, o menu tem
    "Fechar" e a conta (nome, email e Sair). */
-.lateral .nova[aria-current="page"]{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}
+.lateral .nova[aria-current="page"]{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--sobre-forte) 60%,transparent)}
 .fechar-lateral,.conta-lateral{display:none}
 @media(max-width:860px){
   .lateral .fechar-lateral{display:inline-grid;place-items:center;position:absolute;top:calc(8px + env(safe-area-inset-top));right:6px;width:44px;height:44px;min-width:44px;padding:0;z-index:1}
@@ -225,7 +225,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 /* Primeiros passos: passos com nome, "Voltar" desabilitado com cara de desabilitado e saída com o caminho de volta. */
 .guia-etapas .btn{gap:8px}
 .guia-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;background:var(--surface);font:600 12px var(--sans)}
-.guia-etapas [aria-current="step"] .guia-num{background:rgba(255,255,255,.22)}
+.guia-etapas [aria-current="step"] .guia-num{background:color-mix(in srgb,var(--sobre-forte) 22%,transparent)}
 .guia-rodape .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
 .guia-saida{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0}
 
@@ -277,7 +277,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .qw-cor input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 .qw-cor-amostra{width:30px;height:30px;border-radius:8px;background:var(--qw-cor);box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
 .qw-cor:has(input:checked) .qw-cor-amostra{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink)}
-.qw-cor:has(input:checked)::after{content:'';position:absolute;width:10px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-2px) rotate(-45deg)}
+.qw-cor:has(input:checked)::after{content:'';position:absolute;width:10px;height:5px;border-left:2px solid var(--sobre-forte);border-bottom:2px solid var(--sobre-forte);transform:translateY(-2px) rotate(-45deg)}
 .qw-cor:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:1px}
 /* Alvos de toque: rótulo inteiro clicável com 44 px no celular. */
 @media(pointer:coarse),(max-width:760px){

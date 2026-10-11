@@ -80,6 +80,7 @@ export function pagina({ titulo, md, caminho }) {
 <title>${titulo} · GreenIA</title>
 <meta name="robots" content="${candidata ? 'noindex' : 'index'}">
 <link rel="icon" href="/assets/greenia-marca.svg">
+<script src="/tema.js"></script>
 <link rel="stylesheet" href="/fontes/fontes.css">
 <link rel="stylesheet" href="/estilo.css">
 <style>

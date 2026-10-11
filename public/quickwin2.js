@@ -2,7 +2,7 @@
 // publicar; usar; versões. Nada técnico aparece: sem prompt, modelo, fornecedor, tokens ou JSON. A GreenIA
 // sugere; a pessoa confirma. Governança e conferência de qualidade continuam no servidor, iguais.
 import { api, esc, ICONE, toast } from '/comum.js';
-import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pode } from '/app.js';
+import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, trocarPara, pode } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { renderizar, baixarCsv } from '/md.js';
@@ -83,11 +83,34 @@ export const lerArquivo = f => new Promise((ok, falha) => {
 
 // ---- Criar, testar, revisar e publicar (um só fluxo, uma etapa por vez) -------------------------------------
 export const testeQw = qw => assistenteQw(qw.id, { passo: 4 });
-export const publicarQw = id => assistenteQw(id, { passo: REVISAR });
+export const publicarQw = async id => { const qw = await api(`/api/quick-wins/${id}`); return qw.v2 ? assistenteQw(id, { passo: REVISAR }) : publicarAntigo(qw); };
+
+// Publicar um Quick Win do formato anterior (sem versões): uma confirmação que diz quem passa a ver, e ele entra em uso.
+async function publicarAntigo(qw) {
+  if (!qw.podeEditar) { toast('Só quem gerencia este Quick Win pode publicá-lo.', 'info'); return trocarPara(`#/qw/${qw.id}`); }
+  if (['em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'].includes(qw.status)) { toast('Este Quick Win já está publicado para a equipe.', 'info'); return trocarPara(`#/qw/${qw.id}`); }
+  const { areas = [] } = await api('/api/areas').catch(() => ({}));
+  const nomes = (qw.areas || []).map(a => areas.find(x => x.id === (a.id ?? a))?.nome).filter(Boolean);
+  const quem = qw.toda_empresa ? 'Todas as pessoas da empresa' : nomes.length ? `As pessoas ${nomes.length === 1 ? 'da área' : 'das áreas'} ${nomes.join(', ')}` : 'As pessoas das áreas deste Quick Win';
+  $('principal').innerHTML = `${cabecalho('Publicar Quick Win')}
+    <div class="pagina"><div class="pg">
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${qw.id}`], ['Publicar']], titulo: `Publicar “${qw.nome}” para a equipe?`, descricao: `${quem} passam a ver e usar este Quick Win na biblioteca. O uso passa a contar nos resultados.` })}
+      <p class="dica">Antes de publicar, vale fazer um teste com um caso real. Depois, ajustes nas instruções valem na hora para todos.</p>
+      <div class="linha-botoes"><button type="button" class="btn btn-verde" id="qw-publicar-antigo">Publicar para a equipe</button><a class="btn btn-linha" href="#/qw/${qw.id}/teste">Testar antes</a><a class="btn btn-texto" href="#/qw/${qw.id}">Voltar</a></div>
+    </div></div>`;
+  ligarCabecalho();
+  $('qw-publicar-antigo').onclick = async ev => {
+    ev.currentTarget.disabled = true;
+    try { await api(`/api/quick-wins/${qw.id}`, { metodo: 'PUT', corpo: { status: 'em_uso' } }); toast('Publicado. A equipe já pode usar.'); recarregarLateral?.(); trocarPara(`#/qw/${qw.id}`); }
+    catch (x) { ev.currentTarget.disabled = false; toast(x.message, 'erro'); }
+  };
+}
 
 export async function assistenteQw(id = null, { passo = 0, atualizar = false, refinar = false, conversaId = null, mensagemId = null } = {}) {
   const qw = id ? await api(`/api/quick-wins/${id}`) : null;
-  if (qw && (!qw.podeEditar || (!qw.v2 && !atualizar))) return irPara(`#/qw/${id}`);
+  // Sem permissão, ou formato anterior (que se ajusta em Configurar): leva ao lugar certo e diz por quê.
+  if (qw && !qw.podeEditar) { toast('Só quem gerencia este Quick Win pode alterá-lo.', 'info'); return trocarPara(`#/qw/${id}`); }
+  if (qw && !qw.v2 && !atualizar) return trocarPara(`#/qw/${id}/editar`);
   // "Atualizar para Quick Win inteligente": o antigo (sem especificação) começa do que ele já descreve.
   const o = qw?.assistente || (atualizar && qw ? { descricao: [qw.para_que_serve, qw.instrucoes].filter(Boolean).join('\n').slice(0, 1000) } : {});
   const W = {
@@ -1095,9 +1118,9 @@ function ligarUsarEstrutura(W) {
 // ---- Usar: o que enviar → Executar → resultado (na conversa) ------------------------------------------------
 export async function usarQw(id) {
   const qw = await api(`/api/quick-wins/${id}`);
-  if (!qw.v2) return irPara(`#/qw/${id}/nova`);
+  if (!qw.v2) return trocarPara(`#/qw/${id}/nova`);
   const teste = !qw.versao;
-  if (teste && !qw.podeEditar) return irPara(`#/qw/${id}`);
+  if (teste && !qw.podeEditar) { toast('Este Quick Win ainda não foi publicado para a equipe.', 'info'); return trocarPara(`#/qw/${id}`); }
   const anexos = [];
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
@@ -1140,11 +1163,12 @@ export async function versoesQw(id) {
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Versões']], titulo: 'Versões', descricao: 'Cada publicação vira uma versão. A equipe usa sempre a versão atual.' })}
+      ${!qw.v2 ? aviso('<b>Este Quick Win usa o formato anterior, sem histórico de versões.</b> As alterações valem na hora para todos. Para guardar versões e poder restaurar uma anterior, atualize para o formato novo.', 'info', qw.podeEditar ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/atualizar">Atualizar formato</a>` : '') : ''}
       ${qw.rascunho_alterado && qw.versao ? aviso(`<b>Rascunho em edição: v${qw.versao + 1}.</b> Ainda não publicado.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar nova versão</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar</a>`) : ''}
       ${versoes.length>1?`<details class="qw-acompanhamento"><summary>Comparar versões</summary><form id="comparar-versoes" class="grade-2"><div class="campo"><label for="versao-antes">Versão anterior</label><select class="entrada" id="versao-antes">${versoes.map((v,i)=>`<option value="${v.numero}" ${i===1?'selected':''}>v${v.numero}</option>`).join('')}</select></div><div class="campo"><label for="versao-depois">Comparar com</label><select class="entrada" id="versao-depois">${versoes.map(v=>`<option value="${v.numero}">v${v.numero}</option>`).join('')}</select></div><button class="btn btn-linha">Ver diferenças</button></form><div id="versoes-diferencas" role="status"></div></details>`:''}
       <ul class="execucoes">${versoes.map(v => `<li><div class="execucao" style="padding:14px 4px;display:flex;flex-direction:column;flex:1"><b>v${v.numero}${v.atual ? ' · Versão atual' : ''}</b>
         <span class="dica">${dataCurta(v.publicada_em)}${v.publicada_por ? ` · ${esc(v.publicada_por)}` : ''}${v.teste ? ` · teste ${v.teste === 'inconsistente' ? 'com pontos para revisar' : v.teste === 'parcial' ? 'com conferência incompleta' : 'conferido'}` : ''}</span></div>
-        ${v.atual ? '' : `<button type="button" class="btn btn-linha btn-pequeno" data-restaurar="${v.numero}">Restaurar esta versão</button>`}</li>`).join('') || '<li><span class="dica" style="padding:14px 4px">Ainda não publicado.</span></li>'}</ul>
+        ${v.atual ? '' : `<button type="button" class="btn btn-linha btn-pequeno" data-restaurar="${v.numero}">Restaurar esta versão</button>`}</li>`).join('') || (qw.v2 ? '<li><span class="dica" style="padding:14px 4px">Ainda não publicado.</span></li>' : '')}</ul>
     </div></div>`;
   ligarCabecalho();
   if($('comparar-versoes')) $('comparar-versoes').onsubmit=async ev=>{

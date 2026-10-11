@@ -21,6 +21,8 @@ window.addEventListener('pageshow', ev => {
 });
 
 export const irPara = hash => { if (location.hash === hash) rota(); else location.hash = hash; };
+// Redirecionamento: substitui o endereço atual, para o Voltar não cair de novo no endereço que redireciona.
+export const trocarPara = hash => { if (location.hash === hash) rota(); else location.replace(hash); };
 export const ehAdmin = () => !!E.eu?.admin;
 // Permissão granular (multiempresa); na instalação única, as telas de gestão são do admin.
 export const pode = perm => (E.permissoes ? E.permissoes.includes(perm) : ehAdmin());
@@ -154,7 +156,7 @@ const inicioUso = () => ultima('uso') || '#/nova';
 
 // Rota da API que cada tela da administração lê. A resposta do servidor decide; a tela só reage.
 const API_DA_TELA = { 'visao-geral': 'visao-geral', uso: 'uso', pessoas: 'pessoas', modelos: 'modelos', politicas: 'politica/versoes', atividade: 'eventos', configuracoes: 'config', empresa: 'config', integracoes: 'integracoes' };
-const recusado = () => { toast('Esta área é da administração da empresa.'); irPara('#/nova'); };
+const recusado = () => { toast('Esta tela é da administração da empresa. Se precisar dela, peça acesso a quem administra a IA na sua empresa.', 'info'); trocarPara('#/nova'); };
 async function conferirNoServidor(h) {
   const tela = /^#\/([\w-]+)/.exec(h)?.[1];
   try { await api(`/api/admin/${API_DA_TELA[tela] || 'config'}`); }
@@ -171,7 +173,7 @@ export function desenharLateral() {
     return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(i.href ? i.href() : `#/${i.id}`)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const lista = E.conversas || [];
-  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">Ações</button></div>`).join('')}
+  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button></div>`).join('')}
     ${(E.totalConversas || lista.length) > RECENTES_LATERAL ? `<a class="item-lat sub ver-todas" href="#/conversas">Ver todas (${E.totalConversas || lista.length})</a>` : ''}</div>` : '';
   const adm = emAdministracao(h);
   $('lateral').classList.toggle('modo-admin', adm);

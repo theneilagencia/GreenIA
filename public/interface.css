@@ -103,3 +103,35 @@
   .app .btn-execucao{min-width:44px;min-height:44px}
   .app .faixa-aviso a{display:inline-flex;align-items:center;min-height:44px}
 }
+
+/* Celular: cabeçalho em uma linha só e conversa com área útil para ler a resposta (QA de UX de out/2026).
+   Os rótulos de texto dos botões de ícone somem; o nome acessível continua no aria-label. */
+@media(max-width:760px){
+  .app .cabeca{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding-inline:8px}
+  .app .cabeca-titulo{display:flex;flex-wrap:wrap;align-items:center;flex:1 1 auto;min-width:0;gap:2px 4px}
+  .app .cabeca-titulo>h1{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:17px}
+  .app .cabeca-titulo>.btn{flex-basis:100%}
+  .app .cabeca-acoes{flex:none;flex-wrap:nowrap;gap:4px;align-self:center;max-width:none}
+  .app .cabeca :is(.menu-btn,#sair,.cabeca-titulo>.icone-btn)>span{display:none}
+  .app .cabeca .menu-btn{width:44px;padding:0}
+  .app .cabeca .usuario-meta{display:none}
+  .app .cabeca .ajuda-tela{padding:0 10px}
+  .app .cabeca:has(#renomear) .ajuda-guia{display:none}
+  .barra-conversa{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;gap:8px 12px;padding:6px 12px}
+  .barra-conversa>*{flex:none}
+  .barra-conversa::after{content:'';position:sticky;right:-12px;flex:0 0 28px;align-self:stretch;margin:-6px -12px -6px -28px;background:linear-gradient(90deg,transparent,var(--surface));pointer-events:none}   /* indica que a faixa continua */
+  .barra-conversa .qw-contexto{max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acoes-material{flex-wrap:nowrap;margin:4px 0;gap:6px}
+  .acoes-material>.btn{min-height:40px;padding:0 12px}
+  .acoes-material>.dica{display:none}
+  .compositor .nota-compositor{font-size:11px;margin-top:4px}
+  .compositor:focus-within .nota-compositor{display:none}
+}
+/* Telas estreitas: os ícones numa linha e o título inteiro na linha de baixo, para continuar legível. */
+@media(max-width:480px){
+  .app .cabeca{flex-wrap:wrap;row-gap:2px}
+  .app .cabeca-titulo{display:contents}
+  .app .cabeca-titulo>.menu-btn{margin-right:auto}
+  .app .cabeca-acoes{order:2}
+  .app .cabeca-titulo>h1{order:3;flex:1 1 100%;padding-inline:4px}
+}

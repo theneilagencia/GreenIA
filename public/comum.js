@@ -42,6 +42,7 @@ export const ICONE = {
   voltar: svg('<path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/>', 1.8),
   enviar: svg('<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>', 1.9),
   mais: svg('<path d="M12 5v14"/><path d="M5 12h14"/>'),
+  opcoes: svg('<path d="M5 12h.01M12 12h.01M19 12h.01"/>', 3),
   fechar: svg('<path d="M6 6l12 12"/><path d="M18 6L6 18"/>'),
   menu: svg('<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>'),
   sair: svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>', 1.6),

@@ -88,7 +88,7 @@ function faixaChave() {
 }
 const carregando = titulo => tela(titulo, carregandoHtml());
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => `<th${c.startsWith('#') ? ' class="num"' : ''}>${esc(c.replace(/^#/, ''))}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
-  : vazio ? vazioHtml({ titulo: vazio }) : '');
+  : vazio ? (vazio.startsWith('<') ? vazio : vazioHtml({ titulo: vazio })) : '');   // aceita o estado vazio já pronto
 
 function modal(html, aoAbrir) {
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" tabindex="-1">${html}</div></div>`;
@@ -119,6 +119,26 @@ function pedirMotivo({ titulo, explica, botao, enviar, tipos = TIPOS_ACESSO, rot
       const erroEl = $('m-erro');
       if (!corpo.tipo || corpo.justificativa.length < 10) { erroEl.textContent = `Escolha ${rotuloTipo.toLowerCase() === 'tipo' ? 'o tipo' : 'a finalidade'} e escreva a justificativa (pelo menos 10 caracteres).`; erroEl.classList.remove('oculto'); return; }
       try { await enviar(corpo); fechar(); } catch (x) { erroEl.textContent = x.message; erroEl.classList.remove('oculto'); }
+    };
+  });
+}
+
+// Confirmação de mudança de status no modal da plataforma (o diálogo nativo do navegador tem "OK/Cancelar", que confunde com
+// "Cancelar o ambiente"). Com `confirmacao`, a pessoa digita o identificador da empresa para liberar o botão.
+function confirmarStatus({ titulo, texto, botao, aplicar, perigo = false, confirmacao = '' }) {
+  modal(`<div class="modal-topo"><div class="rotulo">Status do ambiente</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2>${esc(titulo)}</h2><p>${esc(texto)}</p>
+    <form id="f-status" novalidate>
+      ${confirmacao ? `<div class="campo"><label for="st-conf">Para confirmar, digite o identificador <b>${esc(confirmacao)}</b></label><input class="entrada" id="st-conf" autocomplete="off" spellcheck="false"></div>` : ''}
+      <p class="msg-erro oculto" id="st-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn ${perigo ? 'btn-perigo' : 'btn-verde'}" id="st-ok" ${confirmacao ? 'disabled' : ''}>${esc(botao)}</button><button type="button" class="btn btn-linha" id="st-voltar">Voltar sem alterar</button></div>
+    </form>`, fechar => {
+    $('fechar').onclick = fechar; $('st-voltar').onclick = fechar;
+    if (confirmacao) $('st-conf').oninput = () => { $('st-ok').disabled = $('st-conf').value.trim() !== confirmacao; };
+    $('f-status').onsubmit = async ev => {
+      ev.preventDefault();
+      if (confirmacao && $('st-conf').value.trim() !== confirmacao) return;
+      try { await aplicar(); fechar(); } catch (x) { $('st-erro').textContent = x.message; $('st-erro').classList.remove('oculto'); }
     };
   });
 }
@@ -214,14 +234,17 @@ async function vistaEmpresa(id, aba = 'resumo') {
 
 async function abaResumo(d, id) {
   const e = d.empresa, u = d.uso, a = d.ambiente;
-  const botoesStatus = { em_implantacao: [['ativa', 'Publicar ambiente', 'btn-verde'], ['cancelada', 'Cancelar', 'btn-texto']], ativa: [['suspensa', 'Suspender', 'btn-linha'], ['cancelada', 'Cancelar', 'btn-texto']],
-    suspensa: [['ativa', 'Reativar', 'btn-verde'], ['cancelada', 'Cancelar', 'btn-texto']], cancelada: [['em_implantacao', 'Reabrir em implantação', 'btn-linha']] }[e.status];
+  // Encerrar é irreversível depois do prazo: botão de perigo, separado das outras ações e com confirmação própria.
+  const ENCERRAR = ['cancelada', 'Encerrar ambiente…', 'btn-perigo'];
+  const botoesStatus = { em_implantacao: [['ativa', 'Publicar ambiente', 'btn-verde'], ENCERRAR], ativa: [['suspensa', 'Suspender', 'btn-linha'], ENCERRAR],
+    suspensa: [['ativa', 'Reativar', 'btn-verde'], ENCERRAR], cancelada: [['em_implantacao', 'Reabrir em implantação', 'btn-linha']] }[e.status];
   $('aba').innerHTML = `
     <div class="secao-titulo" style="margin-top:0"><h3>Status</h3></div>
     <div class="faixa-aviso ${e.status === 'ativa' ? 'ok' : e.status === 'em_implantacao' ? 'atencao' : 'erro'}">${{ em_implantacao: 'Em implantação: só administradores da empresa entram, e a landing pública ainda não aparece.', ativa: 'Ativa: o ambiente está disponível para as pessoas da empresa.', suspensa: 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.', cancelada: 'Cancelada: ninguém usa o ambiente, nem a equipe de operação. A exclusão definitiva acontece sozinha 30 dias depois do cancelamento, salvo hold.' }[e.status]}</div>
     <div id="encerramento-empresa"></div>
-    <div class="linha-botoes">${botoesStatus.map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}
+    <div class="linha-botoes">${botoesStatus.filter(b => b !== ENCERRAR).map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}
       <button class="btn btn-linha" id="exportar-empresa">Exportar dados</button>
+      ${botoesStatus.includes(ENCERRAR) ? `<button class="btn btn-perigo" data-status="cancelada" style="margin-left:auto">${ENCERRAR[1]}</button>` : ''}
       ${e.status === 'cancelada' ? '<button class="btn btn-texto" id="excluir-empresa" style="color:var(--red-text)">Excluir definitivamente</button>' : ''}</div>
     <div id="exportacoes-empresa"></div>
     <div class="secao-titulo"><h3>Plano</h3></div>
@@ -253,8 +276,14 @@ async function abaResumo(d, id) {
       <div class="indicador"><span>Conteúdo</span><b style="font-size:14px">${num(u.quickWins)} quick wins</b><small>${num(u.documentos)} documentos, ${num(u.conversas)} conversas no mês</small></div></div>`;
   for (const b of document.querySelectorAll('[data-status]')) b.onclick = async () => {
     const s = b.dataset.status;
-    if ((s === 'suspensa' || s === 'cancelada') && !confirm(`${s === 'suspensa' ? 'Suspender' : 'Cancelar'} o ambiente? As pessoas da empresa perdem o acesso na hora.`)) return;
-    try { await api(`/api/plataforma/empresas/${id}/status`, { metodo: 'POST', corpo: { status: s } }); toast('Status alterado.'); vistaEmpresa(id, 'resumo'); } catch (x) { falhar(x); }
+    const aplicar = async () => { await api(`/api/plataforma/empresas/${id}/status`, { metodo: 'POST', corpo: { status: s } }); toast(s === 'cancelada' ? 'Ambiente encerrado.' : 'Status alterado.'); vistaEmpresa(id, 'resumo'); };
+    if (s === 'suspensa') return confirmarStatus({ titulo: `Suspender o ambiente de ${e.name}?`, texto: 'Ninguém da empresa consegue entrar até a reativação, e as sessões abertas são encerradas na hora. Os dados ficam guardados.', botao: 'Suspender ambiente', aplicar });
+    if (s === 'cancelada') {
+      const exclusao = new Date(Date.now() + 30 * 864e5).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+      return confirmarStatus({ titulo: `Encerrar o ambiente de ${e.name}?`, perigo: true, confirmacao: e.slug, botao: 'Encerrar ambiente', aplicar,
+        texto: `As pessoas da empresa perdem o acesso na hora, inclusive a equipe de operação. O ambiente e todos os dados são excluídos definitivamente em ${exclusao} (30 dias), salvo hold. Até lá, é possível reabrir o ambiente ou exportar os dados.` });
+    }
+    try { await aplicar(); } catch (x) { falhar(x); }
   };
   $('excluir-empresa')?.addEventListener('click', async () => {
     const conf = prompt(`A exclusão definitiva só vale depois do prazo de 30 dias do cancelamento (ou antes, a pedido verificado do cliente pela página de encerramento). Ela apaga o ambiente e o banco da empresa; uma cópia de recuperação fica 30 dias no servidor.\n\nPara confirmar, digite o identificador: ${e.slug}`);

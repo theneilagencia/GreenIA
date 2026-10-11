@@ -1,7 +1,7 @@
 import { orientacaoAgendamento } from '/jornadas.js';
 import { api, esc, toast, ocupado } from '/comum.js';
 import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
-import { cabecalhoPg, estadoQw } from '/qw-ui.js';
+import { aviso, cabecalhoPg, estadoQw } from '/qw-ui.js';
 const $=id=>document.getElementById(id);
 let atualizacaoProgramadas=null;
 let versaoLista=0;
@@ -43,7 +43,7 @@ export async function listaProgramadas(qid=null){
   const foco=principal.contains(ativo)?{id:ativo.id,rotina:ativo.closest('[data-programacao]')?.dataset.programacao,acao:ativo.matches('summary')?'summary':ativo.dataset.estado?'estado':ativo.dataset.executar?'executar':null}:null;
   const temAgendamentos=dados.programacoes.length>0;
   const podeAgendar=qid&&dados.podeEditar&&q?.versao&&estadoQw(q).id==='publicado';
-  const vazio=q?`<div class="vazio"><h2>Este Quick Win ainda não tem agendamento</h2><p>${esc(q.nome)}</p><p>${podeAgendar?'Escolha o dia, o horário e o material para a IA executar automaticamente.':'Quem gerencia este Quick Win pode preparar o agendamento depois de publicá-lo.'}</p>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Agendar este Quick Win</a>`:`<a class="btn btn-linha" href="#/qw/${qid}">Voltar ao Quick Win</a>`}</div>`:'<div class="vazio"><h2>Nenhum Quick Win agendado</h2><p>Escolha um trabalho publicado e clique em “Agendar”, ao lado de “Usar”.</p><a class="btn btn-verde" href="#/quick-wins">Escolher um Quick Win para agendar</a></div>';
+  const vazio=q?`<div class="vazio"><h2>Este Quick Win ainda não tem agendamento</h2><p>${esc(q.nome)}</p><p>${podeAgendar?'Escolha o dia, o horário e o material para a IA executar automaticamente.':(!q.v2?'Este Quick Win usa o formato anterior, que não tem agendamento. '+(q.podeEditar?'Atualize para o formato novo e publique para poder agendar.':'Quem gerencia pode atualizá-lo para o formato novo.'):estadoQw(q).id!=='publicado'?(q.podeEditar?'Publique este Quick Win para poder agendar.':'Quem gerencia este Quick Win pode agendar depois de publicá-lo.'):'Quem gerencia este Quick Win pode preparar o agendamento.')}</p>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Agendar este Quick Win</a>`:`<a class="btn btn-linha" href="#/qw/${qid}">Voltar ao Quick Win</a>`}</div>`:'<div class="vazio"><h2>Nenhum Quick Win agendado</h2><p>Escolha um trabalho publicado e clique em “Agendar”, ao lado de “Usar”.</p><a class="btn btn-verde" href="#/quick-wins">Escolher um Quick Win para agendar</a></div>';
   $('principal').innerHTML=`${cabecalho('Quick Wins')}<div class="pagina"><div class="pg">${cabecalhoPg({trilha:[['Quick Wins','#/quick-wins'],...(q?[[q.nome,`#/qw/${qid}`]]:[])],titulo:q?`Agendamentos de ${q.nome}`:'Quick Wins agendados',descricao:'A IA executa no horário escolhido. Consulte aqui o andamento e o resultado.',lado:temAgendamentos?`<button id="rotina-atualizar" class="btn btn-linha">Atualizar status</button>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Criar outro agendamento</a>`:''}`:''})}
     <p id="rotina-status-atualizacao" class="dica" role="status" hidden></p><div class="qw-rotinas">${temAgendamentos?dados.programacoes.map(s=>`${!qid?`<a class="link-sutil" href="#/qw/${s.quick_win_id}">${esc(s.quick_win)}</a>`:''}${card(s,qid||s.quick_win_id)}`).join(''):vazio}</div>
     ${temAgendamentos?'<details class="qw-rotina-historico" data-historico="funcionamento"><summary>Como os agendamentos funcionam</summary><p class="dica">A IA continua trabalhando mesmo com o computador fechado. O resultado fica na conversa do responsável. Ações em sistemas aguardam aprovação quando prevista. Se o serviço ficar indisponível, pode haver atraso; execuções acumuladas não são realizadas em lote.</p></details>':''}</div></div>`;
@@ -56,8 +56,14 @@ export async function listaProgramadas(qid=null){
 }
 export async function formularioProgramacao(qid,id=null){
   const [q,d,s]=await Promise.all([api(`/api/quick-wins/${qid}`),api(`/api/quick-wins/${qid}/programacoes`),id?api(`/api/quick-wins/${qid}/programacoes/${id}/configuracao`):null]);
-  if(!d.podeEditar)throw new Error('Quem gerencia este Quick Win pode preparar o agendamento. Peça o ajuste ao responsável pelo trabalho.');
-  if(!q.versao)throw new Error('Teste e publique o Quick Win antes de agendar.');
+  // Quando ainda não dá para agendar, a tela diz o motivo e oferece a ação que resolve (em vez de uma tela de erro).
+  const impedimento=!q.v2?['Este Quick Win usa o formato anterior, que não tem agendamento.',q.podeEditar?'Atualize para o formato novo e publique; depois disso, o agendamento fica disponível.':'Quem gerencia pode atualizá-lo para o formato novo.',q.podeEditar?`<a class="btn btn-verde btn-pequeno" href="#/qw/${qid}/atualizar">Atualizar formato</a>`:'']
+    :!q.versao?['Este Quick Win ainda não foi publicado.',q.podeEditar?'Teste e publique para poder agendar.':'Quem gerencia pode agendar depois de publicá-lo.',q.podeEditar?`<a class="btn btn-linha btn-pequeno" href="#/qw/${qid}/teste">Testar</a><a class="btn btn-verde btn-pequeno" href="#/qw/${qid}/publicar">Publicar</a>`:'']
+    :!d.podeEditar?['Só quem gerencia este Quick Win pode agendá-lo.','Peça o agendamento ao responsável pelo trabalho.','']:null;
+  if(impedimento){
+    $('principal').innerHTML=`${cabecalho('Agendar Quick Win')}<div class="pagina"><div class="pg">${cabecalhoPg({trilha:[['Quick Wins','#/quick-wins'],[q.nome,`#/qw/${qid}`],['Agendar']],titulo:'Agendar Quick Win'})}${aviso(`<b>${esc(impedimento[0])}</b> ${esc(impedimento[1])}`,'info',`${impedimento[2]}<a class="btn btn-texto btn-pequeno" href="#/qw/${qid}">Voltar ao Quick Win</a>`)}</div></div>`;
+    ligarCabecalho();return;
+  }
   const c=d.contexto||{},a=s?.agenda||{frequencia:'semanal',hora:'08:00',fuso:'America/Sao_Paulo',dia:1};
   const preparado=!!(c.fontes?.length||c.consultas?.length);
   const entradaPreparada='Execute o trabalho da versão publicada usando apenas os materiais salvos e as consultas autorizadas já configuradas neste Quick Win. Se faltar material obrigatório, informe o que falta e não invente dados.';

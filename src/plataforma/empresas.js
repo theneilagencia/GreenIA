@@ -52,7 +52,7 @@ function semearLiberado(P) {
 }
 
 export function semearPlanos(P) {
-  if (um(P.db, 'select 1 from plans')) { semearLiberado(P); migrarCatalogo(P); return ajustarPrecos(P); }
+  if (um(P.db, 'select 1 from plans')) { semearLiberado(P); migrarCatalogo(P); migrarTextoLogin(P); return ajustarPrecos(P); }
   const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, true]));
   for (const p of PLANOS_COMERCIAIS) salvarPlano(P, { ...p, limits: LIMITES_PADRAO, features, rules: regrasComerciais() }, null, {});
   semearLiberado(P);
@@ -297,6 +297,15 @@ export function salvarConcessoes(P, id, { grants, locked }, ator, origem) {
 // ---------------------------------------------------------------- Marca
 // Textos da tela de login e aviso de privacidade: toda empresa já nasce com um exemplo pronto,
 // que o cliente pode editar. O modelo também vai para o editor ("Usar o texto de exemplo").
+// Texto de login padrão anterior ("…de uso interno de X", concordância errada) → o atual. Só onde a empresa nunca
+// editou o texto; roda a cada subida e não faz nada quando não há texto antigo.
+export function migrarTextoLogin(P) {
+  for (const c of todos(P.db, 'select b.company_id, b.login_text, c.name from branding b join companies c on c.id = b.company_id')) {
+    const antigo = `Esta é a IA de uso interno de ${c.name || 'sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`;
+    if (c.login_text === antigo) exec(P.db, 'update branding set login_text = ? where company_id = ?', marcaPadrao(c.name).login_text, c.company_id);
+  }
+}
+
 export const marcaPadrao = nome => ({
   login_title: 'Entre com o seu email de trabalho',
   login_text: `Esta é a IA de uso interno da equipe ${nome || 'da sua empresa'}. Você recebe um código de acesso de 6 dígitos no email, sem senha para decorar.`,

@@ -110,14 +110,23 @@ export function politicaAtual(app) {
   if (!v) {
     exec(app.db, 'insert into politica_versoes (texto, secao, criado_em) values (?, ?, ?)', textoPadrao(app), secaoAutomatica(app), app.agora().toISOString());
     v = um(app.db, 'select * from politica_versoes order by versao desc limit 1');
-  } else if (app.tenant && v.texto === TEXTO_PADRAO) {
-    // Empresa que ainda usa o texto padrão antigo (com o nome da plataforma): nova versão, sem ele, registrada.
+  } else if (app.tenant && (v.texto === TEXTO_PADRAO || v.texto === semMarcaDaPlataforma(TEXTO_PADRAO))) {
+    // Empresa que ainda usa um texto padrão anterior (com o nome da plataforma, ou a troca automática que gerava
+    // "A IA é a assistente de IA"): nova versão com o texto da empresa, registrada; todos dão ciência de novo.
     exec(app.db, 'insert into politica_versoes (texto, secao, criado_em) values (?, ?, ?)', textoPadrao(app), secaoAutomatica(app), app.agora().toISOString());
     registrar(app, 'policy.updated', null, { motivo: 'marca_da_empresa' });
     v = um(app.db, 'select * from politica_versoes order by versao desc limit 1');
+  } else if (app.tenant && !conferidas.has(app.db) && v.secao !== secaoAutomatica(app)) {
+    // Uma vez por subida: a redação da seção automática mudou no código (ex.: "a plataforma aplica…" no lugar de
+    // "a IA aplica…"). O texto da empresa fica; a seção é atualizada numa nova versão, com nova ciência.
+    exec(app.db, 'insert into politica_versoes (texto, secao, criado_em) values (?, ?, ?)', v.texto, secaoAutomatica(app), app.agora().toISOString());
+    registrar(app, 'policy.updated', null, { motivo: 'secao_automatica' });
+    v = um(app.db, 'select * from politica_versoes order by versao desc limit 1');
   }
+  if (app.tenant) conferidas.add(app.db);
   return v;
 }
+const conferidas = new WeakSet();   // bancos de empresa cuja seção automática já foi conferida nesta subida
 
 // Nova versão se a seção automática mudou. Chamada depois de mudanças em modelos, acesso, áreas e retenção.
 export function sincronizarPolitica(app, pessoaId = null) {

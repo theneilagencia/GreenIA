@@ -48,11 +48,11 @@ export async function vistaGeral() {
   const totalAv = av.serviu + av.ajustes + av.nao_serviu;
   const registros = v.atencao.filter(x => ['governanca', 'politica'].includes(x.tipo));
   const atuais = v.atencao.filter(x => !['governanca', 'politica'].includes(x.tipo));
-  const listaAtencao = itens => `<div class="lista">${itens.map(x => `<a class="lista-item" href="${esc(x.link)}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<br><span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`;
+  const listaAtencao = itens => `<div class="lista">${itens.map(x => `<a class="lista-item" href="${esc(x.link)}"><span class="principal-texto"><b>${esc(x.texto)}</b>${x.acao ? `<span class="dica">${esc(x.acao)}</span>` : ''}</span><span class="dica">Abrir</span></a>`).join('')}</div>`;
   $('principal').innerHTML = `${cabecalho('Visão geral', `<span class="dica">${MESES[Number(mes) - 1]} de ${ano}</span>`)}
     <div class="pagina"><div class="pagina-dentro">
-      ${passos.length ? `<div class="secao-titulo" style="margin-top:0"><h2>Preparar o ambiente</h2><span class="dica">${prontos} de ${passos.length} ${prontos === 1 ? 'pronto' : 'prontos'}</span><a class="btn-texto btn-pequeno" href="#/preparacao">Ver todos os passos</a></div>
-        ${faltam.length ? `<div class="lista">${faltam.map(x => `<div class="lista-item"><span class="principal-texto"><b>${esc(x.titulo)}</b><br><span class="dica">Falta fazer</span></span><a class="btn btn-linha btn-pequeno" href="${esc(x.href)}">Fazer agora</a></div>`).join('')}</div>`
+      ${passos.length ? `<div class="secao-titulo" style="margin-top:0"><h2>Preparar o ambiente <span class="dica">${prontos} de ${passos.length} ${prontos === 1 ? 'pronto' : 'prontos'}</span></h2><a class="btn-texto btn-pequeno" href="#/preparacao">Ver todos os passos</a></div>
+        ${faltam.length ? `<div class="lista">${faltam.map(x => `<div class="lista-item"><span class="principal-texto"><b>${esc(x.titulo)}</b><span class="dica">Falta fazer</span></span><a class="btn btn-linha btn-pequeno" href="${esc(x.href)}">Fazer agora</a></div>`).join('')}</div>`
           : '<p class="dica">Tudo pronto. Os passos continuam em Preparar o ambiente para conferir quando algo mudar.</p>'}` : ''}
 
       <div class="secao-titulo"><h2>Atenção agora</h2><a class="btn-texto btn-pequeno" href="#/pendencias">Ver pendências</a></div>

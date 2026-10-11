@@ -66,10 +66,10 @@ const EXPLICA = {
   pessoas: 'Todas as pessoas com acesso. Abra uma pessoa para ver e mudar tudo dela: perfil, situação, áreas, grupos e a revisão de acesso.',
   grupos: 'Grupos de permissão juntam pessoas de <b>qualquer área</b> para liberar um recurso a mais: um nível de IA mais forte ou criar Quick Wins. <b>Não têm base de conhecimento.</b>',
 };
-const CONCEITOS = atual => `<div class="conceitos" role="note">
-  <a class="conceito${atual === 'areas' ? ' atual' : ''}" href="#/pessoas/areas"><b>Área</b><span>Um departamento. Tem <b>base de conhecimento própria</b> e Quick Wins. Na área, cada pessoa é membro ou administra a base.</span></a>
-  <a class="conceito${atual === 'pessoas' ? ' atual' : ''}" href="#/pessoas"><b>Pessoa</b><span>Quem usa a GreenIA. Faz parte de áreas e pode estar em grupos de permissão.</span></a>
-  <a class="conceito${atual === 'grupos' ? ' atual' : ''}" href="#/pessoas/grupos"><b>Grupo de permissão</b><span>Pessoas de <b>qualquer área</b> com um recurso a mais: nível de IA ou criar Quick Wins. <b>Sem base de conhecimento.</b></span></a></div>`;
+const CONCEITOS = atual => `<div class="conceitos grade-cartoes" role="note">
+  <a class="conceito cartao${atual === 'areas' ? ' atual' : ''}" href="#/pessoas/areas"><b class="cartao-titulo">Área</b><span class="cartao-texto">Um departamento. Tem <b>base de conhecimento própria</b> e Quick Wins. Na área, cada pessoa é membro ou administra a base.</span></a>
+  <a class="conceito cartao${atual === 'pessoas' ? ' atual' : ''}" href="#/pessoas"><b class="cartao-titulo">Pessoa</b><span class="cartao-texto">Quem usa a GreenIA. Faz parte de áreas e pode estar em grupos de permissão.</span></a>
+  <a class="conceito cartao${atual === 'grupos' ? ' atual' : ''}" href="#/pessoas/grupos"><b class="cartao-titulo">Grupo de permissão</b><span class="cartao-texto">Pessoas de <b>qualquer área</b> com um recurso a mais: nível de IA ou criar Quick Wins. <b>Sem base de conhecimento.</b></span></a></div>`;
 const lerPref = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const gravarPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem armazenamento */ } };
 

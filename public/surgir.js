@@ -41,4 +41,8 @@ if (!calmo && 'IntersectionObserver' in window) {
     if (b.getBoundingClientRect().top > innerHeight * 0.9) { b.classList.add('espera'); obs.observe(b); }
     else contar(b);
   }
+  // Ao imprimir (ou salvar em PDF), tudo aparece de uma vez; os números ficam no valor final do HTML (sem contagem).
+  addEventListener('beforeprint', () => {
+    for (const b of document.querySelectorAll('.espera')) { b.classList.remove('espera'); obs.unobserve(b); }
+  });
 }

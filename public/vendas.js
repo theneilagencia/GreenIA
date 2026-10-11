@@ -24,6 +24,14 @@ form.addEventListener('submit', async ev => {
   }
 });
 
+// Menu compacto do topo (celular e tablet): fecha ao escolher uma seção, com Esc (foco volta ao botão) e ao tocar fora.
+const menu = document.querySelector('.l-menu');
+if (menu) {
+  menu.addEventListener('click', e => { if (e.target.closest('.l-menu-painel a')) menu.open = false; });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && menu.open) { menu.open = false; menu.querySelector('summary').focus(); } });
+  addEventListener('click', e => { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+}
+
 // Controle e confidencialidade: parallax discreto na foto (até 14 px), só com movimento liberado.
 const cena = document.querySelector('.l-cena-foto');
 if (cena && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

@@ -27,7 +27,7 @@ test('leigo: resultado → conferir → erro recuperável → confirmar → hist
 });
 test('processo pronto cria rascunho com campos definidos e obriga teste/publicação',async()=>{
  const N=await subirComNavegador();try{
-  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/quick-wins`);await p.getByRole('link',{name:'Escolher processo com acompanhamento',exact:true}).click();await p.getByRole('heading',{name:'Comece com um processo pronto'}).waitFor();
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/quick-wins`);await p.getByRole('link',{name:/Começar de um processo pronto/}).click();await p.getByRole('heading',{name:'Comece com um processo pronto'}).waitFor();
   await p.getByRole('radio',{name:/Acompanhar ações e prazos/}).check();await p.getByRole('button',{name:'Criar e testar este processo'}).click();await p.waitForURL(/#\/qw\/\d+\/teste/);await p.locator('#principal').getByText('Acompanhamento de ações',{exact:false}).first().waitFor();
   const q=N.app.db.prepare('select * from quick_wins order by id desc limit 1').get();assert.equal(q.versao_publicada,null);assert.equal(N.app.db.prepare('select modelo from qw_paineis where quick_win_id=?').get(q.id).modelo,'acoes');
  }finally{await N.fechar();}

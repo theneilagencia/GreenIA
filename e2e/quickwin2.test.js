@@ -286,7 +286,7 @@ test('celular: progresso compacto na criação; colega usa pela biblioteca, sem 
   await lia.waitForSelector('#objetivo');
   assert.ok(await lia.locator('.passos-compacto').isVisible());
   assert.ok(await lia.locator('.passos ol').isHidden());
-  assert.match(await lia.textContent('.passos-compacto'), /Etapa 1 de 5 · Objetivo/);
+  assert.match(await lia.textContent('.passos-compacto'), /Etapa 1 de 6 · Objetivo/);
   assert.ok(await lia.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'criação sem rolagem horizontal');
   await lia.close();
   const rui = await N.entrar('rui@empresa-exemplo.com.br', await cel.newPage());

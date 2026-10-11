@@ -118,6 +118,7 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.click('#form-med .btn-verde');
   await p.waitForSelector('#medicoes .selo-ambar');
   assert.match(await p.textContent('#medicoes'), /sem ponto de partida/i);
+  await p.check('input[name=decisao][value=manter]');   // nenhuma decisão vem marcada
   await p.fill('#motivo', 'Vale seguir por mais um mês.');
   await p.click('#form-dec .btn-verde');
   await p.waitForFunction(() => /Vale seguir/.test(document.getElementById('medicao-qw').textContent));

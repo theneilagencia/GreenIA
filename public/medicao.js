@@ -1,6 +1,6 @@
 import { E } from '/app.js';
-// Uso e decisão do Quick Win, vistos por quem gerencia: uso automático por mês, comparação entre modelos (só para
-// quem administra), medições de antes e depois e decisões.
+// Uso e decisão do Quick Win, vistos por quem gerencia: uso automático por mês, comparação por nível (quem
+// administra vê também o modelo), medições de antes e depois e decisões.
 import { api, emCreditos, esc, fmtCusto, ICONE, toast } from '/comum.js';
 import { confirmarAcao } from '/qw-ui.js';
 
@@ -35,6 +35,8 @@ export async function secaoMedicao(alvo, id) {
   const [d, uso] = await Promise.all([api(`/api/quick-wins/${id}/medicao`), api(`/api/quick-wins/${id}/uso`)]);
   if (!alvo?.isConnected) return;
   const hoje = new Date().toISOString().slice(0, 10);
+  // Quem administra compara modelos (com o nível ao lado); quem gerencia compara níveis, sem o nome técnico.
+  const linhasModelo = E.eu?.admin && uso.porModelo?.length ? uso.porModelo : uso.porNivel || [];
   const lado = (k, m = {}) => `<fieldset class="lado"><legend>${k === 'antes' ? 'Antes (ponto de partida)' : 'Depois'}</legend>
     <div class="campo"><label for="${k}-valor">Valor</label><input class="entrada" id="${k}-valor" inputmode="decimal" value="${esc(numEntrada(m[`${k}_valor`]))}"></div>
     <div class="campo"><label for="${k}-data">Data</label><input class="entrada" id="${k}-data" type="date" value="${esc(m[`${k}_data`] || hoje)}"></div>
@@ -47,9 +49,9 @@ export async function secaoMedicao(alvo, id) {
     </tbody></table></div>` : '<p class="dica">Ainda sem uso. Os números aparecem quando alguém conversar neste Quick Win.</p>'}
     <p class="dica">Cada conversa conta como um uso. Você vê só os números. O conteúdo das conversas é de cada pessoa.</p>
 
-    ${uso.porModelo.length > 1 && E.eu?.admin ? `<h3>Modelos neste mês</h3><div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Modelo</th><th class="num">Conversas</th><th class="num">Serviu</th><th class="num">Com ajustes</th><th class="num">Não serviu</th><th class="num">${emCreditos() ? 'Créditos por conversa' : 'Custo médio por conversa'}</th><th class="num">Tempo médio</th></tr></thead><tbody>
-      ${uso.porModelo.map(m => `<tr><td>${esc(m.modelo)}</td><td class="num">${fmt(m.conversas)}</td><td class="num">${fmt(m.serviu)}</td><td class="num">${fmt(m.ajustes)}</td><td class="num">${fmt(m.nao_serviu)}</td><td class="num">${brl(m.custoMedio)}</td><td class="num">${fmt(+(m.ms / 1000).toFixed(1))} s</td></tr>`).join('')}
-    </tbody></table></div><p class="dica">Ajuda a decidir se vale trocar o modelo padrão.</p>` : ''}
+    ${linhasModelo.length > 1 ? `<h3>${E.eu?.admin ? 'Modelos' : 'Níveis'} neste mês</h3><div class="tabela-rolagem"><table class="tabela"><thead><tr>${E.eu?.admin ? '<th>Modelo</th>' : ''}<th>Nível</th><th class="num">Conversas</th><th class="num">Serviu</th><th class="num">Com ajustes</th><th class="num">Não serviu</th><th class="num">${emCreditos() ? 'Créditos por conversa' : 'Custo médio por conversa'}</th><th class="num">Tempo médio</th></tr></thead><tbody>
+      ${linhasModelo.map(m => `<tr>${E.eu?.admin ? `<td>${esc(m.modelo || '—')}</td>` : ''}<td>${esc(m.nomeNivel || '—')}</td><td class="num">${fmt(m.conversas)}</td><td class="num">${fmt(m.serviu)}</td><td class="num">${fmt(m.ajustes)}</td><td class="num">${fmt(m.nao_serviu)}</td><td class="num">${brl(m.custoMedio)}</td><td class="num">${fmt(+(m.ms / 1000).toFixed(1))} s</td></tr>`).join('')}
+    </tbody></table></div><p class="dica">${E.eu?.admin ? 'Ajuda a decidir se vale trocar o modelo padrão de um nível.' : 'Compara como cada nível respondeu neste Quick Win. O modelo por trás de cada nível é escolha de quem administra a empresa.'}</p>` : ''}
 
     <h3>Antes e depois</h3>
     <p class="dica">Lance um indicador que a equipe já acompanha. Identifique se foi medido pela equipe ou informado por alguém. A variação é calculada a partir desses valores; não é benefício verificado pela plataforma. Sem o valor de antes, nada é calculado.</p>

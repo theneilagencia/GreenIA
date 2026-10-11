@@ -89,7 +89,17 @@ test('quick win de ponta a ponta: configurar com arquivo, testar, ativar, conver
   assert.equal(uso.mensagens, 3);
   assert.equal(uso.pessoas, 1);
   assert.deepEqual(uso.feedback, { serviu: 0, ajustes: 1, nao_serviu: 0, sem: 0 });
-  assert.equal(uso.porModelo.length, 1);
+  // Quem gerencia compara por nível; o nome técnico do modelo fica só com quem administra.
+  assert.equal(uso.porNivel.length, 1);
+  assert.equal(uso.porNivel[0].nomeNivel, 'Rápido');
+  assert.equal(uso.porNivel[0].conversas, 1);
+  assert.equal(uso.porNivel[0].ajustes, 1, 'a conversa conta uma vez, mesmo com três respostas');
+  assert.deepEqual(uso.porModelo, []);
+  assert.ok(!JSON.stringify(uso.porNivel).includes('/'), 'sem identificador técnico de modelo');
+  const usoAdmin = (await admin.get(`/api/quick-wins/${qw.id}/uso`)).dados;
+  assert.equal(usoAdmin.porModelo.length, 1);
+  assert.equal(usoAdmin.porModelo[0].nivel, 'rapido');
+  assert.ok(usoAdmin.porModelo[0].modelo);
   assert.ok(uso.custo > 0);
   // Quem usa não vê o uso nem a configuração completa.
   assert.equal((await carlos.get(`/api/quick-wins/${qw.id}/uso`)).status, 403);

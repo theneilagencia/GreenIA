@@ -666,15 +666,23 @@ export function rotasQuickWins(app, r) {
     const conversas = todos(app.db, "select id, pessoa_id, feedback, sigilosa from conversas where quick_win_id = ? and teste = 0 and substr(criado_em, 1, 7) = ? and exists (select 1 from mensagens m where m.conversa_id = conversas.id and m.papel = 'user')", q.id, mes);
     const u = um(app.db, 'select count(*) as respostas, coalesce(sum(custo), 0) as custo, coalesce(avg(ms), 0) as ms, coalesce(sum(economia), 0) as economia from uso where quick_win_id = ? and teste = 0 and substr(em, 1, 7) = ?', q.id, mes);
     const conta = f => conversas.filter(c => c.feedback === f).length;
-    const porModelo = todos(app.db, `select u.modelo_usado as modelo, count(distinct u.conversa_id) as conversas, sum(u.custo) as custo, avg(u.ms) as ms,
-        sum(case when c.feedback = 'serviu' then 1 else 0 end) as serviu, sum(case when c.feedback = 'ajustes' then 1 else 0 end) as ajustes, sum(case when c.feedback = 'nao_serviu' then 1 else 0 end) as nao_serviu
-      from uso u join conversas c on c.id = u.conversa_id where u.quick_win_id = ? and u.teste = 0 and substr(u.em, 1, 7) = ? group by u.modelo_usado`, q.id, mes)
-      .map(m => ({ ...m, custoMedio: m.conversas ? m.custo / m.conversas : 0 }));
+    // Comparação por nível (Rápido, Equilibrado, Avançado) para quem gerencia; o nome técnico do modelo só vai para quem
+    // administra. O nível vem da classe registrada no cadastro de modelos (o que respondeu; sem ele, o que foi pedido).
+    // Cada conversa conta uma vez por linha, mesmo com várias respostas.
+    const agrupar = chave => todos(app.db, `select ${chave} as chave, max(coalesce(mu.perfil, mp.perfil)) as nivel, count(distinct u.conversa_id) as conversas, sum(u.custo) as custo, avg(u.ms) as ms,
+        count(distinct case when c.feedback = 'serviu' then c.id end) as serviu, count(distinct case when c.feedback = 'ajustes' then c.id end) as ajustes, count(distinct case when c.feedback = 'nao_serviu' then c.id end) as nao_serviu
+      from uso u join conversas c on c.id = u.conversa_id left join modelos mu on mu.id = u.modelo_usado left join modelos mp on mp.id = u.modelo_pedido
+      where u.quick_win_id = ? and u.teste = 0 and substr(u.em, 1, 7) = ? group by chave`, q.id, mes)
+      .map(({ chave, ...m }) => ({ chave, ...m, nomeNivel: NOMES_CLASSE[m.nivel] || null, custoMedio: m.conversas ? m.custo / m.conversas : 0 }));
+    const ordem = Object.keys(NOMES_CLASSE);
+    const porNivel = agrupar('coalesce(mu.perfil, mp.perfil)').map(({ chave, ...m }) => m)
+      .sort((a, b) => (ordem.indexOf(a.nivel) + 1 || 9) - (ordem.indexOf(b.nivel) + 1 || 9));
+    const porModelo = pessoa.admin ? agrupar('u.modelo_usado').map(({ chave, ...m }) => ({ modelo: chave, ...m })) : [];
     return {
       mes, conversas: conversas.length, pessoas: new Set(conversas.map(c => c.pessoa_id)).size,
       mensagens: um(app.db, "select count(*) as n from mensagens m join conversas c on c.id = m.conversa_id where c.quick_win_id = ? and c.teste = 0 and m.papel = 'user' and substr(m.criado_em, 1, 7) = ?", q.id, mes).n,
       feedback: { serviu: conta('serviu'), ajustes: conta('ajustes'), nao_serviu: conta('nao_serviu'), sem: conta(null) },
-      sigilosas: conversas.filter(c => c.sigilosa).length, custo: u.custo, economiaCache: u.economia, tempoMedioMs: Math.round(u.ms), porModelo,
+      sigilosas: conversas.filter(c => c.sigilosa).length, custo: u.custo, economiaCache: u.economia, tempoMedioMs: Math.round(u.ms), porNivel, porModelo,
     };
   });
 }

@@ -429,3 +429,16 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .data-br-cal:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
 .data-br-nativo{position:absolute;left:0;bottom:0;width:100%;height:1px;padding:0;border:0;opacity:0;pointer-events:none}
 @media(pointer:coarse),(max-width:760px){.data-br-cal{width:44px}.data-br>.entrada{padding-right:48px}}
+
+/* === Cartões de caminho (Criar um Quick Win) === Link e botão com o mesmo desenho: conteúdo no topo (o botão
+   centralizava na vertical), título com duas linhas reservadas para as descrições começarem na mesma altura,
+   seta e destaque ao passar o mouse ou no foco, para ficar claro que o cartão é clicável. */
+.qw-caminhos{align-items:stretch}
+.qw-caminhos :is(a,button){display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px;min-height:100%;cursor:pointer;position:relative;padding:16px 40px 16px 16px;transition:border-color .15s ease,background-color .15s ease}
+.qw-caminhos :is(a,button) b{font-weight:600;line-height:1.35;min-height:2.7em;display:block}
+.qw-caminhos :is(a,button) span{margin-top:0;line-height:1.45}
+.qw-caminhos :is(a,button)::after{content:'→';position:absolute;top:16px;right:16px;color:var(--muted);transition:transform .15s ease,color .15s ease}
+.qw-caminhos :is(a,button):is(:hover,:focus-visible){border-color:var(--forest);background:var(--surface)}
+.qw-caminhos :is(a,button):is(:hover,:focus-visible)::after{color:var(--forest);transform:translateX(2px)}
+@media(max-width:640px){.qw-caminhos :is(a,button) b{min-height:0}}
+@media(prefers-reduced-motion:reduce){.qw-caminhos :is(a,button),.qw-caminhos :is(a,button)::after{transition:none}}

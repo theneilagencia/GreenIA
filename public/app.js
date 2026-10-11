@@ -88,7 +88,7 @@ const seloBase = () => {
   if (!b?.areas.length) return null;
   const nomes = b.areas.map(a => a.nome).join(', ');
   return b.paraRevisar ? { texto: String(b.paraRevisar), alerta: true, dica: `${b.paraRevisar} ${b.paraRevisar === 1 ? 'documento' : 'documentos'} da base de ${nomes} para revisar (nunca revisados ou há mais de ${b.diasRevisao} dias)` }
-    : { texto: 'Você gerencia', dica: `Você administra a base de conhecimento de ${nomes}` };
+    : { texto: 'Gerencia', dica: `Você administra a base de conhecimento de ${nomes}` };
 };
 
 // Cartão no início (nova conversa e lista de conversas) para quem administra a base de alguma área.

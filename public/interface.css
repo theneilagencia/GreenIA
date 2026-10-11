@@ -570,9 +570,9 @@ body[data-contexto="admin"] :is(#form-marca,#form-landing) textarea{field-sizing
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*){display:block;text-align:left}
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*)::before{display:block;max-width:none;margin-bottom:4px}
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*) .auditoria-resumo{margin:0 0 4px}
-  /* Situação da página de apresentação: as duas ações com a largura toda, texto no meio. */
-  body[data-contexto="admin"] .ld-situacao .linha-botoes{width:100%}
-  body[data-contexto="admin"] .ld-situacao .linha-botoes>:is(a,button){flex:1 1 100%;justify-content:center;min-height:44px;margin:0}
+  /* Situação da página de apresentação (administração e console): as duas ações com a largura toda, texto no meio. */
+  .ld-situacao .linha-botoes{width:100%}
+  .ld-situacao .linha-botoes>:is(a,button){flex:1 1 100%;justify-content:center;min-height:44px;margin:0}
   /* Escolha automática: o botão de opção fica na linha do título da preferência. */
   body[data-contexto="admin"] .rt-pref label{align-items:flex-start!important}
 }
@@ -656,15 +656,15 @@ body[data-contexto="admin"] .perfil-publico{display:grid;grid-template-columns:r
 body[data-contexto="admin"] .perfil-publico>legend{padding:0;margin-bottom:4px;font:600 15px/1.3 var(--sans)}
 body[data-contexto="admin"] .perfil-publico>p{grid-column:1/-1;margin:0 0 12px}
 
-/* Página de apresentação: situação com as ações ao lado do texto; interruptor e seta no meio da linha do título. */
-body[data-contexto="admin"] .faixa-aviso.ld-situacao{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
-body[data-contexto="admin"] .ld-situacao>span:first-child{flex:1 1 320px}
-body[data-contexto="admin"] .ld-situacao .linha-botoes{align-items:center}
-body[data-contexto="admin"] .ld-situacao .linha-botoes .btn-texto{display:inline-flex;align-items:center}
+/* Página de apresentação (administração e console, mesmo editor): situação com as ações ao lado do texto; interruptor e seta no meio da linha do título. */
+.faixa-aviso.ld-situacao{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
+.ld-situacao>span:first-child{flex:1 1 320px}
+.ld-situacao .linha-botoes{align-items:center}
+.ld-situacao .linha-botoes .btn-texto{display:inline-flex;align-items:center}
 @media(min-width:641px){
-  body[data-contexto="admin"] .ld-bloco>summary{min-height:52px;align-items:center;box-sizing:border-box}
-  body[data-contexto="admin"] .ld-bloco-caixa>.ld-vis{top:0;height:52px;padding:0;display:inline-flex;align-items:center}
-  body[data-contexto="admin"] .ld-bloco-caixa.com-chave>.ld-bloco>summary::after{top:50%;margin-top:-6px}
+  .ld-bloco>summary{min-height:52px;align-items:center;box-sizing:border-box}
+  .ld-bloco-caixa>.ld-vis{top:0;height:52px;padding:0;display:inline-flex;align-items:center}
+  .ld-bloco-caixa.com-chave>.ld-bloco>summary::after{top:50%;margin-top:-6px}
 }
 
 /* URL e domínio: título e explicação de cada passo em linhas próprias, com o mesmo espaçamento. */

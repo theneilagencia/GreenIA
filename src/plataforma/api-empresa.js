@@ -40,7 +40,7 @@ export function rotasEmpresa(P, r) {
   });
   r.put('/api/empresa/usuarios/:uid', ({ sessao, companyId, params, corpo, origem }) => {
     precisa(sessao, 'user.update');
-    if (corpo.role_id && !sessao.perms.has('role.manage')) throw erro(403, 'sem_permissao', 'Você não pode alterar roles.');
+    if (corpo.role_id && !sessao.perms.has('role.manage')) throw erro(403, 'sem_permissao', 'Você não pode alterar perfis.');
     if (params.uid === sessao.userId && (corpo.status === 'inativo' || corpo.role_id)) throw erro(409, 'proprio', 'Peça a outro administrador para alterar a sua role ou o seu status.');
     return E.atualizarMembro(P, companyId, params.uid, corpo, sessao.userId, origem);
   });
@@ -64,7 +64,7 @@ export function rotasEmpresa(P, r) {
     precisa(sessao, 'user.read');
     return { roles: rolesDaEmpresa(P.db, companyId), permissoes: PERMISSOES_EMPRESA.map(k => ({ key: k, description: PERMISSOES[k][0] })), podeCriar: E.podeEditar(P, companyId).roles && sessao.perms.has('role.manage') };
   });
-  const exigirRoles = (s, companyId) => { precisa(s, 'role.manage'); if (!E.podeEditar(P, companyId).roles) throw erro(403, 'nao_concedido', 'Roles personalizadas não estão liberadas para esta empresa.'); };
+  const exigirRoles = (s, companyId) => { precisa(s, 'role.manage'); if (!E.podeEditar(P, companyId).roles) throw erro(403, 'nao_concedido', 'Perfis personalizados não estão liberados para esta empresa.'); };
   r.post('/api/empresa/roles', ({ sessao, companyId, corpo, origem }) => {
     exigirRoles(sessao, companyId);
     const id = salvarRole(P.db, companyId, corpo, P.agora().toISOString());
@@ -82,8 +82,8 @@ export function rotasEmpresa(P, r) {
   r.del('/api/empresa/roles/:id', ({ sessao, companyId, params, origem }) => {
     exigirRoles(sessao, companyId);
     const role = um(P.db, 'select * from roles where id = ? and company_id = ?', params.id, companyId);
-    if (!role) throw erro(404, 'role', 'Role não encontrada (roles de sistema não podem ser removidas).');
-    if (um(P.db, 'select 1 from company_users where role_id = ?', role.id)) throw erro(409, 'em_uso', 'Há usuários com esta role. Mude a role deles antes de remover.');
+    if (!role) throw erro(404, 'role', 'Perfil não encontrado (os perfis do sistema não podem ser removidos).');
+    if (um(P.db, 'select 1 from company_users where role_id = ?', role.id)) throw erro(409, 'em_uso', 'Há pessoas com este perfil. Mude o perfil delas antes de remover.');
     exec(P.db, 'delete from roles where id = ?', role.id);
     auditar(P, { usuario: sessao.userId, empresa: companyId, acao: 'role.deleted', entidade: 'role', id: role.id, antes: { name: role.name }, origem });
     return { ok: true };

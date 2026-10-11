@@ -15,22 +15,22 @@ export const PERMISSOES = {
   'company.read': ['Ver os dados da empresa', 'company'],
   'company.manage': ['Administração completa da empresa', 'company'],
   'company.update': ['Editar os dados da empresa', 'company'],
-  'user.read': ['Ver usuários', 'company'],
-  'user.create': ['Convidar e criar usuários', 'company'],
-  'user.update': ['Editar usuários, roles e status', 'company'],
-  'user.delete': ['Remover usuários da empresa', 'company'],
-  'role.manage': ['Criar e editar roles e permissões', 'company'],
+  'user.read': ['Ver pessoas', 'company'],
+  'user.create': ['Convidar e cadastrar pessoas', 'company'],
+  'user.update': ['Editar pessoas, perfis e situação', 'company'],
+  'user.delete': ['Remover pessoas da empresa', 'company'],
+  'role.manage': ['Criar e editar perfis e permissões', 'company'],
   'branding.manage': ['Alterar identidade visual', 'company'],
-  'landing_page.manage': ['Editar a landing page', 'company'],
+  'landing_page.manage': ['Editar a página de apresentação', 'company'],
   'url.manage': ['Alterar URL e domínio', 'company'],
   'settings.manage': ['Alterar configurações do ambiente', 'company'],
   'usage.read': ['Ver uso e créditos', 'company'],
   'audit.read': ['Ver a atividade e a auditoria da empresa', 'company'],
-  'models.manage': ['Configurar modelos e classes', 'company'],
+  'models.manage': ['Configurar modelos e níveis', 'company'],
   'policy.manage': ['Editar a política de IA', 'company'],
   'knowledge.manage': ['Gerenciar a base de conhecimento', 'company'],
-  'quickwin.manage': ['Gerenciar quick wins de toda a empresa', 'company'],
-  'chat.use': ['Usar conversas e quick wins', 'company'],
+  'quickwin.manage': ['Gerenciar os Quick Wins de toda a empresa', 'company'],
+  'chat.use': ['Usar conversas e Quick Wins', 'company'],
   'integrations.manage': ['Configurar integrações (conectores, credenciais, testes e publicação)', 'company'],
   'integrations.approve': ['Aprovar integrações e operações sensíveis em sistemas externos', 'company'],
 };
@@ -39,8 +39,8 @@ export const PERMISSOES_PLATAFORMA = Object.keys(PERMISSOES).filter(k => PERMISS
 
 export const ROLES_SISTEMA = {
   company_admin: ['Admin da empresa', 'Administração completa do ambiente da empresa', PERMISSOES_EMPRESA],
-  manager: ['Gestor', 'Acompanha uso, gerencia quick wins e conhecimento, vê usuários', ['company.read', 'user.read', 'usage.read', 'quickwin.manage', 'knowledge.manage', 'chat.use']],
-  member: ['Membro', 'Usa conversas, quick wins e conhecimento', ['company.read', 'chat.use']],
+  manager: ['Gestor', 'Acompanha o uso, gerencia Quick Wins e conhecimento, vê as pessoas', ['company.read', 'user.read', 'usage.read', 'quickwin.manage', 'knowledge.manage', 'chat.use']],
+  member: ['Membro', 'Usa conversas, Quick Wins e conhecimento', ['company.read', 'chat.use']],
   viewer: ['Leitor', 'Consulta a empresa, sem usar a IA', ['company.read']],
 };
 
@@ -50,6 +50,7 @@ export function semearRbac(db, agora) {
     for (const [key, [name, description, perms]] of Object.entries(ROLES_SISTEMA)) {
       let r = um(db, 'select id from roles where company_id is null and key = ?', key);
       if (!r) { r = { id: `role_${key}` }; exec(db, 'insert into roles (id, company_id, key, name, description, system, created_at) values (?, null, ?, ?, ?, 1, ?)', r.id, key, name, description, agora); }
+      else exec(db, 'update roles set name = ?, description = ? where id = ?', name, description, r.id);
       exec(db, 'delete from role_permissions where role_id = ?', r.id);
       for (const p of perms) exec(db, 'insert into role_permissions (role_id, permission_key) values (?, ?)', r.id, p);
     }
@@ -79,13 +80,13 @@ export const rolesDaEmpresa = (db, companyId) => todos(db, 'select id, company_i
 
 export function acharRoleDaEmpresa(db, companyId, roleId) {
   const r = um(db, 'select * from roles where id = ? and (company_id is null or company_id = ?)', roleId, companyId);
-  if (!r) throw erro(400, 'role', 'Role inválida para esta empresa.');
+  if (!r) throw erro(400, 'role', 'Perfil inválido para esta empresa.');
   return r;
 }
 
 export function salvarRole(db, companyId, { id, name, description, permissoes }, agora) {
   const nome = String(name || '').trim().slice(0, 60);
-  if (nome.length < 2) throw erro(400, 'nome', 'Dê um nome à role.');
+  if (nome.length < 2) throw erro(400, 'nome', 'Dê um nome ao perfil.');
   const lista = [...new Set((permissoes || []).map(String))];
   const invalidas = lista.filter(p => !PERMISSOES_EMPRESA.includes(p));
   if (invalidas.length) throw erro(400, 'permissoes', `Permissões inválidas: ${invalidas.join(', ')}`);
@@ -94,14 +95,14 @@ export function salvarRole(db, companyId, { id, name, description, permissoes },
     if (id) {
       const r = um(db, 'select * from roles where id = ? and company_id = ?', id, companyId);
       if (!r) {
-        if (um(db, 'select 1 from roles where id = ? and company_id is null', id)) throw erro(409, 'role_sistema', 'Roles de sistema não podem ser alteradas. Crie uma role própria.');
-        throw erro(404, 'role', 'Role não encontrada.');
+        if (um(db, 'select 1 from roles where id = ? and company_id is null', id)) throw erro(409, 'role_sistema', 'Os perfis do sistema não podem ser alterados. Crie um perfil próprio.');
+        throw erro(404, 'role', 'Perfil não encontrado.');
       }
       exec(db, 'update roles set name = ?, description = ? where id = ?', nome, String(description || '').slice(0, 200), id);
     } else {
       roleId = `role_${randomUUID()}`;
       const key = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) || 'role';
-      if (um(db, 'select 1 from roles where company_id = ? and key = ?', companyId, key)) throw erro(409, 'nome', 'Já existe uma role com esse nome.');
+      if (um(db, 'select 1 from roles where company_id = ? and key = ?', companyId, key)) throw erro(409, 'nome', 'Já existe um perfil com esse nome.');
       exec(db, 'insert into roles (id, company_id, key, name, description, system, created_at) values (?, ?, ?, ?, ?, 0, ?)', roleId, companyId, key, nome, String(description || '').slice(0, 200), agora);
     }
     exec(db, 'delete from role_permissions where role_id = ?', roleId);

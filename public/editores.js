@@ -79,8 +79,10 @@ const desab = (k, bloqueados, modo, pode) => (!pode || (modo === 'empresa' && bl
 export function renderMarca(m, { modo = 'empresa', pode = true, motivo = '' } = {}) {
   const b = m.locked || [];
   const campo = (k, html) => `<div class="campo"><label for="mk-${k}">${ROTULOS_MARCA[k]}${trava(k, b, modo)}</label>${html}</div>`;
-  const cor = k => campo(k, `<div style="display:flex;gap:8px;align-items:center"><input type="color" aria-label="Escolher ${ROTULOS_MARCA[k].toLowerCase()}" id="mk-${k}-sel" value="${esc(m[k] || '#1B7950')}" ${desab(k, b, modo, pode)} style="width:44px;height:38px;border:1px solid var(--line-strong);border-radius:8px;background:none">
-    <input class="entrada" id="mk-${k}" value="${esc(m[k] || '')}" placeholder="#1B7950" maxlength="7" style="max-width:140px" ${desab(k, b, modo, pode)}></div>
+  // Sem cor salva, seletor, campo e prévia mostram o mesmo padrão de cada cor (a secundária não herda a principal).
+  const COR_PADRAO = { primary_color: '#1B7950', secondary_color: '#F3F3F1' };
+  const cor = k => campo(k, `<div style="display:flex;gap:8px;align-items:center"><input type="color" aria-label="Escolher ${ROTULOS_MARCA[k].toLowerCase()}" id="mk-${k}-sel" value="${esc(m[k] || COR_PADRAO[k])}" ${desab(k, b, modo, pode)} style="width:44px;height:38px;border:1px solid var(--line-strong);border-radius:8px;background:none">
+    <input class="entrada" id="mk-${k}" value="${esc(m[k] || '')}" placeholder="${COR_PADRAO[k]}" maxlength="7" style="max-width:140px" ${desab(k, b, modo, pode)}></div>
     ${k === 'primary_color' ? '<span class="ajuda">Usada nos botões (com texto branco por cima) e nos links. Precisa ser escura o bastante para o texto ser lido.</span><div class="aviso-cor" id="mk-primary_color-aviso" aria-live="polite"></div>' : ''}`);
   const img = (k, dica) => campo(k, `<div class="previa-marca" id="mk-${k}-previa">${m[k] ? `<img src="${esc(m[k])}" alt="">` : '<span class="dica">Nenhum arquivo</span>'}</div>
     <div class="linha-botoes">${campoArquivo(`mk-${k}`, `image/png,image/jpeg,image/webp,image/svg+xml${k === 'favicon' ? ',image/x-icon' : ''}`, desab(k, b, modo, pode))}

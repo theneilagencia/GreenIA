@@ -51,7 +51,7 @@
     --deep:#E6E2D8; --leaf:#A7A296;
     --mint:#1A2E22; --paper:#161614; --surface:#1C1B18; --sand:#272622; --sand-hover:#2F2D29;
     --ink:#EEEBE4; --muted:#B3AEA2; --faint:#A7A296; --line:#33312C; --line-strong:#77736A; --stone:#888479; --sage:#B3AEA2;
-    --surface-hover:#272622; --disabled:#2C4A3A;
+    --surface-hover:#272622; --disabled:#2F2D29; --disabled-ink:#8F8B80;
     --clay:#D98A63; --clay-bg:#36251D; --amber:#D9A443; --amber-text:#E8BE6E; --amber-bg:#33281A;
     --red:#E07A66; --red-text:#F3A797; --red-bg:#3A221D;
     --sombra-1:0 1px 2px rgba(0,0,0,.4);
@@ -75,7 +75,7 @@
   --deep:#E6E2D8; --leaf:#A7A296;
   --mint:#1A2E22; --paper:#161614; --surface:#1C1B18; --sand:#272622; --sand-hover:#2F2D29;
   --ink:#EEEBE4; --muted:#B3AEA2; --faint:#A7A296; --line:#33312C; --line-strong:#77736A; --stone:#888479; --sage:#B3AEA2;
-  --surface-hover:#272622; --disabled:#2C4A3A;
+  --surface-hover:#272622; --disabled:#2F2D29; --disabled-ink:#8F8B80;
   --clay:#D98A63; --clay-bg:#36251D; --amber:#D9A443; --amber-text:#E8BE6E; --amber-bg:#33281A;
   --red:#E07A66; --red-text:#F3A797; --red-bg:#3A221D;
   --sombra-1:0 1px 2px rgba(0,0,0,.4);
@@ -1878,9 +1878,8 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 /* Preparar um trabalho por escolhas concretas, sem editor técnico. */
 .qw-inicio-guiado,.qw-preparacao{border:1px solid var(--borda,#e1e5e1);border-radius:16px;padding:20px;margin:20px 0;background:var(--papel,#fff)}
 .qw-inicio-guiado h2,.qw-preparacao h3{margin:0 0 10px}.qw-preparacao label{display:block;margin:14px 0 6px}.qw-preparacao details{margin-top:16px}.qw-preparacao summary{cursor:pointer;font-weight:600;min-height:36px}.qw-preparacao input,.qw-preparacao select{max-width:100%}
-.qw-caminhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}.qw-caminhos a,.qw-caminhos button{border:1px solid var(--borda,#e1e5e1);border-radius:12px;padding:16px;text-align:left;text-decoration:none;color:inherit;background:transparent;font:inherit}.qw-caminhos span{display:block;margin-top:6px;font-size:14px;color:var(--texto-suave,#5f6862)}
 .qw-tarefas-preparo{list-style:none;padding:0}.qw-tarefas-preparo li{display:flex;justify-content:space-between;gap:16px;border-top:1px solid var(--borda,#e1e5e1);padding:14px 0}.qw-tarefas-preparo p{margin:6px 0}.qw-limites{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.qw-escolhas{border:0;padding:0;display:grid;gap:8px}.qw-escolhas label{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--borda,#e1e5e1);border-radius:12px;padding:14px;margin:0}.qw-escolhas input{width:auto;margin-top:4px}.qw-escolhas small{display:block;margin-top:4px;font-size:14px;line-height:1.5}.qw-preparacao .entrada{width:100%}
-@media(max-width:640px){.qw-preparacao,.qw-inicio-guiado{padding:16px}.qw-limites{grid-template-columns:1fr}.qw-tarefas-preparo li{flex-wrap:wrap}.qw-caminhos{grid-template-columns:1fr}}
+@media(max-width:640px){.qw-preparacao,.qw-inicio-guiado{padding:16px}.qw-limites{grid-template-columns:1fr}.qw-tarefas-preparo li{flex-wrap:wrap}}
 /* Rotinas dos Quick Wins: leitura curta, ações visíveis e histórico sob demanda. */
 .qw-rotinas{display:grid;gap:18px;margin-top:24px}.qw-rotina-card{padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}.qw-rotina-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.qw-rotina-topo h3{margin:0 0 6px}.qw-rotina-historico{margin-top:18px}.qw-rotina-historico summary{cursor:pointer}.qw-rotina-historico ul{list-style:none;padding:0}.qw-rotina-historico li{display:flex;gap:16px;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}.qw-rotina-historico li .dica{display:block;margin-top:5px}.qw-rotina-form>section{padding:24px 0;border-bottom:1px solid var(--line)}.qw-rotina-form .rotulo{margin-bottom:16px}.qw-rotina-form textarea{width:100%;box-sizing:border-box}
 @media(max-width:600px){.qw-rotina-card{padding:18px}.qw-rotina-topo,.qw-rotina-historico li{flex-direction:column}.qw-rotina-form .duas-col{grid-template-columns:1fr}}
@@ -2024,3 +2023,8 @@ button.cartao{width:100%;margin:0}
 .cartao.sem-seta::after{content:none}.cartao.sem-seta{padding-right:var(--cartao-pad)}
 @media(max-width:640px){.grade-cartoes{grid-template-columns:1fr}.grade-cartoes.titulos-2 .cartao-titulo{min-height:0}}
 @media(prefers-reduced-motion:reduce){.cartao,.cartao::after{transition:none}}
+
+/* Botão principal desabilitado: no tema escuro o fundo é neutro e o texto apagado, para não parecer ativo
+   (antes era um verde escuro com texto branco). No claro continua o verde pálido com texto branco. */
+.btn-verde:disabled,.enviar:disabled{color:var(--disabled-ink,#fff);cursor:not-allowed}
+.btn-verde:disabled svg,.enviar:disabled svg{opacity:.7}

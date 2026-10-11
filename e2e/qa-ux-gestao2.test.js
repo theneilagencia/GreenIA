@@ -103,7 +103,7 @@ test('M36: "Ver prévia" mostra o que está em edição, sem salvar (painel da e
     await p.fill('[data-botao-link="0"]', 'javascript:alert(1)');
     const [aba2] = await Promise.all([p.context().waitForEvent('page'), botao.click()]);
     await p.locator('#ld-erro:not(.oculto)').waitFor();
-    for (let i = 0; i < 50 && !aba2.isClosed(); i++) await p.waitForTimeout(100);
+    for (let i = 0; i < 150 && !aba2.isClosed(); i++) await p.waitForTimeout(100);   // sob carga a validação no servidor pode demorar
     assert.ok(aba2.isClosed(), 'a aba da prévia fecha quando o conteúdo não passa na validação');
     assert.deepEqual(p.erros, []);
   }

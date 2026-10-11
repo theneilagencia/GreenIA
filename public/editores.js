@@ -317,14 +317,20 @@ export function ligarLanding(l, { pedir = api } = {}) {
     const responder = async ev => {
       if (!janela || ev.source !== janela || ev.origin !== origem || ev.data?.tipo !== 'greenia-previa-pronta') return;
       const d = await conteudo;
-      if (d) janela.postMessage({ tipo: 'greenia-previa', content: d.content, seo: d.seo }, origem);
+      janela.postMessage(d ? { tipo: 'greenia-previa', content: d.content, seo: d.seo } : { tipo: 'greenia-previa-cancelada' }, origem);
     };
     window.addEventListener('message', responder);
     setTimeout(() => window.removeEventListener('message', responder), 120000);
     janela = window.open(comPrevia(url.href, true), '_blank');   // aberta no clique, para o navegador não bloquear
     if (!janela) { window.removeEventListener('message', responder); return mostrarErro('ld-erro', new Error('O navegador bloqueou a nova aba. Permita janelas deste endereço e clique em Ver prévia de novo.')); }
     try { pronto(await pedir(bPrevia.dataset.rota, { metodo: 'POST', corpo: await ler() })); }
-    catch (e) { pronto(null); janela.close(); mostrarErro('ld-erro', e); }
+    catch (e) {
+      pronto(null); mostrarErro('ld-erro', e);
+      // A aba ainda pode estar carregando, e aí o navegador às vezes ignora o close(): tenta de novo e, se ela chegar
+      // a pedir o conteúdo, recebe "cancelada" e se fecha (ver landing.js).
+      const fechar = () => { try { if (!janela.closed) janela.close(); } catch { /* aba de outra origem já navegou */ } };
+      fechar(); setTimeout(fechar, 400); setTimeout(fechar, 1500);
+    }
   });
   return ler;
 }

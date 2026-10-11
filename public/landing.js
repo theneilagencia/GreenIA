@@ -59,7 +59,9 @@ async function conteudoEmEdicao() {
   const recebido = await new Promise(ok => {
     const fim = setTimeout(() => ok(null), 15000);
     window.addEventListener('message', ev => {
-      if (ev.source !== window.opener || ev.data?.tipo !== 'greenia-previa') return;
+      if (ev.source !== window.opener) return;
+      if (ev.data?.tipo === 'greenia-previa-cancelada') { clearTimeout(fim); window.close(); return ok(null); }   // o editor recusou o conteúdo
+      if (ev.data?.tipo !== 'greenia-previa') return;
       clearTimeout(fim); ok(ev.data);
     });
     window.opener.postMessage({ tipo: 'greenia-previa-pronta' }, '*');   // só o aviso; nenhum dado vai junto

@@ -18,7 +18,12 @@ const inline = s => esc(s)
   .replace(/`([^`]+)`/g, '<code>$1</code>')
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/~~([^~]+)~~/g, '<del>$1</del>')
-  .replace(/\[(?:PENDÊNCIA|PENDENTE|DADO DA THE[N]EIL)[^\]]*\]/g, m => `<mark class="pendencia">${m}</mark>`);
+  .replace(/\[(?:PENDÊNCIA|PENDENTE|DADO DA THE[N]EIL)[^\]]*\]/g, m => `<mark class="pendencia">${m}</mark>`)
+  // Contatos clicáveis: email e site citados no texto.
+  .replace(/\b[a-z0-9._-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/gi, m => `<a href="mailto:${m}">${m}</a>`)
+  .replace(/\bwww\.[a-z0-9-]+(?:\.[a-z0-9-]+)+/gi, m => `<a href="https://${m}" rel="noopener">${m}</a>`);
+// Âncora das seções numeradas ("## 7. Hospedagem…" → #secao-7); as demais, pelo texto.
+const ancora = t => { const n = /^(\d+)\./.exec(t); return n ? `secao-${n[1]}` : t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
 const celulas = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
 
 // Markdown dos documentos legais: títulos, parágrafos, listas (com continuação), tabelas, citações e ênfase.
@@ -31,7 +36,7 @@ export function paraHtml(md) {
     const l = linhas[i];
     if (!l.trim()) { i++; continue; }
     let m;
-    if ((m = /^(#{1,3}) (.*)$/.exec(l))) { const n = m[1].length; out.push(`<h${n}>${inline(m[2])}</h${n}>`); i++; continue; }
+    if ((m = /^(#{1,3}) (.*)$/.exec(l))) { const n = m[1].length; out.push(n === 2 ? `<h2 id="${ancora(m[2])}">${inline(m[2])}</h2>` : `<h${n}>${inline(m[2])}</h${n}>`); i++; continue; }
     if (/^>/.test(l)) { const b = bloco(x => /^>/.test(x)).map(x => x.replace(/^> ?/, '')); out.push(`<blockquote>${paraHtml(b.join('\n'))}</blockquote>`); continue; }
     if (/^\s*\|/.test(l) && /^\s*\|?\s*:?-{2,}/.test(linhas[i + 1] || '')) {
       const cab = celulas(l); i += 2;
@@ -54,9 +59,19 @@ export function paraHtml(md) {
   return out.join('\n');
 }
 
-export function pagina({ titulo, md }) {
+// Índice das seções (## do documento), logo depois do título e da linha de versão.
+function indice(texto) {
+  const secoes = [...texto.matchAll(/^## (.*)$/gm)].map(m => m[1]);
+  if (secoes.length < 3) return '';
+  return `<nav class="legal-indice" aria-label="Índice"><details><summary>Índice · ${secoes.length} seções</summary><ol>${secoes.map(t => `<li><a href="#${ancora(t)}">${esc(t.replace(/^\d+\.\s*/, ''))}</a></li>`).join('')}</ol></details></nav>`;
+}
+
+export function pagina({ titulo, md, caminho }) {
   const texto = readFileSync(raiz + md, 'utf8');
   const pendente = PENDENCIA.test(texto), candidata = pendente || !publicado();
+  const corpo = paraHtml(texto).replace(/(<\/h1>\n<p>[^\n]*<\/p>)/, `$1\n${indice(texto)}`);
+  const outro = DOCUMENTOS.find(d => d.caminho !== caminho);
+  const contato = /\b[a-z0-9._-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/i.exec(texto)?.[0];   // canal citado no próprio documento
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -67,6 +82,17 @@ export function pagina({ titulo, md }) {
 <link rel="icon" href="/assets/greenia-marca.svg">
 <link rel="stylesheet" href="/fontes/fontes.css">
 <link rel="stylesheet" href="/estilo.css">
+<style>
+.legal-indice{margin:8px 0 32px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.legal-indice summary{cursor:pointer;padding:12px 16px;min-height:44px;box-sizing:border-box;font:600 15px/1.4 var(--sans);color:var(--ink)}
+.legal-indice ol{margin:0;padding:0 16px 14px 40px;columns:2 260px;column-gap:32px}
+.legal-indice li{break-inside:avoid;padding:3px 0;font:400 14.5px/1.5 var(--sans)}
+.legal h2[id]{scroll-margin-top:16px}
+.legal a{color:var(--forest-text)}
+.legal-rodape{max-width:1080px;margin:56px auto 0;padding:24px 24px calc(32px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 24px;font:400 14px/1.5 var(--sans);color:var(--muted)}
+.legal-rodape a{color:var(--ink);text-decoration:none;min-height:24px}
+.legal-rodape a:hover{text-decoration:underline}
+</style>
 </head>
 <body>
 <!-- Gerado por scripts/gerar-legais.js a partir de ${md}. Não editar à mão. -->
@@ -74,9 +100,14 @@ export function pagina({ titulo, md }) {
   <a class="marca" href="/" style="text-decoration:none;color:var(--ink)"><img src="/assets/greenia-marca.svg" width="26" height="26" alt="" aria-hidden="true"><span>Green<span class="ia">IA</span></span></a>
   <a class="btn-texto" href="/">Voltar ao site</a>
 </header>
-<main class="politica legal">
-${candidata ? `<p class="faixa-aviso atencao" role="note"><b>Versão final candidata, ainda não publicada.</b> ${pendente ? 'Há pontos pendentes de registro, marcados no texto. ' : ''}Este documento não está vigente.</p>\n` : ''}${paraHtml(texto)}
+<main class="politica legal" id="topo-legal">
+${candidata ? `<p class="faixa-aviso atencao" role="note"><b>Versão final candidata, ainda não publicada.</b> ${pendente ? 'Há pontos pendentes de registro, marcados no texto. ' : ''}Este documento não está vigente.</p>\n` : ''}${corpo}
+<p><a href="#topo-legal">Voltar ao topo</a></p>
 </main>
+<footer class="legal-rodape">
+  <a href="${outro.caminho}">${outro.titulo}</a>
+${contato ? `  <a href="mailto:${contato}">Contato: ${contato}</a>\n` : ''}  <a href="/">Voltar ao site</a>
+</footer>
 </body>
 </html>
 `;

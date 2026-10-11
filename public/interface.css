@@ -393,3 +393,8 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
   body[data-contexto="admin"] .adm-saiba>summary{min-height:44px;display:flex;align-items:center}
   .adm-salvar .btn{flex:1}
 }
+/* === Transversal (QA UX) === Celular: caixa de seleção e opção com o rótulo inteiro clicável em 44 px, em todas as
+   telas (app e console). Segmentos, interruptores e chips têm regra própria. */
+@media(max-width:760px){
+  :is(.app,.plataforma) label:has(>input:is([type=checkbox],[type=radio])):not(.segmento label):not(.chip-opcao):not(.escolha):not(.switch){display:inline-flex;align-items:center;gap:8px;min-height:44px}
+}

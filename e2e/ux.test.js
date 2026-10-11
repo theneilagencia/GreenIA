@@ -66,8 +66,11 @@ test('rascunho: objetivo e processo salvos ao continuar são retomados após rec
   assert.equal(guardado.assistente.como.texto, 'Leia a ata e liste as decisões com seus responsáveis.');
   assert.equal(guardado.versao, null, 'salvar rascunho não publica');
   await p.fill('#objetivo', `${objetivo} Inclua próximos passos.`);
-  p.once('dialog', d => d.dismiss());
-  await p.click('#lateral [data-item="quick-wins"]'); await p.waitForURL(new RegExp(`#/qw/${id}/ajustar$`));
+  // Sair com alterações pendentes pergunta no modal da plataforma; "Continuar editando" fica na tela.
+  await p.click('#lateral [data-item="quick-wins"]');
+  const sair = p.getByRole('dialog', { name: 'Sair sem salvar?' }); await sair.waitFor();
+  await sair.getByRole('button', { name: 'Continuar editando' }).click(); await sair.waitFor({ state: 'detached' });
+  await p.waitForURL(new RegExp(`#/qw/${id}/ajustar$`));
   assert.match(await p.inputValue('#objetivo'), /Inclua próximos passos/);
   await p.click('#salvar-rascunho'); await p.waitForFunction(() => /Rascunho salvo/.test(document.querySelector('#estado-rascunho')?.textContent));
   await p.click('#lateral [data-item="quick-wins"]'); await p.waitForSelector('.qw-lista');

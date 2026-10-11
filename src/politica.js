@@ -26,9 +26,23 @@ A GreenIA é a assistente de IA da empresa para tarefas do dia a dia: resumir, r
 Na dúvida sobre o que pode ser enviado, fale com o responsável da sua área.`;
 
 
-// Ambiente de empresa da plataforma (white label): o texto padrão e a seção automática não citam a plataforma.
+// Ambiente de empresa da plataforma (white label): texto padrão escrito para a marca da empresa (a troca automática
+// do nome gerava "A IA é a assistente de IA"); a seção automática não cita a plataforma.
+export const TEXTO_PADRAO_EMPRESA = `## Para que serve a IA da empresa
+A IA da empresa ajuda nas tarefas do dia a dia: resumir, rascunhar, conferir, organizar e tirar dúvidas.
+
+## O que você pode fazer
+- Usar o chat e os Quick Wins das suas áreas para o seu trabalho.
+- Anexar documentos de trabalho, seguindo as regras de dados abaixo.
+
+## O que você não pode fazer
+- Enviar senhas, tokens ou qualquer credencial.
+- Usar a IA para decidir sozinha: toda resposta deve ser revisada por você antes de ser usada.
+
+## Dúvidas
+Na dúvida sobre o que pode ser enviado, fale com o responsável da sua área.`;
 const paraAmbiente = (app, t) => (app.tenant ? semMarcaDaPlataforma(t) : t);
-const textoPadrao = app => paraAmbiente(app, TEXTO_PADRAO);
+const textoPadrao = app => (app.tenant ? TEXTO_PADRAO_EMPRESA : TEXTO_PADRAO);
 
 export function secaoAutomatica(app) {
   return paraAmbiente(app, montarSecao(app));
@@ -37,12 +51,18 @@ function montarSecao(app) {
   const cfg = lerConfig(app.db);
   const nomeGrupo = id => um(app.db, 'select nome from grupos where id = ?', id)?.nome;
   const nomeArea = id => um(app.db, 'select nome from areas where id = ?', id)?.nome;
+  // Quem fala pela plataforma: no ambiente de uma empresa, "a plataforma" (a troca automática daria "a IA aplica
+  // controles administrativos").
+  const plataforma = app.tenant ? 'a plataforma' : 'a GreenIA';
+  const Plataforma = plataforma[0].toUpperCase() + plataforma.slice(1);
   const acesso = p => {
     const a = cfg.acessoPerfis[p] || {};
     if (a.todos) return 'todas as pessoas';
     const quem = [...(a.grupos || []).map(nomeGrupo), ...(a.areas || []).map(nomeArea)].filter(Boolean);
-    return quem.length ? quem.join(', ') : 'ninguém';
+    return quem.length ? quem.join(', ') : '';
   };
+  // Nível sem ninguém com acesso não entra na lista ("Avançado: ninguém" soava como erro); a nota explica a ausência.
+  const niveis = [[PERFIS.rapido, 'todas as pessoas'], [PERFIS.equilibrado, acesso('equilibrado')], [PERFIS.avancado, acesso('avancado')]].filter(([, q]) => q);
   const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 and ativa = 1 order by nome').map(a => a.nome);
   const ligada = politicaSigiloLigada(cfg);
   const protegidos = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'proteger').map(([t]) => ROTULOS[t]);
@@ -53,7 +73,7 @@ function montarSecao(app) {
     '### Conversa normal e conversa sigilosa',
     '- **Conversa normal:** não tem informação sigilosa.',
     `- **Conversa sigilosa:** tem dados pessoais, de clientes, financeiros, jurídicos, estratégicos ou qualquer outro que esta política classifique como sigiloso. ${ligada
-      ? 'A empresa permite o processamento de informações sigilosas com guardrails de proteção: antes de cada envio, a GreenIA aplica os controles de proteção da empresa e só usa recursos de IA autorizados para esse tipo de informação. Quando não há um recurso autorizado disponível, nada é enviado.'
+      ? `A empresa permite o processamento de informações sigilosas com guardrails de proteção: antes de cada envio, ${plataforma} aplica os controles de proteção da empresa e só usa recursos de IA autorizados para esse tipo de informação. Quando não há um recurso autorizado disponível, nada é enviado.`
       : 'A empresa não permite processar informações sigilosas com IA: mensagens com esse tipo de informação não são enviadas.'}`,
     '### Quando uma conversa vira sigilosa',
     '1. Quando você liga a opção "Esta conversa tem dados sigilosos".',
@@ -70,9 +90,8 @@ function montarSecao(app) {
     '- **Histórico da conversa e instruções:** bloqueio de senhas e chaves de acesso.',
     ...(naoEnviados.length ? ['### Dados que a empresa não envia à IA', `Por política da empresa, mensagens com ${naoEnviados.join(', ')} não são enviadas.`] : []),
     '### Quem usa cada nível',
-    `- ${PERFIS.rapido}: todas as pessoas.`,
-    `- ${PERFIS.equilibrado}: ${acesso('equilibrado')}.`,
-    `- ${PERFIS.avancado}: ${acesso('avancado')}.`,
+    ...niveis.map(([nivel, quem]) => `- ${nivel}: ${quem}.`),
+    ...(niveis.length < 3 ? ['Os níveis que não aparecem na lista não estão liberados nesta empresa.'] : []),
     '### O sistema não reconhece tudo',
     'Números estratégicos, nomes soltos e informações de negócio não são reconhecidos automaticamente. Se houver informação sigilosa que o sistema não reconhece, ligue a opção "Esta conversa tem dados sigilosos" antes de enviar.',
     '### Quem vê o quê e por quanto tempo',
@@ -82,7 +101,7 @@ function montarSecao(app) {
     '- Uma conversa apagada sai do banco de dados. Cópias de segurança feitas antes da exclusão ainda podem conter a conversa até serem substituídas pela rotina de backup.',
     '- Senhas, tokens e chaves de acesso em formatos que o sistema reconhece bloqueiam o envio, em qualquer parte do pedido: mensagem, anexos, histórico, instruções, documentos da base e arquivos de quick win. É uma regra de segurança da GreenIA, que a empresa não desliga. Um segredo num formato que o sistema não reconhece pode passar: não envie credenciais.',
     '### Responsabilidades',
-    'A GreenIA aplica controles técnicos e administrativos para apoiar as políticas de segurança, confidencialidade e proteção de dados da empresa. A empresa continua responsável por suas obrigações legais e regulatórias.',
+    `${Plataforma} aplica controles técnicos e administrativos para apoiar as políticas de segurança, confidencialidade e proteção de dados da empresa. A empresa continua responsável por suas obrigações legais e regulatórias.`,
   ].join('\n');
 }
 

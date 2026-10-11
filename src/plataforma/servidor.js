@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
-import { criarApp, VERSAO } from '../servidor.js';
+import { criarApp, VERSAO, paginaNaoEncontrada } from '../servidor.js';
 import { criarEmail, explicarFalhaEmail } from '../email.js';
 import { registrarEmailEmpresa } from '../admin.js';
 import { semMarcaDaPlataforma } from '../../public/marca-branca.js';
@@ -312,13 +312,13 @@ async function tratar(P, rPlat, rEmp, req, res) {
     const doc = DOCUMENTOS_LEGAIS[caminho];
     if (doc && req.method === 'GET') {
       if (porHost) {
-        if (!P.urlBase) return pagina404(res, 'Página não encontrada.');
+        if (!P.urlBase) return pagina404(P, res, porHost);
         res.writeHead(301, { location: P.urlBase.replace(/\/$/, '') + doc }); return res.end();
       }
       if (caminho !== doc) { res.writeHead(301, { location: doc }); return res.end(); }
     }
     // Páginas da plataforma (vendas, console, operador, encontrar) não abrem pelo arquivo no endereço de uma empresa.
-    if (porHost && /\.html$/i.test(caminho) && !PAGINAS_EMPRESA_ARQUIVOS.has(caminho.slice(1))) return pagina404(res, 'Página não encontrada.');
+    if (porHost && /\.html$/i.test(caminho) && !PAGINAS_EMPRESA_ARQUIVOS.has(caminho.slice(1))) return pagina404(P, res, porHost);
 
     // Arquivos estáticos (css, js, imagens) valem para todos.
     if (req.method === 'GET' && ehArquivoPublico(caminho) && await servirEstatico(res, PUBLICO, caminho.slice(1), req)) return;
@@ -372,10 +372,10 @@ async function tratar(P, rPlat, rEmp, req, res) {
       if (!companyId) {
         if (caminho.startsWith('/api/')) throw new ErroHttp(404, 'ambiente', 'Abra o endereço da sua empresa para entrar.');
         if (PAGINAS_EMPRESA[caminho]) { res.writeHead(302, { location: caminho === '/entrar' ? '/encontrar' : '/' }); return res.end(); }
-        return pagina404(res, 'Página não encontrada.');
+        return pagina404(P, res, null);
       }
     } else if (caminho.startsWith('/plataforma') || caminho.startsWith('/api/plataforma/')) {
-      return pagina404(res, 'Página não encontrada.');   // o console só existe no endereço da plataforma
+      return pagina404(P, res, porHost);   // o console só existe no endereço da plataforma
     }
 
     // Daqui em diante, tudo acontece dentro da empresa companyId.
@@ -383,7 +383,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
     if (!caminho.startsWith('/api/')) {
       if (caminho === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }
       if (req.method === 'GET' && PAGINAS_EMPRESA[caminho]) return await servirPagina(res, PAGINAS_EMPRESA[caminho]);
-      return pagina404(res, 'Página não encontrada.');
+      return pagina404(P, res, porHost || { id: companyId });
     }
     if (rEmp.achar(req.method, caminho)) return await despachar(P, rEmp, req, res, url, cookies, companyId);
 
@@ -432,7 +432,7 @@ async function despachar(P, r, req, res, url, cookies, companyId) {
 }
 
 async function servirPagina(res, arquivo) {
-  if (!(await servirEstatico(res, PUBLICO, arquivo))) pagina404(res, 'Página não encontrada.');
+  if (!(await servirEstatico(res, PUBLICO, arquivo))) paginaNaoEncontrada(res, { marca: null });   // sem contexto: neutra
 }
 // Endereço de empresa inexistente: página da marca, sem revelar quais empresas existem, com o caminho para
 // encontrar o endereço certo pelo email.
@@ -447,9 +447,15 @@ function paginaAmbienteNaoEncontrado(res) {
 <a class="btn btn-verde btn-grande" href="/encontrar">Encontrar minha empresa</a>
 </div></main></body></html>`);
 }
-function pagina404(res, msg) {
-  res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
-  res.end(msg);
+// Página não encontrada. No host da plataforma, com a marca GreenIA e o caminho para encontrar o ambiente. Dentro de
+// uma empresa (endereço próprio ou /<slug> com o contexto), com a marca dela e "Entrar" no lugar de "Encontrar meu
+// ambiente", que levaria à plataforma (white label).
+function pagina404(P, res, empresa) {
+  if (!empresa?.id) return paginaNaoEncontrada(res);
+  const c = E.lerEmpresa(P, empresa.id);
+  const nome = E.lerMarca(P, empresa.id)?.display_name || c?.name || '';
+  const base = empresa.fixo || !c ? '' : `/${c.slug}`;
+  return paginaNaoEncontrada(res, { marca: nome || null, icone: '/icone', inicio: base || '/', saida: { href: `${base}/entrar`, texto: 'Entrar' } });
 }
 function servirIcone(P, res, companyId) {
   const fav = E.lerMarca(P, companyId)?.favicon || E.lerMarca(P, companyId)?.logo;

@@ -55,7 +55,7 @@
 
 /* Cabeçalho de seção: número e nome sobre uma linha fina; título com presença; descrição em largura de leitura */
 .lv .l-rotulo{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 28px;font:500 12.5px/1 var(--sans);letter-spacing:.01em;color:var(--muted)}
-.lv .l-rotulo .n{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2);font:500 11.5px/1 var(--sans);color:var(--acento);font-variant-numeric:tabular-nums;letter-spacing:0}
+.lv .l-rotulo .n{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2);font:500 12px/1 var(--sans);color:var(--acento);font-variant-numeric:tabular-nums;letter-spacing:0}
 .lv .l-rotulo::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--hair-2),transparent)}
 .lv .l-h2,.lv .l-bloco .l-h2{font:400 clamp(34px,5.4vw,52px)/1.04 var(--serif);letter-spacing:-.028em;max-width:18ch;margin:0 0 20px}
 .lv .l-sub{font:400 clamp(16.5px,1.6vw,18px)/1.6 var(--sans);color:var(--muted);max-width:58ch}
@@ -183,7 +183,7 @@
   box-shadow:inset 0 -1px 0 rgba(20,20,19,.08),0 0 0 1px rgba(255,255,255,.5),0 0 0 7px color-mix(in srgb,var(--acento) 16%,transparent),0 18px 36px -16px rgba(0,0,0,.9);transition:box-shadow .5s var(--ease)}
 .l-ecos-hub-marca{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#141413;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 .l-ecos-hub-marca img{width:18px;height:18px}
-.l-ecos-hub .ia{color:#1F8A5B}
+.l-ecos-hub .ia{color:#17764D}
 
 .l-ecos-niveis{position:relative;display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:420px;padding:5px;border-radius:14px;
   background:rgba(0,0,0,.28);box-shadow:inset 0 1px 2px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.06),0 1px 0 rgba(255,255,255,.05)}

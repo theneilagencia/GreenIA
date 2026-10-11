@@ -108,6 +108,22 @@ export function criarApp(op = {}) {
   return app;
 }
 
+// Página 404 em HTML: idioma, viewport, marca e caminhos de saída. No endereço de uma empresa (white label) leva a
+// marca dela (nome e /icone), nunca a da plataforma; sem marca conhecida (marca: null), fica neutra.
+const escHtml = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+export function paginaNaoEncontrada(res, { marca = 'GreenIA', icone = '/assets/greenia-marca.svg', inicio = '/', saida = { href: '/encontrar', texto: 'Encontrar meu ambiente' } } = {}) {
+  const icn = marca && icone ? `<img src="${escHtml(icone)}" width="32" height="32" alt="" aria-hidden="true">` : '';
+  res.writeHead(404, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+  res.end(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Página não encontrada${marca ? ` · ${escHtml(marca)}` : ''}</title><link rel="stylesheet" href="/fontes/fontes.css"><link rel="stylesheet" href="/estilo.css">${marca && icone ? `<link rel="icon" href="${escHtml(icone)}">` : ''}</head>
+<body><main style="min-height:100vh;display:grid;place-items:center;padding:24px 16px"><div style="max-width:440px;text-align:center">
+${marca ? `<p class="marca-404" style="display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 18px;font:600 18px/1.3 var(--sans);color:var(--ink)">${icn}<span>${escHtml(marca)}</span></p>` : ''}
+<h1 style="font:600 22px/1.3 var(--sans);margin:0 0 10px;color:var(--ink)">Página não encontrada</h1>
+<p style="font:400 15px/1.6 var(--sans);color:var(--muted);margin:0 0 24px">O endereço pode ter mudado ou ter sido digitado de outro jeito. Confira o endereço ou siga por um dos caminhos abaixo.</p>
+<p style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:0"><a class="btn btn-verde btn-grande" href="${escHtml(inicio)}">Ir para o início</a>${saida ? `<a class="btn btn-linha btn-grande" href="${escHtml(saida.href)}">${escHtml(saida.texto)}</a>` : ''}</p>
+</div></main></body></html>`);
+}
+
 // Primeiro admin da instalação (variável ADMIN_EMAIL). O domínio dele entra na
 // lista de permitidos se a lista estiver vazia.
 // Operador da plataforma: entra mesmo com email de outro domínio, como admin.
@@ -149,8 +165,7 @@ async function tratar(app, r, req, res, externo) {
       if (url.pathname === '/vendas.html' && app.paginaInicial !== 'vendas') { res.writeHead(302, { location: '/' }); return res.end(); }
       if (req.method === 'GET' && pagina && await servirEstatico(res, join(RAIZ, 'public'), pagina, req)) return;
       if (req.method === 'GET' && await servirEstatico(res, join(RAIZ, 'public'), url.pathname.slice(1), req)) return;
-      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
-      return res.end('Página não encontrada.');
+      return paginaNaoEncontrada(res);
     }
     const rota = r.achar(req.method, url.pathname);
     if (!rota) throw new ErroHttp(404, 'nao_encontrado', 'Não encontrado.');

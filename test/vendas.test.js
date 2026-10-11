@@ -28,9 +28,9 @@ test('a página não promete o que não existe nem mostra custo de fornecedor', 
   // Venda consultiva: sem preço, sem plano com valor e sem cadastro autônomo; o CTA principal é a apresentação.
   assert.doesNotMatch(comercial, /US\$|R\$|por mês<\/span>|data-plano|Criar conta|Cadastre-se|Teste grátis/i);
   assert.match(v, /href="#contato">Solicitar demonstração</);
-  // Prumo Discovery: convite, nunca requisito.
-  assert.match(v, /href="https:\/\/theneil\.com\.br\/prumo-discovery-lp\.html"/);
-  assert.match(v, /Preciso contratar o Prumo Discovery\?[^<]*<\/summary><p>Não\./);
+  // Prumo Discovery: convite, nunca requisito (endereço e pergunta da revisão comercial 331cb66, LP-REV-20261011-002).
+  assert.match(v, /href="https:\/\/www\.theneil\.com\.br\/prumo-discovery\.html"/);
+  assert.match(v, /Preciso fazer o Prumo Discovery para usar a GreenIA\?<\/summary><p>Não\./);
   assert.doesNotMatch(v, /(?:exige|requer|precisa d[eo]|obrigat[óo]ri\w*|só funciona com)[^.<]{0,40}Prumo|Prumo[^.<]{0,40}(?:obrigat[óo]ri|exigid|requisito)/i);
   for (const proibido of [/\bSSO\b/, /\bSCIM\b/, /\bSLA\b/, /0,01/, /por token/i, /OpenRouter/]) assert.doesNotMatch(v, proibido);
   // Títulos sem ponto final.
@@ -71,6 +71,10 @@ test('a LP mantém a demonstração e condições de integração com uma estrut
   assert.match(v, /Na rotina: preparar propostas, analisar documentos, organizar projetos e consultar procedimentos/);
   assert.match(v, /Simulação · dados fictícios/);
   assert.match(v, /Nenhum sistema externo é acessado/);
-  assert.match(v, /Pedir uma conexão pela plataforma não a ativa automaticamente/);
-  assert.match(v, /a ação disponível e permissão de uso/);
+  // A marca é feminina ("a GreenIA") e a demonstração não fala em "ao lado" (no celular os cartões ficam acima).
+  assert.doesNotMatch(v, /\b(?:O|o|no|ao|do|pelo) GreenIA\b/);
+  assert.doesNotMatch(v, /cartões ao lado/);
+  // Integração é projeto à parte e não vem ativada (revisão comercial 331cb66, LP-REV-20261011-001 e 003).
+  assert.match(v, /Ela não vem ativada na assinatura/);
+  assert.match(v, /A consulta exige conexão ativa, ação disponível e permissão de uso/);
 });

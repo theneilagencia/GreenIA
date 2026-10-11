@@ -2,6 +2,8 @@
 import { api, ocupado } from '/comum.js';
 
 const $ = id => document.getElementById(id);
+// Exemplo de endereço no formato real: o endereço desta plataforma seguido do nome da empresa (/suaempresa).
+$('exemplo-endereco').textContent = `${location.host}/suaempresa`;
 $('form-encontrar').addEventListener('submit', ev => {
   ev.preventDefault();
   const email = $('email').value.trim(), erro = $('erro');

@@ -31,7 +31,8 @@ test('detalhe publicado: nome junto ao título, ações em outra linha e ediçã
         return {semExcesso:document.documentElement.scrollWidth<=innerWidth,nomeAoLado:name.left>=title.right+5,acoesAbaixo:actions.top>=meta.bottom+12};
       });
       assert.deepEqual(medidas,{semExcesso:true,nomeAoLado:true,acoesAbaixo:true},`hierarquia em ${width}px`);
-      if(width<600)assert.ok(await p.evaluate(()=>document.querySelector('.cabeca h1').getBoundingClientRect().left-document.querySelector('#menu').getBoundingClientRect().right>=9),'Menu separado do título');
+      // Menu separado do título: ao lado, com folga, ou (telas estreitas) o título na linha de baixo.
+      if(width<600)assert.ok(await p.evaluate(()=>{const h=document.querySelector('.cabeca h1').getBoundingClientRect(),m=document.querySelector('#menu').getBoundingClientRect();return h.left-m.right>=9||h.top>=m.bottom;}),'Menu separado do título');
       if(capturas&&[1440,390].includes(width))await p.screenshot({path:`${capturas}/detalhe-${width}.png`,fullPage:true,animations:'disabled'});
       await p.getByRole('button',{name:'Editar nome',exact:true}).click();
       assert.equal(await p.locator('#qw-nome').evaluate(el=>el===document.activeElement),true);

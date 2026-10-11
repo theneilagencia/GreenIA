@@ -111,7 +111,7 @@ test('C4/C5: Quick Win do formato anterior tem caminho para publicar e as telas 
   await p.goto(`${S.base}/app#/qw/${qwAntigo.id}`);
   await p.goto(`${S.base}/app#/qw/${qwAntigo.id}/ajustar`);
   await p.waitForURL(new RegExp(`#/qw/${qwAntigo.id}/editar$`));
-  await p.goBack(); await p.waitForURL(new RegExp(`#/qw/${qwAntigo.id}$`));
+  await p.goBack({ waitUntil: 'commit' }); await p.waitForURL(new RegExp(`#/qw/${qwAntigo.id}$`));
   // Publicar: diz quem passa a ver e publica.
   await p.goto(`${S.base}/app#/qw/${qwAntigo.id}/publicar`);
   await p.getByText(/da área Operações passam a ver e usar/).waitFor();
@@ -126,6 +126,6 @@ test('Recusa de tela da administração explica o próximo passo e não prende o
   await p.goto(`${S.base}/app#/conversas`);
   await p.goto(`${S.base}/app#/modelos`);
   await p.waitForURL(/#\/nova$/);
-  assert.match(await p.locator('.toast').innerText(), /peça acesso a quem administra/);
-  await p.goBack(); await p.waitForURL(/#\/conversas$/);
+  await p.locator('.toast', { hasText: 'peça acesso a quem administra' }).waitFor();
+  await p.goBack({ waitUntil: 'commit' }); await p.waitForURL(/#\/conversas$/);
 });

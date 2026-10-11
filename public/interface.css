@@ -112,7 +112,7 @@
   .app .cabeca-titulo>h1{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:17px}
   .app .cabeca-titulo>.btn{flex-basis:100%}
   .app .cabeca-acoes{flex:none;flex-wrap:nowrap;gap:4px;align-self:center;max-width:none}
-  .app .cabeca :is(.menu-btn,#sair,.cabeca-titulo>.icone-btn)>span{display:none}
+  .app .cabeca :is(.menu-btn,.cabeca-titulo>.icone-btn)>span{display:none}   /* "Sair" continua escrito */
   .app .cabeca .menu-btn{width:44px;padding:0}
   .app .cabeca .usuario-meta{display:none}
   .app .cabeca .ajuda-tela{padding:0 10px}
@@ -125,7 +125,6 @@
   .acoes-material>.btn{min-height:40px;padding:0 12px}
   .acoes-material>.dica{display:none}
   .compositor .nota-compositor{font-size:11px;margin-top:4px}
-  .compositor:focus-within .nota-compositor{display:none}
 }
 /* Telas estreitas: os ícones numa linha e o título inteiro na linha de baixo, para continuar legível. */
 @media(max-width:480px){
@@ -135,3 +134,5 @@
   .app .cabeca-acoes{order:2}
   .app .cabeca-titulo>h1{order:3;flex:1 1 100%;padding-inline:4px}
 }
+/* Altura curta (teclado aberto no celular): a nota de rodapé do envio sai, sem mexer no layout durante o toque. */
+@media(max-width:760px) and (max-height:600px){.compositor .nota-compositor{display:none}}

@@ -50,7 +50,7 @@ export function cabecalho(titulo, acoes = '') {
       ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
     <div class="cabeca-acoes">
-      <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-haspopup="dialog" title="Como usar esta tela e guia de primeiros passos">Ajuda</button>
+      <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" aria-haspopup="dialog" title="Como usar esta tela e guia de primeiros passos">Ajuda</button>
       <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
         <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
         <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}<span>Sair</span></button></div>

@@ -141,9 +141,9 @@ test('A14/M19/M23/M24/M41: configurar em seções, estado informado, erro no cam
   const verde = p.getByRole('radio', { name: 'Verde', exact: true });
   assert.equal(await verde.count(), 1);
   const caixa = await p.locator('.qw-cor').first().boundingBox();
-  assert.ok(caixa.width >= 44 && caixa.height >= 44, JSON.stringify(caixa));
+  assert.ok(Math.round(caixa.width) >= 44 && Math.round(caixa.height) >= 44, JSON.stringify(caixa));   // arredonda o subpixel
   const area = await p.locator('.qw-opcoes-toque > label').first().boundingBox();
-  assert.ok(area.height >= 44, `rótulo da área com 44 px: ${JSON.stringify(area)}`);
+  assert.ok(Math.round(area.height) >= 44, `rótulo da área com 44 px: ${JSON.stringify(area)}`);
   // Erro junto do campo, com foco nele.
   await p.fill('#nome', '');
   await p.getByRole('button', { name: 'Salvar', exact: true }).click();

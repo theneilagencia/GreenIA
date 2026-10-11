@@ -181,8 +181,11 @@
 .ld-perigo{margin-top:28px;padding:16px 18px;border:1px solid var(--line);border-radius:12px}
 .ld-perigo h2{margin:0 0 4px;color:var(--red-text)}
 @media(max-width:640px){
-  .ld-bloco-caixa.com-chave>.ld-bloco>summary{padding-right:14px;padding-top:54px}
-  .ld-bloco-caixa>.ld-vis{top:6px;left:14px;right:auto;min-height:44px;flex-basis:auto}
+  /* No celular, o interruptor vai numa linha própria acima do bloco (sem sobrepor o título). */
+  .ld-bloco-caixa.com-chave{display:flex;flex-direction:column}
+  .ld-bloco-caixa.com-chave>.ld-bloco>summary{padding-right:40px}
+  .ld-bloco-caixa>.ld-vis{position:static;order:-1;align-self:flex-end;min-height:44px;flex-basis:auto}
+  .ld-bloco-caixa.com-chave>.ld-bloco>summary::after{top:18px;right:16px}
 }
 
 /* Envio de arquivo com botão próprio em português. */

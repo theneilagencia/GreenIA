@@ -21,7 +21,7 @@ test('admin liga as integrações para a empresa toda em Configurações; o menu
   const erros = []; p.on('pageerror', e => erros.push(e.message));
   await p.goto(`${N.base}/app#/configuracoes`);
   await p.waitForSelector('#cfg-integracoes', { state: 'attached' });
-  await p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')}).locator('summary').click();
+  await p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')}).locator(':scope > summary').click();
   assert.equal(await p.isChecked('#cfg-integracoes'), false, 'desligado por padrão');
   assert.equal(await p.locator('#lateral [data-item="integracoes"]').count(), 0);
   await p.check('#cfg-integracoes');
@@ -38,7 +38,7 @@ test('admin liga as integrações para a empresa toda em Configurações; o menu
   // Desliga: o menu some e a API de integrações deixa de existir.
   await p.goto(`${N.base}/app#/configuracoes`);
   await p.waitForSelector('#cfg-integracoes', { state: 'attached' });
-  await p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')}).locator('summary').click(); await p.waitForLoadState('networkidle');
+  await p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')}).locator(':scope > summary').click(); await p.waitForLoadState('networkidle');
   assert.equal(await p.isChecked('#cfg-integracoes'), true);
   await p.uncheck('#cfg-integracoes');
   await p.click('#form-cfg .cfg-salvar .btn-verde');

@@ -63,7 +63,7 @@ try{
  const co=await nav.newContext({reducedMotion:'reduce'});await co.addCookies([...ops.cookies].map(([name,value])=>({name,value,url:S.base})));const cp=await co.newPage();anexar(cp);
  const pc=await nav.newContext({reducedMotion:'reduce'}),pub=await pc.newPage();anexar(pub);
  for(const contexto of [ctx,co,pc])await contexto.route(u=>!u.href.startsWith(S.base),r=>r.abort());
- for(const width of [1280,390,320]){
+ for(const width of [1280,390,360,320]){
   for(const alvo of [page,cp,pub])await alvo.setViewportSize({width,height:900});
   for(const rota of rotas.filter(incluir))await auditar(page,'app',rota,width);
   for(const rota of consoleRotas.filter(incluir))await auditar(cp,'console',rota,width);
@@ -76,4 +76,4 @@ try{
  const preview={url:new URL(previa.url()).pathname+new URL(previa.url()).search,titulo:await previa.locator('h1').innerText(),erros:await previa.locator('[role="alert"]').allTextContents()};
  writeFileSync(join(destino,'previa.json'),JSON.stringify(preview,null,2));await previa.close();
 }finally{await nav.close();await S.fechar();}
-console.log(JSON.stringify({observacoes:resultados.length,telas:resultados.length/3,falhasDeAberturaOuOverflow:resultados.filter(r=>r.overflow>1||r.fora?.length||r.erroTela||r.exception).length,pageerrors:erros.length,semRotulo:resultados.filter(r=>r.semRotulo?.length).length,alvosPequenos:resultados.filter(r=>r.pequenos?.length).length,cabecalhosComprimidos:resultados.filter(r=>r.escopo==='app'&&r.width<=390&&r.tituloMedidas?.largura<100&&r.tituloMedidas?.altura>2.5*r.tituloMedidas?.linha).length}));
+console.log(JSON.stringify({observacoes:resultados.length,telas:resultados.length/4,falhasDeAberturaOuOverflow:resultados.filter(r=>r.overflow>1||r.fora?.length||r.erroTela||r.exception).length,pageerrors:erros.length,semRotulo:resultados.filter(r=>r.semRotulo?.length).length,alvosPequenos:resultados.filter(r=>r.pequenos?.length).length,cabecalhosComprimidos:resultados.filter(r=>r.escopo==='app'&&r.width<=390&&r.tituloMedidas?.largura<100&&r.tituloMedidas?.altura>2.5*r.tituloMedidas?.linha).length}));

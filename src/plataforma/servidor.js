@@ -20,7 +20,7 @@ import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
 import { ErroIA } from '../ia.js';
 import { impressaoChave, fusoValido, FUSO_PADRAO, registrarRecusa, registrarLeitura, chaveRecusada, podeRevalidar, marcarRevalidacao, conferirChave } from './chave-validade.js';
 import { lerConfig, salvarConfig } from '../config.js';
-import { carregarPessoa, dominioPermitido } from '../auth.js';
+import { carregarPessoa, dominioPermitido, checarOrigem } from '../auth.js';
 import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
 import { exec, todos, um, json } from '../db.js';
 import { abrirPlataforma, lerAjuste, salvarAjuste } from './db.js';
@@ -367,7 +367,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
         if (m[2]) { res.writeHead(302, { location: m[2] }); return res.end(); }
         return await servirPagina(res, 'index.html');
       }
-      companyId = cookies[COOKIE_CONTEXTO] ? decodeURIComponent(cookies[COOKIE_CONTEXTO]) : null;
+      companyId = cookies[COOKIE_CONTEXTO] || null;
       if (companyId && !E.lerEmpresa(P, companyId)) companyId = null;
       if (!companyId) {
         if (caminho.startsWith('/api/')) throw new ErroHttp(404, 'ambiente', 'Abra o endereço da sua empresa para entrar.');
@@ -415,7 +415,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
 async function despachar(P, r, req, res, url, cookies, companyId) {
   const rota = r.achar(req.method, url.pathname);
   if (!rota) throw new ErroHttp(404, 'nao_encontrado', 'Não encontrado.');
-  if (req.method !== 'GET') { const o = req.headers.origin; if (o && new URL(o).host !== req.headers.host) throw new ErroHttp(403, 'origem', 'Origem não permitida.'); }
+  if (req.method !== 'GET') checarOrigem(req);
   let sessao = null;
   if (companyId) sessao = sessaoDaEmpresa(P, cookies, companyId);
   else { const s = lerSessaoBruta(P, cookies, null); sessao = s && ehAdminPlataforma(P.db, s.user_id) ? { userId: s.user_id, csrf: s.csrf, email: s.email, name: s.name } : null; }

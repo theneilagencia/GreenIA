@@ -106,7 +106,7 @@ function passoDocumentacao() {
       <p class="dica">A documentação é só lida para descobrir as ações possíveis: nada nela é executado.</p>
       <button class="btn" id="ler-doc">Ler documentação</button></details>
     <details><summary>Prefiro descrever uma ação</summary>
-      <div class="campo-int">Ação<select id="m-metodo"><option value="GET">Consultar (GET)</option><option value="POST">Criar (POST)</option><option value="PATCH">Atualizar (PATCH)</option><option value="PUT">Substituir (PUT)</option><option value="DELETE">Apagar (DELETE)</option></select></div>
+      <label class="campo-int">Ação<select id="m-metodo"><option value="GET">Consultar (GET)</option><option value="POST">Criar (POST)</option><option value="PATCH">Atualizar (PATCH)</option><option value="PUT">Substituir (PUT)</option><option value="DELETE">Apagar (DELETE)</option></select></label>
       <label class="campo-int">Caminho<input id="m-caminho" placeholder="/clientes"></label>
       <label class="campo-int">O que faz<input id="m-resumo" placeholder="Listar clientes"></label>
       <button class="btn" id="add-op">Adicionar ação</button></details>

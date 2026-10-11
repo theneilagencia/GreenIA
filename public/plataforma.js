@@ -225,7 +225,7 @@ async function abaResumo(d, id) {
       ${e.status === 'cancelada' ? '<button class="btn btn-texto" id="excluir-empresa" style="color:var(--red-text)">Excluir definitivamente</button>' : ''}</div>
     <div id="exportacoes-empresa"></div>
     <div class="secao-titulo"><h3>Plano</h3></div>
-    <form id="f-plano" class="linha-botoes"><select class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'créditos ilimitados'} · ${usd(p.price_usd)}</option>`).join('')}</select>
+    <form id="f-plano" class="linha-botoes"><select aria-label="Plano da empresa" class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)} · ${p.credits ? `${num(p.credits)} créditos` : 'créditos ilimitados'} · ${usd(p.price_usd)}</option>`).join('')}</select>
       <button class="btn btn-linha">Alterar plano</button></form>
     ${u.plano ? `<div class="indicadores"><div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${u.plano.percentual}% de ${num(u.plano.creditos)}`}</small></div>
       <div class="indicador"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div><div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b></div>
@@ -674,7 +674,7 @@ async function vistaUso(forcar = false) {
     ${semChave ? '' : validadeHtml(u.validadeChave)}
     <form class="or-chave-form${semChave ? '' : ' oculto'}" id="f-chave" novalidate autocomplete="off">
       <label for="or-chave-in">Cole a chave da API do OpenRouter</label>
-      <div class="or-chave-linha"><input class="entrada" id="or-chave-in" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-describedby="or-chave-ajuda">
+      <div class="or-chave-linha"><input class="entrada" id="or-chave-in" aria-label="Chave de acesso ao provedor" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-describedby="or-chave-ajuda">
         <button type="button" class="btn-texto btn-pequeno" id="or-ver" aria-pressed="false">Mostrar</button><button class="btn btn-verde btn-pequeno" id="or-salvar">Testar e salvar</button></div>
       <p class="dica" id="or-chave-ajuda">A chave é testada no OpenRouter antes de salvar, fica guardada cifrada e vale na hora para todas as empresas, sem reiniciar. Depois de salva, só aparecem o início e os 4 últimos caracteres. <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">Criar uma chave no OpenRouter ↗</a></p>
       <p class="msg-erro oculto" id="or-chave-erro" role="alert"></p></form></section>`;

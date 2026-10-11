@@ -59,7 +59,11 @@ export function checarCsrf(sessao, req) {
 
 export function checarOrigem(req) {
   const o = req.headers.origin;
-  if (o && new URL(o).host !== req.headers.host) throw erro(403, 'origem', 'Origem não permitida.');
+  if (!o) return;
+  let host;
+  try { host = new URL(o).host; }
+  catch { throw erro(400, 'origem_invalida', 'Origem inválida. Abra novamente pelo endereço da empresa.'); }
+  if (host !== req.headers.host) throw erro(403, 'origem', 'Origem não permitida.');
 }
 
 export function abrirSessao(app, res, pessoaId) {

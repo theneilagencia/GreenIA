@@ -139,7 +139,7 @@ test('admin da empresa edita a landing sem plano definido; quando trava, o motiv
   assert.equal((await ops.post(`/api/plataforma/empresas/${e.id}/plano`, { plan_id: plano.id })).status, 200);
   r = (await eva.get('/api/empresa/landing')).dados;
   assert.equal(r.pode, false);
-  assert.match(r.motivo, /plano Básico não inclui landing page/);
+  assert.match(r.motivo, /plano Básico não inclui página de apresentação própria/);
   const put = await eva.put('/api/empresa/landing', { content: r.landing.content });
   assert.equal(put.status, 403);
   assert.match(put.dados.mensagem, /plano Básico/);

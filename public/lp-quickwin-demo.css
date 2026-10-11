@@ -14,3 +14,8 @@
 .qd-panels{min-height:520px}
 @media(max-width:759px){.qd-panels{min-height:520px}}
 @media(max-width:420px){.qd-panels{min-height:552px}}
+
+/* ============================================================ Tema escuro: a demonstração continua clara, como
+   um cartão emoldurado (todas as cores dela são próprias); o resto da seção usa os tokens de lp.css. */
+.qw-demo{color-scheme:light}
+/* ============================================================ fim do tema escuro */

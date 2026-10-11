@@ -308,3 +308,16 @@
    bloco) e parágrafos seguidos têm o mesmo espaço em todas as seções. */
 .lv .l-cab:has(+ .l-sub),.lv .l-cab:has(+ span + .l-sub){margin-bottom:24px}
 .lv .l-sub:has(+ .l-sub){margin-bottom:18px}
+
+/* ============================================================ Tema escuro (página de vendas)
+   Os valores do escuro ficam nos blocos de tokens de lp.css (--lpe-*, --hair, --tinta, sombras); aqui só as
+   regras com cor fixa, com o valor do claro como reserva (no claro nada muda). */
+.lv .btn-verde{color:var(--lpe-sobre-tinta,#FAF9F5)}
+.lv .btn-verde:hover:not(:disabled){background:var(--lpe-tinta-hover,#252421)}
+.lv .btn-linha:hover:not(:disabled){border-color:var(--lpe-hair-3,rgba(20,20,19,.26))}
+.lv .l-nav a:hover{background:var(--lpe-hover,rgba(20,20,19,.045))}
+.lv .l-pill:hover{border-color:var(--lpe-hair-3,rgba(20,20,19,.26))}
+.lv .l-janela-barra{background:var(--lpe-barra,#FBFAF7)}
+.lv .l-janela-barra i{background:var(--lpe-ponto,#E6E2D8)}
+.lv .l-faq details[open] summary::after{box-shadow:inset 0 0 0 1px var(--lpe-hair-3,rgba(20,20,19,.24))}
+/* ============================================================ fim do tema escuro (página de vendas) */

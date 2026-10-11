@@ -57,3 +57,10 @@
 .lv main>section.op-section{margin-top:calc(var(--sec) * .6);padding:var(--sec) 0}
 .lv main>section.op-section+section:not(.op-section){padding-top:calc(var(--sec) * .6)}
 .lv main>section.op-section+section.op-section{margin-top:0}
+
+/* ============================================================ Tema escuro (valores em lp.css, --lpe-*)
+   A seção ganha fundo escuro; a demonstração continua clara, como um cartão emoldurado (cores próprias). */
+.lv #programados.op-section{background:var(--lpe-op-fundo,linear-gradient(135deg,#f2f4ef,#f9faf7))}
+.lv .op-copy .l-nota{border-left-color:var(--lpe-op-nota,#d1daca)}
+.op-demo{color-scheme:light}
+/* ============================================================ fim do tema escuro */

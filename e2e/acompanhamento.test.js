@@ -74,7 +74,7 @@ test('detalhe da execução pertence à conversa privada e distingue conferênci
  const msg=Number(exec(N.app.db,"insert into mensagens (conversa_id,papel,texto,fontes,criado_em) values (?,'assistant','Resultado fictício de QA',?,?)",d.id,JSON.stringify(['Manual de operação']),new Date().toISOString()).lastInsertRowid);
  // Registro da conferência histórica, sem execução externa simulada como real.
  exec(N.app.db,"insert into roteamento(conversa_id,resposta_id,pessoa_id,qualidade,em,modo,complexidade) values (?,?,?,?,?,'automatico','baixa')",d.id,msg,usuario.pessoa.id,JSON.stringify({status:'parcial',criterios:[],motivo:'Conferência fictícia incompleta'}),new Date().toISOString());
- const p=await abrir(usuario,`#/c/${d.id}`);await p.waitForSelector('.execucao-detalhe');await p.locator('.execucao-detalhe summary').click();assert.match(await p.textContent('.execucao-detalhe'),/Conferência incompleta|Nenhuma ação externa registrada/);assert.equal((await admin.get(`/api/conversas/${d.id}`)).status,404);await p.close();
+ const p=await abrir(usuario,`#/c/${d.id}`);await p.waitForSelector('.rodape-resposta');await p.locator('.resposta').last().getByRole('button',{name:'Detalhes da resposta'}).click();await p.locator('.execucao-detalhe summary').click();assert.match(await p.textContent('.execucao-detalhe'),/Conferência incompleta|Nenhuma ação externa registrada/);assert.equal((await admin.get(`/api/conversas/${d.id}`)).status,404);await p.close();
 });
 test('pendência de integração abre o detalhe correto em vez da lista geral',async()=>{
  const {criarConector}=await import('../src/integracoes/conectores.js');

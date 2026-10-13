@@ -145,7 +145,7 @@ test('A5/M2: "Dados sigilosos" fica na caixa, avisa que é definitivo ao ligar e
   }
 });
 
-test('M12/M13/M14/M18: ações num "⋯", rodapé com ações maiores, informação técnica no "i", "Serviu?" ao pé e selo de simulação fora da resposta', async () => {
+test('M12/M13/M14/M18: ações num "⋯", ações da resposta em ícones com nome, informação técnica em "Detalhes", 👍/👎 ao pé e selo de simulação fora da resposta', async () => {
   const p = await pagina(pessoa);
   await p.goto(`${S.base}/app#/c/${livre.id}`); await p.waitForSelector('.rodape-resposta');
   // M12: um único menu de ações, com o nome igual ao rótulo.
@@ -159,21 +159,24 @@ test('M12/M13/M14/M18: ações num "⋯", rodapé com ações maiores, informaç
   assert.doesNotMatch(corpo, /simulad|modelo real/i);
   assert.equal(await p.locator('.rodape-resposta .selo-simulada').innerText(), 'Resposta simulada');
   assert.equal(await p.locator('.resposta').last().getByRole('button', { name: 'Baixar planilha' }).count() + await p.locator('.resposta').last().getByRole('link', { name: 'Baixar planilha' }).count(), 1);
-  // M13: "Copiar" com área de clique real; nível e motivo recolhidos no "i".
-  const copiar = await p.locator('[data-copiar]').last().boundingBox();
-  assert.ok(copiar.width >= 60 && copiar.height >= 36, JSON.stringify(copiar));
-  const info = p.locator('.info-resposta').last();
-  assert.equal(await info.locator('.info-resposta-texto').isVisible(), false);
-  await info.locator('summary').click();
-  assert.match(await info.locator('.info-resposta-texto').innerText(), /Nível|escolha automática/);
-  // M14: "Serviu?" na conversa livre, ao pé da última resposta; "Não serviu" pergunta o motivo num diálogo próprio.
-  assert.equal(await p.locator('.barra-conversa [data-fb]').count(), 0);
-  assert.equal(await p.locator('.resposta').last().locator('[data-fb]').count(), 3);
-  await p.click('[data-fb="nao_serviu"]');
+  // M13: "Copiar" como ícone com nome e área de clique real; nível e motivo recolhidos em "Detalhes".
+  const copiar = await p.locator('.resposta').last().getByRole('button', { name: 'Copiar resposta' }).boundingBox();
+  assert.ok(copiar.width >= 32 && copiar.height >= 32, JSON.stringify(copiar));
+  const painel = p.locator('.resposta').last().locator('.detalhes-resposta-painel');
+  assert.equal(await painel.isVisible(), false);
+  await p.locator('.resposta').last().getByRole('button', { name: 'Detalhes da resposta' }).click();
+  assert.match(await painel.innerText(), /Nível|escolha automática/);
+  await p.keyboard.press('Escape');
+  assert.equal(await painel.isVisible(), false);
+  // M14: 👍/👎 na conversa livre, ao pé da última resposta; 👎 pergunta o motivo num diálogo próprio.
+  assert.equal(await p.locator('.barra-conversa [data-fb], .barra-conversa [data-fb-negativo]').count(), 0);
+  assert.equal(await p.locator('.resposta').last().locator('[data-fb], [data-fb-negativo]').count(), 2);
+  await p.click('[data-fb-negativo]');
   const d = p.getByRole('dialog');
-  await d.getByLabel('Motivo (opcional)').fill('Faltou o prazo');
+  await d.getByLabel('Não serviu').check();
+  await d.getByLabel('O que faltou ou veio errado? (opcional)').fill('Faltou o prazo');
   await d.getByRole('button', { name: 'Enviar avaliação' }).click();
-  await p.waitForSelector('[data-fb="nao_serviu"][aria-pressed="true"]');
+  await p.waitForSelector('[data-fb-negativo][aria-pressed="true"][aria-label="Não serviu"]');
   const c = (await pessoa.get(`/api/conversas/${livre.id}`)).dados.conversa;
   assert.equal(c.feedback, 'nao_serviu'); assert.equal(c.feedback_motivo, 'Faltou o prazo');
   assert.equal(await saltosDeTitulo(p), 0);
@@ -185,7 +188,7 @@ test('A6: quem usa um Quick Win não vê o estado interno; textos sem "caso"', a
   await p.goto(`${S.base}/app#/c/${conversaQw.id}`); await p.waitForSelector('.rodape-resposta');
   assert.doesNotMatch(await p.locator('.barra-conversa').innerText(), /Em uso|Em teste|Identificado/);
   assert.match(await p.locator('.rodape-resposta').last().innerText(), /Revise antes de usar\./);
-  assert.equal(await p.locator('.resposta').last().locator('[data-fb]').count(), 3);
+  assert.equal(await p.locator('.resposta').last().locator('[data-fb], [data-fb-negativo]').count(), 2);
   assert.deepEqual(p.erros, []);
 });
 

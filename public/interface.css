@@ -1122,6 +1122,7 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 .resposta-corpo>.fontes b{font:500 12.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin-right:2px}
 .resposta-corpo>.fontes .selo{background:var(--surface);border:1px solid var(--line);color:var(--ink);font:500 12.5px/1.6 var(--sans);max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .resposta-corpo>.fontes .selo svg{width:13px;height:13px;color:var(--muted)}
+.resposta-corpo>.fontes .selo::before{content:none}
 .resposta-corpo>.fontes a.selo:hover{border-color:var(--line-strong)}
 .resposta-proximos{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:-4px}
 .resposta-proximos .link-sutil{font:500 13.5px var(--sans)}
@@ -1167,11 +1168,12 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 .fb-opcao small{font:400 13px/1.45 var(--sans);color:var(--muted)}
 .fb-motivo[hidden]{display:none}
 .fb-motivo textarea{width:100%;box-sizing:border-box;resize:vertical}
-/* Toque: alvo de 44 px (os ícones continuam pequenos) */
-@media (pointer:coarse){
+/* Toque e celular: alvo de 44 px (os ícones continuam pequenos) */
+@media (pointer:coarse),(max-width:760px){
   .acao-resposta,.bloco-codigo-copiar{width:44px;height:44px}
   .app .acoes-resposta,.acoes-resposta{margin-left:-12px}
   .anexo-resposta{min-height:56px}
+  .acoes-resposta .selo-simulada{margin-left:4px}
   .artefato-nome{min-height:44px}
 }
 @media (max-width:760px){

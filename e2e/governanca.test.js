@@ -75,7 +75,7 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
   await p.reload();
   await p.waitForSelector('.bolha-eu');
   assert.equal(await p.locator('.bolha-eu').count(), 2);
-  assert.deepEqual(await p.locator('.bolha-eu .anexo-chip').allInnerTexts().then(a => a.map(t => t.trim())), ['reuniao-comercial.pdf', 'cadastro-cliente.pptx']);
+  assert.deepEqual(await p.locator('.msg-eu .anexo-chip').allInnerTexts().then(a => a.map(t => t.trim())), ['reuniao-comercial.pdf', 'cadastro-cliente.pptx']);
   assert.equal(await p.locator('.rodape-resposta').count(), 2);
   const depois = await textoVisivel(p);
   assert.match(depois, /Uma mensagem não foi enviada/);

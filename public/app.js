@@ -9,7 +9,7 @@ import { ligarAcoesConversas, grupoData } from '/historico-conversas.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { iniciarAcessibilidade, conterFoco, fecharComEscape } from '/acessibilidade.js';
-import { contaHtml, fecharMenuConta, ICONE_CONTA, itemMenu, ligarConta, separadorMenu, temaMenuHtml } from '/menu-conta.js';
+import { abrirMenuConta, contaHtml, fecharMenuConta, ICONE_CONTA, itemMenu, ligarConta, separadorMenu, temaMenuHtml } from '/menu-conta.js';
 
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
 const $ = id => document.getElementById(id);
@@ -241,6 +241,9 @@ const ACOES_CONTA = {
 
 export function desenharLateral() {
   const h = location.hash || '';
+  // A lateral é redesenhada a cada troca de tela: o menu da conta aberto continua aberto, no mesmo item.
+  const menuAberto = $('menu-conta') && !$('menu-conta').hidden;
+  const itemFocado = menuAberto ? [...$('menu-conta').querySelectorAll('[role^="menuitem"]')].indexOf(document.activeElement) : -1;
   fecharMenuConta();
   observadorHistorico?.disconnect();
   const rail = recolhida();
@@ -288,6 +291,7 @@ export function desenharLateral() {
   if ($('recolher-lateral')) $('recolher-lateral').onclick = alternarRecolhida;
   $('abrir-busca').onclick = () => abrirPaleta();
   ligarConta(ACOES_CONTA);
+  if (menuAberto) abrirMenuConta(Math.max(0, itemFocado));
   if ($('hist-mais')) {
     $('hist-mais').onclick = () => maisHistorico();
     // Rolagem infinita: ao rolar até o fim do histórico, carrega os próximos sem precisar clicar.
@@ -441,6 +445,7 @@ async function rota() {
   if (versao !== versaoNavegacao) return;
   desenharLateral();
   fimTransicao();
+  if (h === '#/pendencias') recarregarPendencias();   // a contagem do atalho acompanha o que acabou de ser resolvido
   if (foco) destacarCampo(foco);
   else if (document.activeElement === document.body || $('lateral').contains(document.activeElement)) $('principal').querySelector('h1')?.focus({ preventScroll: true });
 }

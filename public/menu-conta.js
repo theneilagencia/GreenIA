@@ -55,7 +55,7 @@ export function abrirMenuConta(qual = 0) {
   m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - largura - 8))}px`;
   m.style.bottom = `${Math.max(8, innerHeight - r.top + 6)}px`;
   const lista = itens();
-  (qual === 'ultimo' ? lista.at(-1) : lista[0])?.focus();
+  (qual === 'ultimo' ? lista.at(-1) : lista[Number(qual) || 0])?.focus();
   document.addEventListener('pointerdown', fora, true);
 }
 

@@ -150,7 +150,7 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   assert.deepEqual(await p.locator('#menu-conta [data-contexto]').allInnerTexts(), ['Administração']);
   assert.equal(await p.locator('.selo-contexto').count(), 0);
   assert.equal(await p.locator('.lateral a[href="#/configuracoes"]').count(), 0, 'no uso, a lateral não mostra a administração');
-  await p.click('#menu-conta [data-contexto="admin"]');
+  await itemConta(p, '[data-contexto="admin"]');
   await p.waitForURL(/#\/visao-geral/);
   await p.waitForFunction(() => document.body.dataset.contexto === 'admin' && !!document.querySelector('#lateral .selo-contexto'));
   assert.doesNotMatch(p.url(), /entrar/);

@@ -41,10 +41,21 @@ before(async () => {
 });
 after(async () => { await N.fechar(); await OR.fechar(); });
 
+// Uma entrada por pessoa (o envio de códigos tem limite): os outros contextos reaproveitam a sessão.
+const sessoes = {};
+async function sessao(email) {
+  if (!sessoes[email]) {
+    const ctx = await N.navegador.newContext();
+    await N.entrar(email, await ctx.newPage());
+    sessoes[email] = await ctx.storageState();
+    await ctx.close();
+  }
+  return sessoes[email];
+}
 async function abrir(email, hash, { largura = 1366, altura = 860, esquema = 'light' } = {}) {
-  const ctx = await N.navegador.newContext({ viewport: { width: largura, height: altura }, colorScheme: esquema, isMobile: largura < 700, hasTouch: largura < 700 });
+  const ctx = await N.navegador.newContext({ viewport: { width: largura, height: altura }, colorScheme: esquema, isMobile: largura < 700, hasTouch: largura < 700, storageState: await sessao(email) });
   await ctx.route(u => !u.href.startsWith(N.base), r => r.abort());
-  const p = await N.entrar(email, await ctx.newPage());
+  const p = await ctx.newPage();
   p.erros = []; p.on('pageerror', e => p.erros.push(e.message));
   await p.goto(`${N.base}/app${hash}`);
   await p.waitForSelector('#principal h1');
@@ -87,7 +98,7 @@ test('Buscar (Ctrl K e o botão da lateral) acha conversas pelo título, inclusi
   await p.keyboard.press('Enter');
   const id = um(N.app.db, "select id from conversas where titulo = 'Checklist de recebimento'").id;
   await p.waitForURL(new RegExp(`#/c/${id}$`));
-  assert.equal(await p.getAttribute(`#lateral a[href="#/c/${id}"]`, 'aria-current'), 'page');
+  await p.waitForSelector(`#lateral a[href="#/c/${id}"][aria-current="page"]`);
   assert.deepEqual(p.erros, []);
   await p.context().close();
 });
@@ -205,6 +216,7 @@ test('menu da conta: itens, teclado (setas, Home, End, Esc) e cada item funciona
   await p.keyboard.press('Escape');
   // Sair: encerra a sessão e não volta para a área privada.
   await itemConta(p, '#sair'); await p.waitForURL(N.base + '/');
+  delete sessoes[EMAIL];
   await p.goto(`${N.base}/app#/nova`); await p.waitForURL(/\/entrar$/);
   assert.deepEqual(p.erros, []);
   await p.context().close();

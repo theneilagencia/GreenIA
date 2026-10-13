@@ -46,7 +46,8 @@ export const oQueEnviar = qw => (qw?.entregas?.entradas?.length ? `Envie: ${qw.e
 // título para leitores de tela (role="none"); as seções da página começam em h2. A trilha desta página é a única:
 // a do cabeçalho some quando ela existe (interface.css, bloco Quick Wins).
 export function cabecalhoPg({ trilha = [], titulo, descricao = '', lado = '', meta = '', tituloAcoes = '' }) {
-  const t = `<h2 role="none">${esc(titulo)}</h2>`;
+  // Telas de primeiro nível (sem trilha): o título já está na barra do topo; aqui fica só para leitores de tela.
+  const t = `<h2 role="none"${!trilha.length && !tituloAcoes ? ' class="sr"' : ''}>${esc(titulo)}</h2>`;
   return `<div class="pg-cabeca">
     ${trilha.length ? `<nav class="pg-trilha" aria-label="Você está em">${trilha.map(([t, h]) => (h ? `<a href="${h}">${esc(t)}</a>` : `<span aria-current="page">${esc(t)}</span>`)).join('<span class="sep" aria-hidden="true">/</span>')}</nav>` : ''}
     <div class="pg-titulo"><div class="pg-titulo-texto">${tituloAcoes ? `<div class="pg-nome">${t}${tituloAcoes}</div>` : t}${meta ? `<div class="pg-meta">${meta}</div>` : ''}${descricao ? `<p class="pg-desc">${descricao}</p>` : ''}</div>${lado ? `<div class="pg-acoes">${lado}</div>` : ''}</div>

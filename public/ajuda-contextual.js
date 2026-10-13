@@ -28,7 +28,7 @@ const ajuda={
  pendencias:()=>['Resolva uma coisa de cada vez','Comece pela primeira pendência: "Ver e resolver" abre a tela onde ela se resolve. Depois de resolver, use "Atualizar".','A lista só mostra o que seu perfil pode acompanhar. Ocorrências anteriores podem já ter sido tratadas.',[
   ['Como encontrar uma pendência?','Com várias pendências, use a busca e "Filtrar" para escolher o assunto. Os filtros podem ser salvos neste navegador.']]],
  'primeiros-passos':()=>['Aprenda no seu ritmo','Siga os passos com "Próximo passo" ou escolha um passo pelo nome. Você pode sair e voltar quando quiser.','O guia não envia arquivos nem executa tarefas.',[
-  ['Como volto ao guia depois?','Use o botão Ajuda, no alto de qualquer tela, e escolha "Abrir o guia de primeiros passos".']]],
+  ['Como volto ao guia depois?','Abra o menu da sua conta, no pé da barra lateral, escolha Ajuda e depois "Abrir o guia de primeiros passos".']]],
  default:()=>['Conte o que precisa e confira o resultado','Para uma tarefa pronta, escolha um Quick Win. Para um pedido diferente, explique o resultado esperado e envie o material necessário.','Nunca envie senhas ou chaves. A opção de dados sigilosos reforça a proteção e não contorna bloqueios.',[
   ['O que acontece com o que eu envio?','Revise antes de usar: a IA pode errar. Dado bloqueado pela política não é enviado.'],
   ['Por quanto tempo as conversas ficam salvas?',`Até ${dias()} dias sem uso, conforme a configuração da empresa.`]]]};

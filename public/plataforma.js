@@ -2,6 +2,7 @@
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
 import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE, rodapePlataformaHtml } from '/comum.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
+import { contaHtml, itemMenu, ligarConta, separadorMenu, temaMenuHtml } from '/menu-conta.js';
 import { campoData, lerData } from '/data-br.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
@@ -67,25 +68,29 @@ function telaLogin() {
 const SECOES = [['empresas', 'Empresas', 'predio'], ['encerramentos', 'Encerramentos', 'lixo'], ['usuarios', 'Usuários', 'pessoas'], ['planos', 'Planos', 'pacote'], ['ambientes', 'Ambientes', 'servidor'], ['uso', 'Uso', 'grafico'], ['auditoria', 'Auditoria', 'atividade'], ['configuracoes', 'Configurações', 'engrenagem']];
 function lateral() {
   const h = location.hash || '#/empresas';
-  $('lateral').innerHTML = `<a class="marca" href="#/empresas">${marcaHtml()}</a><span class="selo-escopo">Plataforma</span>
-    <button type="button" class="busca-lat" id="abrir-busca" style="margin-top:12px">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
+  const email = C.eu.usuario.email;
+  // Mesmo esqueleto do app (padrão assistente): marca, Buscar, seções e a conta no pé, com Aparência e Sair no menu.
+  $('lateral').innerHTML = `<div class="lat-topo"><a class="marca" href="#/empresas">${marcaHtml()}</a><button type="button" class="icone-btn fechar-lateral" id="fechar-lateral" aria-label="Fechar menu">${ICONE.fechar}</button></div><span class="selo-escopo">Plataforma</span>
+    <div class="lat-acoes"><button type="button" class="item-lat busca-lat" id="abrir-busca">${ICONE.busca}<span class="nome">Buscar</span><span class="kbd">${teclaPaleta()}</span></button></div>
     <nav class="lateral-rolagem" aria-label="Console">
       ${SECOES.map(([id, nome, ic]) => `<a class="item-lat${h.startsWith(`#/${id}`) ? ' ativo' : ''}" href="#/${id}" ${h.startsWith(`#/${id}`) ? 'aria-current="page"' : ''}>${ICONE[ic]}<span class="nome">${nome}</span></a>`).join('')}
     </nav>
-    <div class="lateral-pe"><span class="btn-lat" style="cursor:default">${esc(C.eu.usuario.email)}</span><button class="btn-lat" id="sair">Sair do console</button>${window.temaGreenIA ? window.temaGreenIA.seletorHtml('console-tema', 'tema-lateral') : ''}${rodapePlataformaHtml({ powered: false })}</div>`;
-  window.temaGreenIA?.ligarSeletor($('lateral'));
+    <div class="lateral-pe">${contaHtml({ nome: C.eu.usuario.name || email, email, sub: 'Console da plataforma', itens: `${temaMenuHtml('Aparência')}${separadorMenu}${itemMenu('id="sair"', ICONE.sair, 'Sair do console')}` })}${rodapePlataformaHtml({ powered: false })}</div>`;
   $('abrir-busca').onclick = () => abrirPaleta();
-  $('sair').onclick = async () => { await api('/api/plataforma/sair', { metodo: 'POST' }).catch(() => {}); location.reload(); };
+  $('fechar-lateral').onclick = () => { $('lateral').classList.remove('aberta'); $('menu')?.focus(); };
+  ligarConta({ sair: async () => { await api('/api/plataforma/sair', { metodo: 'POST' }).catch(() => {}); location.reload(); } });
 }
+// Topo mínimo: o título da tela e a ação principal à direita; nas telas de detalhe, a trilha de volta à seção.
 function cab(titulo, acoes = '', voltar = '') {
+  const secao = voltar ? SECOES.find(x => voltar.startsWith(`#/${x[0]}`))?.[1] || 'Voltar' : '';
   return `<header class="cabeca"><div class="cabeca-titulo">
-    <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação">${ICONE.menu}</button>
-    <span class="migalha"><span>Plataforma</span><span class="sep">/</span>${voltar ? `<a href="${voltar}">${esc(SECOES.find(x => voltar.startsWith(`#/${x[0]}`))?.[1] || 'Voltar')}</a><span class="sep">/</span>` : ''}</span><h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
+    <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}</button>
+    ${voltar ? `<span class="migalha"><a href="${voltar}">${esc(secao)}</a><span class="sep" aria-hidden="true">/</span></span>` : ''}<h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
 }
 function tela(titulo, corpo, acoes = '', voltar = '') {
   C.mais = {};   // ações do "Mais ações" da tela aberta
   $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${faixaTopo()}${corpo}</div></div>`;
-  $('menu').onclick = () => $('lateral').classList.toggle('aberta');
+  $('menu').onclick = () => { const aberta = $('lateral').classList.toggle('aberta'); $('menu').setAttribute('aria-expanded', String(aberta)); if (aberta) $('lateral').querySelector('a,button')?.focus(); };
 }
 // Avisos da plataforma no topo de todas as telas, num aviso só (no máximo um por tela), cada um com a ação que pede:
 // envio de email falhando (os códigos de acesso das empresas não chegam; motivo real, sem segredos) e vencimento ou

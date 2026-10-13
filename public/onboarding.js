@@ -32,7 +32,7 @@ export function vistaOnboarding() {
       <nav class="guia-etapas" aria-label="Etapas do guia">${lista.map((x, i) => `<button type="button" class="guia-etapa" data-guia-passo="${i}" ${i === passo ? 'aria-current="step"' : ''} title="${esc(x.titulo)}"><span class="guia-num" aria-hidden="true">${i + 1}</span>${esc(x.curto)}<span class="sr"> · ${esc(x.titulo)}</span></button>`).join('')}</nav>
       <article class="guia-cartao"><span class="dica">Passo ${passo + 1} de ${lista.length}${ler().concluido ? ' · <span class="guia-concluido">Guia concluído</span>' : ''}</span><h2 tabindex="-1" id="guia-titulo">${esc(e.titulo)}</h2><p>${esc(e.texto)}</p><blockquote>${esc(e.exemplo)}</blockquote><div class="guia-cuidado"><b>Antes de continuar</b><p>${esc(e.cuidado)}</p></div><a class="btn-texto guia-ir" href="${e.link}">${esc(e.acao)} →</a></article>
       <div class="guia-rodape"><button type="button" class="btn btn-linha" id="guia-voltar" ${passo ? '' : 'disabled'}>Voltar</button><button type="button" class="btn btn-verde" id="guia-seguir">${fim ? 'Concluir guia' : 'Próximo passo'}</button></div>
-      <p class="guia-saida"><a class="btn-texto" href="#/nova">Sair do guia</a><span class="dica">Volte pelo botão Ajuda.</span></p></div></div></div>`;
+      <p class="guia-saida"><a class="btn-texto" href="#/nova">Sair do guia</a><span class="dica">Volte pela Ajuda, no menu da sua conta.</span></p></div></div></div>`;
     ligarCabecalho();
     const ir = n => { passo = n; gravar({ ...ler(), passo }); desenhar(); document.getElementById('guia-titulo').focus({ preventScroll: true }); };
     document.querySelectorAll('[data-guia-passo]').forEach(b => { b.onclick = () => ir(Number(b.dataset.guiaPasso)); });

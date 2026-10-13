@@ -4,6 +4,7 @@ import {chromium} from 'playwright-core';
 import {subirPlataforma} from '../test/ajuda-plataforma.js';
 import {salvarConfig} from '../src/config.js';
 import {mkdirSync,writeFileSync} from 'node:fs';
+import { itemConta, abrirAjudaTela } from './casca.js';
 
 let S,nav,ctx,p;const erros=[],medicoes=[];
 const telas=['nova','conversas','quick-wins','quick-wins/programados','qw/nova','qw/nova/modelos','conhecimento','pendencias','preparacao','pessoas/grupos','primeiros-passos','visao-geral','uso','pessoas','modelos','modelos/roteamento','modelos/historico','politicas','politicas/texto','atividade','integracoes','integracoes/nova','configuracoes','pessoas/areas','pessoas/perfis','empresa/marca','empresa/landing','empresa/url','empresa/acessos'];
@@ -42,12 +43,12 @@ for(const width of [1280,390,320])test(`interface privada: 29 telas em ${width}p
 test('estado de erro e diálogo: mensagem legível, recuperação e foco por teclado',async()=>{
  await p.setViewportSize({width:390,height:844});await p.route('**/api/acompanhamento',r=>r.abort());await p.goto(S.base+'/app#/pendencias');await p.reload();await p.waitForSelector('.cabeca h1');await p.waitForFunction(()=>!document.querySelector('#principal').hasAttribute('aria-busy'));assert.match(await p.locator('#principal').innerText(),/Tentar novamente/);
  assert.equal(new URL(p.url()).hash,'#/pendencias');
- await p.unroute('**/api/acompanhamento');await p.goto(S.base+'/app#/pendencias');await p.reload();await p.waitForSelector('#pend-lista');await p.click('#ajuda-tela');await p.waitForSelector('[role=dialog]');
+ await p.unroute('**/api/acompanhamento');await p.goto(S.base+'/app#/pendencias');await p.reload();await p.waitForSelector('#pend-lista');await itemConta(p,'#ajuda-tela');await p.waitForSelector('[role=dialog]');
  assert.equal(await p.locator('#ajuda-tela').innerText(),'Ajuda');
  assert.ok(await p.locator('.modal-fundo').evaluate(el=>{const r=el.getBoundingClientRect();return getComputedStyle(el).position==='fixed'&&r.top===0&&r.bottom<=innerHeight+1;}));
  assert.ok(await p.locator('[role=dialog]').evaluate(el=>{const r=el.getBoundingClientRect();return r.right<=innerWidth&&r.bottom<=innerHeight+1;}));await p.screenshot({path:'/tmp/greenia-ux/ajuda-390.png'});
- await p.keyboard.press('Tab');assert.ok(await p.evaluate(()=>!!document.activeElement.closest('[role=dialog]')));await p.keyboard.press('Escape');assert.equal(await p.evaluate(()=>document.activeElement.id),'ajuda-tela');
- await p.goto(S.base+'/app#/conversas');await p.waitForSelector('.hc-pagina');await p.click('#ajuda-tela');await p.waitForSelector('#ajuda-titulo');assert.match(await p.locator('#ajuda-titulo').innerText(),/Retome suas conversas/);await p.keyboard.press('Escape');
+ await p.keyboard.press('Tab');assert.ok(await p.evaluate(()=>!!document.activeElement.closest('[role=dialog]')));await p.keyboard.press('Escape');assert.equal(await p.evaluate(()=>document.activeElement.id),'conta');
+ await p.goto(S.base+'/app#/conversas');await p.waitForSelector('.hc-pagina');await abrirAjudaTela(p);assert.match(await p.locator('#ajuda-titulo').innerText(),/Retome suas conversas/);await p.keyboard.press('Escape');
 });
 test('troca rápida de telas: resposta lenta não deixa conteúdo de outra rota',async()=>{
  await p.goto(S.base+'/app#/nova');await p.reload();await p.waitForSelector('#entrada');

@@ -65,7 +65,6 @@
   #modal .ajuda-contextual{max-width:100%;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
   .app .cabeca{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
   .app .cabeca-titulo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;min-width:0;align-items:center}
-  .app .cabeca :is(.migalha,.selo-contexto){display:none}
   .app .cabeca-titulo>h1{white-space:normal;overflow-wrap:normal;word-break:normal;overflow:visible}
   .app .cabeca-titulo>.btn{grid-column:1 / -1;justify-self:start}
   .app .cabeca-acoes{gap:8px;justify-self:end;align-self:start;flex-wrap:wrap;max-width:100%}
@@ -105,23 +104,13 @@
   .app .cabeca-titulo>h1{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:17px}
   .app .cabeca-titulo>.btn{flex-basis:100%}
   .app .cabeca-acoes{flex:none;flex-wrap:nowrap;gap:4px;align-self:center;max-width:none}
-  .app .cabeca :is(.menu-btn,.cabeca-titulo>.icone-btn)>span{display:none}   /* "Sair" continua escrito */
+  .app .cabeca :is(.menu-btn,.cabeca-titulo>.icone-btn)>span{display:none}
   .app .cabeca .menu-btn{width:44px;padding:0}
-  .app .cabeca .usuario-meta{display:none}
-  .app .cabeca .ajuda-tela{padding:0 10px}
   .barra-conversa{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;gap:8px 12px;padding:6px 12px}
   .barra-conversa>*{flex:none}
   .barra-conversa::after{content:'';position:sticky;right:-12px;flex:0 0 28px;align-self:stretch;margin:-6px -12px -6px -28px;background:linear-gradient(90deg,transparent,var(--surface));pointer-events:none}   /* indica que a faixa continua */
   .barra-conversa .qw-contexto{max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .compositor .nota-compositor{font-size:11px;margin-top:4px}
-}
-/* Telas estreitas: os ícones numa linha e o título inteiro na linha de baixo, para continuar legível. */
-@media(max-width:480px){
-  .app .cabeca{flex-wrap:wrap;row-gap:2px}
-  .app .cabeca-titulo{display:contents}
-  .app .cabeca-titulo>.menu-btn{margin-right:auto}
-  .app .cabeca-acoes{order:2}
-  .app .cabeca-titulo>h1{order:3;flex:1 1 100%;padding-inline:4px}
 }
 /* Altura curta (teclado aberto no celular): a nota de rodapé do envio sai, sem mexer no layout durante o toque. */
 @media(max-width:760px) and (max-height:600px){.compositor .nota-compositor{display:none}}
@@ -159,18 +148,11 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 }
 
 /* === Uso e chat (QA UX) === */
-/* Lateral: só o lugar atual em destaque ("Nova conversa" quando é a tela aberta). No celular, o menu tem
-   "Fechar" e a conta (nome, email e Sair). */
-.fechar-lateral,.conta-lateral{display:none}
+/* Lateral: no celular, o menu tem "Fechar". */
+.fechar-lateral{display:none}
 @media(max-width:860px){
   .lateral .fechar-lateral{display:inline-grid;place-items:center;position:absolute;top:calc(8px + env(safe-area-inset-top));right:6px;width:44px;height:44px;min-width:44px;padding:0;z-index:1}
   .lateral .marca{margin-right:44px}
-  .lateral .conta-lateral{display:flex;align-items:center;gap:10px;padding:4px 0 8px 8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
-  .conta-lateral-nome{display:flex;flex-direction:column;min-width:0;flex:1}
-  .conta-lateral-nome b{font:500 13px/1.3 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .conta-lateral-nome span{font:400 12px/1.3 var(--sans);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .lateral-pe .conta-lateral .btn-lat{flex:none;display:inline-flex;align-items:center;gap:6px;width:auto;color:var(--ink)}
-  .conta-lateral .btn-lat svg{width:16px;height:16px}
 }
 .app .cabeca .acoes-conversa{width:40px;min-width:40px;height:40px;min-height:40px;color:var(--muted)}
 @media(max-width:760px){.app .cabeca .acoes-conversa{width:44px;min-width:44px;height:44px;min-height:44px}}
@@ -207,7 +189,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 
 /* === Quick Wins (QA UX) === */
 /* Uma trilha só: com a trilha da página, a do cabeçalho some (o h1 já é o nome da página). */
-.app #principal:has(.pg-trilha)>.cabeca .migalha{display:none}
 /* Seções da página em h2 com a mesma aparência discreta de antes. */
 .app .pagina .qw-lista-cabeca h2{font:600 13px var(--sans)!important;letter-spacing:.02em;color:var(--muted)!important;margin:0!important;text-transform:none}
 .app .pagina .plano h2{font:600 14px/1.4 var(--sans);margin:0 0 10px;color:var(--ink)}
@@ -395,11 +376,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 /* === Layout: uso e chat === Telas de quem usa (nova conversa, conversa, histórico, lateral, primeiros passos,
    pendências, conhecimento, ajuda). Cartões no padrão .grade-cartoes/.cartao; títulos longos quebram em até duas
    linhas (o título inteiro fica no title) em vez de cortar numa linha; telas da área com a mesma coluna. */
-/* Lateral: conversas recentes em até 2 linhas; o "⋯" acompanha a primeira linha. */
-.recentes-lat .item-lat.sub .nome{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.35}
-.recentes-lat .hc-recente>.hc-acoes{margin-top:2px}
-/* Celular: e-mail da conta quebra em vez de cortar. */
-.lateral .conta-lateral-nome :is(b,span){white-space:normal;text-overflow:clip;overflow-wrap:anywhere}
 /* Cabeçalho: título da tela em até 2 linhas, em todas as larguras. */
 .app .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:break-word;text-wrap:balance}
 @media(max-width:760px){.app .cabeca-titulo>h1{white-space:normal;text-overflow:clip}}
@@ -869,11 +845,6 @@ body.console .pagina-dentro>h2:first-child{font:600 22px/1.3 var(--sans);letter-
 #modal .ajuda-contextual .ajuda-perguntas{margin:0 0 20px}
 #modal .ajuda-contextual .ajuda-perguntas h3{margin:16px 0 4px;font:600 14px/1.4 var(--sans);color:var(--ink)}
 #modal .ajuda-contextual .ajuda-perguntas p{margin:0;font-size:14px;line-height:1.6;color:var(--ink-2,var(--ink))}
-/* Lateral de quem usa: "Nova conversa" é navegação, não a ação principal de cada tela; destaque só quando é o lugar atual. */
-.app .lateral .nova.btn-linha{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500;box-shadow:none}
-.app .lateral .nova.btn-linha svg{color:var(--forest-text)}
-.app .lateral .nova.btn-linha:hover{background:var(--sand)}
-.app .lateral .nova.btn-linha[aria-current="page"]{background:var(--mint);border-color:color-mix(in srgb,var(--forest) 45%,var(--line-strong));color:var(--forest-text)}
 @media(max-width:760px){
   .app .pagina .segmentos.conhecimento-vistas{display:flex;width:100%}
   .segmento{flex:1 1 0;min-height:44px;padding:0 8px;white-space:normal;text-align:center}
@@ -1099,7 +1070,7 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 .app .lateral .item-lat.item-principal{font-weight:400;color:var(--tinta-2)}
 .app .lateral .item-lat.item-principal.ativo{font-weight:500;color:var(--ink)}
 .app .lateral .lateral-rolagem>h2{font:500 12px/1.3 var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin:16px 8px 4px;padding:0}
-.lateral .lat-contexto{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:6px 10px;border-radius:8px;background:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong);font:600 12px/1.3 var(--sans);letter-spacing:.06em}
+.lateral .lat-contexto{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:6px 10px;border-radius:8px;background:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong);font:600 13px/1.3 var(--sans);letter-spacing:0;text-transform:none}
 .lateral .lat-contexto svg{width:15px;height:15px;flex:none;color:var(--forest-text)}
 /* Histórico completo, por data. */
 .historico-lat{margin-top:18px}
@@ -1114,14 +1085,16 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 .historico-lat .hc-recente:hover{background:var(--sand)}
 .app .lateral .historico-lat .item-lat.sub{flex:1;min-width:0;min-height:34px;padding:6px 8px;font:400 14px/1.35 var(--sans);color:var(--tinta-2);background:none}
 .app .lateral .historico-lat .item-lat.sub.ativo{background:var(--sand-hover);color:var(--ink);font-weight:500}
-.historico-lat .item-lat.sub .nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+/* Títulos longos quebram em até 2 linhas (regra da plataforma: nada some com reticências se cabe em duas); o título
+   completo fica no tooltip. */
+.historico-lat .item-lat.sub .nome{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
 .historico-lat .hist-sigilo{display:inline-flex;flex:none;color:var(--muted)}
 .historico-lat .hist-sigilo svg{width:13px;height:13px}
 /* "⋯" de cada conversa: aparece ao passar o mouse, no foco e na conversa aberta (sempre visível no toque). */
 .historico-lat .hc-recente>.hc-acoes{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-width:30px;min-height:30px;padding:0;margin:0;justify-content:center;border-radius:6px;opacity:0;background:var(--sand)}
 .historico-lat .hc-recente:is(:hover,:focus-within)>.hc-acoes,.historico-lat .hc-recente:has(.ativo)>.hc-acoes,.historico-lat .hc-acoes[aria-expanded="true"]{opacity:1}
 .historico-lat .hc-recente:has(.ativo)>.hc-acoes{background:var(--sand-hover)}
-.historico-lat .hc-recente:is(:hover,:focus-within,:has(.ativo)) .item-lat.sub{padding-right:34px}
+.app .lateral .historico-lat .hc-recente .item-lat.sub{padding-right:32px}
 .hist-mais{display:block;width:100%;margin:8px 0 4px;padding:8px;border:0;border-radius:8px;background:none;color:var(--muted);font:500 13px var(--sans);text-align:left;cursor:pointer}
 .hist-mais:hover{background:var(--sand);color:var(--ink)}
 .app .lateral-rolagem{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-bottom:8px}
@@ -1133,8 +1106,8 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 .conta-btn:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
 .conta-btn .avatar{width:32px;height:32px;background:var(--deep);color:var(--sobre-deep);border:0;font:600 12px/1 var(--sans)}
 .conta-nome{display:flex;flex-direction:column;min-width:0;flex:1}
-.conta-nome b{font:500 14px/1.3 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.conta-nome small{font:400 12px/1.3 var(--sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conta-nome b{font:500 14px/1.3 var(--sans);overflow-wrap:anywhere}
+.conta-nome small{font:400 12px/1.3 var(--sans);color:var(--muted);overflow-wrap:anywhere}
 .conta-seta{display:inline-flex;color:var(--muted);flex:none}
 .conta-seta svg{width:16px;height:16px}
 .lateral .lateral-pe .rodape-plataforma{border-top:0;margin:2px 0 0;padding:4px 8px 0;min-height:18px}
@@ -1156,30 +1129,30 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 .menu-conta [role="menuitemradio"][aria-checked="true"]{background:var(--paper);color:var(--ink);box-shadow:var(--sombra-1),0 0 0 1px var(--line)}
 .menu-conta-sep{height:1px;margin:5px 4px;background:var(--line)}
 /* Topo mínimo: o título da tela (ou o da conversa, com o "⋯" dela). */
-.app .cabeca{min-height:56px;padding:calc(8px + env(safe-area-inset-top)) 24px 8px;border-bottom-color:color-mix(in srgb,var(--line) 70%,transparent);flex-wrap:nowrap}
-.app .cabeca-titulo{gap:2px;align-items:center}
-.app .cabeca-titulo>h1{font:600 17px/1.3 var(--sans);letter-spacing:-.01em;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;display:block}
-.app #principal:has(#msgs) .cabeca-titulo>h1{font-weight:500;font-size:15px}
-.app #principal:has(#msgs)>.cabeca{border-bottom-color:transparent;background:var(--paper);backdrop-filter:none}
-.app .cabeca .acoes-conversa{color:var(--muted);border-radius:8px}
-.app .cabeca-acoes{flex:none;gap:4px}
-.app .cabeca-acoes:empty{display:none}
+body:not(.plataforma) .app .cabeca{min-height:56px;padding:calc(8px + env(safe-area-inset-top)) 24px 8px;border-bottom-color:color-mix(in srgb,var(--line) 70%,transparent);flex-wrap:nowrap}
+body:not(.plataforma) .app .cabeca-titulo{gap:2px;align-items:center}
+body:not(.plataforma) .app .cabeca-titulo>h1{font:600 17px/1.3 var(--sans);letter-spacing:-.01em;white-space:normal;text-overflow:clip;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
+body:not(.plataforma) .app #principal:has(#msgs) .cabeca-titulo>h1{font-weight:500;font-size:15px}
+body:not(.plataforma) .app #principal:has(#msgs)>.cabeca{border-bottom-color:transparent;background:var(--paper);backdrop-filter:none}
+body:not(.plataforma) .app .cabeca .acoes-conversa{color:var(--muted);border-radius:8px}
+body:not(.plataforma) .app .cabeca-acoes{flex:none;gap:4px}
+body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .nova-topo{display:none}
 @media(max-width:860px){
-  .app .cabeca{display:flex;flex-wrap:nowrap;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;min-height:52px;gap:4px}
-  .app .cabeca-titulo{display:flex;flex-wrap:nowrap;flex:1 1 auto;min-width:0;gap:2px}
-  .app .cabeca-titulo>h1{order:0;flex:0 1 auto;min-width:0;font-size:16px;padding:0 2px}
-  .app .cabeca-titulo>.menu-btn{margin:0}
-  .app .cabeca .nova-topo{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;padding:0;color:var(--ink)}
-  .app .cabeca-acoes{display:flex;order:0;align-self:center}
-  .app .cabeca .menu-btn>span{display:none}
+  body:not(.plataforma) .app .cabeca{display:flex;flex-wrap:nowrap;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;min-height:52px;gap:4px}
+  body:not(.plataforma) .app .cabeca-titulo{display:flex;flex-wrap:nowrap;flex:1 1 auto;min-width:0;gap:2px}
+  body:not(.plataforma) .app .cabeca-titulo>h1{order:0;flex:0 1 auto;min-width:0;font-size:16px;line-height:1.25;padding:0 2px;white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2}
+  body:not(.plataforma) .app .cabeca-titulo>.menu-btn{margin:0}
+  body:not(.plataforma) .app .cabeca .nova-topo{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;padding:0;color:var(--ink)}
+  body:not(.plataforma) .app .cabeca-acoes{display:flex;order:0;align-self:center}
+  body:not(.plataforma) .app .cabeca .menu-btn>span{display:none}
   .app .lateral{width:min(300px,86vw);padding-top:calc(10px + env(safe-area-inset-top))}
   .lat-topo .lat-recolher{display:none}
   .lateral .lat-topo .fechar-lateral{position:static;width:44px;height:44px;min-width:44px;min-height:44px}
   .lateral .lat-topo .marca{margin-right:0}
   .app .lateral .item-lat,.lateral .lat-acoes .item-lat,.app .lateral .historico-lat .item-lat.sub,.conta-btn{min-height:44px}
   .historico-lat .hc-recente>.hc-acoes{opacity:1;width:40px;height:40px;min-width:40px;min-height:40px;background:none}
-  .historico-lat .hc-recente .item-lat.sub{padding-right:44px}
+  .app .lateral .historico-lat .hc-recente .item-lat.sub{padding-right:44px}
 }
 @media(pointer:coarse){
   .historico-lat .hc-recente>.hc-acoes{opacity:1}

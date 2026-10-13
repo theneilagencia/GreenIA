@@ -218,7 +218,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .lateral{width:248px;flex:none;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;overflow:hidden}
 .lateral .marca{padding:6px 8px 0;margin-bottom:6px}
 .lateral .logo-empresa{display:block;margin:10px 8px 4px;max-height:22px;max-width:105px}   /* 25% menor (30 × 140) */
-.lateral .nova{width:100%;justify-content:flex-start;margin:14px 0 10px}
 .lateral-rolagem{flex:1;overflow-y:auto;min-height:0;margin:0 -4px;padding:0 4px}
 .lateral h2{font:600 11px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 8px;margin:18px 0 6px}
 .item-lat{display:flex;align-items:center;gap:8px;text-align:left;width:100%;background:none;border:none;color:var(--ink);border-radius:6px;padding:7px 8px;font:400 14px var(--sans);text-decoration:none}
@@ -231,19 +230,13 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .vazio-lat{font:400 13px/1.5 var(--sans);color:var(--muted);padding:2px 8px 8px}
 .selo-lat{font:500 12px var(--sans);color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:0 6px;flex:none}
 .lateral-pe{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;display:flex;flex-direction:column;gap:1px}
-.lateral-pe .btn-lat{text-align:left;background:none;border:none;color:var(--muted);font:400 13px var(--sans);padding:6px 8px;text-decoration:none;border-radius:6px}
-.lateral-pe .btn-lat:hover{background:var(--sand);color:var(--ink)}
-.lateral-pe .nota{font:400 12px/1.45 var(--sans);color:var(--muted);margin:6px 8px 0}
 .principal{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--paper)}
 .cabeca{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 28px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap;min-height:57px}
 .cabeca-titulo{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .cabeca h1{font:600 16px var(--sans);margin:0;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cabeca-acoes{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .menu-btn{display:none}
-.usuario{display:flex;align-items:center;gap:10px}
 .avatar{width:30px;height:30px;border-radius:999px;background:var(--sand-hover);color:var(--ink);display:flex;align-items:center;justify-content:center;font:600 12px var(--sans);flex:none}
-.usuario-meta{display:flex;flex-direction:column}
-.usuario-meta b{font:500 13px/1.2 var(--sans)} .usuario-meta span{font:400 12px/1.2 var(--sans);color:var(--muted)}
 .fundo-lateral{display:none;position:fixed;inset:0;z-index:35;background:var(--sobreposicao)}
 
 /* Páginas de trabalho e gestão */
@@ -362,7 +355,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
   .lateral.aberta ~ .fundo-lateral{display:block}
   .menu-btn{display:inline-flex}
   .cabeca{padding:calc(8px + env(safe-area-inset-top)) 12px 8px;min-height:50px}
-  .usuario-meta{display:none}
   .barra-conversa{padding:8px 14px}
   .mensagens{padding:18px 14px} .pagina{padding:18px 14px 40px}
   .compositor{padding:0 14px calc(10px + env(safe-area-inset-bottom))}
@@ -403,7 +395,7 @@ body.console{display:flex;flex-direction:column;min-height:100vh;background:var(
 .lateral-plataforma h2{color:#8B9690}
 .lateral-plataforma .item-lat{color:#DDE3DF} .lateral-plataforma .item-lat:hover{background:rgba(255,255,255,.06)}
 .lateral-plataforma .item-lat.ativo{background:rgba(255,255,255,.1);color:#fff}
-.lateral-plataforma .lateral-pe{border-top-color:rgba(255,255,255,.1)} .lateral-plataforma .lateral-pe .btn-lat{color:#A9B4AE} .lateral-plataforma .lateral-pe .btn-lat:hover{background:rgba(255,255,255,.06);color:#fff}
+.lateral-plataforma .lateral-pe{border-top-color:rgba(255,255,255,.1)}
 .selo-escopo{display:inline-block;margin:10px 8px 4px;font:600 10.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#131A16;background:#B9E85A;border-radius:4px;padding:2px 7px}
 .selo-escopo.empresa{background:var(--mint);color:var(--forest-text)}
 .entrar-console{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--lateral-console)}
@@ -538,7 +530,6 @@ select.entrada{appearance:none;background-image:var(--seta-select);background-si
 .item-lat.ativo{background:var(--paper);color:var(--ink);font-weight:500;box-shadow:0 0 0 1px var(--line),var(--sombra-1)}
 .item-lat.ativo svg{color:var(--forest)}
 .item-lat.sub{padding-left:34px;font-size:12.5px}
-.lateral .nova{height:34px;margin:12px 0 6px}
 .busca-lat{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;margin:0 0 4px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--muted);font:400 13px var(--sans);cursor:pointer;transition:border-color var(--rapido)}
 .busca-lat:hover{border-color:var(--line-strong);color:var(--ink)}
 .busca-lat svg{width:15px;height:15px}
@@ -661,7 +652,7 @@ select.entrada{appearance:none;background-image:var(--seta-select);background-si
   input[type=color]{min-height:44px;min-width:56px}
   input[type=file]{min-height:44px;font-size:15px}
   input[type=checkbox],input[type=radio]{width:20px;height:20px}
-  .item-lat,.btn-lat,.lateral-pe .btn-lat{min-height:44px;display:flex;align-items:center}
+  .item-lat{min-height:44px;display:flex;align-items:center}
   .busca-lat{min-height:44px}
   .switch{position:relative}
   .switch::after{content:'';position:absolute;inset:-12px -8px}
@@ -1691,34 +1682,14 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .fontes>p.dica:last-child{line-height:1.5}
 .qc-acoes{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .campo-destacado{outline:3px solid var(--verde, #2f7d4f);outline-offset:4px;border-radius:6px;transition:outline-color .4s}
-/* Lateral: itens principais (Conversas, Quick Wins, Conhecimento, Administração) com mais peso; conversas recentes
-   como subitens de Conversas (menores, recuadas, truncadas), no máximo 5, com "Ver todas" quando houver mais. */
+/* Lateral: atalhos e itens da Administração (o visual da casca do assistente fica no fim de interface.css). */
 .item-lat.item-principal{font-weight:500;color:var(--ink)}
 .item-lat.item-principal.ativo{font-weight:600}
-.recentes-lat{margin:2px 0 6px 17px;padding-left:8px;border-left:1px solid var(--line)}
-.recentes-lat .item-lat.sub{padding:5px 8px;font-size:12.5px;font-weight:400;color:var(--muted);min-height:32px}
-.recentes-lat .item-lat.sub.ativo{color:var(--ink);font-weight:500}
-.recentes-lat .item-lat.sub .nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.recentes-lat .ver-todas{color:var(--forest);font-weight:500}
 .item-lat:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
-@media (max-width: 900px){.item-lat.item-principal,.recentes-lat .item-lat.sub{min-height:44px}}
-/* Telas baixas e celular: a lista de recentes é a parte que rola; os itens principais nunca saem da tela. */
-.recentes-lat{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
-@media (max-width: 900px){.recentes-lat{max-height:24vh}}
-/* Itens principais nunca somem: só a lista de recentes encolhe (e rola) quando falta altura; "Ver todas" fica fixo
-   no fim dela. */
+@media (max-width: 900px){.item-lat.item-principal{min-height:44px}}
+/* A lista da lateral rola; os itens dela não encolhem. */
 .lateral-rolagem{display:flex;flex-direction:column}
 .lateral-rolagem>*{flex-shrink:0}
-.lateral-rolagem>.recentes-lat{flex:0 1 auto;min-height:76px}
-.recentes-lat .ver-todas{position:sticky;bottom:0;background:var(--surface)}
-/* Tela baixa: o rodapé da lateral (política, reportar) vai para o fim da rolagem e as recentes ficam em ~2 linhas,
-   para Conversas, Quick Wins, Conhecimento e Administração continuarem à vista. */
-@media (max-height: 640px){
-  .lateral{overflow-y:auto}
-  .lateral>*{flex-shrink:0}
-  .lateral-rolagem{flex:none;overflow:visible}
-  .lateral-rolagem>.recentes-lat{max-height:96px;min-height:0}
-}
 
 /* Clareza e conforto: componentes compartilhados, sem alterar as regras do produto. */
 .pular-conteudo{position:fixed;top:12px;left:12px;z-index:1000;padding:12px 18px;border-radius:8px;background:var(--paper);color:var(--forest-text);box-shadow:var(--sombra-3);transform:translateY(-180%)}
@@ -1733,8 +1704,6 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .app .btn-pequeno{font-size:14px;min-height:40px}
 .app .icone-btn{min-width:40px;min-height:40px}
 .app .lateral h2{font-size:12px;letter-spacing:.03em;color:var(--muted)}
-.app .recentes-grupo{margin-top:16px;flex:0 1 auto;min-height:0}
-.app .recentes-grupo h2{margin-top:0}
 .app .qc p{font-size:14px;line-height:1.55}
 .app .qc-titulo{font-size:16px}
 .app .qc,.app .painel-integracoes{border-radius:12px}
@@ -1767,9 +1736,8 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .filtros-biblioteca .campo:first-child{flex:2}
 .filtros-biblioteca label{display:block;margin-bottom:6px}
 .qw-item[hidden],.qw-bloco[hidden]{display:none!important}
-@media(max-width:900px){.app .icone-btn,.app .btn-pequeno{min-width:44px;min-height:44px}.app .cabeca h1{font-size:18px}.app .recentes-grupo{margin-top:12px}}
+@media(max-width:900px){.app .icone-btn,.app .btn-pequeno{min-width:44px;min-height:44px}.app .cabeca h1{font-size:18px}}
 @media(max-width:560px){.rascunho-barra{align-items:flex-start;flex-wrap:wrap}.painel-integracoes .linha-botoes{flex-direction:column;align-items:stretch}.continuar-caso a{min-height:44px}.app .pagina h2{font-size:24px}}
-@media(max-height:640px){.app .recentes-grupo .recentes-lat{max-height:76px;min-height:0}}
 
 /* Primeiros passos e biblioteca: leitura guiada, estados explícitos e navegação por bases. */
 .ajuda-guia{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--forest-text);font:600 18px var(--sans);border:1px solid var(--line);border-radius:50%}
@@ -1793,12 +1761,11 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 @media(max-width:1100px){.conhecimento-documentos{grid-template-columns:1fr}}
 @media(max-width:760px){.guia-cartao{padding:20px}.conhecimento-envio{padding:16px}.conhecimento-documento{padding:16px}.conhecimento-resultados{flex-wrap:wrap}.cabeca-acoes .ajuda-guia{min-width:44px;min-height:44px}}
 @media(prefers-reduced-motion:reduce){.app .lateral{transition:none!important}}
-@media(max-width:560px){.app .cabeca .migalha,.app .cabeca .avatar{display:none}.app .cabeca-titulo{min-width:0}.app .cabeca h1{white-space:normal;overflow-wrap:anywhere}.app .cabeca .selo-contexto{display:none}}
+@media(max-width:560px){.app .cabeca-titulo{min-width:0}.app .cabeca h1{white-space:normal;overflow-wrap:anywhere}}
 /* Acompanhamento: hierarquia legível, ações explícitas e detalhes progressivos. */
 .acompanhamento{max-width:1080px}.acomp-resumo{background:var(--fundo,#faf9f5);border:1px solid var(--linha,#ddd);border-radius:16px;padding:24px;margin:24px 0}.acomp-resumo progress{width:100%;height:8px;accent-color:var(--verde,#1b7950)}.acomp-lista,.acomp-passos{list-style:none;padding:0;margin:24px 0;display:grid;gap:12px}.acomp-lista>li,.acomp-passos>li{display:flex;align-items:flex-start;gap:20px;padding:22px;border:1px solid var(--linha,#ddd);border-radius:16px;background:var(--branco,#fff)}.acomp-lista>li>div,.acomp-passos>li>div{min-width:0;flex:1}.acomp-lista h2,.acomp-passos h2{font-size:18px;line-height:1.4;margin:4px 0 8px}.acomp-lista p,.acomp-passos p{margin:6px 0 12px;line-height:1.6;overflow-wrap:anywhere}.acomp-lista details{margin-top:14px}.acomp-lista form{display:grid;gap:14px;margin-top:16px}.visoes-salvas{margin:16px 0}.comparacao-campo{padding:18px;border:1px solid var(--linha,#ddd);border-radius:12px;margin:14px 0}.comparacao-campo p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}.execucao-detalhe{margin:20px 0;border-top:1px solid var(--linha,#ddd);padding-top:12px;font-size:14px}.execucao-linha{padding-left:24px;display:grid;gap:14px;margin:20px 0}.execucao-linha li::marker{color:var(--verde,#1b7950);font-weight:600}.execucao-linha p{margin-top:6px;line-height:1.6}.ajuda-contextual p{line-height:1.7;margin:20px 0}.auditoria-detalhe{min-width:180px}.auditoria-detalhe dl{display:grid;grid-template-columns:minmax(80px,1fr) minmax(120px,2fr);gap:10px;margin:16px 0}.auditoria-detalhe dt{font-weight:600}.auditoria-detalhe dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}.acompanhamento .btn,.visoes-salvas button{min-height:44px}
 @media(max-width:600px){.acomp-lista>li,.acomp-passos>li{padding:18px;gap:12px;flex-wrap:wrap}.acomp-lista>li>.btn,.acomp-passos>li>.btn{width:100%;justify-content:center}.acomp-passos>li>div{flex-basis:calc(100% - 50px)}.acomp-lista>li>div{flex-basis:100%}.acompanhamento .filtros-biblioteca{display:grid;grid-template-columns:1fr}.acomp-resumo{padding:18px}}
 /* Em telas baixas, preserve os cinco destinos principais e o acesso ao histórico. */
-@media(max-height:640px){.app .recentes-grupo{margin-top:4px}.app .recentes-grupo h2{margin-bottom:2px}.app .recentes-grupo .recentes-lat{max-height:44px;min-height:0}}
 
 /* Preparar um trabalho por escolhas concretas, sem editor técnico. */
 .qw-preparacao{border:1px solid var(--borda,#e1e5e1);border-radius:16px;padding:20px;margin:20px 0;background:var(--papel,#fff)}
@@ -1914,11 +1881,6 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .tema-escolha select[data-tema-seletor]{min-height:36px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:8px;background-color:var(--campo);color:var(--ink);font:400 13.5px var(--sans)}
 .tema-escolha select:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
 .tema-ajuda{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
-.tema-lateral{padding:8px 8px 4px;gap:8px}
-.tema-lateral label{color:#A9B4AE;font-size:12.5px}
-.tema-lateral select[data-tema-seletor]{min-height:32px;background-color:#26251F;border-color:#55524A;color:#E4E0D6;color-scheme:dark;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6.5L8 10l3.5-3.5' fill='none' stroke='%23C9C4B8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
-.tema-lateral select[data-tema-seletor]:focus-visible{outline-color:#B9E85A}
 @media (max-width:760px){.tema-escolha select{min-height:44px}}
 
 /* ============================================================================================================

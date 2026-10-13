@@ -4,6 +4,7 @@ import {subirComNavegador} from '../scripts/navegador.js';
 import {cliente} from '../scripts/cliente.js';
 import {exec} from '../src/db.js';
 import {mkdir} from 'node:fs/promises';
+import { itemConta } from './casca.js';
 async function fixture(N){
  const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
  const q=(await a.post('/api/quick-wins',{nome:'Conferência de fornecedores',toda_empresa:true,painel_modelo:'fornecedores'})).dados;
@@ -59,7 +60,7 @@ test('paginação pelo link persiste após recarga e ajuda explica os resultados
    const msg=Number(exec(N.app.db,"insert into mensagens(conversa_id,papel,texto,criado_em) values(?,'assistant','QA',?)",c,em).lastInsertRowid);
    exec(N.app.db,"insert into qw_painel_registros(quick_win_id,conversa_id,mensagem_id,pessoa_id,estado,dados,confirmado_em,criado_em,atualizado_em) values(?,?,?,?,'confirmado',?,?,?,?)",q.id,c,msg,a.pessoa.id,row.dados,row.confirmado_em,row.criado_em,row.atualizado_em);
   }
-  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento`);await p.getByRole('link',{name:'Próxima página'}).click();await p.getByText('Página 2 de 2',{exact:true}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);await p.reload();await p.getByText('Página 2 de 2',{exact:true}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);await p.getByRole('button',{name:'Ajuda desta tela'}).click();await p.getByRole('heading',{name:'Confira e acompanhe os registros'}).waitFor();
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento`);await p.getByRole('link',{name:'Próxima página'}).click();await p.getByText('Página 2 de 2',{exact:true}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);await p.reload();await p.getByText('Página 2 de 2',{exact:true}).waitFor();assert.equal(await p.locator('#painel-linhas tr').count(),1);await itemConta(p,'#ajuda-tela');await p.getByRole('heading',{name:'Confira e acompanhe os registros'}).waitFor();
  }finally{await N.fechar();}
 });
 

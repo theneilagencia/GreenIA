@@ -5,6 +5,7 @@ import {cliente} from '../scripts/cliente.js';
 import {salvarConfig} from '../src/config.js';
 import {exec,um} from '../src/db.js';
 import {arquivo} from '../test/arquivos.js';
+import {abrirConta,abrirAjudaTela} from './casca.js';
 let N,admin,gestor,usuario,A,doc,q;const erros=[];
 before(async()=>{
  N=await subirComNavegador();salvarConfig(N.app.db,{dominios:['empresa-exemplo.com.br']});admin=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
@@ -41,7 +42,7 @@ test('conhecimento: responsável, validade, suspensão e histórico; falha prese
 });
 test('filtros salvos retornam à consulta e ajuda fecha com Escape e devolve foco',async()=>{
  const p=await abrir(gestor,'#/conhecimento');await p.waitForSelector('#conhecimento-busca');await p.fill('#conhecimento-busca','Manual');await p.click('#conhecimento-filtrar');await p.click('[data-visao-salvar]');await p.fill('#conhecimento-busca','inexistente');await p.click('[data-visao-aplicar]');assert.equal(await p.inputValue('#conhecimento-busca'),'Manual');
- await p.click('#ajuda-tela');await p.waitForSelector('#ajuda-titulo');assert.match(await p.textContent('.ajuda-contextual'),/documento suspenso ou vencido/);await p.keyboard.press('Escape');assert.equal(await p.locator('#ajuda-titulo').count(),0);assert.equal(await p.evaluate(()=>document.activeElement.id),'ajuda-tela');await p.close();
+ await abrirAjudaTela(p);assert.match(await p.textContent('.ajuda-contextual'),/documento suspenso ou vencido/);await p.keyboard.press('Escape');assert.equal(await p.locator('#ajuda-titulo').count(),0);assert.equal(await p.evaluate(()=>document.activeElement.id),'conta');await p.close();
 });
 test('revisão de acesso exige conferência e registra sem mudar papel',async()=>{
  const p=await abrir(admin,'#/revisao-acessos');await p.waitForFunction(()=>location.hash==='#/pessoas?revisao=pendente');await p.waitForSelector('.lx-linha');await p.click('#lx-filtrar');await p.fill('#lx-q','usuario');await p.click(`[data-abrir="${usuario.pessoa.id}"]`);await p.waitForSelector('#px-rev-nota');await p.fill('#px-rev-nota','Conferi área e base autorizada');await p.click('#px-revisar button');assert.ok(!um(N.app.db,'select em from revisoes_acesso where pessoa_id = ?',usuario.pessoa.id),'sem a conferência marcada, não registra');await p.check('#px-rev-ok');await p.click('#px-revisar button');await p.waitForSelector('#px-rev-ultima:has-text("Última revisão em")');assert.equal(um(N.app.db,'select papel from pessoas where id = ?',usuario.pessoa.id).papel,'usuario');assert.ok(um(N.app.db,'select em from revisoes_acesso where pessoa_id = ?',usuario.pessoa.id));await p.close();
@@ -63,7 +64,7 @@ test('layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisã
    const botoes=await p.locator('.acompanhamento .btn, .adm-passos .btn, .adm-proximo .btn').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().height));for(const altura of botoes)assert.ok(altura>=44);
    if(hash==='#/visao-geral?passos=1'&&width===1280)await p.screenshot({path:'/tmp/greenia-preparacao-tipografia.png'});
    if(hash==='#/pendencias'&&width===1280)await p.screenshot({path:'/tmp/greenia-pendencias-tipografia.png'});
-   assert.equal(await p.locator('#ajuda-tela').isVisible(),true);if(width===390&&hash==='#/pendencias')await p.screenshot({path:'capturas/tmp/pendencias-mobile.png',fullPage:true});
+   await abrirConta(p);assert.equal(await p.locator('#ajuda-tela').isVisible(),true);await p.keyboard.press('Escape');if(width===390&&hash==='#/pendencias')await p.screenshot({path:'capturas/tmp/pendencias-mobile.png',fullPage:true});
   }
   // A revisão de acessos agora fica em Pessoas: a lista também cabe em cada largura.
   await p.goto(N.base+'/app#/pessoas?revisao=pendente');await p.waitForSelector('.lx-lista');assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'#/pessoas '+width);

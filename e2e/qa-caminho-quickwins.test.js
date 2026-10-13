@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
+import { itemConta } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const VIEWPORTS = { 1366: { width: 1366, height: 768 }, 390: { width: 390, height: 844, isMobile: true, hasTouch: true } };
@@ -165,7 +166,7 @@ test('página do Quick Win: o que saiu da primeira vista continua alcançável (
   assert.equal(await p.locator('summary', { hasText: 'Uso e decisão' }).count(), 1);
   assert.equal(await p.getByRole('link', { name: 'Preparar resultados do processo', exact: true }).count(), 1);
   // A explicação que saiu da tela está na Ajuda.
-  await p.click('#ajuda-tela');
+  await itemConta(p, '#ajuda-tela');
   await p.getByRole('dialog').getByText(/Suas execuções: só você vê/).waitFor();
   await p.keyboard.press('Escape');
   // Quick Win do formato anterior: atualizar fica em Mais ações (sem aviso fixo na página).

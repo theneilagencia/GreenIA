@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 import { medirTextos } from './ajuda-contraste.js';
+import { itemConta, abrirConta } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const CELULAR = { width: 390, height: 844 }, LARGO = { width: 1280, height: 860 };
@@ -52,7 +53,7 @@ test('padrão Automático: segue o esquema do sistema, sem data-tema', async () 
   for (const [esquema, escuro] of [['dark', true], ['light', false]]) {
     const p = await pagina(marina, { esquema });
     await p.goto(`${S.base}/app#/nova`);
-    await p.waitForSelector('#ajuda-tela');
+    await p.waitForSelector('#conta');
     assert.equal(await tema(p), null);
     const l = await fundo(p);
     assert.ok(escuro ? l < 0.1 : l > 0.8, `${esquema}: luminância do fundo ${l}`);
@@ -64,25 +65,25 @@ test('padrão Automático: segue o esquema do sistema, sem data-tema', async () 
 test('escolher Escuro e Claro na Ajuda vale ao recarregar; Automático volta a seguir o sistema', async () => {
   const p = await pagina(marina, { esquema: 'light' });
   await p.goto(`${S.base}/app#/nova`);
-  await p.click('#ajuda-tela');
+  await itemConta(p, '#ajuda-tela');
   const seletor = p.getByRole('dialog').getByLabel('Aparência');
   assert.equal(await seletor.inputValue(), 'auto');
   await seletor.selectOption('escuro');
   assert.equal(await tema(p), 'escuro');
   assert.ok(await fundo(p) < 0.1, 'escureceu na hora');
-  await p.reload(); await p.waitForSelector('#ajuda-tela');
+  await p.reload(); await p.waitForSelector('#conta');
   assert.equal(await tema(p), 'escuro', 'a escolha persiste');
   assert.ok(await fundo(p) < 0.1);
   // No sistema escuro, escolher Claro também persiste.
   await p.emulateMedia({ colorScheme: 'dark' });
-  await p.click('#ajuda-tela');
+  await itemConta(p, '#ajuda-tela');
   await p.getByRole('dialog').getByLabel('Aparência').selectOption('claro');
-  await p.reload(); await p.waitForSelector('#ajuda-tela');
+  await p.reload(); await p.waitForSelector('#conta');
   assert.equal(await tema(p), 'claro');
   assert.ok(await fundo(p) > 0.8, 'claro mesmo com o sistema escuro');
-  await p.click('#ajuda-tela');
+  await itemConta(p, '#ajuda-tela');
   await p.getByRole('dialog').getByLabel('Aparência').selectOption('auto');
-  await p.reload(); await p.waitForSelector('#ajuda-tela');
+  await p.reload(); await p.waitForSelector('#conta');
   assert.equal(await tema(p), null);
   assert.equal(await p.evaluate(() => localStorage.getItem('greenia-tema')), null);
   assert.ok(await fundo(p) < 0.1, 'Automático segue o sistema escuro');
@@ -90,15 +91,17 @@ test('escolher Escuro e Claro na Ajuda vale ao recarregar; Automático volta a s
   await p.context().close();
 });
 
-test('console: seletor de aparência no rodapé da lateral, com a mesma escolha guardada', async () => {
+test('console: Aparência no menu da conta (pé da lateral), com a mesma escolha guardada', async () => {
   const p = await pagina(ops, { esquema: 'light' });
   await p.goto(`${S.base}/plataforma#/empresas`);
-  const seletor = p.locator('#lateral').getByLabel('Aparência');
-  await seletor.waitFor();
-  await seletor.selectOption('escuro');
-  await p.reload(); await p.locator('#lateral').getByLabel('Aparência').waitFor();
+  await p.waitForSelector('#conta');
+  await abrirConta(p);
+  assert.equal(await p.locator('#menu-conta').getByRole('group', { name: 'Aparência' }).count(), 1);
+  assert.equal(await p.locator('#menu-conta [data-tema-opcao="auto"]').getAttribute('aria-checked'), 'true');
+  await p.click('#menu-conta [data-tema-opcao="escuro"]');
+  await p.reload(); await p.waitForSelector('#conta');
   assert.equal(await tema(p), 'escuro');
-  assert.equal(await p.locator('#lateral').getByLabel('Aparência').inputValue(), 'escuro');
+  assert.equal(await p.locator('#menu-conta [data-tema-opcao="escuro"]').getAttribute('aria-checked'), 'true');
   assert.ok(await fundo(p) < 0.1);
   assert.deepEqual(p.erros, []);
   await p.context().close();
@@ -106,7 +109,7 @@ test('console: seletor de aparência no rodapé da lateral, com a mesma escolha 
 
 test('tema escuro: telas principais sem contraste insuficiente e sem rolagem horizontal (desktop e celular)', async () => {
   const TELAS = [
-    [marina, '/app#/nova', '#ajuda-tela'],
+    [marina, '/app#/nova', '#conta'],
     [marina, `/app#/c/${conversa.id}`, '.bolha-ia'],
     [marina, '/app#/quick-wins', '.pagina .qw-marca'],
     [admin, '/app#/pessoas', 'text=Marina Tema'],
@@ -134,12 +137,12 @@ test('tema escuro: telas principais sem contraste insuficiente e sem rolagem hor
 test('tema escuro com a cor da empresa: botão e links legíveis e a Ajuda aberta também passa', async () => {
   const p = await pagina(marina);
   await p.goto(`${S.base}/app#/nova`);
-  await p.waitForSelector('#ajuda-tela');
+  await p.waitForSelector('#conta');
   await p.waitForSelector('style#cores-marca', { state: 'attached' });
   const cores = await p.evaluate(() => { const cs = getComputedStyle(document.documentElement); return { botao: cs.getPropertyValue('--forest-strong').trim(), texto: cs.getPropertyValue('--forest-text').trim() }; });
   assert.equal(cores.botao.toLowerCase(), '#5b2a86', 'o botão continua na cor da empresa');
   assert.notEqual(cores.texto.toLowerCase(), '#5b2a86', 'o texto usa o mesmo tom clareado');
-  await p.click('#ajuda-tela');
+  await itemConta(p, '#ajuda-tela');
   await p.getByRole('dialog').waitFor();
   assert.deepEqual(await contrasteRuim(p), []);
   await p.context().close();

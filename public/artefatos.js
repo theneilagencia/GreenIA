@@ -15,8 +15,8 @@ const imagem = (a, n, mini = false) => `/api/artefatos/${a.id}/paginas/${n}?${mi
 
 export function htmlArtefatos(lista = []) {
   if (!lista?.length) return '';
-  return `<section class="artefatos" aria-label="Artefatos">
-    <div class="artefatos-cabeca"><b>Artefatos</b><span class="dica">${lista.length === 1 ? 'Pronto para baixar' : `${lista.length} peças prontas para baixar`}</span></div>
+  return `<section class="artefatos" aria-label="Arquivos gerados">
+    <div class="artefatos-cabeca"><b>${lista.length === 1 ? 'Arquivo gerado' : `${lista.length} arquivos gerados`}</b><span class="dica">Clique para ver; baixe quando quiser</span></div>
     ${lista.map(cartao).join('')}</section>`;
 }
 
@@ -30,15 +30,17 @@ function cartao(a) {
       <img src="${imagem(a, 1, true)}" alt="Primeira página de ${esc(a.titulo)}" loading="lazy"></button>
     <div class="artefato-info">
       <div class="artefato-titulo"><b>${esc(a.rotulo)}</b><span class="artefato-selo ${tom}">${rotulo}</span></div>
-      <span class="artefato-nome">${esc(a.titulo)}</span>
+      <button type="button" class="artefato-nome" data-ver="${a.id}" title="Visualizar">${esc(a.titulo)}</button>
       <span class="dica">${paginasTxt(a.paginas)} · ${esc(FORMATOS[a.formato] || a.formato)}${a.versao > 1 ? ` · versão ${a.versao}` : ''}</span>
       ${a.avisos?.length ? `<ul class="artefato-avisos">${a.avisos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
       ${fin && !fin.gerada && fin.briefing ? `<details class="artefato-briefing"><summary>Briefing da imagem</summary><p>${esc(fin.briefing)}</p></details>` : ''}
       <div class="artefato-acoes">
-        <button type="button" class="btn btn-verde btn-pequeno" data-ver="${a.id}">Visualizar</button>
-        ${formatos.map(f => `<a class="btn btn-linha btn-pequeno" href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${f !== 'pdf' && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
+        ${formatos.slice(0, 1).map(f => `<a class="btn btn-linha btn-pequeno" href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${f !== 'pdf' && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
         <button type="button" class="btn btn-texto btn-pequeno" data-editar="${a.id}">Editar</button>
-        ${fin ? `<button type="button" class="btn btn-texto btn-pequeno" data-gerar-imagem="${a.id}">${fin.gerada ? 'Gerar outra imagem' : 'Tentar gerar a imagem'}</button>${fin.gerada ? `<button type="button" class="btn btn-texto btn-pequeno" data-variacao="${a.id}">Variação</button>` : ''}` : ''}
+        ${formatos.length > 1 || fin ? `<details class="menu-acoes artefato-mais"><summary class="btn btn-texto btn-pequeno" aria-label="Mais opções de ${esc(a.rotulo)}">Mais opções</summary><div class="menu-lista">
+          ${formatos.slice(1).map(f => `<a href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${f !== 'pdf' && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
+          ${fin ? `<button type="button" data-gerar-imagem="${a.id}">${fin.gerada ? 'Gerar outra imagem' : 'Tentar gerar a imagem'}</button>${fin.gerada ? `<button type="button" data-variacao="${a.id}">Variação</button>` : ''}` : ''}
+        </div></details>` : ''}
       </div>
     </div></article>`;
 }

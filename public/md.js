@@ -1,6 +1,7 @@
 // Markdown mínimo para as respostas: parágrafos, títulos, listas, checklist,
-// negrito, itálico, código e tabelas. Escapa tudo antes de formatar.
+// negrito, itálico, código (em linha e em bloco) e tabelas. Escapa tudo antes de formatar.
 import { esc } from '/comum.js';
+import { ICONE_RESPOSTA } from '/resposta-ui.js';
 import { celulas, ehTabela, gerarCsv } from '/tabelas.js';
 
 const inline = s => esc(s)
@@ -22,10 +23,22 @@ export function renderizar(texto, { csvHref } = {}) {
       i += 2;
       while (i < linhas.length && /^\s*\|/.test(linhas[i])) corpo.push(celulas(linhas[i++]));
       tabelas.push([cab, ...corpo]);
+      const n = tabelas.length - 1, linhasTxt = `${corpo.length} ${corpo.length === 1 ? 'linha' : 'linhas'}`;
+      // Download como cartão de anexo (ícone, nome e tipo), logo abaixo da tabela.
+      const cartao = `<span class="anexo-resposta-icone">${ICONE_RESPOSTA.planilha}</span><span class="anexo-resposta-texto"><b>Baixar planilha</b><small>Tabela ${n + 1} · ${linhasTxt}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span>`;
       out.push(`<div class="tabela-wrap"><table><thead><tr>${cab.map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${
-        corpo.map(r => `<tr>${cab.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-        <div>${csvHref ? `<a role="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}" href="${esc(csvHref(tabelas.length - 1))}" download="tabela.csv">Baixar planilha</a>`
-          : `<button type="button" class="btn btn-linha btn-pequeno" data-csv="${tabelas.length - 1}">Baixar planilha</button>`}</div>`);
+        corpo.map(r => `<tr>${cab.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${csvHref
+        ? `<a class="anexo-resposta" data-csv="${n}" href="${esc(csvHref(n))}" download="tabela.csv" title="Baixar a tabela em planilha">${cartao}</a>`
+        : `<button type="button" class="anexo-resposta" data-csv="${n}" title="Baixar a tabela em planilha">${cartao}</button>`}`);
+      continue;
+    }
+    // Bloco de código entre ```: monoespaçado, com "Copiar código" no canto (ligado em resposta-ui.js).
+    if (/^\s*```/.test(l)) {
+      const lingua = l.replace(/^\s*```/, '').trim().slice(0, 30), codigo = [];
+      i++;
+      while (i < linhas.length && !/^\s*```\s*$/.test(linhas[i])) codigo.push(linhas[i++]);
+      i++;
+      out.push(`<div class="bloco-codigo"><div class="bloco-codigo-topo"><span>${esc(lingua || 'Código')}</span><button type="button" class="bloco-codigo-copiar" data-copiar-codigo aria-label="Copiar código" title="Copiar código">${ICONE_RESPOSTA.copiar}</button></div><pre tabindex="0"><code>${esc(codigo.join('\n'))}</code></pre></div>`);
       continue;
     }
     const h = /^(#{1,4})\s+(.*)$/.exec(l);
@@ -42,7 +55,7 @@ export function renderizar(texto, { csvHref } = {}) {
       continue;
     }
     const par = [];
-    while (i < linhas.length && linhas[i].trim() && !ehTabela(linhas[i], linhas[i + 1]) && !/^(#{1,4})\s|^\s*([-*]|\d+[.)])\s+/.test(linhas[i])) par.push(inline(linhas[i++]));
+    while (i < linhas.length && linhas[i].trim() && !ehTabela(linhas[i], linhas[i + 1]) && !/^(#{1,4})\s|^\s*([-*]|\d+[.)])\s+|^\s*```/.test(linhas[i])) par.push(inline(linhas[i++]));
     out.push(`<p>${par.join('<br>')}</p>`);
   }
   return { html: out.join(''), tabelas };

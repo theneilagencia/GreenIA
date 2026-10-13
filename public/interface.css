@@ -178,22 +178,8 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 /* Rodapé da resposta: ações maiores, aviso de revisão como texto, informação técnica no "i". */
 .rodape-resposta{gap:8px 12px;margin-top:4px}
 .rodape-resposta .revise{color:var(--muted);font-weight:400}
-.app .rodape-resposta [data-copiar]{min-height:36px;padding:4px 14px;font:500 13px var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:var(--raio)}
-.rodape-resposta .selo-simulada{background:var(--amber-bg);color:var(--amber-text);border-color:transparent;font-size:12px}
-.info-resposta[open]{flex-basis:100%}
-.app .info-resposta>summary{list-style:none;display:inline-grid;place-items:center;width:28px;height:28px;min-height:0;padding:0;border:1px solid var(--line-strong);border-radius:999px;font:600 italic 13px/1 Georgia,serif;color:var(--muted);cursor:pointer}
-.info-resposta>summary::-webkit-details-marker{display:none}
-.info-resposta>summary:hover,.info-resposta[open]>summary{background:var(--surface);color:var(--ink)}
-.info-resposta-texto{margin-top:6px;max-width:520px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--raio);font:400 12.5px/1.5 var(--sans);color:var(--ink-2)}
-.info-resposta-texto p{margin:0 0 6px}.info-resposta-texto p:last-child{margin:0}
-/* "Serviu?" ao pé da última resposta; a opção marcada é um chip com ✓, não um botão principal. */
-.avaliacao-resposta{margin-top:8px}
-.feedback button{min-height:32px}
-.feedback button[aria-pressed="true"]{background:var(--mint);border-color:var(--forest);color:var(--forest-text)}
-.feedback button[aria-pressed="true"]::before{content:'✓ '}
 @media(pointer:coarse),(max-width:760px){
-  .app .rodape-resposta [data-copiar],.app .feedback button,.app .papel-anexo{min-height:44px}
-  .app .info-resposta>summary{width:44px;height:44px}
+  .app .papel-anexo{min-height:44px}
   .app .anexo-chip>button{min-width:44px;min-height:44px}
 }
 
@@ -362,9 +348,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 }
 
 /* === Conversa e conhecimento (QA UX 2) === */
-/* "Gerar de novo" no rodapé da última resposta, com o mesmo peso do "Copiar"; 44 px no celular. */
-.app .rodape-resposta [data-regerar]{min-height:36px;padding:4px 14px;font:500 13px var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:var(--raio)}
-.app .rodape-resposta [data-regerar]:disabled{opacity:.55;cursor:not-allowed}
 /* Conhecimento: "Abrir" no cartão e painel de leitura do texto extraído. */
 .conhecimento-documento .conhecimento-abrir{margin:4px 0}
 #modal .conhecimento-leitura{max-width:760px}
@@ -372,7 +355,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .conhecimento-ler-texto{max-height:min(56vh,560px);overflow-y:auto;padding:12px 14px;margin:8px 0;border:1px solid var(--line);border-radius:var(--raio);background:var(--paper);overflow-wrap:anywhere}
 #modal .conhecimento-ler-texto p{margin:0 0 10px;color:var(--ink)}
 @media(max-width:760px){
-  .app .rodape-resposta [data-regerar],.app .conhecimento-documento .conhecimento-abrir{min-height:44px}
+  .app .conhecimento-documento .conhecimento-abrir{min-height:44px}
   .conhecimento-ler-texto{max-height:60vh}
 }
 /* === Gestão (QA UX 2) === Largura única do conteúdo nas telas de gestão (administração no app e console da
@@ -412,12 +395,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
   .barra-conversa .qw-contexto{max-width:100%;white-space:normal}
   .barra-conversa>*{flex:0 1 auto;min-width:0}
 }
-/* Rodapé da resposta: "Serviu?" com o mesmo desenho de Copiar/Gerar de novo; planilha separada do texto. */
-.app .feedback.avaliacao-resposta button{min-height:36px;padding:4px 14px;font:500 13px var(--sans);border-radius:var(--raio)}
-.app .feedback.avaliacao-resposta{gap:8px 12px}
-.bolha-ia .tabela-wrap+div{margin:0 0 12px}
-@media(max-width:760px){.rodape-resposta .revise,.feedback.avaliacao-resposta>.dica{flex-basis:100%}}
-@media(pointer:coarse),(max-width:760px){.app .feedback.avaliacao-resposta button{min-height:44px}}
 /* Primeiros passos: mesma coluna das outras telas; saída alinhada ao texto. */
 .pagina-dentro>.guia-pagina{margin:0}
 .guia-saida{align-items:baseline}
@@ -1072,3 +1049,139 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
   /* No celular, o status da empresa sai do cabeçalho (está no Resumo) para a ação principal caber ao lado do menu. */
   body.plataforma .cabeca-acoes>.selo{display:none}
 }
+
+/* ==== Área de mensagens no padrão assistente (Claude + ChatGPT) — INÍCIO ====================================
+   Resposta da IA em texto corrido, sem ícone nem moldura, na largura de leitura; pedido da pessoa num balão à
+   direita; ações da resposta numa linha só de ícones; downloads como cartões de anexo; resultados do Quick Win em
+   cartões calmos. Bloco autocontido (só seletores da área #msgs/#coluna e do diálogo de avaliação). */
+.mensagens{padding:28px 28px 20px}
+.coluna{max-width:740px;gap:28px}
+/* Pedido da pessoa */
+.msg-eu{align-self:flex-end;max-width:80%;min-width:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.msg-eu>.bolha-eu{align-self:auto;max-width:100%;border-radius:18px 18px 6px 18px;padding:10px 16px;font:400 15px/1.6 var(--sans);color:var(--ink)}
+.msg-eu-anexos{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:100%}
+.msg-eu-anexos .anexo-chip{margin:0;padding:5px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font:500 12.5px/1.3 var(--sans);color:var(--ink)}
+.msg-eu-anexos .anexo-chip svg{width:14px;height:14px;color:var(--muted)}
+/* Resposta da IA: sem ícone, sem moldura */
+.resposta{display:block;max-width:100%}
+.resposta-corpo{display:flex;flex-direction:column;gap:12px;min-width:0}
+.bolha-ia{font:400 16px/1.7 var(--sans);color:var(--ink);padding:0}
+.bolha-ia>:first-child{margin-top:0}
+.bolha-ia p{margin:0 0 14px}
+.bolha-ia h3{font:600 18px/1.4 var(--sans);margin:24px 0 8px;letter-spacing:-.01em}
+.bolha-ia h4{font:600 16px/1.45 var(--sans);margin:20px 0 6px}
+.bolha-ia ul,.bolha-ia ol{margin:0 0 14px;padding-left:24px}
+.bolha-ia li{margin:4px 0;padding-left:2px}
+.bolha-ia li::marker{color:var(--muted)}
+.bolha-ia strong{font-weight:600}
+.bolha-ia :not(pre)>code{font:400 .88em/1.4 var(--mono);background:var(--sand);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.bolha-ia>:last-child{margin-bottom:0}
+/* Tabelas: bordas sutis, rolagem dentro do bloco quando são largas */
+.bolha-ia .tabela-wrap{margin:4px 0 10px;border:1px solid var(--line);border-radius:12px;overflow-x:auto;background:var(--paper)}
+.bolha-ia table{width:100%;border-collapse:collapse;font:400 14px/1.5 var(--sans)}
+.bolha-ia th,.bolha-ia td{border:0;border-bottom:1px solid var(--line);padding:9px 14px;text-align:left;vertical-align:top}
+.bolha-ia tbody tr:last-child td{border-bottom:0}
+.bolha-ia th{background:var(--surface);font-weight:600;color:var(--ink)}
+/* Blocos de código */
+.bloco-codigo{margin:4px 0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.bloco-codigo-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px 2px 14px;border-bottom:1px solid var(--line);font:500 12px/1 var(--sans);color:var(--muted)}
+.bloco-codigo pre{margin:0;padding:12px 14px;overflow-x:auto;font:400 13.5px/1.6 var(--mono);color:var(--ink);white-space:pre;tab-size:2}
+.bloco-codigo pre:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.bloco-codigo code{font:inherit;background:none;border:0;padding:0}
+/* Ícones das ações (resposta e código): pequenos, com dica; alvo de 44 px no toque */
+.acao-resposta,.bloco-codigo-copiar{position:relative;display:inline-grid;place-items:center;flex:none;width:32px;height:32px;min-height:0;padding:0;border:0;border-radius:8px;background:none;color:var(--muted);cursor:pointer;transition:background .12s,color .12s}
+.acao-resposta:hover,.bloco-codigo-copiar:hover,.acao-resposta[aria-expanded="true"]{background:var(--sand);color:var(--ink)}
+.acao-resposta:focus-visible,.bloco-codigo-copiar:focus-visible{outline:2px solid var(--forest);outline-offset:1px}
+.acao-resposta:disabled{opacity:.45;cursor:not-allowed;background:none}
+.acao-resposta.copiado,.bloco-codigo-copiar.copiado{color:var(--forest-text)}
+.acao-resposta[aria-pressed="true"]{color:var(--forest-text)}
+.acao-resposta[aria-pressed="true"] svg path{fill:currentColor;fill-opacity:.22}
+.acao-resposta svg,.bloco-codigo-copiar svg{width:16px;height:16px}
+/* Linha de ações: uma só, discreta, logo abaixo do texto */
+.app .acoes-resposta,.acoes-resposta{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin:-2px 0 0 -7px;min-height:32px;font:400 12.5px/1.4 var(--sans);color:var(--muted)}
+.acoes-resposta .selo-simulada{display:inline-flex;align-items:center;gap:5px;margin:0 6px 0 8px;padding:0;border:0;background:none;font:500 12.5px/1.4 var(--sans);color:var(--amber-text);white-space:nowrap}
+.acoes-resposta .selo-simulada svg{width:14px;height:14px}
+.acoes-resposta .revise{margin-left:8px;font:400 12.5px/1.4 var(--sans);color:var(--muted)}
+/* Respostas anteriores: as ações aparecem ao passar o mouse ou com o foco (no toque, sempre à vista) */
+@media (hover:hover) and (pointer:fine){
+  .resposta:not(.resposta-ultima) .acoes-resposta{opacity:0;transition:opacity .15s}
+  .resposta:not(.resposta-ultima):hover .acoes-resposta,.resposta:not(.resposta-ultima) .acoes-resposta:focus-within{opacity:1}
+}
+/* "Detalhes": painel sobre a conversa, acima da linha de ações (ou abaixo, quando falta espaço) */
+.detalhes-resposta{display:inline-flex}
+.detalhes-resposta-painel{position:absolute;left:0;bottom:calc(100% + 6px);z-index:25;box-sizing:border-box;width:min(380px,100%);max-height:min(60vh,440px);overflow:auto;margin:0;padding:12px 14px;background:var(--campo);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sombra-2);font:400 13.5px/1.55 var(--sans);color:var(--ink);text-align:left}
+.detalhes-resposta-painel.para-baixo{bottom:auto;top:calc(100% + 6px)}
+.detalhes-resposta-painel[hidden]{display:none}
+.detalhes-resposta-painel p{margin:0 0 6px}
+.detalhes-resposta-painel>p:last-child{margin-bottom:0}
+.detalhes-resposta-painel .execucao-detalhe{margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px}
+.detalhes-resposta-painel .execucao-detalhe summary{cursor:pointer;color:var(--forest-text);font-weight:500}
+.detalhes-resposta-painel .execucao-linha{margin:12px 0;gap:10px}
+/* Fontes usadas e próximos passos do Quick Win: texto discreto */
+.resposta-corpo>.fontes{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;padding:0;border:0}
+.resposta-corpo>.fontes b{font:500 12.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin-right:2px}
+.resposta-corpo>.fontes .selo{background:var(--surface);border:1px solid var(--line);color:var(--ink);font:500 12.5px/1.6 var(--sans);max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.resposta-corpo>.fontes .selo svg{width:13px;height:13px;color:var(--muted)}
+.resposta-corpo>.fontes a.selo:hover{border-color:var(--line-strong)}
+.resposta-proximos{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:-4px}
+.resposta-proximos .link-sutil{font:500 13.5px var(--sans)}
+/* Downloads como cartões de anexo (ícone + nome + tipo; clicar baixa) */
+.anexo-resposta{display:flex;align-items:center;gap:12px;box-sizing:border-box;width:min(100%,340px);margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;text-decoration:none;cursor:pointer;transition:background .12s,border-color .12s}
+.anexo-resposta:hover{background:var(--surface);border-color:var(--line-strong)}
+.anexo-resposta:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+.anexo-resposta-icone{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:9px;background:var(--mint);color:var(--forest-text)}
+.anexo-resposta-icone svg{width:18px;height:18px}
+.anexo-resposta-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;line-height:1.3}
+.anexo-resposta-texto b{font:600 14px/1.3 var(--sans)}
+.anexo-resposta-texto small{font:400 12.5px/1.3 var(--sans);color:var(--muted)}
+.anexo-resposta-acao{flex:none;color:var(--muted)}
+/* Pensando: três pontos discretos, com a altura de uma linha (sem salto quando o texto chega) */
+.resposta-pensando{min-height:32px;display:flex;align-items:center}
+.resposta-pensando .pensando{padding:0}
+.resposta-pensando .pensando span{width:7px;height:7px;background:var(--muted)}
+.bolha-ia .cursor{width:8px;height:8px;border-radius:999px;background:var(--muted);vertical-align:1px;margin-left:4px;animation:ponto 1.2s infinite}
+/* Quick Win: rótulo, progresso e conferência como cartões calmos, no mesmo raio e espaçamento */
+.resposta-corpo .rotulo-execucao{font:500 12.5px var(--sans);color:var(--muted)}
+.resposta-corpo .qc,.resposta-corpo .painel-integracoes{margin:0!important;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px!important;box-shadow:none}
+.resposta-corpo .qc-ok{background:var(--paper)}
+.resposta-corpo .qc-revisar{border-color:var(--line-strong);background:var(--paper)}
+.resposta-pensando .exec-progresso{padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.resposta-corpo .artefatos{margin:0;gap:10px}
+.resposta-corpo .artefatos-cabeca b,.artefatos-cabeca b{font:600 14px var(--sans);letter-spacing:0;text-transform:none}
+.artefato{border-radius:12px;box-shadow:none;padding:12px;gap:14px}
+.artefato-miniatura{width:132px;border-radius:8px}
+.artefato-nome{display:block;padding:0;border:0;background:none;font:400 14px/1.4 var(--sans);color:var(--ink);text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.artefato-nome:hover{text-decoration:underline}
+.artefato-nome:focus-visible{outline:2px solid var(--forest);outline-offset:2px;border-radius:4px}
+.artefato-acoes{align-items:center}
+.artefato-mais .menu-lista{left:0;right:auto}
+/* Diálogo de avaliação (👎) */
+.fb-opcoes{display:grid;gap:8px;margin:18px 0 0;padding:0;border:0;min-width:0}
+.fb-opcao{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--paper)}
+.fb-opcao:hover{background:var(--surface)}
+.fb-opcao:has(input:checked){border-color:var(--forest);background:var(--mint)}
+.fb-opcao:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:2px}
+.fb-opcao input{margin:3px 0 0;accent-color:var(--forest);flex:none}
+.fb-opcao span{display:flex;flex-direction:column;gap:2px}
+.fb-opcao b{font:600 14px/1.4 var(--sans);color:var(--ink)}
+.fb-opcao small{font:400 13px/1.45 var(--sans);color:var(--muted)}
+.fb-motivo[hidden]{display:none}
+.fb-motivo textarea{width:100%;box-sizing:border-box;resize:vertical}
+/* Toque: alvo de 44 px (os ícones continuam pequenos) */
+@media (pointer:coarse){
+  .acao-resposta,.bloco-codigo-copiar{width:44px;height:44px}
+  .app .acoes-resposta,.acoes-resposta{margin-left:-12px}
+  .anexo-resposta{min-height:56px}
+  .artefato-nome{min-height:44px}
+}
+@media (max-width:760px){
+  .mensagens{padding:20px 16px 16px}
+  .coluna{gap:24px}
+  .msg-eu{max-width:88%}
+  .bolha-ia{font-size:15.5px}
+  .acoes-resposta .revise{flex-basis:100%;margin:0 0 0 12px}
+  .resposta-proximos .link-sutil{display:inline-flex;align-items:center;min-height:44px}
+  .anexo-resposta{width:100%}
+  .artefato-miniatura{width:100%}
+}
+/* ==== Área de mensagens no padrão assistente — FIM ==== */

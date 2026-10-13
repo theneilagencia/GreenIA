@@ -3,7 +3,8 @@ import { confirmar } from '/admin-ui.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
 import { guiaConcluido } from '/onboarding.js';
 // Vista de uma conversa (chat geral ou dentro de um quick win).
-import { api, esc, ICONE, iconeIA, toast } from '/comum.js';
+import { api, esc, ICONE, toast } from '/comum.js';
+import { ICONE_RESPOSTA, anunciar, copiarTexto, alternarDetalhes } from '/resposta-ui.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, pedirCiencia } from '/app.js';
 import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
@@ -22,7 +23,7 @@ const SUGESTOES_CHAT = [
 const TAREFAS_NO_INICIO = 3;
 const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuração', em_teste: 'Em teste', em_uso: 'Em uso', em_avaliacao: 'Em avaliação', aprovado: 'Aprovado', em_expansao: 'Em expansão', descartado: 'Descartado' };
 const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
-const FEEDBACK = [['serviu', 'Serviu'], ['ajustes', 'Serviu com ajustes'], ['nao_serviu', 'Não serviu']];
+const FEEDBACK = { serviu: 'Serviu', ajustes: 'Serviu com ajustes', nao_serviu: 'Não serviu' };
 let C = null;       // estado da conversa aberta
 let materialEmRevisao = null; // só em memória, durante a ida à configuração da pesquisa
 document.addEventListener('greenia:integracao-atualizada', ev => {
@@ -162,7 +163,8 @@ function htmlMensagem(m) {
   const anim = vistos.has(String(m.id)) || m.carregando ? '' : ' anim';
   if (!m.carregando) vistos.add(String(m.id));
   if (m.papel === 'user') {
-    return `<div class="bolha-eu${anim}">${esc(m.texto)}${(m.anexos || []).length ? `<div>${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}</div>`;
+    // Pedido da pessoa: balão à direita (quebras de linha preservadas), anexos em etiquetas logo acima.
+    return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div></div>`;
   }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}</div>`;
   const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>', tabelas: [] } : renderizar(m.texto, { csvHref: Number.isInteger(m.id) && m.guardado !== false ? i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv` : undefined });
@@ -176,29 +178,53 @@ function htmlMensagem(m) {
   // Fontes: documentos da empresa (título) e, quando houve pesquisa na internet, os endereços consultados.
   const fontes = (m.fontes || []).length ? `<div class="fontes"><b>Fontes</b>${m.fontes.map(f => (f && typeof f === 'object' && /^https?:\/\//.test(f.url || '')
     ? `<a class="selo" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.titulo || f.url)}</a>` : `<span class="selo">${ICONE.doc} ${esc(f)}</span>`)).join('')}</div>` : '';
-  return `<div class="resposta${anim}" data-msg="${m.id}">
-    <span class="sim"><img src="${iconeIA()}" width="16" height="16" alt="" aria-hidden="true"></span>
+  // Próximos passos do Quick Win ligados a este resultado (levam a outra tela), discretos, abaixo das ações.
+  const conferir = execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use'));
+  const refinar = execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado';
+  const proximos = conferir || refinar ? `<div class="resposta-proximos">${conferir ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para os resultados</a>` : ''}${refinar ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}</div>` : '';
+  const ultima = m.id === C.ultimaResposta;
+  return `<div class="resposta${anim}${ultima ? ' resposta-ultima' : ''}" data-msg="${m.id}">
     <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}${integracoes}
-      ${m.carregando || m.erro ? '' : `<div class="rodape-resposta">${C.qw ? '<span class="revise">Revise antes de usar.</span>' : ''}
-        <button type="button" class="btn btn-linha btn-pequeno" data-copiar="${m.id}">Copiar</button>${m.id === C.podeRegerar ? `<button type="button" class="btn btn-linha btn-pequeno" data-regerar="${m.id}" ${C.enviando ? 'disabled' : ''} title="Pede outra resposta ao mesmo pedido. Usa créditos como uma nova mensagem.">Gerar de novo</button>` : ''}${execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use')) ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para os resultados</a><a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento">Acompanhar resultados</a>` : ''}${execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado' ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}${E.iaSimulada ? '<span class="selo selo-simulada">Resposta simulada</span>' : ''}${infoResposta(m)}</div>
-        ${avaliacao(m)}${fontes}${detalheExecucao(m)}`}
+      ${m.carregando || m.erro ? '' : `${fontes}${acoesResposta(m, { execucao, conferir })}${proximos}`}
     </div></div>`;
 }
 
-// Informação técnica da resposta (nível, motivo da escolha, simulação) recolhida num "i", fora do caminho da leitura.
-function infoResposta(m) {
+// Ações da resposta numa linha só de ícones (com dica e nome acessível): copiar, gerar de novo, 👍, 👎 e detalhes.
+// Na última resposta ficam sempre à vista; nas anteriores aparecem ao passar o mouse ou com o foco do teclado.
+function acoesResposta(m, { execucao, conferir }) {
+  const regerar = m.id === C.podeRegerar ? `<button type="button" class="acao-resposta" data-regerar="${m.id}" ${C.enviando ? 'disabled' : ''} aria-label="Gerar de novo" title="Gerar de novo (usa créditos como uma nova mensagem)">${ICONE_RESPOSTA.regerar}</button>` : '';
+  return `<div class="rodape-resposta acoes-resposta" role="group" aria-label="Ações da resposta">
+      <button type="button" class="acao-resposta" data-copiar="${m.id}" aria-label="Copiar resposta" title="Copiar">${ICONE_RESPOSTA.copiar}</button>${regerar}${avaliacao(m)}${detalhesResposta(m, { execucao, conferir })}
+      ${E.iaSimulada ? `<span class="selo-simulada" title="Ambiente de demonstração: nenhum modelo de IA real foi usado">${ICONE_RESPOSTA.simulada}<span>Resposta simulada</span></span>` : ''}
+      ${C.qw ? '<span class="revise">Revise antes de usar.</span>' : ''}
+    </div>`;
+}
+
+// "Detalhes" (o antigo "i"): nível, motivo da escolha, modelo (só para quem administra), data, simulação, o registro
+// da execução do Quick Win e o atalho para os resultados. Num painel que abre sobre a conversa, fora da leitura.
+function detalhesResposta(m, { execucao, conferir }) {
   const nivel = !C.qw?.v2 && (m.modelo || m.classe || m.rota_modo)
     ? (m.rota_modo === 'externo' ? 'Escolha automática do nível.' : `Nível ${esc(CLASSES[m.classe] || 'Rápido')}${m.rota_modo === 'automatico' ? ', pela escolha automática do nível' : ''}.`) : '';
   const motivo = m.rota_explicacao && !C.qw?.v2 ? esc(m.rota_explicacao_simples || m.rota_explicacao) : '';
+  const modelo = m.modelo ? `Modelo usado: ${esc(C.opcoes.find(o => o.id === m.modelo)?.nome || m.modelo)}.` : '';
+  const quando = m.criado_em && !Number.isNaN(Date.parse(m.criado_em)) ? `Respondida em ${esc(new Date(m.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }))}.` : '';
   const simulada = E.iaSimulada ? 'Ambiente de demonstração: a resposta foi simulada e nenhum modelo de IA real foi usado.' : '';
-  if (!nivel && !motivo && !simulada) return '';
-  return `<details class="info-resposta"><summary title="Sobre esta resposta"><span aria-hidden="true">i</span><span class="sr">Sobre esta resposta</span></summary><div class="info-resposta-texto">${[nivel, motivo, simulada].filter(Boolean).map(t => `<p>${t}</p>`).join('')}</div></details>`;
+  const acompanhar = conferir ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento">Acompanhar resultados</a>` : '';
+  const exec = execucao ? detalheExecucao(m) : '';
+  const linhas = [nivel, motivo, modelo, quando, simulada].filter(Boolean);
+  if (!linhas.length && !exec && !acompanhar) return '';
+  const id = `detalhes-${esc(m.id)}`;
+  return `<span class="detalhes-resposta"><button type="button" class="acao-resposta" data-detalhes aria-expanded="false" aria-controls="${id}" aria-label="Detalhes da resposta" title="Detalhes">${ICONE_RESPOSTA.detalhes}</button>
+    <div class="detalhes-resposta-painel info-resposta-texto" id="${id}" role="region" aria-label="Detalhes da resposta" hidden>${linhas.map(t => `<p>${t}</p>`).join('')}${exec}${acompanhar ? `<p>${acompanhar}</p>` : ''}</div></span>`;
 }
 
-// Avaliação ao pé da última resposta, em qualquer conversa (menos nos testes de Quick Win).
+// Avaliação (vale para a conversa) na última resposta, em qualquer conversa (menos nos testes de Quick Win):
+// 👍 registra "Serviu"; 👎 abre um diálogo com "Serviu com ajustes" e "Não serviu". Dá para mudar depois.
 function avaliacao(m) {
   if (!C.conv || C.conv.teste || m.id !== C.ultimaResposta) return '';
-  return `<div class="feedback avaliacao-resposta" role="group" aria-label="Esta resposta serviu?"><span class="dica">Serviu?</span>${FEEDBACK.map(([v, r]) => `<button type="button" data-fb="${v}" aria-pressed="${C.conv.feedback === v}">${r}</button>`).join('')}</div>`;
+  const fb = C.conv.feedback, negativo = fb === 'ajustes' || fb === 'nao_serviu';
+  const rotuloNeg = fb === 'ajustes' ? 'Serviu com ajustes' : 'Não serviu';
+  return `<button type="button" class="acao-resposta" data-fb="serviu" aria-pressed="${fb === 'serviu'}" aria-label="Serviu" title="Serviu">${ICONE_RESPOSTA.gostei}</button><button type="button" class="acao-resposta" data-fb-negativo aria-pressed="${negativo}" aria-haspopup="dialog" aria-label="${rotuloNeg}" title="${negativo ? `${rotuloNeg} (mudar avaliação)` : 'Não serviu'}">${ICONE_RESPOSTA.naoGostei}</button>`;
 }
 
 function desenharMensagens() {
@@ -217,7 +243,7 @@ function desenharMensagens() {
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
     : `<div class="boas-vindas inicio-conversa"><h2 id="saudacao">${esc(saudacao())}</h2>${primeiraVez ? '<p class="inicio-dica">Primeira vez aqui? Veja o <a href="#/primeiros-passos">guia de primeiros passos</a>.</p>' : ''}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
-  $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
+  $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta resposta-pensando">${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" role="status" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
   atalhosInicio();
   // Artefatos visuais: visualizar, baixar e editar. Uma edição cria nova versão; a conversa é relida do servidor.
   ligarArtefatos($('coluna'), { aoMudar: () => recarregarConversa(false) });
@@ -322,7 +348,9 @@ function ligar() {
     const rg = ev.target.closest('[data-regerar]');
     if (rg && !rg.disabled) gerarDeNovo(Number(rg.dataset.regerar));
     const cp = ev.target.closest('[data-copiar]');
-    if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); navigator.clipboard?.writeText(m.texto).then(() => toast('Resposta copiada.')); }
+    if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); if (m) copiarTexto(m.texto, cp, 'Resposta copiada.'); }
+    const det = ev.target.closest('[data-detalhes]');
+    if (det) alternarDetalhes(det);
     const csv = ev.target.closest('[data-csv]');
     if (csv && csv.tagName !== 'A') baixarCsv(C.tabelas[csv.closest('[data-msg]').dataset.msg][Number(csv.dataset.csv)], `${(C.qw?.nome || 'tabela').replace(/[^\wÀ-ú -]/g, '')}.csv`);
   });
@@ -330,7 +358,10 @@ function ligar() {
   const alternar = v => { C.proximaExecucao = v; desenhar(); $('entrada').focus(); };
   $('nova-execucao')?.addEventListener('click', () => alternar(!C.proximaExecucao));
   $('cancelar-execucao')?.addEventListener('click', () => alternar(false));
-  $('coluna').addEventListener('click', ev => { const b = ev.target.closest('[data-fb]'); if (b) darFeedback(b.dataset.fb); });
+  $('coluna').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-fb]'); if (b) darFeedback(b.dataset.fb).catch(e => toast(e.message, 6000));
+    if (ev.target.closest('[data-fb-negativo]')) avaliarNegativo();
+  });
   // Ações da conversa: o mesmo menu "⋯" da lateral e do histórico.
   if (C.conv) ligarAcoesConversas(document.querySelector('.cabeca'), [C.conv], async c => { if (C === estado && c) { C.conv = c; desenhar(); } },
     { antesDeExcluir: () => (C.enviando ? (toast('Aguarde a resposta terminar antes de excluir.'), false) : true) });
@@ -370,19 +401,42 @@ function explicarSigilo() {
     } });
 }
 
-async function darFeedback(valor) {
+async function darFeedback(valor, motivo = null) {
   const s = C;
-  const salvar = async motivo => {
-    const conv = (await api(`/api/conversas/${s.conv.id}`, { metodo: 'PATCH', corpo: { feedback: valor, motivo } })).conversa;
-    if (C !== s) return;
-    C.conv = conv;
-    document.querySelectorAll('[data-fb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fb === valor)));
-    toast('Obrigado pelo retorno.');
-  };
-  if (valor !== 'nao_serviu') return salvar(null).catch(e => toast(e.message));
-  dialogo({ titulo: 'O que não serviu?', texto: 'Se quiser, conte o que faltou ou veio errado. A avaliação ajuda a melhorar as próximas respostas.',
-    conteudo: '<label class="hc-campo">Motivo (opcional)<textarea class="entrada" data-motivo rows="3" maxlength="500"></textarea></label>',
-    acao: 'Enviar avaliação', executar: fundo => salvar(fundo.querySelector('[data-motivo]').value.trim() || null) });
+  const conv = (await api(`/api/conversas/${s.conv.id}`, { metodo: 'PATCH', corpo: { feedback: valor, motivo } })).conversa;
+  if (C !== s) return;
+  C.conv = conv;
+  // Atualiza só os botões (sem redesenhar a conversa): 👍 marcado em "Serviu"; 👎 marcado nos outros dois.
+  const neg = document.querySelector('#coluna [data-fb-negativo]'), pos = document.querySelector('#coluna [data-fb="serviu"]');
+  pos?.setAttribute('aria-pressed', String(valor === 'serviu'));
+  if (neg) {
+    const rotulo = valor === 'ajustes' ? 'Serviu com ajustes' : 'Não serviu';
+    neg.setAttribute('aria-pressed', String(valor !== 'serviu')); neg.setAttribute('aria-label', rotulo);
+    neg.title = valor !== 'serviu' ? `${rotulo} (mudar avaliação)` : 'Não serviu';
+  }
+  anunciar(`Avaliação registrada: ${FEEDBACK[valor]}. Obrigado pelo retorno.`);
+}
+
+// 👎: diálogo curto, como o retorno dos assistentes de chat. A observação vale para "Não serviu" (o servidor guarda
+// o motivo só nesse caso); em "Serviu com ajustes" o campo some.
+function avaliarNegativo() {
+  const atual = C.conv?.feedback;
+  const opcao = (v, rotulo, desc) => `<label class="fb-opcao"><input type="radio" name="fb-valor" value="${v}" ${atual === v ? 'checked' : ''}><span><b>${rotulo}</b><small>${desc}</small></span></label>`;
+  dialogo({ titulo: 'Como foi esta resposta?', texto: 'Sua avaliação ajuda a melhorar as próximas respostas.', icone: 'conversa',
+    conteudo: `<fieldset class="fb-opcoes"><legend class="sr">Avaliação</legend>${opcao('ajustes', 'Serviu com ajustes', 'Aproveitei, mas precisei corrigir ou completar.')}${opcao('nao_serviu', 'Não serviu', 'Não deu para usar.')}</fieldset>
+      <label class="hc-campo fb-motivo">O que faltou ou veio errado? (opcional)<textarea class="entrada" data-motivo rows="3" maxlength="500">${atual === 'nao_serviu' ? esc(C.conv.feedback_motivo || '') : ''}</textarea></label>`,
+    acao: 'Enviar avaliação', executar: async fundo => {
+      const valor = fundo.querySelector('[name=fb-valor]:checked')?.value;
+      if (!valor) throw new Error('Escolha uma das opções.');
+      await darFeedback(valor, valor === 'nao_serviu' ? fundo.querySelector('[data-motivo]').value.trim() || null : null);
+    } });
+  const fundo = [...document.querySelectorAll('.hc-modal-fundo')].at(-1);
+  if (!fundo?.querySelector('.fb-opcoes')) return;
+  const confirmar = fundo.querySelector('[data-confirmar]'), campo = fundo.querySelector('.fb-motivo');
+  const atualizar = () => { const v = fundo.querySelector('[name=fb-valor]:checked')?.value; confirmar.disabled = !v; campo.hidden = v !== 'nao_serviu'; };
+  fundo.querySelectorAll('[name=fb-valor]').forEach(r => { r.onchange = atualizar; });
+  atualizar();
+  (fundo.querySelector('[name=fb-valor]:checked') || fundo.querySelector('[name=fb-valor]')).focus();
 }
 
 async function garantirConversa() {
@@ -393,7 +447,7 @@ async function garantirConversa() {
 
 // Sem feedback numa conversa com resposta: lembrete discreto ao sair.
 export function lembreteAoSair() {
-  if (C?.qw && C.conv && !C.conv.teste && !C.conv.feedback && C.mensagens.some(m => m.papel === 'assistant')) toast('Esta conversa serviu? Dê seu retorno ao pé da última resposta quando puder.', 5000);
+  if (C?.qw && C.conv && !C.conv.teste && !C.conv.feedback && C.mensagens.some(m => m.papel === 'assistant')) toast('Esta conversa serviu? Avalie com o polegar ao pé da última resposta quando puder.', 5000);
 }
 
 async function enviar(reenvio = null, { executar = false } = {}) {

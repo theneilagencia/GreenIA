@@ -279,7 +279,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .anexo-chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;padding:2px 8px;font:500 12px var(--sans);margin:6px 6px 0 0;white-space:nowrap}
 .resposta{display:flex;gap:12px;align-items:flex-start;max-width:100%}
 .anim{animation:up .2s ease both}
-.resposta .sim{flex:none;width:26px;height:26px;border-radius:6px;background:var(--sand);display:flex;align-items:center;justify-content:center;margin-top:2px}
 .resposta-corpo{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
 .bolha-ia{font:400 15px/1.65 var(--sans);overflow-wrap:anywhere;padding:2px 0}
 .bolha-ia p{margin:0 0 10px} .bolha-ia p:last-child{margin-bottom:0}
@@ -293,8 +292,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .aviso-bolha{border-left:3px solid var(--amber);padding-left:12px}
 .cursor{display:inline-block;width:7px;height:16px;background:var(--forest);margin-left:2px;vertical-align:-3px;animation:pisca 1s steps(1) infinite}
 .rodape-resposta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font:400 12px var(--sans);color:var(--muted)}
-.rodape-resposta button{background:none;border:none;color:var(--forest-text);font:500 12px var(--sans);padding:2px 4px;border-radius:4px}
-.rodape-resposta button:hover{background:var(--surface-hover)}
 .fontes{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .fontes b{font:600 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .linha-aviso{align-self:center;font:500 12.5px/1.4 var(--sans);color:var(--amber-text);background:var(--amber-bg);border-radius:6px;padding:6px 12px;text-align:center}
@@ -316,9 +313,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .anexos-pendentes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .anexos-pendentes button{background:none;border:none;color:var(--muted);padding:0 0 0 4px;font-size:15px;line-height:1}
 .nota-compositor{text-align:center;font:400 12px var(--sans);color:var(--muted);margin:8px 0 0}
-.feedback{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.feedback button{background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;padding:4px 10px;font:500 12.5px var(--sans);color:var(--ink)}
-.feedback button[aria-pressed="true"]{background:var(--forest-strong);border-color:var(--forest-strong);color:var(--sobre-forte)}
 .revise{font:500 12px var(--sans);color:var(--amber-text)}
 
 /* Modal */
@@ -610,7 +604,6 @@ select.entrada{appearance:none;background-image:var(--seta-select);background-si
 .bolha-eu{background:var(--sand);border-radius:14px 14px 4px 14px}
 .caixa{border-radius:14px;box-shadow:var(--sombra-2);background:var(--campo)}
 .boas-vindas h2{font-size:28px}
-.resposta .sim{background:transparent;border:1px solid var(--line)}
 
 /* Console da plataforma: lateral em preto suave, o mesmo desenho do app */
 .lateral-plataforma{background:var(--lateral-console);border-right-color:var(--lateral-console-borda)}
@@ -669,7 +662,6 @@ select.entrada{appearance:none;background-image:var(--seta-select);background-si
   .subnav a{padding:12px 12px 13px}
   .kbd{display:none}
   .menu-btn{min-width:44px;min-height:44px}
-  .rodape-resposta button{min-height:36px;padding:4px 10px}
   a.marca{min-height:44px}
   .p-regras a,.p-aviso a,.l a[href='/politica']{display:inline-block;padding:12px 0}
 }
@@ -739,7 +731,6 @@ body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista
 .toast{animation:toast .32s var(--mola) both}
 @keyframes toast{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
 .msg-ok,.faixa-aviso.ok{animation:entra .3s var(--suave) both}
-.bolha-eu,.bolha-ia,.resposta{animation:up .28s var(--suave) both}
 .selo-verde .ponto,.selo[data-vivo]::before{animation:pulso 2s ease-out infinite}
 @media (hover:hover){
   a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
@@ -1897,7 +1888,7 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .pesquisa-resolucao .btn{white-space:normal}
 
 @media(pointer:coarse),(max-width:760px){
-  .rodape-resposta .link-sutil,.painel-negocio .link-sutil{display:inline-flex;align-items:center;min-height:44px;padding:6px 8px;box-sizing:border-box}
+  .resposta-proximos .link-sutil,.detalhes-resposta-painel .link-sutil,.painel-negocio .link-sutil{display:inline-flex;align-items:center;min-height:44px;padding:6px 8px;box-sizing:border-box}
   .painel-negocio td .link-sutil{display:flex}
   .app .switch{width:48px;height:44px;min-height:44px;background:transparent}
   .app .switch::before{content:'';position:absolute;width:34px;height:20px;left:7px;top:12px;border-radius:999px;background:var(--stone)}

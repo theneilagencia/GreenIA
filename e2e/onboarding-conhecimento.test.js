@@ -6,6 +6,7 @@ import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
 import { exec, um } from '../src/db.js';
+import { abrirConta, itemConta } from './casca.js';
 let N, admin, A, B, comum, antigo;
 const clientes = new Map();
 const arquivo = (nome, texto) => ({ nome, base64: Buffer.from(texto).toString('base64') });
@@ -38,10 +39,10 @@ test('guia: quatro passos para usuário, progresso retomável, conclusão e ajud
   await p.reload(); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
   await p.click('a[href="#/nova"]'); await p.waitForSelector('#entrada');
   assert.equal(await p.locator('#modal [role="dialog"]').count(), 0, 'guia não bloqueia o trabalho');
-  await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
+  await itemConta(p, '#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
   await p.click('[data-guia-passo="3"]'); await p.click('#guia-seguir'); await p.waitForSelector('#entrada');
   assert.equal(await p.locator('.inicio-dica').count(), 0, 'a nova conversa não tem cartão de guia');
-  await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-seguir'); assert.match(await p.textContent('.guia-pagina'), /Guia concluído/);
+  await itemConta(p, '#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-seguir'); assert.match(await p.textContent('.guia-pagina'), /Guia concluído/);
   // Quem nunca conversou vê uma linha só, com o caminho para o guia; o guia continua na Ajuda.
   const q = await abrir('outra', '#/nova'); assert.equal(await q.locator('.inicio-dica').count(), 1);
   await q.locator('.inicio-dica a').click(); await q.waitForSelector('#guia-seguir'); assert.equal(await q.locator('[data-guia-passo][aria-current="step"]').getAttribute('data-guia-passo'), '0');
@@ -53,7 +54,7 @@ test('guia por perfil: gestora de base vê orientação de gestão; admin vê co
   const q = await abrir('admin', '#/primeiros-passos'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
   await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('#entrada');
   assert.equal(await q.getByText('Comece por aqui').count(), 0, 'sem cartão "Comece por aqui"'); assert.equal(await q.locator('#ajuda-tela').count(), 1);
-  await q.click('#ajuda-tela'); await q.click('#ajuda-guia'); await q.waitForSelector('#guia-seguir'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
+  await itemConta(q, '#ajuda-tela'); await q.click('#ajuda-guia'); await q.waitForSelector('#guia-seguir'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
   assert.equal((await admin.get('/api/eu')).dados.pessoa.admin, true);
   await p.close(); await q.close();
 });
@@ -119,7 +120,7 @@ test('biblioteca: filtros não descartam envio; saída não salva exige confirma
   await p.fill('#doc-titulo', 'Título ainda não enviado'); await p.fill('#conhecimento-busca', 'Política'); await p.click('[data-limpar-conhecimento]'); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
   // Sair com envio pendente pergunta no modal da plataforma (nunca o confirm() do navegador); "Continuar editando" fica.
   const continuar = async () => { const m = p.getByRole('dialog', { name: /Sair sem salvar|Descartar as alterações/ }); await m.waitFor(); await m.getByRole('button', { name: 'Continuar editando' }).click(); await m.waitFor({ state: 'detached' }); };
-  await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await continuar(); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
+  await itemConta(p, '#ajuda-tela'); await p.click('#ajuda-guia'); await continuar(); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
   await p.fill('#doc-titulo', ''); await p.click(`[data-editar-conhecimento="${antigo.id}"]`); await p.fill('#conhecimento-ed-nome', 'Alteração não salva');
   await p.keyboard.press('Escape'); await continuar(); assert.equal(await p.inputValue('#conhecimento-ed-nome'), 'Alteração não salva');
   await p.click('#conhecimento-ed-cancelar'); await p.getByRole('dialog', { name: 'Descartar as alterações?' }).getByRole('button', { name: 'Descartar', exact: true }).click(); await p.waitForSelector('#conhecimento-ed-form', { state: 'detached' });
@@ -134,7 +135,7 @@ test('biblioteca e guia: 320, 390, 768 e 1280 px sem transbordamento, erros Java
     for (const rota of ['#/conhecimento', '#/primeiros-passos']) {
       await p.goto(`${N.base}/app${rota}`); await p.waitForSelector(rota.includes('conhecimento') ? '#conhecimento-busca' : '#guia-seguir');
       assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${rota} ${width}`);
-      assert.ok(await p.locator('#ajuda-tela').isVisible());
+      await abrirConta(p); assert.ok(await p.locator('#ajuda-tela').isVisible()); await p.keyboard.press('Escape');
       await p.screenshot({ path: `capturas/tmp/${rota.includes('conhecimento') ? 'biblioteca' : 'guia'}-${width}.png` });
     }
   }

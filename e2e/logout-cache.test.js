@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright-core';
 import {subirComNavegador} from '../scripts/navegador.js';
 import {cliente} from '../scripts/cliente.js';
+import { itemConta } from './casca.js';
 test('histórico real com back/forward cache não restaura conteúdo privado após logout',async()=>{
  const N=await subirComNavegador();let b;
  try{
@@ -13,7 +14,7 @@ test('histórico real com back/forward cache não restaura conteúdo privado ap�
   await p.goto(N.base+'/app#/nova');await p.waitForSelector('#entrada');
   await p.goto(N.base+'/');await p.goBack();await p.waitForSelector('#entrada');assert.ok(await p.locator('#sair').isEnabled());
   // Uma navegação de documento anterior também deve ser protegida, além da página de saída.
-  await p.goto(N.base+'/app#/conversas');await p.waitForSelector('#sair');await p.click('#sair');await p.waitForURL(N.base+'/');
+  await p.goto(N.base+'/app#/conversas');await p.waitForSelector('#sair',{state:'attached'});await itemConta(p,'#sair');await p.waitForURL(N.base+'/');
   await p.goBack();await p.waitForURL(/\/entrar$/);assert.equal(await p.locator('#principal').count(),0);assert.equal(await p.locator('#sair').count(),0);assert.deepEqual(erros,[]);
  }finally{await b?.close();await N.fechar();}
 });

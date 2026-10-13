@@ -9,6 +9,7 @@ import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
 import { MSG_IMAGEM_SEM_TEXTO, LIMITES_OCR } from '../src/ocr.js';
 import { imagem, pdfEscaneado, jpegDe } from '../test/arquivos.js';
+import { abrirAjudaTela } from './casca.js';
 
 const TECNICO = /open\s*router|anthropic|google\/|gemini|claude|haiku|mistral|llama/i;
 let N, admin;
@@ -104,6 +105,6 @@ test('admin: a Administração mostra os recursos sem o provedor; a tela de uso 
   await p.waitForSelector('#doc-arquivo', { state: 'attached' });
   assert.match(await p.locator('#envio-conhecimento').innerText(), /até 25 MB/);
   // A explicação do envio (OCR, sigilo) saiu da tela e fica na Ajuda.
-  await p.click('#ajuda-tela'); await p.waitForSelector('#ajuda-titulo');
+  await abrirAjudaTela(p);
   assert.match(await p.locator('.ajuda-contextual').innerText(), /Imagem e PDF escaneado são lidos por OCR/);
 });

@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 import { exec } from '../src/db.js';
+import { abrirAjudaTela } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const LARGURAS = [{ width: 1366, height: 768 }, { width: 390, height: 844, isMobile: true, hasTouch: true }];
@@ -46,7 +47,7 @@ const medir = p => p.evaluate(() => {
   };
 });
 const ajuda = async p => {
-  await p.click('#ajuda-tela'); await p.waitForSelector('#ajuda-titulo');
+  await abrirAjudaTela(p);
   const texto = await p.locator('.ajuda-contextual').innerText();
   await p.keyboard.press('Escape'); await p.waitForSelector('#ajuda-titulo', { state: 'detached' });
   return texto;

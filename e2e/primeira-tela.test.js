@@ -8,6 +8,7 @@ import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
 import { um } from '../src/db.js';
+import { abrirConta } from './casca.js';
 
 let N, admin, area;
 const qws = [], sessoes = new Map();
@@ -181,12 +182,14 @@ test('Quick Win: a conversa vazia mostra o Quick Win e a caixa no centro, sem a 
   await p.context().close();
 });
 
-test('lateral do admin: "Administração" aparece uma vez só (no alternador)', async () => {
+test('lateral do admin: "Administração" aparece uma vez só (no menu da conta)', async () => {
   const p = await pagina('admin@empresa-exemplo.com.br');
-  await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#lateral .troca-contexto');
+  await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#lateral #conta');
+  await abrirConta(p);
   assert.equal(await p.locator('#lateral').getByText('Administração', { exact: true }).count(), 1);
+  assert.equal(await p.locator('#lateral [data-contexto]').count(), 1);
   assert.equal(await p.locator('#lateral [data-item="administracao"]').count(), 0);
-  await p.click('#lateral [data-contexto="admin"]'); await p.waitForFunction(() => document.body.dataset.contexto === 'admin');
+  await p.click('#menu-conta [data-contexto="admin"]'); await p.waitForFunction(() => document.body.dataset.contexto === 'admin');
   await p.context().close();
 });
 

@@ -9,6 +9,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 import { respostaSimulada } from '../src/ia.js';
+import { abrirConta, itemConta } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 let S, nav, admin, pessoa, qw, livre, conversaQw;
@@ -83,31 +84,37 @@ test('B4: na lateral, só o lugar atual fica ativo', async () => {
   await p.goto(`${S.base}/app#/c/${livre.id}`); await p.waitForSelector('.rodape-resposta');
   assert.deepEqual(await ativos(), [`#/c/${livre.id}`]);
   await p.goto(`${S.base}/app#/conversas`); await p.waitForSelector('.hc-conversa');
-  assert.deepEqual(await ativos(), ['conversas']);
+  assert.deepEqual(await ativos(), ['#/conversas'], '"Ver todas" do histórico, a entrada da tela de Conversas');
   assert.deepEqual(p.erros, []);
 });
 
-test('M4/M5/B6: ajuda num botão só (com o guia dentro); menu do celular com Fechar, nome, email e Sair', async () => {
+test('M4/M5/B6: ajuda num lugar só (menu da conta, com o guia dentro); menu do celular com Fechar e a conta (nome, email e Sair)', async () => {
   const p = await pagina(pessoa, { width: 390, height: 844 });
   await p.goto(`${S.base}/app#/nova`); await p.waitForSelector('#entrada');
   assert.equal(await p.locator('.cabeca a[href="#/primeiros-passos"]').count(), 0, 'sem botão "Guia" separado');
+  assert.equal(await p.locator('#ajuda-tela').count(), 1, 'uma Ajuda só');
   assert.equal(await p.innerText('#sair'), 'Sair', '"Sair" continua escrito');
-  await p.click('#ajuda-tela'); await p.waitForSelector('#ajuda-guia');
+  await itemConta(p, '#ajuda-tela'); await p.waitForSelector('#ajuda-guia');
   await p.click('#ajuda-guia'); await p.waitForSelector('#guia-seguir');
   await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350);
-  const conta = p.locator('#lateral .conta-lateral');
+  const conta = p.locator('#lateral #conta');
   assert.ok(await conta.isVisible());
-  assert.match(await conta.innerText(), /Pessoa Uso[\s\S]*pessoa@uso\.test[\s\S]*Sair/);
+  assert.match(await conta.innerText(), /Pessoa Uso/);
+  await abrirConta(p);
+  assert.match(await p.locator('#menu-conta').innerText(), /Pessoa Uso[\s\S]*pessoa@uso\.test[\s\S]*Sair/);
+  await p.keyboard.press('Escape');
+  assert.equal(await p.evaluate(() => document.activeElement.id), 'conta', 'Esc fecha o menu e devolve o foco');
   const fechar = await p.locator('#fechar-lateral').boundingBox();
   assert.ok(fechar.width >= 44 && fechar.height >= 44, JSON.stringify(fechar));
   assert.equal(await p.getAttribute('#fechar-lateral', 'aria-label'), 'Fechar menu');
   await p.click('#fechar-lateral');
   await p.waitForFunction(() => !document.querySelector('#lateral').classList.contains('aberta'));
   assert.equal(await p.evaluate(() => document.activeElement.id), 'menu');
-  // No computador, a conta segue no cabeçalho e o menu não tem botão de fechar.
+  // No computador, a conta fica no pé da lateral (nada de email ou Sair no topo) e a lateral não tem botão de fechar.
   await p.setViewportSize({ width: 1280, height: 860 });
   assert.equal(await p.locator('#fechar-lateral').isVisible(), false);
-  assert.equal(await p.locator('#lateral .conta-lateral').isVisible(), false);
+  assert.equal(await p.locator('#lateral #conta').isVisible(), true);
+  assert.doesNotMatch(await p.locator('.cabeca').innerText(), /pessoa@uso\.test|Sair|Ajuda/);
   assert.deepEqual(p.erros, []);
 });
 
@@ -208,7 +215,7 @@ test('M15: guia com passos nomeados, "Voltar" desabilitado visível e o caminho 
   assert.deepEqual((await p.locator('[data-guia-passo]').allInnerTexts()).map(t => t.replace(/\s+/g, ' ').split(' · ')[0].trim()), ['1 Escolher', '2 Enviar', '3 Conferir', '4 Conhecimento']);
   assert.equal(await p.locator('#guia-voltar').isDisabled(), true);
   assert.ok(Number(await p.locator('#guia-voltar').evaluate(e => getComputedStyle(e).opacity)) <= 0.5);
-  assert.match(await p.locator('.guia-saida').innerText(), /botão Ajuda/);
+  assert.match(await p.locator('.guia-saida').innerText(), /Ajuda, no menu da sua conta/);
   assert.deepEqual(p.erros, []);
 });
 

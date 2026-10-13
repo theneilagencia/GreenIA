@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
+import { itemConta } from './casca.js';
 let N, admin, p, area;
 before(async () => {
   N = await subirComNavegador();
@@ -125,17 +126,19 @@ test('busca encontra nomes sem acento e arquivados; restauração conserva hist�
 
 test('diálogos: Tab permanece no modal, Escape devolve foco e não fica associado ao diálogo fechado', async () => {
   await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#entrada');
-  await p.click('#ver-politica'); await p.waitForSelector('[role="dialog"]');
+  await itemConta(p, '#ver-politica'); await p.waitForSelector('[role="dialog"]');
   await p.keyboard.press('Tab');
   assert.equal(await p.evaluate(() => !!document.activeElement.closest('[role="dialog"]')), true);
   await p.keyboard.press('Shift+Tab');
   assert.equal(await p.evaluate(() => !!document.activeElement.closest('[role="dialog"]')), true);
   await p.keyboard.press('Escape'); assert.equal(await p.locator('[role="dialog"]').count(), 0);
-  assert.equal(await p.locator('#ver-politica').evaluate(e => e === document.activeElement), true);
-  await p.click('#ver-politica'); await p.click('#fechar-modal');
-  await p.click('#reportar'); await p.waitForSelector('#descricao-problema'); await p.keyboard.press('Escape');
+  // O item do menu da conta já fechou: o foco volta ao botão da conta, que abriu o menu.
+  assert.equal(await p.locator('#conta').evaluate(e => e === document.activeElement), true);
+  await itemConta(p, '#ver-politica'); await p.click('#fechar-modal');
+  assert.equal(await p.locator('#conta').evaluate(e => e === document.activeElement), true);
+  await itemConta(p, '#reportar'); await p.waitForSelector('#descricao-problema'); await p.keyboard.press('Escape');
   assert.equal(await p.locator('[role="dialog"]').count(), 0);
-  assert.equal(await p.locator('#reportar').evaluate(e => e === document.activeElement), true);
+  assert.equal(await p.locator('#conta').evaluate(e => e === document.activeElement), true);
 });
 
 test('mobile: menu tem foco contido, Escape fecha e restaura aria-expanded; principais precedem recentes', async () => {
@@ -155,9 +158,9 @@ test('logout: falha de rede não afirma sucesso; aviso persiste e pode ser fecha
   await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#entrada');
   await p.clock.install();
   const falhar = r => r.abort('failed'); await p.route('**/api/sair', falhar);
-  await p.click('#sair'); await p.waitForSelector('.toast.erro');
+  await itemConta(p, '#sair'); await p.waitForSelector('.toast.erro');
   await p.clock.fastForward(7000); assert.match(await p.textContent('.toast.erro'), /Não foi possível sair/);
   await p.click('.toast-fechar'); assert.equal(await p.locator('.toast.erro').count(), 0);
-  await p.unroute('**/api/sair', falhar); await p.click('#sair'); await p.waitForURL(N.base + '/');
+  await p.unroute('**/api/sair', falhar); await itemConta(p, '#sair'); await p.waitForURL(N.base + '/');
   await p.goto(`${N.base}/app#/conversas`); await p.waitForURL(/\/entrar$/);
 });

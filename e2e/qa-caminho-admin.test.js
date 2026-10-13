@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
+import { itemConta } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const TELAS = {
@@ -213,7 +214,7 @@ test('Ajuda: as explicações que saíram das telas ficam na Ajuda de cada tela,
   for (const [rota, texto] of [['configuracoes', /senha de app|Nome, logomarca, cores e aviso de privacidade ficam em Marca e endereço/], ['pessoas', /Grupo de permissão: pessoas de qualquer área/],
     ['modelos/catalogo', /Capacidades: por padrão/], ['politicas', /Pesquisa na internet/], ['visao-geral', /Preparar o ambiente/], ['atividade/suporte', /equipe de operação/]]) {
     await abrir(p, rota);
-    await p.click('#ajuda-tela');
+    await itemConta(p, '#ajuda-tela');
     const ajuda = p.locator('.ajuda-contextual');
     await ajuda.waitFor();
     assert.match(await ajuda.innerText(), texto, rota);

@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
 import { salvarConfig } from '../src/config.js';
+import { abrirConta, itemConta } from './casca.js';
 
 let N, qwId;
 before(async () => {
@@ -76,7 +77,7 @@ test('login → chat → quick win', async () => {
   assert.equal(await p.locator('.bolha-eu').count(), 2);
   // Quem não é admin: sem alternador de contexto, e o endereço da administração volta para o uso.
   // Quem recusa é o servidor (403); a tela só reage, voltando para "Nova conversa".
-  assert.equal(await p.locator('.troca-contexto').count(), 0);
+  assert.equal(await p.locator('#lateral [data-contexto]').count(), 0);
   const recusas = [];
   p.on('response', r => { if (r.url().includes('/api/admin/')) recusas.push(r.status()); });
   for (const tela of ['configuracoes', 'politicas', 'modelos', 'pessoas', 'atividade']) {
@@ -124,8 +125,8 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.fill('#motivo', 'Vale seguir por mais um mês.');
   await p.click('#form-dec .btn-verde');
   await p.waitForFunction(() => /Vale seguir/.test(document.getElementById('medicao-qw').textContent));
-  // Reportar problema, pela lateral.
-  await p.click('#reportar');
+  // Reportar problema, pelo menu da conta (no pé da lateral).
+  await itemConta(p, '#reportar');
   await p.fill('#descricao-problema', 'A resposta citou uma regra que não existe.');
   await p.click('#form-problema .btn-verde');
   await p.waitForSelector('#form-problema', { state: 'detached' });
@@ -134,20 +135,24 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.waitForURL(/#\/visao-geral/);
   await p.waitForSelector('.etapas, .indicadores');
   // Dois contextos, uma sessão: um clique troca, sem novo login, e o contexto fica evidente.
-  assert.equal(await p.locator('.troca-contexto a.ativo').textContent(), 'Administração');
+  assert.equal(await p.locator('#lateral .selo-contexto').innerText(), 'Administração');
   assert.equal(await p.locator('.selo-contexto').count(), 1);
+  // A troca de contexto é uma só: no menu da conta ("Usar a GreenIA" na Administração, "Administração" no uso).
+  await abrirConta(p);
+  assert.equal(await p.locator('#menu-conta [data-contexto]').count(), 1);
   assert.equal(await p.evaluate(() => document.body.dataset.contexto), 'admin');
-  await p.click('.troca-contexto a:has-text("Usar GreenIA")');
+  await p.click('#menu-conta [data-contexto="uso"]:has-text("Usar a GreenIA")');
   // Volta para onde a pessoa estava no uso (aqui, o quick win).
   await p.waitForURL(new RegExp(`#/qw/${qwId}$`));
   // A lateral troca de contexto já no clique; o cabeçalho troca quando a tela do quick win termina de carregar.
   await p.waitForFunction(() => document.body.dataset.contexto !== 'admin' && !document.querySelector('.selo-contexto'));
-  assert.equal(await p.locator('.troca-contexto a.ativo').textContent(), 'Usar GreenIA');
+  await abrirConta(p);
+  assert.deepEqual(await p.locator('#menu-conta [data-contexto]').allInnerTexts(), ['Administração']);
   assert.equal(await p.locator('.selo-contexto').count(), 0);
   assert.equal(await p.locator('.lateral a[href="#/configuracoes"]').count(), 0, 'no uso, a lateral não mostra a administração');
-  await p.click('.troca-contexto a:has-text("Administração")');
+  await itemConta(p, '[data-contexto="admin"]');
   await p.waitForURL(/#\/visao-geral/);
-  await p.waitForFunction(() => document.querySelector('.troca-contexto a.ativo')?.textContent === 'Administração');
+  await p.waitForFunction(() => document.body.dataset.contexto === 'admin' && !!document.querySelector('#lateral .selo-contexto'));
   assert.doesNotMatch(p.url(), /entrar/);
   // Gestão: cada tela abre pela navegação, sem erro.
   for (const tela of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'pessoas/grupos', 'pessoas/criacao', 'modelos', 'modelos/catalogo', 'modelos/historico', 'politicas', 'politicas/texto', 'atividade', 'atividade/problemas', 'configuracoes', 'conversas']) {

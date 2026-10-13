@@ -5,10 +5,11 @@
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
 import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, rodapePlataformaHtml, toast, transicao, vazioHtml } from '/comum.js';
-import { ligarAcoesConversas } from '/historico-conversas.js';
+import { ligarAcoesConversas, grupoData } from '/historico-conversas.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { iniciarAcessibilidade, conterFoco, fecharComEscape } from '/acessibilidade.js';
+import { abrirMenuConta, contaHtml, fecharMenuConta, ICONE_CONTA, itemMenu, ligarConta, separadorMenu, temaMenuHtml } from '/menu-conta.js';
 
 export const E = { eu: null, publico: {}, conversas: [], quickWins: [], retencaoDias: 90, rotas: {} };
 const $ = id => document.getElementById(id);
@@ -29,37 +30,19 @@ export const pode = perm => (E.permissoes ? E.permissoes.includes(perm) : ehAdmi
 window.__greeniaPode = pode;   // telas que não importam este módulo (avisos com ação) consultam a permissão
 export const ehGestor = () => ehAdmin() || E.eu?.areas.some(a => a.responsavel) || !!E.podeCriarQw;
 
-function iniciais(p) {
-  const n = (p.nome || p.email).split(/[\s.@_-]+/).filter(Boolean);
-  return ((n[0]?.[0] || '') + (n[1]?.[0] || '')).toUpperCase();
-}
 
-// Onde estou: grupo da seção atual (Trabalho, Gestão, Empresa) antes do título.
-function grupoAtual() {
-  const h = location.hash || '';
-  for (const g of [...SECOES_USO(), ...SECOES_ADMIN()]) for (const i of g.itens) if ((i.secao || i.ativo) ? (i.secao || i.ativo)(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`)) return g.titulo || '';
-  return '';
-}
-
+// Topo mínimo (padrão assistente): só o título da tela (o h1 da página) e, numa conversa, o menu "…" dela. Ajuda,
+// tema, política, relato de problema, troca para a Administração e Sair ficam no menu da conta, no pé da lateral.
 export function cabecalho(titulo, acoes = '') {
-  const p = E.eu;
-  const grupo = grupoAtual();
   return `<header class="cabeca">
     <div class="cabeca-titulo">
       <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}<span>Menu</span></button>
-      ${emAdministracao() ? '<span class="selo-contexto" title="Você está na Administração da empresa">Administração</span>' : ''}${grupo ? `<span class="migalha"><span>${esc(grupo)}</span><span class="sep">/</span></span>` : ''}<h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
+      <h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
-    <div class="cabeca-acoes">
-      <button type="button" class="btn btn-linha ajuda-tela" id="ajuda-tela" aria-label="Ajuda desta tela" aria-haspopup="dialog" title="Como usar esta tela e guia de primeiros passos">Ajuda</button>
-      <div class="usuario"><span class="avatar" aria-hidden="true">${esc(iniciais(p))}</span>
-        <div class="usuario-meta"><b>${esc(p.nome)}</b><span>${esc(p.email)}</span></div>
-        <button class="icone-btn" id="sair" aria-label="Sair" title="Sair">${ICONE.sair}<span>Sair</span></button></div>
-    </div></header>${E.plano?.mensagem ? `<div class="faixa-plano faixa-aviso ${E.plano.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status">${esc(E.plano.mensagem)}</div>` : ''}`;
+    <div class="cabeca-acoes">${emAdministracao() ? '' : `<a class="icone-btn nova-topo" href="#/nova" aria-label="Nova conversa" title="Nova conversa">${ICONE.mais}</a>`}</div></header>${E.plano?.mensagem ? `<div class="faixa-plano faixa-aviso ${E.plano.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status">${esc(E.plano.mensagem)}</div>` : ''}`;
 }
 
 export function ligarCabecalho() {
-  $('ajuda-tela').onclick = ev => { const b=ev.currentTarget;import('/ajuda-contextual.js').then(m=>m.abrirAjuda(b)); };
-  $('sair').onclick = sair;
   $('menu').onclick = () => {
     if ($('lateral').classList.contains('aberta')) return fecharNavegacao(true);
     $('lateral').classList.add('aberta'); $('menu').setAttribute('aria-expanded', 'true');
@@ -67,9 +50,11 @@ export function ligarCabecalho() {
   };
 }
 async function sair(e) {
-  const b = e.currentTarget; b.disabled = true;
+  const b = e?.currentTarget || $('sair'); fecharMenuConta();
+  if (b) b.disabled = true;
+  $('conta')?.setAttribute('aria-busy', 'true');
   try { await api('/api/sair', { metodo: 'POST' }); document.body.replaceChildren(); location.replace('/'); }
-  catch (err) { toast(`Não foi possível sair. ${err.message}`, 6000); b.disabled = false; }
+  catch (err) { toast(`Não foi possível sair. ${err.message}`, 6000); if (b) b.disabled = false; $('conta')?.removeAttribute('aria-busy'); $('conta')?.focus(); }
 }
 function fecharNavegacao(devolverFoco = false) {
   $('lateral').classList.remove('aberta');
@@ -108,19 +93,20 @@ export async function recarregarBases() {
 // (quem tem permissão). Admin é permissão, não outra conta: a troca é só de tela, e cada tela da
 // Administração continua protegida no servidor pela permissão dela.
 const SECOES_USO = () => [
-  { titulo: 'Trabalho', itens: [
-    // Só o lugar atual fica ativo: em Nova conversa, o botão "Nova conversa"; numa conversa das recentes, ela própria.
-    { id: 'conversas', nome: 'Conversas', icone: 'conversa', secao: h => h === '#/conversas' || h === '#/nova' || h.startsWith('#/c/'),
-      ativo: h => h === '#/conversas' || (h.startsWith('#/c/') && !(E.conversas || []).slice(0, RECENTES_LATERAL).some(c => h === `#/c/${c.id}`)) },
+  { titulo: 'Atalhos', itens: [
+    // "Conversas" (a tela com busca, filtro e "Excluir todas") não é atalho: a lateral já mostra o histórico, e o
+    // "Ver todas" do histórico leva a ela. Continua na busca (Ctrl K).
+    { id: 'conversas', nome: 'Conversas', icone: 'conversa', naLateral: () => false },
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/') },
-    { id: 'pendencias', nome: 'Pendências', icone: 'atividade', ver: () => ehGestor() || !!E.bases?.areas?.length || pode('audit.read') || pode('integrations.approve') || pode('user.read') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
-    // A Administração fica só no alternador "Usar GreenIA | Administração", no alto da lateral (uma entrada só).
+    // Pendências: atalho só quando há o que resolver (com a contagem) ou quando a tela está aberta; o endereço e a
+    // busca continuam valendo sempre para quem pode acompanhar.
+    { id: 'pendencias', nome: 'Pendências', icone: 'atividade', ver: podeAcompanhar,
+      naLateral: h => E.pendencias > 0 || h === '#/pendencias',
+      selo: () => (E.pendencias > 0 ? { texto: String(E.pendencias), alerta: true, dica: `${E.pendencias} ${E.pendencias === 1 ? 'pendência' : 'pendências'} para resolver` } : null) },
   ] },
 ];
-// Conversas recentes na lateral: no máximo RECENTES_LATERAL, subordinadas a "Conversas"; o histórico completo é a
-// tela de Conversas (#/conversas). A lista é a mesma de sempre (E.conversas), sem cópia paralela.
-export const RECENTES_LATERAL = 5;
+const podeAcompanhar = () => ehGestor() || !!E.bases?.areas?.length || pode('audit.read') || pode('integrations.approve') || pode('user.read');
 // Agrupada por tema, com um ícone diferente por item e rótulos curtos (o mesmo texto do título de cada tela).
 // Poucos itens (no máximo nove): o que é raro vive em abas da tela do mesmo assunto. Preparar o ambiente fica no alto
 // da Visão geral; Acessos do suporte é uma aba de Atividade; Marca, Página de apresentação e URL e domínio são abas
@@ -180,49 +166,140 @@ async function conferirNoServidor(h) {
 }
 addEventListener('greenia:admin-recusado', () => { if (ROTAS_ADMIN.test(location.hash)) recusado(); });
 
+// Lateral recolhida (só no computador): fica lembrada neste navegador.
+const CHAVE_RECOLHIDA = 'greenia-lateral-recolhida';
+const lerRecolhida = () => { try { return localStorage.getItem(CHAVE_RECOLHIDA) === '1'; } catch { return false; } };
+const recolhida = () => document.body.classList.contains('lateral-recolhida');
+function alternarRecolhida() {
+  const v = !recolhida();
+  try { if (v) localStorage.setItem(CHAVE_RECOLHIDA, '1'); else localStorage.removeItem(CHAVE_RECOLHIDA); } catch { /* sem armazenamento: vale nesta aba */ }
+  document.body.classList.toggle('lateral-recolhida', v);
+  desenharLateral();
+  $('recolher-lateral')?.focus();
+}
+
+// Histórico na lateral, agrupado por data (Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, mês/ano). Mostra de 50 em
+// 50: ao chegar no fim, desenha os próximos já carregados e, quando acabam, busca a próxima página no servidor.
+const PASSO_HISTORICO = 50;
+// Cada desenho da lateral é uma geração: o clique em "Mostrar mais" e a rolagem até o fim pedem a mesma próxima
+// leva uma vez só.
+let limiteHistorico = PASSO_HISTORICO, observadorHistorico = null, geracaoHistorico = 0, pedidoHistorico = -1;
+async function maisHistorico(geracao) {
+  if (geracao !== geracaoHistorico || pedidoHistorico === geracao) return;
+  pedidoHistorico = geracao;
+  const lista = E.conversas || [];
+  if (limiteHistorico < lista.length) { limiteHistorico += PASSO_HISTORICO; return desenharLateral(); }
+  if (lista.length >= (E.totalConversas || 0) || lista.length % PASSO_HISTORICO) return;
+  try {
+    const d = await api(`/api/conversas?todas=1&pagina=${lista.length / PASSO_HISTORICO}`, { independenteDaRota: true });
+    const ids = new Set(lista.map(c => c.id));
+    E.conversas = [...lista, ...d.conversas.filter(c => !ids.has(c.id))]; E.totalConversas = d.total;
+    limiteHistorico += PASSO_HISTORICO;
+  } catch (e) { toast(`Não foi possível carregar mais conversas. ${e.message}`); }
+  desenharLateral();
+}
+function historicoHtml(lista, h) {
+  if (!lista.length) return `<section class="historico-lat" aria-labelledby="hist-titulo"><div class="hist-cab"><h2 id="hist-titulo">Conversas</h2></div><p class="hist-vazio">Suas conversas aparecem aqui.</p></section>`;
+  const visiveis = lista.slice(0, limiteHistorico), grupos = new Map();
+  for (const c of visiveis) { const g = grupoData(c.atualizado_em); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(c); }
+  const total = Math.max(E.totalConversas || 0, lista.length);
+  const linha = c => { const atual = h === `#/c/${c.id}`; return `<div class="hc-recente"><a class="item-lat sub hist-item${atual ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${atual ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? `<span class="hist-sigilo" title="Conversa sigilosa">${ICONE.cadeado}<span class="sr">Sigilosa</span></span>` : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button></div>`; };
+  let n = 0;
+  return `<section class="historico-lat" aria-labelledby="hist-titulo">
+    <div class="hist-cab"><h2 id="hist-titulo">Conversas</h2><a class="ver-todas" href="#/conversas" title="Buscar, filtrar e organizar todas as conversas" ${h === '#/conversas' ? 'aria-current="page"' : ''}>Ver todas</a></div>
+    ${[...grupos].map(([g, cs]) => { const id = `hist-g${n++}`; return `<div class="hist-grupo" role="group" aria-labelledby="${id}"><h3 id="${id}">${esc(g)}</h3>${cs.map(linha).join('')}</div>`; }).join('')}
+    ${visiveis.length < total ? '<button type="button" class="hist-mais" id="hist-mais">Mostrar mais conversas</button>' : ''}
+  </section>`;
+}
+
+// Conta no pé da lateral (padrão assistente): avatar e nome abrem um menu com Ajuda, Tema, Política de uso de IA,
+// Reportar problema, a troca para a Administração (só para quem administra) e Sair. É o único lugar da troca de
+// contexto: "Administração" no uso; "Usar a GreenIA" na Administração.
+function contaLateralHtml(adm) {
+  const p = E.eu;
+  const troca = !administra() ? '' : adm
+    ? itemMenu(`href="${esc(inicioUso())}" data-contexto="uso"`, ICONE.conversa, MARCA.propria ? 'Usar a IA' : 'Usar a GreenIA')
+    : itemMenu(`href="${esc(inicioAdmin())}" data-contexto="admin"`, ICONE.engrenagem, 'Administração');
+  const consoles = E.plataforma?.adminPlataforma ? itemMenu('href="/plataforma"', ICONE.predio, 'Console da plataforma') : E.operador ? itemMenu('href="/operador"', ICONE.servidor, 'Console do operador') : '';
+  return contaHtml({ nome: p.nome || p.email, email: p.email, sub: E.publico?.empresa || '', dica: recolhida(), itens: `
+    ${itemMenu('id="ajuda-tela" aria-haspopup="dialog"', ICONE_CONTA.ajuda, 'Ajuda')}
+    ${temaMenuHtml()}
+    ${itemMenu('id="ver-politica" aria-haspopup="dialog"', ICONE.escudo, 'Política de uso de IA')}
+    ${itemMenu('id="reportar" aria-haspopup="dialog"', ICONE_CONTA.alerta, 'Reportar problema')}
+    ${troca || consoles ? `${separadorMenu}${troca}${consoles}` : ''}
+    ${separadorMenu}
+    ${itemMenu('id="sair"', ICONE.sair, 'Sair')}` });
+}
+// Ao fechar o diálogo aberto pelo menu, o foco volta ao botão da conta.
+const ACOES_CONTA = {
+  'ajuda-tela': () => import('/ajuda-contextual.js').then(x => x.abrirAjuda($('conta'))),
+  'ver-politica': () => abrirPolitica($('conta')),
+  reportar: () => reportarProblema('', $('conta')),
+  sair,
+};
+
 export function desenharLateral() {
   const h = location.hash || '';
+  // A lateral é redesenhada a cada troca de tela: o menu da conta aberto continua aberto, no mesmo item.
+  const menuAberto = $('menu-conta') && !$('menu-conta').hidden;
+  const itemFocado = menuAberto ? [...$('menu-conta').querySelectorAll('[role^="menuitem"]')].indexOf(document.activeElement) : -1;
+  fecharMenuConta();
+  observadorHistorico?.disconnect();
+  const geracao = ++geracaoHistorico;
+  const rail = recolhida();
+  const dica = nome => (rail ? ` title="${esc(nome)}"` : '');
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
     const selo = i.selo?.();
-    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(hrefItem(i))}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
+    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(hrefItem(i))}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}${dica(i.nome)}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const lista = E.conversas || [];
-  const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button></div>`).join('')}
-    ${(E.totalConversas || lista.length) > RECENTES_LATERAL ? `<a class="item-lat sub ver-todas" href="#/conversas">Ver todas (${E.totalConversas || lista.length})</a>` : ''}</div>` : '';
   const adm = emAdministracao(h);
   $('lateral').classList.toggle('modo-admin', adm);
   document.body.dataset.contexto = adm ? 'admin' : 'uso';
-  const alternador = administra() ? `<nav class="troca-contexto" aria-label="Contexto">
-      <a href="${esc(adm ? inicioUso() : h || '#/nova')}" class="${adm ? '' : 'ativo'}" data-contexto="uso" ${adm ? '' : 'aria-current="page"'}>Usar GreenIA</a>
-      <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" data-contexto="admin" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
+  // Mantém a posição da rolagem do histórico quando a lateral é redesenhada (a cada troca de tela).
+  const rolagem = $('lateral').querySelector('.lateral-rolagem')?.scrollTop || 0;
+  const secoes = SECOES().map(s => ({ ...s, itens: s.itens.filter(i => (!i.ver || i.ver()) && (!i.naLateral || i.naLateral(h))) })).filter(s => s.itens.length);
+  const operador = E.plataforma?.acessoOperador;
   $('lateral').innerHTML = `
-    <button type="button" class="icone-btn fechar-lateral" id="fechar-lateral" aria-label="Fechar menu">${ICONE.fechar}</button>
-    <a class="marca" href="${adm ? esc(primeiraAdmin()) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
+    <div class="lat-topo">
+      <a class="marca" href="${adm ? esc(primeiraAdmin()) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>
+      ${operador ? '' : `<button type="button" class="icone-btn lat-recolher" id="recolher-lateral" aria-controls="lateral" aria-expanded="${!rail}" aria-label="${rail ? 'Expandir a barra lateral' : 'Recolher a barra lateral'}" title="${rail ? 'Expandir a barra lateral' : 'Recolher a barra lateral'}">${ICONE_CONTA.painel}</button>`}
+      <button type="button" class="icone-btn fechar-lateral" id="fechar-lateral" aria-label="Fechar menu">${ICONE.fechar}</button>
+    </div>
+    ${MARCA.propria ? '' : logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
-    ${E.plataforma?.acessoOperador ? `<div class="faixa-aviso atencao acesso-operador" role="status"><b>Acesso da equipe de operação</b><br>Registrado e visível para a empresa. Vale até ${esc(new Date(E.plataforma.acessoOperador.expira).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))}.
+    ${operador ? `<div class="faixa-aviso atencao acesso-operador" role="status"><b>Acesso da equipe de operação</b><br>Registrado e visível para a empresa. Vale até ${esc(new Date(operador.expira).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))}.
       <button type="button" class="btn-texto btn-pequeno" id="encerrar-acesso">Encerrar acesso</button></div>` : ''}
-    ${alternador}
-    ${adm ? ''
-      : `<a class="btn btn-linha nova" href="#/nova" title="Nova conversa (C)" ${h === '#/nova' ? 'aria-current="page"' : ''}>${ICONE.mais} Nova conversa</a>`}
-    <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
+    ${adm ? `<p class="selo-contexto lat-contexto"${dica('Administração da empresa')}>${ICONE.engrenagem}<span class="nome">Administração</span></p>` : ''}
+    <div class="lat-acoes">
+      ${adm ? '' : `<a class="item-lat nova" href="#/nova" ${h === '#/nova' ? 'aria-current="page"' : ''}${dica('Nova conversa (C)')}>${ICONE.mais}<span class="nome">Nova conversa</span></a>`}
+      <button type="button" class="item-lat busca-lat" id="abrir-busca"${dica(`Buscar (${teclaPaleta()})`)}>${ICONE.busca}<span class="nome">Buscar</span><span class="kbd">${teclaPaleta()}</span></button>
+    </div>
     <nav class="lateral-rolagem" aria-label="Navegação">
-      ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(item).join('')}`).join('')}
-      ${!adm && recentes ? `<section class="recentes-grupo" aria-label="Conversas recentes"><h2>Conversas recentes</h2>${recentes}</section>` : ''}
+      ${secoes.map(s => `${adm && s.titulo ? `<h2>${s.titulo}</h2>` : ''}<div class="lat-grupo">${s.itens.map(item).join('')}</div>`).join('')}
+      ${adm ? '' : historicoHtml(lista, h)}
     </nav>
     <div class="lateral-pe">
-      <button class="btn-lat" id="ver-politica">Política de uso de IA</button>
-      <button class="btn-lat" id="reportar">Reportar problema</button>
-      ${E.plataforma?.adminPlataforma ? '<a class="btn-lat" href="/plataforma">Console da plataforma</a>' : E.operador ? '<a class="btn-lat" href="/operador">Console do operador</a>' : ''}
-      ${E.eu ? `<div class="conta-lateral"><span class="avatar" aria-hidden="true">${esc(iniciais(E.eu))}</span><span class="conta-lateral-nome"><b>${esc(E.eu.nome || E.eu.email)}</b><span>${esc(E.eu.email)}</span></span><button type="button" class="btn-lat" id="sair-lateral">${ICONE.sair}<span>Sair</span></button></div>` : ''}
+      ${E.eu ? contaLateralHtml(adm) : ''}
       ${rodapePlataformaHtml()}
     </div>`;
+  const nav = $('lateral').querySelector('.lateral-rolagem');
+  nav.scrollTop = rolagem;
   if ($('encerrar-acesso')) $('encerrar-acesso').onclick = async () => { try { await api('/api/sair', { metodo: 'POST' }); } catch { /* a sessão já pode ter caído */ } location.href = '/plataforma'; };
-  $('ver-politica').onclick = abrirPolitica;
   $('fechar-lateral').onclick = () => fecharNavegacao(true);
-  if ($('sair-lateral')) $('sair-lateral').onclick = sair;
+  if ($('recolher-lateral')) $('recolher-lateral').onclick = alternarRecolhida;
   $('abrir-busca').onclick = () => abrirPaleta();
-  $('reportar').onclick = reportarProblema;
+  ligarConta(ACOES_CONTA);
+  if (menuAberto) abrirMenuConta(Math.max(0, itemFocado));
+  if ($('hist-mais')) {
+    $('hist-mais').onclick = () => maisHistorico(geracao);
+    // Rolagem infinita: ao rolar até o fim do histórico, carrega os próximos sem precisar clicar.
+    if ('IntersectionObserver' in window && !rail) {
+      observadorHistorico = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && nav.scrollTop > 0) maisHistorico(geracao); }, { root: nav });
+      observadorHistorico.observe($('hist-mais'));
+    }
+  }
   ligarAcoesConversas($('lateral'), lista, async () => { if (location.hash === '#/conversas' || location.hash.startsWith('#/c/')) irPara(location.hash); });
 }
 
@@ -232,11 +309,20 @@ export async function recarregarLateral() {
   E.quickWins = q.quickWins || [];
   desenharLateral();
 }
+// Pendências: só a contagem, para o atalho da lateral aparecer quando há o que resolver.
+export async function recarregarPendencias() {
+  if (!podeAcompanhar()) { E.pendencias = 0; return; }
+  try { E.pendencias = (await api('/api/acompanhamento', { independenteDaRota: true })).pendencias.length; desenharLateral(); }
+  catch { /* sem a contagem, o atalho fica oculto; a tela continua no endereço e na busca */ }
+}
 
 async function vistaConversas() { await (await import('/historico-conversas.js')).vistaHistorico(); }
 
 
-function abrirPolitica() {
+// Ao fechar, o foco volta a quem abriu; se quem abriu era um item do menu da conta (já fechado), ao botão da conta.
+const voltarFoco = origem => () => ((origem?.isConnected && origem.offsetParent !== null) ? origem : $('conta'))?.focus();
+function abrirPolitica(origem = document.activeElement) {
+  const devolver = voltarFoco(origem);
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-politica" tabindex="-1">
     <div class="modal-topo"><div class="rotulo">Política de uso de IA</div><button class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}<span>Fechar</span></button></div>
     <h2 id="titulo-politica">Como a empresa usa IA</h2>
@@ -244,7 +330,7 @@ function abrirPolitica() {
     <div class="item"><h3>Privacidade das suas conversas</h3><p>${esc(E.publico.privacyNote)}</p></div>
     <div class="item"><h3>Revise antes de usar</h3><p>A IA ajuda, mas pode errar. Confira o resultado antes de enviar ou decidir.</p></div>
     <a href="/politica" class="btn-texto" style="padding-left:0">Abrir a política completa</a></div></div>`;
-  const fechar = () => { limparEscape(); $('modal').innerHTML = ''; $('ver-politica')?.focus(); };
+  const fechar = () => { limparEscape(); $('modal').innerHTML = ''; devolver(); };
   const limparEscape = fecharComEscape(document.querySelector('.modal'), fechar);
   $('fechar-modal').onclick = fechar;
   $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
@@ -252,7 +338,8 @@ function abrirPolitica() {
 }
 
 // Problema reportado: vai para o admin por email. Sem dado sigiloso na descrição.
-async function reportarProblema(contexto = '') {
+async function reportarProblema(contexto = '', origem = document.activeElement) {
+  const devolver = voltarFoco(origem);
   const { tipos } = await api('/api/problemas/tipos');
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-problema" tabindex="-1" id="form-problema" novalidate>
     <div class="modal-topo"><div class="rotulo">Reportar problema</div><button type="button" class="icone-btn" id="fechar-modal" aria-label="Fechar">${ICONE.fechar}<span>Fechar</span></button></div>
@@ -262,7 +349,7 @@ async function reportarProblema(contexto = '') {
       <span class="ajuda">Conte o que aconteceu e onde. Não cole dados sigilosos aqui: descreva sem eles. O admin recebe por email.</span></div>
     <p class="msg-erro oculto" id="erro-problema" role="alert"></p>
     <div class="linha-botoes"><button class="btn btn-verde">Enviar</button><button type="button" class="btn btn-texto" id="cancelar-problema">Cancelar</button></div></form></div>`;
-  const fechar = () => { limparEscape(); $('modal').innerHTML = ''; $('reportar')?.focus(); };
+  const fechar = () => { limparEscape(); $('modal').innerHTML = ''; devolver(); };
   const limparEscape = fecharComEscape(document.querySelector('.modal'), fechar);
   $('fechar-modal').onclick = fechar;
   $('cancelar-problema').onclick = fechar;
@@ -358,6 +445,7 @@ async function rota() {
   if (versao !== versaoNavegacao) return;
   desenharLateral();
   fimTransicao();
+  if (h === '#/pendencias') recarregarPendencias();   // a contagem do atalho acompanha o que acabou de ser resolvido
   if (foco) destacarCampo(foco);
   else if (document.activeElement === document.body || $('lateral').contains(document.activeElement)) $('principal').querySelector('h1')?.focus({ preventScroll: true });
 }
@@ -399,11 +487,13 @@ function itensPaleta() {
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
     { grupo: 'Ajuda', nome: 'Primeiros passos', icone: 'livro', href: '#/primeiros-passos' },
+    { grupo: 'Ajuda', nome: 'Ajuda desta tela', icone: 'livro', chaves: 'ajuda como usar', acao: () => import('/ajuda-contextual.js').then(x => x.abrirAjuda($('conta'))) },
+    { grupo: 'Ações', nome: 'Reportar problema', icone: 'atividade', acao: () => reportarProblema('', $('conta')) },
     ...(E.podeCriarQw ? [{ grupo: 'Ações', nome: 'Novo Quick Win', icone: 'raio', href: '#/qw/nova' }] : []),
     { grupo: 'Ações', nome: 'Política de uso de IA', icone: 'escudo', acao: abrirPolitica },
     ...telas,
     ...E.quickWins.map(q => ({ grupo: 'Quick Wins', nome: q.nome, icone: 'raio', href: `#/qw/${q.id}`, soNaBusca: E.quickWins.length > 5 })),
-    ...E.conversas.slice(0, 40).map((c, i) => ({ grupo: 'Conversas', nome: c.titulo, dica: c.quick_win || '', icone: 'conversa', href: `#/c/${c.id}`, soNaBusca: i >= 5 })),
+    ...E.conversas.map((c, i) => ({ grupo: 'Conversas', nome: c.titulo, dica: c.quick_win || '', icone: 'conversa', href: `#/c/${c.id}`, soNaBusca: i >= 5 })),
     ...(E.plataforma?.adminPlataforma ? [{ grupo: 'Plataforma', nome: 'Console da plataforma', icone: 'predio', href: '/plataforma' }] : []),
   ];
 }
@@ -421,9 +511,13 @@ async function iniciar() {
   if (publico.empresa) document.title = MARCA.propria ? publico.empresa : `GreenIA · ${publico.empresa}`;
   document.getElementById('fundo-lateral').onclick = () => fecharNavegacao(true);
   iniciarAcessibilidade();
+  if (lerRecolhida() && !E.plataforma?.acessoOperador) document.body.classList.add('lateral-recolhida');
   await recarregarLateral();
+  recarregarPendencias();
   window.addEventListener('hashchange', rota);
-  iniciarPaleta(itensPaleta, { atalhos: { c: () => irPara('#/nova') } });
+  // Buscar (Ctrl K): telas, ações, Quick Wins e conversas carregadas; para conversas mais antigas, pergunta ao servidor.
+  iniciarPaleta(itensPaleta, { atalhos: { c: () => irPara('#/nova') }, buscar: async q => (await api(`/api/conversas?${new URLSearchParams({ todas: '1', pagina: '0', busca: q })}`, { independenteDaRota: true })).conversas
+    .map(c => ({ grupo: 'Conversas', nome: c.titulo, dica: c.quick_win || '', icone: 'conversa', href: `#/c/${c.id}` })) });
   await rota();
   await pedirCiencia();
 }

@@ -57,10 +57,17 @@ export function ligarAcoesConversas(raiz, conversas, depois, { antesDeExcluir = 
     menu.querySelector('[data-excluir]').onclick=()=>{fechar();if(antesDeExcluir())excluirConversa(c,depois);}; menu.querySelector('button').focus();
   }; });
 }
-function grupoData(iso) {
-  const d=new Date(iso), agora=new Date(), inicio=new Date(agora.getFullYear(),agora.getMonth(),agora.getDate());
-  const ontem=new Date(inicio);ontem.setDate(ontem.getDate()-1);const semana=new Date(inicio);semana.setDate(semana.getDate()-7);
-  return d>=inicio?'Hoje':d>=ontem?'Ontem':d>=semana?'Últimos 7 dias':d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+// Grupos por data, os mesmos na lateral e na tela de Conversas: Hoje, Ontem, Últimos 7 dias, Últimos 30 dias e, antes
+// disso, mês e ano ("Agosto de 2026").
+export function grupoData(iso, agora = new Date()) {
+  const d=new Date(iso), inicio=new Date(agora.getFullYear(),agora.getMonth(),agora.getDate());
+  const antes=n=>{const x=new Date(inicio);x.setDate(x.getDate()-n);return x;};
+  if (d>=inicio) return 'Hoje';
+  if (d>=antes(1)) return 'Ontem';
+  if (d>=antes(7)) return 'Últimos 7 dias';
+  if (d>=antes(30)) return 'Últimos 30 dias';
+  const m=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  return m.charAt(0).toUpperCase()+m.slice(1);
 }
 // Até este total, a lista cabe na tela e dispensa busca e filtro.
 const LISTA_CURTA=6;

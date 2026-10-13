@@ -3,14 +3,16 @@
 import { esc, ICONE } from '/comum.js';
 
 let fonte = () => [];
+// Busca no servidor (opcional): completa o resultado com o que não está carregado na página (ex.: conversas antigas).
+let buscarFora = null, timerFora = 0, versaoFora = 0;
 let aberto = null;
 
 const normal = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 // Busca simples por palavras: todas as palavras digitadas precisam aparecer no nome ou no grupo.
 const combina = (item, q) => { const alvo = normal(`${item.nome} ${item.grupo} ${item.dica || ''} ${item.chaves || ''}`); return normal(q).split(/\s+/).filter(Boolean).every(p => alvo.includes(p)); };
 
-export function iniciarPaleta(f, { atalhos = {} } = {}) {
-  fonte = f;
+export function iniciarPaleta(f, { atalhos = {}, buscar = null } = {}) {
+  fonte = f; buscarFora = buscar;
   addEventListener('keydown', ev => {
     const digitando = /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) || ev.target.isContentEditable;
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); aberto ? fechar() : abrirPaleta(); return; }
@@ -36,6 +38,19 @@ function teclas(ev) {
   else if (ev.key === 'Enter') { ev.preventDefault(); executar(itens[sel]); }
 }
 
+function pedirFora(q) {
+  clearTimeout(timerFora);
+  const v = ++versaoFora;
+  if (!buscarFora || String(q || '').trim().length < 2) return;
+  timerFora = setTimeout(async () => {
+    try {
+      const extras = await buscarFora(q.trim());
+      if (v !== versaoFora || !aberto || !extras?.length) return;
+      desenhar(aberto.querySelector('input').value, extras);
+    } catch { /* sem a busca no servidor, ficam os resultados locais */ }
+  }, 200);
+}
+
 function marcar() {
   aberto.querySelectorAll('.paleta-item').forEach((b, i) => { b.setAttribute('aria-selected', String(i === sel)); if (i === sel) b.scrollIntoView({ block: 'nearest' }); });
   const b = aberto.querySelector('.paleta-item[aria-selected="true"]');
@@ -49,10 +64,13 @@ function executar(item) {
   else if (item.href) { if (item.href.startsWith('#')) location.hash = item.href; else location.href = item.href; }
 }
 
-function desenhar(q) {
+function desenhar(q, extras = []) {
   const todos = fonte();
-  itens = (q ? todos.filter(i => combina(i, q)) : todos.filter(i => !i.soNaBusca)).slice(0, 60);
+  const locais = q ? todos.filter(i => combina(i, q)) : todos.filter(i => !i.soNaBusca);
+  const vistos = new Set(locais.map(i => i.href).filter(Boolean));
+  itens = [...locais, ...extras.filter(i => !vistos.has(i.href))].slice(0, 60);
   sel = 0;
+  if (!extras.length) pedirFora(q);
   const lista = aberto.querySelector('.paleta-lista');
   if (!itens.length) { lista.innerHTML = `<div class="paleta-vazio">Nada encontrado para “${esc(q)}”.</div>`; return; }
   let grupo = '';

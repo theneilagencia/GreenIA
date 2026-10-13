@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
+import { abrirAjudaTela, abrirConta } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const LARGURAS = [[1920, 1080], [1366, 860], [390, 844]];
@@ -117,8 +118,10 @@ const TELAS = [
   ['primeiros passos', () => '#/primeiros-passos', '#guia-seguir'],
   ['pendências', () => '#/pendencias', '#pend-lista'],
   ['conhecimento', () => '#/conhecimento', '[data-abrir-conhecimento]'],
-  ['ajuda da tela', () => '#/conversas', '#ajuda-tela', async p => { await p.click('#ajuda-tela'); await p.waitForSelector('#ajuda-titulo'); }],
+  ['ajuda da tela', () => '#/conversas', '.hc-conversa', abrirAjudaTela],
   ['menu do celular', () => '#/nova', '#entrada', async p => { if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); } }],
+  // Por último: deixa a gaveta (no celular) e o menu da conta abertos.
+  ['menu da conta', () => '#/conversas', '.hc-conversa', async p => { await abrirConta(p); }],
 ];
 
 for (const [width, height] of LARGURAS) {
@@ -145,7 +148,7 @@ test('o título longo da conversa aparece inteiro (até 2 linhas) no cabeçalho 
   const h1 = await p.locator('.cabeca h1').evaluate(e => ({ cortado: e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1, title: e.title }));
   assert.equal(h1.cortado, false, 'o h1 cabe em 2 linhas');
   assert.equal(h1.title, TITULO_LONGO);
-  const item = p.locator(`#lateral .recentes-lat a[href="#/c/${livre.id}"]`);
+  const item = p.locator(`#lateral .historico-lat a[href="#/c/${livre.id}"]`);
   assert.equal(await item.getAttribute('title'), TITULO_LONGO);
   const nomeLat = await item.locator('.nome').evaluate(e => ({ linhas: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)), clamp: getComputedStyle(e).webkitLineClamp }));
   assert.equal(nomeLat.linhas, 2, 'o título ocupa as 2 linhas antes de cortar');

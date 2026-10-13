@@ -46,7 +46,8 @@ function medir() {
   const problemas = [];
   for (const c of document.querySelectorAll('body *')) {
     const cs = getComputedStyle(c);
-    if (!visivel(c) || c.closest('table, .indicadores, svg, [aria-hidden="true"]')) continue;
+    // A grade da página (lateral + conteúdo) não é um conjunto de cartões.
+    if (!visivel(c) || c.matches('.app') || c.closest('table, .indicadores, svg, [aria-hidden="true"]')) continue;
     if (!(cs.display.includes('grid') || (cs.display.includes('flex') && !cs.flexDirection.startsWith('column')))) continue;
     // Cartão tem tamanho de cartão: ícones, selos e etiquetas lado a lado não entram.
     const cartoes = [...c.children].filter(visivel).filter(f => { const r = f.getBoundingClientRect(); return r.width >= 120 && r.height >= 40; }).filter(f => { const fs = getComputedStyle(f); return (parseFloat(fs.borderTopWidth) > 0 && fs.borderTopStyle !== 'none' && parseFloat(fs.borderBottomWidth) > 0) || (fs.backgroundColor !== 'rgba(0, 0, 0, 0)' && fs.backgroundColor !== cs.backgroundColor); });

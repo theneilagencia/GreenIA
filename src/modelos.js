@@ -206,7 +206,7 @@ const fmt = p => (p === null || p === undefined ? '?' : `US$ ${(p * 1e6).toFixed
 
 // Toda mudança na configuração de modelos passa por aqui: se havia um homologado
 // disponível para todos e a mudança o tira, ela é recusada.
-function mudar(app, pessoa, tipo, detalhes, fn) {
+export function mudar(app, pessoa, tipo, detalhes, fn) {
   transacao(app.db, () => {
     const antes = !!homologadoPadrao(app.db, lerConfig(app.db));
     fn();

@@ -12,7 +12,7 @@ export const POOLS_RECOMENDADOS = [
   { id: 'google/gemini-3.5-flash', perfil: 'avancado' },
 ];
 // Tetos para inclusão automática; custos maiores exigem uma decisão manual da empresa.
-const TETOS = { rapido: [0.5, 3], equilibrado: [1.5, 10], avancado: [5, 30] };
+export const TETOS = { rapido: [0.5, 3], equilibrado: [1.5, 10], avancado: [5, 30] };
 export function confirmadoParaPool(m, perfil) {
   const [entrada, saida] = TETOS[perfil];
   return m && Number.isFinite(m.precoEntrada) && m.precoEntrada > 0 && m.precoEntrada <= entrada / 1e6
@@ -33,4 +33,6 @@ const AFINIDADES = {
   'openai/gpt-5.5': ['raciocinio','analise'],
   'google/gemini-3.5-flash': ['sintese','extracao'],
 };
+// Tarefas em que o modelo se destaca na curadoria (para explicar uma sugestão em palavras simples).
+export const tarefasDoModelo = id => AFINIDADES[id] || [];
 export const afinidadeDaTarefa = (id, tipos = []) => (AFINIDADES[id] || []).some(t => tipos.includes(t)) ? 0.6 : 0;

@@ -19,6 +19,7 @@ import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, ler
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
 import { rotasModelos } from './modelos.js';
+import { rotasSugestao } from './sugestao-modelos.js';
 import { rotasConversas } from './conversas.js';
 import { rotasPessoas } from './pessoas.js';
 import { criarContexto, resumoBases, rotasBases } from './bases.js';
@@ -101,7 +102,7 @@ export function criarApp(op = {}) {
     return out;
   };
   app.limitesArquivo = LIMITES_ARQUIVO;
-  for (const modulo of [rotasAcompanhamento, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao, rotasPaineis]) modulo(app, r);
+  for (const modulo of [rotasAcompanhamento, rotasSugestao, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao, rotasPaineis]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));

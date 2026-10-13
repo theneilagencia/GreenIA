@@ -36,16 +36,23 @@ before(async () => {
 });
 after(async () => { await nav?.close(); await S?.fechar(); });
 
-test('M32/A16: menu de admin com ícones únicos, rótulos curtos e o mesmo texto do título de cada tela', async () => {
+test('M32/A16: menu de admin curto (até nove itens), com ícones únicos e o mesmo texto do título de cada tela', async () => {
   const p = await pagina(admin);
   await abrir(p, 'visao-geral');
   const itens = await p.locator('#lateral .lateral-rolagem a.item-lat').evaluateAll(as => as.map(a => ({ href: a.getAttribute('href'), nome: a.querySelector('.nome').textContent.trim(), icone: a.querySelector('svg')?.outerHTML || '' })));
-  assert.ok(itens.length >= 12, JSON.stringify(itens.map(i => i.nome)));
+  assert.ok(itens.length >= 8 && itens.length <= 9, JSON.stringify(itens.map(i => i.nome)));
   assert.equal(new Set(itens.map(i => i.icone)).size, itens.length, 'cada item com um ícone diferente');
-  assert.ok(itens.some(i => i.nome === 'Acessos do suporte'), 'rótulo curto, sem reticências');
+  assert.ok(itens.some(i => i.nome === 'Marca e endereço'), 'marca, página e endereço numa tela só');
+  assert.equal(await p.locator('#lateral .aviso-contexto').count(), 0, 'sem a caixa de explicação na lateral');
   for (const i of itens) {
     await p.click(`#lateral a.item-lat[href="${i.href}"]`);
     await p.waitForFunction(n => document.querySelector('.cabeca h1')?.textContent.trim() === n, i.nome, { timeout: 8000 });
+  }
+  // O que saiu do menu continua a um clique: abas da tela do mesmo assunto.
+  for (const [rota, titulo, aba] of [['atividade/suporte', 'Atividade', 'Acessos do suporte'], ['empresa/landing', 'Marca e endereço', 'Página de apresentação'], ['empresa/url', 'Marca e endereço', 'URL e domínio']]) {
+    await abrir(p, rota);
+    assert.equal(await p.locator('.cabeca h1').innerText(), titulo, rota);
+    assert.equal(await p.locator('[role=tab][aria-selected=true]').innerText(), aba, rota);
   }
   assert.deepEqual(p.erros, []);
 });
@@ -118,17 +125,27 @@ test('A17/M28/B11: Uso com mês em português, planilha e "—" no tempo sem dad
   assert.deepEqual(p.erros, []);
 });
 
-test('A25/M31/B13: Visão geral resume a preparação (mesma fonte) com "prontos" e uma ação por item que falta', async () => {
+test('A25/M31/B13: Visão geral começa pelo próximo passo da preparação (mesma fonte), com a lista completa recolhida', async () => {
   const p = await pagina(admin);
   await abrir(p, 'visao-geral');
   const prep = (await admin.get('/api/acompanhamento')).dados.passos;
-  const prontos = prep.filter(x => x.pronto).length;
+  const prontos = prep.filter(x => x.pronto).length, faltam = prep.filter(x => !x.pronto && !x.opcional);
   const texto = await p.locator('#principal').innerText();
   assert.match(texto, new RegExp(`${prontos} de ${prep.length} prontos?`));
   assert.doesNotMatch(texto, /Disponível para conferir|disponíveis para conferir/);
-  assert.equal(await p.getByRole('link', { name: 'Fazer agora' }).count(), prep.filter(x => !x.pronto && !x.opcional).length);
-  await abrir(p, 'preparacao');
-  assert.match(await p.locator('.acomp-resumo').innerText(), new RegExp(`${prontos} de ${prep.length} prontos?`));
+  // Um próximo passo só, com uma ação; a lista inteira fica recolhida até a pessoa pedir.
+  assert.ok(faltam.length > 0, 'a empresa de teste ainda tem passos a fazer');
+  assert.equal(await p.locator('.adm-proximo h2').innerText(), faltam[0].titulo);
+  assert.equal(await p.getByRole('link', { name: 'Fazer agora' }).count(), 1);
+  assert.equal(await p.locator('#prep-passos').isVisible(), false);
+  await p.getByRole('button', { name: 'Ver todos os passos' }).click();
+  assert.equal(await p.locator('#prep-passos > li').count(), prep.length);
+  assert.equal(await p.locator('#prep-passos').getByRole('link', { name: 'Fazer agora' }).count(), prep.filter(x => !x.pronto).length);
+  // O endereço antigo de Preparar o ambiente leva à Visão geral com a lista aberta, sem rastro no histórico.
+  await p.goto(`${S.base}/app#/preparacao`);
+  await p.waitForFunction(() => location.hash === '#/visao-geral?passos=1');
+  await p.locator('#prep-passos').waitFor();
+  await p.locator('.toast', { hasText: 'Preparar o ambiente agora fica no alto da Visão geral' }).waitFor();
   assert.doesNotMatch(await p.locator('#principal').innerText(), /Não é certificação|Disponível para conferir/);
   assert.deepEqual(p.erros, []);
 });
@@ -158,11 +175,13 @@ test('A19/M29/M28: Políticas com Ligado/Desligado, efeito ao vivo e "Não envia
   await abrir(p, 'politicas');
   assert.match(await p.locator('#sigilo-politica .estado').innerText(), /^(Ligado|Desligado)$/);
   assert.doesNotMatch(await p.locator('#conteudo').innerText(), /\bON\b|\bOFF\b|os proteções|permite o uso de IA/);
-  const naoEnviar = p.locator('label', { has: p.locator('input[name="d-cpf"][value="bloquear"]') });
-  await naoEnviar.scrollIntoViewIfNeeded();
-  const caixa = await naoEnviar.boundingBox();
+  // Uma lista por tipo de dado, com as três regras ("Não enviar" entre elas), cabendo na tela e com 44 px de toque.
+  const regra = p.locator('select[name="d-cpf"]');
+  await regra.scrollIntoViewIfNeeded();
+  const caixa = await regra.boundingBox();
   assert.ok(caixa.x >= 0 && caixa.x + caixa.width <= 390 && caixa.height >= 44, JSON.stringify(caixa));
-  await naoEnviar.click();
+  assert.deepEqual(await regra.locator('option').allInnerTexts(), ['Processar normalmente', 'Só com proteção', 'Não enviar']);
+  await regra.selectOption('bloquear');
   assert.match(await p.locator('[data-efeito="cpf"]').innerText(), /Não é enviado/);
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(p.erros, []);
@@ -202,16 +221,29 @@ test('M35/M36/M28: página de apresentação sem interruptor no título, restaur
   assert.deepEqual(p.erros, []);
 });
 
-test('M39/A26/B2: Atividade sem códigos internos, com título dos problemas e hierarquia de títulos nas telas', async () => {
+test('M39/A26/B2: Atividade sem códigos internos, registro aberto no painel, problemas numa aba e hierarquia de títulos nas telas', async () => {
   const p = await pagina(admin);
   await abrir(p, 'atividade');
-  await p.getByRole('heading', { name: 'Problemas reportados', level: 2 }).waitFor();
+  // Filtros fechados até a pessoa pedir.
+  assert.equal(await p.locator('#filtro-ev').isVisible(), false);
+  await p.getByRole('button', { name: 'Filtrar' }).click();
   const tipos = await p.locator('#ev-tipo option').allInnerTexts();
   assert.ok(tipos.every(t => !/\b[a-z_]+\.[a-z_]+\b/.test(t)), JSON.stringify(tipos));
-  const resumo = await p.locator('.auditoria-detalhe summary').allInnerTexts();
-  assert.ok(resumo.every(t => !/Ver registro \d+/.test(t)), JSON.stringify(resumo.slice(0, 3)));
-  for (const rota of ['visao-geral', 'uso', 'modelos', 'modelos/roteamento', 'politicas', 'politicas/texto', 'configuracoes', 'pessoas', 'pessoas/areas', 'pessoas/grupos', 'pessoas/perfis', 'empresa/acessos', 'empresa/url', 'pessoas/criacao']) {
+  // Um detalhe por vez, no painel lateral; nenhum "details" por linha.
+  assert.equal(await p.locator('#conteudo details').count(), 0);
+  await p.locator('#conteudo tr[data-registro]').first().click();
+  const painel = p.getByRole('dialog');
+  await painel.waitFor();
+  assert.match(await painel.innerText(), /Autor:/);
+  assert.doesNotMatch(await painel.innerText(), /Ver registro \d+|\{"/);
+  await p.keyboard.press('Escape');
+  await painel.waitFor({ state: 'detached' });
+  await abrir(p, 'atividade/problemas');
+  assert.equal(await p.locator('[role=tab][aria-selected=true]').innerText(), 'Problemas reportados');
+  for (const rota of ['visao-geral', 'uso', 'modelos', 'modelos/catalogo', 'modelos/roteamento', 'politicas', 'politicas/texto', 'configuracoes', 'pessoas', 'pessoas/areas', 'pessoas/grupos', 'pessoas/perfis', 'atividade/suporte', 'empresa/url', 'pessoas/criacao']) {
     await abrir(p, rota);
+    // Com o que está recolhido aberto, a hierarquia continua certa.
+    await p.evaluate(() => { for (const b of document.querySelectorAll('#principal .adm-revelar[aria-expanded="false"]')) b.click(); });
     const pulo = await p.evaluate(() => {
       const hs = [...document.querySelectorAll('#principal :is(h1,h2,h3,h4)')].filter(h => h.getClientRects().length && !h.closest('[role=dialog]'));
       for (let i = 1; i < hs.length; i++) if (Number(hs[i].tagName[1]) - Number(hs[i - 1].tagName[1]) > 1) return `${hs[i - 1].tagName} "${hs[i - 1].textContent.trim().slice(0, 40)}" → ${hs[i].tagName} "${hs[i].textContent.trim().slice(0, 40)}"`;
@@ -222,7 +254,6 @@ test('M39/A26/B2: Atividade sem códigos internos, com título dos problemas e h
   }
   assert.deepEqual(p.erros, []);
 });
-
 test('M40/M38/B10: texto da política com prévia ao lado; Quem cria Quick Wins com escopos e busca; atalhos sob "?"', async () => {
   const p = await pagina(admin);
   await abrir(p, 'politicas/texto');
@@ -234,6 +265,9 @@ test('M40/M38/B10: texto da política com prévia ao lado; Quem cria Quick Wins 
   await p.goto(`${S.base}/app#/pessoas/criacao`);
   await p.getByRole('dialog').getByRole('button', { name: 'Sair sem salvar' }).click();
   await p.waitForSelector('#perm-qw');
+  // O escopo mais raro (empresa toda) fica recolhido até a pessoa pedir.
+  assert.equal(await p.locator('#perm-toda-empresa').isVisible(), false);
+  await p.getByRole('button', { name: 'Para a empresa toda' }).click();
   for (const t of ['Nas áreas de cada pessoa', 'Para a empresa toda']) await p.getByRole('heading', { name: t }).waitFor();
   await p.fill('#busca-areas', 'marina');
   const visiveis = await p.locator('#perm-qw input[name="perm-pessoas"]').evaluateAll(cs => cs.filter(c => c.getClientRects().length).map(c => c.closest('label').textContent.trim()));

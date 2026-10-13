@@ -1,46 +1,30 @@
 // Administração da empresa (multiempresa): perfis e permissões (aba Perfis de Pessoas), branding,
 // landing page, URL e acessos do suporte. Usuários e convites ficam na aba Pessoas (estrutura.js).
 // Tudo dentro do próprio ambiente e do que o operador da plataforma liberou.
-import { api, carregandoHtml, esc, ocupado, toast, vazioHtml } from '/comum.js';
-import { cabecalho, ligarCabecalho, pode } from '/app.js';
+import { api, esc, ocupado, toast, vazioHtml } from '/comum.js';
+import { pode } from '/app.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro } from '/editores.js';
-import { confirmar, vigiarAlteracoes } from '/admin-ui.js';
+import { confirmar, topoTela, vigiarAlteracoes } from '/admin-ui.js';
 
 const $ = id => document.getElementById(id);
 const falhar = e => toast(e.message, 6000);
 const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr>${cab.map(c => (c ? `<th>${esc(c)}</th>` : '<th><span class="sr">Ações</span></th>')).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>`
   : vazioHtml({ icone: 'pessoas', titulo: vazio }));
 
-const TELAS = {
-  marca: ['Marca e identidade visual', 'branding.manage', telaMarca],
-  landing: ['Página de apresentação', 'landing_page.manage', telaLanding],
-  url: ['URL e domínio', 'url.manage', telaUrl],
-  acessos: ['Acessos do suporte', 'audit.read', telaAcessos],
-};
-
-export async function rotaEmpresa(aba) {
-  const t = TELAS[aba];
-  if (!t || !pode(t[1])) { location.hash = '#/nova'; return; }
-  $('principal').innerHTML = `${cabecalho(t[0])}<div class="pagina"><div class="pagina-dentro"><div id="conteudo">${carregandoHtml()}</div></div></div>`;
-  ligarCabecalho();
-  try { await t[2](); } catch (e) {
-    $('conteudo').innerHTML = `<div class="faixa-aviso erro" role="alert"><h2>Não foi possível abrir esta tela</h2><p>${esc(e.message)}</p><button class="btn btn-verde" id="empresa-tentar">Tentar novamente</button></div>`;
-    $('empresa-tentar').onclick = () => rotaEmpresa(aba);
-  }
-}
+// As telas daqui são abas de outras telas da Administração (admin.js, TELAS): Marca, Página de apresentação e URL e
+// domínio formam "Marca e endereço"; Acessos do suporte é uma aba de Atividade; Perfis é uma aba de Pessoas.
 
 // ---------------------------------------------------------------- Perfis e permissões
 // Aba Perfis da tela Pessoas (#/pessoas/perfis): desenha em #conteudo, como as outras abas.
 export async function telaRoles() {
   const { roles, permissoes, podeCriar } = await api('/api/empresa/roles');
   const desc = Object.fromEntries(permissoes.map(p => [p.key, p.description]));
-  $('conteudo').innerHTML = `<p class="lead">Perfis de sistema valem para todas as empresas e não mudam. Perfis próprios combinam as permissões que a empresa precisa.</p>
-    ${!podeCriar ? '<div class="faixa-aviso atencao">Perfis próprios não estão liberados para esta empresa. Você pode usar os perfis de sistema.</div>' : ''}
+  $('conteudo').innerHTML = `${topoTela(podeCriar ? 'O que cada perfil pode fazer. Perfis de sistema não mudam; perfis próprios combinam as permissões que a empresa precisa.' : 'O que cada perfil pode fazer. Perfis próprios não estão liberados para esta empresa: use os perfis de sistema.',
+      podeCriar ? '<button class="btn btn-verde" id="nova-role">Novo perfil</button>' : '')}
     <div class="adm-perfis">${tabela(['Perfil', 'Permissões', 'Pessoas', ''], roles.map(r => `<tr><td data-r="Perfil"><b>${esc(r.name)}</b>${r.system ? ' <span class="selo selo-cinza">Sistema</span>' : ''}<br><span class="dica">${esc(r.description)}</span></td>
       <td data-r="Permissões"><div class="chips adm-chips">${r.permissoes.map(p => `<span class="chip" title="${esc(desc[p] || p)}">${esc(desc[p] || p)}</span>`).join('') || '<span class="dica">nenhuma</span>'}</div></td>
       <td data-r="Pessoas">${r.usuarios} ${r.usuarios === 1 ? 'pessoa' : 'pessoas'}</td>
       <td data-r="Ações">${!r.system && podeCriar ? `<div class="linha-botoes"><button class="btn-texto btn-pequeno" data-editar="${r.id}">Editar</button><button class="btn btn-perigo btn-pequeno" data-excluir="${r.id}">Remover</button></div>` : '<span class="dica">—</span>'}</td></tr>`), 'Nenhum perfil.')}</div>
-    ${podeCriar ? '<div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde" id="nova-role">Novo perfil</button></div>' : ''}
     <div id="editor-role"></div>`;
   const editor = r => {
     $('editor-role').innerHTML = `<form id="f-role" style="margin-top:20px"><h2>${r ? 'Editar perfil' : 'Novo perfil'}</h2>
@@ -74,9 +58,9 @@ export async function telaRoles() {
 }
 
 // ---------------------------------------------------------------- Branding
-async function telaMarca() {
+export async function telaMarca() {
   const { marca, pode: podeEditar, motivo } = await api('/api/empresa/marca');
-  $('conteudo').innerHTML = `<p class="lead">A identidade visual aparece na página inicial, no login e no app. Itens definidos pelo operador da plataforma ficam travados.</p>${renderMarca(marca, { modo: 'empresa', pode: podeEditar, motivo })}`;
+  $('conteudo').innerHTML = `${topoTela('Como a empresa aparece no login, na página inicial e no app.')}${renderMarca(marca, { modo: 'empresa', pode: podeEditar, motivo })}`;
   if (!podeEditar) return;
   const ler = ligarMarca(marca);
   const vig = vigiarAlteracoes($('form-marca'), { barra: $('form-marca').querySelector(':scope > .linha-botoes'), cliques: '[data-remover], [data-exemplo]' });
@@ -88,9 +72,9 @@ async function telaMarca() {
 }
 
 // ---------------------------------------------------------------- Landing Page
-async function telaLanding() {
+export async function telaLanding() {
   const [{ landing, pode: podeEditar, motivo }, url] = await Promise.all([api('/api/empresa/landing'), api('/api/empresa/url')]);
-  $('conteudo').innerHTML = renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
+  $('conteudo').innerHTML = topoTela('A página pública da empresa, com o botão de entrar.') + renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
   if (!podeEditar) return;
   const ler = ligarLanding(landing);
   const vig = vigiarAlteracoes($('form-landing'), { barra: $('form-landing').querySelector('.ld-salvar'), cliques: '[data-vis], #ld-restaurar, #ld-imagem-remover' });
@@ -104,7 +88,7 @@ async function telaLanding() {
 }
 
 // ---------------------------------------------------------------- URL e domínio
-async function telaUrl() {
+export async function telaUrl() {
   const u = await api('/api/empresa/url');
   $('conteudo').innerHTML = renderUrl(u, { pode: u.pode });
   ligarUrl(u);
@@ -130,11 +114,11 @@ const FIM = { logout: 'saiu', expiracao: 'prazo de 60 minutos', manual_empresa: 
   sessao_encerrada: 'sessão encerrada', sessao_invalida: 'sessão inválida', empresa_suspensa: 'empresa suspensa', empresa_cancelada: 'empresa cancelada', pessoa_desativada: 'acesso desativado', pessoa_removida: 'acesso removido', usuario_bloqueado: 'usuário bloqueado', admin_removido: 'deixou a equipe da plataforma' };
 const quando = s => (s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const duracao = s => (s == null ? '—' : s < 60 ? `${s} s` : `${Math.round(s / 60)} min`);
-async function telaAcessos() {
+export async function telaAcessos() {
   const d = await api('/api/empresa/acessos-greenia');
   const podeEncerrar = pode('company.manage');
   const raiz = $('conteudo');
-  raiz.innerHTML = `<p class="lead">Cada vez que alguém da equipe de operação da plataforma entra neste ambiente (para suporte, a pedido da empresa ou em incidente) ou exporta o banco de dados, o registro aparece aqui na hora, com o motivo. O acesso vale por até ${d.duracaoMinutos} minutos e não mostra o conteúdo das conversas. Os admins também recebem um aviso por email quando o envio está disponível.</p>
+  raiz.innerHTML = `${topoTela(`Quando a equipe de operação da plataforma entrou neste ambiente ou exportou o banco, e por quê. Cada acesso vale por até ${d.duracaoMinutos} minutos.`)}
     <div class="secao-titulo" style="margin-top:0"><h2>Acessos da equipe de operação ao ambiente</h2></div>
     ${d.acessos.length ? `<div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Quem</th><th>Tipo e justificativa</th><th>Início</th><th>Fim</th><th>Duração</th><th>Situação</th><th><span class="sr">Ações</span></th></tr></thead><tbody>
       ${d.acessos.map(a => `<tr><td data-r="Quem">${esc(a.operador)}</td><td data-r="Tipo e justificativa"><b>${esc(a.tipoNome)}</b><br><span class="dica">${esc(a.justificativa)}</span></td>

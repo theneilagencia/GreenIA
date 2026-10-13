@@ -61,34 +61,31 @@ async function salvar(fn) {
 }
 
 // ---------------------------------------------------------------- casca comum
-const EXPLICA = {
-  areas: 'Áreas são os departamentos da empresa. Cada uma tem a sua <b>base de conhecimento</b>: quem é membro usa; quem administra a base cuida dos documentos.',
-  pessoas: 'Todas as pessoas com acesso. Abra uma pessoa para ver e mudar tudo dela: perfil, situação, áreas, grupos e a revisão de acesso.',
-  grupos: 'Grupos de permissão juntam pessoas de <b>qualquer área</b> para liberar um recurso a mais: um nível de IA mais forte ou criar Quick Wins. <b>Não têm base de conhecimento.</b>',
+// Caminho claro: uma linha de propósito, a lista e uma ação principal. A diferença entre área, pessoa e grupo e os
+// atalhos de teclado ficam na Ajuda da tela. Filtros ficam atrás de "Filtrar" (abertos só com filtro aplicado) e a
+// busca só aparece na barra quando a lista é longa; em lista curta, ela fica junto dos filtros.
+const PROPOSITO = {
+  areas: 'Os departamentos da empresa. Cada área tem a sua base de conhecimento.',
+  pessoas: 'Quem tem acesso. Clique numa pessoa para ver e mudar perfil, áreas e grupos.',
+  grupos: 'Pessoas de qualquer área com um recurso a mais, como um nível de IA ou criar Quick Wins.',
 };
-const CONCEITOS = atual => `<div class="conceitos grade-cartoes" role="note">
-  <a class="conceito cartao${atual === 'areas' ? ' atual' : ''}" href="#/pessoas/areas"><b class="cartao-titulo">Área</b><span class="cartao-texto">Um departamento. Tem <b>base de conhecimento própria</b> e Quick Wins. Na área, cada pessoa é membro ou administra a base.</span></a>
-  <a class="conceito cartao${atual === 'pessoas' ? ' atual' : ''}" href="#/pessoas"><b class="cartao-titulo">Pessoa</b><span class="cartao-texto">Quem usa a GreenIA. Faz parte de áreas e pode estar em grupos de permissão.</span></a>
-  <a class="conceito cartao${atual === 'grupos' ? ' atual' : ''}" href="#/pessoas/grupos"><b class="cartao-titulo">Grupo de permissão</b><span class="cartao-texto">Pessoas de <b>qualquer área</b> com um recurso a mais: nível de IA ou criar Quick Wins. <b>Sem base de conhecimento.</b></span></a></div>`;
-const lerPref = k => { try { return localStorage.getItem(k); } catch { return null; } };
-const gravarPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem armazenamento */ } };
+const LISTA_LONGA = 8;
 
-function casca({ titulo, busca, acao, filtros }) {
-  const aberto = lerPref('greenia.conceitos') !== '0' && !(S.areas.length && S.grupos.length);
+function casca({ titulo, busca, acao, filtros, total = 0, filtrando = 0 }) {
+  const longa = total > LISTA_LONGA;
+  const campoBusca = `<label class="lx-busca">${ICONE.busca}<input id="lx-q" placeholder="${busca}" autocomplete="off" value="${esc(S.q)}" aria-label="${busca}"><kbd>/</kbd></label>`;
+  const temPainel = (!!filtros || !longa) && (total > 1 || filtrando);
   $('conteudo').innerHTML = `<div class="lx">
-    <div class="lx-explica"><p>${EXPLICA[S.aba]}</p><button type="button" class="lx-entenda" id="lx-entenda" aria-expanded="${aberto}">Área, pessoa ou grupo?</button></div>
-    <div id="lx-conceitos" ${aberto ? '' : 'hidden'}>${CONCEITOS(S.aba)}</div>
+    <p class="adm-proposito lx-proposito">${PROPOSITO[S.aba]}</p>
     <div class="lx-barra">
       <div class="lx-titulo"><h2>${titulo}</h2><span class="lx-conta" id="lx-conta"></span></div>
-      <div class="lx-ferramentas">${filtros || ''}
-        <label class="lx-busca">${ICONE.busca}<input id="lx-q" placeholder="${busca}" autocomplete="off" value="${esc(S.q)}" aria-label="${busca}"><kbd>/</kbd></label>
+      <div class="lx-ferramentas">${temPainel ? `<button type="button" class="btn btn-linha btn-pequeno adm-revelar" id="lx-filtrar" aria-expanded="false" aria-controls="lx-filtros">${filtros ? 'Filtrar' : 'Buscar'}</button>` : ''}
+        ${longa ? campoBusca : ''}
         ${acao ? `<button class="btn btn-verde btn-pequeno" id="lx-novo">${ICONE.mais}${acao}<kbd class="kbd-claro">C</kbd></button>` : ''}</div></div>
+    ${temPainel ? `<div class="lx-filtros" id="lx-filtros" hidden>${filtros || ''}${longa ? '' : campoBusca}</div>` : ''}
     <div id="lx-extra"></div>
-    <div class="lx-lista" id="lx-lista"></div>
-    <details class="lx-atalhos-ajuda"><summary><span aria-hidden="true">?</span> Atalhos de teclado</summary>
-      <p class="lx-atalhos"><kbd>/</kbd> buscar <kbd>C</kbd> criar <kbd>J</kbd><kbd>K</kbd> navegar <kbd>Enter</kbd> abrir <kbd>Esc</kbd> fechar</p></details></div>`;
-  $('lx-entenda').onclick = ev => { const b = ev.currentTarget, v = b.getAttribute('aria-expanded') !== 'true'; b.setAttribute('aria-expanded', v); $('lx-conceitos').hidden = !v; gravarPref('greenia.conceitos', v ? '1' : '0'); };
-  $('lx-q').oninput = ev => { S.q = ev.target.value; desenharLista(); };
+    <div class="lx-lista" id="lx-lista"></div></div>`;
+  if ($('lx-q')) $('lx-q').oninput = ev => { S.q = ev.target.value; desenharLista(); };
   $('conteudo').onclick = ev => {
     const f = ev.target.closest('[data-filtro]');
     if (f) { S.filtro[S.aba] = f.dataset.filtro; for (const x of document.querySelectorAll('[data-filtro]')) x.setAttribute('aria-pressed', x === f); desenharLista(); return; }
@@ -116,6 +113,7 @@ function desenharLista() {
 function listaAreas() {
   const f = S.filtro.areas || 'ativas';
   const lista = S.areas.filter(a => (f === 'todas' || (f === 'ativas') === a.ativa) && buscaOk(a.nome, a.descricao));
+  marcarFiltros(Number(f !== 'ativas'));
   $('lx-conta').textContent = lista.length;
   if (!S.areas.length) return vazio('Nenhuma área ainda', 'Crie a primeira área com o nome que a empresa usa para o departamento.', 'Nova área');
   if (!lista.length) return vazio('Nada encontrado', 'Mude a busca ou o filtro.');
@@ -135,6 +133,7 @@ function listaPessoas() {
   const todas = gente();
   const lista = todas.filter(r => naArea(r) && (!fp || r.perfil === fp) && (!fs || r.status === fs) && (!fr || r.rev?.pendente) && buscaOk(r.nome, r.email));
   $('lx-conta').textContent = lista.length;
+  marcarFiltros([fp, fs, fr, f !== 'todas'].filter(Boolean).length);
   loteRevisao(fr && S.podeRevisar ? lista.filter(r => r.local && r.rev?.pendente) : []);
   if (!todas.length) return vazio('Ninguém com acesso ainda', 'Convide as primeiras pessoas.', $('lx-novo') ? (E.plataforma ? 'Convidar pessoa' : 'Nova pessoa') : '');
   if (!lista.length) return vazio('Ninguém encontrado', 'Mude a busca ou os filtros.');
@@ -150,16 +149,30 @@ function listaPessoas() {
 
 // Com o filtro "Revisão pendente", registra a mesma conferência para todas as pessoas da lista, uma a uma
 // (a mesma rota da revisão individual).
+// Filtros aplicados ficam visíveis no próprio botão Filtrar (o painel continua fechado até a pessoa pedir).
+function marcarFiltros(n) {
+  const b = $('lx-filtrar');
+  if (!b) return;
+  let c = b.querySelector('.lx-conta');
+  if (!n) { c?.remove(); return; }
+  if (!c) { c = Object.assign(document.createElement('span'), { className: 'lx-conta', title: 'Filtros aplicados' }); b.append(' ', c); }
+  c.textContent = n;
+}
+
+// Com o filtro "Revisão pendente", a tarefa da tela é registrar a revisão: ela vira a ação principal (no lugar de
+// Convidar, que volta ao tirar o filtro) e registra a mesma conferência para todas as pessoas da lista, uma a uma
+// (a mesma rota da revisão individual).
 function loteRevisao(alvo) {
   const host = $('lx-extra');
   if (!host) return;
+  if ($('lx-novo')) $('lx-novo').hidden = alvo.length > 0;
   if (!alvo.length) { host.innerHTML = ''; return; }
   if (!$('lx-lote')) {
-    host.innerHTML = `<details class="lx-lote" id="lx-lote"><summary>Registrar a revisão de <span id="lx-lote-n"></span></summary>
-      <form id="lx-lote-form"><label class="legenda" for="lx-lote-nota">O que você conferiu?</label>
+    host.innerHTML = `<div class="lx-lote" id="lx-lote"><button type="button" class="btn btn-verde btn-pequeno adm-revelar" id="lx-lote-abrir" aria-expanded="false" aria-controls="lx-lote-form"><span>Registrar a revisão de <span id="lx-lote-n"></span></span></button>
+      <form id="lx-lote-form" hidden><label class="legenda" for="lx-lote-nota">O que você conferiu?</label>
         <textarea class="entrada" id="lx-lote-nota" required maxlength="500" rows="2" placeholder="Ex.: confirmei as áreas e os administradores das bases"></textarea>
         <label class="px-marca"><input type="checkbox" required> <span>Conferi os vínculos de cada pessoa</span></label>
-        <button class="btn btn-verde btn-pequeno" id="lx-lote-enviar">Registrar revisão</button></form></details>`;
+        <button class="btn btn-verde btn-pequeno" id="lx-lote-enviar">Registrar revisão</button></form></div>`;
     $('lx-lote-form').onsubmit = async ev => {
       ev.preventDefault();
       const b = $('lx-lote-enviar'), ids = $('lx-lote-form').dataset.ids.split(',').map(Number);
@@ -509,7 +522,12 @@ function teclas(ev) {
   const linhas = [...document.querySelectorAll('.lx-linha')];
   // Nesta tela, / busca na lista e C cria aqui (e não abre a paleta nem uma conversa nova).
   const meu = () => { ev.preventDefault(); ev.stopPropagation(); };
-  if (ev.key === '/') { meu(); $('lx-q').focus(); }
+  if (ev.key === '/' && $('lx-q')) {
+    meu();
+    // Busca recolhida junto dos filtros (lista curta): / abre o painel e põe o foco nela.
+    if ($('lx-filtros')?.hidden && $('lx-filtros').contains($('lx-q'))) { $('lx-filtros').hidden = false; $('lx-filtrar')?.setAttribute('aria-expanded', 'true'); }
+    $('lx-q').focus();
+  }
   else if (ev.key === 'c' || ev.key === 'C') { meu(); $('lx-novo')?.click(); }
   else if (['j', 'k', 'ArrowDown', 'ArrowUp'].includes(ev.key) && linhas.length) {
     meu();
@@ -529,8 +547,9 @@ async function abrir(aba, opcoes) {
   desenharLista();
 }
 export const abaAreas = () => abrir('areas', () => ({
-  titulo: 'Áreas', busca: 'Buscar área', acao: 'Nova área',
-  filtros: pilulas([['ativas', 'Ativas', ativas().length], ['desativadas', 'Desativadas', S.areas.length - ativas().length], ['todas', 'Todas', S.areas.length]], S.filtro.areas || 'ativas'),
+  titulo: 'Áreas', busca: 'Buscar área', acao: 'Nova área', total: S.areas.length, filtrando: Number((S.filtro.areas || 'ativas') !== 'ativas'),
+  // Ativas, desativadas ou todas: só faz sentido escolher quando existe área desativada.
+  filtros: S.areas.length > ativas().length ? pilulas([['ativas', 'Ativas', ativas().length], ['desativadas', 'Desativadas', S.areas.length - ativas().length], ['todas', 'Todas', S.areas.length]], S.filtro.areas || 'ativas') : '',
 })).then(() => {
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
   const id = Number(q.get('area'));
@@ -547,18 +566,19 @@ export const abaPessoas = () => {
     const perfis = S.usuarios ? S.roles.map(r => r.name) : ['Membro', 'Admin da empresa'];
     const sel = (id, rotulo, opcoes, atual) => `<label class="lx-seletor"><span class="sr">${rotulo}</span><select class="entrada entrada-pequena" id="${id}">${opcoes.map(([v, t]) => `<option value="${esc(v)}" ${v === atual ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
     return { titulo: 'Pessoas com acesso', busca: 'Buscar pessoa', acao: E.plataforma ? (pode('user.create') ? 'Convidar pessoa' : '') : 'Nova pessoa',
+      total: gente().length, filtrando: [S.filtro.perfil, S.filtro.status, S.filtro.revisao, f !== 'todas'].filter(Boolean).length,
       filtros: sel('lx-perfil', 'Perfil', [['', 'Perfil: todos'], ...perfis.map(n => [n, n])], S.filtro.perfil || '')
         + sel('lx-status', 'Situação', [['', 'Situação: todas'], ['ativo', 'Ativos'], ...(S.usuarios ? [['convidado', 'Convidados']] : []), ['inativo', 'Inativos']], S.filtro.status || '')
         + sel('lx-area', 'Área', [['todas', 'Área: todas'], ['sem', 'Sem área'], ...ativas().map(a => [String(a.id), a.nome])], f)
         + `<label class="lx-marca"><input type="checkbox" id="lx-revisao" ${S.filtro.revisao ? 'checked' : ''}> <span>Revisão pendente</span> <span class="lx-conta">${pendentes}</span></label>` };
   }).then(() => {
-    $('lx-area').onchange = ev => { S.filtro.pessoas = ev.target.value; desenharLista(); };
-    $('lx-perfil').onchange = ev => { S.filtro.perfil = ev.target.value; desenharLista(); };
-    $('lx-status').onchange = ev => { S.filtro.status = ev.target.value; desenharLista(); };
-    $('lx-revisao').onchange = ev => { S.filtro.revisao = ev.target.checked; desenharLista(); };
+    if ($('lx-area')) $('lx-area').onchange = ev => { S.filtro.pessoas = ev.target.value; desenharLista(); };
+    if ($('lx-perfil')) $('lx-perfil').onchange = ev => { S.filtro.perfil = ev.target.value; desenharLista(); };
+    if ($('lx-status')) $('lx-status').onchange = ev => { S.filtro.status = ev.target.value; desenharLista(); };
+    if ($('lx-revisao')) $('lx-revisao').onchange = ev => { S.filtro.revisao = ev.target.checked; desenharLista(); };
     if (q.get('convidar') === '1' && $('lx-novo')) novo();
     const abrirId = q.get('pessoa');
     if (abrirId && umaPessoa(idDe(abrirId))) abrirPainel('pessoa', idDe(abrirId));
   });
 };
-export const abaGrupos = () => abrir('grupos', () => ({ titulo: 'Grupos de permissão', busca: 'Buscar grupo', acao: 'Novo grupo' }));
+export const abaGrupos = () => abrir('grupos', () => ({ titulo: 'Grupos de permissão', busca: 'Buscar grupo', acao: 'Novo grupo', total: S.grupos.length }));

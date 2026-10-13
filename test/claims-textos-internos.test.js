@@ -51,7 +51,8 @@ test('política: diz o escopo real de visibilidade, acesso técnico, backup, cre
 });
 
 test('admin: a opção de dados pessoais descreve o pedido sem treino como filtro, não como garantia', () => {
-  const t = readFileSync(raiz + 'public/admin.js', 'utf8');
+  // A explicação saiu da tela de Políticas e fica na Ajuda dela (caminho claro).
+  const t = readFileSync(raiz + 'public/ajuda-admin.js', 'utf8');
   assert.match(t, /é pedido em cada chamada[^<]*é um filtro, não uma garantia contratual/);
   assert.match(t, /com modelo definido \(não gratuito nem automático\)/);
 });

@@ -112,6 +112,8 @@ test('M36: "Ver prévia" mostra o que está em edição, sem salvar (painel da e
 test('M28: De/Até da Atividade em dd/mm/aaaa num navegador em inglês, com o mesmo valor ISO para a API', async () => {
   const p = await pagina(admin);
   await abrir(p, 'atividade');
+  // Os filtros ficam atrás de "Filtrar"; o envio é "Aplicar filtros".
+  await p.getByRole('button', { name: 'Filtrar' }).click();
   for (const id of ['ev-de', 'ev-ate']) {
     const campo = p.locator(`#${id}`);
     assert.equal(await campo.getAttribute('type'), 'text');
@@ -128,13 +130,13 @@ test('M28: De/Até da Atividade em dd/mm/aaaa num navegador em inglês, com o me
   await p.locator('#ev-ate').pressSequentially('31022026');
   let pedidos = 0;
   p.on('request', r => { if (r.url().includes('/api/admin/eventos')) pedidos++; });
-  await p.getByRole('button', { name: 'Filtrar' }).click();
+  await p.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
   assert.equal(await p.locator('#ev-ate').getAttribute('aria-invalid'), 'true');
   assert.equal(pedidos, 0);
   // Data válida: a API recebe aaaa-mm-dd e a data volta ao campo em dd/mm/aaaa.
   await p.locator('#ev-ate').fill('');
   await p.locator('#ev-ate').pressSequentially('31102026');
-  const [pedido] = await Promise.all([p.waitForRequest(r => r.url().includes('/api/admin/eventos?')), p.getByRole('button', { name: 'Filtrar' }).click()]);
+  const [pedido] = await Promise.all([p.waitForRequest(r => r.url().includes('/api/admin/eventos?')), p.getByRole('button', { name: 'Aplicar filtros', exact: true }).click()]);
   const q = new URL(pedido.url()).searchParams;
   assert.deepEqual([q.get('de'), q.get('ate')], ['2026-10-01', '2026-10-31']);
   await p.waitForLoadState('networkidle');

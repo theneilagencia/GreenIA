@@ -20,8 +20,11 @@ function resumo(d){
  const texto=v=>Array.isArray(v)?v.map(x=>campos.includes(x)?nomes[x]:legivel(String(x))).join(', '):typeof v==='boolean'?(v?'Sim':'Não'):legivel(String(v));
  return Object.entries(d||{}).filter(([,v])=>simples(v)).slice(0,3).map(([k,v])=>`${rotulo(k)}: ${esc(texto(v).slice(0,80))}`).join(' · ');
 }
-export function detalheAuditoria(e) {
- let d;try{d=JSON.parse(e.detalhes);}catch{return `<span class="dica">Registro sem detalhe estruturado.</span>`;}
- const r=resumo(d);
- return `${r?`<p class="auditoria-resumo">${r}</p>`:''}<details class="auditoria-detalhe"><summary>Ver todos os detalhes</summary><dl>${Object.entries(d||{}).map(([k,v])=>`<dt>${rotulo(k)}</dt><dd>${valor(v)}</dd>`).join('')||'<dt>Informação</dt><dd>Evento sem campos adicionais.</dd>'}</dl><p class="dica">Autor: ${esc(e.pessoa||'sistema')}. Registro nº ${esc(e.id)}, só de inclusão; os detalhes dependem do tipo de evento.</p></details>`;
+// A lista mostra só o resumo de cada registro; o detalhe inteiro abre no painel lateral, um registro por vez.
+const ler=e=>{try{return{ok:true,d:JSON.parse(e.detalhes)};}catch{return{ok:false};}};
+export function resumoAuditoria(e){const r=ler(e);return r.ok?resumo(r.d):'';}
+export function corpoAuditoria(e){
+ const r=ler(e);
+ if(!r.ok)return '<p class="dica">Registro sem detalhe estruturado.</p>';
+ return `<div class="auditoria-detalhe"><dl>${Object.entries(r.d||{}).map(([k,v])=>`<dt>${rotulo(k)}</dt><dd>${valor(v)}</dd>`).join('')||'<dt>Informação</dt><dd>Evento sem campos adicionais.</dd>'}</dl><p class="dica">Autor: ${esc(e.pessoa||'sistema')}. Registro nº ${esc(e.id)}, só de inclusão; os detalhes dependem do tipo de evento.</p></div>`;
 }

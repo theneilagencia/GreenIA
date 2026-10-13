@@ -9,8 +9,8 @@ import { subirPlataforma } from '../test/ajuda-plataforma.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const LARGURAS = [1920, 1366, 390];
-const TELAS = ['visao-geral', 'preparacao', 'pessoas', 'pessoas?revisao=pendente', 'pessoas/areas', 'pessoas/grupos', 'pessoas/perfis', 'pessoas/criacao',
-  'empresa/acessos', 'modelos', 'modelos/roteamento', 'modelos/historico', 'politicas', 'politicas/texto', 'integracoes', 'uso', 'atividade',
+const TELAS = ['visao-geral', 'visao-geral?passos=1', 'pessoas', 'pessoas?revisao=pendente', 'pessoas/areas', 'pessoas/grupos', 'pessoas/perfis', 'pessoas/criacao',
+  'atividade/suporte', 'modelos', 'modelos/catalogo', 'modelos/roteamento', 'modelos/historico', 'politicas', 'politicas/texto', 'integracoes', 'uso', 'atividade', 'atividade/problemas',
   'empresa/marca', 'empresa/landing', 'empresa/url', 'configuracoes'];
 let S, nav, admin;
 
@@ -87,8 +87,8 @@ for (const largura of LARGURAS) {
       await p.goto(`${S.base}/app#/${tela}`);
       await p.waitForSelector('#conteudo > :not(.carregando), .pagina-dentro > :not(#conteudo)');
       await p.waitForLoadState('networkidle');
-      // Abre o que fica recolhido (catálogo de modelos, blocos de configurações) para medir também.
-      await p.evaluate(() => { for (const d of document.querySelectorAll('#modelos-manuais, details.cfg-caixa')) d.open = true; });
+      // Abre o que fica recolhido (blocos de configurações, Filtrar, Mais opções, Ajustar manualmente) para medir também.
+      await p.evaluate(() => { for (const d of document.querySelectorAll('details.cfg-caixa')) d.open = true; for (const b of document.querySelectorAll('#principal .adm-revelar[aria-expanded="false"]')) b.click(); });
       await p.waitForTimeout(150);
       for (const d of await p.evaluate(medir)) achados.push(`#/${tela}: ${d}`);
     }
@@ -96,6 +96,11 @@ for (const largura of LARGURAS) {
     await p.goto(`${S.base}/app#/pessoas`); await p.waitForSelector('.lx-linha');
     await p.locator('.lx-linha[data-tipo="pessoa"]').first().click(); await p.waitForSelector('#modal .px');
     for (const d of await p.evaluate(medir)) achados.push(`painel da pessoa: ${d}`);
+    // Painéis de registro (Atividade) e de modelo (Catálogo técnico), um detalhe por vez.
+    for (const [tela, nome] of [['atividade', 'registro'], ['modelos/catalogo', 'modelo']]) {
+      await p.goto(`${S.base}/app#/${tela}`); await p.locator('#conteudo tr[data-registro]').first().click(); await p.waitForSelector('#modal .px');
+      for (const d of await p.evaluate(medir)) achados.push(`painel do ${nome}: ${d}`);
+    }
     await ctx.close();
     assert.deepEqual(achados, []);
     assert.deepEqual(erros, []);

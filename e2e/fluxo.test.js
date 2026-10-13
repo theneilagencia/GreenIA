@@ -148,13 +148,14 @@ test('quem gerencia: medição e decisão; reportar problema; painel do admin co
   await p.waitForFunction(() => document.querySelector('.troca-contexto a.ativo')?.textContent === 'Administração');
   assert.doesNotMatch(p.url(), /entrar/);
   // Gestão: cada tela abre pela navegação, sem erro.
-  for (const tela of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'pessoas/grupos', 'pessoas/criacao', 'modelos', 'modelos/historico', 'politicas', 'politicas/texto', 'atividade', 'configuracoes', 'conversas']) {
+  for (const tela of ['visao-geral', 'quick-wins', 'conhecimento', 'uso', 'pessoas', 'pessoas/grupos', 'pessoas/criacao', 'modelos', 'modelos/catalogo', 'modelos/historico', 'politicas', 'politicas/texto', 'atividade', 'atividade/problemas', 'configuracoes', 'conversas']) {
     await p.goto(`${N.base}/app#/${tela}`);
     await p.waitForFunction(() => { const c = document.getElementById('conteudo'); return !c || !/Carregando/.test(c.textContent); });
     await p.waitForTimeout(150);
     assert.equal(await p.locator('.faixa-aviso.erro:only-child').count(), 0, tela + ': ' + await p.textContent('#principal'));
   }
-  await p.goto(`${N.base}/app#/atividade`);
+  // Problemas reportados: aba própria de Atividade.
+  await p.goto(`${N.base}/app#/atividade/problemas`);
   await p.waitForSelector('[data-problema]');
   assert.match(await p.textContent('#conteudo'), /regra que não existe/);
   assert.deepEqual(erros, []);

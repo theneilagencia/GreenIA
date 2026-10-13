@@ -124,17 +124,19 @@ test('👍 registra "serviu" e fica marcado; 👎 abre um diálogo com "Serviu c
   await d.waitFor({ state: 'detached' });
   assert.equal(await negativo.evaluate(e => e === document.activeElement), true, 'o foco volta ao 👎');
   assert.equal((await conversa(livre.id)).conversa.feedback, 'serviu');
-  // "Serviu com ajustes": o campo de observação não aparece (o servidor guarda observação só em "Não serviu").
+  // "Serviu com ajustes": a observação também é guardada.
   await negativo.click(); await d.waitFor();
   await d.getByLabel('Serviu com ajustes').check();
-  assert.equal(await d.getByLabel('O que faltou ou veio errado? (opcional)').isVisible(), false);
+  await d.getByLabel('O que faltou ou veio errado? (opcional)').fill('Precisei ajustar o tom');
   await d.getByRole('button', { name: 'Enviar avaliação' }).click();
   await p.waitForSelector('[data-fb-negativo][aria-pressed="true"][aria-label="Serviu com ajustes"]');
   assert.equal(await p.getAttribute('[data-fb="serviu"]', 'aria-pressed'), 'false');
   assert.equal((await conversa(livre.id)).conversa.feedback, 'ajustes');
+  assert.equal((await conversa(livre.id)).conversa.feedback_motivo, 'Precisei ajustar o tom');
   // Mudar para "Não serviu", com observação.
   await negativo.click(); await d.waitFor();
   assert.equal(await d.getByLabel('Serviu com ajustes').isChecked(), true, 'a avaliação atual vem marcada');
+  assert.equal(await d.getByLabel('O que faltou ou veio errado? (opcional)').inputValue(), 'Precisei ajustar o tom', 'a observação atual vem preenchida');
   await d.getByLabel('Não serviu').check();
   await d.getByLabel('O que faltou ou veio errado? (opcional)').fill('Faltou o prazo de entrega');
   await d.getByRole('button', { name: 'Enviar avaliação' }).click();

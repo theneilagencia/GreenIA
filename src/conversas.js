@@ -286,7 +286,7 @@ export function rotasConversas(app, r) {
     if (corpo.sigilosa === false && conv.sigilosa) throw erro(409, 'sigilosa_travada', 'Uma conversa sigilosa continua sigilosa até ser apagada, porque o histórico já tem os dados.');
     if (corpo.feedback !== undefined) {
       if (corpo.feedback !== null && !['serviu', 'ajustes', 'nao_serviu'].includes(corpo.feedback)) throw erro(400, 'feedback', 'Feedback inválido.');
-      exec(app.db, 'update conversas set feedback = ?, feedback_motivo = ? where id = ?', corpo.feedback, corpo.feedback === 'nao_serviu' ? String(corpo.motivo || '').slice(0, 500) || null : null, conv.id);
+      exec(app.db, 'update conversas set feedback = ?, feedback_motivo = ? where id = ?', corpo.feedback, corpo.feedback !== 'serviu' ? String(corpo.motivo || '').slice(0, 500) || null : null, conv.id);
       // O feedback vale para a última resposta: fica na decisão dela (o motivo escrito não vai para o roteamento).
       exec(app.db, "update roteamento set feedback = ? where id = (select id from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1)", corpo.feedback, conv.id);
       registrar(app, conv.quick_win_id ? 'quickwin.evaluated' : 'conversation.evaluated', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, feedback: corpo.feedback });

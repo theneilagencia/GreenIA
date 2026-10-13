@@ -417,23 +417,22 @@ async function darFeedback(valor, motivo = null) {
   anunciar(`Avaliação registrada: ${FEEDBACK[valor]}. Obrigado pelo retorno.`);
 }
 
-// 👎: diálogo curto, como o retorno dos assistentes de chat. A observação vale para "Não serviu" (o servidor guarda
-// o motivo só nesse caso); em "Serviu com ajustes" o campo some.
+// 👎: diálogo curto, como o retorno dos assistentes de chat, com observação opcional nas duas opções.
 function avaliarNegativo() {
   const atual = C.conv?.feedback;
   const opcao = (v, rotulo, desc) => `<label class="fb-opcao"><input type="radio" name="fb-valor" value="${v}" ${atual === v ? 'checked' : ''}><span><b>${rotulo}</b><small>${desc}</small></span></label>`;
   dialogo({ titulo: 'Como foi esta resposta?', texto: 'Sua avaliação ajuda a melhorar as próximas respostas.', icone: 'conversa',
     conteudo: `<fieldset class="fb-opcoes"><legend class="sr">Avaliação</legend>${opcao('ajustes', 'Serviu com ajustes', 'Aproveitei, mas precisei corrigir ou completar.')}${opcao('nao_serviu', 'Não serviu', 'Não deu para usar.')}</fieldset>
-      <label class="hc-campo fb-motivo">O que faltou ou veio errado? (opcional)<textarea class="entrada" data-motivo rows="3" maxlength="500">${atual === 'nao_serviu' ? esc(C.conv.feedback_motivo || '') : ''}</textarea></label>`,
+      <label class="hc-campo fb-motivo">O que faltou ou veio errado? (opcional)<textarea class="entrada" data-motivo rows="3" maxlength="500">${atual && atual !== 'serviu' ? esc(C.conv.feedback_motivo || '') : ''}</textarea></label>`,
     acao: 'Enviar avaliação', executar: async fundo => {
       const valor = fundo.querySelector('[name=fb-valor]:checked')?.value;
       if (!valor) throw new Error('Escolha uma das opções.');
-      await darFeedback(valor, valor === 'nao_serviu' ? fundo.querySelector('[data-motivo]').value.trim() || null : null);
+      await darFeedback(valor, fundo.querySelector('[data-motivo]').value.trim() || null);
     } });
   const fundo = [...document.querySelectorAll('.hc-modal-fundo')].at(-1);
   if (!fundo?.querySelector('.fb-opcoes')) return;
   const confirmar = fundo.querySelector('[data-confirmar]'), campo = fundo.querySelector('.fb-motivo');
-  const atualizar = () => { const v = fundo.querySelector('[name=fb-valor]:checked')?.value; confirmar.disabled = !v; campo.hidden = v !== 'nao_serviu'; };
+  const atualizar = () => { const v = fundo.querySelector('[name=fb-valor]:checked')?.value; confirmar.disabled = !v; campo.hidden = !v; };
   fundo.querySelectorAll('[name=fb-valor]').forEach(r => { r.onchange = atualizar; });
   atualizar();
   (fundo.querySelector('[name=fb-valor]:checked') || fundo.querySelector('[name=fb-valor]')).focus();

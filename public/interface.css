@@ -135,8 +135,6 @@ body.plataforma .pagina .indicador small .selo{display:inline-flex;width:auto}
 /* Valores técnicos (caminho do banco) quebram dentro do cartão; blocos de valor ficam juntos. */
 body.plataforma .valor-tecnico{font-size:12.5px;overflow-wrap:anywhere;word-break:break-all}
 body.plataforma .valor-bloco{display:block}
-/* Salvar sempre à vista nos formulários longos. */
-body.plataforma .barra-salvar{position:sticky;bottom:0;z-index:2;background:var(--paper);border-top:1px solid var(--line);padding:12px 0;margin-top:16px;align-items:center}
 /* Login do console: saídas para quem não é operador. */
 .entrar-console .login-saidas{text-align:center;margin:14px 0 0}
 /* Auditoria: o resumo indica que o detalhe abre. */
@@ -1025,4 +1023,52 @@ body[data-contexto="admin"] .secao-titulo .adm-revelar{flex:none}
 @media (pointer:coarse),(max-width:760px){
   body[data-contexto="admin"] .adm-revelar,.adm-proximo>.btn{min-height:44px}
   .adm-guardar label{min-height:44px;display:flex;align-items:center}
+}
+
+/* === Caminho claro: console da plataforma e operador === Cada tela: título, uma linha de propósito (com "Saiba
+   mais" quando a explicação longa foi para a ajuda), uma ação principal à direita do cabeçalho e o resto em
+   "Mais ações". Formulários raros abrem em modal; opções avançadas ficam fechadas até a pessoa pedir. */
+body.plataforma .cabeca{position:relative;z-index:5}   /* o "Mais ações" do cabeçalho abre por cima do conteúdo */
+body:is(.plataforma,.console) [hidden]{display:none!important}   /* áreas fechadas ficam fechadas mesmo em grade */
+body.plataforma .cabeca-acoes .acoes-aba{display:inline-flex;align-items:center;gap:12px}
+body.plataforma .cabeca-acoes .acoes-aba:empty{display:none}
+body.plataforma .pagina .plat-proposito{margin:0 0 20px;max-width:none}
+body.plataforma .subnav+.plat-proposito,body.plataforma .subnav+#aba>.plat-proposito:first-child{margin-top:-4px}
+body.plataforma .plat-saiba{display:inline;height:auto;min-height:0;padding:0 2px;font:inherit;font-weight:500;vertical-align:baseline;text-decoration:underline;text-underline-offset:3px}
+.plat-ajuda p{margin:0 0 12px;line-height:1.55}
+.plat-ajuda p:last-child{margin-bottom:0}
+/* "Mais ações": lista que abre abaixo do botão, alinhada à direita. */
+.plat-menu{position:relative;display:inline-flex}
+.plat-menu .menu-lista[hidden]{display:none}
+.plat-menu .menu-lista{min-width:240px;z-index:40}
+.plat-menu .menu-lista :is(a,button){display:flex;align-items:center;min-height:40px;white-space:nowrap}
+.plat-menu .menu-lista a{color:var(--ink)}
+/* Botões que abrem e fecham uma área (opções avançadas, conta completa, ver em tabela). */
+body.plataforma .plat-revelar{display:inline-flex;align-items:center;gap:8px;padding-left:0}
+body.plataforma .plat-revelar::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+body.plataforma .plat-revelar[aria-expanded="true"]::before{transform:rotate(45deg)}
+body.plataforma .secao-titulo>.plat-revelar,body.plataforma .secao-titulo>.btn{margin-left:auto}
+body.plataforma #f-premissas:not([hidden]),body.plataforma #pl-conta:not([hidden]){margin-top:8px}
+/* Resumo da empresa: o nome do plano no lugar de um número; dados cadastrais em lista; perigo no fim. */
+body.plataforma .pagina .indicador b.valor-texto{font-size:18px;line-height:1.35;overflow-wrap:anywhere}
+body.plataforma .plat-dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;margin:0}
+body.plataforma .plat-dados dt{font:500 12px/1.4 var(--sans);color:var(--muted)}
+body.plataforma .plat-dados dd{margin:2px 0 0;font:400 14px/1.45 var(--sans);color:var(--ink);overflow-wrap:anywhere}
+body.plataforma .plat-dados-largo{grid-column:1/-1}
+body.plataforma .plat-perigo{margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+body.plataforma .plat-perigo h2.h-secao{margin:0 0 6px;color:var(--red-text)}
+body.plataforma .plat-perigo .dica{margin:0 0 12px}
+body.plataforma .plat-linha-acoes{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+/* Marca: "bloquear para a empresa" só aparece ao escolher os itens bloqueados. */
+body.plataforma #form-marca:not(.com-travas) .trava-marca{display:none!important}
+body.plataforma .plat-bloqueios{margin:8px 0 16px}
+@media(max-width:760px){
+  .plat-menu .menu-lista :is(a,button){min-height:44px}
+  body.plataforma .cabeca-acoes .acoes-aba{gap:6px}
+  body.plataforma .pagina .plat-saiba{display:inline;min-height:0}
+  body.plataforma .pagina .plat-revelar{min-height:44px}
+}
+@media(max-width:480px){
+  /* No celular, o status da empresa sai do cabeçalho (está no Resumo) para a ação principal caber ao lado do menu. */
+  body.plataforma .cabeca-acoes>.selo{display:none}
 }

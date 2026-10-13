@@ -1049,8 +1049,6 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 /* ------------------------------------------------------------ Uso e consumo de IA (console da plataforma) */
 .tag-vermelha{background:var(--red-bg);border-color:var(--red-borda);color:var(--red-text)} .tag-vermelha i{background:var(--red)}
 .tag-ambar i{background:var(--amber)}
-.uso-topo{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
-.uso-topo .lead{margin-bottom:12px}
 .or-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:4px 0 10px}
 .or-card{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:var(--sombra-1);min-width:0}
 .or-card.destaque{background:linear-gradient(160deg,var(--mint),var(--paper) 70%);border-color:var(--mint-borda)}
@@ -1062,7 +1060,6 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .or-lista dt{color:var(--muted)} .or-lista dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 .or-conc{margin:4px 0 12px;font:400 13px/1.5 var(--sans);color:var(--muted)} .or-conc b{color:var(--ink);font-variant-numeric:tabular-nums}
 .or-conc.dif{padding:8px 12px;border-radius:8px;background:var(--amber-bg);color:var(--amber-text)}
-.or-alerta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 8px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font:400 13.5px var(--sans)}
 .or-alerta-campo{display:inline-flex;align-items:center;gap:6px}
 .or-alerta-campo input{width:96px;min-height:34px;padding:4px 8px}
 .gb{margin:10px 0 6px;padding:16px 16px 10px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
@@ -1075,10 +1072,10 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .gb-col{flex:1 1 0;min-width:0;height:100%;display:flex;align-items:flex-end;padding:0;border:none;background:none;cursor:default;border-radius:4px 4px 0 0}
 .gb-col i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--forest);opacity:.85;transition:opacity .12s}
 .gb-col.hoje i{opacity:1}
-.gb-col:hover i,.gb-col:focus-visible i{opacity:1;box-shadow:0 0 0 2px var(--paper),0 0 0 3px var(--forest)}
-.gb-col:hover,.gb-col:focus-visible{outline:none;background:var(--surface)}
+.gb-col:hover i{opacity:1;box-shadow:0 0 0 2px var(--paper),0 0 0 3px var(--forest)}
+.gb-col:hover{background:var(--surface)}
 .gb-x{display:flex;justify-content:space-between;margin:6px 0 0 58px;font:400 11.5px var(--sans);color:var(--muted)}
-.gb-tabela{margin-top:8px;font:400 13px var(--sans)} .gb-tabela summary{cursor:pointer;color:var(--forest-text)}
+.gb-tabela{margin-top:8px;font:400 13px var(--sans)}
 .gb-tabela .tabela-rolagem{max-height:260px;overflow:auto;margin-top:8px}
 .gb-dica{position:absolute;z-index:80;display:none;padding:6px 10px;border-radius:7px;background:var(--deep);color:var(--sobre-deep);font:500 12.5px var(--sans);white-space:nowrap;pointer-events:none;box-shadow:var(--sombra-2)}
 .spark{display:block}

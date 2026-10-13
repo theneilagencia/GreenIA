@@ -83,22 +83,99 @@ function cab(titulo, acoes = '', voltar = '') {
     <span class="migalha"><span>Plataforma</span><span class="sep">/</span>${voltar ? `<a href="${voltar}">${esc(SECOES.find(x => voltar.startsWith(`#/${x[0]}`))?.[1] || 'Voltar')}</a><span class="sep">/</span>` : ''}</span><h1>${esc(titulo)}</h1></div><div class="cabeca-acoes">${acoes}</div></header>`;
 }
 function tela(titulo, corpo, acoes = '', voltar = '') {
-  $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${faixaEmail()}${faixaChave()}${corpo}</div></div>`;
+  C.mais = {};   // ações do "Mais ações" da tela aberta
+  $('principal').innerHTML = `${cab(titulo, acoes, voltar)}<div class="pagina"><div class="pagina-dentro">${faixaTopo()}${corpo}</div></div>`;
   $('menu').onclick = () => $('lateral').classList.toggle('aberta');
 }
-// Envio de email falhando: os códigos de acesso das empresas não chegam. Motivo real, sem segredos.
-function faixaEmail() {
-  const a = C.eu?.alertaEmail;
-  if (!a) return '';
-  return `<div class="faixa-aviso erro faixa-chave" role="alert"><b>Envio de email falhando:</b> os códigos de acesso podem não estar chegando. Última falha em ${esc(dataHora(a.em))} (${esc(a.origem)}): <code>${esc(a.detalhe)}</code> <a href="#/configuracoes">Ver email da plataforma</a></div>`;
-}
-// Aviso de vencimento ou rotação da chave do OpenRouter, no topo de todas as telas do console.
+// Avisos da plataforma no topo de todas as telas, num aviso só (no máximo um por tela), cada um com a ação que pede:
+// envio de email falhando (os códigos de acesso das empresas não chegam; motivo real, sem segredos) e vencimento ou
+// rotação da chave do OpenRouter (em Uso, o cartão da chave já mostra).
 const NIVEL_FAIXA = { atencao: 'atencao', critico: 'erro', erro: 'erro' };
-function faixaChave() {
-  const a = C.eu?.alertaChave;
-  if (!a || !NIVEL_FAIXA[a.nivel] || location.hash.startsWith('#/uso')) return '';   // em Uso, o card da chave já mostra
-  return `<div class="faixa-aviso ${NIVEL_FAIXA[a.nivel]} faixa-chave" role="${a.nivel === 'atencao' ? 'status' : 'alert'}"><b>Chave do OpenRouter · ${esc(a.rotulo || '')}:</b> ${esc(a.texto)} <a href="#/uso" data-trocar-chave>Trocar a chave</a></div>`;
+function faixaTopo() {
+  const e = C.eu?.alertaEmail, k = C.eu?.alertaChave;
+  const chave = k && NIVEL_FAIXA[k.nivel] && !location.hash.startsWith('#/uso') ? k : null;
+  if (!e && !chave) return '';
+  const partes = [
+    e ? `<b>Envio de email falhando:</b> os códigos de acesso podem não estar chegando. Última falha em ${esc(dataHora(e.em))} (${esc(e.origem)}): <code>${esc(e.detalhe)}</code> <a href="#/configuracoes">Ver email da plataforma</a>` : '',
+    chave ? `<b>Chave do OpenRouter · ${esc(chave.rotulo || '')}:</b> ${esc(chave.texto)} <a href="#/uso" data-trocar-chave>Trocar a chave</a>` : '',
+  ].filter(Boolean);
+  const nivel = e || NIVEL_FAIXA[chave.nivel] === 'erro' ? 'erro' : 'atencao';
+  return `<div class="faixa-aviso ${nivel} faixa-chave" role="${nivel === 'erro' ? 'alert' : 'status'}">${partes.join('<br>')}</div>`;
 }
+
+// ---------------------------------------------------------------- Caminho claro
+// Cada tela: título, uma linha de propósito e uma ação principal à direita do cabeçalho. Ações raras vão para
+// "Mais ações"; explicações longas ficam na ajuda da tela, aberta pelo "Saiba mais" da linha de propósito.
+C.ajuda = {};
+function proposito(texto, ajuda) {
+  if (ajuda) C.ajuda.tela = ajuda;
+  return `<p class="lead plat-proposito">${texto}${ajuda ? ` <button type="button" class="btn-texto plat-saiba" data-ajuda aria-haspopup="dialog">Saiba mais</button>` : ''}</p>`;
+}
+function abrirAjuda() {
+  const a = C.ajuda.tela;
+  if (!a) return;
+  modal(`<div class="modal-topo"><div class="rotulo">Ajuda</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="aj-titulo" tabindex="-1">${esc(a.titulo)}</h2><div class="plat-ajuda">${a.textos.map(t => `<p>${t}</p>`).join('')}</div>`, fechar => { $('fechar').onclick = fechar; $('aj-titulo').focus(); });
+}
+// "Mais ações": botão que abre uma lista de ações (role=menu). Cada item chama C.mais[acao](botão).
+// itens: [{ acao, rotulo, perigo, href, id }]; rotulo: nome acessível do botão (o texto visível é sempre "Mais ações").
+let menuSeq = 0;
+function menuMais(itens, { rotulo = 'Mais ações', classe = 'btn btn-linha btn-pequeno' } = {}) {
+  if (!itens.length) return '';
+  const id = `menu-mais-${++menuSeq}`;
+  return `<div class="plat-menu"><button type="button" class="${classe}" aria-haspopup="menu" aria-expanded="false" aria-controls="${id}"${rotulo !== 'Mais ações' ? ` aria-label="${esc(rotulo)}"` : ''}>Mais ações</button>
+    <div class="menu-lista" role="menu" id="${id}" hidden>${itens.map(i => (i.href ? `<a role="menuitem" href="${esc(i.href)}"${i.externo ? ' target="_blank" rel="noopener"' : ''}>${esc(i.rotulo)}</a>`
+      : `<button type="button" role="menuitem" data-mais="${esc(i.acao)}"${i.id !== undefined ? ` data-id="${esc(i.id)}"` : ''}${i.perigo ? ' class="perigo"' : ''}>${esc(i.rotulo)}</button>`)).join('')}</div></div>`;
+}
+function fecharMenus(exceto) {
+  for (const l of document.querySelectorAll('.plat-menu .menu-lista:not([hidden])')) {
+    if (l === exceto) continue;
+    l.hidden = true; l.previousElementSibling.setAttribute('aria-expanded', 'false');
+  }
+}
+function ligarMenusConsole() {
+  document.addEventListener('click', ev => {
+    if (ev.target.closest('[data-ajuda]')) return abrirAjuda();
+    const botao = ev.target.closest('.plat-menu > button');
+    if (botao) {
+      const lista = botao.nextElementSibling, abrir = lista.hidden;
+      fecharMenus(lista);
+      lista.hidden = !abrir; botao.setAttribute('aria-expanded', String(abrir));
+      // Dentro de uma tabela com rolagem própria, a lista sairia cortada: abre presa à janela, sob o botão.
+      if (abrir && botao.closest('.tabela-rolagem')) {
+        const r = botao.getBoundingClientRect();
+        Object.assign(lista.style, { position: 'fixed', top: `${r.bottom + 6}px`, right: `${Math.max(8, innerWidth - r.right)}px`, left: 'auto' });
+      }
+      // No celular, a lista não sai da tela: desloca para dentro, com 8 px de margem.
+      if (abrir) {
+        lista.style.transform = '';
+        const r = lista.getBoundingClientRect(), dx = r.left < 8 ? 8 - r.left : r.right > innerWidth - 8 ? innerWidth - 8 - r.right : 0;
+        if (dx) lista.style.transform = `translateX(${Math.round(dx)}px)`;
+        lista.querySelector('[role=menuitem]')?.focus({ preventScroll: true });
+      }
+      return;
+    }
+    const item = ev.target.closest('.plat-menu [data-mais]');
+    fecharMenus();
+    if (item) { C.mais?.[item.dataset.mais]?.(item); item.closest('.plat-menu').querySelector(':scope>button').focus({ preventScroll: true }); }
+  });
+  document.addEventListener('scroll', ev => { if (!ev.target.closest?.('.menu-lista')) fecharMenus(); }, true);
+  document.addEventListener('keydown', ev => {
+    const lista = ev.target.closest?.('.plat-menu .menu-lista');
+    if (!lista) return;
+    const itens = [...lista.querySelectorAll('[role=menuitem]')], i = itens.indexOf(ev.target);
+    if (ev.key === 'Escape' || ev.key === 'Tab') { fecharMenus(); if (ev.key === 'Escape') lista.previousElementSibling.focus(); }
+    else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); itens[(i + (ev.key === 'ArrowDown' ? 1 : -1) + itens.length) % itens.length]?.focus(); }
+  });
+}
+// Área que abre e fecha (filtros, opções avançadas): botão com aria-expanded e a região com hidden.
+const revelar = (id, rotulo, aberto = false) => `<button type="button" class="btn-texto plat-revelar" aria-expanded="${aberto}" aria-controls="${id}" data-revelar="${id}">${esc(rotulo)}</button>`;
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-revelar]');
+  if (!b) return;
+  const alvo = $(b.dataset.revelar), abrir = alvo.hidden;
+  alvo.hidden = !abrir; b.setAttribute('aria-expanded', String(abrir));
+});
 // Data dd/mm/aaaa do campo pt-BR em ISO (vazio → null); data inválida interrompe com a explicação.
 const dataOuErro = el => { const v = lerData(el); if (v === null) throw new Error(el.validationMessage || 'Use uma data válida no formato dd/mm/aaaa.'); return v || null; };
 const carregando = titulo => tela(titulo, carregandoHtml());
@@ -107,8 +184,11 @@ const tabela = (cab, linhas, vazio) => (linhas.length ? `<div class="tabela-rola
   : vazio ? (vazio.startsWith('<') ? vazio : vazioHtml({ titulo: vazio })) : '');   // aceita o estado vazio já pronto
 
 function modal(html, aoAbrir) {
+  // O foco volta para quem abriu (um modal aberto de dentro de outro devolve ao que abriu o primeiro).
+  const origem = $('modal').contains(document.activeElement) ? C.origemModal : document.activeElement;
+  C.origemModal = origem;
   $('modal').innerHTML = `<div class="modal-fundo" id="fundo-modal"><div class="modal" role="dialog" aria-modal="true" tabindex="-1">${html}</div></div>`;
-  const fechar = () => { $('modal').innerHTML = ''; };
+  const fechar = () => { $('modal').innerHTML = ''; if (origem?.isConnected) origem.focus({ preventScroll: true }); };
   $('fundo-modal').onclick = ev => { if (ev.target.id === 'fundo-modal') fechar(); };
   $('fundo-modal').onkeydown = ev => { if (ev.key === 'Escape') fechar(); };
   document.querySelector('.modal').focus();
@@ -197,16 +277,17 @@ async function vistaEmpresas() {
   carregando('Empresas');
   const { empresas } = await api('/api/plataforma/empresas');
   C.empresas = empresas;
-  tela('Empresas', `<p class="lead">Cada empresa é um ambiente independente: dados, usuários, marca e página de apresentação próprios.</p>
+  // Sem empresas, o estado vazio traz a única ação da tela (o cabeçalho fica sem botão).
+  tela('Empresas', `${proposito('Cada empresa é um ambiente independente, com dados, pessoas e marca próprios.')}
     ${tabela(['Empresa', 'Status', 'Plano', 'URL', '#Usuários', '#Créditos no mês'], empresas.map(e => `<tr>
       <td data-r="Empresa"><a href="#/empresas/${e.id}"><b>${esc(e.name)}</b></a><br><span class="dica">${esc(e.admins.join(', ') || 'sem administrador')}</span></td>
       <td data-r="Status">${selo(e.status, e.statusNome)}</td><td data-r="Plano">${esc(e.plano?.name || 'sem plano')}</td>
       <td data-r="URL"><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url.replace(/^https?:\/\//, ''))}</a></td>
       <td class="num" data-r="Usuários">${num(e.usuarios)}</td><td class="num" data-r="Créditos no mês">${e.creditosUsados === null ? '–' : `${num(Math.round(e.creditosUsados))} <span class="dica">· ${num(e.percentual)}% do plano</span>`}</td></tr>`),
-    '')}${empresas.length ? '' : vazioHtml({ icone: 'predio', titulo: 'Nenhuma empresa ainda', texto: 'Crie a primeira empresa: nome, identificador, plano e administrador. Ela nasce em implantação, e você publica quando estiver pronta.', acao: '<button class="btn btn-verde" id="nova-empresa-vazio">Criar empresa</button>' })}`,
-  '<button class="btn btn-verde btn-pequeno" id="nova-empresa" title="Nova empresa (N)">Nova empresa</button>');
+    '')}${empresas.length ? '' : vazioHtml({ icone: 'predio', titulo: 'Nenhuma empresa ainda', texto: 'Crie a primeira empresa; ela nasce em implantação e você publica quando estiver pronta.', acao: '<button class="btn btn-verde" id="nova-empresa-vazio">Criar empresa</button>' })}`,
+  empresas.length ? '<button class="btn btn-verde btn-pequeno" id="nova-empresa" title="Nova empresa (N)">Nova empresa</button>' : '');
   $('nova-empresa-vazio')?.addEventListener('click', novaEmpresa);
-  $('nova-empresa').onclick = novaEmpresa;
+  $('nova-empresa')?.addEventListener('click', novaEmpresa);
 }
 
 async function novaEmpresa() {
@@ -246,15 +327,13 @@ async function vistaEmpresa(id, aba = 'resumo') {
   const d = await api(`/api/plataforma/empresas/${id}`);
   const e = d.empresa;
   const sub = `<nav class="subnav" aria-label="Seções da empresa">${ABAS.map(([k, n]) => `<a href="#/empresas/${id}/${k}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
-  const titulo = `${e.name}`;
-  const acoes = `${selo(e.status, e.statusNome)} <button class="btn btn-linha btn-pequeno" id="entrar-amb" ${e.status === 'cancelada' ? 'disabled title="Ambiente cancelado: o uso fica bloqueado, inclusive para a equipe de operação"' : ''}>Entrar no ambiente</button>`;
   const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba] || abaResumo;
-  tela(titulo, `${sub}<div id="aba"></div>`, acoes, '#/empresas');
-  $('entrar-amb').onclick = () => pedirMotivo({ titulo: `Entrar no ambiente da ${e.name}`, botao: 'Entrar no ambiente',
-    explica: 'O acesso vale por 60 minutos, aparece na hora para a empresa em "Acessos da equipe de operação" e os admins dela recebem um aviso por email. Um admin da empresa pode encerrar o acesso.',
-    async enviar(motivo) { const r = await api(`/api/plataforma/empresas/${id}/entrar`, { metodo: 'POST', corpo: motivo }); window.open(r.url, '_blank'); toast('Ambiente aberto em outra aba. O acesso foi registrado e está visível para a empresa.'); } });
+  // Cabeçalho: o status e, à direita, as ações da aba aberta (a principal por último).
+  tela(e.name, `${sub}<div id="aba"></div>`, `${selo(e.status, e.statusNome)}<span class="acoes-aba" id="acoes-aba"></span>`, '#/empresas');
   await corpo(d, id);
 }
+const acoesAba = html => { $('acoes-aba').innerHTML = html; };
+const erroForm = (id, e) => { mostrarErro(id, e); if (!document.activeElement?.classList.contains('invalida')) $(id)?.scrollIntoView({ block: 'center' }); };
 
 // Créditos e preço de um plano, para mostrar o que muda antes de trocar.
 const resumoPlano = id => {
@@ -262,52 +341,54 @@ const resumoPlano = id => {
   if (!p) return 'sem cota de créditos';
   return `${p.credits ? `${num(p.credits)} créditos + ${num(p.reserve)} de reserva por mês` : 'Créditos ilimitados'} · ${p.price_usd ? `${usd(p.price_usd)} por mês` : 'sem preço'}`;
 };
+const STATUS_FAIXA = {
+  em_implantacao: ['atencao', 'Em implantação: só administradores da empresa entram, e a página de apresentação pública ainda não aparece.'],
+  suspensa: ['erro', 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.'],
+  cancelada: ['erro', 'Cancelada: ninguém usa o ambiente, nem a equipe de operação. A exclusão definitiva acontece sozinha 30 dias depois do cancelamento, salvo bloqueio legal.'],
+};
+const valorOuTraco = v => (v ? esc(v) : '—');
 
+// Resumo: visão da empresa (plano, consumo, ambiente, dados) e uma ação principal; o resto em "Mais ações".
+// Encerrar é irreversível depois do prazo: ação de perigo separada, no fim da tela, com confirmação própria.
 async function abaResumo(d, id) {
   const e = d.empresa, u = d.uso, a = d.ambiente;
-  // Encerrar é irreversível depois do prazo: botão de perigo, separado das outras ações e com confirmação própria.
-  const ENCERRAR = ['cancelada', 'Encerrar ambiente…', 'btn-perigo'];
-  const botoesStatus = { em_implantacao: [['ativa', 'Publicar ambiente', 'btn-verde'], ENCERRAR], ativa: [['suspensa', 'Suspender', 'btn-linha'], ENCERRAR],
-    suspensa: [['ativa', 'Reativar', 'btn-verde'], ENCERRAR], cancelada: [['em_implantacao', 'Reabrir em implantação', 'btn-linha']] }[e.status];
-  $('aba').innerHTML = `
-    <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Status</h2></div>
-    <div class="faixa-aviso ${e.status === 'ativa' ? 'ok' : e.status === 'em_implantacao' ? 'atencao' : 'erro'}">${{ em_implantacao: 'Em implantação: só administradores da empresa entram, e a página de apresentação pública ainda não aparece.', ativa: 'Ativa: o ambiente está disponível para as pessoas da empresa.', suspensa: 'Suspensa: ninguém da empresa entra, e as sessões foram encerradas.', cancelada: 'Cancelada: ninguém usa o ambiente, nem a equipe de operação. A exclusão definitiva acontece sozinha 30 dias depois do cancelamento, salvo bloqueio legal.' }[e.status]}</div>
+  const principal = { em_implantacao: ['ativa', 'Publicar ambiente'], suspensa: ['ativa', 'Reativar ambiente'] }[e.status];
+  const entrarPrincipal = !principal && e.status === 'ativa';
+  acoesAba(`${menuMais([
+    ...(!entrarPrincipal && e.status !== 'cancelada' ? [{ acao: 'entrar', rotulo: 'Entrar no ambiente…' }] : []),
+    { acao: 'plano', rotulo: 'Alterar plano…' },
+    ...(u.plano ? [{ acao: 'pacote', rotulo: 'Liberar Capacity Pack…' }] : []),
+    { acao: 'dados', rotulo: 'Editar dados cadastrais…' },
+    { acao: 'exportar', rotulo: 'Exportar dados…' },
+    ...(e.status === 'ativa' ? [{ acao: 'suspender', rotulo: 'Suspender ambiente…' }] : []),
+    ...(e.status === 'cancelada' ? [{ acao: 'reabrir', rotulo: 'Reabrir em implantação' }] : []),
+  ])}${principal ? `<button class="btn btn-verde btn-pequeno" data-status="${principal[0]}">${principal[1]}</button>` : entrarPrincipal ? '<button class="btn btn-verde btn-pequeno" id="entrar-amb">Entrar no ambiente</button>' : ''}`);
+  const faixa = STATUS_FAIXA[e.status];
+  $('aba').innerHTML = `${proposito('Situação, plano e consumo da empresa.')}
+    ${faixa ? `<div class="faixa-aviso ${faixa[0]}">${faixa[1]}</div>` : ''}
     <div id="encerramento-empresa"></div>
-    <div class="linha-botoes">${botoesStatus.filter(b => b !== ENCERRAR).map(([s, n, cls]) => `<button class="btn ${cls}" data-status="${s}">${n}</button>`).join('')}
-      <button class="btn btn-linha" id="exportar-empresa">Exportar dados</button>
-      ${botoesStatus.includes(ENCERRAR) ? `<button class="btn btn-perigo" data-status="cancelada" style="margin-left:auto">${ENCERRAR[1]}</button>` : ''}
-      ${e.status === 'cancelada' ? '<button class="btn btn-perigo" id="excluir-empresa" style="margin-left:auto">Excluir definitivamente…</button>' : ''}</div>
-    <div id="exportacoes-empresa"></div>
-    <div class="secao-titulo"><h2 class="h-secao">Plano</h2></div>
-    <form id="f-plano" class="linha-botoes"><select aria-label="Plano da empresa" aria-describedby="s-plano-info" class="entrada" id="s-plano" style="max-width:360px"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)}${p.status !== 'ativo' ? ' (inativo)' : ''}</option>`).join('')}</select>
-      <button class="btn btn-linha">Alterar plano…</button></form>
-    <p class="dica" id="s-plano-info" aria-live="polite">${esc(resumoPlano(e.plano?.id))}</p>
-    ${u.plano ? `<div class="indicadores"><div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
-      <div class="indicador"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div><div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b></div>
+    <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Plano e consumo</h2></div>
+    <div class="indicadores"><div class="indicador"><span>Plano</span><b class="valor-texto">${esc(e.plano?.name || 'Sem plano')}</b><small>${esc(resumoPlano(e.plano?.id))}</small></div>
+      ${u.plano ? `<div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
+      <div class="indicador" id="ind-pacote"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div>` : ''}
+      <div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b>${u.plano ? '' : '<small>sem cota: a empresa vê o custo em dólar</small>'}</div>
       <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} cadastradas</small></div></div>
-      <details><summary class="btn-texto" style="padding-left:0">Liberar Capacity Pack</summary>
-        <form id="f-pacote" class="linha-botoes" style="margin-top:10px">
-          <select class="entrada" id="p-tipo" style="max-width:220px" aria-label="Tipo"><option value="packs">Capacity Pack</option><option value="cortesia">Cortesia (créditos sem receita)</option></select>
-          <input class="entrada" id="p-qtd" type="number" min="1" max="50" value="1" style="max-width:110px" aria-label="Quantidade de Capacity Packs">
-          <input class="entrada oculto" id="p-creditos" type="number" min="1" value="500" style="max-width:130px" aria-label="Créditos de cortesia">
-        ${campoData({ id: 'p-validade', min: new Date().toISOString().slice(0, 10), rotulo: 'a validade', extra: 'aria-label="Validade"' })}<input class="entrada" id="p-obs" placeholder="Observação" maxlength="300" style="max-width:260px" aria-label="Observação">
-        <button class="btn btn-linha">Liberar</button></form>
-        <p class="dica" id="p-resumo"></p></details>` : '<p class="dica">Sem plano vinculado: a empresa usa sem cota e vê o custo em dólar.</p>'}
-    <div class="secao-titulo"><h2 class="h-secao">Dados cadastrais</h2></div>
-    <form id="f-dados" novalidate><div class="grade-2">
-      <div class="campo"><label for="d-nome">Nome</label><input class="entrada" id="d-nome" value="${esc(e.name)}" maxlength="80"></div>
-      <div class="campo"><label for="d-razao">Razão social</label><input class="entrada" id="d-razao" value="${esc(e.legal_name)}" maxlength="160"></div>
-      <div class="campo"><label for="d-doc">Documento</label><input class="entrada" id="d-doc" value="${esc(e.document)}" maxlength="40"></div>
-      <div class="campo"><label for="d-contato">Email de contato</label><input class="entrada" id="d-contato" type="email" value="${esc(e.contact_email)}"></div></div>
-      <div class="campo"><label for="d-notas">Notas internas</label><textarea class="entrada" id="d-notas" rows="2" maxlength="1000">${esc(e.notes)}</textarea></div>
-      <div class="linha-botoes"><button class="btn btn-linha">Salvar dados</button><span class="dica">ID interno: <code>${esc(e.id)}</code> · criada em ${data(e.created_at)}</span></div></form>
     <div class="secao-titulo"><h2 class="h-secao">Ambiente</h2></div>
     <div class="indicadores"><div class="indicador"><span>Endereço</span><b style="font-size:14px"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, ''))}</a></b></div>
       <div class="indicador"><span>Banco</span><b style="font-size:14px"><code class="valor-tecnico">${esc(a.banco)}</code></b><small>${mb(a.tamanhoMb)}</small></div>
       <div class="indicador"><span>IA</span><b style="font-size:14px">${iaTexto(a)}</b></div><div class="indicador"><span>Email próprio</span><b style="font-size:14px">${a.smtp ? 'Configurado' : 'Usa o da plataforma'}</b></div>
-      <div class="indicador"><span>Conteúdo</span><b style="font-size:14px">${num(u.quickWins)} Quick Wins</b><small>${num(u.documentos)} documentos, ${num(u.conversas)} conversas no mês</small></div></div>`;
-  for (const b of document.querySelectorAll('[data-status]')) b.onclick = async () => {
-    const s = b.dataset.status;
+      <div class="indicador"><span>Conteúdo</span><b style="font-size:14px">${num(u.quickWins)} Quick Wins</b><small>${num(u.documentos)} documentos, ${num(u.conversas)} conversas no mês</small></div></div>
+    <div class="secao-titulo"><h2 class="h-secao">Dados cadastrais</h2></div>
+    <dl class="plat-dados"><div><dt>Status</dt><dd>${selo(e.status, e.statusNome)}</dd></div><div><dt>Razão social</dt><dd>${valorOuTraco(e.legal_name)}</dd></div><div><dt>Documento</dt><dd>${valorOuTraco(e.document)}</dd></div>
+      <div><dt>Email de contato</dt><dd>${valorOuTraco(e.contact_email)}</dd></div><div><dt>Criada em</dt><dd>${data(e.created_at)}</dd></div>
+      ${e.notes ? `<div class="plat-dados-largo"><dt>Notas internas</dt><dd>${esc(e.notes)}</dd></div>` : ''}</dl>
+    <div id="exportacoes-empresa"></div>
+    ${e.status === 'cancelada'
+    ? `<section class="plat-perigo" aria-labelledby="perigo-t"><h2 class="h-secao" id="perigo-t">Exclusão definitiva</h2><p class="dica">Apaga o ambiente e o banco da empresa. Só vale depois do prazo de 30 dias do cancelamento.</p>
+        <button class="btn btn-perigo" id="excluir-empresa">Excluir definitivamente…</button></section>`
+    : `<section class="plat-perigo" aria-labelledby="perigo-t"><h2 class="h-secao" id="perigo-t">Encerrar o ambiente</h2><p class="dica">As pessoas perdem o acesso na hora, e os dados são excluídos 30 dias depois, salvo bloqueio legal.</p>
+        <button class="btn btn-perigo" data-status="cancelada">Encerrar ambiente…</button></section>`}`;
+  const mudarStatus = async s => {
     const aplicar = async () => { await api(`/api/plataforma/empresas/${id}/status`, { metodo: 'POST', corpo: { status: s } }); toast(s === 'cancelada' ? 'Ambiente encerrado.' : 'Status alterado.'); vistaEmpresa(id, 'resumo'); };
     if (s === 'suspensa') return confirmarStatus({ titulo: `Suspender o ambiente de ${e.name}?`, texto: 'Ninguém da empresa consegue entrar até a reativação, e as sessões abertas são encerradas na hora. Os dados ficam guardados.', botao: 'Suspender ambiente', aplicar });
     if (s === 'cancelada') {
@@ -317,91 +398,148 @@ async function abaResumo(d, id) {
     }
     try { await aplicar(); } catch (x) { falhar(x); }
   };
+  for (const b of document.querySelectorAll('#principal [data-status]')) b.onclick = () => mudarStatus(b.dataset.status);
+  const entrar = () => pedirMotivo({ titulo: `Entrar no ambiente da ${e.name}`, botao: 'Entrar no ambiente',
+    explica: 'O acesso vale por 60 minutos, aparece na hora para a empresa em "Acessos da equipe de operação" e os admins dela recebem um aviso por email. Um admin da empresa pode encerrar o acesso.',
+    async enviar(motivo) { const r = await api(`/api/plataforma/empresas/${id}/entrar`, { metodo: 'POST', corpo: motivo }); window.open(r.url, '_blank'); toast('Ambiente aberto em outra aba. O acesso foi registrado e está visível para a empresa.'); } });
+  $('entrar-amb')?.addEventListener('click', entrar);
+  Object.assign(C.mais, {
+    entrar, suspender: () => mudarStatus('suspensa'), reabrir: () => mudarStatus('em_implantacao'),
+    plano: () => alterarPlano(e, id), pacote: () => liberarPacote(e, id), dados: () => editarDados(e, id),
+    exportar: () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar', tipos: FINALIDADES_EXPORTACAO, rotuloTipo: 'Finalidade',
+      explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas, e só vale por pedido do cliente, incidente de segurança ou obrigação legal. A cópia fica no servidor e é eliminada 7 dias depois de encerrada a necessidade, salvo bloqueio legal. O registro aparece para a empresa, e os admins dela recebem um aviso por email.',
+      async enviar(motivo) {
+        const r = await api(`/api/plataforma/empresas/${id}/exportar`, { metodo: 'POST', corpo: motivo });
+        await baixar(r.download);
+        toast('Exportação feita e registrada. Quando a cópia não for mais necessária, marque "Necessidade encerrada".', 7000); vistaEmpresa(id, 'resumo');
+      } }),
+  });
   $('excluir-empresa')?.addEventListener('click', () => confirmarStatus({ rotulo: 'Exclusão definitiva', titulo: `Excluir definitivamente a ${e.name}?`, perigo: true, confirmacao: e.slug, botao: 'Excluir definitivamente',
     texto: 'A exclusão definitiva só vale depois do prazo de 30 dias do cancelamento (ou antes, a pedido verificado do cliente pela página de encerramento). Ela apaga o ambiente e o banco da empresa; uma cópia de recuperação fica 30 dias no servidor.',
     async aplicar() { const r = await api(`/api/plataforma/empresas/${id}/excluir`, { metodo: 'POST', corpo: { confirmacao: e.slug } }); toast(r.copia ? `Empresa excluída. A cópia de recuperação fica guardada por ${r.expiraEmDias} dias e depois é eliminada.` : 'Empresa excluída.', 7000); location.hash = '#/empresas'; } }));
-  $('exportar-empresa').onclick = () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar', tipos: FINALIDADES_EXPORTACAO, rotuloTipo: 'Finalidade',
-    explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas, e só vale por pedido do cliente, incidente de segurança ou obrigação legal. A cópia fica no servidor e é eliminada 7 dias depois de encerrada a necessidade, salvo hold. O registro aparece para a empresa, e os admins dela recebem um aviso por email.',
-    async enviar(motivo) {
-      const r = await api(`/api/plataforma/empresas/${id}/exportar`, { metodo: 'POST', corpo: motivo });
-      await baixar(r.download);
-      toast('Exportação feita e registrada. Quando a cópia não for mais necessária, marque "Necessidade encerrada".', 7000); vistaEmpresa(id, 'resumo');
-    } });
   secaoExportacoes(id);
   if (e.status === 'cancelada') secaoEncerramento(id);
-  // Troca de plano: mostra o de → para (créditos e preço) e só aplica depois da confirmação.
-  $('s-plano').onchange = () => { $('s-plano-info').textContent = resumoPlano($('s-plano').value); };
-  $('f-plano').onsubmit = ev => {
-    ev.preventDefault();
-    const novo = $('s-plano').value || null, nome = x => C.planos.find(p => p.id === x)?.name || 'Sem plano';
-    if (novo === (e.plano?.id || null)) return toast('Esse já é o plano da empresa.');
-    confirmarStatus({ rotulo: 'Plano', titulo: `Trocar o plano da ${e.name}?`, botao: `Trocar para ${nome(novo)}`,
-      texto: `De ${nome(e.plano?.id)} (${resumoPlano(e.plano?.id)}) para ${nome(novo)} (${resumoPlano(novo)}). A troca vale a partir de agora.`,
-      async aplicar() { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: novo } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } });
-  };
-  if ($('f-pacote')) {
-    // Créditos e valor saem das regras do plano no servidor; aqui só a quantidade (ou os créditos de cortesia).
-    const pk = C.planos.find(x => x.id === e.plano?.id)?.rules || {};
+}
+// Troca de plano: mostra o de → para (créditos e preço) e só aplica depois da confirmação.
+function alterarPlano(e, id) {
+  modal(`<div class="modal-topo"><div class="rotulo">Plano</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="pl-t" tabindex="-1">Alterar o plano da ${esc(e.name)}</h2>
+    <form id="f-plano-empresa" novalidate>
+      <div class="campo"><label for="s-plano">Plano</label><select class="entrada" id="s-plano" aria-describedby="s-plano-info"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)}${p.status !== 'ativo' ? ' (inativo)' : ''}</option>`).join('')}</select>
+        <span class="ajuda" id="s-plano-info" aria-live="polite">${esc(resumoPlano(e.plano?.id))}</span></div>
+      <p class="msg-erro oculto" id="s-plano-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Continuar</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('pl-t').focus();
+    $('s-plano').onchange = () => { $('s-plano-info').textContent = resumoPlano($('s-plano').value); };
+    $('f-plano-empresa').onsubmit = ev => {
+      ev.preventDefault();
+      const novo = $('s-plano').value || null, nome = x => C.planos.find(p => p.id === x)?.name || 'Sem plano';
+      if (novo === (e.plano?.id || null)) return mostrarErro('s-plano-erro', new Error('Esse já é o plano da empresa.'));
+      confirmarStatus({ rotulo: 'Plano', titulo: `Trocar o plano da ${e.name}?`, botao: `Trocar para ${nome(novo)}`,
+        texto: `De ${nome(e.plano?.id)} (${resumoPlano(e.plano?.id)}) para ${nome(novo)} (${resumoPlano(novo)}). A troca vale a partir de agora.`,
+        async aplicar() { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: novo } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } });
+    };
+  });
+}
+
+// Capacity Pack ou cortesia: créditos e valor saem das regras do plano no servidor; aqui só a quantidade (ou os
+// créditos de cortesia). Mostra o que vai ser liberado e confirma antes.
+function liberarPacote(e, id) {
+  const pk = C.planos.find(x => x.id === e.plano?.id)?.rules || {};
+  modal(`<div class="modal-topo"><div class="rotulo">Capacity Pack</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="pk-t" tabindex="-1">Liberar créditos para a ${esc(e.name)}</h2>
+    <form id="f-pacote" novalidate>
+      <div class="grade-2"><div class="campo"><label for="p-tipo">Tipo</label><select class="entrada" id="p-tipo"><option value="packs">Capacity Pack</option><option value="cortesia">Cortesia (créditos sem receita)</option></select></div>
+        <div class="campo" id="p-qtd-campo"><label for="p-qtd">Quantidade de Capacity Packs</label><input class="entrada" id="p-qtd" type="number" min="1" max="50" value="1"></div>
+        <div class="campo oculto" id="p-creditos-campo"><label for="p-creditos">Créditos de cortesia</label><input class="entrada" id="p-creditos" type="number" min="1" value="500"></div></div>
+      <div class="grade-2"><div class="campo"><label for="p-validade">Validade (opcional)</label>${campoData({ id: 'p-validade', min: new Date().toISOString().slice(0, 10), rotulo: 'a validade' })}</div>
+        <div class="campo"><label for="p-obs">Observação</label><input class="entrada" id="p-obs" maxlength="300"></div></div>
+      <p class="dica" id="p-resumo" aria-live="polite"></p>
+      <p class="msg-erro oculto" id="p-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde" id="p-continuar">Continuar</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('pk-t').focus();
     const resumo = () => {
       const packs = $('p-tipo').value === 'packs';
-      $('p-qtd').classList.toggle('oculto', !packs); $('p-creditos').classList.toggle('oculto', packs);
+      $('p-qtd-campo').classList.toggle('oculto', !packs); $('p-creditos-campo').classList.toggle('oculto', packs);
       const n = Number($('p-qtd').value) || 0;
       $('p-resumo').textContent = packs ? (pk.pack_credits ? `${num(n * pk.pack_credits)} créditos · ${usd(n * pk.pack_price_usd)} de receita · acumulam, sem reserva nova` : 'O plano desta empresa não tem Capacity Pack.')
         : 'Cortesia: créditos sem receita, registrados como tal.';
     };
     ['p-tipo', 'p-qtd'].forEach(x => $(x).addEventListener('input', resumo)); resumo();
-    $('f-pacote').onsubmit = async ev => {
+    $('f-pacote').onsubmit = ev => {
       ev.preventDefault();
       const packs = $('p-tipo').value === 'packs';
-      const corpo = packs ? { packs: Number($('p-qtd').value) } : { creditos: Number($('p-creditos').value) };
+      let validade;
+      try { validade = dataOuErro($('p-validade')); } catch (x) { return mostrarErro('p-erro', x); }
+      const corpo = { ...(packs ? { packs: Number($('p-qtd').value) } : { creditos: Number($('p-creditos').value) }), validade, observacao: $('p-obs').value };
       const oque = packs ? `${num(corpo.packs)} ${corpo.packs === 1 ? 'Capacity Pack' : 'Capacity Packs'}` : `${num(corpo.creditos)} créditos de cortesia`;
       confirmarStatus({ rotulo: 'Capacity Pack', titulo: `Liberar ${oque} para a ${e.name}?`, botao: `Liberar ${oque}`, texto: `${$('p-resumo').textContent.replace(/\.?$/, '.')} Os admins da empresa recebem um email.`,
-        async aplicar() { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo: { ...corpo, validade: dataOuErro($('p-validade')), observacao: $('p-obs').value } }); toast('Créditos liberados.'); vistaEmpresa(id, 'resumo'); } });
+        async aplicar() { await api(`/api/plataforma/empresas/${id}/pacotes`, { metodo: 'POST', corpo }); toast('Créditos liberados.'); vistaEmpresa(id, 'resumo'); } });
     };
-  }
-  $('f-dados').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); toast('Dados salvos.'); } catch (x) { falhar(x); } };
+  });
 }
 
-// Exportações da empresa: finalidade, cópia no servidor, prazo, bloqueio legal (hold), download e eliminação.
+function editarDados(e, id) {
+  modal(`<div class="modal-topo"><div class="rotulo">Dados cadastrais</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="dd-t" tabindex="-1">Dados da ${esc(e.name)}</h2>
+    <form id="f-dados" novalidate><div class="grade-2">
+      <div class="campo"><label for="d-nome">Nome</label><input class="entrada" id="d-nome" value="${esc(e.name)}" maxlength="80"></div>
+      <div class="campo"><label for="d-razao">Razão social</label><input class="entrada" id="d-razao" value="${esc(e.legal_name)}" maxlength="160"></div>
+      <div class="campo"><label for="d-doc">Documento</label><input class="entrada" id="d-doc" value="${esc(e.document)}" maxlength="40"></div>
+      <div class="campo"><label for="d-contato">Email de contato</label><input class="entrada" id="d-contato" type="email" value="${esc(e.contact_email)}"></div></div>
+      <div class="campo"><label for="d-notas">Notas internas</label><textarea class="entrada" id="d-notas" rows="3" maxlength="1000">${esc(e.notes)}</textarea></div>
+      <p class="msg-erro oculto" id="d-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Salvar dados</button><span class="dica">Identificador interno (para o suporte): <code>${esc(e.id)}</code></span></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('dd-t').focus();
+    $('f-dados').onsubmit = async ev => {
+      ev.preventDefault();
+      try { await api(`/api/plataforma/empresas/${id}`, { metodo: 'PUT', corpo: { name: $('d-nome').value, legal_name: $('d-razao').value, document: $('d-doc').value, contact_email: $('d-contato').value, notes: $('d-notas').value } }); fechar(); toast('Dados salvos.'); vistaEmpresa(id, 'resumo'); }
+      catch (x) { mostrarErro('d-erro', x); }
+    };
+  });
+}
+
+// Exportações da empresa: finalidade, cópia no servidor, prazo, bloqueio legal, download e eliminação. Em cada linha,
+// uma ação à vista (baixar, quando a cópia ainda está no servidor) e as outras em "Mais ações".
 async function secaoExportacoes(id) {
   const { exportacoes } = await api(`/api/plataforma/empresas/${id}/acessos`);
   if (!exportacoes.length) return;
   const estado = x => x.eliminadoEm ? `Eliminada do servidor em ${dataHora(x.eliminadoEm)}` : x.controle === 'anterior' ? 'Entregue direto (antes deste controle)' : x.hold ? `Em bloqueio legal: ${esc(x.hold.tipoNome)}` : x.expiraEm ? `Elimina em ${dataHora(x.expiraEm)}` : 'Necessidade em aberto';
+  const acoes = x => [
+    ...(x.noServidor && !x.necessidadeEncerradaEm ? [{ acao: 'exp-necessidade', id: x.id, rotulo: 'Necessidade encerrada' }] : []),
+    ...(x.noServidor && !x.hold ? [{ acao: 'exp-hold', id: x.id, rotulo: 'Bloqueio legal…' }] : []), ...(x.hold ? [{ acao: 'exp-liberar', id: x.id, rotulo: 'Liberar bloqueio legal' }] : []),
+    ...(x.baixadoEm && !x.declaracao ? [{ acao: 'exp-declarar', id: x.id, rotulo: 'Declarar eliminação…' }] : []),
+  ];
   $('exportacoes-empresa').innerHTML = `<div class="secao-titulo"><h2 class="h-secao">Exportações</h2></div>
-    <p class="dica">Uma cópia baixada sai do controle técnico da plataforma: fica registrado quem baixou, e a responsabilidade pela guarda passa a ser de quem a recebeu.</p>
     ${tabela(['Quando', 'Finalidade', 'Situação', 'Downloads', ''], exportacoes.map(x => `<tr><td data-r="Quando">${dataHora(x.em)}<br><span class="dica">${esc(x.operador)}</span></td>
       <td data-r="Finalidade">${esc(x.tipoNome)}<br><span class="dica">${esc(x.justificativa)}</span></td><td data-r="Situação">${estado(x)}${x.declaracao ? `<br><span class="dica">Declaração: ${esc(x.declaracao.texto)}</span>` : ''}</td>
       <td data-r="Downloads" class="num">${num(x.downloads)}${x.baixadoPor ? `<br><span class="dica">${esc(x.baixadoPor)}</span>` : ''}</td>
-      <td data-r="">${x.noServidor ? `<button class="btn-texto" data-exp="baixar" data-id="${x.id}">Baixar</button>` : ''}
-        ${x.noServidor && !x.necessidadeEncerradaEm ? `<button class="btn-texto" data-exp="necessidade" data-id="${x.id}">Necessidade encerrada</button>` : ''}
-        ${x.noServidor && !x.hold ? `<button class="btn-texto" data-exp="hold" data-id="${x.id}">Bloqueio legal</button>` : ''}${x.hold ? `<button class="btn-texto" data-exp="liberar" data-id="${x.id}">Liberar bloqueio legal</button>` : ''}
-        ${x.baixadoEm && !x.declaracao ? `<button class="btn-texto" data-exp="declarar" data-id="${x.id}">Declarar eliminação</button>` : ''}</td></tr>`), '')}`;
+      <td data-r=""><span class="plat-linha-acoes">${x.noServidor ? `<button class="btn-texto" data-exp="baixar" data-id="${x.id}">Baixar</button>` : ''}
+        ${menuMais(acoes(x), { rotulo: `Mais ações da exportação de ${dataHora(x.em)}`, classe: 'btn-texto' })}</span></td></tr>`), '')}`;
   const recarregar = () => secaoExportacoes(id);
-  for (const b of document.querySelectorAll('[data-exp]')) b.onclick = async () => {
-    const x = b.dataset.id, acao = b.dataset.exp;
-    try {
-      if (acao === 'baixar') { await baixar(`/api/plataforma/exportacoes/${x}/arquivo`); return recarregar(); }
-      if (acao === 'necessidade') return confirmarStatus({ rotulo: 'Exportação', titulo: 'Encerrar a necessidade desta cópia?', botao: 'Encerrar a necessidade',
-        texto: 'A cópia é eliminada do servidor em 7 dias, salvo bloqueio legal.', async aplicar() { await api(`/api/plataforma/exportacoes/${x}/encerrar-necessidade`, { metodo: 'POST' }); recarregar(); } });
-      if (acao === 'hold') return pedirHold({ titulo: 'Bloqueio legal da cópia exportada', enviar: async c => { await api(`/api/plataforma/exportacoes/${x}/hold`, { metodo: 'POST', corpo: c }); recarregar(); } });
-      if (acao === 'liberar') { await api(`/api/plataforma/exportacoes/${x}/liberar`, { metodo: 'POST' }); return recarregar(); }
-      if (acao === 'declarar') return confirmarStatus({ rotulo: 'Exportação', titulo: 'Declarar a eliminação da cópia baixada', botao: 'Registrar declaração',
-        campos: '<div class="campo"><label for="dc-texto">O que foi feito com a cópia baixada?</label><textarea class="entrada" id="dc-texto" rows="3" maxlength="500" aria-describedby="dc-ajuda"></textarea><span class="ajuda" id="dc-ajuda">Por exemplo: arquivo apagado do notebook e da lixeira em 05/10.</span></div>',
-        validar: () => (!$('dc-texto').value.trim() ? 'Descreva o que foi feito com a cópia.' : ''),
-        async aplicar() { await api(`/api/plataforma/exportacoes/${x}/declarar-eliminacao`, { metodo: 'POST', corpo: { texto: $('dc-texto').value.trim() } }); recarregar(); } });
-    } catch (e) { falhar(e); }
-  };
+  const tratar = fn => async b => { try { await fn(b.dataset.id); } catch (e) { falhar(e); } };
+  Object.assign(C.mais, {
+    'exp-necessidade': tratar(x => confirmarStatus({ rotulo: 'Exportação', titulo: 'Encerrar a necessidade desta cópia?', botao: 'Encerrar a necessidade',
+      texto: 'A cópia é eliminada do servidor em 7 dias, salvo bloqueio legal.', async aplicar() { await api(`/api/plataforma/exportacoes/${x}/encerrar-necessidade`, { metodo: 'POST' }); recarregar(); } })),
+    'exp-hold': tratar(x => pedirHold({ titulo: 'Bloqueio legal da cópia exportada', enviar: async c => { await api(`/api/plataforma/exportacoes/${x}/hold`, { metodo: 'POST', corpo: c }); recarregar(); } })),
+    'exp-liberar': tratar(async x => { await api(`/api/plataforma/exportacoes/${x}/liberar`, { metodo: 'POST' }); recarregar(); }),
+    'exp-declarar': tratar(x => confirmarStatus({ rotulo: 'Exportação', titulo: 'Declarar a eliminação da cópia baixada', botao: 'Registrar declaração',
+      campos: '<div class="campo"><label for="dc-texto">O que foi feito com a cópia baixada?</label><textarea class="entrada" id="dc-texto" rows="3" maxlength="500" aria-describedby="dc-ajuda"></textarea><span class="ajuda" id="dc-ajuda">Por exemplo: arquivo apagado do notebook e da lixeira em 05/10.</span></div>',
+      validar: () => (!$('dc-texto').value.trim() ? 'Descreva o que foi feito com a cópia.' : ''),
+      async aplicar() { await api(`/api/plataforma/exportacoes/${x}/declarar-eliminacao`, { metodo: 'POST', corpo: { texto: $('dc-texto').value.trim() } }); recarregar(); } })),
+  });
+  for (const b of document.querySelectorAll('[data-exp="baixar"]')) b.onclick = async () => { try { await baixar(`/api/plataforma/exportacoes/${b.dataset.id}/arquivo`); recarregar(); } catch (e) { falhar(e); } };
 }
 
-// Ambiente cancelado: data da exclusão automática, bloqueio legal (hold) e pedidos de devolução.
+// Ambiente cancelado: data da exclusão automática, bloqueio legal e pedidos de devolução.
 async function secaoEncerramento(id) {
   const { exclusoes } = await api('/api/plataforma/exclusoes');
   const l = exclusoes.find(x => x.companyId === id && x.status === 'pendente');
   if (!l) return;
   $('encerramento-empresa').innerHTML = `<div class="indicadores"><div class="indicador"><span>Cancelada em</span><b style="font-size:14px">${dataHora(l.canceladaEm)}</b>${l.estimado ? '<small>data estimada</small>' : ''}</div>
       <div class="indicador"><span>Exclusão definitiva</span><b style="font-size:14px">${l.hold ? 'Suspensa (bloqueio legal)' : dataHora(l.excluirApos)}</b><small>${l.hold ? esc(l.hold.tipoNome) : diasTexto(l.diasRestantes)}</small></div></div>
-    ${l.estimado ? '<div class="faixa-aviso atencao">A data de cancelamento foi estimada na migração. A exclusão automática fica parada até a data ser confirmada.</div>' : ''}
-    <div class="linha-botoes">${l.hold ? '<button class="btn btn-linha" id="liberar-hold-exc">Liberar bloqueio legal</button>' : '<button class="btn btn-linha" id="hold-exc">Bloqueio legal da exclusão</button>'}${l.estimado ? '<button class="btn btn-linha" id="confirmar-data-exc">Confirmar a data</button>' : ''}</div>
+    ${l.estimado ? '<p class="dica">A data de cancelamento foi estimada na migração. A exclusão automática fica parada até a data ser confirmada.</p>' : ''}
+    <div class="linha-botoes">${l.estimado ? '<button class="btn btn-linha" id="confirmar-data-exc">Confirmar a data</button>' : ''}${l.hold ? '<button class="btn btn-linha" id="liberar-hold-exc">Liberar bloqueio legal</button>' : '<button class="btn btn-linha" id="hold-exc">Bloqueio legal da exclusão</button>'}</div>
     ${l.devolucoes.length ? tabela(['Pedido de devolução', 'Situação', ''], l.devolucoes.map(d => `<tr><td data-r="Pedido">${esc(d.solicitante_email)}<br><span class="dica">${dataHora(d.solicitado_em)}</span></td>
       <td data-r="Situação">${{ solicitada: 'Aguardando a cópia', gerada: `Link enviado; vale até ${dataHora(d.link_expira)}`, entregue: `Entregue em ${dataHora(d.entregue_em)}`, expirada: 'Link vencido sem download', cancelada: 'Encerrado' }[d.status]}</td>
       <td data-r="">${d.status === 'solicitada' ? `<button class="btn-texto" data-dev="${d.id}">Gerar cópia e enviar link</button>` : ''}</td></tr>`), '') : ''}`;
@@ -418,7 +556,11 @@ async function secaoEncerramento(id) {
 async function vistaEncerramentos() {
   carregando('Encerramentos');
   const { exclusoes, prazoDias, aplicar } = await api('/api/plataforma/exclusoes');
-  tela('Encerramentos', `<p class="lead">Ambientes cancelados são excluídos definitivamente ${prazoDias} dias depois do cancelamento, salvo bloqueio legal. Antes disso, um admin da empresa pode pedir uma cópia dos dados ou a exclusão antecipada, com código enviado ao email cadastrado.</p>
+  tela('Encerramentos', `${proposito('Ambientes cancelados aguardando a exclusão definitiva.', { titulo: 'Encerramentos', textos: [
+    `Ambientes cancelados são excluídos definitivamente ${num(prazoDias)} dias depois do cancelamento, salvo bloqueio legal.`,
+    'Antes disso, um admin da empresa pode pedir uma cópia dos dados ou a exclusão antecipada, com código enviado ao email cadastrado.',
+    'Para aplicar um bloqueio legal ou gerar a cópia de um pedido de devolução, abra a empresa.',
+  ] })}
     ${aplicar ? '' : '<div class="faixa-aviso atencao">A exclusão automática está em modo simulação: a rotina só registra o que faria, sem excluir nada.</div>'}
     ${tabela(['Empresa', 'Cancelada em', 'Exclusão', 'Devolução'], exclusoes.map(l => `<tr><td data-r="Empresa">${l.status === 'pendente' ? `<a href="#/empresas/${l.companyId}"><b>${esc(l.nome)}</b></a>` : `<b>${esc(l.nome)}</b>`}<br><span class="dica">${esc(l.slug)}</span></td>
       <td data-r="Cancelada em">${dataHora(l.canceladaEm)}${l.estimado ? '<br><span class="dica">estimada</span>' : ''}</td>
@@ -426,48 +568,99 @@ async function vistaEncerramentos() {
       <td data-r="Devolução">${l.devolucoes.map(d => esc(DEVOLUCAO[d.status] || d.status)).join(', ') || '–'}</td></tr>`), vazioHtml({ icone: 'predio', titulo: 'Nenhum ambiente cancelado', texto: 'Quando uma empresa for cancelada, a data da exclusão aparece aqui.' }))}`);
 }
 
+// Usuários da empresa: uma ação por linha ("Alterar", que abre perfil, acesso e remoção); adicionar fica no cabeçalho.
 async function abaUsuarios(d, id) {
   const roles = d.roles;
   const opcoes = sel => roles.map(r => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.name)}${r.system ? '' : ' (da empresa)'}</option>`).join('');
-  $('aba').innerHTML = `<p class="lead">Pessoas com acesso a este ambiente. Um mesmo usuário pode estar em várias empresas, com perfis diferentes.</p>
-    <form id="f-usuario" class="filtros" style="margin-bottom:16px">
+  const nomePerfil = rid => esc(roles.find(r => r.id === rid)?.name || PERFIS[String(rid).replace(/^role_/, '')] || '—');
+  acoesAba('<button class="btn btn-verde btn-pequeno" id="add-usuario">Adicionar pessoa</button>');
+  $('aba').innerHTML = `${proposito('Pessoas com acesso a este ambiente e o perfil de cada uma.')}
+    ${tabela(['Pessoa', 'Perfil', 'Acesso nesta empresa', ''], d.usuarios.map(u => `<tr><td data-r="Pessoa"><b>${esc(u.name || u.email)}</b><br><span class="dica">${esc(u.email)}</span></td>
+      <td data-r="Perfil">${nomePerfil(u.role_id)}</td><td data-r="Acesso">${esc(ACESSO[u.status] || u.status)}</td>
+      <td data-r=""><button class="btn-texto" data-alterar="${u.id}" aria-label="Alterar o acesso de ${esc(u.name || u.email)}">Alterar</button></td></tr>`), 'Nenhum usuário. Adicione o administrador da empresa.')}`;
+  $('add-usuario').onclick = () => modal(`<div class="modal-topo"><div class="rotulo">Usuários</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="u-t" tabindex="-1">Adicionar pessoa à ${esc(d.empresa.name)}</h2>
+    <form id="f-usuario" novalidate>
       <div class="campo"><label for="u-email">Email</label><input class="entrada" id="u-email" type="email" autocomplete="off"></div>
       <div class="campo"><label for="u-nome">Nome</label><input class="entrada" id="u-nome" maxlength="120"></div>
-      <div class="campo"><label for="u-role">Perfil</label><select class="entrada" id="u-role">${opcoes('role_company_admin')}</select></div>
-      <button class="btn btn-verde">Adicionar e convidar</button></form>
-    ${tabela(['Pessoa', 'Perfil', 'Acesso nesta empresa', ''], d.usuarios.map(u => `<tr><td data-r="Pessoa"><b>${esc(u.name || u.email)}</b><br><span class="dica">${esc(u.email)}</span></td>
-      <td data-r="Perfil"><select class="entrada" data-role="${u.id}" aria-label="Perfil de ${esc(u.email)}">${opcoes(u.role_id)}</select></td>
-      <td data-r="Acesso"><select class="entrada" data-st="${u.id}" aria-label="Acesso de ${esc(u.email)} nesta empresa">${Object.entries(ACESSO).map(([s, n]) => `<option value="${s}" ${s === u.status ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
-      <td data-r=""><button class="btn-texto link-perigo" data-rem="${u.id}" data-nome="${esc(u.name || u.email)}">Remover</button></td></tr>`), 'Nenhum usuário. Adicione o administrador da empresa.')}`;
-  $('f-usuario').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/usuarios`, { metodo: 'POST', corpo: { email: $('u-email').value, name: $('u-nome').value, role_id: $('u-role').value } }); toast('Usuário adicionado e convidado.'); vistaEmpresa(id, 'usuarios'); } catch (x) { falhar(x); } };
-  const mudar = async (uid, corpo) => { try { await api(`/api/plataforma/empresas/${id}/usuarios/${uid}`, { metodo: 'PUT', corpo }); toast('Alterado.'); } catch (x) { falhar(x); vistaEmpresa(id, 'usuarios'); } };
-  for (const s of document.querySelectorAll('[data-role]')) s.onchange = () => mudar(s.dataset.role, { role_id: s.value });
-  for (const s of document.querySelectorAll('[data-st]')) s.onchange = () => mudar(s.dataset.st, { status: s.value });
-  for (const b of document.querySelectorAll('[data-rem]')) b.onclick = () => confirmarStatus({ rotulo: 'Usuários', titulo: `Remover ${b.dataset.nome} da ${d.empresa.name}?`, perigo: true, botao: `Remover ${b.dataset.nome}`,
-    texto: 'A pessoa perde o acesso a este ambiente na hora. O histórico dela continua no ambiente.',
-    async aplicar() { await api(`/api/plataforma/empresas/${id}/usuarios/${b.dataset.rem}`, { metodo: 'DELETE' }); toast('Pessoa removida.'); vistaEmpresa(id, 'usuarios'); } });
+      <div class="campo"><label for="u-role">Perfil</label><select class="entrada" id="u-role">${opcoes('role_company_admin')}</select><span class="ajuda">A pessoa recebe um convite por email.</span></div>
+      <p class="msg-erro oculto" id="u-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Adicionar e convidar</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('u-email').focus();
+    $('f-usuario').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/usuarios`, { metodo: 'POST', corpo: { email: $('u-email').value, name: $('u-nome').value, role_id: $('u-role').value } }); fechar(); toast('Usuário adicionado e convidado.'); vistaEmpresa(id, 'usuarios'); } catch (x) { mostrarErro('u-erro', x); } };
+  });
+  for (const b of document.querySelectorAll('[data-alterar]')) b.onclick = () => {
+    const u = d.usuarios.find(x => x.id === b.dataset.alterar), nome = u.name || u.email;
+    modal(`<div class="modal-topo"><div class="rotulo">Usuários</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+      <h2 id="ua-t" tabindex="-1">${esc(nome)}</h2><p class="dica">${esc(u.email)}</p>
+      <form id="f-alterar-usuario" novalidate>
+        <div class="campo"><label for="ua-role">Perfil</label><select class="entrada" id="ua-role" data-role="${u.id}">${opcoes(u.role_id)}</select></div>
+        <div class="campo"><label for="ua-st">Acesso nesta empresa</label><select class="entrada" id="ua-st" data-st="${u.id}">${Object.entries(ACESSO).map(([s, n]) => `<option value="${s}" ${s === u.status ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <p class="msg-erro oculto" id="ua-erro" role="alert"></p>
+        <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Salvar alterações</button><button type="button" class="btn-texto link-perigo" id="ua-remover" style="margin-left:auto">Remover da empresa…</button></div></form>`, fechar => {
+      $('fechar').onclick = fechar; $('ua-t').focus();
+      $('f-alterar-usuario').onsubmit = async ev => {
+        ev.preventDefault();
+        const corpo = { ...($('ua-role').value !== u.role_id ? { role_id: $('ua-role').value } : {}), ...($('ua-st').value !== u.status ? { status: $('ua-st').value } : {}) };
+        if (!Object.keys(corpo).length) return fechar();
+        try { await api(`/api/plataforma/empresas/${id}/usuarios/${u.id}`, { metodo: 'PUT', corpo }); fechar(); toast('Alterado.'); vistaEmpresa(id, 'usuarios'); } catch (x) { mostrarErro('ua-erro', x); }
+      };
+      $('ua-remover').onclick = () => confirmarStatus({ rotulo: 'Usuários', titulo: `Remover ${nome} da ${d.empresa.name}?`, perigo: true, botao: `Remover ${nome}`,
+        texto: 'A pessoa perde o acesso a este ambiente na hora. O histórico dela continua no ambiente.',
+        async aplicar() { await api(`/api/plataforma/empresas/${id}/usuarios/${u.id}`, { metodo: 'DELETE' }); toast('Pessoa removida.'); vistaEmpresa(id, 'usuarios'); } });
+    });
+  };
 }
 
+// Editores compartilhados com o admin da empresa (editores.js): no console, o salvar sai do fim do formulário e vai
+// para o cabeçalho (sempre à vista, a ação principal da aba); o resto do formulário fica igual.
+const salvarNoCabecalho = (form, rotulo) => {
+  const f = $(form);
+  const fim = [...f.querySelectorAll(':scope > .linha-botoes')].filter(x => x.querySelector('.btn-verde')).at(-1);
+  if (fim?.children.length === 1) fim.remove(); else fim?.querySelector('.btn-verde')?.remove();
+  acoesAba(`<button type="submit" form="${form}" class="btn btn-verde btn-pequeno">${esc(rotulo)}</button>`);
+};
+
 async function abaMarca(d, id) {
-  $('aba').innerHTML = `<p class="lead">Identidade visual do ambiente: login, página de apresentação e app. Marque "bloquear" para a empresa não poder alterar o item.</p>${renderMarca(d.marca, { modo: 'plataforma' })}`;
+  $('aba').innerHTML = `${proposito('Logo, cores e textos do login, da página de apresentação e do app.')}${renderMarca(d.marca, { modo: 'plataforma' })}`;
+  salvarNoCabecalho('form-marca', 'Salvar identidade visual');
+  // Bloquear itens para a empresa é raro: as caixas ficam fechadas; no fim do formulário, o estado e o botão para alterar.
+  const travas = [...document.querySelectorAll('#form-marca [data-bloqueio]')];
+  travas.forEach(x => x.parentElement.classList.add('trava-marca'));
+  const bloqueados = () => travas.filter(x => x.checked).map(x => ROTULOS_BLOQUEIO[x.dataset.bloqueio] || x.dataset.bloqueio);
+  $('mk-erro').insertAdjacentHTML('beforebegin', `<p class="dica plat-bloqueios"><span id="mk-bloq-estado"></span> <button type="button" class="btn-texto" id="mk-travas" aria-expanded="false">Escolher itens bloqueados</button></p>`);
+  const estado = () => { const b = bloqueados(); $('mk-bloq-estado').textContent = b.length ? `Bloqueados para a empresa: ${b.join(', ')}.` : 'A empresa pode alterar todos os itens liberados.'; };
+  estado(); travas.forEach(x => x.addEventListener('change', estado));
+  // Fechadas, as caixas "bloquear para a empresa" somem; abertas, aparecem ao lado de cada item.
+  $('mk-travas').onclick = ev => { const aberto = $('form-marca').classList.toggle('com-travas'); ev.currentTarget.setAttribute('aria-expanded', String(aberto)); };
   const ler = ligarMarca(d.marca);
   $('form-marca').onsubmit = async ev => {
     ev.preventDefault();
     try {
-      const { corpo, bloqueados } = await ler();
+      const { corpo, bloqueados: travados } = await ler();
       await api(`/api/plataforma/empresas/${id}/marca`, { metodo: 'PUT', corpo });
-      await api(`/api/plataforma/empresas/${id}/concessoes`, { metodo: 'PUT', corpo: { locked: bloqueados } });
+      await api(`/api/plataforma/empresas/${id}/concessoes`, { metodo: 'PUT', corpo: { locked: travados } });
       toast('Identidade visual salva.'); vistaEmpresa(id, 'marca');
-    } catch (x) { mostrarErro('mk-erro', x); }
+    } catch (x) { erroForm('mk-erro', x); }
   };
 }
 
 async function abaLanding(d, id) {
-  $('aba').innerHTML = renderLanding(d.landing, { urlPublica: d.empresa.url, rotaPrevia: `/api/plataforma/empresas/${id}/landing/previa` });
+  $('aba').innerHTML = `${proposito('A página pública do ambiente, com o botão de entrar.')}${renderLanding(d.landing, { urlPublica: d.empresa.url, rotaPrevia: `/api/plataforma/empresas/${id}/landing/previa` })}`;
+  // Uma ação principal no cabeçalho: publicar (rascunho) ou salvar e atualizar (publicada). As repetidas saem.
+  const publicada = d.landing?.status === 'publicada';
+  const situacao = document.querySelector('.ld-situacao > span:first-child');
+  if (situacao && !publicada) situacao.innerHTML = '<b>Rascunho:</b> a página pública mostra só o título e o botão de entrar até você publicar.';
+  else if (situacao && /fora do ar/.test(situacao.textContent)) situacao.innerHTML = '<b>Publicada, mas fora do ar:</b> os visitantes veem só a versão simples até o ambiente ser ativado.';
+  else if (situacao) situacao.innerHTML = '<b>Publicada e no ar.</b>';
+  document.querySelectorAll('#form-landing [data-acao="publicar"]').forEach(b => b.remove());
+  const salvarFim = document.querySelector('#form-landing .ld-salvar [data-acao="salvar"]');
+  if (publicada) { salvarFim?.remove(); acoesAba('<button type="submit" form="form-landing" class="btn btn-verde btn-pequeno">Salvar e atualizar a página</button>'); }
+  else { salvarFim?.classList.replace('btn-verde', 'btn-linha'); acoesAba('<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>'); }
   const ler = ligarLanding(d.landing, { pedir: api });
-  const salvar = async status => { try { await api(`/api/plataforma/empresas/${id}/landing`, { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : d.landing?.status === 'publicada' ? 'Página de apresentação salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); vistaEmpresa(id, 'landing'); } catch (x) { mostrarErro('ld-erro', x); } };
+  const salvar = async status => { try { await api(`/api/plataforma/empresas/${id}/landing`, { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : publicada ? 'Página de apresentação salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); vistaEmpresa(id, 'landing'); } catch (x) { erroForm('ld-erro', x); } };
   $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
-  for (const b of document.querySelectorAll('[data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));
+  for (const b of document.querySelectorAll('#principal [data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));
   document.querySelector('[data-acao="despublicar"]')?.addEventListener('click', () => salvar('rascunho'));
 }
 
@@ -475,9 +668,15 @@ async function abaUrl(d, id) {
   const e = d.empresa;
   const u = { slug: e.slug, custom_domain: e.custom_domain, url: e.url, dominio: { status: e.domain_status, mensagem: e.domain_message, verificadoEm: e.domain_checked_at }, dns: d.dns };
   $('aba').innerHTML = renderUrl(u, { plataforma: true });
+  const lead = document.querySelector('#aba > .lead');
+  if (lead) { lead.classList.add('plat-proposito'); lead.textContent = 'Como as pessoas da empresa chegam ao ambiente.'; }
+  salvarNoCabecalho('f-url', 'Salvar endereço');
+  // Domínio próprio é opcional: sem domínio, os passos ficam fechados até a pessoa pedir.
+  const passos = document.querySelector('#f-url .url-lista');
+  if (passos && !e.custom_domain) { passos.id = 'url-passos-dominio'; passos.hidden = true; passos.insertAdjacentHTML('beforebegin', `<p>${revelar('url-passos-dominio', 'Configurar um domínio próprio')}</p>`); }
   ligarUrl(u);
   $('verificar-dominio')?.addEventListener('click', ev => ocupado(ev.currentTarget, async () => { try { const r = await api(`/api/plataforma/empresas/${id}/dominio/verificar`, { metodo: 'POST' }); toast(r.status === 'verificado' ? 'Domínio verificado.' : r.mensagem, r.status === 'verificado' ? undefined : 7000); vistaEmpresa(id, 'url'); } catch (x) { falhar(x); } }));
-  $('f-url').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/url`, { metodo: 'PUT', corpo: { slug: $('url-slug').value, custom_domain: $('url-dom').value } }); toast('Endereço salvo.'); vistaEmpresa(id, 'url'); } catch (x) { mostrarErro('url-erro', x); } };
+  $('f-url').onsubmit = async ev => { ev.preventDefault(); try { await api(`/api/plataforma/empresas/${id}/url`, { metodo: 'PUT', corpo: { slug: $('url-slug').value, custom_domain: $('url-dom').value } }); toast('Endereço salvo.'); vistaEmpresa(id, 'url'); } catch (x) { erroForm('url-erro', x); } };
 }
 
 export function statusDominio(dominio, status, mensagem, em) {
@@ -491,14 +690,14 @@ export function statusDominio(dominio, status, mensagem, em) {
 const ROTULOS_BLOQUEIO = { ...ROTULOS_MARCA, favicon: 'Ícone da aba' };
 async function abaPermissoes(d, id) {
   const g = d.concessoes, p = d.podeEditar, b = d.marca.locked || [];
-  $('aba').innerHTML = `<p class="lead">O que o administrador da empresa pode personalizar. Vale o que estiver liberado aqui e incluído no plano; o operador da plataforma continua podendo alterar tudo.</p>
+  acoesAba('<button type="submit" form="f-conc" class="btn btn-verde btn-pequeno">Salvar permissões</button>');
+  $('aba').innerHTML = `${proposito('O que o administrador da empresa pode personalizar. Vale o que estiver liberado aqui e incluído no plano.')}
     <form id="f-conc">
       <h2 class="h-secao">Itens liberados para a empresa</h2>
       <div class="checagens">${Object.entries(C.catalogo.concessoes).map(([k, n]) => `<label><input type="checkbox" data-g="${k}" ${g[k] ? 'checked' : ''}> <span>${esc(n)}<small>${p[k] ? (k === 'domain' ? 'Liberado (vale em todos os planos)' : 'Liberado e incluído no plano') : g[k] ? 'Liberado, mas fora do plano atual' : 'Não liberado'}</small></span></label>`).join('')}</div>
       <h2 class="h-secao">Itens da marca bloqueados</h2>
       <p class="dica" id="bloqueios-marca">${b.length ? `Bloqueados para a empresa: ${b.map(k => esc(ROTULOS_BLOQUEIO[k] || k)).join(', ')}.` : 'Nenhum item da marca bloqueado: a empresa pode alterar todos os que estiverem liberados.'}
-        <a href="#/empresas/${id}/marca">Alterar na aba Marca</a></p>
-      <div class="linha-botoes"><button class="btn btn-verde">Salvar permissões</button></div></form>`;
+        <a href="#/empresas/${id}/marca">Alterar na aba Marca</a></p></form>`;
   $('f-conc').onsubmit = async ev => {
     ev.preventDefault();
     const grants = Object.fromEntries([...document.querySelectorAll('[data-g]')].map(x => [x.dataset.g, x.checked]));
@@ -508,23 +707,34 @@ async function abaPermissoes(d, id) {
 
 async function abaAuditoriaEmpresa(d, id) {
   const a = await api(`/api/plataforma/auditoria?empresa=${encodeURIComponent(id)}`);
-  $('aba').innerHTML = listaAuditoria(a.itens, false);
+  $('aba').innerHTML = `${proposito('Ações administrativas nesta empresa: quem fez, o antes e o depois.')}${listaAuditoria(a.itens, false)}`;
 }
 
 // ---------------------------------------------------------------- Usuários
 async function vistaUsuarios() {
   carregando('Usuários');
   const [{ usuarios }, cfg] = await Promise.all([api('/api/plataforma/usuarios'), api('/api/plataforma/configuracoes')]);
-  tela('Usuários', `<p class="lead">Todas as pessoas da plataforma, com as empresas de que fazem parte. Bloquear um usuário encerra o acesso dele em todas as empresas.</p>
+  tela('Usuários', `${proposito('Todas as pessoas da plataforma, com as empresas de que fazem parte.', { titulo: 'Usuários da plataforma', textos: [
+    'Administradores da plataforma entram neste console. Os acessos deles às empresas continuam separados.',
+    'Bloquear um usuário encerra o acesso dele em todas as empresas e as sessões abertas. Dá para desbloquear depois.',
+    'Para mudar o perfil ou o acesso de alguém numa empresa, abra a empresa pelo nome dela na lista.',
+  ] })}
     <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Administradores da plataforma</h2></div>
-    <form id="f-admin" class="filtros" style="margin-bottom:10px"><div class="campo"><label for="a-email">Email do novo administrador</label><input class="entrada" id="a-email" type="email" autocomplete="off"></div><button class="btn btn-linha">Adicionar administrador</button></form>
     ${tabela(['Administrador', ''], cfg.admins.map(a => `<tr><td data-r="Administrador">${esc(a.email)}</td><td data-r="">${a.id === C.eu.usuario.id ? '<span class="dica">você</span>' : `<button class="btn-texto link-perigo" data-rmadm="${a.id}" data-email="${esc(a.email)}">Remover</button>`}</td></tr>`), '')}
     <div class="secao-titulo"><h2 class="h-secao">Todas as pessoas</h2></div>
     ${tabela(['Pessoa', 'Empresas (perfil e acesso)', 'Conta', ''], usuarios.map(u => `<tr><td data-r="Pessoa"><b>${esc(u.name || u.email)}</b><br><span class="dica">${esc(u.email)}</span>${u.adminPlataforma ? ' <span class="selo-escopo" style="margin:0 0 0 6px">Plataforma</span>' : ''}</td>
       <td data-r="Empresas">${u.empresas.map(e => `<span class="valor-bloco"><a href="#/empresas/${e.id}/usuarios">${esc(e.name)}</a> <span class="dica">${esc(e.role)} · acesso ${esc((ACESSO[e.status] || e.status).toLowerCase())}</span></span>`).join('') || '<span class="dica">Nenhuma empresa</span>'}</td>
       <td data-r="Conta">${u.status === 'ativo' ? '<span class="selo selo-verde">Ativa</span>' : '<span class="selo selo-vermelho">Bloqueada</span>'}</td>
-      <td data-r="">${u.id === C.eu.usuario.id ? '' : `<button class="btn-texto${u.status === 'ativo' ? ' link-perigo' : ''}" data-bloq="${u.id}" data-email="${esc(u.email)}" data-st="${u.status === 'ativo' ? 'bloqueado' : 'ativo'}">${u.status === 'ativo' ? 'Bloquear' : 'Desbloquear'}</button>`}</td></tr>`), 'Nenhum usuário.')}`);
-  $('f-admin').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/admins', { metodo: 'POST', corpo: { email: $('a-email').value } }); toast('Administrador adicionado.'); vistaUsuarios(); } catch (x) { falhar(x); } };
+      <td data-r="">${u.id === C.eu.usuario.id ? '' : `<button class="btn-texto${u.status === 'ativo' ? ' link-perigo' : ''}" data-bloq="${u.id}" data-email="${esc(u.email)}" data-st="${u.status === 'ativo' ? 'bloqueado' : 'ativo'}">${u.status === 'ativo' ? 'Bloquear' : 'Desbloquear'}</button>`}</td></tr>`), 'Nenhum usuário.')}`,
+  '<button class="btn btn-verde btn-pequeno" id="add-admin">Adicionar administrador</button>');
+  $('add-admin').onclick = () => modal(`<div class="modal-topo"><div class="rotulo">Administradores da plataforma</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="adm-t" tabindex="-1">Adicionar administrador da plataforma</h2>
+    <form id="f-admin" novalidate><div class="campo"><label for="a-email">Email do novo administrador</label><input class="entrada" id="a-email" type="email" autocomplete="off"><span class="ajuda">A pessoa passa a entrar neste console, com código enviado ao email.</span></div>
+      <p class="msg-erro oculto" id="a-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Adicionar administrador</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('a-email').focus();
+    $('f-admin').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/admins', { metodo: 'POST', corpo: { email: $('a-email').value } }); fechar(); toast('Administrador adicionado.'); vistaUsuarios(); } catch (x) { mostrarErro('a-erro', x); } };
+  });
   for (const b of document.querySelectorAll('[data-rmadm]')) b.onclick = () => confirmarStatus({ rotulo: 'Administradores da plataforma', titulo: `Tirar o acesso de ${b.dataset.email} ao console?`, perigo: true, botao: 'Remover administrador',
     texto: 'A pessoa deixa de entrar no console da plataforma. Os acessos dela às empresas continuam como estão.',
     async aplicar() { await api(`/api/plataforma/admins/${b.dataset.rmadm}`, { metodo: 'DELETE' }); toast('Administrador removido.'); vistaUsuarios(); } });
@@ -550,16 +760,19 @@ async function vistaPlanos() {
   const [rp, pm] = await Promise.all([api('/api/plataforma/planos'), api('/api/plataforma/premissas')]);
   C.planos = rp.planos;
   const pk = rp.planos.find(p => p.economia?.pacote)?.economia.pacote;
-  tela('Planos', `<p class="lead">Créditos, limites e recursos de cada plano. Alterar um plano vale na hora para todas as empresas vinculadas.</p>
-    <p class="dica">Margem total no pior caso: a empresa usa toda a franquia e toda a reserva. Desconta impostos, pagamento/câmbio, suporte/operação, a IA (US$ ${pm.premissas.ai_credit_base_cost.toLocaleString('pt-BR')} por crédito + ${pctM(pm.premissas.ai_provider_fee_rate)} do intermediário) e a parte de cada empresa na infraestrutura (${usd(rp.infraPorEmpresa)} hoje). Piso ${pctM(rp.margemMinima)}: abaixo disso o plano não é salvo. Meta ${pctM(rp.metaMargem)}.</p>
+  tela('Planos', `${proposito('Créditos, preço e margem de cada plano. Mudanças valem na hora para as empresas.', { titulo: 'Planos e margem', textos: [
+    `Margem total no pior caso: a empresa usa toda a franquia e toda a reserva. Desconta impostos, pagamento/câmbio, suporte/operação, a IA (US$ ${esc(pm.premissas.ai_credit_base_cost.toLocaleString('pt-BR'))} por crédito + ${pctM(pm.premissas.ai_provider_fee_rate)} do intermediário) e a parte de cada empresa na infraestrutura (${usd(rp.infraPorEmpresa)} hoje).`,
+    `Piso ${pctM(rp.margemMinima)}: abaixo disso o plano não é salvo. Meta ${pctM(rp.metaMargem)}.`,
+    'O Capacity Pack usa a infraestrutura que a empresa já tem, sem reserva nova; os créditos acumulam.',
+    'As premissas econômicas valem para todas as margens e travas. São percentuais da receita, exceto a taxa do intermediário (sobre o custo de IA). O custo-base do crédito é a definição do crédito no consumo e não muda aqui.',
+  ] })}
     ${tabela(['Plano', 'Status', '#Créditos + reserva', '#Preço', '#Margem total', '#Preço mínimo (piso)', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
       <td data-r="Status">${p.status === 'ativo' ? '<span class="selo selo-verde">Ativo</span>' : '<span class="selo selo-cinza">Inativo</span>'}</td>
       <td class="num" data-r="Créditos + reserva">${p.credits ? `${num(p.credits)} + ${num(p.reserve)}` : 'Ilimitado'}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td>
       <td class="num" data-r="Margem total">${margemPlano(p.economia)}</td><td class="num" data-r="Preço mínimo">${p.economia?.precoMinimo ? usd(p.economia.precoMinimo) : '–'}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}
-    ${pk ? `<p class="dica"><b>${esc(pk.nome || 'Capacity Pack')}</b>: +${num(pk.creditos)} créditos por ${usd(pk.preco)} · margem total ${pctM(pk.margem)} ${seloMargem(pk.status)} · usa a infraestrutura que a empresa já tem, sem reserva nova; os créditos acumulam.</p>` : ''}
-    <div class="secao-titulo"><h2 class="h-secao">Premissas econômicas</h2></div>
-    <p class="dica">Valem para todas as margens e travas. Percentuais da receita, exceto a taxa do intermediário (sobre o custo de IA). O custo-base do crédito é a definição do crédito no consumo e não muda aqui.</p>
-    <form id="f-premissas" class="grade-2">${PREMISSAS_EDITAVEIS.map(k => `<div class="campo"><label for="pm-${k}">${esc(pm.nomes[k])} (%)</label><input class="entrada" id="pm-${k}" type="number" min="0" max="99" step="0.1" value="${Math.round(pm.premissas[k] * 1000) / 10}"></div>`).join('')}
+    ${pk ? `<p class="dica"><b>${esc(pk.nome || 'Capacity Pack')}</b>: +${num(pk.creditos)} créditos por ${usd(pk.preco)} · margem total ${pctM(pk.margem)} ${seloMargem(pk.status)}</p>` : ''}
+    <div class="secao-titulo"><h2 class="h-secao">Premissas econômicas</h2>${revelar('f-premissas', 'Ver e alterar')}</div>
+    <form id="f-premissas" class="grade-2" hidden>${PREMISSAS_EDITAVEIS.map(k => `<div class="campo"><label for="pm-${k}">${esc(pm.nomes[k])} (%)</label><input class="entrada" id="pm-${k}" type="number" min="0" max="99" step="0.1" value="${Math.round(pm.premissas[k] * 1000) / 10}"></div>`).join('')}
       <div class="linha-botoes"><button class="btn btn-linha btn-pequeno">Salvar premissas</button></div></form>`,
   '<a class="btn btn-verde btn-pequeno" href="#/planos/novo">Novo plano</a>');
   $('f-premissas').onsubmit = async ev => {
@@ -568,7 +781,8 @@ async function vistaPlanos() {
   };
 }
 
-// Prévia da economia do plano em edição: a mesma conta do salvamento (a trava é sempre o pior caso).
+// Prévia da economia do plano em edição: a mesma conta do salvamento (a trava é sempre o pior caso). Os três números
+// ficam à vista; a conta completa (custos e uso parcial) abre sob pedido e continua aberta enquanto se digita.
 const linhaEco = (r, v) => `<tr><td>${r}</td><td class="num">${v}</td></tr>`;
 function previaHtml(e) {
   if (!e) return '';
@@ -578,36 +792,49 @@ function previaHtml(e) {
   return `<div class="indicadores"><div class="indicador"><span>Margem total no pior caso</span><b>${pctM(e.margem)}</b><small>${seloMargem(e.status)}</small></div>
       <div class="indicador"><span>Preço mínimo para o piso</span><b>${usd(e.precoMinimo)}</b><small>folga de ${pctM(e.folga)} sobre o piso</small></div>
       <div class="indicador"><span>Contribuição no pior caso</span><b>${usd(e.contribuicao)}</b><small>de ${usd(e.preco)}</small></div></div>
-    <div class="tabela-rolagem"><table class="tabela"><tbody>
+    ${revelar('pl-conta', 'Ver a conta completa', !!C.contaAberta)}
+    <div id="pl-conta" ${C.contaAberta ? '' : 'hidden'}><div class="tabela-rolagem"><table class="tabela"><tbody>
       ${linhaEco(`Capacidade máxima (créditos + reserva)`, num(e.capacidadePiorCaso))}${linhaEco('Custo máximo de IA (com a taxa)', usd(e.custoIaPiorCaso))}
       ${linhaEco('Impostos', usd(e.impostos))}${linhaEco('Pagamento e câmbio', usd(e.pagamento))}${linhaEco('Suporte e operação', usd(e.suporte))}
       ${linhaEco('Infraestrutura alocada', usd(e.infra))}${linhaEco('<b>Custo total</b>', `<b>${usd(e.custoPiorCaso)}</b>`)}
       ${linhaEco('Margem de IA (diagnóstico, não é a trava)', pctM(e.margemIa))}</tbody></table></div>
     <p class="dica">Margem total com uso parcial da franquia (a trava considera sempre o pior caso):</p>
     <div class="tabela-rolagem"><table class="tabela"><thead><tr><th class="num">25%</th><th class="num">50%</th><th class="num">75%</th><th class="num">100%</th><th class="num">100% + reserva</th></tr></thead><tbody><tr>${sim}</tr></tbody></table></div>
-    ${e.pacote ? `<p class="dica">${esc(e.pacote.nome || 'Capacity Pack')}: margem total ${pctM(e.pacote.margem)} ${seloMargem(e.pacote.status)} · preço mínimo ${usd(e.pacote.precoMinimo)}.</p>` : ''}`;
+    ${e.pacote ? `<p class="dica">${esc(e.pacote.nome || 'Capacity Pack')}: margem total ${pctM(e.pacote.margem)} ${seloMargem(e.pacote.status)} · preço mínimo ${usd(e.pacote.precoMinimo)}.</p>` : ''}</div>`;
 }
 
 async function vistaPlano(id) {
   if (!C.planos.length) C.planos = (await api('/api/plataforma/planos')).planos;
   const p = id === 'novo' ? { name: '', description: '', status: 'ativo', credits: 2000, reserve: 400, price_usd: '', limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, features: Object.fromEntries(Object.keys(C.catalogo.recursos).map(k => [k, true])), rules: { reserve_fast_only: true, pack_name: 'Capacity Pack', pack_credits: 2000, pack_price_usd: 229 }, settings: {} } : C.planos.find(x => x.id === id);
   if (!p) return tela('Plano', '<p>Plano não encontrado.</p>', '', '#/planos');
-  tela(id === 'novo' ? 'Novo plano' : p.name, `<form id="f-plano" novalidate>
+  C.contaAberta = false;
+  const ajuda = { titulo: 'Plano', textos: [
+    'Créditos por mês: 0 deixa o plano ilimitado (sem teto de créditos, sem reserva e sem avisos de consumo).',
+    'Reserva de continuidade: usada depois dos créditos e dos Capacity Packs, só no nível Rápido. Padrão: 20% da franquia.',
+    'O preço só aparece para a operação; a empresa nunca vê valores em dólar.',
+    'A margem total é conferida no pior caso (toda a franquia e toda a reserva usadas). Abaixo do piso, o plano não é salvo.',
+    'O Capacity Pack não traz reserva nova e usa a infraestrutura que a empresa já tem; os créditos acumulam.',
+    id === 'novo' ? 'O plano novo aparece para novas empresas quando está ativo.' : 'Salvar vale na hora para todas as empresas vinculadas.',
+  ] };
+  tela(id === 'novo' ? 'Novo plano' : p.name, `${proposito(id === 'novo' ? 'Créditos, preço, limites e recursos do novo plano.' : 'Créditos, preço, limites e recursos; vale na hora para as empresas.', ajuda)}<form id="f-plano" novalidate>
     <div class="grade-2"><div class="campo"><label for="pl-nome">Nome</label><input class="entrada" id="pl-nome" value="${esc(p.name)}" maxlength="60"></div>
       <div class="campo"><label for="pl-status">Status</label><select class="entrada" id="pl-status"><option value="ativo" ${p.status === 'ativo' ? 'selected' : ''}>Ativo</option><option value="inativo" ${p.status !== 'ativo' ? 'selected' : ''}>Inativo (não aparece para novas empresas)</option></select></div></div>
     <div class="campo"><label for="pl-desc">Descrição</label><input class="entrada" id="pl-desc" value="${esc(p.description)}" maxlength="300"></div>
-    <div class="grade-2"><div class="campo"><label for="pl-cred">Créditos por mês</label><input class="entrada" id="pl-cred" type="number" min="0" value="${p.credits}"><span class="ajuda">0 = ilimitado (sem teto de créditos, sem reserva e sem avisos de consumo).</span></div>
-      <div class="campo"><label for="pl-res">Reserva de continuidade</label><input class="entrada" id="pl-res" type="number" min="0" value="${p.reserve}"><span class="ajuda">Usada depois dos créditos e dos Capacity Packs, só no nível Rápido. Padrão: 20% da franquia.</span></div>
-      <div class="campo"><label for="pl-preco">Preço mensal (US$)</label><input class="entrada" id="pl-preco" type="number" min="0" step="0.01" value="${p.price_usd ?? ''}"><span class="ajuda">Só o operador vê. A empresa nunca vê valores em dólar.</span></div></div>
+    <div class="grade-2"><div class="campo"><label for="pl-cred">Créditos por mês</label><input class="entrada" id="pl-cred" type="number" min="0" value="${p.credits}"><span class="ajuda">0 = ilimitado.</span></div>
+      <div class="campo"><label for="pl-res">Reserva de continuidade</label><input class="entrada" id="pl-res" type="number" min="0" value="${p.reserve}"><span class="ajuda">Só no nível Rápido. Padrão: 20% da franquia.</span></div>
+      <div class="campo"><label for="pl-preco">Preço mensal (US$)</label><input class="entrada" id="pl-preco" type="number" min="0" step="0.01" value="${p.price_usd ?? ''}"><span class="ajuda">A empresa nunca vê valores em dólar.</span></div></div>
     <h2 class="h-secao">Economia no pior caso</h2><div id="pl-previa" aria-live="polite">${previaHtml(p.economia)}</div>
     <h2 class="h-secao">Limites</h2><div class="grade-2">${Object.entries(C.catalogo.limites).map(([k, n]) => `<div class="campo"><label for="pl-l-${k}">${esc(n)}</label><input class="entrada" id="pl-l-${k}" type="number" min="0" value="${p.limits[k] ?? 0}"></div>`).join('')}</div>
     <h2 class="h-secao">Recursos</h2><div class="checagens">${Object.entries(C.catalogo.recursos).map(([k, n]) => `<label><input type="checkbox" data-f="${k}" ${p.features[k] ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div>
     <h2 class="h-secao">Regras de consumo</h2><div class="grade-2">
       <div class="campo"><label for="pl-pc">Créditos do Capacity Pack</label><input class="entrada" id="pl-pc" type="number" min="0" value="${p.rules.pack_credits ?? 0}"></div>
-      <div class="campo"><label for="pl-pp">Preço do Capacity Pack (US$)</label><input class="entrada" id="pl-pp" type="number" min="0" step="0.01" value="${p.rules.pack_price_usd ?? 0}"><span class="ajuda">O pacote não traz reserva nova e usa a infraestrutura que a empresa já tem; os créditos acumulam.</span></div></div>
+      <div class="campo"><label for="pl-pp">Preço do Capacity Pack (US$)</label><input class="entrada" id="pl-pp" type="number" min="0" step="0.01" value="${p.rules.pack_price_usd ?? 0}"></div></div>
     <label class="dica" style="display:flex;gap:8px;margin-bottom:12px"><input type="checkbox" id="pl-rr" ${p.rules.reserve_fast_only !== false ? 'checked' : ''}> Na reserva, só o nível Rápido</label>
-    <div class="campo"><label for="pl-set">Configurações específicas (JSON)</label><textarea class="entrada" id="pl-set" rows="3" style="font-family:monospace">${esc(JSON.stringify(p.settings || {}, null, 2))}</textarea></div>
-    <p class="msg-erro oculto" id="pl-erro" role="alert"></p><div class="linha-botoes barra-salvar"><button class="btn btn-verde">Salvar plano</button>${id === 'novo' ? '' : '<span class="dica">Vale na hora para todas as empresas vinculadas.</span>'}</div></form>`, '', '#/planos');
+    <p>${revelar('pl-avancado', 'Opções avançadas')}</p>
+    <div id="pl-avancado" hidden><div class="campo"><label for="pl-set">Configurações específicas (JSON)</label><textarea class="entrada" id="pl-set" rows="3" style="font-family:monospace">${esc(JSON.stringify(p.settings || {}, null, 2))}</textarea></div></div>
+    <p class="msg-erro oculto" id="pl-erro" role="alert"></p></form>`, '<button type="submit" form="f-plano" class="btn btn-verde btn-pequeno">Salvar plano</button>', '#/planos');
+  // A conta completa da prévia continua aberta (ou fechada) quando a prévia é refeita ao digitar.
+  $('pl-previa').addEventListener('click', ev => { if (ev.target.closest('[data-revelar="pl-conta"]')) setTimeout(() => { C.contaAberta = !$('pl-conta').hidden; }); });
   // Prévia ao digitar (sem gravar): mesma conta e mesma trava do servidor.
   let tPrevia;
   const atualizarPrevia = () => { clearTimeout(tPrevia); tPrevia = setTimeout(async () => {
@@ -620,13 +847,13 @@ async function vistaPlano(id) {
     ev.preventDefault();
     try {
       let settings = {};
-      try { settings = JSON.parse($('pl-set').value || '{}'); } catch { throw new Error('As configurações específicas precisam ser um JSON válido.'); }
+      try { settings = JSON.parse($('pl-set').value || '{}'); } catch { $('pl-avancado').hidden = false; throw new Error('As configurações específicas precisam ser um JSON válido.'); }
       const corpo = { name: $('pl-nome').value, status: $('pl-status').value, description: $('pl-desc').value, credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: $('pl-preco').value,
         limits: Object.fromEntries(Object.keys(C.catalogo.limites).map(k => [k, Number($(`pl-l-${k}`).value)])), features: Object.fromEntries([...document.querySelectorAll('[data-f]')].map(x => [x.dataset.f, x.checked])),
         rules: { reserve_fast_only: $('pl-rr').checked, pack_name: p.rules.pack_name || 'Capacity Pack', pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) }, settings };
       await api(id === 'novo' ? '/api/plataforma/planos' : `/api/plataforma/planos/${id}`, { metodo: id === 'novo' ? 'POST' : 'PUT', corpo });
       C.planos = []; toast('Plano salvo.'); location.hash = '#/planos';
-    } catch (x) { mostrarErro('pl-erro', x); }
+    } catch (x) { erroForm('pl-erro', x); }
   };
 }
 
@@ -634,7 +861,7 @@ async function vistaPlano(id) {
 async function vistaAmbientes() {
   carregando('Ambientes');
   const { ambientes } = await api('/api/plataforma/ambientes');
-  tela('Ambientes', `<p class="lead">Um banco por empresa, na mesma instalação. Nenhuma empresa acessa o banco de outra.</p>
+  tela('Ambientes', `${proposito('Um banco por empresa, na mesma instalação; nenhuma empresa acessa o banco de outra.')}
     ${tabela(['Empresa', 'Status', 'Endereço', 'Banco', 'IA', 'Último uso'], ambientes.map(a => `<tr><td data-r="Empresa"><a href="#/empresas/${a.id}">${esc(a.name)}</a></td><td data-r="Status">${selo(a.status, a.statusNome)}</td>
       <td data-r="Endereço"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, ''))}</a></td><td data-r="Banco"><span class="valor-bloco"><code class="valor-tecnico">${esc(a.banco)}</code> <span class="dica">${mb(a.tamanhoMb)}</span></span></td>
       <td data-r="IA">${iaTexto(a)}</td><td data-r="Último uso">${dataHora(a.ultimoUso)}</td></tr>`), 'Nenhum ambiente.')}`);
@@ -653,15 +880,17 @@ const ESTADO = {
 const estadoTag = e => (e.alerta ? `<span class="tag ${ESTADO[e.alerta][0]}"><i></i>${ESTADO[e.alerta][1]}</span>` : e.ilimitado ? '<span class="tag">Ilimitado</span>' : e.plano ? '<span class="tag tag-verde"><i></i>No ritmo</span>' : '<span class="tag">Sem plano</span>');
 
 // Barras diárias: marcas finas, topo arredondado, 2px entre barras, eixo recessivo, dica ao passar.
+let grafSeq = 0;
 function grafBarras(serie, rotulo) {
+  const id = ++grafSeq;
   const topo = topoBonito(Math.max(...serie.map(x => x.v), 0));
   const meio = Math.floor(serie.length / 2);
   return `<figure class="gb" aria-label="${esc(rotulo)}">
     <div class="gb-corpo"><div class="gb-eixo" aria-hidden="true"><span>${usd4(topo)}</span><span>${usd4(topo / 2)}</span><span>US$ 0</span></div>
       <div class="gb-area"><div class="gb-grade" aria-hidden="true"><i></i><i></i><i></i></div>
-        <div class="gb-barras">${serie.map((x, i) => `<button type="button" class="gb-col${i === serie.length - 1 ? ' hoje' : ''}" data-tip="${esc(diaCurto(x.d))}${i === serie.length - 1 ? ' (hoje)' : ''} · ${esc(usd4(x.v))}${x.extra ? ` · ${esc(x.extra)}` : ''}" aria-label="${esc(diaCurto(x.d))}: ${esc(usd4(x.v))}"><i style="height:${x.v > 0 ? Math.max(2, x.v / topo * 100) : 0}%"></i></button>`).join('')}</div></div></div>
+        <div class="gb-barras" aria-hidden="true">${serie.map((x, i) => `<span class="gb-col${i === serie.length - 1 ? ' hoje' : ''}" data-tip="${esc(diaCurto(x.d))}${i === serie.length - 1 ? ' (hoje)' : ''} · ${esc(usd4(x.v))}${x.extra ? ` · ${esc(x.extra)}` : ''}"><i style="height:${x.v > 0 ? Math.max(2, x.v / topo * 100) : 0}%"></i></span>`).join('')}</div></div></div>
     <div class="gb-x" aria-hidden="true"><span>${diaCurto(serie[0].d)}</span><span>${diaCurto(serie[meio].d)}</span><span>hoje</span></div>
-    <details class="gb-tabela"><summary>Ver em tabela</summary>${tabela(['Dia', '#Custo'], serie.slice().reverse().map(x => `<tr><td data-r="Dia">${esc(diaCurto(x.d))}</td><td class="num" data-r="Custo">${usd4(x.v)}</td></tr>`), '')}</details></figure>`;
+    <div class="gb-tabela">${revelar(`gbt-${id}`, 'Ver em tabela')}<div id="gbt-${id}" hidden>${tabela(['Dia', '#Custo'], serie.slice().reverse().map(x => `<tr><td data-r="Dia">${esc(diaCurto(x.d))}</td><td class="num" data-r="Custo">${usd4(x.v)}</td></tr>`), '')}</div></div></figure>`;
 }
 // Linha de tendência (30 dias) para a tabela: 2px, ponto no último dia.
 function sparkline(v) {
@@ -701,8 +930,11 @@ function validadeHtml(v) {
     : p.expiraEm ? `${noFuso(p.expiraEm, f)} (${duracao(p.restanteMs)})${p.fonte === 'informada' ? ' · data informada no console' : ' · informado pelo OpenRouter'}`
       : p.semData === 'nao_definido' ? 'não definido no OpenRouter (sem validade conhecida)' : 'não informado (o OpenRouter ainda não respondeu)';
   const podeInformar = p.fonte !== 'openrouter';
-  return `<div class="or-validade"><p class="or-validade-estado"><span class="tag ${TAG_VALIDADE[v.nivel] || ''}"><i></i>${esc(v.rotulo)}</span> ${esc(v.texto)}</p>
-    <dl class="or-validade-lista">
+  const aberto = ['atencao', 'critico', 'erro'].includes(v.nivel);
+  // O estado fica à vista; o detalhe (datas, troca preventiva, vencimento informado) abre sob pedido, ou já aberto
+  // quando a chave pede atenção.
+  return `<div class="or-validade"><p class="or-validade-estado"><span class="tag ${TAG_VALIDADE[v.nivel] || ''}"><i></i>${esc(v.rotulo)}</span> ${esc(v.texto)} ${revelar('or-validade-detalhe', 'Detalhes e troca preventiva', aberto)}</p>
+    <div id="or-validade-detalhe" ${aberto ? '' : 'hidden'}><dl class="or-validade-lista">
       <dt>Origem</dt><dd>${v.origem === 'console' ? 'informada no console' : 'variável OPENROUTER_API_KEY'}</dd>
       <dt>Início da contagem</dt><dd>${noFuso(t.inicio, f)} (${t.emUsoDias} ${t.emUsoDias === 1 ? 'dia' : 'dias'} em uso)</dd>
       <dt>Vencimento no provedor</dt><dd>${vencProvedor}</dd>
@@ -710,7 +942,6 @@ function validadeHtml(v) {
       <dt>Próxima troca preventiva</dt><dd>${noFuso(t.proximaTroca, f)} (${duracao(t.restanteMs)}) · política da plataforma: início + ${t.rotacaoDias} × 24 h</dd>
       <dt>Fuso dos horários</dt><dd>${esc(f)} (o cálculo é em UTC)</dd>
     </dl>
-    <details${['atencao', 'critico', 'erro'].includes(v.nivel) ? ' open' : ''}><summary class="dica">Troca preventiva e vencimento informado</summary>
       <form class="or-validade-form" id="f-validade" novalidate>
         <div class="campo"><label for="val-rotacao">Trocar a chave a cada</label>
           <span class="or-alerta-campo"><input class="entrada" id="val-rotacao" type="number" min="7" max="730" step="1" value="${esc(t.rotacaoDias)}" inputmode="numeric"><span>dias</span></span>
@@ -719,16 +950,17 @@ function validadeHtml(v) {
           ${campoData({ id: 'val-expira', valor: p.fonte === 'informada' ? p.dataInformada || '' : '', rotulo: 'o vencimento', extra: 'aria-describedby="val-expira-dica"' })}
           <span class="dica" id="val-expira-dica">Só se você souber a data por outra fonte. Vale até 23:59 desse dia (${esc(f)}). Vale só para esta chave; se o OpenRouter informar a dele, a do OpenRouter prevalece.</span></div>` : ''}
         <button class="btn btn-linha btn-pequeno">Salvar</button>
-      </form></details>
-    <p class="dica">Os admins da plataforma recebem um email por estágio: faltando 30 dias, 7 dias, 48 horas e 24 horas, quando vence ou a troca atrasa, e quando a chave é recusada.</p></div>`;
+      </form></div></div>`;
 }
 async function vistaUso(forcar = false) {
   carregando('Uso');
   const u = await api(`/api/plataforma/consumo${forcar ? '?forcar=1' : ''}`);
   const c = u.conta, k = c.chave, pl = u.plataforma;
   const saldo = c.saldo ?? k?.restante ?? null;
-  const filtro = sessionStorage.getItem('uso.filtro') || 'todas';
   const comAlerta = u.empresas.filter(e => e.alerta).length;
+  // Filtro só quando a lista é longa (ou já está filtrada); com poucas empresas, todas aparecem.
+  const comFiltro = u.empresas.length > 6;
+  const filtro = comFiltro ? (sessionStorage.getItem('uso.filtro') || 'todas') : 'todas';
   const contaHtml = !c.disponivel ? `<div class="faixa-aviso atencao"><b>Conta do OpenRouter indisponível.</b> ${esc(c.motivo || '')}</div>` : `
     <div class="or-grade">
       <div class="or-card destaque${u.alerta.abaixo ? ' baixo' : ''}"><span class="or-rotulo">Saldo disponível no OpenRouter</span>
@@ -737,17 +969,18 @@ async function vistaUso(forcar = false) {
         <span class="or-sub">${u.alerta.diasRestantes !== null ? `No ritmo dos últimos 7 dias (${usd4(u.media7)} por dia), dura cerca de <b>${num(u.alerta.diasRestantes)} ${u.alerta.diasRestantes === 1 ? 'dia' : 'dias'}</b>.` : 'Sem consumo nos últimos 7 dias para estimar a duração.'}</span>
         ${c.saldo === null && c.creditosIndisponivel ? `<span class="or-sub dica">${esc(c.creditosIndisponivel)} ${k?.restante !== null && k?.restante !== undefined ? 'Mostrando o que resta do limite da chave.' : ''}</span>` : ''}</div>
       <div class="or-card"><span class="or-rotulo">Créditos da conta</span>
-        <dl class="or-lista"><dt>Comprados</dt><dd>${usd(c.comprado)}</dd><dt>Gastos</dt><dd>${usd(c.gasto)}</dd></dl>
-        <a class="dica" href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener">Comprar créditos no OpenRouter ↗</a></div>
+        <dl class="or-lista"><dt>Comprados</dt><dd>${usd(c.comprado)}</dd><dt>Gastos</dt><dd>${usd(c.gasto)}</dd></dl></div>
       <div class="or-card"><span class="or-rotulo">Consumo cobrado pelo OpenRouter</span>
-        <dl class="or-lista"><dt>Hoje</dt><dd>${usd4(k?.hoje)}</dd><dt>Nesta semana</dt><dd>${usd4(k?.semana)}</dd><dt>Neste mês</dt><dd>${usd4(k?.mes)}</dd></dl>
-        <span class="dica">Dias em UTC, pela chave usada na plataforma.</span></div>
+        <dl class="or-lista"><dt>Hoje</dt><dd>${usd4(k?.hoje)}</dd><dt>Nesta semana</dt><dd>${usd4(k?.semana)}</dd><dt>Neste mês</dt><dd>${usd4(k?.mes)}</dd></dl></div>
       <div class="or-card"><span class="or-rotulo">Chave da plataforma${k?.nome ? ` · ${esc(k.nome)}` : ''}</span>
         <dl class="or-lista"><dt>Limite</dt><dd>${k?.limite !== null && k?.limite !== undefined ? usd(k.limite) : 'sem limite'}</dd><dt>Resta do limite</dt><dd>${k?.restante !== null && k?.restante !== undefined ? usd(k.restante) : '–'}</dd><dt>Uso total</dt><dd>${usd(k?.usoTotal)}</dd></dl>
         ${k?.gratuita ? '<span class="tag tag-ambar">Chave gratuita: limites baixos</span>' : ''}</div>
     </div>`;
   const conc = c.disponivel && k?.mes !== null && k?.mes !== undefined ? (() => { const dif = k.mes - pl.custoMes, rel = pl.custoMes ? Math.abs(dif) / pl.custoMes : (k.mes > 0 ? 1 : 0);
     return `<p class="or-conc${rel > 0.1 && Math.abs(dif) > 0.5 ? ' dif' : ''}">Registrado pela GreenIA no mês: <b>${usd4(pl.custoMes)}</b> · Cobrado pelo OpenRouter no mês: <b>${usd4(k.mes)}</b>${rel > 0.1 && Math.abs(dif) > 0.5 ? ` · diferença de ${usd4(dif)}: pode haver uso da mesma chave fora da plataforma, ou respostas interrompidas antes de registrar o custo.` : ' · em linha.'}</p>`; })() : '';
+  // Conciliação com o crédito registrado nas empresas: aviso só quando há custo que não virou crédito.
+  const cc = u.conciliacao;
+  const conciliacao = cc?.disponivel ? `Gasto da chave no mês: ${usd4(cc.openrouterMes)} · registrado como crédito nas empresas: ${usd4(cc.registradoMes)} · diferença: ${usd4(cc.diferenca)}${cc.percentual !== null ? ` (${cc.percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)` : ''}.` : '';
   const empresas = u.empresas.filter(e => filtro !== 'alerta' || e.alerta).sort((a, b) => b.custoMes - a.custoMes);
   const kc = u.chaveConfig || {};
   const semChave = !kc.origem;
@@ -762,30 +995,30 @@ async function vistaUso(forcar = false) {
       <label for="or-chave-in">Cole a chave da API do OpenRouter</label>
       <div class="or-chave-linha"><input class="entrada" id="or-chave-in" aria-label="Chave de acesso ao provedor" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-describedby="or-chave-ajuda">
         <button type="button" class="btn-texto btn-pequeno" id="or-ver" aria-pressed="false">Mostrar</button><button class="btn btn-verde btn-pequeno" id="or-salvar">Testar e salvar</button></div>
-      <p class="dica" id="or-chave-ajuda">A chave é testada no OpenRouter antes de salvar, fica guardada cifrada e vale na hora para todas as empresas, sem reiniciar. Depois de salva, só aparecem o início e os 4 últimos caracteres. <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">Criar uma chave no OpenRouter ↗</a></p>
+      <p class="dica" id="or-chave-ajuda">A chave é testada antes de salvar e vale na hora para todas as empresas. <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">Criar uma chave no OpenRouter ↗</a></p>
       <p class="msg-erro oculto" id="or-chave-erro" role="alert"></p></form></section>`;
   C.eu.alertaChave = u.validadeChave && NIVEL_FAIXA[u.validadeChave.nivel] ? u.validadeChave : null;   // o topo acompanha a leitura mais recente
-  tela('Uso', `<div class="uso-topo"><p class="lead">Consumo de IA da plataforma e de cada empresa. Valores em dólar, só para a operação.</p>
-      <span class="dica">Conta atualizada ${c.atualizadoEm ? `às ${new Date(c.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '–'} <button class="btn-texto btn-pequeno" id="uso-atualizar">Atualizar agora</button></span></div>
+  const atualizada = c.atualizadoEm ? `Conta atualizada às ${new Date(c.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.` : '';
+  tela('Uso', `${proposito(`Consumo de IA da plataforma e de cada empresa, em dólar, só para a operação. ${atualizada}`, { titulo: 'Uso e consumo de IA', textos: [
+    'A chave do OpenRouter é testada antes de salvar, fica guardada cifrada e vale na hora para todas as empresas, sem reiniciar. Depois de salva, só aparecem o início e os 4 últimos caracteres.',
+    'Os admins da plataforma recebem um email por estágio da chave: faltando 30 dias, 7 dias, 48 horas e 24 horas, quando vence ou a troca atrasa, e quando a chave é recusada.',
+    'O consumo cobrado pelo OpenRouter conta os dias em UTC, pela chave usada na plataforma. O alerta de saldo manda no máximo um email por dia.',
+    `Receita de tabela: preço do plano de cada empresa${pl.receitaPacotes ? ` e ${usd(pl.receitaPacotes)} em Capacity Packs liberados no mês` : ' e os Capacity Packs liberados no mês'}, não o valor faturado; planos internos e sem preço não entram.`,
+    `Margem total: receita − impostos, pagamento/câmbio e suporte/operação (${usd(pl.custosProporcionais || 0)}) − IA com a taxa do intermediário − servidor. Servidor: ${pl.custoServidor ? `${usd(pl.custoServidor)} por mês, dividido entre as empresas ativas` : 'não informado'}.`,
+    'O gráfico mostra o custo real de cada resposta, registrado pela GreenIA (sem a taxa do intermediário, que entra na margem).',
+    'Projeção: quanto do plano estará usado no fim do mês, no ritmo do mês até hoje. Situação acima de 90%, na reserva ou esgotada pede atenção (a empresa também recebe os avisos do plano).',
+  ] })}
     ${chaveHtml}${semChave ? '' : contaHtml}${conc}
-    <form class="or-alerta" id="f-alerta"><label for="al-usd">Avisar os admins da plataforma por email quando o saldo ficar abaixo de</label>
-      <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="al-usd" type="number" min="0" step="1" value="${esc(u.alerta.limiarUsd)}"></span><button class="btn btn-linha btn-pequeno">Salvar alerta</button><span class="dica">No máximo um email por dia.</span></form>
-
-    ${u.conciliacao?.disponivel ? `<div class="faixa-aviso ${u.conciliacao.alerta ? 'atencao' : 'ok'}" role="status"><b>Conciliação com o OpenRouter (mês)</b><br>
-      Gasto da chave: ${usd4(u.conciliacao.openrouterMes)} · registrado como crédito nas empresas: ${usd4(u.conciliacao.registradoMes)} · diferença: ${usd4(u.conciliacao.diferenca)}${u.conciliacao.percentual !== null ? ` (${u.conciliacao.percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)` : ''}.
-      ${u.conciliacao.alerta ? 'Há custo cobrado que não virou crédito: a margem está saindo sem aparecer no consumo das empresas.' : 'O que o OpenRouter cobrou está virando crédito.'}</div>` : ''}
+    ${cc?.disponivel ? (cc.alerta ? `<div class="faixa-aviso atencao" role="status"><b>Conciliação com o OpenRouter (mês):</b> ${conciliacao} Há custo cobrado que não virou crédito: a margem está saindo sem aparecer no consumo das empresas.</div>` : `<p class="dica">${conciliacao} O que o OpenRouter cobrou está virando crédito.</p>`) : ''}
     <div class="secao-titulo"><h2 class="h-secao">Consumo da plataforma · últimos 30 dias</h2></div>
     <div class="indicadores"><div class="indicador"><span>Hoje</span><b>${usd4(pl.custoHoje)}</b></div><div class="indicador"><span>Últimos 7 dias</span><b>${usd4(pl.custo7)}</b></div>
       <div class="indicador"><span>Mês até hoje</span><b>${usd4(pl.custoMes)}</b></div><div class="indicador"><span>Projeção do mês</span><b>${usd4(pl.projecaoMes)}</b></div>
       <div class="indicador"><span>Receita de tabela do mês (planos + Capacity Packs)</span><b>${usd(pl.receitaMes)}</b></div><div class="indicador"><span>Margem total do mês</span><b>${usd(pl.margemMes)}</b><small>${pl.margemMesPct !== null && pl.margemMesPct !== undefined ? pctM(pl.margemMesPct) + ' da receita' : 'sem receita no mês'}</small></div></div>
-    <p class="dica">Receita de tabela: preço do plano de cada empresa${pl.receitaPacotes ? ` e ${usd(pl.receitaPacotes)} em Capacity Packs liberados no mês` : ' e os Capacity Packs liberados no mês'}, não o valor faturado; planos internos e sem preço não entram. Margem total: receita − impostos, pagamento/câmbio e suporte/operação (${usd(pl.custosProporcionais || 0)}) − IA com a taxa do intermediário − servidor. Servidor: ${pl.custoServidor ? `${usd(pl.custoServidor)} por mês, dividido entre as empresas ativas` : 'não informado (informe a fatura mensal abaixo)'}.</p>
-    <form class="or-alerta" id="f-servidor"><label for="srv-usd">Custo mensal do servidor (fatura do Render), em dólares</label>
-      <span class="or-alerta-campo"><span>US$</span><input class="entrada" id="srv-usd" type="number" min="0" step="0.01" value="${esc(pl.custoServidor || 0)}"></span><button class="btn btn-linha btn-pequeno">Salvar custo do servidor</button></form>
+    ${pl.custoServidor ? '' : '<p class="dica">Custo do servidor não informado: a margem ainda não desconta o servidor. <button type="button" class="btn-texto" id="informar-servidor">Informar o custo do servidor</button></p>'}
     ${grafBarras(u.serie.map(x => ({ d: x.dia, v: x.custo })), 'Custo diário de IA da plataforma nos últimos 30 dias')}
-    <p class="dica">Custo real de cada resposta, registrado pela GreenIA (sem a taxa do intermediário, que entra na margem).</p>
 
     <div class="secao-titulo"><h2 class="h-secao">Consumo por empresa</h2>
-      <div class="pilulas" role="group" aria-label="Filtro"><button type="button" class="pilula" data-filtro="todas" aria-pressed="${filtro === 'todas'}">Todas<span>${u.empresas.length}</span></button><button type="button" class="pilula" data-filtro="alerta" aria-pressed="${filtro === 'alerta'}">Com alerta<span>${comAlerta}</span></button></div></div>
+      ${comFiltro ? `<div class="pilulas" role="group" aria-label="Filtro"><button type="button" class="pilula" data-filtro="todas" aria-pressed="${filtro === 'todas'}">Todas<span>${u.empresas.length}</span></button><button type="button" class="pilula" data-filtro="alerta" aria-pressed="${filtro === 'alerta'}">Com alerta<span>${comAlerta}</span></button></div>` : ''}</div>
     ${tabela(['Empresa', 'Créditos do plano', '#Hoje', '#7 dias', '#Mês', 'Tendência 30 dias', '#Projeção', 'Situação', ''], empresas.map(e => `<tr class="uso-linha" data-empresa="${e.id}">
       <td data-r="Empresa"><a href="#/empresas/${e.id}"><b>${esc(e.name)}</b></a><br><span class="dica">${esc(e.plano || 'sem plano')} · ${num(e.pessoasAtivas)} ${e.pessoasAtivas === 1 ? 'pessoa ativa' : 'pessoas ativas'}</span></td>
       <td data-r="Créditos">${barraPlano(e)}</td>
@@ -794,8 +1027,11 @@ async function vistaUso(forcar = false) {
       <td class="num" data-r="Projeção">${e.projecao !== null ? `${num(e.projecao)}%` : '–'}</td>
       <td data-r="Situação">${estadoTag(e)}</td>
       <td data-r=""><button class="btn-texto btn-pequeno" data-detalhe="${e.id}" aria-expanded="false">Detalhes</button></td></tr>
-      <tr class="oculto uso-detalhe" id="det-${e.id}"><td colspan="9"><div class="editor" id="det-corpo-${e.id}">${carregandoHtml()}</div></td></tr>`), filtro === 'alerta' ? 'Nenhuma empresa com alerta.' : 'Nenhuma empresa.')}
-    <p class="dica">Projeção: quanto do plano estará usado no fim do mês, no ritmo do mês até hoje. Situação acima de 90%, na reserva ou esgotada pede atenção (a empresa também recebe os avisos do plano).</p>`);
+      <tr class="oculto uso-detalhe" id="det-${e.id}"><td colspan="9"><div class="editor" id="det-corpo-${e.id}">${carregandoHtml()}</div></td></tr>`), filtro === 'alerta' ? 'Nenhuma empresa com alerta.' : 'Nenhuma empresa.')}`,
+  `<button type="button" class="btn btn-linha btn-pequeno" id="uso-atualizar">Atualizar agora</button>${menuMais([
+    { acao: 'alerta', rotulo: 'Alerta de saldo…' }, { acao: 'servidor', rotulo: 'Custo do servidor…' },
+    { href: 'https://openrouter.ai/settings/credits', externo: true, rotulo: 'Comprar créditos no OpenRouter ↗' },
+  ])}`);
   ligarDicas($('principal'));
   $('uso-atualizar').onclick = () => vistaUso(true);
   $('or-trocar')?.addEventListener('click', () => { $('f-chave').classList.toggle('oculto'); $('or-chave-in').focus(); });
@@ -825,8 +1061,22 @@ async function vistaUso(forcar = false) {
   $('or-remover')?.addEventListener('click', () => confirmarStatus({ rotulo: 'Chave do OpenRouter', titulo: 'Remover a chave salva no console?', perigo: !kc.variavelTambem, botao: 'Remover chave',
     texto: kc.variavelTambem ? 'A plataforma volta a usar a chave da variável OPENROUTER_API_KEY do servidor.' : 'Sem outra chave, a IA das empresas para de responder até você informar uma chave nova.',
     async aplicar() { await api('/api/plataforma/openrouter/chave', { metodo: 'DELETE' }); toast('Chave removida.'); vistaUso(true); } }));
-  $('f-servidor').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/consumo/servidor', { metodo: 'PUT', corpo: { custoUsd: Number($('srv-usd').value) } }); toast('Custo do servidor salvo.'); vistaUso(); } catch (x) { falhar(x); } };
-  $('f-alerta').onsubmit = async ev => { ev.preventDefault(); try { await api('/api/plataforma/consumo/alerta', { metodo: 'PUT', corpo: { limiarUsd: Number($('al-usd').value) } }); toast('Alerta salvo.'); vistaUso(); } catch (x) { falhar(x); } };
+  // Ajustes raros, em "Mais ações": alerta de saldo e custo mensal do servidor.
+  const ajuste = ({ rotulo, titulo, id, campo, valor, passo, botao, ajuda, salvar }) => modal(`<div class="modal-topo"><div class="rotulo">${esc(rotulo)}</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="aj-t" tabindex="-1">${esc(titulo)}</h2>
+    <form id="${id}" novalidate><div class="campo"><label for="${campo}">Valor em dólares (US$)</label><input class="entrada" id="${campo}" type="number" min="0" step="${passo}" value="${esc(valor)}" aria-describedby="${campo}-ajuda"><span class="ajuda" id="${campo}-ajuda">${esc(ajuda)}</span></div>
+      <p class="msg-erro oculto" id="${campo}-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">${esc(botao)}</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('aj-t').focus();
+    $(id).onsubmit = async ev => { ev.preventDefault(); try { await salvar(Number($(campo).value)); fechar(); vistaUso(); } catch (x) { mostrarErro(`${campo}-erro`, x); } };
+  });
+  C.mais.alerta = () => ajuste({ rotulo: 'Alerta de saldo', titulo: 'Avisar quando o saldo ficar baixo', id: 'f-alerta', campo: 'al-usd', valor: u.alerta.limiarUsd, passo: 1, botao: 'Salvar alerta',
+    ajuda: 'Os admins da plataforma recebem um email quando o saldo do OpenRouter ficar abaixo deste valor; no máximo um por dia.',
+    salvar: async v => { await api('/api/plataforma/consumo/alerta', { metodo: 'PUT', corpo: { limiarUsd: v } }); toast('Alerta salvo.'); } });
+  C.mais.servidor = () => ajuste({ rotulo: 'Custo do servidor', titulo: 'Custo mensal do servidor', id: 'f-servidor', campo: 'srv-usd', valor: pl.custoServidor || 0, passo: 0.01, botao: 'Salvar custo do servidor',
+    ajuda: 'A fatura mensal da hospedagem (Render). Entra na margem total, dividida entre as empresas ativas.',
+    salvar: async v => { await api('/api/plataforma/consumo/servidor', { metodo: 'PUT', corpo: { custoUsd: v } }); toast('Custo do servidor salvo.'); } });
+  $('informar-servidor')?.addEventListener('click', () => C.mais.servidor());
   $('principal').onclick = async ev => {
     const f = ev.target.closest('[data-filtro]');
     if (f) { try { sessionStorage.setItem('uso.filtro', f.dataset.filtro); } catch { /* sem armazenamento */ } vistaUso(); return; }
@@ -936,88 +1186,119 @@ function listaAuditoria(itens, comEmpresa = true) {
 async function vistaAuditoria(pagina = 0) {
   carregando('Auditoria');
   const a = await api(`/api/plataforma/auditoria?pagina=${pagina}`);
-  tela('Auditoria', `<p class="lead">Toda ação administrativa, com quem fez, em qual empresa, o antes, o depois e a origem.</p>${listaAuditoria(a.itens)}
+  tela('Auditoria', `${proposito('Toda ação administrativa, com quem fez, em qual empresa, o antes, o depois e a origem.')}${listaAuditoria(a.itens)}
     <div class="linha-botoes" style="margin-top:12px">${pagina > 0 ? '<button class="btn btn-linha btn-pequeno" id="ant">Anteriores</button>' : ''}${(pagina + 1) * 50 < a.total ? '<button class="btn btn-linha btn-pequeno" id="prox">Mais antigos</button>' : ''}<span class="dica">${num(a.total)} registros</span></div>`);
   $('ant')?.addEventListener('click', () => vistaAuditoria(pagina - 1));
   $('prox')?.addEventListener('click', () => vistaAuditoria(pagina + 1));
 }
 
-async function vistaConfiguracoes() {
+// Configurações em três abas, cada uma com uma ação principal: Geral (nome, endereços, email e plano padrão),
+// Dados sigilosos (modelos autorizados e proibidos para todas as empresas) e Contatos da página de vendas.
+const ABAS_CFG = [['geral', 'Geral'], ['sigilo', 'Dados sigilosos'], ['contatos', 'Contatos']];
+const NIVEIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+async function vistaConfiguracoes(aba = 'geral') {
+  if (!ABAS_CFG.some(([k]) => k === aba)) aba = 'geral';
   carregando('Configurações');
-  const [c, hm] = await Promise.all([api('/api/plataforma/configuracoes'), api('/api/plataforma/homologacoes').catch(() => ({ homologacoes: [], vetos: [] }))]);
-  const NIVEIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
-  tela('Configurações', `<form id="f-cfg" novalidate>
+  const [c, hm] = await Promise.all([api('/api/plataforma/configuracoes'), aba === 'sigilo' ? api('/api/plataforma/homologacoes').catch(() => ({ homologacoes: [], vetos: [] })) : null]);
+  const sub = `<nav class="subnav" aria-label="Seções das configurações">${ABAS_CFG.map(([k, n]) => `<a href="#/configuracoes${k === 'geral' ? '' : `/${k}`}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
+  if (aba === 'sigilo') return cfgSigilo(sub, hm);
+  if (aba === 'contatos') return cfgContatos(sub, c);
+  tela('Configurações', `${sub}${proposito('Nome, endereços, email e plano padrão da plataforma.', { titulo: 'Configurações gerais', textos: [
+    `Base de subdomínios: com um DNS que aceite qualquer subdomínio dessa base, cada empresa ganha o próprio endereço (empresa.ia.suaplataforma.com.br). Sem isso, o endereço é ${esc(c.url_base || '')}/empresa.`,
+    'Identificadores reservados: nenhuma empresa pode usar estes identificadores no endereço, além dos reservados pelo sistema.',
+    'Email da plataforma: usado para códigos de acesso e convites das empresas que não têm email próprio. Sem ele, os códigos aparecem só no log do servidor. O motivo das falhas vem do servidor de email; senhas e chaves ficam ocultas.',
+  ] })}<form id="f-cfg" novalidate>
     <div class="grade-2"><div class="campo"><label for="cf-nome">Nome da plataforma</label><input class="entrada" id="cf-nome" value="${esc(c.nome)}" maxlength="60"></div>
       <div class="campo"><label for="cf-plano">Plano padrão para novas empresas</label><select class="entrada" id="cf-plano"><option value="">Nenhum</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === c.plano_padrao ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div></div>
     <div class="campo"><label for="cf-sub">Base de subdomínios (opcional)</label><input class="entrada" id="cf-sub" value="${esc(c.subdominio_base || '')}" aria-describedby="cf-sub-ajuda">
-      <span class="ajuda" id="cf-sub-ajuda">Por exemplo, ia.suaplataforma.com.br. Com um DNS que aceite qualquer subdomínio dessa base, cada empresa ganha o próprio endereço (empresa.ia.suaplataforma.com.br). Sem isso, o endereço é ${esc(c.url_base || '')}/empresa.</span></div>
-    <div class="campo"><label for="cf-res">Identificadores reservados (além dos do sistema)</label><input class="entrada" id="cf-res" value="${esc(c.slugs_reservados.join(', '))}" aria-describedby="cf-res-ajuda"><span class="ajuda" id="cf-res-ajuda">Nenhuma empresa pode usar estes identificadores no endereço. Separe por vírgula.</span></div>
-    <h2 class="h-secao">Email da plataforma</h2><p class="dica">Usado para códigos de acesso e convites das empresas que não têm email próprio. ${c.smtp.configurado ? 'Configurado.' : 'Não configurado: os códigos aparecem só no log do servidor.'}</p>
-    ${(c.smtp.falhas || []).length ? `<div class="faixa-aviso atencao"><b>Últimas falhas de envio</b> (o motivo vem do servidor de email; senhas e chaves ficam ocultas):
+      <span class="ajuda" id="cf-sub-ajuda">Por exemplo, ia.suaplataforma.com.br. Sem base, o endereço é ${esc(c.url_base || '')}/empresa.</span></div>
+    <div class="campo"><label for="cf-res">Identificadores reservados (além dos do sistema)</label><input class="entrada" id="cf-res" value="${esc(c.slugs_reservados.join(', '))}" aria-describedby="cf-res-ajuda"><span class="ajuda" id="cf-res-ajuda">Separe por vírgula.</span></div>
+    <h2 class="h-secao">Email da plataforma</h2><p class="dica">${c.smtp.configurado ? 'Configurado.' : 'Não configurado: os códigos de acesso aparecem só no log do servidor.'}</p>
+    ${(c.smtp.falhas || []).length ? `<div class="faixa-aviso atencao"><b>Últimas falhas de envio:</b> confira a URL do SMTP e envie um email de teste.
       <ul class="dica" style="margin:6px 0 0">${c.smtp.falhas.map(f => `<li>${esc(dataHora(f.em))} · ${esc(f.origem)} · <code>${esc(f.detalhe)}</code></li>`).join('')}</ul></div>` : ''}
-    <div class="grade-2"><div class="campo"><label for="cf-smtp">URL do SMTP</label><input class="entrada" id="cf-smtp" autocomplete="off" aria-describedby="cf-smtp-ajuda"><span class="ajuda" id="cf-smtp-ajuda">${c.smtp.configurado ? 'Já configurada: deixe em branco para manter, ou preencha para trocar. ' : ''}Formato: smtps://usuario:senha@smtp.exemplo.com:465</span></div>
+    <div class="grade-2"><div class="campo"><label for="cf-smtp">URL do SMTP</label><input class="entrada" id="cf-smtp" autocomplete="off" aria-describedby="cf-smtp-ajuda"><span class="ajuda" id="cf-smtp-ajuda">${c.smtp.configurado ? 'Já configurada: deixe em branco para manter. ' : ''}Formato: smtps://usuario:senha@smtp.exemplo.com:465</span></div>
       <div class="campo"><label for="cf-rem">Remetente</label><input class="entrada" id="cf-rem" value="${esc(c.smtp.remetente || '')}" aria-describedby="cf-rem-ajuda"><span class="ajuda" id="cf-rem-ajuda">Por exemplo: GreenIA &lt;nao-responda@exemplo.com&gt;</span></div></div>
-    <div class="linha-botoes barra-salvar"><button class="btn btn-verde">Salvar configurações</button><button type="button" class="btn btn-linha" id="cf-teste">Enviar email de teste</button></div></form>
-    <div class="secao-titulo"><h2 class="h-secao">Modelos autorizados para dados sigilosos (valem para todas as empresas)</h2></div>
-    <p class="dica">Com pelo menos um modelo aqui, conversas com informação sigilosa funcionam em todas as empresas sem que o admin de cada uma precise homologar nada. A empresa não consegue retirar esta autorização; ela pode homologar outros modelos além destes.</p>
-    ${hm.homologacoes.length ? tabela(['Modelo', 'Nível', 'Fornecedor fixado', 'Autorizado por', ''], hm.homologacoes.map(h => `<tr><td data-r="Modelo"><b>${esc(h.nome)}</b><br><span class="dica">${esc(h.id)}</span></td><td data-r="Nível">${esc(NIVEIS[h.perfil] || h.perfil)}</td><td data-r="Fornecedor">${esc(h.fornecedor)}</td><td data-r="Autorizado por">${esc(h.por || '')}<br><span class="dica">${esc(dataHora(h.em))} · ${esc(h.justificativa)}</span></td><td data-r=""><button type="button" class="btn-texto btn-pequeno link-perigo" data-hm-retirar="${esc(h.id)}" data-nome="${esc(h.nome)}">Retirar</button></td></tr>`), '')
-      : '<div class="faixa-aviso atencao">Nenhum modelo autorizado pela plataforma. Em empresas cujo admin ainda não homologou um modelo, conversas sigilosas são bloqueadas com segurança (nada é enviado) e o admin é avisado.</div>'}
-    <form id="f-hm" novalidate style="margin-top:12px">
-      <div class="grade-2"><div class="campo"><label for="hm-id">Modelo no OpenRouter</label><input class="entrada" id="hm-id" aria-describedby="hm-id-ajuda"><span class="ajuda" id="hm-id-ajuda">No formato fornecedor/modelo, como aparece no OpenRouter.</span></div>
-        <div class="campo"><label for="hm-nome">Nome para exibir</label><input class="entrada" id="hm-nome" maxlength="120"></div></div>
-      <div class="grade-2"><div class="campo"><label for="hm-perfil">Nível</label><select class="entrada" id="hm-perfil">${Object.entries(NIVEIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select><span class="ajuda">Use um nível que todas as pessoas acessam (normalmente Rápido).</span></div>
-        <div class="campo"><label for="hm-forn">Fornecedor fixado</label><input class="entrada" id="hm-forn" aria-describedby="hm-forn-ajuda"><span class="ajuda" id="hm-forn-ajuda">O nome do fornecedor no OpenRouter.</span></div></div>
-      <label class="opcoes"><span><input type="checkbox" id="hm-treino"> Conferi que o fornecedor não treina com os dados</span></label>
-      <label class="opcoes"><span><input type="checkbox" id="hm-zdr"> Conferi que o fornecedor tem retenção zero (não guarda os dados)</span></label>
-      <div class="campo"><label for="hm-just">Justificativa</label><textarea class="entrada" id="hm-just" rows="2"></textarea></div>
-      <div class="linha-botoes"><button class="btn btn-verde">Autorizar para todas as empresas</button></div></form>
-    <div class="secao-titulo"><h2 class="h-secao">Modelos proibidos para dados sigilosos (valem para todas as empresas)</h2></div>
-    <p class="dica">Nenhuma empresa consegue homologar um modelo desta lista, e homologações já feitas deixam de valer para dados sigilosos. Para conversas comuns, a empresa continua decidindo.</p>
-    ${(hm.vetos || []).length ? tabela(['Modelo', 'Motivo', 'Por', ''], hm.vetos.map(v => `<tr><td data-r="Modelo"><b>${esc(v.id)}</b></td><td data-r="Motivo">${esc(v.motivo)}</td><td data-r="Por">${esc(v.por || '')}<br><span class="dica">${esc(dataHora(v.em))}</span></td><td data-r=""><button type="button" class="btn-texto btn-pequeno" data-veto-retirar="${esc(v.id)}">Retirar</button></td></tr>`), '') : '<p class="dica">Nenhum modelo proibido.</p>'}
-    <form id="f-veto" novalidate style="margin-top:12px">
-      <div class="grade-2"><div class="campo"><label for="vt-id">Modelo no OpenRouter</label><input class="entrada" id="vt-id" aria-describedby="vt-id-ajuda"><span class="ajuda" id="vt-id-ajuda">No formato fornecedor/modelo, como aparece no OpenRouter.</span></div>
-        <div class="campo"><label for="vt-motivo">Motivo</label><input class="entrada" id="vt-motivo" maxlength="500"></div></div>
-      <div class="linha-botoes"><button class="btn btn-linha">Proibir para dados sigilosos</button></div></form>
-    <div class="secao-titulo"><h2 class="h-secao">Contatos da página de vendas</h2></div>
-    <p class="dica">Cada contato é eliminado ${c.contatos.prazoMeses} meses depois da última interação comercial registrada, salvo bloqueio legal. Registre aqui respostas, reuniões e propostas feitas fora do sistema: só elas e um novo formulário renovam o prazo.</p>
-    ${tabela(['Última interação', 'Empresa', 'Pessoa', 'Mensagem', ''], c.contatos.itens.map(l => `<tr><td data-r="Última interação">${data(l.ultimaInteracao)}<br><span class="dica">${l.hold ? 'em bloqueio legal' : `elimina em ${data(l.eliminarApos)}`}</span></td><td data-r="Empresa"><b>${esc(l.empresa)}</b><br><span class="dica">${esc(l.pessoas || '')}</span></td><td data-r="Pessoa">${esc(l.nome)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td data-r="Mensagem">${esc(l.mensagem || '–')}</td>
-      <td data-r=""><button class="btn-texto" data-ct="interacao" data-id="${l.id}" data-nome="${esc(l.nome || l.email)}">Registrar interação</button>${l.hold ? `<button class="btn-texto" data-ct="liberar" data-id="${l.id}">Liberar bloqueio legal</button>` : `<button class="btn-texto" data-ct="hold" data-id="${l.id}">Bloqueio legal</button>`}</td></tr>`), '<p class="dica">Nenhum contato.</p>')}
-    ${c.contatos.total > c.contatos.itens.length ? `<p class="dica">Mostrando os ${c.contatos.itens.length} mais recentes de ${num(c.contatos.total)}.</p>` : ''}`);
-  for (const b of document.querySelectorAll('[data-ct]')) b.onclick = async () => {
-    const x = b.dataset.id, acao = b.dataset.ct;
-    try {
-      if (acao === 'interacao') return confirmarStatus({ rotulo: 'Contato comercial', titulo: `Registrar interação com ${b.dataset.nome}`, botao: 'Registrar interação',
-        texto: 'A interação renova o prazo de eliminação do contato.',
-        campos: `<div class="campo"><label for="ct-tipo">Tipo da interação</label><select class="entrada" id="ct-tipo"><option value="">Escolha</option>${Object.entries(TIPOS_INTERACAO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
-          <div class="campo"><label for="ct-em">Data da interação</label>${campoData({ id: 'ct-em', max: new Date().toISOString().slice(0, 10), rotulo: 'a data da interação', extra: 'aria-describedby="ct-em-ajuda"' })}<span class="ajuda" id="ct-em-ajuda">Deixe em branco para hoje.</span></div>`,
-        validar: () => (!$('ct-tipo').value ? 'Escolha o tipo da interação.' : ''),
-        async aplicar() { await api(`/api/plataforma/contatos/${x}/interacao`, { metodo: 'POST', corpo: { tipo: $('ct-tipo').value, em: dataOuErro($('ct-em')) ? `${dataOuErro($('ct-em'))}T12:00:00Z` : null } }); toast('Contato atualizado.'); vistaConfiguracoes(); } });
-      if (acao === 'hold') return pedirHold({ titulo: 'Bloqueio legal do contato comercial', tipos: { legal: 'Obrigação legal', contrato: 'Contrato', litigio: 'Litígio' }, enviar: async corpo => { await api(`/api/plataforma/contatos/${x}/hold`, { metodo: 'POST', corpo }); vistaConfiguracoes(); } });
-      if (acao === 'liberar') await api(`/api/plataforma/contatos/${x}/liberar`, { metodo: 'POST' });
-      toast('Contato atualizado.'); vistaConfiguracoes();
-    } catch (e) { falhar(e); }
-  };
+    <div class="linha-botoes"><button type="button" class="btn btn-linha" id="cf-teste">Enviar email de teste</button></div></form>`,
+  '<button type="submit" form="f-cfg" class="btn btn-verde btn-pequeno">Salvar configurações</button>');
   $('f-cfg').onsubmit = async ev => {
     ev.preventDefault();
     const corpo = { nome: $('cf-nome').value, plano_padrao: $('cf-plano').value || null, subdominio_base: $('cf-sub').value, slugs_reservados: $('cf-res').value, smtp: { remetente: $('cf-rem').value, ...($('cf-smtp').value ? { url: $('cf-smtp').value } : {}) } };
     try { await api('/api/plataforma/configuracoes', { metodo: 'PUT', corpo }); toast('Configurações salvas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
   };
-  $('f-hm').onsubmit = async ev => {
-    ev.preventDefault();
-    const corpo = { id: $('hm-id').value.trim(), nome: $('hm-nome').value.trim(), perfil: $('hm-perfil').value, fornecedor: $('hm-forn').value.trim(), semTreino: $('hm-treino').checked, retencaoZero: $('hm-zdr').checked, justificativa: $('hm-just').value };
-    try { await api('/api/plataforma/homologacoes', { metodo: 'POST', corpo }); toast('Modelo autorizado em todas as empresas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
-  };
-  $('f-veto').onsubmit = async ev => {
-    ev.preventDefault();
-    try { await api('/api/plataforma/vetos-sigilo', { metodo: 'POST', corpo: { id: $('vt-id').value.trim(), motivo: $('vt-motivo').value } }); toast('Modelo proibido para dados sigilosos em todas as empresas.'); vistaConfiguracoes(); } catch (x) { falhar(x); }
-  };
+  $('cf-teste').onclick = async () => { try { const r = await api('/api/plataforma/smtp/teste', { metodo: 'POST' }); toast(`Email de teste enviado para ${r.para}.`); } catch (x) { falhar(x); } };
+}
+
+function cfgSigilo(sub, hm) {
+  tela('Configurações', `${sub}${proposito('Modelos que valem para todas as empresas em conversas com dados sigilosos.', { titulo: 'Dados sigilosos', textos: [
+    'Com pelo menos um modelo autorizado aqui, conversas com informação sigilosa funcionam em todas as empresas sem que o admin de cada uma precise aprovar um modelo para dados sigilosos (homologar). A empresa não consegue retirar esta autorização; ela pode homologar outros modelos além destes.',
+    'Sem nenhum modelo autorizado, em empresas cujo admin ainda não homologou um modelo, conversas sigilosas são bloqueadas com segurança (nada é enviado) e o admin é avisado.',
+    'Nenhuma empresa consegue homologar um modelo proibido, e homologações já feitas deixam de valer para dados sigilosos. Para conversas comuns, a empresa continua decidindo.',
+    'Ao autorizar, use um nível que todas as pessoas acessam (normalmente Rápido) e informe o fornecedor fixado com o nome que aparece no OpenRouter.',
+  ] })}
+    <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Modelos autorizados</h2></div>
+    ${hm.homologacoes.length ? tabela(['Modelo', 'Nível', 'Fornecedor fixado', 'Autorizado por', ''], hm.homologacoes.map(h => `<tr><td data-r="Modelo"><b>${esc(h.nome)}</b><br><span class="dica">${esc(h.id)}</span></td><td data-r="Nível">${esc(NIVEIS[h.perfil] || h.perfil)}</td><td data-r="Fornecedor">${esc(h.fornecedor)}</td><td data-r="Autorizado por">${esc(h.por || '')}<br><span class="dica">${esc(dataHora(h.em))} · ${esc(h.justificativa)}</span></td><td data-r=""><button type="button" class="btn-texto btn-pequeno link-perigo" data-hm-retirar="${esc(h.id)}" data-nome="${esc(h.nome)}">Retirar</button></td></tr>`), '')
+      : '<div class="faixa-aviso atencao">Nenhum modelo autorizado: em empresas sem modelo aprovado, conversas sigilosas ficam bloqueadas. Autorize um modelo para liberar.</div>'}
+    <div class="secao-titulo"><h2 class="h-secao">Modelos proibidos</h2><button type="button" class="btn btn-linha btn-pequeno" id="proibir">Proibir modelo…</button></div>
+    ${(hm.vetos || []).length ? tabela(['Modelo', 'Motivo', 'Por', ''], hm.vetos.map(v => `<tr><td data-r="Modelo"><b>${esc(v.id)}</b></td><td data-r="Motivo">${esc(v.motivo)}</td><td data-r="Por">${esc(v.por || '')}<br><span class="dica">${esc(dataHora(v.em))}</span></td><td data-r=""><button type="button" class="btn-texto btn-pequeno" data-veto-retirar="${esc(v.id)}">Retirar</button></td></tr>`), '') : '<p class="dica">Nenhum modelo proibido.</p>'}`,
+  '<button type="button" class="btn btn-verde btn-pequeno" id="autorizar">Autorizar modelo</button>');
+  const campoModelo = id => `<div class="campo"><label for="${id}">Modelo no OpenRouter</label><input class="entrada" id="${id}" aria-describedby="${id}-ajuda"><span class="ajuda" id="${id}-ajuda">No formato fornecedor/modelo, como aparece no OpenRouter.</span></div>`;
+  $('autorizar').onclick = () => modal(`<div class="modal-topo"><div class="rotulo">Dados sigilosos</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="hm-t" tabindex="-1">Autorizar modelo para todas as empresas</h2>
+    <form id="f-hm" novalidate>
+      <div class="grade-2">${campoModelo('hm-id')}<div class="campo"><label for="hm-nome">Nome para exibir</label><input class="entrada" id="hm-nome" maxlength="120"></div></div>
+      <div class="grade-2"><div class="campo"><label for="hm-perfil">Nível</label><select class="entrada" id="hm-perfil">${Object.entries(NIVEIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select><span class="ajuda">Use um nível que todas as pessoas acessam (normalmente Rápido).</span></div>
+        <div class="campo"><label for="hm-forn">Fornecedor fixado</label><input class="entrada" id="hm-forn" aria-describedby="hm-forn-ajuda"><span class="ajuda" id="hm-forn-ajuda">O nome do fornecedor no OpenRouter.</span></div></div>
+      <label class="opcoes"><span><input type="checkbox" id="hm-treino"> Conferi que o fornecedor não treina com os dados</span></label>
+      <label class="opcoes"><span><input type="checkbox" id="hm-zdr"> Conferi que o fornecedor tem retenção zero (não guarda os dados)</span></label>
+      <div class="campo"><label for="hm-just">Justificativa</label><textarea class="entrada" id="hm-just" rows="2"></textarea></div>
+      <p class="msg-erro oculto" id="hm-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Autorizar para todas as empresas</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('hm-t').focus();
+    $('f-hm').onsubmit = async ev => {
+      ev.preventDefault();
+      const corpo = { id: $('hm-id').value.trim(), nome: $('hm-nome').value.trim(), perfil: $('hm-perfil').value, fornecedor: $('hm-forn').value.trim(), semTreino: $('hm-treino').checked, retencaoZero: $('hm-zdr').checked, justificativa: $('hm-just').value };
+      try { await api('/api/plataforma/homologacoes', { metodo: 'POST', corpo }); fechar(); toast('Modelo autorizado em todas as empresas.'); vistaConfiguracoes('sigilo'); } catch (x) { mostrarErro('hm-erro', x); }
+    };
+  });
+  $('proibir').onclick = () => modal(`<div class="modal-topo"><div class="rotulo">Dados sigilosos</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
+    <h2 id="vt-t" tabindex="-1">Proibir modelo para dados sigilosos</h2>
+    <form id="f-veto" novalidate>${campoModelo('vt-id')}<div class="campo"><label for="vt-motivo">Motivo</label><input class="entrada" id="vt-motivo" maxlength="500"></div>
+      <p class="msg-erro oculto" id="vt-erro" role="alert"></p>
+      <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Proibir para dados sigilosos</button></div></form>`, fechar => {
+    $('fechar').onclick = fechar; $('vt-t').focus();
+    $('f-veto').onsubmit = async ev => {
+      ev.preventDefault();
+      try { await api('/api/plataforma/vetos-sigilo', { metodo: 'POST', corpo: { id: $('vt-id').value.trim(), motivo: $('vt-motivo').value } }); fechar(); toast('Modelo proibido para dados sigilosos em todas as empresas.'); vistaConfiguracoes('sigilo'); } catch (x) { mostrarErro('vt-erro', x); }
+    };
+  });
   document.querySelectorAll('[data-veto-retirar]').forEach(b => { b.onclick = () => confirmarStatus({ rotulo: 'Dados sigilosos', titulo: `Retirar a proibição de ${b.dataset.vetoRetirar}?`, botao: 'Retirar a proibição',
     texto: 'As empresas voltam a poder aprovar este modelo para dados sigilosos (homologar).',
-    async aplicar() { await api(`/api/plataforma/vetos-sigilo/${encodeURIComponent(b.dataset.vetoRetirar)}`, { metodo: 'DELETE' }); toast('Proibição retirada.'); vistaConfiguracoes(); } }); });
+    async aplicar() { await api(`/api/plataforma/vetos-sigilo/${encodeURIComponent(b.dataset.vetoRetirar)}`, { metodo: 'DELETE' }); toast('Proibição retirada.'); vistaConfiguracoes('sigilo'); } }); });
   document.querySelectorAll('[data-hm-retirar]').forEach(b => { b.onclick = () => confirmarStatus({ rotulo: 'Dados sigilosos', titulo: `Retirar a autorização de ${b.dataset.nome} em todas as empresas?`, perigo: true, botao: 'Retirar a autorização',
     texto: 'Empresas sem outro modelo aprovado para dados sigilosos passam a bloquear as conversas sigilosas.',
-    async aplicar() { await api(`/api/plataforma/homologacoes/${encodeURIComponent(b.dataset.hmRetirar)}`, { metodo: 'DELETE' }); toast('Autorização retirada.'); vistaConfiguracoes(); } }); });
-  $('cf-teste').onclick = async () => { try { const r = await api('/api/plataforma/smtp/teste', { metodo: 'POST' }); toast(`Email de teste enviado para ${r.para}.`); } catch (x) { falhar(x); } };
+    async aplicar() { await api(`/api/plataforma/homologacoes/${encodeURIComponent(b.dataset.hmRetirar)}`, { metodo: 'DELETE' }); toast('Autorização retirada.'); vistaConfiguracoes('sigilo'); } }); });
+}
+
+// Contatos da página de vendas: registrar interação à vista em cada linha; o bloqueio legal em "Mais ações".
+function cfgContatos(sub, c) {
+  tela('Configurações', `${sub}${proposito('Contatos recebidos pela página de vendas e o prazo de eliminação de cada um.', { titulo: 'Contatos da página de vendas', textos: [
+    `Cada contato é eliminado ${num(c.contatos.prazoMeses)} meses depois da última interação comercial registrada, salvo bloqueio legal.`,
+    'Registre aqui respostas, reuniões e propostas feitas fora do sistema: só elas e um novo formulário renovam o prazo.',
+  ] })}
+    ${tabela(['Última interação', 'Empresa', 'Pessoa', 'Mensagem', ''], c.contatos.itens.map(l => `<tr><td data-r="Última interação">${data(l.ultimaInteracao)}<br><span class="dica">${l.hold ? 'em bloqueio legal' : `elimina em ${data(l.eliminarApos)}`}</span></td><td data-r="Empresa"><b>${esc(l.empresa)}</b><br><span class="dica">${esc(l.pessoas || '')}</span></td><td data-r="Pessoa">${esc(l.nome)}<br><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td data-r="Mensagem">${esc(l.mensagem || '–')}</td>
+      <td data-r=""><span class="plat-linha-acoes"><button class="btn-texto" data-ct="interacao" data-id="${l.id}" data-nome="${esc(l.nome || l.email)}">Registrar interação</button>
+        ${menuMais([l.hold ? { acao: 'ct-liberar', id: l.id, rotulo: 'Liberar bloqueio legal' } : { acao: 'ct-hold', id: l.id, rotulo: 'Bloqueio legal…' }], { rotulo: `Mais ações do contato ${l.nome || l.email}`, classe: 'btn-texto' })}</span></td></tr>`),
+    vazioHtml({ icone: 'pessoas', titulo: 'Nenhum contato ainda', texto: 'Os contatos enviados pela página de vendas aparecem aqui.' }))}
+    ${c.contatos.total > c.contatos.itens.length ? `<p class="dica">Mostrando os ${c.contatos.itens.length} mais recentes de ${num(c.contatos.total)}.</p>` : ''}`);
+  const recarregar = () => vistaConfiguracoes('contatos');
+  for (const b of document.querySelectorAll('[data-ct="interacao"]')) b.onclick = () => confirmarStatus({ rotulo: 'Contato comercial', titulo: `Registrar interação com ${b.dataset.nome}`, botao: 'Registrar interação',
+    texto: 'A interação renova o prazo de eliminação do contato.',
+    campos: `<div class="campo"><label for="ct-tipo">Tipo da interação</label><select class="entrada" id="ct-tipo"><option value="">Escolha</option>${Object.entries(TIPOS_INTERACAO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="campo"><label for="ct-em">Data da interação</label>${campoData({ id: 'ct-em', max: new Date().toISOString().slice(0, 10), rotulo: 'a data da interação', extra: 'aria-describedby="ct-em-ajuda"' })}<span class="ajuda" id="ct-em-ajuda">Deixe em branco para hoje.</span></div>`,
+    validar: () => (!$('ct-tipo').value ? 'Escolha o tipo da interação.' : ''),
+    async aplicar() { await api(`/api/plataforma/contatos/${b.dataset.id}/interacao`, { metodo: 'POST', corpo: { tipo: $('ct-tipo').value, em: dataOuErro($('ct-em')) ? `${dataOuErro($('ct-em'))}T12:00:00Z` : null } }); toast('Contato atualizado.'); recarregar(); } });
+  C.mais['ct-hold'] = b => pedirHold({ titulo: 'Bloqueio legal do contato comercial', tipos: { legal: 'Obrigação legal', contrato: 'Contrato', litigio: 'Litígio' }, enviar: async corpo => { await api(`/api/plataforma/contatos/${b.dataset.id}/hold`, { metodo: 'POST', corpo }); toast('Contato atualizado.'); recarregar(); } });
+  C.mais['ct-liberar'] = async b => { try { await api(`/api/plataforma/contatos/${b.dataset.id}/liberar`, { metodo: 'POST' }); toast('Contato atualizado.'); recarregar(); } catch (e) { falhar(e); } };
 }
 
 // ---------------------------------------------------------------- Rotas
@@ -1026,6 +1307,8 @@ async function rota() {
   const fimTransicao = transicao();
   lateral();
   $('lateral').classList.remove('aberta');
+  C.ajuda.tela = null;
+  $('modal').innerHTML = '';   // modal aberto não sobrevive à troca de tela
   try {
     let m;
     if ((m = /^#\/empresas\/([\w-]+)(?:\/(\w+))?$/.exec(h))) await vistaEmpresa(m[1], m[2]);
@@ -1035,7 +1318,7 @@ async function rota() {
     else if (h.startsWith('#/ambientes')) await vistaAmbientes();
     else if (h.startsWith('#/uso')) await vistaUso();
     else if (h.startsWith('#/auditoria')) await vistaAuditoria();
-    else if (h.startsWith('#/configuracoes')) await vistaConfiguracoes();
+    else if (h.startsWith('#/configuracoes')) await vistaConfiguracoes(h.split('/')[2]);
     else if (h.startsWith('#/encerramentos')) await vistaEncerramentos();
     else await vistaEmpresas();
   } catch (e) { if (e.status !== 401) tela('Algo deu errado', `<div class="faixa-aviso erro">${esc(e.message)}</div>`); }
@@ -1061,6 +1344,7 @@ async function iniciar() {
   $('fundo-lateral').onclick = () => $('lateral').classList.remove('aberta');
   document.addEventListener('click', ev => { if (ev.target.closest('[data-trocar-chave]')) C.abrirTroca = true; });   // aviso do topo → formulário de troca
   addEventListener('hashchange', rota);
+  ligarMenusConsole();
   api('/api/plataforma/empresas').then(d => { C.empresas = d.empresas; }).catch(() => {});
   iniciarPaleta(itensPaleta, { atalhos: { n: novaEmpresa } });
   rota();

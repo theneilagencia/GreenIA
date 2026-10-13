@@ -117,9 +117,10 @@ test('Quick Win antigo: "Atualizar para Quick Win inteligente" mostra a estrutur
   p.on('pageerror', e => erros.push(e.message));
   await p.goto(`${N.base}/app#/quick-wins`);
   await p.waitForSelector('.qw-item');
-  const item = p.locator('.qw-item', { hasText: 'Contratos antigos' });
-  await item.locator('summary').click();
-  await item.locator('a:has-text("Atualizar para Quick Win inteligente")').click();
+  // A linha abre o Quick Win; atualizar o formato fica em "Mais ações", na página dele.
+  await p.locator('.qw-item', { hasText: 'Contratos antigos' }).locator('.qw-item-link').click();
+  await p.locator('summary[aria-label="Mais ações"]').click();
+  await p.getByRole('menuitem', { name: 'Atualizar para Quick Win inteligente' }).click();
   await p.waitForSelector('#objetivo');
   assert.match(await p.inputValue('#objetivo'), /Analise contratos de fornecedores/);
   assert.match(await p.textContent('.pagina'), /Atualizando para Quick Win inteligente/);

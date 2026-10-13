@@ -74,9 +74,16 @@ test('A21: no celular, as ações da biblioteca ficam inteiras, sem quebrar pala
   assert.ok(botoes.length >= 2, JSON.stringify(botoes));
   for (const b of botoes) assert.ok(b.h < 60 && !/\n/.test(b.t.trim()), `botão em uma linha: ${JSON.stringify(b)}`);
   assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  // Quem cria tem os caminhos de criação, inclusive por modelo e por processo.
-  assert.equal(await p.getByRole('link', { name: /Começar de um modelo/ }).count(), 1);
-  assert.equal(await p.getByRole('link', { name: /Começar de um processo pronto/ }).count(), 1);
+  // Quem cria tem os caminhos de criação, inclusive por modelo e por processo: um botão só, que abre a escolha.
+  assert.equal(await p.getByRole('link', { name: /Começar de um modelo/ }).count(), 0, 'sem caixa permanente de criação');
+  await p.getByRole('button', { name: /Criar Quick Win/ }).click();
+  const escolha = p.getByRole('dialog', { name: 'Como você quer começar?' });
+  await escolha.waitFor();
+  assert.equal(await escolha.getByRole('link', { name: /Começar de um modelo/ }).count(), 1);
+  assert.equal(await escolha.getByRole('link', { name: /Começar de um processo pronto/ }).count(), 1);
+  assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'a escolha cabe no celular');
+  await p.keyboard.press('Escape');
+  await escolha.waitFor({ state: 'detached' });
   assert.deepEqual(p.erros, []);
 });
 
@@ -87,16 +94,22 @@ test('M6/M10/A13/B5: página do Quick Win com o nome no h1, uma trilha, uso ante
   assert.equal(await p.locator('.cabeca h1').innerText(), qwUso.nome);
   assert.equal(await p.getByRole('heading', { name: qwUso.nome, exact: true }).count(), 1, 'o nome não se repete como título');
   assert.equal(await p.locator('.cabeca .migalha:visible').count(), 0, 'uma trilha só');
-  const ordem = await p.evaluate(() => ['t-faz', 't-sug', 't-exec', 't-resultados'].map(id => document.getElementById(id)?.getBoundingClientRect().top ?? -1));
+  // O que ele faz é a linha logo abaixo do nome; depois as execuções e, por último, os Resultados.
+  assert.match(await p.locator('.pg-cabeca .pg-desc').innerText(), /\S/);
+  const ordem = await p.evaluate(() => ['t-exec', 't-resultados'].map(id => document.getElementById(id)?.getBoundingClientRect().top ?? -1));
   assert.ok(ordem.every(v => v >= 0) && ordem.every((v, i) => !i || v > ordem[i - 1]), `ordem: ${ordem}`);
   assert.equal(await p.locator('details.qw-detalhes').getAttribute('open'), null, 'detalhes recolhidos');
   const texto = await p.locator('#principal').innerText();
   assert.doesNotMatch(texto, /Acompanhar dados de negócio|Acompanhar uso, medições e decisões/);
-  assert.match(texto, /Resultados do processo/);
+  assert.match(texto, /Preparar resultados do processo|Ver resultados do processo/);
   assert.equal(await p.locator('summary', { hasText: 'Uso e decisão' }).count(), 1);
-  // Sugestões quebram em linhas: nenhuma fica cortada na lateral.
-  const sug = await p.locator('.qw-detalhe .sugestoes').evaluate(el => ({ rola: el.scrollWidth > el.clientWidth + 1, fora: [...el.children].some(b => b.getBoundingClientRect().right > innerWidth) }));
+  // Uma ação principal; as sugestões de início ficam na tela de uso, onde quebram em linhas sem cortar na lateral.
+  assert.equal(await p.locator('#principal .btn-verde:visible').count(), 1);
+  await p.locator('.pg-acoes a', { hasText: 'Usar' }).click();
+  await p.locator('.qw-sugestoes').waitFor();
+  const sug = await p.locator('.qw-sugestoes').evaluate(el => ({ rola: el.scrollWidth > el.clientWidth + 1, fora: [...el.children].some(b => b.getBoundingClientRect().right > innerWidth) }));
   assert.deepEqual(sug, { rola: false, fora: false });
+  await p.goBack(); await p.getByRole('heading', { name: qwUso.nome, exact: true }).waitFor();
   // Seções em h2 logo após o h1.
   const niveis = await p.locator('#principal').evaluate(el => [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.getAttribute('role') !== 'none').map(h => Number(h.tagName[1])));
   assert.ok(niveis.every((n, i) => !i || n <= niveis[i - 1] + 1), `hierarquia: ${niveis}`);
@@ -137,7 +150,9 @@ test('A14/M19/M23/M24/M41: configurar em seções, estado informado, erro no cam
   assert.ok(barra.h <= 80 && !/Excluir|Voltar/.test(barra.texto), JSON.stringify(barra));
   assert.match(await p.locator('#excluir').getAttribute('class'), /btn-perigo/);
   assert.equal(await p.locator('.qw-config-barra #excluir').count(), 0);
-  // Cor: a amostra é o controle, com nome e 44 px.
+  // Cor: a amostra é o controle, com nome e 44 px (em "Ícone e cor", recolhido até a pessoa pedir).
+  assert.equal(await p.locator('details[data-secao="aparencia"]').getAttribute('open'), null);
+  await p.locator('details[data-secao="aparencia"] > summary').click();
   const verde = p.getByRole('radio', { name: 'Verde', exact: true });
   assert.equal(await verde.count(), 1);
   const caixa = await p.locator('.qw-cor').first().boundingBox();
@@ -171,7 +186,13 @@ test('M11/M26: usar e testar no formato anterior mostram o que enviar, sugestõe
   const q = await pagina(admin);
   await q.goto(`${S.base}/app#/qw/${qwTeste.id}/teste`);
   await q.getByText('Teste: não conta nos resultados.').waitFor();
-  for (const nome of ['Voltar ao Quick Win', 'Ajustar', 'Publicar para a equipe']) assert.equal(await q.getByRole('link', { name: nome, exact: true }).count(), 1, nome);
+  // Voltar é pela trilha; Publicar fica no cabeçalho, discreto; Ajustar, junto das instruções que a IA segue;
+  // Executar é a única ação principal.
+  assert.equal(await q.locator('.pg-trilha').getByRole('link', { name: qwTeste.nome, exact: true }).count(), 1);
+  assert.equal(await q.locator('.pg-acoes').getByRole('link', { name: 'Publicar para a equipe', exact: true }).count(), 1);
+  await q.getByText('Conferir as instruções que a IA segue').click();
+  assert.equal(await q.locator('.qw-instrucoes-teste').getByRole('link', { name: 'Ajustar', exact: true }).getAttribute('href'), `#/qw/${qwTeste.id}/editar`);
+  assert.deepEqual(await q.locator('#principal .btn-verde:visible').allInnerTexts(), ['Executar']);
   assert.deepEqual([...p.erros, ...q.erros], []);
 });
 
@@ -179,7 +200,8 @@ test('A15: escolher um modelo mostra a prévia e não cria nada; o assistente ab
   const p = await pagina(admin);
   const antes = quantos();
   await p.goto(`${S.base}/app#/quick-wins`);
-  await p.getByRole('link', { name: /Começar de um modelo/ }).click();
+  await p.getByRole('button', { name: /Criar Quick Win/ }).click();
+  await p.getByRole('dialog').getByRole('link', { name: /Começar de um modelo/ }).click();
   await p.locator('[data-modelo]').first().waitFor();
   await p.locator('[data-modelo]').first().click();
   await p.locator('#qw-previa:not([hidden])').waitFor();

@@ -5,7 +5,7 @@ import { api, emCreditos, esc, fmtCusto, ICONE, ocupado, toast } from '/comum.js
 import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, trocarPara } from '/app.js';
 import { vistaConversa } from '/conversa.js';
 import { assistenteQw, publicarQw, versoesQw, usarQw, testeQw } from '/quickwin2.js';
-import { aviso, cabecalhoPg, confirmarExclusao, estadoQw, estadoVazio, FORMATOS_SAIDA, ligarMenus, marcaQw, menuAcoes, seloQw } from '/qw-ui.js';
+import { aviso, cabecalhoPg, confirmarExclusao, escolherComoCriar, estadoQw, estadoVazio, FORMATOS_SAIDA, ligarMenus, marcaQw, menuAcoes, seloQw } from '/qw-ui.js';
 import { secaoMedicao } from '/medicao.js';
 import { confirmar } from '/admin-ui.js';
 import { renomearConversa, excluirConversa } from '/historico-conversas.js';
@@ -25,6 +25,7 @@ const EXPLICA = { identificado: 'Uso possível registrado, ainda sem configuraç
   em_uso: 'Disponível e em uso no dia a dia', em_avaliacao: 'Em uso, aguardando decisão', aprovado: 'Decisão tomada: manter', em_expansao: 'Decisão tomada: levar para mais áreas', descartado: 'Fora de circulação; o histórico fica' };
 const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];
 export const seloEstado = st => `<span class="selo ${st === 'descartado' ? 'selo-cinza' : EM_CIRCULACAO.includes(st) ? 'selo-verde' : ''}">${ESTADOS[st] || st}</span>`;
+const LISTA_CURTA = 6;   // até aqui a biblioteca cabe numa tela e não precisa de busca
 const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
 export async function rotaQuickWin(hash) {
@@ -66,27 +67,29 @@ async function listaQuickWins() {
   const ativos = itens.filter(q => q.estado.id !== 'arquivado'), arquivados = itens.filter(q => q.estado.id === 'arquivado');
   // Em preparo: só quem gerencia vê (quem só usa vê o que está publicado).
   const prontos = ativos.filter(q => q.estado.id === 'publicado'), preparo = ativos.filter(q => q.estado.id !== 'publicado' && q.podeEditar);
-  const cta = E.podeCriarQw ? `<a class="btn btn-verde" href="#/qw/nova">${ICONE.mais} Criar Quick Win</a>` : '';
+  // Criar é um botão só: os caminhos (descrever, modelo, processo pronto, continuar) abrem quando a pessoa pede.
+  // Com a biblioteca vazia, a ação fica no estado vazio (uma ação principal por tela).
+  const cta = E.podeCriarQw && ativos.length ? `<button type="button" class="btn btn-verde" data-criar-qw aria-haspopup="dialog">${ICONE.mais} Criar Quick Win</button>` : '';
   const cont = st => (port?.quickWins || []).filter(q => q.status === st).length;
   const idBloco = t => `t-${t.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-')}`;   // um id por título (o tamanho do título colidia)
-  const bloco = (titulo, lista, dica = '') => (lista.length ? `<section class="qw-bloco" aria-labelledby="${idBloco(titulo)}">
-      <div class="qw-lista-cabeca"><h2 id="${idBloco(titulo)}">${esc(titulo)}</h2>${dica ? `<span class="dica">${esc(dica)}</span>` : ''}</div>
+  const bloco = (titulo, lista) => (lista.length ? `<section class="qw-bloco" aria-labelledby="${idBloco(titulo)}">
+      <div class="qw-lista-cabeca"><h2 id="${idBloco(titulo)}">${esc(titulo)}</h2></div>
       <ul class="qw-lista">${lista.map(itemQw).join('')}</ul></section>` : '');
+  // Lista curta não mostra busca: ela aparece quando a lista passa de uma tela.
+  const comBusca = itens.length > LISTA_CURTA;
   $('principal').innerHTML = `${cabecalho('Quick Wins')}
     <div class="pagina"><div class="pg larga qw-biblioteca">
       ${cabecalhoPg({ titulo: 'Quick Wins', descricao: 'Tarefas prontas que sua equipe executa com a IA, seguindo regras definidas.', lado: `<a class="btn btn-linha" href="#/quick-wins/programados">Agendados</a>${cta}` })}
-      ${E.podeCriarQw ? `<section class="qw-inicio-guiado" aria-labelledby="qw-comecar"><div><h2 id="qw-comecar">Criar um Quick Win</h2><p>Escolha como começar. Nada fica disponível para a equipe antes de você testar e publicar.</p></div><div class="grade-cartoes titulos-2 qw-caminhos-grade"><a class="cartao" href="#/qw/nova"><b class="cartao-titulo">Descrever com suas palavras</b><span class="cartao-texto">Defina o objetivo, as regras e o resultado, uma etapa por vez.</span></a><a class="cartao" href="#/qw/nova/modelos"><b class="cartao-titulo">Começar de um modelo</b><span class="cartao-texto">Veja um exemplo pronto antes de criar.</span></a><a class="cartao" href="#/quick-wins/processos"><b class="cartao-titulo">Começar de um processo pronto</b><span class="cartao-texto">Com campos e indicadores de resultados já definidos.</span></a>${preparo.length ? '<button class="cartao" type="button" data-qw-ir="qw-preparacoes"><b class="cartao-titulo">Continuar uma preparação</b><span class="cartao-texto">Retome os rascunhos e confira o que falta.</span></button>' : ''}</div></section>` : ''}
       ${!ativos.length ? estadoVazio({
         titulo: E.podeCriarQw ? 'Crie um trabalho que sua equipe poderá repetir com segurança.' : 'Ainda não há Quick Wins disponíveis para você.',
-        texto: E.podeCriarQw ? 'Descreva o que precisa ser feito, defina as regras e teste antes de colocar em uso.' : 'Quando alguém da sua área publicar um Quick Win, ele aparece aqui.',
-        cta: E.podeCriarQw ? `<a class="btn btn-verde btn-grande" href="#/qw/nova">Criar meu primeiro Quick Win</a>` : '',
-        exemplos: E.podeCriarQw ? [['Analisar propostas', 'Aponta valores, prazos, riscos e o que falta.'], ['Comparar documentos', 'Mostra item por item o que não bate.'], ['Preparar reuniões', 'Monta pauta, pontos de atenção e perguntas.']] : [],
+        texto: E.podeCriarQw ? '' : 'Quando alguém da sua área publicar um Quick Win, ele aparece aqui.',
+        cta: E.podeCriarQw ? `<button type="button" class="btn btn-verde btn-grande" data-criar-qw aria-haspopup="dialog">Criar meu primeiro Quick Win</button>` : '',
       }) : ''}
-      ${itens.length ? `<div class="filtros-biblioteca"><div class="campo"><label for="buscar-qw">Encontrar uma tarefa</label><input class="entrada" type="search" id="buscar-qw" placeholder="Nome ou o que precisa fazer" aria-describedby="contagem-qw"></div><span class="dica" id="contagem-qw" role="status">${prontos.length + preparo.length} ${prontos.length + preparo.length === 1 ? 'tarefa disponível na lista' : 'tarefas na lista'}</span></div><p class="dica oculto" id="qw-busca-vazia">Nenhuma tarefa encontrada. Tente outra palavra.</p>` : ''}
-      <div id="qw-prontos">${bloco(gere ? 'Publicados' : 'Disponíveis para você', prontos)}${!prontos.length ? '<p class="dica">Nenhum trabalho publicado disponível. Quem prepara pode criar e testar antes de liberar para a equipe.</p>' : ''}</div>
-      <div id="qw-preparacoes">${bloco('Em preparo', preparo, 'Só quem gerencia vê e usa')}</div>
-      ${arquivados.length ? `<details class="qw-acompanhamento"><summary>Arquivados (${arquivados.length})</summary><ul class="qw-lista" style="margin-top:14px">${arquivados.map(itemQw).join('')}</ul></details>` : ''}
-      ${port?.quickWins.length ? `<details class="qw-acompanhamento"><summary>Uso e decisão de todos os Quick Wins</summary><p class="dica">Consumo e uso vêm dos registros da plataforma. “Serviu” é uma avaliação das pessoas; não comprova ganho financeiro. Benefícios dependem de medições informadas pela equipe.</p>
+      ${comBusca ? `<div class="filtros-biblioteca"><div class="campo"><label for="buscar-qw">Encontrar uma tarefa</label><input class="entrada" type="search" id="buscar-qw" placeholder="Nome ou o que precisa fazer" aria-describedby="contagem-qw"></div><span class="dica" id="contagem-qw" role="status">${prontos.length + preparo.length} ${prontos.length + preparo.length === 1 ? 'tarefa disponível na lista' : 'tarefas na lista'}</span></div><p class="dica oculto" id="qw-busca-vazia">Nenhuma tarefa encontrada. Tente outra palavra.</p>` : ''}
+      <div id="qw-prontos">${bloco(gere ? 'Publicados' : 'Disponíveis para você', prontos)}${!prontos.length && ativos.length ? '<p class="dica">Nenhum Quick Win publicado ainda.</p>' : ''}</div>
+      ${preparo.length ? `<details class="qw-bloco qw-grupo" id="qw-preparacoes" aria-labelledby="t-em-preparo"${prontos.length ? '' : ' open'}><summary><h2 id="t-em-preparo">Em preparo (${preparo.length})</h2></summary><ul class="qw-lista">${preparo.map(itemQw).join('')}</ul></details>` : ''}
+      ${arquivados.length ? `<details class="qw-acompanhamento qw-arquivados"><summary>Arquivados (${arquivados.length})</summary><ul class="qw-lista" style="margin-top:14px">${arquivados.map(itemQw).join('')}</ul></details>` : ''}
+      ${port?.quickWins.length ? `<details class="qw-acompanhamento"><summary>Uso e decisão de todos os Quick Wins</summary>
         <div class="ciclo" style="margin-top:16px">
           <div><b>Identificar</b><span>${cont('identificado')} identificados</span></div>
           <div><b>Testar</b><span>${cont('em_configuracao') + cont('em_teste')} em configuração ou teste</span></div>
@@ -105,17 +108,19 @@ async function listaQuickWins() {
     </div></div>`;
   ligarCabecalho();
   ligarMenus();
-  ligarAcoesQw($('principal'), itens, listaQuickWins);
-  document.querySelectorAll('[data-qw-ir]').forEach(b => b.onclick = () => { const el = document.getElementById(b.dataset.qwIr); if (el) { el.tabIndex = -1; el.scrollIntoView({ block: 'start' }); el.focus({ preventScroll: true }); } });
+  // "Continuar uma preparação": abre o grupo Em preparo e leva o foco até ele.
+  const irPreparacoes = () => { const el = $('qw-preparacoes'); if (el) { el.open = true; el.tabIndex = -1; el.scrollIntoView({ block: 'start' }); el.focus({ preventScroll: true }); } };
+  document.querySelectorAll('[data-criar-qw]').forEach(b => { b.onclick = () => escolherComoCriar({ continuar: preparo.length ? irPreparacoes : null }); });
   const normalizarBusca = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   $('buscar-qw')?.addEventListener('input', ev => {
     const termo = normalizarBusca(ev.target.value.trim());
     let n = 0;
     for (const li of document.querySelectorAll('.qw-item')) {
       li.hidden = !normalizarBusca(li.querySelector('.qw-item-link')?.textContent).includes(termo);
-      if (!li.hidden && (termo || !li.closest('details'))) n++;
+      if (!li.hidden && (termo || !li.closest('.qw-arquivados'))) n++;
     }
     for (const bloco of document.querySelectorAll('.qw-bloco')) bloco.hidden = ![...bloco.querySelectorAll('.qw-item')].some(li => !li.hidden);
+    if ($('qw-preparacoes') && termo) $('qw-preparacoes').open = [...$('qw-preparacoes').querySelectorAll('.qw-item')].some(li => !li.hidden);
     const arquivo = document.querySelector('details.qw-acompanhamento:has(.qw-lista)');
     if (arquivo) arquivo.open = !!termo && [...arquivo.querySelectorAll('.qw-item')].some(li => !li.hidden);
     $('contagem-qw').textContent = `${n} ${n === 1 ? 'tarefa encontrada' : 'tarefas encontradas'}${termo ? ', incluindo arquivadas' : ''}`;
@@ -123,7 +128,8 @@ async function listaQuickWins() {
   });
 }
 
-// Uma linha da biblioteca: marca, nome, descrição, estado e, quando faz sentido, a versão.
+// Uma linha da biblioteca: marca, nome, descrição, estado e, quando faz sentido, a versão. Clicar abre o Quick Win;
+// a única ação na linha é Usar. Editar, agendar, duplicar, arquivar e excluir ficam em "Mais ações", na página dele.
 const usarHref = q => `#/qw/${q.id}/usar`;
 function itemQw(q) {
   const e = q.estado || estadoQw(q);
@@ -132,12 +138,12 @@ function itemQw(q) {
   return `<li class="qw-item">${marcaQw(q)}
     <a class="qw-item-link" href="#/qw/${q.id}"><span class="qw-item-nome">${esc(q.nome)}</span><span class="qw-item-desc">${esc(q.para_que_serve || '')}</span></a>
     <div class="qw-item-lado">${meta ? `<span class="qw-item-meta">${esc(meta)}</span>` : ''}${seloQw(q)}</div>
-    <div class="qw-item-acoes">${podeUsar ? `<a class="btn btn-linha btn-pequeno" href="${usarHref(q)}" aria-label="Usar ${esc(q.nome)}">Usar</a>` : ''}${q.podeEditar && q.v2 && q.versao && e.id === 'publicado' ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${q.id}/programar" aria-label="Agendar ${esc(q.nome)}">Agendar</a>` : ''}
-      ${menuAcoes(acoesQw(q), `Mais ações para ${q.nome}`)}</div></li>`;
+    <div class="qw-item-acoes">${podeUsar ? `<a class="btn btn-linha btn-pequeno" href="${usarHref(q)}" aria-label="Usar ${esc(q.nome)}">Usar</a>` : ''}</div></li>`;
 }
 function acoesQw(q) {
   const e = q.estado || estadoQw(q), out = [];
-  // A linha inteira da biblioteca já abre o Quick Win: o menu traz só as outras ações (e some quando não há nenhuma).
+  // Ações de "Mais ações" na página do Quick Win (a página filtra o que já está à vista).
+  if (q.podeEditar && q.v2 && q.versao && e.id === 'publicado') out.push({ rotulo: 'Agendar', href: `#/qw/${q.id}/programar` });
   if (q.podeEditar && e.id !== 'arquivado') out.push({ rotulo: 'Editar', href: q.v2 ? `#/qw/${q.id}/ajustar` : `#/qw/${q.id}/editar` });
   if (q.podeEditar && q.v2 && e.id !== 'arquivado') out.push({ rotulo: 'Testar', href: `#/qw/${q.id}/teste` });
   if (q.v2 && q.versao && e.id === 'publicado') out.push({ rotulo: 'Ver agendamentos', href: `#/qw/${q.id}/programacoes` });
@@ -197,26 +203,31 @@ function ligarAcoesQw(raiz, itens, recarregar) {
   }));
 }
 
-// Detalhe: o que ele faz, regras, formato, último teste e versão. Ações principais: Usar e Editar.
+// Página do Quick Win, no padrão "caminho claro": nome, uma linha do que ele faz e UMA ação principal (Usar quando
+// publicado; Testar e publicar quando em preparo). Editar instruções fica ao lado, discreto; o resto em "Mais ações".
+// Abaixo: suas execuções, os detalhes (recolhidos) e, para quem gerencia, os Resultados.
 async function paginaQuickWin(id) {
   const [qw, lista] = await Promise.all([api(`/api/quick-wins/${id}`), api(`/api/conversas?quick_win=${id}`)]);
   const e = estadoQw(qw);
-  const podeUsar = e.id === 'publicado' || (qw.podeEditar && e.id !== 'arquivado');
-  const editar = qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-texto qw-acao-secundaria" href="${qw.v2 ? `#/qw/${id}/ajustar` : `#/qw/${id}/editar`}">Editar instruções</a>` : '';
+  const gere = qw.podeEditar && e.id !== 'arquivado';
+  const publicado = e.id === 'publicado';
+  const principal = publicado ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : gere ? `<a class="btn btn-verde" href="#/qw/${id}/teste">Testar e publicar</a>` : '';
+  const editar = gere ? `<a class="btn btn-texto qw-acao-secundaria" href="${qw.v2 ? `#/qw/${id}/ajustar` : `#/qw/${id}/editar`}">Editar instruções</a>` : '';
+  // Mais ações: primeiro o que se faz com o trabalho (agendar, refinar, publicar), depois gestão e, no fim, o perigo.
+  const extras = [
+    ...(gere && qw.v2 && publicado ? [{ rotulo: 'Refinar Quick Win', href: `#/qw/${id}/refinar` }] : []),
+    ...(gere && !publicado ? [{ rotulo: 'Publicar para a equipe', href: `#/qw/${id}/publicar` }] : []),
+  ];
+  const acoes = acoesQw(qw).filter(a => a.rotulo !== 'Editar' && !(a.rotulo === 'Testar' && !publicado));
+  const fim = acoes.findIndex(a => !['Agendar', 'Ver agendamentos'].includes(a.rotulo));
+  const menu = [...acoes.slice(0, fim < 0 ? acoes.length : fim), ...extras, ...(fim < 0 ? [] : acoes.slice(fim))];
   const meta = [seloQw(qw), qw.v2 && qw.versao ? `<span>Versão publicada: v${qw.versao}</span>` : '', qw.v2 && qw.versao && qw.podeEditar && qw.rascunho_alterado ? `<span>Rascunho em edição: v${qw.versao + 1}</span>` : '',
-    qw.sigiloso ? '<span class="selo selo-sigilosa">Trata dados sigilosos</span>' : ''].filter(Boolean).join('');
+    qw.sigiloso ? '<span class="selo selo-sigilosa">Trata dados sigilosos</span>' : '', gere && !publicado ? '<span>Ainda não está disponível para a equipe.</span>' : ''].filter(Boolean).join('');
   const secao = (rotulo, conteudo) => (conteudo ? `<div class="secao"><div class="secao-rotulo">${rotulo}</div><div class="secao-conteudo">${conteudo}</div></div>` : '');
   const regras = qw.v2 ? qw.regras : null;
-  // Formato anterior (sem versões): o caminho para a equipe usar é Testar e Publicar, igual ao formato novo; já publicado,
-  // a página diz o que ele não tem (versões e agendamento) e oferece a atualização.
-  const avisoAntigo = qw.v2 || !qw.podeEditar || e.id === 'arquivado' ? ''
-    : e.id !== 'publicado' ? aviso('<b>Ainda não está disponível para a equipe.</b> Teste e publique quando estiver pronto.', 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar para a equipe</a>`)
-    : aviso('<b>Este Quick Win usa o formato anterior.</b> A equipe já pode usar. Para ter histórico de versões e agendamento, atualize para o formato novo.', 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/atualizar">Atualizar formato</a>`);
-  const aviso2 = !qw.v2 ? avisoAntigo : !qw.podeEditar || e.id === 'arquivado' ? ''
-    : !qw.versao ? aviso('<b>Ainda não está disponível para a equipe.</b> Teste e publique quando estiver pronto.', 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar</a>`)
-    : qw.rascunho_alterado ? aviso(`<b>Há alterações em rascunho (v${qw.versao + 1}).</b> A equipe continua usando a v${qw.versao} até você publicar.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/ajustar">Continuar editando</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/teste">Testar e publicar</a>`) : '';
-  // Ordem de uso: nome e ações, o que ele faz, sugestões, suas execuções; depois os detalhes (recolhidos) e, para
-  // quem gerencia, os Resultados: os do processo (quando preparados) e o uso e a decisão.
+  // No máximo um aviso, e só com ação: há alterações em rascunho que a equipe ainda não recebeu.
+  const avisoRascunho = qw.v2 && qw.versao && qw.podeEditar && qw.rascunho_alterado && e.id !== 'arquivado'
+    ? aviso(`<b>Há alterações em rascunho (v${qw.versao + 1}).</b> A equipe continua usando a v${qw.versao} até você publicar.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar e publicar</a>`) : '';
   const detalhes = [
     qw.v2 && qw.podeEditar && qw.assistente?.descricao ? secao('Orientação completa', esc(qw.assistente.descricao)) : '',
     !qw.v2 && qw.objetivo ? secao('Objetivo', esc(qw.objetivo)) : '',
@@ -224,32 +235,31 @@ async function paginaQuickWin(id) {
     qw.v2 ? secao('Regras', (regras || []).length ? `<ul>${regras.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '') : '',
     qw.entregas?.entregaveis?.length ? secao('Entrega', `<ul>${qw.entregas.entregaveis.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${qw.entregas.pesquisa ? '<span class="dica">Pesquisa na internet antes de escrever, quando a empresa libera.</span>' : ''}`)
       : secao('Formato do resultado', qw.v2 ? esc(FORMATOS_SAIDA[qw.formato_saida]?.rotulo || '') : esc(FORMATOS[qw.formato] || '')),
+    !qw.v2 && (qw.sugestoes || []).filter(Boolean).length ? secao('Pedidos sugeridos', `<ul>${qw.sugestoes.filter(Boolean).map(s => `<li>${esc(s)}</li>`).join('')}</ul>`) : '',
     qw.v2 && qw.podeEditar ? secao('Último teste', qw.ultimo_teste ? `${esc(RESUMO_TESTE[qw.ultimo_teste.status] || '')}<span class="dica">${dataCurta(qw.ultimo_teste.em)}</span>` : '<span class="dica">Ainda não testado.</span>') : '',
     qw.v2 ? secao('Versão publicada', qw.versao ? `v${qw.versao}${qw.podeEditar ? ` <a class="link-sutil" href="#/qw/${id}/versoes" style="margin-left:8px">Ver versões</a>` : ''}` : '<span class="dica">Ainda não publicado.</span>') : '',
     !qw.v2 ? secao('Estado', `${ESTADOS[qw.status]} <span class="dica">${EXPLICA[qw.status]}</span>`) : '',
     !qw.v2 ? secao('Responsável', qw.responsavel ? esc(qw.responsavel.nome) : '<span class="dica">Sem responsável</span>') : '',
   ].join('');
-  const resultadosProcesso = qw.painel ? `<h3>Resultados do processo</h3><p>Os dados de cada execução, conferidos e confirmados pelas pessoas, viram indicadores do processo.</p><a class="btn btn-linha" href="#/qw/${id}/acompanhamento">Ver resultados do processo</a>`
-    : qw.podeEditar && e.id !== 'arquivado' ? `<h3>Resultados do processo</h3><p class="dica">Escolha um processo com campos e indicadores prontos para registrar o resultado de cada execução.</p><a class="btn btn-linha" href="#/qw/${id}/acompanhamento/preparar">Preparar resultados do processo</a>` : '';
+  // Resultados: um link (ver ou preparar os do processo) e "Uso e decisão" recolhido. A explicação fica na Ajuda.
+  const linkProcesso = qw.painel ? `<a class="btn btn-linha" href="#/qw/${id}/acompanhamento">Ver resultados do processo</a>`
+    : gere ? `<a class="btn btn-texto qw-acao-secundaria" href="#/qw/${id}/acompanhamento/preparar">Preparar resultados do processo</a>` : '';
+  const execucao = c => `<li>
+          <a class="execucao" href="#/c/${c.id}"><b>${esc(c.titulo)}</b><span>${dataCurta(c.atualizado_em)} · ${c.feedback ? FEEDBACK[c.feedback] : c.tem_resposta ? 'Sem avaliação' : 'sem resposta'}${c.sigilosa ? ' · Sigilosa' : ''}</span></a>
+          ${menuAcoes([{ rotulo: 'Renomear', dados: { renomear: c.id } }, { rotulo: 'Excluir', dados: { apagar: c.id }, perigo: true }], `Mais ações para ${c.titulo}`)}</li>`;
   $('principal').innerHTML = `${cabecalho(qw.nome)}
     <div class="pagina"><div class="pg qw-detalhe">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta, tituloAcoes: qw.podeEditar ? '<button type="button" class="btn btn-texto qw-nome-acao" id="qw-editar-nome" aria-controls="qw-nome-form" aria-expanded="false">Editar nome</button>' : '',
-        lado: `${podeUsar ? `<a class="btn btn-verde" href="${usarHref(qw)}">Usar</a>` : ''}${qw.v2 && qw.versao && e.id === 'publicado' ? `<a class="btn btn-linha" href="#/qw/${id}/${qw.podeEditar ? 'programar' : 'programacoes'}">${qw.podeEditar ? 'Agendar' : 'Ver agendamentos'}</a>` : ''}${qw.v2 && qw.podeEditar && e.id !== 'arquivado' ? `<a class="btn btn-texto qw-acao-secundaria" href="#/qw/${id}/refinar">Refinar Quick Win</a>` : ''}${editar}${menuAcoes(acoesQw(qw).filter(a => a.rotulo !== 'Editar' && (qw.podeEditar || a.rotulo !== 'Ver agendamentos')), 'Mais ações')}` })}
-      ${qw.podeEditar ? `<form class="qw-renomear" id="qw-nome-form" hidden><label class="legenda" for="qw-nome">Nome do Quick Win</label><input class="entrada" id="qw-nome" maxlength="80" required value="${esc(qw.nome)}" aria-describedby="qw-nome-ajuda"><p class="dica" id="qw-nome-ajuda">O novo nome aparece no catálogo para quem já tem acesso. As regras, os agendamentos e o histórico de versões continuam os mesmos.</p><div class="linha-botoes"><button type="submit" class="btn btn-verde" id="qw-nome-salvar">Salvar nome</button><button type="button" class="btn btn-texto" id="qw-nome-cancelar">Cancelar</button></div><p id="qw-nome-erro" role="alert"></p></form>` : ''}
-      ${aviso2}
-      ${qw.para_que_serve ? `<section class="qw-bloco qw-o-que-faz" aria-labelledby="t-faz"><div class="qw-lista-cabeca"><h2 id="t-faz">O que ele faz</h2></div><p>${esc(qw.para_que_serve)}</p></section>` : ''}
-      ${!qw.v2 && (qw.sugestoes || []).length ? `<section class="qw-bloco" aria-labelledby="t-sug"><div class="qw-lista-cabeca"><h2 id="t-sug">Para começar</h2></div><div class="sugestoes">${qw.sugestoes.map((s, i) => `<button type="button" data-sug="${i}">${esc(s)}</button>`).join('')}</div></section>` : ''}
-      <section class="qw-bloco" aria-labelledby="t-exec"><div class="qw-lista-cabeca"><h2 id="t-exec">Suas execuções</h2><span class="dica">Só você vê. Ficam salvas por até ${E.retencaoDias} dias sem uso.</span></div>
-        ${lista.conversas.length ? `<ul class="execucoes">${lista.conversas.map(c => `<li>
-          <a class="execucao" href="#/c/${c.id}"><b>${esc(c.titulo)}</b><span>${dataCurta(c.atualizado_em)} · ${c.feedback ? FEEDBACK[c.feedback] : c.tem_resposta ? 'Sem avaliação' : 'sem resposta'}${c.sigilosa ? ' · Sigilosa' : ''}</span></a>
-          <button class="icone-btn" data-renomear="${c.id}" aria-label="Renomear ${esc(c.titulo)}" title="Renomear">${ICONE.lapis}<span>Renomear</span></button>
-          <button class="icone-btn" data-apagar="${c.id}" aria-label="Excluir ${esc(c.titulo)}" title="Excluir">${ICONE.lixo}<span>Excluir</span></button></li>`).join('')}</ul>`
-          : `<p class="dica">Nenhuma execução ainda.${podeUsar ? ` <a class="link-sutil" href="${usarHref(qw)}">Usar agora</a>` : ''}</p>`}
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome]], titulo: qw.nome, meta, descricao: esc(qw.para_que_serve || ''), tituloAcoes: qw.podeEditar ? '<button type="button" class="btn btn-texto qw-nome-acao" id="qw-editar-nome" aria-controls="qw-nome-form" aria-expanded="false">Editar nome</button>' : '',
+        lado: `${principal}${editar}${menuAcoes(menu, 'Mais ações')}` })}
+      ${qw.podeEditar ? `<form class="qw-renomear" id="qw-nome-form" hidden><label class="legenda" for="qw-nome">Nome do Quick Win</label><input class="entrada" id="qw-nome" maxlength="80" required value="${esc(qw.nome)}" aria-describedby="qw-nome-ajuda"><p class="dica" id="qw-nome-ajuda">As regras, os agendamentos e o histórico de versões continuam os mesmos.</p><div class="linha-botoes"><button type="submit" class="btn btn-verde" id="qw-nome-salvar">Salvar nome</button><button type="button" class="btn btn-texto" id="qw-nome-cancelar">Cancelar</button></div><p id="qw-nome-erro" role="alert"></p></form>` : ''}
+      ${avisoRascunho}
+      <section class="qw-bloco" aria-labelledby="t-exec"><div class="qw-lista-cabeca"><h2 id="t-exec">Suas execuções</h2></div>
+        ${lista.conversas.length ? `<ul class="execucoes">${lista.conversas.map(execucao).join('')}</ul>` : '<p class="dica">Nenhuma execução ainda.</p>'}
       </section>
       ${detalhes ? `<details class="qw-bloco qw-detalhes"><summary>Detalhes</summary><div class="secoes">${detalhes}</div></details>` : ''}
-      ${resultadosProcesso || qw.podeEditar ? `<section class="qw-bloco qw-resultados" aria-labelledby="t-resultados"><div class="qw-lista-cabeca"><h2 id="t-resultados">Resultados</h2></div>
-        ${resultadosProcesso ? `<div class="qw-resultados-processo">${resultadosProcesso}</div>` : ''}
-        ${qw.podeEditar ? '<details class="qw-uso-decisao"><summary>Uso e decisão</summary><p class="dica">Uso por mês, medições de antes e depois e a decisão sobre este Quick Win.</p><section id="medicao-qw" aria-label="Uso e decisão"></section></details>' : ''}
+      ${linkProcesso || qw.podeEditar ? `<section class="qw-bloco qw-resultados" aria-labelledby="t-resultados"><div class="qw-lista-cabeca"><h2 id="t-resultados">Resultados</h2></div>
+        ${linkProcesso ? `<div class="qw-resultados-processo">${linkProcesso}</div>` : ''}
+        ${qw.podeEditar ? '<details class="qw-uso-decisao"><summary>Uso e decisão</summary><section id="medicao-qw" aria-label="Uso e decisão"></section></details>' : ''}
       </section>` : ''}
     </div></div>`;
   ligarCabecalho();
@@ -262,13 +272,13 @@ async function paginaQuickWin(id) {
     const alvoMedicao = $('medicao-qw');
     secaoMedicao(alvoMedicao, id).catch(err => { if (alvoMedicao?.isConnected) alvoMedicao.innerHTML = `<p class="dica">${esc(err.message)}</p>`; });
   }
-  document.querySelectorAll('[data-sug]').forEach(b => { b.onclick = async () => { await vistaConversa({ qw }); const t = $('entrada'); t.value = b.textContent; t.dispatchEvent(new Event('input')); t.focus(); history.replaceState(null, '', `#/qw/${id}/nova`); }; });
-  document.querySelectorAll('[data-renomear]').forEach(b => { b.onclick = async () => {
-    const atual = lista.conversas.find(c => String(c.id) === b.dataset.renomear);
+  const conversaDo = b => lista.conversas.find(c => String(c.id) === (b.dataset.renomear || b.dataset.apagar));
+  document.querySelectorAll('[data-renomear]').forEach(b => { b.onclick = () => {
+    const atual = conversaDo(b); b.closest('details')?.removeAttribute('open');
     if (atual) renomearConversa(atual, () => paginaQuickWin(id));
   }; });
-  document.querySelectorAll('[data-apagar]').forEach(b => { b.onclick = async () => {
-    const atual = lista.conversas.find(c => String(c.id) === b.dataset.apagar);
+  document.querySelectorAll('[data-apagar]').forEach(b => { b.onclick = () => {
+    const atual = conversaDo(b); b.closest('details')?.removeAttribute('open');
     if (atual) excluirConversa(atual, () => paginaQuickWin(id));
   }; });
 }
@@ -282,18 +292,17 @@ async function novaOrigem() {
   const existentes = E.quickWins;
   $('principal').innerHTML = `${cabecalho('Começar de um modelo')}
     <div class="pagina"><div class="pg qw-modelos">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ['Criar', '#/qw/nova'], ['Modelos']], titulo: 'Começar de um modelo', descricao: 'Veja como cada modelo funciona antes de escolher. Nada é criado até você confirmar e continuar. Prefere descrever com suas palavras? <a href="#/qw/nova">Criar do zero</a>.' })}
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ['Começar de um modelo']], titulo: 'Começar de um modelo', descricao: 'Escolha um modelo para ver como ele funciona. Nada é criado antes de você continuar.' })}
       <section class="qw-bloco" aria-labelledby="t-modelos"><div class="qw-lista-cabeca"><h2 id="t-modelos">Modelos</h2></div>
-        <div class="lista">${modelos.map(m => `<div class="lista-item-linha" style="display:flex;align-items:center;gap:8px"><button type="button" class="lista-item" style="flex:1" data-modelo="${m.indice}" aria-controls="qw-previa" aria-expanded="false">${marcaQw({ cor: m.cor, icone: m.icone, nome: m.nome })}
-          <span class="principal-texto"><b>${esc(m.nome)}</b><span>${esc(m.para_que_serve)}</span></span></button>${podeOcultar ? `<button type="button" class="link-sutil" data-ocultar="${m.indice}" aria-label="Ocultar o modelo ${esc(m.nome)} do catálogo da empresa">Ocultar</button>` : ''}</div>`).join('') || '<span class="dica">Nenhum modelo disponível.</span>'}</div>
-        ${podeOcultar ? '<p class="dica">Ocultar tira o modelo só do catálogo desta empresa. Os Quick Wins já criados a partir dele continuam.</p>' : ''}
+        <div class="lista">${modelos.map(m => `<button type="button" class="lista-item" data-modelo="${m.indice}" aria-controls="qw-previa" aria-expanded="false">${marcaQw({ cor: m.cor, icone: m.icone, nome: m.nome })}
+          <span class="principal-texto"><b>${esc(m.nome)}</b><span>${esc(m.para_que_serve)}</span></span></button>`).join('') || '<span class="dica">Nenhum modelo disponível.</span>'}</div>
         <section class="qw-previa" id="qw-previa" aria-labelledby="qw-previa-titulo" tabindex="-1" hidden></section>
       </section>
-      ${existentes.length ? `<section class="qw-bloco" aria-labelledby="t-duplicar"><div class="qw-lista-cabeca"><h2 id="t-duplicar">Duplicar um existente</h2></div>
+      ${existentes.length ? `<section class="qw-bloco" aria-labelledby="t-duplicar"><div class="qw-lista-cabeca"><h2 id="t-duplicar">Duplicar um existente</h2></div><p class="dica">A cópia fica em preparo, com instruções, arquivos e configuração. Nunca as conversas.</p>
         <fieldset class="campo"><legend class="legenda">Para qual área vai a cópia</legend><div class="opcoes">${minhas.map((a, i) => `<label><input type="checkbox" name="area" value="${a.id}" ${i === 0 ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('') || '<span class="dica">Você não pode criar Quick Wins em nenhuma área.</span>'}
           ${E.permQw.todaEmpresa ? '<label><input type="checkbox" id="toda"> Toda a empresa</label>' : ''}</div></fieldset>
         <div class="lista">${existentes.map(q => `<button type="button" class="lista-item" data-duplicar="${q.id}">${marcaQw(q)}
-        <span class="principal-texto"><b>Duplicar ${esc(q.nome)}</b><span>Cria uma cópia em preparo com instruções, arquivos e configuração. Nunca as conversas.</span></span></button>`).join('')}</div></section>` : ''}
+        <span class="principal-texto"><b>Duplicar ${esc(q.nome)}</b></span></button>`).join('')}</div></section>` : ''}
     </div></div>`;
   ligarCabecalho();
   const previa = $('qw-previa');
@@ -304,16 +313,16 @@ async function novaOrigem() {
       <div class="secoes"><div class="secao"><div class="secao-rotulo">O que a IA faz</div><div class="secao-conteudo">${esc(m.instrucoes)}</div></div>
       <div class="secao"><div class="secao-rotulo">Formato do resultado</div><div class="secao-conteudo">${esc(FORMATOS[m.formato] || 'Texto')}</div></div>
       ${(m.sugestoes || []).length ? `<div class="secao"><div class="secao-rotulo">Exemplos de pedido</div><div class="secao-conteudo"><ul>${m.sugestoes.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div></div>` : ''}</div>
-      <p class="dica">O assistente abre com este objetivo preenchido. Você ajusta, testa e publica; nada é criado antes de continuar.</p>
-      <div class="linha-botoes"><a class="btn btn-verde" href="#/qw/nova/modelo/${m.indice}">Usar este modelo</a><button type="button" class="btn btn-texto" id="qw-previa-fechar">Escolher outro</button></div>`;
+      <div class="linha-botoes"><a class="btn btn-verde" href="#/qw/nova/modelo/${m.indice}">Usar este modelo</a><button type="button" class="btn btn-texto" id="qw-previa-fechar">Escolher outro</button>${podeOcultar ? `<button type="button" class="btn btn-texto" data-ocultar="${m.indice}" aria-label="Ocultar o modelo ${esc(m.nome)} do catálogo da empresa">Ocultar do catálogo</button>` : ''}</div>`;
     previa.hidden = false;
     previa.focus();
     $('qw-previa-fechar').onclick = () => { previa.hidden = true; b.setAttribute('aria-expanded', 'false'); b.focus(); };
+    previa.querySelector('[data-ocultar]')?.addEventListener('click', ocultar);
   }; });
-  document.querySelectorAll('[data-ocultar]').forEach(b => { b.onclick = async () => {
-    try { await api(`/api/quick-wins/modelos-iniciais/${b.dataset.ocultar}/ocultar`, { metodo: 'POST', corpo: {} }); toast('Modelo oculto do catálogo da empresa.'); novaOrigem(); }
+  async function ocultar(ev) {
+    try { await api(`/api/quick-wins/modelos-iniciais/${ev.currentTarget.dataset.ocultar}/ocultar`, { metodo: 'POST', corpo: {} }); toast('Modelo oculto do catálogo da empresa. Os Quick Wins já criados a partir dele continuam.'); novaOrigem(); }
     catch (e) { toast(e.message, 6000); }
-  }; });
+  }
   document.querySelectorAll('[data-duplicar]').forEach(b => { b.onclick = async () => {
     const toda = $('toda')?.checked || false;
     const areasSel = [...document.querySelectorAll('input[name=area]:checked')].map(i => Number(i.value));
@@ -349,25 +358,24 @@ async function configurar(id) {
   const e = estadoQw(qw);
   // Uma seção recolhível; as que concentram o essencial vêm abertas.
   const secaoCfg = (chave, titulo, html, { aberta = false, oculta = false } = {}) => `<details class="grupo-form qw-cfg-secao${oculta ? ' oculto' : ''}" data-secao="${chave}"${aberta ? ' open' : ''}><summary><h2>${titulo}</h2></summary><div class="qw-cfg-corpo">${html}</div></details>`;
-  const acaoEstado = e.id === 'arquivado' ? 'Para voltar a usar, escolha “Restaurar em preparo” em Mais ações, na página do Quick Win.'
-    : e.id === 'publicado' ? 'Para manter, ajustar, descartar ou ampliar, registre a decisão em “Uso e decisão”, na página do Quick Win.'
-    : 'Teste com um caso real e publique quando estiver pronto.';
-  const botoesEstado = e.id === 'publicado' || e.id === 'arquivado' ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}">Ir para a página do Quick Win</a>`
-    : `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar para a equipe</a>`;
+  // O estado aparece no selo. Só quando falta publicar há um aviso, com a ação que resolve ("Salvar e testar" já está na barra).
+  const avisoEstado = e.id === 'publicado' || e.id === 'arquivado' ? ''
+    : aviso(`<b>Estado: ${esc(ESTADOS[qw.status] || e.rotulo)}.</b> Ainda não está disponível para a equipe.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/publicar">Publicar para a equipe</a>`);
   $('principal').innerHTML = `${cabecalho('Configurar Quick Win')}
     <div class="pagina"><form class="pg qw-config" id="form-qw" novalidate>
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Configurar']], titulo: 'Configurar Quick Win', descricao: 'As mudanças valem para as próximas mensagens de todas as conversas deste Quick Win. Campos com * são obrigatórios.' })}
-      ${aviso(`<b>Estado: ${esc(ESTADOS[qw.status] || e.rotulo)}.</b> ${esc(EXPLICA[qw.status] || '')}. ${acaoEstado}`, 'info', botoesEstado)}
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Configurar']], titulo: 'Configurar Quick Win', descricao: 'Vale para as próximas execuções. Campos com * são obrigatórios.', meta: seloQw(qw) })}
+      ${avisoEstado}
       ${secaoCfg('identificacao', 'Identificação', `
         <div class="campo"><label for="nome">Nome *</label><input class="entrada" id="nome" value="${esc(qw.nome)}" maxlength="80" required aria-required="true" aria-describedby="erro-nome"><p class="msg-erro oculto" id="erro-nome"></p></div>
         <div class="campo"><label for="para">Para que serve</label><input class="entrada" id="para" value="${esc(qw.para_que_serve)}" maxlength="200" aria-describedby="para-ajuda"><span class="ajuda" id="para-ajuda">Uma frase. Aparece para quem vai usar.</span></div>
         <fieldset class="campo" aria-describedby="erro-areas"><legend class="legenda">Quem pode usar *</legend><div class="opcoes qw-opcoes-toque">${minhas.map(a => `<label><input type="checkbox" name="area" value="${a.id}" ${qw.areas.includes(a.id) ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('')}
-          ${E.permQw.todaEmpresa || qw.toda_empresa ? `<label><input type="checkbox" id="toda" ${qw.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div><p class="msg-erro oculto" id="erro-areas"></p></fieldset>
+          ${E.permQw.todaEmpresa || qw.toda_empresa ? `<label><input type="checkbox" id="toda" ${qw.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div><p class="msg-erro oculto" id="erro-areas"></p></fieldset>`, { aberta: true })}
+      ${secaoCfg('aparencia', 'Ícone e cor', `
         <div class="duas-col">
           <div class="campo"><label for="icone">Ícone (até 2 letras)</label><input class="entrada" id="icone" value="${esc(qw.icone)}" maxlength="2"></div>
           <fieldset class="campo"><legend class="legenda">Cor</legend><div class="qw-cores">${CORES.map(c => `<label class="qw-cor"><input type="radio" name="cor" value="${c}" ${qw.cor.toLowerCase() === c.toLowerCase() ? 'checked' : ''}><span class="qw-cor-amostra" style="--qw-cor:${c}" aria-hidden="true"></span><span class="sr">${NOMES_CORES[c]}</span></label>`).join('')}</div></fieldset>
-        </div>`, { aberta: true })}
-      ${qw.v2 ? `<div class="grupo-form"><h2>O que a IA deve fazer</h2><p class="lead">O trabalho deste Quick Win é montado pela GreenIA a partir das suas respostas. Para editar a configuração diretamente, use <a href="#/qw/${id}/ajustar">Editar instruções</a>. Para melhorar um resultado, abra a conversa e use Refinar Quick Win.</p></div>` : ''}
+        </div>`)}
+      ${qw.v2 ? `<div class="grupo-form"><h2>O que a IA deve fazer</h2><p class="lead">Para mudar o trabalho, use <a href="#/qw/${id}/ajustar">Editar instruções</a>.</p></div>` : ''}
       ${secaoCfg('instrucoes', 'O que a IA deve fazer', `
         <div class="campo"><label for="instrucoes">Instruções</label><textarea class="entrada" id="instrucoes" rows="7" aria-describedby="instrucoes-ajuda">${esc(qw.instrucoes)}</textarea><span class="ajuda" id="instrucoes-ajuda">Em português comum. Valem para todas as conversas deste Quick Win.</span></div>
         <fieldset class="campo"><legend class="legenda">Formato preferido da resposta</legend><div class="opcoes qw-opcoes-toque">${Object.entries(FORMATOS).map(([v, r]) => radio('formato', v, qw.formato, r)).join('')}</div></fieldset>
@@ -407,7 +415,7 @@ async function configurar(id) {
         <button class="btn btn-verde" id="salvar">Salvar</button>
         <button type="button" class="btn btn-linha" id="testar">Salvar e testar</button>
       </div>
-      <section class="qw-zona-perigo" aria-labelledby="t-excluir"><h2 id="t-excluir">Excluir Quick Win</h2><p class="dica">Remove o Quick Win do catálogo. As execuções anteriores continuam guardadas. Para só tirar de circulação, use Arquivar na página do Quick Win.</p>
+      <section class="qw-zona-perigo" aria-labelledby="t-excluir"><h2 id="t-excluir">Excluir Quick Win</h2><p class="dica">As execuções anteriores continuam guardadas. Para só tirar de circulação, use Arquivar na página do Quick Win.</p>
         <button type="button" class="btn btn-perigo" id="excluir">Excluir Quick Win…</button></section>
     </form></div>`;
   ligarCabecalho();

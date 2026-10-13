@@ -6,7 +6,7 @@ import {exec,um} from '../src/db.js';
 import {construir} from '../src/quickwin-construtor.js';
 import {rodadaProgramadas} from '../src/qw-programacao.js';
 
-test('agendar parte da lista em um clique e o menu não fica sob outras linhas',async()=>{
+test('agendar pela página do Quick Win (lista sem menus por linha) e o menu "Mais ações" fica por cima do conteúdo',async()=>{
  const N=await subirComNavegador();try{
   const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');const qs=[];
   for(const nome of ['A - Resumo fictício','B - Outro trabalho fictício','C - Terceiro trabalho fictício']){
@@ -16,19 +16,22 @@ test('agendar parte da lista em um clique e o menu não fica sob outras linhas',
   }
   const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(N.base+'/app#/quick-wins');
   const linha=p.locator('.qw-item').filter({has:p.locator(`a.qw-item-link[href="#/qw/${qs[0].id}"]`)});
-  await linha.getByRole('link',{name:`Agendar ${qs[0].nome}`,exact:true}).waitFor();
-  await linha.locator('.menu-acoes summary').click();const menu=linha.getByRole('menuitem',{name:'Ver agendamentos',exact:true});await menu.waitFor();
-  assert.ok(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.right-8,r.top+r.height/2));}),'o lado direito do menu deve receber o clique, sem botões de outras linhas por cima');
+  // Na lista, a linha abre o Quick Win e a única ação é Usar; agendar fica em "Mais ações", na página dele.
+  await linha.waitFor();assert.equal(await linha.locator('.qw-item-acoes > a').count(),1);assert.equal(await p.locator('.qw-item .menu-acoes').count(),0);
+  await linha.locator('.qw-item-link').click();
+  const abrirMenu=async()=>{await p.locator('.pg-acoes summary[aria-label="Mais ações"]').click();const menu=p.getByRole('menuitem',{name:'Ver agendamentos',exact:true});await menu.waitFor();return menu;};
+  let menu=await abrirMenu();
+  assert.equal(await p.getByRole('menuitem',{name:'Agendar',exact:true}).getAttribute('href'),`#/qw/${qs[0].id}/programar`);
+  assert.ok(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.right-8,r.top+r.height/2));}),'o lado direito do menu deve receber o clique, sem conteúdo da página por cima');
   const box=await menu.boundingBox();await menu.click({position:{x:box.width-8,y:box.height/2}});
   await p.getByRole('heading',{name:'Este Quick Win ainda não tem agendamento',exact:true}).waitFor();
   assert.equal(await p.getByRole('link',{name:'Escolher um Quick Win',exact:true}).count(),0,'não manda escolher novamente o trabalho selecionado');
   assert.equal(await p.getByRole('link',{name:'Agendar este Quick Win',exact:true}).getAttribute('href'),`#/qw/${qs[0].id}/programar`);
   await p.getByRole('link',{name:'Agendar este Quick Win',exact:true}).click();await p.waitForSelector('#rotina-form');
-  await p.goto(N.base+'/app#/quick-wins');await linha.getByRole('link',{name:`Agendar ${qs[0].nome}`,exact:true}).click();await p.waitForSelector('#rotina-form');
+  await p.goto(N.base+`/app#/qw/${qs[0].id}`);await p.locator('.pg-acoes summary[aria-label="Mais ações"]').click();await p.getByRole('menuitem',{name:'Agendar',exact:true}).click();await p.waitForSelector('#rotina-form');
   assert.equal(new URL(p.url()).hash,`#/qw/${qs[0].id}/programar`);
-  await p.goto(N.base+`/app#/qw/${qs[0].id}`);await p.getByRole('link',{name:'Agendar',exact:true}).click();await p.waitForSelector('#rotina-form');
-  await p.setViewportSize({width:390,height:844});await p.goto(N.base+'/app#/quick-wins');await linha.getByRole('link',{name:`Agendar ${qs[0].nome}`,exact:true}).waitFor();await p.waitForFunction(()=>document.getElementById('lateral').getBoundingClientRect().right<=1);
-  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await linha.locator('.menu-acoes summary').click();await menu.waitFor();
+  await p.setViewportSize({width:390,height:844});await p.goto(N.base+`/app#/qw/${qs[0].id}`);await p.locator('.pg-acoes summary[aria-label="Mais ações"]').waitFor();await p.waitForFunction(()=>document.getElementById('lateral').getBoundingClientRect().right<=1);
+  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));menu=await abrirMenu();
   assert.ok(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.right-8,r.top+r.height/2));}));
   await p.screenshot({path:'/tmp/greenia-menu-agendamento-mobile.png',fullPage:true});await menu.click();await p.getByRole('heading',{name:'Este Quick Win ainda não tem agendamento',exact:true}).waitFor();assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }finally{await N.fechar();}

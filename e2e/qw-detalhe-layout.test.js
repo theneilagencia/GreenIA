@@ -6,7 +6,7 @@ import {cliente} from '../scripts/cliente.js';
 import {exec} from '../src/db.js';
 import {construir} from '../src/quickwin-construtor.js';
 
-test('detalhe publicado: nome junto ao título, ações em outra linha e edição contida em todas as larguras',async()=>{
+test('detalhe publicado: nome junto ao título, ação principal à direita (abaixo no celular) e edição contida em todas as larguras',async()=>{
   const N=await subirComNavegador();try{
     const a=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
     const ensino={nome:'Analisar documentos',descricao:'Analisar documentos e destacar riscos sem inventar informações',regras:['nao_inventar','destacar_ausentes','indicar_fontes','identificar_riscos','preservar_numeros'],formato:'resumo'};
@@ -21,16 +21,24 @@ test('detalhe publicado: nome junto ao título, ações em outra linha e ediçã
       await p.setViewportSize({width,height:width<600?844:1000});
       await p.goto(`${N.base}/app#/qw/${q.id}`);await p.getByRole('button',{name:'Editar nome',exact:true}).waitFor();
       assert.equal(await p.getByRole('link',{name:'Usar',exact:true}).count(),1);
-      assert.equal(await p.getByRole('link',{name:'Agendar',exact:true}).count(),1);
       assert.equal(await p.getByRole('link',{name:'Editar instruções',exact:true}).count(),1);
+      // Uma ação principal; Agendar e o resto ficam em "Mais ações".
+      assert.equal(await p.locator('.pg-acoes .btn-verde').count(),1);
+      await p.locator('.pg-acoes summary[aria-label="Mais ações"]').click();
+      assert.equal(await p.getByRole('menuitem',{name:'Agendar',exact:true}).count(),1);
+      await p.keyboard.press('Escape');
       const medidas=await p.evaluate(()=>{
         const title=document.querySelector('.pg-nome h2').getBoundingClientRect();
         const name=document.querySelector('#qw-editar-nome').getBoundingClientRect();
-        const meta=document.querySelector('.pg-meta').getBoundingClientRect();
+        const texto=document.querySelector('.pg-titulo-texto').getBoundingClientRect();
         const actions=document.querySelector('.pg-acoes').getBoundingClientRect();
-        return {semExcesso:document.documentElement.scrollWidth<=innerWidth,nomeAoLado:name.left>=title.right+5,acoesAbaixo:actions.top>=meta.bottom+12};
+        // As ações nunca disputam espaço com o nome: ficam à direita do bloco do título ou inteiras abaixo dele.
+        const aDireita=actions.left>=texto.right-1, abaixo=actions.top>=texto.bottom-1;
+        return {semExcesso:document.documentElement.scrollWidth<=innerWidth,nomeAoLado:name.left>=title.right+5,separadas:aDireita||abaixo,aDireita};
       });
-      assert.deepEqual(medidas,{semExcesso:true,nomeAoLado:true,acoesAbaixo:true},`hierarquia em ${width}px`);
+      assert.deepEqual({...medidas,aDireita:undefined},{semExcesso:true,nomeAoLado:true,separadas:true,aDireita:undefined},`hierarquia em ${width}px`);
+      if(width>=1280)assert.equal(medidas.aDireita,true,`ação principal à direita do cabeçalho em ${width}px`);
+      if(width<=390)assert.equal(medidas.aDireita,false,`no celular, ações abaixo do nome em ${width}px`);
       // Menu separado do título: ao lado, com folga, ou (telas estreitas) o título na linha de baixo.
       if(width<600)assert.ok(await p.evaluate(()=>{const h=document.querySelector('.cabeca h1').getBoundingClientRect(),m=document.querySelector('#menu').getBoundingClientRect();return h.left-m.right>=9||h.top>=m.bottom;}),'Menu separado do título');
       if(capturas&&[1440,390].includes(width))await p.screenshot({path:`${capturas}/detalhe-${width}.png`,fullPage:true,animations:'disabled'});

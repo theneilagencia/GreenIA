@@ -118,7 +118,7 @@ test('quem só usa: biblioteca, página, usar e agendamentos alinhados em 1920, 
   await conferir(pessoa, [['biblioteca', '/quick-wins'], ['página', `/qw/${legado.id}`], ['página (formato atual)', `/qw/${v2.id}`], ['usar', `/qw/${legado.id}/usar`], ['agendamentos', `/qw/${v2.id}/programacoes`], ['agendados', '/quick-wins/programados']]);
 });
 
-test('o cabeçalho de Agendamentos cabe no celular e a contagem da biblioteca é a da lista visível', async () => {
+test('o cabeçalho de Agendamentos cabe no celular e a biblioteca curta não mostra busca', async () => {
   const u = new URL(S.base);
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await ctx.addCookies([...pessoa.cookies].map(([name, value]) => ({ name, value, domain: u.hostname, path: '/', httpOnly: true, sameSite: 'Lax' })));
@@ -130,6 +130,8 @@ test('o cabeçalho de Agendamentos cabe no celular e a contagem da biblioteca é
   await p.goto(`${S.base}/app#/quick-wins`);
   await p.locator('.qw-item').first().waitFor();
   const n = await p.locator('.qw-item:visible').count();
-  assert.equal(await p.locator('#contagem-qw').innerText(), `${n} ${n === 1 ? 'tarefa disponível na lista' : 'tarefas na lista'}`);
+  // Lista curta não mostra busca nem contagem (a contagem da lista longa é conferida em qa-caminho-quickwins).
+  assert.ok(n <= 6, `lista curta: ${n}`);
+  assert.equal(await p.locator('#buscar-qw, #contagem-qw').count(), 0);
   await ctx.close();
 });

@@ -46,10 +46,12 @@ test('login → chat → quick win', async () => {
   // Quick win: abre pela lateral, usa uma sugestão, pede ajuste.
   await p.click('.lateral a[href="#/quick-wins"]');
   await p.click(`a.qw-item-link[href="#/qw/${qwId}"]`);
-  await p.waitForSelector('[data-sug]');
-  await p.click('[data-sug="0"]');
-  await p.waitForFunction(() => document.getElementById('entrada')?.value.length > 0);
-  await p.keyboard.press('Enter');
+  // A página do Quick Win tem uma ação principal (Usar); as sugestões de início ficam na tela de uso.
+  await p.click('.pg-acoes a:has-text("Usar")');
+  await p.waitForSelector('[data-sug-usar]');
+  await p.click('[data-sug-usar="0"]');
+  await p.waitForFunction(() => document.getElementById('entrada-qw')?.value.length > 0);
+  await p.click('#executar-btn');
   await p.waitForSelector('.rodape-resposta');
   await p.fill('#entrada', 'Tire a coluna de valor');
   await p.keyboard.press('Enter');

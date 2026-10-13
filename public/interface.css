@@ -220,14 +220,12 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .app .pagina .entregas h2{font:600 14px/1.4 var(--sans);margin:0 0 4px;color:var(--ink)}
 .rascunho-barra[hidden]{display:none}
 /* Página do Quick Win: o que ele faz, depois detalhes e resultados recolhidos. */
-.app .pagina .qw-o-que-faz p{margin:0;font-size:15px;line-height:1.6}
 .app .pagina :is(.qw-detalhes,.qw-uso-decisao)>summary{min-height:44px;display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;list-style:none}
 .app .pagina :is(.qw-detalhes,.qw-uso-decisao)>summary::-webkit-details-marker{display:none}
 .app .pagina :is(.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao)>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
 .app .pagina :is(.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao)[open]>summary::before{transform:rotate(45deg)}
 .app .pagina .qw-detalhes>.secoes{margin-top:8px}
 .app .pagina .qw-resultados-processo{margin:4px 0 16px}
-.app .pagina .qw-resultados-processo h3{font:600 15px/1.4 var(--sans);margin:0 0 4px}
 .app .pagina .qw-nome-inicial{margin-top:20px}
 /* Sugestões: quebram em linhas (nada cortado na lateral no celular). */
 .app .pagina :is(.qw-detalhe,.qw-usar) .sugestoes{flex-wrap:wrap;overflow:visible;margin:0 0 12px;padding:0}
@@ -626,8 +624,6 @@ body[data-contexto="admin"] .url-lista li>b+.dica{display:block;margin-bottom:6p
    agendamentos, resultados do processo e processos prontos) no padrão comum: cartões lado a lado com .grade-cartoes e
    .cartao (estilo.css), a mesma coluna, o mesmo cabeçalho, o mesmo marcador nos itens recolhíveis e ações alinhadas. */
 /* Criar um Quick Win e exemplos do estado vazio: grade e cartão padrão (substitui o antigo bloco "Cartões de caminho"). */
-.app .pagina .qw-inicio-guiado .grade-cartoes{margin-top:16px}
-.app .pagina .qw-vazio .qw-exemplos{list-style:none;margin:40px 0 0;padding:0}
 /* Processos prontos: as opções são cartões da grade, com o botão de opção alinhado à primeira linha do título. */
 .app .pagina .painel-modelos{border:0;padding:0;margin:8px 0 24px;min-width:0}
 .app .pagina .painel-modelos>legend{font:600 var(--ui-secao)/1.4 var(--sans);color:var(--ink);padding:0;margin:0 0 12px}
@@ -691,9 +687,6 @@ body[data-contexto="admin"] .url-lista li>b+.dica{display:block;margin-bottom:6p
 @media(max-width:760px){.app #principal:has(.pg)>.cabeca .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}}
 @media(max-width:640px){
   .app .pagina .qw-item-acoes{grid-column:2 / -1}
-  /* O menu abre a partir do começo da linha de ações (e não do botão "Mais ações"), para caber inteiro na tela. */
-  .app .pagina .qw-item-acoes>.menu-acoes{position:static}
-  .app .pagina .qw-item-acoes .menu-lista{left:0;right:auto;max-width:100%}
   .app .pagina .qw-item-lado{grid-column:2 / -1}
   .app .pagina .pg .pg-acoes{flex-wrap:wrap}
   .app .pagina .pg .pg-acoes>.btn:not(.btn-texto){flex:1 1 auto;white-space:nowrap}
@@ -845,4 +838,73 @@ body.console .pagina-dentro>h2:first-child{font:600 22px/1.3 var(--sans);letter-
 @media(max-height:560px){
   .principal:has(.inicio-conversa) .inicio-atalhos,.principal:has(.inicio-conversa) .inicio-dica{display:none}
   .app .inicio-conversa h2{font-size:22px}
+}
+
+/* === Caminho claro: Quick Wins === Biblioteca, página do Quick Win, usar e testar, criar, modelos, configurar, publicar,
+   versões, resultados do processo e agendamentos: título + uma linha + UMA ação principal à direita; o resto em
+   "Mais ações", recolhido ou na Ajuda da tela. Bloco autocontido (só seletores de Quick Win). */
+/* Conteúdo de um <details> fechado não ocupa lugar (menus "…", Detalhes, Em preparo, Opções adicionais): nas telas de
+   Quick Win (trilha "Quick Wins /" ou a biblioteca) e em todo menu "Mais ações". */
+.menu-acoes:not([open])>.menu-lista,
+.app .pagina:is(:has(.qw-biblioteca),:has(.pg-trilha>a[href="#/quick-wins"])) details:not([open])>:not(summary){display:none}
+/* Biblioteca: "Em preparo" é um grupo recolhível com o mesmo título discreto das outras listas. */
+.app .pagina .qw-grupo>summary{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 10px;cursor:pointer;list-style:none}
+.app .pagina .qw-grupo>summary::-webkit-details-marker{display:none}
+.app .pagina .qw-grupo>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
+.app .pagina .qw-grupo[open]>summary::before{transform:rotate(45deg)}
+.app .pagina .qw-grupo>summary h2{font:600 13px var(--sans)!important;letter-spacing:.02em;color:var(--muted)!important;margin:0!important}
+/* Assistente (criar, editar, testar, publicar): a ação da etapa fica sempre à vista, presa ao pé da tela. */
+.app .pagina .qw-wizard .etapa-rodape{position:sticky;bottom:0;z-index:3;background:var(--paper);padding:12px 0}
+@media(max-width:600px){
+  .app .pagina .qw-wizard .etapa-rodape{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;margin-top:24px}
+  .app .pagina .qw-wizard .etapa-rodape .direita{flex-direction:row;flex-wrap:wrap;flex:1 1 auto;justify-content:flex-end;gap:8px}
+  .app .pagina .qw-wizard .etapa-rodape .direita .btn{width:auto;flex:1 1 auto}
+  .app .pagina .qw-wizard .etapa-rodape>.btn-texto{width:auto;flex:none;padding-left:4px;padding-right:4px}
+}
+/* Página do Quick Win: ações à direita do nome, como nas outras telas; no celular, abaixo e em linha inteira. */
+.app .pagina .qw-detalhe .pg-titulo{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px 24px}
+.app .pagina .qw-detalhe .pg-titulo-texto{flex:1 1 300px}
+.app .pagina .qw-detalhe .pg-acoes{width:auto;margin-top:0;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.app .pagina .qw-detalhe .pg-acoes>.menu-acoes{margin-left:0}
+.app .pagina .qw-detalhe .pg-desc{margin-top:8px}
+.app .pagina .qw-detalhe .qw-resultados-processo{margin:0 0 4px}
+.app .pagina .qw-detalhe .qw-resultados-processo .qw-acao-secundaria{padding-left:0;padding-right:0}
+/* Execuções: a linha abre a execução; renomear e excluir ficam no "…" da linha. */
+.app .pagina .qw-detalhe .execucoes li{flex-wrap:nowrap;padding-bottom:0}
+.app .pagina .qw-detalhe .execucoes a.execucao{flex:1 1 auto;min-height:44px}
+.app .pagina .qw-detalhe .execucoes .menu-acoes summary{min-height:44px;min-width:44px;justify-content:center}
+/* Linha do cabeçalho com o contexto da edição (versão, modelo): mesma linha de propósito, sem aviso. */
+.app .pagina .pg-desc .pg-desc-extra{color:var(--muted)}
+/* "Mais exemplos" e "Saiba mais": discretos, com alvo de toque de 44 px no celular. */
+.app .pagina .qw-wizard #mais-exemplos{margin-left:12px;font-weight:500}
+.app .pagina .qw-saiba-mais{display:inline;padding:0;min-height:0;font:inherit;vertical-align:baseline}
+/* Criar Quick Win: os caminhos num modal, um cartão por caminho. */
+.qw-criar-modal .modal.qw-criar{max-width:760px}
+.qw-criar-modal .qw-criar .modal-topo h2{margin-top:0}
+.qw-criar-modal .qw-criar .icone-btn{min-width:44px;min-height:44px;font-size:22px;line-height:1}
+.qw-criar-modal .qw-caminhos{--cartao-min:200px;margin:4px 0 0}
+.qw-criar-modal .qw-caminhos>.cartao{text-align:left}
+.qw-criar-modal .qw-criar>.dica{margin:16px 0 0}
+/* Agendados vazio: a escolha do Quick Win é uma lista simples de links. */
+.app .pagina .qw-agendar-opcoes .link-sutil{display:inline-flex;align-items:center;min-height:44px}
+/* Agendar: o que será executado é uma linha (com o detalhe recolhido) e "Conferir agendamento" fica sempre à vista. */
+.app .pagina .qw-tarefa-resumo{margin:0 0 16px}
+.app .pagina .qw-rotina-form .qw-rotina-barra{position:sticky;bottom:0;z-index:3;background:var(--paper);padding:12px 0;margin-bottom:0;border-top:1px solid var(--line)}
+/* Teste do formato anterior: as instruções que a IA segue (e Ajustar) ficam depois do envio, recolhidas. */
+.app .pagina .qw-instrucoes-teste{margin-top:24px}
+.app .pagina .qw-instrucoes-teste .btn{margin-top:8px}
+/* Revisar e publicar: links do teste separados e a confirmação das ressalvas com espaço e alvo de toque próprios. */
+.app .pagina .resumo-pub [data-abrir-refinamento]{margin-left:16px}
+.app .pagina .qw-wizard .faixa-aviso label.opcoes{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:12px}
+/* Biblioteca no celular: a ação principal vem primeiro na pilha de botões do cabeçalho. */
+@media(max-width:480px){.app .pagina .qw-biblioteca .pg-acoes{flex-direction:column-reverse}}
+/* Ajuda: os detalhes extras de cada tela de Quick Win. */
+.ajuda-contextual .ajuda-mais{font-size:14px;color:var(--muted);margin:8px 0 0}
+@media(max-width:720px){
+  .app .pagina .qw-detalhe .pg-acoes{width:100%;justify-content:flex-start}
+  .app .pagina .qw-detalhe .execucoes .menu-acoes summary>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .app .pagina .qw-saiba-mais{display:inline-flex;align-items:center;min-height:44px}
+  .app .pagina .qw-wizard .exemplos button{min-height:44px}
+  .app .pagina .qw-wizard #mais-exemplos{margin-left:0}
+  .app .pagina .qw-config .lead a{display:inline-flex;align-items:center;min-height:44px}
 }

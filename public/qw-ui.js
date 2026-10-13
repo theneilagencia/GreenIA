@@ -132,15 +132,18 @@ export function ligarVerResultado(raiz) {
 // ---- Aviso em linha, estado vazio e menu de ações -----------------------------------------------------------
 export const aviso = (html, tipo = 'info', acoes = '') => `<div class="aviso-linha aviso-${tipo}" role="${tipo === 'erro' ? 'alert' : 'status'}"><div>${html}</div>${acoes ? `<div class="aviso-acoes">${acoes}</div>` : ''}</div>`;
 
-export const estadoVazio = ({ titulo, texto, cta = '', exemplos = [] }) => `<div class="qw-vazio">
+export const estadoVazio = ({ titulo, texto, cta = '' }) => `<div class="qw-vazio">
     <span class="qw-vazio-icone" aria-hidden="true">${ICONE.raio}</span>
-    <h2>${esc(titulo)}</h2><p>${esc(texto)}</p>${cta}
-    ${exemplos.length ? `<ul class="grade-cartoes qw-exemplos" aria-label="Exemplos">${exemplos.map(([t, d]) => `<li class="cartao"><b class="cartao-titulo">${esc(t)}</b><span class="cartao-texto">${esc(d)}</span></li>`).join('')}</ul>` : ''}
+    <h2>${esc(titulo)}</h2>${texto ? `<p>${esc(texto)}</p>` : ''}${cta}
   </div>`;
 
 // Menu "…" acessível: <details> nativo (teclado e leitor de tela), fecha ao clicar fora ou com Esc.
+// Item: { rotulo, href } (link), { rotulo, acao, id } (ação ligada por ligarAcoesQw) ou { rotulo, dados: { nome: valor } }
+// (botão com data-* próprios, ligado pela tela).
+const atributos = dados => Object.entries(dados).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('');
 export const menuAcoes = (itens, rotulo = 'Mais ações') => (itens.length ? `<details class="menu-acoes"><summary class="icone-btn" aria-label="${esc(rotulo)}">${PONTOS}<span>Mais ações</span></summary>
-  <div class="menu-lista" role="menu">${itens.map(i => (i.href ? `<a role="menuitem" href="${i.href}">${esc(i.rotulo)}</a>` : `<button type="button" role="menuitem" data-acao="${esc(i.acao)}" data-id="${esc(i.id ?? '')}"${i.perigo ? ' class="perigo"' : ''}>${esc(i.rotulo)}</button>`)).join('')}</div></details>` : '');
+  <div class="menu-lista" role="menu">${itens.map(i => (i.href ? `<a role="menuitem" href="${i.href}">${esc(i.rotulo)}</a>`
+    : `<button type="button" role="menuitem"${i.dados ? atributos(i.dados) : ` data-acao="${esc(i.acao)}" data-id="${esc(i.id ?? '')}"`}${i.perigo ? ' class="perigo"' : ''}>${esc(i.rotulo)}</button>`)).join('')}</div></details>` : '');
 const PONTOS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
 let menusLigados = false;
 export function ligarMenus() {
@@ -256,6 +259,48 @@ export function confirmarExclusao(qw) {
     campo.focus();
   });
 }
+
+// ---- Criar: escolher como começar (modal próprio) -----------------------------------------------------------
+// "Criar Quick Win" é um botão só; os caminhos aparecem quando a pessoa pede. Cada caminho é um link: escolher
+// navega e fecha. continuar: há preparações em andamento (rola até elas, na biblioteca).
+export function escolherComoCriar({ continuar = null } = {}) {
+  if (document.querySelector('.qw-criar-modal')) return;
+  const anterior = document.activeElement;
+  const fundo = document.createElement('div');
+  fundo.className = 'modal-fundo qw-criar-modal';
+  const caminho = (href, titulo, texto) => `<a class="cartao" href="${href}"><b class="cartao-titulo">${titulo}</b><span class="cartao-texto">${texto}</span></a>`;
+  fundo.innerHTML = `<div class="modal qw-criar" role="dialog" aria-modal="true" aria-labelledby="qw-criar-titulo">
+      <div class="modal-topo"><h2 id="qw-criar-titulo" tabindex="-1">Como você quer começar?</h2><button type="button" class="icone-btn" data-fechar aria-label="Fechar">×</button></div>
+      <div class="grade-cartoes titulos-2 qw-caminhos">
+        ${caminho('#/qw/nova', 'Descrever com suas palavras', 'Defina o objetivo, as regras e o resultado, uma etapa por vez.')}
+        ${caminho('#/qw/nova/modelos', 'Começar de um modelo', 'Veja um exemplo pronto antes de criar.')}
+        ${caminho('#/quick-wins/processos', 'Começar de um processo pronto', 'Com campos e indicadores de resultados já definidos.')}
+        ${continuar ? '<button type="button" class="cartao" data-continuar-preparo><b class="cartao-titulo">Continuar uma preparação</b><span class="cartao-texto">Retome os rascunhos e confira o que falta.</span></button>' : ''}
+      </div>
+      <p class="dica">Nada fica disponível para a equipe antes de você testar e publicar.</p></div>`;
+  document.body.appendChild(fundo);
+  const fechar = (devolverFoco = true) => { fundo.remove(); document.removeEventListener('keydown', tecla, true); document.removeEventListener('greenia:antes-navegar', sair); if (devolverFoco) anterior?.focus?.(); };
+  const sair = () => fechar(false);
+  const tecla = ev => {
+    if (ev.key === 'Escape') { ev.preventDefault(); fechar(); }
+    if (ev.key === 'Tab') {   // foco preso no modal
+      const f = [...fundo.querySelectorAll('a[href], button')];
+      if (ev.shiftKey && document.activeElement === f[0]) { ev.preventDefault(); f.at(-1).focus(); }
+      else if (!ev.shiftKey && document.activeElement === f.at(-1)) { ev.preventDefault(); f[0].focus(); }
+    }
+  };
+  document.addEventListener('keydown', tecla, true);
+  document.addEventListener('greenia:antes-navegar', sair);
+  fundo.querySelector('[data-fechar]').onclick = () => fechar();
+  fundo.querySelectorAll('a[href]').forEach(a => a.addEventListener('click', () => fechar(false)));
+  fundo.querySelector('[data-continuar-preparo]')?.addEventListener('click', () => { fechar(false); continuar(); });
+  fundo.onclick = ev => { if (ev.target === fundo) fechar(); };
+  fundo.querySelector('#qw-criar-titulo').focus();
+}
+
+// "Saiba mais": a explicação fica na Ajuda da tela, não na tela.
+export const saibaMais = (rotulo = 'Saiba mais') => `<button type="button" class="link-sutil qw-saiba-mais" data-abrir-ajuda>${esc(rotulo)}</button>`;
+document.addEventListener('click', ev => { if (ev.target.closest?.('[data-abrir-ajuda]')) document.getElementById('ajuda-tela')?.click(); });
 
 // ---- Confirmação (modal próprio, sem alerta do navegador) ---------------------------------------------------
 // Resolve true quando a pessoa confirma. Foco no título, Esc e o fundo cancelam, Tab fica dentro do modal.

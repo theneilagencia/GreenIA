@@ -105,6 +105,8 @@ test('fontes: papel tem explicação acessível; URL inválida fica junto ao cam
 
 test('busca encontra nomes sem acento e arquivados; restauração conserva histórico e não publica automaticamente', async () => {
   await p.click('#salvar-rascunho'); await p.waitForFunction(() => /Rascunho salvo/.test(document.querySelector('#estado-rascunho')?.textContent));
+  // A busca aparece quando a lista passa de uma tela (lista curta não mostra filtros): mais alguns rascunhos.
+  for (const nome of ['Lista UX 1', 'Lista UX 2', 'Lista UX 3', 'Lista UX 4', 'Lista UX 5']) await admin.post('/api/quick-wins', { assistente: { descricao: `Organizar anotações fictícias (${nome}).`, nome }, areas: [area] });
   await p.goto(`${N.base}/app#/quick-wins`); await p.waitForSelector('#buscar-qw');
   const qw = (await admin.post('/api/quick-wins', { assistente: { descricao: 'Resuma reuniões fictícias.', nome: 'Reunião UX arquivada' }, areas: [area] })).dados;
   const conv = (await admin.post('/api/conversas', { quick_win_id: qw.id, teste: true })).dados.conversa;
@@ -112,7 +114,9 @@ test('busca encontra nomes sem acento e arquivados; restauração conserva hist�
   await p.reload(); await p.waitForSelector('#buscar-qw'); await p.fill('#buscar-qw', 'reuniao ux');
   assert.equal(await p.locator('.qw-item:not([hidden])').count(), 1);
   assert.equal(await p.locator('details.qw-acompanhamento:has(.qw-lista)').getAttribute('open'), '');
-  await p.locator('.qw-item:not([hidden]) details summary').click();
+  // Restaurar fica em "Mais ações", na página do Quick Win (a linha da lista abre o Quick Win).
+  await p.locator('.qw-item:not([hidden]) .qw-item-link').click();
+  await p.locator('summary[aria-label="Mais ações"]').click();
   await p.click('[data-acao="restaurar"]'); await p.getByRole('dialog', { name: /Restaurar o Quick Win/ }).getByRole('button', { name: 'Restaurar Quick Win', exact: true }).click();
   await p.waitForFunction(() => /restaurado em preparo/.test(document.querySelector('.toast')?.textContent));
   assert.equal((await admin.get(`/api/quick-wins/${qw.id}`)).dados.status, 'em_configuracao');

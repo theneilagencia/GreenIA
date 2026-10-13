@@ -94,8 +94,10 @@ test('Quick Win: arquivar, restaurar, renomear e excluir execução, voltar vers
   const c2 = (await admin.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
   exec(N.app.db, "update conversas set titulo = 'Execução fictícia' where id = ?", c2.id);
   const status = async () => (await admin.get(`/api/quick-wins/${q.id}`)).dados.status;
-  await p.goto(`${N.base}/app#/qw/${q.id}`); await p.locator(`[data-renomear="${c2.id}"]`).waitFor();
+  await p.goto(`${N.base}/app#/qw/${q.id}`); await p.locator(`[data-renomear="${c2.id}"]`).waitFor({ state: 'attached' });
   const menu = async item => { await p.locator('summary[aria-label="Mais ações"]').click(); await p.getByRole('menuitem', { name: item, exact: true }).click(); };
+  // Renomear e excluir a execução ficam no "…" da própria linha (uma ação visível por linha).
+  const daExecucao = async acao => { await p.locator('.execucoes li').filter({ has: p.locator(`[data-${acao}="${c2.id}"]`) }).locator('.menu-acoes summary').click(); await p.click(`[data-${acao}="${c2.id}"]`); };
 
   await semGravar(async () => {
     await menu('Arquivar'); const m = modal(/Arquivar o Quick Win “Newsletter fictícia”/); await m.waitFor();
@@ -111,22 +113,22 @@ test('Quick Win: arquivar, restaurar, renomear e excluir execução, voltar vers
   await p.locator('[data-acao=arquivar]').waitFor({ state: 'attached' }); assert.equal(await status(), 'em_configuracao');
 
   // Renomear a execução: o mesmo modal do histórico de conversas, com campo de texto (sem prompt()).
-  await p.locator(`[data-renomear="${c2.id}"]`).waitFor();
+  await p.locator(`[data-renomear="${c2.id}"]`).waitFor({ state: 'attached' });
   await semGravar(async () => {
-    await p.click(`[data-renomear="${c2.id}"]`); const m = modal('Renomear conversa'); await m.waitFor();
+    await daExecucao('renomear'); const m = modal('Renomear conversa'); await m.waitFor();
     await m.getByRole('textbox', { name: 'Nome da conversa' }).fill('Nome que não vai ficar');
     await m.getByRole('button', { name: 'Cancelar', exact: true }).click(); await fechado();
   });
   assert.equal(um(N.app.db, 'select titulo from conversas where id = ?', c2.id).titulo, 'Execução fictícia');
-  await p.click(`[data-renomear="${c2.id}"]`); await modal('Renomear conversa').getByRole('textbox', { name: 'Nome da conversa' }).fill('Execução renomeada');
+  await daExecucao('renomear'); await modal('Renomear conversa').getByRole('textbox', { name: 'Nome da conversa' }).fill('Execução renomeada');
   await modal('Renomear conversa').getByRole('button', { name: 'Salvar nome', exact: true }).click(); await fechado();
   await p.locator('.execucoes', { hasText: 'Execução renomeada' }).waitFor();
   await semGravar(async () => {
-    await p.click(`[data-apagar="${c2.id}"]`); const m = modal('Excluir esta conversa?'); await m.waitFor();
+    await daExecucao('apagar'); const m = modal('Excluir esta conversa?'); await m.waitFor();
     assert.match(await m.innerText(), /Execução renomeada/); await m.getByRole('button', { name: 'Cancelar', exact: true }).click(); await fechado();
   });
   assert.ok(um(N.app.db, 'select id from conversas where id = ?', c2.id));
-  await p.click(`[data-apagar="${c2.id}"]`); await modal('Excluir esta conversa?').getByRole('button', { name: 'Excluir conversa', exact: true }).click(); await fechado();
+  await daExecucao('apagar'); await modal('Excluir esta conversa?').getByRole('button', { name: 'Excluir conversa', exact: true }).click(); await fechado();
   await p.waitForFunction(id => !document.querySelector(`[data-apagar="${id}"]`), c2.id);
   assert.equal(um(N.app.db, 'select id from conversas where id = ?', c2.id), undefined);
 

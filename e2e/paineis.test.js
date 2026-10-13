@@ -27,7 +27,7 @@ test('leigo: resultado → conferir → erro recuperável → confirmar → hist
 });
 test('processo pronto cria rascunho com campos definidos e obriga teste/publicação',async()=>{
  const N=await subirComNavegador();try{
-  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/quick-wins`);await p.getByRole('link',{name:/Começar de um processo pronto/}).click();await p.getByRole('heading',{name:'Comece com um processo pronto'}).waitFor();
+  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/quick-wins`);await p.getByRole('button',{name:/^Criar (meu primeiro )?Quick Win$/}).first().click();await p.getByRole('dialog',{name:'Como você quer começar?'}).getByRole('link',{name:/Começar de um processo pronto/}).click();await p.getByRole('heading',{name:'Comece com um processo pronto'}).waitFor();
   await p.getByRole('radio',{name:/Acompanhar ações e prazos/}).check();await p.getByRole('button',{name:'Criar e testar este processo'}).click();await p.waitForURL(/#\/qw\/\d+\/teste/);await p.locator('#principal').getByText('Acompanhamento de ações',{exact:false}).first().waitFor();
   const q=N.app.db.prepare('select * from quick_wins order by id desc limit 1').get();assert.equal(q.versao_publicada,null);assert.equal(N.app.db.prepare('select modelo from qw_paineis where quick_win_id=?').get(q.id).modelo,'acoes');
  }finally{await N.fechar();}
@@ -99,7 +99,7 @@ test('QA profundo UX: busca local conserva indicadores e explica contratação d
   const p=await N.entrar('admin@empresa-exemplo.com.br');await p.goto(`${N.base}/app#/qw/${q.id}/acompanhamento`);await p.getByRole('heading',{name:'Registros confirmados'}).waitFor();
   const antes=await p.getByRole('region',{name:'Indicadores dos resultados do processo'}).innerText();await p.getByLabel('Encontrar um registro nesta página').fill('Nenhuma correspondência');
   assert.equal(await p.locator('#painel-linhas tr:visible').count(),0);assert.equal(await p.getByRole('region',{name:'Indicadores dos resultados do processo'}).innerText(),antes);
-  await p.getByText('O que os resultados do processo incluem',{exact:true}).click();await p.getByText(/atualização por sistemas externos e painéis personalizados dependem de contratação adicional/).waitFor();
+  await p.getByRole('button',{name:'Saiba mais',exact:true}).click();await p.getByRole('dialog').getByText(/atualização por sistemas externos e painéis personalizados dependem de contratação adicional/).waitFor();await p.keyboard.press('Escape');
   await p.getByLabel('Encontrar um registro nesta página').fill('');assert.equal(await p.locator('#painel-linhas tr:visible').count(),1);
  }finally{await N.fechar();}
 });

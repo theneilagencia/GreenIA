@@ -72,6 +72,7 @@ const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-dig
 const ETAPAS = ['Objetivo', 'Processo', 'Regras', 'Resultado', 'Testar', 'Publicar'];
 const REVISAR = 5, SUCESSO = 6;
 const ORDEM_SAIDAS = ['resumo', 'tabela', 'lista', 'relatorio', 'outro'];
+const EXEMPLOS_VISIVEIS = 3;   // os outros aparecem em “Mais exemplos”
 const EXEMPLOS = [
   ['analisar um documento', 'Analisar documentos e apontar pontos de atenção, riscos e o que estiver faltando.', 'analisar_documentos'],
   ['comparar propostas', 'Comparar propostas de fornecedores e mostrar, item por item, o que muda em valor, prazo e condições.', 'comparar_documentos'],
@@ -101,9 +102,8 @@ async function publicarAntigo(qw) {
   const quem = qw.toda_empresa ? 'Todas as pessoas da empresa' : nomes.length ? `As pessoas ${nomes.length === 1 ? 'da área' : 'das áreas'} ${nomes.join(', ')}` : 'As pessoas das áreas deste Quick Win';
   $('principal').innerHTML = `${cabecalho('Publicar Quick Win')}
     <div class="pagina"><div class="pg">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${qw.id}`], ['Publicar']], titulo: `Publicar “${qw.nome}” para a equipe?`, descricao: `${quem} passam a ver e usar este Quick Win na biblioteca. O uso passa a contar nos resultados.` })}
-      <p class="dica">Antes de publicar, vale fazer um teste com um caso real. Depois, ajustes nas instruções valem na hora para todos.</p>
-      <div class="linha-botoes"><button type="button" class="btn btn-verde" id="qw-publicar-antigo">Publicar para a equipe</button><a class="btn btn-linha" href="#/qw/${qw.id}/teste">Testar antes</a><a class="btn btn-texto" href="#/qw/${qw.id}">Voltar</a></div>
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${qw.id}`], ['Publicar']], titulo: `Publicar “${qw.nome}” para a equipe?`, descricao: `${quem} passam a ver e usar este Quick Win na biblioteca.` })}
+      <div class="linha-botoes"><button type="button" class="btn btn-verde" id="qw-publicar-antigo">Publicar para a equipe</button><a class="btn btn-texto" href="#/qw/${qw.id}/teste">Testar antes</a></div>
     </div></div>`;
   ligarCabecalho();
   $('qw-publicar-antigo').onclick = async ev => {
@@ -157,11 +157,12 @@ export async function assistenteQw(id = null, { passo = 0, atualizar = false, re
   }
   $('principal').innerHTML = `${cabecalho(qw ? 'Editar Quick Win' : 'Criar Quick Win')}
     <div class="pagina"><div class="pg qw-wizard">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win', descricao: 'Ensine à GreenIA como realizar esse trabalho.',
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], ...(qw ? [[qw.nome, `#/qw/${qw.id}`]] : []), [qw ? 'Editar' : 'Criar']], titulo: qw ? 'Editar Quick Win' : 'Criar Quick Win',
+        // Uma linha: o que esta tela faz e, quando importa, de onde ela parte (versão, modelo, atualização).
+        descricao: `Ensine à GreenIA como realizar esse trabalho.${publicada ? `<span class="pg-desc-extra" id="aviso-versao"> Você está editando a v${publicada + 1}; a equipe continua na v${publicada} até você publicar.</span>`
+          : !qw && inicial ? `<span class="pg-desc-extra"> Começando do modelo “${esc(inicial.nome)}”. Nada é criado até você continuar.</span>`
+          : atualizar && qw && !qw.v2 ? '<span class="pg-desc-extra"> Atualizando para Quick Win inteligente: nada muda para a equipe até você publicar.</span>' : ''}`,
       })}
-      ${publicada ? `<div id="aviso-versao">${aviso(`<b>Versão publicada: v${publicada}.</b> Você está editando a v${publicada + 1}. A equipe continua usando a v${publicada} até você publicar.`)}</div>` : ''}
-      ${!qw && inicial ? aviso(`<b>Começando do modelo “${esc(inicial.nome)}”.</b> Ajuste o que quiser. Nada é criado até você continuar.`) : ''}
-      ${atualizar && qw && !qw.v2 ? aviso('<b>Atualizando para Quick Win inteligente.</b> A GreenIA sugere uma estrutura a partir do que este Quick Win já faz. Nada muda para a equipe até você publicar; as conversas e o histórico continuam.') : ''}
       <div id="progresso"></div>
       <div id="etapa"></div>
       <div class="rascunho-barra" id="rascunho-barra"><span id="estado-rascunho" role="status">${qw ? 'Rascunho carregado' : 'Seu rascunho será salvo ao continuar'}</span><button type="button" class="btn btn-linha btn-pequeno" id="salvar-rascunho">Salvar rascunho</button></div>
@@ -456,9 +457,8 @@ const ETAPA_HTML = [
     <label class="sr" for="objetivo">O que a IA deve fazer</label>
     <textarea class="campo-amplo" id="objetivo" maxlength="1000" aria-describedby="micro-objetivo" placeholder="Ex.: Analisar propostas comerciais e apontar valores, prazos, riscos e o que estiver faltando">${esc(W.descricao)}</textarea>
 
-    <p class="exemplos">Exemplos: ${EXEMPLOS.map(([t], i) => `<button type="button" data-exemplo="${i}">${esc(t)}</button>`).join('<span class="ponto-sep" aria-hidden="true">·</span>')}</p>
-    <div class="campo qw-nome-inicial"><label class="legenda" for="nome-inicial">Nome do Quick Win (opcional)</label><input class="entrada" id="nome-inicial" maxlength="80" value="${esc(W.nome)}" aria-describedby="nome-inicial-ajuda" placeholder="Ex.: Resumo da reunião semanal"><p class="dica" id="nome-inicial-ajuda">Use um nome que sua equipe reconheça. Se deixar em branco, a GreenIA sugere um nome. Você pode editar depois.</p></div>
-    ${W.id ? '' : '<p class="dica">Prefere partir de um exemplo pronto? <a class="link-sutil" href="#/qw/nova/modelos">Começar de um modelo</a></p>'}
+    <p class="exemplos" id="exemplos-objetivo">Exemplos: ${EXEMPLOS.map(([t], i) => `<span class="exemplo-item"${i >= EXEMPLOS_VISIVEIS ? ' hidden' : ''}>${i ? '<span class="ponto-sep" aria-hidden="true">·</span>' : ''}<button type="button" data-exemplo="${i}">${esc(t)}</button></span>`).join('')}<button type="button" id="mais-exemplos" aria-controls="exemplos-objetivo" aria-expanded="false">Mais exemplos</button></p>
+    <div class="campo qw-nome-inicial"><label class="legenda" for="nome-inicial">Nome do Quick Win (opcional)</label><input class="entrada" id="nome-inicial" maxlength="80" value="${esc(W.nome)}" aria-describedby="nome-inicial-ajuda" placeholder="Ex.: Resumo da reunião semanal"><p class="dica" id="nome-inicial-ajuda">Em branco, a GreenIA sugere um nome.</p></div>
     ${rodape(W)}`,
   // 2. Processo (com o entendimento do trabalho: o plano que a GreenIA montou do pedido)
   async W => { await interpretarPlano(W); await sugerir(W); if (W.passo !== 1) return ''; return `${htmlPlano(W)}${await htmlSistemas(W)}${pergunta('Como você quer que este trabalho aconteça?', W.modoProc === 'exemplo'
@@ -537,7 +537,7 @@ const ETAPA_HTML = [
       ${faltando.length ? aviso(`<b>Falta uma informação para este trabalho:</b> ${faltando.map(l => esc(l.pergunta)).join(' ')}`, 'info', '<button type="button" class="btn btn-linha btn-pequeno" id="responder-lacunas">Responder agora</button>') : ''}
       <div class="segmento-sutil" role="group" aria-label="Material do teste">
         ${[['auto', 'Exemplo pronto'], ['colar', 'Colar um texto'], ['arquivo', 'Enviar um arquivo']].map(([v, t]) => `<button type="button" data-material="${v}" aria-pressed="${W.teste.modo === v}">${t}</button>`).join('')}</div>
-      <div id="teste-corpo">${W.teste.modo === 'auto' ? (ex?.modo === 'texto' ? `<pre class="previa-texto" aria-label="Material fictício do teste">${esc(ex.texto)}</pre><p class="dica bloco-extra">${esc(ex.aviso)}</p>`
+      <div id="teste-corpo">${W.teste.modo === 'auto' ? (ex?.modo === 'texto' ? `<pre class="previa-texto" tabindex="0" aria-label="Material fictício do teste">${esc(ex.texto)}</pre><p class="dica bloco-extra">${esc(ex.aviso)}</p>`
           : aviso(esc(ex?.mensagem || ''), 'info', `${ex?.modo === 'arquivo' ? '' : '<button type="button" class="btn btn-linha btn-pequeno" data-material="colar">Colar um texto</button>'}<button type="button" class="btn btn-linha btn-pequeno" data-material="arquivo">Enviar um arquivo</button>`))
         : W.teste.modo === 'colar' ? `<label class="sr" for="teste-texto">Texto do teste</label><textarea class="campo-amplo menor" id="teste-texto" placeholder="Cole um trecho do seu dia a dia">${esc(W.teste.texto)}</textarea>`
         : `<div class="arquivo-escolhido"><button type="button" class="btn btn-linha" id="teste-arquivo">${ICONE.clipe} Escolher arquivo</button><input type="file" id="teste-input" hidden accept="${ACEITOS}"><span class="dica" id="teste-nome">${esc(W.teste.anexo?.nome || 'PDF, Word, planilha ou imagem com texto')}</span></div>`}</div>
@@ -555,7 +555,7 @@ const ETAPA_HTML = [
     const teste = q.ultimo_teste || null;
     const considera = a.como?.modo === 'explicar' && a.como.texto ? esc(a.como.texto.length > 220 ? `${a.como.texto.slice(0, 220)}…` : a.como.texto)
       : a.como?.modo === 'mostrar' ? 'A estrutura do exemplo que você mostrou.' : 'A estrutura sugerida para esse tipo de trabalho.';
-    return `${pergunta('Revise e publique', 'Confira o que a equipe vai usar. Você pode ajustar depois; cada publicação vira uma nova versão.')}
+    return `${pergunta('Revise e publique', 'Confira o que a equipe vai usar. Cada publicação vira uma nova versão.')}
       <ul class="resumo-pub" aria-label="Este Quick Win vai">
         <li><span class="r">Nome</span><div><div class="editavel" id="nome-ver"><span class="valor" id="nome-atual">${esc(q.nome)}</span><button type="button" class="link-sutil" id="editar-nome">Editar</button></div>
           <div class="oculto" id="nome-edicao"><label class="sr" for="nome">Nome do Quick Win</label><input class="entrada" id="nome" maxlength="80" value="${esc(q.nome)}"></div></div></li>
@@ -570,7 +570,7 @@ const ETAPA_HTML = [
         ${areas.length > 1 || E.permQw.todaEmpresa ? `<li><span class="r">Quem usa</span><div class="opcoes">${areas.map(x => `<label><input type="checkbox" name="area" value="${x.id}" ${q.areas.includes(x.id) ? 'checked' : ''}> ${esc(x.nome)}</label>`).join('')}
           ${E.permQw.todaEmpresa ? `<label><input type="checkbox" id="toda" ${q.toda_empresa ? 'checked' : ''}> Toda a empresa</label>` : ''}</div></li>` : ''}
       </ul>
-      ${!teste || ['parcial','inconsistente','pergunta'].includes(teste.status) ? `<section class="faixa-aviso atencao"><h3>Este trabalho ainda precisa de revisão</h3><p>${esc(resumoConferencia(teste))}</p><a class="btn btn-linha" href="#/qw/${W.id}/refinar">Refinar e testar</a><label class="opcoes"><input type="checkbox" id="ciencia-ressalvas"> Conferi as ressalvas e quero disponibilizar esta versão para o público selecionado.</label></section>` : ''}<p class="dica">Publicar disponibiliza o trabalho para as pessoas selecionadas. Suas conversas continuam privadas. Agendamentos existentes precisam de revisão quando a versão mudar.</p>${rodape(W, { continuar: 'Publicar Quick Win' })}`;
+      ${!teste || ['parcial','inconsistente','pergunta'].includes(teste.status) ? `<section class="faixa-aviso atencao"><h3>Este trabalho ainda precisa de revisão</h3><p>${esc(resumoConferencia(teste))}</p><a class="btn btn-linha" href="#/qw/${W.id}/refinar">Refinar e testar</a><label class="opcoes"><input type="checkbox" id="ciencia-ressalvas"> Conferi as ressalvas e quero disponibilizar esta versão para o público selecionado.</label></section>` : ''}${rodape(W, { continuar: 'Publicar Quick Win' })}`;
   },
   // 7. Publicado
   W => `<div class="sucesso" role="status"><span class="sucesso-icone" aria-hidden="true">${ICONE.check}</span>
@@ -1028,6 +1028,11 @@ const ETAPA_LIGAR = [
       const [, texto, arq] = EXEMPLOS[Number(b.dataset.exemplo)];
       $('objetivo').value = texto; W.arquetipo = arq; W.descricao = texto; W.sugestao = null; $('objetivo').focus();
     }; });
+    $('mais-exemplos')?.addEventListener('click', ev => {
+      document.querySelectorAll('#exemplos-objetivo .exemplo-item[hidden]').forEach(b => { b.hidden = false; });
+      ev.currentTarget.remove();
+      document.querySelector(`[data-exemplo="${EXEMPLOS_VISIVEIS}"]`)?.focus();
+    });
     $('objetivo').addEventListener('input', () => { W.arquetipo = null; });
     $('objetivo').addEventListener('keydown', ev => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) continuar(W); });
   },
@@ -1140,17 +1145,18 @@ export async function usarQw(id, { testar = false } = {}) {
   // Formato anterior: a mesma tela do formato novo (o que enviar, sugestões à vista e Executar). No teste, uma faixa
   // diz que ele não conta nos resultados e oferece Voltar, Ajustar e Publicar.
   const antigo = !qw.v2;
-  const faixaTeste = !antigo ? (teste ? aviso('<b>Ainda não publicado.</b> Esta execução é um teste e não entra nos resultados.') : '')
-    : teste ? aviso(`<b>Teste: não conta nos resultados.</b> Envie um caso real e confira o resultado.${publicado ? '' : ' Se estiver bom, publique para a equipe.'}`, 'info',
-      `<a class="btn btn-texto btn-pequeno" href="#/qw/${id}">Voltar ao Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${id}/editar">Ajustar</a>${publicado ? '' : `<a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar para a equipe</a>`}`) : '';
+  // No teste, a linha da página diz que ele não conta nos resultados; Ajustar e Publicar ficam no cabeçalho, discretos,
+  // e Executar continua sendo a ação principal.
+  const descricao = !teste ? esc(qw.para_que_serve || '')
+    : antigo ? '<b>Teste: não conta nos resultados.</b> Envie um caso real e confira o resultado.'
+    : '<b>Ainda não publicado.</b> Esta execução é um teste e não entra nos resultados.';
+  const lado = teste && antigo && !publicado ? `<a class="btn btn-linha" href="#/qw/${id}/publicar">Publicar para a equipe</a>` : '';
   const sugestoes = antigo ? (qw.sugestoes || []).filter(Boolean) : [];
   $('principal').innerHTML = `${cabecalho(teste && antigo ? 'Testar Quick Win' : qw.nome)}
     <div class="pagina"><div class="pg qw-usar">
-      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], [teste && antigo ? 'Testar' : 'Usar']], titulo: qw.nome, descricao: esc(qw.para_que_serve || '') })}
-      ${faixaTeste}
+      ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], [teste && antigo ? 'Testar' : 'Usar']], titulo: qw.nome, descricao, lado })}
       <form class="usar-caixa" id="executar" novalidate>
         <label class="pergunta" for="entrada-qw" id="pergunta">${antigo ? 'O que enviar' : 'Material para este trabalho'}</label><p>${esc(oQueEnviar(qw))}</p>${qw.entregas?.orientacao ? `<details><summary>Conferir a orientação completa do trabalho</summary><p>${esc(qw.entregas.orientacao)}</p></details>` : ''}
-        ${antigo && teste && qw.instrucoes ? `<details><summary>Conferir as instruções que a IA segue</summary><p class="qw-instrucoes">${esc(qw.instrucoes)}</p></details>` : ''}
         ${sugestoes.length ? `<div class="sugestoes qw-sugestoes" role="group" aria-label="Para começar">${sugestoes.map((t, i) => `<button type="button" data-sug-usar="${i}">${esc(t)}</button>`).join('')}</div>` : ''}
         <textarea class="campo-amplo" id="entrada-qw" placeholder="Cole o texto aqui ou anexe o arquivo"></textarea>
         <div class="anexos-pendentes" id="anexos-qw" style="margin-top:10px"></div>
@@ -1158,6 +1164,7 @@ export async function usarQw(id, { testar = false } = {}) {
         <div class="rodape-usar"><button type="button" class="btn btn-linha" id="anexar-qw">${ICONE.clipe} Anexar arquivo</button><input type="file" id="arquivo-qw" hidden multiple accept="${ACEITOS}">
           <button type="submit" class="btn btn-verde btn-grande" id="executar-btn">Executar</button></div>
       </form>
+      ${antigo && teste ? `<details class="qw-instrucoes-teste"><summary>Conferir as instruções que a IA segue</summary>${qw.instrucoes ? `<p class="qw-instrucoes">${esc(qw.instrucoes)}</p>` : ''}<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/editar">Ajustar</a></details>` : ''}
     </div></div>`;
   ligarCabecalho();
   const desenharAnexos = () => {
@@ -1189,7 +1196,7 @@ export async function versoesQw(id) {
     <div class="pagina"><div class="pg">
       ${cabecalhoPg({ trilha: [['Quick Wins', '#/quick-wins'], [qw.nome, `#/qw/${id}`], ['Versões']], titulo: 'Versões', descricao: 'Cada publicação vira uma versão. A equipe usa sempre a versão atual.' })}
       ${!qw.v2 ? aviso('<b>Este Quick Win usa o formato anterior, sem histórico de versões.</b> As alterações valem na hora para todos. Para guardar versões e poder restaurar uma anterior, atualize para o formato novo.', 'info', qw.podeEditar ? `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/atualizar">Atualizar formato</a>` : '') : ''}
-      ${qw.rascunho_alterado && qw.versao ? aviso(`<b>Rascunho em edição: v${qw.versao + 1}.</b> Ainda não publicado.`, 'info', `<a class="btn btn-linha btn-pequeno" href="#/qw/${id}/teste">Testar nova versão</a><a class="btn btn-verde btn-pequeno" href="#/qw/${id}/publicar">Publicar</a>`) : ''}
+      ${qw.rascunho_alterado && qw.versao ? aviso(`<b>Rascunho em edição: v${qw.versao + 1}.</b> Ainda não publicado.`, 'info', `<a class="btn btn-texto btn-pequeno" href="#/qw/${id}/teste">Testar nova versão</a><a class="btn btn-linha btn-pequeno" href="#/qw/${id}/publicar">Publicar</a>`) : ''}
       ${versoes.length>1?`<details class="qw-acompanhamento"><summary>Comparar versões</summary><form id="comparar-versoes" class="grade-2"><div class="campo"><label for="versao-antes">Versão anterior</label><select class="entrada" id="versao-antes">${versoes.map((v,i)=>`<option value="${v.numero}" ${i===1?'selected':''}>v${v.numero}</option>`).join('')}</select></div><div class="campo"><label for="versao-depois">Comparar com</label><select class="entrada" id="versao-depois">${versoes.map(v=>`<option value="${v.numero}">v${v.numero}</option>`).join('')}</select></div><button class="btn btn-linha">Ver diferenças</button></form><div id="versoes-diferencas" role="status"></div></details>`:''}
       <ul class="execucoes">${versoes.map(v => `<li><div class="execucao" style="padding:14px 4px;display:flex;flex-direction:column;flex:1"><b>v${v.numero}${v.atual ? ' · Versão atual' : ''}</b>
         <span class="dica">${dataCurta(v.publicada_em)}${v.publicada_por ? ` · ${esc(v.publicada_por)}` : ''}${v.teste ? ` · teste ${v.teste === 'inconsistente' ? 'com pontos para revisar' : v.teste === 'parcial' ? 'com conferência incompleta' : 'conferido'}` : ''}</span></div>

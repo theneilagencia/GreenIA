@@ -116,7 +116,9 @@ test('excluir: só quem gere vê a ação; modal pede o nome; histórico preserv
   const q = qws.find(x => /Pesquisar temas|Pesquisar/.test(x.nome)) || qws[0];
   await p.goto(`${N.base}/app#/quick-wins`);
   await p.waitForSelector('.qw-item');
-  const item = p.locator('.qw-item', { hasText: q.nome }).first();
+  // Excluir fica em "Mais ações", na página do Quick Win (a linha da lista abre o Quick Win).
+  await p.locator('.qw-item', { hasText: q.nome }).first().locator('.qw-item-link').click();
+  const item = p.locator('.pg-acoes');
   await item.locator('summary').click();
   await item.locator('[data-acao="excluir"]').click();
   await p.waitForSelector('.modal[role=dialog]');
@@ -130,6 +132,8 @@ test('excluir: só quem gere vê a ação; modal pede o nome; histórico preserv
   assert.ok(await p.locator('[data-confirmar]').isDisabled());
   await p.fill('#excluir-nome', q.nome);
   await p.click('[data-confirmar]');
+  await p.waitForURL(/#\/quick-wins$/);
+  await p.waitForSelector('.qw-item, .qw-vazio');
   await p.waitForFunction(nome => ![...document.querySelectorAll('.qw-item-nome')].some(n => n.textContent === nome), q.nome);
   const linha = N.app.db.prepare('select excluido_em from quick_wins where id = ?').get(q.id);
   assert.ok(linha.excluido_em, 'soft delete');
@@ -158,8 +162,9 @@ test('celular: etapa de entregas e resultado por canal sem rolagem horizontal; q
   const rui = await N.entrar('rui@empresa-exemplo.com.br', await cel.newPage());
   await rui.goto(`${N.base}/app#/quick-wins`);
   await rui.waitForSelector('.qw-item');
-  await rui.locator('.qw-item summary').first().click();
-  assert.ok(await rui.locator('.menu-lista').first().isVisible());
+  await rui.locator('.qw-item .qw-item-link').first().click();
+  await rui.locator('.pg-acoes summary').click();
+  assert.ok(await rui.locator('.pg-acoes .menu-lista').isVisible());
   assert.equal(await rui.locator('[data-acao="excluir"]').count(), 0, 'sem permissão: a ação não aparece');
   assert.deepEqual(erros, []);
   await cel.close();

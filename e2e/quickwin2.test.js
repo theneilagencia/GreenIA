@@ -78,7 +78,8 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   assert.match(await p.textContent('.qw-vazio'), /Crie um trabalho que sua equipe poderá repetir com segurança\./);
   assert.equal(await p.locator('table').count(), 0, 'sem tabela administrativa');
   await semTecnico('biblioteca vazia');
-  await clicar('.qw-vazio a:has-text("Criar meu primeiro Quick Win")');
+  await clicar('.qw-vazio button:has-text("Criar meu primeiro Quick Win")');
+  await clicar('[role=dialog] a:has-text("Descrever com suas palavras")');
 
   // Etapa 1: só a pergunta, o campo, exemplos discretos e Continuar.
   await p.waitForSelector('#objetivo');
@@ -130,7 +131,8 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await clicar('[data-continuar]');
   await p.waitForSelector('.sucesso');
   assert.match(await p.textContent('.sucesso'), /Quick Win publicado.*Agora ele está disponível para sua equipe\..*v1/s);
-  assert.ok(cliques <= 8, `da biblioteca à publicação em ${cliques} cliques`);
+  // 9: criar é um botão só que abre a escolha de como começar (padrão "caminho claro"); o resto do caminho não mudou.
+  assert.ok(cliques <= 9, `da biblioteca à publicação em ${cliques} cliques`);
 
   // Usar agora: o que enviar → Executar → resultado com conferência logo abaixo.
   await p.click('.sucesso a:has-text("Usar agora")');
@@ -179,6 +181,7 @@ test('pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revi
   await p.waitForLoadState('networkidle');
   // A opção deve ser encontrada no detalhe, na reabertura do teste e pela rota direta.
   await p.goto(`${N.base}/app#/qw/${idRefinado}`);
+  await p.locator('.pg-acoes summary[aria-label="Mais ações"]').click();   // Refinar fica em "Mais ações"
   await p.waitForSelector(`a[href="#/qw/${idRefinado}/refinar"]`);
   await p.goto(`${N.base}/app#/qw/${idRefinado}/teste`);
   await p.waitForSelector('[data-testar]');
@@ -195,6 +198,7 @@ test('etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (
   await N.entrar('lia@empresa-exemplo.com.br', p);
   await p.goto(`${N.base}/app#/qw/nova`);
   await p.waitForSelector('#objetivo');
+  await p.click('#mais-exemplos');   // três exemplos à vista; os outros quando a pessoa pede
   await p.click('.exemplos [data-exemplo="3"]');
   assert.match(await p.inputValue('#objetivo'), /Organizar anotações soltas/);
   await p.fill('#objetivo', 'Organizar a relação de cobranças em uma tabela com Cliente, Valor e Status');
@@ -324,7 +328,7 @@ test('editar um Quick Win publicado cria a próxima versão sem mexer na publica
   assert.match(await p.textContent('.pg-meta'), /Publicado.*Versão publicada: v1/s);
   await p.getByRole('link', { name: 'Editar instruções', exact: true }).click();
   await p.waitForSelector('#objetivo');
-  assert.match(await p.textContent('.aviso-linha'), /Versão publicada: v1\..*editando a v2.*continua usando a v1/s);
+  assert.match(await p.textContent('.pg-cabeca .pg-desc'), /editando a v2.*continua na v1/s, 'a versão em edição aparece na linha da página, sem aviso');
   assert.match(await p.inputValue('#objetivo'), /Compare pedidos de compra/, 'o que foi ensinado vem preenchido');
   // Editando, as etapas já feitas ficam clicáveis: vai direto para Regras.
   await p.click('.passos [data-ir-etapa="2"]');

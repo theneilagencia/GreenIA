@@ -799,7 +799,8 @@ async function abaPoliticas({ sucesso = '' } = {}) {
       <tr><td data-r="Regra">Anexos</td><td data-r="Situação">Só o texto extraído fica guardado, junto com a conversa</td></tr>
     </tbody></table></div></div>`;
   ligarSugestao(sug, async n => { await abaPoliticas({ sucesso: `Pronto: ${n} ${n === 1 ? 'modelo aprovado' : 'modelos aprovados'} para dados sigilosos.` }); });
-  if (new URLSearchParams(location.hash.split('?')[1] || '').get('sugestao') === '1') { $('sugestao-modelos')?.scrollIntoView({ block: 'start' }); $('sug-aprovar')?.focus({ preventScroll: true }); }
+  if (sucesso) $('sugestao-modelos')?.scrollIntoView({ block: 'center' });   // no celular, o botão ficava lá embaixo
+  else if (new URLSearchParams(location.hash.split('?')[1] || '').get('sugestao') === '1') { $('sugestao-modelos')?.scrollIntoView({ block: 'start' }); $('sug-aprovar')?.focus({ preventScroll: true }); }
   $('sigilo-ativo').onclick = async () => {
     const ativo = !sig.ativo;
     if (ativo && !await confirmar({ titulo: 'Ligar o processamento de informações sigilosas?', texto: 'Informações sigilosas passam a ser processadas, só por recursos autorizados que atendem às proteções obrigatórias de dados.', botao: 'Ligar com proteções' })) return;

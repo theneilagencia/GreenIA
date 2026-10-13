@@ -70,8 +70,8 @@ try{
   for(const rota of ['','qa-global','entrar','encontrar','politica','termos','privacidade','encerramento','plataforma'].filter(incluir))await auditar(pub,'publico',rota,width);
   console.log(`Largura ${width}: ${resultados.length} observações acumuladas.`);
  }
- await page.goto(S.base+'/app#/empresa/landing');await page.getByRole('link',{name:'Ver prévia',exact:true}).waitFor();
- const aberta=page.waitForEvent('popup');await page.getByRole('link',{name:'Ver prévia',exact:true}).click();const previa=await aberta;
+ await page.goto(S.base+'/app#/empresa/landing');const botaoPrevia=page.getByRole('button',{name:'Ver prévia',exact:true}).or(page.getByRole('link',{name:'Ver prévia',exact:true}));await botaoPrevia.waitFor();
+ const aberta=page.waitForEvent('popup');await botaoPrevia.click();const previa=await aberta;
  await previa.waitForLoadState('domcontentloaded');await previa.locator('h1').waitFor();
  const preview={url:new URL(previa.url()).pathname+new URL(previa.url()).search,titulo:await previa.locator('h1').innerText(),erros:await previa.locator('[role="alert"]').allTextContents()};
  writeFileSync(join(destino,'previa.json'),JSON.stringify(preview,null,2));await previa.close();

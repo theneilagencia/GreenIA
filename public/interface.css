@@ -1067,9 +1067,9 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
 /* Atalhos (Quick Wins, Conhecimento, Pendências quando há o que resolver) e os itens da Administração. */
 .lat-grupo{display:flex;flex-direction:column;gap:1px}
 .app .lateral .item-lat{border-radius:8px;min-height:36px;font-size:14px}
-.app .lateral .item-lat.ativo{background:var(--sand-hover);box-shadow:none;color:var(--ink)}
-.app .lateral .item-lat.item-principal{font-weight:400;color:var(--tinta-2)}
-.app .lateral .item-lat.item-principal.ativo{font-weight:500;color:var(--ink)}
+.app .lateral:not(.lateral-plataforma) .item-lat.ativo{background:var(--sand-hover);box-shadow:none;color:var(--ink)}
+.app .lateral:not(.lateral-plataforma) .item-lat.item-principal{font-weight:400;color:var(--tinta-2)}
+.app .lateral:not(.lateral-plataforma) .item-lat.item-principal.ativo{font-weight:500;color:var(--ink)}
 .app .lateral .lateral-rolagem>h2{font:500 12px/1.3 var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin:16px 8px 4px;padding:0}
 .lateral .lat-contexto{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:6px 10px;border-radius:8px;background:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong);font:600 13px/1.3 var(--sans);letter-spacing:0;text-transform:none}
 .lateral .lat-contexto svg{width:15px;height:15px;flex:none;color:var(--forest-text)}

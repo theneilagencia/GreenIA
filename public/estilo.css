@@ -291,7 +291,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 .bolha-ia th{background:var(--surface);font-weight:600}
 .aviso-bolha{border-left:3px solid var(--amber);padding-left:12px}
 .cursor{display:inline-block;width:7px;height:16px;background:var(--forest);margin-left:2px;vertical-align:-3px;animation:pisca 1s steps(1) infinite}
-.rodape-resposta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font:400 12px var(--sans);color:var(--muted)}
 .fontes{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .fontes b{font:600 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .linha-aviso{align-self:center;font:500 12.5px/1.4 var(--sans);color:var(--amber-text);background:var(--amber-bg);border-radius:6px;padding:6px 12px;text-align:center}

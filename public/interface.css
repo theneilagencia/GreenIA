@@ -174,10 +174,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 }
 .app .cabeca .acoes-conversa{width:40px;min-width:40px;height:40px;min-height:40px;color:var(--muted)}
 @media(max-width:760px){.app .cabeca .acoes-conversa{width:44px;min-width:44px;height:44px;min-height:44px}}
-
-/* Rodapé da resposta: ações maiores, aviso de revisão como texto, informação técnica no "i". */
-.rodape-resposta{gap:8px 12px;margin-top:4px}
-.rodape-resposta .revise{color:var(--muted);font-weight:400}
+/* Anexos da caixa de mensagem: papel do material e remover com alvo de 44 px no celular. */
 @media(pointer:coarse),(max-width:760px){
   .app .papel-anexo{min-height:44px}
   .app .anexo-chip>button{min-width:44px;min-height:44px}

@@ -71,7 +71,7 @@ test('imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem 
   await p.reload();
   await p.waitForSelector('.bolha-eu');
   const depois = await p.evaluate(() => document.body.innerText);
-  assert.deepEqual(await p.locator('.bolha-eu .anexo-chip').allInnerTexts().then(a => a.map(t => t.trim())), ['ata.png', 'cadastro.pdf']);
+  assert.deepEqual(await p.locator('.msg-eu .anexo-chip').allInnerTexts().then(a => a.map(t => t.trim())), ['ata.png', 'cadastro.pdf']);
   assert.doesNotMatch(depois, /Primavera2026/);
   assert.doesNotMatch(depois, TECNICO);
   // 5. Guardar = não para CPF: a imagem do cadastro é processada e, depois de recarregar, não está lá.

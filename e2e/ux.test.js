@@ -43,10 +43,10 @@ test('login: reenvio invalida o código anterior; limite do servidor continua va
   await ctx.close();
 });
 
-test('entrada e navegação: caminhos visíveis; Quick Wins aparece antes das conversas recentes; salto evita mudar a rota', async () => {
-  await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#comecar-pedido');
-  assert.equal(await p.locator('.caminho-inicio').count(), 2);
-  await p.click('#comecar-pedido'); assert.equal(await p.locator('#entrada').evaluate(e => e === document.activeElement), true);
+test('entrada e navegação: um centro só (saudação e caixa); salto evita mudar a rota', async () => {
+  await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#saudacao');
+  assert.equal(await p.locator('#principal h2').count(), 1, 'só a saudação como título da área');
+  assert.equal(await p.locator('#entrada').evaluate(e => e === document.activeElement), true, 'no computador, o foco já está na caixa');
   const antes = p.url();
   await p.locator('.pular-conteudo').focus(); await p.keyboard.press('Enter');
   assert.equal(p.url(), antes); assert.equal(await p.locator('#principal').evaluate(e => e === document.activeElement), true);

@@ -1,5 +1,5 @@
-// Formatação das telas de quem usa (frente "Uso e chat"): em 1920, 1366 e 390 px, nas telas de nova conversa,
-// "Como começar", conversa (livre e de Quick Win), histórico, primeiros passos, pendências, conhecimento, ajuda e
+// Formatação das telas de quem usa (frente "Uso e chat"): em 1920, 1366 e 390 px, nas telas de nova conversa
+// (vazia e de Quick Win), conversa (livre e de Quick Win), histórico, primeiros passos, pendências, conhecimento, ajuda e
 // menu do celular:
 // - cartões irmãos começam o texto na mesma altura (tolerância de 4 px) e os da mesma linha têm a mesma altura;
 // - nenhum texto é cortado com reticências quando caberia em duas linhas (títulos longos quebram, não somem);
@@ -110,7 +110,7 @@ const medir = () => {
 
 const TELAS = [
   ['nova conversa', () => '#/nova', '#entrada'],
-  ['como começar', () => '#/nova', '#me-ajude-comecar', async p => { await p.click('#me-ajude-comecar'); await p.waitForSelector('.comecar-caminhos'); }],
+  ['nova conversa de Quick Win', () => `#/qw/${conversaQw.quick_win_id}/nova`, '#entrada'],
   ['conversa livre (título longo)', () => `#/c/${livre.id}`, '.rodape-resposta'],
   ['conversa de Quick Win', () => `#/c/${conversaQw.id}`, '.rodape-resposta'],
   ['histórico de conversas', () => '#/conversas', '.hc-conversa'],

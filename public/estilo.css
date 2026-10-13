@@ -270,9 +270,6 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 
 /* Chat: simples, o trabalho em primeiro plano */
 .barra-conversa{flex:none;display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:8px 28px;border-bottom:1px solid var(--line);background:var(--surface)}
-.seletor{display:flex;align-items:center;gap:8px;font:500 13px var(--sans)}
-.seletor select{background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;padding:5px 8px;font:500 13px var(--sans);color:var(--ink);max-width:260px}
-.chave{display:flex;align-items:center;gap:8px;font:500 13px var(--sans)}
 .mensagens{flex:1;overflow-y:auto;padding:24px 28px}
 .coluna{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
 .boas-vindas{padding:32px 0 8px}
@@ -676,8 +673,7 @@ select.entrada{appearance:none;background-image:var(--seta-select);background-si
   .busca-lat{min-height:44px}
   .switch{position:relative}
   .switch::after{content:'';position:absolute;inset:-12px -8px}
-  .sugestoes button,.barra-conversa button,.barra-conversa select{min-height:40px}
-  .barra-conversa .switch{min-height:20px;height:20px;width:34px}   /* o interruptor não estica com a regra de toque acima */
+  .sugestoes button{min-height:40px}
   .subnav a{padding:12px 12px 13px}
   .kbd{display:none}
   .menu-btn{min-width:44px;min-height:44px}
@@ -1057,7 +1053,6 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .cartao-base small{font:400 13px/1.45 var(--sans);color:var(--muted)}
 .cartao-base-ir{display:inline-flex;align-items:center;gap:4px;flex:none;font:500 13px var(--sans);color:var(--forest-text)}
 .cartao-base-ir svg{width:14px;height:14px}
-.boas-vindas .cartao-base{margin:22px auto 0;max-width:520px}
 
 /* Editor da landing: mostrar ou ocultar cada seção pelo interruptor no título do bloco */
 .ld-vis{margin-left:auto;display:inline-flex;align-items:center;gap:8px;align-self:center;padding:2px 0 2px 8px}
@@ -1193,9 +1188,9 @@ input[type=radio]:disabled,input[type=checkbox]:disabled{opacity:.45;cursor:not-
 select:not([multiple]):not([size]){-webkit-appearance:none;appearance:none;padding-right:30px!important;cursor:pointer;
   background-image:var(--seta-select);
   background-repeat:no-repeat;background-position:right 9px center;background-size:14px}
-.tabela select,.seletor select{background-color:var(--paper);border:1px solid var(--line-strong);border-radius:7px;padding:6px 10px;font:400 13.5px var(--sans);color:var(--ink);transition:border-color var(--rapido)}
-.tabela select:hover,.seletor select:hover{border-color:var(--stone)}
-.tabela select:focus,.seletor select:focus{outline:none;border-color:var(--forest);box-shadow:var(--foco)}
+.tabela select{background-color:var(--paper);border:1px solid var(--line-strong);border-radius:7px;padding:6px 10px;font:400 13.5px var(--sans);color:var(--ink);transition:border-color var(--rapido)}
+.tabela select:hover{border-color:var(--stone)}
+.tabela select:focus{outline:none;border-color:var(--forest);box-shadow:var(--foco)}
 
 /* Tabelas: cabeçalho em caixa normal, respiro nas linhas, destaque de linha ao passar */
 .tabela-rolagem{border-radius:var(--raio-painel);box-shadow:var(--sombra-1)}
@@ -1779,12 +1774,6 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .login-ajuda{margin:18px 0 10px;line-height:1.5}
 #aviso-reenvio{display:block;min-height:24px;margin:10px 0}
 .toast-fechar{flex:none;border:0;background:none;color:inherit;width:36px;min-height:36px;font-size:24px;cursor:pointer}
-.caminhos-inicio{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:720px;margin:24px auto;text-align:left}
-.caminho-inicio{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:20px;border:1px solid var(--line-strong);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;text-decoration:none;cursor:pointer}
-.caminho-inicio:hover{border-color:var(--forest);background:var(--mint)}
-.caminho-inicio b{font-size:18px}
-.caminho-inicio>span{font-size:14px;line-height:1.55;color:var(--muted)}
-.caminho-inicio .caminho-acao{margin-top:auto;color:var(--forest-text);font-weight:600}
 .painel-integracoes{padding:18px!important;margin:16px 0!important;background:var(--paper);border:1px solid var(--line-strong)}
 .integ-resumo{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
 .integ-resumo>b{font-size:16px}
@@ -1812,13 +1801,11 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 .filtros-biblioteca label{display:block;margin-bottom:6px}
 .qw-item[hidden],.qw-bloco[hidden]{display:none!important}
 @media(max-width:900px){.app .icone-btn,.app .btn-pequeno{min-width:44px;min-height:44px}.app .cabeca h1{font-size:18px}.app .recentes-grupo{margin-top:12px}}
-@media(max-width:560px){.caminhos-inicio{grid-template-columns:1fr}.caminho-inicio{padding:16px}.rascunho-barra{align-items:flex-start;flex-wrap:wrap}.painel-integracoes .linha-botoes{flex-direction:column;align-items:stretch}.continuar-caso a{min-height:44px}.app .pagina h2{font-size:24px}}
+@media(max-width:560px){.rascunho-barra{align-items:flex-start;flex-wrap:wrap}.painel-integracoes .linha-botoes{flex-direction:column;align-items:stretch}.continuar-caso a{min-height:44px}.app .pagina h2{font-size:24px}}
 @media(max-height:640px){.app .recentes-grupo .recentes-lat{max-height:76px;min-height:0}}
 
 /* Primeiros passos e biblioteca: leitura guiada, estados explícitos e navegação por bases. */
 .ajuda-guia{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--forest-text);font:600 18px var(--sans);border:1px solid var(--line);border-radius:50%}
-.guia-convite{max-width:720px;margin:18px auto;padding:18px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.guia-convite p{font-size:14px;line-height:1.5;margin:5px 0 12px;color:var(--muted)}
 .guia-pagina{max-width:780px;margin:auto}.guia-etapas{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}
 .guia-etapas [aria-current="step"]{background:var(--forest-strong);color:var(--sobre-forte);border-color:var(--forest-strong)}
 .guia-cartao{padding:28px;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface)}
@@ -1853,27 +1840,6 @@ body[data-contexto="admin"] .cabeca{box-shadow:inset 0 3px 0 var(--deep)}
 @media(max-width:600px){.acomp-lista>li,.acomp-passos>li{padding:18px;gap:12px;flex-wrap:wrap}.acomp-lista>li>.btn,.acomp-passos>li>.btn{width:100%;justify-content:center}.acomp-passos>li>div{flex-basis:calc(100% - 50px)}.acomp-lista>li>div{flex-basis:100%}.acompanhamento .filtros-biblioteca{display:grid;grid-template-columns:1fr}.acomp-resumo{padding:18px}}
 /* Em telas baixas, preserve os cinco destinos principais e o acesso ao histórico. */
 @media(max-height:640px){.app .recentes-grupo{margin-top:4px}.app .recentes-grupo h2{margin-bottom:2px}.app .recentes-grupo .recentes-lat{max-height:44px;min-height:0}}
-
-/* Ajuda orientada ao primeiro trabalho, dentro da conversa. */
-.comecar-convite{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0}
-.comecar-convite>span{font-size:14px;color:var(--muted)}
-.ajude-comecar{border:1px solid var(--line-strong);border-radius:16px;background:var(--paper);padding:24px;margin:20px auto;text-align:left;max-width:720px}
-.ajude-comecar h3{font-size:22px;margin:8px 0 12px}
-.comecar-caminhos{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
-.comecar-caminhos .caminho-inicio:last-child{grid-column:1/-1}
-.ajude-comecar label{display:block;font-weight:600;margin:18px 0 8px}
-.ajude-comecar textarea{resize:vertical;min-height:100px}
-.boas-vindas .ajude-comecar p{margin:12px 0;font-size:14px}
-.ajude-comecar form>.btn{margin:8px 8px 8px 0}
-.ajude-comecar .linha-botoes{margin-top:16px}
-@media(max-width:560px){.ajude-comecar{padding:16px}.comecar-caminhos{grid-template-columns:1fr}.comecar-convite{align-items:stretch;text-align:left;flex-direction:column}.ajude-comecar .btn{white-space:normal}}
-.ajude-comecar:not(.oculto)~.caminhos-inicio,.ajude-comecar:not(.oculto)~.guia-convite,.ajude-comecar:not(.oculto)~.cartao-base{display:none}
-.inicio-orientado>img,.inicio-orientado>h2,.inicio-orientado>p,.inicio-orientado>.comecar-convite>span{display:none}
-.inicio-orientado{padding-top:0}
-.inicio-orientado .comecar-convite{margin:12px 0;justify-content:flex-start}
-.inicio-orientado .ajude-comecar{margin-top:12px}
-.comecar-caminhos .caminho-inicio{padding:16px;gap:8px}
-.comecar-caminhos .caminho-inicio b{font-size:16px}
 
 /* Preparar um trabalho por escolhas concretas, sem editor técnico. */
 .qw-inicio-guiado,.qw-preparacao{border:1px solid var(--borda,#e1e5e1);border-radius:16px;padding:20px;margin:20px 0;background:var(--papel,#fff)}

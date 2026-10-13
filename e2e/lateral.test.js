@@ -100,16 +100,18 @@ test('estado ativo acompanha o clique mesmo com a tela ainda carregando (rede le
   await ctx.close();
 });
 
-test('Administração: aparece no primeiro nível só para quem tem permissão e leva à administração (H)', async () => {
+test('Administração: uma entrada só (o alternador no alto da lateral), só para quem tem permissão, e leva à administração (H)', async () => {
   const { ctx, p } = await abrir('c1', '#/nova');
-  assert.equal(await p.locator('#lateral [data-item="administracao"]').count(), 0, 'sem permissão: não aparece');
+  assert.equal(await p.locator('#lateral [data-contexto="admin"]').count(), 0, 'sem permissão: não aparece');
+  assert.equal(await p.locator('#lateral').getByText('Administração', { exact: true }).count(), 0);
   await ctx.close();
   const a = await N.navegador.newContext({ viewport: { width: 1280, height: 800 } });
   const pa = await N.entrar('admin@empresa-exemplo.com.br', await a.newPage());
   await pa.goto(`${N.base}/app#/nova`);
-  await pa.waitForSelector('#lateral [data-item="administracao"]');
-  assert.deepEqual(await principais(pa), ['conversas', 'quick-wins', 'pendencias', 'conhecimento', 'administracao']);
-  await pa.click('#lateral [data-item="administracao"]');
+  await pa.waitForSelector('#lateral .troca-contexto [data-contexto="admin"]');
+  assert.deepEqual(await principais(pa), ['conversas', 'quick-wins', 'pendencias', 'conhecimento']);
+  assert.equal(await pa.locator('#lateral').getByText('Administração', { exact: true }).count(), 1, '"Administração" aparece uma vez só');
+  await pa.click('#lateral [data-contexto="admin"]');
   await pa.waitForFunction(() => document.body.dataset.contexto === 'admin');
   await a.close();
 });
@@ -151,7 +153,7 @@ test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierar
   await ctx.close();
 });
 
-test('tela baixa (320x568), admin com 100 conversas: todos os itens principais, inclusive Administração, e "Ver todas" à vista sem rolar', async () => {
+test('tela baixa (320x568), admin com 100 conversas: todos os itens principais, o alternador da Administração e "Ver todas" à vista sem rolar', async () => {
   const id = um(N.app.db, "select id from pessoas where email = 'admin@empresa-exemplo.com.br'").id;
   for (let k = 1; k <= 100; k++) exec(N.app.db, "insert into conversas (pessoa_id, titulo, criado_em, atualizado_em) values (?, ?, datetime('now'), datetime('now'))", id, `Admin ${k}`);
   const ctx = await N.navegador.newContext({ viewport: { width: 320, height: 568 } });
@@ -160,10 +162,11 @@ test('tela baixa (320x568), admin com 100 conversas: todos os itens principais, 
   for (const [largura, altura] of [[320, 568], [1280, 600]]) {
     await p.setViewportSize({ width: largura, height: altura });
     await p.goto(`${N.base}/app#/nova`);
-    await p.waitForSelector('#lateral [data-item="administracao"]', { state: 'attached' });
+    await p.waitForSelector('#lateral [data-contexto="admin"]', { state: 'attached' });
     await p.waitForSelector('#lateral a.nova[aria-current="page"]', { state: 'attached' }); await p.waitForTimeout(400);
     if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); }
-    for (const it of ['conversas', 'quick-wins', 'pendencias', 'conhecimento', 'administracao']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
+    for (const it of ['conversas', 'quick-wins', 'pendencias', 'conhecimento']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
+    assert.ok(await visivelNaJanela(p, '#lateral [data-contexto="admin"]'), `Administração visível (${largura}x${altura})`);
     assert.ok(await visivelNaJanela(p, '#lateral .ver-todas'), `"Ver todas" visível (${largura}x${altura})`);
     await p.screenshot({ path: `capturas/tmp/lateral-admin-${largura}x${altura}.png` });
     for (const it of ['quick-wins']) { await p.click(`#lateral [data-item="${it}"]`); await p.waitForURL(/#\/quick-wins$/); }

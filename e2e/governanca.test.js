@@ -49,7 +49,7 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
     buffer: pptx([['Cadastro do cliente', 'Maria Souza, CPF 529.982.247-25', 'maria.souza@hotmail.com, (11) 98765-4321']]) };
   await enviar(p, 'Resuma a apresentação.', [deck]);
   assert.equal(await p.locator('.rodape-resposta').count(), 2, 'as duas foram respondidas');
-  assert.equal(await p.locator('.selo-sigilosa').count(), 0, 'dado pessoal não torna a conversa sigilosa');
+  assert.equal(await p.getAttribute('#sigilosa', 'aria-checked'), 'false', 'dado pessoal não torna a conversa sigilosa');
   assert.doesNotMatch(await textoVisivel(p), /remova|retire|tire o dado|anonimi/i);
   // 2. Segredo: bloqueado, com mensagem simples.
   await enviar(p, 'O acesso do servidor é senha: Primavera2026');
@@ -66,7 +66,7 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
   const depois = await textoVisivel(p);
   assert.match(depois, /Uma mensagem não foi enviada/);
   assert.doesNotMatch(depois, /Primavera2026|laudo médico/, 'o conteúdo bloqueado não foi guardado');
-  assert.equal(await p.locator('.selo-sigilosa').count(), 0, 'bloqueio não torna a conversa sigilosa');
+  assert.equal(await p.getAttribute('#sigilosa', 'aria-checked'), 'false', 'bloqueio não torna a conversa sigilosa');
   assert.doesNotMatch(depois, TECNICO, 'nenhum provedor ou modelo para quem usa');
   // 5. Retenção: a empresa não guarda CPF. Processa e responde; depois de recarregar, o conteúdo não está lá.
   assert.equal((await admin.put('/api/admin/config', { naoArmazenar: ['cpf'] })).status, 200);

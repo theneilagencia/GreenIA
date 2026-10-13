@@ -116,8 +116,7 @@ const SECOES_USO = () => [
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/') },
     { id: 'pendencias', nome: 'Pendências', icone: 'atividade', ver: () => ehGestor() || !!E.bases?.areas?.length || pode('audit.read') || pode('integrations.approve') || pode('user.read') },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
-    // Administração no primeiro nível de Trabalho, só para quem já tem permissão (a mesma regra do alternador).
-    { id: 'administracao', nome: 'Administração', icone: 'engrenagem', ver: () => administra(), href: () => inicioAdmin(), ativo: () => false },
+    // A Administração fica só no alternador "Usar GreenIA | Administração", no alto da lateral (uma entrada só).
   ] },
 ];
 // Conversas recentes na lateral: no máximo RECENTES_LATERAL, subordinadas a "Conversas"; o histórico completo é a
@@ -181,7 +180,7 @@ export function desenharLateral() {
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
     const selo = i.selo?.();
-    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(i.href ? i.href() : `#/${i.id}`)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
+    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="#/${esc(i.id)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const lista = E.conversas || [];
   const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button></div>`).join('')}
@@ -190,8 +189,8 @@ export function desenharLateral() {
   $('lateral').classList.toggle('modo-admin', adm);
   document.body.dataset.contexto = adm ? 'admin' : 'uso';
   const alternador = administra() ? `<nav class="troca-contexto" aria-label="Contexto">
-      <a href="${esc(adm ? inicioUso() : h || '#/nova')}" class="${adm ? '' : 'ativo'}" ${adm ? '' : 'aria-current="page"'}>Usar GreenIA</a>
-      <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
+      <a href="${esc(adm ? inicioUso() : h || '#/nova')}" class="${adm ? '' : 'ativo'}" data-contexto="uso" ${adm ? '' : 'aria-current="page"'}>Usar GreenIA</a>
+      <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" data-contexto="admin" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
   $('lateral').innerHTML = `
     <button type="button" class="icone-btn fechar-lateral" id="fechar-lateral" aria-label="Fechar menu">${ICONE.fechar}</button>
     <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
@@ -382,7 +381,7 @@ export function enderecoNovo(h, consulta = '') {
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.
 function itensPaleta() {
   const telas = [...SECOES_USO().map(g => [g, 'Ir para']), ...SECOES_ADMIN().map(g => [g, 'Administração'])]
-    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: i.href ? i.href() : `#/${i.id}` })));
+    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: `#/${i.id}` })));
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
     { grupo: 'Ajuda', nome: 'Primeiros passos', icone: 'livro', href: '#/primeiros-passos' },

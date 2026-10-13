@@ -8,15 +8,8 @@ function ler() {
   catch { return memoria.get(chave()) || {}; }
 }
 function gravar(v) { memoria.set(chave(), v); try { localStorage.setItem(chave(), JSON.stringify(v)); } catch {} }
-export function conviteGuia() {
-  if (ler().concluido || ler().adiado) return '';
-  return `<aside class="guia-convite" aria-label="Primeiros passos"><div><b>Comece por aqui</b><p>Um guia de ${etapas().length} passos para escolher uma tarefa, enviar materiais e conferir o resultado.</p></div><div class="linha-botoes"><a class="btn btn-linha btn-pequeno" href="#/primeiros-passos">${ler().passo ? 'Continuar o guia' : 'Começar o guia'}</a><button type="button" class="btn-texto btn-pequeno" data-adiar-guia>Agora não</button></div></aside>`;
-}
-document.addEventListener('click', ev => {
-  const b = ev.target.closest?.('[data-adiar-guia]');
-  if (!b) return;
-  gravar({ ...ler(), adiado: true }); b.closest('.guia-convite')?.remove();
-});
+// Guia concluído: a nova conversa deixa de sugerir o guia (ele continua na Ajuda).
+export const guiaConcluido = () => !!ler().concluido;
 function etapas() {
   const lista = [
     { titulo: 'Escolha o trabalho que precisa fazer', texto: 'Use um Quick Win para uma tarefa que já foi preparada pela empresa. Para um pedido diferente, abra uma conversa e conte o que precisa.', exemplo: 'Exemplo: “Resuma esta ata, liste as decisões e diga o que ainda falta definir.”', cuidado: 'Usar o Quick Win de novo, com outro material, começa um trabalho novo. Ajustes na conversa continuam o trabalho atual.', link: '#/quick-wins', acao: 'Explorar tarefas prontas', curto: 'Escolher' },

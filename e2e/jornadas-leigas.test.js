@@ -34,11 +34,11 @@ test('erro de tela conserva a rota e tentar novamente abre o mesmo trabalho',asy
  assert.match(await p.textContent('#principal'),/Trabalho fictício para recuperação/);assert.deepEqual(erros,[]);
  }finally{await N.fechar();}
 });
-test('ações visíveis, exemplos recolhidos e configuração com cancelamento preservam controles',async()=>{
+test('ações visíveis, sugestões que só preenchem a caixa e configuração com cancelamento preservam controles',async()=>{
  const N=await subirComNavegador();try{
  const p=await N.entrar('admin@empresa-exemplo.com.br');await p.setViewportSize({width:320,height:800});await p.waitForSelector('#entrada');
  for(const [id,nome] of [['anexar','Anexar arquivo'],['anexar-link','Adicionar link'],['enviar','Enviar'],['sair','Sair']])assert.match(await p.innerText('#'+id),new RegExp(nome));
- assert.equal(await p.isVisible('#sugestoes button'),false);await p.locator('#sugestoes summary').click();await p.locator('#sugestoes button').first().click();assert.ok((await p.inputValue('#entrada')).length>0);
+ assert.ok(await p.isVisible('#sugestoes button'));await p.locator('#sugestoes button').first().click();assert.ok((await p.inputValue('#entrada')).length>0);assert.equal(await p.locator('.bolha-eu').count(),0);
  await p.waitForFunction(()=>document.getElementById('lateral').getBoundingClientRect().right<=1);assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await p.goto(N.base+'/app#/configuracoes');await p.waitForSelector('#form-cfg');const d=p.locator('details.cfg-caixa').filter({has:p.locator('#cfg-integracoes')});assert.equal(await p.isVisible('#cfg-integracoes'),false);await d.locator(':scope > summary').click();const antes=await p.isChecked('#cfg-integracoes');await p.setChecked('#cfg-integracoes',!antes);
  await p.locator('.cfg-salvar button').click();const confirmacao=p.getByRole('dialog');await confirmacao.waitFor();assert.match(await confirmacao.innerText(),/empresa toda/);await confirmacao.getByRole('button',{name:'Cancelar'}).click();assert.equal(await p.isChecked('#cfg-integracoes'),!antes,'cancelar conserva a edição para revisão');

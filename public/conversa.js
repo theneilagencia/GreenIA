@@ -1,19 +1,25 @@
 import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
 import { confirmar } from '/admin-ui.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
-import { conviteGuia } from '/onboarding.js';
-import { htmlComecar, ligarComecar } from '/ajude-comecar.js';
+import { guiaConcluido } from '/onboarding.js';
 // Vista de uma conversa (chat geral ou dentro de um quick win).
 import { api, esc, ICONE, iconeIA, toast } from '/comum.js';
 import { renderizar, baixarCsv } from '/md.js';
-import { E, cabecalho, ligarCabecalho, recarregarLateral, irPara, pedirCiencia, cartaoBase } from '/app.js';
+import { E, cabecalho, ligarCabecalho, recarregarLateral, pedirCiencia } from '/app.js';
 import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { pedidoMelhoria } from '/resultado-orientacao.js';
 import { avisoPesquisa, abrirOrientacaoPesquisa, pedeLiberacaoPesquisa } from '/pesquisa-orientacao.js';
 
 const $ = id => document.getElementById(id);
-const SUGESTOES_CHAT = ['Resuma um texto em poucos pontos', 'Rascunhe um email curto e cordial', 'Organize estas anotações em uma lista', 'Revise este texto e deixe mais claro'];
+// Sugestões da conversa vazia: o chip preenche a caixa com um começo de pedido para a pessoa completar (nunca envia).
+const SUGESTOES_CHAT = [
+  ['Resumir um documento', 'Resuma o material abaixo (ou anexado) em poucos pontos. Destaque decisões, prazos e o que ainda falta definir.\n\n'],
+  ['Escrever um email', 'Rascunhe um email curto e cordial.\nPara quem: \nO que precisa dizer: '],
+  ['Comparar dois arquivos', 'Compare os dois arquivos anexados. Mostre item por item o que muda, os riscos e as informações que faltam. A decisão final será humana.'],
+  ['Organizar em tabela', 'Organize as informações abaixo em uma tabela, com uma linha por item e colunas claras. Não invente dados.\n\n'],
+];
+const TAREFAS_NO_INICIO = 3;
 const ESTADOS = { identificado: 'Identificado', em_configuracao: 'Em configuração', em_teste: 'Em teste', em_uso: 'Em uso', em_avaliacao: 'Em avaliação', aprovado: 'Aprovado', em_expansao: 'Em expansão', descartado: 'Descartado' };
 const CLASSES = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 const FEEDBACK = [['serviu', 'Serviu'], ['ajustes', 'Serviu com ajustes'], ['nao_serviu', 'Não serviu']];
@@ -45,6 +51,9 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
   }
   desenhar();
   if (C.textoRetomado) { $('entrada').value = C.textoRetomado; ajustarAltura(); atualizarEnviar(); }
+  // Conversa vazia no computador: o cursor já fica na caixa, como nos assistentes de chat. No celular, não abre o
+  // teclado sozinho; a saudação e a caixa já estão à vista.
+  else if (!C.mensagens.length && !enviarAgora && matchMedia('(min-width:761px) and (pointer:fine)').matches && !document.querySelector('[aria-modal="true"]')) $('entrada').focus({ preventScroll: true });
   // Ação explícita de execução do Quick Win ("Executar", teste da criação): o servidor faz a execução completa.
   if (enviarAgora) { $('entrada').value = enviarAgora.texto || ''; C.anexos = enviarAgora.anexos || []; ajustarAltura(); desenharAnexos(); atualizarEnviar(); await enviar(null, { executar: true }); }
 }
@@ -74,32 +83,17 @@ function desenhar() {
   const rascunho = desenhadoPara === C ? document.getElementById('entrada') : null, texto = rascunho?.value || '', focado = rascunho && document.activeElement === rascunho;
   desenhadoPara = C;
   const sig = !!conv?.sigilosa;
-  const modeloAtual = C.opcoes.find(o => o.id === C.modelo);
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
   $('principal').innerHTML = `
     ${cabecalho(titulo(), conv ? `<button type="button" class="icone-btn hc-acoes acoes-conversa" id="acoes-conversa" data-hc-acoes="${conv.id}" aria-label="Ações da conversa" title="Ações da conversa" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button>` : '')}
-    <div class="barra-conversa">
-      ${qw ? `<a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste: não conta nos resultados</span>' : qw.v2 || !qw.podeEditar ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}` : ''}
-      ${C.opcoes.length > 1 && !qw?.v2 ? `<label class="seletor" title="Opcional: a GreenIA já escolhe sozinha o nível certo para cada pedido.">Nível
-        <select id="modelo" ${podeTrocar ? '' : 'disabled'} aria-describedby="selo-modelo">
-          ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático (recomendado)' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
-        </select></label>` : ''}
-      <span id="selo-modelo"></span>
-      <span class="chave chave-sigilo">
-        <button type="button" class="switch" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'disabled' : ''} aria-labelledby="rotulo-sigilo" aria-describedby="efeito-sigilo"><span></span></button>
-        <label for="sigilosa" id="rotulo-sigilo">Dados sigilosos</label>
-        <span class="dica" id="efeito-sigilo">${sig ? 'Ligado até a conversa ser apagada' : 'Não dá para desligar depois'}</span>
-        <button type="button" class="btn-texto saiba-sigilo" id="saiba-sigilo" aria-haspopup="dialog">Saiba mais</button>
-      </span>
-      ${sig ? `<span class="selo selo-sigilosa">Sigilosa${conv.motivo_sigilosa ? ` · ${esc(conv.motivo_sigilosa)}` : ''}</span>` : ''}
-    </div>
+    ${qw ? `<div class="barra-conversa"><a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste: não conta nos resultados</span>' : qw.v2 || !qw.podeEditar ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}</div>` : ''}
     ${qw && !qw.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Não entra nos resultados. Quando estiver bom, publique para a equipe.', 'info',
       `${['em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'].includes(qw.status) ? '' : `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar para a equipe</a>`}<a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/editar">Ajustar instruções</a><a class="btn btn-texto btn-pequeno" href="#/qw/${qw.id}">Voltar ao Quick Win</a>`)}</div>` : ''}
     ${qw?.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Usa a versão em edição e não entra nos resultados.', 'info',
       `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/ajustar">Ajustar</a>`)}</div>` : ''}
     <div class="mensagens" id="msgs"><div class="coluna" id="coluna"></div></div>
-    <div class="compositor"><div style="max-width:760px;margin:0 auto">
-      ${avisoPesquisa(C.conv?.pesquisa)}<div class="sugestoes" id="sugestoes"></div>
+    <div class="compositor"><div class="compositor-dentro">
+      ${avisoPesquisa(C.conv?.pesquisa)}
       ${qw?.v2 && C.proximaExecucao ? `<div class="proxima-execucao" role="status"><span>${ICONE.raio}</span><span><b>Nova execução do Quick Win.</b> O próximo envio roda o trabalho completo, com conferência.</span><button type="button" class="btn btn-texto btn-pequeno" id="cancelar-execucao">Cancelar</button></div>` : ''}
       <div class="caixa caixa-chat" id="caixa-chat">
         <div class="anexos-pendentes" id="anexos"></div>
@@ -115,11 +109,18 @@ function desenhar() {
               <button type="button" role="menuitem" id="anexar-link" aria-controls="link-novo" aria-expanded="false">${ICONE.link}<span><b>Adicionar link</b><small>Página pública usada como fonte</small></span></button>
             </div>
           </div>
+          ${C.opcoes.length > 1 && !qw?.v2 ? `<select class="caixa-nivel" id="modelo" aria-label="Nível" title="Nível. Opcional: no Automático, cada pedido já recebe o nível certo." ${podeTrocar ? '' : 'disabled'}>
+            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
+          </select>` : ''}
+          <button type="button" class="caixa-chave" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'aria-readonly="true"' : ''} aria-describedby="efeito-sigilo"
+            title="${esc(sig ? `Dados sigilosos: ligado até a conversa ser apagada${conv.motivo_sigilosa ? ` (${conv.motivo_sigilosa})` : ''}` : 'Dados sigilosos: desligado')}">${sig ? ICONE.cadeado : ICONE.cadeadoAberto}<span class="caixa-chave-rotulo">Dados sigilosos</span></button>
+          <span class="sr" id="efeito-sigilo">${sig ? `Ligado até a conversa ser apagada.${conv.motivo_sigilosa ? ` Motivo: ${esc(conv.motivo_sigilosa)}.` : ''}` : 'Desligado. Ao ligar, a plataforma pede confirmação.'}</span>
           ${qw?.v2 && C.mensagens.length ? `<button type="button" class="btn-execucao" id="nova-execucao" aria-pressed="${!!C.proximaExecucao}" aria-label="Nova execução do Quick Win" title="Rodar o Quick Win de novo, com conferência">${ICONE.raio}<span>Nova execução</span></button>` : ''}
           <button class="enviar" id="enviar" aria-label="Enviar" title="Enviar (Enter)" disabled>${ICONE.enviar}<span class="sr">Enviar</span></button>
         </div>
         <div class="caixa-soltar" aria-hidden="true">Solte os arquivos para anexar</div>
       </div>
+      <div class="inicio-atalhos" id="inicio-atalhos"></div>
       ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar com outro material →</a></p>` : ''}
       <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
     </div></div>
@@ -132,10 +133,29 @@ function desenhar() {
   desenharAnexos(); atualizarEnviar();
 }
 
-function sugestoes() {
-  const lista = C.qw ? C.qw.sugestoes || [] : SUGESTOES_CHAT;
-  $('sugestoes').innerHTML = C.mensagens.length ? '' : `<details><summary>Ver exemplos de pedidos</summary>${lista.map(s => `<button type="button">${esc(s)}</button>`).join('')}</details>`;
-  $('sugestoes').querySelectorAll('button').forEach(b => { b.onclick = () => { $('entrada').value = b.textContent; ajustarAltura(); $('entrada').focus(); atualizarEnviar(); }; });
+// Conversa vazia: sugestões (chips que preenchem a caixa) e, na conversa livre, até 3 Quick Wins publicados para
+// esta pessoa (a mesma lista da lateral, que o servidor já filtra pelo acesso). Com mensagens, nada disso aparece.
+function atalhosInicio() {
+  const raiz = $('inicio-atalhos');
+  if (C.mensagens.length || C.pensando) { raiz.innerHTML = ''; return; }
+  const lista = C.qw ? (C.qw.sugestoes || []).map(t => [t, t]) : SUGESTOES_CHAT;
+  const prontos = C.qw ? [] : (E.quickWins || []).filter(q => q.publicado).slice(0, TAREFAS_NO_INICIO);
+  raiz.innerHTML = (lista.length ? `<div class="inicio-sugestoes" id="sugestoes" role="group" aria-label="Sugestões de pedido">${lista.map(([rotulo], i) => `<button type="button" class="chip-inicio" data-sugestao-inicio="${i}">${esc(rotulo)}</button>`).join('')}</div>` : '')
+    + (prontos.length ? `<nav class="inicio-tarefas" id="tarefas-prontas" aria-label="Tarefas prontas"><span class="inicio-tarefas-rotulo">Ou use uma tarefa pronta:</span>${prontos.map(q => `<a class="chip-inicio chip-tarefa" href="#/qw/${q.id}">${marcaQw(q)}<span>${esc(q.nome)}</span></a>`).join('')}<a class="inicio-ver-todos" href="#/quick-wins">Ver todos</a></nav>` : '');
+  raiz.querySelectorAll('[data-sugestao-inicio]').forEach(b => { b.onclick = async () => {
+    const s = C, texto = lista[Number(b.dataset.sugestaoInicio)][1];
+    if ($('entrada').value.trim() && $('entrada').value !== texto && !await substituirPedido()) return;
+    if (C !== s || !$('entrada')) return;
+    const t = $('entrada');
+    t.value = texto; ajustarAltura(); atualizarEnviar();
+    t.focus(); t.setSelectionRange(texto.length, texto.length);
+  }; });
+}
+
+// Saudação da conversa vazia, com o primeiro nome quando há um (nunca o email).
+function saudacao() {
+  const nome = (E.eu?.nome || '').trim().split(/\s+/)[0];
+  return nome && !nome.includes('@') ? `Olá, ${nome[0].toLocaleUpperCase('pt-BR')}${nome.slice(1)}. O que você precisa fazer?` : 'Olá! O que você precisa fazer?';
 }
 
 function htmlMensagem(m) {
@@ -190,20 +210,15 @@ function desenharMensagens() {
   const ultima = fim.at(-1), pedido = fim.at(-2);
   C.podeRegerar = C.conv && !C.conv.teste && !C.qw?.v2 && ultima?.id === C.ultimaResposta && pedido?.papel === 'user' && Number.isInteger(pedido.id)
     && ultima.guardado !== false && !/^\[Conteúdo processado e não guardado/.test(ultima.texto) && !ultima.artefatos?.length ? ultima.id : null;
+  // Quem nunca teve uma conversa (e não concluiu o guia) vê uma linha só com o caminho para o guia, que fica na Ajuda.
+  const primeiraVez = !C.conv && !(E.totalConversas || E.conversas?.length) && !guiaConcluido();
   const boasVindas = C.qw
-    ? `<div class="boas-vindas"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
+    ? `<div class="boas-vindas inicio-conversa"><span class="passo" style="margin:0 auto;background:${esc(C.qw.cor)};color:#fff">${esc((C.qw.icone || C.qw.nome[0] || '').slice(0, 2))}</span>
         <h2>${esc(C.qw.nome)}</h2><p>${esc(C.qw.para_que_serve)}</p>${C.qw.v2 ? `<p class="o-que-enviar">${esc(oQueEnviar(C.qw))}</p>` : ''}</div>`
-    : `<div class="boas-vindas"><img src="${iconeIA()}" width="32" height="32" alt="" aria-hidden="true">
-        <h2>O que você precisa fazer?</h2><p>Conte o que precisa receber ou escolha uma tarefa pronta.</p><div class="comecar-convite"><button type="button" class="btn btn-verde" id="me-ajude-comecar" aria-expanded="false" aria-controls="ajude-comecar">Como começar</button><span>Escolha seu objetivo e receba orientação para o próximo passo.</span></div>${htmlComecar()}<div class="caminhos-inicio grade-cartoes"><a class="caminho-inicio cartao sem-seta" href="#/quick-wins"><b class="cartao-titulo">Usar uma tarefa pronta</b><span class="cartao-texto">Quick Wins: envie o material e siga um trabalho já configurado.</span><span class="cartao-acoes"><span class="caminho-acao">Ver Quick Wins →</span></span></a><button type="button" class="caminho-inicio cartao sem-seta" id="comecar-pedido"><b class="cartao-titulo">Fazer um pedido</b><span class="cartao-texto">Conte seu objetivo, o contexto e o resultado que precisa receber.</span><span class="cartao-acoes"><span class="caminho-acao">Escrever meu pedido →</span></span></button></div>${conviteGuia()}${cartaoBase()}</div>`;
+    : `<div class="boas-vindas inicio-conversa"><h2 id="saudacao">${esc(saudacao())}</h2>${primeiraVez ? '<p class="inicio-dica">Primeira vez aqui? Veja o <a href="#/primeiros-passos">guia de primeiros passos</a>.</p>' : ''}</div>`;
   const corte = C.conv?.cortada ? '<div class="linha-aviso">As primeiras mensagens desta conversa não estão mais sendo consideradas.</div>' : '';
   $('coluna').innerHTML = (vazio ? boasVindas : corte) + C.mensagens.map(htmlMensagem).join('') + (C.pensando ? `<div class="resposta"><span class="sim"><img src="${iconeIA()}" width="16" height="16" alt=""></span>${C.execucao ? progressoExecucao(C.etapa) : '<span class="pensando" aria-label="Pensando"><span></span><span></span><span></span></span>'}</div>` : '');
-  sugestoes();
-  ligarComecar({ estado: C, aplicar: async texto => {
-    if ($('entrada').value.trim() && !await substituirPedido()) return false;
-    if (!$('entrada')) return false;
-    $('entrada').value = texto; ajustarAltura(); atualizarEnviar(); return true;
-  } });
-  $('comecar-pedido')?.addEventListener('click', () => $('entrada').focus());
+  atalhosInicio();
   // Artefatos visuais: visualizar, baixar e editar. Uma edição cria nova versão; a conversa é relida do servidor.
   ligarArtefatos($('coluna'), { aoMudar: () => recarregarConversa(false) });
   rolarSeNoFim();
@@ -214,7 +229,7 @@ function substituirPedido() {
   return confirmar({ titulo: 'Substituir o pedido que você começou?', texto: 'O texto que está na caixa de mensagem será trocado pelo pedido preparado. Os anexos continuam.', botao: 'Substituir pedido', cancelar: 'Manter meu texto' });
 }
 
-// Conversa vazia começa no topo (título e "Como começar" à vista); com mensagens, acompanha o fim.
+// Conversa vazia começa no topo (saudação à vista); com mensagens, acompanha o fim.
 function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!C.mensagens.length && !C.pensando) msgs.scrollTop = 0; else if (C.noFim) msgs.scrollTop = msgs.scrollHeight; }
 function ajustarAltura() { const t = $('entrada'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; t.style.overflowY = t.scrollHeight > 220 ? 'auto' : 'hidden'; }
 function atualizarEnviar() { $('enviar').disabled = C.enviando || (!$('entrada').value.trim() && !C.anexos.length); }
@@ -237,7 +252,6 @@ function ligar() {
   $('msgs').addEventListener('scroll', ev => { const m = ev.currentTarget; if (C === estado && m.isConnected) C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
   if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
   $('sigilosa').onclick = explicarSigilo;
-  $('saiba-sigilo').onclick = explicarSigilo;
   // Menu "+" da caixa (como nos assistentes de chat): anexar arquivo ou link; Esc e clique fora fecham.
   const menu = $('menu-anexos'), mais = $('mais-anexos');
   const abrirMenu = aberto => {
@@ -343,10 +357,10 @@ function resolverPesquisa() {
 // "Dados sigilosos": explica o efeito definitivo num diálogo da plataforma antes de ligar; ligado, só explica.
 function explicarSigilo() {
   const s = C;
-  if (s.conv?.sigilosa) return dialogo({ titulo: 'Esta conversa é sigilosa', texto: 'Nesta conversa, a GreenIA usa só os modelos de IA aprovados para dados sigilosos.',
+  if (s.conv?.sigilosa) return dialogo({ titulo: 'Esta conversa é sigilosa', texto: `Nesta conversa, a GreenIA usa só os modelos de IA aprovados para dados sigilosos.${s.conv.motivo_sigilosa ? ` Motivo: ${s.conv.motivo_sigilosa}.` : ''}`,
     conteudo: '<p class="hc-modal-nota">Não dá para desligar: a conversa continua sigilosa até ser apagada, porque o histórico já tem os dados. Para um assunto sem dados sigilosos, comece uma nova conversa.</p>', icone: 'escudo' });
   dialogo({ titulo: 'Marcar como dados sigilosos?', texto: 'Use quando a conversa tiver informação confidencial que a GreenIA não reconheceu sozinha. A partir daí, ela usa só os modelos de IA aprovados para dados sigilosos.',
-    conteudo: '<p class="hc-modal-nota">É definitivo: a conversa continua sigilosa até ser apagada, porque o histórico já tem os dados. A marcação não libera dados que a política da empresa bloqueia.</p>',
+    conteudo: '<p class="hc-modal-nota"><b>É definitivo: não dá para desligar depois.</b> A conversa continua sigilosa até ser apagada, porque o histórico já tem os dados. A marcação não libera dados que a política da empresa bloqueia.</p>',
     acao: 'Marcar como sigilosa', icone: 'escudo', executar: async () => {
       await garantirConversa();
       const d = await api(`/api/conversas/${s.conv.id}`, { metodo: 'PATCH', corpo: { sigilosa: true } });

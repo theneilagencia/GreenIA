@@ -1,5 +1,5 @@
 // Regressão do QA de UX de out/2026, frente "Uso e chat": os achados de uso não voltam.
-// A4 Nova conversa no topo (celular); A5/M2 "Dados sigilosos" com efeito visível e diálogo próprio; B4 só o lugar
+// A4 Nova conversa com saudação e caixa à vista (celular); A5/M2 "Dados sigilosos" na caixa, com o efeito no diálogo; B4 só o lugar
 // atual ativo na lateral; B6/M4/M5 menu do celular com Fechar e a conta, ajuda num botão só; M12 ações da conversa
 // num menu "⋯"; M13/M14/M18 rodapé da resposta, "Serviu?" ao pé e simulador no formato pedido, com selo fora da
 // resposta; M3 "Excluir todas" como perigo; M15 guia; M16 Pendências; M17 Conhecimento; A6 glossário; B2 títulos.
@@ -62,15 +62,15 @@ test('M18: o simulador responde no formato pedido, de forma determinística, sem
   for (const pedido of ['Oi', 'Escreva um email curto', 'Faça uma tabela']) assert.doesNotMatch(respostaSimulada(pedido), /simulad|modelo real/i, pedido);
 });
 
-test('A4/B7: no celular, Nova conversa abre no topo, com o título e "Como começar" à vista', async () => {
+test('A4/B7: no celular, Nova conversa abre com a saudação e a caixa de mensagem à vista', async () => {
   const p = await pagina(pessoa, { width: 390, height: 844 });
   await p.goto(`${S.base}/app#/nova`);
-  await p.waitForSelector('#me-ajude-comecar');
+  await p.waitForSelector('#saudacao');
   await p.waitForTimeout(300);
-  const m = await p.evaluate(() => ({ topo: document.querySelector('#msgs').scrollTop, titulo: document.querySelector('.boas-vindas h2').getBoundingClientRect().top, botao: document.querySelector('#me-ajude-comecar').getBoundingClientRect().bottom, h: innerHeight }));
+  const m = await p.evaluate(() => ({ topo: document.querySelector('#msgs').scrollTop, titulo: document.querySelector('#saudacao').getBoundingClientRect().top, caixa: document.querySelector('#caixa-chat').getBoundingClientRect().bottom, h: innerHeight }));
   assert.equal(m.topo, 0, JSON.stringify(m));
-  assert.ok(m.titulo > 0 && m.botao < m.h, JSON.stringify(m));
-  assert.equal(await p.locator('#me-ajude-comecar').innerText(), 'Como começar');
+  assert.ok(m.titulo > 0 && m.caixa < m.h, JSON.stringify(m));
+  assert.equal(await p.locator('#saudacao').innerText(), 'Olá, Pessoa. O que você precisa fazer?');
   assert.equal(await saltosDeTitulo(p), 0);
   assert.deepEqual(p.erros, []);
 });
@@ -111,28 +111,35 @@ test('M4/M5/B6: ajuda num botão só (com o guia dentro); menu do celular com Fe
   assert.deepEqual(p.erros, []);
 });
 
-test('A5/M2: "Dados sigilosos" mostra o efeito, explica em diálogo próprio e trava com explicação', async () => {
+test('A5/M2: "Dados sigilosos" fica na caixa, avisa que é definitivo ao ligar e, ligado, explica por que não desliga', async () => {
   const conv = (await pessoa.post('/api/conversas', {})).dados.conversa;
   for (const width of [390, 1280]) {
     const p = await pagina(pessoa, { width, height: 844 });
     await p.goto(`${S.base}/app#/c/${conv.id}`); await p.waitForSelector('#sigilosa');
-    assert.equal(await p.locator('#efeito-sigilo').innerText(), 'Não dá para desligar depois');
-    const rotulo = await p.locator('label[for="sigilosa"]').boundingBox();
-    assert.ok(rotulo.height >= 44, `rótulo clicável com 44 px (${width}): ${JSON.stringify(rotulo)}`);
+    const chave = p.getByRole('switch', { name: 'Dados sigilosos' });
+    assert.equal(await chave.count(), 1, 'nome acessível do interruptor');
+    assert.equal(await p.locator('#caixa-chat .caixa-barra #sigilosa').count(), 1, 'dentro da barra da caixa');
+    assert.equal(await p.getByText(/não dá para desligar/i).count(), 0, 'o aviso não fica fixo na tela');
+    assert.ok((await p.locator('#efeito-sigilo').boundingBox()).width <= 1, 'o estado fica só para o leitor de tela');
+    const caixa = await p.locator('#sigilosa').boundingBox();
+    assert.ok(caixa.height >= (width < 760 ? 44 : 36) && caixa.width >= 36, `área de clique (${width}): ${JSON.stringify(caixa)}`);
     if (width === 1280) {
-      await p.click('#saiba-sigilo');
+      await chave.click();
       const d = p.getByRole('dialog');
-      assert.match(await d.innerText(), /definitivo/i);
+      assert.match(await d.innerText(), /definitivo: não dá para desligar depois/i);
       await d.getByRole('button', { name: 'Cancelar' }).click();
       assert.equal(await p.getAttribute('#sigilosa', 'aria-checked'), 'false', 'cancelar não muda nada');
-      await p.click('label[for="sigilosa"]');
+      assert.equal((await pessoa.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, false);
+      await chave.click();
       await p.getByRole('dialog').getByRole('button', { name: 'Marcar como sigilosa' }).click();
       await p.waitForFunction(() => document.querySelector('#sigilosa')?.getAttribute('aria-checked') === 'true');
-      assert.equal(await p.locator('#efeito-sigilo').innerText(), 'Ligado até a conversa ser apagada');
+      assert.equal(await p.getAttribute('#sigilosa', 'aria-readonly'), 'true');
+      assert.match(await p.locator('#efeito-sigilo').textContent(), /Ligado até a conversa ser apagada/);
       assert.equal((await pessoa.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, true);
-      await p.click('#saiba-sigilo');
+      await chave.click();
       assert.match(await p.getByRole('dialog').innerText(), /Não dá para desligar/);
       await p.getByRole('dialog').getByRole('button', { name: 'Entendi' }).click();
+      assert.equal(await p.getAttribute('#sigilosa', 'aria-checked'), 'true', 'continua ligado');
     }
     assert.deepEqual(p.erros, []);
   }

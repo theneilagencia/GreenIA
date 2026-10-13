@@ -46,21 +46,21 @@ before(async () => {
 });
 after(async () => { await N?.fechar(); await API?.fechar(); });
 
-test('conversa: substituir o pedido já escrito pede confirmação no modal (Como começar e Melhorar resultado)', async () => {
-  await p.goto(`${N.base}/app#/nova`); await p.reload(); await p.waitForSelector('#me-ajude-comecar');
+test('conversa: substituir o pedido já escrito pede confirmação no modal (sugestão da conversa vazia e Melhorar resultado)', async () => {
+  await p.goto(`${N.base}/app#/nova`); await p.reload(); await p.waitForSelector('#sugestoes');
   await p.fill('#entrada', 'Pedido que eu já escrevi');
-  await p.click('#me-ajude-comecar'); await p.click('[data-comecar="0"]'); await p.fill('#comecar-objetivo', 'Contexto fictício do pedido');
+  const sugestao = p.locator('#sugestoes').getByRole('button', { name: 'Organizar em tabela', exact: true });
   await semGravar(async () => {
-    await p.click('#comecar-form button[type=submit]');
+    await sugestao.click();
     const m = modal(/Substituir o pedido/); await m.waitFor();
     assert.match(await m.innerText(), /anexos continuam/);
     assert.equal(await p.locator('#adm-conf-titulo').evaluate(e => e === document.activeElement), true, 'foco no título do modal');
     await m.getByRole('button', { name: 'Manter meu texto', exact: true }).click(); await fechado();
   });
   assert.equal(await p.inputValue('#entrada'), 'Pedido que eu já escrevi');
-  await p.click('#comecar-form button[type=submit]');
+  await sugestao.click();
   await modal(/Substituir o pedido/).getByRole('button', { name: 'Substituir pedido', exact: true }).click();
-  await p.waitForFunction(() => /Contexto fictício do pedido/.test(document.querySelector('#entrada').value));
+  await p.waitForFunction(() => /^Organize as informações abaixo em uma tabela/.test(document.querySelector('#entrada').value));
 
   await p.goto(`${N.base}/app#/c/${conv.id}`); await p.locator('[data-melhorar-resultado]').waitFor();
   await p.fill('#entrada', 'Outro texto meu');

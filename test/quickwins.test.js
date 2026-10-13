@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
-import { um } from '../src/db.js';
+import { exec, um } from '../src/db.js';
 import { arquivo, docx } from './arquivos.js';
 
 const enc = encodeURIComponent;
@@ -205,4 +205,19 @@ test('estimativa de custo por conversa típica, por modelo, a partir do preço d
   assert.ok(est.find(m => m.id === 'classe:avancado').custo > g.custo, 'a classe Avançado custa mais que a Rápido');
   const doAdmin = (await admin.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.modelos;
   assert.equal(doAdmin.find(m => m.id === AVANCADO2).custo, null, 'sem preço no catálogo: sem estimativa');
+});
+
+test('lista de Quick Wins diz quais estão publicados (a mesma regra do selo da biblioteca), só para exibição', async () => {
+  const q = (await ana.post('/api/quick-wins', { nome: 'Publicação para a lista', areas: [A.id] })).dados;
+  const publicado = async c => (await c.get('/api/quick-wins')).dados.quickWins.find(x => x.id === q.id)?.publicado;
+  assert.equal(await publicado(ana), false, 'recém-criado');
+  await ana.put(`/api/quick-wins/${q.id}`, { status: 'em_teste' });
+  assert.equal(await publicado(ana), false, 'em teste não é publicado');
+  await ana.put(`/api/quick-wins/${q.id}`, { status: 'em_uso' });
+  assert.equal(await publicado(ana), true);
+  assert.equal(await publicado(carlos), true, 'quem usa, na área, vê como publicado');
+  assert.equal(await publicado(bia), undefined, 'fora da área continua sem ver');
+  // Formato novo sem versão publicada: ainda não está publicado para a equipe.
+  exec(S.app.db, "update quick_wins set especificacao = '{}', versao_publicada = null where id = ?", q.id);
+  assert.equal(await publicado(ana), false);
 });

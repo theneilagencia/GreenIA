@@ -27,7 +27,7 @@ export default async function (c) {
       await p.waitForSelector('#lateral .item-lat.item-principal', { timeout: 30000 });
       const r = await ler(p);
       r.qwVisivel = await visivel(p, '#lateral [data-item="quick-wins"]'); r.conhecimentoVisivel = await visivel(p, '#lateral [data-item="conhecimento"]');
-      r.conversasVisivel = await visivel(p, '#lateral [data-item="conversas"]'); r.adminVisivel = await visivel(p, '#lateral [data-item="administracao"]'); r.verTodasVisivel = await visivel(p, '#lateral .ver-todas');
+      r.conversasVisivel = await visivel(p, '#lateral [data-item="conversas"]'); r.adminVisivel = await visivel(p, '#lateral [data-contexto="admin"]'); r.verTodasVisivel = await visivel(p, '#lateral .ver-todas');
       out.telas.push({ tela: `${largura}x${altura}`, ...r }); await p.screenshot({ path: `${pasta}/lateral-${largura}x${altura}.png` });
     }
     // Estados ativos nas rotas (sem criar nada).
@@ -55,7 +55,7 @@ export default async function (c) {
       if (await p.locator('#menu').isVisible() && !(await p.locator('#lateral.aberta').count())) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(400); }
       const r = await ler(p);
       r.qwVisivel = await visivel(p, '#lateral [data-item="quick-wins"]'); r.conhecimentoVisivel = await visivel(p, '#lateral [data-item="conhecimento"]');
-      r.conversasVisivel = await visivel(p, '#lateral [data-item="conversas"]'); r.adminVisivel = await visivel(p, '#lateral [data-item="administracao"]'); r.verTodasVisivel = await visivel(p, '#lateral .ver-todas');
+      r.conversasVisivel = await visivel(p, '#lateral [data-item="conversas"]'); r.adminVisivel = await visivel(p, '#lateral [data-contexto="admin"]'); r.verTodasVisivel = await visivel(p, '#lateral .ver-todas');
       r.alvosMin = Math.min(...await p.$$eval('#lateral .item-lat.item-principal, #lateral .recentes-lat .item-lat.sub', l => l.map(a => Math.round(a.getBoundingClientRect().height))));
       out.telas.push({ tela: `${largura}x${altura}`, ...r }); await p.screenshot({ path: `${pasta}/lateral-${largura}x${altura}.png` });
     }

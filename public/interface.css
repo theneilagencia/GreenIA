@@ -18,7 +18,6 @@
 .app .pagina .conhecimento-bases h2{font-size:var(--ui-secao)!important}
 .app .pagina .indicador b{font:600 24px/1.25 var(--sans);font-variant-numeric:tabular-nums}
 .app .boas-vindas h2{font:600 24px/1.3 var(--sans);letter-spacing:-.02em}
-.app .caminho-inicio b{font:600 16px/1.4 var(--sans)}
 .app .pagina .vazio b{font:600 var(--ui-secao)/1.4 var(--sans)}
 .app :is(.btn,.btn-pequeno,.btn-texto){font-size:var(--ui-texto);line-height:1.4;min-height:40px}
 .app .entrada{font-size:var(--ui-texto);line-height:1.5;min-height:40px}
@@ -179,18 +178,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 }
 .app .cabeca .acoes-conversa{width:40px;min-width:40px;height:40px;min-height:40px;color:var(--muted)}
 @media(max-width:760px){.app .cabeca .acoes-conversa{width:44px;min-width:44px;height:44px;min-height:44px}}
-
-/* Nova conversa: uma coluna alinhada à esquerda, e a caixa de envio logo abaixo do conteúdo (sem vão no meio). */
-.boas-vindas .comecar-convite{justify-content:flex-start}
-.boas-vindas .caminhos-inicio{max-width:none;margin:20px 0}
-.boas-vindas>.guia-convite,.boas-vindas>.cartao-base{margin:0 0 8px;max-width:none}
-@media(min-width:761px){.principal:has(.boas-vindas) .mensagens{flex:0 1 auto}}
-
-/* "Dados sigilosos": rótulo clicável, efeito visível e "Saiba mais"; área de toque de 44 px. */
-.chave-sigilo{gap:6px;min-height:44px}
-.chave-sigilo label{cursor:pointer;display:inline-flex;align-items:center;min-height:44px}
-.chave-sigilo .switch:disabled{cursor:not-allowed}
-.chave-sigilo .saiba-sigilo{min-height:44px;padding:0 6px;font-size:13px}
 
 /* Rodapé da resposta: ações maiores, aviso de revisão como texto, informação técnica no "i". */
 .rodape-resposta{gap:8px 12px;margin-top:4px}
@@ -434,22 +421,13 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .app .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:break-word;text-wrap:balance}
 @media(max-width:760px){.app .cabeca-titulo>h1{white-space:normal;text-overflow:clip}}
 @media(min-width:761px){.app .cabeca-titulo{align-items:baseline}}
-/* Faixa da conversa (nível, Quick Win, sigilo): no celular quebra em linhas em vez de rolar para o lado e cortar.
+/* Faixa do Quick Win na conversa: no celular quebra em linhas em vez de rolar para o lado e cortar.
    Com o teclado aberto (altura curta) continua numa linha que rola, para não roubar a área de leitura. */
 @media(max-width:760px) and (min-height:601px){
   .barra-conversa{flex-wrap:wrap;overflow-x:visible;row-gap:0}
   .barra-conversa::after{content:none}
   .barra-conversa .qw-contexto{max-width:100%;white-space:normal}
   .barra-conversa>*{flex:0 1 auto;min-width:0}
-  .barra-conversa .chave-sigilo{flex-wrap:wrap;column-gap:6px;row-gap:0}
-}
-/* Celular estreito: interruptor e rótulo com o efeito logo abaixo, "Saiba mais" ao lado; cabe numa linha só. */
-@media(max-width:480px) and (min-height:601px){
-  .barra-conversa .chave-sigilo{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"chave rotulo saiba" "chave efeito saiba";align-items:center;column-gap:8px;row-gap:0;width:100%}
-  .barra-conversa .chave-sigilo>.switch{grid-area:chave}
-  .barra-conversa .chave-sigilo>label{grid-area:rotulo;min-height:44px;align-self:end;align-items:flex-end;padding-bottom:2px}
-  .barra-conversa .chave-sigilo>#efeito-sigilo{grid-area:efeito;align-self:start;font-size:12px;line-height:1.3;padding-bottom:4px}
-  .barra-conversa .chave-sigilo>.saiba-sigilo{grid-area:saiba}
 }
 /* Rodapé da resposta: "Serviu?" com o mesmo desenho de Copiar/Gerar de novo; planilha separada do texto. */
 .app .feedback.avaliacao-resposta button{min-height:36px;padding:4px 14px;font:500 13px var(--sans);border-radius:var(--raio)}
@@ -457,24 +435,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .bolha-ia .tabela-wrap+div{margin:0 0 12px}
 @media(max-width:760px){.rodape-resposta .revise,.feedback.avaliacao-resposta>.dica{flex-basis:100%}}
 @media(pointer:coarse),(max-width:760px){.app .feedback.avaliacao-resposta button{min-height:44px}}
-/* Nova conversa e "Como começar": cartões no padrão, duas colunas, sem cartão órfão esticado; painel alinhado à
-   coluna da conversa. */
-.caminhos-inicio.grade-cartoes{--cartao-min:280px}
-.comecar-caminhos.grade-cartoes{--cartao-min:240px}
-.app .caminho-inicio.cartao{border-color:var(--line-strong)}
-.app .caminho-inicio.cartao .cartao-titulo{font:600 16px/1.35 var(--sans)}
-.app .caminho-inicio.cartao .cartao-texto{font-size:14px}
-.app .caminho-inicio.cartao .cartao-acoes{padding-top:10px}
-.app .caminho-inicio .caminho-acao{margin:0}
-.comecar-caminhos .caminho-inicio:last-child{grid-column:auto}
-/* Título, descrição e ação de cada cartão nas mesmas linhas da grade (subgrid): quando um título quebra em duas
-   linhas, as descrições e as ações dos vizinhos acompanham, sem reservar espaço quando nenhum quebra. */
-@supports (grid-template-rows:subgrid){
-  :is(.caminhos-inicio,.comecar-caminhos).grade-cartoes>.cartao{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:6px;align-content:start}
-  :is(.caminhos-inicio,.comecar-caminhos).grade-cartoes>.cartao>.cartao-acoes{align-self:end}
-}
-.boas-vindas .ajude-comecar{max-width:none;margin:20px 0}
-.ajude-comecar .linha-botoes,.ajude-comecar>#comecar-fechar{margin-left:-8px}
 /* Primeiros passos: mesma coluna das outras telas; saída alinhada ao texto. */
 .pagina-dentro>.guia-pagina{margin:0}
 .guia-saida{align-items:baseline}
@@ -836,4 +796,53 @@ body.console .pagina-dentro>h2:first-child{font:600 22px/1.3 var(--sans);letter-
   .app .caixa.caixa-chat{padding:8px 8px 6px 12px;border-radius:22px}
   .app .caixa-icone,.app .caixa-chat .enviar{width:44px;height:44px}
   .menu-anexos-lista [role=menuitem]{min-height:44px}
+}
+
+/* === Primeira tela da conversa (padrão dos assistentes de chat) === Conversa vazia: saudação e caixa de mensagem no
+   centro da página, sugestões em chips e uma linha com até 3 Quick Wins logo abaixo. Com mensagens, a caixa volta
+   para o pé. Nível e "Dados sigilosos" ficam dentro da barra da caixa, ao lado do "+". */
+.compositor-dentro{max-width:760px;margin:0 auto}
+.principal:has(.inicio-conversa) .mensagens{flex:0 1 auto;margin-top:auto;padding-bottom:20px}
+.principal:has(.inicio-conversa) .compositor{margin-bottom:auto;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+.app .boas-vindas.inicio-conversa{padding:0;text-align:center}
+.app .inicio-conversa h2{font:500 32px/1.2 var(--serif);letter-spacing:-.015em;color:var(--ink);margin:0;text-wrap:balance}
+.app .inicio-conversa .passo+h2{margin-top:12px}
+.app .inicio-conversa p{margin:8px auto 0;max-width:60ch}
+.app .inicio-conversa .inicio-dica{font-size:14px}
+.inicio-dica a{color:var(--forest-text);text-underline-offset:3px}
+.inicio-atalhos:empty{display:none}
+.inicio-atalhos{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px}
+.inicio-sugestoes,.inicio-tarefas{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px}
+.chip-inicio{display:inline-flex;align-items:center;gap:8px;min-height:36px;max-width:100%;padding:6px 14px;border:1px solid var(--line-strong);border-radius:20px;background:var(--campo,var(--paper));color:var(--ink);font:500 13.5px/1.3 var(--sans);text-align:left;text-decoration:none;cursor:pointer;transition:background var(--rapido,.15s),border-color var(--rapido,.15s)}
+.chip-inicio:hover{background:var(--sand);border-color:var(--stone)}
+.chip-inicio:focus-visible,.inicio-ver-todos:focus-visible,.app .caixa-nivel:focus-visible,.caixa-chave:focus-visible{outline:none;box-shadow:var(--foco)}
+.chip-tarefa .qw-marca{width:20px;height:20px;border-radius:6px;font-size:9.5px}
+.chip-tarefa>span{min-width:0;overflow-wrap:anywhere}
+.inicio-tarefas-rotulo{font:400 13.5px var(--sans);color:var(--muted)}
+.inicio-ver-todos{display:inline-flex;align-items:center;min-height:36px;padding:0 6px;border-radius:8px;font:500 13.5px var(--sans);color:var(--forest-text);text-underline-offset:3px}
+/* Nível e "Dados sigilosos" dentro da caixa: discretos, do mesmo tamanho do "+". */
+.app .caixa-barra .caixa-nivel{flex:0 1 auto;min-width:0;max-width:200px;field-sizing:content;height:36px;min-height:36px;padding:0 28px 0 12px!important;border:1px solid transparent;border-radius:999px;background-color:transparent;background-position:right 9px center;color:var(--muted);font:500 13px var(--sans);text-overflow:ellipsis}
+.app .caixa-barra .caixa-nivel:hover:not(:disabled){background-color:var(--sand);color:var(--ink)}
+.app .caixa-barra .caixa-nivel:disabled{opacity:.6;cursor:not-allowed}
+.caixa-chave{flex:none;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 10px;border:1px solid transparent;border-radius:999px;background:transparent;color:var(--muted);font:500 13px var(--sans);cursor:pointer;white-space:nowrap}
+.caixa-chave svg{width:16px;height:16px;flex:none}
+.caixa-chave:hover{background:var(--sand);color:var(--ink)}
+.caixa-chave[aria-checked="true"]{background:var(--deep);border-color:var(--deep);color:var(--sobre-deep)}
+.caixa-chave[aria-checked="true"]:hover{background:var(--deep);color:var(--sobre-deep)}
+@media(pointer:coarse),(max-width:760px){
+  .chip-inicio,.inicio-ver-todos{min-height:44px}
+  .app .caixa-barra .caixa-nivel,.caixa-chave{height:44px;min-height:44px}
+}
+@media(max-width:760px){
+  .app .inicio-conversa h2{font-size:26px}
+  .caixa-chave{width:44px;padding:0;justify-content:center}
+  .caixa-chave-rotulo{position:absolute!important;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  .app .caixa-barra{gap:4px}
+  .app .caixa-barra .caixa-nivel{padding:0 26px 0 10px!important}
+  .principal:has(.inicio-conversa) .compositor{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+}
+/* Teclado aberto (altura curta): na conversa vazia, os atalhos saem e a caixa fica à vista. */
+@media(max-height:560px){
+  .principal:has(.inicio-conversa) .inicio-atalhos,.principal:has(.inicio-conversa) .inicio-dica{display:none}
+  .app .inicio-conversa h2{font-size:22px}
 }

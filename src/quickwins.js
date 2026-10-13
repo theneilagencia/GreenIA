@@ -316,6 +316,11 @@ export function criarQuickWins(app) {
   };
 }
 
+// Publicado para a equipe (a mesma regra do selo "Publicado" da biblioteca, estadoQw em qw-ui.js): em circulação e,
+// no formato novo, com uma versão publicada; no anterior, fora de teste.
+// Só para exibição (início da conversa); o acesso continua decidido por paraUso.
+const publicado = q => EM_CIRCULACAO.includes(q.status) && (q.especificacao ? !!q.versao_publicada : q.status !== 'em_teste');
+
 export function rotasQuickWins(app, r) {
   app.quickWins = criarQuickWins(app);
   // Não existe, foi excluído ou a pessoa não o vê: 404 (não revela nada). Vê, mas não gere: 403 nas ações de gestão.
@@ -330,7 +335,7 @@ export function rotasQuickWins(app, r) {
   r.get('/api/quick-wins', ({ pessoa }) => ({
     quickWins: todos(app.db, 'select * from quick_wins where excluido_em is null order by nome')
       .filter(q => app.quickWins.paraUso(pessoa, q.id) || podeGerir(app.db, pessoa, q))
-      .map(q => ({ id: q.id, nome: q.nome, cor: q.cor, icone: q.icone, status: q.status, para_que_serve: q.para_que_serve, podeEditar: podeGerir(app.db, pessoa, q) })),
+      .map(q => ({ id: q.id, nome: q.nome, cor: q.cor, icone: q.icone, status: q.status, para_que_serve: q.para_que_serve, podeEditar: podeGerir(app.db, pessoa, q), publicado: publicado(q) })),
   }));
 
   // Portfólio para quem gere: estado, onde, responsável, uso, créditos, avaliação, medição e decisão.

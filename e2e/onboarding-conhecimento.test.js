@@ -40,17 +40,20 @@ test('guia: quatro passos para usuário, progresso retomável, conclusão e ajud
   assert.equal(await p.locator('#modal [role="dialog"]').count(), 0, 'guia não bloqueia o trabalho');
   await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-titulo'); assert.match(await p.textContent('#guia-titulo'), /contexto/);
   await p.click('[data-guia-passo="3"]'); await p.click('#guia-seguir'); await p.waitForSelector('#entrada');
-  assert.equal(await p.locator('.guia-convite').count(), 0);
+  assert.equal(await p.locator('.inicio-dica').count(), 0, 'a nova conversa não tem cartão de guia');
   await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await p.waitForSelector('#guia-seguir'); assert.match(await p.textContent('.guia-pagina'), /Guia concluído/);
-  const q = await abrir('outra', '#/nova'); assert.equal(await q.locator('.guia-convite').count(), 1);
+  // Quem nunca conversou vê uma linha só, com o caminho para o guia; o guia continua na Ajuda.
+  const q = await abrir('outra', '#/nova'); assert.equal(await q.locator('.inicio-dica').count(), 1);
+  await q.locator('.inicio-dica a').click(); await q.waitForSelector('#guia-seguir'); assert.equal(await q.locator('[data-guia-passo][aria-current="step"]').getAttribute('data-guia-passo'), '0');
   await p.close(); await q.close();
 });
 
-test('guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; adiar não altera ciência ou acesso', async () => {
+test('guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; o guia sai da nova conversa sem alterar acesso', async () => {
   const p = await abrir('gestora', '#/primeiros-passos'); assert.equal(await p.locator('[data-guia-passo]').count(), 5);
   const q = await abrir('admin', '#/primeiros-passos'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
-  await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('.guia-convite'); await q.waitForSelector('[data-adiar-guia]'); await q.click('[data-adiar-guia]'); await q.reload(); await q.waitForSelector('#entrada');
-  assert.equal(await q.locator('.guia-convite').count(), 0); assert.equal(await q.locator('#ajuda-tela').count(), 1);
+  await q.goto(`${N.base}/app#/nova`); await q.waitForSelector('#entrada');
+  assert.equal(await q.getByText('Comece por aqui').count(), 0, 'sem cartão "Comece por aqui"'); assert.equal(await q.locator('#ajuda-tela').count(), 1);
+  await q.click('#ajuda-tela'); await q.click('#ajuda-guia'); await q.waitForSelector('#guia-seguir'); assert.equal(await q.locator('[data-guia-passo]').count(), 6);
   assert.equal((await admin.get('/api/eu')).dados.pessoa.admin, true);
   await p.close(); await q.close();
 });

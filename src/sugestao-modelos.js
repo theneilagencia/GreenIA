@@ -45,17 +45,19 @@ const lista = itens => (itens.length <= 1 ? itens.join('') : `${itens.slice(0, -
 
 // ---------------------------------------------------------------- uso da empresa
 /**
- * @param {{ decisoes: string[][], quickWins: {arquetipo?: string}[] }} uso tipos de cada decisão recente e o tipo de trabalho de cada Quick Win
+ * @param {{ decisoes: (string[]|{tipos: string[], n: number})[], quickWins: {arquetipo?: string}[] }} uso tipos de cada decisão recente e o tipo de trabalho de cada Quick Win
  * @returns {{ origem: 'historico'|'quick_wins'|'padrao', pesos: Record<string, number>, principais: string[], frase: string, decisoes: number, quickWins: number }}
  */
 export function usoDaEmpresa({ decisoes = [], quickWins = [] } = {}) {
   const doHistorico = {}, dosQws = {};
   let n = 0, qws = 0;
-  for (const tipos of decisoes) {
+  // Cada decisão é a lista de tipos, ou { tipos, n } quando já vem agrupada do banco.
+  for (const d of decisoes) {
+    const tipos = Array.isArray(d) ? d : d?.tipos, vezes = Array.isArray(d) ? 1 : Number(d?.n) || 0;
     const validos = (tipos || []).filter(t => USO[t]);
-    if (!validos.length) continue;
-    n++;
-    for (const t of validos) doHistorico[t] = (doHistorico[t] || 0) + 1 / validos.length;
+    if (!validos.length || !vezes) continue;
+    n += vezes;
+    for (const t of validos) doHistorico[t] = (doHistorico[t] || 0) + vezes / validos.length;
   }
   for (const q of quickWins) {
     const tipos = TAREFAS_DO_QW[q?.arquetipo] || [];
@@ -263,7 +265,7 @@ export function entradasDaEmpresa(app) {
   const db = app.db, cfg = lerConfig(db);
   const desde = new Date(app.agora().getTime() - 90 * 864e5).toISOString();
   // Só os rótulos de tipo de tarefa das decisões: nenhum conteúdo de conversa.
-  const decisoes = todos(db, "select tipos from roteamento where em >= ? and coalesce(teste, 0) = 0 and modo != 'externo'", desde).map(r => json(r.tipos, []));
+  const decisoes = todos(db, "select tipos, count(*) as n from roteamento where em >= ? and coalesce(teste, 0) = 0 and modo != 'externo' group by tipos", desde).map(r => ({ tipos: json(r.tipos, []), n: r.n }));
   const qws = todos(db, "select especificacao, sigiloso from quick_wins where excluido_em is null and status != 'descartado'");
   return {
     modelos: lerModelos(db), cfg, catalogo: app.catalogo || [], plano: situacaoPlano(app),

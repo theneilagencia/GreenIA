@@ -281,6 +281,22 @@ test('níveis em modo manual: só o preferido do nível muda; o resto da configu
   assert.ok(acharModelo(app.db, cfg, 'x-ai/grok-mini').liberado, 'ajuste manual continua');
 });
 
+test('uso real: só decisões dos últimos 90 dias, sem testes, e Quick Wins ativos; nada de conteúdo', () => {
+  const app = empresa();
+  decidir(app, ['programacao'], 10, 120);   // antigas: não contam
+  assert.equal(sugestaoDaEmpresa(app).uso.origem, 'padrao');
+  decidir(app, ['traducao'], 6, 10);
+  exec(app.db, "insert into roteamento (em, modo, complexidade, tipos, teste) values (?, 'automatico', 'simples', '[\"programacao\"]', 1)", agora.toISOString());
+  const s = sugestaoDaEmpresa(app);
+  assert.equal(s.uso.origem, 'historico');
+  assert.deepEqual(s.uso.principais, ['traducao']);
+  assert.equal(s.uso.decisoes, 6);
+  exec(app.db, "insert into quick_wins (nome, status, especificacao) values ('Respostas', 'em_uso', ?), ('Velho', 'descartado', ?)", JSON.stringify({ arquetipo: 'responder_clientes' }), JSON.stringify({ arquetipo: 'analisar_documentos' }));
+  const q = sugestaoDaEmpresa(app).uso;
+  assert.equal(q.quickWins, 1, 'descartado não conta');
+  assert.ok(q.pesos.redacao > 0 && !q.pesos.analise);
+});
+
 test('fabricante pelo prefixo do identificador, com nome legível', () => {
   assert.equal(nomeFabricante(GOOGLE), 'Google');
   assert.equal(nomeFabricante('openai/gpt-5.5'), 'OpenAI');
@@ -309,6 +325,11 @@ test('API: o admin vê e aplica a sugestão (registro na auditoria); quem não a
     assert.equal(new Set(g.dados.sigilo.sugeridos.map(x => x.fabricante)).size, 2);
     assert.doesNotMatch(JSON.stringify(g.dados), /openrouter|preco|US\$/i, 'sem provedor nem preço');
     assert.equal((await dora.post('/api/admin/modelos/sugestao/aplicar', { parte: 'xyz' })).status, 400);
+    // Visão geral e Preparar o ambiente levam ao mesmo fluxo de um clique.
+    const passo = (await dora.get('/api/acompanhamento')).dados.passos.find(x => x.id === 'recursos');
+    assert.deepEqual([passo.titulo, passo.href, passo.pronto], ['Aprovar os modelos sugeridos', '#/politicas?sugestao=1', false]);
+    const item = (await dora.get('/api/admin/visao-geral')).dados.atencao.find(x => x.sugestao);
+    assert.deepEqual([item.botao, item.link], ['Aprovar os modelos sugeridos', '#/politicas?sugestao=1']);
     const a = await dora.post('/api/admin/modelos/sugestao/aplicar', { parte: 'sigilo' });
     assert.equal(a.status, 200, JSON.stringify(a.dados));
     assert.equal(a.dados.aplicado.aprovados.length, 2);
@@ -321,5 +342,7 @@ test('API: o admin vê e aplica a sugestão (registro na auditoria); quem não a
     assert.deepEqual(b.dados.aplicado.aprovados, [], 'idempotente');
     const m = (await dora.get('/api/admin/modelos')).dados.modelos.filter(x => x.homologado);
     assert.equal(m.length, 2);
+    assert.ok(!(await dora.get('/api/admin/visao-geral')).dados.atencao.some(x => x.tipo === 'modelo' && /homologado/.test(x.texto)), 'nada mais a pedir');
+    assert.equal((await dora.get('/api/acompanhamento')).dados.passos.find(x => x.id === 'recursos').titulo, 'Confira os recursos de IA');
   } finally { await PL.fechar(); }
 });

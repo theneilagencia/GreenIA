@@ -30,7 +30,7 @@ const EVENTOS = {
   'group.created': 'Grupo criado', 'group.removed': 'Grupo removido', 'people.updated': 'Cadastro de pessoa atualizado',
   'knowledge.added': 'Conhecimento adicionado', 'knowledge.updated': 'Conhecimento atualizado', 'knowledge.removed': 'Conhecimento removido',
   'source.added': 'Material adicionado', 'source.updated': 'Material atualizado', 'source.failed': 'Falha ao preparar material', 'source.role_changed': 'Uso do material alterado',
-  'model.certified': 'Modelo verificado', 'model.changed': 'Modelo alterado', 'model.config_changed': 'Configuração de modelos alterada', 'model.pool_expanded': 'Opções de modelos ampliadas',
+  'model.certified': 'Modelo verificado', 'model.changed': 'Modelo alterado', 'model.config_changed': 'Configuração de modelos alterada', 'model.pool_expanded': 'Opções de modelos ampliadas', 'model.suggestion_applied': 'Sugestão de modelos aplicada',
   'conversation.reclassified': 'Proteção da conversa reavaliada', 'governance.admin_alert': 'Administrador avisado sobre proteção de dados',
   'governance.mode_changed': 'Proteção de dados alterada', 'policy.sensitive_processing_changed': 'Tratamento de dados sensíveis alterado',
   'quickwin.autonomy_checked': 'Condições de execução automática conferidas', 'quickwin.connection_requested': 'Conexão solicitada para Quick Win',

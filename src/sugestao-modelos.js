@@ -22,9 +22,9 @@ import { situacaoPlano } from './plano.js';
 
 export const NIVEIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
 // Tipos de tarefa (roteador.js → TIPOS) em palavras de quem usa.
-const USO = { sintese: 'resumir', redacao: 'redigir textos', analise: 'conferir documentos', extracao: 'tirar dados de planilhas e documentos',
+const USO = { sintese: 'resumir', redacao: 'redigir textos', analise: 'conferir documentos', extracao: 'trabalhar com planilhas',
   classificacao: 'organizar informações', traducao: 'traduzir', programacao: 'programar', raciocinio: 'planejar e decidir', edicao: 'editar textos' };
-const BOM_PARA = { sintese: 'resumir', redacao: 'redigir', analise: 'conferir documentos', extracao: 'ler planilhas e documentos',
+const BOM_PARA = { sintese: 'resumir', redacao: 'redigir', analise: 'conferir documentos', extracao: 'trabalhar com planilhas',
   classificacao: 'organizar informações', traducao: 'traduzir', programacao: 'programar', raciocinio: 'planejar' };
 // Tipo de trabalho de cada Quick Win (quickwin-construtor.js → ARQUETIPOS) → tipos de tarefa.
 const TAREFAS_DO_QW = { analisar_documentos: ['analise', 'extracao'], organizar_informacoes: ['extracao', 'classificacao'], criar_relatorio: ['sintese', 'redacao'],

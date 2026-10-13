@@ -1316,6 +1316,7 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .app .pagina .adm-sugestao h2{margin:0;font:600 18px/1.35 var(--sans);text-wrap:balance}
 .adm-sugestao-porque{margin:6px 0 14px;max-width:72ch;color:var(--muted)}
 .adm-sugestao-modelos{--cartao-min:240px;margin-bottom:14px}
+.app .pagina .adm-sug-modelo .cartao-titulo{margin:0;font:600 16px/1.35 var(--sans)}
 .adm-sug-modelo .cartao-meta{margin-top:auto}
 .adm-sug-motivos{margin:2px 0 0;padding:0;list-style:none;display:grid;gap:4px;font:400 14px/1.45 var(--sans);color:var(--ink)}
 .adm-sug-motivos li{position:relative;padding-left:16px}
@@ -1328,11 +1329,17 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .app .pagina .adm-sugestao-acoes .btn{min-height:44px}
 .adm-sugestao-pronto{display:flex;align-items:center;gap:8px;margin:0 0 24px;padding:12px 16px;border-radius:var(--raio-painel,14px);background:var(--mint);color:var(--forest-text);font:500 15px/1.45 var(--sans)}
 .adm-sugestao-pronto svg{flex:none;width:20px;height:20px}
+.adm-sug-dados{display:grid;grid-template-columns:minmax(130px,max-content) 1fr;gap:6px 14px;margin:6px 0 10px;font-size:14px}
+.adm-sug-dados>div{display:contents}
+.adm-sug-dados dt{color:var(--muted)}
+.adm-sug-dados dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
 .adm-sug-niveis-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
 .adm-sug-niveis-topo .selo svg{width:14px;height:14px}
+.app .pagina .adm-sug-niveis h2.editor-titulo{margin:0;font:600 15px/1.35 var(--sans)}
 .adm-sug-niveis .dica{margin:6px 0 10px}
 .adm-sug-niveis-lista{margin:0;padding:0;list-style:none;display:grid;gap:8px}
 .adm-sug-niveis-lista li{display:grid;grid-template-columns:110px 1fr auto;gap:4px 12px;align-items:baseline}
+.adm-sug-niveis-lista .tag{justify-self:start}
 @media (max-width:760px){
   .adm-sugestao{padding:16px}
   .adm-sugestao-acoes>.btn-verde{width:100%;justify-content:center}

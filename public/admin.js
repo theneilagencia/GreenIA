@@ -703,7 +703,7 @@ function detalhesSugestao(sug) {
   const sim = v => (v ? 'comprovada' : 'não comprovada');
   painelLateral({ migalha: 'Sugestão da GreenIA', titulo: 'Detalhes da sugestão', corpo: `
     <section class="px-secao"><h3>Como a sugestão foi feita</h3><p>${esc(sug.uso.frase)}</p><p>${esc(sug.politica.frase)}</p><p class="dica">${esc(g.modoTexto)}</p></section>
-    ${g.sugeridos.map(x => `<section class="px-secao"><h3>${esc(x.nome)}</h3><dl class="adm-modelo-dados">
+    ${g.sugeridos.map(x => `<section class="px-secao"><h3>${esc(x.nome)}</h3><dl class="adm-sug-dados">
       <div><dt>Fabricante</dt><dd>${esc(x.fabricante)}</dd></div><div><dt>Nível</dt><dd>${esc(x.nivel || '—')}</dd></div>
       <div><dt>Fornecedor fixado</dt><dd>${esc(x.detalhes.fornecedor || '—')}</dd></div><div><dt>Rota (endpoint)</dt><dd>${esc(x.detalhes.endpoint || '—')}</dd></div>
       <div><dt>Retenção zero</dt><dd>${sim(x.detalhes.retencaoZero)}</dd></div><div><dt>Sem uso para treino</dt><dd>${sim(x.detalhes.semTreino)}</dd></div>
@@ -903,7 +903,7 @@ async function abaHistoricoModelos() {
   $('conteudo').innerHTML = `${topoTela('Toda alteração de modelos fica registrada. Clique num registro para ver o detalhe.')}${reg.html}`;
   reg.ligar();
 }
-const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Níveis e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%' };
+const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'model.changed': 'Modelo alterado', 'model.certified': 'Modelo homologado', 'model.uncertified': 'Homologação retirada', 'model.config_changed': 'Níveis e acesso alterados', 'model.price_changed': 'Preço variou mais de 20%', 'model.suggestion_applied': 'Sugestão de modelos aplicada' };
 
 // ---------------------------------------------------------------- rotas
 const TELAS = {

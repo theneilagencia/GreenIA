@@ -1,0 +1,55 @@
+{
+  "codigo_produto": "4943c30bee07219b56a86da1b6b55aa89d04e6d8",
+  "data": "2026-10-13",
+  "servicos": {
+    "testes": 879,
+    "arquivos": 104,
+    "runtimes": [
+      "22.23.3",
+      "24.19.0"
+    ],
+    "falhas": 0,
+    "ignorados": 0
+  },
+  "navegador": {
+    "testes": 249,
+    "arquivos": 53,
+    "runtime": "24.19.0",
+    "falhas": 0,
+    "ignorados": 0,
+    "reteste_gestao": 6
+  },
+  "telas": {
+    "telas": 81,
+    "observacoes": 324,
+    "larguras": [
+      1280,
+      390,
+      360,
+      320
+    ],
+    "falhas_abertura_ou_transbordamento": 0,
+    "erros_javascript": 0,
+    "telas_com_campos_sem_rotulo": 0,
+    "cabecalhos_comprimidos": 0
+  },
+  "barreiras_http": {
+    "declaracoes": 268,
+    "erros500": 0
+  },
+  "producao": {
+    "deploy": "live",
+    "versao_api": "4943c30",
+    "saude_http": 200,
+    "cookies_corrompidos_http": 200,
+    "jornadas_autenticadas": "não concluídas nesta rodada",
+    "url_percentual_incompleto_http": 520,
+    "url_utf8_invalido_http": 400,
+    "arquivo_percentual_invalido_http": 400
+  },
+  "limites": [
+    "IA, email e conectores simulados nas baterias locais",
+    "Sem avaliação com usuários leigos ou leitor de tela real",
+    "Integração contínua externa depende de escopo próprio e não foi homologada"
+  ]
+}

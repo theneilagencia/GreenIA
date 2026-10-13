@@ -1,0 +1,748 @@
+{
+  "files": [
+    {
+      "file": "acompanhamento.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "ajude-comecar.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "auditoria.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "caixa-chat.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "config-integracoes.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "conversas-historico.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "fluxo.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "fontes.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "governanca-persistencia.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "governanca.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "integracoes.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "interface-uniformidade.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "jornadas-leigas.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "lateral.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "logout-cache.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "lp-demo.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "lp-operacoes.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "marca-branca.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "modelos-admin.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "onboarding-conhecimento.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "paineis.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "pesquisa-orientacao.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "planos-console.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "pools-modelos.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "producao-visual.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-layout-admin.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-layout-console-publico.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-layout-quickwins.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-layout-uso.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-pendencias-textos.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-pendencias.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-tema-publico.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-admin.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-console.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-conversa2.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-criticos.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-dialogos.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-gestao2.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true,
+      "reteste": true
+    },
+    {
+      "file": "qa-ux-pessoas.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-publico.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-quickwins.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-tema.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qa-ux-uso.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "quickwin-generalista.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "quickwin-nome.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "quickwin-operacao.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "quickwin-resultado.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "quickwin2.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qw-detalhe-layout.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qw-preparacao.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "qw-programacao.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "resultado-orientacao.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    },
+    {
+      "file": "ux.test.js",
+      "status": 0,
+      "signal": null,
+      "summary": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "ok": true
+    }
+  ],
+  "total": 249
+}

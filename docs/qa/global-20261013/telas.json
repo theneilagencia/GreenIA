@@ -1,0 +1,14 @@
+{
+  "telas": 81,
+  "observacoes": 324,
+  "larguras": [
+    1280,
+    390,
+    360,
+    320
+  ],
+  "falhas_abertura_ou_transbordamento": 0,
+  "erros_javascript": 0,
+  "telas_com_campos_sem_rotulo": 0,
+  "cabecalhos_comprimidos": 0
+}

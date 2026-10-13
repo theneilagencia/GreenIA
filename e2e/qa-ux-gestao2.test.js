@@ -16,9 +16,9 @@ const u = () => new URL(S.base);
 // Navegador em inglês: os campos de data não podem seguir o idioma do navegador.
 async function pagina(sessao, { width = 1280, height = 860 } = {}) {
   const ctx = await nav.newContext({ viewport: { width, height }, locale: 'en-US' });
-  // A sessão vale no endereço do teste e no endereço público da plataforma (plataforma.teste, mapeado para o mesmo
-  // servidor), onde abre a página de apresentação.
-  for (const domain of [u().hostname, 'plataforma.teste']) await ctx.addCookies([...sessao.cookies].map(([name, value]) => ({ name, value, domain, path: '/', httpOnly: true, sameSite: 'Lax' })));
+  // A sessão vale no endereço do editor (127.0.0.1) e da prévia (localhost), na mesma porta local.
+  // São duas origens reais: não depende de um domínio fictício nem de mapeamento DNS do Chromium.
+  for (const domain of [u().hostname, 'localhost']) await ctx.addCookies([...sessao.cookies].map(([name, value]) => ({ name, value, domain, path: '/', httpOnly: true, sameSite: 'Lax' })));
   const p = await ctx.newPage(); p.erros = [];
   p.on('pageerror', e => p.erros.push(e.message));
   p.on('dialog', d => { p.erros.push(`diálogo nativo: ${d.message()}`); d.dismiss(); });
@@ -28,6 +28,7 @@ const abrir = async (p, rota) => { await p.goto(`${S.base}/app#/${rota}`); await
 
 before(async () => {
   S = await subirPlataforma();
+  S.P.urlBase = S.base.replace('127.0.0.1', 'localhost');
   ops = await S.navegador().entrarConsole('ops@theneil.com.br');
   emp = (await ops.post('/api/plataforma/empresas', { name: 'Gestão UX', slug: 'gestao-ux', status: 'ativa', admin_email: 'admin@gestao.test' })).dados;
   admin = S.navegador(); await admin.get('/gestao-ux'); await admin.entrarEmpresa('admin@gestao.test');
@@ -50,7 +51,7 @@ before(async () => {
     exec(db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Pedido', ?)", c, em);
     exec(db, 'insert into uso (em, pessoa_id, conversa_id, quick_win_id, modelo_pedido, modelo_usado, custo, ms) values (?, 1, ?, ?, ?, ?, 0.01, 1500)', em, c, qw.id, modelo, modelo);
   }
-  nav = await chromium.launch({ executablePath: CHROMIUM, args: [`--host-resolver-rules=MAP plataforma.teste ${u().host}`] });
+  nav = await chromium.launch({ executablePath: CHROMIUM, args: [] });
 });
 after(async () => { await nav?.close(); await S?.fechar(); });
 
@@ -134,10 +135,12 @@ test('M28: De/Até da Atividade em dd/mm/aaaa num navegador em inglês, com o me
   // Data válida: a API recebe aaaa-mm-dd e a data volta ao campo em dd/mm/aaaa.
   await p.locator('#ev-ate').fill('');
   await p.locator('#ev-ate').pressSequentially('31102026');
+  const formularioAnterior = await p.locator('#filtro-ev').elementHandle();
   const [pedido] = await Promise.all([p.waitForRequest(r => r.url().includes('/api/admin/eventos?')), p.getByRole('button', { name: 'Filtrar' }).click()]);
   const q = new URL(pedido.url()).searchParams;
   assert.deepEqual([q.get('de'), q.get('ate')], ['2026-10-01', '2026-10-31']);
-  await p.waitForLoadState('networkidle');
+  await formularioAnterior.waitForElementState('hidden'); // O retorno substitui o formulário: não atuar no campo anterior.
+  await p.locator('#ev-de').waitFor();
   assert.equal(await p.locator('#ev-de').inputValue(), '01/10/2026');
   // Calendário: a escolha volta ao campo em dd/mm/aaaa.
   await p.locator('#ev-de').locator('xpath=..').locator('.data-br-nativo').evaluate(n => { n.value = '2026-09-05'; n.dispatchEvent(new Event('change', { bubbles: true })); });

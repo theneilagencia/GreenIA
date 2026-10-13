@@ -64,7 +64,7 @@ test('biblioteca: usuário só vê sua área e documentos comuns; filtros sem ac
   assert.doesNotMatch(await p.textContent('#conteudo'), /Segredo da área Beta|Financeiro reservado|Gerenciar bases/);
   assert.equal(await p.locator('#doc-arquivo').count(), 0);
   await p.fill('#conhecimento-busca', 'politica'); assert.equal(await p.locator('[data-documento]').count(), 1);
-  await p.click('[data-limpar-conhecimento]'); await p.selectOption('#conhecimento-pasta', { label: 'Manuais' }); assert.match(await p.textContent('#conhecimento-lista'), /Manual comum/);
+  await p.click('[data-limpar-conhecimento]'); await p.click('#conhecimento-filtrar'); await p.selectOption('#conhecimento-pasta', { label: 'Manuais' }); assert.match(await p.textContent('#conhecimento-lista'), /Manual comum/);
   // Quem só consulta não vê informação de gestão (revisão, responsável) nem os filtros de gestão.
   await p.click('[data-limpar-conhecimento]'); assert.equal(await p.locator('[data-filtrar-revisao]').count(), 0);
   assert.doesNotMatch(await p.textContent('#conhecimento-lista'), /Revisão recomendada|Conteúdo revisado|Responsável/);
@@ -76,7 +76,7 @@ test('gestão restrita: bases autorizadas, confirmação do envio, rede falha pr
   const p = await abrir('gestora'); await p.click('[data-conhecimento-vista="gerir"]');
   assert.deepEqual(await p.locator('#doc-destino option').allTextContents(), ['Operações']);
   assert.doesNotMatch(await p.textContent('#conteudo'), /Segredo da área Beta|Financeiro reservado|Manual comum/);
-  await p.click('#envio-conhecimento>summary');
+  await p.click('#conhecimento-enviar');
   await p.setInputFiles('#doc-arquivo', { name: 'roteiro.txt', mimeType: 'text/plain', buffer: Buffer.from('Roteiro fictício de operação.') });
   await p.fill('#doc-titulo', 'Roteiro de operação'); await p.fill('#doc-pasta', 'Procedimentos'); await p.check('#doc-sigiloso');
   await p.click('#btn-doc'); assert.match(await p.textContent('#doc-confirmacao'), /Operações.*pessoas desta área/s);
@@ -115,8 +115,8 @@ test('edição, substituição e revisão preservam a base; falha de rede manté
 });
 
 test('biblioteca: filtros não descartam envio; saída não salva exige confirmação; Escape preserva edição quando descartada a saída', async () => {
-  const p = await abrir('gestora'); await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#envio-conhecimento>summary');
-  await p.fill('#doc-titulo', 'Título ainda não enviado'); await p.click('[data-limpar-conhecimento]'); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
+  const p = await abrir('gestora'); await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#conhecimento-enviar');
+  await p.fill('#doc-titulo', 'Título ainda não enviado'); await p.fill('#conhecimento-busca', 'Política'); await p.click('[data-limpar-conhecimento]'); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
   // Sair com envio pendente pergunta no modal da plataforma (nunca o confirm() do navegador); "Continuar editando" fica.
   const continuar = async () => { const m = p.getByRole('dialog', { name: /Sair sem salvar|Descartar as alterações/ }); await m.waitFor(); await m.getByRole('button', { name: 'Continuar editando' }).click(); await m.waitFor({ state: 'detached' }); };
   await p.click('#ajuda-tela'); await p.click('#ajuda-guia'); await continuar(); await p.waitForURL(/#\/conhecimento$/); assert.equal(await p.inputValue('#doc-titulo'), 'Título ainda não enviado');
@@ -158,7 +158,7 @@ test('biblioteca grande: paginação preserva contagem e filtro; atualizar após
 
 test('remover documento: cancelar preserva o arquivo; confirmar remove somente o documento escolhido', async () => {
   const d = (await admin.post('/api/bases/documentos', { area_id: A.id, titulo: 'Documento temporário QA', pasta: '__sem', arquivo: arquivo('temporario.txt', 'Conteúdo de teste descartável.') })).dados;
-  const p = await abrir('admin'); await p.click('[data-conhecimento-vista="gerir"]'); await p.selectOption('#conhecimento-pasta', { label: '__sem' }); assert.equal(await p.locator('[data-documento]').count(), 1, 'nome de pasta não se confunde com o filtro Sem pasta'); await p.click(`[data-editar-conhecimento="${d.id}"]`);
+  const p = await abrir('admin'); await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#conhecimento-filtrar'); await p.selectOption('#conhecimento-pasta', { label: '__sem' }); assert.equal(await p.locator('[data-documento]').count(), 1, 'nome de pasta não se confunde com o filtro Sem pasta'); await p.click(`[data-editar-conhecimento="${d.id}"]`);
   await p.click('.conhecimento-remover>summary'); await p.click('#conhecimento-ed-remover'); await p.getByRole('dialog', { name: /Remover .* da base/ }).getByRole('button', { name: 'Cancelar', exact: true }).click(); await p.locator('.adm-confirmar').waitFor({ state: 'detached' });
   assert.ok(await p.locator('#conhecimento-ed-form').isVisible(), 'cancelar mantém o editor aberto');
   assert.ok(um(N.app.db, 'select id from documentos where id = ?', d.id));

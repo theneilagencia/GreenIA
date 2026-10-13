@@ -121,8 +121,8 @@ function desenhar() {
         <div class="caixa-soltar" aria-hidden="true">Solte os arquivos para anexar</div>
       </div>
       <div class="inicio-atalhos" id="inicio-atalhos"></div>
-      ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso">Este campo continua o trabalho desta conversa. <a href="#/qw/${qw.id}/usar">Usar com outro material →</a></p>` : ''}
-      <p class="nota-compositor">${qw ? 'Revise antes de usar.' : 'Revise antes de usar. Dado bloqueado pela política não é enviado.'} As conversas ficam salvas por até ${E.retencaoDias} dias sem uso.</p>
+      ${qw?.v2 && C.mensagens.length ? `<p class="continuar-caso"><a href="#/qw/${qw.id}/usar">Usar com outro material →</a></p>` : ''}
+      ${qw && C.mensagens.length ? '' : '<p class="nota-compositor">Revise antes de usar: a IA pode errar.</p>'}
     </div></div>
     <div class="sr" aria-live="polite" id="ao-vivo"></div>`;
   ligarCabecalho();

@@ -15,7 +15,6 @@
 .app .pagina :is(.lead,.pg-desc){margin-bottom:20px}
 .app .pagina :is(.editor,.grupo-form,.conhecimento-envio,.conhecimento-documento){padding:16px;border-radius:var(--raio-painel)}
 .app .pagina :is(.conhecimento-doc-topo h3,.conhecimento-vazio h3,.item-int h3){font:600 15px/1.4 var(--sans);margin:0 0 4px}
-.app .pagina .conhecimento-bases h2{font-size:var(--ui-secao)!important}
 .app .pagina .indicador b{font:600 24px/1.25 var(--sans);font-variant-numeric:tabular-nums}
 .app .boas-vindas h2{font:600 24px/1.3 var(--sans);letter-spacing:-.02em}
 .app .pagina .vazio b{font:600 var(--ui-secao)/1.4 var(--sans)}
@@ -164,7 +163,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 /* === Uso e chat (QA UX) === */
 /* Lateral: só o lugar atual em destaque ("Nova conversa" quando é a tela aberta). No celular, o menu tem
    "Fechar" e a conta (nome, email e Sair). */
-.lateral .nova[aria-current="page"]{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--sobre-forte) 60%,transparent)}
 .fechar-lateral,.conta-lateral{display:none}
 @media(max-width:860px){
   .lateral .fechar-lateral{display:inline-grid;place-items:center;position:absolute;top:calc(8px + env(safe-area-inset-top));right:6px;width:44px;height:44px;min-width:44px;padding:0;z-index:1}
@@ -202,9 +200,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 }
 
 /* Primeiros passos: passos com nome, "Voltar" desabilitado com cara de desabilitado e saída com o caminho de volta. */
-.guia-etapas .btn{gap:8px}
 .guia-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;background:var(--surface);font:600 12px var(--sans)}
-.guia-etapas [aria-current="step"] .guia-num{background:color-mix(in srgb,var(--sobre-forte) 22%,transparent)}
 .guia-rodape .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
 .guia-saida{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0}
 
@@ -443,17 +439,9 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .conhecimento-documentos.grade-cartoes{--cartao-min:300px}
 .app .pagina .conhecimento-documento.cartao{padding:var(--cartao-pad);border-radius:var(--cartao-raio);gap:6px}
 .app .pagina .conhecimento-documento.cartao>p{margin:0}
-.conhecimento-documento .conhecimento-uso{margin:0}
 .conhecimento-documento .cartao-acoes .conhecimento-abrir{margin:0}
 .visoes-salvas{align-items:baseline}
 .visoes-salvas>.btn-texto:first-child{margin-left:-8px}
-@media(max-width:760px){.conhecimento-topo{margin-bottom:16px}}
-/* Filtros em grade conforme a largura da biblioteca: 4 colunas, 2×2 ou 1; nenhum campo sozinho esticado numa linha
-   e "Título de A a Z" sem corte. */
-.conhecimento-biblioteca{container-type:inline-size}
-.app .pagina .conhecimento-biblioteca .filtros-biblioteca{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr));align-items:end}
-@container (max-width:720px){.app .pagina .conhecimento-biblioteca .filtros-biblioteca{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container (max-width:420px){.app .pagina .conhecimento-biblioteca .filtros-biblioteca{grid-template-columns:minmax(0,1fr)}}
 /* Ajuda da tela: título e "×" na mesma linha. */
 #modal .ajuda-contextual .modal-topo{align-items:center;margin-bottom:16px}
 #modal .ajuda-contextual .modal-topo h2{margin:0}
@@ -845,4 +833,89 @@ body.console .pagina-dentro>h2:first-child{font:600 22px/1.3 var(--sans);letter-
 @media(max-height:560px){
   .principal:has(.inicio-conversa) .inicio-atalhos,.principal:has(.inicio-conversa) .inicio-dica{display:none}
   .app .inicio-conversa h2{font-size:22px}
+}
+
+/* === Caminho claro: telas de uso === Conversas, conversa aberta, Pendências, Conhecimento ("Disponível para mim" e
+   "Gerenciar bases"), Primeiros passos, Ajuda da tela e lateral de quem usa. Uma linha de propósito com a ação
+   principal à direita, troca de visão discreta, busca à vista e filtros atrás de "Filtrar"; explicações na Ajuda. */
+.caminho-topo{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin:0 0 20px}
+.caminho-proposito{margin:0;font:400 15px/1.5 var(--sans);color:var(--muted);flex:1 1 280px;max-width:72ch}
+.caminho-topo>.btn,.caminho-topo>.hc-intro-acoes{flex:none}
+.caminho-topo .btn svg{width:16px;height:16px}
+.caminho-topo>.btn[hidden]{display:none!important}
+.hc-pagina .hc-intro.caminho-topo{margin-bottom:20px}
+/* Grupos por data no histórico: <h2> (sem saltar de h1 para h3), com o desenho discreto de rótulo. */
+.app .pagina .hc-grupo h2{font:500 12px/1.4 var(--sans);color:var(--muted);margin:25px 0 10px;text-transform:capitalize;letter-spacing:0}
+/* Troca de visão: controle segmentado discreto (não é ação principal). */
+.app .pagina .segmentos.conhecimento-vistas{display:inline-flex;flex-wrap:nowrap;gap:2px;padding:3px;margin:0 0 20px;max-width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.segmento{appearance:none;display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 14px/1.3 var(--sans);text-decoration:none;white-space:nowrap;cursor:pointer}
+.segmento:hover{color:var(--ink)}
+.segmento:is([aria-pressed="true"],[aria-current="page"]){background:var(--paper);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 1px 2px rgb(0 0 0 / .06)}
+.segmento:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+/* Busca à vista e "Filtrar" ao lado; o painel de filtros abre sob a busca. */
+.caminho-busca{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.caminho-busca-campo{display:flex;align-items:center;gap:8px;flex:1;min-width:0;max-width:560px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--raio);background:var(--paper)}
+.caminho-busca-campo svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.app .pagina .caminho-busca-campo .entrada{flex:1;min-width:0;min-height:42px;padding:0;border:0;background:transparent;box-shadow:none;outline:0}
+.caminho-busca-campo:focus-within{outline:2px solid var(--forest);outline-offset:2px}
+.caminho-busca>.btn{flex:none}
+.caminho-contador{font-variant-numeric:tabular-nums}
+.app .pagina .caminho-filtros{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;margin:0 0 12px;padding:16px;border:1px solid var(--line);border-radius:var(--raio-painel,12px);background:var(--surface)}
+.app .pagina .caminho-filtros[hidden]{display:none}
+.app .pagina .caminho-filtros .campo{flex:1 1 170px;margin:0;min-width:0}
+.caminho-filtros>.visoes-salvas,.caminho-filtros>#pend-visoes{flex:1 1 100%;margin:0}
+.conhecimento-resultados .linha-botoes{gap:4px;margin:0;flex-wrap:nowrap}
+.conhecimento-resultados [hidden],.hc-barra[hidden],.hc-retencao[hidden]{display:none!important}
+.caminho-aviso{margin:0 0 16px}
+.caminho-vazio{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.app .pagina .caminho-vazio p{margin:0;color:var(--ink)}
+/* Conhecimento: envio num painel aberto pela ação principal; uma linha sobre a base escolhida; "Usado em" no cartão. */
+.caminho-painel-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px}
+.app .pagina .caminho-painel-topo h2{margin:0;font:600 var(--ui-secao,18px)/1.3 var(--sans)}
+.caminho-painel-topo h2:focus{outline:none}
+.conhecimento-envio[hidden]{display:none}
+.app .pagina .conhecimento-envio .campo .ajuda{margin:6px 0 0}
+.app .pagina .conhecimento-envio .grade-2{align-items:start;row-gap:16px}
+.app .pagina .conhecimento-audiencia-linha{margin:0 0 12px}
+.conhecimento-usado-em a{color:var(--forest-text)}
+/* Pendências: a primeira pendência é a ação principal; a troca de visão é a mesma do Conhecimento. */
+.pend-ferramentas[hidden]{display:none}
+.acompanhamento .caminho-topo{margin-bottom:16px}
+/* Primeiros passos: passos como indicador discreto; só "Próximo passo" é ação principal. */
+.app .pagina .guia-proposito{margin:0 0 16px}
+.guia-etapas{gap:4px;margin:0 0 20px}
+.guia-etapa{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 12px 0 6px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:500 14px var(--sans);cursor:pointer}
+.guia-etapa:hover{background:var(--sand);color:var(--ink)}
+.guia-etapa:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+.guia-etapa .guia-num{border:1px solid var(--line-strong)}
+.guia-etapa[aria-current="step"]{color:var(--ink);font-weight:600}
+.guia-etapa[aria-current="step"] .guia-num{background:var(--forest-strong);border-color:var(--forest-strong);color:var(--sobre-forte)}
+.guia-concluido{color:var(--forest-text);font-weight:600}
+.guia-cartao .guia-ir{padding-left:0;margin-left:0}
+.guia-cartao .guia-cuidado{padding:12px 0 8px}
+/* Ajuda da tela: as explicações que saíram das telas, em perguntas curtas. */
+#modal .ajuda-contextual{max-height:calc(100dvh - 32px);overflow-y:auto}
+#modal .ajuda-contextual .ajuda-perguntas{margin:0 0 20px}
+#modal .ajuda-contextual .ajuda-perguntas h3{margin:16px 0 4px;font:600 14px/1.4 var(--sans);color:var(--ink)}
+#modal .ajuda-contextual .ajuda-perguntas p{margin:0;font-size:14px;line-height:1.6;color:var(--ink-2,var(--ink))}
+/* Lateral de quem usa: "Nova conversa" é navegação, não a ação principal de cada tela; destaque só quando é o lugar atual. */
+.app .lateral .nova.btn-linha{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500;box-shadow:none}
+.app .lateral .nova.btn-linha svg{color:var(--forest-text)}
+.app .lateral .nova.btn-linha:hover{background:var(--sand)}
+.app .lateral .nova.btn-linha[aria-current="page"]{background:var(--mint);border-color:color-mix(in srgb,var(--forest) 45%,var(--line-strong));color:var(--forest-text)}
+@media(max-width:760px){
+  .app .pagina .segmentos.conhecimento-vistas{display:flex;width:100%}
+  .segmento{flex:1 1 0;min-height:44px;padding:0 8px;white-space:normal;text-align:center}
+  .app .pagina .caminho-busca-campo .entrada{min-height:44px;font-size:16px}
+  .caminho-busca{align-items:stretch}
+  .caminho-topo,.hc-pagina .hc-intro.caminho-topo{flex-direction:column;align-items:stretch;gap:12px}
+  .caminho-proposito{flex:none;text-align:left}
+  .caminho-topo>.btn,.caminho-topo>.hc-intro-acoes{width:100%}
+  .caminho-topo>.btn,.caminho-topo>.hc-intro-acoes .btn{justify-content:center;width:100%;min-height:44px}
+  .conhecimento-resultados .btn-texto,.guia-saida .btn-texto{min-height:44px}
+  .guia-etapa{min-height:44px}
+  .app .pagina .caminho-filtros{padding:12px}
+  .app .pagina .caminho-filtros .campo{flex-basis:100%}
+  /* Navegação do guia sempre à vista no celular, presa ao pé da tela. */
+  .guia-rodape{position:sticky;bottom:0;z-index:2;margin:16px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line)}
 }

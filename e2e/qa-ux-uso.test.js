@@ -224,6 +224,14 @@ test('M16: Pendências vazia sem aba única nem filtros; hora sem segundos', asy
 test('M17: Conhecimento para quem só consulta: seletor sem corte e sem informação de gestão', async () => {
   const p = await pagina(pessoa);
   await p.goto(`${S.base}/app#/conhecimento`); await p.waitForSelector('[data-documento]');
+  // Um documento só: busca à vista, sem filtros (lista curta).
+  assert.equal(await p.locator('#conhecimento-filtrar').count(), 0);
+  const area = (await admin.get('/api/admin/areas')).dados;
+  const idArea = (area.areas || area).find(a => a.nome === 'Operações').id;
+  await admin.post('/api/bases/documentos', { area_id: idArea, titulo: 'Política de viagens', pasta: 'Políticas', arquivo: { nome: 'viagens.txt', base64: Buffer.from('Política fictícia de viagens.').toString('base64') } });
+  await p.reload(); await p.waitForSelector('[data-documento]');
+  assert.equal(await p.locator('#conhecimento-filtros').isVisible(), false, 'filtros fechados até a pessoa pedir');
+  await p.click('#conhecimento-filtrar'); await p.waitForSelector('#conhecimento-filtros:not([hidden])');
   assert.deepEqual(await p.locator('#conhecimento-status option').allTextContents(), ['Todos', 'Sigilosos']);
   assert.equal(await p.locator('#conhecimento-pasta option').first().textContent(), 'Todas');
   assert.equal(await p.locator('[data-filtrar-revisao]').count(), 0);

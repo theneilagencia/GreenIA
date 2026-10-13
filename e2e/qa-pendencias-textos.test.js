@@ -109,7 +109,7 @@ test('Sair do envio de documento com dados pendentes: modal da plataforma; "Sair
   const nativos = []; p.on('dialog', d => { nativos.push(d.message()); d.dismiss(); });
   await p.goto(`${S.base}/app#/conhecimento`);
   await p.waitForSelector('[data-conhecimento-vista="gerir"]');
-  await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#envio-conhecimento>summary');
+  await p.click('[data-conhecimento-vista="gerir"]'); await p.click('#conhecimento-enviar');
   await p.fill('#doc-titulo', 'Rascunho que vai ser descartado');
   await p.evaluate(() => { location.hash = '#/nova'; });
   const m = p.getByRole('dialog', { name: 'Sair sem salvar?' });

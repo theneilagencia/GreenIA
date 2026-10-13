@@ -86,7 +86,10 @@ test('admin: a Administração mostra os recursos sem o provedor; a tela de uso 
   await p.goto(`${N.base}/app#/conhecimento`);
   await p.waitForSelector('[data-conhecimento-vista="gerir"]');
   await p.click('[data-conhecimento-vista="gerir"]');
-  await p.click('#envio-conhecimento>summary');
+  await p.click('#conhecimento-enviar');
   await p.waitForSelector('#doc-arquivo', { state: 'attached' });
-  assert.match(await p.evaluate(() => document.body.innerText), /Imagem e PDF escaneado são lidos por OCR/);
+  assert.match(await p.locator('#envio-conhecimento').innerText(), /até 25 MB/);
+  // A explicação do envio (OCR, sigilo) saiu da tela e fica na Ajuda.
+  await p.click('#ajuda-tela'); await p.waitForSelector('#ajuda-titulo');
+  assert.match(await p.locator('.ajuda-contextual').innerText(), /Imagem e PDF escaneado são lidos por OCR/);
 });

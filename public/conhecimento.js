@@ -1,6 +1,6 @@
 import { ligarVisao } from '/preferencias.js';
 // Biblioteca sobre as APIs existentes: filtros locais nunca ampliam o acesso autorizado pelo servidor.
-import { api, esc, toast } from '/comum.js';
+import { api, esc, toast, ICONE } from '/comum.js';
 import { E, recarregarBases } from '/app.js';
 import { fecharComEscape } from '/acessibilidade.js';
 import { confirmar } from '/admin-ui.js';
@@ -11,13 +11,15 @@ const baseDe = d => d.toda_empresa ? 'toda' : String(d.area_id);
 const data = s => s ? new Date(s.length===10?s+'T12:00:00':s.replace(' ', 'T') + (s.length === 19 ? 'Z' : '')).toLocaleDateString('pt-BR') : '—';
 const revisar = d => !d.revisado_em || Date.now() - Date.parse(d.revisado_em.replace(' ', 'T') + (d.revisado_em.length === 19 ? 'Z' : '')) > (E.bases?.diasRevisao || 180) * 864e5;
 function arquivoBase64(f) { return new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok({ nome: f.name, base64: String(r.result).split(',')[1] }); r.onerror = () => erro(new Error('Não foi possível ler o arquivo. Tente selecioná-lo novamente.')); r.readAsDataURL(f); }); }
+// Quick Wins que usam o documento e que a pessoa pode abrir (aparecem na leitura do documento).
+const usadoEm = d => (d.quickWins || []).filter(q => E.quickWins.some(v => v.id === q.id));
 function conferirArquivo(f) { if (f?.size > 25 * 1024 * 1024) throw new Error('O arquivo passa de 25 MB. Envie uma versão menor.'); }
 let estado = null;
 let ativa = null;
-const envioPendente = () => ativa?.raiz.isConnected && (ativa.editorSujo || ativa.raiz.querySelector('#doc-arquivo')?.files.length || ativa.raiz.querySelector('#doc-titulo')?.value || ativa.raiz.querySelector('#doc-pasta')?.value);
+const envioPendente = () => ativa?.raiz?.isConnected && (ativa.editorSujo || ativa.raiz.querySelector('#doc-arquivo')?.files.length || ativa.raiz.querySelector('#doc-titulo')?.value || ativa.raiz.querySelector('#doc-pasta')?.value);
 window.addEventListener('beforeunload', ev => { if (envioPendente() || ativa?.ocupada) { ev.preventDefault(); ev.returnValue = ''; } });
 document.addEventListener('greenia:antes-navegar', ev => {
-  if (!ativa?.raiz.isConnected) return;
+  if (!ativa?.raiz?.isConnected) return;
   if (ativa.ocupada) { ev.preventDefault(); history.replaceState(null, '', ativa.rota); return; }
   if (envioPendente()) {
     // A rota fica onde está enquanto a pessoa decide, no modal da plataforma; confirmando, segue para o destino.
@@ -31,8 +33,10 @@ document.addEventListener('greenia:antes-navegar', ev => {
 });
 export async function vistaConhecimento() {
   const raiz = document.getElementById('conteudo');
+  // A pessoa já saiu da tela enquanto ela carregava: nada a desenhar (e nada a vigiar na próxima navegação).
+  if (!raiz) return;
   const pessoa = `${E.plataforma?.empresa?.id ?? 'local'}:${E.eu.id}`;
-  if (estado?.pessoa !== pessoa) estado = { pessoa, vista: 'usar', busca: '', area: '', pasta: '', status: '', ordem: 'titulo', limite: 20 };
+  if (estado?.pessoa !== pessoa) estado = { pessoa, vista: 'usar', busca: '', area: '', pasta: '', status: '', ordem: 'titulo', limite: 20, filtrosAbertos: false, envioAberto: false };
   const F = estado;
   ativa = { raiz, rota: location.hash, editorSujo: false, ocupada: false };
   let k, documentos, areas, todaEmpresa;
@@ -58,41 +62,66 @@ export async function vistaConhecimento() {
     el('conhecimento-pasta').innerHTML = `<option value="">Todas</option><option value="sem-pasta">Sem pasta</option>${nomes.map(n => `<option value="pasta:${esc(n)}">${esc(n)}</option>`).join('')}`;
     el('conhecimento-pasta').value = F.pasta;
   }
+  // Caminho claro: uma linha de propósito, a ação principal à direita ("Enviar documento", para quem gerencia), a troca
+  // de visão discreta, a busca à vista e os demais filtros atrás de "Filtrar". As explicações ficam na Ajuda da tela.
   function montar() {
     if (F.area && !bases().some(b => b.chave === F.area)) F.area = '';
-    const ds = lista();
-    raiz.innerHTML = `<div class="conhecimento-topo"><div><p class="lead">Encontre os documentos que podem orientar suas tarefas.</p><details class="conhecimento-ajuda"><summary>O que a IA pode consultar?</summary><p class="dica">Só aparecem os conteúdos permitidos para o seu perfil. A IA usa trechos relevantes quando encontra fontes; não consulta necessariamente todos os documentos em cada resposta.</p></details></div><div class="linha-botoes"><a class="btn btn-linha" href="#/primeiros-passos">Como usar</a><button type="button" class="btn btn-linha" data-atualizar-conhecimento aria-label="Atualizar biblioteca de documentos">Atualizar</button></div></div>
-      ${k.podeGerir ? `<nav class="conhecimento-vistas" aria-label="Visão do Conhecimento"><button type="button" class="btn ${F.vista === 'usar' ? 'btn-verde' : 'btn-linha'}" data-conhecimento-vista="usar" aria-pressed="${F.vista === 'usar'}">Disponível para mim</button><button type="button" class="btn ${F.vista === 'gerir' ? 'btn-verde' : 'btn-linha'}" data-conhecimento-vista="gerir" aria-pressed="${F.vista === 'gerir'}">Gerenciar bases</button></nav>` : ''}
-      <div class="conhecimento-resumo"><span><b>${ds.length}</b> ${ds.length === 1 ? 'documento' : 'documentos'}</span><span><b>${bases().length}</b> ${bases().length === 1 ? 'base' : 'bases'}</span>${k.podeGerir ? `<button type="button" class="btn-texto" data-filtrar-revisao><b>${ds.filter(revisar).length}</b> para revisar</button>` : ''}</div>
+    const ds = lista(), gerir = F.vista === 'gerir', pendentes = gerir ? ds.filter(revisar).length : 0;
+    raiz.innerHTML = `<div class="caminho-topo"><p class="caminho-proposito">${gerir ? 'Envie e mantenha os documentos das bases que você administra.' : 'Documentos da empresa que a IA pode consultar para você.'}</p>${k.podeGerir ? `<button type="button" class="btn btn-verde" id="conhecimento-enviar" aria-controls="envio-conhecimento" aria-expanded="false"${F.envioAberto && gerir ? ' hidden' : ''}>${ICONE.mais} Enviar documento</button>` : ''}</div>
+      ${k.podeGerir ? `<div class="segmentos conhecimento-vistas" role="group" aria-label="Visão do Conhecimento"><button type="button" class="segmento" data-conhecimento-vista="usar" aria-pressed="${!gerir}">Disponível para mim</button><button type="button" class="segmento" data-conhecimento-vista="gerir" aria-pressed="${gerir}">Gerenciar bases</button></div>` : ''}
+      ${pendentes ? `<div class="aviso-linha aviso-atencao caminho-aviso" role="status"><div><b>${pendentes} ${pendentes === 1 ? 'documento pede' : 'documentos pedem'} revisão.</b></div><div class="aviso-acoes"><button type="button" class="btn btn-linha btn-pequeno" data-filtrar-revisao>Ver ${pendentes === 1 ? 'qual' : 'quais'}</button></div></div>` : ''}
       <p class="msg-erro" id="conhecimento-erro" role="alert" hidden></p>
       ${k.podeGerir ? envioHtml() : ''}
-      <div class="conhecimento-layout"><aside class="conhecimento-bases" aria-label="Bases de conhecimento"><h2>Bases</h2><div id="conhecimento-colecoes"></div><p class="dica">As pastas organizam os arquivos. Mudar a pasta não muda quem tem acesso.</p></aside><section class="conhecimento-biblioteca" aria-label="Biblioteca de documentos">
-      <div class="filtros-biblioteca"><div class="campo"><label for="conhecimento-busca">Buscar documento</label><input type="search" class="entrada" id="conhecimento-busca" value="${esc(F.busca)}" placeholder="Título, arquivo ou pasta"></div><div class="campo"><label for="conhecimento-pasta">Pasta</label><select class="entrada" id="conhecimento-pasta"></select></div><div class="campo"><label for="conhecimento-status">Mostrar</label><select class="entrada" id="conhecimento-status"><option value="">Todos</option>${k.podeGerir ? '<option value="revisar">Precisam de revisão</option><option value="suspenso">Suspensos</option><option value="vencido">Validade encerrada</option>' : ''}<option value="sigiloso">Sigilosos</option></select></div><div class="campo"><label for="conhecimento-ordem">Ordenar</label><select class="entrada" id="conhecimento-ordem"><option value="titulo">Título de A a Z</option><option value="recente">Atualizados recentemente</option></select></div></div>
-      <div class="conhecimento-resultados"><p id="conhecimento-contagem" role="status"></p><button type="button" class="btn-texto" data-limpar-conhecimento>Limpar filtros</button></div><div id="conhecimento-lista"></div></section></div>`;
-    pastas(); el('conhecimento-status').value = F.status; el('conhecimento-ordem').value = F.ordem;
+      <section class="conhecimento-biblioteca" aria-labelledby="conhecimento-lista-titulo"><h2 class="sr" id="conhecimento-lista-titulo">Documentos</h2>
+      ${ds.length ? `<div class="caminho-busca"><label class="caminho-busca-campo">${ICONE.busca}<span class="sr">Buscar documento</span><input type="search" class="entrada" id="conhecimento-busca" value="${esc(F.busca)}" placeholder="Buscar por título, arquivo ou pasta" autocomplete="off"></label>${ds.length > 1 ? `<button type="button" class="btn btn-linha" id="conhecimento-filtrar" aria-expanded="${!!F.filtrosAbertos}" aria-controls="conhecimento-filtros">Filtrar<span class="caminho-contador" id="conhecimento-filtros-ativos"></span></button>` : ''}</div>
+      <div class="filtros-biblioteca caminho-filtros" id="conhecimento-filtros"${F.filtrosAbertos && ds.length > 1 ? '' : ' hidden'}>${bases().length > 1 ? `<div class="campo"><label for="conhecimento-base">Base</label><select class="entrada" id="conhecimento-base"></select></div>` : ''}<div class="campo"><label for="conhecimento-pasta">Pasta</label><select class="entrada" id="conhecimento-pasta"></select></div><div class="campo"><label for="conhecimento-status">Mostrar</label><select class="entrada" id="conhecimento-status"><option value="">Todos</option>${k.podeGerir ? '<option value="revisar">Precisam de revisão</option><option value="suspenso">Suspensos</option><option value="vencido">Validade encerrada</option>' : ''}<option value="sigiloso">Sigilosos</option></select></div><div class="campo"><label for="conhecimento-ordem">Ordenar</label><select class="entrada" id="conhecimento-ordem"><option value="titulo">Título de A a Z</option><option value="recente">Atualizados recentemente</option></select></div></div>
+      <div class="conhecimento-resultados"><p id="conhecimento-contagem" role="status"></p><span class="linha-botoes"><button type="button" class="btn-texto" data-limpar-conhecimento hidden>Limpar filtros</button><button type="button" class="btn-texto" data-atualizar-conhecimento aria-label="Atualizar a lista de documentos">Atualizar</button></span></div>` : ''}<div id="conhecimento-lista"></div></section>`;
+    if (ds.length) {
+      pastas(); el('conhecimento-status').value = F.status; el('conhecimento-ordem').value = F.ordem;
+      if (el('conhecimento-base')) { el('conhecimento-base').innerHTML = [{ chave: '', nome: 'Todas as bases' }, ...bases()].map(b => `<option value="${esc(b.chave)}">${esc(b.nome)} (${ds.filter(d => !b.chave || baseDe(d) === b.chave).length})</option>`).join(''); el('conhecimento-base').value = F.area; }
+    }
     desenharLista(); ligarEnvio();
-    ligarVisao('conhecimento',raiz.querySelector('.conhecimento-biblioteca'),()=>({busca:F.busca,area:F.area,pasta:F.pasta,status:F.status,ordem:F.ordem}),v=>{
-      for(const key of ['busca','area','pasta','status','ordem']) F[key]=String(v[key]||'');F.limite=20;
-      el('conhecimento-busca').value=F.busca;el('conhecimento-status').value=F.status;el('conhecimento-ordem').value=F.ordem||'titulo';pastas();desenharLista();
+    if (ds.length > 1) ligarVisao('conhecimento', el('conhecimento-filtros'), () => ({ busca: F.busca, area: F.area, pasta: F.pasta, status: F.status, ordem: F.ordem }), v => {
+      for (const key of ['busca', 'area', 'pasta', 'status', 'ordem']) F[key] = String(v[key] || ''); F.limite = 20;
+      el('conhecimento-busca').value = F.busca; el('conhecimento-status').value = F.status; el('conhecimento-ordem').value = F.ordem || 'titulo'; if (el('conhecimento-base')) el('conhecimento-base').value = F.area; pastas(); desenharLista();
     });
+  }
+  // Filtros fechados por padrão; abrem pelo "Filtrar" (ou quando algo pede um filtro, como "Ver quais").
+  function abrirFiltros(abrir) {
+    F.filtrosAbertos = abrir;
+    if (el('conhecimento-filtros')) el('conhecimento-filtros').hidden = !abrir;
+    el('conhecimento-filtrar')?.setAttribute('aria-expanded', String(abrir));
+  }
+  function abrirEnvio(abrir) {
+    const painel = el('envio-conhecimento'); if (!painel) return;
+    F.envioAberto = abrir; painel.hidden = !abrir;
+    const botao = el('conhecimento-enviar'); if (botao) { botao.hidden = abrir; botao.setAttribute('aria-expanded', String(abrir)); }
+    if (abrir) el('envio-titulo').focus(); else botao?.focus();
   }
   function desenharLista() {
     // Filtros de gestão (revisão, suspensão, validade) são só de quem gerencia, inclusive vindos de uma visão salva.
-    if (!k.podeGerir && !['', 'sigiloso'].includes(F.status)) { F.status = ''; el('conhecimento-status').value = ''; }
+    if (!k.podeGerir && !['', 'sigiloso'].includes(F.status)) { F.status = ''; if (el('conhecimento-status')) el('conhecimento-status').value = ''; }
     const ds = lista();
-    el('conhecimento-colecoes').innerHTML = [{ chave: '', nome: 'Todas as bases' }, ...bases()].map(b => `<button type="button" class="conhecimento-base" data-conhecimento-area="${esc(b.chave)}" aria-pressed="${F.area === b.chave}"><span>${esc(b.nome)}</span><span>${ds.filter(d => !b.chave || baseDe(d) === b.chave).length}</span></button>`).join('');
+    const gerir = F.vista === 'gerir';
+    if (!ds.length) {
+      // Estado vazio: uma frase e uma ação (para quem gerencia, a ação principal "Enviar documento" já está no topo).
+      el('conhecimento-lista').innerHTML = `<div class="conhecimento-vazio caminho-vazio"><p>${gerir ? 'Nenhum documento nas suas bases ainda. Use “Enviar documento” para começar.' : 'Ainda não há documentos disponíveis para você.'}</p>${gerir ? '' : '<a class="btn btn-linha" href="#/nova">Ir para Nova conversa</a>'}</div>`;
+      return;
+    }
+    const ativos = [F.area, F.pasta, F.status].filter(Boolean).length + (F.ordem === 'recente' ? 1 : 0);
+    if (el('conhecimento-filtros-ativos')) el('conhecimento-filtros-ativos').textContent = ativos ? ` (${ativos})` : '';
+    raiz.querySelector('[data-limpar-conhecimento]').hidden = !(ativos || F.busca.trim());
     let filtrados = ds.filter(d => (!F.area || baseDe(d) === F.area) && (!F.pasta || (F.pasta === 'sem-pasta' ? !d.pasta : d.pasta === F.pasta.slice(6))) && (!F.status || (F.status === 'revisar' ? revisar(d) : F.status==='sigiloso' ? d.sigiloso : true)) && normalizar(`${d.titulo} ${d.arquivo || ''} ${d.pasta || ''}`).includes(normalizar(F.busca.trim())));
     filtrados = filtrados.filter(d => F.status === 'suspenso' ? d.suspenso : F.status === 'vencido' ? !d.suspenso && d.vigente===false : true);
     filtrados.sort((a, b) => F.ordem === 'recente' ? String(b.atualizado_em).localeCompare(String(a.atualizado_em)) || a.titulo.localeCompare(b.titulo, 'pt-BR') : a.titulo.localeCompare(b.titulo, 'pt-BR'));
     el('conhecimento-contagem').textContent = `${filtrados.length} ${filtrados.length === 1 ? 'documento encontrado' : 'documentos encontrados'}${F.area ? ` · ${bases().find(b => b.chave === F.area)?.nome || ''}` : ''}`;
-    const gerir = F.vista === 'gerir';
     const b = gerir && F.area ? areas.find(a => String(a.id) === F.area) : null;
-    el('conhecimento-lista').innerHTML = `${b ? `<details class="conhecimento-audiencia"><summary>Quem usa e administra ${esc(b.nome)}?</summary><p>${b.membros} pessoas nesta área. Administram: ${b.administradores.map(p => esc(p.nome || p.email)).join(', ') || 'admin da empresa'}.</p><p class="dica">${esc(b.descricao || '')} ${E.eu.admin ? 'Pessoas e permissões são definidas em Pessoas e áreas.' : 'O admin da empresa define quem faz parte desta área.'}</p></details>` : ''}${filtrados.length ? `<ul class="conhecimento-documentos grade-cartoes">${filtrados.slice(0, F.limite).map(d => `<li class="conhecimento-documento cartao" data-documento="${d.id}"><div class="conhecimento-doc-topo"><h3 class="cartao-titulo">${esc(d.titulo)}</h3>${d.sigiloso ? '<span class="selo selo-sigilosa">Sigiloso</span>' : ''}${d.vigente===false?`<span class="selo">${d.suspenso?'Suspenso':'Validade encerrada'}</span>`:''}</div><p class="dica cartao-meta">${esc(d.toda_empresa ? 'Toda a empresa' : d.area || areas.find(a => a.id === d.area_id)?.nome || 'Área')} · ${esc(d.pasta || 'Sem pasta')}</p><p class="dica cartao-meta">${esc(d.arquivo || 'Documento')} · Atualizado em ${data(d.atualizado_em)}${k.podeGerir ? `<br>Responsável: ${esc(d.responsavel_nome||'não definido')}${d.validade?' · Válido até '+data(d.validade):''}` : ''}</p>${k.podeGerir ? `<p class="conhecimento-revisao ${revisar(d) ? 'pendente' : ''}">${revisar(d) ? 'Revisão recomendada' : 'Conteúdo revisado'} · ${d.revisado_em ? data(d.revisado_em) : 'nunca revisado'}</p>` : ''}
-      ${gerir ? `<div class="linha-botoes cartao-acoes"><button type="button" class="btn btn-linha btn-pequeno" data-editar-conhecimento="${d.id}">Editar documento</button><button type="button" class="btn-texto btn-pequeno" data-revisar-conhecimento="${d.id}">Marcar revisado</button></div>` : `<details class="conhecimento-uso"><summary>Como este conteúdo é usado?</summary><p class="dica">${d.vigente===false?'Não entra em novas respostas enquanto estiver suspenso ou vencido.':'Disponível para busca nas conversas.'} ${d.sigiloso ? 'Quando este conteúdo é usado, a conversa é tratada como sigilosa segundo a política.' : ''}</p>${(d.quickWins || []).filter(q => E.quickWins.some(v => v.id === q.id)).map(q => `<a class="btn-texto" href="#/qw/${q.id}">${esc(q.nome)}</a>`).join('')}</details>${d.vigente===false?'':`<div class="linha-botoes cartao-acoes"><button type="button" class="btn btn-linha btn-pequeno conhecimento-abrir" data-abrir-conhecimento="${d.id}" aria-haspopup="dialog">Abrir<span class="sr"> ${esc(d.titulo)}</span></button></div>`}`}</li>`).join('')}</ul>${filtrados.length > F.limite ? '<button type="button" class="btn btn-linha" data-mais-conhecimento>Mostrar mais documentos</button>' : ''}` : `<div class="conhecimento-vazio"><h3>${ds.length ? 'Nenhum documento corresponde aos filtros' : 'Ainda não há documentos nesta visão'}</h3><p>${ds.length ? 'Tente outra palavra ou limpe os filtros.' : gerir ? 'Adicione um arquivo à base correta para disponibilizar o conhecimento.' : 'O responsável pela base pode disponibilizar os documentos permitidos para a sua área.'}</p></div>`}`;
-    el('envio-conhecimento')?.classList.toggle('oculto', !gerir);
+    // Base escolhida (gestão): quem usa e quem administra, numa linha. O "como funciona" fica na Ajuda.
+    el('conhecimento-lista').innerHTML = `${b ? `<p class="dica conhecimento-audiencia-linha">${esc(b.nome)}: ${b.membros} ${b.membros === 1 ? 'pessoa' : 'pessoas'} · Administram: ${b.administradores.map(p => esc(p.nome || p.email)).join(', ') || 'admin da empresa'}</p>` : ''}${filtrados.length ? `<ul class="conhecimento-documentos grade-cartoes">${filtrados.slice(0, F.limite).map(d => `<li class="conhecimento-documento cartao" data-documento="${d.id}"><div class="conhecimento-doc-topo"><h3 class="cartao-titulo">${esc(d.titulo)}</h3>${d.sigiloso ? '<span class="selo selo-sigilosa">Sigiloso</span>' : ''}${d.vigente===false?`<span class="selo">${d.suspenso?'Suspenso':'Validade encerrada'}</span>`:''}</div><p class="dica cartao-meta">${esc(d.toda_empresa ? 'Toda a empresa' : d.area || areas.find(a => a.id === d.area_id)?.nome || 'Área')} · ${esc(d.pasta || 'Sem pasta')} · Atualizado em ${data(d.atualizado_em)}</p>${k.podeGerir ? `<p class="dica cartao-meta">${esc(d.arquivo || 'Documento')} · Responsável: ${esc(d.responsavel_nome||'não definido')}${d.validade?' · Válido até '+data(d.validade):''}</p><p class="conhecimento-revisao ${revisar(d) ? 'pendente' : ''}">${revisar(d) ? 'Revisão recomendada' : 'Conteúdo revisado'} · ${d.revisado_em ? data(d.revisado_em) : 'nunca revisado'}</p>` : ''}
+      ${gerir ? `<div class="linha-botoes cartao-acoes"><button type="button" class="btn btn-linha btn-pequeno" data-editar-conhecimento="${d.id}">Editar documento</button>${revisar(d) ? `<button type="button" class="btn-texto btn-pequeno" data-revisar-conhecimento="${d.id}">Marcar revisado</button>` : ''}</div>` : d.vigente===false?'':`<div class="linha-botoes cartao-acoes"><button type="button" class="btn btn-linha btn-pequeno conhecimento-abrir" data-abrir-conhecimento="${d.id}" aria-haspopup="dialog">Abrir<span class="sr"> ${esc(d.titulo)}</span></button></div>`}</li>`).join('')}</ul>${filtrados.length > F.limite ? '<button type="button" class="btn btn-linha" data-mais-conhecimento>Mostrar mais documentos</button>' : ''}` : `<div class="conhecimento-vazio caminho-vazio"><p>Nenhum documento corresponde à busca. Tente outra palavra ou limpe os filtros.</p></div>`}`;
   }
   function envioHtml() {
-    return `<details id="envio-conhecimento" class="conhecimento-envio ${F.vista === 'gerir' ? '' : 'oculto'}"><summary>Adicionar documento</summary><p class="dica">Confira a base de destino e o conteúdo antes de enviar. Envie apenas o que deve ficar disponível para as pessoas dessa base.</p><form id="enviar-doc"><div id="doc-campos"><div class="grade-2"><div class="campo"><label for="doc-destino">Base de destino</label><select class="entrada" id="doc-destino" required>${basesGeridas().map(b => `<option value="${esc(b.chave)}">${esc(b.nome)}</option>`).join('')}</select><p class="ajuda" id="doc-alcance"></p></div><div class="campo"><label for="doc-arquivo">Arquivo</label><input type="file" id="doc-arquivo" required accept="${ACEITOS}"></div><div class="campo"><label for="doc-titulo">Título (opcional)</label><input class="entrada" id="doc-titulo" maxlength="200" placeholder="Um nome fácil de reconhecer"></div><div class="campo"><label for="doc-pasta">Pasta (opcional)</label><input class="entrada" id="doc-pasta" maxlength="80" list="conhecimento-pastas" placeholder="Ex.: Políticas, Manuais"></div></div><label><input type="checkbox" id="doc-sigiloso"> Conteúdo sigiloso</label><p class="dica">PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem, até 25 MB. Imagem e PDF escaneado são lidos por OCR. Sigilo não altera quem tem acesso à base.</p></div><div id="doc-confirmacao" hidden></div><p class="msg-erro" id="doc-erro" role="alert" hidden></p><div class="linha-botoes"><button class="btn btn-verde" id="btn-doc" ${basesGeridas().length ? '' : 'disabled'}>Revisar envio</button><button type="button" class="btn btn-linha" id="doc-voltar" hidden>Voltar e ajustar</button></div></form><datalist id="conhecimento-pastas">${[...new Set(documentos.map(d => d.pasta).filter(Boolean))].map(p => `<option value="${esc(p)}">`).join('')}</datalist></details>`;
+    return `<section id="envio-conhecimento" class="conhecimento-envio" aria-labelledby="envio-titulo"${F.envioAberto && F.vista === 'gerir' ? '' : ' hidden'}><div class="caminho-painel-topo"><h2 id="envio-titulo" tabindex="-1">Enviar documento</h2><button type="button" class="icone-btn" id="doc-fechar" aria-label="Fechar o envio">${ICONE.fechar}</button></div><form id="enviar-doc"><div id="doc-campos"><div class="grade-2"><div class="campo"><label for="doc-destino">Base de destino</label><select class="entrada" id="doc-destino" required>${basesGeridas().map(b => `<option value="${esc(b.chave)}">${esc(b.nome)}</option>`).join('')}</select><p class="ajuda" id="doc-alcance"></p></div><div class="campo"><label for="doc-arquivo">Arquivo</label><input type="file" id="doc-arquivo" required accept="${ACEITOS}" aria-describedby="doc-formatos"><p class="ajuda" id="doc-formatos">PDF, Word, PowerPoint, Excel, texto ou imagem, até 25 MB.</p></div><div class="campo"><label for="doc-titulo">Título (opcional)</label><input class="entrada" id="doc-titulo" maxlength="200" placeholder="Um nome fácil de reconhecer"></div><div class="campo"><label for="doc-pasta">Pasta (opcional)</label><input class="entrada" id="doc-pasta" maxlength="80" list="conhecimento-pastas" placeholder="Ex.: Políticas, Manuais"></div></div><label><input type="checkbox" id="doc-sigiloso"> Conteúdo sigiloso</label></div><div id="doc-confirmacao" hidden></div><p class="msg-erro" id="doc-erro" role="alert" hidden></p><div class="linha-botoes"><button class="btn btn-verde" id="btn-doc" ${basesGeridas().length ? '' : 'disabled'}>Revisar envio</button><button type="button" class="btn btn-linha" id="doc-voltar" hidden>Voltar e ajustar</button></div></form><datalist id="conhecimento-pastas">${[...new Set(documentos.map(d => d.pasta).filter(Boolean))].map(p => `<option value="${esc(p)}">`).join('')}</datalist></section>`;
   }
   function ligarEnvio() {
     const form = el('enviar-doc'); if (!form) return;
@@ -100,6 +129,13 @@ export async function vistaConhecimento() {
     const erro = e => { el('doc-erro').textContent = e.message; el('doc-erro').hidden = false; };
     const alcance = () => { el('doc-alcance').textContent = el('doc-destino').value === 'toda' ? 'Disponível para todas as áreas da empresa.' : 'Disponível para as pessoas desta área.'; };
     alcance(); el('doc-destino').onchange = alcance;
+    // Fechar o painel com algo começado pede confirmação no modal da plataforma; sem nada, só fecha.
+    el('doc-fechar').onclick = async () => {
+      if (ocupado) return;
+      if (envioPendente() && !await confirmar({ titulo: 'Descartar o envio?', texto: 'O documento ainda não foi enviado.', botao: 'Descartar envio', cancelar: 'Continuar editando', perigo: true })) return;
+      form.reset(); confirmado = false; el('doc-campos').hidden = false; el('doc-confirmacao').hidden = true; el('doc-voltar').hidden = true; el('btn-doc').textContent = 'Revisar envio'; el('doc-erro').hidden = true; alcance();
+      abrirEnvio(false);
+    };
     el('doc-voltar').onclick = () => { confirmado = false; el('doc-campos').hidden = false; el('doc-confirmacao').hidden = true; el('doc-voltar').hidden = true; el('btn-doc').textContent = 'Revisar envio'; el('doc-destino').focus(); };
     form.onsubmit = async ev => {
       ev.preventDefault(); if (ocupado) return;
@@ -115,7 +151,9 @@ export async function vistaConhecimento() {
         const destino = el('doc-destino').value;
         await api('/api/bases/documentos', { metodo: 'POST', corpo: { arquivo: await arquivoBase64(f), titulo: el('doc-titulo').value, pasta: el('doc-pasta').value, sigiloso: el('doc-sigiloso').checked, ...(destino === 'toda' ? { toda_empresa: true } : { area_id: Number(destino) }) } });
         form.reset(); el('btn-doc').textContent = 'Documento enviado';
+        F.envioAberto = false;
         await atualizar('Documento enviado e indexado.');
+        el('conhecimento-enviar')?.focus();
       } catch (e) { erro(e); if (el('btn-doc')) { el('btn-doc').disabled = false; el('btn-doc').textContent = confirmado ? 'Confirmar envio' : 'Revisar envio'; el('doc-voltar').disabled = false; } }
       finally { ocupado = false; ativa.ocupada = false; }
     };
@@ -124,7 +162,7 @@ export async function vistaConhecimento() {
   // consulta pela IA e devolve o texto em páginas. Não há download do arquivo original.
   async function abrir(d, origem) {
     const host = document.getElementById('modal');
-    host.innerHTML = `<div class="modal-fundo"><section class="modal conhecimento-leitura" role="dialog" aria-modal="true" aria-labelledby="conhecimento-ler-titulo" aria-describedby="conhecimento-ler-meta" tabindex="-1"><div class="modal-topo"><h2 id="conhecimento-ler-titulo" tabindex="-1">${esc(d.titulo)}</h2><button type="button" class="icone-btn" id="conhecimento-ler-fechar" aria-label="Fechar">×</button></div><p class="dica" id="conhecimento-ler-meta">${esc(d.toda_empresa ? 'Toda a empresa' : d.area || 'Área')} · Atualizado em ${data(d.atualizado_em)}${d.sigiloso ? ' · <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</p><p class="dica">Texto lido do arquivo ${esc(d.arquivo || '')}. Tabelas, imagens e formatação podem aparecer de forma simplificada.</p><div class="conhecimento-ler-texto" id="conhecimento-ler-texto" aria-busy="true"><p class="dica">Carregando o texto…</p></div><p class="msg-erro" id="conhecimento-ler-erro" role="alert" hidden></p><p class="dica" id="conhecimento-ler-aviso" role="status"></p><div class="linha-botoes"><button type="button" class="btn btn-linha" id="conhecimento-ler-mais" hidden>Mostrar mais do texto</button><button type="button" class="btn btn-linha" id="conhecimento-ler-ok">Fechar</button></div></section></div>`;
+    host.innerHTML = `<div class="modal-fundo"><section class="modal conhecimento-leitura" role="dialog" aria-modal="true" aria-labelledby="conhecimento-ler-titulo" aria-describedby="conhecimento-ler-meta" tabindex="-1"><div class="modal-topo"><h2 id="conhecimento-ler-titulo" tabindex="-1">${esc(d.titulo)}</h2><button type="button" class="icone-btn" id="conhecimento-ler-fechar" aria-label="Fechar">×</button></div><p class="dica" id="conhecimento-ler-meta">${esc(d.toda_empresa ? 'Toda a empresa' : d.area || 'Área')} · Atualizado em ${data(d.atualizado_em)}${d.sigiloso ? ' · <span class="selo selo-sigilosa">Sigiloso</span>' : ''}</p><p class="dica">Texto lido do arquivo ${esc(d.arquivo || '')}. Tabelas, imagens e formatação podem aparecer de forma simplificada.</p>${usadoEm(d).length ? `<p class="dica conhecimento-usado-em">Usado em ${usadoEm(d).map(q => `<a href="#/qw/${q.id}">${esc(q.nome)}</a>`).join(', ')}.</p>` : ''}<div class="conhecimento-ler-texto" id="conhecimento-ler-texto" aria-busy="true"><p class="dica">Carregando o texto…</p></div><p class="msg-erro" id="conhecimento-ler-erro" role="alert" hidden></p><p class="dica" id="conhecimento-ler-aviso" role="status"></p><div class="linha-botoes"><button type="button" class="btn btn-linha" id="conhecimento-ler-mais" hidden>Mostrar mais do texto</button><button type="button" class="btn btn-linha" id="conhecimento-ler-ok">Fechar</button></div></section></div>`;
     const $ = id => host.querySelector(`#${id}`);
     const fechar = () => { limpar(); host.innerHTML = ''; origem?.isConnected ? origem.focus() : el('conhecimento-busca')?.focus(); };
     const limpar = fecharComEscape(host.querySelector('.modal'), fechar);
@@ -190,16 +228,21 @@ export async function vistaConhecimento() {
   }
   raiz.oninput = ev => { if (ev.target.id === 'conhecimento-busca') { F.busca = ev.target.value; F.limite = 20; desenharLista(); } };
   raiz.onchange = ev => {
-    const campos = { 'conhecimento-pasta': 'pasta', 'conhecimento-status': 'status', 'conhecimento-ordem': 'ordem' };
-    if (campos[ev.target.id]) { F[campos[ev.target.id]] = ev.target.value; F.limite = 20; desenharLista(); }
+    const campos = { 'conhecimento-base': 'area', 'conhecimento-pasta': 'pasta', 'conhecimento-status': 'status', 'conhecimento-ordem': 'ordem' };
+    if (campos[ev.target.id]) { F[campos[ev.target.id]] = ev.target.value; F.limite = 20; if (ev.target.id === 'conhecimento-base') { F.pasta = ''; pastas(); } desenharLista(); }
   };
   raiz.onclick = async ev => {
     const b = ev.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-atualizar-conhecimento')) { if (ativa.ocupada || envioPendente() && !await confirmar({ titulo: 'Atualizar a biblioteca?', texto: 'As alterações ainda não salvas se perdem.', botao: 'Descartar e atualizar', cancelar: 'Continuar editando', perigo: true })) return; b.disabled = true; await atualizar(); if (b.isConnected) b.disabled = false; }
-    else if (b.dataset.conhecimentoVista) { if (ativa.ocupada || envioPendente() && !await confirmar({ titulo: 'Descartar o envio?', texto: 'O documento ainda não foi enviado.', botao: 'Descartar envio', cancelar: 'Continuar editando', perigo: true })) return; F.vista = b.dataset.conhecimentoVista === 'gerir' && k.podeGerir ? 'gerir' : 'usar'; F.area = ''; F.pasta = ''; F.limite = 20; montar(); raiz.querySelector('.conhecimento-vistas [aria-pressed="true"]')?.focus(); }
-    else if (b.hasAttribute('data-conhecimento-area')) { F.area = b.dataset.conhecimentoArea; F.pasta = ''; F.limite = 20; pastas(); desenharLista(); raiz.querySelector('.conhecimento-base[aria-pressed="true"]')?.focus(); }
-    else if (b.hasAttribute('data-filtrar-revisao')) { F.status = 'revisar'; el('conhecimento-status').value = F.status; F.limite = 20; desenharLista(); }
-    else if (b.hasAttribute('data-limpar-conhecimento')) { Object.assign(F, { busca: '', area: '', pasta: '', status: '', limite: 20 }); el('conhecimento-busca').value = ''; el('conhecimento-status').value = ''; pastas(); desenharLista(); el('conhecimento-busca').focus(); }
+    else if (b.dataset.conhecimentoVista) { if (b.getAttribute('aria-pressed') === 'true') return; if (ativa.ocupada || envioPendente() && !await confirmar({ titulo: 'Descartar o envio?', texto: 'O documento ainda não foi enviado.', botao: 'Descartar envio', cancelar: 'Continuar editando', perigo: true })) return; F.vista = b.dataset.conhecimentoVista === 'gerir' && k.podeGerir ? 'gerir' : 'usar'; F.area = ''; F.pasta = ''; F.limite = 20; F.envioAberto = false; montar(); raiz.querySelector('.conhecimento-vistas [aria-pressed="true"]')?.focus(); }
+    else if (b.id === 'conhecimento-enviar') {
+      // A ação principal leva à gestão (se a pessoa estava em "Disponível para mim") e abre o envio.
+      if (F.vista !== 'gerir') { F.vista = 'gerir'; F.area = ''; F.pasta = ''; F.limite = 20; F.envioAberto = true; montar(); el('envio-titulo').focus(); }
+      else abrirEnvio(true);
+    }
+    else if (b.id === 'conhecimento-filtrar') abrirFiltros(!F.filtrosAbertos);
+    else if (b.hasAttribute('data-filtrar-revisao')) { F.status = 'revisar'; if (el('conhecimento-status')) el('conhecimento-status').value = F.status; F.limite = 20; abrirFiltros(true); desenharLista(); }
+    else if (b.hasAttribute('data-limpar-conhecimento')) { Object.assign(F, { busca: '', area: '', pasta: '', status: '', ordem: 'titulo', limite: 20 }); el('conhecimento-busca').value = ''; if (el('conhecimento-status')) { el('conhecimento-status').value = ''; el('conhecimento-ordem').value = 'titulo'; } if (el('conhecimento-base')) el('conhecimento-base').value = ''; pastas(); desenharLista(); el('conhecimento-busca').focus(); }
     else if (b.hasAttribute('data-mais-conhecimento')) { F.limite += 20; desenharLista(); }
     else if (b.dataset.abrirConhecimento) { const d = k.documentos.find(d => String(d.id) === b.dataset.abrirConhecimento); if (d) abrir(d, b); }
     else if (b.dataset.editarConhecimento) { const d = documentos.find(d => String(d.id) === b.dataset.editarConhecimento); if (d && F.vista === 'gerir' && k.podeGerir) editar(d, b); }

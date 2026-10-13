@@ -82,13 +82,12 @@ document.addEventListener('keydown', ev => {
   else conterFoco(ev, $('lateral'));
 });
 
-// Quem administra a base de uma área vê isso no menu: quantos documentos pedem revisão, ou "Admin da base".
+// Quem administra a base de uma área vê no menu quantos documentos pedem revisão (só quando há o que fazer).
 const seloBase = () => {
   const b = E.bases;
-  if (!b?.areas.length) return null;
+  if (!b?.areas.length || !b.paraRevisar) return null;
   const nomes = b.areas.map(a => a.nome).join(', ');
-  return b.paraRevisar ? { texto: String(b.paraRevisar), alerta: true, dica: `${b.paraRevisar} ${b.paraRevisar === 1 ? 'documento' : 'documentos'} da base de ${nomes} para revisar (nunca revisados ou há mais de ${b.diasRevisao} dias)` }
-    : { texto: 'Gerencia', dica: `Você administra a base de conhecimento de ${nomes}` };
+  return { texto: String(b.paraRevisar), alerta: true, dica: `${b.paraRevisar} ${b.paraRevisar === 1 ? 'documento' : 'documentos'} da base de ${nomes} para revisar (nunca revisados ou há mais de ${b.diasRevisao} dias)` };
 };
 
 // Cartão no início (nova conversa e lista de conversas) para quem administra a base de alguma área.
@@ -199,7 +198,7 @@ export function desenharLateral() {
       <button type="button" class="btn-texto btn-pequeno" id="encerrar-acesso">Encerrar acesso</button></div>` : ''}
     ${alternador}
     ${adm ? `<div class="aviso-contexto">${ICONE.engrenagem || ''}<span><b>Administração da empresa</b><small>Mudanças aqui valem para todas as pessoas.</small></span></div>`
-      : `<a class="btn btn-verde nova" href="#/nova" title="Nova conversa (C)" ${h === '#/nova' ? 'aria-current="page"' : ''}>${ICONE.mais} Nova conversa</a>`}
+      : `<a class="btn btn-linha nova" href="#/nova" title="Nova conversa (C)" ${h === '#/nova' ? 'aria-current="page"' : ''}>${ICONE.mais} Nova conversa</a>`}
     <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Navegação">
       ${SECOES().map(s => ({ ...s, itens: s.itens.filter(i => !i.ver || i.ver()) })).filter(s => s.itens.length).map(s => `${s.titulo ? `<h2>${s.titulo}</h2>` : ''}${s.itens.map(item).join('')}`).join('')}

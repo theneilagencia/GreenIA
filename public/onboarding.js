@@ -25,13 +25,14 @@ export function vistaOnboarding() {
   const lista = etapas(); let passo = Math.min(Math.max(0, Number(ler().passo) || 0), lista.length - 1);
   const desenhar = () => {
     const e = lista[passo], fim = passo === lista.length - 1;
+    // Caminho claro: uma linha de propósito, os passos como indicador discreto, o passo atual e "Próximo passo" como a
+    // única ação principal (no celular, a barra de navegação fica presa ao pé da tela). O resto fica na Ajuda.
     document.getElementById('principal').innerHTML = `${cabecalho('Primeiros passos')}<div class="pagina"><div class="pagina-dentro"><div class="guia-pagina">
-      <p class="lead">Aprenda no seu ritmo. O guia não envia arquivos nem executa tarefas.</p>
-      ${ler().concluido ? '<p class="faixa-aviso ok" role="status">Guia concluído. Você pode rever qualquer etapa.</p>' : ''}
-      <nav class="guia-etapas" aria-label="Etapas do guia">${lista.map((x, i) => `<button type="button" class="btn btn-linha btn-pequeno" data-guia-passo="${i}" ${i === passo ? 'aria-current="step"' : ''} title="${esc(x.titulo)}"><span class="guia-num" aria-hidden="true">${i + 1}</span>${esc(x.curto)}<span class="sr"> · ${esc(x.titulo)}</span></button>`).join('')}</nav>
-      <article class="guia-cartao"><span class="dica">Passo ${passo + 1} de ${lista.length}</span><h2 tabindex="-1" id="guia-titulo">${esc(e.titulo)}</h2><p>${esc(e.texto)}</p><blockquote>${esc(e.exemplo)}</blockquote><div class="guia-cuidado"><b>Antes de continuar</b><p>${esc(e.cuidado)}</p></div><a class="btn btn-linha" href="${e.link}">${esc(e.acao)}</a></article>
+      <p class="caminho-proposito guia-proposito">${lista.length} passos curtos para usar a GreenIA no dia a dia.</p>
+      <nav class="guia-etapas" aria-label="Etapas do guia">${lista.map((x, i) => `<button type="button" class="guia-etapa" data-guia-passo="${i}" ${i === passo ? 'aria-current="step"' : ''} title="${esc(x.titulo)}"><span class="guia-num" aria-hidden="true">${i + 1}</span>${esc(x.curto)}<span class="sr"> · ${esc(x.titulo)}</span></button>`).join('')}</nav>
+      <article class="guia-cartao"><span class="dica">Passo ${passo + 1} de ${lista.length}${ler().concluido ? ' · <span class="guia-concluido">Guia concluído</span>' : ''}</span><h2 tabindex="-1" id="guia-titulo">${esc(e.titulo)}</h2><p>${esc(e.texto)}</p><blockquote>${esc(e.exemplo)}</blockquote><div class="guia-cuidado"><b>Antes de continuar</b><p>${esc(e.cuidado)}</p></div><a class="btn-texto guia-ir" href="${e.link}">${esc(e.acao)} →</a></article>
       <div class="guia-rodape"><button type="button" class="btn btn-linha" id="guia-voltar" ${passo ? '' : 'disabled'}>Voltar</button><button type="button" class="btn btn-verde" id="guia-seguir">${fim ? 'Concluir guia' : 'Próximo passo'}</button></div>
-      <p class="guia-saida"><a class="btn-texto" href="#/nova">Sair do guia</a><span class="dica">Para voltar ao guia depois, use o botão Ajuda, no alto da tela.</span></p></div></div></div>`;
+      <p class="guia-saida"><a class="btn-texto" href="#/nova">Sair do guia</a><span class="dica">Volte pelo botão Ajuda.</span></p></div></div></div>`;
     ligarCabecalho();
     const ir = n => { passo = n; gravar({ ...ler(), passo }); desenhar(); document.getElementById('guia-titulo').focus({ preventScroll: true }); };
     document.querySelectorAll('[data-guia-passo]').forEach(b => { b.onclick = () => ir(Number(b.dataset.guiaPasso)); });

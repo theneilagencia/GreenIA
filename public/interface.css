@@ -1140,7 +1140,7 @@ body:not(.plataforma) .app .cabeca-acoes{flex:none;gap:4px}
 body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .nova-topo{display:none}
 @media(max-width:860px){
-  body:not(.plataforma) .app .cabeca{display:flex;flex-wrap:nowrap;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;min-height:52px;gap:4px}
+  body:not(.plataforma) .app .cabeca{display:flex;flex-wrap:nowrap;padding:calc(6px + env(safe-area-inset-top)) 4px 6px;min-height:52px;gap:0}
   body:not(.plataforma) .app .cabeca-titulo{display:flex;flex-wrap:nowrap;flex:1 1 auto;min-width:0;gap:2px}
   body:not(.plataforma) .app .cabeca-titulo>h1{order:0;flex:1 1 0;min-width:0;font-size:16px;line-height:1.25;padding:0 2px;white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2}
   body:not(.plataforma) .app .cabeca-titulo>.menu-btn{margin:0}

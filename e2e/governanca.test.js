@@ -13,6 +13,20 @@ import { pdf, pptx } from '../test/arquivos.js';
 
 const TECNICO = /open\s*router|anthropic|google\/|gemini|claude|haiku|mistral|llama/i;
 let N, admin;
+// Catálogo técnico de modelos: abre cada modelo liberado no painel lateral e junta o texto (um modelo por vez).
+async function textosDoCatalogo(p) {
+  await p.goto(`${N.base}/app#/modelos/catalogo`);
+  await p.waitForSelector('#conteudo tr[data-registro]');
+  const linhas = p.locator('#conteudo tr[data-registro]', { hasText: 'Liberado' });
+  const textos = [await p.evaluate(() => document.body.innerText)];
+  for (let i = 0; i < await linhas.count(); i++) {
+    await linhas.nth(i).click(); await p.locator('#modal .px').waitFor();
+    textos.push(await p.locator('#modal').innerText());
+    await p.keyboard.press('Escape'); await p.locator('#modal .px').waitFor({ state: 'detached' });
+  }
+  return textos.join('\n');
+}
+
 before(async () => {
   N = await subirComNavegador({ adminEmail: 'admin@empresa-exemplo.com.br' });
   salvarConfig(N.app.db, { dominios: ['empresa-exemplo.com.br'], [POLITICA_SIGILO]: true });
@@ -86,13 +100,12 @@ test('uso real: PDF e PPTX com dados pessoais processam em área reforçada; his
 
 test('admin da empresa: vê o que cada recurso pode receber, sem o provedor; as políticas oferecem as três ações e a retenção', async () => {
   const p = await N.entrar('admin@empresa-exemplo.com.br');
-  await p.goto(`${N.base}/app#/modelos`);
-  await p.waitForSelector('#modelos-manuais');await p.locator('#modelos-manuais > summary').click();await p.waitForSelector('text=Pode receber:');
-  const modelos = await p.evaluate(() => document.body.innerText);
+  const modelos = await textosDoCatalogo(p);
   assert.match(modelos, /Pode receber: conteúdo comum, dados pessoais/);
   assert.doesNotMatch(modelos, /open\s*router/i);
   await p.goto(`${N.base}/app#/politicas`);
   await p.waitForSelector('#form-dados');
-  const pol = await p.locator('#form-dados').innerText();
+  await p.getByRole('button', { name: 'Mais opções' }).click();
+  const pol = [await p.locator('#form-dados').innerText(), ...await p.locator('#form-dados select[name="d-cpf"] option').allTextContents()].join('\n');
   for (const t of ['Processar normalmente', 'Só com proteção', 'Não enviar', 'Guardar no histórico', 'Dado pessoal restrito']) assert.match(pol, new RegExp(t));
 });

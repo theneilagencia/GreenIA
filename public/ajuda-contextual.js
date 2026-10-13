@@ -1,6 +1,7 @@
 import { esc } from '/comum.js';
 import { fecharComEscape } from '/acessibilidade.js';
 import { E } from '/app.js';
+import { ajudaAdmin } from '/ajuda-admin.js';
 // Ajuda de cada tela: [título, o que fazer, cuidado, perguntas]. As explicações que saíram das telas (padrão "caminho
 // claro": nada de explicação permanente na tela) ficam aqui, em perguntas curtas.
 const dias = () => Number(E?.retencaoDias) || 90;
@@ -16,9 +17,6 @@ const ajuda={
   ['O que é o "i" ao lado da resposta?','Mostra o nível usado na resposta e o motivo da escolha automática do nível.'],
   ['Como uso o Quick Win com outro material?','A caixa de mensagem continua o trabalho desta conversa. Para começar de novo com outro material, use "Usar com outro material", abaixo da caixa.'],
   ['O que muda com "Dados sigilosos"?','A conversa passa a usar só a IA aprovada para dados sigilosos e fica assim até ser apagada.']]],
- modelos:['Escolha os modelos disponíveis','Confira os modelos de cada nível e as regras da escolha automática do nível. As escolhas da equipe seguem os modelos liberados aqui.','Siga as recomendações da plataforma quando não precisar de uma configuração específica. As regras de sigilo continuam valendo.'],
- politicas:['Defina as regras de uso da IA','Confira quais dados podem ser enviados, quais precisam de proteção e quais devem ser bloqueados.','As regras valem para mensagens e anexos. Revise a política antes de disponibilizar para a equipe.'],
- configuracoes:['Configure o ambiente da empresa','Confira cada seção e salve apenas as configurações que precisar alterar.','Algumas mudanças afetam toda a equipe. Verifique o texto de ajuda de cada opção antes de salvar.'],
  conhecimento:()=>['Encontre uma fonte confiável',`A lista mostra os documentos permitidos para você. Use a busca e, se precisar, "Filtrar" para escolher base, pasta ou ordem.${gerencia()?' Em "Gerenciar bases" ficam os documentos que você administra.':''}`,'Quem administra pode definir responsável, validade e suspensão. Um documento suspenso ou vencido não entra em novas respostas.',[
   ['O que a IA pode consultar?','Só aparecem os conteúdos permitidos para o seu perfil. A IA usa trechos relevantes quando encontra fontes; não consulta necessariamente todos os documentos em cada resposta.'],
   ['Como este conteúdo é usado?','Os documentos disponíveis entram na busca das conversas e dos Quick Wins vinculados. Quando um conteúdo sigiloso é usado, a conversa é tratada como sigilosa segundo a política.'],
@@ -27,15 +25,10 @@ const ajuda={
    ['Como enviar um documento?','Use "Enviar documento", escolha a base de destino e confira antes de confirmar: as pessoas dessa base poderão usar o conteúdo. Aceita PDF, Word, PowerPoint, Excel, texto ou imagem, até 25 MB. Imagem e PDF escaneado são lidos por OCR. Marcar como sigiloso não muda quem tem acesso à base.'],
    ['O que significa "Revisão recomendada"?',`O documento nunca foi revisado ou a última revisão passou de ${Number(E?.bases?.diasRevisao)||180} dias. "Marcar revisado" registra que você conferiu o conteúdo.`]]:[])]],
  qw:['Use um Quick Win (tarefa pronta)','Abra o Quick Win, envie o material e confira o resultado. Para usar com outro material, comece uma nova execução.','A conferência verifica regras configuradas. Ela não concede aprovação humana nem comprova que uma ação externa foi executada.'],
- integracoes:['Conecte apenas o que a tarefa precisa','Confira sistema, conta, permissões e efeitos antes de aprovar. Credenciais devem ser informadas somente no campo próprio.','Aprovar não executa. Qualquer escrita continua dependente de autorização e das regras da empresa.'],
  pendencias:()=>['Resolva uma coisa de cada vez','Comece pela primeira pendência: "Ver e resolver" abre a tela onde ela se resolve. Depois de resolver, use "Atualizar".','A lista só mostra o que seu perfil pode acompanhar. Ocorrências anteriores podem já ter sido tratadas.',[
   ['Como encontrar uma pendência?','Com várias pendências, use a busca e "Filtrar" para escolher o assunto. Os filtros podem ser salvos neste navegador.']]],
  'primeiros-passos':()=>['Aprenda no seu ritmo','Siga os passos com "Próximo passo" ou escolha um passo pelo nome. Você pode sair e voltar quando quiser.','O guia não envia arquivos nem executa tarefas.',[
   ['Como volto ao guia depois?','Use o botão Ajuda, no alto de qualquer tela, e escolha "Abrir o guia de primeiros passos".']]],
- preparacao:['Prepare o ambiente','Confira pessoas, recursos, política e fontes. As etapas mostram configurações atuais, não uma certificação.','Integrações são opcionais. Publicar um Quick Win exige conferir o teste da tarefa.'],
- atividade:['Entenda o registro','Filtre tipo, pessoa e período. Abra o detalhe para entender a alteração registrada.','A administração acompanha eventos e dados de uso; não recebe o conteúdo das conversas pessoais.'],
- pessoas:['Cuide de quem tem acesso','Abra uma pessoa para ver perfil, situação, áreas, grupos e a última revisão de acesso. As outras abas organizam áreas, grupos, perfis e quem cria Quick Wins.','Registrar a revisão não altera acesso. Mudar perfil ou desativar vale na hora para a pessoa.'],
- uso:['Acompanhe o consumo','Consumo realizado vem dos registros de uso. Previsão é uma estimativa para o restante do período.','Limites e regras do plano continuam sendo aplicados. Uma projeção não representa uma cobrança já realizada.'],
  default:()=>['Conte o que precisa e confira o resultado','Para uma tarefa pronta, escolha um Quick Win. Para um pedido diferente, explique o resultado esperado e envie o material necessário.','Nunca envie senhas ou chaves. A opção de dados sigilosos reforça a proteção e não contorna bloqueios.',[
   ['O que acontece com o que eu envio?','Revise antes de usar: a IA pode errar. Dado bloqueado pela política não é enviado.'],
   ['Por quanto tempo as conversas ficam salvas?',`Até ${dias()} dias sem uso, conforme a configuração da empresa.`]]]};
@@ -59,11 +52,11 @@ function ajudaQw(hash){
  return null;
 }
 export function abrirAjuda(origem) {
- const h=location.hash.split(/[/?]/)[1],escolhida=ajudaQw(location.hash)||ajuda[h==='quick-wins'?'qw':h]||ajuda.default,a=typeof escolhida==='function'?escolhida():escolhida,host=document.getElementById('modal');if(host.querySelector('[role="dialog"]'))return;
+ const h=location.hash.split(/[/?]/)[1],escolhida=ajudaQw(location.hash)||ajudaAdmin()||ajuda[h==='quick-wins'?'qw':h]||ajuda.default,a=typeof escolhida==='function'?escolhida():escolhida,host=document.getElementById('modal');if(host.querySelector('[role="dialog"]'))return;
  // Mais detalhes: pares [pergunta, resposta] viram perguntas; textos soltos, parágrafos.
  const mais=a[3]||[],perguntas=mais.filter(Array.isArray),soltos=mais.filter(x=>!Array.isArray(x));
- const textos=soltos.map(t=>`<p class="ajuda-mais">${esc(t)}</p>`).join(''),pergs=perguntas.length?`<div class="ajuda-perguntas">${perguntas.map(([q,r])=>`<h3>${esc(q)}</h3><p>${esc(r)}</p>`).join('')}</div>`:'';
- host.innerHTML=`<div class="modal-fundo"><section class="modal ajuda-contextual" role="dialog" aria-modal="true" aria-labelledby="ajuda-titulo" tabindex="-1"><div class="modal-topo"><h2 id="ajuda-titulo">${esc(a[0])}</h2><button class="icone-btn" id="ajuda-fechar" aria-label="Fechar ajuda">×</button></div><p>${esc(a[1])}</p>${textos}<div class="guia-cuidado"><b>Antes de continuar</b><p>${esc(a[2])}</p></div>${pergs}<a class="btn btn-linha" href="#/primeiros-passos" id="ajuda-guia">Abrir o guia de primeiros passos</a><p class="dica">Esta ajuda usa orientações fixas aprovadas. Não consulta seus arquivos nem consome créditos de IA.</p>${window.temaGreenIA?window.temaGreenIA.seletorHtml('ajuda-tema','tema-ajuda'):''}</section></div>`;window.temaGreenIA?.ligarSeletor(host);
+ const textos=soltos.length?`<section class="ajuda-detalhes" aria-labelledby="ajuda-detalhes-titulo"><h3 id="ajuda-detalhes-titulo">Saiba mais</h3><ul>${soltos.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></section>`:'',pergs=perguntas.length?`<div class="ajuda-perguntas">${perguntas.map(([q,r])=>`<h3>${esc(q)}</h3><p>${esc(r)}</p>`).join('')}</div>`:'';
+ host.innerHTML=`<div class="modal-fundo"><section class="modal ajuda-contextual" role="dialog" aria-modal="true" aria-labelledby="ajuda-titulo" tabindex="-1"><div class="modal-topo"><h2 id="ajuda-titulo">${esc(a[0])}</h2><button class="icone-btn" id="ajuda-fechar" aria-label="Fechar ajuda">×</button></div><p>${esc(a[1])}</p><div class="guia-cuidado"><b>Antes de continuar</b><p>${esc(a[2])}</p></div>${pergs}${textos}<a class="btn btn-linha" href="#/primeiros-passos" id="ajuda-guia">Abrir o guia de primeiros passos</a><p class="dica">Esta ajuda usa orientações fixas aprovadas. Não consulta seus arquivos nem consome créditos de IA.</p>${window.temaGreenIA?window.temaGreenIA.seletorHtml('ajuda-tema','tema-ajuda'):''}</section></div>`;window.temaGreenIA?.ligarSeletor(host);
  const fechar=()=>{limpar();host.innerHTML='';origem?.focus();};const limpar=fecharComEscape(host.querySelector('.modal'),fechar);
  host.querySelector('#ajuda-fechar').onclick=fechar;host.querySelector('#ajuda-guia').onclick=fechar;host.querySelector('#ajuda-fechar').focus();
  const sair=()=>{if(host.querySelector('#ajuda-titulo')){limpar();host.innerHTML='';}document.removeEventListener('greenia:antes-navegar',sair);};document.addEventListener('greenia:antes-navegar',sair,{once:true});

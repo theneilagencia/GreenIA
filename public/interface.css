@@ -297,9 +297,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .cfg-abrir-aberto,.cfg-caixa[open] .cfg-abrir-fechado{display:none}
 .cfg-caixa[open] .cfg-abrir-aberto{display:inline}
 .app .cfg-caixa>summary.cfg-topo{display:flex}
-.adm-saiba{margin:2px 0 10px}
-.adm-saiba>summary{cursor:pointer;width:max-content;font:500 13px var(--sans);color:var(--forest-text)}
-.adm-saiba p{margin:6px 0 0;max-width:72ch}
 
 /* Página de apresentação: interruptor ao lado do título, fora do <summary>; título legível no celular. */
 .ld-bloco-caixa{position:relative}
@@ -345,11 +342,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .adm-marca{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
 
 /* Áreas e grupos: atalhos de teclado num "?" em vez de sempre à vista. */
-.lx-atalhos-ajuda{margin-top:12px}
-.lx-atalhos-ajuda>summary{cursor:pointer;width:max-content;font:400 12.5px var(--sans);color:var(--muted)}
-.lx-atalhos-ajuda>summary>span{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:4px;border:1px solid var(--line-strong);border-radius:50%;font-size:11px}
-.lx-atalhos-ajuda .lx-atalhos{display:flex}
-@media(hover:none),(max-width:760px){.lx-atalhos-ajuda{display:none}}
 
 /* Celular: tabelas empilhadas com o rótulo acima do valor (nada sai da tela), seletor de três opções empilhado,
    abas que quebram linha e alvos de toque de 44 px com o rótulo inteiro clicável. */
@@ -363,7 +355,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
   body[data-contexto="admin"] .segmento span{width:100%;min-height:44px;display:flex;align-items:center;white-space:normal}
   body[data-contexto="admin"] .subnav{flex-wrap:wrap;overflow-x:visible}
   body[data-contexto="admin"] :is(.opcoes label,.caixas label,.adm-marca,.chip-opcao,.cfg-liga,.checagens label){min-height:44px;align-items:center}
-  body[data-contexto="admin"] .adm-saiba>summary{min-height:44px;display:flex;align-items:center}
   .adm-salvar .btn{flex:1}
 }
 /* === Transversal (QA UX) === Celular: caixa de seleção e opção com o rótulo inteiro clicável em 44 px, em todas as
@@ -507,7 +498,6 @@ body[data-contexto="admin"] :is(#form-marca,#form-landing) textarea{field-sizing
      rótulo em cima e o conteúdo inteiro embaixo, alinhado à esquerda, em vez de espremido entre rótulo e borda. */
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*){display:block;text-align:left}
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*)::before{display:block;max-width:none;margin-bottom:4px}
-  body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*) .auditoria-resumo{margin:0 0 4px}
   /* Situação da página de apresentação (administração e console): as duas ações com a largura toda, texto no meio. */
   .ld-situacao .linha-botoes{width:100%}
   .ld-situacao .linha-botoes>:is(a,button){flex:1 1 100%;justify-content:center;min-height:44px;margin:0}
@@ -524,12 +514,6 @@ body[data-contexto="admin"] .pagina .tabela td.adm-email{overflow-wrap:anywhere}
 
 /* Pessoas e abas: conceitos no padrão de cartão; barra com busca, filtros e ação na mesma altura (40 px); emails,
    nomes e etiquetas quebram linha em vez de cortar. */
-body[data-contexto="admin"] .conceitos.grade-cartoes{--cartao-min:260px;margin:0 0 16px}
-body[data-contexto="admin"] .conceito.cartao{font:inherit;border-radius:var(--cartao-raio)}
-body[data-contexto="admin"] .conceito.cartao>.cartao-titulo{font:600 15px/1.35 var(--sans)}
-body[data-contexto="admin"] .conceito.cartao .cartao-texto{font:400 13.5px/1.5 var(--sans)}
-body[data-contexto="admin"] .conceito.cartao.atual{border-color:var(--forest-text);background:var(--mint)}
-body[data-contexto="admin"] .conceito.cartao.atual .cartao-texto{color:var(--ink)}
 body[data-contexto="admin"] .lx-barra{align-items:center;margin:4px 0 12px}
 body[data-contexto="admin"] .lx-ferramentas :is(.lx-seletor select,.lx-busca input){height:var(--adm-alvo);min-height:var(--adm-alvo)}
 body[data-contexto="admin"] .lx-ferramentas .pilulas{height:var(--adm-alvo);align-items:stretch}
@@ -558,11 +542,7 @@ body[data-contexto="admin"] .adm-escopo .opcoes{margin:4px 0 12px}
 body[data-contexto="admin"] .adm-escopo .duas-col{align-items:start}
 
 /* Modelos: o catálogo técnico vira cartões (antes uma tabela de dez colunas cortada à direita). */
-body[data-contexto="admin"] .adm-catalogo{--cartao-min:300px;margin:10px 0 14px}
-body[data-contexto="admin"] .adm-modelo{gap:10px}
-body[data-contexto="admin"] .adm-modelo.adm-modelo-fora{background:var(--surface)}
 body[data-contexto="admin"] .adm-modelo-id{font:400 12.5px var(--mono,ui-monospace,monospace);overflow-wrap:anywhere}
-body[data-contexto="admin"] .adm-modelo>.cartao-titulo{margin:0}
 body[data-contexto="admin"] .adm-modelo-dados{display:grid;grid-auto-flow:column;grid-template-rows:auto auto;grid-auto-columns:minmax(0,1fr);gap:2px 12px;margin:0}
 body[data-contexto="admin"] .adm-modelo-dados>div{display:contents}
 body[data-contexto="admin"] .adm-modelo-dados dt{font:500 12px/1.35 var(--sans);color:var(--muted);align-self:end;min-width:0}
@@ -571,7 +551,7 @@ body[data-contexto="admin"] .adm-modelo-campos{display:grid;grid-template-column
 body[data-contexto="admin"] .adm-modelo-campo{display:grid;gap:4px;min-width:0;font:500 12.5px var(--sans);color:var(--ink)}
 body[data-contexto="admin"] .adm-modelo-campo select{width:100%}
 body[data-contexto="admin"] .adm-modelo-liberado{grid-column:1/-1;min-height:32px}
-body[data-contexto="admin"] :is(.adm-modelo-sigilo,.adm-modelo-cap){display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-top:10px;border-top:1px solid var(--line);min-width:0}
+body[data-contexto="admin"] .adm-modelo-sigilo{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-top:10px;border-top:1px solid var(--line);min-width:0}
 body[data-contexto="admin"] .adm-modelo-sigilo>.dica{display:block;overflow-wrap:anywhere;line-height:1.45}
 body[data-contexto="admin"] .adm-atributos{display:grid;gap:8px;margin-top:8px}
 body[data-contexto="admin"] .adm-atributos label{display:grid;gap:4px}
@@ -980,4 +960,69 @@ body.console .pagina-dentro>h2:first-child{font:600 22px/1.3 var(--sans);letter-
   .app .pagina .qw-wizard .exemplos button{min-height:44px}
   .app .pagina .qw-wizard #mais-exemplos{margin-left:0}
   .app .pagina .qw-config .lead a{display:inline-flex;align-items:center;min-height:44px}
+}
+
+/* ==================================================================== Caminho claro: Administração da empresa
+   Bloco da Administração (body[data-contexto="admin"]): linha de propósito com a ação principal à direita, próximo
+   passo da Visão geral, "Filtrar" e "Mais opções" fechados, registros que abrem no painel lateral e a Ajuda com
+   "Saiba mais". Outras frentes acrescentam os blocos delas depois deste. */
+/* O que está recolhido não ocupa a tela: [hidden] vence o display dos componentes (.btn, .filtros, listas) e o
+   conteúdo de um bloco fechado (details) não é desenhado nem conta como alvo na primeira vista. */
+body[data-contexto="admin"] [hidden]{display:none!important}
+body[data-contexto="admin"] details:not([open])>:not(summary){display:none!important}
+.adm-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:0 0 18px}
+.adm-proposito{flex:1 1 320px;min-width:0;margin:0;max-width:72ch;font:400 var(--ui-texto,14px)/1.55 var(--sans);color:var(--muted)}
+.adm-topo-acao{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+.lx-proposito{margin:0 0 6px}
+.adm-revelar[aria-expanded]::after{content:"";width:7px;height:7px;margin-left:8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform var(--rapido,.15s)}
+.adm-revelar[aria-expanded="true"]::after{transform:translateY(2px) rotate(-135deg)}
+.adm-mais{margin:14px 0 4px}
+body[data-contexto="admin"] .secao-titulo .adm-revelar{flex:none}
+/* Visão geral: um próximo passo em destaque; o resto mais calmo. */
+.adm-proximo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;margin:0 0 28px;padding:20px 22px;border:1px solid color-mix(in srgb,var(--forest-text) 35%,var(--line));border-radius:var(--raio-painel,14px);background:color-mix(in srgb,var(--mint) 55%,var(--paper))}
+.adm-proximo-texto{flex:1 1 360px;min-width:0}
+.adm-proximo-rotulo{display:block;margin-bottom:4px;font:600 12px/1.4 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--forest-text)}
+.app .pagina .adm-proximo h2{margin:0;font:600 18px/1.35 var(--sans)}
+.adm-proximo p{margin:6px 0 0;max-width:68ch;color:var(--muted)}
+.adm-proximo>.btn{flex:none}
+.app .pagina :is(.adm-passos,.adm-proximo) .btn{min-height:44px}
+.adm-tudo-certo{margin:0 0 24px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--raio-painel,14px);background:var(--surface);color:var(--muted)}
+.adm-visao .indicadores{margin-bottom:6px}
+.app .pagina .adm-passos{margin:8px 0 20px}
+.app .pagina .adm-passos h3{margin:0 0 2px;font:600 15px/1.4 var(--sans)}
+.app .pagina .adm-passos p{margin:0 0 6px;font-size:13px;color:var(--muted)}
+/* Registros (Atividade, Histórico de modelos, Catálogo técnico, Decisões): a linha inteira abre o detalhe. */
+.adm-registros tbody tr[data-registro]{cursor:pointer}
+.adm-registros tbody tr[data-registro]:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--forest-text);background:var(--surface)}
+.adm-registro-nome{font-weight:600;color:var(--ink)}
+.adm-registro-resumo{max-width:52ch;overflow-wrap:anywhere}
+.auditoria-detalhe dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 14px;margin:12px 0}
+.auditoria-detalhe dt{font:500 13px/1.45 var(--sans);color:var(--muted)}
+.auditoria-detalhe dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.auditoria-detalhe dd :is(ul,dl){margin:0;padding-left:16px}
+.px-corpo>.px-titulo{margin:0 0 6px;padding:0;border:0}
+/* Filtros de Atividade e de Pessoas: fechados até a pessoa pedir. */
+.lx-filtros{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:var(--raio-painel,14px);background:var(--surface)}
+.lx-filtros .lx-busca{flex:1 1 220px}
+.adm-add-modelo{margin:0 0 18px}
+.adm-guardar{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:4px 16px;margin:6px 0 14px}
+.adm-vazio h2{margin:0 0 6px;font:600 var(--ui-secao,16px)/1.4 var(--sans)}
+/* Ajuda da tela com "Saiba mais": as explicações que saíram das telas. */
+.ajuda-detalhes{margin:14px 0 4px}
+.ajuda-detalhes h3{margin:0 0 6px;font:600 14px/1.4 var(--sans)}
+.ajuda-detalhes ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;line-height:1.55;color:var(--ink-soft,var(--ink))}
+.modal.ajuda-contextual{max-height:min(86vh,760px);overflow-y:auto}
+@media (max-width:760px){
+  .adm-topo{margin-bottom:14px}
+  .adm-topo-acao{width:100%;margin-left:0}
+  .adm-topo-acao>.btn{flex:1 1 auto;justify-content:center}
+  .adm-proximo{padding:16px}
+  .adm-proximo>.btn{width:100%;justify-content:center}
+  .auditoria-detalhe dl{grid-template-columns:1fr;gap:2px}
+  .auditoria-detalhe dd{margin-bottom:8px}
+  .lx-filtros>*{flex:1 1 100%}
+}
+@media (pointer:coarse),(max-width:760px){
+  body[data-contexto="admin"] .adm-revelar,.adm-proximo>.btn{min-height:44px}
+  .adm-guardar label{min-height:44px;display:flex;align-items:center}
 }

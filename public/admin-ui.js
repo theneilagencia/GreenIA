@@ -1,6 +1,6 @@
 // Peças comuns das telas de administração: confirmação no modal próprio (nunca confirm()/prompt() do
 // navegador) e aviso de alterações não salvas nos formulários de gestão.
-import { esc } from '/comum.js';
+import { esc, ICONE } from '/comum.js';
 
 // Confirmação acessível: título com foco, consequência em texto simples e botão com o nome da ação.
 // Com `digitar`, o botão só libera depois de a pessoa digitar exatamente aquele texto.
@@ -30,6 +30,75 @@ export function confirmar({ titulo, texto = '', botao = 'Confirmar', cancelar = 
     ok.onclick = () => fechar(true);
     fundo.onclick = ev => { if (ev.target === fundo) fechar(false); };
     (campo || fundo.querySelector('#adm-conf-titulo')).focus();
+  });
+}
+
+// ---------------------------------------------------------------- caminho claro
+// Topo de cada tela da Administração: uma linha de propósito à esquerda e, à direita, a ação principal (uma só).
+// A explicação longa fica na Ajuda da tela (ajuda-contextual.js).
+export const topoTela = (proposito, acao = '') => `<div class="adm-topo"><p class="adm-proposito">${proposito}</p>${acao ? `<div class="adm-topo-acao">${acao}</div>` : ''}</div>`;
+
+// Revelação progressiva: um botão "Filtrar" (ou "Mais opções") que mostra e esconde um bloco. O bloco começa
+// escondido, a não ser que já haja filtro aplicado (aberto = true).
+export const botaoRevelar = (alvo, rotulo, aberto = false, extra = '') => `<button type="button" class="btn btn-linha btn-pequeno adm-revelar" aria-expanded="${aberto}" aria-controls="${alvo}" ${extra}>${esc(rotulo)}</button>`;
+document.addEventListener('click', ev => {
+  const b = ev.target.closest?.('.adm-revelar');
+  if (!b) return;
+  const alvo = document.getElementById(b.getAttribute('aria-controls'));
+  if (!alvo) return;
+  const abrir = b.getAttribute('aria-expanded') !== 'true';
+  b.setAttribute('aria-expanded', abrir); alvo.hidden = !abrir;
+  if (abrir) alvo.querySelector('input, select, textarea, button')?.focus();
+});
+
+// Link direto para um campo que está recolhido ("?foco=", "Mais opções", bloco fechado): mostra o caminho até ele.
+export function revelarAte(el) {
+  for (let a = el?.parentElement; a; a = a.parentElement) {
+    if (a.hidden) { a.hidden = false; if (a.id) document.querySelector(`[aria-controls="${CSS.escape(a.id)}"]`)?.setAttribute('aria-expanded', 'true'); }
+    if (a.tagName === 'DETAILS') a.open = true;
+  }
+}
+
+// Painel lateral de leitura (um detalhe por vez): abre à direita, Esc ou o fundo fecha, o foco volta para quem abriu.
+// Reabrir (depois de salvar algo no painel) troca o conteúdo e mantém para onde o foco volta ao fechar.
+let painelAberto = null;
+export function painelLateral({ migalha = '', titulo, corpo }) {
+  const host = document.getElementById('modal');
+  const anterior = painelAberto ? painelAberto.anterior : document.activeElement;
+  painelAberto?.soltar();
+  host.innerHTML = `<div class="px-fundo entra" id="px-fundo"><aside class="px entra" role="dialog" aria-modal="true" aria-labelledby="px-titulo" tabindex="-1">
+    <header class="px-topo"><span class="px-migalha">${esc(migalha)}<span aria-hidden="true">›</span><b>${esc(titulo)}</b></span><span class="px-estado"></span>
+      <button type="button" class="icone-btn px-fechar" data-fechar aria-label="Fechar (Esc)" title="Fechar (Esc)">${ICONE.fechar}<span class="px-fechar-texto" aria-hidden="true">Fechar</span></button></header>
+    <div class="px-corpo"><h2 class="px-titulo" id="px-titulo">${esc(titulo)}</h2>${corpo}</div></aside></div>`;
+  const soltar = () => { document.removeEventListener('keydown', tecla, true); removeEventListener('hashchange', fechar); painelAberto = null; };
+  const fechar = () => { soltar(); host.innerHTML = ''; if (anterior?.isConnected) anterior.focus({ preventScroll: true }); };
+  // Uma confirmação ou um formulário aberto por cima do painel cuida das próprias teclas.
+  const tecla = ev => { if (document.querySelector('.adm-confirmar, #modal .modal-fundo')) return; if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fechar(); } else if (ev.key === 'Tab') { const f = [...host.querySelectorAll('button, a[href], [tabindex="0"]')]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (ev.shiftKey && i <= 0) { ev.preventDefault(); f.at(-1).focus(); } else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); } } };
+  document.addEventListener('keydown', tecla, true);
+  addEventListener('hashchange', fechar);
+  host.querySelector('#px-fundo').onclick = ev => { if (ev.target.id === 'px-fundo') fechar(); };
+  host.querySelector('[data-fechar]').onclick = fechar;
+  host.querySelector('.px').focus();
+  painelAberto = { anterior, soltar };
+  return fechar;
+}
+
+// Lista de leitura com um só ponto de parada no teclado (setas andam, Enter abre): uma tabela longa de registros
+// não vira dezenas de botões. Cada linha <tr data-registro="i"> abre o detalhe no painel lateral.
+export function ligarLinhas(tabela, abrir) {
+  if (!tabela) return;
+  const linhas = () => [...tabela.querySelectorAll('tr[data-registro]')];
+  linhas().forEach((tr, i) => { tr.tabIndex = i === 0 ? 0 : -1; });
+  tabela.addEventListener('click', ev => { const tr = ev.target.closest('tr[data-registro]'); if (tr && !ev.target.closest('a, button, input, label')) abrir(tr.dataset.registro, tr); });
+  tabela.addEventListener('keydown', ev => {
+    const tr = ev.target.closest?.('tr[data-registro]');
+    if (!tr) return;
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrir(tr.dataset.registro, tr); return; }
+    const ls = linhas(), i = ls.indexOf(tr);
+    const alvo = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: ls.length - 1 }[ev.key];
+    if (alvo === undefined || !ls[alvo]) return;
+    ev.preventDefault();
+    tr.tabIndex = -1; ls[alvo].tabIndex = 0; ls[alvo].focus();
   });
 }
 

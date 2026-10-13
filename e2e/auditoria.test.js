@@ -12,6 +12,20 @@ import { imagem, pdfEscaneado, jpegDe } from '../test/arquivos.js';
 
 const TECNICO = /open\s*router|anthropic|google\/|gemini|claude|haiku|mistral|llama/i;
 let N, admin;
+// Catálogo técnico de modelos: abre cada modelo liberado no painel lateral e junta o texto (um modelo por vez).
+async function textosDoCatalogo(p) {
+  await p.goto(`${N.base}/app#/modelos/catalogo`);
+  await p.waitForSelector('#conteudo tr[data-registro]');
+  const linhas = p.locator('#conteudo tr[data-registro]', { hasText: 'Liberado' });
+  const textos = [await p.evaluate(() => document.body.innerText)];
+  for (let i = 0; i < await linhas.count(); i++) {
+    await linhas.nth(i).click(); await p.locator('#modal .px').waitFor();
+    textos.push(await p.locator('#modal').innerText());
+    await p.keyboard.press('Escape'); await p.locator('#modal .px').waitFor({ state: 'detached' });
+  }
+  return textos.join('\n');
+}
+
 before(async () => {
   // O processo do teste (servidor + cliente) já ocupa bem mais que o servidor sozinho: folga na guarda de memória,
   // que tem teste próprio com os valores padrão.
@@ -80,9 +94,9 @@ test('admin: a Administração mostra os recursos sem o provedor; a tela de uso 
   const p = await N.entrar('admin@empresa-exemplo.com.br');
   await p.waitForSelector('#entrada');
   assert.doesNotMatch(await p.evaluate(() => document.body.innerText), TECNICO, 'tela de uso');
-  await p.goto(`${N.base}/app#/modelos`);
-  await p.waitForSelector('#modelos-manuais');await p.locator('#modelos-manuais > summary').click();await p.waitForSelector('text=Pode receber:');
-  assert.doesNotMatch(await p.evaluate(() => document.body.innerText), /open\s*router/i, 'Administração');
+  const catalogo = await textosDoCatalogo(p);
+  assert.match(catalogo, /Pode receber:/);
+  assert.doesNotMatch(catalogo, /open\s*router/i, 'Administração');
   await p.goto(`${N.base}/app#/conhecimento`);
   await p.waitForSelector('[data-conhecimento-vista="gerir"]');
   await p.click('[data-conhecimento-vista="gerir"]');

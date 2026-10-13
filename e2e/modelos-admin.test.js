@@ -7,7 +7,7 @@ before(async()=>{N=await subirComNavegador();c=await cliente(N.app,N.base).entra
 after(async()=>{await N.fechar();assert.deepEqual(erros,[]);});
 async function abrir(hash){const p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));await p.goto(N.base+'/app'+hash);return p;}
 test('histórico de modelos apresenta campos legíveis e fornecedor em detalhes',async()=>{
- const p=await abrir('#/modelos/historico');await p.waitForSelector('.auditoria-detalhe');await p.locator('.auditoria-detalhe summary').first().click();assert.match(await p.textContent('#conteudo'),/Campos alterados|Exigir fornecedor sem treinamento com dados/);assert.doesNotMatch(await p.textContent('#conteudo'),/\{"campos"/);await p.close();
+ const p=await abrir('#/modelos/historico');await p.waitForSelector('#conteudo tr[data-registro]');await p.locator('#conteudo tr[data-registro]').first().click();await p.waitForSelector('#modal .auditoria-detalhe');assert.match(await p.textContent('#modal'),/Campos alterados|Exigir fornecedor sem treinamento com dados/);assert.doesNotMatch(await p.textContent('#modal'),/\{"campos"/);assert.doesNotMatch(await p.textContent('#conteudo'),/\{"campos"/);await p.close();
 });
 test('falha de leitura permite tentar novamente sem alteração de configuração',async()=>{
  const p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));const antes=(await c.get('/api/admin/roteamento')).dados.config;let chamadas=0;
@@ -18,5 +18,5 @@ test('falha de leitura permite tentar novamente sem alteração de configuraçã
 test('falha tardia de leitura não substitui a tela escolhida após navegação',async()=>{
  const p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));let liberar;const bloqueio=new Promise(r=>liberar=r);let chegou;const inicio=new Promise(r=>chegou=r);
  await p.route('**/api/admin/roteamento',async r=>{chegou();await bloqueio;await r.fulfill({status:503,contentType:'application/json',body:'{"mensagem":"Falha tardia"}'});});
- await p.goto(N.base+'/app#/modelos/roteamento');await inicio;await p.click('a[href="#/modelos/historico"]');await p.waitForSelector('.auditoria-detalhe');liberar();await p.waitForLoadState('networkidle');assert.equal(await p.locator('#tentar-carregar').count(),0);assert.match(await p.textContent('#conteudo'),/Toda alteração de modelos/);await p.close();
+ await p.goto(N.base+'/app#/modelos/roteamento');await inicio;await p.click('a[href="#/modelos/historico"]');await p.waitForSelector('#conteudo tr[data-registro]');liberar();await p.waitForLoadState('networkidle');assert.equal(await p.locator('#tentar-carregar').count(),0);assert.match(await p.textContent('#conteudo'),/Toda alteração de modelos/);await p.close();
 });

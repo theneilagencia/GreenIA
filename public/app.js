@@ -122,35 +122,40 @@ const SECOES_USO = () => [
 // tela de Conversas (#/conversas). A lista é a mesma de sempre (E.conversas), sem cópia paralela.
 export const RECENTES_LATERAL = 5;
 // Agrupada por tema, com um ícone diferente por item e rótulos curtos (o mesmo texto do título de cada tela).
+// Poucos itens (no máximo nove): o que é raro vive em abas da tela do mesmo assunto. Preparar o ambiente fica no alto
+// da Visão geral; Acessos do suporte é uma aba de Atividade; Marca, Página de apresentação e URL e domínio são abas
+// de "Marca e endereço".
+export const podePreparar = () => ['company.manage', 'usage.read', 'models.manage', 'user.read', 'policy.manage', 'settings.manage', 'integrations.manage', 'integrations.approve'].some(pode);
+export const ABAS_EMPRESA = () => [['marca', 'Marca', 'branding.manage'], ['landing', 'Página de apresentação', 'landing_page.manage'], ['url', 'URL e domínio', 'url.manage']].filter(([, , perm]) => pode(perm));
 const SECOES_ADMIN = () => [
   { itens: [
-    { id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: () => pode('usage.read') },
-    { id: 'preparacao', nome: 'Preparar o ambiente', icone: 'lista', ver: () => ['company.manage','usage.read','models.manage','user.read','policy.manage','settings.manage','integrations.manage','integrations.approve'].some(pode) },
+    { id: 'visao-geral', nome: 'Visão geral', icone: 'visao', ver: podePreparar },
   ] },
-  { titulo: 'Pessoas e acesso', itens: [
+  { titulo: 'Pessoas e IA', itens: [
     // Uma tela só para pessoas, com abas (Pessoas, Áreas, Grupos, Perfis, Quem cria Quick Wins): cada aba aparece
-    // para quem tem a permissão dela (ABAS_PESSOAS em admin.js). Acessos do suporte continua separado.
+    // para quem tem a permissão dela (TELAS.pessoas em admin.js).
     { id: 'pessoas', nome: 'Pessoas', icone: 'pessoas', ver: () => pode('user.read') || (!!E.plataforma && pode('role.manage')) },
-    ...(E.plataforma ? [{ id: 'empresa/acessos', nome: 'Acessos do suporte', icone: 'cadeado', ver: () => pode('audit.read') }] : []),
-  ] },
-  { titulo: 'IA e regras', itens: [
     { id: 'modelos', nome: 'Modelos', icone: 'cubo', ver: () => pode('models.manage') },
     { id: 'politicas', nome: 'Políticas de IA', icone: 'escudo', ver: () => pode('policy.manage') },
     { id: 'integracoes', nome: 'Integrações', icone: 'servidor', ver: () => !!E.integracoes && (pode('integrations.manage') || pode('integrations.approve')) },
   ] },
-  { titulo: 'Uso e registro', itens: [
+  { titulo: 'Acompanhar', itens: [
     { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') },
     { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
   ] },
-  // Empresa: marca, página de apresentação, endereço e configurações gerais.
-  E.plataforma ? { titulo: 'Empresa', itens: [
-    { id: 'empresa/marca', nome: 'Marca e identidade visual', icone: 'pincel', ver: () => pode('branding.manage') },
-    { id: 'empresa/landing', nome: 'Página de apresentação', icone: 'pagina', ver: () => pode('landing_page.manage') },
-    { id: 'empresa/url', nome: 'URL e domínio', icone: 'link', ver: () => pode('url.manage') },
-    { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => pode('settings.manage') },
-  ] } : { titulo: 'Organização', itens: [{ id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: ehAdmin }] },
+  { titulo: 'Empresa', itens: [
+    ...(E.plataforma ? [{ id: 'empresa', nome: 'Marca e endereço', icone: 'pincel', href: () => `#/empresa/${ABAS_EMPRESA()[0]?.[0] || 'marca'}`, ver: () => ABAS_EMPRESA().length > 0 }] : []),
+    { id: 'configuracoes', nome: 'Configurações', icone: 'engrenagem', ver: () => (E.plataforma ? pode('settings.manage') : ehAdmin()) },
+  ] },
 ];
-const ROTAS_ADMIN = /^#\/(preparacao|revisao-acessos|visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|integracoes|empresa\/)/;
+// Telas da Administração que não têm item próprio no menu: a busca (Ctrl K) continua levando direto a elas.
+const ATALHOS_ADMIN = () => [
+  ...(podePreparar() ? [{ nome: 'Preparar o ambiente', icone: 'lista', href: '#/visao-geral?passos=1' }] : []),
+  ...(E.plataforma ? ABAS_EMPRESA().map(([id, nome]) => ({ nome: id === 'marca' ? 'Marca e identidade visual' : nome, icone: { marca: 'pincel', landing: 'pagina', url: 'link' }[id], href: `#/empresa/${id}` })) : []),
+  ...(E.plataforma && pode('audit.read') ? [{ nome: 'Acessos do suporte', icone: 'cadeado', href: '#/atividade/suporte' }] : []),
+];
+const hrefItem = i => (i.href ? i.href() : `#/${i.id}`);
+const ROTAS_ADMIN = /^#\/(preparacao|revisao-acessos|visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|integracoes|empresa(?:\/|$|\?))/;
 // Contexto da tela. Quem não administra nunca está na Administração, nem digitando o endereço.
 export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '') && administra();
 const itensAdmin = () => SECOES_ADMIN().flatMap(g => g.itens).filter(i => !i.ver || i.ver());
@@ -160,7 +165,8 @@ const SECOES = () => (emAdministracao() ? SECOES_ADMIN() : SECOES_USO());
 // Última tela de cada contexto, para a troca voltar exatamente onde a pessoa estava.
 const ultima = ctx => { try { return sessionStorage.getItem(`greenia-ultima-${ctx}`); } catch { return null; } };
 const guardarUltima = h => { try { sessionStorage.setItem(`greenia-ultima-${emAdministracao(h) ? 'admin' : 'uso'}`, h); } catch {} };
-const inicioAdmin = () => ultima('admin') || `#/${itensAdmin()[0]?.id || 'visao-geral'}`;
+const primeiraAdmin = () => (itensAdmin()[0] ? hrefItem(itensAdmin()[0]) : '#/visao-geral');
+const inicioAdmin = () => ultima('admin') || primeiraAdmin();
 const inicioUso = () => ultima('uso') || '#/nova';
 
 // Rota da API que cada tela da administração lê. A resposta do servidor decide; a tela só reage.
@@ -179,7 +185,7 @@ export function desenharLateral() {
   const item = i => {
     const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
     const selo = i.selo?.();
-    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="#/${esc(i.id)}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
+    return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(hrefItem(i))}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
   const lista = E.conversas || [];
   const recentes = lista.length ? `<div class="recentes-lat" role="group" aria-label="Conversas recentes">${lista.slice(0, RECENTES_LATERAL).map(c => `<div class="hc-recente"><a class="item-lat sub${h === `#/c/${c.id}` ? ' ativo' : ''}" href="#/c/${c.id}" title="${esc(c.titulo)}" ${h === `#/c/${c.id}` ? 'aria-current="page"' : ''}><span class="nome">${esc(c.titulo)}</span>${c.sigilosa ? '<span class="selo-lat">Sigilosa</span>' : ''}</a><button type="button" class="hc-acoes" data-hc-acoes="${c.id}" aria-label="Ações de ${esc(c.titulo)}" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button></div>`).join('')}
@@ -192,12 +198,12 @@ export function desenharLateral() {
       <a href="${esc(adm ? h : inicioAdmin())}" class="${adm ? 'ativo' : ''}" data-contexto="admin" ${adm ? 'aria-current="page"' : ''}>Administração</a></nav>` : '';
   $('lateral').innerHTML = `
     <button type="button" class="icone-btn fechar-lateral" id="fechar-lateral" aria-label="Fechar menu">${ICONE.fechar}</button>
-    <a class="marca" href="${adm ? esc(`#/${itensAdmin()[0]?.id || 'visao-geral'}`) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
+    <a class="marca" href="${adm ? esc(primeiraAdmin()) : '#/nova'}" aria-label="${MARCA.propria ? esc(E.publico.empresa || 'Início') : 'GreenIA'}, início">${marcaHtml(E.publico)}</a>${MARCA.propria ? '' : logoEmpresa(E.publico)}
     ${E.plataforma?.adminPlataforma ? `<span class="selo-escopo" title="Você está neste ambiente como administrador da plataforma">Operador · ${esc(E.plataforma.empresa.name)}</span>` : ''}
     ${E.plataforma?.acessoOperador ? `<div class="faixa-aviso atencao acesso-operador" role="status"><b>Acesso da equipe de operação</b><br>Registrado e visível para a empresa. Vale até ${esc(new Date(E.plataforma.acessoOperador.expira).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))}.
       <button type="button" class="btn-texto btn-pequeno" id="encerrar-acesso">Encerrar acesso</button></div>` : ''}
     ${alternador}
-    ${adm ? `<div class="aviso-contexto">${ICONE.engrenagem || ''}<span><b>Administração da empresa</b><small>Mudanças aqui valem para todas as pessoas.</small></span></div>`
+    ${adm ? ''
       : `<a class="btn btn-linha nova" href="#/nova" title="Nova conversa (C)" ${h === '#/nova' ? 'aria-current="page"' : ''}>${ICONE.mais} Nova conversa</a>`}
     <button type="button" class="busca-lat" id="abrir-busca">${ICONE.busca}<span>Buscar ou ir para</span><span class="kbd">${teclaPaleta()}</span></button>
     <nav class="lateral-rolagem" aria-label="Navegação">
@@ -284,10 +290,11 @@ const GESTAO = ['uso', 'pessoas', 'modelos', 'politicas', 'atividade', 'configur
 let versaoNavegacao = 0;
 function telaIntegracoesDesligadas() {
   if (E.eu) desenharLateral();
+  // Estado vazio: uma frase e uma ação (o que as integrações fazem fica na Ajuda da tela).
   $('principal').innerHTML = `${cabecalho('Integrações')}<div class="pagina"><div class="pagina-dentro">
-    <div class="faixa-aviso info" role="status"><h2>As integrações estão desligadas nesta empresa</h2>
-      <p>Com elas ligadas, os Quick Wins podem consultar e atualizar outros sistemas da empresa, sempre com aprovação. ${pode('settings.manage') ? 'Para ligar, abra Configurações e use o bloco Integrações.' : 'Quem administra a empresa liga esse recurso em Configurações.'}</p>
-      ${pode('settings.manage') ? '<a class="btn btn-verde" href="#/configuracoes">Abrir Configurações</a>' : ''}</div></div></div>`;
+    <div class="vazio adm-vazio" role="status">${ICONE.servidor || ''}<h2>As integrações estão desligadas nesta empresa</h2>
+      <p>${pode('settings.manage') ? 'Ligue em Configurações, no bloco Integrações.' : 'Quem administra a empresa liga esse recurso em Configurações.'}</p>
+      ${pode('settings.manage') ? '<a class="btn btn-verde" href="#/configuracoes?foco=cfg-integracoes">Abrir Configurações</a>' : ''}</div></div></div>`;
   ligarCabecalho();
 }
 
@@ -310,7 +317,7 @@ async function rota() {
   // Endereços antigos de pessoas (Usuários, Perfis e permissões, Revisar acessos, abas antigas): a tela agora é
   // Pessoas, com abas. Troca o endereço sem deixar rastro no histórico e diz o motivo.
   const novo = enderecoNovo(h, consulta);
-  if (novo) { toast('Este endereço mudou: usuários, áreas, grupos, perfis e revisão de acessos agora ficam em Pessoas, com abas.', 'info'); return trocarPara(novo); }
+  if (novo) { toast(motivoEndereco(h), 'info'); return trocarPara(novo); }
   // Administração: quem autoriza é o servidor. Quem não administra pergunta a ele (e recebe 403) antes de
   // qualquer tela da administração ser desenhada; a recusa leva de volta ao uso normal.
   if (ROTAS_ADMIN.test(h)) {
@@ -331,13 +338,13 @@ async function rota() {
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
-    else if (h === '#/pendencias' || h === '#/preparacao') await (await importarTela('/acompanhamento.js')).vistaAcompanhamento(h === '#/preparacao');
+    else if (h === '#/pendencias') await (await importarTela('/acompanhamento.js')).vistaAcompanhamento();
     else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();
     else if (h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/')) await (await importarTela('/quickwin.js')).rotaQuickWin(h);
     else if ((h === '#/integracoes' || h.startsWith('#/integracoes?') || h.startsWith('#/integracoes/')) && E.integracoes) await (await importarTela('/integracoes.js')).rotaIntegracoes(h);
-    else if (h === '#/visao-geral' && pode('usage.read')) await (await importarTela('/visao.js')).vistaGeral();
-    else if ((m = /^#\/empresa\/([a-z]+)$/.exec(h)) && E.plataforma) await (await importarTela('/empresa.js')).rotaEmpresa(m[1]);
+    else if (h === '#/visao-geral' && podePreparar()) await (await importarTela('/visao.js')).vistaGeral();
+    else if ((m = /^#\/empresa(?:\/([a-z]+))?$/.exec(h)) && E.plataforma) await (await importarTela('/admin.js')).rotaGestao('empresa', m[1] || '');
     else if ((m = /^#\/([a-z-]+)(?:\/([a-z-]+))?$/.exec(h)) && GESTAO.includes(m[1])) await (await importarTela('/admin.js')).rotaGestao(m[1], m[2]);
     else return irPara('#/nova');   // o início de todos, inclusive de quem administra, é o uso normal
   } catch (e) {
@@ -374,13 +381,21 @@ export function enderecoNovo(h, consulta = '') {
   if (h === '#/revisao-acessos') return com('#/pessoas', { revisao: 'pendente' });
   // Antes, #/pessoas abria Áreas: o link para uma área (?area=) segue para a aba Áreas.
   if (h === '#/pessoas' && q.has('area')) return com('#/pessoas/areas');
+  // Preparar o ambiente agora é o bloco do alto da Visão geral (com a lista de passos aberta).
+  if (h === '#/preparacao') return com('#/visao-geral', { passos: '1' });
+  // Acessos do suporte agora é uma aba de Atividade.
+  if (h === '#/empresa/acessos') return com('#/atividade/suporte');
   return null;
 }
+const motivoEndereco = h => (h === '#/preparacao' ? 'Preparar o ambiente agora fica no alto da Visão geral.'
+  : h === '#/empresa/acessos' ? 'Acessos do suporte agora ficam em Atividade, na aba Acessos do suporte.'
+    : 'Este endereço mudou: usuários, áreas, grupos, perfis e revisão de acessos agora ficam em Pessoas, com abas.');
 
 // Itens da paleta de comandos: telas que a pessoa pode abrir, ações, conversas e quick wins.
 function itensPaleta() {
   const telas = [...SECOES_USO().map(g => [g, 'Ir para']), ...SECOES_ADMIN().map(g => [g, 'Administração'])]
-    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: `#/${i.id}` })));
+    .flatMap(([g, grupo]) => g.itens.filter(i => !i.ver || i.ver()).map(i => ({ grupo, nome: i.nome, dica: g.titulo || '', icone: i.icone, href: hrefItem(i) })))
+    .concat(ATALHOS_ADMIN().map(a => ({ grupo: 'Administração', ...a })));
   return [
     { grupo: 'Ações', nome: 'Nova conversa', dica: 'C', icone: 'mais', href: '#/nova' },
     { grupo: 'Ajuda', nome: 'Primeiros passos', icone: 'livro', href: '#/primeiros-passos' },

@@ -23,6 +23,8 @@ async function pagina(sessao, { width = 1280, height = 860 } = {}) {
 }
 const abrir = async (p, rota) => { await p.goto(`${S.base}/app#/${rota}`); await p.waitForSelector('#conteudo > :not(.carregando), .pagina-dentro > :not(#conteudo)'); await p.waitForLoadState('networkidle'); };
 const abas = p => p.locator('[role=tablist] [role=tab]').allInnerTexts();
+// Filtros ficam atrás de "Filtrar" (caminho claro): abre o painel antes de usar.
+const filtrar = async p => { const b = p.locator('#lx-filtrar'); if (await b.getAttribute('aria-expanded') !== 'true') await b.click(); };
 const usuarioPorEmail = async email => (await admin.get('/api/empresa/usuarios')).dados.usuarios.find(x => x.email === email);
 
 before(async () => {
@@ -42,11 +44,11 @@ before(async () => {
 });
 after(async () => { await nav?.close(); await S?.fechar(); });
 
-test('menu com "Pessoas" e "Acessos do suporte"; abas com tablist e teclado; lista única com perfil, áreas, grupos e revisão', async () => {
+test('menu com "Pessoas" (Acessos do suporte numa aba de Atividade); abas com tablist e teclado; lista única com perfil, áreas, grupos e revisão', async () => {
   const p = await pagina(admin);
   await abrir(p, 'pessoas');
   const menu = await p.locator('#lateral .lateral-rolagem a.item-lat .nome').allInnerTexts();
-  assert.ok(menu.includes('Pessoas') && menu.includes('Acessos do suporte'), JSON.stringify(menu));
+  assert.ok(menu.includes('Pessoas') && menu.includes('Atividade') && !menu.includes('Acessos do suporte'), JSON.stringify(menu));
   for (const antigo of ['Usuários', 'Áreas e grupos', 'Pessoas e áreas', 'Perfis e permissões', 'Revisar acessos']) assert.ok(!menu.includes(antigo), antigo);
   assert.equal(await p.locator('.cabeca h1').innerText(), 'Pessoas');
   assert.deepEqual(await abas(p), ['Pessoas', 'Áreas', 'Grupos', 'Perfis', 'Quem cria Quick Wins']);
@@ -57,7 +59,9 @@ test('menu com "Pessoas" e "Acessos do suporte"; abas com tablist e teclado; lis
   const linha = p.locator('.lx-linha', { hasText: 'Marina Souza' });
   const texto = await linha.innerText();
   for (const t of ['Membro', 'Operações', 'Analistas', 'Convidado', 'Revisão pendente']) assert.match(texto, new RegExp(t));
-  // Filtros: perfil, situação, área e revisão pendente.
+  // Filtros: perfil, situação, área e revisão pendente, fechados até a pessoa pedir.
+  assert.equal(await p.locator('#lx-perfil').isVisible(), false);
+  await filtrar(p);
   await p.selectOption('#lx-perfil', 'Gestor');
   assert.deepEqual(await p.locator('.lx-linha .lx-nome b').allInnerTexts(), ['Gil Gestor']);
   await p.selectOption('#lx-perfil', '');
@@ -132,6 +136,7 @@ test('pelo detalhe: trocar o perfil, registrar a revisão e cancelar a remoção
   assert.ok(await usuarioPorEmail('marina@pes.test'), 'cancelar não remove');
   await p.keyboard.press('Escape');
   await p.getByRole('dialog').waitFor({ state: 'detached' });
+  await filtrar(p);
   await p.check('#lx-revisao');
   assert.equal(await p.locator('.lx-linha', { hasText: 'Marina Souza' }).count(), 0, 'revisada: sai do filtro Revisão pendente');
   // De volta ao perfil de antes, para os outros testes.
@@ -183,8 +188,9 @@ test('endereços antigos levam à aba equivalente, sem rastro no histórico', as
   }
   await p.goto(`${S.base}/app#/revisao-acessos`);
   await p.waitForFunction(() => location.hash === '#/pessoas?revisao=pendente');
-  await p.waitForSelector('#lx-revisao');
+  await p.waitForSelector('#lx-revisao', { state: 'attached' });
   assert.equal(await p.locator('#lx-revisao').isChecked(), true, 'Revisar acessos abre com o filtro Revisão pendente');
+  assert.match(await p.locator('#lx-filtrar').innerText(), /1/, 'o filtro aplicado aparece no botão Filtrar');
   await abrir(p, 'empresa/roles');
   await p.getByRole('heading', { level: 2, name: /Pessoas com acesso/ }).waitFor({ state: 'detached' });
   assert.equal(await p.locator('[role=tab][aria-selected=true]').innerText(), 'Perfis');
@@ -208,16 +214,18 @@ test('endereços antigos levam à aba equivalente, sem rastro no histórico', as
 test('celular: abas cabem e quebram linha, painel em tela cheia com Fechar, alvos de 44 px e sem rolagem lateral', async () => {
   const p = await pagina(admin, { width: 390, height: 844 });
   await abrir(p, 'pessoas');
+  await filtrar(p);
   const m = await p.evaluate(() => ({
     hs: document.documentElement.scrollWidth > innerWidth,
     abas: [...document.querySelectorAll('[role=tab]')].map(a => { const r = a.getBoundingClientRect(); return { dentro: r.left >= 0 && r.right <= innerWidth, altura: r.height }; }),
     novo: document.getElementById('lx-novo').getBoundingClientRect().height,
-    filtros: [...document.querySelectorAll('.lx-ferramentas select, #lx-q')].map(e => e.getBoundingClientRect().height),
+    filtrar: document.getElementById('lx-filtrar').getBoundingClientRect().height,
+    filtros: [...document.querySelectorAll('.lx-filtros select, #lx-q')].map(e => e.getBoundingClientRect().height),
     revisao: document.querySelector('.lx-marca').getBoundingClientRect().height,
   }));
   assert.equal(m.hs, false, 'sem rolagem horizontal');
   assert.ok(m.abas.every(a => a.dentro && a.altura >= 44), JSON.stringify(m.abas));
-  assert.ok(m.novo >= 44 && m.revisao >= 44 && m.filtros.every(h => h >= 44), JSON.stringify(m));
+  assert.ok(m.novo >= 44 && m.filtrar >= 44 && m.revisao >= 44 && m.filtros.length >= 4 && m.filtros.every(h => h >= 44), JSON.stringify(m));
   await p.locator('.lx-linha', { hasText: 'Marina Souza' }).click();
   const painel = p.getByRole('dialog');
   await painel.waitFor();

@@ -1048,9 +1048,10 @@ body.plataforma .plat-bloqueios{margin:8px 0 16px}
    Lateral calma (Nova conversa, Buscar, atalhos e o histórico completo por data), recolhível no computador, com a
    conta no pé; topo mínimo com o título da tela. Vale para o app (uso e Administração) e o console da plataforma.
    Bloco autocontido: só seletores da casca (.lateral, .cabeca, .conta, .menu-conta). */
-.app .lateral{width:264px;padding:10px 10px 8px;transition:width .2s var(--suave)}
+.app .lateral{width:264px;padding:8px 10px;transition:width .2s var(--suave)}
 .lat-topo{display:flex;align-items:center;gap:4px;min-height:44px;margin:0 0 6px}
-.lat-topo .marca{flex:1;min-width:0;padding:6px 6px 0;margin:0}
+.lat-topo .marca{flex:1;min-width:0;padding:0 6px;margin:0}
+.lateral-plataforma .lat-topo .marca{padding-top:4px}   /* o nome alinha com o título (e a trilha) do topo */
 .lat-topo .icone-btn{flex:none;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;justify-content:center;border-radius:8px}
 .lat-topo .icone-btn svg{width:18px;height:18px}
 .app .lateral .logo-empresa{margin:4px 8px 6px}
@@ -1141,8 +1142,9 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 @media(max-width:860px){
   body:not(.plataforma) .app .cabeca{display:flex;flex-wrap:nowrap;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;min-height:52px;gap:4px}
   body:not(.plataforma) .app .cabeca-titulo{display:flex;flex-wrap:nowrap;flex:1 1 auto;min-width:0;gap:2px}
-  body:not(.plataforma) .app .cabeca-titulo>h1{order:0;flex:0 1 auto;min-width:0;font-size:16px;line-height:1.25;padding:0 2px;white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2}
+  body:not(.plataforma) .app .cabeca-titulo>h1{order:0;flex:1 1 0;min-width:0;font-size:16px;line-height:1.25;padding:0 2px;white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2}
   body:not(.plataforma) .app .cabeca-titulo>.menu-btn{margin:0}
+  body:not(.plataforma) .app .cabeca-titulo>.menu-btn+h1{margin-left:8px}   /* o título não encosta no botão do menu */
   body:not(.plataforma) .app .cabeca .nova-topo{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;padding:0;color:var(--ink)}
   body:not(.plataforma) .app .cabeca-acoes{display:flex;order:0;align-self:center}
   body:not(.plataforma) .app .cabeca .menu-btn>span{display:none}
@@ -1175,6 +1177,14 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
   body.lateral-recolhida .lateral .lateral-pe{border-top-color:transparent}
 }
 @media(prefers-reduced-motion:reduce){.app .lateral{transition:none}}
+/* Console no celular estreito: ícones e ações numa linha, o título inteiro na linha de baixo. */
+@media(max-width:480px){
+  body.plataforma .app .cabeca{flex-wrap:wrap;row-gap:2px}
+  body.plataforma .app .cabeca-titulo{display:contents}
+  body.plataforma .app .cabeca-titulo>.menu-btn{margin-right:auto}
+  body.plataforma .app .cabeca-acoes{order:2}
+  body.plataforma .app .cabeca-titulo>h1{order:3;flex:1 1 100%;padding-inline:4px}
+}
 /* Console da plataforma: o mesmo esqueleto, sobre a lateral escura. */
 .lateral-plataforma .conta-btn{color:#E4E0D6}
 .lateral-plataforma .conta-btn:is(:hover,[aria-expanded="true"]){background:rgba(255,255,255,.07)}

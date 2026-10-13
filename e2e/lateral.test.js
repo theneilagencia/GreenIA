@@ -30,10 +30,17 @@ before(async () => {
 });
 after(async () => { await N.fechar(); await OR.fechar(); });
 
+// Uma entrada por pessoa (o envio de códigos tem limite): os outros contextos reaproveitam a sessão.
+const sessoes = {};
+async function sessao(email) {
+  if (!sessoes[email]) { const c = await N.navegador.newContext(); await N.entrar(email, await c.newPage()); sessoes[email] = await c.storageState(); await c.close(); }
+  return sessoes[email];
+}
+const contexto = async (email, viewport) => N.navegador.newContext({ viewport, storageState: await sessao(email) });
 async function abrir(email, hash, largura = 1280, altura = 800) {
-  const ctx = await N.navegador.newContext({ viewport: { width: largura, height: altura } });
+  const ctx = await contexto(`${email}@empresa-exemplo.com.br`, { width: largura, height: altura });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  const p = await N.entrar(`${email}@empresa-exemplo.com.br`, await ctx.newPage());
+  const p = await ctx.newPage();
   const erros = []; p.on('pageerror', e => erros.push(e.message));
   await p.goto(`${N.base}/app${hash}`);
   await p.waitForSelector('#lateral .item-lat.item-principal');
@@ -58,8 +65,8 @@ for (const [email, n] of [['c0', 0], ['c1', 1], ['c5', 5], ['c10', 10], ['c50', 
     if (n) assert.ok(ordem.indexOf('conhecimento') < ordem.indexOf('conversa'), JSON.stringify(ordem));
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'sem rolagem horizontal');
     if (n === 100) {
-      // Rolagem até o fim: carrega as próximas 50 (todas as 100).
-      await p.click('#lateral #hist-mais');
+      // Rolagem até o fim da lista: carrega as próximas 50 (todas as 100), sem precisar clicar.
+      await p.$eval('#lateral .lateral-rolagem', n => { n.scrollTop = n.scrollHeight; });
       await p.waitForFunction(s => document.querySelectorAll(s).length === 100, historico);
       assert.equal(await p.locator('#lateral #hist-mais').count(), 0);
       await p.screenshot({ path: 'capturas/tmp/lateral-100-1280.png' });
@@ -74,8 +81,8 @@ test('mais de 200 conversas: "Mostrar mais" busca a próxima página no servidor
   for (let k = 51; k <= 230; k++) exec(N.app.db, "insert into conversas (pessoa_id, titulo, criado_em, atualizado_em) values (?, ?, datetime('now', ?), datetime('now', ?))", id, `Antiga ${k}`, `-${k} days`, `-${k} days`);
   const { ctx, p, erros } = await abrir('c50', '#/nova');
   for (let vistas = 50; vistas < 230; vistas += 50) {
-    await p.click('#lateral #hist-mais');
-    await p.waitForFunction(([s, v]) => document.querySelectorAll(s).length === Math.min(230, v + 50), [historico, vistas]);
+    await p.$eval('#lateral #hist-mais', b => b.click());   // clique direto (sem rolar até o fim, que também carrega)
+    await p.waitForFunction(([s, v]) => document.querySelectorAll(s).length === Math.min(230, v + 50), [historico, vistas]).catch(async e => { throw new Error(`${vistas}: ${await p.locator(historico).count()} ${e.message}`); });
   }
   assert.equal(await p.locator(historico).count(), 230);
   assert.equal(await p.locator('#lateral #hist-mais').count(), 0);
@@ -134,8 +141,8 @@ test('estado ativo acompanha o clique mesmo com a tela ainda carregando (rede le
 test('Pendências: atalho só com o que resolver (com a contagem); o endereço vale sempre', async () => {
   const total = (await admin.get('/api/acompanhamento')).dados.pendencias.length;
   assert.ok(total > 0, 'o admin tem pendências (acessos para revisar)');
-  const a = await N.navegador.newContext({ viewport: { width: 1280, height: 800 } });
-  const pa = await N.entrar('admin@empresa-exemplo.com.br', await a.newPage());
+  const a = await contexto('admin@empresa-exemplo.com.br', { width: 1280, height: 800 });
+  const pa = await a.newPage();
   await pa.goto(`${N.base}/app#/nova`);
   await pa.waitForSelector('#lateral [data-item="pendencias"]');
   assert.deepEqual(await principais(pa), ['quick-wins', 'conhecimento', 'pendencias']);
@@ -159,8 +166,8 @@ test('Administração: uma entrada só (no menu da conta), só para quem tem per
   await abrirConta(p);
   assert.equal(await p.locator('#lateral').getByText('Administração', { exact: true }).count(), 0);
   await ctx.close();
-  const a = await N.navegador.newContext({ viewport: { width: 1280, height: 800 } });
-  const pa = await N.entrar('admin@empresa-exemplo.com.br', await a.newPage());
+  const a = await contexto('admin@empresa-exemplo.com.br', { width: 1280, height: 800 });
+  const pa = await a.newPage();
   await pa.goto(`${N.base}/app#/nova`);
   await pa.waitForSelector('#lateral #conta');
   assert.equal(await pa.locator('#lateral [data-contexto]').count(), 1, 'uma entrada só');
@@ -183,9 +190,9 @@ test('teclado: os itens são alcançáveis por Tab com foco visível', async () 
 });
 
 test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierarquia, Quick Wins acessível, alvos de toque e sem rolagem horizontal (J)', async () => {
-  const ctx = await N.navegador.newContext({ viewport: { width: 390, height: 740 } });
+  const ctx = await contexto('c100@empresa-exemplo.com.br', { width: 390, height: 740 });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  const p = await N.entrar('c100@empresa-exemplo.com.br', await ctx.newPage());
+  const p = await ctx.newPage();
   const erros = []; p.on('pageerror', e => erros.push(e.message));
   for (const largura of [320, 390, 768]) {
     await p.setViewportSize({ width: largura, height: 740 });
@@ -212,9 +219,9 @@ test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierar
 test('tela baixa (320x568), admin com 100 conversas: atalhos, conta (com a Administração) e "Ver todas" à vista sem rolar', async () => {
   const id = um(N.app.db, "select id from pessoas where email = 'admin@empresa-exemplo.com.br'").id;
   for (let k = 1; k <= 100; k++) exec(N.app.db, "insert into conversas (pessoa_id, titulo, criado_em, atualizado_em) values (?, ?, datetime('now'), datetime('now'))", id, `Admin ${k}`);
-  const ctx = await N.navegador.newContext({ viewport: { width: 320, height: 568 } });
+  const ctx = await contexto('admin@empresa-exemplo.com.br', { width: 320, height: 568 });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  const p = await N.entrar('admin@empresa-exemplo.com.br', await ctx.newPage());
+  const p = await ctx.newPage();
   for (const [largura, altura] of [[320, 568], [1280, 600]]) {
     await p.setViewportSize({ width: largura, height: altura });
     await p.goto(`${N.base}/app#/nova`);

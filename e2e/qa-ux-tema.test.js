@@ -109,7 +109,7 @@ test('console: Aparência no menu da conta (pé da lateral), com a mesma escolha
 
 test('tema escuro: telas principais sem contraste insuficiente e sem rolagem horizontal (desktop e celular)', async () => {
   const TELAS = [
-    [marina, '/app#/nova', '#conta'],
+    [marina, '/app#/nova', '#entrada'],
     [marina, `/app#/c/${conversa.id}`, '.bolha-ia'],
     [marina, '/app#/quick-wins', '.pagina .qw-marca'],
     [admin, '/app#/pessoas', 'text=Marina Tema'],

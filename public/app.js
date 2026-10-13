@@ -181,22 +181,21 @@ function alternarRecolhida() {
 // Histórico na lateral, agrupado por data (Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, mês/ano). Mostra de 50 em
 // 50: ao chegar no fim, desenha os próximos já carregados e, quando acabam, busca a próxima página no servidor.
 const PASSO_HISTORICO = 50;
-let limiteHistorico = PASSO_HISTORICO, buscandoHistorico = false, observadorHistorico = null, ultimoMais = 0;
-async function maisHistorico(porRolagem = false) {
-  // O clique e a rolagem até o fim podem pedir juntos: a rolagem não repete um pedido recém-feito.
-  if (porRolagem && Date.now() - ultimoMais < 400) return;
-  ultimoMais = Date.now();
+// Cada desenho da lateral é uma geração: o clique em "Mostrar mais" e a rolagem até o fim pedem a mesma próxima
+// leva uma vez só.
+let limiteHistorico = PASSO_HISTORICO, observadorHistorico = null, geracaoHistorico = 0, pedidoHistorico = -1;
+async function maisHistorico(geracao) {
+  if (geracao !== geracaoHistorico || pedidoHistorico === geracao) return;
+  pedidoHistorico = geracao;
   const lista = E.conversas || [];
   if (limiteHistorico < lista.length) { limiteHistorico += PASSO_HISTORICO; return desenharLateral(); }
-  if (buscandoHistorico || lista.length >= (E.totalConversas || 0) || lista.length % PASSO_HISTORICO) return;
-  buscandoHistorico = true;
+  if (lista.length >= (E.totalConversas || 0) || lista.length % PASSO_HISTORICO) return;
   try {
     const d = await api(`/api/conversas?todas=1&pagina=${lista.length / PASSO_HISTORICO}`, { independenteDaRota: true });
     const ids = new Set(lista.map(c => c.id));
     E.conversas = [...lista, ...d.conversas.filter(c => !ids.has(c.id))]; E.totalConversas = d.total;
     limiteHistorico += PASSO_HISTORICO;
   } catch (e) { toast(`Não foi possível carregar mais conversas. ${e.message}`); }
-  finally { buscandoHistorico = false; }
   desenharLateral();
 }
 function historicoHtml(lista, h) {
@@ -246,6 +245,7 @@ export function desenharLateral() {
   const itemFocado = menuAberto ? [...$('menu-conta').querySelectorAll('[role^="menuitem"]')].indexOf(document.activeElement) : -1;
   fecharMenuConta();
   observadorHistorico?.disconnect();
+  const geracao = ++geracaoHistorico;
   const rail = recolhida();
   const dica = nome => (rail ? ` title="${esc(nome)}"` : '');
   const item = i => {
@@ -293,10 +293,10 @@ export function desenharLateral() {
   ligarConta(ACOES_CONTA);
   if (menuAberto) abrirMenuConta(Math.max(0, itemFocado));
   if ($('hist-mais')) {
-    $('hist-mais').onclick = () => maisHistorico();
+    $('hist-mais').onclick = () => maisHistorico(geracao);
     // Rolagem infinita: ao rolar até o fim do histórico, carrega os próximos sem precisar clicar.
     if ('IntersectionObserver' in window && !rail) {
-      observadorHistorico = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && nav.scrollTop > 0) maisHistorico(true); }, { root: nav });
+      observadorHistorico = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && nav.scrollTop > 0) maisHistorico(geracao); }, { root: nav });
       observadorHistorico.observe($('hist-mais'));
     }
   }

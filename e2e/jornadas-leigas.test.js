@@ -29,7 +29,7 @@ test('erro de tela conserva a rota e tentar novamente abre o mesmo trabalho',asy
  const p=await N.entrar('admin@empresa-exemplo.com.br');const erros=[];p.on('pageerror',e=>erros.push(e.message));
  await p.route(`**/api/quick-wins/${q.id}`,r=>r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({mensagem:'Falha temporária'})}));
  await p.goto(N.base+`/app#/qw/${q.id}`);await p.getByRole('button',{name:'Tentar novamente',exact:true}).waitFor();
- assert.equal(new URL(p.url()).hash,`#/qw/${q.id}`);assert.equal(await p.locator('#principal a[href="#/nova"]').count(),0);
+ assert.equal(new URL(p.url()).hash,`#/qw/${q.id}`);assert.equal(await p.locator('#principal .pagina a[href="#/nova"]').count(),0,'a recuperação não manda para Nova conversa (o ícone de Nova conversa do topo é navegação)');
  await p.unroute(`**/api/quick-wins/${q.id}`);await p.getByRole('button',{name:'Tentar novamente',exact:true}).click();await p.getByRole('heading',{name:'Trabalho fictício para recuperação',exact:true}).waitFor();
  assert.match(await p.textContent('#principal'),/Trabalho fictício para recuperação/);assert.deepEqual(erros,[]);
  }finally{await N.fechar();}

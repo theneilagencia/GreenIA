@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
-import { abrirAjudaTela } from './casca.js';
+import { abrirAjudaTela, abrirConta } from './casca.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 const LARGURAS = [[1920, 1080], [1366, 860], [390, 844]];
@@ -119,8 +119,9 @@ const TELAS = [
   ['pendências', () => '#/pendencias', '#pend-lista'],
   ['conhecimento', () => '#/conhecimento', '[data-abrir-conhecimento]'],
   ['ajuda da tela', () => '#/conversas', '.hc-conversa', abrirAjudaTela],
-  ['menu da conta', () => '#/nova', '#entrada', async p => { await abrirAjudaTela(p); await p.keyboard.press('Escape'); await p.click('#conta'); await p.waitForSelector('#menu-conta:not([hidden])'); }],
   ['menu do celular', () => '#/nova', '#entrada', async p => { if (await p.locator('#menu').isVisible()) { await p.click('#menu'); await p.waitForSelector('#lateral.aberta'); await p.waitForTimeout(350); } }],
+  // Por último: deixa a gaveta (no celular) e o menu da conta abertos.
+  ['menu da conta', () => '#/conversas', '.hc-conversa', async p => { await abrirConta(p); }],
 ];
 
 for (const [width, height] of LARGURAS) {

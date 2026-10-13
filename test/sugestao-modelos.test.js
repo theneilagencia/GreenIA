@@ -96,8 +96,7 @@ test('dados sigilosos: dois modelos de fabricantes diferentes, com rota conferid
   }
   // Disponível para todos pesa: o Sonnet (Avançado, restrito) perde para o Haiku (Equilibrado, de todos).
   assert.ok(s.sigilo.sugeridos.some(x => x.id === ANTHROPIC));
-  assert.match(s.porque, /uso geral de um escritório/);
-  assert.match(s.porque, /Dados sigilosos estão ligados/);
+  assert.match(s.porque, /^Escolhidos para o uso geral de um escritório \(resumir, redigir textos, conferir documentos e tirar dados de planilhas e documentos\) e para a sua política de dados \(dados sigilosos ligados; dados pessoais sensíveis, dados financeiros e documentos confidenciais só com proteção\)\.$/);
   assert.match(s.sigilo.confirmacao, /passam a receber conversas sigilosas/);
 });
 

@@ -89,8 +89,9 @@ export function politicaDaEmpresa(cfg, { plano = null, quickWinsSigilosos = 0, a
   const partes = [ligado ? 'Dados sigilosos estão ligados' : 'Dados sigilosos estão desligados'];
   if (ligado && protegidos.length) partes.push(`${lista(protegidos)} só com proteção`);
   if (cfg.protecaoDadosPessoais !== false) partes.push('dados pessoais vão só para modelos que não treinam com eles');
+  const curta = [ligado ? 'dados sigilosos ligados' : 'dados sigilosos desligados', ...(ligado && protegidos.length ? [`${lista(protegidos)} só com proteção`] : [])].join('; ');
   return {
-    sigiloLigado: ligado, protegidos, protecaoDadosPessoais: cfg.protecaoDadosPessoais !== false, plataforma: requisitosDe(cfg).plataforma,
+    curta, sigiloLigado: ligado, protegidos, protecaoDadosPessoais: cfg.protecaoDadosPessoais !== false, plataforma: requisitosDe(cfg).plataforma,
     quickWinsSigilosos, areasSigilosas, reserva,
     frase: `${partes.join('; ')}.${reserva ? ' Os créditos do mês acabaram: até a renovação, só o nível Rápido responde.' : ''}`,
   };
@@ -251,7 +252,9 @@ export function calcularSugestao({ modelos, cfg, uso: dadosUso = {}, catalogo = 
   const politica = politicaDaEmpresa(cfg, { plano, quickWinsSigilosos, areasSigilosas });
   const sigilo = sugestaoSigilo({ modelos, cfg, uso, politica });
   const niveis = sugestaoNiveis({ modelos, cfg, uso, catalogo, politica });
-  const porque = `${uso.frase} ${politica.frase}`;
+  // Uma frase só para o cartão: o uso (o que a empresa faz) e a política (o que pode ser enviado).
+  const paraQuem = { historico: 'o uso da sua equipe', quick_wins: 'os Quick Wins da empresa', padrao: 'o uso geral de um escritório' }[uso.origem];
+  const porque = `Escolhidos para ${paraQuem} (${lista(uso.principais.map(t => USO[t]))}) e para a sua política de dados (${politica.curta}).`;
   return { uso, politica, modo: cfg.governanca?.modo === 'manual' ? 'manual' : 'recomendado', porque, sigilo, niveis };
 }
 

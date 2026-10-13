@@ -8,6 +8,10 @@ import { situacaoPlano } from './plano.js';
 import { homologadoPadrao, lerModelos } from './modelos.js';
 
 import { EM_CIRCULACAO } from './quickwins.js';
+import { sugestaoDaEmpresa } from './sugestao-modelos.js';
+
+// O fluxo de um clique da Sugestão da GreenIA (cartão no alto de Políticas de IA).
+export const LINK_SUGESTAO = '#/politicas?sugestao=1';
 
 export function visaoGeral(app) {
   const db = app.db, agora = app.agora(), mes = agora.toISOString().slice(0, 7);
@@ -70,12 +74,20 @@ export function visaoGeral(app) {
   const modelos = lerModelos(db).filter(m => m.liberado);
   for (const m of modelos.filter(m => m.aviso && !m.aviso.startsWith('Preço'))) atencao.push({ tipo: 'modelo', texto: `${m.nome}: ${m.aviso}`, link: '#/modelos' });
   const homologados = modelos.filter(m => m.homologado);
+  // Sugestão da GreenIA (uso + política): quando ela resolve o que falta, o item leva ao mesmo fluxo de um clique
+  // em Políticas de IA (não ao catálogo técnico); quando não resolve, diz o que fazer.
+  let sug = null;
+  try { sug = sugestaoDaEmpresa(app).sigilo; } catch (e) { app.log?.('sugestão de modelos', e.message); }
+  const sugerir = ['aplicar', 'parcial'].includes(sug?.situacao);
+  const comSugestao = item => (sugerir ? { ...item, acao: 'A GreenIA já separou os modelos para o uso da empresa: aprove com um clique.', link: LINK_SUGESTAO, botao: 'Aprovar os modelos sugeridos', sugestao: true }
+    : sug?.oQueFazer ? { ...item, acao: sug.oQueFazer } : item);
+  const fabricantes = new Set(homologados.map(m => m.id.split('/')[0]));
   // A causa exata: sem nenhum homologado, ou com homologado que não está liberado para todas as pessoas
   // (por exemplo, só no nível Avançado restrito ou só pelos Quick Wins). A regra é a mesma; muda só o texto.
-  if (!homologadoPadrao(db, cfg)) atencao.push(homologados.length
+  if (!homologadoPadrao(db, cfg)) atencao.push(comSugestao(homologados.length
     ? { tipo: 'modelo', texto: `Há ${homologados.length === 1 ? '1 modelo homologado' : `${homologados.length} modelos homologados`} (${homologados.length === 1 ? 'aprovado' : 'aprovados'} para dados sigilosos), mas ${homologados.length === 1 ? 'ele não está liberado' : 'nenhum está liberado'} para todas as pessoas: conversas sigilosas não podem ser enviadas`, acao: 'Em Modelos, libere o nível desse modelo para todas as pessoas ou aprove outro modelo de um nível liberado para todos.', link: '#/modelos' }
-    : { tipo: 'modelo', texto: 'Nenhum modelo homologado (aprovado para dados sigilosos): conversas sigilosas não podem ser enviadas', acao: 'Em Modelos, aprove um modelo para dados sigilosos.', link: '#/modelos' });
-  else if (homologados.length < 2) atencao.push({ tipo: 'modelo', texto: 'Só um modelo homologado. O recomendado são dois, de fabricantes diferentes', link: '#/politicas' });
+    : { tipo: 'modelo', texto: 'Nenhum modelo homologado (aprovado para dados sigilosos): conversas sigilosas não podem ser enviadas', acao: 'Em Modelos, aprove um modelo para dados sigilosos.', link: '#/modelos' }));
+  else if (fabricantes.size < 2) atencao.push(comSugestao({ tipo: 'modelo', texto: homologados.length < 2 ? 'Só um modelo homologado. O recomendado são dois, de fabricantes diferentes' : 'Os modelos homologados são de um só fabricante. O recomendado são dois, de fabricantes diferentes', link: '#/politicas' }));
   if (app.ia.configurada === false) atencao.push({ tipo: 'ia', texto: 'A IA está desligada: falta a chave de acesso aos modelos no servidor', link: '#/configuracoes' });
   // Alertas de governança dos últimos 7 dias: o que aconteceu e o que resolve, em linguagem simples.
   const seteDias = new Date(app.agora().getTime() - 7 * 864e5).toISOString();

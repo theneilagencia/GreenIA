@@ -93,7 +93,8 @@ const opcaoModelos = (lista, sel, vazio = '') => `${vazio ? `<option value="">${
 // Modelos, aba principal: o que a empresa decide. Modo (recomendado ou manual), os níveis e quem usa cada um.
 // O catálogo técnico (cada modelo, aprovação para dados sigilosos, capacidades, adicionar) é a aba Catálogo técnico.
 async function abaModelos() {
-  const [m, { grupos }, { areas }, gov, sig] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca'), api('/api/admin/sigilo')]);
+  const [m, { grupos }, { areas }, gov, sig, sug] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca'), api('/api/admin/sigilo'),
+    api('/api/admin/modelos/sugestao').catch(() => null)]);
   const cfg = m.config;
   const liberados = m.modelos.filter(x => x.liberado);
   const homologados = liberados.filter(x => x.homologado);
@@ -112,12 +113,22 @@ async function abaModelos() {
         <span class="escolha-desc">Você ajusta níveis, acesso e modelos.</span></label>
     </div></div>`;
   // No máximo um aviso, e só quando pede ação: sigilo ligado sem nenhum recurso autorizado.
-  const aviso = sig.ativo && !padrao ? `<div class="faixa-aviso erro"><b>Conversas sigilosas bloqueadas: falta um recurso aprovado para dados sigilosos.</b> ${recomendado
-    ? 'Solicite ao administrador da plataforma uma rota autorizada, com fornecedor definido, sem uso para treino e com retenção zero.'
-    : 'Aprove um modelo em <a href="#/modelos/catalogo">Catálogo técnico</a> ou peça ao administrador da plataforma uma rota autorizada.'}</div>` : '';
+  // Com a Sugestão da GreenIA resolvendo, o aviso leva ao fluxo de um clique (Políticas de IA), não ao catálogo técnico.
+  const sugerir = ['aplicar', 'parcial'].includes(sug?.sigilo.situacao);
+  const aviso = sig.ativo && !padrao ? `<div class="faixa-aviso erro"><b>Conversas sigilosas bloqueadas: falta um recurso aprovado para dados sigilosos.</b> ${sugerir
+    ? 'A GreenIA já separou os modelos para o uso da empresa. <a href="#/politicas?sugestao=1">Aprovar os modelos sugeridos</a>'
+    : recomendado ? 'Solicite ao administrador da plataforma uma rota autorizada, com fornecedor definido, sem uso para treino e com retenção zero.'
+      : 'Aprove um modelo em <a href="#/modelos/catalogo">Catálogo técnico</a> ou peça ao administrador da plataforma uma rota autorizada.'}</div>` : '';
+  // Sugestão para os níveis: em palavras simples, nível por nível; um botão só quando há o que mudar.
+  const niveisSug = sug?.niveis;
+  const blocoSugestao = niveisSug ? `<section class="editor adm-sug-niveis" id="sugestao-niveis" aria-labelledby="sug-niveis-titulo">
+    <div class="adm-sug-niveis-topo"><h2 id="sug-niveis-titulo" class="editor-titulo">Sugestão para a sua empresa</h2>
+      ${niveisSug.segue ? `<span class="selo selo-verde">${ICONE.escudo} Sua configuração já segue a sugestão</span>` : `<button type="button" class="btn ${recomendado ? 'btn-verde' : 'btn-linha'} btn-pequeno" id="sug-niveis-usar">Usar a sugestão</button>`}</div>
+    <p class="dica">${esc(sug.uso.frase)}</p>
+    <ul class="adm-sug-niveis-lista">${niveisSug.itens.map(i => `<li data-nivel="${i.nivel}"><b>${esc(i.nome)}</b><span>${esc(i.texto)}</span>${i.segue ? '' : '<span class="tag tag-ambar">Muda</span>'}</li>`).join('')}</ul></section>` : '';
   $('conteudo').innerHTML = `${topoTela('Os níveis de IA que a empresa usa e quem usa cada um.')}
     <form id="cfg-modelos">
-    ${cartaoGov}${aviso}
+    ${cartaoGov}${aviso}${blocoSugestao}
     <h2>Níveis</h2>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Nível</th><th>Modelos do nível</th><th>Alternativa se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {}; const pool = liberados.filter(y => y.perfil === k && y.noCatalogo);
@@ -148,6 +159,13 @@ async function abaModelos() {
     <div class="linha-botoes" id="modelos-salvar" ${recomendado ? 'hidden' : ''}><button class="btn btn-verde">Salvar configuração de modelos</button></div>
     </form>`;
 
+  $('sug-niveis-usar')?.addEventListener('click', async ev => {
+    const botao = ev.currentTarget;
+    if (!await confirmar({ titulo: 'Usar a sugestão para os níveis?', texto: niveisSug.confirmacao, botao: 'Usar a sugestão' })) return;
+    await ocupado(botao, async () => {
+      try { await api('/api/admin/modelos/sugestao/aplicar', { metodo: 'POST', corpo: { parte: 'niveis' } }); toast('Pronto: os níveis seguem a sugestão.'); await abaModelos(); } catch (e) { falhar(e); }
+    });
+  });
   $('conteudo').onchange = ev => {
     const t = ev.target;
     if (t.id === 'sem-treino' && !t.checked) confirmar({ titulo: 'Permitir fornecedores que treinam com os dados?', texto: 'Desligada, esta opção permite, nas conversas normais, fornecedores que guardam ou treinam com os dados. A mudança vale ao salvar e fica no registro de eventos.', botao: 'Desligar a exigência', perigo: true }).then(ok => { if (!ok) t.checked = true; });
@@ -657,18 +675,74 @@ async function abaConhecimento() {
   await tela.vistaConhecimento();
 }
 
+// ---------------------------------------------------------------- Sugestão da GreenIA (modelos)
+// Para quem não conhece modelos: a GreenIA olha o uso da empresa e a política de dados e sugere dois modelos, de
+// fabricantes diferentes, para dados sigilosos. Um botão aprova; os fatos técnicos ficam em "Ver detalhes"; o
+// caminho técnico (Catálogo técnico) continua em "Escolher outro modelo".
+const CUSTO = { 'econômico': 'Custo econômico', 'médio': 'Custo médio', alto: 'Custo alto' };
+function cartaoSugestao(sug) {
+  const g = sug.sigilo, pendentes = g.sugeridos.filter(x => x.acao === 'aprovar');
+  return `<section class="adm-sugestao" id="sugestao-modelos" aria-labelledby="sug-titulo">
+    <span class="adm-sugestao-rotulo">Sugestão da GreenIA</span>
+    <h2 id="sug-titulo">${esc(g.titulo)}</h2>
+    <p class="adm-sugestao-porque">${esc(sug.porque)}</p>
+    ${g.sugeridos.length ? `<div class="grade-cartoes adm-sugestao-modelos">${g.sugeridos.map(x => `<article class="cartao sem-seta adm-sug-modelo" data-modelo="${esc(x.id)}">
+      <h3 class="cartao-titulo">${esc(x.nome)}</h3>
+      <p class="cartao-texto">${esc(x.fabricante)}${x.nivel ? ` · nível ${esc(x.nivel)}` : ''}</p>
+      <ul class="adm-sug-motivos">${x.motivos.map(t => `<li>${esc(t)}</li>`).join('')}<li class="adm-sug-garantia">${ICONE.escudo}<span>${esc(x.garantia)}</span></li></ul>
+      <p class="cartao-meta"><span class="tag">${esc(CUSTO[x.custo] || x.custo)}</span>${x.jaAprovado ? '<span class="tag tag-verde">Já aprovado</span>' : ''}</p></article>`).join('')}</div>` : ''}
+    ${g.oQueFazer ? `<p class="adm-sugestao-fazer">${esc(g.oQueFazer)}</p>` : ''}
+    <div class="adm-sugestao-acoes">${pendentes.length ? '<button type="button" class="btn btn-verde" id="sug-aprovar">Aprovar a sugestão</button>' : ''}
+      ${g.sugeridos.length ? '<button type="button" class="btn btn-texto" id="sug-detalhes">Ver detalhes</button>' : ''}
+      <a class="btn btn-texto" href="#/modelos/catalogo">Escolher outro modelo</a></div></section>`;
+}
+const MOTIVO_FORA = { proibido_pela_plataforma: 'proibido pela plataforma para dados sigilosos', sem_rota_conferida: 'sem rota com garantias conferidas', acima_do_teto_do_nivel: 'consumo acima do que o nível permite',
+  fora_do_catalogo: 'fora do catálogo do serviço de IA' };
+function detalhesSugestao(sug) {
+  const g = sug.sigilo;
+  const sim = v => (v ? 'comprovada' : 'não comprovada');
+  painelLateral({ migalha: 'Sugestão da GreenIA', titulo: 'Detalhes da sugestão', corpo: `
+    <section class="px-secao"><h3>Como a sugestão foi feita</h3><p>${esc(sug.uso.frase)}</p><p>${esc(sug.politica.frase)}</p><p class="dica">${esc(g.modoTexto)}</p></section>
+    ${g.sugeridos.map(x => `<section class="px-secao"><h3>${esc(x.nome)}</h3><dl class="adm-modelo-dados">
+      <div><dt>Fabricante</dt><dd>${esc(x.fabricante)}</dd></div><div><dt>Nível</dt><dd>${esc(x.nivel || '—')}</dd></div>
+      <div><dt>Fornecedor fixado</dt><dd>${esc(x.detalhes.fornecedor || '—')}</dd></div><div><dt>Rota (endpoint)</dt><dd>${esc(x.detalhes.endpoint || '—')}</dd></div>
+      <div><dt>Retenção zero</dt><dd>${sim(x.detalhes.retencaoZero)}</dd></div><div><dt>Sem uso para treino</dt><dd>${sim(x.detalhes.semTreino)}</dd></div>
+      <div><dt>Garantias</dt><dd>${esc(x.detalhes.origem)}${x.detalhes.conferidaEm ? `, em ${dataHora(x.detalhes.conferidaEm)}` : ''}</dd></div></dl>
+      <p class="dica">${esc(x.oQueAcontece)}${x.detalhes.registro ? ` ${esc(x.detalhes.registro)}` : ''}</p></section>`).join('')}
+    ${g.descartados.length ? `<section class="px-secao"><h3>Ficaram de fora</h3><ul>${g.descartados.map(d => `<li>${esc(d.nome || d.id)}: ${esc(MOTIVO_FORA[d.motivo] || 'não atende às proteções obrigatórias')}</li>`).join('')}</ul></section>` : ''}
+    <section class="px-secao"><h3>Prefere escolher?</h3><p class="dica">No Catálogo técnico, cada modelo pode ser aprovado à mão, informando o fornecedor e conferindo as garantias.</p>
+      <a class="btn btn-linha btn-pequeno" href="#/modelos/catalogo">Escolher outro modelo</a></section>` });
+}
+function ligarSugestao(sug, depois) {
+  if (!sug) return;
+  $('sug-detalhes')?.addEventListener('click', () => detalhesSugestao(sug));
+  $('sug-aprovar')?.addEventListener('click', async ev => {
+    const botao = ev.currentTarget, n = sug.sigilo.pendentes.length;
+    if (!await confirmar({ titulo: n === 1 ? 'Aprovar o modelo sugerido?' : `Aprovar os ${n} modelos sugeridos?`, texto: sug.sigilo.confirmacao, botao: 'Aprovar a sugestão' })) return;
+    await ocupado(botao, async () => {
+      try {
+        const r = await api('/api/admin/modelos/sugestao/aplicar', { metodo: 'POST', corpo: { parte: 'sigilo' } });
+        toast('Modelos aprovados para dados sigilosos. A política ganhou nova versão.');
+        await depois(r.sugestao.sigilo.aprovados.length);
+      } catch (e) { falhar(e); }
+    });
+  });
+}
+
 // ---------------------------------------------------------------- Políticas de IA
 // Uma página responde: o que pode ser enviado, por quem, para qual modelo e em qual contexto. Primeiro as decisões
 // principais (sigilo e regra de cada tipo de dado); o que é raro fica em "Mais opções" e o resumo do que está em
 // vigor, em "Ver as regras em vigor".
-async function abaPoliticas() {
-  const [c, m, { areas }, { grupos }, sig] = await Promise.all([api('/api/admin/config'), api('/api/admin/modelos'), api('/api/admin/areas'), api('/api/admin/grupos'), api('/api/admin/sigilo')]);
+async function abaPoliticas({ sucesso = '' } = {}) {
+  const [c, m, { areas }, { grupos }, sig, sug] = await Promise.all([api('/api/admin/config'), api('/api/admin/modelos'), api('/api/admin/areas'), api('/api/admin/grupos'), api('/api/admin/sigilo'),
+    api('/api/admin/modelos/sugestao').catch(() => null)]);
   const homologados = m.modelos.filter(x => x.liberado && x.homologado);
-  const fabricantes = new Set(homologados.map(x => x.id.split('/')[0]));
   const nomes = (ids, lista) => ids.map(id => lista.find(x => x.id === id)?.nome).filter(Boolean).join(', ');
   const quem = p => { const a = m.config.acessoPerfis[p] || {}; return a.todos ? 'Todas as pessoas' : [nomes(a.grupos || [], grupos), nomes(a.areas || [], areas)].filter(Boolean).join(' · ') || 'Ninguém no dia a dia (só pelo Quick Win)'; };
-  // Um aviso só, e só quando pede ação: sigilo ligado com menos de dois modelos aprovados de fabricantes diferentes.
-  const aviso = sig.ativo && (homologados.length < 2 || fabricantes.size < 2) ? `<div class="faixa-aviso atencao"><p>${homologados.length ? `Há ${homologados.length === 1 ? 'um modelo aprovado' : 'modelos aprovados de um só fabricante'} para dados sigilosos.` : 'Nenhum modelo aprovado para dados sigilosos: conversas sigilosas não podem ser enviadas.'} O recomendado são dois, de fabricantes diferentes.</p><a class="btn btn-linha btn-pequeno" href="#/modelos/catalogo">Aprovar um modelo</a></div>` : '';
+  // No lugar do antigo aviso (sigilo ligado e menos de dois modelos aprovados de fabricantes diferentes): a Sugestão
+  // da GreenIA, calma, com um botão só. Depois de aprovar, só a confirmação de que ficou pronto.
+  const aviso = sucesso ? `<p class="adm-sugestao-pronto" role="status" id="sugestao-modelos">${ICONE.escudo}<span>${esc(sucesso)}</span></p>`
+    : sig.ativo && sug && sug.sigilo.situacao !== 'pronto' ? cartaoSugestao(sug) : '';
   $('conteudo').innerHTML = `${topoTela('O que pode ser enviado para a IA, em qual contexto. Vale para mensagens e anexos.')}
     ${aviso}
     <div class="secao-titulo"><h2>Informações sigilosas</h2></div>
@@ -724,12 +798,17 @@ async function abaPoliticas() {
       <tr><td data-r="Regra">Histórico das conversas</td><td data-r="Situação">Guardado nesta instalação e apagado depois de ${c.retencaoDias} dias sem uso</td></tr>
       <tr><td data-r="Regra">Anexos</td><td data-r="Situação">Só o texto extraído fica guardado, junto com a conversa</td></tr>
     </tbody></table></div></div>`;
+  ligarSugestao(sug, async n => { await abaPoliticas({ sucesso: `Pronto: ${n} ${n === 1 ? 'modelo aprovado' : 'modelos aprovados'} para dados sigilosos.` }); });
+  if (new URLSearchParams(location.hash.split('?')[1] || '').get('sugestao') === '1') { $('sugestao-modelos')?.scrollIntoView({ block: 'start' }); $('sug-aprovar')?.focus({ preventScroll: true }); }
   $('sigilo-ativo').onclick = async () => {
     const ativo = !sig.ativo;
     if (ativo && !await confirmar({ titulo: 'Ligar o processamento de informações sigilosas?', texto: 'Informações sigilosas passam a ser processadas, só por recursos autorizados que atendem às proteções obrigatórias de dados.', botao: 'Ligar com proteções' })) return;
     try { await api('/api/admin/sigilo', { metodo: 'PUT', corpo: { ativo } }); toast(ativo ? 'Processamento protegido ligado.' : 'Processamento de informações sigilosas desligado.'); abaPoliticas(); } catch (e) { falhar(e); }
   };
   const vig = vigiarAlteracoes($('form-dados'), { barra: $('form-dados').querySelector('.linha-botoes') });
+  // Uma ação principal por tela: com a sugestão na frente, Salvar só vira a ação principal quando há alteração.
+  const salvar = $('form-dados').querySelector('.linha-botoes .btn');
+  if ($('sug-aprovar')) { salvar.classList.replace('btn-verde', 'btn-linha'); $('form-dados').addEventListener('input', () => salvar.classList.replace('btn-linha', 'btn-verde'), { once: true }); $('form-dados').addEventListener('change', () => salvar.classList.replace('btn-linha', 'btn-verde'), { once: true }); }
   // O efeito acompanha a regra escolhida na hora, antes de salvar.
   $('form-dados').addEventListener('change', ev => { const r = ev.target.closest('select[name^="d-"]'); if (r) $('form-dados').querySelector(`[data-efeito="${r.name.slice(2)}"]`).textContent = EFEITO[r.value]; });
   $('form-dados').onsubmit = async ev => {

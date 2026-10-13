@@ -9,6 +9,8 @@ import { pedidosConexao } from './qw-preparacao.js';
 import { integracoesLigadas } from './integracoes/rotas.js';
 import { resolverNecessidades } from './integracoes/plano.js';
 import { registrar } from './eventos.js';
+import { sugestaoDaEmpresa } from './sugestao-modelos.js';
+import { LINK_SUGESTAO } from './visao.js';
 export const permitido=(app,p,perm)=>app.tenant?(p.permissoes||[]).includes(perm):!!p.admin;
 const dias=s=>s?(Date.now()-Date.parse(s))/864e5:Infinity;
 function vinculos(db,id) {return {areas:todos(db,'select a.nome,ap.area_id,ap.admin_base,ap.responsavel from area_pessoas ap join areas a on a.id = ap.area_id where ap.pessoa_id = ? order by ap.area_id',id),grupos:todos(db,'select g.id,g.nome from grupo_pessoas gp join grupos g on g.id = gp.grupo_id where gp.pessoa_id = ? order by g.id',id)};}
@@ -17,7 +19,7 @@ export function rotasAcompanhamento(app,r) {
  const exigir=(p,perm)=>{if(!permitido(app,p,perm)) throw erro(403,'sem_permissao','Você não tem permissão para esta consulta.');};
  r.get('/api/acompanhamento',({pessoa})=>{
   const passos=[],pendencias=[],avisos=[];
-  const passo=(id,titulo,pronto,descricao,href)=>passos.push({id,titulo,pronto:!!pronto,descricao,href,opcional:id==='integracoes'});
+  const passo=(id,titulo,pronto,descricao,href,extra={})=>passos.push({id,titulo,pronto:!!pronto,descricao,href,opcional:id==='integracoes',...extra});
   if(permitido(app,pessoa,'user.read')) {
    const n=um(app.db,'select count(*) as n from pessoas where ativo = 1').n;
    passo('pessoas','Prepare as pessoas e áreas',n>1,`${n} pessoas ativas no ambiente. Confira os vínculos e acessos.`,'#/pessoas');
@@ -25,7 +27,12 @@ export function rotasAcompanhamento(app,r) {
    const faltam=rs.filter(p=>dias(p.em)>90||p.assinatura!==assinatura(p,vinculos(app.db,p.id),!!app.tenant)).length;
    if(faltam) pendencias.push({tipo:'acessos',titulo:`${faltam} acessos locais para revisar`,texto:'Confira áreas, grupos e administração das bases. Em Pessoas, abra cada pessoa para ver tudo dela e registrar a revisão.',href:'#/pessoas?revisao=pendente'});
   }
-  if(permitido(app,pessoa,'models.manage')) passo('recursos','Confira os recursos de IA',um(app.db,'select count(*) as n from modelos where liberado = 1').n>0,'Verifique os níveis disponíveis e os recursos autorizados para sigilo.','#/modelos');
+  if(permitido(app,pessoa,'models.manage')) {
+   // Dados sigilosos ligados e a Sugestão da GreenIA resolve o que falta: o passo leva ao fluxo de um clique.
+   const sug=sugestaoDaEmpresa(app).sigilo;
+   if(sug.necessario&&['aplicar','parcial'].includes(sug.situacao)) passo('recursos','Aprovar os modelos sugeridos',false,'Dados sigilosos estão ligados. A GreenIA separou modelos para o uso da empresa; aprove com um clique.',permitido(app,pessoa,'policy.manage')?LINK_SUGESTAO:'#/modelos',{botao:'Aprovar os modelos sugeridos'});
+   else passo('recursos','Confira os recursos de IA',um(app.db,'select count(*) as n from modelos where liberado = 1').n>0,'Verifique os níveis disponíveis e os recursos autorizados para sigilo.','#/modelos');
+  }
   if(permitido(app,pessoa,'policy.manage')) {
    const pol=um(app.db,'select max(versao) as v from politica_versoes');
    passo('politica','Confira a política de uso',!!pol?.v,'Texto disponível não significa que a equipe já registrou ciência.','#/politicas/texto');

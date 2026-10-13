@@ -40,8 +40,8 @@ export async function vistaGeral() {
 
   // 1. O que fazer agora: o primeiro passo que falta da preparação; sem passo pendente, a primeira coisa que pede atenção.
   const proximo = faltam[0];
-  const topoCartao = proximo ? cartaoProximo({ rotulo: `Próximo passo · ${passos.indexOf(proximo) + 1} de ${passos.length}`, titulo: proximo.titulo, texto: proximo.descricao, href: proximo.href, botao: 'Fazer agora' })
-    : atuais[0] ? cartaoProximo({ rotulo: 'Pede atenção agora', titulo: atuais[0].texto, texto: atuais[0].acao || '', href: atuais[0].link, botao: 'Resolver' })
+  const topoCartao = proximo ? cartaoProximo({ rotulo: `Próximo passo · ${passos.indexOf(proximo) + 1} de ${passos.length}`, titulo: proximo.titulo, texto: proximo.descricao, href: proximo.href, botao: proximo.botao || 'Fazer agora' })
+    : atuais[0] ? cartaoProximo({ rotulo: 'Pede atenção agora', titulo: atuais[0].texto, texto: atuais[0].acao || '', href: atuais[0].link, botao: atuais[0].botao || 'Resolver' })
       : '<p class="adm-tudo-certo">Tudo em ordem. Nada pede ação agora.</p>';
   const outrasAtencoes = proximo ? atuais : atuais.slice(1);
   const abrirPassos = new URLSearchParams(location.hash.split('?')[1] || '').get('passos') === '1';

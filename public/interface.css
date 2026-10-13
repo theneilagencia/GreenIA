@@ -1309,3 +1309,33 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .lateral-plataforma .lat-topo .icone-btn{color:#A9A396}
 .lateral-plataforma .lat-topo .icone-btn:hover{background:rgba(255,255,255,.07);color:#fff}
 .lateral-plataforma .item-lat{border-radius:8px}
+
+/* Sugestão da GreenIA para os modelos (Políticas de IA e Modelos): cartão calmo, um botão só, sem cara de alerta. */
+.adm-sugestao{margin:0 0 28px;padding:20px 22px;border:1px solid color-mix(in srgb,var(--forest-text) 30%,var(--line));border-radius:var(--raio-painel,14px);background:color-mix(in srgb,var(--mint) 40%,var(--paper))}
+.adm-sugestao-rotulo{display:block;margin-bottom:4px;font:600 12px/1.4 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--forest-text)}
+.app .pagina .adm-sugestao h2{margin:0;font:600 18px/1.35 var(--sans);text-wrap:balance}
+.adm-sugestao-porque{margin:6px 0 14px;max-width:72ch;color:var(--muted)}
+.adm-sugestao-modelos{--cartao-min:240px;margin-bottom:14px}
+.adm-sug-modelo .cartao-meta{margin-top:auto}
+.adm-sug-motivos{margin:2px 0 0;padding:0;list-style:none;display:grid;gap:4px;font:400 14px/1.45 var(--sans);color:var(--ink)}
+.adm-sug-motivos li{position:relative;padding-left:16px}
+.adm-sug-motivos li::before{content:'';position:absolute;left:3px;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--forest-text)}
+.adm-sug-motivos .adm-sug-garantia{display:flex;gap:6px;align-items:flex-start;padding-left:0;color:var(--forest-text);font-weight:500}
+.adm-sug-motivos .adm-sug-garantia::before{content:none}
+.adm-sug-garantia svg{flex:none;width:16px;height:16px;margin-top:2px}
+.adm-sugestao-fazer{margin:0 0 14px;max-width:72ch;font-weight:500}
+.adm-sugestao-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.app .pagina .adm-sugestao-acoes .btn{min-height:44px}
+.adm-sugestao-pronto{display:flex;align-items:center;gap:8px;margin:0 0 24px;padding:12px 16px;border-radius:var(--raio-painel,14px);background:var(--mint);color:var(--forest-text);font:500 15px/1.45 var(--sans)}
+.adm-sugestao-pronto svg{flex:none;width:20px;height:20px}
+.adm-sug-niveis-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+.adm-sug-niveis-topo .selo svg{width:14px;height:14px}
+.adm-sug-niveis .dica{margin:6px 0 10px}
+.adm-sug-niveis-lista{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.adm-sug-niveis-lista li{display:grid;grid-template-columns:110px 1fr auto;gap:4px 12px;align-items:baseline}
+@media (max-width:760px){
+  .adm-sugestao{padding:16px}
+  .adm-sugestao-acoes>.btn-verde{width:100%;justify-content:center}
+  .adm-sug-niveis-lista li{grid-template-columns:1fr auto}
+  .adm-sug-niveis-lista li>span:not(.tag){grid-column:1/-1}
+}

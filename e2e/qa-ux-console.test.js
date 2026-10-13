@@ -82,12 +82,16 @@ test('M2/M3/M45: remover pessoa e bloquear conta pedem confirmação no modal, c
   await p.goto(`${S.base}/plataforma#/empresas/${emp.id}/usuarios`);
   await p.locator('th', { hasText: 'Acesso nesta empresa' }).waitFor();
   assert.equal(await p.locator('th', { hasText: /^Perfil$/ }).count(), 1);
-  assert.deepEqual(await p.locator('select[data-st] option').first().evaluateAll(os => os.map(o => o.textContent)), ['Convidado']);
-  const remover = p.locator('tr', { hasText: 'Marina' }).getByRole('button', { name: 'Remover' });
+  // Uma ação por linha: "Alterar" abre perfil, acesso (com os nomes do glossário) e a remoção, de perigo.
+  await p.locator('tr', { hasText: 'Marina' }).getByRole('button', { name: 'Alterar o acesso de Marina' }).click();
+  const editar = p.getByRole('dialog');
+  await editar.locator('select[data-st]').waitFor();
+  assert.deepEqual(await editar.locator('select[data-st] option').evaluateAll(os => os.map(o => o.textContent)), ['Convidado', 'Ativo', 'Inativo']);
+  const remover = editar.getByRole('button', { name: 'Remover da empresa…' });
   assert.match(await remover.getAttribute('class'), /link-perigo/);
   await remover.click();
   const dialogo = p.getByRole('dialog');
-  await dialogo.waitFor();
+  await dialogo.getByText('Remover Marina da Console UX?').waitFor();
   assert.match(await dialogo.innerText(), /Remover Marina da Console UX\?/);
   assert.match(await dialogo.getByRole('button', { name: 'Remover Marina' }).getAttribute('class'), /btn-perigo/);
   await p.keyboard.press('Escape');
@@ -109,13 +113,17 @@ test('M2/M3/M45: remover pessoa e bloquear conta pedem confirmação no modal, c
 test('M46: alterar plano mostra de → para (créditos e preço) e só aplica depois da confirmação', async () => {
   const p = await pagina();
   await p.goto(`${S.base}/plataforma#/empresas/${emp.id}/resumo`);
+  // Troca de plano é ação rara: fica em "Mais ações" do Resumo.
+  await p.getByRole('button', { name: 'Mais ações' }).click();
+  await p.getByRole('menuitem', { name: 'Alterar plano…' }).click();
   await p.locator('#s-plano').waitFor();
   const antes = um(S.P.db, 'select plan_id from companies where id = ?', emp.id).plan_id;
   const business = planos.find(x => x.name === 'GreenIA Business');
   await p.selectOption('#s-plano', business.id);
   assert.match(await p.locator('#s-plano-info').innerText(), /10\.000 créditos \+ 2\.000 de reserva por mês · US\$ 749,00 por mês/);
-  await p.getByRole('button', { name: 'Alterar plano…' }).click();
+  await p.getByRole('dialog').getByRole('button', { name: 'Continuar' }).click();
   const dialogo = p.getByRole('dialog');
+  await dialogo.getByRole('button', { name: 'Trocar para GreenIA Business' }).waitFor();
   assert.match(await dialogo.innerText(), /De GreenIA Starter \(2\.000 créditos.*US\$ 199,00 por mês\) para GreenIA Business \(10\.000 créditos/);
   assert.equal(um(S.P.db, 'select plan_id from companies where id = ?', emp.id).plan_id, antes, 'nada muda antes de confirmar');
   await dialogo.getByRole('button', { name: 'Trocar para GreenIA Business' }).click();
@@ -172,8 +180,10 @@ test('M44/M50/B2: termos do glossário, bloqueios da marca só na aba Marca, h2 
 
 test('B19: campos do console com rótulo visível; exemplos ficam no texto de ajuda', async () => {
   const p = await pagina();
-  for (const [rota, ids] of [['configuracoes', ['cf-smtp', 'cf-rem', 'cf-sub']], ['usuarios', ['a-email']], [`empresas/${emp.id}/usuarios`, ['u-email', 'u-nome', 'u-role']]]) {
+  // Adicionar administrador e adicionar pessoa abrem o formulário em modal, pela ação principal do cabeçalho.
+  for (const [rota, ids, abrir] of [['configuracoes', ['cf-smtp', 'cf-rem', 'cf-sub']], ['usuarios', ['a-email'], 'Adicionar administrador'], [`empresas/${emp.id}/usuarios`, ['u-email', 'u-nome', 'u-role'], 'Adicionar pessoa']]) {
     await p.goto(`${S.base}/plataforma#/${rota}`);
+    if (abrir) await p.getByRole('button', { name: abrir, exact: true }).click();
     await p.locator(`#${ids[0]}`).waitFor();
     for (const id of ids) {
       const c = await p.locator(`#${id}`).evaluate(e => ({ rotulo: [...e.labels].map(l => l.offsetHeight).some(Boolean), placeholder: e.getAttribute('placeholder') || '' }));

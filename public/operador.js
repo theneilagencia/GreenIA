@@ -24,12 +24,12 @@ async function carregar() {
   const alertas = ok.reduce((t, i) => t + i.resumo.alertas.length, 0) + dados.instancias.filter(i => !i.ok).length;
 
   $('conteudo').innerHTML = `<h2>Clientes</h2>
-    <p class="lead">Cada cliente é uma instalação separada. Os números são do mês corrente, em dólar, pelo custo informado pelo OpenRouter mais a taxa do intermediário. A margem é total: desconta também impostos, pagamento/câmbio e suporte/operação.</p>
+    <p class="lead">Cada cliente é uma instalação separada; números do mês corrente, em dólar.</p>
     ${dados.instancias.length ? '' : '<div class="faixa-aviso atencao">Nenhuma instalação configurada. Defina INSTANCIAS no servidor (Nome|URL|token, separadas por ponto e vírgula) e OPERADOR_TOKEN em cada instalação de cliente.</div>'}
     <div class="indicadores">
       <div class="indicador"><span>Clientes</span><b>${num(dados.instancias.length)}</b><small>${num(ok.length)} respondendo</small></div>
       <div class="indicador"><span>Receita do mês</span><b>${usd(receita)}</b><small>planos e Capacity Packs</small></div>
-      <div class="indicador"><span>Custo do mês</span><b>${usd(custo)}</b><small>impostos, pagamento, suporte, IA e servidor</small></div>
+      <div class="indicador"><span>Custo do mês</span><b>${usd(custo)}</b><small>IA (OpenRouter + taxa), impostos, pagamento, suporte e servidor</small></div>
       <div class="indicador"><span>Margem total</span><b>${usd(margem)}</b><small>${receita ? `${Math.round(margem / receita * 100)}%` : ''}</small></div>
       <div class="indicador"><span>Alertas</span><b>${num(alertas)}</b></div>
     </div>

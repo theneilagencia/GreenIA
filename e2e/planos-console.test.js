@@ -41,7 +41,7 @@ test('planos: margem total no pior caso com status, preço mínimo, Capacity Pac
   await p.waitForTimeout(900); await p.screenshot({ path: 'capturas/tmp/plano-editor.png', fullPage: true });
   await p.fill('#pl-preco', '600');
   await p.waitForFunction(() => /Abaixo do piso/.test(document.getElementById('pl-previa').innerText));
-  await p.click('#f-plano .btn-verde');
+  await p.getByRole('button', { name: 'Salvar plano' }).click();   // a ação principal, no cabeçalho
   await p.waitForFunction(() => /margem total no pior caso/i.test(document.getElementById('pl-erro')?.innerText || ''));
   const preco = todos(S.P.db, "select price_usd from plans where name = 'GreenIA Business'")[0].price_usd;
   assert.equal(preco, 749, 'nada foi gravado');
@@ -50,8 +50,9 @@ test('planos: margem total no pior caso com status, preço mínimo, Capacity Pac
 
 test('empresa: libera Capacity Packs por quantidade; créditos e valor calculados no servidor', async () => {
   await p.goto(`${S.base}/plataforma#/empresas/${empresa.id}`);
-  await p.waitForSelector('text=Liberar Capacity Pack');
-  await p.click('text=Liberar Capacity Pack');
+  // Liberar créditos fica em "Mais ações" do Resumo e abre o formulário em modal.
+  await p.getByRole('button', { name: 'Mais ações' }).click();
+  await p.getByRole('menuitem', { name: 'Liberar Capacity Pack…' }).click();
   await p.fill('#p-qtd', '3');
   await p.waitForFunction(() => /6\.000 créditos/.test(document.getElementById('p-resumo').innerText));
   // Confirmação no modal do console (não no diálogo do navegador), com o que vai ser liberado.
@@ -59,7 +60,8 @@ test('empresa: libera Capacity Packs por quantidade; créditos e valor calculado
   const dialogo = p.getByRole('dialog');
   assert.match(await dialogo.innerText(), /6\.000 créditos/);
   await dialogo.getByRole('button', { name: 'Liberar 3 Capacity Packs' }).click();
-  await p.waitForFunction(() => document.querySelector('#f-pacote') && /Capacity Pack disponível/.test(document.body.innerText));
+  await dialogo.waitFor({ state: 'detached' });
+  await p.waitForFunction(() => /6\.000/.test(document.querySelector('#ind-pacote b')?.innerText || ''));
   const linhas = todos(S.P.tenant(empresa.id).db, 'select creditos, produto, preco_usd from pacotes').map(x => ({ ...x }));
   assert.deepEqual(linhas, [{ creditos: 6000, produto: 'capacity_pack', preco_usd: 687 }]);
 });

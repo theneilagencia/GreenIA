@@ -68,7 +68,7 @@ O papel de cada parte depende do tratamento:
 | Auditoria da plataforma | Quem, o quê, antes e depois, quando, IP e navegador | Banco da plataforma | Sim, sem prazo de eliminação | Não |
 | Acessos da equipe de operação | Operador (email), tipo, justificativa, início, fim, duração, status, resultado do aviso; IP e navegador (estes não aparecem para a empresa) | Banco da plataforma | Sim, sem prazo de eliminação | Aviso por email aos admins |
 | Exportações | Registro: operador, finalidade, justificativa, data, tamanho, hash, resultado, downloads e eliminação. Cópia: o banco completo do ambiente | Registro: banco da plataforma. Cópia: servidor da plataforma | Registro: sim, sem prazo de eliminação. Cópia: até 7 dias depois de encerrada a necessidade (seção 12) | A cópia é entregue a quem a pediu (seção 12) |
-| Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem, origem do pedido e interações comerciais registradas | Banco da plataforma | Sim, até 24 meses depois da última interação (seção 14) | Resumo de origem no aviso aos admins, sem nome, email ou mensagem do contato. Com consentimento, medição ao Google (seção 20) |
+| Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem, origem do pedido e interações comerciais registradas | Banco da plataforma | Sim, até 24 meses depois da última interação (seção 14) | Resumo de origem no aviso aos admins e destinatários comerciais configurados, sem nome, email ou mensagem do contato. Com consentimento, medição ao Google (seção 20) |
 | Logs técnicos | Mensagens de operação do servidor (falhas, rotinas, avisos) | Logs do provedor de hospedagem | Sim, pelo prazo do provedor | Ficam no provedor |
 
 ### 4.2 Dados processados sem ficar guardados
@@ -263,7 +263,7 @@ A GreenIA envia emails para:
 - avisos de acesso e exportação pela equipe de operação;
 - códigos de confirmação e links de devolução no encerramento de um ambiente;
 - relatos de problema (aos administradores do Cliente);
-- aviso de novo contato comercial (aos administradores da plataforma, com resumo da origem, sem nome, email ou mensagem do contato);
+- aviso de novo contato comercial (aos administradores da plataforma e aos destinatários comerciais configurados, com resumo da origem, sem nome, email ou mensagem do contato);
 - avisos administrativos da plataforma.
 
 O envio usa o provedor de envio de email da plataforma ou, se o Cliente configurar, o servidor de email da própria
@@ -273,8 +273,8 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 
 - **Campos:** nome, email, empresa, cargo (opcional), faixa de pessoas na empresa (opcional) e mensagem (opcional). Parâmetros de campanha e origem da visita podem acompanhar o envio para identificar o canal do pedido.
 - **Finalidade:** responder ao contato e marcar apresentação.
-- **Destino:** fica no banco da plataforma GreenIA. Os administradores da plataforma recebem por email só um aviso de
-  novo contato e um resumo da campanha de origem, sem nome, email ou mensagem do contato, e consultam os detalhes no console. O aviso indica apenas a presença de identificadores de clique, sem copiá-los para o email.
+- **Destino:** fica no banco da plataforma GreenIA. Os administradores da plataforma e os destinatários comerciais configurados recebem por email só um aviso de
+  novo contato e um resumo da campanha de origem, sem nome, email ou mensagem do contato, e consultam os detalhes no console. O aviso indica apenas a presença de identificadores de clique, sem copiá-los para o email. Receber o aviso não concede acesso ao console; o responsável comercial que não tiver acesso deve tratar o pedido com um administrador autorizado.
 - **IP:** não é guardado com o contato. O servidor usa o IP só em memória, por uma hora, para limitar o envio a 5
   contatos.
 - **Prazo:** o contato é eliminado 24 meses depois da última interação comercial relevante registrada (um novo

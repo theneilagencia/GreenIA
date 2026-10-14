@@ -105,6 +105,8 @@ if (form && box) {
     window.gtag('set', 'user_data', hash ? { sha256_email_address: hash } : {});
     window.gtag('event', 'conversion', { send_to: `${AW}/${LABEL}`, transaction_id: id });
     window.gtag('set', 'user_data', {});
+    // Evidência técnica do evento emitido, sem dados pessoais e sem mudar a interface.
+    form.dataset.giaConversao = id;
   });
   origemDaVisita();
   if (consentimento === 'granted') carregar();

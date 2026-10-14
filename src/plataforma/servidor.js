@@ -32,7 +32,7 @@ import { COOKIE_CONTEXTO, lerSessaoBruta, checarCsrf } from './sessao.js';
 import { rotasAuthEmpresa, rotasPublicoEmpresa } from './api-publica.js';
 import { rotasPlataforma } from './api-plataforma.js';
 import { rotasEmpresa } from './api-empresa.js';
-import { slugDe, SLUGS_RESERVADOS } from './validar.js';
+import { slugDe, SLUGS_RESERVADOS, validarEmail } from './validar.js';
 import { sincronizarProvedor, verificarDominio } from './dominio.js';
 import { criarEncontrar } from './encontrar.js';
 import { rotasEncerramentoEmpresa, migrarCanceladas, paginaDevolucao, entregarDevolucao } from './encerramento.js';
@@ -57,6 +57,7 @@ export function criarPlataforma(op = {}) {
     cookieSeguro: op.cookieSeguro ?? true, pastaEmpresas: op.pastaEmpresas ?? (op.banco && op.banco !== ':memory:' ? join(dirname(op.banco), 'empresas') : ':memory:'),
     hostPlataforma: (op.hostPlataforma || '').toLowerCase(), urlBase: op.urlBase || '', subdominioBase: (op.subdominioBase || '').toLowerCase(),
     paginaInicial: op.paginaInicial === 'vendas' ? 'vendas' : 'plataforma', tenants: new Map(),
+    contatosVendasEmails: [...new Set((op.contatosVendasEmails || []).map(validarEmail))],
     dns: op.dns || null, provedorDominios: op.provedorDominios || null, emAndamento: new Map(),
   };
   if (P.pastaEmpresas !== ':memory:') mkdirSync(P.pastaEmpresas, { recursive: true });
@@ -478,7 +479,8 @@ async function contatoVendas(P, req, res) {
     const { id, conversao_id } = registrarFormulario(P, lead);
     // O email aos admins só avisa: o contato (dados pessoais) fica no console, sob a retenção de 24 meses, sem cópia na caixa postal.
     const link = `${(P.urlBase || '').replace(/\/$/, '')}/plataforma#/configuracoes`;
-    for (const para of P.adminsPlataforma()) P.email.enviar(para, 'Novo contato recebido', `Um novo contato chegou pela página de vendas.\n\nConsulte no console (é preciso entrar): ${link}\nReferência: ${id}\n\n${resumoOrigem(lead.origem)}`).catch(() => {});
+    for (const para of new Set([...P.adminsPlataforma(), ...P.contatosVendasEmails])) P.email.enviar(para, 'Novo contato recebido', `Um novo contato chegou pela página de vendas.\n\nConsulte no console (é preciso entrar): ${link}\nReferência: ${id}\n\n${resumoOrigem(lead.origem)}`)
+      .then(() => P.log(`contato comercial: envio concluído para ${para}; referência ${id}; ${resumoOrigem(lead.origem)}`)).catch(() => {});
     enviarJson(res, 200, { ok: true, recebido: true, conversao_id });
   } catch (e) { enviarJson(res, e.status || 400, { erro: e.codigo || 'contato', mensagem: e.message }); }
 }

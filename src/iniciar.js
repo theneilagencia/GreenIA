@@ -97,6 +97,8 @@ export async function iniciarPlataforma(env = process.env) {
     hostPlataforma: host, urlBase: env.PLATAFORMA_URL || (host ? `https://${host}` : ''), subdominioBase: env.PLATAFORMA_SUBDOMINIO || '',
     smtpPadrao: { url: smtpDeVariaveis(env), remetente: env.SMTP_REMETENTE || '' }, avisarSemEmail: producao,
     admins: [...lista(env.PLATAFORMA_ADMINS), ...lista(env.OPERADOR_EMAIL), ...lerAdminsArquivo(env.PLATAFORMA_ADMINS_ARQUIVO || 'deploy/admins-plataforma.txt')], paginaInicial: env.PAGINA_INICIAL,
+    // Destinatários comerciais recebem apenas o aviso; esta configuração não concede acesso ao console.
+    contatosVendasEmails: lista(env.CONTATO_VENDAS_EMAIL),
     // Domínio próprio das empresas cadastrado sozinho no Render (opcional): chave e serviço só em variáveis do servidor.
     provedorDominios: env.RENDER_API_KEY && env.RENDER_SERVICE_ID ? criarProvedorRender({ chave: env.RENDER_API_KEY, servico: env.RENDER_SERVICE_ID, alvo: env.RENDER_ALVO || '' }) : null,
     // A instalação única que já existia vira a primeira empresa (uma vez, com a plataforma vazia).

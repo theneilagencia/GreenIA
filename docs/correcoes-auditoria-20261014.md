@@ -32,3 +32,17 @@ Continuam requerendo evidência específica: integrações com sistemas externos
 Conexões fictícias antigas não foram apagadas. Histórico empresarial com deduplicação e fotografias, painéis personalizados e integração contínua são projetos adicionais na LP atual; não foram criadas novas promessas nem considerados recursos da assinatura.
 
 Rascunhos preexistentes não foram migrados silenciosamente: a reconciliação de contrato ocorre na aprovação de refinamento. A auditoria original e seus testes reais permanecem como evidência histórica.
+
+## Complemento encontrado no reteste real
+
+A versão `88a9761` foi publicada pela PR #57. No Apy Mine, o teste 77 entregou a tabela correta com duas divergências e sem seções extras, mas a IA marcou o objetivo parcial exigindo uma linha de preço igual.
+
+A correção complementar preserva o recorte “somente divergências” na execução, conferência e revisão, inclusive em especificações anteriores. O achado de objetivo central passa pela revisão focada; omissão, resposta ilegível ou rejeição sem justificativa conservam o estado parcial. Divergência real omitida continua sendo falha.
+
+Retestes reais concluídos na primeira publicação:
+- F01: novo rascunho QA 498, objetivo original com negações, apenas o entregável de divergências.
+- F03: orientação do teste 75 agora manda retirar conteúdo extra.
+- F04: cinco Quick Wins em teste no catálogo e na Visão geral; circulação zero, com rótulo de publicados.
+- F02: tabela de quatro colunas e duas linhas correta no teste 77; conferência exigiu o complemento acima.
+
+Validação do complemento: suíte completa de servidor com 903 casos aprovada; após os últimos ajustes, 52 regressões de conferência/contrato e 14 casos de navegador relacionados aprovados. Essas são rodadas e retestes; não devem ser somados como cobertura distinta.

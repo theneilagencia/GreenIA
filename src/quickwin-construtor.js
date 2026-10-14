@@ -437,6 +437,7 @@ export function construir(r = {}) {
   let operacao = r.operacao !== undefined ? limparOperacao(r.operacao && { ...r.operacao, origem: r.operacao.origem === 'ia' ? 'ia' : 'pessoa' })
     : planoHeuristico(`${descricao}\n${explicacao}`, arq);
   const contratoTabela = contratoTabelaRefinamento(limpar(r.formato_descricao, 200));
+  const somenteDivergencias = pedeSomenteDivergencias(`${descricao}\n${explicacao}\n${r.formato_descricao || ''}`);
   if (contratoTabela?.exclusivo && operacao) {
     const tabela = operacao.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
     operacao = limparOperacao({ ...operacao, entregaveis: [{ ...(tabela || { id: 'tabela', rotulo: 'Tabela' }), tipo: 'tabela', depende_de: [],
@@ -491,7 +492,7 @@ export function construir(r = {}) {
       : 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
     formato_saida: { tipo, descricao: tipo === 'outro' ? [limpar(r.formato_descricao, 200) || (entregaPorCanal ? (operacao.canais.length ? 'Entregáveis separados por canal' : 'Entregáveis separados, cada um com o seu título') : '') || sug.descricao || a.formatoDescricao || '',
-      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : limpar(r.formato_descricao, 200), colunas, secoes, ...(contratoTabela?.exclusivo ? { exclusivo: true } : {}), ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
+      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : limpar(r.formato_descricao, 200), colunas, secoes, ...(contratoTabela?.exclusivo ? { exclusivo: true } : {}), ...(tipo === 'tabela' && somenteDivergencias ? { somente_divergencias: true } : {}), ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
     exemplos: exemplo ? { estrutura: exemplo } : null,
     perguntas_esclarecimento: { max: 2, quando: 'Só quando faltar algo sem o qual o trabalho não pode ser feito, como o próprio material.' },
     nivel_autonomia: autonomia,
@@ -537,8 +538,9 @@ export function normalizar(espec) {
   const operacao = limparOperacao(espec.operacao);
   const { operacao: _o, ...resto } = espec;
   const processo = espec.origem?.como?.modo === 'explicar' ? String(espec.origem.como.texto || '').trim() : '';
+  const somenteDivergencias = espec.formato_saida?.tipo === 'tabela' && (espec.formato_saida.somente_divergencias || pedeSomenteDivergencias(`${espec.objetivo || ''}\n${processo}\n${espec.formato_saida.descricao || ''}`));
   const criteriosProcesso = processo ? [{ id: 'processo_confirmado', grupo: 'regras', texto: `Processo confirmado: ${processo}. O resultado respeita o conteúdo, a sequência narrativa e os limites indicados, dentro de cada peça. Confira somente instruções verificáveis no resultado; não exija relato das etapas internas. Isso não muda colunas, títulos, formatos, permissões ou regras do contrato confirmado.` }] : [];
-  return { ...resto, criterios_qualidade: [...(espec.criterios_qualidade || []).filter(c => c.id !== 'processo_confirmado'), ...criteriosProcesso], regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
+  return { ...resto, ...(somenteDivergencias ? { formato_saida: { ...espec.formato_saida, somente_divergencias: true } } : {}), criterios_qualidade: [...(espec.criterios_qualidade || []).filter(c => c.id !== 'processo_confirmado'), ...criteriosProcesso], regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
     ferramentas_permitidas: executaveis(Array.isArray(espec.ferramentas_permitidas) ? espec.ferramentas_permitidas : []).filter(f => operacao?.ferramentas.includes(f)),
     ...(operacao ? { operacao } : {}), nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
 }
@@ -615,6 +617,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
   if (f.tipo !== 'outro' && f.descricao) contrato.push(`Orientação para os entregáveis: ${f.descricao}`);
   if (f.secoes.length) contrato.push(`${f.tipo === 'tabela' ? 'Depois da tabela, inclua' : 'Use'} estas seções, nesta ordem, cada uma com título "## Nome": ${f.secoes.join('; ')}.`);
   if (f.secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) contrato.push(`Na seção "${SECAO_AUSENTES}", liste o que faltou; se nada faltou, escreva "Nenhuma".`);
+  if (f.somente_divergencias) contrato.push(RECORTE_DIVERGENCIAS);
   if (f.exclusivo) contrato.push('Entregue SOMENTE uma tabela Markdown. Não inclua títulos, introdução, resumo, explicações, seções de ausências ou escolhas, nem texto fora das linhas da tabela. Indique ausências necessárias nas próprias células. Esta restrição de formato vale também nas correções, sem remover nenhuma proteção de dados ou regra de não inventar.');
   if (e.exemplos?.estrutura) { const x = e.exemplos.estrutura; contrato.push([DETALHE[x.detalhe], TOM[x.tom]].filter(Boolean).join(' ')); }
   partes.push(`Formato da entrega:\n${contrato.filter(Boolean).join('\n')}`);
@@ -691,6 +694,12 @@ export function conferirContrato(espec, texto, fonte = '') {
   return { falhas: [...new Set(falhas)], detalhes, numerosSemFonte, estruturaOk: !falhas.includes('formato') };
 }
 
+const pedeSomenteDivergencias = texto => {
+  const afirmativo = String(texto).replace(/(?:não|nao)\s+(?:somente|apenas|só|so)\s+(?:as\s+)?diverg[eê]ncias/gi, '');
+  return /(?:somente|apenas|só|so)\s+(?:as\s+)?diverg[eê]ncias|tabela\s+de\s+diverg[eê]ncias/i.test(afirmativo);
+};
+const RECORTE_DIVERGENCIAS = 'Recorte confirmado: listar somente divergências comprovadas. Comparar todos os itens é uma etapa interna; pares de valores iguais não devem virar linhas da tabela. Não exija campos, linhas ou seções sem divergência para considerar a entrega completa ou o objetivo atingido. Uma divergência real omitida continua sendo falha.';
+
 // Prompt da conferência pela IA: critérios gerados da especificação, resposta só em JSON.
 export function promptQualidade(espec) {
   const e = normalizar(espec);
@@ -700,6 +709,7 @@ export function promptQualidade(espec) {
     ...(e.configuracao_confirmada
       ? [`Intenção do trabalho: ${intencaoDoTrabalho(e)}`, `Contrato confirmado pelo responsável: ${descreverContrato(e.formato_saida)}.`, PRECEDENCIA_CONFERENCIA]
       : [`Objetivo do trabalho: ${e.objetivo}`]),
+    ...(e.formato_saida?.somente_divergencias ? [RECORTE_DIVERGENCIAS] : []),
     `CRITÉRIOS:\n${e.criterios_qualidade.map(c => `- ${c.id}: ${c.texto}`).join('\n')}`,
     'Diga também se o OBJETIVO central foi atingido. "objetivo_atingido": false quando o resultado é honesto mas não entrega o centro do pedido (por exemplo: a pesquisa não identificou o que era para identificar, o material não tinha os dados pedidos, a peça final não pôde ser produzida, as seções principais ficaram como "não encontrado"). true quando entrega, mesmo com algum detalhe faltando. Honestidade não é falha de critério: não marque critério como falho só porque o resultado admite que algo não foi encontrado.',
     // QA em produção: um critério que depende de material ausente (o guia da marca, por exemplo) falhava nos dois
@@ -760,7 +770,11 @@ export function lerVeredito(espec, texto) {
   if (d.objetivo_atingido === false && visual && /\b(slides?|p[aá]ginas?|telas|l[aâ]minas)\b/i.test(String(d.motivo_objetivo || '')) && /\b(\d+|exatamente|quantidade|n[uú]mero)\b/i.test(String(d.motivo_objetivo || ''))) {
     leves.push(limpar(d.motivo_objetivo, 200)); d.objetivo_atingido = true;
   }
-  if (d.objetivo_atingido === false) razoes.push({ grupo: 'objetivo', motivo: d.motivo_objetivo ? limpar(d.motivo_objetivo, 200) : 'O conferente indicou que o objetivo central não foi entregue.' });
+  if (d.objetivo_atingido === false) {
+    const motivo = d.motivo_objetivo ? limpar(d.motivo_objetivo, 200) : 'O conferente indicou que o objetivo central não foi entregue.';
+    razoes.push({ grupo: 'objetivo', motivo });
+    achados.push({ id: 'objetivo_central', grupo: 'objetivo', criterio: 'O objetivo central foi atingido dentro do contrato confirmado.', motivo });
+  }
   return { falhas: [...new Set(falhas)], motivos, razoes, leves, achados, objetivo: d.objetivo_atingido === false ? false : d.objetivo_atingido === true ? true : null };
 }
 
@@ -775,7 +789,7 @@ export const PROMPT_REVISAO = [
   'Responda somente com JSON: {"achados":[{"id":"<id do critério>","confirmado":true,"trecho":"<trecho exato ou vazio>","prova":"<frase curta>"}]}',
 ].join('\n\n');
 export function mensagensRevisao({ entrada, resultado, achados, espec = null, pesquisa = null }) {
-  return [{ role: 'system', content: [PROMPT_REVISAO, estadoPesquisaConferencia(espec, pesquisa)].filter(Boolean).join('\n\n') }, { role: 'user', content: [delimitar('entrada', 'Material e pedido', entrada || '(sem material)'), delimitar('resultado', 'Resultado', resultado),
+  return [{ role: 'system', content: [PROMPT_REVISAO, ...(espec?.configuracao_confirmada ? [`Intenção do trabalho: ${intencaoDoTrabalho(espec)}`, `Contrato confirmado: ${descreverContrato(espec.formato_saida)}.`] : []), ...(espec?.formato_saida?.somente_divergencias ? [RECORTE_DIVERGENCIAS] : []), estadoPesquisaConferencia(espec, pesquisa)].filter(Boolean).join('\n\n') }, { role: 'user', content: [delimitar('entrada', 'Material e pedido', entrada || '(sem material)'), delimitar('resultado', 'Resultado', resultado),
     delimitar('achados', 'Achados da primeira leitura', achados.map(a => `- ${a.id} (${a.grupo}): ${a.criterio}${a.motivo ? ` — apontado: ${a.motivo}` : ''}`).join('\n'))].join('\n\n') }];
 }
 const normTrecho = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[*_`#|>]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -788,10 +802,13 @@ export function aplicarRevisao(ia, textoRevisao, resultado) {
   const confirmados = new Set(d.achados.filter(a => a?.confirmado === true && (a.trecho ? r.includes(normTrecho(a.trecho).slice(0, 120)) : true)
     && !(String(a.trecho || '').trim() === '' && ['invencao'].includes((ia.achados.find(x => x.id === String(a.id)) || {}).grupo))).map(a => String(a.id)));
   const ficam = ia.achados.filter(a => confirmados.has(a.id)), saem = ia.achados.filter(a => !confirmados.has(a.id));
-  const grupos = new Set(ficam.map(a => a.grupo));
-  return { ...ia, falhas: [...grupos], achados: ficam,
+  // O objetivo permanece parcial se a revisão o omitir ou não justificar a rejeição.
+  const revisaoObjetivo = d.achados.filter(a => a?.id === 'objetivo_central');
+  const objetivoRevisto = ia.objetivo === false && revisaoObjetivo.length === 1 && revisaoObjetivo[0].confirmado === false && typeof revisaoObjetivo[0].prova === 'string' && revisaoObjetivo[0].prova.trim().length >= 10;
+  const grupos = new Set(ficam.map(a => a.grupo).filter(g => g !== 'objetivo'));
+  return { ...ia, objetivo: objetivoRevisto ? true : ia.objetivo, falhas: [...grupos], achados: ficam,
     motivos: ia.motivos.filter((_, i) => confirmados.has(ia.achados[i]?.id)),
-    razoes: ia.razoes.filter(x => x.grupo === 'objetivo' || grupos.has(x.grupo)),
+    razoes: ia.razoes.filter(x => x.grupo === 'objetivo' ? !objetivoRevisto : grupos.has(x.grupo)),
     leves: [...ia.leves, ...saem.map(a => `Ponto revisto e não confirmado: ${a.motivo || a.criterio}`.slice(0, 220))], revisados: saem.length };
 }
 export function pedidoDeCorrecao(problemas, espec = null) {

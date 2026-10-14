@@ -67,6 +67,8 @@ for (const [onde, ehConsole] of [['console', true], ['administração', false]])
     assert.equal(await p.locator('#ld-previa-quadro').getAttribute('title'), 'Prévia da página de apresentação');
     await p.getByRole('button', { name: 'Abrir a prévia em nova aba' }).waitFor();
     await p.waitForFunction(t => document.getElementById('ld-previa-quadro')?.contentDocument?.getElementById('ld-titulo')?.textContent === t, antes.content.titulo);
+    // A prévia montada não deixa a página "carregando" para sempre (as outras suítes esperam a rede ficar parada).
+    await p.waitForLoadState('networkidle', { timeout: 10000 });
     // Sem alterações: o salvar está desligado e diz por quê; "Ver como fica" não aparece em tela larga.
     const salvar = p.locator('[data-acao="salvar"][form="form-landing"]');
     assert.equal(await salvar.isDisabled(), true);

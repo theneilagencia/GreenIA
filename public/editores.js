@@ -289,19 +289,19 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '', ro
         : `<a class="icone-btn ld-nova-aba" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener" aria-label="Abrir a prévia em nova aba" title="Abrir em nova aba">${ICONE_NOVA_ABA}</a>`) : ''}
       <button type="button" class="btn btn-linha btn-pequeno ld-previa-fechar" data-acao="fechar-previa">Voltar ao editor</button>
     </div>
-    <div class="ld-previa-moldura"><iframe class="ld-previa-quadro" id="ld-previa-quadro" title="Prévia da página de apresentação" sandbox="allow-same-origin"></iframe></div>
+    <div class="ld-previa-moldura" id="ld-previa-moldura"></div>
   </aside>
 </div>`;
 }
 
-// Modelo da página pública (index.html sem scripts), lido uma vez por carga da tela.
-let modeloPagina = null;
-const lerModeloPagina = () => (modeloPagina ||= fetch('/index.html', { credentials: 'same-origin' }).then(r => (r.ok ? r.text() : Promise.reject(new Error('sem modelo'))))
+// Modelo da página pública (index.html sem scripts). Lido a cada prévia montada (o navegador responde do cache,
+// conferindo com o servidor), sempre depois de o quadro entrar na página.
+const lerModeloPagina = () => fetch('/index.html', { credentials: 'same-origin' }).then(r => (r.ok ? r.text() : Promise.reject(new Error('sem modelo'))))
   .then(html => {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     doc.querySelectorAll('script, link[rel="icon"], meta[name="theme-color"]').forEach(e => e.remove());
     return { cabeca: doc.head.innerHTML, corpo: doc.body.innerHTML };
-  }).catch(e => { modeloPagina = null; throw e; }));
+  });
 
 // pedir: a função de chamada à API da tela (o console tem a sua, com a sessão do operador).
 // marca: { empresa, logo, corMarca, privacyNote, retencaoDias } (a mesma forma de /api/publico) para a prévia.
@@ -429,7 +429,7 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
   ler.limpar = () => { vig.limpar(); marcarSujo(false); };
 
   // ---- prévia ao vivo (iframe sem scripts, com a mesma estrutura e o mesmo desenho da página pública)
-  const split = $('ld-split'), painel = $('ld-previa'), quadro = $('ld-previa-quadro'), estado = $('ld-previa-estado'), bVer = document.querySelector('[data-acao="ver-previa"]');
+  const split = $('ld-split'), painel = $('ld-previa'), estado = $('ld-previa-estado'), bVer = document.querySelector('[data-acao="ver-previa"]');
   // Pé da tela: "Ver como fica" em tela estreita; o salvar, quando o do cabeçalho saiu de vista e há o que salvar.
   const pe = $('ld-barra-pe'), bPe = $('ld-salvar-pe');
   let cabecalhoVisivel = true;
@@ -442,7 +442,7 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
     new IntersectionObserver(es => { cabecalhoVisivel = es.at(-1).isIntersecting || bSalvar.hidden; atualizarPe(); }).observe(bSalvar.closest('.ld-acoes') || bSalvar);
     bPe.addEventListener('click', () => bSalvar.click());
   }
-  let ultimo = { content: l.content, seo: l.seo }, pronto = false, seq = 0, timer = 0, secaoAtual = 'topo';
+  let ultimo = { content: l.content, seo: l.seo }, pronto = false, seq = 0, timer = 0, secaoAtual = 'topo', quadro = null;
   const visivelPrevia = () => split.classList.contains('dividido') || painel.classList.contains('tela-cheia');
   const cssMarca = () => {
     if (!/^#[0-9a-f]{6}$/i.test(marca.corMarca || '')) return '';
@@ -450,6 +450,12 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
     return `:root{${decl(claro)}}@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]){${decl(escuro)}}}:root[data-tema="escuro"]{${decl(escuro)}}`;
   };
   async function montar() {
+    // O quadro só nasce quando a prévia aparece (tela larga ou "Ver como fica"): no celular, nada carrega à toa. Entra
+    // na página vazio e depois recebe o documento (srcdoc: sem endereço próprio, herda a origem e as regras de
+    // segurança desta tela), numa navegação de verdade, como a de qualquer quadro.
+    quadro = Object.assign(document.createElement('iframe'), { className: 'ld-previa-quadro', id: 'ld-previa-quadro', title: 'Prévia da página de apresentação' });
+    quadro.setAttribute('sandbox', 'allow-same-origin');
+    $('ld-previa-moldura').append(quadro);
     const m = await lerModeloPagina();
     const tema = document.documentElement.dataset.tema ? ` data-tema="${esc(document.documentElement.dataset.tema)}"` : '';
     await new Promise(ok => {
@@ -469,7 +475,7 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
     pronto = { corpo: m.corpo };
   }
   function desenhar() {
-    const doc = quadro.contentDocument;
+    const doc = quadro?.contentDocument;
     if (!pronto || !doc?.body) return;
     const y = quadro.contentWindow.scrollY;
     doc.body.innerHTML = pronto.corpo;
@@ -523,7 +529,7 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
     if (pronto || iniciarPrevia.indo) return;
     iniciarPrevia.indo = true;
     try { await montar(); desenhar(); mostrarNaPrevia(secaoAtual); }
-    catch { estado.textContent = 'Não foi possível montar a prévia aqui. Use “Abrir em nova aba”.'; }
+    catch { quadro?.remove(); quadro = null; estado.textContent = 'Não foi possível montar a prévia aqui. Use “Abrir em nova aba”.'; }
     iniciarPrevia.indo = false;
   };
   // Tela larga: editor e prévia lado a lado. Estreita: a prévia abre por "Ver como fica", na tela inteira.

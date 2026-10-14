@@ -12,7 +12,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY src ./src
 COPY public ./public
-COPY scripts/backup.js scripts/restaurar.js scripts/verificar.js scripts/retencao.js scripts/contatos.js scripts/entrada.sh ./scripts/
+COPY scripts/backup.js scripts/restaurar.js scripts/verificar.js scripts/retencao.js scripts/contatos.js scripts/chave-mestra.js scripts/ensaio-restauracao.mjs scripts/entrada.sh ./scripts/
+COPY scripts/ensaio ./scripts/ensaio
 COPY modelos-quick-win.json ./
 COPY deploy/admins-plataforma.txt ./deploy/
 RUN mkdir -p /app/dados && chown node:node /app/dados && chmod +x scripts/entrada.sh

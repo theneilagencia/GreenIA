@@ -69,9 +69,22 @@ export const urlS3 = (cfg, chaveObjeto = '', query = '') => `${cfg.endpoint}/${c
 export async function pedirS3(cfg, metodo, { objeto = '', query = '', corpo = null, cabecalhos = {}, aceitar = [] } = {}, f = globalThis.fetch) {
   const url = urlS3(cfg, objeto, query);
   const cab = assinarS3({ metodo, url, hashCorpo: sha256(corpo || ''), chave: cfg.chave, segredo: cfg.segredo, regiao: cfg.regiao, cabecalhos });
-  let r;
-  try { r = await f(url, { method: metodo, headers: cab, body: corpo || undefined, signal: AbortSignal.timeout(cfg.timeoutMs) }); }
-  catch (e) { throw new ErroBackup('S3_REDE', `S3 inacessível (${e.name === 'TimeoutError' ? 'tempo esgotado' : e.cause?.code || e.code || 'erro de rede'}).`); }
+  // Todas as operações usadas são idempotentes (PUT do mesmo objeto, GET, HEAD): erro de rede (inclusive conexão
+  // ociosa fechada pelo servidor enquanto o próximo banco era compactado), 429 e 5xx são tentados de novo, até 3 vezes.
+  let r, ultimoErro;
+  for (let tentativa = 1; tentativa <= 3; tentativa++) {
+    try {
+      r = await f(url, { method: metodo, headers: tentativa === 1 ? cab : assinarS3({ metodo, url, hashCorpo: sha256(corpo || ''), chave: cfg.chave, segredo: cfg.segredo, regiao: cfg.regiao, cabecalhos }), body: corpo || undefined, signal: AbortSignal.timeout(cfg.timeoutMs) });
+      if ((r.status === 429 || r.status >= 500) && tentativa < 3) { await r.arrayBuffer().catch(() => {}); await new Promise(ok => setTimeout(ok, 250 * tentativa)); continue; }
+      ultimoErro = null;
+      break;
+    } catch (e) {
+      ultimoErro = e;
+      if (tentativa < 3 && e.name !== 'TimeoutError') await new Promise(ok => setTimeout(ok, 250 * tentativa));
+      else break;
+    }
+  }
+  if (ultimoErro) throw new ErroBackup('S3_REDE', `S3 inacessível (${ultimoErro.name === 'TimeoutError' ? 'tempo esgotado' : ultimoErro.cause?.code || ultimoErro.code || 'erro de rede'}).`);
   const dados = metodo === 'HEAD' ? Buffer.alloc(0) : Buffer.from(await r.arrayBuffer());
   if (!r.ok && !aceitar.includes(r.status)) {
     const codigo = /<Code>([^<]{1,80})<\/Code>/.exec(dados.toString('utf8'))?.[1] || '';

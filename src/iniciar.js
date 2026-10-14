@@ -6,7 +6,9 @@ import { conferirChave, impressaoChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { randomBytes } from 'node:crypto';
 import { criarPlataforma, origemChaveOpenRouter } from './plataforma/servidor.js';
 import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
 import { criarApp } from './servidor.js';
@@ -16,7 +18,8 @@ import { atualizarCatalogo } from './modelos.js';
 import { apagarVencidas } from './conversas.js';
 import { agendarBackup, fazerBackup, carimboDe, limiteS3 } from './backup.js';
 import { configS3, enviarEnvelopeS3 } from './backup-s3.js';
-import { segredoEnvelopeDe, selarChaveMestra } from './chave-recuperacao.js';
+import { bloquearRedeExterna } from './rede-isolada.js';
+import { lerChaveMestraExistente, segredoEnvelopeDe, selarChaveMestra } from './chave-recuperacao.js';
 import { avisarBackups, lerEstado, registrarFalha, registrarRodada, registrarSucesso } from './plataforma/backup-estado.js';
 import { consolidarWal, todos } from './db.js';
 import { registrar } from './eventos.js';
@@ -38,6 +41,7 @@ export function destinoS3(env, log = () => {}) {
 }
 
 export async function iniciar(env = process.env) {
+  if (env.ENSAIO_ISOLADO === '1') return iniciarIsolado(env);
   if (env.MULTIEMPRESA === '1') return iniciarPlataforma(env);
   const producao = env.NODE_ENV === 'production';
   // Em produção sem chave, sobe com a IA desligada (e avisa), para o admin conseguir entrar e ver o que falta.
@@ -225,6 +229,32 @@ export async function iniciarPlataforma(env = process.env) {
   if (P.backup.hora || producao) tarefa(() => avisarBackups(P), 3600e3);
   const porta = Number(env.PORTA || env.PORT || 8080);
   P.servidor.listen(porta, env.HOST || '0.0.0.0', () => P.log(`GreenIA multiempresa em http://localhost:${porta} (console em /plataforma)`));
+  const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };
+  process.on('SIGTERM', parar);
+  process.on('SIGINT', parar);
+  return P;
+}
+
+// Cópia restaurada no ar para ensaio (ENSAIO_ISOLADO=1; docs/operacao/backup-e-restauracao.md): sem tarefas periódicas
+// (programações, backup, retenção, exclusões, avisos), IA simulada, email só em memória, sem provedor de domínios,
+// conexões de rede para fora de 127.0.0.1 bloqueadas no processo e, por padrão, escutando só em 127.0.0.1. Recusa subir
+// se algum banco de empresa aponta para fora da pasta da cópia.
+export async function iniciarIsolado(env = process.env) {
+  bloquearRedeExterna();
+  const banco = resolve(env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite');
+  const raiz = dirname(banco);
+  if (!existsSync(banco)) throw new Error(`ENSAIO_ISOLADO: banco da plataforma não encontrado em ${banco}.`);
+  const ro = new DatabaseSync(banco, { readOnly: true });
+  let fora;
+  try { fora = ro.prepare('select id, banco from companies').all().filter(c => { const r = relative(raiz, resolve(c.banco)); return !r || r.startsWith('..') || isAbsolute(r); }); } finally { ro.close(); }
+  if (fora.length) throw new Error(`ENSAIO_ISOLADO: ${fora.length} empresas apontam para fora de ${raiz}. Remapeie os caminhos na cópia (scripts/ensaio-restauracao.mjs faz isso) antes de subir.`);
+  const mestra = lerChaveMestraExistente({ env, arquivo: join(raiz, '.chave-mestra') });
+  const lista = v => String(v || '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+  const P = criarPlataforma({ banco, pastaEmpresas: env.PASTA_EMPRESAS || join(raiz, 'empresas'), isolado: true, chaveMestra: mestra || randomBytes(32), cookieSeguro: env.COOKIE_SEGURO === '1',
+    hostPlataforma: (env.PLATAFORMA_HOST || '').toLowerCase(), admins: lista(env.PLATAFORMA_ADMINS) });
+  if (!mestra) P.log('ENSAIO_ISOLADO: sem chave-mestra (CHAVE_MESTRA ou .chave-mestra na pasta da cópia): credenciais cifradas não serão lidas.');
+  const porta = Number(env.PORTA || env.PORT || 8080), host = env.ENSAIO_HOST || '127.0.0.1';
+  P.servidor.listen(porta, host, () => P.log(`ENSAIO ISOLADO em http://${host}:${P.servidor.address().port}: sem tarefas periódicas, IA simulada, email em memória, rede externa bloqueada.`));
   const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };
   process.on('SIGTERM', parar);
   process.on('SIGINT', parar);

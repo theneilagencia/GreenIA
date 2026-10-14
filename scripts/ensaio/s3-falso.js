@@ -21,7 +21,7 @@ export async function subirS3Falso({ bucket = 'greenia-backups', chave = 'AKIAEN
   confirmarSse = true, maxChaves = 1000 } = {}) {
   const objetos = new Map();
   const pedidos = [];
-  const estado = { lifecycle, versionamento, confirmarSse, corromper: null };
+  const estado = { lifecycle, versionamento, confirmarSse, corromper: null, falharProximos: 0 };
   const servidor = createServer((req, res) => {
     const partes = [];
     req.on('data', d => partes.push(d));
@@ -31,6 +31,7 @@ export async function subirS3Falso({ bucket = 'greenia-backups', chave = 'AKIAEN
       const q = Object.fromEntries(u.searchParams);
       pedidos.push({ metodo: req.method, caminho: decodeURIComponent(u.pathname), query: u.search.slice(1), cabecalhos: { ...req.headers } });
       const responder = (status, xml = '', cab = {}) => { res.writeHead(status, { 'content-type': 'application/xml', ...cab }); res.end(req.method === 'HEAD' ? undefined : xml); };
+      if (estado.falharProximos > 0) { estado.falharProximos--; return responder(503, xmlErro('SlowDown')); }   // simula instabilidade
       // Assinatura: recalcula com os cabeçalhos assinados e confere.
       const auth = String(req.headers.authorization || '');
       const m = /^AWS4-HMAC-SHA256 Credential=([^/]+)\/(\d{8})\/([^/]+)\/s3\/aws4_request, SignedHeaders=([^,]+), Signature=([0-9a-f]{64})$/.exec(auth);

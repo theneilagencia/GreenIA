@@ -376,7 +376,7 @@ editorial e o teste confere que cada id do código está aqui.
 | P4 | Mensagens de bloqueio no chat diziam que segredos "nunca são enviados à IA" (`src/conversas.js`) | RESOLVIDA NO TEXTO: a mensagem diz o que aconteceu naquele envio ("este envio foi bloqueado: …"); lógica inalterada |
 | P5 | Toda empresa grava o modelo inteiro da página de entrada e o aviso de privacidade no cadastro (`criarEmpresa` → `landing_pages.content`, `branding.privacy_note`); o texto salvo prevalece sobre o modelo (`lerLanding`) | Empresas criadas antes do deploy continuam com a copy antiga ("nunca sai", "salvas só para você", "primeira semana", "sem retenção", "chega na hora"). Detectável comparando o texto salvo com o modelo antigo, sem ler conteúdo de conversa; correção é operação sobre dados de cliente, depende de decisão |
 | P6 | Configuração do admin dizia que dados pessoais vão só para recursos que "garantem não usar os dados para treino" (`public/admin.js`) | RESOLVIDA NO TEXTO: descreve as três origens do não treino (declarado pelo admin, rota autorizada, pedido em cada chamada) e diz que o pedido é filtro do serviço de acesso, não garantia contratual |
-| P7 | `BACKUP_DESTINO` e a cópia diária do disco pelo provedor não estão no repositório | "Servidores nos Estados Unidos" vale para o banco em uso; a localização e a retenção das cópias externas dependem da configuração de produção, a confirmar |
+| P7 | `BACKUP_DESTINO` e a cópia diária do disco pelo provedor não estão no repositório | "Servidores nos Estados Unidos" vale para o banco em uso; a localização e a retenção das cópias externas dependem da configuração de produção, a confirmar. Atualização 14/10/2026: S3 só envia com a expiração lida no bucket; o snapshot do Render tem mínimo de 7 dias e máximo não publicado (pedido ao provedor preparado, não enviado) |
 | P8 | Os commits de desenvolvimento incluem `e8e1253` (mudança funcional de Quick Wins que fica só em desenvolvimento) | Promover o commit de copy promove também `e8e1253`; a copy precisa ser promovida sozinha ou junto com a decisão sobre `e8e1253` |
 
 ## Liberação candidata (Etapa 7): claims materiais por status
@@ -394,7 +394,7 @@ escrita no próprio texto ou com condição operacional), **BLOQUEADO** (fora da
 | Conversas fora das telas de colegas e admins; exportação inclui conversas; relato de problema chega aos admins (LP-POL-12) | `minhaConversa`, `/api/problemas` | `6534041` + `f013ff2` | QUALIFICADO | corpo · Política 8 |
 | Exclusão: some do ambiente ativo; banco e arquivo de gravação limpos logo em seguida (LP-FAQ-20) | `consolidarWal`, teste de conversa apagada | `2717c99` | QUALIFICADO (só com o release) | FAQ · Termos 16.1 · Política 10.1 |
 | Cópias de segurança com prazos definidos, descritos na Política (LP-FAQ-20) | `src/retencao.js`, `docs/politica-retencao.md` | `2717c99` | QUALIFICADO (prazos valem com `RETENCAO_APLICAR=1`) | FAQ · Política 10.2 |
-| Prazos de 15 e 38 dias | `docs/politica-retencao.md` | `2717c99` | **BLOQUEADO na LP** (só na Política, como política ainda não ativada) | Política 10.2 |
+| Prazos de 15 e 38 dias | `docs/politica-retencao.md` | `2717c99` | **BLOQUEADO na LP** (só na Política, como política ainda não ativada). Retirados também da Política em 14/10/2026: somavam um máximo de 7 dias do snapshot do Render que o provedor não publica | Política 10.2 |
 | Aprovação prévia, consentimento ou autorização obrigatória do Cliente para o acesso | — | — | **BLOQUEADO** (não existe) | — |
 | LGPD: os controles apoiam as políticas da empresa; a empresa segue responsável (LP-POL-13) | `sincronizarPolitica`; teste de LGPD não absoluta | `6534041` | LIBERADO | corpo · Termos 7.2 · Política 17 |
 | Servidores nos EUA e IA possivelmente fora do Brasil: há transferência internacional (LP-FAQ-25) | `render.yaml`, painel do serviço | `6534041` | QUALIFICADO (mecanismo jurídico pendente) | FAQ · Política 7 |
@@ -424,7 +424,7 @@ retenção, também com `RETENCAO_APLICAR=1`) · **BLOQUEADO POR JURÍDICO** (de
 | Exportações | Exigem justificativa e ficam registradas, inclusive falhas (LP-FAQ-19, LP-POL-12) | `registrarExportacao`; testes de exportação | APÓS DEPLOY 1–3 | `f013ff2` |
 | Exclusão | Sai do banco em uso e o arquivo de gravação é limpo logo em seguida (LP-FAQ-20) | `consolidarWal`; teste de conversa apagada | APÓS DEPLOY 1–3 | `2717c99` |
 | Backups e retenção | Cópias seguem prazos definidos, descritos na Política (LP-FAQ-20) | `src/retencao.js`; `test/retencao.test.js` | APÓS DEPLOY 1–3 e `RETENCAO_APLICAR=1` | `2717c99` |
-| Retenção (números) | 15 e 38 dias | `docs/politica-retencao.md` | REMOVIDO da LP (só na Política, como não ativado) | — |
+| Retenção (números) | 15 e 38 dias | `docs/politica-retencao.md` | REMOVIDO da LP; retirado da Política em 14/10/2026 (máximo do provedor sem sustentação) | — |
 | LGPD | Controles apoiam as políticas da empresa; a empresa segue responsável (LP-POL-13) | teste de LGPD não absoluta | LIBERADO (o link para a Política: BLOQUEADO POR JURÍDICO) | `6534041` |
 | Transferência internacional | Servidores nos EUA, IA possivelmente fora do Brasil, há transferência (LP-FAQ-25) | `render.yaml`; painel do serviço | LIBERADO como fato; mecanismo e Política: BLOQUEADO POR JURÍDICO | `6534041` |
 | Créditos | Créditos mensais, não por pessoa, aviso em 80%, reserva na classe Rápido (LP-FIN-*, LP-FAQ-11/12) | `src/plano.js`, `src/avisos-governanca.js` | LIBERADO | `6534041` |
@@ -455,6 +455,7 @@ pontos. Todos dependem do deploy do release candidato; os de retenção e exclus
 | Encerramento: 30 dias, exclusão automática e antecipada, devolução em SQLite (documentos) | LIBERADO SOMENTE APÓS DEPLOY | Mais `EXCLUSAO_APLICAR=1` e `PLATAFORMA_URL` |
 | Contatos comerciais: 24 meses (Política) | LIBERADO SOMENTE APÓS DEPLOY | Mais `RETENCAO_APLICAR=1` |
 | Preço, "a partir de", aprovação prévia, Prumo obrigatório, prazos 15/38 na LP | REMOVIDO | — |
+| Prazo máximo das cópias do disco do provedor (snapshot do Render) | NÃO SUSTENTADO: fora da LP e da Política | O provedor publica só "pelo menos 7 dias" (render.com/docs/disks); pedido de confirmação em `docs/operacao/solicitacao-render-retencao.md`, não enviado |
 
 ## Programação dos Quick Wins — liberação programados-v1
 

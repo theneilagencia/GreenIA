@@ -189,19 +189,22 @@ futura.
 
 ### 10.2 Cópias de segurança
 
-| Camada | Prazo da camada |
+As cópias abaixo são geridas pela GreenIA. Rotinas automáticas da plataforma eliminam cada uma no fim do prazo.
+
+| Cópia gerida pela GreenIA | Prazo |
 |---|---|
 | Backup automático diário | Até 7 dias |
-| Cópia diária do disco feita pelo provedor (Render) | 7 dias após a captura |
 | Backup manual de manutenção | 30 dias desde a criação |
 | Cópia de recuperação de ambiente excluído | 30 dias desde a exclusão |
 | Cópia operacional de uma exportação | Até 7 dias depois de encerrada a necessidade (seção 12) |
 
-As cópias do provedor incluem os backups locais. Com a limpeza ativa, no pior caso operacional, um dado excluído pode permanecer:
-- até **15 dias** nas cópias diárias;
-- até **38 dias** em backup manual ou na cópia de recuperação de um ambiente excluído.
+**Cópias do disco feitas pelo provedor (Render).** O provedor de hospedagem copia o disco inteiro a cada 24 horas. Essa
+cópia inclui o banco em uso e as cópias da tabela acima. Segundo a documentação do provedor, cada cópia fica disponível
+por pelo menos 7 dias. O provedor não publica um prazo máximo, e a GreenIA não controla esse prazo.
 
-As cópias operacionais de exportação também ficam nas cópias diárias do disco por até 7 dias depois de eliminadas.
+Por isso, depois que um dado sai do banco em uso ou de uma cópia gerida pela GreenIA, ele ainda pode ficar nas cópias do
+disco feitas pelo provedor. O tempo depende do prazo do provedor. Isso vale também para as cópias de exportação já
+eliminadas. Se o provedor informar um prazo máximo, esta Política será atualizada.
 
 ### 10.3 Preservação
 
@@ -210,9 +213,9 @@ responsável e data) ficam fora desses prazos enquanto a preservação for neces
 
 ### 10.4 Armazenamento físico
 
-Os prazos acima valem para as cópias geridas pela plataforma e pelo provedor. **Não são garantia de destruição física de
-todos os blocos de armazenamento:** o provedor pode manter blocos já liberados, fora do alcance da aplicação, até que
-sejam reutilizados.
+Os prazos da tabela da seção 10.2 valem para as cópias geridas pela GreenIA. As cópias do disco feitas pelo provedor
+seguem o prazo do provedor. **Nenhum desses prazos é garantia de destruição física de todos os blocos de
+armazenamento:** o provedor pode manter blocos já liberados, fora do alcance da aplicação, até que sejam reutilizados.
 
 ### 10.5 Registros sem prazo automático
 
@@ -239,7 +242,7 @@ Eles são mantidos enquanto necessários para segurança, operação, prestaçã
   administrador cadastrado pode pedir a exclusão antecipada, com código enviado ao email dele e confirmação expressa de
   que ela é irreversível; um pedido informal ao suporte não basta. Preservação por obrigação legal ou incidente impede a
   exclusão, inclusive a antecipada. Ao excluir, a plataforma guarda uma cópia de recuperação por 30 dias; as cópias
-  diárias seguem a seção 10.2.
+  do disco feitas pelo provedor seguem a seção 10.2.
 
 ## 12. Exportações
 
@@ -342,7 +345,7 @@ Fornecedores:
 
 | Fornecedor | Função | Categorias de dados | Localidade | Finalidade |
 |---|---|---|---|---|
-| Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), confirmada no painel do provedor | Executar e guardar a GreenIA |
+| Render | Hospedagem, disco persistente, cópias diárias do disco, logs do servidor | Todos os dados armazenados da plataforma e das empresas; logs | Estados Unidos (região Virgínia), confirmada no painel do provedor para o serviço e o disco. O local das cópias do disco segue o provedor | Executar e guardar a GreenIA |
 | OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | Estados Unidos ou outros países, conforme a política pública do OpenRouter | Gerar respostas |
 | Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | Conforme a documentação de cada fabricante | Gerar respostas |
 | Provedor de envio de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | Conforme o provedor contratado | Enviar códigos e avisos |

@@ -147,7 +147,8 @@ O banco fica no volume `dados` e a estrutura é atualizada sozinha na subida. Fa
 
 ## Backup e restauração
 
-- **Automático.** Com `BACKUP_HORA=06:00` no `.env`, o próprio processo faz um backup por dia (horário UTC no contêiner). Os arquivos ficam em `dados/backups`, e são guardados os últimos `BACKUP_MANTER` (padrão 14). Com `BACKUP_DESTINO=s3://bucket/pasta` e as variáveis `S3_*`, cada backup também vai para um armazenamento compatível com S3 (AWS S3, Cloudflare R2, Backblaze B2, Magalu Cloud, MinIO). Sucesso e falha ficam no registro de eventos. O S3 só é usado com `S3_LIFECYCLE_DIAS` (1 a 7) declarando a expiração configurada no bucket.
+- **Automático.** Com `BACKUP_HORA=06:00` no `.env`, o próprio processo faz um backup por dia (horário UTC no contêiner) de **todos** os bancos: o da plataforma e o de cada empresa cadastrada, cada um em `dados/backups/<banco>/`. São guardados os últimos `BACKUP_MANTER` (padrão 14; a retenção limita a 7 dias). Se o processo estava fora do ar na hora marcada, a rodada do dia roda assim que ele volta. Sucesso e falha de cada banco ficam na auditoria da plataforma; banco sem backup há mais de 26 h, rodada com falha ou chave-mestra divergente viram aviso no topo do console e email aos admins da plataforma.
+- **Cópia fora do servidor (S3, desligada até ser configurada).** `BACKUP_DESTINO=s3://bucket/prefixo`, `S3_ENDPOINT`, `S3_CHAVE`, `S3_SEGREDO`, `S3_REGIAO` e `BACKUP_CHAVE_CIFRA` (32 bytes em base64, diferente da chave-mestra). Cada banco vira um objeto `prefixo/<banco>/greenia-<banco>-AAAAMMDD-HHMMSS.sqlite.gz.enc`, cifrado no cliente (AES-256-GCM), com SHA-256 nos metadados conferido depois do envio e na restauração; `S3_SSE=AES256` pede e confere a cifra do lado do servidor. Antes de enviar, a regra de expiração é **lida no bucket** (lifecycle, versionamento, Object Lock); sem expiração de até 7 dias, nada é enviado e a falha vira alerta. `S3_LIFECYCLE_DIAS` é ignorada. Política IAM mínima e ensaio: `docs/operacao/backup-e-restauracao.md`.
 - **Retenção.** Prazos por camada, limpeza de hora em hora (dry-run até `RETENCAO_APLICAR=1`), hold e backups manuais: veja `docs/politica-retencao.md` e `node scripts/retencao.js plano`.
 - **Encerramento de ambiente.** Cancelar agenda a exclusão definitiva para 30 dias corridos depois; a rotina de hora em hora exclui sozinha só com `EXCLUSAO_APLICAR=1` (sem ela, dry-run), revalidando status, prazo e hold. O admin da empresa pede cópia dos dados (SQLite, link de uso único por até 7 dias) ou exclusão antecipada em `/encerramento`, com código no email. Console: Encerramentos.
 - **Exportações e contatos comerciais.** Exportar o banco só por pedido do cliente, incidente ou obrigação legal; a cópia fica no servidor e sai 7 dias depois de encerrada a necessidade, salvo hold. Contatos da página de vendas saem 24 meses depois da última interação registrada. As duas limpezas seguem `RETENCAO_APLICAR`.
@@ -161,21 +162,12 @@ O banco fica no volume `dados` e a estrutura é atualizada sozinha na subida. Fa
   docker compose start greenia
   ```
 
-  Também aceita `s3://bucket/pasta/arquivo.sqlite.gz`. A restauração confere a integridade do arquivo antes de trocar o banco e guarda o banco anterior como `greenia.sqlite.antes-da-restauracao`.
-- **Teste a restauração** uma vez por trimestre numa máquina à parte. Backup que nunca foi restaurado não é backup.
+  Também aceita `s3://bucket/prefixo/<banco>/arquivo.sqlite.gz.enc` (ou o `.enc` baixado), com `BACKUP_CHAVE_CIFRA`. A restauração confere a integridade do arquivo antes de trocar o banco e guarda o banco anterior como `greenia.sqlite.antes-da-restauracao`.
+- **Teste a restauração** uma vez por trimestre, isolado: `node scripts/ensaio-restauracao.mjs` (sintético) ou `--s3 s3://bucket/prefixo` / `--backups <pasta>` (real). O ensaio restaura numa pasta nova, remapeia os caminhos dos bancos das empresas só na cópia, sobe a aplicação em 127.0.0.1 sem efeitos externos, valida, mede RTO/RPO e apaga a cópia. Procedimento, chave-mestra e recursos necessários: `docs/operacao/backup-e-restauracao.md`.
 
-  No modo multiempresa há dois tipos de banco. A restauração verifica o tipo esperado, a integridade SQLite e as referências entre registros antes de substituir o destino. `MULTIEMPRESA=1` seleciona a plataforma e `BANCO_PLATAFORMA`; para uma empresa, informe o tipo e o destino explicitamente. Para ensaiar a recuperação sem alterar produção:
+  No modo multiempresa há dois tipos de banco. A restauração verifica o tipo esperado, a integridade SQLite e as referências entre registros antes de substituir o destino. `MULTIEMPRESA=1` seleciona a plataforma e `BANCO_PLATAFORMA`; para uma empresa, informe o tipo e o destino explicitamente (`--tipo empresa --banco ...`). Nunca inicie uma cópia apontando para bancos ativos: `ENSAIO_ISOLADO=1` recusa subir se algum banco de empresa estiver fora da pasta da cópia.
 
-  ```bash
-  node scripts/restaurar.js copia-plataforma.sqlite.gz --tipo plataforma --banco /tmp/greenia-recuperacao/plataforma.sqlite
-  node scripts/restaurar.js copia-empresa.sqlite.gz --tipo empresa --banco /tmp/greenia-recuperacao/empresa.sqlite
-  ```
-
-  Esses comandos restauram arquivos isolados; não iniciam a aplicação. O banco da plataforma guarda caminhos dos bancos das empresas: antes de iniciar uma instância de ensaio, redirecione esses caminhos somente na cópia para os bancos restaurados e mantenha a instância separada do volume e dos serviços externos de produção. Nunca inicie a cópia apontando para bancos ativos.
-
-  A recuperação completa exige também as variáveis de configuração e a chave-mestra original, guardada com proteção de acesso. Os backups SQLite não incluem a chave-mestra; uma chave nova não decifra as credenciais antigas. Não exponha chaves em logs, relatórios ou repositórios. Valide os segredos no ensaio sem imprimir seus valores.
-
-  O backup diário multiempresa registra o tamanho e o SHA-256 de cada cópia, seguido de um resumo de sucesso ou falha parcial. “Concluído” só aparece quando todos os bancos foram copiados. Esse registro não substitui a conferência dos arquivos, dos snapshots do provedor e a execução de um ensaio de recuperação.
+  A recuperação completa exige também as variáveis de configuração e a chave-mestra original. Os backups SQLite não incluem a chave-mestra (só a impressão digital dela, para conferência); uma chave nova não decifra as credenciais antigas. Guarde `CHAVE_MESTRA` (ou o envelope selado de `node scripts/chave-mestra.js selar`) num cofre fora do servidor.
 
 ## Camadas de privacidade no OpenRouter
 

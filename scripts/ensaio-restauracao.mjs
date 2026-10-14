@@ -44,7 +44,7 @@ if (!tem('s3') && !tem('backups')) {
   log('Ensaio sintético (S3 falso local, nenhuma chamada externa).');
   relatorio = await ensaioSintetico({ ...F, log, manter: tem('manter'), volumeMb: Number(opcao('volume-mb')) || 0 });
   resumo(relatorio.ensaio);
-  console.log(`Backup: ${relatorio.backup.concluidos}/${relatorio.backup.total} bancos em ${relatorio.backup.ms} ms; ${relatorio.backup.objetos} objetos cifrados no S3 falso (${relatorio.backup.bytes_s3} B); expiração conferida: ${relatorio.backup.ciclo?.ok ? `${relatorio.backup.ciclo.totalDias} d` : 'não'}`);
+  console.log(`Backup: ${relatorio.backup.concluidos}/${relatorio.backup.total} bancos em ${relatorio.backup.ms} ms; ${relatorio.backup.objetos} objetos cifrados no S3 falso (${relatorio.backup.bytes_s3} B); expiração conferida no bucket: ${relatorio.backup.ciclo?.ok ? `${relatorio.backup.ciclo.expiraDias} d${relatorio.backup.ciclo.versionado ? ` + ${relatorio.backup.ciclo.antigasDias} d de versões antigas` : ''}` : 'não'}`);
   console.log(`Descarte: ${relatorio.descarte.map(d => `${d.pasta} ${d.removida ? 'removida' : 'NÃO REMOVIDA'}`).join('; ') || 'mantido (--manter)'}`);
 } else {
   const destino = opcao('destino') || join(mkdtempSync(join(tmpdir(), 'greenia-ensaio-real-')), 'restaurado');

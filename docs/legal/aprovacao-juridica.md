@@ -65,3 +65,13 @@ A atualização trata do consentimento para medição pelo Google Ads na LP come
 | `docs/legal/politica-de-privacidade.md` | 1.0, atualização de 14 de outubro de 2026 | A partir de 30 de novembro de 2026 | `6152a948e25d16dda74141d79ce8077217319997b544b4af95a6b45cd9900b02` |
 
 A aplicação e a política foram verificadas no deploy `dep-db7o59qvcj2c73ebpveg`, do commit `f9eae291ade2ff55acc58e7c573a5c170156af06`, na branch `greenia-lite`. O manifesto identifica a integridade do texto público; os testes conferem sua correspondência com o arquivo-fonte e com este registro. Nenhuma informação confidencial nova foi acrescentada ao registro.
+
+## 8. Atualização técnica de 14 de outubro de 2026: provedores de IA
+
+Nota técnica da auditoria operacional (Etapa 4, provedores de IA). Não é nova revisão nem aprovação jurídica; as seções 1 a 7 ficam como estão.
+
+A Política de Privacidade ganhou a cláusula 6.6, que descreve a pesquisa na internet dos quick wins e a geração de imagem: o que é enviado, que as duas não são usadas com informações sigilosas e que a retenção zero das rotas sigilosas não cobre o serviço de busca. Nenhuma outra cláusula mudou. A conta da TheNeil no OpenRouter (registro de pedidos, ZDR, treino, DPA) continua sem verificação, como na seção 6; o inventário e as decisões pendentes estão em `docs/operacao/inventario-ia.md`.
+
+| Documento | Versão e atualização | Vigência já prevista | SHA-256 do arquivo-fonte |
+|---|---|---|---|
+| `docs/legal/politica-de-privacidade.md` | 1.0, atualização técnica de 14 de outubro de 2026 (cláusula 6.6) | A partir de 30 de novembro de 2026 | `462cd78adc18d2acb1e4e2a22a04599552a96bc3fa9fd75fb0c7ab8b57bcaf0b` |

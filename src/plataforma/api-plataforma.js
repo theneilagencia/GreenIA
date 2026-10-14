@@ -17,6 +17,7 @@ import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSa
 import { economiaDoPlano, lerPremissas, salvarPremissas, NOMES_PREMISSAS, PREMISSAS_PADRAO } from './margem.js';
 import { alertaEmail, falhasEmail } from './email-falhas.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
+import { semRotaFixa } from '../sigilo.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
 
 
@@ -312,7 +313,7 @@ export function rotasPlataforma(P, r) {
   r.post('/api/plataforma/homologacoes', ({ sessao, corpo, origem }) => {
     precisa(sessao, 'platform.settings.manage');
     const id = idValido(String(corpo.id || '').trim()), perfil = String(corpo.perfil || 'rapido'), fornecedor = String(corpo.fornecedor || '').trim(), justificativa = String(corpo.justificativa || '').trim();
-    if (/:free$/.test(id) || id === 'openrouter/free' || id === 'openrouter/auto') throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o Automático do OpenRouter não podem ser autorizados para dados sigilosos.');
+    if (semRotaFixa(id)) throw erro(400, 'nao_homologavel', 'Modelos gratuitos, roteadores do OpenRouter (como o Automático) e variantes :online não podem ser autorizados para dados sigilosos.');
     if (lerVetos().some(v => v.id === id)) throw erro(409, 'vetado', 'Este modelo está vetado para dados sigilosos. Retire o veto antes de autorizar.');
     if (!['rapido', 'equilibrado', 'avancado'].includes(perfil)) throw erro(400, 'perfil', 'Classe inválida.');
     if (!fornecedor) throw erro(400, 'fornecedor', 'Informe o fornecedor fixado no OpenRouter.');

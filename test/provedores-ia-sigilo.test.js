@@ -278,3 +278,14 @@ test('execução programada de Quick Win sigiloso: rota fixada; sem rota elegív
   assert.ok(['falhou', 'bloqueada'].includes(e2.status), JSON.stringify(e2));
   assert.equal(desde(m).length, 0, 'nada saiu');
 });
+
+test('homologação: variante :online e roteadores do serviço de acesso nunca são aprovados para sigilo', async () => {
+  for (const id of [`${EQUILIBRADO}:online`, 'openrouter/roteador-novo']) {
+    exec(S.app.db, "insert or ignore into modelos (id, nome, fornecedor, liberado, perfil, preco_entrada, preco_saida, contexto) values (?, ?, 'x', 1, 'equilibrado', 1e-6, 2e-6, 200000)", id, id);
+    const r = await admin.post(`/api/admin/modelos/${enc(id)}/homologar`, { fornecedor: 'anthropic', semTreino: true, retencaoZero: true, justificativa: 'teste sintético de bloqueio' });
+    assert.equal(r.status, 400, `${id}: ${JSON.stringify(r.dados)}`);
+    assert.match(JSON.stringify(r.dados), /nao_homologavel/);
+    assert.equal(um(S.app.db, 'select homologado from modelos where id = ?', id).homologado, 0);
+    exec(S.app.db, 'delete from modelos where id = ?', id);
+  }
+});

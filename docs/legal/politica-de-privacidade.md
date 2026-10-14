@@ -131,6 +131,13 @@ pelos fornecedores.
 6.5. O tratamento feito pelo OpenRouter (OpenRouter, Inc., Estados Unidos) é regido pelos termos e pela política de
 privacidade dele; o feito por cada fabricante, pelas políticas do fabricante.
 
+6.6. **Pesquisa na internet e geração de imagem:** quando o Cliente as libera, a pesquisa dos quick wins envia, pelo
+OpenRouter, a um serviço de busca o tema do quick win, o perfil público da empresa e o que a pessoa escreveu na
+execução, sem documentos, anexos ou instruções internas; a geração de imagem envia o tema e o estilo da peça. As duas
+não são usadas com informações sigilosas, em áreas com proteção reforçada ou com dados que a política do Cliente
+manda proteger. O serviço de busca tem política de retenção própria; a retenção zero pedida nas rotas de informações
+sigilosas não se aplica a ele.
+
 ## 7. Hospedagem e transferência internacional
 
 7.1. A GreenIA é hospedada no **Render**, em servidores nos **Estados Unidos** (região Virgínia), com disco persistente e

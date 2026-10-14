@@ -1325,7 +1325,7 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 :root:has(.ld-split){--gestao-largura:1480px}
 .ld-split{display:block}
 .ld-split.dividido{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:24px;align-items:start}
-.ld-split .ld-editor{gap:8px;container-type:inline-size}
+.ld-split .ld-editor{gap:8px;grid-template-columns:minmax(0,1fr);container-type:inline-size}
 .ld-split.dividido .ld-editor{max-width:none}
 /* Seções */
 .ld-bloco{border:1px solid var(--line);border-radius:12px;background:var(--paper);transition:border-color .15s}

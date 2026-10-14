@@ -2,6 +2,8 @@
 // OpenAI). O resto do código fala só com enviar(mensagens, opções) e
 // listarModelos(), para trocar de camada no futuro se for preciso.
 
+import { semRotaFixa } from './sigilo.js';
+
 export class ErroIA extends Error {
   constructor(mensagem, status = 502) { super(mensagem); this.status = status; }
 }
@@ -10,10 +12,16 @@ export class ErroIA extends Error {
 //  - normal: só fornecedores que não treinam com os dados (a não ser que o admin desligue);
 //    com modelo de reserva, o OpenRouter tenta o principal e cai no reserva.
 //  - sigilosa: fornecedor fixado, retenção zero exigida, sem cair para outro fornecedor.
+//    Defesa final (fail closed), independente do roteador: um pedido sigiloso nunca sai sem fornecedor fixado,
+//    para um modelo sem rota fixa (gratuito, roteador automático, ":online"), com lista de modelos de reserva
+//    no fornecedor ou com a pesquisa na internet (o plugin leva o pedido a um mecanismo de busca, fora da rota
+//    homologada, e a retenção zero do serviço de acesso só vale para a inferência).
 export function montarCorpo(mensagens, op) {
   const corpo = { model: op.modelo, messages: mensagens, stream: true, usage: { include: true } };
   if (op.sigilosa) {
-    if (!op.fornecedor) throw new ErroIA('Modelo homologado sem fornecedor fixado.', 400);
+    if (!op.fornecedor || typeof op.fornecedor !== 'string') throw new ErroIA('Modelo homologado sem fornecedor fixado.', 400);
+    if (semRotaFixa(op.modelo)) throw new ErroIA('Recurso sem rota fixa não recebe informação sigilosa.', 400);
+    if (op.pesquisaWeb) throw new ErroIA('Pesquisa na internet não é usada com informação sigilosa.', 400);
     corpo.provider = { order: [op.fornecedor], only: [op.fornecedor], allow_fallbacks: false, zdr: true, data_collection: 'deny' };
   } else {
     corpo.provider = { data_collection: op.semTreino === false ? 'allow' : 'deny' };
@@ -69,6 +77,8 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
     // é chamada quando a empresa liberou e a governança permite (src/visual/producao.js). Devolve a imagem como
     // data URL e o custo; o texto do pedido não volta.
     async gerarImagem(prompt, op = {}) {
+      // Sem rota homologada para imagem: informação sigilosa nunca vai ao gerador (a governança já barra antes).
+      if (op.sigilosa) throw new ErroIA('Geração de imagem não é usada com informação sigilosa.', 400);
       let r;
       try {
         r = await f(`${base}/chat/completions`, { method: 'POST', headers: cab, signal: op.sinal,

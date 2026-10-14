@@ -16,6 +16,8 @@
 }
 .lv ::selection{background:color-mix(in srgb,var(--acento) 22%,transparent)}
 .lv .l-dentro{max-width:1240px}
+/* Na LP, --tinta-2 é uma superfície clara; os avisos precisam de cor de texto. */
+.lv .faixa-aviso.ok,.lv .faixa-aviso.erro,.lv .faixa-aviso.atencao{color:var(--ink)}
 
 /* ----------------------------------------------------------------- Botões */
 .lv .btn{height:44px;padding:0 18px;border-radius:var(--r-sm);font:500 14.5px/1 var(--sans);letter-spacing:-.005em}

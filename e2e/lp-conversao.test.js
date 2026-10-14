@@ -82,3 +82,15 @@ test('erro de servidor não exibe sucesso nem emite evento de conversão',async(
   await t.p.click('#c-enviar');await t.p.locator('#c-erro:not(.oculto)').waitFor();assert.equal(await t.p.locator('#c-ok').isVisible(),false);assert.equal(t.conversoes.length,0);assert.equal(await t.p.locator('#c-enviar').isEnabled(),true);
  }finally{await t.c.close();}
 });
+
+test('confirmação de contato da LP mantém contraste legível no celular',async()=>{
+ const t=await abrir({width:390});try{
+  await t.p.locator('[data-gia=denied]').click();await preencher(t.p,'qa-contraste@example.test');await enviar(t.p);
+  const contraste=await t.p.locator('#c-ok').evaluate(el=>{
+   const s=getComputedStyle(el),ctx=document.createElement('canvas').getContext('2d');
+   const luz=cor=>{ctx.fillStyle=cor;ctx.fillRect(0,0,1,1);const c=[...ctx.getImageData(0,0,1,1).data].slice(0,3).map(n=>n/255).map(n=>n<=.04045?n/12.92:((n+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2];};
+   const a=luz(s.color),b=luz(s.backgroundColor);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+  });
+  assert.ok(contraste>=4.5,`contraste ${contraste}`);assert.equal(await t.p.locator('#c-ok').getAttribute('role'),'status');
+ }finally{await t.c.close();}
+});

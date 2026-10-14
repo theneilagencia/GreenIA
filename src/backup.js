@@ -61,33 +61,37 @@ export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, ago
   // Retenção local: fica com os mais recentes.
   const antigos = readdirSync(pasta).filter(f => /^greenia-\d{8}-\d{6}\.sqlite\.gz$/.test(f)).sort().reverse().slice(Math.max(1, manter));
   for (const f of antigos) rmSync(join(pasta, f));
-  return { local, tamanho:gz.length, nome };
+  return { local, tamanho:gz.length, nome, sha256: sha256(gz) };
 }
 
 export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env } = {}) {
-  const { local,tamanho,nome }=fazerBackupLocal(db,{pasta,manter,agora});
+  const { local,tamanho,nome,sha256:hash }=fazerBackupLocal(db,{pasta,manter,agora});
   const gz=readFileSync(local);
   const alvo = alvoS3(destino, nome, env);
   if (alvo) await s3('PUT', alvo, gz);
-  return { local, tamanho, remoto: alvo?.url || null };
+  return { local, tamanho, sha256: hash, remoto: alvo?.url || null };
 }
 
 // Confere se um arquivo SQLite está íntegro e é um banco da GreenIA.
-export function conferir(arquivo) {
+export function conferir(arquivo, { tipo = 'empresa' } = {}) {
+  if (!['empresa', 'plataforma'].includes(tipo)) throw new Error('Tipo de banco inválido: use empresa ou plataforma.');
   const db = new DatabaseSync(arquivo, { readOnly: true });
   try {
     const r = db.prepare('pragma integrity_check').get();
     if (Object.values(r)[0] !== 'ok') throw new Error('O arquivo de backup está corrompido: ' + Object.values(r)[0]);
-    for (const t of ['config', 'pessoas', 'eventos', 'conversas']) {
-      if (!db.prepare("select 1 from sqlite_master where type = 'table' and name = ?").get(t)) throw new Error(`O arquivo não é um banco da GreenIA (falta a tabela ${t}).`);
+    const tabelas = tipo === 'plataforma' ? ['companies', 'plans', 'users', 'company_users', 'roles', 'role_permissions', 'platform_settings', 'audit_log'] : ['config', 'pessoas', 'eventos', 'conversas'];
+    for (const t of tabelas) {
+      if (!db.prepare("select 1 from sqlite_master where type = 'table' and name = ?").get(t)) throw new Error(`O arquivo não é um banco da GreenIA do tipo ${tipo} (falta a tabela ${t}).`);
     }
-    return { pessoas: db.prepare('select count(*) as n from pessoas').get().n, eventos: db.prepare('select count(*) as n from eventos').get().n };
+    if (db.prepare('pragma foreign_key_check').all().length) throw new Error('O backup contém referências inconsistentes entre registros.');
+    if (tipo === 'plataforma') return { tipo, empresas: db.prepare('select count(*) as n from companies').get().n, usuarios: db.prepare('select count(*) as n from users').get().n, eventos: db.prepare('select count(*) as n from audit_log').get().n };
+    return { tipo, pessoas: db.prepare('select count(*) as n from pessoas').get().n, eventos: db.prepare('select count(*) as n from eventos').get().n };
   } finally { db.close(); }
 }
 
 // Restaura um backup (arquivo local .gz ou s3://bucket/caminho). Com o servidor parado.
 // O banco atual não é apagado: fica ao lado, com o sufixo .antes-da-restauracao.
-export async function restaurar(origem, banco, { env = process.env } = {}) {
+export async function restaurar(origem, banco, { env = process.env, tipo = 'empresa' } = {}) {
   let gz;
   if (origem.startsWith('s3://')) {
     const alvo = alvoS3(origem.replace(/[^/]+$/, ''), basename(origem), env);
@@ -97,7 +101,7 @@ export async function restaurar(origem, banco, { env = process.env } = {}) {
   const temp = `${banco}.restaurando`;
   writeFileSync(temp, gz[0] === 0x1f && gz[1] === 0x8b ? gunzipSync(gz) : gz);   // aceita .gz ou .sqlite
   let resumo;
-  try { resumo = conferir(temp); } catch (e) { rmSync(temp, { force: true }); throw e; }
+  try { resumo = conferir(temp, { tipo }); } catch (e) { rmSync(temp, { force: true }); throw e; }
   let anterior = null;
   if (existsSync(banco) && statSync(banco).size > 0) {
     anterior = `${banco}.antes-da-restauracao`; renameSync(banco, anterior);

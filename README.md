@@ -164,6 +164,19 @@ O banco fica no volume `dados` e a estrutura é atualizada sozinha na subida. Fa
   Também aceita `s3://bucket/pasta/arquivo.sqlite.gz`. A restauração confere a integridade do arquivo antes de trocar o banco e guarda o banco anterior como `greenia.sqlite.antes-da-restauracao`.
 - **Teste a restauração** uma vez por trimestre numa máquina à parte. Backup que nunca foi restaurado não é backup.
 
+  No modo multiempresa há dois tipos de banco. A restauração verifica o tipo esperado, a integridade SQLite e as referências entre registros antes de substituir o destino. `MULTIEMPRESA=1` seleciona a plataforma e `BANCO_PLATAFORMA`; para uma empresa, informe o tipo e o destino explicitamente. Para ensaiar a recuperação sem alterar produção:
+
+  ```bash
+  node scripts/restaurar.js copia-plataforma.sqlite.gz --tipo plataforma --banco /tmp/greenia-recuperacao/plataforma.sqlite
+  node scripts/restaurar.js copia-empresa.sqlite.gz --tipo empresa --banco /tmp/greenia-recuperacao/empresa.sqlite
+  ```
+
+  Esses comandos restauram arquivos isolados; não iniciam a aplicação. O banco da plataforma guarda caminhos dos bancos das empresas: antes de iniciar uma instância de ensaio, redirecione esses caminhos somente na cópia para os bancos restaurados e mantenha a instância separada do volume e dos serviços externos de produção. Nunca inicie a cópia apontando para bancos ativos.
+
+  A recuperação completa exige também as variáveis de configuração e a chave-mestra original, guardada com proteção de acesso. Os backups SQLite não incluem a chave-mestra; uma chave nova não decifra as credenciais antigas. Não exponha chaves em logs, relatórios ou repositórios. Valide os segredos no ensaio sem imprimir seus valores.
+
+  O backup diário multiempresa registra o tamanho e o SHA-256 de cada cópia, seguido de um resumo de sucesso ou falha parcial. “Concluído” só aparece quando todos os bancos foram copiados. Esse registro não substitui a conferência dos arquivos, dos snapshots do provedor e a execução de um ensaio de recuperação.
+
 ## Camadas de privacidade no OpenRouter
 
 A GreenIA manda as regras em toda chamada:

@@ -85,6 +85,24 @@ export function lerAdminsArquivo(arquivo) {
 }
 
 // Modo multiempresa (MULTIEMPRESA=1): uma plataforma, um banco de controle e um banco por empresa.
+export async function backupDaPlataforma(P, { pasta, ...op }, copiar = fazerBackup) {
+  const bancos = [['plataforma', P.db], ...[...P.tenants].map(([id, t]) => [id, t.db])];
+  const r = { total: bancos.length, concluidos: 0, falhas: 0 };
+  for (const [id, db] of bancos) {
+    try {
+      const b = await copiar(db, { ...op, pasta: join(pasta, id), destino: op.destino && `${op.destino.replace(/\/$/, '')}/${id}` });
+      r.concluidos++;
+      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}`);
+    } catch (e) {
+      r.falhas++;
+      const codigo = /^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro';
+      P.log(`backup de ${id} falhou (${codigo})`);
+    }
+  }
+  P.log(`backup diário ${r.falhas ? 'incompleto' : 'concluído'}: ${r.concluidos}/${r.total} bancos; ${r.falhas} falhas`);
+  return r;
+}
+
 export async function iniciarPlataforma(env = process.env) {
   const producao = env.NODE_ENV === 'production';
   const ia = env.OPENROUTER_API_KEY ? criarOpenRouter({ chave: env.OPENROUTER_API_KEY }) : producao ? criarIndisponivel() : criarSimulada();
@@ -159,11 +177,7 @@ export async function iniciarPlataforma(env = process.env) {
       if (agora.toTimeString().slice(0, 5) !== env.BACKUP_HORA || ultimo === agora.toDateString()) return;
       ultimo = agora.toDateString();
       const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), env };
-      try { await fazerBackup(P.db, { ...op, pasta: join(pasta, 'plataforma'), destino: op.destino && `${op.destino.replace(/\/$/, '')}/plataforma` }); } catch (e) { P.log('backup da plataforma falhou', e.message); }
-      for (const [id, t] of P.tenants) {
-        try { await fazerBackup(t.db, { ...op, pasta: join(pasta, id), destino: op.destino && `${op.destino.replace(/\/$/, '')}/${id}` }); } catch (e) { P.log(`backup da empresa ${id} falhou`, e.message); }
-      }
-      P.log('backup diário concluído');
+      await backupDaPlataforma(P, { ...op, pasta });
     }, 30e3).unref();
     P.log(`Backup diário às ${env.BACKUP_HORA}.`);
   }

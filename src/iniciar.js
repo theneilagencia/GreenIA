@@ -14,7 +14,10 @@ import { smtpDeVariaveis } from './email.js';
 import { criarIndisponivel, criarOpenRouter, criarSimulada } from './ia.js';
 import { atualizarCatalogo } from './modelos.js';
 import { apagarVencidas } from './conversas.js';
-import { agendarBackup, fazerBackup } from './backup.js';
+import { agendarBackup, fazerBackup, carimboDe, limiteS3 } from './backup.js';
+import { configS3, enviarEnvelopeS3 } from './backup-s3.js';
+import { segredoEnvelopeDe, selarChaveMestra } from './chave-recuperacao.js';
+import { avisarBackups, lerEstado, registrarFalha, registrarRodada, registrarSucesso } from './plataforma/backup-estado.js';
 import { consolidarWal, todos } from './db.js';
 import { registrar } from './eventos.js';
 import { auditar } from './plataforma/auditoria.js';
@@ -25,14 +28,13 @@ import { rodadaContatos } from './plataforma/contatos.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
 
-// S3 só com regra de expiração declarada no bucket (S3_LIFECYCLE_DIAS de 1 a 7), igual ou menor que a retenção
-// local: sem isso, as cópias no S3 ficariam sem prazo (docs/politica-retencao.md). A regra é configurada no bucket.
+// S3 (desligado sem BACKUP_DESTINO). A expiração não é mais aceita por declaração (S3_LIFECYCLE_DIAS): antes do
+// primeiro envio de cada rodada, a regra de ciclo de vida e o versionamento do bucket são LIDOS e conferidos
+// (src/backup-s3.js); sem expiração em até o prazo da política, nada é enviado e a falha vira alerta.
 export function destinoS3(env, log = () => {}) {
   if (!env.BACKUP_DESTINO) return undefined;
-  const dias = Number(env.S3_LIFECYCLE_DIAS);
-  if (Number.isInteger(dias) && dias >= 1 && dias <= 7) return env.BACKUP_DESTINO;
-  log('ATENÇÃO: BACKUP_DESTINO ignorado: declare em S3_LIFECYCLE_DIAS (1 a 7) a expiração configurada no bucket. Sem ela, as cópias no S3 não teriam prazo.');
-  return undefined;
+  if (env.S3_LIFECYCLE_DIAS) log('S3_LIFECYCLE_DIAS é ignorado: a expiração do bucket é conferida no próprio bucket antes de cada rodada de envio.');
+  return env.BACKUP_DESTINO;
 }
 
 export async function iniciar(env = process.env) {
@@ -85,22 +87,58 @@ export function lerAdminsArquivo(arquivo) {
 }
 
 // Modo multiempresa (MULTIEMPRESA=1): uma plataforma, um banco de controle e um banco por empresa.
-export async function backupDaPlataforma(P, { pasta, ...op }, copiar = fazerBackup) {
-  const bancos = [['plataforma', P.db], ...[...P.tenants].map(([id, t]) => [id, t.db])];
-  const r = { total: bancos.length, concluidos: 0, falhas: 0 };
-  for (const [id, db] of bancos) {
+// Rodada de backup: o banco da plataforma e o de TODAS as empresas cadastradas (inclusive as que não estão abertas),
+// cada um na sua pasta; sucesso e falha por banco ficam na auditoria e no estado (src/plataforma/backup-estado.js).
+export async function backupDaPlataforma(P, { pasta, env = process.env, ...op }, copiar = fazerBackup) {
+  const real = typeof P.db?.prepare === 'function';
+  const abertos = new Set(P.tenants.keys());
+  const fechados = real ? todos(P.db, 'select id from companies order by id').map(c => c.id).filter(id => !abertos.has(id)) : [];
+  const bancos = [['plataforma', () => P.db], ...[...P.tenants].map(([id, t]) => [id, () => t.db]),
+    ...fechados.map(id => [id, () => { const t = P.tenant(id); if (!t) throw Object.assign(new Error('ambiente indisponível'), { code: 'TENANT_INDISPONIVEL' }); return t.db; }])];
+  const r = { total: bancos.length, concluidos: 0, falhas: 0, s3: !!op.destino };
+  const verificacao = {};
+  const agora = op.agora || (P.agora ? P.agora() : new Date());
+  let mestra = null;
+  try { mestra = P.mestra?.() || null; } catch { /* sem chave-mestra: a cifra do S3 é conferida só contra CHAVE_MESTRA */ }
+  for (const [id, abrir] of bancos) {
     try {
-      const b = await copiar(db, { ...op, pasta: join(pasta, id), destino: op.destino && `${op.destino.replace(/\/$/, '')}/${id}` });
+      const b = await copiar(abrir(), { ...op, env, agora, banco: id, verificacao, mestra, pasta: join(pasta, id) });
       r.concluidos++;
-      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}`);
+      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}${b.s3 ? `; S3 ${b.s3.objeto}${b.s3.sse ? ` (SSE ${b.s3.sse})` : ''}` : ''}`);
+      if (real) registrarSucesso(P, id, b);
     } catch (e) {
       r.falhas++;
       const codigo = /^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro';
-      P.log(`backup de ${id} falhou (${codigo})`);
+      P.log(`backup de ${id} falhou (${codigo}${e.etapa === 's3' ? '; o backup local foi feito' : ''})`);
+      if (real) registrarFalha(P, id, e);
     }
   }
+  if (verificacao.resultado) { const c = verificacao.resultado; r.ciclo = { ok: c.ok, motivo: c.motivo, totalDias: c.totalDias, versionamento: c.versionamento, limiteDias: c.limiteDias }; }
+  // Envelope selado da chave-mestra junto das cópias no S3 (só com BACKUP_ENVELOPE_SEGREDO, separado das outras chaves).
+  if (op.destino && real) {
+    try {
+      const segredo = segredoEnvelopeDe(env);
+      if (segredo) {
+        const cfg = configS3(op.destino, env, { mestra });
+        const x = await enviarEnvelopeS3(cfg, { envelope: selarChaveMestra(mestra, segredo, { agora }), carimbo: carimboDe(agora), limiteDias: limiteS3(env), verificacao });
+        r.envelope = x.impressao;
+        P.log(`envelope da chave-mestra enviado (${x.impressao})`);
+      }
+    } catch (e) { r.envelope = false; P.log(`envelope da chave-mestra não enviado (${/^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro'})`); }
+  }
   P.log(`backup diário ${r.falhas ? 'incompleto' : 'concluído'}: ${r.concluidos}/${r.total} bancos; ${r.falhas} falhas`);
+  if (real) registrarRodada(P, r);
   return r;
+}
+
+// Agenda a rodada diária. A hora (HH:MM, relógio do servidor, UTC no contêiner) e a última rodada gravada no banco
+// decidem: depois de um reinício que pulou a hora, a rodada do dia roda assim que o processo volta (não espera 24 h).
+export function rodadaDevida(P, hora, agora = P.agora()) {
+  const [h, m] = hora.split(':').map(Number);
+  const marco = new Date(agora); marco.setHours(h, m, 0, 0);
+  if (agora < marco) return false;
+  const ultima = Date.parse(lerEstado(P).rodada?.em || '') || 0;
+  return ultima < marco.getTime();
 }
 
 export async function iniciarPlataforma(env = process.env) {
@@ -168,19 +206,23 @@ export async function iniciarPlataforma(env = process.env) {
   tarefa(catalogo, 24 * 3600e3);
   // Chave nova no console: atualiza o catálogo de modelos e o saldo logo, sem esperar o próximo ciclo.
   P.aoTrocarIA = () => { catalogo().catch(e => P.log('catálogo', e.message)); if (iaReal()) conferirSaldo(P).catch(() => {}); validade().catch(() => {}); };
-  // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas.
-  if (/^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '')) {
-    const pasta = env.BACKUP_PASTA || 'dados/backups';
-    let ultimo = '';
+  // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas; conferência do conjunto de hora em
+  // hora (banco sem backup há mais de 26 h, falha, S3 recusado) com aviso no console e email aos admins da plataforma.
+  P.backup = { hora: /^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '') ? env.BACKUP_HORA : null, pasta: env.BACKUP_PASTA || 'dados/backups', s3: !!destinoS3(env) };
+  if (P.backup.hora) {
+    let rodando = false;
     setInterval(async () => {
-      const agora = new Date();
-      if (agora.toTimeString().slice(0, 5) !== env.BACKUP_HORA || ultimo === agora.toDateString()) return;
-      ultimo = agora.toDateString();
-      const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), env };
-      await backupDaPlataforma(P, { ...op, pasta });
+      if (rodando || !rodadaDevida(P, P.backup.hora)) return;
+      rodando = true;
+      try {
+        const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), env };
+        await backupDaPlataforma(P, { ...op, pasta: P.backup.pasta });
+        await avisarBackups(P);
+      } catch (e) { P.log('backup diário', e.message); } finally { rodando = false; }
     }, 30e3).unref();
-    P.log(`Backup diário às ${env.BACKUP_HORA}.`);
-  }
+    P.log(`Backup diário às ${env.BACKUP_HORA}${P.backup.s3 ? ', com cópia cifrada no S3 (expiração do bucket conferida antes do envio)' : ''}.`);
+  } else if (producao) P.log('ATENÇÃO: sem BACKUP_HORA, o backup automático está desligado.');
+  if (P.backup.hora || producao) tarefa(() => avisarBackups(P), 3600e3);
   const porta = Number(env.PORTA || env.PORT || 8080);
   P.servidor.listen(porta, env.HOST || '0.0.0.0', () => P.log(`GreenIA multiempresa em http://localhost:${porta} (console em /plataforma)`));
   const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };

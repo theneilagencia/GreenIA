@@ -37,7 +37,7 @@ test('rodada de backup registra falha parcial e continua as outras empresas sem 
  const logs=[],vistos=[];const plataforma={},a={},b={};
  const P={db:plataforma,tenants:new Map([['a',{db:a}],['b',{db:b}]]),log:s=>logs.push(s)};
  const r=await backupDaPlataforma(P,{pasta:'/tmp/qa-backup',destino:'s3://qa/copias'},async(db,op)=>{vistos.push(op);if(db===a)throw Object.assign(new Error('não imprimir conteúdo'),{code:'ENOSPC'});return {tamanho:100,sha256:'a'.repeat(64)};});
- assert.deepEqual(r,{total:3,concluidos:2,falhas:1});assert.equal(vistos.length,3);assert.equal(vistos[2].destino,'s3://qa/copias/b');
+ assert.deepEqual(r,{total:3,concluidos:2,falhas:1,s3:true});assert.equal(vistos.length,3);assert.equal(vistos[2].banco,'b');assert.equal(vistos[2].destino,'s3://qa/copias');assert.equal(vistos[2].pasta,'/tmp/qa-backup/b');
  assert.match(logs.at(-1),/incompleto: 2\/3 bancos; 1 falhas/);assert.doesNotMatch(logs.join('\n'),/backup diário concluído|não imprimir conteúdo/);
  const ok=await backupDaPlataforma(P,{pasta:'/tmp/qa-backup'},async()=>({tamanho:100,sha256:'b'.repeat(64)}));assert.equal(ok.falhas,0);assert.match(logs.at(-1),/concluído: 3\/3 bancos; 0 falhas/);
 });

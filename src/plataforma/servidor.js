@@ -18,6 +18,8 @@ import { REQUISITOS_PLATAFORMA } from '../sigilo.js';
 import { registrarFalhaEmail, registrarEnvioOk } from './email-falhas.js';
 import { criarSimulada, criarOpenRouter } from '../ia.js';
 import { chaveMestra, cifrar, decifrar, mascarar } from './segredo.js';
+import { impressaoMestra } from '../chave-recuperacao.js';
+import { auditar } from './auditoria.js';
 import { ErroIA } from '../ia.js';
 import { impressaoChave, fusoValido, FUSO_PADRAO, registrarRecusa, registrarLeitura, chaveRecusada, podeRevalidar, marcarRevalidacao, conferirChave } from './chave-validade.js';
 import { lerConfig, salvarConfig } from '../config.js';
@@ -65,7 +67,12 @@ export function criarPlataforma(op = {}) {
   P.pastaExportacoes = op.pastaExportacoes ?? (P.pastaEmpresas !== ':memory:' ? join(dirname(P.pastaEmpresas), 'exportacoes') : join(tmpdirSeguro(), 'greenia-exportacoes', randomUUID()));
   P.exclusaoAplicar = op.exclusaoAplicar === true;
   // Chave do OpenRouter informada no console: cifrada no banco; vale sobre a variável OPENROUTER_API_KEY.
-  P.criarIA = op.criarIA ?? (chave => criarOpenRouter({ chave }));
+  // Modo isolado (ensaio de restauração, docs/operacao/backup-e-restauracao.md): nenhum efeito externo. IA simulada
+  // mesmo com chave salva no console, email só em memória (inclusive o SMTP próprio das empresas), sem provedor de
+  // domínios. As tarefas periódicas (programações, backups, retenção, avisos) só existem em src/iniciar.js.
+  P.isolado = op.isolado === true;
+  if (P.isolado) { P.ia = iaTrocavel(criarSimulada(), {}); P.iaPadrao = P.ia; P.provedorDominios = null; P.dns = op.dns || { resolveCname: async () => [], resolve4: async () => [] }; }
+  P.criarIA = P.isolado ? (() => criarSimulada()) : op.criarIA ?? (chave => criarOpenRouter({ chave }));
   P.chaveVariavel = op.chaveVariavel || null;   // só a máscara da chave da variável de ambiente
   P.chaveVariavelId = op.chaveVariavelId || null;
   // Fuso da plataforma: só para exibir datas (e converter a data digitada no console). O cálculo é em UTC.
@@ -92,7 +99,7 @@ export function criarPlataforma(op = {}) {
   P.smtpPadrao = { url: op.smtpPadrao?.url || '', remetente: op.smtpPadrao?.remetente || '' };
   // As variáveis do servidor, quando definidas, mandam: são a configuração explícita de quem opera.
   P.lerSmtp = () => { if (P.smtpPadrao.url) return P.smtpPadrao; return lerAjuste(db, 'smtp', { url: '', remetente: '' }); };
-  const base = op.email ?? criarEmail({ lerSmtp: P.lerSmtp, log: P.log });
+  const base = op.email ?? criarEmail({ lerSmtp: P.isolado ? () => ({ url: '' }) : P.lerSmtp, log: P.log });
   // Email da plataforma com registro: sucesso limpa o aviso; falha é registrada (sem segredos) e repassada.
   P.email = { enviados: base.enviados,
     async enviar(...a) { try { const r = await base.enviar(...a); registrarEnvioOk(P); return r; } catch (e) { registrarFalhaEmail(P, { escopo: 'plataforma', origem: 'email da plataforma', erro: e }); throw e; } } };
@@ -121,6 +128,7 @@ export function criarPlataforma(op = {}) {
   migrarContatosAntigos(P);
   E.preencherTextosMarca(P);
   E.neutralizarAvisosAntigos(P);
+  conferirImpressaoMestra(P);
   const salva = lerChaveOpenRouter(P);
   if (salva?.chave) P.ia.trocar(P.criarIA(salva.chave));
   else if (salva && !salva.chave) P.log('ATENÇÃO: a chave do OpenRouter salva no console não pôde ser lida (chave-mestra diferente). Informe a chave de novo em Uso.');
@@ -148,7 +156,7 @@ function abrirTenant(P, id) {
   const email = {
     async enviar(para, assunto, texto, ...resto) {
       const a = [para, semMarcaDaPlataforma(assunto), semMarcaDaPlataforma(texto), ...resto];
-      if (lerConfig(t.db).smtp.url) {
+      if (lerConfig(t.db).smtp.url && !P.isolado) {
         try { const r = await smtpProprio.enviar(...a); registrarEmailEmpresa(t, true); return r; } catch (e) {
           registrarFalhaEmail(P, { escopo: `empresa ${id}`, origem: 'email próprio da empresa (tentando o da plataforma)', erro: e });
           registrarEmailEmpresa(t, false, explicarFalhaEmail(e, lerConfig(t.db).smtp), true);   // o admin da empresa também vê
@@ -583,4 +591,24 @@ export function origemChaveOpenRouter(P) {
   }
   if (P.chaveVariavel) return { origem: 'variavel', id: P.chaveVariavelId || null, mascara: P.chaveVariavel };
   return { origem: null };
+}
+
+// Impressão digital da chave-mestra (src/chave-recuperacao.js): gravada no banco da plataforma (vai em todo backup).
+// Chave diferente da registrada = segredos cifrados ilegíveis (restauração com a chave errada ou chave perdida): o
+// registro original é mantido, o console mostra o aviso e os admins recebem o alerta da conferência de backups.
+// Aceitar a chave nova é um passo explícito: node scripts/chave-mestra.js aceitar.
+export function conferirImpressaoMestra(P) {
+  let atual;
+  try { atual = impressaoMestra(P.mestra()); } catch (e) { P.log('chave-mestra indisponível', e.message); return null; }
+  const salva = lerAjuste(P.db, 'chave_mestra_impressao', null);
+  if (!salva) { salvarAjuste(P.db, 'chave_mestra_impressao', { impressao: atual, desde: P.agora().toISOString() }); P.alertaChaveMestra = null; return { impressao: atual, nova: true }; }
+  if (salva.impressao === atual) { P.alertaChaveMestra = null; return { impressao: atual, confere: true }; }
+  P.alertaChaveMestra = { esperada: salva.impressao, atual, texto: `a chave-mestra em uso (${atual}) não é a registrada no banco (${salva.impressao}): credenciais salvas não serão lidas. Recupere a chave original (docs/operacao/backup-e-restauracao.md).` };
+  P.log(`ATENÇÃO: ${P.alertaChaveMestra.texto}`);
+  const ult = lerAjuste(P.db, 'chave_mestra_divergencia', null);
+  if (ult?.atual !== atual) {
+    salvarAjuste(P.db, 'chave_mestra_divergencia', { atual, em: P.agora().toISOString() });
+    try { auditar(P, { acao: 'master_key.mismatch', entidade: 'master_key', id: null, depois: { esperada: salva.impressao, atual }, origem: { painel: 'inicio' } }); } catch { /* auditoria indisponível */ }
+  }
+  return { impressao: atual, confere: false, esperada: salva.impressao };
 }

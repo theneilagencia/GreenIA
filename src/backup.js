@@ -2,55 +2,24 @@
 // funciona com o servidor no ar), compactada com gzip. Vai para uma pasta local
 // e, se BACKUP_DESTINO for s3://bucket/prefixo, também para um armazenamento
 // compatível com S3 (AWS, Cloudflare R2, Backblaze B2, MinIO, Magalu Cloud...).
-import { createHash, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
 import { registrar } from './eventos.js';
+import { configS3, enviarBackupS3, baixarBackupS3, decifrarBackup, ehCifrado, chaveCifraDe, ErroBackup } from './backup-s3.js';
 
+export { assinarS3, ErroBackup } from './backup-s3.js';
 const sha256 = d => createHash('sha256').update(d).digest('hex');
-const hmac = (k, d) => createHmac('sha256', k).update(d).digest();
-const codificar = s => encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-
-// Assinatura AWS Signature Version 4 para S3. Devolve os cabeçalhos a enviar.
-export function assinarS3({ metodo, url, cabecalhos = {}, hashCorpo, chave, segredo, regiao, agora = new Date() }) {
-  const u = new URL(url);
-  const data = agora.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const dia = data.slice(0, 8);
-  const h = { ...Object.fromEntries(Object.entries(cabecalhos).map(([k, v]) => [k.toLowerCase(), String(v).trim()])), host: u.host, 'x-amz-content-sha256': hashCorpo, 'x-amz-date': data };
-  const nomes = Object.keys(h).sort();
-  const uri = u.pathname.split('/').map(p => codificar(decodeURIComponent(p))).join('/');
-  const query = [...u.searchParams].map(([k, v]) => `${codificar(k)}=${codificar(v)}`).sort().join('&');
-  const canonico = [metodo, uri, query, nomes.map(n => `${n}:${h[n]}\n`).join(''), nomes.join(';'), hashCorpo].join('\n');
-  const escopo = `${dia}/${regiao}/s3/aws4_request`;
-  const texto = ['AWS4-HMAC-SHA256', data, escopo, sha256(canonico)].join('\n');
-  const k = ['s3', 'aws4_request'].reduce((a, p) => hmac(a, p), hmac(hmac('AWS4' + segredo, dia), regiao));
-  const assinatura = createHmac('sha256', k).update(texto).digest('hex');
-  delete h.host;
-  return { ...h, authorization: `AWS4-HMAC-SHA256 Credential=${chave}/${escopo}, SignedHeaders=${nomes.join(';')}, Signature=${assinatura}` };
-}
-
-function alvoS3(destino, nome, env) {
-  const m = /^s3:\/\/([^/]+)\/?(.*)$/.exec(destino || '');
-  if (!m) return null;
-  if (!env.S3_ENDPOINT || !env.S3_CHAVE || !env.S3_SEGREDO) throw new Error('Backup em S3 precisa de S3_ENDPOINT, S3_CHAVE e S3_SEGREDO.');
-  const prefixo = m[2] ? m[2].replace(/\/?$/, '/') : '';
-  return { url: `${env.S3_ENDPOINT.replace(/\/$/, '')}/${m[1]}/${prefixo}${nome}`, chave: env.S3_CHAVE, segredo: env.S3_SEGREDO, regiao: env.S3_REGIAO || 'us-east-1' };
-}
-
-async function s3(metodo, alvo, corpo) {
-  const hashCorpo = sha256(corpo || '');
-  const cab = assinarS3({ metodo, url: alvo.url, hashCorpo, ...alvo, cabecalhos: corpo ? { 'content-type': 'application/gzip' } : {} });
-  const r = await fetch(alvo.url, { method: metodo, headers: cab, body: corpo });
-  if (!r.ok) throw new Error(`S3 respondeu ${r.status}: ${(await r.text()).slice(0, 300)}`);
-  return r;
-}
+const LIMITE_S3_PADRAO = 7;   // dias: prazo dos backups automáticos (docs/politica-retencao.md)
 
 // Faz o backup. Devolve o caminho local e, se houver, a URL no S3.
+export const carimboDe = agora => agora.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
 export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, agora = new Date() } = {}) {
   mkdirSync(pasta, { recursive: true });
-  const nome = `greenia-${agora.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-')}.sqlite.gz`;
+  const carimbo = carimboDe(agora);
+  const nome = `greenia-${carimbo}.sqlite.gz`;
   const temp = join(pasta, `.${nome}.tmp`);
   rmSync(temp, { force: true });
   db.exec(`VACUUM INTO '${temp.replace(/'/g, "''")}'`);
@@ -61,16 +30,24 @@ export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, ago
   // Retenção local: fica com os mais recentes.
   const antigos = readdirSync(pasta).filter(f => /^greenia-\d{8}-\d{6}\.sqlite\.gz$/.test(f)).sort().reverse().slice(Math.max(1, manter));
   for (const f of antigos) rmSync(join(pasta, f));
-  return { local, tamanho:gz.length, nome, sha256: sha256(gz) };
+  return { local, tamanho: gz.length, nome, carimbo, sha256: sha256(gz) };
 }
 
-export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env } = {}) {
-  const { local,tamanho,nome,sha256:hash }=fazerBackupLocal(db,{pasta,manter,agora});
-  const gz=readFileSync(local);
-  const alvo = alvoS3(destino, nome, env);
-  if (alvo) await s3('PUT', alvo, gz);
-  return { local, tamanho, sha256: hash, remoto: alvo?.url || null };
+// Backup local e, com BACKUP_DESTINO=s3://..., cópia cifrada no S3 (src/backup-s3.js).
+// `banco`: identificador do banco no nome do objeto (plataforma, emp_..., greenia). `verificacao`: cache da
+// conferência do ciclo de vida do bucket, compartilhado pela rodada. Se o S3 falhar depois do backup local, o erro
+// leva `local` (o backup local existe) e `etapa: 's3'`.
+export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env, banco = 'greenia', verificacao = {}, limiteDias, mestra = null, fetch: f } = {}) {
+  const b = fazerBackupLocal(db, { pasta, manter, agora });
+  let remoto = null;
+  try {
+    const cfg = configS3(destino, env, { mestra });
+    if (cfg) remoto = await enviarBackupS3(cfg, { banco, carimbo: b.carimbo, gz: readFileSync(b.local), criadoEm: agora.toISOString(), limiteDias: limiteDias ?? limiteS3(env), verificacao }, f);
+  } catch (e) { e.local = b.local; e.etapa = 's3'; e.backup = b; throw e; }
+  return { local: b.local, tamanho: b.tamanho, sha256: b.sha256, carimbo: b.carimbo, remoto: remoto?.url || null, s3: remoto };
 }
+// O S3 não pode guardar por mais tempo que a retenção dos backups automáticos.
+export const limiteS3 = env => { const n = Number(env?.RETENCAO_AUTOMATICO_DIAS); return Number.isFinite(n) && n >= 1 && n <= 3650 ? n : LIMITE_S3_PADRAO; };
 
 // Confere se um arquivo SQLite está íntegro e é um banco da GreenIA.
 export function conferir(arquivo, { tipo = 'empresa' } = {}) {
@@ -91,12 +68,17 @@ export function conferir(arquivo, { tipo = 'empresa' } = {}) {
 
 // Restaura um backup (arquivo local .gz ou s3://bucket/caminho). Com o servidor parado.
 // O banco atual não é apagado: fica ao lado, com o sufixo .antes-da-restauracao.
-export async function restaurar(origem, banco, { env = process.env, tipo = 'empresa' } = {}) {
+export async function restaurar(origem, banco, { env = process.env, tipo = 'empresa', fetch: f } = {}) {
   let gz;
   if (origem.startsWith('s3://')) {
-    const alvo = alvoS3(origem.replace(/[^/]+$/, ''), basename(origem), env);
-    gz = Buffer.from(await (await s3('GET', alvo)).arrayBuffer());
-  } else gz = readFileSync(origem);
+    const m = /^s3:\/\/([^/]+)\/(.+)$/.exec(origem);
+    if (!m) throw new ErroBackup('S3_ORIGEM', 'Origem S3 inválida: use s3://bucket/caminho/do/objeto.');
+    const cfg = configS3(`s3://${m[1]}`, env);
+    gz = (await baixarBackupS3(cfg, m[2], f)).gz;
+  } else {
+    gz = readFileSync(origem);
+    if (ehCifrado(gz)) gz = decifrarBackup(chaveCifraDe(env), gz).dados;   // cópia baixada do S3 (.enc)
+  }
   mkdirSync(dirname(banco), { recursive: true });
   const temp = `${banco}.restaurando`;
   writeFileSync(temp, gz[0] === 0x1f && gz[1] === 0x8b ? gunzipSync(gz) : gz);   // aceita .gz ou .sqlite
@@ -124,8 +106,8 @@ export function agendarBackup(app, { hora, ...op }) {
     if (hhmm !== hora || ultimo === dia) return;
     ultimo = dia;
     fazerBackup(app.db, op)
-      .then(r => { app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}`); registrar(app, 'backup.completed', null, { tamanho: r.tamanho, remoto: !!r.remoto }); })
-      .catch(e => { app.log('backup falhou', e.message); registrar(app, 'backup.failed', null, { erro: e.message }); });
+      .then(r => { app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}; sha256 ${r.sha256}`); registrar(app, 'backup.completed', null, { tamanho: r.tamanho, sha256: r.sha256, remoto: !!r.remoto }); })
+      .catch(e => { app.log('backup falhou', e.code || '', e.message); registrar(app, 'backup.failed', null, { codigo: e.code || 'erro', etapa: e.etapa || 'local', erro: e.message }); });
   }, 30e3);
   t.unref();
   return t;

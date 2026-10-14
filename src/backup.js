@@ -1,7 +1,8 @@
 // Backup e restauração. O backup é uma cópia consistente do banco (VACUUM INTO,
 // funciona com o servidor no ar), compactada com gzip. Vai para uma pasta local
 // e, se BACKUP_DESTINO for s3://bucket/prefixo, também para um armazenamento
-// compatível com S3 (AWS, Cloudflare R2, Backblaze B2, MinIO, Magalu Cloud...).
+// compatível com S3 (AWS, Cloudflare R2, Backblaze B2, MinIO, Magalu Cloud...), só depois de
+// conferir no próprio bucket a regra de expiração (conferirExpiracaoS3).
 import { createHash, createHmac } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -39,12 +40,63 @@ function alvoS3(destino, nome, env) {
   return { url: `${env.S3_ENDPOINT.replace(/\/$/, '')}/${m[1]}/${prefixo}${nome}`, chave: env.S3_CHAVE, segredo: env.S3_SEGREDO, regiao: env.S3_REGIAO || 'us-east-1' };
 }
 
-async function s3(metodo, alvo, corpo) {
+async function s3Resposta(metodo, alvo, corpo) {
   const hashCorpo = sha256(corpo || '');
   const cab = assinarS3({ metodo, url: alvo.url, hashCorpo, ...alvo, cabecalhos: corpo ? { 'content-type': 'application/gzip' } : {} });
-  const r = await fetch(alvo.url, { method: metodo, headers: cab, body: corpo });
+  return fetch(alvo.url, { method: metodo, headers: cab, body: corpo });
+}
+async function s3(metodo, alvo, corpo) {
+  const r = await s3Resposta(metodo, alvo, corpo);
   if (!r.ok) throw new Error(`S3 respondeu ${r.status}: ${(await r.text()).slice(0, 300)}`);
   return r;
+}
+
+// Expiração das cópias no S3: conferida NO BUCKET antes de cada envio (GetBucketLifecycleConfiguration,
+// GetBucketVersioning e GetObjectLockConfiguration). Uma variável de ambiente que só "declara" a regra não prova
+// nada e não libera o envio. O envio só acontece quando uma regra ativa, sem filtro por etiqueta ou tamanho, cobre o
+// prefixo das cópias e expira o objeto em até `limiteDias`; com versionamento, a versão antiga também precisa expirar
+// e a soma dos dois prazos fica dentro do limite; com Object Lock ligado, o envio fica bloqueado. A remoção depois da
+// expiração é feita pelo provedor do bucket, no tempo dele (o código só confere a regra).
+const xmlTexto = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+export function avaliarLifecycle(xml, { prefixo = '', limiteDias = 7, versionado = false } = {}) {
+  let expira = null, antigas = null;
+  for (const [, r] of String(xml || '').matchAll(/<Rule>([\s\S]*?)<\/Rule>/g)) {
+    if (!/<Status>\s*Enabled\s*<\/Status>/.test(r)) continue;
+    if (/<Tag>|<ObjectSize(?:GreaterThan|LessThan)>/.test(r)) continue;   // regra que não cobre todos os objetos
+    const p = /<Prefix>([^<]*)<\/Prefix>/.exec(r);
+    if (!prefixo.startsWith(p ? xmlTexto(p[1]) : '')) continue;
+    const e = /<Expiration>[\s\S]*?<Days>\s*(\d+)\s*<\/Days>[\s\S]*?<\/Expiration>/.exec(r);
+    if (e && +e[1] >= 1) expira = Math.min(expira ?? Infinity, +e[1]);
+    const n = /<NoncurrentVersionExpiration>([\s\S]*?)<\/NoncurrentVersionExpiration>/.exec(r);
+    const nd = n && /<NoncurrentDays>\s*(\d+)\s*<\/NoncurrentDays>/.exec(n[1]);
+    if (nd && +nd[1] >= 1 && !/<NewerNoncurrentVersions>\s*[1-9]/.test(n[1])) antigas = Math.min(antigas ?? Infinity, +nd[1]);
+  }
+  if (expira == null) return { ok: false, motivo: `nenhuma regra ativa de expiração cobre o prefixo "${prefixo}"` };
+  if (expira > limiteDias) return { ok: false, motivo: `a regra do bucket expira em ${expira} dias, mais que o limite de ${limiteDias}`, expiraDias: expira };
+  if (versionado) {
+    if (antigas == null) return { ok: false, motivo: 'bucket com versionamento e sem expiração das versões antigas', expiraDias: expira };
+    if (expira + antigas > limiteDias) return { ok: false, motivo: `expiração (${expira} dias) mais versões antigas (${antigas} dias) passa do limite de ${limiteDias}`, expiraDias: expira, antigasDias: antigas };
+  }
+  return { ok: true, expiraDias: expira, antigasDias: versionado ? antigas : null, versionado };
+}
+
+export async function conferirExpiracaoS3(destino, env = process.env, { limiteDias = 7 } = {}) {
+  const m = /^s3:\/\/([^/]+)\/?(.*)$/.exec(destino || '');
+  if (!m) return { ok: false, motivo: 'destino S3 inválido' };
+  const base = alvoS3(`s3://${m[1]}`, '', env);
+  const bucket = q => ({ ...base, url: `${base.url.replace(/\/$/, '')}?${q}` });
+  const prefixo = m[2] ? m[2].replace(/\/?$/, '/') : '';
+  try {
+    const lc = await s3Resposta('GET', bucket('lifecycle'));
+    if (!lc.ok) return { ok: false, motivo: lc.status === 404 ? 'o bucket não tem regra de expiração (lifecycle)' : `não foi possível ler a regra de expiração do bucket (${lc.status})` };
+    const ver = await s3Resposta('GET', bucket('versioning'));
+    if (!ver.ok) return { ok: false, motivo: `não foi possível conferir o versionamento do bucket (${ver.status})` };
+    const versionado = /<Status>\s*(?:Enabled|Suspended)\s*<\/Status>/.test(await ver.text());
+    const ol = await s3Resposta('GET', bucket('object-lock'));
+    if (ol.ok && /<ObjectLockEnabled>\s*Enabled/.test(await ol.text())) return { ok: false, motivo: 'o bucket tem Object Lock: a expiração pode ser impedida' };
+    if (!ol.ok && ![404, 501].includes(ol.status)) return { ok: false, motivo: `não foi possível conferir o Object Lock do bucket (${ol.status})` };
+    return avaliarLifecycle(await lc.text(), { prefixo, limiteDias, versionado });
+  } catch (e) { return { ok: false, motivo: `não foi possível consultar o bucket (${e.code || e.name || 'erro'})` }; }
 }
 
 // Faz o backup. Devolve o caminho local e, se houver, a URL no S3.
@@ -64,12 +116,17 @@ export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, ago
   return { local, tamanho:gz.length, nome, sha256: sha256(gz) };
 }
 
-export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env } = {}) {
+// Com destino S3, a cópia só é enviada se a expiração do bucket for conferida antes (conferirExpiracaoS3). Sem
+// isso, a cópia fica só no disco local e o motivo volta em `s3Bloqueado`.
+export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env, limiteDias = 7 } = {}) {
   const { local,tamanho,nome,sha256:hash }=fazerBackupLocal(db,{pasta,manter,agora});
   const gz=readFileSync(local);
   const alvo = alvoS3(destino, nome, env);
-  if (alvo) await s3('PUT', alvo, gz);
-  return { local, tamanho, sha256: hash, remoto: alvo?.url || null };
+  if (!alvo) return { local, tamanho, sha256: hash, remoto: null };
+  const conferido = await conferirExpiracaoS3(destino, env, { limiteDias });
+  if (!conferido.ok) return { local, tamanho, sha256: hash, remoto: null, s3Bloqueado: conferido.motivo };
+  await s3('PUT', alvo, gz);
+  return { local, tamanho, sha256: hash, remoto: alvo.url, s3: conferido };
 }
 
 // Confere se um arquivo SQLite está íntegro e é um banco da GreenIA.
@@ -124,7 +181,11 @@ export function agendarBackup(app, { hora, ...op }) {
     if (hhmm !== hora || ultimo === dia) return;
     ultimo = dia;
     fazerBackup(app.db, op)
-      .then(r => { app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}`); registrar(app, 'backup.completed', null, { tamanho: r.tamanho, remoto: !!r.remoto }); })
+      .then(r => {
+        app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}`);
+        if (r.s3Bloqueado) app.log(`ATENÇÃO: cópia não enviada ao S3: ${r.s3Bloqueado}`);
+        registrar(app, 'backup.completed', null, { tamanho: r.tamanho, remoto: !!r.remoto, ...(r.s3Bloqueado ? { s3_bloqueado: r.s3Bloqueado } : {}) });
+      })
       .catch(e => { app.log('backup falhou', e.message); registrar(app, 'backup.failed', null, { erro: e.message }); });
   }, 30e3);
   t.unref();

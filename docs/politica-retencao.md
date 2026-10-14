@@ -1,43 +1,55 @@
 # Política de retenção de dados e cópias
 
 Responde: **depois que um dado é apagado no ambiente ativo, por quanto tempo ele ainda pode existir em cópias?**
-Base: inventário de produção de 2026-10-01 (Render Shell) e o painel do serviço `greenia` no Render.
+Base: inventário de produção de 2026-10-01 (Render Shell), o painel do serviço `greenia` no Render e a documentação
+pública do Render (render.com/docs/disks e render.com/dpa, conferidas em 2026-10-14).
 
 ## Prazos por camada
 
-| Camada | Regra | Prazo da camada | Como é aplicado |
-|---|---|---|---|
-| Banco em uso | A exclusão (pessoa, retenção da empresa, documento, quick win) apaga a linha; `secure_delete` zera as páginas | Imediato | `src/db.js` (`secure_delete = on`) |
-| WAL / SHM | A exclusão consolida o WAL no banco e trunca o arquivo `-wal`; uma rodada de hora em hora consolida todos os bancos | Imediato após a exclusão; no máximo 1 hora, se o checkpoint estiver ocupado | `consolidarWal` (`pragma wal_checkpoint(TRUNCATE)`), sem VACUUM |
-| Backup automático | Diário, um arquivo por banco; ficam no máximo 7 cópias por banco e nenhuma com mais de 7 dias | 7 dias (+ até 1 hora da rodada) | `fazerBackup` (contagem) + `src/retencao.js` (idade) |
-| Snapshot do Render | Do provedor: captura a cada 24 h, disponível por 7 dias após a captura, imagem do disco inteiro | 7 dias após a captura | Painel do serviço (não configurável pelo código) |
-| Backup manual | Pasta em `dados/backups` com `backup.json` (tipo, criação, motivo) | 30 dias desde a criação | `src/retencao.js`; criação por `node scripts/retencao.js manual` |
-| Cópia de empresa excluída | `dados/excluidas/<empresa>-….sqlite.gz` com manifesto `….json` (excluída em, expira em) | 30 dias desde a exclusão (período de recuperação) | `excluirEmpresa` + `src/retencao.js` |
-| Cópia anterior a uma restauração | `*.antes-da-restauracao` com manifesto | 30 dias | `restaurar` + `src/retencao.js` |
-| S3 | **Inativo** em produção (nenhuma variável `BACKUP_DESTINO`/`S3_*`) | — | Não pode ser ligado sem regra de expiração (lifecycle) no bucket igual ou menor que 7 dias |
-| Hold | `HOLD.json` (pasta) ou `<arquivo>.hold.json`: motivo, responsável, data e revisão opcional | Até ser liberado | Fora da limpeza; aparece no plano como "manter (hold)" |
+Coluna "Prova": **código** = prazo aplicado por rotina da GreenIA e coberto por teste; **provedor** = depende do
+fornecedor, sem prazo máximo comprovado.
+
+| Camada | Regra | Prazo da camada | Como é aplicado | Prova |
+|---|---|---|---|---|
+| Banco em uso | A exclusão (pessoa, retenção da empresa, documento, quick win) apaga a linha; `secure_delete` zera as páginas | Imediato | `src/db.js` (`secure_delete = on`) | código |
+| WAL / SHM | A exclusão consolida o WAL no banco e trunca o arquivo `-wal`; uma rodada de hora em hora consolida todos os bancos | Imediato após a exclusão; no máximo 1 hora, se o checkpoint estiver ocupado | `consolidarWal` (`pragma wal_checkpoint(TRUNCATE)`), sem VACUUM | código |
+| Backup automático | Diário, um arquivo por banco (`dados/backups/<banco>/greenia-AAAAMMDD-HHMMSS.sqlite.gz`); a contagem (`BACKUP_MANTER`, 7 no `render.yaml`, 14 no código) apaga os mais antigos e a idade apaga o que tem mais de 7 dias | 7 dias (+ até 1 hora da rodada) | `fazerBackupLocal` (contagem) + `src/retencao.js` (idade) | código |
+| Backup manual | Pasta em `dados/backups` com `backup.json` (tipo, criação, motivo) | 30 dias desde a criação | `src/retencao.js`; criação por `node scripts/retencao.js manual` | código |
+| Pasta manual sem `backup.json` | Vira alerta; nunca é apagada | **Sem prazo** até ser classificada (`node scripts/retencao.js classificar`) | `src/retencao.js` | código (alerta) |
+| Cópia de empresa excluída | `dados/excluidas/<empresa>-….sqlite.gz` com manifesto `….json` (excluída em, expira em); sem manifesto, vale a data do arquivo | 30 dias desde a exclusão (período de recuperação) | `excluirEmpresa` + `src/retencao.js` | código |
+| Cópia anterior a uma restauração | `*.antes-da-restauracao` com manifesto; sem manifesto vira alerta | 30 dias (sem manifesto: **sem prazo** até classificar) | `restaurar` + `src/retencao.js` | código |
+| Cópia operacional de exportação | `dados/exportacoes/<id>.sqlite.gz`, controlada pela tabela `operator_exports` | 7 dias depois de encerrada a necessidade; sem necessidade encerrada não há prazo (alerta depois de 30 dias) | `src/plataforma/exportacoes.js` (`rodadaExportacoes`) | código |
+| Link de devolução | Cópia da devolução, entregue por link de uso único | Sai na entrega ou no vencimento do link (7 dias) | `src/plataforma/encerramento.js` (`rodadaDevolucoes`) | código |
+| Snapshot do Render | Do provedor: captura a cada 24 h, imagem do disco inteiro (inclui as camadas acima). Documentação do provedor: "available for **at least** seven days"; nenhum prazo máximo publicado; não diz se é configurável nem o que acontece ao apagar o disco ou o serviço | **Mínimo** de 7 dias; **máximo desconhecido** | Fora do código; pedido ao provedor preparado em `docs/operacao/solicitacao-render-retencao.md` (não enviado) | provedor |
+| S3 | **Inativo** em produção (nenhuma variável `BACKUP_DESTINO`/`S3_*`) | — | Cada envio só acontece se a regra de expiração for **lida no próprio bucket** (`conferirExpiracaoS3`: lifecycle de até 7 dias cobrindo o prefixo; com versionamento, versões antigas também expirando dentro dos 7 dias; Object Lock bloqueia). Variável que só declara a regra (`S3_LIFECYCLE_DIAS`) é ignorada. A remoção depois de vencer é feita pelo provedor do bucket, no tempo dele | código (conferência) + provedor (remoção) |
+| Hold | `HOLD.json` (pasta) ou `<arquivo>.hold.json`: motivo, responsável, data e revisão opcional | Até ser liberado | Fora da limpeza; aparece no plano como "manter (hold)" | código |
 
 ## Quanto tempo um dado apagado ainda pode existir
 
 As cópias se somam: o snapshot do provedor copia o disco inteiro, **inclusive os backups locais**. Um dado apagado
 no instante *t* pode estar:
 
-| Onde | Até |
-|---|---|
-| Na aplicação | Some em *t* |
-| No banco em uso e no WAL | *t* (no máximo *t* + 1 h) |
-| Em snapshot do disco ativo | *t* + 7 dias |
-| Em backup automático | *t* + 7 dias + 1 h |
-| Em snapshot que contém esse backup | *t* + 14 dias + 1 h → **até 15 dias** |
-| Em backup manual ou cópia de empresa excluída, e no snapshot que o contém | *t* + 30 dias + 1 h + 7 dias → **até 38 dias** |
-| Em hold | Enquanto o hold durar, com motivo registrado |
+| Onde | Até | Prova |
+|---|---|---|
+| Na aplicação | Some em *t* | código |
+| No banco em uso e no WAL | *t* (no máximo *t* + 1 h) | código |
+| Em backup automático | *t* + 7 dias + 1 h | código |
+| Em backup manual, cópia de empresa excluída ou cópia anterior a uma restauração | *t* + 30 dias + 1 h | código |
+| Em cópia operacional de exportação | 7 dias depois de encerrada a necessidade | código |
+| Em snapshot do provedor (do disco ativo ou de um disco que ainda tinha uma das cópias acima) | **Desconhecido.** A partir do momento em que a cópia sai das camadas geridas pela GreenIA, a permanência nas cópias do provedor depende do prazo do provedor, que publica só o mínimo de 7 dias e não publica máximo | provedor |
+| Em hold | Enquanto o hold durar, com motivo registrado | código |
 
-Valem só com a limpeza ligada em produção (`RETENCAO_APLICAR=1`) e sem item "sem classificação" no plano.
+Os prazos com prova "código" valem só com a limpeza ligada em produção (`RETENCAO_APLICAR=1`) e sem item "sem
+classificação" no plano. Os antigos "até 15 dias" e "até 38 dias" somavam aos prazos da GreenIA um máximo de 7 dias
+para o snapshot que o provedor não publica; foram retirados em 14 de outubro de 2026.
+
+Testes: `test/retencao.test.js`, `test/retencao-matriz.test.js` (matriz sintética de todas as categorias),
+`test/exportacoes.test.js`, `test/encerramento.test.js`, `test/backup.test.js` (S3 bloqueado sem regra conferida).
 
 ## Por que estes prazos
 
 - **7 dias (automático):** cobre a recuperação de desastre do dia a dia (erro operacional, corrupção, exclusão
-  indevida percebida em dias) e casa com os snapshots do provedor. Passar a regra de "7 arquivos" para "7 arquivos
+  indevida percebida em dias) e casa com o mínimo de 7 dias dos snapshots do provedor. Passar a regra de "7 arquivos" para "7 arquivos
   e no máximo 7 dias" fecha o caso em que um dia sem backup estica o prazo.
 - **30 dias (manual):** cobre a janela de rollback e validação de release e migração (a primeira semana concentra
   os problemas; 30 dias dá folga para conferências de fechamento de mês). Além disso, restaurar uma cópia completa
@@ -80,10 +92,12 @@ Ordem de ativação: backup pré-deploy → deploy com `RETENCAO_APLICAR` deslig
 
 ## Como os prazos aparecem em documentos legais
 
-Os limites de 15 dias (cópias diárias) e 38 dias (backup manual e ambiente excluído) são o **pior caso operacional
-das cópias acessíveis pela plataforma e pelo provedor**. Não são garantia de destruição física de todos os blocos do
-disco do provedor. Os textos legais distinguem: remoção do ambiente ativo; retenção em backups e snapshots; e possível
-persistência física de blocos fora do alcance da aplicação.
+A Política de Privacidade (10.2) lista só os prazos das cópias geridas pela GreenIA, aplicados pelo código. As cópias
+do disco do provedor aparecem à parte: a cada 24 horas, disponíveis por pelo menos 7 dias segundo o provedor, sem
+prazo máximo publicado. Os Termos (16.2) remetem ao prazo do provedor. Nenhum texto público afirma prazo máximo para
+o snapshot. Os textos legais distinguem: remoção do ambiente ativo; retenção nas cópias da GreenIA; cópias do provedor;
+e possível persistência física de blocos fora do alcance da aplicação. Registro da correção:
+`docs/legal/aprovacao-juridica.md`, seção 8 (correção técnica; revisão jurídica pendente).
 
 ## Riscos residuais
 
@@ -98,4 +112,14 @@ persistência física de blocos fora do alcance da aplicação.
   tratá-los até que ganhem prazo.
 - **A rodada depende do processo no ar.** Fora do ar, a limpeza atrasa até voltar (o snapshot do provedor segue o
   próprio prazo).
+- **Snapshot do provedor sem prazo máximo conhecido.** Documentação e DPA do Render não dão máximo, não dizem se o
+  prazo é configurável, nem o que acontece com os snapshots ao apagar o disco, o serviço ou a conta. Pedido preparado em
+  `docs/operacao/solicitacao-render-retencao.md` (não enviado; requer autorização).
+- **Categorias sem prazo aplicado pelo código:** pasta manual sem `backup.json` e cópia de restauração sem manifesto
+  (alerta até classificar); cópia de exportação sem necessidade encerrada (alerta depois de 30 dias); arquivo em
+  `dados/exportacoes` sem registro em `operator_exports` (a rodada de exportações só olha a tabela; a de retenção não
+  percorre essa pasta); arquivo fora do padrão em `dados/backups` (alerta). Arquivos temporários `.greenia-….tmp` do
+  backup ficam fora do plano e são removidos pelo próximo backup da mesma pasta.
+- **S3, se ligado:** a GreenIA confere a regra de expiração no bucket antes de cada envio, mas a remoção do objeto
+  vencido é assíncrona e feita pelo provedor do bucket.
 - **Hold sem revisão** pode durar indefinidamente: o plano mostra o motivo, o responsável e a data de revisão.

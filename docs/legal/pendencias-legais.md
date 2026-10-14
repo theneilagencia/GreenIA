@@ -25,7 +25,13 @@ Inseridas sem alteração de sentido: Termos 14.2, 23.1, 24.2, 25.7 e 27.1; Pol�
 
 ## 3. Pendências
 
-Nenhuma pendência factual ou de registro nos documentos. Fechados em 1º de outubro de 2026:
+Aberta em 14 de outubro de 2026:
+
+| Item | Situação |
+|---|---|
+| Prazo máximo das cópias do disco do Render | O provedor publica só "pelo menos 7 dias". Texto corrigido para não afirmar máximo (Política 10.2, 10.4, 11 e 19; Termos 16.2). Falta: revisão jurídica da correção e resposta do provedor ao pedido em `docs/operacao/solicitacao-render-retencao.md` (não enviado; requer autorização) |
+
+Fechados em 1º de outubro de 2026:
 
 | Item | Resolução |
 |---|---|
@@ -40,7 +46,7 @@ Nenhuma pendência factual ou de registro nos documentos. Fechados em 1º de out
 
 | Destino | O quê | Fluxo |
 |---|---|---|
-| Render (EUA, Virgínia) | Todo o armazenamento: bancos, backups, cópias diárias do disco, cópias de exportação, logs | Permanente enquanto houver serviço |
+| Render (EUA, Virgínia, para o serviço e o disco; local das cópias do disco não informado na documentação do provedor) | Todo o armazenamento: bancos, backups, cópias diárias do disco, cópias de exportação, logs | Permanente enquanto houver serviço |
 | OpenRouter (EUA ou outros países, pela política pública dele) | Conteúdo de cada pedido à IA | A cada pedido |
 | Fabricantes dos modelos (conforme cada fabricante) | Conteúdo de cada pedido, via OpenRouter | A cada pedido |
 | Provedor de envio de email | Destinatário e conteúdo do email (códigos, avisos, relatos, links de devolução) | A cada email |
@@ -53,20 +59,18 @@ Nenhuma pendência factual ou de registro nos documentos. Fechados em 1º de out
 | Documentos e quick wins | Até remoção |
 | WAL | Imediato após a exclusão; máximo 1 h |
 | Backup automático | 7 dias |
-| Snapshot do Render | 7 dias |
-| Pior caso nas cópias diárias | 15 dias |
+| Cópia do disco feita pelo Render | A cada 24 h; disponível por pelo menos 7 dias segundo o provedor; prazo máximo não publicado (depende do provedor) |
 | Backup manual | 30 dias |
 | Cópia de ambiente excluído | 30 dias |
-| Pior caso em backup manual ou ambiente excluído | 38 dias |
 | Ambiente cancelado até a exclusão definitiva | 30 dias corridos (automática com `EXCLUSAO_APLICAR=1`) |
-| Cópia operacional de exportação | Até 7 dias depois de encerrada a necessidade, mais até 7 dias nas cópias diárias do disco |
+| Cópia operacional de exportação | Até 7 dias depois de encerrada a necessidade (depois, pode seguir nas cópias do disco do provedor, pelo prazo dele) |
 | Link de devolução | Até 7 dias; a cópia sai do servidor na entrega ou no vencimento |
 | Contatos comerciais | 24 meses depois da última interação registrada |
 | Hold | Até liberação, com motivo |
 | Registros (atividade, consumo, auditoria, acessos, exportações, relatos) | Sem prazo automático (descrito na Política 10.5) |
 | Logs do provedor | Prazo do Render (não verificado) |
 
-Os prazos são o pior caso das cópias geridas pela plataforma e pelo provedor, não garantia de destruição física de blocos.
+Os prazos com número são das cópias geridas pela GreenIA e aplicados pelo código. As cópias do disco do Render seguem o prazo do provedor, que não publica máximo; os antigos "pior caso de 15 dias" e "38 dias" somavam um máximo de 7 dias que o provedor não garante e foram retirados em 14 de outubro de 2026 (correção técnica; revisão jurídica pendente; ver `aprovacao-juridica.md`, seção 8). Pedido de confirmação ao provedor preparado e não enviado: `docs/operacao/solicitacao-render-retencao.md`. Nenhum prazo é garantia de destruição física de blocos.
 
 ## 6. Condições de publicação
 

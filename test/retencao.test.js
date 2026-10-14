@@ -219,13 +219,14 @@ test('empresa excluída: a cópia de recuperação ganha manifesto com prazo e e
 
 after(() => {});
 
-test('S3 só com expiração declarada no bucket (S3_LIFECYCLE_DIAS de 1 a 7); sem ela, o destino é ignorado com aviso', async () => {
+test('S3: variável que só declara a expiração (S3_LIFECYCLE_DIAS) não é prova; o envio depende da regra conferida no bucket', async () => {
   const { destinoS3 } = await import('../src/iniciar.js');
   const logs = [];
   assert.equal(destinoS3({}), undefined);
-  assert.equal(destinoS3({ BACKUP_DESTINO: 's3://b/p' }, l => logs.push(l)), undefined);
-  assert.equal(destinoS3({ BACKUP_DESTINO: 's3://b/p', S3_LIFECYCLE_DIAS: '30' }, l => logs.push(l)), undefined);
-  assert.equal(destinoS3({ BACKUP_DESTINO: 's3://b/p', S3_LIFECYCLE_DIAS: '7' }), 's3://b/p');
-  assert.equal(logs.length, 2);
-  assert.match(logs[0], /S3_LIFECYCLE_DIAS/);
+  assert.equal(destinoS3({ BACKUP_DESTINO: 's3://b/p' }, l => logs.push(l)), 's3://b/p');
+  assert.match(logs.join('\n'), /conferida no bucket/);
+  logs.length = 0;
+  assert.equal(destinoS3({ BACKUP_DESTINO: 's3://b/p', S3_LIFECYCLE_DIAS: '7' }, l => logs.push(l)), 's3://b/p');
+  assert.match(logs[0], /S3_LIFECYCLE_DIAS é ignorada/);
+  // O envio em si é barrado em fazerBackup sem regra verificada no bucket (test/backup.test.js).
 });

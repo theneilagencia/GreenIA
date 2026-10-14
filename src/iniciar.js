@@ -25,14 +25,14 @@ import { rodadaContatos } from './plataforma/contatos.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
 
-// S3 só com regra de expiração declarada no bucket (S3_LIFECYCLE_DIAS de 1 a 7), igual ou menor que a retenção
-// local: sem isso, as cópias no S3 ficariam sem prazo (docs/politica-retencao.md). A regra é configurada no bucket.
+// Destino S3 das cópias. A regra de expiração é conferida NO BUCKET a cada envio (conferirExpiracaoS3 em
+// src/backup.js): sem regra verificada de até 7 dias, a cópia não sai do disco local. S3_LIFECYCLE_DIAS, de versões
+// anteriores, só declarava a regra e não é prova: é ignorada (docs/politica-retencao.md).
 export function destinoS3(env, log = () => {}) {
   if (!env.BACKUP_DESTINO) return undefined;
-  const dias = Number(env.S3_LIFECYCLE_DIAS);
-  if (Number.isInteger(dias) && dias >= 1 && dias <= 7) return env.BACKUP_DESTINO;
-  log('ATENÇÃO: BACKUP_DESTINO ignorado: declare em S3_LIFECYCLE_DIAS (1 a 7) a expiração configurada no bucket. Sem ela, as cópias no S3 não teriam prazo.');
-  return undefined;
+  if (env.S3_LIFECYCLE_DIAS) log('ATENÇÃO: S3_LIFECYCLE_DIAS é ignorada: a variável só declara a regra. A expiração é conferida no próprio bucket antes de cada envio.');
+  log('BACKUP_DESTINO definido: cada envio ao S3 depende da regra de expiração conferida no bucket (até 7 dias); sem ela, a cópia fica só no disco local.');
+  return env.BACKUP_DESTINO;
 }
 
 export async function iniciar(env = process.env) {
@@ -63,7 +63,7 @@ export async function iniciar(env = process.env) {
   if (env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length < 24) app.log('ATENÇÃO: OPERADOR_TOKEN com menos de 24 caracteres foi ignorado.');
   if (env.OPENROUTER_API_KEY) tarefa(() => atualizarCatalogo(app), 24 * 3600e3);
   // Backup diário opcional (BACKUP_HORA=03:00).
-  if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: destinoS3(env, app.log), manter: Number(env.BACKUP_MANTER || 14), env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
+  if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: destinoS3(env, app.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: prazosDe(env).automaticoDias, env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
   // Retenção das cópias e consolidação do WAL, de hora em hora (docs/politica-retencao.md).
   const banco = env.BANCO || 'dados/greenia.sqlite';
   tarefa(() => rodadaRetencao({ dados: dirname(banco), bancos: { dbs: [app.db], arquivos: [banco] }, prazos: prazosDe(env), aplicar: env.RETENCAO_APLICAR === '1',
@@ -93,6 +93,7 @@ export async function backupDaPlataforma(P, { pasta, ...op }, copiar = fazerBack
       const b = await copiar(db, { ...op, pasta: join(pasta, id), destino: op.destino && `${op.destino.replace(/\/$/, '')}/${id}` });
       r.concluidos++;
       P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}`);
+      if (b.s3Bloqueado) { r.s3Bloqueados = (r.s3Bloqueados || 0) + 1; P.log(`ATENÇÃO: cópia de ${id} não enviada ao S3: ${b.s3Bloqueado}`); }
     } catch (e) {
       r.falhas++;
       const codigo = /^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro';
@@ -176,7 +177,7 @@ export async function iniciarPlataforma(env = process.env) {
       const agora = new Date();
       if (agora.toTimeString().slice(0, 5) !== env.BACKUP_HORA || ultimo === agora.toDateString()) return;
       ultimo = agora.toDateString();
-      const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), env };
+      const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: P.retencao.automaticoDias, env };
       await backupDaPlataforma(P, { ...op, pasta });
     }, 30e3).unref();
     P.log(`Backup diário às ${env.BACKUP_HORA}.`);

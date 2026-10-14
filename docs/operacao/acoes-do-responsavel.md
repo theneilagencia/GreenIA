@@ -7,11 +7,11 @@ não foram feitos pela auditoria. Nenhum comando aqui imprime chave ou segredo. 
 dashboard.render.com → Account Settings → API Keys → **Create API Key** (se ainda precisar de uma) → **Delete** na chave
 antiga. Guarde a nova só no cofre de senhas.
 
-## 2. Cópia da chave-mestra fora do servidor (hoje, 10 min, sem AWS)
-Sem ela, as credenciais gravadas (conectores, chave do OpenRouter do console) não voltam numa recuperação.
+## 2. Cópia da chave-mestra fora do servidor (hoje, 10 min)
+Sem ela, as credenciais gravadas (conectores, chave do OpenRouter do console) não voltam numa recuperação. Tudo no Render.
 1. Gere um segredo forte no cofre de senhas (32+ caracteres) e guarde-o como "GreenIA — segredo do envelope".
 2. Render → serviço **greenia** → **Environment** → adicione `BACKUP_ENVELOPE_SEGREDO` = esse segredo → salve (o serviço
-   reinicia; com o S3 ligado, o envelope também passa a ir para o bucket a cada backup).
+   reinicia).
 3. Render → **Shell**:
    ```
    DADOS=/app/dados node scripts/chave-mestra.js impressao
@@ -20,20 +20,18 @@ Sem ela, as credenciais gravadas (conectores, chave do OpenRouter do console) n�
 4. Copie o JSON (está cifrado) para o cofre como "GreenIA — envelope da chave-mestra", junto da impressão (`cm1-…`).
    O envelope sozinho não abre nada: precisa do segredo do passo 1 (guarde os dois, em itens separados).
 
-## 3. Backup fora do servidor (esta semana, ~30 min)
-AWS (ou Cloudflare R2/Backblaze B2, compatíveis com S3):
-1. Crie um bucket privado (bloqueio de acesso público ligado, **sem** Object Lock).
-2. Regra de ciclo de vida no prefixo `greenia/`: expirar objetos atuais em **6 dias** e versões antigas em **1 dia**
-   (ou 7 dias, se o versionamento estiver desligado). O código confere essa regra antes de cada envio e recusa sem ela.
-3. Usuário IAM só para o app com a política de `docs/operacao/backup-e-restauracao.md` (Put/Get em `greenia/*`,
-   List no prefixo, leitura da configuração de ciclo de vida/versionamento; **sem Delete**).
-4. No cofre: gere `BACKUP_CHAVE_CIFRA` (no Shell: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
-5. Render → Environment: `BACKUP_DESTINO=s3://<bucket>/greenia`, `S3_ENDPOINT`, `S3_REGIAO`, `S3_CHAVE`, `S3_SEGREDO`,
-   `BACKUP_CHAVE_CIFRA` (e, se quiser, `S3_SSE=AES256`).
-6. No dia seguinte (rodada das 06:00 UTC): console da plataforma sem faixa vermelha de backup; auditoria com
-   `backup.completed` por banco e o objeto no S3.
+## 3. Backup fora do disco de produção — só Render (decisão de custo)
+A hospedagem é **só Render** (sem AWS ou outro provedor). Hoje os backups diários ficam no mesmo disco do banco; o
+snapshot diário do Render cobre a perda do disco, mas fica na mesma conta e sem prazo máximo publicado.
+Proposta, dentro do Render: um **segundo serviço privado** ("greenia-backup", Private Service com disco próprio) que
+recebe, pela rede privada do Render, a cópia cifrada de cada backup. Custo adicional estimado: o menor plano de
+serviço do Render mais o disco (alguns GB). **Gera cobrança nova: só depois da sua autorização.** Autorizado, a
+auditoria implementa o envio e o ensaio de restauração nesse serviço.
+Enquanto isso, para ter uma cópia fora do Render, no Shell: `DADOS=/app/dados node scripts/retencao.js manual --motivo
+"cópia externa"` e copie a pasta gerada para um computador da empresa pelo SSH do Render (`scp`, ver render.com/docs/disks,
+"Transferring files").
 
-## 4. Limpeza automática por prazo (antes de 30/11, de preferência depois do item 3)
+## 4. Limpeza automática por prazo (antes de 30/11)
 Render → Environment: `RETENCAO_APLICAR=1` e `EXCLUSAO_APLICAR=1`. Antes, no Shell, veja o que seria eliminado:
 `DADOS=/app/dados node scripts/retencao.js plano` (só leitura: o que seria apagado, mantido e alertado). Se aparecer item "sem classificação", resolva antes de ligar.
 
@@ -58,9 +56,9 @@ Envie, do seu email, o texto de `docs/operacao/solicitacao-render-retencao.md` (
 No painel da conta: registro de pedidos/respostas desligado, uso dos dados pela OpenRouter desligado, ZDR/opt-out de
 treino na conta e fornecedores ignorados; decida sobre contrato (DPA) — detalhes em `docs/operacao/inventario-ia.md` §7.
 
-## 9. Ensaio real de restauração (depois do item 3)
-Serviço separado no Render alimentado pelo S3, nunca restaurando o disco de produção — roteiro em
-`docs/operacao/backup-e-restauracao.md` §6–7 (`scripts/ensaio-restauracao.mjs`).
+## 9. Ensaio real de restauração
+Depende do item 3 (serviço de backup no Render): restaurar a cópia num serviço separado do Render, nunca no disco de
+produção — roteiro em `docs/operacao/backup-e-restauracao.md` §6–7 (`scripts/ensaio-restauracao.mjs`).
 
 ## 10. Aceite humano
 5 pessoas leigas por perfil e 3 usuários de leitor de tela, com o protocolo de `docs/operacao/aceite-humano.md`.

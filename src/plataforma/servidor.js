@@ -189,6 +189,8 @@ function abrirTenant(P, id) {
     P.emAndamento.set(id, n + 1);
     return () => P.emAndamento.set(id, Math.max(0, (P.emAndamento.get(id) || 1) - 1));
   };
+  // Nome e endereço da empresa para avisos que saem do servidor (sem conteúdo).
+  t.identidadeEmail = () => { const e = E.lerEmpresa(P, id); return e && { nome: E.lerMarca(P, id)?.display_name || e.name, url: E.urlDaEmpresa(P, e) }; };
   t.emailProprio = smtpProprio;   // o teste do admin da empresa usa só o email dela, sem cair no da plataforma
   t.extraEu = sessao => ({
     permissoes: sessao.pessoa.permissoes || [],

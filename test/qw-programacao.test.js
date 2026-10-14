@@ -146,3 +146,10 @@ test('QA profundo: execução programada gera resultado e não confirma automati
  const p=await S.a.get(`/api/quick-wins/${S.q.id}/painel`);assert.equal(p.status,200);assert.equal(p.dados.total,0);assert.equal(p.dados.totalExecucoes,0);
  await rodadaProgramadas(S.app);assert.equal(um(S.app.db,'select count(*) n from qw_programadas_execucoes').n,1);assert.equal(um(S.app.db,'select count(*) n from qw_painel_registros').n,0);
 });
+test('aviso com a identidade do ambiente traz o nome da empresa e o endereço, sem conteúdo',async t=>{
+ const S=await fixture(t);S.app.identidadeEmail=()=>({nome:'Empresa Exemplo',url:'https://www.exemplo.com.br/empresa-exemplo'});
+ const s=await S.criar();await S.ativar(s);S.relogio('2026-10-07T11:01:00Z');await rodadaProgramadas(S.app);
+ const aviso=S.app.email.enviados.find(e=>e.assunto==='Tarefa programada atualizada na Empresa Exemplo');assert.ok(aviso,JSON.stringify(S.app.email.enviados.map(e=>e.assunto)));
+ assert.match(JSON.stringify(aviso),/https:\/\/www\.exemplo\.com\.br\/empresa-exemplo/);assert.doesNotMatch(JSON.stringify(aviso),/três revisões|Resumo semanal/);
+});
+

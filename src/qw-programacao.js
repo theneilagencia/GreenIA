@@ -147,7 +147,13 @@ async function avisar(app,e,s) {
   if(!p)return;
   // Registro do aviso aceito pelo provedor, com o identificador da mensagem (rastreia programação → execução → email
   // sem conteúdo nem endereço). Aceitação do envio não comprova chegada à caixa de entrada.
-  try{const r=await app.email.enviar(p.email,'Atualização de tarefa programada','Uma tarefa programada foi atualizada. Entre no ambiente da sua empresa e abra Quick Wins para consultar o status e as pendências. O conteúdo fica na plataforma.');
+  // Com a identidade do ambiente (multiempresa), o aviso traz o nome da empresa e o endereço de entrada, como o convite
+  // e o código de acesso: um aviso genérico, sem remetente reconhecível nem link, cai em filtros de spam.
+  const id=app.identidadeEmail?.()||null;
+  const assunto=id?.nome?`Tarefa programada atualizada na ${id.nome}`:'Atualização de tarefa programada';
+  const texto=id?.url?`Uma tarefa programada foi atualizada${id.nome?` na ${id.nome}`:''}.\n\nPara consultar o status e as pendências, acesse ${id.url} e abra Quick Wins. O conteúdo fica na plataforma.`
+    :'Uma tarefa programada foi atualizada. Entre no ambiente da sua empresa e abra Quick Wins para consultar o status e as pendências. O conteúdo fica na plataforma.';
+  try{const r=await app.email.enviar(p.email,assunto,texto);
     registrar(app,'quickwin.scheduled_notification_sent',p.id,{execucao:e.id,programacao:s.id,via:r?.via||null,mensagem:r?.id||null});}
   catch{registrar(app,'quickwin.scheduled_notification_failed',p.id,{execucao:e.id});}
 }

@@ -396,6 +396,7 @@ async function abaResumo(d, id) {
     <div class="indicadores"><div class="indicador"><span>Endereço</span><b style="font-size:14px"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, ''))}</a></b></div>
       <div class="indicador"><span>Banco</span><b style="font-size:14px"><code class="valor-tecnico">${esc(a.banco)}</code></b><small>${mb(a.tamanhoMb)}</small></div>
       <div class="indicador"><span>IA</span><b style="font-size:14px">${iaTexto(a)}</b></div><div class="indicador"><span>Email próprio</span><b style="font-size:14px">${a.smtp ? 'Configurado' : 'Usa o da plataforma'}</b></div>
+      <div class="indicador"><span>Filtro “sem treino”</span><b style="font-size:14px">${a.semTreino === false ? 'Desligado pelo admin' : 'Ligado'}</b><small>${a.semTreino === false ? 'Fornecedores que coletam dados podem ser usados' : 'Pedido em cada chamada; não é garantia contratual'}</small></div>
       <div class="indicador"><span>Conteúdo</span><b style="font-size:14px">${num(u.quickWins)} Quick Wins</b><small>${num(u.documentos)} documentos, ${num(u.conversas)} conversas no mês</small></div></div>
     <div class="secao-titulo"><h2 class="h-secao">Dados cadastrais</h2></div>
     <dl class="plat-dados"><div><dt>Status</dt><dd>${selo(e.status, e.statusNome)}</dd></div><div><dt>Razão social</dt><dd>${valorOuTraco(e.legal_name)}</dd></div><div><dt>Documento</dt><dd>${valorOuTraco(e.document)}</dd></div>

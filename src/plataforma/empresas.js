@@ -572,7 +572,9 @@ export function ambienteDaEmpresa(P, c) {
   const t = P.tenant(c.id);
   // Três estados da IA, pela chave efetiva: ligada (modelo real), simulada (sem chave, fora de produção) ou desligada.
   const iaEstado = t.ia.configurada === false ? 'desligada' : t.ia.simulada ? 'simulada' : 'ligada';
-  return { url: urlDaEmpresa(P, c), banco: c.banco.split('/').slice(-2).join('/'), tamanhoMb: Math.round(tamanho / 1048576 * 10) / 10, ia: iaEstado === 'ligada', iaEstado, smtp: !!lerConfig(t.db).smtp.url };
+  return { url: urlDaEmpresa(P, c), banco: c.banco.split('/').slice(-2).join('/'), tamanhoMb: Math.round(tamanho / 1048576 * 10) / 10, ia: iaEstado === 'ligada', iaEstado, smtp: !!lerConfig(t.db).smtp.url,
+    // Pedido de "só fornecedores que não coletam dados" em cada chamada (data_collection: deny); o admin pode desligar.
+    semTreino: lerConfig(t.db).exigirSemTreino !== false };
 }
 // Liberação de pacote pelo operador. O cliente nunca define créditos nem preço: `packs` é a quantidade de Capacity
 // Packs e o servidor calcula créditos e valor pelas regras do plano da empresa. Créditos avulsos só como cortesia

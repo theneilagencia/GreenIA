@@ -1,6 +1,6 @@
 # Registro da aprovação jurídica
 
-Documento interno de governança. Não é publicado.
+Registro de governança versionado no repositório. Não é uma página pública servida pela aplicação. O repositório é público; este arquivo não deve receber informações confidenciais.
 
 ## 1. Aprovação
 
@@ -44,9 +44,7 @@ hello@theneil.com.br (informados pela TheNeil em 1º de outubro de 2026).
 | `docs/legal/termos-de-uso.md` | 1.0, de 1º de outubro de 2026 | A partir de 30 de novembro de 2026 | `f4d552ea9c634102ed3084fa6cda47af5d8d454c298fbe74cfc9bb976f1d0964` |
 | `docs/legal/politica-de-privacidade.md` | 1.0, de 1º de outubro de 2026 | A partir de 30 de novembro de 2026 | `df721b8ac6bff22937e570c00e5fc8b40646359179c87deb2d60b82608ae4e57` |
 
-Situação: preparada para o release (`docs/legal/estado.json`: `publicado: true`; páginas indexáveis e sem faixa). Vai ao
-ar junto com o deploy da versão candidata. Qualquer alteração nos arquivos muda o hash e exige atualizar este registro
-(teste `test/legais.test.js`).
+Situação registrada para a versão de 1º de outubro: preparada para o release (`docs/legal/estado.json`: `publicado: true`; páginas indexáveis e sem faixa). Os hashes acima identificam o texto aprovado naquela data e são preservados como histórico. A atualização publicada em 14 de outubro está identificada na seção 7 e no manifesto `docs/legal/medicao-lp.json`.
 
 ## 6. Notas internas (não são bloqueio)
 
@@ -54,3 +52,16 @@ ar junto com o deploy da versão candidata. Qualquer alteração nos arquivos mu
   verificados; os documentos públicos não afirmam nada sobre eles (decisão de 1º de outubro de 2026).
 - Provedor de envio de email: não identificado pelo nome; os documentos o descrevem de forma genérica.
 - Site institucional www.theneil.com.br: está fora deste repositório e não foi alterado.
+
+## 7. Registro da publicação de 14 de outubro de 2026
+
+O responsável solicitou a publicação da LP, do servidor e da Política de Privacidade atualizada em 14 de outubro de 2026, e depois solicitou a atualização deste registro no repositório. Esta seção documenta a autorização operacional e a versão publicada; não declara nova revisão ou aprovação jurídica profissional. A aprovação histórica da seção 1 continua vinculada ao texto de 1º de outubro.
+
+A atualização trata do consentimento para medição pelo Google Ads na LP comercial, do hash do email nas conversões otimizadas, da origem dos pedidos e dos avisos aos destinatários comerciais configurados, sem conceder acesso ao console. A versão e a vigência já previstas dos documentos foram preservadas.
+
+| Documento | Versão e atualização publicada | Vigência já prevista | SHA-256 do arquivo-fonte publicado |
+|---|---|---|---|
+| `docs/legal/termos-de-uso.md` | 1.0, texto preservado | A partir de 30 de novembro de 2026 | `f4d552ea9c634102ed3084fa6cda47af5d8d454c298fbe74cfc9bb976f1d0964` |
+| `docs/legal/politica-de-privacidade.md` | 1.0, atualização de 14 de outubro de 2026 | A partir de 30 de novembro de 2026 | `6152a948e25d16dda74141d79ce8077217319997b544b4af95a6b45cd9900b02` |
+
+A aplicação e a política foram verificadas no deploy `dep-db7o59qvcj2c73ebpveg`, do commit `f9eae291ade2ff55acc58e7c573a5c170156af06`, na branch `greenia-lite`. O manifesto identifica a integridade do texto público; os testes conferem sua correspondência com o arquivo-fonte e com este registro. Nenhuma informação confidencial nova foi acrescentada ao registro.

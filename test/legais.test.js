@@ -106,7 +106,7 @@ test('integridade dos documentos: aprovação histórica ou manifesto da atualiz
   for (const d of DOCUMENTOS) {
     const h = createHash('sha256').update(readFileSync(raiz + d.md)).digest('hex');
     if (Object.hasOwn(atualizacao.documentos, d.md)) assert.equal(atualizacao.documentos[d.md], h, `${d.md}: manifesto público desatualizado`);
-    else assert.match(reg, new RegExp(`\`${d.md}\` \\| 1\\.0, .*\`${h}\``), `${d.md}: hash registrado desatualizado`);
+    assert.match(reg, new RegExp(`\`${d.md}\` \\| 1\\.0, .*\`${h}\``), `${d.md}: hash registrado desatualizado`);
   }
   assert.match(reg, /\*\*Aprovado\*\*/);
 });

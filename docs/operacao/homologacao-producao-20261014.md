@@ -75,3 +75,31 @@ usuário do mesmo tenant sobre o resultado (cobertos por `test/qw-programacao.te
 
 Tenants `homologacao-a` e `homologacao-b` ativos, com dados sintéticos (decidir: manter para próximas homologações ou
 encerrar pelo console). Programação de teste pausada. Limites do B na configuração original. Sessões encerradas.
+
+## Etapa 7 — conexões fictícias antigas (executada em 14/10/2026)
+
+Executado pelo responsável no Shell do serviço no Render (versão e2363a3, que passou a incluir o script na imagem e a
+achar os bancos em `dados/empresas/`).
+
+1. **Inventário** (`node scripts/conexoes-qa.mjs inventario --dados /app/dados`): 12 conexões, todas `qa_comprovado`
+   (endereço `jsonplaceholder.typicode.com`/`httpbin.org` **e** nome "QA - Sandbox …"); 0 `revisar`, 0 `legitimo`.
+   Todas no banco `emp_7137c3d7bcd64bb29f75` = empresa **Apy Mine** (`apy-mine`, ativa, do próprio responsável, usada
+   como ambiente das missões de QA de 03–05/10). Estados: 3 ACTIVE, 9 FAILED. Nenhuma programação ativa, webhook ativo
+   ou aprovação pendente. Os Quick Wins que as usaram (126, 167, 170, 233, 387, 486) são todos "QA - …", em
+   configuração ou descartados.
+2. **Decisão:** a Apy Mine não tinha outra conexão; revogar as 12 a deixa sem integrações. Aprovado pelo responsável
+   ao executar a confirmação.
+3. **Simulação** e depois **confirmação** (`revogar --db … --ids <12 ids> --por vinicius.debian@theneil.com.br
+   [--confirmar]`): as 12 → `REVOKED`.
+
+| id | estado antes |
+|---|---|
+| con_5c59bb06d006417eb8a3 | ACTIVE (15 execuções) |
+| con_991c4578761c4f2e9617, con_3f951f51e21f433a9ec5 | ACTIVE |
+| con_c2f41fa0890245d1ac34, con_7cdd309ee5854cdb87b2, con_4588e66cdf08441fbe3f, con_5bc1166412934d2fb8d0, con_ff4f061bcd76404d9e53, con_1e62aaa626ce47b7899e, con_1ec38dc26fa641a787a1, con_5bf754e5dfc942f48838, con_2f49328305c0463db8e5 | FAILED |
+
+4. **Conferência:** inventário de novo → 12 com `REVOKED`.
+
+O que a revogação faz (e só isso): status REVOKED, capabilities revogadas, aprovações pendentes invalidadas, credencial
+apagada se houver, evento `CONNECTOR_REVOKED` na atividade da empresa. **Não houve exclusão física**: conexões,
+versões, execuções e auditoria continuam no banco.

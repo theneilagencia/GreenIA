@@ -1,6 +1,6 @@
 # Homologação em produção — tenants controlados, programação com aviso e conexões fictícias
 
-Procedimento pronto para execução. **Não foi executado** na auditoria de 14–15/10/2026: o ambiente da auditoria não
+Etapas 5 e 6 **executadas em 14/10/2026**: resultados em `homologacao-producao-20261014.md`. Etapa 7 continua não executada. Texto original: procedimento pronto para execução, não executado na primeira parte da auditoria: o ambiente da auditoria não
 tinha acesso legítimo a produção (sem caixa de email para o código de acesso, sem acesso ao console da plataforma,
 sem Shell/API do Render). Nada aqui pode ser marcado como comprovado sem a execução real e o registro das evidências.
 

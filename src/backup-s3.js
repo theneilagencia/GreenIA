@@ -95,46 +95,54 @@ export async function pedirS3(cfg, metodo, { objeto = '', query = '', corpo = nu
 
 // ---------------------------------------------------------------- Ciclo de vida (expiração conferida)
 const tag = (xml, nome) => { const m = new RegExp(`<${nome}>([\\s\\S]*?)</${nome}>`).exec(xml); return m ? m[1] : null; };
-
-// Lê as regras de ciclo de vida e diz se o prefixo expira em até `limiteDias` (somando a expiração das versões
-// anteriores quando o versionamento está ou já esteve ligado). Só valem regras ativas filtradas por prefixo
-// (ou sem filtro): regras por tag ou tamanho não garantem que os backups expirem.
-export function avaliarCicloDeVida({ lifecycleXml, versioningXml, prefixo, limiteDias }) {
-  const versionamento = tag(versioningXml || '', 'Status') || 'Desligado';   // Enabled | Suspended | Desligado
-  const regras = [];
-  for (const m of String(lifecycleXml || '').matchAll(/<Rule>([\s\S]*?)<\/Rule>/g)) {
-    const r = m[1];
-    if ((tag(r, 'Status') || '').trim() !== 'Enabled') continue;
-    let pre;
-    const filtro = /<Filter\s*\/>/.test(r) ? '' : tag(r, 'Filter');
-    if (filtro != null) {
-      if (/<(Tag|And|ObjectSizeGreaterThan|ObjectSizeLessThan)>/.test(filtro)) continue;
-      pre = tag(filtro, 'Prefix') ?? '';
-    } else pre = tag(r, 'Prefix') ?? '';
-    pre = pre.replace(/&amp;/g, '&');
-    if (!prefixo.startsWith(pre)) continue;
-    const exp = tag(r, 'Expiration');
-    const dias = exp != null && tag(exp, 'Days') != null ? Number(tag(exp, 'Days')) : null;
-    const nc = tag(r, 'NoncurrentVersionExpiration');
-    const ncDias = nc != null && tag(nc, 'NoncurrentDays') != null ? Number(tag(nc, 'NoncurrentDays')) : null;
-    regras.push({ id: tag(r, 'ID') || '', prefixo: pre, dias, ncDias });
+// Expiração das cópias no S3: conferida NO BUCKET antes de cada envio (GetBucketLifecycleConfiguration,
+// GetBucketVersioning e GetObjectLockConfiguration). Uma variável de ambiente que só "declara" a regra não prova
+// nada e não libera o envio. O envio só acontece quando uma regra ativa, sem filtro por etiqueta ou tamanho, cobre o
+// prefixo das cópias e expira o objeto em até `limiteDias`; com versionamento, a versão antiga também precisa expirar
+// e a soma dos dois prazos fica dentro do limite; com Object Lock ligado, o envio fica bloqueado. A remoção depois da
+// expiração é feita pelo provedor do bucket, no tempo dele (o código só confere a regra).
+const xmlTexto = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+export function avaliarLifecycle(xml, { prefixo = '', limiteDias = 7, versionado = false } = {}) {
+  let expira = null, antigas = null;
+  for (const [, r] of String(xml || '').matchAll(/<Rule>([\s\S]*?)<\/Rule>/g)) {
+    if (!/<Status>\s*Enabled\s*<\/Status>/.test(r)) continue;
+    if (/<Tag>|<ObjectSize(?:GreaterThan|LessThan)>/.test(r)) continue;   // regra que não cobre todos os objetos
+    const p = /<Prefix>([^<]*)<\/Prefix>/.exec(r);
+    if (!prefixo.startsWith(p ? xmlTexto(p[1]) : '')) continue;
+    const e = /<Expiration>[\s\S]*?<Days>\s*(\d+)\s*<\/Days>[\s\S]*?<\/Expiration>/.exec(r);
+    if (e && +e[1] >= 1) expira = Math.min(expira ?? Infinity, +e[1]);
+    const n = /<NoncurrentVersionExpiration>([\s\S]*?)<\/NoncurrentVersionExpiration>/.exec(r);
+    const nd = n && /<NoncurrentDays>\s*(\d+)\s*<\/NoncurrentDays>/.exec(n[1]);
+    if (nd && +nd[1] >= 1 && !/<NewerNoncurrentVersions>\s*[1-9]/.test(n[1])) antigas = Math.min(antigas ?? Infinity, +nd[1]);
   }
-  const min = xs => { const v = xs.filter(x => Number.isInteger(x) && x >= 1); return v.length ? Math.min(...v) : null; };
-  const expiracaoDias = min(regras.map(r => r.dias));
-  const naoAtualDias = min(regras.map(r => r.ncDias));
-  const versionado = versionamento === 'Enabled' || versionamento === 'Suspended';
-  const total = expiracaoDias == null ? null : expiracaoDias + (versionado ? (naoAtualDias ?? Infinity) : 0);
-  let motivo = null;
-  if (expiracaoDias == null) motivo = `nenhuma regra ativa de ciclo de vida expira o prefixo "${prefixo}" (Expiration Days)`;
-  else if (versionado && naoAtualDias == null) motivo = `o versionamento está ${versionamento === 'Enabled' ? 'ligado' : 'suspenso'} e nenhuma regra expira as versões anteriores (NoncurrentVersionExpiration)`;
-  else if (total > limiteDias) motivo = `a regra expira em ${total} dias (${expiracaoDias}${versionado ? ` + ${naoAtualDias} das versões anteriores` : ''}), acima do limite de ${limiteDias} dias da política`;
-  return { ok: !motivo, motivo, versionamento, expiracaoDias, naoAtualDias, totalDias: total === Infinity ? null : total, limiteDias, regras: regras.length };
+  if (expira == null) return { ok: false, motivo: `nenhuma regra ativa de expiração cobre o prefixo "${prefixo}"` };
+  if (expira > limiteDias) return { ok: false, motivo: `a regra do bucket expira em ${expira} dias, mais que o limite de ${limiteDias}`, expiraDias: expira };
+  if (versionado) {
+    if (antigas == null) return { ok: false, motivo: 'bucket com versionamento e sem expiração das versões antigas', expiraDias: expira };
+    if (expira + antigas > limiteDias) return { ok: false, motivo: `expiração (${expira} dias) mais versões antigas (${antigas} dias) passa do limite de ${limiteDias}`, expiraDias: expira, antigasDias: antigas };
+  }
+  return { ok: true, expiraDias: expira, antigasDias: versionado ? antigas : null, versionado };
 }
 
-export async function verificarCicloDeVida(cfg, { limiteDias }, f) {
-  const lc = await pedirS3(cfg, 'GET', { query: 'lifecycle', aceitar: [404] }, f);
-  const vs = await pedirS3(cfg, 'GET', { query: 'versioning' }, f);
-  return avaliarCicloDeVida({ lifecycleXml: lc.status === 404 ? '' : lc.corpo.toString('utf8'), versioningXml: vs.corpo.toString('utf8'), prefixo: cfg.prefixo, limiteDias });
+// Lê lifecycle, versionamento e Object Lock do bucket. Só precisa das credenciais (não da chave de cifra).
+export async function conferirExpiracaoS3(destino, env = process.env, { limiteDias = 7 } = {}, f = globalThis.fetch) {
+  const m = /^s3:\/\/([^/]+)\/?(.*)$/.exec(destino || '');
+  if (!m) return { ok: false, motivo: 'destino S3 inválido' };
+  if (!env.S3_ENDPOINT || !env.S3_CHAVE || !env.S3_SEGREDO) throw new ErroBackup('S3_CONFIG', 'Backup em S3 precisa de S3_ENDPOINT, S3_CHAVE e S3_SEGREDO.');
+  const cfg = { endpoint: env.S3_ENDPOINT.replace(/\/+$/, ''), bucket: m[1], chave: env.S3_CHAVE, segredo: env.S3_SEGREDO, regiao: env.S3_REGIAO || 'us-east-1', timeoutMs: Number(env.S3_TIMEOUT_MS) || 120e3 };
+  const prefixo = m[2] ? m[2].replace(/\/?$/, '/') : '';
+  const todos = Array.from({ length: 500 }, (_, i) => 100 + i);   // devolve qualquer status: a decisão é aqui
+  try {
+    const lc = await pedirS3(cfg, 'GET', { query: 'lifecycle', aceitar: todos }, f);
+    if (lc.status !== 200) return { ok: false, motivo: lc.status === 404 ? 'o bucket não tem regra de expiração (lifecycle)' : `não foi possível ler a regra de expiração do bucket (${lc.status})` };
+    const ver = await pedirS3(cfg, 'GET', { query: 'versioning', aceitar: todos }, f);
+    if (ver.status !== 200) return { ok: false, motivo: `não foi possível conferir o versionamento do bucket (${ver.status})` };
+    const versionado = /<Status>\s*(?:Enabled|Suspended)\s*<\/Status>/.test(ver.corpo.toString('utf8'));
+    const ol = await pedirS3(cfg, 'GET', { query: 'object-lock', aceitar: todos }, f);
+    if (ol.status === 200 && /<ObjectLockEnabled>\s*Enabled/.test(ol.corpo.toString('utf8'))) return { ok: false, motivo: 'o bucket tem Object Lock: a expiração pode ser impedida' };
+    if (ol.status !== 200 && ![404, 501].includes(ol.status)) return { ok: false, motivo: `não foi possível conferir o Object Lock do bucket (${ol.status})` };
+    return avaliarLifecycle(lc.corpo.toString('utf8'), { prefixo, limiteDias, versionado });
+  } catch (e) { return { ok: false, motivo: `não foi possível consultar o bucket (${e.code || e.name || 'erro'})` }; }
 }
 
 // ---------------------------------------------------------------- Cifra no cliente
@@ -169,10 +177,10 @@ export const objetoBackup = (cfg, banco, carimbo) => `${cfg.prefixo}${banco}/gre
 const BANCO_VALIDO = /^[a-z0-9][a-z0-9_-]{0,80}$/i;
 
 // Envia um backup (.gz) cifrado. `verificacao`: cache da conferência do ciclo de vida para a rodada.
-export async function enviarBackupS3(cfg, { banco, carimbo, gz, criadoEm, limiteDias, verificacao = {} }, f = globalThis.fetch) {
+// `verificacao.resultado`: conferência da expiração (conferirExpiracaoS3) feita antes; sem ela aprovada, nada é enviado.
+export async function enviarBackupS3(cfg, { banco, carimbo, gz, criadoEm, verificacao = {} }, f = globalThis.fetch) {
   if (!BANCO_VALIDO.test(banco)) throw new ErroBackup('S3_BANCO_INVALIDO', 'Identificador de banco inválido para o nome do objeto.');
-  verificacao.resultado ??= await verificarCicloDeVida(cfg, { limiteDias }, f);
-  if (!verificacao.resultado.ok) throw new ErroBackup('S3_SEM_EXPIRACAO', `Envio ao S3 recusado: ${verificacao.resultado.motivo}.`, { ciclo: verificacao.resultado });
+  if (!verificacao.resultado?.ok) throw new ErroBackup('S3_SEM_EXPIRACAO', `Envio ao S3 recusado: ${verificacao.resultado?.motivo || 'expiração do bucket não conferida'}.`, { ciclo: verificacao.resultado || null });
   const objeto = objetoBackup(cfg, banco, carimbo);
   const corpo = cifrarBackup(cfg.cifra, objeto, gz);
   const meta = { 'x-amz-meta-sha256': sha256(gz), 'x-amz-meta-sha256-cifrado': sha256(corpo), 'x-amz-meta-banco': banco, 'x-amz-meta-criado-em': criadoEm, 'x-amz-meta-formato': FORMATO };
@@ -224,8 +232,8 @@ export function maisNovosPorBanco(itens) {
 // Envelope selado da chave-mestra (src/chave-recuperacao.js): já cifrado com BACKUP_ENVELOPE_SEGREDO; aqui ainda
 // passa pela cifra dos backups. Reenviado a cada rodada (a regra de ciclo de vida também o expira).
 export const objetoEnvelope = (cfg, carimbo) => `${cfg.prefixo}chave-mestra/envelope-${carimbo}.json.enc`;
-export async function enviarEnvelopeS3(cfg, { envelope, carimbo, limiteDias, verificacao = {} }, f = globalThis.fetch) {
-  verificacao.resultado ??= await verificarCicloDeVida(cfg, { limiteDias }, f);
+export async function enviarEnvelopeS3(cfg, destino, { envelope, carimbo, limiteDias, env, verificacao = {} }, f = globalThis.fetch) {
+  verificacao.resultado ??= await conferirExpiracaoS3(destino, env, { limiteDias }, f);
   if (!verificacao.resultado.ok) throw new ErroBackup('S3_SEM_EXPIRACAO', `Envio ao S3 recusado: ${verificacao.resultado.motivo}.`);
   const objeto = objetoEnvelope(cfg, carimbo);
   const claro = Buffer.from(JSON.stringify(envelope));

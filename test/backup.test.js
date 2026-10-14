@@ -1,7 +1,8 @@
-// Backup consistente com o servidor no ar, retenção local, envio para S3
+// Backup consistente com o servidor no ar, retenção local, envio para S3 só com a expiração conferida no bucket
 // (assinatura conferida contra o exemplo oficial da AWS) e restauração conferida.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
@@ -11,7 +12,7 @@ import { subir } from './ajuda.js';
 import { randomBytes } from 'node:crypto';
 import { subirS3Falso, lifecycleXml, regraLifecycle } from '../scripts/ensaio/s3-falso.js';
 import { abrirBanco, migrar, um } from '../src/db.js';
-import { assinarS3, fazerBackup, restaurar } from '../src/backup.js';
+import { assinarS3, avaliarLifecycle, fazerBackup, restaurar } from '../src/backup.js';
 
 let S, pasta;
 before(async () => {
@@ -31,7 +32,36 @@ test('assinatura SigV4 igual ao exemplo da documentação da AWS (GET Object)', 
   assert.match(h.authorization, /Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41$/);
 });
 
-test('backup com o servidor no ar, retenção local, envio cifrado ao S3 (expiração conferida) e restauração com conferência', async () => {
+// S3 falso: guarda os objetos e responde às consultas de configuração do bucket (lifecycle, versioning, object-lock).
+async function s3Falso(bucket = {}) {
+  const recebidos = [], objetos = new Map();
+  const srv = createServer((req, res) => {
+    const p = []; req.on('data', d => p.push(d));
+    req.on('end', () => {
+      const corpo = Buffer.concat(p), u = new URL(req.url, 'http://x');
+      recebidos.push({ metodo: req.method, url: req.url, auth: req.headers.authorization, corpo });
+      const consulta = ['lifecycle', 'versioning', 'object-lock'].find(q => u.searchParams.has(q));
+      if (consulta) {
+        const v = bucket[consulta];
+        if (v == null) { res.statusCode = consulta === 'versioning' ? 200 : 404; return res.end(consulta === 'versioning' ? '<VersioningConfiguration/>' : '<Error/>'); }
+        if (typeof v === 'number') { res.statusCode = v; return res.end('<Error/>'); }
+        return res.end(v);
+      }
+      if (req.method === 'PUT') { objetos.set(u.pathname, corpo); return res.end(''); }
+      if (!objetos.has(u.pathname)) { res.statusCode = 404; return res.end(''); }
+      res.end(objetos.get(u.pathname));
+    });
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const env = { S3_ENDPOINT: `http://127.0.0.1:${srv.address().port}`, S3_CHAVE: 'chave', S3_SEGREDO: 'segredo', S3_REGIAO: 'sa-east-1' };
+  return { srv, env, recebidos, objetos, puts: () => recebidos.filter(x => x.metodo === 'PUT') };
+}
+const regra = ({ prefixo = '', dias = 7, antigas = null, status = 'Enabled', extraFiltro = '' } = {}) =>
+  `<Rule><ID>r</ID><Filter>${extraFiltro ? `<And><Prefix>${prefixo}</Prefix>${extraFiltro}</And>` : `<Prefix>${prefixo}</Prefix>`}</Filter><Status>${status}</Status>`
+  + (dias ? `<Expiration><Days>${dias}</Days></Expiration>` : '') + (antigas ? `<NoncurrentVersionExpiration><NoncurrentDays>${antigas}</NoncurrentDays></NoncurrentVersionExpiration>` : '') + '</Rule>';
+const lifecycle = (...r) => `<LifecycleConfiguration>${r.join('')}</LifecycleConfiguration>`;
+
+test('backup com o servidor no ar, retenção local, envio cifrado ao S3 (expiração conferida no bucket) e restauração com conferência', async () => {
   const s3 = await subirS3Falso({ lifecycle: lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'empresa/' })) });
   const env = { ...s3.env('empresa'), BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') };
   const bk = join(pasta, 'backups');
@@ -42,6 +72,9 @@ test('backup com o servidor no ar, retenção local, envio cifrado ao S3 (expira
   assert.ok(!readdirSync(bk).some(f => f.includes('20260901')));
   const puts = s3.pedidos.filter(p => p.metodo === 'PUT');
   assert.equal(puts.length, 4);
+  assert.deepEqual(r.s3, { ok: true, expiraDias: 7, antigasDias: null, versionado: false });
+  // Antes de cada envio, a regra é lida no próprio bucket.
+  assert.ok(s3.pedidos.some(x => x.metodo === 'GET' && x.query === 'lifecycle'));
   assert.equal(puts.at(-1).caminho, '/greenia-backups/empresa/greenia/greenia-greenia-20260904-030000.sqlite.gz.enc');
   assert.match(puts[0].cabecalhos.authorization, /Credential=AKIAENSAIOFALSO\/\d{8}\/us-east-1\/s3\/aws4_request/);
   // O objeto no S3 está cifrado: nem o gzip nem o texto do banco aparecem.
@@ -58,6 +91,49 @@ test('backup com o servidor no ar, retenção local, envio cifrado ao S3 (expira
   const y = await restaurar('s3://greenia-backups/empresa/greenia/greenia-greenia-20260901-030000.sqlite.gz.enc', novo, { env });
   assert.ok(y.anterior && existsSync(y.anterior));
   await s3.fechar();
+});
+
+test('S3 bloqueado sem expiração verificada no bucket: a cópia fica só no disco local, com o motivo', async () => {
+  const casos = [
+    [{}, /não tem regra de expiração/],
+    [{ lifecycle: 403 }, /não foi possível ler a regra de expiração do bucket \(403\)/],
+    [{ lifecycle: lifecycle(regra({ dias: 30 })) }, /expira em 30 dias, mais que o limite de 7/],
+    [{ lifecycle: lifecycle(regra({ dias: 7, status: 'Disabled' })) }, /nenhuma regra ativa/],
+    [{ lifecycle: lifecycle(regra({ prefixo: 'outro/', dias: 1 })) }, /nenhuma regra ativa de expiração cobre o prefixo "empresa\/"/],
+    [{ lifecycle: lifecycle(regra({ dias: 1, extraFiltro: '<Tag><Key>a</Key><Value>b</Value></Tag>' })) }, /nenhuma regra ativa/],
+    [{ lifecycle: lifecycle(regra({ dias: 7 })), versioning: '<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>' }, /versionamento e sem expiração das versões antigas/],
+    [{ lifecycle: lifecycle(regra({ dias: 5, antigas: 5 })), versioning: '<VersioningConfiguration><Status>Suspended</Status></VersioningConfiguration>' }, /mais versões antigas \(5 dias\) passa do limite de 7/],
+    [{ lifecycle: lifecycle(regra({ dias: 7 })), 'object-lock': '<ObjectLockConfiguration><ObjectLockEnabled>Enabled</ObjectLockEnabled></ObjectLockConfiguration>' }, /Object Lock/],
+    [{ lifecycle: lifecycle(regra({ dias: 7 })), versioning: 500 }, /versionamento do bucket \(500\)/],
+  ];
+  const bk = join(pasta, 'backups-s3-bloqueado');
+  for (const [bucket, motivo] of casos) {
+    const s3 = await s3Falso(bucket);
+    const r = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://greenia-backups/empresa', manter: 3, env: { ...s3.env, S3_LIFECYCLE_DIAS: '7' } });
+    assert.equal(r.remoto, null, JSON.stringify(bucket));
+    assert.match(r.s3Bloqueado, motivo);
+    assert.equal(s3.puts().length, 0, 'nada vai ao bucket; a variável declarada não libera o envio');
+    assert.ok(existsSync(r.local), 'a cópia local continua sendo feita');
+    s3.srv.close();
+  }
+  // Bucket fora do ar: bloqueado, sem derrubar o backup local.
+  const r = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://b/p', manter: 3, env: { S3_ENDPOINT: 'http://127.0.0.1:1', S3_CHAVE: 'c', S3_SEGREDO: 's' } });
+  assert.match(r.s3Bloqueado, /não foi possível consultar o bucket/);
+  // Versionado com as duas expirações dentro do limite: liberado.
+  const ok = await subirS3Falso({ lifecycle: lifecycle(regra({ dias: 6, antigas: 1 })), versionamento: 'Enabled' });
+  const r2 = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://greenia-backups/empresa', manter: 3, env: { ...ok.env('empresa'), BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') } });
+  assert.ok(r2.remoto);
+  assert.deepEqual(r2.s3, { ok: true, expiraDias: 6, antigasDias: 1, versionado: true });
+  await ok.fechar();
+});
+
+test('regra de expiração: prefixo coberto, menor prazo entre as regras e versões antigas retidas por contagem não valem', () => {
+  assert.equal(avaliarLifecycle(lifecycle(regra({ prefixo: '', dias: 3 }), regra({ prefixo: 'empresa/', dias: 30 })), { prefixo: 'empresa/plataforma/' }).expiraDias, 3);
+  assert.equal(avaliarLifecycle(lifecycle('<Rule><Prefix>empresa/</Prefix><Status>Enabled</Status><Expiration><Days>2</Days></Expiration></Rule>'), { prefixo: 'empresa/emp_a/' }).ok, true, 'formato antigo (Prefix fora do Filter)');
+  const comContagem = lifecycle('<Rule><Filter/><Status>Enabled</Status><Expiration><Days>3</Days></Expiration><NoncurrentVersionExpiration><NoncurrentDays>1</NoncurrentDays><NewerNoncurrentVersions>5</NewerNoncurrentVersions></NoncurrentVersionExpiration></Rule>');
+  assert.match(avaliarLifecycle(comContagem, { prefixo: 'x/', versionado: true }).motivo, /sem expiração das versões antigas/);
+  assert.equal(avaliarLifecycle(lifecycle(regra({ dias: 9 })), { limiteDias: 10 }).ok, true);
+  assert.equal(avaliarLifecycle('', {}).ok, false);
 });
 
 test('restauração recusa arquivo corrompido ou que não é da GreenIA, sem mexer no banco atual', async () => {

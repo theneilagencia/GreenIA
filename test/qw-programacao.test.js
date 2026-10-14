@@ -39,6 +39,10 @@ test('programação nasce pausada, protege entrada e executa no servidor sem nav
  assert.ok(um(S.app.db,"select 1 from mensagens where conversa_id=? and papel='assistant'",e.conversa_id));
  await rodadaProgramadas(S.app);assert.equal(um(S.app.db,'select count(*) n from qw_programadas_execucoes').n,1);
  const aviso=S.app.email.enviados.find(e=>e.assunto==='Atualização de tarefa programada');assert.ok(aviso);assert.doesNotMatch(JSON.stringify(aviso),/três revisões|Resumo semanal/);
+ // Rastreio do mesmo caso: programação → execução → aviso registrado (sem conteúdo nem endereço), uma vez só.
+ const ev=todos(S.app.db,"select detalhes from eventos where tipo='quickwin.scheduled_notification_sent'").map(x=>JSON.parse(x.detalhes));
+ assert.equal(ev.length,1);assert.equal(ev[0].execucao,e.id);assert.equal(ev[0].programacao,e.programacao_id);assert.equal(ev[0].via,'simulado');
+ assert.doesNotMatch(JSON.stringify(ev),/@|Resumo semanal/);
 });
 test('equipe vê status mas não entrada nem conversa do responsável; usuário comum não programa',async t=>{
  const S=await fixture(t);await S.a.post('/api/admin/pessoas',{email:'usuario@exemplo.com.br',nome:'Usuário',areas:[]});const u=await S.cliente().entrar('usuario@exemplo.com.br');const s=await S.criar();await S.ativar(s);await S.a.post(S.base(s)+'/executar',{});await rodadaProgramadas(S.app);

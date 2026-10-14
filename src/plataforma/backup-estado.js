@@ -28,9 +28,9 @@ export function bancosEsperados(P) {
 export function registrarSucesso(P, id, b) {
   const e = lerEstado(P), agora = P.agora().toISOString();
   const x = e.bancos[id] || {};
-  e.bancos[id] = { ...x, ultimo_local: agora, sha256: b.sha256, tamanho: b.tamanho, ...(b.remoto ? { ultimo_remoto: agora, objeto: b.s3?.objeto || null, sse: b.s3?.sse || null } : {}), falha: null };
+  e.bancos[id] = { ...x, ultimo_local: agora, sha256: b.sha256, tamanho: b.tamanho, ...(b.remoto ? { ultimo_remoto: agora, objeto: b.envio?.objeto || null, sse: b.envio?.sse || null } : {}), falha: null };
   salvar(P, e);
-  aud(P, 'backup.completed', id, { tamanho: b.tamanho, sha256: b.sha256, remoto: b.s3 ? { objeto: b.s3.objeto, tamanho_cifrado: b.s3.tamanhoCifrado, sse: b.s3.sse } : null });
+  aud(P, 'backup.completed', id, { tamanho: b.tamanho, sha256: b.sha256, remoto: b.envio ? { objeto: b.envio.objeto, tamanho_cifrado: b.envio.tamanhoCifrado, sse: b.envio.sse } : null });
 }
 
 export function registrarFalha(P, id, erro) {
@@ -46,9 +46,9 @@ export function registrarFalha(P, id, erro) {
 
 export function registrarRodada(P, r) {
   const e = lerEstado(P);
-  e.rodada = { em: P.agora().toISOString(), total: r.total, concluidos: r.concluidos, falhas: r.falhas, s3: !!r.s3, ciclo: r.ciclo || null };
+  e.rodada = { em: P.agora().toISOString(), total: r.total, concluidos: r.concluidos, falhas: r.falhas, s3_bloqueados: r.s3Bloqueados || 0, s3: !!r.s3, ciclo: r.ciclo || null };
   salvar(P, e);
-  aud(P, r.falhas ? 'backup.run_incomplete' : 'backup.run', null, e.rodada);
+  aud(P, r.falhas || r.s3Bloqueados ? 'backup.run_incomplete' : 'backup.run', null, e.rodada);
 }
 
 // Backup automático mais novo de uma pasta local (pelo nome), para não depender só do estado gravado.

@@ -31,12 +31,13 @@ import { rodadaContatos } from './plataforma/contatos.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
 
-// S3 (desligado sem BACKUP_DESTINO). A expiração não é mais aceita por declaração (S3_LIFECYCLE_DIAS): antes do
-// primeiro envio de cada rodada, a regra de ciclo de vida e o versionamento do bucket são LIDOS e conferidos
-// (src/backup-s3.js); sem expiração em até o prazo da política, nada é enviado e a falha vira alerta.
+// Destino S3 das cópias. A regra de expiração é conferida NO BUCKET a cada envio (conferirExpiracaoS3 em
+// src/backup.js): sem regra verificada de até 7 dias, a cópia não sai do disco local. S3_LIFECYCLE_DIAS, de versões
+// anteriores, só declarava a regra e não é prova: é ignorada (docs/politica-retencao.md).
 export function destinoS3(env, log = () => {}) {
   if (!env.BACKUP_DESTINO) return undefined;
-  if (env.S3_LIFECYCLE_DIAS) log('S3_LIFECYCLE_DIAS é ignorado: a expiração do bucket é conferida no próprio bucket antes de cada rodada de envio.');
+  if (env.S3_LIFECYCLE_DIAS) log('ATENÇÃO: S3_LIFECYCLE_DIAS é ignorada: a variável só declara a regra. A expiração é conferida no próprio bucket antes de cada envio.');
+  log('BACKUP_DESTINO definido: cada envio ao S3 depende da regra de expiração conferida no bucket (até 7 dias); sem ela, a cópia fica só no disco local.');
   return env.BACKUP_DESTINO;
 }
 
@@ -69,7 +70,7 @@ export async function iniciar(env = process.env) {
   if (env.OPERADOR_TOKEN && env.OPERADOR_TOKEN.length < 24) app.log('ATENÇÃO: OPERADOR_TOKEN com menos de 24 caracteres foi ignorado.');
   if (env.OPENROUTER_API_KEY) tarefa(() => atualizarCatalogo(app), 24 * 3600e3);
   // Backup diário opcional (BACKUP_HORA=03:00).
-  if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: destinoS3(env, app.log), manter: Number(env.BACKUP_MANTER || 14), env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
+  if (agendarBackup(app, { hora: env.BACKUP_HORA, pasta: env.BACKUP_PASTA || 'dados/backups', destino: destinoS3(env, app.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: prazosDe(env).automaticoDias, env })) app.log(`Backup diário às ${env.BACKUP_HORA}.`);
   // Retenção das cópias e consolidação do WAL, de hora em hora (docs/politica-retencao.md).
   const banco = env.BANCO || 'dados/greenia.sqlite';
   tarefa(() => rodadaRetencao({ dados: dirname(banco), bancos: { dbs: [app.db], arquivos: [banco] }, prazos: prazosDe(env), aplicar: env.RETENCAO_APLICAR === '1',
@@ -108,8 +109,12 @@ export async function backupDaPlataforma(P, { pasta, env = process.env, ...op },
     try {
       const b = await copiar(abrir(), { ...op, env, agora, banco: id, verificacao, mestra, pasta: join(pasta, id) });
       r.concluidos++;
-      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}${b.s3 ? `; S3 ${b.s3.objeto}${b.s3.sse ? ` (SSE ${b.s3.sse})` : ''}` : ''}`);
-      if (real) registrarSucesso(P, id, b);
+      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}${b.envio ? `; S3 ${b.envio.objeto}${b.envio.sse ? ` (SSE ${b.envio.sse})` : ''}` : ''}`);
+      if (b.s3Bloqueado) {
+        r.s3Bloqueados = (r.s3Bloqueados || 0) + 1;
+        P.log(`ATENÇÃO: cópia de ${id} não enviada ao S3: ${b.s3Bloqueado}`);
+        if (real) registrarFalha(P, id, { code: 'S3_SEM_EXPIRACAO', etapa: 's3', backup: b, ciclo: { motivo: b.s3Bloqueado } });
+      } else if (real) registrarSucesso(P, id, b);
     } catch (e) {
       r.falhas++;
       const codigo = /^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro';
@@ -117,20 +122,20 @@ export async function backupDaPlataforma(P, { pasta, env = process.env, ...op },
       if (real) registrarFalha(P, id, e);
     }
   }
-  if (verificacao.resultado) { const c = verificacao.resultado; r.ciclo = { ok: c.ok, motivo: c.motivo, totalDias: c.totalDias, versionamento: c.versionamento, limiteDias: c.limiteDias }; }
+  if (verificacao.resultado) { const c = verificacao.resultado; r.ciclo = { ok: c.ok, motivo: c.motivo || null, expiraDias: c.expiraDias ?? null, antigasDias: c.antigasDias ?? null, versionado: !!c.versionado }; }
   // Envelope selado da chave-mestra junto das cópias no S3 (só com BACKUP_ENVELOPE_SEGREDO, separado das outras chaves).
   if (op.destino && real) {
     try {
       const segredo = segredoEnvelopeDe(env);
       if (segredo) {
         const cfg = configS3(op.destino, env, { mestra });
-        const x = await enviarEnvelopeS3(cfg, { envelope: selarChaveMestra(mestra, segredo, { agora }), carimbo: carimboDe(agora), limiteDias: limiteS3(env), verificacao });
+        const x = await enviarEnvelopeS3(cfg, op.destino, { env, envelope: selarChaveMestra(mestra, segredo, { agora }), carimbo: carimboDe(agora), limiteDias: op.limiteDias ?? limiteS3(env), verificacao });
         r.envelope = x.impressao;
         P.log(`envelope da chave-mestra enviado (${x.impressao})`);
       }
     } catch (e) { r.envelope = false; P.log(`envelope da chave-mestra não enviado (${/^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro'})`); }
   }
-  P.log(`backup diário ${r.falhas ? 'incompleto' : 'concluído'}: ${r.concluidos}/${r.total} bancos; ${r.falhas} falhas`);
+  P.log(`backup diário ${r.falhas || r.s3Bloqueados ? 'incompleto' : 'concluído'}: ${r.concluidos}/${r.total} bancos; ${r.falhas} falhas${r.s3Bloqueados ? `; ${r.s3Bloqueados} sem cópia no S3` : ''}`);
   if (real) registrarRodada(P, r);
   return r;
 }
@@ -219,7 +224,7 @@ export async function iniciarPlataforma(env = process.env) {
       if (rodando || !rodadaDevida(P, P.backup.hora)) return;
       rodando = true;
       try {
-        const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), env };
+        const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: P.retencao.automaticoDias, env };
         await backupDaPlataforma(P, { ...op, pasta: P.backup.pasta });
         await avisarBackups(P);
       } catch (e) { P.log('backup diário', e.message); } finally { rodando = false; }

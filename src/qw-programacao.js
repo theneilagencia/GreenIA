@@ -145,7 +145,10 @@ async function avisar(app,e,s) {
   // Nenhum conteúdo, nome do trabalho ou dado do sistema sai na notificação.
   exec(app.db,'update qw_programadas_execucoes set notificada=1 where id=?',e.id);
   if(!p)return;
-  try{await app.email.enviar(p.email,'Atualização de tarefa programada','Uma tarefa programada foi atualizada. Entre no ambiente da sua empresa e abra Quick Wins para consultar o status e as pendências. O conteúdo fica na plataforma.');}
+  // Registro do aviso aceito pelo provedor, com o identificador da mensagem (rastreia programação → execução → email
+  // sem conteúdo nem endereço). Aceitação do envio não comprova chegada à caixa de entrada.
+  try{const r=await app.email.enviar(p.email,'Atualização de tarefa programada','Uma tarefa programada foi atualizada. Entre no ambiente da sua empresa e abra Quick Wins para consultar o status e as pendências. O conteúdo fica na plataforma.');
+    registrar(app,'quickwin.scheduled_notification_sent',p.id,{execucao:e.id,programacao:s.id,via:r?.via||null,mensagem:r?.id||null});}
   catch{registrar(app,'quickwin.scheduled_notification_failed',p.id,{execucao:e.id});}
 }
 export async function rodadaProgramadas(app) {

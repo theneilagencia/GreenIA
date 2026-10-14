@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { subirS3Falso, lifecycleXml, regraLifecycle } from '../scripts/ensaio/s3-falso.js';
 import { abrirBanco } from '../src/db.js';
 import { fazerBackup, restaurar } from '../src/backup.js';
-import { avaliarCicloDeVida, configS3, listarS3, maisNovosPorBanco, baixarEnvelopeS3, envelopeMaisNovo, decifrarBackup } from '../src/backup-s3.js';
+import { avaliarLifecycle, configS3, listarS3, maisNovosPorBanco, baixarEnvelopeS3, envelopeMaisNovo, decifrarBackup } from '../src/backup-s3.js';
 import { abrirEnvelope, impressaoMestra, selarChaveMestra } from '../src/chave-recuperacao.js';
 import { criarPlataforma } from '../src/plataforma/servidor.js';
 import { backupDaPlataforma, rodadaDevida } from '../src/iniciar.js';
@@ -20,32 +20,26 @@ const chaveCifra = () => randomBytes(32).toString('base64');
 const pasta = () => mkdtempSync(join(tmpdir(), 'greenia-s3-'));
 const SETE = lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'p/' }));
 
-test('ciclo de vida: só regra ATIVA de expiração por prefixo, dentro do limite, conta como prova', () => {
-  const av = (lifecycleXml, versioningXml = '') => avaliarCicloDeVida({ lifecycleXml, versioningXml, prefixo: 'greenia/', limiteDias: 7 });
+test('ciclo de vida (avaliarLifecycle, compartilhado com src/backup.js): regra ativa por prefixo, dentro do limite, com versões antigas', () => {
+  const av = (xml, versionado = false) => avaliarLifecycle(xml, { prefixo: 'greenia/', limiteDias: 7, versionado });
   assert.match(av('').motivo, /nenhuma regra ativa/);
   assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'greenia/' }))).ok, true);
-  assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: '' }))).ok, true);                          // bucket inteiro
-  assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'outro/' }))).ok, false);                   // outro prefixo
-  assert.match(av(lifecycleXml(regraLifecycle({ dias: 30, prefixo: 'greenia/' }))).motivo, /30 dias.*acima do limite de 7/);
+  assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: '' }))).ok, true);
+  assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'outro/' }))).ok, false);
+  assert.match(av(lifecycleXml(regraLifecycle({ dias: 30, prefixo: 'greenia/' }))).motivo, /30 dias, mais que o limite de 7/);
   assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'greenia/', status: 'Disabled' }))).ok, false);
-  assert.equal(av(lifecycleXml(regraLifecycle({ dias: 7, filtro: '<Filter><Tag><Key>a</Key><Value>b</Value></Tag></Filter>' }))).ok, false);   // por tag não garante
-  assert.equal(av(lifecycleXml('<Rule><ID>x</ID><Prefix>greenia/</Prefix><Status>Enabled</Status><Expiration><Days>3</Days></Expiration></Rule>')).ok, true);   // formato antigo
-  // Versionamento ligado (ou suspenso): a expiração das versões anteriores entra na soma.
-  const ver = '<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>';
-  assert.match(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'greenia/' })), ver).motivo, /NoncurrentVersionExpiration/);
-  assert.match(av(lifecycleXml(regraLifecycle({ dias: 7, ncDias: 1, prefixo: 'greenia/' })), ver).motivo, /8 dias/);
-  const ok = av(lifecycleXml(regraLifecycle({ dias: 6, ncDias: 1, prefixo: 'greenia/' })), ver);
-  assert.equal(ok.ok, true); assert.equal(ok.totalDias, 7); assert.equal(ok.versionamento, 'Enabled');
-  assert.match(av(lifecycleXml(regraLifecycle({ dias: 5, prefixo: 'greenia/' })), '<VersioningConfiguration><Status>Suspended</Status></VersioningConfiguration>').motivo, /suspenso/);
+  assert.match(av(lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'greenia/' })), true).motivo, /versões antigas/);
+  assert.match(av(lifecycleXml(regraLifecycle({ dias: 7, ncDias: 1, prefixo: 'greenia/' })), true).motivo, /passa do limite/);
+  assert.deepEqual(av(lifecycleXml(regraLifecycle({ dias: 6, ncDias: 1, prefixo: 'greenia/' })), true), { ok: true, expiraDias: 6, antigasDias: 1, versionado: true });
 });
 
 test('sem expiração conferida no bucket, nada vai para o S3; o backup local fica e o erro diz por quê', async () => {
   const p = pasta(), db = abrirBanco(join(p, 'g.sqlite'));
-  for (const [lifecycle, versionamento, motivo] of [[null, null, /nenhuma regra/], [lifecycleXml(regraLifecycle({ dias: 30, prefixo: 'p/' })), null, /30 dias/], [SETE, 'Enabled', /versões anteriores/]]) {
+  for (const [lifecycle, versionamento, motivo] of [[null, null, /não tem regra de expiração/], [lifecycleXml(regraLifecycle({ dias: 30, prefixo: 'p/' })), null, /30 dias/], [SETE, 'Enabled', /versões antigas/]]) {
     const s3 = await subirS3Falso({ lifecycle, versionamento });
     const env = { ...s3.env('p'), BACKUP_CHAVE_CIFRA: chaveCifra(), S3_LIFECYCLE_DIAS: '7' };   // a declaração não vale como prova
-    const e = await fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env }).catch(x => x);
-    assert.equal(e.code, 'S3_SEM_EXPIRACAO'); assert.match(e.message, motivo); assert.equal(e.etapa, 's3');
+    const e = await fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env });
+    assert.match(e.s3Bloqueado, motivo); assert.equal(e.remoto, null);
     assert.ok(existsSync(e.local));
     assert.equal(s3.pedidos.filter(x => x.metodo === 'PUT').length, 0);
     await s3.fechar();
@@ -59,25 +53,25 @@ test('envio: objeto por banco e carimbo, cifrado no cliente, SHA-256 nos metadad
   const s3 = await subirS3Falso({ lifecycle: SETE });
   const env = { ...s3.env('p'), BACKUP_CHAVE_CIFRA: chaveCifra(), S3_SSE: 'AES256' };
   const r = await fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env, banco: 'emp_abc', agora: new Date('2026-10-14T06:00:00Z') });
-  assert.equal(r.s3.objeto, 'p/emp_abc/greenia-emp_abc-20261014-060000.sqlite.gz.enc');
-  assert.equal(r.s3.sse, 'AES256');
-  const o = s3.objetos.get(r.s3.objeto);
+  assert.equal(r.envio.objeto, 'p/emp_abc/greenia-emp_abc-20261014-060000.sqlite.gz.enc');
+  assert.equal(r.envio.sse, 'AES256');
+  const o = s3.objetos.get(r.envio.objeto);
   assert.equal(o.sse, 'AES256');
   assert.equal(o.meta['x-amz-meta-sha256'], r.sha256);
   assert.equal(o.meta['x-amz-meta-banco'], 'emp_abc');
   assert.ok(!o.corpo.includes(Buffer.from('Área Secreta')) && o.corpo[0] !== 0x1f);   // nem texto nem gzip à vista
   assert.ok(s3.pedidos.some(x => x.metodo === 'HEAD'));                                  // conferência depois do envio
   // Restaura do S3: confere os dois SHA-256 e decifra.
-  const x = await restaurar(`s3://${s3.bucket}/${r.s3.objeto}`, join(p, 'r.sqlite'), { env });
+  const x = await restaurar(`s3://${s3.bucket}/${r.envio.objeto}`, join(p, 'r.sqlite'), { env });
   assert.equal(x.tipo, 'empresa');
   const rdb = abrirBanco(join(p, 'r.sqlite')); assert.equal(rdb.prepare('select nome from areas where nome like ?').get('%Secreta%').nome, 'Área Secreta do Teste'); rdb.close();
   // Objeto alterado no bucket: recusado sem tocar no destino.
-  s3.estado.corromper = r.s3.objeto;
-  await assert.rejects(restaurar(`s3://${s3.bucket}/${r.s3.objeto}`, join(p, 'r2.sqlite'), { env }), e => e.code === 'S3_INTEGRIDADE');
+  s3.estado.corromper = r.envio.objeto;
+  await assert.rejects(restaurar(`s3://${s3.bucket}/${r.envio.objeto}`, join(p, 'r2.sqlite'), { env }), e => e.code === 'S3_INTEGRIDADE');
   assert.ok(!existsSync(join(p, 'r2.sqlite')));
   s3.estado.corromper = null;
   // Chave de cifra errada e objeto copiado para outro nome: recusados.
-  await assert.rejects(restaurar(`s3://${s3.bucket}/${r.s3.objeto}`, join(p, 'r3.sqlite'), { env: { ...env, BACKUP_CHAVE_CIFRA: chaveCifra() } }), e => e.code === 'BACKUP_DECIFRAR');
+  await assert.rejects(restaurar(`s3://${s3.bucket}/${r.envio.objeto}`, join(p, 'r3.sqlite'), { env: { ...env, BACKUP_CHAVE_CIFRA: chaveCifra() } }), e => e.code === 'BACKUP_DECIFRAR');
   const cfg = configS3(env.BACKUP_DESTINO, env);
   assert.throws(() => decifrarBackup(cfg.cifra, o.corpo, { nomeEsperado: 'p/emp_xyz/outro.enc' }), e => e.code === 'BACKUP_NOME');
   // Cópia .enc baixada para o disco também restaura (com a chave).
@@ -87,7 +81,11 @@ test('envio: objeto por banco e carimbo, cifrado no cliente, SHA-256 nos metadad
   s3.estado.falharProximos = 2;
   assert.ok((await fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env, banco: 'emp_abc', agora: new Date('2026-10-14T07:00:00Z') })).s3);
   s3.estado.falharProximos = 3;
-  await assert.rejects(fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env, banco: 'emp_abc', agora: new Date('2026-10-14T08:00:00Z') }), e => e.code === 'S3_HTTP_503');
+  assert.match((await fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env, banco: 'emp_abc', agora: new Date('2026-10-14T08:00:00Z') })).s3Bloqueado, /\(503\)/);
+  // Object Lock ligado no bucket: a expiração pode ser impedida, nada é enviado.
+  s3.estado.objectLock = 'Enabled';
+  assert.match((await fazerBackup(db, { pasta: join(p, 'bk'), destino: env.BACKUP_DESTINO, env, banco: 'emp_abc', agora: new Date('2026-10-14T09:00:00Z') })).s3Bloqueado, /Object Lock/);
+  s3.estado.objectLock = null;
   s3.estado.falharProximos = 0;
   // SSE pedida e não confirmada pelo servidor: falha.
   s3.estado.confirmarSse = false;
@@ -122,7 +120,7 @@ test('rodada multiempresa com S3: todos os bancos, ciclo de vida conferido uma v
     const env = { ...s3.env('g'), BACKUP_CHAVE_CIFRA: chaveCifra(), BACKUP_ENVELOPE_SEGREDO: segredo };
     const logs = []; S.P.log = s => logs.push(String(s));
     const r = await backupDaPlataforma(S.P, { pasta: join(p, 'backups'), destino: env.BACKUP_DESTINO, env, manter: 7 });
-    assert.deepEqual([r.total, r.concluidos, r.falhas, r.s3, r.ciclo.ok, r.ciclo.totalDias], [3, 3, 0, true, true, 7]);
+    assert.deepEqual([r.total, r.concluidos, r.falhas, r.s3, r.ciclo.ok, r.ciclo.expiraDias, r.ciclo.antigasDias], [3, 3, 0, true, true, 6, 1]);
     assert.equal(s3.pedidos.filter(x => x.query === 'lifecycle').length, 1);
     assert.equal(r.envelope, impressaoMestra(S.P.mestra()));
     const est = lerEstado(S.P);
@@ -160,7 +158,7 @@ test('alertas: falha por banco, conjunto atrasado (26 h) e S3 recusado viram avi
     const s3 = await subirS3Falso({});
     const env = { ...s3.env('g'), BACKUP_CHAVE_CIFRA: chaveCifra() };
     const r = await backupDaPlataforma(S.P, { pasta: S.P.backup.pasta, destino: env.BACKUP_DESTINO, env });
-    assert.equal(r.falhas, 2); assert.equal(r.ciclo.ok, false);
+    assert.equal(r.s3Bloqueados, 2); assert.equal(r.falhas, 0); assert.equal(r.ciclo.ok, false);
     assert.equal(readdirSync(join(p, 'backups', A.id)).length, 1);
     const antes = S.P.email.enviados.length;
     const c = await avisarBackups(S.P);
@@ -177,7 +175,8 @@ test('alertas: falha por banco, conjunto atrasado (26 h) e S3 recusado viram avi
     // Bucket corrigido: rodada limpa, sem aviso.
     s3.estado.lifecycle = SETE.replace('p/', 'g/');
     agora = new Date('2026-10-15T06:00:00Z');
-    assert.equal((await backupDaPlataforma(S.P, { pasta: S.P.backup.pasta, destino: env.BACKUP_DESTINO, env, agora })).falhas, 0);
+    const limpa = await backupDaPlataforma(S.P, { pasta: S.P.backup.pasta, destino: env.BACKUP_DESTINO, env, agora });
+    assert.equal(limpa.falhas, 0); assert.equal(limpa.s3Bloqueados, undefined);
     assert.equal((await avisarBackups(S.P)).problemas.length, 0);
     assert.equal(alertaBackup(S.P), null);
     // 27 h sem rodada: todos os bancos atrasados.

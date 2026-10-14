@@ -1,6 +1,6 @@
 // S3 falso (só para testes e para o ensaio sintético): servidor HTTP local, em memória, que confere a assinatura
 // SigV4 e o x-amz-content-sha256 de cada pedido e responde como o S3 a PUT/GET/HEAD de objeto, ListObjectsV2,
-// GetBucketLifecycleConfiguration e GetBucketVersioning. DELETE é recusado (a política IAM proposta não o concede).
+// GetBucketLifecycleConfiguration, GetBucketVersioning e GetObjectLockConfiguration. DELETE é recusado (a política IAM proposta não o concede).
 // Nada sai da máquina: escuta em 127.0.0.1, porta livre.
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
@@ -21,7 +21,7 @@ export async function subirS3Falso({ bucket = 'greenia-backups', chave = 'AKIAEN
   confirmarSse = true, maxChaves = 1000 } = {}) {
   const objetos = new Map();
   const pedidos = [];
-  const estado = { lifecycle, versionamento, confirmarSse, corromper: null, falharProximos: 0 };
+  const estado = { lifecycle, versionamento, objectLock: null, confirmarSse, corromper: null, falharProximos: 0 };
   const servidor = createServer((req, res) => {
     const partes = [];
     req.on('data', d => partes.push(d));
@@ -50,6 +50,7 @@ export async function subirS3Falso({ bucket = 'greenia-backups', chave = 'AKIAEN
       if (!objeto) {
         if (req.method !== 'GET') return responder(405, xmlErro('MethodNotAllowed'));
         if ('lifecycle' in q) return estado.lifecycle ? responder(200, estado.lifecycle) : responder(404, xmlErro('NoSuchLifecycleConfiguration'));
+        if ('object-lock' in q) return estado.objectLock ? responder(200, `<ObjectLockConfiguration><ObjectLockEnabled>${estado.objectLock}</ObjectLockEnabled></ObjectLockConfiguration>`) : responder(404, xmlErro('ObjectLockConfigurationNotFoundError'));
         if ('versioning' in q) return responder(200, `<?xml version="1.0" encoding="UTF-8"?><VersioningConfiguration>${estado.versionamento ? `<Status>${estado.versionamento}</Status>` : ''}</VersioningConfiguration>`);
         if (q['list-type'] === '2') {
           const todos = [...objetos.keys()].filter(k => k.startsWith(q.prefix || '')).sort();

@@ -1,16 +1,17 @@
 // Backup e restauração. O backup é uma cópia consistente do banco (VACUUM INTO,
 // funciona com o servidor no ar), compactada com gzip. Vai para uma pasta local
 // e, se BACKUP_DESTINO for s3://bucket/prefixo, também para um armazenamento
-// compatível com S3 (AWS, Cloudflare R2, Backblaze B2, MinIO, Magalu Cloud...).
+// compatível com S3 (AWS, Cloudflare R2, Backblaze B2, MinIO, Magalu Cloud...), cifrado no cliente e só depois de
+// conferir no próprio bucket a regra de expiração (conferirExpiracaoS3, src/backup-s3.js).
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
 import { registrar } from './eventos.js';
-import { configS3, enviarBackupS3, baixarBackupS3, decifrarBackup, ehCifrado, chaveCifraDe, ErroBackup } from './backup-s3.js';
+import { configS3, conferirExpiracaoS3, enviarBackupS3, baixarBackupS3, decifrarBackup, ehCifrado, chaveCifraDe, ErroBackup } from './backup-s3.js';
 
-export { assinarS3, ErroBackup } from './backup-s3.js';
+export { assinarS3, avaliarLifecycle, conferirExpiracaoS3, ErroBackup } from './backup-s3.js';
 const sha256 = d => createHash('sha256').update(d).digest('hex');
 const LIMITE_S3_PADRAO = 7;   // dias: prazo dos backups automáticos (docs/politica-retencao.md)
 
@@ -33,18 +34,22 @@ export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, ago
   return { local, tamanho: gz.length, nome, carimbo, sha256: sha256(gz) };
 }
 
-// Backup local e, com BACKUP_DESTINO=s3://..., cópia cifrada no S3 (src/backup-s3.js).
-// `banco`: identificador do banco no nome do objeto (plataforma, emp_..., greenia). `verificacao`: cache da
-// conferência do ciclo de vida do bucket, compartilhado pela rodada. Se o S3 falhar depois do backup local, o erro
-// leva `local` (o backup local existe) e `etapa: 's3'`.
+// Backup local e, com BACKUP_DESTINO=s3://..., cópia cifrada no S3 (src/backup-s3.js). Antes do envio, a expiração
+// é conferida no próprio bucket (conferirExpiracaoS3); sem ela, a cópia fica só no disco local e o motivo volta em
+// `s3Bloqueado` (nada é enviado). `banco`: identificador do banco no nome do objeto (plataforma, emp_..., greenia).
+// `verificacao`: cache da conferência compartilhado pela rodada (uma leitura do bucket antes do primeiro envio).
+// Se o envio falhar depois do backup local, o erro leva `local` (o backup local existe) e `etapa: 's3'`.
 export async function fazerBackup(db, { pasta = 'dados/backups', destino = '', manter = 14, agora = new Date(), env = process.env, banco = 'greenia', verificacao = {}, limiteDias, mestra = null, fetch: f } = {}) {
   const b = fazerBackupLocal(db, { pasta, manter, agora });
-  let remoto = null;
+  const base = { local: b.local, tamanho: b.tamanho, sha256: b.sha256, carimbo: b.carimbo, remoto: null };
+  if (!destino) return base;
   try {
+    verificacao.resultado ??= await conferirExpiracaoS3(destino, env, { limiteDias: limiteDias ?? limiteS3(env) }, f);
+    if (!verificacao.resultado.ok) return { ...base, s3Bloqueado: verificacao.resultado.motivo };
     const cfg = configS3(destino, env, { mestra });
-    if (cfg) remoto = await enviarBackupS3(cfg, { banco, carimbo: b.carimbo, gz: readFileSync(b.local), criadoEm: agora.toISOString(), limiteDias: limiteDias ?? limiteS3(env), verificacao }, f);
+    const envio = await enviarBackupS3(cfg, { banco, carimbo: b.carimbo, gz: readFileSync(b.local), criadoEm: agora.toISOString(), verificacao }, f);
+    return { ...base, remoto: envio.url, s3: verificacao.resultado, envio };
   } catch (e) { e.local = b.local; e.etapa = 's3'; e.backup = b; throw e; }
-  return { local: b.local, tamanho: b.tamanho, sha256: b.sha256, carimbo: b.carimbo, remoto: remoto?.url || null, s3: remoto };
 }
 // O S3 não pode guardar por mais tempo que a retenção dos backups automáticos.
 export const limiteS3 = env => { const n = Number(env?.RETENCAO_AUTOMATICO_DIAS); return Number.isFinite(n) && n >= 1 && n <= 3650 ? n : LIMITE_S3_PADRAO; };
@@ -106,7 +111,11 @@ export function agendarBackup(app, { hora, ...op }) {
     if (hhmm !== hora || ultimo === dia) return;
     ultimo = dia;
     fazerBackup(app.db, op)
-      .then(r => { app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}; sha256 ${r.sha256}`); registrar(app, 'backup.completed', null, { tamanho: r.tamanho, sha256: r.sha256, remoto: !!r.remoto }); })
+      .then(r => {
+        app.log(`backup feito: ${r.local}${r.remoto ? ' e ' + r.remoto : ''}; sha256 ${r.sha256}`);
+        if (r.s3Bloqueado) app.log(`ATENÇÃO: cópia não enviada ao S3: ${r.s3Bloqueado}`);
+        registrar(app, 'backup.completed', null, { tamanho: r.tamanho, sha256: r.sha256, remoto: !!r.remoto, ...(r.s3Bloqueado ? { s3_bloqueado: r.s3Bloqueado } : {}) });
+      })
       .catch(e => { app.log('backup falhou', e.code || '', e.message); registrar(app, 'backup.failed', null, { codigo: e.code || 'erro', etapa: e.etapa || 'local', erro: e.message }); });
   }, 30e3);
   t.unref();

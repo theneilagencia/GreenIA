@@ -3,6 +3,7 @@
 // sempre no servidor, e entrega a requisição ao ambiente daquela empresa com a sessão e as
 // permissões lidas do banco da plataforma. O console do operador da plataforma fica em /plataforma.
 import { caminhoChromium } from '../visual/chromium.js';
+import { limparOrigem, resumoOrigem } from '../../public/origem-contato.js';
 import { erroParaLog } from '../registro-seguro.js';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +22,7 @@ import { ErroIA } from '../ia.js';
 import { impressaoChave, fusoValido, FUSO_PADRAO, registrarRecusa, registrarLeitura, chaveRecusada, podeRevalidar, marcarRevalidacao, conferirChave } from './chave-validade.js';
 import { lerConfig, salvarConfig } from '../config.js';
 import { carregarPessoa, dominioPermitido, checarOrigem } from '../auth.js';
-import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
+import { cabecalhosLpComercial, cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerCookies, lerCorpo, servirEstatico } from '../http.js';
 import { exec, todos, um, json } from '../db.js';
 import { abrirPlataforma, lerAjuste, salvarAjuste } from './db.js';
 import { semearRbac, permissoesNaEmpresa, ehAdminPlataforma, roleDeSistema } from './rbac.js';
@@ -320,6 +321,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
     // Páginas da plataforma (vendas, console, operador, encontrar) não abrem pelo arquivo no endereço de uma empresa.
     if (porHost && /\.html$/i.test(caminho) && !PAGINAS_EMPRESA_ARQUIVOS.has(caminho.slice(1))) return pagina404(P, res, porHost);
 
+    if (!porHost && P.paginaInicial === 'vendas' && req.method === 'GET' && caminho === '/vendas.html') cabecalhosLpComercial(res);
     // Arquivos estáticos (css, js, imagens) valem para todos.
     if (req.method === 'GET' && ehArquivoPublico(caminho) && await servirEstatico(res, PUBLICO, caminho.slice(1), req)) return;
 
@@ -330,7 +332,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
       if (caminho.startsWith('/api/plataforma/')) return await despachar(P, rPlat, req, res, url, cookies, null);
       if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium() });
       if (caminho === '/' ) {
-        if (P.paginaInicial === 'vendas') return await servirPagina(res, 'vendas.html');
+        if (P.paginaInicial === 'vendas') { cabecalhosLpComercial(res); return await servirPagina(res, 'vendas.html'); }
         res.writeHead(302, { location: '/plataforma' }); return res.end();
       }
       if (caminho === '/api/contato' && P.paginaInicial === 'vendas') return await contatoVendas(P, req, res);
@@ -472,11 +474,12 @@ async function contatoVendas(P, req, res) {
   if (corpo.site) return enviarJson(res, 200, { ok: true });
   try {
     const lead = { nome: texto(corpo.nome, 120, 'nome', { obrigatorio: true }), email: validarEmail(corpo.email), empresa: texto(corpo.empresa, 160, 'empresa', { obrigatorio: true }), cargo: texto(corpo.cargo, 120, 'cargo'), pessoas: texto(corpo.pessoas, 40, 'pessoas'), mensagem: texto(corpo.mensagem, 2000, 'mensagem') };
-    const { id } = registrarFormulario(P, lead);
+    lead.origem = limparOrigem(corpo);
+    const { id, conversao_id } = registrarFormulario(P, lead);
     // O email aos admins só avisa: o contato (dados pessoais) fica no console, sob a retenção de 24 meses, sem cópia na caixa postal.
     const link = `${(P.urlBase || '').replace(/\/$/, '')}/plataforma#/configuracoes`;
-    for (const para of P.adminsPlataforma()) P.email.enviar(para, 'Novo contato recebido', `Um novo contato chegou pela página de vendas.\n\nConsulte no console (é preciso entrar): ${link}\nReferência: ${id}`).catch(() => {});
-    enviarJson(res, 200, { ok: true });
+    for (const para of P.adminsPlataforma()) P.email.enviar(para, 'Novo contato recebido', `Um novo contato chegou pela página de vendas.\n\nConsulte no console (é preciso entrar): ${link}\nReferência: ${id}\n\n${resumoOrigem(lead.origem)}`).catch(() => {});
+    enviarJson(res, 200, { ok: true, recebido: true, conversao_id });
   } catch (e) { enviarJson(res, e.status || 400, { erro: e.codigo || 'contato', mensagem: e.message }); }
 }
 

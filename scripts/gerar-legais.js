@@ -110,6 +110,7 @@ ${candidata ? `<p class="faixa-aviso atencao" role="note"><b>Versão final candi
 <footer class="legal-rodape">
   <a href="${outro.caminho}">${outro.titulo}</a>
 ${contato ? `  <a href="mailto:${contato}">Contato: ${contato}</a>\n` : ''}  <a href="/">Voltar ao site</a>
+  <a href="/#preferencias-cookies">Preferências de cookies</a>
 </footer>
 </body>
 </html>

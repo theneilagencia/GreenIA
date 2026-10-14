@@ -129,7 +129,7 @@ create table if not exists politica_versoes (
 
 -- Contatos da página de vendas (só na instalação do operador, com PAGINA_INICIAL=vendas).
 create table if not exists leads (id integer primary key, em text not null, nome text not null, email text not null, empresa text not null,
-  cargo text not null default '', pessoas text not null default '', mensagem text not null default '', ip text);
+  cargo text not null default '', pessoas text not null default '', mensagem text not null default '', ip text, origem text not null default '{}');
 
 -- Pacotes extras de créditos, liberados pelo operador da plataforma.
 -- produto: capacity_pack, cortesia ou pacote_legado_10000; preco_usd: valor de tabela da liberação (receita).
@@ -407,6 +407,8 @@ const MIGRACOES = [
     }
     db.prepare('update pacotes set produto = ?, preco_usd = creditos * ? / ? where produto is null').run(PACOTE_LEGADO.produto, PACOTE_LEGADO.preco_usd, PACOTE_LEGADO.creditos);
   },
+  // 19. Origem opcional dos contatos da instalação única; registros antigos permanecem intactos.
+  db => { if (!db.prepare("select 1 from pragma_table_info('leads') where name = 'origem'").get()) db.exec("alter table leads add column origem text not null default '{}'"); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

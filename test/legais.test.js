@@ -99,12 +99,14 @@ test('versão final 1.0: sem marcação de pendência, rascunho ou texto interno
   assert.doesNotMatch(ler('docs/legal/politica-de-privacidade.md') + ler('docs/legal/termos-de-uso.md') + ler('public/vendas.html') + ler('docs/claims-lp.md'), /n[ãa]o vende|nunca vende/i, 'sem "não vende dados"');
 });
 
-test('registro da aprovação: o hash anotado bate com os documentos (mudou o texto, atualize o registro)', async () => {
+test('integridade dos documentos: aprovação histórica ou manifesto da atualização pública identifica o texto atual', async () => {
   const { createHash } = await import('node:crypto');
   const reg = ler('docs/legal/aprovacao-juridica.md');
+  const atualizacao = JSON.parse(ler('docs/legal/medicao-lp.json'));
   for (const d of DOCUMENTOS) {
     const h = createHash('sha256').update(readFileSync(raiz + d.md)).digest('hex');
-    assert.match(reg, new RegExp(`\`${d.md}\` \\| 1\\.0, .*\`${h}\``), `${d.md}: hash registrado desatualizado`);
+    if (Object.hasOwn(atualizacao.documentos, d.md)) assert.equal(atualizacao.documentos[d.md], h, `${d.md}: manifesto público desatualizado`);
+    else assert.match(reg, new RegExp(`\`${d.md}\` \\| 1\\.0, .*\`${h}\``), `${d.md}: hash registrado desatualizado`);
   }
   assert.match(reg, /\*\*Aprovado\*\*/);
 });

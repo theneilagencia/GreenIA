@@ -180,12 +180,11 @@ test('migração do banco da empresa: pacotes antigos ganham produto legado e o 
     const arq = join(dir, 'e.sqlite');
     let db = abrirBanco(arq);
     exec(db, "insert into pacotes (em, creditos, origem) values ('2026-09-10T00:00:00Z', 10000, 'console'), ('2026-09-20T00:00:00Z', 5000, 'painel')");
-    // Volta o banco ao formato anterior (sem as colunas) e uma versão atrás.
-    const v = db.prepare('pragma user_version').get().user_version;
+    // Formato anterior à migração 18 dos pacotes, independentemente de migrações posteriores.
     db.close();
     const cru = new DatabaseSync(arq);
     cru.exec('alter table pacotes drop column produto; alter table pacotes drop column preco_usd;');
-    cru.exec(`pragma user_version = ${v - 1}`);
+    cru.exec('pragma user_version = 17');
     cru.close();
     db = abrirBanco(arq);
     assert.deepEqual(todos(db, 'select creditos, produto, preco_usd from pacotes order by id').map(x => ({ ...x })),

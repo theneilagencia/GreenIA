@@ -5,13 +5,16 @@ import '/lp-operacoes.js';
 
 const $ = id => document.getElementById(id);
 const form = $('form-contato');
+let enviando = false;
 
 form.addEventListener('submit', async ev => {
   ev.preventDefault();
+  if (enviando) return;
   const erro = $('c-erro'), botao = $('c-enviar');
   erro.classList.add('oculto');
   const dados = Object.fromEntries(new FormData(form));
   if (!form.checkValidity()) { erro.textContent = 'Preencha nome, email e empresa.'; erro.classList.remove('oculto'); return; }
+  enviando = true;
   botao.disabled = true;
   try {
     const r = await fetch('/api/contato', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(dados) });
@@ -19,9 +22,10 @@ form.addEventListener('submit', async ev => {
     if (!r.ok) throw new Error(d.mensagem || 'Não foi possível enviar agora. Tente de novo.');
     for (const el of form.querySelectorAll('.campo, .l-form-grade, #c-enviar')) el.classList.add('oculto');
     $('c-ok').classList.remove('oculto');
+    if (d.recebido === true && typeof d.conversao_id === 'string') document.dispatchEvent(new CustomEvent('greenia:contato-recebido', { detail: { id: d.conversao_id } }));
   } catch (e) {
     erro.textContent = e.message; erro.classList.remove('oculto'); botao.disabled = false;
-  }
+  } finally { enviando = false; }
 });
 
 // Menu compacto do topo (celular e tablet): fecha ao escolher uma seção, com Esc (foco volta ao botão) e ao tocar fora.

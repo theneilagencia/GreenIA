@@ -1,5 +1,6 @@
 // Página de vendas e formulário de contato. Só existe na instalação do operador
 // (PAGINA_INICIAL=vendas): a de cada cliente abre a própria página, com a marca dele.
+import { limparOrigem, resumoOrigem } from '../public/origem-contato.js';
 import { erro } from './http.js';
 import { exec, todos } from './db.js';
 import { registrar } from './eventos.js';
@@ -26,16 +27,17 @@ export function rotasVendas(app, r) {
     if (lead.empresa.length < 2) throw erro(400, 'empresa', 'Informe o nome da empresa.');
     if (lead.pessoas && !FAIXAS.includes(lead.pessoas)) throw erro(400, 'pessoas', 'Escolha uma faixa de pessoas.');
     envios.set(ip, [...n, agora]);
-    const { lastInsertRowid } = exec(app.db, 'insert into leads (em, nome, email, empresa, cargo, pessoas, mensagem, ip) values (?, ?, ?, ?, ?, ?, ?, ?)',
-      app.agora().toISOString(), lead.nome, lead.email, lead.empresa, lead.cargo, lead.pessoas, lead.mensagem, ip);
+    const origem = limparOrigem(corpo);
+    const { lastInsertRowid } = exec(app.db, 'insert into leads (em, nome, email, empresa, cargo, pessoas, mensagem, ip, origem) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      app.agora().toISOString(), lead.nome, lead.email, lead.empresa, lead.cargo, lead.pessoas, lead.mensagem, ip, JSON.stringify(origem));
     registrar(app, 'lead.created', null, { lead: Number(lastInsertRowid), empresa: lead.empresa });
-    const texto = `Novo contato pela página da GreenIA.\n\nNome: ${lead.nome}\nEmail: ${lead.email}\nEmpresa: ${lead.empresa}\nCargo: ${lead.cargo || '-'}\nPessoas: ${lead.pessoas || '-'}\n\n${lead.mensagem || '(sem mensagem)'}`;
+    const texto = `Novo contato pela página da GreenIA.\n\nNome: ${lead.nome}\nEmail: ${lead.email}\nEmpresa: ${lead.empresa}\nCargo: ${lead.cargo || '-'}\nPessoas: ${lead.pessoas || '-'}\n\n${lead.mensagem || '(sem mensagem)'}\n\n${resumoOrigem(origem)}`;
     for (const para of app.operadores || []) await app.email.enviar(para, `GreenIA: contato de ${lead.empresa}`, texto).catch(e => app.log('email de contato', e.message));
-    return { ok: true };
+    return { ok: true, recebido: true, conversao_id: `greenia-local-${lastInsertRowid}` };
   }, { publica: true, limiteMb: 0.05 });
 
   r.get('/api/operador/leads', ({ pessoa }) => {
     if (!ehOperador(app, pessoa)) throw erro(403, 'so_operador', 'Só o operador da plataforma pode fazer isso.');
-    return { leads: todos(app.db, 'select id, em, nome, email, empresa, cargo, pessoas, mensagem from leads order by id desc limit 200') };
+    return { leads: todos(app.db, 'select id, em, nome, email, empresa, cargo, pessoas, mensagem, origem from leads order by id desc limit 200') };
   });
 }

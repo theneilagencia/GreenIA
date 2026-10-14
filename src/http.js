@@ -93,6 +93,12 @@ export function enviarCsv(res, nome, linhas) {
 }
 
 // CSP: só o próprio servidor, mais as fontes do Google (com fonte do sistema de reserva).
+// Somente o documento HTML da LP comercial recebe as origens do Google Ads.
+export function cabecalhosLpComercial(res) {
+  const scripts = 'https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com';
+  const medicao = scripts + ' https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com https://www.google.com.br';
+  res.setHeader('content-security-policy', `default-src 'self'; script-src 'self' ${scripts}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: ${medicao}; connect-src 'self' ${medicao} https://ad.doubleclick.net; frame-src 'self' https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`);
+}
 export function cabecalhosSeguranca(res) {
   res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   res.setHeader('x-content-type-options', 'nosniff');

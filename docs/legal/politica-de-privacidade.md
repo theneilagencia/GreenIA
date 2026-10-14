@@ -2,6 +2,8 @@
 
 Versão 1.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro de 2026
 
+Última atualização do texto: 14 de outubro de 2026
+
 ## 1. Quem somos e como falar conosco
 
 A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA** ("TheNeil", "nós"), pessoa jurídica de direito privado:
@@ -66,7 +68,7 @@ O papel de cada parte depende do tratamento:
 | Auditoria da plataforma | Quem, o quê, antes e depois, quando, IP e navegador | Banco da plataforma | Sim, sem prazo de eliminação | Não |
 | Acessos da equipe de operação | Operador (email), tipo, justificativa, início, fim, duração, status, resultado do aviso; IP e navegador (estes não aparecem para a empresa) | Banco da plataforma | Sim, sem prazo de eliminação | Aviso por email aos admins |
 | Exportações | Registro: operador, finalidade, justificativa, data, tamanho, hash, resultado, downloads e eliminação. Cópia: o banco completo do ambiente | Registro: banco da plataforma. Cópia: servidor da plataforma | Registro: sim, sem prazo de eliminação. Cópia: até 7 dias depois de encerrada a necessidade (seção 12) | A cópia é entregue a quem a pediu (seção 12) |
-| Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem e interações comerciais registradas | Banco da plataforma | Sim, até 24 meses depois da última interação (seção 14) | Não: os admins da plataforma recebem só um aviso, sem os dados do contato |
+| Formulário comercial | Nome, email, empresa, cargo, faixa de pessoas, mensagem, origem do pedido e interações comerciais registradas | Banco da plataforma | Sim, até 24 meses depois da última interação (seção 14) | Resumo de origem no aviso aos admins, sem nome, email ou mensagem do contato. Com consentimento, medição ao Google (seção 20) |
 | Logs técnicos | Mensagens de operação do servidor (falhas, rotinas, avisos) | Logs do provedor de hospedagem | Sim, pelo prazo do provedor | Ficam no provedor |
 
 ### 4.2 Dados processados sem ficar guardados
@@ -261,7 +263,7 @@ A GreenIA envia emails para:
 - avisos de acesso e exportação pela equipe de operação;
 - códigos de confirmação e links de devolução no encerramento de um ambiente;
 - relatos de problema (aos administradores do Cliente);
-- aviso de novo contato comercial (aos administradores da plataforma, sem os dados do contato);
+- aviso de novo contato comercial (aos administradores da plataforma, com resumo da origem, sem nome, email ou mensagem do contato);
 - avisos administrativos da plataforma.
 
 O envio usa o provedor de envio de email da plataforma ou, se o Cliente configurar, o servidor de email da própria
@@ -269,10 +271,10 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 
 ## 14. Formulário comercial
 
-- **Campos:** nome, email, empresa, cargo (opcional), faixa de pessoas na empresa (opcional) e mensagem (opcional).
+- **Campos:** nome, email, empresa, cargo (opcional), faixa de pessoas na empresa (opcional) e mensagem (opcional). Parâmetros de campanha e origem da visita podem acompanhar o envio para identificar o canal do pedido.
 - **Finalidade:** responder ao contato e marcar apresentação.
 - **Destino:** fica no banco da plataforma GreenIA. Os administradores da plataforma recebem por email só um aviso de
-  novo contato, sem os dados dele, e consultam o contato no console.
+  novo contato e um resumo da campanha de origem, sem nome, email ou mensagem do contato, e consultam os detalhes no console. O aviso indica apenas a presença de identificadores de clique, sem copiá-los para o email.
 - **IP:** não é guardado com o contato. O servidor usa o IP só em memória, por uma hora, para limitar o envio a 5
   contatos.
 - **Prazo:** o contato é eliminado 24 meses depois da última interação comercial relevante registrada (um novo
@@ -291,7 +293,8 @@ empresa. Os emails que saem do ambiente de uma empresa não levam o nome da plat
 | Consumo e cobrança | Controle de uso e faturamento | Execução de contrato |
 | Auditoria e acessos da operação | Segurança e prestação de contas | Legítimo interesse / cumprimento de obrigação |
 | Logs técnicos | Operação e segurança | Legítimo interesse |
-| Formulário comercial | Atendimento a pedido do titular | Procedimentos preliminares a contrato, a pedido do titular / legítimo interesse |
+| Formulário comercial e origem do pedido | Atendimento a pedido do titular e identificação do canal comercial | Procedimentos preliminares a contrato, a pedido do titular / legítimo interesse |
+| Medição de publicidade na LP comercial | Associar pedidos de demonstração a anúncios | Consentimento, conforme art. 7º, I, da LGPD |
 
 ## 16. Direitos dos titulares
 
@@ -343,6 +346,7 @@ Fornecedores:
 | OpenRouter | Acesso aos modelos de IA | Conteúdo dos pedidos (seção 6.1) | Estados Unidos ou outros países, conforme a política pública do OpenRouter | Gerar respostas |
 | Fabricantes dos modelos liberados pelo Cliente | Execução dos modelos, via OpenRouter | Conteúdo dos pedidos | Conforme a documentação de cada fabricante | Gerar respostas |
 | Provedor de envio de email da plataforma | Envio de emails (seção 13) | Endereço de destino e conteúdo do email | Conforme o provedor contratado | Enviar códigos e avisos |
+| Google Ads, somente na LP comercial e com consentimento | Medição de pedidos de demonstração | Dados da visita, identificadores de anúncios e hash do email quando disponível | Conforme as condições do serviço Google; pode envolver transferência internacional | Associar pedidos a anúncios |
 | Servidor de email do Cliente (opcional) | Envio dos emails do ambiente dele | Idem | Definido pelo Cliente | Idem |
 
 ## 20. Cookies e armazenamento no navegador
@@ -350,8 +354,21 @@ Fornecedores:
 - **Cookies essenciais:** sessão da empresa, sessão do console e o contexto da empresa (30 dias). São necessários para
   entrar e não são usados para publicidade.
 - **Armazenamento local do navegador:** guarda preferências de tela, como a última tela visitada.
-- **Rastreamento:** não há ferramentas de análise ou publicidade nas páginas da GreenIA. As fontes tipográficas são
-  servidas pelo próprio servidor da GreenIA, sem chamada a terceiros.
+- **Medição na LP comercial:** a página pública de apresentação usa a tag do Google Ads para medir pedidos de demonstração. A tag é carregada somente após a escolha "Aceitar". Sem essa autorização, a tag não é carregada e nenhum evento de conversão é enviado por esta implementação.
+- **Conversões otimizadas:** com consentimento, o email informado no formulário pode ser normalizado e convertido em hash SHA-256 no navegador, antes de ser disponibilizado à tag, para associar o pedido ao anúncio. Hash não equivale a anonimização. A coleta depende também da configuração da conta Google Ads.
+- **Origem do pedido:** parâmetros utm e a página de entrada são guardados na sessão da aba e enviados com o formulário. A referência da visita é limitada ao domínio de origem. Identificadores gclid, gbraid e wbraid só são adicionados por esta implementação após consentimento. Parâmetros arbitrários e fragmentos da URL não são guardados. Os metadados enviados seguem a retenção do contato comercial da seção 14.
+- **Escolha e retirada:** o link "Preferências de cookies" no rodapé da LP permite mudar a escolha. Ao recusar, esta implementação interrompe novos eventos de conversão, remove os cookies de medição próprios acessíveis e comunica a mudança à tag caso ela já tenha sido carregada. Cookies de outros domínios permanecem sujeitos aos controles do navegador e do Google.
+- **Limite de escopo:** a tag não é incluída no chat, no console nem nas páginas dos ambientes das empresas. Não são habilitadas análise de uso por Google Analytics nem personalização de anúncios por esta implementação. As fontes tipográficas continuam servidas pelo próprio servidor.
+
+| Nome | Finalidade | Tipo | Duração |
+|---|---|---|---|
+| greenia_consent_v1 | Guardar a escolha sobre medição publicitária | Armazenamento local | Até a escolha ser substituída ou os dados serem apagados pelo visitante |
+| greenia_origem_v1 | Identificar a origem do pedido comercial | Armazenamento de sessão | Sessão da aba, que pode ser restaurada pelo navegador |
+| greenia_conversoes_v1 | Evitar repetição do mesmo evento confirmado | Armazenamento de sessão, apenas identificadores de eventos | Sessão da aba, que pode ser restaurada pelo navegador |
+| _gcl_au, _gcl_aw e outros _gcl_* eventualmente utilizados | Medição de anúncios | Cookies próprios do site, conforme a tag e sua configuração | Em geral até 90 dias; confirmar os cookies efetivamente utilizados na implantação |
+| Cookies dos domínios Google eventualmente utilizados | Medição do Google Ads com consentimento | Cookies de terceiros | Variável conforme o cookie e a configuração do Google; não se limita necessariamente a 90 dias |
+
+O visitante pode consultar a documentação de cookies do Google em https://business.safety.google/adscookies/ e gerenciar os dados do navegador. O envio do formulário funciona mesmo quando a medição é recusada.
 
 ## 21. Alterações desta Política
 

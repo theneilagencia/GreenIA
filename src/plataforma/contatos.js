@@ -4,8 +4,9 @@
 // Não há limite de quantidade que apague contatos: a listagem é paginada. Hold (obrigação legal, contrato ou litígio)
 // suspende a eliminação. Só o formulário e o registro manual de uma interação real movem last_interaction_at.
 import { randomUUID } from 'node:crypto';
+import { limparOrigem } from '../../public/origem-contato.js';
 import { erro } from '../http.js';
-import { exec, todos, um, transacao } from '../db.js';
+import { exec, todos, um, transacao, json } from '../db.js';
 import { auditar } from './auditoria.js';
 import { lerAjuste } from './db.js';
 
@@ -57,7 +58,7 @@ export function migrarContatosAntigos(P) {
   auditar(P, { acao: 'contacts.migrated', entidade: 'commercial_contacts', depois: resumo, origem: { painel: 'migracao' } });
   return resumo;
 }
-const camposDoFormulario = l => ({ nome: l.nome || '', email: String(l.email || '').toLowerCase(), empresa: l.empresa || '', cargo: l.cargo || '', pessoas: l.pessoas || '', mensagem: l.mensagem || '' });
+const camposDoFormulario = l => ({ nome: l.nome || '', email: String(l.email || '').toLowerCase(), empresa: l.empresa || '', cargo: l.cargo || '', pessoas: l.pessoas || '', mensagem: l.mensagem || '', ...(Object.keys(limparOrigem(l.origem)).length ? { origem: limparOrigem(l.origem) } : {}) });
 
 // Rollback: reconstrói a lista antiga (formato de antes desta versão) a partir das interações "formulario", uma
 // entrada por formulário, com os campos daquele envio. Não apaga a tabela. Usado só antes de voltar ao código antigo.
@@ -81,9 +82,9 @@ export function registrarFormulario(P, lead) {
     exec(P.db, 'insert into commercial_contacts (id, created_at, last_interaction_at, nome, email, empresa, cargo, pessoas, mensagem) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       id, agora, agora, lead.nome, email, lead.empresa, lead.cargo || '', lead.pessoas || '', lead.mensagem || '');
   }
-  exec(P.db, "insert into commercial_interactions (contact_id, at, tipo, por, nota, dados) values (?, ?, 'formulario', 'formulario', ?, ?)", id, agora, lead.mensagem || '', JSON.stringify(camposDoFormulario(lead)));
+  const interacao = exec(P.db, "insert into commercial_interactions (contact_id, at, tipo, por, nota, dados) values (?, ?, 'formulario', 'formulario', ?, ?)", id, agora, lead.mensagem || '', JSON.stringify(camposDoFormulario(lead)));
   auditar(P, { acao: existente ? 'contact.interaction' : 'contact.created', entidade: 'commercial_contact', id, depois: { tipo: 'formulario' }, origem: { painel: 'vendas' } });
-  return { id, novo: !existente };
+  return { id, novo: !existente, conversao_id: `greenia-${interacao.lastInsertRowid}` };
 }
 
 const exigirContato = (P, id) => { const c = um(P.db, 'select * from commercial_contacts where id = ?', id); if (!c) throw erro(404, 'contato', 'Contato não encontrado.'); return c; };
@@ -147,6 +148,7 @@ export function listarContatos(P, { pagina = 0, porPagina = 50 } = {}) {
   const itens = todos(P.db, 'select * from commercial_contacts order by last_interaction_at desc limit ? offset ?', porPagina, pagina * porPagina).map(c => ({
     id: c.id, em: c.created_at, ultimaInteracao: c.last_interaction_at, eliminarApos: c.hold_em ? null : fim(c),
     nome: c.nome, email: c.email, empresa: c.empresa, cargo: c.cargo, pessoas: c.pessoas, mensagem: c.mensagem,
+    origem: limparOrigem(json(um(P.db, "select dados from commercial_interactions where contact_id = ? and tipo = 'formulario' order by id desc limit 1", c.id)?.dados, {})?.origem),
     hold: c.hold_em ? { motivo: c.hold_motivo, por: c.hold_por, em: c.hold_em } : null,
     interacoes: todos(P.db, 'select at, tipo, por from commercial_interactions where contact_id = ? order by at desc limit 20', c.id),
   }));

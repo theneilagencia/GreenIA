@@ -15,7 +15,7 @@ import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
 import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO } from './plano.js';
 import { semProvedor } from './sem-provedor.js';
-import { cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, lerCookies, lerCorpo, servirEstatico } from './http.js';
+import { cabecalhosLpComercial, cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
 import { rotasModelos } from './modelos.js';
@@ -158,6 +158,7 @@ export function permissaoAdmin(caminho, metodo) {
 async function tratar(app, r, req, res, externo) {
   cabecalhosSeguranca(res);
   const url = new URL(req.url, 'http://local');
+  if (!app.tenant && app.paginaInicial === 'vendas' && req.method === 'GET' && ['/', '/vendas.html'].includes(url.pathname)) cabecalhosLpComercial(res);
   try {
     if (!url.pathname.startsWith('/api/')) {
       if (url.pathname === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }   // painel antigo

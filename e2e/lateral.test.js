@@ -24,7 +24,7 @@ before(async () => {
   for (const [e, n] of [['c0', 0], ['c1', 1], ['c5', 5], ['c10', 10], ['c50', 50], ['c100', 100]]) {
     const id = um(N.app.db, 'select id from pessoas where email = ?', `${e}@empresa-exemplo.com.br`).id;
     for (let k = 1; k <= n; k++) exec(N.app.db, "insert into conversas (pessoa_id, titulo, criado_em, atualizado_em) values (?, ?, datetime('now', ?), datetime('now', ?))", id,
-      k === 1 ? 'Conversa com um título muito comprido para testar o truncamento elegante da lateral sem quebrar o layout de jeito nenhum' : `Conversa ${k}`, `-${k} minutes`, `-${k} minutes`);
+      k === 1 ? 'Conversa com um título muito comprido para testar o truncamento elegante da lateral sem quebrar o layout de jeito nenhum' : `Conversa ${k}`, `-${k} seconds`, `-${k} seconds`);   // segundos: perto da meia-noite, minutos cairiam em "Ontem"
   }
   mkdirSync('capturas/tmp', { recursive: true });
 });

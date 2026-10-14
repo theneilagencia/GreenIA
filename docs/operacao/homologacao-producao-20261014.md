@@ -103,3 +103,11 @@ achar os bancos em `dados/empresas/`).
 O que a revogação faz (e só isso): status REVOKED, capabilities revogadas, aprovações pendentes invalidadas, credencial
 apagada se houver, evento `CONNECTOR_REVOKED` na atividade da empresa. **Não houve exclusão física**: conexões,
 versões, execuções e auditoria continuam no banco.
+
+## Etapa 6 — chegada do aviso à caixa (14/10/2026, versão 7bb1c4b)
+
+O primeiro aviso (texto genérico, sem empresa nem link) foi aceito pelo Resend e não chegou à caixa. O aviso passou a
+trazer o nome da empresa e o endereço de entrada, como o convite e o código de acesso. Envio de prova pelo Shell do
+serviço, no mesmo caminho de envio do servidor: Resend `01a13c86-421a-7180-b605-98b97d7343a8` com status
+**Delivered** e mensagem na **caixa de entrada** de `vinicius+homolog-a-admin@apymine.com`, conferidos pelo
+responsável.

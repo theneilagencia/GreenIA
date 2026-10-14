@@ -160,3 +160,22 @@ atributos das rotas sigilosas como "declarados"; não foram alterados.
 | D4 | Pesquisa na internet (Exa via OpenRouter) e geração de imagem: manter ligadas por padrão? A geração de imagem nasce ligada (`src/config.js:33`) | Ambos enviam texto derivado do Quick Win a serviços fora da rota homologada, sem ZDR | Bloqueados para sigiloso, área reforçada, dado protegido e reserva do plano |
 | D5 | Integration Builder em conversa sigilosa: a escrita em sistema do Cliente segue as aprovações do Quick Win, mas não é bloqueada pelo sigilo | O destino é sistema do próprio Cliente, configurado por ele; ainda assim é saída de conteúdo sigiloso | Sem mudança; decisão de produto |
 | D6 | Validar o slug do fornecedor na homologação contra a lista de endpoints do modelo (`/models/{id}/endpoints`) | Evita homologação com nome de exibição em vez de slug | Falha fechada |
+
+## 8. Conferência da conta OpenRouter (14/10/2026)
+
+Feita pelo responsável em openrouter.ai/settings/privacy (conta "Personal", a da chave da GreenIA), com prints:
+
+| Opção da conta | Antes | Depois |
+|---|---|---|
+| Allow paid endpoints that train on request data | desligado | desligado |
+| Allow free endpoints that train on request data | **ligado** | **desligado** (ajustado pelo responsável) |
+| Allow free endpoints that publish prompts | desligado | desligado |
+| Allow 1% data discount in workspaces (uso dos dados pela OpenRouter) | desligado | desligado |
+| Zero Data Retention da conta (todas as famílias) | desligado | desligado (a GreenIA pede `zdr: true` nas rotas sigilosas) |
+| Registro de pedidos (logging) | conferido pelo responsável em Preferences | desligado |
+
+Com isso, a promessa da LP ("Por padrão, a GreenIA solicita… apenas fornecedores classificados por ele como não
+coletando dados… não equivale a uma garantia contratual") está conferida em três camadas: o pedido em cada chamada
+(`data_collection: "deny"`, `src/ia.js`), a configuração de cada empresa (cartão "Filtro sem treino" no console) e a
+conta do serviço de acesso (fornecedores que treinam excluídos para pagos e gratuitos). Continua sem contrato (DPA)
+com a OpenRouter: é filtro do serviço, não obrigação contratual — como a LP já diz.

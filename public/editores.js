@@ -1,8 +1,10 @@
 // Editores de marca e de landing page, usados pelo console da plataforma e pelo admin da empresa.
 // A tela chama render*() para montar o formulário e ler*() para montar o corpo da requisição.
-import { api, esc } from '/comum.js';
+import { api, esc, toast, tonsMarca } from '/comum.js';
 import { avisoCor, corLegivelOk } from '/cor.js';
-import { confirmar } from '/admin-ui.js';
+import { confirmar, vigiarAlteracoes } from '/admin-ui.js';
+import { prepararLanding, desenharLanding } from '/landing-render.js';
+import { semMarcaDaPlataforma } from '/marca-branca.js';
 
 // Envio de arquivo com botão próprio em português ("Escolher arquivo"), no lugar do controle do navegador.
 // O campo continua no formulário (rótulo, foco e teclado), só fica visualmente escondido atrás do botão.
@@ -168,9 +170,11 @@ export function ligarMarca(m) {
   };
 }
 
-// ---------------------------------------------------------------- Landing page
-// A página vem inteira escrita pelo modelo (com o nome da empresa). O editor mostra tudo em blocos,
-// na ordem em que aparecem na página, e "Restaurar o modelo" devolve os textos originais.
+// ---------------------------------------------------------------- Página de apresentação
+// Editor no padrão dos construtores do Claude e do ChatGPT: à esquerda as seções da página, fechadas, uma aberta por
+// vez, cada uma com o resumo do que tem; à direita (tela larga) a prévia ao vivo, com o que está nos campos, sem
+// salvar. Em telas estreitas, "Ver como fica" abre a mesma prévia na tela inteira. A página só muda ao salvar.
+// O cabeçalho da tela recebe a situação (estadoLanding) e as ações (acoesLanding); ligarLanding liga tudo.
 const TEXTOS_SECAO = {
   como_usar: [['como_usar_rotulo', 'Rótulo'], ['como_usar_titulo', 'Título']],
   chamadas: [['chamadas_rotulo', 'Rótulo'], ['chamadas_titulo', 'Título']],
@@ -179,34 +183,65 @@ const TEXTOS_SECAO = {
   fim: [['fim_titulo', 'Título'], ['fim_texto', 'Texto'], ['fim_botao', 'Texto do botão']],
 };
 const REGRAS = [['pode', 'Pode usar'], ['sigilo', 'Ligue “Dados sigilosos”'], ['nunca', 'É bloqueado']];
+// Onde cada seção do editor fica na página (para a prévia mostrar a parte que está sendo editada).
+const ANCORA = { topo: null, como_usar: 'como-usar', chamadas: 'sec-chamadas', regras: 'sec-regras', tarefas: 'sec-tarefas', institucional: 'sec-inst', fim: 'sec-fim' };
+const LINK_OK = /^(https?:\/\/[^\s<>"]+|#[\w-]*|\/[\w\-./#?=&]*|mailto:[^\s<>"]+)$/i;   // o mesmo formato que o servidor aceita
 
 const STATUS_AMBIENTE = { em_implantacao: 'em implantação', suspensa: 'suspenso', cancelada: 'encerrado' };
 const comPrevia = (u, edicao = false) => { const [base, hash = ''] = u.split('#'); return `${base}${base.includes('?') ? '&' : '?'}previa=1${edicao ? '&edicao=1' : ''}${hash ? `#${hash}` : ''}`; };
+const foraDoAr = l => !!l.empresaStatus && l.empresaStatus !== 'ativa';
+const ICONE_NOVA_ABA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
 
-// "Ver prévia": com edição liberada, abre a página com o que está nos campos (sem salvar); travada, mostra o que está salvo.
+// Situação da página num selo só, ao lado do título da tela (a explicação longa fica na ajuda).
+export function estadoLanding(l) {
+  const [cls, txt, dica] = l.status !== 'publicada' ? ['selo-ambar', 'Rascunho: ainda não aparece', 'Os visitantes veem só a versão simples, com o título e o botão de entrar, até a página ser publicada.']
+    : foraDoAr(l) ? ['selo-ambar', 'Publicada, mas fora do ar', `O ambiente está ${STATUS_AMBIENTE[l.empresaStatus] || l.empresaStatus}: os visitantes veem só a versão simples até o ambiente ser ativado.`]
+      : ['selo-verde', 'Publicada e no ar', ''];
+  return `<span class="selo ${cls} ld-estado"${dica ? ` title="${esc(dica)}"` : ''}>${txt}${dica ? `<span class="sr">. ${esc(dica)}</span>` : ''}</span>`;
+}
+
+// Ações do cabeçalho: "Ver como fica" (só em tela estreita), "Mais ações" e a principal. Publicada: "Salvar e atualizar
+// a página", que fica "Sem alterações" (desligado) até algo mudar. Rascunho: "Publicar", e "Salvar rascunho" aparece
+// quando há o que salvar. Raras (voltar para rascunho, restaurar o modelo, busca e compartilhamento) no menu.
+export function acoesLanding(l, { pode = true, urlPublica = '' } = {}) {
+  const ver = '<button type="button" class="btn btn-linha btn-pequeno ld-ver" data-acao="ver-previa" aria-haspopup="dialog" aria-controls="ld-previa" hidden>Ver como fica</button>';
+  if (!pode) return `<span class="ld-acoes">${ver}</span>`;
+  const publicada = l.status === 'publicada';
+  const itens = [
+    publicada && !foraDoAr(l) && urlPublica ? `<a role="menuitem" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : '',
+    '<button type="button" role="menuitem" data-acao="seo">Busca e compartilhamento…</button>',
+    publicada ? '<button type="button" role="menuitem" data-acao="despublicar">Voltar para rascunho…</button>' : '',
+    l.modelo ? '<button type="button" role="menuitem" class="perigo" id="ld-restaurar">Restaurar o modelo…</button>' : '',
+  ].join('');
+  return `<span class="ld-acoes">${ver}
+    <span class="ld-menu"><button type="button" class="btn btn-linha btn-pequeno" id="ld-mais" aria-haspopup="menu" aria-expanded="false" aria-controls="ld-mais-lista">Mais ações</button><span class="menu-lista" role="menu" id="ld-mais-lista" aria-labelledby="ld-mais" hidden>${itens}</span></span>
+    ${publicada ? '<button type="submit" form="form-landing" class="btn btn-verde btn-pequeno" data-acao="salvar" disabled>Sem alterações</button>'
+      : '<button type="submit" form="form-landing" class="btn btn-linha btn-pequeno" data-acao="salvar" disabled hidden>Salvar rascunho</button><button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar</button>'}</span>`;
+}
+
+// O formulário (seções) e a prévia lado a lado. "Ver prévia" em nova aba continua no cabeçalho da prévia: com edição
+// liberada, abre o que está nos campos (sem salvar); travada, o que está salvo.
 export function renderLanding(l, { pode = true, urlPublica = '', motivo = '', rotaPrevia = '/api/empresa/landing/previa' } = {}) {
   const c = l.content, d = pode ? '' : 'disabled', t = c.textos || {};
-  const foraDoAr = !!l.empresaStatus && l.empresaStatus !== 'ativa';
   const slots = (lista, n) => [...(lista || []), ...Array(n).fill({})].slice(0, n);
   const inp = (id, v, max, extra = '') => `<input class="entrada" id="${id}" value="${esc(v || '')}" maxlength="${max}" ${d} ${extra}>`;
   const textos = sec => `<div class="grade-2">${TEXTOS_SECAO[sec].map(([k, r]) => `<div class="campo"><label for="lt-${k}">${r}</label>${inp(`lt-${k}`, t[k], k.endsWith('_sub') || k === 'fim_texto' ? 240 : 120, `data-texto="${k}"`)}</div>`).join('')}</div>`;
-  // Seções opcionais: o interruptor fica no título do bloco (à vista mesmo fechado) e a seção oculta
-  // fica marcada; os textos continuam editáveis para quando ela voltar.
   const visivel = k => c.secoes?.[k] !== false;
   const APARECE = l.status === 'publicada' ? 'Aparece na página' : 'Aparece ao publicar';
-  // O interruptor fica ao lado do título (à vista com o bloco fechado), mas fora do <summary>: o título só abre e fecha.
-  const chave = (k, titulo) => `<span class="ld-vis" data-vis="${k}"><span class="ld-vis-txt" aria-hidden="true">${visivel(k) ? APARECE : 'Oculta na página'}</span>
-    <button type="button" class="switch" role="switch" id="ld-sec-${k}" aria-checked="${visivel(k)}" aria-label="Mostrar a seção ${esc(titulo.replace(/^\d+\.\s*/, ''))} na página" title="Mostrar esta seção na página" ${d}><span></span></button></span>`;
-  const bloco = (titulo, onde, corpo, aberto = false, secao = '') => `<div class="ld-bloco-caixa${secao ? ' com-chave' : ''}"><details class="ld-bloco${secao && !visivel(secao) ? ' oculta' : ''}" ${aberto ? 'open' : ''} ${secao ? `data-secao="${secao}"` : ''}><summary><b>${titulo}</b> <span class="dica">${onde}</span></summary>
-    <div class="ld-corpo">${secao ? '<p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo. Ligue o interruptor ao lado do título para mostrar de novo.</p>' : ''}${corpo}</div></details>${secao ? chave(secao, titulo) : ''}</div>`;
-  return `<form id="form-landing" novalidate class="ld-editor">
+  // Seções opcionais: o interruptor fica no começo do bloco aberto; fechado, o bloco mostra o selo "Oculta".
+  const chave = (k, nome) => `<div class="ld-vis" data-vis="${k}"><button type="button" class="switch" role="switch" id="ld-sec-${k}" aria-checked="${visivel(k)}" aria-label="Mostrar a seção ${esc(nome)} na página" ${d}><span></span></button>
+    <span class="ld-vis-txt" aria-hidden="true">${visivel(k) ? APARECE : 'Oculta na página'}</span></div>
+    <p class="ld-oculta-aviso">Esta seção está oculta: não aparece na página, e os links para ela somem do topo.</p>`;
+  const bloco = (k, nome, corpo, secao = false) => `<section class="ld-bloco${secao && !visivel(k) ? ' oculta' : ''}" data-bloco="${k}"${secao ? ` data-secao="${k}"` : ''}>
+    <h2 class="ld-bloco-cab"><button type="button" class="ld-bloco-botao" id="ld-cab-${k}" aria-expanded="false" aria-controls="ld-corpo-${k}">
+      <span class="ld-bloco-nome">${nome}</span>${secao ? `<span class="selo selo-cinza ld-selo-oculta"${visivel(k) ? ' hidden' : ''}>Oculta</span>` : ''}<span class="ld-resumo" data-resumo="${k}"></span></button></h2>
+    <div class="ld-corpo" id="ld-corpo-${k}" role="region" aria-labelledby="ld-cab-${k}" hidden>${secao ? chave(k, nome) : ''}${corpo}</div></section>`;
+  const botoes = slots(c.botoes, 3);
+  return `<div class="ld-split" id="ld-split">
+  <form id="form-landing" novalidate class="ld-editor" data-rota-previa="${esc(rotaPrevia)}">
     ${!pode ? `<div class="faixa-aviso atencao aviso-trava"><b>Edição travada.</b> ${esc(motivo || 'A página de apresentação desta empresa é gerenciada pelo operador da plataforma.')} Você pode ver os textos, mas não alterar.</div>` : ''}
-    <div class="faixa-aviso ${l.status === 'publicada' && !foraDoAr ? 'ok' : 'atencao'} ld-situacao"><span>${l.status !== 'publicada' ? '<b>Rascunho: nada do que está aqui aparece ainda.</b> Enquanto a página não for publicada, a página pública mostra só uma versão simples, com o título e o botão de entrar. As seções aparecem depois de publicar. Use Ver prévia para conferir antes.'
-      : foraDoAr ? `<b>Publicada, mas ainda fora do ar.</b> O ambiente está ${esc(STATUS_AMBIENTE[l.empresaStatus] || l.empresaStatus)}: os visitantes veem só a versão simples até o operador da plataforma ativar a empresa. Use Ver prévia para conferir a página completa.`
-        : '<b>Publicada e no ar.</b> A página já vem pronta com um modelo completo; troque o que quiser.'}</span>
-      <span class="linha-botoes">${l.status !== 'publicada' && pode ? '<button type="button" class="btn btn-linha btn-pequeno" data-acao="publicar">Publicar agora</button>' : ''}${urlPublica ? `${pode ? `<button type="button" class="btn btn-linha btn-pequeno" data-acao="previa" data-url="${esc(urlPublica)}" data-rota="${esc(rotaPrevia)}" aria-describedby="ld-previa-dica">Ver prévia</button><span class="sr" id="ld-previa-dica">Abre em outra aba o que está nos campos, sem salvar.</span>` : `<a class="btn btn-linha btn-pequeno" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener">Ver prévia</a>`}${l.status === 'publicada' && !foraDoAr ? `<a class="btn-texto btn-pequeno" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : ''}` : ''}</span></div>
     <datalist id="ld-destinos"><option value="/entrar">Tela de entrada</option><option value="#como-usar">Seção Como usar</option><option value="#sec-chamadas">Seção O que você encontra</option><option value="#sec-regras">Seção Regras de dados</option><option value="#sec-tarefas">Seção Boas tarefas</option><option value="/politica">Política de uso de IA</option></datalist>
-    ${bloco('1. Topo', 'Primeira coisa que as pessoas veem', `
+    ${bloco('topo', 'Topo', `
       <div class="grade-2"><div class="campo"><label for="ld-rotulo">Rótulo acima do título</label>${inp('ld-rotulo', c.rotulo, 80)}</div>
         <div class="campo"><label for="ld-titulo">Título</label>${inp('ld-titulo', c.titulo, 120)}</div></div>
       <div class="campo"><label for="ld-subtitulo">Subtítulo</label><textarea class="entrada" id="ld-subtitulo" rows="2" maxlength="300" ${d}>${esc(c.subtitulo)}</textarea></div>
@@ -214,53 +249,121 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '', ro
       <div class="campo"><label for="ld-imagem">Imagem ao lado do título (opcional)</label>
         <div class="previa-marca" id="ld-imagem-previa">${c.imagem ? `<img src="${esc(c.imagem)}" alt="" style="max-height:80px">` : '<span class="dica">Sem imagem: aparece uma conversa de exemplo.</span>'}</div>
         <div class="linha-botoes">${campoArquivo('ld-imagem', 'image/png,image/jpeg,image/webp', d)}${c.imagem ? `<button type="button" class="btn-texto" id="ld-imagem-remover" ${d}>Remover</button>` : ''}</div><span class="ajuda">PNG, JPG ou WEBP de qualquer tamanho: a imagem é ajustada sozinha.</span></div>
-      <span class="legenda">Botões</span><div class="repetidor">${slots(c.botoes, 3).map((b, i) => `<div class="linha"><label class="campo ld-campo-item">Texto do botão ${i + 1}<input class="entrada" data-botao-texto="${i}" value="${esc(b.texto || '')}" placeholder="Texto do botão" maxlength="40" ${d}></label>
+      <div class="ld-botoes-resumo"><span class="legenda" id="ld-botoes-rotulo">Botões</span><span class="ld-botoes-lista" id="ld-botoes-lista"></span>
+        <button type="button" class="btn-texto btn-pequeno" id="ld-botoes-abrir" aria-expanded="false" aria-controls="ld-botoes-editar">Editar botões</button></div>
+      <div class="repetidor ld-botoes-editar" id="ld-botoes-editar" role="group" aria-labelledby="ld-botoes-rotulo" hidden>${botoes.map((b, i) => `<div class="linha"><label class="campo ld-campo-item">Texto do botão ${i + 1}<input class="entrada" data-botao-texto="${i}" value="${esc(b.texto || '')}" placeholder="Texto do botão" maxlength="40" ${d}></label>
         <label class="campo ld-campo-item">Para onde o botão ${i + 1} leva<input class="entrada" data-botao-link="${i}" value="${esc(b.link || '')}" list="ld-destinos" placeholder="Escolha da lista ou cole um endereço" ${d}></label>
         <label class="campo ld-campo-item">Estilo do botão ${i + 1}<select aria-label="Estilo do botão ${i + 1}" class="entrada" data-botao-estilo="${i}" ${d}><option value="primario" ${b.estilo !== 'secundario' ? 'selected' : ''}>Principal</option><option value="secundario" ${b.estilo === 'secundario' ? 'selected' : ''}>Secundário</option></select></label></div>`).join('')}</div>
-      <div class="campo"><label for="ld-destaques">Destaques abaixo dos botões (um por linha, até 4)</label><textarea class="entrada" id="ld-destaques" rows="3" ${d}>${esc((c.destaques || []).join('\n'))}</textarea></div>`, true)}
-    ${bloco('2. Como usar', 'Passo a passo para começar', `${textos('como_usar')}
+      <div class="campo"><label for="ld-destaques">Destaques abaixo dos botões (um por linha, até 4)</label><textarea class="entrada" id="ld-destaques" rows="3" ${d}>${esc((c.destaques || []).join('\n'))}</textarea></div>`)}
+    ${bloco('como_usar', 'Como usar', `${textos('como_usar')}
       <div class="repetidor">${slots(c.passos, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><label class="campo ld-campo-item">Título do passo ${i + 1}<input class="entrada" data-passo-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Passo ${i + 1}" maxlength="60" ${d}></label>
-        <label class="campo ld-campo-item">Explicação do passo ${i + 1}<input class="entrada" data-passo-texto="${i}" value="${esc(x.texto || '')}" placeholder="Explicação" maxlength="200" ${d}></label></div>`).join('')}</div>`, false, 'como_usar')}
-    ${bloco('3. O que você encontra', 'Recursos disponíveis', `${textos('chamadas')}
+        <label class="campo ld-campo-item">Explicação do passo ${i + 1}<input class="entrada" data-passo-texto="${i}" value="${esc(x.texto || '')}" placeholder="Explicação" maxlength="200" ${d}></label></div>`).join('')}</div>`, true)}
+    ${bloco('chamadas', 'O que você encontra', `${textos('chamadas')}
       <div class="repetidor">${slots(c.chamadas, 6).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><label class="campo ld-campo-item">Título do recurso ${i + 1}<input class="entrada" data-chamada-titulo="${i}" value="${esc(x.titulo || '')}" placeholder="Título" maxlength="60" ${d}></label>
-        <label class="campo ld-campo-item">Texto do recurso ${i + 1}<input class="entrada" data-chamada-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto" maxlength="300" ${d}></label></div>`).join('')}</div><p class="dica">Deixe o título em branco para esconder um bloco.</p>`, false, 'chamadas')}
-    ${bloco('4. Regras de dados', 'O que pode e o que não pode ser enviado', `${textos('regras')}
-      <div class="grade-3">${REGRAS.map(([k, r]) => `<div class="campo"><label for="ld-regra-${k}">${r} <small>(um por linha)</small></label><textarea class="entrada" id="ld-regra-${k}" rows="4" ${d}>${esc((c.regras?.[k] || []).join('\n'))}</textarea></div>`).join('')}</div>`, false, 'regras')}
-    ${bloco('5. Boas tarefas', 'Exemplos de pedidos para começar', `${textos('tarefas')}
+        <label class="campo ld-campo-item">Texto do recurso ${i + 1}<input class="entrada" data-chamada-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto" maxlength="300" ${d}></label></div>`).join('')}</div><p class="dica">Deixe o título em branco para esconder um bloco.</p>`, true)}
+    ${bloco('regras', 'Regras de dados', `${textos('regras')}
+      <div class="grade-3">${REGRAS.map(([k, r]) => `<div class="campo"><label for="ld-regra-${k}">${r} <small>(um por linha)</small></label><textarea class="entrada" id="ld-regra-${k}" rows="4" ${d}>${esc((c.regras?.[k] || []).join('\n'))}</textarea></div>`).join('')}</div>`, true)}
+    ${bloco('tarefas', 'Boas tarefas', `${textos('tarefas')}
       <div class="repetidor">${slots(c.tarefas, 8).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 3fr"><label class="campo ld-campo-item">Tipo da tarefa ${i + 1}<input class="entrada" data-tarefa-tipo="${i}" value="${esc(x.tipo || '')}" placeholder="Tipo (ex.: Resumir)" maxlength="30" ${d}></label>
-        <label class="campo ld-campo-item">Pedido da tarefa ${i + 1}<input class="entrada" data-tarefa-texto="${i}" value="${esc(x.texto || '')}" placeholder="Exemplo de pedido" maxlength="140" ${d}></label></div>`).join('')}</div>`, false, 'tarefas')}
-    ${bloco('6. Institucional', 'Sobre a IA na empresa e links úteis', `
+        <label class="campo ld-campo-item">Pedido da tarefa ${i + 1}<input class="entrada" data-tarefa-texto="${i}" value="${esc(x.texto || '')}" placeholder="Exemplo de pedido" maxlength="140" ${d}></label></div>`).join('')}</div>`, true)}
+    ${bloco('institucional', 'Institucional', `
       <div class="campo"><label for="ld-inst-titulo">Título</label>${inp('ld-inst-titulo', c.institucional?.titulo, 80)}</div>
       <div class="campo"><label for="ld-inst-texto">Texto</label><textarea class="entrada" id="ld-inst-texto" rows="3" maxlength="1200" ${d}>${esc(c.institucional?.texto || '')}</textarea></div>
       <span class="legenda">Links</span><div class="repetidor">${slots(c.institucional?.links, 4).map((x, i) => `<div class="linha" style="grid-template-columns:1fr 2fr"><label class="campo ld-campo-item">Texto do link ${i + 1}<input class="entrada" data-link-texto="${i}" value="${esc(x.texto || '')}" placeholder="Texto do link" maxlength="40" ${d}></label>
-        <label class="campo ld-campo-item">Para onde o link ${i + 1} leva<input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" list="ld-destinos" placeholder="Escolha da lista ou cole um endereço" ${d}></label></div>`).join('')}</div>`, false, 'institucional')}
-    ${bloco('7. Fechamento', 'Chamada final antes do rodapé', textos('fim'))}
-    ${bloco('8. Busca e compartilhamento', 'Como a página aparece no Google e em links', `<div class="grade-2">
+        <label class="campo ld-campo-item">Para onde o link ${i + 1} leva<input class="entrada" data-link-url="${i}" value="${esc(x.link || '')}" list="ld-destinos" placeholder="Escolha da lista ou cole um endereço" ${d}></label></div>`).join('')}</div>`, true)}
+    ${bloco('fim', 'Fechamento', textos('fim'))}
+    <div class="modal-fundo ld-seo" id="ld-seo" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ld-seo-titulo-h" tabindex="-1">
+      <h2 id="ld-seo-titulo-h" tabindex="-1">Busca e compartilhamento</h2><p class="dica">Como a página aparece no Google e quando alguém compartilha o link. Vale ao salvar a página.</p>
       <div class="campo"><label for="ld-seo-title">Título da página</label>${inp('ld-seo-title', l.seo?.title, 70)}</div>
-      <div class="campo"><label for="ld-seo-description">Descrição</label>${inp('ld-seo-description', l.seo?.description, 160)}</div></div>`)}
+      <div class="campo"><label for="ld-seo-description">Descrição</label>${inp('ld-seo-description', l.seo?.description, 160)}</div>
+      <div class="modal-acoes"><button type="button" class="btn btn-linha" data-acao="seo-pronto">Pronto</button></div></div></div>
     <p class="msg-erro oculto" id="ld-erro" role="alert"></p>
-    ${pode ? `<div class="linha-botoes ld-salvar"><button class="btn btn-verde" data-acao="salvar">${l.status === 'publicada' ? 'Salvar e atualizar a página' : 'Salvar rascunho'}</button>
-      ${l.status === 'publicada' ? '<button type="button" class="btn btn-linha" data-acao="despublicar">Voltar para rascunho</button>' : '<button type="button" class="btn btn-linha" data-acao="publicar">Salvar e publicar</button>'}</div>` : ''}
-    ${pode && l.modelo ? `<section class="px-perigo ld-perigo" aria-labelledby="ld-perigo-titulo"><h2 id="ld-perigo-titulo">Voltar ao texto do modelo</h2><p class="dica">Troca todos os textos da página pelos do modelo. A mudança só vale quando você salvar.</p>
-      <button type="button" class="btn btn-perigo btn-pequeno" id="ld-restaurar">Restaurar o modelo</button></section>` : ''}
-  </form>`;
+    <span class="sr" id="ld-sujo" role="status"></span>
+  </form>
+  <aside class="ld-previa" id="ld-previa" aria-labelledby="ld-previa-titulo">
+    <div class="ld-previa-topo">
+      <h2 class="ld-previa-titulo" id="ld-previa-titulo" tabindex="-1">${pode ? 'Prévia — não salva' : 'Prévia do que está salvo'}</h2>
+      <span class="ld-previa-estado" id="ld-previa-estado" role="status"></span>
+      ${urlPublica ? (pode ? `<button type="button" class="icone-btn ld-nova-aba" data-acao="previa" data-url="${esc(urlPublica)}" data-rota="${esc(rotaPrevia)}" aria-label="Abrir a prévia em nova aba" title="Abrir em nova aba">${ICONE_NOVA_ABA}</button>`
+        : `<a class="icone-btn ld-nova-aba" href="${esc(comPrevia(urlPublica))}" target="_blank" rel="noopener" aria-label="Abrir a prévia em nova aba" title="Abrir em nova aba">${ICONE_NOVA_ABA}</a>`) : ''}
+      <button type="button" class="btn btn-linha btn-pequeno ld-previa-fechar" data-acao="fechar-previa">Voltar ao editor</button>
+    </div>
+    <div class="ld-previa-moldura"><iframe class="ld-previa-quadro" id="ld-previa-quadro" title="Prévia da página de apresentação" sandbox="allow-same-origin"></iframe></div>
+  </aside>
+</div>`;
 }
 
+// Modelo da página pública (index.html sem scripts), lido uma vez por carga da tela.
+let modeloPagina = null;
+const lerModeloPagina = () => (modeloPagina ||= fetch('/index.html', { credentials: 'same-origin' }).then(r => (r.ok ? r.text() : Promise.reject(new Error('sem modelo'))))
+  .then(html => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script, link[rel="icon"], meta[name="theme-color"]').forEach(e => e.remove());
+    return { cabeca: doc.head.innerHTML, corpo: doc.body.innerHTML };
+  }).catch(e => { modeloPagina = null; throw e; }));
+
 // pedir: a função de chamada à API da tela (o console tem a sua, com a sessão do operador).
-export function ligarLanding(l, { pedir = api } = {}) {
+// marca: { empresa, logo, corMarca, privacyNote, retencaoDias } (a mesma forma de /api/publico) para a prévia.
+// salvar(status): grava (a tela decide confirmação, aviso e recarga) e chama ler.limpar() quando der certo.
+export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {}) {
   const $ = id => document.getElementById(id);
-  let removerImagem = false;
-  if ($('ld-imagem-remover')) $('ld-imagem-remover').onclick = () => { removerImagem = true; $('ld-imagem-previa').innerHTML = '<span class="dica">Será removida ao salvar</span>'; };
-  const todos = attr => [...document.querySelectorAll(`[${attr}]`)];
+  const form = $('form-landing');
+  const pode = !form.querySelector('.aviso-trava');
+  let removerImagem = false, imagemPronta = null;
+  const todos = attr => [...form.querySelectorAll(`[${attr}]`)];
   const vals = attr => todos(attr).map(e => e.value.trim());
   const pares = (a, b, ka, kb) => { const x = vals(a), y = vals(b); return x.map((v, i) => ({ [ka]: v, [kb]: y[i] })); };
   const linhas = id => $(id).value.split('\n').map(s => s.trim()).filter(Boolean);
-  // Interruptor ao lado do título do bloco: marca a seção como oculta na hora, sem abrir nem fechar o bloco.
+
+  // ---- seções: uma aberta por vez, com resumo de uma linha quando fechadas
+  const blocos = [...form.querySelectorAll('.ld-bloco')];
+  const abrirBloco = (sec, { rolar = true } = {}) => {
+    for (const b of blocos) {
+      const bt = b.querySelector('.ld-bloco-botao'), abrir = b === sec && bt.getAttribute('aria-expanded') !== 'true';
+      bt.setAttribute('aria-expanded', String(abrir)); b.querySelector('.ld-corpo').hidden = !abrir; b.classList.toggle('aberto', abrir);
+    }
+    if (sec.classList.contains('aberto')) {
+      if (rolar) sec.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      mostrarNaPrevia(sec.dataset.bloco);
+    }
+  };
+  for (const b of blocos) b.querySelector('.ld-bloco-botao').addEventListener('click', () => abrirBloco(b));
+  // Link direto para um campo (?foco=) ou erro num campo de outra seção: abre a seção dele, fechando as outras.
+  const revelarCampo = el => {
+    const sec = el?.closest('.ld-bloco');
+    if (sec && !sec.classList.contains('aberto')) abrirBloco(sec, { rolar: false });
+    if (el?.closest('#ld-botoes-editar')) mostrarBotoes(true);
+  };
+  form.addEventListener('focusin', ev => { if (ev.target.closest('.ld-corpo[hidden], #ld-botoes-editar[hidden]')) revelarCampo(ev.target); });
+
+  const contar = (n, um, varios) => (n ? `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}` : `Nenhum ${um}`);
+  const juntar = (...p) => p.filter(Boolean).join(' · ') || '—';
+  const val = id => $(id)?.value.trim() || '';
+  const preenchidos = attr => vals(attr).filter(Boolean).length;
+  const RESUMOS = {
+    topo: () => `Título: ${val('ld-titulo') || '—'}`,
+    como_usar: () => juntar(val('lt-como_usar_titulo'), contar(preenchidos('data-passo-titulo'), 'passo', 'passos')),
+    chamadas: () => juntar(val('lt-chamadas_titulo'), contar(preenchidos('data-chamada-titulo'), 'recurso', 'recursos')),
+    regras: () => `${linhas('ld-regra-pode').length} pode usar · ${linhas('ld-regra-sigilo').length} com sigilo · ${linhas('ld-regra-nunca').length} bloqueados`,
+    tarefas: () => juntar(val('lt-tarefas_titulo'), contar(preenchidos('data-tarefa-texto'), 'exemplo', 'exemplos')),
+    institucional: () => (val('ld-inst-titulo') || val('ld-inst-texto') ? juntar(val('ld-inst-titulo') && `Título: ${val('ld-inst-titulo')}`, contar(preenchidos('data-link-texto'), 'link', 'links')) : 'Sem conteúdo'),
+    fim: () => `Título: ${val('lt-fim_titulo') || '—'}`,
+  };
+  const listaBotoes = () => { const b = pares('data-botao-texto', 'data-botao-link', 'texto', 'link').filter(x => x.texto && x.link).map(x => x.texto); return b.length ? b.join(' · ') : 'Nenhum botão'; };
+  const resumir = () => {
+    for (const el of form.querySelectorAll('[data-resumo]')) el.textContent = RESUMOS[el.dataset.resumo]?.() || '';
+    $('ld-botoes-lista').textContent = listaBotoes();
+  };
+  // Botões do topo: a lista compacta; os nove campos só ao pedir.
+  const mostrarBotoes = abrir => { $('ld-botoes-editar').hidden = !abrir; $('ld-botoes-abrir').setAttribute('aria-expanded', String(abrir)); $('ld-botoes-abrir').textContent = abrir ? 'Fechar botões' : 'Editar botões'; };
+  $('ld-botoes-abrir').addEventListener('click', () => { const abrir = $('ld-botoes-editar').hidden; mostrarBotoes(abrir); if (abrir) form.querySelector('[data-botao-texto="0"]')?.focus(); });
+
+  // ---- interruptor de cada seção opcional (dentro do bloco): marca a seção como oculta na hora
   const mudarSecao = (k, v) => {
-    const e = document.querySelector(`[data-vis="${k}"]`);
+    const e = form.querySelector(`[data-vis="${k}"]`), sec = e.closest('.ld-bloco');
     e.querySelector('.switch').setAttribute('aria-checked', v);
     e.querySelector('.ld-vis-txt').textContent = v ? (l?.status === 'publicada' ? 'Aparece na página' : 'Aparece ao publicar') : 'Oculta na página';
-    e.closest('.ld-bloco-caixa').querySelector('.ld-bloco').classList.toggle('oculta', !v);
+    sec.classList.toggle('oculta', !v); sec.querySelector('.ld-selo-oculta').hidden = v;
     e.dispatchEvent(new Event('change', { bubbles: true }));   // conta como alteração do formulário
   };
   for (const e of todos('data-vis')) {
@@ -268,29 +371,22 @@ export function ligarLanding(l, { pedir = api } = {}) {
     e.addEventListener('click', ev => { ev.preventDefault(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); });
     b.addEventListener('keydown', ev => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); if (!b.disabled) mudarSecao(e.dataset.vis, b.getAttribute('aria-checked') !== 'true'); } });
   }
-  // Restaurar o modelo: devolve os textos originais nos campos (só vale ao salvar).
-  $('ld-restaurar')?.addEventListener('click', async () => {
-    if (!l?.modelo || !await confirmar({ titulo: 'Restaurar os textos do modelo?', texto: 'Todos os textos da página são trocados pelos do modelo. Nada muda na página até você salvar.', botao: 'Restaurar o modelo', perigo: true })) return;
-    const m = l.modelo, set = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
-    const lista = (attr, arr, k) => todos(attr).forEach((e, i) => { e.value = arr?.[i]?.[k] ?? ''; });
-    set('ld-rotulo', m.rotulo); set('ld-titulo', m.titulo); set('ld-subtitulo', m.subtitulo); set('ld-descricao', m.descricao);
-    lista('data-botao-texto', m.botoes, 'texto'); lista('data-botao-link', m.botoes, 'link'); todos('data-botao-estilo').forEach((e, i) => { e.value = m.botoes?.[i]?.estilo || 'primario'; });
-    set('ld-destaques', (m.destaques || []).join('\n'));
-    todos('data-texto').forEach(e => { e.value = m.textos?.[e.dataset.texto] ?? ''; });
-    lista('data-passo-titulo', m.passos, 'titulo'); lista('data-passo-texto', m.passos, 'texto');
-    lista('data-chamada-titulo', m.chamadas, 'titulo'); lista('data-chamada-texto', m.chamadas, 'texto');
-    for (const [k] of REGRAS) set(`ld-regra-${k}`, (m.regras?.[k] || []).join('\n'));
-    lista('data-tarefa-tipo', m.tarefas, 'tipo'); lista('data-tarefa-texto', m.tarefas, 'texto');
-    set('ld-inst-titulo', m.institucional?.titulo); set('ld-inst-texto', m.institucional?.texto);
-    lista('data-link-texto', m.institucional?.links, 'texto'); lista('data-link-url', m.institucional?.links, 'link');
-    for (const e of todos('data-vis')) mudarSecao(e.dataset.vis, true);
-    set('ld-seo-title', l.modeloSeo?.title); set('ld-seo-description', l.modeloSeo?.description);
-    document.querySelectorAll('.ld-bloco').forEach(b => { b.open = true; });
+
+  // ---- imagem: ajustada uma vez ao escolher (a prévia e o salvar usam a mesma)
+  $('ld-imagem-remover')?.addEventListener('click', () => { removerImagem = true; imagemPronta = null; $('ld-imagem-previa').innerHTML = '<span class="dica">Será removida ao salvar</span>'; form.dispatchEvent(new Event('change')); });
+  $('ld-imagem').addEventListener('change', async () => {
+    const f = $('ld-imagem').files?.[0];
+    imagemPronta = null;
+    if (!f) return;
+    $('ld-imagem-previa').innerHTML = '<span class="dica">Preparando a imagem…</span>';
+    try { imagemPronta = await ajustarImagem(f, AJUSTE_IMAGEM.imagem); removerImagem = false; $('ld-imagem-previa').innerHTML = `<img src="${imagemPronta}" alt="" style="max-height:80px"><span class="dica">Pronta (${kbDe(imagemPronta)} KB). Vale ao salvar.</span>`; agendarPrevia(); }
+    catch (e) { $('ld-imagem-previa').innerHTML = `<span class="msg-erro" style="margin:0">${esc(e.message)}</span>`; $('ld-imagem').value = ''; }
   });
-  const ler = async status => {
-    const img = $('ld-imagem').files?.[0] ? await ajustarImagem($('ld-imagem').files[0], AJUSTE_IMAGEM.imagem) : null;
+
+  // ---- leitura do formulário (o mesmo corpo para salvar e para a prévia)
+  const conteudo = () => {
     const be = vals('data-botao-estilo');
-    const content = {
+    return {
       rotulo: $('ld-rotulo').value, titulo: $('ld-titulo').value, subtitulo: $('ld-subtitulo').value, descricao: $('ld-descricao').value,
       botoes: pares('data-botao-texto', 'data-botao-link', 'texto', 'link').map((b, i) => ({ ...b, estilo: be[i] })).filter(b => b.texto && b.link),
       destaques: linhas('ld-destaques'),
@@ -302,39 +398,268 @@ export function ligarLanding(l, { pedir = api } = {}) {
       secoes: Object.fromEntries(todos('data-vis').map(e => [e.dataset.vis, e.querySelector('.switch').getAttribute('aria-checked') === 'true'])),
       institucional: { titulo: $('ld-inst-titulo').value, texto: $('ld-inst-texto').value, links: pares('data-link-texto', 'data-link-url', 'texto', 'link').filter(x => x.texto && x.link) },
     };
-    if (img) content.imagem = img; else if (removerImagem) content.imagem = '';
-    return { content, seo: { title: $('ld-seo-title').value, description: $('ld-seo-description').value }, ...(status ? { status } : {}) };
   };
-  // Ver prévia do que está em edição, sem salvar: o servidor confere o conteúdo com as mesmas regras do salvar (sem
-  // gravar) e a página de apresentação, aberta em outra aba, pede o conteúdo a esta janela. A página só aceita o que
-  // vem da janela que a abriu e confere de novo no servidor do endereço da empresa antes de mostrar.
+  const seo = () => ({ title: $('ld-seo-title').value, description: $('ld-seo-description').value });
+  const ler = async status => {
+    const content = conteudo();
+    const img = imagemPronta || ($('ld-imagem').files?.[0] ? await ajustarImagem($('ld-imagem').files[0], AJUSTE_IMAGEM.imagem) : null);
+    if (img) content.imagem = img; else if (removerImagem) content.imagem = '';
+    return { content, seo: seo(), ...(status ? { status } : {}) };
+  };
+
+  // ---- alterações: o salvar só liga quando algo mudou; sair sem salvar continua pedindo confirmação
+  const vig = vigiarAlteracoes(form, { cliques: '[data-vis], #ld-imagem-remover' });
+  const bSalvar = document.querySelector('[data-acao="salvar"][form="form-landing"]');
+  const ROTULO_SALVAR = l.status === 'publicada' ? 'Salvar e atualizar a página' : 'Salvar rascunho';
+  let sujo = false;
+  const marcarSujo = v => {
+    sujo = v;
+    if (bSalvar) { bSalvar.disabled = !v; bSalvar.textContent = v ? ROTULO_SALVAR : 'Sem alterações'; if (l.status !== 'publicada') bSalvar.hidden = !v; }
+    $('ld-sujo').textContent = v ? 'Alterações não salvas' : '';
+  };
+  const aoMudar = ev => {
+    if (ev?.target?.closest?.('[data-sem-alteracao]')) return;
+    if (!sujo) marcarSujo(true);
+    resumir(); agendarPrevia();
+  };
+  form.addEventListener('input', aoMudar);
+  form.addEventListener('change', aoMudar);
+  ler.limpar = () => { vig.limpar(); marcarSujo(false); };
+
+  // ---- prévia ao vivo (iframe sem scripts, com a mesma estrutura e o mesmo desenho da página pública)
+  const split = $('ld-split'), painel = $('ld-previa'), quadro = $('ld-previa-quadro'), estado = $('ld-previa-estado'), bVer = document.querySelector('[data-acao="ver-previa"]');
+  let ultimo = { content: l.content, seo: l.seo }, pronto = false, seq = 0, timer = 0, secaoAtual = 'topo';
+  const visivelPrevia = () => split.classList.contains('dividido') || painel.classList.contains('tela-cheia');
+  const cssMarca = () => {
+    if (!/^#[0-9a-f]{6}$/i.test(marca.corMarca || '')) return '';
+    const { claro, escuro } = tonsMarca(marca.corMarca), decl = o => Object.entries(o).map(([k, v]) => `${k}:${v}`).join(';');
+    return `:root{${decl(claro)}}@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]){${decl(escuro)}}}:root[data-tema="escuro"]{${decl(escuro)}}`;
+  };
+  async function montar() {
+    const m = await lerModeloPagina();
+    const tema = document.documentElement.dataset.tema ? ` data-tema="${esc(document.documentElement.dataset.tema)}"` : '';
+    await new Promise(ok => {
+      quadro.addEventListener('load', ok, { once: true });
+      quadro.srcdoc = `<!DOCTYPE html><html lang="pt-BR"${tema}><head>${m.cabeca}<style id="cores-marca">${cssMarca()}</style><style>html{scroll-behavior:auto}.l-surge{opacity:1!important;transform:none!important}</style></head><body class="l p">${m.corpo}</body></html>`;
+    });
+    const doc = quadro.contentDocument;
+    // Na prévia nenhum link sai daqui: os da própria página rolam até a seção; os outros não fazem nada.
+    doc.addEventListener('click', ev => {
+      const a = ev.target.closest?.('a');
+      if (!a) return;
+      ev.preventDefault();
+      const h = a.getAttribute('href') || '';
+      if (h.startsWith('#') && h.length > 1) doc.getElementById(h.slice(1))?.scrollIntoView({ block: 'start' });
+    });
+    doc.addEventListener('submit', ev => ev.preventDefault());
+    pronto = { corpo: m.corpo };
+  }
+  function desenhar() {
+    const doc = quadro.contentDocument;
+    if (!pronto || !doc?.body) return;
+    const y = quadro.contentWindow.scrollY;
+    doc.body.innerHTML = pronto.corpo;
+    const p = marca;
+    doc.querySelectorAll('[data-plataforma]').forEach(e => e.remove());
+    doc.querySelectorAll('[data-empresa]').forEach(e => { e.textContent = p.empresa || 'sua empresa'; });
+    doc.querySelectorAll('[data-privacidade]').forEach(e => { e.textContent = p.privacyNote || ''; });
+    if (p.logo) { doc.getElementById('p-logo').innerHTML = `<img class="logo-empresa" src="${esc(p.logo)}" alt="${esc(p.empresa || 'Empresa')}">`; doc.querySelector('#p-marca .p-nome')?.classList.add('oculto'); }
+    const dias = Number(p.retencaoDias);
+    if (dias > 0) { doc.getElementById('p-retencao').textContent = `Conversas sem uso são apagadas depois de ${dias.toLocaleString('pt-BR')} ${dias === 1 ? 'dia' : 'dias'}.`; doc.getElementById('pp-retencao').textContent = `Retenção de ${dias.toLocaleString('pt-BR')} ${dias === 1 ? 'dia' : 'dias'} sem uso`; }
+    prepararLanding(doc);
+    desenharLanding(doc, ultimo.content, ultimo.seo);
+    // Marca branca: o nome da plataforma não aparece na página da empresa.
+    const w = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (n.data.includes('GreenIA')) n.data = semMarcaDaPlataforma(n.data);
+    quadro.contentWindow.scrollTo(0, y);
+  }
+  function mostrarNaPrevia(k) {
+    secaoAtual = k;
+    if (!pronto || !visivelPrevia()) return;
+    const doc = quadro.contentDocument, id = ANCORA[k];
+    const alvo = id && doc.getElementById(id);
+    if (alvo && !alvo.classList.contains('oculto')) alvo.scrollIntoView({ block: 'start' });
+    else if (!id) quadro.contentWindow.scrollTo(0, 0);
+  }
+  // O servidor confere o conteúdo com as mesmas regras do salvar (sem gravar); a imagem nova entra só aqui na tela.
+  async function atualizar() {
+    if (!pode) return;
+    const n = ++seq;
+    painel.classList.add('atualizando');
+    try {
+      const r = await pedir(form.dataset.rotaPrevia, { metodo: 'POST', corpo: { content: conteudo(), seo: seo() } });
+      if (n !== seq) return;
+      const content = { ...r.content };
+      if (imagemPronta) content.imagem = imagemPronta; else if (removerImagem) content.imagem = '';
+      ultimo = { content, seo: r.seo };
+      estado.textContent = ''; painel.classList.remove('atualizando');
+      desenhar();
+    } catch (e) {
+      if (n === seq) { painel.classList.remove('atualizando'); estado.textContent = `Prévia não atualizada: ${e.message}`; }
+    }
+  }
+  function agendarPrevia() {
+    clearTimeout(timer);
+    if (!pode) return;
+    if (!visivelPrevia()) { atualizarAoAbrir = true; return; }
+    timer = setTimeout(atualizar, 450);
+  }
+  let atualizarAoAbrir = false;
+  const iniciarPrevia = async () => {
+    if (pronto || iniciarPrevia.indo) return;
+    iniciarPrevia.indo = true;
+    try { await montar(); desenhar(); mostrarNaPrevia(secaoAtual); }
+    catch { estado.textContent = 'Não foi possível montar a prévia aqui. Use “Abrir em nova aba”.'; }
+    iniciarPrevia.indo = false;
+  };
+  // Tela larga: editor e prévia lado a lado. Estreita: a prévia abre por "Ver como fica", na tela inteira.
+  const medir = () => {
+    const dividido = split.clientWidth >= 980;
+    split.classList.toggle('dividido', dividido);
+    if (bVer) bVer.hidden = dividido;
+    if (dividido && painel.classList.contains('tela-cheia')) fecharTelaCheia(false);
+    if (dividido) { iniciarPrevia(); if (atualizarAoAbrir) { atualizarAoAbrir = false; agendarPrevia(); } }
+  };
+  new ResizeObserver(medir).observe(split);
+  medir();
+  let origemFoco = null;
+  const conterFoco = ev => {
+    if (ev.key === 'Escape') { ev.preventDefault(); fecharTelaCheia(); return; }
+    if (ev.key !== 'Tab') return;
+    const f = [...painel.querySelectorAll('button, a[href], iframe')].filter(e => e.offsetParent !== null);
+    if (!f.length) return;
+    if (ev.shiftKey && document.activeElement === f[0]) { ev.preventDefault(); f.at(-1).focus(); }
+    else if (!ev.shiftKey && document.activeElement === f.at(-1)) { ev.preventDefault(); f[0].focus(); }
+  };
+  function abrirTelaCheia() {
+    origemFoco = document.activeElement;
+    painel.classList.add('tela-cheia'); painel.setAttribute('role', 'dialog'); painel.setAttribute('aria-modal', 'true');
+    document.documentElement.classList.add('ld-previa-aberta');
+    painel.addEventListener('keydown', conterFoco);
+    $('ld-previa-titulo').focus();
+    iniciarPrevia().then(() => { if (atualizarAoAbrir) { atualizarAoAbrir = false; atualizar(); } else mostrarNaPrevia(secaoAtual); });
+  }
+  function fecharTelaCheia(devolver = true) {
+    painel.classList.remove('tela-cheia'); painel.removeAttribute('role'); painel.removeAttribute('aria-modal');
+    document.documentElement.classList.remove('ld-previa-aberta');
+    painel.removeEventListener('keydown', conterFoco);
+    if (devolver && origemFoco?.isConnected) origemFoco.focus({ preventScroll: true });
+  }
+  bVer?.addEventListener('click', abrirTelaCheia);
+  painel.querySelector('[data-acao="fechar-previa"]').addEventListener('click', () => fecharTelaCheia());
+
+  // ---- "Mais ações": lista de ações raras (teclado: setas, Esc devolve o foco ao botão)
+  const bMais = $('ld-mais'), lista = $('ld-mais-lista');
+  const fecharMenu = (foco = false) => { if (!lista || lista.hidden) return; lista.hidden = true; bMais.setAttribute('aria-expanded', 'false'); if (foco) bMais.focus(); };
+  bMais?.addEventListener('click', () => {
+    const abrir = lista.hidden;
+    lista.hidden = !abrir; bMais.setAttribute('aria-expanded', String(abrir));
+    if (abrir) {
+      lista.style.transform = '';
+      const r = lista.getBoundingClientRect(), dx = r.left < 8 ? 8 - r.left : r.right > innerWidth - 8 ? innerWidth - 8 - r.right : 0;
+      if (dx) lista.style.transform = `translateX(${Math.round(dx)}px)`;
+      lista.querySelector('[role=menuitem]')?.focus();
+    }
+  });
+  lista?.addEventListener('keydown', ev => {
+    const itens = [...lista.querySelectorAll('[role=menuitem]')], i = itens.indexOf(document.activeElement);
+    if (ev.key === 'Escape') { ev.preventDefault(); fecharMenu(true); }
+    else if (ev.key === 'Tab') fecharMenu();
+    else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); itens[(i + (ev.key === 'ArrowDown' ? 1 : -1) + itens.length) % itens.length]?.focus(); }
+    else if (ev.key === 'Home' || ev.key === 'End') { ev.preventDefault(); itens[ev.key === 'Home' ? 0 : itens.length - 1]?.focus(); }
+  });
+  const foraDoMenu = ev => { if (!lista?.isConnected) return document.removeEventListener('click', foraDoMenu, true); if (!ev.target.closest?.('.ld-menu')) fecharMenu(); };
+  document.addEventListener('click', foraDoMenu, true);
+  lista?.addEventListener('click', ev => { if (ev.target.closest('[role=menuitem]')) fecharMenu(); });
+
+  // Busca e compartilhamento: dois campos raros, num diálogo do próprio formulário.
+  const seoCaixa = $('ld-seo');
+  const fecharSeo = () => { seoCaixa.hidden = true; document.removeEventListener('keydown', escSeo, true); bMais?.focus(); };
+  const escSeo = ev => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fecharSeo(); } };
+  document.querySelector('[data-acao="seo"]')?.addEventListener('click', () => { seoCaixa.hidden = false; document.addEventListener('keydown', escSeo, true); $('ld-seo-titulo-h').focus(); });
+  seoCaixa.querySelector('[data-acao="seo-pronto"]').addEventListener('click', fecharSeo);
+  seoCaixa.addEventListener('click', ev => { if (ev.target === seoCaixa) fecharSeo(); });
+
+  // Restaurar o modelo: devolve os textos originais nos campos (só vale ao salvar).
+  $('ld-restaurar')?.addEventListener('click', async () => {
+    if (!l?.modelo || !await confirmar({ titulo: 'Restaurar os textos do modelo?', texto: 'Todos os textos da página são trocados pelos do modelo. Nada muda na página até você salvar.', botao: 'Restaurar o modelo', perigo: true })) return;
+    const m = l.modelo, set = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
+    const lista2 = (attr, arr, k) => todos(attr).forEach((e, i) => { e.value = arr?.[i]?.[k] ?? ''; });
+    set('ld-rotulo', m.rotulo); set('ld-titulo', m.titulo); set('ld-subtitulo', m.subtitulo); set('ld-descricao', m.descricao);
+    lista2('data-botao-texto', m.botoes, 'texto'); lista2('data-botao-link', m.botoes, 'link'); todos('data-botao-estilo').forEach((e, i) => { e.value = m.botoes?.[i]?.estilo || 'primario'; });
+    set('ld-destaques', (m.destaques || []).join('\n'));
+    todos('data-texto').forEach(e => { e.value = m.textos?.[e.dataset.texto] ?? ''; });
+    lista2('data-passo-titulo', m.passos, 'titulo'); lista2('data-passo-texto', m.passos, 'texto');
+    lista2('data-chamada-titulo', m.chamadas, 'titulo'); lista2('data-chamada-texto', m.chamadas, 'texto');
+    for (const [k] of REGRAS) set(`ld-regra-${k}`, (m.regras?.[k] || []).join('\n'));
+    lista2('data-tarefa-tipo', m.tarefas, 'tipo'); lista2('data-tarefa-texto', m.tarefas, 'texto');
+    set('ld-inst-titulo', m.institucional?.titulo); set('ld-inst-texto', m.institucional?.texto);
+    lista2('data-link-texto', m.institucional?.links, 'texto'); lista2('data-link-url', m.institucional?.links, 'link');
+    for (const e of todos('data-vis')) mudarSecao(e.dataset.vis, true);
+    set('ld-seo-title', l.modeloSeo?.title); set('ld-seo-description', l.modeloSeo?.description);
+    vig.marcar(); aoMudar();
+    toast('Textos do modelo de volta nos campos. Salve para valer na página.');
+  });
+
+  // ---- salvar, publicar e voltar para rascunho (a tela decide como gravar)
+  if (salvar) {
+    form.addEventListener('submit', ev => { ev.preventDefault(); if (sujo || l.status !== 'publicada') salvar(); });
+    document.querySelector('[data-acao="publicar"]')?.addEventListener('click', () => salvar('publicada'));
+    document.querySelector('[data-acao="despublicar"]')?.addEventListener('click', async () => {
+      if (!await confirmar({ titulo: 'Voltar a página para rascunho?', texto: 'Os visitantes passam a ver só a versão simples, com o título e o botão de entrar, até você publicar de novo. Os textos continuam guardados.', botao: 'Voltar para rascunho' })) return;
+      salvar('rascunho');
+    });
+  }
+
+  // ---- "Abrir em nova aba": a página de apresentação, aberta em outra aba, pede o conteúdo a esta janela. A página
+  // só aceita o que vem da janela que a abriu e confere de novo no servidor do endereço da empresa antes de mostrar.
   const bPrevia = document.querySelector('[data-acao="previa"]');
   bPrevia?.addEventListener('click', async () => {
-    const erroEl = $('ld-erro');
-    erroEl?.classList.add('oculto');
+    $('ld-erro')?.classList.add('oculto');
     const url = new URL(bPrevia.dataset.url, location.href), origem = url.origin;
-    let pronto;
-    const conteudo = new Promise(ok => { pronto = ok; });
+    let pronto2;
+    const dados = new Promise(ok => { pronto2 = ok; });
     let janela = null;
     const responder = async ev => {
       if (!janela || ev.source !== janela || ev.origin !== origem || ev.data?.tipo !== 'greenia-previa-pronta') return;
-      const d = await conteudo;
+      const d = await dados;
       janela.postMessage(d ? { tipo: 'greenia-previa', content: d.content, seo: d.seo } : { tipo: 'greenia-previa-cancelada' }, origem);
     };
     window.addEventListener('message', responder);
     setTimeout(() => window.removeEventListener('message', responder), 120000);
     janela = window.open(comPrevia(url.href, true), '_blank');   // aberta no clique, para o navegador não bloquear
-    if (!janela) { window.removeEventListener('message', responder); return mostrarErro('ld-erro', new Error('O navegador bloqueou a nova aba. Permita janelas deste endereço e clique em Ver prévia de novo.')); }
-    try { pronto(await pedir(bPrevia.dataset.rota, { metodo: 'POST', corpo: await ler() })); }
+    if (!janela) { window.removeEventListener('message', responder); return mostrarErroLanding(new Error('O navegador bloqueou a nova aba. Permita janelas deste endereço e clique em “Abrir em nova aba” de novo.')); }
+    try { pronto2(await pedir(bPrevia.dataset.rota, { metodo: 'POST', corpo: await ler() })); }
     catch (e) {
-      pronto(null); mostrarErro('ld-erro', e);
+      pronto2(null); mostrarErroLanding(e);
       // A aba ainda pode estar carregando, e aí o navegador às vezes ignora o close(): tenta de novo e, se ela chegar
       // a pedir o conteúdo, recebe "cancelada" e se fecha (ver landing.js).
       const fechar = () => { try { if (!janela.closed) janela.close(); } catch { /* aba de outra origem já navegou */ } };
       fechar(); setTimeout(fechar, 400); setTimeout(fechar, 1500);
     }
   });
+
+  resumir();
+  marcarSujo(false);
+  ler.revelarCampo = revelarCampo;
   return ler;
+}
+
+// Erro ao salvar ou ao abrir a prévia: a mensagem no fim do formulário e, quando dá para saber o campo (link inválido,
+// título obrigatório…), a seção dele abre e o campo ganha o foco.
+const CAMPO_DO_ERRO = { rotulo: 'ld-rotulo', titulo: 'ld-titulo', subtitulo: 'ld-subtitulo', descricao: 'ld-descricao', imagem: 'ld-imagem', destaque: 'ld-destaques', seo: 'ld-seo-title', institucional: 'ld-inst-titulo' };
+export function mostrarErroLanding(e) {
+  const el = document.getElementById('ld-erro');
+  if (!el) return;
+  el.textContent = e.message; el.classList.remove('oculto');
+  const form = document.getElementById('form-landing');
+  const campo = e.codigo === 'link' ? [...form.querySelectorAll('[data-botao-link], [data-link-url]')].find(x => x.value.trim() && !LINK_OK.test(x.value.trim()))
+    : document.getElementById(CAMPO_DO_ERRO[e.codigo] || `lt-${e.codigo}`);
+  if (!campo || campo.id === 'ld-seo-title') { el.scrollIntoView({ block: 'center' }); return; }
+  campo.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+  campo.classList.add('invalida'); campo.setAttribute('aria-invalid', 'true');
+  campo.addEventListener('input', () => { campo.classList.remove('invalida'); campo.removeAttribute('aria-invalid'); }, { once: true });
+  campo.scrollIntoView({ block: 'center' }); campo.focus({ preventScroll: true });
 }
 
 // O erro aparece no fim do formulário e, quando é de um campo, o campo fica marcado e ganha o foco.

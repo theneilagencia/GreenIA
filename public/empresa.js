@@ -3,7 +3,7 @@
 // Tudo dentro do próprio ambiente e do que o operador da plataforma liberou.
 import { api, esc, ocupado, toast, vazioHtml } from '/comum.js';
 import { pode } from '/app.js';
-import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro } from '/editores.js';
+import { renderMarca, ligarMarca, renderLanding, ligarLanding, acoesLanding, estadoLanding, mostrarErroLanding, renderUrl, ligarUrl, mostrarErro } from '/editores.js';
 import { confirmar, topoTela, vigiarAlteracoes } from '/admin-ui.js';
 
 const $ = id => document.getElementById(id);
@@ -72,19 +72,16 @@ export async function telaMarca() {
 }
 
 // ---------------------------------------------------------------- Landing Page
+// Editor compartilhado com o console (editores.js): seções de um lado, prévia ao vivo do outro. A situação da página
+// fica num selo na linha de propósito; "Mais ações" e a ação principal à direita.
 export async function telaLanding() {
-  const [{ landing, pode: podeEditar, motivo }, url] = await Promise.all([api('/api/empresa/landing'), api('/api/empresa/url')]);
-  $('conteudo').innerHTML = topoTela('A página pública da empresa, com o botão de entrar.') + renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
-  if (!podeEditar) return;
-  const ler = ligarLanding(landing);
-  const vig = vigiarAlteracoes($('form-landing'), { barra: $('form-landing').querySelector('.ld-salvar'), cliques: '[data-vis], #ld-restaurar, #ld-imagem-remover' });
-  const salvar = async status => {
+  const [{ landing, pode: podeEditar, motivo }, url, publico] = await Promise.all([api('/api/empresa/landing'), api('/api/empresa/url'), api('/api/publico').catch(() => ({}))]);
+  $('conteudo').innerHTML = topoTela(`A página pública da empresa, com o botão de entrar. ${estadoLanding(landing)}`, acoesLanding(landing, { pode: podeEditar, urlPublica: url.url }))
+    + renderLanding(landing, { pode: podeEditar, urlPublica: url.url, motivo });
+  const ler = ligarLanding(landing, { marca: publico, salvar: podeEditar ? async status => {
     if ((status === 'publicada' || (!status && landing?.status === 'publicada')) && !await confirmar({ titulo: 'Atualizar a página pública agora?', texto: 'As alterações ficam visíveis para quem acessar a página.', botao: status === 'publicada' ? 'Publicar agora' : 'Salvar e atualizar' })) return;
-    try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); vig.limpar(); toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : landing?.status === 'publicada' ? 'Página de apresentação salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); telaLanding(); } catch (e) { mostrarErro('ld-erro', e); }
-  };
-  $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
-  for (const b of document.querySelectorAll('[data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));
-  document.querySelector('[data-acao="despublicar"]')?.addEventListener('click', () => salvar('rascunho'));
+    try { await api('/api/empresa/landing', { metodo: 'PUT', corpo: await ler(status) }); ler.limpar(); toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : landing?.status === 'publicada' ? 'Página de apresentação salva e já no ar.' : 'Rascunho salvo. Para aparecer na página, clique em Publicar.', 7000); telaLanding(); } catch (e) { mostrarErroLanding(e); }
+  } : null });
 }
 
 // ---------------------------------------------------------------- URL e domínio

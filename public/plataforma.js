@@ -4,7 +4,7 @@ import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, I
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
 import { contaHtml, itemMenu, ligarConta, separadorMenu, temaMenuHtml } from '/menu-conta.js';
 import { campoData, lerData } from '/data-br.js';
-import { renderMarca, ligarMarca, renderLanding, ligarLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
+import { renderMarca, ligarMarca, renderLanding, ligarLanding, acoesLanding, estadoLanding, mostrarErroLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
 
 const $ = id => document.getElementById(id);
 const C = { eu: null, csrf: '', catalogo: null, planos: [] };
@@ -326,15 +326,28 @@ async function novaEmpresa() {
   });
 }
 
-const ABAS = [['resumo', 'Resumo'], ['usuarios', 'Usuários'], ['marca', 'Marca'], ['landing', 'Página de apresentação'], ['url', 'URL e domínio'], ['permissoes', 'Permissões concedidas'], ['auditoria', 'Auditoria']];
-async function vistaEmpresa(id, aba = 'resumo') {
+// Abas da empresa: Marca, Página de apresentação e URL e domínio ficam juntas em "Marca e endereço" (como na
+// administração da empresa), com subabas. Os endereços antigos (…/marca, …/landing, …/url) levam à subaba certa.
+const ABAS = [['resumo', 'Resumo'], ['usuarios', 'Usuários'], ['marca-e-endereco', 'Marca e endereço'], ['permissoes', 'Permissões'], ['auditoria', 'Auditoria']];
+const SUBABAS_MARCA = [['marca', 'Marca'], ['landing', 'Página de apresentação'], ['url', 'URL e domínio']];
+const ABA_ANTIGA = { marca: 'marca', landing: 'landing', url: 'url' };
+// Endereço canônico de uma aba da empresa (ou null se já é o canônico).
+function rotaCanonicaEmpresa(id, aba, sub) {
+  if (ABA_ANTIGA[aba] && !sub) return `#/empresas/${id}/marca-e-endereco/${aba}`;
+  if (aba === 'marca-e-endereco' && !SUBABAS_MARCA.some(([k]) => k === sub)) return `#/empresas/${id}/marca-e-endereco/marca`;
+  return null;
+}
+async function vistaEmpresa(id, aba = 'resumo', sub = '') {
+  if (ABA_ANTIGA[aba]) [aba, sub] = ['marca-e-endereco', aba];   // chamadas internas pelo nome da subaba
+  if (aba === 'marca-e-endereco' && !SUBABAS_MARCA.some(([k]) => k === sub)) sub = 'marca';
   carregando('Empresa');
   const d = await api(`/api/plataforma/empresas/${id}`);
   const e = d.empresa;
-  const sub = `<nav class="subnav" aria-label="Seções da empresa">${ABAS.map(([k, n]) => `<a href="#/empresas/${id}/${k}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
-  const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba] || abaResumo;
+  const nav = `<nav class="subnav" aria-label="Seções da empresa">${ABAS.map(([k, n]) => `<a href="#/empresas/${id}/${k}${k === 'marca-e-endereco' ? '/marca' : ''}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
+  const nav2 = aba === 'marca-e-endereco' ? `<nav class="subnav subnav-2" aria-label="Marca e endereço">${SUBABAS_MARCA.map(([k, n]) => `<a href="#/empresas/${id}/marca-e-endereco/${k}" ${k === sub ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>` : '';
+  const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba === 'marca-e-endereco' ? sub : aba] || abaResumo;
   // Cabeçalho: o status e, à direita, as ações da aba aberta (a principal por último).
-  tela(e.name, `${sub}<div id="aba"></div>`, `${selo(e.status, e.statusNome)}<span class="acoes-aba" id="acoes-aba"></span>`, '#/empresas');
+  tela(e.name, `${nav}${nav2}<div id="aba"></div>`, `${selo(e.status, e.statusNome)}<span class="acoes-aba" id="acoes-aba"></span>`, '#/empresas');
   await corpo(d, id);
 }
 const acoesAba = html => { $('acoes-aba').innerHTML = html; };
@@ -650,23 +663,21 @@ async function abaMarca(d, id) {
   };
 }
 
+// Editor compartilhado com o admin da empresa (editores.js): seções de um lado, prévia ao vivo do outro. A situação
+// da página fica num selo na linha de propósito; a ação principal e o "Mais ações" no cabeçalho.
 async function abaLanding(d, id) {
-  $('aba').innerHTML = `${proposito('A página pública do ambiente, com o botão de entrar.')}${renderLanding(d.landing, { urlPublica: d.empresa.url, rotaPrevia: `/api/plataforma/empresas/${id}/landing/previa` })}`;
-  // Uma ação principal no cabeçalho: publicar (rascunho) ou salvar e atualizar (publicada). As repetidas saem.
-  const publicada = d.landing?.status === 'publicada';
-  const situacao = document.querySelector('.ld-situacao > span:first-child');
-  if (situacao && !publicada) situacao.innerHTML = '<b>Rascunho:</b> a página pública mostra só o título e o botão de entrar até você publicar.';
-  else if (situacao && /fora do ar/.test(situacao.textContent)) situacao.innerHTML = '<b>Publicada, mas fora do ar:</b> os visitantes veem só a versão simples até o ambiente ser ativado.';
-  else if (situacao) situacao.innerHTML = '<b>Publicada e no ar.</b>';
-  document.querySelectorAll('#form-landing [data-acao="publicar"]').forEach(b => b.remove());
-  const salvarFim = document.querySelector('#form-landing .ld-salvar [data-acao="salvar"]');
-  if (publicada) { salvarFim?.remove(); acoesAba('<button type="submit" form="form-landing" class="btn btn-verde btn-pequeno">Salvar e atualizar a página</button>'); }
-  else { salvarFim?.classList.replace('btn-verde', 'btn-linha'); acoesAba('<button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar agora</button>'); }
-  const ler = ligarLanding(d.landing, { pedir: api });
-  const salvar = async status => { try { await api(`/api/plataforma/empresas/${id}/landing`, { metodo: 'PUT', corpo: await ler(status) }); toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : publicada ? 'Página de apresentação salva e já no ar.' : 'Salvo como rascunho. Para aparecer na página, clique em Publicar agora.', 7000); vistaEmpresa(id, 'landing'); } catch (x) { erroForm('ld-erro', x); } };
-  $('form-landing').onsubmit = ev => { ev.preventDefault(); salvar(); };
-  for (const b of document.querySelectorAll('#principal [data-acao="publicar"]')) b.addEventListener('click', () => salvar('publicada'));
-  document.querySelector('[data-acao="despublicar"]')?.addEventListener('click', () => salvar('rascunho'));
+  const l = d.landing, publicada = l?.status === 'publicada';
+  acoesAba(acoesLanding(l, { urlPublica: d.empresa.url }));
+  $('aba').innerHTML = `${proposito(`A página pública do ambiente, com o botão de entrar. ${estadoLanding(l)}`)}${renderLanding(l, { urlPublica: d.empresa.url, rotaPrevia: `/api/plataforma/empresas/${id}/landing/previa` })}`;
+  const m = d.marca || {};
+  const ler = ligarLanding(l, { pedir: api, marca: { empresa: m.display_name || d.empresa.name, logo: m.logo, corMarca: m.primary_color, privacyNote: m.privacy_note }, salvar: async status => {
+    try {
+      await api(`/api/plataforma/empresas/${id}/landing`, { metodo: 'PUT', corpo: await ler(status) });
+      ler.limpar();
+      toast(status === 'publicada' ? 'Página de apresentação publicada: as seções já aparecem na página.' : status === 'rascunho' ? 'A página de apresentação voltou para rascunho: a página pública mostra só a versão simples.' : publicada ? 'Página de apresentação salva e já no ar.' : 'Rascunho salvo. Para aparecer na página, clique em Publicar.', 7000);
+      vistaEmpresa(id, 'landing');
+    } catch (x) { mostrarErroLanding(x); }
+  } });
 }
 
 async function abaUrl(d, id) {
@@ -693,21 +704,45 @@ export function statusDominio(dominio, status, mensagem, em) {
 
 // Os bloqueios de itens da marca se alteram só na aba Marca (junto do item); aqui aparece apenas o estado.
 const ROTULOS_BLOQUEIO = { ...ROTULOS_MARCA, favicon: 'Ícone da aba' };
+// Permissões concedidas, no padrão das configurações do ChatGPT: cada item é um interruptor que grava na hora, com
+// "Salvo" anunciado e, se o servidor recusar, o interruptor volta ao que era. A mesma API de antes (PUT concessoes).
+const textoConcessao = (k, concedido, incluido) => (incluido ? (k === 'domain' ? 'Liberado (vale em todos os planos)' : 'Liberado e incluído no plano') : concedido ? 'Liberado, mas fora do plano atual' : 'Não liberado');
 async function abaPermissoes(d, id) {
-  const g = d.concessoes, p = d.podeEditar, b = d.marca.locked || [];
-  acoesAba('<button type="submit" form="f-conc" class="btn btn-verde btn-pequeno">Salvar permissões</button>');
-  $('aba').innerHTML = `${proposito('O que o administrador da empresa pode personalizar. Vale o que estiver liberado aqui e incluído no plano.')}
-    <form id="f-conc">
-      <h2 class="h-secao">Itens liberados para a empresa</h2>
-      <div class="checagens">${Object.entries(C.catalogo.concessoes).map(([k, n]) => `<label><input type="checkbox" data-g="${k}" ${g[k] ? 'checked' : ''}> <span>${esc(n)}<small>${p[k] ? (k === 'domain' ? 'Liberado (vale em todos os planos)' : 'Liberado e incluído no plano') : g[k] ? 'Liberado, mas fora do plano atual' : 'Não liberado'}</small></span></label>`).join('')}</div>
-      <h2 class="h-secao">Itens da marca bloqueados</h2>
-      <p class="dica" id="bloqueios-marca">${b.length ? `Bloqueados para a empresa: ${b.map(k => esc(ROTULOS_BLOQUEIO[k] || k)).join(', ')}.` : 'Nenhum item da marca bloqueado: a empresa pode alterar todos os que estiverem liberados.'}
-        <a href="#/empresas/${id}/marca">Alterar na aba Marca</a></p></form>`;
-  $('f-conc').onsubmit = async ev => {
-    ev.preventDefault();
-    const grants = Object.fromEntries([...document.querySelectorAll('[data-g]')].map(x => [x.dataset.g, x.checked]));
-    try { await api(`/api/plataforma/empresas/${id}/concessoes`, { metodo: 'PUT', corpo: { grants } }); toast('Permissões salvas.'); vistaEmpresa(id, 'permissoes'); } catch (x) { falhar(x); }
-  };
+  const g = { ...d.concessoes }, b = d.marca.locked || [];
+  let p = d.podeEditar;
+  $('aba').innerHTML = `${proposito('O que o administrador da empresa pode personalizar. Vale o que estiver liberado aqui e incluído no plano. Cada mudança é salva na hora.')}
+    <h2 class="h-secao" id="conc-titulo">Itens liberados para a empresa</h2>
+    <ul class="conc-lista" aria-labelledby="conc-titulo">${Object.entries(C.catalogo.concessoes).map(([k, n]) => `<li class="conc-item">
+      <span class="conc-texto"><span class="conc-nome" id="conc-nome-${k}">${esc(n)}</span><small class="conc-plano" id="conc-plano-${k}">${textoConcessao(k, g[k], p[k])}</small></span>
+      <button type="button" class="switch conc-switch" role="switch" data-g="${k}" aria-checked="${!!g[k]}" aria-labelledby="conc-nome-${k}" aria-describedby="conc-plano-${k}"><span></span></button></li>`).join('')}</ul>
+    <h2 class="h-secao">Itens da marca bloqueados</h2>
+    <p class="dica" id="bloqueios-marca">${b.length ? `Bloqueados para a empresa: ${b.map(k => esc(ROTULOS_BLOQUEIO[k] || k)).join(', ')}.` : 'Nenhum item da marca bloqueado: a empresa pode alterar todos os que estiverem liberados.'}
+      <a href="#/empresas/${id}/marca-e-endereco/marca">Alterar na aba Marca</a></p>`;
+  // Uma gravação por vez, sempre com o estado inteiro dos interruptores (o servidor guarda o conjunto).
+  let fila = Promise.resolve();
+  for (const sw of document.querySelectorAll('.conc-switch')) sw.addEventListener('click', () => {
+    const k = sw.dataset.g, antes = g[k];
+    g[k] = !antes; sw.setAttribute('aria-checked', String(g[k]));
+    $(`conc-plano-${k}`).textContent = 'Salvando…';
+    sw.closest('.conc-item').classList.add('salvando');
+    fila = fila.then(async () => {
+      try {
+        await api(`/api/plataforma/empresas/${id}/concessoes`, { metodo: 'PUT', corpo: { grants: { ...g } } });
+        // O que vale de fato depende do plano: relê do servidor para o texto de cada item.
+        p = (await api(`/api/plataforma/empresas/${id}`)).podeEditar;
+        if (!sw.isConnected) return;
+        for (const [kk] of Object.entries(C.catalogo.concessoes)) if (!document.querySelector(`.conc-item.salvando [data-g="${kk}"]`) || kk === k) $(`conc-plano-${kk}`).textContent = textoConcessao(kk, g[kk], p[kk]);
+        toast(`Salvo: ${C.catalogo.concessoes[k]} ${g[k] ? 'liberado' : 'não liberado'} para a empresa.`);
+      } catch (x) {
+        g[k] = antes;
+        if (!sw.isConnected) return;
+        sw.setAttribute('aria-checked', String(antes));
+        $(`conc-plano-${k}`).textContent = textoConcessao(k, antes, p[k]);
+        toast(`Não foi possível salvar ${C.catalogo.concessoes[k]}: ${x.message} O item voltou ao que era.`, 7000);
+      } finally { sw.closest('.conc-item')?.classList.remove('salvando'); }
+    });
+  });  // A linha inteira liga e desliga (alvo de toque maior); o interruptor continua sendo o controle acessível.
+  for (const li of document.querySelectorAll('.conc-item')) li.addEventListener('click', ev => { if (!ev.target.closest('.conc-switch')) li.querySelector('.conc-switch').click(); });
 }
 
 async function abaAuditoriaEmpresa(d, id) {
@@ -1309,6 +1344,9 @@ function cfgContatos(sub, c) {
 // ---------------------------------------------------------------- Rotas
 async function rota() {
   const h = location.hash || '#/empresas';
+  // Endereço antigo de uma aba da empresa: troca pelo novo sem deixar rastro no histórico (o Voltar não volta a ele).
+  const antiga = /^#\/empresas\/([\w-]+)\/([\w-]+)(?:\/([\w-]+))?$/.exec(h), canonica = antiga && rotaCanonicaEmpresa(antiga[1], antiga[2], antiga[3]);
+  if (canonica) { location.replace(canonica); return; }
   const fimTransicao = transicao();
   lateral();
   $('lateral').classList.remove('aberta');
@@ -1316,7 +1354,7 @@ async function rota() {
   $('modal').innerHTML = '';   // modal aberto não sobrevive à troca de tela
   try {
     let m;
-    if ((m = /^#\/empresas\/([\w-]+)(?:\/(\w+))?$/.exec(h))) await vistaEmpresa(m[1], m[2]);
+    if ((m = /^#\/empresas\/([\w-]+)(?:\/([\w-]+))?(?:\/([\w-]+))?$/.exec(h))) await vistaEmpresa(m[1], m[2], m[3]);
     else if (h.startsWith('#/usuarios')) await vistaUsuarios();
     else if ((m = /^#\/planos\/([\w-]+)$/.exec(h))) await vistaPlano(m[1]);
     else if (h.startsWith('#/planos')) await vistaPlanos();

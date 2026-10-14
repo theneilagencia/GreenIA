@@ -5,7 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { POOLS_RECOMENDADOS, confirmadoParaPool } from './pools-modelos.js';
 import { exec, json, todos, transacao, um } from './db.js';
 import { lerConfig, salvarConfig, PADRAO } from './config.js';
-import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada, protecaoDoRecurso, capacidadesDeDados } from './sigilo.js';
+import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigada, protecaoDoRecurso, capacidadesDeDados, semRotaFixa } from './sigilo.js';
 import { registrar } from './eventos.js';
 import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
@@ -410,7 +410,7 @@ export function rotasModelos(app, r) {
     const m = um(app.db, 'select * from modelos where id = ?', params.id);
     if (!m?.liberado) throw erro(400, 'nao_liberado', 'Libere o modelo antes de homologar.');
     if (m.vetado_plataforma) throw erro(409, 'vetado_pela_plataforma', 'A equipe da plataforma não autoriza este modelo para dados sigilosos. Homologue outro modelo.');
-    if (ehGratuito(m.id) || m.id === AUTO) throw erro(400, 'nao_homologavel', 'Modelos gratuitos e o modo automático não podem ser homologados: não há fornecedor fixo com retenção zero.');
+    if (ehGratuito(m.id) || m.id === AUTO || semRotaFixa(m.id)) throw erro(400, 'nao_homologavel', 'Modelos gratuitos, o modo automático e variantes com pesquisa na internet não podem ser homologados: não há fornecedor fixo com retenção zero.');
     const fornecedor = String(corpo.fornecedor || '').trim();
     const endpoint = String(corpo.endpoint || fornecedor).trim();   // a rota fixada no envio (provider.only)
     const justificativa = String(corpo.justificativa || '').trim();

@@ -12,6 +12,7 @@ export const FONTES_FALSAS = [{ url: 'https://noticias.exemplo/mineracao-segura'
 // imagem: função opcional (corpo) => data URL da imagem gerada (geração de imagem, sem streaming); null => 500.
 // Sem ela, um pedido de imagem recebe uma imagem PNG pequena.
 export const PNG_FALSO = `data:image/png;base64,${Buffer.from(new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><defs><linearGradient id="g"><stop offset="0" stop-color="#2E7D4F"/><stop offset="1" stop-color="#9AD1B0"/></linearGradient></defs><rect width="640" height="400" fill="url(#g)"/><circle cx="420" cy="180" r="120" fill="#fff" opacity=".35"/></svg>').render().asPng()).toString('base64')}`;
+// statusFalha: status HTTP devolvido quando todos os modelos pedidos estão em `falhar` (503 por padrão; 429 simula limite).
 // Revisão dos achados da conferência (segunda leitura): por padrão o "modelo" confirma todos os achados, com um trecho
 // que existe no resultado — os testes antigos continuam com a mesma semântica. `revisao(b)` troca esse comportamento.
 const conteudo = c => (typeof c === 'string' ? c : (c || []).map(p => p.text).join('\n'));
@@ -22,7 +23,7 @@ export function confirmarAchados(b) {
   const ids = [...u.matchAll(/^- ([a-z_0-9]+) \(/gm)].map(m => m[1]);
   return JSON.stringify({ achados: ids.map(id => ({ id, confirmado: true, trecho: resultado.trim().slice(0, 40), prova: 'confirmado no teste' })) });
 }
-export async function openRouterFalso({ revisao = confirmarAchados, modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null, imagem = null } = {}) {
+export async function openRouterFalso({ revisao = confirmarAchados, modelos = [], falhar = new Set(), custo = 0.00123, responder = null, fontes = FONTES_FALSAS, chave = null, anotacoes = null, imagem = null, statusFalha = 503 } = {}) {
   const chamadas = [], autorizacoes = [], revisoes = [];
   const srv = createServer(async (req, res) => {
     if (chave && req.headers.authorization !== `Bearer ${chave}`) { res.writeHead(401, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'No auth credentials found' } })); }
@@ -43,7 +44,7 @@ export async function openRouterFalso({ revisao = confirmarAchados, modelos = []
     // O OpenRouter tenta o principal e, se falhar, os da lista "models".
     const tentar = [b.model, ...(b.models || []).filter(m => m !== b.model)];
     const respondeu = tentar.find(m => !falhar.has(m));
-    if (!respondeu) { res.writeHead(503, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'modelo indisponível' } })); }
+    if (!respondeu) { res.writeHead(statusFalha, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: statusFalha === 429 ? 'Rate limit exceeded' : 'modelo indisponível' } })); }
     const fornecedor = b.provider?.order?.[0] || 'FornecedorLivre';
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     res.write(': OPENROUTER PROCESSING\n\n');
@@ -61,7 +62,7 @@ export async function openRouterFalso({ revisao = confirmarAchados, modelos = []
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/v1`;
-  return { chamadas, revisoes, autorizacoes, base, falhar, set responder(f) { responder = f; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
+  return { chamadas, revisoes, autorizacoes, base, falhar, set responder(f) { responder = f; }, set statusFalha(n) { statusFalha = n; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.

@@ -85,3 +85,15 @@ A versão (1.0) e a vigência já previstas foram preservadas, como na seção 7
 | `docs/legal/politica-de-privacidade.md` | 1.0, atualização técnica de 14 de outubro de 2026 | A partir de 30 de novembro de 2026 | `a3804af0d4e2982d7658edb4e634773954a9bfd983e72da2d3da0ab06a602cfd` |
 
 Esta versão ainda não foi publicada em produção: não há deploy a registrar. O manifesto `docs/legal/medicao-lp.json` identifica estes hashes.
+
+## 9. Atualização técnica de 14 de outubro de 2026: provedores de IA
+
+Nota técnica da auditoria operacional (Etapa 4, provedores de IA). Não é nova revisão nem aprovação jurídica; as seções 1 a 8 ficam como estão.
+
+A Política de Privacidade ganhou a cláusula 6.6, que descreve a pesquisa na internet dos quick wins e a geração de imagem: o que é enviado, que as duas não são usadas com informações sigilosas e que a retenção zero das rotas sigilosas não cobre o serviço de busca. Nenhuma outra cláusula mudou. A conta da TheNeil no OpenRouter (registro de pedidos, ZDR, treino, DPA) continua sem verificação, como na seção 6; o inventário e as decisões pendentes estão em `docs/operacao/inventario-ia.md`.
+
+| Documento | Versão e atualização | Vigência já prevista | SHA-256 do arquivo-fonte |
+|---|---|---|---|
+| `docs/legal/politica-de-privacidade.md` | 1.0, atualização técnica de 14 de outubro de 2026 (cláusula 6.6, somada à correção da seção 8) | A partir de 30 de novembro de 2026 | `4c049b8455b248453be4a35e4d3feea52c954840132b5db5e5836c5343f87b7b` |
+
+Os Termos de Uso não mudaram nesta etapa; vale o hash da seção 8. Esta versão ainda não foi publicada em produção.

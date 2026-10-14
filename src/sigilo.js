@@ -30,7 +30,11 @@ export function requisitosDe(cfg) {
 }
 
 // Recursos que nunca recebem informação sigilosa: sem fornecedor fixo, sem garantia verificável.
-export const semRotaFixa = id => /:free$/.test(id) || id === 'openrouter/free' || id === 'openrouter/auto';
+//  - ":free": modelo gratuito (fornecedores que podem registrar e treinar com os dados);
+//  - "openrouter/...": roteadores do serviço de acesso (auto, free e os que surgirem), que escolhem o modelo;
+//  - ":online": atalho que liga a pesquisa na internet (o pedido sai para um mecanismo de busca, fora da rota
+//    homologada; a retenção zero do serviço de acesso não cobre plugins).
+export const semRotaFixa = id => typeof id !== 'string' || /:(free|online)$/.test(id) || /^openrouter\//.test(id);
 
 // Motivos, em linguagem do admin (o registro guarda o código).
 export const MOTIVOS_GUARDRAIL = {

@@ -39,7 +39,7 @@ Ela vale no backend, e não só na tela.
 | Requisito | O que precisa ser verdade | Motivo quando falha |
 |---|---|---|
 | Liberado | O recurso está liberado na empresa | `nao_liberado` |
-| Rota fixa | Não é gratuito nem automático, que não têm fornecedor com garantias verificáveis | `sem_rota_fixa` |
+| Rota fixa | Não é gratuito (`:free`), roteador do serviço de acesso (`openrouter/*`, como o Automático) nem variante com pesquisa embutida (`:online`), que não têm fornecedor com garantias verificáveis | `sem_rota_fixa` |
 | Veto da plataforma | A plataforma não proibiu o recurso para informação sigilosa | `proibido_pela_plataforma` |
 | Homologação da empresa | A empresa homologou. No modo "Seguir recomendações", a adoção da autorização da plataforma conta como homologação | `sem_homologacao_empresa` |
 | Autorização da plataforma | Exigida no modo multiempresa: é o mínimo e a empresa não a remove | `sem_autorizacao_plataforma` |
@@ -54,6 +54,11 @@ lista `RESTRICOES`.
 
 **No envio,** a rota fica fixada no pedido ao fornecedor: `provider.only` com o endpoint, `allow_fallbacks: false`,
 `zdr: true` e `data_collection: deny`.
+Defesa final em `montarCorpo` (`src/ia.js`), independente do roteador: um pedido sigiloso sem fornecedor, para
+recurso sem rota fixa ou com pesquisa na internet é recusado antes de sair; `gerarImagem` recusa pedido sigiloso.
+Os corpos enviados em cada caminho (permitido, negado, 5xx, 429, reserva do plano, gerar de novo, Quick Win,
+execução programada) são conferidos em `test/provedores-ia-sigilo.test.js`; o inventário está em
+`docs/operacao/inventario-ia.md`.
 
 **O que não é verificado automaticamente:** a retenção zero e a ausência de treino de cada rota são
 declaradas por quem homologa. A empresa e a plataforma confirmam as duas garantias, e a justificativa fica

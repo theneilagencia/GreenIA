@@ -9,7 +9,7 @@ import { salvarConfig } from '../src/config.js';
 const raiz = new URL('../', import.meta.url).pathname;
 // Só o que chega a alguém: comentários de código ficam de fora.
 const semComentarios = t => t.split('\n').filter(l => !/^\s*(?:\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\s+\/\/ [^'"`\n]*$/gm, '');
-const ARQUIVOS = ['src/politica.js', 'src/conversas.js', 'src/config.js', 'src/plataforma/empresas.js', 'public/admin.js', 'public/app.js', 'public/index.html', 'public/landing.js', 'public/vendas.html'];
+const ARQUIVOS = ['src/politica.js', 'src/conversas.js', 'src/config.js', 'src/plataforma/empresas.js', 'public/admin.js', 'public/app.js', 'public/index.html', 'public/landing.js', 'public/landing-render.js', 'public/vendas.html'];
 
 // Formulações retiradas (OUT-27 a OUT-31): absolutas ou mais fortes que o comportamento real.
 const PROIBIDO = {

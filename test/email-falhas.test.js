@@ -85,3 +85,15 @@ test('semSegredos tira senha de URL, chaves de API e Bearer', () => {
   const t = semSegredos('smtps://user:p4ss@host:465 falhou; key re_abcdefghij123; Authorization: Bearer abc.def.ghi; xkeysib-0123456789abcdef');
   assert.ok(!/p4ss|re_abcdefghij123|abc\.def\.ghi|xkeysib-0123456789abcdef/.test(t), t);
 });
+
+test('envio pelo Resend devolve o identificador da mensagem (aceitação do envio), sem expor a chave', async () => {
+  const { criarEmail } = await import('../src/email.js');
+  const chamadas = [];
+  const f = async (url, op) => { chamadas.push({ url, op }); return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'msg-teste-123' }) }; };
+  const logs = [];
+  const e = criarEmail({ lerSmtp: () => ({ url: 'resend://re_chave_ficticia_123456', remetente: 'GreenIA <nao-responda@exemplo.com.br>' }), log: m => logs.push(m), fetch: f });
+  const r = await e.enviar('pessoa@exemplo.com.br', 'Assunto', 'Texto');
+  assert.deepEqual(r, { via: 'resend', id: 'msg-teste-123' });
+  assert.equal(chamadas[0].url, 'https://api.resend.com/emails');
+  assert.doesNotMatch(logs.join('\n'), /re_chave_ficticia/);
+});

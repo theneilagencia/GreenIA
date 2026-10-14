@@ -38,7 +38,7 @@ const EVENTOS = {
   'quickwin.deleted': 'Quick Win excluído', 'quickwin.discarded': 'Quick Win arquivado', 'quickwin.evaluated': 'Quick Win avaliado',
   'quickwin.example_generated': 'Exemplo fictício preparado', 'quickwin.interpreted': 'Etapas do Quick Win organizadas',
   'quickwin.permissions_changed': 'Acesso ao Quick Win alterado', 'quickwin.structured': 'Estrutura de Quick Win preparada',
-  'quickwin.version_restored': 'Versão anterior de Quick Win recuperada', 'quickwin.scheduled_notification_failed': 'Falha no aviso de execução agendada',
+  'quickwin.version_restored': 'Versão anterior de Quick Win recuperada', 'quickwin.scheduled_notification_failed': 'Falha no aviso de execução agendada', 'quickwin.scheduled_notification_sent': 'Aviso de execução agendada enviado',
   'visual.derived': 'Variação visual criada', 'visual.edited': 'Peça visual ajustada', 'visual.exported': 'Peça visual exportada',
   'visual.image_generated': 'Imagem criada', 'visual.produced': 'Peça visual criada', 'visual.restored': 'Versão visual anterior recuperada',
 };

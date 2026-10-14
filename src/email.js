@@ -28,7 +28,9 @@ async function enviarPorApi(provedor, chave, de, para, assunto, texto, f) {
   const r = await f(p.url, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', ...p.headers }, body: JSON.stringify(p.corpo) });
   const corpo = await r.text().catch(() => '');
   if (!r.ok) throw new Error(`${provedor} respondeu ${r.status}: ${corpo.replaceAll(chave, '[chave]').slice(0, 200)}`);
-  return `${r.status} ${corpo.slice(0, 80)}`;
+  // Identificador da mensagem no provedor (Resend: "id"; Brevo: "messageId"), para rastrear a entrega sem conteúdo.
+  let id = null; try { const j = JSON.parse(corpo); id = String(j.id || j.messageId || '').slice(0, 120) || null; } catch {}
+  return { texto: `${r.status} ${corpo.slice(0, 80)}`, id, status: r.status };
 }
 
 // Monta o endereço a partir de variáveis separadas (sem precisar codificar nada).
@@ -86,19 +88,21 @@ export function criarEmail({ lerSmtp, log = console.log, fetch: f = globalThis.f
     enviados,
     async enviar(para, assunto, texto) {
       const smtp = lerSmtp();
-      if (!smtp.url) { enviados.push({ para, assunto, texto }); log(`[email simulado] ${para}: ${assunto}`); return; }
+      // Devolve { via, id }: por onde saiu e o identificador do provedor (aceitação do envio, não entrega na caixa).
+      if (!smtp.url) { enviados.push({ para, assunto, texto }); log(`[email simulado] ${para}: ${assunto}`); return { via: 'simulado', id: null }; }
       const de = smtp.remetente || 'GreenIA <nao-responda@localhost>';
       const api = /^(resend|brevo):\/\/(.+)$/i.exec(String(smtp.url).trim());
       if (api) {
         const resposta = await enviarPorApi(api[1].toLowerCase(), api[2], de, para, assunto, texto, f);
-        log(`[email] enviado para ${para} via ${api[1].toLowerCase()}: ${resposta}`);
-        return;
+        log(`[email] enviado para ${para} via ${api[1].toLowerCase()}: ${resposta.texto}`);
+        return { via: api[1].toLowerCase(), id: resposta.id };
       }
       const url = normalizarSmtpUrl(smtp.url);
       const r = await nodemailer.createTransport(transporteDe(url)).sendMail({ from: de, to: para, subject: assunto, text: texto });
       // Registro do envio (sem assunto, que pode ter código): para conferir por qual servidor saiu.
       let servidor = '?'; try { servidor = new URL(url).host; } catch {}
       log(`[email] enviado para ${para} via ${servidor}: ${String(r?.response || '').slice(0, 120)}`);
+      return { via: 'smtp', id: String(r?.messageId || '').slice(0, 120) || null };
     },
   };
 }

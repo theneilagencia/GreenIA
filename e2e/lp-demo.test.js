@@ -21,7 +21,7 @@ test('LP: exemplo finito, pausa, etapas manuais e nenhum efeito externo', async 
     await p.locator('[data-go="3"]').click();
     assert.ok(await p.getByText('Nenhuma alteração enviada').isVisible());
     await p.getByRole('button', { name: 'Reproduzir demonstração' }).click();
-    await p.waitForFunction(() => document.querySelector('.qd-time').textContent === '00:24 / 00:24', { timeout: 10000 });
+    await p.waitForFunction(() => document.querySelector('.qd-time').textContent === '00:24 / 00:24', null, { timeout: 15000 });
     assert.equal(await p.locator('.qw-demo').getAttribute('data-playing'), 'false');
     assert.ok(await p.getByRole('button', { name: 'Rever demonstração' }).isVisible());
     await p.getByRole('button', { name: 'Reiniciar demonstração' }).click();

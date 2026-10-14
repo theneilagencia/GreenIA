@@ -1,0 +1,42 @@
+# Auditoria operacional — matriz promessa → evidência (14/10/2026)
+
+Ponto de partida: produção em `d9c46c5`. Cada linha diz até onde a evidência chega. Categorias:
+**produção** (comprovado em produção), **local** (só teste local ou simulação), **documento** (procedimento ou texto
+pronto), **acesso** (bloqueado por falta de acesso), **n/a** (não aplicável), **humano** (depende de validação humana).
+Nada aqui está "100% resolvido" enquanto houver linha em acesso, humano ou contrato.
+
+## Acessos disponíveis na auditoria
+
+| Recurso | Situação |
+|---|---|
+| Repositório e publicação em `greenia-lite` (deploy automático no Render) | Disponível |
+| Páginas públicas e `/api/saude` | Disponível (só leitura) |
+| Console da plataforma / sessão de empresa em produção | **Sem acesso** (login por código exige caixa de email; a tentativa no console foi recusada) |
+| Caixa de email (Gmail) | **Sem acesso** (conector respondeu "Forbidden") |
+| Shell/API do Render | **Sem acesso** (sem chave) |
+| AWS/S3 | **Sem acesso válido** (credenciais do ambiente inválidas: `InvalidClientTokenId`) |
+| Painel do Resend e do OpenRouter | **Sem acesso** |
+
+## Matriz
+
+| # | Promessa | Implementação | Configuração em produção | Teste | Evidência | Conclusão |
+|---|---|---|---|---|---|---|
+| 1 | Só um provedor externo de IA (OpenRouter), sem treino, ZDR nas rotas sigilosas | `src/ia.js`, `src/sigilo.js`, `src/modelos.js`; inventário em `inventario-ia.md` | Conta OpenRouter não verificada (registro de pedidos, ZDR, opt-out, DPA) | `test/provedores-ia-sigilo.test.js` (14) confere os corpos enviados | Corpos capturados no OpenRouter falso | **local** + **acesso** (conta) + contrato ausente |
+| 2 | Rota sigilosa nunca relaxa em silêncio | Provedor fixo, `allow_fallbacks:false`, sem `models`/`plugins`; `:online` e `openrouter/*` não homologáveis; defesa final em `montarCorpo` e `gerarImagem` | Igual ao código | Negado = 0 requisições + 409 + alerta; 429/503 não cai em modelo não homologado | Testes | **local** |
+| 3 | Pesquisa na web e geração de imagem tratadas à parte | Política 6.6; ajuda do admin corrigida ("filtro do serviço, não garantia contratual") | Geração de imagem ligada por padrão (decisão D4 pendente) | Quick Win sigiloso sem plugin web | Testes + texto publicado | **local** + **documento** |
+| 4 | Cópias do disco do provedor: prazo real | Política 10.2/10.4/11/19 e Termos 16.2 sem "15/38 dias"; texto da Política de Uso | Prazo do Render: "pelo menos 7 dias", sem máximo | `test/legais.test.js` barra 15/38 | Texto publicado (após deploy) | **documento**; revisão jurídica da seção 8 pendente (**humano**); pedido ao Render **não enviado** |
+| 5 | Eliminação por categoria | `src/retencao.js` + matriz sintética | `RETENCAO_APLICAR`/`EXCLUSAO_APLICAR` precisam estar `1` antes de 30/11/2026 | `test/retencao-matriz.test.js` | Testes | **local**; ativação em produção **acesso** |
+| 6 | Backups de todos os bancos, fora do servidor, cifrados | `src/backup.js`, `src/backup-s3.js`: todas as empresas, AES-256-GCM, SHA-256 conferido, expiração lida do bucket | S3 desligado (`BACKUP_DESTINO` vazio): backups no mesmo disco | `test/backup*.test.js` com S3 falso que verifica SigV4 | Testes | **local**; bucket/IAM **acesso** |
+| 7 | Alerta de falha por banco | `src/plataforma/backup-estado.js`: auditoria por banco, faixa no console, email aos admins da plataforma (1/dia) | Entra no ar com o deploy | Testes | Testes | **local** até a primeira rodada em produção |
+| 8 | Recuperação da chave-mestra | Impressão digital no banco; envelope selado (`scripts/chave-mestra.js`) | Sem cópia fora do servidor ainda | Testes + ensaio | Testes | **local**; selar/cofre **humano** |
+| 9 | Restauração isolada com RTO/RPO | `scripts/ensaio-restauracao.mjs`, `ENSAIO_ISOLADO=1` (sem rede de saída, IA simulada, email em memória) | Ensaio real requer bucket + serviço separado | 24/24 verificações; RTO 0,2 s (pequeno) e 6,5 s (2×79 MB) | Saída do ensaio local | **local**; real **acesso**. Metas 24 h/4 h são propostas |
+| 10 | Isolamento entre empresas, permissões × limites | Código existente | — | 57/57 (multiempresa, auditoria, integrações, painéis, quick wins, consumo, programação) | Testes | **local**; dois tenants em produção **acesso** (procedimento em `homologacao-producao.md`) |
+| 11 | Quick Win programado com aviso real | Aviso grava `via` e id da mensagem do Resend no mesmo caso | — | `test/qw-programacao.test.js`, `email-falhas.test.js` | Testes | **local**; envio real **acesso** + autorização de mensagem |
+| 12 | Conexões fictícias antigas retiradas | `scripts/conexoes-qa.mjs`: inventário só leitura; revoga só o que tem as duas marcas; produto só revoga (sem exclusão física) | IDs em produção desconhecidos | `test/conexoes-qa.test.js` | Testes | **local**; inventário e revogação **acesso** + autorização |
+| 13 | Sistemas externos (ERP etc.) | — | Não contratados | — | — | **n/a** |
+| 14 | Compreensão por leigos e uso com leitor de tela | Protocolos em `aceite-humano.md` | — | — | — | **humano** (sem participantes) |
+
+## Testes desta rodada
+
+Ver o relatório final da sessão para os números das suítes completas no commit publicado. Tudo acima marcado como
+**local** foi executado em banco temporário, com OpenRouter, S3 e email falsos; nada tocou produção.

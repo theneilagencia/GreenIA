@@ -51,11 +51,13 @@ if (demo) {
   stages.forEach(button => button.addEventListener('click', () => {
     started = true; playing = false; elapsed = boundaries[Number(button.dataset.go)]; sync();
   }));
+  // Começa sozinho com 18% à vista; depois só pausa quando sai inteiro da tela (o clique em "Reproduzir" pode
+  // rolar a página e deixar só os controles à vista).
   new IntersectionObserver(entries => {
     visible = entries[0].isIntersecting;
-    if (visible && !started && !reduced.matches) { started = true; playing = true; }
+    if (entries[0].intersectionRatio >= .18 && !started && !reduced.matches) { started = true; playing = true; }
     sync();
-  }, { threshold: .18 }).observe(demo);
+  }, { threshold: [0, .18] }).observe(demo);
   document.addEventListener('visibilitychange', sync);
   reduced.addEventListener('change', () => { if (reduced.matches) playing = false; sync(); });
   render();

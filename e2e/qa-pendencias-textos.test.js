@@ -70,12 +70,14 @@ test('Tema escuro: Enviar desabilitado tem fundo neutro e texto apagado', async 
   assert.notEqual(c.texto, 'rgb(255, 255, 255)', 'texto não fica branco como no botão ativo');
 });
 
-test('Console: na página de apresentação, "Ver prévia" e "Ver a página no ar" ficam na mesma linha e centrados', async () => {
+test('Console: na página de apresentação, a situação é um selo só e as ações do cabeçalho ficam na mesma linha e centradas', async () => {
   const p = await pagina(ops);
   await p.goto(`${S.base}/plataforma#/empresas/${emp.id}/landing`);
-  await p.waitForSelector('.ld-situacao .linha-botoes > *');
-  const itens = await p.locator('.ld-situacao .linha-botoes > :is(a,button)').evaluateAll(es => es.map(e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; }));
-  assert.ok(itens.length >= 1);
+  await p.waitForSelector('.ld-acoes > *');
+  assert.equal(await p.locator('#principal .ld-estado').count(), 1);
+  assert.equal(await p.locator('#principal .faixa-aviso').count(), 0, 'sem faixa de situação');
+  const itens = await p.locator('.cabeca-acoes .ld-acoes > :is(button,.ld-menu)').evaluateAll(es => es.filter(e => e.getBoundingClientRect().height).map(e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; }));
+  assert.ok(itens.length >= 2);
   for (const y of itens) assert.ok(Math.abs(y - itens[0]) <= 2, JSON.stringify(itens));
   assert.deepEqual(p.erros, []);
 });

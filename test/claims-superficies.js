@@ -1,6 +1,6 @@
 // Texto visível das superfícies comerciais, para os testes de governança de claims (test/claims-lp.test.js).
 // Superfícies: a página de vendas e a página de entrada de cada empresa, com os textos padrão que a alimentam
-// (landing.js, modelo da landing e avisos de privacidade padrão). Nada aqui é regra: só extração de texto.
+// (landing-render.js, modelo da landing e avisos de privacidade padrão). Nada aqui é regra: só extração de texto.
 import { readFileSync } from 'node:fs';
 
 const raiz = new URL('../', import.meta.url).pathname;
@@ -44,7 +44,7 @@ export function superficies() {
     vendas: textoDeHtml(ler('public/vendas.html')),
     entrada: [
       textoDeHtml(ler('public/index.html')),
-      textoDeJs(entre(ler('public/landing.js'), 'const PADRAO_CHAMADAS', 'function desenharChamadas')),
+      textoDeJs(entre(ler('public/landing-render.js'), 'const PADRAO_CHAMADAS', 'function desenharChamadas')),
       textoDeJs(entre(empresas, 'export const marcaPadrao', 'export const TEXTOS_MARCA')),
       textoDeJs(entre(empresas, 'export function landingPadrao', '\n}\n')),
       textoDeJs(entre(empresas, 'export const seoPadrao', '\n')),

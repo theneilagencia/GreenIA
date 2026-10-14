@@ -231,7 +231,7 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 
 /* === Administração (QA UX) === */
 /* Títulos de seção das telas de gestão: <h2> no lugar de <h3> (hierarquia), com o mesmo visual de antes. */
-:is(#conteudo>h2,#conteudo>form>h2,#cfg-modelos>h2,#f-role>h2,.adm-painel>h2,.adm-lote>h2,.ld-perigo h2,.adm-escopo h2,.secao-titulo h2,.cfg-topo h2,.url-topo h2,.lx-titulo h2,.adm-resumo-titulo){font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink)}
+:is(#conteudo>h2,#conteudo>form>h2,#cfg-modelos>h2,#f-role>h2,.adm-painel>h2,.adm-lote>h2,.adm-escopo h2,.secao-titulo h2,.cfg-topo h2,.url-topo h2,.lx-titulo h2,.adm-resumo-titulo){font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink)}
 :is(#conteudo>h2,#conteudo>form>h2,#cfg-modelos>h2,#f-role>h2){margin:28px 0 10px}
 :is(.secao-titulo h2,.lx-titulo h2,.adm-resumo-titulo){margin:0}
 .cfg-topo h2{margin:0 0 2px}
@@ -259,23 +259,6 @@ body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-
 .cfg-abrir-aberto,.cfg-caixa[open] .cfg-abrir-fechado{display:none}
 .cfg-caixa[open] .cfg-abrir-aberto{display:inline}
 .app .cfg-caixa>summary.cfg-topo{display:flex}
-
-/* Página de apresentação: interruptor ao lado do título, fora do <summary>; título legível no celular. */
-.ld-bloco-caixa{position:relative}
-.ld-bloco-caixa.com-chave>.ld-bloco>summary{padding-right:220px;position:relative}
-.ld-bloco-caixa.com-chave>.ld-bloco>summary::after{position:absolute;right:22px;top:22px;margin:0}
-.ld-bloco-caixa>.ld-vis{position:absolute;top:10px;right:46px;margin:0;padding:2px 0}
-.app .ld-bloco>summary{display:flex;padding:14px 18px}
-@media(max-width:640px){.app .ld-bloco>summary{padding:14px}}
-.ld-perigo{margin-top:28px;padding:16px 18px;border:1px solid var(--line);border-radius:12px}
-.ld-perigo h2{margin:0 0 4px;color:var(--red-text)}
-@media(max-width:640px){
-  /* No celular, o interruptor vai numa linha própria acima do bloco (sem sobrepor o título). */
-  .ld-bloco-caixa.com-chave{display:flex;flex-direction:column}
-  .ld-bloco-caixa.com-chave>.ld-bloco>summary{padding-right:40px}
-  .ld-bloco-caixa>.ld-vis{position:static;order:-1;align-self:flex-end;min-height:44px;flex-basis:auto}
-  .ld-bloco-caixa.com-chave>.ld-bloco>summary::after{top:18px;right:16px}
-}
 
 /* Envio de arquivo com botão próprio em português. */
 .arquivo-campo{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 10px;position:relative}
@@ -446,9 +429,6 @@ body[data-contexto="admin"] :is(#form-marca,#form-landing) textarea{field-sizing
      rótulo em cima e o conteúdo inteiro embaixo, alinhado à esquerda, em vez de espremido entre rótulo e borda. */
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*){display:block;text-align:left}
   body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*)::before{display:block;max-width:none;margin-bottom:4px}
-  /* Situação da página de apresentação (administração e console): as duas ações com a largura toda, texto no meio. */
-  .ld-situacao .linha-botoes{width:100%}
-  .ld-situacao .linha-botoes>:is(a,button){flex:1 1 100%;justify-content:center;min-height:44px;margin:0}
   /* Escolha automática: o botão de opção fica na linha do título da preferência. */
   body[data-contexto="admin"] .rt-pref label{align-items:flex-start!important}
 }
@@ -522,16 +502,6 @@ body[data-contexto="admin"] .perfil-publico{display:grid;grid-template-columns:r
 body[data-contexto="admin"] .perfil-publico>legend{padding:0;margin-bottom:4px;font:600 15px/1.3 var(--sans)}
 body[data-contexto="admin"] .perfil-publico>p{grid-column:1/-1;margin:0 0 12px}
 
-/* Página de apresentação (administração e console, mesmo editor): situação com as ações ao lado do texto; interruptor e seta no meio da linha do título. */
-.faixa-aviso.ld-situacao{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
-.ld-situacao>span:first-child{flex:1 1 320px}
-.ld-situacao .linha-botoes{align-items:center}
-.ld-situacao .linha-botoes .btn-texto{display:inline-flex;align-items:center}
-@media(min-width:641px){
-  .ld-bloco>summary{min-height:52px;align-items:center;box-sizing:border-box}
-  .ld-bloco-caixa>.ld-vis{top:0;height:52px;padding:0;display:inline-flex;align-items:center}
-  .ld-bloco-caixa.com-chave>.ld-bloco>summary::after{top:50%;margin-top:-6px}
-}
 
 /* URL e domínio: título e explicação de cada passo em linhas próprias, com o mesmo espaçamento. */
 body[data-contexto="admin"] .url-lista li>b{display:block;margin-bottom:4px}
@@ -1346,3 +1316,110 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
   .adm-sug-niveis-lista li{grid-template-columns:1fr auto}
   .adm-sug-niveis-lista li>span:not(.tag){grid-column:1/-1}
 }
+
+/* ==== Editor da página de apresentação e permissões concedidas (padrão assistente) — INÍCIO ==================
+   Console (Marca e endereço › Página de apresentação) e administração da empresa usam o mesmo editor
+   (editores.js): seções em sanfona, uma aberta por vez, com resumo de uma linha; prévia ao vivo ao lado em tela
+   larga; "Ver como fica" abre a mesma prévia na tela inteira em telas estreitas. Permissões concedidas do console:
+   interruptores que gravam na hora, como nas configurações do ChatGPT. */
+:root:has(.ld-split){--gestao-largura:1480px}
+.ld-split{display:block}
+.ld-split.dividido{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:24px;align-items:start}
+.ld-split .ld-editor{gap:8px;grid-template-columns:minmax(0,1fr);container-type:inline-size}
+.ld-split.dividido .ld-editor{max-width:none}
+/* Seções */
+.ld-bloco{border:1px solid var(--line);border-radius:12px;background:var(--paper);transition:border-color .15s}
+.ld-bloco.aberto{border-color:var(--line-strong)}
+.ld-bloco-cab{margin:0;font:inherit;letter-spacing:0}
+.ld-bloco-botao{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;width:100%;min-height:56px;padding:10px 44px 10px 16px;border:0;border-radius:11px;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
+.ld-bloco-botao:hover{background:var(--surface)}
+.ld-bloco-botao:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.ld-bloco.aberto .ld-bloco-botao{border-radius:11px 11px 0 0;border-bottom:1px solid var(--line)}
+.ld-bloco-botao::after{content:'';position:absolute;right:20px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+.ld-bloco-botao[aria-expanded="true"]::after{transform:rotate(-135deg);margin-top:-2px}
+.ld-bloco-nome{font:600 14.5px/1.35 var(--sans)}
+.ld-bloco.oculta .ld-bloco-nome{color:var(--muted)}
+.ld-selo-oculta{font-size:11.5px;padding:0 8px}
+.ld-selo-oculta[hidden]{display:none}
+.ld-resumo{flex-basis:100%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:400 13px/1.45 var(--sans);color:var(--muted)}
+.ld-bloco.aberto .ld-resumo{display:none}
+.ld-corpo{padding:16px;display:grid;gap:12px}
+.ld-corpo[hidden]{display:none}
+.ld-corpo .campo{margin:0}
+.ld-vis{display:flex;align-items:center;gap:10px;min-height:44px;margin:-4px 0 0;cursor:pointer}
+.ld-vis-txt{font:500 13.5px var(--sans);color:var(--forest-text)}
+.ld-bloco.oculta .ld-vis-txt{color:var(--muted)}
+.ld-oculta-aviso{display:none;margin:0;padding:10px 12px;border-radius:8px;background:var(--amber-bg);color:var(--amber-text);font:400 13px/1.5 var(--sans)}
+.ld-bloco.oculta .ld-oculta-aviso{display:block}
+.ld-botoes-resumo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.ld-botoes-resumo .legenda{margin:0}
+.ld-botoes-lista{font:400 14px/1.5 var(--sans);color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.ld-botoes-resumo .btn-texto{margin-left:auto}
+.ld-botoes-editar{margin:0}
+.ld-botoes-editar[hidden]{display:none}
+@container (max-width:620px){
+  .ld-corpo .repetidor .linha{grid-template-columns:1fr!important}
+  .ld-corpo .grade-2,.ld-corpo .grade-3{grid-template-columns:1fr}
+}
+.ld-seo[hidden]{display:none}
+.ld-seo .modal{width:min(100%,520px)}
+.ld-seo .modal h2{margin:0 0 6px}
+/* Ações do cabeçalho */
+.ld-acoes{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+.ld-acoes [hidden]{display:none!important}
+.ld-menu{position:relative;display:inline-flex}
+.ld-menu .menu-lista[hidden]{display:none}
+.ld-menu .menu-lista{min-width:250px;z-index:40}
+.ld-menu .menu-lista :is(a,button){display:flex;align-items:center;min-height:40px;white-space:nowrap;cursor:pointer}
+.ld-estado{margin-left:6px;vertical-align:1px}
+/* "Ver como fica": só em tela estreita, preso ao pé da tela enquanto o editor está à vista */
+.ld-ver-barra{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:center;gap:8px;margin-top:8px;pointer-events:none}
+.ld-ver-barra .btn{pointer-events:auto;min-height:44px;padding:0 22px;border-radius:999px;background:var(--paper);box-shadow:var(--sombra-2)}
+.ld-ver-barra[hidden],.ld-ver-barra .btn[hidden]{display:none}
+.ld-ver-barra .btn-verde{background:var(--forest-strong)}
+/* Prévia */
+.ld-previa{display:none;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+.ld-split.dividido .ld-previa{display:flex;position:sticky;top:12px;height:calc(100dvh - 140px);min-height:440px}
+.ld-previa-topo{display:flex;align-items:center;gap:8px;min-height:48px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line);background:var(--paper)}
+.ld-previa-titulo{margin:0;font:600 13px/1.3 var(--sans)!important;color:var(--muted)!important;letter-spacing:.01em}
+.ld-previa-titulo:focus{outline:none}
+.ld-previa-estado{flex:1;min-width:0;font:400 12.5px/1.4 var(--sans);color:var(--amber-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ld-previa.atualizando .ld-previa-titulo::after{content:'';display:inline-block;width:6px;height:6px;margin-left:8px;border-radius:50%;background:var(--forest-text);vertical-align:middle;animation:ld-pulso 1s ease-in-out infinite}
+@keyframes ld-pulso{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.ld-previa.atualizando .ld-previa-titulo::after{animation:none}}
+.ld-nova-aba{flex:none;color:var(--muted)}
+.ld-nova-aba:hover{color:var(--ink)}
+.ld-previa-fechar{display:none!important}
+.ld-previa-moldura{flex:1;min-height:0;background:var(--paper)}
+.ld-previa-quadro{display:block;width:100%;height:100%;border:0;background:var(--paper)}
+/* Tela estreita: "Ver como fica" abre a prévia na tela inteira (diálogo) */
+.ld-previa.tela-cheia{display:flex;position:fixed;inset:0;z-index:60;border:0;border-radius:0;padding-top:env(safe-area-inset-top)}
+.ld-previa.tela-cheia .ld-previa-fechar{display:inline-flex!important;flex:none}
+html.ld-previa-aberta,html.ld-previa-aberta body{overflow:hidden}
+/* Permissões concedidas: lista de interruptores */
+.conc-lista{list-style:none;margin:0 0 28px;padding:0;max-width:var(--gestao-leitura);border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.conc-item{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px;padding:10px 16px;cursor:pointer}
+.conc-item+.conc-item{border-top:1px solid var(--line)}
+.conc-texto{display:grid;gap:2px;min-width:0}
+.conc-nome{font:500 14.5px/1.4 var(--sans);color:var(--ink)}
+.conc-plano{font:400 13px/1.4 var(--sans);color:var(--muted)}
+.conc-item.salvando .conc-plano{color:var(--forest-text)}
+.conc-switch{flex:none}
+/* Console: Marca e endereço tem subabas, um nível abaixo das abas da empresa */
+body.plataforma .subnav-2{border-bottom:0;gap:6px;margin:-8px 0 18px}
+body.plataforma .subnav-2 a{padding:6px 12px;border:1px solid transparent;border-radius:999px;font-size:13px}
+body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);background:var(--sand);color:var(--ink)}
+@media (max-width:760px){
+  .ld-menu .menu-lista :is(a,button){min-height:44px}
+  .ld-acoes .btn,.ld-nova-aba,.ld-previa-fechar{min-height:44px}
+  .ld-nova-aba{min-width:44px}
+  body.plataforma .subnav-2 a{min-height:44px;display:inline-flex;align-items:center}
+}
+@media (max-width:640px){
+  .adm-topo-acao .ld-acoes{width:100%;flex-wrap:nowrap}
+  .adm-topo-acao .ld-acoes>.btn,.adm-topo-acao .ld-menu{flex:1 1 0;min-width:0}
+  .adm-topo-acao .ld-acoes .btn{justify-content:center;width:100%}
+  .ld-bloco-botao{padding-left:14px}
+  .ld-corpo{padding:14px}
+}
+/* ==== Editor da página de apresentação e permissões concedidas — FIM ==== */

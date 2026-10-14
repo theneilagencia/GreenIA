@@ -143,9 +143,9 @@ test('admin da empresa edita a landing sem plano definido; quando trava, o motiv
   const put = await eva.put('/api/empresa/landing', { content: r.landing.content });
   assert.equal(put.status, 403);
   assert.match(put.dados.mensagem, /plano Básico/);
-  // Operador não concedeu a marca: o motivo aponta Permissões concedidas.
+  // Operador não concedeu a marca: o motivo aponta a aba Permissões do console.
   await ops.put(`/api/plataforma/empresas/${e.id}/concessoes`, { grants: { branding: false, landing_page: true, url: true, domain: false, roles: true } });
-  assert.match((await eva.get('/api/empresa/marca')).dados.motivo, /Permissões concedidas/);
+  assert.match((await eva.get('/api/empresa/marca')).dados.motivo, /Permissões, no console da plataforma/);
 });
 
 test('prévia: quem edita vê a landing completa em rascunho ou em implantação; visitante nunca', async () => {

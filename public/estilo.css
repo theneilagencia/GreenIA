@@ -802,17 +802,6 @@ body[data-transicao] .tabela tbody tr:nth-child(n+6),body[data-transicao] .lista
 
 /* Editor da landing page: blocos na ordem da página, abrem e fecham */
 .ld-editor{display:grid;gap:10px;max-width:900px}
-.ld-situacao{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.ld-bloco{border:1px solid var(--line);border-radius:12px;background:var(--paper)}
-.ld-bloco>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:14px 18px;font:500 14.5px var(--sans)}
-.ld-bloco>summary::-webkit-details-marker{display:none}
-.ld-bloco>summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);transition:transform .2s;align-self:center}
-.ld-bloco[open]>summary::after{transform:rotate(-135deg)}
-.ld-bloco[open]>summary{border-bottom:1px solid var(--line)}
-.ld-corpo{padding:16px 18px;display:grid;gap:12px}
-.ld-corpo .campo{margin:0}
-.ld-mostrar{display:inline-flex;gap:8px;align-items:center;font:500 13.5px var(--sans)}
-@media (max-width:640px){.ld-bloco>summary,.ld-corpo{padding-left:14px;padding-right:14px}.ld-corpo .repetidor .linha{grid-template-columns:1fr!important}}
 
 /* ------------------------------------------------------------ Estrutura (áreas, pessoas, grupos)
    Lista densa + painel lateral, com as cores da plataforma. */
@@ -1016,16 +1005,6 @@ input.px-titulo:focus,.px-desc:focus{outline:none;background:var(--paper);border
 .cartao-base-ir{display:inline-flex;align-items:center;gap:4px;flex:none;font:500 13px var(--sans);color:var(--forest-text)}
 .cartao-base-ir svg{width:14px;height:14px}
 
-/* Editor da landing: mostrar ou ocultar cada seção pelo interruptor no título do bloco */
-.ld-vis{margin-left:auto;display:inline-flex;align-items:center;gap:8px;align-self:center;padding:2px 0 2px 8px}
-.ld-vis-txt{font:500 12.5px var(--sans);color:var(--forest-text)}
-.ld-bloco.oculta .ld-vis-txt{color:var(--muted)}
-.ld-bloco[data-secao]>summary::after{margin-left:12px}
-.ld-bloco.oculta{background:var(--surface);border-style:dashed}
-.ld-bloco.oculta>summary b{color:var(--muted)}
-.ld-oculta-aviso{display:none;margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--amber-bg);color:var(--amber-text);font:400 13px/1.5 var(--sans)}
-.ld-bloco.oculta .ld-oculta-aviso{display:block}
-@media (max-width:640px){.ld-vis{margin-left:0;flex-basis:100%;padding-left:0}}
 
 /* ------------------------------------------------------------ Uso e consumo de IA (console da plataforma) */
 .tag-vermelha{background:var(--red-bg);border-color:var(--red-borda);color:var(--red-text)} .tag-vermelha i{background:var(--red)}

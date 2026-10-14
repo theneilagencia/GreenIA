@@ -179,7 +179,7 @@ export function motivosBloqueio(P, companyId) {
   const g = concessoes(P, companyId);
   return Object.fromEntries(Object.entries(RECURSO_DA_CONCESSAO).map(([k, recurso]) => [k,
     recurso && plano && !plano.features?.[recurso] ? `O plano ${plano.name} não inclui ${RECURSOS[recurso].toLowerCase()}. Para liberar, o operador da plataforma precisa mudar o plano da empresa.`
-      : !g[k] ? `O operador da plataforma não liberou a edição de ${CONCESSOES[k].toLowerCase()} para a empresa. Para liberar, ele marca o item em Permissões concedidas.`
+      : !g[k] ? `O operador da plataforma não liberou a edição de ${CONCESSOES[k].toLowerCase()} para a empresa. Para liberar, ele liga o item em Permissões, no console da plataforma.`
         : null]));
 }
 

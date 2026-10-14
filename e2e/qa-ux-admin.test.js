@@ -201,23 +201,36 @@ test('A20/M34: Perfis no celular: permissões cabem na tela e o selo "Sistema" n
   assert.equal(await p.locator('th:empty').count(), 0, 'cabeçalhos de ação com nome');
 });
 
-test('M35/M36/M28: página de apresentação sem interruptor no título, restaurar em zona de perigo e envio em português', async () => {
+test('M35/M36/M28: página de apresentação com seções fechadas (só o botão no título), restaurar em "Mais ações" com confirmação e envio em português', async () => {
   const p = await pagina(admin, { width: 390, height: 844 });
   await abrir(p, 'empresa/landing');
-  assert.equal(await p.locator('#form-landing summary :is(button, input, a, [role=switch])').count(), 0, 'nada interativo dentro do título');
-  const topo = await p.locator('#form-landing summary').first().evaluate(s => { const b = s.querySelector('b').getBoundingClientRect(), d = s.querySelector('.dica').getBoundingClientRect(); return { fimTitulo: b.right, inicioDica: d.left, mesmaLinha: Math.abs(b.top - d.top) < 6 }; });
-  assert.ok(!topo.mesmaLinha || topo.inicioDica - topo.fimTitulo >= 4, `título e explicação separados: ${JSON.stringify(topo)}`);
-  assert.match(await p.locator('#ld-restaurar').getAttribute('class'), /btn-perigo/);
-  assert.equal(await p.locator('#ld-restaurar').evaluate(b => !!b.closest('.ld-perigo')), true);
+  // Cada seção: um título com um único botão (aria-expanded), nada mais interativo nele; todas fechadas ao entrar.
+  assert.equal(await p.locator('#form-landing .ld-bloco-cab :is(input, a, [role=switch], select)').count(), 0, 'nada interativo além do botão no título');
+  assert.deepEqual([...new Set(await p.locator('.ld-bloco-botao').evaluateAll(bs => bs.map(b => b.getAttribute('aria-expanded'))))], ['false']);
+  // Restaurar o modelo: ação de perigo no "Mais ações", com confirmação no modal da tela.
+  await p.getByRole('button', { name: 'Mais ações' }).click();
+  const restaurar = p.getByRole('menuitem', { name: 'Restaurar o modelo…' });
+  assert.match(await restaurar.getAttribute('class'), /perigo/);
+  assert.equal(await p.locator('#ld-restaurar').evaluate(b => !!b.closest('[role=menu]')), true);
+  await restaurar.click();
+  const dialogo = p.getByRole('dialog');
+  await dialogo.getByRole('heading', { name: 'Restaurar os textos do modelo?' }).waitFor();
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+  await p.locator('#ld-cab-topo').click();
   assert.equal(await p.locator('label.btn[for="ld-imagem"]').innerText(), 'Escolher arquivo');
   assert.equal(await p.locator('[data-botao-link="0"]').getAttribute('list'), 'ld-destinos');
-  // O interruptor de seção ainda funciona e conta como alteração.
+  // O interruptor de seção fica dentro do bloco aberto, ainda funciona e conta como alteração.
+  await p.locator('#ld-cab-como_usar').click();
+  assert.equal(await p.locator('#ld-corpo-topo').isVisible(), false, 'uma seção aberta por vez');
   const chave = p.locator('#ld-sec-como_usar');
   const antes = await chave.getAttribute('aria-checked');
   await chave.click();
   assert.notEqual(await chave.getAttribute('aria-checked'), antes);
-  assert.equal(await p.locator('details[data-secao="como_usar"]').evaluate(d => d.open), false, 'o interruptor não abre o bloco');
-  await p.locator('.adm-sujo', { hasText: 'Alterações não salvas' }).waitFor();
+  assert.equal(await p.locator('#ld-corpo-como_usar').isVisible(), true, 'o interruptor não fecha o bloco');
+  assert.equal(await p.locator('[data-bloco="como_usar"] .ld-selo-oculta').isVisible(), true, 'selo "Oculta" no título da seção');
+  await p.locator('#ld-sujo', { hasText: 'Alterações não salvas' }).waitFor({ state: 'attached' });
+  assert.equal(await p.locator('.adm-topo [data-acao="salvar"]').isEnabled(), true);
+  assert.equal(await p.locator('.adm-topo [data-acao="salvar"]').innerText(), 'Salvar e atualizar a página');
   assert.deepEqual(p.erros, []);
 });
 

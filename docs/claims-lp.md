@@ -16,7 +16,7 @@ para parecer mais verdadeiro. Copy atual = capacidade existente hoje em produç�
 | Superfície | O que inclui |
 |---|---|
 | `vendas` | `public/vendas.html` (texto, `aria-label`, `alt` e `meta description`) |
-| `entrada` | Página de entrada de cada empresa: `public/index.html`, cartões padrão de `public/landing.js`, modelo da landing (`landingPadrao`) e textos de marca (`marcaPadrao`) em `src/plataforma/empresas.js`, aviso de privacidade padrão em `src/config.js` |
+| `entrada` | Página de entrada de cada empresa: `public/index.html`, cartões padrão de `public/landing-render.js`, modelo da landing (`landingPadrao`) e textos de marca (`marcaPadrao`) em `src/plataforma/empresas.js`, aviso de privacidade padrão em `src/config.js` |
 
 Empresas que já salvaram textos próprios na landing ou no aviso de privacidade continuam com o texto salvo: o registro
 cobre o texto padrão do produto. Revisar os textos salvos é ação operacional (editor da landing e da marca).

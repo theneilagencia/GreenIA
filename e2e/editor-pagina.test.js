@@ -298,6 +298,25 @@ test('console: permissões concedidas gravam ao ligar ou desligar, com "Salvo" e
   await p.context().close();
 });
 
+test('administração sem a página liberada: editor travado, sem ações, prévia do que está salvo', async () => {
+  const g = (await ops.get(`/api/plataforma/empresas/${emp.id}`)).dados.concessoes;
+  await ops.put(`/api/plataforma/empresas/${emp.id}/concessoes`, { grants: { ...g, landing_page: false } });
+  try {
+    const p = await pagina(admin);
+    await abrirEditor(p, false);
+    await p.locator('.aviso-trava', { hasText: 'Edição travada.' }).waitFor();
+    assert.equal(await p.locator('#ld-mais').count(), 0);
+    assert.equal(await p.locator('#principal .btn-verde:visible').count(), 0);
+    assert.equal(await p.locator('#ld-previa-titulo').innerText(), 'Prévia do que está salvo');
+    assert.match(await p.getByRole('link', { name: 'Abrir a prévia em nova aba' }).getAttribute('href'), /previa=1/);
+    await p.waitForFunction(() => !!document.getElementById('ld-previa-quadro')?.contentDocument?.getElementById('ld-titulo')?.textContent);
+    await p.locator('#ld-cab-topo').click();
+    assert.equal(await p.locator('#ld-titulo').isDisabled(), true);
+    assert.deepEqual(p.erros, []);
+    await p.context().close();
+  } finally { await ops.put(`/api/plataforma/empresas/${emp.id}/concessoes`, { grants: g }); }
+});
+
 // Metas do caminho claro nas três telas desta mudança: [ações principais, controles na primeira vista]. Permissões
 // ficam em 12. Página de apresentação: no console, trilha + 5 abas + 3 subabas + "Mais ações" + salvar + "Abrir em
 // nova aba" já somam 12 antes das sete seções (fechadas, uma linha cada); na administração, 3 abas + "Mais ações" +

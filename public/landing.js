@@ -29,7 +29,7 @@ if (p.multiempresa && !p.landing) for (const id of ['sec-chamadas', 'sec-regras'
 
 prepararLanding(document);
 
-// Prévia do que está em edição (aberta por "Ver prévia" no editor): a página pede o conteúdo à janela que a abriu e
+// Prévia do que está em edição (aberta por "Abrir em nova aba" na prévia do editor): a página pede o conteúdo à janela que a abriu e
 // o confere no servidor (mesmas regras do salvar, sem gravar). Só vale para quem pode ver a prévia; sem resposta,
 // fica o que está salvo.
 async function conteudoEmEdicao() {

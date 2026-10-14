@@ -1373,8 +1373,9 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .ld-menu .menu-lista :is(a,button){display:flex;align-items:center;min-height:40px;white-space:nowrap;cursor:pointer}
 .ld-estado{margin-left:6px;vertical-align:1px}
 /* "Ver como fica": só em tela estreita, preso ao pé da tela enquanto o editor está à vista */
-.ld-ver-barra{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:center;gap:8px;margin-top:8px;pointer-events:none}
-.ld-ver-barra .btn{pointer-events:auto;min-height:44px;padding:0 22px;border-radius:999px;background:var(--paper);box-shadow:var(--sombra-2)}
+/* Barra fixa no pé do editor: fundo sólido e linha em cima, para não ficar por cima do texto dos campos. */
+.ld-ver-barra{position:sticky;bottom:0;z-index:5;display:flex;justify-content:center;gap:8px;margin-top:16px;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line);box-shadow:0 64px 0 0 var(--paper)}
+.ld-ver-barra .btn{min-height:44px;padding:0 22px;border-radius:999px;background:var(--paper)}
 .ld-ver-barra[hidden],.ld-ver-barra .btn[hidden]{display:none}
 .ld-ver-barra .btn-verde{background:var(--forest-strong)}
 /* Prévia */

@@ -42,7 +42,7 @@ $('form-pedido').addEventListener('submit', async ev => {
   try {
     if (acao === 'excluir') {
       await api('/api/encerramento/excluir', { metodo: 'POST', corpo: { email, codigo, confirmacao: $('identificador').value.trim(), irreversivel: $('irreversivel').checked } });
-      $('feito').textContent = 'O ambiente e os dados dele foram excluídos. As cópias de segurança seguem os prazos descritos na Política de Privacidade.';
+      $('feito').textContent = 'O ambiente e os dados dele foram excluídos. As cópias de segurança seguem os prazos de retenção e depois são eliminadas.';
     } else {
       const r = await api('/api/encerramento/devolucao', { metodo: 'POST', corpo: { email, codigo } });
       $('feito').textContent = r.jaExistia ? 'Já existe um pedido de cópia em andamento. Você recebe o link por email.' : 'Pedido registrado. Você recebe por email um link de uso único para baixar a cópia, válido por até 7 dias.';

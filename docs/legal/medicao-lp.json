@@ -1,8 +1,7 @@
 {
   "atualizacao": "2026-10-14",
-  "escopo": "Integridade do texto público sobre medição na LP e da correção técnica do prazo das cópias do disco do provedor (seção 8 de aprovacao-juridica.md) e da cláusula 6.6 sobre provedores de IA (seção 9); não substitui a aprovação jurídica histórica",
+  "escopo": "Integridade do texto público sobre medição na LP; não substitui a aprovação jurídica histórica",
   "documentos": {
-    "docs/legal/politica-de-privacidade.md": "4c049b8455b248453be4a35e4d3feea52c954840132b5db5e5836c5343f87b7b",
-    "docs/legal/termos-de-uso.md": "3f05c863f04fdc3ca38f926cd8f61fbba26048e2841a7202d92e9273b7f25764"
+    "docs/legal/politica-de-privacidade.md": "6152a948e25d16dda74141d79ce8077217319997b544b4af95a6b45cd9900b02"
   }
 }

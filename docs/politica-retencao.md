@@ -41,7 +41,7 @@ no instante *t* pode estar:
 
 Os prazos com prova "código" valem só com a limpeza ligada em produção (`RETENCAO_APLICAR=1`) e sem item "sem
 classificação" no plano. Os antigos "até 15 dias" e "até 38 dias" somavam aos prazos da GreenIA um máximo de 7 dias
-para o snapshot que o provedor não publica; foram retirados em 14 de outubro de 2026.
+para o snapshot que o provedor não publica. A retirada está proposta em `docs/legal/revisao-pendente/` e **não foi publicada**: aguarda revisão jurídica; o texto no ar ainda os contém.
 
 Testes: `test/retencao.test.js`, `test/retencao-matriz.test.js` (matriz sintética de todas as categorias),
 `test/exportacoes.test.js`, `test/encerramento.test.js`, `test/backup.test.js` (S3 bloqueado sem regra conferida).
@@ -94,10 +94,10 @@ Ordem de ativação: backup pré-deploy → deploy com `RETENCAO_APLICAR` deslig
 
 A Política de Privacidade (10.2) lista só os prazos das cópias geridas pela GreenIA, aplicados pelo código. As cópias
 do disco do provedor aparecem à parte: a cada 24 horas, disponíveis por pelo menos 7 dias segundo o provedor, sem
-prazo máximo publicado. Os Termos (16.2) remetem ao prazo do provedor. Nenhum texto público afirma prazo máximo para
-o snapshot. Os textos legais distinguem: remoção do ambiente ativo; retenção nas cópias da GreenIA; cópias do provedor;
+prazo máximo publicado. Os Termos (16.2) remetem ao prazo do provedor. Isso é a proposta em `docs/legal/revisao-pendente/`; o texto público aprovado ainda afirma prazo máximo para o snapshot
+até a revisão. Os textos legais distinguem: remoção do ambiente ativo; retenção nas cópias da GreenIA; cópias do provedor;
 e possível persistência física de blocos fora do alcance da aplicação. Registro da correção:
-`docs/legal/aprovacao-juridica.md`, seção 8 (correção técnica; revisão jurídica pendente).
+`docs/legal/revisao-pendente/registro-secoes-8-e-9.md` (correção técnica; revisão jurídica pendente; não publicada).
 
 ## Riscos residuais
 

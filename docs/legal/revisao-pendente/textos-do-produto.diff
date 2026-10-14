@@ -1,0 +1,26 @@
+diff --git a/public/encerramento.js b/public/encerramento.js
+index 0d37d50..1681c04 100644
+--- a/public/encerramento.js
++++ b/public/encerramento.js
+@@ -42,7 +42,7 @@ $('form-pedido').addEventListener('submit', async ev => {
+   try {
+     if (acao === 'excluir') {
+       await api('/api/encerramento/excluir', { metodo: 'POST', corpo: { email, codigo, confirmacao: $('identificador').value.trim(), irreversivel: $('irreversivel').checked } });
+-      $('feito').textContent = 'O ambiente e os dados dele foram excluídos. As cópias de segurança seguem os prazos de retenção e depois são eliminadas.';
++      $('feito').textContent = 'O ambiente e os dados dele foram excluídos. As cópias de segurança seguem os prazos descritos na Política de Privacidade.';
+     } else {
+       const r = await api('/api/encerramento/devolucao', { metodo: 'POST', corpo: { email, codigo } });
+       $('feito').textContent = r.jaExistia ? 'Já existe um pedido de cópia em andamento. Você recebe o link por email.' : 'Pedido registrado. Você recebe por email um link de uso único para baixar a cópia, válido por até 7 dias.';
+diff --git a/src/politica.js b/src/politica.js
+index 79baf5d..2bc0878 100644
+--- a/src/politica.js
++++ b/src/politica.js
+@@ -98,7 +98,7 @@ function montarSecao(app) {
+     `- Suas conversas e anexos ficam guardados no banco de dados da empresa por até ${cfg.retencaoDias} dias sem uso, e você pode apagá-los quando quiser.${(cfg.naoArmazenar || []).length ? ' Mensagens com um tipo de dado que a empresa manda não guardar são processadas sem ficar no histórico.' : ''}`,
+     '- Nenhuma tela da GreenIA mostra o conteúdo das suas conversas a colegas, ao responsável da área ou ao admin da empresa: nas telas, eles veem só dados de uso (quantidade, consumo, feedback).',
+     '- O conteúdo fica no banco de dados da empresa. A equipe técnica da GreenIA tem acesso ao servidor para dar suporte e pode exportar uma cópia do banco da empresa; a entrada no ambiente pela plataforma e a exportação ficam registradas.',
+-    '- Uma conversa apagada sai do banco de dados. Cópias de segurança feitas antes da exclusão ainda podem conter a conversa até serem substituídas pela rotina de backup.',
++    '- Uma conversa apagada sai do banco de dados. Cópias de segurança feitas antes da exclusão ainda podem conter a conversa até serem eliminadas, nos prazos da Política de Privacidade. As cópias do disco feitas pelo provedor de hospedagem seguem o prazo do provedor.',
+     '- Senhas, tokens e chaves de acesso em formatos que o sistema reconhece bloqueiam o envio, em qualquer parte do pedido: mensagem, anexos, histórico, instruções, documentos da base e arquivos de quick win. É uma regra de segurança da GreenIA, que a empresa não desliga. Um segredo num formato que o sistema não reconhece pode passar: não envie credenciais.',
+     '### Responsabilidades',
+     `${Plataforma} aplica controles técnicos e administrativos para apoiar as políticas de segurança, confidencialidade e proteção de dados da empresa. A empresa continua responsável por suas obrigações legais e regulatórias.`,

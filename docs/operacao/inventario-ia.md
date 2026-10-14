@@ -145,7 +145,7 @@ geração de imagem; **R5** metadados no OpenRouter (todas as chamadas).
 | Ajuda do admin, Políticas | "retenção zero e ausência de uso para treino comprovadas" | Declaradas na aprovação e pedidas em cada chamada (filtro, não garantia contratual) |
 | Ajuda do admin, Políticas (sugestão) | "garantias já conferidas pela plataforma: fornecedor fixo, nada guardado (retenção zero)…" | Rota autorizada pela plataforma, com retenção zero e não treino declarados conforme a documentação dos fornecedores |
 | Ajuda do admin, Políticas (pesquisa) | "o pedido sai para o serviço de busca do provedor de IA" | Acrescenta que a busca tem política de retenção própria e que a retenção zero das rotas aprovadas não vale para ela |
-| Política de Privacidade, nova cláusula 6.6 | Não mencionava a pesquisa na internet nem a geração de imagem | Descreve o que vai para a busca e para o gerador de imagem, que ambos ficam fora do conteúdo sigiloso e que a retenção zero não cobre a busca (nota técnica em `docs/legal/aprovacao-juridica.md` §8) |
+| Política de Privacidade, nova cláusula 6.6 (**proposta, não publicada**: em `docs/legal/revisao-pendente/`, aguardando revisão jurídica) | Não mencionava a pesquisa na internet nem a geração de imagem | Descreve o que vai para a busca e para o gerador de imagem, que ambos ficam fora do conteúdo sigiloso e que a retenção zero não cobre a busca (nota técnica em `docs/legal/revisao-pendente/registro-secoes-8-e-9.md`) |
 
 A LP (`public/vendas.html`) e os Termos já descrevem o filtro como "não equivale a uma garantia contratual" e os
 atributos das rotas sigilosas como "declarados"; não foram alterados.

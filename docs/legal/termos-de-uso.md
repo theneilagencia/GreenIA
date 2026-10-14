@@ -2,8 +2,6 @@
 
 Versão 1.0, de 1º de outubro de 2026 · Vigência a partir de 30 de novembro de 2026
 
-Última atualização do texto: 14 de outubro de 2026
-
 ## 1. Quem opera a GreenIA
 
 A GreenIA é oferecida por **NEIL INOVAÇÃO E TECNOLOGIA LTDA**, pessoa jurídica de direito privado, inscrita no CNPJ
@@ -222,9 +220,8 @@ está na Política de Privacidade.
 
 16.1. Ao ser excluído no Ambiente, o dado deixa de ficar disponível na aplicação e é removido do banco de dados em uso.
 
-16.2. Cópias de segurança geridas pela plataforma podem manter o dado pelos prazos descritos na Política de
-Privacidade. O provedor de hospedagem também faz cópias do disco. Essas cópias seguem o prazo do provedor, que não
-publica um prazo máximo; a Política de Privacidade descreve o que se sabe sobre elas. Cópias preservadas por obrigação
+16.2. Cópias de segurança da plataforma e cópias do disco feitas pelo provedor de hospedagem podem manter o dado por um
+período limitado, conforme os prazos por camada descritos na Política de Privacidade. Cópias preservadas por obrigação
 legal ou para investigar um incidente, com motivo registrado, ficam fora desses prazos enquanto a preservação for
 necessária. Os prazos não constituem garantia de destruição física de blocos de armazenamento do provedor.
 

@@ -111,24 +111,19 @@ test('integridade dos documentos: aprovação histórica ou manifesto da atualiz
   assert.match(reg, /\*\*Aprovado\*\*/);
 });
 
-test('retenção: só prazos comprovados; snapshot do provedor com mínimo publicado e sem máximo inventado', () => {
-  const pol = ler('docs/legal/politica-de-privacidade.md'), termos = ler('docs/legal/termos-de-uso.md');
-  const publico = pol + termos + semTags(ler('public/privacidade.html')) + semTags(ler('public/termos.html')) + semTags(ler('public/vendas.html'));
-  // Os antigos piores casos somavam um máximo de 7 dias que o provedor não publica.
-  assert.doesNotMatch(publico, /\b(?:15|38) dias\b/);
-  assert.doesNotMatch(publico, /7 dias após a captura|por até 7 dias depois de eliminadas|cópias diárias do disco por até/);
-  assert.doesNotMatch(termos, /provedor de hospedagem podem manter o dado por um\s+período limitado/);
-  // O que é do provedor aparece como do provedor.
+test('retenção: a correção do prazo do provedor fica em proposta, fora do ar, até a revisão jurídica', () => {
+  // Texto com revisão pendente não é publicado: o público continua na versão aprovada.
+  const R = 'docs/legal/revisao-pendente/';
+  const pol = ler(R + 'politica-de-privacidade.md'), termos = ler(R + 'termos-de-uso.md');
+  assert.doesNotMatch(pol + termos, /\b(?:15|38) dias\b/);
+  assert.doesNotMatch(pol + termos, /7 dias após a captura|por até 7 dias depois de eliminadas|cópias diárias do disco por até/);
   const s102 = pol.slice(pol.indexOf('### 10.2'), pol.indexOf('### 10.3'));
   assert.match(s102, /a cada 24 horas/);
   assert.match(s102, /por pelo menos 7 dias/);
   assert.match(s102, /O provedor não publica um prazo máximo/);
-  for (const linha of ['| Backup automático diário | Até 7 dias |', '| Backup manual de manutenção | 30 dias desde a criação |', '| Cópia de recuperação de ambiente excluído | 30 dias desde a exclusão |']) assert.ok(s102.includes(linha), linha);
   assert.match(termos, /seguem o prazo do provedor, que não\s+publica um prazo máximo/);
-  // Registro: correção técnica, sem nova aprovação, histórico preservado.
-  const reg = ler('docs/legal/aprovacao-juridica.md');
-  assert.match(reg, /## 8\. Atualização técnica de 14 de outubro de 2026/);
-  assert.match(reg, /Não é uma nova aprovação jurídica\. \*\*A revisão jurídica desta mudança está pendente\.\*\*/);
-  assert.match(reg, /`docs\/legal\/politica-de-privacidade\.md` \| 1\.0, de 1º de outubro de 2026 \| .* \| `df721b8ac6bff22937e570c00e5fc8b40646359179c87deb2d60b82608ae4e57` \|/, 'hash histórico da seção 5 preservado');
+  assert.match(ler(R + 'LEIA-ME.md'), /NÃO PUBLICADO/);
+  assert.doesNotMatch(ler('public/privacidade.html') + ler('public/termos.html'), /pelo menos 7 dias|revisão jurídica .* pendente/, 'nada pendente no ar');
+  assert.doesNotMatch(ler('docs/legal/aprovacao-juridica.md'), /## 8\. Atualização técnica/, 'o registro só ganha seção depois da revisão');
   assert.match(ler('docs/operacao/solicitacao-render-retencao.md'), /NÃO ENVIADO — requer autorização/);
 });

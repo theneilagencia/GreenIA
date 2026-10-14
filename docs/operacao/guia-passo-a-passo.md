@@ -135,6 +135,65 @@ você envia **um** email de teste para a sua caixa de homologação.
 
 ---
 
+## Tarefa 6 — Ligar a cópia dos backups num segundo serviço do Render (20 minutos)
+
+Hoje o backup diário fica no mesmo disco do banco. Esta tarefa cria um **segundo serviço privado** no Render, com
+disco próprio, que recebe uma cópia **trancada (cifrada)** de cada backup. Ele não tem endereço público e guarda cada
+cópia por 7 dias.
+Custo aprovado: plano **Starter** com disco de **1 GB**. Antes de confirmar, o Render mostra o preço exato na tela.
+
+### 6.1 Ver se o Render já criou o serviço sozinho
+1. No painel do Render, olhe a lista de serviços. Se já existe um chamado **greenia-backup**, pule para 6.3.
+2. Se não existe, abra **Blueprints** no menu da esquerda.
+   - Se aparecer um Blueprint ligado ao repositório **GreenIA**, clique nele e depois em **Sync** (ou
+     **Manual Sync**). O Render mostra o que vai criar: confira que é **greenia-backup**, plano **Starter**, disco de
+     **1 GB**, e confirme. Depois, pule para 6.3.
+   - Se não houver Blueprint, siga 6.2.
+
+### 6.2 Criar o serviço à mão (só se 6.1 não criou)
+1. Clique em **New +** (no alto) e depois em **Private Service**.
+2. Escolha o repositório **GreenIA** e o branch **greenia-lite**.
+3. Preencha:
+   - **Name:** `greenia-backup`
+   - **Region:** a mesma do serviço greenia (**Virginia**)
+   - **Runtime/Language:** Docker
+   - **Instance Type:** **Starter**
+4. Em **Advanced**:
+   - **Docker Command:** `node --disable-warning=ExperimentalWarning src/receptor-backup.js`
+   - **Add Disk:** Name `backups`, Mount Path `/app/dados`, Size **1** GB
+   - **Environment Variables:**
+     - `S3_CHAVE` = `greenia-backup`
+     - `S3_SEGREDO` = clique em **Generate** (o Render cria um valor aleatório)
+     - `RECEPTOR_DIAS` = `7`
+5. Clique em **Create Private Service** e espere aparecer **Live**.
+6. Abra o serviço **greenia-backup** e procure o **endereço interno** (Internal Address / "Connect" → Internal). Ele
+   tem o formato `greenia-backup-xxxx:10000`. Copie-o.
+7. Ainda no greenia-backup, abra **Environment** e copie o valor de `S3_SEGREDO` (clique no olho para mostrar).
+8. Agora abra o serviço **greenia** → **Environment** e adicione:
+   - `BACKUP_DESTINO` = `s3://greenia-backups/greenia`
+   - `S3_ENDPOINT` = o endereço interno copiado no passo 6
+   - `S3_CHAVE` = `greenia-backup`
+   - `S3_SEGREDO` = o valor copiado no passo 7
+   - `BACKUP_CHAVE_CIFRA` = clique em **Generate**
+9. Clique em **Save Changes** e depois em **Save and deploy**.
+
+### 6.3 Guardar a chave da cópia no cofre (não pule)
+1. No serviço **greenia** → **Environment**, mostre o valor de **BACKUP_CHAVE_CIFRA** (ícone do olho) e copie.
+2. No cofre de senhas, crie o item **"GreenIA — chave de cifra dos backups"** e cole o valor.
+   Sem essa chave, as cópias do segundo serviço não abrem numa recuperação.
+
+### 6.4 Testar na hora
+1. Abra o **Shell** do serviço **greenia** e cole:
+   ```
+   node scripts/backup.js
+   ```
+2. **Como saber que deu certo:** a resposta tem duas linhas: `Backup feito: …` e `Enviado para: s3://greenia-backups/greenia/…`.
+   - Se aparecer `Não enviado ao S3: …`, me mande um print dessa linha.
+3. No dia seguinte, depois das 03:00 (horário de Brasília), o console da plataforma não deve mostrar a faixa vermelha
+   de backup.
+
+---
+
 ## Tarefa 5 — Tarefas fora do sistema
 
 ### 5.1 Revisão jurídica (antes de 30/11/2026)

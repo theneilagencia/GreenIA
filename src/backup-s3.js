@@ -51,6 +51,10 @@ export function chaveCifraDe(env = {}, { mestra = null } = {}) {
   return k;
 }
 
+// Endereço do destino. Sem esquema ("host:porta", como o Render entrega o endereço interno de um serviço privado),
+// vale http:// — o tráfego fica na rede privada e o conteúdo já sai cifrado e assinado daqui.
+export const endpointS3 = e => { const v = String(e || '').trim().replace(/\/+$/, ''); return /^https?:\/\//i.test(v) ? v : `http://${v}`; };
+
 // Configuração do destino. null quando o destino não é s3:// (S3 desligado).
 export function configS3(destino, env = {}, { mestra = null } = {}) {
   const m = /^s3:\/\/([a-z0-9][a-z0-9.-]{1,61}[a-z0-9])(?:\/(.*))?$/.exec(String(destino || '').trim());
@@ -59,7 +63,7 @@ export function configS3(destino, env = {}, { mestra = null } = {}) {
   const sse = String(env.S3_SSE || '').trim();
   if (sse && !['AES256', 'aws:kms'].includes(sse)) throw new ErroBackup('S3_SSE_INVALIDA', 'S3_SSE aceita AES256 ou aws:kms.');
   const prefixo = (m[2] || '').replace(/^\/+|\/+$/g, '');
-  return { endpoint: env.S3_ENDPOINT.replace(/\/+$/, ''), bucket: m[1], prefixo: prefixo ? prefixo + '/' : '', chave: env.S3_CHAVE, segredo: env.S3_SEGREDO,
+  return { endpoint: endpointS3(env.S3_ENDPOINT), bucket: m[1], prefixo: prefixo ? prefixo + '/' : '', chave: env.S3_CHAVE, segredo: env.S3_SEGREDO,
     regiao: env.S3_REGIAO || 'us-east-1', sse, kmsChave: env.S3_SSE_KMS_ID || '', cifra: chaveCifraDe(env, { mestra }), timeoutMs: Number(env.S3_TIMEOUT_MS) || 120e3 };
 }
 
@@ -129,7 +133,7 @@ export async function conferirExpiracaoS3(destino, env = process.env, { limiteDi
   const m = /^s3:\/\/([^/]+)\/?(.*)$/.exec(destino || '');
   if (!m) return { ok: false, motivo: 'destino S3 inválido' };
   if (!env.S3_ENDPOINT || !env.S3_CHAVE || !env.S3_SEGREDO) throw new ErroBackup('S3_CONFIG', 'Backup em S3 precisa de S3_ENDPOINT, S3_CHAVE e S3_SEGREDO.');
-  const cfg = { endpoint: env.S3_ENDPOINT.replace(/\/+$/, ''), bucket: m[1], chave: env.S3_CHAVE, segredo: env.S3_SEGREDO, regiao: env.S3_REGIAO || 'us-east-1', timeoutMs: Number(env.S3_TIMEOUT_MS) || 120e3 };
+  const cfg = { endpoint: endpointS3(env.S3_ENDPOINT), bucket: m[1], chave: env.S3_CHAVE, segredo: env.S3_SEGREDO, regiao: env.S3_REGIAO || 'us-east-1', timeoutMs: Number(env.S3_TIMEOUT_MS) || 120e3 };
   const prefixo = m[2] ? m[2].replace(/\/?$/, '/') : '';
   const todos = Array.from({ length: 500 }, (_, i) => 100 + i);   // devolve qualquer status: a decisão é aqui
   try {

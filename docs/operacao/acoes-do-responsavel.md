@@ -20,16 +20,10 @@ Sem ela, as credenciais gravadas (conectores, chave do OpenRouter do console) n�
 4. Copie o JSON (está cifrado) para o cofre como "GreenIA — envelope da chave-mestra", junto da impressão (`cm1-…`).
    O envelope sozinho não abre nada: precisa do segredo do passo 1 (guarde os dois, em itens separados).
 
-## 3. Backup fora do disco de produção — só Render (decisão de custo)
-A hospedagem é **só Render** (sem AWS ou outro provedor). Hoje os backups diários ficam no mesmo disco do banco; o
-snapshot diário do Render cobre a perda do disco, mas fica na mesma conta e sem prazo máximo publicado.
-Proposta, dentro do Render: um **segundo serviço privado** ("greenia-backup", Private Service com disco próprio) que
-recebe, pela rede privada do Render, a cópia cifrada de cada backup. Custo adicional estimado: o menor plano de
-serviço do Render mais o disco (alguns GB). **Gera cobrança nova: só depois da sua autorização.** Autorizado, a
-auditoria implementa o envio e o ensaio de restauração nesse serviço.
-Enquanto isso, para ter uma cópia fora do Render, no Shell: `DADOS=/app/dados node scripts/retencao.js manual --motivo
-"cópia externa"` e copie a pasta gerada para um computador da empresa pelo SSH do Render (`scp`, ver render.com/docs/disks,
-"Transferring files").
+## 3. Backup fora do disco de produção — só Render
+Aprovado o menor custo (Starter + disco de 1 GB). Implementado: serviço privado `greenia-backup`
+(`src/receptor-backup.js`, no `render.yaml`) que recebe a cópia cifrada de cada backup e expira em 7 dias. Passo a
+passo para criar/ligar e testar: `guia-passo-a-passo.md`, Tarefa 6.
 
 ## 4. Limpeza automática por prazo (antes de 30/11)
 Render → Environment: `RETENCAO_APLICAR=1` e `EXCLUSAO_APLICAR=1`. Antes, no Shell, veja o que seria eliminado:

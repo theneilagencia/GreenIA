@@ -73,5 +73,46 @@ services:
       # Instalação de cliente: use deploy/render-cliente.yaml.
       - key: BACKUP_HORA
         value: "06:00"
+      # Cópia de cada backup fora do disco de produção: serviço privado greenia-backup (abaixo), na rede privada do
+      # Render. Cifrada aqui (AES-256-GCM) antes de sair; o receptor expira em 7 dias.
+      - key: BACKUP_DESTINO
+        value: s3://greenia-backups/greenia
+      - key: S3_ENDPOINT
+        fromService:
+          type: pserv
+          name: greenia-backup
+          property: hostport
+      - key: S3_CHAVE
+        value: greenia-backup
+      - key: S3_SEGREDO
+        fromService:
+          type: pserv
+          name: greenia-backup
+          envVarKey: S3_SEGREDO
+      - key: BACKUP_CHAVE_CIFRA
+        generateValue: true   # 256 bits em base64; copie para o cofre de senhas (sem ela a cópia não abre)
       - key: BACKUP_MANTER
         value: "7"
+
+  # Receptor de backup: guarda a cópia cifrada dos backups num disco separado do de produção (src/receptor-backup.js).
+  # Menor custo: plano Starter + disco de 1 GB (o disco de produção também tem 1 GB). Sem endereço público.
+  - type: pserv
+    name: greenia-backup
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node --disable-warning=ExperimentalWarning src/receptor-backup.js
+    region: virginia
+    plan: starter
+    autoDeploy: true
+    disk:
+      name: backups
+      mountPath: /app/dados
+      sizeGB: 1
+    envVars:
+      - key: S3_CHAVE
+        value: greenia-backup
+      - key: S3_SEGREDO
+        generateValue: true
+      - key: RECEPTOR_DIAS
+        value: "7"
+

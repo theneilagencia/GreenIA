@@ -1,7 +1,7 @@
 // Inventário e retirada controlada das Conexões fictícias antigas (criadas pelas missões de QA).
 //
 // Uso (no Shell do serviço, com o servidor no ar; nada é apagado fisicamente):
-//   node scripts/conexoes-qa.mjs inventario [--dados dados]            → lista, classifica e mostra dependências (só leitura)
+//   node scripts/conexoes-qa.mjs inventario [--dados /app/dados]       → lista, classifica e mostra dependências (só leitura)
 //   node scripts/conexoes-qa.mjs revogar --db <arquivo.sqlite> --ids id1,id2 --por <email> --confirmar
 //
 // Classificação (o nome sozinho nunca basta):
@@ -49,9 +49,12 @@ export function inventariar(db) {
   });
 }
 
-function bancos(dados) {
+export function bancos(dados) {
   if (!existsSync(dados)) return [];
   const out = [];
+  // Multiempresa: um banco por empresa em dados/empresas/emp_*.sqlite (é onde a plataforma cria).
+  const pasta = join(dados, 'empresas');
+  if (existsSync(pasta)) for (const n of readdirSync(pasta)) if (/^emp_[\w-]+\.sqlite$/.test(n)) out.push(join(pasta, n));
   for (const n of readdirSync(dados)) {
     const p = join(dados, n);
     if (/^emp_[\w-]+\.sqlite$/.test(n)) out.push(p);

@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { criarApp } from '../src/servidor.js';
-import { classificar } from '../scripts/conexoes-qa.mjs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { classificar, bancos } from '../scripts/conexoes-qa.mjs';
 
 test('classificação exige endereço de API pública de teste e marca de QA no nome', () => {
   assert.equal(classificar({ base_url: 'https://jsonplaceholder.typicode.com', nome: 'QA - Sandbox Tarefas', sistema: 'Sandbox Tarefas' }).classe, 'qa_comprovado');
@@ -55,5 +56,15 @@ test('inventário lista dependências sem alterar nada; revogar só age nos comp
 
     const de_novo = roda('revogar', '--db', arquivo, '--ids', 'cnx_qa1', '--por', 'qa@exemplo.com.br', '--confirmar');
     assert.equal(de_novo.resultado[0].acao, 'nada', 'idempotente');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('inventário acha os bancos das empresas em dados/empresas (multiempresa) e o banco legado', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'conexoes-qa-dados-'));
+  try {
+    mkdirSync(join(dir, 'empresas'));
+    for (const n of ['emp_aaa.sqlite', 'emp_bbb.sqlite', 'emp_aaa.sqlite-wal', 'outro.sqlite']) writeFileSync(join(dir, 'empresas', n), '');
+    writeFileSync(join(dir, 'greenia.sqlite'), ''); writeFileSync(join(dir, 'plataforma.sqlite'), '');
+    assert.deepEqual(bancos(dir).map(f => f.slice(dir.length + 1)).sort(), ['empresas/emp_aaa.sqlite', 'empresas/emp_bbb.sqlite', 'greenia.sqlite']);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

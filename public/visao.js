@@ -84,13 +84,13 @@ export async function vistaGeral() {
       ${faixa([
         ['Pessoas ativas', num(a.pessoasAtivas), `de ${num(a.pessoasCadastradas)} cadastradas`],
         ['Áreas ativas', num(a.areasAtivas), `de ${num(a.areasCadastradas)}`],
-        ['Quick Wins em circulação', num(a.quickWinsEmCirculacao), 'em teste, em uso ou aprovados'],
+        ['Quick Wins em circulação', num(a.quickWinsEmCirculacao), 'publicados e disponíveis para a equipe'],
         ['Execuções de Quick Win', num(a.execucoes), `${num(a.conversas)} conversas no total`],
       ])}
 
       <div class="secao-titulo"><h2>Resultados</h2><a class="btn-texto btn-pequeno" href="#/quick-wins">Ver Quick Wins</a></div>
       ${faixa([
-        ['Em teste', num(r.porStatus.em_teste), ''],
+        ['Em teste', num(r.porEstado.teste), ''],
         ['Aprovados ou em expansão', num((r.porStatus.aprovado || 0) + (r.porStatus.em_expansao || 0)), ''],
         ['Descartados', num(r.porStatus.descartado), ''],
         ['Avaliações no mês', num(totalAv), totalAv ? `${Math.round(av.serviu / totalAv * 100)}% serviu, ${Math.round(av.ajustes / totalAv * 100)}% com ajustes` : 'nenhuma ainda'],

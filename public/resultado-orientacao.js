@@ -11,13 +11,17 @@ export function pontosDoResultado(q) {
   return problemas.map((detalhe, i) => {
     const item = (q.itens || []).find(x => x.conferido && !x.ok && (x.motivos || []).some(m => detalhe.includes(m)));
     const t = norm(detalhe);
-    const grupo = item?.id || (/faltou parte/.test(t) ? 'completo' : /formato combinado/.test(t) ? 'formato' : /informacao que nao esta/.test(t) ? 'invencao' : 'regras');
+    const grupo = item?.grupo || item?.id || (/faltou parte/.test(t) ? 'completo' : /formato combinado/.test(t) ? 'formato' : /informacao que nao esta/.test(t) ? 'invencao' : 'regras');
     let [titulo, padrao] = GRUPOS[grupo] || GRUPOS.regras;
     const motivo = detalhe.replace(/^(Uma das regras do Quick Win não foi seguida\.|Faltou parte do que foi pedido\.|O resultado não veio no formato combinado\.|O resultado pode ter informação que não está no material\.)\s*/,'');
     let observacao = motivo.split(/\s*\(critério:/i)[0].split(/(?<=[.!?])\s+/)[0] || titulo + '.';
     let fazer = padrao;
     if (/responsave|prazos|kpis|indicadores/.test(t) && grupo === 'completo') fazer = 'Peça para incluir um plano de ação com responsáveis, prazos e indicadores de acompanhamento. Use apenas dados confirmados; o que faltar deve ser indicado.';
-    if (/linguagem|tom |narrativa|frases|marcas de ia|termos tecnicos/.test(t)) {
+    if (/conteudo fora da tabela|retire titulos|remov[aer]+.*(?:seco|texto|explica)|sem textos adicionais|somente.*tabela.*(?:extra|fora)/.test(t)) {
+      titulo = 'Há conteúdo além do combinado';
+      observacao = 'O resultado contém texto ou seções que o formato combinado não permite.';
+      fazer = 'Peça para retirar o conteúdo extra e manter somente a tabela combinada, com as colunas confirmadas.';
+    } else if (/linguagem|tom |narrativa|frases|marcas de ia|termos tecnicos/.test(t)) {
       titulo = 'A linguagem precisa de ajuste';
       observacao = 'A conferência apontou problemas no tom ou na construção das frases.';
       fazer = 'Peça para simplificar a linguagem, variar as frases e retirar construções artificiais, preservando o conteúdo.';

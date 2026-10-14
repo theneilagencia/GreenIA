@@ -7,7 +7,8 @@ import { lerConfig } from './config.js';
 import { situacaoPlano } from './plano.js';
 import { homologadoPadrao, lerModelos } from './modelos.js';
 
-import { EM_CIRCULACAO } from './quickwins.js';
+import { estadoQw } from '../public/qw-estado.js';
+import { testeAtual } from './quickwin-teste.js';
 import { sugestaoDaEmpresa } from './sugestao-modelos.js';
 
 // O fluxo de um clique da Sugestão da GreenIA (cartão no alto de Políticas de IA).
@@ -29,12 +30,20 @@ export function visaoGeral(app) {
     tetoMensal: cfg.tetoMensal || null,
   };
 
+  const publicados = [];
+  const porEstado = { rascunho: 0, teste: 0, publicado: 0, arquivado: 0 };
+  for (const q of todos(db, 'select * from quick_wins where excluido_em is null')) {
+    const estado = estadoQw({ ...q, v2: !!q.especificacao, versao: q.versao_publicada, ultimo_teste: q.especificacao ? testeAtual(db, q) : null });
+    porEstado[estado.id]++;
+    if (estado.id === 'publicado') publicados.push(q);
+  }
+
   const adocao = {
     pessoasAtivas: um(db, `select count(distinct pessoa_id) as n from uso u where ${noMes}`, mes).n,
     pessoasCadastradas: um(db, 'select count(*) as n from pessoas where ativo = 1').n,
     areasAtivas: um(db, `select count(distinct ap.area_id) as n from uso u join area_pessoas ap on ap.pessoa_id = u.pessoa_id where ${noMes}`, mes).n,
     areasCadastradas: um(db, 'select count(*) as n from areas').n,
-    quickWinsEmCirculacao: um(db, `select count(*) as n from quick_wins where excluido_em is null and status in (${EM_CIRCULACAO.map(() => '?').join(',')})`, ...EM_CIRCULACAO).n,
+    quickWinsEmCirculacao: porEstado.publicado,
     execucoes: um(db, `select count(distinct conversa_id) as n from uso u where ${noMes} and u.quick_win_id is not null and u.teste = 0`, mes).n,
     conversas: um(db, `select count(distinct conversa_id) as n from uso u where ${noMes} and u.teste = 0`, mes).n,
   };
@@ -43,7 +52,7 @@ export function visaoGeral(app) {
   const fb = um(db, `select sum(case when feedback = 'serviu' then 1 else 0 end) as serviu, sum(case when feedback = 'ajustes' then 1 else 0 end) as ajustes,
     sum(case when feedback = 'nao_serviu' then 1 else 0 end) as nao_serviu from conversas where substr(atualizado_em, 1, 7) = ? and teste = 0`, mes);
   const resultado = {
-    porStatus,
+    porStatus, porEstado,
     avaliacoes: { serviu: fb.serviu || 0, ajustes: fb.ajustes || 0, nao_serviu: fb.nao_serviu || 0 },
     medicoesCompletas: um(db, 'select count(*) as n from medicoes where antes_valor is not null and depois_valor is not null').n,
     decisoesNoMes: um(db, "select count(*) as n from decisoes where substr(em, 1, 7) = ?", mes).n,
@@ -63,7 +72,7 @@ export function visaoGeral(app) {
     where c.teste = 0 and c.feedback is null and substr(c.atualizado_em, 1, 7) = ? and exists (select 1 from mensagens m where m.conversa_id = c.id and m.papel = 'assistant')
     group by q.id having n >= 3 order by n desc limit 5`, mes);
   for (const q of semAvaliacao) atencao.push({ tipo: 'sem_avaliacao', texto: `${q.nome}: ${q.n} conversas sem avaliação neste mês`, link: `#/qw/${q.id}` });
-  const semDono = todos(db, `select id, nome from quick_wins where excluido_em is null and responsavel_id is null and status in (${EM_CIRCULACAO.map(() => '?').join(',')}) limit 5`, ...EM_CIRCULACAO);
+  const semDono = publicados.filter(q => !q.responsavel_id).slice(0, 5);
   for (const q of semDono) atencao.push({ tipo: 'sem_responsavel', texto: `${q.nome} está em circulação sem responsável`, link: `#/qw/${q.id}/editar` });
   const emAvaliacao = todos(db, "select id, nome from quick_wins where excluido_em is null and status = 'em_avaliacao' and not exists (select 1 from decisoes d where d.quick_win_id = quick_wins.id and d.em > quick_wins.atualizado_em) limit 5");
   for (const q of emAvaliacao) atencao.push({ tipo: 'decisao', texto: `${q.nome} está em avaliação e aguarda decisão`, link: `#/qw/${q.id}` });

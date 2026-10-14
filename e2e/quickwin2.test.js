@@ -657,3 +657,41 @@ test('refinamento guiado no celular: aprovar campos, preservar versão e governa
     assert.deepEqual(erros, []);
   } finally { refinamentoIA = false; await cel.close(); }
 });
+
+test('auditoria: aprovação de tabela exclusiva atualiza contrato, repete material e remove extras', async () => {
+  qc = 'ok'; refinamentoIA = true;
+  await N.qaAdmin.post('/api/admin/pessoas', { email: 'tabela-auditoria@empresa-exemplo.com.br', nome: 'QA Tabela', areas: [{ id: areaCompras, responsavel: true }] });
+  const cel = await N.navegador.newContext({ viewport: { width: 390, height: 800 } });
+  await cel.route(u => !u.href.startsWith(N.base), r => r.abort());
+  const p = await cel.newPage();
+  await N.entrar('tabela-auditoria@empresa-exemplo.com.br', p);
+  try {
+    const criado = await N.qaAdmin.post('/api/quick-wins', { assistente: { descricao: 'Compare pedido e nota', formato: 'tabela', colunas: ['Item','Pedido','Nota','Divergência'], colunas_origem: 'pessoa', regras: ['nao_inventar','destacar_ausentes'] }, areas: [areaCompras] });
+    assert.equal(criado.status, 200);
+    const id = criado.dados.id;
+    await p.goto(`${N.base}/app#/qw/${id}/teste`);
+    await p.waitForSelector('[data-material="arquivo"]');
+    await p.click('[data-material="arquivo"]');
+    await p.setInputFiles('#teste-input', { name: 'comparacao.txt', mimeType: 'text/plain', buffer: Buffer.from('Pedido: toner 5; nota: toner 4. Pedido: papel 25; nota: papel 27,50.') });
+    await p.click('[data-testar]');
+    await p.waitForSelector('#teste-resultado .qc');
+    await p.click('[data-ajustar]');
+    await p.fill('#refinamento-texto', 'Quero somente a tabela com Item, Campo, Valor no Pedido e Valor na Nota. Remova as seções e explicações extras.');
+    await p.click('#salvar-refinamento');
+    await p.waitForSelector('.refinamento-proposta');
+    for (const detalhes of await p.locator('.refinamento-proposta details').all()) await detalhes.locator('summary').click();
+    for (const campo of ['objetivo','processo','regras']) await p.uncheck(`[data-aprovar-campo="${campo}"]`);
+    await p.check('[data-aprovar-campo="entregaveis"]');
+    await p.click('#aprovar-refinamento');
+    await p.waitForSelector('.refinamento-comparacao > section:last-child .qc');
+    const e = JSON.parse(N.app.db.prepare('select especificacao from quick_wins where id = ?').get(id).especificacao);
+    assert.deepEqual(e.formato_saida.colunas, ['Item','Campo','Valor no Pedido','Valor na Nota']);
+    assert.deepEqual(e.formato_saida.secoes, []);
+    assert.equal(e.formato_saida.exclusivo, true);
+    assert.ok(e.regras.includes('nao_inventar'));
+    assert.ok(e.regras.includes('destacar_ausentes'));
+    const saida = await p.textContent('.refinamento-comparacao > section:last-child .resultado-corpo');
+    assert.doesNotMatch(saida, /Informações ausentes|Pontos de atenção/);
+    assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  } finally { refinamentoIA = false; await cel.close(); }
+});

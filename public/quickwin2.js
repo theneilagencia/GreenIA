@@ -10,7 +10,7 @@ import { resumoConferencia } from '/jornadas.js';
 import { pontosDoResultado } from '/resultado-orientacao.js';
 import { aviso, cabecalhoPg, FORMATOS_SAIDA, htmlPorCanal, lerEventos, ligarPorCanal, ligarVerResultado, oQueEnviar, painelIntegracoes, painelQualidade, progressoEtapas, progressoExecucao, separarPorCanal } from '/qw-ui.js';
 import { excluirQw } from '/quickwin.js';
-import { validarAlteracoes } from '/qw-refinamento.js';
+import { validarAlteracoes, contratoTabelaRefinamento } from '/qw-refinamento.js';
 import { htmlSistemas, htmlPessoasLimites, guardarPreparacao, ligarPreparacao } from '/qw-preparacao.js';
 import { montarFontes } from '/fontes.js';
 import { confirmar } from '/admin-ui.js';
@@ -865,7 +865,7 @@ function ligarRefinamento(W) {
         ${s.adicao ? '<p class="dica">Acrescentar uma regra, preservando as atuais.</p>' : ''}
         <label class="legenda" for="refinar-${s.campo}">Alteração proposta para ${esc(s.rotulo)}</label>
         <textarea class="entrada" rows="3" id="refinar-${s.campo}" data-valor-campo="${s.campo}">${esc(s.depois)}</textarea><p class="dica">Até ${s.max} caracteres. Revise o texto antes de aprovar.</p>
-        ${s.campo === 'entregaveis' ? '<p class="dica">Os formatos e canais continuam iguais; muda somente a orientação da entrega.</p>' : ''}</div></div></details></fieldset>`).join('') + `<div class="refinamento-aprovacao"><p id="refinamento-selecao" role="status">${W.sugestoesRefinamento.length} ${W.sugestoesRefinamento.length === 1 ? 'ajuste preparado' : 'ajustes preparados'}. A equipe só recebe a nova versão depois de publicar.</p><button type="button" class="btn btn-verde" id="aprovar-refinamento">${W.materialUltimoTeste ? 'Aplicar ajustes e testar' : 'Aplicar ajustes ao rascunho'}</button></div>`;
+        ${s.campo === 'entregaveis' ? '<p class="dica">Confira a orientação proposta: pedidos explícitos de tabela também atualizam as colunas e as seções do resultado.</p>' : ''}</div></div></details></fieldset>`).join('') + `<div class="refinamento-aprovacao"><p id="refinamento-selecao" role="status">${W.sugestoesRefinamento.length} ${W.sugestoesRefinamento.length === 1 ? 'ajuste preparado' : 'ajustes preparados'}. A equipe só recebe a nova versão depois de publicar.</p><button type="button" class="btn btn-verde" id="aprovar-refinamento">${W.materialUltimoTeste ? 'Aplicar ajustes e testar' : 'Aplicar ajustes ao rascunho'}</button></div>`;
       $('rever-orientacao').onclick = () => { document.querySelectorAll('.refinamento-passos li').forEach((l,i)=> { if(i===0)l.setAttribute('aria-current','step');else l.removeAttribute('aria-current'); }); W.sugestoesRefinamento = null; $('refinamento-titulo').textContent = 'Conte o que precisa melhorar'; $('refinamento-feedback').hidden = false; $('refinamento-sugestoes').innerHTML = ''; $('refinamento-texto').focus(); };
       document.querySelectorAll('[data-aprovar-campo]').forEach(c => c.addEventListener('change', () => {
         const n=document.querySelectorAll('[data-aprovar-campo]:checked').length;
@@ -880,14 +880,30 @@ function ligarRefinamento(W) {
           document.querySelectorAll('[data-aprovar-campo]:checked').forEach(c => { selecao[c.dataset.aprovarCampo] = $(`refinar-${c.dataset.aprovarCampo}`).value; });
           const aprovadas = validarAlteracoes(W.sugestoesRefinamento, selecao, W.proprias);
           if (!guardarEtapa(W)) return;
-          anteriores = { descricao: W.descricao, processo: W.processo, modoProc: W.modoProc, proprias: [...W.proprias], formatoDescricao: W.formatoDescricao, operacao: structuredClone(W.operacao), operacaoPessoa: W.operacaoPessoa, edicaoPendente: W.edicaoPendente };
+          anteriores = { descricao: W.descricao, processo: W.processo, modoProc: W.modoProc, proprias: [...W.proprias], formatoDescricao: W.formatoDescricao, formato: W.formato, formatoPessoa: W.formatoPessoa, colunas: structuredClone(W.colunas), colunasOrigem: W.colunasOrigem, operacao: structuredClone(W.operacao), operacaoPessoa: W.operacaoPessoa, edicaoPendente: W.edicaoPendente };
           const teste = structuredClone(W.teste);
           const resultado = W.resultado;
           for (const s of aprovadas) {
             if (s.campo === 'objetivo') W.descricao = s.depois;
             if (s.campo === 'processo') { W.processo = s.depois; W.modoProc = 'explicar'; }
             if (s.campo === 'regras' && !W.proprias.some(p => p.toLowerCase() === s.depois.toLowerCase())) W.proprias.push(s.depois);
-            if (s.campo === 'entregaveis') W.formatoDescricao = s.depois;
+            if (s.campo === 'entregaveis') {
+              W.formatoDescricao = s.depois;
+              const contrato = contratoTabelaRefinamento(s.depois);
+              if (contrato) {
+                W.formato = 'tabela'; W.formatoPessoa = true;
+                if (contrato.colunas.length) { W.colunas = contrato.colunas; W.colunasOrigem = 'pessoa'; }
+                if (contrato.colunas.length && !contrato.exclusivo && W.operacao) {
+                  const tabela = W.operacao.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
+                  if (tabela) tabela.config = { ...tabela.config, colunas: contrato.colunas };
+                }
+                if (contrato.exclusivo && W.operacao) {
+                  const tabela = W.operacao.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
+                  W.operacao.entregaveis = [{ ...(tabela || { id: 'tabela', rotulo: 'Tabela' }), tipo: 'tabela', depende_de: [],
+                    config: { ...(tabela?.config || {}), ...(contrato.colunas.length ? { colunas: contrato.colunas } : {}) } }];
+                }
+              }
+            }
           }
           // O plano confirmado conserva ferramentas, limites e controles durante o refinamento.
           if (W.operacao) W.operacaoPessoa = true;

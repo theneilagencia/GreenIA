@@ -19,6 +19,14 @@ async function pagina(sessao, { width = 1280, height = 860 } = {}) {
   // A sessão vale no endereço do teste e no endereço público da plataforma (plataforma.teste, mapeado para o mesmo
   // servidor), onde abre a página de apresentação.
   for (const domain of [u().hostname, 'plataforma.teste']) await ctx.addCookies([...sessao.cookies].map(([name, value]) => ({ name, value, domain, path: '/', httpOnly: true, sameSite: 'Lax' })));
+  // O domínio fictício continua sendo a origem do navegador; o transporte usa
+  // o servidor local, sem depender do DNS ou proxy do executor de CI.
+  await ctx.route(url => url.hostname === 'plataforma.teste', async rota => {
+    const destino = new URL(rota.request().url());
+    destino.host = u().host;
+    const resposta = await rota.fetch({ url: destino.href, headers: { ...rota.request().headers(), host: 'plataforma.teste' } });
+    await rota.fulfill({ response: resposta });
+  });
   const p = await ctx.newPage(); p.erros = [];
   p.on('pageerror', e => p.erros.push(e.message));
   p.on('dialog', d => { p.erros.push(`diálogo nativo: ${d.message()}`); d.dismiss(); });
@@ -145,10 +153,11 @@ test('M28: De/Até da Atividade em dd/mm/aaaa num navegador em inglês, com o me
   const [pedido] = await Promise.all([p.waitForRequest(r => r.url().includes('/api/admin/eventos?')), p.getByRole('button', { name: 'Aplicar filtros', exact: true }).click()]);
   const q = new URL(pedido.url()).searchParams;
   assert.deepEqual([q.get('de'), q.get('ate')], ['2026-10-01', '2026-10-31']);
-  await p.waitForLoadState('networkidle');
+  await p.locator('#ev-limpar').waitFor(); // espera o formulário reconstruído após a resposta
   assert.equal(await p.locator('#ev-de').inputValue(), '01/10/2026');
   // Calendário: a escolha volta ao campo em dd/mm/aaaa.
   await p.locator('#ev-de').locator('xpath=..').locator('.data-br-nativo').evaluate(n => { n.value = '2026-09-05'; n.dispatchEvent(new Event('change', { bubbles: true })); });
+  await p.waitForFunction(() => document.getElementById('ev-de')?.value === '05/09/2026');
   assert.equal(await p.locator('#ev-de').inputValue(), '05/09/2026');
   assert.deepEqual(p.erros, []);
 });
@@ -187,6 +196,7 @@ test('B13: a mesma largura de conteúdo nas telas de gestão; formulários na la
   // de leitura dos formulários.
   const larguraEditor = async pg => pg.evaluate(() => ({ pagina: parseFloat(getComputedStyle(document.querySelector('.pagina-dentro')).maxWidth), coluna: document.querySelector('.ld-editor').getBoundingClientRect().width, dividido: document.querySelector('.ld-split').classList.contains('dividido') }));
   await abrir(p, 'empresa/landing');
+  await p.locator('.ld-editor').waitFor();
   const a = await larguraEditor(p);
   assert.ok(a.dividido && a.pagina > [...paginas][0] && a.coluna <= [...forms][0], JSON.stringify(a));
   // Console: os mesmos tokens.

@@ -102,11 +102,11 @@ export async function montarFontes(raiz, { obterId, idAtual = null }) {
   if (idAtual) { try { await recarregar(idAtual); } catch { desenhar(); } }
 }
 
-// "Fontes usadas" no resultado: o que a execução de fato usou e o que falhou (sem conteúdo).
+// Registra materiais enviados à IA, sem inferir que cada um fundamentou a resposta.
 export function htmlFontesUsadas(q) {
   const f = q?.fontes;
   if (!f || (!f.usadas?.length && !f.obrigatorias_falharam?.length)) return '';
   const rot = Object.fromEntries(PAPEIS.map(([v, r]) => [v, r]));
-  return `<div class="fontes-usadas"><b>Fontes usadas</b><ul>${(f.usadas || []).map(u => `<li>${esc(u.titulo)} <span class="dica">· ${esc(u.como === 'estilo' ? 'Referência (só estilo)' : rot[u.papel] || 'Fonte')}</span></li>`).join('')}
+  return `<div class="fontes-usadas"><b>Materiais consultados</b><p class="dica">Estes materiais foram disponibilizados à IA nesta execução. A lista não comprova que cada documento fundamentou o resultado.</p><ul>${(f.usadas || []).map(u => `<li>${esc(u.titulo)} <span class="dica">· ${esc(u.como === 'estilo' ? 'Referência (só estilo)' : rot[u.papel] || 'Fonte')}</span></li>`).join('')}
     ${(f.obrigatorias_falharam || []).map(u => `<li>${esc(u.titulo)} <span class="dica">· Fonte obrigatória não usada: ${esc(u.motivo)}</span></li>`).join('')}</ul></div>`;
 }

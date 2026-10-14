@@ -6,16 +6,8 @@ import { htmlFontesUsadas } from '/fontes.js';
 import { pontosDoResultado, orientacaoConfiguracao, orientacaoIntegracao } from '/resultado-orientacao.js';
 
 // ---- Estado do Quick Win (o que a pessoa entende) -----------------------------------------------------------
-const EM_CIRCULACAO = ['em_teste', 'em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'];
-export function estadoQw(qw) {
-  if (qw.status === 'descartado') return { id: 'arquivado', rotulo: 'Arquivado' };
-  if (qw.v2) {
-    if (qw.versao && EM_CIRCULACAO.includes(qw.status)) return { id: 'publicado', rotulo: 'Publicado' };
-    return qw.ultimo_teste ? { id: 'teste', rotulo: 'Em teste' } : { id: 'rascunho', rotulo: 'Rascunho' };
-  }
-  if (qw.status === 'em_teste') return { id: 'teste', rotulo: 'Em teste' };
-  return EM_CIRCULACAO.includes(qw.status) ? { id: 'publicado', rotulo: 'Publicado' } : { id: 'rascunho', rotulo: 'Rascunho' };
-}
+import { estadoQw } from '/qw-estado.js';
+export { estadoQw };
 export const seloQw = qw => { const e = estadoQw(qw); return `<span class="qw-status qw-status-${e.id}"><span class="qw-ponto" aria-hidden="true"></span>${e.rotulo}</span>`; };
 export const iniciais = qw => esc((qw.icone || qw.nome.split(/\s+/).map(p => p[0]).join('').slice(0, 2) || '·').toUpperCase());
 export const marcaQw = (qw, tam = '') => `<span class="qw-marca ${tam}" style="--qw-cor:${esc(qw.cor || '#1B7950')}" aria-hidden="true">${iniciais(qw)}</span>`;

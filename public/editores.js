@@ -200,12 +200,11 @@ export function estadoLanding(l) {
   return `<span class="selo ${cls} ld-estado"${dica ? ` title="${esc(dica)}"` : ''}>${txt}${dica ? `<span class="sr">. ${esc(dica)}</span>` : ''}</span>`;
 }
 
-// Ações do cabeçalho: "Ver como fica" (só em tela estreita), "Mais ações" e a principal. Publicada: "Salvar e atualizar
+// Ações do cabeçalho: "Mais ações" e a principal. Publicada: "Salvar e atualizar
 // a página", que fica "Sem alterações" (desligado) até algo mudar. Rascunho: "Publicar", e "Salvar rascunho" aparece
 // quando há o que salvar. Raras (voltar para rascunho, restaurar o modelo, busca e compartilhamento) no menu.
 export function acoesLanding(l, { pode = true, urlPublica = '' } = {}) {
-  const ver = '<button type="button" class="btn btn-linha btn-pequeno ld-ver" data-acao="ver-previa" aria-haspopup="dialog" aria-controls="ld-previa" hidden>Ver como fica</button>';
-  if (!pode) return `<span class="ld-acoes">${ver}</span>`;
+  if (!pode) return '';
   const publicada = l.status === 'publicada';
   const itens = [
     publicada && !foraDoAr(l) && urlPublica ? `<a role="menuitem" href="${esc(urlPublica)}" target="_blank" rel="noopener">Ver a página no ar</a>` : '',
@@ -213,13 +212,14 @@ export function acoesLanding(l, { pode = true, urlPublica = '' } = {}) {
     publicada ? '<button type="button" role="menuitem" data-acao="despublicar">Voltar para rascunho…</button>' : '',
     l.modelo ? '<button type="button" role="menuitem" class="perigo" id="ld-restaurar">Restaurar o modelo…</button>' : '',
   ].join('');
-  return `<span class="ld-acoes">${ver}
+  return `<span class="ld-acoes">
     <span class="ld-menu"><button type="button" class="btn btn-linha btn-pequeno" id="ld-mais" aria-haspopup="menu" aria-expanded="false" aria-controls="ld-mais-lista">Mais ações</button><span class="menu-lista" role="menu" id="ld-mais-lista" aria-labelledby="ld-mais" hidden>${itens}</span></span>
     ${publicada ? '<button type="submit" form="form-landing" class="btn btn-verde btn-pequeno" data-acao="salvar" disabled>Sem alterações</button>'
       : '<button type="submit" form="form-landing" class="btn btn-linha btn-pequeno" data-acao="salvar" disabled hidden>Salvar rascunho</button><button type="button" class="btn btn-verde btn-pequeno" data-acao="publicar">Publicar</button>'}</span>`;
 }
 
-// O formulário (seções) e a prévia lado a lado. "Ver prévia" em nova aba continua no cabeçalho da prévia: com edição
+// O formulário (seções) e a prévia lado a lado. No pé da tela ficam "Ver como fica" (tela estreita) e, quando o
+// salvar do cabeçalho saiu de vista com alterações pendentes, uma cópia dele (nunca os dois à vista ao mesmo tempo). "Ver prévia" em nova aba continua no cabeçalho da prévia: com edição
 // liberada, abre o que está nos campos (sem salvar); travada, o que está salvo.
 export function renderLanding(l, { pode = true, urlPublica = '', motivo = '', rotaPrevia = '/api/empresa/landing/previa' } = {}) {
   const c = l.content, d = pode ? '' : 'disabled', t = c.textos || {};
@@ -279,6 +279,7 @@ export function renderLanding(l, { pode = true, urlPublica = '', motivo = '', ro
       <div class="modal-acoes"><button type="button" class="btn btn-linha" data-acao="seo-pronto">Pronto</button></div></div></div>
     <p class="msg-erro oculto" id="ld-erro" role="alert"></p>
     <span class="sr" id="ld-sujo" role="status"></span>
+    <div class="ld-ver-barra" id="ld-barra-pe"><button type="button" class="btn btn-linha ld-ver" data-acao="ver-previa" aria-haspopup="dialog" aria-controls="ld-previa">Ver como fica</button>${pode ? `<button type="button" class="btn btn-verde ld-salvar-pe" id="ld-salvar-pe" hidden>${l.status === 'publicada' ? 'Salvar e atualizar a página' : 'Salvar rascunho'}</button>` : ''}</div>
   </form>
   <aside class="ld-previa" id="ld-previa" aria-labelledby="ld-previa-titulo">
     <div class="ld-previa-topo">
@@ -416,6 +417,7 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
     sujo = v;
     if (bSalvar) { bSalvar.disabled = !v; bSalvar.textContent = v ? ROTULO_SALVAR : 'Sem alterações'; if (l.status !== 'publicada') bSalvar.hidden = !v; }
     $('ld-sujo').textContent = v ? 'Alterações não salvas' : '';
+    atualizarPe();
   };
   const aoMudar = ev => {
     if (ev?.target?.closest?.('[data-sem-alteracao]')) return;
@@ -428,6 +430,18 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
 
   // ---- prévia ao vivo (iframe sem scripts, com a mesma estrutura e o mesmo desenho da página pública)
   const split = $('ld-split'), painel = $('ld-previa'), quadro = $('ld-previa-quadro'), estado = $('ld-previa-estado'), bVer = document.querySelector('[data-acao="ver-previa"]');
+  // Pé da tela: "Ver como fica" em tela estreita; o salvar, quando o do cabeçalho saiu de vista e há o que salvar.
+  const pe = $('ld-barra-pe'), bPe = $('ld-salvar-pe');
+  let cabecalhoVisivel = true;
+  function atualizarPe() {
+    bVer.hidden = split.classList.contains('dividido');
+    if (bPe) { bPe.hidden = !(sujo && !cabecalhoVisivel && bSalvar); if (bSalvar) bPe.textContent = bSalvar.textContent; }
+    pe.hidden = bVer.hidden && (!bPe || bPe.hidden);
+  }
+  if (bSalvar && bPe) {
+    new IntersectionObserver(es => { cabecalhoVisivel = es.at(-1).isIntersecting || bSalvar.hidden; atualizarPe(); }).observe(bSalvar.closest('.ld-acoes') || bSalvar);
+    bPe.addEventListener('click', () => bSalvar.click());
+  }
   let ultimo = { content: l.content, seo: l.seo }, pronto = false, seq = 0, timer = 0, secaoAtual = 'topo';
   const visivelPrevia = () => split.classList.contains('dividido') || painel.classList.contains('tela-cheia');
   const cssMarca = () => {
@@ -514,9 +528,9 @@ export function ligarLanding(l, { pedir = api, marca = {}, salvar = null } = {})
   };
   // Tela larga: editor e prévia lado a lado. Estreita: a prévia abre por "Ver como fica", na tela inteira.
   const medir = () => {
-    const dividido = split.clientWidth >= 980;
+    const dividido = split.clientWidth >= 900;
     split.classList.toggle('dividido', dividido);
-    if (bVer) bVer.hidden = dividido;
+    atualizarPe();
     if (dividido && painel.classList.contains('tela-cheia')) fecharTelaCheia(false);
     if (dividido) { iniciarPrevia(); if (atualizarAoAbrir) { atualizarAoAbrir = false; agendarPrevia(); } }
   };
@@ -653,8 +667,9 @@ export function mostrarErroLanding(e) {
   if (!el) return;
   el.textContent = e.message; el.classList.remove('oculto');
   const form = document.getElementById('form-landing');
-  const campo = e.codigo === 'link' ? [...form.querySelectorAll('[data-botao-link], [data-link-url]')].find(x => x.value.trim() && !LINK_OK.test(x.value.trim()))
-    : document.getElementById(CAMPO_DO_ERRO[e.codigo] || `lt-${e.codigo}`);
+  const cod = e.codigo || e.erro || e.campo;
+  const campo = cod === 'link' ? [...form.querySelectorAll('[data-botao-link], [data-link-url]')].find(x => x.value.trim() && !LINK_OK.test(x.value.trim()))
+    : cod && document.getElementById(CAMPO_DO_ERRO[cod] || `lt-${cod}`);
   if (!campo || campo.id === 'ld-seo-title') { el.scrollIntoView({ block: 'center' }); return; }
   campo.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
   campo.classList.add('invalida'); campo.setAttribute('aria-invalid', 'true');

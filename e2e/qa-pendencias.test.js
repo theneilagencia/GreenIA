@@ -32,13 +32,12 @@ test('QA-G02: editores da empresa e do console têm rótulos únicos persistente
    const ctx=await nav.newContext({viewport:{width:390,height:900},reducedMotion:'reduce'});await ctx.addCookies([...cliente.cookies].map(([name,value])=>({name,value,url:S.base})));
    const p=await ctx.newPage();p.on('dialog',d=>d.accept());await p.goto(S.base+'/'+base+'marca');
    await p.getByLabel('Escolher cor principal',{exact:true}).waitFor();await p.getByLabel('Escolher cor secundária',{exact:true}).waitFor();
-   await p.goto(S.base+'/'+base+'landing');await p.getByLabel('Estilo do botão 1',{exact:true}).waitFor();
+   await p.goto(S.base+'/'+base+'landing');await p.locator('#ld-cab-topo').click();await p.locator('#ld-botoes-abrir').click();await p.getByLabel('Estilo do botão 1',{exact:true}).waitFor();
    for(const width of [320,360,390]){if(base.startsWith('app'))await tituloLegivel(p,width);}
    await p.getByLabel('Texto do botão 2',{exact:true}).fill('Acessar ambiente');await p.getByLabel('Estilo do botão 2',{exact:true}).selectOption('secundario');
-   for(const summary of await p.locator('#form-landing summary').all())if(await summary.isVisible())await summary.click();
    const semNome=await p.locator('#form-landing input,#form-landing select,#form-landing textarea').evaluateAll(es=>es.filter(e=>!e.labels.length&&!e.getAttribute('aria-label')&&!e.getAttribute('aria-labelledby')).map(e=>e.outerHTML));assert.deepEqual(semNome,[]);
-   const gravado=p.waitForResponse(r=>r.request().method()==='PUT'&&r.url().includes('/landing'));await p.getByRole('button',{name:/Salvar rascunho|Salvar e atualizar a página/}).click();if(base.startsWith('app'))await p.getByRole('dialog').getByRole('button',{name:'Salvar e atualizar',exact:true}).click();assert.equal((await gravado).status(),200);
-   await p.reload();await p.getByLabel('Texto do botão 2',{exact:true}).waitFor();assert.equal(await p.getByLabel('Texto do botão 2',{exact:true}).inputValue(),'Acessar ambiente');assert.equal(await p.getByLabel('Estilo do botão 2',{exact:true}).inputValue(),'secundario');
+   const gravado=p.waitForResponse(r=>r.request().method()==='PUT'&&r.url().includes('/landing'));await p.getByRole('button',{name:/^(Salvar rascunho|Salvar e atualizar a página)$/}).first().click();if(base.startsWith('app'))await p.getByRole('dialog').getByRole('button',{name:'Salvar e atualizar',exact:true}).click();assert.equal((await gravado).status(),200);
+   await p.reload();await p.getByLabel('Texto do botão 2',{exact:true}).waitFor({state:'attached'});assert.equal(await p.getByLabel('Texto do botão 2',{exact:true}).inputValue(),'Acessar ambiente');assert.equal(await p.getByLabel('Estilo do botão 2',{exact:true}).inputValue(),'secundario');
    if(base.startsWith('app')){
     await p.goto(S.base+'/app#/integracoes/nova');await p.getByLabel('Nome da integração',{exact:true}).fill('Conexão fictícia');await p.getByLabel('Sistema',{exact:true}).fill('Sistema de teste');await p.getByRole('button',{name:'Continuar',exact:true}).click();await p.getByText('Prefiro descrever uma ação',{exact:true}).click();
     const metodo=p.getByRole('combobox',{name:/^Ação/});await metodo.selectOption('GET');assert.equal(await metodo.inputValue(),'GET');assert.equal(await metodo.evaluate(e=>e.labels.length),1);

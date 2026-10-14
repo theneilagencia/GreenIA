@@ -67,11 +67,14 @@ const telas = () => [
   ['empresas', 'empresas', 1, TELA],
   ['empresa/resumo', `empresas/${emp.id}/resumo`, 1, TELA],
   ['empresa/usuários', `empresas/${emp.id}/usuarios`, 1, TELA],
-  ['empresa/marca', `empresas/${emp.id}/marca`, 1, FORM],
-  // Editor compartilhado com o admin da empresa: sete abas, as duas prévias e o primeiro bloco aberto somam 16.
-  ['empresa/página de apresentação', `empresas/${emp.id}/landing`, 1, FORM + 1],
-  ['empresa/url', `empresas/${emp.id}/url`, 1, FORM],
-  ['empresa/permissões', `empresas/${emp.id}/permissoes`, 1, FORM],
+  // Marca e endereço: cinco abas e três subabas (oito links de navegação, um a mais que as sete abas de antes).
+  ['empresa/marca', `empresas/${emp.id}/marca-e-endereco/marca`, 1, FORM + 1],
+  // Editor compartilhado com o admin da empresa: trilha, 5 abas, 3 subabas, "Mais ações", salvar e "Abrir em nova aba"
+  // somam 12 antes do editor; as sete seções, fechadas, uma linha cada, completam 19. Os campos só aparecem ao abrir.
+  ['empresa/página de apresentação', `empresas/${emp.id}/marca-e-endereco/landing`, 1, 19],
+  ['empresa/url', `empresas/${emp.id}/marca-e-endereco/url`, 1, FORM],
+  // Permissões gravam na hora (interruptores): nenhuma ação principal, como as configurações do ChatGPT.
+  ['empresa/permissões', `empresas/${emp.id}/permissoes`, 0, TELA],
   ['empresa/auditoria', `empresas/${emp.id}/auditoria`, 0, TELA],
   ['encerramentos', 'encerramentos', 0, TELA],
   ['usuários', 'usuarios', 1, TELA],

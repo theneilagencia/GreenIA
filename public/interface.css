@@ -1372,6 +1372,11 @@ body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
 .ld-menu .menu-lista{min-width:250px;z-index:40}
 .ld-menu .menu-lista :is(a,button){display:flex;align-items:center;min-height:40px;white-space:nowrap;cursor:pointer}
 .ld-estado{margin-left:6px;vertical-align:1px}
+/* "Ver como fica": só em tela estreita, preso ao pé da tela enquanto o editor está à vista */
+.ld-ver-barra{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:center;gap:8px;margin-top:8px;pointer-events:none}
+.ld-ver-barra .btn{pointer-events:auto;min-height:44px;padding:0 22px;border-radius:999px;background:var(--paper);box-shadow:var(--sombra-2)}
+.ld-ver-barra[hidden],.ld-ver-barra .btn[hidden]{display:none}
+.ld-ver-barra .btn-verde{background:var(--forest-strong)}
 /* Prévia */
 .ld-previa{display:none;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
 .ld-split.dividido .ld-previa{display:flex;position:sticky;top:12px;height:calc(100dvh - 140px);min-height:440px}
@@ -1411,8 +1416,8 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
   body.plataforma .subnav-2 a{min-height:44px;display:inline-flex;align-items:center}
 }
 @media (max-width:640px){
-  .adm-topo-acao .ld-acoes{width:100%}
-  .adm-topo-acao .ld-acoes>.btn,.adm-topo-acao .ld-menu{flex:1 1 auto}
+  .adm-topo-acao .ld-acoes{width:100%;flex-wrap:nowrap}
+  .adm-topo-acao .ld-acoes>.btn,.adm-topo-acao .ld-menu{flex:1 1 0;min-width:0}
   .adm-topo-acao .ld-acoes .btn{justify-content:center;width:100%}
   .ld-bloco-botao{padding-left:14px}
   .ld-corpo{padding:14px}

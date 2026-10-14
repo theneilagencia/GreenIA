@@ -77,15 +77,19 @@ test('M22: quem gerencia o Quick Win compara por nível; o nome técnico do mode
   assert.deepEqual(pa.erros, []);
 });
 
-test('M36: "Ver prévia" mostra o que está em edição, sem salvar (painel da empresa e console)', async () => {
+test('M36: a prévia mostra o que está em edição, sem salvar: ao lado do editor e em nova aba (painel da empresa e console)', async () => {
   for (const [sessao, rota, ehConsole] of [[admin, 'empresa/landing', false], [ops, null, true]]) {
     const p = await pagina(sessao);
     if (ehConsole) { await p.goto(`${S.base}/plataforma#/empresas/${emp.id}/landing`); await p.locator('#form-landing').waitFor(); }
     else await abrir(p, rota);
     const salvo = (await admin.get('/api/empresa/landing')).dados.landing;
     const titulo = `Título só em edição ${ehConsole ? 'console' : 'empresa'}`;
+    await p.locator('#ld-cab-topo').click();
     await p.fill('#ld-titulo', titulo);
-    const botao = p.getByRole('button', { name: 'Ver prévia', exact: true });
+    // Prévia ao lado: atualiza enquanto a pessoa digita, sem gravar.
+    await p.waitForFunction(t => document.getElementById('ld-previa-quadro')?.contentDocument?.getElementById('ld-titulo')?.textContent === t, titulo);
+    assert.equal(await p.locator('#ld-previa-titulo').innerText(), 'Prévia — não salva');
+    const botao = p.getByRole('button', { name: 'Abrir a prévia em nova aba', exact: true });
     assert.equal(await botao.count(), 1);
     assert.equal(await p.getByText('Ver prévia do que está salvo').count(), 0);
     const [aba] = await Promise.all([p.context().waitForEvent('page'), botao.click()]);
@@ -97,14 +101,16 @@ test('M36: "Ver prévia" mostra o que está em edição, sem salvar (painel da e
     assert.equal(depois.content.titulo, salvo.content.titulo);
     assert.notEqual(depois.content.titulo, titulo);
     await aba.close();
-    // Erro de validação aparece no editor, como ao salvar, e a aba nova fecha.
-    await p.locator('details.ld-bloco').first().evaluate(d => { d.open = true; });
+    // Erro de validação aparece no editor, como ao salvar, e a aba nova fecha. A prévia ao lado avisa e fica como estava.
+    await p.locator('#ld-botoes-abrir').click();
     await p.fill('[data-botao-texto="0"]', 'Clique');
     await p.fill('[data-botao-link="0"]', 'javascript:alert(1)');
+    await p.locator('#ld-previa-estado', { hasText: 'Prévia não atualizada' }).waitFor();
     const [aba2] = await Promise.all([p.context().waitForEvent('page'), botao.click()]);
     await p.locator('#ld-erro:not(.oculto)').waitFor();
     for (let i = 0; i < 150 && !aba2.isClosed(); i++) await p.waitForTimeout(100);   // sob carga a validação no servidor pode demorar
     assert.ok(aba2.isClosed(), 'a aba da prévia fecha quando o conteúdo não passa na validação');
+    assert.equal(await p.locator('[data-botao-link="0"]').getAttribute('aria-invalid'), 'true', 'o campo do link fica marcado');
     assert.deepEqual(p.erros, []);
   }
 });
@@ -166,10 +172,10 @@ test('M28: datas de antes e depois do Quick Win em dd/mm/aaaa, gravadas em ISO',
 test('B13: a mesma largura de conteúdo nas telas de gestão; formulários na largura de leitura', async () => {
   const p = await pagina(admin);
   const medidas = {};
-  for (const rota of ['visao-geral', 'uso', 'atividade', 'empresa/marca', 'empresa/landing', 'empresa/url', 'configuracoes']) {
+  for (const rota of ['visao-geral', 'uso', 'atividade', 'empresa/marca', 'empresa/url', 'configuracoes']) {
     await abrir(p, rota);
     medidas[rota] = await p.evaluate(() => {
-      const d = document.querySelector('.pagina-dentro'), f = document.querySelector('#conteudo :is(.cfg,.ld-editor,.url-passos,#form-marca)');
+      const d = document.querySelector('.pagina-dentro'), f = document.querySelector('#conteudo :is(.cfg,.url-passos,#form-marca)');
       return { pagina: parseFloat(getComputedStyle(d).maxWidth), form: f ? parseFloat(getComputedStyle(f).maxWidth) : null };
     });
   }
@@ -177,12 +183,22 @@ test('B13: a mesma largura de conteúdo nas telas de gestão; formulários na la
   assert.equal(paginas.size, 1, JSON.stringify(medidas));
   assert.equal(forms.size, 1, JSON.stringify(medidas));
   assert.ok([...forms][0] < [...paginas][0]);
-  // Console: o mesmo token.
+  // Página de apresentação: editor e prévia lado a lado usam uma largura maior; a coluna do editor não passa da largura
+  // de leitura dos formulários.
+  const larguraEditor = async pg => pg.evaluate(() => ({ pagina: parseFloat(getComputedStyle(document.querySelector('.pagina-dentro')).maxWidth), coluna: document.querySelector('.ld-editor').getBoundingClientRect().width, dividido: document.querySelector('.ld-split').classList.contains('dividido') }));
+  await abrir(p, 'empresa/landing');
+  const a = await larguraEditor(p);
+  assert.ok(a.dividido && a.pagina > [...paginas][0] && a.coluna <= [...forms][0], JSON.stringify(a));
+  // Console: os mesmos tokens.
   const pc = await pagina(ops);
+  await pc.goto(`${S.base}/plataforma#/empresas/${emp.id}/marca`);
+  await pc.locator('#form-marca').waitFor();
+  const c = await pc.evaluate(() => ({ pagina: parseFloat(getComputedStyle(document.querySelector('.pagina-dentro')).maxWidth), form: parseFloat(getComputedStyle(document.querySelector('#form-marca')).maxWidth) }));
+  assert.deepEqual([c.pagina, c.form], [[...paginas][0], [...forms][0]]);
   await pc.goto(`${S.base}/plataforma#/empresas/${emp.id}/landing`);
   await pc.locator('#form-landing').waitFor();
-  const c = await pc.evaluate(() => ({ pagina: parseFloat(getComputedStyle(document.querySelector('.pagina-dentro')).maxWidth), form: parseFloat(getComputedStyle(document.querySelector('.ld-editor')).maxWidth) }));
-  assert.deepEqual([c.pagina, c.form], [[...paginas][0], [...forms][0]]);
+  const cl = await larguraEditor(pc);
+  assert.ok(cl.dividido && cl.pagina === a.pagina && cl.coluna <= [...forms][0], JSON.stringify(cl));
 });
 
 test('A13/M28: registros do processo falam em "resultados do processo" e o prazo vai em dd/mm/aaaa', async () => {

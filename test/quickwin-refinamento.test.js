@@ -221,3 +221,31 @@ test('processo aprovado orienta execução e conferência sem trocar contrato, r
   const falha = await conferirComCorrecao({ espec: e, resposta: `${table}\n${nota}\n${resto}`, entrada: 'Beta: R$ 80; prazo não informado.', mensagens: [{ role: 'system', content: promptExecucao(e) }], chamar: async m => m[0].content.includes('conferente de qualidade') || m[0].content.includes('revisor da conferência') ? chamar(m) : { texto: `${table}\n${nota}\n${resto}` } });
   assert.equal(falha.registro.status, 'inconsistente', 'ignorar o processo nunca sai aprovado');
 });
+
+test('feedback de tabela exclusiva gera proposta de contrato mesmo quando IA só muda processo', async () => {
+  const original = resposta;
+  resposta = JSON.stringify({ sugestoes: [{ campo: 'processo', depois: 'Compare os campos e entregue somente a tabela.', motivo: 'Retira explicações repetidas.' }] });
+  try {
+    const antes = um(S.app.db, 'select especificacao from quick_wins where id = ?', q.id);
+    const r = await propor({ feedback: 'Quero somente a tabela com Item, Campo, Valor no Pedido e Valor na Nota. Remova o texto repetindo a tabela.' });
+    assert.equal(r.dados.fonte, 'ia');
+    const formato = r.dados.sugestoes.find(s => s.campo === 'entregaveis');
+    assert.equal(formato.depois, 'Somente uma tabela, com as colunas: Item | Campo | Valor no Pedido | Valor na Nota.');
+    assert.deepEqual(um(S.app.db, 'select especificacao from quick_wins where id = ?', q.id), antes, 'proposta aguarda aprovação');
+  } finally { resposta = original; }
+});
+
+test('visão geral conta teste válido como catálogo e edição invalida o estado em teste', async () => {
+  const novo = (await admin.post('/api/quick-wins', { assistente: { descricao: 'Resumo de auditoria de estados', formato: 'resumo' }, toda_empresa: true })).dados;
+  const antes = (await admin.get('/api/admin/visao-geral')).dados.resultado.porEstado;
+  const c = (await admin.post('/api/conversas', { quick_win_id: novo.id, teste: true })).dados.conversa;
+  await enviarMensagem(admin, c.id, { texto: 'Material fictício para conferir o estado.', executar_quick_win: true });
+  const depois = (await admin.get('/api/admin/visao-geral')).dados;
+  assert.equal(depois.resultado.porEstado.teste, antes.teste + 1);
+  assert.equal(depois.resultado.porEstado.rascunho, antes.rascunho - 1);
+  assert.equal(depois.adocao.quickWinsEmCirculacao, depois.resultado.porEstado.publicado);
+  await admin.put(`/api/quick-wins/${novo.id}`, { assistente: { descricao: 'Resumo de auditoria de estados com riscos', formato: 'resumo' } });
+  const editado = (await admin.get('/api/admin/visao-geral')).dados.resultado.porEstado;
+  assert.equal(editado.teste, antes.teste);
+  assert.equal(editado.rascunho, antes.rascunho);
+});

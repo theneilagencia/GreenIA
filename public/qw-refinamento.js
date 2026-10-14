@@ -1,5 +1,22 @@
 // Sugestões locais: o material do teste não sai do fluxo autorizado de execução.
 // Nenhuma sugestão concede ferramentas, permissões ou publica uma versão.
+// Contrato explícito em linguagem comum. Não infere nomes de colunas: exige uma
+// lista nomeada pela pessoa e conserva sua redação. Compartilhado com o servidor.
+export function contratoTabelaRefinamento(texto = '') {
+  const t = String(texto).trim();
+  const exclusivo = /\b(?:somente|apenas|exclusivamente|só|so)\s+(?:(?:a|uma|o|um)\s+)?tabela\b/i.test(t)
+    || /\btabela\s+(?:somente|apenas|exclusiva)\b/i.test(t);
+  const m = /\bcolunas?\s*(?:exatamente\s+)?[:：]\s*([^.;\n]+)/i.exec(t)
+    || /\btabela\s+com\s+(?:(?:exatamente|somente|apenas)\s+)?(?:(?:as|estas)\s+)?(?:colunas?\s*[:：]?\s*)?([^.;\n]+)/i.exec(t);
+  if (!m) return exclusivo ? { exclusivo, colunas: [] } : null;
+  const lista = m[1].split(/,\s*(?:com|sem|para|contendo)\b/i)[0];
+  const colunas = lista.split(/\s*\|\s*|\s*,\s*|\s+e\s+/).map(c => c.replace(/^["“]|["”]$/g, '').trim());
+  if (colunas.length < 2 || colunas.length > 8 || colunas.some(c => !c || c.length > 40 || /\b(?:remova|retire|não|nao|somente)\b/i.test(c))) return exclusivo ? { exclusivo, colunas: [] } : null;
+  return { exclusivo, colunas };
+}
+export function orientacaoContratoTabela(contrato) {
+  return contrato.colunas.length ? `${contrato.exclusivo ? 'Somente uma tabela' : 'Tabela'}, com as colunas: ${contrato.colunas.join(' | ')}.` : 'Somente uma tabela.';
+}
 export function sugerirRefinamento({ descricao = '', processo = '', proprias = [], formatoDescricao = '', resultado, feedback }) {
   const texto = String(feedback || '').trim().replace(/\s+/g, ' ');
   if (texto.length < 3 || texto.length > 1000) throw new Error('Descreva o que precisa mudar em 3 a 1000 caracteres.');

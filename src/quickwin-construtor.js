@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { contemCredencial } from './filtro.js';
 import { delimitar } from './texto.js';
 import { chaveInterpretacao, conferirOperacao, criteriosOperacao, entregaMultipla, executaveis, FERRAMENTAS, formatoUnico, garantirVisual, inferirOperacao, limparOperacao, MARCADOR_PERGUNTA as MARCADOR, MOTIVOS_PESQUISA, promptOperacao } from './quickwin-operacao.js';
+import { contratoTabelaRefinamento } from '../public/qw-refinamento.js';
 
 export const VERSAO_ESPEC = 1;
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -433,8 +434,18 @@ export function construir(r = {}) {
   const explicacao = modo === 'explicar' ? String(r.como?.texto || '').slice(0, 3000) : '';
   // Operação (entregáveis, canais, ferramentas, contexto): a confirmada pela pessoa ou a inferida do pedido.
   // Plano: o interpretado pela IA (origem "ia") ou ajustado pela pessoa vale; sem ele, o plano heurístico.
-  const operacao = r.operacao !== undefined ? limparOperacao(r.operacao && { ...r.operacao, origem: r.operacao.origem === 'ia' ? 'ia' : 'pessoa' })
+  let operacao = r.operacao !== undefined ? limparOperacao(r.operacao && { ...r.operacao, origem: r.operacao.origem === 'ia' ? 'ia' : 'pessoa' })
     : planoHeuristico(`${descricao}\n${explicacao}`, arq);
+  const contratoTabela = contratoTabelaRefinamento(limpar(r.formato_descricao, 200));
+  if (contratoTabela?.exclusivo && operacao) {
+    const tabela = operacao.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
+    operacao = limparOperacao({ ...operacao, entregaveis: [{ ...(tabela || { id: 'tabela', rotulo: 'Tabela' }), tipo: 'tabela', depende_de: [],
+      config: { ...(tabela?.config || {}), ...(contratoTabela.colunas.length ? { colunas: contratoTabela.colunas } : {}) } }] });
+  }
+  if (contratoTabela?.colunas.length && !contratoTabela.exclusivo && operacao) {
+    const tabela = operacao.entregaveis.find(e => ['tabela', 'matriz'].includes(e.tipo));
+    if (tabela) operacao = limparOperacao({ ...operacao, entregaveis: operacao.entregaveis.map(e => e.id === tabela.id ? { ...e, config: { ...e.config, colunas: contratoTabela.colunas } } : e) });
+  }
   // _estruturaAnterior: a estrutura já guardada (vem só do servidor, ao ajustar sem mostrar um exemplo novo).
   const exemplo = modo === 'mostrar' ? analisarExemplo(r.como?.exemplo) || r._estruturaAnterior || null : null;
   // Regras: só as do catálogo; "não inventar" sempre ligada; no máximo as sugeridas mais as da escolha.
@@ -450,19 +461,21 @@ export function construir(r = {}) {
   // formato escolhido vira o estilo de dentro de cada entregável (sem seções genéricas por cima das do plano).
   const multipla = entregaMultipla(operacao);
   const estiloEscolhido = multipla && FORMATOS_SAIDA[r.formato] && r.formato !== 'outro' ? r.formato : null;
-  const tipo = multipla ? 'outro' : FORMATOS_SAIDA[r.formato] ? r.formato : formatoUnico(operacao) || sug.formato;
+  const tipo = contratoTabela && (contratoTabela.exclusivo || !multipla) ? 'tabela' : multipla ? 'outro' : FORMATOS_SAIDA[r.formato] ? r.formato : formatoUnico(operacao) || sug.formato;
   const passos = explicacao ? explicacao.split(/\n+|(?<=[.;])\s+(?=[A-ZÀ-Ú0-9])/).map(p => limpar(p.replace(/^([-*•]|\d+[.)])\s*/, ''), 240)).filter(p => p.length > 3).slice(0, 8) : [];
-  const cc = tipo === 'tabela' ? colunasDoContrato({ manuais, exemplo, estrutura, arquetipo: arq, livre: r.colunas_origem === 'livre' }) : { colunas: [], origem: null };
+  const cc = contratoTabela?.colunas.length ? { colunas: contratoTabela.colunas, origem: 'pessoa' }
+    : tipo === 'tabela' ? colunasDoContrato({ manuais, exemplo, estrutura, arquetipo: arq, livre: r.colunas_origem === 'livre' }) : { colunas: [], origem: null };
   const colunas = cc.colunas;
   let secoes = exemplo?.tipo === tipo && exemplo.secoes.length && tipo !== 'tabela' ? exemplo.secoes : tipo === 'tabela' ? (a.secoes || []).filter(s => s !== 'Resumo') : (a.formato === tipo || tipo === 'outro' ? a.secoes : secoesPadrao(tipo, arq));
   secoes = secoes.filter(s => s !== 'Evidências' || regras.includes('mostrar_evidencias'));
   if (regras.includes('destacar_ausentes') && !secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) secoes = [...secoes, SECAO_AUSENTES];
   // Entrega por canal: as peças são as seções (títulos dos entregáveis); das seções fixas, só a de ausências fica.
   if (entregaMultipla(operacao) && tipo === 'outro') secoes = secoes.filter(s => norm(s) === norm(SECAO_AUSENTES));
+  if (contratoTabela?.exclusivo) secoes = [];
   const autonomia = AUTONOMIA[r.autonomia] ? r.autonomia : a.autonomia;
   // Configuração confirmada pela pessoa (formato ou regras escolhidos, regras próprias, colunas dela ou do exemplo):
   // na execução e na conferência, ela vale mais do que detalhes de estrutura citados no texto do objetivo.
-  const confirmada = !!(FORMATOS_SAIDA[r.formato] || Array.isArray(r.regras) || manuais || exemplo || proprias.length || r.operacao !== undefined);
+  const confirmada = !!(contratoTabela || FORMATOS_SAIDA[r.formato] || Array.isArray(r.regras) || manuais || exemplo || proprias.length || r.operacao !== undefined);
   const entregaPorCanal = entregaMultipla(operacao) && tipo === 'outro';
   const nome = limpar(r.nome, 80) || (descricao ? nomeAutomatico(descricao, arq) : a.rotulo);
   return {
@@ -478,7 +491,7 @@ export function construir(r = {}) {
       : 'Não use informação de fora do material, da conversa e dos documentos autorizados.'],
     criterios_decisao: regras.includes('identificar_riscos') || arq === 'comparar_documentos' ? ['Relevante é o que muda valor, prazo, obrigação ou risco.'] : [],
     formato_saida: { tipo, descricao: tipo === 'outro' ? [limpar(r.formato_descricao, 200) || (entregaPorCanal ? (operacao.canais.length ? 'Entregáveis separados por canal' : 'Entregáveis separados, cada um com o seu título') : '') || sug.descricao || a.formatoDescricao || '',
-      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : limpar(r.formato_descricao, 200), colunas, secoes, ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
+      estiloEscolhido ? ESTILO_DENTRO[estiloEscolhido] : ''].filter(Boolean).join('; ') : limpar(r.formato_descricao, 200), colunas, secoes, ...(contratoTabela?.exclusivo ? { exclusivo: true } : {}), ...(cc.origem ? { origem_colunas: cc.origem } : {}) },
     exemplos: exemplo ? { estrutura: exemplo } : null,
     perguntas_esclarecimento: { max: 2, quando: 'Só quando faltar algo sem o qual o trabalho não pode ser feito, como o próprio material.' },
     nivel_autonomia: autonomia,
@@ -524,7 +537,7 @@ export function normalizar(espec) {
   const operacao = limparOperacao(espec.operacao);
   const { operacao: _o, ...resto } = espec;
   const processo = espec.origem?.como?.modo === 'explicar' ? String(espec.origem.como.texto || '').trim() : '';
-  const criteriosProcesso = processo ? [{ id: 'processo_confirmado', grupo: 'completo', texto: `Processo confirmado: ${processo}. O resultado respeita o conteúdo, a sequência narrativa e os limites indicados, dentro de cada peça. Confira somente instruções verificáveis no resultado; não exija relato das etapas internas. Isso não muda colunas, títulos, formatos, permissões ou regras do contrato confirmado.` }] : [];
+  const criteriosProcesso = processo ? [{ id: 'processo_confirmado', grupo: 'regras', texto: `Processo confirmado: ${processo}. O resultado respeita o conteúdo, a sequência narrativa e os limites indicados, dentro de cada peça. Confira somente instruções verificáveis no resultado; não exija relato das etapas internas. Isso não muda colunas, títulos, formatos, permissões ou regras do contrato confirmado.` }] : [];
   return { ...resto, criterios_qualidade: [...(espec.criterios_qualidade || []).filter(c => c.id !== 'processo_confirmado'), ...criteriosProcesso], regras: (espec.regras || []).filter(id => REGRAS[id]), regras_proprias: regrasProprias(espec.regras_proprias),
     ferramentas_permitidas: executaveis(Array.isArray(espec.ferramentas_permitidas) ? espec.ferramentas_permitidas : []).filter(f => operacao?.ferramentas.includes(f)),
     ...(operacao ? { operacao } : {}), nivel_autonomia: AUTONOMIA[espec.nivel_autonomia] ? espec.nivel_autonomia : 'sugerir' };
@@ -584,7 +597,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
   if (e.configuracao_confirmada) partes.push(PRECEDENCIA_EXECUCAO);
   if (e.contexto) partes.push(e.contexto);
   partes.push(`Como fazer:\n${e.procedimento.map((p, i) => `${i + 1}. ${p}`).join('\n')}`);
-  partes.push(`Regras:\n${[...e.regras.map(id => REGRAS[id].instrucao), ...e.regras_proprias.map(p => p.texto)].map(t => `- ${t}`).join('\n')}`
+  partes.push(`Regras:\n${[...e.regras.map(id => id === 'destacar_ausentes' && f.exclusivo ? 'Quando faltar um dado necessário para uma célula da tabela, escreva "não informado" nessa célula. Não invente valores nem exija dados fora do contrato. Não crie uma seção adicional de ausências.' : REGRAS[id].instrucao), ...e.regras_proprias.map(p => p.texto)].map(t => `- ${t}`).join('\n')}`
     + (e.regras_proprias.length ? '\nAs regras acima valem junto com as restrições abaixo e nunca as substituem.' : ''));
   if (e.criterios_decisao.length) partes.push(`Critério de decisão: ${e.criterios_decisao.join(' ')}`);
   partes.push(`Autonomia: ${AUTONOMIA[e.nivel_autonomia].instrucao} ${e.restricoes.join(' ')} ${semFerramentas(e, pesquisa)}`);
@@ -602,6 +615,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
   if (f.tipo !== 'outro' && f.descricao) contrato.push(`Orientação para os entregáveis: ${f.descricao}`);
   if (f.secoes.length) contrato.push(`${f.tipo === 'tabela' ? 'Depois da tabela, inclua' : 'Use'} estas seções, nesta ordem, cada uma com título "## Nome": ${f.secoes.join('; ')}.`);
   if (f.secoes.some(s => norm(s) === norm(SECAO_AUSENTES))) contrato.push(`Na seção "${SECAO_AUSENTES}", liste o que faltou; se nada faltou, escreva "Nenhuma".`);
+  if (f.exclusivo) contrato.push('Entregue SOMENTE uma tabela Markdown. Não inclua títulos, introdução, resumo, explicações, seções de ausências ou escolhas, nem texto fora das linhas da tabela. Indique ausências necessárias nas próprias células. Esta restrição de formato vale também nas correções, sem remover nenhuma proteção de dados ou regra de não inventar.');
   if (e.exemplos?.estrutura) { const x = e.exemplos.estrutura; contrato.push([DETALHE[x.detalhe], TOM[x.tom]].filter(Boolean).join(' ')); }
   partes.push(`Formato da entrega:\n${contrato.filter(Boolean).join('\n')}`);
   if (e.origem?.como?.modo === 'explicar' && e.origem.como.texto) partes.push(`Orientação confirmada do processo: ${e.origem.como.texto}\nAplique também a ordem narrativa solicitada, dentro dos formatos e títulos confirmados. Se o processo pede uma orientação antes da tabela, escreva-a antes da tabela da peça; não a mova para depois nem crie um entregável novo. Isso não amplia ferramentas, fontes ou autonomia e não substitui as regras.`);
@@ -610,6 +624,7 @@ export function promptExecucao(espec, { nome = '', pesquisa = null, notas = fals
     : comEntradas ? 'só pergunte se faltar o material obrigatório (veja "Material deste trabalho") ou algo sem o qual o trabalho não pode ser feito.'
     : 'só pergunte se faltar algo sem o qual o trabalho não pode ser feito (por exemplo, não veio material nenhum).'} Nesse caso, faça no máximo 2 perguntas, numa mensagem só, começando exatamente com "${MARCADOR_PERGUNTA}", e não faça o trabalho ainda. Nos demais casos, não pergunte: faça o trabalho e aponte o que faltou.${e.operacao?.v === 2 ? ` ${REGRA_PERGUNTAS}` : ''}`);
   if (escolhaHumanaPrevista(e)) partes.push(`Decisão humana prevista no processo: cumpra a ordem configurada. Quando a escolha ainda estiver pendente e o processo mandar apresentar opções e esperar a escolha ou confirmação da pessoa, apresente somente a etapa anterior e pare. Somente nessa etapa de espera, comece exatamente com "${MARCADOR_PERGUNTA}"; mostre opções curtas e numeradas, explique sua recomendação e pergunte qual a pessoa escolhe. Não produza as etapas seguintes e não escolha por ela. Esta decisão explícita não é uma dúvida de preferência a eliminar. Use o histórico: se a escolha já foi informada, siga com ela sem pedir novamente e sem usar o prefixo de pergunta para anunciar um resultado pronto. Se faltou pesquisa, não chame sugestões de tendências verificadas. Isso não libera ferramentas nem ações externas.`);
+  if (f.exclusivo) partes.push('Contrato final de saída: somente a tabela definida acima. Orientações gerais para acrescentar seções não se aplicam a esta entrega exclusiva; mantenha ausências necessárias nas células e não invente dados.');
   return partes.join('\n\n');
 }
 
@@ -652,6 +667,7 @@ export function conferirContrato(espec, texto, fonte = '') {
   if (!t) return { falhas: ['completo', 'formato'], detalhes: ['O resultado veio vazio.'], numerosSemFonte: [], estruturaOk: false };
   if (f.tipo === 'tabela') {
     const tb = tabelas(t);
+    if (f.exclusivo && (tb.length !== 1 || linhasDe(t).some(l => l.trim() && !/^\s*\|.*\|\s*$/.test(l)))) { falhas.push('formato'); detalhes.push('Há conteúdo fora da tabela combinada. Retire títulos, explicações e seções extras; entregue somente uma tabela.'); }
     if (!tb.length) { falhas.push('formato'); detalhes.push('Faltou a tabela.'); }
     else if (espec.configuracao_confirmada && f.colunas.length && f.origem_colunas !== 'sugestao') {
       // Contrato confirmado: exatamente estas colunas, com estes nomes, nesta ordem. Coluna a mais não é aceita.
@@ -698,7 +714,7 @@ export function promptQualidade(espec) {
     // pedidos tratados como invenção, ano já dado pelo material, papel de uma pessoa do contexto autorizado).
     'Antes de marcar falha num número ou cálculo, refaça a conta com os números da entrada: se o resultado está certo, não é falha. Sugestão, recomendação, próximo passo, risco ou ponto de atenção que o trabalho pede é produção do trabalho, não invenção, desde que não afirme como fato um nome, número, data ou acontecimento que não está na entrada. Datas sem ano: tanto deixar a data sem ano quanto usar o ano que decorre do material está certo; nunca é falha por si só. Descrição curta que só reformula o que está no material (a etapa "Treinamento" virar "equipe treinada") e aproximação de um cálculo feito com a entrada ("cerca de 4 meses") não são invenção. A GreenIA é a plataforma, não a empresa do trabalho: a empresa é a que aparece no material ou no contexto autorizado. Pessoa ou empresa do contexto autorizado citada no resultado só é falha se o resultado contradiz o papel dela na entrada.',
     'Material marcado como REFERÊNCIA serve só de modelo de estilo, estrutura e linguagem: nome, número, data, cliente ou condição do resultado que só existe na referência é invenção. Fonte obrigatória precisa ter sido usada no que for relevante.',
-    'Não é invenção: cálculo correto feito com os números e as datas da entrada (soma, diferença, percentual, variação, total, ordenação, duração em dias ou semanas entre duas datas do material, data de fim de uma etapa que começa quando a anterior termina) e o ano que o próprio material deixa claro (datas sem ano: o ano corrente). Coluna ou campo derivado assim também não é invenção. Seção ou observação a mais, sem fato novo, não reprova o resultado. Marque falha de invenção só para nome, número, data, valor ou fato que não dá para tirar da entrada.',
+    'Não é invenção: cálculo correto feito com os números e as datas da entrada (soma, diferença, percentual, variação, total, ordenação, duração em dias ou semanas entre duas datas do material, data de fim de uma etapa que começa quando a anterior termina) e o ano que o próprio material deixa claro (datas sem ano: o ano corrente). Coluna ou campo derivado assim também não é invenção. Seção ou observação a mais, sem fato novo, não é invenção; ainda deve respeitar restrições explícitas de formato. Marque falha de invenção só para nome, número, data, valor ou fato que não dá para tirar da entrada.',
     ...(e.acoes_externas?.length ? [`Ações em sistemas externos (${e.acoes_externas.join('; ')}) são executadas pela GreenIA DEPOIS desta conferência, sob a política da empresa e com aprovação quando exigida. Não exija que o resultado diga que a ação foi feita, nem marque falha por ela não estar feita: confira só o conteúdo que vai alimentar a ação.`] : []),
     'Responda somente com JSON, sem texto antes ou depois, neste formato: {"criterios":[{"id":"<id do critério>","ok":true,"motivo":"<frase curta, só se ok for false>"}],"objetivo_atingido":true,"motivo_objetivo":"<frase curta, só se objetivo_atingido for false>"}',
   ].join('\n\n');
@@ -781,7 +797,7 @@ export function aplicarRevisao(ia, textoRevisao, resultado) {
 export function pedidoDeCorrecao(problemas, espec = null) {
   const f = espec?.configuracao_confirmada ? espec.formato_saida : null;
   const contrato = f?.tipo === 'tabela' && f.colunas.length ? `\n\nMantenha exatamente estas colunas, nesta ordem: ${f.colunas.join(' | ')}. Não acrescente, remova nem renomeie colunas.` : '';
-  return `Confira o resultado acima. A conferência de qualidade encontrou estes problemas:\n${problemas.map(p => `- ${p}`).join('\n')}${contrato}\n\nEntregue o resultado corrigido, completo, no formato combinado. Não comente a correção e não invente nada: o que não estiver no material fica como "não informado".`;
+  return `Confira o resultado acima. A conferência de qualidade encontrou estes problemas:\n${problemas.map(p => `- ${p}`).join('\n')}${contrato}${f?.exclusivo ? '\nEntregue somente uma tabela; retire títulos, explicações e seções extras.' : ''}\n\nEntregue o resultado corrigido, completo, no formato combinado. Não comente a correção e não invente nada: o que não estiver no material fica como "não informado".`;
 }
 
 // Resumo que a pessoa vê (sem código, sem modelo, sem detalhe técnico).

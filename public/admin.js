@@ -299,11 +299,12 @@ function homologar(modelo, depois = () => {}) {
     <h2 id="t-h">${esc(modelo.nome)}</h2>
     <div class="campo"><label for="h-forn">Fornecedor fixado</label><input class="entrada" id="h-forn" required placeholder="ex.: google-vertex, amazon-bedrock, azure">
       <span class="ajuda">Use o nome do fornecedor como aparece na lista de fornecedores do modelo. As chamadas sigilosas vão só para ele, sem cair para outro.</span></div>
-    <label class="opcoes"><span><input type="checkbox" id="h-treino" required> Conferi que este fornecedor não treina com os dados</span></label>
-    <label class="opcoes"><span><input type="checkbox" id="h-zdr" required> Conferi que este fornecedor tem retenção zero (não guarda os dados)</span></label>
+    <label class="opcoes"><span><input type="checkbox" id="h-treino" required> Conferi a documentação e as condições contratuais desta rota: não usar o conteúdo para treino</span></label>
+    <label class="opcoes"><span><input type="checkbox" id="h-zdr" required> Conferi a documentação e as condições contratuais desta rota: retenção zero do conteúdo</span></label>
     <div class="campo" style="margin-top:12px"><label for="h-just">Justificativa</label><textarea class="entrada" id="h-just" required minlength="10" placeholder="Onde conferiu, contrato, data da verificação"></textarea></div>
     <p class="msg-erro oculto" id="h-erro" role="alert"></p>
     <div class="linha-botoes"><button class="btn btn-verde">Aprovar para dados sigilosos</button><button type="button" class="btn-texto" id="cancelar-h">Cancelar</button></div>
+    <p class="dica">A GreenIA aplica os filtros de fornecedor, treino e retenção na chamada. Eles não substituem a comprovação das condições contratuais do provedor e não eliminam os metadados operacionais.</p>
     <p class="dica">Fica registrado quem homologou, a data, o fornecedor e a justificativa. A política ganha nova versão.</p></form></div>`);
   const fechar = () => { soltarEsc(); $('fundo-h')?.remove(); };
   const soltarEsc = fecharComEscape($('form-h'), fechar);

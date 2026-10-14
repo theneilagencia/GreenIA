@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { subir } from './ajuda.js';
+import { randomBytes } from 'node:crypto';
+import { subirS3Falso, lifecycleXml, regraLifecycle } from '../scripts/ensaio/s3-falso.js';
 import { abrirBanco, migrar, um } from '../src/db.js';
 import { assinarS3, avaliarLifecycle, fazerBackup, restaurar } from '../src/backup.js';
 
@@ -59,21 +61,26 @@ const regra = ({ prefixo = '', dias = 7, antigas = null, status = 'Enabled', ext
   + (dias ? `<Expiration><Days>${dias}</Days></Expiration>` : '') + (antigas ? `<NoncurrentVersionExpiration><NoncurrentDays>${antigas}</NoncurrentDays></NoncurrentVersionExpiration>` : '') + '</Rule>';
 const lifecycle = (...r) => `<LifecycleConfiguration>${r.join('')}</LifecycleConfiguration>`;
 
-test('backup com o servidor no ar, retenção local, envio ao S3 (expiração conferida no bucket) e restauração com conferência', async () => {
-  const s3 = await s3Falso({ lifecycle: lifecycle(regra({ prefixo: 'empresa/', dias: 7 })) });
-  const { env } = s3;
+test('backup com o servidor no ar, retenção local, envio cifrado ao S3 (expiração conferida no bucket) e restauração com conferência', async () => {
+  const s3 = await subirS3Falso({ lifecycle: lifecycleXml(regraLifecycle({ dias: 7, prefixo: 'empresa/' })) });
+  const env = { ...s3.env('empresa'), BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') };
   const bk = join(pasta, 'backups');
   const dias = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'];
   let r;
-  for (const d of dias) r = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://greenia-backups/empresa', manter: 3, agora: new Date(`${d}T03:00:00Z`), env });
+  for (const d of dias) r = await fazerBackup(S.app.db, { pasta: bk, destino: env.BACKUP_DESTINO, manter: 3, agora: new Date(`${d}T03:00:00Z`), env });
   assert.equal(readdirSync(bk).length, 3);
   assert.ok(!readdirSync(bk).some(f => f.includes('20260901')));
-  assert.equal(s3.puts().length, 4);
+  const puts = s3.pedidos.filter(p => p.metodo === 'PUT');
+  assert.equal(puts.length, 4);
   assert.deepEqual(r.s3, { ok: true, expiraDias: 7, antigasDias: null, versionado: false });
   // Antes de cada envio, a regra é lida no próprio bucket.
-  assert.ok(s3.recebidos.some(x => x.metodo === 'GET' && x.url === '/greenia-backups?lifecycle'));
-  assert.match(s3.puts().at(-1).url, /^\/greenia-backups\/empresa\/greenia-20260904-030000\.sqlite\.gz$/);
-  assert.match(s3.puts()[0].auth, /Credential=chave\/\d{8}\/sa-east-1\/s3\/aws4_request/);
+  assert.ok(s3.pedidos.some(x => x.metodo === 'GET' && x.query === 'lifecycle'));
+  assert.equal(puts.at(-1).caminho, '/greenia-backups/empresa/greenia/greenia-greenia-20260904-030000.sqlite.gz.enc');
+  assert.match(puts[0].cabecalhos.authorization, /Credential=AKIAENSAIOFALSO\/\d{8}\/us-east-1\/s3\/aws4_request/);
+  // O objeto no S3 está cifrado: nem o gzip nem o texto do banco aparecem.
+  const obj = s3.objetos.get('empresa/greenia/greenia-greenia-20260904-030000.sqlite.gz.enc');
+  assert.notEqual(obj.corpo[0], 0x1f);
+  assert.equal(obj.meta['x-amz-meta-sha256'], r.sha256);
   // Restaura num banco novo, a partir do arquivo local e do S3.
   const novo = join(pasta, 'restaurado.sqlite');
   const x = await restaurar(r.local, novo);
@@ -81,9 +88,9 @@ test('backup com o servidor no ar, retenção local, envio ao S3 (expiração co
   const db = abrirBanco(novo);
   assert.equal(um(db, 'select nome from areas').nome, 'Área Alfa');
   db.close();
-  const y = await restaurar('s3://greenia-backups/empresa/greenia-20260901-030000.sqlite.gz', novo, { env });
+  const y = await restaurar('s3://greenia-backups/empresa/greenia/greenia-greenia-20260901-030000.sqlite.gz.enc', novo, { env });
   assert.ok(y.anterior && existsSync(y.anterior));
-  s3.srv.close();
+  await s3.fechar();
 });
 
 test('S3 bloqueado sem expiração verificada no bucket: a cópia fica só no disco local, com o motivo', async () => {
@@ -113,11 +120,11 @@ test('S3 bloqueado sem expiração verificada no bucket: a cópia fica só no di
   const r = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://b/p', manter: 3, env: { S3_ENDPOINT: 'http://127.0.0.1:1', S3_CHAVE: 'c', S3_SEGREDO: 's' } });
   assert.match(r.s3Bloqueado, /não foi possível consultar o bucket/);
   // Versionado com as duas expirações dentro do limite: liberado.
-  const ok = await s3Falso({ lifecycle: lifecycle(regra({ dias: 6, antigas: 1 })), versioning: '<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>', 'object-lock': 501 });
-  const r2 = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://greenia-backups/empresa', manter: 3, env: ok.env });
+  const ok = await subirS3Falso({ lifecycle: lifecycle(regra({ dias: 6, antigas: 1 })), versionamento: 'Enabled' });
+  const r2 = await fazerBackup(S.app.db, { pasta: bk, destino: 's3://greenia-backups/empresa', manter: 3, env: { ...ok.env('empresa'), BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') } });
   assert.ok(r2.remoto);
   assert.deepEqual(r2.s3, { ok: true, expiraDias: 6, antigasDias: 1, versionado: true });
-  ok.srv.close();
+  await ok.fechar();
 });
 
 test('regra de expiração: prefixo coberto, menor prazo entre as regras e versões antigas retidas por contagem não valem', () => {

@@ -16,6 +16,7 @@ import { verificarDominio, orientacaoDns } from './dominio.js';
 import { contaOpenRouter, resumoConsumo, detalheConsumo, limiarSaldo, conferirSaldo, custoServidor, infraPorEmpresa, conciliar } from './consumo.js';
 import { economiaDoPlano, lerPremissas, salvarPremissas, NOMES_PREMISSAS, PREMISSAS_PADRAO } from './margem.js';
 import { alertaEmail, falhasEmail } from './email-falhas.js';
+import { alertaBackup } from './backup-estado.js';
 import { aplicarHomologacoesPlataforma } from '../modelos.js';
 import { situacaoChave, validarRotacao, salvarRotacao, informarVencimento, conferirChave } from './chave-validade.js';
 
@@ -67,6 +68,8 @@ export function rotasPlataforma(P, r) {
     alertaChave: perms(sessao).has('platform.settings.manage') || perms(sessao).has('platform.companies.manage') ? alertaDaChave() : null,
     // Envio de email falhando (códigos de acesso não chegam): motivo real, sem segredos.
     alertaEmail: perms(sessao).has('platform.settings.manage') ? alertaEmail(P) : null,
+    // Backups com problema (banco sem cópia há mais de 26 h, falha, S3 recusado, chave-mestra divergente).
+    alertaBackup: perms(sessao).has('platform.settings.manage') ? alertaBackup(P) : null,
     catalogo: { permissoes: Object.entries(PERMISSOES).map(([k, [d, s]]) => ({ key: k, description: d, scope: s })), recursos: E.RECURSOS, limites: E.LIMITES, concessoes: E.CONCESSOES, status: E.STATUS_EMPRESA, camposMarca: E.CAMPOS_MARCA },
   }));
 

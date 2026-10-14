@@ -97,14 +97,15 @@ function tela(titulo, corpo, acoes = '', voltar = '') {
 // rotação da chave do OpenRouter (em Uso, o cartão da chave já mostra).
 const NIVEL_FAIXA = { atencao: 'atencao', critico: 'erro', erro: 'erro' };
 function faixaTopo() {
-  const e = C.eu?.alertaEmail, k = C.eu?.alertaChave;
+  const e = C.eu?.alertaEmail, k = C.eu?.alertaChave, b = C.eu?.alertaBackup;
   const chave = k && NIVEL_FAIXA[k.nivel] && !location.hash.startsWith('#/uso') ? k : null;
-  if (!e && !chave) return '';
+  if (!e && !chave && !b) return '';
   const partes = [
     e ? `<b>Envio de email falhando:</b> os códigos de acesso podem não estar chegando. Última falha em ${esc(dataHora(e.em))} (${esc(e.origem)}): <code>${esc(e.detalhe)}</code> <a href="#/configuracoes">Ver email da plataforma</a>` : '',
     chave ? `<b>Chave do OpenRouter · ${esc(chave.rotulo || '')}:</b> ${esc(chave.texto)} <a href="#/uso" data-trocar-chave>Trocar a chave</a>` : '',
+    b ? `<b>Backups com problema (${esc(String(b.total))}):</b> ${b.problemas.map(p => `${esc(p.banco)}: ${esc(p.texto)}`).join('; ')}. Conferido em ${esc(dataHora(b.verificado_em))}.` : '',
   ].filter(Boolean);
-  const nivel = e || NIVEL_FAIXA[chave.nivel] === 'erro' ? 'erro' : 'atencao';
+  const nivel = e || b || NIVEL_FAIXA[chave.nivel] === 'erro' ? 'erro' : 'atencao';
   return `<div class="faixa-aviso ${nivel} faixa-chave" role="${nivel === 'erro' ? 'alert' : 'status'}">${partes.join('<br>')}</div>`;
 }
 

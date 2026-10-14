@@ -6,7 +6,9 @@ import { conferirChave, impressaoChave } from './plataforma/chave-validade.js';
 import { mascarar } from './plataforma/segredo.js';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { randomBytes } from 'node:crypto';
 import { criarPlataforma, origemChaveOpenRouter } from './plataforma/servidor.js';
 import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
 import { criarApp } from './servidor.js';
@@ -14,7 +16,11 @@ import { smtpDeVariaveis } from './email.js';
 import { criarIndisponivel, criarOpenRouter, criarSimulada } from './ia.js';
 import { atualizarCatalogo } from './modelos.js';
 import { apagarVencidas } from './conversas.js';
-import { agendarBackup, fazerBackup } from './backup.js';
+import { agendarBackup, fazerBackup, carimboDe, limiteS3 } from './backup.js';
+import { configS3, enviarEnvelopeS3 } from './backup-s3.js';
+import { bloquearRedeExterna } from './rede-isolada.js';
+import { lerChaveMestraExistente, segredoEnvelopeDe, selarChaveMestra } from './chave-recuperacao.js';
+import { avisarBackups, lerEstado, registrarFalha, registrarRodada, registrarSucesso } from './plataforma/backup-estado.js';
 import { consolidarWal, todos } from './db.js';
 import { registrar } from './eventos.js';
 import { auditar } from './plataforma/auditoria.js';
@@ -36,6 +42,7 @@ export function destinoS3(env, log = () => {}) {
 }
 
 export async function iniciar(env = process.env) {
+  if (env.ENSAIO_ISOLADO === '1') return iniciarIsolado(env);
   if (env.MULTIEMPRESA === '1') return iniciarPlataforma(env);
   const producao = env.NODE_ENV === 'production';
   // Em produção sem chave, sobe com a IA desligada (e avisa), para o admin conseguir entrar e ver o que falta.
@@ -85,23 +92,62 @@ export function lerAdminsArquivo(arquivo) {
 }
 
 // Modo multiempresa (MULTIEMPRESA=1): uma plataforma, um banco de controle e um banco por empresa.
-export async function backupDaPlataforma(P, { pasta, ...op }, copiar = fazerBackup) {
-  const bancos = [['plataforma', P.db], ...[...P.tenants].map(([id, t]) => [id, t.db])];
-  const r = { total: bancos.length, concluidos: 0, falhas: 0 };
-  for (const [id, db] of bancos) {
+// Rodada de backup: o banco da plataforma e o de TODAS as empresas cadastradas (inclusive as que não estão abertas),
+// cada um na sua pasta; sucesso e falha por banco ficam na auditoria e no estado (src/plataforma/backup-estado.js).
+export async function backupDaPlataforma(P, { pasta, env = process.env, ...op }, copiar = fazerBackup) {
+  const real = typeof P.db?.prepare === 'function';
+  const abertos = new Set(P.tenants.keys());
+  const fechados = real ? todos(P.db, 'select id from companies order by id').map(c => c.id).filter(id => !abertos.has(id)) : [];
+  const bancos = [['plataforma', () => P.db], ...[...P.tenants].map(([id, t]) => [id, () => t.db]),
+    ...fechados.map(id => [id, () => { const t = P.tenant(id); if (!t) throw Object.assign(new Error('ambiente indisponível'), { code: 'TENANT_INDISPONIVEL' }); return t.db; }])];
+  const r = { total: bancos.length, concluidos: 0, falhas: 0, s3: !!op.destino };
+  const verificacao = {};
+  const agora = op.agora || (P.agora ? P.agora() : new Date());
+  let mestra = null;
+  try { mestra = P.mestra?.() || null; } catch { /* sem chave-mestra: a cifra do S3 é conferida só contra CHAVE_MESTRA */ }
+  for (const [id, abrir] of bancos) {
     try {
-      const b = await copiar(db, { ...op, pasta: join(pasta, id), destino: op.destino && `${op.destino.replace(/\/$/, '')}/${id}` });
+      const b = await copiar(abrir(), { ...op, env, agora, banco: id, verificacao, mestra, pasta: join(pasta, id) });
       r.concluidos++;
-      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}`);
-      if (b.s3Bloqueado) { r.s3Bloqueados = (r.s3Bloqueados || 0) + 1; P.log(`ATENÇÃO: cópia de ${id} não enviada ao S3: ${b.s3Bloqueado}`); }
+      P.log(`backup confirmado: ${id}; ${b.tamanho} bytes; sha256 ${b.sha256}${b.envio ? `; S3 ${b.envio.objeto}${b.envio.sse ? ` (SSE ${b.envio.sse})` : ''}` : ''}`);
+      if (b.s3Bloqueado) {
+        r.s3Bloqueados = (r.s3Bloqueados || 0) + 1;
+        P.log(`ATENÇÃO: cópia de ${id} não enviada ao S3: ${b.s3Bloqueado}`);
+        if (real) registrarFalha(P, id, { code: 'S3_SEM_EXPIRACAO', etapa: 's3', backup: b, ciclo: { motivo: b.s3Bloqueado } });
+      } else if (real) registrarSucesso(P, id, b);
     } catch (e) {
       r.falhas++;
       const codigo = /^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro';
-      P.log(`backup de ${id} falhou (${codigo})`);
+      P.log(`backup de ${id} falhou (${codigo}${e.etapa === 's3' ? '; o backup local foi feito' : ''})`);
+      if (real) registrarFalha(P, id, e);
     }
   }
-  P.log(`backup diário ${r.falhas ? 'incompleto' : 'concluído'}: ${r.concluidos}/${r.total} bancos; ${r.falhas} falhas`);
+  if (verificacao.resultado) { const c = verificacao.resultado; r.ciclo = { ok: c.ok, motivo: c.motivo || null, expiraDias: c.expiraDias ?? null, antigasDias: c.antigasDias ?? null, versionado: !!c.versionado }; }
+  // Envelope selado da chave-mestra junto das cópias no S3 (só com BACKUP_ENVELOPE_SEGREDO, separado das outras chaves).
+  if (op.destino && real) {
+    try {
+      const segredo = segredoEnvelopeDe(env);
+      if (segredo) {
+        const cfg = configS3(op.destino, env, { mestra });
+        const x = await enviarEnvelopeS3(cfg, op.destino, { env, envelope: selarChaveMestra(mestra, segredo, { agora }), carimbo: carimboDe(agora), limiteDias: op.limiteDias ?? limiteS3(env), verificacao });
+        r.envelope = x.impressao;
+        P.log(`envelope da chave-mestra enviado (${x.impressao})`);
+      }
+    } catch (e) { r.envelope = false; P.log(`envelope da chave-mestra não enviado (${/^[A-Z0-9_]{1,60}$/.test(String(e.code || '')) ? e.code : 'erro'})`); }
+  }
+  P.log(`backup diário ${r.falhas || r.s3Bloqueados ? 'incompleto' : 'concluído'}: ${r.concluidos}/${r.total} bancos; ${r.falhas} falhas${r.s3Bloqueados ? `; ${r.s3Bloqueados} sem cópia no S3` : ''}`);
+  if (real) registrarRodada(P, r);
   return r;
+}
+
+// Agenda a rodada diária. A hora (HH:MM, relógio do servidor, UTC no contêiner) e a última rodada gravada no banco
+// decidem: depois de um reinício que pulou a hora, a rodada do dia roda assim que o processo volta (não espera 24 h).
+export function rodadaDevida(P, hora, agora = P.agora()) {
+  const [h, m] = hora.split(':').map(Number);
+  const marco = new Date(agora); marco.setHours(h, m, 0, 0);
+  if (agora < marco) return false;
+  const ultima = Date.parse(lerEstado(P).rodada?.em || '') || 0;
+  return ultima < marco.getTime();
 }
 
 export async function iniciarPlataforma(env = process.env) {
@@ -169,21 +215,51 @@ export async function iniciarPlataforma(env = process.env) {
   tarefa(catalogo, 24 * 3600e3);
   // Chave nova no console: atualiza o catálogo de modelos e o saldo logo, sem esperar o próximo ciclo.
   P.aoTrocarIA = () => { catalogo().catch(e => P.log('catálogo', e.message)); if (iaReal()) conferirSaldo(P).catch(() => {}); validade().catch(() => {}); };
-  // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas.
-  if (/^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '')) {
-    const pasta = env.BACKUP_PASTA || 'dados/backups';
-    let ultimo = '';
+  // Backup diário: banco da plataforma e o de cada empresa, em pastas separadas; conferência do conjunto de hora em
+  // hora (banco sem backup há mais de 26 h, falha, S3 recusado) com aviso no console e email aos admins da plataforma.
+  P.backup = { hora: /^\d{2}:\d{2}$/.test(env.BACKUP_HORA || '') ? env.BACKUP_HORA : null, pasta: env.BACKUP_PASTA || 'dados/backups', s3: !!destinoS3(env) };
+  if (P.backup.hora) {
+    let rodando = false;
     setInterval(async () => {
-      const agora = new Date();
-      if (agora.toTimeString().slice(0, 5) !== env.BACKUP_HORA || ultimo === agora.toDateString()) return;
-      ultimo = agora.toDateString();
-      const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: P.retencao.automaticoDias, env };
-      await backupDaPlataforma(P, { ...op, pasta });
+      if (rodando || !rodadaDevida(P, P.backup.hora)) return;
+      rodando = true;
+      try {
+        const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: P.retencao.automaticoDias, env };
+        await backupDaPlataforma(P, { ...op, pasta: P.backup.pasta });
+        await avisarBackups(P);
+      } catch (e) { P.log('backup diário', e.message); } finally { rodando = false; }
     }, 30e3).unref();
-    P.log(`Backup diário às ${env.BACKUP_HORA}.`);
-  }
+    P.log(`Backup diário às ${env.BACKUP_HORA}${P.backup.s3 ? ', com cópia cifrada no S3 (expiração do bucket conferida antes do envio)' : ''}.`);
+  } else if (producao) P.log('ATENÇÃO: sem BACKUP_HORA, o backup automático está desligado.');
+  if (P.backup.hora || producao) tarefa(() => avisarBackups(P), 3600e3);
   const porta = Number(env.PORTA || env.PORT || 8080);
   P.servidor.listen(porta, env.HOST || '0.0.0.0', () => P.log(`GreenIA multiempresa em http://localhost:${porta} (console em /plataforma)`));
+  const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };
+  process.on('SIGTERM', parar);
+  process.on('SIGINT', parar);
+  return P;
+}
+
+// Cópia restaurada no ar para ensaio (ENSAIO_ISOLADO=1; docs/operacao/backup-e-restauracao.md): sem tarefas periódicas
+// (programações, backup, retenção, exclusões, avisos), IA simulada, email só em memória, sem provedor de domínios,
+// conexões de rede para fora de 127.0.0.1 bloqueadas no processo e, por padrão, escutando só em 127.0.0.1. Recusa subir
+// se algum banco de empresa aponta para fora da pasta da cópia.
+export async function iniciarIsolado(env = process.env) {
+  bloquearRedeExterna();
+  const banco = resolve(env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite');
+  const raiz = dirname(banco);
+  if (!existsSync(banco)) throw new Error(`ENSAIO_ISOLADO: banco da plataforma não encontrado em ${banco}.`);
+  const ro = new DatabaseSync(banco, { readOnly: true });
+  let fora;
+  try { fora = ro.prepare('select id, banco from companies').all().filter(c => { const r = relative(raiz, resolve(c.banco)); return !r || r.startsWith('..') || isAbsolute(r); }); } finally { ro.close(); }
+  if (fora.length) throw new Error(`ENSAIO_ISOLADO: ${fora.length} empresas apontam para fora de ${raiz}. Remapeie os caminhos na cópia (scripts/ensaio-restauracao.mjs faz isso) antes de subir.`);
+  const mestra = lerChaveMestraExistente({ env, arquivo: join(raiz, '.chave-mestra') });
+  const lista = v => String(v || '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+  const P = criarPlataforma({ banco, pastaEmpresas: env.PASTA_EMPRESAS || join(raiz, 'empresas'), isolado: true, chaveMestra: mestra || randomBytes(32), cookieSeguro: env.COOKIE_SEGURO === '1',
+    hostPlataforma: (env.PLATAFORMA_HOST || '').toLowerCase(), admins: lista(env.PLATAFORMA_ADMINS) });
+  if (!mestra) P.log('ENSAIO_ISOLADO: sem chave-mestra (CHAVE_MESTRA ou .chave-mestra na pasta da cópia): credenciais cifradas não serão lidas.');
+  const porta = Number(env.PORTA || env.PORT || 8080), host = env.ENSAIO_HOST || '127.0.0.1';
+  P.servidor.listen(porta, host, () => P.log(`ENSAIO ISOLADO em http://${host}:${P.servidor.address().port}: sem tarefas periódicas, IA simulada, email em memória, rede externa bloqueada.`));
   const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };
   process.on('SIGTERM', parar);
   process.on('SIGINT', parar);

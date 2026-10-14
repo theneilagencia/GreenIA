@@ -1,4 +1,5 @@
-// Restauração: node scripts/restaurar.js <arquivo.sqlite.gz | s3://bucket/caminho> [--tipo empresa|plataforma] [--banco destino.sqlite]
+// Restauração: node scripts/restaurar.js <arquivo.sqlite.gz | arquivo.sqlite.gz.enc | s3://bucket/caminho> [--tipo empresa|plataforma] [--banco destino.sqlite]
+// Cópias do S3 (.enc) precisam de BACKUP_CHAVE_CIFRA (e S3_* para baixar); os SHA-256 do envio são conferidos.
 // Pare o servidor antes. O banco atual fica guardado com o sufixo .antes-da-restauracao.
 import { restaurar } from '../src/backup.js';
 

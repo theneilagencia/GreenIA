@@ -225,3 +225,18 @@ test('Usuários da empresa: adicionar pela ação principal, alterar perfil numa
   assert.deepEqual(p.erros, []);
   await p.context().close();
 });
+
+test('Resumo: endereço e banco longos ficam dentro do próprio cartão; "1 cadastrada" no singular', async () => {
+  const longa = (await ops.post('/api/plataforma/empresas', { name: 'Homologação Endereço Longo', slug: 'homologacao-endereco-longo-b', status: 'ativa', plan_id: team.id, admin_email: 'admin@longo.com.br' })).dados;
+  for (const width of [1366, 1024, 390]) {
+    const p = await pagina({ width });
+    await abrir(p, `empresas/${longa.id}`);
+    const invade = await p.evaluate(() => [...document.querySelectorAll('.indicador')].filter(c => {
+      const r = c.getBoundingClientRect();
+      return [...c.querySelectorAll('a, code')].some(x => { const q = x.getBoundingClientRect(); return q.right > r.right + 1 || q.left < r.left - 1; });
+    }).map(c => c.querySelector('span')?.textContent));
+    assert.deepEqual(invade, [], `${width}px: conteúdo saindo do cartão`);
+    assert.match(await p.locator('.indicador', { hasText: 'Pessoas ativas no mês' }).textContent(), /\s?1 cadastrada$/);
+    await p.context().close();
+  }
+});

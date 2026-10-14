@@ -198,7 +198,9 @@ a.lista-item:hover,button.lista-item:hover{background:var(--surface)}
 
 /* Números: sem cartões, uma faixa de leitura */
 .indicadores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);border-radius:var(--raio-painel);margin:12px 0 10px;overflow:hidden;background:var(--paper)}
-.indicador{padding:14px 16px;border-left:1px solid var(--line);margin-left:-1px}
+.indicador{padding:14px 16px;border-left:1px solid var(--line);margin-left:-1px;min-width:0}
+/* Endereços e caminhos longos quebram dentro do cartão em vez de invadir o vizinho. */
+.indicador a,.indicador code{overflow-wrap:anywhere;word-break:break-word}
 .indicador span{display:block;font:500 12px var(--sans);color:var(--muted)}
 .indicador b{display:block;font:600 22px/1.25 var(--sans);color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .indicador small{font:400 12px var(--sans);color:var(--muted)}

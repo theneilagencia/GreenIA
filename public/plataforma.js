@@ -391,7 +391,7 @@ async function abaResumo(d, id) {
       ${u.plano ? `<div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
       <div class="indicador" id="ind-pacote"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div>` : ''}
       <div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b>${u.plano ? '' : '<small>sem cota: a empresa vê o custo em dólar</small>'}</div>
-      <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} cadastradas</small></div></div>
+      <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} ${u.pessoas === 1 ? 'cadastrada' : 'cadastradas'}</small></div></div>
     <div class="secao-titulo"><h2 class="h-secao">Ambiente</h2></div>
     <div class="indicadores"><div class="indicador"><span>Endereço</span><b style="font-size:14px"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, ''))}</a></b></div>
       <div class="indicador"><span>Banco</span><b style="font-size:14px"><code class="valor-tecnico">${esc(a.banco)}</code></b><small>${mb(a.tamanhoMb)}</small></div>

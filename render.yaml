@@ -6,7 +6,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: virginia        # não há região no Brasil; Virgínia é a mais próxima
-    plan: starter           # disco persistente exige plano pago
+    plan: standard          # 2 GB: leitura de modelos (navegador) e OCR com folga; disco persistente exige plano pago
     healthCheckPath: /api/saude
     autoDeploy: true
     domains:

@@ -260,6 +260,9 @@ export function agendasForaDoHorario(paginas, textos) {
     if (!decl) return;
     const [, h1, m1, h2, m2] = FAIXA.exec(t(decl)), ini = minutos(h1, m1), fim = minutos(h2, m2);
     const ruins = celulas.filter(b => { const [, a, am, c, cm] = CELULA.exec(t(b)); return minutos(a, am) < ini || minutos(c, cm) > fim; });
+    // Fora de ordem: uma linha começa antes da linha de cima.
+    const ordem = [...celulas].sort((a, b) => a.y - b.y).map(b => { const [, a, am] = CELULA.exec(t(b)); return { b, ini: minutos(a, am) }; });
+    for (let i = 1; i < ordem.length; i++) if (ordem[i].ini < ordem[i - 1].ini && !ruins.includes(ordem[i].b)) ruins.push(ordem[i].b);
     if (ruins.length) out.push({ numero: k + 1, faixa: FAIXA.exec(t(decl))[0], linhas: ruins.map(b => t(b)) });
   });
   return out;
@@ -267,7 +270,7 @@ export function agendasForaDoHorario(paginas, textos) {
 export function mensagensAgenda({ slides, textos, pedido, contexto, fora }) {
   const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
   return [
-    { role: 'system', content: `${INSTRUCAO}\n\nNestes slides, a agenda tem horários fora do intervalo do dia que o próprio slide declara: ${fora.map(f => `slide ${f.numero} (${f.faixa}): ${f.linhas.join(', ')}`).join('; ')}. Ajuste horários e atividades para que a agenda caiba no intervalo e siga o pedido. Linha que sobrar: devolva "" no horário, na atividade, na descrição e em quem participa dessa linha. Responda só com os ids que mudam.` },
+    { role: 'system', content: `${INSTRUCAO}\n\nNestes slides, a agenda tem horários fora do intervalo do dia que o próprio slide declara ou fora da ordem cronológica: ${fora.map(f => `slide ${f.numero} (${f.faixa}): ${f.linhas.join(', ')}`).join('; ')}. Ajuste horários e atividades para que a agenda caiba no intervalo, fique em ordem cronológica de cima para baixo e siga o pedido. Linha que sobrar: devolva "" no horário, na atividade, na descrição e em quem participa dessa linha. Responda só com os ids que mudam.` },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-20000)}\n</material>\n\nSlides (texto atual de cada bloco):\n\n${atual}` },
   ];
 }
@@ -356,7 +359,8 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       const x = await chamar(mensagensFatos({ slides, textos, pedido, contexto, faltam: faltam.map(f => f.texto) }));
       custo += x.custo || 0; economia += x.economia || 0;
       const j = lerJson(x.texto) || {};
-      for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+      // Rodada de correção não apaga nada: texto vazio é ignorado (só o ajuste de agenda pode tirar linhas).
+      for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string' && j[b.id].trim()) textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
       faltam = faltam.filter(f => !f.presente(todosOsTextos()));
     } catch { /* fica a versão anterior */ }
   }
@@ -369,7 +373,16 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       const x = await chamar(mensagensAgenda({ slides: slides.filter(s => fora.some(f => f.numero === s.numero)), textos, pedido, contexto, fora }));
       custo += x.custo || 0; economia += x.economia || 0;
       const j = lerJson(x.texto) || {};
-      for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+      // Só os slides de agenda apontados mudam; texto vazio só vale em linha com horário (a linha que sobra).
+      const alvo = new Set(fora.map(f => f.numero));
+      for (const s of slides) {
+        if (!alvo.has(s.numero)) continue;
+        for (const b of s.blocos) {
+          if (typeof j[b.id] !== 'string') continue;
+          const v = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+          if (v || s.blocos.some(c => CELULA.test(textos[c.id] ?? c.texto) && Math.abs(c.y - b.y) < b.tam * 1.5)) textos[b.id] = v;
+        }
+      }
     } catch { /* fica a versão anterior */ }
   }
   // Linha de tabela que sobrou: se a primeira célula (horário, item) ficou vazia, sai tudo o que está à direita dela
@@ -397,5 +410,11 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.
   for (const id of Object.keys(textos)) if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = original.get(id) ?? textos[id];
   for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
+  // Slide nunca fica sem texto: se todos os blocos de um slide que tinha texto ficaram vazios, volta o do modelo
+  // (com os nomes trocados pela IA onde houver), em vez de um slide em branco.
+  for (const p of paginas) {
+    const comTexto = p.blocos.filter(b => b.texto.trim() && !fica(b));
+    if (comTexto.length && comTexto.every(b => textos[b.id] === '')) for (const b of comTexto) textos[b.id] = b.texto;
+  }
   return { textos, faltando, custo, economia, fatos_faltando: faltam.map(f => f.texto) };
 }

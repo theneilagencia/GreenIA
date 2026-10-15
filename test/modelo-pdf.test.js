@@ -390,3 +390,18 @@ test('agenda que passa do horário do dia declarado no slide volta para a IA; li
   assert.ok(pedidos.some(p => /slide 1 \(9h às 12h\): 13h–17h/.test(p)), 'pede o ajuste com a linha fora do horário');
   assert.equal(r.textos['1.5'], '10h30–12h');
 });
+
+test('rodadas de correção não apagam texto e nenhum slide termina em branco', async () => {
+  const b = (id, texto, x, y, tam = 14) => ({ id, texto, x, y, tam, linhas: 1, largura: 100 });
+  const paginas = [{ blocos: [b('1.1', 'O que não está no escopo', 40, 40, 30), b('1.2', 'Substituição do ERP', 40, 120), b('1.3', 'Parecer jurídico', 300, 120)] },
+    { blocos: [b('2.1', 'Agenda', 40, 40, 30), b('2.2', 'Kick-off às 9h', 40, 120)] }];
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: 'kick-off no 22/10 às 9h', chamar: async m => {
+    if (m[0].content.includes('não aparecem em nenhum slide')) return { texto: JSON.stringify({ '1.1': '', '1.2': '', '1.3': '', '2.2': 'Kick-off em 22/10 às 9h' }) };
+    return { texto: JSON.stringify({ '1.1': 'O que não está no escopo', '1.2': 'Substituição do Iniflex', '1.3': 'Parecer jurídico', '2.1': 'Agenda', '2.2': 'Kick-off às 9h' }) };
+  } });
+  assert.equal(r.textos['1.1'], 'O que não está no escopo');
+  assert.equal(r.textos['1.2'], 'Substituição do Iniflex');
+  assert.equal(r.textos['2.2'], 'Kick-off em 22/10 às 9h');
+  const vazio = await adaptarModelo({ paginas: [paginas[0]], contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ '1.1': '', '1.2': '', '1.3': '' }) }) });
+  assert.equal(vazio.textos['1.1'], 'O que não está no escopo', 'slide não fica em branco');
+});

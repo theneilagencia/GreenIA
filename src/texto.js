@@ -112,6 +112,9 @@ function xlsx(b) {
 // Imagem a partir da qual o PDF é tratado como escaneado (páginas inteiras em imagem). Logotipos e ícones de um PDF
 // digital ficam abaixo disso, e o PDF segue sem passar pelo OCR.
 const PIXELS_DE_PAGINA = 1_000_000;
+// Maior PDF cujo texto digital é lido (o limite do envio é 42 MB); o OCR continua com os limites de ocr.js.
+const LIMITE_PDF_TEXTO_MB = 45;
+const PAGINA_NAO_LIDA = '[Esta página só tem imagem e não foi lida. O texto dela não está no material.]';
 
 // Página com texto: o texto dela. Página sem texto e com imagem (escaneada): OCR, uma página por vez, no processo
 // de OCR (ocr.js). Aqui só se confere o que dá para conferir sem decodificar nada: tamanho, páginas e a resolução
@@ -128,28 +131,36 @@ async function pdf(b, ocr, op) {
     if (b.length > L.maxPdfMb * 1048576 || escaneadas.length > L.maxPdfPaginas || maiorImagem > L.pixelsEntrada) throw new ErroOcr('grande');
   };
   const meta = { tipo: 'pdf', bytes: b.length, pixels: Math.min(maiorImagem, L.pixelsLeitura), pixelsDecodificar: maiorImagem, ...op };
-  if (maiorImagem < PIXELS_DE_PAGINA) {
-    // PDF digital: como sempre. Se sobrar página sem texto com imagem pequena, ela vai para o OCR.
-    const { paginas, total } = await textoDoPdf(b);
-    const escaneadas = imagens.length ? escaneadasDe(paginas) : [];
-    if (escaneadas.length) {
+  // OCR só das páginas sem texto. Se o OCR não couber (tamanho, páginas, memória, tempo) ou não ler nada, e o PDF
+  // tiver texto digital em outras páginas (apresentação com fotos, relatório com anexos escaneados), segue com esse
+  // texto e marca as páginas não lidas, em vez de recusar o arquivo inteiro.
+  const completarComOcr = async (paginas, total) => {
+    const escaneadas = escaneadasDe(paginas);
+    if (!escaneadas.length) return montar(paginas, total);
+    const comTexto = paginas.length - escaneadas.length;
+    try {
       conferir(escaneadas);
       const lidos = await sessao(ocr, { ...meta, paginas: escaneadas.length }, ler => ler.pdf(b, escaneadas));
       escaneadas.forEach((i, k) => { paginas[i] = lidos[k]; });
+      if (comTexto && semTexto(escaneadas.map(i => paginas[i]).join(''))) throw new ErroOcr('erro');
+    } catch (e) {
+      if (!comTexto || !(e instanceof ErroOcr || TECNICOS.has(e?.codigo))) throw e;
+      escaneadas.forEach(i => { if (!String(paginas[i] || '').trim()) paginas[i] = PAGINA_NAO_LIDA; });
+      return montar(paginas, total);
     }
     return legivelOuAviso(montar(paginas, total), escaneadas.length);
+  };
+  if (maiorImagem < PIXELS_DE_PAGINA) {
+    // PDF digital: texto no próprio processo, como sempre. Página sem texto com imagem pequena vai para o OCR.
+    const { paginas, total } = await textoDoPdf(b);
+    if (!imagens.length) return montar(paginas, total);
+    return completarComOcr(paginas, total);
   }
-  if (b.length > L.maxPdfMb * 1048576 || maiorImagem > L.pixelsEntrada) throw new ErroOcr('grande');
-  return sessao(ocr, meta, async ler => {
-    const { paginas, total } = await ler.textoPdf(b);
-    const escaneadas = escaneadasDe(paginas);
-    conferir(escaneadas);
-    if (escaneadas.length) {
-      const lidos = await ler.pdf(b, escaneadas);
-      escaneadas.forEach((i, k) => { paginas[i] = lidos[k]; });
-    }
-    return legivelOuAviso(montar(paginas, total), escaneadas.length);
-  });
+  // PDF com imagens grandes (escaneado ou apresentação): o texto digital primeiro, num processo de vida curta e com a
+  // guarda de memória só da leitura de texto (sem o custo do OCR, que talvez nem seja preciso).
+  if (b.length > LIMITE_PDF_TEXTO_MB * 1048576) throw new ErroOcr('grande');
+  const { paginas, total } = await sessao(ocr, { tipo: 'texto_pdf', bytes: b.length, pixels: 0, pixelsDecodificar: 0, ...op }, ler => ler.textoPdf(b));
+  return completarComOcr(paginas, total);
 }
 
 // PDF que passou pelo OCR e não tem texto legível em página nenhuma: aviso de que o conteúdo visual não é

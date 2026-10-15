@@ -92,6 +92,8 @@ const COPIAS_DO_PDF = 2.5;              // o PDF vai por cópia ao processo de O
 const estimativaMb = (meta, L) => {
   const leitura = TESSERACT_MB + ((meta.pixels || L.pixelsLeitura) * BYTES_POR_PIXEL) / 1048576;
   const decodificar = ((meta.pixelsDecodificar || 0) * BYTES_DECODIFICAR) / 1048576;
+  // Só o texto digital de um PDF: o processo e as cópias do arquivo, sem tesseract nem imagem decodificada.
+  if (meta.tipo === 'texto_pdf') return PROCESSO_MB + (meta.bytes * COPIAS_DO_PDF) / 1048576;
   return PROCESSO_MB + (meta.tipo === 'pdf' ? leitura + decodificar + (meta.bytes * COPIAS_DO_PDF) / 1048576 : Math.max(leitura, decodificar));
 };
 export const rssMb = () => Math.round(process.memoryUsage().rss / 1048576);

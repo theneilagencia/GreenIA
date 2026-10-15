@@ -55,7 +55,7 @@ test('conversa: a versão final sem vícios substitui a mostrada ao vivo e é a 
   const rev = OR.chamadas.find(b => JSON.stringify(b.messages[0]).includes(REVISA));
   const exec = OR.chamadas.find(b => !JSON.stringify(b.messages[0]).includes(REVISA));
   assert.deepEqual(rev.provider, exec.provider, 'mesma rota de privacidade da resposta');
-  assert.match(rev.messages[0].content, /vícios de texto de IA: "não é apenas X, é Y"/);
+  assert.match(rev.messages[0].content, /Corrija SOMENTE os trechos com estes vícios: "não é apenas X, é Y"/);
 });
 
 test('email redigido com "Fico à disposição" antes da assinatura não é vício; revisão que troca o texto não vale', async () => {
@@ -80,4 +80,15 @@ test('letras espaçadas voltam a ser palavras (com as palavras separadas) e o di
   assert.equal(corrigirDiaDaSemana('Segunda-feira, 22 de outubro', { hoje }), 'Quinta-feira, 22 de outubro');
   assert.equal(corrigirDiaDaSemana('terça (23/10) e SÁBADO, 24/10/2026', { hoje }), 'sexta (23/10) e SÁBADO, 24/10/2026');
   assert.equal(corrigirDiaDaSemana('Quinta-feira, 22 de outubro', { hoje }), 'Quinta-feira, 22 de outubro');
+});
+
+test('regras absorvem os critérios de editor: posição clara sem ressalva vazia, ritmo, leitor ocupado; detector pega ressalva e transição automática', async () => {
+  const { REGRAS_DE_ESCRITA } = await import('../src/escrita.js');
+  assert.match(REGRAS_DE_ESCRITA, /Assuma uma posição clara/);
+  assert.match(REGRAS_DE_ESCRITA, /alterne frases curtas e longas/);
+  assert.match(REGRAS_DE_ESCRITA, /leitor inteligente, ocupado e pouco paciente/);
+  assert.match(REGRAS_DE_ESCRITA, /soar bem lido em voz alta/);
+  assert.deepEqual(viciosDeEscrita('De certa forma, o projeto ajuda.'), ['ressalva vazia']);
+  assert.deepEqual(viciosDeEscrita('O plano é bom. Além disso, reduz custos. Nesse sentido, ajuda. Dessa forma, avançamos.'), ['transição automática']);
+  assert.deepEqual(viciosDeEscrita('O plano reduz o custo em 12%. Além disso, encurta o fechamento em 5 dias.'), []);
 });

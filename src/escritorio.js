@@ -441,8 +441,12 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const alt = ((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy;
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
       const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100 * escala)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
+      // Marcador de lista com cor/peso próprios: um trecho só para ele (o texto adaptado pode vir com ou sem o marcador).
+      const mk = b.marcador && /^\s*([•◦▪▫●○■□‣⁃–—\-*✓✔☐☑➢➤►▶→]|\d{1,2}[.)])\s+/.exec(String(texto));
+      const runs = mk ? `<a:r>${rpr.replace(/ b="1"/, '').replace(' sz=', `${b.marcador.negrito ? ' b="1"' : ''} sz=`).replace(/srgbClr val="[0-9A-F]{6}"/i, `srgbClr val="${b.marcador.cor.slice(1)}"`)}<a:t>${x(mk[1])} </a:t></a:r><a:r>${rpr}<a:t>${x(String(texto).slice(mk[0].length))}</a:t></a:r>`
+        : `<a:r>${rpr}<a:t>${x(texto)}</a:t></a:r>`;
       const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * 100)}"/></a:lnSpc>` : '';
-      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr><a:r>${rpr}<a:t>${x(texto)}</a:t></a:r></a:p></p:txBody></p:sp>`;
+      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr>${runs}</a:p></p:txBody></p:sp>`;
     }).join('');
     return `${XML}<p:sld ${P}><p:cSld><p:spTree>${ARVORE}${fundo}${caixas}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
   });

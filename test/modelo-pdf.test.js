@@ -251,3 +251,14 @@ test('adaptação: blocos que a IA pulou voltam numa rodada só com eles', async
   assert.equal(Object.keys(r.textos).length, 10);
   assert.deepEqual(r.faltando, []);
 });
+
+test('marcador de lista com cor e peso próprios: lido do PDF e repetido no PowerPoint', () => {
+  const it = (s, x, y, w, extra = {}) => ({ s, x, y, w, tam: 11, fonte: 'DejaVuSans', cor: '#222222', ...extra });
+  const [b] = agrupar([it('1.', 89, 200, 10, { fonte: 'DejaVuSans-Bold', cor: '#1b7950' }), it(' Entender o processo', 99, 200, 110)]);
+  assert.equal(b.texto, '1. Entender o processo');
+  assert.deepEqual(b.marcador, { cor: '#1B7950', negrito: true });
+  const z = deszipar(pptxDeModelo([{ w: 600, h: 400, fundo: Buffer.from([0xff, 0xd8, 0xff, 0xd9]), blocos: [{ ...b, largura: 120 }] }], { textos: { [b.id]: '1. Mapear o fechamento' } }));
+  const s = z.get('ppt/slides/slide1.xml');
+  assert.match(s, /b="1" sz="1100"[^>]*><a:solidFill><a:srgbClr val="1B7950"\/><\/a:solidFill>[^]*?<a:t>1\. <\/a:t>/);
+  assert.match(s, /<a:srgbClr val="222222"\/>[^]*?<a:t>Mapear o fechamento<\/a:t>/);
+});

@@ -111,9 +111,13 @@ export function agrupar(itens, pagina = 1, { corrido: corridoDoc } = {}) {
       l.x1 = Math.max(l.x1, i.x + (i.s.trim() ? i.w : Math.min(i.w, i.tam * 0.4)));
       l.espaco = !i.s.trim();
       if (i.s.trim()) { l.pesos[`${i.fonte}|${i.cor}`] = (l.pesos[`${i.fonte}|${i.cor}`] || 0) + i.s.trim().length; l.espacado = l.espacado || i.espacado; }
-    } else if (i.s.trim()) linhas.push({ s: i.s, x: i.x, x1: i.x + i.w, y: i.y, tam: i.tam, pesos: { [`${i.fonte}|${i.cor}`]: i.s.trim().length }, espacado: i.espacado });
+    } else if (i.s.trim()) linhas.push({ s: i.s, x: i.x, x1: i.x + i.w, y: i.y, tam: i.tam, pesos: { [`${i.fonte}|${i.cor}`]: i.s.trim().length }, espacado: i.espacado, primeiro: { s: i.s.trim(), fonte: i.fonte, cor: i.cor } });
   }
-  for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s); }
+  for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s);
+    // Marcador com cor ou peso próprios (número verde em negrito, "•" colorido): guardado para o PowerPoint repetir.
+    const mk = l.item && MARCADOR.exec(l.s)[1], p = l.primeiro;
+    if (mk && p && p.s === mk && (p.cor !== l.cor || negrito(p.fonte) !== negrito(l.fonte))) l.marcador = { cor: p.cor, negrito: negrito(p.fonte) };
+  }
   // Linhas -> blocos: mesma fonte, tamanho e cor, alinhadas à esquerda (ou centradas) e logo abaixo da anterior.
   // Tamanho do texto corrido da página (o mais usado, por número de letras).
   const corrido = corridoDoc || tamanhoCorrido(linhas);
@@ -127,10 +131,10 @@ export function agrupar(itens, pagina = 1, { corrido: corridoDoc } = {}) {
       && (b.linhas.length < 2 || Math.abs(l.y - b.ultimaY - b.entrelinha) < l.tam * 0.3)
       && continua(b, l, corrido));
     if (b) { b.entrelinha = b.linhas.length === 1 ? l.y - b.ultimaY : b.entrelinha; b.linhas.push(l.s); b.larguras.push(l.x1 - l.x); b.ultimaY = l.y; b.x = Math.min(b.x, l.x); b.x1 = Math.max(b.x1, l.x1); }
-    else blocos.push({ linhas: [l.s], larguras: [l.x1 - l.x], x: l.x, x1: l.x1, y: l.y, ultimaY: l.y, tam: l.tam, fonte: l.fonte, cor: l.cor, espacado: l.espacado, entrelinha: l.tam * 1.2, item: l.item });
+    else blocos.push({ linhas: [l.s], larguras: [l.x1 - l.x], x: l.x, x1: l.x1, y: l.y, ultimaY: l.y, tam: l.tam, fonte: l.fonte, cor: l.cor, espacado: l.espacado, entrelinha: l.tam * 1.2, item: l.item, marcador: l.marcador });
   }
   return blocos.map((b, k) => ({ id: `${pagina}.${k + 1}`, texto: b.linhas.join(' ').replace(/\s+/g, ' ').trim(), linhas: b.linhas.length, x: b.x, y: b.y, largura: b.x1 - b.x,
-    tam: Math.round(b.tam * 10) / 10, entrelinha: b.entrelinha, fonte: nomeDaFonte(b.fonte), negrito: negrito(b.fonte), cor: b.cor, espacado: b.espacado }));
+    tam: Math.round(b.tam * 10) / 10, entrelinha: b.entrelinha, fonte: nomeDaFonte(b.fonte), negrito: negrito(b.fonte), cor: b.cor, espacado: b.espacado, ...(b.marcador ? { marcador: b.marcador } : {}) }));
 }
 
 // ---------- 3. adaptação do conteúdo ----------

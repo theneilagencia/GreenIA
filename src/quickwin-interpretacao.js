@@ -4,6 +4,7 @@
 // da criação (chamarGovernado: política, limites, plano, filtro de dados e credenciais, roteamento, registro). A
 // resposta é só uma proposta: o servidor valida contra o catálogo (limparOperacao) e a pessoa confirma ou ajusta.
 // Sem IA (conteúdo protegido, sigilo, plano na reserva, falha, resposta ilegível): o plano heurístico, conservador.
+import { REGRAS_DE_ESCRITA } from './escrita.js';
 import { contemCredencial } from './filtro.js';
 import { delimitar } from './texto.js';
 import { registrar } from './eventos.js';
@@ -44,6 +45,7 @@ export const PROMPT_INTERPRETACAO = [
   '{"resumo":"...","categoria":"...","entradas":[{"tipo":"documento","rotulo":"...","quantidade":1,"obrigatoria":true}],"etapas":[{"texto":"...","ferramenta":"leitura_documento"}],'
     + '"entregaveis":[{"id":"e1","tipo":"resumo","rotulo":"...","descricao":"..."},{"id":"e2","tipo":"lista","rotulo":"...","descricao":"...","depende_de":["e1"]}],"ferramentas":["leitura_documento"],"contexto_empresa":false,'
     + '"lacunas":[{"id":"...","pergunta":"...","motivo":"...","exemplo":"...","obrigatoria":false}],"sugestoes":[{"texto":"...","entregavel":{"tipo":"lista","rotulo":"..."}}],"criterios":["..."]}',
+  REGRAS_DE_ESCRITA,
 ].join('\n');
 
 export const mensagensInterpretacao = (descricao, processo = '') => [{ role: 'system', content: PROMPT_INTERPRETACAO },

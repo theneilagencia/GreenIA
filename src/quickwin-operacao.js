@@ -6,6 +6,7 @@
 // (nada fora do catálogo e dos limites entra), o prompt de entrega e a conferência determinística. Canal é só
 // uma propriedade do entregável. A operação nunca amplia governança: a ferramenta só roda se a empresa liberou e
 // o conteúdo permite (conversas.js decide), e nada aqui executa ação externa.
+import { REGRAS_DE_ESCRITA } from './escrita.js';
 import { createHash } from 'node:crypto';
 import { detectar, detectarReforcado } from './filtro.js';
 import { limparVisual, TIPOS as TIPOS_VISUAIS, FORMATOS as FORMATOS_VISUAIS } from './visual/contrato.js';
@@ -706,4 +707,5 @@ export const PROMPT_EXEMPLO = [
   'Use de 6 a 40 linhas, conforme o material. Use só nomes, empresas, números e datas inventados e claramente fictícios (como "Empresa Exemplo Ltda." ou "Cliente Modelo"). Nunca use pessoas ou empresas reais, nem senhas, chaves ou dados pessoais reais.',
   'Inclua de propósito uma informação faltando, para testar se o trabalho aponta o que falta.',
   'Responda somente com o material, sem explicação e sem comentários.',
+  REGRAS_DE_ESCRITA,
 ].join('\n');

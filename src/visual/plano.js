@@ -8,6 +8,7 @@
 //
 // Quem monta: a IA (uma chamada pela mesma rota da execução), validada aqui contra o conteúdo; sem IA, o
 // planejador determinístico, que lê só a forma do conteúdo (lista, tabela, números, setas) e os traços do tipo.
+import { REGRAS_DE_ESCRITA } from '../escrita.js';
 import { delimitar } from '../texto.js';
 import { FORMATOS, MAX_PAGINAS, exportacoesPadrao } from './contrato.js';
 import { indicador, itensPorId, limparInline, numerosDe, textoDoItem, valorNumerico } from './conteudo.js';
@@ -206,6 +207,7 @@ export function mensagensPlano({ conteudo, tr, objetivo = '', publico = '', iden
     `"diagrama" (de fluxo ou lista ordenada de etapas): {"tipo":"${DIAGRAMAS.join('|')}"}. Use para processos, fluxos e jornadas.`,
     `Layouts de página: ${LAYOUTS.join(', ')}. capa só na capa; destaque para peça de impacto; painel para página única com vários blocos; duas_colunas quando dois grupos de mesmo peso ficam lado a lado.`,
     'Regras: use TODOS os itens do conteúdo, cada um pelo menos uma vez (um item pode virar tabela e gráfico). Não crie itens. Títulos de página com até 8 palavras, com as palavras do conteúdo; não coloque números que não estão no conteúdo. Uma ideia por página em apresentações e carrosséis. Comparação de opções: tabela ou cartões, nunca parágrafo. Dados com números: gráfico ou indicadores quando ajudar a decidir.',
+    `Títulos e subtítulos de página seguem estas regras de escrita:\n${REGRAS_DE_ESCRITA}`,
     'Responda somente com JSON, sem texto antes ou depois:',
     '{"paginas":[{"papel":"capa|conteudo|fechamento","objetivo":"o que esta página faz na narrativa","titulo":"...","subtitulo":"...","layout":"...","blocos":[{"tipo":"...","refs":["s1.i1"],"titulo":"opcional","grafico":{},"diagrama":{}}]}]}',
   ].filter(Boolean).join('\n');

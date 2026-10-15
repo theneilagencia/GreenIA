@@ -5,6 +5,7 @@
 //   texto fora da página ou cortado, sobreposição de textos, fonte abaixo do mínimo do formato, contraste medido nos
 //   pixels reais em volta de cada texto, número que não está no conteúdo, conteúdo que ficou de fora, página a mais
 //   ou a menos. Falhou: uma correção pela IA com a lista exata; falhou de novo: a peça sai pelo motor clássico.
+import { REGRAS_DE_ESCRITA } from '../escrita.js';
 import { FORMATOS } from './contrato.js';
 import { FAMILIAS } from './fontes.js';
 import { textoDoConteudo, numerosDe, valorNumerico, itensPorId } from './conteudo.js';
@@ -59,6 +60,7 @@ export function mensagensDesign({ paginas, tr, identidade, objetivo, publico, ti
     '6. Cores: use as variáveis CSS var(--primaria), var(--secundaria), var(--destaque), var(--fundo), var(--texto), var(--texto-claro) e misturas delas (color-mix, rgba, gradientes). Nada de cor fora dessa família, exceto branco, preto e cinzas.',
     `7. Imagens: ${assets.heroi ? '<img src="asset:heroi"> é a imagem ilustrativa da peça (use grande, com object-fit:cover, em capa ou destaque; texto sobre ela só com camada por cima).' : 'não há imagem: use formas, gradientes, ilustração geométrica em SVG inline e tipografia.'} ${assets.logo ? '<img src="asset:logo"> é o logo da empresa (pequeno, discreto, sem distorcer; height fixa e width:auto).' : 'Não há logo: não invente marca.'} Nenhum outro src, href ou url().`,
     '8. Proibido: <script>, eventos (onclick…), <iframe>, <link>, @import, url() externo, <foreignObject>, position:fixed, animações.',
+    `Rótulos curtos que você acrescentar seguem estas regras de escrita:\n${REGRAS_DE_ESCRITA}`,
     'FORMATO DA RESPOSTA: só o código, sem explicação e sem markdown:',
     css ? '<section class="pagina">…</section> (uma por página pedida, na ordem). Reaproveite as classes do CSS já definido (abaixo); se precisar, um <style> curto só com classes novas.' : '<style>…</style> seguido de uma <section class="pagina">…</section> por página, na ordem.',
   ].join('\n');

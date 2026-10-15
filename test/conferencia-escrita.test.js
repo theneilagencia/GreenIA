@@ -92,3 +92,15 @@ test('regras absorvem os critérios de editor: posição clara sem ressalva vazi
   assert.deepEqual(viciosDeEscrita('O plano é bom. Além disso, reduz custos. Nesse sentido, ajuda. Dessa forma, avançamos.'), ['transição automática']);
   assert.deepEqual(viciosDeEscrita('O plano reduz o custo em 12%. Além disso, encurta o fechamento em 5 dias.'), []);
 });
+
+test('as regras de escrita valem para toda geração de texto da plataforma (conversa, Quick Win, peças com design, modelos)', async () => {
+  const { REGRAS_DE_ESCRITA } = await import('../src/escrita.js');
+  const qc = await import('../src/quickwin-construtor.js');
+  const qi = await import('../src/quickwin-interpretacao.js');
+  const qo = await import('../src/quickwin-operacao.js');
+  const md = await import('../src/modelo-pdf.js');
+  for (const [nome, texto] of [['estrutura do Quick Win', qc.PROMPT_ESTRUTURA], ['revisão do resultado', qc.PROMPT_REVISAO], ['interpretação do pedido', qi.PROMPT_INTERPRETACAO], ['exemplo de Quick Win', qo.PROMPT_EXEMPLO],
+    ['apresentação a partir de modelo', md.mensagensAdaptacao({ slides: [], contexto: '', pedido: '' })[0].content]]) assert.ok(texto.includes(REGRAS_DE_ESCRITA), nome);
+  const fs = await import('node:fs');
+  for (const f of ['src/visual/plano.js', 'src/visual/design.js', 'src/quickwin-refinamento.js', 'src/conversas.js']) assert.match(fs.readFileSync(f, 'utf8'), /REGRAS_DE_ESCRITA/, f);
+});

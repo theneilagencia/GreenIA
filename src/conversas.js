@@ -17,7 +17,7 @@ import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, origensComCredencial, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
 import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, lerModelos, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
-import { checarPlano, modeloNaReserva, verificarAvisos } from './plano.js';
+import { checarPlano, modeloNaReserva, verificarAvisos, situacaoPlano, COMO_FUNCIONAM_OS_CREDITOS } from './plano.js';
 import { comUso, anotarUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar } from './texto.js';
@@ -186,6 +186,16 @@ export function pecaDaConversa(texto) {
   return { objetivo: String(texto).slice(0, 500), operacao: { entregaveis: [{ id: 'peca', tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {}, visual }] }, invariantes: {} };
 }
 
+// Perguntas sobre os créditos da própria plataforma ("e se acabar?", "como compro mais?"): a resposta usa estes fatos e
+// a situação atual da empresa (percentual e renovação), sem valores em dinheiro.
+function blocoCreditos(app) {
+  let s = null;
+  try { s = situacaoPlano(app); } catch { s = null; }
+  if (!s) return '';
+  const renova = s.renova ? s.renova.split('-').reverse().join('/') : '';
+  const agora = s.ilimitado ? 'O plano da empresa não tem limite de créditos.' : `Situação atual: ${s.percentual}% dos créditos do plano usados neste ciclo${s.fase === 'pacote' ? ', em uso os créditos adicionais' : s.fase === 'reserva' ? ', em uso a reserva no nível Rápido' : s.fase === 'esgotado' ? ', capacidade do ciclo esgotada' : ''}; renovação em ${renova}.`;
+  return `\nSe a pessoa perguntar sobre créditos, limites ou como ter mais capacidade nesta plataforma, responda com estes fatos (sem valores em dinheiro e sem indicar outras pessoas além do administrador da empresa): ${COMO_FUNCIONAM_OS_CREDITOS.join(' ')} ${agora} O consumo da empresa também aparece no menu da conta, em "Créditos da empresa".`;
+}
 function persona(cfg, responsaveis, qw, marcaPropria = false, execucao = false, pesquisa = null, notas = false, pedeArquivo = false) {
   const partes = [
     `Você é ${marcaPropria ? '' : 'a GreenIA, '}a assistente de IA da ${cfg.empresa}. Responda em português do Brasil, com linguagem clara, sem jargão desnecessário e sem emoji.`,
@@ -658,6 +668,7 @@ export function rotasConversas(app, r) {
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
+      + blocoCreditos(app)
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')

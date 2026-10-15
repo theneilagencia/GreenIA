@@ -9,7 +9,7 @@ import { erro } from './http.js';
 import { todos, um } from './db.js';
 import { lerConfig } from './config.js';
 import { lerModelos } from './modelos.js';
-import { ehOperador, liberarPacote, avisarPacote, situacaoPlano } from './plano.js';
+import { pedidosDeCreditos, ehOperador, liberarPacote, avisarPacote, situacaoPlano } from './plano.js';
 import { PREMISSAS_PADRAO, conta } from './plataforma/margem.js';
 import { CAPACITY_PACK } from './plataforma/catalogo.js';
 
@@ -53,6 +53,9 @@ export function resumoInstancia(app) {
   if (!modelos.some(m => m.homologado)) alertas.push({ nivel: 'atencao', texto: 'Nenhum modelo homologado para conversas sigilosas' });
   const problemas = um(db, 'select count(*) as n from problemas where resolvido = 0').n;
   if (problemas) alertas.push({ nivel: 'atencao', texto: `${problemas} ${problemas === 1 ? 'problema reportado' : 'problemas reportados'} em aberto` });
+  // O administrador da empresa pediu um Capacity Pack (desde a última liberação).
+  const pedidoPack = pedidosDeCreditos(app, { soAdmin: true })[0];
+  if (pedidoPack) alertas.push({ nivel: 'atencao', texto: `O administrador pediu um Capacity Pack em ${pedidoPack.em.slice(8, 10)}/${pedidoPack.em.slice(5, 7)}` });
 
   return {
     empresa: cfg.empresa, mes, geradoEm: agora.toISOString(),

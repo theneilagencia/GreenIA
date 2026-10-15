@@ -4,7 +4,7 @@
 import { json, todos, um } from './db.js';
 import { resumoAlerta } from './avisos-governanca.js';
 import { lerConfig } from './config.js';
-import { situacaoPlano } from './plano.js';
+import { pedidosDeCreditos, situacaoPlano } from './plano.js';
 import { homologadoPadrao, lerModelos } from './modelos.js';
 
 import { estadoQw } from '../public/qw-estado.js';
@@ -77,6 +77,11 @@ export function visaoGeral(app) {
   const emAvaliacao = todos(db, "select id, nome from quick_wins where excluido_em is null and status = 'em_avaliacao' and not exists (select 1 from decisoes d where d.quick_win_id = quick_wins.id and d.em > quick_wins.atualizado_em) limit 5");
   for (const q of emAvaliacao) atencao.push({ tipo: 'decisao', texto: `${q.nome} está em avaliação e aguarda decisão`, link: `#/qw/${q.id}` });
   if (plano && ['aviso', 'pacote', 'reserva', 'esgotado'].includes(plano.fase)) atencao.push({ tipo: 'creditos', texto: { aviso: `Créditos do mês em ${plano.percentual}%`, pacote: 'Os créditos do plano acabaram: em uso o Capacity Pack', reserva: 'Os créditos do mês acabaram: só a classe Rápido até a renovação', esgotado: 'Créditos e reserva do mês esgotados: envio pausado até a renovação' }[plano.fase], link: '#/uso' });
+  // Pessoas que pediram mais créditos ao administrador (desde a última liberação de créditos adicionais).
+  if (plano) {
+    const pedidos = new Set(pedidosDeCreditos(app).filter(x => !x.admin).map(x => x.pessoa)).size;
+    if (pedidos) atencao.push({ tipo: 'creditos', texto: `${pedidos} ${pedidos === 1 ? 'pessoa pediu' : 'pessoas pediram'} mais créditos: solicite um Capacity Pack em Uso`, link: '#/uso' });
+  }
   if (!plano && cfg.tetoMensal && custoMes.c >= cfg.tetoMensal * 0.8) atencao.push({ tipo: 'creditos', texto: 'Consumo acima de 80% do teto mensal', link: '#/configuracoes' });
   const bloqueios = um(db, "select count(*) as n from eventos where tipo = 'policy.blocked' and substr(em, 1, 7) = ?", mes).n;
   if (bloqueios) atencao.push({ tipo: 'politica', texto: `${bloqueios} ${bloqueios === 1 ? 'envio bloqueado' : 'envios bloqueados'} pelas regras de dados neste mês`, link: '#/atividade' });

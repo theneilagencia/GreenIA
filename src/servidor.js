@@ -14,8 +14,9 @@ import { dirname, join } from 'node:path';
 import { abrirBanco, exec, um } from './db.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
-import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO } from './plano.js';
+import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO, PEDIDO_CREDITOS, pedidosDeCreditos } from './plano.js';
 import { semProvedor } from './sem-provedor.js';
+import { registrar } from './eventos.js';
 import { cabecalhosLpComercial, cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
@@ -83,6 +84,12 @@ export function criarApp(op = {}) {
   }, { publica: true });
   // versao: o commit publicado (o Render informa em RENDER_GIT_COMMIT), para conferir qual versão está no ar.
   r.get('/api/saude', () => { um(db, 'select 1'); return { ok: true, ia: app.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium() }; }, { publica: true });
+  // Pedido de mais créditos: a pessoa avisa o administrador; o administrador pede um Capacity Pack à equipe da plataforma.
+  r.post('/api/plano/pedido', ({ pessoa }) => {
+    if (!app.plano) throw new ErroHttp(400, 'sem_plano', 'Esta empresa não usa créditos de plano.');
+    if (!pedidosDeCreditos(app).some(x => x.pessoa === pessoa.id && Date.parse(x.em) > app.agora().getTime() - 864e5)) registrar(app, PEDIDO_CREDITOS, pessoa.id, { admin: !!pessoa.admin });
+    return { plano: planoParaTela(app, pessoa) };
+  });
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false, iaSimulada: !!app.ia.simulada,
     unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),
@@ -209,7 +216,10 @@ async function tratar(app, r, req, res, externo) {
 function planoParaTela(app, pessoa) {
   const s = situacaoPlano(app);
   if (!s) return null;
-  const mensagem = s.fase === 'reserva' ? MSG_PLANO.reserva(s) : s.fase === 'esgotado' ? MSG_PLANO.esgotado(s) : null;
-  if (!pessoa.admin) return { fase: s.fase, mensagem };
-  return { ...s, mensagem };
+  const mensagem = s.fase === 'reserva' ? MSG_PLANO.reserva(s) : s.fase === 'esgotado' ? MSG_PLANO.esgotado(s) : s.fase === 'aviso' ? `Os créditos da empresa estão em ${s.percentual}% neste ciclo.` : null;
+  // Todos veem o percentual e a renovação (não os números nem valores); o admin vê o resto em Uso.
+  const pedido = pedidosDeCreditos(app).find(x => x.pessoa === pessoa.id)?.em || null;
+  const publico = { fase: s.fase, mensagem, percentual: s.ilimitado ? null : s.percentual, renova: s.renova, ilimitado: !!s.ilimitado, pedido };
+  if (!pessoa.admin) return publico;
+  return { ...s, ...publico };
 }

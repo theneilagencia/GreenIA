@@ -79,6 +79,22 @@ export const MSG = {
 // desligadas, então uma execução cabe com folga nessa vaga.
 export const RESERVA_POR_EXECUCAO = 2;
 
+// Pedidos de mais créditos (pessoa ao administrador; administrador à equipe da plataforma), contados desde a última
+// liberação de créditos adicionais.
+export const PEDIDO_CREDITOS = 'plano.creditos_pedidos';
+export function pedidosDeCreditos(app, { soAdmin = false } = {}) {
+  const ultimo = um(app.db, 'select max(em) as em from pacotes')?.em || '';
+  return todos(app.db, `select e.em, e.pessoa_id, e.detalhes from eventos e where e.tipo = ? and e.em > ? order by e.em desc`, PEDIDO_CREDITOS, ultimo)
+    .map(x => ({ em: x.em, pessoa: x.pessoa_id, ...(JSON.parse(x.detalhes || '{}')) })).filter(x => !soAdmin || x.admin);
+}
+// Explicação dos créditos, a mesma na tela, na Ajuda e no chat (sem valores em dinheiro).
+export const COMO_FUNCIONAM_OS_CREDITOS = [
+  'Os créditos são da empresa, não de cada pessoa: o plano tem uma quantidade por mês, usada por toda a equipe. Cada resposta consome créditos conforme o tamanho do pedido e o nível de IA usado.',
+  'Quando o plano chega a 80%, aparece um aviso. Se os créditos do plano acabarem, entram os créditos adicionais (Capacity Pack), se a empresa tiver; eles não vencem e o que sobra fica para os meses seguintes.',
+  'Sem créditos adicionais, a plataforma continua respondendo no nível Rápido, dentro de uma reserva, até a renovação. Só quando a reserva acaba novas mensagens pausam até a renovação do mês; o histórico continua disponível.',
+  'Para ter mais créditos, não é preciso comprar nada individualmente: peça ao administrador da empresa, que solicita um Capacity Pack à equipe da plataforma. Os créditos liberados valem para todos na hora.',
+];
+
 // Antes de cada envio: bloqueia no fim da reserva (contando as execuções que já estão em andamento).
 export function checarPlano(app) {
   const s = situacaoPlano(app);

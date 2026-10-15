@@ -1448,3 +1448,9 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
 .pv-item{margin:0}.pv-item .pv-slide{border-radius:8px;box-shadow:var(--sombra-2)}.pv-item figcaption{text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
 @media (max-width:600px){.pv-painel-fundo{padding:0}.pv-painel{border-radius:0}.pv-lista{padding:12px;gap:12px}}
 .texto-recolhido{margin:4px 0 12px}.texto-recolhido>summary{cursor:pointer;color:var(--forest-text);font:500 14px/1.4 var(--sans);min-height:44px;display:flex;align-items:center}.texto-recolhido[open]>summary{margin-bottom:8px}
+/* Créditos da empresa (menu da conta e aviso) */
+.faixa-plano-acao{margin-left:6px;padding:2px 6px;font-size:13px;text-decoration:underline}
+.creditos-barra{height:8px;border-radius:999px;background:var(--surface-hover);overflow:hidden;margin:4px 0 16px}
+.creditos-barra span{display:block;height:100%;background:var(--forest-text)}
+.creditos-lista{margin:0 0 16px;padding-left:18px;display:grid;gap:6px}
+.creditos-acoes{display:flex;flex-wrap:wrap;gap:8px}

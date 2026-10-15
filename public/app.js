@@ -39,8 +39,10 @@ export function cabecalho(titulo, acoes = '') {
       <button class="icone-btn menu-btn" id="menu" aria-label="Abrir navegação" aria-controls="lateral" aria-expanded="false">${ICONE.menu}<span>Menu</span></button>
       <h1 tabindex="-1" title="${esc(titulo)}">${esc(titulo)}</h1>${acoes}
     </div>
-    <div class="cabeca-acoes">${emAdministracao() ? '' : `<a class="icone-btn nova-topo" href="#/nova" aria-label="Nova conversa" title="Nova conversa">${ICONE.mais}</a>`}</div></header>${E.plano?.mensagem ? `<div class="faixa-plano faixa-aviso ${E.plano.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status">${esc(E.plano.mensagem)}</div>` : ''}`;
+    <div class="cabeca-acoes">${emAdministracao() ? '' : `<a class="icone-btn nova-topo" href="#/nova" aria-label="Nova conversa" title="Nova conversa">${ICONE.mais}</a>`}</div></header>${E.plano?.mensagem ? `<div class="faixa-plano faixa-aviso ${E.plano.fase === 'esgotado' ? 'erro' : 'atencao'}" role="status">${esc(E.plano.mensagem)} <button type="button" class="btn-texto faixa-plano-acao" data-creditos>Entenda e peça mais créditos</button></div>` : ''}`;
 }
+
+document.addEventListener('click', ev => { const b = ev.target.closest?.('[data-creditos]'); if (b) import('/creditos.js').then(x => x.abrirCreditos(b)); });
 
 export function ligarCabecalho() {
   $('menu').onclick = () => {
@@ -222,6 +224,7 @@ function contaLateralHtml(adm) {
     : itemMenu(`href="${esc(inicioAdmin())}" data-contexto="admin"`, ICONE.engrenagem, 'Administração');
   const consoles = E.plataforma?.adminPlataforma ? itemMenu('href="/plataforma"', ICONE.predio, 'Console da plataforma') : E.operador ? itemMenu('href="/operador"', ICONE.servidor, 'Console do operador') : '';
   return contaHtml({ nome: p.nome || p.email, email: p.email, sub: E.publico?.empresa || '', dica: recolhida(), itens: `
+    ${E.plano ? itemMenu('id="creditos-conta" aria-haspopup="dialog"', ICONE_CONTA.creditos, esc(E.plano.ilimitado ? 'Créditos da empresa: sem limite' : `Créditos da empresa · ${E.plano.percentual}%`)) : ''}
     ${itemMenu('id="ajuda-tela" aria-haspopup="dialog"', ICONE_CONTA.ajuda, 'Ajuda')}
     ${temaMenuHtml()}
     ${itemMenu('id="ver-politica" aria-haspopup="dialog"', ICONE.escudo, 'Política de uso de IA')}
@@ -233,6 +236,7 @@ function contaLateralHtml(adm) {
 // Ao fechar o diálogo aberto pelo menu, o foco volta ao botão da conta.
 const ACOES_CONTA = {
   'ajuda-tela': () => import('/ajuda-contextual.js').then(x => x.abrirAjuda($('conta'))),
+  'creditos-conta': () => import('/creditos.js').then(x => x.abrirCreditos($('conta'))),
   'ver-politica': () => abrirPolitica($('conta')),
   reportar: () => reportarProblema('', $('conta')),
   sair,

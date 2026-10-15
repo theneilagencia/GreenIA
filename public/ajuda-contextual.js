@@ -9,10 +9,12 @@ const dias = () => Number(E?.retencaoDias) || 90;
 const gerencia = () => !!document.getElementById('conhecimento-enviar') || !!E?.bases?.areas?.length;
 const ajuda={
  conversas:()=>['Retome suas conversas','Use a busca para encontrar uma conversa. Abra o menu de cada item para renomear ou excluir.','Excluir uma conversa remove também suas mensagens e anexos. Confira antes de confirmar a exclusão.',[
+  ...(E?.plano?[['Como funcionam os créditos?','Os créditos são da empresa e usados por toda a equipe. Ao passar de 80% aparece um aviso; se acabarem, entram os créditos adicionais (se houver) e depois o nível Rápido até a renovação. Para ter mais, peça ao administrador: o percentual e o pedido ficam no menu da conta, em "Créditos da empresa".']]:[]),
   ['Por quanto tempo as conversas ficam salvas?',`Conversas sem uso são excluídas após ${dias()} dias, conforme a configuração da empresa.`],
   ['Como filtrar a lista?','Quando a lista cresce, a tela mostra a busca e o filtro "Mostrar" (conversas livres, Quick Wins ou sigilosas).'],
   ['Como excluir todas?','Use "Excluir todas as conversas", no fim da lista. A exclusão vale só para as suas conversas neste ambiente e não pode ser desfeita.']]],
  c:()=>['Continue a conversa','Peça um ajuste, faça uma pergunta ou anexe outro material na caixa de mensagem. Use o menu "…" do título para renomear ou excluir a conversa.','Revise antes de usar: a IA pode errar. Dado bloqueado pela política não é enviado.',[
+  ...(E?.plano?[['Como funcionam os créditos?','Os créditos são da empresa e usados por toda a equipe. Ao passar de 80% aparece um aviso; se acabarem, entram os créditos adicionais (se houver) e depois o nível Rápido até a renovação. Para ter mais, peça ao administrador: o percentual e o pedido ficam no menu da conta, em "Créditos da empresa".']]:[]),
   ['Por quanto tempo a conversa fica salva?',`As conversas ficam salvas por até ${dias()} dias sem uso.`],
   ['O que é o "i" ao lado da resposta?','Mostra o nível usado na resposta e o motivo da escolha automática do nível.'],
   ['Como uso o Quick Win com outro material?','A caixa de mensagem continua o trabalho desta conversa. Para começar de novo com outro material, use "Usar com outro material", abaixo da caixa.'],

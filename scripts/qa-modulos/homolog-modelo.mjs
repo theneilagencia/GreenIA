@@ -3,8 +3,8 @@
 import { readFileSync } from 'node:fs';
 export default async function (c, pdf, briefing) {
   const conv = (await c.api('POST', '/api/conversas', {})).dados.conversa.id;
-  const texto = `${readFileSync(briefing, 'utf8').trim()}\n\nMonte a apresentação da RAFISA em PPTX, com o cenário do projeto dela, seguindo a apresentação da Repet anexada.`;
-  const r = await c.enviar(conv, { texto, anexos: [{ nome: 'Apresentacao-Kickoff-Repet.pdf', base64: readFileSync(pdf).toString('base64') }] });
+  const texto = `${readFileSync(briefing, 'utf8').trim()}\n\nMonte a apresentação do novo cliente em PPTX, com o cenário do projeto dele, seguindo a apresentação anexada.`;
+  const r = await c.enviar(conv, { texto, anexos: [{ nome: 'apresentacao-modelo.pdf', base64: readFileSync(pdf).toString('base64') }] });
   const etapas = r.linhas.filter(l => l.t === 'etapa').map(l => `${l.ms}ms ${l.v}`);
   const fim = r.linhas.find(l => l.t === 'fim'), erro = r.linhas.find(l => l.t === 'erro');
   c.log(`  status ${r.status} ${r.ms}ms erro=${erro?.mensagem || r.erro || '-'}`);

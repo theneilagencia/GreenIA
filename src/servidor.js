@@ -1,3 +1,4 @@
+import { memoriaDoConteiner } from './vigia-memoria.js';
 import { rotasPaineis } from './paineis.js';
 import { rotasAcompanhamento } from './acompanhamento.js';
 import { rotasProgramacao } from './qw-programacao.js';
@@ -155,6 +156,7 @@ export function permissaoAdmin(caminho, metodo) {
   return 'company.manage';
 }
 
+const ENVIO_GRANDE = 2 * 1048576, MEMORIA_ENVIO_MB = Number(process.env.MEMORIA_ENVIO_MB || 180);
 async function tratar(app, r, req, res, externo) {
   cabecalhosSeguranca(res);
   const url = new URL(req.url, 'http://local');
@@ -171,6 +173,10 @@ async function tratar(app, r, req, res, externo) {
     }
     const rota = r.achar(req.method, url.pathname);
     if (!rota) throw new ErroHttp(404, 'nao_encontrado', 'Não encontrado.');
+    // Envio grande (anexos) com a memória do servidor apertada: recusa antes de ler, com aviso, em vez de arriscar o
+    // servidor de todos. Vale para qualquer rota e qualquer arquivo.
+    if (Number(req.headers['content-length'] || 0) > ENVIO_GRANDE && (memoriaDoConteiner()?.livre ?? Infinity) < MEMORIA_ENVIO_MB)
+      throw new ErroHttp(503, 'servidor_ocupado', 'O servidor está ocupado agora. Tente de novo em alguns segundos; nada foi enviado.');
     const cookies = lerCookies(req);
     const sessao = externo ? externo.sessao : lerSessao(app, cookies);
     if (req.method !== 'GET') checarOrigem(req);

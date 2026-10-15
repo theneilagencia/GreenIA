@@ -162,3 +162,28 @@ test('roteiro "Slide N" na resposta vira slides de verdade no PowerPoint comum',
   assert.deepEqual(s.slides[0].itens.map(i => i.texto), ['A RAFISA quer fechar o mês com resultado confiável', 'Apontamento em papel']);
   assert.deepEqual(s.slides[1].itens.map(i => i.texto), ['1 Entender', '2 Definir']);
 });
+
+test('PDF com foto enorme: a cópia leve reduz a imagem (o original fica intacto) e continua um PDF válido', async () => {
+  const { pdfLeve } = await import('../src/pdf-leve.js');
+  const { default: sharp } = await import('sharp');
+  const foto = await sharp({ create: { width: 4800, height: 2700, channels: 3, background: { r: 20, g: 120, b: 80 } } }).jpeg().toBuffer();
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 960 540] /Contents 4 0 R /Resources << /XObject << /Im1 5 0 R >> >> >>',
+    '<< /Length 33 >>\nstream\nq 960 0 0 540 0 0 cm /Im1 Do Q\nendstream',
+    Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Image /Width 4800 /Height 2700 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length ${foto.length} /Filter /DCTDecode >>\nstream\n`), foto, Buffer.from('\nendstream')])];
+  const partes = [Buffer.from('%PDF-1.4\n')], pos = [];
+  let tam = partes[0].length;
+  objs.forEach((o, i) => { const b = Buffer.concat([Buffer.from(`${i + 1} 0 obj\n`), Buffer.isBuffer(o) ? o : Buffer.from(o), Buffer.from('\nendobj\n')]); pos.push(tam); partes.push(b); tam += b.length; });
+  partes.push(Buffer.from(`xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${pos.map(p => `${String(p).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${tam}\n%%EOF\n`));
+  const original = Buffer.concat(partes);
+  const { pdf, trocas } = await pdfLeve(original);
+  assert.equal(trocas, 1);
+  assert.ok(pdf.subarray(0, original.length).equals(original), 'atualização incremental: o original fica intacto');
+  assert.match(pdf.subarray(original.length).toString('latin1'), /\/Width 2000 \/Height 1125/);
+  assert.match(pdf.toString('latin1'), /\/Prev \d+ >>\nstartxref\n\d+\n%%EOF\n$/);
+  if (!semNavegador) { const [p] = await lerModeloPdf(original); assert.equal(Math.round(p.w), 960); }
+});
+
+test('sem memória livre para ler o modelo: recusa com motivo, sem abrir o navegador', async () => {
+  await assert.rejects(lerModeloPdf(Buffer.from('%PDF-1.4'), { memoria: () => 300 }), e => e.codigo === 'modelo_sem_memoria');
+});

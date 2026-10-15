@@ -154,7 +154,7 @@ export function estiloDaConversa(app, conversaId, atuais = []) {
 // "No mesmo layout / mesmas cores / mesma fonte / mesmo estilo / identidade do material".
 export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identidade|visual|formata[cç][aã]o|padr[aã]o|template|modelo)|seguindo (o|a) (layout|estilo|identidade|template|modelo)|no (layout|estilo|padr[aã]o) d[oa])/i;
 
-// "Monte a apresentação da Rafisa seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
+// "Monte a apresentação do novo cliente seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
 export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões|oes)|slides?|deck)\b/i.test(t)
   && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|refer[eê]ncia|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
 // Pedido de apresentação (criar, montar, versão pronta, PPTX) numa conversa que já tem uma apresentação em PDF:
@@ -1103,7 +1103,9 @@ export function rotasConversas(app, r) {
         gerado = { nome, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
-        aviso(app, conv.id, e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.` : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
+        aviso(app, conv.id, e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
+          : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
+          : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }
     }
     if (preparacoesEscolha) {

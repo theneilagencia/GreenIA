@@ -62,7 +62,8 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
     const nav = await chromium.launch({ executablePath: exe, timeout: 30_000,
       env: { ...process.env, HOME: process.env.DESIGN_HOME || tmp, XDG_CONFIG_HOME: `${tmp}/.config`, XDG_CACHE_HOME: `${tmp}/.cache` },
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
-        '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1'] });
+        '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1',
+        '--single-process', '--no-zygote', '--in-process-gpu', '--disable-software-rasterizer'] });
     try {
       const ctx = await nav.newContext({ javaScriptEnabled: false, viewport: { width: Math.round(largura), height: Math.round(altura) }, deviceScaleFactor: escala,
         acceptDownloads: false, bypassCSP: false, serviceWorkers: 'block' });
@@ -105,7 +106,9 @@ export function comLeitorPdf(pdf, fn) {
     const nav = await chromium.launch({ executablePath: exe, timeout: 30_000,
       env: { ...process.env, HOME: process.env.DESIGN_HOME || tmp, XDG_CONFIG_HOME: `${tmp}/.config`, XDG_CACHE_HOME: `${tmp}/.cache` },
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
-        '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1'] });
+        '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1',
+        // Leitor de PDF em servidor pequeno: um processo só, sem GPU e com pouca memória de JavaScript e de imagens.
+        '--single-process', '--no-zygote', '--in-process-gpu', '--js-flags=--max-old-space-size=160', '--disable-software-rasterizer', '--force-device-scale-factor=1'] });
     try {
       const ctx = await nav.newContext({ javaScriptEnabled: true, acceptDownloads: false, serviceWorkers: 'block' });
       await ctx.route('**/*', rota => {

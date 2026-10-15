@@ -1,11 +1,12 @@
-// Apresentação enviada em PDF como MODELO: "monte a da Rafisa seguindo exatamente o mesmo layout". Três etapas:
+// Apresentação enviada em PDF como MODELO: "monte a do novo cliente seguindo exatamente o mesmo layout". Três etapas:
 //  1. leitura (navegador isolado, pdf.js): cada página vira um fundo SEM o texto (fotos, linhas, faixas e cores
 //     exatamente como no original) e a lista de textos com posição, fonte, tamanho e cor;
 //  2. blocos: os textos viram blocos (linhas da mesma fonte, tamanho, cor e alinhamento), cada um com o espaço que
 //     ocupa no slide;
 //  3. o PowerPoint: um slide por página, fundo + caixas de texto EDITÁVEIS na mesma posição, fonte, tamanho e cor.
 // A troca do conteúdo (adaptarModelo) mantém a estrutura de cada slide e só usa o que o material da conversa traz.
-import { comLeitorPdf } from './visual/chromium.js';
+import { comLeitorPdf, memoriaLivreMb } from './visual/chromium.js';
+import { pdfLeveSeparado } from './pdf-leve.js';
 import { REGRAS_DE_ESCRITA } from './escrita.js';
 
 export const MAX_PAGINAS_MODELO = 60;
@@ -43,7 +44,12 @@ async function lerPagina({ n, escala }) {
   return { w: vp1.width, h: vp1.height, fundo, itens };
 }
 
-export async function lerModeloPdf(pdf, { maxPaginas = MAX_PAGINAS_MODELO, escala = 2 } = {}) {
+// Memória livre mínima para ler um modelo (navegador enxuto + PDF com imagens reduzidas, medido em ~360 MB).
+export const MEMORIA_MODELO_MB = Number(process.env.MODELO_MEMORIA_MIN_MB || 420);
+export async function lerModeloPdf(pdfOriginal, { maxPaginas = MAX_PAGINAS_MODELO, escala = 1.34, memoria = memoriaLivreMb } = {}) {
+  // Sem memória para ler com folga: recusa com motivo, em vez de derrubar o servidor.
+  if (memoria() < MEMORIA_MODELO_MB) throw Object.assign(new Error('memoria'), { codigo: 'modelo_sem_memoria' });
+  const { pdf } = await pdfLeveSeparado(pdfOriginal);
   return comLeitorPdf(pdf, async page => {
     const { paginas: total } = await page.evaluate(lerPagina, { n: 0, escala });
     if (total > maxPaginas) throw Object.assign(new Error('paginas'), { codigo: 'modelo_grande', total });

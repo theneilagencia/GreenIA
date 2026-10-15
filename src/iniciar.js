@@ -30,6 +30,7 @@ import { rodadaExportacoes } from './plataforma/exportacoes.js';
 import { rodadaContatos } from './plataforma/contatos.js';
 import { lerOperadores, lerPlano, verificarAvisos } from './plano.js';
 import { lerInstancias } from './operador.js';
+import { iniciarVigia } from './vigia-memoria.js';
 
 // Destino S3 das cópias. A regra de expiração é conferida NO BUCKET a cada envio (conferirExpiracaoS3 em
 // src/backup.js): sem regra verificada de até 7 dias, a cópia não sai do disco local. S3_LIFECYCLE_DIAS, de versões
@@ -42,6 +43,8 @@ export function destinoS3(env, log = () => {}) {
 }
 
 export async function iniciar(env = process.env) {
+  // Vigia de memória: protege o servidor dos trabalhos pesados (navegador, OCR) em qualquer modo de instalação.
+  if (env.VIGIA_MEMORIA !== '0') iniciarVigia({ log: m => console.log(m) });
   if (env.ENSAIO_ISOLADO === '1') return iniciarIsolado(env);
   if (env.MULTIEMPRESA === '1') return iniciarPlataforma(env);
   const producao = env.NODE_ENV === 'production';

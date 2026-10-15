@@ -22,8 +22,9 @@
     "@tesseract.js-data/por": "^1.0.0",
     "jpeg-js": "^0.4.4",
     "nodemailer": "^10.0.12",
+    "playwright-core": "^1.56.1",
+    "sharp": "^0.33.5",
     "tesseract.js": "^7.0.0",
-    "unpdf": "^1.8.1",
-    "playwright-core": "^1.56.1"
+    "unpdf": "^1.8.1"
   }
 }

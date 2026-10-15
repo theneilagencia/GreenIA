@@ -4,6 +4,7 @@ import { erro } from './http.js';
 import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, xlsx } from './escritorio.js';
 import { resolverIdentidade } from './visual/marca.js';
+import { estiloComoTexto } from './estilo-arquivo.js';
 import { assinaturaTeste } from './quickwin-teste.js';
 import { lerMaterialRefinamento } from './quickwin-refinamento.js';
 import { consolidarWal, exec, json, todos, um, transacao } from './db.js';
@@ -23,7 +24,8 @@ import { avaliarProcessamentoSigiloso } from './sigilo.js';
 import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { conferirComCorrecao, contextoDaExecucao, escolhaHumanaPrevista, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
-import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, temArtefatoVisual } from './quickwin-operacao.js';
+import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, promptVisual, temArtefatoVisual, visualDoPedido } from './quickwin-operacao.js';
+import { TIPOS as TIPOS_VISUAIS } from './visual/contrato.js';
 import { gravarVisuais, produzirVisuais, resumoArtefato } from './visual/producao.js';
 import { precisaIntegracao, prepararExecucao, concluirExecucao, limparResposta, lerPlano as lerPlanoInteg, resumoPlano as resumoPlanoInteg } from './integracoes/quickwin.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
@@ -134,6 +136,27 @@ const RAJADA = 12;
 // precisa escrever o conteúdo completo e bem estruturado. A orientação entra só quando o pedido cita o formato.
 export const PEDE_ARQUIVO = /\b(word|docx|power ?point|pptx|ppt|slides?|excel|xlsx|xls|planilhas?|apresenta[cç](ão|ao|ões|oes))\b/i;
 const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do Word, do PowerPoint ou do Excel e mostra o botão para baixar. Não diga que não consegue gerar arquivos e não ofereça código para gerá-los: escreva o conteúdo completo, pronto para uso, já na resposta. Use # para o título, ## para cada seção (no PowerPoint, cada ## vira um slide, com poucos tópicos curtos), listas com - e tabelas em Markdown. Em tabela para planilha, cada célula com um valor só (número, R$ 1.234,56, 12,5% ou data dd/mm/aaaa, sem texto junto) e confira cada total antes de responder.';
+
+// Peça visual pedida na conversa livre ("crie uma apresentação", "monte um one-page"): a resposta traz o conteúdo
+// e a produção visual (o mesmo motor dos Quick Wins) compõe o PDF/PNG com design. Só com verbo de criação: "analise
+// a apresentação" é análise, não pedido de peça. Imagem gerada por IA fica fora (decisão própria da empresa).
+const PEDE_CRIAR = /\b(cri[ae]|criar|fa[cç]a|fazer|monte|montar|gere|gerar|prepare|preparar|transform\w*|elabor\w*|desenvolv\w*|produz\w*|convert\w*|quero|preciso|refa[cç]a|vers[aã]o pronta)\b/i;
+// Estilo do material mais recente com estilo: os anexos desta mensagem primeiro, depois os guardados na conversa.
+export function estiloDaConversa(app, conversaId, atuais = []) {
+  const agora = [...atuais].reverse().find(a => a.estilo)?.estilo;
+  if (agora) return agora;
+  return json(um(app.db, 'select estilo from anexos where conversa_id = ? and estilo is not null order by id desc limit 1', conversaId)?.estilo, null);
+}
+// "No mesmo layout / mesmas cores / mesma fonte / mesmo estilo / identidade do material".
+export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identidade|visual|formata[cç][aã]o|padr[aã]o|template|modelo)|seguindo (o|a) (layout|estilo|identidade|template|modelo)|no (layout|estilo|padr[aã]o) d[oa])/i;
+
+export function pecaDaConversa(texto) {
+  if (!PEDE_CRIAR.test(String(texto || ''))) return null;
+  const v = visualDoPedido(texto);
+  if (!v || v.tipo === 'image') return null;
+  const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) };
+  return { objetivo: String(texto).slice(0, 500), operacao: { entregaveis: [{ id: 'peca', tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {}, visual }] }, invariantes: {} };
+}
 
 function persona(cfg, responsaveis, qw, marcaPropria = false, execucao = false, pesquisa = null, notas = false, pedeArquivo = false) {
   const partes = [
@@ -299,10 +322,14 @@ export function rotasConversas(app, r) {
     const m = um(app.db, "select texto from mensagens where id = ? and conversa_id = ? and papel = 'assistant'", Number(params.mensagem), conv.id);
     if (!m || !String(m.texto || '').trim() || /^\[Conteúdo processado e não guardado/.test(m.texto)) throw erro(404, 'mensagem', 'Resposta não encontrada.');
     const qw = conv.quick_win_id ? um(app.db, 'select nome from quick_wins where id = ?', conv.quick_win_id) : null;
-    // Cor da identidade visual da empresa (regra ou preferência do admin); sem ela, a cor padrão dos arquivos.
+    // Cor da identidade visual da empresa (regra ou preferência do admin); sem ela, a cor padrão dos arquivos. Pedido
+    // "no mesmo layout" de um material enviado: as cores e as fontes do material (a regra da empresa vale mais).
     const id = resolverIdentidade(lerConfig(app.db));
-    const cor = ['empresa', 'preferencia'].includes(id.origem['cores.primaria']) ? id.cores.primaria : null;
-    return { conv, texto: m.texto, titulo: qw?.nome || conv.titulo || 'Resposta da GreenIA', cor };
+    let cor = ['empresa', 'preferencia'].includes(id.origem['cores.primaria']) ? id.cores.primaria : null, fonte = null;
+    const pedido = um(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user' and id < ? order by id desc limit 1", conv.id, Number(params.mensagem))?.texto || '';
+    const estilo = PEDE_LAYOUT.test(pedido) ? estiloDaConversa(app, conv.id) : null;
+    if (estilo) { if (id.origem['cores.primaria'] !== 'empresa' && estilo.cores?.[0]) cor = estilo.cores[0]; fonte = estilo.fontes?.[0] || null; }
+    return { conv, texto: m.texto, titulo: qw?.nome || conv.titulo || 'Resposta da GreenIA', cor, fonte };
   };
   const enviarOffice = (res, formato, titulo, dados) => {
     res.writeHead(200, { 'content-type': MIMES[formato], 'content-length': dados.length, 'content-disposition': `attachment; filename="${nomeDoArquivo(titulo, formato)}"`,
@@ -318,7 +345,7 @@ export function rotasConversas(app, r) {
   });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/:formato', ({ pessoa, params, res }) => {
     if (!['docx', 'pptx', 'xlsx'].includes(params.formato)) throw erro(404, 'formato', 'Formato não disponível.');
-    const { texto, titulo, cor } = respostaGuardada(pessoa, params);
+    const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
     if (params.formato === 'xlsx') {
       // Todas as tabelas da resposta, uma por aba.
       const tabelas = extrairTabelas(texto);
@@ -326,7 +353,7 @@ export function rotasConversas(app, r) {
       return enviarOffice(res, 'xlsx', titulo, xlsx(tabelas.map(t => ({ linhas: t.map(l => t[0].map((_, k) => l[k] ?? '')) })), { titulo, cor }));
     }
     const gerar = params.formato === 'docx' ? docx : pptx;
-    enviarOffice(res, params.formato, titulo, gerar(texto, { titulo, cor, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` }));
+    enviarOffice(res, params.formato, titulo, gerar(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` }));
   });
 
   r.patch('/api/conversas/:id', ({ pessoa, params, corpo }) => {
@@ -549,7 +576,15 @@ export function rotasConversas(app, r) {
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
-    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto));
+    const pecaChat = !qw ? pecaDaConversa(texto) : null;
+    // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
+    // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
+    if (pecaChat) {
+      const estilo = estiloDaConversa(app, conv.id, anexos);
+      if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
+    }
+    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
+      + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '');
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.
     // Mesma rota, mesmo recurso e mesmas regras nas duas etapas.
@@ -719,7 +754,7 @@ export function rotasConversas(app, r) {
     const naoGuardar = tipos.some(t => (cfg.naoArmazenar || []).includes(t));
     // Gerar de novo: o pedido já está guardado (com os anexos) e não é duplicado.
     const msgId = regeracao ? regeracao.pedido : Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, naoGuardar ? NAO_GUARDADO : texto, agora).lastInsertRowid);
-    if (!naoGuardar && !regeracao) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida) values (?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null);
+    if (!naoGuardar && !regeracao) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida, estilo) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null, a.estilo ? JSON.stringify(a.estilo) : null);
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
@@ -973,6 +1008,18 @@ export function rotasConversas(app, r) {
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); registroQualidade.visual = { falhou: true }; }
       }
     }
+    // Peça visual pedida na conversa livre: mesma produção, mesmas regras de governança e de retenção.
+    if (pecaChat && !espec) {
+      if (naoGuardar) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso a peça visual não foi gerada.');
+      else {
+        linha({ t: 'etapa', v: 'Montando o visual…' });
+        try {
+          visuais = await produzirVisuais(app, { pessoa, conv, qw: null, espec: pecaChat, resposta, chamar, chamarDesign, usarIA: !reservaDoPlano,
+            governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
+          if (visuais) { custoVisual = visuais.custos; fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoVisual.plano_visual + custoVisual.imagem }; }
+        } catch (e) { app.log?.('produção visual', erroParaLog(e)); aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
+      }
+    }
     if (preparacoesEscolha) {
       fim = { ...(fim || {}), custo: Number(fim?.custo || 0) + custoPreparacaoEscolha, economia: Number(fim?.economia || 0) + economiaPreparacaoEscolha };
       registrar(app, 'quickwin.choice_prepared', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, roteamento: rotaId, recuperacoes: preparacoesEscolha, preparada: !escolhaNaoPreparada });
@@ -1002,10 +1049,10 @@ export function rotasConversas(app, r) {
     exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
       usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
     const artefatos = visuais ? gravarVisuais(app, visuais, { pessoa, conv, qw, respId, rotaId }) : [];
-    if (visuais) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
+    if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
     // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.
-    if (visuais && artefatos.some(a => a.imagem_final && !a.imagem_final.gerada) && ['aprovado', 'corrigido'].includes(registroQualidade.status)) {
+    if (visuais && registroQualidade && artefatos.some(a => a.imagem_final && !a.imagem_final.gerada) && ['aprovado', 'corrigido'].includes(registroQualidade.status)) {
       registroQualidade.status = 'parcial';
       registroQualidade.objetivo = { atingido: false, motivo: 'imagem_nao_gerada', imagem_motivo: artefatos.find(a => a.imagem_final && !a.imagem_final.gerada)?.imagem_final?.motivo || null };
     }

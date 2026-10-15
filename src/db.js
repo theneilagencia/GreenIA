@@ -105,7 +105,7 @@ create table if not exists mensagens (
 create table if not exists anexos (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade,
   mensagem_id integer references mensagens(id) on delete cascade, nome text not null, texto text not null,
-  papel text not null default 'SUPPLEMENTARY', tipo_fonte text not null default 'conversation_material', url_exibida text, ignorada integer not null default 0);
+  papel text not null default 'SUPPLEMENTARY', tipo_fonte text not null default 'conversation_material', url_exibida text, ignorada integer not null default 0, estilo text);
 
 -- Medição manual dos quick wins (lançada pelo responsável) e decisões.
 create table if not exists medicoes (
@@ -409,6 +409,8 @@ const MIGRACOES = [
   },
   // 19. Origem opcional dos contatos da instalação única; registros antigos permanecem intactos.
   db => { if (!db.prepare("select 1 from pragma_table_info('leads') where name = 'origem'").get()) db.exec("alter table leads add column origem text not null default '{}'"); },
+  // 20. Estilo do anexo (cores de destaque e nomes de fontes do arquivo, sem conteúdo), para "no mesmo layout".
+  db => { if (!db.prepare("select 1 from pragma_table_info('anexos') where name = 'estilo'").get()) db.exec('alter table anexos add column estilo text'); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

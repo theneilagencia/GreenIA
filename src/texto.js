@@ -1,6 +1,7 @@
 // Extração de texto dos arquivos enviados (bases, arquivos de quick win e anexos). Imagem e página escaneada
 // de PDF são lidas por OCR local (ocr.js); o texto lido é tratado como qualquer outro texto extraído: a
 // classificação, a governança e a retenção vêm depois, iguais para todos os formatos.
+import { estiloDoPdf, estiloDoTema } from './estilo-arquivo.js';
 import { inflateRawSync } from 'node:zlib';
 import { erro } from './http.js';
 import { lerImagens, dimensoes, imagensDoPdf, ErroOcr, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO, MSG_IMAGEM_SEM_TEXTO, MSG_PDF_SEM_TEXTO } from './ocr.js';
@@ -272,5 +273,11 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
   if (texto.length > maxCaracteres) throw erro(413, 'texto_grande', onde === 'anexo'
     ? `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto. No chat, cada anexo pode ter até ${paginasDe(maxCaracteres)} páginas, porque vai inteiro para a IA e consome créditos a cada resposta. Envie só a parte necessária, ou coloque o documento na base de conhecimento, que usa apenas os trechos relevantes.`
     : `${nome}: tem cerca de ${paginasDe(texto.length)} páginas de texto; o máximo é ${paginasDe(maxCaracteres)} páginas por documento. Divida o arquivo em partes.`);
-  return { nome, texto, bytes: b.length };
+  // Estilo do material (cores e fontes), para "no mesmo layout". Falha aqui nunca impede a leitura do texto.
+  let estilo = null;
+  try {
+    if (b.subarray(0, 4).toString() === '%PDF') estilo = estiloDoPdf(b);
+    else if (ext === 'pptx' || ext === 'docx') estilo = estiloDoTema(lerZip(b).get(ext === 'pptx' ? 'ppt/theme/theme1.xml' : 'word/theme/theme1.xml')?.());
+  } catch { estilo = null; }
+  return { nome, texto, bytes: b.length, ...(estilo ? { estilo } : {}) };
 }

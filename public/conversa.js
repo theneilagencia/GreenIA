@@ -166,7 +166,7 @@ const arquivoHref = (m, f) => `/api/conversas/${C.conv.id}/mensagens/${m.id}/arq
 const PEDE = { docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i };
 const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['slides', 'Apresentação PowerPoint', '.pptx editável'], xlsx: ['planilha', 'Planilha Excel', '.xlsx com as tabelas'] };
 function arquivosPedidos(m, tabelas) {
-  if (!servidor(m) || m.artefatos?.length) return '';
+  if (!servidor(m)) return '';
   const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
   const pedidos = Object.keys(PEDE).filter(f => PEDE[f].test(pedido) && (f !== 'xlsx' || tabelas.length));
   // Excel com uma tabela só: o cartão da própria tabela já é a planilha.
@@ -175,7 +175,7 @@ function arquivosPedidos(m, tabelas) {
 }
 // "Baixar como": qualquer resposta guardada vira Word ou PowerPoint; com tabela, também Excel.
 function baixarComo(m) {
-  if (!servidor(m) || m.artefatos?.length) return '';
+  if (!servidor(m)) return '';
   const tabelas = (C.tabelas[m.id] || []).length;
   const itens = [['docx', 'Word (.docx)'], ['pptx', 'PowerPoint (.pptx)'], ...(tabelas ? [['xlsx', `Excel (.xlsx)${tabelas > 1 ? ', todas as tabelas' : ''}`]] : [])];
   const id = `baixar-como-${esc(m.id)}`;

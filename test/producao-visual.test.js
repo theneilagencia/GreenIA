@@ -80,6 +80,8 @@ function roteiro(b) {
     const secoes = [...new Set(ids.map(x => x.s))];
     return JSON.stringify({ paginas: secoes.map((s, k) => ({ papel: k === 0 ? 'capa' : 'conteudo', titulo: '', blocos: k === 0 ? [] : ids.filter(x => x.s === s).map(x => ({ tipo: x.tipo === 'tabela' ? 'grafico' : x.tipo === 'paragrafo' ? 'texto' : x.tipo, refs: [x.id] })) })) });
   }
+  // Conversa livre que pediu uma peça: a resposta é o conteúdo da peça.
+  if (t === 'outra' && sis(b).includes('Peças visuais: "Apresentação"')) return DECK;
   if (t !== 'execucao') return 'Certo.';
   const s = sis(b);
   if (s.includes('Apresentação para a diretoria')) return `## Apresentação para a diretoria\n${DECK}`;
@@ -381,4 +383,52 @@ test('retenção: conteúdo que a empresa não guarda não gera artefato guardad
     assert.equal(um(S.app.db, 'select count(*) as n from artefatos_visuais where conversa_id = ?', r.conv.id).n, 0);
     assert.ok(todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'aviso'", r.conv.id).some(m => /artefato visual não foi gerado/.test(m.texto)));
   } finally { salvarConfig(S.app.db, { naoArmazenar: [] }); }
+});
+
+test('conversa livre: "crie uma apresentação" gera a peça com design (mesmo motor e mesma rota); análise não gera', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const antes = OR.chamadas.length;
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Crie uma apresentação de 6 slides com os resultados do trimestre: receita de R$ 4,2 mi e margem de 18%.' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  const chamadas = OR.chamadas.slice(antes);
+  const resp = chamadas.find(b => tipoDe(b) === 'outra'), pv = chamadas.find(b => tipoDe(b) === 'plano_visual');
+  assert.match(sis(resp), /A GreenIA monta o arquivo final/);
+  assert.ok(pv, 'chamou o diretor de arte');
+  assert.deepEqual(pv.provider, resp.provider, 'mesma rota de privacidade da resposta');
+  assert.ok(r.eventos.some(e => e.t === 'etapa' && e.v === 'Montando o visual…'));
+  const a = r.fim.artefatos?.[0];
+  assert.ok(a, 'artefato na resposta');
+  assert.equal(a.tipo, 'presentation'); assert.equal(a.formato, '16:9'); assert.equal(a.paginas, 6);
+  assert.equal(a.titulo, 'Resultados do trimestre');
+  const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
+  assert.equal(d.mensagens.find(m => m.papel === 'assistant').artefatos.length, 1);
+  const pdf = await fetch(`${S.base}/api/artefatos/${a.id}/baixar?formato=pdf`, { headers: { cookie: ana.cookie } });
+  assert.equal(pdf.status, 200);
+  assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 4).toString(), '%PDF');
+  assert.equal((await fetch(`${S.base}/api/artefatos/${a.id}/baixar?formato=pdf`, { headers: { cookie: beto.cookie } })).status, 404, 'outra pessoa não baixa');
+  // Pedido de análise de uma apresentação não é pedido de peça.
+  const c2 = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r2 = await enviarMensagem(ana, c2.id, { texto: 'Analise a apresentação do trimestre e diga os riscos.' });
+  assert.equal(r2.fim.artefatos, undefined);
+  assert.doesNotMatch(sis(OR.chamadas.at(-1)), /Peças visuais/);
+});
+
+test('"no mesmo layout" do material enviado: a peça e o PowerPoint seguem as cores e a fonte do PDF', async () => {
+  const { pdfColorido } = await import('./estilo-arquivo.test.js');
+  const { deszipar } = await import('./zip-leitor.js');
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Apresentacao-Kickoff.pdf', base64: pdfColorido().toString('base64') }] });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'quero uma versão pronta da apresentação, em PPTX, seguindo o mesmo layout (mesmas fontes e cores)' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  const a = r.fim.artefatos?.[0];
+  assert.ok(a, 'peça visual gerada');
+  const id = json(um(S.app.db, 'select identidade from artefatos_visuais where id = ?', a.id).identidade);
+  assert.equal(id.cores.primaria, '#C8102E');
+  assert.equal(id.origem['cores.primaria'], 'inferida');
+  const resp = (await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens.filter(m => m.papel === 'assistant').at(-1);
+  const pp = await fetch(`${S.base}/api/conversas/${conv.id}/mensagens/${resp.id}/arquivo/pptx`, { headers: { cookie: ana.cookie } });
+  assert.equal(pp.status, 200);
+  const z = deszipar(Buffer.from(await pp.arrayBuffer()));
+  assert.match(z.get('ppt/theme/theme1.xml'), /<a:latin typeface="Montserrat"\/>/);
+  assert.match(z.get('ppt/slides/slide2.xml'), /C8102E/);
 });

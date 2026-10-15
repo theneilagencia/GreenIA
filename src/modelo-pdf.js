@@ -106,7 +106,8 @@ const INSTRUCAO = [
   'Você adapta uma apresentação MODELO para outro projeto ou cliente, mantendo exatamente a estrutura: mesmos slides, mesma função de cada bloco de texto (título, rótulo de seção, número, item de lista, rodapé, data, nome), mesmo tom e o mesmo nível de detalhe.',
   'Para cada bloco, escreva o texto novo no lugar do original, com o conteúdo do NOVO projeto tirado do material e da conversa. Troque nomes de empresa, pessoas, áreas, sistemas, datas, horários, números e exemplos pelos do novo projeto.',
   'Rótulos de estrutura (como "01 · CONTEXTO", numeração "1", "2", "02", títulos de método que valem para qualquer projeto) ficam iguais quando continuam corretos.',
-  'Não invente fatos: quando o material não traz a informação de um bloco específico do projeto (uma data, um responsável, um horário), escreva "[a definir]" no lugar do dado, mantendo o resto do texto.',
+  'Não invente fatos. Dado específico que o material não traz (uma data, um nome de responsável, um horário, um número): escreva "[a definir]" no lugar só do dado. Item de lista, linha de tabela ou exemplo complementar sem conteúdo no material: devolva "" (texto vazio) e o bloco sai do slide, em vez de repetir "[a definir]".',
+  'Cada bloco vem com a posição no slide [x, y] (em pontos, a partir do canto superior esquerdo): blocos na mesma altura são colunas de uma linha; na mesma coluna, itens de uma lista ou linhas de uma tabela. Mantenha cada texto na sua posição e na sua função; não troque conteúdo entre colunas nem entre linhas.',
   'O briefing da pessoa (no pedido e na conversa) manda: escopo, frentes, prazos, entregáveis e o que fica fora seguem o que ela definiu para o novo projeto, mesmo que o modelo diga outra coisa.',
   'Tamanho: cada texto novo deve caber no mesmo espaço do original, com no máximo o número de caracteres indicado.',
   REGRAS_DE_ESCRITA,
@@ -114,7 +115,7 @@ const INSTRUCAO = [
 ].join('\n');
 
 export function mensagensAdaptacao({ slides, contexto, pedido }) {
-  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} (máx. ${Math.max(8, Math.round(b.texto.length * 1.15))}): ${b.texto}`).join('\n')}`).join('\n\n');
+  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${Math.max(8, Math.round(b.texto.length * 1.15))}): ${b.texto}`).join('\n')}`).join('\n\n');
   return [
     { role: 'system', content: INSTRUCAO },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${contexto}\n</material>\n\nApresentação modelo (blocos a adaptar):\n\n${modelo}` },
@@ -126,7 +127,17 @@ const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) re
 export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {} }) {
   const textos = {}, faltando = [];
   let custo = 0, economia = 0, prontas = 0;
-  const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos }));
+  // Fora da adaptação: números puros (página, passo, item) ficam como estão; texto que se repete em 3 ou mais
+  // slides (rodapé, nome do documento) vai uma vez só e a resposta vale para todas as ocorrências.
+  const vezes = new Map();
+  for (const p of paginas) for (const b of p.blocos) vezes.set(b.texto, (vezes.get(b.texto) || 0) + 1);
+  const primeiro = new Map(), repetidos = [];
+  const fica = b => /^\s*[\d.·/\s-]{1,6}\s*$/.test(b.texto);
+  const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos.filter(b => {
+    if (fica(b)) return false;
+    if (vezes.get(b.texto) >= 3) { if (primeiro.has(b.texto)) { repetidos.push([b.id, primeiro.get(b.texto)]); return false; } primeiro.set(b.texto, b.id); }
+    return true;
+  }) }));
   const partes = [];
   for (let i = 0; i < slides.length; i += porParte) partes.push(slides.slice(i, i + porParte).filter(s => s.blocos.length));
   etapa(`Adaptando ${slides.length} slides ao novo projeto…`);
@@ -139,15 +150,16 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     for (let tentativa = 0; tentativa < 2 && n < ids.length * 0.8; tentativa++) {
       const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido }));
       custo += x.custo || 0; economia += x.economia || 0;
-      const j = lerJson(x.texto), k = j ? ids.filter(id => typeof j[id] === 'string' && j[id].trim()).length : -1;
+      const j = lerJson(x.texto), k = j ? ids.filter(id => typeof j[id] === 'string').length : -1;
       if (k > n) { r = j; n = k; }
     }
     for (const id of ids) {
-      if (typeof r?.[id] === 'string' && r[id].trim()) textos[id] = r[id].replace(/\s+/g, ' ').trim();
+      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) textos[id] = r[id].replace(/\s+/g, ' ').trim();
       else faltando.push(id);
     }
     prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
   } };
   await Promise.all(Array.from({ length: Math.min(simultaneas, fila.length) }, trabalhar));
+  for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
   return { textos, faltando, custo, economia };
 }

@@ -422,6 +422,7 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
     const fundo = `<p:pic><p:nvPicPr><p:cNvPr id="2" name="Fundo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${W}" cy="${H}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
     const caixas = p.blocos.map((b, k) => {
       const texto = textos[b.id] ?? b.texto;
+      if (!String(texto).trim()) return '';   // item sem conteúdo no novo projeto: sai do slide
       const topo = (b.y - b.tam * 0.92) * PT * sy, esq = b.x * PT * sx;
       // Espaço da coluna: até o próximo bloco à direita na mesma faixa de altura (ou a margem do slide). Texto novo
       // mais longo que o original quebra dentro da coluna em vez de invadir a vizinha.
@@ -429,10 +430,14 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const coluna = Math.max(b.largura, vizinho - b.x - b.tam * 0.6);
       const maior = String(texto).length > b.texto.length * 1.02;
       const quebra = b.linhas > 1 || maior;
-      const larg = Math.min(W - esq, (quebra ? Math.max(coluna, b.largura * 1.08) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
+      // Bloco de várias linhas mantém a largura do original (a quebra do desenho); linha única que cresceu usa a coluna.
+      const larg = Math.min(W - esq, (b.linhas > 1 ? b.largura * 1.03 + b.tam * 0.3 : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
+      // Texto bem maior que o original (mais de 15% acima da capacidade do espaço): a fonte diminui até caber, até 70%.
+      const capacidade = b.texto.length * (b.linhas > 1 ? 1 : Math.max(1, coluna / Math.max(1, b.largura)) * (b.linhas > 1 ? 1 : 1));
+      const escala = String(texto).length > capacidade * 1.15 ? Math.max(0.7, Math.sqrt(capacidade / String(texto).length)) : 1;
       const alt = ((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy;
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
-      const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
+      const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100 * escala)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
       const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * 100)}"/></a:lnSpc>` : '';
       return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr><a:r>${rpr}<a:t>${x(texto)}</a:t></a:r></a:p></p:txBody></p:sp>`;
     }).join('');

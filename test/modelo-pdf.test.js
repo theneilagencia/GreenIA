@@ -52,7 +52,7 @@ test('adaptação: pede todos os ids com limite de tamanho; resposta incompleta 
   const m = mensagensAdaptacao({ slides: [{ numero: 1, blocos: paginas[0].blocos }], contexto: 'Rafisa usa Iniflex.', pedido: 'faça a da Rafisa' });
   assert.match(m[0].content, /mantendo exatamente a estrutura/);
   assert.match(m[0].content, /\[a definir\]/);
-  assert.match(m[1].content, /1\.1 \(máx\. 16\): Kick-off Repet/);
+  assert.match(m[1].content, /1\.1 \[0, 0\] \(máx\. 16\): Kick-off Repet/);
   assert.match(m[1].content, /<material>\nRafisa usa Iniflex\.\n<\/material>/);
   let n = 0;
   const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: ++n === 1 ? 'não sei' : '```json\n{"1.1":"Kick-off Rafisa"}\n```', custo: 0.01 }) });
@@ -79,7 +79,7 @@ before(async () => {
   OR = await openRouterFalso({ responder: b => {
     const sis = typeof b.messages[0].content === 'string' ? b.messages[0].content : b.messages[0].content.map(p => p.text).join('');
     if (sis.startsWith(ADAPTA)) {
-      const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \(máx/gm)].map(m => m[1]);
+      const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(m => m[1]);
       return JSON.stringify(Object.fromEntries(ids.map(id => [id, `Kickoff da Rafisa ${id}`])));
     }
     return null;
@@ -186,4 +186,21 @@ test('PDF com foto enorme: a cópia leve reduz a imagem (o original fica intacto
 
 test('sem memória livre para ler o modelo: recusa com motivo, sem abrir o navegador', async () => {
   await assert.rejects(lerModeloPdf(Buffer.from('%PDF-1.4'), { memoria: () => 300 }), e => e.codigo === 'modelo_sem_memoria');
+});
+
+test('adaptação: número de página fica; rodapé repetido vai uma vez e vale para todos; item vazio sai do slide; texto longo diminui', async () => {
+  const pg = n => ({ w: 960, h: 540, fundo: Buffer.from([0xff, 0xd8, 0xff, 0xd9]), blocos: [
+    { id: `${n}.1`, texto: `Título ${n}`, linhas: 1, x: 40, y: 80, largura: 200, tam: 30, entrelinha: 36, fonte: 'Georgia', cor: '#000000' },
+    { id: `${n}.2`, texto: 'Prumo Discovery · Repet', linhas: 1, x: 40, y: 520, largura: 200, tam: 10, entrelinha: 12, fonte: 'Courier New', cor: '#666666' },
+    { id: `${n}.3`, texto: String(n).padStart(2, '0'), linhas: 1, x: 900, y: 520, largura: 20, tam: 10, entrelinha: 12, fonte: 'Courier New', cor: '#666666' }] });
+  const paginas = [pg(1), pg(2), pg(3)];
+  let pedido = '';
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async m => { pedido += m[1].content; return { texto: JSON.stringify({ '1.1': 'Título novo com texto bem mais longo que o espaço original do bloco', '2.1': '', '3.1': 'T3', '1.2': 'Prumo Discovery · RAFISA' }) }; } });
+  assert.doesNotMatch(pedido, /^\d\.3 /m);                       // número de página não vai
+  assert.equal((pedido.match(/Prumo Discovery · Repet/g) || []).length, 1);   // rodapé vai uma vez
+  assert.equal(r.textos['3.2'], 'Prumo Discovery · RAFISA');     // e vale para todos os slides
+  const z = deszipar(pptxDeModelo(paginas, { textos: r.textos }));
+  assert.match(z.get('ppt/slides/slide1.xml'), /<a:t>01<\/a:t>/);
+  assert.doesNotMatch(z.get('ppt/slides/slide2.xml'), /Título 2|name="Texto 2\.1"/);   // vazio: sai
+  assert.match(z.get('ppt/slides/slide1.xml'), /sz="(2[1-9]\d\d)"[^>]*>[\s\S]*?Título novo/);   // fonte reduzida (de 3000)
 });

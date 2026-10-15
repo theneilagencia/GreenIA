@@ -29,6 +29,26 @@ test('blocos: palavras da mesma linha juntas, colunas separadas, rótulo espaça
   assert.equal(nomeDaFonte('AAAAAL+Manrope-Bold'), 'Manrope');
 });
 
+test('blocos em PDFs de origens diferentes: lista sem marcador de texto, marcador de símbolo, tabela, item com recuo, parágrafo que continua', () => {
+  const it = (s, x, y, w, extra = {}) => ({ s, x, y, w, tam: 11, fonte: 'DejaVuSans', cor: '#222222', ...extra });
+  // Lista cujo marcador é desenhado (não é texto): cada linha é um item, mesmo com o mesmo espaçamento de um parágrafo.
+  const lista = agrupar([it('Sul: 38% da receita', 75, 160, 100), it('Sudeste: crescimento de 12% ao ano', 75, 174, 180), it('Nordeste: entrada em 2027', 75, 188, 130)]);
+  assert.deepEqual(lista.map(b => b.texto), ['Sul: 38% da receita', 'Sudeste: crescimento de 12% ao ano', 'Nordeste: entrada em 2027']);
+  // Marcador em fonte de símbolos (uso privado) vira "•"; a linha recuada de baixo continua o mesmo item.
+  const itens = agrupar([it('', 89, 433, 5, { fonte: 'OpenSymbol' }), it(' Item longo com bastante texto para quebrar a', 95, 433, 290), it('linha e continuar embaixo.', 107, 447, 150),
+    it('', 89, 462, 5, { fonte: 'OpenSymbol' }), it(' Segundo item', 95, 462, 80)]);
+  assert.deepEqual(itens.map(b => b.texto), ['• Item longo com bastante texto para quebrar a linha e continuar embaixo.', '• Segundo item']);
+  // Tabela: o espaço desenhado com a largura da célula não junta colunas; cada célula é um bloco, linha por linha.
+  const tabela = agrupar([it('Compras', 75, 308, 45), it(' ', 120, 308, 46), it('R$ 1.234,56', 166, 308, 60), it('Financeiro', 75, 327, 55), it(' ', 130, 327, 36), it('R$ 980,00', 166, 327, 52)]);
+  assert.deepEqual(tabela.map(b => b.texto), ['Compras', 'R$ 1.234,56', 'Financeiro', 'R$ 980,00']);
+  // Parágrafo que quebrou sozinho (palavra de ligação no fim, nome próprio em maiúscula) continua um bloco só.
+  const par = agrupar([it('Implementação das melhorias e entrega dos', 40, 100, 230), it('Quick Wins no prazo combinado', 40, 114, 170)]);
+  assert.deepEqual(par.map(b => b.texto), ['Implementação das melhorias e entrega dos Quick Wins no prazo combinado']);
+  // Negrito um pouco maior no meio da frase não quebra a linha.
+  const neg = agrupar([it('Objetivo: reduzir em', 71, 120, 110), it(' ', 181, 120, 3), it('30%', 185, 120, 20, { tam: 11.6, fonte: 'DejaVuSans-Bold' }), it(' até dezembro.', 205, 120, 70)]);
+  assert.deepEqual(neg.map(b => b.texto), ['Objetivo: reduzir em 30% até dezembro.']);
+});
+
 test('PowerPoint do modelo: fundo por slide, caixas editáveis na posição, fonte e cor do original; texto trocado por id', () => {
   const paginas = [{ w: 960, h: 540, fundo: Buffer.from([0xff, 0xd8, 0xff, 0xd9]), blocos: [
     { id: '1.1', texto: 'Kick-off Repet', linhas: 1, x: 92, y: 120, largura: 400, tam: 44, entrelinha: 52, fonte: 'Instrument Serif', negrito: false, cor: '#FFFFFF', espacado: false },

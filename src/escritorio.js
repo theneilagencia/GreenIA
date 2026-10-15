@@ -429,12 +429,15 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const vizinho = p.blocos.filter(o => o !== b && o.x > b.x + b.largura * 0.5 && o.y > b.y - b.tam * 1.5 && o.y - o.tam < b.y + (b.linhas - 1) * b.entrelinha + b.tam * 0.5).reduce((m, o) => Math.min(m, o.x), p.w * 0.95);
       const coluna = Math.max(b.largura, vizinho - b.x - b.tam * 0.6);
       const maior = String(texto).length > b.texto.length * 1.02;
-      const quebra = b.linhas > 1 || maior;
+      // Linha única que cresceu: continua numa linha só enquanto couber até a coluna, diminuindo a fonte se preciso
+      // (até 70%); só quebra se nem assim couber. Assim não invade o bloco de baixo.
+      const precisa = b.largura * String(texto).length / Math.max(1, b.texto.length);
+      const reducaoLinha = b.linhas === 1 && maior && precisa > coluna ? Math.max(0.7, coluna / precisa) : 1;
+      const quebra = b.linhas > 1 || (maior && precisa * reducaoLinha > coluna * 1.01);
       // Bloco de várias linhas mantém a largura do original (a quebra do desenho); linha única que cresceu usa a coluna.
       const larg = Math.min(W - esq, (b.linhas > 1 ? b.largura * 1.03 + b.tam * 0.3 : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
       // Texto bem maior que o original (mais de 15% acima da capacidade do espaço): a fonte diminui até caber, até 70%.
-      const capacidade = b.texto.length * (b.linhas > 1 ? 1 : Math.max(1, coluna / Math.max(1, b.largura)) * (b.linhas > 1 ? 1 : 1));
-      const escala = String(texto).length > capacidade * 1.15 ? Math.max(0.7, Math.sqrt(capacidade / String(texto).length)) : 1;
+      const escala = b.linhas > 1 ? (String(texto).length > b.texto.length * 1.15 ? Math.max(0.7, Math.sqrt(b.texto.length / String(texto).length)) : 1) : reducaoLinha;
       const alt = ((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy;
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
       const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100 * escala)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;

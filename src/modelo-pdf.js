@@ -56,9 +56,11 @@ export async function lerModeloPdf(pdfOriginal, { maxPaginas = MAX_PAGINAS_MODEL
     const paginas = [];
     for (let n = 1; n <= total; n++) {
       const p = await page.evaluate(lerPagina, { n, escala });
-      paginas.push({ ...p, fundo: Buffer.from(p.fundo.split(',')[1], 'base64'), blocos: agrupar(p.itens, n) });
-      delete paginas.at(-1).itens;
+      paginas.push({ ...p, fundo: Buffer.from(p.fundo.split(',')[1], 'base64') });
     }
+    // Tamanho do texto corrido do documento inteiro (num slide só de título, o título não é texto corrido).
+    const corrido = tamanhoCorrido(paginas.flatMap(p => p.itens));
+    for (const [k, p] of paginas.entries()) { p.blocos = agrupar(p.itens, k + 1, { corrido }); delete p.itens; }
     return paginas;
   });
 }
@@ -68,33 +70,64 @@ const CORES = c => { const h = String(c || '').trim(); if (/^#[0-9a-f]{6}$/i.tes
 export const nomeDaFonte = n => String(n || '').replace(/^[A-Z]{6}\+/, '').replace(/[-,](Regular|Roman|Book|Normal)$/i, '').replace(/(PS)?MT$/, '').replace(/[-,]?(Bold|Black|Heavy|Semi ?Bold|Demi ?Bold|ExtraBold|Medium|Light|Thin|Italic|Oblique)+$/i, '')
   .replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\s+/g, ' ').trim() || 'Arial';
 const negrito = n => /bold|black|heavy|semibold|demibold/i.test(String(n || ''));
-export function agrupar(itens, pagina = 1) {
+const MARCADOR = /^\s*([•◦▪▫●○■□‣⁃–—\-*✓✔☐☑➢➤►▶→]|\d{1,2}[.)])\s/;
+export function tamanhoCorrido(itens) {
+  const porTam = {};
+  for (const i of itens) if (i.s.trim()) porTam[Math.round(i.tam)] = (porTam[Math.round(i.tam)] || 0) + i.s.trim().length;
+  return Number(Object.entries(porTam).sort((a, b) => b[1] - a[1])[0]?.[0] || 0);
+}
+// A linha de baixo é continuação do mesmo parágrafo (quebra automática) ou começa outro (item de lista sem marcador
+// de texto, célula de tabela, linha solta)? Quebra automática só acontece quando a primeira palavra de baixo não
+// cabia na linha de cima. No texto corrido, linha que começa com maiúscula ou número depois de uma linha sem
+// pontuação final é outro item (títulos grandes podem ter cada palavra em maiúscula, então ali não vale).
+function continua(b, l, corrido) {
+  const anterior = b.linhas.at(-1), largAnt = b.larguras.at(-1);
+  const larg = Math.max(...b.larguras, l.x1 - l.x);
+  const palavra = (l.x1 - l.x) / Math.max(1, l.s.length) * (l.s.split(' ')[0].length + 1);
+  if (largAnt + palavra < larg * 0.97) return false;
+  const ultima = anterior.split(' ').at(-1);
+  const liga = /[.!?:;,&+/–—-]$/.test(anterior) || LIGACAO.test(ultima) || (/^\p{Lu}/u.test(ultima) && anterior.includes(' '));
+  if (l.tam <= corrido * 1.15 && !/^\p{Ll}/u.test(l.s) && !liga) return false;
+  return true;
+}
+// Palavra que pede continuação ("de", "e", "para", "the", "and"...): a linha de baixo é do mesmo parágrafo.
+const LIGACAO = /^(a|o|as|os|e|é|ou|de|do|da|dos|das|em|no|na|nos|nas|um|uma|para|pra|por|pelo|pela|com|sem|entre|sobre|que|se|ao|aos|à|às|seu|sua|the|of|and|or|to|in|on|for|with|by|at|from|a|an|y|del|el|la|los|las|en|con|por|para)$/i;
+export function agrupar(itens, pagina = 1, { corrido: corridoDoc } = {}) {
   // Palavra com espaçamento entre letras ("C O N T E X T O") vem num item só: volta a ser a palavra, marcada.
-  const ord = [...itens].map(i => { const t = /^(\S )+\S$/.test(i.s) ? i.s.replace(/ /g, '') : i.s; return { ...i, s: t, espacado: t !== i.s, cor: CORES(i.cor) }; })
+  // Marcador de lista em fonte de símbolos (Wingdings, OpenSymbol) vem como caractere de uso privado: vira "•".
+  const ord = [...itens].map(i => { const t0 = /^[\uE000-\uF8FF]\s*$/.test(i.s) ? '•' : i.s.replace(/^[\uE000-\uF8FF](?=\s)/, '•'); const t = /^(\S )+\S$/.test(t0) ? t0.replace(/ /g, '') : t0; return { ...i, s: t, espacado: t !== t0, cor: CORES(i.cor) }; })
     .sort((a, b) => a.y - b.y || a.x - b.x);
   // Itens -> linhas (mesma altura e tamanho, um depois do outro). Fonte e cor podem variar na linha (negrito, um
   // "·" em outra fonte): vale a dominante, pelo número de letras.
   const linhas = [];
   for (const i of ord) {
     // Vão grande só depois de um espaço explícito (palavras da mesma frase); sem ele, é outra coluna.
-    const l = linhas.find(l => Math.abs(l.tam - i.tam) < 0.5 && Math.abs(l.y - i.y) < i.tam * 0.35 && i.x >= l.x1 - i.tam * 0.3 && i.x - l.x1 < i.tam * (l.espaco ? 1.6 : 0.6));
+    // Espaço entre palavras é ~0,3 do tamanho da letra; vão maior que 0,9 é outra célula de tabela ou outra coluna.
+    const l = linhas.find(l => Math.abs(l.tam - i.tam) < Math.max(0.5, i.tam * 0.08) && Math.abs(l.y - i.y) < i.tam * 0.35 && i.x >= l.x1 - i.tam * 0.3 && i.x - l.x1 < i.tam * (l.espaco ? 0.9 : 0.6));
     if (l) {
       const vao = i.x - l.x1;
       l.s += (vao > i.tam * 0.18 && !/\s$/.test(l.s) && !/^\s/.test(i.s) ? ' ' : '') + i.s;
-      l.x1 = Math.max(l.x1, i.x + i.w);
+      // Um espaço solto não estende a linha até a próxima coluna (alguns PDFs desenham o espaço com a largura da célula).
+      l.x1 = Math.max(l.x1, i.x + (i.s.trim() ? i.w : Math.min(i.w, i.tam * 0.4)));
       l.espaco = !i.s.trim();
       if (i.s.trim()) { l.pesos[`${i.fonte}|${i.cor}`] = (l.pesos[`${i.fonte}|${i.cor}`] || 0) + i.s.trim().length; l.espacado = l.espacado || i.espacado; }
     } else if (i.s.trim()) linhas.push({ s: i.s, x: i.x, x1: i.x + i.w, y: i.y, tam: i.tam, pesos: { [`${i.fonte}|${i.cor}`]: i.s.trim().length }, espacado: i.espacado });
   }
-  for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\s+/g, ' ').trim(); }
+  for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s); }
   // Linhas -> blocos: mesma fonte, tamanho e cor, alinhadas à esquerda (ou centradas) e logo abaixo da anterior.
+  // Tamanho do texto corrido da página (o mais usado, por número de letras).
+  const corrido = corridoDoc || tamanhoCorrido(linhas);
   const blocos = [];
   for (const l of linhas.filter(x => x.s).sort((a, b) => a.y - b.y || a.x - b.x)) {
-    const b = blocos.find(b => b.fonte === l.fonte && Math.abs(b.tam - l.tam) < 0.5 && b.cor === l.cor && !b.espacado && !l.espacado
-      && l.y - b.ultimaY > l.tam * 0.8 && l.y - b.ultimaY < l.tam * 1.9 && (Math.abs(b.x - l.x) < l.tam * 0.6 || Math.abs((b.x + b.x1) / 2 - (l.x + l.x1) / 2) < l.tam * 0.6)
-      && (b.linhas.length < 2 || Math.abs(l.y - b.ultimaY - b.entrelinha) < l.tam * 0.3));
-    if (b) { b.entrelinha = b.linhas.length === 1 ? l.y - b.ultimaY : b.entrelinha; b.linhas.push(l.s); b.ultimaY = l.y; b.x = Math.min(b.x, l.x); b.x1 = Math.max(b.x1, l.x1); }
-    else blocos.push({ linhas: [l.s], x: l.x, x1: l.x1, y: l.y, ultimaY: l.y, tam: l.tam, fonte: l.fonte, cor: l.cor, espacado: l.espacado, entrelinha: l.tam * 1.2 });
+    // Item de lista (marcador ou número no começo) sempre abre um bloco; as linhas seguintes do mesmo item (recuadas
+    // depois do marcador) entram nele.
+    const b = l.item ? null : blocos.find(b => b.fonte === l.fonte && Math.abs(b.tam - l.tam) < Math.max(0.5, l.tam * 0.08) && b.cor === l.cor && !b.espacado && !l.espacado
+      && l.y - b.ultimaY > l.tam * 0.8 && l.y - b.ultimaY < l.tam * 1.9
+      && (b.item ? l.x > b.x - l.tam * 0.6 && l.x < b.x + l.tam * 3 : Math.abs(b.x - l.x) < l.tam * 0.6 || Math.abs((b.x + b.x1) / 2 - (l.x + l.x1) / 2) < l.tam * 0.6)
+      && (b.linhas.length < 2 || Math.abs(l.y - b.ultimaY - b.entrelinha) < l.tam * 0.3)
+      && continua(b, l, corrido));
+    if (b) { b.entrelinha = b.linhas.length === 1 ? l.y - b.ultimaY : b.entrelinha; b.linhas.push(l.s); b.larguras.push(l.x1 - l.x); b.ultimaY = l.y; b.x = Math.min(b.x, l.x); b.x1 = Math.max(b.x1, l.x1); }
+    else blocos.push({ linhas: [l.s], larguras: [l.x1 - l.x], x: l.x, x1: l.x1, y: l.y, ultimaY: l.y, tam: l.tam, fonte: l.fonte, cor: l.cor, espacado: l.espacado, entrelinha: l.tam * 1.2, item: l.item });
   }
   return blocos.map((b, k) => ({ id: `${pagina}.${k + 1}`, texto: b.linhas.join(' ').replace(/\s+/g, ' ').trim(), linhas: b.linhas.length, x: b.x, y: b.y, largura: b.x1 - b.x,
     tam: Math.round(b.tam * 10) / 10, entrelinha: b.entrelinha, fonte: nomeDaFonte(b.fonte), negrito: negrito(b.fonte), cor: b.cor, espacado: b.espacado }));

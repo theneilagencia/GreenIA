@@ -194,7 +194,7 @@ export function mensagensFatos({ slides, textos, pedido, contexto, faltam }) {
 // espaçadas): as palavras são separadas de novo com o vocabulário do modelo, do material e do pedido.
 const LIGA = ['DE', 'DO', 'DA', 'DOS', 'DAS', 'E', 'O', 'A', 'OS', 'AS', 'É', 'EM', 'NO', 'NA', 'QUE', 'COM', 'POR', 'PARA', 'AO', 'SEM', 'UM', 'UMA'];
 export function separarPalavras(texto, vocab) {
-  return String(texto || '').replace(/(?<![\p{L}])[\p{Lu}]{5,}(?![\p{L}])/gu, tok => {
+  return String(texto || '').normalize('NFC').replace(/(?<![\p{L}\p{M}])[\p{Lu}]{5,}(?![\p{L}\p{M}])/gu, tok => {
     if (vocab.has(tok)) return tok;
     // Menor número de palavras que cobre o trecho inteiro (programação dinâmica).
     const n = tok.length, melhor = Array(n + 1).fill(null);
@@ -203,13 +203,16 @@ export function separarPalavras(texto, vocab) {
       if (!melhor[i]) continue;
       for (let j = i + 1; j <= n; j++) {
         const w = tok.slice(i, j);
-        if (vocab.has(w) && (w.length > 1 || LIGA.includes(w)) && (!melhor[j] || melhor[j].length > melhor[i].length + 1)) melhor[j] = [...melhor[i], w];
+        if (!vocab.has(w) || (w.length < 2 && !LIGA.includes(w))) continue;
+        // Menos palavras; no empate, palavras mais longas ("SISTEMAS E" e não "SISTEMA SE").
+        const cand = [...melhor[i], w], q = x => x.reduce((a, y) => a + y.length ** 2, 0);
+        if (!melhor[j] || melhor[j].length > cand.length || (melhor[j].length === cand.length && q(cand) > q(melhor[j]))) melhor[j] = cand;
       }
     }
     return melhor[n] && melhor[n].length > 1 ? melhor[n].join(' ') : tok;
   });
 }
-export const vocabulario = (...textos) => new Set([...LIGA, ...textos.flatMap(t => String(t || '').toUpperCase().match(/\p{L}+/gu) || [])]);
+export const vocabulario = (...textos) => new Set([...LIGA, ...textos.flatMap(t => String(t || '').normalize('NFC').toUpperCase().match(/\p{L}+/gu) || [])]);
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
@@ -317,6 +320,9 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     }
   }
   // Dia da semana que não bate com a data (o modelo dizia "segunda-feira" para outra data).
+  // Rótulo que voltou sem os espaços entre as palavras: separado de novo pelo vocabulário do modelo, material e pedido.
+  const vocab = vocabulario(...paginas.flatMap(p => p.blocos.map(b => b.texto)), contexto, pedido);
+  for (const id of Object.keys(textos)) textos[id] = separarPalavras(textos[id], vocab);
   for (const id of Object.keys(textos)) textos[id] = corrigirDiaDaSemana(textos[id], { hoje });
   // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.
   for (const id of Object.keys(textos)) if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = original.get(id) ?? textos[id];

@@ -357,3 +357,11 @@ test('agenda: linha cujo horário sai leva junto atividade e descrição; númer
   assert.equal(r.textos['1.2'], 'Observação'); assert.equal(r.textos['1.7'], 'Programação validada');
   assert.equal(r.textos['1.9'], 'Onde integração faz sentido?');
 });
+
+test('na adaptação, rótulo colado pela IA volta separado; no empate vence a palavra mais longa', async () => {
+  const { separarPalavras, vocabulario } = await import('../src/modelo-pdf.js');
+  assert.equal(separarPalavras('SISTEMASETECNOLOGIA', vocabulario('SISTEMAS E TECNOLOGIA', 'SE', 'SISTEMA')), 'SISTEMAS E TECNOLOGIA');
+  const paginas = [{ blocos: [{ id: '1.1', texto: '04 · MÉTODO DE TRABALHO', x: 10, y: 10, tam: 12, espacado: true }, { id: '1.2', texto: 'Como o trabalho acontece', x: 10, y: 60, tam: 30 }] }];
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ '1.1': '0 4 · M É T O D O D E T R A B A L H O', '1.2': 'Como o trabalho acontece' }) }) });
+  assert.equal(r.textos['1.1'], '04 · MÉTODO DE TRABALHO');
+});

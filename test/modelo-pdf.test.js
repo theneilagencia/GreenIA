@@ -469,3 +469,13 @@ test('"troque o título para …" só conta como aplicado se estiver no bloco qu
   assert.equal(r.textos['1.2'], 'Como vamos trabalhar juntos');
   assert.deepEqual(r.fatos_faltando, []);
 });
+
+test('texto pedido para o título que a IA pôs no rótulo vai para o título, e o rótulo volta ao anterior', async () => {
+  const b = (id, texto, y, tam, extra = {}) => ({ id, texto, x: 40, y, tam, linhas: 1, largura: 200, ...extra });
+  const paginas = [{ blocos: [b('1.1', '01 · MÉTODO', 40, 10, { espacado: true }), b('1.2', 'Cinco movimentos', 80, 40)] }];
+  const r = await adaptarModelo({ paginas, contexto: '', base: { '1.1': '01 · MÉTODO', '1.2': 'Cinco movimentos' }, pedido: 'Troque o título do slide de método para "Como vamos trabalhar juntos".',
+    chamar: async () => ({ texto: JSON.stringify({ '1.1': '01 · COMO VAMOS TRABALHAR JUNTOS' }) }) });
+  assert.equal(r.textos['1.2'], 'Como vamos trabalhar juntos');
+  assert.equal(r.textos['1.1'], '01 · MÉTODO');
+  assert.deepEqual(r.fatos_faltando, []);
+});

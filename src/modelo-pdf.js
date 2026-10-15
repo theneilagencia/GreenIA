@@ -435,6 +435,20 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       faltam = faltam.filter(f => !presente(f));
     } catch { /* fica a versão anterior */ }
   }
+  // Texto pedido "para o título" que a IA pôs em outro bloco do slide (o rótulo de cima): vai para o título desse
+  // slide e o outro bloco volta ao texto anterior.
+  for (const f of faltam.filter(f => f.titulo)) {
+    const alvo = f.texto.replace(/^"|"$/g, '').toLowerCase().replace(/\s+/g, ' ');
+    for (const p of paginas) {
+      const errado = p.blocos.find(b => papelDoBloco(b, p.blocos) !== 'título' && String(textos[b.id] ?? '').toLowerCase().replace(/\s+/g, ' ').includes(alvo));
+      const titulo = errado && p.blocos.find(b => papelDoBloco(b, p.blocos) === 'título');
+      if (!titulo) continue;
+      textos[titulo.id] = f.texto.replace(/^"|"$/g, '');
+      textos[errado.id] = base?.[errado.id] ?? errado.texto;
+      break;
+    }
+  }
+  faltam = faltam.filter(f => !presente(f));
   // Agenda coerente com o horário do dia declarado no próprio slide ("dia 2 · 9h às 12h" com linhas até 17h): os
   // slides com linha fora do intervalo voltam para a IA ajustar (linha que sobra volta vazia e sai).
   const fora = agendasForaDoHorario(paginas, textos);

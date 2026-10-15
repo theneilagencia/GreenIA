@@ -341,7 +341,7 @@ test('adaptação confere os dados do pedido: data e horário que faltam voltam 
 
 test('rótulo que voltou sem espaços entre as palavras é separado de novo pelo vocabulário do modelo', async () => {
   const { separarPalavras, vocabulario } = await import('../src/modelo-pdf.js');
-  const v = vocabulario('04 · MÉTODO DE TRABALHO', 'INÍCIO E FIM', 'O QUE É', 'MELHORIAS COM IA', 'RESPONSÁVEL', 'RAFISA');
+  const v = vocabulario('Método de trabalho', 'Início e fim', 'o que é', 'Melhorias com IA', 'Responsável', 'Rafisa');
   assert.equal(separarPalavras('04 · MÉTODODETRABALHO', v), '04 · MÉTODO DE TRABALHO');
   assert.equal(separarPalavras('INÍCIOEFIM | OQUEÉ | MELHORIASCOMIA | RESPONSÁVELRAFISA', v), 'INÍCIO E FIM | O QUE É | MELHORIAS COM IA | RESPONSÁVEL RAFISA');
   assert.equal(separarPalavras('CONTABILIDADE e RAFISA', v), 'CONTABILIDADE e RAFISA');
@@ -360,8 +360,8 @@ test('agenda: linha cujo horário sai leva junto atividade e descrição; númer
 
 test('na adaptação, rótulo colado pela IA volta separado; no empate vence a palavra mais longa', async () => {
   const { separarPalavras, vocabulario } = await import('../src/modelo-pdf.js');
-  assert.equal(separarPalavras('SISTEMASETECNOLOGIA', vocabulario('SISTEMAS E TECNOLOGIA', 'SE', 'SISTEMA')), 'SISTEMAS E TECNOLOGIA');
-  const paginas = [{ blocos: [{ id: '1.1', texto: '04 · MÉTODO DE TRABALHO', x: 10, y: 10, tam: 12, espacado: true }, { id: '1.2', texto: 'Como o trabalho acontece', x: 10, y: 60, tam: 30 }] }];
+  assert.equal(separarPalavras('SISTEMASETECNOLOGIA', vocabulario('Sistemas e tecnologia', 'se', 'sistema')), 'SISTEMAS E TECNOLOGIA');
+  const paginas = [{ blocos: [{ id: '1.1', texto: '04 · MÉTODO DE TRABALHO', x: 10, y: 10, tam: 12, espacado: true }, { id: '1.2', texto: 'Como o método de trabalho acontece', x: 10, y: 60, tam: 30 }] }];
   const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ '1.1': '0 4 · M É T O D O D E T R A B A L H O', '1.2': 'Como o trabalho acontece' }) }) });
   assert.equal(r.textos['1.1'], '04 · MÉTODO DE TRABALHO');
 });
@@ -404,4 +404,24 @@ test('rodadas de correção não apagam texto e nenhum slide termina em branco',
   assert.equal(r.textos['2.2'], 'Kick-off em 22/10 às 9h');
   const vazio = await adaptarModelo({ paginas: [paginas[0]], contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ '1.1': '', '1.2': '', '1.3': '' }) }) });
   assert.equal(vazio.textos['1.1'], 'O que não está no escopo', 'slide não fica em branco');
+});
+
+test('rótulo com todas as letras espaçadas por igual sai com as palavras separadas; rótulo colado não vira palavra do vocabulário', async () => {
+  const it = (s, x, y, w, extra = {}) => ({ s, x, y, w, tam: 14, fonte: 'CourierNew', cor: '#222222', ...extra });
+  const b = agrupar([it('0 1 · M E N S A G E M C E N T R A L', 40, 40, 300), it('A mensagem central do projeto é simples.', 40, 200, 300, { fonte: 'Manrope', tam: 12 })]);
+  assert.equal(b[0].texto, '01 · MENSAGEM CENTRAL');
+  const { vocabulario, separarPalavras } = await import('../src/modelo-pdf.js');
+  const v = vocabulario('01 · MENSAGEMCENTRAL', 'A mensagem central do projeto');
+  assert.ok(!v.has('MENSAGEMCENTRAL'));
+  assert.equal(separarPalavras('01 · MENSAGEMCENTRAL', v), '01 · MENSAGEM CENTRAL');
+});
+
+test('número ao lado de texto na mesma linha ("19" + "OUT") é adaptado junto; número de página continua fixo', async () => {
+  const b = (id, texto, x, y, largura, tam = 14) => ({ id, texto, x, y, tam, linhas: 1, largura });
+  const paginas = [{ blocos: [b('1.1', '19', 271, 271, 16), b('1.2', 'OUT', 290, 271, 30), b('1.3', 'Kick-off formal', 271, 308, 100), b('1.4', '28', 1330, 756, 16)] }];
+  let pedido = '';
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async m => { pedido = m[1].content; return { texto: JSON.stringify({ '1.1': '', '1.2': '22–23 OUT', '1.3': 'Discovery presencial' }) }; } });
+  assert.match(pedido, /1\.1 \[271, 271\]/, 'o número junto do mês vai para a IA');
+  assert.doesNotMatch(pedido, /1\.4 \[/, 'número de página não vai');
+  assert.equal(r.textos['1.2'], '22–23 OUT');
 });

@@ -123,7 +123,7 @@ const LIGACAO = /^(a|o|as|os|e|é|ou|de|do|da|dos|das|em|no|na|nos|nas|um|uma|pa
 export function agrupar(itens, pagina = 1, { corrido: corridoDoc, vocab: vocabDoc } = {}) {
   // Palavra com espaçamento entre letras ("C O N T E X T O") vem num item só: volta a ser a palavra, marcada.
   // Marcador de lista em fonte de símbolos (Wingdings, OpenSymbol) vem como caractere de uso privado: vira "•".
-  const ord = [...itens].map(i => { const t0 = /^[\uE000-\uF8FF]\s*$/.test(i.s) ? '•' : i.s.replace(/^[\uE000-\uF8FF](?=\s)/, '•'); const t = /^(\S )+\S$/.test(t0) ? t0.replace(/ /g, '') : t0; return { ...i, s: t, espacado: t !== t0, cor: CORES(i.cor) }; })
+  const ord = [...itens].map(i => { const t0 = /^[\uE000-\uF8FF]\s*$/.test(i.s) ? '•' : i.s.replace(/^[\uE000-\uF8FF](?=\s)/, '•'); const t = /^(\S )+\S$/.test(t0) ? t0.replace(/ /g, '').replace(/\s*([·|•–—])\s*/g, ' $1 ').trim() : t0; return { ...i, s: t, espacado: t !== t0, cor: CORES(i.cor) }; })
     .sort((a, b) => a.y - b.y || a.x - b.x);
   // Itens -> linhas (mesma altura e tamanho, um depois do outro). Fonte e cor podem variar na linha (negrito, um
   // "·" em outra fonte): vale a dominante, pelo número de letras.
@@ -145,7 +145,12 @@ export function agrupar(itens, pagina = 1, { corrido: corridoDoc, vocab: vocabDo
     } else if (i.s.trim()) linhas.push({ s: i.s, x: i.x, x1: i.x + i.w, y: i.y, tam: i.tam, pesos: { [`${i.fonte}|${i.cor}`]: i.s.trim().length }, espacado: i.espacado, primeiro: { s: i.s.trim(), fonte: i.fonte, cor: i.cor } });
   }
   const vocabLeitura = vocabDoc || vocabularioDoDocumento(itens);
-  for (const l of linhas) l.s = recomporMaiusculas(l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' '), vocabLeitura);
+  for (const l of linhas) {
+    l.s = recomporMaiusculas(l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' '), vocabLeitura);
+    // Rótulo com todas as letras espaçadas por igual ("M E N S A G E M C E N T R A L") virou uma palavra só ao
+    // juntar as letras: as palavras são separadas pelo texto corrido do documento.
+    if (l.espacado) l.s = separarPalavras(l.s, vocabLeitura);
+  }
   for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' ').replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s);
     // Marcador com cor ou peso próprios (número verde em negrito, "•" colorido): guardado para o PowerPoint repetir.
     const mk = l.item && MARCADOR.exec(l.s)[1], p = l.primeiro;
@@ -244,7 +249,17 @@ export function separarPalavras(texto, vocab) {
     return melhor[n] && melhor[n].length > 1 ? melhor[n].join(' ') : tok;
   });
 }
-export const vocabulario = (...textos) => new Set([...LIGA, ...textos.flatMap(t => String(t || '').normalize('NFC').toUpperCase().match(/\p{L}+/gu) || [])]);
+// Só palavras escritas com minúsculas na fonte (rótulo em maiúsculas pode estar colado e não serve de referência),
+// com plural e singular.
+export const vocabulario = (...textos) => {
+  const v = new Set(LIGA);
+  for (const t of textos) for (const w of String(t || '').normalize('NFC').match(/\p{L}+/gu) || []) {
+    if (!/\p{Ll}/u.test(w) && w.length > 4) continue;   // sigla curta (IA, TI, DRE) vale
+    const W = w.toUpperCase();
+    v.add(W); v.add(`${W}S`); if (/[RZL]$/.test(W)) v.add(`${W}ES`); if (/S$/.test(W)) v.add(W.slice(0, -1));
+  }
+  return v;
+};
 // Slides de agenda com linha fora do intervalo do dia declarado no próprio slide.
 const FAIXA = /(\d{1,2})h(\d{2})?\s*(?:às|as|a|até|–|-)\s*(\d{1,2})h(\d{2})?/i;
 const CELULA = /^\s*(\d{1,2})h(\d{2})?\s*[–-]\s*(\d{1,2})h(\d{2})?\s*$/;
@@ -287,7 +302,10 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   const vezes = new Map();
   for (const p of paginas) for (const b of p.blocos) vezes.set(b.texto, (vezes.get(b.texto) || 0) + 1);
   const primeiro = new Map(), repetidos = [];
-  const fica = b => /^\s*[\d.·/\s-]{1,6}\s*$/.test(b.texto);
+  // Número puro fica como está, a menos que esteja colado a um texto na mesma linha ("19" + "OUT", "45" + "DIAS
+  // ÚTEIS"): aí é parte de uma data ou prazo e é adaptado junto.
+  const vizinhoNaLinha = b => paginas.some(p => p.blocos.includes(b) && p.blocos.some(o => o !== b && Math.abs(o.y - b.y) < b.tam * 0.5 && o.x > b.x && o.x - (b.x + (b.largura || 0)) < b.tam * 1.5 && /\p{L}/u.test(o.texto)));
+  const fica = b => /^\s*[\d.·/\s-]{1,6}\s*$/.test(b.texto) && !vizinhoNaLinha(b);
   const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos.filter(b => {
     if (fica(b)) return false;
     if (vezes.get(b.texto) >= 3) { if (primeiro.has(b.texto)) { repetidos.push([b.id, primeiro.get(b.texto)]); return false; } primeiro.set(b.texto, b.id); }
@@ -392,6 +410,8 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       if (textos[e.id] !== '' || !e.texto) continue;
       const mesmaLinha = p.blocos.filter(o => o !== e && Math.abs(o.y - e.y) < e.tam * 0.6);
       if (!mesmaLinha.length || mesmaLinha.some(o => o.x < e.x)) continue;   // só a primeira célula da linha
+      // Célula de tabela tem vão de coluna até a próxima; pedaço da mesma frase ("19" + "OUT") não.
+      if (Math.min(...mesmaLinha.map(o => o.x)) - (e.x + (e.largura || 0)) < e.tam * 0.8) continue;
       const proxima = p.blocos.filter(o => o !== e && Math.abs(o.x - e.x) < e.tam && o.y > e.y + e.tam * 0.6).reduce((m, o) => Math.min(m, o.y), e.y + e.tam * 3);
       for (const o of p.blocos) if (o.x > e.x && o.y > e.y - e.tam * 0.6 && o.y < proxima - o.tam * 0.6) textos[o.id] = '';
     }

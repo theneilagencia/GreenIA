@@ -5,6 +5,7 @@
 // esquerda e documentos longos (CPF, CNPJ), que perderiam dígitos como número.
 import { crc32, deflateRawSync } from 'node:zlib';
 import { ajustarContraste, corValida, misturar } from './visual/marca.js';
+import { juntarLetrasEspacadas } from './escrita.js';
 
 const VERDE_PADRAO = '1B7950', TINTA = '1F2A24', SUAVE = '5B6B62';
 // Cor principal dos arquivos: a da identidade visual da empresa quando há uma, legível sobre o branco (títulos);
@@ -281,14 +282,22 @@ const linhasDe = it => Math.max(1, Math.ceil([...textoPuro(it.texto)].length / C
 // Seções -> slides: [{ titulo, itens } | { titulo, tabela }].
 // Roteiro "slide a slide" escrito na resposta ("Slide 3: Método", "---", rótulos com letras espaçadas copiados de
 // um PDF): cada "Slide N" vira uma seção (um slide) e o que é só marcação sai.
-const SLIDE_N = /^\s*#{0,4}\s*\**\s*slide\s+\d+\s*[:\-–—.]\s*(.+?)\s*\**\s*$/i;
+const SLIDE_N = /^\s*#{0,4}\s*\**\s*slide\s+\d+\s*\**\s*(?:[:\-–—.]\s*\**\s*(.+?))?\s*\**\s*$/i;
 const soLetrasEspacadas = l => { const t = l.replace(/[·•|]/g, ' ').trim().split(/\s+/); return t.length >= 4 && t.filter(x => x.length === 1).length / t.length > 0.6; };
 export function roteiroLimpo(texto) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n');
   if (linhas.filter(l => SLIDE_N.test(l)).length < 3) return texto;
   // Cada linha do roteiro é um item do slide (no roteiro, quebra de linha separa ideias).
   const inicio = linhas.findIndex(l => SLIDE_N.test(l));   // o que vem antes do 1º slide é conversa, não slide
-  const limpas = linhas.slice(inicio).filter(l => !/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l) && !soLetrasEspacadas(l)).map(l => { const m = SLIDE_N.exec(l); return m ? `## ${m[1].replace(/\*+$/, '')}` : l; });
+  const limpas = [];
+  let semTitulo = false;   // "Slide 3" sem título: a primeira linha de texto do slide vira o título
+  for (const l0 of linhas.slice(inicio)) {
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l0) || soLetrasEspacadas(l0)) continue;
+    const l = juntarLetrasEspacadas(l0), m = SLIDE_N.exec(l);
+    if (m) { if (m[1]) limpas.push(`## ${m[1].replace(/\*+$/, '')}`); semTitulo = !m[1]; continue; }
+    if (semTitulo && l.trim()) { limpas.push(`## ${l.replace(/^\s*[#>*-]+\s*|\*+/g, '').trim()}`); semTitulo = false; continue; }
+    limpas.push(l);
+  }
   return limpas.map((l, i) => (l.trim() && !/^\s*([-*]|\d+[.)])\s|^\s*\|/.test(l) && limpas[i + 1]?.trim() && !/^\s*\|/.test(limpas[i + 1]) ? `${l}\n` : l)).join('\n');
 }
 

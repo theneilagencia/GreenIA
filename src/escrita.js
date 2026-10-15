@@ -36,6 +36,10 @@ export function semFechoServil(texto) {
   return String(texto || '').replace(/\n+\s*(se (quiser|preferir|desejar),? (eu )?posso[^\n]*|espero ter ajudado[^\n]*|fico à disposição[^\n]*|estou à disposição[^\n]*)\s*$/i, '').trimEnd();
 }
 
+// "F i n a n c e i r o · P r o d u ç ã o" -> "Financeiro · Produção": letras separadas por espaço (efeito visual copiado
+// de um PDF) voltam a ser palavras. Grupos separados por dois espaços ou por pontuação continuam separados.
+export const juntarLetrasEspacadas = t => String(t || '').replace(/(?<![\p{L}\d])((?:[\p{L}\d] ){3,}[\p{L}\d])(?![\p{L}\d])/gu, m => m.replace(/ /g, ''))
+  .replace(/(?<![\p{L}\d])(\d) (\d)(?= +[·|•–—-] )/gu, '$1$2');   // "0 1 · CONTEXTO" -> "01 · CONTEXTO"
 const maiuscula = t => t.replace(/^(\s*(?:[#>*-]+\s*|\d+[.)]\s*)?)(\p{Ll})/u, (_, a, b) => a + b.toUpperCase());
 // Limpeza sem IA, só do que é moldura ou muleta (não muda fatos): abertura servil, fecho oferecendo ajuda, emoji,
 // "É importante ressaltar que", "Vale destacar que", "Em resumo,".
@@ -43,6 +47,7 @@ export function limparVicios(texto) {
   let t = String(texto || '');
   t = t.replace(/^\s*(claro|com certeza|ótima pergunta|excelente pergunta|perfeito|certo)[!.,]+\s*/i, '');
   t = semFechoServil(t);
+  t = t.split('```').map((x, i) => (i % 2 ? x : juntarLetrasEspacadas(x))).join('```');   // fora de blocos de código
   t = t.replace(new RegExp(`[ \\t]?(?:${EMOJI.source})`, 'gu'), '').replace(/[ \t]+\n/g, '\n').replace(/ {2,}/g, ' ');
   t = t.split('\n').map(l => {
     const sem = l.replace(/(^|[.!?]\s+|^\s*(?:[-*]|\d+[.)])\s+)(?:é importante|vale) (?:ressaltar|destacar|notar|lembrar|mencionar) que\s+/giu, '$1')

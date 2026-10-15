@@ -145,6 +145,12 @@ const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do
 // e a produção visual (o mesmo motor dos Quick Wins) compõe o PDF/PNG com design. Só com verbo de criação: "analise
 // a apresentação" é análise, não pedido de peça. Imagem gerada por IA fica fora (decisão própria da empresa).
 const PEDE_CRIAR = /\b(cri[ae]|criar|fa[cç]a|fazer|monte|montar|gere|gerar|prepare|preparar|transform\w*|elabor\w*|desenvolv\w*|produz\w*|convert\w*|quero|preciso|refa[cç]a|vers[aã]o pronta)\b/i;
+// Para apresentação numa conversa com PDF modelo, mais verbos valem (adaptar, escrever, ajustar…).
+const PEDE_CRIAR_APR = /\b(adapt\w*|escrev\w*|redij\w*|redigir|constru\w*|ajust\w*|atualiz\w*|reescrev\w*|me (d[eê]|mande|envie))\b/i;
+// Resposta em forma de roteiro de slides ("Slide 1", "## Slide 2: Contexto"…), com pelo menos três slides.
+// PDF de apresentação (primeira página na horizontal), não documento em pé.
+export const pdfPaisagem = b => { const m = /\/MediaBox\s*\[\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*\]/.exec(Buffer.from(b).toString('latin1')); return m ? (m[3] - m[1]) > (m[4] - m[2]) : true; };   // sem MediaBox legível (comprimido): vale
+export const ehRoteiroDeSlides = t => (String(t || '').match(/^\s*#{0,4}\s*\**\s*slide\s+\d+\b/gim) || []).length >= 3;
 // Estilo do material mais recente com estilo: os anexos desta mensagem primeiro, depois os guardados na conversa.
 export function estiloDaConversa(app, conversaId, atuais = []) {
   const agora = [...atuais].reverse().find(a => a.estilo)?.estilo;
@@ -159,7 +165,7 @@ export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões
   && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|refer[eê]ncia|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
 // Pedido de apresentação (criar, montar, versão pronta, PPTX) numa conversa que já tem uma apresentação em PDF:
 // o PDF é a referência de layout, mesmo sem a pessoa dizer "mesmo layout".
-const PEDE_APRESENTACAO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao)|slides|deck)\b/i.test(t) && (PEDE_CRIAR.test(t) || /\bem (pptx|power ?point)\b/i.test(t));
+const PEDE_APRESENTACAO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao)|slides|deck)\b/i.test(t) && (PEDE_CRIAR.test(t) || PEDE_CRIAR_APR.test(t) || /\bem (pptx|power ?point)\b/i.test(t));
 const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'base64').subarray(0, 4).toString() === '%PDF';
 // Modelo: o PDF desta mensagem ou o último PDF guardado como modelo na conversa.
 export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = []) {
@@ -630,7 +636,8 @@ export function rotasConversas(app, r) {
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
-    const modeloApr = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t)) && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
+    const podeModelo = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
+    let modeloApr = podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
@@ -1101,6 +1108,10 @@ export function rotasConversas(app, r) {
     }
     // Apresentação no layout do modelo: leitura do PDF (sem IA), adaptação do texto pela IA (mesma rota) e o PPTX.
     let gerado = null;
+    // Rede de segurança: o pedido não foi reconhecido como apresentação, mas a resposta saiu como roteiro "Slide 1,
+    // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
+    // como conteúdo, em vez de a pessoa ficar com um texto que vira slides genéricos.
+    if (!modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
     if (modeloApr) {
       // Sinal de vida a cada 15 s: o trabalho leva minutos e a conexão não pode ficar parada.
       let ultimaEtapa = 'Lendo o layout do modelo…';

@@ -102,6 +102,8 @@ before(async () => {
       const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(m => m[1]);
       return JSON.stringify(Object.fromEntries(ids.map(id => [id, `Kickoff da Rafisa ${id}`])));
     }
+    // Pedido sem palavra de apresentação, respondido como roteiro de slides (como a IA às vezes faz).
+    if (JSON.stringify(b.messages.at(-1)).includes('conteúdo completo para a Rafisa')) return 'Slide 1\nF i n a n c e i r o · P r o d u ç ã o\nKick-off Prumo Discovery / RAFISA\n---\nSlide 2\n0 1 · C O N T E X T O\nA RAFISA quer fechar o mês com resultado confiável\n---\nSlide 3\nCinco movimentos\n1 Entender\n2 Definir';
     return null;
   } });
   S = await subir({ ia: OR.ia });
@@ -295,4 +297,23 @@ test('item numerado ("05 Que sistemas…"): a linha recuada continua o item e o 
   assert.deepEqual(b.marcador, { cor: '#4F6B00', negrito: false });
   const r = await adaptarModelo({ paginas: [{ blocos: [b] }], contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ [b.id]: 'Quais dados o fechamento usa?' }) }) });
   assert.equal(r.textos[b.id], '05 Quais dados o fechamento usa?');
+});
+
+test('rede de segurança: resposta em roteiro "Slide 1, 2, 3" numa conversa com PDF de apresentação vira o arquivo no layout do PDF', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-modelo.pdf', base64: pdfColorido().toString('base64') }] });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Agora escreva o conteúdo completo para a Rafisa.' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.equal(r.fim.arquivos?.[0]?.modelo, 'Kickoff-modelo.pdf', JSON.stringify(r.fim));
+  const adapt = OR.chamadas.filter(b => JSON.stringify(b.messages[0]).includes(ADAPTA)).at(-1);
+  assert.match(JSON.stringify(adapt.messages[1]), /Cinco movimentos/, 'o roteiro da resposta é o conteúdo da adaptação');
+});
+
+test('roteiro em texto com "Slide N" sem título e letras espaçadas vira slides limpos no PowerPoint comum', async () => {
+  const { slides } = await import('../src/escritorio.js');
+  const s = slides('Slide 1\nF i n a n c e i r o · P r o d u ç ã o\nKick-off Prumo Discovery / RAFISA\n---\nSlide 2\n0 1 · C O N T E X T O\nA RAFISA quer fechar o mês com resultado confiável\nD O C U M E N T O Documento de trabalho\n---\nSlide 3\nCinco movimentos\n1 Entender', 'X');
+  const tudo = JSON.stringify(s);
+  assert.doesNotMatch(tudo, /Slide \d|F i n a|C O N T|D O C U/);
+  assert.match(tudo, /A RAFISA quer fechar o mês com resultado confiável/);
+  assert.match(tudo, /Cinco movimentos/);
 });

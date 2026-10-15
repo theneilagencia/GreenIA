@@ -6,6 +6,7 @@ import { guiaConcluido } from '/onboarding.js';
 import { api, esc, ICONE, toast } from '/comum.js';
 import { ICONE_RESPOSTA, anunciar, copiarTexto, alternarDetalhes } from '/resposta-ui.js';
 import { renderizar, baixarCsv } from '/md.js';
+import { abrirPrevia, ligarMiniaturas } from '/previa-pptx.js';
 import { E, cabecalho, ligarCabecalho, recarregarLateral, pedirCiencia } from '/app.js';
 import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
@@ -164,20 +165,29 @@ const servidor = m => Number.isInteger(m.id) && m.guardado !== false && !!C.conv
 const arquivoHref = (m, f) => `/api/conversas/${C.conv.id}/mensagens/${m.id}/arquivo/${f}`;
 // O pedido logo antes da resposta diz qual arquivo a pessoa quer: esse vira um cartão à vista, como um anexo.
 const PEDE = { docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i };
+const MESMO_LAYOUT = /\b(mesm[oa]s? (layout|estilo|estrutura|modelo|template|identidade|fontes?|cores?)|seguindo (o|a) (layout|estrutura|modelo|template))\b/i;
 const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['slides', 'Apresentação PowerPoint', '.pptx editável'], xlsx: ['planilha', 'Planilha Excel', '.xlsx com as tabelas'] };
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => `<a class="anexo-resposta" href="/api/conversas/${C.conv.id}/arquivos/${a.id}" download data-arquivo-gerado="${a.id}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>${esc(a.nome)}</b><small>PowerPoint editável · ${a.slides} slides no layout de ${esc(a.modelo || 'modelo')}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`).join('')}</div>`;
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+    detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
+}
+// Cartão de apresentação com prévia: miniatura do 1º slide (clique abre todos os slides) e o download logo abaixo.
+function cartaoComPrevia({ previa, baixar, nome, detalhe }) {
+  return `<div class="arquivo-previa"><button type="button" class="pv-mini" data-abrir-previa="${esc(previa)}" data-baixar="${esc(baixar)}" data-nome="${esc(nome)}" aria-label="Ver os slides de ${esc(nome)}"><span class="pv-mini-slide" data-previa="${esc(previa)}" hidden></span><span class="pv-mini-ver">Ver slides · <span data-previa-total></span></span></button>
+    <a class="anexo-resposta" href="${esc(baixar)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>${esc(nome)}</b><small>${esc(detalhe)}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a></div>`;
 }
 function arquivosPedidos(m, tabelas) {
   if (!servidor(m)) return '';
   if ((m.arquivos || []).length) return arquivosGerados(m);
   const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
+  // Pedido "no mesmo layout" de um modelo: só vale o arquivo montado no layout (m.arquivos); nada genérico no lugar.
+  if (MESMO_LAYOUT.test(pedido)) return '';
   const pedidos = Object.keys(PEDE).filter(f => PEDE[f].test(pedido) && (f !== 'xlsx' || tabelas.length));
   // Excel com uma tabela só: o cartão da própria tabela já é a planilha.
   const lista = pedidos.filter(f => !(f === 'xlsx' && tabelas.length === 1));
-  return lista.length ? `<div class="arquivos-resposta">${lista.map(f => `<a class="anexo-resposta" href="${arquivoHref(m, f)}" download data-arquivo="${f}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA[ARQ[f][0]]}</span><span class="anexo-resposta-texto"><b>${ARQ[f][1]}</b><small>Baixar arquivo ${ARQ[f][2]}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`).join('')}</div>` : '';
+  return lista.length ? `<div class="arquivos-resposta">${lista.map(f => f === 'pptx' ? cartaoComPrevia({ previa: `${arquivoHref(m, 'pptx')}/previa`, baixar: arquivoHref(m, 'pptx'), nome: ARQ.pptx[1], detalhe: `Baixar arquivo ${ARQ.pptx[2]}` }) : `<a class="anexo-resposta" href="${arquivoHref(m, f)}" download data-arquivo="${f}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA[ARQ[f][0]]}</span><span class="anexo-resposta-texto"><b>${ARQ[f][1]}</b><small>Baixar arquivo ${ARQ[f][2]}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`).join('')}</div>` : '';
 }
 // "Baixar como": qualquer resposta guardada vira Word ou PowerPoint; com tabela, também Excel.
 function baixarComo(m) {
@@ -286,6 +296,7 @@ function desenharMensagens() {
   atalhosInicio();
   // Artefatos visuais: visualizar, baixar e editar. Uma edição cria nova versão; a conversa é relida do servidor.
   ligarArtefatos($('coluna'), { aoMudar: () => recarregarConversa(false) });
+  ligarMiniaturas($('coluna'));
   rolarSeNoFim();
 }
 
@@ -395,6 +406,8 @@ function ligar() {
     for (const b of $('coluna').querySelectorAll('[data-baixar-como][aria-expanded="true"]')) if (b !== bc) menuBaixar(b, false);
     if (bc) menuBaixar(bc, bc.getAttribute('aria-expanded') !== 'true');
     if (ev.target.closest('.baixar-como-menu a')) menuBaixar(ev.target.closest('.baixar-como').querySelector('[data-baixar-como]'), false);
+    const pv = ev.target.closest('[data-abrir-previa]');
+    if (pv) abrirPrevia(pv.dataset.abrirPrevia, { baixar: pv.dataset.baixar, nome: pv.dataset.nome });
     const csv = ev.target.closest('[data-csv]');
     if (csv && csv.tagName !== 'A') baixarCsv(C.tabelas[csv.closest('[data-msg]').dataset.msg][Number(csv.dataset.csv)], `${(C.qw?.nome || 'tabela').replace(/[^\wÀ-ú -]/g, '')}.csv`);
   });

@@ -5,8 +5,10 @@ import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, xlsx } from './escritorio.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
+import { REGRAS_DE_ESCRITA } from './escrita.js';
 import { adaptarModelo, lerModeloPdf } from './modelo-pdf.js';
 import { pptxDeModelo } from './escritorio.js';
+import { midiaDoPptx, previaDoPptx } from './previa-pptx.js';
 import { assinaturaTeste } from './quickwin-teste.js';
 import { lerMaterialRefinamento } from './quickwin-refinamento.js';
 import { consolidarWal, exec, json, todos, um, transacao } from './db.js';
@@ -178,6 +180,7 @@ function persona(cfg, responsaveis, qw, marcaPropria = false, execucao = false, 
     // Profundidade: respostas curtas demais eram a principal queixa. O tamanho acompanha o pedido.
     'Entregue respostas completas e úteis, com a profundidade que o pedido exige, como um especialista dedicado faria. Numa análise de material, cubra o conteúdo de verdade: o que ele diz (com os números, nomes, prazos e exemplos do próprio material), o que isso significa, pontos fortes, lacunas ou riscos e recomendações práticas. Organize com títulos, listas e tabelas quando ajudar a leitura. Pergunta simples continua com resposta direta.',
     'Quando o pedido estiver claro, faça o trabalho completo já nesta resposta, em vez de descrever o que poderia fazer ou terminar oferecendo opções. Pergunte antes só quando faltar uma informação sem a qual o resultado sairia errado.',
+    REGRAS_DE_ESCRITA,
     'Não invente regras, prazos, valores ou nomes.',
     'Quando usar trechos de documentos fornecidos, cite o título do documento. Só quando a pergunta for sobre uma regra ou um procedimento interno da empresa e os documentos não trouxerem a resposta, diga isso com clareza'
       + (responsaveis.length ? ` e indique quem procurar: ${responsaveis.join(', ')}. Essa lista serve só para indicar quem procurar: não use esses nomes como responsável, autor, assinatura ou destinatário do trabalho. Nome de pessoa que aparece no material ou na conversa é dado do trabalho e deve ser usado normalmente.` : ' e sugira procurar o responsável da área.'),
@@ -365,6 +368,29 @@ export function rotasConversas(app, r) {
     const dados = Buffer.from(a.dados);
     res.writeHead(200, { 'content-type': a.mime, 'content-length': dados.length, 'content-disposition': `attachment; filename="${nomeDoArquivo(a.nome.replace(/\.pptx$/i, ''), 'pptx')}"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
     res.end(dados);
+  });
+  // Prévia (ver antes de baixar): slides do arquivo gerado e as imagens de fundo dele; e a prévia do PowerPoint
+  // montado a partir de uma resposta. Mesmas regras de acesso dos downloads.
+  const arquivoGerado = (pessoa, params) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    const a = /^[1-9]\d*$/.test(params.arquivo) && um(app.db, 'select id, nome, mime, dados from arquivos_gerados where id = ? and conversa_id = ?', Number(params.arquivo), conv.id);
+    if (!a) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
+    return { conv, a };
+  };
+  r.get('/api/conversas/:id/arquivos/:arquivo/previa', ({ pessoa, params }) => {
+    const { conv, a } = arquivoGerado(pessoa, params);
+    return { nome: a.nome, midia: `/api/conversas/${conv.id}/arquivos/${a.id}/midia/`, ...previaDoPptx(Buffer.from(a.dados)) };
+  });
+  r.get('/api/conversas/:id/arquivos/:arquivo/midia/:nome', ({ pessoa, params, res }) => {
+    const { a } = arquivoGerado(pessoa, params);
+    const img = midiaDoPptx(Buffer.from(a.dados), params.nome);
+    if (!img) throw erro(404, 'midia', 'Imagem não encontrada.');
+    res.writeHead(200, { 'content-type': /\.png$/i.test(params.nome) ? 'image/png' : 'image/jpeg', 'content-length': img.length, 'cache-control': 'private, max-age=600', 'x-content-type-options': 'nosniff' });
+    res.end(img);
+  });
+  r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/pptx/previa', ({ pessoa, params }) => {
+    const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    return { nome: nomeDoArquivo(titulo, 'pptx'), midia: null, ...previaDoPptx(pptx(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` })) };
   });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/:formato', ({ pessoa, params, res }) => {
     if (!['docx', 'pptx', 'xlsx'].includes(params.formato)) throw erro(404, 'formato', 'Formato não disponível.');
@@ -602,7 +628,11 @@ export function rotasConversas(app, r) {
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
     const modeloApr = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t)) && PEDE_MODELO(texto) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
-    const pecaChat = !qw && !modeloApr ? pecaDaConversa(texto) : null;
+    // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
+    // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
+    // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
+    const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
+    const pecaChat = !qw && !modeloApr && !modeloAusente ? pecaDaConversa(texto) : null;
     // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
@@ -611,6 +641,7 @@ export function rotasConversas(app, r) {
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '')
+      + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo).` : '');
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.

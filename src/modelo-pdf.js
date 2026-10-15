@@ -6,6 +6,7 @@
 //  3. o PowerPoint: um slide por página, fundo + caixas de texto EDITÁVEIS na mesma posição, fonte, tamanho e cor.
 // A troca do conteúdo (adaptarModelo) mantém a estrutura de cada slide e só usa o que o material da conversa traz.
 import { comLeitorPdf } from './visual/chromium.js';
+import { REGRAS_DE_ESCRITA } from './escrita.js';
 
 export const MAX_PAGINAS_MODELO = 60;
 
@@ -100,7 +101,9 @@ const INSTRUCAO = [
   'Para cada bloco, escreva o texto novo no lugar do original, com o conteúdo do NOVO projeto tirado do material e da conversa. Troque nomes de empresa, pessoas, áreas, sistemas, datas, horários, números e exemplos pelos do novo projeto.',
   'Rótulos de estrutura (como "01 · CONTEXTO", numeração "1", "2", "02", títulos de método que valem para qualquer projeto) ficam iguais quando continuam corretos.',
   'Não invente fatos: quando o material não traz a informação de um bloco específico do projeto (uma data, um responsável, um horário), escreva "[a definir]" no lugar do dado, mantendo o resto do texto.',
+  'O briefing da pessoa (no pedido e na conversa) manda: escopo, frentes, prazos, entregáveis e o que fica fora seguem o que ela definiu para o novo projeto, mesmo que o modelo diga outra coisa.',
   'Tamanho: cada texto novo deve caber no mesmo espaço do original, com no máximo o número de caracteres indicado.',
+  REGRAS_DE_ESCRITA,
   'Responda só com um objeto JSON: {"<id do bloco>": "<texto novo>", ...}, com TODOS os ids recebidos e nada mais.',
 ].join('\n');
 

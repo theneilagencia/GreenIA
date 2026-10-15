@@ -114,6 +114,16 @@ test('conversa: PDF enviado + "mesma estrutura e layout" -> PPTX no layout do mo
   assert.match(z.get('ppt/slides/slide1.xml'), /typeface="Montserrat"/);
   assert.ok(z.has('ppt/media/fundo1.jpg'));
   assert.equal((await fetch(`${S.base}/api/conversas/${conv.id}/arquivos/${a.id}`, { headers: { cookie: bia.cookie } })).status, 404);
+  // Prévia na conversa: slides com fundo e textos do arquivo; a imagem de fundo vem do próprio arquivo.
+  const pv = (await ana.get(`/api/conversas/${conv.id}/arquivos/${a.id}/previa`)).dados;
+  assert.equal(pv.slides.length, 1);
+  const img = pv.slides[0].formas.find(f => f.tipo === 'imagem');
+  assert.equal(img.midia, 'fundo1.jpg');
+  assert.ok(pv.slides[0].formas.some(f => f.tipo === 'texto' && f.paragrafos[0].runs[0].t === 'Kickoff da Rafisa 1.1' && f.paragrafos[0].runs[0].fonte === 'Montserrat'));
+  const fundo = await fetch(`${S.base}${pv.midia}${img.midia}`, { headers: { cookie: ana.cookie } });
+  assert.equal(fundo.status, 200); assert.equal(fundo.headers.get('content-type'), 'image/jpeg');
+  assert.equal((await fetch(`${S.base}${pv.midia}..%2Fslides%2Fslide1.xml`, { headers: { cookie: ana.cookie } })).status, 404);
+  assert.equal((await bia.get(`/api/conversas/${conv.id}/arquivos/${a.id}/previa`)).status, 404);
   const det = (await ana.get(`/api/conversas/${conv.id}`)).dados;
   assert.equal(det.mensagens.filter(m => m.papel === 'assistant').at(-1).arquivos[0].id, a.id);
   // Sem visual genérico: o pedido de modelo não aciona a produção visual nem a peça padrão.
@@ -121,4 +131,14 @@ test('conversa: PDF enviado + "mesma estrutura e layout" -> PPTX no layout do mo
   await ana.del(`/api/conversas/${conv.id}`);
   assert.equal(um(S.app.db, 'select count(*) n from arquivos_gerados').n, 0, 'sai com a conversa');
   assert.equal(um(S.app.db, 'select count(*) n from anexos_arquivos').n, 0, 'o modelo sai com a conversa');
+});
+
+test('pedido "mesmo layout" sem o PDF original: a resposta pede o arquivo, nada genérico é montado', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Quero a apresentação da Rafisa em PPTX seguindo o exato mesmo layout do material.' });
+  assert.equal(r.status, 200);
+  const sis = JSON.stringify(OR.chamadas.at(-1).messages[0]);
+  assert.match(sis, /o arquivo original \(PDF\) não está disponível/);
+  assert.doesNotMatch(sis, /Peças visuais/);
+  assert.equal(r.fim.arquivos, undefined); assert.equal(r.fim.artefatos, undefined);
 });

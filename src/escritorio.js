@@ -255,9 +255,9 @@ export function xlsx(tabelas, { titulo = 'Planilha', agora, cor } = {}) {
 // com o cabeçalho repetido).
 const EMU = 12700, SW = 12192000, SH = 6858000;
 const P = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
-const LINHAS_POR_SLIDE = 12, CARACTERES_POR_LINHA = 82, LINHAS_DE_TABELA = 8;
+const LINHAS_POR_SLIDE = 10, CARACTERES_POR_LINHA = 86, LINHAS_DE_TABELA = 8;
 
-const rPr = (p, tam, cor, extra = '') => `<a:rPr lang="pt-BR" sz="${tam}"${p.b ? ' b="1"' : ''}${p.i ? ' i="1"' : ''} dirty="0">${extra}<a:solidFill><a:srgbClr val="${cor}"/></a:solidFill><a:latin typeface="${p.c ? 'Consolas' : '+mn-lt'}"/></a:rPr>`;
+const rPr = (p, tam, cor, extra = '') => `<a:rPr lang="pt-BR" sz="${tam}"${p.b ? ' b="1"' : ''}${p.i ? ' i="1"' : ''}${p.spc ? ` spc="${p.spc}"` : ''} dirty="0">${extra}<a:solidFill><a:srgbClr val="${cor}"/></a:solidFill><a:latin typeface="${p.c ? 'Consolas' : p.fonte ? x(p.fonte) : '+mn-lt'}"/></a:rPr>`;
 const aRuns = (s, tam, cor, forcar = {}) => trechos(s).map(p => `<a:r>${rPr({ ...p, ...forcar }, tam, cor)}<a:t>${x(p.t)}</a:t></a:r>`).join('') || `<a:endParaRPr lang="pt-BR" sz="${tam}"/>`;
 const caixa = (id, nome, [xx, yy, w, h], paras, { ancora = 't' } = {}) => `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${x(nome)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${xx}" y="${yy}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="${ancora}"><a:normAutofit/></a:bodyPr><a:lstStyle/>${paras}</p:txBody></p:sp>`;
 const faixa = (id, [xx, yy, w, h], cor) => `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Faixa"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${xx}" y="${yy}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="${cor}"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>`;
@@ -323,30 +323,43 @@ const LAYOUT = `${XML}<p:sldLayout ${P} type="blank" preserve="1"><p:cSld name="
 export function pptx(texto, { titulo = 'Apresentação', subtitulo = '', agora, cor, fonte } = {}) {
   const { VERDE, FUNDO_CAB } = paleta(cor), F = x(fonte || 'Calibri');
   const { capa, abertura, slides: lista } = slides(texto, titulo);
-  const M = 60 * EMU, LARG = SW - 2 * M;
-  const sld = forma => `${XML}<p:sld ${P}><p:cSld><p:spTree>${ARVORE}${forma}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
-  const xmls = [sld(faixa(2, [0, 0, SW, 120 * EMU], VERDE)
-    + caixa(3, 'Título', [M, 170 * EMU, LARG, 150 * EMU], `<a:p><a:pPr algn="l"/>${aRuns(capa, 4000, TINTA, { b: true })}</a:p>`, { ancora: 'b' })
-    + caixa(4, 'Subtítulo', [M, 336 * EMU, LARG, 110 * EMU], `${abertura ? `<a:p>${aRuns(abertura, 2200, TINTA)}</a:p>` : ''}<a:p><a:pPr><a:spcBef><a:spcPts val="1200"/></a:spcBef></a:pPr>${aRuns(subtitulo, 1600, SUAVE)}</a:p>`))];
-  for (const s of lista) {
-    let forma = faixa(2, [0, 0, 18 * EMU, SH], VERDE)
-      + caixa(3, 'Título', [M, 36 * EMU, LARG, 64 * EMU], `<a:p>${aRuns(s.titulo, 2800, VERDE, { b: true })}</a:p>`, { ancora: 'b' });
-    if (s.tabela) forma += tabelaSlide(4, s.tabela, [M, 120 * EMU, LARG], FUNDO_CAB);
+  // Desenho editorial (o mesmo sistema visual das páginas da GreenIA): capa escura com título em serifa; slides em
+  // marfim com rótulo da seção em versalete, título em serifa, filete, texto em sans e rodapé com nome e número.
+  const M = 64 * EMU, LARG = SW - 2 * M, ESCURO = '1A1915', MARFIM = 'F8F6F1', CORPO = '3D3B36', FIO = 'D8D3C8', RODAPE = '8A877F';
+  const TITULO = 'Georgia', MONO = 'Courier New';
+  const destaque = cor ? misturar(`#${VERDE}`, '#FFFFFF', 0.35).slice(1) : 'B9E85A';
+  const sld = (forma, fundo) => `${XML}<p:sld ${P}><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="${fundo}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>${ARVORE}${forma}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+  const rotulo = (t, corR, tam = 1000) => `<a:p>${aRuns(t.toLocaleUpperCase('pt-BR'), tam, corR, { fonte: MONO, spc: 300 })}</a:p>`;
+  const nomeCurto = textoPuro(capa).slice(0, 60);
+  const xmls = [sld(
+    caixa(2, 'Rótulo', [M, 120 * EMU, LARG, 24 * EMU], rotulo('Apresentação', destaque, 1100))
+    + caixa(3, 'Título', [M, 150 * EMU, LARG, 190 * EMU], `<a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="95000"/></a:lnSpc></a:pPr>${aRuns(capa, 4800, 'FFFFFF', { fonte: TITULO })}</a:p>`, { ancora: 'b' })
+    + (abertura ? caixa(4, 'Abertura', [M, 362 * EMU, LARG * 0.8, 80 * EMU], `<a:p>${aRuns(abertura, 1800, 'D8D3C8')}</a:p>`) : '')
+    + faixa(5, [M, 470 * EMU, LARG, Math.round(0.75 * EMU)], '3D3B36')
+    + caixa(6, 'Rodapé', [M, 482 * EMU, LARG, 20 * EMU], rotulo(subtitulo || 'GreenIA', 'A3A3A0', 900)), ESCURO)];
+  lista.forEach((s, k) => {
+    const n = String(k + 1).padStart(2, '0');
+    let forma = caixa(2, 'Rótulo', [M, 40 * EMU, LARG, 20 * EMU], rotulo(`${n} · ${textoPuro(s.titulo).replace(/ \(continuação\)$/, '')}`.slice(0, 70), VERDE))
+      + caixa(3, 'Título', [M, 54 * EMU, LARG, 72 * EMU], `<a:p><a:pPr><a:lnSpc><a:spcPct val="92000"/></a:lnSpc></a:pPr>${aRuns(s.titulo, textoPuro(s.titulo).length > 48 ? 2600 : 3200, TINTA, { fonte: TITULO })}</a:p>`, { ancora: 'b' })
+      + faixa(4, [M, 134 * EMU, LARG, Math.round(0.75 * EMU)], FIO);
+    if (s.tabela) forma += tabelaSlide(5, s.tabela, [M, 152 * EMU, LARG], FUNDO_CAB);
     else {
       const paras = s.itens.map(it => {
-        if (it.sub) return `<a:p><a:pPr><a:spcBef><a:spcPts val="900"/></a:spcBef></a:pPr>${aRuns(it.texto, 2200, TINTA, { b: true })}</a:p>`;
-        const tam = it.codigo ? 1400 : 2000;
-        const marca = it.marcador === '•' ? `<a:pPr marL="342900" indent="-342900"><a:spcBef><a:spcPts val="600"/></a:spcBef><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>`
-          : it.marcador ? `<a:pPr marL="342900" indent="-342900"><a:spcBef><a:spcPts val="600"/></a:spcBef><a:buNone/></a:pPr>`
-          : `<a:pPr><a:spcBef><a:spcPts val="${it.codigo ? 0 : 600}"/></a:spcBef><a:buNone/></a:pPr>`;
+        if (it.sub) return `<a:p><a:pPr><a:spcBef><a:spcPts val="1000"/></a:spcBef></a:pPr>${aRuns(it.texto, 2000, TINTA, { b: true })}</a:p>`;
+        const tam = it.codigo ? 1400 : 1800;
+        const marca = it.marcador === '•' ? `<a:pPr marL="285750" indent="-285750"><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="900"/></a:spcBef><a:buClr><a:srgbClr val="${VERDE}"/></a:buClr><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>`
+          : it.marcador ? `<a:pPr marL="342900" indent="-342900"><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="900"/></a:spcBef><a:buNone/></a:pPr>`
+          : `<a:pPr><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="${it.codigo ? 0 : 900}"/></a:spcBef><a:buNone/></a:pPr>`;
         // Número escrito no texto (não automático): a continuação num slide novo segue a contagem da lista.
-        const numero = it.marcador && it.marcador !== '•' ? `<a:r>${rPr({}, tam, TINTA)}<a:t>${it.marcador}\t</a:t></a:r>` : '';
-        return `<a:p>${marca}${numero}${it.codigo ? `<a:r>${rPr({ c: true }, tam, TINTA)}<a:t>${x(it.texto)}</a:t></a:r>` : aRuns(it.texto, tam, TINTA)}</a:p>`;
+        const numero = it.marcador && it.marcador !== '•' ? `<a:r>${rPr({ b: true }, tam, VERDE)}<a:t>${it.marcador}\t</a:t></a:r>` : '';
+        return `<a:p>${marca}${numero}${it.codigo ? `<a:r>${rPr({ c: true }, tam, CORPO)}<a:t>${x(it.texto)}</a:t></a:r>` : aRuns(it.texto, tam, CORPO)}</a:p>`;
       });
-      forma += caixa(4, 'Conteúdo', [M, 120 * EMU, LARG, SH - 150 * EMU], paras.join('') || '<a:p><a:endParaRPr lang="pt-BR"/></a:p>');
+      forma += caixa(5, 'Conteúdo', [M, 152 * EMU, LARG, 318 * EMU], paras.join('') || '<a:p><a:endParaRPr lang="pt-BR"/></a:p>');
     }
-    xmls.push(sld(forma));
-  }
+    forma += caixa(6, 'Rodapé', [M, 500 * EMU, LARG * 0.8, 18 * EMU], rotulo(nomeCurto, RODAPE, 800))
+      + caixa(7, 'Número', [SW - M - 60 * EMU, 500 * EMU, 60 * EMU, 18 * EMU], `<a:p><a:pPr algn="r"/>${aRuns(String(k + 2).padStart(2, '0'), 800, RODAPE, { fonte: MONO })}</a:p>`);
+    xmls.push(sld(forma, MARFIM));
+  });
   const finais = xmls;
   const apresentacao = `${XML}<p:presentation ${P} saveSubsetFonts="1"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${finais.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 3}"/>`).join('')}</p:sldIdLst><p:sldSz cx="${SW}" cy="${SH}"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:lvl1pPr><a:defRPr lang="pt-BR"/></a:lvl1pPr></p:defaultTextStyle></p:presentation>`;
   return zipar([

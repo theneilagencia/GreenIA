@@ -11,7 +11,7 @@ export default async function (c, pdf, briefing) {
   for (const e of etapas) c.log(`   ${e}`);
   c.arquivo('resposta.md', r.linhas.filter(l => l.t === 'texto').map(l => l.v).join(''));
   const det = (await c.api('GET', `/api/conversas/${conv}`)).dados;
-  const avisos = det.mensagens.filter(m => m.papel === 'aviso').map(m => m.texto);
+  const avisos = (det?.mensagens || []).filter(m => m.papel === 'aviso').map(m => m.texto);
   c.log(`  avisos: ${JSON.stringify(avisos)}`);
   const a = fim?.arquivos?.[0];
   c.log(`  arquivo: ${JSON.stringify(a || null)}`);

@@ -29,3 +29,12 @@ test('envio: o texto puro continua e o HTML vai junto (Resend)', async () => {
   assert.match(pedidos[0].html, /^<!doctype html>/);
   assert.match(pedidos[0].html, /Teste de email da GreenIA<\/h1>/);
 });
+
+test('ambiente da empresa (white label): nome e cor da empresa, nenhuma menção à GreenIA', () => {
+  const h = htmlDoEmail({ assunto: 'Seu código de acesso à IA da Apiário: 243829', texto: 'Seu código de acesso é 243829.\n\nEle vale por 10 minutos.', marca: { nome: 'Apiário Exemplo', cor: '#D4A017' } });
+  assert.doesNotMatch(h, /GreenIA|greenia/i);
+  assert.match(h, />Apiário Exemplo<\/td>/);
+  const convite = htmlDoEmail({ assunto: 'Convite', texto: 'Acesse https://ia.apiario.com.br', marca: { nome: 'Apiário', cor: '#FFE066' } });
+  assert.doesNotMatch(convite, /background:#FFE066/);   // cor clara demais para botão com texto branco: escurecida
+  assert.match(convite, />Aceitar o convite<\/a>/);
+});

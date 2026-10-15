@@ -155,7 +155,9 @@ function abrirTenant(P, id) {
   // White label: o email que sai do ambiente da empresa não traz o nome da plataforma.
   const email = {
     async enviar(para, assunto, texto, ...resto) {
-      const a = [para, semMarcaDaPlataforma(assunto), semMarcaDaPlataforma(texto), ...resto];
+      const b = E.lerMarca(P, id) || {};
+      const opcoes = { ...(resto[0] || {}), marca: { nome: b.display_name || c.name, cor: b.primary_color || null } };
+      const a = [para, semMarcaDaPlataforma(assunto), semMarcaDaPlataforma(texto), opcoes];
       if (lerConfig(t.db).smtp.url && !P.isolado) {
         try { const r = await smtpProprio.enviar(...a); registrarEmailEmpresa(t, true); return r; } catch (e) {
           registrarFalhaEmail(P, { escopo: `empresa ${id}`, origem: 'email próprio da empresa (tentando o da plataforma)', erro: e });

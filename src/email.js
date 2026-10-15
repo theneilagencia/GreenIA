@@ -87,10 +87,11 @@ export function criarEmail({ lerSmtp, log = console.log, fetch: f = globalThis.f
   const enviados = [];
   return {
     enviados,
-    async enviar(para, assunto, texto) {
+    async enviar(para, assunto, texto, opcoes = {}) {
       const smtp = lerSmtp();
-      // Versão formatada (cartão da GreenIA) junto do texto puro: o cliente de email mostra a que souber exibir.
-      const html = htmlDoEmail({ assunto, texto });
+      // Versão formatada (cartão) junto do texto puro: o cliente de email mostra a que souber exibir. `marca`: a da
+      // empresa no ambiente dela (white label); sem ela, a da GreenIA.
+      const html = htmlDoEmail({ assunto, texto, marca: opcoes?.marca || null });
       // Devolve { via, id }: por onde saiu e o identificador do provedor (aceitação do envio, não entrega na caixa).
       if (!smtp.url) { enviados.push({ para, assunto, texto, html }); log(`[email simulado] ${para}: ${assunto}`); return { via: 'simulado', id: null }; }
       const de = smtp.remetente || 'GreenIA <nao-responda@localhost>';

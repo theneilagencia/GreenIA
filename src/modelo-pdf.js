@@ -199,6 +199,21 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
   } };
   await Promise.all(Array.from({ length: Math.min(simultaneas, fila.length) }, trabalhar));
+  // Blocos que a IA pulou: mais uma rodada só com eles (os slides vão com o texto já adaptado, para manter o sentido).
+  if (faltando.length) {
+    const falta = new Set(faltando);
+    const resto = slides.map(s => ({ numero: s.numero, blocos: s.blocos.filter(b => falta.has(b.id)) })).filter(s => s.blocos.length);
+    await Promise.all(Array.from({ length: Math.ceil(resto.length / (porParte * 2)) }, async (_, k) => {
+      const parte = resto.slice(k * porParte * 2, (k + 1) * porParte * 2);
+      try {
+        const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido }));
+        custo += x.custo || 0; economia += x.economia || 0;
+        const j = lerJson(x.texto);
+        for (const s of parte) for (const b of s.blocos) if (typeof j?.[b.id] === 'string') { textos[b.id] = j[b.id].replace(/\s+/g, ' ').trim(); falta.delete(b.id); }
+      } catch { /* fica com o texto do modelo */ }
+    }));
+    faltando.splice(0, faltando.length, ...faltando.filter(id => falta.has(id)));
+  }
   for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
   return { textos, faltando, custo, economia };
 }

@@ -76,10 +76,10 @@ test('adaptação: pede todos os ids com limite de tamanho; resposta incompleta 
   assert.match(m[1].content, /<material>\nRafisa usa Iniflex\.\n<\/material>/);
   let n = 0;
   const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: ++n === 1 ? 'não sei' : '```json\n{"1.1":"Kick-off Rafisa"}\n```', custo: 0.01 }) });
-  assert.equal(n, 2);
+  assert.equal(n, 3);   // 2 tentativas + 1 rodada só com o que faltou
   assert.deepEqual(r.textos, { '1.1': 'Kick-off Rafisa' });
   assert.deepEqual(r.faltando, ['1.2']);
-  assert.equal(r.custo, 0.02);
+  assert.equal(r.custo, 0.03);
 });
 
 test('leitura do PDF: fundo sem o texto e o texto com fonte, tamanho e cor do original', { skip: semNavegador }, async () => {
@@ -236,4 +236,18 @@ test('adaptação: parte que falha é dividida e refeita, até um slide por vez'
   assert.deepEqual(r.textos, { '1.1': 'Novo 1.1', '2.1': 'Novo 2.1', '3.1': 'Novo 3.1', '4.1': 'Novo 4.1' });
   assert.deepEqual(r.faltando, []);
   assert.ok(chamadas <= 14, String(chamadas));
+});
+
+test('adaptação: blocos que a IA pulou voltam numa rodada só com eles', async () => {
+  const paginas = [1, 2].map(n => ({ blocos: Array.from({ length: 5 }, (_, k) => ({ id: `${n}.${k + 1}`, texto: `Texto ${n} ${k}`, x: 10, y: 10 + k * 20 })) }));
+  const pedidos = [];
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async m => {
+    const ids = [...m[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(x => x[1]);
+    pedidos.push(ids);
+    // Na primeira vez, pula um bloco de cada slide (passa do corte de 80%); depois responde tudo.
+    return { texto: JSON.stringify(Object.fromEntries(ids.filter(id => pedidos.length > 1 || !id.endsWith('.3')).map(id => [id, `Novo ${id}`]))) };
+  } });
+  assert.deepEqual(pedidos.at(-1), ['1.3', '2.3']);
+  assert.equal(Object.keys(r.textos).length, 10);
+  assert.deepEqual(r.faltando, []);
 });

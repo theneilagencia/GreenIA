@@ -5,6 +5,7 @@ export const REGRAS_DE_ESCRITA = [
   'Escreva como um consultor sênior escreveria para um cliente: frases diretas, concretas, com os fatos, números e nomes do material.',
   'Proibido (vícios de texto de IA): abrir com elogio ao pedido ou com "Claro!", "Ótima pergunta", "Com certeza"; fechar oferecendo mais ajuda ("Se quiser, posso…", "Espero ter ajudado", "Fico à disposição"); "Em resumo"/"Em suma" para repetir o que já foi dito; "É importante ressaltar/destacar/notar que"; "Vale ressaltar"; "No cenário atual", "Em um mundo cada vez mais…"; "Não é apenas X, é Y"; "Mais do que X, Y"; perguntas retóricas; listas de três adjetivos; travessão (—) para efeito dramático; emojis; negrito espalhado em palavras soltas.',
   'Evite palavras de efeito vazias: robusto, alavancar, potencializar, sinergia, jornada, ecossistema, holístico, disruptivo, desbloquear, transformador, crucial, fundamental, essencial, primordial, navegar (no sentido figurado), mergulhar, impulsionar, otimizar sem dizer o quê.',
+  'Nunca escreva letras separadas por espaço (como "C O N T E X T O"): isso é efeito visual de um arquivo, não texto.',
   'Cada frase precisa dizer algo específico do caso. Se uma frase serviria para qualquer empresa, troque por um fato do material ou corte.',
   'Siga o briefing da pessoa à risca: o que ela pediu (estrutura, escopo, tom, o que incluir e o que não incluir) vale mais do que qualquer padrão.',
 ].join('\n');

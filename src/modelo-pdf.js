@@ -117,14 +117,16 @@ export function mensagensAdaptacao({ slides, contexto, pedido }) {
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
-export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, etapa = () => {} }) {
+export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {} }) {
   const textos = {}, faltando = [];
-  let custo = 0, economia = 0;
+  let custo = 0, economia = 0, prontas = 0;
   const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos }));
-  for (let i = 0; i < slides.length; i += porParte) {
-    const parte = slides.slice(i, i + porParte).filter(s => s.blocos.length);
-    if (!parte.length) continue;
-    etapa(`Adaptando os slides ${i + 1} a ${Math.min(slides.length, i + porParte)} de ${slides.length}…`);
+  const partes = [];
+  for (let i = 0; i < slides.length; i += porParte) partes.push(slides.slice(i, i + porParte).filter(s => s.blocos.length));
+  etapa(`Adaptando ${slides.length} slides ao novo projeto…`);
+  // Partes em paralelo (até 3 por vez): uma apresentação longa não deixa a pessoa esperando parte por parte.
+  const fila = partes.filter(p => p.length);
+  const trabalhar = async () => { for (let parte = fila.shift(); parte; parte = fila.shift()) {
     const ids = parte.flatMap(s => s.blocos.map(b => b.id));
     // A melhor resposta (mais ids) vale; menos de 80% dos ids pede de novo, uma vez.
     let r = null, n = -1;
@@ -138,6 +140,8 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       if (typeof r?.[id] === 'string' && r[id].trim()) textos[id] = r[id].replace(/\s+/g, ' ').trim();
       else faltando.push(id);
     }
-  }
+    prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
+  } };
+  await Promise.all(Array.from({ length: Math.min(simultaneas, fila.length) }, trabalhar));
   return { textos, faltando, custo, economia };
 }

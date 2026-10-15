@@ -142,3 +142,23 @@ test('pedido "mesmo layout" sem o PDF original: a resposta pede o arquivo, nada 
   assert.doesNotMatch(sis, /Peças visuais/);
   assert.equal(r.fim.arquivos, undefined); assert.equal(r.fim.artefatos, undefined);
 });
+
+test('conversa com apresentação em PDF: "monte a da Rafisa em PPTX" usa o PDF como modelo, mesmo sem dizer "mesmo layout"', { skip: semNavegador }, async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-Repet.pdf', base64: pdfColorido().toString('base64') }] });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Agora monte a apresentação da Rafisa em PPTX, com o cenário do projeto dela.' });
+  assert.equal(r.status, 200);
+  assert.equal(r.fim.arquivos?.[0]?.modelo, 'Kickoff-Repet.pdf');
+  // Pedido de análise não monta nada.
+  const r2 = await enviarMensagem(ana, conv.id, { texto: 'O que essa apresentação diz sobre prazos?' });
+  assert.equal(r2.fim.arquivos, undefined);
+});
+
+test('roteiro "Slide N" na resposta vira slides de verdade no PowerPoint comum', async () => {
+  const { slides } = await import('../src/escritorio.js');
+  const s = slides('Aqui está o roteiro.\n\n## Slide 1: Capa\nFinanceiro · Produção\nKick-off Prumo Discovery / RAFISA\nK I C K - O F F\n---\n**Slide 2: Contexto**\n0 1 · C O N T E X T O\nA RAFISA quer fechar o mês com resultado confiável\n- Apontamento em papel\n---\nSlide 3: Método\n1 Entender\n2 Definir', 'X');
+  assert.equal(s.capa, 'Kick-off Prumo Discovery / RAFISA');
+  assert.deepEqual(s.slides.map(x => x.titulo), ['Contexto', 'Método']);
+  assert.deepEqual(s.slides[0].itens.map(i => i.texto), ['A RAFISA quer fechar o mês com resultado confiável', 'Apontamento em papel']);
+  assert.deepEqual(s.slides[1].itens.map(i => i.texto), ['1 Entender', '2 Definir']);
+});

@@ -139,7 +139,7 @@ const RAJADA = 12;
 // Pedido de arquivo do Office: a plataforma gera o arquivo a partir da resposta (src/escritorio.js); o modelo só
 // precisa escrever o conteúdo completo e bem estruturado. A orientação entra só quando o pedido cita o formato.
 export const PEDE_ARQUIVO = /\b(word|docx|power ?point|pptx|ppt|slides?|excel|xlsx|xls|planilhas?|apresenta[cç](ão|ao|ões|oes))\b/i;
-const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do Word, do PowerPoint ou do Excel e mostra o botão para baixar. Não diga que não consegue gerar arquivos e não ofereça código para gerá-los: escreva o conteúdo completo, pronto para uso, já na resposta. Use # para o título, ## para cada seção (no PowerPoint, cada ## vira um slide, com poucos tópicos curtos), listas com - e tabelas em Markdown. Em tabela para planilha, cada célula com um valor só (número, R$ 1.234,56, 12,5% ou data dd/mm/aaaa, sem texto junto) e confira cada total antes de responder.';
+const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do Word, do PowerPoint ou do Excel e mostra o botão para baixar. Não diga que não consegue gerar arquivos e não ofereça código para gerá-los: escreva o conteúdo completo, pronto para uso, já na resposta. Use # para o título, ## para cada seção (no PowerPoint, cada ## vira um slide, com o título final do slide, sem "Slide N:"), listas com - e tabelas em Markdown, sem linhas "---". Escreva o texto final de cada slide, não instruções sobre o slide. Em tabela para planilha, cada célula com um valor só (número, R$ 1.234,56, 12,5% ou data dd/mm/aaaa, sem texto junto) e confira cada total antes de responder.';
 
 // Peça visual pedida na conversa livre ("crie uma apresentação", "monte um one-page"): a resposta traz o conteúdo
 // e a produção visual (o mesmo motor dos Quick Wins) compõe o PDF/PNG com design. Só com verbo de criação: "analise
@@ -156,7 +156,10 @@ export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identida
 
 // "Monte a apresentação da Rafisa seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
 export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões|oes)|slides?|deck)\b/i.test(t)
-  && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
+  && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|refer[eê]ncia|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
+// Pedido de apresentação (criar, montar, versão pronta, PPTX) numa conversa que já tem uma apresentação em PDF:
+// o PDF é a referência de layout, mesmo sem a pessoa dizer "mesmo layout".
+const PEDE_APRESENTACAO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao)|slides|deck)\b/i.test(t) && (PEDE_CRIAR.test(t) || /\bem (pptx|power ?point)\b/i.test(t));
 const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'base64').subarray(0, 4).toString() === '%PDF';
 // Modelo: o PDF desta mensagem ou o último PDF guardado como modelo na conversa.
 export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = []) {
@@ -627,7 +630,7 @@ export function rotasConversas(app, r) {
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
-    const modeloApr = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t)) && PEDE_MODELO(texto) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
+    const modeloApr = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t)) && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
@@ -1085,19 +1088,23 @@ export function rotasConversas(app, r) {
     // Apresentação no layout do modelo: leitura do PDF (sem IA), adaptação do texto pela IA (mesma rota) e o PPTX.
     let gerado = null;
     if (modeloApr) {
+      // Sinal de vida a cada 15 s: o trabalho leva minutos e a conexão não pode ficar parada.
+      let ultimaEtapa = 'Lendo o layout do modelo…';
+      const vida = setInterval(() => linha({ t: 'etapa', v: ultimaEtapa }), 15000);
       try {
-        linha({ t: 'etapa', v: 'Lendo o layout do modelo…' });
+        linha({ t: 'etapa', v: ultimaEtapa });
         const paginas = await lerModeloPdf(modeloApr.dados);
         const material = [...h.mensagens.map(x => `${x.role === 'user' ? 'Pessoa' : 'Assistente'}: ${typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')}`), `Assistente: ${resposta}`]
           .join('\n\n').replace(modeloApr.texto, '[conteúdo do modelo]').slice(-60000);
-        const r = await adaptarModelo({ paginas, contexto: material, pedido: texto, chamar, etapa: v => linha({ t: 'etapa', v }) });
+        // Adaptação pelo nível mais forte permitido (o mesmo do design das peças: Avançado quando nada pede proteção extra).
+        const r = await adaptarModelo({ paginas, contexto: material, pedido: texto, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
         const nome = `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
         gerado = { nome, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
         aviso(app, conv.id, e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.` : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
-      }
+      } finally { clearInterval(vida); }
     }
     if (preparacoesEscolha) {
       fim = { ...(fim || {}), custo: Number(fim?.custo || 0) + custoPreparacaoEscolha, economia: Number(fim?.economia || 0) + economiaPreparacaoEscolha };

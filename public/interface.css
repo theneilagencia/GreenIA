@@ -1447,3 +1447,4 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
 .pv-conta{color:var(--muted);font-size:13px}.pv-lista{flex:1;overflow:auto;padding:20px;display:grid;gap:20px}
 .pv-item{margin:0}.pv-item .pv-slide{border-radius:8px;box-shadow:var(--sombra-2)}.pv-item figcaption{text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
 @media (max-width:600px){.pv-painel-fundo{padding:0}.pv-painel{border-radius:0}.pv-lista{padding:12px;gap:12px}}
+.texto-recolhido{margin:4px 0 12px}.texto-recolhido>summary{cursor:pointer;color:var(--forest-text);font:500 14px/1.4 var(--sans);min-height:44px;display:flex;align-items:center}.texto-recolhido[open]>summary{margin-bottom:8px}

@@ -279,15 +279,37 @@ function itensDoBloco(b) {
 const linhasDe = it => Math.max(1, Math.ceil([...textoPuro(it.texto)].length / CARACTERES_POR_LINHA));
 
 // Seções -> slides: [{ titulo, itens } | { titulo, tabela }].
+// Roteiro "slide a slide" escrito na resposta ("Slide 3: Método", "---", rótulos com letras espaçadas copiados de
+// um PDF): cada "Slide N" vira uma seção (um slide) e o que é só marcação sai.
+const SLIDE_N = /^\s*#{0,4}\s*\**\s*slide\s+\d+\s*[:\-–—.]\s*(.+?)\s*\**\s*$/i;
+const soLetrasEspacadas = l => { const t = l.replace(/[·•|]/g, ' ').trim().split(/\s+/); return t.length >= 4 && t.filter(x => x.length === 1).length / t.length > 0.6; };
+export function roteiroLimpo(texto) {
+  const linhas = String(texto || '').replace(/\r/g, '').split('\n');
+  if (linhas.filter(l => SLIDE_N.test(l)).length < 3) return texto;
+  // Cada linha do roteiro é um item do slide (no roteiro, quebra de linha separa ideias).
+  const inicio = linhas.findIndex(l => SLIDE_N.test(l));   // o que vem antes do 1º slide é conversa, não slide
+  const limpas = linhas.slice(inicio).filter(l => !/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l) && !soLetrasEspacadas(l)).map(l => { const m = SLIDE_N.exec(l); return m ? `## ${m[1].replace(/\*+$/, '')}` : l; });
+  return limpas.map((l, i) => (l.trim() && !/^\s*([-*]|\d+[.)])\s|^\s*\|/.test(l) && limpas[i + 1]?.trim() && !/^\s*\|/.test(limpas[i + 1]) ? `${l}\n` : l)).join('\n');
+}
+
 export function slides(texto, titulo) {
-  const bs = blocos(texto), secoes = [];
+  const bs = blocos(roteiroLimpo(texto)), secoes = [];
   let capa = textoPuro(titulo), atual = null;
   bs.forEach((b, k) => {
     if (b.tipo === 'titulo' && b.nivel === 1 && k === 0) { capa = textoPuro(b.texto); return; }
-    if (b.tipo === 'titulo' && b.nivel <= 2) { atual = { titulo: textoPuro(b.texto), blocos: [] }; secoes.push(atual); return; }
+    if (b.tipo === 'titulo' && b.nivel <= 2) { atual = { titulo: textoPuro(b.texto), blocos: [], capa: /^capa\b/i.test(textoPuro(b.texto)) }; secoes.push(atual); return; }
     if (!atual) { atual = { titulo: capa, blocos: [] }; secoes.push(atual); }
     atual.blocos.push(b);
   });
+  // Seção "Capa" do roteiro: a linha mais longa vira o título da capa; não vira slide de conteúdo.
+  let aberturaCapa = '';
+  const iCapa = secoes.findIndex(x => x.capa);
+  if (iCapa >= 0) {
+    const linhasCapa = secoes[iCapa].blocos.flatMap(itensDoBloco).map(i => textoPuro(i.texto)).filter(Boolean);
+    const maior = linhasCapa.reduce((a, b) => (b.length > a.length ? b : a), '');
+    if (maior) { capa = maior; aberturaCapa = linhasCapa.filter(l => l !== maior)[0] || ''; }
+    secoes.splice(iCapa, 1);
+  }
   const out = [];
   for (const s of secoes) {
     let itens = [], linhas = 0, partes = 0;
@@ -308,7 +330,7 @@ export function slides(texto, titulo) {
     if (itens.length || !partes) fechar();
   }
   // Abertura curta antes da primeira seção vai para a capa (como subtítulo), em vez de ocupar um slide quase vazio.
-  let abertura = '';
+  let abertura = aberturaCapa;
   const primeiro = out[0];
   if (primeiro && primeiro.titulo === capa && !primeiro.tabela && primeiro.itens.length === 1 && !primeiro.itens[0].marcador && !primeiro.itens[0].codigo && out.length > 1
     && textoPuro(primeiro.itens[0].texto).length <= 240) { abertura = primeiro.itens[0].texto; out.shift(); }
@@ -401,12 +423,18 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
     const caixas = p.blocos.map((b, k) => {
       const texto = textos[b.id] ?? b.texto;
       const topo = (b.y - b.tam * 0.92) * PT * sy, esq = b.x * PT * sx;
-      const larg = Math.min(W - esq, (b.largura * (b.linhas > 1 ? 1.08 : 1.04) + b.tam * 0.6) * PT * sx);
+      // Espaço da coluna: até o próximo bloco à direita na mesma faixa de altura (ou a margem do slide). Texto novo
+      // mais longo que o original quebra dentro da coluna em vez de invadir a vizinha.
+      const vizinho = p.blocos.filter(o => o !== b && o.x > b.x + b.largura * 0.5 && o.y > b.y - b.tam * 1.5 && o.y - o.tam < b.y + (b.linhas - 1) * b.entrelinha + b.tam * 0.5).reduce((m, o) => Math.min(m, o.x), p.w * 0.95);
+      const coluna = Math.max(b.largura, vizinho - b.x - b.tam * 0.6);
+      const maior = String(texto).length > b.texto.length * 1.02;
+      const quebra = b.linhas > 1 || maior;
+      const larg = Math.min(W - esq, (quebra ? Math.max(coluna, b.largura * 1.08) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
       const alt = ((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy;
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
       const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
       const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * 100)}"/></a:lnSpc>` : '';
-      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${b.linhas > 1 ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr><a:r>${rpr}<a:t>${x(texto)}</a:t></a:r></a:p></p:txBody></p:sp>`;
+      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr><a:r>${rpr}<a:t>${x(texto)}</a:t></a:r></a:p></p:txBody></p:sp>`;
     }).join('');
     return `${XML}<p:sld ${P}><p:cSld><p:spTree>${ARVORE}${fundo}${caixas}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
   });

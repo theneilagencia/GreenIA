@@ -208,6 +208,17 @@ function menuBaixar(botao, abrir) {
   }
 }
 
+// Resposta cuja entrega é um arquivo de apresentação: o arquivo (com a prévia) vem primeiro e o roteiro longo fica
+// recolhido, como nos outros assistentes. Resposta comum: o texto e, abaixo, os cartões de arquivo.
+function corpoComArquivo(m, html, tabelas, revisar) {
+  const bolha = `<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>`;
+  if (m.carregando || m.erro) return bolha;
+  const cartoes = arquivosPedidos(m, tabelas);
+  if (!cartoes.includes('arquivo-previa') || String(m.texto || '').length < 1200) return bolha + cartoes;
+  const slides = (String(m.texto).match(/^\s*#{1,3}\s|^\s*\**\s*slide\s+\d+/gim) || []).length;
+  return `${cartoes}<details class="texto-recolhido"><summary>Ver o texto completo${slides > 2 ? ` (${slides} seções)` : ''}</summary>${bolha}</details>`;
+}
+
 function htmlMensagem(m) {
   const anim = vistos.has(String(m.id)) || m.carregando ? '' : ' anim';
   if (!m.carregando) vistos.add(String(m.id));
@@ -233,7 +244,7 @@ function htmlMensagem(m) {
   const proximos = conferir || refinar ? `<div class="resposta-proximos">${conferir ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para os resultados</a>` : ''}${refinar ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}</div>` : '';
   const ultima = m.id === C.ultimaResposta;
   return `<div class="resposta${anim}${ultima ? ' resposta-ultima' : ''}" data-msg="${m.id}">
-    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${m.carregando || m.erro ? '' : arquivosPedidos(m, tabelas)}${revisar ? '' : qc}${integracoes}
+    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}${corpoComArquivo(m, html, tabelas, revisar)}${revisar ? '' : qc}${integracoes}
       ${m.carregando || m.erro ? '' : `${fontes}${acoesResposta(m, { execucao, conferir })}${proximos}`}
     </div></div>`;
 }

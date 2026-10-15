@@ -204,3 +204,16 @@ test('adaptação: número de página fica; rodapé repetido vai uma vez e vale 
   assert.doesNotMatch(z.get('ppt/slides/slide2.xml'), /Título 2|name="Texto 2\.1"/);   // vazio: sai
   assert.match(z.get('ppt/slides/slide1.xml'), /sz="(2[1-9]\d\d)"[^>]*>[\s\S]*?Título novo/);   // fonte reduzida (de 3000)
 });
+
+test('adaptação: parte que falha é dividida e refeita, até um slide por vez', async () => {
+  const paginas = [1, 2, 3, 4].map(n => ({ blocos: [{ id: `${n}.1`, texto: `Título ${n}`, x: 10, y: 10 }] }));
+  let chamadas = 0;
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', porParte: 4, chamar: async m => {
+    chamadas++;
+    const ids = [...m[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(x => x[1]);
+    return { texto: ids.length > 1 ? '{"corta' : JSON.stringify({ [ids[0]]: `Novo ${ids[0]}` }) };   // só responde bem com um slide
+  } });
+  assert.deepEqual(r.textos, { '1.1': 'Novo 1.1', '2.1': 'Novo 2.1', '3.1': 'Novo 3.1', '4.1': 'Novo 4.1' });
+  assert.deepEqual(r.faltando, []);
+  assert.ok(chamadas <= 14, String(chamadas));
+});

@@ -106,7 +106,7 @@ const INSTRUCAO = [
   'Você adapta uma apresentação MODELO para outro projeto ou cliente, mantendo exatamente a estrutura: mesmos slides, mesma função de cada bloco de texto (título, rótulo de seção, número, item de lista, rodapé, data, nome), mesmo tom e o mesmo nível de detalhe.',
   'Para cada bloco, escreva o texto novo no lugar do original, com o conteúdo do NOVO projeto tirado do material e da conversa. Troque nomes de empresa, pessoas, áreas, sistemas, datas, horários, números e exemplos pelos do novo projeto.',
   'Rótulos de estrutura (como "01 · CONTEXTO", numeração "1", "2", "02", títulos de método que valem para qualquer projeto) ficam iguais quando continuam corretos.',
-  'Não invente fatos. Dado específico que o material não traz (uma data, um nome de responsável, um horário, um número): escreva "[a definir]" no lugar só do dado. Item de lista, linha de tabela ou exemplo complementar sem conteúdo no material: devolva "" (texto vazio) e o bloco sai do slide, em vez de repetir "[a definir]".',
+  'Não invente fatos. Dado específico que o material não traz (uma data, um nome de responsável, um horário, um número): escreva "[a definir]" no lugar só do dado. Só um item de lista ou uma linha de tabela que sobra (o novo projeto tem menos itens que o modelo) pode voltar "" (texto vazio), e então sai do slide. Título, rótulo, parágrafo e slide inteiro nunca ficam vazios: quando o tema do slide não aparece no material, mantenha o texto do modelo, trocando só nomes de empresa, pessoas e sistemas pelos do novo projeto.',
   'Cada bloco vem com a posição no slide [x, y] (em pontos, a partir do canto superior esquerdo): blocos na mesma altura são colunas de uma linha; na mesma coluna, itens de uma lista ou linhas de uma tabela. Mantenha cada texto na sua posição e na sua função; não troque conteúdo entre colunas nem entre linhas.',
   'O briefing da pessoa (no pedido e na conversa) manda: escopo, frentes, prazos, entregáveis e o que fica fora seguem o que ela definiu para o novo projeto, mesmo que o modelo diga outra coisa.',
   'Tamanho: cada texto novo deve caber no mesmo espaço do original, com no máximo o número de caracteres indicado.',
@@ -152,6 +152,12 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       custo += x.custo || 0; economia += x.economia || 0;
       const j = lerJson(x.texto), k = j ? ids.filter(id => typeof j[id] === 'string').length : -1;
       if (k > n) { r = j; n = k; }
+    }
+    // Parte que falhou (resposta cortada ou fora do formato): divide em duas e refaz, até um slide por vez.
+    if (n < ids.length * 0.8 && parte.length > 1) {
+      const meio = Math.ceil(parte.length / 2);
+      fila.push(parte.slice(0, meio), parte.slice(meio)); partes.push(parte.slice(meio));
+      continue;
     }
     for (const id of ids) {
       if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) textos[id] = r[id].replace(/\s+/g, ' ').trim();

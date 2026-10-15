@@ -70,7 +70,8 @@ const CORES = c => { const h = String(c || '').trim(); if (/^#[0-9a-f]{6}$/i.tes
 export const nomeDaFonte = n => String(n || '').replace(/^[A-Z]{6}\+/, '').replace(/[-,](Regular|Roman|Book|Normal)$/i, '').replace(/(PS)?MT$/, '').replace(/[-,]?(Bold|Black|Heavy|Semi ?Bold|Demi ?Bold|ExtraBold|Medium|Light|Thin|Italic|Oblique)+$/i, '')
   .replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\s+/g, ' ').trim() || 'Arial';
 const negrito = n => /bold|black|heavy|semibold|demibold/i.test(String(n || ''));
-const MARCADOR = /^\s*([•◦▪▫●○■□‣⁃–—\-*✓✔☐☑➢➤►▶→]|\d{1,2}[.)])\s/;
+// Marcador de item: símbolo, "1."/"1)" ou número de dois dígitos antes de palavra com maiúscula ("05 Que sistemas").
+const MARCADOR = /^\s*([•◦▪▫●○■□‣⁃–—\-*✓✔☐☑➢➤►▶→]|\d{1,2}[.)]|\d{2}(?=\s+\p{Lu}))\s/u;
 export function tamanhoCorrido(itens) {
   const porTam = {};
   for (const i of itens) if (i.s.trim()) porTam[Math.round(i.tam)] = (porTam[Math.round(i.tam)] || 0) + i.s.trim().length;
@@ -228,6 +229,11 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       } catch { /* fica com o texto do modelo */ }
     }));
     faltando.splice(0, faltando.length, ...faltando.filter(id => falta.has(id) && textos[id] === undefined));
+  }
+  // Item que perdeu o marcador na adaptação ("05 Que sistemas…" virou "Que sistemas…"): o marcador volta.
+  for (const [id, t] of Object.entries(textos)) {
+    const mk = MARCADOR.exec(original.get(id) || '')?.[1];
+    if (mk && t && !MARCADOR.test(t)) textos[id] = `${mk} ${t}`;
   }
   // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.
   for (const id of Object.keys(textos)) if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = original.get(id) ?? textos[id];

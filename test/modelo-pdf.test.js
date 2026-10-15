@@ -287,3 +287,12 @@ test('PowerPoint do modelo: texto que cresce não cobre o bloco de baixo (a font
   assert.ok(sz < 1600, String(sz));
   assert.ok(y + cy <= (160 - 16 * 0.92) * 12700 + 1, `${y + cy}`);
 });
+
+test('item numerado ("05 Que sistemas…"): a linha recuada continua o item e o número volta se a IA tirar', async () => {
+  const it = (s, x, y, w, extra = {}) => ({ s, x, y, w, tam: 16, fonte: 'Manrope', cor: '#222222', ...extra });
+  const [b] = agrupar([it('05', 351, 400, 18, { cor: '#4F6B00' }), it(' ', 369, 400, 1), it('Que dados são', 383, 400, 100), it('necessários?', 383, 421, 90)]);
+  assert.equal(b.texto, '05 Que dados são necessários?');
+  assert.deepEqual(b.marcador, { cor: '#4F6B00', negrito: false });
+  const r = await adaptarModelo({ paginas: [{ blocos: [b] }], contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ [b.id]: 'Quais dados o fechamento usa?' }) }) });
+  assert.equal(r.textos[b.id], '05 Quais dados o fechamento usa?');
+});

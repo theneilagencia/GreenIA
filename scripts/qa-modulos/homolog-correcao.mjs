@@ -19,7 +19,7 @@ export default async function (c, pdf, briefing) {
     let faltam = null;
     if (a) {
       const pv = JSON.stringify((await c.api('GET', `/api/conversas/${conv}/arquivos/${a.id}/previa`)).dados);
-      faltam = fatosDoPedido(k === 1 ? PASSOS[0] : texto).filter(f => !f.presente(pv)).map(f => f.texto);
+      faltam = fatosDoPedido(k === 1 ? PASSOS[0] : texto).filter(f => !f.presente(pv)).map(f => f.texto);   // espaços normalizados na conferência
       c.arquivo(`correcao-${++k}.pptx`, (await c.binario(`/api/conversas/${conv}/arquivos/${a.id}`)).dados);
     } else k++;
     const etapas = r.linhas.filter(l => l.t === 'etapa').map(l => l.v);

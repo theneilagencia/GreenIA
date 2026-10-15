@@ -191,7 +191,7 @@ const INSTRUCAO = [
 ].join('\n');
 
 export function mensagensAdaptacao({ slides, contexto, pedido }) {
-  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${b.texto}`).join('\n')}`).join('\n\n');
+  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => linhaDoBloco(b, p.blocos, b.texto)).join('\n')}`).join('\n\n');
   return [
     { role: 'system', content: INSTRUCAO },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${contexto}\n</material>\n\nApresentação modelo (blocos a adaptar):\n\n${modelo}` },
@@ -223,14 +223,15 @@ export function fatosDoPedido(pedido) {
     const alvo = m[1].trim().toLowerCase();
     if (visto.has(`q${alvo}`)) continue;
     visto.add(`q${alvo}`);
-    fatos.push({ texto: `"${m[1].trim()}"`, presente: x => x.toLowerCase().includes(alvo) });
+    const titulo = /t[íi]tulo/i.test(t.slice(Math.max(0, m.index - 60), m.index));   // "troque o título para …"
+    fatos.push({ texto: `"${m[1].trim()}"`, titulo, presente: x => x.toLowerCase().replace(/\s+/g, ' ').includes(alvo.replace(/\s+/g, ' ')) });
   }
   return fatos;
 }
 export function mensagensFatos({ slides, textos, pedido, contexto, faltam }) {
-  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
+  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => linhaDoBloco(b, p.blocos, textos[b.id] ?? b.texto)).join('\n')}`).join('\n\n');
   return [
-    { role: 'system', content: `${INSTRUCAO}\n\nA apresentação abaixo já foi adaptada, mas estes dados do pedido da pessoa não aparecem em nenhum slide: ${faltam.join('; ')}. Ajuste os blocos necessários para que TODOS apareçam no lugar certo, coerentes com o resto (por exemplo: um slide de agenda que sobrou passa a tratar do outro dia; dois eventos do mesmo dia ficam no mesmo slide; o cronograma e a capa usam as mesmas datas). Responda só com os ids que mudam.` },
+    { role: 'system', content: `${INSTRUCAO}\n\nA apresentação abaixo já foi adaptada, mas estes dados do pedido da pessoa não aparecem em nenhum slide (o que foi pedido para um título vai no bloco marcado como título): ${faltam.join('; ')}. Ajuste os blocos necessários para que TODOS apareçam no lugar certo, coerentes com o resto (por exemplo: um slide de agenda que sobrou passa a tratar do outro dia; dois eventos do mesmo dia ficam no mesmo slide; o cronograma e a capa usam as mesmas datas). Responda só com os ids que mudam.` },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-30000)}\n</material>\n\nApresentação adaptada (texto atual de cada bloco):\n\n${atual}` },
   ];
 }
@@ -290,20 +291,29 @@ export function agendasForaDoHorario(paginas, textos) {
   return out;
 }
 export function mensagensAgenda({ slides, textos, pedido, contexto, fora }) {
-  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
+  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => linhaDoBloco(b, p.blocos, textos[b.id] ?? b.texto)).join('\n')}`).join('\n\n');
   return [
     { role: 'system', content: `${INSTRUCAO}\n\nNestes slides, a agenda tem horários fora do intervalo do dia que o próprio slide declara ou fora da ordem cronológica: ${fora.map(f => `slide ${f.numero} (${f.faixa}): ${f.linhas.join(', ')}`).join('; ')}. Ajuste horários e atividades para que a agenda caiba no intervalo, fique em ordem cronológica de cima para baixo e siga o pedido. Linha que sobrar: devolva "" no horário, na atividade, na descrição e em quem participa dessa linha. Responda só com os ids que mudam.` },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-20000)}\n</material>\n\nSlides (texto atual de cada bloco):\n\n${atual}` },
   ];
 }
+// Função do bloco no slide, para a IA saber o que é "o título" e o que é rótulo: o maior texto do slide é o título;
+// texto pequeno em maiúsculas (ou espaçado) acima dele é rótulo.
+export function papelDoBloco(b, blocos) {
+  const maior = Math.max(...blocos.map(o => o.tam || 0));
+  if ((b.tam || 0) >= maior - 0.5 && /\p{L}{3,}/u.test(b.texto)) return 'título';
+  if (b.espacado || (!/\p{Ll}/u.test(b.texto) && /\p{L}{3,}/u.test(b.texto))) return 'rótulo';
+  return '';
+}
+const linhaDoBloco = (b, blocos, texto) => { const p = papelDoBloco(b, blocos); return `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}]${p ? ` ${p}` : ''} (máx. ${LIMITE(b.texto)}): ${texto}`; };
 export function mensagensEdicao({ slides, textos, pedido, contexto }) {
-  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
+  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => linhaDoBloco(b, p.blocos, textos[b.id] ?? b.texto)).join('\n')}`).join('\n\n');
   return [
     { role: 'system', content: [
       'Você corrige uma apresentação JÁ PRONTA conforme o pedido de correção da pessoa. Cada bloco abaixo traz o texto atual.',
       'Aplique TODAS as correções pedidas que tocam estes slides, e só elas: o que o pedido não menciona fica exatamente como está. Se o pedido muda um dado que aparece em vários blocos (data, horário, duração, nome, prazo, etapa), mude em todos eles, de forma coerente (agenda, cronograma, capa, rodapés).',
       'Agenda: horários em ordem, dentro do intervalo do dia; linha que sobra volta "" em todas as células dela. Para tirar um item, devolva "" no bloco. Título, rótulo e parágrafo nunca ficam vazios.',
-      'Cada bloco vem com a posição [x, y] e o máximo de caracteres: mantenha cada texto na sua posição e função, cabendo no espaço.',
+      'Cada bloco vem com a posição [x, y], a função quando é título (o texto principal do slide) ou rótulo (texto pequeno acima do título) e o máximo de caracteres. "Título" no pedido é o bloco marcado como título, nunca o rótulo. Mantenha cada texto na sua posição e função, cabendo no espaço.',
       REGRAS_DE_ESCRITA,
       'Responda só com um objeto JSON {"<id>": "<texto novo>"} com os ids que mudam. Se nada nestes slides precisa mudar, responda {}.',
     ].join('\n') },
@@ -410,7 +420,10 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   // Dados do pedido (datas, horários) que não apareceram em nenhum slide: mais uma rodada com a apresentação inteira
   // já adaptada, pedindo para encaixar o que falta (outro slide de agenda, dois eventos no mesmo slide…).
   const todosOsTextos = () => paginas.flatMap(p => p.blocos.map(b => textos[b.id] ?? b.texto)).join('\n');
-  let faltam = fatosDoPedido(pedido).filter(f => !f.presente(todosOsTextos()));
+  // Texto pedido para um título precisa estar num bloco que é título (não no rótulo de cima).
+  const textosDeTitulo = () => paginas.flatMap(p => p.blocos.filter(b => papelDoBloco(b, p.blocos) === 'título').map(b => textos[b.id] ?? b.texto)).join('\n');
+  const presente = f => f.presente(f.titulo ? textosDeTitulo() : todosOsTextos());
+  let faltam = fatosDoPedido(pedido).filter(f => !presente(f));
   if (faltam.length) {
     etapa('Conferindo se todos os dados do pedido estão nos slides…');
     try {
@@ -419,7 +432,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       const j = lerJson(x.texto) || {};
       // Rodada de correção não apaga nada: texto vazio é ignorado (só o ajuste de agenda pode tirar linhas).
       for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string' && j[b.id].trim()) textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
-      faltam = faltam.filter(f => !f.presente(todosOsTextos()));
+      faltam = faltam.filter(f => !presente(f));
     } catch { /* fica a versão anterior */ }
   }
   // Agenda coerente com o horário do dia declarado no próprio slide ("dia 2 · 9h às 12h" com linhas até 17h): os

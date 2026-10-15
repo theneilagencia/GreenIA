@@ -72,7 +72,7 @@ test('adaptação: pede todos os ids com limite de tamanho; resposta incompleta 
   const m = mensagensAdaptacao({ slides: [{ numero: 1, blocos: paginas[0].blocos }], contexto: 'Rafisa usa Iniflex.', pedido: 'faça a da Rafisa' });
   assert.match(m[0].content, /mantendo exatamente a estrutura/);
   assert.match(m[0].content, /\[a definir\]/);
-  assert.match(m[1].content, /1\.1 \[0, 0\] \(máx\. 16\): Kick-off Repet/);
+  assert.match(m[1].content, /1\.1 \[0, 0\]( título)? \(máx\. 16\): Kick-off Repet/);
   assert.match(m[1].content, /<material>\nRafisa usa Iniflex\.\n<\/material>/);
   let n = 0;
   const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: ++n === 1 ? 'não sei' : '```json\n{"1.1":"Kick-off Rafisa"}\n```', custo: 0.01 }) });
@@ -453,4 +453,19 @@ test('correção pedida no chat edita a última versão da apresentação; "não
   assert.match(ed3.messages[1].content, /Mude o kick-off para 29\/10 às 9h/, 'o pedido anterior vai junto');
   const r4 = await enviarMensagem(ana, conv.id, { texto: 'Quais são os prazos da apresentação?' });
   assert.equal(r4.fim.arquivos, undefined, 'pergunta não gera arquivo');
+});
+
+test('"troque o título para …" só conta como aplicado se estiver no bloco que é o título, não no rótulo de cima', async () => {
+  const b = (id, texto, y, tam, extra = {}) => ({ id, texto, x: 40, y, tam, linhas: 1, largura: 200, ...extra });
+  const paginas = [{ blocos: [b('1.1', '01 · MÉTODO', 40, 10, { espacado: true }), b('1.2', 'Cinco movimentos', 80, 40), b('1.3', 'Entender como funciona hoje', 160, 14)] }];
+  const pedidos = [];
+  const r = await adaptarModelo({ paginas, contexto: '', base: { '1.1': '01 · MÉTODO', '1.2': 'Cinco movimentos', '1.3': 'Entender como funciona hoje' }, pedido: 'Troque o título do slide de método para "Como vamos trabalhar juntos".', chamar: async m => {
+    pedidos.push(m);
+    if (m[0].content.includes('não aparecem em nenhum slide')) return { texto: JSON.stringify({ '1.1': '01 · MÉTODO', '1.2': 'Como vamos trabalhar juntos' }) };
+    return { texto: JSON.stringify({ '1.1': '01 · COMO VAMOS TRABALHAR JUNTOS' }) };
+  } });
+  assert.match(pedidos[0][1].content, /1\.2 \[40, 80\] título/);
+  assert.match(pedidos[0][1].content, /1\.1 \[40, 40\] rótulo/);
+  assert.equal(r.textos['1.2'], 'Como vamos trabalhar juntos');
+  assert.deepEqual(r.fatos_faltando, []);
 });

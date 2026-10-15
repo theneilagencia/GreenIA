@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 import { exec } from '../src/db.js';
+import { deszipar } from '../test/zip-leitor.js';
 
 const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
 let S, nav, pessoa, db, livre, duas, codigo;
@@ -65,7 +66,7 @@ test('linha de ações: ícones com nome e dica; selo de simulação na mesma li
   await p.goto(`${S.base}/app#/c/${livre.id}`); await p.waitForSelector('.rodape-resposta');
   const linha = ultima(p).getByRole('group', { name: 'Ações da resposta' });
   const nomes = await linha.getByRole('button').evaluateAll(bs => bs.map(b => [b.getAttribute('aria-label'), b.title, b.innerText.trim(), b.querySelector('svg') ? 1 : 0]));
-  assert.deepEqual(nomes.map(n => n[0]), ['Copiar resposta', 'Gerar de novo', 'Serviu', 'Não serviu', 'Detalhes da resposta']);
+  assert.deepEqual(nomes.map(n => n[0]), ['Copiar resposta', 'Baixar como arquivo', 'Gerar de novo', 'Serviu', 'Não serviu', 'Detalhes da resposta']);
   for (const [nome, dica, texto, icone] of nomes) { assert.ok(dica, `${nome} tem dica`); assert.equal(texto, '', `${nome} só ícone`); assert.equal(icone, 1); }
   assert.equal(await linha.locator('.selo-simulada').innerText(), 'Resposta simulada');
   assert.equal(await ultima(p).locator('.btn').count(), 0, 'nenhum botão de texto na resposta');
@@ -191,16 +192,48 @@ test('download da tabela como cartão de anexo (ícone, nome e tipo) e bloco de 
   await p.goto(`${S.base}/app#/c/${livre.id}`); await p.waitForSelector('.rodape-resposta');
   const cartao = ultima(p).getByRole('link', { name: /Baixar planilha/ });
   assert.equal(await cartao.count(), 1);
-  assert.match(await cartao.innerText(), /Baixar planilha\s+Tabela 1 · \d+ linhas?/);
+  assert.match(await cartao.innerText(), /Baixar planilha\s+Excel · Tabela 1 · \d+ linhas?/);
   assert.equal(await cartao.locator('.anexo-resposta-icone svg').count(), 1);
   const [download] = await Promise.all([p.waitForEvent('download'), cartao.click()]);
-  assert.match(readFileSync(await download.path(), 'utf8'), /Item;Valor;Situação|Item,Valor,Situação/);
+  assert.match(download.suggestedFilename(), /\.xlsx$/);
+  const xlsx = deszipar(readFileSync(await download.path()));
+  assert.match(xlsx.get('xl/worksheets/sheet1.xml'), /Item.*Valor.*Situação/s);
+  // O CSV continua disponível, ao lado, como opção secundária.
+  const [csv] = await Promise.all([p.waitForEvent('download'), ultima(p).getByRole('link', { name: 'CSV', exact: true }).click()]);
+  assert.match(readFileSync(await csv.path(), 'utf8'), /Item;Valor;Situação|Item,Valor,Situação/);
+  // "Baixar como": Word, PowerPoint e Excel de qualquer resposta guardada; escolher fecha o menu.
+  await ultima(p).getByLabel('Baixar como arquivo').click();
+  assert.deepEqual(await ultima(p).locator('.baixar-como-menu a').allInnerTexts(), ['Word (.docx)', 'PowerPoint (.pptx)', 'Excel (.xlsx)']);
+  const [word] = await Promise.all([p.waitForEvent('download'), ultima(p).getByRole('link', { name: 'Word (.docx)' }).click()]);
+  assert.match(word.suggestedFilename(), /\.docx$/);
+  assert.match(deszipar(readFileSync(await word.path())).get('word/document.xml'), /<w:tbl>/);
+  assert.equal(await ultima(p).locator('.baixar-como-menu').isHidden(), true);
+  assert.equal(await ultima(p).getByLabel('Baixar como arquivo').getAttribute('aria-expanded'), 'false');
   await p.goto(`${S.base}/app#/c/${codigo.id}`); await p.waitForSelector('.bloco-codigo');
   assert.equal(await p.locator('.bloco-codigo code').innerText(), '=SE(A2>B2;"Revisar";"OK")');
   assert.match(await p.locator('.bloco-codigo pre').evaluate(e => getComputedStyle(e).fontFamily), /mono|Menlo|Consolas/i);
   await p.getByRole('button', { name: 'Copiar código' }).click();
   await p.waitForSelector('.bloco-codigo [data-copiar-codigo][aria-label="Copiado"]');
   assert.equal(await p.evaluate(() => navigator.clipboard.readText()), '=SE(A2>B2;"Revisar";"OK")');
+  assert.deepEqual(p.erros, []);
+  await p.context().close();
+});
+
+test('pedido de PowerPoint ou Word: o arquivo aparece como cartão de anexo logo abaixo da resposta', async () => {
+  const c = (await pessoa.post('/api/conversas', {})).dados.conversa;
+  await pessoa.req('POST', `/api/conversas/${c.id}/mensagens`, { texto: 'Monte uma apresentação em PowerPoint e um documento Word com os próximos passos do projeto' });
+  const p = await pagina(pessoa);
+  await p.goto(`${S.base}/app#/c/${c.id}`); await p.waitForSelector('.rodape-resposta');
+  const cartoes = ultima(p).locator('.arquivos-resposta .anexo-resposta');
+  assert.deepEqual((await cartoes.allInnerTexts()).map(t => t.split('\n')[0]), ['Documento Word', 'Apresentação PowerPoint']);
+  const [pptx] = await Promise.all([p.waitForEvent('download'), cartoes.nth(1).click()]);
+  assert.match(pptx.suggestedFilename(), /\.pptx$/);
+  const z = deszipar(readFileSync(await pptx.path()));
+  assert.ok(z.has('ppt/slides/slide2.xml'));
+  // Pedido comum, sem citar formato: nenhum cartão de arquivo (o menu "Baixar como" continua disponível).
+  await p.goto(`${S.base}/app#/c/${duas.id}`); await p.waitForSelector('.rodape-resposta');
+  assert.equal(await ultima(p).locator('.arquivos-resposta').count(), 0);
+  assert.equal(await ultima(p).getByLabel('Baixar como arquivo').count(), 1);
   assert.deepEqual(p.erros, []);
   await p.context().close();
 });

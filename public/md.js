@@ -10,7 +10,7 @@ const inline = s => esc(s)
   .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
 
 // Devolve { html, tabelas }: tabelas guarda as linhas de cada tabela, para o CSV.
-export function renderizar(texto, { csvHref } = {}) {
+export function renderizar(texto, { csvHref, xlsxHref } = {}) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n');
   const out = [], tabelas = [];
   let i = 0;
@@ -25,10 +25,13 @@ export function renderizar(texto, { csvHref } = {}) {
       tabelas.push([cab, ...corpo]);
       const n = tabelas.length - 1, linhasTxt = `${corpo.length} ${corpo.length === 1 ? 'linha' : 'linhas'}`;
       // Download como cartão de anexo (ícone, nome e tipo), logo abaixo da tabela.
-      const cartao = `<span class="anexo-resposta-icone">${ICONE_RESPOSTA.planilha}</span><span class="anexo-resposta-texto"><b>Baixar planilha</b><small>Tabela ${n + 1} · ${linhasTxt}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span>`;
+      // Com endereço do servidor, a planilha é Excel (.xlsx, números como números); sem ele, CSV gerado aqui.
+      const excel = !!xlsxHref;
+      const cartao = `<span class="anexo-resposta-icone">${ICONE_RESPOSTA.planilha}</span><span class="anexo-resposta-texto"><b>Baixar planilha</b><small>${excel ? 'Excel' : 'CSV'} · Tabela ${n + 1} · ${linhasTxt}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span>`;
       out.push(`<div class="tabela-wrap"><table><thead><tr>${cab.map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${
-        corpo.map(r => `<tr>${cab.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${csvHref
-        ? `<a class="anexo-resposta" data-csv="${n}" href="${esc(csvHref(n))}" download="tabela.csv" title="Baixar a tabela em planilha">${cartao}</a>`
+        corpo.map(r => `<tr>${cab.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${excel
+        ? `<div class="anexo-resposta-linha"><a class="anexo-resposta" data-planilha="${n}" href="${esc(xlsxHref(n))}" download title="Baixar a tabela em planilha do Excel">${cartao}</a>${csvHref ? `<a class="link-sutil anexo-resposta-csv" data-csv="${n}" href="${esc(csvHref(n))}" download="tabela.csv">CSV</a>` : ''}</div>`
+        : csvHref ? `<a class="anexo-resposta" data-csv="${n}" href="${esc(csvHref(n))}" download="tabela.csv" title="Baixar a tabela em planilha">${cartao}</a>`
         : `<button type="button" class="anexo-resposta" data-csv="${n}" title="Baixar a tabela em planilha">${cartao}</button>`}`);
       continue;
     }

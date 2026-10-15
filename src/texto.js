@@ -85,20 +85,46 @@ function pptx(b) {
   }).join('\n\n').trim();
 }
 
+// Formatos de data/hora embutidos do Excel (ids da especificação) e, nos personalizados, códigos com dia, mês, ano
+// ou hora fora de aspas e colchetes de cor.
+const DATAS_EMBUTIDAS = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
+const ehFormatoDeData = codigo => /[dmyhs]/i.test(String(codigo).replace(/"[^"]*"|\\.|\[(?![hms]+\])[^\]]*\]/gi, '').replace(/General/gi, ''));
+// Número de série do Excel (dias desde 30/12/1899) -> "dd/mm/aaaa" (e "hh:mm" quando tem hora).
+function dataDoExcel(serie) {
+  const n = Number(serie);
+  if (!Number.isFinite(n) || n < 1 || n > 2958465) return null;
+  const ms = Math.round((n - 25569) * 86400000), d = new Date(ms), dd = String(d.getUTCDate()).padStart(2, '0'), mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const hora = n % 1 ? ` ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}` : '';
+  return n < 1 && hora ? hora.trim() : `${dd}/${mm}/${d.getUTCFullYear()}${hora}`;
+}
+
 function xlsx(b) {
   const z = lerZip(b);
   const compart = z.get('xl/sharedStrings.xml') ? [...z.get('xl/sharedStrings.xml')().matchAll(/<si>([\s\S]*?)<\/si>/g)]
     .map(m => entidades([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join(''))) : [];
   const livro = z.get('xl/workbook.xml')?.() || '';
-  const nomes = [...livro.matchAll(/<sheet [^>]*name="([^"]+)"/g)].map(m => entidades(m[1]));
-  const folhas = [...z.keys()].filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort((a, c) => parseInt(a.match(/\d+/)) - parseInt(c.match(/\d+/)));
+  // Abas na ordem do livro, cada uma com o próprio arquivo (pela relação r:id), não pelo número do arquivo.
+  const relacoes = new Map([...(z.get('xl/_rels/workbook.xml.rels')?.() || '').matchAll(/<Relationship\b[^>]*>/g)].map(m => [/Id="([^"]+)"/.exec(m[0])?.[1], /Target="([^"]+)"/.exec(m[0])?.[1]]));
+  const abas = [...livro.matchAll(/<sheet\b[^>]*>/g)].map(m => ({ nome: entidades(/name="([^"]+)"/.exec(m[0])?.[1] || ''), alvo: relacoes.get(/r:id="([^"]+)"/.exec(m[0])?.[1]) }))
+    .map(a => ({ ...a, arquivo: a.alvo ? (a.alvo.startsWith('/') ? a.alvo.slice(1) : `xl/${a.alvo}`).replace(/\/\.\//g, '/') : null }));
+  const porNumero = [...z.keys()].filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort((a, c) => parseInt(a.match(/\d+/)) - parseInt(c.match(/\d+/)));
+  const folhasDoLivro = abas.filter(a => a.arquivo && z.get(a.arquivo));
+  const folhas = folhasDoLivro.length ? folhasDoLivro.map(a => a.arquivo) : porNumero;
+  const nomes = folhasDoLivro.length ? folhasDoLivro.map(a => a.nome) : abas.map(a => a.nome);
+  // Estilos: quais índices de estilo (s="n") são data, para mostrar a data em vez do número de série.
+  const estilos = z.get('xl/styles.xml')?.() || '';
+  const personalizados = new Map([...estilos.matchAll(/<numFmt\b[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g)].map(m => [Number(m[1]), entidades(m[2])]));
+  const xfs = /<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/.exec(estilos)?.[1] || '';
+  const estiloData = [...xfs.matchAll(/<xf\b[^>]*?(?:\/>|>)/g)].map(m => { const id = Number(/numFmtId="(\d+)"/.exec(m[0])?.[1] || 0); return DATAS_EMBUTIDAS.has(id) || (personalizados.has(id) && ehFormatoDeData(personalizados.get(id))); });
   const col = ref => [...ref.replace(/\d+/g, '')].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
   return folhas.map((f, i) => {
     const linhas = [...z.get(f)().matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)].map(r => {
       const cel = [];
       for (const c of r[1].matchAll(/<c r="([A-Z]+\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const v = /<v>([\s\S]*?)<\/v>/.exec(c[3] || '')?.[1] ?? /<t[^>]*>([\s\S]*?)<\/t>/.exec(c[3] || '')?.[1] ?? '';
-        cel[col(c[1])] = /t="s"/.test(c[2]) ? compart[Number(v)] ?? '' : entidades(v);
+        const estilo = Number(/\bs="(\d+)"/.exec(c[2])?.[1] ?? -1);
+        const data = !/t="(s|str|inlineStr|b|e)"/.test(c[2]) && v !== '' && estiloData[estilo] ? dataDoExcel(v) : null;
+        cel[col(c[1])] = /t="s"/.test(c[2]) ? compart[Number(v)] ?? '' : data ?? entidades(v);
       }
       return Array.from(cel, x => x ?? '');
     }).filter(l => l.join('').trim());

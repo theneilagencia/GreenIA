@@ -26,6 +26,14 @@ export const desindexar = (db, documentoId) => exec(db, 'delete from trechos whe
 const termos = consulta => [...new Set(String(consulta).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .split(/[^a-z0-9]+/).filter(t => t.length >= 3 && !PARADAS.has(t)))].slice(0, 12);
 
+// Pergunta de seguimento ("e o prazo?", "e para gestores?") tem poucos termos: sozinha, a busca não acha o assunto.
+// Nesse caso a consulta leva também o pedido anterior da pessoa, depois dos termos atuais (que têm prioridade no
+// limite de 12). Pedido com termos suficientes busca só por ele, para não puxar o assunto antigo.
+export function consultaDeSeguimento(atual, anterior) {
+  if (!anterior || termos(atual).length >= 4) return atual;
+  return `${atual} ${anterior}`;
+}
+
 /** Trechos mais próximos da consulta, só dos documentos permitidos. */
 export function buscar(db, consulta, documentoIds, limite = 5) {
   const t = termos(consulta);

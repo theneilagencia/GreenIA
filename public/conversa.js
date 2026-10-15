@@ -159,6 +159,39 @@ function saudacao() {
   return nome && !nome.includes('@') ? `Olá, ${nome[0].toLocaleUpperCase('pt-BR')}${nome.slice(1)}. O que você precisa fazer?` : 'Olá! O que você precisa fazer?';
 }
 
+// Resposta guardada no servidor: dá para baixar como arquivo (Word, PowerPoint, Excel).
+const servidor = m => Number.isInteger(m.id) && m.guardado !== false && !!C.conv && !/^\[Conteúdo processado e não guardado/.test(m.texto || '');
+const arquivoHref = (m, f) => `/api/conversas/${C.conv.id}/mensagens/${m.id}/arquivo/${f}`;
+// O pedido logo antes da resposta diz qual arquivo a pessoa quer: esse vira um cartão à vista, como um anexo.
+const PEDE = { docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i };
+const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['slides', 'Apresentação PowerPoint', '.pptx editável'], xlsx: ['planilha', 'Planilha Excel', '.xlsx com as tabelas'] };
+function arquivosPedidos(m, tabelas) {
+  if (!servidor(m) || m.artefatos?.length) return '';
+  const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
+  const pedidos = Object.keys(PEDE).filter(f => PEDE[f].test(pedido) && (f !== 'xlsx' || tabelas.length));
+  // Excel com uma tabela só: o cartão da própria tabela já é a planilha.
+  const lista = pedidos.filter(f => !(f === 'xlsx' && tabelas.length === 1));
+  return lista.length ? `<div class="arquivos-resposta">${lista.map(f => `<a class="anexo-resposta" href="${arquivoHref(m, f)}" download data-arquivo="${f}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA[ARQ[f][0]]}</span><span class="anexo-resposta-texto"><b>${ARQ[f][1]}</b><small>Baixar arquivo ${ARQ[f][2]}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`).join('')}</div>` : '';
+}
+// "Baixar como": qualquer resposta guardada vira Word ou PowerPoint; com tabela, também Excel.
+function baixarComo(m) {
+  if (!servidor(m) || m.artefatos?.length) return '';
+  const tabelas = (C.tabelas[m.id] || []).length;
+  const itens = [['docx', 'Word (.docx)'], ['pptx', 'PowerPoint (.pptx)'], ...(tabelas ? [['xlsx', `Excel (.xlsx)${tabelas > 1 ? ', todas as tabelas' : ''}`]] : [])];
+  const id = `baixar-como-${esc(m.id)}`;
+  return `<span class="baixar-como"><button type="button" class="acao-resposta" data-baixar-como aria-expanded="false" aria-controls="${id}" aria-label="Baixar como arquivo" title="Baixar como arquivo">${ICONE_RESPOSTA.baixar}</button><div class="baixar-como-menu" id="${id}" role="group" aria-label="Formatos do arquivo" hidden>${itens.map(([f, r]) => `<a href="${arquivoHref(m, f)}" download data-arquivo="${f}">${r}</a>`).join('')}</div></span>`;
+}
+
+function menuBaixar(botao, abrir) {
+  botao.setAttribute('aria-expanded', String(abrir));
+  const menu = document.getElementById(botao.getAttribute('aria-controls'));
+  menu.hidden = !abrir;
+  if (abrir) {
+    menu.querySelector('a')?.focus();
+    menu.onkeydown = e => { if (e.key === 'Escape') { menuBaixar(botao, false); botao.focus(); } };
+  }
+}
+
 function htmlMensagem(m) {
   const anim = vistos.has(String(m.id)) || m.carregando ? '' : ' anim';
   if (!m.carregando) vistos.add(String(m.id));
@@ -167,7 +200,7 @@ function htmlMensagem(m) {
     return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div></div>`;
   }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}</div>`;
-  const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>', tabelas: [] } : renderizar(m.texto, { csvHref: Number.isInteger(m.id) && m.guardado !== false ? i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv` : undefined });
+  const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>', tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
@@ -184,7 +217,7 @@ function htmlMensagem(m) {
   const proximos = conferir || refinar ? `<div class="resposta-proximos">${conferir ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para os resultados</a>` : ''}${refinar ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}</div>` : '';
   const ultima = m.id === C.ultimaResposta;
   return `<div class="resposta${anim}${ultima ? ' resposta-ultima' : ''}" data-msg="${m.id}">
-    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${revisar ? '' : qc}${integracoes}
+    <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}<div class="bolha-ia${m.erro ? ' aviso-bolha' : ''}${revisar ? ' oculto' : ''}" id="resultado-${esc(m.id)}">${html}</div>${m.carregando || m.erro ? '' : arquivosPedidos(m, tabelas)}${revisar ? '' : qc}${integracoes}
       ${m.carregando || m.erro ? '' : `${fontes}${acoesResposta(m, { execucao, conferir })}${proximos}`}
     </div></div>`;
 }
@@ -194,7 +227,7 @@ function htmlMensagem(m) {
 function acoesResposta(m, { execucao, conferir }) {
   const regerar = m.id === C.podeRegerar ? `<button type="button" class="acao-resposta" data-regerar="${m.id}" ${C.enviando ? 'disabled' : ''} aria-label="Gerar de novo" title="Gerar de novo (usa créditos como uma nova mensagem)">${ICONE_RESPOSTA.regerar}</button>` : '';
   return `<div class="rodape-resposta acoes-resposta" role="group" aria-label="Ações da resposta">
-      <button type="button" class="acao-resposta" data-copiar="${m.id}" aria-label="Copiar resposta" title="Copiar">${ICONE_RESPOSTA.copiar}</button>${regerar}${avaliacao(m)}${detalhesResposta(m, { execucao, conferir })}
+      <button type="button" class="acao-resposta" data-copiar="${m.id}" aria-label="Copiar resposta" title="Copiar">${ICONE_RESPOSTA.copiar}</button>${baixarComo(m)}${regerar}${avaliacao(m)}${detalhesResposta(m, { execucao, conferir })}
       ${E.iaSimulada ? `<span class="selo-simulada" title="Ambiente de demonstração: nenhum modelo de IA real foi usado">${ICONE_RESPOSTA.simulada}<span>Resposta simulada</span></span>` : ''}
       ${C.qw ? '<span class="revise">Revise antes de usar.</span>' : ''}
     </div>`;
@@ -351,6 +384,11 @@ function ligar() {
     if (cp) { const m = C.mensagens.find(x => String(x.id) === cp.dataset.copiar); if (m) copiarTexto(m.texto, cp, 'Resposta copiada.'); }
     const det = ev.target.closest('[data-detalhes]');
     if (det) alternarDetalhes(det);
+    // "Baixar como": o botão abre e fecha o menu; escolher um formato ou clicar fora fecha.
+    const bc = ev.target.closest('[data-baixar-como]');
+    for (const b of $('coluna').querySelectorAll('[data-baixar-como][aria-expanded="true"]')) if (b !== bc) menuBaixar(b, false);
+    if (bc) menuBaixar(bc, bc.getAttribute('aria-expanded') !== 'true');
+    if (ev.target.closest('.baixar-como-menu a')) menuBaixar(ev.target.closest('.baixar-como').querySelector('[data-baixar-como]'), false);
     const csv = ev.target.closest('[data-csv]');
     if (csv && csv.tagName !== 'A') baixarCsv(C.tabelas[csv.closest('[data-msg]').dataset.msg][Number(csv.dataset.csv)], `${(C.qw?.nome || 'tabela').replace(/[^\wÀ-ú -]/g, '')}.csv`);
   });

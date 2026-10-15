@@ -5,6 +5,9 @@ export const ehTabela = (l, prox) => /^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{
 export function extrairTabelas(texto) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n'), tabelas = [];
   for (let i = 0; i < linhas.length; i++) {
+    // Tabela dentro de bloco de código não é tabela (o md.js também a mostra como código): pular mantém o índice
+    // do download igual ao da tela.
+    if (/^\s*```/.test(linhas[i])) { i++; while (i < linhas.length && !/^\s*```\s*$/.test(linhas[i])) i++; continue; }
     if (!ehTabela(linhas[i], linhas[i + 1])) continue;
     const tabela = [celulas(linhas[i])];
     i += 2;

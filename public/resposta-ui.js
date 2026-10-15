@@ -12,6 +12,8 @@ export const ICONE_RESPOSTA = {
   simulada: svg('<path d="M9 3h6"/><path d="M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 14h9"/>', 1.6),
   planilha: svg('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>', 1.6),
   baixar: svg('<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>', 1.8),
+  documento: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>', 1.6),
+  slides: svg('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v3M8 21h8"/><path d="M7 9h6M7 12h10"/>', 1.6),
 };
 
 // Anuncia para leitor de tela sem mudar o foco (região "ao-vivo" da conversa ou uma própria, criada uma vez).

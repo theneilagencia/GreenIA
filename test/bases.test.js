@@ -120,3 +120,22 @@ test('sigilosa por documento sigiloso da base: não vai a modelo não homologado
   assert.equal((await carlos.patch(`/api/conversas/${conv.id}`, { sigilosa: false })).status, 409);
   assert.equal(JSON.parse(um(S.app.db, "select detalhes from eventos where tipo = 'conversation.confidential' order by id desc limit 1").detalhes).motivo, 'documento');
 });
+
+test('pergunta de seguimento curta usa o pedido anterior para achar o documento; pedido novo e completo não', async () => {
+  const doc = arquivo('ferias.txt', Buffer.from('Política de férias: o pedido de férias deve ser feito com antecedência mínima de 45 dias no portal.'));
+  assert.equal((await admin.post('/api/bases/documentos', { toda_empresa: true, arquivo: doc, titulo: 'Política de férias' })).status, 200);
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const ctx = () => JSON.stringify(OR.chamadas.at(-1).messages);
+  await enviarMensagem(ana, conv.id, { texto: 'Como funciona o pedido de férias?' });
+  assert.match(ctx(), /antecedência mínima de 45 dias/);
+  // Sem nenhuma palavra do documento: sozinha, a busca não acharia nada.
+  const antes = OR.chamadas.length;
+  await enviarMensagem(ana, conv.id, { texto: 'E quanto tempo antes?' });
+  assert.equal(OR.chamadas.length, antes + 1);
+  // O trecho entra de novo como contexto desta resposta (o histórico leva só as mensagens, não os trechos).
+  assert.match(ctx(), /antecedência mínima de 45 dias/);
+  // Em conversa nova, a mesma pergunta curta não tem pedido anterior: nenhum trecho.
+  const nova = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, nova.id, { texto: 'E quanto tempo antes?' });
+  assert.doesNotMatch(ctx(), /antecedência/);
+});

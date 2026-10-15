@@ -55,6 +55,8 @@ export const TIPOS = {
   redacao: { nome: 'geração de texto', nivel: 1, saida: 900, re: /\b(escrev|redij|redigir|rascunh|crie um (texto|email|e-mail|post|comunicado)|reescrev|melhore (o|este) texto|mais curto|mais formal|outro tom)/ },
   analise: { nome: 'análise', nivel: 2, saida: 1200, re: /\b(analis|compar|diferen[cç]a|confira|conferir|revis[ae]|audit|inconsist|diverg|identifique (os )?riscos|pontos fracos|encontre o (problema|erro))/ },
   programacao: { nome: 'programação', nivel: 1, saida: 1500, re: /(```|\b(codigo|funcao|script|sql|python|javascript|typescript|java|regex|expressao regular|api|endpoint|bug|stack ?trace|debug|refator|compil|query)\b)/ },
+  // Entregável longo (apresentação, relatório, documento, planilha montada): pede estrutura e conteúdo completo.
+  documento: { nome: 'produção de documento', nivel: 2, saida: 3000, re: /\b(apresenta[cç]ao|slides?|power ?point|pptx|docx|xlsx|documento (completo|word|do word)|relatorio (completo|executivo)|proposta (comercial|tecnica)|plano de (acao|projeto|negocio)|versao pronta)\b/ },
   raciocinio: { nome: 'raciocínio', nivel: 1, saida: 1500, re: /\b(por que|porque .*\?|justifiqu|pondere|estrateg|planej|decid|recomend|pr[oó]s e contras|cenario|hipotes|calcul|projet|estim|otimiz|passo a passo|diagnostic|causa raiz|trade-?off|propo(r|nha|nham)\b|proposta de solucao|solucao|arquitetura|melhor (forma|estrategia|abordagem|caminho|opcao)|como (devemos|deveriamos)|vale a pena|compensa|impacto|o que muda|quem (ganha|perde)|por onde comecar|devo |deveria(mos)? )/ },
 };
 const PRECISAO = {

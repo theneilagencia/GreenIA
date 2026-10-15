@@ -61,3 +61,10 @@ test('CSV de conversa: índices inválidos, mensagem da pessoa, conteúdo não g
   await ana.del(`/api/conversas/${r.conversa}`);
   assert.equal((await ana.get(r.url(0))).status, 404);
 });
+
+test('CSV: tabela dentro de bloco de código não conta (o índice do download é o mesmo da tela)', () => {
+  const t = 'Exemplo de sintaxe:\n\n```\n| A | B |\n| --- | --- |\n| 1 | 2 |\n```\n\n| Nome | Total |\n| --- | --- |\n| Iris | 3 |';
+  const tabelas = extrairTabelas(t);
+  assert.equal(tabelas.length, 1);
+  assert.deepEqual(tabelas[0][0], ['Nome', 'Total']);
+});

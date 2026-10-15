@@ -4,6 +4,7 @@
 // e 1280: cartão do plano, materiais, sugestões, lacunas, entregáveis, resultado e tabelas sem rolagem horizontal.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { deszipar } from '../test/zip-leitor.js';
 import { readFileSync } from 'node:fs';
 import { subirComNavegador } from '../scripts/navegador.js';
 import { cliente } from '../scripts/cliente.js';
@@ -61,17 +62,19 @@ test('resultado modular: um cartão por entregável e CSV de cada tabela (UTF-8,
   assert.deepEqual(await p.$$eval('#teste-resultado .qw-peca-cabeca b', l => l.map(x => x.textContent)), [...ENTREGAS.map(([, r]) => r), 'Informações não encontradas']);
   assert.equal(await p.locator('#teste-resultado .resultado-corpo.bolha-ia').count(), 0, 'não é um bloco só');
   assert.equal(await p.locator('#teste-resultado .qw-peca [data-csv]').count(), 2, 'tabela e matriz, cada uma com o seu CSV');
+  // Planilha do Excel da resposta guardada: números como números (dá para somar), textos intactos.
   const baixar = async i => {
-    assert.match(await p.locator('#teste-resultado .qw-peca [data-csv]').nth(i).getAttribute('href'), /^\/api\/conversas\/\d+\/mensagens\/\d+\/tabelas\/\d+\/csv$/, 'CSV do cartão usa a resposta guardada');
+    assert.match(await p.locator('#teste-resultado .qw-peca [data-csv]').nth(i).getAttribute('href'), /^\/api\/conversas\/\d+\/mensagens\/\d+\/tabelas\/\d+\/xlsx$/, 'planilha do cartão usa a resposta guardada');
     const [d] = await Promise.all([p.waitForEvent('download'), p.locator('#teste-resultado .qw-peca [data-csv]').nth(i).click()]);
-    return readFileSync(await d.path(), 'utf8');
+    return deszipar(readFileSync(await d.path())).get('xl/worksheets/sheet1.xml');
   };
-  const csv = await baixar(0);
-  assert.equal(csv.charCodeAt(0), 0xfeff, 'UTF-8 com BOM (acentos certos no Excel)');
-  assert.deepEqual(csv.slice(1).split('\r\n'), ['Categoria;Previsto (R$);Realizado (R$);Variação', 'Manutenção;1.234,50;1.100,00;-10,9%', 'Peças e serviços;980,00;1.390,25;+41,9%', 'Energia elétrica;2.000,00;-150,00;-107,5%']);
-  const matriz = await baixar(1);
-  assert.deepEqual(matriz.slice(1).split('\r\n')[0].split(';'), ['Fornecedor', 'Preço', 'Prazo', 'Risco'], 'a segunda tabela é a da matriz (índices por cartão)');
-  assert.match(matriz, /Ômega S\.A\.;R\$ 9\.500;45 dias;Alto/);
+  const celulas = f => [...f.matchAll(/<c r="([A-Z]+\d+)"[^>]*>(?:<v>([^<]*)<\/v>|<is><t[^>]*>([^<]*)<\/t><\/is>)<\/c>/g)].map(m => `${m[1]}=${m[2] ?? m[3]}`);
+  const tabela = celulas(await baixar(0));
+  assert.deepEqual(tabela.slice(0, 8), ['A1=Categoria', 'B1=Previsto (R$)', 'C1=Realizado (R$)', 'D1=Variação', 'A2=Manutenção', 'B2=1234.5', 'C2=1100', 'D2=-0.109']);
+  assert.ok(tabela.includes('C4=-150') && tabela.includes('D3=0.419') && tabela.includes('A3=Peças e serviços'), JSON.stringify(tabela));
+  const matriz = celulas(await baixar(1));
+  assert.deepEqual(matriz.slice(0, 4), ['A1=Fornecedor', 'B1=Preço', 'C1=Prazo', 'D1=Risco'], 'a segunda tabela é a da matriz (índices por cartão)');
+  assert.ok(matriz.join('|').match(/A\d=Ômega S\.A\.\|B\d=9500\|C\d=45 dias\|D\d=Alto/), JSON.stringify(matriz));
   assert.deepEqual(erros, []);
   await ctx.close();
 });
@@ -99,7 +102,7 @@ for (const largura of [320, 390, 768, 1280]) test(`largura ${largura}px: plano, 
   await p.click('[data-testar]'); await p.waitForSelector('#teste-resultado .qw-peca');
   await semRolagem('resultado modular com tabelas');
   // A tabela larga rola dentro do próprio cartão, nunca a página.
-  assert.ok(await p.locator('#teste-resultado .qw-peca [data-csv]').first().isVisible(), 'botão de CSV visível');
+  assert.ok(await p.locator('#teste-resultado .qw-peca [data-csv]').first().isVisible(), 'botão da planilha visível');
   assert.deepEqual(erros, []);
   await ctx.close();
 });

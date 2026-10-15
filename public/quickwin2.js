@@ -1127,8 +1127,8 @@ const ETAPA_LIGAR = [
       if (r.mensagem && r.guardado !== false && indice >= 0) {
         const a = document.createElement('a');
         a.className = b.className; a.textContent = b.textContent; a.dataset.csv = b.dataset.csv;
-        a.setAttribute('role', 'button'); a.download = 'tabela.csv';
-        a.href = `/api/conversas/${r.conversa}/mensagens/${r.mensagem}/tabelas/${indice}/csv`;
+        a.setAttribute('role', 'button'); a.download = 'planilha.xlsx';
+        a.href = `/api/conversas/${r.conversa}/mensagens/${r.mensagem}/tabelas/${indice}/xlsx`;
         b.replaceWith(a);
       } else b.onclick = () => baixarCsv(linhas, `${(W.qw?.nome || 'resultado').replace(/[^\wÀ-ú -]/g, '')}.csv`);
     });

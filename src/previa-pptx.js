@@ -58,6 +58,19 @@ export function previaDoPptx(buf) {
         formas.push({ tipo: 'tabela', x: num(/<a:off x="(\d+)"/, s), y: num(/<a:off x="\d+" y="(\d+)"/, s), w: num(/<a:ext cx="(\d+)"/, s), h: num(/<a:ext cx="\d+" cy="(\d+)"/, s), linhas, cor: '1F2A24' });
       } else if (/<p:txBody>/.test(s)) {
         formas.push({ tipo: 'texto', ...pos(s), quebra: !/wrap="none"/.test(s), ancora: /anchor="(\w)"/.exec(s)?.[1] || 't', paragrafos: paragrafos(/<p:txBody>([\s\S]*?)<\/p:txBody>/.exec(s)[1], temaFonte) });
+      } else if (/<a:custGeom>/.test(s)) {
+        // Forma livre (linha, ícone, faixa com curva): o caminho vira SVG na prévia.
+        const caminho = /<a:path w="(\d+)" h="(\d+)"( fill="none")?>([\s\S]*?)<\/a:path>/.exec(s);
+        if (caminho) {
+          const pts = t => [...t.matchAll(/<a:pt x="(-?\d+)" y="(-?\d+)"\/>/g)].map(m => `${m[1]} ${m[2]}`).join(' ');
+          const d = [...caminho[4].matchAll(/<a:(moveTo|lnTo|cubicBezTo|quadBezTo|close)\/?>([\s\S]*?)(?:<\/a:\1>|(?=<a:)|$)/g)].map(([, k, c]) => ({ moveTo: 'M', lnTo: 'L', cubicBezTo: 'C', quadBezTo: 'Q', close: 'Z' }[k] + (k === 'close' ? '' : ` ${pts(c)}`))).join(' ');
+          const spPr = /<p:spPr>([\s\S]*?)<\/p:spPr>/.exec(s)?.[1] || '';
+          const ln = /<a:ln[^>]*>([\s\S]*?)<\/a:ln>/.exec(spPr);
+          const fill = caminho[3] ? null : /^[\s\S]*?<\/a:custGeom><a:solidFill><a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(spPr)?.[1] || null;
+          const traco = ln && /<a:solidFill><a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(ln[1])?.[1];
+          const alfa = (num(/<a:alpha val="(\d+)"/, spPr, 100000)) / 100000;
+          formas.push({ tipo: 'caminho', ...pos(s), vw: Number(caminho[1]), vh: Number(caminho[2]), d, cor: fill, traco: traco || null, alfa });
+        }
       } else {
         const fill = /<p:spPr>[\s\S]*?<a:solidFill><a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(s)?.[1];
         if (fill) formas.push({ tipo: 'retangulo', ...pos(s), cor: fill });

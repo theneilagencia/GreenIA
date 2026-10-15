@@ -14,6 +14,25 @@ export const MAX_PAGINAS_MODELO = 60;
 // ---------- 1. leitura ----------
 // Executado dentro da página do leitor (pdf.js carregado da origem virtual).
 async function lerPagina({ n, escala }) {
+  // Caminhos (Path2D) anotados: cada forma desenhada vira forma nativa no PowerPoint (fundo, faixa, linha, ícone).
+  if (!window.__caminhos) {
+    window.__caminhos = true;
+    const P = window.Path2D;
+    window.Path2D = class extends P {
+      constructor(p) { super(p); this.__s = p && p.__s ? p.__s.map(x => [...x]) : []; }
+      moveTo(x, y) { this.__s.push(['M', x, y]); return super.moveTo(x, y); }
+      lineTo(x, y) { this.__s.push(['L', x, y]); return super.lineTo(x, y); }
+      bezierCurveTo(a, b, c, d, e, f) { this.__s.push(['C', a, b, c, d, e, f]); return super.bezierCurveTo(a, b, c, d, e, f); }
+      quadraticCurveTo(a, b, c, d) { this.__s.push(['Q', a, b, c, d]); return super.quadraticCurveTo(a, b, c, d); }
+      rect(x, y, w, h) { this.__s.push(['M', x, y], ['L', x + w, y], ['L', x + w, y + h], ['L', x, y + h], ['Z']); return super.rect(x, y, w, h); }
+      closePath() { this.__s.push(['Z']); return super.closePath(); }
+      addPath(p, m) {
+        const t = m ? (x, y) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f] : (x, y) => [x, y];
+        for (const [k, ...v] of p.__s || []) { const o = [k]; for (let i = 0; i < v.length; i += 2) o.push(...t(v[i], v[i + 1])); this.__s.push(o); }
+        return super.addPath(p, m);
+      }
+    };
+  }
   const doc = window.__doc || (window.__doc = await (await import('/pdfjs.mjs')).getDocument({ data: new Uint8Array(await (await fetch('/arquivo.pdf')).arrayBuffer()), isEvalSupported: false }).promise);
   if (n === 0) return { paginas: doc.numPages };
   const page = await doc.getPage(n);
@@ -24,7 +43,73 @@ async function lerPagina({ n, escala }) {
   const glifos = [];
   ctx.fillText = function (t, x, y) { const m = this.getTransform(); glifos.push([m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f, this.fillStyle]); };
   ctx.strokeText = () => {};
+  // Formas e imagens desenhadas, em coordenadas da página (pontos) e na ordem do desenho.
+  const elementos = [];
+  let complexo = false, seg = [];
+  const mt = () => ctx.getTransform();
+  const ponto = (m, x, y) => [(m.a * x + m.c * y + m.e) / escala, (m.b * x + m.d * y + m.f) / escala];
+  const transformar = (lista, m) => lista.map(([k, ...v]) => { const o = [k]; for (let i = 0; i < v.length; i += 2) o.push(...ponto(m, v[i], v[i + 1])); return o; });
+  const cor = (estilo) => typeof estilo === 'string' ? estilo : (complexo = complexo || `estilo:${estilo?.constructor?.name}`, '#808080');
+  const proto = Object.getPrototypeOf(ctx);
+  const orig = { fill: proto.fill, stroke: proto.stroke, fillRect: proto.fillRect, drawImage: proto.drawImage, beginPath: proto.beginPath, moveTo: proto.moveTo, lineTo: proto.lineTo, bezierCurveTo: proto.bezierCurveTo, rect: proto.rect, closePath: proto.closePath };
+  const I = new DOMMatrix();
+  ctx.beginPath = function () { seg = []; return orig.beginPath.call(this); };
+  ctx.moveTo = function (x, y) { seg.push(['M', ...ponto(mt(), x, y)]); return orig.moveTo.call(this, x, y); };
+  ctx.lineTo = function (x, y) { seg.push(['L', ...ponto(mt(), x, y)]); return orig.lineTo.call(this, x, y); };
+  ctx.bezierCurveTo = function (a, b, c, d, e, f) { const m = mt(); seg.push(['C', ...ponto(m, a, b), ...ponto(m, c, d), ...ponto(m, e, f)]); return orig.bezierCurveTo.call(this, a, b, c, d, e, f); };
+  ctx.rect = function (x, y, w, h) { const m = mt(); seg.push(['M', ...ponto(m, x, y)], ['L', ...ponto(m, x + w, y)], ['L', ...ponto(m, x + w, y + h)], ['L', ...ponto(m, x, y + h)], ['Z']); return orig.rect.call(this, x, y, w, h); };
+  ctx.closePath = function () { seg.push(['Z']); return orig.closePath.call(this); };
+  const anotar = (modo, alvo) => {
+    const lista = alvo && alvo.__s ? transformar(alvo.__s, mt()) : seg.map(x => [...x]);
+    if (!lista.length || elementos.length > 3000) { if (elementos.length > 3000) complexo = 'muitas'; return; }
+    const m = mt(), escalaLinha = Math.hypot(m.a, m.b) / escala;
+    const estilo = modo === 'fill' ? ctx.fillStyle : ctx.strokeStyle;
+    if (typeof estilo !== 'string') {
+      // Padrão ou degradê (barra pontilhada, textura): só esta forma vira uma imagem pequena no lugar dela.
+      const xs = [], ys = [];
+      for (const [, ...v] of lista) for (let i = 0; i < v.length; i += 2) { xs.push(v[i]); ys.push(v[i + 1]); }
+      const x0 = Math.min(...xs) - 1, y0 = Math.min(...ys) - 1, w = Math.max(...xs) - x0 + 2, h = Math.max(...ys) - y0 + 2;
+      try {
+        const k = Math.min(4, 1600 / Math.max(w, h, 1)), cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+        const c2 = cv.getContext('2d');
+        c2.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
+        c2.fillStyle = estilo; c2.strokeStyle = estilo; c2.lineWidth = ctx.lineWidth * escalaLinha; c2.globalAlpha = ctx.globalAlpha;
+        const caminho = new Path2D();
+        for (const [cmd, ...v] of lista) cmd === 'M' ? caminho.moveTo(...v) : cmd === 'L' ? caminho.lineTo(...v) : cmd === 'C' ? caminho.bezierCurveTo(...v) : cmd === 'Q' ? caminho.quadraticCurveTo(...v) : caminho.closePath();
+        modo === 'fill' ? orig.fill.call(c2, caminho) : orig.stroke.call(c2, caminho);
+        elementos.push({ t: 'imagem', x: x0, y: y0, w, h, src: cv.toDataURL('image/png'), alfa: 1 });
+      } catch (e) { complexo = `padrao:${e?.message}`; }
+      return;
+    }
+    elementos.push({ t: 'forma', modo, d: lista, cor: estilo, alfa: ctx.globalAlpha, largura: modo === 'stroke' ? ctx.lineWidth * escalaLinha : 0 });
+  };
+  ctx.fill = function (a, b) { anotar('fill', a instanceof Path2D ? a : null); return orig.fill.apply(this, arguments); };
+  ctx.stroke = function (a) { anotar('stroke', a instanceof Path2D ? a : null); return orig.stroke.apply(this, arguments); };
+  ctx.fillRect = function (x, y, w, h) { const m = mt(), antes = seg; seg = [['M', ...ponto(m, x, y)], ['L', ...ponto(m, x + w, y)], ['L', ...ponto(m, x + w, y + h)], ['L', ...ponto(m, x, y + h)], ['Z']]; anotar('fill', null); seg = antes; return orig.fillRect.call(this, x, y, w, h); };
+  ctx.drawImage = function (img, ...a) {
+    try {
+      const [dx, dy, dw, dh] = a.length >= 8 ? a.slice(4, 8) : a.length >= 4 ? a : [a[0], a[1], img.width, img.height];
+      const m = mt(), cs = [ponto(m, dx, dy), ponto(m, dx + dw, dy), ponto(m, dx, dy + dh), ponto(m, dx + dw, dy + dh)];
+      const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]);
+      const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
+      if (w > 2 && h > 2) {
+        // Cópia da imagem no tamanho em que aparece (até 1600 px), virada como no desenho.
+        const lado = Math.min(1600, Math.max(w, h) * 2), k = lado / Math.max(w, h);
+        const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+        const c2 = cv.getContext('2d');
+        c2.setTransform(m.a / escala * k, m.b / escala * k, m.c / escala * k, m.d / escala * k, (m.e / escala - x0) * k, (m.f / escala - y0) * k);
+        orig.drawImage.call(c2, img, ...a);
+        const amostra = c2.getImageData(0, 0, cv.width, cv.height).data;
+        let alfa = false;
+        for (let i = 3; i < amostra.length; i += 4 * 97) if (amostra[i] < 250) { alfa = true; break; }
+        elementos.push({ t: 'imagem', x: x0, y: y0, w, h, src: alfa ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.88), alfa: ctx.globalAlpha });
+      }
+    } catch (e) { complexo = `imagem:${e?.message}`; }
+    return orig.drawImage.call(this, img, ...a);
+  };
   await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  for (const k of Object.keys(orig)) delete ctx[k];
   const tc = await page.getTextContent();
   const nomeFonte = id => { try { return page.commonObjs.get(id)?.name || ''; } catch { return ''; } };
   const itens = [];
@@ -41,7 +126,7 @@ async function lerPagina({ n, escala }) {
   }
   const fundo = c.toDataURL('image/jpeg', 0.86);
   page.cleanup();
-  return { w: vp1.width, h: vp1.height, fundo, itens };
+  return { w: vp1.width, h: vp1.height, fundo, itens, elementos: complexo ? null : elementos, motivoRaster: complexo || null };
 }
 
 // Memória livre mínima para ler um modelo (navegador enxuto + PDF com imagens reduzidas, medido em ~360 MB).
@@ -56,7 +141,9 @@ export async function lerModeloPdf(pdfOriginal, { maxPaginas = MAX_PAGINAS_MODEL
     const paginas = [];
     for (let n = 1; n <= total; n++) {
       const p = await page.evaluate(lerPagina, { n, escala });
-      paginas.push({ ...p, fundo: Buffer.from(p.fundo.split(',')[1], 'base64') });
+      // Imagens das formas nativas: dataURL -> bytes (o PowerPoint guarda cada imagem uma vez).
+      const elementos = p.elementos ? p.elementos.map(e => e.t === 'imagem' ? { ...e, mime: e.src.startsWith('data:image/png') ? 'png' : 'jpg', dados: Buffer.from(e.src.split(',')[1], 'base64'), src: undefined } : e) : null;
+      paginas.push({ ...p, elementos, fundo: Buffer.from(p.fundo.split(',')[1], 'base64') });
     }
     // Tamanho do texto corrido do documento inteiro (num slide só de título, o título não é texto corrido).
     const corrido = tamanhoCorrido(paginas.flatMap(p => p.itens)), vocab = vocabularioDoDocumento(paginas.flatMap(p => p.itens));
@@ -81,9 +168,11 @@ export function tamanhoCorrido(itens) {
 export function vocabularioDoDocumento(itens) {
   const v = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS', 'E', 'O', 'A', 'OS', 'AS', 'É', 'EM', 'NO', 'NA', 'QUE', 'COM', 'POR', 'PARA', 'AO', 'SEM', 'UM', 'UMA']);
   // Só do texto corrido (com minúsculas): os rótulos em maiúsculas podem estar picotados e não servem de referência.
+  const contagem = new Map();
+  v.contagem = contagem;
   for (const i of itens) {
     if (!/\p{Ll}/u.test(i.s || '')) continue;
-    for (const w of String(i.s).normalize('NFC').toUpperCase().match(/\p{L}{2,}/gu) || []) { v.add(w); v.add(`${w}S`); if (/[RZL]$/.test(w)) v.add(`${w}ES`); if (/S$/.test(w)) v.add(w.slice(0, -1)); }
+    for (const w of String(i.s).normalize('NFC').toUpperCase().match(/\p{L}{2,}/gu) || []) { contagem.set(w, (contagem.get(w) || 0) + 1); v.add(w); v.add(`${w}S`); if (/[RZL]$/.test(w)) v.add(`${w}ES`); if (/S$/.test(w)) v.add(w.slice(0, -1)); }
   }
   return v;
 }
@@ -145,11 +234,22 @@ export function agrupar(itens, pagina = 1, { corrido: corridoDoc, vocab: vocabDo
     } else if (i.s.trim()) linhas.push({ s: i.s, x: i.x, x1: i.x + i.w, y: i.y, tam: i.tam, pesos: { [`${i.fonte}|${i.cor}`]: i.s.trim().length }, espacado: i.espacado, primeiro: { s: i.s.trim(), fonte: i.fonte, cor: i.cor } });
   }
   const vocabLeitura = vocabDoc || vocabularioDoDocumento(itens);
+  const contagem = vocabLeitura.contagem || new Map();
   for (const l of linhas) {
     l.s = recomporMaiusculas(l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' '), vocabLeitura);
     // Rótulo com todas as letras espaçadas por igual ("M E N S A G E M C E N T R A L") virou uma palavra só ao
     // juntar as letras: as palavras são separadas pelo texto corrido do documento.
     if (l.espacado) l.s = separarPalavras(l.s, vocabLeitura);
+    // Palavra corrida colada pelo PDF ("cadaprocesso"): se só aparece aqui e as duas partes aparecem em outros
+    // lugares do documento, volta a ser duas palavras.
+    l.s = l.s.replace(/\p{Ll}{8,}/gu, tok => {
+      if ((contagem.get(tok.toUpperCase()) || 0) > 1) return tok;
+      for (let i = 2; i <= tok.length - 3; i++) {
+        const a = tok.slice(0, i).toUpperCase(), b = tok.slice(i).toUpperCase();
+        if ((contagem.get(a) || 0) >= 2 && (contagem.get(b) || 0) >= 2) return `${tok.slice(0, i)} ${tok.slice(i)}`;
+      }
+      return tok;
+    });
   }
   for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' ').replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s);
     // Marcador com cor ou peso próprios (número verde em negrito, "•" colorido): guardado para o PowerPoint repetir.
@@ -358,7 +458,14 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
           custo += x.custo || 0; economia += x.economia || 0;
           const j = lerJson(x.texto);
           if (!j) continue;
-          for (const s of g) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+          // Rótulo de seção (repetido em vários slides) só muda quando o pedido fala dele: senão uma correção pontual
+          // espalha o rótulo errado por todos os slides da seção.
+          const falaDeRotulo = /\b(r[óo]tulo|se[çc][ãa]o|se[çc][õo]es|cabe[çc]alho)\b/i.test(pedido);
+          for (const s of g) for (const b of s.blocos) {
+            if (typeof j[b.id] !== 'string') continue;
+            if (papelDoBloco(b, s.blocos) === 'rótulo' && !falaDeRotulo && !String(pedido).toUpperCase().includes(String(textos[b.id] ?? b.texto).replace(/^[\d\s·.-]+/, '').toUpperCase())) continue;
+            textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+          }
           return;
         } catch { /* tenta de novo uma vez */ }
       }

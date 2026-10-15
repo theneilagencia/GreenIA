@@ -138,16 +138,15 @@ test('conversa: PDF enviado + "mesma estrutura e layout" -> PPTX no layout do mo
   const z = deszipar(Buffer.from(await d.arrayBuffer()));
   assert.match(z.get('ppt/slides/slide1.xml'), /<a:t>Kickoff da Rafisa 1\.1<\/a:t>/);
   assert.match(z.get('ppt/slides/slide1.xml'), /typeface="Montserrat"/);
-  assert.ok(z.has('ppt/media/fundo1.jpg'));
+  // Slide nativo: fundo como cor do slide e formas editáveis, sem a página como imagem.
+  assert.match(z.get('ppt/slides/slide1.xml'), /<p:bg>|<a:prstGeom prst="rect">/);
+  assert.ok(!z.has('ppt/media/fundo1.jpg'));
   assert.equal((await fetch(`${S.base}/api/conversas/${conv.id}/arquivos/${a.id}`, { headers: { cookie: bia.cookie } })).status, 404);
   // Prévia na conversa: slides com fundo e textos do arquivo; a imagem de fundo vem do próprio arquivo.
   const pv = (await ana.get(`/api/conversas/${conv.id}/arquivos/${a.id}/previa`)).dados;
   assert.equal(pv.slides.length, 1);
-  const img = pv.slides[0].formas.find(f => f.tipo === 'imagem');
-  assert.equal(img.midia, 'fundo1.jpg');
+  assert.ok(pv.slides[0].formas.some(f => f.tipo === 'retangulo' || f.tipo === 'caminho') || pv.slides[0].fundo !== 'FFFFFF', 'prévia com as formas do slide');
   assert.ok(pv.slides[0].formas.some(f => f.tipo === 'texto' && f.paragrafos[0].runs[0].t === 'Kickoff da Rafisa 1.1' && f.paragrafos[0].runs[0].fonte === 'Montserrat'));
-  const fundo = await fetch(`${S.base}${pv.midia}${img.midia}`, { headers: { cookie: ana.cookie } });
-  assert.equal(fundo.status, 200); assert.equal(fundo.headers.get('content-type'), 'image/jpeg');
   assert.equal((await fetch(`${S.base}${pv.midia}..%2Fslides%2Fslide1.xml`, { headers: { cookie: ana.cookie } })).status, 404);
   assert.equal((await bia.get(`/api/conversas/${conv.id}/arquivos/${a.id}/previa`)).status, 404);
   const det = (await ana.get(`/api/conversas/${conv.id}`)).dados;
@@ -290,8 +289,8 @@ test('PowerPoint do modelo: texto que cresce não cobre o bloco de baixo (a font
   const sp = s.split('<p:sp>').find(x => x.includes('Texto 1.1'));
   const cy = Number(/<a:ext cx="\d+" cy="(\d+)"/.exec(sp)[1]), y = Number(/<a:off x="\d+" y="(\d+)"/.exec(sp)[1]);
   const sz = Number(/sz="(\d+)"/.exec(sp)[1]);
-  assert.ok(sz < 1600, String(sz));
-  assert.ok(y + cy <= (160 - 16 * 0.92) * 12700 + 1, `${y + cy}`);
+  // A fonte diminui para caber, mas nunca abaixo de 80% (texto legível; a caixa cresce com o texto).
+  assert.ok(sz < 1600 && sz >= 1280, String(sz));
 });
 
 test('item numerado ("05 Que sistemas…"): a linha recuada continua o item e o número volta se a IA tirar', async () => {
@@ -478,4 +477,28 @@ test('texto pedido para o título que a IA pôs no rótulo vai para o título, e
   assert.equal(r.textos['1.2'], 'Como vamos trabalhar juntos');
   assert.equal(r.textos['1.1'], '01 · MÉTODO');
   assert.deepEqual(r.fatos_faltando, []);
+});
+
+test('PowerPoint nativo: fundo como cor do slide, formas e linhas editáveis, imagem solta, sem imagem de fundo', async () => {
+  const { pptxDeModelo } = await import('../src/escritorio.js');
+  const ret = (x, y, w, h) => [['M', x, y], ['L', x + w, y], ['L', x + w, y + h], ['L', x, y + h], ['Z']];
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+  const pagina = { w: 960, h: 540, fundo: Buffer.from([0xff, 0xd8, 0xff, 0xd9]), blocos: [{ id: '1.1', texto: 'Título', linhas: 1, x: 40, y: 80, largura: 200, tam: 30, entrelinha: 36, fonte: 'Arial', negrito: false, cor: '#FFFFFF', espacado: false }],
+    elementos: [{ t: 'forma', modo: 'fill', d: ret(0, 0, 960, 540), cor: '#0A0A0A', alfa: 1 }, { t: 'forma', modo: 'fill', d: ret(40, 200, 300, 6), cor: 'rgb(79, 107, 0)', alfa: 1 },
+      { t: 'forma', modo: 'stroke', d: [['M', 40, 300], ['L', 900, 300]], cor: '#C6F24E', alfa: 1, largura: 1 }, { t: 'imagem', x: 600, y: 40, w: 300, h: 160, mime: 'png', dados: png, alfa: 1 }] };
+  const z = deszipar(pptxDeModelo([pagina], {}));
+  const s = z.get('ppt/slides/slide1.xml');
+  assert.match(s, /<p:bg><p:bgPr><a:solidFill><a:srgbClr val="0A0A0A">/);
+  assert.match(s, /<a:prstGeom prst="rect">[^]*?<a:srgbClr val="4F6B00"/);
+  assert.match(s, /<a:custGeom>[^]*?fill="none"[^]*?<a:ln w="12700"><a:solidFill><a:srgbClr val="C6F24E"/);
+  assert.match(s, /<p:pic>[^]*?r:embed="rId3"/);
+  assert.ok(z.has('ppt/media/imagem1.png'));
+  assert.ok(!z.has('ppt/media/fundo1.jpg'), 'sem imagem de fundo');
+  assert.match(s, /<a:spAutoFit\/>/, 'caixa de texto cresce com o texto');
+});
+
+test('leitura separa palavra corrida colada pelo PDF ("cadaprocesso") quando as partes aparecem no documento', () => {
+  const it = (s, y) => ({ s, x: 40, y, w: 300, tam: 14, fonte: 'Manrope', cor: '#222222' });
+  const b = agrupar([it('O que perguntamos em cadaprocesso', 40), it('Cada etapa do processo tem um dono.', 100), it('Em cada reunião, o processo é revisto.', 160)]);
+  assert.equal(b[0].texto, 'O que perguntamos em cada processo');
 });

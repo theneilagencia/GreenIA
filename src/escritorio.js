@@ -4,6 +4,7 @@
 // data viram valores de verdade (dá para somar e filtrar); o resto fica como texto, inclusive códigos com zero à
 // esquerda e documentos longos (CPF, CNPJ), que perderiam dígitos como número.
 import { crc32, deflateRawSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { ajustarContraste, corValida, misturar } from './visual/marca.js';
 import { juntarLetrasEspacadas } from './escrita.js';
 
@@ -423,12 +424,74 @@ export const nomeDoArquivo = (titulo, ext) => `${String(titulo || 'greenia').nor
 // ---------- PowerPoint a partir de um modelo (PDF lido por modelo-pdf.js) ----------
 // Um slide por página do modelo: o fundo da página (sem o texto) e uma caixa de texto editável por bloco, na mesma
 // posição, fonte, tamanho e cor. `textos` troca o texto de cada bloco (id -> texto novo); sem troca, fica o original.
+
+// ---- Slide nativo a partir das formas do PDF: fundo como cor, formas e linhas editáveis, imagens soltas ----
+const corDe = (c, alfa = 1) => {
+  const h = String(c || '').trim();
+  let r, g, b, a = alfa;
+  if (/^#[0-9a-f]{6}$/i.test(h)) [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  else { const m = /rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)(?:[ ,/]+([\d.]+))?/.exec(h); if (!m) return null; [r, g, b] = [m[1], m[2], m[3]].map(Number); if (m[4] !== undefined) a *= Number(m[4]); }
+  return { hex: [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase(), a };
+};
+const preenchimento = c => `<a:solidFill><a:srgbClr val="${c.hex}">${c.a < 0.995 ? `<a:alpha val="${Math.round(c.a * 100000)}"/>` : ''}</a:srgbClr></a:solidFill>`;
+function caixaDe(d) {
+  const xs = [], ys = [];
+  for (const [, ...v] of d) for (let i = 0; i < v.length; i += 2) { xs.push(v[i]); ys.push(v[i + 1]); }
+  return xs.length ? { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) } : null;
+}
+const ehRetangulo = d => {
+  const pts = d.filter(s => s[0] !== 'Z');
+  if (pts.some(s => s[0] === 'C' || s[0] === 'Q') || pts.length < 4 || pts.length > 5 || pts.slice(1).some(s => s[0] !== 'L')) return false;
+  const p = pts.map(s => [s[1], s[2]]);
+  return p.every((q, i) => { const r = p[(i + 1) % p.length]; return Math.abs(q[0] - r[0]) < 0.5 || Math.abs(q[1] - r[1]) < 0.5; });
+};
+export function formaNativa(e, id, PT) {
+  const cx = caixaDe(e.d);
+  if (!cx) return '';
+  const c = corDe(e.cor, e.alfa ?? 1);
+  if (!c || c.a < 0.01) return '';
+  const linha = e.modo === 'stroke';
+  const w = Math.max(1, Math.round(cx.w * PT)), h = Math.max(1, Math.round(cx.h * PT));
+  const geo = !linha && ehRetangulo(e.d) ? '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+    : `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="${w}" h="${h}"${linha ? ' fill="none"' : ''}>${e.d.map(([k, ...v]) => {
+      const pt = i => `<a:pt x="${Math.round((v[i] - cx.x) * PT)}" y="${Math.round((v[i + 1] - cx.y) * PT)}"/>`;
+      return k === 'M' ? `<a:moveTo>${pt(0)}</a:moveTo>` : k === 'L' ? `<a:lnTo>${pt(0)}</a:lnTo>` : k === 'C' ? `<a:cubicBezTo>${pt(0)}${pt(2)}${pt(4)}</a:cubicBezTo>` : k === 'Q' ? `<a:quadBezTo>${pt(0)}${pt(2)}</a:quadBezTo>` : '<a:close/>';
+    }).join('')}</a:path></a:pathLst></a:custGeom>`;
+  const visual = linha ? `<a:noFill/><a:ln w="${Math.max(3175, Math.round((e.largura || 1) * PT))}">${preenchimento(c)}</a:ln>` : `${preenchimento(c)}<a:ln><a:noFill/></a:ln>`;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Forma ${id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(cx.x * PT)}" y="${Math.round(cx.y * PT)}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>${geo}${visual}</p:spPr></p:sp>`;
+}
+// Fundo do slide: a primeira forma que cobre a página inteira vira a cor de fundo (e sai da lista de formas).
+export function fundoNativo(p) {
+  const i = (p.elementos || []).findIndex(e => e.t === 'forma' && e.modo === 'fill' && (() => { const c = caixaDe(e.d); return c && c.x <= p.w * 0.02 && c.y <= p.h * 0.02 && c.w >= p.w * 0.96 && c.h >= p.h * 0.96; })());
+  return i < 0 ? { cor: null, elementos: p.elementos || [] } : { cor: corDe(p.elementos[i].cor), elementos: p.elementos.filter((_, k) => k !== i) };
+}
+
 export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', agora } = {}) {
   const PT = 12700;
   const W = Math.round(paginas[0].w * PT), H = Math.round(paginas[0].h * PT);
+  // Imagens de cada slide (iguais entre slides viram um arquivo só) e as relações de cada slide.
+  const midias = new Map(), relsSlide = paginas.map(() => []);
+  const midiaDe = (e, n) => {
+    const chave = createHash('sha1').update(e.dados).digest('hex');
+    if (!midias.has(chave)) midias.set(chave, { nome: `imagem${midias.size + 1}.${e.mime}`, dados: e.dados });
+    const alvo = `../media/${midias.get(chave).nome}`;
+    let r = relsSlide[n].find(x => x.alvo === alvo);
+    if (!r) { r = { id: `rId${relsSlide[n].length + 3}`, alvo }; relsSlide[n].push(r); }
+    return r.id;
+  };
   const xmls = paginas.map((p, n) => {
     const sx = W / (p.w * PT), sy = H / (p.h * PT);
-    const fundo = `<p:pic><p:nvPicPr><p:cNvPr id="2" name="Fundo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${W}" cy="${H}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+    // Nativo: fundo como cor do slide, formas editáveis e imagens soltas. Sem as formas lidas (página com degradê ou
+    // padrão que não dá para recriar), a página inteira vira a imagem de fundo, como antes.
+    const nativo = Array.isArray(p.elementos);
+    const fn = nativo ? fundoNativo(p) : null;
+    let idForma = 1000;
+    const formas = nativo ? fn.elementos.map(e => {
+      if (e.t === 'forma') return formaNativa(e, idForma++, PT * sx);
+      const r = midiaDe(e, n);
+      return `<p:pic><p:nvPicPr><p:cNvPr id="${idForma++}" name="Imagem"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${r}">${(e.alfa ?? 1) < 0.995 ? `<a:alphaModFix amt="${Math.round(e.alfa * 100000)}"/>` : ''}</a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${Math.round(e.x * PT * sx)}" y="${Math.round(e.y * PT * sy)}"/><a:ext cx="${Math.round(e.w * PT * sx)}" cy="${Math.round(e.h * PT * sy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+    }).join('') : '';
+    const fundo = nativo ? formas : `<p:pic><p:nvPicPr><p:cNvPr id="2" name="Fundo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${W}" cy="${H}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
     const caixas = p.blocos.map((b, k) => {
       const texto = textos[b.id] ?? b.texto;
       if (!String(texto).trim()) return '';   // item sem conteúdo no novo projeto: sai do slide
@@ -442,12 +505,12 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       // (até 70%); só quebra se nem assim couber. Assim não invade o bloco de baixo.
       // Largura necessária com folga para fonte substituta mais larga (até ~0,6 do tamanho por letra).
       const precisa = Math.max(b.largura * String(texto).length / Math.max(1, b.texto.length), maior ? String(texto).length * b.tam * (b.negrito ? 0.6 : 0.54) : 0);
-      const reducaoLinha = b.linhas === 1 && maior && precisa > coluna ? Math.max(0.7, coluna / precisa) : 1;
+      const reducaoLinha = b.linhas === 1 && maior && precisa > coluna ? Math.max(0.85, coluna / precisa) : 1;
       const quebra = b.linhas > 1 || (maior && precisa * reducaoLinha > coluna * 1.01);
       // Bloco de várias linhas mantém a largura do original (a quebra do desenho); linha única que cresceu usa a coluna.
-      const larg = Math.min(W - esq, (b.linhas > 1 ? Math.max(b.largura * 1.03 + b.tam * 0.3, Math.min(coluna, b.largura * 1.25 + b.tam)) : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
+      const larg = Math.min(W - esq, (b.linhas > 1 ? (maior ? Math.max(b.largura * 1.03 + b.tam * 0.3, Math.min(coluna, b.largura * 1.25 + b.tam)) : b.largura * 1.06 + b.tam * 0.4) : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
       // Texto bem maior que o original (mais de 15% acima da capacidade do espaço): a fonte diminui até caber, até 70%.
-      let escala = b.linhas > 1 ? (String(texto).length > b.texto.length * 1.15 ? Math.max(0.7, Math.sqrt(b.texto.length / String(texto).length)) : 1) : reducaoLinha;
+      let escala = b.linhas > 1 ? (String(texto).length > b.texto.length * 1.15 ? Math.max(0.85, Math.sqrt(b.texto.length / String(texto).length)) : 1) : reducaoLinha;
       // Altura livre até o bloco de baixo (na mesma faixa horizontal): o texto quebrado nunca cobre o de baixo; a fonte
       // diminui até caber (até 55%).
       const largPt = larg / (PT * sx), fimOriginal = b.y + (b.linhas - 1) * b.entrelinha;
@@ -461,8 +524,8 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       // (com folga para fonte substituta mais larga no computador de quem abre: até ~0,62 do tamanho por letra em negrito)
       const palavraMaior = Math.max(...String(texto).split(/\s+/).map(w => w.length));
       const letraSegura = Math.max(letra, b.tam * (b.negrito ? 0.62 : 0.56));
-      if (quebra && palavraMaior * letraSegura * escala > largPt * 0.97) escala = Math.max(0.45, Math.floor(largPt * 0.97 / (palavraMaior * letraSegura) * 100) / 100);
-      while (escala > 0.55 && altura(escala) > Math.max(livre, b.tam * 1.2 * escala)) escala = Math.round((escala - 0.03) * 100) / 100;
+      if (quebra && palavraMaior * letraSegura * escala > largPt * 0.97) escala = Math.max(0.75, Math.floor(largPt * 0.97 / (palavraMaior * letraSegura) * 100) / 100);
+      while (escala > 0.8 && altura(escala) > Math.max(livre, b.tam * 1.2 * escala)) escala = Math.max(0.8, Math.round((escala - 0.03) * 100) / 100);
       const alt = Math.max(((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy, altura(escala) * PT * sy);
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
       const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100 * escala)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
@@ -471,15 +534,16 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const runs = mk ? `<a:r>${rpr.replace(/ b="1"/, '').replace(' sz=', `${b.marcador.negrito ? ' b="1"' : ''} sz=`).replace(/srgbClr val="[0-9A-F]{6}"/i, `srgbClr val="${b.marcador.cor.slice(1)}"`)}<a:t>${x(mk[1])} </a:t></a:r><a:r>${rpr}<a:t>${x(String(texto).slice(mk[0].length))}</a:t></a:r>`
         : `<a:r>${rpr}<a:t>${x(b.espacado ? String(texto).replace(/ +/g, '  ') : texto)}</a:t></a:r>`;   // rótulo espaçado: palavras bem separadas
       const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * escala * 100)}"/></a:lnSpc>` : '';
-      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr>${runs}</a:p></p:txBody></p:sp>`;
+      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:spAutoFit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr>${runs}</a:p></p:txBody></p:sp>`;
     }).join('');
-    return `${XML}<p:sld ${P}><p:cSld><p:spTree>${ARVORE}${fundo}${caixas}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+    const bg = nativo && fn.cor ? `<p:bg><p:bgPr>${preenchimento(fn.cor)}<a:effectLst/></p:bgPr></p:bg>` : '';
+    return `${XML}<p:sld ${P}><p:cSld>${bg}<p:spTree>${ARVORE}${fundo}${caixas}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
   });
   const apresentacao = `${XML}<p:presentation ${P} saveSubsetFonts="1"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${xmls.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 3}"/>`).join('')}</p:sldIdLst><p:sldSz cx="${W}" cy="${H}"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:lvl1pPr><a:defRPr lang="pt-BR"/></a:lvl1pPr></p:defaultTextStyle></p:presentation>`;
   const fontes = [...new Set(paginas.flatMap(p => p.blocos.map(b => b.fonte)))];
   const corTema = paginas.flatMap(p => p.blocos.map(b => b.cor)).find(c => c && !/^#(000000|FFFFFF)$/.test(c))?.slice(1) || VERDE_PADRAO;
   return zipar([
-    { nome: '[Content_Types].xml', dados: tipos('<Default Extension="jpg" ContentType="image/jpeg"/>', [['/ppt/presentation.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'], ['/ppt/slideMasters/slideMaster1.xml', 'application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml'], ['/ppt/slideLayouts/slideLayout1.xml', 'application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml'], ['/ppt/theme/theme1.xml', 'application/vnd.openxmlformats-officedocument.theme+xml'], ['/ppt/presProps.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presProps+xml'], ['/ppt/viewProps.xml', 'application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml'], ['/ppt/tableStyles.xml', 'application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml'], ...xmls.map((_, i) => [`/ppt/slides/slide${i + 1}.xml`, 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'])]) },
+    { nome: '[Content_Types].xml', dados: tipos('<Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/>', [['/ppt/presentation.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'], ['/ppt/slideMasters/slideMaster1.xml', 'application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml'], ['/ppt/slideLayouts/slideLayout1.xml', 'application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml'], ['/ppt/theme/theme1.xml', 'application/vnd.openxmlformats-officedocument.theme+xml'], ['/ppt/presProps.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presProps+xml'], ['/ppt/viewProps.xml', 'application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml'], ['/ppt/tableStyles.xml', 'application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml'], ...xmls.map((_, i) => [`/ppt/slides/slide${i + 1}.xml`, 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'])]) },
     { nome: '_rels/.rels', dados: relsRaiz('ppt/presentation.xml') },
     { nome: 'ppt/presentation.xml', dados: apresentacao },
     { nome: 'ppt/_rels/presentation.xml.rels', dados: rels([['rId1', 'slideMaster', 'slideMasters/slideMaster1.xml'], ['rId2', 'theme', 'theme/theme1.xml'], ...xmls.map((_, i) => [`rId${i + 3}`, 'slide', `slides/slide${i + 1}.xml`]), [`rId${xmls.length + 3}`, 'presProps', 'presProps.xml'], [`rId${xmls.length + 4}`, 'viewProps', 'viewProps.xml'], [`rId${xmls.length + 5}`, 'tableStyles', 'tableStyles.xml']]) },
@@ -491,7 +555,10 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
     { nome: 'ppt/slideLayouts/slideLayout1.xml', dados: LAYOUT },
     { nome: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', dados: rels([['rId1', 'slideMaster', '../slideMasters/slideMaster1.xml']]) },
     { nome: 'ppt/theme/theme1.xml', dados: TEMA(corTema, x(fontes[0] || 'Calibri')) },
-    ...xmls.flatMap((s, i) => [{ nome: `ppt/slides/slide${i + 1}.xml`, dados: s }, { nome: `ppt/slides/_rels/slide${i + 1}.xml.rels`, dados: rels([['rId1', 'slideLayout', '../slideLayouts/slideLayout1.xml'], ['rId2', 'image', `../media/fundo${i + 1}.jpg`]]) }, { nome: `ppt/media/fundo${i + 1}.jpg`, dados: paginas[i].fundo }]),
+    ...xmls.flatMap((s, i) => Array.isArray(paginas[i].elementos)
+      ? [{ nome: `ppt/slides/slide${i + 1}.xml`, dados: s }, { nome: `ppt/slides/_rels/slide${i + 1}.xml.rels`, dados: rels([['rId1', 'slideLayout', '../slideLayouts/slideLayout1.xml'], ...relsSlide[i].map(r => [r.id, 'image', r.alvo])]) }]
+      : [{ nome: `ppt/slides/slide${i + 1}.xml`, dados: s }, { nome: `ppt/slides/_rels/slide${i + 1}.xml.rels`, dados: rels([['rId1', 'slideLayout', '../slideLayouts/slideLayout1.xml'], ['rId2', 'image', `../media/fundo${i + 1}.jpg`]]) }, { nome: `ppt/media/fundo${i + 1}.jpg`, dados: paginas[i].fundo }]),
+    ...[...midias.values()].map(m => ({ nome: `ppt/media/${m.nome}`, dados: m.dados })),
     { nome: 'docProps/core.xml', dados: core(titulo, agora) },
     { nome: 'docProps/app.xml', dados: app('GreenIA') },
   ]);

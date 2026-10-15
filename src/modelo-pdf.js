@@ -138,6 +138,7 @@ export function agrupar(itens, pagina = 1, { corrido: corridoDoc } = {}) {
 }
 
 // ---------- 3. adaptação do conteúdo ----------
+const LIMITE = texto => Math.max(8, Math.round(texto.length * 1.15));
 // Instrução de adaptação: mesma estrutura, mesmo tom, dados só do material; tamanho parecido com o original.
 const INSTRUCAO = [
   'Você adapta uma apresentação MODELO para outro projeto ou cliente, mantendo exatamente a estrutura: mesmos slides, mesma função de cada bloco de texto (título, rótulo de seção, número, item de lista, rodapé, data, nome), mesmo tom e o mesmo nível de detalhe.',
@@ -152,7 +153,7 @@ const INSTRUCAO = [
 ].join('\n');
 
 export function mensagensAdaptacao({ slides, contexto, pedido }) {
-  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${Math.max(8, Math.round(b.texto.length * 1.15))}): ${b.texto}`).join('\n')}`).join('\n\n');
+  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${b.texto}`).join('\n')}`).join('\n\n');
   return [
     { role: 'system', content: INSTRUCAO },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${contexto}\n</material>\n\nApresentação modelo (blocos a adaptar):\n\n${modelo}` },
@@ -162,7 +163,9 @@ const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) re
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
 export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {} }) {
-  const textos = {}, faltando = [];
+  const textos = {}, faltando = [], longos = [];
+  const original = new Map(paginas.flatMap(p => p.blocos.map(b => [b.id, b.texto])));
+  const limite = id => LIMITE(original.get(id) || '');
   let custo = 0, economia = 0, prontas = 0;
   // Fora da adaptação: números puros (página, passo, item) ficam como estão; texto que se repete em 3 ou mais
   // slides (rodapé, nome do documento) vai uma vez só e a resposta vale para todas as ocorrências.
@@ -197,26 +200,33 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       continue;
     }
     for (const id of ids) {
-      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) textos[id] = r[id].replace(/\s+/g, ' ').trim();
+      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); if (textos[id].length > limite(id) * 1.3) longos.push(id); }
       else faltando.push(id);
     }
     prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
   } };
   await Promise.all(Array.from({ length: Math.min(simultaneas, fila.length) }, trabalhar));
   // Blocos que a IA pulou: mais uma rodada só com eles (os slides vão com o texto já adaptado, para manter o sentido).
-  if (faltando.length) {
-    const falta = new Set(faltando);
+  // Texto bem mais longo que o espaço (passou 30% do máximo) também volta, pedindo para respeitar o limite.
+  if (faltando.length || longos.length) {
+    const falta = new Set([...faltando, ...longos]);
     const resto = slides.map(s => ({ numero: s.numero, blocos: s.blocos.filter(b => falta.has(b.id)) })).filter(s => s.blocos.length);
     await Promise.all(Array.from({ length: Math.ceil(resto.length / (porParte * 2)) }, async (_, k) => {
       const parte = resto.slice(k * porParte * 2, (k + 1) * porParte * 2);
       try {
-        const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido }));
+        const aviso = longos.length ? '\n\nAtenção: cada texto precisa caber no espaço do bloco; respeite o máximo de caracteres indicado em cada um.' : '';
+        const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido: `${pedido || ''}${aviso}` }));
         custo += x.custo || 0; economia += x.economia || 0;
         const j = lerJson(x.texto);
-        for (const s of parte) for (const b of s.blocos) if (typeof j?.[b.id] === 'string') { textos[b.id] = j[b.id].replace(/\s+/g, ' ').trim(); falta.delete(b.id); }
+        for (const s of parte) for (const b of s.blocos) {
+          if (typeof j?.[b.id] !== 'string') continue;
+          const novo = j[b.id].replace(/\s+/g, ' ').trim();
+          if (textos[b.id] === undefined || novo.length < textos[b.id].length) textos[b.id] = novo;
+          falta.delete(b.id);
+        }
       } catch { /* fica com o texto do modelo */ }
     }));
-    faltando.splice(0, faltando.length, ...faltando.filter(id => falta.has(id)));
+    faltando.splice(0, faltando.length, ...faltando.filter(id => falta.has(id) && textos[id] === undefined));
   }
   for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
   return { textos, faltando, custo, economia };

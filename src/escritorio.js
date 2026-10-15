@@ -435,17 +435,27 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const reducaoLinha = b.linhas === 1 && maior && precisa > coluna ? Math.max(0.7, coluna / precisa) : 1;
       const quebra = b.linhas > 1 || (maior && precisa * reducaoLinha > coluna * 1.01);
       // Bloco de várias linhas mantém a largura do original (a quebra do desenho); linha única que cresceu usa a coluna.
-      const larg = Math.min(W - esq, (b.linhas > 1 ? b.largura * 1.03 + b.tam * 0.3 : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
+      const larg = Math.min(W - esq, (b.linhas > 1 ? Math.max(b.largura * 1.03 + b.tam * 0.3, Math.min(coluna, b.largura * 1.12 + b.tam * 0.5)) : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
       // Texto bem maior que o original (mais de 15% acima da capacidade do espaço): a fonte diminui até caber, até 70%.
-      const escala = b.linhas > 1 ? (String(texto).length > b.texto.length * 1.15 ? Math.max(0.7, Math.sqrt(b.texto.length / String(texto).length)) : 1) : reducaoLinha;
-      const alt = ((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy;
+      let escala = b.linhas > 1 ? (String(texto).length > b.texto.length * 1.15 ? Math.max(0.7, Math.sqrt(b.texto.length / String(texto).length)) : 1) : reducaoLinha;
+      // Altura livre até o bloco de baixo (na mesma faixa horizontal): o texto quebrado nunca cobre o de baixo; a fonte
+      // diminui até caber (até 55%).
+      const largPt = larg / (PT * sx), fimOriginal = b.y + (b.linhas - 1) * b.entrelinha;
+      const abaixo = p.blocos.filter(o => o !== b && o.y - o.tam * 0.92 > fimOriginal && o.x < b.x + largPt && o.x + o.largura > b.x && String(textos[o.id] ?? o.texto).trim())
+        .reduce((m, o) => Math.min(m, o.y - o.tam * 0.92), p.h * 0.98);
+      const livre = abaixo - (b.y - b.tam * 0.92) - b.tam * 0.15;
+      const letra = b.largura * b.linhas / Math.max(1, b.texto.length);
+      const entre = b.linhas > 1 ? b.entrelinha : b.tam * 1.2;
+      const altura = e => ((quebra ? Math.max(b.linhas, Math.ceil(String(texto).length * letra * e / (largPt * 0.97))) : 1) - 1) * entre * e + b.tam * 1.2 * e;
+      while (escala > 0.55 && altura(escala) > Math.max(livre, b.tam * 1.2 * escala)) escala = Math.round((escala - 0.03) * 100) / 100;
+      const alt = Math.max(((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy, altura(escala) * PT * sy);
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
       const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100 * escala)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
       // Marcador de lista com cor/peso próprios: um trecho só para ele (o texto adaptado pode vir com ou sem o marcador).
       const mk = b.marcador && /^\s*([•◦▪▫●○■□‣⁃–—\-*✓✔☐☑➢➤►▶→]|\d{1,2}[.)])\s+/.exec(String(texto));
       const runs = mk ? `<a:r>${rpr.replace(/ b="1"/, '').replace(' sz=', `${b.marcador.negrito ? ' b="1"' : ''} sz=`).replace(/srgbClr val="[0-9A-F]{6}"/i, `srgbClr val="${b.marcador.cor.slice(1)}"`)}<a:t>${x(mk[1])} </a:t></a:r><a:r>${rpr}<a:t>${x(String(texto).slice(mk[0].length))}</a:t></a:r>`
-        : `<a:r>${rpr}<a:t>${x(texto)}</a:t></a:r>`;
-      const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * 100)}"/></a:lnSpc>` : '';
+        : `<a:r>${rpr}<a:t>${x(b.espacado ? String(texto).replace(/ +/g, '  ') : texto)}</a:t></a:r>`;   // rótulo espaçado: palavras bem separadas
+      const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * escala * 100)}"/></a:lnSpc>` : '';
       return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${quebra ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr>${runs}</a:p></p:txBody></p:sp>`;
     }).join('');
     return `${XML}<p:sld ${P}><p:cSld><p:spTree>${ARVORE}${fundo}${caixas}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;

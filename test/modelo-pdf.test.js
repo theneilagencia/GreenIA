@@ -262,3 +262,28 @@ test('marcador de lista com cor e peso próprios: lido do PDF e repetido no Powe
   assert.match(s, /b="1" sz="1100"[^>]*><a:solidFill><a:srgbClr val="1B7950"\/><\/a:solidFill>[^]*?<a:t>1\. <\/a:t>/);
   assert.match(s, /<a:srgbClr val="222222"\/>[^]*?<a:t>Mapear o fechamento<\/a:t>/);
 });
+
+test('adaptação: texto muito maior que o espaço volta para a IA encurtar; fica a versão mais curta', async () => {
+  const paginas = [{ blocos: [{ id: '1.1', texto: 'Validação', x: 10, y: 10 }, { id: '1.2', texto: 'Revisão dos entregáveis', x: 10, y: 40 }] }];
+  const pedidos = [];
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async m => {
+    pedidos.push(m[1].content);
+    return { texto: JSON.stringify(pedidos.length === 1 ? { '1.1': 'Formalizar responsáveis, agenda, escopo e acesso ao modelo de início', '1.2': 'Revisão e aprovação' } : { '1.1': 'Aprovação' }) };
+  } });
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[1], /respeite o máximo de caracteres/);
+  assert.deepEqual(r.textos, { '1.1': 'Aprovação', '1.2': 'Revisão e aprovação' });
+  assert.deepEqual(r.faltando, []);
+});
+
+test('PowerPoint do modelo: texto que cresce não cobre o bloco de baixo (a fonte diminui para caber)', () => {
+  const bloco = (id, texto, y, extra = {}) => ({ id, texto, linhas: 1, x: 100, y, largura: 120, tam: 16, entrelinha: 19, fonte: 'Arial', negrito: false, cor: '#111111', espacado: false, ...extra });
+  const pag = { w: 960, h: 540, fundo: Buffer.from([0xff, 0xd8, 0xff, 0xd9]), blocos: [bloco('1.1', 'Validação Repet', 100), bloco('1.2', 'Revisão e aprovação', 160), bloco('1.3', 'Coluna vizinha', 100, { x: 260 })] };
+  const z = deszipar(pptxDeModelo([pag], { textos: { '1.1': 'Formalizar responsáveis, agenda, escopo e acesso ao modelo de início do projeto' } }));
+  const s = z.get('ppt/slides/slide1.xml');
+  const sp = s.split('<p:sp>').find(x => x.includes('Texto 1.1'));
+  const cy = Number(/<a:ext cx="\d+" cy="(\d+)"/.exec(sp)[1]), y = Number(/<a:off x="\d+" y="(\d+)"/.exec(sp)[1]);
+  const sz = Number(/sz="(\d+)"/.exec(sp)[1]);
+  assert.ok(sz < 1600, String(sz));
+  assert.ok(y + cy <= (160 - 16 * 0.92) * 12700 + 1, `${y + cy}`);
+});

@@ -338,3 +338,11 @@ test('adaptação confere os dados do pedido: data e horário que faltam voltam 
   assert.equal(r.textos['1.5'], '', 'a linha cujo horário saiu sai inteira');
   assert.deepEqual(r.fatos_faltando, []);
 });
+
+test('rótulo que voltou sem espaços entre as palavras é separado de novo pelo vocabulário do modelo', async () => {
+  const { separarPalavras, vocabulario } = await import('../src/modelo-pdf.js');
+  const v = vocabulario('04 · MÉTODO DE TRABALHO', 'INÍCIO E FIM', 'O QUE É', 'MELHORIAS COM IA', 'RESPONSÁVEL', 'RAFISA');
+  assert.equal(separarPalavras('04 · MÉTODODETRABALHO', v), '04 · MÉTODO DE TRABALHO');
+  assert.equal(separarPalavras('INÍCIOEFIM | OQUEÉ | MELHORIASCOMIA | RESPONSÁVELRAFISA', v), 'INÍCIO E FIM | O QUE É | MELHORIAS COM IA | RESPONSÁVEL RAFISA');
+  assert.equal(separarPalavras('CONTABILIDADE e RAFISA', v), 'CONTABILIDADE e RAFISA');
+});

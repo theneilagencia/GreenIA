@@ -190,6 +190,26 @@ export function mensagensFatos({ slides, textos, pedido, contexto, faltam }) {
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-30000)}\n</material>\n\nApresentação adaptada (texto atual de cada bloco):\n\n${atual}` },
   ];
 }
+// Rótulo em maiúsculas que voltou sem os espaços entre as palavras ("MÉTODODETRABALHO", depois de juntar letras
+// espaçadas): as palavras são separadas de novo com o vocabulário do modelo, do material e do pedido.
+const LIGA = ['DE', 'DO', 'DA', 'DOS', 'DAS', 'E', 'O', 'A', 'OS', 'AS', 'É', 'EM', 'NO', 'NA', 'QUE', 'COM', 'POR', 'PARA', 'AO', 'SEM', 'UM', 'UMA'];
+export function separarPalavras(texto, vocab) {
+  return String(texto || '').replace(/(?<![\p{L}])[\p{Lu}]{5,}(?![\p{L}])/gu, tok => {
+    if (vocab.has(tok)) return tok;
+    // Menor número de palavras que cobre o trecho inteiro (programação dinâmica).
+    const n = tok.length, melhor = Array(n + 1).fill(null);
+    melhor[0] = [];
+    for (let i = 0; i < n; i++) {
+      if (!melhor[i]) continue;
+      for (let j = i + 1; j <= n; j++) {
+        const w = tok.slice(i, j);
+        if (vocab.has(w) && (w.length > 1 || LIGA.includes(w)) && (!melhor[j] || melhor[j].length > melhor[i].length + 1)) melhor[j] = [...melhor[i], w];
+      }
+    }
+    return melhor[n] && melhor[n].length > 1 ? melhor[n].join(' ') : tok;
+  });
+}
+export const vocabulario = (...textos) => new Set([...LIGA, ...textos.flatMap(t => String(t || '').toUpperCase().match(/\p{L}+/gu) || [])]);
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
@@ -289,6 +309,8 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       if (textos[primeira.id] === '') for (const b of l.blocos) if (textos[b.id] !== undefined || !fica(b)) textos[b.id] = '';
     }
   }
+  const vocab = vocabulario(...paginas.flatMap(p => p.blocos.map(b => b.texto)), contexto, pedido);
+  for (const id of Object.keys(textos)) textos[id] = separarPalavras(textos[id], vocab);
   // Dia da semana que não bate com a data (o modelo dizia "segunda-feira" para outra data).
   for (const id of Object.keys(textos)) textos[id] = corrigirDiaDaSemana(textos[id], { hoje });
   // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.

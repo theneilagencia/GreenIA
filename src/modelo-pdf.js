@@ -59,8 +59,8 @@ export async function lerModeloPdf(pdfOriginal, { maxPaginas = MAX_PAGINAS_MODEL
       paginas.push({ ...p, fundo: Buffer.from(p.fundo.split(',')[1], 'base64') });
     }
     // Tamanho do texto corrido do documento inteiro (num slide só de título, o título não é texto corrido).
-    const corrido = tamanhoCorrido(paginas.flatMap(p => p.itens));
-    for (const [k, p] of paginas.entries()) { p.blocos = agrupar(p.itens, k + 1, { corrido }); delete p.itens; }
+    const corrido = tamanhoCorrido(paginas.flatMap(p => p.itens)), vocab = vocabularioDoDocumento(paginas.flatMap(p => p.itens));
+    for (const [k, p] of paginas.entries()) { p.blocos = agrupar(p.itens, k + 1, { corrido, vocab }); delete p.itens; }
     return paginas;
   });
 }
@@ -76,6 +76,33 @@ export function tamanhoCorrido(itens) {
   const porTam = {};
   for (const i of itens) if (i.s.trim()) porTam[Math.round(i.tam)] = (porTam[Math.round(i.tam)] || 0) + i.s.trim().length;
   return Number(Object.entries(porTam).sort((a, b) => b[1] - a[1])[0]?.[0] || 0);
+}
+// Palavras do documento (para recompor rótulo que o PDF entrega picotado: "SI STEMAS E TECN OL OG I A"), com plural.
+export function vocabularioDoDocumento(itens) {
+  const v = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS', 'E', 'O', 'A', 'OS', 'AS', 'É', 'EM', 'NO', 'NA', 'QUE', 'COM', 'POR', 'PARA', 'AO', 'SEM', 'UM', 'UMA']);
+  // Só do texto corrido (com minúsculas): os rótulos em maiúsculas podem estar picotados e não servem de referência.
+  for (const i of itens) {
+    if (!/\p{Ll}/u.test(i.s || '')) continue;
+    for (const w of String(i.s).normalize('NFC').toUpperCase().match(/\p{L}{2,}/gu) || []) { v.add(w); v.add(`${w}S`); if (/[RZL]$/.test(w)) v.add(`${w}ES`); if (/S$/.test(w)) v.add(w.slice(0, -1)); }
+  }
+  return v;
+}
+// Linha em maiúsculas com pedaços que não são palavras: as letras são juntas e separadas de novo em palavras do
+// documento. Só vale se der certo por inteiro; senão a linha fica como veio.
+function recomporMaiusculas(s, vocab) {
+  return s.replace(/(?<![\p{L}])\p{Lu}+(?: \p{Lu}+)+(?![\p{L}])/gu, trecho => {
+    const toks = trecho.split(' ');
+    if (toks.every(t => vocab.has(t) || t.length <= 2 && vocab.has(t))) return trecho;
+    const junto = toks.join(''), n = junto.length, melhor = Array(n + 1).fill(null);
+    melhor[0] = [];
+    for (let i = 0; i < n; i++) if (melhor[i]) for (let j = i + 1; j <= n; j++) {
+      const w = junto.slice(i, j);
+      if (!vocab.has(w) || (w.length < 3 && !['DE', 'DO', 'DA', 'E', 'O', 'A', 'É', 'EM', 'NO', 'NA', 'OS', 'AS', 'AO', 'UM'].includes(w))) continue;
+      const c = [...melhor[i], w], q = x => x.reduce((a, y) => a + y.length ** 2, 0);
+      if (!melhor[j] || melhor[j].length > c.length || (melhor[j].length === c.length && q(c) > q(melhor[j]))) melhor[j] = c;
+    }
+    return melhor[n] && melhor[n].length < toks.length ? melhor[n].join(' ') : trecho;
+  });
 }
 // A linha de baixo é continuação do mesmo parágrafo (quebra automática) ou começa outro (item de lista sem marcador
 // de texto, célula de tabela, linha solta)? Quebra automática só acontece quando a primeira palavra de baixo não
@@ -93,7 +120,7 @@ function continua(b, l, corrido) {
 }
 // Palavra que pede continuação ("de", "e", "para", "the", "and"...): a linha de baixo é do mesmo parágrafo.
 const LIGACAO = /^(a|o|as|os|e|é|ou|de|do|da|dos|das|em|no|na|nos|nas|um|uma|para|pra|por|pelo|pela|com|sem|entre|sobre|que|se|ao|aos|à|às|seu|sua|the|of|and|or|to|in|on|for|with|by|at|from|a|an|y|del|el|la|los|las|en|con|por|para)$/i;
-export function agrupar(itens, pagina = 1, { corrido: corridoDoc } = {}) {
+export function agrupar(itens, pagina = 1, { corrido: corridoDoc, vocab: vocabDoc } = {}) {
   // Palavra com espaçamento entre letras ("C O N T E X T O") vem num item só: volta a ser a palavra, marcada.
   // Marcador de lista em fonte de símbolos (Wingdings, OpenSymbol) vem como caractere de uso privado: vira "•".
   const ord = [...itens].map(i => { const t0 = /^[\uE000-\uF8FF]\s*$/.test(i.s) ? '•' : i.s.replace(/^[\uE000-\uF8FF](?=\s)/, '•'); const t = /^(\S )+\S$/.test(t0) ? t0.replace(/ /g, '') : t0; return { ...i, s: t, espacado: t !== t0, cor: CORES(i.cor) }; })
@@ -107,14 +134,19 @@ export function agrupar(itens, pagina = 1, { corrido: corridoDoc } = {}) {
     const l = linhas.find(l => Math.abs(l.tam - i.tam) < Math.max(0.5, i.tam * 0.08) && Math.abs(l.y - i.y) < i.tam * 0.35 && i.x >= l.x1 - i.tam * 0.3 && i.x - l.x1 < i.tam * (l.espaco ? 0.9 : 0.6));
     if (l) {
       const vao = i.x - l.x1;
-      l.s += (vao > i.tam * 0.18 && !/\s$/.test(l.s) && !/^\s/.test(i.s) ? ' ' : '') + i.s;
+      // Vão pequeno sem espaço no PDF: pode ser só o ajuste entre letras ("AUDI" "TORI" "AS"). Fica marcado e, se a
+      // linha tiver espaços de verdade (o PDF marca onde terminam as palavras), não vira espaço.
+      if (/\s/.test(i.s) || /\s$/.test(l.s)) l.temEspaco = true;
+      l.s += (vao > i.tam * 0.18 && !/\s$/.test(l.s) && !/^\s/.test(i.s) ? (vao < i.tam * 0.6 ? '\u0001' : ' ') : '') + i.s;
       // Um espaço solto não estende a linha até a próxima coluna (alguns PDFs desenham o espaço com a largura da célula).
       l.x1 = Math.max(l.x1, i.x + (i.s.trim() ? i.w : Math.min(i.w, i.tam * 0.4)));
       l.espaco = !i.s.trim();
       if (i.s.trim()) { l.pesos[`${i.fonte}|${i.cor}`] = (l.pesos[`${i.fonte}|${i.cor}`] || 0) + i.s.trim().length; l.espacado = l.espacado || i.espacado; }
     } else if (i.s.trim()) linhas.push({ s: i.s, x: i.x, x1: i.x + i.w, y: i.y, tam: i.tam, pesos: { [`${i.fonte}|${i.cor}`]: i.s.trim().length }, espacado: i.espacado, primeiro: { s: i.s.trim(), fonte: i.fonte, cor: i.cor } });
   }
-  for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s);
+  const vocabLeitura = vocabDoc || vocabularioDoDocumento(itens);
+  for (const l of linhas) l.s = recomporMaiusculas(l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' '), vocabLeitura);
+  for (const l of linhas) { [l.fonte, l.cor] = Object.entries(l.pesos).sort((a, b) => b[1] - a[1])[0][0].split('|'); l.s = l.s.replace(/\u0001/g, l.temEspaco && !/\p{Ll}/u.test(l.s) ? '' : ' ').replace(/\s+/g, ' ').trim().replace(/^• (?=[◦▪▫●○■□‣⁃✓✔☐☑➢➤►▶→]\s)/, ''); l.item = MARCADOR.test(l.s);
     // Marcador com cor ou peso próprios (número verde em negrito, "•" colorido): guardado para o PowerPoint repetir.
     const mk = l.item && MARCADOR.exec(l.s)[1], p = l.primeiro;
     if (mk && p && p.s === mk && (p.cor !== l.cor || negrito(p.fonte) !== negrito(l.fonte))) l.marcador = { cor: p.cor, negrito: negrito(p.fonte) };
@@ -213,6 +245,32 @@ export function separarPalavras(texto, vocab) {
   });
 }
 export const vocabulario = (...textos) => new Set([...LIGA, ...textos.flatMap(t => String(t || '').normalize('NFC').toUpperCase().match(/\p{L}+/gu) || [])]);
+// Slides de agenda com linha fora do intervalo do dia declarado no próprio slide.
+const FAIXA = /(\d{1,2})h(\d{2})?\s*(?:às|as|a|até|–|-)\s*(\d{1,2})h(\d{2})?/i;
+const CELULA = /^\s*(\d{1,2})h(\d{2})?\s*[–-]\s*(\d{1,2})h(\d{2})?\s*$/;
+const minutos = (h, m) => Number(h) * 60 + Number(m || 0);
+export function agendasForaDoHorario(paginas, textos) {
+  const out = [];
+  paginas.forEach((p, k) => {
+    const t = b => textos[b.id] ?? b.texto;
+    const celulas = p.blocos.filter(b => CELULA.test(t(b)));
+    if (celulas.length < 2) return;
+    const topo = Math.min(...celulas.map(b => b.y));
+    const decl = p.blocos.filter(b => b.y < topo && !CELULA.test(t(b)) && FAIXA.test(t(b))).sort((a, b) => a.y - b.y)[0];
+    if (!decl) return;
+    const [, h1, m1, h2, m2] = FAIXA.exec(t(decl)), ini = minutos(h1, m1), fim = minutos(h2, m2);
+    const ruins = celulas.filter(b => { const [, a, am, c, cm] = CELULA.exec(t(b)); return minutos(a, am) < ini || minutos(c, cm) > fim; });
+    if (ruins.length) out.push({ numero: k + 1, faixa: FAIXA.exec(t(decl))[0], linhas: ruins.map(b => t(b)) });
+  });
+  return out;
+}
+export function mensagensAgenda({ slides, textos, pedido, contexto, fora }) {
+  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
+  return [
+    { role: 'system', content: `${INSTRUCAO}\n\nNestes slides, a agenda tem horários fora do intervalo do dia que o próprio slide declara: ${fora.map(f => `slide ${f.numero} (${f.faixa}): ${f.linhas.join(', ')}`).join('; ')}. Ajuste horários e atividades para que a agenda caiba no intervalo e siga o pedido. Linha que sobrar: devolva "" no horário, na atividade, na descrição e em quem participa dessa linha. Responda só com os ids que mudam.` },
+    { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-20000)}\n</material>\n\nSlides (texto atual de cada bloco):\n\n${atual}` },
+  ];
+}
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
@@ -300,6 +358,18 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       const j = lerJson(x.texto) || {};
       for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
       faltam = faltam.filter(f => !f.presente(todosOsTextos()));
+    } catch { /* fica a versão anterior */ }
+  }
+  // Agenda coerente com o horário do dia declarado no próprio slide ("dia 2 · 9h às 12h" com linhas até 17h): os
+  // slides com linha fora do intervalo voltam para a IA ajustar (linha que sobra volta vazia e sai).
+  const fora = agendasForaDoHorario(paginas, textos);
+  if (fora.length) {
+    etapa('Conferindo as agendas…');
+    try {
+      const x = await chamar(mensagensAgenda({ slides: slides.filter(s => fora.some(f => f.numero === s.numero)), textos, pedido, contexto, fora }));
+      custo += x.custo || 0; economia += x.economia || 0;
+      const j = lerJson(x.texto) || {};
+      for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
     } catch { /* fica a versão anterior */ }
   }
   // Linha de tabela que sobrou: se a primeira célula (horário, item) ficou vazia, sai tudo o que está à direita dela

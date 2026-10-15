@@ -440,7 +440,8 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const maior = String(texto).length > b.texto.length * 1.02;
       // Linha única que cresceu: continua numa linha só enquanto couber até a coluna, diminuindo a fonte se preciso
       // (até 70%); só quebra se nem assim couber. Assim não invade o bloco de baixo.
-      const precisa = b.largura * String(texto).length / Math.max(1, b.texto.length);
+      // Largura necessária com folga para fonte substituta mais larga (até ~0,6 do tamanho por letra).
+      const precisa = Math.max(b.largura * String(texto).length / Math.max(1, b.texto.length), maior ? String(texto).length * b.tam * (b.negrito ? 0.6 : 0.54) : 0);
       const reducaoLinha = b.linhas === 1 && maior && precisa > coluna ? Math.max(0.7, coluna / precisa) : 1;
       const quebra = b.linhas > 1 || (maior && precisa * reducaoLinha > coluna * 1.01);
       // Bloco de várias linhas mantém a largura do original (a quebra do desenho); linha única que cresceu usa a coluna.

@@ -365,3 +365,28 @@ test('na adaptação, rótulo colado pela IA volta separado; no empate vence a p
   const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ '1.1': '0 4 · M É T O D O D E T R A B A L H O', '1.2': 'Como o trabalho acontece' }) }) });
   assert.equal(r.textos['1.1'], '04 · MÉTODO DE TRABALHO');
 });
+
+test('leitura: rótulo em maiúsculas que o PDF entrega picotado é recomposto com as palavras do documento', () => {
+  const it = (s, x, y, w, extra = {}) => ({ s, x, y, w, tam: 18, fonte: 'CourierNew', cor: '#222222', ...extra });
+  const b = agrupar([it('SI STEMAS E TECN OL OG I A', 92, 513, 248), it('PARECERES E AUDI TORI AS', 400, 513, 240),
+    it('Substituição de sistemas e tecnologia atual', 92, 476, 300, { fonte: 'Manrope' }), it('Parecer jurídico e auditoria fiscal', 400, 476, 280, { fonte: 'Manrope' }),
+    it('Objetivo: reduzir em', 92, 400, 160, { fonte: 'Manrope' }), it('30%', 256, 400, 30, { fonte: 'Manrope-Bold' })]);
+  const textos = b.map(x => x.texto);
+  assert.ok(textos.includes('SISTEMAS E TECNOLOGIA'), JSON.stringify(textos));
+  assert.ok(textos.includes('PARECERES E AUDITORIAS'), JSON.stringify(textos));
+  assert.ok(textos.includes('Objetivo: reduzir em 30%'), 'texto corrido mantém o espaço antes do negrito');
+});
+
+test('agenda que passa do horário do dia declarado no slide volta para a IA; linha que sobra sai', async () => {
+  const b = (id, texto, x, y, tam = 14) => ({ id, texto, x, y, tam, linhas: 1, largura: 100 });
+  const paginas = [{ blocos: [b('1.1', 'Terça-feira, 21 de outubro', 40, 40, 30), b('1.2', 'Discovery · dia 2 · 9h às 17h', 40, 70),
+    b('1.3', '9h–12h', 40, 120), b('1.4', 'DRE e indicadores', 160, 120), b('1.5', '13h–17h', 40, 160), b('1.6', 'Observação na máquina', 160, 160)] }];
+  const pedidos = [];
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: 'dia 2 de 9h a 12h', hoje: new Date(2026, 9, 15), chamar: async m => {
+    pedidos.push(m[0].content);
+    if (m[0].content.includes('fora do intervalo do dia')) return { texto: JSON.stringify({ '1.3': '9h–10h30', '1.4': 'DRE e indicadores', '1.5': '10h30–12h', '1.6': 'Observação na máquina' }) };
+    return { texto: JSON.stringify({ '1.1': 'Sexta-feira, 23 de outubro', '1.2': 'Discovery · dia 2 · 9h às 12h', '1.3': '9h–12h', '1.4': 'DRE e indicadores', '1.5': '13h–17h', '1.6': 'Observação na máquina' }) };
+  } });
+  assert.ok(pedidos.some(p => /slide 1 \(9h às 12h\): 13h–17h/.test(p)), 'pede o ajuste com a linha fora do horário');
+  assert.equal(r.textos['1.5'], '10h30–12h');
+});

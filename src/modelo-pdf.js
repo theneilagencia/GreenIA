@@ -299,18 +299,23 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       faltam = faltam.filter(f => !f.presente(todosOsTextos()));
     } catch { /* fica a versão anterior */ }
   }
-  // Linha de tabela que sobrou: se a primeira célula (horário, item) ficou vazia, a linha inteira sai.
+  // Linha de tabela que sobrou: se a primeira célula (horário, item) ficou vazia, sai tudo o que está à direita dela
+  // até a próxima célula da mesma coluna (a atividade e a descrição em letra menor, logo abaixo).
   for (const p of paginas) {
-    const linhas = [];
-    for (const b of p.blocos) { const l = linhas.find(l => Math.abs(l.y - b.y) < b.tam * 0.6); if (l) l.blocos.push(b); else linhas.push({ y: b.y, blocos: [b] }); }
-    for (const l of linhas) {
-      if (l.blocos.length < 2) continue;
-      const primeira = l.blocos.reduce((a, b) => (b.x < a.x ? b : a));
-      if (textos[primeira.id] === '') for (const b of l.blocos) if (textos[b.id] !== undefined || !fica(b)) textos[b.id] = '';
+    for (const e of p.blocos) {
+      if (textos[e.id] !== '' || !e.texto) continue;
+      const mesmaLinha = p.blocos.filter(o => o !== e && Math.abs(o.y - e.y) < e.tam * 0.6);
+      if (!mesmaLinha.length || mesmaLinha.some(o => o.x < e.x)) continue;   // só a primeira célula da linha
+      const proxima = p.blocos.filter(o => o !== e && Math.abs(o.x - e.x) < e.tam && o.y > e.y + e.tam * 0.6).reduce((m, o) => Math.min(m, o.y), e.y + e.tam * 3);
+      for (const o of p.blocos) if (o.x > e.x && o.y > e.y - e.tam * 0.6 && o.y < proxima - o.tam * 0.6) textos[o.id] = '';
+    }
+    // Número repetido: o texto ganhou o número que já está num bloco próprio logo à esquerda ("18" + "18 Onde…").
+    for (const b of p.blocos) {
+      const m = /^(\d{1,2})\s+(?=\S)/.exec(textos[b.id] || '');
+      if (!m || /^\d/.test(b.texto)) continue;
+      if (p.blocos.some(o => o !== b && o.texto.trim() === m[1] && Math.abs(o.y - b.y) < b.tam * 0.6 && o.x < b.x && b.x - o.x < b.tam * 4)) textos[b.id] = textos[b.id].slice(m[0].length);
     }
   }
-  const vocab = vocabulario(...paginas.flatMap(p => p.blocos.map(b => b.texto)), contexto, pedido);
-  for (const id of Object.keys(textos)) textos[id] = separarPalavras(textos[id], vocab);
   // Dia da semana que não bate com a data (o modelo dizia "segunda-feira" para outra data).
   for (const id of Object.keys(textos)) textos[id] = corrigirDiaDaSemana(textos[id], { hoje });
   // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.

@@ -444,7 +444,7 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const reducaoLinha = b.linhas === 1 && maior && precisa > coluna ? Math.max(0.7, coluna / precisa) : 1;
       const quebra = b.linhas > 1 || (maior && precisa * reducaoLinha > coluna * 1.01);
       // Bloco de várias linhas mantém a largura do original (a quebra do desenho); linha única que cresceu usa a coluna.
-      const larg = Math.min(W - esq, (b.linhas > 1 ? Math.max(b.largura * 1.03 + b.tam * 0.3, Math.min(coluna, b.largura * 1.12 + b.tam * 0.5)) : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
+      const larg = Math.min(W - esq, (b.linhas > 1 ? Math.max(b.largura * 1.03 + b.tam * 0.3, Math.min(coluna, b.largura * 1.25 + b.tam)) : maior ? Math.max(coluna, b.largura * 1.04) : b.largura * 1.04 + b.tam * 0.6) * PT * sx);
       // Texto bem maior que o original (mais de 15% acima da capacidade do espaço): a fonte diminui até caber, até 70%.
       let escala = b.linhas > 1 ? (String(texto).length > b.texto.length * 1.15 ? Math.max(0.7, Math.sqrt(b.texto.length / String(texto).length)) : 1) : reducaoLinha;
       // Altura livre até o bloco de baixo (na mesma faixa horizontal): o texto quebrado nunca cobre o de baixo; a fonte
@@ -457,8 +457,10 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const entre = b.linhas > 1 ? b.entrelinha : b.tam * 1.2;
       const altura = e => ((quebra ? Math.max(b.linhas, Math.ceil(String(texto).length * letra * e / (largPt * 0.97))) : 1) - 1) * entre * e + b.tam * 1.2 * e;
       // Texto que quebra: a palavra mais longa precisa caber inteira na largura (sem cortar no meio).
+      // (com folga para fonte substituta mais larga no computador de quem abre: até ~0,62 do tamanho por letra em negrito)
       const palavraMaior = Math.max(...String(texto).split(/\s+/).map(w => w.length));
-      if (quebra && palavraMaior * letra * escala > largPt * 0.97) escala = Math.max(0.45, Math.floor(largPt * 0.97 / (palavraMaior * letra) * 100) / 100);
+      const letraSegura = Math.max(letra, b.tam * (b.negrito ? 0.62 : 0.56));
+      if (quebra && palavraMaior * letraSegura * escala > largPt * 0.97) escala = Math.max(0.45, Math.floor(largPt * 0.97 / (palavraMaior * letraSegura) * 100) / 100);
       while (escala > 0.55 && altura(escala) > Math.max(livre, b.tam * 1.2 * escala)) escala = Math.round((escala - 0.03) * 100) / 100;
       const alt = Math.max(((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy, altura(escala) * PT * sy);
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras

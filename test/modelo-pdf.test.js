@@ -346,3 +346,14 @@ test('rótulo que voltou sem espaços entre as palavras é separado de novo pelo
   assert.equal(separarPalavras('INÍCIOEFIM | OQUEÉ | MELHORIASCOMIA | RESPONSÁVELRAFISA', v), 'INÍCIO E FIM | O QUE É | MELHORIAS COM IA | RESPONSÁVEL RAFISA');
   assert.equal(separarPalavras('CONTABILIDADE e RAFISA', v), 'CONTABILIDADE e RAFISA');
 });
+
+test('agenda: linha cujo horário sai leva junto atividade e descrição; número repetido ao lado do número próprio sai', async () => {
+  const b = (id, texto, x, y, tam = 14) => ({ id, texto, x, y, tam, linhas: 1, largura: 100 });
+  const paginas = [{ blocos: [b('1.1', '10h–11h', 40, 100), b('1.2', 'Apontamento', 160, 100), b('1.3', 'Fluxo e telas', 160, 114, 10),
+    b('1.4', '11h–12h', 40, 140), b('1.5', 'Custeio', 160, 140), b('1.6', 'Modelo atual', 160, 154, 10), b('1.7', 'Programação preliminar', 40, 300, 10),
+    b('1.8', '18', 400, 100), b('1.9', 'Onde integração faz sentido?', 430, 100)] }];
+  const r = await adaptarModelo({ paginas, contexto: '', pedido: '', chamar: async () => ({ texto: JSON.stringify({ '1.1': '9h–12h', '1.2': 'Observação', '1.3': 'Máquina piloto', '1.4': '', '1.5': 'Erros recorrentes', '1.6': 'Fluxos fora do padrão', '1.7': 'Programação validada', '1.9': '18 Onde integração faz sentido?' }) }) });
+  assert.equal(r.textos['1.4'], ''); assert.equal(r.textos['1.5'], ''); assert.equal(r.textos['1.6'], '');
+  assert.equal(r.textos['1.2'], 'Observação'); assert.equal(r.textos['1.7'], 'Programação validada');
+  assert.equal(r.textos['1.9'], 'Onde integração faz sentido?');
+});

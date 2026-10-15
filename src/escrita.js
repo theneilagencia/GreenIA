@@ -15,7 +15,8 @@ const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2B50}\u{2705}\u{274C}\u{274E}\u{2728}\u{26
 // Vícios detectáveis por padrão de texto (sem IA): [rótulo, expressão].
 export const VICIOS = [
   ['abertura servil', /^(claro|com certeza|ótima pergunta|excelente pergunta|perfeito)[!,.]/im],
-  ['oferta de ajuda no fim', /(se (quiser|preferir|desejar),? (eu )?posso|espero ter ajudado|fico à disposição|estou à disposição|posso ajudar (em|com) mais)/i],
+  // "Fico à disposição" antes de uma assinatura é fecho normal de email redigido; só é vício como última linha da resposta.
+  ['oferta de ajuda no fim', /(se (quiser|preferir|desejar),? (eu )?posso|espero ter ajudado|posso ajudar (em|com) mais|(fico|estou) à disposição[^\n]*\s*$)/i],
   ['"em resumo"', /\b(em resumo|em suma|resumindo),/i],
   ['"é importante ressaltar"', /(?<!\p{L})(é importante|vale) (ressaltar|destacar|notar|lembrar|mencionar)/iu],
   ['clichê de cenário', /\b(no cenário atual|em um mundo cada vez mais|nos dias de hoje|no mundo atual)/i],
@@ -75,7 +76,12 @@ export async function revisarEscrita(texto, { chamar = null, usarIA = true, limi
       const novo = limparVicios(String(r.texto || '').replace(/^\s*<texto>\s*|\s*<\/texto>\s*$/g, '').trim());
       const faltaNumero = numeros(t).some(n => !novo.includes(n));
       const v = viciosDeEscrita(novo);
-      if (novo && !faltaNumero && novo.length > t.length * 0.65 && novo.length < t.length * 1.2 && v.length < restantes.length) { t = novo; restantes = v; revisado = true; }
+      // A revisão precisa ser o mesmo texto: a maior parte das palavras do original continua lá.
+      const palavras = t => new Set((t.toLowerCase().match(/\p{L}{4,}/gu) || []));
+      const antes = palavras(t), depois = palavras(novo);
+      const ficaram = [...antes].filter(w => depois.has(w)).length, mantidas = ficaram / Math.max(1, antes.size);
+      // (em texto curto, trocar 3 ou 4 palavras de efeito já muda a proporção; vale até 4 palavras trocadas)
+      if (novo && !faltaNumero && (mantidas >= 0.7 || (antes.size - ficaram <= 4 && mantidas >= 0.5)) && novo.length > t.length * 0.65 && novo.length < t.length * 1.2 && v.length < restantes.length) { t = novo; restantes = v; revisado = true; }
     } catch { /* fica a versão limpa */ }
   }
   return { texto: t, vicios, restantes, custo, economia, revisado };

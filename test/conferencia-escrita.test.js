@@ -57,3 +57,11 @@ test('conversa: a versão final sem vícios substitui a mostrada ao vivo e é a 
   assert.deepEqual(rev.provider, exec.provider, 'mesma rota de privacidade da resposta');
   assert.match(rev.messages[0].content, /vícios de texto de IA: "não é apenas X, é Y"/);
 });
+
+test('email redigido com "Fico à disposição" antes da assinatura não é vício; revisão que troca o texto não vale', async () => {
+  const email = 'Assunto: Retorno\n\nOlá,\n\nSegue o cronograma.\n\nFico à disposição para ajustar o que for preciso.\n\nAtenciosamente,\n[Seu nome]';
+  assert.deepEqual(viciosDeEscrita(email), []);
+  const r = await revisarEscrita('O plano é robusto e cobre as três frentes de custeio, apontamento e fechamento gerencial.', { chamar: async () => ({ texto: 'Aqui está a lista de próximos passos para a equipe revisar antes do envio final.' }) });
+  assert.equal(r.revisado, false);
+  assert.equal(r.texto, 'O plano é robusto e cobre as três frentes de custeio, apontamento e fechamento gerencial.');
+});

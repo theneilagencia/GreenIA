@@ -22,10 +22,11 @@ test('revisão pela IA só quando sobra vício, e só vale se mantiver os númer
   const bom = await revisarEscrita('O plano é robusto e vai alavancar 30% de ganho em 2027.', { chamar: async () => ({ texto: 'O plano é sólido e traz 30% de ganho em 2027.', custo: 0.002 }) });
   assert.equal(bom.texto, 'O plano é sólido e traz 30% de ganho em 2027.'); assert.equal(bom.revisado, true); assert.equal(bom.custo, 0.002);
   const perdeNumero = await revisarEscrita('O plano é robusto e vai alavancar 30% de ganho em 2027.', { chamar: async () => ({ texto: 'O plano é sólido e traz bastante ganho no ano que vem.' }) });
-  assert.equal(perdeNumero.texto, 'O plano é robusto e vai alavancar 30% de ganho em 2027.'); assert.equal(perdeNumero.revisado, false);
-  assert.deepEqual(perdeNumero.restantes, ['palavra de efeito']);
+  // A IA perdeu os números: a revisão dela não vale; a troca direta das palavras de efeito resolve sem a IA.
+  assert.equal(perdeNumero.texto, 'O plano é sólido e vai aumentar 30% de ganho em 2027.'); assert.equal(perdeNumero.revisado, false);
+  assert.deepEqual(perdeNumero.restantes, []);
   const semIA = await revisarEscrita('Uma jornada de dados robusta.', { chamar: async () => { throw new Error('não deveria chamar'); }, usarIA: false });
-  assert.equal(semIA.texto, 'Uma jornada de dados robusta.');
+  assert.equal(semIA.texto, 'Uma jornada de dados sólida.', 'sem IA, a troca direta ainda vale');
 });
 
 let S, OR, ana;
@@ -63,7 +64,7 @@ test('email redigido com "Fico à disposição" antes da assinatura não é víc
   assert.deepEqual(viciosDeEscrita(email), []);
   const r = await revisarEscrita('O plano é robusto e cobre as três frentes de custeio, apontamento e fechamento gerencial.', { chamar: async () => ({ texto: 'Aqui está a lista de próximos passos para a equipe revisar antes do envio final.' }) });
   assert.equal(r.revisado, false);
-  assert.equal(r.texto, 'O plano é robusto e cobre as três frentes de custeio, apontamento e fechamento gerencial.');
+  assert.equal(r.texto, 'O plano é sólido e cobre as três frentes de custeio, apontamento e fechamento gerencial.');
 });
 
 test('diferença só de espaço não muda o texto (sem substituição à toa)', () => {

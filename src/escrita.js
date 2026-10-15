@@ -94,6 +94,20 @@ export function limparVicios(texto) {
   return so(maiuscula(t)) === so(String(texto || '')) ? String(texto || '') : maiuscula(t).trimEnd();
 }
 
+// Troca direta das palavras de efeito mais comuns (mantém maiúscula inicial).
+const TROCAS = [
+  [/\balavancagem\b/gi, 'ganho'], [/\balavanc(ar|a|am|ou|ando|ará|arão)\b/gi, m => ({ ar: 'aumentar', a: 'aumenta', am: 'aumentam', ou: 'aumentou', ando: 'aumentando', 'ará': 'aumentará', 'arão': 'aumentarão' }[m.slice(6).toLowerCase()] || 'aumentar')],
+  [/\bpotencializ(ar|a|am|ou|ando)\b/gi, m => ({ ar: 'ampliar', a: 'amplia', am: 'ampliam', ou: 'ampliou', ando: 'ampliando' }[m.slice(11).toLowerCase()] || 'ampliar')],
+  [/\brobust(o|a|os|as)\b/gi, m => `sólid${m.slice(6)}`], [/\bsinergias?\b/gi, m => (m.toLowerCase().endsWith('s') ? 'integrações' : 'integração')],
+  [/\bholístic(o|a|os|as)\b/gi, m => `complet${m.slice(8)}`], [/\bdisruptiv(o|a|os|as)\b/gi, m => `nov${m.slice(9)}`],
+  [/\bdesbloque(ar|a|am|ou|ando)\b/gi, m => `liber${m.slice(8)}`], [/\becossistema\b/gi, 'conjunto'],
+];
+const comCaixa = (orig, novo) => (/^\p{Lu}/u.test(orig) ? novo[0].toUpperCase() + novo.slice(1) : novo);
+export function trocarPalavrasDeEfeito(t) {
+  let s = String(t || '');
+  for (const [re, por] of TROCAS) s = s.replace(re, m => comCaixa(m, typeof por === 'function' ? por(m) : por));
+  return s;
+}
 const numeros = t => (String(t).match(/\d[\d.,/%:]*/g) || []).map(n => n.replace(/[.,:]$/, ''));
 // Conferência de escrita de um texto pronto: limpa o que é mecânico e, se ainda sobrar vício, pede uma revisão à IA
 // (mesma rota e proteções da execução). A revisão só vale se mantiver todos os números e o tamanho e tiver menos
@@ -103,7 +117,8 @@ export async function revisarEscrita(texto, { chamar = null, usarIA = true, limi
   const vicios = viciosDeEscrita(original);
   let t = limparVicios(original), custo = 0, economia = 0, revisado = false;
   let restantes = viciosDeEscrita(t);
-  if (restantes.length && chamar && usarIA && t.length <= limiteIA) {
+  // Até duas tentativas da IA; vale a que mantiver números e texto e tiver menos vícios.
+  for (let tentativa = 0; tentativa < 2 && restantes.length && chamar && usarIA && t.length <= limiteIA; tentativa++) {
     try {
       const r = await chamar([
         { role: 'system', content: [
@@ -124,7 +139,12 @@ export async function revisarEscrita(texto, { chamar = null, usarIA = true, limi
       const ficaram = [...antes].filter(w => depois.has(w)).length, mantidas = ficaram / Math.max(1, antes.size);
       // (em texto curto, trocar 3 ou 4 palavras de efeito já muda a proporção; vale até 4 palavras trocadas)
       if (novo && !faltaNumero && (mantidas >= 0.7 || (antes.size - ficaram <= 4 && mantidas >= 0.5)) && novo.length > t.length * 0.65 && novo.length < t.length * 1.2 && v.length < restantes.length) { t = novo; restantes = v; revisado = true; }
-    } catch { /* fica a versão limpa */ }
+    } catch { /* tenta de novo ou fica a versão limpa */ }
+  }
+  // Última garantia, sem IA: palavra de efeito que sobrou é trocada por uma palavra simples.
+  if (restantes.includes('palavra de efeito')) {
+    const trocado = trocarPalavrasDeEfeito(t);
+    if (trocado !== t) { t = trocado; restantes = viciosDeEscrita(t); }
   }
   return { texto: t, vicios, restantes, custo, economia, revisado };
 }

@@ -494,11 +494,20 @@ test('PowerPoint nativo: fundo como cor do slide, formas e linhas editáveis, im
   assert.match(s, /<p:pic>[^]*?r:embed="rId3"/);
   assert.ok(z.has('ppt/media/imagem1.png'));
   assert.ok(!z.has('ppt/media/fundo1.jpg'), 'sem imagem de fundo');
-  assert.match(s, /<a:spAutoFit\/>/, 'caixa de texto cresce com o texto');
+  assert.match(s, /wrap="none"[^>]*><a:noAutofit\/>/, 'linha única não cresce para os dois lados');
 });
 
 test('leitura separa palavra corrida colada pelo PDF ("cadaprocesso") quando as partes aparecem no documento', () => {
   const it = (s, y) => ({ s, x: 40, y, w: 300, tam: 14, fonte: 'Manrope', cor: '#222222' });
   const b = agrupar([it('O que perguntamos em cadaprocesso', 40), it('Cada etapa do processo tem um dono.', 100), it('Em cada reunião, o processo é revisto.', 160)]);
   assert.equal(b[0].texto, 'O que perguntamos em cada processo');
+});
+
+test('estrutura da agenda: horário fora da coluna de horário volta para a IA e, se continuar, o slide fica como antes', async () => {
+  const b = (id, texto, x, y, tam = 14) => ({ id, texto, x, y, tam, linhas: 1, largura: 60 });
+  const paginas = [{ blocos: [b('1.1', 'Quinta-feira, 22 de outubro', 40, 40, 30), b('1.2', '9h–10h', 40, 120), b('1.3', 'Kick-off', 200, 120), b('1.4', 'Sponsor', 500, 120)] }];
+  const base = { '1.1': 'Quinta-feira, 29 de outubro', '1.2': '14h–15h', '1.3': 'Kick-off', '1.4': 'Sponsor' };
+  const r = await adaptarModelo({ paginas, contexto: '', base, pedido: 'ajuste a agenda', hoje: new Date(2026, 9, 15),
+    chamar: async () => ({ texto: JSON.stringify({ '1.1': '[a definir]', '1.2': 'Almoço', '1.4': '10h30–12h' }) }) });
+  assert.equal(r.textos['1.2'], '14h–15h'); assert.equal(r.textos['1.4'], 'Sponsor'); assert.equal(r.textos['1.1'], 'Quinta-feira, 29 de outubro');
 });

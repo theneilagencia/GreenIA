@@ -393,7 +393,7 @@ export function agendasForaDoHorario(paginas, textos) {
 export function mensagensAgenda({ slides, textos, pedido, contexto, fora }) {
   const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => linhaDoBloco(b, p.blocos, textos[b.id] ?? b.texto)).join('\n')}`).join('\n\n');
   return [
-    { role: 'system', content: `${INSTRUCAO}\n\nNestes slides, a agenda tem horários fora do intervalo do dia que o próprio slide declara ou fora da ordem cronológica: ${fora.map(f => `slide ${f.numero} (${f.faixa}): ${f.linhas.join(', ')}`).join('; ')}. Ajuste horários e atividades para que a agenda caiba no intervalo, fique em ordem cronológica de cima para baixo e siga o pedido. Linha que sobrar: devolva "" no horário, na atividade, na descrição e em quem participa dessa linha. Responda só com os ids que mudam.` },
+    { role: 'system', content: `${INSTRUCAO}\n\nNestes slides, a agenda tem horários fora do intervalo do dia que o próprio slide declara, fora da ordem cronológica ou na coluna errada (horário só na coluna de horário; atividade e participantes nas suas colunas; título nunca "[a definir]"): ${fora.map(f => `slide ${f.numero} (${f.faixa}): ${f.linhas.join(', ')}`).join('; ')}. Ajuste horários e atividades para que a agenda caiba no intervalo, fique em ordem cronológica de cima para baixo e siga o pedido. Linha que sobrar: devolva "" no horário, na atividade, na descrição e em quem participa dessa linha. Responda só com os ids que mudam.` },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-20000)}\n</material>\n\nSlides (texto atual de cada bloco):\n\n${atual}` },
   ];
 }
@@ -576,6 +576,27 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
         }
       }
     } catch { /* fica a versão anterior */ }
+  }
+  // Estrutura das tabelas e agendas: horário só na coluna de horário (e nada de horário nas outras colunas), título
+  // nunca vira "[a definir]". Slide que viola volta para a IA uma vez; se continuar, fica a versão anterior.
+  const anterior = id => (base && base[id] !== undefined ? base[id] : original.get(id));
+  const ehHorario = t => CELULA.test(String(t || '')) || /^\s*\d{1,2}h(\d{2})?\s*$/.test(String(t || ''));
+  const violacoes = p => p.blocos.filter(b => {
+    const t = textos[b.id];
+    if (t === undefined || t === '') return false;
+    if (papelDoBloco(b, p.blocos) === 'título' && /^\s*\[a definir\]\s*$/i.test(t)) return true;
+    return ehHorario(b.texto) ? !ehHorario(t) && !/^\s*\[a definir\]\s*$/i.test(t) : ehHorario(t);
+  });
+  const ruins = paginas.map((p, k) => ({ p, k, v: violacoes(p) })).filter(x => x.v.length);
+  if (ruins.length) {
+    try {
+      const x = await chamar(mensagensAgenda({ slides: slides.filter(s => ruins.some(r => r.k + 1 === s.numero)), textos, pedido, contexto,
+        fora: ruins.map(r => ({ numero: r.k + 1, faixa: 'estrutura do modelo', linhas: r.v.map(b => `${textos[b.id]} (no lugar de "${b.texto}")`) })) }));
+      custo += x.custo || 0; economia += x.economia || 0;
+      const j = lerJson(x.texto) || {};
+      for (const r of ruins) for (const b of r.p.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+    } catch { /* fica a versão anterior abaixo */ }
+    for (const r of ruins) if (violacoes(r.p).length) for (const b of r.p.blocos) if (textos[b.id] !== undefined) textos[b.id] = anterior(b.id);
   }
   // Linha de tabela que sobrou: se a primeira célula (horário, item) ficou vazia, sai tudo o que está à direita dela
   // até a próxima célula da mesma coluna (a atividade e a descrição em letra menor, logo abaixo).

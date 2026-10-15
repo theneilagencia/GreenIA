@@ -583,6 +583,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
         if (C.pensando) { C.pensando = false; C.mensagens.push(resposta); }
         resposta.texto += ev.v;
       }
+      if (ev.t === 'substituir') resposta.texto = ev.v;   // versão final, depois da conferência de escrita
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
       if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, guardado: ev.guardado, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, qualidade: ev.qualidade, artefatos: ev.artefatos, arquivos: ev.arquivos, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
     }

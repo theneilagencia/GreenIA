@@ -7,7 +7,7 @@
 // A troca do conteúdo (adaptarModelo) mantém a estrutura de cada slide e só usa o que o material da conversa traz.
 import { comLeitorPdf, memoriaLivreMb } from './visual/chromium.js';
 import { pdfLeveSeparado } from './pdf-leve.js';
-import { REGRAS_DE_ESCRITA } from './escrita.js';
+import { REGRAS_DE_ESCRITA, limparVicios, viciosDeEscrita } from './escrita.js';
 
 export const MAX_PAGINAS_MODELO = 60;
 
@@ -200,7 +200,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       continue;
     }
     for (const id of ids) {
-      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); if (textos[id].length > limite(id) * 1.3) longos.push(id); }
+      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); textos[id] = limparVicios(textos[id]); if (textos[id].length > limite(id) * 1.3 || viciosDeEscrita(textos[id]).length || (!textos[id] && (original.get(id) || '').length > 40)) longos.push(id); }
       else faltando.push(id);
     }
     prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
@@ -214,20 +214,23 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     await Promise.all(Array.from({ length: Math.ceil(resto.length / (porParte * 2)) }, async (_, k) => {
       const parte = resto.slice(k * porParte * 2, (k + 1) * porParte * 2);
       try {
-        const aviso = longos.length ? '\n\nAtenção: cada texto precisa caber no espaço do bloco; respeite o máximo de caracteres indicado em cada um.' : '';
+        const aviso = longos.length ? '\n\nAtenção: cada texto precisa caber no espaço do bloco (respeite o máximo de caracteres indicado em cada um) e seguir as regras de escrita, sem os vícios de texto de IA. Parágrafo, descrição e título nunca ficam vazios.' : '';
         const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido: `${pedido || ''}${aviso}` }));
         custo += x.custo || 0; economia += x.economia || 0;
         const j = lerJson(x.texto);
         for (const s of parte) for (const b of s.blocos) {
           if (typeof j?.[b.id] !== 'string') continue;
-          const novo = j[b.id].replace(/\s+/g, ' ').trim();
-          if (textos[b.id] === undefined || novo.length < textos[b.id].length) textos[b.id] = novo;
+          const novo = limparVicios(j[b.id].replace(/\s+/g, ' ').trim()), antes = textos[b.id];
+          // Fica a versão nova quando não havia texto, quando é mais curta ou quando tem menos vícios.
+          if (antes === undefined || (!antes && novo) || (novo && novo.length < antes.length) || viciosDeEscrita(novo).length < viciosDeEscrita(antes).length) textos[b.id] = novo;
           falta.delete(b.id);
         }
       } catch { /* fica com o texto do modelo */ }
     }));
     faltando.splice(0, faltando.length, ...faltando.filter(id => falta.has(id) && textos[id] === undefined));
   }
+  // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.
+  for (const id of Object.keys(textos)) if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = original.get(id) ?? textos[id];
   for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
   return { textos, faltando, custo, economia };
 }

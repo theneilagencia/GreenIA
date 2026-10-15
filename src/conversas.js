@@ -5,7 +5,7 @@ import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, xlsx } from './escritorio.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
-import { REGRAS_DE_ESCRITA } from './escrita.js';
+import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
 import { adaptarModelo, lerModeloPdf } from './modelo-pdf.js';
 import { pptxDeModelo } from './escritorio.js';
 import { midiaDoPptx, previaDoPptx } from './previa-pptx.js';
@@ -1006,6 +1006,19 @@ export function rotasConversas(app, r) {
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
     };
+    // Conferência de escrita (vícios de texto de IA): limpeza sem custo e, se sobrar vício, revisão pela mesma rota.
+    let custoEscrita = 0, economiaEscrita = 0;
+    const conferirEscrita = async () => {
+      if (!resposta.trim()) return;
+      const r = await revisarEscrita(resposta, { chamar, usarIA: !reservaDoPlano });
+      custoEscrita += r.custo; economiaEscrita += r.economia;
+      if (r.vicios.length) registrar(app, 'ai.writing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, vicios: r.vicios, restantes: r.restantes, revisado: r.revisado });
+      const mudou = r.texto !== resposta;
+      resposta = r.texto;
+      return mudou;
+    };
+    // Conversa livre: o texto já foi mostrado ao vivo; se a conferência mudou algo, a versão final substitui.
+    if (!espec && await conferirEscrita()) linha({ t: 'substituir', v: resposta });
     if (espec) {
       linha({ t: 'etapa', v: 'Conferindo o resultado…' });
       // O bloco de dados para as integrações sai antes da conferência (não é parte do texto entregue).
@@ -1025,6 +1038,7 @@ export function rotasConversas(app, r) {
       const qc = await conferirComCorrecao({ espec: especQc, resposta, entrada: entradaQc, mensagens, chamar: chamarQc, usarIA: !reservaDoPlano, etapa: v => linha({ t: 'etapa', v }), fontes: fontesQc,
         pesquisa: pesquisa ? { disponivel: pesquisa.disponivel && !!notas, motivo: pesquisa.codigo || (!notas || !fontesWeb.length ? 'sem_fontes' : null), fontes: fontesWeb } : null });
       resposta = qc.texto; custoExtra = qc.custo; economiaExtra = qc.economia; registroQualidade = qc.registro;
+      await conferirEscrita();
       if (escolhaNaoPreparada) registroQualidade.escolha_repetir = true;
       if (escolhaInformada && espec && escolhaHumanaPrevista(espec)) registroQualidade.escolha_informada = true;
       // Fontes da execução: as que foram usadas, as que falharam e se mudaram desde a versão publicada em uso.
@@ -1113,6 +1127,7 @@ export function rotasConversas(app, r) {
       registrar(app, 'quickwin.choice_prepared', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, roteamento: rotaId, recuperacoes: preparacoesEscolha, preparada: !escolhaNaoPreparada });
     }
     const custoBase = fim?.custo || 0;
+    if (custoEscrita || economiaEscrita) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoEscrita, economia: (fim?.economia || 0) + economiaEscrita };
     if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra + custoColeta + custoVisual.plano_visual + custoVisual.imagem, economia: (fim?.economia || 0) + economiaExtra + economiaColeta };
     // Custo por etapa (só números): execução, conferência, pesquisa, plano visual e imagem. A composição e a
     // exportação rodam no servidor, sem custo de IA.

@@ -375,3 +375,46 @@ export const MIMES = {
 };
 // Nome do arquivo a partir do título (sem acento nem símbolo, para funcionar em qualquer sistema).
 export const nomeDoArquivo = (titulo, ext) => `${String(titulo || 'greenia').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'greenia'}.${ext}`;
+
+// ---------- PowerPoint a partir de um modelo (PDF lido por modelo-pdf.js) ----------
+// Um slide por página do modelo: o fundo da página (sem o texto) e uma caixa de texto editável por bloco, na mesma
+// posição, fonte, tamanho e cor. `textos` troca o texto de cada bloco (id -> texto novo); sem troca, fica o original.
+export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', agora } = {}) {
+  const PT = 12700;
+  const W = Math.round(paginas[0].w * PT), H = Math.round(paginas[0].h * PT);
+  const xmls = paginas.map((p, n) => {
+    const sx = W / (p.w * PT), sy = H / (p.h * PT);
+    const fundo = `<p:pic><p:nvPicPr><p:cNvPr id="2" name="Fundo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${W}" cy="${H}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+    const caixas = p.blocos.map((b, k) => {
+      const texto = textos[b.id] ?? b.texto;
+      const topo = (b.y - b.tam * 0.92) * PT * sy, esq = b.x * PT * sx;
+      const larg = Math.min(W - esq, (b.largura * (b.linhas > 1 ? 1.08 : 1.04) + b.tam * 0.6) * PT * sx);
+      const alt = ((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy;
+      const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras
+      const rpr = `<a:rPr lang="pt-BR" sz="${Math.round(b.tam * 100)}"${b.negrito ? ' b="1"' : ''}${spc} dirty="0"><a:solidFill><a:srgbClr val="${b.cor.slice(1)}"/></a:solidFill><a:latin typeface="${x(b.fonte)}"/><a:cs typeface="${x(b.fonte)}"/></a:rPr>`;
+      const lnSpc = b.linhas > 1 ? `<a:lnSpc><a:spcPts val="${Math.round(b.entrelinha * 100)}"/></a:lnSpc>` : '';
+      return `<p:sp><p:nvSpPr><p:cNvPr id="${k + 3}" name="Texto ${x(b.id)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${Math.round(esq)}" y="${Math.round(Math.max(0, topo))}"/><a:ext cx="${Math.round(larg)}" cy="${Math.round(alt)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="${b.linhas > 1 ? 'square' : 'none'}" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr>${lnSpc}</a:pPr><a:r>${rpr}<a:t>${x(texto)}</a:t></a:r></a:p></p:txBody></p:sp>`;
+    }).join('');
+    return `${XML}<p:sld ${P}><p:cSld><p:spTree>${ARVORE}${fundo}${caixas}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+  });
+  const apresentacao = `${XML}<p:presentation ${P} saveSubsetFonts="1"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${xmls.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 3}"/>`).join('')}</p:sldIdLst><p:sldSz cx="${W}" cy="${H}"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:lvl1pPr><a:defRPr lang="pt-BR"/></a:lvl1pPr></p:defaultTextStyle></p:presentation>`;
+  const fontes = [...new Set(paginas.flatMap(p => p.blocos.map(b => b.fonte)))];
+  const corTema = paginas.flatMap(p => p.blocos.map(b => b.cor)).find(c => c && !/^#(000000|FFFFFF)$/.test(c))?.slice(1) || VERDE_PADRAO;
+  return zipar([
+    { nome: '[Content_Types].xml', dados: tipos('<Default Extension="jpg" ContentType="image/jpeg"/>', [['/ppt/presentation.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'], ['/ppt/slideMasters/slideMaster1.xml', 'application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml'], ['/ppt/slideLayouts/slideLayout1.xml', 'application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml'], ['/ppt/theme/theme1.xml', 'application/vnd.openxmlformats-officedocument.theme+xml'], ['/ppt/presProps.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presProps+xml'], ['/ppt/viewProps.xml', 'application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml'], ['/ppt/tableStyles.xml', 'application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml'], ...xmls.map((_, i) => [`/ppt/slides/slide${i + 1}.xml`, 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'])]) },
+    { nome: '_rels/.rels', dados: relsRaiz('ppt/presentation.xml') },
+    { nome: 'ppt/presentation.xml', dados: apresentacao },
+    { nome: 'ppt/_rels/presentation.xml.rels', dados: rels([['rId1', 'slideMaster', 'slideMasters/slideMaster1.xml'], ['rId2', 'theme', 'theme/theme1.xml'], ...xmls.map((_, i) => [`rId${i + 3}`, 'slide', `slides/slide${i + 1}.xml`]), [`rId${xmls.length + 3}`, 'presProps', 'presProps.xml'], [`rId${xmls.length + 4}`, 'viewProps', 'viewProps.xml'], [`rId${xmls.length + 5}`, 'tableStyles', 'tableStyles.xml']]) },
+    { nome: 'ppt/presProps.xml', dados: `${XML}<p:presentationPr ${P}/>` },
+    { nome: 'ppt/viewProps.xml', dados: `${XML}<p:viewPr ${P}><p:normalViewPr><p:restoredLeft sz="15620"/><p:restoredTop sz="94660"/></p:normalViewPr><p:gridSpacing cx="76200" cy="76200"/></p:viewPr>` },
+    { nome: 'ppt/tableStyles.xml', dados: `${XML}<a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>` },
+    { nome: 'ppt/slideMasters/slideMaster1.xml', dados: MESTRE },
+    { nome: 'ppt/slideMasters/_rels/slideMaster1.xml.rels', dados: rels([['rId1', 'slideLayout', '../slideLayouts/slideLayout1.xml'], ['rId2', 'theme', '../theme/theme1.xml']]) },
+    { nome: 'ppt/slideLayouts/slideLayout1.xml', dados: LAYOUT },
+    { nome: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', dados: rels([['rId1', 'slideMaster', '../slideMasters/slideMaster1.xml']]) },
+    { nome: 'ppt/theme/theme1.xml', dados: TEMA(corTema, x(fontes[0] || 'Calibri')) },
+    ...xmls.flatMap((s, i) => [{ nome: `ppt/slides/slide${i + 1}.xml`, dados: s }, { nome: `ppt/slides/_rels/slide${i + 1}.xml.rels`, dados: rels([['rId1', 'slideLayout', '../slideLayouts/slideLayout1.xml'], ['rId2', 'image', `../media/fundo${i + 1}.jpg`]]) }, { nome: `ppt/media/fundo${i + 1}.jpg`, dados: paginas[i].fundo }]),
+    { nome: 'docProps/core.xml', dados: core(titulo, agora) },
+    { nome: 'docProps/app.xml', dados: app('GreenIA') },
+  ]);
+}

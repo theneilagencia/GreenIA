@@ -5,6 +5,8 @@ import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, xlsx } from './escritorio.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
+import { adaptarModelo, lerModeloPdf } from './modelo-pdf.js';
+import { pptxDeModelo } from './escritorio.js';
 import { assinaturaTeste } from './quickwin-teste.js';
 import { lerMaterialRefinamento } from './quickwin-refinamento.js';
 import { consolidarWal, exec, json, todos, um, transacao } from './db.js';
@@ -149,6 +151,18 @@ export function estiloDaConversa(app, conversaId, atuais = []) {
 }
 // "No mesmo layout / mesmas cores / mesma fonte / mesmo estilo / identidade do material".
 export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identidade|visual|formata[cç][aã]o|padr[aã]o|template|modelo)|seguindo (o|a) (layout|estilo|identidade|template|modelo)|no (layout|estilo|padr[aã]o) d[oa])/i;
+
+// "Monte a apresentação da Rafisa seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
+export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões|oes)|slides?|deck)\b/i.test(t)
+  && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
+const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'base64').subarray(0, 4).toString() === '%PDF';
+// Modelo: o PDF desta mensagem ou o último PDF guardado como modelo na conversa.
+export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = []) {
+  const k = brutos.findLastIndex(ehPdf);
+  if (k >= 0) return { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(brutos[k], 'base64'), texto: anexosAtuais[k]?.texto || '' };
+  const r = um(app.db, 'select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? order by a.id desc limit 1', conversaId);
+  return r ? { nome: r.nome, dados: Buffer.from(r.dados), texto: r.texto } : null;
+}
 
 export function pecaDaConversa(texto) {
   if (!PEDE_CRIAR.test(String(texto || ''))) return null;
@@ -343,6 +357,15 @@ export function rotasConversas(app, r) {
     if (!tabela) throw erro(404, 'tabela', 'Tabela não encontrada.');
     enviarOffice(res, 'xlsx', titulo, xlsx([{ linhas: tabela.map(l => tabela[0].map((_, k) => l[k] ?? '')) }], { titulo, cor }));
   });
+  // Arquivo gerado na conversa (apresentação no layout do modelo): só o dono da conversa.
+  r.get('/api/conversas/:id/arquivos/:arquivo', ({ pessoa, params, res }) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    const a = /^[1-9]\d*$/.test(params.arquivo) && um(app.db, 'select nome, mime, dados from arquivos_gerados where id = ? and conversa_id = ?', Number(params.arquivo), conv.id);
+    if (!a) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
+    const dados = Buffer.from(a.dados);
+    res.writeHead(200, { 'content-type': a.mime, 'content-length': dados.length, 'content-disposition': `attachment; filename="${nomeDoArquivo(a.nome.replace(/\.pptx$/i, ''), 'pptx')}"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+    res.end(dados);
+  });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/:formato', ({ pessoa, params, res }) => {
     if (!['docx', 'pptx', 'xlsx'].includes(params.formato)) throw erro(404, 'formato', 'Formato não disponível.');
     const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
@@ -482,6 +505,8 @@ export function rotasConversas(app, r) {
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
     const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
       .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
+    // Bytes originais (só para guardar um PDF como modelo de apresentação; não vão para a IA nem para o histórico).
+    const brutos = repeticao || regeracao ? [] : (corpo.anexos || []).map(a => a?.base64);
     // Links (fontes): os enviados no campo próprio e os colados na mensagem de um Quick Win são lidos pela rede
     // segura (só https público). O que não pôde ser lido entra como aviso explícito, nunca em silêncio.
     const links = repeticao || regeracao ? [] : linksDoEnvio(corpo, qw ? texto : '');
@@ -576,7 +601,8 @@ export function rotasConversas(app, r) {
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
-    const pecaChat = !qw ? pecaDaConversa(texto) : null;
+    const modeloApr = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t)) && PEDE_MODELO(texto) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
+    const pecaChat = !qw && !modeloApr ? pecaDaConversa(texto) : null;
     // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
@@ -584,7 +610,8 @@ export function rotasConversas(app, r) {
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
-      + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '');
+      + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '')
+      + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo).` : '');
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.
     // Mesma rota, mesmo recurso e mesmas regras nas duas etapas.
@@ -754,7 +781,11 @@ export function rotasConversas(app, r) {
     const naoGuardar = tipos.some(t => (cfg.naoArmazenar || []).includes(t));
     // Gerar de novo: o pedido já está guardado (com os anexos) e não é duplicado.
     const msgId = regeracao ? regeracao.pedido : Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', ?, ?)", conv.id, naoGuardar ? NAO_GUARDADO : texto, agora).lastInsertRowid);
-    if (!naoGuardar && !regeracao) for (const a of anexos) exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida, estilo) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null, a.estilo ? JSON.stringify(a.estilo) : null);
+    if (!naoGuardar && !regeracao) anexos.forEach((a, k) => {
+      const id = Number(exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida, estilo) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null, a.estilo ? JSON.stringify(a.estilo) : null).lastInsertRowid);
+      // PDF guardado como possível modelo de apresentação ("faça no mesmo layout"), com a mesma retenção da conversa.
+      if (ehPdf(brutos[k])) exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) values (?, ?, ?)', id, 'application/pdf', Buffer.from(brutos[k], 'base64'));
+    });
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
@@ -1020,6 +1051,23 @@ export function rotasConversas(app, r) {
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
       }
     }
+    // Apresentação no layout do modelo: leitura do PDF (sem IA), adaptação do texto pela IA (mesma rota) e o PPTX.
+    let gerado = null;
+    if (modeloApr) {
+      try {
+        linha({ t: 'etapa', v: 'Lendo o layout do modelo…' });
+        const paginas = await lerModeloPdf(modeloApr.dados);
+        const material = [...h.mensagens.map(x => `${x.role === 'user' ? 'Pessoa' : 'Assistente'}: ${typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')}`), `Assistente: ${resposta}`]
+          .join('\n\n').replace(modeloApr.texto, '[conteúdo do modelo]').slice(-60000);
+        const r = await adaptarModelo({ paginas, contexto: material, pedido: texto, chamar, etapa: v => linha({ t: 'etapa', v }) });
+        fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
+        const nome = `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
+        gerado = { nome, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
+      } catch (e) {
+        app.log?.('modelo de apresentação', erroParaLog(e));
+        aviso(app, conv.id, e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.` : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
+      }
+    }
     if (preparacoesEscolha) {
       fim = { ...(fim || {}), custo: Number(fim?.custo || 0) + custoPreparacaoEscolha, economia: Number(fim?.economia || 0) + economiaPreparacaoEscolha };
       registrar(app, 'quickwin.choice_prepared', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, roteamento: rotaId, recuperacoes: preparacoesEscolha, preparada: !escolhaNaoPreparada });
@@ -1049,6 +1097,12 @@ export function rotasConversas(app, r) {
     exec(app.db, 'update roteamento set resposta_id = ?, modelo_usado = ?, custo_real = ?, resultado = ?, ms_primeiro_token = ?, ms_total = ? where id = ?', respId, usado, fim?.custo || 0,
       usado === m.id || m.id === AUTO ? 'respondido' : 'respondido_pela_reserva', primeiroToken, ms, rotaId);
     const artefatos = visuais ? gravarVisuais(app, visuais, { pessoa, conv, qw, respId, rotaId }) : [];
+    const arquivos = [];
+    if (gerado) {
+      const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), AGORA(app)).lastInsertRowid);
+      arquivos.push({ id, nome: gerado.nome, bytes: gerado.dados.length, ...gerado.detalhes });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: 'modelo_pdf', ...gerado.detalhes });
+    }
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
     // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.
@@ -1068,7 +1122,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
-      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
+      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
     res.end();
   }
 }
@@ -1078,6 +1132,7 @@ export function detalhe(app, c, pessoa = null) {
   const anexos = todos(app.db, 'select mensagem_id, nome from anexos where conversa_id = ?', c.id);
   // Artefatos visuais de cada resposta (a versão atual de cada um): pertencem à execução e à conversa.
   const artefatos = todos(app.db, 'select * from artefatos_visuais where conversa_id = ? and atual = 1 order by id', c.id).map(a => resumoArtefato(app, a));
+  const arquivos = todos(app.db, 'select id, mensagem_id, nome, length(dados) bytes, detalhes from arquivos_gerados where conversa_id = ? order by id', c.id).map(a => ({ id: a.id, mensagem_id: a.mensagem_id, nome: a.nome, bytes: a.bytes, ...json(a.detalhes, {}) }));
   const expira = new Date(new Date(c.atualizado_em).getTime() + cfg.retencaoDias * 864e5).toISOString();
   const qualidadeAtual = valor => {
     const q = resumoQualidade({ ...json(valor, {}), quick_win: c.quick_win_id });
@@ -1100,6 +1155,7 @@ export function detalhe(app, c, pessoa = null) {
     mensagens: todos(app.db, 'select m.id, m.criado_em, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, coalesce(r.classe, md.perfil) as classe, r.modo as rota_modo, r.explicacao as rota_explicacao, r.politicas as rota_politicas, r.fallback as rota_fallback, r.sigilosa as rota_sigilosa, r.qualidade as rota_qualidade from mensagens m left join modelos md on md.id = m.modelo left join roteamento r on r.id = (select max(rr.id) from roteamento rr where rr.resposta_id = m.id and rr.conversa_id = m.conversa_id) where m.conversa_id = ? order by m.id', c.id)
       .map(({ rota_politicas, rota_fallback, rota_sigilosa, rota_qualidade, ...m }) => ({ ...m, fontes: json(m.fontes, []), ...(rota_qualidade ? { qualidade: qualidadeAtual(rota_qualidade) } : {}), anexos: anexos.filter(a => a.mensagem_id === m.id).map(a => a.nome),
         ...(artefatos.some(a => a.mensagem_id === m.id) ? { artefatos: artefatos.filter(a => a.mensagem_id === m.id) } : {}),
+        ...(arquivos.some(a => a.mensagem_id === m.id) ? { arquivos: arquivos.filter(a => a.mensagem_id === m.id) } : {}),
         // Quem não administra vê a explicação simples e não recebe o fornecedor técnico.
         rota_explicacao_simples: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null,
         ...(pessoa?.admin ? {} : { modelo: null, fornecedor: null, rota_explicacao: m.rota_modo ? explicarParaPessoa({ modo: m.rota_modo, classe: m.classe, politicas: json(rota_politicas, []), fallback: json(rota_fallback, null), sigilosa: !!rota_sigilosa }) : null }) })),

@@ -90,3 +90,39 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
   fila = tarefa.catch(() => {});
   return tarefa;
 }
+
+// Leitura de um PDF enviado (modelo de apresentação) com o pdf.js dentro do navegador isolado: a única página é a
+// da própria GreenIA (o leitor e o arquivo, servidos pela origem virtual); a rede continua bloqueada e o pdf.js roda
+// sem eval. O JavaScript fica ligado só nesta página, que não tem conteúdo de terceiros além dos bytes do PDF.
+const LEITOR_PDF = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'node_modules', 'unpdf', 'dist', 'pdfjs.mjs');
+export function comLeitorPdf(pdf, fn) {
+  const tarefa = fila.then(async () => {
+    const chromium = await playwright();
+    const exe = caminhoChromium();
+    if (!chromium || !exe) throw new Indisponivel('sem_chromium');
+    if (memoriaLivreMb() < MEMORIA_MIN_MB) throw new Indisponivel('memoria');
+    const tmp = process.env.TMPDIR || '/tmp';
+    const nav = await chromium.launch({ executablePath: exe, timeout: 30_000,
+      env: { ...process.env, HOME: process.env.DESIGN_HOME || tmp, XDG_CONFIG_HOME: `${tmp}/.config`, XDG_CACHE_HOME: `${tmp}/.cache` },
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
+        '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1'] });
+    try {
+      const ctx = await nav.newContext({ javaScriptEnabled: true, acceptDownloads: false, serviceWorkers: 'block' });
+      await ctx.route('**/*', rota => {
+        const u = rota.request().url();
+        if (u === `${ORIGEM}/leitor`) return rota.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><meta charset="utf-8"><body></body>',
+          headers: { 'content-security-policy': `default-src 'none'; script-src ${ORIGEM} 'unsafe-inline'; connect-src ${ORIGEM}; font-src data: blob:; img-src data: blob:` } });
+        if (u === `${ORIGEM}/pdfjs.mjs`) return rota.fulfill({ status: 200, contentType: 'text/javascript', body: readFileSync(LEITOR_PDF) });
+        if (u === `${ORIGEM}/arquivo.pdf`) return rota.fulfill({ status: 200, contentType: 'application/pdf', body: pdf });
+        return rota.abort('blockedbyclient');
+      });
+      const page = await ctx.newPage();
+      page.setDefaultTimeout(120_000);
+      await page.goto(`${ORIGEM}/leitor`, { waitUntil: 'load' });
+      return await fn(page);
+    } finally { await nav.close().catch(() => {}); }
+  });
+  fila = tarefa.catch(() => {});
+  return tarefa;
+}
+

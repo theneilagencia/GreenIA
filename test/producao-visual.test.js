@@ -413,11 +413,12 @@ test('conversa livre: "crie uma apresentação" gera a peça com design (mesmo m
   assert.doesNotMatch(sis(OR.chamadas.at(-1)), /Peças visuais/);
 });
 
-test('"no mesmo layout" do material enviado: a peça e o PowerPoint seguem as cores e a fonte do PDF', async () => {
-  const { pdfColorido } = await import('./estilo-arquivo.test.js');
+test('"no mesmo layout" do material enviado: a peça e o PowerPoint seguem as cores e a fonte do material', async () => {
   const { deszipar } = await import('./zip-leitor.js');
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
-  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Apresentacao-Kickoff.pdf', base64: pdfColorido().toString('base64') }] });
+  // Material em PPTX (o PDF vira modelo de layout exato, em modelo-pdf.test.js): estilo pelo tema do arquivo.
+  const { pptx } = await import('../src/escritorio.js');
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Apresentacao-Kickoff.pptx', base64: pptx('## Kickoff\n- Objetivo', { cor: '#C8102E', fonte: 'Montserrat' }).toString('base64') }] });
   const r = await enviarMensagem(ana, conv.id, { texto: 'quero uma versão pronta da apresentação, em PPTX, seguindo o mesmo layout (mesmas fontes e cores)' });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   const a = r.fim.artefatos?.[0];

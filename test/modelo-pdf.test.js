@@ -317,3 +317,24 @@ test('roteiro em texto com "Slide N" sem título e letras espaçadas vira slides
   assert.match(tudo, /A RAFISA quer fechar o mês com resultado confiável/);
   assert.match(tudo, /Cinco movimentos/);
 });
+
+test('adaptação confere os dados do pedido: data e horário que faltam voltam para a IA; dia da semana segue a data; linha de tabela sem horário sai', async () => {
+  const b = (id, texto, x, y) => ({ id, texto, x, y, tam: 14, linhas: 1, largura: 100 });
+  const paginas = [
+    { blocos: [b('1.1', 'Segunda-feira, 20 de outubro', 40, 60), b('1.2', '9h–10h', 40, 120), b('1.3', 'Boas-vindas', 160, 120), b('1.4', '10h–11h', 40, 160), b('1.5', 'Contexto e método', 160, 160)] },
+    { blocos: [b('2.1', 'Terça-feira, 21 de outubro', 40, 60), b('2.2', '9h–12h', 40, 120), b('2.3', 'Observação da operação', 160, 120)] },
+  ];
+  const pedidos = [];
+  const r = await adaptarModelo({ paginas, contexto: '', hoje: new Date(2026, 9, 15), pedido: 'Kick-off no 22/10 às 9h (1h). O segundo dia acontece no 23/10 de 9h a 12h.', chamar: async m => {
+    pedidos.push(m);
+    if (m[0].content.includes('não aparecem em nenhum slide')) return { texto: JSON.stringify({ '2.1': 'Segunda-feira, 23 de outubro', '2.2': '9h–12h' }) };
+    return { texto: JSON.stringify({ '1.1': 'Segunda-feira, 22 de outubro', '1.2': '9h–10h', '1.3': 'Kick-off', '1.4': '', '1.5': 'Contexto e método', '2.1': 'Segunda-feira, 22 de outubro', '2.2': '10h–17h', '2.3': 'Discovery presencial' }) };
+  } });
+  const conferencia = pedidos.find(m => m[0].content.includes('não aparecem em nenhum slide'));
+  assert.ok(conferencia, 'rodada de conferência pedida');
+  assert.match(conferencia[0].content, /23\/10; 12h/);
+  assert.equal(r.textos['1.1'], 'Quinta-feira, 22 de outubro');
+  assert.equal(r.textos['2.1'], 'Sexta-feira, 23 de outubro');
+  assert.equal(r.textos['1.5'], '', 'a linha cujo horário saiu sai inteira');
+  assert.deepEqual(r.fatos_faltando, []);
+});

@@ -458,7 +458,7 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const altura = e => ((quebra ? Math.max(b.linhas, Math.ceil(String(texto).length * letra * e / (largPt * 0.97))) : 1) - 1) * entre * e + b.tam * 1.2 * e;
       // Texto que quebra: a palavra mais longa precisa caber inteira na largura (sem cortar no meio).
       const palavraMaior = Math.max(...String(texto).split(/\s+/).map(w => w.length));
-      if (quebra && palavraMaior * letra * escala > largPt * 0.97) escala = Math.max(0.55, Math.floor(largPt * 0.97 / (palavraMaior * letra) * 100) / 100);
+      if (quebra && palavraMaior * letra * escala > largPt * 0.97) escala = Math.max(0.45, Math.floor(largPt * 0.97 / (palavraMaior * letra) * 100) / 100);
       while (escala > 0.55 && altura(escala) > Math.max(livre, b.tam * 1.2 * escala)) escala = Math.round((escala - 0.03) * 100) / 100;
       const alt = Math.max(((b.linhas - 1) * b.entrelinha + b.tam * 1.25) * PT * sy, altura(escala) * PT * sy);
       const spc = b.espacado ? ` spc="${Math.round(b.tam * 14)}"` : '';   // rótulo com espaçamento entre letras

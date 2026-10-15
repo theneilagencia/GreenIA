@@ -70,3 +70,14 @@ test('diferença só de espaço não muda o texto (sem substituição à toa)', 
   const t = 'Linha com espaço no fim. \n\nOutra linha.';
   assert.equal(limparVicios(t), t);
 });
+
+test('letras espaçadas voltam a ser palavras (com as palavras separadas) e o dia da semana segue a data', async () => {
+  const { juntarLetrasEspacadas, corrigirDiaDaSemana } = await import('../src/escrita.js');
+  assert.equal(juntarLetrasEspacadas('0 2  ·  S E Q U Ê N C I A  D O  P R O J E T O'), '02 · SEQUÊNCIA DO PROJETO');
+  assert.equal(juntarLetrasEspacadas('F i n a n c e i r o · P r o d u ç ã o'), 'Financeiro · Produção');
+  assert.equal(juntarLetrasEspacadas('Texto com a e o e itens A B'), 'Texto com a e o e itens A B');
+  const hoje = new Date(2026, 9, 15);
+  assert.equal(corrigirDiaDaSemana('Segunda-feira, 22 de outubro', { hoje }), 'Quinta-feira, 22 de outubro');
+  assert.equal(corrigirDiaDaSemana('terça (23/10) e SÁBADO, 24/10/2026', { hoje }), 'sexta (23/10) e SÁBADO, 24/10/2026');
+  assert.equal(corrigirDiaDaSemana('Quinta-feira, 22 de outubro', { hoje }), 'Quinta-feira, 22 de outubro');
+});

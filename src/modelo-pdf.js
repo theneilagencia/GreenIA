@@ -7,7 +7,7 @@
 // A troca do conteúdo (adaptarModelo) mantém a estrutura de cada slide e só usa o que o material da conversa traz.
 import { comLeitorPdf, memoriaLivreMb } from './visual/chromium.js';
 import { pdfLeveSeparado } from './pdf-leve.js';
-import { REGRAS_DE_ESCRITA, limparVicios, viciosDeEscrita } from './escrita.js';
+import { REGRAS_DE_ESCRITA, limparVicios, viciosDeEscrita, juntarLetrasEspacadas, corrigirDiaDaSemana } from './escrita.js';
 
 export const MAX_PAGINAS_MODELO = 60;
 
@@ -160,10 +160,40 @@ export function mensagensAdaptacao({ slides, contexto, pedido }) {
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${contexto}\n</material>\n\nApresentação modelo (blocos a adaptar):\n\n${modelo}` },
   ];
 }
+// Datas e horários escritos no pedido ("22/10 às 9h", "das 9h às 12h"): cada um precisa aparecer em algum slide.
+const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+export function fatosDoPedido(pedido) {
+  const t = String(pedido || ''), fatos = [], visto = new Set();
+  for (const m of t.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/g)) {
+    const d = Number(m[1]), me = Number(m[2]);
+    if (d < 1 || d > 31 || me < 1 || me > 12 || visto.has(`d${d}/${me}`)) continue;
+    visto.add(`d${d}/${me}`);
+    const mes = MES3[me - 1], D = `0?${d}`;
+    const res = [new RegExp(`(?<!\\d)${D}\\s*\\/\\s*0?${me}(?!\\d)`), new RegExp(`(?<!\\d)${D}\\s+(de\\s+)?${mes}`, 'i'),
+      new RegExp(`(?<!\\d)${D}\\s*(e|a|–|-)\\s*\\d{1,2}\\s*(\\/\\s*0?${me}|(de\\s+)?${mes})`, 'i'), new RegExp(`\\d{1,2}\\s*(e|a|–|-)\\s*${D}\\s*(\\/\\s*0?${me}|(de\\s+)?${mes})`, 'i')];
+    fatos.push({ texto: m[0], presente: x => res.some(r => r.test(x)) });
+  }
+  for (const m of t.matchAll(/\b(\d{1,2})(?:h(\d{2})?|:(\d{2}))(?![\w])/g)) {
+    const h = Number(m[1]), mi = m[2] || m[3] || '';
+    if (h > 23 || visto.has(`h${h}:${mi}`)) continue;
+    if (/(dura[cç][aã]o\s*(de\s*)?|\(\s*|durante\s*|por\s*)$/i.test(t.slice(Math.max(0, m.index - 14), m.index))) continue;   // duração ("1h"), não horário
+    visto.add(`h${h}:${mi}`);
+    const r = mi && mi !== '00' ? new RegExp(`(?<!\\d)0?${h}\\s*(h|:)\\s*${mi}`) : new RegExp(`(?<!\\d)0?${h}\\s*(h(?!\\d)|h00|:00|\\s*hora)`, 'i');
+    fatos.push({ texto: m[0], presente: x => r.test(x) });
+  }
+  return fatos;
+}
+export function mensagensFatos({ slides, textos, pedido, contexto, faltam }) {
+  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
+  return [
+    { role: 'system', content: `${INSTRUCAO}\n\nA apresentação abaixo já foi adaptada, mas estes dados do pedido da pessoa não aparecem em nenhum slide: ${faltam.join('; ')}. Ajuste os blocos necessários para que TODOS apareçam no lugar certo, coerentes com o resto (por exemplo: um slide de agenda que sobrou passa a tratar do outro dia; dois eventos do mesmo dia ficam no mesmo slide; o cronograma e a capa usam as mesmas datas). Responda só com os ids que mudam.` },
+    { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-30000)}\n</material>\n\nApresentação adaptada (texto atual de cada bloco):\n\n${atual}` },
+  ];
+}
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
-export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {} }) {
+export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date() }) {
   const textos = {}, faltando = [], longos = [];
   const original = new Map(paginas.flatMap(p => p.blocos.map(b => [b.id, b.texto])));
   const limite = id => LIMITE(original.get(id) || '');
@@ -201,7 +231,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       continue;
     }
     for (const id of ids) {
-      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); textos[id] = limparVicios(textos[id]); if (textos[id].length > limite(id) * 1.3 || viciosDeEscrita(textos[id]).length || (!textos[id] && (original.get(id) || '').length > 40)) longos.push(id); }
+      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = juntarLetrasEspacadas(textos[id]); textos[id] = limparVicios(textos[id]); if (textos[id].length > limite(id) * 1.3 || viciosDeEscrita(textos[id]).length || (!textos[id] && (original.get(id) || '').length > 40)) longos.push(id); }
       else faltando.push(id);
     }
     prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
@@ -221,7 +251,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
         const j = lerJson(x.texto);
         for (const s of parte) for (const b of s.blocos) {
           if (typeof j?.[b.id] !== 'string') continue;
-          const novo = limparVicios(j[b.id].replace(/\s+/g, ' ').trim()), antes = textos[b.id];
+          const novo = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim())), antes = textos[b.id];
           // Fica a versão nova quando não havia texto, quando é mais curta ou quando tem menos vícios.
           if (antes === undefined || (!antes && novo) || (novo && novo.length < antes.length) || viciosDeEscrita(novo).length < viciosDeEscrita(antes).length) textos[b.id] = novo;
           falta.delete(b.id);
@@ -235,8 +265,34 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     const mk = MARCADOR.exec(original.get(id) || '')?.[1];
     if (mk && t && !MARCADOR.test(t)) textos[id] = `${mk} ${t}`;
   }
+  // Dados do pedido (datas, horários) que não apareceram em nenhum slide: mais uma rodada com a apresentação inteira
+  // já adaptada, pedindo para encaixar o que falta (outro slide de agenda, dois eventos no mesmo slide…).
+  const todosOsTextos = () => paginas.flatMap(p => p.blocos.map(b => textos[b.id] ?? b.texto)).join('\n');
+  let faltam = fatosDoPedido(pedido).filter(f => !f.presente(todosOsTextos()));
+  if (faltam.length) {
+    etapa('Conferindo se todos os dados do pedido estão nos slides…');
+    try {
+      const x = await chamar(mensagensFatos({ slides, textos, pedido, contexto, faltam: faltam.map(f => f.texto) }));
+      custo += x.custo || 0; economia += x.economia || 0;
+      const j = lerJson(x.texto) || {};
+      for (const s of slides) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+      faltam = faltam.filter(f => !f.presente(todosOsTextos()));
+    } catch { /* fica a versão anterior */ }
+  }
+  // Linha de tabela que sobrou: se a primeira célula (horário, item) ficou vazia, a linha inteira sai.
+  for (const p of paginas) {
+    const linhas = [];
+    for (const b of p.blocos) { const l = linhas.find(l => Math.abs(l.y - b.y) < b.tam * 0.6); if (l) l.blocos.push(b); else linhas.push({ y: b.y, blocos: [b] }); }
+    for (const l of linhas) {
+      if (l.blocos.length < 2) continue;
+      const primeira = l.blocos.reduce((a, b) => (b.x < a.x ? b : a));
+      if (textos[primeira.id] === '') for (const b of l.blocos) if (textos[b.id] !== undefined || !fica(b)) textos[b.id] = '';
+    }
+  }
+  // Dia da semana que não bate com a data (o modelo dizia "segunda-feira" para outra data).
+  for (const id of Object.keys(textos)) textos[id] = corrigirDiaDaSemana(textos[id], { hoje });
   // Rótulo que voltou com letras separadas (efeito visual, não texto): fica o do modelo, que o PowerPoint espaça.
   for (const id of Object.keys(textos)) if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = original.get(id) ?? textos[id];
   for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
-  return { textos, faltando, custo, economia };
+  return { textos, faltando, custo, economia, fatos_faltando: faltam.map(f => f.texto) };
 }

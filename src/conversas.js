@@ -146,7 +146,7 @@ const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do
 // a apresentação" é análise, não pedido de peça. Imagem gerada por IA fica fora (decisão própria da empresa).
 const PEDE_CRIAR = /\b(cri[ae]|criar|fa[cç]a|fazer|monte|montar|gere|gerar|prepare|preparar|transform\w*|elabor\w*|desenvolv\w*|produz\w*|convert\w*|quero|preciso|refa[cç]a|vers[aã]o pronta)\b/i;
 // Para apresentação numa conversa com PDF modelo, mais verbos valem (adaptar, escrever, ajustar…).
-const PEDE_CRIAR_APR = /\b(adapt\w*|escrev\w*|redij\w*|redigir|constru\w*|ajust\w*|atualiz\w*|reescrev\w*|me (d[eê]|mande|envie))\b/i;
+const PEDE_CRIAR_APR = /\b(adapt\w*|escrev\w*|redij\w*|redigir|constru\w*|ajust\w*|atualiz\w*|reescrev\w*|refator\w*|refaz\w*|revis\w*|corrij\w*|corrig\w*|alter\w*|mud[ae]\w*|troqu\w*|troca\w*|inclu\w*|acrescent\w*|remov\w*|reorganiz\w*|considerando|me (d[eê]|mande|envie))\b/i;
 // Resposta em forma de roteiro de slides ("Slide 1", "## Slide 2: Contexto"…), com pelo menos três slides.
 // PDF de apresentação (primeira página na horizontal), não documento em pé.
 export const pdfPaisagem = b => { const m = /\/MediaBox\s*\[\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*\]/.exec(Buffer.from(b).toString('latin1')); return m ? (m[3] - m[1]) > (m[4] - m[2]) : true; };   // sem MediaBox legível (comprimido): vale
@@ -1125,6 +1125,8 @@ export function rotasConversas(app, r) {
         const r = await adaptarModelo({ paginas, contexto: material, pedido: texto, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
         const nome = `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
+        // Dado do pedido que nem a rodada de conferência conseguiu encaixar: a pessoa fica sabendo, em vez de descobrir no arquivo.
+        if (r.fatos_faltando?.length) aviso(app, conv.id, `Estes dados do pedido não entraram na apresentação: ${r.fatos_faltando.join(', ')}. Confira os slides de agenda e cronograma antes de usar.`);
         gerado = { nome, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));

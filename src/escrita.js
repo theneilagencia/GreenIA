@@ -38,8 +38,39 @@ export function semFechoServil(texto) {
 
 // "F i n a n c e i r o · P r o d u ç ã o" -> "Financeiro · Produção": letras separadas por espaço (efeito visual copiado
 // de um PDF) voltam a ser palavras. Grupos separados por dois espaços ou por pontuação continuam separados.
-export const juntarLetrasEspacadas = t => String(t || '').replace(/(?<![\p{L}\d])((?:[\p{L}\d] ){3,}[\p{L}\d])(?![\p{L}\d])/gu, m => m.replace(/ /g, ''))
-  .replace(/(?<![\p{L}\d])(\d) (\d)(?= +[·|•–—-] )/gu, '$1$2');   // "0 1 · CONTEXTO" -> "01 · CONTEXTO"
+export function juntarLetrasEspacadas(t) {
+  return String(t || '').split('\n').map(linha => {
+    // Trechos separados por dois espaços ou mais (ou por "·", "|"): cada trecho só de letras soltas vira uma palavra.
+    const partes = linha.split(/( *[·|•] *| {2,})/);
+    const soltas = x => /^(?:\S )+\S$/.test(x.trim()) && x.trim().split(' ').every(c => [...c].length === 1);
+    if (partes.filter((x, i) => i % 2 === 0 && x.trim()).length && partes.every((x, i) => i % 2 === 1 || !x.trim() || soltas(x) || x.trim().length === 1)
+      && partes.some((x, i) => i % 2 === 0 && soltas(x)))
+      return partes.map((x, i) => (i % 2 ? (/^ +$/.test(x) ? ' ' : ` ${x.trim()} `) : x.trim().replace(/ (?=\S)/g, ''))).join('').trim();
+    return linha.replace(/(?<![\p{L}\d])((?:[\p{L}\d] ){4,}[\p{L}\d])(?![\p{L}\d])/gu, m => m.replace(/ /g, ''))
+      .replace(/(?<![\p{L}\d])(\d) (\d)(?= +[·|•–—-] )/gu, '$1$2');   // "0 1 · CONTEXTO" -> "01 · CONTEXTO"
+  }).join('\n');
+}
+
+// Dia da semana que não bate com a data ("Segunda-feira, 22 de outubro" quando 22/10 é quinta): corrigido pela data.
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+const mesDe = n => { const k = MESES.findIndex(m => m.slice(0, 3) === String(n).toLowerCase().slice(0, 3).replace('mar', 'mar')); return k; };
+export function corrigirDiaDaSemana(texto, { hoje = new Date() } = {}) {
+  const re = /\b(domingo|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado)((?:-feira)?)(,?\s*(?:\(|dia\s+)?)(\d{1,2})(\s*(?:de\s+|\/\s*|\s)(\p{L}{3,9}|\d{1,2}))(?:(\s*(?:de\s+|\/)\s*)(\d{4}))?/giu;
+  return String(texto || '').replace(re, (tudo, dia, feira, meio, d, resto, mes, sepAno, ano) => {
+    const m = /^\d+$/.test(mes) ? Number(mes) - 1 : mesDe(mes);
+    if (m < 0 || m > 11 || Number(d) < 1 || Number(d) > 31) return tudo;
+    let a = ano ? Number(ano) : hoje.getFullYear();
+    if (!ano && new Date(a, m, Number(d)) < new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1)) a++;   // data já passada: ano que vem
+    const certo = DIAS[new Date(a, m, Number(d)).getDay()];
+    const atual = `${dia}${feira}`.toLowerCase().replace('terca', 'terça').replace('sabado', 'sábado');
+    if (certo.startsWith(atual.replace(/-feira$/, ''))) return tudo;
+    let novo = feira || certo === 'sábado' || certo === 'domingo' ? certo : certo.replace(/-feira$/, '');
+    if (/^\p{Lu}\p{Lu}/u.test(dia)) novo = novo.toUpperCase(); else if (/^\p{Lu}/u.test(dia)) novo = novo[0].toUpperCase() + novo.slice(1);
+    return `${novo}${meio}${d}${resto}${sepAno || ''}${ano || ''}`;
+  });
+}
+
 const maiuscula = t => t.replace(/^(\s*(?:[#>*-]+\s*|\d+[.)]\s*)?)(\p{Ll})/u, (_, a, b) => a + b.toUpperCase());
 // Limpeza sem IA, só do que é moldura ou muleta (não muda fatos): abertura servil, fecho oferecendo ajuda, emoji,
 // "É importante ressaltar que", "Vale destacar que", "Em resumo,".

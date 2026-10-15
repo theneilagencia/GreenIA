@@ -102,6 +102,10 @@ before(async () => {
       const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(m => m[1]);
       return JSON.stringify(Object.fromEntries(ids.map(id => [id, `Kickoff da Rafisa ${id}`])));
     }
+    if (sis.startsWith('Você corrige uma apresentação JÁ PRONTA')) {
+      const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(m => m[1]);
+      return JSON.stringify({ [ids[0]]: 'Kick-off em 29/10 às 9h' });
+    }
     // Pedido sem palavra de apresentação, respondido como roteiro de slides (como a IA às vezes faz).
     if (JSON.stringify(b.messages.at(-1)).includes('conteúdo completo para a Rafisa')) return 'Slide 1\nF i n a n c e i r o · P r o d u ç ã o\nKick-off Prumo Discovery / RAFISA\n---\nSlide 2\n0 1 · C O N T E X T O\nA RAFISA quer fechar o mês com resultado confiável\n---\nSlide 3\nCinco movimentos\n1 Entender\n2 Definir';
     return null;
@@ -424,4 +428,29 @@ test('número ao lado de texto na mesma linha ("19" + "OUT") é adaptado junto; 
   assert.match(pedido, /1\.1 \[271, 271\]/, 'o número junto do mês vai para a IA');
   assert.doesNotMatch(pedido, /1\.4 \[/, 'número de página não vai');
   assert.equal(r.textos['1.2'], '22–23 OUT');
+});
+
+test('correção pedida no chat edita a última versão da apresentação; "não aplicou o meu pedido" reaplica o pedido anterior', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-modelo.pdf', base64: pdfColorido().toString('base64') }] });
+  const r1 = await enviarMensagem(ana, conv.id, { texto: 'Monte a apresentação da Rafisa em PPTX.' });
+  assert.equal(r1.fim.arquivos?.[0]?.modelo, 'Kickoff-modelo.pdf');
+  const v1 = um(S.app.db, 'select textos from arquivos_gerados where conversa_id = ? order by id desc limit 1', conv.id);
+  assert.ok(v1?.textos, 'textos da versão guardados');
+  const antes = OR.chamadas.length;
+  const r2 = await enviarMensagem(ana, conv.id, { texto: 'Mude o kick-off para 29/10 às 9h.' });
+  assert.equal(r2.fim.arquivos?.[0]?.modelo, 'Kickoff-modelo.pdf', 'correção gera nova versão');
+  const edicao = OR.chamadas.slice(antes).find(b => JSON.stringify(b.messages[0]).includes('Você corrige uma apresentação JÁ PRONTA'));
+  assert.ok(edicao, 'a correção edita a versão atual');
+  assert.match(edicao.messages[1].content, /Kickoff da Rafisa/, 'a IA recebe o texto atual de cada bloco');
+  assert.ok(!OR.chamadas.slice(antes).some(b => JSON.stringify(b.messages[0]).includes(ADAPTA)), 'não refaz do zero');
+  const v2 = JSON.parse(um(S.app.db, 'select textos from arquivos_gerados where conversa_id = ? order by id desc limit 1', conv.id).textos);
+  assert.ok(Object.values(v2).includes('Kick-off em 29/10 às 9h'));
+  const antes3 = OR.chamadas.length;
+  const r3 = await enviarMensagem(ana, conv.id, { texto: 'você não aplicou o meu pedido' });
+  assert.ok(r3.fim.arquivos?.length, 'reclamação também gera nova versão');
+  const ed3 = OR.chamadas.slice(antes3).find(b => JSON.stringify(b.messages[0]).includes('Você corrige uma apresentação JÁ PRONTA'));
+  assert.match(ed3.messages[1].content, /Mude o kick-off para 29\/10 às 9h/, 'o pedido anterior vai junto');
+  const r4 = await enviarMensagem(ana, conv.id, { texto: 'Quais são os prazos da apresentação?' });
+  assert.equal(r4.fim.arquivos, undefined, 'pergunta não gera arquivo');
 });

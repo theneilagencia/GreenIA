@@ -148,6 +148,9 @@ const PEDE_CRIAR = /\b(cri[ae]|criar|fa[cç]a|fazer|monte|montar|gere|gerar|prep
 // Para apresentação numa conversa com PDF modelo, mais verbos valem (adaptar, escrever, ajustar…).
 const PEDE_CRIAR_APR = /\b(adapt\w*|escrev\w*|redij\w*|redigir|constru\w*|ajust\w*|atualiz\w*|reescrev\w*|refator\w*|refaz\w*|revis\w*|corrij\w*|corrig\w*|alter\w*|mud[ae]\w*|troqu\w*|troca\w*|inclu\w*|acrescent\w*|remov\w*|reorganiz\w*|considerando|me (d[eê]|mande|envie))\b/i;
 // Resposta em forma de roteiro de slides ("Slide 1", "## Slide 2: Contexto"…), com pelo menos três slides.
+// Pergunta sobre o material (não é pedido de mudança): termina com "?" ou começa com palavra de pergunta.
+export const ehPergunta = t => { const x = String(t || '').trim(); return /\?\s*$/.test(x) && !/\b(pode|poderia|consegue|da para|dá pra|d[aá] para)\b/i.test(x) || /^(o que|qual|quais|quem|quando|onde|por ?que|como funciona|explique|resuma|me explique)\b/i.test(x); };
+const PEDE_DO_ZERO = /\b(do zero|nova apresenta[cç][aã]o|outra apresenta[cç][aã]o|recome[cç]\w*)\b/i;
 // PDF de apresentação (primeira página na horizontal), não documento em pé.
 export const pdfPaisagem = b => { const m = /\/MediaBox\s*\[\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*\]/.exec(Buffer.from(b).toString('latin1')); return m ? (m[3] - m[1]) > (m[4] - m[2]) : true; };   // sem MediaBox legível (comprimido): vale
 export const ehRoteiroDeSlides = t => (String(t || '').match(/^\s*#{0,4}\s*\**\s*slide\s+\d+\b/gim) || []).length >= 3;
@@ -638,6 +641,11 @@ export function rotasConversas(app, r) {
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
     const podeModelo = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
     let modeloApr = podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
+    // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
+    // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
+    const deckAnterior = podeModelo ? um(app.db, "select id, textos, detalhes from arquivos_gerados where conversa_id = ? and detalhes like '%\"modelo\"%' order by id desc limit 1", conv.id) : null;
+    if (!modeloApr && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos);
+    const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) ? json(deckAnterior.textos, null) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
@@ -652,6 +660,7 @@ export function rotasConversas(app, r) {
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
+      + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')
       + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo).` : '');
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.
@@ -1122,12 +1131,15 @@ export function rotasConversas(app, r) {
         const material = [...h.mensagens.map(x => `${x.role === 'user' ? 'Pessoa' : 'Assistente'}: ${typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')}`), `Assistente: ${resposta}`]
           .join('\n\n').replace(modeloApr.texto, '[conteúdo do modelo]').slice(-60000);
         // Adaptação pelo nível mais forte permitido (o mesmo do design das peças: Avançado quando nada pede proteção extra).
-        const r = await adaptarModelo({ paginas, contexto: material, pedido: texto, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
+        // Correção: o pedido inclui os pedidos anteriores da pessoa desde a última versão ("não aplicou o meu pedido").
+        const pedidosAntes = deckAnterior ? todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user' and id < ? order by id desc limit 3", conv.id, msgId).map(x => x.texto).filter(x => x && x !== NAO_GUARDADO).reverse() : [];
+        const pedidoFinal = pedidosAntes.length ? `${texto}\n\nPedidos anteriores da pessoa nesta conversa (aplique os que ainda não estão na apresentação):\n${pedidosAntes.map(x => `- ${String(x).slice(0, 1500)}`).join('\n')}` : texto;
+        const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
         const nome = `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
         // Dado do pedido que nem a rodada de conferência conseguiu encaixar: a pessoa fica sabendo, em vez de descobrir no arquivo.
         if (r.fatos_faltando?.length) aviso(app, conv.id, `Estes dados do pedido não entraram na apresentação: ${r.fatos_faltando.join(', ')}. Confira os slides de agenda e cronograma antes de usar.`);
-        gerado = { nome, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
+        gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
         aviso(app, conv.id, e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
@@ -1167,7 +1179,7 @@ export function rotasConversas(app, r) {
     const artefatos = visuais ? gravarVisuais(app, visuais, { pessoa, conv, qw, respId, rotaId }) : [];
     const arquivos = [];
     if (gerado) {
-      const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), AGORA(app)).lastInsertRowid);
+      const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), gerado.textos ? JSON.stringify(gerado.textos) : null, AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome: gerado.nome, bytes: gerado.dados.length, ...gerado.detalhes });
       registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: 'modelo_pdf', ...gerado.detalhes });
     }

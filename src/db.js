@@ -113,7 +113,7 @@ create table if not exists anexos_arquivos (
 create table if not exists arquivos_gerados (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade,
   mensagem_id integer references mensagens(id) on delete cascade, nome text not null, mime text not null, dados blob not null,
-  detalhes text, criado_em text not null);
+  detalhes text, textos text, criado_em text not null);
 
 -- Medição manual dos quick wins (lançada pelo responsável) e decisões.
 create table if not exists medicoes (
@@ -427,6 +427,8 @@ create table if not exists arquivos_gerados (
   mensagem_id integer references mensagens(id) on delete cascade, nome text not null, mime text not null, dados blob not null,
   detalhes text, criado_em text not null);
 `,
+  // 22. Texto de cada bloco da apresentação gerada no layout do modelo: o pedido de correção seguinte edita essa versão.
+  db => { if (!db.prepare("select 1 from pragma_table_info('arquivos_gerados') where name = 'textos'").get()) db.exec('alter table arquivos_gerados add column textos text'); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

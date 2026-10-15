@@ -218,6 +218,13 @@ export function fatosDoPedido(pedido) {
     const r = mi && mi !== '00' ? new RegExp(`(?<!\\d)0?${h}\\s*(h|:)\\s*${mi}`) : new RegExp(`(?<!\\d)0?${h}\\s*(h(?!\\d)|h00|:00|\\s*hora)`, 'i');
     fatos.push({ texto: m[0], presente: x => r.test(x) });
   }
+  // Texto entre aspas no pedido ("troque o título para \"Plano de ação\"") precisa aparecer como foi pedido.
+  for (const m of t.matchAll(/["“]([^"”\n]{3,80})["”]/g)) {
+    const alvo = m[1].trim().toLowerCase();
+    if (visto.has(`q${alvo}`)) continue;
+    visto.add(`q${alvo}`);
+    fatos.push({ texto: `"${m[1].trim()}"`, presente: x => x.toLowerCase().includes(alvo) });
+  }
   return fatos;
 }
 export function mensagensFatos({ slides, textos, pedido, contexto, faltam }) {
@@ -289,11 +296,28 @@ export function mensagensAgenda({ slides, textos, pedido, contexto, fora }) {
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-20000)}\n</material>\n\nSlides (texto atual de cada bloco):\n\n${atual}` },
   ];
 }
+export function mensagensEdicao({ slides, textos, pedido, contexto }) {
+  const atual = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => `${b.id} [${Math.round(b.x ?? 0)}, ${Math.round(b.y ?? 0)}] (máx. ${LIMITE(b.texto)}): ${textos[b.id] ?? b.texto}`).join('\n')}`).join('\n\n');
+  return [
+    { role: 'system', content: [
+      'Você corrige uma apresentação JÁ PRONTA conforme o pedido de correção da pessoa. Cada bloco abaixo traz o texto atual.',
+      'Aplique TODAS as correções pedidas que tocam estes slides, e só elas: o que o pedido não menciona fica exatamente como está. Se o pedido muda um dado que aparece em vários blocos (data, horário, duração, nome, prazo, etapa), mude em todos eles, de forma coerente (agenda, cronograma, capa, rodapés).',
+      'Agenda: horários em ordem, dentro do intervalo do dia; linha que sobra volta "" em todas as células dela. Para tirar um item, devolva "" no bloco. Título, rótulo e parágrafo nunca ficam vazios.',
+      'Cada bloco vem com a posição [x, y] e o máximo de caracteres: mantenha cada texto na sua posição e função, cabendo no espaço.',
+      REGRAS_DE_ESCRITA,
+      'Responda só com um objeto JSON {"<id>": "<texto novo>"} com os ids que mudam. Se nada nestes slides precisa mudar, responda {}.',
+    ].join('\n') },
+    { role: 'user', content: `Pedido de correção: ${pedido}\n\n<material>\n${String(contexto || '').slice(-30000)}\n</material>\n\nApresentação atual (texto de cada bloco):\n\n${atual}` },
+  ];
+}
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
-export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date() }) {
+// Com base (os textos da versão já gerada), o pedido é tratado como CORREÇÃO dessa versão: a IA recebe o texto atual
+// de cada bloco e devolve só o que muda; o resto fica como estava. Sem base, adapta o modelo do zero.
+export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date(), base = null }) {
   const textos = {}, faltando = [], longos = [];
+  if (base) for (const p of paginas) for (const b of p.blocos) if (typeof base[b.id] === 'string') textos[b.id] = base[b.id];
   const original = new Map(paginas.flatMap(p => p.blocos.map(b => [b.id, b.texto])));
   const limite = id => LIMITE(original.get(id) || '');
   let custo = 0, economia = 0, prontas = 0;
@@ -313,9 +337,25 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   }) }));
   const partes = [];
   for (let i = 0; i < slides.length; i += porParte) partes.push(slides.slice(i, i + porParte).filter(s => s.blocos.length));
-  etapa(`Adaptando ${slides.length} slides ao novo projeto…`);
+  if (base) {
+    etapa('Aplicando as correções pedidas na apresentação…');
+    const grupos = [];
+    for (let i = 0; i < slides.length; i += porParte * 2) grupos.push(slides.slice(i, i + porParte * 2).filter(s => s.blocos.length));
+    await Promise.all(grupos.filter(g => g.length).map(async g => {
+      for (let tentativa = 0; tentativa < 2; tentativa++) {
+        try {
+          const x = await chamar(mensagensEdicao({ slides: g, textos, pedido, contexto }));
+          custo += x.custo || 0; economia += x.economia || 0;
+          const j = lerJson(x.texto);
+          if (!j) continue;
+          for (const s of g) for (const b of s.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+          return;
+        } catch { /* tenta de novo uma vez */ }
+      }
+    }));
+  } else etapa(`Adaptando ${slides.length} slides ao novo projeto…`);
   // Partes em paralelo (até 3 por vez): uma apresentação longa não deixa a pessoa esperando parte por parte.
-  const fila = partes.filter(p => p.length);
+  const fila = base ? [] : partes.filter(p => p.length);
   const trabalhar = async () => { for (let parte = fila.shift(); parte; parte = fila.shift()) {
     const ids = parte.flatMap(s => s.blocos.map(b => b.id));
     // A melhor resposta (mais ids) vale; menos de 80% dos ids pede de novo, uma vez.
@@ -341,7 +381,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   await Promise.all(Array.from({ length: Math.min(simultaneas, fila.length) }, trabalhar));
   // Blocos que a IA pulou: mais uma rodada só com eles (os slides vão com o texto já adaptado, para manter o sentido).
   // Texto bem mais longo que o espaço (passou 30% do máximo) também volta, pedindo para respeitar o limite.
-  if (faltando.length || longos.length) {
+  if (!base && (faltando.length || longos.length)) {
     const falta = new Set([...faltando, ...longos]);
     const resto = slides.map(s => ({ numero: s.numero, blocos: s.blocos.filter(b => falta.has(b.id)) })).filter(s => s.blocos.length);
     await Promise.all(Array.from({ length: Math.ceil(resto.length / (porParte * 2)) }, async (_, k) => {

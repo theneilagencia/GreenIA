@@ -49,7 +49,8 @@ export function limparVicios(texto) {
       .replace(/(^|[.!?]\s+|^\s*(?:[-*]|\d+[.)])\s+)(?:em resumo|em suma|resumindo),\s+/giu, '$1');
     return sem === l ? l : sem.replace(/(^|[.!?]\s+|^\s*(?:[-*]|\d+[.)])\s+)(\p{Ll})/gu, (_, a, b) => a + b.toUpperCase());
   }).join('\n');
-  return maiuscula(t).trim() === String(texto || '').trim() ? String(texto || '') : maiuscula(t).trimEnd();
+  const so = x => x.replace(/\s+/g, ' ').trim();   // diferença só de espaço não conta como mudança
+  return so(maiuscula(t)) === so(String(texto || '')) ? String(texto || '') : maiuscula(t).trimEnd();
 }
 
 const numeros = t => (String(t).match(/\d[\d.,/%:]*/g) || []).map(n => n.replace(/[.,:]$/, ''));

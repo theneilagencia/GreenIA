@@ -65,3 +65,8 @@ test('email redigido com "Fico à disposição" antes da assinatura não é víc
   assert.equal(r.revisado, false);
   assert.equal(r.texto, 'O plano é robusto e cobre as três frentes de custeio, apontamento e fechamento gerencial.');
 });
+
+test('diferença só de espaço não muda o texto (sem substituição à toa)', () => {
+  const t = 'Linha com espaço no fim. \n\nOutra linha.';
+  assert.equal(limparVicios(t), t);
+});

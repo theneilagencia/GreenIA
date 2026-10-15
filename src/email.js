@@ -1,6 +1,7 @@
 // Envio de email por SMTP genérico ou por API HTTPS (Resend, Brevo), para hospedagens que
 // bloqueiam SMTP de saída. Sem nada configurado, guarda em memória (testes e desenvolvimento)
 // e mostra no log.
+import { htmlDoEmail } from './email-layout.js';
 import nodemailer from 'nodemailer';
 
 // Aceita a senha (e o usuário) do endereço SMTP com qualquer caractere, codificados ou não:
@@ -17,14 +18,14 @@ export function normalizarSmtpUrl(url) {
 
 // Envio por API HTTPS: EMAIL_API=resend|brevo e EMAIL_API_CHAVE viram "resend://CHAVE" ou "brevo://CHAVE".
 const API = {
-  resend: (chave, de, para, assunto, texto) => ({ url: 'https://api.resend.com/emails', headers: { authorization: `Bearer ${chave}` }, corpo: { from: de, to: [para], subject: assunto, text: texto } }),
-  brevo: (chave, de, para, assunto, texto) => {
+  resend: (chave, de, para, assunto, texto, html) => ({ url: 'https://api.resend.com/emails', headers: { authorization: `Bearer ${chave}` }, corpo: { from: de, to: [para], subject: assunto, text: texto, html } }),
+  brevo: (chave, de, para, assunto, texto, html) => {
     const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(de) || [null, '', de];
-    return { url: 'https://api.brevo.com/v3/smtp/email', headers: { 'api-key': chave }, corpo: { sender: { name: m[1] || undefined, email: m[2].trim() }, to: [{ email: para }], subject: assunto, textContent: texto } };
+    return { url: 'https://api.brevo.com/v3/smtp/email', headers: { 'api-key': chave }, corpo: { sender: { name: m[1] || undefined, email: m[2].trim() }, to: [{ email: para }], subject: assunto, textContent: texto, htmlContent: html } };
   },
 };
-async function enviarPorApi(provedor, chave, de, para, assunto, texto, f) {
-  const p = API[provedor](chave, de, para, assunto, texto);
+async function enviarPorApi(provedor, chave, de, para, assunto, texto, html, f) {
+  const p = API[provedor](chave, de, para, assunto, texto, html);
   const r = await f(p.url, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', ...p.headers }, body: JSON.stringify(p.corpo) });
   const corpo = await r.text().catch(() => '');
   if (!r.ok) throw new Error(`${provedor} respondeu ${r.status}: ${corpo.replaceAll(chave, '[chave]').slice(0, 200)}`);
@@ -88,17 +89,19 @@ export function criarEmail({ lerSmtp, log = console.log, fetch: f = globalThis.f
     enviados,
     async enviar(para, assunto, texto) {
       const smtp = lerSmtp();
+      // Versão formatada (cartão da GreenIA) junto do texto puro: o cliente de email mostra a que souber exibir.
+      const html = htmlDoEmail({ assunto, texto });
       // Devolve { via, id }: por onde saiu e o identificador do provedor (aceitação do envio, não entrega na caixa).
-      if (!smtp.url) { enviados.push({ para, assunto, texto }); log(`[email simulado] ${para}: ${assunto}`); return { via: 'simulado', id: null }; }
+      if (!smtp.url) { enviados.push({ para, assunto, texto, html }); log(`[email simulado] ${para}: ${assunto}`); return { via: 'simulado', id: null }; }
       const de = smtp.remetente || 'GreenIA <nao-responda@localhost>';
       const api = /^(resend|brevo):\/\/(.+)$/i.exec(String(smtp.url).trim());
       if (api) {
-        const resposta = await enviarPorApi(api[1].toLowerCase(), api[2], de, para, assunto, texto, f);
+        const resposta = await enviarPorApi(api[1].toLowerCase(), api[2], de, para, assunto, texto, html, f);
         log(`[email] enviado para ${para} via ${api[1].toLowerCase()}: ${resposta.texto}`);
         return { via: api[1].toLowerCase(), id: resposta.id };
       }
       const url = normalizarSmtpUrl(smtp.url);
-      const r = await nodemailer.createTransport(transporteDe(url)).sendMail({ from: de, to: para, subject: assunto, text: texto });
+      const r = await nodemailer.createTransport(transporteDe(url)).sendMail({ from: de, to: para, subject: assunto, text: texto, html });
       // Registro do envio (sem assunto, que pode ter código): para conferir por qual servidor saiu.
       let servidor = '?'; try { servidor = new URL(url).host; } catch {}
       log(`[email] enviado para ${para} via ${servidor}: ${String(r?.response || '').slice(0, 120)}`);

@@ -118,7 +118,9 @@ test('envio por API HTTPS (Resend e Brevo), sem expor a chave em erro', async ()
   await e.enviar('a@b.com', 'Assunto', 'Texto');
   assert.equal(pedidos[0][0], 'https://api.resend.com/emails');
   assert.equal(pedidos[0][1].authorization, 'Bearer re_abc');
-  assert.deepEqual(pedidos[0][2], { from: 'GreenIA <noreply@empresa.com.br>', to: ['a@b.com'], subject: 'Assunto', text: 'Texto' });
+  const { html, ...semHtml } = pedidos[0][2];
+  assert.deepEqual(semHtml, { from: 'GreenIA <noreply@empresa.com.br>', to: ['a@b.com'], subject: 'Assunto', text: 'Texto' });
+  assert.match(html, /<h1[^>]*>Assunto<\/h1>/);   // versão formatada junto do texto
   assert.match(logs[0], /enviado para a@b.com via resend/);
   e = criarEmail({ lerSmtp: () => ({ url: 'brevo://xkeysib-1', remetente: 'GreenIA <noreply@empresa.com.br>' }), log: () => {}, fetch: f });
   await e.enviar('a@b.com', 'Assunto', 'Texto');

@@ -513,6 +513,30 @@ export function problemasDaPlanilha(dados, { max = 40 } = {}) {
     };
     for (const r of deps.keys()) if (!estado.has(r)) visitar(r, []);
     for (const r of emCiclo) out.push({ aba: a.nome, ref: r, problema: `referência circular: =${cel.get(r).formula} depende ${(deps.get(r) || []).includes(r) ? 'da própria célula' : 'de células que dependem dela'}` });
+    // Fórmula inconsistente (o aviso do Excel): na mesma linha, 3 ou mais colunas seguem um padrão relativo e uma ou
+    // duas fogem dele (QA em produção: B20:F20 =B18/B16 e G20 =G19/G17, descrita como "seguindo o padrão").
+    const linhas = new Map();
+    for (const [ref, c] of cel) {
+      if (c.formula == null || /#REF!/i.test(c.formula)) continue;
+      const [, col, lin] = /^([A-Z]+)(\d+)$/.exec(ref) || [];
+      if (!col) continue;
+      const cn = colNum(col), ln = Number(lin);
+      const rel = c.formula.replace(/"[^"]*"/g, '""').replace(/(?<![A-Za-z0-9_!])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-z_])/g, (_, d1, cc, d2, ll) => `${d1 ? cc : `C[${colNum(cc) - cn}]`}${d2 ? ll : `R[${Number(ll) - ln}]`}`);
+      if (!linhas.has(ln)) linhas.set(ln, []);
+      linhas.get(ln).push({ ref, cn, rel, formula: c.formula });
+    }
+    for (const lista of linhas.values()) {
+      if (lista.length < 4) continue;
+      const conta = new Map();
+      for (const x of lista) conta.set(x.rel, (conta.get(x.rel) || 0) + 1);
+      const [padrao, n] = [...conta].sort((x, y) => y[1] - x[1])[0];
+      if (n < 3 || lista.length - n > 2) continue;
+      const exemplo = lista.find(x => x.rel === padrao);
+      // Coluna de total na ponta da linha (=SUM(B11:G11)) não é desvio: soma a própria linha.
+      const ponta = x => x.cn === Math.max(...lista.map(y => y.cn)) || x.cn === Math.min(...lista.map(y => y.cn));
+      const somaDaLinha = x => /C\[-?\d+\]R\[0\]:C\[-?\d+\]R\[0\]/.test(x.rel);
+      for (const x of lista) if (x.rel !== padrao && !(ponta(x) && somaDaLinha(x))) out.push({ aba: a.nome, ref: x.ref, problema: `fórmula diferente das vizinhas na mesma linha: =${x.formula}, enquanto as outras seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use o mesmo padrão, salvo se a diferença for intencional e explicada.` });
+    }
   }
   return out.slice(0, max);
 }

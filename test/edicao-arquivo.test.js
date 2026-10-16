@@ -165,6 +165,14 @@ test('planilha: a conferência acha circular e #REF!; o que sobrou depois da edi
   assert.deepEqual(r.conferencia, { antes_da_edicao: 2, depois: 0 });
 });
 
+test('planilha: fórmula fora do padrão da linha é apontada; total na ponta da linha não', () => {
+  const linhas = [['Conta', 'Jan', 'Fev', 'Mar', 'Abr', 'Total'], ['Receita', '100', '120', '130', '90', '=SUM(B2:E2)'],
+    ['Impostos', '=B2*0.6', '=C2*0.6', '=D2*0.06', '=E2*0.6', '=SUM(B3:E3)'], ['Saldo', '=B2-B3', '=C2-C3', '=D2-D3', '=D2-E3', '=SUM(B4:E4)']];
+  const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
+  assert.deepEqual(p.map(x => x.ref).sort(), ['D3', 'E4']);
+  assert.match(p.find(x => x.ref === 'D3').problema, /diferente das vizinhas.*=D2\*0\.06.*padrão de B3 \(=B2\*0\.6\)/);
+});
+
 test('slide novo: cópia do layout de um slide, com textos novos, na posição pedida (resto intacto)', async () => {
   const orig = pptx('# Abertura\n\nTexto inicial\n\n# Escopo\n\n- Item A\n\n# Fim\n\nObrigado', { titulo: 'Deck' });
   const c = conteudoParaEdicao('pptx', orig), linhas = c.split('\n');

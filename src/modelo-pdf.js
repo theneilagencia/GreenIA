@@ -572,10 +572,66 @@ export function paginasDoPlano(paginas, plano) {
   });
 }
 
+/**
+ * Reestilo sem a IA reescrever: as frases do conteúdo de cada slide entram como estão nos blocos do layout. Título no
+ * bloco de título; os itens nos blocos de texto, na ordem de leitura (os que sobram vão juntos no último); rótulos,
+ * rodapés e blocos que sobram ficam vazios. QA em produção: ao encaixar o texto no layout, a IA reescrevia, inventava
+ * ("estação coleta temperatura, chuva e vento") e perdia itens (os preços dos planos).
+ */
+export function preencherReestilo(paginas, conteudos) {
+  const textos = {}, contador = /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/;
+  paginas.forEach((p, k) => {
+    const [titulo = '', ...itens] = String(conteudos[k] || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const tituloB = p.blocos.find(b => papelDoBloco(b, p.blocos) === 'título') || [...p.blocos].sort((a, b) => (b.tam || 0) - (a.tam || 0))[0];
+    // Subtítulo (texto menor logo abaixo do título): fica vazio, para o primeiro item não virar subtítulo.
+    const subtitulo = tituloB && p.blocos.find(b => b !== tituloB && b.y > tituloB.y && b.y - tituloB.y < (tituloB.tam || 20) * 1.8 && (b.tam || 0) < (tituloB.tam || 0) * 0.75);
+    const corpo = p.blocos.filter(b => b !== tituloB && b !== subtitulo && !contador.test(b.texto) && papelDoBloco(b, p.blocos) !== 'rótulo'
+      && b.y < p.h * 0.93 && (b.texto.length >= 12 || /\s/.test(b.texto.trim())))
+      .sort((a, b) => Math.abs(a.y - b.y) < (a.tam || 10) * 0.6 ? a.x - b.x : a.y - b.y);
+    for (const b of p.blocos) if (!contador.test(b.texto)) textos[b.id] = '';
+    if (tituloB) textos[tituloB.id] = titulo;
+    if (!corpo.length) { if (tituloB && itens.length) textos[tituloB.id] = [titulo, ...itens].join(' · '); return; }
+    // Itens repartidos por igual entre os blocos, na ordem; bloco que já desenha marcador não ganha outro "•".
+    // Marcador desenhado como forma pequena à esquerda do bloco (bolinha, quadradinho) também conta.
+    const caixas = (p.elementos || []).filter(e => e.t === 'forma' && Array.isArray(e.d)).map(e => { const xs = [], ys = []; for (const [, ...v] of e.d) for (let i = 0; i < v.length; i += 2) { xs.push(v[i]); ys.push(v[i + 1]); } return xs.length ? { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) } : null; }).filter(Boolean);
+    const desenhado = b => caixas.some(c => c.w < Math.min(p.w, p.h) * 0.03 && c.h < Math.min(p.w, p.h) * 0.03 && c.x < b.x && b.x - (c.x + c.w) < (b.tam || 12) * 2 && Math.abs(c.y + c.h / 2 - (b.y - (b.tam || 12) * 0.35)) < (b.tam || 12) * 0.7);
+    const marcado = b => !!b.marcador || /^\s*[•▪●\-–]\s/.test(b.texto) || desenhado(b);
+    const limpo = (b, l) => marcado(b) ? l.replace(/^\s*[•▪●\-–]\s*/, '') : l;
+    const m = Math.min(corpo.length, itens.length), grupos = Array.from({ length: m }, () => []);
+    itens.forEach((l, i) => grupos[Math.floor(i * m / itens.length)].push(l));
+    grupos.forEach((g, i) => { textos[corpo[i].id] = g.map(l => limpo(corpo[i], l)).join(g.length > 1 ? ' ' : ''); });
+  });
+  return textos;
+}
+
+async function reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes, pedido }) {
+  etapa('Montando os slides no design do modelo…');
+  const textos = preencherReestilo(paginas, conteudos);
+  let custo = 0, economia = 0;
+  // Conferência final de sentido (o conteúdo veio do plano): frase que afirma o que o material não diz sai.
+  if (fontes) {
+    etapa('Conferindo se cada frase vem do seu material…');
+    try {
+      const blocos = paginas.flatMap((p, k) => p.blocos.filter(b => textos[b.id] && papelDoBloco(b, p.blocos) !== 'título' && !/^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto)).map(b => `${b.id} (slide ${k + 1}): ${textos[b.id]}`));
+      if (blocos.length) {
+        const x = await chamar([
+          { role: 'system', content: 'Você confere uma apresentação contra o material de origem. Liste os blocos que afirmam algo que o material NÃO diz: número, resultado, promessa, conclusão, comparação ou fato novo. Frase que só resume ou repete o material está certa. Responda só JSON: {"remover": ["<id>", ...]}.' },
+          { role: 'user', content: `<material>\n${String(fontes).slice(0, 60000)}\n</material>\n\nPedido: ${pedido || ''}\n\nBlocos da apresentação:\n${blocos.join('\n')}` },
+        ]);
+        custo += x.custo || 0; economia += x.economia || 0;
+        const ids = new Set(paginas.flatMap(p => p.blocos.map(b => b.id)));
+        for (const id of lerJson(x.texto)?.remover || []) if (ids.has(String(id))) textos[String(id)] = '';
+      }
+    } catch { /* fica o conteúdo do plano, já conferido pelas regras */ }
+  }
+  return { textos, faltando: [], custo, economia, fatos_faltando: [] };
+}
+
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
 // Com base (os textos da versão já gerada), o pedido é tratado como CORREÇÃO dessa versão: a IA recebe o texto atual
 // de cada bloco e devolve só o que muda; o resto fica como estava. Sem base, adapta o modelo do zero.
 export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date(), base = null, conteudos = null, material: fontes = null }) {
+  if (conteudos) return reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes, pedido });
   const textos = {}, faltando = [], longos = [];
   if (base) for (const p of paginas) for (const b of p.blocos) if (typeof base[b.id] === 'string') textos[b.id] = base[b.id];
   const original = new Map(paginas.flatMap(p => p.blocos.map(b => [b.id, b.texto])));

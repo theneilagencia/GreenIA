@@ -62,19 +62,11 @@ test('preenchimento: só o conteúdo de cada slide; texto do modelo e número in
   assert.ok(!Object.values(r.textos).some(t => /7\.777|8\.800|Item do modelo|contato@modelo/.test(t)), JSON.stringify(r.textos));
 });
 
-test('número solto do modelo (célula de tabela) não fica; valor do conteúdo que ficou de fora volta numa correção', async () => {
+test('preenchimento sem reescrever: número solto do modelo não fica; todos os itens do conteúdo entram, como estão', async () => {
   const pag = [{ w: 792, h: 612, blocos: [bloco('1.1', 'Tabela do modelo', 80, 28), bloco('1.2', 'Linha do modelo', 140), { ...bloco('1.3', '250', 140), x: 400 }, bloco('1.4', 'Outra linha', 170)] }];
-  const conteudos = ['Planos\n• Essencial: R$ 38/ha/ano\n• Instalação: R$ 2.900'];
-  const vistas = [];
-  const chamar = async msgs => {
-    vistas.push(msgs[0].content.slice(0, 30));
-    if (/^Você coloca/.test(msgs[0].content)) return { texto: JSON.stringify({ '1.1': 'Planos', '1.2': '• Essencial: R$ 38/ha/ano', '1.3': '250', '1.4': '' }) };
-    assert.match(msgs[1].content, /inclua estes dados.*R\$ 2\.900/);
-    return { texto: JSON.stringify({ '1.4': '• Instalação: R$ 2.900' }) };
-  };
-  const r = await adaptarModelo({ paginas: paginasDoPlano(pag, [{ pagina: 0 }]), contexto: FONTE + '\nInstalação: R$ 2.900', pedido: 'design', chamar, conteudos });
-  assert.deepEqual(['1.1', '1.2', '1.3', '1.4'].map(id => r.textos[id]), ['Planos', '• Essencial: R$ 38/ha/ano', '', '• Instalação: R$ 2.900']);
-  assert.ok(vistas.some(v => /^Você corrige/.test(v)), JSON.stringify(vistas));
+  const conteudos = ['Planos\n• Essencial: R$ 38/ha/ano\n• Profissional: R$ 54/ha/ano\n• Instalação: R$ 2.900'];
+  const r = await adaptarModelo({ paginas: paginasDoPlano(pag, [{ pagina: 0 }]), contexto: FONTE, pedido: 'design', chamar: async () => { throw new Error('a IA não reescreve'); }, conteudos });
+  assert.deepEqual(['1.1', '1.2', '1.3', '1.4'].map(id => r.textos[id]), ['Planos', '• Essencial: R$ 38/ha/ano • Profissional: R$ 54/ha/ano', '', '• Instalação: R$ 2.900']);
 });
 
 test('arquivo: caixa desenhada em volta de um texto que saiu, e a seta entre caixas que saíram, saem juntas; a caixa com texto fica', async () => {

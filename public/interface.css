@@ -1464,17 +1464,42 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
    texto; o texto nunca encolhe, cresce até ~40% da tela e rola por dentro; "Expandir" dá mais espaço ao texto longo. */
 .app .caixa-chat textarea{flex:0 0 auto;padding-right:36px}
 .app .caixa-chat .anexos-pendentes{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px 2px 6px 0;scrollbar-width:thin}
-.app .caixa-chat .anexo-chip{position:relative;flex:0 0 176px;display:grid;grid-template-columns:1fr;gap:4px;margin:0;padding:8px 10px;border-radius:12px;white-space:nowrap;background:var(--surface);border:1px solid var(--line)}
-.app .caixa-chat .anexo-topo{display:flex;align-items:center;gap:6px;color:var(--muted);font:600 10.5px/1 var(--sans);letter-spacing:.04em}
-.app .caixa-chat .anexo-topo svg{width:14px;height:14px}
-.app .caixa-chat .anexo-nome{min-width:0;overflow:hidden;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font:500 12.5px/1.3 var(--sans);color:var(--ink)}
-.app .caixa-chat .papel-anexo{justify-self:start;max-width:100%;font-size:11.5px;padding:1px 2px;border-radius:6px;background:var(--paper)}
-.app .caixa-chat .anexo-chip>button{position:absolute;top:4px;right:4px;border:none;background:none;color:var(--muted);font-size:15px;line-height:1;width:24px;height:24px;border-radius:999px;cursor:pointer}
+.app .caixa-chat .anexo-chip{position:relative;flex:0 0 auto;width:236px;min-width:0;max-width:none;display:flex;align-items:center;gap:9px;margin:0;padding:7px 30px 7px 7px;border-radius:12px;white-space:nowrap;background:var(--surface);border:1px solid var(--line);box-sizing:border-box}
+.app .caixa-chat .anexo-icone{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:9px;background:var(--line);color:var(--paper)}
+.app .caixa-chat .anexo-icone svg{width:18px;height:18px}
+.app .caixa-chat .anexo-chip[data-tipo=pdf] .anexo-icone{background:#C2410C}
+.app .caixa-chat .anexo-chip[data-tipo=pptx] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=ppt] .anexo-icone{background:#B45309}
+.app .caixa-chat .anexo-chip[data-tipo=docx] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=doc] .anexo-icone{background:#1D4ED8}
+.app .caixa-chat .anexo-chip[data-tipo=xlsx] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=xls] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=csv] .anexo-icone{background:#15803D}
+.app .caixa-chat .anexo-chip[data-tipo=link] .anexo-icone{background:var(--forest-strong)}
+.app .caixa-chat .anexo-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.app .caixa-chat .anexo-nome{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.3 var(--sans);color:var(--ink)}
+.app .caixa-chat .anexo-meta{display:flex;align-items:center;gap:4px;min-width:0;color:var(--muted);font:500 11.5px/1.2 var(--sans)}
+.app .caixa-chat .anexo-tipo{flex:none;letter-spacing:.03em}
+.app .caixa-chat .anexo-tipo::after{content:"·";margin-left:4px}
+.app .caixa-chat .papel-anexo{min-width:0;max-width:100%;margin:0;padding:0 2px;border:none;border-radius:6px;background:transparent;color:var(--muted);font:500 11.5px/1.2 var(--sans);cursor:pointer}
+.app .caixa-chat .papel-anexo:hover,.app .caixa-chat .papel-anexo:focus-visible{background:var(--paper);color:var(--ink)}
+.app .caixa-chat .anexo-chip>button{position:absolute;top:50%;right:4px;transform:translateY(-50%);border:none;background:none;color:var(--muted);font-size:16px;line-height:1;width:26px;height:26px;border-radius:999px;cursor:pointer}
 .app .caixa-chat .anexo-chip>button:hover{background:var(--paper);color:var(--ink)}
 .app .caixa-chat .caixa-texto{position:relative}
 .app .caixa-chat .caixa-texto textarea{width:100%;box-sizing:border-box}
 .app .caixa-chat .caixa-expandir{position:absolute;top:2px;right:0;z-index:1;width:28px;height:28px;border:none;border-radius:8px;background:none;color:var(--muted);font-size:16px;cursor:pointer}
 .app .caixa-chat .caixa-expandir:hover{background:var(--surface);color:var(--ink)}
-@media (pointer:coarse){.app .caixa-chat .anexo-chip>button,.app .caixa-chat .caixa-expandir{width:40px;height:40px}.app .caixa-chat .anexo-chip>button{top:0;right:0}.app .caixa-chat .papel-anexo{min-height:32px}.app .caixa-chat .anexo-chip{flex-basis:160px}}
-@media (max-width:760px){.app .caixa-chat .papel-anexo{min-height:30px}.app .caixa-chat .anexo-chip{flex-basis:156px;padding:6px 8px}}
-.app .caixa-chat .anexo-topo,.app .caixa-chat .anexo-nome{padding-right:22px}
+/* Toque: alvos de 40px sem aumentar a ficha (o × ocupa a ponta direita inteira). */
+@media (pointer:coarse){.app .caixa-chat .anexo-chip{padding-right:40px}.app .caixa-chat .anexo-chip>button{right:0;width:40px;height:100%;border-radius:0 12px 12px 0}.app .caixa-chat .caixa-expandir{width:40px;height:40px}.app .caixa-chat .papel-anexo{min-height:24px}}
+@media (max-width:760px){.app .caixa-chat .anexo-chip{width:208px;padding-top:6px;padding-bottom:6px}.app .caixa-chat .anexo-icone{width:34px;height:34px}.app .caixa-chat .anexos-pendentes{margin:0 0 4px}}
+@media (max-width:760px){#inicio-atalhos.compondo{display:none}}
+/* Toque: o seletor do material mantém o alvo de 44 px, mas avança sobre a margem da ficha em vez de esticá-la. */
+@media (pointer:coarse),(max-width:760px){.app .caixa-chat .papel-anexo{min-height:44px;margin:-15px 0 -15px;position:relative}}
+/* Celular (referência: app do ChatGPT): na conversa vazia, a saudação fica no meio e a caixa de mensagem presa ao pé
+   da tela, perto do polegar e do teclado; as sugestões ficam logo acima da caixa, numa fileira que rola para o lado. */
+@media (max-width:760px){
+  .principal:has(.inicio-conversa) .mensagens{margin-top:auto;margin-bottom:auto}
+  .principal:has(.inicio-conversa) .compositor{margin-bottom:0}
+  .principal:has(.inicio-conversa) .compositor-dentro{display:flex;flex-direction:column}
+  .principal:has(.inicio-conversa) .inicio-atalhos{order:-1;align-items:stretch;gap:8px;margin:0 0 10px}
+  .principal:has(.inicio-conversa) .inicio-sugestoes,.principal:has(.inicio-conversa) .inicio-tarefas{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;max-width:100%;padding:2px 0}
+  .principal:has(.inicio-conversa) .inicio-sugestoes::-webkit-scrollbar,.principal:has(.inicio-conversa) .inicio-tarefas::-webkit-scrollbar{display:none}
+  .principal:has(.inicio-conversa) .chip-inicio{flex:none;white-space:nowrap}
+  .principal:has(.inicio-conversa) .inicio-tarefas-rotulo{flex:none}
+}

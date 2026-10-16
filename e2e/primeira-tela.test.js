@@ -48,14 +48,15 @@ async function pagina(email, { width = 1366, height = 860, esquema = 'light' } =
 }
 const semRolagemLateral = p => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 
-test('conversa vazia: saudação com o primeiro nome e a caixa no centro da página, sem os caminhos antigos', async () => {
+test('conversa vazia: saudação com o primeiro nome; caixa no centro no computador e no pé no celular (como o app do ChatGPT)', async () => {
   for (const [width, height] of [[1366, 860], [390, 844]]) {
     const p = await pagina('rafael@empresa-exemplo.com.br', { width, height });
     await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#saudacao'); await p.waitForTimeout(250);
     assert.equal(await p.locator('#saudacao').innerText(), 'Olá, Rafael. O que você precisa fazer?');
     assert.deepEqual(await p.locator('#principal h2').allInnerTexts(), ['Olá, Rafael. O que você precisa fazer?'], 'um título só na área');
     const m = await p.evaluate(() => { const c = document.querySelector('#caixa-chat').getBoundingClientRect(), s = document.querySelector('#saudacao').getBoundingClientRect(); return { centro: (c.top + c.height / 2) / innerHeight, saudacaoAcima: s.bottom <= c.top, h: innerHeight }; });
-    assert.ok(m.centro > 0.3 && m.centro < 0.7, `caixa na faixa do meio (${width}): ${JSON.stringify(m)}`);
+    if (width > 760) assert.ok(m.centro > 0.3 && m.centro < 0.7, `caixa na faixa do meio (${width}): ${JSON.stringify(m)}`);
+    else assert.ok(m.centro > 0.75, `caixa no pé da tela, perto do teclado (${width}): ${JSON.stringify(m)}`);
     assert.ok(m.saudacaoAcima, 'saudação logo acima da caixa');
     for (const texto of ['Como começar', 'Usar uma tarefa pronta', 'Fazer um pedido', 'Comece por aqui', 'Começar o guia', 'Ver exemplos de pedidos', 'Não dá para desligar depois'])
       assert.equal(await p.getByText(texto, { exact: true }).count(), 0, `sem "${texto}"`);
@@ -74,6 +75,11 @@ test('sugestões preenchem a caixa sem enviar; texto já escrito pede confirmaç
   const chips = p.locator('#sugestoes button');
   assert.deepEqual(await chips.allInnerTexts(), ['Resumir um documento', 'Escrever um email', 'Comparar dois arquivos', 'Organizar em tabela']);
   for (const b of await chips.all()) { const r = await b.boundingBox(); assert.ok(r.height >= 44, `toque de 44 px: ${JSON.stringify(r)}`); }
+  // No celular, com texto na caixa as sugestões saem (como no app do ChatGPT); voltam com a caixa vazia.
+  await p.fill('#entrada', 'Rascunho'); assert.equal(await p.locator('#sugestoes').isVisible(), false);
+  await p.fill('#entrada', ''); assert.equal(await p.locator('#sugestoes').isVisible(), true);
+  // Substituir o pedido pela sugestão: no computador, onde as sugestões continuam à vista com texto na caixa.
+  await p.setViewportSize({ width: 1366, height: 860 });
   const conversas = () => um(N.app.db, "select count(*) as n from conversas c join pessoas p on p.id = c.pessoa_id where p.email = 'rafael@empresa-exemplo.com.br'").n, antes = conversas();
   let escritas = 0; const contar = r => { if (r.method() !== 'GET') escritas++; }; p.on('request', contar);
   await chips.filter({ hasText: 'Escrever um email' }).click();

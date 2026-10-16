@@ -391,15 +391,25 @@ function substituirPedido() {
 // Conversa vazia começa no topo (saudação à vista); com mensagens, acompanha o fim.
 function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!C.mensagens.length && !C.pensando) msgs.scrollTop = 0; else if (C.noFim) msgs.scrollTop = msgs.scrollHeight; }
 // O texto cresce com o que é digitado até ~40% da tela (entre 120 e 320 px); passando disso, rola por dentro.
-function ajustarAltura() { const t = $('entrada'), max = Math.round(C.expandida ? innerHeight * 0.68 : Math.max(120, Math.min(320, innerHeight * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
-function atualizarEnviar() { $('enviar').disabled = C.enviando || (!$('entrada').value.trim() && !C.anexos.length); }
+// Altura da caixa: cresce com o texto até um limite e depois rola por dentro. No celular o limite é menor (a área
+// visível já divide espaço com o teclado), como no app do ChatGPT: cerca de 6 linhas; "Expandir" abre mais.
+function ajustarAltura() { const t = $('entrada'), vh = window.visualViewport?.height || innerHeight, celular = innerWidth <= 760, max = Math.round(C.expandida ? vh * (celular ? 0.5 : 0.68) : celular ? Math.max(96, Math.min(168, vh * 0.24)) : Math.max(120, Math.min(320, vh * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
+function atualizarEnviar() {
+  const vazio = !$('entrada').value.trim() && !C.anexos.length;
+  $('enviar').disabled = C.enviando || vazio;
+  // Celular (referência: ChatGPT): com texto ou anexo na caixa, as sugestões do início saem e o espaço fica para o pedido.
+  $('inicio-atalhos')?.classList.toggle('compondo', !vazio);
+}
 
 // Nome longo abreviado pelo meio: o fim (o que distingue arquivos parecidos e a extensão) continua visível.
 const nomeCurto = (n, max = 30) => { n = String(n || ''); if (n.length <= max) return n; const fim = Math.ceil(max * 0.55); return `${n.slice(0, max - fim - 1)}…${n.slice(-fim)}`; };
 function desenharAnexos() {
   // Papel do material (fontes): material da execução (padrão), só referência de estilo ou fonte principal.
   const papel = (a, i) => `<select class="papel-anexo" data-papel-anexo="${i}" aria-label="Como usar ${esc(a.nome)}">${[['', 'Material'], ['REFERENCE', 'Só referência'], ['REQUIRED_SOURCE', 'Fonte principal']].map(([v, r]) => `<option value="${v}" ${(a.papel || '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
-  $('anexos').innerHTML = C.anexos.map((a, i) => `<span class="anexo-chip" title="${esc(a.nome)}"><span class="anexo-topo">${a.link ? ICONE.link : ICONE.doc}<span class="anexo-tipo">${esc(a.link ? 'Link' : (String(a.nome).split('.').pop() || '').toUpperCase().slice(0, 5))}</span></span><span class="anexo-nome">${esc(nomeCurto(a.nome, 44))}</span>${papel(a, i)}<button type="button" data-tirar="${i}" aria-label="Tirar ${esc(a.nome)}">×</button></span>`).join('');
+  // Ficha compacta (referência: ChatGPT): ícone colorido pelo tipo, nome numa linha (abreviado pelo meio) e, abaixo,
+  // o tipo e o uso do material.
+  const tipo = a => a.link ? 'link' : (String(a.nome).split('.').pop() || '').toLowerCase().slice(0, 5);
+  $('anexos').innerHTML = C.anexos.map((a, i) => `<span class="anexo-chip" data-tipo="${esc(tipo(a))}" title="${esc(a.nome)}"><span class="anexo-icone" aria-hidden="true">${a.link ? ICONE.link : ICONE.doc}</span><span class="anexo-info"><span class="anexo-nome"><span aria-hidden="true">${esc(nomeCurto(a.nome, innerWidth <= 760 ? 15 : 19))}</span><span class="sr">${esc(a.nome)}</span></span><span class="anexo-meta"><span class="anexo-tipo">${esc(a.link ? 'Link' : tipo(a).toUpperCase())}</span>${papel(a, i)}</span></span><button type="button" data-tirar="${i}" aria-label="Tirar ${esc(a.nome)}">×</button></span>`).join('');
   $('anexos').querySelectorAll('[data-papel-anexo]').forEach(s => { s.onchange = () => { C.anexos[Number(s.dataset.papelAnexo)].papel = s.value || undefined; }; });
   $('anexos').querySelectorAll('[data-tirar]').forEach(b => { b.onclick = () => { C.anexos.splice(Number(b.dataset.tirar), 1); desenharAnexos(); atualizarEnviar(); }; });
 }

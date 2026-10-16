@@ -240,7 +240,7 @@ function aplicarPptx(m, pacote, ops, contexto) {
   const ignoradas = [];
   const porSlide = new Map();
   for (const o of ops) {
-    if (o.op === 'remover_slide' || o.op === 'mover_slide') continue;
+    if (o.op === 'remover_slide' || o.op === 'mover_slide' || o.op === 'novo_slide') continue;
     const x = /^s(\d+)\.p(\d+)$/.exec(String(o.id || '').replace(/^\[|\]$/g, ''));
     if (!x || !slides[Number(x[1]) - 1]) { ignoradas.push({ ...o, motivo: 'trecho_nao_encontrado' }); continue; }
     const n = Number(x[1]);
@@ -256,6 +256,35 @@ function aplicarPptx(m, pacote, ops, contexto) {
   }
   // Ordem e remoção de slides: na lista de slides da apresentação (presentation.xml), pela numeração ORIGINAL.
   let ordem = slides.map((s, i) => ({ ...s, n: i + 1 }));
+  // Slide novo: cópia de um slide existente (mesmo layout, fundo, imagens e estilos), com os textos trocados, logo
+  // depois do slide indicado (numeração ORIGINAL). Entra na lista e nas relações da apresentação.
+  let novos = false;
+  for (const o of ops.filter(o => o.op === 'novo_slide')) {
+    const base = slides[Number(o.copiar_de) - 1], depois = Number(o.depois_de ?? o.copiar_de);
+    if (!base || !ordem.some(x => x.n === depois)) { ignoradas.push({ ...o, motivo: 'slide_nao_encontrado' }); continue; }
+    const textos = o.textos && typeof o.textos === 'object' ? o.textos : {};
+    const lista = Object.entries(textos).map(([id, t]) => ({ op: 'trocar', id: String(id).replace(/^\[|\]$/g, '').replace(/^s\d+\./, ''), texto: String(t ?? '') }));
+    const r = aplicarNaParte(texto(m, base.parte), 'a', lista, k => `p${k}`, contexto);
+    if (r.ignoradas.length) { ignoradas.push({ ...o, motivo: r.ignoradas[0].motivo }); continue; }
+    const usados = pacote.map(e => Number(/^ppt\/slides\/slide(\d+)\.xml$/.exec(e.nome)?.[1] || 0));
+    const num = Math.max(0, ...usados) + 1, parte = `ppt/slides/slide${num}.xml`;
+    pacote.push({ nome: parte, dados: Buffer.from(r.xml, 'utf8') });
+    const relsBase = texto(m, relsDe(base.parte));
+    if (relsBase) pacote.push({ nome: relsDe(parte), dados: Buffer.from(relsBase.replace(/<Relationship\b[^>]*\/notesSlide"[^>]*\/>/g, ''), 'utf8') });
+    m.set(parte, pacote.at(relsBase ? -2 : -1)); if (relsBase) m.set(relsDe(parte), pacote.at(-1));
+    let tipos = texto(m, '[Content_Types].xml');
+    tipos = tipos.replace('</Types>', `<Override PartName="/${parte}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
+    gravar(m, '[Content_Types].xml', tipos);
+    let prels = texto(m, 'ppt/_rels/presentation.xml.rels');
+    const rid = `rIdGreenIA${num}`;
+    prels = prels.replace('</Relationships>', `<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${num}.xml"/></Relationships>`);
+    gravar(m, 'ppt/_rels/presentation.xml.rels', prels);
+    const ids = [...texto(m, 'ppt/presentation.xml').matchAll(/<p:sldId\b[^>]*\bid="(\d+)"/g)].map(x => Number(x[1]));
+    const maior = Math.max(255, ...ids, ...ordem.map(x => Number(/\bid="(\d+)"/.exec(x.tag)?.[1] || 0)));
+    const i = ordem.findIndex(x => x.n === depois);
+    ordem.splice(i + 1, 0, { tag: `<p:sldId id="${maior + 1}" r:id="${rid}"/>`, rid, parte, n: `novo${num}` });
+    novos = true; feitas++;
+  }
   for (const o of ops.filter(o => o.op === 'mover_slide')) {
     const i = ordem.findIndex(s => s.n === Number(o.slide)), destino = Math.min(Math.max(1, Number(o.posicao) || 0), ordem.length) - 1;
     if (i < 0 || !Number.isFinite(destino)) { ignoradas.push({ ...o, motivo: 'slide_nao_encontrado' }); continue; }
@@ -264,7 +293,7 @@ function aplicarPptx(m, pacote, ops, contexto) {
   const removidos = new Set(ops.filter(o => o.op === 'remover_slide').map(o => Number(o.slide)).filter(n => ordem.some(s => s.n === n)));
   for (const o of ops.filter(o => o.op === 'remover_slide' && !removidos.has(Number(o.slide)))) ignoradas.push({ ...o, motivo: 'slide_nao_encontrado' });
   if (removidos.size >= ordem.length) { ignoradas.push({ op: 'remover_slide', motivo: 'apresentacao_ficaria_vazia' }); removidos.clear(); }
-  if (removidos.size || ops.some(o => o.op === 'mover_slide')) {
+  if (removidos.size || novos || ops.some(o => o.op === 'mover_slide')) {
     let pres = texto(m, 'ppt/presentation.xml');
     const lista = ordem.filter(s => !removidos.has(s.n)).map(s => s.tag).join('');
     pres = pres.replace(/(<p:sldIdLst>)[\s\S]*?(<\/p:sldIdLst>)/, `$1${lista}$2`);
@@ -525,7 +554,7 @@ export function pedeEdicaoNoArquivo(textoPedido, { temAnexoAgora = false } = {})
   return temAnexoAgora || CITA_PARTE.test(t);
 }
 
-export const NOTA_EDICAO = (nome, tipo) => `\nA pessoa quer os ajustes no próprio arquivo "${nome}" (${tipo.toUpperCase()}), sem refazer o layout. Depois desta resposta, a GreenIA aplica as alterações direto nesse arquivo original, preservando tema, estilos, imagens${tipo === 'xlsx' ? ', abas, formatação e fórmulas' : ' e formatação'}, e entrega o arquivo ajustado para baixar. Nesta resposta: diga em uma frase o que entendeu; liste objetivamente cada alteração (onde, antes → depois)${tipo === 'xlsx' ? ', com a célula e a fórmula corrigida em inglês (ex.: =SUM(B2:B6)) e o motivo' : ''}; não reescreva o arquivo inteiro, não gere outro documento e não peça para a pessoa aplicar as mudanças à mão. Não altere nada que não foi pedido (ou, numa correção, nada que não esteja comprovadamente errado). Corrigir ortografia ou revisar o texto não autoriza mudar nomes, e-mails, telefones, links, datas, números ou valores: esses só mudam quando a pessoa pede, mesmo que pareçam fictícios ou de exemplo.`;
+export const NOTA_EDICAO = (nome, tipo) => `\nA pessoa quer os ajustes no próprio arquivo "${nome}" (${tipo.toUpperCase()}), sem refazer o layout. Depois desta resposta, a GreenIA aplica as alterações direto nesse arquivo original, preservando tema, estilos, imagens${tipo === 'xlsx' ? ', abas, formatação e fórmulas' : ' e formatação'}, e, se der certo, mostra o arquivo ajustado logo abaixo da resposta. Não diga que o arquivo está pronto ou disponível (isso só se sabe depois). Para incluir conteúdo novo, a GreenIA pode criar slides copiando o layout de um slide existente; refazer o design inteiro não é feito nesta edição, e, se pedido, diga isso com clareza. Nesta resposta: diga em uma frase o que entendeu; liste objetivamente cada alteração (onde, antes → depois)${tipo === 'xlsx' ? ', com a célula e a fórmula corrigida em inglês (ex.: =SUM(B2:B6)) e o motivo' : ''}; não reescreva o arquivo inteiro, não gere outro documento e não peça para a pessoa aplicar as mudanças à mão. Não altere nada que não foi pedido (ou, numa correção, nada que não esteja comprovadamente errado). Corrigir ortografia ou revisar o texto não autoriza mudar nomes, e-mails, telefones, links, datas, números ou valores: esses só mudam quando a pessoa pede, mesmo que pareçam fictícios ou de exemplo.`;
 
 export function mensagensDeEdicao({ tipo, nome, conteudo, pedido, resposta }) {
   const regras = tipo === 'xlsx'
@@ -538,7 +567,8 @@ Não insira nem apague linhas ou colunas (as referências das outras fórmulas q
 - {"op":"trocar","id":"${tipo === 'pptx' ? 's1.p0' : 'p3'}","texto":"<o parágrafo inteiro, já corrigido>"};
 - {"op":"inserir_depois","id":"${tipo === 'pptx' ? 's2.p4' : 'p8'}","texto":"<parágrafo novo>"} — entra com o mesmo estilo do parágrafo indicado; várias linhas viram vários parágrafos;
 - {"op":"remover","id":"${tipo === 'pptx' ? 's2.p5' : 'p9'}"}${tipo === 'pptx' ? `;
-- {"op":"remover_slide","slide":4} e {"op":"mover_slide","slide":5,"posicao":2} — numeração ORIGINAL dos slides. Para juntar dois slides, leve o texto do segundo para o primeiro (trocar/inserir_depois) e remova o segundo.` : ''}
+- {"op":"remover_slide","slide":4} e {"op":"mover_slide","slide":5,"posicao":2} — numeração ORIGINAL dos slides. Para juntar dois slides, leve o texto do segundo para o primeiro (trocar/inserir_depois) e remova o segundo;
+- {"op":"novo_slide","copiar_de":3,"depois_de":9,"textos":{"s3.p1":"Título novo","s3.p2":"Texto novo"}} — cria um slide copiando o layout do slide 3 (mesmo fundo, imagens e estilos), com os textos trocados pelos identificadores DESSE slide, e o coloca logo depois do slide 9. Use para incluir conteúdo novo (por exemplo, um slide de evidências) no mesmo visual da apresentação.` : ''}
 Os identificadores são exatamente os que aparecem entre colchetes no conteúdo (por exemplo, [s5.p3] → "s5.p3"). Para levar vários parágrafos para depois do mesmo ponto, use um único inserir_depois com as linhas separadas por \\n. O texto vai sem Markdown (sem **, #), exatamente como deve aparecer no arquivo; mantenha marcadores digitados no próprio texto (como "• ") quando o parágrafo original os tem.`;
   return [
     { role: 'system', content: `Você aplica ajustes num arquivo ${tipo.toUpperCase()} existente sem refazer o layout. Recebe o pedido da pessoa, a resposta que ela recebeu (com as alterações combinadas) e o conteúdo atual do arquivo, com um identificador entre colchetes${tipo === 'xlsx' ? ' (as células aparecem como REF: valor, ou REF: =fórmula [valor calculado])' : ''}. Devolva SOMENTE um JSON: {"operacoes":[...]}.

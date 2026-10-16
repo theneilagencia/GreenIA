@@ -179,7 +179,7 @@ export function estiloDaConversa(app, conversaId, atuais = []) {
   return json(um(app.db, 'select estilo from anexos where conversa_id = ? and estilo is not null order by id desc limit 1', conversaId)?.estilo, null);
 }
 // "No mesmo layout / mesmas cores / mesma fonte / mesmo estilo / identidade do material".
-export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identidade|visual|formata[cç][aã]o|padr[aã]o|template|modelo)|seguindo (o|a) (layout|estilo|identidade|template|modelo)|no (layout|estilo|padr[aã]o) d[oa])/i;
+export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identidade|visual|formata[cç][aã]o|padr[aã]o|template|modelo)|seguindo (o|a) (layout|estilo|identidade|template|modelo)|no (layout|estilo|padr[aã]o) d[oa]|(design|layout|visual|estilo)[^.\n]{0,40}(pr[oó]xim[oa]|parecid[oa]|igual|semelhante)[^.\n]{0,30}(com|d[aeo]|a|ao)\b)/i;
 
 // "Monte a apresentação do novo cliente seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
 export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões|oes)|slides?|deck)\b/i.test(t)
@@ -218,6 +218,11 @@ export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], bru
   if (!tipo || !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido })) return null;
   return tipo ? { nome: r.nome, tipo, dados: Buffer.from(r.dados), origem: r === ajustado ? 'versao' : 'anexo' } : null;
 }
+
+// Frases que dizem que o arquivo está pronto ou disponível para baixar (removidas quando o arquivo não saiu).
+export const semPromessaDeArquivo = t => String(t || '').split('\n')
+  .map(l => l.replace(/[^.!\n]*\b(arquivo|apresenta[cç][aã]o|planilha|documento|pptx|docx|xlsx|vers[aã]o)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel|segue|est[aá])\b[^.!\n]*\b(download|baixar|abaixo)\b[^.!\n]*[.!]?/gi, '').trimEnd())
+  .filter((l, i, a) => l.trim() || (a[i - 1] || '').trim()).join('\n');
 
 export function pecaDaConversa(texto) {
   if (!PEDE_CRIAR.test(String(texto || ''))) return null;
@@ -775,6 +780,9 @@ export function rotasConversas(app, r) {
     // Ajuste no próprio arquivo Office anexado: o original é editado (layout preservado), não refeito do zero.
     let edicao = null;
     try { edicao = podeModelo ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}) : null; } catch (e) { app.log?.('arquivo para editar', erroParaLog(e)); }
+    // Layout de OUTRA apresentação em PDF ("o design o mais próximo possível da apresentação X.pdf"): a apresentação é
+    // montada no layout do PDF (adaptarModelo), não editada em texto no arquivo atual, que não muda de design.
+    if (edicao?.tipo === 'pptx' && PEDE_MODELO(texto) && brutos.some(ehPdf)) edicao = null;
     let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
@@ -815,7 +823,7 @@ export function rotasConversas(app, r) {
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nEntre a abertura curta e a seção final "O que foi feito", a resposta é o conteúdo da peça, completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')
-      + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo).` : '');
+      + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo). Não diga que o arquivo está pronto: a plataforma mostra o arquivo logo abaixo quando ele for montado.` : '');
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.
     // Mesma rota, mesmo recurso e mesmas regras nas duas etapas.
@@ -1312,6 +1320,8 @@ export function rotasConversas(app, r) {
       }
     }
     // Apresentação no layout do modelo: leitura do PDF (sem IA), adaptação do texto pela IA (mesma rota) e o PPTX.
+    // Avisos sobre os arquivos desta resposta entram DEPOIS dela na conversa (antes ficavam acima, longe da resposta).
+    const avisosDepois = [], avisoDepois = t => { avisosDepois.push(t); };
     let gerado = null;
     // Rede de segurança: o pedido não foi reconhecido como apresentação, mas a resposta saiu como roteiro "Slide 1,
     // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
@@ -1334,11 +1344,11 @@ export function rotasConversas(app, r) {
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
         const nome = `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
         // Dado do pedido que nem a rodada de conferência conseguiu encaixar: a pessoa fica sabendo, em vez de descobrir no arquivo.
-        if (r.fatos_faltando?.length) aviso(app, conv.id, `Estes dados do pedido não entraram na apresentação: ${r.fatos_faltando.join(', ')}. Confira os slides de agenda e cronograma antes de usar.`);
+        if (r.fatos_faltando?.length) avisoDepois(`Estes dados do pedido não entraram na apresentação: ${r.fatos_faltando.join(', ')}. Confira os slides de agenda e cronograma antes de usar.`);
         gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
-        aviso(app, conv.id, e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
+        avisoDepois(e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
           : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }
@@ -1347,7 +1357,7 @@ export function rotasConversas(app, r) {
     // no original; o resultado é relido antes de chegar à pessoa.
     let editado = null;
     if (edicao) {
-      if (naoGuardar) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o arquivo ajustado não foi gerado.');
+      if (naoGuardar) avisoDepois('Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o arquivo ajustado não foi gerado.');
       else {
         linha({ t: 'etapa', v: 'Aplicando os ajustes no arquivo original…' });
         try {
@@ -1356,21 +1366,21 @@ export function rotasConversas(app, r) {
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
           if (r.status === 'ok') {
             editado = r;
-            if (r.ignoradas.length) aviso(app, conv.id, `${r.ignoradas.length === 1 ? '1 alteração não pôde ser aplicada' : `${r.ignoradas.length} alterações não puderam ser aplicadas`} no arquivo${r.motivos.includes('remocao_suspensa') ? '; por segurança, nenhum slide ou trecho foi removido, para não perder conteúdo' : ' (trecho não encontrado ou fórmula recusada por segurança)'}. Confira o arquivo antes de usar.`);
-          } else aviso(app, conv.id, r.status === 'grande' ? 'O arquivo é grande demais para ser ajustado direto no original. As alterações estão descritas na resposta; envie só a parte do arquivo que precisa mudar para receber o arquivo ajustado.'
+            if (r.ignoradas.length) avisoDepois(`${r.ignoradas.length === 1 ? '1 alteração não pôde ser aplicada' : `${r.ignoradas.length} alterações não puderam ser aplicadas`} no arquivo${r.motivos.includes('remocao_suspensa') ? '; por segurança, nenhum slide ou trecho foi removido, para não perder conteúdo' : ' (trecho não encontrado ou fórmula recusada por segurança)'}. Confira o arquivo antes de usar.`);
+          } else avisoDepois(r.status === 'grande' ? 'O arquivo é grande demais para ser ajustado direto no original. As alterações estão descritas na resposta; envie só a parte do arquivo que precisa mudar para receber o arquivo ajustado.'
             : r.status === 'nada_a_mudar' ? 'Nenhuma alteração precisou ser feita no arquivo.'
             : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         } catch (e) {
           app.log?.('ajuste no arquivo', erroParaLog(e));
-          aviso(app, conv.id, 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
+          avisoDepois('Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         }
       }
     }
     let imagem = null;
     if (imagemChat) {
       const d = decisaoImagem(app, cfg, { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano });
-      if (naoGuardar) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso a imagem não foi gerada.');
-      else if (!d.pode) aviso(app, conv.id, `A imagem não foi gerada: ${MOTIVOS_IMAGEM[d.motivo] || 'o gerador de imagens não está disponível'}.`);
+      if (naoGuardar) avisoDepois('Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso a imagem não foi gerada.');
+      else if (!d.pode) avisoDepois(`A imagem não foi gerada: ${MOTIVOS_IMAGEM[d.motivo] || 'o gerador de imagens não está disponível'}.`);
       else {
         linha({ t: 'etapa', v: imagemChat.modo === 'editar' ? 'Editando a imagem…' : 'Gerando a imagem…' });
         try {
@@ -1383,7 +1393,7 @@ export function rotasConversas(app, r) {
         } catch (e) {
           app.log?.('imagem da conversa', erroParaLog(e));
           if (e?.custo) fim = { ...(fim || {}), custo: (fim?.custo || 0) + e.custo };
-          aviso(app, conv.id, 'Não foi possível gerar a imagem agora (o gerador de imagens não respondeu). Nada foi cobrado além do texto; peça de novo em alguns instantes.');
+          avisoDepois('Não foi possível gerar a imagem agora (o gerador de imagens não respondeu). Nada foi cobrado além do texto; peça de novo em alguns instantes.');
         }
       }
     }
@@ -1405,8 +1415,16 @@ export function rotasConversas(app, r) {
       rotaTela.solicitacao = { ...rotaTela.solicitacao, ...(pessoa.admin ? { modelo_selecionado: usado } : {}), decisao: 'substituido', motivo: rotaTela.solicitacao.motivo || (pessoa.admin ? 'requested_model_not_available' : 'requested_model_not_eligible') };
       if (!motivoSolicitado) exec(app.db, "update roteamento set decisao_solicitado = 'substituido', motivo_substituicao = 'requested_model_not_available' where id = ?", rotaId);
     }
+    // Arquivo prometido e não gerado: a resposta não pode dizer que ele está pronto (QA em produção: "o arquivo está
+    // pronto para download abaixo" sem arquivo nenhum). As frases de entrega saem e a falha é dita no fim, com o motivo.
+    if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
+      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;
+      avisosDepois.length = 0;
+      linha({ t: 'substituir', v: resposta });
+    }
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, naoGuardar ? NAO_GUARDADO : resposta, usado, fim?.fornecedor, JSON.stringify([...ctx.fontes, ...(naoGuardar ? [] : fontesWeb)]), AGORA(app)).lastInsertRowid);
+    for (const t of avisosDepois) aviso(app, conv.id, t);
     exec(app.db, 'update conversas set atualizado_em = ? where id = ?', AGORA(app), conv.id);
     if (regeracao) {
       // A nova resposta entra (id maior) e só então a anterior sai da conversa. O uso, o custo e a decisão de

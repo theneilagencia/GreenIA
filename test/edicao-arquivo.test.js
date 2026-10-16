@@ -165,6 +165,24 @@ test('planilha: a conferência acha circular e #REF!; o que sobrou depois da edi
   assert.deepEqual(r.conferencia, { antes_da_edicao: 2, depois: 0 });
 });
 
+test('slide novo: cópia do layout de um slide, com textos novos, na posição pedida (resto intacto)', async () => {
+  const orig = pptx('# Abertura\n\nTexto inicial\n\n# Escopo\n\n- Item A\n\n# Fim\n\nObrigado', { titulo: 'Deck' });
+  const c = conteudoParaEdicao('pptx', orig), linhas = c.split('\n');
+  const id = t => /^\[([^\]]+)\]/.exec(linhas.find(l => l.includes(t)))[1];
+  const tit = id('] Escopo'), item = id('Item A'), sEsc = Number(/^s(\d+)/.exec(tit)[1]);
+  const total = (c.match(/## Slide/g) || []).length;
+  const r = aplicarEdicao('pptx', orig, [{ op: 'novo_slide', copiar_de: sEsc, depois_de: sEsc, textos: { [tit]: 'Evidências', [item]: 'Relatórios do sistema' } }], { pedido: 'inclua um slide de evidências', arquivo: c });
+  assert.equal(r.feitas, 1, JSON.stringify(r.ignoradas));
+  const t = conteudoParaEdicao('pptx', r.dados);
+  assert.equal((t.match(/## Slide/g) || []).length, total + 1);
+  assert.match(t, new RegExp(`## Slide ${sEsc + 1}\\n(?:\\[[^\\n]*\\n)*?\\[[^\\]]+\\] Evidências[\\s\\S]*Relatórios do sistema`));
+  assert.match(t, /Item A/, 'o slide de origem fica como estava');
+  // O arquivo abre e a relação do slide novo aponta para o mesmo layout do de origem.
+  await ler('x.pptx', r.dados);
+  const novo = lerPacote(r.dados).map(e => e.nome).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort().at(-1);
+  assert.match(parte(r.dados, '[Content_Types].xml'), new RegExp(novo.replace(/[./]/g, '\\$&')));
+});
+
 test('pedido: ajuste no próprio arquivo x criar outro / analisar', () => {
   const sim = ['Quero que estes ajustes sejam feitos exclusivamente no arquivo anexo: troque o título do primeiro slide para "AgroSense 2027" e corrija a ortografia, mantendo todo o resto igual. Devolva o PowerPoint.',
     'Agora, ainda no arquivo da AgroSense que anexei, junte os slides "Resultados" e "Planos" em um só.',

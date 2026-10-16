@@ -259,6 +259,9 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
     // Camada de registro do custo (src/custo-ia.js): repassa a chamada que as rotas acima já rotearam e conferiram,
     // sem escolher modelo nem mudar o pedido; só soma o custo cobrado ao pedido.
     'custo-ia.js': ['registro do custo da chamada já roteada'],
+    // Processar protegendo (src/mascaramento.js): repassa a chamada já roteada e conferida, com os dados pessoais
+    // trocados por marcadores e conferidos de novo antes de sair; não escolhe modelo nem muda a rota.
+    'mascaramento.js': ['mascaramento da chamada já roteada'],
   };
   assert.deepEqual(chamadas.sort(), Object.entries(AUTORIZADOS).flatMap(([arq, fins]) => fins.map(() => arq)).sort(), 'só os caminhos autorizados executam modelo');
   // A estruturação só existe com a finalidade quick_win_estrutura, registrada na decisão e no consumo.
@@ -280,12 +283,14 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   assert.match(conv, /if \(!sigilosa && !areaReforcada && !dadosPessoais\) \{\s*try \{ const m = modeloPermitido\(app\.db, cfg, pessoa, 'classe:avancado', \{ qw \}\)/);
   assert.match(conv, /const chamarDesign = modeloDesign === atual\.id \? chamar : async msgs => \{[\s\S]{0,300}contemCredencial\(txt\)/);
   // A conferência usa o recurso e a rota já decididos e conferidos (nunca escolhe modelo), depois da execução.
-  assert.match(conv, /app\.ia\.enviar\(msgs, \{ modelo: atual\.id, reserva: null, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'a conferência de qualidade usa a mesma decisão');
-  assert.ok(conv.indexOf('app.ia.enviar(msgs') > conv.indexOf('app.ia.enviar(mensagens'), 'a conferência vem depois da execução');
-  assert.ok(conv.indexOf('if (contemCredencial(txt))') < conv.indexOf('app.ia.enviar(msgs'), 'defesa final de credenciais também na conferência');
-  assert.match(conv, /app\.ia\.enviar\(mensagens, \{ modelo: atual\.id, reserva: sigilosa \|\| atual !== m \? null : rota\.reserva, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'executa o que o roteador decidiu (modelo, reserva e rota de sigilo)');
-  assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf('app.ia.enviar('), 'a execução vem depois da decisão');
-  assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf('app.ia.enviar('), 'conferência final dos guardrails antes do envio');
+  // A IA da execução é a do aplicativo ou a mesma com mascaramento (src/mascaramento.js), nunca outra.
+  assert.match(conv, /const ia = mascarar \? iaMascarada\(app\.ia, mascara, \[\.\.\.MASCARAVEIS\]\) : app\.ia;/);
+  assert.match(conv, /(?<![\w.])ia\.enviar\(msgs, \{ modelo: atual\.id, reserva: null, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'a conferência de qualidade usa a mesma decisão');
+  assert.ok(conv.indexOf(' ia.enviar(msgs') > conv.indexOf(' ia.enviar(mensagens'), 'a conferência vem depois da execução');
+  assert.ok(conv.indexOf('if (contemCredencial(txt))') < conv.indexOf(' ia.enviar(msgs'), 'defesa final de credenciais também na conferência');
+  assert.match(conv, /(?<![\w.])ia\.enviar\(mensagens, \{ modelo: atual\.id, reserva: sigilosa \|\| atual !== m \? null : rota\.reserva, sigilosa, fornecedor: rotaSigilo\?\.endpoint/, 'executa o que o roteador decidiu (modelo, reserva e rota de sigilo)');
+  assert.ok(conv.indexOf('let m = rota.modelo;') < conv.indexOf(' ia.enviar('), 'a execução vem depois da decisão');
+  assert.ok(conv.indexOf('rotaSigilo = conferirEnvio(m)') < conv.indexOf(' ia.enviar('), 'conferência final dos guardrails antes do envio');
   // Pesquisa na internet: só na execução, só liberada pela governança e nunca em conversa sigilosa; nunca na conferência.
   // Uma chamada só pesquisa: a coleta da execução em etapas (só com a pesquisa liberada e sem sigilo). QA-04: ela leva
   // só o contexto externo seguro (sem instruções, base, anexos nem histórico); a produção nunca pesquisa sozinha.

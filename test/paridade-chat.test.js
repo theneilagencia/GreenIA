@@ -203,3 +203,12 @@ test('fórmula com multiplicação não perde o "*" (o Markdown tomava por itál
   assert.equal(formulaDaCelula('=B2*(1+Premissas!$B$2)*(1-Premissas!$B$3)'), 'B2*(1+Premissas!$B$2)*(1-Premissas!$B$3)');
   assert.equal(formulaDaCelula('**=SUM(B2:B3)**'), 'SUM(B2:B3)');
 });
+
+test('peças de campanha escritas em "###" dentro de "## Peças visuais" são encontradas (antes não saía peça nenhuma)', async () => {
+  const { secaoDoResultado } = await import('../src/visual/producao.js');
+  const t = '## Peças Visuais\n\n### Peça quadrado 1:1\n\n### Visão geral\n- A\n\n### Chamada: Conheça\n\n### Peça horizontal 1.91:1\n\n### Números\n- B\n\n## O que foi feito\n- x';
+  assert.match(secaoDoResultado(t, 'Peça quadrado 1:1'), /Visão geral[\s\S]*Chamada: Conheça/);
+  assert.ok(!/Números/.test(secaoDoResultado(t, 'Peça quadrado 1:1')));
+  assert.match(secaoDoResultado(t, 'Peça horizontal 1.91:1'), /Números/);
+  assert.ok(!/O que foi feito/.test(secaoDoResultado(t, 'Peça horizontal 1.91:1')));
+});

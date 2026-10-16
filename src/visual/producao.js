@@ -31,9 +31,17 @@ export const entregaveisVisuais = op => (op?.entregaveis || []).filter(e => e.vi
 // Texto da seção de um entregável no resultado ("## <rótulo>" até o próximo "## ").
 export function secaoDoResultado(texto, rotulo) {
   const ls = String(texto || '').split('\n'), alvo = norm(rotulo).replace(/[^a-z0-9]+/g, ' ').trim();
-  const i = ls.findIndex(l => /^\s*#{1,2}\s+/.test(l) && norm(l.replace(/^\s*#+\s*/, '').replace(/[*_]/g, '')).replace(/[^a-z0-9]+/g, ' ').trim().includes(alvo));
+  const titulo = l => norm(l.replace(/^\s*#+\s*/, '').replace(/[*_]/g, '')).replace(/[^a-z0-9]+/g, ' ').trim();
+  let i = ls.findIndex(l => /^\s*#{1,2}\s+/.test(l) && titulo(l).includes(alvo));
+  if (i >= 0) {
+    const fim = ls.findIndex((l, j) => j > i && /^\s*#{1,2}\s+/.test(l));
+    return ls.slice(i + 1, fim < 0 ? undefined : fim).join('\n').trim();
+  }
+  // Peça num "###" dentro de uma seção ("## Peças visuais" > "### Peça quadrada"), com as páginas também em "###":
+  // vai até a próxima peça ("### Peça ...") ou até a próxima seção "##".
+  i = ls.findIndex(l => /^\s*###\s+/.test(l) && titulo(l).includes(alvo));
   if (i < 0) return '';
-  const fim = ls.findIndex((l, j) => j > i && /^\s*#{1,2}\s+/.test(l));
+  const fim = ls.findIndex((l, j) => j > i && (/^\s*#{1,2}\s+/.test(l) || (/^\s*###\s+/.test(l) && /^peca\b/.test(titulo(l)))));
   return ls.slice(i + 1, fim < 0 ? undefined : fim).join('\n').trim();
 }
 

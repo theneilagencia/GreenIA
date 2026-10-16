@@ -150,3 +150,12 @@ test('rótulo curto em negrito do modelo ("O Ganho") não recebe item', async ()
   const t = preencherReestilo([pag], ['Planos\n• Essencial: R$ 38/ha/ano']);
   assert.deepEqual([t['1.1'], t['1.2'], t['1.3']], ['Planos', '', '• Essencial: R$ 38/ha/ano']);
 });
+
+test('frase que recombina palavras do material sai (pares de palavras); "Antes"/"Depois" soltos saem; título da apresentação fica', async () => {
+  const { paresNoMaterial } = await import('../src/modelo-pdf.js');
+  const contrato = 'Escopo: diagnóstico operacional com até seis visitas presenciais, leitura dos relatórios do sistema de gestão e teste da integração por API. Evidências previstas: relatórios do sistema, folha mensal, extrato bancário consolidado e estrutura de custos.';
+  assert.ok(paresNoMaterial('Relatório técnico completo com achados, projeção de economia de água e energia, cronograma de implantação e proposta comercial customizada', contrato) < 0.25);
+  assert.ok(paresNoMaterial('Evidências: relatórios do sistema, folha mensal, extrato bancário consolidado e estrutura de custos', contrato) >= 0.25);
+  const r = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: `${FONTE}\n${contrato}`, pedido: 'design', chamar: async () => ({ texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense' }, { pagina: 2, conteudo: 'Escopo\nAntes\n• Diagnóstico operacional com até seis visitas presenciais\nDepois\n• Relatório técnico completo com achados, cronograma de implantação e proposta comercial customizada\nResultados\n• -26% água' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] }) }) });
+  assert.deepEqual(r.slides[1].conteudo.split('\n'), ['Escopo', '• Diagnóstico operacional com até seis visitas presenciais', 'Resultados', '• -26% água']);
+});

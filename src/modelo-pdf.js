@@ -479,6 +479,19 @@ export function mensagensPlanoReestilo({ paginas, fonte, pedido, contexto, maxim
 // Frase que não vem do material: palavras de conteúdo (4+ letras, sem acento) que não aparecem nele. QA em produção: a
 // IA escreveu "Antes: irrigação manual, custos altos", "Semana 14+: expansão" e slogans que a apresentação não tinha.
 const palavrasDe = t => (String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z]{4,}/g) || []).map(w => w.replace(/(es|s)$/, ''));
+// Pares de palavras seguidas: frase inventada que reusa palavras do material em combinações novas tem poucos pares
+// em comum com ele (QA em produção: "relatório técnico com achados, projeção de economia, cronograma e proposta
+// customizada" saiu de um contrato que não diz nada disso).
+const VAZIAS = new Set(['com', 'para', 'por', 'dos', 'das', 'sua', 'seu', 'que', 'uma', 'nos', 'nas', 'mais', 'sem', 'cada', 'ate', 'como']);
+const palavrasSeguidas = t => (String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9]+/g) || []).filter(w => w.length >= 3 && !VAZIAS.has(w)).map(w => w.replace(/(es|s)$/, ''));
+const pares = ws => ws.slice(1).map((w, i) => `${ws[i]} ${w}`);
+const cacheDePares = new Map();
+export function paresNoMaterial(texto, material) {
+  let tem = cacheDePares.get(material);
+  if (!tem) { tem = new Set(pares(palavrasSeguidas(material))); cacheDePares.clear(); cacheDePares.set(material, tem); }
+  const b = pares(palavrasSeguidas(texto));
+  return b.length < 3 ? 1 : b.filter(x => tem.has(x)).length / b.length;
+}
 export function fracaoForaDoMaterial(texto, material) {
   const tem = new Set(palavrasDe(material)), ws = palavrasDe(texto);
   return ws.length < 3 ? 0 : ws.filter(w => !tem.has(w)).length / ws.length;
@@ -511,11 +524,14 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
   // Linha com número que não está no material sai do conteúdo (no título, sai só o número); linha que não vem do
   // material (a maior parte das palavras não está nele) também sai.
   const limpar = c => String(c || '').split('\n').map((l, i) => {
-    if (i > 0 && fracaoForaDoMaterial(l, material) >= 0.4) return null;
+    if (i > 0 && (fracaoForaDoMaterial(l, material) >= 0.4 || paresNoMaterial(l, material) < 0.25)) return null;
+    // Linha de uma palavra só que não é título da apresentação ("Antes", "Depois"): cabeçalho sem seção, sai.
+    if (i > 0 && /^\s*[•\-–]?\s*[\p{L}]+\s*:?\s*$/u.test(l) && !titulosDaFonte.has(semAcento(l.replace(/[•\-–:]/g, '').trim()))) return null;
     const fora = numerosForaDoMaterial(l, material);
     if (!fora.length) return l;
     return i === 0 ? fora.reduce((t, n) => t.replace(n, ''), l).replace(/\s{2,}/g, ' ').trim() : null;
   }).filter(l => l != null && l.trim()).join('\n');
+  const titulosDaFonte = new Set(slidesDaFonte(fonte).map(x => semAcento(x.split('\n')[0].trim())));
   // No máximo os slides da apresentação da pessoa: juntar reduz, dividir em mais slides não (QA: 6 viraram 11).
   const maximo = Math.max(1, slidesDaFonte(fonte).length);
   let custo = 0, economia = 0, slides = null;

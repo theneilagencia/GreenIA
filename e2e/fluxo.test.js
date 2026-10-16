@@ -37,13 +37,13 @@ test('login → chat → quick win', async () => {
   await p.waitForSelector('.rodape-resposta');
   assert.match(await p.textContent('.bolha-eu'), /Primeira linha\nSegunda linha/);
   await p.waitForFunction(() => document.querySelectorAll('.lateral .item-lat[href^="#/c/"]').length === 1);
-  // Informação sigilosa com a política da empresa desligada (o padrão): não sai; aviso simples; texto volta para a caixa.
-  // (Dado pessoal comum, como CPF ou email, segue normalmente; dados bancários seguem só com proteção.)
+  // Dados bancários (protegidos pela política) sem recurso autorizado para sigilo: o pedido é processado com os dados
+  // mascarados (src/mascaramento.js), e a conversa avisa que eles foram trocados por marcadores. Nada trava.
   await p.fill('#entrada', 'Pague o fornecedor: agência 1234, conta corrente 56789-0');
   await p.keyboard.press('Enter');
-  await p.waitForSelector('.aviso-bolha');
-  assert.match(await p.textContent('.aviso-bolha'), /não permite processar com IA\. Nenhum conteúdo foi enviado/);
-  assert.equal(await p.inputValue('#entrada'), 'Pague o fornecedor: agência 1234, conta corrente 56789-0');
+  await p.waitForFunction(() => document.querySelectorAll('.rodape-resposta').length >= 2);
+  await p.waitForFunction(() => /troca esses dados por marcadores/.test(document.getElementById('msgs')?.textContent || ''), null, { timeout: 15000 });
+  assert.equal(await p.locator('.aviso-bolha').count(), 0);
   // Quick win: abre pela lateral, usa uma sugestão, pede ajuste.
   await p.click('.lateral a[href="#/quick-wins"]');
   await p.click(`a.qw-item-link[href="#/qw/${qwId}"]`);

@@ -68,6 +68,9 @@ const PRECISAO = {
 };
 // Consequência alta de erro (riscos, inconsistência, segurança, concorrência): sobe a exigência junto com domínio ou código.
 const RISCO = /\b(riscos?|exposi[cç]|inconsist|obriga[cç]|vulnerab|seguranca|concorrencia|race condition|deadlock|fraude|conformidade)/;
+const AJUSTE_COMPLEXO = /\b(arquitetura|reestrutur\w* (a|o|da|do) (aplicacao|sistema|codigo|projeto|app)|contrato|clausulas?|modelo financeiro|formulas? interdependentes|nova (estrategia|narrativa)|estrategia narrativa|integrac(ao|oes)|automac(ao|oes)|agente)\b/;
+const TOCA_DEPENDENCIA = /\b(valor|valores|preco|precos|taxa|percentual|numero|numeros|quantidade|formula|formulas|referencia|calculo|parcela|parcelas|cenario|meta|data|datas|nome d[ao] (aba|arquivo|funcao|variavel|campo|coluna))\b/;
+const AJUSTE_SUBSTANCIAL = /\b(design|visual|layout|formata\w*|estrutura\w*|reorganiz\w*|reescrev\w*|refa[cç]a|refazer|refatore|acrescent\w*|adicion\w*|inclua|incluir|nova (secao|aba|parte|versao)|novo (slide|capitulo|topico)|remova (a|o|as|os) (secao|slide|aba|parte|capitulo)s?|reduz\w*|aument\w*|expand\w*|aprofund\w*|detalh\w*|todos|todas|atualiz\w*|traduz\w*|tom|melhor\w*|cenario\w*|recalcul\w*|reescreva|redesenh\w*)\b/;
 const SIMPLES = /\b(simples|basic[ao]|curt[ao]|rapidinh[ao]|so (uma|um)|apenas (uma|um))\b/;
 const CRITERIOS = /\b(considerando|levando em (conta|consideracao)|em termos de|avaliando|quanto a)\s+(?<lista>[^.?!;:]+)/;
 // Falha explícita da resposta anterior. Só conta quando a frase abre a mensagem ou se refere à resposta
@@ -98,7 +101,7 @@ function presente(re, t) {
  * @param {object} p texto, anexos [{texto}], historicoChars, contextoChars (bases), sistemaChars,
  *   temResposta, anterior ({ nivel, classe } da decisão anterior da conversa), feedback ('nao_serviu'...).
  */
-export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, contextoChars = 0, sistemaChars = 0, temResposta = false, anterior = null, feedback = null }) {
+export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, contextoChars = 0, sistemaChars = 0, temResposta = false, anterior = null, feedback = null, dependencias = null }) {
   const t = normal(texto);
   const tipos = Object.entries(TIPOS).filter(([, v]) => presente(v.re, t)).map(([k]) => k);
   const anexoChars = anexos.reduce((s, a) => s + String(a.texto || '').length, 0);
@@ -116,9 +119,17 @@ export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, co
   const falhaTexto = temResposta && texto.length <= 400 && !anexos.length && (FALHA_NO_INICIO.test(t) || FALHA_COM_REFERENCIA.test(t));
   const insatisfacao = temResposta && (falhaTexto || feedback === 'nao_serviu');
   const insatisfacaoFonte = !insatisfacao ? null : falhaTexto ? 'texto' : 'feedback';
-  // Continuação do trabalho da conversa ("melhore o design", "altere o valor", "acrescente uma aba"): o ajuste
-  // mexe no mesmo entregável, então não desce de classe; a mensagem curta sozinha não mostra o tamanho da tarefa.
-  const continuacao = temResposta && !insatisfacao && !!anterior?.nivel && !anexos.length && texto.length <= 800 && !SIMPLES.test(t);
+  // Ajuste do trabalho da conversa: a complexidade do AJUSTE é avaliada primeiro. Pontual ("troque o título",
+  // "corrija a data") segue o nível que a própria mensagem pede. Substancial (refazer design, estrutura, acrescentar
+  // ou tirar partes, propagar valores, mudar o tom) refaz o entregável inteiro: mantém o nível do trabalho anterior.
+  // Pontual que mexe num valor de um trabalho com dependências (fórmulas, referências, vários arquivos ou um projeto
+  // de código) também é substancial: a mudança se propaga. Complexo (arquitetura, contrato, modelo financeiro,
+  // narrativa, integrações): sobe um nível acima do trabalho original.
+  const ajuste = !temResposta || insatisfacao || !anterior?.nivel || anexos.length || texto.length > 800 ? null
+    : AJUSTE_COMPLEXO.test(t) ? 'complexo'
+    : SIMPLES.test(t) && !(dependencias && TOCA_DEPENDENCIA.test(t)) ? 'pontual'
+    : AJUSTE_SUBSTANCIAL.test(t) || texto.length > 300 || (dependencias && TOCA_DEPENDENCIA.test(t)) ? 'substancial' : 'pontual';
+  const continuacao = ajuste === 'substancial' || ajuste === 'complexo';
 
   // Tamanhos. O que é fixo (instruções, documentos das bases, mensagem e anexos atuais) precisa caber;
   // o histórico pode ser cortado (as mais antigas saem primeiro), então só é "desejável".
@@ -142,7 +153,7 @@ export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, co
     // compatibilidade com o registro: tokens de entrada (estimativa de custo) e de saída
     tokensEntrada: tokens.custoEntrada, tokensSaida: saida,
     sinais: { caracteres: texto.length, anexos: anexos.length, anexoChars, historicoChars, contextoChars, perguntas, itens, etapas: perguntas + itens, criterios, codigo,
-      risco: RISCO.test(t), explicitoSimples: SIMPLES.test(t), continuacao, feedbackAnterior: feedback || null, insatisfacaoFonte,
+      risco: RISCO.test(t), explicitoSimples: SIMPLES.test(t), ajuste, continuacao, ...(ajuste ? { nivelOriginal: anterior?.trabalho || anterior?.nivel || null, dependencias: dependencias || null } : {}), feedbackAnterior: feedback || null, insatisfacaoFonte,
       insatisfacaoAmbigua: temResposta && !insatisfacao && FALHA_AMBIGUA.test(t) },
   };
 }
@@ -196,7 +207,11 @@ export function requisitosDe(a, { piso = null } = {}) {
   }
   // Quick win que deixa trocar: a classe dele é o piso (o responsável conhece a tarefa; o roteador só vê a mensagem).
   if (piso?.nivel) pedir('quick_win', piso.nivel, 'piso_do_quick_win');
-  if (a.sinais?.continuacao && a.anterior?.nivel) pedir('continuidade', Math.min(a.anterior.nivel, a.anterior.trabalho || a.anterior.nivel), 'continua_o_trabalho_anterior');
+  if (a.sinais?.continuacao && a.anterior?.nivel) {
+    const original = Math.min(a.anterior.nivel, a.anterior.trabalho || a.anterior.nivel);
+    if (a.sinais.ajuste === 'complexo') pedir('continuidade', Math.min(3, original + 1), 'ajuste_complexo_sobe_um_nivel');
+    else pedir('continuidade', original, 'continua_o_trabalho_anterior');
+  }
   const base = Math.max(...Object.values(dim));
   // Nova tentativa: só com falha explícita (ver analisarPedido). Conservadora e limitada: sobe no máximo
   // uma classe acima do que a TAREFA pede (sem cadeia: falhas seguidas não sobem sem fim), e nunca fica
@@ -518,7 +533,8 @@ export const TEXTO = {
   resposta_anterior_nao_resolveu: 'a resposta anterior não resolveu', resposta_anterior_nao_resolveu_limite: 'a resposta anterior não resolveu (subida limitada a uma classe acima do que a tarefa pede)',
   menor_custo_entre_os_nao_dominados: 'o de menor consumo entre os que não são superados por outro mais capaz e mais barato', resposta_anterior_nao_resolveu_sem_classe_acima: 'a resposta anterior não resolveu (já estava na classe mais alta)',
   analise_indisponivel: 'a análise automática não foi possível; usada a exigência padrão',
-  continua_o_trabalho_anterior: 'ajuste do trabalho desta conversa (mantém o nível usado nele)',
+  continua_o_trabalho_anterior: 'ajuste que refaz o trabalho desta conversa (mantém o nível usado nele)',
+  ajuste_complexo_sobe_um_nivel: 'ajuste complexo (estrutura, contrato, modelo financeiro, integrações): um nível acima do trabalho original',
   melhor_modelo_no_nivel: 'o modelo mais adequado entre os permitidos no nível escolhido',
   unico_que_atende: 'o único modelo permitido que atende', menor_custo: 'o de menor consumo entre os que atendem',
   menor_classe_suficiente: 'a menor classe capaz de atender, pelo menor consumo', melhor_na_menor_classe_suficiente: 'o melhor recurso dentro da menor classe capaz de atender',

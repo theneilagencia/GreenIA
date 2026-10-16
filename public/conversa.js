@@ -239,7 +239,7 @@ function htmlMensagem(m) {
     // Pedido da pessoa: balão à direita (quebras de linha preservadas), anexos em etiquetas logo acima.
     return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div></div>`;
   }
-  if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}</div>`;
+  if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
   const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + (C.etapa && !C.execucao ? `<p class="dica" role="status">${esc(C.etapa)}</p>` : ''), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
@@ -418,6 +418,14 @@ function ligar() {
         desenhar(); $('entrada').focus(); ajustarAltura(); atualizarEnviar();
         toast('Pedido preparado. Confira o texto e clique em Enviar. Nenhuma nova execução foi iniciada.');
       })();
+    }
+    const pa = ev.target.closest('[data-pedir-acesso]');
+    if (pa && !pa.disabled) {
+      pa.disabled = true;
+      api(`/api/conversas/${C.conv.id}/pedido-acesso`, { metodo: 'POST', corpo: {} })
+        .then(r => { pa.textContent = 'Pedido enviado'; toast(`Pedido enviado ao administrador: ${r.pedidos.join(' e ')}.`); })
+        .catch(e => { pa.disabled = false; toast(e.message || 'Não foi possível enviar o pedido agora.'); });
+      return;
     }
     const rg = ev.target.closest('[data-regerar]');
     if (rg && !rg.disabled) gerarDeNovo(Number(rg.dataset.regerar));

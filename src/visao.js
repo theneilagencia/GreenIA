@@ -82,6 +82,13 @@ export function visaoGeral(app) {
     const pedidos = new Set(pedidosDeCreditos(app).filter(x => !x.admin).map(x => x.pessoa)).size;
     if (pedidos) atencao.push({ tipo: 'creditos', texto: `${pedidos} ${pedidos === 1 ? 'pessoa pediu' : 'pessoas pediram'} mais créditos: solicite um Capacity Pack em Uso`, link: '#/uso' });
   }
+  // Pedidos de acesso (sites e código) dos últimos 14 dias: só metadados (quem pediu e o quê), nunca a conversa.
+  const desde14 = new Date(app.agora().getTime() - 14 * 864e5).toISOString();
+  const acessos = todos(db, "select detalhes, pessoa_id from eventos where tipo = 'acesso.pedido' and em > ?", desde14).map(x => ({ ...JSON.parse(x.detalhes || '{}'), pessoa: x.pessoa_id }));
+  for (const nome of [...new Set(acessos.map(a => a.nome).filter(Boolean))]) {
+    const n = new Set(acessos.filter(a => a.nome === nome).map(a => a.pessoa)).size;
+    atencao.push({ tipo: 'acesso', texto: `${n} ${n === 1 ? 'pessoa pediu' : 'pessoas pediram'} acesso a "${nome}": libere no perfil, em Pessoas › Perfis`, link: '#/pessoas/perfis' });
+  }
   if (!plano && cfg.tetoMensal && custoMes.c >= cfg.tetoMensal * 0.8) atencao.push({ tipo: 'creditos', texto: 'Consumo acima de 80% do teto mensal', link: '#/configuracoes' });
   const bloqueios = um(db, "select count(*) as n from eventos where tipo = 'policy.blocked' and substr(em, 1, 7) = ?", mes).n;
   if (bloqueios) atencao.push({ tipo: 'politica', texto: `${bloqueios} ${bloqueios === 1 ? 'envio bloqueado' : 'envios bloqueados'} pelas regras de dados neste mês`, link: '#/atividade' });

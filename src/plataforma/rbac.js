@@ -31,6 +31,12 @@ export const PERMISSOES = {
   'knowledge.manage': ['Gerenciar a base de conhecimento', 'company'],
   'quickwin.manage': ['Gerenciar os Quick Wins de toda a empresa', 'company'],
   'chat.use': ['Usar conversas e Quick Wins', 'company'],
+  // Código e sites (src/permissoes-codigo.js): conversar, explicar e dar exemplos em texto é livre; cada operação
+  // abaixo é liberada à parte pelo admin no perfil (o Admin da empresa já tem todas).
+  'code.project': ['Criar sites e aplicativos (prévia e código do projeto)', 'company'],
+  'code.execute': ['Executar código', 'company'],
+  'code.repo': ['Acessar repositórios de código', 'company'],
+  'code.publish': ['Publicar projetos', 'company'],
   'integrations.manage': ['Configurar integrações (conectores, credenciais, testes e publicação)', 'company'],
   'integrations.approve': ['Aprovar integrações e operações sensíveis em sistemas externos', 'company'],
 };

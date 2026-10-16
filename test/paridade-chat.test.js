@@ -177,3 +177,24 @@ test('projeto de código em .zip é lido (só código e texto; dependências, bi
   assert.ok(!/SEGREDO|node_modules|logo\.png/.test(texto));
   await assert.rejects(extrairTexto({ nome: 'fotos.zip', base64: zipar([{ nome: 'a.png', dados: Buffer.from([0x89, 0x50]) }]).toString('base64') }), /não tem arquivos de código/);
 });
+
+test('nível do ajuste: a complexidade do ajuste é avaliada primeiro (pontual segue a mensagem; substancial mantém o trabalho)', () => {
+  const ant = { temResposta: true, anterior: { classe: 'avancado', nivel: 3, trabalho: 2 } };
+  const r = texto => { const a = analisarPedido({ texto, ...ant }); return { ajuste: a.sinais.ajuste, classe: requisitosDe(a).classe }; };
+  assert.deepEqual(r('Troque o título para "Resultados 2027".'), { ajuste: 'pontual', classe: 'rapido' });
+  assert.deepEqual(r('Corrija a data da reunião para 22/10.'), { ajuste: 'pontual', classe: 'rapido' });
+  assert.deepEqual(r('Melhore o design sem alterar o conteúdo.'), { ajuste: 'substancial', classe: 'equilibrado' }, 'o nível do trabalho, não o da última resposta');
+  assert.deepEqual(r('Acrescente uma seção de riscos e mitigação.'), { ajuste: 'substancial', classe: 'equilibrado' });
+  assert.deepEqual(r('Altere o preço para R$ 18 mil e atualize todos os arquivos.'), { ajuste: 'substancial', classe: 'equilibrado' });
+});
+
+test('ajuste com dependências e ajuste complexo: o pequeno que se propaga mantém o nível; o complexo sobe um', () => {
+  const ant = { temResposta: true, anterior: { classe: 'equilibrado', nivel: 2, trabalho: 2 } };
+  const r = (texto, dependencias = null) => { const a = analisarPedido({ texto, ...ant, dependencias }); const q = requisitosDe(a); return { ajuste: a.sinais.ajuste, classe: q.classe, original: a.sinais.nivelOriginal }; };
+  assert.deepEqual(r('Corrija a data da reunião para 22/10.'), { ajuste: 'pontual', classe: 'rapido', original: 2 });
+  assert.deepEqual(r('Mude a taxa de crescimento para 8%.', 'formulas'), { ajuste: 'substancial', classe: 'equilibrado', original: 2 }, 'mexe em fórmula interligada');
+  assert.deepEqual(r('Reestruture a arquitetura da aplicação mantendo as funcionalidades.'), { ajuste: 'complexo', classe: 'avancado', original: 2 });
+  assert.deepEqual(r('Revise as cláusulas do contrato com as novas condições comerciais.'), { ajuste: 'complexo', classe: 'avancado', original: 2 });
+  const a = analisarPedido({ texto: 'Reestruture a arquitetura da aplicação.', ...ant });
+  assert.equal(requisitosDe(a).motivos.continuidade, 'ajuste_complexo_sobe_um_nivel');
+});

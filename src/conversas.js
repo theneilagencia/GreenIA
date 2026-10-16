@@ -5,6 +5,7 @@ import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js'
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
 import { entregaDeCodigo } from './codigo-chat.js';
+import { avisoDeCodigo, decisaoDeCodigo, notaDeCodigo, OPERACOES_CODIGO } from './permissoes-codigo.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
@@ -511,6 +512,18 @@ export function rotasConversas(app, r) {
   // roteamento da anterior permanecem registrados (a decisão fica marcada como refeita).
   // Só a última resposta, só para quem é dono da conversa e fora dos testes e das execuções de Quick Win do
   // formato novo (a resposta delas passa pela conferência e pode ter artefatos e registros de resultado ligados).
+  // "Solicitar acesso": o pedido leva as permissões que o servidor bloqueou na última vez nesta conversa (não as
+  // que a tela mandar). Um pedido por permissão a cada 24 h; o admin vê em Visão geral e libera em Pessoas › Perfis.
+  r.post('/api/conversas/:id/pedido-acesso', ({ pessoa, params }) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    const ev = um(app.db, "select detalhes from eventos where tipo = 'code.blocked' and pessoa_id = ? and detalhes like ? order by id desc limit 1", pessoa.id, `%"conversa":${conv.id},%`);
+    const ops = json(ev?.detalhes, {}).operacoes?.filter(o => o.situacao === 'sem_permissao').map(o => OPERACOES_CODIGO[o.op]).filter(Boolean) || [];
+    if (!ops.length) throw erro(409, 'nada_a_pedir', 'Não há acesso a pedir nesta conversa.');
+    const desde = new Date(app.agora().getTime() - 864e5).toISOString();
+    const novos = ops.filter(o => !um(app.db, "select 1 from eventos where tipo = 'acesso.pedido' and pessoa_id = ? and em > ? and detalhes like ?", pessoa.id, desde, `%"${o.chave}"%`));
+    for (const o of novos) registrar(app, 'acesso.pedido', pessoa.id, { permissao: o.chave, nome: o.nome, conversa: conv.id });
+    return { ok: true, pedidos: ops.map(o => o.nome), novos: novos.length };
+  });
   r.post('/api/conversas/:id/regenerar', ctx => {
     const conv = minhaConversa(app, ctx.pessoa, ctx.params.id);
     if (ocupado([conv.id])) throw erro(409, 'conversa_em_uso', 'Esta conversa ainda está processando uma resposta. Aguarde a conclusão e tente de novo.');
@@ -686,6 +699,8 @@ export function rotasConversas(app, r) {
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
     const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
     const pecaChat = !qw && !modeloApr && !modeloAusente ? pecaDaConversa(texto) : null;
+    // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
+    const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id) });
     // Imagem pedida na conversa (nova ou edição da anexada / da última gerada): gerada depois do texto, abaixo dele.
     const ultimaImg = !qw && !modeloApr ? ultimaImagemDaConversa(app, conv.id) : null;
     const ultimaResp = ultimaImg ? um(app.db, "select id from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id)?.id : null;
@@ -700,6 +715,7 @@ export function rotasConversas(app, r) {
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
       + blocoCreditos(app)
       + (imagemChat ? NOTA_IMAGEM(imagemChat.modo) : '')
+      + (codigo ? notaDeCodigo(codigo) : '')
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nEntre a abertura curta e a seção final "O que foi feito", a resposta é o conteúdo da peça, completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')
@@ -742,7 +758,13 @@ export function rotasConversas(app, r) {
     // Nível que o TRABALHO anterior pediu (sem a subida de uma nova tentativa): um ajuste desse trabalho não desce dele.
     const dimAnt = (() => { try { return JSON.parse(ant?.requisitos || '{}').dimensoes || {}; } catch { return {}; } })();
     const trabalhoAnt = Math.max(0, ...Object.entries(dimAnt).filter(([d]) => d !== 'nova_tentativa').map(([, n]) => Number(n) || 0)) || null;
-    const entradaAnalise = { texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta,
+    // Dependências do trabalho anterior (para avaliar se um ajuste "pequeno" se propaga): fórmulas na planilha,
+    // projeto de código ou mais de um arquivo gerado na última resposta.
+    const ultimaResposta = temResposta ? um(app.db, "select id, texto from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id) : null;
+    const dependencias = !ultimaResposta ? null : [/^\s*\|.*\|\s*=[A-Za-z(]/m.test(ultimaResposta.texto || '') ? 'formulas' : null,
+      um(app.db, "select 1 from arquivos_gerados where mensagem_id = ? and mime = 'application/zip'", ultimaResposta.id) ? 'projeto_de_codigo' : null,
+      (um(app.db, 'select count(*) as n from arquivos_gerados where mensagem_id = ?', ultimaResposta.id)?.n || 0) > 1 ? 'varios_arquivos' : null].filter(Boolean).join(',') || null;
+    const entradaAnalise = { texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta, dependencias,
       anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe], trabalho: trabalhoAnt } : null, feedback: ant?.feedback || null };
     let analise;
     try { analise = (app.analisarPedido || analisarPedido)(entradaAnalise); } catch (e) {
@@ -760,6 +782,9 @@ export function rotasConversas(app, r) {
       throw erro(409, 'sigilo_nao_permitido', MSG_USUARIO.sigilo_desligado);
     }
     const reservaDoPlano = plano?.fase === 'reserva';
+    // O ajuste pede mais que o Rápido, mas os créditos do mês estão na reserva: a pessoa fica sabendo antes, em vez de
+    // receber em silêncio um resultado abaixo do necessário.
+    if (reservaDoPlano && ['substancial', 'complexo'].includes(analise?.sinais?.ajuste)) aviso(app, conv.id, 'Os créditos do mês estão no modo econômico (só o nível Rápido até a renovação). Este ajuste refaz uma parte grande do trabalho e normalmente usa um nível acima: confira o resultado com atenção ou peça ao administrador mais créditos.');
     // Resolução do pedido (antes de qualquer bloqueio): uma escolha manual que não pode ser usada (classe sem
     // acesso, não liberada, não autorizada para dado sigiloso, fora da reserva do plano) NÃO vira pergunta
     // para a pessoa: o pedido segue no roteamento automático, entre os modelos que as regras permitem.
@@ -1255,7 +1280,13 @@ export function rotasConversas(app, r) {
       registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: imagem.mime, origem: 'imagem_chat', modo: imagem.detalhes.modo });
     }
     // Site ou projeto de código na resposta: prévia funcionando (página isolada) e o código-fonte em .zip.
-    if (!naoGuardar && !qw && !gerado) {
+    // Operação de código bloqueada ou ainda não disponível: a pessoa fica sabendo, com o pedido de acesso à mão.
+    const acessoCodigo = codigo && (codigo.bloqueadas.length || codigo.indisponiveis.length) ? { mensagem: avisoDeCodigo(codigo), pedir: codigo.bloqueadas.filter(b => b.situacao === 'sem_permissao').map(b => ({ chave: b.chave, nome: b.nome })) } : null;
+    if (acessoCodigo) {
+      aviso(app, conv.id, acessoCodigo.mensagem);
+      registrar(app, 'code.blocked', pessoa.id, { conversa: conv.id, operacoes: [...codigo.bloqueadas, ...codigo.indisponiveis].map(b => ({ op: b.op, situacao: b.situacao === 'permitida' ? 'indisponivel' : b.situacao })) });
+    }
+    if (!naoGuardar && !qw && !gerado && codigo?.podeProjeto) {
       let cod = null;
       try { cod = entregaDeCodigo(resposta); } catch (e) { app.log?.('código da resposta', erroParaLog(e)); }
       const guardar = (nome, mime, dados, detalhes) => {
@@ -1285,7 +1316,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
-      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}) });
+      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}), ...(acessoCodigo?.pedir.length ? { acesso: acessoCodigo.pedir } : {}) });
     res.end();
   }
 }

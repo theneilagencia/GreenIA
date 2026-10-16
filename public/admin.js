@@ -772,6 +772,9 @@ async function abaPoliticas({ sucesso = '' } = {}) {
           <p class="dica">Só o que já é público. Em branco, o Quick Win pergunta o mercado quando a pesquisa precisar.</p>
           ${Object.entries(PERFIL_PUBLICO).map(([k, r]) => `<div class="campo"><label for="perfil-${k}">${r}</label><input class="entrada" id="perfil-${k}" maxlength="80" value="${esc(c.pesquisaWeb?.perfil?.[k] || '')}"></div>`).join('')}
         </fieldset>
+        <h3>Código e sites</h3>
+        <p class="dica">Conversar sobre programação, explicar código e mostrar exemplos é sempre permitido. Cada operação abaixo depende também do perfil da pessoa (Pessoas › Perfis). Desmarcada aqui, fica proibida para todos.</p>
+        <div class="caixas">${[['projeto', 'Criar sites e aplicativos'], ['executar', 'Executar código'], ['repositorio', 'Acessar repositórios de código'], ['publicar', 'Publicar projetos']].map(([k, r]) => `<label class="adm-marca"><input type="checkbox" data-desenvolvimento="${k}" ${c.desenvolvimento?.[k] === false ? '' : 'checked'}> <span>${r}</span></label>`).join('')}</div>
       </div>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 
@@ -817,7 +820,8 @@ async function abaPoliticas({ sucesso = '' } = {}) {
     ev.preventDefault();
     try {
       await api('/api/admin/config', { metodo: 'PUT', corpo: { acoesChat: Object.fromEntries(Object.keys(DADOS).map(k => [k, document.querySelector(`select[name="d-${k}"]`).value])),
-        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked, pesquisaWeb: { ativa: $('pesquisa-web').checked, perfil: Object.fromEntries(Object.keys(PERFIL_PUBLICO).map(k => [k, $(`perfil-${k}`).value])) } } });
+        naoArmazenar: Object.keys(DADOS).filter(k => !document.querySelector(`[data-guardar="${k}"]`).checked), protecaoDadosPessoais: $('protecao-pessoais').checked, pesquisaWeb: { ativa: $('pesquisa-web').checked, perfil: Object.fromEntries(Object.keys(PERFIL_PUBLICO).map(k => [k, $(`perfil-${k}`).value])) },
+        desenvolvimento: Object.fromEntries([...document.querySelectorAll('[data-desenvolvimento]')].filter(x => !x.checked).map(x => [x.dataset.desenvolvimento, false])) } });
       vig.limpar(); toast('Regras de dados salvas.'); abaPoliticas();
     } catch (e) { falhar(e); }
   };

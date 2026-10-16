@@ -56,7 +56,7 @@ export function criarLimites(app) {
   };
 }
 
-const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa', 'identidadeVisual', 'producaoVisual', 'integracoes'];
+const CAMPOS_CONFIG = ['empresa', 'logo', 'corMarca', 'dominios', 'smtp', 'privacyNote', 'retencaoDias', 'acoesChat', 'protecaoDadosPessoais', 'pesquisaWeb', 'naoArmazenar', 'tetoMensal', 'tetoPessoaMensal', 'limiteDiarioPessoa', 'identidadeVisual', 'producaoVisual', 'integracoes', 'desenvolvimento'];
 
 function validarConfig(c, { multi = false, atual = null } = {}) {
   const v = {};
@@ -100,6 +100,8 @@ function validarConfig(c, { multi = false, atual = null } = {}) {
     v.integracoes = { ativa: i.ativa !== undefined ? i.ativa === true : !!a.ativa, pessoas, politicas, limite_minuto_empresa: Number.isFinite(lim) ? Math.min(3000, Math.max(1, Math.round(lim))) : 300,
       rede_privada_autorizada: i.rede_privada_autorizada !== undefined ? i.rede_privada_autorizada === true : !!a.rede_privada_autorizada };
   }
+  // Regra da empresa para código e sites: só "false" (proíbe) por operação conhecida; o resto fica com os perfis.
+  if (c.desenvolvimento !== undefined) v.desenvolvimento = Object.fromEntries(['projeto', 'executar', 'repositorio', 'publicar'].filter(k => c.desenvolvimento?.[k] === false).map(k => [k, false]));
   if (c.producaoVisual !== undefined) v.producaoVisual = { imagens: { ativa: c.producaoVisual?.imagens?.ativa === true, modelo: atual?.producaoVisual?.imagens?.modelo || PADRAO_CFG.producaoVisual.imagens.modelo } };
   if (c.pesquisaWeb !== undefined) {
     // só true explícito liga. Perfil público (QA-04): o único contexto da empresa que pode ir para a busca na

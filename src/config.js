@@ -31,6 +31,9 @@ export const PADRAO = {
   // vem desligado: ligado, só o tema da peça (nunca o conteúdo) vai para o modelo de imagem. Ver src/visual.
   identidadeVisual: { regras: {}, preferencias: {} },
   producaoVisual: { imagens: { ativa: true, modelo: 'google/gemini-2.5-flash-image' } },
+  // Regra da empresa para código e sites (src/permissoes-codigo.js): { projeto|executar|repositorio|publicar: false }
+  // proíbe a operação para todos, por cima dos perfis. Vazio: vale o que cada perfil libera.
+  desenvolvimento: {},
   // Integration Builder (governado): desligado por padrão. pessoas: lista de emails que veem o recurso (vazia =
   // todas com permissão); politicas: regras da empresa (vazia = política padrão); limite de chamadas por minuto.
   integracoes: { ativa: false, pessoas: [], politicas: [], limite_minuto_empresa: 300, rede_privada_autorizada: false },

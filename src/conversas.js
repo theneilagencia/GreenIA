@@ -1346,6 +1346,14 @@ export function rotasConversas(app, r) {
     // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
     // como conteúdo, em vez de a pessoa ficar com um texto que vira slides genéricos.
     if (!modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
+    // O arquivo ainda vai ser montado (pode levar minutos): a frase "o arquivo está pronto para baixar" sai do texto
+    // já agora, e a tela mostra o andamento. Quem anuncia o arquivo é a plataforma, quando ele existe (em produção a
+    // pessoa leu "pronto para download" enquanto o PowerPoint ainda estava sendo montado).
+    if ((modeloApr || edicao) && !naoGuardar) {
+      const limpo = semPromessaDeArquivo(resposta).trimEnd();
+      if (limpo !== resposta.trimEnd()) { resposta = limpo; linha({ t: 'substituir', v: resposta }); }
+      linha({ t: 'etapa', v: modeloApr ? 'Preparando o PowerPoint para baixar…' : 'Aplicando os ajustes no arquivo…', arquivo: true });
+    }
     if (modeloApr) {
       // Sinal de vida a cada 15 s: o trabalho leva minutos e a conexão não pode ficar parada.
       let ultimaEtapa = 'Lendo o layout do modelo…';

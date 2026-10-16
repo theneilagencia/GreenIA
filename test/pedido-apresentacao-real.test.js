@@ -109,3 +109,27 @@ test('pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o P
   assert.match(t, /Kickoff do projeto/); assert.match(t, /Seis visitas/);
   assert.doesNotMatch(t, /## Slide/, 'sem marcação crua de Markdown no arquivo');
 });
+
+// Produção (empresa com recurso autorizado para dado sigiloso): a conversa vira sigilosa (CPF do contrato) e segue pela
+// rota sigilosa, sem mascarar. A resposta dizia "o arquivo está pronto para download" e nenhum arquivo aparecia.
+test('conversa sigilosa com recurso autorizado: o mesmo pedido entrega o PowerPoint para baixar', { skip: semNavegador }, async () => {
+  const { POLITICA_SIGILO } = await import('../src/sigilo.js');
+  salvarConfig(S.app.db, { [POLITICA_SIGILO]: true });
+  exec(S.app.db, "update modelos set liberado = 1, homologado = 1, homologacao = ? where id = 'anthropic/claude-haiku-4.5'", JSON.stringify({ fornecedor: 'anthropic', endpoint: 'anthropic', retencaoZero: true, semTreino: true }));
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO, anexos: anexos() });
+  assert.equal(r.status, 200, JSON.stringify(r.erro || r.falha));
+  const c = todos(S.app.db, 'select sigilosa from conversas where id = ?', conv.id)[0];
+  assert.equal(c.sigilosa, 1, 'rota sigilosa');
+  const a = r.fim?.arquivos?.[0];
+  assert.ok(a, `arquivo gerado: ${JSON.stringify({ fim: r.fim, etapas: r.eventos.filter(e => e.t === 'etapa').map(e => e.v), avisos: todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'aviso'", conv.id) })}`);
+  const d = await fetch(`${S.base}/api/conversas/${conv.id}/arquivos/${a.id}`, { headers: { cookie: ana.cookie } });
+  assert.equal(d.status, 200);
+  // Enquanto o arquivo é montado, a tela não lê "pronto para download": a frase sai assim que o texto termina e a
+  // etapa avisa que o arquivo está sendo preparado.
+  const k = r.eventos.findIndex(e => e.t === 'etapa' && e.arquivo);
+  assert.ok(k > 0, 'etapa de arquivo');
+  const antes = r.eventos.slice(0, k).filter(e => e.t === 'substituir').at(-1)?.v;
+  assert.ok(antes && !/pronto para download/.test(antes), String(antes));
+  assert.doesNotMatch(todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto, /pronto para download/);
+});

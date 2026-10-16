@@ -296,7 +296,10 @@ function htmlMensagem(m) {
   }
   if (m.papel === 'aviso' && /^Execução (dos testes|do código)/.test(m.texto) && m.texto.includes('\n')) { const [cab, ...resto] = m.texto.split('\n'); return `<div class="linha-aviso execucao-saida${anim}"><b>${esc(cab)}</b><pre>${esc(resto.join('\n'))}</pre></div>`; }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
-  const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + (C.etapa && !C.execucao ? `<p class="dica" role="status">${esc(C.etapa)}</p>` : ''), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
+  const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + (C.etapa && !C.execucao ? (C.montandoArquivo
+    // Arquivo sendo montado depois do texto: cartão no lugar onde o arquivo vai aparecer, com o andamento.
+    ? `<div class="arquivo-montando" role="status"><span class="girando" aria-hidden="true"></span><span><b>Preparando o arquivo para baixar…</b><small>${esc(C.etapa)}</small><small>Pode levar alguns minutos; não feche esta conversa.</small></span></div>`
+    : `<p class="dica" role="status">${esc(C.etapa)}</p>`) : ''), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
@@ -656,7 +659,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     C.mensagens.push({ id: 'eu' + Date.now(), papel: 'user', texto, anexos: anexos.map(a => a.nome) });
     $('entrada').value = ''; C.anexos = []; ajustarAltura(); desenharAnexos();
   }
-  C.pensando = true; C.etapa = null; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
   const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
   const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
@@ -698,7 +701,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
       const ev = JSON.parse(l);
       if (ev.t === 'inicio' && ev.cortada && C.conv) C.conv.cortada = true;
       if (ev.t === 'inicio' && ev.qualidade) C.execucao = true;
-      if (ev.t === 'etapa') { C.etapa = ev.v; $('ao-vivo').textContent = ev.v; if (!C.pensando && !C.execucao) desenharMensagens(); }
+      if (ev.t === 'etapa') { C.etapa = ev.v; if (ev.arquivo) C.montandoArquivo = true; $('ao-vivo').textContent = ev.v; if (!C.pensando && !C.execucao) desenharMensagens(); }
       if (ev.t === 'texto') {
         if (C.pensando) { C.pensando = false; C.mensagens.push(resposta); }
         resposta.texto += ev.v;
@@ -712,7 +715,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
     if (bolha) { bolha.innerHTML = esc(resposta.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>'; rolarSeNoFim(); } else desenharMensagens();
   }
-  C.etapa = null; C.execucao = false;
+  C.etapa = null; C.montandoArquivo = false; C.execucao = false;
   $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
   await recarregarConversa(true);
@@ -732,7 +735,7 @@ async function gerarDeNovo(id, depoisDaCiencia = false) {
   C.enviando = true; atualizarEnviar();
   const pos = C.mensagens.indexOf(anterior);
   C.mensagens.splice(pos, 1);
-  C.pensando = true; C.etapa = null; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
   $('ao-vivo').textContent = 'Gerando outra resposta…';
   const voltar = texto => {
     C.pensando = false;

@@ -143,3 +143,10 @@ test('conferência de sentido não esvazia slide; slide que juntou as duas parte
   const p = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: FONTE, pedido: 'os slides de Resultados e Planos podem virar um só', chamar: async () => ({ texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense' }, { pagina: 2, conteudo: 'Resultados\n• -26% água\n• Essencial: R$ 38/ha/ano' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] }) }) });
   assert.equal(p.slides[1].conteudo.split('\n')[0], 'Resultados e Planos');
 });
+
+test('rótulo curto em negrito do modelo ("O Ganho") não recebe item', async () => {
+  const { preencherReestilo } = await import('../src/modelo-pdf.js');
+  const pag = { w: 792, h: 612, blocos: [bloco('1.1', 'Caso 1', 80, 28), { ...bloco('1.2', 'O Ganho', 140), negrito: true }, bloco('1.3', 'Resultado do caso em uma frase longa', 160)] };
+  const t = preencherReestilo([pag], ['Planos\n• Essencial: R$ 38/ha/ano']);
+  assert.deepEqual([t['1.1'], t['1.2'], t['1.3']], ['Planos', '', '• Essencial: R$ 38/ha/ano']);
+});

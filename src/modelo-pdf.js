@@ -544,7 +544,7 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
       const [t, ...r] = s.conteudo.split('\n'), tt = semAcento(t), corpo = semAcento(r.join(' '));
       const fonteDe = n => semAcento(slidesDaFonte(fonte).find(x => semAcento(x.split('\n')[0]).includes(n)) || '');
       const temDe = n => { const linhas = fonteDe(n).split('\n').slice(1).map(l => l.replace(/^[•\-\s]+/, '').slice(0, 25)).filter(Boolean); return linhas.some(l => corpo.includes(l)); };
-      if (tt.includes(a) !== tt.includes(b) && temDe(a) && temDe(b)) s.conteudo = [`${t.trim()} e ${(tt.includes(a) ? b : a).replace(/^./, c => c.toUpperCase())}`, ...r].join('\n');
+      if (tt.includes(a) !== tt.includes(b) && !/\se\s/.test(tt) && temDe(a) && temDe(b)) s.conteudo = [`${t.trim()} e ${(tt.includes(a) ? b : a).replace(/^./, c => c.toUpperCase())}`, ...r].join('\n');
     }
     if (slides && juncoesNaoFeitas(slides, pares).length) {
       try {
@@ -593,7 +593,9 @@ export function preencherReestilo(paginas, conteudos) {
     // Subtítulo (texto menor logo abaixo do título): fica vazio, para o primeiro item não virar subtítulo.
     const subtitulo = tituloB && p.blocos.find(b => b !== tituloB && b.y > tituloB.y && b.y - tituloB.y < (tituloB.tam || 20) * 1.8 && (b.tam || 0) < (tituloB.tam || 0) * 0.75);
     const corpo = p.blocos.filter(b => b !== tituloB && b !== subtitulo && !contador.test(b.texto) && papelDoBloco(b, p.blocos) !== 'rótulo'
-      && b.y < p.h * 0.93 && (b.texto.length >= 12 || /\s/.test(b.texto.trim())))
+      && b.y < p.h * 0.93 && (b.texto.length >= 12 || /\s/.test(b.texto.trim()))
+      // Rótulo curto em negrito ("O Ganho", "Antes"): é cabeçalho do modelo, não lugar de item.
+      && !(b.negrito && b.texto.length < 20 && b.texto.trim().split(/\s+/).length <= 3))
       .sort((a, b) => Math.abs(a.y - b.y) < (a.tam || 10) * 0.6 ? a.x - b.x : a.y - b.y);
     for (const b of p.blocos) if (!contador.test(b.texto)) textos[b.id] = '';
     if (tituloB) textos[tituloB.id] = titulo;

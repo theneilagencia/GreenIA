@@ -296,10 +296,7 @@ function htmlMensagem(m) {
   }
   if (m.papel === 'aviso' && /^Execução (dos testes|do código)/.test(m.texto) && m.texto.includes('\n')) { const [cab, ...resto] = m.texto.split('\n'); return `<div class="linha-aviso execucao-saida${anim}"><b>${esc(cab)}</b><pre>${esc(resto.join('\n'))}</pre></div>`; }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
-  const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + (C.etapa && !C.execucao ? (C.montandoArquivo
-    // Arquivo sendo montado depois do texto: cartão no lugar onde o arquivo vai aparecer, com o andamento.
-    ? `<div class="arquivo-montando" role="status"><span class="girando" aria-hidden="true"></span><span><b>Preparando o arquivo para baixar…</b><small>${esc(C.etapa)}</small><small>Pode levar alguns minutos; não feche esta conversa.</small></span></div>`
-    : `<p class="dica" role="status">${esc(C.etapa)}</p>`) : ''), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
+  const { html, tabelas } = m.carregando ? { html: esc(semPromessaAoVivo(m.texto)).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + andamentoDaResposta(), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
@@ -396,6 +393,18 @@ function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!
 // O texto cresce com o que é digitado até ~40% da tela (entre 120 e 320 px); passando disso, rola por dentro.
 // Altura da caixa: cresce com o texto até um limite e depois rola por dentro. No celular o limite é menor (a área
 // visível já divide espaço com o teclado), como no app do ChatGPT: cerca de 6 linhas; "Expandir" abre mais.
+// Andamento abaixo do texto que ainda está sendo gerado: arquivo sendo montado (cartão no lugar onde o arquivo vai
+// aparecer) ou a etapa atual. Usado no desenho completo e na atualização só da bolha durante o streaming (que antes
+// reescrevia a bolha sem o cartão: em produção ele nunca aparecia).
+// O arquivo ainda vai ser montado: frase "o arquivo está pronto para download" não aparece enquanto o texto é escrito
+// (o servidor também a tira no fim). QA em produção: ela piscava antes de a versão final chegar.
+const semPromessaAoVivo = t => C.vaiArquivo ? String(t).replace(/[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*\b(download|baixar)\b[^.!\n]*[.!]?/gi, '').replace(/[^.!\n]*\b(download|baixar)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*[.!]?/gi, '') : t;
+function andamentoDaResposta() {
+  if (!C.etapa || C.execucao) return '';
+  return C.montandoArquivo
+    ? `<div class="arquivo-montando" role="status"><span class="girando" aria-hidden="true"></span><span><b>Preparando o arquivo para baixar…</b><small>${esc(C.etapa)}</small><small>Pode levar alguns minutos; não feche esta conversa.</small></span></div>`
+    : `<p class="dica" role="status">${esc(C.etapa)}</p>`;
+}
 function ajustarAltura() { const t = $('entrada'), vh = window.visualViewport?.height || innerHeight, celular = innerWidth <= 760, max = Math.round(C.expandida ? vh * (celular ? 0.5 : 0.68) : celular ? Math.max(96, Math.min(168, vh * 0.24)) : Math.max(120, Math.min(320, vh * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
 function atualizarEnviar() {
   const vazio = !$('entrada').value.trim() && !C.anexos.length;
@@ -659,7 +668,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     C.mensagens.push({ id: 'eu' + Date.now(), papel: 'user', texto, anexos: anexos.map(a => a.nome) });
     $('entrada').value = ''; C.anexos = []; ajustarAltura(); desenharAnexos();
   }
-  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
   const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
   const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
@@ -701,6 +710,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
       const ev = JSON.parse(l);
       if (ev.t === 'inicio' && ev.cortada && C.conv) C.conv.cortada = true;
       if (ev.t === 'inicio' && ev.qualidade) C.execucao = true;
+      if (ev.t === 'inicio' && ev.arquivo) C.vaiArquivo = true;
       if (ev.t === 'etapa') { C.etapa = ev.v; if (ev.arquivo) C.montandoArquivo = true; $('ao-vivo').textContent = ev.v; if (!C.pensando && !C.execucao) desenharMensagens(); }
       if (ev.t === 'texto') {
         if (C.pensando) { C.pensando = false; C.mensagens.push(resposta); }
@@ -713,9 +723,9 @@ async function receberResposta(r, { manterErro = false } = {}) {
     }
     // Durante o streaming, atualiza só a bolha da resposta.
     const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
-    if (bolha) { bolha.innerHTML = esc(resposta.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>'; rolarSeNoFim(); } else desenharMensagens();
+    if (bolha) { bolha.innerHTML = esc(semPromessaAoVivo(resposta.texto)).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + andamentoDaResposta(); rolarSeNoFim(); } else desenharMensagens();
   }
-  C.etapa = null; C.montandoArquivo = false; C.execucao = false;
+  C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
   $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
   await recarregarConversa(true);
@@ -735,7 +745,7 @@ async function gerarDeNovo(id, depoisDaCiencia = false) {
   C.enviando = true; atualizarEnviar();
   const pos = C.mensagens.indexOf(anterior);
   C.mensagens.splice(pos, 1);
-  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
   $('ao-vivo').textContent = 'Gerando outra resposta…';
   const voltar = texto => {
     C.pensando = false;

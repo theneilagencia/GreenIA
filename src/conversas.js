@@ -1105,7 +1105,7 @@ export function rotasConversas(app, r) {
       solicitacao: solicitacao() };
     // Execução do Quick Win 2.0: a resposta é conferida antes de aparecer; quem usa acompanha as etapas.
     const espec = execucaoQw ? qw.espec : null;
-    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela, qualidade: !!espec });
+    linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela, qualidade: !!espec, arquivo: !!(modeloApr || edicao) && !naoGuardar });
     if (espec) linha({ t: 'etapa', v: anexos.length ? 'Analisando seu documento…' : 'Analisando seu pedido…' });
     const inicio = Date.now();
     let resposta = '', fim = null, primeiroToken = null, falha = null, atual = m;

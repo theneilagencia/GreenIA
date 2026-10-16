@@ -173,6 +173,15 @@ test('planilha: fórmula fora do padrão da linha é apontada; total na ponta da
   assert.match(p.find(x => x.ref === 'D3').problema, /diferente das vizinhas.*=D2\*0\.06.*padrão de B3 \(=B2\*0\.6\)/);
 });
 
+test('planilha: valor fixo no meio de fórmulas é apontado; saldo acumulado (primeira coluna diferente) não é alarme', () => {
+  const linhas = [['Conta', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai'], ['Receita', '100', '120', '130', '90', '80'],
+    ['Impostos', '=B2*0.6', '=C2*0.6', '9850', '=E2*0.6', '=F2*0.6'], ['Resultado', '=B2-B3', '=C2-C3', '=D2-D3', '=E2-E3', '=F2-F3'],
+    ['Saldo', '=B4+10', '=B5+C4', '=C5+D4', '=D5+E4', '=E5+F4']];
+  const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
+  assert.deepEqual(p.map(x => x.ref), ['D3']);
+  assert.match(p[0].problema, /valor fixo \(9850\)/);
+});
+
 test('slide novo: cópia do layout de um slide, com textos novos, na posição pedida (resto intacto)', async () => {
   const orig = pptx('# Abertura\n\nTexto inicial\n\n# Escopo\n\n- Item A\n\n# Fim\n\nObrigado', { titulo: 'Deck' });
   const c = conteudoParaEdicao('pptx', orig), linhas = c.split('\n');

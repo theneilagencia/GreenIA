@@ -532,10 +532,21 @@ export function problemasDaPlanilha(dados, { max = 40 } = {}) {
       const [padrao, n] = [...conta].sort((x, y) => y[1] - x[1])[0];
       if (n < 3 || lista.length - n > 2) continue;
       const exemplo = lista.find(x => x.rel === padrao);
+      // Saldo acumulado (o padrão usa a célula da esquerda, =B19+C17): a primeira coluna não tem célula à esquerda e
+      // começa de outro jeito (=B18+B17). Não é desvio (QA em produção: alarme falso em B19).
+      const acumulado = /C\[-1\]R\[0\]/.test(padrao), primeira = Math.min(...lista.map(y => y.cn));
+      // Número fixo entre fórmulas do mesmo padrão: a fórmula virou valor (QA em produção: E11 =E7*0.06 foi
+      // "corrigida" para 9850, quando o padrão da linha é =x7*0.6).
+      const comPadrao = lista.filter(x => x.rel === padrao).map(x => x.cn), de = Math.min(...comPadrao), ate = Math.max(...comPadrao);
+      const lin = Number(/\d+$/.exec(exemplo.ref)[0]);
+      for (let cc = de + 1; cc < ate; cc++) {
+        const ref = `${colLetra(cc)}${lin}`, c = cel.get(ref);
+        if (c && c.formula == null && /^-?\d+(\.\d+)?$/.test(String(c.valor).trim())) out.push({ aba: a.nome, ref, problema: `valor fixo (${c.valor}) no meio de fórmulas: as vizinhas seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use a fórmula, não o resultado digitado.` });
+      }
       // Coluna de total na ponta da linha (=SUM(B11:G11)) não é desvio: soma a própria linha.
       const ponta = x => x.cn === Math.max(...lista.map(y => y.cn)) || x.cn === Math.min(...lista.map(y => y.cn));
       const somaDaLinha = x => /C\[-?\d+\]R\[0\]:C\[-?\d+\]R\[0\]/.test(x.rel);
-      for (const x of lista) if (x.rel !== padrao && !(ponta(x) && somaDaLinha(x))) out.push({ aba: a.nome, ref: x.ref, problema: `fórmula diferente das vizinhas na mesma linha: =${x.formula}, enquanto as outras seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use o mesmo padrão, salvo se a diferença for intencional e explicada.` });
+      for (const x of lista) if (x.rel !== padrao && !(ponta(x) && somaDaLinha(x)) && !(acumulado && x.cn === primeira)) out.push({ aba: a.nome, ref: x.ref, problema: `fórmula diferente das vizinhas na mesma linha: =${x.formula}, enquanto as outras seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use o mesmo padrão, salvo se a diferença for intencional e explicada.` });
     }
   }
   return out.slice(0, max);

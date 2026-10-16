@@ -118,3 +118,26 @@ test('frase que não vem do material sai (slogan, "antes e depois" inventado); f
   } });
   assert.equal(n, 2); assert.equal(r.slides.length, 3);
 });
+
+test('junção pedida: o plano que deixou Resultados e Planos separados é pedido de novo; se insistir, a plataforma junta', async () => {
+  const { juncoesPedidas } = await import('../src/modelo-pdf.js');
+  assert.deepEqual(juncoesPedidas('3) os slides de Resultados e Planos podem virar um só.'), [['resultados', 'planos']]);
+  const separado = { slides: [{ pagina: 1, conteudo: 'AgroSense — Apresentação 2026' }, { pagina: 2, conteudo: 'Resultados\n• -26% água' }, { pagina: 2, conteudo: 'Planos\n• Essencial: R$ 38/ha/ano' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] };
+  let n = 0;
+  const r = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: FONTE, pedido: 'os slides de Resultados e Planos podem virar um só', chamar: async msgs => { n++; if (n === 2) assert.match(msgs.at(-1).content, /juntar os slides "resultados" e "planos"/); return { texto: JSON.stringify(separado) }; } });
+  assert.equal(n, 2);
+  assert.deepEqual(r.slides.map(s => s.conteudo.split('\n')[0]), ['AgroSense — Apresentação 2026', 'Resultados e Planos', 'Próximos passos']);
+  assert.match(r.slides[1].conteudo, /-26% água[\s\S]*Essencial/);
+});
+
+test('conferência de sentido: frase que afirma o que o material não diz sai; o título fica', async () => {
+  const paginas = paginasDoPlano(MODELO, [{ pagina: 1 }]);
+  const chamar = async msgs => {
+    if (/^Você confere/.test(msgs[0].content)) return { texto: JSON.stringify({ remover: ['1.3'] }) };
+    return { texto: JSON.stringify({ '1.1': 'Planos', '1.2': '• Essencial: R$ 38/ha/ano', '1.3': 'Essencial paga o investimento', '1.4': '', '1.5': '1 / 1' }) };
+  };
+  const r = await adaptarModelo({ paginas, contexto: FONTE, pedido: 'design', chamar, conteudos: ['Planos\n• Essencial: R$ 38/ha/ano'], material: FONTE + ' Essencial investimento paga' });
+  assert.equal(r.textos['1.1'], 'Planos');
+  assert.equal(r.textos['1.2'], '• Essencial: R$ 38/ha/ano');
+  assert.equal(r.textos['1.3'], '');
+});

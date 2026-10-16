@@ -483,6 +483,22 @@ export function fracaoForaDoMaterial(texto, material) {
   const tem = new Set(palavrasDe(material)), ws = palavrasDe(texto);
   return ws.length < 3 ? 0 : ws.filter(w => !tem.has(w)).length / ws.length;
 }
+// Pedido de juntar slides ("os slides de Resultados e Planos podem virar um só", "junte X e Y"): pares de nomes.
+const semAcento = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+export function juncoesPedidas(pedido) {
+  const t = semAcento(pedido), pares = [];
+  for (const m of t.matchAll(/(?:slides?|paginas?)\s+(?:de\s+|do\s+|da\s+)?["“]?([a-z0-9][\w\- ]{1,40}?)["”]?\s+e\s+(?:de\s+|do\s+|da\s+)?["“]?([a-z0-9][\w\- ]{1,40}?)["”]?\s+(?:podem\s+|devem\s+|vao\s+)?(?:virar|ser|ficar|formar|em)\s+(?:um\s+so|um\s+unico|uma?\s+slide|um$)/g)) pares.push([m[1].trim(), m[2].trim()]);
+  for (const m of t.matchAll(/\b(?:junt\w*|un[ai]\w*|mescl\w*|combin\w*)\s+(?:os\s+slides\s+(?:de\s+)?)?["“]?([a-z0-9][\w\- ]{1,40}?)["”]?\s+e\s+["“]?([a-z0-9][\w\- ]{1,40}?)["”]?(?=[\s.,;:]|$)/g)) pares.push([m[1].trim(), m[2].trim()]);
+  return pares;
+}
+// Slides do plano cujo título (1ª linha) fala de cada lado de uma junção pedida que ficaram separados.
+function juncoesNaoFeitas(slides, pares) {
+  const titulo = s => semAcento(String(s.conteudo).split('\n')[0]);
+  return pares.map(([a, b]) => {
+    const ia = slides.findIndex(s => titulo(s).includes(a) && !titulo(s).includes(b)), ib = slides.findIndex(s => titulo(s).includes(b) && !titulo(s).includes(a));
+    return ia >= 0 && ib >= 0 && ia !== ib ? { a, b, ia, ib } : null;
+  }).filter(Boolean);
+}
 /** Slides da apresentação da pessoa ("## Slide N" e as linhas dele), sem os ids de edição. */
 export const slidesDaFonte = fonte => String(fonte || '').split(/^## Slide \d+\s*$/m).map(s => s.replace(/^\[[^\]]+\]\s*/gm, '').trim()).filter(Boolean);
 /**
@@ -520,6 +536,27 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
       // Página de tabela ou diagrama no meio: troca pela página de texto mais próxima (a capa e a última ficam).
       .map(s => s.pagina === 0 || s.pagina === paginas.length - 1 || paginaDeTexto(paginas[s.pagina]) || !textuais.length ? s : { ...s, pagina: textuais.reduce((m, k) => Math.abs(k - s.pagina) < Math.abs(m - s.pagina) ? k : m) });
     if (lista.length) slides = lista;
+    // Junção pedida que o plano não fez: pede de novo uma vez; se continuar separada, a plataforma junta os dois
+    // slides (o conteúdo do segundo vai para o primeiro, com o título "A e B").
+    const pares = juncoesPedidas(pedido);
+    if (slides && juncoesNaoFeitas(slides, pares).length) {
+      try {
+        const falta = juncoesNaoFeitas(slides, pares).map(f => `"${f.a}" e "${f.b}"`).join(', ');
+        const msgs = mensagensPlanoReestilo({ paginas, fonte, pedido, contexto, maximo });
+        msgs.push({ role: 'assistant', content: JSON.stringify({ slides: slides.map(s => ({ pagina: s.pagina + 1, conteudo: s.conteudo })) }) }, { role: 'user', content: `O pedido manda juntar os slides ${falta} num slide só, e o plano os deixou separados. Responda o plano corrigido, só o JSON.` });
+        const x = await chamar(msgs);
+        custo += x.custo || 0; economia += x.economia || 0;
+        const j2 = lerJson(x.texto);
+        const l2 = (Array.isArray(j2?.slides) ? j2.slides : []).map(s => ({ pagina: Math.round(Number(s?.pagina)) - 1, conteudo: limpar(s?.conteudo) })).filter(s => s.pagina >= 0 && s.pagina < paginas.length && s.conteudo);
+        if (l2.length && l2.length <= maximo && !juncoesNaoFeitas(l2, pares).length) slides = l2.map(s => s.pagina === 0 || s.pagina === paginas.length - 1 || paginaDeTexto(paginas[s.pagina]) || !textuais.length ? s : { ...s, pagina: textuais.reduce((m, k) => Math.abs(k - s.pagina) < Math.abs(m - s.pagina) ? k : m) });
+      } catch { /* junção pela plataforma abaixo */ }
+      for (let f = juncoesNaoFeitas(slides, pares)[0]; f; f = juncoesNaoFeitas(slides, pares)[0]) {
+        const [i, k] = [Math.min(f.ia, f.ib), Math.max(f.ia, f.ib)];
+        const [t1, ...r1] = slides[i].conteudo.split('\n'), [t2, ...r2] = slides[k].conteudo.split('\n');
+        slides[i] = { ...slides[i], conteudo: [`${t1.trim()} e ${t2.trim()}`, ...r1, ...r2].join('\n') };
+        slides.splice(k, 1);
+      }
+    }
   } catch { /* plano simples abaixo */ }
   if (!slides) {
     const fonteSlides = slidesDaFonte(fonte), n = paginas.length, meio = textuais.length ? textuais : [Math.min(1, n - 1)];
@@ -788,6 +825,23 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   } else for (const p of paginas) {
     const comTexto = p.blocos.filter(b => b.texto.trim() && !fica(b));
     if (comTexto.length && comTexto.every(b => textos[b.id] === '')) for (const b of comTexto) textos[b.id] = b.texto;
+  }
+  // Reestilo: conferência final de sentido. A IA aponta frases que afirmam algo que o material não diz (QA em produção:
+  // "economia de água e energia pagam o investimento inicial"); elas saem. O título fica.
+  if (conteudos && fontes) {
+    etapa('Conferindo se cada frase vem do seu material…');
+    try {
+      const blocos = paginas.flatMap((p, k) => p.blocos.filter(b => textos[b.id] && !fica(b) && papelDoBloco(b, p.blocos) !== 'título').map(b => `${b.id} (slide ${k + 1}): ${textos[b.id]}`));
+      if (blocos.length) {
+        const x = await chamar([
+          { role: 'system', content: 'Você confere uma apresentação contra o material de origem. Liste os blocos que afirmam algo que o material NÃO diz: número, resultado, promessa, conclusão, comparação ou fato novo. Frase que só resume ou repete o material está certa. Rótulos curtos e títulos de seção estão certos. Responda só JSON: {"remover": ["<id>", ...]}.' },
+          { role: 'user', content: `<material>\n${String(fontes).slice(0, 60000)}\n</material>\n\nBlocos da apresentação:\n${blocos.join('\n')}` },
+        ]);
+        custo += x.custo || 0; economia += x.economia || 0;
+        const ids = new Set(paginas.flatMap(p => p.blocos.map(b => b.id)));
+        for (const id of lerJson(x.texto)?.remover || []) if (ids.has(String(id))) textos[String(id)] = '';
+      }
+    } catch { /* fica a versão conferida pelas regras */ }
   }
   return { textos, faltando, custo, economia, fatos_faltando: faltam.map(f => f.texto) };
 }

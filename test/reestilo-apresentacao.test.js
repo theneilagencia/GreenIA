@@ -61,3 +61,32 @@ test('preenchimento: só o conteúdo de cada slide; texto do modelo e número in
   assert.deepEqual(slide(2), ['Próximos passos', '• Visita técnica gratuita', '', '', '3 / 4']);
   assert.ok(!Object.values(r.textos).some(t => /7\.777|8\.800|Item do modelo|contato@modelo/.test(t)), JSON.stringify(r.textos));
 });
+
+test('número solto do modelo (célula de tabela) não fica; valor do conteúdo que ficou de fora volta numa correção', async () => {
+  const pag = [{ w: 792, h: 612, blocos: [bloco('1.1', 'Tabela do modelo', 80, 28), bloco('1.2', 'Linha do modelo', 140), { ...bloco('1.3', '250', 140), x: 400 }, bloco('1.4', 'Outra linha', 170)] }];
+  const conteudos = ['Planos\n• Essencial: R$ 38/ha/ano\n• Instalação: R$ 2.900'];
+  const vistas = [];
+  const chamar = async msgs => {
+    vistas.push(msgs[0].content.slice(0, 30));
+    if (/^Você coloca/.test(msgs[0].content)) return { texto: JSON.stringify({ '1.1': 'Planos', '1.2': '• Essencial: R$ 38/ha/ano', '1.3': '250', '1.4': '' }) };
+    assert.match(msgs[1].content, /inclua estes dados.*R\$ 2\.900/);
+    return { texto: JSON.stringify({ '1.4': '• Instalação: R$ 2.900' }) };
+  };
+  const r = await adaptarModelo({ paginas: paginasDoPlano(pag, [{ pagina: 0 }]), contexto: FONTE + '\nInstalação: R$ 2.900', pedido: 'design', chamar, conteudos });
+  assert.deepEqual(['1.1', '1.2', '1.3', '1.4'].map(id => r.textos[id]), ['Planos', '• Essencial: R$ 38/ha/ano', '', '• Instalação: R$ 2.900']);
+  assert.ok(vistas.some(v => /^Você corrige/.test(v)), JSON.stringify(vistas));
+});
+
+test('arquivo: caixa desenhada em volta de um texto que saiu, e a seta entre caixas que saíram, saem juntas; a caixa com texto fica', async () => {
+  const { pptxDeModelo } = await import('../src/escritorio.js');
+  const { lerPacote } = await import('../src/edicao-arquivo.js');
+  const ret = (x, y, w, h, cor = '#EEEEEE') => ({ t: 'forma', modo: 'fill', cor, d: [['M', x, y], ['L', x + w, y], ['L', x + w, y + h], ['L', x, y + h], ['Z']] });
+  const pag = { w: 792, h: 612, fundo: Buffer.alloc(0), elementos: [ret(40, 100, 120, 40), ret(170, 115, 30, 8, '#112233'), ret(210, 100, 120, 40), ret(40, 200, 120, 40)],
+    blocos: [bloco('1.1', 'Caixa um', 125), bloco('1.2', 'Caixa dois', 125), bloco('1.3', 'Caixa três', 225)].map(b => ({ ...b, x: 50, largura: 90 })) };
+  pag.blocos[1].x = 220;
+  const xml = t => lerPacote(pptxDeModelo([pag], { textos: t })).find(e => e.nome === 'ppt/slides/slide1.xml').dados.toString();
+  const formas = x => (x.match(/name="Forma/g) || []).length;
+  assert.equal(formas(xml({})), 4);
+  assert.equal(formas(xml({ '1.1': '', '1.2': '' })), 1, 'as duas caixas e a seta entre elas saem');
+  assert.equal(formas(xml({ '1.1': '' })), 3, 'só a caixa vazia sai; a seta fica porque liga a uma caixa com texto');
+});

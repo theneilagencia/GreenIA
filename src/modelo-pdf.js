@@ -517,7 +517,8 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   // Número puro fica como está, a menos que esteja colado a um texto na mesma linha ("19" + "OUT", "45" + "DIAS
   // ÚTEIS"): aí é parte de uma data ou prazo e é adaptado junto.
   const vizinhoNaLinha = b => paginas.some(p => p.blocos.includes(b) && p.blocos.some(o => o !== b && Math.abs(o.y - b.y) < b.tam * 0.5 && o.x > b.x && o.x - (b.x + (b.largura || 0)) < b.tam * 1.5 && /\p{L}/u.test(o.texto)));
-  const fica = b => /^\s*[\d.·/\s-]{1,6}\s*$/.test(b.texto) && !vizinhoNaLinha(b);
+  // No reestilo, número solto do modelo é dado do modelo (célula de tabela, indicador): só a numeração "n / total" fica.
+  const fica = b => conteudos ? /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) : /^\s*[\d.·/\s-]{1,6}\s*$/.test(b.texto) && !vizinhoNaLinha(b);
   const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos.filter(b => {
     if (fica(b)) return false;
     // No reestilo a mesma página do modelo pode repetir: o texto repetido é layout, não rodapé, e cada slide tem o seu.
@@ -707,6 +708,22 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   // Slide nunca fica sem texto: se todos os blocos de um slide que tinha texto ficaram vazios, volta o do modelo
   // (com os nomes trocados pela IA onde houver), em vez de um slide em branco.
   if (conteudos) {
+    // Reestilo: valor do conteúdo do slide (preço, percentual, quantidade) que não entrou em nenhum bloco volta numa
+    // rodada de correção daquele slide (QA em produção: "Resultados e Planos" saiu sem os preços dos planos).
+    const valores = c => [...new Set((String(c || '').match(/R\$\s?\d[\d.,]*|\d[\d.,]*\s?%|\d{1,3}(?:\.\d{3})+|\d{3,}/g) || []).map(v => v.replace(/\s+/g, ' ').trim()))];
+    const textoDoSlide = p => p.blocos.map(b => textos[b.id] ?? '').join(' ').replace(/\s+/g, ' ');
+    const faltas = paginas.map((p, k) => ({ k, faltam: valores(conteudos[k]).filter(v => !textoDoSlide(p).includes(v)) })).filter(x => x.faltam.length);
+    if (faltas.length) {
+      etapa('Conferindo se cada slide tem todo o seu conteúdo…');
+      try {
+        const alvo = slides.filter(sl => faltas.some(f => f.k + 1 === sl.numero));
+        const x = await chamar(mensagensEdicao({ slides: alvo, textos, contexto: faltas.map(f => `Conteúdo do slide ${f.k + 1}:\n${conteudos[f.k]}`).join('\n\n'),
+          pedido: `${faltas.map(f => `No slide ${f.k + 1}, inclua estes dados do conteúdo do slide, que ficaram de fora: ${f.faltam.join(', ')}.`).join(' ')} Use os blocos vazios ou resuma itens do mesmo slide para caber; não invente nada.` }));
+        custo += x.custo || 0; economia += x.economia || 0;
+        const j = lerJson(x.texto) || {};
+        for (const sl of alvo) for (const b of sl.blocos) if (typeof j[b.id] === 'string') textos[b.id] = limparVicios(juntarLetrasEspacadas(j[b.id].replace(/\s+/g, ' ').trim()));
+      } catch { /* fica a versão anterior */ }
+    }
     // Reestilo: número que não está no material nem no conteúdo do slide é inventado; o bloco sai (o título fica sem o
     // número). Slide que ficou sem texto recebe o conteúdo dele (título no maior bloco, resto no segundo), nunca o
     // texto do modelo.

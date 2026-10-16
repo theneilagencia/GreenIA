@@ -535,6 +535,7 @@ export function fundoNativo(p) {
   return i < 0 ? { cor: null, elementos: p.elementos || [] } : { cor: corDe(p.elementos[i].cor), elementos: p.elementos.filter((_, k) => k !== i) };
 }
 
+const b0 = p => Math.min(p.w, p.h) * 0.03;   // tamanho máximo de um marcador desenhado (bolinha, quadradinho)
 export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', agora } = {}) {
   const PT = 12700;
   const W = Math.round(paginas[0].w * PT), H = Math.round(paginas[0].h * PT);
@@ -555,7 +556,30 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
     const nativo = Array.isArray(p.elementos);
     const fn = nativo ? fundoNativo(p) : null;
     let idForma = 1000;
-    const formas = nativo ? fn.elementos.map(e => {
+    // Texto do modelo que saiu (bloco vazio no novo conteúdo): a caixa desenhada em volta dele, o marcador desenhado
+    // à esquerda e as setas entre caixas que saíram também saem, em vez de ficarem caixas e marcadores vazios.
+    const cheio = b => String(textos[b.id] ?? b.texto).trim();
+    const saiu = p.blocos.filter(b => b.texto.trim() && !cheio(b));
+    const centro = b => ({ x: b.x + (b.largura || 0) / 2, y: b.y - b.tam * 0.3 });
+    const dentro = (c, pt) => pt.x >= c.x && pt.x <= c.x + c.w && pt.y >= c.y && pt.y <= c.y + c.h;
+    const caixaSaiu = new Set();
+    if (nativo && saiu.length) for (const e of fn.elementos) {
+      if (e.t !== 'forma') continue;
+      const c = caixaDe(e.d);
+      if (!c || c.w * c.h > p.w * p.h * 0.25) continue;
+      const comVazio = saiu.some(b => dentro(c, centro(b))), comCheio = p.blocos.some(b => cheio(b) && dentro(c, centro(b)));
+      const marcador = c.w < b0(p) && c.h < b0(p) && saiu.some(b => Math.abs((c.y + c.h / 2) - (b.y - b.tam * 0.35)) < b.tam * 0.6 && c.x < b.x && b.x - (c.x + c.w) < b.tam * 2);
+      if ((comVazio && !comCheio) || marcador) caixaSaiu.add(e);
+    }
+    // Seta ou ligação pequena entre duas caixas que saíram (mesma faixa de altura) sai junto.
+    if (caixaSaiu.size >= 2) for (const e of fn.elementos) {
+      if (e.t !== 'forma' || caixaSaiu.has(e)) continue;
+      const c = caixaDe(e.d);
+      if (!c || c.w > p.w * 0.12 || c.h > p.h * 0.08 || p.blocos.some(b => cheio(b) && dentro(c, centro(b)))) continue;
+      const meio = c.y + c.h / 2, viz = [...caixaSaiu].map(x => caixaDe(x.d)).filter(x => x && meio >= x.y && meio <= x.y + x.h);
+      if (viz.some(x => x.x + x.w <= c.x + 1) && viz.some(x => x.x >= c.x + c.w - 1)) caixaSaiu.add(e);
+    }
+    const formas = nativo ? fn.elementos.filter(e => !caixaSaiu.has(e)).map(e => {
       if (e.t === 'forma') return formaNativa(e, idForma++, PT * sx);
       const r = midiaDe(e, n);
       return `<p:pic><p:nvPicPr><p:cNvPr id="${idForma++}" name="Imagem"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${r}">${(e.alfa ?? 1) < 0.995 ? `<a:alphaModFix amt="${Math.round(e.alfa * 100000)}"/>` : ''}</a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${Math.round(e.x * PT * sx)}" y="${Math.round(e.y * PT * sy)}"/><a:ext cx="${Math.round(e.w * PT * sx)}" cy="${Math.round(e.h * PT * sy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;

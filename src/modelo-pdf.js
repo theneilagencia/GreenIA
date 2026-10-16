@@ -563,6 +563,22 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
       // Página de tabela ou diagrama no meio: troca pela página de texto mais próxima (a capa e a última ficam).
       .map(s => s.pagina === 0 || s.pagina === paginas.length - 1 || paginaDeTexto(paginas[s.pagina]) || !textuais.length ? s : { ...s, pagina: textuais.reduce((m, k) => Math.abs(k - s.pagina) < Math.abs(m - s.pagina) ? k : m) });
     if (lista.length) slides = lista;
+    // Slide que perdeu linhas na conferência (paráfrase do contrato que não deu para conferir): pede uma vez o
+    // conteúdo desses slides com frases copiadas do material. QA em produção: o slide de evidências ficou só com o prazo.
+    const brutos = (Array.isArray(j?.slides) ? j.slides : []).map(x => String(x?.conteudo || '').split('\n').filter(l => l.trim()).length);
+    const magros = slides ? slides.map((x, i) => ({ i, antes: brutos[i] || 0, depois: x.conteudo.split('\n').length })).filter(x => x.antes - x.depois >= 2 && x.depois <= x.antes / 2) : [];
+    if (magros.length) {
+      try {
+        const msgs = mensagensPlanoReestilo({ paginas, fonte, pedido, contexto, maximo });
+        msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: `Nos slides ${magros.map(x => x.i + 1).join(', ')}, a maior parte das linhas não pôde ser conferida no material e saiu. Reescreva só o conteúdo desses slides copiando frases do material (apresentação, contrato, proposta) com as mesmas palavras, sem resumir com palavras novas. Responda só JSON: {"slides": [{"indice": <número do slide no plano>, "conteudo": "..."}]}` });
+        const x = await chamar(msgs);
+        custo += x.custo || 0; economia += x.economia || 0;
+        for (const n of lerJson(x.texto)?.slides || []) {
+          const k = Math.round(Number(n?.indice)) - 1, novo = limpar(n?.conteudo);
+          if (magros.some(m => m.i === k) && novo && novo.split('\n').length > slides[k].conteudo.split('\n').length) slides[k] = { ...slides[k], conteudo: novo };
+        }
+      } catch { /* fica o conteúdo conferido */ }
+    }
     // Junção pedida que o plano não fez: pede de novo uma vez; se continuar separada, a plataforma junta os dois
     // slides (o conteúdo do segundo vai para o primeiro, com o título "A e B").
     const pares = juncoesPedidas(pedido);

@@ -169,3 +169,16 @@ test('junção conferida pelo conteúdo: resultados num slide com outro título 
   assert.equal(r.slides.length, 3);
   assert.match(r.slides[1].conteudo, /Santa Clara[\s\S]*Essencial/);
 });
+
+test('slide que perdeu linhas na conferência: pede de novo com frases copiadas do material e fica com a versão mais completa', async () => {
+  const contrato = 'Escopo: diagnóstico operacional com até seis visitas presenciais, leitura dos relatórios do sistema de gestão e teste da integração por API. Evidências previstas: relatórios do sistema, folha mensal, extrato bancário consolidado e estrutura de custos. Prazo: 10 semanas.';
+  let n = 0;
+  const r = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: `${FONTE}\n${contrato}`, pedido: 'design', chamar: async msgs => {
+    n++;
+    if (n === 1) return { texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense' }, { pagina: 2, conteudo: 'Evidências\n• Histórico de dados capturados pelos sensores ao longo da safra\n• Custos atuais de irrigação e energia por talhão monitorado\n• Calibração do modelo agronômico em campo com equipe própria\n• Prazo: 10 semanas' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] }) };
+    assert.match(msgs.at(-1).content, /Nos slides 2/);
+    return { texto: JSON.stringify({ slides: [{ indice: 2, conteudo: 'Evidências\n• Evidências previstas: relatórios do sistema, folha mensal, extrato bancário consolidado e estrutura de custos\n• Diagnóstico operacional com até seis visitas presenciais\n• Prazo: 10 semanas' }] }) };
+  } });
+  assert.equal(n, 2);
+  assert.match(r.slides[1].conteudo, /relatórios do sistema, folha mensal/);
+});

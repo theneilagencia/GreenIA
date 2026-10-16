@@ -290,10 +290,22 @@ const INSTRUCAO = [
   'Responda só com um objeto JSON: {"<id do bloco>": "<texto novo>", ...}, com TODOS os ids recebidos e nada mais.',
 ].join('\n');
 
-export function mensagensAdaptacao({ slides, contexto, pedido }) {
-  const modelo = slides.map(p => `Slide ${p.numero}:\n${p.blocos.map(b => linhaDoBloco(b, p.blocos, b.texto)).join('\n')}`).join('\n\n');
+// Reestilo: o conteúdo de cada slide já foi decidido (o material da pessoa); o modelo só empresta o layout.
+const INSTRUCAO_REESTILO = [
+  'Você coloca o conteúdo de uma apresentação JÁ EXISTENTE no design de uma apresentação modelo. Cada slide abaixo vem com os blocos de texto do layout do modelo e com o CONTEÚDO que esse slide deve ter.',
+  'Distribua o conteúdo do slide pelos blocos, respeitando a função de cada um: o título do conteúdo no bloco de título, os itens nos blocos de lista ou de coluna, na ordem. Rótulos pequenos de seção podem receber uma palavra que resuma o slide.',
+  'Use só o conteúdo do slide. Não invente nada: nenhum número, percentual, valor, prazo, caso, nome ou contato que não esteja no conteúdo. O texto do modelo é só exemplo de layout e nunca entra na apresentação.',
+  'Bloco do layout que não tem conteúdo correspondente volta "" (texto vazio) e sai do slide, seja item, parágrafo, rótulo ou célula de tabela. Só o título nunca fica vazio.',
+  'Cada bloco vem com a posição no slide [x, y] (em pontos): blocos na mesma altura são colunas de uma linha; na mesma coluna, itens de uma lista ou linhas de uma tabela.',
+  'Tamanho: cada texto deve caber no espaço do bloco, com no máximo o número de caracteres indicado; se o conteúdo não couber, resuma sem perder números e nomes.',
+  REGRAS_DE_ESCRITA,
+  'Responda só com um objeto JSON: {"<id do bloco>": "<texto novo>", ...}, com TODOS os ids recebidos e nada mais.',
+].join('\n');
+
+export function mensagensAdaptacao({ slides, contexto, pedido, conteudos = null }) {
+  const modelo = slides.map(p => `Slide ${p.numero}:\n${conteudos ? `Conteúdo deste slide:\n${conteudos[p.numero - 1] || ''}\nBlocos do layout:\n` : ''}${p.blocos.map(b => linhaDoBloco(b, p.blocos, b.texto)).join('\n')}`).join('\n\n');
   return [
-    { role: 'system', content: INSTRUCAO },
+    { role: 'system', content: conteudos ? INSTRUCAO_REESTILO : INSTRUCAO },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${contexto}\n</material>\n\nApresentação modelo (blocos a adaptar):\n\n${modelo}` },
   ];
 }
@@ -422,10 +434,76 @@ export function mensagensEdicao({ slides, textos, pedido, contexto }) {
 }
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
+// ---------- reestilo: o material da pessoa no design do modelo ----------
+// "Quero o design o mais próximo possível da apresentação X.pdf" sobre uma apresentação que já existe: o conteúdo é o
+// da apresentação da pessoa (com os ajustes pedidos) e o modelo só empresta o layout. Usar todas as páginas do modelo
+// enchia a apresentação de slides que ela não tinha, com números inventados (QA em produção: 6 slides viraram 15).
+const NUMERO = /\d+(?:[.,]\d+)*/g;
+const normNumero = n => String(n).replace(/[.,]/g, '').replace(/^0+(?=\d)/, '');
+/** Números do texto que não aparecem no material (anos, valores, percentuais inventados). */
+export function numerosForaDoMaterial(texto, material) {
+  const tem = new Set((String(material || '').match(NUMERO) || []).map(normNumero));
+  // Inteiro pequeno sozinho (capítulo, item, "3 profundidades") não conta: renumerar capítulos é pedido comum.
+  return (String(texto || '').match(NUMERO) || []).filter(n => !tem.has(normNumero(n)) && !(/^\d{1,2}$/.test(n) && Number(n) <= 60));
+}
+const resumoDaPagina = (p, n) => {
+  const t = p.blocos.find(b => papelDoBloco(b, p.blocos) === 'título');
+  const linhas = new Set(p.blocos.map(b => Math.round(b.y / 6))).size, colunas = new Set(p.blocos.map(b => Math.round(b.x / 20))).size;
+  return `Página ${n}: ${p.blocos.length} blocos de texto em ${linhas} linhas e ${colunas} colunas${t ? `; título: "${t.texto.slice(0, 70)}"` : ''}; textos: ${p.blocos.slice(0, 14).map(b => `"${b.texto.slice(0, 50)}"`).join(', ')}`;
+};
+export function mensagensPlanoReestilo({ paginas, fonte, pedido, contexto }) {
+  return [
+    { role: 'system', content: [
+      'Você monta a apresentação da pessoa no design de uma apresentação modelo. Decida quais slides a apresentação final terá e, para cada um, qual página do modelo serve de layout.',
+      'A apresentação final tem os slides da apresentação da pessoa, na ordem dela, com os ajustes do pedido aplicados (juntar slides, dividir, enriquecer com outro documento citado, remover). Não acrescente slides de temas que a apresentação da pessoa não tem.',
+      'Para cada slide, escolha a página do modelo cujo layout melhor acomoda o conteúdo: capa para o primeiro slide, página de encerramento ou contato para o último, página com lista para itens, com tabela para dados em linhas e colunas, com colunas para comparações. A mesma página pode servir para mais de um slide.',
+      'conteudo: o texto completo do slide (título na primeira linha, depois os itens, um por linha), tirado só da apresentação da pessoa, do pedido e dos documentos da conversa. Números, nomes e contatos ficam exatamente como estão. Não invente números, casos, prazos nem dados.',
+      'Responda só JSON: {"slides":[{"pagina":<número da página do modelo>,"conteudo":"..."}]}',
+    ].join('\n') },
+    { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-40000)}\n</material>\n\n<apresentacao_da_pessoa>\n${fonte}\n</apresentacao_da_pessoa>\n\nPáginas do modelo (layout):\n${paginas.map((p, k) => resumoDaPagina(p, k + 1)).join('\n')}` },
+  ];
+}
+/** Slides da apresentação da pessoa ("## Slide N" e as linhas dele), sem os ids de edição. */
+export const slidesDaFonte = fonte => String(fonte || '').split(/^## Slide \d+\s*$/m).map(s => s.replace(/^\[[^\]]+\]\s*/gm, '').trim()).filter(Boolean);
+/**
+ * Plano do reestilo: [{ pagina (índice 0..n-1 no modelo), conteudo }]. Sem resposta utilizável da IA, cada slide da
+ * pessoa vai, na ordem, para a capa, as páginas do meio e a última página do modelo.
+ */
+export async function planejarReestilo({ paginas, fonte, pedido, contexto, chamar }) {
+  const material = `${fonte}\n${contexto || ''}\n${pedido || ''}`;
+  // Linha com número que não está no material sai do conteúdo (no título, sai só o número).
+  const limpar = c => String(c || '').split('\n').map((l, i) => {
+    const fora = numerosForaDoMaterial(l, material);
+    if (!fora.length) return l;
+    return i === 0 ? fora.reduce((t, n) => t.replace(n, ''), l).replace(/\s{2,}/g, ' ').trim() : null;
+  }).filter(l => l != null && l.trim()).join('\n');
+  let custo = 0, economia = 0, slides = null;
+  try {
+    const x = await chamar(mensagensPlanoReestilo({ paginas, fonte, pedido, contexto }));
+    custo += x.custo || 0; economia += x.economia || 0;
+    const j = lerJson(x.texto);
+    const lista = (Array.isArray(j?.slides) ? j.slides : []).map(s => ({ pagina: Math.round(Number(s?.pagina)) - 1, conteudo: limpar(s?.conteudo) }))
+      .filter(s => s.pagina >= 0 && s.pagina < paginas.length && s.conteudo).slice(0, MAX_PAGINAS_MODELO);
+    if (lista.length) slides = lista;
+  } catch { /* plano simples abaixo */ }
+  if (!slides) {
+    const fonteSlides = slidesDaFonte(fonte), n = paginas.length, meio = Math.max(1, n - 2);
+    slides = fonteSlides.map((c, i) => ({ pagina: i === 0 ? 0 : i === fonteSlides.length - 1 && n > 1 ? n - 1 : n > 2 ? 1 + ((i - 1) % meio) : Math.min(i, n - 1), conteudo: c }));
+  }
+  return { slides, custo, economia };
+}
+/** Páginas do modelo na ordem do plano (a mesma página pode repetir), com ids novos e a numeração "n / total" refeita. */
+export function paginasDoPlano(paginas, plano) {
+  return plano.map((s, i) => {
+    const p = paginas[s.pagina];
+    return { ...p, blocos: p.blocos.map((b, k) => ({ ...b, id: `${i + 1}.${k + 1}`, texto: /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) ? `${i + 1} / ${plano.length}` : b.texto })) };
+  });
+}
+
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
 // Com base (os textos da versão já gerada), o pedido é tratado como CORREÇÃO dessa versão: a IA recebe o texto atual
 // de cada bloco e devolve só o que muda; o resto fica como estava. Sem base, adapta o modelo do zero.
-export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date(), base = null }) {
+export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date(), base = null, conteudos = null }) {
   const textos = {}, faltando = [], longos = [];
   if (base) for (const p of paginas) for (const b of p.blocos) if (typeof base[b.id] === 'string') textos[b.id] = base[b.id];
   const original = new Map(paginas.flatMap(p => p.blocos.map(b => [b.id, b.texto])));
@@ -442,7 +520,8 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   const fica = b => /^\s*[\d.·/\s-]{1,6}\s*$/.test(b.texto) && !vizinhoNaLinha(b);
   const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos.filter(b => {
     if (fica(b)) return false;
-    if (vezes.get(b.texto) >= 3) { if (primeiro.has(b.texto)) { repetidos.push([b.id, primeiro.get(b.texto)]); return false; } primeiro.set(b.texto, b.id); }
+    // No reestilo a mesma página do modelo pode repetir: o texto repetido é layout, não rodapé, e cada slide tem o seu.
+    if (!conteudos && vezes.get(b.texto) >= 3) { if (primeiro.has(b.texto)) { repetidos.push([b.id, primeiro.get(b.texto)]); return false; } primeiro.set(b.texto, b.id); }
     return true;
   }) }));
   const partes = [];
@@ -478,7 +557,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     // A melhor resposta (mais ids) vale; menos de 80% dos ids pede de novo, uma vez.
     let r = null, n = -1;
     for (let tentativa = 0; tentativa < 2 && n < ids.length * 0.8; tentativa++) {
-      const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido }));
+      const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido, conteudos }));
       custo += x.custo || 0; economia += x.economia || 0;
       const j = lerJson(x.texto), k = j ? ids.filter(id => typeof j[id] === 'string').length : -1;
       if (k > n) { r = j; n = k; }
@@ -490,7 +569,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       continue;
     }
     for (const id of ids) {
-      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = juntarLetrasEspacadas(textos[id]); textos[id] = limparVicios(textos[id]); if (textos[id].length > limite(id) * 1.3 || viciosDeEscrita(textos[id]).length || (!textos[id] && (original.get(id) || '').length > 40)) longos.push(id); }
+      if (typeof r?.[id] === 'string' && (r[id].trim() || r[id] === '')) { textos[id] = r[id].replace(/\s+/g, ' ').trim(); if (viciosDeEscrita(textos[id]).includes('letras separadas')) textos[id] = juntarLetrasEspacadas(textos[id]); textos[id] = limparVicios(textos[id]); if (textos[id].length > limite(id) * 1.3 || viciosDeEscrita(textos[id]).length || (!conteudos && !textos[id] && (original.get(id) || '').length > 40)) longos.push(id); }
       else faltando.push(id);
     }
     prontas++; etapa(`Adaptando os slides… ${prontas} de ${partes.length} partes prontas`);
@@ -505,7 +584,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
       const parte = resto.slice(k * porParte * 2, (k + 1) * porParte * 2);
       try {
         const aviso = longos.length ? '\n\nAtenção: cada texto precisa caber no espaço do bloco (respeite o máximo de caracteres indicado em cada um) e seguir as regras de escrita, sem os vícios de texto de IA. Parágrafo, descrição e título nunca ficam vazios.' : '';
-        const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido: `${pedido || ''}${aviso}` }));
+        const x = await chamar(mensagensAdaptacao({ slides: parte, contexto, pedido: `${pedido || ''}${aviso}`, conteudos }));
         custo += x.custo || 0; economia += x.economia || 0;
         const j = lerJson(x.texto);
         for (const s of parte) for (const b of s.blocos) {
@@ -627,7 +706,29 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   for (const [id, de] of repetidos) if (textos[de] !== undefined) textos[id] = textos[de];
   // Slide nunca fica sem texto: se todos os blocos de um slide que tinha texto ficaram vazios, volta o do modelo
   // (com os nomes trocados pela IA onde houver), em vez de um slide em branco.
-  for (const p of paginas) {
+  if (conteudos) {
+    // Reestilo: número que não está no material nem no conteúdo do slide é inventado; o bloco sai (o título fica sem o
+    // número). Slide que ficou sem texto recebe o conteúdo dele (título no maior bloco, resto no segundo), nunca o
+    // texto do modelo.
+    const material = `${contexto || ''}\n${pedido || ''}\n${conteudos.join('\n')}`;
+    paginas.forEach((p, k) => {
+      for (const b of p.blocos) {
+        if (textos[b.id] === undefined && !fica(b)) textos[b.id] = '';   // texto do modelo nunca entra
+        const t = textos[b.id];
+        if (!t || fica(b)) continue;
+        const fora = numerosForaDoMaterial(t, material);
+        if (!fora.length) continue;
+        textos[b.id] = papelDoBloco(b, p.blocos) === 'título' ? fora.reduce((x, n) => x.replace(n, ''), t).replace(/\s{2,}/g, ' ').trim() : '';
+      }
+      const comTexto = p.blocos.filter(b => b.texto.trim() && !fica(b));
+      if (comTexto.length && comTexto.every(b => !textos[b.id])) {
+        const [titulo, ...resto] = String(conteudos[k] || '').split('\n');
+        const ordem = [...comTexto].sort((a, b) => (b.tam || 0) - (a.tam || 0));
+        textos[ordem[0].id] = titulo || '';
+        if (ordem[1]) textos[ordem[1].id] = resto.join(' · ');
+      }
+    });
+  } else for (const p of paginas) {
     const comTexto = p.blocos.filter(b => b.texto.trim() && !fica(b));
     if (comTexto.length && comTexto.every(b => textos[b.id] === '')) for (const b of comTexto) textos[b.id] = b.texto;
   }

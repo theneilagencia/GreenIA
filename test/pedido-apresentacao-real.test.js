@@ -13,13 +13,20 @@ import { caminhoChromium } from '../src/visual/chromium.js';
 import { pdfColorido } from './estilo-arquivo.test.js';
 
 const semNavegador = !caminhoChromium();
-const ADAPTA = 'Você adapta uma apresentação MODELO';
+const ADAPTA = 'Você adapta uma apresentação MODELO', PLANO = 'Você monta a apresentação da pessoa', REESTILO = 'Você coloca o conteúdo';
 const PEDIDO = 'preciso que os seguintes ajustes sejam feitos no documento Apresentacao-Kickoff-Rafisa.pptx: 1) quero o design/layout o mais proximo possivel com a apresentacao Apresentacao-Kickoff-Repet.pdf 2) Evidências, documentos, dados, relatórios e sistemas, acho que fica muito amplo. Use a proposta e o contrato anexo como forma de enriquecer estes pontos. os capitulos, pulam do 7 pro 9. e nos dois ultimos, as divisórias tem o mesmo nome do slide seguinte, pra uma apresentação falada fica repetitivo.';
 const CPF = '123.456.789-09';
 let S, OR, ana, falharAdaptacao = false;
 before(async () => {
   OR = await openRouterFalso({ responder: b => {
     const sis = typeof b.messages[0].content === 'string' ? b.messages[0].content : b.messages[0].content.map(p => p.text).join('');
+    // Reestilo: o plano usa a apresentação da pessoa (3 slides, todos na única página do modelo) e um número inventado
+    // ("R$ 7.777") que precisa sair; o preenchimento devolve o conteúdo do slide.
+    if (sis.startsWith(PLANO)) return JSON.stringify({ slides: [{ pagina: 1, conteudo: 'Kickoff Rafisa\nAgenda' }, { pagina: 1, conteudo: '07 · Papéis\nTexto\nEconomia de R$ 7.777 por ano' }, { pagina: 1, conteudo: '08 · Escopo R$ 7.777\nDiagnóstico com até seis visitas' }] });
+    if (sis.startsWith(REESTILO)) {
+      const u = b.messages[1].content;
+      return JSON.stringify(Object.fromEntries([...u.matchAll(/^Slide (\d+):\nConteúdo deste slide:\n([^\n]*)[\s\S]*?^(\d+\.\d+) \[/gm)].map(m => [m[3], m[2]])));
+    }
     if (sis.startsWith(ADAPTA)) {
       if (falharAdaptacao) return 'sem json';
       const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(m => m[1]);
@@ -48,9 +55,18 @@ test('pedido real: monta no layout do PDF (arquivo para baixar), sem CPF para a 
   const a = r.fim?.arquivos?.[0];
   assert.ok(a, `arquivo gerado: ${JSON.stringify(r.fim)}`);
   assert.equal(a.modelo, 'Apresentacao-Kickoff-Repet.pdf', 'no layout do PDF de referência');
+  // Reestilo: os slides são os da apresentação da pessoa (3 no plano), não as páginas do modelo; nome da apresentação dela.
+  assert.equal(a.slides, 3);
+  assert.equal(a.nome, 'Apresentacao-Kickoff-Rafisa-novo-design.pptx');
   const d = await fetch(`${S.base}/api/conversas/${conv.id}/arquivos/${a.id}`, { headers: { cookie: ana.cookie } });
   assert.equal(d.status, 200);
   assert.ok(!JSON.stringify(OR.chamadas.slice(n)).includes('789-09'), 'o CPF não saiu para a IA');
+  const { lerPacote } = await import('../src/edicao-arquivo.js');
+  const xml = lerPacote(Buffer.from(await d.arrayBuffer())).filter(e => /^ppt\/slides\/slide\d+\.xml$/.test(e.nome)).map(e => e.dados.toString()).join('\n');
+  assert.match(xml, /Kickoff Rafisa/);
+  assert.match(xml, /07 · Papéis/);
+  assert.match(xml, /08 · Escopo/, 'número de capítulo pedido fica');
+  assert.ok(!/7\.777|Kickoff do projeto/.test(xml), 'nem número inventado nem texto do modelo');
 });
 
 test('arquivo não gerado: a resposta não promete arquivo, diz que não foi gerado, e o aviso vem depois dela', async () => {

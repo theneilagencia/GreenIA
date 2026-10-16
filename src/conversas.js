@@ -11,7 +11,7 @@ import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUs
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
-import { adaptarModelo, lerModeloPdf } from './modelo-pdf.js';
+import { adaptarModelo, lerModeloPdf, paginasDoPlano, planejarReestilo } from './modelo-pdf.js';
 import { pptxDeModelo } from './escritorio.js';
 import { midiaDoPptx, previaDoPptx } from './previa-pptx.js';
 import { assinaturaTeste } from './quickwin-teste.js';
@@ -794,7 +794,13 @@ export function rotasConversas(app, r) {
     try { edicao = podeModelo ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}) : null; } catch (e) { app.log?.('arquivo para editar', erroParaLog(e)); }
     // Layout de OUTRA apresentação em PDF ("o design o mais próximo possível da apresentação X.pdf"): a apresentação é
     // montada no layout do PDF (adaptarModelo), não editada em texto no arquivo atual, que não muda de design.
-    if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos)))) edicao = null;
+    // A apresentação da pessoa (o .pptx que seria editado) continua sendo o conteúdo: o modelo só empresta o layout
+    // (reestilo), em vez de a apresentação virar uma cópia do modelo com slides e números que ela não tinha.
+    let fonteDeck = null;
+    if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos)))) {
+      if (edicao.tipo === 'pptx' && !PEDE_DO_ZERO.test(texto)) { try { fonteDeck = { nome: edicao.nome, texto: conteudoParaEdicao('pptx', edicao.dados).slice(0, 40000) }; } catch { /* sem leitura: adapta o modelo */ } }
+      edicao = null;
+    }
     let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
@@ -835,7 +841,8 @@ export function rotasConversas(app, r) {
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nEntre a abertura curta e a seção final "O que foi feito", a resposta é o conteúdo da peça, completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')
-      + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo). Não diga que o arquivo está pronto: a plataforma mostra o arquivo logo abaixo quando ele for montado.` : '');
+      + (modeloApr && fonteDeck && !(deckAnterior && baseDeck) ? `\nA plataforma vai montar a apresentação "${fonteDeck.nome}" no design de "${modeloApr.nome}": os slides e o conteúdo são os da apresentação da pessoa, com os ajustes pedidos, e o modelo só empresta o layout (fontes, cores e posições). Nesta resposta, diga em poucas linhas o que vai mudar (slides juntados, enriquecidos ou removidos), sem reescrever a apresentação e sem acrescentar números ou dados que o material não traz. Não diga que o arquivo está pronto: a plataforma mostra o arquivo logo abaixo quando ele for montado.`
+      : modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo). Não diga que o arquivo está pronto: a plataforma mostra o arquivo logo abaixo quando ele for montado.` : '');
     // Execução em etapas: com pesquisa, primeiro a coleta (pesquisa na internet, só notas com fonte) e depois a
     // produção dos entregáveis a partir das notas, sem nova pesquisa. A conferência recebe as notas como entrada.
     // Mesma rota, mesmo recurso e mesmas regras nas duas etapas.
@@ -1345,19 +1352,33 @@ export function rotasConversas(app, r) {
       const vida = setInterval(() => linha({ t: 'etapa', v: ultimaEtapa }), 15000);
       try {
         linha({ t: 'etapa', v: ultimaEtapa });
-        const paginas = await lerModeloPdf(modeloApr.dados);
+        let paginas = await lerModeloPdf(modeloApr.dados);
         const material = [...h.mensagens.map(x => `${x.role === 'user' ? 'Pessoa' : 'Assistente'}: ${typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')}`), `Assistente: ${resposta}`]
           .join('\n\n').replace(modeloApr.texto, '[conteúdo do modelo]').slice(-60000);
         // Adaptação pelo nível mais forte permitido (o mesmo do design das peças: Avançado quando nada pede proteção extra).
         // Correção: o pedido inclui os pedidos anteriores da pessoa desde a última versão ("não aplicou o meu pedido").
         const pedidosAntes = deckAnterior ? todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user' and id < ? order by id desc limit 3", conv.id, msgId).map(x => x.texto).filter(x => x && x !== NAO_GUARDADO).reverse() : [];
         const pedidoFinal = pedidosAntes.length ? `${texto}\n\nPedidos anteriores da pessoa nesta conversa (aplique os que ainda não estão na apresentação):\n${pedidosAntes.map(x => `- ${String(x).slice(0, 1500)}`).join('\n')}` : texto;
-        const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
+        // Reestilo (a apresentação da pessoa no design do modelo): primeiro o plano (quais slides, em qual página do
+        // modelo); a correção de uma versão em reestilo usa as mesmas páginas da versão anterior.
+        let conteudos = null, plano = null;
+        const planoAnterior = baseDeck ? json(deckAnterior.detalhes, {})?.plano : null;
+        if (Array.isArray(planoAnterior) && planoAnterior.every(k => Number.isInteger(k) && k >= 0 && k < paginas.length)) { plano = planoAnterior; paginas = paginasDoPlano(paginas, plano.map(k => ({ pagina: k }))); }
+        else if (fonteDeck && !baseDeck) {
+          ultimaEtapa = `Planejando os slides de ${fonteDeck.nome} no design do modelo…`; linha({ t: 'etapa', v: ultimaEtapa });
+          const pl = await planejarReestilo({ paginas, fonte: fonteDeck.texto, pedido: pedidoFinal, contexto: material, chamar: chamarDesign });
+          fim = { ...(fim || {}), custo: (fim?.custo || 0) + pl.custo, economia: (fim?.economia || 0) + pl.economia };
+          plano = pl.slides.map(x => x.pagina); conteudos = pl.slides.map(x => x.conteudo);
+          paginas = paginasDoPlano(paginas, pl.slides);
+        }
+        const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, conteudos, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
-        const nome = `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
+        // Reestilo: o arquivo leva o nome da apresentação da pessoa (é a apresentação dela, no design novo).
+        const fonteNome = plano ? (fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte) : null;
+        const nome = fonteNome ? `${String(fonteNome).replace(/\.pptx$/i, '').replace(/-novo-design$/, '').slice(0, 60)}-novo-design.pptx` : `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
         // Dado do pedido que nem a rodada de conferência conseguiu encaixar: a pessoa fica sabendo, em vez de descobrir no arquivo.
         if (r.fatos_faltando?.length) avisoDepois(`Estes dados do pedido não entraram na apresentação: ${r.fatos_faltando.join(', ')}. Confira os slides de agenda e cronograma antes de usar.`);
-        gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome } };
+        gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome, ...(plano ? { plano, fonte: fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte } : {}) } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
         avisoDepois(e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`

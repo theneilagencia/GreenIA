@@ -170,8 +170,16 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
     detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
+}
+// Arquivo que a pessoa enviou, ajustado no próprio original (layout, estilos e fórmulas preservados).
+const FORMATO_EDICAO = { pptx: ['slides', 'PowerPoint'], docx: ['documento', 'Word'], xlsx: ['planilha', 'Excel'] };
+function cartaoEdicao(a) {
+  const href = `/api/conversas/${C.conv.id}/arquivos/${a.id}`, [icone, app] = FORMATO_EDICAO[a.formato] || FORMATO_EDICAO.docx;
+  const detalhe = `${app} · o seu arquivo com ${a.alteracoes === 1 ? '1 alteração' : `${a.alteracoes} alterações`}, layout preservado${a.nao_aplicadas ? ` · ${a.nao_aplicadas} não aplicada${a.nao_aplicadas > 1 ? 's' : ''}` : ''}`;
+  if (a.formato === 'pptx') return cartaoComPrevia({ previa: `${href}/previa`, baixar: href, nome: a.nome, detalhe });
+  return `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA[icone] || ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>${esc(a.nome)}</b><small>${esc(detalhe)}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`;
 }
 // Imagem gerada ou editada na conversa: aparece inteira na resposta, com o download logo abaixo.
 function cartaoImagem(a) {

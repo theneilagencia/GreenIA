@@ -24,7 +24,8 @@ import { ErroIA } from './ia.js';
 import { checarPlano, modeloNaReserva, verificarAvisos, situacaoPlano, COMO_FUNCIONAM_OS_CREDITOS } from './plano.js';
 import { comUso, anotarUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
-import { delimitar } from './texto.js';
+import { delimitar, extrairTexto } from './texto.js';
+import { editarArquivo, ehPacoteOffice, NOTA_EDICAO, pedeEdicaoNoArquivo, tipoDoArquivo } from './edicao-arquivo.js';
 import { consultaDeSeguimento } from './busca.js';
 import { aplicarComandoDeFonte, comandoDeFonte, ErroFonte, lerLink, mascararUrl, mudaramDesde, papelValido } from './fontes.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
@@ -178,8 +179,31 @@ const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'ba
 export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = []) {
   const k = brutos.findLastIndex(ehPdf);
   if (k >= 0) return { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(brutos[k], 'base64'), texto: anexosAtuais[k]?.texto || '' };
-  const r = um(app.db, 'select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? order by a.id desc limit 1', conversaId);
+  const r = um(app.db, "select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime = 'application/pdf' order by a.id desc limit 1", conversaId);
   return r ? { nome: r.nome, dados: Buffer.from(r.dados), texto: r.texto } : null;
+}
+
+// Arquivo Office a ajustar no próprio original ("faça no arquivo anexo", "mantendo todo o resto igual"): o desta
+// mensagem ou, sem anexo agora, a versão mais recente da conversa (a última ajustada pela GreenIA ou o último enviado).
+const MIMES_OFFICE = Object.values(MIMES);
+// Gerar de novo: vale o que existia antes da resposta refeita (o arquivo enviado com o pedido conta como "anexo agora").
+export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], brutos = [], { antesDe = null, pedido = null } = {}) {
+  const agora = brutos.map((b, k) => ({ k, tipo: tipoDoArquivo(anexosAtuais[k]?.nome) })).filter(x => x.tipo && ehPacoteOffice(anexosAtuais[x.k]?.nome, brutos[x.k]));
+  if (agora.length) {
+    if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: true })) return null;
+    const t = String(texto || '').toLowerCase();
+    const escolhido = agora.length === 1 ? agora[0] : agora.find(x => t.includes(String(anexosAtuais[x.k].nome).toLowerCase().replace(/\.(docx|pptx|xlsx)$/, '')))
+      || (new Set(agora.map(x => x.tipo)).size === agora.length ? agora.find(x => ({ docx: /\b(word|docx|documento)\b/, pptx: /\b(power ?point|pptx|apresenta[cç][aã]o|slides?)\b/, xlsx: /\b(excel|xlsx|planilha)\b/ })[x.tipo].test(t)) : null);
+    return escolhido ? { nome: anexosAtuais[escolhido.k].nome, tipo: escolhido.tipo, dados: Buffer.from(brutos[escolhido.k], 'base64'), origem: 'anexo' } : null;
+  }
+  if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null })) return null;   // antes de ler os arquivos guardados
+  const lugares = MIMES_OFFICE.map(() => '?').join(', ');
+  const enviado = um(app.db, `select a.mensagem_id as msg, a.nome, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc limit 1`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const ajustado = um(app.db, `select mensagem_id as msg, nome, dados from arquivos_gerados where conversa_id = ? and mime in (${lugares}) and detalhes like '%"edicao"%' and mensagem_id < ? order by id desc limit 1`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const r = [enviado, ajustado].filter(Boolean).sort((a, b) => (b.msg || 0) - (a.msg || 0))[0];
+  const tipo = r && tipoDoArquivo(r.nome);
+  if (!tipo || !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido })) return null;
+  return tipo ? { nome: r.nome, tipo, dados: Buffer.from(r.dados), origem: r === ajustado ? 'versao' : 'anexo' } : null;
 }
 
 export function pecaDaConversa(texto) {
@@ -411,8 +435,8 @@ export function rotasConversas(app, r) {
     if (!a) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
     const dados = Buffer.from(a.dados);
     // Imagem: "ver=1" mostra na própria conversa (prévia); sem ele, baixa. Só tipos de imagem conhecidos.
-    const img = /^image\/(png|jpeg|webp)$/.test(a.mime), html = a.mime === 'text/html', ext = img ? (a.mime === 'image/jpeg' ? 'jpg' : a.mime.slice(6)) : html ? 'html' : a.mime === 'application/zip' ? 'zip' : 'pptx';
-    const nome = nomeDoArquivo(a.nome.replace(/\.(pptx|png|jpe?g|webp|html|zip)$/i, ''), ext);
+    const img = /^image\/(png|jpeg|webp)$/.test(a.mime), html = a.mime === 'text/html', ext = img ? (a.mime === 'image/jpeg' ? 'jpg' : a.mime.slice(6)) : html ? 'html' : a.mime === 'application/zip' ? 'zip' : Object.keys(MIMES).find(k => MIMES[k] === a.mime) || 'pptx';
+    const nome = nomeDoArquivo(a.nome.replace(/\.(pptx|docx|xlsx|png|jpe?g|webp|html|zip)$/i, ''), ext);
     // Site gerado: a prévia abre numa página isolada (sandbox: origem opaca, sem cookies da GreenIA, sem rede, sem envio
     // de formulário para fora). O código roda só no navegador de quem abriu, como no arquivo baixado.
     if (html && query?.ver) {
@@ -703,17 +727,20 @@ export function rotasConversas(app, r) {
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
     const podeModelo = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
-    let modeloApr = podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
+    // Ajuste no próprio arquivo Office anexado: o original é editado (layout preservado), não refeito do zero.
+    let edicao = null;
+    try { edicao = podeModelo ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}) : null; } catch (e) { app.log?.('arquivo para editar', erroParaLog(e)); }
+    let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
     const deckAnterior = podeModelo ? um(app.db, "select id, textos, detalhes from arquivos_gerados where conversa_id = ? and detalhes like '%\"modelo\"%' order by id desc limit 1", conv.id) : null;
-    if (!modeloApr && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos);
+    if (!modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos);
     const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) ? json(deckAnterior.textos, null) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
     const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
-    const pecaChat = !qw && !modeloApr && !modeloAusente ? pecaDaConversa(texto) : null;
+    const pecaChat = !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
     // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
     const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id) });
     // Agente reutilizável / automação recorrente: vira Quick Win (não código). Pesquisa atual: a ferramenta da empresa.
@@ -723,15 +750,16 @@ export function rotasConversas(app, r) {
     const ultimaImg = !qw && !modeloApr ? ultimaImagemDaConversa(app, conv.id) : null;
     const ultimaResp = ultimaImg ? um(app.db, "select id from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id)?.id : null;
     const ultimaFoiImagem = !!ultimaImg && !!um(app.db, 'select 1 from arquivos_gerados where id = ? and mensagem_id = ?', ultimaImg.id, ultimaResp ?? -1);
-    const imagemChat = !qw && !modeloApr && !modeloAusente && !pecaChat ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
+    const imagemChat = !qw && !modeloApr && !modeloAusente && !pecaChat && !edicao ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
     // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
       const estilo = estiloDaConversa(app, conv.id, anexos);
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
-    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
+    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
       + blocoCreditos(app)
+      + (edicao ? NOTA_EDICAO(edicao.nome, edicao.tipo) : '')
       + (imagemChat ? NOTA_IMAGEM(imagemChat.modo) : '')
       + (codigo ? notaDeCodigo(codigo) : '')
       + (agenteChat ? NOTA_AGENTE(agenteChat) : '')
@@ -925,6 +953,8 @@ export function rotasConversas(app, r) {
       const id = Number(exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida, estilo) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, msgId, a.nome, a.texto, a.papel || 'SUPPLEMENTARY', a.tipo_fonte || 'conversation_material', a.url_exibida || null, a.estilo ? JSON.stringify(a.estilo) : null).lastInsertRowid);
       // PDF guardado como possível modelo de apresentação ("faça no mesmo layout"), com a mesma retenção da conversa.
       if (ehPdf(brutos[k])) exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) values (?, ?, ?)', id, 'application/pdf', Buffer.from(brutos[k], 'base64'));
+      // Word, PowerPoint e Excel guardados para ajustes no próprio arquivo em mensagens seguintes ("ainda no arquivo que anexei").
+      else if (ehPacoteOffice(a.nome, brutos[k])) exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) values (?, ?, ?)', id, MIMES[tipoDoArquivo(a.nome)], Buffer.from(brutos[k], 'base64'));
     });
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
@@ -1257,6 +1287,29 @@ export function rotasConversas(app, r) {
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }
     }
+    // Ajuste no próprio arquivo: a IA indica as operações (parágrafo a parágrafo, célula a célula) e elas são aplicadas
+    // no original; o resultado é relido antes de chegar à pessoa.
+    let editado = null;
+    if (edicao) {
+      if (naoGuardar) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso o arquivo ajustado não foi gerado.');
+      else {
+        linha({ t: 'etapa', v: 'Aplicando os ajustes no arquivo original…' });
+        try {
+          const r = await editarArquivo({ tipo: edicao.tipo, nome: edicao.nome, dados: edicao.dados, pedido: texto, resposta, chamar: chamarDesign,
+            verificar: async b => { await extrairTexto({ nome: `verificacao.${edicao.tipo}`, base64: b.toString('base64') }); } });
+          fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
+          if (r.status === 'ok') {
+            editado = r;
+            if (r.ignoradas.length) aviso(app, conv.id, `${r.ignoradas.length === 1 ? '1 alteração não pôde ser aplicada' : `${r.ignoradas.length} alterações não puderam ser aplicadas`} no arquivo (trecho não encontrado ou fórmula recusada por segurança). Confira o arquivo antes de usar.`);
+          } else aviso(app, conv.id, r.status === 'grande' ? 'O arquivo é grande demais para ser ajustado direto no original. As alterações estão descritas na resposta; envie só a parte do arquivo que precisa mudar para receber o arquivo ajustado.'
+            : r.status === 'nada_a_mudar' ? 'Nenhuma alteração precisou ser feita no arquivo.'
+            : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
+        } catch (e) {
+          app.log?.('ajuste no arquivo', erroParaLog(e));
+          aviso(app, conv.id, 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
+        }
+      }
+    }
     let imagem = null;
     if (imagemChat) {
       const d = decisaoImagem(app, cfg, { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano });
@@ -1314,6 +1367,12 @@ export function rotasConversas(app, r) {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), gerado.textos ? JSON.stringify(gerado.textos) : null, AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome: gerado.nome, bytes: gerado.dados.length, ...gerado.detalhes });
       registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: 'modelo_pdf', ...gerado.detalhes });
+    }
+    if (editado) {
+      const detalhes = { tipo: 'edicao', formato: edicao.tipo, origem: edicao.nome, alteracoes: editado.feitas, ...(editado.ignoradas.length ? { nao_aplicadas: editado.ignoradas.length } : {}) };
+      const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, editado.nome, editado.mime, editado.dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
+      arquivos.push({ id, nome: editado.nome, bytes: editado.dados.length, ...detalhes });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: edicao.tipo, origem: 'edicao_do_arquivo', base: edicao.origem, alteracoes: editado.feitas, nao_aplicadas: editado.ignoradas.length });
     }
     if (imagem) {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, imagem.nome, imagem.mime, imagem.dados, JSON.stringify(imagem.detalhes), AGORA(app)).lastInsertRowid);

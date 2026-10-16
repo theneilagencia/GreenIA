@@ -70,8 +70,11 @@ export const textoPuro = s => trechos(s).map(x => x.t).join('');
 // Só o entregável da resposta, para virar arquivo: sem a abertura curta ("Entendi: ... Vou entregar ...") antes do
 // primeiro título e sem a seção final "O que foi feito" (conversa com a pessoa, não parte do documento).
 const FECHO = /^\s*#{1,4}\s*\**\s*(o que (foi feito|fiz|mudou|foi (ajustado|alterado|entregue))|resumo (do que foi feito|das (altera[cç][oõ]es|mudan[cç]as))|altera[cç][oõ]es (feitas|aplicadas)|pr[oó]ximos passos sugeridos)\b/i;
+// Documento inteiro dentro de um bloco de código sem linguagem (ou markdown): é o próprio conteúdo, não código
+// (QA em produção: a IA pôs os slides num bloco ``` e o arquivo viraria um slide de código).
+const desembrulhar = t => t.replace(/^```(?:markdown|md|text)?[ \t]*\n([\s\S]*?)\n```[ \t]*$/gm, (m, corpo) => (/^\s*#{1,3}\s+\S/m.test(corpo) ? corpo : m));
 export function soEntregavel(texto) {
-  let linhas = String(texto || '').replace(/\r/g, '').split('\n');
+  let linhas = desembrulhar(String(texto || '').replace(/\r/g, '')).split('\n');
   const fecho = linhas.findLastIndex(l => FECHO.test(l));
   if (fecho > 0) linhas = linhas.slice(0, fecho);
   const primeiro = linhas.findIndex(l => /^\s*#{1,3}\s+\S/.test(l));

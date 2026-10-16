@@ -25,6 +25,7 @@ before(async () => {
       const ids = [...b.messages[1].content.matchAll(/^(\d+\.\d+) \[/gm)].map(m => m[1]);
       return JSON.stringify(Object.fromEntries(ids.map(id => [id, `Kickoff Rafisa ${id}`])));
     }
+    if (/em PowerPoint, com estes slides/.test(JSON.stringify(b.messages.at(-1)))) return 'Segue a apresentação.\n\n```\n## Slide 1\n**01 · ABERTURA**\n\nKickoff do projeto\n\n---\n\n## Slide 2\n**02 · ESCOPO**\n\n- Diagnóstico\n- Seis visitas\n```\n\nO arquivo agora está estruturado em Markdown e a plataforma monta o .pptx para download.';
     return 'Entendi: vou montar a apresentação da Rafisa no layout da Repet.\n\nO arquivo está pronto para download abaixo.\n\n## O que foi feito\n- Ajustes.';
   } });
   S = await subir({ ia: OR.ia });
@@ -62,7 +63,7 @@ test('arquivo não gerado: a resposta não promete arquivo, diz que não foi ger
   const msgs = todos(S.app.db, 'select papel, texto from mensagens where conversa_id = ? order by id', conv.id);
   const resp = msgs.filter(m => m.papel === 'assistant').at(-1).texto;
   assert.doesNotMatch(resp, /pronto para download/);
-  assert.match(resp, /O arquivo não foi gerado nesta resposta\.\*\* Não foi possível aplicar as alterações/);
+  assert.match(resp, /O arquivo ajustado não foi gerado nesta resposta\.\*\* Não foi possível aplicar as alterações/);
   assert.equal(final, resp, 'a tela recebe a versão corrigida');
   assert.ok(msgs.findLastIndex(m => m.papel === 'aviso') < msgs.findIndex(m => m.papel === 'assistant') || !msgs.some(m => m.papel === 'aviso' && /arquivo original/.test(m.texto)), 'o motivo vai na resposta, não num aviso solto acima dela');
 });
@@ -73,4 +74,22 @@ test('mesmo pedido numa mensagem seguinte (PDF já guardado na conversa): també
   const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   assert.equal(r.fim?.arquivos?.[0]?.modelo, 'Apresentacao-Kickoff-Repet.pdf', JSON.stringify(r.fim));
+});
+
+test('pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o PowerPoint registrado na resposta', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Os slides do kickoff em PowerPoint, com estes slides: abertura e escopo, por favor.' });
+  assert.equal(r.status, 200);
+  const a = r.fim?.arquivos?.find(x => x.tipo === 'da_resposta');
+  assert.equal(a?.formato, 'pptx', JSON.stringify({ arquivos: r.fim?.arquivos, artefatos: r.fim?.artefatos?.map(x => x.tipo), etapas: r.eventos.filter(e => e.t === 'etapa') }));
+  // Reaberta, a conversa mostra o arquivo (não depende da tela adivinhar o pedido).
+  const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
+  assert.ok(JSON.stringify(d).includes('"da_resposta"'));
+  // O arquivo tem os slides (o bloco de código foi desembrulhado), não um slide de código.
+  const b = await fetch(`${S.base}/api/conversas/${conv.id}/mensagens/${r.fim.id}/arquivo/pptx`, { headers: { cookie: ana.cookie } });
+  assert.equal(b.status, 200);
+  const { extrairTexto } = await import('../src/texto.js');
+  const t = (await extrairTexto({ nome: 'x.pptx', base64: Buffer.from(await b.arrayBuffer()).toString('base64') })).texto;
+  assert.match(t, /Kickoff do projeto/); assert.match(t, /Seis visitas/);
+  assert.doesNotMatch(t, /## Slide/, 'sem marcação crua de Markdown no arquivo');
 });

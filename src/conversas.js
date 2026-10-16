@@ -1427,8 +1427,12 @@ export function rotasConversas(app, r) {
     }
     // Arquivo prometido e não gerado: a resposta não pode dizer que ele está pronto (QA em produção: "o arquivo está
     // pronto para download abaixo" sem arquivo nenhum). As frases de entrega saem e a falha é dita no fim, com o motivo.
+    // Formatos pedidos (mesma leitura da tela): sem arquivo especializado, a versão a partir da resposta é anexada.
+    const formatosPedidos = qw || naoGuardar ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
+      .filter(([f, re]) => re.test(texto) && (f !== 'xlsx' || extrairTabelas(resposta).length)).map(([f]) => f);
     if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
-      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;
+      const simples = formatosPedidos.length ? ` Logo abaixo há uma versão simples em ${formatosPedidos.map(f => ({ docx: 'Word', pptx: 'PowerPoint', xlsx: 'Excel' })[f]).join(' e ')}, montada a partir desta resposta (sem o layout pedido).` : '';
+      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}${simples}`;
       avisosDepois.length = 0;
       linha({ t: 'substituir', v: resposta });
     }
@@ -1514,6 +1518,10 @@ export function rotasConversas(app, r) {
         } catch (e) { app.log?.('pull request', erroParaLog(e)); aviso(app, conv.id, `O Pull Request não foi aberto: ${e.status ? e.message : 'o GitHub não respondeu.'} Nada foi gravado no repositório.`); }
       } else aviso(app, conv.id, 'A resposta não trouxe arquivos com o caminho no repositório ("### Arquivo: caminho"), por isso nenhum Pull Request foi aberto.');
     }
+    // Pediu arquivo, recebe arquivo: nenhum caminho especializado gerou o arquivo pedido -> a versão a partir da resposta
+    // fica registrada junto dela (o cartão de download aparece sempre, também ao reabrir a conversa).
+    if (!arquivos.length && !artefatos.length && formatosPedidos.length && soEntregavel(resposta).trim().length > 40)
+      for (const f of formatosPedidos) guardar(`resposta.${f}`, 'text/uri-list', Buffer.from(f), { tipo: 'da_resposta', formato: f });
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
     // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.

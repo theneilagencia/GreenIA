@@ -171,7 +171,7 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : a.tipo === 'da_resposta' ? cartaoDaResposta(m, a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
     detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
 }
 // Arquivo que a pessoa enviou, ajustado no próprio original (layout, estilos e fórmulas preservados).
@@ -201,6 +201,12 @@ function cartaoCodigo(a) {
   const executar = pode('code.execute') && (a.arquivos || []).some(n => /\.(py|[cm]?js)$/.test(n))
     ? `<div class="acoes-codigo"><button type="button" class="btn btn-linha btn-pequeno" data-executar="${a.id}" data-modo="principal">Executar</button>${(a.arquivos || []).some(n => /(^|\/)(test_[^/]*|[^/]*_test)\.py$|(\.test|\.spec)\.[cm]?js$/.test(n)) ? ` <button type="button" class="btn btn-linha btn-pequeno" data-executar="${a.id}" data-modo="testes">Rodar os testes</button>` : ''}<div class="saida-execucao" data-saida="${a.id}" role="status" aria-live="polite"></div></div>` : '';
   return `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>Código-fonte (.zip)</b><small>${esc((a.arquivos || []).slice(0, 4).join(', '))}${(a.arquivos || []).length > 4 ? ` e mais ${a.arquivos.length - 4}` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>${executar}`;
+}
+// Arquivo montado a partir da resposta (pedido de Word, PowerPoint ou Excel sem arquivo especializado).
+function cartaoDaResposta(m, a) {
+  const f = a.formato;
+  if (f === 'pptx') return cartaoComPrevia({ previa: `${arquivoHref(m, 'pptx')}/previa`, baixar: arquivoHref(m, 'pptx'), nome: ARQ.pptx[1], detalhe: `Baixar arquivo ${ARQ.pptx[2]}` });
+  return `<a class="anexo-resposta" href="${arquivoHref(m, f)}" download data-arquivo="${f}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA[ARQ[f][0]]}</span><span class="anexo-resposta-texto"><b>${ARQ[f][1]}</b><small>Baixar arquivo ${ARQ[f][2]}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`;
 }
 // Pull Request aberto no repositório (branch novo; nada gravado no branch principal).
 function cartaoPullRequest(a) {

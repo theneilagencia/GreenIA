@@ -441,10 +441,23 @@ const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) re
 const NUMERO = /\d+(?:[.,]\d+)*/g;
 const normNumero = n => String(n).replace(/[.,]/g, '').replace(/^0+(?=\d)/, '');
 /** Números do texto que não aparecem no material (anos, valores, percentuais inventados). */
+// Contato (telefone, CEP, email) sai do material antes: os dígitos dele não são dados ("3000" de (43) 3000-0000 virou
+// "até 3000 hectares" em produção).
+const semContatos = t => String(t || '').replace(/\S+@\S+/g, ' ').replace(/\(?\b\d{2}\)?\s?\d{4,5}-?\d{4}\b/g, ' ').replace(/\b\d{5}-\d{3}\b/g, ' ');
 export function numerosForaDoMaterial(texto, material) {
-  const tem = new Set((String(material || '').match(NUMERO) || []).map(normNumero));
+  const tem = new Set((semContatos(material).match(NUMERO) || []).map(normNumero));
   // Inteiro pequeno sozinho (capítulo, item, "3 profundidades") não conta: renumerar capítulos é pedido comum.
-  return (String(texto || '').match(NUMERO) || []).filter(n => !tem.has(normNumero(n)) && !(/^\d{1,2}$/.test(n) && Number(n) <= 60));
+  return (semContatos(texto).match(NUMERO) || []).filter(n => !tem.has(normNumero(n)) && !(/^\d{1,2}$/.test(n) && Number(n) <= 60));
+}
+/**
+ * Página que serve para um slide de texto ou lista: sem tabela (duas ou mais linhas com 3 ou mais blocos lado a lado)
+ * e sem diagrama de muitas caixas. QA em produção: numa página de tabela, a IA misturou casos e planos nas colunas.
+ */
+export function paginaDeTexto(p) {
+  const linhas = new Map();
+  for (const b of p.blocos) { const k = Math.round(b.y / Math.max(4, (b.tam || 12) * 0.6)); linhas.set(k, (linhas.get(k) || 0) + 1); }
+  const linhasLargas = [...linhas.values()].filter(n => n >= 3).length;
+  return linhasLargas < 2 && p.blocos.length <= 16;
 }
 const resumoDaPagina = (p, n) => {
   const t = p.blocos.find(b => papelDoBloco(b, p.blocos) === 'título');
@@ -460,7 +473,7 @@ export function mensagensPlanoReestilo({ paginas, fonte, pedido, contexto }) {
       'conteudo: o texto completo do slide (título na primeira linha, depois os itens, um por linha), tirado só da apresentação da pessoa, do pedido e dos documentos da conversa. Números, nomes e contatos ficam exatamente como estão. Não invente números, casos, prazos nem dados.',
       'Responda só JSON: {"slides":[{"pagina":<número da página do modelo>,"conteudo":"..."}]}',
     ].join('\n') },
-    { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-40000)}\n</material>\n\n<apresentacao_da_pessoa>\n${fonte}\n</apresentacao_da_pessoa>\n\nPáginas do modelo (layout):\n${paginas.map((p, k) => resumoDaPagina(p, k + 1)).join('\n')}` },
+    { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-40000)}\n</material>\n\n<apresentacao_da_pessoa>\n${fonte}\n</apresentacao_da_pessoa>\n\nPáginas do modelo (layout) que podem ser usadas:\n${paginas.map((p, k) => [p, k]).filter(([p, k]) => k === 0 || k === paginas.length - 1 || paginaDeTexto(p)).map(([p, k]) => resumoDaPagina(p, k + 1)).join('\n')}` },
   ];
 }
 /** Slides da apresentação da pessoa ("## Slide N" e as linhas dele), sem os ids de edição. */
@@ -478,17 +491,20 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
     return i === 0 ? fora.reduce((t, n) => t.replace(n, ''), l).replace(/\s{2,}/g, ' ').trim() : null;
   }).filter(l => l != null && l.trim()).join('\n');
   let custo = 0, economia = 0, slides = null;
+  const textuais = paginas.map((p, k) => k).filter(k => k > 0 && k < paginas.length - 1 && paginaDeTexto(paginas[k]));
   try {
     const x = await chamar(mensagensPlanoReestilo({ paginas, fonte, pedido, contexto }));
     custo += x.custo || 0; economia += x.economia || 0;
     const j = lerJson(x.texto);
     const lista = (Array.isArray(j?.slides) ? j.slides : []).map(s => ({ pagina: Math.round(Number(s?.pagina)) - 1, conteudo: limpar(s?.conteudo) }))
-      .filter(s => s.pagina >= 0 && s.pagina < paginas.length && s.conteudo).slice(0, MAX_PAGINAS_MODELO);
+      .filter(s => s.pagina >= 0 && s.pagina < paginas.length && s.conteudo).slice(0, MAX_PAGINAS_MODELO)
+      // Página de tabela ou diagrama no meio: troca pela página de texto mais próxima (a capa e a última ficam).
+      .map(s => s.pagina === 0 || s.pagina === paginas.length - 1 || paginaDeTexto(paginas[s.pagina]) || !textuais.length ? s : { ...s, pagina: textuais.reduce((m, k) => Math.abs(k - s.pagina) < Math.abs(m - s.pagina) ? k : m) });
     if (lista.length) slides = lista;
   } catch { /* plano simples abaixo */ }
   if (!slides) {
-    const fonteSlides = slidesDaFonte(fonte), n = paginas.length, meio = Math.max(1, n - 2);
-    slides = fonteSlides.map((c, i) => ({ pagina: i === 0 ? 0 : i === fonteSlides.length - 1 && n > 1 ? n - 1 : n > 2 ? 1 + ((i - 1) % meio) : Math.min(i, n - 1), conteudo: c }));
+    const fonteSlides = slidesDaFonte(fonte), n = paginas.length, meio = textuais.length ? textuais : [Math.min(1, n - 1)];
+    slides = fonteSlides.map((c, i) => ({ pagina: i === 0 ? 0 : i === fonteSlides.length - 1 && n > 1 ? n - 1 : meio[(i - 1) % meio.length], conteudo: c }));
   }
   return { slides, custo, economia };
 }
@@ -737,6 +753,9 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
         if (!fora.length) continue;
         textos[b.id] = papelDoBloco(b, p.blocos) === 'título' ? fora.reduce((x, n) => x.replace(n, ''), t).replace(/\s{2,}/g, ' ').trim() : '';
       }
+      // Texto repetido no mesmo slide ("Escopo" | "Escopo"): fica a primeira ocorrência.
+      const vistos = new Set();
+      for (const b of p.blocos) { const t = String(textos[b.id] || '').trim().toLowerCase(); if (!t || fica(b)) continue; if (vistos.has(t)) textos[b.id] = ''; else vistos.add(t); }
       const comTexto = p.blocos.filter(b => b.texto.trim() && !fica(b));
       if (comTexto.length && comTexto.every(b => !textos[b.id])) {
         const [titulo, ...resto] = String(conteudos[k] || '').split('\n');

@@ -90,3 +90,13 @@ test('arquivo: caixa desenhada em volta de um texto que saiu, e a seta entre cai
   assert.equal(formas(xml({ '1.1': '', '1.2': '' })), 1, 'as duas caixas e a seta entre elas saem');
   assert.equal(formas(xml({ '1.1': '' })), 3, 'só a caixa vazia sai; a seta fica porque liga a uma caixa com texto');
 });
+
+test('página de tabela ou diagrama não serve para slide de lista; dígitos de telefone não valem como número do material', async () => {
+  const { paginaDeTexto } = await import('../src/modelo-pdf.js');
+  const tabela = { w: 792, h: 612, blocos: [bloco('1.1', 'Investimento', 80, 28), ...[140, 170, 200].flatMap((y, i) => [0, 1, 2].map(c => ({ ...bloco(`1.${2 + i * 3 + c}`, `célula ${i}${c}`, y), x: 40 + c * 200, largura: 150 })))] };
+  assert.equal(paginaDeTexto(tabela), false);
+  assert.equal(paginaDeTexto(MODELO[1]), true);
+  const r = await planejarReestilo({ paginas: [MODELO[0], tabela, MODELO[1], MODELO[2]], fonte: FONTE, pedido: 'design', chamar: async () => ({ texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'Capa' }, { pagina: 2, conteudo: 'Planos\n• Essencial: R$ 38/ha/ano' }, { pagina: 4, conteudo: 'Fim' }] }) }) });
+  assert.deepEqual(r.slides.map(s => s.pagina), [0, 2, 3], 'a tabela vira a página de texto mais próxima');
+  assert.deepEqual(numerosForaDoMaterial('Projeto-piloto em até 3000 hectares (0000 ha)', 'Contato: (43) 3000-0000 · comercial@agro.exemplo'), ['3000', '0000']);
+});

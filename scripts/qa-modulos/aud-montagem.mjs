@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
 // Produção: a tela enquanto o arquivo é montado. Envia o pedido pela interface real, fotografa durante a montagem
 // (cartão "Preparando o arquivo…", sem "pronto para download" no texto) e depois o cartão do arquivo pronto.
 import { chromium } from 'playwright-core';
+
+const MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', png: 'image/png', jpg: 'image/jpeg', txt: 'text/plain', csv: 'text/csv' };
+const arquivoParaNavegador = f => ({ name: f.split('/').pop(), mimeType: MIME[f.split('.').pop().toLowerCase()] || 'application/octet-stream', buffer: readFileSync(f) });
+
 export default async function (c, planoArq, id) {
   const { readFileSync } = await import('node:fs');
   const t = JSON.parse(readFileSync(planoArq, 'utf8'))[id].turnos.at(-1);
@@ -14,7 +19,7 @@ export default async function (c, planoArq, id) {
     await p.waitForSelector('#entrada', { timeout: 60000 });
     await p.click('#mais-anexos');
     const [escolha] = await Promise.all([p.waitForEvent('filechooser', { timeout: 15000 }), p.click('#anexar')]);
-    await escolha.setFiles(t.anexos);
+    await escolha.setFiles(t.anexos.map(arquivoParaNavegador));
     await p.waitForFunction(n => document.querySelectorAll('#anexos .anexo-chip').length === n, t.anexos.length, { timeout: 60000 });
     await p.fill('#entrada', t.texto);
     await p.click('#enviar');

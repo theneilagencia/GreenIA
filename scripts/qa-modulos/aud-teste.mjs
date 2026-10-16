@@ -6,6 +6,10 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { chromium } from 'playwright-core';
 
+const MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', png: 'image/png', jpg: 'image/jpeg', txt: 'text/plain', csv: 'text/csv' };
+const arquivoParaNavegador = f => ({ name: f.split('/').pop(), mimeType: MIME[f.split('.').pop().toLowerCase()] || 'application/octet-stream', buffer: readFileSync(f) });
+
+
 const LIMITE_TURNO = 20 * 60e3;
 
 async function navegador(base) {
@@ -57,7 +61,8 @@ export default async function (c, planoArq, id, inicio = '0') {
         const anexos = t.anexos.map(a => a.replace(/^@(\w+):/, (_, de) => { const r = JSON.parse(readFileSync(join(c.RAIZ, de, 'registro.json'), 'utf8')); return r.saida_para_anexo; })).filter(Boolean);
         await p.click('#mais-anexos'); cliques.push('mais-anexos');
         const [escolha] = await Promise.all([p.waitForEvent('filechooser', { timeout: 15000 }), p.click('#anexar')]); cliques.push('anexar');
-        await escolha.setFiles(anexos);
+        // Arquivos como conteúdo + nome (o navegador deste ambiente não lê caminhos com acento no disco).
+        await escolha.setFiles(anexos.map(arquivoParaNavegador));
         await p.waitForTimeout(1500);
         linha.anexos_na_tela = await p.$$eval('#anexos > *', l => l.map(e => e.textContent.trim().slice(0, 80)));
         linha.aviso_anexo = await p.$$eval('.toast, [role="alert"]', l => l.map(e => e.textContent.trim().slice(0, 200)).filter(Boolean)).catch(() => []);

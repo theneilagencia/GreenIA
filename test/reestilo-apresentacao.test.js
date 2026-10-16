@@ -100,3 +100,21 @@ test('página de tabela ou diagrama não serve para slide de lista; dígitos de 
   assert.deepEqual(r.slides.map(s => s.pagina), [0, 2, 3], 'a tabela vira a página de texto mais próxima');
   assert.deepEqual(numerosForaDoMaterial('Projeto-piloto em até 3000 hectares (0000 ha)', 'Contato: (43) 3000-0000 · comercial@agro.exemplo'), ['3000', '0000']);
 });
+
+test('frase que não vem do material sai (slogan, "antes e depois" inventado); frase do material fica', async () => {
+  const { fracaoForaDoMaterial } = await import('../src/modelo-pdf.js');
+  const mat = 'O produtor perde em média 18% da produtividade por irrigação mal programada. Sensor AS-3 instalado a cada 5 hectares. Diagnóstico com até seis visitas presenciais e análise de relatórios do sistema de gestão.';
+  assert.ok(fracaoForaDoMaterial('Comece pequeno. Veja os dados. Escale.', mat) >= 0.4);
+  assert.ok(fracaoForaDoMaterial('Irrigação manual, custos altos, sem precisão de manejo.', mat) >= 0.4);
+  assert.ok(fracaoForaDoMaterial('O produtor perde 18% da produtividade por irrigação mal programada.', mat) < 0.4);
+  assert.ok(fracaoForaDoMaterial('Até seis visitas presenciais e análise dos relatórios do sistema.', mat) < 0.4);
+  // Plano com mais slides que a apresentação da pessoa: pede de novo com o limite.
+  let n = 0;
+  const r = await planejarReestilo({ paginas: MODELO, fonte: FONTE, pedido: 'design', material: FONTE, chamar: async msgs => {
+    n++;
+    if (n === 1) return { texto: JSON.stringify({ slides: Array.from({ length: 7 }, () => ({ pagina: 2, conteudo: 'Resultados\n• -26% água' })) }) };
+    assert.match(msgs.at(-1).content, /o máximo é 4/);
+    return { texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense — Apresentação 2026' }, { pagina: 2, conteudo: 'Resultados e Planos\n• -26% água\n• Essencial: R$ 38/ha/ano' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] }) };
+  } });
+  assert.equal(n, 2); assert.equal(r.slides.length, 3);
+});

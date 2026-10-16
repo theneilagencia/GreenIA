@@ -294,7 +294,7 @@ const INSTRUCAO = [
 const INSTRUCAO_REESTILO = [
   'Você coloca o conteúdo de uma apresentação JÁ EXISTENTE no design de uma apresentação modelo. Cada slide abaixo vem com os blocos de texto do layout do modelo e com o CONTEÚDO que esse slide deve ter.',
   'Distribua o conteúdo do slide pelos blocos, respeitando a função de cada um: o título do conteúdo no bloco de título, os itens nos blocos de lista ou de coluna, na ordem. Rótulos pequenos de seção podem receber uma palavra que resuma o slide.',
-  'Use só o conteúdo do slide. Não invente nada: nenhum número, percentual, valor, prazo, caso, nome ou contato que não esteja no conteúdo. O texto do modelo é só exemplo de layout e nunca entra na apresentação.',
+  'Use só o conteúdo do slide, com as mesmas frases (pode encurtar, não acrescentar). Não invente nada: nenhum número, percentual, valor, prazo, caso, nome, contato, slogan, chamada ou conclusão que não esteja no conteúdo. O texto do modelo é só exemplo de layout e nunca entra na apresentação.',
   'Bloco do layout que não tem conteúdo correspondente volta "" (texto vazio) e sai do slide, seja item, parágrafo, rótulo ou célula de tabela. Só o título nunca fica vazio.',
   'Cada bloco vem com a posição no slide [x, y] (em pontos): blocos na mesma altura são colunas de uma linha; na mesma coluna, itens de uma lista ou linhas de uma tabela.',
   'Tamanho: cada texto deve caber no espaço do bloco, com no máximo o número de caracteres indicado; se o conteúdo não couber, resuma sem perder números e nomes.',
@@ -464,17 +464,24 @@ const resumoDaPagina = (p, n) => {
   const linhas = new Set(p.blocos.map(b => Math.round(b.y / 6))).size, colunas = new Set(p.blocos.map(b => Math.round(b.x / 20))).size;
   return `Página ${n}: ${p.blocos.length} blocos de texto em ${linhas} linhas e ${colunas} colunas${t ? `; título: "${t.texto.slice(0, 70)}"` : ''}; textos: ${p.blocos.slice(0, 14).map(b => `"${b.texto.slice(0, 50)}"`).join(', ')}`;
 };
-export function mensagensPlanoReestilo({ paginas, fonte, pedido, contexto }) {
+export function mensagensPlanoReestilo({ paginas, fonte, pedido, contexto, maximo = null }) {
   return [
     { role: 'system', content: [
       'Você monta a apresentação da pessoa no design de uma apresentação modelo. Decida quais slides a apresentação final terá e, para cada um, qual página do modelo serve de layout.',
-      'A apresentação final tem os slides da apresentação da pessoa, na ordem dela, com os ajustes do pedido aplicados (juntar slides, dividir, enriquecer com outro documento citado, remover). Não acrescente slides de temas que a apresentação da pessoa não tem.',
+      `A apresentação final tem os slides da apresentação da pessoa, na ordem dela, com os ajustes do pedido aplicados (juntar slides, enriquecer com outro documento citado, remover). Não divida um slide em vários e não acrescente slides de temas que a apresentação da pessoa não tem${maximo ? `: no máximo ${maximo} slides` : ''}.`,
       'Para cada slide, escolha a página do modelo cujo layout melhor acomoda o conteúdo: capa para o primeiro slide, página de encerramento ou contato para o último, página com lista para itens, com tabela para dados em linhas e colunas, com colunas para comparações. A mesma página pode servir para mais de um slide.',
-      'conteudo: o texto completo do slide (título na primeira linha, depois os itens, um por linha), tirado só da apresentação da pessoa, do pedido e dos documentos da conversa. Números, nomes e contatos ficam exatamente como estão. Não invente números, casos, prazos nem dados.',
+      'conteudo: o texto completo do slide (título na primeira linha, depois os itens, um por linha), tirado só da apresentação da pessoa, do pedido e dos documentos da conversa, com as mesmas palavras. Números, nomes e contatos ficam exatamente como estão. Não invente números, casos, prazos, dados, frases de efeito, slogans nem "antes e depois" que o material não tem.',
       'Responda só JSON: {"slides":[{"pagina":<número da página do modelo>,"conteudo":"..."}]}',
     ].join('\n') },
     { role: 'user', content: `Pedido: ${pedido}\n\n<material>\n${String(contexto || '').slice(-40000)}\n</material>\n\n<apresentacao_da_pessoa>\n${fonte}\n</apresentacao_da_pessoa>\n\nPáginas do modelo (layout) que podem ser usadas:\n${paginas.map((p, k) => [p, k]).filter(([p, k]) => k === 0 || k === paginas.length - 1 || paginaDeTexto(p)).map(([p, k]) => resumoDaPagina(p, k + 1)).join('\n')}` },
   ];
+}
+// Frase que não vem do material: palavras de conteúdo (4+ letras, sem acento) que não aparecem nele. QA em produção: a
+// IA escreveu "Antes: irrigação manual, custos altos", "Semana 14+: expansão" e slogans que a apresentação não tinha.
+const palavrasDe = t => (String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z]{4,}/g) || []).map(w => w.replace(/(es|s)$/, ''));
+export function fracaoForaDoMaterial(texto, material) {
+  const tem = new Set(palavrasDe(material)), ws = palavrasDe(texto);
+  return ws.length < 3 ? 0 : ws.filter(w => !tem.has(w)).length / ws.length;
 }
 /** Slides da apresentação da pessoa ("## Slide N" e as linhas dele), sem os ids de edição. */
 export const slidesDaFonte = fonte => String(fonte || '').split(/^## Slide \d+\s*$/m).map(s => s.replace(/^\[[^\]]+\]\s*/gm, '').trim()).filter(Boolean);
@@ -482,20 +489,32 @@ export const slidesDaFonte = fonte => String(fonte || '').split(/^## Slide \d+\s
  * Plano do reestilo: [{ pagina (índice 0..n-1 no modelo), conteudo }]. Sem resposta utilizável da IA, cada slide da
  * pessoa vai, na ordem, para a capa, as páginas do meio e a última página do modelo.
  */
-export async function planejarReestilo({ paginas, fonte, pedido, contexto, chamar }) {
-  const material = `${fonte}\n${contexto || ''}\n${pedido || ''}`;
-  // Linha com número que não está no material sai do conteúdo (no título, sai só o número).
+export async function planejarReestilo({ paginas, fonte, pedido, contexto, chamar, material: fontes = null }) {
+  // Material para conferir o conteúdo: a apresentação, os documentos e o pedido (não a resposta da IA).
+  const material = `${fonte}\n${fontes ?? contexto ?? ''}\n${pedido || ''}`;
+  // Linha com número que não está no material sai do conteúdo (no título, sai só o número); linha que não vem do
+  // material (a maior parte das palavras não está nele) também sai.
   const limpar = c => String(c || '').split('\n').map((l, i) => {
+    if (i > 0 && fracaoForaDoMaterial(l, material) >= 0.4) return null;
     const fora = numerosForaDoMaterial(l, material);
     if (!fora.length) return l;
     return i === 0 ? fora.reduce((t, n) => t.replace(n, ''), l).replace(/\s{2,}/g, ' ').trim() : null;
   }).filter(l => l != null && l.trim()).join('\n');
+  // No máximo os slides da apresentação da pessoa: juntar reduz, dividir em mais slides não (QA: 6 viraram 11).
+  const maximo = Math.max(1, slidesDaFonte(fonte).length);
   let custo = 0, economia = 0, slides = null;
   const textuais = paginas.map((p, k) => k).filter(k => k > 0 && k < paginas.length - 1 && paginaDeTexto(paginas[k]));
   try {
-    const x = await chamar(mensagensPlanoReestilo({ paginas, fonte, pedido, contexto }));
-    custo += x.custo || 0; economia += x.economia || 0;
-    const j = lerJson(x.texto);
+    let j = null;
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const msgs = mensagensPlanoReestilo({ paginas, fonte, pedido, contexto, maximo });
+      if (tentativa) msgs.push({ role: 'assistant', content: JSON.stringify(j) }, { role: 'user', content: `Esse plano tem ${j.slides.length} slides; o máximo é ${maximo}, o número de slides da apresentação da pessoa. Não divida slides; junte os que o pedido manda juntar. Responda o plano corrigido, só o JSON.` });
+      const x = await chamar(msgs);
+      custo += x.custo || 0; economia += x.economia || 0;
+      j = lerJson(x.texto);
+      if (!Array.isArray(j?.slides) || j.slides.length <= maximo) break;
+    }
+    if (Array.isArray(j?.slides) && j.slides.length > maximo) j = null;
     const lista = (Array.isArray(j?.slides) ? j.slides : []).map(s => ({ pagina: Math.round(Number(s?.pagina)) - 1, conteudo: limpar(s?.conteudo) }))
       .filter(s => s.pagina >= 0 && s.pagina < paginas.length && s.conteudo).slice(0, MAX_PAGINAS_MODELO)
       // Página de tabela ou diagrama no meio: troca pela página de texto mais próxima (a capa e a última ficam).
@@ -519,7 +538,7 @@ export function paginasDoPlano(paginas, plano) {
 // Em partes de até ~8 slides (respostas menores e conferíveis). Devolve { textos: {id: texto}, faltando: [ids], custo }.
 // Com base (os textos da versão já gerada), o pedido é tratado como CORREÇÃO dessa versão: a IA recebe o texto atual
 // de cada bloco e devolve só o que muda; o resto fica como estava. Sem base, adapta o modelo do zero.
-export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date(), base = null, conteudos = null }) {
+export async function adaptarModelo({ paginas, contexto, pedido, chamar, porParte = 8, simultaneas = 3, etapa = () => {}, hoje = new Date(), base = null, conteudos = null, material: fontes = null }) {
   const textos = {}, faltando = [], longos = [];
   if (base) for (const p of paginas) for (const b of p.blocos) if (typeof base[b.id] === 'string') textos[b.id] = base[b.id];
   const original = new Map(paginas.flatMap(p => p.blocos.map(b => [b.id, b.texto])));
@@ -743,12 +762,14 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
     // Reestilo: número que não está no material nem no conteúdo do slide é inventado; o bloco sai (o título fica sem o
     // número). Slide que ficou sem texto recebe o conteúdo dele (título no maior bloco, resto no segundo), nunca o
     // texto do modelo.
-    const material = `${contexto || ''}\n${pedido || ''}\n${conteudos.join('\n')}`;
+    const material = `${fontes ?? contexto ?? ''}\n${pedido || ''}\n${conteudos.join('\n')}`;
     paginas.forEach((p, k) => {
       for (const b of p.blocos) {
         if (textos[b.id] === undefined && !fica(b)) textos[b.id] = '';   // texto do modelo nunca entra
         const t = textos[b.id];
         if (!t || fica(b)) continue;
+        // Frase que não vem do material (slogan, "antes e depois" inventado) sai; o título pode ser reescrito.
+        if (papelDoBloco(b, p.blocos) !== 'título' && fracaoForaDoMaterial(t, `${material}\n${conteudos[k] || ''}`) >= 0.4) { textos[b.id] = ''; continue; }
         const fora = numerosForaDoMaterial(t, material);
         if (!fora.length) continue;
         textos[b.id] = papelDoBloco(b, p.blocos) === 'título' ? fora.reduce((x, n) => x.replace(n, ''), t).replace(/\s{2,}/g, ' ').trim() : '';

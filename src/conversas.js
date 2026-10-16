@@ -1394,17 +1394,20 @@ export function rotasConversas(app, r) {
         const pedidoFinal = pedidosAntes.length ? `${texto}\n\nPedidos anteriores da pessoa nesta conversa (aplique os que ainda não estão na apresentação):\n${pedidosAntes.map(x => `- ${String(x).slice(0, 1500)}`).join('\n')}` : texto;
         // Reestilo (a apresentação da pessoa no design do modelo): primeiro o plano (quais slides, em qual página do
         // modelo); a correção de uma versão em reestilo usa as mesmas páginas da versão anterior.
-        let conteudos = null, plano = null;
+        let conteudos = null, plano = null, materialReestilo = null;
         const planoAnterior = baseDeck ? json(deckAnterior.detalhes, {})?.plano : null;
         if (Array.isArray(planoAnterior) && planoAnterior.every(k => Number.isInteger(k) && k >= 0 && k < paginas.length)) { plano = planoAnterior; paginas = paginasDoPlano(paginas, plano.map(k => ({ pagina: k }))); }
         else if (fonteDeck && !baseDeck) {
           ultimaEtapa = `Planejando os slides de ${fonteDeck.nome} no design do modelo…`; linha({ t: 'etapa', v: ultimaEtapa });
-          const pl = await planejarReestilo({ paginas, fonte: fonteDeck.texto, pedido: pedidoFinal, contexto: material, chamar: chamarDesign });
+          // Conferência do conteúdo: só a apresentação, os documentos da conversa e o pedido (a resposta da IA não vale).
+          const docs = [...anexos.map(a => a?.texto || ''), ...todos(app.db, 'select texto from anexos where conversa_id = ?', conv.id).map(a => a.texto || '')].join('\n').slice(0, 400000);
+          materialReestilo = `${fonteDeck.texto}\n${docs}\n${pedidoFinal}`;
+          const pl = await planejarReestilo({ paginas, fonte: fonteDeck.texto, pedido: pedidoFinal, contexto: material, material: materialReestilo, chamar: chamarDesign });
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + pl.custo, economia: (fim?.economia || 0) + pl.economia };
           plano = pl.slides.map(x => x.pagina); conteudos = pl.slides.map(x => x.conteudo);
           paginas = paginasDoPlano(paginas, pl.slides);
         }
-        const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, conteudos, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
+        const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, conteudos, material: materialReestilo, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
         // Reestilo: o arquivo leva o nome da apresentação da pessoa (é a apresentação dela, no design novo).
         const fonteNome = plano ? (fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte) : null;

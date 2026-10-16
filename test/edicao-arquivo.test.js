@@ -195,6 +195,13 @@ test('planilha: a lista do que mudou sai do próprio arquivo (fórmula e valor)'
   assert.deepEqual(mudancasDaPlanilha(antes, depois).map(x => `${x.ref}: ${x.antes} → ${x.depois}`), ['B3: =B2*0.6 → =B2*0.06', 'B4: 12.5 → (vazia)']);
 });
 
+test('planilha: total que deixa de fora uma linha do próprio bloco é apontado', () => {
+  const linhas = [['Conta', 'Jan', 'Fev'], ['', '', ''], ['Folha', '38000', '38000'], ['Nuvem', '6200', '6400'], ['Aluguel', '5500', '5500'], ['Total de despesas', '=SUM(B4:B5)', '=SUM(C3:C5)']];
+  const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
+  assert.deepEqual(p.map(x => x.ref), ['B6']);
+  assert.match(p[0].problema, /deixa de fora a linha 3 \(Folha\)/);
+});
+
 test('slide novo: cópia do layout de um slide, com textos novos, na posição pedida (resto intacto)', async () => {
   const orig = pptx('# Abertura\n\nTexto inicial\n\n# Escopo\n\n- Item A\n\n# Fim\n\nObrigado', { titulo: 'Deck' });
   const c = conteudoParaEdicao('pptx', orig), linhas = c.split('\n');

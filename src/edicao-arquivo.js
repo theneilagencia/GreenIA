@@ -533,6 +533,23 @@ export function problemasDaPlanilha(dados, { max = 40 } = {}) {
       const altas = lista.filter(x => [...x.formula.matchAll(/\*\s*(0?\.\d+|\d+(\.\d+)?%?)/g)].some(m => { const v = m[1].endsWith('%') ? parseFloat(m[1]) / 100 : parseFloat(m[1]); return v > 0.35 && v < 1; }));
       if (altas.length) out.push({ aba: a.nome, ref: altas[0].ref, problema: `alíquota implausível na linha "${rotulo.trim()}": =${altas[0].formula} (${altas.length} célula(s)). Imposto desse tipo fica em poucos por cento da base; confira a alíquota e corrija a linha toda, explicando na resposta.` });
     }
+    // Linha de total que deixa de fora uma linha do próprio bloco (as linhas preenchidas logo acima, até uma linha
+    // vazia ou outro total). QA em produção: "Total de despesas" =SUM(B10:B13) sem a folha de pagamento (linha 9).
+    const rotuloDe = l => String(cel.get(`A${l}`)?.valor || '').trim();
+    // Linha de dado: fórmula ou número (cabeçalho de texto, como "Jan", não conta).
+    const preenchida = (col, l) => { const c = cel.get(`${col}${l}`); return !!c && (c.formula != null || /^-?\d+([.,]\d+)?$/.test(String(c.valor ?? '').trim())); };
+    for (const [lin, lista] of linhas) {
+      if (!/^total\b/i.test(rotuloDe(lin))) continue;
+      for (const x of lista) {
+        const m = /^SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)$/i.exec(x.formula.replace(/\$/g, ''));
+        if (!m || m[1] !== m[3]) continue;
+        const col = m[1].toUpperCase(), de = Number(m[2]), ate = Number(m[4]), fora = [];
+        let l = lin - 1;
+        while (l >= 1 && !preenchida(col, l) && lin - l <= 3) l--;   // linhas vazias logo acima (uma linha apagada)
+        for (; l >= 1 && preenchida(col, l) && !/^total\b/i.test(rotuloDe(l)); l--) if (l < de || l > ate) fora.push(l);
+        if (fora.length) { out.push({ aba: a.nome, ref: x.ref, problema: `o total da linha "${rotuloDe(lin)}" (=${x.formula}) deixa de fora ${fora.sort((p, q) => p - q).map(l => `a linha ${l}${rotuloDe(l) ? ` (${rotuloDe(l)})` : ''}`).join(', ')}, do mesmo bloco. Inclua no total, salvo se a exclusão for intencional e explicada.` }); break; }
+      }
+    }
     for (const lista of linhas.values()) {
       if (lista.length < 4) continue;
       const conta = new Map();

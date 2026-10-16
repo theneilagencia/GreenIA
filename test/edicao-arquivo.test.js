@@ -6,7 +6,7 @@ import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
 import { docx, pptx, xlsx, zipar, MIMES } from '../src/escritorio.js';
-import { aplicarEdicao, conteudoParaEdicao, deslocarFormula, lerPacote, pedeEdicaoNoArquivo, trocarTextoDoParagrafo } from '../src/edicao-arquivo.js';
+import { alteraDadoNaoPedido, aplicarEdicao, conteudoParaEdicao, deslocarFormula, lerPacote, pedeEdicaoNoArquivo, trocarTextoDoParagrafo } from '../src/edicao-arquivo.js';
 import { extrairTexto } from '../src/texto.js';
 
 const texto = c => (typeof c === 'string' ? c : (c || []).map(p => p.text || '').join('\n'));
@@ -34,7 +34,7 @@ test('Word: trocar, inserir com o mesmo estilo e remover; o resto do pacote fica
   const orig = DOC();
   const c = conteudoParaEdicao('docx', orig);
   const id = /\[(p\d+)\][^\n]*Prazo de pagamento/.exec(c)[1], item = /\[(p\d+)\][^\n]*Oito turmas/.exec(c)[1], mat = /\[(p\d+)\][^\n]*Material digital/.exec(c)[1];
-  const r = aplicarEdicao('docx', orig, [{ op: 'trocar', id, texto: 'Prazo de pagamento: 45 dias.' }, { op: 'inserir_depois', id: item, texto: 'Relatório final' }, { op: 'remover', id: mat }, { op: 'trocar', id: 'p999', texto: 'x' }]);
+  const r = aplicarEdicao('docx', orig, [{ op: 'trocar', id, texto: 'Prazo de pagamento: 45 dias.' }, { op: 'inserir_depois', id: item, texto: 'Relatório final' }, { op: 'remover', id: mat }, { op: 'trocar', id: 'p999', texto: 'x' }], { pedido: 'mude o prazo para 45 dias' });
   assert.equal(r.feitas, 3);
   assert.deepEqual(r.ignoradas.map(o => o.motivo), ['trecho_nao_encontrado']);
   const t = await ler('x.docx', r.dados);
@@ -96,6 +96,31 @@ test('fórmula compartilhada: as células que dependiam do mestre ganham a próp
   const r = aplicarEdicao('xlsx', zipar(pac), [{ op: 'celula', aba: 'Aba', ref: 'A3', formula: 'A2*2' }]);
   const s = parte(r.dados, 'xl/worksheets/sheet1.xml');
   assert.match(s, /<c r="A3"><f>A2\*2<\/f><\/c>/); assert.match(s, /<c r="B3"><f>B1\+B2<\/f>/); assert.match(s, /<c r="C3"><f>C1\+C2<\/f>/);
+});
+
+test('dado não pedido (visto em produção): "corrija a ortografia" não troca o e-mail; juntar slides leva os números; o marcador fica', () => {
+  assert.equal(alteraDadoNaoPedido('• Contato: comercial@agrosense.exemplo', 'Contato: comercial@agrosense.com.br', { pedido: 'corrija a ortografia', resposta: 'domínio agrosense.com.br' }), 'comercial@agrosense.com.br');
+  assert.equal(alteraDadoNaoPedido('Vencimento em 30 dias', 'Vencimento em 45 dias', { pedido: 'altere o vencimento de 30 para 45 dias' }), null);
+  assert.equal(alteraDadoNaoPedido('Vencimento em 30 dias', 'Vencimento em 60 dias', { pedido: 'corrija a ortografia' }), '60');
+  assert.equal(alteraDadoNaoPedido('', 'Essencial: R$ 38/ha/ano', { pedido: 'junte os slides', arquivo: '• Essencial: R$ 38/ha/ano — sensores' }), null);
+  const orig = pptx('# Contato\n\n• Contato: comercial@exemplo.test · (43) 3000-0000\n\n• Prazo de 30 dias', { titulo: 'Deck' });
+  const c = conteudoParaEdicao('pptx', orig);
+  const idC = /\[(s\d+\.p\d+)\] [^\n]*Contato:/.exec(c)[1], idP = /\[(s\d+\.p\d+)\] [^\n]*Prazo/.exec(c)[1];
+  const r = aplicarEdicao('pptx', orig, [{ op: 'trocar', id: idC, texto: 'Contato: comercial@empresa.com.br · (43) 3000-0000' }, { op: 'trocar', id: idP, texto: 'Prazo de 30 dias corridos' }, { op: 'inserir_depois', id: idP, texto: 'Item novo' }],
+    { pedido: 'corrija a ortografia e acrescente "Item novo"', arquivo: c });
+  assert.deepEqual(r.ignoradas.map(o => o.motivo), ['dado_nao_pedido']);
+  const t = conteudoParaEdicao('pptx', r.dados);
+  assert.match(t, /comercial@exemplo\.test/, 'o e-mail original fica');
+  assert.match(t, /• Prazo de 30 dias corridos/, 'o marcador do original fica');
+  assert.match(t, /• Item novo/, 'o item novo ganha o marcador do vizinho');
+});
+
+test('leitura da planilha: célula com fórmula sem valor guardado mostra a fórmula (antes parecia vazia)', async () => {
+  const orig = xlsx([{ nome: 'Fluxo', linhas: [['Conta', 'Jan'], ['Receita', '100'], ['Imposto', '=B2*0.6']] }]);
+  const t = await ler('x.xlsx', orig);
+  assert.match(t, /Imposto;=B2\*0\.6/);
+  const comValor = Buffer.from(zipar(lerPacote(orig).map(e => e.nome === 'xl/worksheets/sheet1.xml' ? { nome: e.nome, dados: Buffer.from(e.dados.toString().replace(/<f>B2\*0\.6<\/f>/, '<f>B2*0.6</f><v>60</v>')) } : { nome: e.nome, dados: e.dados })));
+  assert.match(await ler('x.xlsx', comValor), /Imposto;60 \(=B2\*0\.6\)/);
 });
 
 test('pedido: ajuste no próprio arquivo x criar outro / analisar', () => {

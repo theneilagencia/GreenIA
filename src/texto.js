@@ -135,9 +135,13 @@ function xlsx(b) {
       const cel = [];
       for (const c of r[1].matchAll(/<c r="([A-Z]+\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const v = /<v>([\s\S]*?)<\/v>/.exec(c[3] || '')?.[1] ?? /<t[^>]*>([\s\S]*?)<\/t>/.exec(c[3] || '')?.[1] ?? '';
+        // Fórmula: vai junto do valor (quem audita precisa dela); sem valor guardado no arquivo, só a fórmula, em vez
+        // de uma célula que pareceria vazia (QA em produção: impostos "em branco" que eram =B7*0.6).
+        const f = /<f\b[^>]*>([\s\S]*?)<\/f>/.exec(c[3] || '')?.[1];
         const estilo = Number(/\bs="(\d+)"/.exec(c[2])?.[1] ?? -1);
         const data = !/t="(s|str|inlineStr|b|e)"/.test(c[2]) && v !== '' && estiloData[estilo] ? dataDoExcel(v) : null;
-        cel[col(c[1])] = /t="s"/.test(c[2]) ? compart[Number(v)] ?? '' : data ?? entidades(v);
+        const valor = /t="s"/.test(c[2]) ? compart[Number(v)] ?? '' : data ?? entidades(v);
+        cel[col(c[1])] = f ? (valor !== '' ? `${valor} (=${entidades(f).slice(0, 200)})` : `=${entidades(f).slice(0, 200)}`) : valor;
       }
       return Array.from(cel, x => x ?? '');
     }).filter(l => l.join('').trim());

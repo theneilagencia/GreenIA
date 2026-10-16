@@ -338,11 +338,19 @@ export function roteiroLimpo(texto) {
   // Cada linha do roteiro é um item do slide (no roteiro, quebra de linha separa ideias).
   const inicio = linhas.findIndex(l => SLIDE_N.test(l));   // o que vem antes do 1º slide é conversa, não slide
   const limpas = [];
-  let semTitulo = false;   // "Slide 3" sem título: a primeira linha de texto do slide vira o título
+  let semTitulo = false, ultimoTitulo = '';   // "Slide 3" sem título: a primeira linha de texto do slide vira o título
   for (const l0 of linhas.slice(inicio)) {
     if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l0) || soLetrasEspacadas(l0)) continue;
     const l = juntarLetrasEspacadas(l0), m = SLIDE_N.exec(l);
-    if (m) { if (m[1]) limpas.push(`## ${m[1].replace(/\*+$/, '')}`); semTitulo = !m[1]; continue; }
+    if (m) { if (m[1]) limpas.push(`## ${m[1].replace(/\*+$/, '')}`); semTitulo = !m[1]; ultimoTitulo = textoPuro(m[1] || ''); continue; }
+    // Dentro do roteiro, só "Slide N" abre slide: outro título ("# O Problema", "### Antes") vira destaque do slide,
+    // e o título que só repete o do slide sai (antes cada um virava um slide a mais: 25 títulos, 45 slides).
+    const h = /^\s*#{1,6}\s+(.*?)\s*#*\s*$/.exec(l);
+    if (h && !semTitulo) {
+      const t = h[1].replace(/\*+/g, '').trim(), base = x => textoPuro(x).toLowerCase().replace(/[^a-z0-9à-ú]+/g, ' ').trim();
+      if (t && !base(ultimoTitulo).includes(base(t)) && !base(t).includes(base(ultimoTitulo) || '\u0000')) limpas.push(`**${t}**`);
+      continue;
+    }
     if (semTitulo && l.trim()) { limpas.push(`## ${l.replace(/^\s*[#>*-]+\s*|\*+/g, '').trim()}`); semTitulo = false; continue; }
     limpas.push(l);
   }
@@ -375,6 +383,12 @@ export function slides(texto, titulo) {
     const total = s.blocos.every(b => b.tipo !== 'tabela') ? s.blocos.flatMap(itensDoBloco).reduce((n, it) => n + Math.min(LINHAS_POR_SLIDE, linhasDe(it)), 0) : Infinity;
     const limite = total <= LINHAS_POR_SLIDE * 1.6 ? Infinity : LINHAS_POR_SLIDE;
     const fechar = () => { if (itens.length || !partes) out.push({ titulo: partes ? `${s.titulo} (continuação)` : s.titulo, itens, ...(limite === Infinity && total > LINHAS_POR_SLIDE ? { compacto: true } : {}) }); partes++; itens = []; linhas = 0; };
+    // Texto curto + uma tabela pequena: o mesmo slide (texto em cima, tabela embaixo), sem "continuação".
+    const tabs = s.blocos.filter(b => b.tipo === 'tabela'), textos = s.blocos.filter(b => b.tipo !== 'tabela').flatMap(itensDoBloco);
+    if (tabs.length === 1 && tabs[0].linhas.length <= 6 && textos.length && textos.reduce((n, it) => n + linhasDe(it), 0) <= 3) {
+      out.push({ titulo: s.titulo, itens: textos, tabela: tabs[0].linhas, junto: true });
+      continue;
+    }
     for (const b of s.blocos) {
       if (b.tipo === 'tabela') {
         if (itens.length) fechar();
@@ -425,7 +439,7 @@ export function pptx(texto, { titulo = 'Apresentação', subtitulo = '', agora, 
     let forma = caixa(2, 'Rótulo', [M, 40 * EMU, LARG, 20 * EMU], rotulo(`${n} · ${textoPuro(s.titulo).replace(/ \(continuação\)$/, '')}`.slice(0, 70), VERDE))
       + caixa(3, 'Título', [M, 54 * EMU, LARG, 72 * EMU], `<a:p><a:pPr><a:lnSpc><a:spcPct val="92000"/></a:lnSpc></a:pPr>${aRuns(s.titulo, textoPuro(s.titulo).length > 48 ? 2600 : 3200, TINTA, { fonte: TITULO })}</a:p>`, { ancora: 'b' })
       + faixa(4, [M, 134 * EMU, LARG, Math.round(0.75 * EMU)], FIO);
-    if (s.tabela) forma += tabelaSlide(5, s.tabela, [M, 152 * EMU, LARG], FUNDO_CAB);
+    if (s.tabela && !s.junto) forma += tabelaSlide(5, s.tabela, [M, 152 * EMU, LARG], FUNDO_CAB);
     else {
       const paras = s.itens.map(it => {
         if (it.sub) return `<a:p><a:pPr><a:spcBef><a:spcPts val="1000"/></a:spcBef></a:pPr>${aRuns(it.texto, 2000, TINTA, { b: true })}</a:p>`;
@@ -437,7 +451,8 @@ export function pptx(texto, { titulo = 'Apresentação', subtitulo = '', agora, 
         const numero = it.marcador && it.marcador !== '•' ? `<a:r>${rPr({ b: true }, tam, VERDE)}<a:t>${it.marcador}\t</a:t></a:r>` : '';
         return `<a:p>${marca}${numero}${it.codigo ? `<a:r>${rPr({ c: true }, tam, CORPO)}<a:t>${x(it.texto)}</a:t></a:r>` : aRuns(it.texto, tam, CORPO)}</a:p>`;
       });
-      forma += caixa(5, 'Conteúdo', [M, 152 * EMU, LARG, 318 * EMU], paras.join('') || '<a:p><a:endParaRPr lang="pt-BR"/></a:p>');
+      forma += caixa(5, 'Conteúdo', [M, 152 * EMU, LARG, (s.junto ? 92 : 318) * EMU], paras.join('') || '<a:p><a:endParaRPr lang="pt-BR"/></a:p>');
+      if (s.junto) forma += tabelaSlide(8, s.tabela, [M, 252 * EMU, LARG], FUNDO_CAB);
     }
     forma += caixa(6, 'Rodapé', [M, 500 * EMU, LARG * 0.8, 18 * EMU], rotulo(nomeCurto, RODAPE, 800))
       + caixa(7, 'Número', [SW - M - 60 * EMU, 500 * EMU, 60 * EMU, 18 * EMU], `<a:p><a:pPr algn="r"/>${aRuns(String(k + 2).padStart(2, '0'), 800, RODAPE, { fonte: MONO })}</a:p>`);

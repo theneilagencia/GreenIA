@@ -244,3 +244,13 @@ test('agente e automação viram Quick Win (não código); pesquisa atual usa a 
     assert.ok(r.fim.fontes.some(f => /^https:/.test(f.url)), 'as fontes chegam na resposta');
   } finally { salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } }); }
 });
+
+test('roteiro "Slide N" com títulos internos não vira slides a mais; texto curto e tabela pequena dividem o slide', () => {
+  const t = Array.from({ length: 3 }, (_, i) => `## Slide ${i + 1}: Tema ${i + 1}\n# Tema ${i + 1}\n### Antes\n- a\n### Depois\n- b`).join('\n\n');
+  const s = slides(t, 'Deck');
+  assert.equal(s.slides.length, 3);
+  assert.ok(s.slides[0].itens.some(i => /\*\*Antes\*\*/.test(i.texto)));
+  const j = slides('# D\n\n## Números\n\nResumo curto.\n\n| A | B |\n|---|---|\n| 1 | 2 |', 'D');
+  assert.equal(j.slides.length, 1);
+  assert.ok(j.slides[0].junto && j.slides[0].tabela);
+});

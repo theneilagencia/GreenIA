@@ -751,7 +751,7 @@ async function abaPoliticas({ sucesso = '' } = {}) {
       <button type="button" class="switch" id="sigilo-ativo" role="switch" aria-checked="${sig.ativo}" aria-labelledby="sigilo-titulo"><span></span></button>
       <label class="ls-titulo" id="sigilo-titulo" for="sigilo-ativo">Permitir processamento de informações sigilosas com proteções obrigatórias de dados</label>
       <span class="estado ${sig.ativo ? 'on' : ''}">${sig.ativo ? 'Ligado' : 'Desligado'}</span>
-      <p class="ls-desc">${sig.ativo ? 'Sem um recurso autorizado disponível, nada é enviado e você é avisado.' : 'Hoje informações sigilosas não são enviadas para recursos de IA.'}</p>
+      <p class="ls-desc">${sig.ativo ? 'Sem um recurso autorizado disponível, os dados pessoais reconhecidos (CPF, CNPJ, RG, emails e telefones pessoais, CEP, cartão, dados bancários e chave PIX) saem trocados por marcadores e voltam só na resposta; outras informações sigilosas não são enviadas e a pessoa é avisada.' : 'Hoje informações sigilosas não são enviadas para recursos de IA. Os dados pessoais reconhecidos (CPF, CNPJ, RG, emails e telefones pessoais, CEP, cartão, dados bancários e chave PIX) saem trocados por marcadores e voltam só na resposta.'}</p>
     </div></div>
     <form id="form-dados"><div class="secao-titulo"><h2>Tipos de dado reconhecidos</h2><span class="dica">Vale para o chat e é o padrão de cada Quick Win novo</span></div>
       <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Tipo de dado</th><th>Regra</th><th>Efeito</th></tr></thead><tbody>

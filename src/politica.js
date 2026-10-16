@@ -9,6 +9,7 @@ import { registrar } from './eventos.js';
 import { PERFIS } from './modelos.js';
 import { ROTULOS } from './filtro.js';
 import { politicaSigiloLigada } from './sigilo.js';
+import { MASCARAVEIS } from './mascaramento.js';
 import { semMarcaDaPlataforma } from '../public/marca-branca.js';
 
 export const TEXTO_PADRAO = `## Para que serve a GreenIA
@@ -66,6 +67,9 @@ function montarSecao(app) {
   const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 and ativa = 1 order by nome').map(a => a.nome);
   const ligada = politicaSigiloLigada(cfg);
   const protegidos = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'proteger').map(([t]) => ROTULOS[t]);
+  // Dados pessoais que saem trocados por marcadores quando não há recurso autorizado para sigilo (src/mascaramento.js).
+  const mascaraveis = [...MASCARAVEIS].map(t => ROTULOS[t]).filter(Boolean).join(', ');
+  const mascara = `os dados pessoais que o sistema reconhece (${mascaraveis}) são trocados por marcadores antes do envio: a IA não recebe os valores reais, que voltam só na resposta mostrada a você, e a conversa segue mascarada.`;
   const naoEnviados = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'bloquear').map(([t]) => ROTULOS[t]);
   return [
     '## Como a GreenIA trata informações sigilosas',
@@ -73,12 +77,12 @@ function montarSecao(app) {
     '### Conversa normal e conversa sigilosa',
     '- **Conversa normal:** não tem informação sigilosa.',
     `- **Conversa sigilosa:** tem dados pessoais, de clientes, financeiros, jurídicos, estratégicos ou qualquer outro que esta política classifique como sigiloso. ${ligada
-      ? `A empresa permite o processamento de informações sigilosas com guardrails de proteção: antes de cada envio, ${plataforma} aplica os controles de proteção da empresa e só usa recursos de IA autorizados para esse tipo de informação. Quando não há um recurso autorizado disponível, nada é enviado.`
-      : 'A empresa não permite processar informações sigilosas com IA: mensagens com esse tipo de informação não são enviadas.'}`,
+      ? `A empresa permite o processamento de informações sigilosas com guardrails de proteção: antes de cada envio, ${plataforma} aplica os controles de proteção da empresa e só usa recursos de IA autorizados para esse tipo de informação. Quando não há um recurso autorizado disponível, ${mascara} Os demais tipos de informação sigilosa não são enviados.`
+      : `A empresa não permite processar informações sigilosas com IA: ${mascara} Mensagens com outros tipos de informação sigilosa não são enviadas.`}`,
     '### Quando uma conversa vira sigilosa',
     '1. Quando você liga a opção "Esta conversa tem dados sigilosos".',
     '2. Quando o quick win é classificado como "trata informações sigilosas".',
-    `3. Quando o sistema encontra, na mensagem ou em um anexo, um tipo de dado que a empresa trata com proteção${protegidos.length ? ` (hoje: ${protegidos.join(', ')})` : ''}.`,
+    `3. Quando o sistema encontra, na mensagem ou em um anexo, um tipo de dado que a empresa trata com proteção${protegidos.length ? ` (hoje: ${protegidos.join(', ')})` : ''}. Se os únicos dados encontrados puderem ser trocados por marcadores e não houver recurso autorizado, a conversa fica mascarada, não sigilosa.`,
     '4. Quando a conversa usa um documento de base ou arquivo de quick win marcado como sigiloso.',
     `5. Quando a sua área tem proteção reforçada${areasSigilosas.length ? ` (hoje: ${areasSigilosas.join(', ')})` : ''} e o conteúdo tem marcação de confidencialidade, dado pessoal sensível (como saúde) ou dado de pessoas em processo interno (como remuneração ou desligamento). Nessas áreas, o que não for sigiloso segue as regras gerais.`,
     'Uma conversa sigilosa continua sigilosa até ser apagada.',

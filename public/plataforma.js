@@ -1273,7 +1273,7 @@ async function vistaConfiguracoes(aba = 'geral') {
 function cfgSigilo(sub, hm) {
   tela('Configurações', `${sub}${proposito('Modelos que valem para todas as empresas em conversas com dados sigilosos.', { titulo: 'Dados sigilosos', textos: [
     'Com pelo menos um modelo autorizado aqui, conversas com informação sigilosa funcionam em todas as empresas sem que o admin de cada uma precise aprovar um modelo para dados sigilosos (homologar). A empresa não consegue retirar esta autorização; ela pode homologar outros modelos além destes.',
-    'Sem nenhum modelo autorizado, em empresas cujo admin ainda não homologou um modelo, conversas sigilosas são bloqueadas com segurança (nada é enviado) e o admin é avisado.',
+    'Sem nenhum modelo autorizado, em empresas cujo admin ainda não homologou um modelo, dados pessoais reconhecidos (CPF, CNPJ, contas e afins) saem trocados por marcadores; outras informações sigilosas não são enviadas e o admin é avisado.',
     'Nenhuma empresa consegue homologar um modelo proibido, e homologações já feitas deixam de valer para dados sigilosos. Para conversas comuns, a empresa continua decidindo.',
     'Ao autorizar, use um nível que todas as pessoas acessam (normalmente Rápido) e informe o fornecedor fixado com o nome que aparece no OpenRouter.',
   ] })}

@@ -198,3 +198,8 @@ test('ajuste com dependências e ajuste complexo: o pequeno que se propaga mant�
   const a = analisarPedido({ texto: 'Reestruture a arquitetura da aplicação.', ...ant });
   assert.equal(requisitosDe(a).motivos.continuidade, 'ajuste_complexo_sobe_um_nivel');
 });
+
+test('fórmula com multiplicação não perde o "*" (o Markdown tomava por itálico)', () => {
+  assert.equal(formulaDaCelula('=B2*(1+Premissas!$B$2)*(1-Premissas!$B$3)'), 'B2*(1+Premissas!$B$2)*(1-Premissas!$B$3)');
+  assert.equal(formulaDaCelula('**=SUM(B2:B3)**'), 'SUM(B2:B3)');
+});

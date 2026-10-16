@@ -238,7 +238,8 @@ const FUNCOES_PT = { SOMA: 'SUM', 'MÉDIA': 'AVERAGE', MEDIA: 'AVERAGE', SE: 'IF
   E: 'AND', OU: 'OR', ABS: 'ABS', VPL: 'NPV', TIR: 'IRR', PGTO: 'PMT', 'MÉDIASE': 'AVERAGEIF', SOMARPRODUTO: 'SUMPRODUCT', 'ÍNDICE': 'INDEX', INDICE: 'INDEX', CORRESP: 'MATCH', HOJE: 'TODAY', ANO: 'YEAR', 'MÊS': 'MONTH', MES: 'MONTH' };
 const PROIBIDAS = /\b(WEBSERVICE|HYPERLINK|HIPERLINK|CALL|REGISTER|REGISTER\.ID|EXEC|IMPORTXML|IMPORTDATA|IMPORTHTML|FILTERXML|RTD|INFO|CELL)\s*\(|[|\\]|^=\s*[-+@]?\s*cmd/i;
 export function formulaDaCelula(bruto) {
-  const s = textoPuro(bruto).trim();
+  // Texto cru da célula: "*" é multiplicação (o leitor de Markdown o tomaria por itálico); só tira negrito/código em volta.
+  const s = String(bruto ?? '').trim().replace(/^\*\*([\s\S]*)\*\*$/, '$1').replace(/^`([\s\S]*)`$/, '$1').trim();
   if (!/^=\s*\S/.test(s) || s.length > 2000 || PROIBIDAS.test(s) || !/[A-Za-z(]/.test(s.slice(1)) && !/[\d.]+\s*[-+*/^]/.test(s)) return null;
   let f = '', aspas = false;
   for (const ch of s.slice(1)) { if (ch === '"') aspas = !aspas; f += !aspas && ch === ';' ? ',' : ch; }

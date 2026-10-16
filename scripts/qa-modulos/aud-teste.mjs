@@ -26,6 +26,21 @@ export default async function (c, planoArq, id, inicio = '0') {
   try {
     const ctx = await nav.newContext({ viewport: { width: 1366, height: 860 }, acceptDownloads: true });
     await ctx.addCookies(c.cookiesNavegador());
+    // Cópia do stream que a própria tela recebe (sem alterar a resposta): o corpo de streaming não é legível pelo CDP.
+    await ctx.addInitScript(() => {
+      const orig = window.fetch;
+      window.__aud = { ativo: false, corpo: '', fim: false };
+      window.fetch = async (...a) => {
+        const r = await orig(...a);
+        const u = String(a[0]?.url || a[0]); const m = (a[1]?.method || 'GET').toUpperCase();
+        if (m === 'POST' && /\/api\/conversas\/\d+\/(mensagens|regenerar)$/.test(u) && r.body) {
+          const [x, y] = r.body.tee(); window.__aud = { ativo: true, corpo: '', fim: false, status: r.status };
+          (async () => { const l = x.getReader(), d = new TextDecoder(); for (;;) { const { value, done } = await l.read(); if (done) break; window.__aud.corpo += d.decode(value, { stream: true }); } window.__aud.fim = true; })().catch(() => { window.__aud.fim = true; });
+          return new Response(y, { status: r.status, statusText: r.statusText, headers: r.headers });
+        }
+        return r;
+      };
+    });
     const p = await ctx.newPage();
     const errosPagina = []; p.on('pageerror', e => errosPagina.push(e.message.slice(0, 200)));
     p.on('console', m => { if (m.type() === 'error') errosPagina.push('console: ' + m.text().slice(0, 200)); });
@@ -50,13 +65,17 @@ export default async function (c, planoArq, id, inicio = '0') {
       await p.fill('#entrada', t.texto);
       await p.waitForFunction(() => !document.querySelector('#enviar').disabled, null, { timeout: 30000 }).catch(() => {});
       const t0 = Date.now();
+      await p.evaluate(() => { window.__aud = { ativo: false, corpo: '', fim: false }; });
       const resp = p.waitForResponse(r => /\/api\/conversas\/\d+\/mensagens$/.test(new URL(r.url()).pathname) && r.request().method() === 'POST', { timeout: 120000 });
       await p.click('#enviar'); cliques.push('enviar');
       let corpo = '', status = null;
       try {
         const r = await resp; status = r.status();
-        corpo = await Promise.race([r.text(), new Promise((_, n2) => setTimeout(() => n2(new Error('LIMITE_TURNO')), LIMITE_TURNO))]);
-      } catch (e) { linha.falha = String(e.message).slice(0, 200); }
+        if (r.headers()['content-type']?.includes('ndjson')) {
+          await p.waitForFunction(() => window.__aud?.fim, null, { timeout: LIMITE_TURNO, polling: 2000 });
+        }
+        corpo = await p.evaluate(() => window.__aud?.corpo || '');
+      } catch (e) { linha.falha = String(e.message).slice(0, 200); corpo = await p.evaluate(() => window.__aud?.corpo || '').catch(() => ''); }
       linha.ms = Date.now() - t0; linha.status = status;
       const eventos = corpo.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
       const fim = eventos.find(e => e.t === 'fim'), erro = eventos.find(e => e.t === 'erro');
@@ -80,6 +99,7 @@ export default async function (c, planoArq, id, inicio = '0') {
       await p.waitForTimeout(2500);
       const conv = (p.url().match(/#\/c\/(\d+)/) || [])[1]; if (conv) reg.conversa = Number(conv);
       await p.screenshot({ path: join(pasta, `turno${n}-tela.png`) });
+      if (reg.conversa) writeFileSync(join(pasta, `turno${n}-conversa.json`), JSON.stringify((await c.api('GET', `/api/conversas/${reg.conversa}`)).dados, null, 1));
       const alvo = fim?.id ? p.locator(`[data-msg="${fim.id}"]`) : p.locator('.resposta').last();
       if (await alvo.count()) await alvo.first().screenshot({ path: join(pasta, `turno${n}-resposta.png`) }).catch(() => {});
       // O que a tela oferece para baixar nesta resposta (cartões, artefatos, "baixar como").

@@ -98,13 +98,23 @@ export function criarApp(op = {}) {
   }));
   app.contexto = criarContexto(app);
   configurarOcr({ log: app.log });   // métricas técnicas do OCR (tamanho, páginas, memória, tempo, resultado), sem conteúdo
-  app.extrairAnexos = async (anexos = [], { sinal } = {}) => {
+  app.extrairAnexos = async (anexos = [], { sinal, imagemSemTexto = false } = {}) => {
     const L = LIMITES_ARQUIVO;
     if (!Array.isArray(anexos) || anexos.length > L.anexosPorMensagem) throw new ErroHttp(400, 'anexos', `Envie até ${L.anexosPorMensagem} anexos por mensagem.`);
     // A soma é conferida pelo tamanho do base64, antes de abrir qualquer arquivo.
     if (anexos.reduce((t, a) => t + String(a?.base64 || '').length * 0.75, 0) > L.mensagemMb * 1024 * 1024) throw new ErroHttp(413, 'anexos_grandes', `Os anexos desta mensagem somam mais de ${L.mensagemMb} MB. Envie em mais de uma mensagem.`);
     const out = [];
-    for (const a of anexos) out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo', ocr: app.ocr, sinal, limitesOcr: app.limitesOcr }));
+    for (const a of anexos) {
+      try { out.push(await extrairTexto(a, { maxCaracteres: L.anexoCaracteres, onde: 'anexo', ocr: app.ocr, sinal, limitesOcr: app.limitesOcr })); }
+      catch (e) {
+        // Foto ou personagem sem texto escrito, num pedido de edição de imagem: a imagem é a base (não precisa de texto).
+        // A IA de texto recebe só o aviso de que não vê o conteúdo visual, para não inventar o que há na imagem.
+        const b = Buffer.from(String(a?.base64 || '').slice(0, 32), 'base64');
+        const img = (b[0] === 0x89 && b[1] === 0x50) || (b[0] === 0xff && b[1] === 0xd8) || (b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP');
+        if (!imagemSemTexto || e?.codigo !== 'sem_texto' || !img) throw e;
+        out.push({ nome: String(a.nome || 'imagem').slice(0, 200), texto: '[Imagem sem texto escrito, enviada pela pessoa. Você não vê o conteúdo visual dela: não descreva nem suponha o que há na imagem. Ela pode ser usada como base quando a pessoa pedir para gerar ou editar uma imagem.]', imagem: true });
+      }
+    }
     const caracteres = out.reduce((t, a) => t + a.texto.length, 0);
     if (caracteres > L.mensagemCaracteres) throw new ErroHttp(413, 'texto_grande', `Os anexos desta mensagem somam cerca de ${paginasDe(caracteres)} páginas de texto; o máximo por mensagem é ${paginasDe(L.mensagemCaracteres)}. Envie menos arquivos ou só as partes necessárias.`);
     return out;

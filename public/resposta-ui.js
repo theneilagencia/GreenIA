@@ -13,6 +13,7 @@ export const ICONE_RESPOSTA = {
   planilha: svg('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>', 1.6),
   baixar: svg('<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>', 1.8),
   documento: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>', 1.6),
+  imagem: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/>', 1.6),
   slides: svg('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v3M8 21h8"/><path d="M7 9h6M7 12h10"/>', 1.6),
 };
 

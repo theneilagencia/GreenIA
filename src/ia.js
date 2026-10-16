@@ -82,7 +82,9 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
       let r;
       try {
         r = await f(`${base}/chat/completions`, { method: 'POST', headers: cab, signal: op.sinal,
-          body: JSON.stringify({ model: op.modelo, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'], stream: false, usage: { include: true },
+          // Edição: a imagem de base vai junto do pedido. Proporção pedida (16:9, 1:1...): image_config do gerador.
+          body: JSON.stringify({ model: op.modelo, messages: [{ role: 'user', content: op.imagens?.length ? [{ type: 'text', text: prompt }, ...op.imagens.map(url => ({ type: 'image_url', image_url: { url } }))] : prompt }],
+            modalities: ['image', 'text'], stream: false, usage: { include: true }, ...(op.proporcao ? { image_config: { aspect_ratio: op.proporcao } } : {}),
             provider: { data_collection: 'deny' } }) });
       } catch { throw new ErroIA('Não foi possível falar com o serviço de imagem.'); }
       if (!r.ok) throw new ErroIA(`O serviço de imagem respondeu ${r.status}.`, r.status >= 500 ? 502 : r.status);

@@ -376,13 +376,15 @@ const PEDE_VISUAL = [
   [/\b(apresentac\w*|slides?|deck)\b/, 'presentation', ['apresentacao']], [/\bone[- ]?pag\w*|\bpagina (visual|executiva|unica)|\bresumo visual|\bfolha unica/, 'one_page', ['resumo', 'relatorio']],
   [/\binfografic\w*/, 'infographic', []], [/\bfluxograma|\bdiagrama\b/, 'diagram', []], [/\bmapa (de|do) processo/, 'process_map', []], [/\bdashboard|\bpainel (visual|executivo)/, 'dashboard', []],
   [/\bcronograma visual|\blinha do tempo visual/, 'timeline', []], [/\bcartaz|\bposter\b/, 'poster', []], [/\bcarross\w*/, 'carousel', ['carrossel']],
+  // Peças de campanha ("peças visuais nos formatos quadrado e horizontal", "anúncios para o feed do LinkedIn").
+  [/\b(pecas? visua(l|is)|criativos?|anuncios?)\b.*\b(quadrad\w*|horizontal|vertical|feed|linkedin|instagram|facebook|1:1|1\.91:1|4:5|9:16)\b|\b(quadrad\w*|horizontal)\b.*\b(pecas?|anuncios?|criativos?)\b/, 'social_post', ['imagem']],
   [/\b(arte|artes|peca grafica|pecas graficas|criativo|criativos|banner)\b/, 'social_post', ['imagem']], [/\bmaterial (visual )?de treinamento|\bmaterial didatico/, 'training_material', []],
   [/\brelatorio visual/, 'report', ['relatorio']], [/\b(matriz|comparativo|tabela) visual/, 'comparison', ['matriz', 'tabela']], [/\bchecklist visual/, 'checklist', ['checklist']],
   // Peça para ver (não o texto do post): formato, imagem ou feed junto de "post"; capa; linha do tempo; painel de números.
   [/\b(post|posts|postagem|postagens|stories|story)\b.*\b(quadrad\w*|imagem|visual|arte|feed|vertical|1:1|4:5|9:16)\b|\b(quadrad\w*|imagem|visual|arte|feed|vertical)\b.*\b(post|posts|postagem|stories|story)\b/, 'social_post', ['imagem']],
   [/\bcapa\b/, 'cover', []], [/\blinha do tempo\b|\btimeline\b|\bgantt\b|\broadmap visual/, 'timeline', []], [/\bpainel\b.*\b(indicador\w*|kpis?|metricas?|numeros)\b/, 'dashboard', []],
   // Último recurso: o pedido diz que quer algo visual, sem dizer o quê.
-  [/\b(algo|peca|material|versao|resumo|pagina) (bem )?visua(l|is)\b|\bvisualmente\b/, 'one_page', ['resumo', 'relatorio']],
+  [/\b(algo|pecas?|materia(l|is)|versao|resumo|pagina) (bem )?visua(l|is)\b|\bvisualmente\b/, 'one_page', ['resumo', 'relatorio']],
 ];
 export function visualDoPedido(texto) {
   const t = norm(texto);

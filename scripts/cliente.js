@@ -16,6 +16,8 @@ export function cliente(app, base) {
       return { status: r.status, dados, headers: r.headers };
     },
     get: (p, e) => c.req('GET', p, undefined, e),
+    // Download binário (arquivo gerado), com a mesma sessão.
+    async bin(caminho) { const r = await fetch(base + caminho, { headers: cookie ? { cookie } : {} }); return { status: r.status, headers: r.headers, dados: Buffer.from(await r.arrayBuffer()) }; },
     post: (p, b, e) => c.req('POST', p, b ?? {}, e),
     put: (p, b) => c.req('PUT', p, b ?? {}),
     patch: (p, b) => c.req('PATCH', p, b ?? {}),

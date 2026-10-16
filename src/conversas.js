@@ -1,8 +1,10 @@
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
-import { extrairTabelas, gerarCsv } from '../public/tabelas.js';
-import { docx, MIMES, nomeDoArquivo, pptx, xlsx } from './escritorio.js';
+import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
+import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx } from './escritorio.js';
+import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
+import { entregaDeCodigo } from './codigo-chat.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
@@ -29,8 +31,8 @@ import { semProvedor } from './sem-provedor.js';
 import { erroDoProvedor, erroParaLog } from './registro-seguro.js';
 import { conferirComCorrecao, contextoDaExecucao, escolhaHumanaPrevista, MARCADOR_PERGUNTA, PEDIDO_AUTONOMIA, PEDIDO_AUTONOMIA_FINAL, promptExecucao, resumoQualidade } from './quickwin-construtor.js';
 import { contextoExternoDaPesquisa, MOTIVOS_PESQUISA, perguntaDeMercado, promptColeta, promptVisual, temArtefatoVisual, visualDoPedido } from './quickwin-operacao.js';
-import { TIPOS as TIPOS_VISUAIS } from './visual/contrato.js';
-import { gravarVisuais, produzirVisuais, resumoArtefato } from './visual/producao.js';
+import { FORMATOS as FORMATOS_VISUAIS, TIPOS as TIPOS_VISUAIS } from './visual/contrato.js';
+import { decisaoImagem, gravarVisuais, MOTIVOS_IMAGEM, produzirVisuais, resumoArtefato } from './visual/producao.js';
 import { precisaIntegracao, prepararExecucao, concluirExecucao, limparResposta, lerPlano as lerPlanoInteg, resumoPlano as resumoPlanoInteg } from './integracoes/quickwin.js';
 import { analisarPedido, analiseIndisponivel, explicarParaPessoa, rotear, orcamentoHistorico, AUTOMATICO, VERSAO_ROTEADOR, NIVEL, MOTIVO_SUBSTITUICAO, MOTIVO_DA_CAUSA } from './roteador.js';
 
@@ -139,7 +141,7 @@ const RAJADA = 12;
 // Pedido de arquivo do Office: a plataforma gera o arquivo a partir da resposta (src/escritorio.js); o modelo só
 // precisa escrever o conteúdo completo e bem estruturado. A orientação entra só quando o pedido cita o formato.
 export const PEDE_ARQUIVO = /\b(word|docx|power ?point|pptx|ppt|slides?|excel|xlsx|xls|planilhas?|apresenta[cç](ão|ao|ões|oes))\b/i;
-const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do Word, do PowerPoint ou do Excel e mostra o botão para baixar. Não diga que não consegue gerar arquivos e não ofereça código para gerá-los: escreva o conteúdo completo, pronto para uso, já na resposta. Use # para o título, ## para cada seção (no PowerPoint, cada ## vira um slide, com o título final do slide, sem "Slide N:"), listas com - e tabelas em Markdown, sem linhas "---". Escreva o texto final de cada slide, não instruções sobre o slide. Em tabela para planilha, cada célula com um valor só (número, R$ 1.234,56, 12,5% ou data dd/mm/aaaa, sem texto junto) e confira cada total antes de responder.';
+const ORIENTACAO_ARQUIVO = 'A plataforma transforma a sua resposta em arquivo do Word, do PowerPoint ou do Excel e mostra o botão para baixar. Não diga que não consegue gerar arquivos e não ofereça código para gerá-los: escreva o conteúdo completo, pronto para uso, já na resposta. Use # para o título, ## para cada seção (no PowerPoint, cada ## vira um slide, com o título final do slide, sem "Slide N:"), listas com - e tabelas em Markdown, sem linhas "---". Escreva o texto final de cada slide, não instruções sobre o slide. Em tabela para planilha, cada célula com um valor só (número, R$ 1.234,56, 12,5% ou data dd/mm/aaaa, sem texto junto) e confira cada total antes de responder. Planilha com cálculo (fluxo de caixa, projeção, orçamento, cenários, indicadores): cada tabela vira uma aba do Excel, com o título ### logo acima dela como nome da aba (nome curto, sem espaço, ex.: ### Premissas, ### FluxoMensal); na aba, o cabeçalho é a linha 1 e a primeira coluna da tabela é a coluna A. Nas células calculadas (totais, saldos, percentuais, projeções), escreva a fórmula do Excel em vez do número, começando com = e com nomes de função em inglês e vírgula (=SUM(B2:B13), =B5-B9, =IF(B2=0,0,B3/B2), =Premissas!B2*(1+Premissas!B3)); deixe os dados de entrada (premissas) numa aba própria para a pessoa poder mudar e ver o resultado recalcular.';
 
 // Peça visual pedida na conversa livre ("crie uma apresentação", "monte um one-page"): a resposta traz o conteúdo
 // e a produção visual (o mesmo motor dos Quick Wins) compõe o PDF/PNG com design. Só com verbo de criação: "analise
@@ -183,7 +185,13 @@ export function pecaDaConversa(texto) {
   const v = visualDoPedido(texto);
   if (!v || v.tipo === 'image') return null;
   const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) };
-  return { objetivo: String(texto).slice(0, 500), operacao: { entregaveis: [{ id: 'peca', tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {}, visual }] }, invariantes: {} };
+  // Peça pedida em mais de um formato ("quadrado e horizontal"): uma peça por formato, com o mesmo conteúdo.
+  const t = String(texto).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const formatos = v.tipo === 'social_post' ? [...new Set([[/\bquadrad\w*|\b1:1\b/, '1:1'], [/\bhorizonta\w*|\b1\.91:1\b/, '1.91:1'], [/\bvertica\w*|\b4:5\b/, '4:5'], [/\bstor(y|ies)\b|\b9:16\b/, '9:16']].filter(([re]) => re.test(t)).map(([, f]) => f))] : [];
+  const entregaveis = formatos.length > 1
+    ? formatos.map((f, i) => ({ id: `peca_${i + 1}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: `Peça ${FORMATOS_VISUAIS[f].rotulo.toLowerCase()}`, canal: null, config: {}, visual: { ...visual, formato: f } }))
+    : [{ id: 'peca', tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {}, visual }];
+  return { objetivo: String(texto).slice(0, 500), operacao: { entregaveis }, invariantes: {} };
 }
 
 // Perguntas sobre os créditos da própria plataforma ("e se acabar?", "como compro mais?"): a resposta usa estes fatos e
@@ -202,6 +210,11 @@ function persona(cfg, responsaveis, qw, marcaPropria = false, execucao = false, 
     // Profundidade: respostas curtas demais eram a principal queixa. O tamanho acompanha o pedido.
     'Entregue respostas completas e úteis, com a profundidade que o pedido exige, como um especialista dedicado faria. Numa análise de material, cubra o conteúdo de verdade: o que ele diz (com os números, nomes, prazos e exemplos do próprio material), o que isso significa, pontos fortes, lacunas ou riscos e recomendações práticas. Organize com títulos, listas e tabelas quando ajudar a leitura. Pergunta simples continua com resposta direta.',
     'Quando o pedido estiver claro, faça o trabalho completo já nesta resposta, em vez de descrever o que poderia fazer ou terminar oferecendo opções. Pergunte antes só quando faltar uma informação sem a qual o resultado sairia errado.',
+    // Como um bom profissional (e como o ChatGPT e o Claude): confirma o entendimento, entrega, explica o que fez.
+    'Em pedido de trabalho (criar, analisar, revisar, ajustar, transformar um material), comece com uma ou duas frases dizendo o que você entendeu e o que vai entregar (por exemplo: "Entendi: você quer X para Y. Vou entregar Z."). Depois entregue o trabalho completo. Termine com uma seção curta "## O que foi feito": o que você entregou ou mudou, o que ficou como estava, os pontos que dependem da pessoa (dados que faltaram, suposições feitas) e, quando houver arquivo, que ele está para baixar logo abaixo da resposta. Em pergunta simples ou conversa curta, responda direto, sem a abertura e sem essa seção.',
+    'Ao entregar código, escreva cada arquivo completo num bloco de código, com o caminho numa linha logo acima (ex.: ### Arquivo: src/app.js); a plataforma monta o projeto em .zip para baixar, e um site em HTML completo ganha prévia funcionando. Não diga que não consegue gerar arquivos, criar sites ou rodar a prévia.',
+    'Cumpra exatamente os números e limites pedidos (quantidade de slides, páginas, itens, versões, valores, parcelas, prazos). Num pedido de ajuste de um trabalho desta conversa, aplique só o que foi pedido, reescreva o trabalho inteiro já com a mudança (ele vira o novo arquivo), salvo quando as instruções abaixo disserem outra coisa, e mantenha igual tudo o que não foi pedido para mudar; em "O que foi feito", liste cada mudança.',
+    'Quando a pessoa anexar um arquivo nesta mensagem e pedir para trabalhar nele, esse arquivo é a base do trabalho: use o conteúdo dele, não o de materiais anteriores desta conversa. Se o pedido citar um material e houver dúvida sobre qual é, use o mais recente que a pessoa anexou.',
     REGRAS_DE_ESCRITA,
     'Não invente regras, prazos, valores ou nomes.',
     'Quando usar trechos de documentos fornecidos, cite o título do documento. Só quando a pergunta for sobre uma regra ou um procedimento interno da empresa e os documentos não trouxerem a resposta, diga isso com clareza'
@@ -368,7 +381,7 @@ export function rotasConversas(app, r) {
     const pedido = um(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user' and id < ? order by id desc limit 1", conv.id, Number(params.mensagem))?.texto || '';
     const estilo = PEDE_LAYOUT.test(pedido) ? estiloDaConversa(app, conv.id) : null;
     if (estilo) { if (id.origem['cores.primaria'] !== 'empresa' && estilo.cores?.[0]) cor = estilo.cores[0]; fonte = estilo.fontes?.[0] || null; }
-    return { conv, texto: m.texto, titulo: qw?.nome || conv.titulo || 'Resposta da GreenIA', cor, fonte };
+    return { conv, texto: soEntregavel(m.texto), titulo: qw?.nome || conv.titulo || 'Resposta da GreenIA', cor, fonte };
   };
   const enviarOffice = (res, formato, titulo, dados) => {
     res.writeHead(200, { 'content-type': MIMES[formato], 'content-length': dados.length, 'content-disposition': `attachment; filename="${nomeDoArquivo(titulo, formato)}"`,
@@ -383,12 +396,23 @@ export function rotasConversas(app, r) {
     enviarOffice(res, 'xlsx', titulo, xlsx([{ linhas: tabela.map(l => tabela[0].map((_, k) => l[k] ?? '')) }], { titulo, cor }));
   });
   // Arquivo gerado na conversa (apresentação no layout do modelo): só o dono da conversa.
-  r.get('/api/conversas/:id/arquivos/:arquivo', ({ pessoa, params, res }) => {
+  r.get('/api/conversas/:id/arquivos/:arquivo', ({ pessoa, params, query, res }) => {
     const conv = minhaConversa(app, pessoa, params.id);
     const a = /^[1-9]\d*$/.test(params.arquivo) && um(app.db, 'select nome, mime, dados from arquivos_gerados where id = ? and conversa_id = ?', Number(params.arquivo), conv.id);
     if (!a) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
     const dados = Buffer.from(a.dados);
-    res.writeHead(200, { 'content-type': a.mime, 'content-length': dados.length, 'content-disposition': `attachment; filename="${nomeDoArquivo(a.nome.replace(/\.pptx$/i, ''), 'pptx')}"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+    // Imagem: "ver=1" mostra na própria conversa (prévia); sem ele, baixa. Só tipos de imagem conhecidos.
+    const img = /^image\/(png|jpeg|webp)$/.test(a.mime), html = a.mime === 'text/html', ext = img ? (a.mime === 'image/jpeg' ? 'jpg' : a.mime.slice(6)) : html ? 'html' : a.mime === 'application/zip' ? 'zip' : 'pptx';
+    const nome = nomeDoArquivo(a.nome.replace(/\.(pptx|png|jpe?g|webp|html|zip)$/i, ''), ext);
+    // Site gerado: a prévia abre numa página isolada (sandbox: origem opaca, sem cookies da GreenIA, sem rede, sem envio
+    // de formulário para fora). O código roda só no navegador de quem abriu, como no arquivo baixado.
+    if (html && query?.ver) {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': dados.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer',
+        'content-security-policy': "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src data: blob: https:; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'" });
+      return res.end(dados);
+    }
+    res.writeHead(200, { 'content-type': a.mime, 'content-length': dados.length, 'content-disposition': `${img && query?.ver ? 'inline' : 'attachment'}; filename="${nome}"`,
+      'cache-control': img ? 'private, max-age=3600' : 'no-store', 'x-content-type-options': 'nosniff', ...(img ? { 'content-security-policy': "default-src 'none'" } : {}) });
     res.end(dados);
   });
   // Prévia (ver antes de baixar): slides do arquivo gerado e as imagens de fundo dele; e a prévia do PowerPoint
@@ -421,7 +445,8 @@ export function rotasConversas(app, r) {
       // Todas as tabelas da resposta, uma por aba.
       const tabelas = extrairTabelas(texto);
       if (!tabelas.length) throw erro(404, 'tabela', 'Esta resposta não tem tabela para virar planilha.');
-      return enviarOffice(res, 'xlsx', titulo, xlsx(tabelas.map(t => ({ linhas: t.map(l => t[0].map((_, k) => l[k] ?? '')) })), { titulo, cor }));
+      const nomes = nomesDasTabelas(texto);
+      return enviarOffice(res, 'xlsx', titulo, xlsx(tabelas.map((t, i) => ({ ...(nomes[i] ? { nome: nomes[i] } : {}), linhas: t.map(l => t[0].map((_, k) => l[k] ?? '')) })), { titulo, cor }));
     }
     const gerar = params.formato === 'docx' ? docx : pptx;
     enviarOffice(res, params.formato, titulo, gerar(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` }));
@@ -551,7 +576,7 @@ export function rotasConversas(app, r) {
     // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
     const cancelado = new AbortController();
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
-    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal }) ?? []))
+    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal, imagemSemTexto: !qw && pedidoDeImagem(texto, { brutos: (corpo.anexos || []).map(a => a?.base64) })?.modo === 'editar' }) ?? []))
       .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
     // Bytes originais (só para guardar um PDF como modelo de apresentação; não vão para a IA nem para o histórico).
     const brutos = repeticao || regeracao ? [] : (corpo.anexos || []).map(a => a?.base64);
@@ -661,6 +686,11 @@ export function rotasConversas(app, r) {
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
     const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
     const pecaChat = !qw && !modeloApr && !modeloAusente ? pecaDaConversa(texto) : null;
+    // Imagem pedida na conversa (nova ou edição da anexada / da última gerada): gerada depois do texto, abaixo dele.
+    const ultimaImg = !qw && !modeloApr ? ultimaImagemDaConversa(app, conv.id) : null;
+    const ultimaResp = ultimaImg ? um(app.db, "select id from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id)?.id : null;
+    const ultimaFoiImagem = !!ultimaImg && !!um(app.db, 'select 1 from arquivos_gerados where id = ? and mensagem_id = ?', ultimaImg.id, ultimaResp ?? -1);
+    const imagemChat = !qw && !modeloApr && !modeloAusente && !pecaChat ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
     // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
@@ -669,7 +699,8 @@ export function rotasConversas(app, r) {
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && PEDE_ARQUIVO.test(texto))
       + blocoCreditos(app)
-      + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nA resposta inteira é o conteúdo da peça (sem seção extra antes dela), completo e fiel ao material.` : '')
+      + (imagemChat ? NOTA_IMAGEM(imagemChat.modo) : '')
+      + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nEntre a abertura curta e a seção final "O que foi feito", a resposta é o conteúdo da peça, completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')
       + (modeloApr ? `\nA plataforma vai montar o arquivo PowerPoint no layout exato de "${modeloApr.nome}" (mesmos slides, fontes, cores e posições), trocando o texto de cada slide pelo conteúdo do novo projeto. Nesta resposta, não reescreva a apresentação: diga em poucas linhas qual é o novo projeto, o que muda em relação ao modelo e liste as informações que o material não traz (elas ficarão marcadas como [a definir] no arquivo).` : '');
@@ -707,9 +738,12 @@ export function rotasConversas(app, r) {
     // Decisão anterior desta conversa: numa nova tentativa, a exigência sobe a partir do que foi usado.
     // O feedback só vale para a resposta a que se refere: "não serviu" marcado na última resposta pesa na
     // próxima mensagem; depois de uma nova resposta, deixa de valer (não sobe a exigência para sempre).
-    const ant = um(app.db, "select id, classe, feedback from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1", conv.id);
+    const ant = um(app.db, "select id, classe, feedback, requisitos from roteamento where conversa_id = ? and resultado like 'respondido%' order by id desc limit 1", conv.id);
+    // Nível que o TRABALHO anterior pediu (sem a subida de uma nova tentativa): um ajuste desse trabalho não desce dele.
+    const dimAnt = (() => { try { return JSON.parse(ant?.requisitos || '{}').dimensoes || {}; } catch { return {}; } })();
+    const trabalhoAnt = Math.max(0, ...Object.entries(dimAnt).filter(([d]) => d !== 'nova_tentativa').map(([, n]) => Number(n) || 0)) || null;
     const entradaAnalise = { texto, anexos, historicoChars, contextoChars: ctx.partes.join('').length, sistemaChars: sistema.length, temResposta,
-      anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe] } : null, feedback: ant?.feedback || null };
+      anterior: ant?.classe ? { classe: ant.classe, nivel: NIVEL[ant.classe], trabalho: trabalhoAnt } : null, feedback: ant?.feedback || null };
     let analise;
     try { analise = (app.analisarPedido || analisarPedido)(entradaAnalise); } catch (e) {
       app.log?.('análise do pedido', erroParaLog(e));
@@ -1120,7 +1154,7 @@ export function rotasConversas(app, r) {
       else {
         linha({ t: 'etapa', v: 'Montando o visual…' });
         try {
-          visuais = await produzirVisuais(app, { pessoa, conv, qw: null, espec: pecaChat, resposta, chamar, chamarDesign, usarIA: !reservaDoPlano,
+          visuais = await produzirVisuais(app, { pessoa, conv, qw: null, espec: pecaChat, resposta: soEntregavel(resposta), chamar, chamarDesign, usarIA: !reservaDoPlano,
             governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) { custoVisual = visuais.custos; fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoVisual.plano_visual + custoVisual.imagem }; }
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
@@ -1158,6 +1192,27 @@ export function rotasConversas(app, r) {
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }
     }
+    let imagem = null;
+    if (imagemChat) {
+      const d = decisaoImagem(app, cfg, { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano });
+      if (naoGuardar) aviso(app, conv.id, 'Pela política de retenção da empresa, o conteúdo desta resposta não fica guardado: por isso a imagem não foi gerada.');
+      else if (!d.pode) aviso(app, conv.id, `A imagem não foi gerada: ${MOTIVOS_IMAGEM[d.motivo] || 'o gerador de imagens não está disponível'}.`);
+      else {
+        linha({ t: 'etapa', v: imagemChat.modo === 'editar' ? 'Editando a imagem…' : 'Gerando a imagem…' });
+        try {
+          const g = await app.ia.gerarImagem(promptDaImagem(texto, imagemChat), { modelo: d.modelo, proporcao: imagemChat.proporcao, imagens: imagemChat.base ? [imagemChat.base] : [], sinal: AbortSignal.timeout(120_000) });
+          const m0 = /^data:(image\/(png|jpeg|webp));base64,(.+)$/.exec(g.dataUrl || '');
+          if (!m0) throw new Error('imagem inválida');
+          const ext = m0[2] === 'jpeg' ? 'jpg' : m0[2];
+          imagem = { mime: m0[1], dados: Buffer.from(m0[3], 'base64'), nome: `imagem-greenia-${Date.now().toString(36)}.${ext}`, detalhes: { tipo: 'imagem', modo: imagemChat.modo, proporcao: imagemChat.proporcao || null } };
+          fim = { ...(fim || {}), custo: (fim?.custo || 0) + (g.custo || 0) };
+        } catch (e) {
+          app.log?.('imagem da conversa', erroParaLog(e));
+          if (e?.custo) fim = { ...(fim || {}), custo: (fim?.custo || 0) + e.custo };
+          aviso(app, conv.id, 'Não foi possível gerar a imagem agora (o gerador de imagens não respondeu). Nada foi cobrado além do texto; peça de novo em alguns instantes.');
+        }
+      }
+    }
     if (preparacoesEscolha) {
       fim = { ...(fim || {}), custo: Number(fim?.custo || 0) + custoPreparacaoEscolha, economia: Number(fim?.economia || 0) + economiaPreparacaoEscolha };
       registrar(app, 'quickwin.choice_prepared', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, roteamento: rotaId, recuperacoes: preparacoesEscolha, preparada: !escolhaNaoPreparada });
@@ -1193,6 +1248,23 @@ export function rotasConversas(app, r) {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), gerado.textos ? JSON.stringify(gerado.textos) : null, AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome: gerado.nome, bytes: gerado.dados.length, ...gerado.detalhes });
       registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: 'modelo_pdf', ...gerado.detalhes });
+    }
+    if (imagem) {
+      const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, imagem.nome, imagem.mime, imagem.dados, JSON.stringify(imagem.detalhes), AGORA(app)).lastInsertRowid);
+      arquivos.push({ id, nome: imagem.nome, bytes: imagem.dados.length, ...imagem.detalhes });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: imagem.mime, origem: 'imagem_chat', modo: imagem.detalhes.modo });
+    }
+    // Site ou projeto de código na resposta: prévia funcionando (página isolada) e o código-fonte em .zip.
+    if (!naoGuardar && !qw && !gerado) {
+      let cod = null;
+      try { cod = entregaDeCodigo(resposta); } catch (e) { app.log?.('código da resposta', erroParaLog(e)); }
+      const guardar = (nome, mime, dados, detalhes) => {
+        const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, nome, mime, dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
+        arquivos.push({ id, nome, bytes: dados.length, ...detalhes });
+        registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: 'codigo_da_resposta' });
+      };
+      if (cod?.site) guardar('site.html', 'text/html', Buffer.from(cod.site), { tipo: 'site' });
+      if (cod?.zip) guardar('codigo-fonte.zip', 'application/zip', cod.zip, { tipo: 'codigo', arquivos: cod.arquivos.slice(0, 40) });
     }
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };

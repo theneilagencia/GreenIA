@@ -13,7 +13,7 @@ import { resumoDeCsv, resumoDeTabela } from './planilha.js';
 export const delimitar = (tipo, nome, texto) => `<${tipo} nome="${String(nome).replace(/["<>]/g, '')}">\n${String(texto).replace(new RegExp(`</?${tipo}`, 'gi'), m => m.replace('<', '‹'))}\n</${tipo}>`;
 
 export { MSG_SEM_TEXTO };
-export const FORMATOS = 'PDF, DOCX, PPTX, XLSX, TXT, MD, CSV ou imagem (PNG, JPG, WEBP ou TIFF)';
+export const FORMATOS = 'PDF, DOCX, PPTX, XLSX, TXT, MD, CSV, ZIP de projeto de código ou imagem (PNG, JPG, WEBP ou TIFF)';
 // Limites de upload, no padrão de mercado (anexo de email e ferramentas de IA corporativas): o tamanho
 // do arquivo protege o servidor; o texto extraído protege o consumo, porque é ele que vai para o modelo.
 // ~2.500 caracteres por página.
@@ -33,6 +33,18 @@ const MAX_DESCOMPACTADO = 200 * 1024 * 1024;   // teto contra "bomba de ZIP"
 const ehImagem = b => (b[0] === 0x89 && b[1] === 0x50) || (b[0] === 0xff && b[1] === 0xd8) || b.subarray(0, 4).toString() === 'GIF8'
   || (b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP') || (b[0] === 0x49 && b[1] === 0x49 && b[2] === 0x2a) || (b[0] === 0x4d && b[1] === 0x4d && b[2] === 0x00)
   || /^ftyp(heic|heix|mif1|avif)/.test(b.subarray(4, 12).toString());
+
+// Projeto de código em .zip: só os arquivos de texto de código e configuração (nada é executado), cada um com o
+// caminho como título. Pastas de dependências, binários e segredos (.env) ficam de fora.
+const CODIGO = /\.(js|mjs|cjs|jsx|ts|tsx|json|py|java|go|rb|php|cs|c|h|cpp|rs|kt|swift|sql|sh|ya?ml|toml|ini|md|txt|html?|css|scss|vue|svelte|xml|gradle|dockerfile)$|(^|\/)(Dockerfile|Makefile|README[^/]*)$/i;
+const FORA = /(^|\/)(node_modules|\.git|dist|build|vendor|\.venv|venv|__pycache__|\.next|coverage)\//;
+function projetoZip(b) {
+  const z = lerZip(b), partes = [];
+  const nomes = [...z.keys()].filter(n => !n.endsWith('/') && !FORA.test(n) && CODIGO.test(n) && !/(^|\/)\.env(\.|$)|package-lock\.json$|yarn\.lock$/.test(n)).sort().slice(0, 200);
+  for (const n of nomes) { const t = z.get(n)(); if (!t.includes('\u0000')) partes.push(`### Arquivo: ${n}\n\`\`\`\n${t.replace(/\n?$/, '')}\n\`\`\``); }
+  if (!partes.length) throw erro(415, 'formato', 'o .zip não tem arquivos de código ou texto legíveis.');
+  return `Projeto compactado com ${partes.length} ${partes.length === 1 ? 'arquivo' : 'arquivos'}:\n\n${partes.join('\n\n')}`;
+}
 
 // Leitor de ZIP (DOCX e XLSX): diretório central e entradas, com teto real de descompactação.
 function lerZip(b) {
@@ -256,8 +268,9 @@ export async function extrairTexto({ nome, base64 }, { maxCaracteres = LIMITES_A
     else if (b.subarray(0, 4).toString() === '%PDF') texto = await pdf(b, ocr, op);
     else if (b[0] === 0x50 && b[1] === 0x4b) {
       // Zip só como DOCX, XLSX ou PPTX: outro conteúdo compactado não é aceito.
-      if (!['docx', 'xlsx', 'pptx'].includes(ext)) throw erro(415, 'formato', `arquivo compactado não aceito. Use ${FORMATOS}.`);
-      texto = ext === 'xlsx' ? xlsx(b) : ext === 'pptx' ? pptx(b) : docx(b);
+      if (ext === 'zip') texto = projetoZip(b);
+      else if (!['docx', 'xlsx', 'pptx'].includes(ext)) throw erro(415, 'formato', `arquivo compactado não aceito. Use ${FORMATOS}.`);
+      else texto = ext === 'xlsx' ? xlsx(b) : ext === 'pptx' ? pptx(b) : docx(b);
     }
     else if (['txt', 'md', 'csv'].includes(ext)) {
       if (b.subarray(0, 4096).includes(0)) throw erro(415, 'formato', 'não é um arquivo de texto.');

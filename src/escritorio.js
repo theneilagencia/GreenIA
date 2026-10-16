@@ -67,12 +67,29 @@ export function trechos(s) {
 }
 export const textoPuro = s => trechos(s).map(x => x.t).join('');
 
+// Só o entregável da resposta, para virar arquivo: sem a abertura curta ("Entendi: ... Vou entregar ...") antes do
+// primeiro título e sem a seção final "O que foi feito" (conversa com a pessoa, não parte do documento).
+const FECHO = /^\s*#{1,4}\s*\**\s*(o que (foi feito|fiz|mudou|foi (ajustado|alterado|entregue))|resumo (do que foi feito|das (altera[cç][oõ]es|mudan[cç]as))|altera[cç][oõ]es (feitas|aplicadas)|pr[oó]ximos passos sugeridos)\b/i;
+export function soEntregavel(texto) {
+  let linhas = String(texto || '').replace(/\r/g, '').split('\n');
+  const fecho = linhas.findLastIndex(l => FECHO.test(l));
+  if (fecho > 0) linhas = linhas.slice(0, fecho);
+  const primeiro = linhas.findIndex(l => /^\s*#{1,3}\s+\S/.test(l));
+  if (primeiro > 0) {
+    const antes = linhas.slice(0, primeiro).filter(l => l.trim());
+    // "Título: ..." antes do primeiro título é dado da peça (não conversa): fica.
+    if (antes.join(' ').length <= 700 && !antes.some(l => /^\s*(\||[-*]\s|\d+[.)]\s)/.test(l))) linhas = [...antes.filter(l => /^\s*\**t[ií]tulo\**\s*:/i.test(l)), ...linhas.slice(primeiro)];
+  }
+  while (linhas.length && /^\s*(-{3,}|\*{3,}|_{3,})?\s*$/.test(linhas.at(-1))) linhas.pop();
+  return linhas.join('\n');
+}
+
 export function blocos(texto) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n'), out = [];
   let i = 0;
   while (i < linhas.length) {
     const l = linhas[i];
-    if (!l.trim()) { i++; continue; }
+    if (!l.trim() || /^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { i++; continue; }
     if (/^\s*```/.test(l)) {
       const codigo = [];
       i++;
@@ -91,13 +108,16 @@ export function blocos(texto) {
     const h = /^(#{1,6})\s+(.*)$/.exec(l);
     if (h) { out.push({ tipo: 'titulo', nivel: Math.min(3, h[1].length), texto: h[2].replace(/\s*#+\s*$/, '') }); i++; continue; }
     if (ITEM.test(l)) {
-      const ordenada = /^\s*\d/.test(l), itens = [];
+      const ordenada = /^\s*\d/.test(l), itens = [], numeros = [];
       while (i < linhas.length && ITEM.test(linhas[i])) {
+        numeros.push(Number((/^\s*(\d+)/.exec(linhas[i]) || [])[1]) || null);
         const item = linhas[i++].replace(ITEM, '');
         const ck = /^\[( |x|X)\]\s+(.*)$/.exec(item);
         itens.push(ck ? `${ck[1] === ' ' ? '☐' : '☑'} ${ck[2]}` : item);
       }
-      out.push({ tipo: 'lista', ordenada, itens });
+      // Lista numerada escrita com linha em branco entre os itens ("1." ... "2."): cada item chega como lista
+      // própria; o número escrito vale, para não virar "1." em todos.
+      out.push({ tipo: 'lista', ordenada, itens, ...(ordenada ? { numeros } : {}) });
       continue;
     }
     const par = [];
@@ -206,6 +226,24 @@ export function valorDaCelula(bruto) {
   return { v, fmt: `#,##0${casas ? '.' + '0'.repeat(casas) : ''}` };
 }
 
+// Fórmula escrita na célula ("=SUM(B2:B13)", "=SOMA(B2;B13)"): vira fórmula de verdade na planilha. Nomes em
+// português das funções mais comuns e o separador ";" são aceitos. Funções que buscam dados fora da planilha ou
+// executam algo (WEBSERVICE, HYPERLINK, DDE...) nunca viram fórmula: ficam como texto.
+const FUNCOES_PT = { SOMA: 'SUM', 'MÉDIA': 'AVERAGE', MEDIA: 'AVERAGE', SE: 'IF', 'MÁXIMO': 'MAX', MAXIMO: 'MAX', 'MÍNIMO': 'MIN', MINIMO: 'MIN', PROCV: 'VLOOKUP', PROCH: 'HLOOKUP',
+  ARRED: 'ROUND', ARREDONDAR: 'ROUND', SOMASE: 'SUMIF', SOMASES: 'SUMIFS', 'CONT.SE': 'COUNTIF', 'CONT.SES': 'COUNTIFS', 'CONT.VALORES': 'COUNTA', CONT_VALORES: 'COUNTA', 'CONT.NÚM': 'COUNT', SEERRO: 'IFERROR',
+  E: 'AND', OU: 'OR', ABS: 'ABS', VPL: 'NPV', TIR: 'IRR', PGTO: 'PMT', 'MÉDIASE': 'AVERAGEIF', SOMARPRODUTO: 'SUMPRODUCT', 'ÍNDICE': 'INDEX', INDICE: 'INDEX', CORRESP: 'MATCH', HOJE: 'TODAY', ANO: 'YEAR', 'MÊS': 'MONTH', MES: 'MONTH' };
+const PROIBIDAS = /\b(WEBSERVICE|HYPERLINK|HIPERLINK|CALL|REGISTER|REGISTER\.ID|EXEC|IMPORTXML|IMPORTDATA|IMPORTHTML|FILTERXML|RTD|INFO|CELL)\s*\(|[|\\]|^=\s*[-+@]?\s*cmd/i;
+export function formulaDaCelula(bruto) {
+  const s = textoPuro(bruto).trim();
+  if (!/^=\s*\S/.test(s) || s.length > 2000 || PROIBIDAS.test(s) || !/[A-Za-z(]/.test(s.slice(1)) && !/[\d.]+\s*[-+*/^]/.test(s)) return null;
+  let f = '', aspas = false;
+  for (const ch of s.slice(1)) { if (ch === '"') aspas = !aspas; f += !aspas && ch === ';' ? ',' : ch; }
+  f = f.replace(/(^|[^A-Za-z0-9_.'!])([A-Za-zÀ-ú][A-Za-zÀ-ú0-9_.]*)\s*\(/g, (m, a, nome) => `${a}${FUNCOES_PT[nome.toUpperCase()] || nome.toUpperCase()}(`);
+  // Números com vírgula decimal (fora de função) não são comuns em fórmula; "1,5" dentro de função seria argumento.
+  if (!/^[\w\s$!:.,()+\-*/^%<>=&"'À-ú]+$/.test(f)) return null;
+  return f;
+}
+
 const coluna = k => { let s = ''; for (k++; k > 0; k = Math.floor((k - 1) / 26)) s = String.fromCharCode(65 + ((k - 1) % 26)) + s; return s; };
 const nomeDaAba = (s, usados) => {
   let n = String(s || 'Tabela').replace(/[\\/?*[\]:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Tabela';
@@ -221,11 +259,15 @@ export function xlsx(tabelas, { titulo = 'Planilha', agora, cor } = {}) {
   const formatos = new Map();   // formato -> índice de estilo (0 = padrão, 1 = cabeçalho)
   const estiloDe = fmt => { if (!formatos.has(fmt)) formatos.set(fmt, formatos.size + 2); return formatos.get(fmt); };
   const usados = new Set();
+  let temFormula = false;
   const abas = tabelas.map((tab, k) => {
-    const linhas = tab.linhas, largura = linhas[0].map(() => 8);
+    const linhas = tab.linhas, largura = linhas[0].map(() => 8), formatoDaColuna = {};
     const xmlLinhas = linhas.map((l, r) => `<row r="${r + 1}">${l.map((c, k2) => {
       const ref = `${coluna(k2)}${r + 1}`;
+      const formula = r === 0 ? null : formulaDaCelula(c);
+      if (formula) { largura[k2] = Math.max(largura[k2], 14); temFormula = true; return `<c r="${ref}" s="${estiloDe(formatoDaColuna[k2] || '#,##0.00')}"><f>${x(formula)}</f></c>`; }
       const cel = r === 0 ? { t: textoPuro(c) } : valorDaCelula(c);
+      if (r > 0 && cel.fmt && !formatoDaColuna[k2]) formatoDaColuna[k2] = cel.fmt;
       const vis = cel.t ?? String(c);
       largura[k2] = Math.max(largura[k2], Math.min(60, [...vis].length + 2));
       if (cel.t !== undefined) return cel.t === '' && r ? '' : `<c r="${ref}" t="inlineStr"${r === 0 ? ' s="1"' : ''}><is><t xml:space="preserve">${x(cel.t)}</t></is></c>`;
@@ -238,7 +280,7 @@ export function xlsx(tabelas, { titulo = 'Planilha', agora, cor } = {}) {
   });
   const fmts = [...formatos.keys()];
   const estilos = `${XML}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${fmts.length ? `<numFmts count="${fmts.length}">${fmts.map((f, i) => `<numFmt numFmtId="${164 + i}" formatCode="${x(f)}"/>`).join('')}</numFmts>` : ''}<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF${TINTA}"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF${FUNDO_CAB}"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${2 + fmts.length}"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>${fmts.map((_, i) => `<xf numFmtId="${164 + i}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`).join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
-  const livro = `${XML}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>${abas.map((a, i) => `<sheet name="${x(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>${abas.some(a => a.filtro) ? `<definedNames>${abas.map((a, i) => (a.filtro ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${x(a.nome.replace(/'/g, "''"))}'!${a.filtro}</definedName>` : '')).join('')}</definedNames>` : ''}</workbook>`;
+  const livro = `${XML}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>${abas.map((a, i) => `<sheet name="${x(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>${abas.some(a => a.filtro) ? `<definedNames>${abas.map((a, i) => (a.filtro ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${x(a.nome.replace(/'/g, "''"))}'!${a.filtro}</definedName>` : '')).join('')}</definedNames>` : ''}${temFormula ? '<calcPr calcId="191029" fullCalcOnLoad="1"/>' : ''}</workbook>`;
   return zipar([
     { nome: '[Content_Types].xml', dados: tipos('', [['/xl/workbook.xml', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml'], ['/xl/styles.xml', 'application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml'], ...abas.map((_, i) => [`/xl/worksheets/sheet${i + 1}.xml`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'])]) },
     { nome: '_rels/.rels', dados: relsRaiz('xl/workbook.xml') },
@@ -273,7 +315,7 @@ function tabelaSlide(id, linhas, [xx, yy, w], FUNDO_CAB) {
 // Itens de texto de um bloco: { texto, marcador: '•' | 'n.' | null, codigo }
 function itensDoBloco(b) {
   if (b.tipo === 'paragrafo') return [{ texto: b.linhas.join(' ') }];
-  if (b.tipo === 'lista') return b.itens.map((t, k) => ({ texto: t, marcador: b.ordenada ? `${k + 1}.` : '•' }));
+  if (b.tipo === 'lista') return b.itens.map((t, k) => ({ texto: t, marcador: b.ordenada ? `${b.numeros?.[k] ?? k + 1}.` : '•' }));
   if (b.tipo === 'codigo') return b.linhas.map(t => ({ texto: t, codigo: true }));
   if (b.tipo === 'titulo') return [{ texto: b.texto, sub: true }];
   return [];
@@ -323,7 +365,11 @@ export function slides(texto, titulo) {
   const out = [];
   for (const s of secoes) {
     let itens = [], linhas = 0, partes = 0;
-    const fechar = () => { if (itens.length || !partes) out.push({ titulo: partes ? `${s.titulo} (continuação)` : s.titulo, itens }); partes++; itens = []; linhas = 0; };
+    // Seção que passa um pouco do limite fica num slide só, com letra menor: dividir criaria slides de
+    // "continuação" e mudaria o número de slides que a pessoa pediu.
+    const total = s.blocos.every(b => b.tipo !== 'tabela') ? s.blocos.flatMap(itensDoBloco).reduce((n, it) => n + Math.min(LINHAS_POR_SLIDE, linhasDe(it)), 0) : Infinity;
+    const limite = total <= LINHAS_POR_SLIDE * 1.6 ? Infinity : LINHAS_POR_SLIDE;
+    const fechar = () => { if (itens.length || !partes) out.push({ titulo: partes ? `${s.titulo} (continuação)` : s.titulo, itens, ...(limite === Infinity && total > LINHAS_POR_SLIDE ? { compacto: true } : {}) }); partes++; itens = []; linhas = 0; };
     for (const b of s.blocos) {
       if (b.tipo === 'tabela') {
         if (itens.length) fechar();
@@ -333,7 +379,7 @@ export function slides(texto, titulo) {
       }
       for (const it of itensDoBloco(b)) {
         const n = Math.min(LINHAS_POR_SLIDE, linhasDe(it));
-        if (linhas + n > LINHAS_POR_SLIDE && itens.length) fechar();
+        if (linhas + n > limite && itens.length) fechar();
         itens.push(it); linhas += n;
       }
     }
@@ -378,10 +424,10 @@ export function pptx(texto, { titulo = 'Apresentação', subtitulo = '', agora, 
     else {
       const paras = s.itens.map(it => {
         if (it.sub) return `<a:p><a:pPr><a:spcBef><a:spcPts val="1000"/></a:spcBef></a:pPr>${aRuns(it.texto, 2000, TINTA, { b: true })}</a:p>`;
-        const tam = it.codigo ? 1400 : 1800;
-        const marca = it.marcador === '•' ? `<a:pPr marL="285750" indent="-285750"><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="900"/></a:spcBef><a:buClr><a:srgbClr val="${VERDE}"/></a:buClr><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>`
-          : it.marcador ? `<a:pPr marL="342900" indent="-342900"><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="900"/></a:spcBef><a:buNone/></a:pPr>`
-          : `<a:pPr><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="${it.codigo ? 0 : 900}"/></a:spcBef><a:buNone/></a:pPr>`;
+        const tam = it.codigo ? 1400 : s.compacto ? 1450 : 1800;
+        const marca = it.marcador === '•' ? `<a:pPr marL="285750" indent="-285750"><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="${s.compacto ? 500 : 900}"/></a:spcBef><a:buClr><a:srgbClr val="${VERDE}"/></a:buClr><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>`
+          : it.marcador ? `<a:pPr marL="342900" indent="-342900"><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="${s.compacto ? 500 : 900}"/></a:spcBef><a:buNone/></a:pPr>`
+          : `<a:pPr><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcBef><a:spcPts val="${it.codigo ? 0 : s.compacto ? 500 : 900}"/></a:spcBef><a:buNone/></a:pPr>`;
         // Número escrito no texto (não automático): a continuação num slide novo segue a contagem da lista.
         const numero = it.marcador && it.marcador !== '•' ? `<a:r>${rPr({ b: true }, tam, VERDE)}<a:t>${it.marcador}\t</a:t></a:r>` : '';
         return `<a:p>${marca}${numero}${it.codigo ? `<a:r>${rPr({ c: true }, tam, CORPO)}<a:t>${x(it.texto)}</a:t></a:r>` : aRuns(it.texto, tam, CORPO)}</a:p>`;

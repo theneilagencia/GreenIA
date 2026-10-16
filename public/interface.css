@@ -1454,3 +1454,4 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
 .creditos-barra span{display:block;height:100%;background:var(--forest-text)}
 .creditos-lista{margin:0 0 16px;padding-left:18px;display:grid;gap:6px}
 .creditos-acoes{display:flex;flex-wrap:wrap;gap:8px}
+.imagem-gerada{display:flex;flex-direction:column;gap:8px;margin:0;width:min(100%,560px)}.imagem-gerada img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}.imagem-gerada .anexo-resposta{width:100%}

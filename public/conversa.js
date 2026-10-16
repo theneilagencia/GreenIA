@@ -101,7 +101,7 @@ function desenhar() {
         <div class="anexos-pendentes" id="anexos"></div>
         <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
           <button type="button" class="btn btn-linha btn-pequeno" id="link-ok">Adicionar</button><button type="button" class="btn-texto btn-pequeno" id="link-cancelar">Cancelar</button></div>
-        <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff">
+        <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.zip,.png,.jpg,.jpeg,.webp,.tif,.tiff">
         <textarea id="entrada" rows="1" placeholder="${esc(!qw ? 'Pergunte alguma coisa…' : !qw.v2 ? 'Cole o texto ou anexe…' : !C.mensagens.length || C.proximaExecucao ? 'Cole o texto ou anexe o material…' : 'Peça um ajuste, faça uma pergunta ou continue a conversa…')}" aria-label="Mensagem"></textarea>
         <div class="caixa-barra">
           <div class="menu-anexos">
@@ -170,8 +170,21 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
     detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
+}
+// Imagem gerada ou editada na conversa: aparece inteira na resposta, com o download logo abaixo.
+function cartaoImagem(a) {
+  const href = `/api/conversas/${C.conv.id}/arquivos/${a.id}`;
+  return `<figure class="imagem-gerada"><a href="${esc(href)}?ver=1" target="_blank" rel="noopener"><img src="${esc(href)}?ver=1" alt="${esc(a.modo === 'editar' ? 'Imagem editada pela GreenIA' : 'Imagem gerada pela GreenIA')}" loading="lazy"></a>
+    <a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.imagem}</span><span class="anexo-resposta-texto"><b>${esc(a.modo === 'editar' ? 'Imagem editada' : 'Imagem gerada')}</b><small>Baixar imagem ${esc(String(a.nome || '').split('.').pop().toUpperCase())}${a.proporcao ? ` · ${esc(a.proporcao)}` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a></figure>`;
+}
+// Site gerado: abre funcionando numa aba (página isolada). Código-fonte: o projeto em .zip.
+function cartaoCodigo(a) {
+  const href = `/api/conversas/${C.conv.id}/arquivos/${a.id}`;
+  return a.tipo === 'site'
+    ? `<a class="anexo-resposta" href="${esc(href)}?ver=1" target="_blank" rel="noopener"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>Ver o site funcionando</b><small>Abre numa nova aba, numa página isolada</small></span><span class="anexo-resposta-acao">↗</span></a>`
+    : `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>Código-fonte (.zip)</b><small>${esc((a.arquivos || []).slice(0, 4).join(', '))}${(a.arquivos || []).length > 4 ? ` e mais ${a.arquivos.length - 4}` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`;
 }
 // Cartão de apresentação com prévia: miniatura do 1º slide (clique abre todos os slides) e o download logo abaixo.
 function cartaoComPrevia({ previa, baixar, nome, detalhe }) {

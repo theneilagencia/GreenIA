@@ -18,6 +18,30 @@ export function extrairTabelas(texto) {
   return tabelas;
 }
 
+// Nome de cada tabela (mesma ordem de extrairTabelas): o título logo acima dela ("### Premissas", "**Premissas**"),
+// usado como nome da aba na planilha e nas referências entre abas das fórmulas.
+export function nomesDasTabelas(texto) {
+  const linhas = String(texto || '').replace(/\r/g, '').split('\n'), nomes = [];
+  for (let i = 0; i < linhas.length; i++) {
+    if (/^\s*```/.test(linhas[i])) { i++; while (i < linhas.length && !/^\s*```\s*$/.test(linhas[i])) i++; continue; }
+    if (!ehTabela(linhas[i], linhas[i + 1])) continue;
+    let nome = null;
+    for (let k = i - 1, vistos = 0; k >= 0 && vistos < 3; k--) {
+      const l = linhas[k].trim();
+      if (!l) continue;
+      vistos++;
+      const m = /^#{1,6}\s+(.+?)\s*#*$/.exec(l) || /^\*\*([^*]+)\*\*:?$/.exec(l);
+      if (m) { nome = m[1].replace(/[*_`]/g, '').replace(/^(aba|planilha|tabela)\s*[:\-–]\s*/i, '').trim(); break; }
+      if (/^\s*\|/.test(l)) break;
+    }
+    nomes.push(nome);
+    i += 2;
+    while (i < linhas.length && /^\s*\|/.test(linhas[i])) i++;
+    i--;
+  }
+  return nomes;
+}
+
 export function gerarCsv(linhas) {
   const numero = s => /^[-+]?\s?(R\$\s?)?\d[\d.,\s]*%?$/.test(s);
   const cel = v => {

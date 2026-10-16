@@ -5,13 +5,13 @@
 const soDigitos = s => s.replace(/\D/g, '');
 const repetido = d => /^(\d)\1+$/.test(d);
 
-function cpfValido(d) {
+export function cpfValido(d) {
   if (d.length !== 11 || repetido(d)) return false;
   const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += Number(d[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
   return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
 }
 
-function cnpjValido(d) {
+export function cnpjValido(d) {
   if (d.length !== 14 || repetido(d)) return false;
   const dv = n => {
     const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
@@ -21,7 +21,7 @@ function cnpjValido(d) {
   return dv(12) === Number(d[12]) && dv(13) === Number(d[13]);
 }
 
-function luhn(d) {
+export function luhn(d) {
   let s = 0;
   for (let i = 0; i < d.length; i++) {
     let n = Number(d[d.length - 1 - i]);
@@ -35,7 +35,7 @@ function luhn(d) {
 const perto = (texto, pos, re, dist = 40) => re.test(texto.slice(Math.max(0, pos - dist), pos));
 
 // Provedores de email de uso pessoal. Os demais domínios são tratados como email corporativo (conteúdo normal).
-const PROVEDORES_PESSOAIS = String.raw`(?:gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|proton(?:mail)?|pm|gmx|zoho|yandex|uol|bol|terra|ig|globo(?:mail)?|r7|oi|zipmail)\.(?:com|me|net)(?:\.br)?|(?:uol|bol|terra|ig|globo|oi)\.com\.br`;
+export const PROVEDORES_PESSOAIS = String.raw`(?:gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|proton(?:mail)?|pm|gmx|zoho|yandex|uol|bol|terra|ig|globo(?:mail)?|r7|oi|zipmail)\.(?:com|me|net)(?:\.br)?|(?:uol|bol|terra|ig|globo|oi)\.com\.br`;
 const REGRAS = {
   cpf(t) {
     for (const m of t.matchAll(/(?<![\d.\/-])\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?![\d\/-]|\.\d)/g)) if (cpfValido(soDigitos(m[0]))) return true;

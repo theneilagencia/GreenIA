@@ -22,6 +22,8 @@ import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO, origensComCredencial, ROTULOS, ROTULOS_REFORCO } from './filtro.js';
 import { acharModelo, AUTO, classeDe, doApelido, ehClasse, ehGratuito, homologadoPadrao, lerModelos, modeloPermitido, NOMES_CLASSE, paraPessoa, resolverClasse } from './modelos.js';
 import { ErroIA } from './ia.js';
+import { iaMascarada, Mascara, MASCARAVEIS } from './mascaramento.js';
+import { politicaSigiloLigada } from './sigilo.js';
 import { checarPlano, modeloNaReserva, verificarAvisos, situacaoPlano, COMO_FUNCIONAM_OS_CREDITOS } from './plano.js';
 import { comUso, anotarUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
@@ -729,11 +731,20 @@ export function rotasConversas(app, r) {
     const sinaisReforco = areaReforcada ? detectarReforcado([texto, ...anexos.map(a => a.texto)].join('\n')) : [];
     // Marcação de uso interno (sinal da área reforçada) torna o conteúdo sigiloso.
     const marcacaoReforco = sinaisReforco.filter(k => k === 'marcacao');
-    const motivo = motivosFixos(app, pessoa, qw) || (protegidos.length ? `dado:${protegidos[0]}` : null)
+    // Processar protegendo (src/mascaramento.js): só dado pessoal mascarável, sem outro motivo de sigilo e sem recurso
+    // autorizado para dado sigiloso na empresa. Em vez de bloquear, os valores saem como marcadores e voltam só na
+    // resposta. A conversa fica marcada: as mensagens seguintes (e o histórico com esses dados) também saem mascaradas.
+    const fixos = motivosFixos(app, pessoa, qw);
+    const semRecursoSigilo = () => !politicaSigiloLigada(cfg) || !lerModelos(app.db).some(x => x.liberado && x.homologado);
+    const mascarar = !conv.sigilosa && !fixos && !marcacaoReforco.length && !ctx.sigiloso && (!!conv.mascarada
+      || (protegidos.length > 0 && protegidos.every(t => MASCARAVEIS.has(t)) && semRecursoSigilo()));
+    const motivo = fixos || (protegidos.length && !(mascarar && protegidos.every(t => MASCARAVEIS.has(t))) ? `dado:${protegidos.find(t => !mascarar || !MASCARAVEIS.has(t))}` : null)
       || (marcacaoReforco.length ? `reforco:${marcacaoReforco[0]}` : null) || (ctx.sigiloso ? 'documento' : null);
+    const mascara = mascarar ? new Mascara() : null;
+    const ia = mascarar ? iaMascarada(app.ia, mascara, [...MASCARAVEIS]) : app.ia;
     // Dados pessoais processados normalmente: controles proporcionais (recurso com fornecedor fixo, pedido sem
     // treino), se a política da empresa pedir (padrão). Não vira sigilosa e não exige autorização de sigilo.
-    const dadosPessoais = cfg.protecaoDadosPessoais !== false && normais.some(t => NIVEL_DO_TIPO[t] >= 2);
+    const dadosPessoais = mascarar || (cfg.protecaoDadosPessoais !== false && normais.some(t => NIVEL_DO_TIPO[t] >= 2));
     // A conversa só vira sigilosa (e o aviso só aparece) depois da decisão da política, mais abaixo: um
     // conteúdo que não pode ser enviado não deixa marca na conversa.
     const sigilosa = !!conv.sigilosa || !!motivo;
@@ -994,6 +1005,12 @@ export function rotasConversas(app, r) {
       else if (ehPacoteOffice(a.nome, brutos[k])) exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) values (?, ?, ?)', id, MIMES[tipoDoArquivo(a.nome)], Buffer.from(brutos[k], 'base64'));
     });
     if (execUsadas.length) marcarExecucoesUsadas(app, execUsadas);
+    if (mascarar && !conv.mascarada) {
+      exec(app.db, 'update conversas set mascarada = 1 where id = ?', conv.id);
+      conv.mascarada = 1;
+      avisosCodigo.push(`Esta conversa tem ${protegidos.filter(t => MASCARAVEIS.has(t)).map(t => ROTULOS[t]).join(', ') || 'dados pessoais'}. Como a empresa ainda não tem um recurso de IA autorizado para dados sigilosos, a GreenIA troca esses dados por marcadores antes de enviar à IA e recoloca os valores originais só na resposta, para você. Nesta conversa, isso vale para todas as mensagens.`);
+    }
+    if (mascarar) registrar(app, 'policy.masked', pessoa.id, { conversa: conv.id, tipos: protegidos.filter(t => MASCARAVEIS.has(t)) });
     for (const t of avisosCodigo) aviso(app, conv.id, t);
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
@@ -1062,7 +1079,7 @@ export function rotasConversas(app, r) {
       const paraColeta = [{ role: 'system', content: sistemaColeta }, { role: 'user', content: externo.consulta }];
       try {
         let t = '';
-        for await (const ev of app.ia.enviar(paraColeta, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, pesquisaWeb: { max: 5 } })) {
+        for await (const ev of ia.enviar(paraColeta, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, pesquisaWeb: { max: 5 } })) {
           if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); }
           else if (ev.tipo === 'texto') t += ev.texto;
           else { custoColeta = Number(ev.custo || 0); economiaColeta = Number(ev.economia || 0); }
@@ -1083,7 +1100,7 @@ export function rotasConversas(app, r) {
       const coletaChat = [{ role: 'system', content: 'Pesquise na internet o que a pessoa pediu e devolva notas objetivas: cada fato com a fonte (nome e endereço) e a data de publicação. Diferencie anúncio de recurso já disponível. Não invente; o que não encontrar, diga que não encontrou.' }, { role: 'user', content: texto.slice(0, 2000) }];
       try {
         let t = '';
-        for await (const ev of app.ia.enviar(coletaChat, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, pesquisaWeb: { max: 8 } })) {
+        for await (const ev of ia.enviar(coletaChat, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, pesquisaWeb: { max: 8 } })) {
           if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); }
           else if (ev.tipo === 'texto') t += ev.texto;
           else { custoColeta += Number(ev.custo || 0); economiaColeta += Number(ev.economia || 0); }
@@ -1103,7 +1120,7 @@ export function rotasConversas(app, r) {
     if (perguntaMercado) resposta = perguntaMercado;
     else for (;;) {
       try {
-        for await (const ev of app.ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+        for await (const ev of ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
           if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); continue; }
           if (ev.tipo === 'texto') {
             primeiroToken ??= Date.now() - inicio;
@@ -1181,7 +1198,7 @@ export function rotasConversas(app, r) {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of app.ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
@@ -1196,7 +1213,7 @@ export function rotasConversas(app, r) {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of app.ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino })) {
+      for await (const ev of ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
@@ -1357,7 +1374,7 @@ export function rotasConversas(app, r) {
       else {
         linha({ t: 'etapa', v: imagemChat.modo === 'editar' ? 'Editando a imagem…' : 'Gerando a imagem…' });
         try {
-          const g = await app.ia.gerarImagem(promptDaImagem(texto, imagemChat), { modelo: d.modelo, proporcao: imagemChat.proporcao, imagens: imagemChat.base ? [imagemChat.base] : [], sinal: AbortSignal.timeout(120_000) });
+          const g = await ia.gerarImagem(promptDaImagem(texto, imagemChat), { modelo: d.modelo, proporcao: imagemChat.proporcao, imagens: imagemChat.base ? [imagemChat.base] : [], sinal: AbortSignal.timeout(120_000) });
           const m0 = /^data:(image\/(png|jpeg|webp));base64,(.+)$/.exec(g.dataUrl || '');
           if (!m0) throw new Error('imagem inválida');
           const ext = m0[2] === 'jpeg' ? 'jpg' : m0[2];

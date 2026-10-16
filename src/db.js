@@ -94,7 +94,7 @@ create table if not exists conversas (
   id integer primary key, pessoa_id integer not null references pessoas(id) on delete cascade,
   quick_win_id integer references quick_wins(id) on delete set null, teste integer not null default 0,
   titulo text not null default 'Nova conversa', modelo text,
-  sigilosa integer not null default 0, motivo_sigilosa text, cortada integer not null default 0,
+  sigilosa integer not null default 0, motivo_sigilosa text, mascarada integer not null default 0, cortada integer not null default 0,
   feedback text check (feedback in ('serviu','ajustes','nao_serviu')), feedback_motivo text,
   criado_em text not null, atualizado_em text not null);
 create table if not exists mensagens (
@@ -442,6 +442,8 @@ create table if not exists arquivos_gerados (
 `,
   // 22. Texto de cada bloco da apresentação gerada no layout do modelo: o pedido de correção seguinte edita essa versão.
   db => { if (!db.prepare("select 1 from pragma_table_info('arquivos_gerados') where name = 'textos'").get()) db.exec('alter table arquivos_gerados add column textos text'); },
+  // 23. Conversa com dados pessoais mascarados (sem recurso autorizado para sigilo): as mensagens seguintes também saem mascaradas.
+  db => { if (!db.prepare("select 1 from pragma_table_info('conversas') where name = 'mascarada'").get()) db.exec('alter table conversas add column mascarada integer not null default 0'); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

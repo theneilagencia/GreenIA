@@ -102,7 +102,8 @@ function desenhar() {
         <div class="link-novo oculto" id="link-novo"><label class="sr" for="link-url">Link (https)</label><input class="entrada" id="link-url" type="url" inputmode="url" maxlength="2000" placeholder="https://… (página pública usada como fonte)">
           <button type="button" class="btn btn-linha btn-pequeno" id="link-ok">Adicionar</button><button type="button" class="btn-texto btn-pequeno" id="link-cancelar">Cancelar</button></div>
         <input type="file" id="arquivo" multiple hidden accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.zip,.png,.jpg,.jpeg,.webp,.tif,.tiff">
-        <textarea id="entrada" rows="1" placeholder="${esc(!qw ? 'Pergunte alguma coisa…' : !qw.v2 ? 'Cole o texto ou anexe…' : !C.mensagens.length || C.proximaExecucao ? 'Cole o texto ou anexe o material…' : 'Peça um ajuste, faça uma pergunta ou continue a conversa…')}" aria-label="Mensagem"></textarea>
+        <div class="caixa-texto"><button type="button" class="caixa-expandir" id="expandir" aria-pressed="${!!C.expandida}" aria-label="${C.expandida ? 'Recolher a caixa de texto' : 'Expandir a caixa de texto'}" title="${C.expandida ? 'Recolher' : 'Expandir'}" ${C.expandida ? '' : 'hidden'}>${C.expandida ? '↙' : '↗'}</button>
+        <textarea id="entrada" rows="1" placeholder="${esc(!qw ? 'Pergunte alguma coisa…' : !qw.v2 ? 'Cole o texto ou anexe…' : !C.mensagens.length || C.proximaExecucao ? 'Cole o texto ou anexe o material…' : 'Peça um ajuste, faça uma pergunta ou continue a conversa…')}" aria-label="Mensagem"></textarea></div>
         <div class="caixa-barra">
           <div class="menu-anexos">
             <button type="button" class="caixa-icone" id="mais-anexos" aria-label="Adicionar arquivo ou link" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-anexos" title="Adicionar arquivo ou link">${ICONE.mais}</button>
@@ -383,13 +384,16 @@ function substituirPedido() {
 
 // Conversa vazia começa no topo (saudação à vista); com mensagens, acompanha o fim.
 function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!C.mensagens.length && !C.pensando) msgs.scrollTop = 0; else if (C.noFim) msgs.scrollTop = msgs.scrollHeight; }
-function ajustarAltura() { const t = $('entrada'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; t.style.overflowY = t.scrollHeight > 220 ? 'auto' : 'hidden'; }
+// O texto cresce com o que é digitado até ~40% da tela (entre 120 e 320 px); passando disso, rola por dentro.
+function ajustarAltura() { const t = $('entrada'), max = Math.round(C.expandida ? innerHeight * 0.68 : Math.max(120, Math.min(320, innerHeight * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
 function atualizarEnviar() { $('enviar').disabled = C.enviando || (!$('entrada').value.trim() && !C.anexos.length); }
 
+// Nome longo abreviado pelo meio: o fim (o que distingue arquivos parecidos e a extensão) continua visível.
+const nomeCurto = (n, max = 30) => { n = String(n || ''); if (n.length <= max) return n; const fim = Math.ceil(max * 0.55); return `${n.slice(0, max - fim - 1)}…${n.slice(-fim)}`; };
 function desenharAnexos() {
   // Papel do material (fontes): material da execução (padrão), só referência de estilo ou fonte principal.
   const papel = (a, i) => `<select class="papel-anexo" data-papel-anexo="${i}" aria-label="Como usar ${esc(a.nome)}">${[['', 'Material'], ['REFERENCE', 'Só referência'], ['REQUIRED_SOURCE', 'Fonte principal']].map(([v, r]) => `<option value="${v}" ${(a.papel || '') === v ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
-  $('anexos').innerHTML = C.anexos.map((a, i) => `<span class="anexo-chip">${a.link ? ICONE.link : ICONE.doc} ${esc(a.nome)}${papel(a, i)}<button type="button" data-tirar="${i}" aria-label="Tirar ${esc(a.nome)}">×</button></span>`).join('');
+  $('anexos').innerHTML = C.anexos.map((a, i) => `<span class="anexo-chip" title="${esc(a.nome)}"><span class="anexo-topo">${a.link ? ICONE.link : ICONE.doc}<span class="anexo-tipo">${esc(a.link ? 'Link' : (String(a.nome).split('.').pop() || '').toUpperCase().slice(0, 5))}</span></span><span class="anexo-nome">${esc(nomeCurto(a.nome, 44))}</span>${papel(a, i)}<button type="button" data-tirar="${i}" aria-label="Tirar ${esc(a.nome)}">×</button></span>`).join('');
   $('anexos').querySelectorAll('[data-papel-anexo]').forEach(s => { s.onchange = () => { C.anexos[Number(s.dataset.papelAnexo)].papel = s.value || undefined; }; });
   $('anexos').querySelectorAll('[data-tirar]').forEach(b => { b.onclick = () => { C.anexos.splice(Number(b.dataset.tirar), 1); desenharAnexos(); atualizarEnviar(); }; });
 }
@@ -398,6 +402,13 @@ function ligar() {
   $('resolver-pesquisa')?.addEventListener('click', resolverPesquisa);
   const t = $('entrada');
   t.addEventListener('input', () => { ajustarAltura(); atualizarEnviar(); });
+  // Expandir (como no ChatGPT): texto longo com mais espaço para ler e editar; recolher volta ao tamanho normal.
+  $('expandir').onclick = () => {
+    C.expandida = !C.expandida;
+    const b = $('expandir'); b.setAttribute('aria-pressed', String(C.expandida)); b.textContent = C.expandida ? '↙' : '↗';
+    b.setAttribute('aria-label', C.expandida ? 'Recolher a caixa de texto' : 'Expandir a caixa de texto'); b.title = C.expandida ? 'Recolher' : 'Expandir';
+    ajustarAltura(); t.focus();
+  };
   t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!$('enviar').disabled) enviar(); } });
   $('enviar').onclick = () => enviar();
   const estado = C;
@@ -623,7 +634,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   const texto = reenvio?.texto ?? $('entrada').value.trim();
   const anexos = reenvio?.anexos ?? C.anexos;
   if (!texto && !anexos.length) return;
-  C.enviando = true; atualizarEnviar();
+  C.enviando = true; C.expandida = false; atualizarEnviar();
   try { await garantirConversa(); } catch (e) { toast(e.message); C.enviando = false; atualizarEnviar(); return; }
   if (!reenvio) {
     C.mensagens.push({ id: 'eu' + Date.now(), papel: 'user', texto, anexos: anexos.map(a => a.nome) });
@@ -690,7 +701,9 @@ async function receberResposta(r, { manterErro = false } = {}) {
   C.enviando = false;
   await recarregarConversa(true);
   if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }
-  if (manterErro && resposta.erro && $('coluna')) { C.mensagens.push({ ...resposta, id: 'er' + Date.now() }); desenharMensagens(); }
+  // A falha continua à vista depois de reler a conversa (a resposta não foi guardada; sem isto a tela ficava só com o
+  // pedido, como se estivesse travada).
+  if (resposta.erro && $('coluna')) { C.mensagens.push({ ...resposta, id: 'er' + Date.now() }); desenharMensagens(); }
   recarregarLateral();
 }
 

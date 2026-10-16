@@ -107,10 +107,21 @@ test('política OFF: informação sigilosa nunca é enviada; nada gravado; sem m
   politica(false);
   catalogo({ [EQUILIBRADO]: ROTA('Anthropic') });
   // Pelo interruptor manual, por dado detectado (CPF) e por anexo.
+  // Dado pessoal mascarável detectado (conta, agência): processado com os valores mascarados (src/mascaramento.js),
+  // sem marcar a conversa como sigilosa; o valor real nunca sai.
   for (const [nome, prep, texto, extra] of [
-    ['manual', sigilosa, 'Estratégia de preço do trimestre.', {}],
     ['dado detectado', conversa, 'Pague o fornecedor: agência 1234, conta corrente 56789-0.', {}],
     ['anexo', conversa, 'Resuma o anexo.', { anexos: [arquivo('cadastro.docx', docx(['Responsável: agência 1234, conta corrente 56789-0']))] }],
+  ]) {
+    const conv = await prep();
+    const x = await enviar(conv, texto, extra);
+    assert.equal(x.r.status, 200, nome);
+    const saiu = JSON.stringify(OR.chamadas.slice(x.n));
+    assert.ok(!saiu.includes('56789-0') && !/ag[eê]ncia 1234/.test(saiu), `${nome}: nenhum valor real saiu`);
+    assert.equal((await ana.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa, false);
+  }
+  for (const [nome, prep, texto, extra] of [
+    ['manual', sigilosa, 'Estratégia de preço do trimestre.', {}],
   ]) {
     const conv = await prep();
     const x = await enviar(conv, texto, extra);

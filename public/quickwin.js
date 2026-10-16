@@ -41,6 +41,11 @@ export async function rotaQuickWin(hash) {
   if (hash === '#/quick-wins') return listaQuickWins();
   if (hash === '#/qw/nova') return assistenteQw();
   if (hash === '#/qw/nova/modelos') return novaOrigem();
+  // Quick Win sugerido numa conversa ("crie um agente que..."): o assistente começa com o nome e a descrição.
+  if ((m = /^#\/qw\/nova\/da-conversa\/(\d+)\/(\d+)$/.exec(hash))) {
+    const inicial = await api(`/api/conversas/${m[1]}/mensagens/${m[2]}/quick-win-sugerido`).catch(() => null);
+    return assistenteQw(null, inicial ? { inicial } : {});
+  }
   if ((m = /^#\/qw\/nova\/modelo\/(\d+)$/.exec(hash))) return comModelo(Number(m[1]));
   if ((m = /^#\/qw\/(\d+)\/refinar(?:\/(\d+)(?:\/(\d+))?)?$/.exec(hash))) return assistenteQw(Number(m[1]), { refinar: true, conversaId: m[2] ? Number(m[2]) : null, mensagemId: m[3] ? Number(m[3]) : null });
   if ((m = /^#\/qw\/(\d+)\/ajustar$/.exec(hash))) return assistenteQw(Number(m[1]));

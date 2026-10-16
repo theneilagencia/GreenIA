@@ -252,7 +252,7 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   // Caminhos autorizados, cada um com a sua finalidade. Uma chamada nova (em outro módulo ou num destes) falha aqui.
   const AUTORIZADOS = {
     // A coleta (pesquisa) da execução em etapas usa o mesmo recurso já roteado e conferido para a execução.
-    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0', 'coleta da execução em etapas (pesquisa)', 'desenho das peças visuais (classe validada por modeloPermitido)'],
+    'conversas.js': ['execução da conversa', 'conferência de qualidade do Quick Win 2.0', 'coleta da execução em etapas (pesquisa)', 'coleta da conversa livre (pesquisa pedida, só a frase da pessoa)', 'desenho das peças visuais (classe validada por modeloPermitido)'],
     // Uma chamada só (chamarGovernado), para as finalidades da criação: quick_win_estrutura, quick_win_exemplo e
     // quick_win_interpretacao (o plano da operação).
     'quickwin-estrutura.js': ['chamada curta da criação'],
@@ -289,7 +289,11 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   // Pesquisa na internet: só na execução, só liberada pela governança e nunca em conversa sigilosa; nunca na conferência.
   // Uma chamada só pesquisa: a coleta da execução em etapas (só com a pesquisa liberada e sem sigilo). QA-04: ela leva
   // só o contexto externo seguro (sem instruções, base, anexos nem histórico); a produção nunca pesquisa sozinha.
-  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 1, 'só a coleta pesquisa');
+  // Duas coletas pesquisam: a da execução em etapas e a da conversa livre ("pesquise..."); a da conversa leva só a
+  // frase da pessoa nesta mensagem, com a mesma liberação da empresa e nunca com sigilo. A produção nunca pesquisa.
+  assert.equal((conv.match(/pesquisaWeb:/g) || []).length, 2, 'só as coletas pesquisam');
+  assert.match(conv, /const coletaChat = \[\{ role: 'system', content: '[^']+' \}, \{ role: 'user', content: texto\.slice\(0, 2000\) \}\];/);
+  assert.match(conv, /if \(pesquisaChat\?\.pode && !sigilosa && !espec\)/);
   assert.match(conv, /const emEtapas = !!\(execucaoQw && pesquisa\?\.disponivel && !sigilosa\);/);
   assert.match(conv, /const paraColeta = \[\{ role: 'system', content: sistemaColeta \}, \{ role: 'user', content: externo\.consulta \}\];/);
   assert.match(conv, /!cfg\.pesquisaWeb\?\.ativa \? 'nao_liberada' : sigilosa \? 'sigilosa' : areaReforcada \? 'area_reforcada'/);

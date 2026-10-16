@@ -212,3 +212,35 @@ test('peças de campanha escritas em "###" dentro de "## Peças visuais" são en
   assert.match(secaoDoResultado(t, 'Peça horizontal 1.91:1'), /Números/);
   assert.ok(!/O que foi feito/.test(secaoDoResultado(t, 'Peça horizontal 1.91:1')));
 });
+
+test('agente e automação viram Quick Win (não código); pesquisa atual usa a ferramenta da empresa ou diz que está desligada', async () => {
+  const { pedeAgente, quickWinSugerido, pedePesquisa } = await import('../src/chat-recursos.js');
+  assert.equal(pedeAgente('Crie um agente para analisar propostas comerciais recebidas'), 'agente');
+  assert.equal(pedeAgente('Crie uma automação que, toda segunda-feira de manhã, pesquise novidades'), 'automacao');
+  assert.equal(pedeAgente('Explique o que é um agente de IA'), null);
+  assert.deepEqual(quickWinSugerido('Resumo.\n\n## Quick Win sugerido\n\nNome: Analisador de propostas\nDescrição: Lê a proposta e gera o relatório.\nPergunta o que faltar.\n\n## O que foi feito\n- x'),
+    { nome: 'Analisador de propostas', descricao: 'Lê a proposta e gera o relatório.\nPergunta o que faltar.' });
+  assert.ok(pedePesquisa('Pesquise as principais mudanças dos últimos 30 dias'));
+  assert.ok(!pedePesquisa('Escreva um e-mail para o cliente'));
+  // Na conversa: agente → nota de Quick Win; pesquisa desligada → diz o motivo; ligada → ferramenta de busca no envio.
+  const conv = await nova();
+  await enviarMensagem(ana, conv.id, { texto: 'Crie um agente para analisar propostas comerciais e reutilizar depois.' });
+  assert.match(texto(OR.chamadas.filter(b => !b.modalities).at(-1).messages[0].content), /um agente reutilizável é um Quick Win/);
+  salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } });
+  await enviarMensagem(ana, (await nova()).id, { texto: 'Pesquise as novidades dos últimos 30 dias sobre IA.' });
+  let b = OR.chamadas.filter(x => !x.modalities).at(-1);
+  assert.match(texto(b.messages[0].content), /A pesquisa na internet não foi usada.*não está liberada pela empresa/s);
+  assert.equal(b.plugins, undefined);
+  salvarConfig(S.app.db, { pesquisaWeb: { ativa: true } });
+  try {
+    const antes = OR.chamadas.length;
+    const r = await enviarMensagem(ana, (await nova()).id, { texto: 'Pesquise as novidades dos últimos 30 dias sobre IA.' });
+    const novas = OR.chamadas.slice(antes).filter(x => !x.modalities);
+    const coleta = novas.find(x => x.plugins?.[0]?.id === 'web');
+    assert.ok(coleta, 'uma coleta com a ferramenta de busca');
+    assert.deepEqual(coleta.messages.filter(x => x.role === 'user').map(x => texto(x.content)), ['Pesquise as novidades dos últimos 30 dias sobre IA.'], 'a busca leva só a frase da pessoa');
+    assert.equal(novas.at(-1).plugins, undefined, 'a resposta final não pesquisa');
+    assert.match(texto(novas.at(-1).messages[0].content), /Notas da pesquisa na internet/);
+    assert.ok(r.fim.fontes.some(f => /^https:/.test(f.url)), 'as fontes chegam na resposta');
+  } finally { salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } }); }
+});

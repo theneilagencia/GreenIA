@@ -254,11 +254,14 @@ function htmlMensagem(m) {
   // Próximos passos do Quick Win ligados a este resultado (levam a outra tela), discretos, abaixo das ações.
   const conferir = execucao && C.qw?.painel && m.guardado !== false && (!E.permissoes || E.permissoes.includes('chat.use'));
   const refinar = execucao && C.qw?.v2 && C.qw.podeEditar && C.qw.status !== 'descartado';
+  // Agente ou automação sugeridos na conversa: o assistente de Quick Win abre já preenchido.
+  const sugereQw = !C.qw && !m.carregando && servidor(m) && E.podeCriarQw && /^\s*#{1,4}\s*\**\s*quick win sugerido/im.test(m.texto || '');
+  const criarQw = sugereQw ? `<div class="arquivos-resposta"><a class="anexo-resposta" href="#/qw/nova/da-conversa/${C.conv.id}/${m.id}"><span class="anexo-resposta-icone">${ICONE.raio}</span><span class="anexo-resposta-texto"><b>Criar este Quick Win</b><small>Abre o assistente já preenchido para revisar, testar e publicar</small></span><span class="anexo-resposta-acao">→</span></a></div>` : '';
   const proximos = conferir || refinar ? `<div class="resposta-proximos">${conferir ? `<a class="link-sutil" href="#/qw/${C.qw.id}/acompanhamento/resultado/${m.id}">Conferir dados para os resultados</a>` : ''}${refinar ? `<a class="link-sutil" href="#/qw/${C.qw.id}/refinar/${C.conv?.id}/${m.id}">Refinar Quick Win</a>` : ''}</div>` : '';
   const ultima = m.id === C.ultimaResposta;
   return `<div class="resposta${anim}${ultima ? ' resposta-ultima' : ''}" data-msg="${m.id}">
     <div class="resposta-corpo">${execucao ? `<span class="rotulo-execucao">${ICONE.raio} Resultado do Quick Win</span>` : ''}${htmlArtefatos(m.artefatos)}${revisar ? qc : ''}${corpoComArquivo(m, html, tabelas, revisar)}${revisar ? '' : qc}${integracoes}
-      ${m.carregando || m.erro ? '' : `${fontes}${acoesResposta(m, { execucao, conferir })}${proximos}`}
+      ${m.carregando || m.erro ? '' : `${criarQw}${fontes}${acoesResposta(m, { execucao, conferir })}${proximos}`}
     </div></div>`;
 }
 

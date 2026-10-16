@@ -5,6 +5,7 @@ import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js'
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
 import { entregaDeCodigo } from './codigo-chat.js';
+import { decisaoPesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
 import { avisoDeCodigo, decisaoDeCodigo, notaDeCodigo, OPERACOES_CODIGO } from './permissoes-codigo.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
@@ -516,6 +517,13 @@ export function rotasConversas(app, r) {
   // formato novo (a resposta delas passa pela conferência e pode ter artefatos e registros de resultado ligados).
   // "Solicitar acesso": o pedido leva as permissões que o servidor bloqueou na última vez nesta conversa (não as
   // que a tela mandar). Um pedido por permissão a cada 24 h; o admin vê em Visão geral e libera em Pessoas › Perfis.
+  // "Criar este Quick Win": o nome e a descrição sugeridos na resposta, para o assistente começar preenchido.
+  r.get('/api/conversas/:id/mensagens/:mensagem/quick-win-sugerido', ({ pessoa, params }) => {
+    const { texto } = respostaGuardada(pessoa, params);
+    const q = quickWinSugerido(texto);
+    if (!q) throw erro(404, 'sem_sugestao', 'Esta resposta não tem um Quick Win sugerido.');
+    return q;
+  });
   r.post('/api/conversas/:id/pedido-acesso', ({ pessoa, params }) => {
     const conv = minhaConversa(app, pessoa, params.id);
     const ev = um(app.db, "select detalhes from eventos where tipo = 'code.blocked' and pessoa_id = ? and detalhes like ? order by id desc limit 1", pessoa.id, `%"conversa":${conv.id},%`);
@@ -703,6 +711,9 @@ export function rotasConversas(app, r) {
     const pecaChat = !qw && !modeloApr && !modeloAusente ? pecaDaConversa(texto) : null;
     // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
     const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id) });
+    // Agente reutilizável / automação recorrente: vira Quick Win (não código). Pesquisa atual: a ferramenta da empresa.
+    const agenteChat = qw ? null : pedeAgente(texto);
+    const pesquisaChat = qw || !pedePesquisa(texto) ? null : decisaoPesquisa(cfg, { sigilosa: !!conv.sigilosa || !!motivo, areaReforcada, protegidos: protegidos.length > 0, reserva: plano?.fase === 'reserva' });
     // Imagem pedida na conversa (nova ou edição da anexada / da última gerada): gerada depois do texto, abaixo dele.
     const ultimaImg = !qw && !modeloApr ? ultimaImagemDaConversa(app, conv.id) : null;
     const ultimaResp = ultimaImg ? um(app.db, "select id from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id)?.id : null;
@@ -718,6 +729,8 @@ export function rotasConversas(app, r) {
       + blocoCreditos(app)
       + (imagemChat ? NOTA_IMAGEM(imagemChat.modo) : '')
       + (codigo ? notaDeCodigo(codigo) : '')
+      + (agenteChat ? NOTA_AGENTE(agenteChat) : '')
+      + (pesquisaChat ? NOTA_PESQUISA(pesquisaChat, MOTIVOS_PESQUISA[pesquisaChat.codigo]) : '')
       + (pecaChat ? `\n${promptVisual(pecaChat.operacao.entregaveis)}\nEntre a abertura curta e a seção final "O que foi feito", a resposta é o conteúdo da peça, completo e fiel ao material.` : '')
       + (modeloAusente ? '\nA pessoa pediu a apresentação no mesmo layout de um arquivo, mas o arquivo original (PDF) não está disponível nesta conversa: só o texto dele foi lido. Não monte a apresentação e não descreva slides. Responda em até três frases: para montar no layout exato (mesmos slides, fontes, cores e posições), ela precisa anexar o PDF da apresentação modelo nesta conversa e repetir o pedido; o material e o briefing já enviados continuam valendo.' : '')
       + (modeloApr && deckAnterior ? '\nEsta conversa já tem uma apresentação gerada. A plataforma vai aplicar o pedido da pessoa nessa apresentação e gerar a versão corrigida. Nesta resposta, diga em poucas linhas o que será alterado; não indique outras pessoas para resolver e não reescreva a apresentação em texto.' : '')
@@ -989,6 +1002,26 @@ export function rotasConversas(app, r) {
       // Coleta sem notas: a produção não pesquisa sozinha (levaria o contexto interno para a busca). Resultado parcial.
       else mensagens[0] = { role: 'system', content: montarSistema(persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, { disponivel: false, motivo: MOTIVOS_PESQUISA.sem_fontes, codigo: 'sem_fontes' })) };
     }
+    // Pesquisa pedida na conversa livre: coleta separada, como a dos Quick Wins (QA-04). A busca leva SÓ a frase da
+    // pessoa nesta mensagem (sem instruções, base, anexos nem histórico); a resposta usa as notas com as fontes.
+    if (pesquisaChat?.pode && !sigilosa && !espec) {
+      linha({ t: 'etapa', v: 'Pesquisando na internet…' });
+      const coletaChat = [{ role: 'system', content: 'Pesquise na internet o que a pessoa pediu e devolva notas objetivas: cada fato com a fonte (nome e endereço) e a data de publicação. Diferencie anúncio de recurso já disponível. Não invente; o que não encontrar, diga que não encontrou.' }, { role: 'user', content: texto.slice(0, 2000) }];
+      try {
+        let t = '';
+        for await (const ev of app.ia.enviar(coletaChat, { modelo: m.id, reserva: rota.reserva, sigilosa: false, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, pesquisaWeb: { max: 8 } })) {
+          if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); }
+          else if (ev.tipo === 'texto') t += ev.texto;
+          else { custoColeta += Number(ev.custo || 0); economiaColeta += Number(ev.economia || 0); }
+        }
+        const notasChat = String(t).trim().slice(0, 12000);
+        if (notasChat && !contemCredencial(notasChat)) mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\n${delimitar('pesquisa', 'Notas da pesquisa na internet desta mensagem', notasChat)}` };
+        else mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet não trouxe resultados: diga isso e não invente notícias, datas ou números recentes.` };
+      } catch (e) {
+        registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta_conversa', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
+        mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet falhou nesta tentativa: diga isso e não invente notícias, datas ou números recentes.` };
+      }
+    }
     // Execução. Informação sigilosa não tem reserva do fornecedor: se o recurso cair antes de responder, a busca
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
     if (deveEsperarEscolha) orientarEscolha();
@@ -1246,6 +1279,7 @@ export function rotasConversas(app, r) {
     }
     const custoBase = fim?.custo || 0;
     if (custoEscrita || economiaEscrita) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoEscrita, economia: (fim?.economia || 0) + economiaEscrita };
+    if (!espec && (custoColeta || economiaColeta)) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoColeta, economia: (fim?.economia || 0) + economiaColeta };   // pesquisa da conversa livre
     if (espec) fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoExtra + custoColeta + custoVisual.plano_visual + custoVisual.imagem, economia: (fim?.economia || 0) + economiaExtra + economiaColeta };
     // Custo por etapa (só números): execução, conferência, pesquisa, plano visual e imagem. A composição e a
     // exportação rodam no servidor, sem custo de IA.

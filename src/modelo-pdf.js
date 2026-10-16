@@ -504,13 +504,24 @@ export function juncoesPedidas(pedido) {
   for (const m of t.matchAll(/\b(?:junt\w*|un[ai]\w*|mescl\w*|combin\w*)\s+(?:os\s+slides\s+(?:de\s+)?)?["“]?([a-z0-9][\w\- ]{1,40}?)["”]?\s+e\s+["“]?([a-z0-9][\w\- ]{1,40}?)["”]?(?=[\s.,;:]|$)/g)) pares.push([m[1].trim(), m[2].trim()]);
   return pares;
 }
-// Slides do plano cujo título (1ª linha) fala de cada lado de uma junção pedida que ficaram separados.
-function juncoesNaoFeitas(slides, pares) {
-  const titulo = s => semAcento(String(s.conteudo).split('\n')[0]);
-  return pares.map(([a, b]) => {
-    const ia = slides.findIndex(s => titulo(s).includes(a) && !titulo(s).includes(b)), ib = slides.findIndex(s => titulo(s).includes(b) && !titulo(s).includes(a));
-    return ia >= 0 && ib >= 0 && ia !== ib ? { a, b, ia, ib } : null;
-  }).filter(Boolean);
+// Slides do plano onde foi parar cada lado de uma junção pedida: pelo título e, principalmente, pelo conteúdo (os
+// itens do slide da apresentação que tem esse nome). QA em produção: os resultados foram juntados com "Benefícios" e
+// os planos ficaram num slide à parte, e a conferência só pelo título não viu.
+function juncoesNaoFeitas(slides, pares, fonte = '') {
+  const norm = t => semAcento(t).replace(/^[•\-–\s]+/, '').replace(/\s+/g, ' ').trim();
+  const fonteSlides = slidesDaFonte(fonte);
+  const ondeEsta = nome => {
+    const origem = fonteSlides.find(x => norm(x.split('\n')[0]).includes(nome));
+    const itens = origem ? origem.split('\n').slice(1).map(l => norm(l).slice(0, 30)).filter(l => l.length >= 8) : [];
+    let melhor = -1, max = 0;
+    slides.forEach((s, i) => {
+      const corpo = norm(s.conteudo);
+      const n = itens.filter(l => corpo.includes(l)).length + (norm(String(s.conteudo).split('\n')[0]).includes(nome) ? 0.5 : 0);
+      if (n > max) { max = n; melhor = i; }
+    });
+    return melhor;
+  };
+  return pares.map(([a, b]) => { const ia = ondeEsta(a), ib = ondeEsta(b); return ia >= 0 && ib >= 0 && ia !== ib ? { a, b, ia, ib } : null; }).filter(Boolean);
 }
 /** Slides da apresentação da pessoa ("## Slide N" e as linhas dele), sem os ids de edição. */
 export const slidesDaFonte = fonte => String(fonte || '').split(/^## Slide \d+\s*$/m).map(s => s.replace(/^\[[^\]]+\]\s*/gm, '').trim()).filter(Boolean);
@@ -562,18 +573,18 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
       const temDe = n => { const linhas = fonteDe(n).split('\n').slice(1).map(l => l.replace(/^[•\-\s]+/, '').slice(0, 25)).filter(Boolean); return linhas.some(l => corpo.includes(l)); };
       if (tt.includes(a) !== tt.includes(b) && !/\se\s/.test(tt) && temDe(a) && temDe(b)) s.conteudo = [`${t.trim()} e ${(tt.includes(a) ? b : a).replace(/^./, c => c.toUpperCase())}`, ...r].join('\n');
     }
-    if (slides && juncoesNaoFeitas(slides, pares).length) {
+    if (slides && juncoesNaoFeitas(slides, pares, fonte).length) {
       try {
-        const falta = juncoesNaoFeitas(slides, pares).map(f => `"${f.a}" e "${f.b}"`).join(', ');
+        const falta = juncoesNaoFeitas(slides, pares, fonte).map(f => `"${f.a}" e "${f.b}"`).join(', ');
         const msgs = mensagensPlanoReestilo({ paginas, fonte, pedido, contexto, maximo });
         msgs.push({ role: 'assistant', content: JSON.stringify({ slides: slides.map(s => ({ pagina: s.pagina + 1, conteudo: s.conteudo })) }) }, { role: 'user', content: `O pedido manda juntar os slides ${falta} num slide só, e o plano os deixou separados. Responda o plano corrigido, só o JSON.` });
         const x = await chamar(msgs);
         custo += x.custo || 0; economia += x.economia || 0;
         const j2 = lerJson(x.texto);
         const l2 = (Array.isArray(j2?.slides) ? j2.slides : []).map(s => ({ pagina: Math.round(Number(s?.pagina)) - 1, conteudo: limpar(s?.conteudo) })).filter(s => s.pagina >= 0 && s.pagina < paginas.length && s.conteudo);
-        if (l2.length && l2.length <= maximo && !juncoesNaoFeitas(l2, pares).length) slides = l2.map(s => s.pagina === 0 || s.pagina === paginas.length - 1 || paginaDeTexto(paginas[s.pagina]) || !textuais.length ? s : { ...s, pagina: textuais.reduce((m, k) => Math.abs(k - s.pagina) < Math.abs(m - s.pagina) ? k : m) });
+        if (l2.length && l2.length <= maximo && !juncoesNaoFeitas(l2, pares, fonte).length) slides = l2.map(s => s.pagina === 0 || s.pagina === paginas.length - 1 || paginaDeTexto(paginas[s.pagina]) || !textuais.length ? s : { ...s, pagina: textuais.reduce((m, k) => Math.abs(k - s.pagina) < Math.abs(m - s.pagina) ? k : m) });
       } catch { /* junção pela plataforma abaixo */ }
-      for (let f = juncoesNaoFeitas(slides, pares)[0]; f; f = juncoesNaoFeitas(slides, pares)[0]) {
+      for (let f = juncoesNaoFeitas(slides, pares, fonte)[0]; f; f = juncoesNaoFeitas(slides, pares, fonte)[0]) {
         const [i, k] = [Math.min(f.ia, f.ib), Math.max(f.ia, f.ib)];
         const [t1, ...r1] = slides[i].conteudo.split('\n'), [t2, ...r2] = slides[k].conteudo.split('\n');
         slides[i] = { ...slides[i], conteudo: [`${t1.trim()} e ${t2.trim()}`, ...r1, ...r2].join('\n') };

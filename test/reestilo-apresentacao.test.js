@@ -159,3 +159,13 @@ test('frase que recombina palavras do material sai (pares de palavras); "Antes"/
   const r = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: `${FONTE}\n${contrato}`, pedido: 'design', chamar: async () => ({ texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense' }, { pagina: 2, conteudo: 'Escopo\nAntes\n• Diagnóstico operacional com até seis visitas presenciais\nDepois\n• Relatório técnico completo com achados, cronograma de implantação e proposta comercial customizada\nResultados\n• -26% água' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] }) }) });
   assert.deepEqual(r.slides[1].conteudo.split('\n'), ['Escopo', '• Diagnóstico operacional com até seis visitas presenciais', 'Resultados', '• -26% água']);
 });
+
+test('junção conferida pelo conteúdo: resultados num slide com outro título e planos à parte contam como separados', async () => {
+  const fonte = '## Slide 1\n[s1.p1] AgroSense\n## Slide 2\n[s2.p1] Resultados\n[s2.p2] • Fazenda Santa Clara: -26% água\n## Slide 3\n[s3.p1] Planos\n[s3.p2] • Essencial: R$ 38/ha/ano\n## Slide 4\n[s4.p1] Próximos passos\n[s4.p2] • Visita técnica gratuita';
+  const plano = { slides: [{ pagina: 1, conteudo: 'AgroSense' }, { pagina: 2, conteudo: 'Benefícios Comprovados\n• Fazenda Santa Clara: -26% água' }, { pagina: 2, conteudo: 'Investimento\n• Essencial: R$ 38/ha/ano' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] };
+  let n = 0;
+  const r = await planejarReestilo({ paginas: MODELO, fonte, material: fonte, pedido: 'os slides de Resultados e Planos podem virar um só', chamar: async () => { n++; return { texto: JSON.stringify(plano) }; } });
+  assert.equal(n, 2, 'pediu de novo');
+  assert.equal(r.slides.length, 3);
+  assert.match(r.slides[1].conteudo, /Santa Clara[\s\S]*Essencial/);
+});

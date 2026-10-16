@@ -66,3 +66,11 @@ test('arquivo não gerado: a resposta não promete arquivo, diz que não foi ger
   assert.equal(final, resp, 'a tela recebe a versão corrigida');
   assert.ok(msgs.findLastIndex(m => m.papel === 'aviso') < msgs.findIndex(m => m.papel === 'assistant') || !msgs.some(m => m.papel === 'aviso' && /arquivo original/.test(m.texto)), 'o motivo vai na resposta, não num aviso solto acima dela');
 });
+
+test('mesmo pedido numa mensagem seguinte (PDF já guardado na conversa): também monta no layout do PDF', { skip: semNavegador }, async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: anexos() });
+  const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.equal(r.fim?.arquivos?.[0]?.modelo, 'Apresentacao-Kickoff-Repet.pdf', JSON.stringify(r.fim));
+});

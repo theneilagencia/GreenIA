@@ -273,3 +273,14 @@ test('conversa: planilha corrigida no lugar; "transforme em contrato" não edita
     assert.match(d, /Não foi possível aplicar as alterações no arquivo original/);
   } finally { falharJson = false; }
 });
+
+test('conversa: sem anexo novo, o arquivo citado pelo nome é o editado (não o último enviado)', async () => {
+  const conv = await nova();
+  const deck = pptx('# Kickoff\n\nAgenda do projeto', { titulo: 'Deck' });
+  await enviarMensagem(ana, conv.id, { texto: 'Analise o material.', anexos: [{ nome: 'kickoff-cliente.pptx', base64: deck.toString('base64') }, { nome: 'contrato.docx', base64: DOC().toString('base64') }] });
+  const antes = edicoes().length;
+  await enviarMensagem(ana, conv.id, { texto: 'Faça os ajustes no documento kickoff-cliente.pptx: troque o título para Kickoff 2027.' });
+  const chamada = edicoes()[antes];
+  assert.ok(chamada, 'a edição foi tentada');
+  assert.match(texto(chamada.messages[0].content), /arquivo PPTX existente/, 'a apresentação citada, não o contrato (último anexo)');
+});

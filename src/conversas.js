@@ -211,8 +211,18 @@ export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], bru
   }
   if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null })) return null;   // antes de ler os arquivos guardados
   const lugares = MIMES_OFFICE.map(() => '?').join(', ');
-  const enviado = um(app.db, `select a.mensagem_id as msg, a.nome, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc limit 1`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
-  const ajustado = um(app.db, `select mensagem_id as msg, nome, dados from arquivos_gerados where conversa_id = ? and mime in (${lugares}) and detalhes like '%"edicao"%' and mensagem_id < ? order by id desc limit 1`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  // O arquivo citado pelo nome no pedido vale mais que o último enviado (QA em produção: "no documento X.pptx" editava o
+  // contrato .docx, que era o último anexo). Sem nome citado: o mais recente.
+  const t = String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const base = n => String(n).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\.(docx|pptx|xlsx)$/, '').replace(/-ajustad[oa]$/, '');
+  const citado = lista => lista.find(x => t.includes(base(x.nome))) || null;
+  const enviados = todos(app.db, `select a.mensagem_id as msg, a.nome, a.id from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const ajustados = todos(app.db, `select mensagem_id as msg, nome, id from arquivos_gerados where conversa_id = ? and mime in (${lugares}) and detalhes like '%"edicao"%' and mensagem_id < ? order by id desc`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const nomeCitado = citado([...ajustados, ...enviados]);
+  const doNome = nomeCitado ? base(nomeCitado.nome) : null;
+  const e0 = doNome ? enviados.find(x => base(x.nome) === doNome) : enviados[0], a0 = doNome ? ajustados.find(x => base(x.nome) === doNome) : ajustados[0];
+  const enviado = e0 ? { ...e0, dados: um(app.db, 'select f.dados from anexos_arquivos f where f.anexo_id = ?', e0.id).dados } : null;
+  const ajustado = a0 ? { ...a0, dados: um(app.db, 'select dados from arquivos_gerados where id = ?', a0.id).dados } : null;
   const r = [enviado, ajustado].filter(Boolean).sort((a, b) => (b.msg || 0) - (a.msg || 0))[0];
   const tipo = r && tipoDoArquivo(r.nome);
   if (!tipo || !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido })) return null;
@@ -782,7 +792,7 @@ export function rotasConversas(app, r) {
     try { edicao = podeModelo ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}) : null; } catch (e) { app.log?.('arquivo para editar', erroParaLog(e)); }
     // Layout de OUTRA apresentação em PDF ("o design o mais próximo possível da apresentação X.pdf"): a apresentação é
     // montada no layout do PDF (adaptarModelo), não editada em texto no arquivo atual, que não muda de design.
-    if (edicao?.tipo === 'pptx' && PEDE_MODELO(texto) && brutos.some(ehPdf)) edicao = null;
+    if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos)))) edicao = null;
     let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.

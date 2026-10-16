@@ -525,6 +525,14 @@ export function problemasDaPlanilha(dados, { max = 40 } = {}) {
       if (!linhas.has(ln)) linhas.set(ln, []);
       linhas.get(ln).push({ ref, cn, rel, formula: c.formula });
     }
+    // Alíquota implausível numa linha de imposto (=B7*0.6 em "Impostos (Simples)"): 60% de imposto sobre a receita
+    // não existe nesses tributos. QA em produção: a correção espalhou 0,6 pela linha toda.
+    for (const [lin, lista] of linhas) {
+      const rotulo = String(cel.get(`A${lin}`)?.valor || '');
+      if (!/\b(imposto|tributo|simples|iss|icms|pis|cofins|irpj|csll|al[ií]quota)/i.test(rotulo)) continue;
+      const altas = lista.filter(x => [...x.formula.matchAll(/\*\s*(0?\.\d+|\d+(\.\d+)?%?)/g)].some(m => { const v = m[1].endsWith('%') ? parseFloat(m[1]) / 100 : parseFloat(m[1]); return v > 0.35 && v < 1; }));
+      if (altas.length) out.push({ aba: a.nome, ref: altas[0].ref, problema: `alíquota implausível na linha "${rotulo.trim()}": =${altas[0].formula} (${altas.length} célula(s)). Imposto desse tipo fica em poucos por cento da base; confira a alíquota e corrija a linha toda, explicando na resposta.` });
+    }
     for (const lista of linhas.values()) {
       if (lista.length < 4) continue;
       const conta = new Map();

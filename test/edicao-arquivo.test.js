@@ -167,7 +167,7 @@ test('planilha: a conferência acha circular e #REF!; o que sobrou depois da edi
 
 test('planilha: fórmula fora do padrão da linha é apontada; total na ponta da linha não', () => {
   const linhas = [['Conta', 'Jan', 'Fev', 'Mar', 'Abr', 'Total'], ['Receita', '100', '120', '130', '90', '=SUM(B2:E2)'],
-    ['Impostos', '=B2*0.6', '=C2*0.6', '=D2*0.06', '=E2*0.6', '=SUM(B3:E3)'], ['Saldo', '=B2-B3', '=C2-C3', '=D2-D3', '=D2-E3', '=SUM(B4:E4)']];
+    ['Comissão', '=B2*0.6', '=C2*0.6', '=D2*0.06', '=E2*0.6', '=SUM(B3:E3)'], ['Saldo', '=B2-B3', '=C2-C3', '=D2-D3', '=D2-E3', '=SUM(B4:E4)']];
   const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
   assert.deepEqual(p.map(x => x.ref).sort(), ['D3', 'E4']);
   assert.match(p.find(x => x.ref === 'D3').problema, /diferente das vizinhas.*=D2\*0\.06.*padrão de B3 \(=B2\*0\.6\)/);
@@ -175,11 +175,18 @@ test('planilha: fórmula fora do padrão da linha é apontada; total na ponta da
 
 test('planilha: valor fixo no meio de fórmulas é apontado; saldo acumulado (primeira coluna diferente) não é alarme', () => {
   const linhas = [['Conta', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai'], ['Receita', '100', '120', '130', '90', '80'],
-    ['Impostos', '=B2*0.6', '=C2*0.6', '9850', '=E2*0.6', '=F2*0.6'], ['Resultado', '=B2-B3', '=C2-C3', '=D2-D3', '=E2-E3', '=F2-F3'],
+    ['Comissão', '=B2*0.6', '=C2*0.6', '9850', '=E2*0.6', '=F2*0.6'], ['Resultado', '=B2-B3', '=C2-C3', '=D2-D3', '=E2-E3', '=F2-F3'],
     ['Saldo', '=B4+10', '=B5+C4', '=C5+D4', '=D5+E4', '=E5+F4']];
   const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
   assert.deepEqual(p.map(x => x.ref), ['D3']);
   assert.match(p[0].problema, /valor fixo \(9850\)/);
+});
+
+test('planilha: alíquota implausível numa linha de imposto é apontada', () => {
+  const linhas = [['Conta', 'Jan', 'Fev'], ['Receita', '100', '120'], ['Impostos (Simples)', '=B2*0.6', '=C2*0.6'], ['Comissão', '=B2*0.5', '=C2*0.5']];
+  const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
+  assert.deepEqual(p.map(x => x.ref), ['B3']);
+  assert.match(p[0].problema, /alíquota implausível na linha "Impostos \(Simples\)"/);
 });
 
 test('slide novo: cópia do layout de um slide, com textos novos, na posição pedida (resto intacto)', async () => {

@@ -28,7 +28,7 @@ import { checarPlano, modeloNaReserva, verificarAvisos, situacaoPlano, COMO_FUNC
 import { comUso, anotarUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar, extrairTexto } from './texto.js';
-import { conteudoParaEdicao, editarArquivo, ehPacoteOffice, MAX_CONTEUDO, NOTA_EDICAO, pedeEdicaoNoArquivo, problemasDaPlanilha, tipoDoArquivo } from './edicao-arquivo.js';
+import { conteudoParaEdicao, editarArquivo, ehPacoteOffice, MAX_CONTEUDO, mudancasDaPlanilha, NOTA_EDICAO, pedeEdicaoNoArquivo, problemasDaPlanilha, tipoDoArquivo } from './edicao-arquivo.js';
 // Planilha a corrigir: a análise vê o endereço de cada célula e as fórmulas (e o que a conferência automática já acha
 // quebrado), para propor a correção na célula certa. Material, não instrução; credenciais barradas como o resto.
 function mapaDeCelulas(edicao) {
@@ -1435,6 +1435,16 @@ export function rotasConversas(app, r) {
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
           if (r.status === 'ok') {
             editado = r;
+            // Planilha: a lista do que mudou sai do próprio arquivo, porque o texto da resposta foi escrito antes.
+            if (edicao.tipo === 'xlsx') {
+              try {
+                const mud = mudancasDaPlanilha(edicao.dados, r.dados), abas = new Set(mud.map(x => x.aba)).size;
+                if (mud.length) {
+                  resposta = `${resposta.trimEnd()}\n\n**O que mudou no arquivo** (lido do próprio arquivo ajustado; se algo acima disser diferente, vale esta lista):\n${mud.map(x => `- ${abas > 1 ? `${x.aba}!` : ''}${x.ref}: ${x.antes} → ${x.depois}`).join('\n')}`;
+                  linha({ t: 'substituir', v: resposta });
+                }
+              } catch (e) { app.log?.('mudanças da planilha', erroParaLog(e)); }
+            }
             if (r.ignoradas.length) avisoDepois(`${r.ignoradas.length === 1 ? '1 alteração não pôde ser aplicada' : `${r.ignoradas.length} alterações não puderam ser aplicadas`} no arquivo${r.motivos.includes('remocao_suspensa') ? '; por segurança, nenhum slide ou trecho foi removido, para não perder conteúdo' : ' (trecho não encontrado ou fórmula recusada por segurança)'}. Confira o arquivo antes de usar.`);
           } else avisoDepois(r.status === 'grande' ? 'O arquivo é grande demais para ser ajustado direto no original. As alterações estão descritas na resposta; envie só a parte do arquivo que precisa mudar para receber o arquivo ajustado.'
             : r.status === 'nada_a_mudar' ? 'Nenhuma alteração precisou ser feita no arquivo.'

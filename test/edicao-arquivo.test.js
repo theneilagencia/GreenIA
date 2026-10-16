@@ -6,7 +6,7 @@ import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
 import { docx, pptx, xlsx, zipar, MIMES } from '../src/escritorio.js';
-import { alteraDadoNaoPedido, aplicarEdicao, conteudoParaEdicao, editarArquivo, problemasDaPlanilha, deslocarFormula, lerPacote, pedeEdicaoNoArquivo, trocarTextoDoParagrafo } from '../src/edicao-arquivo.js';
+import { alteraDadoNaoPedido, aplicarEdicao, mudancasDaPlanilha, conteudoParaEdicao, editarArquivo, problemasDaPlanilha, deslocarFormula, lerPacote, pedeEdicaoNoArquivo, trocarTextoDoParagrafo } from '../src/edicao-arquivo.js';
 import { extrairTexto } from '../src/texto.js';
 
 const texto = c => (typeof c === 'string' ? c : (c || []).map(p => p.text || '').join('\n'));
@@ -187,6 +187,12 @@ test('planilha: alíquota implausível numa linha de imposto é apontada', () =>
   const p = problemasDaPlanilha(xlsx([{ nome: 'Fluxo', linhas }]));
   assert.deepEqual(p.map(x => x.ref), ['B3']);
   assert.match(p[0].problema, /alíquota implausível na linha "Impostos \(Simples\)"/);
+});
+
+test('planilha: a lista do que mudou sai do próprio arquivo (fórmula e valor)', () => {
+  const antes = xlsx([{ nome: 'Fluxo', linhas: [['Conta', 'Jan'], ['Receita', '100'], ['Imposto', '=B2*0.6'], ['Nota', '12.5']] }]);
+  const depois = aplicarEdicao('xlsx', antes, [{ op: 'celula', aba: 'Fluxo', ref: 'B3', formula: 'B2*0.06' }, { op: 'celula', aba: 'Fluxo', ref: 'B4', valor: '' }]).dados;
+  assert.deepEqual(mudancasDaPlanilha(antes, depois).map(x => `${x.ref}: ${x.antes} → ${x.depois}`), ['B3: =B2*0.6 → =B2*0.06', 'B4: 12.5 → (vazia)']);
 });
 
 test('slide novo: cópia do layout de um slide, com textos novos, na posição pedida (resto intacto)', async () => {

@@ -563,6 +563,26 @@ export function problemasDaPlanilha(dados, { max = 40 } = {}) {
   return out.slice(0, max);
 }
 
+/**
+ * Células da planilha que mudaram entre o original e o ajustado (fórmula ou valor), por aba. A resposta da IA é escrita
+ * antes de aplicar as mudanças; esta lista sai do próprio arquivo (QA em produção: o texto dizia =SUM(B10:B14) e o
+ * arquivo tinha =SUM(B9:B13)).
+ */
+export function mudancasDaPlanilha(antes, depois, { max = 30 } = {}) {
+  const ler = d => { const m = mapa(lerPacote(d)), comp = compartilhados(m); return new Map(abasDoLivro(m).map(a => [a.nome, celulasDaAba(texto(m, a.parte), comp)])); };
+  const A = ler(antes), D = ler(depois), out = [];
+  const mostra = c => !c ? '(vazia)' : c.formula != null ? `=${c.formula}` : String(c.valor ?? '') || '(vazia)';
+  for (const [aba, cd] of D) {
+    const ca = A.get(aba) || new Map();
+    for (const ref of new Set([...ca.keys(), ...cd.keys()])) {
+      const x = ca.get(ref), y = cd.get(ref);
+      if (mostra(x) !== mostra(y)) out.push({ aba, ref, antes: mostra(x), depois: mostra(y) });
+    }
+  }
+  const ordem = r => { const [, c, l] = /^([A-Z]+)(\d+)$/.exec(r) || []; return (Number(l) || 0) * 1000 + (c ? colNum(c) : 0); };
+  return out.sort((p, q) => p.aba.localeCompare(q.aba) || ordem(p.ref) - ordem(q.ref)).slice(0, max);
+}
+
 // ---------- entrada pública ----------
 /** Conteúdo do arquivo com identificadores, para a IA indicar onde mexer. */
 export function conteudoParaEdicao(tipo, dados) {

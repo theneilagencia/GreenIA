@@ -539,14 +539,17 @@ export function problemasDaPlanilha(dados, { max = 40 } = {}) {
       // "corrigida" para 9850, quando o padrão da linha é =x7*0.6).
       const comPadrao = lista.filter(x => x.rel === padrao).map(x => x.cn), de = Math.min(...comPadrao), ate = Math.max(...comPadrao);
       const lin = Number(/\d+$/.exec(exemplo.ref)[0]);
+      // Nome da linha (coluna A): a decisão é pelo significado, não pela maioria (QA em produção: a maioria tinha
+      // alíquota de 60% e a célula diferente, 6%, era a certa para o Simples).
+      const rotulo = String(cel.get(`A${lin}`)?.valor || '').trim(), naLinha = rotulo ? ` na linha "${rotulo}"` : ' na mesma linha';
       for (let cc = de + 1; cc < ate; cc++) {
         const ref = `${colLetra(cc)}${lin}`, c = cel.get(ref);
-        if (c && c.formula == null && /^-?\d+(\.\d+)?$/.test(String(c.valor).trim())) out.push({ aba: a.nome, ref, problema: `valor fixo (${c.valor}) no meio de fórmulas: as vizinhas seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use a fórmula, não o resultado digitado.` });
+        if (c && c.formula == null && /^-?\d+(\.\d+)?$/.test(String(c.valor).trim())) out.push({ aba: a.nome, ref, problema: `valor fixo (${c.valor}) no meio de fórmulas${naLinha}: as vizinhas seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use uma fórmula, não o resultado digitado.` });
       }
       // Coluna de total na ponta da linha (=SUM(B11:G11)) não é desvio: soma a própria linha.
       const ponta = x => x.cn === Math.max(...lista.map(y => y.cn)) || x.cn === Math.min(...lista.map(y => y.cn));
       const somaDaLinha = x => /C\[-?\d+\]R\[0\]:C\[-?\d+\]R\[0\]/.test(x.rel);
-      for (const x of lista) if (x.rel !== padrao && !(ponta(x) && somaDaLinha(x)) && !(acumulado && x.cn === primeira)) out.push({ aba: a.nome, ref: x.ref, problema: `fórmula diferente das vizinhas na mesma linha: =${x.formula}, enquanto as outras seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Use o mesmo padrão, salvo se a diferença for intencional e explicada.` });
+      for (const x of lista) if (x.rel !== padrao && !(ponta(x) && somaDaLinha(x)) && !(acumulado && x.cn === primeira)) out.push({ aba: a.nome, ref: x.ref, problema: `fórmula diferente das vizinhas${naLinha}: =${x.formula}, enquanto as outras seguem o padrão de ${exemplo.ref} (=${exemplo.formula}). Decida pelo significado da linha qual das duas está certa (a maioria pode ser a errada, por exemplo uma alíquota de 60% onde o certo é 6%), deixe a linha toda coerente e explique a escolha na resposta.` });
     }
   }
   return out.slice(0, max);
@@ -597,7 +600,8 @@ export function mensagensDeEdicao({ tipo, nome, conteudo, pedido, resposta }) {
 - {"op":"celula","aba":"<nome da aba>","ref":"B7","formula":"SUM(B2:B6)"} — fórmula em inglês, com vírgula entre argumentos, sem o "=" se preferir;
 - {"op":"celula","aba":"<nome da aba>","ref":"B7","valor":123.45} — número como número JSON; texto como string; "" esvazia a célula;
 - {"op":"limpar_linha","aba":"<nome da aba>","linha":12} — esvazia a linha inteira (por exemplo, um lançamento duplicado), mantendo a formatação.
-Não insira nem apague linhas ou colunas (as referências das outras fórmulas quebrariam).`
+Não insira nem apague linhas ou colunas (as referências das outras fórmulas quebrariam).
+Cada fórmula precisa fazer sentido pelo nome da linha (coluna A): margem = resultado ÷ receita; saldo final = saldo inicial + resultado do mês; total = soma das linhas que ele resume; imposto = base × alíquota plausível (o Simples fica em poucos por cento, não em dezenas). Quando células da mesma linha divergem, decida pelo significado, não pela maioria, e diga na resposta o que escolheu.`
     : `Operações (${tipo === 'pptx' ? 'PowerPoint' : 'Word'}):
 - {"op":"trocar","id":"${tipo === 'pptx' ? 's1.p0' : 'p3'}","texto":"<o parágrafo inteiro, já corrigido>"};
 - {"op":"inserir_depois","id":"${tipo === 'pptx' ? 's2.p4' : 'p8'}","texto":"<parágrafo novo>"} — entra com o mesmo estilo do parágrafo indicado; várias linhas viram vários parágrafos;

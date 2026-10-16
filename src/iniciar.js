@@ -97,13 +97,13 @@ export function lerAdminsArquivo(arquivo) {
 // Modo multiempresa (MULTIEMPRESA=1): uma plataforma, um banco de controle e um banco por empresa.
 // Rodada de backup: o banco da plataforma e o de TODAS as empresas cadastradas (inclusive as que não estão abertas),
 // cada um na sua pasta; sucesso e falha por banco ficam na auditoria e no estado (src/plataforma/backup-estado.js).
-export async function backupDaPlataforma(P, { pasta, env = process.env, ...op }, copiar = fazerBackup) {
+export async function backupDaPlataforma(P, { pasta, env = process.env, repeticao = false, ...op }, copiar = fazerBackup) {
   const real = typeof P.db?.prepare === 'function';
   const abertos = new Set(P.tenants.keys());
   const fechados = real ? todos(P.db, 'select id from companies order by id').map(c => c.id).filter(id => !abertos.has(id)) : [];
   const bancos = [['plataforma', () => P.db], ...[...P.tenants].map(([id, t]) => [id, () => t.db]),
     ...fechados.map(id => [id, () => { const t = P.tenant(id); if (!t) throw Object.assign(new Error('ambiente indisponível'), { code: 'TENANT_INDISPONIVEL' }); return t.db; }])];
-  const r = { total: bancos.length, concluidos: 0, falhas: 0, s3: !!op.destino };
+  const r = { total: bancos.length, concluidos: 0, falhas: 0, s3: !!op.destino, ...(repeticao ? { repeticao } : {}) };
   const verificacao = {};
   const agora = op.agora || (P.agora ? P.agora() : new Date());
   let mestra = null;
@@ -149,8 +149,13 @@ export function rodadaDevida(P, hora, agora = P.agora()) {
   const [h, m] = hora.split(':').map(Number);
   const marco = new Date(agora); marco.setHours(h, m, 0, 0);
   if (agora < marco) return false;
-  const ultima = Date.parse(lerEstado(P).rodada?.em || '') || 0;
-  return ultima < marco.getTime();
+  const r = lerEstado(P).rodada;
+  const ultima = Date.parse(r?.em || '') || 0;
+  if (ultima < marco.getTime()) return 'diaria';
+  // Rodada incompleta (falha local ou cópia sem S3, p. ex. receptor ainda fora do ar): repete depois de 1 h, até
+  // 3 repetições; o limite evita trocar o histórico local de dias por cópias de hora em hora quando a falha persiste.
+  const incompleta = r && (r.falhas > 0 || r.s3_bloqueados > 0);
+  return incompleta && agora.getTime() - ultima >= 3600e3 && (r.tentativas || 1) <= 3 ? 'repeticao' : false;
 }
 
 export async function iniciarPlataforma(env = process.env) {
@@ -224,11 +229,12 @@ export async function iniciarPlataforma(env = process.env) {
   if (P.backup.hora) {
     let rodando = false;
     setInterval(async () => {
-      if (rodando || !rodadaDevida(P, P.backup.hora)) return;
+      const devida = rodando ? false : rodadaDevida(P, P.backup.hora);
+      if (!devida) return;
       rodando = true;
       try {
         const op = { destino: destinoS3(env, P.log), manter: Number(env.BACKUP_MANTER || 14), limiteDias: P.retencao.automaticoDias, env };
-        await backupDaPlataforma(P, { ...op, pasta: P.backup.pasta });
+        await backupDaPlataforma(P, { ...op, pasta: P.backup.pasta, repeticao: devida === 'repeticao' });
         await avisarBackups(P);
       } catch (e) { P.log('backup diário', e.message); } finally { rodando = false; }
     }, 30e3).unref();

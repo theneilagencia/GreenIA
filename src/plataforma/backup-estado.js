@@ -45,8 +45,9 @@ export function registrarFalha(P, id, erro) {
 }
 
 export function registrarRodada(P, r) {
-  const e = lerEstado(P);
-  e.rodada = { em: P.agora().toISOString(), total: r.total, concluidos: r.concluidos, falhas: r.falhas, s3_bloqueados: r.s3Bloqueados || 0, s3: !!r.s3, ciclo: r.ciclo || null };
+  const e = lerEstado(P), antes = e.rodada;
+  // Repetição de uma rodada incompleta (src/iniciar.js rodadaDevida) soma tentativas; a rodada diária recomeça em 1.
+  e.rodada = { em: P.agora().toISOString(), tentativas: r.repeticao ? (antes?.tentativas || 1) + 1 : 1, total: r.total, concluidos: r.concluidos, falhas: r.falhas, s3_bloqueados: r.s3Bloqueados || 0, s3: !!r.s3, ciclo: r.ciclo || null };
   salvar(P, e);
   aud(P, r.falhas || r.s3Bloqueados ? 'backup.run_incomplete' : 'backup.run', null, e.rodada);
 }

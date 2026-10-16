@@ -193,11 +193,38 @@ test('agenda: a rodada do dia roda depois da hora mesmo após reinício, e uma v
   const P = criarPlataforma({ log: () => {}, agora: () => agora });
   assert.equal(rodadaDevida(P, '06:00'), false);
   agora = new Date(2026, 9, 14, 9, 0);   // processo voltou às 9h: a rodada das 6h ainda é devida
-  assert.equal(rodadaDevida(P, '06:00'), true);
+  assert.equal(rodadaDevida(P, '06:00'), 'diaria');
   await backupDaPlataforma(P, { pasta: join(mkdtempSync(join(tmpdir(), 'greenia-ag-')), 'b') });
   assert.equal(rodadaDevida(P, '06:00'), false);
   agora = new Date(2026, 9, 15, 6, 0, 30);
-  assert.equal(rodadaDevida(P, '06:00'), true);
+  assert.equal(rodadaDevida(P, '06:00'), 'diaria');
+  P.db.close();
+});
+
+test('agenda: rodada incompleta (S3 fora do ar) se repete depois de 1 h, no máximo 3 vezes, e a diária recomeça a contagem', async () => {
+  let agora = new Date(2026, 9, 15, 6, 0, 30);
+  const P = criarPlataforma({ log: () => {}, agora: () => agora });
+  const destino = join(mkdtempSync(join(tmpdir(), 'greenia-rep-')), 'b');
+  const falhaS3 = async () => { throw Object.assign(new Error('sem S3'), { code: 'S3_CONFIG', etapa: 's3' }); };
+  const rodar = repeticao => backupDaPlataforma(P, { pasta: destino, repeticao }, falhaS3);
+  await rodar(false);
+  assert.equal(lerEstado(P).rodada.tentativas, 1);
+  agora = new Date(2026, 9, 15, 6, 50);
+  assert.equal(rodadaDevida(P, '06:00'), false);   // menos de 1 h
+  for (const [h, n] of [[7, 2], [8, 3], [9, 4]]) {
+    agora = new Date(2026, 9, 15, h, 1);
+    assert.equal(rodadaDevida(P, '06:00'), 'repeticao');
+    await rodar(true);
+    assert.equal(lerEstado(P).rodada.tentativas, n);
+  }
+  agora = new Date(2026, 9, 15, 11, 0);
+  assert.equal(rodadaDevida(P, '06:00'), false);   // 3 repetições: espera a diária
+  agora = new Date(2026, 9, 16, 6, 0, 30);
+  assert.equal(rodadaDevida(P, '06:00'), 'diaria');
+  await backupDaPlataforma(P, { pasta: destino });   // S3 voltou: rodada completa
+  assert.equal(lerEstado(P).rodada.tentativas, 1);
+  agora = new Date(2026, 9, 16, 8, 0);
+  assert.equal(rodadaDevida(P, '06:00'), false);   // completa não repete
   P.db.close();
 });
 

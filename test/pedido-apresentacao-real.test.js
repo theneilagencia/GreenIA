@@ -133,3 +133,24 @@ test('conversa sigilosa com recurso autorizado: o mesmo pedido entrega o PowerPo
   assert.ok(antes && !/pronto para download/.test(antes), String(antes));
   assert.doesNotMatch(todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto, /pronto para download/);
 });
+
+// Produção (o pedido real, com os anexos reais): contrato .docx primeiro, a apresentação com acento no nome, o PDF de
+// referência e a proposta comercial em PDF por último. Saía a proposta "adaptada" (28 slides da proposta, sem o
+// conteúdo da apresentação): o modelo era o último PDF e a apresentação não era achada pelo nome.
+test('pedido real com dois PDFs e nome com acento: modelo é o PDF citado e o conteúdo é a apresentação citada', { skip: semNavegador }, async () => {
+  const [deck, ref, contrato] = anexos();
+  const lista = [contrato, { ...deck, nome: 'Apresentação-Kickoff-Rafisa.pptx' }, ref, { nome: 'Proposta-comercial-Rafisa.pdf', base64: pdfColorido({ cor: '0.1 0.2 0.6' }).toString('base64') }];
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO, anexos: lista });
+  assert.equal(r.status, 200, JSON.stringify(r.erro || r.falha));
+  const a = r.fim?.arquivos?.[0];
+  assert.equal(a?.modelo, 'Apresentacao-Kickoff-Repet.pdf', JSON.stringify(r.fim?.arquivos));
+  assert.equal(a.nome, 'Apresentação-Kickoff-Rafisa-novo-design.pptx');
+  assert.equal(a.fonte, 'Apresentação-Kickoff-Rafisa.pptx');
+  // E numa mensagem seguinte, sem anexos (tudo guardado na conversa): a mesma escolha.
+  const conv2 = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv2.id, { texto: 'analise o material', anexos: lista });
+  const r2 = await enviarMensagem(ana, conv2.id, { texto: PEDIDO });
+  assert.equal(r2.fim?.arquivos?.[0]?.modelo, 'Apresentacao-Kickoff-Repet.pdf', JSON.stringify(r2.fim?.arquivos));
+  assert.equal(r2.fim.arquivos[0].fonte, 'Apresentação-Kickoff-Rafisa.pptx');
+});

@@ -190,12 +190,28 @@ export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões
 // o PDF é a referência de layout, mesmo sem a pessoa dizer "mesmo layout".
 const PEDE_APRESENTACAO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao)|slides|deck)\b/i.test(t) && (PEDE_CRIAR.test(t) || PEDE_CRIAR_APR.test(t) || /\bem (pptx|power ?point)\b/i.test(t));
 const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'base64').subarray(0, 4).toString() === '%PDF';
-// Modelo: o PDF desta mensagem ou o último PDF guardado como modelo na conversa.
-export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = []) {
-  const k = brutos.findLastIndex(ehPdf);
-  if (k >= 0) return { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(brutos[k], 'base64'), texto: anexosAtuais[k]?.texto || '' };
-  const r = um(app.db, "select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime = 'application/pdf' order by a.id desc limit 1", conversaId);
-  return r ? { nome: r.nome, dados: Buffer.from(r.dados), texto: r.texto } : null;
+// Nome de arquivo comparável ao texto do pedido: sem acento, sem extensão, minúsculo ("Apresentação-Kickoff.pptx" e
+// "apresentacao-kickoff" são o mesmo arquivo).
+export const nomeComparavel = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\.(pdf|pptx|docx|xlsx)$/, '').replace(/[-_]?ajustad[oa]$/, '').trim();
+const citaNome = (texto, nome) => { const b = nomeComparavel(nome); return b.length >= 4 && nomeComparavel(texto).includes(b); };
+// Modelo de layout: entre os PDFs desta mensagem (ou, sem PDF agora, os guardados na conversa), o que o pedido cita
+// pelo nome; sem citação, o que tem cara de apresentação (página deitada); senão o mais recente. QA em produção: com a
+// apresentação de referência e a proposta comercial (PDF) anexadas, o modelo virou a proposta, a última anexada.
+export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = [], texto = '') {
+  let lista = brutos.map((b, k) => ehPdf(b) ? { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(b, 'base64'), texto: anexosAtuais[k]?.texto || '' } : null).filter(Boolean);
+  if (!lista.length) lista = todos(app.db, "select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime = 'application/pdf' order by a.id", conversaId)
+    .map(r => ({ nome: r.nome, dados: Buffer.from(r.dados), texto: r.texto }));
+  if (!lista.length) return null;
+  return lista.findLast(m => citaNome(texto, m.nome)) || lista.findLast(m => pdfPaisagem(m.dados)) || lista.at(-1);
+}
+// Apresentação da pessoa que o reestilo usa como conteúdo: o .pptx citado pelo nome (sem diferença de acento); sem
+// citação, o último .pptx desta mensagem ou, sem .pptx agora, o último guardado na conversa. Não depende da escolha do
+// arquivo para edição (que, com um contrato .docx junto, podia cair no contrato).
+export function apresentacaoDaPessoa(app, conversaId, texto, anexosAtuais = [], brutos = []) {
+  let lista = brutos.map((b, k) => tipoDoArquivo(anexosAtuais[k]?.nome) === 'pptx' && ehPacoteOffice(anexosAtuais[k]?.nome, b) ? { nome: anexosAtuais[k].nome, dados: Buffer.from(b, 'base64') } : null).filter(Boolean);
+  if (!lista.length) lista = todos(app.db, "select a.nome, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime = ? order by a.id", conversaId, MIMES.pptx)
+    .map(r => ({ nome: r.nome, dados: Buffer.from(r.dados) }));
+  return lista.findLast(m => citaNome(texto, m.nome)) || lista.at(-1) || null;
 }
 
 // Arquivo Office a ajustar no próprio original ("faça no arquivo anexo", "mantendo todo o resto igual"): o desta
@@ -207,7 +223,7 @@ export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], bru
   if (agora.length) {
     if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: true })) return null;
     const t = String(texto || '').toLowerCase();
-    const escolhido = agora.length === 1 ? agora[0] : agora.find(x => t.includes(String(anexosAtuais[x.k].nome).toLowerCase().replace(/\.(docx|pptx|xlsx)$/, '')))
+    const escolhido = agora.length === 1 ? agora[0] : agora.find(x => citaNome(texto, anexosAtuais[x.k].nome))
       || (new Set(agora.map(x => x.tipo)).size === agora.length ? agora.find(x => ({ docx: /\b(word|docx|documento)\b/, pptx: /\b(power ?point|pptx|apresenta[cç][aã]o|slides?)\b/, xlsx: /\b(excel|xlsx|planilha)\b/ })[x.tipo].test(t)) : null);
     return escolhido ? { nome: anexosAtuais[escolhido.k].nome, tipo: escolhido.tipo, dados: Buffer.from(brutos[escolhido.k], 'base64'), origem: 'anexo' } : null;
   }
@@ -797,15 +813,24 @@ export function rotasConversas(app, r) {
     // A apresentação da pessoa (o .pptx que seria editado) continua sendo o conteúdo: o modelo só empresta o layout
     // (reestilo), em vez de a apresentação virar uma cópia do modelo com slides e números que ela não tinha.
     let fonteDeck = null;
-    if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos)))) {
-      if (edicao.tipo === 'pptx' && !PEDE_DO_ZERO.test(texto)) { try { fonteDeck = { nome: edicao.nome, texto: conteudoParaEdicao('pptx', edicao.dados).slice(0, 40000) }; } catch { /* sem leitura: adapta o modelo */ } }
+    if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos, texto)))) {
+      if (!PEDE_DO_ZERO.test(texto)) {
+        const deck = edicao.tipo === 'pptx' ? edicao : apresentacaoDaPessoa(app, conv.id, texto, anexos, brutos);
+        try { if (deck) fonteDeck = { nome: deck.nome, texto: conteudoParaEdicao('pptx', deck.dados).slice(0, 40000) }; } catch { /* sem leitura: adapta o modelo */ }
+      }
       edicao = null;
     }
-    let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos) : null;
+    let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos, texto) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
+    // Pedido de layout sem ter caído na edição (o pedido não pareceu ajuste no arquivo): se ele cita uma apresentação
+    // .pptx da conversa pelo nome, ela é o conteúdo do reestilo.
+    if (modeloApr && !fonteDeck && !PEDE_DO_ZERO.test(texto)) {
+      const deck = apresentacaoDaPessoa(app, conv.id, texto, anexos, brutos);
+      if (deck && citaNome(texto, deck.nome)) try { fonteDeck = { nome: deck.nome, texto: conteudoParaEdicao('pptx', deck.dados).slice(0, 40000) }; } catch { /* adapta o modelo */ }
+    }
     const deckAnterior = podeModelo ? um(app.db, "select id, textos, detalhes from arquivos_gerados where conversa_id = ? and detalhes like '%\"modelo\"%' order by id desc limit 1", conv.id) : null;
-    if (!modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos);
+    if (!modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos, texto);
     const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) ? json(deckAnterior.textos, null) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
@@ -1345,7 +1370,7 @@ export function rotasConversas(app, r) {
     // Rede de segurança: o pedido não foi reconhecido como apresentação, mas a resposta saiu como roteiro "Slide 1,
     // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
     // como conteúdo, em vez de a pessoa ficar com um texto que vira slides genéricos.
-    if (!modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
+    if (!modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
     // O arquivo ainda vai ser montado (pode levar minutos): a frase "o arquivo está pronto para baixar" sai do texto
     // já agora, e a tela mostra o andamento. Quem anuncia o arquivo é a plataforma, quando ele existe (em produção a
     // pessoa leu "pronto para download" enquanto o PowerPoint ainda estava sendo montado).

@@ -66,7 +66,7 @@ test('preenchimento sem reescrever: número solto do modelo não fica; todos os 
   const pag = [{ w: 792, h: 612, blocos: [bloco('1.1', 'Tabela do modelo', 80, 28), bloco('1.2', 'Linha do modelo', 140), { ...bloco('1.3', '250', 140), x: 400 }, bloco('1.4', 'Outra linha', 170)] }];
   const conteudos = ['Planos\n• Essencial: R$ 38/ha/ano\n• Profissional: R$ 54/ha/ano\n• Instalação: R$ 2.900'];
   const r = await adaptarModelo({ paginas: paginasDoPlano(pag, [{ pagina: 0 }]), contexto: FONTE, pedido: 'design', chamar: async () => { throw new Error('a IA não reescreve'); }, conteudos });
-  assert.deepEqual(['1.1', '1.2', '1.3', '1.4'].map(id => r.textos[id]), ['Planos', '• Essencial: R$ 38/ha/ano • Profissional: R$ 54/ha/ano', '', '• Instalação: R$ 2.900']);
+  assert.deepEqual(['1.1', '1.2', '1.3', '1.4'].map(id => r.textos[id]), ['Planos', 'Essencial: R$ 38/ha/ano · Profissional: R$ 54/ha/ano', '', '• Instalação: R$ 2.900']);
 });
 
 test('arquivo: caixa desenhada em volta de um texto que saiu, e a seta entre caixas que saíram, saem juntas; a caixa com texto fica', async () => {

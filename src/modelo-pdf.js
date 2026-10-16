@@ -606,7 +606,9 @@ export function preencherReestilo(paginas, conteudos) {
     const limpo = (b, l) => marcado(b) ? l.replace(/^\s*[•▪●\-–]\s*/, '') : l;
     const m = Math.min(corpo.length, itens.length), grupos = Array.from({ length: m }, () => []);
     itens.forEach((l, i) => grupos[Math.floor(i * m / itens.length)].push(l));
-    grupos.forEach((g, i) => { textos[corpo[i].id] = g.map(l => limpo(corpo[i], l)).join(g.length > 1 ? ' ' : ''); });
+    // Vários itens no mesmo bloco: separados por " · " (ou pelo ponto final do item), para não virar um texto corrido.
+    const juntar = ls => ls.reduce((t, l, i) => !i ? l : /[.!?;:]$/.test(t) ? `${t} ${l}` : `${t} · ${l}`, '');
+    grupos.forEach((g, i) => { textos[corpo[i].id] = juntar(g.map(l => limpo(corpo[i], l).replace(/^\s*[•▪●\-–]\s*/, g.length > 1 ? '' : '$&'))); });
   });
   return textos;
 }

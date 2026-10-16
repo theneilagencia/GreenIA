@@ -153,3 +153,10 @@ test('aviso com a identidade do ambiente traz o nome da empresa e o endereço, s
  assert.match(JSON.stringify(aviso),/https:\/\/www\.exemplo\.com\.br\/empresa-exemplo/);assert.doesNotMatch(JSON.stringify(aviso),/três revisões|Resumo semanal/);
 });
 
+test('execução programada recebe a data de hoje e a instrução de não parar com perguntas',async t=>{
+ const {openRouterFalso}=await import('./openrouter-falso.js');const OR=await openRouterFalso({responder:()=>'Resumo pronto.\n\n## O que foi feito\n- Resumo.'});t.after(()=>OR.fechar());
+ const S=await fixture(t,{ia:OR.ia}),s=await S.criar();assert.equal((await S.ativar(s)).status,200);
+ S.relogio('2026-10-07T11:01:00Z');await rodadaProgramadas(S.app);
+ const sis=OR.chamadas.map(b=>typeof b.messages[0].content==='string'?b.messages[0].content:b.messages[0].content.map(p=>p.text||'').join('')).find(x=>/execução automática programada/.test(x));
+ assert.ok(sis,'a instrução de execução programada vai junto');assert.match(sis,/Hoje é quarta-feira, 7 de outubro de 2026 \(horário de Brasília\)/);
+});

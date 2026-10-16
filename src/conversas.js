@@ -230,6 +230,13 @@ function blocoCreditos(app) {
   const agora = s.ilimitado ? 'O plano da empresa não tem limite de créditos.' : `Situação atual: ${s.percentual}% dos créditos do plano usados neste ciclo${s.fase === 'pacote' ? ', em uso os créditos adicionais' : s.fase === 'reserva' ? ', em uso a reserva no nível Rápido' : s.fase === 'esgotado' ? ', capacidade do ciclo esgotada' : ''}; renovação em ${renova}.`;
   return `\nSe a pessoa perguntar sobre créditos, limites ou como ter mais capacidade nesta plataforma, responda com estes fatos (sem valores em dinheiro e sem indicar outras pessoas além do administrador da empresa): ${COMO_FUNCIONAM_OS_CREDITOS.join(' ')} ${agora} O consumo da empresa também aparece no menu da conta, em "Créditos da empresa".`;
 }
+// Data de hoje no fuso da empresa (Brasília): sem ela, "novidades desta semana" ficava sem referência e a execução
+// programada parava perguntando a data (QA em produção).
+export const dataDeHoje = agora => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(agora);
+const notaDeData = app => `\nHoje é ${dataDeHoje(app.agora ? app.agora() : new Date())} (horário de Brasília). Use esta data como referência para "hoje", "esta semana", "últimos dias" e prazos; não pergunte a data.`;
+// Execução programada: ninguém está olhando para responder uma pergunta agora.
+const NOTA_PROGRAMADA = '\nEsta é uma execução automática programada: não há uma pessoa para responder agora. Não faça perguntas nem pare para pedir confirmação. Use padrões razoáveis (por exemplo, para novidades: os últimos 7 dias até hoje), entregue o resultado completo e registre no fim, em uma lista curta, as suposições que usou. Só peça material se ele for indispensável e não houver como entregar sem ele.';
+
 function persona(cfg, responsaveis, qw, marcaPropria = false, execucao = false, pesquisa = null, notas = false, pedeArquivo = false) {
   const partes = [
     `Você é ${marcaPropria ? '' : 'a GreenIA, '}a assistente de IA da ${cfg.empresa}. Responda em português do Brasil, com linguagem clara, sem jargão desnecessário e sem emoji.`,
@@ -759,6 +766,8 @@ export function rotasConversas(app, r) {
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
       + blocoCreditos(app)
+      + notaDeData(app)
+      + (programada ? NOTA_PROGRAMADA : '')
       + (edicao ? NOTA_EDICAO(edicao.nome, edicao.tipo) : '')
       + (imagemChat ? NOTA_IMAGEM(imagemChat.modo) : '')
       + (codigo ? notaDeCodigo(codigo) : '')
@@ -779,8 +788,8 @@ export function rotasConversas(app, r) {
     const textosDaPessoa = emEtapas ? [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto).filter(t => t !== NAO_GUARDADO), texto] : [];
     const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa }) : null;
     const perguntaMercado = externo && !externo.suficiente ? perguntaDeMercado(qw.espec.objetivo) : null;
-    const sistemaColeta = emEtapas ? promptColeta(qw.espec.operacao) : null;
-    const sistemaProducao = emEtapas ? persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, pesquisa, true) : null;
+    const sistemaColeta = emEtapas ? promptColeta(qw.espec.operacao) + notaDeData(app) : null;
+    const sistemaProducao = emEtapas ? persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, pesquisa, true) + notaDeData(app) + (programada ? NOTA_PROGRAMADA : '') : null;
     // Política de credenciais sobre tudo o que vai compor o envio, parte por parte, antes de montar o payload:
     // instruções (da empresa e do quick win), arquivos do quick win, trechos da base e o histórico da conversa.
     // A mensagem e os anexos já passaram pela mesma regra no passo 1. Uma parte com segredo bloqueia a chamada

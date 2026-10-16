@@ -48,6 +48,13 @@ test('a resposta confirma o entendimento no início e explica o trabalho no fim;
   assert.match(sis, /## O que foi feito/);
   assert.match(sis, /Cumpra exatamente os números/);
   assert.match(sis, /esse arquivo é a base do trabalho/);
+  assert.match(sis, /Hoje é .+ \(horário de Brasília\)\. .*não pergunte a data/, 'a data de hoje vai junto (sem ela a execução programada perguntava a data)');
+  assert.doesNotMatch(sis, /execução automática programada/, 'conversa normal não é execução programada');
+});
+test('sugestão de agente/automação usa só recursos da GreenIA, sem APIs de terceiros nem números inventados', async () => {
+  const { NOTA_AGENTE } = await import('../src/chat-recursos.js');
+  assert.match(NOTA_AGENTE('automacao'), /não cite APIs, chaves de acesso, Slack/);
+  assert.match(NOTA_AGENTE('automacao'), /não invente números, estudos ou benchmarks/);
 });
 
 test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edita a última; anexada é editada', async () => {

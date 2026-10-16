@@ -6,7 +6,7 @@ import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
 import { docx, pptx, xlsx, zipar, MIMES } from '../src/escritorio.js';
-import { alteraDadoNaoPedido, aplicarEdicao, conteudoParaEdicao, deslocarFormula, lerPacote, pedeEdicaoNoArquivo, trocarTextoDoParagrafo } from '../src/edicao-arquivo.js';
+import { alteraDadoNaoPedido, aplicarEdicao, conteudoParaEdicao, editarArquivo, problemasDaPlanilha, deslocarFormula, lerPacote, pedeEdicaoNoArquivo, trocarTextoDoParagrafo } from '../src/edicao-arquivo.js';
 import { extrairTexto } from '../src/texto.js';
 
 const texto = c => (typeof c === 'string' ? c : (c || []).map(p => p.text || '').join('\n'));
@@ -121,6 +121,48 @@ test('leitura da planilha: célula com fórmula sem valor guardado mostra a fór
   assert.match(t, /Imposto;=B2\*0\.6/);
   const comValor = Buffer.from(zipar(lerPacote(orig).map(e => e.nome === 'xl/worksheets/sheet1.xml' ? { nome: e.nome, dados: Buffer.from(e.dados.toString().replace(/<f>B2\*0\.6<\/f>/, '<f>B2*0.6</f><v>60</v>')) } : { nome: e.nome, dados: e.dados })));
   assert.match(await ler('x.xlsx', comValor), /Imposto;60 \(=B2\*0\.6\)/);
+});
+
+test('juntar slides (visto em produção): identificador errado volta para a IA corrigir; se continuar errado, nada é removido', async () => {
+  const orig = pptx('# Resultados\n\n- Caso A\n\n# Planos\n\n- Plano X: R$ 38\n- Plano Y: R$ 54\n\n# Fim\n\nObrigado', { titulo: 'Deck' });
+  const c = conteudoParaEdicao('pptx', orig);
+  const linhas = c.split('\n'), id = t => /^\[([^\]]+)\]/.exec(linhas.find(l => l.includes(t)))[1];
+  const idA = id('Caso A'), sPla = Number(/^s(\d+)/.exec(id('] Planos'))[1]);
+  const certo = { operacoes: [{ op: 'inserir_depois', id: idA, texto: 'Plano X: R$ 38\nPlano Y: R$ 54' }, { op: 'remover_slide', slide: sPla }] };
+  const errado = { operacoes: [{ op: 'inserir_depois', id: 's99.p1', texto: 'Plano X: R$ 38' }, { op: 'remover_slide', slide: sPla }] };
+  // 1ª resposta com id errado; a correção (com o motivo) acerta.
+  const vistas = [];
+  let n = 0;
+  const r = await editarArquivo({ tipo: 'pptx', nome: 'deck.pptx', dados: orig, pedido: 'junte os slides Resultados e Planos', resposta: 'Vou juntar.', chamar: async m => { vistas.push(m); return { texto: JSON.stringify(n++ ? certo : errado) }; } });
+  assert.equal(r.status, 'ok'); assert.equal(r.ignoradas.length, 0);
+  assert.match(vistas[1].at(-1).content, /s99\.p1[\s\S]*identificador inexistente/, 'a IA recebe o que falhou e por quê');
+  const t = conteudoParaEdicao('pptx', r.dados);
+  assert.match(t, /Caso A\n\[[^\]]+\] Plano X: R\$ 38\n\[[^\]]+\] Plano Y: R\$ 54/);
+  assert.equal((t.match(/## Slide/g) || []).length, (c.match(/## Slide/g) || []).length - 1);
+  // Sempre errado: o slide de origem fica (nada se perde) e o aviso diz por quê.
+  const r2 = await editarArquivo({ tipo: 'pptx', nome: 'deck.pptx', dados: orig, pedido: 'junte os slides', resposta: 'Vou juntar.', chamar: async () => ({ texto: JSON.stringify({ operacoes: [...errado.operacoes, { op: 'trocar', id: idA, texto: '- Caso A revisado' }] }) }) });
+  assert.equal(r2.status, 'ok');
+  assert.ok(r2.motivos.includes('remocao_suspensa'));
+  const t2 = conteudoParaEdicao('pptx', r2.dados);
+  assert.match(t2, /Plano Y: R\$ 54/, 'o conteúdo do slide de origem continua no arquivo');
+  assert.equal((t2.match(/## Slide/g) || []).length, (c.match(/## Slide/g) || []).length);
+});
+
+test('planilha: a conferência acha circular e #REF!; o que sobrou depois da edição volta para a IA corrigir', async () => {
+  const base = xlsx([{ nome: 'Fluxo', linhas: [['Conta', 'Jan'], ['Receita', '100'], ['Custo', '40'], ['Total', '=SUM(B2:B4)'], ['Margem', '=B4/B2']] }]);
+  const orig = zipar(lerPacote(base).map(e => e.nome === 'xl/worksheets/sheet1.xml' ? { nome: e.nome, dados: Buffer.from(e.dados.toString().replace('<f>B4/B2</f>', '<f>#REF!+B2</f>')) } : { nome: e.nome, dados: e.dados }));
+  const p = problemasDaPlanilha(orig);
+  assert.deepEqual(p.map(x => x.ref).sort(), ['B4', 'B5']);
+  assert.match(p.find(x => x.ref === 'B4').problema, /circular.*própria célula/);
+  const vistas = [];
+  const r = await editarArquivo({ tipo: 'xlsx', nome: 'f.xlsx', dados: orig, pedido: 'corrija a planilha e preserve o layout', resposta: 'Vou corrigir.', chamar: async m => {
+    vistas.push(m);
+    return { texto: JSON.stringify({ operacoes: vistas.length === 1 ? [{ op: 'celula', aba: 'Fluxo', ref: 'B5', formula: 'B4/B2' }] : [{ op: 'celula', aba: 'Fluxo', ref: 'B4', formula: 'B2-B3' }] }) };
+  } });
+  assert.equal(r.status, 'ok');
+  assert.match(vistas[1].at(-1).content, /Fluxo!B4: referência circular/, 'a segunda rodada recebe o problema exato');
+  assert.deepEqual(problemasDaPlanilha(r.dados), []);
+  assert.deepEqual(r.conferencia, { antes_da_edicao: 2, depois: 0 });
 });
 
 test('pedido: ajuste no próprio arquivo x criar outro / analisar', () => {

@@ -453,6 +453,41 @@ function aplicarXlsx(m, pacote, ops) {
   return { feitas, ignoradas, formulas };
 }
 
+// Conferência da planilha, sem calcular: fórmulas com #REF! e referências circulares (a célula depende de si mesma,
+// direto ou por outras, como "Total = SOMA(B10:B15)" na própria B15). Só referências da mesma aba.
+export function problemasDaPlanilha(dados, { max = 40 } = {}) {
+  const m = mapa(lerPacote(dados)), compart = compartilhados(m), out = [];
+  for (const a of abasDoLivro(m)) {
+    const cel = celulasDaAba(texto(m, a.parte), compart), deps = new Map();
+    for (const [ref, c] of cel) {
+      if (c.formula == null) continue;
+      if (/#REF!/i.test(c.formula)) out.push({ aba: a.nome, ref, problema: `referência quebrada (#REF!) em =${c.formula}` });
+      const lista = [];
+      const sem = c.formula.replace(/"[^"]*"/g, '').replace(/('[^']+'|[A-Za-z0-9_.]+)!\$?[A-Z]{1,3}\$?\d+(:\$?[A-Z]{1,3}\$?\d+)?/g, '');
+      for (const x of sem.matchAll(/(?<![A-Za-z0-9_])\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?(?![\d(A-Za-z_])/g)) {
+        const c1 = colNum(x[1]), l1 = Number(x[2]), c2 = x[3] ? colNum(x[3]) : c1, l2 = x[4] ? Number(x[4]) : l1;
+        if ((c2 - c1 + 1) * (l2 - l1 + 1) > 5000) continue;
+        for (let cc = Math.min(c1, c2); cc <= Math.max(c1, c2); cc++) for (let ll = Math.min(l1, l2); ll <= Math.max(l1, l2); ll++) lista.push(`${colLetra(cc)}${ll}`);
+      }
+      deps.set(ref, lista);
+    }
+    // Ciclos: busca em profundidade; cada célula em ciclo é relatada uma vez.
+    const estado = new Map(), emCiclo = new Set();
+    const visitar = (r, pilha) => {
+      estado.set(r, 1); pilha.push(r);
+      for (const d of deps.get(r) || []) {
+        if (!deps.has(d)) continue;
+        if (estado.get(d) === 1) { for (const x of pilha.slice(pilha.indexOf(d))) emCiclo.add(x); continue; }
+        if (!estado.has(d)) visitar(d, pilha);
+      }
+      pilha.pop(); estado.set(r, 2);
+    };
+    for (const r of deps.keys()) if (!estado.has(r)) visitar(r, []);
+    for (const r of emCiclo) out.push({ aba: a.nome, ref: r, problema: `referência circular: =${cel.get(r).formula} depende ${(deps.get(r) || []).includes(r) ? 'da própria célula' : 'de células que dependem dela'}` });
+  }
+  return out.slice(0, max);
+}
+
 // ---------- entrada pública ----------
 /** Conteúdo do arquivo com identificadores, para a IA indicar onde mexer. */
 export function conteudoParaEdicao(tipo, dados) {
@@ -504,7 +539,7 @@ Não insira nem apague linhas ou colunas (as referências das outras fórmulas q
 - {"op":"inserir_depois","id":"${tipo === 'pptx' ? 's2.p4' : 'p8'}","texto":"<parágrafo novo>"} — entra com o mesmo estilo do parágrafo indicado; várias linhas viram vários parágrafos;
 - {"op":"remover","id":"${tipo === 'pptx' ? 's2.p5' : 'p9'}"}${tipo === 'pptx' ? `;
 - {"op":"remover_slide","slide":4} e {"op":"mover_slide","slide":5,"posicao":2} — numeração ORIGINAL dos slides. Para juntar dois slides, leve o texto do segundo para o primeiro (trocar/inserir_depois) e remova o segundo.` : ''}
-O texto vai sem Markdown (sem **, #), exatamente como deve aparecer no arquivo; mantenha marcadores digitados no próprio texto (como "• ") quando o parágrafo original os tem.`;
+Os identificadores são exatamente os que aparecem entre colchetes no conteúdo (por exemplo, [s5.p3] → "s5.p3"). Para levar vários parágrafos para depois do mesmo ponto, use um único inserir_depois com as linhas separadas por \\n. O texto vai sem Markdown (sem **, #), exatamente como deve aparecer no arquivo; mantenha marcadores digitados no próprio texto (como "• ") quando o parágrafo original os tem.`;
   return [
     { role: 'system', content: `Você aplica ajustes num arquivo ${tipo.toUpperCase()} existente sem refazer o layout. Recebe o pedido da pessoa, a resposta que ela recebeu (com as alterações combinadas) e o conteúdo atual do arquivo, com um identificador entre colchetes${tipo === 'xlsx' ? ' (as células aparecem como REF: valor, ou REF: =fórmula [valor calculado])' : ''}. Devolva SOMENTE um JSON: {"operacoes":[...]}.
 ${regras}
@@ -512,6 +547,8 @@ Regras: aplique tudo o que o pedido e a resposta definem, e nada além disso; no
     { role: 'user', content: `Pedido da pessoa:\n${String(pedido).slice(0, 6000)}\n\nResposta dada a ela:\n${String(resposta).slice(0, 20000)}\n\n<arquivo nome="${String(nome).replace(/["<>]/g, '')}">\n${conteudo}\n</arquivo>` },
   ];
 }
+const DESTRUTIVA = new Set(['remover', 'remover_slide', 'limpar_linha']);
+const MOTIVOS_RECUSA = { trecho_nao_encontrado: 'identificador inexistente', dado_nao_pedido: 'mudaria nome, e-mail, telefone, link ou número que a pessoa não pediu', formula_recusada: 'fórmula recusada (sintaxe ou função não permitida)', aba_nao_encontrada: 'aba inexistente', slide_nao_encontrado: 'slide inexistente', operacao_desconhecida: 'operação desconhecida', celula_invalida: 'célula inválida', formula_matricial: 'fórmula matricial não pode ser trocada', linha_nao_encontrada: 'linha inexistente' };
 const lerJson = t => { const m = /\{[\s\S]*\}/.exec(String(t || '')); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
 
 /**
@@ -522,16 +559,47 @@ export async function editarArquivo({ tipo, nome, dados, pedido, resposta, chama
   const conteudo = conteudoParaEdicao(tipo, dados);
   if (conteudo.length > MAX_CONTEUDO) return { status: 'grande', custo: 0, economia: 0 };
   let custo = 0, economia = 0, j = null;
-  for (let tentativa = 0; tentativa < 2 && !j?.operacoes; tentativa++) {
-    const x = await chamar(mensagensDeEdicao({ tipo, nome, conteudo, pedido, resposta }));
-    custo += x.custo || 0; economia += x.economia || 0;
-    j = lerJson(x.texto);
-  }
+  const msgs = mensagensDeEdicao({ tipo, nome, conteudo, pedido, resposta });
+  const pedir = async extra => { const x = await chamar(extra ? [...msgs, ...extra] : msgs); custo += x.custo || 0; economia += x.economia || 0; return x; };
+  let x = null;
+  for (let tentativa = 0; tentativa < 2 && !j?.operacoes; tentativa++) { x = await pedir(); j = lerJson(x.texto); }
   if (!Array.isArray(j?.operacoes)) return { status: 'sem_operacoes', custo, economia };
   if (!j.operacoes.length) return { status: 'nada_a_mudar', custo, economia };
-  const r = aplicarEdicao(tipo, dados, j.operacoes, { pedido, resposta, arquivo: conteudo });
+  const contexto = { pedido, resposta, arquivo: conteudo };
+  let r = aplicarEdicao(tipo, dados, j.operacoes, contexto);
+  // Operação recusada: a IA recebe o que falhou e por quê, e refaz a lista inteira uma vez.
+  if (r.ignoradas.length) {
+    const falhas = r.ignoradas.slice(0, 30).map(o => `- ${JSON.stringify({ ...o, motivo: undefined }).slice(0, 300)} → ${MOTIVOS_RECUSA[o.motivo] || o.motivo}`).join('\n');
+    const y = await pedir([{ role: 'assistant', content: x.texto.slice(0, 20000) }, { role: 'user', content: `Estas operações não puderam ser aplicadas:\n${falhas}\nUse só identificadores que aparecem entre colchetes no conteúdo (por exemplo [s5.p3] vira "s5.p3"). Devolva de novo o JSON COMPLETO, com todas as operações (as que funcionaram e as corrigidas).` }]);
+    const j2 = lerJson(y.texto);
+    if (Array.isArray(j2?.operacoes) && j2.operacoes.length) {
+      const r2 = aplicarEdicao(tipo, dados, j2.operacoes, contexto);
+      if (r2.ignoradas.length <= r.ignoradas.length) { r = r2; j = j2; }
+    }
+  }
+  // Ainda com recusa: nada é removido (slide ou parágrafo). Uma junção pela metade nunca apaga o conteúdo de origem.
+  if (r.ignoradas.length && j.operacoes.some(o => DESTRUTIVA.has(o.op))) {
+    const seguras = j.operacoes.filter(o => !DESTRUTIVA.has(o.op));
+    const r3 = aplicarEdicao(tipo, dados, seguras, contexto);
+    r = { ...r3, ignoradas: [...r3.ignoradas, ...j.operacoes.filter(o => DESTRUTIVA.has(o.op)).map(o => ({ ...o, motivo: 'remocao_suspensa' }))] };
+  }
   if (!r.feitas) return { status: 'nada_aplicado', ignoradas: r.ignoradas, custo, economia };
+  // Planilha: o que ainda está quebrado depois da edição (#REF!, circular) volta para a IA corrigir sobre a versão nova.
+  let conferencia = null;
+  if (tipo === 'xlsx') {
+    const antes = problemasDaPlanilha(r.dados);
+    if (antes.length) {
+      const atual = conteudoParaEdicao('xlsx', r.dados);
+      const y = await pedir([{ role: 'assistant', content: JSON.stringify(j).slice(0, 20000) }, { role: 'user', content: `A planilha já tem as suas operações aplicadas. A conferência automática ainda encontrou:\n${antes.map(p => `- ${p.aba}!${p.ref}: ${p.problema}`).join('\n')}\n\nConteúdo atual:\n${atual.slice(0, MAX_CONTEUDO)}\n\nDevolva SOMENTE o JSON {"operacoes":[...]} com as operações adicionais para corrigir esses problemas sobre o conteúdo atual (sem repetir as já aplicadas).` }]);
+      const j3 = lerJson(y.texto);
+      if (Array.isArray(j3?.operacoes) && j3.operacoes.length) {
+        const r3 = aplicarEdicao(tipo, r.dados, j3.operacoes.filter(o => !DESTRUTIVA.has(o.op)), contexto);
+        if (r3.feitas && problemasDaPlanilha(r3.dados).length < antes.length) r = { ...r3, feitas: r.feitas + r3.feitas, ignoradas: [...r.ignoradas, ...r3.ignoradas], formulas: r.formulas || r3.formulas };
+      }
+    }
+    conferencia = { antes_da_edicao: problemasDaPlanilha(dados).length, depois: problemasDaPlanilha(r.dados).length };
+  }
   if (verificar) await verificar(r.dados);
   const base = String(nome || 'arquivo').replace(/\.(docx|pptx|xlsx)$/i, '').replace(/-ajustad[oa]$/i, '').slice(0, 80);
-  return { status: 'ok', nome: `${base}-ajustado.${tipo}`, mime: MIMES[tipo], dados: r.dados, feitas: r.feitas, ignoradas: r.ignoradas, formulas: r.formulas, custo, economia };
+  return { status: 'ok', conferencia, motivos: [...new Set(r.ignoradas.map(o => o.motivo))], nome: `${base}-ajustado.${tipo}`, mime: MIMES[tipo], dados: r.dados, feitas: r.feitas, ignoradas: r.ignoradas, formulas: r.formulas, custo, economia };
 }

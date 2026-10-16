@@ -26,7 +26,17 @@ import { checarPlano, modeloNaReserva, verificarAvisos, situacaoPlano, COMO_FUNC
 import { comUso, anotarUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
 import { delimitar, extrairTexto } from './texto.js';
-import { editarArquivo, ehPacoteOffice, NOTA_EDICAO, pedeEdicaoNoArquivo, tipoDoArquivo } from './edicao-arquivo.js';
+import { conteudoParaEdicao, editarArquivo, ehPacoteOffice, MAX_CONTEUDO, NOTA_EDICAO, pedeEdicaoNoArquivo, problemasDaPlanilha, tipoDoArquivo } from './edicao-arquivo.js';
+// Planilha a corrigir: a análise vê o endereço de cada célula e as fórmulas (e o que a conferência automática já acha
+// quebrado), para propor a correção na célula certa. Material, não instrução; credenciais barradas como o resto.
+function mapaDeCelulas(edicao) {
+  try {
+    const mapa = conteudoParaEdicao('xlsx', edicao.dados);
+    if (mapa.length > MAX_CONTEUDO || contemCredencial(mapa)) return '';
+    const p = problemasDaPlanilha(edicao.dados);
+    return `\nMapa de células da planilha (endereço: valor, ou =fórmula [valor calculado]). Use estes endereços ao listar as correções.${p.length ? ` A conferência automática encontrou: ${p.map(x => `${x.aba}!${x.ref} ${x.problema}`).join('; ')}.` : ''}\n${delimitar('anexo', `Mapa de células de ${edicao.nome}`, mapa)}`;
+  } catch { return ''; }
+}
 import { consultaDeSeguimento } from './busca.js';
 import { aplicarComandoDeFonte, comandoDeFonte, ErroFonte, lerLink, mascararUrl, mudaramDesde, papelValido } from './fontes.js';
 import { avisarGovernanca, MSG_USUARIO } from './avisos-governanca.js';
@@ -786,6 +796,7 @@ export function rotasConversas(app, r) {
       + notaDeData(app)
       + (programada ? NOTA_PROGRAMADA : '')
       + (edicao ? NOTA_EDICAO(edicao.nome, edicao.tipo) : '')
+      + (edicao?.tipo === 'xlsx' ? mapaDeCelulas(edicao) : '')
       + (imagemChat ? NOTA_IMAGEM(imagemChat.modo) : '')
       + (codigo ? notaDeCodigo(codigo) : '')
       + (agenteChat ? NOTA_AGENTE(agenteChat) : '')
@@ -1328,7 +1339,7 @@ export function rotasConversas(app, r) {
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
           if (r.status === 'ok') {
             editado = r;
-            if (r.ignoradas.length) aviso(app, conv.id, `${r.ignoradas.length === 1 ? '1 alteração não pôde ser aplicada' : `${r.ignoradas.length} alterações não puderam ser aplicadas`} no arquivo (trecho não encontrado ou fórmula recusada por segurança). Confira o arquivo antes de usar.`);
+            if (r.ignoradas.length) aviso(app, conv.id, `${r.ignoradas.length === 1 ? '1 alteração não pôde ser aplicada' : `${r.ignoradas.length} alterações não puderam ser aplicadas`} no arquivo${r.motivos.includes('remocao_suspensa') ? '; por segurança, nenhum slide ou trecho foi removido, para não perder conteúdo' : ' (trecho não encontrado ou fórmula recusada por segurança)'}. Confira o arquivo antes de usar.`);
           } else aviso(app, conv.id, r.status === 'grande' ? 'O arquivo é grande demais para ser ajustado direto no original. As alterações estão descritas na resposta; envie só a parte do arquivo que precisa mudar para receber o arquivo ajustado.'
             : r.status === 'nada_a_mudar' ? 'Nenhuma alteração precisou ser feita no arquivo.'
             : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
@@ -1400,7 +1411,7 @@ export function rotasConversas(app, r) {
       const detalhes = { tipo: 'edicao', formato: edicao.tipo, origem: edicao.nome, alteracoes: editado.feitas, ...(editado.ignoradas.length ? { nao_aplicadas: editado.ignoradas.length } : {}) };
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, editado.nome, editado.mime, editado.dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome: editado.nome, bytes: editado.dados.length, ...detalhes });
-      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: edicao.tipo, origem: 'edicao_do_arquivo', base: edicao.origem, alteracoes: editado.feitas, nao_aplicadas: editado.ignoradas.length });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: edicao.tipo, origem: 'edicao_do_arquivo', base: edicao.origem, alteracoes: editado.feitas, nao_aplicadas: editado.ignoradas.length, motivos: editado.motivos });
     }
     if (imagem) {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, imagem.nome, imagem.mime, imagem.dados, JSON.stringify(imagem.detalhes), AGORA(app)).lastInsertRowid);

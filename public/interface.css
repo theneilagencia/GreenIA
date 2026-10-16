@@ -1455,3 +1455,8 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
 .creditos-lista{margin:0 0 16px;padding-left:18px;display:grid;gap:6px}
 .creditos-acoes{display:flex;flex-wrap:wrap;gap:8px}
 .imagem-gerada{display:flex;flex-direction:column;gap:8px;margin:0;width:min(100%,560px)}.imagem-gerada img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}.imagem-gerada .anexo-resposta{width:100%}
+/* Código e sites: publicar, executar (saída da área isolada) e o histórico da execução. */
+.acoes-codigo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;width:100%}
+.selo-publicado{font-size:var(--ui-apoio);font-weight:600;color:var(--forest-text);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.saida-execucao{flex-basis:100%;font-size:var(--ui-apoio);color:var(--muted)}.saida-execucao:empty{display:none}
+.linha-aviso.execucao-saida{text-align:left}.linha-aviso.execucao-saida pre{margin:6px 0 0;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px}

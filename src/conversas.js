@@ -2,11 +2,12 @@
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
 import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
-import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx } from './escritorio.js';
+import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
-import { entregaDeCodigo } from './codigo-chat.js';
+import { arquivosDoProjeto, blocosDeCodigo, entregaDeCodigo } from './codigo-chat.js';
 import { decisaoPesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
 import { avisoDeCodigo, decisaoDeCodigo, notaDeCodigo, OPERACOES_CODIGO } from './permissoes-codigo.js';
+import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUsadas, pedeAlterarRepositorio, publicarSite, repositorioDoPedido, reposLiberados, rotasCodigo } from './codigo-operacoes.js';
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
@@ -313,6 +314,7 @@ function historico(app, conv, limiteChars, atual = null, ocultar = null) {
 }
 
 export function rotasConversas(app, r) {
+  rotasCodigo(app, r, { minhaConversa });
   const enviosAtivos = new Map();
   const ocupado = ids => ids.some(id => enviosAtivos.has(id)) || ids.some(id => um(app.db, "select 1 from connector_runs r join integ_planos p on p.id = r.plano_id where p.conversa_id = ? and r.status = 'EM_ANDAMENTO'", id));
   function excluir(pessoa, conversas) {
@@ -668,6 +670,21 @@ export function rotasConversas(app, r) {
       try { integ = await prepararExecucao(app, pessoa, { qw, conv, lookup: app.dnsLookup }); anexos.push(...integ.anexos); }
       catch (e) { app.log?.('integracoes', erroParaLog(e)); if(programada)throw e; integ = null; }
     }
+    // Código: repositório liberado citado no pedido (o conteúdo vira material, com as mesmas regras de segredo dos
+    // anexos, logo abaixo) e a saída real das execuções ainda não usadas ("corrija o que falhou nos testes").
+    const temProjeto = () => !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id);
+    const codigoCedo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
+    const permitidaCedo = op => !!codigoCedo?.itens.some(i => i.op === op && i.situacao === 'permitida');
+    let repoAlvo = null, execUsadas = [];
+    const avisosCodigo = [];   // entram depois da mensagem da pessoa, na ordem da conversa
+    if (permitidaCedo('repositorio')) {
+      repoAlvo = repositorioDoPedido(app, texto);
+      if (repoAlvo) {
+        try { const rr = await lerRepositorio(app, repoAlvo); anexos.push({ nome: `Repositório ${repoAlvo} (${rr.ramo})`, texto: rr.texto, papel: 'SUPPLEMENTARY', tipo_fonte: 'repositorio' }); }
+        catch (e) { app.log?.('repositório', erroParaLog(e)); avisosCodigo.push(`O repositório ${repoAlvo} não pôde ser lido agora: ${e.status ? e.message : 'o GitHub não respondeu.'}`); repoAlvo = null; }
+      } else avisosCodigo.push(reposLiberados(app).length ? `Nenhum dos repositórios liberados pela empresa foi citado (liberados: ${reposLiberados(app).slice(0, 8).join(', ')}). Cite o repositório como dono/nome.` : 'A empresa ainda não conectou um repositório. O administrador conecta em Configurações › Código e sites.');
+    }
+    if (!qw && !regeracao) { const ex = execucoesPendentes(app, conv.id); for (const e of ex) anexos.push({ nome: e.nome, texto: e.texto, papel: 'SUPPLEMENTARY', tipo_fonte: 'execucao' }); execUsadas = ex.map(e => e.id); }
     if (texto.length > MAX_TEXTO) throw erro(413, 'longa', `Esta mensagem é longa demais para enviar de uma vez (até ${MAX_TEXTO.toLocaleString('pt-BR')} caracteres). Divida em partes ou envie o material como anexo.`);
     if (cienciaPendente(app, pessoa)) throw erro(428, 'ciencia_pendente', 'A Política de Uso de IA mudou. Leia e registre ciência antes de continuar.');
     await app.limites?.checar(pessoa, cfg);
@@ -749,7 +766,7 @@ export function rotasConversas(app, r) {
     const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
     const pecaChat = !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
     // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
-    const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id) });
+    const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
     // Agente reutilizável / automação recorrente: vira Quick Win (não código). Pesquisa atual: a ferramenta da empresa.
     const agenteChat = qw ? null : pedeAgente(texto);
     const pesquisaChat = qw || !pedePesquisa(texto) ? null : decisaoPesquisa(cfg, { sigilosa: !!conv.sigilosa || !!motivo, areaReforcada, protegidos: protegidos.length > 0, reserva: plano?.fase === 'reserva' });
@@ -965,6 +982,8 @@ export function rotasConversas(app, r) {
       // Word, PowerPoint e Excel guardados para ajustes no próprio arquivo em mensagens seguintes ("ainda no arquivo que anexei").
       else if (ehPacoteOffice(a.nome, brutos[k])) exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) values (?, ?, ?)', id, MIMES[tipoDoArquivo(a.nome)], Buffer.from(brutos[k], 'base64'));
     });
+    if (execUsadas.length) marcarExecucoesUsadas(app, execUsadas);
+    for (const t of avisosCodigo) aviso(app, conv.id, t);
     if (naoGuardar) aviso(app, conv.id, 'Esta mensagem foi processada normalmente. Pela política de retenção da empresa, o conteúdo dela, os anexos e a resposta não ficam guardados no histórico.');
     const titulo = conv.titulo === 'Nova conversa' ? (naoGuardar ? 'Conversa' : (texto || anexos[0].nome).replace(/\s+/g, ' ').slice(0, 60)) : conv.titulo;
     exec(app.db, 'update conversas set modelo = ?, titulo = ?, atualizado_em = ? where id = ?', pedido, titulo, agora, conv.id);
@@ -1395,16 +1414,49 @@ export function rotasConversas(app, r) {
       aviso(app, conv.id, acessoCodigo.mensagem);
       registrar(app, 'code.blocked', pessoa.id, { conversa: conv.id, operacoes: [...codigo.bloqueadas, ...codigo.indisponiveis].map(b => ({ op: b.op, situacao: b.situacao === 'permitida' ? 'indisponivel' : b.situacao })) });
     }
+    const guardar = (nome, mime, dados, detalhes) => {
+      const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, nome, mime, dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
+      arquivos.push({ id, nome, bytes: dados.length, ...detalhes });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: 'codigo_da_resposta' });
+      return id;
+    };
+    const permitida = op => !!codigo?.itens.some(i => i.op === op && i.situacao === 'permitida');
+    let siteId = null, zipId = null;
     if (!naoGuardar && !qw && !gerado && codigo?.podeProjeto) {
       let cod = null;
       try { cod = entregaDeCodigo(resposta); } catch (e) { app.log?.('código da resposta', erroParaLog(e)); }
-      const guardar = (nome, mime, dados, detalhes) => {
-        const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, nome, mime, dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
-        arquivos.push({ id, nome, bytes: dados.length, ...detalhes });
-        registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: 'codigo_da_resposta' });
-      };
-      if (cod?.site) guardar('site.html', 'text/html', Buffer.from(cod.site), { tipo: 'site' });
-      if (cod?.zip) guardar('codigo-fonte.zip', 'application/zip', cod.zip, { tipo: 'codigo', arquivos: cod.arquivos.slice(0, 40) });
+      if (cod?.site) siteId = guardar('site.html', 'text/html', Buffer.from(cod.site), { tipo: 'site' });
+      if (cod?.zip) zipId = guardar('codigo-fonte.zip', 'application/zip', cod.zip, { tipo: 'codigo', arquivos: cod.arquivos.slice(0, 40) });
+    }
+    // Executar: o projeto desta resposta (um arquivo só também vale) ou o último da conversa, na área isolada do navegador.
+    let execucao = null;
+    if (!naoGuardar && !qw && permitida('executar')) {
+      if (!zipId) {
+        const arqs = arquivosDoProjeto(blocosDeCodigo(resposta)).filter(x => /\.(py|[cm]?js|json)$/.test(x.nome));
+        if (arqs.length) zipId = guardar('codigo-fonte.zip', 'application/zip', zipar(arqs), { tipo: 'codigo', arquivos: arqs.map(x => x.nome).slice(0, 40) });
+      }
+      const alvo = zipId || um(app.db, "select id from arquivos_gerados where conversa_id = ? and mime = 'application/zip' order by id desc limit 1", conv.id)?.id;
+      if (alvo) execucao = { arquivo: alvo, modo: /\b(test\w*)\b/i.test(texto) ? 'testes' : 'principal' };
+      else aviso(app, conv.id, 'Não há código Python ou JavaScript nesta conversa para executar. Peça o código (ou anexe o projeto em .zip) e depois peça para executar.');
+    }
+    // Publicar: o site desta resposta ou o último da conversa, num endereço público isolado.
+    if (!naoGuardar && !qw && permitida('publicar')) {
+      const alvo = siteId || um(app.db, "select id from arquivos_gerados where conversa_id = ? and mime = 'text/html' order by id desc limit 1", conv.id)?.id;
+      if (alvo) {
+        try { const p = publicarSite(app, pessoa, conv, alvo); guardar('site-publicado.url', 'text/uri-list', Buffer.from(p.url), { tipo: 'site_publicado', url: p.url, token: p.token, arquivo_id: alvo }); }
+        catch (e) { app.log?.('publicar site', erroParaLog(e)); aviso(app, conv.id, `O site não foi publicado: ${e.status ? e.message : 'falha ao publicar.'}`); }
+      } else aviso(app, conv.id, 'Não há um site completo nesta conversa para publicar. Peça o site primeiro e depois peça para publicar.');
+    }
+    // Repositório: alteração pedida vira Pull Request (branch novo), com os arquivos nomeados da resposta.
+    if (!naoGuardar && !qw && repoAlvo && permitida('repositorio') && pedeAlterarRepositorio(texto)) {
+      const arqs = blocosDeCodigo(resposta).filter(b => b.nome && b.codigo.trim()).map(b => ({ nome: b.nome, dados: b.codigo.endsWith('\n') ? b.codigo : `${b.codigo}\n` }));
+      if (arqs.length) {
+        linha({ t: 'etapa', v: 'Abrindo o Pull Request no repositório…' });
+        try {
+          const pr = await abrirPullRequest(app, pessoa, repoAlvo, { arquivos: arqs, titulo: texto.replace(/\s+/g, ' ').slice(0, 100), descricao: soEntregavel(resposta).slice(0, 5000) });
+          guardar('pull-request.url', 'text/uri-list', Buffer.from(pr.url), { tipo: 'pull_request', url: pr.url, numero: pr.numero, repo: pr.repo, ramo: pr.ramo, base: pr.base, arquivos: pr.arquivos.slice(0, 40) });
+        } catch (e) { app.log?.('pull request', erroParaLog(e)); aviso(app, conv.id, `O Pull Request não foi aberto: ${e.status ? e.message : 'o GitHub não respondeu.'} Nada foi gravado no repositório.`); }
+      } else aviso(app, conv.id, 'A resposta não trouxe arquivos com o caminho no repositório ("### Arquivo: caminho"), por isso nenhum Pull Request foi aberto.');
     }
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
@@ -1425,7 +1477,7 @@ export function rotasConversas(app, r) {
     registrar(app, 'conversation.completed', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, modelo_pedido: m.id, modelo_usado: usado, fornecedor: fim?.fornecedor, fontes: ctx.fontes.length, tipos, sigilosa, ms, roteamento: rotaId, modo: rota.modo, complexidade: rota.requisitos.complexidade });
     verificarAvisos(app).catch(e => app.log('avisos do plano', e.message));
     linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
-      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}), ...(acessoCodigo?.pedir.length ? { acesso: acessoCodigo.pedir } : {}) });
+      ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}), ...(acessoCodigo?.pedir.length ? { acesso: acessoCodigo.pedir } : {}), ...(execucao ? { executar: execucao } : {}) });
     res.end();
   }
 }
@@ -1435,7 +1487,10 @@ export function detalhe(app, c, pessoa = null) {
   const anexos = todos(app.db, 'select mensagem_id, nome from anexos where conversa_id = ?', c.id);
   // Artefatos visuais de cada resposta (a versão atual de cada um): pertencem à execução e à conversa.
   const artefatos = todos(app.db, 'select * from artefatos_visuais where conversa_id = ? and atual = 1 order by id', c.id).map(a => resumoArtefato(app, a));
-  const arquivos = todos(app.db, 'select id, mensagem_id, nome, length(dados) bytes, detalhes from arquivos_gerados where conversa_id = ? order by id', c.id).map(a => ({ id: a.id, mensagem_id: a.mensagem_id, nome: a.nome, bytes: a.bytes, ...json(a.detalhes, {}) }));
+  const publicados = new Map(todos(app.db, 'select token, arquivo_id from sites_publicados where conversa_id = ? and removido_em is null', c.id).map(s => [s.token, s]));
+  const arquivos = todos(app.db, 'select id, mensagem_id, nome, length(dados) bytes, detalhes from arquivos_gerados where conversa_id = ? order by id', c.id).map(a => ({ id: a.id, mensagem_id: a.mensagem_id, nome: a.nome, bytes: a.bytes, ...json(a.detalhes, {}) }))
+    // Site publicado: o cartão mostra se ainda está no ar (despublicar vale para todos os cartões dele).
+    .map(a => a.tipo === 'site_publicado' ? { ...a, ativo: publicados.has(a.token) } : a.tipo === 'site' ? { ...a, publicado: [...publicados.values()].find(s => s.arquivo_id === a.id)?.token || null } : a);
   const expira = new Date(new Date(c.atualizado_em).getTime() + cfg.retencaoDias * 864e5).toISOString();
   const qualidadeAtual = valor => {
     const q = resumoQualidade({ ...json(valor, {}), quick_win: c.quick_win_id });

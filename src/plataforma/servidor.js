@@ -35,6 +35,7 @@ import { rotasAuthEmpresa, rotasPublicoEmpresa } from './api-publica.js';
 import { rotasPlataforma } from './api-plataforma.js';
 import { rotasEmpresa } from './api-empresa.js';
 import { slugDe, SLUGS_RESERVADOS, validarEmail } from './validar.js';
+import { servirSite } from '../codigo-operacoes.js';
 import { sincronizarProvedor, verificarDominio } from './dominio.js';
 import { criarEncontrar } from './encontrar.js';
 import { rotasEncerramentoEmpresa, migrarCanceladas, paginaDevolucao, entregarDevolucao } from './encerramento.js';
@@ -182,6 +183,14 @@ function abrirTenant(P, id) {
     if (!perms.has('chat.use') || !E.lerPlanoPorId(P, c.plan_id)?.features?.quick_wins) return null;
     const pid = sincronizarPessoa(P, id, local.user_id);
     const p = carregarPessoa(t.db, pid);
+    return p && { ...p, admin: perms.has('company.manage'), permissoes: [...perms] };
+  };
+  // Pessoa ainda ativa na empresa, com as permissões de agora (site publicado sai do ar quando ela perde o acesso).
+  t.pessoaAtiva = pessoaId => {
+    const c = E.lerEmpresa(P, id), local = um(t.db, 'select user_id from pessoas where id=?', pessoaId);
+    const membro = local?.user_id && um(P.db, "select 1 from users u join company_users cu on cu.user_id=u.id where u.id=? and cu.company_id=? and u.status='ativo' and cu.status='ativo'", local.user_id, id);
+    if (c?.status !== 'ativa' || !membro) return null;
+    const perms = permissoesNaEmpresa(P.db, local.user_id, id), p = carregarPessoa(t.db, pessoaId);
     return p && { ...p, admin: perms.has('company.manage'), permissoes: [...perms] };
   };
   t.reservarProgramacao = () => {
@@ -368,6 +377,13 @@ async function tratar(P, rPlat, rEmp, req, res) {
         res.writeHead(pg.status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
         return res.end(pg.html);
       }
+      // Site publicado por uma empresa (página pública e isolada): /<slug>/s/<token>.
+      const sp = req.method === 'GET' && /^\/([a-z0-9-]{3,40})\/s\/([A-Za-z0-9_-]{20,64})$/.exec(caminho);
+      if (sp) {
+        const c = um(P.db, "select id from companies where slug = ? and status = 'ativa'", sp[1]);
+        if (c) return servirSite(P.tenant(c.id), sp[2], res);
+        return paginaAmbienteNaoEncontrado(res);
+      }
       const m = /^\/([a-z0-9-]{3,40})(\/entrar|\/app|\/encerramento)?\/?$/.exec(caminho);
       if (m && !PAGINAS_EMPRESA[`/${m[1]}`] && !SLUGS_RESERVADOS.has(m[1])) {
         const c = um(P.db, 'select id, slug from companies where slug = ?', m[1]) || um(P.db, 'select c.id, c.slug, 1 as antigo from company_slugs s join companies c on c.id = s.company_id where s.slug = ?', m[1]);
@@ -395,6 +411,8 @@ async function tratar(P, rPlat, rEmp, req, res) {
 
     // Daqui em diante, tudo acontece dentro da empresa companyId.
     if (caminho === '/icone') return servirIcone(P, res, companyId);
+    const spDominio = req.method === 'GET' && /^\/s\/([A-Za-z0-9_-]{20,64})$/.exec(caminho);
+    if (spDominio && porHost) return E.lerEmpresa(P, companyId)?.status === 'ativa' ? servirSite(P.tenant(companyId), spDominio[1], res) : pagina404(P, res, porHost);
     if (!caminho.startsWith('/api/')) {
       if (caminho === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }
       if (req.method === 'GET' && PAGINAS_EMPRESA[caminho]) return await servirPagina(res, PAGINAS_EMPRESA[caminho]);

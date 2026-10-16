@@ -36,6 +36,7 @@ import { rotasVendas } from './vendas.js';
 import { rotasArtefatos } from './visual/rotas.js';
 import { integracoesLigadas, rotasIntegracoes } from './integracoes/rotas.js';
 import { contabilizarIA } from './custo-ia.js';
+import { servirSite } from './codigo-operacoes.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PAGINAS = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/operador': 'operador.html', '/termos': 'termos.html', '/privacidade': 'privacidade.html' };
@@ -167,7 +168,7 @@ export function permissaoAdmin(caminho, metodo) {
   if (caminho.startsWith('/api/admin/politica')) return 'policy.manage';
   if (/^\/api\/admin\/(uso|visao-geral)/.test(caminho)) return 'usage.read';
   if (/^\/api\/admin\/(eventos|problemas)/.test(caminho)) return ler ? 'audit.read' : 'settings.manage';
-  if (/^\/api\/admin\/(config|smtp)/.test(caminho)) return 'settings.manage';
+  if (/^\/api\/admin\/(config|smtp|codigo)/.test(caminho)) return 'settings.manage';
   if (/^\/api\/admin\/integracoes\/aprovacoes\/[^/]+\/decidir$/.test(caminho)) return 'integrations.approve';
   if (caminho.startsWith('/api/admin/integracoes')) return 'integrations.manage';
   return 'company.manage';
@@ -182,6 +183,9 @@ async function tratar(app, r, req, res, externo) {
     if (!url.pathname.startsWith('/api/')) {
       if (url.pathname === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }   // painel antigo
       if (url.pathname === '/encontrar' && !app.tenant) { res.writeHead(302, { location: '/entrar' }); return res.end(); }   // instalação única: um ambiente só
+      // Site publicado pela empresa (página pública, isolada): src/codigo-operacoes.js.
+      const site = req.method === 'GET' && /^\/s\/([A-Za-z0-9_-]{20,64})$/.exec(url.pathname);
+      if (site) return servirSite(app, site[1], res);
       const pagina = url.pathname === '/' && app.paginaInicial === 'vendas' ? 'vendas.html' : PAGINAS[url.pathname];
       if (url.pathname === '/vendas.html' && app.paginaInicial !== 'vendas') { res.writeHead(302, { location: '/' }); return res.end(); }
       if (req.method === 'GET' && pagina && await servirEstatico(res, join(RAIZ, 'public'), pagina, req)) return;

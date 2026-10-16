@@ -778,6 +778,9 @@ async function abaPoliticas({ sucesso = '' } = {}) {
       </div>
       <div class="linha-botoes" style="margin-top:10px"><button class="btn btn-verde btn-pequeno">Salvar regras de dados</button></div></form>
 
+    <div class="secao-titulo"><h2>Repositórios e sites publicados</h2></div>
+    <div id="codigo-admin" class="cfg">${carregandoHtml()}</div>
+
     <div class="secao-titulo"><h2>Regras em vigor</h2>${botaoRevelar('politicas-vigor', 'Ver as regras em vigor')}</div>
     <div id="politicas-vigor" hidden>
     <div class="secao-titulo"><h3>Conversas sigilosas</h3><a class="btn-texto btn-pequeno" href="#/modelos/catalogo">Gerir modelos aprovados para dados sigilosos</a></div>
@@ -825,6 +828,44 @@ async function abaPoliticas({ sucesso = '' } = {}) {
       vig.limpar(); toast('Regras de dados salvas.'); abaPoliticas();
     } catch (e) { falhar(e); }
   };
+  codigoAdmin();
+}
+
+// Código e sites: a conexão com o GitHub (token cifrado no servidor; nunca volta para a tela) e os repositórios
+// liberados; os sites publicados pela empresa, com o botão de tirar do ar.
+async function codigoAdmin() {
+  const caixa = $('codigo-admin');
+  if (!caixa) return;
+  let d;
+  try { d = await api('/api/admin/codigo'); } catch (e) { caixa.innerHTML = `<p class="dica">${esc(e.message || 'Não foi possível carregar.')}</p>`; return; }
+  const r = d.repositorios;
+  caixa.innerHTML = `<form id="form-repos">
+      <h3>Repositórios de código (GitHub)</h3>
+      <p class="dica">Quem tem "Acessar repositórios de código" no perfil pode pedir no chat para ler um destes repositórios ou propor alterações. Alterações sempre viram um Pull Request num branch novo, para revisão: nada é gravado direto no branch principal. Use um token de acesso fino (fine-grained) só com estes repositórios, com leitura de conteúdo e escrita de conteúdo e de pull requests.</p>
+      <p>${r.conectado ? `Conectado${r.conta ? ` como <b>${esc(r.conta)}</b>` : ''}.` : 'Nenhum repositório conectado.'}</p>
+      <div class="campo"><label for="repo-token">${r.conectado ? 'Trocar o token (deixe em branco para manter)' : 'Token do GitHub'}</label><input class="entrada" id="repo-token" type="password" autocomplete="off" spellcheck="false"></div>
+      <div class="campo"><label for="repo-lista">Repositórios liberados (um por linha, no formato dono/nome)</label><textarea class="entrada" id="repo-lista" rows="3" spellcheck="false">${esc((r.repos || []).join('\n'))}</textarea></div>
+      <div class="linha-botoes"><button class="btn btn-verde btn-pequeno">Salvar conexão</button>${r.conectado ? ' <button type="button" class="btn btn-linha btn-pequeno" id="repo-desconectar">Desconectar</button>' : ''}</div>
+    </form>
+    <h3>Sites publicados</h3>
+    ${d.sites.length ? `<ul class="lista-simples">${d.sites.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a> · ${esc(s.pessoa || 'Pessoa')} · ${esc(new Date(s.criado_em).toLocaleDateString('pt-BR'))} <button type="button" class="btn btn-linha btn-pequeno" data-tirar-site="${esc(s.token)}">Tirar do ar</button></li>`).join('')}</ul>` : '<p class="dica">Nenhum site publicado.</p>'}`;
+  $('form-repos').onsubmit = async ev => {
+    ev.preventDefault();
+    const b = ev.submitter || $('form-repos').querySelector('.btn-verde');
+    try {
+      b.disabled = true;
+      await api('/api/admin/codigo/repositorios', { metodo: 'PUT', corpo: { token: $('repo-token').value.trim() || undefined, repos: $('repo-lista').value.split(/\s+/).filter(Boolean) } });
+      toast('Conexão com o GitHub salva e conferida.'); codigoAdmin();
+    } catch (e) { b.disabled = false; toast(e.message || 'Não foi possível salvar.', 8000); }
+  };
+  $('repo-desconectar')?.addEventListener('click', async () => {
+    if (!await confirmar({ titulo: 'Desconectar o GitHub?', texto: 'O token é apagado e ninguém mais consegue ler ou alterar repositórios pelo chat até uma nova conexão.', botao: 'Desconectar', perigo: true })) return;
+    try { await api('/api/admin/codigo/repositorios', { metodo: 'DELETE' }); toast('GitHub desconectado.'); codigoAdmin(); } catch (e) { toast(e.message); }
+  });
+  caixa.querySelectorAll('[data-tirar-site]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await api(`/api/sites/${b.dataset.tirarSite}/despublicar`, { metodo: 'POST', corpo: {} }); toast('Site tirado do ar.'); codigoAdmin(); } catch (e) { b.disabled = false; toast(e.message); }
+  });
 }
 
 // ---------------------------------------------------------------- Roteamento

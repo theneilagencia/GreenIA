@@ -114,6 +114,19 @@ create table if not exists arquivos_gerados (
   id integer primary key, conversa_id integer not null references conversas(id) on delete cascade,
   mensagem_id integer references mensagens(id) on delete cascade, nome text not null, mime text not null, dados blob not null,
   detalhes text, textos text, criado_em text not null);
+-- Código e sites (src/codigo-operacoes.js): site publicado num endereço público (cópia do arquivo, sai junto com a
+-- conversa), execuções de código na área isolada do navegador e a conexão da empresa com repositórios (token cifrado).
+create table if not exists sites_publicados (
+  token text primary key, conversa_id integer not null references conversas(id) on delete cascade,
+  arquivo_id integer references arquivos_gerados(id) on delete set null, pessoa_id integer not null, nome text not null,
+  dados blob not null, criado_em text not null, removido_em text, removido_por integer);
+create table if not exists execucoes_codigo (
+  id integer primary key, conversa_id integer not null references conversas(id) on delete cascade, arquivo_id integer,
+  pessoa_id integer not null, modo text not null, linguagem text, status text not null, saida text, ms integer,
+  criado_em text not null, usada integer not null default 0);
+create table if not exists repositorios_config (
+  id integer primary key check (id = 1), provedor text not null default 'github', token_cifrado text, conta text,
+  repos text not null default '[]', atualizado_em text, atualizado_por integer);
 
 -- Medição manual dos quick wins (lançada pelo responsável) e decisões.
 create table if not exists medicoes (

@@ -7,7 +7,7 @@ import { api, esc, ICONE, toast } from '/comum.js';
 import { ICONE_RESPOSTA, anunciar, copiarTexto, alternarDetalhes } from '/resposta-ui.js';
 import { renderizar, baixarCsv } from '/md.js';
 import { abrirPrevia, ligarMiniaturas } from '/previa-pptx.js';
-import { E, cabecalho, ligarCabecalho, recarregarLateral, pedirCiencia } from '/app.js';
+import { E, cabecalho, ligarCabecalho, recarregarLateral, pedirCiencia, pode } from '/app.js';
 import { aviso, ligarVerResultado, marcaQw, oQueEnviar, painelIntegracoes, painelQualidade, progressoExecucao } from '/qw-ui.js';
 import { htmlArtefatos, ligarArtefatos } from '/artefatos.js';
 import { pedidoMelhoria } from '/resultado-orientacao.js';
@@ -170,7 +170,7 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
     detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
 }
 // Arquivo que a pessoa enviou, ajustado no próprio original (layout, estilos e fórmulas preservados).
@@ -187,12 +187,52 @@ function cartaoImagem(a) {
   return `<figure class="imagem-gerada"><a href="${esc(href)}?ver=1" target="_blank" rel="noopener"><img src="${esc(href)}?ver=1" alt="${esc(a.modo === 'editar' ? 'Imagem editada pela GreenIA' : 'Imagem gerada pela GreenIA')}" loading="lazy"></a>
     <a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.imagem}</span><span class="anexo-resposta-texto"><b>${esc(a.modo === 'editar' ? 'Imagem editada' : 'Imagem gerada')}</b><small>Baixar imagem ${esc(String(a.nome || '').split('.').pop().toUpperCase())}${a.proporcao ? ` · ${esc(a.proporcao)}` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a></figure>`;
 }
-// Site gerado: abre funcionando numa aba (página isolada). Código-fonte: o projeto em .zip.
+// Site gerado: abre funcionando numa aba (página isolada). Código-fonte: o projeto em .zip. Publicar e executar
+// aparecem só para quem tem a permissão no perfil (o servidor confere de novo a cada uso).
 function cartaoCodigo(a) {
   const href = `/api/conversas/${C.conv.id}/arquivos/${a.id}`;
-  return a.tipo === 'site'
-    ? `<a class="anexo-resposta" href="${esc(href)}?ver=1" target="_blank" rel="noopener"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>Ver o site funcionando</b><small>Abre numa nova aba, numa página isolada</small></span><span class="anexo-resposta-acao">↗</span></a>`
-    : `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>Código-fonte (.zip)</b><small>${esc((a.arquivos || []).slice(0, 4).join(', '))}${(a.arquivos || []).length > 4 ? ` e mais ${a.arquivos.length - 4}` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`;
+  if (a.tipo === 'site') {
+    const publicar = !pode('code.publish') ? '' : a.publicado
+      ? `<div class="acoes-codigo"><span class="selo-publicado">Publicado</span> <button type="button" class="btn btn-linha btn-pequeno" data-despublicar="${esc(a.publicado)}">Despublicar</button></div>`
+      : `<div class="acoes-codigo"><button type="button" class="btn btn-linha btn-pequeno" data-publicar-site="${a.id}">Publicar site</button></div>`;
+    return `<a class="anexo-resposta" href="${esc(href)}?ver=1" target="_blank" rel="noopener"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>Ver o site funcionando</b><small>Abre numa nova aba, numa página isolada</small></span><span class="anexo-resposta-acao">↗</span></a>${publicar}`;
+  }
+  const executar = pode('code.execute') && (a.arquivos || []).some(n => /\.(py|[cm]?js)$/.test(n))
+    ? `<div class="acoes-codigo"><button type="button" class="btn btn-linha btn-pequeno" data-executar="${a.id}" data-modo="principal">Executar</button>${(a.arquivos || []).some(n => /(^|\/)(test_[^/]*|[^/]*_test)\.py$|(\.test|\.spec)\.[cm]?js$/.test(n)) ? ` <button type="button" class="btn btn-linha btn-pequeno" data-executar="${a.id}" data-modo="testes">Rodar os testes</button>` : ''}<div class="saida-execucao" data-saida="${a.id}" role="status" aria-live="polite"></div></div>` : '';
+  return `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>Código-fonte (.zip)</b><small>${esc((a.arquivos || []).slice(0, 4).join(', '))}${(a.arquivos || []).length > 4 ? ` e mais ${a.arquivos.length - 4}` : ''}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>${executar}`;
+}
+// Pull Request aberto no repositório (branch novo; nada gravado no branch principal).
+function cartaoPullRequest(a) {
+  return `<a class="anexo-resposta" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>Pull Request #${esc(a.numero)} em ${esc(a.repo)}</b><small>Branch ${esc(a.ramo)} → ${esc(a.base)} · ${(a.arquivos || []).length} arquivo${(a.arquivos || []).length === 1 ? '' : 's'} · revise e aprove no GitHub</small></span><span class="anexo-resposta-acao">↗</span></a>`;
+}
+// Site publicado: o endereço público (enquanto estiver no ar) e o botão para tirar do ar.
+function cartaoPublicado(a) {
+  if (a.ativo === false) return `<div class="anexo-resposta"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>Site despublicado</b><small>Este endereço não está mais no ar</small></span></div>`;
+  return `<a class="anexo-resposta" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>Site publicado</b><small>${esc(a.url)}</small></span><span class="anexo-resposta-acao">↗</span></a>
+    <div class="acoes-codigo"><button type="button" class="btn btn-linha btn-pequeno" data-copiar-url="${esc(a.url)}">Copiar endereço</button> <button type="button" class="btn btn-linha btn-pequeno" data-despublicar="${esc(a.token)}">Despublicar</button></div>`;
+}
+// Executa o projeto na área isolada (iframe em sandbox, origem opaca) e registra a saída real na conversa.
+function executarProjeto(arquivoId, modo) {
+  if (!C.conv) return;
+  const conv = C.conv.id, saida = () => document.querySelector(`[data-saida="${arquivoId}"]`);
+  const mostrar = t => { const s = saida(); if (s) s.textContent = t; else $('ao-vivo').textContent = t; };
+  mostrar(modo === 'testes' ? 'Rodando os testes na área isolada…' : 'Executando na área isolada…');
+  const f = document.createElement('iframe');
+  f.setAttribute('sandbox', 'allow-scripts'); f.setAttribute('aria-hidden', 'true'); f.hidden = true;
+  f.src = `/api/conversas/${conv}/arquivos/${arquivoId}/executar?modo=${modo}`;
+  let feito = false;
+  const terminar = async r => {
+    if (feito) return; feito = true;
+    removeEventListener('message', ouvir); clearTimeout(limite); f.remove();
+    mostrar(r.status === 'ok' ? 'Execução concluída.' : 'Execução terminou com falhas ou erro.');
+    try { await api(`/api/conversas/${conv}/execucoes`, { metodo: 'POST', corpo: { arquivo_id: arquivoId, modo: r.modo || modo, linguagem: r.linguagem, status: r.status, saida: r.saida, ms: r.ms } }); }
+    catch (e) { toast(e.message || 'Não foi possível registrar a execução.'); }
+    if (C.conv?.id === conv) await recarregarConversa(true);
+  };
+  const ouvir = ev => { if (ev.source === f.contentWindow && ev.data?.greeniaExecucao) terminar(ev.data); };
+  const limite = setTimeout(() => terminar({ status: 'tempo_esgotado', saida: 'A área isolada não respondeu a tempo.', ms: 180000 }), 180000);
+  addEventListener('message', ouvir);
+  document.body.append(f);
 }
 // Cartão de apresentação com prévia: miniatura do 1º slide (clique abre todos os slides) e o download logo abaixo.
 function cartaoComPrevia({ previa, baixar, nome, detalhe }) {
@@ -247,6 +287,7 @@ function htmlMensagem(m) {
     // Pedido da pessoa: balão à direita (quebras de linha preservadas), anexos em etiquetas logo acima.
     return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div></div>`;
   }
+  if (m.papel === 'aviso' && /^Execução (dos testes|do código)/.test(m.texto) && m.texto.includes('\n')) { const [cab, ...resto] = m.texto.split('\n'); return `<div class="linha-aviso execucao-saida${anim}"><b>${esc(cab)}</b><pre>${esc(resto.join('\n'))}</pre></div>`; }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
   const { html, tabelas } = m.carregando ? { html: esc(m.texto).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + (C.etapa && !C.execucao ? `<p class="dica" role="status">${esc(C.etapa)}</p>` : ''), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
@@ -430,6 +471,26 @@ function ligar() {
         toast('Pedido preparado. Confira o texto e clique em Enviar. Nenhuma nova execução foi iniciada.');
       })();
     }
+    const ex = ev.target.closest('[data-executar]');
+    if (ex) { executarProjeto(Number(ex.dataset.executar), ex.dataset.modo); return; }
+    const pub = ev.target.closest('[data-publicar-site]');
+    if (pub && !pub.disabled) {
+      pub.disabled = true;
+      api(`/api/conversas/${C.conv.id}/arquivos/${pub.dataset.publicarSite}/publicar`, { metodo: 'POST', corpo: {} })
+        .then(r => { toast(`Site publicado: ${r.url}`); return recarregarConversa(true); })
+        .catch(e => { pub.disabled = false; toast(e.message || 'Não foi possível publicar agora.'); });
+      return;
+    }
+    const desp = ev.target.closest('[data-despublicar]');
+    if (desp && !desp.disabled) {
+      desp.disabled = true;
+      api(`/api/sites/${desp.dataset.despublicar}/despublicar`, { metodo: 'POST', corpo: {} })
+        .then(() => { toast('Site tirado do ar.'); return recarregarConversa(true); })
+        .catch(e => { desp.disabled = false; toast(e.message || 'Não foi possível despublicar agora.'); });
+      return;
+    }
+    const cu = ev.target.closest('[data-copiar-url]');
+    if (cu) { copiarTexto(cu.dataset.copiarUrl, cu, 'Endereço copiado.'); return; }
     const pa = ev.target.closest('[data-pedir-acesso]');
     if (pa && !pa.disabled) {
       pa.disabled = true;
@@ -617,6 +678,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
       }
       if (ev.t === 'substituir') resposta.texto = ev.v;   // versão final, depois da conferência de escrita
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
+      if (ev.t === 'fim' && ev.executar) C.executarDepois = ev.executar;
       if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, guardado: ev.guardado, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, qualidade: ev.qualidade, artefatos: ev.artefatos, arquivos: ev.arquivos, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
     }
     // Durante o streaming, atualiza só a bolha da resposta.
@@ -627,6 +689,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
   $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
   await recarregarConversa(true);
+  if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }
   if (manterErro && resposta.erro && $('coluna')) { C.mensagens.push({ ...resposta, id: 'er' + Date.now() }); desenharMensagens(); }
   recarregarLateral();
 }

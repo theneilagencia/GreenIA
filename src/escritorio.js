@@ -163,17 +163,20 @@ export function docx(texto, { titulo = 'Documento', agora, cor, fonte } = {}) {
     else if (b.tipo === 'lista') {
       // Cada lista numerada recomeça do 1 (uma numeração própria); as de marcador usam a mesma.
       let num = 1;
-      if (b.ordenada) { numeros.push(numeros.length + 2); num = numeros.at(-1); }
+      if (b.ordenada) { numeros.push({ id: numeros.length + 2, inicio: b.numeros?.[0] || 1 }); num = numeros.at(-1).id; }
       for (const it of b.itens) corpo.push(par(runs(it), `<w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${num}"/></w:numPr>`));
     } else if (b.tipo === 'tabela') corpo.push(tabelaWord(b.linhas, FUNDO_CAB));
     else if (b.tipo === 'codigo') corpo.push(...(b.linhas.length ? b.linhas : ['']).map(l => par(run(l, { c: true }), '<w:pStyle w:val="Codigo"/>')));
   }
-  const documento = `${XML}<w:document ${W}><w:body>${corpo.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const documento = `${XML}<w:document ${W}><w:body>${corpo.join('')}<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  // Rodapé: nome do documento à esquerda e o número da página à direita (campo PAGE, atualizado pelo Word).
+  const campo = c => `<w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:instrText xml:space="preserve"> ${c} </w:instrText></w:r><w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`;
+  const rodape = `${XML}<w:ftr ${W}><w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="D8D3C8"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="9070"/></w:tabs></w:pPr><w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${x(textoPuro(bs[0]?.tipo === 'titulo' ? bs[0].texto : titulo).slice(0, 90))}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:color w:val="8A877F"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">Página </w:t></w:r>${campo('PAGE')}</w:p></w:ftr>`;
   const estilo = (id, nome, ppr, rpr, extra = '') => `<w:style w:type="paragraph" w:styleId="${id}"><w:name w:val="${nome}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/>${extra}<w:qFormat/><w:pPr>${ppr}</w:pPr><w:rPr>${rpr}</w:rPr></w:style>`;
   const estilos = `${XML}<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${F}" w:hAnsi="${F}" w:eastAsia="${F}" w:cs="${F}"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="pt-BR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>`
     + `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="${TINTA}"/></w:rPr></w:style>`
-    + estilo('Title', 'Title', '<w:spacing w:after="240"/>', `<w:b/><w:color w:val="${VERDE}"/><w:sz w:val="40"/><w:szCs w:val="40"/>`)
-    + estilo('Heading1', 'heading 1', '<w:keepNext/><w:spacing w:before="360" w:after="120"/><w:outlineLvl w:val="0"/>', `<w:b/><w:color w:val="${VERDE}"/><w:sz w:val="32"/><w:szCs w:val="32"/>`)
+    + estilo('Title', 'Title', `<w:pBdr><w:bottom w:val="single" w:sz="18" w:space="10" w:color="${VERDE}"/></w:pBdr><w:spacing w:before="480" w:after="360"/>`, `<w:b/><w:color w:val="${VERDE}"/><w:sz w:val="48"/><w:szCs w:val="48"/>`)
+    + estilo('Heading1', 'heading 1', `<w:keepNext/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="4" w:color="D8D3C8"/></w:pBdr><w:spacing w:before="400" w:after="160"/><w:outlineLvl w:val="0"/>`, `<w:b/><w:color w:val="${VERDE}"/><w:sz w:val="32"/><w:szCs w:val="32"/>`)
     + estilo('Heading2', 'heading 2', '<w:keepNext/><w:spacing w:before="240" w:after="100"/><w:outlineLvl w:val="1"/>', `<w:b/><w:color w:val="${VERDE}"/><w:sz w:val="26"/><w:szCs w:val="26"/>`)
     + estilo('Heading3', 'heading 3', '<w:keepNext/><w:spacing w:before="200" w:after="80"/><w:outlineLvl w:val="2"/>', `<w:b/><w:color w:val="${TINTA}"/><w:sz w:val="24"/><w:szCs w:val="24"/>`)
     + estilo('ListParagraph', 'List Paragraph', '<w:spacing w:after="60"/><w:ind w:left="720"/><w:contextualSpacing/>', '')
@@ -181,14 +184,15 @@ export function docx(texto, { titulo = 'Documento', agora, cor, fonte } = {}) {
     + '</w:styles>';
   const nivel = (fmt, txt) => `<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${txt}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>${fmt === 'bullet' ? '<w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/></w:rPr>' : ''}</w:lvl>`;
   const numeracao = `${XML}<w:numbering ${W}><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/>${nivel('bullet', '')}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/>${nivel('decimal', '%1.')}</w:abstractNum>`
-    + `<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>${numeros.map(n => `<w:num w:numId="${n}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`).join('')}</w:numbering>`;
+    + `<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>${numeros.map(n => `<w:num w:numId="${n.id}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="${n.inicio}"/></w:lvlOverride></w:num>`).join('')}</w:numbering>`;
   return zipar([
-    { nome: '[Content_Types].xml', dados: tipos('', [['/word/document.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'], ['/word/styles.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml'], ['/word/numbering.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml']]) },
+    { nome: '[Content_Types].xml', dados: tipos('', [['/word/document.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'], ['/word/styles.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml'], ['/word/numbering.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml'], ['/word/footer1.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml']]) },
     { nome: '_rels/.rels', dados: relsRaiz('word/document.xml') },
     { nome: 'word/document.xml', dados: documento },
     { nome: 'word/styles.xml', dados: estilos },
     { nome: 'word/numbering.xml', dados: numeracao },
-    { nome: 'word/_rels/document.xml.rels', dados: rels([['rId1', 'styles', 'styles.xml'], ['rId2', 'numbering', 'numbering.xml']]) },
+    { nome: 'word/footer1.xml', dados: rodape },
+    { nome: 'word/_rels/document.xml.rels', dados: rels([['rId1', 'styles', 'styles.xml'], ['rId2', 'numbering', 'numbering.xml'], ['rId3', 'footer', 'footer1.xml']]) },
     { nome: 'docProps/core.xml', dados: core(textoPuro(titulo), agora) },
     { nome: 'docProps/app.xml', dados: app('GreenIA') },
   ]);

@@ -539,6 +539,13 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
     // Junção pedida que o plano não fez: pede de novo uma vez; se continuar separada, a plataforma junta os dois
     // slides (o conteúdo do segundo vai para o primeiro, com o título "A e B").
     const pares = juncoesPedidas(pedido);
+    // Slide que juntou as duas partes pedidas mas ficou com o título de uma só: o título passa a citar as duas.
+    if (slides) for (const [a, b] of pares) for (const s of slides) {
+      const [t, ...r] = s.conteudo.split('\n'), tt = semAcento(t), corpo = semAcento(r.join(' '));
+      const fonteDe = n => semAcento(slidesDaFonte(fonte).find(x => semAcento(x.split('\n')[0]).includes(n)) || '');
+      const temDe = n => { const linhas = fonteDe(n).split('\n').slice(1).map(l => l.replace(/^[•\-\s]+/, '').slice(0, 25)).filter(Boolean); return linhas.some(l => corpo.includes(l)); };
+      if (tt.includes(a) !== tt.includes(b) && temDe(a) && temDe(b)) s.conteudo = [`${t.trim()} e ${(tt.includes(a) ? b : a).replace(/^./, c => c.toUpperCase())}`, ...r].join('\n');
+    }
     if (slides && juncoesNaoFeitas(slides, pares).length) {
       try {
         const falta = juncoesNaoFeitas(slides, pares).map(f => `"${f.a}" e "${f.b}"`).join(', ');
@@ -619,8 +626,15 @@ async function reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes
           { role: 'user', content: `<material>\n${String(fontes).slice(0, 60000)}\n</material>\n\nPedido: ${pedido || ''}\n\nBlocos da apresentação:\n${blocos.join('\n')}` },
         ]);
         custo += x.custo || 0; economia += x.economia || 0;
-        const ids = new Set(paginas.flatMap(p => p.blocos.map(b => b.id)));
+        // Só os blocos enviados para conferência podem sair (nunca o título).
+        const ids = new Set(blocos.map(l => l.split(' ')[0])), antes = { ...textos };
         for (const id of lerJson(x.texto)?.remover || []) if (ids.has(String(id))) textos[String(id)] = '';
+        // A conferência não esvazia um slide: se tirou tudo além do título, voltam as linhas do plano (já
+        // conferidas pelas regras de números e palavras). QA em produção: o slide de evidências saiu só com o título.
+        paginas.forEach(p => {
+          const corpo = p.blocos.filter(b => antes[b.id] && papelDoBloco(b, p.blocos) !== 'título' && !/^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto));
+          if (corpo.length && corpo.every(b => !textos[b.id])) for (const b of corpo) textos[b.id] = antes[b.id];
+        });
       }
     } catch { /* fica o conteúdo do plano, já conferido pelas regras */ }
   }

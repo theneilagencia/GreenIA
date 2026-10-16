@@ -133,3 +133,13 @@ test('conferência de sentido: frase que afirma o que o material não diz sai; o
   assert.equal(r.textos['1.2'], '• Essencial: R$ 38/ha/ano');
   assert.equal(r.textos['1.3'], '');
 });
+
+test('conferência de sentido não esvazia slide; slide que juntou as duas partes ganha o título das duas', async () => {
+  const paginas = paginasDoPlano(MODELO, [{ pagina: 1 }]);
+  const r = await adaptarModelo({ paginas, contexto: FONTE, pedido: 'design', conteudos: ['Evidências\n• Relatórios do sistema\n• Folha mensal'], material: FONTE,
+    chamar: async () => ({ texto: JSON.stringify({ remover: paginas[0].blocos.map(b => b.id) }) }) });
+  assert.equal(r.textos['1.1'], 'Evidências');
+  assert.match(Object.values(r.textos).join(' '), /Relatórios do sistema/);
+  const p = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: FONTE, pedido: 'os slides de Resultados e Planos podem virar um só', chamar: async () => ({ texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense' }, { pagina: 2, conteudo: 'Resultados\n• -26% água\n• Essencial: R$ 38/ha/ano' }, { pagina: 3, conteudo: 'Próximos passos\n• Visita técnica gratuita' }] }) }) });
+  assert.equal(p.slides[1].conteudo.split('\n')[0], 'Resultados e Planos');
+});

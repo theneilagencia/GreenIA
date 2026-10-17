@@ -1,3 +1,4 @@
+import { acessoAdvanced, conferirAdvanced } from './advanced.js';
 // Roteamento de modelos: antes de cada envio, a GreenIA analisa o pedido e escolhe o modelo mais
 // adequado entre os que a empresa permite. A ordem é esta, e cada etapa só usa o que a anterior produziu:
 //
@@ -262,10 +263,10 @@ export const RESTRICOES = [
   // Proteção proporcional (sigilo.js): o recurso precisa oferecer o nível que o conteúdo exige. Dado pessoal e
   // área reforçada exigem fornecedor fixo e pedido sem treino, e não homologação (essa é do conteúdo sigiloso).
   ['protecao_insuficiente', (c, x) => (c.m.protecao ?? 0) < x.protecao],   // sem nível calculado: fora (fail closed)
-  ['sem_acesso_a_classe', (c, x) => !x.perfis.has(c.classe) && !(x.qw && c.classe === x.classeQw)],
+  ['sem_acesso_a_classe', (c, x) => c.acessoNegado || (!x.perfis.has(c.classe) && !(c.classe !== 'avancado' && x.qw && c.classe === x.classeQw))],
   ['contexto_insuficiente', (c, x) => !cabe(c.m, x.req.janelaMinima)],
 ];
-const GOVERNANCA = ['fora_do_catalogo', 'nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'protecao_insuficiente', 'sem_acesso_a_classe', 'contexto_insuficiente'];
+const GOVERNANCA = ['advanced_seguranca','advanced_indisponivel','advanced_ferramenta','advanced_sem_autorizacao','fora_do_catalogo', 'nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'protecao_insuficiente', 'sem_acesso_a_classe', 'contexto_insuficiente'];
 
 // PREFERÊNCIAS (soft): só ordenam os modelos que passaram por todas as restrições.
 // C: custo (log da razão sobre o mais barato do conjunto); Q: margem de capacidade relevante;
@@ -342,10 +343,12 @@ export function desempenhoRecente(db, agora = new Date()) {
  * @param {object} ctx { db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual, origem }
  *   origem: 'auto' | 'pessoa' | 'quick_win' | 'padrao' (de onde veio o pedido de classe)
  */
-export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, dadosPessoais = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [], agora = new Date() }) {
+export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, dadosPessoais = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [], conversaId = null, agora = new Date() }) {
   // Nível de proteção que o conteúdo exige: 3 sigiloso; 2 dado pessoal ou área reforçada; 1 comum.
   const protecao = sigilosa ? 3 : (reforcada || dadosPessoais) ? 2 : 1;
   const a = analise, perfis = perfisDe(cfg, pessoa);
+  if (acessoAdvanced(db,pessoa.id,null,conversaId,agora.toISOString())) perfis.add('avancado');
+  else perfis.delete('avancado');
   // excluir: recursos que já falharam nesta solicitação (a busca por outro recurso elegível passa pelas mesmas regras).
   const desempenho = desempenhoRecente(db, agora);
   const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO && !excluir.includes(m.id));
@@ -369,7 +372,9 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   const candidatos = lista.map(m => {
     const c = { id: m.id, classe: m.perfil, nivel: NIVEL[m.perfil] || 1, cap: capacidadesDe(m), explicitas: !!m.capacidades, contexto: m.contexto,
       custo: custoDe(m, a.tokens.custoEntrada, a.tokens.saida), cabeTudo: cabe(m, req.janelaDesejada), padrao: cfg.padroes[m.perfil] === m.id, desempenho: desempenho.get(m.id) || null, afinidade: afinidadeDaTarefa(m.id, a.tipos), m };
+    if (m.perfil === 'avancado' && !acessoAdvanced(db,pessoa.id,m.id,conversaId,agora.toISOString())) c.acessoNegado = true;
     c.motivos = RESTRICOES.filter(([, viola]) => viola(c, x)).map(([cod]) => cod);
+    if(m.perfil==='avancado'&&!c.acessoNegado){try{conferirAdvanced({db,agora:()=>agora},pessoa.id,m.id,conversaId,{sigilosa,fornecedor:sigilosa?m.homologacao?.endpoint:null});}catch(e){c.motivos.push(e.codigo||'advanced_indisponivel');}}
     return c;
   });
   const permitido = c => !c.motivos.some(y => GOVERNANCA.includes(y));
@@ -387,7 +392,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
       const rel = (c.custo != null && c.custo > 0 ? c.custo : max * 1.5) / min;   // sem preço: tratado como mais caro
       c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao) + P.H * Number(c.cabeTudo) - (c.desempenho?.penalidade || 0) + (afinidade && P.Q > 0 && c.custo != null && c.custo <= min * 1.5 ? c.afinidade : 0)) * 1000) / 1000;
     }
-    return vivos.slice().sort((p, q) => q.utilidade - p.utilidade || (p.custo ?? Infinity) - (q.custo ?? Infinity) || p.id.localeCompare(q.id));
+    return vivos.slice().sort((p, q) => (p.custo ?? Infinity) - (q.custo ?? Infinity) || q.utilidade - p.utilidade || p.id.localeCompare(q.id));
   };
 
   let escolhido = null, modo = 'automatico', motivoEscolha = null, fallback = null;
@@ -420,7 +425,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     escolhido = candidatos.find(c => c.id === modeloManual.id);
     if (!escolhido) return semModelo('modelo_pedido_fora_da_lista');
     // A classe pedida já passou pela validação de acesso; aqui decidem janela e regras.
-    const bloqueio = escolhido.motivos.filter(y => GOVERNANCA.includes(y) && y !== 'sem_acesso_a_classe');
+    const bloqueio = escolhido.motivos.filter(y => GOVERNANCA.includes(y));
     if (bloqueio.includes('contexto_insuficiente') && bloqueio.length === 1) {
       // Troca por janela: quick win fixo só dentro da classe dele (e nunca se fixou um modelo técnico);
       // escolha da pessoa, para a mesma classe ou maior.
@@ -465,13 +470,13 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
 
   // Qualidade explicitamente exigida não aceita o fallback de menor capacidade.
   // As permissões e as rotas de proteção continuam decidindo quem é elegível.
-  if (req.qualidadeExigida && escolhido.motivos.includes('capacidade_insuficiente')) return semModelo('qualidade_nao_disponivel');
+  if (escolhido.motivos.includes('capacidade_insuficiente')) return semModelo('qualidade_nao_disponivel');
   // Reserva de execução (outro modelo, se o escolhido falhar no fornecedor): só se passar pelas mesmas regras.
   let reserva = null, reservaDescartada = null;
   const idReserva = escolhido.m?.reserva;
   if (idReserva && modo !== 'externo') {
     const r = candidatos.find(c => c.id === idReserva);
-    const bloqueio = !r ? ['reserva_nao_liberada'] : r.motivos.filter(y => GOVERNANCA.includes(y) && !(y === 'sem_acesso_a_classe' && r.classe === escolhido.classe));
+    const bloqueio = !r ? ['reserva_nao_liberada'] : r.motivos.filter(y => GOVERNANCA.includes(y));
     if (sigilosa) reservaDescartada = 'sigilosa_sem_reserva';
     else if (bloqueio.length) reservaDescartada = bloqueio[0];
     else if (r.nivel < escolhido.nivel || DIM_CAPACIDADE.some(d => r.cap[d] < Math.min(escolhido.cap[d], req.capacidade[d] || 0))) reservaDescartada = 'reserva_de_classe_inferior';
@@ -485,6 +490,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     reserva = pontuar(outraOrigem.length ? outraOrigem : alternativas, { margem: false })[0]?.id || null;
   }
 
+  if (escolhido.classe === 'avancado') reserva = null;
   const ref = candidatos.find(c => c.id === cfg.padroes.avancado) || candidatos.filter(c => c.nivel === 3)[0];
   const menorNivelSuficiente = suficientes.length ? Math.min(...suficientes.map(c => c.nivel)) : null;
   const calibracao = {
@@ -527,7 +533,7 @@ const qwClasse = (qw, lista) => (qw?.modelo?.startsWith('classe:') ? qw.modelo.s
 // (janela × margem − instruções − documentos − reserva de saída), com a razão segura de caracteres por token.
 export function orcamentoHistorico(analise, modelo) {
   const t = analise.tokens, janela = (modelo?.contexto || 32000) * MARGEM_JANELA;
-  return Math.max(0, Math.floor((janela - t.fixo - t.reservaSaida) * t.razaoSegura));
+  return Math.max(0, Math.floor((janela - t.fixo - (modelo?.perfil==='avancado'?Math.max(t.reservaSaida,32768):t.reservaSaida)) * t.razaoSegura));
 }
 
 // Textos da explicação: um por código. A explicação só usa códigos presentes na decisão.

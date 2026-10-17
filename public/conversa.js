@@ -1,3 +1,4 @@
+import { painelAdvancedChat } from '/advanced.js';
 import { eventosDaResposta } from '/fluxo-resposta.js';
 import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
 import { confirmar } from '/admin-ui.js';
@@ -53,6 +54,7 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
     materialEmRevisao = null;
   }
   desenhar();
+  atualizarAdvanced();
   if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.textoRetomado) { $('entrada').value = C.textoRetomado; ajustarAltura(); atualizarEnviar(); }
   // Conversa vazia no computador: o cursor já fica na caixa, como nos assistentes de chat. No celular, não abre o
@@ -63,7 +65,7 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
 }
 
 async function carregarModelos() {
-  const q = new URLSearchParams({ sigilosa: C.conv?.sigilosa ? '1' : '0', ...(C.qw ? { quick_win: C.qw.id } : {}) });
+  const q = new URLSearchParams({ conversa:C.conv?.id||'', sigilosa: C.conv?.sigilosa ? '1' : '0', ...(C.qw ? { quick_win: C.qw.id } : {}) });
   const s = C, m = await api(`/api/modelos?${q}`);
   if (C !== s) return;
   C.opcoes = m.opcoes;
@@ -89,6 +91,7 @@ function desenhar() {
   const sig = !!conv?.sigilosa;
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
   $('principal').innerHTML = `
+    <div id="advanced-chat" aria-live="polite"></div>
     ${cabecalho(titulo(), conv ? `<button type="button" class="icone-btn hc-acoes acoes-conversa" id="acoes-conversa" data-hc-acoes="${conv.id}" aria-label="Ações da conversa" title="Ações da conversa" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button>` : '')}
     ${qw ? `<div class="barra-conversa"><a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste: não conta nos resultados</span>' : qw.v2 || !qw.podeEditar ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}</div>` : ''}
     ${qw && !qw.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Não entra nos resultados. Quando estiver bom, publique para a equipe.', 'info',
@@ -711,7 +714,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
   const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
   let r;
-  try { r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true }); }
+  try { r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(reenvio?.advanced_alternativa?{advanced_alternativa:reenvio.advanced_alternativa}:{}), ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true }); }
   catch { C.enviando = false; C.pensando = false; desenharMensagens(); atualizarEnviar(); toast('A conexão falhou. Confira a conversa antes de enviar de novo.'); return; }
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
@@ -729,6 +732,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     if (!reenvio) { $('entrada').value = texto; C.anexos = anexos; desenharAnexos(); ajustarAltura(); }
     C.mensagens.push({ id: 'er' + Date.now(), papel: 'assistant', texto: d.mensagem || 'Não foi possível enviar.', erro: true });
     C.enviando = false; desenharMensagens(); atualizarEnviar();
+    atualizarAdvanced();
     return;
   }
   await receberResposta(r);
@@ -859,4 +863,14 @@ async function recarregarConversa(redesenharTudo) {
   const noFim = C.noFim;
   desenhar();
   C.noFim = noFim; rolarSeNoFim();
+}
+
+function atualizarAdvanced() {
+  const estado=C;
+  painelAdvancedChat(C.conv?.id, async corpo=>{
+    if(C!==estado||C.enviando)return;
+    await carregarModelos();
+    C.modelo=corpo.advanced_alternativa?'classe:auto':'classe:avancado';
+    await enviar({texto:corpo.texto,advanced_alternativa:corpo.advanced_alternativa,anexos:[...(corpo.anexos||[]),...(corpo.links||[]).map(l=>({...l,link:true}))]},{executar:corpo.executar_quick_win===true});
+  }).catch(()=>{});
 }

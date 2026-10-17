@@ -1,3 +1,5 @@
+import { erro as ErroAdvanced } from './http.js';
+import { reservarAdvanced, liquidarAdvanced, politicaModeloAdvanced } from './advanced.js';
 // Registro do custo de IA: todo custo cobrado pelo provedor vira crédito, mesmo quando a chamada não chega ao
 // fim do caminho feliz. Antes, o custo só entrava em `uso` pelo que cada rota somava à mão, e escapava em: stream
 // interrompido ou com erro (o custo nunca chega), chamada refeita na reavaliação de autonomia (o custo da primeira era
@@ -60,13 +62,14 @@ function ajustar(app, ctx, custo, origem) {
   } catch (e) { app.log?.('custo de IA', e.message); }   // banco fechado (fim de teste, desligamento): nada a fazer
 }
 // Custo de uma chamada que não devolveu o custo: buscado no provedor, sem segurar o pedido.
-function recuperar(app, ia, geracao, ctx, modelo) {
+function recuperar(app, ia, geracao, ctx, modelo, advanced = null) {
   if (!geracao || typeof ia.custoDaGeracao !== 'function') return;
   const esperas = app.esperasCustoIaMs || ESPERAS_MS;
   let i = 0;
   const tentar = async () => {
     const custo = await ia.custoDaGeracao(geracao).catch(() => null);
     if (custo === null && i < esperas.length - 1) { i++; setTimeout(tentar, esperas[i]).unref?.(); return; }
+    if (custo !== null) liquidarAdvanced(app, advanced, custo, geracao);
     if (!(custo > 0)) return;
     if (ctx && !ctx.fechado) { ctx.cobrado += custo; ctx.modelo ??= modelo; return; }
     if (ctx) ctx.modelo ??= modelo;
@@ -89,10 +92,14 @@ export function contabilizarIA(app, ia) {
 async function* enviarContado(app, ia, mensagens, op) {
   op = opcoesCancelaveis(op);
   const ctx = ALS.getStore();
+  const advanced = reservarAdvanced(app, ctx, mensagens, op);
+  if (advanced) op = advanced.op;
   let geracao = null, entregue = false;
   try {
     for await (const ev of ia.enviar(mensagens, { ...op, aoGerar: g => { geracao ??= g; } })) {
       if (ev.tipo === 'fim') {
+        liquidarAdvanced(app, advanced, ev.custoConfirmado === false ? null : ev.custo, geracao);
+        if(advanced && ev.custoConfirmado === false) recuperar(app,ia,geracao,ctx,op.modelo,advanced);
         entregue = true;
         if (ctx) { ctx.cobrado += Number(ev.custo) || 0; ctx.modelo = ev.modelo || op.modelo || ctx.modelo; }
       }
@@ -100,12 +107,16 @@ async function* enviarContado(app, ia, mensagens, op) {
       op.sinal?.throwIfAborted();
     }
   } finally {
-    if (!entregue) recuperar(app, ia, geracao, ctx, op.modelo);
+    if (!entregue) {
+      liquidarAdvanced(app, advanced, null, geracao);
+      recuperar(app, ia, geracao, ctx, op.modelo, advanced);
+    }
   }
 }
 async function imagemContada(app, ia, prompt, op) {
   op = opcoesCancelaveis(op);
   const ctx = ALS.getStore();
+  if (politicaModeloAdvanced(app.db,op.modelo)?.perfil === 'avancado') throw ErroAdvanced(409,'advanced_ferramenta','Esta rota Advanced não está aprovada para geração de imagens.');
   try {
     const g = await ia.gerarImagem(prompt, op);
     if (ctx) { ctx.cobrado += Number(g?.custo) || 0; ctx.modelo ??= g?.modelo || op.modelo; }

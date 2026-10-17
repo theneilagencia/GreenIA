@@ -155,7 +155,7 @@ for (const status of [503, 429]) {
   });
 }
 
-test('indisponível com segundo recurso homologado: o fallback usa a rota fixada DELE, nunca a do primeiro nem uma livre', async () => {
+test('indisponível: homologação não concede Advanced ao fallback sem autorização administrativa', async () => {
   catalogo(S.app, { [EQUILIBRADO]: ROTA('anthropic'), [AVANCADO]: ROTA('anthropic-b') });
   OR.statusFalha = 429; OR.falhar.add(EQUILIBRADO);
   try {
@@ -163,7 +163,8 @@ test('indisponível com segundo recurso homologado: o fallback usa a rota fixada
     const r = await enviarMensagem(ana, (await sigilosa()).id, { texto: SINTETICO });
     assert.equal(r.status, 200);
     const corpos = desde(m);
-    assert.deepEqual(corpos.map(b => [b.model, b.provider.only[0]]), [[EQUILIBRADO, 'anthropic'], [AVANCADO, 'anthropic-b']]);
+    assert.deepEqual(corpos.map(b => [b.model, b.provider.only[0]]), [[EQUILIBRADO, 'anthropic']]);
+    assert.ok(r.falha,'sem concessão Advanced, informa impedimento em vez de escalar');
     for (const b of corpos) assert.deepEqual(b.provider, FIXADA(b.provider.only[0]));
   } finally { OR.falhar.clear(); OR.statusFalha = 503; }
 });
@@ -185,7 +186,7 @@ test('gerar de novo: mesma rota fixada; autorização retirada → nada é envia
   assert.equal(desde(m).length, 0);
 });
 
-test('reserva do plano (só Rápido): sigilosa só pelo Rápido homologado e fixado; sem ele, nada sai (nunca o Rápido livre)', async () => {
+test('reserva do plano não reduz a capacidade necessária, mesmo com Rápido homologado', async () => {
   const OR2 = await openRouterFalso({ custo: 0.04 });
   const S2 = await subir({ ia: OR2.ia, plano: { creditos: 1, reserva: 100, precoUsd: 100 } });
   try {
@@ -195,13 +196,13 @@ test('reserva do plano (só Rápido): sigilosa só pelo Rápido homologado e fix
     catalogo(S2.app, { [EQUILIBRADO]: ROTA('anthropic') });
     let m = marca(OR2);
     let r = await enviarMensagem(adm, (await sigilosa(adm)).id, { texto: SINTETICO });
-    assert.equal(r.status, 409);
+    assert.equal(r.status, 402);
     assert.equal(desde(m, OR2).length, 0, 'na reserva, o Rápido não homologado nunca recebe a sigilosa');
     catalogo(S2.app, { [RAPIDO]: ROTA('google-vertex') });
     m = marca(OR2);
     r = await enviarMensagem(adm, (await sigilosa(adm)).id, { texto: SINTETICO });
-    assert.equal(r.status, 200, JSON.stringify(r.erro));
-    soRotaFixada(desde(m, OR2), [RAPIDO], 'google-vertex');
+    assert.equal(r.status, 402, JSON.stringify(r.erro));
+    assert.equal(desde(m, OR2).length,0,'a homologação do Rápido não atende a exigência do pedido');
   } finally { await S2.fechar(); await OR2.fechar(); }
 });
 

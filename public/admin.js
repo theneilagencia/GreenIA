@@ -1,3 +1,4 @@
+import { painelAdvancedAdmin } from '/advanced.js';
 import { nomeEvento } from '/jornadas.js';
 import { corpoAuditoria, resumoAuditoria } from '/auditoria-detalhe.js';
 import { ligarVisao } from '/preferencias.js';
@@ -192,6 +193,7 @@ async function abaModelos() {
   };
   // O formulário cobre a tela inteira, para a barra de salvar ficar presa ao pé da tela; no modo recomendado, ela só
   // aparece depois de "Ajustar manualmente".
+  await painelAdvancedAdmin($('conteudo'));
   vigiarAlteracoes($('cfg-modelos'), { barra: $('modelos-salvar') });
   document.querySelector('[aria-controls="modelos-manuais"]')?.addEventListener('click', () => setTimeout(() => { $('modelos-salvar').hidden = $('modelos-manuais').hidden; }));
 }

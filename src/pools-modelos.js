@@ -7,9 +7,10 @@ export const POOLS_RECOMENDADOS = [
   { id: 'anthropic/claude-haiku-4.5', perfil: 'equilibrado' },
   { id: 'openai/gpt-5.4-mini', perfil: 'equilibrado' },
   { id: 'google/gemini-3.8-flash', perfil: 'equilibrado' },
-  { id: 'anthropic/claude-sonnet-5', perfil: 'avancado' },
-  { id: 'openai/gpt-5.5', perfil: 'avancado' },
-  { id: 'google/gemini-3.5-flash', perfil: 'avancado' },
+  { id: 'anthropic/claude-opus-5.5', perfil: 'avancado' },
+  { id: 'anthropic/claude-sonnet-5.5', perfil: 'avancado' },
+  { id: 'openai/gpt-5.6-sol', perfil: 'avancado' },
+  { id: 'google/gemini-3.1-pro-preview', perfil: 'avancado' },
 ];
 // Tetos para inclusão automática; custos maiores exigem uma decisão manual da empresa.
 export const TETOS = { rapido: [0.5, 3], equilibrado: [1.5, 10], avancado: [5, 30] };
@@ -29,9 +30,9 @@ const AFINIDADES = {
   'anthropic/claude-haiku-4.5': ['redacao','sintese','traducao'],
   'openai/gpt-5.4-mini': ['programacao','raciocinio'],
   'google/gemini-3.8-flash': ['analise','extracao'],
-  'anthropic/claude-sonnet-5': ['programacao','redacao'],
-  'openai/gpt-5.5': ['raciocinio','analise'],
-  'google/gemini-3.5-flash': ['sintese','extracao'],
+  'anthropic/claude-sonnet-5.5': ['programacao','redacao'],
+  'openai/gpt-5.6-sol': ['raciocinio','analise'],
+  'google/gemini-3.1-pro-preview': ['sintese','extracao'],
 };
 // Tarefas em que o modelo se destaca na curadoria (para explicar uma sugestão em palavras simples).
 export const tarefasDoModelo = id => AFINIDADES[id] || [];

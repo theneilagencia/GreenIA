@@ -1,3 +1,4 @@
+import { ESQUEMA_ADVANCED } from './advanced-schema.js';
 import { ESQUEMA_PAINEIS } from './paineis-modelos.js';
 import { ESQUEMA_PROGRAMACAO } from './qw-programacao-schema.js';
 import { fazerBackupLocal } from './backup.js';
@@ -278,6 +279,7 @@ export function abrirBanco(arquivo = ':memory:') {
   }
   db.exec(ESQUEMA);
   db.exec(ESQUEMA_GOV);
+  transacao(db, () => db.exec(ESQUEMA_ADVANCED));
   transacao(db,()=>db.exec(ESQUEMA_PROGRAMACAO));
   transacao(db,()=>db.exec(ESQUEMA_PAINEIS));
   // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.

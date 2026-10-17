@@ -1,3 +1,4 @@
+import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
@@ -724,6 +725,14 @@ export function rotasConversas(app, r) {
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
+    let alternativaOriginal = null;
+    if(corpo.advanced_alternativa){
+      const p=um(app.db,'select * from advanced_pedidos where id = ? and pessoa_id = ? and conversa_id = ? and alternativa = 1',Number(corpo.advanced_alternativa),pessoa.id,conv.id);
+      if(!p||qw)throw erro(403,'alternativa','Alternativa não autorizada para esta conversa.');
+      alternativaOriginal=json(p.corpo,{});
+      corpo={...alternativaOriginal,modelo:AUTOMATICO,texto:'Faça somente uma síntese preliminar de até 600 palavras sobre o objetivo e os materiais fornecidos. Escopo reduzido escolhido pelo usuário: sem arquivos finais, sem reformulação visual, sem análise aprofundada ou conclusões definitivas. Identifique claramente estas limitações na resposta e não afirme ter cumprido o pedido integral.'};
+      registrar(app,'advanced.alternative_started',pessoa.id,{pedido:p.id,conversa:conv.id});
+    }
     let repeticao = null;
     const regeracao = regerar ? alvoDaRegeracao(conv, qw, corpo.mensagem_id) : null;
     if (regeracao) corpo = { texto: regeracao.texto, modelo: corpo.modelo };
@@ -838,6 +847,7 @@ export function rotasConversas(app, r) {
     // O pedido anterior só ajuda a achar o assunto: com segredo, não entra (o histórico já é barrado mais adiante).
     const consulta = consultaDeSeguimento(texto, anterior && !anterior.startsWith('[') && !contemCredencial(anterior) ? anterior : '');
     const ctx = await (app.contexto?.montar(pessoa, qw, consulta) ?? { partes: [], fontes: [], sigiloso: false });
+    if(alternativaOriginal){const t=delimitar('objetivo_original','Objetivo do trabalho completo, usado somente para contextualizar a síntese reduzida',String(alternativaOriginal.texto||''));ctx.partes.push(t);ctx.pecas?.push({origem:'contexto',texto:t});}
     // Área com política de sigilo: proteção reforçada. O conteúdo (mensagem e anexos) é avaliado com mais
     // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.
     const areaReforcada = reforcada(app, pessoa, qw);
@@ -1008,6 +1018,16 @@ export function rotasConversas(app, r) {
       app.log?.('análise do pedido', erroParaLog(e));
       analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
     }
+    const prepararAdvanced = requisitos => {
+      let alternativa=false;
+      if(!qw&&!alternativaOriginal){
+        const resumo=analisarPedido({...entradaAnalise,texto:'Resuma os materiais em até 600 palavras.',temResposta:false,anterior:null,feedback:null,dependencias:null});
+        const r=rotear({db:app.db,cfg,pessoa,conversaId:conv.id,sigilosa,reforcada:areaReforcada,dadosPessoais,reservaDoPlano:plano?.fase==='reserva',analise:resumo,pedido:AUTOMATICO,agora:app.agora()});
+        alternativa=!!r.modelo&&r.modelo.perfil!=='avancado';
+      }
+      const estimativas=lerModelos(app.db).filter(m=>m.perfil==='avancado'&&m.noCatalogo&&Number.isFinite(m.precoEntrada)&&Number.isFinite(m.precoSaida)).map(m=>m.precoEntrada*((analise.tokens?.fixo||0)+(analise.tokens?.mensagem||0)+(analise.tokens?.historico||0))+m.precoSaida*32768);
+      return prepararPedidoAdvanced(app,pessoa,conv,corpo,requisitos,estimativas.length?Math.min(...estimativas):null,!tipos.some(t=>(cfg.naoArmazenar||[]).includes(t)),alternativa);
+    };
     // Política da empresa para informação sigilosa (camada central, sigilo.js). Desligada: nada é enviado.
     const decisaoSigilo = avaliarProcessamentoSigiloso({ cfg, sigilosa });
     if (!decisaoSigilo.permitido) {
@@ -1028,7 +1048,7 @@ export function rotasConversas(app, r) {
     let manual = null, trocaDoPlano = false, substituida = null, motivoSolicitado = null;
     if (!automatico) {
       try {
-        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
+        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa, conversaId:conv.id });
         if (ehClasse(pedido) && (areaReforcada || dadosPessoais) && (manual.protecao ?? 0) < 2) {
           manual = lerModelos(app.db).find(m => m.liberado && m.noCatalogo && m.perfil === manual.perfil && (m.protecao ?? 0) >= 2 && (!sigilosa || m.homologado)) || manual;
         }
@@ -1045,6 +1065,7 @@ export function rotasConversas(app, r) {
         }
       } catch (e) {
         if (!e.motivo && !e.codigo) throw e;   // erro inesperado: não é uma regra de governança
+        if (e.codigo === 'advanced_sem_autorizacao') prepararAdvanced({complexidade:analise.complexidade,dimensoes:{capacidade_solicitada:3}});
         motivoSolicitado = motivoDoPedido(app, cfg, e, pedido, sigilosa);
         // Quick win fixo sem o modelo dele: quem gere é avisado; quem usa segue no automático, na mesma governança.
         if (qwFixo && !sigilosa && e.codigo !== 'plano_reserva') await avisarGovernanca(app, 'quick_win_sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
@@ -1054,14 +1075,19 @@ export function rotasConversas(app, r) {
       }
     }
     const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'externo' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
-    let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, agora: app.agora(), modeloManual: manual, origem: substituida ? 'auto' : origem });
+    let rota = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, agora: app.agora(), modeloManual: manual, origem: substituida ? 'auto' : origem });
+    const advancedExigido = rota.requisitos.classe === 'avancado' || classePedida === 'avancado' || pedido === 'classe:avancado';
+    if (advancedExigido && !acessoAdvanced(app.db,pessoa.id,null,conv.id,AGORA(app))) {
+      prepararAdvanced(rota.requisitos);
+    }
+    if (reservaDoPlano && rota.requisitos.nivel > 1) throw erro(402,'orcamento_insuficiente','O plano está no limite e não comporta a capacidade exigida. Solicite créditos ao administrador; o pedido não será reduzido automaticamente.');
     // Modelo solicitado que passou pela validação mas o roteador recusou (janela, política, classe mínima):
     // mesma resolução, no automático, com o mesmo registro. Quick win e padrão da empresa seguem as regras deles.
     if (!rota.modelo && manual && origem === 'pessoa' && manual.id !== AUTO) {
       motivoSolicitado = MOTIVO_DA_CAUSA[rota.fallback?.causa] || 'requested_model_not_available';
       substituida = { tipo: 'escolha_substituida', motivo: rota.fallback?.causa || 'indisponivel', classePedida: String(pedido).replace(/^classe:/, '') };
       manual = null; trocaDoPlano = false; automatico = true;
-      rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, agora: app.agora(), modeloManual: null, origem: 'auto' });
+      rota = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, agora: app.agora(), modeloManual: null, origem: 'auto' });
     }
     if (trocaDoPlano) { rota.fallback = rota.fallback || { tipo: 'trocado_pela_reserva_do_plano', classePedida }; motivoSolicitado = 'requested_model_plan_restricted'; }
     if (rota.fallback?.tipo === 'trocado_por_falta_de_contexto' && origem === 'pessoa') motivoSolicitado = 'requested_model_context_limit';
@@ -1104,6 +1130,8 @@ export function rotasConversas(app, r) {
       const naoCabeEmNenhum = rota.candidatos.length && rota.candidatos.every(c => c.motivos.includes('contexto_insuficiente'));
       const grande = naoCabeEmNenhum || (causas.includes('contexto_insuficiente') && !causas.some(c => ['nao_homologado', 'sem_acesso_a_classe', 'plano_na_reserva'].includes(c)));
       gravarRota(null, 'bloqueado', grande ? 'conteudo_grande_demais' : sigilosa ? 'sem_recurso_elegivel' : reservaDoPlano ? 'sem_recurso_na_reserva_do_plano' : 'sem_recurso_disponivel');
+      const impedimento=causas.find(c=>['advanced_seguranca','advanced_indisponivel','advanced_ferramenta'].includes(c));
+      if(impedimento)throw erro(409,impedimento,{advanced_seguranca:'As rotas Advanced não cumprem a aprovação de segurança exigida. Solicite a revisão das rotas; liberar acesso não remove essa restrição.',advanced_indisponivel:'Não há modelo e provedor Advanced disponíveis com catálogo confirmado. Atualize o catálogo ou autorize uma alternativa de capacidade adequada.',advanced_ferramenta:'A ferramenta ou o limite de saída necessário não está confirmado. O administrador precisa revisar os recursos antes da execução.'}[impedimento]);
       if (grande)
         throw erro(413, 'grande_demais', MSG_USUARIO.grande, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);   // o material em si é grande demais para qualquer modelo permitido
       await avisarGovernanca(app, sigilosa ? 'sem_modelo_sigilo' : reservaDoPlano ? 'plano_reserva' : 'sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
@@ -1120,6 +1148,7 @@ export function rotasConversas(app, r) {
     const conferirEnvio = recurso => {
       const cfgAgora = lerConfig(app.db);
       const atual = acharModelo(app.db, cfgAgora, recurso.id);
+      conferirAdvanced(app,pessoa.id,recurso.id,conv.id,{sigilosa,fornecedor:sigilosa?atual?.homologacao?.endpoint:null});
       if (!atual?.liberado) throw erro(503, 'sem_modelo', MSG_USUARIO.indisponivel);
       const d = avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa, recurso: sigilosa ? atual : undefined });
       if (!d.permitido) throw erro(409, 'sem_modelo_autorizado', d.motivo === 'politica_sigilo_desligada' ? MSG_USUARIO.sigilo_desligado : MSG_USUARIO.sigilo);
@@ -1312,7 +1341,7 @@ export function rotasConversas(app, r) {
       } catch (e) {
         falha = e;
         if (sinalAnaliseArquivo?.aborted || !sigilosa || resposta || tentados.length >= 3 || (qwFixo && !ehClasse(qw.modelo))) break;
-        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: !automatico && ehClasse(pedido) ? pedido : AUTOMATICO, analise, agora: app.agora(), modeloManual: !automatico && ehClasse(pedido) ? manual : null, origem: !automatico ? origem : 'auto', excluir: tentados });
+        const alt = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: !automatico && ehClasse(pedido) ? pedido : AUTOMATICO, analise, agora: app.agora(), modeloManual: !automatico && ehClasse(pedido) ? manual : null, origem: !automatico ? origem : 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }), nova_rota: alt.modelo.id });
@@ -1336,7 +1365,7 @@ export function rotasConversas(app, r) {
       // O detalhe técnico (provedor, código, modelo) fica no evento; quem usa recebe uma mensagem orientada à tarefa.
       const fora = [401, 402, 503].includes(e?.status);
       if (fora) await avisarGovernanca(app, 'ia_fora', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});
-      linha({ t: 'erro', mensagem: fora ? MSG_USUARIO.ia_fora : MSG_USUARIO.falhou });
+      linha({ t: 'erro', codigo:e?.codigo || null, mensagem: /^advanced_|^rota_nao_controlada/.test(e?.codigo || '') ? e.message : fora ? MSG_USUARIO.ia_fora : MSG_USUARIO.falhou });
       return res.end();
     }
     // Quality Check (Quick Win 2.0): pelo mesmo recurso e pela mesma rota já decididos e conferidos acima
@@ -1360,7 +1389,7 @@ export function rotasConversas(app, r) {
     // extra (sigilo, área reforçada, dado pessoal); senão, o mesmo recurso da execução. Mesmas defesas de chamar().
     let modeloDesign = atual.id;
     if (!sigilosa && !areaReforcada && !dadosPessoais) {
-      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
+      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw, conversaId:conv.id }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
     }
     const chamarDesign = modeloDesign === atual.id ? chamar : msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');

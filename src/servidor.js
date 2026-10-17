@@ -20,6 +20,7 @@ import { registrar } from './eventos.js';
 import { cabecalhosLpComercial, cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, lerCookies, lerCorpo, servirEstatico } from './http.js';
 import { checarCsrf, checarOrigem, lerSessao, rotasLogin } from './auth.js';
 import { criarSimulada } from './ia.js';
+import { rotasAdvanced } from './advanced.js';
 import { rotasModelos } from './modelos.js';
 import { rotasSugestao } from './sugestao-modelos.js';
 import { rotasConversas } from './conversas.js';
@@ -121,7 +122,7 @@ export function criarApp(op = {}) {
     return out;
   };
   app.limitesArquivo = LIMITES_ARQUIVO;
-  for (const modulo of [rotasAcompanhamento, rotasSugestao, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao, rotasPaineis]) modulo(app, r);
+  for (const modulo of [rotasAdvanced, rotasAcompanhamento, rotasSugestao, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao, rotasPaineis]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));

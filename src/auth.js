@@ -1,3 +1,4 @@
+import { acessoAdvanced } from './advanced.js';
 // Login por código enviado por email, sessão por cookie e proteção CSRF.
 // OIDC (Microsoft, Google) fica para depois: um provedor só precisa de
 // { id, nome, iniciar(ctx), retorno(ctx) } e de chamar abrirSessao() com a pessoa.
@@ -40,7 +41,7 @@ export function carregarPessoa(db, id) {
   const areas = todos(db, 'select a.id, a.nome, a.sigilosa, ap.responsavel, ap.admin_base from area_pessoas ap join areas a on a.id = ap.area_id where ap.pessoa_id = ? and a.ativa = 1 order by a.nome', id)
     .map(a => ({ id: a.id, nome: a.nome, sigilosa: !!a.sigilosa, responsavel: !!a.responsavel, adminBase: !!a.admin_base }));
   const grupos = todos(db, 'select grupo_id from grupo_pessoas where pessoa_id = ?', id).map(g => g.grupo_id);
-  return { ...p, admin: p.papel === 'admin', areas, grupos };
+  return { ...p, admin: p.papel === 'admin', areas, grupos, advanced: !!acessoAdvanced(db, p.id) };
 }
 
 export function lerSessao(app, cookies) {

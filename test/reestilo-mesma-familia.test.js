@@ -144,3 +144,25 @@ test('slide esquecido pela IA volta; bloco editado que a conferência tira volta
   const r = await adaptarModelo({ paginas, contexto: DOCS, pedido: 'x', conteudos: pl.slides.map(s => s.conteudo), material, chamar });
   assert.equal(r.textos['4.7'], 'Documentos, dados, relatórios e sistemas');
 });
+
+test('linha enriquecida não duplica a original; frase quebrada em duas caixas não duplica; rótulo renumerado não volta', async () => {
+  const fonte = FONTE.replace('[f] Conversa · Quem executa explica a', '[f] Conversa · Quem executa explica a');
+  const chamar = async msgs => {
+    if (/Você confere uma apresentação/.test(msgs[0].content)) return { texto: JSON.stringify({ remover: ['5.1'] }) };
+    return { texto: JSON.stringify({ slides: [
+      { origem: 1, igual: true }, { origem: 2, igual: true }, { origem: 3, igual: true },
+      { origem: 4, conteudo: '07 · MÉTODO DE TRABALHO\nComo o trabalho acontece\n01\n02\nEvidência · Documentos, dados, relatórios e sistemas\nEvidência · Relatório de custos do ERP Fictício e planilhas de apontamento\nConversa · Quem executa explica a operação\nProjeto · Cliente Teste\n10' },
+      { origem: 5, conteudo: '08 · ESCOPO\nO que não está no escopo\nSubstituição do ERP Fictício\nParecer contábil\nProjeto · Cliente Teste' },
+    ] }) };
+  };
+  const material = `${fonte}\n${DOCS}`;
+  const pl = await planejarReestilo({ paginas: MODELO, fonte, pedido: 'os capítulos pulam do 7 pro 9; enriqueça as evidências', contexto: DOCS, material, chamar });
+  const metodo = pl.slides[3].conteudo.split('\n');
+  assert.deepEqual(metodo.filter(l => /^Evidência/.test(l)), ['Evidência · Relatório de custos do ERP Fictício e planilhas de apontamento']);
+  assert.equal(metodo.filter(l => /^Conversa/.test(l)).length, 1);
+  assert.ok(!metodo.includes('operação'), 'a continuação da frase quebrada não volta sozinha');
+  const paginas = paginasDoPlano(MODELO, pl.slides);
+  const r = await adaptarModelo({ paginas, contexto: DOCS, pedido: 'x', conteudos: pl.slides.map(s => s.conteudo), material, chamar });
+  assert.equal(r.textos['5.1'], '08 · ESCOPO');
+  assert.deepEqual(pl.mudancas.filter(m => /Slide 5/.test(m)), ['Slide 5: "09 · ESCOPO" → "08 · ESCOPO"']);
+});

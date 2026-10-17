@@ -700,7 +700,8 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
   const passa = l => originais.has(semAcento(l)) || (!numerosForaDoMaterial(l, material).length && fracaoForaDoMaterial(l, material) < 0.5);
   lista = lista.map(s => {
     if (s.origem < 0) return s;
-    const orig = linhasDe(fonteSlides[s.origem]), novas = linhasDe(s.conteudo);
+    // Frase quebrada em duas caixas no original volta a ser uma linha (a IA costuma juntá-las).
+    const orig = juntarQuebradas(linhasDe(fonteSlides[s.origem])), novas = juntarQuebradas(linhasDe(s.conteudo));
     const pares = [];
     novas.forEach((l, j) => orig.forEach((o, i) => { const n = parecenca(o, l); if (n >= 0.3) pares.push([n, i, j]); }));
     pares.sort((a, b) => b[0] - a[0]);
@@ -729,7 +730,15 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
     const juntas = itens.filter(Boolean);
     if (!remover) orig.forEach((o, i) => { if (!usadas.has(i)) juntas.push({ k: i, l: o, i }); });
     juntas.sort((a, b) => a.k - b.k);
-    const resultado = juntas.map(x => x.l);
+    // Mesmo rótulo duas vezes ("Evidência · original" e "Evidência · enriquecida"): fica a versão nova.
+    const rotulo = l => /^([^·]{2,30}?)\s+·\s+\S/.exec(l)?.[1]?.trim().toLowerCase();
+    const comRotulo = new Map();
+    for (const x of juntas) { const r = rotulo(x.l); if (r) comRotulo.set(r, [...(comRotulo.get(r) || []), x]); }
+    for (const grupo of comRotulo.values()) if (grupo.length > 1) {
+      const novos = grupo.filter(x => !orig.includes(x.l));
+      if (novos.length) for (const x of grupo) if (orig.includes(x.l)) x.fora = true;
+    }
+    const resultado = juntas.filter(x => !x.fora).map(x => x.l);
     // Sentido invertido (a lista do slide também mudou junto) ou slide esvaziado: volta ao original, mas a
     // renumeração pedida no rótulo ("09 · ESCOPO" → "08 · ESCOPO") fica.
     if (invertido || (orig.length >= 3 && resultado.length < orig.length / 2)) {
@@ -785,9 +794,11 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
   slides.forEach((s, n) => {
     const o = lista[n].origem;
     if (o < 0) { todas.push(`Slide ${n + 1} (novo): "${curto(linhasDe(s.conteudo)[0] || '')}"`); return; }
-    const orig = linhasDe(fonteSlides[o]), novo = linhasDe(s.conteudo), tem = new Set(orig);
-    const trocas = novo.filter(l => !tem.has(l)).map(l => {
-      const par = orig.reduce((m, x) => { const v = parecenca(x, l); return v > m.v && !novo.includes(x) ? { v, x } : m; }, { v: 0, x: null });
+    const sp = l => l.replace(/\s+/g, ' ');
+    const orig = [...linhasDe(fonteSlides[o]), ...juntarQuebradas(linhasDe(fonteSlides[o]))], novo = linhasDe(s.conteudo), tem = new Set(orig.map(sp));
+    const novoS = new Set(novo.map(sp));
+    const trocas = novo.filter(l => !tem.has(sp(l))).map(l => {
+      const par = orig.reduce((m, x) => { const v = parecenca(x, l); return v > m.v && !novoS.has(sp(x)) ? { v, x } : m; }, { v: 0, x: null });
       return par.x ? `"${curto(par.x.replace(/\s+/g, ' '))}" → "${curto(l.replace(/\s+/g, ' '))}"` : `+ "${curto(l)}"`;
     });
     for (const t of trocas) todas.push(`Slide ${n + 1}: ${t}`);
@@ -830,6 +841,10 @@ const CONTADOR = /^\s*\d{1,3}\s*(\/\s*\d{1,3})?\s*$/;
  * Pares bons primeiro (maior parecença); o que sobra segue a ordem de leitura; linha sem bloco vai para o último
  * bloco de texto usado; bloco sem linha fica vazio. Contador de página (03, 2 / 6) fica como está.
  */
+export const juntarQuebradas = linhas => linhas.map(l => String(l).trim()).filter(Boolean).reduce((a, l) => {
+  if (a.length && /^\p{Ll}/u.test(l) && !/[.!?:;]$/.test(a.at(-1)) && !/\s·\s/.test(l)) a[a.length - 1] = `${a.at(-1)} ${l}`; else a.push(l);
+  return a;
+}, []);
 export function encaixarPorCorrespondencia(pagina, linhas) {
   const blocos = pagina.blocos.filter(b => !CONTADOR.test(b.texto));
   // Linha "Evidência · Documentos, dados…" (rótulo e descrição numa caixa só) para um modelo que tem as duas caixas
@@ -841,10 +856,7 @@ export function encaixarPorCorrespondencia(pagina, linhas) {
   const comNumero = new Set(blocos.map(b => /^\s*(\d{1,3})\s/.exec(b.texto)?.[1]).filter(Boolean).map(Number));
   // Frase quebrada em duas caixas no arquivo de origem ("Qual resultado" + "precisa existir no final?"): a continuação
   // (começa em minúscula, a anterior não termina frase) volta a ser uma linha só.
-  const inteiras = linhas.map(l => String(l).trim()).filter(Boolean).reduce((a, l) => {
-    if (a.length && /^\p{Ll}/u.test(l) && !/[.!?:;]$/.test(a.at(-1)) && !/\s·\s/.test(l)) a[a.length - 1] = `${a.at(-1)} ${l}`; else a.push(l);
-    return a;
-  }, []);
+  const inteiras = juntarQuebradas(linhas);
   const ls = inteiras.filter(l => l && !(numeros.size && CONTADOR.test(l)))
     .map(l => { const m = /^(\d{1,3})\s+(?=\p{L})/u.exec(l); return m && numeros.has(Number(m[1])) && !comNumero.has(Number(m[1])) ? l.slice(m[0].length) : l; })
     .flatMap(l => {
@@ -962,7 +974,8 @@ async function reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes
   if (fontes) {
     etapa('Conferindo se cada frase vem do seu material…');
     try {
-      const blocos = paginas.flatMap((p, k) => p.blocos.filter(b => textos[b.id] && papelDoBloco(b, p.blocos) !== 'título' && !/^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto)).map(b => `${b.id} (slide ${k + 1}): ${textos[b.id]}`));
+      // Título e rótulo de seção ("08 · ESCOPO") não vão: não afirmam fato, e a renumeração pedida não pode ser desfeita.
+      const blocos = paginas.flatMap((p, k) => p.blocos.filter(b => textos[b.id] && !['título', 'rótulo'].includes(papelDoBloco(b, p.blocos)) && !/^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) && !/^\s*\d{1,2}\s*·/.test(textos[b.id])).map(b => `${b.id} (slide ${k + 1}): ${textos[b.id]}`));
       if (blocos.length) {
         const x = await chamar([
           { role: 'system', content: 'Você confere uma apresentação contra o material de origem. Liste os blocos que afirmam algo que o material NÃO diz: número, resultado, promessa, conclusão, comparação ou fato novo. Frase que só resume ou repete o material está certa. Responda só JSON: {"remover": ["<id>", ...]}.' },

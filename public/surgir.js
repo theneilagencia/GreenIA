@@ -28,6 +28,8 @@ function contar(raiz) {
 }
 
 if (!calmo && 'IntersectionObserver' in window) {
+  // A LP inteira usa o mesmo ritmo de entrada, sem linhas entre seções.
+  for (const bloco of document.querySelectorAll('.lv main>section .l-cab, .lv main>section .l-bloco>div:first-child')) bloco.classList.add('l-surge');
   for (const g of document.querySelectorAll(GRADES)) {
     if (!g.classList.contains('l-surge')) g.classList.add('l-surge');
     g.classList.add('l-cascata');

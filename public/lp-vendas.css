@@ -304,7 +304,7 @@
 .lv #integracoes .l-sub,.lv #como .l-sub{max-width:820px;margin-bottom:18px}
 .lv #integracoes .l-nota,.lv #como .l-nota{max-width:820px}
 .lv .l-tela-real{margin:40px 0 0}
-.lv .l-tela-real img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:16px;box-shadow:var(--sombra-1)}
+.lv .l-tela-real img{display:block;width:100%;height:auto}
 .lv .l-tela-real .l-legenda{margin-top:12px}
 /* Ritmo do cabeçalho de seção: a descrição fica perto do título dela (antes 64px abaixo, longe como se fosse outro
    bloco) e parágrafos seguidos têm o mesmo espaço em todas as seções. */
@@ -324,4 +324,112 @@
 .lv .l-faq details[open] summary::after{box-shadow:inset 0 0 0 1px var(--lpe-hair-3,rgba(20,20,19,.24))}
 /* ============================================================ fim do tema escuro (página de vendas) */
 
-.l-resultados{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.l-resultados .l-h2{max-width:900px}.l-resultados-grade{display:grid;grid-template-columns:1.2fr 1fr;gap:72px;align-items:start}.l-resultados .l-sub{max-width:640px}.l-resultados-lista{list-style:none;margin:0;padding:0}.l-resultados-lista li{display:flex;gap:20px;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--line);font-size:17px;line-height:1.6}.l-resultados-lista li:first-child{padding-top:0}.l-resultados-lista span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.l-resultados .l-nota{max-width:900px;line-height:1.7;margin-top:24px}@media(max-width:760px){.l-resultados-grade{grid-template-columns:1fr;gap:24px}.l-resultados-lista li{font-size:15px}.l-resultados .l-h2{font-size:30px}}
+.l-resultados .l-h2{max-width:900px}.l-resultados-grade{display:grid;grid-template-columns:1.2fr 1fr;gap:72px;align-items:start}.l-resultados .l-sub{max-width:640px}.l-resultados-lista{list-style:none;margin:0;padding:0}.l-resultados-lista li{display:flex;gap:20px;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--line);font-size:17px;line-height:1.6}.l-resultados-lista li:first-child{padding-top:0}.l-resultados-lista span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.l-resultados .l-nota{max-width:900px;line-height:1.7;margin-top:24px}@media(max-width:760px){.l-resultados-grade{grid-template-columns:1fr;gap:24px}.l-resultados-lista li{font-size:15px}.l-resultados .l-h2{font-size:30px}}
+
+/* A tela encerra os indicadores; o separador pertence ao próximo conteúdo,
+   com respiro dos dois lados e a mesma entrada discreta das demais seções. */
+.lv main>section.l-origem{padding-top:clamp(48px,6vw,80px)}
+.lv .l-origem-conteudo{position:relative;padding-top:clamp(48px,6vw,80px)}
+
+.lv .l-origem .l-cab{margin-bottom:32px}
+.lv .l-origem .l-cab .l-sub{margin:0;max-width:48ch}
+
+/* Escopo: duas modalidades informativas, sem aparência de opções selecionáveis. */
+.lv .l-escopo-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.lv .l-escopo-card{display:flex;flex-direction:column;min-width:0;padding:32px;border:1px solid var(--hair-2);border-radius:var(--r-lg);background:var(--paper);box-shadow:var(--sombra-1)}
+.lv .l-escopo-plataforma{background:linear-gradient(150deg,var(--tinta),var(--paper) 62%)}
+.lv .l-escopo-topo{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.lv .l-escopo-icone{display:grid;place-items:center;width:40px;height:40px;flex:none;border:1px solid var(--hair);border-radius:12px;background:var(--bg);color:var(--ink-2)}
+.lv .l-escopo-icone svg{width:21px;height:21px}
+.lv .l-escopo-plataforma .l-escopo-icone{background:var(--tinta-2);color:var(--acento)}
+.lv .l-escopo-tipo{font:500 12.5px/1.4 var(--sans);color:var(--muted)}
+.lv .l-escopo-card h3{font:400 clamp(24px,2.4vw,30px)/1.16 var(--serif);letter-spacing:-.02em;color:var(--ink);margin:0 0 24px;max-width:25ch}
+.lv .l-escopo-lista{list-style:none;padding:0;margin:0}
+.lv .l-escopo-lista li{position:relative;margin:0;padding:15px 0 15px 23px;border-top:1px solid var(--hair);font:400 15px/1.6 var(--sans);color:var(--ink-2);overflow-wrap:break-word}
+.lv .l-escopo-lista li::before{content:'';position:absolute;left:2px;top:24px;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+.lv .l-escopo-plataforma .l-escopo-lista li::before{width:7px;height:4px;top:23px;border-left:1.5px solid var(--acento);border-bottom:1.5px solid var(--acento);border-radius:0;background:none;transform:rotate(-45deg)}
+.lv .l-escopo-rodape{margin:auto 0 0;padding-top:28px;font:400 13px/1.6 var(--sans);color:var(--muted)}
+@media(max-width:760px){.lv .l-escopo-grade{grid-template-columns:1fr;gap:16px}.lv .l-escopo-card{padding:24px}.lv .l-escopo-topo{margin-bottom:20px}.lv .l-escopo-card h3{margin-bottom:20px}.lv .l-escopo-rodape{padding-top:20px}}
+
+/* Caminhos para começar: linhas editoriais, com ação só onde há destino real. */
+.lv .l-caminhos{border-top:1px solid var(--hair-2)}
+.lv .l-caminho{display:grid;grid-template-columns:40px minmax(0,.9fr) minmax(0,1.2fr);gap:28px;padding:36px 0;border-bottom:1px solid var(--hair)}
+.lv .l-caminho-numero{font:500 12px/1.5 var(--sans);font-variant-numeric:tabular-nums;color:var(--muted);padding-top:4px}
+.lv .l-caminho-tipo{margin:0 0 10px;font:500 12.5px/1.5 var(--sans);color:var(--muted)}
+.lv .l-caminho h3{margin:0;font:400 clamp(24px,2.6vw,32px)/1.16 var(--serif);letter-spacing:-.02em;color:var(--ink)}
+.lv .l-caminho-descricao>p{margin:0 0 16px;font:400 16px/1.65 var(--sans);color:var(--ink-2);max-width:55ch}
+.lv .l-caminho-descricao .l-link{font-size:14px;padding:8px 0;text-underline-offset:4px;min-height:44px}
+.lv .l-caminho-etapas{display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:8px 0;margin:0;color:var(--muted);font:500 12.5px/1.5 var(--sans)}
+.lv .l-caminho-etapas li+li::before{content:'→';padding-right:12px;color:var(--muted)}
+@media(max-width:760px){.lv .l-caminho{grid-template-columns:28px minmax(0,1fr);gap:12px 16px;padding:28px 0}.lv .l-caminho-descricao{grid-column:2}.lv .l-caminho-descricao>p{font-size:15px}.lv .l-caminho-descricao .l-link{font-size:14px}.lv .l-caminho h3{font-size:26px}}
+
+/* Plano: a captura atual tem largura de leitura, como a de Uso e resultados. */
+.lv #custo .l-bloco{grid-template-columns:minmax(0,1fr);gap:40px}
+.lv #custo .l-bloco>div:first-child{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:64px;align-items:start}
+.lv #custo .l-rotulo{grid-column:1/-1}
+.lv #custo .l-h2{grid-column:1;grid-row:2/6}
+.lv #custo .l-sub,.lv #custo .btn{grid-column:2}
+.lv #custo .btn{justify-self:start}
+.lv #custo .l-tela-real{margin:0}
+@media(max-width:760px){.lv #custo .l-bloco>div:first-child{display:block}.lv #custo .l-h2{margin-bottom:24px}.lv #custo .l-bloco{gap:32px}}
+
+/* A passagem entre seções usa espaço e movimento, sem faixas divisórias. */
+.lv .l-rotulo::after{display:none}
+@media(prefers-reduced-motion:no-preference){
+ .lv .l-cab.l-surge{transition:opacity .75s var(--ease),transform .75s var(--ease)}
+ .lv .l-cab.l-surge.espera{transform:translateY(20px)}
+}
+
+/* FAQ por assunto: poucas perguntas por tela e navegação acessível. */
+.lv .l-faq-categorias{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:20px;border-bottom:1px solid var(--hair);margin-bottom:4px}
+.lv .l-faq-categorias[hidden],.lv .l-faq-grupo[hidden]{display:none}
+.lv .l-faq-categorias button{appearance:none;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);padding:10px 12px;min-height:44px;font:500 13px/1.4 var(--sans);cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.lv .l-faq-categorias button:hover{background:var(--tinta)}
+.lv .l-faq-categorias button[aria-selected="true"]{background:var(--paper);border-color:var(--hair-2);color:var(--ink);box-shadow:var(--sombra-1)}
+.lv .l-faq-categorias button:focus-visible{outline:2px solid var(--acento);outline-offset:3px}
+.lv .faq-pronto .l-faq-grupo-titulo{display:none}
+.lv .l-faq-grupo-titulo{font:400 22px/1.3 var(--serif);margin:28px 0 12px}
+.lv #perguntas .l-cab .l-sub{margin:20px 0 0;font-size:16px;max-width:28ch}
+.lv #perguntas .l-faq details:first-child summary{padding-top:22px}
+.lv #perguntas .l-faq details:first-child summary::after{top:20px}
+@media(prefers-reduced-motion:no-preference){.lv .faq-pronto .l-faq-grupo:not([hidden]){animation:l-sobe .25s var(--ease)}}
+@media(max-width:760px){.lv .l-faq-categorias{gap:6px}.lv .l-faq-categorias button{font-size:12.5px;padding:9px 10px}.lv #perguntas .l-cab .l-sub{max-width:35ch}}
+
+/* FAQ em página própria: leitura confortável, busca local e assuntos visíveis. */
+.lv #perguntas>.l-dentro{display:block}
+.lv .l-faq-convite{display:flex;align-items:center;justify-content:space-between;gap:40px;padding:40px;border-radius:var(--r-lg);background:var(--tinta)}
+.lv .l-faq-convite .l-rotulo{margin-bottom:16px}
+.lv .l-faq-convite .l-h2{font-size:clamp(30px,4vw,40px);margin-bottom:16px}
+.lv .l-faq-convite .l-sub{margin:0;font-size:16px}
+.lv .l-faq-convite .btn{flex-shrink:0;gap:16px}
+.lv.l-faq-pagina main{max-width:1040px;margin:0 auto}
+.lv .l-faq-intro{padding-top:64px;padding-bottom:40px}
+.lv .l-faq-voltar{margin-bottom:40px;font-size:13px;min-height:44px}
+.lv .l-faq-intro h1{font:400 clamp(38px,6vw,64px)/1.06 var(--serif);letter-spacing:-.03em;max-width:16ch;margin:0 0 20px;color:var(--ink)}
+.lv .l-faq-intro .l-rotulo{margin-bottom:20px}
+.lv .l-faq-intro .l-sub{margin:0;max-width:48ch}
+.lv main>.l-faq-area{padding-top:0}
+.lv .l-faq-busca{padding:0 0 24px}
+.lv .l-faq-busca[hidden],.lv .l-faq-vazio[hidden],.lv .l-faq details[hidden],.lv #faq-limpar[hidden]{display:none}
+.lv .l-faq-busca>label{display:block;margin:0 0 10px;font:500 14px var(--sans);color:var(--ink-2)}
+.lv .l-faq-busca-campo{display:flex;align-items:center;gap:12px;padding:6px 16px;background:var(--paper);border:1px solid var(--hair-2);border-radius:var(--r-md);color:var(--muted);box-shadow:var(--sombra-1)}
+.lv .l-faq-busca-campo:focus-within{outline:2px solid var(--acento);outline-offset:3px}
+.lv .l-faq-busca input{appearance:none;width:100%;min-width:0;min-height:44px;border:0;outline:0;background:transparent;color:var(--ink);font:400 16px/1.5 var(--sans)}
+.lv .l-faq-busca input::placeholder{color:var(--muted);opacity:1}
+.lv #faq-limpar{border:0;background:transparent;color:var(--ink);min-height:44px;font:500 13px var(--sans);cursor:pointer}
+.lv #faq-contagem{font:400 12.5px/1.5 var(--sans);margin:10px 0 0;color:var(--muted)}
+.lv .faq-buscando .l-faq-grupo-titulo{display:block}
+.lv .l-faq-vazio{padding:40px 0}
+.lv .l-faq-vazio h2,.lv .l-faq-ajuda h2{font:400 28px/1.2 var(--serif);margin:0 0 12px;color:var(--ink)}
+.lv .l-faq-vazio p,.lv .l-faq-ajuda p{font:400 15px/1.6 var(--sans);color:var(--muted);margin:0 0 16px}
+.lv main>.l-faq-ajuda{display:flex;align-items:center;justify-content:space-between;gap:32px;padding-top:64px;padding-bottom:80px}
+.lv .l-faq-ajuda .btn{flex-shrink:0}
+.lv .l-faq-grupo details:first-of-type summary{padding-top:22px}
+.lv .l-faq-grupo details:first-of-type summary::after{top:20px}
+@media(max-width:760px){.lv .l-faq-convite{align-items:flex-start;flex-direction:column;padding:28px 24px;gap:24px}.lv .l-faq-intro{padding-top:32px}.lv .l-faq-voltar{margin-bottom:24px}.lv main>.l-faq-ajuda{flex-direction:column;align-items:flex-start;padding-top:48px;padding-bottom:64px}.lv .l-faq-categorias{padding-bottom:16px}.lv .l-faq-busca-campo{gap:8px;padding:6px 12px}}
+/* O ritmo da home não acrescenta espaço às seções da página de perguntas. */
+.lv.l-faq-pagina main>section.l-faq-intro{padding-top:40px;padding-bottom:32px}
+.lv.l-faq-pagina main>section.l-faq-area{padding-top:0}
+.lv.l-faq-pagina main>section.l-faq-ajuda{padding-top:48px;padding-bottom:64px}
+.lv.l-faq-pagina .l-faq{border-top:0}
+@media(max-width:760px){.lv.l-faq-pagina main>section.l-faq-intro{padding-top:24px}.lv.l-faq-pagina main>section.l-faq-ajuda{padding-top:40px;padding-bottom:48px}}

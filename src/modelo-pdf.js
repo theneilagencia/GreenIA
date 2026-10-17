@@ -662,7 +662,7 @@ export function mensagensPlanoFamilia({ fonte, pedido, contexto }) {
       'Faça de verdade tudo o que o pedido manda: corrigir numeração de capítulos e seções em todos os slides, renomear divisórias e títulos, enriquecer itens genéricos com fatos concretos dos documentos da conversa (proposta, contrato, anexos): nomes de sistemas, documentos, entregáveis, frentes, prazos e responsabilidades que eles citam. Escreva como um consultor sênior: frases curtas, específicas e claras para uma apresentação falada.',
       'O que o pedido não manda mudar fica como está, com as mesmas palavras. Acrescente, remova ou junte slides só se o pedido mandar.',
       'Nunca mude o sentido de um slide: o que está fora do escopo continua fora, o que é proibido continua proibido; não inverta, não negue, não troque a lista de um slide por outra.',
-      'Divisória (slide de uma linha que abre um capítulo) com o mesmo nome do slide seguinte: dê à divisória um nome novo, curto, que anuncie o mesmo assunto com outras palavras (ex.: divisória "Próximos passos" antes do slide "Próximos passos" vira "O caminho a partir daqui"). O slide seguinte não muda.',
+      'Divisória (slide de uma linha que abre um capítulo) com o mesmo nome do slide seguinte: dê à divisória um nome novo, curto, tirado do assunto do capítulo e dos documentos, que anuncie o mesmo tema com outras palavras. O slide seguinte não muda. Não use frases genéricas nem de exemplo.',
       'Não invente: todo número, data, prazo, valor, nome e fato novo precisa estar nos documentos da conversa. Item enriquecido continua cabendo numa caixa de slide (até uns 120 caracteres).',
       'Responda só JSON, com todos os slides na ordem final: {"slides":[{"origem":<número do slide original, ou null se for novo>,"conteudo":"linha 1\\nlinha 2\\n..."}],"mudancas":["o que mudou, em uma frase", ...]}. Slide que fica exatamente igual vai só como {"origem":<número>,"igual":true}, sem o conteúdo.',
     ].join('\n') },
@@ -749,6 +749,13 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
       return parecenca(l, nome) >= 0.8 && i != null && orig[i] && parecenca(orig[i], nome) < 0.8 ? orig[i] : l;
     }).join('\n');
   });
+  // Slide da apresentação que a resposta deixou de fora (sem pedido de remover): volta no lugar dele.
+  // QA em produção: a divisória "Como o trabalho acontece" sumiu do arquivo.
+  if (!remover) fonteSlides.forEach((c, i) => {
+    if (lista.some(s => s.origem === i)) return;
+    const depois = lista.findIndex(s => s.origem > i);
+    lista.splice(depois < 0 ? lista.length : depois, 0, { origem: i, conteudo: c });
+  });
   // Capítulos fora de sequência ("07" e depois "09") com pedido sobre numeração: a plataforma renumera os rótulos
   // "NN · …" na ordem em que aparecem, além do que a IA fizer.
   if (/cap[ií]tulo|numera|pul[ao]m?\b|sequ[eê]ncia/i.test(pedido || '')) {
@@ -770,9 +777,23 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
     const m = s.origem >= 0 && corresp[s.origem].nota >= 0.3 ? corresp[s.origem] : paginaCorrespondente(paginas, linhasDe(s.conteudo));
     const pagina = m.nota >= 0.3 ? m.k : s.origem >= 0 && corresp[s.origem].nota >= 0.3 ? corresp[s.origem].k
       : i === 0 ? 0 : i === lista.length - 1 ? paginas.length - 1 : (textuais[i % Math.max(1, textuais.length)] ?? Math.min(1, paginas.length - 1));
-    return { pagina, conteudo: s.conteudo, correspondencia: true };
+    return { pagina, conteudo: s.conteudo, correspondencia: true, ...(s.origem >= 0 ? { original: fonteSlides[s.origem] } : {}) };
   });
-  const mudancas = (Array.isArray(j?.mudancas) ? j.mudancas : []).map(String).filter(Boolean).slice(0, 12);
+  // O que mudou, lido do resultado (não do que a IA diz ter feito: uma trava pode ter desfeito a mudança).
+  const curto = t => (t.length > 90 ? `${t.slice(0, 87)}…` : t);
+  const todas = [];
+  slides.forEach((s, n) => {
+    const o = lista[n].origem;
+    if (o < 0) { todas.push(`Slide ${n + 1} (novo): "${curto(linhasDe(s.conteudo)[0] || '')}"`); return; }
+    const orig = linhasDe(fonteSlides[o]), novo = linhasDe(s.conteudo), tem = new Set(orig);
+    const trocas = novo.filter(l => !tem.has(l)).map(l => {
+      const par = orig.reduce((m, x) => { const v = parecenca(x, l); return v > m.v && !novo.includes(x) ? { v, x } : m; }, { v: 0, x: null });
+      return par.x ? `"${curto(par.x.replace(/\s+/g, ' '))}" → "${curto(l.replace(/\s+/g, ' '))}"` : `+ "${curto(l)}"`;
+    });
+    for (const t of trocas) todas.push(`Slide ${n + 1}: ${t}`);
+  });
+  const mudancas = todas.slice(0, 12);
+  if (todas.length > 12) mudancas.push(`… e mais ${todas.length - 12} ${todas.length - 12 === 1 ? 'mudança' : 'mudanças'} (veja no arquivo)`);
   return { slides, custo, economia, mudancas, familia: true };
 }
 
@@ -782,7 +803,7 @@ export function paginasDoPlano(paginas, plano) {
     const p = paginas[s.pagina];
     // Número de página solto no rodapé ("03" na página 3 do modelo) passa a ser o número do slide novo.
     const numero = b => /^\s*\d{1,3}\s*$/.test(b.texto) && p.h && b.y > p.h * 0.9 ? String(i + 1).padStart(b.texto.trim().length, '0') : b.texto;
-    return { ...p, ...(s.correspondencia ? { correspondencia: true } : {}), blocos: p.blocos.map((b, k) => ({ ...b, id: `${i + 1}.${k + 1}`, texto: /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) ? `${i + 1} / ${plano.length}` : numero(b) })) };
+    return { ...p, ...(s.correspondencia ? { correspondencia: true } : {}), ...(s.original ? { original: s.original } : {}), blocos: p.blocos.map((b, k) => ({ ...b, id: `${i + 1}.${k + 1}`, texto: /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) ? `${i + 1} / ${plano.length}` : numero(b) })) };
   });
 }
 
@@ -951,6 +972,20 @@ async function reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes
         // Só os blocos enviados para conferência podem sair (nunca o título).
         const ids = new Set(blocos.map(l => l.split(' ')[0])), antes = { ...textos };
         for (const id of lerJson(x.texto)?.remover || []) if (ids.has(String(id))) textos[String(id)] = '';
+        // Slide da apresentação da pessoa: bloco editado que a conferência tirou volta ao texto original equivalente
+        // (a linha ou a parte "rótulo · descrição" mais parecida). QA em produção: a descrição enriquecida da
+        // evidência foi tirada e o bloco ficou vazio.
+        paginas.forEach(p => {
+          if (!p.original) return;
+          const partes = linhasDe(p.original).flatMap(l => [l, ...l.split(/\s+·\s+/)]);
+          const presentes = new Set(p.blocos.map(b => textos[b.id]).filter(Boolean));
+          for (const b of p.blocos) {
+            if (!antes[b.id] || textos[b.id]) continue;
+            // Parecida com o texto tirado ou com o texto do modelo naquele bloco (mesma família: o mesmo papel).
+            const m = partes.reduce((a, l) => { const n = Math.max(parecenca(l, antes[b.id]), parecenca(l, b.texto)); return n > a.n && !presentes.has(l) ? { n, l } : a; }, { n: 0, l: null });
+            if (m.l && m.n >= 0.4) { textos[b.id] = m.l; presentes.add(m.l); }
+          }
+        });
         // A conferência não esvazia um slide: se tirou tudo além do título, voltam as linhas do plano (já
         // conferidas pelas regras de números e palavras). QA em produção: o slide de evidências saiu só com o título.
         paginas.forEach(p => {

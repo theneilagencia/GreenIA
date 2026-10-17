@@ -67,7 +67,8 @@ test('mesma família: o pedido é aplicado (renumerar, enriquecer), número inve
   assert.match(pl.slides[3].conteudo, /plano de contas gerencial/, 'enriquecimento que vem da proposta fica');
   assert.doesNotMatch(pl.slides[3].conteudo, /4\.500/, 'número que nenhum documento tem sai');
   assert.match(pl.slides[4].conteudo, /^08 · ESCOPO/);
-  assert.equal(pl.mudancas.length, 2);
+  assert.ok(pl.mudancas.some(m => /Slide 5: "09 · ESCOPO" → "08 · ESCOPO"/.test(m)), JSON.stringify(pl.mudancas));
+  assert.ok(pl.mudancas.some(m => /"Evidência · Documentos, dados, relatórios e sistemas" → "Evidência · Relatório de custos/.test(m)));
 
   const paginas = paginasDoPlano(MODELO, pl.slides);
   assert.equal(paginas[4].blocos.find(x => x.texto === '05').texto, '05');
@@ -123,4 +124,23 @@ test('trava: linha que some ou não confere volta; slide não repete o nome novo
   assert.equal(metodo[1], 'Como o trabalho acontece', 'título do slide não repete a divisória');
   assert.ok(metodo.some(l => /^Evidência/.test(l)), 'linha que a IA deixou de fora volta');
   assert.match(pl.slides[4].conteudo, /^08 · ESCOPO/, 'rótulo volta, renumerado na sequência dos capítulos');
+});
+
+test('slide esquecido pela IA volta; bloco editado que a conferência tira volta ao texto original', async () => {
+  const chamar = async msgs => {
+    const sistema = msgs[0].content;
+    if (/Você confere uma apresentação/.test(sistema)) return { texto: JSON.stringify({ remover: ['4.7'] }) };
+    return { texto: JSON.stringify({ slides: [
+      { origem: 1, igual: true }, { origem: 2, igual: true },
+      { origem: 4, conteudo: '04 · MÉTODO DE TRABALHO\nComo o trabalho acontece\n01\n02\nEvidência · Relatório de custos do ERP Fictício e planilhas de apontamento\nConversa · Quem executa explica a operação\nProjeto · Cliente Teste\n10' },
+      { origem: 5, igual: true },
+    ] }) };
+  };
+  const material = `${FONTE}\n${DOCS}`;
+  const pl = await planejarReestilo({ paginas: MODELO, fonte: FONTE, pedido: 'use a proposta para enriquecer as evidências', contexto: DOCS, material, chamar });
+  assert.equal(pl.slides.length, 5, 'a divisória esquecida volta');
+  assert.equal(pl.slides[2].conteudo, 'Como o trabalho acontece');
+  const paginas = paginasDoPlano(MODELO, pl.slides);
+  const r = await adaptarModelo({ paginas, contexto: DOCS, pedido: 'x', conteudos: pl.slides.map(s => s.conteudo), material, chamar });
+  assert.equal(r.textos['4.7'], 'Documentos, dados, relatórios e sistemas');
 });

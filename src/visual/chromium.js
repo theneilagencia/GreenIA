@@ -96,7 +96,7 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
 // da própria GreenIA (o leitor e o arquivo, servidos pela origem virtual); a rede continua bloqueada e o pdf.js roda
 // sem eval. O JavaScript fica ligado só nesta página, que não tem conteúdo de terceiros além dos bytes do PDF.
 const LEITOR_PDF = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'node_modules', 'unpdf', 'dist', 'pdfjs.mjs');
-export function comLeitorPdf(pdf, fn) {
+export function comLeitorPdf(pdf, fn, { tempoMs = 120_000 } = {}) {
   const tarefa = fila.then(async () => {
     const chromium = await playwright();
     const exe = caminhoChromium();
@@ -109,6 +109,11 @@ export function comLeitorPdf(pdf, fn) {
         '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1',
         // Leitor de PDF em servidor pequeno: um processo só, sem GPU e com pouca memória de JavaScript e de imagens.
         '--single-process', '--no-zygote', '--in-process-gpu', '--js-flags=--max-old-space-size=160', '--disable-software-rasterizer', '--force-device-scale-factor=1'] });
+    // page.evaluate não obedece a setDefaultTimeout. Se o leitor ficar preso,
+    // fecha o navegador e libera a fila para os próximos arquivos.
+    let expirou = false;
+    const vigia = setTimeout(() => { expirou = true; nav.close().catch(() => {}); }, tempoMs);
+    vigia.unref?.();
     try {
       const ctx = await nav.newContext({ javaScriptEnabled: true, acceptDownloads: false, serviceWorkers: 'block' });
       await ctx.route('**/*', rota => {
@@ -123,7 +128,10 @@ export function comLeitorPdf(pdf, fn) {
       page.setDefaultTimeout(120_000);
       await page.goto(`${ORIGEM}/leitor`, { waitUntil: 'load' });
       return await fn(page);
-    } finally { await nav.close().catch(() => {}); }
+    } catch (e) {
+      if (expirou) throw Object.assign(new Error('Tempo de leitura do modelo excedido.'), { codigo: 'arquivo_tempo_excedido' });
+      throw e;
+    } finally { clearTimeout(vigia); await nav.close().catch(() => {}); }
   });
   fila = tarefa.catch(() => {});
   return tarefa;

@@ -1,6 +1,7 @@
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
+import { criarPrazoArquivo } from './tempo-arquivo.js';
 import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
@@ -1098,6 +1099,12 @@ export function rotasConversas(app, r) {
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     // Metadados do streaming passam pelo mesmo filtro da API; o texto da resposta é o que a IA escreveu.
     const linha = o => res.write(JSON.stringify(o.t === 'texto' ? o : semProvedor(o)) + '\n');
+    // A análise e as chamadas auxiliares também podem ficar sem tokens por vários
+    // segundos. Mantém a conexão ativa até a confirmação, sem anunciar conclusão.
+    const vidaResposta = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded) linha({ t: 'espera' });
+    }, 15000);
+    res.once('close', () => clearInterval(vidaResposta));
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.
@@ -1106,6 +1113,7 @@ export function rotasConversas(app, r) {
     // Execução do Quick Win 2.0: a resposta é conferida antes de aparecer; quem usa acompanha as etapas.
     const espec = execucaoQw ? qw.espec : null;
     linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela, qualidade: !!espec, arquivo: !!(modeloApr || edicao) && !naoGuardar });
+    if ((modeloApr || edicao) && !naoGuardar) linha({ t: 'etapa', v: 'Analisando o pedido e os arquivos…', arquivo: true });
     if (espec) linha({ t: 'etapa', v: anexos.length ? 'Analisando seu documento…' : 'Analisando seu pedido…' });
     const inicio = Date.now();
     let resposta = '', fim = null, primeiroToken = null, falha = null, atual = m;
@@ -1169,10 +1177,11 @@ export function rotasConversas(app, r) {
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
     if (deveEsperarEscolha) orientarEscolha();
     else if (espec && escolhaHumanaPrevista(espec) && escolhaInformada) mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nETAPA DE ENTREGA: a escolha desta etapa já foi enviada pela pessoa e está no material autorizado. Use essa escolha para produzir o resultado final. Não repita a escolha nem anuncie uma informação faltante se ela já está no material. O prefixo de pergunta serve somente para uma informação indispensável realmente ausente, nunca para introduzir o artigo ou explicar o histórico. Preserve as limitações de pesquisa e todas as regras de conferência.` };
+    const sinalAnaliseArquivo = (modeloApr || edicao) ? AbortSignal.timeout(120_000) : undefined;
     if (perguntaMercado) resposta = perguntaMercado;
     else for (;;) {
       try {
-        for await (const ev of ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+        for await (const ev of ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, sinal: sinalAnaliseArquivo })) {
           if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); continue; }
           if (ev.tipo === 'texto') {
             primeiroToken ??= Date.now() - inicio;
@@ -1213,7 +1222,7 @@ export function rotasConversas(app, r) {
         break;
       } catch (e) {
         falha = e;
-        if (!sigilosa || resposta || tentados.length >= 3 || (qwFixo && !ehClasse(qw.modelo))) break;
+        if (sinalAnaliseArquivo?.aborted || !sigilosa || resposta || tentados.length >= 3 || (qwFixo && !ehClasse(qw.modelo))) break;
         const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: !automatico && ehClasse(pedido) ? pedido : AUTOMATICO, analise, agora: app.agora(), modeloManual: !automatico && ehClasse(pedido) ? manual : null, origem: !automatico ? origem : 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
@@ -1246,35 +1255,37 @@ export function rotasConversas(app, r) {
     let registroQualidade = null, custoExtra = 0, economiaExtra = 0, integResumo = null;
     // Chamadas extras da execução (conferência e plano visual): o MESMO recurso e a mesma rota já decididos e
     // conferidos acima, com a defesa final de credenciais em cada uma.
-    const chamar = async msgs => {
+    const prazoArquivo = criarPrazoArquivo();
+    const chamadaAuxiliar = fn => (modeloApr || edicao) ? prazoArquivo.executar(fn) : fn(undefined);
+    const chamar = msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, sinal })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
-    };
+    });
     // Design das peças visuais: a classe Avançada quando a pessoa (e o Quick Win) pode usá-la e nada pede proteção
     // extra (sigilo, área reforçada, dado pessoal); senão, o mesmo recurso da execução. Mesmas defesas de chamar().
     let modeloDesign = atual.id;
     if (!sigilosa && !areaReforcada && !dadosPessoais) {
       try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
     }
-    const chamarDesign = modeloDesign === atual.id ? chamar : async msgs => {
+    const chamarDesign = modeloDesign === atual.id ? chamar : msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino })) {
+      for await (const ev of ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino, sinal })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
-    };
+    });
     // Conferência de escrita (vícios de texto de IA): limpeza sem custo e, se sobrar vício, revisão pela mesma rota.
     let custoEscrita = 0, economiaEscrita = 0;
     const conferirEscrita = async () => {
       if (!resposta.trim()) return;
-      const r = await revisarEscrita(resposta, { chamar, usarIA: !reservaDoPlano });
+      const r = await revisarEscrita(resposta, { chamar, usarIA: !reservaDoPlano && !modeloApr && !edicao });
       custoEscrita += r.custo; economiaEscrita += r.economia;
       if (r.vicios.length) registrar(app, 'ai.writing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, vicios: r.vicios, restantes: r.restantes, revisado: r.revisado });
       const mudou = r.texto !== resposta;
@@ -1282,6 +1293,11 @@ export function rotasConversas(app, r) {
       return mudou;
     };
     // Conversa livre: o texto já foi mostrado ao vivo; se a conferência mudou algo, a versão final substitui.
+    if (!espec && (modeloApr || edicao)) {
+      resposta = semPromessaDeArquivo(resposta).trimEnd();
+      linha({ t: 'substituir', v: resposta });
+      linha({ t: 'etapa', v: 'Preparando o arquivo para baixar…', arquivo: true });
+    }
     if (!espec && await conferirEscrita()) linha({ t: 'substituir', v: resposta });
     if (espec) {
       linha({ t: 'etapa', v: 'Conferindo o resultado…' });
@@ -1423,10 +1439,12 @@ export function rotasConversas(app, r) {
         for (const t of paginas.map(textoDoSlide)) if (t.length > 40) vistos.set(t, (vistos.get(t) || 0) + 1);
         const repetidos = [...vistos.values()].filter(n => n > 1).reduce((a, n) => a + n, 0);
         if (repetidos) throw Object.assign(new Error('slides repetidos'), { codigo: 'slides_repetidos', n: repetidos });
+        prazoArquivo.conferir();
         gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome, ...(plano ? { plano, fonte: fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte } : {}) } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
-        avisoDepois(e?.codigo === 'slides_repetidos' ? `A montagem saiu com ${e.n} slides de conteúdo repetido, por isso o arquivo não foi entregue. Peça de novo; se repetir, envie a apresentação e o modelo novamente numa conversa nova.`
+        avisoDepois(e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.'
+          : e?.codigo === 'slides_repetidos' ? `A montagem saiu com ${e.n} slides de conteúdo repetido, por isso o arquivo não foi entregue. Peça de novo; se repetir, envie a apresentação e o modelo novamente numa conversa nova.`
           : e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
           : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
@@ -1443,6 +1461,7 @@ export function rotasConversas(app, r) {
           const r = await editarArquivo({ tipo: edicao.tipo, nome: edicao.nome, dados: edicao.dados, pedido: texto, resposta, chamar: chamarDesign,
             verificar: async b => { await extrairTexto({ nome: `verificacao.${edicao.tipo}`, base64: b.toString('base64') }); } });
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
+          prazoArquivo.conferir();
           if (r.status === 'ok') {
             editado = r;
             // Planilha: a lista do que mudou sai do próprio arquivo, porque o texto da resposta foi escrito antes.
@@ -1461,7 +1480,7 @@ export function rotasConversas(app, r) {
             : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         } catch (e) {
           app.log?.('ajuste no arquivo', erroParaLog(e));
-          avisoDepois('Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
+          avisoDepois(e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.' : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         }
       }
     }
@@ -1510,8 +1529,7 @@ export function rotasConversas(app, r) {
     const formatosPedidos = qw || naoGuardar ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
       .filter(([f, re]) => re.test(texto) && (f !== 'xlsx' || extrairTabelas(resposta).length)).map(([f]) => f);
     if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
-      const simples = formatosPedidos.length ? ` Logo abaixo há uma versão simples em ${formatosPedidos.map(f => ({ docx: 'Word', pptx: 'PowerPoint', xlsx: 'Excel' })[f]).join(' e ')}, montada a partir desta resposta (sem o layout pedido).` : '';
-      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}${simples}`;
+      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;
       avisosDepois.length = 0;
       linha({ t: 'substituir', v: resposta });
     }
@@ -1599,7 +1617,7 @@ export function rotasConversas(app, r) {
     }
     // Pediu arquivo, recebe arquivo: nenhum caminho especializado gerou o arquivo pedido -> a versão a partir da resposta
     // fica registrada junto dela (o cartão de download aparece sempre, também ao reabrir a conversa).
-    if (!arquivos.length && !artefatos.length && formatosPedidos.length && !modeloAusente && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40)
+    if (!arquivos.length && !artefatos.length && formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40)
       for (const f of formatosPedidos) guardar(`resposta.${f}`, 'text/uri-list', Buffer.from(f), { tipo: 'da_resposta', formato: f });
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };

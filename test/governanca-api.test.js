@@ -281,7 +281,7 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   // O desenho das peças só troca de recurso para uma classe que o seletor valida para a pessoa e o Quick Win, e
   // nunca com sigilo, área reforçada ou dado pessoal; tem a mesma defesa de credencial da execução.
   assert.match(conv, /if \(!sigilosa && !areaReforcada && !dadosPessoais\) \{\s*try \{ const m = modeloPermitido\(app\.db, cfg, pessoa, 'classe:avancado', \{ qw \}\)/);
-  assert.match(conv, /const chamarDesign = modeloDesign === atual\.id \? chamar : async msgs => \{[\s\S]{0,300}contemCredencial\(txt\)/);
+  assert.match(conv, /const chamarDesign = modeloDesign === atual\.id \? chamar : msgs => chamadaAuxiliar\(async sinal => \{[\s\S]{0,300}contemCredencial\(txt\)/);
   // A conferência usa o recurso e a rota já decididos e conferidos (nunca escolhe modelo), depois da execução.
   // A IA da execução é a do aplicativo ou a mesma com mascaramento (src/mascaramento.js), nunca outra.
   assert.match(conv, /const ia = mascarar \? iaMascarada\(app\.ia, mascara, \[\.\.\.MASCARAVEIS\]\) : app\.ia;/);

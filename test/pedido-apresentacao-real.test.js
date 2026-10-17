@@ -84,6 +84,22 @@ test('arquivo não gerado: a resposta não promete arquivo, diz que não foi ger
   assert.ok(msgs.findLastIndex(m => m.papel === 'aviso') < msgs.findIndex(m => m.papel === 'assistant') || !msgs.some(m => m.papel === 'aviso' && /arquivo original/.test(m.texto)), 'o motivo vai na resposta, não num aviso solto acima dela');
 });
 
+test('falha ao corrigir PPTX não entrega um PowerPoint contendo apenas o resumo da resposta', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(ana, conv.id, {
+    texto: 'Corrija a ortografia no próprio arquivo PowerPoint PPTX anexo, mantendo todo o resto igual.', anexos: [anexos()[0]],
+  });
+  assert.equal(r.status, 200);
+  assert.ok(!r.fim?.arquivos?.length, 'sem PPTX genérico para disfarçar a falha na edição');
+  const eventos = r.eventos;
+  const etapa = eventos.findIndex(e => e.t === 'etapa' && e.arquivo);
+  const texto = eventos.findIndex(e => e.t === 'texto');
+  assert.ok(etapa >= 0 && etapa < texto, 'o progresso do arquivo começa antes do texto');
+  const resposta = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto;
+  assert.match(resposta, /não foi gerado nesta resposta/);
+  assert.doesNotMatch(resposta, /Logo abaixo há uma versão simples|pronto para download/);
+});
+
 test('mesmo pedido numa mensagem seguinte (PDF já guardado na conversa): também monta no layout do PDF', { skip: semNavegador }, async () => {
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: anexos() });
@@ -127,7 +143,7 @@ test('conversa sigilosa com recurso autorizado: o mesmo pedido entrega o PowerPo
   assert.equal(d.status, 200);
   // Enquanto o arquivo é montado, a tela não lê "pronto para download": a frase sai assim que o texto termina e a
   // etapa avisa que o arquivo está sendo preparado.
-  const k = r.eventos.findIndex(e => e.t === 'etapa' && e.arquivo);
+  const k = r.eventos.findIndex(e => e.t === 'etapa' && e.arquivo && /Preparando o PowerPoint/.test(e.v));
   assert.ok(k > 0, 'etapa de arquivo');
   const antes = r.eventos.slice(0, k).filter(e => e.t === 'substituir').at(-1)?.v;
   assert.ok(antes && !/pronto para download/.test(antes), String(antes));

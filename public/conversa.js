@@ -1,3 +1,4 @@
+import { eventosDaResposta } from '/fluxo-resposta.js';
 import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
 import { confirmar } from '/admin-ui.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
@@ -249,6 +250,7 @@ function cartaoComPrevia({ previa, baixar, nome, detalhe }) {
 function arquivosPedidos(m, tabelas) {
   if (!servidor(m)) return '';
   if ((m.arquivos || []).length) return arquivosGerados(m);
+  if (/O arquivo (ajustado|no layout pedido) não foi gerado nesta resposta/.test(m.texto)) return '';
   const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
   // Pedido "no mesmo layout" de um modelo: só vale o arquivo montado no layout (m.arquivos); nada genérico no lugar.
   if (MESMO_LAYOUT.test(pedido)) return '';
@@ -296,7 +298,7 @@ function htmlMensagem(m) {
   }
   if (m.papel === 'aviso' && /^Execução (dos testes|do código)/.test(m.texto) && m.texto.includes('\n')) { const [cab, ...resto] = m.texto.split('\n'); return `<div class="linha-aviso execucao-saida${anim}"><b>${esc(cab)}</b><pre>${esc(resto.join('\n'))}</pre></div>`; }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
-  const { html, tabelas } = m.carregando ? { html: esc(semPromessaAoVivo(m.texto)).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + andamentoDaResposta(), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
+  const { html, tabelas } = m.carregando ? { html: renderizar(semPromessaAoVivo(m.texto)).html + '<span class="cursor"></span>' + andamentoDaResposta(), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
@@ -398,7 +400,7 @@ function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!
 // reescrevia a bolha sem o cartão: em produção ele nunca aparecia).
 // O arquivo ainda vai ser montado: frase "o arquivo está pronto para download" não aparece enquanto o texto é escrito
 // (o servidor também a tira no fim). QA em produção: ela piscava antes de a versão final chegar.
-const semPromessaAoVivo = t => C.vaiArquivo ? String(t).replace(/[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*\b(download|baixar)\b[^.!\n]*[.!]?/gi, '').replace(/[^.!\n]*\b(download|baixar)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*[.!]?/gi, '') : t;
+const semPromessaAoVivo = t => String(t).replace(/[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*\b(download|baixar)\b[^.!\n]*[.!]?/gi, '').replace(/[^.!\n]*\b(download|baixar)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*[.!]?/gi, '');
 function andamentoDaResposta() {
   if (!C.etapa || C.execucao) return '';
   return C.montandoArquivo
@@ -697,20 +699,11 @@ async function enviar(reenvio = null, { executar = false } = {}) {
 // manterErro: a falha continua à vista depois de reler a conversa (ao gerar de novo, a resposta anterior volta).
 async function receberResposta(r, { manterErro = false } = {}) {
   const resposta = { id: 'ia' + Date.now(), papel: 'assistant', texto: '', carregando: true };
-  const leitor = r.body.getReader();
-  const dec = new TextDecoder();
-  let resto = '';
-  for (;;) {
-    const { value, done } = await leitor.read();
-    if (done) break;
-    resto += dec.decode(value, { stream: true });
-    const linhas = resto.split('\n');
-    resto = linhas.pop();
-    for (const l of linhas.filter(Boolean)) {
-      const ev = JSON.parse(l);
+  try {
+    for await (const ev of eventosDaResposta(r.body)) {
       if (ev.t === 'inicio' && ev.cortada && C.conv) C.conv.cortada = true;
       if (ev.t === 'inicio' && ev.qualidade) C.execucao = true;
-      if (ev.t === 'inicio' && ev.arquivo) C.vaiArquivo = true;
+      if (ev.t === 'inicio' && ev.arquivo) { C.vaiArquivo = true; C.montandoArquivo = true; C.etapa = 'Analisando o pedido e os arquivos…'; }
       if (ev.t === 'etapa') { C.etapa = ev.v; if (ev.arquivo) C.montandoArquivo = true; $('ao-vivo').textContent = ev.v; if (!C.pensando && !C.execucao) desenharMensagens(); }
       if (ev.t === 'texto') {
         if (C.pensando) { C.pensando = false; C.mensagens.push(resposta); }
@@ -720,15 +713,19 @@ async function receberResposta(r, { manterErro = false } = {}) {
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
       if (ev.t === 'fim' && ev.executar) C.executarDepois = ev.executar;
       if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, guardado: ev.guardado, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, qualidade: ev.qualidade, artefatos: ev.artefatos, arquivos: ev.arquivos, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
+      // Durante o streaming, atualiza só a bolha da resposta.
+      const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
+      if (bolha) { bolha.innerHTML = renderizar(semPromessaAoVivo(resposta.texto)).html + '<span class="cursor"></span>' + andamentoDaResposta(); rolarSeNoFim(); } else desenharMensagens();
     }
-    // Durante o streaming, atualiza só a bolha da resposta.
-    const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
-    if (bolha) { bolha.innerHTML = esc(semPromessaAoVivo(resposta.texto)).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + andamentoDaResposta(); rolarSeNoFim(); } else desenharMensagens();
+  } catch {
+    resposta.texto = 'A conexão foi interrompida antes da confirmação de entrega. Confira a conversa: se o arquivo foi concluído, o download aparecerá nela. Nenhuma nova geração foi iniciada automaticamente.';
+    resposta.erro = true; resposta.carregando = false;
   }
-  C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
+  C.pensando = false; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
   $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
-  await recarregarConversa(true);
+  try { await recarregarConversa(true); } catch { desenharMensagens(); }
+  atualizarEnviar();
   if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }
   // A falha continua à vista depois de reler a conversa (a resposta não foi guardada; sem isto a tela ficava só com o
   // pedido, como se estivesse travada).

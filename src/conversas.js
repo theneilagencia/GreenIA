@@ -1405,6 +1405,8 @@ export function rotasConversas(app, r) {
           const pl = await planejarReestilo({ paginas, fonte: fonteDeck.texto, pedido: pedidoFinal, contexto: material, material: materialReestilo, chamar: chamarDesign });
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + pl.custo, economia: (fim?.economia || 0) + pl.economia };
           plano = pl.slides.map(x => x.pagina); conteudos = pl.slides.map(x => x.conteudo);
+          // Mesma família (cada slide na página equivalente do modelo): a pessoa vê o que mudou no texto.
+          if (pl.mudancas?.length) { resposta = `${resposta.trimEnd()}\n\n**O que mudou no conteúdo da apresentação:**\n${pl.mudancas.map(m => `- ${m}`).join('\n')}`; linha({ t: 'substituir', v: resposta }); }
           paginas = paginasDoPlano(paginas, pl.slides);
         }
         const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, conteudos, material: materialReestilo, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });

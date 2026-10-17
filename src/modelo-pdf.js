@@ -296,6 +296,7 @@ const INSTRUCAO_REESTILO = [
   'Distribua o conteúdo do slide pelos blocos, respeitando a função de cada um: o título do conteúdo no bloco de título, os itens nos blocos de lista ou de coluna, na ordem. Rótulos pequenos de seção podem receber uma palavra que resuma o slide.',
   'Use só o conteúdo do slide, com as mesmas frases (pode encurtar, não acrescentar). Não invente nada: nenhum número, percentual, valor, prazo, caso, nome, contato, slogan, chamada ou conclusão que não esteja no conteúdo. O texto do modelo é só exemplo de layout e nunca entra na apresentação.',
   'Bloco do layout que não tem conteúdo correspondente volta "" (texto vazio) e sai do slide, seja item, parágrafo, rótulo ou célula de tabela. Só o título nunca fica vazio.',
+  'Em tabela ou agenda, cada informação vai para a coluna do mesmo tipo (horário com horário, atividade com atividade, quem participa com quem participa), uma linha da tabela por item do conteúdo; linhas que sobram ficam vazias.',
   'Cada bloco vem com a posição no slide [x, y] (em pontos): blocos na mesma altura são colunas de uma linha; na mesma coluna, itens de uma lista ou linhas de uma tabela.',
   'Tamanho: cada texto deve caber no espaço do bloco, com no máximo o número de caracteres indicado; se o conteúdo não couber, resuma sem perder números e nomes.',
   REGRAS_DE_ESCRITA,
@@ -542,6 +543,8 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
     if (!fora.length) return l;
     return i === 0 ? fora.reduce((t, n) => t.replace(n, ''), l).replace(/\s{2,}/g, ' ').trim() : null;
   }).filter(l => l != null && l.trim()).join('\n');
+  const fam = correspondenciaDaFonte(paginas, fonte);
+  if (fam.familia) return planoDaFamilia({ paginas, fonte, pedido, contexto: fontes ?? contexto, chamar, material, ...fam });
   const titulosDaFonte = new Set(slidesDaFonte(fonte).map(x => semAcento(x.split('\n')[0].trim())));
   // No máximo os slides da apresentação da pessoa: juntar reduz, dividir em mais slides não (QA: 6 viraram 11).
   const maximo = Math.max(1, slidesDaFonte(fonte).length);
@@ -627,12 +630,153 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
   }
   return { slides, custo, economia };
 }
+// ---------- mesma família: a apresentação da pessoa e o modelo têm as mesmas seções ----------
+// Caso real: um kick-off no design de outro kick-off da mesma consultoria (MENSAGEM CENTRAL, PAPÉIS, MÉTODO…). Escolher
+// páginas pelo tipo (lista, tabela) e encaixar texto pela ordem deixava slides só com o título ou com o conteúdo no
+// lugar errado, e os filtros de frase cortavam o enriquecimento pedido. Aqui cada slide vai para a página equivalente
+// do modelo e a IA aplica o pedido (renumerar, renomear, enriquecer com a proposta e o contrato) no texto da pessoa.
+const linhasDe = s => String(s || '').split('\n').map(l => l.trim()).filter(Boolean);
+export function correspondenciaDaFonte(paginas, fonte) {
+  const fonteSlides = slidesDaFonte(fonte);
+  const corresp = fonteSlides.map(s => paginaCorrespondente(paginas, linhasDe(s)));
+  const familia = fonteSlides.length >= 3 && corresp.filter(c => c.nota >= 0.4).length >= fonteSlides.length * 0.6;
+  return { fonteSlides, corresp, familia };
+}
+export function mensagensPlanoFamilia({ fonte, pedido, contexto }) {
+  return [
+    { role: 'system', content: [
+      'Você aplica um pedido de ajustes a uma apresentação. O design vem de uma apresentação modelo da mesma família (as mesmas seções); a plataforma cuida do layout, você cuida só do TEXTO de cada slide.',
+      'Devolva a apresentação inteira, slide a slide, na ordem, com o pedido aplicado. Cada slide: uma linha por caixa de texto, na mesma ordem e com o mesmo papel das linhas do slide original (título, rótulo, item, rodapé). Não junte linhas de caixas diferentes numa só.',
+      'Faça de verdade tudo o que o pedido manda: corrigir numeração de capítulos e seções em todos os slides, renomear divisórias e títulos, enriquecer itens genéricos com fatos concretos dos documentos da conversa (proposta, contrato, anexos): nomes de sistemas, documentos, entregáveis, frentes, prazos e responsabilidades que eles citam. Escreva como um consultor sênior: frases curtas, específicas e claras para uma apresentação falada.',
+      'O que o pedido não manda mudar fica como está, com as mesmas palavras. Acrescente, remova ou junte slides só se o pedido mandar.',
+      'Não invente: todo número, data, prazo, valor, nome e fato novo precisa estar nos documentos da conversa. Item enriquecido continua cabendo numa caixa de slide (até uns 120 caracteres).',
+      'Responda só JSON, com todos os slides na ordem final: {"slides":[{"origem":<número do slide original, ou null se for novo>,"conteudo":"linha 1\\nlinha 2\\n..."}],"mudancas":["o que mudou, em uma frase", ...]}. Slide que fica exatamente igual vai só como {"origem":<número>,"igual":true}, sem o conteúdo.',
+    ].join('\n') },
+    { role: 'user', content: `Pedido: ${pedido}\n\n<documentos_da_conversa>\n${String(contexto || '').slice(0, 120000)}\n</documentos_da_conversa>\n\n<apresentacao>\n${slidesDaFonte(fonte).map((s, i) => `## Slide ${i + 1}\n${s}`).join('\n\n')}\n</apresentacao>` },
+  ];
+}
+async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, material, fonteSlides, corresp }) {
+  let custo = 0, economia = 0, j = null;
+  try {
+    const x = await chamar(mensagensPlanoFamilia({ fonte, pedido, contexto }));
+    custo += x.custo || 0; economia += x.economia || 0;
+    j = lerJson(x.texto);
+  } catch { /* fica a apresentação como está, no design do modelo */ }
+  // Linha nova (que não estava no slide original): sai se tiver número que não está no material ou se a maior parte
+  // das palavras não vier dele. Linha que já estava na apresentação passa sempre.
+  const originais = new Set(fonteSlides.flatMap(linhasDe).map(semAcento));
+  const conferir = c => linhasDe(c).filter(l => originais.has(semAcento(l)) || (!numerosForaDoMaterial(l, material).length && fracaoForaDoMaterial(l, material) < 0.5)).join('\n');
+  const maximo = fonteSlides.length + Math.max(2, Math.ceil(fonteSlides.length * 0.2));
+  let lista = (Array.isArray(j?.slides) ? j.slides : []).slice(0, maximo).map(s => {
+    const o = Math.round(Number(s?.origem)) - 1;
+    const origem = o >= 0 && o < fonteSlides.length ? o : -1;
+    return { origem, conteudo: s?.igual === true && origem >= 0 ? fonteSlides[origem] : conferir(s?.conteudo) };
+  }).filter(s => s.conteudo);
+  // Resposta que perdeu boa parte da apresentação (cortada, ou slides esquecidos): fica a apresentação original.
+  const cobertos = new Set(lista.map(s => s.origem).filter(o => o >= 0));
+  if (lista.length < fonteSlides.length * 0.6 || cobertos.size < fonteSlides.length * 0.6) lista = fonteSlides.map((c, i) => ({ origem: i, conteudo: c }));
+  const textuais = paginas.map((p, k) => k).filter(k => k > 0 && k < paginas.length - 1 && paginaDeTexto(paginas[k]));
+  const slides = lista.map((s, i) => {
+    const m = paginaCorrespondente(paginas, linhasDe(s.conteudo));
+    const pagina = m.nota >= 0.3 ? m.k : s.origem >= 0 && corresp[s.origem].nota >= 0.3 ? corresp[s.origem].k
+      : i === 0 ? 0 : i === lista.length - 1 ? paginas.length - 1 : (textuais[i % Math.max(1, textuais.length)] ?? Math.min(1, paginas.length - 1));
+    return { pagina, conteudo: s.conteudo, correspondencia: true };
+  });
+  const mudancas = (Array.isArray(j?.mudancas) ? j.mudancas : []).map(String).filter(Boolean).slice(0, 12);
+  return { slides, custo, economia, mudancas, familia: true };
+}
+
 /** Páginas do modelo na ordem do plano (a mesma página pode repetir), com ids novos e a numeração "n / total" refeita. */
 export function paginasDoPlano(paginas, plano) {
   return plano.map((s, i) => {
     const p = paginas[s.pagina];
-    return { ...p, blocos: p.blocos.map((b, k) => ({ ...b, id: `${i + 1}.${k + 1}`, texto: /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) ? `${i + 1} / ${plano.length}` : b.texto })) };
+    // Número de página solto no rodapé ("03" na página 3 do modelo) passa a ser o número do slide novo.
+    const numero = b => /^\s*\d{1,3}\s*$/.test(b.texto) && p.h && b.y > p.h * 0.9 ? String(i + 1).padStart(b.texto.trim().length, '0') : b.texto;
+    return { ...p, ...(s.correspondencia ? { correspondencia: true } : {}), blocos: p.blocos.map((b, k) => ({ ...b, id: `${i + 1}.${k + 1}`, texto: /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(b.texto) ? `${i + 1} / ${plano.length}` : numero(b) })) };
   });
+}
+
+// ---------- correspondência entre o slide da pessoa e a página do modelo ----------
+// Apresentações da mesma família (o caso real: um kick-off no design de outro kick-off) têm páginas com os mesmos
+// blocos: "01 · MENSAGEM CENTRAL", "MOBILIZAR", "O responsável da frente é…". Cada linha vai para o bloco cujo texto
+// original mais se parece com ela (pares de letras, sem espaços: "MO BILIZAR" do PDF = "MOBILIZAR").
+const letras = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/^[•▪●\-–\s]+/, '').replace(/[^a-z0-9]/g, '');
+const paresDeLetras = t => { const x = letras(t), m = new Map(); for (let i = 0; i < x.length - 1; i++) { const b = x.slice(i, i + 2); m.set(b, (m.get(b) || 0) + 1); } return m; };
+export function parecenca(a, b) {
+  // Símbolo igual ("→", "•"): mesmo bloco, mesmo sem letras.
+  if (String(a).trim() && String(a).trim() === String(b).trim()) return 1;
+  const x = letras(a), y = letras(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  if (x.length < 3 || y.length < 3) return 0;
+  const pa = paresDeLetras(a), pb = paresDeLetras(b);
+  let comum = 0; for (const [k, n] of pa) comum += Math.min(n, pb.get(k) || 0);
+  return (2 * comum) / (x.length - 1 + y.length - 1);
+}
+const CONTADOR = /^\s*\d{1,3}\s*(\/\s*\d{1,3})?\s*$/;
+/**
+ * Encaixe por correspondência: { textos: {id: texto}, nota: 0..1 } — nota = parte dos blocos com par bom (≥ 0,6).
+ * Pares bons primeiro (maior parecença); o que sobra segue a ordem de leitura; linha sem bloco vai para o último
+ * bloco de texto usado; bloco sem linha fica vazio. Contador de página (03, 2 / 6) fica como está.
+ */
+export function encaixarPorCorrespondencia(pagina, linhas) {
+  const blocos = pagina.blocos.filter(b => !CONTADOR.test(b.texto));
+  // Linha "Evidência · Documentos, dados…" (rótulo e descrição numa caixa só) para um modelo que tem as duas caixas
+  // separadas: se cada parte tem o seu bloco, e melhor que a linha inteira, a linha se divide.
+  const melhorBloco = t => blocos.reduce((m, b, i) => { const n = parecenca(b.texto, t); return n > m.n ? { n, i } : m; }, { n: 0, i: -1 });
+  // Números que o layout já desenha (passos "1"…"5", número da página): a linha só com o número sai, e o número no
+  // começo da linha ("10 Onde existem exceções?") sai quando o modelo tem esse número numa caixa própria.
+  const numeros = new Set(pagina.blocos.filter(b => CONTADOR.test(b.texto)).map(b => Number(b.texto.trim())));
+  const comNumero = new Set(blocos.map(b => /^\s*(\d{1,3})\s/.exec(b.texto)?.[1]).filter(Boolean).map(Number));
+  // Frase quebrada em duas caixas no arquivo de origem ("Qual resultado" + "precisa existir no final?"): a continuação
+  // (começa em minúscula, a anterior não termina frase) volta a ser uma linha só.
+  const inteiras = linhas.map(l => String(l).trim()).filter(Boolean).reduce((a, l) => {
+    if (a.length && /^\p{Ll}/u.test(l) && !/[.!?:;]$/.test(a.at(-1)) && !/\s·\s/.test(l)) a[a.length - 1] = `${a.at(-1)} ${l}`; else a.push(l);
+    return a;
+  }, []);
+  const ls = inteiras.filter(l => l && !(numeros.size && CONTADOR.test(l)))
+    .map(l => { const m = /^(\d{1,3})\s+(?=\p{L})/u.exec(l); return m && numeros.has(Number(m[1])) && !comNumero.has(Number(m[1])) ? l.slice(m[0].length) : l; })
+    .flatMap(l => {
+    const partes = l.split(/\s+·\s+/).map(x => x.trim()).filter(Boolean);
+    if (partes.length < 2) return [l];
+    const ms = partes.map(melhorBloco), inteira = melhorBloco(l).n;
+    if (ms.every(m => m.n >= 0.6) && new Set(ms.map(m => m.i)).size === ms.length && Math.min(...ms.map(m => m.n)) > inteira) return partes;
+    // Rótulo curto do modelo no começo ("Evidência") e o resto reescrito: o rótulo vai para o bloco dele, o resto segue.
+    const r = ms[0];
+    return r.n >= 0.8 && r.n > inteira && blocos[r.i].texto.length <= 30 && !/·/.test(blocos[r.i].texto) ? [partes[0], partes.slice(1).join(' · ')] : [l];
+  });
+  const pares = [];
+  blocos.forEach((b, i) => ls.forEach((l, j) => { const n = parecenca(b.texto, l); if (n >= 0.6) pares.push([n, i, j]); }));
+  pares.sort((a, b) => b[0] - a[0]);
+  const deBloco = new Map(), usadas = new Set();
+  for (const [, i, j] of pares) if (!deBloco.has(i) && !usadas.has(j)) { deBloco.set(i, j); usadas.add(j); }
+  const nota = blocos.length ? deBloco.size / Math.max(blocos.length, ls.length) : 0;
+  const fortes = pares.filter(([n, i, j]) => n >= 0.8 && deBloco.get(i) === j).length;
+  // Sobra: na ordem (blocos em ordem de leitura; linhas na ordem do slide).
+  const ordem = blocos.map((b, i) => ({ b, i })).sort((p, q) => Math.abs(p.b.y - q.b.y) < (p.b.tam || 10) * 0.6 ? p.b.x - q.b.x : p.b.y - q.b.y);
+  const livresB = ordem.filter(x => !deBloco.has(x.i)), livresL = ls.map((l, j) => j).filter(j => !usadas.has(j));
+  livresB.forEach((x, k) => { if (k < livresL.length) deBloco.set(x.i, livresL[k]); });
+  const textos = {};
+  for (const b of pagina.blocos) if (!CONTADOR.test(b.texto)) textos[b.id] = '';
+  blocos.forEach((b, i) => { if (deBloco.has(i)) textos[b.id] = ls[deBloco.get(i)]; });
+  const sobra = livresL.slice(livresB.length).map(j => ls[j]);
+  if (sobra.length) {
+    // Sobra vai para o último bloco de texto (nunca o rodapé).
+    const ultimo = [...ordem].reverse().find(x => deBloco.has(x.i) && x.b.texto.length > 20 && !(pagina.h && x.b.y > pagina.h * 0.9)) || ordem.at(-1);
+    if (ultimo) textos[ultimo.b.id] = [textos[ultimo.b.id], ...sobra].filter(Boolean).join(' · ');
+  }
+  return { textos, nota, fortes };
+}
+/** Página do modelo mais parecida com o slide (mesma seção e mesmos blocos), com a nota da correspondência. */
+export function paginaCorrespondente(paginas, linhas) {
+  let melhor = { k: -1, nota: 0 };
+  paginas.forEach((p, k) => {
+    const { nota } = encaixarPorCorrespondencia(p, linhas);
+    const titulo = parecenca(p.blocos[0]?.texto || '', linhas[0] || '');
+    const n = nota + (titulo >= 0.6 ? 0.2 : 0);
+    if (n > melhor.nota) melhor = { k, nota: n };
+  });
+  return melhor;
 }
 
 /**
@@ -644,7 +788,12 @@ export function paginasDoPlano(paginas, plano) {
 export function preencherReestilo(paginas, conteudos) {
   const textos = {}, contador = /^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/;
   paginas.forEach((p, k) => {
-    const [titulo = '', ...itens] = String(conteudos[k] || '').split('\n').map(l => l.trim()).filter(Boolean);
+    // Página da mesma família do slide: encaixe por correspondência (rótulo no rótulo, item no item).
+    const todas = String(conteudos[k] || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const enc = encaixarPorCorrespondencia(p, todas);
+    // Página escolhida por correspondência (mesma família) também usa este encaixe, mesmo com poucos pares exatos.
+    if (p.correspondencia || enc.nota >= 0.3 || enc.fortes >= 2) { Object.assign(textos, enc.textos); return; }
+    const [titulo = '', ...itens] = todas;
     const tituloB = p.blocos.find(b => papelDoBloco(b, p.blocos) === 'título') || [...p.blocos].sort((a, b) => (b.tam || 0) - (a.tam || 0))[0];
     // Subtítulo (texto menor logo abaixo do título): fica vazio, para o primeiro item não virar subtítulo.
     const subtitulo = tituloB && p.blocos.find(b => b !== tituloB && b.y > tituloB.y && b.y - tituloB.y < (tituloB.tam || 20) * 1.8 && (b.tam || 0) < (tituloB.tam || 0) * 0.75);
@@ -675,6 +824,24 @@ async function reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes
   etapa('Montando os slides no design do modelo…');
   const textos = preencherReestilo(paginas, conteudos);
   let custo = 0, economia = 0;
+  // Página equivalente com estrutura diferente (o slide da pessoa é uma lista; o modelo, uma tabela de agenda): o
+  // encaixe por ordem espalha o conteúdo pelas células. A IA distribui o conteúdo pelos blocos; o resultado só vale se
+  // cada texto vier do conteúdo do slide (sem número nem palavras novas), senão fica o encaixe por ordem.
+  const fracos = paginas.map((p, k) => ({ p, k })).filter(({ p, k }) => p.correspondencia && p.blocos.length > 6 && encaixarPorCorrespondencia(p, linhasDe(conteudos[k])).nota < 0.45);
+  if (fracos.length) {
+    try {
+      const slides = fracos.map(({ p, k }) => ({ numero: k + 1, blocos: p.blocos.filter(b => !CONTADOR.test(b.texto)) }));
+      const x = await chamar(mensagensAdaptacao({ slides, contexto: '', pedido, conteudos }));
+      custo += x.custo || 0; economia += x.economia || 0;
+      const j = lerJson(x.texto) || {};
+      for (const { k } of fracos) {
+        const ids = slides.find(s => s.numero === k + 1).blocos.map(b => b.id), daqui = String(conteudos[k] || '');
+        const novos = ids.map(id => [id, String(j[id] ?? '').trim()]);
+        const certo = novos.some(([, t]) => t) && novos.every(([, t]) => !t || (!numerosForaDoMaterial(t, daqui).length && fracaoForaDoMaterial(t, daqui) < 0.3));
+        if (certo) for (const [id, t] of novos) textos[id] = t;
+      }
+    } catch { /* fica o encaixe por ordem */ }
+  }
   // Conferência final de sentido (o conteúdo veio do plano): frase que afirma o que o material não diz sai.
   if (fontes) {
     etapa('Conferindo se cada frase vem do seu material…');

@@ -564,6 +564,10 @@ export function iaTrocavel(inicial, { aoRecusar = null, bloqueio = null } = {}) 
     get configurada() { return atual.configurada; }, get simulada() { return atual.simulada; },
     get geraImagem() { return typeof atual.gerarImagem === 'function' && atual.geraImagem !== false && atual.configurada !== false; },
     listarModelos: (...a) => atual.listarModelos(...a),
+    listarRotas: (...a) => {
+      if (typeof atual.listarRotas !== 'function') throw new ErroIA('A consulta de rotas não está disponível no provedor atual.', 503);
+      return atual.listarRotas(...a);
+    },
     conta: (...a) => (atual.conta ? atual.conta(...a) : Promise.resolve(null)),
     custoDaGeracao: (...a) => (atual.custoDaGeracao ? atual.custoDaGeracao(...a) : Promise.resolve(null)),
     // Envio: se a chave em uso já foi recusada pelo OpenRouter, não insiste (revalida no máximo a cada

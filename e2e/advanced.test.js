@@ -42,3 +42,26 @@ test('UI + servidor: pedido → solicitação → aprovação → notificação 
   await ac.close();
  }finally{await N.fechar();await OR.fechar();}
 });
+test('alternativa de apresentação fica em texto e mantém a liberação pendente após executar e reabrir',async()=>{
+ const OR=await openRouterFalso({responder:()=> '## Roteiro de slides\n\n'+('Tópicos para a apresentação, ainda sem arquivo final. '.repeat(30))});
+ const N=await subirComNavegador({ia:OR.ia});try{
+  salvarConfig(N.app.db,{dominios:['empresa-exemplo.com.br']});
+  const ana=await cliente(N.app,N.base).entrar('ana@empresa-exemplo.com.br');const k=ana.cookie.indexOf('=');
+  await N.contexto.addCookies([{name:ana.cookie.slice(0,k),value:ana.cookie.slice(k+1),url:N.base}]);
+  const p=await N.contexto.newPage();await p.goto(N.base+'/app#/nova');
+  await p.fill('#entrada','Crie uma apresentação PPTX de altíssimo nível sobre um projeto fictício.');await p.click('#enviar');
+  await p.getByRole('button',{name:'Pedir liberação para este trabalho',exact:true}).click();
+  await p.getByRole('heading',{name:'Aguardando liberação',exact:true}).waitFor();
+  await p.getByText('Ver alternativa',{exact:true}).click();
+  await p.getByText('Não inclui montar o PowerPoint, aplicar o layout ou gerar os arquivos da apresentação.',{exact:true}).waitFor();
+  assert.equal(OR.chamadas.length,0);
+  await p.getByRole('button',{name:'Continuar com o nível disponível',exact:true}).click();
+  await p.getByRole('heading',{name:'Roteiro de slides',exact:true}).waitFor();
+  await p.getByRole('heading',{name:'Aguardando liberação',exact:true}).waitFor();
+  assert.equal(await p.locator('#coluna .arquivo-previa, #coluna .arquivos-resposta').count(),0);
+  assert.equal(um(N.app.db,'select count(*) n from arquivos_gerados').n,0);
+  await p.reload();await p.getByRole('heading',{name:'Roteiro de slides',exact:true}).waitFor();
+  await p.getByRole('heading',{name:'Aguardando liberação',exact:true}).waitFor();
+  assert.equal(await p.locator('#coluna .arquivo-previa, #coluna .arquivos-resposta').count(),0);
+ }finally{await N.fechar();await OR.fechar();}
+});

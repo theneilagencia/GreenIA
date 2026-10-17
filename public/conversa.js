@@ -139,6 +139,7 @@ function desenhar() {
   if (texto) { $('entrada').value = texto; ajustarAltura(); }
   if (focado) $('entrada').focus();
   desenharAnexos(); atualizarEnviar();
+  atualizarAdvanced();
 }
 
 // Conversa vazia: sugestões (chips que preenchem a caixa) e, na conversa livre, até 3 Quick Wins publicados para
@@ -252,16 +253,9 @@ function cartaoComPrevia({ previa, baixar, nome, detalhe }) {
     <a class="anexo-resposta" href="${esc(baixar)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>${esc(nome)}</b><small>${esc(detalhe)}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a></div>`;
 }
 function arquivosPedidos(m, tabelas) {
-  if (!servidor(m)) return '';
-  if ((m.arquivos || []).length) return arquivosGerados(m);
-  if (/O arquivo (?:(ajustado|no layout pedido) não foi gerado nesta resposta|com o acabamento solicitado não foi gerado)/.test(m.texto)) return '';
-  const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
-  // Pedido "no mesmo layout" de um modelo: só vale o arquivo montado no layout (m.arquivos); nada genérico no lugar.
-  if (MESMO_LAYOUT.test(pedido)) return '';
-  const pedidos = Object.keys(PEDE).filter(f => PEDE[f].test(pedido) && (f !== 'xlsx' || tabelas.length));
-  // Excel com uma tabela só: o cartão da própria tabela já é a planilha.
-  const lista = pedidos.filter(f => !(f === 'xlsx' && tabelas.length === 1));
-  return lista.length ? `<div class="arquivos-resposta">${lista.map(f => f === 'pptx' ? cartaoComPrevia({ previa: `${arquivoHref(m, 'pptx')}/previa`, baixar: arquivoHref(m, 'pptx'), nome: ARQ.pptx[1], detalhe: `Baixar arquivo ${ARQ.pptx[2]}` }) : `<a class="anexo-resposta" href="${arquivoHref(m, f)}" download data-arquivo="${f}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA[ARQ[f][0]]}</span><span class="anexo-resposta-texto"><b>${ARQ[f][1]}</b><small>Baixar arquivo ${ARQ[f][2]}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`).join('')}</div>` : '';
+  // O pedido pode citar um formato apenas para excluí-lo. Só o servidor
+  // confirma a entrega; os formatos opcionais continuam no menu Baixar como.
+  return servidor(m) && (m.arquivos || []).length ? arquivosGerados(m) : '';
 }
 // "Baixar como": qualquer resposta guardada vira Word ou PowerPoint; com tabela, também Excel.
 function baixarComo(m) {

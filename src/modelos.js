@@ -348,16 +348,27 @@ export function rotasModelos(app, r) {
     const lat = {};
     for (const l of todos(app.db, `select modelo_usado as m, ms_primeiro_token as p, ms_total as t ${base} and ms_total is not null`, desde)) (lat[l.m] ||= []).push(l);
     const latencia = Object.entries(lat).map(([modelo, l]) => ({ modelo, n: l.length, primeiroTokenMs: mediana(l.map(x => x.p)), totalMs: mediana(l.map(x => x.t)) })).sort((a, b) => b.n - a.n);
-    const limite = Math.min(100, Math.max(1, Number(query.limite) || 40));
+    const limite = Math.min(100, Math.max(1, Math.trunc(Number(query.limite)) || 20));
+    let pagina = Number.isFinite(Number(query.pagina)) ? Math.max(1, Math.trunc(Number(query.pagina)) || 1) : 1;
+    const filtros={bloqueado:"r.resultado = 'bloqueado'",abaixo:"coalesce(r.resultado,'respondido') like 'respondido%' and (r.fallback like '%abaixo_do_necessario%')",manual:"r.modo = 'manual' and coalesce(r.resultado,'respondido') like 'respondido%'",externo:"r.modo = 'externo'"};
+    const filtro=Object.hasOwn(filtros,query.situacao)?query.situacao:'';
+    const condicao=filtro?`where r.em >= ? and coalesce(r.teste,0)=0 and (${filtros[filtro]})`:'where coalesce(r.teste,0)=0';
+    const args=filtro?[desde]:[];
+    const totalHistorico=um(app.db,`select count(*) n from roteamento r ${condicao}`,...args).n;
+    pagina=Math.min(pagina,Math.max(1,Math.ceil(totalHistorico/limite)));
+    const manuais=um(app.db,`select count(*) n ${base} and modo='manual'`,desde).n;
+    const alternativas=um(app.db,"select count(*) n from eventos where em >= ? and tipo='advanced.alternative_started'",desde).n;
     const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.origem, r.classe_pedida, r.preferencia, r.complexidade, r.tipos, r.precisao, r.sinais, r.requisitos,
       r.classe_necessaria, r.modelo, r.classe, r.politicas, r.candidatos, r.janela_minima, r.janela_desejada, r.motivo_escolha, r.fallback, r.reserva, r.resultado,
       r.modelo_usado, r.explicacao, r.versao, r.sigilosa, r.ms_primeiro_token, r.ms_total, r.feedback, r.refeito, r.nova_tentativa_de, q.nome as quick_win
-      from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id order by r.id desc limit ?`, limite)
+      from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id ${condicao} order by r.id desc limit ? offset ?`, ...args, limite, (pagina-1)*limite)
       .map(d => ({ ...d, sigilosa: !!d.sigilosa, refeito: !!d.refeito, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), requisitos: json(d.requisitos, {}),
         politicas: json(d.politicas, []), candidatos: json(d.candidatos, []), fallback: json(d.fallback, null) }));
     return {
       config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
+      paginacao:{pagina,limite,total:totalHistorico,paginas:Math.max(1,Math.ceil(totalHistorico/limite)),filtro},
       resumo: {
+        periodo:{desde,ate:app.agora().toISOString()},atencao:{respostasAbaixo:(soma.limitadas||0)+(soma.abaixoPorEscolha||0),bloqueios:fora.bloqueadas||0,manuais,roteamentoExterno:fora.externo||0,alternativasIniciadas:alternativas},
         decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), porNecessaria: contar('classe_necessaria'),
         limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { externo: fora.externo || 0, bloqueadas: fora.bloqueadas || 0 },
         consumo: { realizado: { custo: consumo.real || 0 }, estimado: { custo: consumo.est || 0 }, referencia: { custo: consumo.ref || 0 } },

@@ -91,14 +91,13 @@ function desenhar() {
   const sig = !!conv?.sigilosa;
   const podeTrocar = !qw || qw.pode_trocar || C.opcoes.length > 1;
   $('principal').innerHTML = `
-    <div id="advanced-chat" aria-live="polite"></div>
     ${cabecalho(titulo(), conv ? `<button type="button" class="icone-btn hc-acoes acoes-conversa" id="acoes-conversa" data-hc-acoes="${conv.id}" aria-label="Ações da conversa" title="Ações da conversa" aria-haspopup="menu" aria-expanded="false">${ICONE.opcoes}</button>` : '')}
     ${qw ? `<div class="barra-conversa"><a class="qw-contexto" href="#/qw/${qw.id}" title="Abrir o Quick Win">${marcaQw(qw)}${esc(qw.nome)}</a>${C.teste ? '<span class="dica">Teste: não conta nos resultados</span>' : qw.v2 || !qw.podeEditar ? '' : `<span class="dica">${ESTADOS[qw.status] || ''}</span>`}</div>` : ''}
     ${qw && !qw.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Não entra nos resultados. Quando estiver bom, publique para a equipe.', 'info',
       `${['em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'].includes(qw.status) ? '' : `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar para a equipe</a>`}<a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/editar">Ajustar instruções</a><a class="btn btn-texto btn-pequeno" href="#/qw/${qw.id}">Voltar ao Quick Win</a>`)}</div>` : ''}
     ${qw?.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Usa a versão em edição e não entra nos resultados.', 'info',
       `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/ajustar">Ajustar</a>`)}</div>` : ''}
-    <div class="mensagens" id="msgs"><div class="coluna" id="coluna"></div></div>
+    <div class="mensagens" id="msgs"><div id="advanced-chat" aria-live="polite"></div><div class="coluna" id="coluna"></div></div>
     <div class="compositor"><div class="compositor-dentro">
       ${avisoPesquisa(C.conv?.pesquisa)}
       ${qw?.v2 && C.proximaExecucao ? `<div class="proxima-execucao" role="status"><span>${ICONE.raio}</span><span><b>Nova execução do Quick Win.</b> O próximo envio roda o trabalho completo, com conferência.</span><button type="button" class="btn btn-texto btn-pequeno" id="cancelar-execucao">Cancelar</button></div>` : ''}
@@ -866,5 +865,5 @@ function atualizarAdvanced() {
     await carregarModelos();
     C.modelo='classe:auto';
     await enviar({texto:corpo.texto,advanced_alternativa:corpo.advanced_alternativa,anexos:[...(corpo.anexos||[]),...(corpo.links||[]).map(l=>({...l,link:true}))]},{executar:corpo.executar_quick_win===true});
-  }).catch(()=>{});
+  },{ocupado:!!C.enviando}).catch(()=>{});
 }

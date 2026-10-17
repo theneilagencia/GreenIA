@@ -7,7 +7,7 @@ test('explica as etapas reais sem copiar nomes ou conteúdo privado',()=>{
  assert.doesNotMatch(JSON.stringify(a),/Cliente Sigiloso|Segredo|Outro|qualidade|premium|resposta melhor/i);
  const b=trabalhoDoPedido({texto:'Monte uma apresentação PPTX com seis slides'});
  assert.match(b.justificativa,/apresentação em slides/);assert.notEqual(a.justificativa,b.justificativa);
- assert.match(b.alternativa.descricao,/sequência e tópicos/);assert.match(b.alternativa.limites,/Não inclui montar o PowerPoint/);
+ assert.doesNotMatch(JSON.stringify(b),/600 palavras/);assert.match(b.alternativa.descricao,/sequência e os principais tópicos/);assert.match(b.alternativa.limites,/PowerPoint depende da liberação/);
  const c=trabalhoDoPedido({texto:'Crie uma planilha de projeções e confira fórmulas'});
  assert.match(c.justificativa,/cálculos/);assert.match(c.alternativa.limites,/Não inclui gerar a planilha/);
 });

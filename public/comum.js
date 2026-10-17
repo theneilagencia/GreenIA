@@ -39,6 +39,9 @@ export async function api(caminho, { metodo = 'GET', corpo, bruto = false, indep
 
 const svg = (d, w = 1.7) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 export const ICONE = {
+  relogio: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  camadas: svg('<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>'),
+  chevron: svg('<path d="m9 5 7 7-7 7"/>'),
   seta: svg('<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>', 1.8),
   voltar: svg('<path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/>', 1.8),
   enviar: svg('<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>', 1.9),

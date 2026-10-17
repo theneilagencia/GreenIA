@@ -150,7 +150,7 @@ test('solicitação por trabalho: etapas contextuais, anexos intactos e alternat
   const b=await enviarMensagem(s.ana,s.conv.id,corpo);assert.equal(b.status,403,JSON.stringify(b));const id=b.erro.advanced.pedido;
   const p=(await s.ana.get('/api/advanced/pedidos')).dados.pedidos.find(x=>x.id===id);
   assert.match(p.justificativa,/analisar 2 arquivos/);assert.match(p.justificativa,/comparar informações/);assert.match(p.justificativa,/apresentação/);
-  assert.match(p.trabalho.alternativa.limites,/Não inclui montar o PowerPoint/);
+  assert.match(p.trabalho.alternativa.limites,/PowerPoint depende da liberação/);
   await s.ana.post(`/api/advanced/pedidos/${id}/solicitar`);
   const painel=(await s.admin.get('/api/admin/advanced')).dados;
   assert.doesNotMatch(JSON.stringify(painel),/Empresa Secreta|Privado-Alfa|Privado-Beta|100 unidades/);

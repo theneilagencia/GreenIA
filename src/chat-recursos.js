@@ -5,6 +5,7 @@
 //    sugerido (nome e descrição) e a tela oferece "Criar este Quick Win" com o assistente já preenchido.
 //  - Pesquisa na internet: a mesma ferramenta e a mesma liberação dos Quick Wins (Configurações › Políticas), com a
 //    mensagem da pessoa como consulta. Desligada ou barrada pela governança, a resposta diz o motivo e não inventa.
+import { proibePesquisaWeb } from './quickwin-operacao.js';
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const AGENTE = /\b(agente|agentes|assistente (virtual|automatico|que)|robo que|bot que)\b/;
@@ -32,7 +33,7 @@ export function quickWinSugerido(texto) {
 }
 
 const PESQUISA = /\b(pesquis\w*|busque|buscar na (internet|web)|procure na (internet|web)|na internet|ultimas? noticias|novidades (recentes|da semana|do mes)|ultimos \d+ dias|ultimas \d+ semanas|esta semana|nesta semana|este mes|neste mes|hoje|atualmente|fontes oficiais|o que (mudou|ha de novo))\b/;
-export const pedePesquisa = texto => PESQUISA.test(norm(texto));
+export const pedePesquisa = texto => !proibePesquisaWeb(texto) && PESQUISA.test(norm(texto));
 // Liberação da pesquisa na conversa: as mesmas regras da pesquisa dos Quick Wins.
 export function decisaoPesquisa(cfg, { sigilosa, areaReforcada, protegidos, reserva }) {
   if (!cfg.pesquisaWeb?.ativa) return { pode: false, codigo: 'nao_liberada' };

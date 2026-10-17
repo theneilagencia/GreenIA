@@ -6,6 +6,7 @@ import { inflateRawSync } from 'node:zlib';
 import { erro } from './http.js';
 import { lerImagens, dimensoes, imagensDoPdf, ErroOcr, LIMITES_OCR, MSG_SEM_TEXTO, MSG_GRANDE, MSG_OCUPADO, MSG_IMAGEM_SEM_TEXTO, MSG_PDF_SEM_TEXTO } from './ocr.js';
 import { prepararImagem, lerPaginas, textoDoPdf } from './ocr-paginas.js';
+import { normalizarXmlPlanilha } from './xml-planilha.js';
 
 // Conteúdo de fora (anexo, documento) entre marcas; a marca de fechamento dentro do texto é neutralizada.
 import { resumoDeCsv, resumoDeTabela } from './planilha.js';
@@ -112,7 +113,8 @@ function dataDoExcel(serie) {
 }
 
 function xlsx(b) {
-  const z = lerZip(b);
+  const original = lerZip(b);
+  const z = new Map([...original].map(([nome, ler]) => [nome, () => normalizarXmlPlanilha(ler())]));
   const compart = z.get('xl/sharedStrings.xml') ? [...z.get('xl/sharedStrings.xml')().matchAll(/<si>([\s\S]*?)<\/si>/g)]
     .map(m => entidades([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join(''))) : [];
   const livro = z.get('xl/workbook.xml')?.() || '';

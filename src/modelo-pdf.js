@@ -612,6 +612,19 @@ export async function planejarReestilo({ paginas, fonte, pedido, contexto, chama
     const fonteSlides = slidesDaFonte(fonte), n = paginas.length, meio = textuais.length ? textuais : [Math.min(1, n - 1)];
     slides = fonteSlides.map((c, i) => ({ pagina: i === 0 ? 0 : i === fonteSlides.length - 1 && n > 1 ? n - 1 : meio[(i - 1) % meio.length], conteudo: c }));
   }
+  // Título que promete o que o slide não tem: todas as linhas vêm de um único slide da apresentação e o título fala de
+  // outra coisa (QA em produção: "Diagnóstico Operacional: Escopo e Próximos Passos" só com os próximos passos, porque
+  // as linhas do diagnóstico não passaram na conferência). O título volta a ser o do slide de origem.
+  const origem = slidesDaFonte(fonte).map(x => { const [t, ...r] = x.split('\n'); return { titulo: t.trim(), itens: r.map(l => semAcento(l).replace(/^[•\-–\s]+/, '').trim().slice(0, 30)).filter(l => l.length >= 6) }; });
+  const palavrasDoTitulo = t => palavrasSeguidas(t);
+  for (const s of slides || []) {
+    const [t, ...r] = s.conteudo.split('\n'), linhas = r.map(l => semAcento(l).replace(/^[•\-–\s]+/, '').trim()).filter(Boolean);
+    if (!linhas.length) continue;
+    const dona = origem.find(o => o.itens.length && linhas.every(l => o.itens.some(i => l.startsWith(i) || i.startsWith(l.slice(0, 30)))));
+    if (!dona) continue;
+    const doTitulo = palavrasDoTitulo(t), conhecidas = new Set([...palavrasDoTitulo(dona.titulo), ...palavrasDoTitulo(r.join(' '))]);
+    if (doTitulo.length && doTitulo.filter(w => !conhecidas.has(w)).length / doTitulo.length > 0.5) s.conteudo = [dona.titulo, ...r].join('\n');
+  }
   return { slides, custo, economia };
 }
 /** Páginas do modelo na ordem do plano (a mesma página pode repetir), com ids novos e a numeração "n / total" refeita. */

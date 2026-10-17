@@ -182,3 +182,9 @@ test('slide que perdeu linhas na conferência: pede de novo com frases copiadas 
   assert.equal(n, 2);
   assert.match(r.slides[1].conteudo, /relatórios do sistema, folha mensal/);
 });
+
+test('título que promete o que o slide não tem volta a ser o do slide de origem', async () => {
+  const r = await planejarReestilo({ paginas: MODELO, fonte: FONTE, material: FONTE, pedido: 'design', chamar: async () => ({ texto: JSON.stringify({ slides: [{ pagina: 1, conteudo: 'AgroSense — Apresentação 2026' }, { pagina: 2, conteudo: 'Resultados\n• -26% água' }, { pagina: 3, conteudo: 'Diagnóstico Operacional: Escopo e Próximos Passos\n• Visita técnica gratuita' }] }) }) });
+  assert.equal(r.slides[2].conteudo, 'Próximos passos\n• Visita técnica gratuita');
+  assert.equal(r.slides[1].conteudo.split('\n')[0], 'Resultados', 'título que bate com o conteúdo fica');
+});

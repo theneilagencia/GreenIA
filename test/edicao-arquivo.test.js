@@ -193,6 +193,8 @@ test('planilha: a lista do que mudou sai do próprio arquivo (fórmula e valor)'
   const antes = xlsx([{ nome: 'Fluxo', linhas: [['Conta', 'Jan'], ['Receita', '100'], ['Imposto', '=B2*0.6'], ['Nota', '12.5']] }]);
   const depois = aplicarEdicao('xlsx', antes, [{ op: 'celula', aba: 'Fluxo', ref: 'B3', formula: 'B2*0.06' }, { op: 'celula', aba: 'Fluxo', ref: 'B4', valor: '' }]).dados;
   assert.deepEqual(mudancasDaPlanilha(antes, depois).map(x => `${x.ref}: ${x.antes} → ${x.depois}`), ['B3: =B2*0.6 → =B2*0.06', 'B4: 12.5 → (vazia)']);
+  const curta = mudancasDaPlanilha(antes, depois, { max: 1 });
+  assert.deepEqual([curta.length, curta.total], [1, 2], 'a lista sabe quantas ficaram de fora');
 });
 
 test('planilha: total que deixa de fora uma linha do próprio bloco é apontado', () => {

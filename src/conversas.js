@@ -1440,7 +1440,7 @@ export function rotasConversas(app, r) {
               try {
                 const mud = mudancasDaPlanilha(edicao.dados, r.dados), abas = new Set(mud.map(x => x.aba)).size;
                 if (mud.length) {
-                  resposta = `${resposta.trimEnd()}\n\n**O que mudou no arquivo** (lido do próprio arquivo ajustado; se algo acima disser diferente, vale esta lista):\n${mud.map(x => `- ${abas > 1 ? `${x.aba}!` : ''}${x.ref}: ${x.antes} → ${x.depois}`).join('\n')}`;
+                  resposta = `${resposta.trimEnd()}\n\n**O que mudou no arquivo** (lido do próprio arquivo ajustado; se algo acima disser diferente, vale esta lista):\n${mud.map(x => `- ${abas > 1 ? `${x.aba}!` : ''}${x.ref}: ${x.antes} → ${x.depois}`).join('\n')}${mud.total > mud.length ? `\n- … e mais ${mud.total - mud.length} ${mud.total - mud.length === 1 ? 'célula' : 'células'} (veja no arquivo)` : ''}`;
                   linha({ t: 'substituir', v: resposta });
                 }
               } catch (e) { app.log?.('mudanças da planilha', erroParaLog(e)); }

@@ -597,7 +597,9 @@ export function mudancasDaPlanilha(antes, depois, { max = 30 } = {}) {
     }
   }
   const ordem = r => { const [, c, l] = /^([A-Z]+)(\d+)$/.exec(r) || []; return (Number(l) || 0) * 1000 + (c ? colNum(c) : 0); };
-  return out.sort((p, q) => p.aba.localeCompare(q.aba) || ordem(p.ref) - ordem(q.ref)).slice(0, max);
+  const todas = out.sort((p, q) => p.aba.localeCompare(q.aba) || ordem(p.ref) - ordem(q.ref)), lista = todas.slice(0, max);
+  lista.total = todas.length;   // quantas mudaram ao todo (a lista mostra até max)
+  return lista;
 }
 
 // ---------- entrada pública ----------

@@ -8,7 +8,11 @@ test('LP: exemplo finito, pausa, etapas manuais e nenhum efeito externo', async 
     const p = await N.contexto.newPage(), erros = [], externos = [], mutacoes = [];
     p.on('pageerror', e => erros.push(e.message));
     p.on('request', r => { if (!r.url().startsWith(N.base)) externos.push(r.url()); if (r.method() !== 'GET') mutacoes.push(r.url()); });
-    await p.goto(N.base); await p.locator('#demo-quick-win').scrollIntoViewIfNeeded();
+    await p.goto(N.base);
+    // A página rola suave (scroll-behavior: smooth); a rolagem que o Playwright faz antes de cada clique ficava em
+    // movimento e o botão nunca parava ("element is not stable"). Só no teste, a rolagem passa a ser imediata.
+    await p.addStyleTag({ content: 'html{scroll-behavior:auto!important}' });
+    await p.locator('#demo-quick-win').scrollIntoViewIfNeeded();
     await p.waitForFunction(() => document.querySelector('.qw-demo').dataset.playing === 'true');
     await p.getByRole('button', { name: 'Pausar demonstração' }).click();
     const paused = await p.locator('.qd-time').textContent();

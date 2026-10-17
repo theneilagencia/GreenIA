@@ -4,7 +4,7 @@
 // texto encaixado pela ordem; slides saíam só com o título, com o conteúdo no lugar errado e sem o enriquecimento pedido.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { adaptarModelo, correspondenciaDaFonte, encaixarPorCorrespondencia, paginasDoPlano, parecenca, planejarReestilo } from '../src/modelo-pdf.js';
+import { adaptarModelo, correspondenciaDaFonte, divisoriasRepetidas, encaixarPorCorrespondencia, paginasDoPlano, parecenca, planejarReestilo } from '../src/modelo-pdf.js';
 
 const b = (id, texto, x, y, tam = 14) => ({ id, texto, x, y, largura: 200, tam, linhas: 1, entrelinha: tam * 1.2, fonte: 'Inter', cor: '#000000' });
 const pg = blocos => ({ w: 1440, h: 810, blocos });
@@ -91,4 +91,21 @@ test('número de página solto no rodapé passa a ser o do slide novo', () => {
   const p = paginasDoPlano(MODELO, [{ pagina: 4 }, { pagina: 1 }]);
   assert.equal(p[0].blocos.find(x => x.id === '1.6').texto, '01');
   assert.equal(p[1].blocos.find(x => x.id === '2.6').texto, '02');
+});
+
+test('trava: a IA não inverte o sentido de um slide nem o esvazia; a renumeração pedida fica', async () => {
+  const chamar = async () => ({ texto: JSON.stringify({ slides: [
+    { origem: 1, igual: true }, { origem: 2, igual: true }, { origem: 3, igual: true }, { origem: 4, igual: true },
+    { origem: 5, conteudo: '08 · ESCOPO\nO que está no escopo\nDRE gerencial\nProjeto · Cliente Teste' },
+  ] }) });
+  const pl = await planejarReestilo({ paginas: MODELO, fonte: FONTE, pedido: 'os capítulos pulam do 7 pro 9', contexto: DOCS, material: `${FONTE}\n${DOCS}`, chamar });
+  const ultimo = pl.slides[4].conteudo.split('\n');
+  assert.equal(ultimo[0], '08 · ESCOPO');
+  assert.equal(ultimo[1], 'O que não está no escopo');
+  assert.ok(ultimo.includes('Parecer contábil'));
+});
+
+test('divisória com o mesmo nome do slide seguinte é apontada para a IA', () => {
+  assert.match(divisoriasRepetidas(FONTE), /slide 3 \(divisória\) "Como o trabalho acontece"/);
+  assert.doesNotMatch(divisoriasRepetidas(FONTE), /slide 1/);
 });

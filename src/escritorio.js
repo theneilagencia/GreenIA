@@ -609,10 +609,16 @@ export function pptxDeModelo(paginas, { textos = {}, titulo = 'Apresentação', 
       const largPt = larg / (PT * sx), fimOriginal = b.y + (b.linhas - 1) * b.entrelinha;
       const abaixo = p.blocos.filter(o => o !== b && o.y - o.tam * 0.92 > fimOriginal && o.x < b.x + largPt && o.x + o.largura > b.x && String(textos[o.id] ?? o.texto).trim())
         .reduce((m, o) => Math.min(m, o.y - o.tam * 0.92), p.h * 0.98);
-      const livre = abaixo - (b.y - b.tam * 0.92) - b.tam * 0.15;
+      // Forma desenhada logo abaixo (linha divisória, caixa) também limita a altura: o título que cresceu não a cobre.
+      const formaAbaixo = (p.elementos || []).filter(e => e.t === 'forma' && Array.isArray(e.d)).map(e => { const xs = [], ys = []; for (const [, ...v] of e.d) for (let i = 0; i < v.length; i += 2) { xs.push(v[i]); ys.push(v[i + 1]); } return xs.length ? { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys) } : null; })
+        .filter(f => f && f.y0 > fimOriginal + b.tam * 0.2 && f.x0 < b.x + largPt && f.x1 > b.x).reduce((m, f) => Math.min(m, f.y0), p.h * 0.98);
+      const livre = Math.min(abaixo, formaAbaixo) - (b.y - b.tam * 0.92) - b.tam * 0.15;
       const letra = b.largura * b.linhas / Math.max(1, b.texto.length);
       const entre = b.linhas > 1 ? b.entrelinha : b.tam * 1.2;
-      const altura = e => ((quebra ? Math.max(b.linhas, Math.ceil(String(texto).length * letra * e / (largPt * 0.97))) : 1) - 1) * entre * e + b.tam * 1.2 * e;
+      // Linhas contadas palavra a palavra (a quebra acontece entre palavras), com 15% de folga na largura das letras (fonte substituta mais larga).
+      // QA em produção: título de 2 linhas virou 3 (as palavras novas quebram em outro ponto) e cobriu a linha abaixo.
+      const linhasDoTexto = e => { let n = 1, usado = 0; const cabe = largPt * 0.97, esp = letra * 1.15 * e; for (const w of String(texto).split(/\s+/).filter(Boolean)) { const l = w.length * esp; if (usado && usado + esp + l > cabe) { n++; usado = l; } else usado += (usado ? esp : 0) + l; } return n; };
+      const altura = e => ((quebra ? Math.max(b.linhas, linhasDoTexto(e)) : 1) - 1) * entre * e + b.tam * 1.2 * e;
       // Texto que quebra: a palavra mais longa precisa caber inteira na largura (sem cortar no meio).
       // (com folga para fonte substituta mais larga no computador de quem abre: até ~0,62 do tamanho por letra em negrito)
       const palavraMaior = Math.max(...String(texto).split(/\s+/).map(w => w.length));

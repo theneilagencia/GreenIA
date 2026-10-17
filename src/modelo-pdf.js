@@ -642,6 +642,18 @@ export function correspondenciaDaFonte(paginas, fonte) {
   const familia = fonteSlides.length >= 3 && corresp.filter(c => c.nota >= 0.4).length >= fonteSlides.length * 0.6;
   return { fonteSlides, corresp, familia };
 }
+// Divisórias (slide de uma linha) seguidas de um slide com o mesmo assunto no título ou no rótulo: a lista vai para a IA
+// como fato, para o pedido "a divisória tem o mesmo nome do slide seguinte" ser aplicado na divisória certa.
+export function divisoriasRepetidas(fonte) {
+  const sl = slidesDaFonte(fonte).map(linhasDe), achados = [];
+  sl.forEach((s, i) => {
+    if (s.length !== 1 || !sl[i + 1]) return;
+    const prox = sl[i + 1].slice(0, 3).map(l => l.replace(/^\d{1,2}\s*·\s*/, ''));
+    const n = Math.max(...prox.map(l => parecenca(s[0], l)));
+    if (n >= 0.55) achados.push(`- slide ${i + 1} (divisória) "${s[0]}" e slide ${i + 2}: "${sl[i + 1].slice(0, 2).join(' / ')}"`);
+  });
+  return achados.length ? `Divisórias com o mesmo nome do slide seguinte (achadas pela plataforma):\n${achados.join('\n')}\n\n` : '';
+}
 export function mensagensPlanoFamilia({ fonte, pedido, contexto }) {
   return [
     { role: 'system', content: [
@@ -649,10 +661,12 @@ export function mensagensPlanoFamilia({ fonte, pedido, contexto }) {
       'Devolva a apresentação inteira, slide a slide, na ordem, com o pedido aplicado. Cada slide: uma linha por caixa de texto, na mesma ordem e com o mesmo papel das linhas do slide original (título, rótulo, item, rodapé). Não junte linhas de caixas diferentes numa só.',
       'Faça de verdade tudo o que o pedido manda: corrigir numeração de capítulos e seções em todos os slides, renomear divisórias e títulos, enriquecer itens genéricos com fatos concretos dos documentos da conversa (proposta, contrato, anexos): nomes de sistemas, documentos, entregáveis, frentes, prazos e responsabilidades que eles citam. Escreva como um consultor sênior: frases curtas, específicas e claras para uma apresentação falada.',
       'O que o pedido não manda mudar fica como está, com as mesmas palavras. Acrescente, remova ou junte slides só se o pedido mandar.',
+      'Nunca mude o sentido de um slide: o que está fora do escopo continua fora, o que é proibido continua proibido; não inverta, não negue, não troque a lista de um slide por outra.',
+      'Divisória (slide de uma linha que abre um capítulo) com o mesmo nome do slide seguinte: dê à divisória um nome novo, curto, que anuncie o mesmo assunto com outras palavras (ex.: divisória "Próximos passos" antes do slide "Próximos passos" vira "O caminho a partir daqui"). O slide seguinte não muda.',
       'Não invente: todo número, data, prazo, valor, nome e fato novo precisa estar nos documentos da conversa. Item enriquecido continua cabendo numa caixa de slide (até uns 120 caracteres).',
       'Responda só JSON, com todos os slides na ordem final: {"slides":[{"origem":<número do slide original, ou null se for novo>,"conteudo":"linha 1\\nlinha 2\\n..."}],"mudancas":["o que mudou, em uma frase", ...]}. Slide que fica exatamente igual vai só como {"origem":<número>,"igual":true}, sem o conteúdo.',
     ].join('\n') },
-    { role: 'user', content: `Pedido: ${pedido}\n\n<documentos_da_conversa>\n${String(contexto || '').slice(0, 120000)}\n</documentos_da_conversa>\n\n<apresentacao>\n${slidesDaFonte(fonte).map((s, i) => `## Slide ${i + 1}\n${s}`).join('\n\n')}\n</apresentacao>` },
+    { role: 'user', content: `Pedido: ${pedido}\n\n${divisoriasRepetidas(fonte)}<documentos_da_conversa>\n${String(contexto || '').slice(0, 120000)}\n</documentos_da_conversa>\n\n<apresentacao>\n${slidesDaFonte(fonte).map((s, i) => `## Slide ${i + 1}\n${s}`).join('\n\n')}\n</apresentacao>` },
   ];
 }
 async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, material, fonteSlides, corresp }) {
@@ -673,6 +687,27 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
     return { origem, conteudo: s?.igual === true && origem >= 0 ? fonteSlides[origem] : conferir(s?.conteudo) };
   }).filter(s => s.conteudo);
   // Resposta que perdeu boa parte da apresentação (cortada, ou slides esquecidos): fica a apresentação original.
+  // Travas por slide: frase que perde ou ganha negação ("não", "sem", "fora") em relação à linha original equivalente
+  // volta à original (QA em produção: "O que não está no escopo" virou "O que está no escopo"); slide que, depois da
+  // conferência, ficou com menos da metade das linhas do original volta inteiro ao original (o mesmo slide ficou vazio).
+  const NEG = /\b(n[aã]o|sem|fora|nunca|nenhum|nenhuma|exceto)\b/i;
+  lista = lista.map(s => {
+    if (s.origem < 0) return s;
+    const orig = linhasDe(fonteSlides[s.origem]);
+    let invertido = false;
+    const novas = linhasDe(s.conteudo).map(l => {
+      const par = orig.reduce((m, o) => { const n = parecenca(o, l); return n > m.n ? { n, o } : m; }, { n: 0, o: null });
+      if (par.n >= 0.5 && NEG.test(semAcento(par.o)) !== NEG.test(semAcento(l))) { invertido = true; return par.o; }
+      return l;
+    });
+    // Sentido invertido (a lista do slide também mudou junto) ou slide esvaziado: volta ao original, mas a
+    // renumeração pedida no rótulo ("09 · ESCOPO" → "08 · ESCOPO") fica.
+    if (invertido || (orig.length >= 3 && novas.length < orig.length / 2)) {
+      const so = l => semAcento(l).replace(/\d+/g, '#').replace(/\s+/g, ' ').trim();
+      return { ...s, conteudo: orig.map(o => novas.find(l => l !== o && so(l) === so(o)) ?? o).join('\n') };
+    }
+    return { ...s, conteudo: novas.join('\n') };
+  });
   const cobertos = new Set(lista.map(s => s.origem).filter(o => o >= 0));
   if (lista.length < fonteSlides.length * 0.6 || cobertos.size < fonteSlides.length * 0.6) lista = fonteSlides.map((c, i) => ({ origem: i, conteudo: c }));
   const textuais = paginas.map((p, k) => k).filter(k => k > 0 && k < paginas.length - 1 && paginaDeTexto(paginas[k]));
@@ -836,9 +871,14 @@ async function reestiloSemReescrever({ paginas, conteudos, chamar, etapa, fontes
       const j = lerJson(x.texto) || {};
       for (const { k } of fracos) {
         const ids = slides.find(s => s.numero === k + 1).blocos.map(b => b.id), daqui = String(conteudos[k] || '');
-        const novos = ids.map(id => [id, String(j[id] ?? '').trim()]);
-        const certo = novos.some(([, t]) => t) && novos.every(([, t]) => !t || (!numerosForaDoMaterial(t, daqui).length && fracaoForaDoMaterial(t, daqui) < 0.3));
-        if (certo) for (const [id, t] of novos) textos[id] = t;
+        // Cada texto vale se vier do conteúdo do slide ou se for o próprio rótulo do layout, sem número (cabeçalho de
+        // tabela como "ATIVIDADE"); texto que não vem de nenhum dos dois sai. O encaixe da IA só substitui o por ordem
+        // se colocar a maior parte das linhas do conteúdo.
+        const original = new Map(paginas[k].blocos.map(b => [b.id, b.texto]));
+        const novos = ids.map(id => [id, String(j[id] ?? '').trim()]).map(([id, t]) => [id, !t ? '' : (t === original.get(id) && !/\d/.test(t)) || (!numerosForaDoMaterial(t, daqui).length && fracaoForaDoMaterial(t, daqui) < 0.3) ? t : '']);
+        const corpo = novos.map(([, t]) => t).filter(Boolean).join(' ');
+        const linhas = linhasDe(daqui).slice(1).filter(l => l.length > 3), postas = linhas.filter(l => parecenca(l, corpo) > 0 && corpo.includes(l.slice(0, 20)));
+        if (linhas.length && postas.length >= linhas.length * 0.6) for (const [id, t] of novos) textos[id] = t;
       }
     } catch { /* fica o encaixe por ordem */ }
   }

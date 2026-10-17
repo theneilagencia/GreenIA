@@ -1,3 +1,4 @@
+import { trabalhoDoPedido } from '../public/trabalhos.js';
 import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
@@ -730,7 +731,7 @@ export function rotasConversas(app, r) {
       const p=um(app.db,'select * from advanced_pedidos where id = ? and pessoa_id = ? and conversa_id = ? and alternativa = 1',Number(corpo.advanced_alternativa),pessoa.id,conv.id);
       if(!p||qw)throw erro(403,'alternativa','Alternativa não autorizada para esta conversa.');
       alternativaOriginal=json(p.corpo,{});
-      corpo={...alternativaOriginal,modelo:AUTOMATICO,texto:'Faça somente uma síntese preliminar de até 600 palavras sobre o objetivo e os materiais fornecidos. Escopo reduzido escolhido pelo usuário: sem arquivos finais, sem reformulação visual, sem análise aprofundada ou conclusões definitivas. Identifique claramente estas limitações na resposta e não afirme ter cumprido o pedido integral.'};
+      corpo={...alternativaOriginal,modelo:AUTOMATICO,texto:(json(p.requisitos,{}).trabalho||trabalhoDoPedido(alternativaOriginal)).alternativa.instrucao};
       registrar(app,'advanced.alternative_started',pessoa.id,{pedido:p.id,conversa:conv.id});
     }
     let repeticao = null;
@@ -807,7 +808,7 @@ export function rotasConversas(app, r) {
     // Código: repositório liberado citado no pedido (o conteúdo vira material, com as mesmas regras de segredo dos
     // anexos, logo abaixo) e a saída real das execuções ainda não usadas ("corrija o que falhou nos testes").
     const temProjeto = () => !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id);
-    const codigoCedo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
+    const codigoCedo = qw || alternativaOriginal ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
     const permitidaCedo = op => !!codigoCedo?.itens.some(i => i.op === op && i.situacao === 'permitida');
     let repoAlvo = null, execUsadas = [];
     const avisosCodigo = [];   // entram depois da mensagem da pessoa, na ordem da conversa
@@ -894,7 +895,7 @@ export function rotasConversas(app, r) {
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
-    const podeModelo = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
+    const podeModelo = !alternativaOriginal && !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
     const redesignLivre = podeModelo && pedeRedesignApresentacao(texto) && !PEDE_MODELO(texto);
     const fonteRedesign = redesignLivre ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, { ...(regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}), redesign: true }) : null;
     if (fonteRedesign?.tipo === 'pptx') {
@@ -931,18 +932,18 @@ export function rotasConversas(app, r) {
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
-    const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
-    const pecaChat = !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
+    const modeloAusente = !alternativaOriginal && !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
+    const pecaChat = !alternativaOriginal && !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
     // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
-    const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
+    const codigo = qw || alternativaOriginal ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
     // Agente reutilizável / automação recorrente: vira Quick Win (não código). Pesquisa atual: a ferramenta da empresa.
-    const agenteChat = qw ? null : pedeAgente(texto);
-    const pesquisaChat = qw || !pedePesquisa(texto) ? null : decisaoPesquisa(cfg, { sigilosa: !!conv.sigilosa || !!motivo, areaReforcada, protegidos: protegidos.length > 0, reserva: plano?.fase === 'reserva' });
+    const agenteChat = qw || alternativaOriginal ? null : pedeAgente(texto);
+    const pesquisaChat = qw || alternativaOriginal || !pedePesquisa(texto) ? null : decisaoPesquisa(cfg, { sigilosa: !!conv.sigilosa || !!motivo, areaReforcada, protegidos: protegidos.length > 0, reserva: plano?.fase === 'reserva' });
     // Imagem pedida na conversa (nova ou edição da anexada / da última gerada): gerada depois do texto, abaixo dele.
     const ultimaImg = !qw && !modeloApr ? ultimaImagemDaConversa(app, conv.id) : null;
     const ultimaResp = ultimaImg ? um(app.db, "select id from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id)?.id : null;
     const ultimaFoiImagem = !!ultimaImg && !!um(app.db, 'select 1 from arquivos_gerados where id = ? and mensagem_id = ?', ultimaImg.id, ultimaResp ?? -1);
-    const imagemChat = !qw && !modeloApr && !modeloAusente && !pecaChat && !edicao ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
+    const imagemChat = !alternativaOriginal && !qw && !modeloApr && !modeloAusente && !pecaChat && !edicao ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
     // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
@@ -1021,7 +1022,7 @@ export function rotasConversas(app, r) {
     const prepararAdvanced = requisitos => {
       let alternativa=false;
       if(!qw&&!alternativaOriginal){
-        const resumo=analisarPedido({...entradaAnalise,texto:'Resuma os materiais em até 600 palavras.',temResposta:false,anterior:null,feedback:null,dependencias:null});
+        const resumo=analisarPedido({...entradaAnalise,texto:trabalhoDoPedido(corpo,requisitos).alternativa.instrucao,temResposta:false,anterior:null,feedback:null,dependencias:null});
         const r=rotear({db:app.db,cfg,pessoa,conversaId:conv.id,sigilosa,reforcada:areaReforcada,dadosPessoais,reservaDoPlano:plano?.fase==='reserva',analise:resumo,pedido:AUTOMATICO,agora:app.agora()});
         alternativa=!!r.modelo&&r.modelo.perfil!=='avancado';
       }
@@ -1667,7 +1668,7 @@ export function rotasConversas(app, r) {
       const normalizada = normalizarTabelas(resposta);
       if (normalizada !== resposta) { resposta = normalizada; linha({ t: 'substituir', v: resposta }); }
     }
-    const formatosPedidos = qw || naoGuardar ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
+    const formatosPedidos = qw || naoGuardar || alternativaOriginal ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
       .filter(([, re]) => re.test(texto)).map(([f]) => f);
     if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
       resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;

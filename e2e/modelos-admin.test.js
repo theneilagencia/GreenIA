@@ -6,6 +6,21 @@ let N,c;const erros=[];
 before(async()=>{N=await subirComNavegador();c=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');await c.put('/api/admin/modelos-config',{roteamento:{ativo:true,preferencia:'qualidade'}});const k=c.cookie.indexOf('=');await N.contexto.addCookies([{name:c.cookie.slice(0,k),value:c.cookie.slice(k+1),url:N.base}]);});
 after(async()=>{await N.fechar();assert.deepEqual(erros,[]);});
 async function abrir(hash){const p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));await p.goto(N.base+'/app'+hash);return p;}
+test('escolha automática explica atividades; consumo é opcional e não muda ao apenas navegar',async()=>{
+ const antes=(await c.get('/api/admin/roteamento')).dados.config;
+ const p=await abrir('#/modelos/roteamento');await p.waitForSelector('#cfg-rota');
+ assert.match(await p.textContent('#cfg-rota'),/Comunicação e tarefas do dia a dia/);
+ assert.match(await p.textContent('#cfg-rota'),/Análise e preparação de materiais/);
+ assert.match(await p.textContent('#cfg-rota'),/Trabalhos com várias etapas/);
+ assert.equal(await p.locator('input[name=rota-pref]').first().isVisible(),false);
+ assert.doesNotMatch(await p.locator('#cfg-rota').innerText(),/Qualidade|Equilíbrio|um nível acima|duas vezes|2 vezes/);
+ await p.getByText('Ajustes opcionais de consumo',{exact:true}).click();
+ assert.ok(await p.locator('input[name=rota-pref]').first().isVisible());
+ assert.deepEqual((await c.get('/api/admin/roteamento')).dados.config,antes);
+ await p.setViewportSize({width:390,height:844});
+ assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await p.close();
+});
 test('histórico de modelos apresenta campos legíveis e fornecedor em detalhes',async()=>{
  const p=await abrir('#/modelos/historico');await p.waitForSelector('#conteudo tr[data-registro]');await p.locator('#conteudo tr[data-registro]').first().click();await p.waitForSelector('#modal .auditoria-detalhe');assert.match(await p.textContent('#modal'),/Campos alterados|Exigir fornecedor sem treinamento com dados/);assert.doesNotMatch(await p.textContent('#modal'),/\{"campos"/);assert.doesNotMatch(await p.textContent('#conteudo'),/\{"campos"/);await p.close();
 });

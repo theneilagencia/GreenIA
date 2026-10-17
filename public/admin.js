@@ -1,3 +1,4 @@
+import { EXEMPLOS_TRABALHO } from '/trabalhos.js';
 import { painelAdvancedAdmin } from '/advanced.js';
 import { nomeEvento } from '/jornadas.js';
 import { corpoAuditoria, resumoAuditoria } from '/auditoria-detalhe.js';
@@ -91,6 +92,8 @@ const NIVEL_CLASSE = { rapido: 1, equilibrado: 2, avancado: 3 };
 const idDom = id => esc(id).replace(/[^\w-]/g, '-');
 const opcaoModelos = (lista, sel, vazio = '') => `${vazio ? `<option value="">${vazio}</option>` : ''}${lista.map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}`;
 
+const exemplosDeTrabalho = () => `<section class="editor exemplos-trabalho"><h2>O que sua equipe pode pedir</h2><dl>${EXEMPLOS_TRABALHO.map(([titulo,texto])=>`<dt><strong>${titulo}</strong></dt><dd>${texto}</dd>`).join('')}</dl><p>O mesmo tipo de trabalho pode precisar de recursos diferentes conforme a quantidade de arquivos, os cálculos e as etapas do pedido. A plataforma avalia cada caso. Ferramentas e dados sigilosos continuam sujeitos às permissões da empresa.</p></section>`;
+
 // Modelos, aba principal: o que a empresa decide. Modo (recomendado ou manual), os níveis e quem usa cada um.
 // O catálogo técnico (cada modelo, aprovação para dados sigilosos, capacidades, adicionar) é a aba Catálogo técnico.
 async function abaModelos() {
@@ -107,8 +110,8 @@ async function abaModelos() {
   const cartaoGov = `<div class="editor" id="governanca"><span class="editor-titulo">Como a empresa usa a IA</span>
     <div class="escolhas" role="radiogroup" aria-label="Como a empresa usa a IA" data-sem-alteracao>
       <label class="escolha"><input type="radio" name="gov" value="recomendado" ${recomendado ? 'checked' : ''}>
-        <span class="escolha-titulo">Seguir a recomendação do GreenIA <span class="selo-recomendado">Recomendado</span></span>
-        <span class="escolha-desc">A GreenIA escolhe e mantém os modelos de cada nível.</span></label>
+        <span class="escolha-titulo">Deixar o GreenIA escolher conforme o trabalho <span class="selo-recomendado">Recomendado</span></span>
+        <span class="escolha-desc">Sua equipe descreve o que precisa fazer. O GreenIA escolhe os recursos adequados para cada pedido, respeitando os acessos e o limite de consumo definidos pela empresa.</span></label>
       <label class="escolha"><input type="radio" name="gov" value="manual" ${recomendado ? '' : 'checked'}>
         <span class="escolha-titulo">Configurar manualmente</span>
         <span class="escolha-desc">Você ajusta níveis, acesso e modelos.</span></label>
@@ -127,9 +130,9 @@ async function abaModelos() {
       ${niveisSug.segue ? `<span class="selo selo-verde">${ICONE.escudo} Sua configuração já segue a sugestão</span>` : `<button type="button" class="btn ${recomendado ? 'btn-verde' : 'btn-linha'} btn-pequeno" id="sug-niveis-usar">Usar a sugestão</button>`}</div>
     <p class="dica">${esc(sug.uso.frase)}</p>
     <ul class="adm-sug-niveis-lista">${niveisSug.itens.map(i => `<li data-nivel="${i.nivel}"><b>${esc(i.nome)}</b><span>${esc(i.texto)}</span>${i.segue ? '' : '<span class="tag tag-ambar">Muda</span>'}</li>`).join('')}</ul></section>` : '';
-  $('conteudo').innerHTML = `${topoTela('Os níveis de IA que a empresa usa e quem usa cada um.')}
+  $('conteudo').innerHTML = `${topoTela('Defina os acessos da equipe. A plataforma escolhe os recursos conforme o trabalho de cada pedido.')}
     <form id="cfg-modelos">
-    ${cartaoGov}${aviso}<details><summary>Detalhes da configuração de IA</summary>${blocoSugestao}
+    ${cartaoGov}${aviso}${exemplosDeTrabalho()}<details><summary>Detalhes da configuração de IA</summary>${blocoSugestao}
     <h2>Níveis</h2>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Nível</th><th>Modelos do nível</th><th>Alternativa se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {}; const pool = liberados.filter(y => y.perfil === k && y.noCatalogo);
@@ -880,9 +883,9 @@ const RESULTADO = { respondido: 'respondido', respondido_pela_reserva: 'respondi
 const FALLBACK = { abaixo_do_necessario: 'abaixo do necessário (regras ou permissões)', abaixo_do_necessario_por_escolha: 'abaixo do necessário (escolha manual)',
   trocado_por_falta_de_contexto: 'trocado: conteúdo grande demais', trocado_pela_reserva_do_plano: 'trocado pela reserva do plano', sem_modelo: 'nenhum modelo permitido' };
 const TIPO_TAREFA = { edicao: 'edição e formatação', classificacao: 'classificação', traducao: 'tradução', extracao: 'extração', sintese: 'síntese', redacao: 'redação', analise: 'análise', programacao: 'programação', raciocinio: 'raciocínio', consulta: 'consulta' };
-const PREFERENCIAS = [['economia', 'Economia', 'O modelo de menor consumo que atende ao que o pedido exige. Nunca abaixo do necessário.'],
-  ['equilibrio', 'Equilíbrio', 'Recomendado: atende ao que o pedido exige e prefere o modelo padrão de cada nível quando custa até cerca de 2 vezes o mais barato.'],
-  ['qualidade', 'Qualidade', 'Em tarefas que não são simples, usa um nível acima do mínimo. Maior consumo, menos risco de resposta fraca.']];
+const PREFERENCIAS = [['economia', 'Menor consumo adequado', 'Seleciona o recurso de menor consumo entre os que conseguem executar o pedido.'],
+  ['equilibrio', 'Seleção recomendada', 'Considera as etapas, os recursos já aprovados pela empresa e o consumo estimado.'],
+  ['qualidade', 'Capacidade adicional em tarefas com várias etapas', 'Pode usar recursos de maior capacidade em pedidos com análise ou execução em várias etapas. Continua dependendo dos acessos e do orçamento disponíveis.']];
 function barrasDist(titulo, dist, nomes) {
   const total = Object.values(dist).reduce((a, b) => a + b, 0);
   const linhas = Object.entries(nomes).filter(([k]) => dist[k]).map(([k, nome]) => { const n = dist[k], pct = Math.round(n / total * 100);
@@ -892,11 +895,11 @@ function barrasDist(titulo, dist, nomes) {
 async function abaRoteamento() {
   const d = await api('/api/admin/roteamento');
   const c = d.config, r = d.resumo;
-  $('conteudo').innerHTML = `${topoTela('A GreenIA escolhe o nível de cada resposta conforme o que o pedido exige. Clique numa decisão para ver os motivos.')}
+  $('conteudo').innerHTML = `${topoTela('Sua equipe descreve o que precisa fazer. O GreenIA escolhe os recursos adequados para cada pedido, respeitando os acessos e o limite de consumo definidos pela empresa.')}
     <form id="cfg-rota" class="editor">
-      <label class="opcoes"><span><input type="checkbox" id="rota-ativo" ${c.ativo ? 'checked' : ''}> Escolha automática do nível ligada (a opção "Automático" é o padrão das conversas)</span></label>
-      <span class="legenda">Preferência da empresa</span>
-      <div class="rt-pref">${PREFERENCIAS.map(([k, n, dica]) => `<label><input type="radio" name="rota-pref" value="${k}" ${c.preferencia === k ? 'checked' : ''}><span><b>${n}</b><small>${dica}</small></span></label>`).join('')}</div>
+      <label class="opcoes"><span><input type="checkbox" id="rota-ativo" ${c.ativo ? 'checked' : ''}> Deixar o GreenIA escolher conforme o trabalho · recomendado</span></label>
+      ${exemplosDeTrabalho()}<details id="rota-ajustes"><summary>Ajustes opcionais de consumo</summary><p>Estes ajustes mudam a preferência de seleção para os pedidos da equipe. Você não precisa classificar cada trabalho antecipadamente.</p>
+      <div class="rt-pref">${PREFERENCIAS.map(([k, n, dica]) => `<label><input type="radio" name="rota-pref" value="${k}" ${c.preferencia === k ? 'checked' : ''}><span><b>${n}</b><small>${dica}</small></span></label>`).join('')}</div></details>
       <div class="linha-botoes" style="margin-top:12px"><button class="btn btn-verde">Salvar escolha automática</button></div>
     </form>
     <h2>Últimos 30 dias</h2>

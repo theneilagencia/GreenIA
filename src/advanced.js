@@ -1,3 +1,4 @@
+import { trabalhoDoPedido } from '../public/trabalhos.js';
 import { recomendarAdvanced } from './advanced-recomendacao.js';
 import CATALOGO from './advanced-catalogo.json' with { type: 'json' };
 import { exec, um, todos, json, transacao } from './db.js';
@@ -97,25 +98,29 @@ export function liquidarAdvanced(app, reserva, custo, geracao = null) {
  exec(app.db, 'update advanced_consumo set custo = ?, geracao = coalesce(?,geracao) where id = ?', Number.isFinite(custo) && custo >= 0 ? custo : null,geracao,reserva.id);
 }
 export function prepararPedidoAdvanced(app, pessoa, conv, corpo, requisitos, estimativa, guardar = true, alternativa = false) {
- const motivos={geral:'análise aprofundada',qualidade_entrega:'uma entrega completa com o padrão de qualidade solicitado',raciocinio:'raciocínio em várias etapas',programacao:'desenvolvimento de código complexo',precisao:'conferência rigorosa das informações',leitura_longa:'leitura e análise de materiais extensos',continuidade:'preservação da capacidade do trabalho original',nova_tentativa:'uma nova tentativa com capacidade adequada',capacidade_solicitada:'o nível Advanced escolhido para este trabalho'};
- const razoes=[...new Set(Object.keys(requisitos.dimensoes||{}).map(k=>motivos[k]).filter(Boolean))];
- const justificativa=`Este pedido precisa de ${razoes.join(', ')||'capacidade avançada para concluir o trabalho'}. A execução deve preservar essa capacidade.`;
+ const trabalho=trabalhoDoPedido(corpo,requisitos),justificativa=trabalho.justificativa;
  if (!guardar) throw erro(409,'advanced_retencao','Este conteúdo não pode ser armazenado pela política da empresa. Solicite a autorização antes e reenvie o material.');
  // Substitui apenas um rascunho idêntico. Não duplica anexos por reenvio.
  let p = um(app.db, "select id from advanced_pedidos where pessoa_id = ? and conversa_id = ? and estado = 'preparado' and corpo = ?",pessoa.id,conv.id,JSON.stringify(corpo));
  if (!p) p = {id:Number(exec(app.db,"insert into advanced_pedidos(pessoa_id,conversa_id,estado,corpo,justificativa,estimativa_usd,em) values (?,?,'preparado',?,?,?,?)",pessoa.id,conv.id,JSON.stringify(corpo),justificativa,estimativa,agora(app)).lastInsertRowid)};
- exec(app.db,'update advanced_pedidos set alternativa = ?, requisitos = ? where id = ?',Number(alternativa),JSON.stringify({capacidade:requisitos.capacidade,janelaMinima:requisitos.janelaMinima,janelaDesejada:requisitos.janelaDesejada}),p.id);
+ exec(app.db,'update advanced_pedidos set alternativa = ?, requisitos = ? where id = ?',Number(alternativa),JSON.stringify({capacidade:requisitos.capacidade,janelaMinima:requisitos.janelaMinima,janelaDesejada:requisitos.janelaDesejada,trabalho}),p.id);
  registrar(app,'advanced.required',pessoa.id,{pedido:p.id,conversa:conv.id,dimensoes:Object.keys(requisitos.dimensoes||{})});
- throw erro(403,'advanced_necessario','Para concluir este trabalho com a profundidade e o acabamento pedidos, o GreenIA recomenda usar o Advanced, nosso nível de maior capacidade. Seu administrador precisa liberar esse acesso. '+justificativa,{advanced:{pedido:p.id,justificativa}});
+ throw erro(403,'advanced_necessario',justificativa,{advanced:{pedido:p.id,justificativa}});
 }
-const publico = p => ({id:p.id,conversa_id:p.conversa_id,estado:p.estado,alternativa:!!p.alternativa,justificativa:p.justificativa,estimativa_usd:p.estimativa_usd,em:p.em,decisao_em:p.decisao_em,motivo:p.motivo});
+const publico = p => {const trabalho=json(p.requisitos,{}).trabalho;return {id:p.id,conversa_id:p.conversa_id,estado:p.estado,alternativa:!!p.alternativa,trabalho,justificativa:trabalho?.justificativa||'Este pedido envolve etapas que precisam de uma liberação de acesso. O pedido está guardado para revisão.',estimativa_usd:p.estimativa_usd,em:p.em,decisao_em:p.decisao_em,motivo:p.motivo};};
 export function rotasAdvanced(app,r) {
+ // Atualiza apenas a descrição pública derivada; a justificativa histórica permanece no banco.
+ for(const p of todos(app.db,"select id,requisitos,json_extract(corpo,'$.texto') texto,json_array_length(corpo,'$.anexos') quantidadeAnexos from advanced_pedidos where json_extract(requisitos,'$.trabalho') is null")){
+  const req=json(p.requisitos,{});req.trabalho=trabalhoDoPedido(p,req);
+  exec(app.db,'update advanced_pedidos set requisitos = ? where id = ?',JSON.stringify(req),p.id);
+ }
+
  const proprio = (pessoa,id) => {const p=um(app.db,'select * from advanced_pedidos where id = ? and pessoa_id = ?',Number(id),pessoa.id);if(!p)throw erro(404,'pedido','Solicitação não encontrada.');return p;};
- r.get('/api/advanced/pedidos',({pessoa})=>({pedidos:todos(app.db,`select id,conversa_id,estado,alternativa,justificativa,estimativa_usd,em,decisao_em,motivo,json_extract(corpo,'$.texto') texto,
+ r.get('/api/advanced/pedidos',({pessoa})=>({pedidos:todos(app.db,`select id,conversa_id,estado,alternativa,justificativa,requisitos,estimativa_usd,em,decisao_em,motivo,json_extract(corpo,'$.texto') texto,
  (select json_group_array(json_extract(value,'$.nome')) from json_each(a.corpo,'$.anexos')) anexos_nomes
  from advanced_pedidos a where pessoa_id = ? order by id desc limit 100`,pessoa.id).map(p=>({...publico(p),texto:p.texto,anexos:json(p.anexos_nomes,[]),autorizacaoValida:!!acessoAdvanced(app.db,pessoa.id,null,p.conversa_id,agora(app))}))}));
  r.post('/api/advanced/pedidos/:id/solicitar',({pessoa,params})=>{const p=proprio(pessoa,params.id);if(p.estado==='preparado'||p.estado==='recusado'||p.estado==='aprovado'&&!acessoAdvanced(app.db,pessoa.id,null,p.conversa_id,agora(app))){exec(app.db,"update advanced_pedidos set estado = 'pendente',motivo=null,decisao_em=null,decisao_por=null,autorizacao_id=null where id = ?",p.id);registrar(app,'advanced.requested',pessoa.id,{pedido:p.id});}return {pedido:publico(proprio(pessoa,p.id))};});
- r.post('/api/advanced/pedidos/:id/alternativa',({pessoa,params})=>{const p=proprio(pessoa,params.id);if(!p.alternativa)throw erro(409,'alternativa','Não há uma alternativa reduzida confirmada para este pedido.');registrar(app,'advanced.alternative_consented',pessoa.id,{pedido:p.id,escopo:'sintese_preliminar_sem_arquivos_finais'});return {corpo:{texto:'Síntese preliminar com o nível disponível',anexos:[],advanced_alternativa:p.id}};});
+ r.post('/api/advanced/pedidos/:id/alternativa',({pessoa,params})=>{const p=proprio(pessoa,params.id);if(!p.alternativa)throw erro(409,'alternativa','Não há uma alternativa reduzida confirmada para este pedido.');registrar(app,'advanced.alternative_consented',pessoa.id,{pedido:p.id,escopo:'alternativa_em_texto_sem_execucao'});return {corpo:{texto:publico(p).trabalho?.alternativa?.titulo||'Organizar um roteiro do trabalho',anexos:[],advanced_alternativa:p.id}};});
  r.post('/api/advanced/pedidos/:id/retomar' ,({pessoa,params})=>{const p=proprio(pessoa,params.id);if(!acessoAdvanced(app.db,pessoa.id,null,p.conversa_id,agora(app)))throw erro(403,'advanced_sem_autorizacao','A autorização não está válida. Solicite revisão ao administrador.');return {conversa_id:p.conversa_id,corpo:json(p.corpo,{})};});
  r.get('/api/admin/advanced',()=>({criterios:CRITERIOS_ADVANCED,curadoria:CURADORIA_ADVANCED,config:lerConfig(app.db).advanced||{},autorizacoes:todos(app.db,'select * from advanced_autorizacoes order by id desc'),pedidos:todos(app.db,`select a.id,a.pessoa_id,a.conversa_id,a.estado,a.alternativa,a.justificativa,a.requisitos,a.estimativa_usd,a.em,a.decisao_em,a.motivo,p.nome,p.email from advanced_pedidos a join pessoas p on p.id=a.pessoa_id where estado != 'preparado' order by a.id desc limit 200`).map(p=>({...publico(p),pessoa_id:p.pessoa_id,nome:p.nome,email:p.email,recomendacao:p.estado==='pendente'?recomendarAdvanced(app,p):null})),consumo:todos(app.db,'select * from advanced_consumo order by id desc limit 100')}),{admin:true});
  r.put('/api/admin/advanced/config',({pessoa,corpo})=>{const n=Number(corpo.limiteMensalUsd);if(!Number.isFinite(n)||n<0)throw erro(400,'limite','Informe o teto mensal em USD.');salvarConfig(app.db,{advanced:{limiteMensalUsd:n}});registrar(app,'advanced.budget_changed',pessoa.id,{limiteMensalUsd:n});return {ok:true};},{admin:true});

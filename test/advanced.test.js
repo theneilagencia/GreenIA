@@ -85,6 +85,8 @@ test('Advanced: alternativa exige escolha expressa e mantém o pedido integral p
   const resumo=await enviarMensagem(s.ana,s.conv.id,alt.dados.corpo);assert.equal(resumo.status,200,JSON.stringify(resumo));assert.ok(!resumo.falha,JSON.stringify(resumo));
   assert.notEqual(s.OR.chamadas[0].model,ID);assert.equal(um(s.app.db,'select estado from advanced_pedidos where id = ?',id).estado,'preparado');
   assert.ok(s.OR.chamadas[0].messages.some(m=>String(m.content).includes('Escopo reduzido escolhido')));
+  assert.ok(s.OR.chamadas[0].messages.some(m=>String(m.content).includes(p.trabalho.alternativa.instrucao)));
+  assert.ok(!resumo.fim.arquivos?.length);assert.ok(!resumo.fim.artefatos?.length);
  }finally{await s.fechar();}
 });
 test('Advanced: apagar conversa elimina material pendente mesmo após consumo',async()=>{
@@ -140,5 +142,27 @@ test('autorização existente permite continuar pedido pendente sem nova libera�
   const g=await s.admin.post('/api/admin/advanced/autorizacoes',{...s.grant,conversa_id:null});assert.equal(g.status,200);
   const p=(await s.ana.get('/api/advanced/pedidos')).dados.pedidos.find(p=>p.id===id);assert.equal(p.autorizacaoValida,true);
   const d=await s.ana.post(`/api/advanced/pedidos/${id}/retomar`);assert.equal(d.status,200);assert.equal(d.dados.corpo.texto,texto);assert.equal(s.OR.chamadas.length,0);
+ }finally{await s.fechar();}
+});
+test('solicitação por trabalho: etapas contextuais, anexos intactos e alternativa correspondente',async()=>{
+ const s=await ambiente();try{
+  const corpo={texto:'Compare estas propostas da Empresa Secreta Alfa, investigue divergências e monte uma apresentação PPTX de altíssimo nível com análise aprofundada de todos os cenários.',anexos:[{nome:'Privado-Alfa.txt',base64:Buffer.from('Proposta Alfa: 100 unidades, prazo 20 dias.').toString('base64')},{nome:'Privado-Beta.txt',base64:Buffer.from('Proposta Beta: 100 unidades, prazo 30 dias.').toString('base64')}]};
+  const b=await enviarMensagem(s.ana,s.conv.id,corpo);assert.equal(b.status,403,JSON.stringify(b));const id=b.erro.advanced.pedido;
+  const p=(await s.ana.get('/api/advanced/pedidos')).dados.pedidos.find(x=>x.id===id);
+  assert.match(p.justificativa,/analisar 2 arquivos/);assert.match(p.justificativa,/comparar informações/);assert.match(p.justificativa,/apresentação/);
+  assert.match(p.trabalho.alternativa.limites,/Não inclui montar o PowerPoint/);
+  await s.ana.post(`/api/advanced/pedidos/${id}/solicitar`);
+  const painel=(await s.admin.get('/api/admin/advanced')).dados;
+  assert.doesNotMatch(JSON.stringify(painel),/Empresa Secreta|Privado-Alfa|Privado-Beta|100 unidades/);
+  assert.equal(s.OR.chamadas.length,0);
+  assert.equal(p.alternativa,true);
+  const alt=await s.ana.post(`/api/advanced/pedidos/${id}/alternativa`);
+  const executada=await enviarMensagem(s.ana,s.conv.id,alt.dados.corpo);assert.ok(!executada.falha,JSON.stringify(executada));
+  assert.ok(!executada.fim.arquivos?.length);assert.ok(!executada.fim.artefatos?.length,'roteiro aceito não monta apresentação');
+  const chamadas=s.OR.chamadas.length;
+  assert.ok(s.OR.chamadas.some(c=>c.messages.some(m=>String(m.content).includes(p.trabalho.alternativa.instrucao))));
+  await s.admin.post('/api/admin/advanced/autorizacoes',s.grant);
+  const ret=await s.ana.post(`/api/advanced/pedidos/${id}/retomar`);assert.equal(ret.status,200);assert.deepEqual(ret.dados.corpo,corpo);
+  assert.equal(s.OR.chamadas.length,chamadas,'retomar disponibiliza o pedido sem executar automaticamente');
  }finally{await s.fechar();}
 });

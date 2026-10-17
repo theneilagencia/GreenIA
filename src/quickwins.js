@@ -496,7 +496,7 @@ export function rotasQuickWins(app, r) {
       if (!base) throw erro(404, 'modelo_inicial', 'Modelo inicial não encontrado.');
     }
     const cfg = lerConfig(app.db);
-    const dados = { modelo: `classe:${cfg.perfisQuickWin[0] || 'rapido'}`, ...base, ...corpo };
+    const dados = { modelo: `classe:${cfg.perfisQuickWin[0] || 'rapido'}`, pode_trocar: true, ...base, ...corpo };
     delete dados.id;
     // Quick Win 2.0: a especificação é montada das respostas da criação (ou copiada, ao duplicar).
     const v2 = corpo.assistente ? doAssistente(app, cfg, corpo.assistente) : origem?.especificacao ? { [ESPEC]: origem.especificacao } : {};

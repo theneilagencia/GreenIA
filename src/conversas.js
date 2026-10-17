@@ -1024,7 +1024,16 @@ export function rotasConversas(app, r) {
       app.log?.('análise do pedido', erroParaLog(e));
       analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
     }
-    const prepararAdvanced = requisitos => {
+    // Bloqueios anteriores à seleção também precisam de trilha de decisão, sem texto ou anexos.
+    const gravarBloqueioPrevio = (codigo, requisitos, decisao = null) => {
+      exec(app.db, `insert into roteamento (em,pessoa_id,conversa_id,quick_win_id,modo,complexidade,versao,sigilosa,teste,origem,
+        resultado,modelo_solicitado,decisao_solicitado,motivo_bloqueio,classe_necessaria,requisitos,candidatos)
+        values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, AGORA(app),pessoa.id,conv.id,conv.quick_win_id,'bloqueado',requisitos.complexidade || 'nao_analisada',
+        VERSAO_ROTEADOR,Number(sigilosa),conv.teste,origem,'bloqueado',solicitado,solicitado?'bloqueado':null,codigo,
+        requisitos.classe || 'avancado',JSON.stringify(requisitos),JSON.stringify((decisao?.candidatos || []).map(c=>({...c,status:c.status==='escolhido'?'excluido':c.status}))));
+    };
+    const prepararAdvanced = (requisitos, decisao = null) => {
+      gravarBloqueioPrevio('advanced_sem_autorizacao',requisitos,decisao);
       let alternativa=false;
       if(!qw&&!alternativaOriginal){
         const resumo=analisarPedido({...entradaAnalise,texto:trabalhoDoPedido(corpo,requisitos).alternativa.instrucao,temResposta:false,anterior:null,feedback:null,dependencias:null});
@@ -1054,7 +1063,7 @@ export function rotasConversas(app, r) {
     let manual = null, trocaDoPlano = false, substituida = null, motivoSolicitado = null;
     if (!automatico) {
       try {
-        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa, conversaId:conv.id });
+        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa, conversaId:conv.id, em:AGORA(app) });
         if (ehClasse(pedido) && (areaReforcada || dadosPessoais) && (manual.protecao ?? 0) < 2) {
           manual = lerModelos(app.db).find(m => m.liberado && m.noCatalogo && m.perfil === manual.perfil && (m.protecao ?? 0) >= 2 && (!sigilosa || m.homologado)) || manual;
         }
@@ -1072,6 +1081,10 @@ export function rotasConversas(app, r) {
       } catch (e) {
         if (!e.motivo && !e.codigo) throw e;   // erro inesperado: não é uma regra de governança
         if (e.codigo === 'advanced_sem_autorizacao') prepararAdvanced({complexidade:analise.complexidade,dimensoes:{capacidade_solicitada:3}});
+        if (['advanced_indisponivel','advanced_seguranca','advanced_ferramenta'].includes(e.codigo)) {
+          gravarBloqueioPrevio(e.codigo,{classe:'avancado'});
+          throw e;
+        }
         motivoSolicitado = motivoDoPedido(app, cfg, e, pedido, sigilosa);
         // Quick win fixo sem o modelo dele: quem gere é avisado; quem usa segue no automático, na mesma governança.
         if (qwFixo && !sigilosa && e.codigo !== 'plano_reserva') await avisarGovernanca(app, 'quick_win_sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
@@ -1084,9 +1097,12 @@ export function rotasConversas(app, r) {
     let rota = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, agora: app.agora(), modeloManual: manual, origem: substituida ? 'auto' : origem });
     const advancedExigido = rota.requisitos.classe === 'avancado' || classePedida === 'avancado' || pedido === 'classe:avancado';
     if (advancedExigido && !acessoAdvanced(app.db,pessoa.id,null,conv.id,AGORA(app))) {
-      prepararAdvanced(rota.requisitos);
+      prepararAdvanced(rota.requisitos,rota);
     }
-    if (reservaDoPlano && rota.requisitos.nivel > 1) throw erro(402,'orcamento_insuficiente','O plano está no limite e não comporta a capacidade exigida. Solicite créditos ao administrador; o pedido não será reduzido automaticamente.');
+    if (reservaDoPlano && rota.requisitos.nivel > 1) {
+      gravarBloqueioPrevio('orcamento_insuficiente',rota.requisitos,rota);
+      throw erro(402,'orcamento_insuficiente','O plano está no limite e não comporta a capacidade exigida. Solicite créditos ao administrador; o pedido não será reduzido automaticamente.');
+    }
     // Modelo solicitado que passou pela validação mas o roteador recusou (janela, política, classe mínima):
     // mesma resolução, no automático, com o mesmo registro. Quick win e padrão da empresa seguem as regras deles.
     if (!rota.modelo && manual && origem === 'pessoa' && manual.id !== AUTO) {
@@ -1135,9 +1151,11 @@ export function rotasConversas(app, r) {
       // Conteúdo que não cabe em NENHUM modelo (nem nos que as regras tiram) é tamanho, não governança.
       const naoCabeEmNenhum = rota.candidatos.length && rota.candidatos.every(c => c.motivos.includes('contexto_insuficiente'));
       const grande = naoCabeEmNenhum || (causas.includes('contexto_insuficiente') && !causas.some(c => ['nao_homologado', 'sem_acesso_a_classe', 'plano_na_reserva'].includes(c)));
-      gravarRota(null, 'bloqueado', grande ? 'conteudo_grande_demais' : sigilosa ? 'sem_recurso_elegivel' : reservaDoPlano ? 'sem_recurso_na_reserva_do_plano' : 'sem_recurso_disponivel');
-      const impedimento=causas.find(c=>['advanced_seguranca','advanced_indisponivel','advanced_ferramenta'].includes(c));
-      if(impedimento)throw erro(409,impedimento,{advanced_seguranca:'As rotas Advanced não cumprem a aprovação de segurança exigida. Solicite a revisão das rotas; liberar acesso não remove essa restrição.',advanced_indisponivel:'Não há modelo e provedor Advanced disponíveis com catálogo confirmado. Atualize o catálogo ou autorize uma alternativa de capacidade adequada.',advanced_ferramenta:'A ferramenta ou o limite de saída necessário não está confirmado. O administrador precisa revisar os recursos antes da execução.'}[impedimento]);
+      const advancedIndisponivel = rota.requisitos.classe === 'avancado' && acessoAdvanced(app.db,pessoa.id,null,conv.id,AGORA(app))
+        && !lerModelos(app.db).some(x=>x.perfil==='avancado'&&x.liberado&&x.noCatalogo&&acessoAdvanced(app.db,pessoa.id,x.id,conv.id,AGORA(app)));
+      const impedimento=causas.find(c=>['advanced_seguranca','advanced_indisponivel','advanced_ferramenta'].includes(c)) || (advancedIndisponivel?'advanced_indisponivel':null);
+      gravarRota(null, 'bloqueado', impedimento || (grande ? 'conteudo_grande_demais' : sigilosa ? 'sem_recurso_elegivel' : reservaDoPlano ? 'sem_recurso_na_reserva_do_plano' : 'sem_recurso_disponivel'));
+      if(impedimento)throw erro(impedimento==='advanced_indisponivel'?503:409,impedimento,{advanced_seguranca:'As rotas Advanced não cumprem a aprovação de segurança exigida. Solicite a revisão das rotas; liberar acesso não remove essa restrição.',advanced_indisponivel:'Não há modelo e provedor Advanced disponíveis com catálogo confirmado. Atualize o catálogo ou autorize uma alternativa de capacidade adequada.',advanced_ferramenta:'A ferramenta ou o limite de saída necessário não está confirmado. O administrador precisa revisar os recursos antes da execução.'}[impedimento]);
       if (grande)
         throw erro(413, 'grande_demais', MSG_USUARIO.grande, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);   // o material em si é grande demais para qualquer modelo permitido
       await avisarGovernanca(app, sigilosa ? 'sem_modelo_sigilo' : reservaDoPlano ? 'plano_reserva' : 'sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
@@ -1395,7 +1413,7 @@ export function rotasConversas(app, r) {
     // extra (sigilo, área reforçada, dado pessoal); senão, o mesmo recurso da execução. Mesmas defesas de chamar().
     let modeloDesign = atual.id;
     if (!sigilosa && !areaReforcada && !dadosPessoais) {
-      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw, conversaId:conv.id }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
+      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw, conversaId:conv.id, em:AGORA(app) }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
     }
     const chamarDesign = modeloDesign === atual.id ? chamar : msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');

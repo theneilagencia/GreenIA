@@ -1,3 +1,4 @@
+import { responderDescobertaPublica, indexacaoAreaInterna } from '../seo-publico.js';
 import { sincronizarContas } from '../resultados.js';
 // Servidor multiempresa: uma base de código e um processo para todas as empresas.
 // Resolve a empresa (tenant) pelo domínio próprio, pelo subdomínio ou pelo caminho /<slug>,
@@ -334,6 +335,9 @@ async function tratar(P, rPlat, rEmp, req, res) {
     const porHost = resolverPorHost(P, hostDe(req));
     if (porHost?.redirecionar) { res.writeHead(301, { location: porHost.redirecionar + caminho }); return res.end(); }
     if (porHost?.inexistente) return paginaAmbienteNaoEncontrado(res);
+
+    indexacaoAreaInterna(res, caminho);
+    if (await responderDescobertaPublica(req, res, caminho, !porHost && P.paginaInicial === 'vendas')) return;
 
     // Documentos legais da GreenIA: um endereço canônico, no host da plataforma. No endereço próprio de uma empresa
     // (domínio ou subdomínio) levam à plataforma, para não parecerem termos da empresa (white label).

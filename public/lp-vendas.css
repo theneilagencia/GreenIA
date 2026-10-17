@@ -433,3 +433,56 @@
 .lv.l-faq-pagina main>section.l-faq-ajuda{padding-top:48px;padding-bottom:64px}
 .lv.l-faq-pagina .l-faq{border-top:0}
 @media(max-width:760px){.lv.l-faq-pagina main>section.l-faq-intro{padding-top:24px}.lv.l-faq-pagina main>section.l-faq-ajuda{padding-top:40px;padding-bottom:48px}}
+
+.lv .l-escopo-resumo{display:grid;gap:14px;align-content:start}
+.lv .l-escopo-resumo strong{font-weight:550;color:var(--ink)}
+.lv .l-escopo-resumo>span+span{font-size:16px;line-height:1.65}
+
+/* Demonstração de resultados: o mesmo palco, contagem e barras das telas da LP. */
+.lv .m-resultados{padding:32px;background:var(--paper)}
+.lv .m-resultados-topo{display:flex;align-items:start;justify-content:space-between;gap:20px;margin-bottom:32px}
+.lv .m-resultados-rotulo{display:block;font:500 12.5px/1.5 var(--sans);color:var(--muted);margin-bottom:8px}
+.lv .m-resultados-topo h3{font:400 clamp(24px,3vw,34px)/1.15 var(--serif);letter-spacing:-.02em;color:var(--ink);margin:0}
+.lv .m-resultados-periodo{font:500 12px/1.4 var(--sans);color:var(--muted);background:var(--bg);padding:7px 10px;border-radius:8px;white-space:nowrap}
+.lv .m-resultados-indicadores{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;margin-bottom:32px}
+.lv .m-resultados-indicadores>div{min-width:0}
+.lv .m-resultados-indicadores span{display:block;color:var(--ink-2);font:400 13px/1.5 var(--sans);min-height:40px}
+.lv .m-resultados-indicadores b{display:block;color:var(--ink);font:500 clamp(30px,4vw,44px)/1.15 var(--sans);font-variant-numeric:tabular-nums;margin:6px 0 10px}
+.lv .m-resultados-indicadores small{display:block;color:var(--muted);font:400 12px/1.5 var(--sans)}
+.lv .m-resultados-progresso{padding:20px;border-radius:var(--r-md);background:var(--tinta);margin-bottom:20px}
+.lv .m-resultados-progresso>div:first-child{display:flex;justify-content:space-between;gap:16px;font:400 13px/1.5 var(--sans);color:var(--ink-2)}
+.lv .m-resultados-progresso .m-barra{display:block;margin:12px 0;height:6px;border-radius:5px;background:var(--hair);overflow:hidden}
+.lv .m-resultados-progresso .m-barra i{display:block;height:100%;border-radius:5px;background:var(--acento)}
+.lv .m-resultados-progresso p{margin:0;font:400 12.5px/1.6 var(--sans);color:var(--muted)}
+.lv .m-resultados-linha{display:flex;align-items:center;gap:14px;padding:18px 0;border-bottom:1px solid var(--hair)}
+.lv .m-resultados-linha:last-child{border-bottom:0;padding-bottom:0}
+.lv .m-resultados-marca{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:var(--tinta-2);color:var(--acento);font-size:17px}
+.lv .m-resultados-pendente{background:var(--bg);color:var(--muted)}
+.lv .m-resultados-linha>div{flex:1;min-width:0}
+.lv .m-resultados-linha b{display:block;font:500 14px/1.5 var(--sans);color:var(--ink)}
+.lv .m-resultados-linha>div>span{display:block;font:400 12.5px/1.5 var(--sans);color:var(--muted);margin-top:3px}
+.lv .m-resultados-status{font:500 12px/1.5 var(--sans);color:var(--acento);text-align:right}
+.lv .m-resultados-status.pendente{color:var(--muted)}
+@media(prefers-reduced-motion:no-preference){.lv .m-resultados-linha{animation:l-sobe .55s var(--ease) both;animation-delay:calc(.25s + var(--i)*.18s)}.lv .l-resultados-demo.espera .m-resultados-linha{animation-play-state:paused}}
+@media(max-width:760px){.lv .m-resultados{padding:24px 20px}.lv .m-resultados-topo{flex-direction:column;gap:14px;margin-bottom:24px}.lv .m-resultados-indicadores{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;margin-bottom:24px}.lv .m-resultados-indicadores span{font-size:12.5px;min-height:38px}.lv .m-resultados-progresso{padding:16px}.lv .m-resultados-linha{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px 12px}.lv .m-resultados-marca{width:28px;height:28px}.lv .m-resultados-status{grid-column:2;text-align:left}.lv .m-resultados-linha b{font-size:13.5px}}
+
+.lv.l-faq-pagina main{max-width:1240px}
+.lv .l-faq-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
+.lv .l-faq-hero h1{font-size:clamp(38px,5vw,60px)}
+.lv .l-faq-foto{margin:0;overflow:hidden;border-radius:var(--r-lg);background:var(--bg-2);box-shadow:var(--sombra-1)}
+.lv .l-faq-foto img{display:block;width:100%;height:100%;aspect-ratio:4/3;object-fit:cover}
+.lv .l-faq-area,.lv .l-faq-ajuda{max-width:920px}
+@media(prefers-reduced-motion:no-preference){.lv .l-faq-foto{animation:l-foto .9s var(--ease) both}}
+@media(max-width:760px){.lv .l-faq-hero{grid-template-columns:1fr;gap:28px}.lv .l-faq-foto img{aspect-ratio:16/9}.lv .l-faq-hero h1{font-size:40px}}
+
+.lv .l-conferencia-nota{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:32px;margin-top:28px;padding:24px 28px;border-radius:var(--r-md);background:var(--tinta)}
+.lv .l-conferencia-cab{display:flex;align-items:center;gap:14px;align-self:start}
+.lv .l-conferencia-icone{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:10px;background:var(--tinta-2);color:var(--acento)}
+.lv .l-conferencia-icone svg{width:22px;height:22px}
+.lv .l-conferencia-cab h3{font:500 15px/1.5 var(--sans);margin:0;color:var(--ink)}
+.lv .l-conferencia-nota p{font:400 14px/1.65 var(--sans);color:var(--ink-2);margin:0;max-width:65ch}
+.lv .l-conferencia-nota .l-conferencia-limite{font-size:13px;color:var(--muted);margin-top:10px}
+@media(max-width:760px){.lv .l-conferencia-nota{grid-template-columns:1fr;gap:16px;padding:22px 20px}}
+.lv .l-faq-ajuda .btn{max-width:100%;white-space:normal;height:auto;min-height:44px;line-height:1.4;padding:12px 18px;text-align:center}
+
+.lv .l-faq-grupo details{scroll-margin-top:90px}

@@ -54,3 +54,16 @@ if (menu) {
  addEventListener('keydown', e => { if (e.key === 'Escape' && menu.open) { menu.open = false; menu.querySelector('summary').focus(); } });
  addEventListener('click', e => { if (menu.open && !menu.contains(e.target)) menu.open = false; });
 }
+
+// Links de respostas funcionam mesmo quando o assunto não é o primeiro.
+function abrirRespostaDoLink() {
+ let id; try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+ const resposta = document.getElementById(id);
+ if (!resposta?.matches('details[name="greenia-faq"]')) return;
+ const grupo = grupos.findIndex(g => g.contains(resposta));
+ if (grupo < 0) return;
+ campo.value = ''; mostrar(grupo); resposta.open = true;
+ requestAnimationFrame(() => { resposta.querySelector('summary').focus({ preventScroll: true }); resposta.scrollIntoView({ block: 'start' }); });
+}
+addEventListener('hashchange', abrirRespostaDoLink);
+abrirRespostaDoLink();

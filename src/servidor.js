@@ -1,3 +1,4 @@
+import { responderDescobertaPublica, indexacaoAreaInterna } from './seo-publico.js';
 import { rotasResultados, iniciarResultados, sincronizarContas } from './resultados.js';
 import { memoriaDoConteiner } from './vigia-memoria.js';
 import { rotasPaineis } from './paineis.js';
@@ -183,6 +184,8 @@ async function tratar(app, r, req, res, externo) {
   const url = new URL(req.url, 'http://local');
   if (!app.tenant && app.paginaInicial === 'vendas' && req.method === 'GET' && ['/', '/vendas.html'].includes(url.pathname)) cabecalhosLpComercial(res);
   try {
+    indexacaoAreaInterna(res, url.pathname);
+    if (await responderDescobertaPublica(req, res, url.pathname, !app.tenant && app.paginaInicial === 'vendas')) return;
     if (!url.pathname.startsWith('/api/')) {
       if (url.pathname === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }   // painel antigo
       if (url.pathname === '/encontrar' && !app.tenant) { res.writeHead(302, { location: '/entrar' }); return res.end(); }   // instalação única: um ambiente só

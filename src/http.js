@@ -117,6 +117,13 @@ export async function servirEstatico(res, raiz, caminho, req = null) {
   if (!arquivo.startsWith(normalize(raiz) + sep) || !TIPOS[extname(arquivo)]) return false;
   try {
     const dados = await readFile(arquivo);
+    // Somente blocos JSON-LD estáticos do site público recebem hashes na CSP.
+    // Não libera JavaScript inline nem altera CSP de telas internas.
+    if (['vendas.html', 'faq.html'].includes(caminho)) {
+      const hashes = [...dados.toString('utf8').matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`);
+      const csp = res.getHeader('content-security-policy');
+      if (hashes.length && typeof csp === 'string') res.setHeader('content-security-policy', csp.replace("script-src 'self'", "script-src 'self' " + hashes.join(' ')));
+    }
     const etag = `"${createHash('sha1').update(dados).digest('base64url').slice(0, 20)}"`;
     // Fontes têm a versão no nome do arquivo: podem ficar em cache sem revalidar.
     const cab = { 'content-type': TIPOS[extname(arquivo)], 'cache-control': extname(arquivo) === '.woff2' ? 'public, max-age=31536000, immutable' : 'no-cache', etag };

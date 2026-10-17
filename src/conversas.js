@@ -12,7 +12,7 @@ import { extrairTabelas, gerarCsv, nomesDasTabelas, normalizarTabelas } from '..
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
 import { arquivosDoProjeto, blocosDeCodigo, entregaDeCodigo } from './codigo-chat.js';
-import { decisaoPesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
+import { decisaoPesquisa, exigePesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
 import { avisoDeCodigo, decisaoDeCodigo, notaDeCodigo, OPERACOES_CODIGO } from './permissoes-codigo.js';
 import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUsadas, pedeAlterarRepositorio, publicarSite, repositorioDoPedido, reposLiberados, rotasCodigo } from './codigo-operacoes.js';
 import { resolverIdentidade } from './visual/marca.js';
@@ -1036,6 +1036,17 @@ export function rotasConversas(app, r) {
         VERSAO_ROTEADOR,Number(sigilosa),conv.teste,origem,'bloqueado',solicitado,solicitado?'bloqueado':null,codigo,
         requisitos.classe || 'avancado',JSON.stringify(requisitos),JSON.stringify((decisao?.candidatos || []).map(c=>({...c,status:c.status==='escolhido'?'excluido':c.status}))));
     };
+    if (pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto)) {
+      const codigo = `pesquisa_${pesquisaChat.codigo}`;
+      gravarBloqueioPrevio(codigo, { complexidade: analise.complexidade, classe: analise.classe, ferramenta: 'pesquisa_web' });
+      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, motivo: pesquisaChat.codigo });
+      const proximo = pesquisaChat.codigo === 'nao_liberada'
+        ? 'O administrador pode revisar esse acesso em Configurações › Políticas.'
+        : pesquisaChat.codigo === 'reserva_do_plano'
+          ? 'O administrador pode conferir os créditos e os limites do plano.'
+          : 'A pesquisa externa precisa respeitar a proteção deste conteúdo. Liberar um modelo não remove essa restrição.';
+      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaChat.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
+    }
     const prepararAdvanced = (requisitos, decisao = null) => {
       gravarBloqueioPrevio('advanced_sem_autorizacao',requisitos,decisao);
       let alternativa=false;

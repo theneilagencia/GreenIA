@@ -7,6 +7,7 @@
 //  - as operações são aplicadas direto no XML do arquivo original. Num parágrafo, só o trecho que mudou é trocado,
 //    dentro do mesmo "run": negrito, cor, fonte e tamanho do resto ficam como estavam;
 //  - o resultado é relido antes de ser entregue (um arquivo que não abre nunca chega à pessoa).
+import { pedeRedesignApresentacao } from '../public/qualidade-entrega.js';
 import { inflateRawSync } from 'node:zlib';
 import { zipar, formulaDaCelula, MIMES } from './escritorio.js';
 
@@ -632,7 +633,7 @@ const PERGUNTA = /^\s*(o que|qual|quais|como|por que|quando|onde|quem|quanto|exi
  */
 export function pedeEdicaoNoArquivo(textoPedido, { temAnexoAgora = false } = {}) {
   const t = norm(textoPedido);
-  if (!t.trim() || PERGUNTA.test(t)) return false;
+  if (!t.trim() || PERGUNTA.test(t) || pedeRedesignApresentacao(textoPedido)) return false;
   const explicito = NO_ARQUIVO.test(t);
   if (explicito) return true;
   if (!EDITAR.test(t) || REFAZER.test(t)) return false;

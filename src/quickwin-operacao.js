@@ -373,7 +373,7 @@ export const temArtefatoVisual = op => !!op?.entregaveis?.some(e => e.visual);
 const PEDE_VISUAL = [
   // Imagem pronta (a imagem é a peça): antes de "arte"/"imagem" genéricos, que viram peça composta ou briefing.
   [/\b(imagem|imagens|arte) (final|finais|pronta|prontas)\b|\b(gere|gerar|crie|criar|produza|produzir|faca|fazer|quero|preciso de) (uma |a |as |duas |tres )?(imagem|imagens)\b(?! de referencia)/, 'image', ['imagem_final', 'imagem']],
-  [/\b(apresentac\w*|slides?|deck)\b/, 'presentation', ['apresentacao']], [/\bone[- ]?pag\w*|\bpagina (visual|executiva|unica)|\bresumo visual|\bfolha unica/, 'one_page', ['resumo', 'relatorio']],
+  [/\b(apresentac\w*|slides?|deck|pptx|power ?point)\b/, 'presentation', ['apresentacao']], [/\bone[- ]?pag\w*|\bpagina (visual|executiva|unica)|\bresumo visual|\bfolha unica/, 'one_page', ['resumo', 'relatorio']],
   [/\binfografic\w*/, 'infographic', []], [/\bfluxograma|\bdiagrama\b/, 'diagram', []], [/\bmapa (de|do) processo/, 'process_map', []], [/\bdashboard|\bpainel (visual|executivo)/, 'dashboard', []],
   [/\bcronograma visual|\blinha do tempo visual/, 'timeline', []], [/\bcartaz|\bposter\b/, 'poster', []], [/\bcarross\w*/, 'carousel', ['carrossel']],
   // Peças de campanha ("peças visuais nos formatos quadrado e horizontal", "anúncios para o feed do LinkedIn").

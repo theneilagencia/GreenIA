@@ -71,3 +71,19 @@ test('alta qualidade não é declarada concluída quando o motor de design está
     assert.equal(r.ignorados[0].motivo, 'qualidade_exigida_nao_atingida');
   } finally { await S.fechar(); }
 });
+
+
+test('pedido real de refatoração premium seleciona design, não edição de texto', async () => {
+  const { pedeRedesignApresentacao } = await import('../public/qualidade-entrega.js');
+  const { pecaDaConversa } = await import('../src/conversas.js');
+  const { pedeEdicaoNoArquivo } = await import('../src/edicao-arquivo.js');
+  for (const texto of ['Refatore o PPTX para deixá-lo mais premium', 'Deixe o PowerPoint mais profissional', 'Melhore o design da apresentação no arquivo anexo', 'Refaça o deck com alta qualidade']) {
+    assert.equal(exigeAltaQualidade(texto) || /Melhore o design/.test(texto), true);
+    assert.equal(pedeRedesignApresentacao(texto), true, texto);
+    assert.equal(pedeEdicaoNoArquivo(texto, { temAnexoAgora: true }), false, texto);
+    assert.equal(pecaDaConversa(texto)?.operacao.entregaveis[0].visual.tipo, 'presentation', texto);
+  }
+  for (const texto of ['Corrija a data do PPTX premium', 'Troque o título no próprio PowerPoint', 'Como melhorar o design da apresentação?']) {
+    assert.equal(pedeRedesignApresentacao(texto), false, texto);
+  }
+});

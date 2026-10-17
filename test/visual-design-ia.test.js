@@ -330,3 +330,51 @@ test('alta qualidade: 13 slides mantêm design pela IA em quatro lotes e passam 
   assert.equal(chamadas, 4, 'um lote por grupo de até quatro slides, sem refazer o trabalho inteiro');
   assert.equal(r.custo, 0.004);
 });
+
+test('PPTX usa o design aprovado, preserva texto editável, formas e número de páginas', async () => {
+  const { pptxDoDesign } = await import('../src/visual/pptx.js');
+  const { previaDoPptx } = await import('../src/previa-pptx.js');
+  const identidade = resolverIdentidade({});
+  const design = { css: '.bloco{position:absolute;inset:60px;background:#112F35;color:#fff;padding:50px;font-size:30px}.linha{color:#F5CD67;font-size:26px}', paginas: ['<div class="bloco"><h1 style="font-size:48px">Cronograma do projeto</h1><p class="linha">26 e 27 de outubro de 2026</p><p>Diagnóstico com a equipe</p></div>', '<div class="bloco"><h1 style="font-size:48px">Entrega final</h1><p>Conteúdo integral com design validado</p></div>'] };
+  const render = await renderizarDesign(design, { formato:'16:9', identidade });
+  const r = await pptxDoDesign({ plano: { motor:'design' }, render, paginas:2 }, { titulo:'Apresentação final' });
+  const p = previaDoPptx(r.dados);
+  assert.equal(p.slides.length,2);
+  const texto = p.slides.flatMap(s=>s.formas.filter(f=>f.tipo==='texto').flatMap(f=>f.paragrafos.flatMap(p=>p.runs.map(r=>r.t)))).join(' ');
+  assert.match(texto,/26 e 27 de outubro de 2026/);
+  assert.match(texto,/Conteúdo integral com design validado/);
+  assert.ok(p.slides.every(s=>s.formas.some(f=>f.tipo==='caminho'||f.tipo==='retangulo')),'formas do design exportadas, sem template textual');
+  assert.equal(r.detalhes.origem,'design_validado');
+});
+
+test('refatore o PPTX premium: fluxo completo entrega PowerPoint do design, não arquivo da resposta', async () => {
+  const { pptx, MIMES } = await import('../src/escritorio.js');
+  const { previaDoPptx } = await import('../src/previa-pptx.js');
+  salvarConfig(S.app.db, { acessoPerfis: { equilibrado: { todos:true }, avancado:{ todos:true } } });
+  const chamadas = OR.chamadas.length;
+  OR.responder = b => {
+    const sis = texto(b.messages[0].content);
+    if (sis.includes('diretora de arte')) return designFalso(b);
+    if (sis.includes('diretor de arte')) return 'sem plano';
+    return DECK;
+  };
+  try {
+    const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(ana, conv.id, { texto:'Refatore o PPTX para deixá-lo mais premium', anexos:[{ nome:'Material-original.pptx', base64:pptx(DECK).toString('base64') }] });
+    assert.ok(r.fim,JSON.stringify(r));
+    const arquivo = r.fim.arquivos?.find(a=>a.origem==='design_validado');
+    assert.ok(arquivo,JSON.stringify(r.fim));
+    assert.equal(arquivo.tipo,'design');
+    const salvo = um(S.app.db,'select * from arquivos_gerados where id=?',arquivo.id);
+    assert.equal(salvo.mime,MIMES.pptx,'PowerPoint real, não URI para converter Markdown');
+    const menu = await binario(ana, `/api/conversas/${conv.id}/mensagens/${salvo.mensagem_id}/arquivo/pptx`);
+    assert.equal(menu.status,200);
+    assert.deepEqual(Buffer.from(await menu.arrayBuffer()),Buffer.from(salvo.dados),'Baixar como usa exatamente o mesmo design');
+    const p = previaDoPptx(Buffer.from(salvo.dados));
+    assert.ok(p.slides.length>=3);
+    const textoExportado = p.slides.flatMap(s=>s.formas.filter(f=>f.tipo==='texto').flatMap(f=>f.paragrafos.flatMap(p=>p.runs.map(r=>r.t)))).join(' ');
+    assert.match(textoExportado,/Contratar os 2 vendedores/);
+    assert.ok(OR.chamadas.slice(chamadas).some(b=>texto(b.messages[0].content).includes('apresentacao_fonte')),'fonte completa vai no contexto autorizado');
+    assert.ok(!todos(S.app.db,'select mime from arquivos_gerados where conversa_id=?',conv.id).some(a=>a.mime==='text/uri-list'));
+  } finally { OR.responder=roteiro; }
+});

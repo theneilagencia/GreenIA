@@ -174,7 +174,7 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
   return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : a.tipo === 'da_resposta' ? cartaoDaResposta(m, a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
-    detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
+    detalhe: a.tipo === 'design' ? `PowerPoint editável · ${a.slides} slides · design da apresentação` : `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
 }
 // Arquivo que a pessoa enviou, ajustado no próprio original (layout, estilos e fórmulas preservados).
 const FORMATO_EDICAO = { pptx: ['slides', 'PowerPoint'], docx: ['documento', 'Word'], xlsx: ['planilha', 'Excel'] };

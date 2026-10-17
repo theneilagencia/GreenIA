@@ -1,8 +1,9 @@
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
+import { pptxDoDesign } from './visual/pptx.js';
 import { criarPrazoArquivo } from './tempo-arquivo.js';
-import { exigeAltaQualidade, NOTA_ALTA_QUALIDADE, NOTA_FIDELIDADE } from '../public/qualidade-entrega.js';
+import { exigeAltaQualidade, NOTA_ALTA_QUALIDADE, NOTA_FIDELIDADE, pedeRedesignApresentacao } from '../public/qualidade-entrega.js';
 import { comCancelamento } from './cancelamento-chat.js';
 import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
@@ -221,24 +222,25 @@ export function apresentacaoDaPessoa(app, conversaId, texto, anexosAtuais = [], 
 // mensagem ou, sem anexo agora, a versão mais recente da conversa (a última ajustada pela GreenIA ou o último enviado).
 const MIMES_OFFICE = Object.values(MIMES);
 // Gerar de novo: vale o que existia antes da resposta refeita (o arquivo enviado com o pedido conta como "anexo agora").
-export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], brutos = [], { antesDe = null, pedido = null } = {}) {
+export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], brutos = [], { antesDe = null, pedido = null, redesign = false } = {}) {
   const agora = brutos.map((b, k) => ({ k, tipo: tipoDoArquivo(anexosAtuais[k]?.nome) })).filter(x => x.tipo && ehPacoteOffice(anexosAtuais[x.k]?.nome, brutos[x.k]));
   if (agora.length) {
-    if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: true })) return null;
+    if (!redesign && !pedeEdicaoNoArquivo(texto, { temAnexoAgora: true })) return null;
     const t = String(texto || '').toLowerCase();
     const escolhido = agora.length === 1 ? agora[0] : agora.find(x => citaNome(texto, anexosAtuais[x.k].nome))
       || (new Set(agora.map(x => x.tipo)).size === agora.length ? agora.find(x => ({ docx: /\b(word|docx|documento)\b/, pptx: /\b(power ?point|pptx|apresenta[cç][aã]o|slides?)\b/, xlsx: /\b(excel|xlsx|planilha)\b/ })[x.tipo].test(t)) : null);
     return escolhido ? { nome: anexosAtuais[escolhido.k].nome, tipo: escolhido.tipo, dados: Buffer.from(brutos[escolhido.k], 'base64'), origem: 'anexo' } : null;
   }
-  if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null })) return null;   // antes de ler os arquivos guardados
-  const lugares = MIMES_OFFICE.map(() => '?').join(', ');
+  if (!redesign && !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null })) return null;   // antes de ler os arquivos guardados
+  const mimes = redesign ? [MIMES.pptx] : MIMES_OFFICE;
+  const lugares = mimes.map(() => '?').join(', ');
   // O arquivo citado pelo nome no pedido vale mais que o último enviado (QA em produção: "no documento X.pptx" editava o
   // contrato .docx, que era o último anexo). Sem nome citado: o mais recente.
   const t = String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const base = n => String(n).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\.(docx|pptx|xlsx)$/, '').replace(/-ajustad[oa]$/, '');
   const citado = lista => lista.find(x => t.includes(base(x.nome))) || null;
-  const enviados = todos(app.db, `select a.mensagem_id as msg, a.nome, a.id from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
-  const ajustados = todos(app.db, `select mensagem_id as msg, nome, id from arquivos_gerados where conversa_id = ? and mime in (${lugares}) and detalhes like '%"edicao"%' and mensagem_id < ? order by id desc`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const enviados = todos(app.db, `select a.mensagem_id as msg, a.nome, a.id from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc`, conversaId, ...mimes, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const ajustados = todos(app.db, `select mensagem_id as msg, nome, id from arquivos_gerados where conversa_id = ? and mime in (${lugares}) ${redesign ? '' : `and (detalhes like '%"edicao"%' or detalhes like '%"design_validado"%')`} and mensagem_id < ? order by id desc`, conversaId, ...mimes, antesDe ?? Number.MAX_SAFE_INTEGER);
   const nomeCitado = citado([...ajustados, ...enviados]);
   const doNome = nomeCitado ? base(nomeCitado.nome) : null;
   const e0 = doNome ? enviados.find(x => base(x.nome) === doNome) : enviados[0], a0 = doNome ? ajustados.find(x => base(x.nome) === doNome) : ajustados[0];
@@ -246,7 +248,7 @@ export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], bru
   const ajustado = a0 ? { ...a0, dados: um(app.db, 'select dados from arquivos_gerados where id = ?', a0.id).dados } : null;
   const r = [enviado, ajustado].filter(Boolean).sort((a, b) => (b.msg || 0) - (a.msg || 0))[0];
   const tipo = r && tipoDoArquivo(r.nome);
-  if (!tipo || !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido })) return null;
+  if (!tipo || (!redesign && !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido }))) return null;
   return tipo ? { nome: r.nome, tipo, dados: Buffer.from(r.dados), origem: r === ajustado ? 'versao' : 'anexo' } : null;
 }
 
@@ -262,7 +264,7 @@ export function fonteDeApresentacao(deck) {
 }
 
 export function pecaDaConversa(texto) {
-  if (!PEDE_CRIAR.test(String(texto || ''))) return null;
+  if (!PEDE_CRIAR.test(String(texto || '')) && !pedeRedesignApresentacao(texto)) return null;
   const v = visualDoPedido(texto);
   if (!v || v.tipo === 'image') return null;
   const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) };
@@ -570,12 +572,18 @@ export function rotasConversas(app, r) {
     res.end(img);
   });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/pptx/previa', ({ pessoa, params }) => {
-    const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const pronto = um(app.db, 'select id, nome, dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES.pptx);
+    if (pronto) return { nome: pronto.nome, midia: `/api/conversas/${conv.id}/arquivos/${pronto.id}/midia/`, ...previaDoPptx(Buffer.from(pronto.dados)) };
+    if (/O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     return { nome: nomeDoArquivo(titulo, 'pptx'), midia: null, ...previaDoPptx(pptx(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` })) };
   });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/:formato', ({ pessoa, params, res }) => {
     if (!['docx', 'pptx', 'xlsx'].includes(params.formato)) throw erro(404, 'formato', 'Formato não disponível.');
-    const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const pronto = um(app.db, 'select dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES[params.formato]);
+    if (pronto) return enviarOffice(res, params.formato, titulo, Buffer.from(pronto.dados));
+    if (params.formato === 'pptx' && /O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     if (params.formato === 'xlsx') {
       // Todas as tabelas da resposta, uma por aba.
       const tabelas = extrairTabelas(texto);
@@ -877,6 +885,12 @@ export function rotasConversas(app, r) {
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
     const podeModelo = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
+    const redesignLivre = podeModelo && pedeRedesignApresentacao(texto) && !PEDE_MODELO(texto);
+    const fonteRedesign = redesignLivre ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, { ...(regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}), redesign: true }) : null;
+    if (fonteRedesign?.tipo === 'pptx') {
+      const fonte = fonteDeApresentacao(fonteRedesign);
+      ctx.partes.push(delimitar('apresentacao_fonte', fonte.nome, fonte.texto));
+    }
     // Ajuste no próprio arquivo Office anexado: o original é editado (layout preservado), não refeito do zero.
     let edicao = null;
     try { edicao = podeModelo ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}) : null; } catch (e) { app.log?.('arquivo para editar', erroParaLog(e)); }
@@ -892,7 +906,7 @@ export function rotasConversas(app, r) {
       }
       edicao = null;
     }
-    let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos, texto) : null;
+    let modeloApr = !redesignLivre && !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos, texto) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
     // Pedido de layout sem ter caído na edição (o pedido não pareceu ajuste no arquivo): se ele cita uma apresentação
@@ -902,7 +916,7 @@ export function rotasConversas(app, r) {
       if (deck) fonteDeck = fonteDeApresentacao(deck);
     }
     const deckAnterior = podeModelo ? um(app.db, "select id, textos, detalhes from arquivos_gerados where conversa_id = ? and detalhes like '%\"modelo\"%' order by id desc limit 1", conv.id) : null;
-    if (!modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos, texto);
+    if (!redesignLivre && !modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos, texto);
     const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) && !anexos.some(a => /\.pptx$/i.test(a.nome)) ? json(deckAnterior.textos, null) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
@@ -927,6 +941,7 @@ export function rotasConversas(app, r) {
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
       + NOTA_FIDELIDADE
+      + (redesignLivre ? '\nREFATORAÇÃO VISUAL: recomponha a apresentação completa usando a apresentação fonte como conteúdo. Reúna continuações artificiais e assuntos repetidos quando isso melhorar a leitura, preservando todo o conteúdo útil. Não crie páginas só para um subtítulo ou uma observação. Evite títulos repetidos, rodapés extensos, texto miúdo e grandes vazios sem função. Use hierarquia, composição e recursos visuais adequados ao conteúdo, mantendo datas, números, nomes e compromissos exatamente como nas fontes. A resposta deve conter o conteúdo final de cada slide, não uma lista de ajustes propostos.' : '')
       + (exigeAltaQualidade(texto) ? NOTA_ALTA_QUALIDADE : '')
       + blocoCreditos(app)
       + notaDeData(app)
@@ -1451,17 +1466,17 @@ export function rotasConversas(app, r) {
           visuais = await produzirVisuais(app, { pessoa, conv, qw: null, espec: pecaChat, resposta: soEntregavel(resposta), chamar, chamarDesign, usarIA: !reservaDoPlano,
             governanca: { sigilosa, areaReforcada, qualidadeAlta: exigeAltaQualidade(texto), protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) { custoVisual = visuais.custos; fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoVisual.plano_visual + custoVisual.imagem }; }
-        } catch (e) { app.log?.('produção visual', erroParaLog(e)); aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
+        } catch (e) { app.log?.('produção visual', erroParaLog(e)); if (exigeAltaQualidade(texto)) visuais = { artefatos: [], ignorados: [{ motivo: 'qualidade_exigida_nao_atingida' }], custos: custoVisual }; else aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
       }
     }
     // Apresentação no layout do modelo: leitura do PDF (sem IA), adaptação do texto pela IA (mesma rota) e o PPTX.
     // Avisos sobre os arquivos desta resposta entram DEPOIS dela na conversa (antes ficavam acima, longe da resposta).
     const avisosDepois = [], avisoDepois = t => { avisosDepois.push(t); };
-    let gerado = null;
+    let gerado = null, falhaExportacaoVisual = false;
     // Rede de segurança: o pedido não foi reconhecido como apresentação, mas a resposta saiu como roteiro "Slide 1,
     // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
     // como conteúdo, em vez de a pessoa ficar com um texto que vira slides genéricos.
-    if (!modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
+    if (!redesignLivre && !modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
     // O arquivo ainda vai ser montado (pode levar minutos): a frase "o arquivo está pronto para baixar" sai do texto
     // já agora, e a tela mostra o andamento. Quem anuncia o arquivo é a plataforma, quando ele existe (em produção a
     // pessoa leu "pronto para download" enquanto o PowerPoint ainda estava sendo montado).
@@ -1526,6 +1541,21 @@ export function rotasConversas(app, r) {
           : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }
+    }
+    // O PPTX solicitado usa o mesmo design que passou pela conferência no
+    // navegador. Nunca converte de volta ao template de texto da resposta.
+    const visualPptx = !qw && !modeloApr && /\b(pptx|power ?point|apresenta[cç][aã]o|slides?|deck)\b/i.test(texto)
+      ? visuais?.artefatos?.find(a => a.tipo === 'presentation' && a.plano?.motor === 'design') : null;
+    if (!gerado && visualPptx) {
+      linha({ t: 'etapa', v: 'Exportando o design validado para PowerPoint…', arquivo: true });
+      try {
+        prazoArquivo.conferir();
+        gerado = await pptxDoDesign(visualPptx, { agora: app.agora(), titulo: conv.titulo });
+        prazoArquivo.conferir();
+      } catch (e) {
+        falhaExportacaoVisual = true;
+        app.log?.('exportação do design', erroParaLog(e));
+      }
     }
     // Ajuste no próprio arquivo: a IA indica as operações (parágrafo a parágrafo, célula a célula) e elas são aplicadas
     // no original; o resultado é relido antes de chegar à pessoa.
@@ -1611,7 +1641,7 @@ export function rotasConversas(app, r) {
       avisosDepois.length = 0;
       linha({ t: 'substituir', v: resposta });
     }
-    const qualidadeVisualFalhou = !!visuais?.ignorados?.some(x => x.motivo === 'qualidade_exigida_nao_atingida');
+    const qualidadeVisualFalhou = falhaExportacaoVisual || (exigeAltaQualidade(texto) && !!pecaChat && !visuais?.artefatos?.length) || !!visuais?.ignorados?.some(x => x.motivo === 'qualidade_exigida_nao_atingida');
     if (qualidadeVisualFalhou) {
       resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo com o acabamento solicitado não foi gerado.** O conteúdo está nesta resposta, mas o design não passou pela validação. A plataforma não substituiu a entrega por uma versão básica.`;
       linha({ t: 'substituir', v: resposta });
@@ -1636,7 +1666,7 @@ export function rotasConversas(app, r) {
     if (gerado) {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), gerado.textos ? JSON.stringify(gerado.textos) : null, AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome: gerado.nome, bytes: gerado.dados.length, ...gerado.detalhes });
-      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: 'modelo_pdf', ...gerado.detalhes });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: gerado.detalhes.origem || 'modelo_pdf', ...gerado.detalhes });
     }
     if (editado) {
       const detalhes = { tipo: 'edicao', formato: edicao.tipo, origem: edicao.nome, alteracoes: editado.feitas, ...(editado.ignoradas.length ? { nao_aplicadas: editado.ignoradas.length } : {}) };

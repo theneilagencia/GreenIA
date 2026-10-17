@@ -40,7 +40,7 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
   if (id) {
     const d = await api(`/api/conversas/${id}`);
     if (C !== estado) return;
-    Object.assign(C, { conv: d.conversa, mensagens: d.mensagens });
+    Object.assign(C, { conv: d.conversa, mensagens: d.mensagens, enviando: !!d.conversa.em_execucao, pensando: !!d.conversa.em_execucao });
     d.mensagens.forEach(m => vistos.add(String(m.id)));
     if (d.conversa.quick_win_id && !qw) C.qw = await api(`/api/quick-wins/${d.conversa.quick_win_id}`).catch(() => null);
     if (C !== estado) return;
@@ -53,6 +53,7 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
     materialEmRevisao = null;
   }
   desenhar();
+  if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.textoRetomado) { $('entrada').value = C.textoRetomado; ajustarAltura(); atualizarEnviar(); }
   // Conversa vazia no computador: o cursor já fica na caixa, como nos assistentes de chat. No celular, não abre o
   // teclado sozinho; a saudação e a caixa já estão à vista.
@@ -410,7 +411,12 @@ function andamentoDaResposta() {
 function ajustarAltura() { const t = $('entrada'), vh = window.visualViewport?.height || innerHeight, celular = innerWidth <= 760, max = Math.round(C.expandida ? vh * (celular ? 0.5 : 0.68) : celular ? Math.max(96, Math.min(168, vh * 0.24)) : Math.max(120, Math.min(320, vh * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
 function atualizarEnviar() {
   const vazio = !$('entrada').value.trim() && !C.anexos.length;
-  $('enviar').disabled = C.enviando || vazio;
+  const botao = $('enviar');
+  botao.disabled = C.enviando ? !!C.interrompendo || !C.conv : vazio;
+  const rotulo = C.enviando ? (C.interrompendo ? 'Interrompendo execução…' : 'Interromper execução') : 'Enviar';
+  botao.setAttribute('aria-label', rotulo); botao.title = rotulo;
+  botao.classList.toggle('interromper', !!C.enviando);
+  botao.innerHTML = (C.enviando ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>' : ICONE.enviar) + `<span class="sr">${rotulo}</span>`;
   // Celular (referência: ChatGPT): com texto ou anexo na caixa, as sugestões do início saem e o espaço fica para o pedido.
   $('inicio-atalhos')?.classList.toggle('compondo', !vazio);
 }
@@ -439,8 +445,8 @@ function ligar() {
     b.setAttribute('aria-label', C.expandida ? 'Recolher a caixa de texto' : 'Expandir a caixa de texto'); b.title = C.expandida ? 'Recolher' : 'Expandir';
     ajustarAltura(); t.focus();
   };
-  t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!$('enviar').disabled) enviar(); } });
-  $('enviar').onclick = () => enviar();
+  t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!C.enviando && !$('enviar').disabled) enviar(); } });
+  $('enviar').onclick = () => C.enviando ? interromperExecucao() : enviar();
   const estado = C;
   $('msgs').addEventListener('scroll', ev => { const m = ev.currentTarget; if (C === estado && m.isConnected) C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
   if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
@@ -670,10 +676,12 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     C.mensagens.push({ id: 'eu' + Date.now(), papel: 'user', texto, anexos: anexos.map(a => a.nome) });
     $('entrada').value = ''; C.anexos = []; ajustarAltura(); desenharAnexos();
   }
-  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens(); atualizarEnviar();
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
   const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
-  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
+  let r;
+  try { r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true }); }
+  catch { C.enviando = false; C.pensando = false; desenharMensagens(); atualizarEnviar(); toast('A conexão falhou. Confira a conversa antes de enviar de novo.'); return; }
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;
@@ -698,9 +706,12 @@ async function enviar(reenvio = null, { executar = false } = {}) {
 // Resposta em streaming (uma linha JSON por evento), do envio normal e do "Gerar de novo".
 // manterErro: a falha continua à vista depois de reler a conversa (ao gerar de novo, a resposta anterior volta).
 async function receberResposta(r, { manterErro = false } = {}) {
+  const estado = C;
+  C.recebendo = true; C.leituraCancelamento = new AbortController();
   const resposta = { id: 'ia' + Date.now(), papel: 'assistant', texto: '', carregando: true };
   try {
-    for await (const ev of eventosDaResposta(r.body)) {
+    for await (const ev of eventosDaResposta(r.body, { sinal: estado.leituraCancelamento.signal })) {
+      if (C !== estado) return;
       if (ev.t === 'inicio' && ev.cortada && C.conv) C.conv.cortada = true;
       if (ev.t === 'inicio' && ev.qualidade) C.execucao = true;
       if (ev.t === 'inicio' && ev.arquivo) { C.vaiArquivo = true; C.montandoArquivo = true; C.etapa = 'Analisando o pedido e os arquivos…'; }
@@ -711,6 +722,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
       }
       if (ev.t === 'substituir') resposta.texto = ev.v;   // versão final, depois da conferência de escrita
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
+      if (ev.t === 'interrompido') { resposta.interrompida = true; resposta.carregando = false; resposta.texto = ev.mensagem; }
       if (ev.t === 'fim' && ev.executar) C.executarDepois = ev.executar;
       if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, guardado: ev.guardado, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, qualidade: ev.qualidade, artefatos: ev.artefatos, arquivos: ev.arquivos, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
       // Durante o streaming, atualiza só a bolha da resposta.
@@ -718,14 +730,18 @@ async function receberResposta(r, { manterErro = false } = {}) {
       if (bolha) { bolha.innerHTML = renderizar(semPromessaAoVivo(resposta.texto)).html + '<span class="cursor"></span>' + andamentoDaResposta(); rolarSeNoFim(); } else desenharMensagens();
     }
   } catch {
+    if (C !== estado) return;
     resposta.texto = 'A conexão foi interrompida antes da confirmação de entrega. Confira a conversa: se o arquivo foi concluído, o download aparecerá nela. Nenhuma nova geração foi iniciada automaticamente.';
-    resposta.erro = true; resposta.carregando = false;
+    if (C.interrompendo) { resposta.texto = 'Execução interrompida por você.'; resposta.interrompida = true; }
+    resposta.erro = !resposta.interrompida; resposta.carregando = false;
   }
-  C.pensando = false; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
-  $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
+  if (C !== estado) return;
+  C.recebendo = false; C.interrompendo = false; C.pensando = false; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
+  $('ao-vivo').textContent = resposta.interrompida ? 'Execução interrompida.' : resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
   try { await recarregarConversa(true); } catch { desenharMensagens(); }
   atualizarEnviar();
+  if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }
   // A falha continua à vista depois de reler a conversa (a resposta não foi guardada; sem isto a tela ficava só com o
   // pedido, como se estivesse travada).
@@ -742,7 +758,7 @@ async function gerarDeNovo(id, depoisDaCiencia = false) {
   C.enviando = true; atualizarEnviar();
   const pos = C.mensagens.indexOf(anterior);
   C.mensagens.splice(pos, 1);
-  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens(); atualizarEnviar();
   $('ao-vivo').textContent = 'Gerando outra resposta…';
   const voltar = texto => {
     C.pensando = false;
@@ -770,6 +786,34 @@ async function gerarDeNovo(id, depoisDaCiencia = false) {
   await receberResposta(r, { manterErro: true });
 }
 
+async function interromperExecucao() {
+  if (!C.conv || C.interrompendo) return;
+  const estado = C;
+  C.interrompendo = true; atualizarEnviar();
+  try {
+    const r = await api(`/api/conversas/${estado.conv.id}/interromper`, { metodo: 'POST', corpo: {}, sinal: AbortSignal.timeout(10000) });
+    if (C !== estado) return;
+    if (!r.interrompida && C.recebendo) { C.leituraCancelamento?.abort(); return; }
+    if (!r.interrompida || !C.recebendo) {
+      C.interrompendo = false; C.enviando = false; C.pensando = false;
+      await recarregarConversa(true);
+      if (C.conv.em_execucao) acompanharExecucao(C);
+    }
+  } catch (e) { if (C === estado) { C.interrompendo = false; toast(e.message); } }
+  if (C === estado) atualizarEnviar();
+}
+
+// Reabrir uma conversa em andamento também oferece Interromper. Consulta apenas
+// o estado; nunca inicia outra chamada de IA ou outra geração.
+function acompanharExecucao(estado, restantes = 60) {
+  if (!restantes || C !== estado || estado.recebendo || !estado.conv?.em_execucao) return;
+  setTimeout(async () => {
+    if (C !== estado || estado.recebendo) return;
+    try { await recarregarConversa(true); } catch { return; }
+    acompanharExecucao(estado, restantes - 1);
+  }, 2000);
+}
+
 async function recarregarConversa(redesenharTudo) {
   const atual = C;
   let d;
@@ -778,6 +822,7 @@ async function recarregarConversa(redesenharTudo) {
   if (C !== atual || !$('coluna')) return;
   const sigAntes = C.conv.sigilosa;
   C.conv = d.conversa;
+  if (!C.recebendo) { C.enviando = !!d.conversa.em_execucao; C.pensando = !!d.conversa.em_execucao; }
   if (redesenharTudo) { C.mensagens = d.mensagens; d.mensagens.forEach(m => vistos.add(String(m.id))); }
   if (sigAntes !== d.conversa.sigilosa) await carregarModelos();
   const noFim = C.noFim;

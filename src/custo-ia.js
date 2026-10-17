@@ -10,6 +10,7 @@
 // pedido, a diferença entra na última linha de uso do pedido (ou numa linha nova, se nada foi gravado). Chamada que não
 // devolveu o custo (interrompida ou com erro) tem o custo buscado depois no provedor, pela identificação da geração.
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { opcoesCancelaveis } from './cancelamento-chat.js';
 import { exec } from './db.js';
 import { registrar } from './eventos.js';
 
@@ -86,6 +87,7 @@ export function contabilizarIA(app, ia) {
   });
 }
 async function* enviarContado(app, ia, mensagens, op) {
+  op = opcoesCancelaveis(op);
   const ctx = ALS.getStore();
   let geracao = null, entregue = false;
   try {
@@ -95,12 +97,14 @@ async function* enviarContado(app, ia, mensagens, op) {
         if (ctx) { ctx.cobrado += Number(ev.custo) || 0; ctx.modelo = ev.modelo || op.modelo || ctx.modelo; }
       }
       yield ev;
+      op.sinal?.throwIfAborted();
     }
   } finally {
     if (!entregue) recuperar(app, ia, geracao, ctx, op.modelo);
   }
 }
 async function imagemContada(app, ia, prompt, op) {
+  op = opcoesCancelaveis(op);
   const ctx = ALS.getStore();
   try {
     const g = await ia.gerarImagem(prompt, op);

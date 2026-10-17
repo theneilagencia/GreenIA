@@ -80,3 +80,11 @@ test('falha explícita encerra o fluxo sem inventar uma entrega', async () => {
 test('evento truncado é falha de comunicação, não conclusão', async () => {
   await assert.rejects(ler(['{"t":"fim","arquivos":']), SyntaxError);
 });
+
+test('Interromper libera a leitura de uma conexão presa que não envia mais eventos', async () => {
+  const c = new AbortController();
+  const body = new ReadableStream({ start() {} });
+  const leitura = (async () => { for await (const _ of eventosDaResposta(body, { sinal: c.signal })) {} })();
+  c.abort();
+  await assert.rejects(leitura, { name: 'AbortError' });
+});

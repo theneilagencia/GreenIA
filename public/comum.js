@@ -18,9 +18,10 @@ export function fmtCusto(v, { conversa = false } = {}) {
 }
 export const definirCsrf = t => { csrf = t; };
 
-export async function api(caminho, { metodo = 'GET', corpo, bruto = false, independenteDaRota = false } = {}) {
+export async function api(caminho, { metodo = 'GET', corpo, bruto = false, independenteDaRota = false, sinal } = {}) {
   const rotaDeLeitura = metodo === 'GET' && !independenteDaRota ? location.hash : null;
   const r = await fetch(caminho, {
+    signal: sinal,
     method: metodo, credentials: 'same-origin',
     headers: { ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(metodo !== 'GET' ? { 'x-csrf': csrf } : {}) },
     body: corpo !== undefined ? JSON.stringify(corpo) : undefined,

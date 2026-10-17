@@ -2,6 +2,7 @@
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
 import { criarPrazoArquivo } from './tempo-arquivo.js';
+import { comCancelamento } from './cancelamento-chat.js';
 import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
@@ -362,6 +363,7 @@ function historico(app, conv, limiteChars, atual = null, ocultar = null) {
 export function rotasConversas(app, r) {
   rotasCodigo(app, r, { minhaConversa });
   const enviosAtivos = new Map();
+  const cancelamentos = app.cancelamentosChat = new Map();
   const ocupado = ids => ids.some(id => enviosAtivos.has(id)) || ids.some(id => um(app.db, "select 1 from connector_runs r join integ_planos p on p.id = r.plano_id where p.conversa_id = ? and r.status = 'EM_ANDAMENTO'", id));
   function excluir(pessoa, conversas) {
     const ids = conversas.map(c => c.id);
@@ -580,16 +582,38 @@ export function rotasConversas(app, r) {
   const executarMensagem = async ctx => {
     const id = Number(ctx.params.id);
     minhaConversa(app, ctx.pessoa, id);
-    enviosAtivos.set(id, (enviosAtivos.get(id) || 0) + 1);
-    try { return await comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem(ctx)); } catch (e) {
+    if (enviosAtivos.has(id)) throw erro(409, 'conversa_em_uso', 'Esta conversa está processando uma resposta. Use Interromper para encerrar a execução.');
+    const controle = new AbortController();
+    cancelamentos.set(id, controle); enviosAtivos.set(id, 1);
+    try { return await comCancelamento(controle.signal, () => comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem({ ...ctx, sinal: controle.signal }))); } catch (e) {
+      if (controle.signal.aborted) {
+        const mensagem = 'Execução interrompida por você. O trabalho parcial não foi concluído.';
+        const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', id, ctx.pessoa.id);
+        if (conv) {
+          aviso(app, id, mensagem);
+          exec(app.db, "update roteamento set resultado = 'interrompido' where id = (select id from roteamento where conversa_id = ? order by id desc limit 1) and resultado = 'enviado'", id);
+          registrar(app, 'conversation.interrupted', ctx.pessoa.id, { conversa: id });
+        }
+        if (!ctx.res.destroyed && !ctx.res.writableEnded) {
+          if (!ctx.res.headersSent) ctx.res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store' });
+          ctx.res.end(JSON.stringify({ t: 'interrompido', mensagem }) + '\n');
+        }
+        return;
+      }
       if (BLOQUEIOS.has(e.codigo)) {
         const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(ctx.params.id), ctx.pessoa.id);
         if (conv) aviso(app, conv.id, ctx.regerar ? `A nova resposta não foi gerada. ${e.message} A resposta anterior foi mantida.` : `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
       }
       throw e;
-    } finally { const n = enviosAtivos.get(id) - 1; if (n) enviosAtivos.set(id, n); else enviosAtivos.delete(id); }
+    } finally { enviosAtivos.delete(id); cancelamentos.delete(id); }
   };
   r.post('/api/conversas/:id/mensagens', executarMensagem, { limiteMb: 42 });
+  r.post('/api/conversas/:id/interromper', ({ pessoa, params }) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    const controle = cancelamentos.get(conv.id);
+    controle?.abort();
+    return { ok: true, interrompida: !!controle };
+  });
   // "Gerar de novo" (QA UX M13): uma nova resposta ao MESMO último pedido, pelo mesmo caminho de um envio
   // (executarMensagem → enviarMensagem): sessão/CSRF do roteador, dono da conversa, rajada, ciência da política,
   // limites, plano e créditos (checarPlano), filtro de dados, sigilo e governança, roteamento, streaming e
@@ -637,7 +661,7 @@ export function rotasConversas(app, r) {
     const anexos = todos(app.db, 'select nome, texto, papel from anexos where mensagem_id = ? and ignorada = 0 order by id', pedido.id);
     return { resposta: resposta.id, pedido: pedido.id, texto: pedido.texto, anexos };
   }
-  async function enviarMensagem({ pessoa, params, corpo, res, programada = false, regerar = false }) {
+  async function enviarMensagem({ pessoa, params, corpo, res, programada = false, regerar = false, sinal }) {
     // Rajada: no máximo RAJADA envios por minuto por pessoa (protege créditos e o fornecedor).
     const instante = Date.now(), recentes = (rajadas.get(pessoa.id) || []).filter(t => t > instante - 60e3);
     if (recentes.length >= (app.rajada ?? RAJADA)) throw erro(429, 'rajada', 'Muitas mensagens em pouco tempo. Espere um minuto e envie de novo.');
@@ -683,7 +707,8 @@ export function rotasConversas(app, r) {
     // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
     const cancelado = new AbortController();
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
-    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal, imagemSemTexto: !qw && pedidoDeImagem(texto, { brutos: (corpo.anexos || []).map(a => a?.base64) })?.modo === 'editar' }) ?? []))
+    const sinalLeitura = sinal ? AbortSignal.any([cancelado.signal, sinal]) : cancelado.signal;
+    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: sinalLeitura, imagemSemTexto: !qw && pedidoDeImagem(texto, { brutos: (corpo.anexos || []).map(a => a?.base64) })?.modo === 'editar' }) ?? []))
       .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
     // Bytes originais (só para guardar um PDF como modelo de apresentação; não vão para a IA nem para o histórico).
     const brutos = repeticao || regeracao ? [] : (corpo.anexos || []).map(a => a?.base64);
@@ -692,6 +717,7 @@ export function rotasConversas(app, r) {
     const links = repeticao || regeracao ? [] : linksDoEnvio(corpo, qw ? texto : '');
     const avisosLinks = [];
     for (const l of links) {
+      sinal?.throwIfAborted();
       try {
         const r = await lerLink(l.url, { lookup: app.dnsLookup, maxBytes: 2 * 1024 * 1024, buscar: app.buscarLink });
         anexos.push({ nome: `${r.titulo || 'Página'} (${mascararUrl(l.url)})`.slice(0, 200), texto: r.texto.slice(0, app.limitesArquivo?.anexoCaracteres ?? 200000), papel: l.papel, tipo_fonte: 'url', url_exibida: mascararUrl(l.url) });
@@ -1095,6 +1121,7 @@ export function rotasConversas(app, r) {
       bloquearCredencial(pessoa, conv, ['envio_final'], []);
     }
 
+    sinal?.throwIfAborted();
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     // Metadados do streaming passam pelo mesmo filtro da API; o texto da resposta é o que a IA escreveu.
@@ -1240,6 +1267,7 @@ export function rotasConversas(app, r) {
     }
     if (perguntaInicial) registrar(app, 'quickwin.autonomy_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId,
       resultado: resposta.trim().startsWith(MARCADOR_PERGUNTA) ? 'pergunta_necessaria' : 'executou_com_escolhas', reavaliacoes: autonomia });
+    sinal?.throwIfAborted();
     if (falha) { const e = falha;
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
       registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
@@ -1533,6 +1561,7 @@ export function rotasConversas(app, r) {
       avisosDepois.length = 0;
       linha({ t: 'substituir', v: resposta });
     }
+    sinal?.throwIfAborted();
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, naoGuardar ? NAO_GUARDADO : resposta, usado, fim?.fornecedor, JSON.stringify([...ctx.fontes, ...(naoGuardar ? [] : fontesWeb)]), AGORA(app)).lastInsertRowid);
     for (const t of avisosDepois) aviso(app, conv.id, t);
@@ -1667,7 +1696,7 @@ export function detalhe(app, c, pessoa = null) {
     return q;
   };
   return {
-    conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
+    conversa: { id: c.id, em_execucao: !!app.cancelamentosChat?.has(c.id), titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias,
       pesquisa: situacaoPesquisa(app, c, pessoa) },

@@ -1,13 +1,18 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { setTimeout as esperar } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
 import { subir } from '../test/ajuda.js';
 import { pptx } from '../src/escritorio.js';
 
-let S, nav, admin, continuar, chamada = 0;
+let S, nav, admin, continuar, chamada = 0, bloquear = false, cancelado = false;
 before(async () => {
   S = await subir({ ia: {
-    async *enviar() {
+    async *enviar(msgs, op) {
+      if (bloquear) {
+        yield { tipo: 'texto', texto: 'Preparando o conteúdo solicitado…' };
+        try { await esperar(60000, null, { signal: op.sinal }); } catch (e) { cancelado = op.sinal.aborted; throw e; }
+      }
       chamada++;
       if (chamada === 1) {
         yield { tipo: 'texto', texto: '## O que foi feito\n\n**Estrutura visual:** ajustada.\n\nO arquivo PPTX ajustado está pronto para download abaixo.' };
@@ -58,6 +63,41 @@ test('conexão sem evento final: informa a interrupção e libera novo pedido', 
   assert.equal(await p.locator('.arquivo-montando').count(), 0);
   await p.fill('#entrada', 'Novo pedido');
   assert.equal(await p.locator('#enviar').isEnabled(), true);
+  assert.deepEqual(p.erros, []);
+  await p.close();
+});
+
+
+test('Interromper cancela no servidor e permite enviar o próximo pedido', async () => {
+  bloquear = true; cancelado = false;
+  const p = await pagina();
+  await p.fill('#entrada', 'Explique o processo de compras'); await p.click('#enviar');
+  await p.getByText('Preparando o conteúdo solicitado…').waitFor();
+  await p.getByRole('button', { name: 'Interromper execução', exact: true }).click();
+  await p.getByText('Execução interrompida por você.', { exact: false }).first().waitFor();
+  assert.equal(cancelado, true);
+  bloquear = false;
+  await p.fill('#entrada', 'Agora resuma em uma frase');
+  assert.equal(await p.getByRole('button', { name: 'Enviar', exact: true }).isEnabled(), true);
+  await p.getByRole('button', { name: 'Enviar', exact: true }).click();
+  await p.waitForFunction(() => document.querySelector('#enviar')?.getAttribute('aria-label') === 'Enviar');
+  assert.deepEqual(p.erros, []);
+  await p.close();
+});
+
+test('conversa reaberta em execução mantém Interromper disponível', async () => {
+  bloquear = true; cancelado = false;
+  const p = await pagina();
+  await p.fill('#entrada', 'Explique o processo de atendimento'); await p.click('#enviar');
+  await p.getByText('Preparando o conteúdo solicitado…').waitFor();
+  await p.reload();
+  await p.getByRole('button', { name: 'Interromper execução', exact: true }).waitFor();
+  await p.getByRole('button', { name: 'Interromper execução', exact: true }).click();
+  await p.getByText('Execução interrompida por você.', { exact: false }).first().waitFor();
+  assert.equal(cancelado, true);
+  bloquear = false;
+  await p.fill('#entrada', 'Novo pedido');
+  assert.equal(await p.getByRole('button', { name: 'Enviar', exact: true }).isEnabled(), true);
   assert.deepEqual(p.erros, []);
   await p.close();
 });

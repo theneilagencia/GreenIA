@@ -9,6 +9,7 @@ import { freemem } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FAMILIAS } from './fontes.js';
+import { sinalDaExecucao } from '../cancelamento-chat.js';
 
 export const ORIGEM = 'https://design.greenia.local';
 const PASTA_FONTES = join(dirname(fileURLToPath(import.meta.url)), 'fontes');
@@ -52,7 +53,9 @@ const FONTES_PERMITIDAS = new Set(Object.values(FAMILIAS).flatMap(f => Object.va
 let fila = Promise.resolve();
 // Executa fn(page) num navegador novo e isolado. assets: Map(nome -> { mime, bytes }).
 export function comPagina({ largura, altura, escala = 1, documento, assets = new Map() }, fn) {
+  const sinal = sinalDaExecucao();
   const tarefa = fila.then(async () => {
+    sinal?.throwIfAborted();
     const chromium = await playwright();
     const exe = caminhoChromium();
     if (!chromium || !exe) throw new Indisponivel('sem_chromium');
@@ -64,7 +67,10 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
         '--disable-crash-reporter', '--disable-breakpad', '--disable-features=Translate,MediaRouter,OptimizationHints', '--renderer-process-limit=1',
         '--single-process', '--no-zygote', '--in-process-gpu', '--disable-software-rasterizer'] });
+    const cancelar = () => { nav.close().catch(() => {}); };
+    sinal?.addEventListener('abort', cancelar, { once: true });
     try {
+      sinal?.throwIfAborted();
       const ctx = await nav.newContext({ javaScriptEnabled: false, viewport: { width: Math.round(largura), height: Math.round(altura) }, deviceScaleFactor: escala,
         acceptDownloads: false, bypassCSP: false, serviceWorkers: 'block' });
       await ctx.route('**/*', rota => {
@@ -86,7 +92,7 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
       await page.goto(`${ORIGEM}/doc`, { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready.then(() => true));
       return await fn(page);
-    } finally { await nav.close().catch(() => {}); }
+    } finally { sinal?.removeEventListener('abort', cancelar); await nav.close().catch(() => {}); }
   });
   fila = tarefa.catch(() => {});
   return tarefa;
@@ -97,7 +103,9 @@ export function comPagina({ largura, altura, escala = 1, documento, assets = new
 // sem eval. O JavaScript fica ligado só nesta página, que não tem conteúdo de terceiros além dos bytes do PDF.
 const LEITOR_PDF = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'node_modules', 'unpdf', 'dist', 'pdfjs.mjs');
 export function comLeitorPdf(pdf, fn, { tempoMs = 120_000 } = {}) {
+  const sinal = sinalDaExecucao();
   const tarefa = fila.then(async () => {
+    sinal?.throwIfAborted();
     const chromium = await playwright();
     const exe = caminhoChromium();
     if (!chromium || !exe) throw new Indisponivel('sem_chromium');
@@ -114,7 +122,10 @@ export function comLeitorPdf(pdf, fn, { tempoMs = 120_000 } = {}) {
     let expirou = false;
     const vigia = setTimeout(() => { expirou = true; nav.close().catch(() => {}); }, tempoMs);
     vigia.unref?.();
+    const cancelar = () => { nav.close().catch(() => {}); };
+    sinal?.addEventListener('abort', cancelar, { once: true });
     try {
+      sinal?.throwIfAborted();
       const ctx = await nav.newContext({ javaScriptEnabled: true, acceptDownloads: false, serviceWorkers: 'block' });
       await ctx.route('**/*', rota => {
         const u = rota.request().url();
@@ -131,7 +142,7 @@ export function comLeitorPdf(pdf, fn, { tempoMs = 120_000 } = {}) {
     } catch (e) {
       if (expirou) throw Object.assign(new Error('Tempo de leitura do modelo excedido.'), { codigo: 'arquivo_tempo_excedido' });
       throw e;
-    } finally { clearTimeout(vigia); await nav.close().catch(() => {}); }
+    } finally { sinal?.removeEventListener('abort', cancelar); clearTimeout(vigia); await nav.close().catch(() => {}); }
   });
   fila = tarefa.catch(() => {});
   return tarefa;

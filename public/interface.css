@@ -1516,3 +1516,11 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
 .editor-pedido textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:140px;font:400 15px/1.6 var(--sans)}
 .editor-pedido p{font-size:12px;color:var(--muted);margin:10px 0}
 @media(max-width:760px){.editor-pedido{width:75vw;padding:12px}}
+
+/* Preferências opcionais: o pedido comum não exige escolher capacidade. */
+.preferencias-resposta{position:relative;color:var(--muted);font:500 13px var(--sans)}
+.preferencias-resposta>summary{cursor:pointer;border-radius:999px;padding:10px 12px;list-style:none}
+.preferencias-resposta>summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.preferencias-resposta-painel{position:absolute;z-index:30;bottom:100%;left:0;width:min(320px,75vw);padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:0 8px 30px #0002}
+.app .preferencias-resposta-painel .caixa-nivel{width:100%;max-width:100%;margin-top:8px;white-space:normal}
+.preferencias-resposta-painel p{font-weight:400;line-height:1.5;margin:0 0 12px}

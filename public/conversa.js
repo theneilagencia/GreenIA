@@ -70,7 +70,7 @@ async function carregarModelos() {
   if (C !== s) return;
   C.opcoes = m.opcoes;
   C.homologadoPadrao = m.homologadoPadrao;
-  const preferido = C.conv?.modelo || m.padrao;
+  const preferido = C.conv?.modelo || (!C.qw && C.opcoes.some(o => o.id === 'classe:auto' && !o.bloqueado) ? 'classe:auto' : m.padrao);
   const livres = C.opcoes.filter(o => !o.bloqueado);
   C.modelo = livres.some(o => o.id === preferido) ? preferido : C.conv?.sigilosa ? m.homologadoPadrao : livres[0]?.id || null;
 }
@@ -117,9 +117,9 @@ function desenhar() {
               <button type="button" role="menuitem" id="anexar-link" aria-controls="link-novo" aria-expanded="false">${ICONE.link}<span><b>Adicionar link</b><small>Página pública usada como fonte</small></span></button>
             </div>
           </div>
-          ${C.opcoes.length > 1 && !qw?.v2 ? `<select class="caixa-nivel" id="modelo" aria-label="Nível" title="Nível. Opcional: no Automático, cada pedido já recebe o nível certo." ${podeTrocar ? '' : 'disabled'}>
-            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
-          </select>` : ''}
+          ${C.opcoes.length > 1 && !qw?.v2 ? `<details class="preferencias-resposta"><summary>Preferências</summary><div class="preferencias-resposta-painel"><p>O GreenIA recomenda a opção adequada para o seu pedido, dentro do seu acesso e do limite de consumo.</p><label for="modelo">Como responder</label><select class="caixa-nivel" id="modelo" aria-label="Como responder" title="O GreenIA recomenda a opção adequada dentro do seu acesso e do orçamento." ${podeTrocar ? '' : 'disabled'}>
+            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Seguir a recomendação do GreenIA' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
+          </select></div></details>` : ''}
           <button type="button" class="caixa-chave" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'aria-readonly="true"' : ''} aria-describedby="efeito-sigilo"
             title="${esc(sig ? `Dados sigilosos: ligado até a conversa ser apagada${conv.motivo_sigilosa ? ` (${conv.motivo_sigilosa})` : ''}` : 'Dados sigilosos: desligado')}">${sig ? ICONE.cadeado : ICONE.cadeadoAberto}<span class="caixa-chave-rotulo">Dados sigilosos</span></button>
           <span class="sr" id="efeito-sigilo">${sig ? `Ligado até a conversa ser apagada.${conv.motivo_sigilosa ? ` Motivo: ${esc(conv.motivo_sigilosa)}.` : ''}` : 'Desligado. Ao ligar, a plataforma pede confirmação.'}</span>
@@ -176,14 +176,14 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : a.tipo === 'da_resposta' ? cartaoDaResposta(m, a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' || a.tipo === 'documento' ? cartaoEdicao(a) : a.tipo === 'da_resposta' ? cartaoDaResposta(m, a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
     detalhe: a.tipo === 'design' ? `PowerPoint editável · ${a.slides} slides · design da apresentação` : `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
 }
 // Arquivo que a pessoa enviou, ajustado no próprio original (layout, estilos e fórmulas preservados).
 const FORMATO_EDICAO = { pptx: ['slides', 'PowerPoint'], docx: ['documento', 'Word'], xlsx: ['planilha', 'Excel'] };
 function cartaoEdicao(a) {
   const href = `/api/conversas/${C.conv.id}/arquivos/${a.id}`, [icone, app] = FORMATO_EDICAO[a.formato] || FORMATO_EDICAO.docx;
-  const detalhe = `${app} · o seu arquivo com ${a.alteracoes === 1 ? '1 alteração' : `${a.alteracoes} alterações`}, layout preservado${a.nao_aplicadas ? ` · ${a.nao_aplicadas} não aplicada${a.nao_aplicadas > 1 ? 's' : ''}` : ''}`;
+  const detalhe = a.tipo === 'documento' ? `${app} · arquivo gerado para este pedido` : `${app} · o seu arquivo com ${a.alteracoes === 1 ? '1 alteração' : `${a.alteracoes} alterações`}, layout preservado${a.nao_aplicadas ? ` · ${a.nao_aplicadas} não aplicada${a.nao_aplicadas > 1 ? 's' : ''}` : ''}`;
   if (a.formato === 'pptx') return cartaoComPrevia({ previa: `${href}/previa`, baixar: href, nome: a.nome, detalhe });
   return `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA[icone] || ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>${esc(a.nome)}</b><small>${esc(detalhe)}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`;
 }
@@ -870,7 +870,7 @@ function atualizarAdvanced() {
   painelAdvancedChat(C.conv?.id, async corpo=>{
     if(C!==estado||C.enviando)return;
     await carregarModelos();
-    C.modelo=corpo.advanced_alternativa?'classe:auto':'classe:avancado';
+    C.modelo='classe:auto';
     await enviar({texto:corpo.texto,advanced_alternativa:corpo.advanced_alternativa,anexos:[...(corpo.anexos||[]),...(corpo.links||[]).map(l=>({...l,link:true}))]},{executar:corpo.executar_quick_win===true});
   }).catch(()=>{});
 }

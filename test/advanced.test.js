@@ -32,7 +32,8 @@ test('Advanced: aprovação HTTP, privacidade, contexto preservado, retomada exp
   const painel=(await admin.get('/api/admin/advanced')).dados;
   assert.equal(painel.pedidos[0].estado,'pendente');assert.ok(!JSON.stringify(painel).includes(texto));
   const dec=await admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{...grant,decisao:'aprovar'});assert.equal(dec.status,200,JSON.stringify(dec.dados));assert.equal(OR.chamadas.length,0);
-  assert.equal((await ana.get('/api/advanced/pedidos')).dados.pedidos[0].estado,'aprovado');
+  const preservado=(await ana.get('/api/advanced/pedidos')).dados.pedidos[0];
+  assert.equal(preservado.estado,'aprovado');assert.equal(preservado.texto,texto);assert.deepEqual(preservado.anexos,[]);
   const ret=await ana.post(`/api/advanced/pedidos/${id}/retomar`);assert.deepEqual(ret.dados.corpo,b);assert.equal(OR.chamadas.length,0);
   const resposta=await enviarMensagem(ana,conv.id,{...ret.dados.corpo,modelo:'classe:avancado'});assert.equal(resposta.status,200,JSON.stringify(resposta));assert.ok(!resposta.falha,JSON.stringify(resposta));
   assert.ok(OR.chamadas.length);const chamada=OR.chamadas[0];assert.equal(chamada.model,ID);assert.deepEqual(chamada.provider.only,['anthropic']);assert.equal(chamada.provider.allow_fallbacks,false);assert.equal(chamada.provider.data_collection,'deny');assert.equal(chamada.provider.require_parameters,true);assert.equal(chamada.max_tokens,32768);assert.ok(!chamada.models);
@@ -109,5 +110,35 @@ test('Advanced: orçamento geral, política de sigilo e catálogo vencido contin
   a.catalogo.consultadoEm=new Date().toISOString();a.advanced.aprovado=false;exec(s.app.db,'update modelos set atributos=? where id=?',JSON.stringify(a),ID);
   assert.throws(()=>conferirAdvanced(s.app,s.ana.pessoa.id,ID,s.conv.id),e=>e.codigo==='advanced_seguranca');
   assert.equal(s.OR.chamadas.length,0);
+ }finally{await s.fechar();}
+});
+
+test('recomendação: administrador aprova sem escolher modelos; servidor ignora opções técnicas adulteradas',async()=>{
+ const s=await ambiente();try{
+  const r=await enviarMensagem(s.ana,s.conv.id,{texto});const id=r.erro.advanced.pedido;await s.ana.post(`/api/advanced/pedidos/${id}/solicitar`);
+  const rec=(await s.admin.get('/api/admin/advanced')).dados.pedidos.find(p=>p.id===id).recomendacao;
+  assert.equal(rec.disponivel,true);assert.equal(rec.execucaoAutomatica,false);assert.equal(rec.validadeDias,1);
+  const d=await s.admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_usd:rec.limite,dias:1,modelos:['nao/aprovado'],provedores:['nao-aprovado']});assert.equal(d.status,200,JSON.stringify(d.dados));
+  const a=um(s.app.db,'select * from advanced_autorizacoes order by id desc limit 1');assert.deepEqual(JSON.parse(a.modelos),[ID]);assert.deepEqual(JSON.parse(a.provedores),['anthropic']);assert.equal(a.conversa_id,s.conv.id);assert.equal(s.OR.chamadas.length,0);
+ }finally{await s.fechar();}
+});
+test('recomendação não aprova proteção nem orçamento; mudanças exigem nova conferência',async()=>{
+ const s=await ambiente();try{
+  const r=await enviarMensagem(s.ana,s.conv.id,{texto});const id=r.erro.advanced.pedido;await s.ana.post(`/api/advanced/pedidos/${id}/solicitar`);
+  const consulta=async()=> (await s.admin.get('/api/admin/advanced')).dados.pedidos.find(p=>p.id===id).recomendacao;
+  const rec=await consulta();assert.equal(rec.disponivel,true);
+  salvarConfig(s.app.db,{advanced:{limiteMensalUsd:0}});const sem=await consulta();assert.equal(sem.codigo,'advanced_orcamento');assert.equal(sem.disponivel,false);
+  salvarConfig(s.app.db,{advanced:{limiteMensalUsd:10}});
+  const stale=await s.admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_usd:rec.limite,dias:1});assert.equal(stale.status,409);assert.equal(stale.dados.erro,'recomendacao_mudou');
+  const a=JSON.parse(um(s.app.db,'select atributos from modelos where id=?',ID).atributos);a.advanced.aprovado=false;exec(s.app.db,'update modelos set atributos=? where id=?',JSON.stringify(a),ID);
+  assert.equal((await consulta()).codigo,'advanced_seguranca');assert.equal(um(s.app.db,'select count(*) n from advanced_autorizacoes').n,0);assert.equal(s.OR.chamadas.length,0);
+ }finally{await s.fechar();}
+});
+test('autorização existente permite continuar pedido pendente sem nova liberação',async()=>{
+ const s=await ambiente();try{
+  const r=await enviarMensagem(s.ana,s.conv.id,{texto});const id=r.erro.advanced.pedido;await s.ana.post(`/api/advanced/pedidos/${id}/solicitar`);
+  const g=await s.admin.post('/api/admin/advanced/autorizacoes',{...s.grant,conversa_id:null});assert.equal(g.status,200);
+  const p=(await s.ana.get('/api/advanced/pedidos')).dados.pedidos.find(p=>p.id===id);assert.equal(p.autorizacaoValida,true);
+  const d=await s.ana.post(`/api/advanced/pedidos/${id}/retomar`);assert.equal(d.status,200);assert.equal(d.dados.corpo.texto,texto);assert.equal(s.OR.chamadas.length,0);
  }finally{await s.fechar();}
 });

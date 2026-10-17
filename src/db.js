@@ -446,6 +446,8 @@ create table if not exists arquivos_gerados (
   db => { if (!db.prepare("select 1 from pragma_table_info('arquivos_gerados') where name = 'textos'").get()) db.exec('alter table arquivos_gerados add column textos text'); },
   // 23. Conversa com dados pessoais mascarados (sem recurso autorizado para sigilo): as mensagens seguintes também saem mascaradas.
   db => { if (!db.prepare("select 1 from pragma_table_info('conversas') where name = 'mascarada'").get()) db.exec('alter table conversas add column mascarada integer not null default 0'); },
+  // 24. Critérios do pedido Advanced, sem conteúdo, para recomendar a liberação.
+  db => { if (!db.prepare("select 1 from pragma_table_info('advanced_pedidos') where name = 'requisitos'").get()) db.exec("alter table advanced_pedidos add column requisitos text not null default '{}'"); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

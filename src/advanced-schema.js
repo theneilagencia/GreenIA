@@ -11,7 +11,7 @@ create table if not exists advanced_pedidos (
  id integer primary key, pessoa_id integer not null references pessoas(id) on delete cascade,
  conversa_id integer not null references conversas(id) on delete cascade,
  estado text not null check(estado in ('preparado','pendente','aprovado','recusado')),
- alternativa integer not null default 0, corpo text not null, justificativa text not null, estimativa_usd real,
+ alternativa integer not null default 0, requisitos text not null default '{}', corpo text not null, justificativa text not null, estimativa_usd real,
  em text not null, decisao_em text, decisao_por integer, motivo text,
  autorizacao_id integer references advanced_autorizacoes(id) on delete set null);
 create table if not exists advanced_consumo (

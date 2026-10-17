@@ -16,7 +16,7 @@ import { campoData, lerData } from '/data-br.js';
 
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
-const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Advanced' };
 // Perfil público para pesquisa externa (mesmos campos de src/quickwin-operacao.js PERFIL_PUBLICO).
 const PERFIL_PUBLICO = { nome: 'Nome público', setor: 'Setor', categoria: 'Categoria de produto ou serviço', regiao: 'País ou região', mercado: 'Mercado-alvo' };
 const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', pessoal_restrito: 'Dado pessoal restrito (disciplinar, remuneração individual)', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
@@ -107,7 +107,7 @@ async function abaModelos() {
   const cartaoGov = `<div class="editor" id="governanca"><span class="editor-titulo">Como a empresa usa a IA</span>
     <div class="escolhas" role="radiogroup" aria-label="Como a empresa usa a IA" data-sem-alteracao>
       <label class="escolha"><input type="radio" name="gov" value="recomendado" ${recomendado ? 'checked' : ''}>
-        <span class="escolha-titulo">Seguir recomendações da GreenIA <span class="selo-recomendado">Recomendado</span></span>
+        <span class="escolha-titulo">Seguir a recomendação do GreenIA <span class="selo-recomendado">Recomendado</span></span>
         <span class="escolha-desc">A GreenIA escolhe e mantém os modelos de cada nível.</span></label>
       <label class="escolha"><input type="radio" name="gov" value="manual" ${recomendado ? '' : 'checked'}>
         <span class="escolha-titulo">Configurar manualmente</span>
@@ -129,19 +129,19 @@ async function abaModelos() {
     <ul class="adm-sug-niveis-lista">${niveisSug.itens.map(i => `<li data-nivel="${i.nivel}"><b>${esc(i.nome)}</b><span>${esc(i.texto)}</span>${i.segue ? '' : '<span class="tag tag-ambar">Muda</span>'}</li>`).join('')}</ul></section>` : '';
   $('conteudo').innerHTML = `${topoTela('Os níveis de IA que a empresa usa e quem usa cada um.')}
     <form id="cfg-modelos">
-    ${cartaoGov}${aviso}${blocoSugestao}
+    ${cartaoGov}${aviso}<details><summary>Detalhes da configuração de IA</summary>${blocoSugestao}
     <h2>Níveis</h2>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Nível</th><th>Modelos do nível</th><th>Alternativa se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {}; const pool = liberados.filter(y => y.perfil === k && y.noCatalogo);
         return `<tr><td data-r="Nível"><b>${v}</b></td><td data-r="Modelos do nível"><b>${pool.length} ${pool.length === 1 ? 'modelo disponível' : 'modelos disponíveis'}</b><br><span class="dica">${pool.map(y => esc(y.nome)).join(' · ') || 'Nenhum modelo disponível'}${x ? `<br>Preferência: ${esc(x.nome)}` : ''}</span></td>
           <td data-r="Alternativa se falhar">${r ? esc(r.nome) : pool.length > 1 ? '<span class="dica">Seleção automática no mesmo nível, quando elegível. Em sigilo, nova conferência das regras.</span>' : '<span class="dica">Sem alternativa no nível</span>'}</td><td data-r="Consumo">${x ? fmtCusto(x.custoConversa, { conversa: true }) : '—'}</td>
-          <td data-r="Quem usa">${k === 'rapido' || a.todos ? 'Todas as pessoas' : (a.grupos || []).length + (a.areas || []).length ? 'Grupos e áreas escolhidos' : 'Só pelo Quick Win'}</td></tr>`; }).join('')}
+          <td data-r="Quem usa">${k === 'avancado' ? 'Somente com liberação administrativa e limite de consumo' : k === 'rapido' || a.todos ? 'Todas as pessoas' : (a.grupos || []).length + (a.areas || []).length ? 'Grupos e áreas escolhidos' : 'Só pelo Quick Win'}</td></tr>`; }).join('')}
     </tbody></table></div>
-    <div class="secao-titulo"><h2>Quem usa cada nível</h2>${recomendado ? botaoRevelar('modelos-manuais', 'Ajustar manualmente') : ''}</div>
+    </details><div class="secao-titulo"><h2>Ajustes opcionais de acesso</h2>${recomendado ? botaoRevelar('modelos-manuais', 'Ajustar manualmente') : ''}</div>
     <div id="modelos-manuais" ${recomendado ? 'hidden' : ''}>
     ${recomendado ? '<p class="dica">Salvar um ajuste aqui passa a empresa para o modo manual. As regras de sigilo continuam valendo.</p>' : ''}
       <p class="dica">${PERFIS.rapido}: todas as pessoas, sempre.</p>
-      ${acesso('equilibrado')}${acesso('avancado')}
+      ${acesso('equilibrado')}<p>O Advanced usa as liberações recomendadas para cada trabalho, no painel abaixo. Configurar um Quick Win não concede esse acesso.</p>
       <h3>Níveis que podem ser escolhidos em Quick Win</h3>
       <div class="opcoes">${Object.entries(PERFIS).map(([k, v]) => `<label><input type="checkbox" name="perfis-qw" value="${k}" ${cfg.perfisQuickWin.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
       <div class="adm-mais">${botaoRevelar('modelos-mais', 'Mais opções')}</div>
@@ -185,7 +185,7 @@ async function abaModelos() {
     try {
       await api('/api/admin/modelos-config', { metodo: 'PUT', corpo: {
         padroes: { chat: $('pd-chat').value, homologado: $('pd-homologado').value || null, rapido: $('pd-rapido').value || null, equilibrado: $('pd-equilibrado').value || null, avancado: $('pd-avancado').value || null },
-        acessoPerfis: { equilibrado: ac('equilibrado'), avancado: ac('avancado') },
+        acessoPerfis: { equilibrado: ac('equilibrado'), avancado: cfg.acessoPerfis.avancado },
         perfisQuickWin: [...document.querySelectorAll('input[name=perfis-qw]:checked')].map(i => i.value),
         exigirSemTreino: $('sem-treino').checked, automatico: $('automatico').checked } });
       toast('Configuração salva.'); abaModelos();
@@ -391,7 +391,7 @@ const percentualPlano = p => (p.usados > 0 && p.percentual < 1 ? 'menos de 1%' :
 
 // ---------------------------------------------------------------- Plano (empresa com plano contratado)
 const dataBr = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR');
-const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Advanced' };
 const MES_CURTO = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 function barrasMes(lista, ate) {
   const [a, m] = ate.split('-').map(Number);

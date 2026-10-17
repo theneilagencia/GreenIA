@@ -6,7 +6,7 @@ import { pptxDoDesign } from './visual/pptx.js';
 import { criarPrazoArquivo } from './tempo-arquivo.js';
 import { exigeAltaQualidade, NOTA_ALTA_QUALIDADE, NOTA_FIDELIDADE, pedeRedesignApresentacao } from '../public/qualidade-entrega.js';
 import { comCancelamento } from './cancelamento-chat.js';
-import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
+import { extrairTabelas, gerarCsv, nomesDasTabelas, normalizarTabelas } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
 import { arquivosDoProjeto, blocosDeCodigo, entregaDeCodigo } from './codigo-chat.js';
@@ -1663,8 +1663,12 @@ export function rotasConversas(app, r) {
     // Arquivo prometido e não gerado: a resposta não pode dizer que ele está pronto (QA em produção: "o arquivo está
     // pronto para download abaixo" sem arquivo nenhum). As frases de entrega saem e a falha é dita no fim, com o motivo.
     // Formatos pedidos (mesma leitura da tela): sem arquivo especializado, a versão a partir da resposta é anexada.
+    if (/\b(excel|xlsx|xls|planilhas?)\b/i.test(texto)) {
+      const normalizada = normalizarTabelas(resposta);
+      if (normalizada !== resposta) { resposta = normalizada; linha({ t: 'substituir', v: resposta }); }
+    }
     const formatosPedidos = qw || naoGuardar ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
-      .filter(([f, re]) => re.test(texto) && (f !== 'xlsx' || extrairTabelas(resposta).length)).map(([f]) => f);
+      .filter(([, re]) => re.test(texto)).map(([f]) => f);
     if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
       resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;
       avisosDepois.length = 0;
@@ -1675,6 +1679,27 @@ export function rotasConversas(app, r) {
       resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo com o acabamento solicitado não foi gerado.** O conteúdo está nesta resposta, mas o design não passou pela validação. A plataforma não substituiu a entrega por uma versão básica.`;
       linha({ t: 'substituir', v: resposta });
       if (registroQualidade) registroQualidade.status = 'parcial';
+    }
+    // Materializar antes de anunciar a entrega. Marcadores de formato não são arquivos.
+    const officeProntos = [];
+    if (formatosPedidos.length && !visuais?.artefatos?.length && !gerado && !editado && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40) {
+      for (const formato of formatosPedidos) {
+        try {
+          const conteudo = soEntregavel(resposta), titulo = conv.titulo || 'Resposta da GreenIA';
+          let dados;
+          if (formato === 'xlsx') {
+            const tabelas = extrairTabelas(conteudo), nomes = nomesDasTabelas(conteudo);
+            if (!tabelas.length) throw new Error('sem_tabela');
+            dados = xlsx(tabelas.map((linhas, i) => ({ nome: nomes[i], linhas })), { titulo });
+          } else dados = (formato === 'docx' ? docx : pptx)(conteudo, { titulo });
+          if (!dados?.length || dados.readUInt32LE(0) !== 0x04034b50) throw new Error('pacote_invalido');
+          officeProntos.push({ nome: nomeDoArquivo(titulo, formato), formato, dados });
+        } catch (e) {
+          app.log?.('arquivo da resposta', erroParaLog(e));
+          resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${formato.toUpperCase()} não foi gerado.** Não foi possível montar um arquivo válido a partir desta resposta. Peça ao GreenIA para corrigir a entrega; o conteúdo acima ainda precisa dessa etapa.`;
+          linha({ t: 'substituir', v: resposta });
+        }
+      }
     }
     sinal?.throwIfAborted();
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
@@ -1718,7 +1743,7 @@ export function rotasConversas(app, r) {
     const guardar = (nome, mime, dados, detalhes) => {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, nome, mime, dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome, bytes: dados.length, ...detalhes });
-      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: 'codigo_da_resposta' });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: detalhes.origem || 'codigo_da_resposta' });
       return id;
     };
     const permitida = op => !!codigo?.itens.some(i => i.op === op && i.situacao === 'permitida');
@@ -1761,8 +1786,7 @@ export function rotasConversas(app, r) {
     }
     // Pediu arquivo, recebe arquivo: nenhum caminho especializado gerou o arquivo pedido -> a versão a partir da resposta
     // fica registrada junto dela (o cartão de download aparece sempre, também ao reabrir a conversa).
-    if (!arquivos.length && !artefatos.length && formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40)
-      for (const f of formatosPedidos) guardar(`resposta.${f}`, 'text/uri-list', Buffer.from(f), { tipo: 'da_resposta', formato: f });
+    for (const a of officeProntos) guardar(a.nome, MIMES[a.formato], a.dados, { tipo: 'documento', formato: a.formato, origem: 'resposta_materializada' });
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
     // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.

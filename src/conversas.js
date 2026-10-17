@@ -193,8 +193,8 @@ export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identida
 // "Monte a apresentação do novo cliente seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
 export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões|oes)|slides?|deck)\b/i.test(t)
   && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|refer[eê]ncia|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
-// Pedido de apresentação (criar, montar, versão pronta, PPTX) numa conversa que já tem uma apresentação em PDF:
-// o PDF é a referência de layout, mesmo sem a pessoa dizer "mesmo layout".
+// Pedir uma apresentação não transforma documentos de conteúdo em modelos visuais.
+// Sem instrução explícita de layout, só um anexo marcado como referência pode emprestar o layout.
 const PEDE_APRESENTACAO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao)|slides|deck)\b/i.test(t) && (PEDE_CRIAR.test(t) || PEDE_CRIAR_APR.test(t) || /\bem (pptx|power ?point)\b/i.test(t));
 const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'base64').subarray(0, 4).toString() === '%PDF';
 // Nome de arquivo comparável ao texto do pedido: sem acento, sem extensão, minúsculo ("Apresentação-Kickoff.pptx" e
@@ -204,9 +204,10 @@ const citaNome = (texto, nome) => { const b = nomeComparavel(nome); return b.len
 // Modelo de layout: entre os PDFs desta mensagem (ou, sem PDF agora, os guardados na conversa), o que o pedido cita
 // pelo nome; sem citação, o que tem cara de apresentação (página deitada); senão o mais recente. QA em produção: com a
 // apresentação de referência e a proposta comercial (PDF) anexadas, o modelo virou a proposta, a última anexada.
-export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = [], texto = '') {
-  let lista = brutos.map((b, k) => ehPdf(b) ? { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(b, 'base64'), texto: anexosAtuais[k]?.texto || '' } : null).filter(Boolean);
-  if (!lista.length) lista = todos(app.db, "select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime = 'application/pdf' order by a.id", conversaId)
+export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = [], texto = '', { somenteReferencia = false } = {}) {
+  let lista = brutos.map((b, k) => ehPdf(b) && (!somenteReferencia || anexosAtuais[k]?.papel === 'REFERENCE') ? { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(b, 'base64'), texto: anexosAtuais[k]?.texto || '' } : null).filter(Boolean);
+  if (!lista.length) lista = todos(app.db, "select a.nome, a.texto, a.papel, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and a.ignorada = 0 and f.mime = 'application/pdf' order by a.id", conversaId)
+    .filter(r => !somenteReferencia || r.papel === 'REFERENCE')
     .map(r => ({ nome: r.nome, dados: Buffer.from(r.dados), texto: r.texto }));
   if (!lista.length) return null;
   return lista.findLast(m => citaNome(texto, m.nome)) || lista.findLast(m => pdfPaisagem(m.dados)) || lista.at(-1);
@@ -922,7 +923,8 @@ export function rotasConversas(app, r) {
       }
       edicao = null;
     }
-    let modeloApr = !redesignLivre && !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos, texto) : null;
+    let modeloApr = !redesignLivre && !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto))
+      ? modeloDaConversa(app, conv.id, anexos, brutos, texto, { somenteReferencia: !PEDE_MODELO(texto) }) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
     // Pedido de layout sem ter caído na edição (o pedido não pareceu ajuste no arquivo): se ele cita uma apresentação
@@ -1527,9 +1529,9 @@ export function rotasConversas(app, r) {
     const avisosDepois = [], avisoDepois = t => { avisosDepois.push(t); };
     let gerado = null, falhaExportacaoVisual = false;
     // Rede de segurança: o pedido não foi reconhecido como apresentação, mas a resposta saiu como roteiro "Slide 1,
-    // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
+    // Slide 2…" numa conversa com uma referência visual em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
     // como conteúdo, em vez de a pessoa ficar com um texto que vira slides genéricos.
-    if (!redesignLivre && !modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
+    if (!redesignLivre && !modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto, { somenteReferencia: !PEDE_MODELO(texto) }); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
     // O arquivo ainda vai ser montado (pode levar minutos): a frase "o arquivo está pronto para baixar" sai do texto
     // já agora, e a tela mostra o andamento. Quem anuncia o arquivo é a plataforma, quando ele existe (em produção a
     // pessoa leu "pronto para download" enquanto o PowerPoint ainda estava sendo montado).

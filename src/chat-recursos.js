@@ -34,6 +34,10 @@ export function quickWinSugerido(texto) {
 
 const PESQUISA = /\b(pesquis\w*|busque|buscar na (internet|web)|procure na (internet|web)|na internet|ultimas? noticias|novidades (recentes|da semana|do mes)|ultimos \d+ dias|ultimas \d+ semanas|esta semana|nesta semana|este mes|neste mes|hoje|atualmente|fontes oficiais|o que (mudou|ha de novo))\b/;
 export const pedePesquisa = texto => !proibePesquisaWeb(texto) && PESQUISA.test(norm(texto));
+// Uma menção a "hoje" num e-mail não exige consulta externa. Já um pedido explícito
+// de pesquisa não pode ser substituído por conhecimento geral sem escolha da pessoa.
+export const exigePesquisa = texto => !pedeAgente(texto) && !proibePesquisaWeb(texto)
+  && /\b(pesquise|pesquisar|busque|procure na (internet|web)|consulte (a documentacao|as fontes|fontes oficiais)|confira (as fontes|fontes oficiais))\b/.test(norm(texto));
 // Liberação da pesquisa na conversa: as mesmas regras da pesquisa dos Quick Wins.
 export function decisaoPesquisa(cfg, { sigilosa, areaReforcada, protegidos, reserva }) {
   if (!cfg.pesquisaWeb?.ativa) return { pode: false, codigo: 'nao_liberada' };

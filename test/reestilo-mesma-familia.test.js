@@ -18,9 +18,9 @@ const MODELO = [
 ];
 const FONTE = [
   '## Slide 1', '[a] Kick-off Projeto / Cliente Teste', '[b] Produção · Custeio', '[c] Documento de trabalho da gestão Cliente Teste',
-  '## Slide 2', '[a] 01 · MENSAGEM CENTRAL', '[b] O projeto entende como a operação funciona hoje e organiza o que vem depois', '[c] Hoje', '[d] → Modelo futuro', '[e] Projeto · Cliente Teste',
+  '## Slide 2', '[a] 06 · MENSAGEM CENTRAL', '[b] O projeto entende como a operação funciona hoje e organiza o que vem depois', '[c] Hoje', '[d] → Modelo futuro', '[e] Projeto · Cliente Teste',
   '## Slide 3', '[a] Como o trabalho acontece',
-  '## Slide 4', '[a] 04 · MÉTODO DE TRABALHO', '[b] Como o trabalho acontece', '[c] 01', '[d] 02', '[e] Evidência · Documentos, dados, relatórios e sistemas', '[f] Conversa · Quem executa explica a', '[g] operação', '[h] Projeto · Cliente Teste', '[i] 10',
+  '## Slide 4', '[a] 07 · MÉTODO DE TRABALHO', '[b] Como o trabalho acontece', '[c] 01', '[d] 02', '[e] Evidência · Documentos, dados, relatórios e sistemas', '[f] Conversa · Quem executa explica a', '[g] operação', '[h] Projeto · Cliente Teste', '[i] 10',
   '## Slide 5', '[a] 09 · ESCOPO', '[b] O que não está no escopo', '[c] Substituição do ERP Fictício', '[d] Parecer contábil', '[e] Projeto · Cliente Teste',
 ].join('\n');
 const DOCS = 'Proposta: o diagnóstico usa o relatório de custos do ERP Fictício, as planilhas de apontamento e o plano de contas gerencial. Prazo de 30 dias corridos.';
@@ -54,9 +54,9 @@ test('mesma família: o pedido é aplicado (renumerar, enriquecer), número inve
     pedidoVisto = msgs.map(m => m.content).join('\n');
     return { texto: JSON.stringify({ slides: [
       { origem: 1, igual: true },
-      { origem: 2, conteudo: '01 · MENSAGEM CENTRAL\nO projeto entende como a operação funciona hoje e organiza o que vem depois\nHoje\n→ Modelo futuro\nProjeto · Cliente Teste' },
+      { origem: 2, conteudo: '06 · MENSAGEM CENTRAL\nO projeto entende como a operação funciona hoje e organiza o que vem depois\nHoje\n→ Modelo futuro\nProjeto · Cliente Teste' },
       { origem: 3, conteudo: 'Como o trabalho acontece' },
-      { origem: 4, conteudo: '04 · MÉTODO DE TRABALHO\nComo o trabalho acontece\nEvidência · Relatório de custos do ERP Fictício, planilhas de apontamento e plano de contas gerencial\nConversa · Quem executa explica a operação\nEconomia garantida de 4.500 horas por ano\nProjeto · Cliente Teste' },
+      { origem: 4, conteudo: '07 · MÉTODO DE TRABALHO\nComo o trabalho acontece\nEvidência · Relatório de custos do ERP Fictício, planilhas de apontamento e plano de contas gerencial\nConversa · Quem executa explica a operação\nEconomia garantida de 4.500 horas por ano\nProjeto · Cliente Teste' },
       { origem: 5, conteudo: '08 · ESCOPO\nO que não está no escopo\nSubstituição do ERP Fictício\nParecer contábil\nProjeto · Cliente Teste' },
     ], mudancas: ['Capítulo de escopo renumerado de 09 para 08', 'Evidências detalhadas com os documentos da proposta'] }) };
   };
@@ -108,4 +108,19 @@ test('trava: a IA não inverte o sentido de um slide nem o esvazia; a renumeraç
 test('divisória com o mesmo nome do slide seguinte é apontada para a IA', () => {
   assert.match(divisoriasRepetidas(FONTE), /slide 3 \(divisória\) "Como o trabalho acontece"/);
   assert.doesNotMatch(divisoriasRepetidas(FONTE), /slide 1/);
+});
+
+test('trava: linha que some ou não confere volta; slide não repete o nome novo da divisória; capítulos renumerados', async () => {
+  const chamar = async () => ({ texto: JSON.stringify({ slides: [
+    { origem: 1, igual: true }, { origem: 2, igual: true },
+    { origem: 3, conteudo: 'O jeito de trabalhar' },
+    { origem: 4, conteudo: '07 · MÉTODO DE TRABALHO\nO jeito de trabalhar\n01\n02\nConversa · Quem executa explica a operação\nProjeto · Cliente Teste\n10' },
+    { origem: 5, conteudo: 'O que não está no escopo\nSubstituição do ERP Fictício\nParecer contábil\nProjeto · Cliente Teste' },
+  ] }) });
+  const pl = await planejarReestilo({ paginas: MODELO, fonte: FONTE, pedido: 'os capítulos pulam do 7 pro 9; a divisória repete o slide seguinte', contexto: DOCS, material: `${FONTE}\n${DOCS}`, chamar });
+  assert.equal(pl.slides[2].conteudo, 'O jeito de trabalhar');
+  const metodo = pl.slides[3].conteudo.split('\n');
+  assert.equal(metodo[1], 'Como o trabalho acontece', 'título do slide não repete a divisória');
+  assert.ok(metodo.some(l => /^Evidência/.test(l)), 'linha que a IA deixou de fora volta');
+  assert.match(pl.slides[4].conteudo, /^08 · ESCOPO/, 'rótulo volta, renumerado na sequência dos capítulos');
 });

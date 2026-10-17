@@ -684,35 +684,90 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
   let lista = (Array.isArray(j?.slides) ? j.slides : []).slice(0, maximo).map(s => {
     const o = Math.round(Number(s?.origem)) - 1;
     const origem = o >= 0 && o < fonteSlides.length ? o : -1;
-    return { origem, conteudo: s?.igual === true && origem >= 0 ? fonteSlides[origem] : conferir(s?.conteudo) };
-  }).filter(s => s.conteudo);
+    // Slide que já existia: as linhas são conferidas uma a uma contra as originais (abaixo); slide novo: conferência simples.
+    return { origem, conteudo: s?.igual === true && origem >= 0 ? fonteSlides[origem] : origem >= 0 ? String(s?.conteudo || '') : conferir(s?.conteudo) };
+  }).filter(s => s.conteudo.trim());
+  const remover = /\b(remov|retir|exclu|apag|tir[ae]|elimin|enxug|reduz|resum)/i.test(semAcento(pedido));
   // Resposta que perdeu boa parte da apresentação (cortada, ou slides esquecidos): fica a apresentação original.
   // Travas por slide: frase que perde ou ganha negação ("não", "sem", "fora") em relação à linha original equivalente
   // volta à original (QA em produção: "O que não está no escopo" virou "O que está no escopo"); slide que, depois da
   // conferência, ficou com menos da metade das linhas do original volta inteiro ao original (o mesmo slide ficou vazio).
   const NEG = /\b(n[aã]o|sem|fora|nunca|nenhum|nenhuma|exceto)\b/i;
+  // Alinhamento com o slide original: cada linha nova se liga à linha original mais parecida. Linha editada que não
+  // passa na conferência (número ou palavras fora do material) volta à original, em vez de sumir; linha original que
+  // a IA deixou de fora volta ao seu lugar, a menos que o pedido mande remover ou enxugar. QA em produção: a linha
+  // "Evidência · Documentos…", justamente a que o pedido mandou enriquecer, sumiu do slide.
+  const passa = l => originais.has(semAcento(l)) || (!numerosForaDoMaterial(l, material).length && fracaoForaDoMaterial(l, material) < 0.5);
   lista = lista.map(s => {
     if (s.origem < 0) return s;
-    const orig = linhasDe(fonteSlides[s.origem]);
-    let invertido = false;
-    const novas = linhasDe(s.conteudo).map(l => {
-      const par = orig.reduce((m, o) => { const n = parecenca(o, l); return n > m.n ? { n, o } : m; }, { n: 0, o: null });
-      if (par.n >= 0.5 && NEG.test(semAcento(par.o)) !== NEG.test(semAcento(l))) { invertido = true; return par.o; }
-      return l;
+    const orig = linhasDe(fonteSlides[s.origem]), novas = linhasDe(s.conteudo);
+    const pares = [];
+    novas.forEach((l, j) => orig.forEach((o, i) => { const n = parecenca(o, l); if (n >= 0.3) pares.push([n, i, j]); }));
+    pares.sort((a, b) => b[0] - a[0]);
+    const deNova = new Map(), usadas = new Set();
+    for (const [, i, j] of pares) if (!deNova.has(j) && !usadas.has(i)) { deNova.set(j, i); usadas.add(i); }
+    // Linha reescrita por inteiro (nome novo de divisória, título trocado): se liga à linha original livre no mesmo
+    // trecho do slide, a de tamanho mais parecido.
+    novas.forEach((l, j) => {
+      if (deNova.has(j)) return;
+      const antes = Math.max(-1, ...[...deNova].filter(([jj]) => jj < j).map(([, i]) => i)), depois = Math.min(orig.length, ...[...deNova].filter(([jj]) => jj > j).map(([, i]) => i));
+      const livres = orig.map((o, i) => i).filter(i => i > antes && i < depois && !usadas.has(i));
+      if (!livres.length) return;
+      const i = livres.reduce((m, i) => Math.abs(orig[i].length - l.length) < Math.abs(orig[m].length - l.length) ? i : m);
+      deNova.set(j, i); usadas.add(i);
     });
+    let invertido = false;
+    const itens = novas.map((l, j) => {
+      const i = deNova.get(j), o = i == null ? null : orig[i];
+      if (o != null && NEG.test(semAcento(o)) !== NEG.test(semAcento(l))) { invertido = true; return { k: i, l: o, i }; }
+      if (!passa(l)) return o == null ? null : { k: i, l: o, i };
+      return { k: i ?? -1, l, i };
+    });
+    // Linha nova sem par: entra logo depois da linha anterior dela.
+    let ant = -0.5;
+    for (const x of itens) { if (!x) continue; if (x.k === -1) x.k = ant + 0.01; ant = x.k; }
+    const juntas = itens.filter(Boolean);
+    if (!remover) orig.forEach((o, i) => { if (!usadas.has(i)) juntas.push({ k: i, l: o, i }); });
+    juntas.sort((a, b) => a.k - b.k);
+    const resultado = juntas.map(x => x.l);
     // Sentido invertido (a lista do slide também mudou junto) ou slide esvaziado: volta ao original, mas a
     // renumeração pedida no rótulo ("09 · ESCOPO" → "08 · ESCOPO") fica.
-    if (invertido || (orig.length >= 3 && novas.length < orig.length / 2)) {
+    if (invertido || (orig.length >= 3 && resultado.length < orig.length / 2)) {
       const so = l => semAcento(l).replace(/\d+/g, '#').replace(/\s+/g, ' ').trim();
       return { ...s, conteudo: orig.map(o => novas.find(l => l !== o && so(l) === so(o)) ?? o).join('\n') };
     }
-    return { ...s, conteudo: novas.join('\n') };
+    return { ...s, conteudo: resultado.join('\n'), pares: juntas.map(x => x.i) };
   });
+  // Slide de conteúdo que repete o nome da divisória logo antes dele (o pedido era justamente evitar a repetição):
+  // a linha volta à original. QA em produção: a divisória ganhou nome novo e o título do slide seguinte também.
+  lista.forEach((s, n) => {
+    const div = lista[n - 1];
+    if (!div || s.origem < 0 || linhasDe(div.conteudo).length !== 1 || linhasDe(s.conteudo).length < 2) return;
+    const nome = linhasDe(div.conteudo)[0], orig = linhasDe(fonteSlides[s.origem]);
+    s.conteudo = linhasDe(s.conteudo).map((l, k) => {
+      const i = s.pares?.[k];
+      return parecenca(l, nome) >= 0.8 && i != null && orig[i] && parecenca(orig[i], nome) < 0.8 ? orig[i] : l;
+    }).join('\n');
+  });
+  // Capítulos fora de sequência ("07" e depois "09") com pedido sobre numeração: a plataforma renumera os rótulos
+  // "NN · …" na ordem em que aparecem, além do que a IA fizer.
+  if (/cap[ií]tulo|numera|pul[ao]m?\b|sequ[eê]ncia/i.test(pedido || '')) {
+    const rot = /^(\d{2})(\s*·\s*)/;
+    const vistos = [];
+    for (const s of lista) for (const l of linhasDe(s.conteudo)) { const m = rot.exec(l); if (m && !vistos.includes(m[1])) vistos.push(m[1]); }
+    const ns = vistos.map(Number);
+    if (ns.length >= 3 && ns.every((n, i) => !i || n > ns[i - 1]) && ns.some((n, i) => i && n !== ns[i - 1] + 1)) {
+      const novo = new Map(vistos.map((v, i) => [v, String(ns[0] + i).padStart(2, '0')]));
+      for (const s of lista) s.conteudo = linhasDe(s.conteudo).map(l => l.replace(rot, (t, n, sep) => `${novo.get(n) ?? n}${sep}`)).join('\n');
+    }
+  }
   const cobertos = new Set(lista.map(s => s.origem).filter(o => o >= 0));
   if (lista.length < fonteSlides.length * 0.6 || cobertos.size < fonteSlides.length * 0.6) lista = fonteSlides.map((c, i) => ({ origem: i, conteudo: c }));
   const textuais = paginas.map((p, k) => k).filter(k => k > 0 && k < paginas.length - 1 && paginaDeTexto(paginas[k]));
   const slides = lista.map((s, i) => {
-    const m = paginaCorrespondente(paginas, linhasDe(s.conteudo));
+    // Slide que já existia fica na página equivalente dele (o texto novo de uma divisória não parece com nenhuma
+    // página); só slide novo, ou sem página equivalente, procura pelo conteúdo.
+    const m = s.origem >= 0 && corresp[s.origem].nota >= 0.3 ? corresp[s.origem] : paginaCorrespondente(paginas, linhasDe(s.conteudo));
     const pagina = m.nota >= 0.3 ? m.k : s.origem >= 0 && corresp[s.origem].nota >= 0.3 ? corresp[s.origem].k
       : i === 0 ? 0 : i === lista.length - 1 ? paginas.length - 1 : (textuais[i % Math.max(1, textuais.length)] ?? Math.min(1, paginas.length - 1));
     return { pagina, conteudo: s.conteudo, correspondencia: true };
